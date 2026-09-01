@@ -180,13 +180,25 @@ dotnet run --project FF3.ContentTool -- xbn-build files/MenuDefine.xml
 
 See `Docs/Menus.md`.
 
+## Game text
+
+The `.msd` files hold every line in the game and decode to JSON and back:
+
+```bash
+dotnet run --project FF3.ContentTool -- msd       ..\extracted ..	ext
+dotnet run --project FF3.ContentTool -- msd-build en.lproj/eureka_menu.json
+```
+
+See `Docs/Text.md`, which also covers the 15251 messages that are not the UTF-8 the
+game expects.
+
 ## Not decoded yet
 
 The archives extract, and `.xbn` decodes, but the rest of the blobs are still in
-their NDS formats - `.NCGR`/`.NSCR`/`.NCER` graphics, `.msd` text, `.script` bytecode,
-`.lz` compression. Each is its own decoder. `.msd` is the one worth doing next: it
-holds every line of dialogue and every menu label, and `.xbn` can only reference
-message ids that already exist until it is readable.
+their NDS formats - `.NCGR`/`.NSCR`/`.NCER` graphics, `.script` bytecode, `.lz`
+compression. Each is its own decoder. `.script` is the one worth doing next: it is what
+decides when a message is shown and what a quest does, so events stay out of reach
+until it is readable.
 
 `--dump=<dir>` is the shortcut in the meantime: the running game writes out every
 image blob it decodes, which covers the art without decoding anything by hand.

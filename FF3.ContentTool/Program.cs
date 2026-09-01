@@ -6,6 +6,8 @@
 //   dotnet run --project FF3.ContentTool -- extract-archives <content-dir> <out-dir> [pattern ...]
 //   dotnet run --project FF3.ContentTool -- xbn        <file.xbn> [out.xml]
 //   dotnet run --project FF3.ContentTool -- xbn-build  <file.xml> [out.xbn]
+//   dotnet run --project FF3.ContentTool -- msd        <file.msd | dir> [out]
+//   dotnet run --project FF3.ContentTool -- msd-build  <file.json> [out.msd]
 //
 // "extract" turns the shipped .xnb files back into editable sources:
 //   Fonts/<name>.png   + <name>.json   glyph atlas and metrics
@@ -18,6 +20,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -69,6 +72,20 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return XbnBuild(args[1], args.Length > 2 ? args[2] : null);
+					case "msd":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return MsdDecode(args[1], args.Length > 2 ? args[2] : null);
+					case "msd-build":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return MsdBuild(args[1], args.Length > 2 ? args[2] : null);
 					default:
 						Usage();
 						return 1;
@@ -91,6 +108,8 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine();
 			Console.Error.WriteLine("  xbn        <file.xbn> [out.xml]   menu definition -> XML");
 			Console.Error.WriteLine("  xbn-build  <file.xml> [out.xbn]   XML -> menu definition");
+			Console.Error.WriteLine("  msd        <file.msd | dir> [out] game text -> JSON");
+			Console.Error.WriteLine("  msd-build  <file.json> [out.msd]  JSON -> game text");
 			Console.Error.WriteLine();
 			Console.Error.WriteLine("patterns are globs on the archived name, e.g. \"*.NCGR\" \"btl*\"");
 		}
@@ -199,6 +218,76 @@ namespace FF3.ContentTool
 			File.WriteAllBytes(output, data);
 			Console.WriteLine("{0} -> {1}  ({2} bytes)",
 				Path.GetFileName(input), output, data.Length);
+			return 0;
+		}
+
+		/// <summary>
+		/// Decodes game text to JSON, one file or a whole directory tree, checking each
+		/// by building it straight back and comparing against the original bytes.
+		/// </summary>
+		private static int MsdDecode(string input, string output)
+		{
+			if (Directory.Exists(input))
+			{
+				string outputDir = output ?? input;
+				int files = 0;
+				int messages = 0;
+				int mismatched = 0;
+				foreach (string file in Directory
+					.EnumerateFiles(input, "*.msd", SearchOption.AllDirectories)
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+				{
+					string relative = Path.GetRelativePath(input, file);
+					string destination = Path.Combine(outputDir,
+						Path.ChangeExtension(relative, ".json"));
+					Directory.CreateDirectory(Path.GetDirectoryName(destination));
+
+					MsdFile decoded = WriteJson(file, destination, out bool exact);
+					files++;
+					messages += decoded.Messages.Count;
+					if (!exact)
+					{
+						mismatched++;
+						Console.Error.WriteLine("does not round trip: " + relative);
+					}
+				}
+				Console.WriteLine("{0} files, {1} messages -> {2}",
+					files, messages, Path.GetFullPath(outputDir));
+				if (mismatched > 0)
+				{
+					Console.WriteLine("{0} file(s) did not round trip", mismatched);
+				}
+				return mismatched > 0 ? 1 : 0;
+			}
+
+			output = output ?? Path.ChangeExtension(input, ".json");
+			MsdFile file2 = WriteJson(input, output, out bool byteExact);
+			Console.WriteLine("{0} -> {1}  ({2}, {3})",
+				Path.GetFileName(input), output, Msd.Describe(file2),
+				byteExact ? "round trips byte for byte"
+					: "WARNING: rebuild differs from the original");
+			return byteExact ? 0 : 1;
+		}
+
+		private static MsdFile WriteJson(string input, string output, out bool byteExact)
+		{
+			byte[] original = File.ReadAllBytes(input);
+			MsdFile decoded = Msd.Read(original);
+			File.WriteAllText(output, JsonSerializer.Serialize(decoded, Msd.Json),
+				new UTF8Encoding(false));
+			byteExact = Msd.Write(decoded).SequenceEqual(original);
+			return decoded;
+		}
+
+		private static int MsdBuild(string input, string output)
+		{
+			MsdFile file = JsonSerializer.Deserialize<MsdFile>(
+				File.ReadAllText(input), Msd.Json);
+			byte[] data = Msd.Write(file);
+			output = output ?? Path.ChangeExtension(input, ".msd");
+			File.WriteAllBytes(output, data);
+			Console.WriteLine("{0} -> {1}  ({2}, {3} bytes)",
+				Path.GetFileName(input), output, Msd.Describe(file), data.Length);
 			return 0;
 		}
 

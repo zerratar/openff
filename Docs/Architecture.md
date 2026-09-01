@@ -101,6 +101,9 @@ is a subclass plus a static field, with no table to edit.
 `Docs/Menus.md` has the format, the element vocabulary and the full behaviour list.
 Combined with the override path, a menu change is: decode to XML, edit, build, restart.
 
+Text is data too: `.msd` files, referenced by message id from both menus and event
+scripts, and readable as JSON. `Docs/Text.md`.
+
 ## What is still Android-shaped, and why that is fine
 
 `android/` retains a handful of types that are genuinely carrying behaviour or are
