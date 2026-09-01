@@ -143,6 +143,14 @@ namespace FF3.ContentTool.Editor
 					SaveMenu(context);
 					return;
 
+				case "/api/table":
+					GetTable(context);
+					return;
+
+				case "/api/table/save":
+					SaveTable(context);
+					return;
+
 				case "/api/revert":
 					Revert(context);
 					return;
@@ -291,6 +299,39 @@ namespace FF3.ContentTool.Editor
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}
+		}
+
+		// ------------------------------------------------------------------- tables
+
+		private void GetTable(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			byte[] data = _workspace.Read(name);
+			int chains = data.Length >= 4 ? BitConverter.ToInt32(data, 0) : 0;
+			string family = Pak.FamilyOf(name, chains);
+			PakFile decoded = Pak.Read(data, family, _lookupMessage);
+
+			SendJson(context, new
+			{
+				name,
+				family,
+				overridden = _workspace.IsOverridden(name),
+				// The decoded file goes across as it stands. Chains with no known
+				// layout keep their bytes, so a table with one unmodelled chain can
+				// still be edited and saved without losing it.
+				file = JsonSerializer.SerializeToNode(decoded, Pak.Json)
+			});
+		}
+
+		private void SaveTable(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			string name = (string)body["name"];
+			PakFile file = body["file"].Deserialize<PakFile>(Pak.Json);
+
+			byte[] data = Pak.Write(file);
+			_workspace.Write(name, data);
+			SendJson(context, new { ok = true, bytes = data.Length, overridden = true });
 		}
 
 		// ------------------------------------------------------------------- revert

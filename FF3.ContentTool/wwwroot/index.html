@@ -13,6 +13,7 @@
     <button data-kind="script" class="on">Scripts</button>
     <button data-kind="menu">Menus</button>
     <button data-kind="text">Text</button>
+    <button data-kind="table">Tables</button>
   </nav>
   <span id="status"></span>
 </header>
@@ -83,6 +84,23 @@
       <button class="revert">Revert</button>
     </div>
     <div class="messages"></div>
+  </div>
+</template>
+
+<!-- Tables -->
+<template id="view-table">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="badge override">override</span>
+      <select class="chains"></select>
+      <input class="rowfilter" type="search" placeholder="filter rows" autocomplete="off">
+      <label class="pads"><input type="checkbox"> padding</label>
+      <span class="grow"></span>
+      <button class="save primary">Save</button>
+      <button class="revert">Revert</button>
+    </div>
+    <div class="grid-wrap"><table class="grid"></table></div>
   </div>
 </template>
 

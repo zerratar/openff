@@ -57,6 +57,23 @@ Every message in a `.msd`, editable in place. Messages that are not valid UTF-8 
 marked `latin1` and are held byte for byte - see the encoding section of
 `Docs/Text.md` before changing one.
 
+## Tables
+
+Items, weapons, armour, spells, monsters, jobs and per-map data as a grid, one tab per
+chain. Values are edited in place; an array field is edited as a comma separated list,
+and turns red rather than saving if the list stops being the right length or stops
+being numbers.
+
+Two things are hidden or read only, deliberately:
+
+- **Padding fields** (`_pad0`, `unnamed3`) are behind the *padding* checkbox. They are
+  real and they round trip, but they are noise while editing.
+- **`nameText` and `captionText`** are annotations from the message an id points at.
+  They are read only, because saving writes the id and never the text - to rename an
+  item, edit that message under **Text**.
+
+The row filter matches anything in a record, so typing an item's name finds it.
+
 ## How it fits together
 
 The browser does the editing; the server only decodes, compiles and saves, through
@@ -70,8 +87,6 @@ switch files.
 
 ## Not in it yet
 
-- **Tables** - items, monsters and jobs decode to JSON but have no view here. A grid
-  is the obvious next thing.
 - **Graphics** - models, textures and sprites are still opaque, which is what stands
   between this and a menu editor that shows the real thing, or any kind of map editor.
 - **New menus and new messages** - the editor changes what is there. Adding a widget

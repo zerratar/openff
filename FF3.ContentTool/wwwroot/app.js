@@ -68,6 +68,7 @@ async function open(name) {
   try {
     if (state.kind === 'script') await openScript(name);
     else if (state.kind === 'menu') await openMenu(name);
+    else if (state.kind === 'table') await openTable(name);
     else await openText(name);
     say('');
   } catch (error) {
@@ -447,6 +448,121 @@ async function openText(name) {
     markOverridden(name, true);
     say(`saved, ${result.bytes} bytes`, 'good');
   };
+}
+
+// ----------------------------------------------------------------------- tables
+
+async function openTable(name) {
+  const data = await api(`/api/table?name=${encodeURIComponent(name)}`);
+  const node = view('table', name, data.overridden);
+  const file = data.file;
+
+  if (!data.family) {
+    say('this file has no known record layout - see Docs/Tables.md', 'bad');
+  }
+
+  const picker = $('.chains', node);
+  const decoded = file.chains.filter(chain => chain.records);
+  picker.textContent = '';
+  for (const chain of decoded) {
+    const option = document.createElement('option');
+    option.value = chain.index;
+    option.textContent = `${chain.label} (${chain.records.length})`;
+    picker.append(option);
+  }
+
+  const showPadding = $('.pads input', node);
+  const rowFilter = $('.rowfilter', node);
+  const draw = () => drawTable(node, decoded.find(c => c.index === Number(picker.value)),
+    showPadding.checked, rowFilter.value.trim().toLowerCase());
+
+  picker.onchange = draw;
+  showPadding.onchange = draw;
+  rowFilter.oninput = draw;
+
+  $('.save', node).onclick = async () => {
+    const result = await api('/api/table/save', { name, file });
+    markOverridden(name, true);
+    say(`saved, ${result.bytes} bytes`, 'good');
+  };
+
+  if (decoded.length) draw();
+  else say('nothing in this file has a known layout', 'bad');
+}
+
+/// Padding fields are real - they round trip - but they are noise while editing.
+const isPadding = field => /^_pad|^unnamed/.test(field);
+
+/// The text annotations the server writes in are read only: the id is what is saved.
+const isAnnotation = field => field.endsWith('Text');
+
+function drawTable(node, chain, withPadding, filter) {
+  const table = $('.grid', node);
+  table.textContent = '';
+  if (!chain) return;
+
+  const fields = Object.keys(chain.records[0] || {})
+    .filter(f => withPadding || !isPadding(f));
+
+  const head = document.createElement('tr');
+  const corner = document.createElement('th');
+  corner.className = 'row';
+  corner.textContent = '#';
+  head.append(corner);
+  for (const field of fields) {
+    const cell = document.createElement('th');
+    cell.textContent = field;
+    head.append(cell);
+  }
+  table.append(head);
+
+  chain.records.forEach((record, index) => {
+    if (filter && !JSON.stringify(record).toLowerCase().includes(filter)) return;
+
+    const row = document.createElement('tr');
+    const number = document.createElement('td');
+    number.className = 'row';
+    number.textContent = index;
+    row.append(number);
+
+    for (const field of fields) {
+      const cell = document.createElement('td');
+      const value = record[field];
+
+      if (Array.isArray(value)) {
+        // An array field is edited as a comma separated list, which keeps the
+        // grid one cell per field however long the array is.
+        const input = document.createElement('input');
+        input.value = value.join(', ');
+        input.oninput = () => {
+          const parts = input.value.split(',').map(p => Number(p.trim()));
+          if (parts.length === value.length && parts.every(n => Number.isFinite(n))) {
+            record[field] = parts;
+            input.style.color = '';
+          } else {
+            input.style.color = 'var(--bad)';
+          }
+        };
+        cell.append(input);
+      } else {
+        const input = document.createElement('input');
+        input.value = value ?? '';
+        if (isAnnotation(field)) {
+          cell.className = 'text';
+          input.readOnly = true;
+          input.title = 'from the message this id points at - edit it under Text';
+        } else {
+          input.oninput = () => {
+            const parsed = Number(input.value);
+            record[field] = Number.isFinite(parsed) ? parsed : input.value;
+          };
+        }
+        cell.append(input);
+      }
+      row.append(cell);
+    }
+    table.append(row);
+  });
 }
 
 // -------------------------------------------------------------------- start up
