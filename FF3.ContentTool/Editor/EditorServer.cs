@@ -159,6 +159,22 @@ namespace FF3.ContentTool.Editor
 					GetOps(context);
 					return;
 
+				case "/api/maps":
+					SendJson(context, _workspace.List(".hich")
+						.Select(entry => Path.GetFileNameWithoutExtension(entry.Name))
+						.OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+						.ToList());
+					return;
+
+				case "/api/map":
+					SendJson(context, MapModel.Load(_workspace,
+						Query(context, "name"), _lookupMessage));
+					return;
+
+				case "/api/map/save":
+					SaveMap(context);
+					return;
+
 				case "/api/audio":
 					SendJson(context, Audio.List(_workspace.ContentDirectory, _workspace));
 					return;
@@ -319,6 +335,26 @@ namespace FF3.ContentTool.Editor
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}
+		}
+
+		private void SaveMap(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			string map = (string)body["name"];
+
+			List<(int, int, int, int, int)> moves = new List<(int, int, int, int, int)>();
+			foreach (JsonNode move in body["characters"].AsArray())
+			{
+				moves.Add((
+					(int)move["index"],
+					(int)move["x"],
+					(int)move["y"],
+					(int)move["z"],
+					(int)move["rotationY"]));
+			}
+
+			int changed = MapModel.Save(_workspace, map, moves);
+			SendJson(context, new { ok = true, changed, overridden = true });
 		}
 
 		/// <summary>One part of a sound, as a wav the browser can play.</summary>

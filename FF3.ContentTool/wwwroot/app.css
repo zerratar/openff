@@ -443,3 +443,80 @@ ul.uses a:hover { text-decoration: underline; }
 .note { display: none; margin: 0; padding: 9px 14px; color: var(--dim);
   background: #171b21; border-bottom: 1px solid var(--line); }
 .note.on { display: block; }
+
+/* ------------------------------------------------------------------- maps */
+
+.map-body { flex: 1; display: flex; min-height: 0; }
+.map-wrap { flex: 1; overflow: auto; padding: 20px; }
+.map-scale { position: relative; }
+
+.map {
+  position: relative;
+  transform-origin: 0 0;
+  background:
+    linear-gradient(#1d2128 1px, transparent 1px) 0 0 / 100% 10px,
+    linear-gradient(90deg, #1d2128 1px, transparent 1px) 0 0 / 10px 100%,
+    #14171c;
+  border: 1px solid var(--line);
+}
+
+.pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  cursor: grab;
+  border: 1px solid #4a5568;
+  background: #2b3a4f;
+  width: 11px;
+  height: 11px;
+}
+.pin:hover { border-color: var(--accent); }
+.pin.on { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px rgba(110,168,254,.25); }
+.pin.talks { background: #3d6b4d; border-color: #5f9a72; }
+.pin.logic { background: #3a3550; border-color: #5b5280; width: 8px; height: 8px; }
+.pin.exit {
+  border-radius: 2px;
+  background: #6b4a2b;
+  border-color: #9a7442;
+  width: 10px;
+  height: 10px;
+  cursor: default;
+}
+.pin .tag {
+  position: absolute;
+  left: 13px;
+  top: -3px;
+  font-size: 9px;
+  color: var(--dim);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.pin.on .tag { color: var(--ink); }
+
+.inspector {
+  width: 330px;
+  flex: 0 0 330px;
+  border-left: 1px solid var(--line);
+  padding: 14px;
+  overflow: auto;
+}
+.inspector h2 { font-size: 13px; margin: 0 0 4px; }
+.inspector .sub { color: var(--dim); margin: 0 0 14px; font-size: 12px; }
+.inspector h3 {
+  font-size: 11px; color: var(--dim); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em; margin: 18px 0 6px;
+}
+.inspector label { display: inline-block; width: 48%; color: var(--dim); font-size: 12px; margin-bottom: 8px; }
+.inspector input {
+  width: 100%; margin-top: 3px; background: var(--bg); border: 1px solid var(--line);
+  color: var(--ink); border-radius: 4px; padding: 4px 6px; font: inherit;
+}
+.inspector .lines { list-style: none; margin: 0; padding: 0; }
+.inspector .lines li {
+  padding: 6px 8px; margin-bottom: 5px; background: #171b21;
+  border-left: 2px solid #3d6b4d; border-radius: 3px; white-space: pre-wrap;
+}
+.inspector .none { color: var(--dim); }
+.legend { display: flex; gap: 14px; color: var(--dim); font-size: 12px; margin-top: 10px; }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }

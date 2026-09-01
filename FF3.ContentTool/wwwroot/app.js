@@ -6,7 +6,7 @@
 
 'use strict';
 
-const state = { kind: 'script', files: [], name: null };
+const state = { kind: 'map', files: [], name: null };
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -33,7 +33,10 @@ function say(message, tone) {
 // ------------------------------------------------------------------- file list
 
 async function loadList() {
-  if (state.kind === 'audio') {
+  if (state.kind === 'map') {
+    const maps = await api('/api/maps');
+    state.files = maps.map(name => ({ name, overridden: false }));
+  } else if (state.kind === 'audio') {
     // Sounds are not archive entries - they are XNBs beside the game - so the list
     // comes from somewhere else and carries more with it.
     state.audio = await api('/api/audio');
@@ -73,7 +76,8 @@ async function open(name) {
   drawList();
   say('loading…');
   try {
-    if (state.kind === 'script') await openScript(name);
+    if (state.kind === 'map') await openMap(name);
+    else if (state.kind === 'script') await openScript(name);
     else if (state.kind === 'menu') await openMenu(name);
     else if (state.kind === 'table') await openTable(name);
     else if (state.kind === 'audio') await openAudio(name);

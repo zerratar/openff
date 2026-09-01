@@ -135,6 +135,22 @@ plain data:
 The name is historical. These are not costing anything, and audio in particular is
 working; there is no reason to rewrite it for tidiness.
 
+## What a map is
+
+Four files, and none of them means much alone:
+
+| File | Holds |
+| --- | --- |
+| `<map>.hich` | the roster: model, position, and the cast number that drives each character |
+| `<map>.script` | those casts - one program per actor |
+| `<map>.pak` | exits, encounters, camera, terrain |
+| `*.msd` | the words the casts show |
+
+An NPC is a `.hich` row plus a script cast plus its messages. The cast number is the
+join: `.hich` says *what and where*, the script says *what it does*. That is close
+enough to a game object and a behaviour that the comparison is worth making, and it is
+what the editor's map view is built on.
+
 ## Tooling
 
 `FF3.ContentTool` reads and writes every format the game uses that has been worked

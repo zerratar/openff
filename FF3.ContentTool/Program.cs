@@ -11,6 +11,7 @@
 //   dotnet run --project FF3.ContentTool -- script       <file.script | dir> [out] [--text=<dir>]
 //   dotnet run --project FF3.ContentTool -- script-build <file.ffs | dir> [out]
 //   dotnet run --project FF3.ContentTool -- ops [filter]
+//   dotnet run --project FF3.ContentTool -- hich        <file.hich | dir> [out]
 //   dotnet run --project FF3.ContentTool -- editor [--content=<dir>] [--port=5050]
 //   dotnet run --project FF3.ContentTool -- lz          <file.lz | dir> [out]
 //   dotnet run --project FF3.ContentTool -- lz-compress <file> [out.lz]
@@ -101,6 +102,13 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return ScriptDump(args.Skip(1).ToArray());
+					case "hich":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return HichDump(args[1], args.Length > 2 ? args[2] : null);
 					case "editor":
 						return Editor(args.Skip(1).ToArray());
 					case "lz":
@@ -172,6 +180,7 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  script-build <file.ffs | dir> [out]");
 			Console.Error.WriteLine("                                    .ffs source -> event bytecode");
 			Console.Error.WriteLine("  ops [filter]                      list script instructions");
+			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
 			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--text=<dir>]");
 			Console.Error.WriteLine("                                    open the content editor in a browser");
 			Console.Error.WriteLine("  lz          <file.lz | dir> [out] decompress");
@@ -445,6 +454,57 @@ namespace FF3.ContentTool
 				? "all of them compile back to the exact bytes they came from"
 				: notExact + " do not compile back to the same bytes");
 			return failed > 0 || notExact > 0 ? 1 : 0;
+		}
+
+		/// <summary>
+		/// Decodes map placement, checking each by writing it back and comparing.
+		/// </summary>
+		private static int HichDump(string input, string output)
+		{
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.hich", SearchOption.AllDirectories)
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .hich files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+			int entries = 0;
+			int placed = 0;
+			int mismatched = 0;
+
+			foreach (string file in files)
+			{
+				string relative = File.Exists(input)
+					? Path.GetFileName(file) : Path.GetRelativePath(input, file);
+				byte[] original = File.ReadAllBytes(file);
+				List<HichEntry> decoded = Hich.Read(original);
+
+				string destination = Path.Combine(outputDir,
+					Path.ChangeExtension(relative, ".json"));
+				Directory.CreateDirectory(Path.GetDirectoryName(destination));
+				File.WriteAllText(destination,
+					JsonSerializer.Serialize(decoded, Msd.Json), new UTF8Encoding(false));
+
+				entries += decoded.Count;
+				placed += decoded.Count(e => e.Kind == 0);
+				if (!Hich.Write(decoded).SequenceEqual(original))
+				{
+					mismatched++;
+					Console.Error.WriteLine("does not round trip: " + relative);
+				}
+			}
+
+			Console.WriteLine("{0} map(s), {1} entries, {2} placed characters -> {3}",
+				files.Count, entries, placed, Path.GetFullPath(outputDir));
+			Console.WriteLine(mismatched == 0
+				? "all of them write back to the exact bytes they came from"
+				: mismatched + " do not");
+			return mismatched > 0 ? 1 : 0;
 		}
 
 		/// <summary>

@@ -10,7 +10,8 @@
 <header>
   <h1>FF3 content editor</h1>
   <nav id="kinds">
-    <button data-kind="script" class="on">Scripts</button>
+    <button data-kind="map" class="on">Maps</button>
+    <button data-kind="script">Scripts</button>
     <button data-kind="menu">Menus</button>
     <button data-kind="text">Text</button>
     <button data-kind="table">Tables</button>
@@ -127,6 +128,30 @@
   </div>
 </template>
 
+<!-- Maps -->
+<template id="view-map">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="badge override">override</span>
+      <select class="zoom" title="zoom">
+        <option value="1">100%</option>
+        <option value="2" selected>200%</option>
+        <option value="3">300%</option>
+        <option value="4">400%</option>
+      </select>
+      <label class="toggle"><input type="checkbox" class="showlogic"> logic-only casts</label>
+      <span class="grow"></span>
+      <button class="save primary">Save placement</button>
+      <button class="revert">Revert</button>
+    </div>
+    <div class="map-body">
+      <div class="map-wrap"><div class="map-scale"><div class="map"></div></div></div>
+      <div class="inspector"><p class="empty">Pick something on the map.</p></div>
+    </div>
+  </div>
+</template>
+
 <!-- Audio -->
 <template id="view-audio">
   <div class="view">
@@ -148,5 +173,6 @@
 
 <script src="app.js"></script>
 <script src="script-editor.js"></script>
+<script src="map-editor.js"></script>
 </body>
 </html>

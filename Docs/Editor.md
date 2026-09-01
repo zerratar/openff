@@ -22,6 +22,31 @@ undoing one is deleting a file.
 The server binds to localhost, has no authentication, and is meant to be run by the
 person editing their own copy of the game. It is not a service.
 
+## Maps
+
+A plan view of a map: everything that stands on it, drawn at the position it stands
+at. x across, z down, which is what the game's coordinates mean.
+
+- **Green** pins talk, **blue** pins do not, **orange** squares are exits, labelled
+  with the map they lead to.
+- **Click** one and the inspector shows what it is: its model, its cast number, how
+  much code that cast has, its position and facing, **every line it says**, and a link
+  that opens the script at its cast.
+- **Drag** to move it. *Save placement* writes the map's `.hich`.
+- **logic-only casts** shows the entries that have no position - casts that run the
+  map itself rather than standing in it.
+
+This is the view that joins the others up. An NPC is not a row in any one file: it is
+a `.hich` entry saying which model stands where and which cast drives it, plus that
+cast in the map's `.script`, plus the messages that cast shows. The map view puts
+those three together, which is the difference between browsing tables and editing a
+game.
+
+One thing it cannot know: a script can override a character's position when it boots
+it with `bootCharacter_AbsoluteCoordination`, and where that happens, moving the pin
+will not move the character. Those coordinates are also fixed point while `.hich`
+positions are whole units - the two are not the same numbers.
+
 ## Scripts
 
 The event bytecode, as source in the script language, with dialogue written in beside
