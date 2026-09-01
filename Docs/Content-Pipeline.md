@@ -203,12 +203,22 @@ dotnet run --project FF3.ContentTool -- script ..\extracted\files ..\scripts --t
 
 See `Docs/Events.md`.
 
+## Parameter tables
+
+Items, monsters and per map data decode to JSON and back:
+
+```bash
+dotnet run --project FF3.ContentTool -- pak ..\extracted\files ..\tables --text=..\text\en.lproj
+```
+
+See `Docs/Tables.md`.
+
 ## Not decoded yet
 
 The archives extract, and `.xbn` decodes, but the rest of the blobs are still in
-their NDS formats - `.NCGR`/`.NSCR`/`.NCER` graphics, `.lz` compression, and the
-`.pak` parameter tables behind items, enemies and jobs. Each is its own decoder. The
-`.pak` tables are the ones worth doing next: they are what "add a new item" needs.
+their NDS formats - `.NCGR`/`.NSCR`/`.NCER` graphics and `.lz` compression. Each is
+its own decoder. The graphics are the ones worth doing next, and `player.chaindata`
+after them, which holds the job tables.
 
 `--dump=<dir>` is the shortcut in the meantime: the running game writes out every
 image blob it decodes, which covers the art without decoding anything by hand.

@@ -9,6 +9,8 @@
 //   dotnet run --project FF3.ContentTool -- msd        <file.msd | dir> [out]
 //   dotnet run --project FF3.ContentTool -- msd-build  <file.json> [out.msd]
 //   dotnet run --project FF3.ContentTool -- script     <file.script | dir> [out] [--text=<dir>]
+//   dotnet run --project FF3.ContentTool -- pak        <file.pak | dir> [out]
+//   dotnet run --project FF3.ContentTool -- pak-build  <file.json> [out.pak]
 //
 // "extract" turns the shipped .xnb files back into editable sources:
 //   Fonts/<name>.png   + <name>.json   glyph atlas and metrics
@@ -94,6 +96,20 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return ScriptDump(args.Skip(1).ToArray());
+					case "pak":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return PakDecode(args.Skip(1).ToArray());
+					case "pak-build":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return PakBuild(args[1], args.Length > 2 ? args[2] : null);
 					default:
 						Usage();
 						return 1;
@@ -118,6 +134,9 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  xbn-build  <file.xml> [out.xbn]   XML -> menu definition");
 			Console.Error.WriteLine("  msd        <file.msd | dir> [out] game text -> JSON");
 			Console.Error.WriteLine("  msd-build  <file.json> [out.msd]  JSON -> game text");
+			Console.Error.WriteLine("  pak        <file.pak | dir> [out] [--text=<dir>]");
+			Console.Error.WriteLine("                                    parameter tables -> JSON");
+			Console.Error.WriteLine("  pak-build  <file.json> [out.pak]   JSON -> parameter tables");
 			Console.Error.WriteLine("  script     <file.script | dir> [out] [--text=<dir>]");
 			Console.Error.WriteLine("                                    event bytecode -> disassembly");
 			Console.Error.WriteLine();
@@ -405,6 +424,115 @@ namespace FF3.ContentTool
 			}
 			Console.WriteLine("{0} messages available for annotation", messages.Count);
 			return id => messages.TryGetValue(id, out string text) ? text : null;
+		}
+
+		/// <summary>
+		/// Decodes parameter tables to JSON, checking each by building it straight back
+		/// and comparing against the original bytes.
+		/// </summary>
+		private static int PakDecode(string[] args)
+		{
+			string input = null;
+			string output = null;
+			string textDir = null;
+			foreach (string arg in args)
+			{
+				if (arg.StartsWith("--text=", StringComparison.OrdinalIgnoreCase))
+				{
+					textDir = arg.Substring("--text=".Length).Trim('"');
+				}
+				else if (input == null)
+				{
+					input = arg;
+				}
+				else
+				{
+					output = arg;
+				}
+			}
+
+			Func<uint, string> lookup = LoadMessages(textDir);
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.pak", SearchOption.AllDirectories)
+					.Concat(Directory.EnumerateFiles(input, "*.chaindata", SearchOption.AllDirectories))
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .pak or .chaindata files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+			int written = 0;
+			int mismatched = 0;
+			int skipped = 0;
+			foreach (string file in files)
+			{
+				string relative = File.Exists(input)
+					? Path.GetFileName(file) : Path.GetRelativePath(input, file);
+				try
+				{
+					byte[] original = File.ReadAllBytes(file);
+					int chains = original.Length >= 4
+						? BitConverter.ToInt32(original, 0) : 0;
+					string family = Pak.FamilyOf(file, chains);
+					PakFile decoded = Pak.Read(original, family, lookup);
+
+					string destination = Path.Combine(outputDir,
+						Path.ChangeExtension(relative, ".json"));
+					Directory.CreateDirectory(Path.GetDirectoryName(destination));
+					File.WriteAllText(destination,
+						JsonSerializer.Serialize(decoded, Pak.Json), new UTF8Encoding(false));
+					written++;
+
+					if (!Pak.Write(decoded).SequenceEqual(original))
+					{
+						mismatched++;
+						Console.Error.WriteLine("does not round trip: " + relative);
+					}
+					if (files.Count == 1)
+					{
+						Console.WriteLine("{0} -> {1}  ({2}, family {3}, {4})",
+							Path.GetFileName(file), destination, Pak.Describe(decoded),
+							family ?? "unknown",
+							mismatched == 0 ? "round trips byte for byte"
+								: "WARNING: rebuild differs");
+					}
+				}
+				catch (InvalidDataException ex)
+				{
+					skipped++;
+					Console.Error.WriteLine(relative + ": " + ex.Message);
+				}
+			}
+
+			if (files.Count > 1)
+			{
+				Console.WriteLine("{0} file(s) -> {1}", written, Path.GetFullPath(outputDir));
+				if (skipped > 0)
+				{
+					Console.WriteLine("{0} were not paks", skipped);
+				}
+				if (mismatched > 0)
+				{
+					Console.WriteLine("{0} did not round trip", mismatched);
+				}
+			}
+			return mismatched > 0 ? 1 : 0;
+		}
+
+		private static int PakBuild(string input, string output)
+		{
+			PakFile file = JsonSerializer.Deserialize<PakFile>(
+				File.ReadAllText(input), Pak.Json);
+			byte[] data = Pak.Write(file);
+			output = output ?? Path.ChangeExtension(input, ".pak");
+			File.WriteAllBytes(output, data);
+			Console.WriteLine("{0} -> {1}  ({2}, {3} bytes)",
+				Path.GetFileName(input), output, Pak.Describe(file), data.Length);
+			return 0;
 		}
 
 		private static int Extract(string inputDir, string outputDir)

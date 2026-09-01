@@ -114,6 +114,13 @@ state lives in a global flag space that scripts set and branch on.
 `Docs/Events.md`; the disassembler's instruction table is generated from the engine's
 own handlers by `Tools/gen_opcodes.py`.
 
+## Tables
+
+Items, spells, monsters and per map data are `.pak` files: a container of chains, each
+chain an array of fixed size records. The record layouts are generated from the game's
+own parse methods by `Tools/gen_records.py`, and checked against the strides the game
+divides by. `Docs/Tables.md`.
+
 ## What is still Android-shaped, and why that is fine
 
 `android/` retains a handful of types that are genuinely carrying behaviour or are
