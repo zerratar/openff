@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FF3 content editor</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header>
+  <h1>FF3 content editor</h1>
+  <nav id="kinds">
+    <button data-kind="script" class="on">Scripts</button>
+    <button data-kind="menu">Menus</button>
+    <button data-kind="text">Text</button>
+  </nav>
+  <span id="status"></span>
+</header>
+
+<main>
+  <aside>
+    <input id="filter" type="search" placeholder="filter" autocomplete="off">
+    <ul id="files"></ul>
+  </aside>
+
+  <section id="pane">
+    <p class="empty">Pick a file on the left.</p>
+  </section>
+</main>
+
+<!-- Scripts -->
+<template id="view-script">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="badge override">override</span>
+      <span class="grow"></span>
+      <button class="check">Check</button>
+      <button class="save primary">Compile &amp; save</button>
+      <button class="revert">Revert</button>
+    </div>
+    <div class="editor">
+      <div class="gutter"></div>
+      <textarea spellcheck="false" wrap="off"></textarea>
+    </div>
+    <ul class="problems"></ul>
+  </div>
+</template>
+
+<!-- Menus -->
+<template id="view-menu">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="badge override">override</span>
+      <select class="screens"></select>
+      <span class="grow"></span>
+      <button class="duplicate">Duplicate</button>
+      <button class="remove">Delete</button>
+      <button class="save primary">Save</button>
+      <button class="revert">Revert</button>
+    </div>
+    <div class="menu-body">
+      <div class="canvas-wrap">
+        <div class="canvas"></div>
+        <p class="hint">Drag a widget to move it. Arrow keys nudge, shift+arrow moves by 8.</p>
+      </div>
+      <div class="properties">
+        <p class="empty">Select a widget.</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Text -->
+<template id="view-text">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="badge override">override</span>
+      <span class="grow"></span>
+      <button class="save primary">Save</button>
+      <button class="revert">Revert</button>
+    </div>
+    <div class="messages"></div>
+  </div>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -20,4 +20,9 @@
     <Compile Include="..\FF3.Game\Sjis.cs" Link="Formats\Sjis.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The editor serves these; they have to sit next to the exe. -->
+    <None Include="wwwroot\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -135,6 +135,12 @@ plain data:
 The name is historical. These are not costing anything, and audio in particular is
 working; there is no reason to rewrite it for tidiness.
 
+## Tooling
+
+`FF3.ContentTool` reads and writes every format the game uses that has been worked
+out, and `ff3content editor` puts a browser front end on the ones worth seeing while
+editing - scripts, menus and text. `Docs/Editor.md`.
+
 ## Diagnostics
 
 Every run writes `bin/Debug/net8.0/logs/ff3.log`. `--log=all` or a channel list

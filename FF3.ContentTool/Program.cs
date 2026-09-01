@@ -11,6 +11,7 @@
 //   dotnet run --project FF3.ContentTool -- script       <file.script | dir> [out] [--text=<dir>]
 //   dotnet run --project FF3.ContentTool -- script-build <file.ffs | dir> [out]
 //   dotnet run --project FF3.ContentTool -- ops [filter]
+//   dotnet run --project FF3.ContentTool -- editor [--content=<dir>] [--port=5050]
 //   dotnet run --project FF3.ContentTool -- lz          <file.lz | dir> [out]
 //   dotnet run --project FF3.ContentTool -- lz-compress <file> [out.lz]
 //   dotnet run --project FF3.ContentTool -- pak        <file.pak | dir> [out]
@@ -100,6 +101,8 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return ScriptDump(args.Skip(1).ToArray());
+					case "editor":
+						return Editor(args.Skip(1).ToArray());
 					case "lz":
 						if (args.Length < 2)
 						{
@@ -169,6 +172,8 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  script-build <file.ffs | dir> [out]");
 			Console.Error.WriteLine("                                    .ffs source -> event bytecode");
 			Console.Error.WriteLine("  ops [filter]                      list script instructions");
+			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--text=<dir>]");
+			Console.Error.WriteLine("                                    open the content editor in a browser");
 			Console.Error.WriteLine("  lz          <file.lz | dir> [out] decompress");
 			Console.Error.WriteLine("  lz-compress <file> [out.lz]       compress");
 			Console.Error.WriteLine();
@@ -440,6 +445,62 @@ namespace FF3.ContentTool
 				? "all of them compile back to the exact bytes they came from"
 				: notExact + " do not compile back to the same bytes");
 			return failed > 0 || notExact > 0 ? 1 : 0;
+		}
+
+		/// <summary>
+		/// Serves the editor. Everything it can do is something the command line can
+		/// already do - the point is that a person can see what they are changing.
+		/// </summary>
+		private static int Editor(string[] args)
+		{
+			string content = "Content";
+			string overrides = null;
+			string textDir = null;
+			int port = 5050;
+
+			foreach (string arg in args)
+			{
+				if (arg.StartsWith("--content=", StringComparison.OrdinalIgnoreCase))
+				{
+					content = arg.Substring("--content=".Length).Trim('"');
+				}
+				else if (arg.StartsWith("--override=", StringComparison.OrdinalIgnoreCase))
+				{
+					overrides = arg.Substring("--override=".Length).Trim('"');
+				}
+				else if (arg.StartsWith("--text=", StringComparison.OrdinalIgnoreCase))
+				{
+					textDir = arg.Substring("--text=".Length).Trim('"');
+				}
+				else if (arg.StartsWith("--port=", StringComparison.OrdinalIgnoreCase))
+				{
+					port = int.Parse(arg.Substring("--port=".Length),
+						CultureInfo.InvariantCulture);
+				}
+			}
+
+			string webRoot = Path.Combine(
+				Path.GetDirectoryName(typeof(Program).Assembly.Location), "wwwroot");
+			if (!Directory.Exists(webRoot))
+			{
+				Console.Error.WriteLine("the editor's files are missing from " + webRoot);
+				return 1;
+			}
+
+			Editor.Workspace workspace;
+			try
+			{
+				workspace = new Editor.Workspace(content, overrides);
+			}
+			catch (FileNotFoundException ex)
+			{
+				Console.Error.WriteLine(ex.Message);
+				return 1;
+			}
+
+			new Editor.EditorServer(workspace, Path.GetFullPath(webRoot),
+				LoadMessages(textDir)).Run(port);
+			return 0;
 		}
 
 		/// <summary>

@@ -2,6 +2,17 @@
 
 The shipped game data comes in two very different forms.
 
+## The editor
+
+Most of what follows has a graphical front end:
+
+```bash
+dotnet run --project FF3.ContentTool -- editor --content=Content
+```
+
+Scripts, menus and text, edited in a browser and written straight to the override
+directory. See `Docs/Editor.md`.
+
 ## Repository layout
 
 `Content/` is self-contained: a fresh clone is playable with nothing else on disk.
