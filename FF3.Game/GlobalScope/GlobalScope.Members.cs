@@ -21095,6 +21095,12 @@ internal static partial class GlobalScope
 							switch (cap)
 							{
 							case 3553u:
+								// PORT: this selects a different BasicEffect shader permutation, so the
+								// effect must be re-applied. The original never marked it dirty.
+								if (basicEffect.TextureEnabled != false)
+								{
+									m_bApplyEffect = true;
+								}
 								basicEffect.TextureEnabled = false;
 								break;
 							case 2929u:
@@ -21206,6 +21212,12 @@ internal static partial class GlobalScope
 							// the whole 3D scene renders black. Track the chosen effect and keep it in sync.
 							if (FF3.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
 							{
+								// PORT: this selects a different BasicEffect shader permutation, so the
+								// effect must be re-applied. The original never marked it dirty.
+								if (basicEffect.TextureEnabled != false)
+								{
+									m_bApplyEffect = true;
+								}
 								basicEffect.TextureEnabled = false;
 								m_bApplyEffect = true;
 							}
@@ -21423,6 +21435,12 @@ internal static partial class GlobalScope
 							FF3.ModelCapture.Offer(v, first, count, m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null ? m_aGlTexture[m_uiBindTexture].m_Texture2D : null, basicEffect.Projection); /*FF3LOG*/
 							if (FF3.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
 							{
+								// PORT: this selects a different BasicEffect shader permutation, so the
+								// effect must be re-applied. The original never marked it dirty.
+								if (basicEffect.TextureEnabled != false)
+								{
+									m_bApplyEffect = true;
+								}
 								basicEffect.TextureEnabled = false;
 								m_bApplyEffect = true;
 							}
@@ -21520,6 +21538,12 @@ internal static partial class GlobalScope
 							switch (cap)
 							{
 							case 3553u:
+								// PORT: this selects a different BasicEffect shader permutation, so the
+								// effect must be re-applied. The original never marked it dirty.
+								if (basicEffect.TextureEnabled != true)
+								{
+									m_bApplyEffect = true;
+								}
 								basicEffect.TextureEnabled = true;
 								break;
 							case 2929u:
@@ -21761,8 +21785,22 @@ internal static partial class GlobalScope
 								ArrayReader arrayReader = new ArrayReader(pixels);
 								uint[] array = new uint[width * height];
 								arrayReader.read(array, 0, array.Length);
+								// PORT: this replaces the slot's Texture2D with a NEW object. m_uiApplyTexture
+								// still equals m_uiBindTexture, so the effect would keep sampling the old,
+								// now-orphaned texture - which renders black. Force a rebind, and release
+								// the texture being replaced rather than leaking it.
+								Texture2D _old = m_aGlTexture[m_uiBindTexture].m_Texture2D;
 								m_aGlTexture[m_uiBindTexture].m_Texture2D = new Texture2D(graphicsDevice, width, height);
 								m_aGlTexture[m_uiBindTexture].m_Texture2D.SetData(array);
+								if (m_uiApplyTexture == m_uiBindTexture)
+								{
+									m_uiApplyTexture = uint.MaxValue;
+									m_bApplyEffect = true;
+								}
+								if (_old != null && !_old.IsDisposed)
+								{
+									_old.Dispose();
+								}
 							}
 							catch (Exception)
 							{

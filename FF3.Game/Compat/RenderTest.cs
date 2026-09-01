@@ -22,6 +22,9 @@ namespace FF3
 {
 	internal sealed class RenderTest : DrawableGameComponent
 	{
+		/// <summary>True when a render test owns the frame; the game must not draw.</summary>
+		public static bool Active { get; private set; }
+
 		private readonly string _mode;
 		private VertexPositionColorTexture[] _verts;
 		private uint _texture;
@@ -46,6 +49,7 @@ namespace FF3
 			{
 				return;
 			}
+			Active = true;
 			game.Components.Add(new RenderTest(game, mode.ToLowerInvariant()));
 			Log.Write(LogChannel.General, "render test mode: " + mode);
 		}
@@ -119,7 +123,7 @@ namespace FF3
 			// Force writes on first, or glClear leaves the depth buffer untouched.
 			if (_mode == "model")
 			{
-				DrawModel();
+				DrawModel(gameTime);
 				return;
 			}
 
@@ -157,29 +161,24 @@ namespace FF3
 			GlobalScope.glEnable(3553u);
 			GlobalScope.glBindTexture(3553u, _texture);
 
-			// 1: control - no alpha test, no depth. Known to render.
+			// 1: depth on + LEQUAL, drawn FIRST, immediately after the clear. If this
+			// fails the depth buffer is not holding the 1.0 it was cleared to.
 			GlobalScope.glDisable(3008u);
-			GlobalScope.glDisable(2929u);
+			GlobalScope.glEnable(2929u);
+			GlobalScope.glDepthFunc(515u);
+			GlobalScope.glDepthMask(1);
 			GlobalScope.glDrawArrays(4u, 0, 6, _verts);
 
-			// 2: alpha test on, exactly as the game sets it (GL_GREATER, ref 0.01).
-			GlobalScope.glEnable(3008u);
-			GlobalScope.glAlphaFunc(516u, 0.01f);
+			// 2: control - depth off entirely.
 			GlobalScope.glDisable(2929u);
 			GlobalScope.glDrawArrays(4u, 6, 6, _verts);
 
-			// 3: depth test ENABLED but the comparison always passes. If this one is
-			// missing too, the fault is not the comparison - it is having depth on at all.
-			GlobalScope.glDisable(3008u);
+			// 3: depth on, GL_ALWAYS - ignores whatever the buffer holds.
 			GlobalScope.glEnable(2929u);
-			GlobalScope.glDepthFunc(515u);   // GL_LEQUAL again, now after an explicit depth clear
-			GlobalScope.glDepthMask(1);
+			GlobalScope.glDepthFunc(519u);
 			GlobalScope.glDrawArrays(4u, 12, 6, _verts);
 
-			// 4: both, i.e. the game's actual 3D state.
-			GlobalScope.glEnable(3008u);
-			GlobalScope.glAlphaFunc(516u, 0.01f);
-			GlobalScope.glEnable(2929u);
+			// 4: depth on + LEQUAL again, now after other draws.
 			GlobalScope.glDepthFunc(515u);
 			GlobalScope.glDrawArrays(4u, 18, 6, _verts);
 		}
@@ -189,7 +188,7 @@ namespace FF3
 		/// of state that has been implicated so far switched off. If the shape and the
 		/// texture look right here, the asset decoding is sound and the fault is state.
 		/// </summary>
-		private void DrawModel()
+		private void DrawModel(GameTime gameTime)
 		{
 			if (_model == null)
 			{
@@ -241,21 +240,53 @@ namespace FF3
 			GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer,
 				new Color(18, 18, 34), 1.0f, 0);
 
-			// Frame the batch with an orthographic projection so nothing depends on the
-			// original camera. A little margin so edges are visible.
-			float pad = Math.Max((_max.X - _min.X), (_max.Y - _min.Y)) * 0.05f + 1f;
-			GlobalScope.glMatrixMode(5889u);
-			GlobalScope.glLoadIdentity();   // glOrthof multiplies onto the current matrix
-			GlobalScope.glOrthof(_min.X - pad, _max.X + pad, _max.Y + pad, _min.Y - pad,
-				-100000f, 100000f);
-			GlobalScope.glMatrixMode(5888u);
-			GlobalScope.glLoadIdentity();
+			Vector3 centre = (_min + _max) * 0.5f;
+			float radius = Math.Max((_max - _min).Length() * 0.5f, 1f);
+
+			if (_mode == "modelflat")
+			{
+				// Straight-down orthographic view: shows the whole floor plan at once.
+				GlobalScope.glMatrixMode(5889u);
+				GlobalScope.glLoadIdentity();
+				GlobalScope.glOrthof(_min.X, _max.X, _max.Y, _min.Y, -100000f, 100000f);
+				GlobalScope.glMatrixMode(5888u);
+				GlobalScope.glLoadIdentity();
+			}
+			else
+			{
+				// Slow orbit so the shape reads as 3D. The geometry's Y axis points down
+				// (NDS convention), so "up" for the camera is -Y.
+				float angle = (float)gameTime.TotalGameTime.TotalSeconds * 0.4f;
+				// Mostly from above, orbiting slowly. A shallower angle just shows the
+				// outside of the cave shell, which is unlit and reads as a black
+				// silhouette - the interior is what the game actually renders.
+				Vector3 offset = new Vector3(
+					(float)Math.Sin(angle) * 0.45f, -1.15f, (float)Math.Cos(angle) * 0.45f);
+				Vector3 eye = centre + offset * radius;
+
+				Matrix view = Matrix.CreateLookAt(eye, centre, new Vector3(0f, -1f, 0f));
+				Matrix projection = Matrix.CreatePerspectiveFieldOfView(
+					MathHelper.PiOver4,
+					GraphicsDevice.Viewport.AspectRatio,
+					Math.Max(radius * 0.02f, 0.1f),
+					radius * 8f);
+
+				GlobalScope.glMatrixMode(5889u);
+				GlobalScope.glLoadMatrixf(ToArray(projection));
+				GlobalScope.glMatrixMode(5888u);
+				GlobalScope.glLoadMatrixf(ToArray(view));
+			}
 
 			GlobalScope.glDisable(3008u);   // no alpha test
-			GlobalScope.glDisable(2929u);   // no depth test
 			GlobalScope.glDisable(2884u);   // no culling
 			GlobalScope.glEnable(3042u);
 			GlobalScope.glBlendFunc(770u, 771u);
+
+			// Depth ON: with a working depth buffer the cave should sort correctly.
+			// If the model vanishes here, depth is broken in the harness too.
+			GlobalScope.glEnable(2929u);
+			GlobalScope.glDepthFunc(515u);
+			GlobalScope.glDepthMask(1);
 
 			if (_modelTexture != null)
 			{
@@ -267,8 +298,19 @@ namespace FF3
 				GlobalScope.glDisable(3553u);
 			}
 
-			// Triangles, in whatever chunk size keeps well under any batch limits.
 			GlobalScope.glDrawArrays(4u, 0, _model.Length - (_model.Length % 3), _model);
+		}
+
+		/// <summary>Row-ordered elements, matching how glLoadMatrixf maps m[] to M11..M44.</summary>
+		private static float[] ToArray(Matrix m)
+		{
+			return new float[16]
+			{
+				m.M11, m.M12, m.M13, m.M14,
+				m.M21, m.M22, m.M23, m.M24,
+				m.M31, m.M32, m.M33, m.M34,
+				m.M41, m.M42, m.M43, m.M44
+			};
 		}
 	}
 }

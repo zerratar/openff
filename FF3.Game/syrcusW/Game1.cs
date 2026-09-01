@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Input;
@@ -118,6 +118,13 @@ public class Game1 : Game
 		else
 		{
 			GlobalScope.m_Graphics.setPause(bPause: false);
+		}
+		// PORT: a render test owns the whole frame, so the game must not draw over
+		// it or leave device state behind that the test would then inherit.
+		if (FF3.RenderTest.Active)
+		{
+			base.Draw(gameTime);
+			return;
 		}
 		if (!GlobalScope.m_Graphics.isPause())
 		{
