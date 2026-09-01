@@ -15,6 +15,9 @@
     <!-- Shared source: one implementation of the archive format, compiled into both
          the game and the content tool so the reader and the extractor cannot drift. -->
     <Compile Include="..\Shared\ArchiveFormat.cs" Link="Formats\ArchiveFormat.cs" />
+    <!-- The game's own Shift-JIS tables, so text written by the tool decodes
+         back through the game's decoder unchanged. -->
+    <Compile Include="..\FF3.Game\Sjis.cs" Link="Formats\Sjis.cs" />
   </ItemGroup>
 
 </Project>

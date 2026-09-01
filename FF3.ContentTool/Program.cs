@@ -4,6 +4,8 @@
 //   dotnet run --project FF3.ContentTool -- extract <xnb-dir> <out-dir>
 //   dotnet run --project FF3.ContentTool -- archives         <content-dir>
 //   dotnet run --project FF3.ContentTool -- extract-archives <content-dir> <out-dir> [pattern ...]
+//   dotnet run --project FF3.ContentTool -- xbn        <file.xbn> [out.xml]
+//   dotnet run --project FF3.ContentTool -- xbn-build  <file.xml> [out.xbn]
 //
 // "extract" turns the shipped .xnb files back into editable sources:
 //   Fonts/<name>.png   + <name>.json   glyph atlas and metrics
@@ -16,6 +18,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace FF3.ContentTool
 {
@@ -51,6 +55,20 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return Archives.Extract(args[1], args[2], args.Skip(3).ToArray());
+					case "xbn":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return XbnDecode(args[1], args.Length > 2 ? args[2] : null);
+					case "xbn-build":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return XbnBuild(args[1], args.Length > 2 ? args[2] : null);
 					default:
 						Usage();
 						return 1;
@@ -70,6 +88,9 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");
 			Console.Error.WriteLine("  extract-archives <content-directory> <output-directory> [pattern ...]");
+			Console.Error.WriteLine();
+			Console.Error.WriteLine("  xbn        <file.xbn> [out.xml]   menu definition -> XML");
+			Console.Error.WriteLine("  xbn-build  <file.xml> [out.xbn]   XML -> menu definition");
 			Console.Error.WriteLine();
 			Console.Error.WriteLine("patterns are globs on the archived name, e.g. \"*.NCGR\" \"btl*\"");
 		}
@@ -133,6 +154,51 @@ namespace FF3.ContentTool
 			{
 				Console.WriteLine("{0,6}  {1}", row.Value, row.Key);
 			}
+			return 0;
+		}
+
+		/// <summary>
+		/// Decodes a menu definition to XML, and checks the result by building it
+		/// straight back: if the bytes differ, the decode lost something and the file
+		/// should not be edited through this tool yet.
+		/// </summary>
+		private static int XbnDecode(string input, string output)
+		{
+			byte[] original = File.ReadAllBytes(input);
+			XDocument document = MenuXbn.ToXml(original);
+			output = output ?? Path.ChangeExtension(input, ".xml");
+
+			XmlWriterSettings settings = new XmlWriterSettings
+			{
+				Indent = true,
+				IndentChars = "  ",
+				Encoding = new UTF8Encoding(false)
+			};
+			using (XmlWriter writer = XmlWriter.Create(output, settings))
+			{
+				document.Save(writer);
+			}
+
+			byte[] rebuilt = MenuXbn.FromXml(document);
+			string verdict = rebuilt.SequenceEqual(original)
+				? "round trips byte for byte"
+				: "WARNING: rebuild differs from the original (" + rebuilt.Length
+					+ " vs " + original.Length + " bytes)";
+
+			Console.WriteLine("{0} -> {1}  ({2} nodes, {3})",
+				Path.GetFileName(input), output,
+				document.Descendants().Count(), verdict);
+			return rebuilt.SequenceEqual(original) ? 0 : 1;
+		}
+
+		private static int XbnBuild(string input, string output)
+		{
+			XDocument document = XDocument.Load(input, LoadOptions.None);
+			byte[] data = MenuXbn.FromXml(document);
+			output = output ?? Path.ChangeExtension(input, ".xbn");
+			File.WriteAllBytes(output, data);
+			Console.WriteLine("{0} -> {1}  ({2} bytes)",
+				Path.GetFileName(input), output, data.Length);
 			return 0;
 		}
 

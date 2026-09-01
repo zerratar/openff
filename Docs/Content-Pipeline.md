@@ -169,12 +169,24 @@ File  override in use: en.lproj/eureka_menu.msd
 `Content/Override` is gitignored apart from its README, so experiments stay local.
 Content meant to ship goes in deliberately.
 
+## Menu definitions
+
+The `.xbn` files are binary XML and decode to editable XML and back, byte for byte:
+
+```bash
+dotnet run --project FF3.ContentTool -- xbn       files/MenuDefine.xbn
+dotnet run --project FF3.ContentTool -- xbn-build files/MenuDefine.xml
+```
+
+See `Docs/Menus.md`.
+
 ## Not decoded yet
 
-The archives can be extracted, but the blobs inside them are still in their NDS
-formats - `.NCGR`/`.NSCR`/`.NCER` graphics, `.msd` text, `.script` bytecode, `.lz`
-compression. Editing them means understanding each one; that is the next layer of
-tooling, not something the extractor solves.
+The archives extract, and `.xbn` decodes, but the rest of the blobs are still in
+their NDS formats - `.NCGR`/`.NSCR`/`.NCER` graphics, `.msd` text, `.script` bytecode,
+`.lz` compression. Each is its own decoder. `.msd` is the one worth doing next: it
+holds every line of dialogue and every menu label, and `.xbn` can only reference
+message ids that already exist until it is readable.
 
 `--dump=<dir>` is the shortcut in the meantime: the running game writes out every
 image blob it decodes, which covers the art without decoding anything by hand.

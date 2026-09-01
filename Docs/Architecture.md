@@ -91,6 +91,16 @@ data rather than from us.
 
 Saves go to `%APPDATA%\FF3` via `Compat/SaveFiles.cs`.
 
+## Menus
+
+Menus are data. Eight `.xbn` files describe every screen - layout, focus order, and a
+behaviour name per widget - and `MenuManager` builds the widget tree from them at load
+time. Behaviours resolve by name through a self-registering factory list, so a new one
+is a subclass plus a static field, with no table to edit.
+
+`Docs/Menus.md` has the format, the element vocabulary and the full behaviour list.
+Combined with the override path, a menu change is: decode to XML, edit, build, restart.
+
 ## What is still Android-shaped, and why that is fine
 
 `android/` retains a handful of types that are genuinely carrying behaviour or are
