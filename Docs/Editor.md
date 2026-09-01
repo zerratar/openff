@@ -89,10 +89,26 @@ Every message in a `.msd`, editable in place. Messages that are not valid UTF-8 
 marked `latin1` and are held byte for byte - see the encoding section of
 `Docs/Text.md` before changing one.
 
+## Audio
+
+445 sounds - 30 music tracks and the rest effects - with their length, format, parts
+and loop point, a player per part, the exact script line that plays them, and every
+script that does. `Docs/Audio.md` explains how a number in a script becomes a file on
+disk. Replacing a sound is not possible yet: they are XNBs rather than archive
+entries, so the override directory does not reach them.
+
 ## Tables
 
 Items, weapons, armour, spells, monsters, jobs and per-map data as a grid, one tab per
-chain. Values are edited in place; an array field is edited as a comma separated list,
+chain. Each chain says what it is for above the grid - a map's `jumps` is "where each
+exit on this map leads: the position and facing the player arrives at, the map they
+arrive on, and the flag that has to be set for the exit to work at all".
+
+Field names are the game's own, tidied: `m_NextMapIndex` reads as `nextMapIndex`, and
+a value read into a temporary buffer takes the name of the field it ends up in, so the
+local called `array` in the map exit table is `nextMapName`.
+
+Values are edited in place; an array field is edited as a comma separated list,
 and turns red rather than saving if the list stops being the right length or stops
 being numbers.
 

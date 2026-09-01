@@ -33,7 +33,14 @@ function say(message, tone) {
 // ------------------------------------------------------------------- file list
 
 async function loadList() {
-  state.files = await api(`/api/list?kind=${state.kind}`);
+  if (state.kind === 'audio') {
+    // Sounds are not archive entries - they are XNBs beside the game - so the list
+    // comes from somewhere else and carries more with it.
+    state.audio = await api('/api/audio');
+    state.files = state.audio.map(sound => ({ name: sound.name, overridden: false }));
+  } else {
+    state.files = await api(`/api/list?kind=${state.kind}`);
+  }
   drawList();
 }
 
@@ -69,6 +76,7 @@ async function open(name) {
     if (state.kind === 'script') await openScript(name);
     else if (state.kind === 'menu') await openMenu(name);
     else if (state.kind === 'table') await openTable(name);
+    else if (state.kind === 'audio') await openAudio(name);
     else await openText(name);
     say('');
   } catch (error) {
@@ -81,7 +89,9 @@ function view(id, name, overridden) {
   pane.textContent = '';
   const node = $(`#view-${id}`).content.cloneNode(true).firstElementChild;
   $('.name', node).textContent = name;
-  $('.badge.override', node).classList.toggle('on', overridden);
+  // Not every view has an override badge or a revert button - audio has neither.
+  const badge = $('.badge.override', node);
+  if (badge) badge.classList.toggle('on', overridden);
   const revert = $('.revert', node);
   if (revert) {
     revert.onclick = async () => {
@@ -604,12 +614,20 @@ async function openTable(name) {
     picker.append(option);
   }
 
+  const note = $('.note', node);
+  const showNote = () => {
+    const chain = decoded.find(c => c.index === Number(picker.value));
+    const text = chain && data.notes ? data.notes[chain.label] : null;
+    note.textContent = text || '';
+    note.classList.toggle('on', Boolean(text));
+  };
+
   const showPadding = $('.pads input', node);
   const rowFilter = $('.rowfilter', node);
   const draw = () => drawTable(node, decoded.find(c => c.index === Number(picker.value)),
     showPadding.checked, rowFilter.value.trim().toLowerCase());
 
-  picker.onchange = draw;
+  picker.onchange = () => { showNote(); draw(); };
   showPadding.onchange = draw;
   rowFilter.oninput = draw;
 
@@ -619,7 +637,7 @@ async function openTable(name) {
     say(`saved, ${result.bytes} bytes`, 'good');
   };
 
-  if (decoded.length) draw();
+  if (decoded.length) { showNote(); draw(); }
   else say('nothing in this file has a known layout', 'bad');
 }
 
@@ -696,6 +714,77 @@ function drawTable(node, chain, withPadding, filter) {
     }
     table.append(row);
   });
+}
+
+// ------------------------------------------------------------------------ audio
+
+async function openAudio(name) {
+  const sound = state.audio.find(s => s.name === name);
+  if (!sound) throw new Error('no sound called ' + name);
+
+  const node = view('audio', name, false);
+  const facts = $('.facts', node);
+
+  const fact = (label, value) => {
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    facts.append(dt, dd);
+  };
+
+  fact('kind', sound.kind === 'bgm' ? 'music' : 'sound effect');
+  fact('length', `${(sound.milliseconds / 1000).toFixed(2)} s`);
+  fact('format', `${sound.sampleRate} Hz, ${sound.channels === 2 ? 'stereo' : 'mono'}`);
+  fact('parts', sound.parts.length === 2
+    ? 'intro (_0) and loop (_1)'
+    : `one part (_${sound.parts[0]})`);
+  if (sound.loopAt >= 0) {
+    fact('loops at', `${(sound.loopAt / 1000).toFixed(2)} s   (sound/${name}.dat)`);
+  }
+
+  const players = $('.players', node);
+  for (const part of sound.parts) {
+    const row = document.createElement('div');
+    row.className = 'player';
+    const label = document.createElement('span');
+    label.textContent = sound.parts.length === 2
+      ? (part === 0 ? 'intro' : 'loop')
+      : 'sound';
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = `/api/audio/wav?name=${encodeURIComponent(name)}&part=${part}`;
+    row.append(label, audio);
+    players.append(row);
+  }
+
+  $('.call', node).textContent = sound.call || 'not reachable from a script by number';
+
+  const uses = $('.uses', node);
+  const found = await api(`/api/audio/uses?name=${encodeURIComponent(name)}`);
+  uses.textContent = '';
+  if (!found.length) {
+    const item = document.createElement('li');
+    item.className = 'empty';
+    item.textContent = 'no script plays this by number - it may be started by the '
+      + 'engine itself, from a menu, or in battle';
+    uses.append(item);
+    return;
+  }
+  for (const use of found) {
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.textContent = use.script;
+    link.onclick = () => {
+      $('[data-kind="script"]').click();
+      setTimeout(() => open(use.script), 400);
+    };
+    const count = document.createElement('b');
+    count.textContent = use.count === 1 ? 'once' : `${use.count} times`;
+    item.append(link, count);
+    uses.append(item);
+  }
 }
 
 // -------------------------------------------------------------------- start up

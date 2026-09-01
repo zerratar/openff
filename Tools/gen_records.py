@@ -22,6 +22,10 @@ Reads the game sources; writes FF3.ContentTool/PakRecords.cs and nothing else.
 import io
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from record_notes import NOTES
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -182,6 +186,29 @@ def parse_body(src):
     return None, None, None
 
 
+def tidy(name):
+    """m_NextMapIndex -> nextMapIndex. The decompiler's prefixes are noise to anyone
+    reading a table, and the leading capital is a C++ habit, not information."""
+    if not name:
+        return name
+    name = name.strip('_')
+    if name.startswith('m_'):
+        name = name[2:]
+    name = name.strip('_')
+    if not name:
+        return 'unnamed'
+    # Leave an acronym alone: HPMax should not become hPMax.
+    if len(name) > 1 and name[1].isupper():
+        return name
+    return name[0].lower() + name[1:]
+
+
+def destination_of(buffer, body):
+    """The field a local buffer is copied into, if it is."""
+    mm = re.search(r'(\w+)\s*=\s*\w+\.\w+\(\s*' + re.escape(buffer) + r'', body)
+    return mm.group(1) if mm else None
+
+
 class Unsupported(Exception):
     """A parse method shaped in a way this script will not guess at."""
 
@@ -242,15 +269,20 @@ def fields_of(body, src, reader, counted, prefix='', depth=0):
                            or ARRAY_TYPE.get(field_type(parts[0], src)))
                 if element is None:
                     raise Unsupported('cannot type the array ' + parts[0])
+                # A read into a local buffer that is then stored in a field should
+                # carry the field's name: CMapJumpParameter reads 16 bytes into a
+                # local called "array" and turns it into m_NextMapName, and "array"
+                # tells a reader nothing at all.
+                label = destination_of(parts[0], body) or parts[0]
                 if parts[2] == counted:
-                    fields.append((prefix + parts[0].rstrip('_'), element, -1))
+                    fields.append((prefix + tidy(label), element, -1))
                 else:
                     length = constant(parts[2], src)
                     if length is None:
                         raise Unsupported('cannot size the array ' + parts[0])
-                    fields.append((prefix + parts[0].rstrip('_'), element, length))
+                    fields.append((prefix + tidy(label), element, length))
             elif kind in SIZES:
-                label = (name or 'unnamed%d' % len(fields)).rstrip('_')
+                label = tidy(name) if name else ('unnamed%d' % len(fields))
                 fields.append((prefix + label, kind, 1))
             else:
                 raise Unsupported('unhandled read: ' + kind)
@@ -365,8 +397,15 @@ namespace FF3.ContentTool
 @T@Tpublic readonly int Stride;
 @T@Tpublic readonly PakField[] Fields;
 
+@T@T/// <summary>
+@T@T/// What the table is for, in a sentence, or null. Written by hand in
+@T@T/// Tools/record_notes.py - the code says what the fields are, not what the
+@T@T/// table is for - and left out where nobody has looked properly yet.
+@T@T/// </summary>
+@T@Tpublic readonly string Note;
+
 @T@Tpublic PakChain(string family, int index, string label, string source, int stride,
-@T@T@TPakField[] fields)
+@T@T@TPakField[] fields, string note = null)
 @T@T{
 @T@T@TFamily = family;
 @T@T@TIndex = index;
@@ -374,6 +413,7 @@ namespace FF3.ContentTool
 @T@T@TSource = source;
 @T@T@TStride = stride;
 @T@T@TFields = fields;
+@T@T@TNote = note;
 @T@T}
 @T}
 
@@ -408,7 +448,11 @@ for family, filename, index, label, class_name, size, fields in emitted:
     for name, kind, count in fields:
         lines.append('@T@T@T@Tnew PakField("%s", FieldType.%s, %d),'
                      % (name, EMIT_TYPE[kind], count))
-    lines.append('@T@T@T}),')
+    note = NOTES.get((family, label))
+    if note:
+        lines.append('@T@T@T}, "%s"),' % note.replace('"', "'"))
+    else:
+        lines.append('@T@T@T}),')
 
 text = (head + NL.join(lines) + NL + tail).replace('@T', TAB)
 io.open(DEST, 'w', encoding='utf-8', newline=chr(13) + NL).write(text)

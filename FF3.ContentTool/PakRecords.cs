@@ -50,8 +50,15 @@ namespace FF3.ContentTool
 		public readonly int Stride;
 		public readonly PakField[] Fields;
 
+		/// <summary>
+		/// What the table is for, in a sentence, or null. Written by hand in
+		/// Tools/record_notes.py - the code says what the fields are, not what the
+		/// table is for - and left out where nobody has looked properly yet.
+		/// </summary>
+		public readonly string Note;
+
 		public PakChain(string family, int index, string label, string source, int stride,
-			PakField[] fields)
+			PakField[] fields, string note = null)
 		{
 			Family = family;
 			Index = index;
@@ -59,6 +66,7 @@ namespace FF3.ContentTool
 			Source = source;
 			Stride = stride;
 			Fields = fields;
+			Note = note;
 		}
 	}
 
@@ -69,7 +77,7 @@ namespace FF3.ContentTool
 			new PakChain("Item", 0, "consumables", "ConsumptionParameter", 44, new[]
 			{
 				new PakField("system", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
+				new PakField("pad0", FieldType.U8, 1),
 				new PakField("itemId", FieldType.S16, 1),
 				new PakField("nameId", FieldType.S16, 1),
 				new PakField("captionId", FieldType.S16, 1),
@@ -83,24 +91,24 @@ namespace FF3.ContentTool
 				new PakField("useBattle", FieldType.U8, 1),
 				new PakField("useField", FieldType.U8, 1),
 				new PakField("allTarget", FieldType.U8, 1),
-				new PakField("_pad1", FieldType.U8, 1),
+				new PakField("pad1", FieldType.U8, 1),
 				new PakField("useItemId", FieldType.S16, 1),
 				new PakField("targetPossible", FieldType.S16, 1),
 				new PakField("targetPosition", FieldType.S16, 1),
-				new PakField("_pad2", FieldType.U8, 1),
-				new PakField("_pad3", FieldType.U8, 1),
+				new PakField("pad2", FieldType.U8, 1),
+				new PakField("pad3", FieldType.U8, 1),
 				new PakField("buy", FieldType.S32, 1),
 				new PakField("price", FieldType.S32, 1),
 				new PakField("usedPower", FieldType.S16, 1),
 				new PakField("itemType", FieldType.S16, 1),
 				new PakField("changeCondition", FieldType.S16, 1),
-				new PakField("_pad0", FieldType.U8, 1),
-				new PakField("_pad1", FieldType.U8, 1),
-			}),
+				new PakField("pad0", FieldType.U8, 1),
+				new PakField("pad1", FieldType.U8, 1),
+			}, "Items that are used up: potions, antidotes, tents, status cures."),
 			new PakChain("Item", 1, "weapons", "WeaponParameter", 56, new[]
 			{
 				new PakField("system", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
+				new PakField("pad0", FieldType.U8, 1),
 				new PakField("itemId", FieldType.S16, 1),
 				new PakField("nameId", FieldType.S16, 1),
 				new PakField("captionId", FieldType.S16, 1),
@@ -114,12 +122,12 @@ namespace FF3.ContentTool
 				new PakField("useBattle", FieldType.U8, 1),
 				new PakField("useField", FieldType.U8, 1),
 				new PakField("allTarget", FieldType.U8, 1),
-				new PakField("_pad1", FieldType.U8, 1),
+				new PakField("pad1", FieldType.U8, 1),
 				new PakField("useItemId", FieldType.S16, 1),
 				new PakField("targetPossible", FieldType.S16, 1),
 				new PakField("targetPosition", FieldType.S16, 1),
-				new PakField("_pad2", FieldType.U8, 1),
-				new PakField("_pad3", FieldType.U8, 1),
+				new PakField("pad2", FieldType.U8, 1),
+				new PakField("pad3", FieldType.U8, 1),
 				new PakField("buy", FieldType.S32, 1),
 				new PakField("price", FieldType.S32, 1),
 				new PakField("equipJob", FieldType.S32, 1),
@@ -131,13 +139,13 @@ namespace FF3.ContentTool
 				new PakField("atckType", FieldType.S16, 1),
 				new PakField("atckOption", FieldType.S16, 1),
 				new PakField("equipOption", FieldType.S16, 1),
-				new PakField("_pad0", FieldType.U8, 1),
-				new PakField("_pad1", FieldType.U8, 1),
-			}),
+				new PakField("pad0", FieldType.U8, 1),
+				new PakField("pad1", FieldType.U8, 1),
+			}, "Every weapon. aggressivity is attack power, armsAttribute is the element, equipJob is a bitmask of the jobs allowed to hold it."),
 			new PakChain("Item", 2, "armour", "ProtectionParameter", 60, new[]
 			{
 				new PakField("system", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
+				new PakField("pad0", FieldType.U8, 1),
 				new PakField("itemId", FieldType.S16, 1),
 				new PakField("nameId", FieldType.S16, 1),
 				new PakField("captionId", FieldType.S16, 1),
@@ -151,12 +159,12 @@ namespace FF3.ContentTool
 				new PakField("useBattle", FieldType.U8, 1),
 				new PakField("useField", FieldType.U8, 1),
 				new PakField("allTarget", FieldType.U8, 1),
-				new PakField("_pad1", FieldType.U8, 1),
+				new PakField("pad1", FieldType.U8, 1),
 				new PakField("useItemId", FieldType.S16, 1),
 				new PakField("targetPossible", FieldType.S16, 1),
 				new PakField("targetPosition", FieldType.S16, 1),
-				new PakField("_pad2", FieldType.U8, 1),
-				new PakField("_pad3", FieldType.U8, 1),
+				new PakField("pad2", FieldType.U8, 1),
+				new PakField("pad3", FieldType.U8, 1),
 				new PakField("buy", FieldType.S32, 1),
 				new PakField("price", FieldType.S32, 1),
 				new PakField("equipJob", FieldType.S32, 1),
@@ -165,18 +173,18 @@ namespace FF3.ContentTool
 				new PakField("avoidanceProbability", FieldType.U8, 1),
 				new PakField("magicAvoidanceProbability", FieldType.U8, 1),
 				new PakField("evasionNum", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
+				new PakField("pad0", FieldType.U8, 1),
 				new PakField("armsWeakAttribute", FieldType.S16, 1),
 				new PakField("armsAttribute", FieldType.S16, 1),
 				new PakField("weakType", FieldType.S16, 1),
 				new PakField("antiType", FieldType.S16, 1),
 				new PakField("antiOption", FieldType.S16, 1),
 				new PakField("equipOption", FieldType.S16, 1),
-			}),
+			}, "Shields, helmets, armour and accessories, with the defence they give and the jobs that can wear them."),
 			new PakChain("Item", 3, "magic", "MagicParameter", 52, new[]
 			{
 				new PakField("system", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
+				new PakField("pad0", FieldType.U8, 1),
 				new PakField("itemId", FieldType.S16, 1),
 				new PakField("nameId", FieldType.S16, 1),
 				new PakField("captionId", FieldType.S16, 1),
@@ -190,17 +198,17 @@ namespace FF3.ContentTool
 				new PakField("useBattle", FieldType.U8, 1),
 				new PakField("useField", FieldType.U8, 1),
 				new PakField("allTarget", FieldType.U8, 1),
-				new PakField("_pad1", FieldType.U8, 1),
+				new PakField("pad1", FieldType.U8, 1),
 				new PakField("useItemId", FieldType.S16, 1),
 				new PakField("targetPossible", FieldType.S16, 1),
 				new PakField("targetPosition", FieldType.S16, 1),
-				new PakField("_pad2", FieldType.U8, 1),
-				new PakField("_pad3", FieldType.U8, 1),
+				new PakField("pad2", FieldType.U8, 1),
+				new PakField("pad3", FieldType.U8, 1),
 				new PakField("buy", FieldType.S32, 1),
 				new PakField("price", FieldType.S32, 1),
 				new PakField("equipJob", FieldType.S32, 1),
 				new PakField("magicClass", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
+				new PakField("pad0", FieldType.U8, 1),
 				new PakField("magicAggressivity", FieldType.S16, 1),
 				new PakField("successProbability", FieldType.U8, 1),
 				new PakField("magicUseKind", FieldType.U8, 1),
@@ -208,11 +216,11 @@ namespace FF3.ContentTool
 				new PakField("changeCondition", FieldType.S16, 1),
 				new PakField("calculate", FieldType.U8, 1),
 				new PakField("reflect", FieldType.U8, 1),
-			}),
+			}, "Spells as items - what a shop sells and what a character carries."),
 			new PakChain("Item", 4, "keyItems", "ImportantParameter", 28, new[]
 			{
 				new PakField("system", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
+				new PakField("pad0", FieldType.U8, 1),
 				new PakField("itemId", FieldType.S16, 1),
 				new PakField("nameId", FieldType.S16, 1),
 				new PakField("captionId", FieldType.S16, 1),
@@ -226,13 +234,13 @@ namespace FF3.ContentTool
 				new PakField("useBattle", FieldType.U8, 1),
 				new PakField("useField", FieldType.U8, 1),
 				new PakField("allTarget", FieldType.U8, 1),
-				new PakField("_pad1", FieldType.U8, 1),
+				new PakField("pad1", FieldType.U8, 1),
 				new PakField("useItemId", FieldType.S16, 1),
 				new PakField("targetPossible", FieldType.S16, 1),
 				new PakField("targetPosition", FieldType.S16, 1),
 				new PakField("specialOptionId", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
-			}),
+				new PakField("pad0", FieldType.U8, 1),
+			}, "Story items that are never used up: the fangs, the keys, the ship parts."),
 			new PakChain("Monster", 0, "monsters", "MonsterParameter", 100, new[]
 			{
 				new PakField("nameId", FieldType.S16, 1),
@@ -268,8 +276,8 @@ namespace FF3.ContentTool
 				new PakField("physicsDefense.antiType", FieldType.S16, 1),
 				new PakField("physicsDefense.antiOption", FieldType.S16, 1),
 				new PakField("physicsDefense.equipOption", FieldType.S16, 1),
-				new PakField("physicsDefense._pad0", FieldType.U8, 1),
-				new PakField("physicsDefense._pad1", FieldType.U8, 1),
+				new PakField("physicsDefense.pad0", FieldType.U8, 1),
+				new PakField("physicsDefense.pad1", FieldType.U8, 1),
 				new PakField("magicDefense.weakType", FieldType.S16, 1),
 				new PakField("magicDefense.magicPhylacticPower", FieldType.S16, 1),
 				new PakField("0.specialAction.specialActionId", FieldType.S16, 1),
@@ -283,15 +291,15 @@ namespace FF3.ContentTool
 				new PakField("droppingParameter.gold", FieldType.S32, 1),
 				new PakField("droppingParameter.exp", FieldType.S32, 1),
 				new PakField("drawMapId", FieldType.U8, 1),
-				new PakField("_pad0", FieldType.U8, 1),
-				new PakField("_pad1", FieldType.U8, 1),
-				new PakField("_pad2", FieldType.U8, 1),
-			}),
+				new PakField("pad0", FieldType.U8, 1),
+				new PakField("pad1", FieldType.U8, 1),
+				new PakField("pad2", FieldType.U8, 1),
+			}, "One row per monster: level, hp, the body/attack/defence blocks, and the ids of its name and its model."),
 			new PakChain("Monster", 1, "drops", "DropItemParameter", 18, new[]
 			{
 				new PakField("droppingItemTableId", FieldType.S16, 1),
 				new PakField("normalItem", FieldType.S16, 8),
-			}),
+			}, "What a monster can leave behind when it dies."),
 			new PakChain("Monster", 2, "normalAttacks", "MonsterNormalAttackParameter", 28, new[]
 			{
 				new PakField("0.effects.frameCounter", FieldType.S32, 1),
@@ -299,22 +307,22 @@ namespace FF3.ContentTool
 				new PakField("0.effects.category", FieldType.S16, 1),
 				new PakField("0.effects.member", FieldType.S16, 1),
 				new PakField("0.effects.isLoop", FieldType.S8, 1),
-				new PakField("0.effects._pad0", FieldType.U8, 1),
+				new PakField("0.effects.pad0", FieldType.U8, 1),
 				new PakField("1.effects.frameCounter", FieldType.S32, 1),
 				new PakField("1.effects.type", FieldType.S16, 1),
 				new PakField("1.effects.category", FieldType.S16, 1),
 				new PakField("1.effects.member", FieldType.S16, 1),
 				new PakField("1.effects.isLoop", FieldType.S8, 1),
-				new PakField("1.effects._pad0", FieldType.U8, 1),
+				new PakField("1.effects.pad0", FieldType.U8, 1),
 				new PakField("damageMotion", FieldType.S16, 1),
 				new PakField("damageValue", FieldType.S16, 1),
-			}),
+			}, "The ordinary attack a monster makes."),
 			new PakChain("Monster", 3, "specialAttacks", "MonsterSpecialAttackParameter", 16, new[]
 			{
 				new PakField("specialAttackId", FieldType.S16, 1),
 				new PakField("command", FieldType.S16, 1),
 				new PakField("param", FieldType.S16, 6),
-			}),
+			}, "The special moves a monster can use."),
 			new PakChain("Monster", 4, "offsets", "MonsterOffsetParameter", 160, new[]
 			{
 				new PakField("monsterId", FieldType.S32, 1),
@@ -357,7 +365,7 @@ namespace FF3.ContentTool
 				new PakField("finishCameraTarget.x", FieldType.S32, 1),
 				new PakField("finishCameraTarget.y", FieldType.S32, 1),
 				new PakField("finishCameraTarget.z", FieldType.S32, 1),
-			}),
+			}, "Placement numbers used when a monster is put on the battle field."),
 			new PakChain("Monster", 5, "specialAttackEffects", "MonsterSpecialAttackEffects", 56, new[]
 			{
 				new PakField("specialAttackId", FieldType.S16, 1),
@@ -390,11 +398,11 @@ namespace FF3.ContentTool
 				new PakField("1.seInfo.member", FieldType.S16, 1),
 				new PakField("damageTimingInfo.motionIndex", FieldType.S16, 1),
 				new PakField("damageTimingInfo.frame", FieldType.S16, 1),
-			}),
+			}, "The effect that plays with a special attack."),
 			new PakChain("Player", 0, "expCurve", "PlayerExp", 396, new[]
 			{
 				new PakField("exp", FieldType.S32, 99),
-			}),
+			}, "Experience needed for each level. The first entries are 0, 16, 47, 105."),
 			new PakChain("Player", 1, "jobGrowUpTypes", "JobGrowUpType", 138, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -535,7 +543,7 @@ namespace FF3.ContentTool
 				new PakField("22.3.unnamed0", FieldType.U8, 1),
 				new PakField("22.4.unnamed0", FieldType.U8, 1),
 				new PakField("22.5.unnamed0", FieldType.U8, 1),
-			}),
+			}, "Which growth pattern each job uses."),
 			new PakChain("Player", 2, "growth", "GrowUp", 792, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -1330,7 +1338,7 @@ namespace FF3.ContentTool
 				new PakField("7.96.unnamed0", FieldType.U8, 1),
 				new PakField("7.97.unnamed0", FieldType.U8, 1),
 				new PakField("7.98.unnamed0", FieldType.U8, 1),
-			}),
+			}, "How stats climb with level, per growth pattern."),
 			new PakChain("Player", 3, "normalAttacks", "PlayerNormalAttackParameter", 64, new[]
 			{
 				new PakField("motionId", FieldType.S32, 1),
@@ -1339,30 +1347,30 @@ namespace FF3.ContentTool
 				new PakField("0.effect.category", FieldType.S16, 1),
 				new PakField("0.effect.member", FieldType.S16, 1),
 				new PakField("0.effect.isLoop", FieldType.S8, 1),
-				new PakField("0.effect._pad0", FieldType.U8, 1),
+				new PakField("0.effect.pad0", FieldType.U8, 1),
 				new PakField("1.effect.frameCounter", FieldType.S32, 1),
 				new PakField("1.effect.type", FieldType.S16, 1),
 				new PakField("1.effect.category", FieldType.S16, 1),
 				new PakField("1.effect.member", FieldType.S16, 1),
 				new PakField("1.effect.isLoop", FieldType.S8, 1),
-				new PakField("1.effect._pad0", FieldType.U8, 1),
+				new PakField("1.effect.pad0", FieldType.U8, 1),
 				new PakField("0.se.frameCounter", FieldType.S32, 1),
 				new PakField("0.se.type", FieldType.S16, 1),
 				new PakField("0.se.category", FieldType.S16, 1),
 				new PakField("0.se.member", FieldType.S16, 1),
 				new PakField("0.se.isLoop", FieldType.S8, 1),
-				new PakField("0.se._pad0", FieldType.U8, 1),
+				new PakField("0.se.pad0", FieldType.U8, 1),
 				new PakField("1.se.frameCounter", FieldType.S32, 1),
 				new PakField("1.se.type", FieldType.S16, 1),
 				new PakField("1.se.category", FieldType.S16, 1),
 				new PakField("1.se.member", FieldType.S16, 1),
 				new PakField("1.se.isLoop", FieldType.S8, 1),
-				new PakField("1.se._pad0", FieldType.U8, 1),
+				new PakField("1.se.pad0", FieldType.U8, 1),
 				new PakField("targetMotionStartFrame", FieldType.S16, 2),
 				new PakField("cancelStartFrame", FieldType.S16, 1),
 				new PakField("cancelEndFrame", FieldType.S16, 1),
 				new PakField("randamFlag", FieldType.S32, 1),
-			}),
+			}, "The 55 ordinary attacks, looked up by motion id."),
 			new PakChain("Player", 4, "mpGrowth1", "GrowUpMp", 792, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -2157,7 +2165,7 @@ namespace FF3.ContentTool
 				new PakField("98.5.unnamed0", FieldType.U8, 1),
 				new PakField("98.6.unnamed0", FieldType.U8, 1),
 				new PakField("98.7.unnamed0", FieldType.U8, 1),
-			}),
+			}, "MP growth for level 1 spells, per job."),
 			new PakChain("Player", 5, "mpGrowth2", "GrowUpMp", 792, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -2952,7 +2960,7 @@ namespace FF3.ContentTool
 				new PakField("98.5.unnamed0", FieldType.U8, 1),
 				new PakField("98.6.unnamed0", FieldType.U8, 1),
 				new PakField("98.7.unnamed0", FieldType.U8, 1),
-			}),
+			}, "MP growth for level 2 spells, per job."),
 			new PakChain("Player", 6, "mpGrowth3", "GrowUpMp", 792, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -3747,7 +3755,7 @@ namespace FF3.ContentTool
 				new PakField("98.5.unnamed0", FieldType.U8, 1),
 				new PakField("98.6.unnamed0", FieldType.U8, 1),
 				new PakField("98.7.unnamed0", FieldType.U8, 1),
-			}),
+			}, "MP growth for level 3 spells, per job."),
 			new PakChain("Player", 7, "mpGrowth4", "GrowUpMp", 792, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -4542,7 +4550,7 @@ namespace FF3.ContentTool
 				new PakField("98.5.unnamed0", FieldType.U8, 1),
 				new PakField("98.6.unnamed0", FieldType.U8, 1),
 				new PakField("98.7.unnamed0", FieldType.U8, 1),
-			}),
+			}, "MP growth for level 4 spells, per job."),
 			new PakChain("Player", 8, "mpGrowth5", "GrowUpMp", 792, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -5337,7 +5345,7 @@ namespace FF3.ContentTool
 				new PakField("98.5.unnamed0", FieldType.U8, 1),
 				new PakField("98.6.unnamed0", FieldType.U8, 1),
 				new PakField("98.7.unnamed0", FieldType.U8, 1),
-			}),
+			}, "MP growth for level 5 spells, per job."),
 			new PakChain("Player", 9, "mpGrowth6", "GrowUpMp", 792, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -6132,7 +6140,7 @@ namespace FF3.ContentTool
 				new PakField("98.5.unnamed0", FieldType.U8, 1),
 				new PakField("98.6.unnamed0", FieldType.U8, 1),
 				new PakField("98.7.unnamed0", FieldType.U8, 1),
-			}),
+			}, "MP growth for level 6 spells, per job."),
 			new PakChain("Player", 10, "mpGrowth7", "GrowUpMp", 792, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.U8, 1),
@@ -6927,11 +6935,11 @@ namespace FF3.ContentTool
 				new PakField("98.5.unnamed0", FieldType.U8, 1),
 				new PakField("98.6.unnamed0", FieldType.U8, 1),
 				new PakField("98.7.unnamed0", FieldType.U8, 1),
-			}),
+			}, "MP growth for level 7 spells, per job."),
 			new PakChain("Player", 11, "jobEquipment", "JobEquipInfo", 92, new[]
 			{
 				new PakField("equipInfo", FieldType.S32, 23),
-			}),
+			}, "What each job is allowed to equip."),
 			new PakChain("Player", 12, "normalMagic", "PlayerNormalMagicParameter", 32, new[]
 			{
 				new PakField("magicId", FieldType.S16, 1),
@@ -6941,42 +6949,42 @@ namespace FF3.ContentTool
 				new PakField("effect.category", FieldType.S16, 1),
 				new PakField("effect.member", FieldType.S16, 1),
 				new PakField("effect.isLoop", FieldType.S8, 1),
-				new PakField("effect._pad0", FieldType.U8, 1),
+				new PakField("effect.pad0", FieldType.U8, 1),
 				new PakField("se.frameCounter", FieldType.S32, 1),
 				new PakField("se.type", FieldType.S16, 1),
 				new PakField("se.category", FieldType.S16, 1),
 				new PakField("se.member", FieldType.S16, 1),
 				new PakField("se.isLoop", FieldType.S8, 1),
-				new PakField("se._pad0", FieldType.U8, 1),
+				new PakField("se.pad0", FieldType.U8, 1),
 				new PakField("motionStartFrame", FieldType.S16, 1),
 				new PakField("effectPlayFrame", FieldType.S16, 1),
-			}),
+			}, "Spell entries: level, cost and effect."),
 			new PakChain("Player", 13, "abilities", "AbilityParameter", 8, new[]
 			{
 				new PakField("id", FieldType.S16, 1),
 				new PakField("nameId", FieldType.S16, 1),
 				new PakField("type", FieldType.S16, 1),
 				new PakField("substance", FieldType.S16, 1),
-			}),
+			}, "Battle commands - Attack, Run Away, and the job abilities - with the message id each one shows."),
 			new PakChain("Player", 14, "jobAbilities", "PlayerAbility", 12, new[]
 			{
 				new PakField("command", FieldType.S16, 4),
 				new PakField("passive", FieldType.S16, 2),
-			}),
+			}, "Which abilities each job starts with."),
 			new PakChain("Map", 0, "jumps", "CMapJumpParameter", 44, new[]
 			{
-				new PakField("m_PlPos", FieldType.S32, 3),
-				new PakField("m_PlRot", FieldType.S32, 1),
-				new PakField("array", FieldType.U8, 16),
-				new PakField("m_NextMapIndex", FieldType.S32, 1),
-				new PakField("m_ConditionFlag", FieldType.S32, 1),
-				new PakField("m_Kind", FieldType.S32, 1),
-			}),
+				new PakField("plPos", FieldType.S32, 3),
+				new PakField("plRot", FieldType.S32, 1),
+				new PakField("nextMapName", FieldType.U8, 16),
+				new PakField("nextMapIndex", FieldType.S32, 1),
+				new PakField("conditionFlag", FieldType.S32, 1),
+				new PakField("kind", FieldType.S32, 1),
+			}, "Where each exit on this map leads: the position and facing the player arrives at, the map they arrive on, and the flag that has to be set for the exit to work at all."),
 			new PakChain("Map", 1, "landForms", "CMapLandFormParameter", 48, new[]
 			{
-				new PakField("m_LandAttr", FieldType.S16, 12),
-				new PakField("m_BattleFieldIndex", FieldType.S16, 12),
-			}),
+				new PakField("landAttr", FieldType.S16, 12),
+				new PakField("battleFieldIndex", FieldType.S16, 12),
+			}, "Terrain attributes per tile type, and which battle field each one fights on."),
 			new PakChain("Map", 2, "monsterParties", "CMapMonsterPartyParameter", 40, new[]
 			{
 				new PakField("0.0.unnamed0", FieldType.S16, 1),
@@ -6999,33 +7007,33 @@ namespace FF3.ContentTool
 				new PakField("4.1.unnamed0", FieldType.S16, 1),
 				new PakField("4.2.unnamed0", FieldType.S16, 1),
 				new PakField("4.3.unnamed0", FieldType.S16, 1),
-			}),
+			}, "The groups of monsters this map can throw at you."),
 			new PakChain("Map", 3, "sounds", "CMapSoundParameter", 6, new[]
 			{
-				new PakField("m_BGMIndex", FieldType.S16, 1),
-				new PakField("m_CheckFlag", FieldType.S16, 1),
-				new PakField("m_ChangeBGMIndex", FieldType.S16, 1),
-			}),
+				new PakField("BGMIndex", FieldType.S16, 1),
+				new PakField("checkFlag", FieldType.S16, 1),
+				new PakField("changeBGMIndex", FieldType.S16, 1),
+			}, "The music and ambience this map sets up."),
 			new PakChain("Map", 4, "encounters", "CMapEnCountParameter", 4, new[]
 			{
-				new PakField("m_AreaLevel", FieldType.S16, 1),
-				new PakField("_pad0", FieldType.U16, 1),
-				new PakField("m_EncountRevise", FieldType.F32, -1),
-			}),
+				new PakField("areaLevel", FieldType.S16, 1),
+				new PakField("pad0", FieldType.U16, 1),
+				new PakField("encountRevise", FieldType.F32, -1),
+			}, "How dangerous the map is: an area level and a run of encounter rates."),
 			new PakChain("Map", 5, "cameras", "CMapCameraParameter", 30, new[]
 			{
-				new PakField("m_Collision", FieldType.S16, 1),
-				new PakField("m_ClipNear", FieldType.S16, 1),
-				new PakField("m_ClipFar", FieldType.S16, 1),
-				new PakField("m_Mode", FieldType.S16, 1),
-				new PakField("m_PositionOffset", FieldType.S16, 3),
-				new PakField("m_TargetOffset", FieldType.S16, 3),
-				new PakField("m_ZoomOnOff", FieldType.S16, 1),
-				new PakField("m_ZoomType", FieldType.S16, 1),
-				new PakField("m_ZoomMax", FieldType.S16, 1),
-				new PakField("m_ZoomMin", FieldType.S16, 1),
-				new PakField("m_ZoomSpeed", FieldType.S16, 1),
-			}),
+				new PakField("collision", FieldType.S16, 1),
+				new PakField("clipNear", FieldType.S16, 1),
+				new PakField("clipFar", FieldType.S16, 1),
+				new PakField("mode", FieldType.S16, 1),
+				new PakField("positionOffset", FieldType.S16, 3),
+				new PakField("targetOffset", FieldType.S16, 3),
+				new PakField("zoomOnOff", FieldType.S16, 1),
+				new PakField("zoomType", FieldType.S16, 1),
+				new PakField("zoomMax", FieldType.S16, 1),
+				new PakField("zoomMin", FieldType.S16, 1),
+				new PakField("zoomSpeed", FieldType.S16, 1),
+			}, "Camera positions and angles the map switches between."),
 		};
 
 		public static PakChain Find(string family, int index)

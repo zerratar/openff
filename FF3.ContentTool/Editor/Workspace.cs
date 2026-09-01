@@ -29,6 +29,9 @@ namespace FF3.ContentTool.Editor
 
 		public string OverrideDirectory { get; }
 
+		/// <summary>Where the archives and the XNBs live.</summary>
+		public string ContentDirectory => _contentDirectory;
+
 		public Workspace(string contentDirectory, string overrideDirectory)
 		{
 			_contentDirectory = Path.GetFullPath(contentDirectory);

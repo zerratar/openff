@@ -400,3 +400,46 @@ table.grid tr:hover td { background: #1b1f26; }
   padding: 4px 8px;
   font: inherit;
 }
+
+/* ------------------------------------------------------------------ audio */
+
+.audio-body { padding: 16px 20px; overflow: auto; max-width: 820px; }
+.audio-body h3 {
+  font-size: 12px;
+  color: var(--dim);
+  font-weight: 600;
+  margin: 22px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+dl.facts { display: grid; grid-template-columns: 130px 1fr; gap: 4px 14px; margin: 0; }
+dl.facts dt { color: var(--dim); }
+dl.facts dd { margin: 0; }
+
+.players { display: flex; flex-direction: column; gap: 10px; }
+.player { display: flex; align-items: center; gap: 10px; }
+.player span { color: var(--dim); width: 88px; flex: 0 0 88px; }
+.player audio { flex: 1; height: 34px; }
+
+pre.call {
+  margin: 0;
+  padding: 8px 10px;
+  background: #171a1f;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: #7fd6a5;
+  font: 12px/1.5 "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  overflow-x: auto;
+}
+
+ul.uses { list-style: none; margin: 0; padding: 0; }
+ul.uses li { padding: 3px 0; color: var(--ink); }
+ul.uses li.empty { color: var(--dim); }
+ul.uses b { color: var(--dim); font-weight: 400; margin-left: 8px; }
+ul.uses a { color: var(--accent); cursor: pointer; text-decoration: none; }
+ul.uses a:hover { text-decoration: underline; }
+
+.note { display: none; margin: 0; padding: 9px 14px; color: var(--dim);
+  background: #171b21; border-bottom: 1px solid var(--line); }
+.note.on { display: block; }

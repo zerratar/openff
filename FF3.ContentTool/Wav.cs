@@ -16,6 +16,14 @@ namespace FF3.ContentTool
 
 		public static void Write(string path, byte[] format, byte[] data)
 		{
+			using FileStream file = File.Create(path);
+			Write(file, format, data);
+		}
+
+		/// <summary>The same, to any stream - the editor serves these rather than
+		/// writing them out.</summary>
+		public static void Write(Stream output, byte[] format, byte[] data)
+		{
 			if (format == null || format.Length < 16)
 			{
 				throw new InvalidDataException("sound has no usable WAVEFORMATEX block");
@@ -35,8 +43,7 @@ namespace FF3.ContentTool
 				+ factSize                            // fact chunk
 				+ 8 + Align(data.Length);             // data chunk
 
-			using FileStream file = File.Create(path);
-			using BinaryWriter writer = new BinaryWriter(file, Encoding.ASCII);
+			using BinaryWriter writer = new BinaryWriter(output, Encoding.ASCII, leaveOpen: true);
 
 			writer.Write(Encoding.ASCII.GetBytes("RIFF"));
 			writer.Write(riffSize);

@@ -159,6 +159,18 @@ namespace FF3.ContentTool.Editor
 					GetOps(context);
 					return;
 
+				case "/api/audio":
+					SendJson(context, Audio.List(_workspace.ContentDirectory, _workspace));
+					return;
+
+				case "/api/audio/uses":
+					SendJson(context, Audio.Uses(_workspace, Query(context, "name")));
+					return;
+
+				case "/api/audio/wav":
+					GetAudioWav(context);
+					return;
+
 				case "/api/revert":
 					Revert(context);
 					return;
@@ -309,6 +321,33 @@ namespace FF3.ContentTool.Editor
 			}
 		}
 
+		/// <summary>One part of a sound, as a wav the browser can play.</summary>
+		private void GetAudioWav(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			int part = int.TryParse(Query(context, "part"), NumberStyles.Integer,
+				CultureInfo.InvariantCulture, out int value) ? value : 0;
+
+			// The name reaches the archives and the file system, so keep it to what a
+			// sound is actually called.
+			if (string.IsNullOrEmpty(name) || name.IndexOfAny(
+					new[] { '/', Path.DirectorySeparatorChar, '.', ':' }) >= 0)
+			{
+				Send(context, 400, "text/plain", Encoding.UTF8.GetBytes("bad sound name"));
+				return;
+			}
+
+			try
+			{
+				Send(context, 200, "audio/wav",
+					Audio.Wav(_workspace.ContentDirectory, name, part));
+			}
+			catch (FileNotFoundException)
+			{
+				Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such sound"));
+			}
+		}
+
 		/// <summary>
 		/// The whole instruction set, with operand names and types. The editor needs
 		/// it to highlight, to complete and to say what an argument is for - none of
@@ -386,6 +425,10 @@ namespace FF3.ContentTool.Editor
 				name,
 				family,
 				overridden = _workspace.IsOverridden(name),
+				// What each chain is for, so the grid is not 34 columns of mystery.
+				notes = PakRecords.Chains
+					.Where(chain => chain.Family == family)
+					.ToDictionary(chain => chain.Label, chain => chain.Note),
 				// The decoded file goes across as it stands. Chains with no known
 				// layout keep their bytes, so a table with one unmodelled chain can
 				// still be edited and saved without losing it.

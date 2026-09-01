@@ -14,6 +14,7 @@
     <button data-kind="menu">Menus</button>
     <button data-kind="text">Text</button>
     <button data-kind="table">Tables</button>
+    <button data-kind="audio">Audio</button>
   </nav>
   <span id="status"></span>
 </header>
@@ -121,7 +122,27 @@
       <button class="save primary">Save</button>
       <button class="revert">Revert</button>
     </div>
+    <p class="note"></p>
     <div class="grid-wrap"><table class="grid"></table></div>
+  </div>
+</template>
+
+<!-- Audio -->
+<template id="view-audio">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="grow"></span>
+    </div>
+    <div class="audio-body">
+      <dl class="facts"></dl>
+      <h3>Listen</h3>
+      <div class="players"></div>
+      <h3>Play it from a script</h3>
+      <pre class="call"></pre>
+      <h3>What plays it</h3>
+      <ul class="uses"><li class="empty">looking…</li></ul>
+    </div>
   </div>
 </template>
 

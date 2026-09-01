@@ -60,7 +60,14 @@ python Tools/gen_records.py
 ```
 
 It reads each record type's own `parse(ArrayReader)` and records the fields in the
-order they are read, so the names in the JSON are the game's names.
+order they are read, so the names in the JSON are the game's names - tidied, because
+`m_NextMapIndex` is a C++ habit rather than information, and because a value read into
+a temporary buffer should carry the name of the field it ends up in. The local called
+`array` in the map exit table is `nextMapName`.
+
+What a table is *for* is not something the code says, so `Tools/record_notes.py` holds
+a sentence per chain, written by hand and left out where nobody has looked properly
+yet. The editor shows it above the grid.
 
 A parse method is not always flat. A monster embeds its body, physical attack,
 physical defence and magic defence as sub-records, and reads an array of special
