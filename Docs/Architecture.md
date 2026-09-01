@@ -112,7 +112,8 @@ resume it frames later - and each map's `.script` holds one program per actor. Q
 state lives in a global flag space that scripts set and branch on.
 
 `Docs/Events.md`; the disassembler's instruction table is generated from the engine's
-own handlers by `Tools/gen_opcodes.py`.
+own handlers by `Tools/gen_opcodes.py`. Scripts are also editable as text -
+`Docs/Script-Language.md` covers the language and its compiler.
 
 ## Tables
 

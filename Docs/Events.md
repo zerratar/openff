@@ -125,6 +125,7 @@ or logic whose entry points were removed. Worth reading, not worth wiring up bli
 it too, in `ScriptData.cast`, so it is dead weight in the archive rather than a gap in
 the tool.
 
-**This disassembles; it does not assemble.** The output is for reading and for finding
-where something happens. Writing new events needs an assembler, and that in turn wants
-symbolic labels and a way to allocate message ids - worth doing, not done.
+**Writing events** is covered by `Docs/Script-Language.md`: the disassembler emits a
+text language, and a lexer, parser and compiler take it back to bytecode. All 356
+shipped scripts survive that round trip byte for byte. What is still missing there is
+structured statements and a way to allocate new message ids.

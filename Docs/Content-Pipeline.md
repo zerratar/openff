@@ -201,7 +201,13 @@ beside the instructions that show it:
 dotnet run --project FF3.ContentTool -- script ..\extracted\files ..\scripts --text=..\text\en.lproj
 ```
 
-See `Docs/Events.md`.
+They also compile back, from a text language with a real lexer, parser and compiler:
+
+```bash
+dotnet run --project FF3.ContentTool -- script-build ..\ffs\d01_02.ffs Content\Override\files
+```
+
+See `Docs/Events.md` and `Docs/Script-Language.md`.
 
 ## Parameter tables
 

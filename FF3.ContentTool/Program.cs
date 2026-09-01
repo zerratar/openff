@@ -8,7 +8,9 @@
 //   dotnet run --project FF3.ContentTool -- xbn-build  <file.xml> [out.xbn]
 //   dotnet run --project FF3.ContentTool -- msd        <file.msd | dir> [out]
 //   dotnet run --project FF3.ContentTool -- msd-build  <file.json> [out.msd]
-//   dotnet run --project FF3.ContentTool -- script     <file.script | dir> [out] [--text=<dir>]
+//   dotnet run --project FF3.ContentTool -- script       <file.script | dir> [out] [--text=<dir>]
+//   dotnet run --project FF3.ContentTool -- script-build <file.ffs | dir> [out]
+//   dotnet run --project FF3.ContentTool -- ops [filter]
 //   dotnet run --project FF3.ContentTool -- pak        <file.pak | dir> [out]
 //   dotnet run --project FF3.ContentTool -- pak-build  <file.json> [out.pak]
 //
@@ -96,6 +98,15 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return ScriptDump(args.Skip(1).ToArray());
+					case "ops":
+						return Ops(args.Length > 1 ? args[1] : null);
+					case "script-build":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return ScriptBuild(args[1], args.Length > 2 ? args[2] : null);
 					case "pak":
 						if (args.Length < 2)
 						{
@@ -137,8 +148,11 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  pak        <file.pak | dir> [out] [--text=<dir>]");
 			Console.Error.WriteLine("                                    parameter tables -> JSON");
 			Console.Error.WriteLine("  pak-build  <file.json> [out.pak]   JSON -> parameter tables");
-			Console.Error.WriteLine("  script     <file.script | dir> [out] [--text=<dir>]");
-			Console.Error.WriteLine("                                    event bytecode -> disassembly");
+			Console.Error.WriteLine("  script       <file.script | dir> [out] [--text=<dir>]");
+			Console.Error.WriteLine("                                    event bytecode -> .ffs source");
+			Console.Error.WriteLine("  script-build <file.ffs | dir> [out]");
+			Console.Error.WriteLine("                                    .ffs source -> event bytecode");
+			Console.Error.WriteLine("  ops [filter]                      list script instructions");
 			Console.Error.WriteLine();
 			Console.Error.WriteLine("patterns are globs on the archived name, e.g. \"*.NCGR\" \"btl*\"");
 		}
@@ -361,22 +375,35 @@ namespace FF3.ContentTool
 				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
 			int instructions = 0;
 			int failed = 0;
+			int notExact = 0;
 			foreach (string file in files)
 			{
 				string relative = File.Exists(input)
 					? Path.GetFileName(file) : Path.GetRelativePath(input, file);
 				string destination = Path.Combine(outputDir,
-					Path.ChangeExtension(relative, ".txt"));
+					Path.ChangeExtension(relative, ".ffs"));
 				Directory.CreateDirectory(Path.GetDirectoryName(destination));
 				try
 				{
-					ScriptFile script = ScriptFile.Read(File.ReadAllBytes(file));
+					byte[] original = File.ReadAllBytes(file);
+					ScriptFile script = ScriptFile.Read(original);
 					using (StreamWriter writer = new StreamWriter(destination, false,
 						new UTF8Encoding(false)))
 					{
-						ScriptDisassembler.Write(writer, script, relative, lookup);
+						Ffs.SourceWriter.Write(writer, script, relative, lookup);
 					}
 					instructions += ScriptDisassembler.Disassemble(script).Code.Count;
+
+					// Compile what was just written and compare: a decompiler that
+					// cannot feed its own compiler has lost something, and it is
+					// better to say so here than to find out after an edit.
+					if (!Ffs.Compiler.Compile(
+							Ffs.Parser.Parse(File.ReadAllText(destination)))
+						.SequenceEqual(original))
+					{
+						notExact++;
+						Console.Error.WriteLine("does not round trip: " + relative);
+					}
 				}
 				catch (Exception ex)
 				{
@@ -390,6 +417,108 @@ namespace FF3.ContentTool
 			if (failed > 0)
 			{
 				Console.WriteLine("{0} could not be read", failed);
+			}
+			Console.WriteLine(notExact == 0
+				? "all of them compile back to the exact bytes they came from"
+				: notExact + " do not compile back to the same bytes");
+			return failed > 0 || notExact > 0 ? 1 : 0;
+		}
+
+		/// <summary>
+		/// The instruction set, as the script language spells it. Without this, writing
+		/// a script means grepping the disassembly for something that looks right.
+		/// </summary>
+		private static int Ops(string filter)
+		{
+			int shown = 0;
+			foreach (KeyValuePair<string, int> entry in Ffs.Mnemonics.All
+				.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
+			{
+				if (filter != null
+					&& entry.Key.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
+				{
+					continue;
+				}
+
+				ScriptOp op = ScriptOps.Get(entry.Value);
+				string arguments = op.Operands == null || op.Operands.Length == 0
+					? string.Empty
+					: string.Join(", ", op.Operands.Select(Describe));
+				Console.WriteLine("{0,4}  {1,-42} {2}", entry.Value, entry.Key, arguments);
+				shown++;
+			}
+			Console.WriteLine();
+			Console.WriteLine("{0} instruction(s)", shown);
+			return 0;
+		}
+
+		private static string Describe(Operand operand)
+		{
+			switch (operand)
+			{
+				case Operand.Byte: return "byte";
+				case Operand.Word: return "word";
+				case Operand.Dword: return "dword";
+				default: return "string";
+			}
+		}
+
+		/// <summary>Compiles script language source back to bytecode.</summary>
+		private static int ScriptBuild(string input, string output)
+		{
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.ffs", SearchOption.AllDirectories)
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .ffs files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+			int built = 0;
+			int failed = 0;
+			foreach (string file in files)
+			{
+				string relative = File.Exists(input)
+					? Path.GetFileName(file) : Path.GetRelativePath(input, file);
+				try
+				{
+					Ffs.ScriptDocument document = Ffs.Parser.Parse(File.ReadAllText(file));
+					byte[] data = Ffs.Compiler.Compile(document);
+
+					string destination = Path.Combine(outputDir,
+						Path.ChangeExtension(relative, ".script"));
+					Directory.CreateDirectory(Path.GetDirectoryName(destination));
+					File.WriteAllBytes(destination, data);
+					built++;
+					if (files.Count == 1)
+					{
+						Console.WriteLine("{0} -> {1}  ({2} bytes)",
+							relative, destination, data.Length);
+					}
+				}
+				catch (Ffs.ScriptSyntaxException ex)
+				{
+					Console.Error.WriteLine(relative + ": " + ex.Message);
+					failed++;
+				}
+				catch (Ffs.ScriptCompileException ex)
+				{
+					Console.Error.WriteLine(relative + ": " + ex.Message);
+					failed++;
+				}
+			}
+
+			if (files.Count > 1)
+			{
+				Console.WriteLine("{0} script(s) built -> {1}", built, Path.GetFullPath(outputDir));
+			}
+			if (failed > 0)
+			{
+				Console.WriteLine("{0} failed", failed);
 			}
 			return failed > 0 ? 1 : 0;
 		}
