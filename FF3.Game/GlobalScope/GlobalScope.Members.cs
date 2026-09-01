@@ -5918,6 +5918,8 @@ internal static partial class GlobalScope
 
 						internal static bool m_bAlphaTest;
 
+						internal static float m_fAlphaRef = 0.01f;
+
 						internal static Blend m_Blend;
 
 						internal static bool m_bCullFace;
@@ -20979,6 +20981,7 @@ internal static partial class GlobalScope
 							{
 								m_bApplyEffect = true;
 							}
+							m_fAlphaRef = @ref;
 							alphaTestEffect.ReferenceAlpha = (int)(255f * @ref);
 						}
 
@@ -20997,7 +21000,15 @@ internal static partial class GlobalScope
 						{
 							FF3.Log.Sample(FF3.LogChannel.Gl, "glClear", 120, () => $"mask={mask} color={m_ClearColor}"); /*FF3LOG*/
 							GraphicsDevice graphicsDevice = m_Graphics.GetGraphicsDeviceManager().GraphicsDevice;
-							graphicsDevice.Clear((ClearOptions)((((mask & 0x4000) != 0) ? 1 : 0) | (((mask & 0x100) != 0) ? 2 : 0) | (((mask & 0x400) != 0) ? 4 : 0)), m_ClearColor, m_fClearDepth, 0);
+							ClearOptions _opts = (ClearOptions)((((mask & 0x4000) != 0) ? 1 : 0) | (((mask & 0x100) != 0) ? 2 : 0) | (((mask & 0x400) != 0) ? 4 : 0));
+							if (FF3.NativeRenderer.Enabled)
+							{
+								FF3.NativeRenderer.Clear(graphicsDevice, _opts, m_ClearColor, m_fClearDepth, 0);
+							}
+							else
+							{
+								graphicsDevice.Clear(_opts, m_ClearColor, m_fClearDepth, 0);
+							}
 						}
 
 						internal static void glClearColor(float red, float green, float blue, float alpha)
@@ -21425,6 +21436,18 @@ internal static partial class GlobalScope
 							default:
 								OS_Terminate();
 								break;
+							}
+							if (FF3.NativeRenderer.Enabled)
+							{
+								FF3.NativeRenderer.Draw(graphicsDevice, primitiveType, v, first, primitiveCount,
+									basicEffect.World, basicEffect.Projection,
+									(basicEffect.TextureEnabled && m_uiBindTexture < m_aGlTexture.Length
+										&& m_aGlTexture[m_uiBindTexture] != null)
+										? m_aGlTexture[m_uiBindTexture].m_Texture2D : null,
+									m_bAlphaTest, m_fAlphaRef, alphaTestEffect.AlphaFunction,
+									m_bDepthTest, m_bDepthMask, m_DepthFunc,
+									m_bCullFace, m_RasterizerState != null ? m_RasterizerState.CullMode : CullMode.None, m_Blend);
+								return;
 							}
 							// PORT: the original only bound the texture when the texture INDEX changed, and
 							// only re-applied the effect when a state flag was set. Neither notices the draw
