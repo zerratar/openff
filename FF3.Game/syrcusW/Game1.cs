@@ -32,18 +32,19 @@ public class Game1 : Game
 		base.TargetElapsedTime = TimeSpan.FromTicks(333333L);
 		base.IsFixedTimeStep = false;
 		base.InactiveSleepTime = TimeSpan.FromSeconds(1.0);
-		Android.addActivity(new BootActivity());
+		// The archives load and the game is constructed in LoadContent, once the
+		// graphics device exists - texture upload needs it.
 	}
 
 	protected override void BeginRun()
 	{
-		Android.onStart();
+		FF3.GameHost.Start();
 		base.BeginRun();
 	}
 
 	protected override void EndRun()
 	{
-		Android.onStop();
+		FF3.GameHost.Stop();
 		base.EndRun();
 	}
 
@@ -55,25 +56,25 @@ public class Game1 : Game
 	protected override void LoadContent()
 	{
 		GlobalScope.m_Graphics.LoadContent();
-		Android.onCreate();
+		FF3.GameHost.Create();
 		base.LoadContent();
 	}
 
 	protected override void UnloadContent()
 	{
-		Android.onDestroy();
+		FF3.GameHost.Destroy();
 		base.UnloadContent();
 	}
 
 	protected override void OnActivated(object sender, EventArgs args)
 	{
-		Android.onResume();
+		FF3.GameHost.Resume();
 		base.OnActivated(sender, args);
 	}
 
 	protected override void OnDeactivated(object sender, EventArgs args)
 	{
-		Android.onPause();
+		FF3.GameHost.Pause();
 		base.OnDeactivated(sender, args);
 	}
 
@@ -90,10 +91,13 @@ public class Game1 : Game
 
 		// Fast-forward (hold Tab). Normally this just flips the game's own boost flag
 		// and runs a single update, exactly as the original did.
+		// Fast-forward. Android.onUpdate() was empty, so the game's whole tick ran
+		// from the draw callback; --speed therefore has to run extra ticks here, on
+		// top of the one Draw performs.
 		int repeats = FF3.DesktopInput.BeginFrame();
-		for (int i = 0; i < repeats; i++)
+		for (int i = 1; i < repeats; i++)
 		{
-			Android.onUpdate();
+			FF3.GameHost.Tick();
 		}
 
 		try
@@ -128,7 +132,7 @@ public class Game1 : Game
 		}
 		if (!GlobalScope.m_Graphics.isPause())
 		{
-			Android.onDraw();
+			FF3.GameHost.Tick();
 		}
 		else
 		{

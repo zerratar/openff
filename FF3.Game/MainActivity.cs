@@ -1,15 +1,19 @@
 ﻿using System;
+using android.app;
+using android.content;
 using System.Threading;
 using Microsoft.Phone.Tasks;
 using Microsoft.Xna.Framework.Media;
-using android.app;
-using android.content;
-using android.opengl;
-using android.os;
 using android.view;
 
-public class MainActivity : Activity, GLSurfaceView.Renderer
+// The game host. Was an Android Activity implementing a GLSurfaceView renderer;
+// Game1 now drives these callbacks directly, so the lifecycle indirection is gone
+// and the per-frame path is one hop instead of four.
+public class MainActivity
 {
+	/// <summary>Resource strings are plain constants; this was a pass-through.</summary>
+	public string getString(string resId) => resId;
+
 	private class ExitDialogPositiveButtonListener : DialogInterface.OnClickListener
 	{
 		public void onClick(DialogInterface dialog, int whichButton)
@@ -60,8 +64,6 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 	}
 
 	public static MainActivity activity;
-
-	private GLSurfaceView mGLSurfaceView;
 
 	private string editString;
 
@@ -132,10 +134,8 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		GlobalScope.Java_com_square_1enix_FFIII_1J_MainActivity_encode(m_Env, null, data, mask);
 	}
 
-	protected override void onCreate(Bundle savedInstanceState)
+	public void onCreate()
 	{
-		base.onCreate(savedInstanceState);
-		setVolumeControlStream(3);
 		// PORT: the selected language is a single byte in an embedded resource. This
 		// used to be read through an Android raw-resource InputStream.
 		try
@@ -150,33 +150,31 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		{
 			FF3.Log.Write(FF3.LogChannel.General, "language resource unreadable: " + ex.Message);
 		}
-		mGLSurfaceView = new GLSurfaceView(this);
-		mGLSurfaceView.setRenderer(this);
-		setContentView(mGLSurfaceView);
+		// The surface is the game window; report its size so the touch mapping and
+		// the renderer agree on the 800x480 view the game was authored against.
+		onSurfaceCreated();
+		onSurfaceChanged(800, 480);
 		// PORT: an entitlement check lived here and quit the game outright if the
 		// Square Enix auth handshake had not succeeded. There is no such handshake
 		// on Windows, so the check and the account layer behind it are gone.
 		init();
 	}
 
-	protected override void onDestroy()
+	public void onDestroy()
 	{
 		quit();
 		sound.stopSoundAll();
-		base.onDestroy();
 	}
 
-	protected override void onPause()
+	public void onPause()
 	{
-		mGLSurfaceView.onPause();
-		base.onPause();
 		// PORT: dismissed the Android soft keyboard here. FF3.TextEntry is drawn by
 		// the game itself and needs no dismissing when the window loses focus.
 		pause();
 		sound.pauseSoundAll(pause: true);
 	}
 
-	protected override void onResume()
+	public void onResume()
 	{
 		if (MediaPlayer.State == MediaState.Playing)
 		{
@@ -187,24 +185,22 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 			sound.muteSound(bMute: false);
 		}
 		suspend = true;
-		base.onResume();
-		mGLSurfaceView.onResume();
 	}
 
-	public override void finish()
+	/// <summary>Asks whether to quit. The confirm path calls appEnd().</summary>
+	public void finish()
 	{
-		showDialog(0);
+		onCreateDialog(0);
 	}
 
 	public void appEnd()
 	{
 		end = true;
-		base.finish();
 		sound.stopSoundAll();
 		JavaSystem.exit(0);
 	}
 
-	protected override Dialog onCreateDialog(int id)
+	private object onCreateDialog(int id)
 	{
 		if (id == 0)
 		{
@@ -231,7 +227,6 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		end = true;
 		quit();
 		sound.stopSoundAll();
-		base.finish();
 	}
 
 	public void onSurfaceCreated()
@@ -257,7 +252,7 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		// because onTouchEvent normalises against them.
 	}
 
-	public override bool onTouchEvent(MotionEvent e)
+	public bool onTouchEvent(MotionEvent e)
 	{
 		switch (e.getAction())
 		{
@@ -303,14 +298,14 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		return true;
 	}
 
-	public override bool onKeyDown(int keyCode, KeyEvent @event)
+	public bool onKeyDown(int keyCode, KeyEvent @event)
 	{
 		if (keyCode == 4 && keyAssign)
 		{
 			keyEvent |= 2;
 			return false;
 		}
-		return base.onKeyDown(keyCode, @event);
+		return true;
 	}
 
 	public void onDrawFrame()

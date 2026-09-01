@@ -1,21 +1,22 @@
 ﻿using android.content;
-using android.view;
 
 namespace android.app;
 
-public class AlertDialog : Dialog
+// PORT: was an Android Dialog. Only the yes/no prompt survives, and it goes
+// through GlobalScope.Dialog to MonoGame's MessageBox.
+public class AlertDialog
 {
-	public class Builder(Context context)
+	public class Builder(object owner)
 	{
 		private string m_strTitle = "";
 
 		private string m_strMessage = "";
 
-		private OnClickListener m_NegativeButtonListener;
+		private DialogInterface.OnClickListener m_NegativeButtonListener;
 
-		private OnCancelListener m_CancelListener;
+		private DialogInterface.OnCancelListener m_CancelListener;
 
-		private OnClickListener m_PositiveButtonListener;
+		private DialogInterface.OnClickListener m_PositiveButtonListener;
 
 		private string m_strNegativeButtonText = "";
 
@@ -27,20 +28,20 @@ public class AlertDialog : Dialog
 			return new AlertDialog();
 		}
 
-		public Builder setNegativeButton(string text, OnClickListener listener)
+		public Builder setNegativeButton(string text, DialogInterface.OnClickListener listener)
 		{
 			m_strNegativeButtonText = text;
 			m_NegativeButtonListener = listener;
 			return this;
 		}
 
-		public Builder setOnCancelListener(OnCancelListener onCancelListener)
+		public Builder setOnCancelListener(DialogInterface.OnCancelListener onCancelListener)
 		{
 			m_CancelListener = onCancelListener;
 			return this;
 		}
 
-		public Builder setPositiveButton(string text, OnClickListener listener)
+		public Builder setPositiveButton(string text, DialogInterface.OnClickListener listener)
 		{
 			m_strPositiveButtonText = text;
 			m_PositiveButtonListener = listener;

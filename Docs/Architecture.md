@@ -1,0 +1,103 @@
+# Architecture
+
+How the port fits together, so the next change can be made with confidence rather
+than by experiment.
+
+## The frame
+
+```
+Program.Main
+  ContentLocator  -> finds Content/, sets the working directory
+  Game1           -> MonoGame Game
+
+Game1.LoadContent   -> GameHost.Create()   -> GameArchive.Load()   (6962 files, 52 volumes)
+                                            -> new MainActivity().onCreate()
+Game1.Update        -> DesktopInput.Update()  -> MainActivity.onTouchEvent
+                    -> DesktopInput.BeginFrame()  (sets GlobalScope.boost)
+Game1.Draw          -> GameHost.Tick()        -> MainActivity.onDrawFrame()
+                                                   touch(...)   feeds the touch state in
+                                                   render()     runs the whole game frame
+                                                   updateSound()
+```
+
+`onDrawFrame` runs the entire tick — input, logic and drawing. That is the original
+NDS-derived design, not an artefact of the port: `Android.onUpdate()` was an empty
+method, so nothing ever ran in the update half. `--speed` therefore has to run extra
+`Tick()` calls, which is why it is documented as the crude option next to `boost`.
+
+Before, this path went `Game1 -> Android (activity list) -> Activity -> View ->
+GLSurfaceView -> Renderer -> MainActivity`, with the list never holding more than one
+activity. `GameHost` replaces all of it.
+
+## Input
+
+Two surfaces, both fed from `Compat/DesktopInput.cs`:
+
+**Touch** — mouse position is mapped from the window's client area into the fixed
+800×480 space `MainActivity.onTouchEvent` normalises against, then delivered as a
+`MotionEvent` (action 0 down, 1 up, 2 move).
+
+**Pad** — `GlobalScope.cont` is an NDS button bitmask (A=1, B=2, Select=4, Start=8,
+Right=16, Left=32, Up=64, Down=128, R=256, L=512, X=1024, Y=2048), read through
+`PAD_Read()` into `ds.CPad`, which does edge detection and key repeat. Nearly 200 call
+sites poll it. `MainActivity.getKeyEvent` ORs the keyboard into it once per frame.
+
+Do not route keys through the old `Android.onKeyDown`: it only ever produced the Back
+keycode, and an unhandled Back quit the game.
+
+Running is not a separate button. `pl.isRun()` tests the B bit, and whether B means
+run or walk depends on Config > movement type — so Shift aliases onto B, but only
+while a direction is held, since B is also cancel.
+
+## Rendering
+
+`Compat/NativeRenderer.cs` owns the device. The GL emulation in
+`GlobalScope.Members.cs` still holds the *state* the NDS renderer sets (matrices,
+blend, depth, cull, bound texture); `NativeRenderer` intercepts the two calls that
+touch the device — the draw and the clear — and does them MonoGame's way.
+
+The critical detail is in `Docs/Porting-Notes.md`: the emulation builds a
+GL-convention projection (clip z in `[-w, w]`) where MonoGame expects Direct3D's
+`[0, w]`. `NativeRenderer` rebases it. Without that, every depth-tested draw fails and
+3D renders black while 2D looks fine.
+
+`--renderer=emulated` still selects the old path, for A/B only. It does not render 3D
+correctly and is due for removal.
+
+## Content
+
+| Source | Contents | Read by |
+| --- | --- | --- |
+| `Content/data*.bin` | maps, sprites, models, scripts, tables | `Compat/GameArchive.cs` |
+| `Content/*.xnb` | audio and font atlases | MonoGame ContentManager |
+| `Content/*.glp` | glyph tables: char → (atlas page, shift class) | `GameFiles.ReadAllBytes` |
+
+`GameArchive` is the format the whole game is built on: `data000.bin` is a
+name-sorted table of `(archive, index, name)`, and each `dataNNN.bin` is an offset
+table followed by length-prefixed blobs. It has nothing to do with XNA, which is why
+it ported unchanged.
+
+Saves go to `%APPDATA%\FF3` via `Compat/SaveFiles.cs`.
+
+## What is still Android-shaped, and why that is fine
+
+`android/` retains a handful of types that are genuinely carrying behaviour or are
+plain data:
+
+- `MotionEvent`, `KeyEvent` — data types the input path uses
+- `DialogInterface`, `AlertDialog` — the yes/no prompt, which reaches MonoGame's
+  `MessageBox` through `GlobalScope.Dialog`
+- `MediaPlayer` + `SoundManager` — the audio implementation
+
+The name is historical. These are not costing anything, and audio in particular is
+working; there is no reason to rewrite it for tidiness.
+
+## Diagnostics
+
+Every run writes `bin/Debug/net8.0/logs/ff3.log`. `--log=all` or a channel list
+(`gl, texture, content, file, sound, input, event, firstchance`). `--test=3d` and
+`--test=model` are isolated render harnesses; `--capture-model` grabs live geometry
+out of the game so it can be inspected on its own. `FF3.exe --help` lists everything.
+
+`firstchance` matters: large parts of the decompiled game swallow exceptions, so a
+fault usually surfaces as "nothing happened" rather than an error.

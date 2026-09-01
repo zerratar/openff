@@ -145,7 +145,7 @@ namespace FF3
 				if (_wasDown)
 				{
 					_wasDown = false;
-					Android.onTouchUp(_lastX, _lastY);
+					TouchUp(_lastX, _lastY);
 				}
 				return;
 			}
@@ -172,22 +172,41 @@ namespace FF3
 			if (down && !_wasDown)
 			{
 				Log.Write(LogChannel.Input, $"touch down {x},{y}");
-				Android.onTouchDown(x, y);
+				TouchDown(x, y);
 			}
 			else if (down && (x != _lastX || y != _lastY))
 			{
 				Log.Sample(LogChannel.Input, "touch move", 30, () => $"{x},{y}");
-				Android.onTouchMove(x, y);
+				TouchMove(x, y);
 			}
 			else if (!down && _wasDown)
 			{
 				Log.Write(LogChannel.Input, $"touch up {x},{y}");
-				Android.onTouchUp(x, y);
+				TouchUp(x, y);
 			}
 
 			_wasDown = down;
 			_lastX = x;
 			_lastY = y;
+		}
+
+		// The game reads touch through MainActivity.onTouchEvent. These build the
+		// MotionEvent it expects - action 0 down, 1 up, 2 move - which used to go
+		// through the Android activity broadcast.
+		private static void TouchDown(int x, int y) => Send(0, x, y);
+
+		private static void TouchUp(int x, int y) => Send(1, x, y);
+
+		private static void TouchMove(int x, int y) => Send(2, x, y);
+
+		private static void Send(int action, int x, int y)
+		{
+			MainActivity game = GameHost.Game;
+			if (game != null)
+			{
+				game.onTouchEvent(new android.view.MotionEvent(
+					action, 1, new float[1] { x }, new float[1] { y }));
+			}
 		}
 
 		/// <summary>Maps a window client-area point into the game's fixed 800x480 view.</summary>
