@@ -192,13 +192,23 @@ dotnet run --project FF3.ContentTool -- msd-build en.lproj/eureka_menu.json
 See `Docs/Text.md`, which also covers the 15251 messages that are not the UTF-8 the
 game expects.
 
+## Event scripts
+
+The `.script` files are the event bytecode and disassemble, with dialogue written in
+beside the instructions that show it:
+
+```bash
+dotnet run --project FF3.ContentTool -- script ..\extracted\files ..\scripts --text=..\text\en.lproj
+```
+
+See `Docs/Events.md`.
+
 ## Not decoded yet
 
 The archives extract, and `.xbn` decodes, but the rest of the blobs are still in
-their NDS formats - `.NCGR`/`.NSCR`/`.NCER` graphics, `.script` bytecode, `.lz`
-compression. Each is its own decoder. `.script` is the one worth doing next: it is what
-decides when a message is shown and what a quest does, so events stay out of reach
-until it is readable.
+their NDS formats - `.NCGR`/`.NSCR`/`.NCER` graphics, `.lz` compression, and the
+`.pak` parameter tables behind items, enemies and jobs. Each is its own decoder. The
+`.pak` tables are the ones worth doing next: they are what "add a new item" needs.
 
 `--dump=<dir>` is the shortcut in the meantime: the running game writes out every
 image blob it decodes, which covers the art without decoding anything by hand.

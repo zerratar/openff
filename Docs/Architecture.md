@@ -104,6 +104,16 @@ Combined with the override path, a menu change is: decode to XML, edit, build, r
 Text is data too: `.msd` files, referenced by message id from both menus and event
 scripts, and readable as JSON. `Docs/Text.md`.
 
+## Events
+
+Everything that happens on a map is bytecode. `ScriptEngine` runs a 298 opcode
+instruction set cooperatively - `wait` and the message commands suspend a script and
+resume it frames later - and each map's `.script` holds one program per actor. Quest
+state lives in a global flag space that scripts set and branch on.
+
+`Docs/Events.md`; the disassembler's instruction table is generated from the engine's
+own handlers by `Tools/gen_opcodes.py`.
+
 ## What is still Android-shaped, and why that is fine
 
 `android/` retains a handful of types that are genuinely carrying behaviour or are

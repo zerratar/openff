@@ -8,6 +8,7 @@
 //   dotnet run --project FF3.ContentTool -- xbn-build  <file.xml> [out.xbn]
 //   dotnet run --project FF3.ContentTool -- msd        <file.msd | dir> [out]
 //   dotnet run --project FF3.ContentTool -- msd-build  <file.json> [out.msd]
+//   dotnet run --project FF3.ContentTool -- script     <file.script | dir> [out] [--text=<dir>]
 //
 // "extract" turns the shipped .xnb files back into editable sources:
 //   Fonts/<name>.png   + <name>.json   glyph atlas and metrics
@@ -86,6 +87,13 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return MsdBuild(args[1], args.Length > 2 ? args[2] : null);
+					case "script":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return ScriptDump(args.Skip(1).ToArray());
 					default:
 						Usage();
 						return 1;
@@ -110,6 +118,8 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  xbn-build  <file.xml> [out.xbn]   XML -> menu definition");
 			Console.Error.WriteLine("  msd        <file.msd | dir> [out] game text -> JSON");
 			Console.Error.WriteLine("  msd-build  <file.json> [out.msd]  JSON -> game text");
+			Console.Error.WriteLine("  script     <file.script | dir> [out] [--text=<dir>]");
+			Console.Error.WriteLine("                                    event bytecode -> disassembly");
 			Console.Error.WriteLine();
 			Console.Error.WriteLine("patterns are globs on the archived name, e.g. \"*.NCGR\" \"btl*\"");
 		}
@@ -289,6 +299,112 @@ namespace FF3.ContentTool
 			Console.WriteLine("{0} -> {1}  ({2}, {3} bytes)",
 				Path.GetFileName(input), output, Msd.Describe(file), data.Length);
 			return 0;
+		}
+
+		/// <summary>
+		/// Disassembles event bytecode. With --text=&lt;dir&gt; pointing at decoded
+		/// messages, the lines a script shows are written in beside the calls that
+		/// show them, which is what makes a script readable rather than merely legal.
+		/// </summary>
+		private static int ScriptDump(string[] args)
+		{
+			string input = null;
+			string output = null;
+			string textDir = null;
+			foreach (string arg in args)
+			{
+				if (arg.StartsWith("--text=", StringComparison.OrdinalIgnoreCase))
+				{
+					textDir = arg.Substring("--text=".Length).Trim('"');
+				}
+				else if (input == null)
+				{
+					input = arg;
+				}
+				else
+				{
+					output = arg;
+				}
+			}
+
+			Func<uint, string> lookup = LoadMessages(textDir);
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.script", SearchOption.AllDirectories)
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .script files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+			int instructions = 0;
+			int failed = 0;
+			foreach (string file in files)
+			{
+				string relative = File.Exists(input)
+					? Path.GetFileName(file) : Path.GetRelativePath(input, file);
+				string destination = Path.Combine(outputDir,
+					Path.ChangeExtension(relative, ".txt"));
+				Directory.CreateDirectory(Path.GetDirectoryName(destination));
+				try
+				{
+					ScriptFile script = ScriptFile.Read(File.ReadAllBytes(file));
+					using (StreamWriter writer = new StreamWriter(destination, false,
+						new UTF8Encoding(false)))
+					{
+						ScriptDisassembler.Write(writer, script, relative, lookup);
+					}
+					instructions += ScriptDisassembler.Disassemble(script).Code.Count;
+				}
+				catch (Exception ex)
+				{
+					Console.Error.WriteLine(relative + ": " + ex.Message);
+					failed++;
+				}
+			}
+
+			Console.WriteLine("{0} script(s), {1} instructions -> {2}",
+				files.Count - failed, instructions, Path.GetFullPath(outputDir));
+			if (failed > 0)
+			{
+				Console.WriteLine("{0} could not be read", failed);
+			}
+			return failed > 0 ? 1 : 0;
+		}
+
+		/// <summary>Message id -> text, from a directory of decoded .msd JSON.</summary>
+		private static Func<uint, string> LoadMessages(string textDir)
+		{
+			if (string.IsNullOrEmpty(textDir) || !Directory.Exists(textDir))
+			{
+				return null;
+			}
+			Dictionary<uint, string> messages = new Dictionary<uint, string>();
+			foreach (string file in Directory.EnumerateFiles(textDir, "*.json",
+				SearchOption.AllDirectories))
+			{
+				MsdFile decoded;
+				try
+				{
+					decoded = JsonSerializer.Deserialize<MsdFile>(File.ReadAllText(file), Msd.Json);
+				}
+				catch (JsonException)
+				{
+					continue;               // not one of ours
+				}
+				foreach (MsdMessage message in decoded.Messages)
+				{
+					if (message.Pages.Count > 0 && !messages.ContainsKey(message.Id))
+					{
+						messages[message.Id] = message.Pages[0];
+					}
+				}
+			}
+			Console.WriteLine("{0} messages available for annotation", messages.Count);
+			return id => messages.TryGetValue(id, out string text) ? text : null;
 		}
 
 		private static int Extract(string inputDir, string outputDir)
