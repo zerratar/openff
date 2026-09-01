@@ -11,6 +11,8 @@
 //   dotnet run --project FF3.ContentTool -- script       <file.script | dir> [out] [--text=<dir>]
 //   dotnet run --project FF3.ContentTool -- script-build <file.ffs | dir> [out]
 //   dotnet run --project FF3.ContentTool -- ops [filter]
+//   dotnet run --project FF3.ContentTool -- lz          <file.lz | dir> [out]
+//   dotnet run --project FF3.ContentTool -- lz-compress <file> [out.lz]
 //   dotnet run --project FF3.ContentTool -- pak        <file.pak | dir> [out]
 //   dotnet run --project FF3.ContentTool -- pak-build  <file.json> [out.pak]
 //
@@ -98,6 +100,20 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return ScriptDump(args.Skip(1).ToArray());
+					case "lz":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return LzDecompress(args[1], args.Length > 2 ? args[2] : null);
+					case "lz-compress":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return LzCompress(args[1], args.Length > 2 ? args[2] : null);
 					case "ops":
 						return Ops(args.Length > 1 ? args[1] : null);
 					case "script-build":
@@ -153,6 +169,8 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  script-build <file.ffs | dir> [out]");
 			Console.Error.WriteLine("                                    .ffs source -> event bytecode");
 			Console.Error.WriteLine("  ops [filter]                      list script instructions");
+			Console.Error.WriteLine("  lz          <file.lz | dir> [out] decompress");
+			Console.Error.WriteLine("  lz-compress <file> [out.lz]       compress");
 			Console.Error.WriteLine();
 			Console.Error.WriteLine("patterns are globs on the archived name, e.g. \"*.NCGR\" \"btl*\"");
 		}
@@ -422,6 +440,87 @@ namespace FF3.ContentTool
 				? "all of them compile back to the exact bytes they came from"
 				: notExact + " do not compile back to the same bytes");
 			return failed > 0 || notExact > 0 ? 1 : 0;
+		}
+
+		/// <summary>
+		/// Decompresses, and checks each result two ways: it has to come out the size
+		/// the header promised, and compressing it again has to decompress back to the
+		/// same bytes. The second is what says the compressor here is usable for
+		/// putting edited content back.
+		/// </summary>
+		private static int LzDecompress(string input, string output)
+		{
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.lz", SearchOption.AllDirectories)
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .lz files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+			int done = 0;
+			int failed = 0;
+			int notReversible = 0;
+			long compressed = 0;
+			long plain = 0;
+
+			foreach (string file in files)
+			{
+				string relative = File.Exists(input)
+					? Path.GetFileName(file) : Path.GetRelativePath(input, file);
+				try
+				{
+					byte[] source = File.ReadAllBytes(file);
+					byte[] data = Lz.Decompress(source);
+
+					string destination = Path.Combine(outputDir,
+						Path.ChangeExtension(relative, null));
+					Directory.CreateDirectory(Path.GetDirectoryName(destination));
+					File.WriteAllBytes(destination, data);
+
+					compressed += source.Length;
+					plain += data.Length;
+					done++;
+
+					if (!Lz.Decompress(Lz.Compress(data)).SequenceEqual(data))
+					{
+						notReversible++;
+						Console.Error.WriteLine("does not survive recompression: " + relative);
+					}
+				}
+				catch (InvalidDataException ex)
+				{
+					failed++;
+					Console.Error.WriteLine(relative + ": " + ex.Message);
+				}
+			}
+
+			Console.WriteLine("{0} file(s), {1:N0} -> {2:N0} bytes -> {3}",
+				done, compressed, plain, Path.GetFullPath(outputDir));
+			if (failed > 0)
+			{
+				Console.WriteLine("{0} could not be decompressed", failed);
+			}
+			Console.WriteLine(notReversible == 0
+				? "all of them compress back to something that decompresses identically"
+				: notReversible + " do not survive recompression");
+			return failed > 0 || notReversible > 0 ? 1 : 0;
+		}
+
+		private static int LzCompress(string input, string output)
+		{
+			byte[] data = File.ReadAllBytes(input);
+			byte[] packed = Lz.Compress(data);
+			output = output ?? input + ".lz";
+			File.WriteAllBytes(output, packed);
+			Console.WriteLine("{0} -> {1}  ({2:N0} -> {3:N0} bytes, {4:P0})",
+				Path.GetFileName(input), output, data.Length, packed.Length,
+				data.Length == 0 ? 0 : (double)packed.Length / data.Length);
+			return 0;
 		}
 
 		/// <summary>

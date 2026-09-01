@@ -117,8 +117,8 @@ own handlers by `Tools/gen_opcodes.py`. Scripts are also editable as text -
 
 ## Tables
 
-Items, spells, monsters and per map data are `.pak` files: a container of chains, each
-chain an array of fixed size records. The record layouts are generated from the game's
+Items, spells, monsters, jobs and per map data are `.pak` files: a container of chains,
+each chain an array of fixed size records. The record layouts are generated from the game's
 own parse methods by `Tools/gen_records.py`, and checked against the strides the game
 divides by. `Docs/Tables.md`.
 

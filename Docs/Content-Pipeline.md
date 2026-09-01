@@ -219,12 +219,22 @@ dotnet run --project FF3.ContentTool -- pak ..\extracted\files ..\tables --text=
 
 See `Docs/Tables.md`.
 
+## Compression
+
+2734 archived files are LZ77 compressed and unpack with:
+
+```bash
+dotnet run --project FF3.ContentTool -- lz ..\extracted\files ..\unpacked
+```
+
+See `Docs/Compression.md`.
+
 ## Not decoded yet
 
-The archives extract, and `.xbn` decodes, but the rest of the blobs are still in
-their NDS formats - `.NCGR`/`.NSCR`/`.NCER` graphics and `.lz` compression. Each is
-its own decoder. The graphics are the ones worth doing next, and `player.chaindata`
-after them, which holds the job tables.
+What is left is the NitroSDK data itself: `NMDP` models and textures, `NAMP` and
+`NCAP` animation, `MCL` collision, and the 2D `.NCGR`/`.NSCR`/`.NCER` graphics. The
+archive extractor and the LZ decompressor hand over the bytes; reading them is its own
+project, and the one that a visual editor would need first.
 
 `--dump=<dir>` is the shortcut in the meantime: the running game writes out every
 image blob it decodes, which covers the art without decoding anything by hand.
