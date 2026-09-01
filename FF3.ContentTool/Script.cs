@@ -155,12 +155,27 @@ namespace FF3.ContentTool
 		/// Walks every entry point, following calls and jumps. Returns the instructions
 		/// in address order, plus the addresses worth naming.
 		/// </summary>
-		public static (List<ScriptInstruction> Code, Dictionary<uint, string> Labels)
+		public static (List<ScriptInstruction> Code, Dictionary<uint, List<string>> Labels)
 			Disassemble(ScriptFile file)
 		{
 			Dictionary<uint, ScriptInstruction> found = new Dictionary<uint, ScriptInstruction>();
-			Dictionary<uint, string> labels = new Dictionary<uint, string>();
+			Dictionary<uint, List<string>> labels = new Dictionary<uint, List<string>>();
 			Queue<uint> pending = new Queue<uint>();
+
+			// One address can have several names: two function ids share an offset in
+			// global.script, and a cast entry can also be a call target. Keeping all of
+			// them means the listing does not quietly lose one.
+			void Name(uint at, string name)
+			{
+				if (!labels.TryGetValue(at, out List<string> names))
+				{
+					labels[at] = names = new List<string>();
+				}
+				if (!names.Contains(name))
+				{
+					names.Add(name);
+				}
+			}
 
 			void Entry(uint at, string name)
 			{
@@ -168,10 +183,7 @@ namespace FF3.ContentTool
 				{
 					return;
 				}
-				if (!labels.ContainsKey(at))
-				{
-					labels[at] = name;
-				}
+				Name(at, name);
 				pending.Enqueue(at);
 			}
 
@@ -207,8 +219,8 @@ namespace FF3.ContentTool
 						{
 							if (!labels.ContainsKey(target))
 							{
-								labels[target] = string.Format(CultureInfo.InvariantCulture,
-									"loc_{0:X4}", target);
+								Name(target, string.Format(CultureInfo.InvariantCulture,
+									"loc_{0:X4}", target));
 							}
 							pending.Enqueue(target);
 						}
@@ -329,16 +341,41 @@ namespace FF3.ContentTool
 				? target : (uint?)null;
 		}
 
+		/// <summary>
+		/// Instructions that overlap the next one. Every instruction has a fixed
+		/// length, so a walk that decoded one operand list wrongly would land
+		/// mid-instruction somewhere and show up here. Zero across every shipped
+		/// script is the evidence that the operand table is right.
+		/// </summary>
+		public static int CountOverlaps(List<ScriptInstruction> code)
+		{
+			int overlaps = 0;
+			for (int i = 0; i + 1 < code.Count; i++)
+			{
+				if (code[i].At + code[i].Length > code[i + 1].At)
+				{
+					overlaps++;
+				}
+			}
+			return overlaps;
+		}
+
 		public static void Write(TextWriter writer, ScriptFile file, string name,
 			Func<uint, string> lookupMessage)
 		{
-			(List<ScriptInstruction> code, Dictionary<uint, string> labels) = Disassemble(file);
+			(List<ScriptInstruction> code, Dictionary<uint, List<string>> labels) = Disassemble(file);
 
 			writer.WriteLine("; {0}", name);
 			int walked = code.Count(i => i.Reached);
+			int overlaps = CountOverlaps(code);
 			writer.WriteLine("; map {0}   {1} casts   {2} functions   {3} instructions"
 				+ " ({4} reached from an entry point)",
 				file.MapNumber, file.Casts.Count, file.Functions.Count, code.Count, walked);
+			if (overlaps > 0)
+			{
+				writer.WriteLine("; WARNING: {0} instruction(s) overlap the next one -"
+					+ " a decode landed mid instruction", overlaps);
+			}
 			foreach (ScriptCast cast in file.Casts)
 			{
 				writer.WriteLine(";   cast {0,-4} init {1}  main {2}  exit {3}",
@@ -359,10 +396,13 @@ namespace FF3.ContentTool
 						: "; ---- not reached from any entry point in this file");
 				}
 
-				if (labels.TryGetValue(instruction.At, out string label))
+				if (labels.TryGetValue(instruction.At, out List<string> names))
 				{
 					writer.WriteLine();
-					writer.WriteLine("{0}:", label);
+					foreach (string name2 in names)
+					{
+						writer.WriteLine("{0}:", name2);
+					}
 				}
 
 				string operands = string.Join(" ", instruction.Operands.Select((value, i) =>
@@ -380,7 +420,7 @@ namespace FF3.ContentTool
 		}
 
 		private static string Format(ScriptInstruction instruction, int index, object value,
-			Dictionary<uint, string> labels)
+			Dictionary<uint, List<string>> labels)
 		{
 			if (value is string text)
 			{
@@ -388,9 +428,9 @@ namespace FF3.ContentTool
 			}
 			uint number = (uint)value;
 			if (instruction.Targets.Contains(number)
-				&& labels.TryGetValue(number, out string label))
+				&& labels.TryGetValue(number, out List<string> names))
 			{
-				return label;
+				return names[0];
 			}
 			return number > 9
 				? "0x" + number.ToString("X", CultureInfo.InvariantCulture)

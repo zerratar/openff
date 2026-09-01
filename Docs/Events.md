@@ -69,19 +69,57 @@ handler reads and in what order. Two things make this reliable rather than a gue
 | 2397 | `ff3Command_StartMessageWindow` |
 | 2323 | `ff3Command_StartMotionCharacterDX` |
 
+## Is the walk right?
+
+"Nothing calls this code" is a claim about the data, and it is only worth as much as
+the reader behind it. Four checks, all reproducible:
+
+**The interpreter can only set the program counter in four places.** `engine.jump()`,
+a function table lookup inside `engine.call()`, the cast entry points in
+`Logic.setEnable/setExecute/setDisable`, and `LogicContext.pop()` restoring a pushed
+address. There is no fifth. Nothing outside a `.script` file can hand the engine a raw
+address - external data supplies cast numbers and function ids, which resolve through
+tables inside the file, and those are enumerated.
+
+**Every jump destination is an operand.** `python Tools/check_jumps.py` walks all 298
+handlers: 52 `engine.jump()` sites across 39 handlers, none of them jumping to
+anything but an operand, and exactly one - `LabelRandomJump` - choosing among several.
+`engine.call()` appears three times, always with operands.
+
+**Every call resolves.** `python Tools/check_calls.py <disassembly> <files>` checks all
+6462 call sites against the table each would look in - `global.script` for library 2,
+the file's own table otherwise. All 6462 resolve, including the 559 that sit in the
+unreached regions, which is itself evidence that those regions are real code rather
+than data being misread.
+
+**No instruction overlaps the next.** Every instruction has a fixed length, so a wrong
+operand list would put the walk half an instruction out and it would never recover.
+Zero overlaps across all 356 files; the disassembler prints a warning if that ever
+changes.
+
+Two of my own mistakes died in that process, which is the argument for running the
+checks rather than reasoning about them: `NOPCommand` is not a terminator (its handler
+is empty, so execution carries straight on), and the first version of the call check
+read `flagOnCallCommand`'s flag pair as its library and id, reporting 279 phantom
+unresolved calls.
+
 ## What is not resolved
 
 **About an eighth of the bytecode is not reachable.** Walking from every cast entry
 and every function in a file's own table reaches 63004 instructions; 9766 more sit in
 regions nothing in the file points at. They are not junk - decoded linearly they come
-out as clean instructions, with only 21 bytes across all 356 files failing to decode -
-so they are either dead content or driven from somewhere not yet understood. The
-listing shows them under `; ---- not reached from any entry point in this file`, so
-what was walked is never confused with what was swept.
+out as clean instructions, only 21 bytes across all 356 files failing to decode at
+all. The listing shows them under `; ---- not reached from any entry point in this
+file`, so what was walked is never confused with what was swept.
 
-Ruled out already: they are not referenced by any 32-bit value anywhere in the file,
-and they are not `.hich` entry points - `.hich` holds character placement and refers
-to casts and logic ids, not to code offsets.
+What this means, given the checks above: the shipped engine cannot reach them. Their
+addresses are in no cast table and no function table, nothing jumps to them, and the
+engine has no other way to obtain an address. They are also not `.hich` entry points -
+`.hich` holds character placement and refers to casts and logic ids, not code offsets.
+
+So they are dead in this build. That is not the same as meaningless: they are
+well-formed, they call real functions, and they are most likely content that was cut
+or logic whose entry points were removed. Worth reading, not worth wiring up blindly.
 
 **`s01_01.script` is version 1.0**, and the loader accepts only 1.1. The game rejects
 it too, in `ScriptData.cast`, so it is dead weight in the archive rather than a gap in
