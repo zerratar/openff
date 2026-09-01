@@ -1,0 +1,133 @@
+// Command-line options, with the environment variables kept as fallbacks.
+//
+// Parsed as the very first thing in Main, so every other component can read from
+// here during its own initialisation. A command-line value always wins over the
+// matching environment variable.
+//
+// Accepted forms:  --log=gl,input    --log gl,input    -log=gl,input
+
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
+
+namespace FF3
+{
+	internal static class Options
+	{
+		private static readonly Dictionary<string, string> _values =
+			new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>option name -> (environment variable, argument placeholder, help text)</summary>
+		private static readonly (string Name, string Env, string Arg, string Help)[] Known =
+		{
+			("log", "FF3_LOG", "<channels>",
+				"Log channels: all, or a comma separated list of\n" +
+				"                              general, exception, gl, texture, content, file, sound,\n" +
+				"                              input, event, firstchance"),
+			("log-file", "FF3_LOG_FILE", "<path>", "Write the log somewhere other than logs/ff3.log"),
+			("content", "FF3_CONTENT", "<path>", "Path to the Content directory"),
+			("dump", "FF3_DUMP", "<dir>", "Dump decoded source blobs (images the game loads)"),
+			("dump-fonts", "FF3_DUMP_FONTS", "<dir>", "Dump SpriteFont atlases as they are loaded"),
+			("screenshot-dir", "FF3_SCREENSHOT_DIR", "<dir>", "Where F12 screenshots are written"),
+			("screenshot-every", "FF3_SCREENSHOT_EVERY", "<seconds>", "Capture a screenshot automatically every N seconds"),
+			("speed", "FF3_SPEED", "<n>", "Extra update passes per frame while fast-forwarding")
+		};
+
+		public static bool HelpRequested { get; private set; }
+
+		public static void Parse(string[] args)
+		{
+			if (args == null)
+			{
+				return;
+			}
+			for (int i = 0; i < args.Length; i++)
+			{
+				string arg = args[i];
+				if (string.IsNullOrEmpty(arg) || arg[0] != '-')
+				{
+					continue;
+				}
+				string body = arg.TrimStart('-');
+				if (body.Equals("help", StringComparison.OrdinalIgnoreCase)
+					|| body == "?" || body.Equals("h", StringComparison.OrdinalIgnoreCase))
+				{
+					HelpRequested = true;
+					continue;
+				}
+
+				string name, value;
+				int equals = body.IndexOf('=');
+				if (equals >= 0)
+				{
+					name = body.Substring(0, equals);
+					value = body.Substring(equals + 1);
+				}
+				else
+				{
+					name = body;
+					// "--log gl,input": take the next token unless it is another option.
+					value = (i + 1 < args.Length && args[i + 1].Length > 0 && args[i + 1][0] != '-')
+						? args[++i]
+						: "1";
+				}
+				_values[name] = value.Trim('"');
+			}
+		}
+
+		/// <summary>Command line first, then the environment variable, then null.</summary>
+		public static string Get(string name)
+		{
+			if (_values.TryGetValue(name, out string value))
+			{
+				return value;
+			}
+			foreach ((string known, string env, _, _) in Known)
+			{
+				if (string.Equals(known, name, StringComparison.OrdinalIgnoreCase))
+				{
+					string fromEnv = Environment.GetEnvironmentVariable(env);
+					return string.IsNullOrEmpty(fromEnv) ? null : fromEnv;
+				}
+			}
+			return null;
+		}
+
+		public static int GetInt(string name, int fallback)
+		{
+			string raw = Get(name);
+			return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
+				? value : fallback;
+		}
+
+		public static double GetDouble(string name, double fallback)
+		{
+			string raw = Get(name);
+			return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+				? value : fallback;
+		}
+
+		public static string HelpText()
+		{
+			StringBuilder text = new StringBuilder();
+			text.AppendLine("Final Fantasy III (MonoGame, Windows)");
+			text.AppendLine();
+			text.AppendLine("Usage: FF3.exe [options]");
+			text.AppendLine();
+			foreach ((string name, string env, string arg, string help) in Known)
+			{
+				text.AppendLine(string.Format(CultureInfo.InvariantCulture,
+					"  --{0,-16} {1,-11} {2}", name, arg, help));
+				text.AppendLine(string.Format(CultureInfo.InvariantCulture,
+					"  {0,-30} env: {1}", string.Empty, env));
+			}
+			text.AppendLine();
+			text.AppendLine("Examples:");
+			text.AppendLine("  FF3.exe --log=gl,firstchance");
+			text.AppendLine("  FF3.exe --log=all --screenshot-every=5");
+			text.AppendLine("  FF3.exe --content=..\\..\\..\\..\\Content");
+			return text.ToString();
+		}
+	}
+}

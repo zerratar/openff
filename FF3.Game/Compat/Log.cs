@@ -67,8 +67,8 @@ namespace FF3
 		{
 			lock (_sync)
 			{
-				_channels |= ParseChannels(Environment.GetEnvironmentVariable("FF3_LOG"));
-				_path = Environment.GetEnvironmentVariable("FF3_LOG_FILE");
+				_channels |= ParseChannels(Options.Get("log"));
+				_path = Options.Get("log-file");
 				if (string.IsNullOrEmpty(_path))
 				{
 					string dir = System.IO.Path.Combine(AppContext.BaseDirectory, "logs");

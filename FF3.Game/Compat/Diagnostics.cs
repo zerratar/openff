@@ -1,4 +1,4 @@
-// Small helpers used by the logging probes: hex previews and raw-asset dumps.
+﻿// Small helpers used by the logging probes: hex previews and raw-asset dumps.
 //
 // Dumping is opt-in via FF3_DUMP=<directory>. When set, decoded source blobs are
 // written there so they can be inspected outside the game.
@@ -12,7 +12,7 @@ namespace FF3
 {
 	internal static class Diagnostics
 	{
-		private static readonly string _dumpDir = Environment.GetEnvironmentVariable("FF3_DUMP");
+		private static string DumpDir => Options.Get("dump");
 		private static int _counter;
 
 		/// <summary>First <paramref name="count"/> bytes as hex, for identifying file formats.</summary>
@@ -42,15 +42,16 @@ namespace FF3
 		/// <summary>Writes the blob to the dump directory if one is configured. Returns a log suffix.</summary>
 		public static string DumpSource(byte[] data, string extension)
 		{
-			if (string.IsNullOrEmpty(_dumpDir) || data == null)
+			string dir = DumpDir;
+			if (string.IsNullOrEmpty(dir) || data == null)
 			{
 				return string.Empty;
 			}
 			try
 			{
-				Directory.CreateDirectory(_dumpDir);
+				Directory.CreateDirectory(dir);
 				int n = System.Threading.Interlocked.Increment(ref _counter);
-				string path = Path.Combine(_dumpDir,
+				string path = Path.Combine(dir,
 					string.Format(CultureInfo.InvariantCulture, "blob{0:D5}.{1}", n, extension));
 				File.WriteAllBytes(path, data);
 				return " dumped=" + path;

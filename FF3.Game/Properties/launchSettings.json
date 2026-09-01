@@ -1,0 +1,23 @@
+{
+  "profiles": {
+    "FF3": {
+      "commandName": "Project"
+    },
+    "FF3 (3D render log)": {
+      "commandName": "Project",
+      "commandLineArgs": "--log=gl,firstchance --cull=none"
+    },
+    "FF3 (input log)": {
+      "commandName": "Project",
+      "commandLineArgs": "--log=input,general"
+    },
+    "FF3 (everything + filmstrip)": {
+      "commandName": "Project",
+      "commandLineArgs": "--log=all --screenshot-every=5"
+    },
+    "FF3 (dump assets)": {
+      "commandName": "Project",
+      "commandLineArgs": "--log=texture,content --dump=..\\..\\..\\..\\Dump\\blobs --dump-fonts=..\\..\\..\\..\\Dump\\fonts"
+    }
+  }
+}

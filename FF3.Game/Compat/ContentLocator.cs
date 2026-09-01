@@ -1,4 +1,4 @@
-// Finds the game's Content directory.
+﻿// Finds the game's Content directory.
 //
 // The extracted content is ~540 MB, so the project deliberately does not copy it
 // into bin/. Instead the game runs with its working directory set to whichever
@@ -17,10 +17,10 @@ namespace FF3
 		/// <summary>Absolute path of the Content directory, or null if it could not be found.</summary>
 		public static string FindContentRoot()
 		{
-			string fromEnv = Environment.GetEnvironmentVariable("FF3_CONTENT");
-			if (!string.IsNullOrEmpty(fromEnv) && IsContentRoot(fromEnv))
+			string configured = Options.Get("content");
+			if (!string.IsNullOrEmpty(configured) && IsContentRoot(configured))
 			{
-				return Path.GetFullPath(fromEnv);
+				return Path.GetFullPath(configured);
 			}
 
 			// Walk up from the executable. Covers both "Content sits next to the exe"

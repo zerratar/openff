@@ -19,10 +19,10 @@ using syrcusW.res.values;
 
 internal static partial class GlobalScope
 {
-						public enum WBE_SCREENSELECT
-						{
-							WBE_SCREENSELECT_MAIN,
-							WBE_SCREENSELECT_SUB,
-							WBE_SCREENSELECT_NUM
-						}
+    public enum WBE_SCREENSELECT
+    {
+        WBE_SCREENSELECT_MAIN,
+        WBE_SCREENSELECT_SUB,
+        WBE_SCREENSELECT_NUM
+    }
 }

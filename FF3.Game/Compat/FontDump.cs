@@ -1,4 +1,4 @@
-// Dumps SpriteFont pages as they are loaded, so the glyph atlases can be inspected.
+﻿// Dumps SpriteFont pages as they are loaded, so the glyph atlases can be inspected.
 //
 // The game renders text as one tinted SpriteBatch.DrawString per glyph, with no
 // outline pass anywhere in the code, so any outline has to be baked into these
@@ -13,12 +13,11 @@ namespace FF3
 {
 	internal static class FontDump
 	{
-		private static readonly string _directory =
-			Environment.GetEnvironmentVariable("FF3_DUMP_FONTS");
+		private static string Directory_ => Options.Get("dump-fonts");
 
 		private static readonly HashSet<string> _done = new HashSet<string>(StringComparer.Ordinal);
 
-		public static bool Enabled => !string.IsNullOrEmpty(_directory);
+		public static bool Enabled => !string.IsNullOrEmpty(Directory_);
 
 		public static void Dump(string name, SpriteFont font)
 		{
@@ -36,7 +35,7 @@ namespace FF3
 
 			try
 			{
-				Directory.CreateDirectory(_directory);
+				Directory.CreateDirectory(Directory_);
 				Texture2D texture = font.Texture;
 
 				// Report the surface format: an Alpha8 or Bgra4444 atlas carries no colour
@@ -47,7 +46,7 @@ namespace FF3
 					name, texture.Width, texture.Height, texture.Format,
 					font.LineSpacing, font.Characters.Count));
 
-				using FileStream file = File.Create(Path.Combine(_directory, name + ".png"));
+				using FileStream file = File.Create(Path.Combine(Directory_, name + ".png"));
 				texture.SaveAsPng(file, texture.Width, texture.Height);
 			}
 			catch (Exception ex)

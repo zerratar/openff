@@ -19,12 +19,12 @@ using syrcusW.res.values;
 
 internal static partial class GlobalScope
 {
-	public class OSOwnerInfo
-	{
-		public int language;
+    public class OSOwnerInfo
+    {
+        public int language;
 
-		public ushort[] nickName;
+        public ushort[] nickName;
 
-		public int nickNameLength;
-	}
+        public int nickNameLength;
+    }
 }

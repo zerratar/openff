@@ -19,12 +19,12 @@ using syrcusW.res.values;
 
 internal static partial class GlobalScope
 {
-						public class TestTimer
-						{
-							public long m_lStart;
+    public class TestTimer
+    {
+        public long m_lStart;
 
-							public int m_iCount;
+        public int m_iCount;
 
-							public long m_lDiff;
-						}
+        public long m_lDiff;
+    }
 }

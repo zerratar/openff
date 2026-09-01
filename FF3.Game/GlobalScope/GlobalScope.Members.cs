@@ -11575,7 +11575,6 @@ internal static partial class GlobalScope
 									num11 = (uint)((uint)((int)num11 & -256) | (textAlpha[tEXT_DATA.lcd] * 255 / 16));
 									int num15 = tEXT_DATA.x - screenOffset[0];
 									int num16 = tEXT_DATA.y - screenOffset[1];
-									FF3.Log.Sample(FF3.LogChannel.Event, "text", 40, () => $"\"{tEXT_DATA.text}\" flags=0x{tEXT_DATA.flags:x} color=0x{(uint)tEXT_DATA.color:x8} tint=0x{num11:x8} size={tEXT_DATA.size} shadow={((tEXT_DATA.flags & 0x4000) != 0)} alpha={textAlpha[tEXT_DATA.lcd]} bright={textBrightness[tEXT_DATA.lcd]}"); /*FF3LOG*/
 									if ((tEXT_DATA.flags & 0x1000) != 0 && tPData.drag != 0)
 									{
 										num15 += tPData.x - tPData.dragX;
@@ -21199,11 +21198,31 @@ internal static partial class GlobalScope
 								OS_Terminate();
 								break;
 							}
+							// PORT: the original only bound the texture when the texture INDEX changed, and
+							// only re-applied the effect when a state flag was set. Neither notices the draw
+							// switching between BasicEffect and AlphaTestEffect. The newly chosen effect then
+							// runs with whatever texture it happened to be holding - usually none - and a
+							// textureless AlphaTestEffect samples alpha 0, so every fragment is discarded and
+							// the whole 3D scene renders black. Track the chosen effect and keep it in sync.
+							if (FF3.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
+							{
+								basicEffect.TextureEnabled = false;
+								m_bApplyEffect = true;
+							}
+							bool _useAlphaTest = FF3.RenderOverrides.AlphaTest(m_bAlphaTest)
+								&& basicEffect.TextureEnabled && m_aGlTexture[m_uiBindTexture] != null;
+							Effect _effect = _useAlphaTest ? (Effect)alphaTestEffect : (Effect)basicEffect;
+							if (!object.ReferenceEquals(_effect, FF3.RenderOverrides.LastEffect))
+							{
+								FF3.RenderOverrides.LastEffect = _effect;
+								m_uiApplyTexture = uint.MaxValue;
+								m_bApplyEffect = true;
+							}
 							if (basicEffect.TextureEnabled && m_aGlTexture[m_uiBindTexture] != null)
 							{
 								if (m_uiApplyTexture != m_uiBindTexture)
 								{
-									if (m_bAlphaTest)
+									if (_useAlphaTest)
 									{
 										alphaTestEffect.Texture = m_aGlTexture[m_uiBindTexture].m_Texture2D;
 									}
@@ -21221,22 +21240,12 @@ internal static partial class GlobalScope
 								m_uiApplyTexture = 0u;
 								m_bApplyEffect = true;
 							}
-							if (m_bCullFace)
+							RasterizerState _rs = FF3.RenderOverrides.Rasterizer(m_bCullFace ? m_RasterizerState : RasterizerState.CullNone); /*FF3LOG*/
+							if (graphicsDevice.RasterizerState != _rs)
 							{
-								if (graphicsDevice.RasterizerState != m_RasterizerState)
-								{
-									m_bApplyEffect = true;
-								}
-								graphicsDevice.RasterizerState = m_RasterizerState;
+								m_bApplyEffect = true;
 							}
-							else
-							{
-								if (graphicsDevice.RasterizerState != RasterizerState.CullNone)
-								{
-									m_bApplyEffect = true;
-								}
-								graphicsDevice.RasterizerState = RasterizerState.CullNone;
-							}
+							graphicsDevice.RasterizerState = _rs;
 							VertexPositionColorTexture[] array = new VertexPositionColorTexture[count];
 							float[] array2 = new float[3];
 							float[] array3 = new float[2];
@@ -21329,37 +21338,12 @@ internal static partial class GlobalScope
 							DepthStencilState depthStencilState = graphicsDevice.DepthStencilState;
 							if (depthStencilState.DepthBufferEnable != m_bDepthTest || depthStencilState.DepthBufferWriteEnable != m_bDepthMask || depthStencilState.DepthBufferFunction != m_DepthFunc)
 							{
-								if (!m_bDepthTest)
-								{
-									graphicsDevice.DepthStencilState = DepthStencilState.None;
-								}
-								else if (!m_bDepthMask)
-								{
-									graphicsDevice.DepthStencilState = DepthStencilState.DepthRead;
-								}
-								else
-								{
-									graphicsDevice.DepthStencilState = DepthStencilState.Default;
-								}
+								graphicsDevice.DepthStencilState = FF3.RenderOverrides.DepthState(m_bDepthTest, m_bDepthMask, m_DepthFunc); /*FF3LOG*/
 								m_bApplyEffect = true;
 							}
 							if (m_bApplyEffect)
 							{
-								if (basicEffect.TextureEnabled && m_aGlTexture[m_uiBindTexture] != null)
-								{
-									if (m_bAlphaTest)
-									{
-										alphaTestEffect.CurrentTechnique.Passes[0].Apply();
-									}
-									else
-									{
-										basicEffect.CurrentTechnique.Passes[0].Apply();
-									}
-								}
-								else
-								{
-									basicEffect.CurrentTechnique.Passes[0].Apply();
-								}
+								_effect.CurrentTechnique.Passes[0].Apply();
 							}
 							m_bApplyEffect = false;
 							if (flag)
@@ -21374,7 +21358,7 @@ internal static partial class GlobalScope
 
 						internal static void glDrawArrays(uint mode, int first, int count, VertexPositionColorTexture[] v)
 						{
-							FF3.Log.Sample(FF3.LogChannel.Gl, "glDrawArrays4", 240, () => $"mode={mode} count={count} texEnabled={m_Graphics.getBasicEffect().TextureEnabled} bind={m_uiBindTexture} tex={(m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null && m_aGlTexture[m_uiBindTexture].m_Texture2D != null ? m_aGlTexture[m_uiBindTexture].m_Texture2D.Width + "x" + m_aGlTexture[m_uiBindTexture].m_Texture2D.Height : "NONE")} alphaTest={m_bAlphaTest} v0=({v[0].Position.X:F1},{v[0].Position.Y:F1}) uv0=({v[0].TextureCoordinate.X:F2},{v[0].TextureCoordinate.Y:F2}) col0={v[0].Color}"); /*FF3LOG*/
+							FF3.Log.Sample(FF3.LogChannel.Gl, "draw", FF3.GlDiag.Burst() ? 1 : 60, () => { var _be = m_Graphics.getBasicEffect(); var _gd = m_Graphics.GetGraphicsDeviceManager().GraphicsDevice; return $"mode={mode} first={first} count={count} tex={(_be.TextureEnabled ? (m_aGlTexture[m_uiBindTexture]?.m_Texture2D == null ? "BOUND-NULL" : m_aGlTexture[m_uiBindTexture].m_Texture2D.Width + "x" + m_aGlTexture[m_uiBindTexture].m_Texture2D.Height) : "off")} " + $"alphaTest={m_bAlphaTest} apply={m_bApplyEffect} depth={m_bDepthTest}/{m_bDepthMask} cull={(m_bCullFace ? m_RasterizerState.CullMode.ToString() : "none")} blendDst={m_Blend} " + $"v0=({v[first].Position.X:F1},{v[first].Position.Y:F1},{v[first].Position.Z:F1}) v1=({v[first+1].Position.X:F1},{v[first+1].Position.Y:F1},{v[first+1].Position.Z:F1}) col0={v[first].Color} " + $"W=[{_be.World.M11:F3} {_be.World.M22:F3} {_be.World.M33:F3} | {_be.World.M41:F1} {_be.World.M42:F1} {_be.World.M43:F1}] " + $"P=[{_be.Projection.M11:F4} {_be.Projection.M22:F4} {_be.Projection.M33:F4} {_be.Projection.M34:F4} | {_be.Projection.M43:F3} {_be.Projection.M44:F3}] " + $"vp={_gd.Viewport.Width}x{_gd.Viewport.Height} " + FF3.GlDiag.Describe(v, first, count, _be.World, _be.View, _be.Projection); }); /*FF3LOG*/
 							if (count <= 0)
 							{
 								return;
@@ -21430,11 +21414,31 @@ internal static partial class GlobalScope
 								OS_Terminate();
 								break;
 							}
+							// PORT: the original only bound the texture when the texture INDEX changed, and
+							// only re-applied the effect when a state flag was set. Neither notices the draw
+							// switching between BasicEffect and AlphaTestEffect. The newly chosen effect then
+							// runs with whatever texture it happened to be holding - usually none - and a
+							// textureless AlphaTestEffect samples alpha 0, so every fragment is discarded and
+							// the whole 3D scene renders black. Track the chosen effect and keep it in sync.
+							if (FF3.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
+							{
+								basicEffect.TextureEnabled = false;
+								m_bApplyEffect = true;
+							}
+							bool _useAlphaTest = FF3.RenderOverrides.AlphaTest(m_bAlphaTest)
+								&& basicEffect.TextureEnabled && m_aGlTexture[m_uiBindTexture] != null;
+							Effect _effect = _useAlphaTest ? (Effect)alphaTestEffect : (Effect)basicEffect;
+							if (!object.ReferenceEquals(_effect, FF3.RenderOverrides.LastEffect))
+							{
+								FF3.RenderOverrides.LastEffect = _effect;
+								m_uiApplyTexture = uint.MaxValue;
+								m_bApplyEffect = true;
+							}
 							if (basicEffect.TextureEnabled && m_aGlTexture[m_uiBindTexture] != null)
 							{
 								if (m_uiApplyTexture != m_uiBindTexture)
 								{
-									if (m_bAlphaTest)
+									if (_useAlphaTest)
 									{
 										alphaTestEffect.Texture = m_aGlTexture[m_uiBindTexture].m_Texture2D;
 									}
@@ -21452,22 +21456,12 @@ internal static partial class GlobalScope
 								m_uiApplyTexture = 0u;
 								m_bApplyEffect = true;
 							}
-							if (m_bCullFace)
+							RasterizerState _rs = FF3.RenderOverrides.Rasterizer(m_bCullFace ? m_RasterizerState : RasterizerState.CullNone); /*FF3LOG*/
+							if (graphicsDevice.RasterizerState != _rs)
 							{
-								if (graphicsDevice.RasterizerState != m_RasterizerState)
-								{
-									m_bApplyEffect = true;
-								}
-								graphicsDevice.RasterizerState = m_RasterizerState;
+								m_bApplyEffect = true;
 							}
-							else
-							{
-								if (graphicsDevice.RasterizerState != RasterizerState.CullNone)
-								{
-									m_bApplyEffect = true;
-								}
-								graphicsDevice.RasterizerState = RasterizerState.CullNone;
-							}
+							graphicsDevice.RasterizerState = _rs;
 							BlendState blendState = graphicsDevice.BlendState;
 							if (blendState.ColorSourceBlend != Blend.SourceAlpha || blendState.AlphaDestinationBlend != m_Blend || blendState.ColorWriteChannels != ColorWriteChannels.All)
 							{
@@ -21499,37 +21493,12 @@ internal static partial class GlobalScope
 							DepthStencilState depthStencilState = graphicsDevice.DepthStencilState;
 							if (depthStencilState.DepthBufferEnable != m_bDepthTest || depthStencilState.DepthBufferWriteEnable != m_bDepthMask || depthStencilState.DepthBufferFunction != m_DepthFunc)
 							{
-								if (!m_bDepthTest)
-								{
-									graphicsDevice.DepthStencilState = DepthStencilState.None;
-								}
-								else if (!m_bDepthMask)
-								{
-									graphicsDevice.DepthStencilState = DepthStencilState.DepthRead;
-								}
-								else
-								{
-									graphicsDevice.DepthStencilState = DepthStencilState.Default;
-								}
+								graphicsDevice.DepthStencilState = FF3.RenderOverrides.DepthState(m_bDepthTest, m_bDepthMask, m_DepthFunc); /*FF3LOG*/
 								m_bApplyEffect = true;
 							}
 							if (m_bApplyEffect)
 							{
-								if (basicEffect.TextureEnabled && m_aGlTexture[m_uiBindTexture] != null)
-								{
-									if (m_bAlphaTest)
-									{
-										alphaTestEffect.CurrentTechnique.Passes[0].Apply();
-									}
-									else
-									{
-										basicEffect.CurrentTechnique.Passes[0].Apply();
-									}
-								}
-								else
-								{
-									basicEffect.CurrentTechnique.Passes[0].Apply();
-								}
+								_effect.CurrentTechnique.Passes[0].Apply();
 							}
 							m_bApplyEffect = false;
 							if (flag)

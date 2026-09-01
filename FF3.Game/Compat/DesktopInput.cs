@@ -101,10 +101,10 @@ namespace FF3
 		public static void Attach(Game game)
 		{
 			_game = game;
-			string speed = Environment.GetEnvironmentVariable("FF3_SPEED");
-			if (!string.IsNullOrEmpty(speed) && int.TryParse(speed, out int parsed) && parsed >= 1)
+			int speed = Options.GetInt("speed", 1);
+			if (speed >= 1)
 			{
-				_fastForwardFactor = Math.Min(parsed, 64);
+				_fastForwardFactor = Math.Min(speed, 64);
 			}
 		}
 

@@ -16,6 +16,13 @@ namespace FF3
 		[STAThread]
 		private static void Main(string[] args)
 		{
+			Options.Parse(args);
+			if (Options.HelpRequested)
+			{
+				Console.WriteLine(Options.HelpText());
+				return;
+			}
+
 			Log.Initialise();
 
 			// Large parts of the original are wrapped in `catch (Exception) {}` - most of
@@ -55,9 +62,34 @@ namespace FF3
 
 				// The phone build ran fullscreen at the panel's native size. On desktop
 				// start windowed at the game's own 800x480 design resolution.
+				// The phone build targeted the Reach profile because that is all WP7 had.
+				// Desktop hardware has no such limit: HiDef lifts texture-size and
+				// vertex-count caps and allows better render-target formats.
+				gdm.GraphicsProfile = Microsoft.Xna.Framework.Graphics.GraphicsProfile.HiDef;
+
 				gdm.IsFullScreen = false;
 				gdm.PreferredBackBufferWidth = 800;
 				gdm.PreferredBackBufferHeight = 480;
+
+				// The Graphics constructor asks for multisampling. On DesktopGL that
+				// changes how the depth attachment is created, so make it switchable
+				// while the 3D path is still being brought up: --msaa=off
+				if (string.Equals(Options.Get("msaa"), "off", StringComparison.OrdinalIgnoreCase))
+				{
+					gdm.PreferMultiSampling = false;
+				}
+
+				// Report what the device actually gave us, not what we asked for.
+				gdm.DeviceCreated += delegate
+				{
+					Microsoft.Xna.Framework.Graphics.PresentationParameters pp =
+						gdm.GraphicsDevice.PresentationParameters;
+					Log.Write(LogChannel.General, string.Format(
+						"device: {0}x{1} colour={2} depth={3} msaa={4}",
+						pp.BackBufferWidth, pp.BackBufferHeight, pp.BackBufferFormat,
+						pp.DepthStencilFormat, pp.MultiSampleCount));
+				};
+
 				gdm.ApplyChanges();
 
 				game.Window.AllowUserResizing = true;
@@ -75,6 +107,9 @@ namespace FF3
 				// Character naming: replaces the phone's system keyboard.
 				TextEntry.Attach(game);
 
+				// --test=3d|2d : isolated render harness for the GL emulation.
+				RenderTest.Attach(game);
+
 				// F12 screenshots, or FF3_SCREENSHOT_EVERY=<seconds> for a filmstrip.
 				ScreenCapture.Attach(game);
 
@@ -83,6 +118,7 @@ namespace FF3
 				// it load the achievement list.
 				Gamer.SignalLocalSignIn();
 
+				RenderOverrides.LogState();
 				Log.Write(LogChannel.General, "content root: " + contentRoot);
 				Log.Write(LogChannel.General, "backbuffer: "
 					+ gdm.PreferredBackBufferWidth + "x" + gdm.PreferredBackBufferHeight

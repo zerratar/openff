@@ -1,4 +1,4 @@
-// In-game screenshot capture.
+﻿// In-game screenshot capture.
 //
 // Grabs the backbuffer and writes a PNG. Useful for checking rendering without
 // depending on desktop screen capture, which fails whenever the session is locked
@@ -27,6 +27,7 @@ namespace FF3
 
 		private double _nextAutoCapture;
 		private bool _keyWasDown;
+		private bool _burstWasDown;
 		private int _index;
 		private Color[] _buffer;
 
@@ -43,19 +44,16 @@ namespace FF3
 		/// <summary>Adds the component to the game. Always available via F12.</summary>
 		public static void Attach(Game game)
 		{
-			string dir = Environment.GetEnvironmentVariable("FF3_SCREENSHOT_DIR");
+			string dir = Options.Get("screenshot-dir");
 			if (string.IsNullOrEmpty(dir))
 			{
 				dir = Path.Combine(AppContext.BaseDirectory, "screenshots");
 			}
 
-			double interval = 0;
-			string every = Environment.GetEnvironmentVariable("FF3_SCREENSHOT_EVERY");
-			if (!string.IsNullOrEmpty(every)
-				&& double.TryParse(every, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed)
-				&& parsed > 0)
+			double interval = Options.GetDouble("screenshot-every", 0);
+			if (interval < 0)
 			{
-				interval = parsed;
+				interval = 0;
 			}
 
 			game.Components.Add(new ScreenCapture(game, dir, interval));
@@ -80,6 +78,15 @@ namespace FF3
 			{
 				Capture();
 			}
+
+			// F9 dumps the next few hundred draw calls in full, unsampled, so a whole
+			// frame's draw order can be read back.
+			bool burstKey = Game.IsActive && Keyboard.GetState().IsKeyDown(Keys.F9);
+			if (burstKey && !_burstWasDown)
+			{
+				GlDiag.ArmBurst(400);
+			}
+			_burstWasDown = burstKey;
 		}
 
 		/// <summary>Writes the current backbuffer to a PNG. Returns the path, or null on failure.</summary>

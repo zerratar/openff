@@ -19,10 +19,10 @@ using syrcusW.res.values;
 
 internal static partial class GlobalScope
 {
-						public enum WBE_EFFECTTYPE
-						{
-							WBE_EFFECTTYPE_ALPHA,
-							WBE_EFFECTTYPE_BRIGHTNESS,
-							WBE_EFFECTTYPE_NUM
-						}
+    public enum WBE_EFFECTTYPE
+    {
+        WBE_EFFECTTYPE_ALPHA,
+        WBE_EFFECTTYPE_BRIGHTNESS,
+        WBE_EFFECTTYPE_NUM
+    }
 }
