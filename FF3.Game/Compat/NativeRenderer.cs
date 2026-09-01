@@ -23,8 +23,20 @@ namespace FF3
 {
 	internal static class NativeRenderer
 	{
-		public static readonly bool Enabled =
-			string.Equals(Options.Get("renderer"), "native", StringComparison.OrdinalIgnoreCase);
+		/// <summary>
+		/// On by default. The GL emulation is kept behind --renderer=emulated purely as
+		/// an A/B baseline while the rest of that layer is dismantled; it does not render
+		/// 3D correctly.
+		/// </summary>
+		public static readonly bool Enabled = !IsLegacyRequested();
+
+		private static bool IsLegacyRequested()
+		{
+			string requested = Options.Get("renderer");
+			return string.Equals(requested, "emulated", StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(requested, "legacy", StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(requested, "gl", StringComparison.OrdinalIgnoreCase);
+		}
 
 		/// <summary>
 		/// Rebases clip-space z from OpenGL's [-w, w] to Direct3D's [0, w], which is what
@@ -76,15 +88,25 @@ namespace FF3
 			device.Clear(options, colour, clamped, stencil);
 		}
 
-		/// <summary>Draws one batch, taking the emulation's tracked state as intent.</summary>
-		public static void Draw(GraphicsDevice device, PrimitiveType type,
-			VertexPositionColorTexture[] vertices, int first, int primitiveCount,
+		private static short[] _fanIndices = new short[0];
+
+		/// <summary>
+		/// Draws one batch, taking the emulation's tracked state as intent.
+		///
+		/// Takes the raw GL primitive mode rather than a pre-decided PrimitiveType: the
+		/// emulation turned strips and fans into an index buffer of only 16 entries,
+		/// which silently dropped geometry on anything larger. Strips map straight onto
+		/// TriangleStrip; fans are expanded here into an index buffer that grows.
+		/// </summary>
+		public static void Draw(GraphicsDevice device, uint mode,
+			VertexPositionColorTexture[] vertices, int first, int count,
 			Matrix world, Matrix projection, Texture2D texture,
+			TextureFilter filter, TextureAddressMode addressU, TextureAddressMode addressV,
 			bool alphaTest, float alphaReference, CompareFunction alphaFunction,
 			bool depthTest, bool depthWrite, CompareFunction depthFunction,
 			bool cull, CullMode cullMode, Blend destinationBlend)
 		{
-			if (primitiveCount <= 0)
+			if (count <= 0)
 			{
 				return;
 			}
@@ -92,15 +114,25 @@ namespace FF3
 
 			Matrix corrected = Matrix.Multiply(projection, DepthRangeFix);
 
-			device.DepthStencilState = DepthState(depthTest, depthWrite, depthFunction);
+			device.DepthStencilState = RenderOverrides.Depth(
+				DepthState(depthTest, depthWrite, depthFunction));
 			device.BlendState = BlendStateFor(destinationBlend);
-			device.RasterizerState = cull
+			device.RasterizerState = RenderOverrides.Rasterizer(cull
 				? (cullMode == CullMode.CullClockwiseFace
 					? RasterizerState.CullClockwise : RasterizerState.CullCounterClockwise)
-				: RasterizerState.CullNone;
+				: RasterizerState.CullNone);
+
+			// Per-texture filter and wrap mode. Omitting this leaves whatever the last
+			// SpriteBatch set, which samples the wrong texels at atlas boundaries: dark
+			// fringes around alpha-tested sprites, and decals such as the face overlay
+			// picking up neighbouring cells entirely.
+			if (texture != null && !texture.IsDisposed)
+			{
+				device.SamplerStates[0] = SamplerFor(filter, addressU, addressV);
+			}
 
 			Effect effect;
-			if (texture != null && !texture.IsDisposed && alphaTest)
+			if (texture != null && !texture.IsDisposed && RenderOverrides.AlphaTest(alphaTest))
 			{
 				_alphaTest.World = world;
 				_alphaTest.Projection = corrected;
@@ -123,8 +155,74 @@ namespace FF3
 			foreach (EffectPass pass in effect.CurrentTechnique.Passes)
 			{
 				pass.Apply();
-				device.DrawUserPrimitives(type, vertices, first, primitiveCount);
+				switch (mode)
+				{
+					case 4u:   // GL_TRIANGLES
+						device.DrawUserPrimitives(PrimitiveType.TriangleList,
+							vertices, first, count / 3);
+						break;
+
+					case 5u:   // GL_TRIANGLE_STRIP
+						device.DrawUserPrimitives(PrimitiveType.TriangleStrip,
+							vertices, first, count - 2);
+						break;
+
+					case 6u:   // GL_TRIANGLE_FAN - no direct equivalent, so expand it
+						device.DrawUserIndexedPrimitives(PrimitiveType.TriangleList,
+							vertices, first, count, FanIndices(count), 0, count - 2);
+						break;
+
+					case 2u:   // GL_LINE_STRIP
+						device.DrawUserPrimitives(PrimitiveType.LineStrip,
+							vertices, first, count - 1);
+						break;
+
+					default:
+						Log.First(LogChannel.Gl, "native-unknown-mode", 8,
+							() => "unhandled GL primitive mode " + mode);
+						break;
+				}
 			}
+		}
+
+		private static readonly System.Collections.Generic.Dictionary<int, SamplerState> _samplers
+			= new System.Collections.Generic.Dictionary<int, SamplerState>();
+
+		private static SamplerState SamplerFor(TextureFilter filter,
+			TextureAddressMode addressU, TextureAddressMode addressV)
+		{
+			int key = ((int)filter << 8) | ((int)addressU << 4) | (int)addressV;
+			lock (_samplers)
+			{
+				if (!_samplers.TryGetValue(key, out SamplerState state))
+				{
+					state = new SamplerState
+					{
+						Filter = filter,
+						AddressU = addressU,
+						AddressV = addressV
+					};
+					_samplers[key] = state;
+				}
+				return state;
+			}
+		}
+
+		/// <summary>Triangle-fan indices (0, i-1, i), grown on demand.</summary>
+		private static short[] FanIndices(int count)
+		{
+			int needed = (count - 2) * 3;
+			if (_fanIndices.Length < needed)
+			{
+				_fanIndices = new short[needed];
+				for (int i = 2, at = 0; i < count; i++)
+				{
+					_fanIndices[at++] = 0;
+					_fanIndices[at++] = (short)(i - 1);
+					_fanIndices[at++] = (short)i;
+				}
+			}
+			return _fanIndices;
 		}
 
 		private static DepthStencilState DepthState(bool test, bool write, CompareFunction func)

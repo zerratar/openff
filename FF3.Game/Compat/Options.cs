@@ -1,4 +1,4 @@
-// Command-line options, with the environment variables kept as fallbacks.
+﻿// Command-line options, with the environment variables kept as fallbacks.
 //
 // Parsed as the very first thing in Main, so every other component can read from
 // here during its own initialisation. A command-line value always wins over the
@@ -21,6 +21,9 @@ namespace FF3
 		/// <summary>option name -> (environment variable, argument placeholder, help text)</summary>
 		private static readonly (string Name, string Env, string Arg, string Help)[] Known =
 		{
+			("renderer", "FF3_RENDERER", "<mode>",
+				"native (default), or emulated for the old GL translation\n" +
+				"                              layer, kept only for A/B comparison"),
 			("log", "FF3_LOG", "<channels>",
 				"Log channels: all, or a comma separated list of\n" +
 				"                              general, exception, gl, texture, content, file, sound,\n" +

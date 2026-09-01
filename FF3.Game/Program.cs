@@ -118,6 +118,8 @@ namespace FF3
 				// it load the achievement list.
 				Gamer.SignalLocalSignIn();
 
+				Log.Write(LogChannel.General, "renderer: "
+					+ (NativeRenderer.Enabled ? "native" : "emulated (legacy GL path)"));
 				RenderOverrides.LogState();
 				Log.Write(LogChannel.General, "content root: " + contentRoot);
 				Log.Write(LogChannel.General, "backbuffer: "

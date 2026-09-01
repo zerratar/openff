@@ -498,12 +498,26 @@ internal static partial class GlobalScope
 						if (m_Point < 0)
 						{
 							m_Point = 0;
-							return;
 						}
-						m_Point++;
-						if (m_Point >= PAD_RECORD_SIZE)
+						else
 						{
-							m_Point = 0;
+							m_Point++;
+							if (m_Point >= PAD_RECORD_SIZE)
+							{
+								m_Point = 0;
+							}
+						}
+
+						// PORT: the shipped build advanced the write cursor and then dropped the
+						// sample - nothing was ever written into m_Buf. So pad(0) always read back
+						// a zeroed record, transitPad turned that into no direction, and the D-pad
+						// movement path in pl.CPlayerCharacter could never fire. Harmless on a
+						// phone with no D-pad; on Windows it is exactly why WASD and the arrow keys
+						// do not move the character. Confirmed against both decompilers, so it is
+						// in the shipped binary, not an artefact of decompiling it.
+						if (data != null)
+						{
+							m_Buf[m_Point].set(data.m_Pad, data.m_Edge, data.m_Repeat, data.m_DblClick);
 						}
 					}
 

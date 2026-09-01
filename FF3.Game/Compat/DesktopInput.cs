@@ -56,7 +56,7 @@ namespace FF3
 			(Keys.V, PadY),
 			(Keys.Q, PadL),
 			(Keys.E, PadR),
-			(Keys.LeftShift, PadStart),
+			(Keys.RightControl, PadStart),
 			(Keys.RightShift, PadSelect)
 		};
 
@@ -82,6 +82,16 @@ namespace FF3
 						bits |= bit;
 					}
 				}
+				// Run. The game has no dedicated run button: isRun() tests the B bit, and
+				// whether B means run or walk depends on Config > movement type. Shift is
+				// what a PC player expects, so alias it onto B - but only while a direction
+				// is held, because B is also cancel and menus read it as an edge.
+				const int directions = PadUp | PadDown | PadLeft | PadRight;
+				if ((bits & directions) != 0 && keys.IsKeyDown(Keys.LeftShift))
+				{
+					bits |= PadB;
+				}
+
 				if (bits != 0)
 				{
 					Log.Sample(LogChannel.Input, "pad", 30, () => "bits=0x" + bits.ToString("x"));

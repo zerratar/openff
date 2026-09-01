@@ -21439,11 +21439,17 @@ internal static partial class GlobalScope
 							}
 							if (FF3.NativeRenderer.Enabled)
 							{
-								FF3.NativeRenderer.Draw(graphicsDevice, primitiveType, v, first, primitiveCount,
+								FF3.NativeRenderer.Draw(graphicsDevice, mode, v, first, count,
 									basicEffect.World, basicEffect.Projection,
 									(basicEffect.TextureEnabled && m_uiBindTexture < m_aGlTexture.Length
 										&& m_aGlTexture[m_uiBindTexture] != null)
 										? m_aGlTexture[m_uiBindTexture].m_Texture2D : null,
+									m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null
+										? m_aGlTexture[m_uiBindTexture].m_TextureFilter : TextureFilter.Linear,
+									m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null
+										? m_aGlTexture[m_uiBindTexture].m_TextureAddressModeS : TextureAddressMode.Clamp,
+									m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null
+										? m_aGlTexture[m_uiBindTexture].m_TextureAddressModeT : TextureAddressMode.Clamp,
 									m_bAlphaTest, m_fAlphaRef, alphaTestEffect.AlphaFunction,
 									m_bDepthTest, m_bDepthMask, m_DepthFunc,
 									m_bCullFace, m_RasterizerState != null ? m_RasterizerState.CullMode : CullMode.None, m_Blend);
