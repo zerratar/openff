@@ -11,8 +11,6 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
 using android.content;
-using android.text;
-using android.widget;
 using syrcusW.res.raw;
 using syrcusW.res.values;
 

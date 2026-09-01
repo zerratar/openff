@@ -1,6 +1,5 @@
-using android.content;
+﻿using android.content;
 using android.view;
-using android.widget;
 
 namespace android.app;
 
@@ -11,8 +10,6 @@ public class AlertDialog : Dialog
 		private string m_strTitle = "";
 
 		private string m_strMessage = "";
-
-		private EditText m_EditText;
 
 		private OnClickListener m_NegativeButtonListener;
 
@@ -63,16 +60,5 @@ public class AlertDialog : Dialog
 			return this;
 		}
 
-		public Builder setView(View view)
-		{
-			m_EditText = view as EditText;
-			return this;
-		}
-
-		public AlertDialog show()
-		{
-			GlobalScope.Dialog.showInputDialog(m_strTitle, m_strMessage, m_EditText, m_PositiveButtonListener, m_CancelListener);
-			return new AlertDialog();
-		}
 	}
 }

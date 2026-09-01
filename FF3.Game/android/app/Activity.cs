@@ -2,7 +2,6 @@
 using android.content.res;
 using android.os;
 using android.view;
-using android.view.inputmethod;
 
 namespace android.app;
 
@@ -68,8 +67,6 @@ public class Activity : Context
 		}
 	}
 
-	private static InputMethodManager m_InputMethodManager = new InputMethodManager();
-
 	private static KeyguardManager m_KeyguardManager = new KeyguardManager();
 
 	private static Resources m_Resources = new Resources();
@@ -105,7 +102,6 @@ public class Activity : Context
 	{
 		return name switch
 		{
-			"input_method" => m_InputMethodManager, 
 			"keyguard" => m_KeyguardManager, 
 			_ => null, 
 		};

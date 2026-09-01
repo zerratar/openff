@@ -6,10 +6,7 @@ using android.app;
 using android.content;
 using android.opengl;
 using android.os;
-using android.text;
 using android.view;
-using android.view.inputmethod;
-using android.widget;
 
 public class MainActivity : Activity, GLSurfaceView.Renderer
 {
@@ -28,30 +25,8 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		}
 	}
 
-	private class EditTextPositiveButtonListener : DialogInterface.OnClickListener
-	{
-		public void onClick(DialogInterface dialog, int whichButton)
-		{
-			activity.editString = activity.editText.getText().ToString();
-			activity.editText = null;
-		}
-	}
 
-	private class EditTextNegativeButtonListener : DialogInterface.OnClickListener
-	{
-		public void onClick(DialogInterface dialog, int whichButton)
-		{
-			activity.editText = null;
-		}
-	}
 
-	private class EditTextCancelListener : DialogInterface.OnCancelListener
-	{
-		public void onCancel(DialogInterface dialog)
-		{
-			activity.editText = null;
-		}
-	}
 
 	private class ConfirmDialogPositiveButtonListener : DialogInterface.OnClickListener
 	{
@@ -87,8 +62,6 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 	public static MainActivity activity;
 
 	private GLSurfaceView mGLSurfaceView;
-
-	private EditText editText;
 
 	private string editString;
 
@@ -197,11 +170,8 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 	{
 		mGLSurfaceView.onPause();
 		base.onPause();
-		if (editText != null)
-		{
-			InputMethodManager inputMethodManager = (InputMethodManager)getSystemService("input_method");
-			inputMethodManager.hideSoftInputFromWindow(editText.getWindowToken(), 0);
-		}
+		// PORT: dismissed the Android soft keyboard here. FF3.TextEntry is drawn by
+		// the game itself and needs no dismissing when the window loses focus.
 		pause();
 		sound.pauseSoundAll(pause: true);
 	}
@@ -372,17 +342,8 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		touchPeak = touchCount;
 		render();
 		sound.updateSound();
-		if (editText == null)
-		{
-			return;
-		}
-		try
-		{
-			Thread.Sleep(50);
-		}
-		catch (Exception)
-		{
-		}
+		// PORT: threw the frame away while the soft keyboard was up, to leave the
+		// device some slack. Text entry is in-game now, so the frame keeps running.
 	}
 
 	public static byte[] loadFileEntry(string filename)
@@ -576,23 +537,21 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 
 	public static void createEditText(string text)
 	{
+		// PORT: built an Android AlertDialog wrapping an EditText, which the shim
+		// forwarded to GlobalScope.Dialog and on to the Guide keyboard. On Windows
+		// you type into the game itself; FF3.TextEntry is the field.
 		activity.editString = null;
-		AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-		EditText editText = new EditText(activity);
-		editText.setText(text, TextView.BufferType.NORMAL);
-		editText.setInputType(1);
-		editText.setFilters(new InputFilter[1]
+		FF3.TextEntry entry = FF3.TextEntry.Instance;
+		if (entry == null)
 		{
-			new InputFilter.LengthFilter(6)
-		});
-		editText.setWidth(100);
-		activity.editText = editText;
-		builder.setTitle(activity.getString(R.@string.CHANGE_NAME));
-		builder.setView(editText);
-		builder.setPositiveButton(activity.getString(R.@string.OK), new EditTextPositiveButtonListener());
-		builder.setNegativeButton(activity.getString(R.@string.CANCEL), new EditTextNegativeButtonListener());
-		builder.setOnCancelListener(new EditTextCancelListener());
-		builder.show();
+			return;
+		}
+		entry.Show(activity.getString(R.@string.CHANGE_NAME), string.Empty, text, 6,
+			delegate(string entered)
+			{
+				// null means cancelled, and the game reads that as "leave the name alone".
+				activity.editString = entered;
+			});
 	}
 
 	public static string getEditText()
