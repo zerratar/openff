@@ -2,6 +2,45 @@
 
 The shipped game data comes in two very different forms.
 
+## Repository layout
+
+`Content/` is self-contained: a fresh clone is playable with nothing else on disk.
+
+```
+Content/
+  *.xnb              shipped audio and font atlases   (389 MB)  - runtime + archival master
+  data*.bin, dl.bin  shipped archives                 (144 MB)  - runtime, no pipeline form yet
+  Font12.glp, Font16.glp                              (256 KB)  - runtime
+  Audio/*.wav        extracted, editable              (346 MB)
+  Fonts/*.png +.json extracted, editable              ( 14 MB)
+  Content.mgcb       pipeline project for the above
+```
+
+The game finds this automatically: `ContentLocator` walks up from the executable
+looking for a directory named `Content` that holds `data000.bin`.
+
+### On retiring the original XNBs
+
+Once the pipeline rebuild is verified, it is tempting to stop tracking the shipped
+`.xnb` files, since `Audio/` and `Fonts/` duplicate them. Two reasons to keep them
+anyway:
+
+- **Deleting them later reclaims nothing.** Git history retains the blobs and the LFS
+  objects stay in the remote store; only a history rewrite plus a server-side prune
+  actually frees the space. `git rm` just hides them from the working tree.
+- **The rebuild is not lossless.** Fonts ship as DXT3 and come back as PNG, which the
+  pipeline then re-encodes with a different compressor — not the original bytes. Audio
+  extraction *is* lossless (a remux, no transcode), but rebuilding through
+  `SoundEffectProcessor` may re-encode. The shipped XNBs are the only exact copy.
+
+So they are better treated as the archival master: the ground truth everything else can
+be re-derived from. `Audio/` and `Fonts/` are the editable working copy, and once the
+pipeline output is wired up it becomes the thing the game actually loads.
+
+If a lean checkout is ever wanted, that is a clone-time concern rather than a history
+one - `git lfs clone --exclude` or a sparse checkout skips the archival files without
+losing them.
+
 ## What ships where
 
 | Source | Contents | Read by |

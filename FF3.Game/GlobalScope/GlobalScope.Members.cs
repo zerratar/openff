@@ -11575,6 +11575,7 @@ internal static partial class GlobalScope
 									num11 = (uint)((uint)((int)num11 & -256) | (textAlpha[tEXT_DATA.lcd] * 255 / 16));
 									int num15 = tEXT_DATA.x - screenOffset[0];
 									int num16 = tEXT_DATA.y - screenOffset[1];
+									FF3.Log.Sample(FF3.LogChannel.Event, "text", 40, () => $"\"{tEXT_DATA.text}\" flags=0x{tEXT_DATA.flags:x} color=0x{(uint)tEXT_DATA.color:x8} tint=0x{num11:x8} size={tEXT_DATA.size} shadow={((tEXT_DATA.flags & 0x4000) != 0)} alpha={textAlpha[tEXT_DATA.lcd]} bright={textBrightness[tEXT_DATA.lcd]}"); /*FF3LOG*/
 									if ((tEXT_DATA.flags & 0x1000) != 0 && tPData.drag != 0)
 									{
 										num15 += tPData.x - tPData.dragX;
