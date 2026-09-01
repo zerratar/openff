@@ -155,6 +155,10 @@ namespace FF3.ContentTool.Editor
 					GetMessages(context);
 					return;
 
+				case "/api/ops":
+					GetOps(context);
+					return;
+
 				case "/api/revert":
 					Revert(context);
 					return;
@@ -303,6 +307,34 @@ namespace FF3.ContentTool.Editor
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}
+		}
+
+		/// <summary>
+		/// The whole instruction set, with operand names and types. The editor needs
+		/// it to highlight, to complete and to say what an argument is for - none of
+		/// which should mean a round trip per keystroke, so it is sent once.
+		/// </summary>
+		private void GetOps(HttpListenerContext context)
+		{
+			List<object> ops = new List<object>();
+			foreach (KeyValuePair<string, int> entry in Ffs.Mnemonics.All)
+			{
+				ScriptOp op = ScriptOps.Get(entry.Value);
+				Operand[] operands = op.Operands ?? Array.Empty<Operand>();
+				ops.Add(new
+				{
+					name = entry.Key,
+					opcode = entry.Value,
+					handler = op.Name,
+					operands = operands.Select((operand, i) => new
+					{
+						type = operand.ToString().ToLowerInvariant(),
+						name = ScriptOperands.Name(entry.Value, i),
+						@fixed = ScriptOperands.IsFixed(entry.Value, i)
+					}).ToArray()
+				});
+			}
+			SendJson(context, ops);
 		}
 
 		/// <summary>

@@ -93,6 +93,35 @@ Both point at labels rather than owning blocks. That is not a simplification - i
 the only shape that fits the shipped scripts, where two entry points share an address
 and execution runs on past the end of the block that appears to own it.
 
+## What the numbers mean
+
+An operand table that says "a word and three dwords" tells you the shape of an
+instruction and nothing about what it is for. `Tools/gen_operand_names.py` fills that
+in, and like the rest of this it derives rather than guesses: each operand is followed
+to the call it ends up in, and the name is taken from the other side.
+
+`ff3Command_PlaySE` hands its four operands to
+`MtxSENDS_Play(int SeqArcNo, int SeqNo, int Volume, int Pan)`, so:
+
+```
+playSE  seqArcNo:word, seqNo:word, volume:word, pan:word
+```
+
+413 of the 772 operands (53%) get a name this way. The rest are left blank, because a
+wrong name is worse than none.
+
+**Fixed point.** 126 operands reach `VecFx32`, which holds NDS fixed point - 1/4096ths
+of a unit. Those are decoded in a comment beside the line, since `0x64000` is not
+something to convert in your head while reading a cutscene:
+
+```
+bootCharacter_AbsoluteCoordination 35, 0xFFFA9000, 0, 0xFFFB9000, 0   // x -87  y 0  z -71
+moveCharacter_AbsoluteCoordination 53, 0xFFFAC000, 0, 0xFFFD0000, 45  // x -84  y 0  z -48
+```
+
+The receiver is checked, not just the method name: `FlagManager` has a `set()` too,
+and its arguments are a flag group and an index, not an x and a y.
+
 ## The instruction set
 
 298 opcodes. Names come from the game's own handlers, tidied:
@@ -109,6 +138,14 @@ List them, with their arguments:
 dotnet run --project FF3.ContentTool -- ops            # all 298
 dotnet run --project FF3.ContentTool -- ops camera     # just the camera ones
 ```
+
+```
+  48  moveCharacter_AbsoluteCoordination   hichIndex:word, x:dword fixed, y:dword fixed, z:dword fixed, frame:word
+  91  playBGM                              BGMNo:word, volume:byte, fadeinFrame:word
+  93  playSE                               seqArcNo:word, seqNo:word, volume:word, pan:word
+```
+
+The editor has the same table live: see `Docs/Editor.md`.
 
 `Docs/Events.md` covers how the engine runs them, and how the operand table is derived
 from the handlers rather than guessed.

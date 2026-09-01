@@ -143,6 +143,12 @@ async function openScript(name) {
 
   $('.check', node).onclick = () => compile(false).catch(e => say(e.message, 'bad'));
   $('.save', node).onclick = () => compile(true).catch(e => say(e.message, 'bad'));
+
+  // Highlighting, completion and the signature strip. Defined in script-editor.js;
+  // the editor still works without it, just plainer.
+  if (typeof enhanceScriptEditor === 'function') {
+    await enhanceScriptEditor(node);
+  }
 }
 
 function goToLine(text, line, column) {

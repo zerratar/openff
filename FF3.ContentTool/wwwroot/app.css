@@ -152,17 +152,74 @@ select {
   font: 12px/1.55 "Cascadia Mono", "Consolas", ui-monospace, monospace;
 }
 
-.editor textarea {
-  flex: 1;
+/* A highlighted <pre> behind a transparent <textarea>: same metrics, same scroll. */
+.code { position: relative; flex: 1; min-width: 0; }
+
+.editor .highlight, .editor textarea {
+  position: absolute;
+  inset: 0;
+  margin: 0;
   border: 0;
-  outline: 0;
-  resize: none;
   padding: 10px 12px;
-  background: var(--bg);
-  color: var(--ink);
   white-space: pre;
   overflow: auto;
+  font: 12px/1.55 "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  tab-size: 4;
 }
+
+.editor .highlight { pointer-events: none; color: var(--ink); background: var(--bg); }
+.editor textarea {
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--ink);
+}
+.editor textarea::selection { background: rgba(110, 168, 254, .3); color: transparent; }
+
+.t-op { color: #7fd6a5; font-style: normal; }
+.t-unknown { color: var(--bad); text-decoration: underline wavy rgba(224,122,122,.5); font-style: normal; }
+.t-key { color: #c792ea; font-style: normal; }
+.t-label { color: #6ea8fe; font-style: normal; }
+.t-number { color: #e0a36a; font-style: normal; }
+.t-string { color: #d69d85; font-style: normal; }
+.t-name { color: #9fb3c8; font-style: normal; }
+.t-comment { color: #5f6b7a; font-style: normal; }
+
+.completions {
+  position: absolute;
+  z-index: 5;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #20252d;
+  border: 1px solid #39414d;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  max-height: 240px;
+  overflow: auto;
+  min-width: 320px;
+}
+.completions li { padding: 3px 10px; cursor: pointer; white-space: nowrap; }
+.completions li.on { background: #2b4a7a; }
+.completions li b { color: #7fd6a5; font-weight: 600; }
+.completions li span { color: var(--dim); }
+
+.signature {
+  display: none;
+  gap: 10px;
+  align-items: center;
+  padding: 5px 12px;
+  border-top: 1px solid var(--line);
+  background: #171b21;
+  font: 12px/1.4 "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  color: var(--dim);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.signature.on { display: flex; }
+.signature b { color: #7fd6a5; font-weight: 600; }
+.signature .here { color: var(--ink); background: #2b4a7a; padding: 0 5px; border-radius: 3px; }
 
 .problems { list-style: none; margin: 0; padding: 0; max-height: 30%; overflow: auto; }
 .problems:not(:empty) { border-top: 1px solid var(--line); background: #1d1719; }

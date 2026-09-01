@@ -603,7 +603,8 @@ namespace FF3.ContentTool
 				ScriptOp op = ScriptOps.Get(entry.Value);
 				string arguments = op.Operands == null || op.Operands.Length == 0
 					? string.Empty
-					: string.Join(", ", op.Operands.Select(Describe));
+					: string.Join(", ", op.Operands
+						.Select((operand, i) => Describe(entry.Value, i, operand)));
 				Console.WriteLine("{0,4}  {1,-42} {2}", entry.Value, entry.Key, arguments);
 				shown++;
 			}
@@ -612,15 +613,23 @@ namespace FF3.ContentTool
 			return 0;
 		}
 
-		private static string Describe(Operand operand)
+		/// <summary>An operand as "name:type", with the type alone where no name is known.</summary>
+		private static string Describe(int opcode, int index, Operand operand)
 		{
+			string type;
 			switch (operand)
 			{
-				case Operand.Byte: return "byte";
-				case Operand.Word: return "word";
-				case Operand.Dword: return "dword";
-				default: return "string";
+				case Operand.Byte: type = "byte"; break;
+				case Operand.Word: type = "word"; break;
+				case Operand.Dword: type = "dword"; break;
+				default: type = "string"; break;
 			}
+			if (ScriptOperands.IsFixed(opcode, index))
+			{
+				type += " fixed";
+			}
+			string name = ScriptOperands.Name(opcode, index);
+			return name == null ? type : name + ":" + type;
 		}
 
 		/// <summary>Compiles script language source back to bytecode.</summary>

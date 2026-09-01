@@ -127,10 +127,12 @@ namespace FF3.ContentTool.Ffs
 			string comment = Comment(instruction, lookupMessage);
 			if (comment != null)
 			{
-				while (line.Length < 60)
+				// Line up where it can, but never run into the comment marker.
+				do
 				{
 					line.Append(' ');
 				}
+				while (line.Length < 60);
 				line.Append("// ").Append(comment);
 			}
 			writer.WriteLine(line.ToString());
@@ -158,22 +160,50 @@ namespace FF3.ContentTool.Ffs
 				: number.ToString(CultureInfo.InvariantCulture);
 		}
 
+		/// <summary>
+		/// What the numbers on this line mean, where that is known: the dialogue behind
+		/// a message id, and any operand held in NDS fixed point. 0x64000 is 100.0, and
+		/// working that out in your head while reading a cutscene is no way to live.
+		/// </summary>
 		private static string Comment(ScriptInstruction instruction,
 			Func<uint, string> lookupMessage)
 		{
-			if (lookupMessage == null || instruction.Opcode != StartMessage2
-				|| instruction.Operands.Count < 2)
+			if (lookupMessage != null && instruction.Opcode == StartMessage2
+				&& instruction.Operands.Count >= 2)
 			{
-				return null;
+				string text = lookupMessage((uint)instruction.Operands[1]);
+				if (text != null)
+				{
+					string flat = text.Replace(CR, string.Empty).Replace(LF, " / ");
+					return Q + (flat.Length > 90 ? flat.Substring(0, 90) + "..." : flat) + Q;
+				}
 			}
-			string text = lookupMessage((uint)instruction.Operands[1]);
-			if (text == null)
+
+			List<string> parts = new List<string>();
+			for (int i = 0; i < instruction.Operands.Count; i++)
 			{
-				return null;
+				if (!ScriptOperands.IsFixed(instruction.Opcode, i)
+					|| !(instruction.Operands[i] is uint raw))
+				{
+					continue;
+				}
+				string name = ScriptOperands.Name(instruction.Opcode, i)
+					?? ("arg" + i.ToString(CultureInfo.InvariantCulture));
+				parts.Add(string.Format(CultureInfo.InvariantCulture, "{0} {1}",
+					name, FixedPoint(raw)));
 			}
-			string flat = text.Replace("\r", string.Empty).Replace("\n", " / ");
-			return "\"" + (flat.Length > 90 ? flat.Substring(0, 90) + "..." : flat) + "\"";
+			return parts.Count > 0 ? string.Join("  ", parts) : null;
 		}
+
+		/// <summary>NDS fixed point: a position is held in 1/4096ths of a unit.</summary>
+		private static string FixedPoint(uint raw)
+		{
+			return ((int)raw / 4096.0).ToString("0.###", CultureInfo.InvariantCulture);
+		}
+
+		private const char Q = '\"';
+		private const string CR = "\r";
+		private const string LF = "\n";
 
 		private static void WriteData(TextWriter writer, byte[] data, uint at, uint length)
 		{

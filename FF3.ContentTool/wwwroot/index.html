@@ -42,8 +42,13 @@
     </div>
     <div class="editor">
       <div class="gutter"></div>
-      <textarea spellcheck="false" wrap="off"></textarea>
+      <div class="code">
+        <pre class="highlight" aria-hidden="true"></pre>
+        <textarea spellcheck="false" wrap="off"></textarea>
+        <ul class="completions" hidden></ul>
+      </div>
     </div>
+    <div class="signature"></div>
     <ul class="problems"></ul>
   </div>
 </template>
@@ -121,5 +126,6 @@
 </template>
 
 <script src="app.js"></script>
+<script src="script-editor.js"></script>
 </body>
 </html>

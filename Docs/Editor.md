@@ -29,7 +29,22 @@ the calls that show it. **Check** compiles without saving; **Compile & save** wr
 `.script` into the override.
 
 Problems are listed underneath with their line and column, and clicking one jumps the
-caret to it. `Docs/Script-Language.md` has the language.
+caret to it.
+
+Because this is a language nobody has seen before, the editor tries to teach it while
+you use it:
+
+- **Highlighting.** Instructions the compiler knows are green; a word it does not know
+  is red and underlined, so a typo shows before you press anything.
+- **Completion.** Start typing an instruction and a list appears with its full
+  signature. Arrow keys move, Enter or Tab accepts, Escape dismisses, Ctrl+Space asks
+  for it. Filtering is on substring, so `magic` finds everything with magic in it.
+- **Signature strip.** Under the editor, showing the instruction the caret is in with
+  the argument you are on picked out - `bootCharacter_AbsoluteCoordination` reads
+  `id:word, x:dword fixed, y:dword fixed, z:dword fixed`.
+
+The names come from the game's own handlers; `Docs/Script-Language.md` explains how,
+and what "fixed" means.
 
 ## Menus
 
