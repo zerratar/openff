@@ -21420,6 +21420,7 @@ internal static partial class GlobalScope
 							// runs with whatever texture it happened to be holding - usually none - and a
 							// textureless AlphaTestEffect samples alpha 0, so every fragment is discarded and
 							// the whole 3D scene renders black. Track the chosen effect and keep it in sync.
+							FF3.ModelCapture.Offer(v, first, count, m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null ? m_aGlTexture[m_uiBindTexture].m_Texture2D : null, basicEffect.Projection); /*FF3LOG*/
 							if (FF3.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
 							{
 								basicEffect.TextureEnabled = false;

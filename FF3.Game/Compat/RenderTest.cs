@@ -26,6 +26,10 @@ namespace FF3
 		private VertexPositionColorTexture[] _verts;
 		private uint _texture;
 		private bool _ready;
+		private VertexPositionColorTexture[] _model;
+		private Texture2D _modelTexture;
+		private uint _modelTextureId;
+		private Vector3 _min, _max;
 
 		private RenderTest(Game game, string mode)
 			: base(game)
@@ -113,6 +117,12 @@ namespace FF3
 
 			// Clearing the depth buffer is masked out by the current depth-write state.
 			// Force writes on first, or glClear leaves the depth buffer untouched.
+			if (_mode == "model")
+			{
+				DrawModel();
+				return;
+			}
+
 			GraphicsDevice.DepthStencilState = DepthStencilState.Default;
 			GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer,
 				new Color(20, 20, 60), 1.0f, 0);
@@ -121,6 +131,7 @@ namespace FF3
 			{
 				// Known-good path: the game's own 2D projection.
 				GlobalScope.glMatrixMode(5889u);
+				GlobalScope.glLoadIdentity();   // glOrthof multiplies onto the current matrix
 				GlobalScope.glOrthof(0f, 480f, 320f, 0f, -1024f, 1024f);
 			}
 			else
@@ -171,6 +182,93 @@ namespace FF3
 			GlobalScope.glEnable(2929u);
 			GlobalScope.glDepthFunc(515u);
 			GlobalScope.glDrawArrays(4u, 18, 6, _verts);
+		}
+
+		/// <summary>
+		/// Draws a batch captured out of the real game, framed to fit, with every piece
+		/// of state that has been implicated so far switched off. If the shape and the
+		/// texture look right here, the asset decoding is sound and the fault is state.
+		/// </summary>
+		private void DrawModel()
+		{
+			if (_model == null)
+			{
+				_model = ModelCapture.Load(GraphicsDevice, out _modelTexture);
+				if (_model == null)
+				{
+					GraphicsDevice.Clear(new Color(60, 20, 20));
+					return;
+				}
+
+				_min = new Vector3(float.MaxValue);
+				_max = new Vector3(float.MinValue);
+				foreach (VertexPositionColorTexture vertex in _model)
+				{
+					_min = Vector3.Min(_min, vertex.Position);
+					_max = Vector3.Max(_max, vertex.Position);
+				}
+
+				// Re-upload the texture through the emulation so the viewer exercises the
+				// same texture path the game does.
+				if (_modelTexture != null)
+				{
+					Color[] pixels = new Color[_modelTexture.Width * _modelTexture.Height];
+					_modelTexture.GetData(pixels);
+					byte[] rgba = new byte[pixels.Length * 4];
+					for (int i = 0; i < pixels.Length; i++)
+					{
+						rgba[i * 4] = pixels[i].R;
+						rgba[i * 4 + 1] = pixels[i].G;
+						rgba[i * 4 + 2] = pixels[i].B;
+						rgba[i * 4 + 3] = pixels[i].A;
+					}
+					uint[] ids = new uint[1];
+					GlobalScope.glGenTextures(1, ids);
+					_modelTextureId = ids[0];
+					GlobalScope.glBindTexture(3553u, _modelTextureId);
+					GlobalScope.glTexParameteri(3553u, 10241u, 9729);
+					GlobalScope.glTexParameteri(3553u, 10240u, 9729);
+					GlobalScope.glTexImage2D(3553u, 0, 6408, _modelTexture.Width,
+						_modelTexture.Height, 0, 6408u, 5121u, rgba);
+				}
+
+				Log.Write(LogChannel.General, string.Format(
+					"model viewer: {0} verts, bounds ({1:F1},{2:F1},{3:F1})..({4:F1},{5:F1},{6:F1})",
+					_model.Length, _min.X, _min.Y, _min.Z, _max.X, _max.Y, _max.Z));
+			}
+
+			GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+			GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer,
+				new Color(18, 18, 34), 1.0f, 0);
+
+			// Frame the batch with an orthographic projection so nothing depends on the
+			// original camera. A little margin so edges are visible.
+			float pad = Math.Max((_max.X - _min.X), (_max.Y - _min.Y)) * 0.05f + 1f;
+			GlobalScope.glMatrixMode(5889u);
+			GlobalScope.glLoadIdentity();   // glOrthof multiplies onto the current matrix
+			GlobalScope.glOrthof(_min.X - pad, _max.X + pad, _max.Y + pad, _min.Y - pad,
+				-100000f, 100000f);
+			GlobalScope.glMatrixMode(5888u);
+			GlobalScope.glLoadIdentity();
+
+			GlobalScope.glDisable(3008u);   // no alpha test
+			GlobalScope.glDisable(2929u);   // no depth test
+			GlobalScope.glDisable(2884u);   // no culling
+			GlobalScope.glEnable(3042u);
+			GlobalScope.glBlendFunc(770u, 771u);
+
+			if (_modelTexture != null)
+			{
+				GlobalScope.glEnable(3553u);
+				GlobalScope.glBindTexture(3553u, _modelTextureId);
+			}
+			else
+			{
+				GlobalScope.glDisable(3553u);
+			}
+
+			// Triangles, in whatever chunk size keeps well under any batch limits.
+			GlobalScope.glDrawArrays(4u, 0, _model.Length - (_model.Length % 3), _model);
 		}
 	}
 }
