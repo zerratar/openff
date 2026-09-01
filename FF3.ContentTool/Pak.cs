@@ -46,6 +46,14 @@ namespace FF3.ContentTool
 		[JsonPropertyName("offset")]
 		public int Offset { get; set; }
 
+		/// <summary>
+		/// The chain's length as it was read. If what gets written back is a different
+		/// length - a row added or removed - the whole file has to be laid out again,
+		/// and this is how that is noticed.
+		/// </summary>
+		[JsonPropertyName("size")]
+		public int Size { get; set; }
+
 		/// <summary>Alignment bytes before this chain, only when they are not zero.</summary>
 		[JsonPropertyName("padBefore")]
 		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -169,6 +177,7 @@ namespace FF3.ContentTool
 					Index = i,
 					Label = layout?.Label ?? "chain" + i.ToString(CultureInfo.InvariantCulture),
 					Offset = offset,
+					Size = size,
 					PadBefore = Hex(data, previous, offset - previous)
 				};
 
@@ -271,7 +280,25 @@ namespace FF3.ContentTool
 					: FromHex(chain.Raw));
 			}
 
-			int end = file.Chains.Count == 0
+			// Nothing changed length: put everything back exactly where it was, down to
+			// the alignment padding, so an untouched file rebuilds byte for byte.
+			bool sameShape = true;
+			for (int i = 0; i < count; i++)
+			{
+				if (blobs[i].Length != file.Chains[i].Size)
+				{
+					sameShape = false;
+					break;
+				}
+			}
+
+			return sameShape ? WriteInPlace(file, blobs) : WriteRelaid(file, blobs);
+		}
+
+		private static byte[] WriteInPlace(PakFile file, List<byte[]> blobs)
+		{
+			int count = file.Chains.Count;
+			int end = count == 0
 				? HeaderSize
 				: file.Chains[count - 1].Offset + blobs[count - 1].Length;
 			byte[] tail = FromHex(file.Tail);
@@ -292,6 +319,45 @@ namespace FF3.ContentTool
 				}
 			}
 			Buffer.BlockCopy(tail, 0, data, end, tail.Length);
+			return data;
+		}
+
+		/// <summary>
+		/// A chain changed length, so every offset after it has moved. Chains are laid
+		/// out again in order, each aligned to 16 bytes the way the shipped files are.
+		///
+		/// The recorded offsets, the alignment padding and the trailing bytes are all
+		/// dropped here, because they described the old layout - keeping them would put
+		/// one chain on top of the next, which is exactly the corruption this avoids.
+		/// </summary>
+		private static byte[] WriteRelaid(PakFile file, List<byte[]> blobs)
+		{
+			int count = file.Chains.Count;
+			int at = Align(HeaderSize + count * 8);
+
+			int[] offsets = new int[count];
+			for (int i = 0; i < count; i++)
+			{
+				offsets[i] = at;
+				at = Align(at + blobs[i].Length);
+			}
+
+			byte[] data = new byte[at];
+			WriteInt32(data, 0, count);
+			for (int i = 0; i < count; i++)
+			{
+				WriteInt32(data, HeaderSize + i * 8, offsets[i]);
+				WriteInt32(data, HeaderSize + i * 8 + 4, blobs[i].Length);
+				Buffer.BlockCopy(blobs[i], 0, data, offsets[i], blobs[i].Length);
+
+				// Keep the model in step, so a second save from the same object is
+				// stable rather than laying the file out all over again.
+				file.Chains[i].Offset = offsets[i];
+				file.Chains[i].Size = blobs[i].Length;
+				file.Chains[i].PadBefore = null;
+			}
+			file.Size = data.Length;
+			file.Tail = null;
 			return data;
 		}
 
@@ -332,6 +398,12 @@ namespace FF3.ContentTool
 		}
 
 		// ---------------------------------------------------------------- values
+
+		private static int Align(int value)
+		{
+			int remainder = value % Alignment;
+			return remainder == 0 ? value : value + (Alignment - remainder);
+		}
 
 		private static int Width(FieldType type)
 		{

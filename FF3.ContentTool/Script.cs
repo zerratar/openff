@@ -233,7 +233,7 @@ namespace FF3.ContentTool
 				}
 			}
 
-			SweepGaps(file, found);
+			SweepGaps(file, found, labels);
 			return (found.Values.OrderBy(i => i.At).ToList(), labels);
 		}
 
@@ -245,7 +245,9 @@ namespace FF3.ContentTool
 		/// a linear sweep starting at an arbitrary byte is a guess in a way that
 		/// following the entry points is not.
 		/// </summary>
-		private static void SweepGaps(ScriptFile file, Dictionary<uint, ScriptInstruction> found)
+		private static void SweepGaps(ScriptFile file,
+			Dictionary<uint, ScriptInstruction> found,
+			Dictionary<uint, List<string>> labels)
 		{
 			uint pc = file.CodeStart;
 			while (pc < file.CodeEnd)
@@ -255,11 +257,41 @@ namespace FF3.ContentTool
 					pc += Math.Max(known.Length, 2);
 					continue;
 				}
+
 				ScriptInstruction instruction = Decode(file, pc);
+				uint length = Math.Max(instruction.Length, 2);
+
+				// The sweep is reading bytes nothing reaches, so its alignment is a
+				// guess. Where that guess would swallow an address something else
+				// points at, the bytes are left undecoded instead - otherwise the
+				// label disappears inside an instruction and the listing can no
+				// longer be compiled back.
+				uint boundary = NextKnown(pc + 1, pc + length, found, labels);
+				if (boundary != 0)
+				{
+					pc = boundary;
+					continue;
+				}
+
 				instruction.Reached = false;
 				found[pc] = instruction;
-				pc += Math.Max(instruction.Length, 2);
+				pc += length;
 			}
+		}
+
+		/// <summary>The first address in (from, until) that something already claims.</summary>
+		private static uint NextKnown(uint from, uint until,
+			Dictionary<uint, ScriptInstruction> found,
+			Dictionary<uint, List<string>> labels)
+		{
+			for (uint at = from; at < until; at++)
+			{
+				if (found.ContainsKey(at) || labels.ContainsKey(at))
+				{
+					return at;
+				}
+			}
+			return 0;
 		}
 
 		private static ScriptInstruction Decode(ScriptFile file, uint pc)

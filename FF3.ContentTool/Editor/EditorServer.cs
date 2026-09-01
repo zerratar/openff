@@ -1,6 +1,6 @@
 // The editor's back end: a small local HTTP server over the codecs.
 //
-//   ff3content editor [--content=<dir>] [--override=<dir>] [--port=5050]
+//   ff3content editor [--content=<dir>] [--override=<dir>] [--language=en] [--port=5050]
 //
 // It binds to localhost only, has no authentication, and is meant to be run by the
 // person editing their own copy of the game. It is not a service.
@@ -34,13 +34,15 @@ namespace FF3.ContentTool.Editor
 
 		private readonly Workspace _workspace;
 		private readonly string _webRoot;
+		private readonly MessageIndex _messages;
 		private readonly Func<uint, string> _lookupMessage;
 
-		public EditorServer(Workspace workspace, string webRoot, Func<uint, string> lookupMessage)
+		public EditorServer(Workspace workspace, string webRoot, MessageIndex messages)
 		{
 			_workspace = workspace;
 			_webRoot = webRoot;
-			_lookupMessage = lookupMessage;
+			_messages = messages;
+			_lookupMessage = id => messages.Text(id);
 		}
 
 		public void Run(int port)
@@ -175,6 +177,10 @@ namespace FF3.ContentTool.Editor
 					SaveMap(context);
 					return;
 
+				case "/api/map/add":
+					AddToMap(context);
+					return;
+
 				case "/api/audio":
 					SendJson(context, Audio.List(_workspace.ContentDirectory, _workspace));
 					return;
@@ -302,6 +308,7 @@ namespace FF3.ContentTool.Editor
 
 			byte[] data = Msd.Write(file);
 			_workspace.Write(name, data);
+			_messages.Invalidate();
 			SendJson(context, new { ok = true, bytes = data.Length, overridden = true });
 		}
 
@@ -335,6 +342,21 @@ namespace FF3.ContentTool.Editor
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}
+		}
+
+		private void AddToMap(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			// The new line has to be visible to the very views that just wrote it.
+			_messages.Invalidate();
+			SendJson(context, AddCharacter.Add(
+				_workspace,
+				(string)body["name"],
+				(string)body["model"],
+				(int)body["x"],
+				(int)body["z"],
+				(string)body["text"],
+				_lookupMessage));
 		}
 
 		private void SaveMap(HttpListenerContext context)

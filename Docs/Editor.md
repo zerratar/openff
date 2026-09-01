@@ -16,7 +16,7 @@ undoing one is deleting a file.
 | --- | --- | --- |
 | `--content=<dir>` | `Content` | the directory holding `data000.bin` |
 | `--override=<dir>` | `<content>/Override` | where edits are written |
-| `--text=<dir>` | none | decoded `.msd` JSON, for dialogue annotations |
+| `--language=<code>` | `en` | which `.lproj` the dialogue is read from |
 | `--port=<n>` | 5050 | |
 
 The server binds to localhost, has no authentication, and is meant to be run by the
@@ -35,6 +35,8 @@ at. x across, z down, which is what the game's coordinates mean.
 - **Drag** to move it. *Save placement* writes the map's `.hich`.
 - **logic-only casts** shows the entries that have no position - casts that run the
   map itself rather than standing in it.
+- **Add character** puts a new one on the map. Pick a model, a spot and a line, and
+  it does all four edits at once - see below.
 
 This is the view that joins the others up. An NPC is not a row in any one file: it is
 a `.hich` entry saying which model stands where and which cast drives it, plus that
@@ -46,6 +48,35 @@ One thing it cannot know: a script can override a character's position when it b
 it with `bootCharacter_AbsoluteCoordination`, and where that happens, moving the pin
 will not move the character. Those coordinates are also fixed point while `.hich`
 positions are whole units - the two are not the same numbers.
+
+### Adding a character
+
+Four edits in three formats, which is why it is a button rather than a manual job:
+
+1. a `.hich` row - the model, where it stands, and a free cast number
+2. `bootPlainCharacter <cast>, 0, "<model>"` in the script, next to the ones already
+   there, because a `.hich` row on its own places nothing - something has to boot from
+   it, and every shipped map does that once per character
+3. a cast with that number, holding the talk sequence
+4. the line, in **every** language that has this map's text, under one id - the script
+   names one number and the game picks the file for the language it runs in
+
+The talk sequence is copied from a real NPC rather than invented:
+
+```
+cast66_main:
+    call 2, 0xB6744D73        // turn to the player and begin
+    startMessageWindow 0
+    startMessage2 0, 0x1CA1206, 0, 0
+    deleteMessageWindow 0
+    call 2, 0xC39DEA76        // end the conversation
+    end
+```
+
+Those two calls into `global.script` appear 1291 and 1185 times across the game.
+
+Only models the map already loads are offered. A model the map has never loaded would
+need the map's model data changed too, and that is graphics.
 
 ## Scripts
 
@@ -164,5 +195,6 @@ switch files.
   between the preview and a menu that looks like the game, and between this and any
   kind of map editor.
 - **Audio** - deliberately untouched.
-- **New menus and new messages** - the editor changes what is there. Adding a widget
-  means duplicating one; adding a message means an id that nothing allocates yet.
+- **New menus** - adding a widget means duplicating one.
+- **New maps** - cloning one is plausible; authoring geometry is not, because models
+  and collision are still opaque.

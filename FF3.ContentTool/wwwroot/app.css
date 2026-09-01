@@ -520,3 +520,15 @@ ul.uses a:hover { text-decoration: underline; }
 .legend { display: flex; gap: 14px; color: var(--dim); font-size: 12px; margin-top: 10px; }
 .legend span { display: flex; align-items: center; gap: 5px; }
 .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.inspector textarea {
+  width: 100%; margin-top: 3px; background: var(--bg); border: 1px solid var(--line);
+  color: var(--ink); border-radius: 4px; padding: 5px 7px; font: inherit;
+  resize: vertical; min-height: 64px;
+}
+.inspector select {
+  width: 100%; margin-top: 3px;
+}
+.inspector .wide { width: 100%; }
+.inspector .did { color: var(--good); }
+.inspector .did li { margin-bottom: 3px; }

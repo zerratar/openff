@@ -46,7 +46,91 @@ async function openMap(name) {
     say('reverted', 'good');
   };
 
+  $('.add', node).onclick = () => showAdd(node);
+
   drawMap(node);
+}
+
+/// The form for a new character. Everything it needs is already on the map: a model
+/// the map loads, somewhere to stand, and a line to say.
+function showAdd(node) {
+  const panel = $('.inspector', node);
+  panel.textContent = '';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Add a character';
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = 'Writes the .hich row, boots it in the script, gives it a cast '
+    + 'that talks, and adds the line to every language.';
+  panel.append(title, sub);
+
+  const models = [...new Set(mapState.data.characters
+    .filter(c => c.kind === 0 && c.model)
+    .map(c => c.model))].sort();
+
+  const modelLabel = document.createElement('label');
+  modelLabel.className = 'wide';
+  modelLabel.textContent = 'model (only ones this map already loads)';
+  const model = document.createElement('select');
+  for (const name of models) {
+    const option = document.createElement('option');
+    option.value = option.textContent = name;
+    model.append(option);
+  }
+  modelLabel.append(model);
+
+  const xLabel = document.createElement('label');
+  xLabel.textContent = 'x';
+  const x = document.createElement('input');
+  x.value = '0';
+  xLabel.append(x);
+
+  const zLabel = document.createElement('label');
+  zLabel.textContent = 'z';
+  const z = document.createElement('input');
+  z.value = '0';
+  zLabel.append(z);
+
+  const textLabel = document.createElement('label');
+  textLabel.className = 'wide';
+  textLabel.textContent = 'what it says';
+  const text = document.createElement('textarea');
+  text.value = 'Hello.';
+  textLabel.append(text);
+
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Add it';
+  go.onclick = async () => {
+    go.disabled = true;
+    try {
+      const result = await api('/api/map/add', {
+        name: mapState.name,
+        model: model.value,
+        x: parseInt(x.value, 10) || 0,
+        z: parseInt(z.value, 10) || 0,
+        text: text.value
+      });
+      if (!result.ok) {
+        say(result.error, 'bad');
+        go.disabled = false;
+        return;
+      }
+      say(`added cast ${result.cast}, message ${result.messageId}`, 'good');
+      await open(mapState.name);
+      const added = mapState.data.characters.find(c => c.cast === result.cast);
+      if (added) {
+        mapState.selected = added;
+        drawMap($('.view'));
+      }
+    } catch (error) {
+      say(error.message, 'bad');
+      go.disabled = false;
+    }
+  };
+
+  panel.append(modelLabel, xLabel, zLabel, textLabel, go);
 }
 
 /// Everything worth drawing, and the box it all fits in.

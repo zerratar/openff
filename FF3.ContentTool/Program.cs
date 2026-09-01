@@ -181,7 +181,7 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("                                    .ffs source -> event bytecode");
 			Console.Error.WriteLine("  ops [filter]                      list script instructions");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
-			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--text=<dir>]");
+			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--language=en]");
 			Console.Error.WriteLine("                                    open the content editor in a browser");
 			Console.Error.WriteLine("  lz          <file.lz | dir> [out] decompress");
 			Console.Error.WriteLine("  lz-compress <file> [out.lz]       compress");
@@ -515,7 +515,7 @@ namespace FF3.ContentTool
 		{
 			string content = "Content";
 			string overrides = null;
-			string textDir = null;
+			string language = "en";
 			int port = 5050;
 
 			foreach (string arg in args)
@@ -528,9 +528,9 @@ namespace FF3.ContentTool
 				{
 					overrides = arg.Substring("--override=".Length).Trim('"');
 				}
-				else if (arg.StartsWith("--text=", StringComparison.OrdinalIgnoreCase))
+				else if (arg.StartsWith("--language=", StringComparison.OrdinalIgnoreCase))
 				{
-					textDir = arg.Substring("--text=".Length).Trim('"');
+					language = arg.Substring("--language=".Length).Trim('"');
 				}
 				else if (arg.StartsWith("--port=", StringComparison.OrdinalIgnoreCase))
 				{
@@ -558,8 +558,11 @@ namespace FF3.ContentTool
 				return 1;
 			}
 
-			new Editor.EditorServer(workspace, Path.GetFullPath(webRoot),
-				LoadMessages(textDir)).Run(port);
+			// Text is read through the workspace rather than a folder of extracted
+			// files, so a line edited in the editor is visible everywhere at once.
+			Editor.MessageIndex messages = new Editor.MessageIndex(workspace, language);
+			Console.WriteLine("  language  {0} ({1} messages)", language, messages.Count);
+			new Editor.EditorServer(workspace, Path.GetFullPath(webRoot), messages).Run(port);
 			return 0;
 		}
 
