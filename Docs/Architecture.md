@@ -75,7 +75,19 @@ correctly and is due for removal.
 `GameArchive` is the format the whole game is built on: `data000.bin` is a
 name-sorted table of `(archive, index, name)`, and each `dataNNN.bin` is an offset
 table followed by length-prefixed blobs. It has nothing to do with XNA, which is why
-it ported unchanged.
+it ported unchanged. The format itself lives in `Shared/ArchiveFormat.cs`, compiled
+into both the game and the content tool so the reader and the extractor cannot drift.
+
+Names in the table are path qualified - `en.lproj/ca_text_01.NCGR`, `files/*.script`
+- and the localised copies share base names, so that structure has to be preserved
+anywhere content is written out.
+
+**Overrides.** `GameArchive.Read` checks `Content/Override/<name>` before the
+archives (`--content-override=<dir>` to point elsewhere). A changed file therefore
+needs no repacking and no rebuild. That is the seam every content change goes
+through from here: extract with `ff3content extract-archives`, edit, drop it in.
+Lookups are held inside the override directory, because the names come from game
+data rather than from us.
 
 Saves go to `%APPDATA%\FF3` via `Compat/SaveFiles.cs`.
 

@@ -1,7 +1,9 @@
-// FF3 content tool.
+﻿// FF3 content tool.
 //
 //   dotnet run --project FF3.ContentTool -- info    <file-or-dir>
 //   dotnet run --project FF3.ContentTool -- extract <xnb-dir> <out-dir>
+//   dotnet run --project FF3.ContentTool -- archives         <content-dir>
+//   dotnet run --project FF3.ContentTool -- extract-archives <content-dir> <out-dir> [pattern ...]
 //
 // "extract" turns the shipped .xnb files back into editable sources:
 //   Fonts/<name>.png   + <name>.json   glyph atlas and metrics
@@ -40,6 +42,15 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return Extract(args[1], args[2]);
+					case "archives":
+						return Archives.Info(args.Length > 1 ? args[1] : "Content");
+					case "extract-archives":
+						if (args.Length < 3)
+						{
+							Usage();
+							return 1;
+						}
+						return Archives.Extract(args[1], args[2], args.Skip(3).ToArray());
 					default:
 						Usage();
 						return 1;
@@ -57,6 +68,10 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("usage:");
 			Console.Error.WriteLine("  info    <file.xnb | directory>");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
+			Console.Error.WriteLine("  archives         <content-directory>");
+			Console.Error.WriteLine("  extract-archives <content-directory> <output-directory> [pattern ...]");
+			Console.Error.WriteLine();
+			Console.Error.WriteLine("patterns are globs on the archived name, e.g. \"*.NCGR\" \"btl*\"");
 		}
 
 		private static IEnumerable<string> XnbFiles(string path)

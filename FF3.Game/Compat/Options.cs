@@ -30,6 +30,8 @@ namespace FF3
 				"                              input, event, firstchance"),
 			("log-file", "FF3_LOG_FILE", "<path>", "Write the log somewhere other than logs/ff3.log"),
 			("content", "FF3_CONTENT", "<path>", "Path to the Content directory"),
+			("content-override", "FF3_CONTENT_OVERRIDE", "<dir>",
+				"Loose files that replace archived ones (default Content/Override)"),
 			("dump", "FF3_DUMP", "<dir>", "Dump decoded source blobs (images the game loads)"),
 			("dump-fonts", "FF3_DUMP_FONTS", "<dir>", "Dump SpriteFont atlases as they are loaded"),
 			("screenshot-dir", "FF3_SCREENSHOT_DIR", "<dir>", "Where F12 screenshots are written"),

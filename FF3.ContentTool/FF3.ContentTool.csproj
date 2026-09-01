@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -10,5 +10,11 @@
     <LangVersion>latest</LangVersion>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Shared source: one implementation of the archive format, compiled into both
+         the game and the content tool so the reader and the extractor cannot drift. -->
+    <Compile Include="..\Shared\ArchiveFormat.cs" Link="Formats\ArchiveFormat.cs" />
+  </ItemGroup>
 
 </Project>

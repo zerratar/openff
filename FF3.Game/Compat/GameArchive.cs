@@ -1,122 +1,137 @@
-// Reader for the game's own data*.bin archives.
+// Runtime access to the game's data*.bin archives, with a loose-file override.
 //
-// This is the format the whole game is built on - every map, sprite, model,
-// script and table lives here - and it has nothing to do with XNA or the content
-// pipeline, so it ports unchanged. Extracted out of DLActivity, which wrapped it
-// in a Square Enix login and a resource download that a Windows build has no use
-// for. The "obfuscation" the phone build applied to the table was a no-op
-// (MainActivity.encode reads the array and returns without touching it), so
-// nothing is lost by dropping the key handling with it.
+// The format itself lives in Shared/ArchiveFormat.cs, compiled into both this and
+// the content tool so the reader and the extractor cannot drift.
 //
-// Layout
-//   data000.bin   the file table:
-//                   +0  format
-//                   +4  file count      (big endian)
-//                   +8  archive count
-//                   +12 entries, 12 bytes each, sorted by name:
-//                         +0 archive index
-//                         +4 file index within that archive
-//                         +8 offset of the NUL-terminated name, within this table
-//   dataNNN.bin   archive N: a table of 32-bit offsets, entry i at (i + 1) * 4,
-//                 each pointing at a 32-bit length followed by that many bytes.
+// Override: before touching the archives, a request for "foo.NCGR" looks for a
+// loose file of that name under Content/Override (or --content-override=<dir>).
+// That is what makes new and edited content possible without repacking - extract
+// with `ff3content extract-archives`, drop an edited file in, and the game picks it
+// up. Nothing has to be rebuilt.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using FF3.Formats;
 
 namespace FF3
 {
 	internal static class GameArchive
 	{
-		private static byte[] _table;
+		private static ArchiveIndex _index;
+		private static string _overrideDirectory;
+		private static readonly HashSet<string> _reportedOverrides =
+			new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-		public static bool IsLoaded => _table != null;
+		public static bool IsLoaded => _index != null;
 
 		/// <summary>Directory holding data000.bin, relative to the working directory.</summary>
 		public static string DataPath => "Content";
+
+		/// <summary>Where loose replacement files are looked for, or null if disabled.</summary>
+		public static string OverrideDirectory => _overrideDirectory;
 
 		/// <summary>Loads the file table. Returns false if it or any archive is missing.</summary>
 		public static bool Load()
 		{
 			try
 			{
-				string path = Path.Combine(DataPath, "data000.bin");
-				string resolved = GameFiles.Resolve(path) ?? path;
-				_table = File.ReadAllBytes(resolved);
+				string table = GameFiles.Resolve(Path.Combine(DataPath, "data000.bin"));
+				if (table == null)
+				{
+					Log.Write(LogChannel.File, "archive table not found under " + DataPath);
+					return false;
+				}
+				_index = ArchiveIndex.Load(File.ReadAllBytes(table));
 			}
 			catch (Exception ex)
 			{
 				Log.Write(LogChannel.File, "archive table could not be read: " + ex.Message);
-				_table = null;
+				_index = null;
 				return false;
 			}
 
-			int archives = ReadInt32(_table, 8);
-			for (int i = 0; i < archives; i++)
+			for (int i = 0; i < _index.ArchiveCount; i++)
 			{
-				if (GameFiles.Resolve(ArchivePath(i)) == null)
+				if (GameFiles.Resolve(ArchiveIndex.ArchiveName(DataPath, i)) == null)
 				{
-					Log.Write(LogChannel.File, "missing archive " + ArchivePath(i));
-					_table = null;
+					Log.Write(LogChannel.File, "missing archive "
+						+ ArchiveIndex.ArchiveName(DataPath, i));
+					_index = null;
 					return false;
 				}
 			}
 
+			SetUpOverrides();
+
 			Log.Write(LogChannel.File, string.Format(
 				"archives loaded: {0} files across {1} volumes",
-				ReadInt32(_table, 4), archives));
+				_index.FileCount, _index.ArchiveCount));
 			return true;
 		}
 
-		private static string ArchivePath(int index)
+		private static void SetUpOverrides()
 		{
-			return string.Format("{0}/data{1:D3}.bin", DataPath, index);
-		}
-
-		/// <summary>Big-endian int32, the byte order the table is written in.</summary>
-		private static int ReadInt32(byte[] data, int at)
-		{
-			return (data[at] << 24) | ((data[at + 1] & 0xFF) << 16)
-				| ((data[at + 2] & 0xFF) << 8) | (data[at + 3] & 0xFF);
-		}
-
-		/// <summary>Reads one file by name, or null if it is not in the table.</summary>
-		public static byte[] Read(string filename)
-		{
-			if (_table == null || string.IsNullOrEmpty(filename))
-			{
-				return null;
-			}
-
-			int entry = Find(filename);
-			if (entry < 0)
-			{
-				return null;
-			}
-
-			int archive = ReadInt32(_table, entry * 12 + 12);
-			int index = ReadInt32(_table, entry * 12 + 16);
+			string configured = Options.Get("content-override");
+			string directory = string.IsNullOrEmpty(configured)
+				? Path.Combine(DataPath, "Override")
+				: configured;
 
 			try
 			{
-				string path = GameFiles.Resolve(ArchivePath(archive));
+				string full = Path.GetFullPath(directory);
+				if (Directory.Exists(full))
+				{
+					_overrideDirectory = full;
+					int count = Directory.GetFiles(full, "*", SearchOption.AllDirectories).Length;
+					Log.Write(LogChannel.File, string.Format(
+						"content overrides: {0} loose file(s) in {1}", count, full));
+				}
+				else
+				{
+					_overrideDirectory = null;
+				}
+			}
+			catch (Exception ex)
+			{
+				_overrideDirectory = null;
+				Log.Write(LogChannel.File, "override directory unusable: " + ex.Message);
+			}
+		}
+
+		/// <summary>Reads one file by name, or null if there is no such file.</summary>
+		public static byte[] Read(string filename)
+		{
+			if (string.IsNullOrEmpty(filename))
+			{
+				return null;
+			}
+
+			byte[] loose = ReadOverride(filename);
+			if (loose != null)
+			{
+				return loose;
+			}
+
+			if (_index == null || !_index.TryFind(filename, out ArchiveEntry entry))
+			{
+				return null;
+			}
+
+			try
+			{
+				string path = GameFiles.Resolve(ArchiveIndex.ArchiveName(DataPath, entry.Archive));
 				if (path == null)
 				{
 					return null;
 				}
 				using FileStream stream = File.OpenRead(path);
-				using BinaryReader reader = new BinaryReader(stream);
-
-				// Offset table entry for this file, then the blob it points at.
-				stream.Position = (index + 1) * 4;
-				int offset = ReadBigEndian(reader) & 0x7FFFFFFF;
-				stream.Position = offset;
-				int length = ReadBigEndian(reader);
-				if (length < 0 || offset + 4L + length > stream.Length)
+				byte[] data = ArchiveIndex.ReadBlob(stream, entry.Index);
+				if (data == null)
 				{
 					Log.Write(LogChannel.File, "bad archive entry for " + filename);
-					return null;
 				}
-				return reader.ReadBytes(length);
+				return data;
 			}
 			catch (Exception ex)
 			{
@@ -125,49 +140,41 @@ namespace FF3
 			}
 		}
 
-		private static int ReadBigEndian(BinaryReader reader)
+		/// <summary>A loose file standing in for an archived one, or null.</summary>
+		private static byte[] ReadOverride(string filename)
 		{
-			byte[] b = reader.ReadBytes(4);
-			return (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3];
-		}
-
-		/// <summary>Binary search over the name-sorted entry table.</summary>
-		private static int Find(string filename)
-		{
-			byte[] wanted = StringUtil.getBytes(filename);
-			int low = 0;
-			int high = ReadInt32(_table, 4);
-
-			while (high > low)
+			if (_overrideDirectory == null)
 			{
-				int middle = (low + high) / 2;
-				int nameAt = ReadInt32(_table, middle * 12 + 20);
-
-				int order = 0;
-				for (int i = 0; i < wanted.Length && order == 0; i++)
-				{
-					order = (_table[nameAt + i] & 0xFF) - (wanted[i] & 0xFF);
-				}
-				if (order == 0)
-				{
-					// Both must end here, or the table name is the longer one.
-					order = _table[nameAt + wanted.Length] & 0xFF;
-				}
-
-				if (order == 0)
-				{
-					return middle;
-				}
-				if (order > 0)
-				{
-					high = middle;
-				}
-				else
-				{
-					low = middle + 1;
-				}
+				return null;
 			}
-			return -1;
+			try
+			{
+				string path = Path.Combine(_overrideDirectory, filename);
+
+				// Keep the lookup inside the override directory: archive names come from
+				// game data, and one containing "..\" should not reach outside it.
+				string full = Path.GetFullPath(path);
+				if (!full.StartsWith(_overrideDirectory + Path.DirectorySeparatorChar,
+						StringComparison.OrdinalIgnoreCase)
+					|| !File.Exists(full))
+				{
+					return null;
+				}
+
+				lock (_reportedOverrides)
+				{
+					if (_reportedOverrides.Add(filename))
+					{
+						Log.Write(LogChannel.File, "override in use: " + filename);
+					}
+				}
+				return File.ReadAllBytes(full);
+			}
+			catch (Exception ex)
+			{
+				Log.Write(LogChannel.File, "override read failed for " + filename + ": " + ex.Message);
+				return null;
+			}
 		}
 	}
 }

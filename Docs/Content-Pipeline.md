@@ -108,9 +108,73 @@ This is the path for replacing assets: edit the PNG or WAV, rebuild, and the gam
 up the new XNB. The game currently loads the *original* XNBs from `Unpacked/Content`; to
 run against rebuilt content, point `FF3_CONTENT` at the pipeline output directory.
 
-## Not yet extracted
+## The data archives
 
-The `data*.bin` archives hold all the sprites, maps, models and event scripts. They are
-read by the game's own code and are not decoded by the tool yet. In the meantime,
-`FF3_DUMP=<dir>` makes the running game write out every image blob it decodes, which
-covers the PNG-backed art without needing an archive reader.
+Everything that is not audio or a font atlas - sprites, maps, models, event scripts,
+the parameter tables - lives in `Content/data*.bin` and is read by the game's own
+code. The format is in `Shared/ArchiveFormat.cs`, compiled into both the game and the
+content tool so there is exactly one implementation of it.
+
+See what is in there:
+
+```bash
+dotnet run --project FF3.ContentTool -- archives Content
+```
+
+```
+6962 files across 52 volumes
+
+  2734  .lz          2734 LZ-compressed blobs
+  1890  .msd         message/dialogue data
+   509  .NCGR        NDS character graphics
+   357  .script      event bytecode
+   356  .hich
+   345  .pak
+   ...
+```
+
+Extract, all of it or a subset:
+
+```bash
+dotnet run --project FF3.ContentTool -- extract-archives Content ..\extracted
+dotnet run --project FF3.ContentTool -- extract-archives Content ..\extracted "en.lproj/*" "*.script"
+```
+
+Patterns are globs over the archived name. The output mirrors the archive's own
+layout, which matters: names are path qualified (`en.lproj/ca_text_01.NCGR`) and the
+localised copies share base names, so flattening would lose about 2000 files. A
+`manifest.tsv` records name, volume, index and size for every file written.
+
+## Changing content without repacking
+
+Nothing has to be packed back. `GameArchive.Read` looks in `Content/Override/<name>`
+before it looks in the archives:
+
+```bash
+dotnet run --project FF3.ContentTool -- extract-archives Content Content/Override "files/*.script"
+# edit Content/Override/files/whatever.script
+FF3.exe
+```
+
+`--content-override=<dir>` points somewhere else instead - handy for keeping a whole
+extracted tree outside the repository and switching between variants. The log records
+which files were served loose:
+
+```
+File  content overrides: 6963 loose file(s) in ...\extract-all
+File  override in use: files/item_parameter.pak
+File  override in use: en.lproj/eureka_menu.msd
+```
+
+`Content/Override` is gitignored apart from its README, so experiments stay local.
+Content meant to ship goes in deliberately.
+
+## Not decoded yet
+
+The archives can be extracted, but the blobs inside them are still in their NDS
+formats - `.NCGR`/`.NSCR`/`.NCER` graphics, `.msd` text, `.script` bytecode, `.lz`
+compression. Editing them means understanding each one; that is the next layer of
+tooling, not something the extractor solves.
+
+`--dump=<dir>` is the shortcut in the meantime: the running game writes out every
+image blob it decodes, which covers the art without decoding anything by hand.
