@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FF3.ContentTool": {
+      "commandName": "Project",
+      "commandLineArgs": "editor --content=\"C:\\Users\\KarlJ\\Downloads\\FF3\\Project\\Content\" --text=..\\text\\en.lproj"
+    }
+  }
+}

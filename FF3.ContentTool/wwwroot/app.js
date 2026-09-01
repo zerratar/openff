@@ -159,7 +159,10 @@ function goToLine(text, line, column) {
 
 // ------------------------------------------------------------------------ menus
 
-const menu = { doc: null, screens: [], screen: null, selected: null, name: null };
+const menu = {
+  doc: null, screens: [], screen: null, selected: null, name: null,
+  zoom: 2, preview: false, messages: {}
+};
 
 async function openMenu(name) {
   const data = await api(`/api/menu?name=${encodeURIComponent(name)}`);
@@ -183,7 +186,54 @@ async function openMenu(name) {
     option.textContent = childText(screen, 'name') || `screen ${index}`;
     picker.append(option);
   });
-  picker.onchange = () => drawScreen(node, menu.screens[picker.value]);
+  picker.onchange = () => {
+    menu.selected = null;
+    redraw(node);
+  };
+
+  const zoom = $('.zoom', node);
+  zoom.value = String(menu.zoom);
+  zoom.onchange = () => { menu.zoom = Number(zoom.value); redraw(node); };
+
+  const preview = $('.preview', node);
+  preview.checked = menu.preview;
+  preview.onchange = async () => {
+    menu.preview = preview.checked;
+    if (menu.preview) await loadMessages(node);
+    redraw(node);
+  };
+
+  // The whole document, not just the selected widget.
+  const xmlPanel = $('.xml-editor', node);
+  const canvasWrap = $('.canvas-wrap', node);
+  const xmlArea = $('.xml', node);
+  $('.xmltoggle', node).onclick = () => {
+    const showing = !xmlPanel.hidden;
+    if (showing) {
+      xmlPanel.hidden = true;
+      canvasWrap.hidden = false;
+    } else {
+      xmlArea.value = formatXml(new XMLSerializer().serializeToString(menu.doc));
+      xmlPanel.hidden = false;
+      canvasWrap.hidden = true;
+    }
+  };
+  $('.apply', node).onclick = () => {
+    try {
+      const parsed = new DOMParser().parseFromString(xmlArea.value, 'application/xml');
+      if (parsed.querySelector('parsererror')) throw new Error('that is not valid XML');
+      menu.doc = parsed;
+      menu.selected = null;
+      const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu');
+      menu.screens = found.length ? found : [menu.doc.documentElement];
+      xmlPanel.hidden = true;
+      canvasWrap.hidden = false;
+      redraw(node);
+      say('applied - press Save to write it', 'good');
+    } catch (error) {
+      say(error.message, 'bad');
+    }
+  };
 
   $('.save', node).onclick = async () => {
     const xml = new XMLSerializer().serializeToString(menu.doc);
@@ -202,7 +252,8 @@ async function openMenu(name) {
     setChildText(copy, 'id', (childText(copy, 'id') || 'widget') + '_copy');
     setChildText(copy, 'y', String(number(childText(copy, 'y')) + 8));
     menu.selected.after(copy);
-    drawScreen(node, menu.screens[picker.value], copy);
+    menu.selected = copy;
+    redraw(node);
     say('duplicated - it needs a unique id', 'good');
   };
 
@@ -211,10 +262,61 @@ async function openMenu(name) {
     if (!confirm('Delete this widget and everything nested in it?')) return;
     menu.selected.remove();
     menu.selected = null;
-    drawScreen(node, menu.screens[picker.value]);
+    redraw(node);
   };
 
-  drawScreen(node, menu.screens[0]);
+  if (menu.preview) await loadMessages(node);
+  redraw(node);
+}
+
+/// Redraws whichever screen the picker is on, keeping the selection.
+function redraw(node) {
+  const picker = $('.screens', node);
+  drawScreen(node, menu.screens[picker.value || 0], menu.selected);
+}
+
+/// The message behind every Text widget in the file, for the preview.
+async function loadMessages(node) {
+  const ids = new Set();
+  for (const screen of menu.screens) {
+    for (const frame of collectFrames(screen)) {
+      const id = textMessageId(frame.element);
+      if (id !== null) ids.add(id);
+    }
+  }
+  if (!ids.size) return;
+
+  const result = await api('/api/messages', { ids: [...ids] });
+  menu.messages = result.messages || {};
+  if (!result.available) {
+    say('start the editor with --text=<decoded msd dir> to see the real labels', 'bad');
+  }
+}
+
+/// A Text widget's first parameter is the message id it draws. A negative one means
+/// the widget is filled in at runtime - a party member's name, for instance.
+function textMessageId(element) {
+  const behavior = [...element.children].find(e => e.tagName === 'behavior');
+  if (!behavior || (behavior.getAttribute('value') ?? behavior.textContent) !== 'Text') return null;
+  const parameter = [...behavior.children].find(e => e.tagName === 'parameter');
+  if (!parameter) return null;
+  const id = parseInt(parameter.getAttribute('value') ?? parameter.textContent, 10);
+  return Number.isNaN(id) ? null : id;
+}
+
+/// Indentation for the XML view - the serialiser hands back one long line.
+function formatXml(xml) {
+  const NL = String.fromCharCode(10);
+  const parts = xml.replace(/></g, '>' + NL + '<').split(NL);
+  let depth = 0;
+  return parts.map(part => {
+    const closing = part.startsWith('</');
+    if (closing) depth--;
+    const line = '  '.repeat(Math.max(0, depth)) + part;
+    const selfContained = part.endsWith('/>') || part.indexOf('</') > 0;
+    if (!closing && part.startsWith('<') && !part.startsWith('<?') && !selfContained) depth++;
+    return line;
+  }).join(NL);
 }
 
 function childText(element, tag) {
@@ -264,12 +366,21 @@ function collectFrames(screen) {
 function drawScreen(node, screen, select) {
   const canvas = $('.canvas', node);
   canvas.textContent = '';
+  if (!screen) return;
   const frames = collectFrames(screen);
 
   const width = Math.max(256, ...frames.map(f => f.x + Math.max(f.width, 8))) + 16;
   const height = Math.max(192, ...frames.map(f => f.y + Math.max(f.height, 8))) + 16;
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
+  canvas.style.transform = `scale(${menu.zoom})`;
+  canvas.classList.toggle('preview', menu.preview);
+
+  // The scaled canvas still has its unscaled size as far as layout is concerned,
+  // so the wrapper carries the real one and scrolling works.
+  const scale = $('.canvas-scale', node);
+  scale.style.width = `${width * menu.zoom}px`;
+  scale.style.height = `${height * menu.zoom}px`;
 
   for (const frame of frames) {
     const box = document.createElement('div');
@@ -283,7 +394,25 @@ function drawScreen(node, screen, select) {
 
     const label = document.createElement('span');
     label.className = 'label';
-    label.textContent = frame.id || frame.behavior || '';
+    if (menu.preview) {
+      const id = textMessageId(frame.element);
+      const text = id === null ? null : menu.messages[id];
+      if (text != null) {
+        label.textContent = text;
+      } else if (id !== null && id >= 0) {
+        // A message this file's language does not have - naming the id is more
+        // use than naming the behaviour, because the id is what to go and look up.
+        label.textContent = `«msg ${id}»`;
+        label.classList.add('dynamic');
+      } else if (frame.behavior) {
+        // Drawn from the game's own state - a gold total, an item list - so
+        // there is nothing to show but what will fill it.
+        label.textContent = `«${frame.behavior}»`;
+        label.classList.add('dynamic');
+      }
+    } else {
+      label.textContent = frame.id || frame.behavior || '';
+    }
     box.append(label);
 
     box.onpointerdown = event => startDrag(event, node, screen, frame, box);
@@ -307,8 +436,8 @@ function startDrag(event, node, screen, frame, box) {
   box.classList.add('dragging');
 
   const move = moveEvent => {
-    const dx = Math.round(moveEvent.clientX - startX);
-    const dy = Math.round(moveEvent.clientY - startY);
+    const dx = Math.round((moveEvent.clientX - startX) / menu.zoom);
+    const dy = Math.round((moveEvent.clientY - startY) / menu.zoom);
     setChildText(frame.element, 'x', String(originX + dx));
     setChildText(frame.element, 'y', String(originY + dy));
     box.style.left = `${frame.x + dx}px`;
@@ -403,9 +532,7 @@ document.addEventListener('keydown', event => {
   event.preventDefault();
   setChildText(menu.selected, 'x', String(number(childText(menu.selected, 'x')) + move[0]));
   setChildText(menu.selected, 'y', String(number(childText(menu.selected, 'y')) + move[1]));
-  const node = $('.view');
-  const picker = $('.screens', node);
-  drawScreen(node, menu.screens[picker.value], menu.selected);
+  redraw($('.view'));
 });
 
 // ------------------------------------------------------------------------- text

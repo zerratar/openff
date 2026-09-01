@@ -55,6 +55,15 @@
       <strong class="name"></strong>
       <span class="badge override">override</span>
       <select class="screens"></select>
+      <select class="zoom" title="canvas zoom">
+        <option value="1">100%</option>
+        <option value="1.5">150%</option>
+        <option value="2" selected>200%</option>
+        <option value="3">300%</option>
+        <option value="4">400%</option>
+      </select>
+      <label class="toggle"><input type="checkbox" class="preview"> Preview</label>
+      <button class="xmltoggle">XML</button>
       <span class="grow"></span>
       <button class="duplicate">Duplicate</button>
       <button class="remove">Delete</button>
@@ -63,8 +72,15 @@
     </div>
     <div class="menu-body">
       <div class="canvas-wrap">
-        <div class="canvas"></div>
+        <div class="canvas-scale"><div class="canvas"></div></div>
         <p class="hint">Drag a widget to move it. Arrow keys nudge, shift+arrow moves by 8.</p>
+      </div>
+      <div class="xml-editor" hidden>
+        <textarea class="xml" spellcheck="false" wrap="off"></textarea>
+        <div class="xml-bar">
+          <button class="apply primary">Apply to the canvas</button>
+          <span class="note">The whole file. Applying replaces everything; it is not saved until you press Save.</span>
+        </div>
       </div>
       <div class="properties">
         <p class="empty">Select a widget.</p>

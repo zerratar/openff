@@ -39,17 +39,34 @@ positions come from the same `.xbn` data, with the nesting resolved the way
 
 - **Drag** a widget to move it. Arrow keys nudge by one, shift+arrow by eight.
 - **Select** one to edit its id, position, size and focus neighbours (`up`, `down`,
-  `left`, `right`), or to edit the widget's raw XML.
+  `left`, `right`), or to edit that widget's raw XML.
 - **Duplicate** clones the selected widget and everything nested in it. Give the copy
   a unique id.
 - **Delete** removes it.
+- **Zoom** from 100% to 400%. The default is 200%, because at 100% the labels of
+  neighbouring widgets sit on top of each other.
+- **XML** swaps the canvas for the whole file as text. *Apply to the canvas* parses it
+  back; nothing is written until you press Save.
 
-The screen picker lists every menu in the file - `MenuDefine.xbn` alone holds the main
-menu, the item list, equipment, status and the rest.
+The screen picker lists every menu in the file - `MenuDefine.xbn` alone holds 29 of
+them: the main menu, the item list, equipment, status and the rest.
 
-What the canvas cannot show is what the game actually paints there: a widget's
-appearance comes from its behaviour class and from graphics that are not decoded yet.
-The boxes are true to position and size, not to looks.
+### Preview
+
+**Preview** replaces each widget's id with the text the game would draw there. A
+widget with the `Text` behaviour names a message id, and that id is looked up in the
+`.msd` files given by `--text`, so the main menu comes up reading Item, Magic,
+Equipment, Status, Formation, Job, Config, Quicksave, Save.
+
+Two things it cannot resolve, and says so rather than guessing:
+
+- **`«Gold»`, `«CStatus»`, `«ItemList»`** - widgets filled from the game's own state.
+  There is nothing to show ahead of time, so the behaviour is named instead.
+- **`«msg 50419»`** - a message id with no text in the loaded language.
+
+What preview still does not show is the *look*: window frames, fonts, colours and
+icons come from graphics that are not decoded yet. The boxes are true to position,
+size and wording - not to appearance.
 
 ## Text
 
@@ -87,7 +104,9 @@ switch files.
 
 ## Not in it yet
 
-- **Graphics** - models, textures and sprites are still opaque, which is what stands
-  between this and a menu editor that shows the real thing, or any kind of map editor.
+- **Graphics** - models, textures and sprites are still opaque. That is what stands
+  between the preview and a menu that looks like the game, and between this and any
+  kind of map editor.
+- **Audio** - deliberately untouched.
 - **New menus and new messages** - the editor changes what is there. Adding a widget
   means duplicating one; adding a message means an id that nothing allocates yet.

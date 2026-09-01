@@ -151,6 +151,10 @@ namespace FF3.ContentTool.Editor
 					SaveTable(context);
 					return;
 
+				case "/api/messages":
+					GetMessages(context);
+					return;
+
 				case "/api/revert":
 					Revert(context);
 					return;
@@ -299,6 +303,40 @@ namespace FF3.ContentTool.Editor
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}
+		}
+
+		/// <summary>
+		/// Message ids to their text, for the menu preview. A widget's label is a
+		/// message id, so this is what turns a box marked com_item into one that says
+		/// "Item". Ids with no message are left out rather than guessed at.
+		/// </summary>
+		private void GetMessages(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			Dictionary<string, string> found = new Dictionary<string, string>();
+
+			if (_lookupMessage != null && body["ids"] != null)
+			{
+				foreach (JsonNode id in body["ids"].AsArray())
+				{
+					// Menu parameters are not all message ids, and some are negative
+					// or larger than a message id can be. Skip those rather than
+					// letting one odd widget take the whole preview down.
+					if (!long.TryParse(id?.ToJsonString(), NumberStyles.Integer,
+							CultureInfo.InvariantCulture, out long value)
+						|| value < 0 || value > uint.MaxValue)
+					{
+						continue;
+					}
+					string text = _lookupMessage((uint)value);
+					if (text != null)
+					{
+						found[value.ToString(CultureInfo.InvariantCulture)] = text;
+					}
+				}
+			}
+
+			SendJson(context, new { available = _lookupMessage != null, messages = found });
 		}
 
 		// ------------------------------------------------------------------- tables
