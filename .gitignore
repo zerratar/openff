@@ -1,0 +1,16 @@
+# Build output
+bin/
+obj/
+[Bb]uild/
+*.user
+*.suo
+.vs/
+
+# Runtime artefacts produced by the game
+logs/
+screenshots/
+Content/bin/
+Content/obj/
+
+# Local scratch
+*.log

@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+<resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>1.3</value></resheader><resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><data name="CANCEL" xml:space="preserve"><value>Cancel</value></data>
+  <data name="DOWNLOAD_ERROR" xml:space="preserve"><value>Connection Lost\nTry again?</value></data>
+  <data name="ACHIEVEMENTS" xml:space="preserve"><value>Achievements</value></data>
+  <data name="DOWNLOAD_TITLE" xml:space="preserve"><value>Downloading</value></data>
+  <data name="DOWNLOAD_START" xml:space="preserve"><value>Download data required to open application?\n(Wi-fi connection strongly recommended.)</value></data>
+  <data name="CLOSE_APP" xml:space="preserve"><value>Close application?</value></data>
+  <data name="DOWNLOAD_DATA" xml:space="preserve"><value>Downloading</value></data>
+  <data name="CHANGE_NAME" xml:space="preserve"><value>Change Name</value></data>
+  <data name="ACHIEVEMENT_TITLE_B" xml:space="preserve"><value>Some Like It Hot</value></data>
+  <data name="ACHIEVEMENT_TITLE_C" xml:space="preserve"><value>Release the Kraken</value></data>
+  <data name="ACHIEVEMENT_TITLE_A" xml:space="preserve"><value>Gone Adventuring with the Wind</value></data>
+  <data name="ACHIEVEMENT_TITLE_F" xml:space="preserve"><value>Glutton for Arms</value></data>
+  <data name="ACHIEVEMENT_TITLE_G" xml:space="preserve"><value>For a Rainy Day</value></data>
+  <data name="ACHIEVEMENT_TITLE_D" xml:space="preserve"><value>Quelling the Tremors</value></data>
+  <data name="ACHIEVEMENT_TITLE_E" xml:space="preserve"><value>Warriors of Light</value></data>
+  <data name="ACHIEVEMENT_TITLE_J" xml:space="preserve"><value>No Such Thing as Too Many</value></data>
+  <data name="ACHIEVEMENT_TITLE_K" xml:space="preserve"><value>Nose for Treasure</value></data>
+  <data name="ACHIEVEMENT_TITLE_H" xml:space="preserve"><value>Who Wants to Be a Gillionaire?</value></data>
+  <data name="ACHIEVEMENT_TITLE_I" xml:space="preserve"><value>My Little Esper</value></data>
+  <data name="ACHIEVEMENT_TITLE_N" xml:space="preserve"><value>Filling Up the Grotesquerie</value></data>
+  <data name="ACHIEVEMENT_TITLE_O" xml:space="preserve"><value>One Sword to Slay Them All</value></data>
+  <data name="ACHIEVEMENT_TITLE_L" xml:space="preserve"><value>I, My, Me, Mine</value></data>
+  <data name="ACHIEVEMENT_TITLE_M" xml:space="preserve"><value>Collecting is Half the Battle</value></data>
+  <data name="ACHIEVEMENT_TITLE_R" xml:space="preserve"><value>Jack of All Trades</value></data>
+  <data name="ACHIEVEMENT_TITLE_P" xml:space="preserve"><value>Steely Resolve</value></data>
+  <data name="ACHIEVEMENT_TITLE_Q" xml:space="preserve"><value>When I Grow Up I Want to Be...</value></data>
+  <data name="UPDATE_APP_TITLE" xml:space="preserve"><value>Update</value></data>
+  <data name="iap_goto_title" xml:space="preserve"><value>Back to Title</value></data>
+  <data name="NO" xml:space="preserve"><value>No</value></data>
+  <data name="OK" xml:space="preserve"><value>Done</value></data>
+  <data name="YES" xml:space="preserve"><value>Yes</value></data>
+  <data name="iap_confirm_purchase" xml:space="preserve"><value>Thank you for playing FINAL FANTASY III!\nThis completes the demo version.\n\nTo continue playing, please purchase the full version\nof the game. Your current progress will be preserved.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_I" xml:space="preserve"><value>Obtain a summonable creature.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_H" xml:space="preserve"><value>Save up 500,000 gil.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_K" xml:space="preserve"><value>Open 50% of all treasure chests.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_J" xml:space="preserve"><value>Obtain all the summonable creatures.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_M" xml:space="preserve"><value>Complete 50% of the Bestiary.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_L" xml:space="preserve"><value>Open every treasure chest.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_O" xml:space="preserve"><value>Obtain the Ultima Weapon from the Legendary Smith.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_N" xml:space="preserve"><value>Complete the entire Bestiary.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_A" xml:space="preserve"><value>Defeat Djinn and obtain the Wind Crystal.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_C" xml:space="preserve"><value>Defeat Kraken and obtain the Water Crystal.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_B" xml:space="preserve"><value>Defeat Salamander and obtain the Fire Crystal.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_E" xml:space="preserve"><value>Defeat the Cloud of Darkness.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_D" xml:space="preserve"><value>Defeat Titan and obtain the Earth Crystal.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_G" xml:space="preserve"><value>Save up 50,000 gil.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_F" xml:space="preserve"><value>Obtain every weapon in Eureka, the Forbidden Land.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_Q" xml:space="preserve"><value>Attain level 99 with any job.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_P" xml:space="preserve"><value>Defeat Iron Giant.</value></data>
+  <data name="ACHIEVEMENT_MESSAGE_R" xml:space="preserve"><value>Attain level 99 with all jobs.</value></data>
+  <data name="iap_purchase" xml:space="preserve"><value>PURCHASE</value></data>
+  <data name="UPDATE_APP" xml:space="preserve"><value>A new update required to connect to Xbox LIVE is now available.\n\nWould you like to update now?</value></data>
+  <data name="CLOSE_APP_TITLE" xml:space="preserve"><value>Close</value></data>
+  <data name="app_name" xml:space="preserve"><value>FINAL FANTASY III</value></data>
+  <data name="SAVE_ERROR" xml:space="preserve"><value>Error Saving Data</value></data>
+  </root>

@@ -1,0 +1,169 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.IO.IsolatedStorage;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
+using Microsoft.Xna.Framework.GamerServices;
+using Microsoft.Xna.Framework.Graphics;
+using android.content;
+using android.text;
+using android.widget;
+using java.io;
+using syrcusW.res.raw;
+using syrcusW.res.values;
+
+internal static partial class GlobalScope
+{
+	public static class SmallIcon
+	{
+		public enum TYPE
+		{
+			SI_STATE_DEATH,
+			SI_STATE_PETRIFICATION,
+			SI_STATE_PROGRESSIVE_PETRIFICATION,
+			SI_STATE_FROG,
+			SI_STATE_SILENT,
+			SI_STATE_MINI,
+			SI_STATE_BLINDNESS,
+			SI_STATE_POISON,
+			SI_STATE_PARALYSIS,
+			SI_STATE_SLEEP,
+			SI_STATE_CONFUSION,
+			SI_STATE_UP,
+			SI_STATE_DOWN,
+			SI_ITEM_KNIFE,
+			SI_ITEM_SWORD,
+			SI_ITEM_KATANA,
+			SI_ITEM_HAMMER,
+			SI_ITEM_AXE,
+			SI_ITEM_SPEAR,
+			SI_ITEM_ROD,
+			SI_ITEM_BOW,
+			SI_ITEM_BOOMERANG,
+			SI_ITEM_SYURIKEN,
+			SI_ITEM_HARP,
+			SI_ITEM_BELL,
+			SI_ITEM_BOOK,
+			SI_ITEM_SHIELD,
+			SI_ITEM_HELMET,
+			SI_ITEM_ARMOR,
+			SI_ITEM_GAUNTLET,
+			SI_MAGIC_WHITE,
+			SI_MAGIC_BLACK,
+			SI_MAGIC_UNION,
+			SI_MONSTER_NORMAL,
+			SI_MONSTER_UNDEAD,
+			SI_ICON_FEATHER,
+			SI_ICON_WATER,
+			SI_ICON_BOMB,
+			SI_ICON_FIRE,
+			SI_ICON_ICE,
+			SI_ICON_SLIME,
+			SI_ICON_EQUIPPED,
+			SI_ICON_INABILITY,
+			SI_ICON_KNUCKLE,
+			SI_ICON_ARROW,
+			SI_ICON_ITEM,
+			NUMBER_OF_SMALL_ICONS
+		}
+
+		public const TYPE SI_STATE_DEATH = TYPE.SI_STATE_DEATH;
+
+		public const TYPE SI_STATE_PETRIFICATION = TYPE.SI_STATE_PETRIFICATION;
+
+		public const TYPE SI_STATE_PROGRESSIVE_PETRIFICATION = TYPE.SI_STATE_PROGRESSIVE_PETRIFICATION;
+
+		public const TYPE SI_STATE_FROG = TYPE.SI_STATE_FROG;
+
+		public const TYPE SI_STATE_SILENT = TYPE.SI_STATE_SILENT;
+
+		public const TYPE SI_STATE_MINI = TYPE.SI_STATE_MINI;
+
+		public const TYPE SI_STATE_BLINDNESS = TYPE.SI_STATE_BLINDNESS;
+
+		public const TYPE SI_STATE_POISON = TYPE.SI_STATE_POISON;
+
+		public const TYPE SI_STATE_PARALYSIS = TYPE.SI_STATE_PARALYSIS;
+
+		public const TYPE SI_STATE_SLEEP = TYPE.SI_STATE_SLEEP;
+
+		public const TYPE SI_STATE_CONFUSION = TYPE.SI_STATE_CONFUSION;
+
+		public const TYPE SI_STATE_UP = TYPE.SI_STATE_UP;
+
+		public const TYPE SI_STATE_DOWN = TYPE.SI_STATE_DOWN;
+
+		public const TYPE SI_ITEM_KNIFE = TYPE.SI_ITEM_KNIFE;
+
+		public const TYPE SI_ITEM_SWORD = TYPE.SI_ITEM_SWORD;
+
+		public const TYPE SI_ITEM_KATANA = TYPE.SI_ITEM_KATANA;
+
+		public const TYPE SI_ITEM_HAMMER = TYPE.SI_ITEM_HAMMER;
+
+		public const TYPE SI_ITEM_AXE = TYPE.SI_ITEM_AXE;
+
+		public const TYPE SI_ITEM_SPEAR = TYPE.SI_ITEM_SPEAR;
+
+		public const TYPE SI_ITEM_ROD = TYPE.SI_ITEM_ROD;
+
+		public const TYPE SI_ITEM_BOW = TYPE.SI_ITEM_BOW;
+
+		public const TYPE SI_ITEM_BOOMERANG = TYPE.SI_ITEM_BOOMERANG;
+
+		public const TYPE SI_ITEM_SYURIKEN = TYPE.SI_ITEM_SYURIKEN;
+
+		public const TYPE SI_ITEM_HARP = TYPE.SI_ITEM_HARP;
+
+		public const TYPE SI_ITEM_BELL = TYPE.SI_ITEM_BELL;
+
+		public const TYPE SI_ITEM_BOOK = TYPE.SI_ITEM_BOOK;
+
+		public const TYPE SI_ITEM_SHIELD = TYPE.SI_ITEM_SHIELD;
+
+		public const TYPE SI_ITEM_HELMET = TYPE.SI_ITEM_HELMET;
+
+		public const TYPE SI_ITEM_ARMOR = TYPE.SI_ITEM_ARMOR;
+
+		public const TYPE SI_ITEM_GAUNTLET = TYPE.SI_ITEM_GAUNTLET;
+
+		public const TYPE SI_MAGIC_WHITE = TYPE.SI_MAGIC_WHITE;
+
+		public const TYPE SI_MAGIC_BLACK = TYPE.SI_MAGIC_BLACK;
+
+		public const TYPE SI_MAGIC_UNION = TYPE.SI_MAGIC_UNION;
+
+		public const TYPE SI_MONSTER_NORMAL = TYPE.SI_MONSTER_NORMAL;
+
+		public const TYPE SI_MONSTER_UNDEAD = TYPE.SI_MONSTER_UNDEAD;
+
+		public const TYPE SI_ICON_FEATHER = TYPE.SI_ICON_FEATHER;
+
+		public const TYPE SI_ICON_WATER = TYPE.SI_ICON_WATER;
+
+		public const TYPE SI_ICON_BOMB = TYPE.SI_ICON_BOMB;
+
+		public const TYPE SI_ICON_FIRE = TYPE.SI_ICON_FIRE;
+
+		public const TYPE SI_ICON_ICE = TYPE.SI_ICON_ICE;
+
+		public const TYPE SI_ICON_SLIME = TYPE.SI_ICON_SLIME;
+
+		public const TYPE SI_ICON_EQUIPPED = TYPE.SI_ICON_EQUIPPED;
+
+		public const TYPE SI_ICON_INABILITY = TYPE.SI_ICON_INABILITY;
+
+		public const TYPE SI_ICON_KNUCKLE = TYPE.SI_ICON_KNUCKLE;
+
+		public const TYPE SI_ICON_ARROW = TYPE.SI_ICON_ARROW;
+
+		public const TYPE SI_ICON_ITEM = TYPE.SI_ICON_ITEM;
+
+		public const TYPE NUMBER_OF_SMALL_ICONS = TYPE.NUMBER_OF_SMALL_ICONS;
+	}
+}

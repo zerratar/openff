@@ -1,0 +1,35 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.IO.IsolatedStorage;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
+using Microsoft.Xna.Framework.GamerServices;
+using Microsoft.Xna.Framework.Graphics;
+using android.content;
+using android.text;
+using android.widget;
+using java.io;
+using syrcusW.res.raw;
+using syrcusW.res.values;
+
+internal static partial class GlobalScope
+{
+	public static partial class pl
+	{
+		public enum GROW_UP_PARAMETER
+		{
+			GROW_UP_STR,
+			GROW_UP_VIT,
+			GROW_UP_DEX,
+			GORW_UP_INT,
+			GROW_UP_MIN,
+			GROW_UP_MP,
+			GROW_UP_PARAMETER_MAX
+		}
+	}
+}

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace></RootNamespace>
+    <AssemblyName>FF3</AssemblyName>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>AnyCPU;x64</Platforms>
+    <ApplicationIcon></ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Decompiled sources: the compiler is right about most of these, but fixing
+         them would mean diverging from the decompiler output for no behavioural gain. -->
+    <NoWarn>$(NoWarn);CS0108;CS0114;CS0162;CS0164;CS0168;CS0169;CS0219;CS0414;CS0472;CS0649;CS0652;CS1717;CS0078;CS0728;SYSLIB0011</NoWarn>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.5.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Resource names must stay exactly as the original assembly had them, because
+         the decompiled accessors look them up by literal name. RootNamespace is empty
+         so the path below produces "syrcusW.res.values.strings.resources". -->
+    <EmbeddedResource Update="syrcusW\res\values\strings.resx" />
+    <EmbeddedResource Update="syrcusW\res\raw\language.resx" />
+  </ItemGroup>
+
+</Project>

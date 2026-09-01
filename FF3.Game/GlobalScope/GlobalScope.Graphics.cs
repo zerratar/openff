@@ -1,0 +1,337 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.IO.IsolatedStorage;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
+using Microsoft.Xna.Framework.GamerServices;
+using Microsoft.Xna.Framework.Graphics;
+using android.content;
+using android.text;
+using android.widget;
+using java.io;
+using syrcusW.res.raw;
+using syrcusW.res.values;
+
+internal static partial class GlobalScope
+{
+						public class Graphics
+						{
+							private Game game;
+
+							private GraphicsDeviceManager gdm;
+
+							private SpriteBatch spBatch;
+
+							private BasicEffect effect;
+
+							private Color color;
+
+							private SpriteEffects flip;
+
+							private float rotation;
+
+							private Vector2 scale;
+
+							private Vector2 origin;
+
+							private Vector2 pos;
+
+							private float depth;
+
+							private float[][] fontShiftY;
+
+							private float[] fontShiftYFlipAdjust;
+
+							private byte[][] aaGlyph;
+
+							private SpriteFont[][] aaSpriteFont;
+
+							private string[] astrWord;
+
+							private int fontCount;
+
+							private int wordCount;
+
+							private AlphaTestEffect m_AlphaTestEffect;
+
+							private bool m_bPause;
+
+							public Graphics(Game game)
+							{
+								this.game = game;
+								gdm = new GraphicsDeviceManager(game);
+								gdm.PreferredBackBufferWidth = 800;
+								gdm.PreferredBackBufferHeight = 480;
+								gdm.PreferMultiSampling = true;
+								gdm.PreparingDeviceSettings += PreparingDeviceSettingsCallback;
+								gdm.IsFullScreen = true;
+								setPause(bPause: false);
+							}
+
+							public void LoadContent()
+							{
+								spBatch = new SpriteBatch(gdm.GraphicsDevice);
+								effect = new BasicEffect(gdm.GraphicsDevice);
+								effect.VertexColorEnabled = true;
+								color = Color.White;
+								flip = SpriteEffects.None;
+								rotation = 0f;
+								scale = Vector2.One;
+								origin = Vector2.Zero;
+								pos = Vector2.Zero;
+								depth = 0f;
+								fontShiftY = new float[32][];
+								fontShiftYFlipAdjust = new float[32];
+								m_AlphaTestEffect = new AlphaTestEffect(gdm.GraphicsDevice);
+								m_AlphaTestEffect.VertexColorEnabled = true;
+								aaGlyph = new byte[32][];
+								aaSpriteFont = new SpriteFont[32][];
+								astrWord = new string[65536];
+								fontCount = 0;
+								wordCount = 0;
+								FileInputStream fileInputStream = new FileInputStream("Content/Font12.glp");
+								aaGlyph[12] = new byte[fileInputStream.available()];
+								fileInputStream.read(aaGlyph[12], 0, aaGlyph[12].Length);
+								fileInputStream.close();
+								fileInputStream = new FileInputStream("Content/Font16.glp");
+								aaGlyph[16] = new byte[fileInputStream.available()];
+								fileInputStream.read(aaGlyph[16], 0, aaGlyph[16].Length);
+								fileInputStream.close();
+								aaSpriteFont[12] = new SpriteFont[256];
+								aaSpriteFont[16] = new SpriteFont[256];
+								fontShiftY[12] = new float[6];
+								fontShiftY[16] = new float[6];
+								fontShiftY[12][0] = 2f;
+								fontShiftY[12][1] = 2f;
+								fontShiftY[12][2] = 2f;
+								fontShiftY[12][3] = 2f;
+								fontShiftY[12][4] = 3f;
+								fontShiftY[12][5] = 2f;
+								fontShiftY[16][0] = 3f;
+								fontShiftY[16][1] = 3f;
+								fontShiftY[16][2] = 3f;
+								fontShiftY[16][3] = 3f;
+								fontShiftY[16][4] = 4.5f;
+								fontShiftY[16][5] = 3f;
+								fontShiftYFlipAdjust[12] = 1f;
+								fontShiftYFlipAdjust[16] = 1f;
+							}
+
+							public bool isFlipScreen()
+							{
+								return game.Window.CurrentOrientation != DisplayOrientation.LandscapeLeft;
+							}
+
+							public void setPause(bool bPause)
+							{
+								m_bPause = bPause;
+							}
+
+							public bool isPause()
+							{
+								return m_bPause;
+							}
+
+							private void PreparingDeviceSettingsCallback(object sender, PreparingDeviceSettingsEventArgs e)
+							{
+								_ = e.GraphicsDeviceInformation.PresentationParameters;
+							}
+
+							public Game getGame()
+							{
+								return game;
+							}
+
+							public GraphicsDeviceManager GetGraphicsDeviceManager()
+							{
+								return gdm;
+							}
+
+							public BasicEffect getBasicEffect()
+							{
+								return effect;
+							}
+
+							public AlphaTestEffect getAlphaTestEffect()
+							{
+								return m_AlphaTestEffect;
+							}
+
+							public void SetColor(int red, int green, int blue)
+							{
+								color.R = (byte)red;
+								color.G = (byte)green;
+								color.B = (byte)blue;
+								color.A = byte.MaxValue;
+							}
+
+							public void SetColor(int red, int green, int blue, int alpha)
+							{
+								color.R = (byte)red;
+								color.G = (byte)green;
+								color.B = (byte)blue;
+								color.A = (byte)alpha;
+							}
+
+							public float StringWidth(string text, int iSize)
+							{
+								int length = text.Length;
+								float num = 0f;
+								for (int i = 0; i < length; i++)
+								{
+									char c = text[i];
+									switch (c)
+									{
+									case '\u007f':
+										c = ' ';
+										break;
+									case '\u00a0':
+										c = ' ';
+										break;
+									case '\u00ad':
+										c = ' ';
+										break;
+									}
+									byte b = aaGlyph[iSize][c * 2];
+									if (b == byte.MaxValue)
+									{
+										c = '?';
+										b = aaGlyph[iSize][c * 2];
+									}
+									if (astrWord[(uint)c] == null)
+									{
+										astrWord[(uint)c] = c.ToString();
+										wordCount++;
+									}
+									if (aaSpriteFont[iSize][b] == null)
+									{
+										aaSpriteFont[iSize][b] = loadAsset<SpriteFont>("Font" + iSize + "_" + b);
+								FF3.FontDump.Dump("Font" + iSize + "_" + b, aaSpriteFont[iSize][b]); /*FF3LOG*/
+										fontCount++;
+									}
+									num += aaSpriteFont[iSize][b].MeasureString(astrWord[(uint)c]).X * scale.X;
+								}
+								return num;
+							}
+
+							public float StringHeight(string text, int iSize)
+							{
+								return iSize;
+							}
+
+							public void SetFlip(SpriteEffects flip)
+							{
+								this.flip = flip;
+							}
+
+							public void SetImageRotation(float rotation)
+							{
+								this.rotation = rotation;
+							}
+
+							public void SetImageScale(float x, float y)
+							{
+								scale.X = x;
+								scale.Y = y;
+							}
+
+							public void SetImageOrigin(float x, float y)
+							{
+								origin.X = x;
+								origin.Y = y;
+							}
+
+							public void clear()
+							{
+								gdm.GraphicsDevice.Clear(Color.Black);
+							}
+
+							public void DrawStringStart()
+							{
+								spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise);
+								depth = 0f;
+							}
+
+							public void DrawStringEnd()
+							{
+								spBatch.End();
+								depth = 0f;
+							}
+
+							public void DrawString(string text, float x, float y, int iSize)
+							{
+								if (text == null)
+								{
+									return;
+								}
+								int length = text.Length;
+								pos.X = x;
+								for (int i = 0; i < length; i++)
+								{
+									char c = text[i];
+									switch (c)
+									{
+									case '\u007f':
+										c = ' ';
+										break;
+									case '\u00a0':
+										c = ' ';
+										break;
+									case '\u00ad':
+										c = ' ';
+										break;
+									}
+									byte b = aaGlyph[iSize][c * 2];
+									if (b == byte.MaxValue)
+									{
+										c = '?';
+										b = aaGlyph[iSize][c * 2];
+									}
+									if (astrWord[(uint)c] == null)
+									{
+										astrWord[(uint)c] = c.ToString();
+										wordCount++;
+									}
+									if (aaSpriteFont[iSize][b] == null)
+									{
+										aaSpriteFont[iSize][b] = loadAsset<SpriteFont>("Font" + iSize + "_" + b);
+								FF3.FontDump.Dump("Font" + iSize + "_" + b, aaSpriteFont[iSize][b]); /*FF3LOG*/
+										fontCount++;
+									}
+									if (GX_GetFlipScreen() == 1)
+									{
+										pos.Y = y + fontShiftY[iSize][aaGlyph[iSize][c * 2 + 1]] + fontShiftYFlipAdjust[iSize];
+									}
+									else
+									{
+										pos.Y = y - fontShiftY[iSize][aaGlyph[iSize][c * 2 + 1]];
+									}
+									spBatch.DrawString(aaSpriteFont[iSize][b], astrWord[(uint)c], pos, color, rotation, origin, scale, flip, depth);
+									if (GX_GetFlipScreen() == 1)
+									{
+										pos.X -= aaSpriteFont[iSize][b].MeasureString(astrWord[(uint)c]).X * scale.X;
+									}
+									else
+									{
+										pos.X += aaSpriteFont[iSize][b].MeasureString(astrWord[(uint)c]).X * scale.X;
+									}
+								}
+								depth += 0.001f;
+							}
+
+							public T loadAsset<T>(string strAssetName)
+							{
+								return game.Content.Load<T>(strAssetName);
+							}
+
+							public ContentManager CreateContentManager()
+							{
+								return new ContentManager(game.Services, game.Content.RootDirectory);
+							}
+						}
+}

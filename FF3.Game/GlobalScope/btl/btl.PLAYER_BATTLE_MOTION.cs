@@ -1,0 +1,133 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.IO.IsolatedStorage;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
+using Microsoft.Xna.Framework.GamerServices;
+using Microsoft.Xna.Framework.Graphics;
+using android.content;
+using android.text;
+using android.widget;
+using java.io;
+using syrcusW.res.raw;
+using syrcusW.res.values;
+
+internal static partial class GlobalScope
+{
+	public static partial class btl
+	{
+		public enum PLAYER_BATTLE_MOTION
+		{
+			PBM_IDLE = 101,
+			PBM_POISE = 201,
+			PBM_POISE_HARP = 222,
+			PBM_POISE_NEARDEATH = 301,
+			PBM_POISE_NEARDEATH_AXE = 315,
+			PBM_POISE_NEARDEATH_THROW = 321,
+			PBM_POISE_NEARDEATH_BELL = 323,
+			PBM_POISE_NEARDEATH_BOOK = 324,
+			PBM_POISE_POISON = 401,
+			PBM_POISE_POISON_AXE = 415,
+			PBM_POISE_POISON_BOW = 418,
+			PBM_POISE_POISON_HARP = 422,
+			PBM_POISE_POISON_BOOK = 424,
+			PBM_POISE_MAGIC = 501,
+			PBM_FRONT = 601,
+			PBM_FRONT_POISE = 602,
+			PBM_FRONT_BADCONDITION = 603,
+			PBM_BACK = 604,
+			PBM_BACK_POISE = 605,
+			PBM_BACK_BADCONDITION = 606,
+			PBM_USE_ITEM = 701,
+			PBM_ESCAPE = 702,
+			PBM_GUARD_START = 703,
+			PBM_GUARD = 704,
+			PBM_DAMAGE = 705,
+			PBM_DEATH = 706,
+			PBM_COMEBACK = 707,
+			PBM_BACK_ATTACK = 732,
+			PBM_BACK_ATTACK_FROG = 733,
+			PBM_WIN1 = 4101,
+			PBM_WIN2 = 4102,
+			PBM_WIN3 = 4103,
+			PBM_WIN4 = 4104,
+			PBM_LEVEL_UP1 = 4201,
+			PBM_LEVEL_UP2 = 4202,
+			PBM_LEVEL_UP3 = 4203,
+			PBM_LEVEL_UP4 = 4204,
+			PBM_HAND_R1 = 1101,
+			PBM_HAND_R2 = 1102,
+			PBM_HAND_L1 = 1103,
+			PBM_HAND_L2 = 1104,
+			PBM_HAND_FINISH = 1107,
+			PBM_SSWORD_R1 = 1201,
+			PBM_SSWORD_R2 = 1202,
+			PBM_SSWORD_L1 = 1203,
+			PBM_SSWORD_L2 = 1204,
+			PBM_SSWORD_FINISH = 1207,
+			PBM_LSWORD_R1 = 1301,
+			PBM_LSWORD_R2 = 1302,
+			PBM_LSWORD_L1 = 1303,
+			PBM_LSWORD_L2 = 1304,
+			PBM_LSWORD_FINISH = 1307,
+			PBM_KATANA_R1 = 1401,
+			PBM_KATANA_R2 = 1402,
+			PBM_KATANA_L1 = 1403,
+			PBM_KATANA_L2 = 1404,
+			PBM_KATANA_FINISH = 1407,
+			PBM_AXE_R1 = 1501,
+			PBM_AXE_R2 = 1502,
+			PBM_AXE_L1 = 1503,
+			PBM_AXE_L2 = 1504,
+			PBM_AXE_FINISH = 1507,
+			PBM_SPEAR_R1 = 1601,
+			PBM_SPEAR_R2 = 1602,
+			PBM_SPEAR_L1 = 1603,
+			PBM_SPEAR_L2 = 1604,
+			PBM_SPEAR_FINISH = 1607,
+			PBM_ROD_R1 = 1701,
+			PBM_ROD_R2 = 1702,
+			PBM_ROD_L1 = 1703,
+			PBM_ROD_L2 = 1704,
+			PBM_ROD_FINISH = 1707,
+			PBM_BOW1 = 1801,
+			PBM_BOW_FINISH = 1807,
+			PBM_THROW1 = 2101,
+			PBM_THROW2 = 2103,
+			PBM_THROW_FINISH = 2107,
+			PBM_HARP1 = 2201,
+			PBM_HARP_FINISH = 2207,
+			PBM_BELL_R1 = 2301,
+			PBM_BELL_R2 = 2302,
+			PBM_BELL_L1 = 2303,
+			PBM_BELL_L2 = 2304,
+			PBM_BELL_FINISH = 2307,
+			PBM_BOOK_R1 = 2401,
+			PBM_BOOK_R2 = 2402,
+			PBM_BOOK_L1 = 2403,
+			PBM_BOOK_L2 = 2404,
+			PBM_BOOK_FINISH = 2407,
+			PBM_MAGIC_POISE = 4001,
+			PBM_MAGIC_SHOT_START = 4002,
+			PBM_MAGIC_SHOT = 4003,
+			PBM_STEAL = 6101,
+			PBM_CHECK = 6201,
+			PBM_JUMP_START = 6401,
+			PBM_JUMP_END = 6403,
+			PBM_DARK = 6601,
+			PBM_MONK = PBM_GUARD_START,
+			PBM_ROLL_UP = 5301,
+			PBM_PROVOCATION = 6501,
+			PBM_COVER = 6001,
+			PBM_GEOGRAPHY = 6301,
+			PBM_SONG = 6901,
+			PBM_FROG_ATTACK = 118,
+			PBM_FROG_ESCAPE = 731
+		}
+	}
+}
