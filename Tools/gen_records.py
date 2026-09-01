@@ -52,6 +52,25 @@ FAMILIES = [
         ('MonsterOffsetParameter', 'offsets', 160),
         ('MonsterSpecialAttackEffects', 'specialAttackEffects', 56),
     ]),
+    # pl.PlayerParty.load: the player and job side of the game. Seven of the chains
+    # are the same MP growth table, one per magic level.
+    ('Player', 'player.chaindata', [
+        ('PlayerExp', 'expCurve', None),
+        ('JobGrowUpType', 'jobGrowUpTypes', None),
+        ('GrowUp', 'growth', None),
+        ('PlayerNormalAttackParameter', 'normalAttacks', None),
+        ('GrowUpMp', 'mpGrowth1', None),
+        ('GrowUpMp', 'mpGrowth2', None),
+        ('GrowUpMp', 'mpGrowth3', None),
+        ('GrowUpMp', 'mpGrowth4', None),
+        ('GrowUpMp', 'mpGrowth5', None),
+        ('GrowUpMp', 'mpGrowth6', None),
+        ('GrowUpMp', 'mpGrowth7', None),
+        ('JobEquipInfo', 'jobEquipment', None),
+        ('PlayerNormalMagicParameter', 'normalMagic', 32),
+        ('AbilityParameter', 'abilities', None),
+        ('PlayerAbility', 'jobAbilities', None),
+    ]),
     ('Map', '<stage>.pak', [
         ('CMapJumpParameter', 'jumps', None),
         ('CMapLandFormParameter', 'landForms', None),

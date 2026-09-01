@@ -109,6 +109,10 @@ namespace FF3.ContentTool
 			{
 				return "Monster";
 			}
+			if (string.Equals(name, "player.chaindata", StringComparison.OrdinalIgnoreCase))
+			{
+				return "Player";
+			}
 			return chainCount == 7 ? "Map" : null;
 		}
 

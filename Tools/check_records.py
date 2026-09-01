@@ -92,7 +92,6 @@ def main(files_dir):
 
         # Families this script does not model yet, named rather than lumped in with
         # the map paks and reported as failures:
-        #   player.chaindata                 15 chains of player and job parameters
         #   *_world_move_parameter.pak       CPlayerWorldParameterManager and its NPC twin
         #   s01_01.pak                       5 chains, the older layout - its .script is
         #                                    version 1.0 too, which the game refuses to load
@@ -100,7 +99,9 @@ def main(files_dir):
             family = 'Item'
         elif name == 'monster.chaindata':
             family = 'Monster'
-        elif name.endswith('_world_move_parameter.pak') or name == 'player.chaindata':
+        elif name == 'player.chaindata':
+            family = 'Player'
+        elif name.endswith('_world_move_parameter.pak'):
             total['not modelled'] += 1
             continue
         elif len(found) != 7:

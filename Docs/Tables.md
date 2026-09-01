@@ -37,6 +37,7 @@ message it points at, in `.msd`. See `Docs/Text.md`.
 | --- | --- | --- |
 | `files/item_parameter.pak` | 5 | 36 consumables, 132 weapons, 73 armour, 127 spells, 41 key items |
 | `files/monster.chaindata` | 6 | 255 monsters, their drops, attacks, offsets and effects |
+| `files/player.chaindata` | 15 | exp curve, job growth, MP growth per level, equipment, 50 abilities |
 | `files/<stage>.pak` | 7 | per map: exits, land forms, monster parties, sounds, encounters, cameras |
 
 337 map paks, all decoding with the same layouts.
@@ -87,8 +88,6 @@ zeros, and trailing padding, which is why the file's length is recorded.
 
 ## Not modelled yet
 
-- **`player.chaindata`** - 15 chains of player and job parameters. The job tables are
-  in here, and they are the obvious next thing to add.
 - **`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`** - movement on
   the world map, read by their own managers.
 - **`s01_01.pak`** - 5 chains, the older layout. Its `.script` is version 1.0, which
