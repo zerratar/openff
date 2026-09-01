@@ -5,7 +5,6 @@ using android.view;
 using android.view.inputmethod;
 using java.io;
 using java.util;
-using net.sqexm.sqmk.android.lib;
 
 namespace android.app;
 
@@ -91,10 +90,8 @@ public class Activity : Context
 		Android.removeActivity(this);
 	}
 
-	public Application getApplication()
-	{
-		return new SQEXMApplication();
-	}
+	// PORT: getApplication() returned the Square Enix account application object.
+	// Its only caller was the entitlement check in MainActivity, which is gone.
 
 	public Context getApplicationContext()
 	{

@@ -15,7 +15,6 @@ using java.io;
 using java.util.zip;
 using javax.microedition.khronos.egl;
 using javax.microedition.khronos.opengles;
-using net.sqexm.sqmk.android.lib;
 
 public class MainActivity : Activity, GLSurfaceView.Renderer
 {
@@ -192,20 +191,14 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		mGLSurfaceView = new GLSurfaceView(this);
 		mGLSurfaceView.setRenderer(this);
 		setContentView(mGLSurfaceView);
-		if (!USE_ZIP)
-		{
-			SQEXMApplication sQEXMApplication = (SQEXMApplication)getApplication();
-			if (sQEXMApplication.getAuthManager() == null || !sQEXMApplication.getAuthManager().getEndSucceeded())
-			{
-				base.finish();
-				return;
-			}
-		}
-		else
+		// PORT: an entitlement check lived here and quit the game outright if the
+		// Square Enix auth handshake had not succeeded. There is no such handshake
+		// on Windows, so the check and the account layer behind it are gone.
+		if (USE_ZIP)
 		{
 			try
 			{
-				zip = new ZipFile(new File(DLActivity.getDataPath() + "/data.zip"));
+				zip = new ZipFile(new File(FF3.GameArchive.DataPath + "/data.zip"));
 			}
 			catch (Exception)
 			{
@@ -291,7 +284,7 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 			end = true;
 			quit();
 			sound.stopSoundAll();
-			DLActivity.startDownload(this, force: true);
+			// PORT: no download path on Windows; the data ships with the game.
 			base.finish();
 		}
 	}
@@ -447,7 +440,7 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 				}
 			}
 		}
-		return DLActivity.loadFileEntry(filename);
+		return FF3.GameArchive.Read(filename);
 	}
 
 	public static byte[] loadFile(string filename)
