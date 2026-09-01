@@ -94,14 +94,9 @@ internal static partial class GlobalScope
             astrWord = new string[65536];
             fontCount = 0;
             wordCount = 0;
-            FileInputStream fileInputStream = new FileInputStream("Content/Font12.glp");
-            aaGlyph[12] = new byte[fileInputStream.available()];
-            fileInputStream.read(aaGlyph[12], 0, aaGlyph[12].Length);
-            fileInputStream.close();
-            fileInputStream = new FileInputStream("Content/Font16.glp");
-            aaGlyph[16] = new byte[fileInputStream.available()];
-            fileInputStream.read(aaGlyph[16], 0, aaGlyph[16].Length);
-            fileInputStream.close();
+            // Glyph tables: character -> (atlas page, vertical shift class).
+            aaGlyph[12] = FF3.GameFiles.ReadAllBytes("Content/Font12.glp");
+            aaGlyph[16] = FF3.GameFiles.ReadAllBytes("Content/Font16.glp");
             aaSpriteFont[12] = new SpriteFont[256];
             aaSpriteFont[16] = new SpriteFont[256];
             fontShiftY[12] = new float[6];

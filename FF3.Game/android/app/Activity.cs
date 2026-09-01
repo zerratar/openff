@@ -138,10 +138,9 @@ public class Activity : Context
 		return m_Resources;
 	}
 
-	public FileOutputStream openFileOutput(string name, int mode)
-	{
-		return new FileOutputStream(name);
-	}
+	// PORT: openFileOutput() mapped Android's private per-app storage onto
+	// IsolatedStorage. Saves now go through FF3.SaveFiles, which writes to
+	// %APPDATA%\FF3 - somewhere a Windows player can find and back up.
 
 	public void setContentView(View view)
 	{

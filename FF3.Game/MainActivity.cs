@@ -12,7 +12,6 @@ using android.view;
 using android.view.inputmethod;
 using android.widget;
 using java.io;
-using java.util.zip;
 using javax.microedition.khronos.egl;
 using javax.microedition.khronos.opengles;
 
@@ -125,9 +124,7 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 
 	private static SoundManager sound = new SoundManager();
 
-	private static ZipFile zip = null;
 
-	private static bool USE_ZIP = false;
 
 	private static GlobalScope.JNIEnv m_Env = new GlobalScope.JNIEnv();
 
@@ -194,18 +191,6 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		// PORT: an entitlement check lived here and quit the game outright if the
 		// Square Enix auth handshake had not succeeded. There is no such handshake
 		// on Windows, so the check and the account layer behind it are gone.
-		if (USE_ZIP)
-		{
-			try
-			{
-				zip = new ZipFile(new File(FF3.GameArchive.DataPath + "/data.zip"));
-			}
-			catch (Exception)
-			{
-				end = true;
-				showDialog(1);
-			}
-		}
 		init();
 	}
 
@@ -279,14 +264,12 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 
 	private void startDownloadActivity()
 	{
-		if (!USE_ZIP)
-		{
-			end = true;
-			quit();
-			sound.stopSoundAll();
-			// PORT: no download path on Windows; the data ships with the game.
-			base.finish();
-		}
+		// PORT: this kicked off the resource download when content was missing.
+		// On Windows the data ships with the game, so there is nothing to fetch.
+		end = true;
+		quit();
+		sound.stopSoundAll();
+		base.finish();
 	}
 
 	public void onSurfaceCreated(GL10 gl, EGLConfig config)
@@ -411,35 +394,8 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 
 	public static byte[] loadFileEntry(string filename)
 	{
-		if (USE_ZIP)
-		{
-			InputStream inputStream = null;
-			try
-			{
-				ZipEntry entry = zip.getEntry(filename);
-				inputStream = zip.getInputStream(entry);
-				int num = (int)entry.getSize();
-				byte[] array = new byte[num];
-				for (int i = 0; i < num; i += inputStream.read(array, i, num - i))
-				{
-				}
-				return array;
-			}
-			catch (Exception)
-			{
-				return null;
-			}
-			finally
-			{
-				try
-				{
-					inputStream.close();
-				}
-				catch (Exception)
-				{
-				}
-			}
-		}
+		// PORT: content could also be served from a downloaded data.zip. A Windows
+		// build always ships the archives, so only that path remains.
 		return FF3.GameArchive.Read(filename);
 	}
 
@@ -525,23 +481,8 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 
 	public static void createSaveFile(int size)
 	{
-		FileOutputStream fileOutputStream = null;
-		try
-		{
-			fileOutputStream = activity.openFileOutput("save.bin", 1);
-			byte[] buffer = new byte[size];
-			fileOutputStream.write(buffer);
-		}
-		catch (Exception)
-		{
-		}
-		try
-		{
-			fileOutputStream.close();
-		}
-		catch (Exception)
-		{
-		}
+		// PORT: was Android per-app private storage, mapped onto IsolatedStorage.
+		FF3.SaveFiles.Create("save.bin", size);
 	}
 
 	public static void trace(string text)

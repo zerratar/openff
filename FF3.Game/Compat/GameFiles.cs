@@ -1,4 +1,4 @@
-// Raw (non-ContentManager) game file access.
+﻿// Raw (non-ContentManager) game file access.
 //
 // The phone build read its archives with TitleContainer.OpenStream, which resolves
 // relative to the executable's directory. Here the content deliberately lives
@@ -28,6 +28,20 @@ namespace FF3
 			// Fall back to MonoGame's own lookup so a published, self-contained
 			// layout (Content next to the exe) keeps working unchanged.
 			return TitleContainer.OpenStream(path);
+		}
+
+		/// <summary>Reads a whole game file. Throws if it is missing.</summary>
+		public static byte[] ReadAllBytes(string path)
+		{
+			string resolved = Resolve(path);
+			if (resolved != null)
+			{
+				return File.ReadAllBytes(resolved);
+			}
+			using Stream stream = OpenRead(path);
+			using MemoryStream buffer = new MemoryStream();
+			stream.CopyTo(buffer);
+			return buffer.ToArray();
 		}
 
 		/// <summary>Absolute path of an existing game file, or null if there is no such file.</summary>
