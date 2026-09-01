@@ -1,4 +1,3 @@
-using android.graphics;
 using android.os;
 
 namespace android.view;
@@ -12,10 +11,12 @@ public class View
 
 	public void __onDraw()
 	{
-		onDraw(null);
+		onDraw();
 	}
 
-	protected virtual void onDraw(Canvas canvas)
+	// PORT: took an android.graphics.Canvas that was only ever passed as null -
+	// the surface view forwards straight to the renderer.
+	protected virtual void onDraw()
 	{
 	}
 }

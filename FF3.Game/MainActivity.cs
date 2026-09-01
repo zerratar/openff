@@ -4,16 +4,12 @@ using Microsoft.Phone.Tasks;
 using Microsoft.Xna.Framework.Media;
 using android.app;
 using android.content;
-using android.graphics;
 using android.opengl;
 using android.os;
 using android.text;
 using android.view;
 using android.view.inputmethod;
 using android.widget;
-using java.io;
-using javax.microedition.khronos.egl;
-using javax.microedition.khronos.opengles;
 
 public class MainActivity : Activity, GLSurfaceView.Renderer
 {
@@ -167,23 +163,19 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 	{
 		base.onCreate(savedInstanceState);
 		setVolumeControlStream(3);
-		InputStream inputStream = null;
+		// PORT: the selected language is a single byte in an embedded resource. This
+		// used to be read through an Android raw-resource InputStream.
 		try
 		{
-			inputStream = getResources().openRawResource(2130968576);
-			byte[] array = new byte[1];
-			inputStream.read(array);
-			language = array[0];
+			byte[] selected = syrcusW.res.raw.language.language_dat;
+			if (selected != null && selected.Length > 0)
+			{
+				language = selected[0];
+			}
 		}
-		catch (Exception)
+		catch (Exception ex)
 		{
-		}
-		try
-		{
-			inputStream.close();
-		}
-		catch (Exception)
-		{
+			FF3.Log.Write(FF3.LogChannel.General, "language resource unreadable: " + ex.Message);
 		}
 		mGLSurfaceView = new GLSurfaceView(this);
 		mGLSurfaceView.setRenderer(this);
@@ -272,12 +264,12 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		base.finish();
 	}
 
-	public void onSurfaceCreated(GL10 gl, EGLConfig config)
+	public void onSurfaceCreated()
 	{
 		activity = this;
 	}
 
-	public void onSurfaceChanged(GL10 gl, int width, int height)
+	public void onSurfaceChanged(int width, int height)
 	{
 		if (width * 480 >= height * 800)
 		{
@@ -291,7 +283,8 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		}
 		viewX = (width - viewW) / 2;
 		viewY = (height - viewH) / 2;
-		gl.glViewport(viewX, viewY, viewW, viewH);
+		// PORT: the viewport is owned by the renderer; these values remain
+		// because onTouchEvent normalises against them.
 	}
 
 	public override bool onTouchEvent(MotionEvent e)
@@ -350,7 +343,7 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 		return base.onKeyDown(keyCode, @event);
 	}
 
-	public void onDrawFrame(GL10 gl)
+	public void onDrawFrame()
 	{
 		if (end)
 		{
@@ -546,35 +539,15 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 
 	public static int[] loadTexture(byte[] data)
 	{
-		FF3.Log.First(FF3.LogChannel.Texture, "loadTexture", 200, () => $"data={(data == null ? -1 : data.Length)} bytes"); /*FF3LOG*/
-		BitmapFactory.Options options = new BitmapFactory.Options();
-		options.inScaled = false;
-		Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.Length, options);
-		int width = bitmap.getWidth();
-		int height = bitmap.getHeight();
-		int[] array = new int[width * height + 2];
-		array[0] = width;
-		array[1] = height;
-		bitmap.getPixels(array, 2, width, 0, 0, width, height);
-		bitmap.recycle();
-		return array;
+		// PORT: went through android.graphics.BitmapFactory -> Bitmap -> ByteBuffer,
+		// all of which only wrapped Texture2D.FromStream.
+		return FF3.ImageDecoder.Decode(data);
 	}
 
-	public static int[] drawFont(string text, int size, int fontSize, int y)
-	{
-		Paint paint = new Paint();
-		paint.setTextSize(fontSize);
-		Paint.FontMetrics fontMetrics = paint.getFontMetrics();
-		Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-		Canvas canvas = new Canvas(bitmap);
-		paint.setAntiAlias(aa: true);
-		canvas.drawText(text, 0f, (float)y - (fontMetrics.top + fontMetrics.bottom) / 2f, paint);
-		int[] array = new int[size * size + 1];
-		array[0] = (int)paint.measureText(text);
-		bitmap.getPixels(array, 1, size, 0, 0, size, size);
-		bitmap.recycle();
-		return array;
-	}
+	// PORT: drawFont() rendered text into a bitmap via android.graphics.Canvas
+	// and Paint. Nothing calls it - the game draws text with SpriteFont pages
+	// through GlobalScope.Graphics.DrawString - and the Canvas/Paint shims were
+	// stubs that would have thrown on the first call anyway.
 
 	public static void playSound(int channel, string filename)
 	{

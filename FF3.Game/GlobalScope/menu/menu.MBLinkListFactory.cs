@@ -13,7 +13,6 @@ using Microsoft.Xna.Framework.Graphics;
 using android.content;
 using android.text;
 using android.widget;
-using java.io;
 using syrcusW.res.raw;
 using syrcusW.res.values;
 

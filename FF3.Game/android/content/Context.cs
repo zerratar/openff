@@ -1,5 +1,4 @@
-using java.io;
-
+﻿
 namespace android.content;
 
 public abstract class Context
@@ -12,5 +11,4 @@ public abstract class Context
 
 	public const string KEYGUARD_SERVICE = "keyguard";
 
-	public abstract File getCacheDir();
 }

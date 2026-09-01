@@ -1,10 +1,8 @@
-using android.content;
+﻿using android.content;
 using android.content.res;
 using android.os;
 using android.view;
 using android.view.inputmethod;
-using java.io;
-using java.util;
 
 namespace android.app;
 
@@ -53,11 +51,6 @@ public class Activity : Context
 				return this;
 			}
 
-			public Editor putStringSet(string key, Set<string> values)
-			{
-				return this;
-			}
-
 			public Editor remove(string key)
 			{
 				return this;
@@ -96,11 +89,6 @@ public class Activity : Context
 	public Context getApplicationContext()
 	{
 		return this;
-	}
-
-	public override File getCacheDir()
-	{
-		return new File("cache/");
 	}
 
 	public SharedPreferences getPreferences(int mode)

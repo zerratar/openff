@@ -1,5 +1,4 @@
-using java.util;
-
+﻿
 namespace android.content;
 
 public abstract class SharedPreferences
@@ -22,7 +21,6 @@ public abstract class SharedPreferences
 
 		Editor putString(string key, string value);
 
-		Editor putStringSet(string key, Set<string> values);
 
 		Editor remove(string key);
 	}

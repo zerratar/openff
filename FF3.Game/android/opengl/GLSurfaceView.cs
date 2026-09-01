@@ -1,49 +1,34 @@
 using android.content;
-using android.graphics;
 using android.view;
-using javax.microedition.khronos.egl;
-using javax.microedition.khronos.opengles;
 
 namespace android.opengl;
 
+// PORT: was a GLSurfaceView driving a GL ES renderer. FF3.NativeRenderer owns
+// rendering now, so the GL10 context and EGLConfig that every callback used to
+// carry are gone; what remains is the surface lifecycle the game still relies on.
 public class GLSurfaceView : SurfaceView
 {
 	public interface Renderer
 	{
-		void onDrawFrame(GL10 gl);
+		void onDrawFrame();
 
-		void onSurfaceChanged(GL10 gl, int width, int height);
+		/// <summary>Reports the drawing surface size. The game derives its touch
+		/// mapping from this, so it is still meaningful.</summary>
+		void onSurfaceChanged(int width, int height);
 
-		void onSurfaceCreated(GL10 gl, EGLConfig config);
+		void onSurfaceCreated();
 	}
-
-	private class NullGL10 : GL10
-	{
-		public void glViewport(int x, int y, int width, int height)
-		{
-		}
-	}
-
-	private class NullEGLConfig : EGLConfig
-	{
-	}
-
-	private NullGL10 m_Gl10;
-
-	private NullEGLConfig m_Config;
 
 	private Renderer m_Renderer;
 
 	public GLSurfaceView(Context context)
 		: base(context)
 	{
-		m_Gl10 = new NullGL10();
-		m_Config = new NullEGLConfig();
 	}
 
-	protected override void onDraw(Canvas canvas)
+	protected override void onDraw()
 	{
-		m_Renderer.onDrawFrame(m_Gl10);
+		m_Renderer.onDrawFrame();
 	}
 
 	public void onPause()
@@ -57,7 +42,7 @@ public class GLSurfaceView : SurfaceView
 	public void setRenderer(Renderer renderer)
 	{
 		m_Renderer = renderer;
-		m_Renderer.onSurfaceCreated(m_Gl10, m_Config);
-		m_Renderer.onSurfaceChanged(m_Gl10, 800, 480);
+		m_Renderer.onSurfaceCreated();
+		m_Renderer.onSurfaceChanged(800, 480);
 	}
 }

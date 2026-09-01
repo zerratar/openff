@@ -1,8 +1,7 @@
-using System;
+﻿using System;
 using System.Threading;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
-using java.io;
 
 namespace android.media;
 
@@ -59,10 +58,6 @@ public class MediaPlayer
 	{
 		m_Content = GlobalScope.m_Graphics.CreateContentManager();
 		m_Sound = m_Content.Load<SoundEffect>(path);
-	}
-
-	public void setDataSource(FileDescriptor fd)
-	{
 	}
 
 	public void setLooping(bool looping)

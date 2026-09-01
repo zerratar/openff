@@ -1,9 +1,7 @@
-using System;
-using java.io;
+﻿using System;
 
 public static class JavaSystem
 {
-	public static PrintStream @out = new PrintStream();
 
 	public static void arraycopy(Array src, int srcPos, Array dst, int dstPos, int length)
 	{
