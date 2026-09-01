@@ -328,11 +328,7 @@ public class MainActivity : Activity, GLSurfaceView.Renderer
 			catch (Exception)
 			{
 			}
-			KeyguardManager keyguardManager = (KeyguardManager)getSystemService("keyguard");
-			if (keyguardManager.inKeyguardRestrictedInputMode())
-			{
-				return;
-			}
+			// PORT: waited here until the phone's lock screen was dismissed.
 			touchPeak = (touchCount = 0);
 			suspend = false;
 			sound.pauseSoundAll(pause: false);

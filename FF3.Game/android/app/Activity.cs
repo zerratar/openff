@@ -1,5 +1,4 @@
 ﻿using android.content;
-using android.content.res;
 using android.os;
 using android.view;
 
@@ -7,70 +6,6 @@ namespace android.app;
 
 public class Activity : Context
 {
-	private class NullSharedPreferences : SharedPreferences
-	{
-		private class NullEditor : Editor
-		{
-			public void apply()
-			{
-			}
-
-			public Editor clear()
-			{
-				return this;
-			}
-
-			public bool commit()
-			{
-				return true;
-			}
-
-			public Editor putBoolean(string key, bool value)
-			{
-				return this;
-			}
-
-			public Editor putFloat(string key, float value)
-			{
-				return this;
-			}
-
-			public Editor putInt(string key, int value)
-			{
-				return this;
-			}
-
-			public Editor putLong(string key, long value)
-			{
-				return this;
-			}
-
-			public Editor putString(string key, string value)
-			{
-				return this;
-			}
-
-			public Editor remove(string key)
-			{
-				return this;
-			}
-		}
-
-		public override Editor edit()
-		{
-			return new NullEditor();
-		}
-
-		public override string getString(string key, string defValue)
-		{
-			return "";
-		}
-	}
-
-	private static KeyguardManager m_KeyguardManager = new KeyguardManager();
-
-	private static Resources m_Resources = new Resources();
-
 	private View m_View;
 
 	public virtual void finish()
@@ -88,11 +23,6 @@ public class Activity : Context
 		return this;
 	}
 
-	public SharedPreferences getPreferences(int mode)
-	{
-		return new NullSharedPreferences();
-	}
-
 	public string getString(string resId)
 	{
 		return resId;
@@ -102,7 +32,6 @@ public class Activity : Context
 	{
 		return name switch
 		{
-			"keyguard" => m_KeyguardManager, 
 			_ => null, 
 		};
 	}
@@ -115,11 +44,6 @@ public class Activity : Context
 	public virtual bool onTouchEvent(MotionEvent @event)
 	{
 		return true;
-	}
-
-	public Resources getResources()
-	{
-		return m_Resources;
 	}
 
 	// PORT: openFileOutput() mapped Android's private per-app storage onto
