@@ -289,8 +289,7 @@ function makeTab(doc, group) {
   tab.title = doc.name + (doc.preview ? '  (preview - double click to keep)' : '');
   tab.draggable = true;
 
-  const kind = document.createElement('i');
-  kind.textContent = doc.kind;
+  const kind = icon(doc.kind);
   const label = document.createElement('span');
   label.textContent = shortName(doc.name);
 
@@ -365,7 +364,10 @@ function drawHierarchy() {
       shown++;
       const row = document.createElement('li');
       row.className = 'row' + (activeDoc.selection === child.ref ? ' on' : '');
-      row.textContent = child.label;
+      row.append(icon(child.icon || 'file'));
+      const text = document.createElement('span');
+      text.textContent = child.label;
+      row.append(text);
       if (child.note) {
         const tag = document.createElement('i');
         tag.textContent = child.note;
@@ -395,7 +397,9 @@ function outlineFor(doc) {
     if (scene.terrain) {
       groups.push({
         label: 'Terrain',
-        children: [{ label: shortName(scene.terrain), ref: 'terrain', note: 'model' }]
+        children: [{
+          label: shortName(scene.terrain), ref: 'terrain', note: 'model', icon: 'terrain'
+        }]
       });
     }
     groups.push({
@@ -404,19 +408,20 @@ function outlineFor(doc) {
         label: o.name,
         note: o.hasScript ? `${o.instructions}` : 'no script',
         ref: `object:${o.index}`,
+        icon: 'character',
         reveal: () => revealObject(doc, o)
       }))
     });
     groups.push({
       label: 'Logic',
       children: scene.logic.map(o => ({
-        label: o.name, ref: `object:${o.index}`, note: `cast ${o.cast}`
+        label: o.name, ref: `object:${o.index}`, note: `cast ${o.cast}`, icon: 'logic'
       }))
     });
     groups.push({
       label: 'Exits',
       children: scene.exits.map((e, i) => ({
-        label: `${e.to || '?'} at ${e.x},${e.z}`, ref: `exit:${i}`
+        label: `${e.to || '?'} at ${e.x},${e.z}`, ref: `exit:${i}`, icon: 'exit'
       }))
     });
     return groups;
@@ -428,7 +433,8 @@ function outlineFor(doc) {
       children: data.groups.map((g, i) => ({
         label: g.shape || `part ${i}`,
         note: g.texture || '',
-        ref: `part:${i}`
+        ref: `part:${i}`,
+        icon: 'part'
       }))
     }];
   }
@@ -437,7 +443,8 @@ function outlineFor(doc) {
     return [{
       label: 'Cells',
       children: data.cells.map(c => ({
-        label: `cell ${c.index}`, note: `${c.parts.length}`, ref: `cell:${c.index}`
+        label: `cell ${c.index}`, note: `${c.parts.length}`, ref: `cell:${c.index}`,
+        icon: 'cell'
       }))
     }];
   }
@@ -454,6 +461,7 @@ function outlineFor(doc) {
         label: `${match[1]} ${match[2]}`,
         note: `line ${line}`,
         ref: `line:${line}`,
+        icon: 'logic',
         reveal: () => revealLine(doc, line)
       });
     }
@@ -620,7 +628,10 @@ function drawProjectTree() {
   for (const kind of KINDS) {
     const row = document.createElement('div');
     row.className = 'row' + (kind.id === browseKind ? ' on' : '');
-    row.textContent = kind.label;
+    row.append(icon(kind.id));
+    const label = document.createElement('span');
+    label.textContent = kind.label;
+    row.append(label);
     row.onclick = () => selectKind(kind.id);
     tree.append(row);
   }
@@ -761,6 +772,31 @@ $$('#bottom-tabs button').forEach(button => {
     }
   };
 });
+
+// The project list shows either one file per line or a wrapped grid of icons. Which
+// one is remembered, because it is a habit rather than a per-file choice.
+let fileView = 'list';
+try {
+  fileView = localStorage.getItem('ff3-editor-files') || 'list';
+} catch (error) {
+  fileView = 'list';
+}
+
+function setFileView(which) {
+  fileView = which;
+  $('#files').classList.toggle('grid', which === 'grid');
+  $('#view-list').classList.toggle('on', which === 'list');
+  $('#view-grid').classList.toggle('on', which === 'grid');
+  try {
+    localStorage.setItem('ff3-editor-files', which);
+  } catch (error) {
+    // Not being able to remember the choice is not worth interrupting anyone over.
+  }
+}
+
+$('#view-list').onclick = () => setFileView('list');
+$('#view-grid').onclick = () => setFileView('grid');
+setFileView(fileView);
 
 $('#hierarchy-filter').addEventListener('input', drawHierarchy);
 $('#filter').addEventListener('input', drawList);

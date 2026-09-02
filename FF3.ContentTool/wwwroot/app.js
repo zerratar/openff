@@ -70,7 +70,11 @@ function drawList() {
   for (const file of state.files) {
     if (filter && !file.name.toLowerCase().includes(filter)) continue;
     const item = document.createElement('li');
-    item.textContent = file.name;
+    item.append(icon(state.browse));
+    const label = document.createElement('span');
+    // The grid has no room for a folder, and in a list the folder is worth keeping.
+    label.textContent = fileView === 'grid' ? shortName(file.name) : file.name;
+    item.append(label);
     item.title = file.name;
     const open_ = docs.has(docId(state.browse, file.name));
     item.className = (file.overridden ? 'overridden ' : '')

@@ -58,7 +58,17 @@
       <div class="bottom-page on" data-page="project">
         <div id="project-tree" class="tree"></div>
         <div id="project-side">
-          <input id="filter" type="search" placeholder="filter" autocomplete="off">
+          <div id="project-bar">
+            <input id="filter" type="search" placeholder="filter" autocomplete="off">
+            <span class="views">
+              <button id="view-list" class="on" title="list">
+                <svg viewBox="0 0 16 16" class="icon"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+              </button>
+              <button id="view-grid" title="icons">
+                <svg viewBox="0 0 16 16" class="icon"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+              </button>
+            </span>
+          </div>
           <ul id="files"></ul>
         </div>
       </div>
@@ -283,6 +293,7 @@
   </div>
 </template>
 
+<script src="icons.js"></script>
 <script src="app.js"></script>
 <script src="script-editor.js"></script>
 <script src="map-editor.js"></script>

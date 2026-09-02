@@ -46,8 +46,14 @@ Four panels round a document area, the way a scene editor is laid out:
 - **Inspector**, right - facts about the open asset even with nothing selected, and the
   details of whatever is selected underneath.
 - **Project and Console**, bottom - the libraries as a tree with their files beside
-  them, and a running record of everything the status line has said. The three bars
-  between the panels drag, and their sizes are remembered.
+  them, and a running record of everything the status line has said. The files show
+  either one per line or as a wrapped grid of icons; which one is remembered. The three
+  bars between the panels drag, and their sizes are remembered too.
+
+Every asset kind has a mark of its own, and so does every kind of thing inside one - a
+character, a logic cast, an exit, a mesh part. They are inline SVG, drawn in
+`currentColor` so one copy of each serves a dim row, a bright one and a selected one
+without a second file. `wwwroot/icons.js`.
 
 ## Maps in 2D and 3D
 
