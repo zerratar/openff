@@ -241,6 +241,39 @@ function drawMap(node) {
   }
 }
 
+/// Takes the camera to whatever is selected. Nothing selected is not an error worth
+/// a red line, so it says so on the status line and stays where it is.
+function focusSelection(doc) {
+  const scene = doc.data && doc.data.scene;
+  if (!doc.scene3d || !scene || !doc.selection) {
+    say('nothing selected to focus on');
+    return;
+  }
+
+  if (doc.selection.startsWith('object:')) {
+    const index = Number(doc.selection.slice(7));
+    const item = scene.objects.find(o => o.index === index);
+    if (item) {
+      doc.scene3d.focus(item);
+      say(`focused ${item.name}`);
+    }
+    return;
+  }
+
+  if (doc.selection.startsWith('exit:')) {
+    const index = Number(doc.selection.slice(5));
+    doc.scene3d.focusExit(index);
+    const exit = scene.exits[index];
+    say(`focused the exit to ${(exit && exit.to) || '(nowhere)'}`);
+    return;
+  }
+
+  if (doc.selection === 'terrain') {
+    doc.scene3d.reset();
+    say('framed the whole map');
+  }
+}
+
 /// How big the arrows are, remembered between visits.
 function gizmoScale() {
   try {
@@ -575,6 +608,15 @@ function wireSceneInput(canvas, doc) {
     if (target && target.matches
       && target.matches('input, textarea, [contenteditable]')) return;
     const key = event.key.toLowerCase();
+
+    // F frames whatever is selected, wherever the selection was made - the hierarchy
+    // and the scene are one selection, so it does not matter which you clicked in.
+    if (key === 'f') {
+      event.preventDefault();
+      focusSelection(doc);
+      return;
+    }
+
     if (key !== 'w' && key !== 'e') return;
     event.preventDefault();
     doc.useTool(key === 'w' ? 'move' : 'rotate');

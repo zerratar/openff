@@ -597,8 +597,8 @@ function makeMapScene(canvas, status) {
       if (!exit) return;
       selectedExit = index;
       selected = null;
-      centre = [exit.x, exit.y, exit.z];
-      distance = 90;
+      centre = [exit.x, exit.y + 6, exit.z];
+      distance = 46;
       draw();
     },
 
@@ -730,10 +730,17 @@ function makeMapScene(canvas, status) {
 
     onMove(callback) { onMoved = callback || (() => {}); },
 
+    /// Frames something, the way F does in a scene view. How far back to stand comes
+    /// from the model's own size where it is known, so a villager fills the view and a
+    /// building does not fall out of it - a fixed distance did one or the other.
     focus(item) {
-      selected = item.index;
-      centre = [item.x, item.y, item.z];
-      distance = 90;
+      if (item.index !== undefined && item.index >= 0) selected = item.index;
+      const entry = item.package && loaded.get(item.package);
+      const radius = entry && entry.radius ? entry.radius * (item.scale || 1) : 6;
+      const lift = entry && entry.centre ? entry.centre[1] * (item.scale || 1) : radius;
+
+      centre = [item.x, item.y + lift, item.z];
+      distance = Math.max(9, radius * 3.2);
       draw();
     },
 

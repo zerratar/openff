@@ -92,8 +92,11 @@ the scene and clicking in the hierarchy are the same selection, and editing a po
 the inspector moves the character in whichever view is showing.
 
 Whatever is selected gets a **gizmo**, on by default and switched off from the bar.
-**W** moves and **E** turns, the same keys and the same order a scene editor usually
-uses. There is no scale gizmo because there is no scale to edit: a `.hich` row holds a
+**W** moves, **E** turns and **F** frames whatever is selected, the same keys a scene
+editor usually uses. F works from either end - the hierarchy and the scene are one
+selection - and how far back it stands comes from the model's own size, so a villager
+fills the view and a building does not fall out of it. On the terrain row it frames the
+whole map instead. There is no scale gizmo because there is no scale to edit: a `.hich` row holds a
 position and one angle, and its scale is 1 in 2063 of 2067 rows.
 
 The rotate gizmo is a single ring in the ground plane, because facing is the one angle
