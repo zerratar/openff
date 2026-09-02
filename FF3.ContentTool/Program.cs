@@ -11,6 +11,7 @@
 //   dotnet run --project FF3.ContentTool -- script       <file.script | dir> [out] [--text=<dir>]
 //   dotnet run --project FF3.ContentTool -- script-build <file.ffs | dir> [out]
 //   dotnet run --project FF3.ContentTool -- ops [filter]
+//   dotnet run --project FF3.ContentTool -- tex         <file.lz | dir> [out]
 //   dotnet run --project FF3.ContentTool -- hich        <file.hich | dir> [out]
 //   dotnet run --project FF3.ContentTool -- editor [--content=<dir>] [--port=5050]
 //   dotnet run --project FF3.ContentTool -- lz          <file.lz | dir> [out]
@@ -105,6 +106,13 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return ScriptDump(args.Skip(1).ToArray());
+					case "tex":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return TexDump(args[1], args.Length > 2 ? args[2] : null);
 					case "hich":
 						if (args.Length < 2)
 						{
@@ -184,6 +192,7 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  script-build <file.ffs | dir> [out]");
 			Console.Error.WriteLine("                                    .ffs source -> event bytecode");
 			Console.Error.WriteLine("  ops [filter]                      list script instructions");
+			Console.Error.WriteLine("  tex         <file.lz | dir> [out]  textures -> PNG");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
 			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--language=en]");
 			Console.Error.WriteLine("                                    open the content editor in a browser");
@@ -458,6 +467,113 @@ namespace FF3.ContentTool
 				? "all of them compile back to the exact bytes they came from"
 				: notExact + " do not compile back to the same bytes");
 			return failed > 0 || notExact > 0 ? 1 : 0;
+		}
+
+		/// <summary>
+		/// Pulls every texture out of the NMDP packages as PNG. Reports what it found
+		/// by format, because a format nothing uses is a format nothing has tested.
+		/// </summary>
+		private static int TexDump(string input, string output)
+		{
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.lz", SearchOption.AllDirectories)
+					.Where(p => p.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase)
+						|| p.EndsWith(".ntxp.lz", StringComparison.OrdinalIgnoreCase))
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .nmdp.lz or .ntxp.lz files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+			Directory.CreateDirectory(outputDir);
+
+			Dictionary<string, int> byFormat = new Dictionary<string, int>(StringComparer.Ordinal);
+			int packages = 0;
+			int written = 0;
+			int noTextures = 0;
+			List<string> failed = new List<string>();
+
+			foreach (string file in files)
+			{
+				byte[] data;
+				try
+				{
+					data = Lz.Decompress(File.ReadAllBytes(file));
+				}
+				catch (InvalidDataException)
+				{
+					failed.Add(Path.GetFileName(file) + ": will not decompress");
+					continue;
+				}
+
+				if (Tex0.Find(data) < 0)
+				{
+					noTextures++;
+					continue;
+				}
+
+				Tex0File package;
+				try
+				{
+					package = Tex0.Read(data);
+				}
+				catch (Exception ex)
+				{
+					failed.Add(Path.GetFileName(file) + ": " + ex.Message);
+					continue;
+				}
+
+				packages++;
+				string stem = Path.GetFileNameWithoutExtension(
+					Path.GetFileNameWithoutExtension(file));
+
+				foreach (Tex0Texture texture in package.Textures)
+				{
+					byFormat.TryGetValue(texture.FormatName, out int seen);
+					byFormat[texture.FormatName] = seen + 1;
+
+					if (texture.Problem != null)
+					{
+						failed.Add(stem + "/" + texture.Name + ": " + texture.Problem);
+						continue;
+					}
+					try
+					{
+						byte[] rgba = Tex0.Decode(package, texture);
+						string safe = texture.Name;
+						foreach (char bad in Path.GetInvalidFileNameChars())
+						{
+							safe = safe.Replace(bad, '_');
+						}
+						Png.Write(Path.Combine(outputDir, stem + "." + safe + ".png"),
+							texture.Width, texture.Height, rgba);
+						written++;
+					}
+					catch (Exception ex)
+					{
+						failed.Add(stem + "/" + texture.Name + ": " + ex.Message);
+					}
+				}
+			}
+
+			Console.WriteLine("{0} package(s) with textures, {1} without, {2} PNGs -> {3}",
+				packages, noTextures, written, Path.GetFullPath(outputDir));
+			Console.WriteLine("by format: " + string.Join(", ", byFormat
+				.OrderByDescending(f => f.Value)
+				.Select(f => string.Format(CultureInfo.InvariantCulture, "{0} {1}", f.Value, f.Key))));
+			if (failed.Count > 0)
+			{
+				Console.WriteLine("{0} could not be decoded:", failed.Count);
+				foreach (string problem in failed.Take(10))
+				{
+					Console.WriteLine("   " + problem);
+				}
+			}
+			return failed.Count > 0 ? 1 : 0;
 		}
 
 		/// <summary>

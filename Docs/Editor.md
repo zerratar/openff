@@ -158,6 +158,22 @@ checkerboard, so transparency is obvious, with its dimensions, colour type and s
 different size is allowed but called out, because the game lays some of these out
 expecting a particular one. This is the only art that can be replaced today.
 
+## Textures
+
+The 3D textures, all 2828 of them, across 1589 packages. A package opens as a gallery -
+most hold one to three textures, some a dozen - and clicking one shows it large with its
+size, format, palette and a plain-English note on what the format is. **Save as PNG**
+takes it out.
+
+Unlike the Images tab, nothing here is served straight through: a texture lives inside a
+TEX0 block, inside an NMDP package, inside an LZ-compressed archive entry, so each is
+decoded on the way out. The listing is deliberately in two steps - naming the packages
+is free, opening one costs a decompression - so it happens when you click, not up front.
+
+A model with no textures of its own says so and offers to open the `.ntxp` that has
+them. Textures are read-only; writing one back means re-quantising to a palette or to
+4x4 blocks, which is not done yet. `Docs/Graphics.md`.
+
 ## Audio
 
 445 sounds - 30 music tracks and the rest effects - with their length, format, parts
@@ -211,11 +227,12 @@ switch files.
   having the id filled in, or a map, or an item, is the obvious next step, and it wants
   a per-operand note saying which table an argument points into.
 
-- **3D graphics** - models and textures are NitroSDK `BMD0`/`BTX0` inside an `NMDP`
-  wrapper and are not decoded. That is what stands between the map view and a town
-  rather than dots. The 2D pictures are readable; what is missing for a menu that
-  looks like the game is `.NCER` and `.NSCR`, which say which part of a sheet is used
-  and where it goes. `Docs/Graphics.md`.
+- **3D geometry** - textures now decode and have a tab of their own, but `MDL0` does
+  not, so the map view still draws dots rather than a town. What is missing for a menu
+  that looks like the game is `.NCER` and `.NSCR`, which say which part of a sheet is
+  used and where it goes. `Docs/Graphics.md`.
+- **Writing textures back** - reading a TEX0 is done; writing one means re-quantising
+  to a 256 colour palette or to 4x4 blocks.
 - **Audio** - deliberately untouched.
 - **New menus** - adding a widget means duplicating one.
 - **New maps** - cloning one is plausible; authoring geometry is not, because models

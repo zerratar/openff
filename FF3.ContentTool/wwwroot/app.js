@@ -38,6 +38,10 @@ async function loadList() {
     state.files = state.images.map(image => ({
       name: image.name, overridden: image.overridden
     }));
+  } else if (state.kind === 'texture') {
+    const textures = await api('/api/textures');
+    state.textureFormats = textures.formats;
+    state.files = textures.packages.map(p => ({ name: p.name, overridden: false, kind: p.kind }));
   } else if (state.kind === 'map') {
     const maps = await api('/api/maps');
     state.files = maps.map(name => ({ name, overridden: false }));
@@ -87,6 +91,7 @@ async function open(name) {
     else if (state.kind === 'table') await openTable(name);
     else if (state.kind === 'audio') await openAudio(name);
     else if (state.kind === 'image') await openImage(name);
+    else if (state.kind === 'texture') await openTexture(name);
     else await openText(name);
     say('');
   } catch (error) {
@@ -770,6 +775,119 @@ async function openImage(name) {
       : `replaced, ${result.width}×${result.height}`,
       result.resized ? 'bad' : 'good');
   };
+}
+
+// --------------------------------------------------------------------- textures
+
+// A package holds anything from one texture to a dozen, so this shows the lot as a
+// gallery and puts the details of whichever you click beside it. Each thumbnail is a
+// separate decode on the server, which is why they are <img> tags rather than one
+// sheet - the browser asks for them as it draws them.
+
+async function openTexture(name) {
+  const node = view('texture', name, false);
+  const gallery = $('.gallery', node);
+  const detail = $('.detail', node);
+  const facts = $('.facts', node);
+
+  const textures = await api(`/api/texture?name=${encodeURIComponent(name)}`);
+  if (textures.error) {
+    facts.textContent = textures.error;
+    gallery.textContent = '';
+    return;
+  }
+  if (!textures.length) {
+    facts.textContent = 'geometry only';
+    gallery.textContent = '';
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = 'This package has no textures of its own - it is a model that '
+      + 'uses a shared .ntxp. 463 of the 833 models are like this.';
+    gallery.append(empty);
+
+    // The textures are almost always in the .ntxp of the same name, so say which
+    // one and take you there rather than leaving you to guess.
+    const sibling = name.replace(/\.nmdp\.lz$/, '.ntxp.lz');
+    if (sibling !== name && state.files.some(f => f.name === sibling)) {
+      const link = document.createElement('button');
+      link.textContent = `Open ${sibling}`;
+      link.onclick = () => open(sibling);
+      empty.after(link);
+    }
+    return;
+  }
+
+  facts.textContent = textures.length === 1 ? '1 texture' : `${textures.length} textures`;
+
+  const checker = $('.checker', node);
+  const paint = () => gallery.classList.toggle('checker', checker.checked);
+  checker.onchange = paint;
+  paint();
+
+  let chosen = null;
+  for (const texture of textures) {
+    const cell = document.createElement('figure');
+    cell.className = 'cell';
+
+    const picture = document.createElement('img');
+    picture.loading = 'lazy';
+    picture.alt = texture.name;
+    picture.src = `/api/texture/png?name=${encodeURIComponent(name)}&index=${texture.index}`;
+    const caption = document.createElement('figcaption');
+    caption.textContent = texture.name;
+    cell.append(picture, caption);
+
+    cell.onclick = () => {
+      if (chosen) chosen.classList.remove('on');
+      chosen = cell;
+      cell.classList.add('on');
+      showTexture(detail, name, texture);
+    };
+    gallery.append(cell);
+  }
+
+  gallery.firstElementChild.onclick();
+}
+
+function showTexture(detail, packageName, texture) {
+  detail.textContent = '';
+
+  const big = document.createElement('img');
+  big.className = 'big';
+  big.src = `/api/texture/png?name=${encodeURIComponent(packageName)}&index=${texture.index}`;
+  detail.append(big);
+
+  const facts = document.createElement('dl');
+  const fact = (label, value) => {
+    if (value === null || value === undefined || value === '') return;
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    dd.textContent = value;
+    facts.append(dt, dd);
+  };
+
+  fact('name', texture.name);
+  fact('size', `${texture.width} × ${texture.height}`);
+  fact('format', texture.format);
+  fact('what that means', (state.textureFormats || {})[texture.format]);
+  fact('palette', texture.palette);
+  fact('problem', texture.problem);
+  detail.append(facts);
+
+  const save = document.createElement('a');
+  save.className = 'button';
+  save.textContent = 'Save as PNG';
+  save.href = big.src;
+  save.download = `${packageName.replace(/\.lz$/, '')}.${texture.name}.png`;
+  detail.append(save);
+
+  const note = document.createElement('p');
+  // Not .note - that class is already a hidden-until-toggled banner elsewhere.
+  note.className = 'caveat';
+  note.textContent = 'Read-only for now. Putting a texture back means writing a TEX0 - '
+    + 're-quantising to a palette, or to 4×4 blocks - which is a bigger job than reading one.';
+  detail.append(note);
 }
 
 // ------------------------------------------------------------------------ audio

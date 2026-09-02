@@ -46,13 +46,85 @@ NMDP
 reader is right there - `nmdp.SModelFileHeader` and `ds.sys3d.CModelSet.setup` - so the
 wrapper needs no guessing either.
 
-Nothing here is decoded yet. The order that gets the most from the least is:
+## TEX0: the textures
 
-1. **TEX0** - textures on their own. That is what a monster and a character wear, and
-   it is the smaller half of the format.
-2. **MDL0** - geometry, which the map view needs before it can draw a town rather than
+**Done.** All 2828 of them decode. `ff3content tex <dir> <out>` writes the lot as PNG,
+and the editor's **Textures** tab shows any package as a gallery.
+
+Of the 1589 packages, 1126 hold a TEX0 - every one of the 756 `.ntxp`, and 370 of the
+833 `.nmdp`. The other 463 models carry geometry only and borrow the `.ntxp` of the same
+name; 459 of them have one, and the 4 that do not (`o000`, `o024`, `shadow01`,
+`shadow02`) are untextured. The tab links a model to its `.ntxp` rather than making you
+guess.
+
+### Layout
+
+The block is `NNSG3dResTex`, three near-identical info structs and two dictionaries:
+
+```
++0   "TEX0", size
++8   texInfo    skip, sizeTex>>3, ofsDict, flag, dummy, ofsTex
++24  tex4x4Info the same, then ofsTexPlttIdx
++44  plttInfo   skip, sizePltt>>3, flag, ofsDict, dummy, ofsPlttData
+```
+
+A dictionary entry is the texture's `texImageParam`:
+
+| bits | |
+| --- | --- |
+| 0-19 | where its pixels start, in 8-byte units |
+| 20-22 | width = `8 << value` |
+| 23-25 | height = `8 << value` |
+| 26-28 | format |
+| 29 | whether palette entry 0 is transparent |
+
+Names are 16 bytes and mostly ASCII, but not all: `n211` and `n281` were typed with a
+Japanese keyboard still in wide mode and begin with a fullwidth `ｎ`. They are read
+through the game's own Shift-JIS table, the same one the dialogue uses.
+
+Palettes are paired to textures by name - `sougen01` takes `sougen01_pl` - falling back
+to position. The game's own fast path only ever handles one of each, so the convention
+is the only rule there is; 1111 of 1126 packages have one palette per texture anyway.
+
+### Checking it
+
+Byte-exact round-trip is not available here: writing a TEX0 means re-quantising, so
+there is nothing to compare against. Instead the structure checks itself.
+
+Every texture's extent was computed from its own address, size and format, and compared
+with every other texture in the same package:
+
+- **no overlapping pairs**, across all 2828. Getting width, height, format or address
+  wrong anywhere would collide with a neighbour.
+- **963 packages fit their declared block to the byte**, with nothing left over.
+- 599 textures appear to run past `sizeTex` - but every overrun is an exact multiple of
+  524288, and `sizeTex` is a `u16` counting 8-byte units, so it simply wraps at 512 kB.
+  A wrong reading would not miss by a round number.
+
+The pixel conversion is `GlobalScope.LoadTexture` ported case for case, including the
+things that look like mistakes and are not: `pal256` scales colour by `*255/31` while
+every other format shifts up by 3 and tops out at 248, and interpolated 4x4 pixels come
+out with alpha 248 rather than 255. The game draws it that way, so this does too.
+
+| Format | Count | |
+| --- | ---: | --- |
+| `pal256` | 1786 | one byte per pixel |
+| `4x4` | 464 | 4x4 blocks sharing two or four colours |
+| `a5i3` | 294 | 3 bits of index, 5 of alpha - shadows |
+| `pal16` | 211 | half a byte per pixel |
+| `a3i5` | 40 | 5 bits of index, 3 of alpha |
+| `pal4` | 17 | a quarter byte per pixel |
+| `rgb555` | 16 | the colour itself, 15 bits, plus 1 of alpha |
+
+Textures are read-only. Putting one back means writing a TEX0 - re-quantising to a
+palette, or to 4x4 blocks - which is a larger job than reading one, and the tab says so
+rather than offering a button that half works.
+
+## What is left
+
+1. **MDL0** - geometry, which the map view needs before it can draw a town rather than
    dots.
-3. **NANR / NCER / NSCR** - the 2D animation, cell and screen tables. The pictures are
+2. **NANR / NCER / NSCR** - the 2D animation, cell and screen tables. The pictures are
    already readable; these say which part of a sheet is used and where it goes, which
    is what a menu preview needs to show the real thing.
 
@@ -61,8 +133,8 @@ Nothing here is decoded yet. The order that gets the most from the least is:
 | Extension | Count | What it holds | Readable |
 | --- | ---: | --- | --- |
 | `.NCGR`, `.NCBR` | 542 | pictures, as PNG | yes |
-| `.nmdp` | 833 | models and their textures (`BMD0`) | no |
-| `.ntxp` | 756 | textures (`BTX0`) | no |
+| `.nmdp` | 833 | models (`BMD0`), 370 with their own textures | textures only |
+| `.ntxp` | 756 | textures (`BTX0`) | yes |
 | `.ncap` | 221 | motion | no |
 | `.namp` | 239 | animation | no |
 | `.NANR` | 51 | 2D animation | no |

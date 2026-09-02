@@ -1,4 +1,4 @@
-// Minimal 8-bit RGBA PNG writer.
+﻿// Minimal 8-bit RGBA PNG writer.
 //
 // Deliberately dependency-free: the content tool has to run headless, so it cannot
 // borrow MonoGame's Texture2D.SaveAsPng (that needs a GraphicsDevice), and pulling
@@ -14,12 +14,18 @@ namespace FF3.ContentTool
 	{
 		public static void Write(string path, int width, int height, byte[] rgba)
 		{
+			File.WriteAllBytes(path, Encode(width, height, rgba));
+		}
+
+		/// <summary>The same picture in memory, for the editor to serve.</summary>
+		public static byte[] Encode(int width, int height, byte[] rgba)
+		{
 			if (rgba.Length < width * height * 4)
 			{
 				throw new ArgumentException("pixel buffer too small for " + width + "x" + height);
 			}
 
-			using FileStream file = File.Create(path);
+			using MemoryStream file = new MemoryStream();
 			file.Write(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }, 0, 8);
 
 			byte[] header = new byte[13];
@@ -45,6 +51,7 @@ namespace FF3.ContentTool
 
 			WriteChunk(file, "IDAT", ZlibCompress(raw));
 			WriteChunk(file, "IEND", Array.Empty<byte>());
+			return file.ToArray();
 		}
 
 		private static byte[] ZlibCompress(byte[] data)

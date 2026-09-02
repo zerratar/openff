@@ -16,6 +16,7 @@
     <button data-kind="text">Text</button>
     <button data-kind="table">Tables</button>
     <button data-kind="image">Images</button>
+    <button data-kind="texture">Textures</button>
     <button data-kind="audio">Audio</button>
   </nav>
   <span id="status"></span>
@@ -168,6 +169,22 @@
       <input type="file" class="picker" accept="image/png" hidden>
     </div>
     <div class="image-wrap"><img class="picture" alt=""></div>
+  </div>
+</template>
+
+<!-- Textures -->
+<template id="view-texture">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="facts"></span>
+      <label class="toggle"><input type="checkbox" class="checker" checked> checkerboard</label>
+      <span class="grow"></span>
+    </div>
+    <div class="texture-body">
+      <div class="gallery"></div>
+      <aside class="detail"><p class="empty">Pick a texture.</p></aside>
+    </div>
   </div>
 </template>
 

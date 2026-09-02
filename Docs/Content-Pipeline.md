@@ -240,12 +240,23 @@ dotnet run --project FF3.ContentTool -- lz ..\extracted\files ..\unpacked
 
 See `Docs/Compression.md`.
 
+## 3D textures
+
+All 2828 textures inside the `NMDP` packages decode. Unpack the archives first, since
+they are LZ compressed:
+
+```bash
+dotnet run --project FF3.ContentTool -- tex ..\extractediles ..	extures
+```
+
+See `Docs/Graphics.md`.
+
 ## Not decoded yet
 
-What is left is the NitroSDK data itself: `NMDP` models and textures, `NAMP` and
-`NCAP` animation, `MCL` collision, and the `.NSCR`/`.NCER` tables. The pictures
-themselves turned out to need no decoder at all - all 542 are PNGs. `Docs/Graphics.md`
-has what each format holds and which order is worth taking them in.
+What is left is the rest of the NitroSDK data: `MDL0` geometry, `NAMP` and `NCAP`
+animation, `MCL` collision, and the `.NSCR`/`.NCER` tables. The 2D pictures turned out
+to need no decoder at all - all 542 are PNGs. `Docs/Graphics.md` has what each format
+holds and which order is worth taking them in.
 
 `--dump=<dir>` is the shortcut in the meantime: the running game writes out every
 image blob it decodes, which covers the art without decoding anything by hand.

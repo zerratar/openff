@@ -1,4 +1,4 @@
-// The editor's back end: a small local HTTP server over the codecs.
+﻿// The editor's back end: a small local HTTP server over the codecs.
 //
 //   ff3content editor [--content=<dir>] [--override=<dir>] [--language=en] [--port=5050]
 //
@@ -191,6 +191,22 @@ namespace FF3.ContentTool.Editor
 
 				case "/api/image/upload":
 					UploadImage(context);
+					return;
+
+				case "/api/textures":
+					SendJson(context, new
+					{
+						packages = Textures.List(_workspace),
+						formats = Textures.FormatNotes
+					});
+					return;
+
+				case "/api/texture":
+					GetTextureList(context);
+					return;
+
+				case "/api/texture/png":
+					GetTexturePng(context);
 					return;
 
 				case "/api/audio":
@@ -390,6 +406,43 @@ namespace FF3.ContentTool.Editor
 
 			int changed = MapModel.Save(_workspace, map, moves);
 			SendJson(context, new { ok = true, changed, overridden = true });
+		}
+
+		/// <summary>
+		/// What textures a package holds. Opening it means decompressing it, so this is
+		/// asked for one package at a time rather than for all 1589 at once.
+		/// </summary>
+		private void GetTextureList(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			try
+			{
+				SendJson(context, Textures.Contents(_workspace, name));
+			}
+			catch (Exception ex)
+			{
+				SendJson(context, new { error = ex.Message });
+			}
+		}
+
+		/// <summary>One texture, decoded on the way out.</summary>
+		private void GetTexturePng(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			if (!int.TryParse(Query(context, "index"), NumberStyles.Integer,
+				CultureInfo.InvariantCulture, out int index))
+			{
+				index = 0;
+			}
+
+			try
+			{
+				Send(context, 200, "image/png", Textures.Png(_workspace, name, index));
+			}
+			catch (Exception ex)
+			{
+				Send(context, 404, "text/plain", Encoding.UTF8.GetBytes(ex.Message));
+			}
 		}
 
 		/// <summary>The picture itself, straight through - it is already a PNG.</summary>
