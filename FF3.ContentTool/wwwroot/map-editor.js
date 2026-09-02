@@ -26,7 +26,7 @@ async function openMap(name) {
   // Everything the hierarchy and the inspector need, handed over once rather than
   // fetched again by each of them.
   setDocData({ ...data, scene }, {
-    mode: '2d',
+    mode: '3d',
     inspect: (ref) => inspectRef(doc, ref),
     onShow: () => { if (doc.scene3d && doc.mode === '3d') doc.scene3d.redraw(); }
   });
@@ -280,7 +280,7 @@ function wireModes(node, doc, scene) {
     button.onclick = () => show(button.dataset.mode).catch(e => say(e.message, 'bad'));
   });
   recentre.onclick = () => doc.scene3d && doc.scene3d.reset();
-  show('2d');
+  show('3d');
 }
 
 /// Drag to orbit, right-drag or shift-drag to pan, wheel to zoom, click to pick.

@@ -27,10 +27,22 @@ const KINDS = [
   { id: 'audio', label: 'Audio' }
 ];
 
-const docs = new Map();
-let activeDoc = null;
-
 // ---------------------------------------------------------------- documents
+//
+// Documents live in groups, and a group is one tab bar with one stack of panes under
+// it. There is one group until a tab is dragged out to the side, and then there are
+// two, which is what lets a script and its map be read together. Only one document is
+// focused however many are showing - the hierarchy and the inspector follow that one.
+//
+// A single click opens a PREVIEW tab: italic, one per group, and replaced by the next
+// thing you click. It becomes a real tab the moment you change anything in it, double
+// click it, or double click it in the project list. Skimming twenty files leaves one
+// tab behind rather than twenty.
+
+const docs = new Map();
+let groups = [];
+let activeDoc = null;
+let activeGroup = null;
 
 function docId(kind, name) {
   return `${kind}|${name}`;
@@ -41,29 +53,108 @@ function shortName(name) {
   return cut < 0 ? name : name.slice(cut + 1);
 }
 
-/// Opens an asset, or brings it forward if it is already open.
-async function openDoc(kind, name, reload = false) {
+function makeGroup() {
+  const el = document.createElement('div');
+  el.className = 'doc-group';
+
+  const tabsEl = document.createElement('div');
+  tabsEl.className = 'doc-tabs';
+
+  const panesEl = document.createElement('div');
+  panesEl.className = 'doc-panes';
+
+  el.append(tabsEl, panesEl);
+  $('#doc-area').append(el);
+
+  const group = { el, tabsEl, panesEl, docs: [], preview: null, active: null };
+  groups.push(group);
+
+  // Dropping onto a tab bar moves the document into that group.
+  tabsEl.addEventListener('dragover', event => {
+    event.preventDefault();
+    tabsEl.classList.add('drop');
+  });
+  tabsEl.addEventListener('dragleave', () => tabsEl.classList.remove('drop'));
+  tabsEl.addEventListener('drop', event => {
+    event.preventDefault();
+    tabsEl.classList.remove('drop');
+    const doc = docs.get(event.dataTransfer.getData('text/plain'));
+    if (doc) moveDoc(doc, group);
+  });
+
+  // Clicking anywhere in a group focuses whatever that group is showing.
+  el.addEventListener('pointerdown', () => {
+    if (group.active && group.active !== activeDoc) activate(group.active.id);
+  }, true);
+
+  return group;
+}
+
+function removeGroup(group) {
+  if (groups.length < 2) return;
+  group.el.remove();
+  groups = groups.filter(g => g !== group);
+  if (activeGroup === group) activeGroup = groups[0];
+  layoutChanged();
+}
+
+function moveDoc(doc, group) {
+  if (doc.group === group) return;
+  const from = doc.group;
+  from.docs = from.docs.filter(d => d !== doc);
+  if (from.preview === doc) from.preview = null;
+  if (from.active === doc) from.active = from.docs[from.docs.length - 1] || null;
+
+  doc.group = group;
+  group.docs.push(doc);
+  group.panesEl.append(doc.pane);
+  if (doc.preview) {
+    // One preview per group, and it did not follow the document here.
+    if (group.preview && group.preview !== doc) closeDoc(group.preview.id);
+    group.preview = doc;
+  }
+
+  if (!from.docs.length) removeGroup(from);
+  activate(doc.id);
+  layoutChanged();
+}
+
+/// Opens an asset. Single clicks ask for a preview; anything else pins it.
+async function openDoc(kind, name, options = {}) {
+  const settings = options === true ? { reload: true } : options;
   const id = docId(kind, name);
   const existing = docs.get(id);
 
-  if (existing && !reload) {
+  if (existing && !settings.reload) {
+    if (!settings.preview) pinDoc(existing);
     activate(id);
     return existing;
   }
 
+  if (!groups.length) makeGroup();
+  const group = existing ? existing.group : (activeGroup || groups[0]);
+
+  // A preview replaces the group's previous preview rather than piling up.
+  if (!existing && settings.preview && group.preview) {
+    closeDoc(group.preview.id);
+  }
+
   const doc = existing || {
-    id, kind, name, selection: null, data: null,
+    id, kind, name, selection: null, data: null, group,
+    preview: Boolean(settings.preview),
     pane: Object.assign(document.createElement('div'), { className: 'doc-pane' })
   };
 
   if (!existing) {
-    $('#docs').append(doc.pane);
+    group.panesEl.append(doc.pane);
+    group.docs.push(doc);
     docs.set(id, doc);
+    if (doc.preview) group.preview = doc;
+    watchForEdits(doc);
   }
 
   doc.pane.textContent = '';
   doc.selection = null;
-  drawDocTabs();
   activate(id);
 
   say('loading…');
@@ -71,7 +162,7 @@ async function openDoc(kind, name, reload = false) {
     await runView(doc);
     say('');
   } catch (error) {
-    doc.pane.innerHTML = '';
+    doc.pane.textContent = '';
     const problem = document.createElement('p');
     problem.className = 'empty';
     problem.textContent = error.message;
@@ -82,6 +173,23 @@ async function openDoc(kind, name, reload = false) {
   drawHierarchy();
   drawInspector();
   return doc;
+}
+
+/// Changing anything in a document is what turns a preview into a real tab.
+function watchForEdits(doc) {
+  const pin = () => pinDoc(doc);
+  doc.pane.addEventListener('input', pin, true);
+  doc.pane.addEventListener('change', pin, true);
+  doc.pane.addEventListener('pointerdown', event => {
+    if (event.target.closest('button, .pin, canvas')) pin();
+  }, true);
+}
+
+function pinDoc(doc) {
+  if (!doc || !doc.preview) return;
+  doc.preview = false;
+  if (doc.group.preview === doc) doc.group.preview = null;
+  drawDocTabs();
 }
 
 /// Runs the view for a document into its own pane.
@@ -104,19 +212,24 @@ function activate(id) {
   if (!doc) return;
 
   activeDoc = doc;
+  activeGroup = doc.group;
+  doc.group.active = doc;
   state.kind = doc.kind;
   state.name = doc.name;
   state.pane = doc.pane;
 
   for (const other of docs.values()) {
-    other.pane.classList.toggle('on', other === doc);
+    other.pane.classList.toggle('on', other === other.group.active);
   }
+  for (const group of groups) {
+    group.el.classList.toggle('focused', group === activeGroup);
+  }
+
   $('#no-docs').hidden = docs.size > 0;
   drawDocTabs();
   drawHierarchy();
   drawInspector();
   syncHash();
-  // A canvas that was hidden when it was sized has no size at all.
   if (doc.onShow) doc.onShow();
 }
 
@@ -124,12 +237,24 @@ function closeDoc(id) {
   const doc = docs.get(id);
   if (!doc) return;
 
+  const group = doc.group;
   doc.pane.remove();
   docs.delete(id);
+  group.docs = group.docs.filter(d => d !== doc);
+  if (group.preview === doc) group.preview = null;
+
+  if (group.active === doc) {
+    group.active = group.docs[group.docs.length - 1] || null;
+  }
+
+  if (!group.docs.length && groups.length > 1) {
+    removeGroup(group);
+  }
 
   if (activeDoc === doc) {
     activeDoc = null;
-    const next = [...docs.values()].pop();
+    const next = (activeGroup && activeGroup.active)
+      || groups.map(g => g.active).find(Boolean);
     if (next) {
       activate(next.id);
       return;
@@ -147,29 +272,56 @@ function closeDoc(id) {
 }
 
 function drawDocTabs() {
-  const bar = $('#doc-tabs');
-  bar.textContent = '';
+  for (const group of groups) {
+    group.tabsEl.textContent = '';
+    for (const doc of group.docs) {
+      group.tabsEl.append(makeTab(doc, group));
+    }
+  }
+}
 
+function makeTab(doc, group) {
+  const tab = document.createElement('div');
+  tab.className = 'doc-tab'
+    + (doc === group.active ? ' on' : '')
+    + (doc === activeDoc ? ' focused' : '')
+    + (doc.preview ? ' preview' : '');
+  tab.title = doc.name + (doc.preview ? '  (preview - double click to keep)' : '');
+  tab.draggable = true;
+
+  const kind = document.createElement('i');
+  kind.textContent = doc.kind;
+  const label = document.createElement('span');
+  label.textContent = shortName(doc.name);
+
+  const shut = document.createElement('button');
+  shut.className = 'shut';
+  shut.textContent = '×';
+  shut.title = 'close';
+  shut.onpointerdown = (event) => event.stopPropagation();
+  shut.onclick = (event) => {
+    event.stopPropagation();
+    closeDoc(doc.id);
+  };
+
+  tab.append(kind, label, shut);
+
+  // The whole tab reacts, not just its name.
+  tab.onclick = () => activate(doc.id);
+  tab.ondblclick = () => pinDoc(doc);
+  tab.ondragstart = (event) => {
+    event.dataTransfer.setData('text/plain', doc.id);
+    event.dataTransfer.effectAllowed = 'move';
+    document.body.classList.add('dragging-tab');
+  };
+  tab.ondragend = () => document.body.classList.remove('dragging-tab');
+  return tab;
+}
+
+/// Panes that hold a canvas have to be told when their size changed.
+function layoutChanged() {
   for (const doc of docs.values()) {
-    const tab = document.createElement('div');
-    tab.className = 'doc-tab' + (doc === activeDoc ? ' on' : '');
-    tab.title = doc.name;
-
-    const label = document.createElement('span');
-    label.textContent = shortName(doc.name);
-    label.onclick = () => activate(doc.id);
-
-    const shut = document.createElement('button');
-    shut.className = 'shut';
-    shut.textContent = '×';
-    shut.title = 'close';
-    shut.onclick = (event) => { event.stopPropagation(); closeDoc(doc.id); };
-
-    const kind = document.createElement('i');
-    kind.textContent = doc.kind;
-
-    tab.append(kind, label, shut);
-    bar.append(tab);
+    if (doc.onShow && doc === doc.group.active) doc.onShow();
   }
 }
 
@@ -535,7 +687,7 @@ function wireSplitters() {
         px = Math.max(120, Math.min(which === 'bottom' ? 600 : 640, px));
         document.documentElement.style.setProperty('--' + which, px + 'px');
         saveSize(which, px);
-        if (activeDoc && activeDoc.onShow) activeDoc.onShow();
+        layoutChanged();
       };
       const up = () => {
         bar.removeEventListener('pointermove', move);
@@ -620,6 +772,25 @@ window.addEventListener('hashchange', () => {
   applyHash().catch(error => say(error.message, 'bad'));
 });
 
+// Dropping a tab on the right of the document area splits it in two.
+const hint = $('#split-hint');
+$('#doc-area').addEventListener('dragover', event => {
+  const box = $('#doc-area').getBoundingClientRect();
+  const nearEdge = event.clientX > box.right - 140;
+  hint.classList.toggle('on', nearEdge && groups.length < 2);
+  if (nearEdge) event.preventDefault();
+});
+$('#doc-area').addEventListener('dragleave', () => hint.classList.remove('on'));
+$('#doc-area').addEventListener('drop', event => {
+  const box = $('#doc-area').getBoundingClientRect();
+  hint.classList.remove('on');
+  if (event.clientX <= box.right - 140 || groups.length > 1) return;
+  event.preventDefault();
+  const doc = docs.get(event.dataTransfer.getData('text/plain'));
+  if (doc && doc.group.docs.length > 1) moveDoc(doc, makeGroup());
+});
+
+makeGroup();
 loadSizes();
 wireSplitters();
 drawProjectTree();

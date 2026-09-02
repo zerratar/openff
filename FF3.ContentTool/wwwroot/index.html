@@ -33,10 +33,9 @@
     <div class="splitter vertical" data-split="left"></div>
 
     <section id="centre">
-      <div id="doc-tabs"></div>
-      <div id="docs">
-        <p class="empty" id="no-docs">Open something from the Project panel below.</p>
-      </div>
+      <div id="doc-area"></div>
+      <p class="empty" id="no-docs">Open something from the Project panel below.</p>
+      <div id="split-hint">drop here to split</div>
     </section>
 
     <div class="splitter vertical" data-split="right"></div>
@@ -181,8 +180,8 @@
       </select>
       <label class="toggle"><input type="checkbox" class="showlogic"> logic-only casts</label>
       <span class="modes">
-        <button class="mode on" data-mode="2d">2D</button>
-        <button class="mode" data-mode="3d">3D</button>
+        <button class="mode" data-mode="2d">2D</button>
+        <button class="mode on" data-mode="3d">3D</button>
       </span>
       <button class="recentre" hidden>Recentre</button>
       <span class="grow"></span>

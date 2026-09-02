@@ -33,6 +33,16 @@ Four panels round a document area, the way a scene editor is laid out:
 - **Documents**, middle - a tab per open asset. A pane is built once and then kept,
   hidden rather than thrown away when you switch, so a half-typed script is still there
   when you come back to it.
+
+  A single click opens a **preview** tab: italic, one per group, replaced by the next
+  thing you click. It becomes a real tab as soon as you change something in it, double
+  click the tab, or double click it in the project list - so skimming twenty files
+  leaves one tab behind rather than twenty.
+
+  Tabs **drag**. Onto another tab bar moves them; onto the right edge of the document
+  area splits the view in two, which is how you read a script beside its map. Both
+  halves stay live, but only one is focused, and the hierarchy and inspector follow
+  that one.
 - **Inspector**, right - facts about the open asset even with nothing selected, and the
   details of whatever is selected underneath.
 - **Project and Console**, bottom - the libraries as a tree with their files beside
@@ -41,10 +51,10 @@ Four panels round a document area, the way a scene editor is laid out:
 
 ## Maps in 2D and 3D
 
-The **2D** view is the plan it always was: pins you can drag, which is the right thing
-for moving somebody two steps left. **3D** is the same map as the game builds it - the
+**3D** is what opens first, and it is the same map as the game builds it - the
 terrain model with every character standing on it, wearing the model its `.hich` row
-names and facing the way that row says.
+names and facing the way that row says. **2D** is the plan it always was: pins you can
+drag, which is still the right thing for moving somebody two steps left.
 
 Drag to orbit, right-drag or shift-drag to pan, wheel to zoom, click to pick. Picking in
 the scene and clicking in the hierarchy are the same selection, and editing a position in

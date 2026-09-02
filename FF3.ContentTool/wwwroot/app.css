@@ -89,7 +89,23 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
 
 #centre { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
-#doc-tabs {
+#centre { position: relative; }
+
+#doc-area { flex: 1; min-height: 0; display: flex; }
+
+/* A group is one tab bar and the panes under it. Two of them side by side is the
+   split view; the focused one is the one the hierarchy and inspector follow. */
+.doc-group {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+}
+.doc-group:first-child { border-left: none; }
+.doc-group.focused > .doc-tabs { border-bottom-color: var(--accent); }
+
+.doc-tabs {
   display: flex;
   gap: 2px;
   padding: 4px 6px 0;
@@ -98,6 +114,28 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
   overflow-x: auto;
   min-height: 30px;
 }
+.doc-tabs.drop { background: #26313f; }
+
+.doc-panes { flex: 1; min-height: 0; display: flex; position: relative; }
+
+/* Where a dragged tab has to land to split the view. */
+#split-hint {
+  display: none;
+  position: absolute;
+  top: 30px;
+  right: 0;
+  bottom: 0;
+  width: 140px;
+  border-left: 2px dashed var(--accent);
+  background: rgba(110, 168, 254, .10);
+  color: var(--accent);
+  font-size: 11px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+#split-hint.on { display: flex; }
 
 .doc-tab {
   display: flex;
@@ -114,6 +152,8 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
 }
 .doc-tab:hover { color: var(--ink); }
 .doc-tab.on { background: var(--bg); border-color: var(--line); color: var(--ink); }
+.doc-tab.focused { border-top: 1px solid var(--accent); }
+.doc-tab.preview span { font-style: italic; }
 .doc-tab i { font-style: normal; font-size: 10px; opacity: .55; }
 .doc-tab .shut {
   background: none; border: none; color: inherit; cursor: pointer;
@@ -121,10 +161,22 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
 }
 .doc-tab .shut:hover { opacity: 1; color: var(--bad); }
 
-#docs { flex: 1; min-height: 0; display: flex; position: relative; }
 .doc-pane { display: none; flex: 1; min-width: 0; }
 .doc-pane.on { display: flex; }
-#no-docs { margin: auto; color: var(--dim); }
+#no-docs {
+  position: absolute;
+  inset: 30px 0 0 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  pointer-events: none;
+}
+
+/* display:flex would otherwise beat the hidden attribute, which is how this ended up
+   printed across the middle of a map the first time. */
+#no-docs[hidden] { display: none; }
 
 .view { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 

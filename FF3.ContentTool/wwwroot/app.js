@@ -76,7 +76,9 @@ function drawList() {
     item.className = (file.overridden ? 'overridden ' : '')
       + (open_ ? 'open ' : '')
       + (activeDoc && activeDoc.name === file.name && activeDoc.kind === state.browse ? 'on' : '');
-    item.onclick = () => openDoc(state.browse, file.name);
+    // A single click previews; a double click keeps it.
+    item.onclick = () => openDoc(state.browse, file.name, { preview: true });
+    item.ondblclick = () => openDoc(state.browse, file.name);
     list.append(item);
   }
 }
