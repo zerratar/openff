@@ -9,31 +9,66 @@
 
 <header>
   <h1>FF3 content editor</h1>
-  <nav id="kinds">
-    <button data-kind="map" class="on">Maps</button>
-    <button data-kind="script">Scripts</button>
-    <button data-kind="menu">Menus</button>
-    <button data-kind="text">Text</button>
-    <button data-kind="table">Tables</button>
-    <button data-kind="image">Images</button>
-    <button data-kind="texture">Textures</button>
-    <button data-kind="model">Models</button>
-    <button data-kind="cell">Cells</button>
-    <button data-kind="audio">Audio</button>
-  </nav>
   <span id="status"></span>
 </header>
 
-<main>
-  <aside>
-    <input id="filter" type="search" placeholder="filter" autocomplete="off">
-    <ul id="files"></ul>
-  </aside>
+<!--
+  The workbench. Four panels round a document area, the way a scene editor is laid
+  out: what is in the thing on the left, what you have open in the middle, the details
+  of whatever is selected on the right, and everything you could open along the bottom.
+  The three bars between them drag.
+-->
+<div id="workbench">
+  <div id="upper">
 
-  <section id="pane">
-    <p class="empty">Pick a file on the left.</p>
-  </section>
-</main>
+    <aside id="hierarchy-panel" class="panel">
+      <div class="panel-head">
+        <span>Hierarchy</span>
+        <span class="panel-note" id="hierarchy-note"></span>
+      </div>
+      <input id="hierarchy-filter" type="search" placeholder="filter" autocomplete="off">
+      <ul id="hierarchy" class="tree"></ul>
+    </aside>
+
+    <div class="splitter vertical" data-split="left"></div>
+
+    <section id="centre">
+      <div id="doc-tabs"></div>
+      <div id="docs">
+        <p class="empty" id="no-docs">Open something from the Project panel below.</p>
+      </div>
+    </section>
+
+    <div class="splitter vertical" data-split="right"></div>
+
+    <aside id="inspector-panel" class="panel">
+      <div class="panel-head"><span>Inspector</span></div>
+      <div id="inspector"></div>
+    </aside>
+
+  </div>
+
+  <div class="splitter horizontal" data-split="bottom"></div>
+
+  <div id="lower">
+    <div id="bottom-tabs">
+      <button data-bottom="project" class="on">Project</button>
+      <button data-bottom="console">Console <span id="console-count"></span></button>
+    </div>
+    <div id="bottom-body">
+      <div class="bottom-page on" data-page="project">
+        <div id="project-tree" class="tree"></div>
+        <div id="project-side">
+          <input id="filter" type="search" placeholder="filter" autocomplete="off">
+          <ul id="files"></ul>
+        </div>
+      </div>
+      <div class="bottom-page" data-page="console">
+        <div id="console-lines"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Scripts -->
 <template id="view-script">
@@ -145,6 +180,11 @@
         <option value="4">400%</option>
       </select>
       <label class="toggle"><input type="checkbox" class="showlogic"> logic-only casts</label>
+      <span class="modes">
+        <button class="mode on" data-mode="2d">2D</button>
+        <button class="mode" data-mode="3d">3D</button>
+      </span>
+      <button class="recentre" hidden>Recentre</button>
       <span class="grow"></span>
       <button class="add">Add character</button>
       <button class="save primary">Save placement</button>
@@ -152,8 +192,9 @@
     </div>
     <div class="map-body">
       <div class="map-wrap"><div class="map-scale"><div class="map"></div></div></div>
-      <div class="inspector"><p class="empty">Pick something on the map.</p></div>
+      <div class="scene-wrap" hidden><canvas class="scene"></canvas></div>
     </div>
+    <div class="legend"></div>
   </div>
 </template>
 
@@ -247,5 +288,7 @@
 <script src="script-editor.js"></script>
 <script src="map-editor.js"></script>
 <script src="model-viewer.js"></script>
+<script src="map-scene.js"></script>
+<script src="shell.js"></script>
 </body>
 </html>

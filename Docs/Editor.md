@@ -22,6 +22,39 @@ undoing one is deleting a file.
 The server binds to localhost, has no authentication, and is meant to be run by the
 person editing their own copy of the game. It is not a service.
 
+## The workbench
+
+Four panels round a document area, the way a scene editor is laid out:
+
+- **Hierarchy**, left - what is inside the thing you have open. A map lists its terrain,
+  its characters, its logic casts and its exits; a script lists its declarations with
+  line numbers; a model lists its parts. Clicking a row selects it, and for a map that
+  also takes the view to it.
+- **Documents**, middle - a tab per open asset. A pane is built once and then kept,
+  hidden rather than thrown away when you switch, so a half-typed script is still there
+  when you come back to it.
+- **Inspector**, right - facts about the open asset even with nothing selected, and the
+  details of whatever is selected underneath.
+- **Project and Console**, bottom - the libraries as a tree with their files beside
+  them, and a running record of everything the status line has said. The three bars
+  between the panels drag, and their sizes are remembered.
+
+## Maps in 2D and 3D
+
+The **2D** view is the plan it always was: pins you can drag, which is the right thing
+for moving somebody two steps left. **3D** is the same map as the game builds it - the
+terrain model with every character standing on it, wearing the model its `.hich` row
+names and facing the way that row says.
+
+Drag to orbit, right-drag or shift-drag to pan, wheel to zoom, click to pick. Picking in
+the scene and clicking in the hierarchy are the same selection, and editing a position in
+the inspector moves the character in whichever view is showing.
+
+The units needed no conversion, which was worth checking rather than assuming: a `.hich`
+position is in the same units as the geometry - measured across 179 maps, every character
+falls inside its terrain's own bounding box - and its posture is in degrees rather than
+the fixed point the scripts use. `Editor/MapScene.cs`.
+
 ## The address bar
 
 The tab and the open file are in the URL - `#/scripts/files/d04_02.script` - so a

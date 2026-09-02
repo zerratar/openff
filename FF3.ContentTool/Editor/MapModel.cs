@@ -1,4 +1,4 @@
-// A map, assembled from the four files that describe it.
+﻿// A map, assembled from the four files that describe it.
 //
 //   <map>.hich     what stands there: model, position, and the cast that drives it
 //   <map>.script   the casts themselves - what each one does when you talk to it
@@ -51,12 +51,27 @@ namespace FF3.ContentTool.Editor
 		public int Kind { get; set; }
 	}
 
+	/// <summary>
+	/// One map, joined up. A named type rather than an anonymous one because two views
+	/// read it now - the plan and the scene - and an anonymous type can only be passed
+	/// between them as `dynamic`, which moves the mistakes to run time.
+	/// </summary>
+	internal sealed class MapData
+	{
+		public string Map { get; set; }
+		public string Hich { get; set; }
+		public string Script { get; set; }
+		public bool Overridden { get; set; }
+		public List<MapCharacter> Characters { get; set; } = new List<MapCharacter>();
+		public List<MapExit> Exits { get; set; } = new List<MapExit>();
+	}
+
 	internal static class MapModel
 	{
 		private const int StartMessage2 = 100;
 
 		/// <summary>Everything the editor needs to draw one map.</summary>
-		public static object Load(Workspace workspace, string map,
+		public static MapData Load(Workspace workspace, string map,
 			Func<uint, string> lookupMessage)
 		{
 			string hichName = "files/" + map + ".hich";
@@ -88,14 +103,14 @@ namespace FF3.ContentTool.Editor
 				});
 			}
 
-			return new
+			return new MapData
 			{
-				map,
-				hich = hichName,
-				script = "files/" + map + ".script",
-				overridden = workspace.IsOverridden(hichName),
-				characters,
-				exits = ReadExits(workspace, map)
+				Map = map,
+				Hich = hichName,
+				Script = "files/" + map + ".script",
+				Overridden = workspace.IsOverridden(hichName),
+				Characters = characters,
+				Exits = ReadExits(workspace, map)
 			};
 		}
 

@@ -173,6 +173,11 @@ namespace FF3.ContentTool.Editor
 						Query(context, "name"), _lookupMessage));
 					return;
 
+				case "/api/map/scene":
+					SendJson(context, MapScene.Load(_workspace,
+						Query(context, "name"), _messages.Text));
+					return;
+
 				case "/api/map/save":
 					SaveMap(context);
 					return;
