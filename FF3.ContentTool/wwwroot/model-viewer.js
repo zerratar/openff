@@ -1,4 +1,4 @@
-// A viewer for the MDL0 models.
+﻿// A viewer for the MDL0 models.
 //
 // Plain WebGL, no library. The server has already done the hard part - display lists
 // walked, strips expanded, node matrices applied - so what arrives is a vertex buffer,
@@ -16,10 +16,11 @@ attribute vec3 position;
 attribute vec2 coord;
 attribute vec3 colour;
 uniform mat4 camera;
+uniform mat4 model;
 varying vec2 vCoord;
 varying vec3 vColour;
 void main() {
-  gl_Position = camera * vec4(position, 1.0);
+  gl_Position = camera * model * vec4(position, 1.0);
   vCoord = coord;
   vColour = colour;
 }`;
@@ -53,6 +54,7 @@ function makeModelViewer(canvas, status) {
   };
   const uniform = {
     camera: gl.getUniformLocation(program, 'camera'),
+    model: gl.getUniformLocation(program, 'model'),
     picture: gl.getUniformLocation(program, 'picture'),
     textured: gl.getUniformLocation(program, 'textured'),
     tint: gl.getUniformLocation(program, 'tint'),
@@ -113,9 +115,16 @@ function makeModelViewer(canvas, status) {
     bind(attribute.coord, 2, 3 * 4);
     bind(attribute.colour, 3, 5 * 4);
 
+    // The game draws the model twice - everything opaque, then everything
+    // translucent - and that ordering is not cosmetic. Drawn in one pass, a
+    // half-transparent quad writes depth and hides whatever is behind it, which is
+    // where the holes in the terrain came from.
+    for (let pass = 0; pass < 2; pass++) {
+    gl.depthMask(pass === 0);
     for (const group of bundle.groups) {
       if (!group.count) continue;
       if (group.hidden && !showHidden) continue;
+      if (Boolean(group.translucent) !== (pass === 1)) continue;
 
       const texture = group.texture ? textures.get(group.texture) : null;
       gl.activeTexture(gl.TEXTURE0);
@@ -128,15 +137,49 @@ function makeModelViewer(canvas, status) {
         : (texture ? [1, 1, 1] : rgb(group.colour));
       gl.uniform3fv(uniform.tint, tint);
       gl.uniform1f(uniform.alpha, group.hidden ? 0.5 : (group.alpha ?? 1));
+      gl.uniformMatrix4fv(uniform.model, false, billboardMatrix(group));
 
       gl.drawElements(gl.TRIANGLES, group.count, indexType, group.start * indexSize);
     }
+    }
+    gl.depthMask(true);
 
     function bind(where, size, offset) {
       if (where < 0) return;
       gl.enableVertexAttribArray(where);
       gl.vertexAttribPointer(where, size, gl.FLOAT, false, stride, offset);
     }
+  }
+
+  // A billboard node has its rotation post-multiplied by the inverse camera, so it
+  // ends up facing the viewer. The vertices arrive with that already done for a camera
+  // at identity, so what is left is to turn the piece about its pivot by however far
+  // the camera has moved from there. Kind 2 only turns about the vertical axis, which
+  // is what keeps a tree upright rather than tipping over as you look down on it.
+  function billboardMatrix(group) {
+    if (!group.billboard || !group.pivot) return IDENTITY;
+
+    const [px, py, pz] = group.pivot;
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cp = group.billboard === 2 ? 1 : Math.cos(pitch);
+    const sp = group.billboard === 2 ? 0 : Math.sin(pitch);
+
+    // Yaw about y, then pitch about the already-turned x axis.
+    const r = [
+      cy, 0, -sy,
+      sy * sp, cp, cy * sp,
+      sy * cp, -sp, cy * cp
+    ];
+
+    return new Float32Array([
+      r[0], r[1], r[2], 0,
+      r[3], r[4], r[5], 0,
+      r[6], r[7], r[8], 0,
+      px - (r[0] * px + r[3] * py + r[6] * pz),
+      py - (r[1] * px + r[4] * py + r[7] * pz),
+      pz - (r[2] * px + r[5] * py + r[8] * pz),
+      1
+    ]);
   }
 
   function cameraMatrix() {
@@ -229,6 +272,8 @@ function makeModelViewer(canvas, status) {
 
 // ------------------------------------------------------------------ plumbing
 
+const IDENTITY = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+
 function link(gl, vertexSource, fragmentSource) {
   const program = gl.createProgram();
   gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, vertexSource));
@@ -261,7 +306,12 @@ function solidTexture(gl, rgba) {
 function upload(gl, image) {
   const texture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  // No flip. The game decodes a texture top row first and uploads it as it is, so
+  // v = 0 is the top of the picture - and the shapes pass v straight through. This
+  // was flipping, which did far more than mirror each quad: most of these textures
+  // are atlases whose halves hold different things, so a mirrored v made every quad
+  // sample the wrong part of its own atlas.
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
 
   // Textures repeat far more often than they clamp, and non-power-of-two sizes cannot
@@ -270,14 +320,17 @@ function upload(gl, image) {
   if (power(image.width) && power(image.height)) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    gl.generateMipmap(gl.TEXTURE_2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   } else {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   }
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+  // The game asks for 9728 - GL_NEAREST - on both filters, and repeat on both axes
+  // whatever the material says, so that is what happens here. Nearest matters more
+  // than it sounds: these textures are atlases, and a linear filter bleeds one cell
+  // into the next along every seam.
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   return texture;
 }
 

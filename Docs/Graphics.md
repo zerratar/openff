@@ -247,6 +247,45 @@ with it.
 One bank of the 187, `mastercard.NCER`, names a sheet that was never shipped. It has one
 cell holding one part.
 
+### Drawing it the way the game does
+
+Decoding the geometry right and *drawing* it right are two jobs, and the second one has
+its own set of traps. Four, all settled by reading the game's own draw call rather than
+by taste:
+
+- **v = 0 is the top of the texture.** The game decodes a texture top row first and
+  uploads it as it is, and the shapes pass v straight through. The viewer was flipping on
+  upload, which did far more damage than mirroring each quad: most of these textures are
+  **atlases**, so a mirrored v made every quad sample the wrong cell of its own sheet.
+  `t29_jimen02` is a 128x128 sheet holding grass, a hedge, a stone wall and a road in its
+  four corners - flip it and a town's grass comes out as road, its roofs come out upside
+  down, and a riverbank comes out blue. This one bug accounted for nearly everything that
+  looked wrong.
+
+- **Two passes, opaque then translucent.** The game draws the whole model twice, and the
+  split is its own: alpha of 16 or less out of 31, or a texture in format 1 (`a3i5`) or 6
+  (`a5i3`), the two that carry alpha per pixel. Drawn in one pass a half-transparent quad
+  writes depth and hides what is behind it, which is where the holes in the terrain came
+  from. The second pass leaves the depth buffer alone.
+
+- **Nearest filtering, and repeat on both axes.** The game passes 9728 - `GL_NEAREST` -
+  for both filters and 10497 - `GL_REPEAT` - for both axes, and it never reads the repeat
+  or flip bits the materials carry (all of which are zero anyway). Nearest matters more
+  than it sounds here: with atlases, a linear filter bleeds one cell into the next along
+  every seam.
+
+- **Billboards turn.** A billboard node has its rotation post-multiplied by the inverse
+  camera, so the piece faces the viewer. What the decoder bakes is that step with the
+  camera at identity, plus the pivot to turn about; the viewer finishes it, and kind 2
+  turns only about the vertical axis so a tree stays upright when you look down on it.
+  114 of the 833 models have one.
+
+The UVs themselves needed no correction: the game's texture matrix is `1/origWidth` and
+that is what the decoder divides by. Worth noting that `origWidth` is *not* the texture's
+size - the port doubled 2071 of the 2833 materials' textures and left `origWidth` at the
+original, so the two differ by exactly 2 and dividing by the texture size instead would
+tile everything twice over.
+
 ## What is left
 
 The NitroSDK animation - `.ncap` motion and `.namp`, 460 files - and `.mcl` collision.

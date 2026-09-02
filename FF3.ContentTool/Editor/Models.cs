@@ -1,4 +1,4 @@
-// The 3D models, for the editor.
+﻿// The 3D models, for the editor.
 //
 // The viewer in the browser wants triangles and a texture, not display lists and a
 // matrix stack, so the unpacking happens here and what goes over the wire is one
@@ -37,6 +37,18 @@ namespace FF3.ContentTool.Editor
 		public int Colour { get; set; }          // 0xRRGGBB, for an untextured group
 		public float Alpha { get; set; }
 		public bool Hidden { get; set; }
+
+		/// <summary>
+		/// Drawn in the second pass. The game's own test: alpha of 16 or less, or a
+		/// texture in one of the two formats that carry their own alpha.
+		/// </summary>
+		public bool Translucent { get; set; }
+
+		/// <summary>0 none, 1 faces the camera, 2 turns only about its vertical axis.</summary>
+		public int Billboard { get; set; }
+
+		/// <summary>What a billboard turns about.</summary>
+		public float[] Pivot { get; set; }
 	}
 
 	internal sealed class ModelBundle
@@ -98,6 +110,7 @@ namespace FF3.ContentTool.Editor
 			}
 
 			Mdl0Model model = models[0];
+			Dictionary<string, int> formats = TextureFormats(workspace, name);
 			ModelBundle bundle = new ModelBundle
 			{
 				Name = model.Name,
@@ -126,7 +139,11 @@ namespace FF3.ContentTool.Editor
 					Start = bundle.Indices.Count,
 					Colour = material != null ? (material.R << 16) | (material.G << 8) | material.B : 0xFFFFFF,
 					Alpha = material != null ? Math.Min(1f, material.Alpha / 31f) : 1f,
-					Hidden = piece.Hidden
+					Hidden = piece.Hidden,
+					Translucent = Translucent(material, formats),
+					Billboard = piece.Billboard,
+					Pivot = piece.Billboard == 0
+						? null : new[] { piece.PivotX, piece.PivotY, piece.PivotZ }
 				};
 
 				foreach (Mdl0Run run in piece.Runs)
@@ -153,6 +170,66 @@ namespace FF3.ContentTool.Editor
 
 			Frame(bundle);
 			return bundle;
+		}
+
+		/// <summary>
+		/// Which pass a group belongs in, by the game's own rule: alpha of 16 or less
+		/// out of 31, or a texture in format 1 (a3i5) or 6 (a5i3) - the two that carry
+		/// alpha per pixel rather than per material.
+		/// </summary>
+		private static bool Translucent(Mdl0Material material, Dictionary<string, int> formats)
+		{
+			if (material == null)
+			{
+				return false;
+			}
+			if (material.Alpha <= 16)
+			{
+				return true;
+			}
+
+			return material.Texture != null
+				&& formats.TryGetValue(material.Texture, out int format)
+				&& (format == 1 || format == 6);
+		}
+
+		/// <summary>Texture name -> its format, for the pass split.</summary>
+		private static Dictionary<string, int> TextureFormats(Workspace workspace, string name)
+		{
+			Dictionary<string, int> formats =
+				new Dictionary<string, int>(StringComparer.Ordinal);
+
+			string sibling = name.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase)
+				? name.Substring(0, name.Length - 8) + ".ntxp.lz" : null;
+
+			foreach (string source in new[] { name, sibling })
+			{
+				if (source == null || !workspace.Exists(source))
+				{
+					continue;
+				}
+				try
+				{
+					byte[] data = Lz.Decompress(workspace.Read(source));
+					if (Tex0.Find(data) < 0)
+					{
+						continue;
+					}
+					foreach (Tex0Texture texture in Tex0.Read(data).Textures)
+					{
+						if (!formats.ContainsKey(texture.Name))
+						{
+							formats[texture.Name] = texture.Format;
+						}
+					}
+				}
+				catch (Exception)
+				{
+					// No formats means everything lands in the opaque pass, which is
+					// the same as before this existed.
+				}
+			}
+			return formats;
 		}
 
 		/// <summary>

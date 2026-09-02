@@ -63,6 +63,17 @@ namespace FF3.ContentTool
 		/// </summary>
 		public bool Hidden;
 
+		/// <summary>
+		/// 0 for an ordinary node, 1 for a billboard, 2 for one that only turns about
+		/// its vertical axis. The game post-multiplies such a node's rotation by the
+		/// inverse camera, so the piece ends up facing the viewer; with no camera to
+		/// hand, what is baked here is that same step with the camera at identity, and
+		/// the pivot below is what a viewer needs to finish the job.
+		/// </summary>
+		public int Billboard;
+
+		public float PivotX, PivotY, PivotZ;
+
 		public List<Mdl0Run> Runs = new List<Mdl0Run>();
 	}
 
@@ -312,6 +323,11 @@ namespace FF3.ContentTool
 			int node = 0;
 			bool visible = true;
 
+			// Whether the matrix in hand came from a billboard, carried alongside the
+			// matrices themselves so a restore brings the flag back with the matrix.
+			int billboard = 0;
+			int[] stackBillboard = new int[64];
+
 			while (at < end && at < data.Length)
 			{
 				int op = data[at] & 0x1F;
@@ -335,6 +351,7 @@ namespace FF3.ContentTool
 					case 3:                      // restore a matrix from the stack
 						current = Copy(stack[data[at + 1]]);
 						currentN = Copy(stackN[data[at + 1]]);
+						billboard = stackBillboard[data[at + 1]];
 						at += 2;
 						break;
 
@@ -350,7 +367,7 @@ namespace FF3.ContentTool
 						if (shape < shapes.Count)
 						{
 							AddPiece(data, m + ofsShp, shapes, shape, material, node,
-								current, stack, scale, model, !visible);
+								current, stack, scale, model, !visible, billboard);
 						}
 						break;
 					}
@@ -358,6 +375,7 @@ namespace FF3.ContentTool
 					case 6:                      // node descriptor: build its matrix
 					{
 						node = data[at + 1];
+						billboard = 0;         // an ordinary node clears it again
 						int store = data[at + 3];
 						int[] scaleBy = { 4096, 4096, 4096 };
 						int[] baseMatrix = NodeMatrix(data, nodeInfo, nodes, node, scaleBy);
@@ -386,6 +404,7 @@ namespace FF3.ContentTool
 						{
 							stack[id] = Copy(current);
 							stackN[id] = Copy(currentN);
+							stackBillboard[id] = 0;
 						}
 						break;
 					}
@@ -403,10 +422,12 @@ namespace FF3.ContentTool
 						{
 							current = Copy(stack[data[at++]]);
 						}
+						billboard = op == 7 ? 1 : 2;
 						if ((flags & 0x20) != 0)
 						{
 							stack[id] = Copy(current);
 							stackN[id] = Copy(current);
+							stackBillboard[id] = billboard;
 						}
 						break;
 					}
@@ -533,7 +554,8 @@ namespace FF3.ContentTool
 
 		private static void AddPiece(byte[] data, int shp,
 			List<(string Name, byte[] Entry)> shapes, int shape, int material, int node,
-			int[] matrix, int[][] stack, int scale, Mdl0Model model, bool hidden)
+			int[] matrix, int[][] stack, int scale, Mdl0Model model, bool hidden,
+			int billboard)
 		{
 			int s = shp + (int)U32(shapes[shape].Entry, 0);
 			int list = s + (int)U32(data, s + 8);
@@ -545,7 +567,11 @@ namespace FF3.ContentTool
 				Material = material >= 0 && material < model.Materials.Count
 					? model.Materials[material].Name : null,
 				Node = node < model.Nodes.Count ? model.Nodes[node] : null,
-				Hidden = hidden
+				Hidden = hidden,
+				Billboard = billboard,
+				PivotX = matrix[9] / 4096f,
+				PivotY = matrix[10] / 4096f,
+				PivotZ = matrix[11] / 4096f
 			};
 
 			Walk(data, list, size, matrix, stack, scale, piece, model);

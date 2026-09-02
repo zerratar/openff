@@ -1110,9 +1110,13 @@ async function openModel(name) {
     row.innerHTML = `<td>${escapeHtml(group.shape || '')}</td>`
       + `<td>${escapeHtml(group.node || '')}</td>`
       + `<td>${escapeHtml(group.texture || '—')}</td>`;
+    const notes = [`material ${group.material || 'none'}`];
+    if (group.billboard === 1) notes.push('billboard - turns to face you');
+    if (group.billboard === 2) notes.push('billboard - turns about its vertical axis');
+    if (group.translucent) notes.push('drawn in the translucent pass');
     row.title = group.hidden
       ? 'switched off by its node - the game never draws this'
-      : `material ${group.material || 'none'}`;
+      : notes.join(' \u00b7 ');
     body.append(row);
   }
   table.append(body);

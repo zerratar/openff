@@ -185,6 +185,10 @@ the file rather than take it on trust.
 Two models in the game have a part their node switches off, which the game never draws.
 **hidden parts** shows those in red rather than pretending they are not there.
 
+Drawing follows the game's own path: two passes with the translucent one second, nearest
+filtering, repeat on both axes, and billboards that turn to face you. Hovering a part
+says which of those apply to it.
+
 There is no lighting, because the game does not light these either - what you see in FF3
 is the texture and the material colour. A model that looks flat here looks flat in the
 game. `Docs/Graphics.md`.
