@@ -322,6 +322,8 @@ function drawDocTabs() {
       group.tabsEl.append(makeTab(doc, group));
     }
   }
+  // The file list shows which files are open, so it changes whenever the tabs do.
+  markList();
 }
 
 function makeTab(doc, group) {
@@ -562,9 +564,10 @@ function revealObject(doc, object) {
 let inspected = null;
 let inspectedViewer = null;
 
-async function inspectAsset(kind, name) {
+async function inspectAsset(kind, name, options = {}) {
   inspected = { kind, name, data: null };
-  drawList();
+  markList();
+  if (options.reveal) revealInList(name);
   drawInspector();
 
   // Details come from whatever endpoint knows about that kind. A failure here is not
@@ -594,9 +597,102 @@ function clearInspected() {
   if (!inspected) return;
   inspected = null;
   inspectedViewer = null;
-  drawList();
+  markList();
   drawInspector();
 }
+
+// ---------------------------------------------------------------- moving about
+//
+// The arrow keys walk the file list, which is the only way a grid of 800 icons is
+// bearable. Left and right run along a row and carry on into the next one, so holding
+// one down covers everything in order - the same as the list, which is a grid one wide.
+//
+// Only the keys scroll. A click cannot move the view, because you clicked on something
+// you could already see.
+
+/// Brings a file into view, if it is out of it. Nothing moves when it is already there.
+function revealInList(name) {
+  const item = $(`#files li[data-name="${cssEscape(name)}"]`);
+  if (!item) return;
+  const list = $('#files');
+  // Measured, not read off offsetTop, because the list is not necessarily what an
+  // offset is relative to.
+  const box = list.getBoundingClientRect();
+  const at = item.getBoundingClientRect();
+  if (at.top < box.top) list.scrollTop += at.top - box.top - 4;
+  else if (at.bottom > box.bottom) list.scrollTop += at.bottom - box.bottom + 4;
+}
+
+function cssEscape(value) {
+  return window.CSS && CSS.escape ? CSS.escape(value) : value.replace(/["\\]/g, '\\$&');
+}
+
+/// How many files sit on one row. One, until the grid wraps them.
+function listColumns(items) {
+  if (items.length < 2) return 1;
+  const first = items[0].offsetTop;
+  let columns = 1;
+  while (columns < items.length && items[columns].offsetTop === first) columns++;
+  return columns;
+}
+
+function moveInList(key) {
+  const items = Array.from($('#files').children);
+  if (!items.length) return;
+
+  let at = items.findIndex(item => item.classList.contains('on'));
+  const columns = listColumns(items);
+
+  if (at < 0) {
+    at = 0;
+  } else if (key === 'ArrowRight') {
+    at = Math.min(items.length - 1, at + 1);
+  } else if (key === 'ArrowLeft') {
+    at = Math.max(0, at - 1);
+  } else if (key === 'ArrowDown') {
+    at = Math.min(items.length - 1, at + columns);
+  } else if (key === 'ArrowUp') {
+    at = at - columns < 0 ? at : at - columns;
+  } else if (key === 'Home') {
+    at = 0;
+  } else if (key === 'End') {
+    at = items.length - 1;
+  }
+
+  inspectAsset(state.browse, items[at].dataset.name, { reveal: true });
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.ctrlKey || event.altKey || event.metaKey) return;
+
+  const inside = event.target.closest && event.target.closest('#project');
+  if (!inside) return;
+  // The filter box wants its own arrow keys for the text in it.
+  if (event.target.tagName === 'INPUT' && event.key !== 'ArrowDown') return;
+
+  if (event.key === 'Enter') {
+    if (inspected) openDoc(inspected.kind, inspected.name);
+    event.preventDefault();
+    return;
+  }
+
+  if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']
+    .includes(event.key)) {
+    return;
+  }
+
+  event.preventDefault();
+  // Down out of the filter box lands on the list rather than skipping a file.
+  if (event.target.tagName === 'INPUT') {
+    $('#files').focus();
+    if (!inspected) {
+      const first = $('#files').firstElementChild;
+      if (first) inspectAsset(state.browse, first.dataset.name, { reveal: true });
+      return;
+    }
+  }
+  moveInList(event.key);
+});
 
 /// The preview and facts for whatever was clicked in the project.
 function drawInspectedAsset(box) {

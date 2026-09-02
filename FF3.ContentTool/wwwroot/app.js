@@ -65,6 +65,11 @@ async function loadList() {
 function drawList() {
   const filter = $('#filter').value.trim().toLowerCase();
   const list = $('#files');
+
+  // Where you were reading. Emptying a list drops its scroll to the top, and a redraw
+  // is nearly always something other than "take me somewhere else" - a file being
+  // marked overridden, a thumbnail arriving - so put it back.
+  const scrolled = list.scrollTop;
   list.textContent = '';
 
   // Pictures are only fetched for cells that are actually on screen, and only in the
@@ -81,6 +86,7 @@ function drawList() {
     label.textContent = fileView === 'grid' ? shortName(file.name) : file.name;
     item.append(label);
     item.title = file.name;
+    item.dataset.name = file.name;
     if (state.thumbWatcher) {
       item.dataset.thumbFor = file.name;
       state.thumbWatcher.observe(item);
@@ -96,6 +102,22 @@ function drawList() {
     item.onclick = () => inspectAsset(state.browse, file.name);
     item.ondblclick = () => openDoc(state.browse, file.name);
     list.append(item);
+  }
+
+  list.scrollTop = scrolled;
+}
+
+/// Which file is selected, and which are open, without rebuilding the list.
+///
+/// Clicking a file used to redraw the whole thing, and a redraw starts by emptying it,
+/// which throws away where you were scrolled to. The one place a click must never move
+/// the view is the thing you have just clicked on.
+function markList() {
+  for (const item of $('#files').children) {
+    const name = item.dataset.name;
+    item.classList.toggle('open', docs.has(docId(state.browse, name)));
+    item.classList.toggle('on',
+      Boolean(inspected) && inspected.kind === state.browse && inspected.name === name);
   }
 }
 
@@ -598,6 +620,9 @@ function buildWidget(held) {
 document.addEventListener('keydown', event => {
   if (state.kind !== 'menu' || !menu.selected) return;
   if (event.target.matches('input, textarea')) return;
+  // The arrow keys belong to whichever panel is being used. Nudging a widget while
+  // somebody is walking the file list is not what they asked for.
+  if (event.target.closest && event.target.closest('#project')) return;
   const step = event.shiftKey ? 8 : 1;
   const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
   const move = moves[event.key];

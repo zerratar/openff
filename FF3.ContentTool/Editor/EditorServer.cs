@@ -92,9 +92,27 @@ namespace FF3.ContentTool.Editor
 				}
 				catch (Exception ex)
 				{
-					Send(context, 500, "application/json",
-						Encoding.UTF8.GetBytes(JsonSerializer.Serialize(
-							new { error = ex.Message }, Json)));
+					// Saying why, if the browser is still listening. It often is not:
+					// reloading the page cancels every request that was in flight, and
+					// a handler part way through one then fails on a socket nobody is
+					// holding. Sending 500 down that same socket throws again - and an
+					// exception thrown from in here escapes the loop and takes the whole
+					// editor with it. That is what "Bytes to be written to the stream
+					// exceed the Content-Length" was: not the bug, the second one.
+					try
+					{
+						Send(context, 500, "application/json",
+							Encoding.UTF8.GetBytes(JsonSerializer.Serialize(
+								new { error = ex.Message }, Json)));
+					}
+					catch (Exception)
+					{
+						// Nothing left to answer. The next request is what matters.
+					}
+
+					Console.Error.WriteLine("{0} {1}: {2}",
+						context.Request.HttpMethod, context.Request.Url.AbsolutePath,
+						ex.Message);
 				}
 			}
 		}
