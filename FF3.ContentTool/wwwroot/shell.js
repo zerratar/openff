@@ -251,6 +251,10 @@ function activate(id) {
   const doc = docs.get(id);
   if (!doc) return;
 
+  // Going to a document means the panel is about that document again.
+  inspected = null;
+  inspectedViewer = null;
+
   activeDoc = doc;
   activeGroup = doc.group;
   doc.group.active = doc;
@@ -425,6 +429,7 @@ function drawHierarchy() {
         row.append(tag);
       }
       row.onclick = () => {
+        clearInspected();
         activeDoc.selection = child.ref;
         if (child.reveal) child.reveal();
         drawHierarchy();
@@ -547,6 +552,193 @@ function revealObject(doc, object) {
   if (pin) pin.click();
 }
 
+// ------------------------------------------------------------------ inspecting
+//
+// Clicking an asset in the project shows it here without opening anything - a look at
+// what something is before deciding to work on it. For a model that means a real
+// viewer, small but live, because a picture of a character tells you much less than
+// being able to turn it round. Double clicking is what opens a tab.
+
+let inspected = null;
+let inspectedViewer = null;
+
+async function inspectAsset(kind, name) {
+  inspected = { kind, name, data: null };
+  drawList();
+  drawInspector();
+
+  // Details come from whatever endpoint knows about that kind. A failure here is not
+  // worth a red line - the panel just shows less.
+  try {
+    if (kind === 'model') {
+      inspected.data = await api(`/api/model?name=${encodeURIComponent(name)}`);
+    } else if (kind === 'cell') {
+      inspected.data = await api(`/api/cell?name=${encodeURIComponent(name)}`);
+    } else if (kind === 'texture') {
+      inspected.data = await api(`/api/texture?name=${encodeURIComponent(name)}`);
+    } else if (kind === 'image') {
+      inspected.data = (state.images || []).find(i => i.name === name) || null;
+    } else if (kind === 'map') {
+      inspected.data = await api(`/api/map/scene?name=${encodeURIComponent(name)}`);
+    } else if (kind === 'audio') {
+      inspected.data = (state.audio || []).find(s => s.name === name) || null;
+    }
+  } catch (error) {
+    inspected.problem = error.message;
+  }
+
+  if (inspected && inspected.name === name) drawInspector();
+}
+
+function clearInspected() {
+  if (!inspected) return;
+  inspected = null;
+  inspectedViewer = null;
+  drawList();
+  drawInspector();
+}
+
+/// The preview and facts for whatever was clicked in the project.
+function drawInspectedAsset(box) {
+  const { kind, name, data } = inspected;
+
+  const heading = document.createElement('h2');
+  heading.textContent = shortName(name);
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = name;
+  box.append(heading, sub);
+
+  const preview = previewFor(kind, name, data);
+  if (preview) box.append(preview);
+
+  box.append(factList(inspectedFacts(kind, data)));
+
+  if (inspected.problem) {
+    const problem = document.createElement('p');
+    problem.className = 'none';
+    problem.textContent = inspected.problem;
+    box.append(problem);
+  }
+
+  const open = document.createElement('button');
+  open.className = 'wide-button';
+  open.textContent = 'Open';
+  open.onclick = () => openDoc(kind, name);
+  box.append(open);
+
+  const hint = document.createElement('p');
+  hint.className = 'caveat';
+  hint.textContent = 'Double clicking it in the project opens it too.';
+  box.append(hint);
+}
+
+/// A live viewer for a model, a picture for anything that is one, nothing otherwise.
+function previewFor(kind, name, data) {
+  if (kind === 'model' && data && data.buffer && data.buffer.length) {
+    const stage = document.createElement('div');
+    stage.className = 'preview-stage';
+    const canvas = document.createElement('canvas');
+    stage.append(canvas);
+
+    // Built after it is in the page, or it has no size to render at.
+    requestAnimationFrame(() => {
+      const viewer = makeModelViewer(canvas, () => {});
+      if (!viewer) return;
+      inspectedViewer = viewer;
+      viewer.show(data, name);
+      turnable(canvas, viewer);
+    });
+
+    const note = document.createElement('p');
+    note.className = 'caveat';
+    note.textContent = 'drag to turn, wheel to zoom';
+    const wrap = document.createElement('div');
+    wrap.append(stage, note);
+    return wrap;
+  }
+
+  if (kind === 'image' || kind === 'texture' || kind === 'cell') {
+    const stage = document.createElement('div');
+    stage.className = 'preview-stage checker';
+    const picture = document.createElement('img');
+    picture.alt = shortName(name);
+    picture.src = kind === 'image'
+      ? `/api/image?name=${encodeURIComponent(name)}`
+      : kind === 'texture'
+        ? `/api/texture/png?name=${encodeURIComponent(name)}&index=0`
+        : (data && data.sheet
+            ? `/api/image?name=${encodeURIComponent(data.sheet)}` : '');
+    if (!picture.src) return null;
+    picture.onerror = () => stage.remove();
+    stage.append(picture);
+    return stage;
+  }
+  return null;
+}
+
+function turnable(canvas, viewer) {
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  canvas.onpointerdown = (event) => {
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  };
+  canvas.onpointermove = (event) => {
+    if (!dragging) return;
+    viewer.orbit(event.clientX - lastX, event.clientY - lastY);
+    lastX = event.clientX;
+    lastY = event.clientY;
+  };
+  canvas.onpointerup = (event) => {
+    dragging = false;
+    canvas.releasePointerCapture(event.pointerId);
+  };
+  canvas.onwheel = (event) => {
+    event.preventDefault();
+    viewer.zoom(Math.sign(event.deltaY));
+  };
+}
+
+function inspectedFacts(kind, data) {
+  const facts = [['kind', kind]];
+  if (!data) return facts;
+
+  if (kind === 'model' && data.groups) {
+    facts.push(['parts', data.groups.length]);
+    facts.push(['vertices', data.vertices]);
+    facts.push(['triangles', data.triangles]);
+    facts.push(['quads', data.quads]);
+    facts.push(['nodes', (data.nodes || []).length]);
+    const textures = [...new Set(data.groups.map(g => g.texture).filter(Boolean))];
+    facts.push(['textures', textures.join(', ') || 'none']);
+  } else if (kind === 'map' && data.objects) {
+    facts.push(['terrain', data.terrain ? shortName(data.terrain) : 'none']);
+    facts.push(['characters', data.objects.length]);
+    facts.push(['logic casts', data.logic.length]);
+    facts.push(['exits', data.exits.length]);
+  } else if (kind === 'image' && data.width) {
+    facts.push(['size', `${data.width} × ${data.height}`]);
+    facts.push(['colour', `${data.colour}, ${data.depth}-bit`]);
+    facts.push(['bytes', data.bytes]);
+  } else if (kind === 'texture' && Array.isArray(data)) {
+    facts.push(['textures', data.length]);
+    if (data[0]) {
+      facts.push(['first', `${data[0].name} · ${data[0].width}×${data[0].height} · ${data[0].format}`]);
+    }
+  } else if (kind === 'cell' && data.cells) {
+    facts.push(['cells', data.cells.length]);
+    facts.push(['sheet', data.sheet ? shortName(data.sheet) : 'none']);
+  } else if (kind === 'audio' && data.name) {
+    facts.push(['length', data.length]);
+    facts.push(['format', data.format]);
+  }
+  return facts;
+}
+
 // ---------------------------------------------------------------- inspector
 
 function inspectorBody() {
@@ -557,6 +749,12 @@ function inspectorBody() {
 function drawInspector() {
   const box = inspectorBody();
   box.textContent = '';
+
+  // Something clicked in the project takes the panel, without disturbing what is open.
+  if (inspected) {
+    drawInspectedAsset(box);
+    return;
+  }
 
   if (!activeDoc) {
     box.innerHTML = '<p class="empty-row">Nothing open.</p>';

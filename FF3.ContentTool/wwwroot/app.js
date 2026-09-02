@@ -77,11 +77,14 @@ function drawList() {
     item.append(label);
     item.title = file.name;
     const open_ = docs.has(docId(state.browse, file.name));
+    const looking = inspected
+      && inspected.kind === state.browse && inspected.name === file.name;
     item.className = (file.overridden ? 'overridden ' : '')
       + (open_ ? 'open ' : '')
-      + (activeDoc && activeDoc.name === file.name && activeDoc.kind === state.browse ? 'on' : '');
-    // A single click previews; a double click keeps it.
-    item.onclick = () => openDoc(state.browse, file.name, { preview: true });
+      + (looking ? 'on' : '');
+    // A single click shows it in the inspector without disturbing what is open;
+    // a double click is what opens it.
+    item.onclick = () => inspectAsset(state.browse, file.name);
     item.ondblclick = () => openDoc(state.browse, file.name);
     list.append(item);
   }
