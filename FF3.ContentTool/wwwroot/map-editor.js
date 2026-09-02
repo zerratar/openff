@@ -1350,6 +1350,18 @@ function buildExit(exit, index) {
   doorHead.textContent = 'Doorway';
   panel.append(doorHead);
 
+  const borrowed = doc.data.scene.borrowed;
+  if (borrowed) {
+    const shared = document.createElement('p');
+    shared.className = 'none warn';
+    const others = doc.data.scene.sharedWith || [];
+    shared.textContent = `${mapState.name} has no scenery or collision of its own - it `
+      + `is drawn in ${borrowed}, and so ${others.length === 0 ? 'nothing else is'
+        : `are ${others.join(', ')}`}. This doorway lives in ${borrowed}'s mesh, so `
+      + `moving it moves ${others.length ? 'theirs too' : 'it for anything else drawn there'}.`;
+    panel.append(shared);
+  }
+
   if (!exit.region) {
     const none = document.createElement('p');
     none.className = 'none';

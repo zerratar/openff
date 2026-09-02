@@ -71,6 +71,17 @@ namespace FF3.ContentTool.Editor
 		public List<MapExit> Exits { get; set; } = new List<MapExit>();
 
 		/// <summary>
+		/// The map this one borrows its scenery and collision from, or null when it has
+		/// its own. 21 maps have neither a model nor a mesh: the houses of a town, drawn
+		/// in one of five shared interiors that the door leading in names. Without this
+		/// they came up as an empty room with a character standing in the dark.
+		/// </summary>
+		public string Borrowed { get; set; }
+
+		/// <summary>The other maps drawn in that same interior, when one is borrowed.</summary>
+		public List<string> SharedWith { get; set; } = new List<string>();
+
+		/// <summary>
 		/// Reads the collision mesh once and hands each exit the region that fires it.
 		/// A map with no mesh, or one that will not read, simply leaves them null - the
 		/// scene is still worth drawing.
@@ -95,7 +106,7 @@ namespace FF3.ContentTool.Editor
 		}
 
 		public static MapScene Load(Workspace workspace, string map,
-			Func<uint, string> lookupMessage)
+			Func<uint, string> lookupMessage, References references = null)
 		{
 			// The 2D view has already joined the .hich to the script and the messages,
 			// so this takes that rather than doing it a second time and risking the two
@@ -109,10 +120,28 @@ namespace FF3.ContentTool.Editor
 				Exits = loaded.Exits
 			};
 
+			// A house has no scenery of its own. What it looks like is decided by the
+			// door that leads into it, so if this map has no model, ask what leads here.
+			if (scene.Terrain == null && references != null)
+			{
+				string interior = references.InteriorOf(map);
+				if (interior != null)
+				{
+					scene.Borrowed = interior;
+					scene.Terrain = Package(workspace, interior);
+					scene.SharedWith = references.DrawnIn(interior)
+						.Where(other => !string.Equals(other, map,
+							StringComparison.OrdinalIgnoreCase))
+						.ToList();
+				}
+			}
+
 			// Where each exit is actually triggered, which is not where its row says the
 			// player arrives - one is the doorway, the other is where you come out. The
-			// scene draws both, because moving one is not moving the other.
-			AddRegions(workspace, map, scene.Exits);
+			// scene draws both, because moving one is not moving the other. A borrowed
+			// map's doorways are in the interior's mesh, which is the same mesh every
+			// other house sharing it uses.
+			AddRegions(workspace, scene.Borrowed ?? map, scene.Exits);
 
 			foreach (MapCharacter character in loaded.Characters)
 			{

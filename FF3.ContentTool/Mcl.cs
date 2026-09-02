@@ -181,6 +181,27 @@ namespace FF3.ContentTool
 			return FirstJumpAttribute + slot - 1;
 		}
 
+		/// <summary>
+		/// The stage a shared-interior number means, from CSceneMng.getCommonMdl.
+		///
+		/// The number lives after a '#' in an exit's destination. Five house interiors,
+		/// one shop, and 99 which means keep whatever is already loaded - so only the
+		/// first six name a stage to draw.
+		/// </summary>
+		public static string SharedInterior(int number)
+		{
+			switch (number)
+			{
+				case 1: return "s02_01";
+				case 2: return "s02_02";
+				case 3: return "s02_03";
+				case 4: return "s02_04";
+				case 5: return "s02_05";
+				case 30: return "t30_01";
+				default: return null;
+			}
+		}
+
 		/// <summary>What each attribute is called, from MCL_ATTRIBUTE.</summary>
 		public static string AttributeName(int attribute)
 		{

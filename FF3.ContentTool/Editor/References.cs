@@ -1,4 +1,4 @@
-// What points at what, so a thing can be renumbered without breaking the things that
+﻿// What points at what, so a thing can be renumbered without breaking the things that
 // name it by number.
 //
 // Most of the game does not need this. Almost everything that looks like a reference is
@@ -70,6 +70,13 @@ namespace FF3.ContentTool.Editor
 
 		/// <summary>Which of that map's exits, when the referrer is an arrival.</summary>
 		public int FromSlot { get; set; }
+
+		/// <summary>
+		/// The shared interior the arriving exit asks for, or -1. A house does not have
+		/// scenery of its own; the door that leads into it says which of the five to
+		/// draw, so this is the only place that knows what a borrowed map looks like.
+		/// </summary>
+		public int Interior { get; set; } = -1;
 
 		public string What { get; set; }
 	}
@@ -191,6 +198,56 @@ namespace FF3.ContentTool.Editor
 			return _arrivals.TryGetValue(map, out Dictionary<int, List<ExitReference>> arrivals)
 				? arrivals.Values.SelectMany(v => v).Select(r => r.Map).Distinct().ToList()
 				: new List<string>();
+		}
+
+		/// <summary>
+		/// The stage a map is actually drawn in, when it has no scenery of its own.
+		///
+		/// 21 maps are like this: the houses of a town, which share five interiors
+		/// between them. Nothing in the map says which one - the door that leads into it
+		/// does, as the number after the # in its destination - so the only way to find
+		/// out is to ask what leads here.
+		/// </summary>
+		public string InteriorOf(string map)
+		{
+			Build();
+			if (!_arrivals.TryGetValue(map, out Dictionary<int, List<ExitReference>> arrivals))
+			{
+				return null;
+			}
+
+			foreach (ExitReference arrival in arrivals.Values.SelectMany(v => v))
+			{
+				string stage = Mcl.SharedInterior(arrival.Interior);
+				if (stage != null) return stage;
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Every map drawn in the same interior. Editing that interior's collision is
+		/// editing the doorway of all of them, so this is what makes the warning worth
+		/// reading rather than vague.
+		/// </summary>
+		public List<string> DrawnIn(string interior)
+		{
+			Build();
+			List<string> found = new List<string>();
+			if (interior == null) return found;
+
+			foreach (KeyValuePair<string, Dictionary<int, List<ExitReference>>> pair in _arrivals)
+			{
+				foreach (ExitReference arrival in pair.Value.Values.SelectMany(v => v))
+				{
+					if (Mcl.SharedInterior(arrival.Interior) == interior
+						&& !found.Contains(pair.Key))
+					{
+						found.Add(pair.Key);
+					}
+				}
+			}
+			found.Sort(StringComparer.OrdinalIgnoreCase);
+			return found;
 		}
 
 		/// <summary>Whether this map's own script names any of its slots.</summary>
@@ -402,6 +459,7 @@ namespace FF3.ContentTool.Editor
 					File = name,
 					Map = map,
 					FromSlot = i + 1,
+					Interior = exit.ModelNo,
 					What = map + " exit " + (i + 1) + " arrives here"
 				});
 			}

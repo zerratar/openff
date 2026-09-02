@@ -234,7 +234,7 @@ namespace FF3.ContentTool.Editor
 
 				case "/api/map/scene":
 					SendJson(context, MapScene.Load(_workspace,
-						Query(context, "name"), _messages.Text));
+						Query(context, "name"), _messages.Text, _references));
 					return;
 
 				case "/api/map/delete":
