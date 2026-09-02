@@ -89,6 +89,9 @@ function markOverridden(name, overridden) {
 async function open(name) {
   state.name = name;
   drawList();
+  if (location.hash !== hashFor(state.kind, name)) {
+    history.replaceState(null, '', hashFor(state.kind, name));
+  }
   say('loading…');
   try {
     if (state.kind === 'map') await openMap(name);
@@ -1162,6 +1165,7 @@ async function openModel(name) {
   await viewer.show(model, name);
 }
 
+// Shared with script-editor.js and map-editor.js, which both load after this file.
 function escapeHtml(text) {
   return String(text).replace(/[&<>"]/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -1227,10 +1231,7 @@ async function openAudio(name) {
     const item = document.createElement('li');
     const link = document.createElement('a');
     link.textContent = use.script;
-    link.onclick = () => {
-      $('[data-kind="script"]').click();
-      setTimeout(() => open(use.script), 400);
-    };
+    link.onclick = () => { location.hash = hashFor('script', use.script); };
     const count = document.createElement('b');
     count.textContent = use.count === 1 ? 'once' : `${use.count} times`;
     item.append(link, count);
@@ -1238,23 +1239,84 @@ async function openAudio(name) {
   }
 }
 
+// ------------------------------------------------------------------------ routing
+
+// The address bar is the state: #/scripts/files/d04_02.script says both which tab is
+// open and which file, so a refresh comes back to the same place and a link can be
+// shared. The slug is the tab's own label lowercased, read off the button rather than
+// kept in a second list that could drift out of step with it.
+
+function slugFor(kind) {
+  const button = $(`#kinds button[data-kind="${kind}"]`);
+  return button ? button.textContent.trim().toLowerCase() : kind;
+}
+
+function kindFor(slug) {
+  const button = $$('#kinds button')
+    .find(b => b.textContent.trim().toLowerCase() === slug);
+  return button ? button.dataset.kind : null;
+}
+
+/// Names hold slashes, and those are worth keeping readable in the bar.
+function encodeName(name) {
+  return encodeURIComponent(name).replace(/%2F/g, '/');
+}
+
+function hashFor(kind, name) {
+  return `#/${slugFor(kind)}` + (name ? `/${encodeName(name)}` : '');
+}
+
+function readHash() {
+  const raw = location.hash.replace(/^#\/?/, '');
+  if (!raw) return { kind: null, name: null };
+  const cut = raw.indexOf('/');
+  const slug = cut < 0 ? raw : raw.slice(0, cut);
+  const name = cut < 0 ? null : decodeURIComponent(raw.slice(cut + 1));
+  return { kind: kindFor(slug), name: name || null };
+}
+
+/// Puts the page where the address bar says, without disturbing what is already right.
+async function applyHash() {
+  const { kind, name } = readHash();
+  const wanted = kind || 'map';
+
+  if (wanted !== state.kind || !state.files.length) {
+    await showKind(wanted);
+  }
+  if (name && name !== state.name) {
+    await open(name);
+  }
+}
+
+/// Switches tab. Does not touch the address bar - the caller decides that.
+async function showKind(kind) {
+  state.kind = kind;
+  state.name = null;
+  $$('#kinds button').forEach(b => b.classList.toggle('on', b.dataset.kind === kind));
+  // A filter left over from another kind reads as an empty folder.
+  $('#filter').value = '';
+  $('#pane').innerHTML = '<p class="empty">Pick a file on the left.</p>';
+  await loadList();
+}
+
 // -------------------------------------------------------------------- start up
 
 $$('#kinds button').forEach(button => {
-  button.onclick = async () => {
-    $$('#kinds button').forEach(b => b.classList.toggle('on', b === button));
-    state.kind = button.dataset.kind;
-    state.name = null;
-    // A filter left over from another kind reads as an empty folder.
-    $('#filter').value = '';
-    $('#pane').innerHTML = '<p class="empty">Pick a file on the left.</p>';
-    await loadList();
-  };
+  button.onclick = () => { location.hash = hashFor(button.dataset.kind); };
+});
+
+// Fired when the address bar is edited, or on back and forward. A hash that already
+// matches where the page is means this handler put it there, so there is nothing to do.
+window.addEventListener('hashchange', () => {
+  const { kind, name } = readHash();
+  if ((kind || 'map') === state.kind && (name || null) === state.name) return;
+  applyHash().catch(error => say(error.message, 'bad'));
 });
 
 $('#filter').addEventListener('input', drawList);
 
 api('/api/status')
   .then(status => say(`${status.files} files  ·  overrides in ${status.overrides}`))
-  .then(loadList)
+  .then(applyHash)
   .catch(error => say(error.message, 'bad'));
+

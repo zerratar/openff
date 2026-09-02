@@ -35,8 +35,9 @@ function signatureOf(op) {
   return `${op.name} ${parts.join(', ')}`;
 }
 
-const escapeHtml = text => text
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// escapeHtml lives in app.js, which loads before this file. It was declared in both
+// for a while, which is a redeclaration error - and that quietly disabled everything
+// below, leaving the editor showing blank lines.
 
 /// One line of source as highlighted HTML.
 const KEYWORDS = new Set(['map', 'cast', 'function', 'func', 'extern', 'data',

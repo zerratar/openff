@@ -769,6 +769,10 @@ namespace FF3.ContentTool.Editor
 				return;
 			}
 
+			// The editor is rebuilt while it is open, so a browser holding on to an old
+			// copy of a script is a real trap - it shows a bug that has already been
+			// fixed, or hides one that has not.
+			context.Response.Headers["Cache-Control"] = "no-store, must-revalidate";
 			Send(context, 200, ContentType(full), File.ReadAllBytes(full));
 		}
 

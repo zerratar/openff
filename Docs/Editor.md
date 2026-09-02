@@ -22,6 +22,17 @@ undoing one is deleting a file.
 The server binds to localhost, has no authentication, and is meant to be run by the
 person editing their own copy of the game. It is not a service.
 
+## The address bar
+
+The tab and the open file are in the URL - `#/scripts/files/d04_02.script` - so a
+refresh comes back to where you were rather than to the first tab, back and forward
+work, and a link can be handed to somebody. The slug is the tab's own label lowercased,
+read off the button rather than kept in a second list that could drift out of step.
+
+Static files are served `no-store`. The editor gets rebuilt while it is open, and a
+browser holding on to an old script shows bugs that are already fixed - or hides ones
+that are not.
+
 ## Maps
 
 A plan view of a map: everything that stands on it, drawn at the position it stands
