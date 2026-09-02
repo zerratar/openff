@@ -71,6 +71,37 @@ namespace FF3
 				gdm.PreferredBackBufferWidth = 800;
 				gdm.PreferredBackBufferHeight = 480;
 
+				// --size=1600x960 or --fullscreen. The game lays out in a fixed space and
+				// everything scales to the window, so being able to start at another size
+				// is how that stays true rather than being assumed.
+				string wanted = Options.Get("size");
+				if (!string.IsNullOrEmpty(wanted))
+				{
+					string[] parts = wanted.Split('x', 'X');
+					if (parts.Length == 2
+						&& int.TryParse(parts[0], out int width)
+						&& int.TryParse(parts[1], out int height)
+						&& width > 0 && height > 0)
+					{
+						gdm.PreferredBackBufferWidth = width;
+						gdm.PreferredBackBufferHeight = height;
+					}
+					else
+					{
+						Log.Write(LogChannel.General, "ignoring --size=" + wanted
+							+ ", which is not <width>x<height>");
+					}
+				}
+
+				if (Options.Get("fullscreen") != null)
+				{
+					gdm.IsFullScreen = true;
+					gdm.PreferredBackBufferWidth = Microsoft.Xna.Framework.Graphics
+						.GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+					gdm.PreferredBackBufferHeight = Microsoft.Xna.Framework.Graphics
+						.GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+				}
+
 				// The Graphics constructor asks for multisampling. On DesktopGL that
 				// changes how the depth attachment is created, so make it switchable
 				// while the 3D path is still being brought up: --msaa=off
