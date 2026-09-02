@@ -61,6 +61,37 @@ function arrowGeometry() {
   return new Float32Array(out);
 }
 
+/// A ring lying in the ground plane, for turning something about its vertical axis.
+/// One ring rather than three, because a .hich row holds one angle: its facing. There
+/// is no scale in the format either, which is why there is no scale gizmo.
+function ringGeometry() {
+  const out = [];
+  const push = (x, y, z) => out.push(x, y, z, 0, 0, 1, 1, 1);
+  const ring = 1;
+  const tube = 0.035;
+  const around = 48;
+  const through = 6;
+
+  const at = (a, b) => [
+    (ring + tube * Math.cos(b)) * Math.cos(a),
+    tube * Math.sin(b),
+    (ring + tube * Math.cos(b)) * Math.sin(a)
+  ];
+
+  for (let i = 0; i < around; i++) {
+    const a0 = (i / around) * Math.PI * 2;
+    const a1 = ((i + 1) / around) * Math.PI * 2;
+    for (let j = 0; j < through; j++) {
+      const b0 = (j / through) * Math.PI * 2;
+      const b1 = ((j + 1) / through) * Math.PI * 2;
+      const A = at(a0, b0), B = at(a1, b0), C = at(a1, b1), D = at(a0, b1);
+      push(...A); push(...B); push(...C);
+      push(...A); push(...C); push(...D);
+    }
+  }
+  return new Float32Array(out);
+}
+
 /// Places an arrow: rotates local +X onto the axis, scales it, moves it into place.
 function axisMatrix(axis, at, size) {
   const s = size;
@@ -117,7 +148,14 @@ function makeMapScene(canvas, status) {
   gl.bufferData(gl.ARRAY_BUFFER, arrow, gl.STATIC_DRAW);
   const arrowVertices = arrow.length / 8;
 
+  const ringBuffer = gl.createBuffer();
+  const ring = ringGeometry();
+  gl.bindBuffer(gl.ARRAY_BUFFER, ringBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, ring, gl.STATIC_DRAW);
+  const ringVertices = ring.length / 8;
+
   let gizmoOn = true;
+  let gizmoMode = 'move';        // 'move' or 'rotate'
   let gizmoAxis = null;          // the axis being dragged, if any
   let gizmoFrom = null;          // where the drag started
   let onMoved = () => {};
@@ -271,13 +309,119 @@ function makeMapScene(canvas, status) {
     gl.uniform1f(uniform.alpha, 1);
 
     const at = [item.x, item.y, item.z];
-    for (const axis of AXES) {
-      const lit = gizmoAxis === axis.name;
-      gl.uniform3fv(uniform.tint, lit ? [1, 0.95, 0.5] : axis.colour);
-      gl.uniformMatrix4fv(uniform.model, false, axisMatrix(axis.name, at, gizmoSize()));
+    if (gizmoMode === 'rotate') {
+      const size = gizmoSize();
+      gl.bindBuffer(gl.ARRAY_BUFFER, ringBuffer);
+      if (attribute.position >= 0) {
+        gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+      }
+      if (attribute.coord >= 0) {
+        gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 3 * 4);
+      }
+      if (attribute.colour >= 0) {
+        gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 5 * 4);
+      }
+      gl.uniform3fv(uniform.tint, gizmoAxis === 'turn' ? [1, 0.95, 0.5] : [0.45, 0.85, 0.45]);
+      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
+        size, 0, 0, 0, 0, size, 0, 0, 0, 0, size, 0, at[0], at[1], at[2], 1
+      ]));
+      gl.drawArrays(gl.TRIANGLES, 0, ringVertices);
+
+      // A short arrow showing which way it is facing, so the angle is readable
+      // without going to the inspector for it.
+      const a = (item.rotationY || 0) * Math.PI / 180;
+      gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
+      if (attribute.position >= 0) {
+        gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+      }
+      if (attribute.coord >= 0) {
+        gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 3 * 4);
+      }
+      if (attribute.colour >= 0) {
+        gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 5 * 4);
+      }
+      gl.uniform3fv(uniform.tint, [0.95, 0.85, 0.35]);
+      // Local +X onto the facing direction, which is (sin a, 0, cos a).
+      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
+        Math.sin(a) * size, 0, Math.cos(a) * size, 0,
+        0, size, 0, 0,
+        Math.cos(a) * size, 0, -Math.sin(a) * size, 0,
+        at[0], at[1], at[2], 1
+      ]));
       gl.drawArrays(gl.TRIANGLES, 0, arrowVertices);
+    } else {
+      for (const axis of AXES) {
+        const lit = gizmoAxis === axis.name;
+        gl.uniform3fv(uniform.tint, lit ? [1, 0.95, 0.5] : axis.colour);
+        gl.uniformMatrix4fv(uniform.model, false, axisMatrix(axis.name, at, gizmoSize()));
+        gl.drawArrays(gl.TRIANGLES, 0, arrowVertices);
+      }
     }
     gl.enable(gl.DEPTH_TEST);
+  }
+
+  function eyePosition() {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+    return [
+      centre[0] + distance * cp * sy,
+      centre[1] + distance * sp,
+      centre[2] + distance * cp * cy
+    ];
+  }
+
+  /// Moves the camera without turning it: the eye goes here, the target follows.
+  function setEye(eye) {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+    centre = [
+      eye[0] - distance * cp * sy,
+      eye[1] - distance * sp,
+      eye[2] - distance * cp * cy
+    ];
+  }
+
+  /// The camera's own axes, for flying along and for casting a ray.
+  function basis() {
+    const eye = eyePosition();
+    const forward = normalise([
+      centre[0] - eye[0], centre[1] - eye[1], centre[2] - eye[2]
+    ]);
+    const right = normalise(cross(forward, [0, 1, 0]));
+    return { eye, forward, right, up: cross(right, forward) };
+  }
+
+  /// A ray from the eye through one pixel.
+  function rayAt(px, py) {
+    const rect = canvas.getBoundingClientRect();
+    const nx = ((px - rect.left) / rect.width) * 2 - 1;
+    const ny = 1 - ((py - rect.top) / rect.height) * 2;
+    const aspect = canvas.width / Math.max(1, canvas.height);
+    const t = Math.tan(0.7 / 2);
+    const { eye, forward, right, up } = basis();
+    const dir = normalise([
+      forward[0] + right[0] * nx * t * aspect + up[0] * ny * t,
+      forward[1] + right[1] * nx * t * aspect + up[1] * ny * t,
+      forward[2] + right[2] * nx * t * aspect + up[2] * ny * t
+    ]);
+    return { eye, dir };
+  }
+
+  /// Where the cursor lands on the ground plane through a point, as an angle and a
+  /// distance from it. This is what makes the ring turn with the mouse rather than
+  /// with the screen, so it behaves the same from any camera angle.
+  function onGround(px, py, at) {
+    const { eye, dir } = rayAt(px, py);
+    if (Math.abs(dir[1]) < 1e-4) return null;
+    const along = (at[1] - eye[1]) / dir[1];
+    if (along <= 0) return null;
+    const x = eye[0] + dir[0] * along - at[0];
+    const z = eye[2] + dir[2] * along - at[2];
+    return {
+      // atan2(x, z) matches the convention the placement matrix uses for facing.
+      angle: Math.atan2(x, z) * 180 / Math.PI,
+      away: Math.hypot(x, z)
+    };
   }
 
   /// Where a world point lands on the canvas, in pixels.
@@ -292,10 +436,19 @@ function makeMapScene(canvas, status) {
     return [(nx + 1) / 2 * rect.width, (1 - ny) / 2 * rect.height];
   }
 
-  /// Which arrow is under the cursor, if any.
+  /// Which arrow is under the cursor, if any. In rotate mode there is one target,
+  /// the ring, and being near it means being near its radius on the ground.
   function axisAt(px, py) {
     const item = gizmoOn && selectedItem();
     if (!item) return null;
+
+    if (gizmoMode === 'rotate') {
+      const ground = onGround(px, py, [item.x, item.y, item.z]);
+      if (!ground) return null;
+      const size = gizmoSize();
+      return Math.abs(ground.away - size) < size * 0.22
+        ? { name: 'turn' } : null;
+    }
 
     const rect = canvas.getBoundingClientRect();
     const mouse = [px - rect.left, py - rect.top];
@@ -423,13 +576,50 @@ function makeMapScene(canvas, status) {
 
     setGizmo(on) { gizmoOn = on; if (!on) gizmoAxis = null; draw(); },
 
+    setGizmoMode(mode) { gizmoMode = mode; gizmoAxis = null; draw(); },
+    gizmoMode() { return gizmoMode; },
+
+    /// Turning on the spot: the eye stays put and the view swings round it.
+    look(dx, dy) {
+      const eye = eyePosition();
+      yaw -= dx * 0.005;
+      pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * 0.005));
+      setEye(eye);
+      draw();
+    },
+
+    /// One step of flying. The amounts are -1, 0 or 1 per axis.
+    fly(ahead, sideways, upward, quick) {
+      if (!ahead && !sideways && !upward) return;
+      const { eye, forward, right } = basis();
+      const step = Math.max(0.4, distance * 0.02) * (quick ? 4 : 1);
+      setEye([
+        eye[0] + (forward[0] * ahead + right[0] * sideways) * step,
+        eye[1] + (forward[1] * ahead + right[1] * sideways) * step + upward * step,
+        eye[2] + (forward[2] * ahead + right[2] * sideways) * step
+      ]);
+      draw();
+    },
+
     /// True if the press landed on an arrow, in which case the camera stays put.
     beginDrag(px, py) {
       const axis = axisAt(px, py);
       if (!axis) return false;
       const item = selectedItem();
       gizmoAxis = axis.name;
-      gizmoFrom = { px, py, x: item.x, y: item.y, z: item.z };
+      gizmoFrom = {
+        px, py, x: item.x, y: item.y, z: item.z, rotationY: item.rotationY || 0,
+        angle: 0
+      };
+      if (axis.name === 'turn') {
+        const ground = onGround(px, py, [item.x, item.y, item.z]);
+        if (!ground) {
+          gizmoAxis = null;
+          gizmoFrom = null;
+          return false;
+        }
+        gizmoFrom.angle = ground.angle;
+      }
       draw();
       return true;
     },
@@ -438,6 +628,17 @@ function makeMapScene(canvas, status) {
       if (!gizmoAxis || !gizmoFrom) return null;
       const item = selectedItem();
       if (!item) return null;
+
+      if (gizmoAxis === 'turn') {
+        const ground = onGround(px, py, [gizmoFrom.x, gizmoFrom.y, gizmoFrom.z]);
+        if (!ground) return null;
+        let turned = Math.round(gizmoFrom.rotationY + (ground.angle - gizmoFrom.angle));
+        turned = ((turned % 360) + 360) % 360;
+        item.rotationY = turned;
+        draw();
+        onMoved(item);
+        return item;
+      }
 
       const axis = AXES.find(a => a.name === gizmoAxis);
       const at = [gizmoFrom.x, gizmoFrom.y, gizmoFrom.z];

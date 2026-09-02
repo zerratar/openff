@@ -285,6 +285,7 @@ function wireModes(node, doc, scene) {
   const canvas = $('.scene', node);
   const recentre = $('.recentre', node);
   const gizmoBox = $('.gizmo-toggle', node);
+  const tools = $('.tools', node);
 
   const show = async (mode) => {
     doc.mode = mode;
@@ -293,6 +294,7 @@ function wireModes(node, doc, scene) {
     solid.hidden = mode !== '3d';
     recentre.hidden = mode !== '3d';
     gizmoBox.hidden = mode !== '3d';
+    tools.hidden = mode !== '3d';
     $('.zoom', node).hidden = mode !== '2d';
 
     if (mode !== '3d') return;
@@ -310,6 +312,10 @@ function wireModes(node, doc, scene) {
         character.x = item.x;
         character.y = item.y;
         character.z = item.z;
+        // The facing too. Leaving it out meant a turn never reached the character
+        // behind the scene object, so there was nothing for undo to undo and nothing
+        // for Save placement to write.
+        character.rotationY = item.rotationY;
         drawInspector();
       });
 
@@ -334,68 +340,160 @@ function wireModes(node, doc, scene) {
   $('.gizmo', node).onchange = (event) => {
     if (doc.scene3d) doc.scene3d.setGizmo(event.target.checked);
   };
+
+  const useTool = (which) => {
+    $$('.tool', node).forEach(b => b.classList.toggle('on', b.dataset.tool === which));
+    if (doc.scene3d) doc.scene3d.setGizmoMode(which);
+  };
+  $$('.tool', node).forEach(button => {
+    button.onclick = () => useTool(button.dataset.tool);
+  });
+  doc.useTool = useTool;
   show('3d');
 }
 
-/// Drag to orbit, right-drag or shift-drag to pan, wheel to zoom, click to pick.
+/// Left drag orbits, middle or shift drags to pan, wheel zooms, a click picks.
+///
+/// Holding the right button flies, the way a scene view usually does: the mouse looks
+/// around from where the camera already is rather than swinging it round a target, and
+/// WASD walks it, with Q and E for down and up and shift to hurry. The keys are only
+/// listened for while the button is held, so W and E stay free to swap the gizmo the
+/// rest of the time.
 function wireSceneInput(canvas, doc) {
   let dragging = false;
   let panning = false;
+  let flying = false;
   let moved = 0;
   let lastX = 0;
   let lastY = 0;
 
+  const held = new Set();
+  let flight = 0;
+
+  const flyStep = () => {
+    if (!flying) return;
+    const ahead = (held.has('w') ? 1 : 0) - (held.has('s') ? 1 : 0);
+    const sideways = (held.has('d') ? 1 : 0) - (held.has('a') ? 1 : 0);
+    const upward = (held.has('e') ? 1 : 0) - (held.has('q') ? 1 : 0);
+    doc.scene3d.fly(ahead, sideways, upward, held.has('shift'));
+    flight = requestAnimationFrame(flyStep);
+  };
+
+  const onKey = (event) => {
+    if (!flying) return;
+    const key = event.key.toLowerCase();
+    if ('wasdqe'.includes(key) || key === 'shift') {
+      event.preventDefault();
+      if (event.type === 'keydown') held.add(key);
+      else held.delete(key);
+    }
+  };
+
+  const stopFlying = () => {
+    if (!flying) return;
+    flying = false;
+    held.clear();
+    cancelAnimationFrame(flight);
+    window.removeEventListener('keydown', onKey);
+    window.removeEventListener('keyup', onKey);
+    canvas.style.cursor = '';
+  };
+
   canvas.oncontextmenu = (event) => event.preventDefault();
+
   canvas.onpointerdown = (event) => {
     moved = 0;
     lastX = event.clientX;
     lastY = event.clientY;
     canvas.setPointerCapture(event.pointerId);
 
-    // An arrow under the cursor takes the press; the camera only gets what is left.
+    if (event.button === 2) {
+      flying = true;
+      canvas.style.cursor = 'none';
+      window.addEventListener('keydown', onKey);
+      window.addEventListener('keyup', onKey);
+      flight = requestAnimationFrame(flyStep);
+      return;
+    }
+
+    // A gizmo under the cursor takes the press; the camera only gets what is left.
     if (event.button === 0 && doc.scene3d.beginDrag(event.clientX, event.clientY)) {
       pinDoc(doc);
       doc.movingFrom = mapState.selected ? positionOf(mapState.selected) : null;
       return;
     }
     dragging = true;
-    panning = event.button === 2 || event.shiftKey;
+    panning = event.button === 1 || event.shiftKey;
   };
+
   canvas.onpointermove = (event) => {
+    const dx = event.clientX - lastX;
+    const dy = event.clientY - lastY;
+    lastX = event.clientX;
+    lastY = event.clientY;
+
+    if (flying) {
+      doc.scene3d.look(dx, dy);
+      return;
+    }
     if (doc.scene3d.dragging()) {
       doc.scene3d.dragTo(event.clientX, event.clientY);
       return;
     }
     if (!dragging) {
       canvas.style.cursor = doc.scene3d.hovering(event.clientX, event.clientY)
-        ? 'move' : '';
+        ? (doc.scene3d.gizmoMode() === 'rotate' ? 'grab' : 'move') : '';
       return;
     }
-    const dx = event.clientX - lastX;
-    const dy = event.clientY - lastY;
     moved += Math.abs(dx) + Math.abs(dy);
     if (panning) doc.scene3d.pan(dx, dy);
     else doc.scene3d.orbit(dx, dy);
-    lastX = event.clientX;
-    lastY = event.clientY;
   };
+
   canvas.onpointerup = (event) => {
     canvas.releasePointerCapture(event.pointerId);
+    if (event.button === 2) {
+      stopFlying();
+      return;
+    }
     if (doc.scene3d.dragging()) {
       doc.scene3d.endDrag();
       if (doc.movingFrom) recordMove(doc, mapState.selected, doc.movingFrom);
       doc.movingFrom = null;
-      say('moved - use Save placement to keep it', 'good');
+      say(doc.scene3d.gizmoMode() === 'rotate'
+        ? 'turned - use Save placement to keep it'
+        : 'moved - use Save placement to keep it', 'good');
       return;
     }
     dragging = false;
     // A click that did not really move is a pick, not the end of an orbit.
     if (moved < 4) doc.scene3d.pickAt(event.clientX, event.clientY);
   };
+
+  // Letting go outside the canvas, or leaving the page mid-flight, still lands.
+  canvas.onpointercancel = stopFlying;
+  window.addEventListener('blur', stopFlying);
+
   canvas.onwheel = (event) => {
     event.preventDefault();
     doc.scene3d.zoom(Math.sign(event.deltaY));
   };
+
+  // W and E swap the gizmo. This listens on the window rather than the pane, because
+  // a pane only hears keys while something inside it holds focus - and the usual way
+  // to reach for W is straight after moving the mouse, having clicked nothing.
+  // It only acts when this document is the focused one and is showing its scene.
+  window.addEventListener('keydown', (event) => {
+    if (flying || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (activeDoc !== doc || doc.mode !== '3d') return;
+    const target = event.target;
+    if (target && target.matches
+      && target.matches('input, textarea, [contenteditable]')) return;
+    const key = event.key.toLowerCase();
+    if (key !== 'w' && key !== 'e') return;
+    event.preventDefault();
+    doc.useTool(key === 'w' ? 'move' : 'rotate');
+  });
 }
 
 /// What the pin colours mean. It used to live in the map's own inspector.

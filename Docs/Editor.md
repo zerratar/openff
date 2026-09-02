@@ -82,12 +82,25 @@ terrain model with every character standing on it, wearing the model its `.hich`
 names and facing the way that row says. **2D** is the plan it always was: pins you can
 drag, which is still the right thing for moving somebody two steps left.
 
-Drag to orbit, right-drag or shift-drag to pan, wheel to zoom, click to pick. Picking in
+Left-drag orbits, middle-drag or shift-drag pans, the wheel zooms, and a click picks.
+Holding the **right button flies**, the way a scene view usually does: the mouse looks
+around from where the camera already is rather than swinging it round a target, and WASD
+walks it, with Q and E for down and up and shift to hurry. Those keys are only listened
+for while the button is held, so W and E stay free to swap the gizmo the rest of the time. Picking in
 the scene and clicking in the hierarchy are the same selection, and editing a position in
 the inspector moves the character in whichever view is showing.
 
-Whatever is selected gets a **move gizmo** - three arrows, one per axis, on by default
-and switched off from the bar. Dragging one slides the character along that axis and
+Whatever is selected gets a **gizmo**, on by default and switched off from the bar.
+**W** moves and **E** turns, the same keys and the same order a scene editor usually
+uses. There is no scale gizmo because there is no scale to edit: a `.hich` row holds a
+position and one angle, and its scale is 1 in 2063 of 2067 rows.
+
+The rotate gizmo is a single ring in the ground plane, because facing is the one angle
+these files hold. Dragging it works off where the cursor lands on that plane rather than
+where it is on screen, so the ring turns with the mouse from any camera angle, and a
+short arrow shows which way the character is facing without going to the inspector for it.
+
+The move gizmo is three arrows, one per axis. Dragging one slides the character along that axis and
 nowhere else, snapping to whole units because that is what a `.hich` row holds. The
 arrows are geometry rather than lines: a line comes out one pixel wide however thick you
 ask for it, which is not something you can reliably grab. Dragging is worked out in
