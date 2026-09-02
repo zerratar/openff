@@ -16,6 +16,10 @@ const mapState = { name: null, data: null, zoom: 2, selected: null, showLogic: f
 async function openMap(name) {
   const data = await api(`/api/map?name=${encodeURIComponent(name)}`);
   const scene = await api(`/api/map/scene?name=${encodeURIComponent(name)}`);
+  // Both halves of the map's exits, so the add panel can say whether another one is
+  // possible before offering to write it.
+  mapState.exits = await api(`/api/map/exits?name=${encodeURIComponent(name)}`)
+    .catch(() => null);
   // Every model that can go in a .hich row, so the panel can offer them all rather
   // than only the ones this map happens to use already.
   if (!state.placeable) state.placeable = await api('/api/models/placeable');
@@ -71,6 +75,27 @@ async function openMap(name) {
   wireDrop(node, doc);
 
   drawMap(node);
+}
+
+/// Every map name, for the boxes that want one. A datalist rather than a dropdown,
+/// because 356 names are worth typing into rather than scrolling through.
+function fillMapNames() {
+  let names = $('#map-names');
+  if (!names) {
+    names = document.createElement('datalist');
+    names.id = 'map-names';
+    document.body.append(names);
+  }
+  // Only while the project is showing maps - any other list would fill it with the
+  // wrong names.
+  if (state.browse !== 'map') return;
+  if (names.childElementCount === (state.files || []).length) return;
+  names.textContent = '';
+  for (const file of state.files) {
+    const option = document.createElement('option');
+    option.value = file.name;
+    names.append(option);
+  }
 }
 
 /// Dropping a model from the project onto the scene.
@@ -159,6 +184,15 @@ const BEHAVIOURS = [
     label: 'Stands there',
     note: 'Placed and booted, with an empty cast. Somewhere to hang behaviour on later.',
     objectsOnly: false
+  },
+  {
+    id: 'exit',
+    label: 'Exit to another map',
+    note: 'Writes both halves: the row in the map\u2019s .pak saying where it leads, and '
+      + 'a region in the collision mesh that fires it. A map has twelve exit slots, '
+      + 'because that is how many jump attributes the collision test walks.',
+    objectsOnly: false,
+    noModel: true
   }
 ];
 
@@ -257,12 +291,32 @@ function buildAdd(node, start) {
   gold.value = '100';
   goldLabel.append(gold);
 
+  // Where an exit leads, and the state that decides whether one can be added at all.
+  const toLabel = document.createElement('label');
+  toLabel.className = 'wide';
+  toLabel.textContent = 'leads to which map';
+  const to = document.createElement('input');
+  to.setAttribute('list', 'map-names');
+  to.value = '';
+  toLabel.append(to);
+
+  const arriveLabel = document.createElement('label');
+  arriveLabel.textContent = 'arrival index';
+  const arrive = document.createElement('input');
+  arrive.value = '1';
+  arrive.title = 'Which exit on the far map the player comes out of.';
+  arriveLabel.append(arrive);
+
+  const exitNote = document.createElement('p');
+  exitNote.className = 'none';
+
   const go = document.createElement('button');
   go.className = 'primary';
   go.textContent = 'Add it';
 
   panel.append(kindLabel, kindNote, modelHead, choose, modelNote,
-    xLabel, zLabel, textLabel, itemLabel, goldLabel, go);
+    xLabel, zLabel, textLabel, itemLabel, goldLabel,
+    toLabel, arriveLabel, exitNote, go);
 
   // The item list is worth fetching once and keeping - it is the whole item table, and
   // every chest anyone adds wants the same list.
@@ -290,7 +344,31 @@ function buildAdd(node, start) {
     textLabel.hidden = id !== 'talk';
     itemLabel.hidden = id !== 'chest';
     goldLabel.hidden = id !== 'money';
+    toLabel.hidden = id !== 'exit';
+    arriveLabel.hidden = id !== 'exit';
+    exitNote.hidden = id !== 'exit';
+    modelHead.hidden = Boolean(behaviour.noModel);
+    choose.hidden = Boolean(behaviour.noModel);
+    modelNote.hidden = Boolean(behaviour.noModel);
     if (id === 'chest') fillItems();
+    if (id === 'exit') {
+      fillMapNames();
+      const at = mapState.exits;
+      go.disabled = !(at && at.canAdd);
+      exitNote.textContent = !at
+        ? 'This map will not say how its exits stand.'
+        : !at.hasMesh
+          ? 'This map has no collision mesh of its own - 23 maps borrow another\u2019s - '
+            + 'so there is nothing here to put a trigger in.'
+          : !at.hasTable
+            ? 'This map has no jumps table, so there is nowhere to say where an exit leads.'
+            : at.rows >= at.slots
+              ? `This map already has all ${at.slots} exits.`
+              : `It will be exit ${at.rows + 1} of at most ${at.slots}. `
+                + `The mesh already triggers ${at.triggers.join(', ') || 'none'}.`;
+    } else {
+      go.disabled = false;
+    }
 
     // A chest has to be an object, and o001 is the chest: 377 of the game's 421
     // treasure rows use it, and the other 44 use o000. So an unpicked model becomes the
@@ -327,6 +405,40 @@ function buildAdd(node, start) {
 
   go.onclick = async () => {
     go.disabled = true;
+
+    if (kind.value === 'exit') {
+      try {
+        const result = await api('/api/map/exit/add', {
+          name: mapState.name,
+          x: parseInt(x.value, 10) || 0,
+          y: 0,
+          z: parseInt(z.value, 10) || 0,
+          to: to.value.trim(),
+          toIndex: parseInt(arrive.value, 10) || 0,
+          rotationY: 0,
+          conditionFlag: 1,
+          kind: -1
+        });
+        if (!result.ok) {
+          say(result.error, 'bad');
+          go.disabled = false;
+          return;
+        }
+        for (const note of result.notes || []) say(note);
+        say(`exit ${result.slot} added`, 'good');
+        markOverridden(`files/${mapState.name}.pak`, true);
+        await open(mapState.name);
+        if (activeDoc) {
+          activeDoc.selection = `exit:${result.slot - 1}`;
+          drawInspector();
+        }
+      } catch (error) {
+        say(error.message, 'bad');
+        go.disabled = false;
+      }
+      return;
+    }
+
     try {
       const result = await api('/api/map/add', {
         name: mapState.name,
@@ -949,11 +1061,14 @@ function selectCharacter(node, character, pin) {
 
 // An exit, and what can be done to one.
 //
-// Only half of an exit is data. The row here says where the player lands, on which map,
-// facing which way; what makes it fire is a region of the map's collision mesh carrying
-// one of twelve jump attributes, and that lives in <map>_col.mcl.lz, which nothing here
-// reads yet. So an exit can be pointed somewhere else but not created - a new row with
-// no region to trigger it would sit in the file and never fire.
+// An exit is two halves. The row here says where the player lands, on which map, facing
+// which way; what makes it fire is a region of the map's collision mesh carrying one of
+// twelve jump attributes, in <map>_col.mcl.lz. Both are written together - see
+// Editor/MapExits.cs - so an exit is never half made.
+//
+// Only the last one can be removed, because slot N fires row N and nothing else joins
+// them: taking one out of the middle would shift every row after it down a slot while
+// the attributes naming them stayed where they were.
 function buildExit(exit, index) {
   const panel = document.createElement('div');
   if (!exit) return panel;
@@ -1008,22 +1123,7 @@ function buildExit(exit, index) {
   toLabel.append(to);
   panel.append(toLabel);
 
-  // Every map, so the name can be chosen rather than remembered. A datalist rather than
-  // a dropdown, because 356 names are worth typing into.
-  let names = $('#map-names');
-  if (!names) {
-    names = document.createElement('datalist');
-    names.id = 'map-names';
-    document.body.append(names);
-  }
-  if (names.childElementCount !== (state.files || []).length && state.browse === 'map') {
-    names.textContent = '';
-    for (const file of state.files) {
-      const option = document.createElement('option');
-      option.value = file.name;
-      names.append(option);
-    }
-  }
+  fillMapNames();
 
   panel.append(field('arrival index', 'toIndex',
     'Which exit on the far map the player comes out of.'));
@@ -1073,13 +1173,42 @@ function buildExit(exit, index) {
   };
   panel.append(save);
 
+  // Only the last one can go: removing a row from the middle would shift every slot
+  // after it down while the attributes that name them stay put.
+  const exits = (doc.data.scene.exits || []).length;
+  if (index === exits - 1) {
+    const remove = document.createElement('button');
+    remove.className = 'danger';
+    remove.textContent = 'Remove this exit';
+    remove.onclick = async () => {
+      if (!confirm(`Remove exit ${index + 1} and the region in the collision mesh `
+        + 'that fires it?')) return;
+      remove.disabled = true;
+      try {
+        const result = await api('/api/map/exit/delete',
+          { name: mapState.name, slot: index + 1 });
+        if (!result.ok) {
+          say(result.error, 'bad');
+          remove.disabled = false;
+          return;
+        }
+        for (const line of result.notes || []) say(line);
+        say(`exit ${index + 1} removed`, 'good');
+        await open(mapState.name);
+      } catch (error) {
+        say(error.message, 'bad');
+        remove.disabled = false;
+      }
+    };
+    panel.append(remove);
+  }
+
   const note = document.createElement('p');
   note.className = 'none';
-  note.textContent = 'Only half of an exit is data. This row says where the player '
-    + 'lands; what makes it fire is a region of the map’s collision mesh carrying '
-    + 'one of twelve jump attributes, in ' + mapState.name + '_col.mcl.lz, which '
-    + 'nothing here reads yet. So an exit can be pointed somewhere else, but a new one '
-    + 'cannot be made - a row with no region to trigger it would never fire.';
+  note.textContent = 'An exit is two halves. This row says where the player lands; '
+    + 'what makes it fire is a region of ' + mapState.name + '_col.mcl.lz carrying one '
+    + 'of twelve jump attributes. Adding and removing an exit writes both, so a row '
+    + 'never ends up with nothing to trigger it.';
   panel.append(note);
   return panel;
 }

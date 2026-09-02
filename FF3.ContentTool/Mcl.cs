@@ -461,6 +461,326 @@ namespace FF3.ContentTool
 			}
 		}
 
+		// ------------------------------------------------------- making an exit region
+		//
+		// A new exit trigger is copied from the shipped ones rather than invented, and
+		// they are remarkably consistent. Every one of the 622 in the game is a material
+		// carrying its exit attribute and nothing else, and 609 of them are exactly the
+		// same shape: eight triangles and eight points forming a box with four walls and
+		// no lid, sharing not one point with the rest of the mesh. So a region is a
+		// self-contained thing that can be added and taken out whole.
+		//
+		// Their size, from the median of all 622: about 19 wide, 12 deep, 54 tall. Where
+		// the floor under one could be found - 300 of them - the box reaches 19 below it
+		// and 36 above, so it is not a doorway sitting on the ground but a slab through
+		// it, which is what catches a player whatever height the floor is at just there.
+		//
+		// The one part that is not geometry is the block grid. evaluateSphere only tests
+		// polygons in the blocks around the player - it samples eight points about the
+		// sphere, maps each through getBlock, and looks no further - so a triangle in no
+		// block is a triangle nothing will ever hit. New polygons go into every block
+		// their box touches.
+		//
+		// And getBlock measures down from the object's bounding box maximum, which is why
+		// a box outside those bounds is refused rather than the bounds grown: a bigger
+		// box would silently move every polygon already there into a different cell of
+		// the grid. evaluateSphere ignores points outside the bounds anyway, so a trigger
+		// out there would never fire.
+
+		/// <summary>Width, height and depth of a new exit box, from the shipped median.</summary>
+		public static readonly int[] DefaultRegion = { 19, 54, 12 };
+
+		/// <summary>How far below the point the box starts, from the shipped median.</summary>
+		public const int RegionBelow = 19;
+
+		/// <summary>Whether any object in the mesh has a trigger for this slot.</summary>
+		public static bool HasJump(MclFile file, int slot)
+		{
+			int attribute = JumpAttribute(slot);
+			return file.Objects.Any(o => o.Materials.Any(m => m.Has(attribute)));
+		}
+
+		/// <summary>Which exit slots this mesh has a trigger for.</summary>
+		public static List<int> JumpSlotsUsed(MclFile file)
+		{
+			List<int> slots = new List<int>();
+			for (int slot = 1; slot <= JumpSlots; slot++)
+			{
+				if (HasJump(file, slot)) slots.Add(slot);
+			}
+			return slots;
+		}
+
+		/// <summary>Where a slot's trigger is, in whole units, or null if it has none.</summary>
+		public static int[] JumpRegionAt(MclFile file, int slot)
+		{
+			int attribute = JumpAttribute(slot);
+			foreach (MclObject item in file.Objects)
+			{
+				List<int> materials = Enumerable.Range(0, item.Materials.Count)
+					.Where(i => item.Materials[i].Has(attribute)).ToList();
+				if (materials.Count == 0) continue;
+
+				List<int[]> points = item.Polygons
+					.Where(p => materials.Contains(p.Material))
+					.SelectMany(p => p.Vertex)
+					.Distinct()
+					.Where(v => v < item.Points.Count)
+					.Select(v => item.Points[v])
+					.ToList();
+				if (points.Count == 0) continue;
+
+				return new[]
+				{
+					(points.Min(p => p[0]) + points.Max(p => p[0])) / 2 / 4096,
+					points.Min(p => p[1]) / 4096,
+					(points.Min(p => p[2]) + points.Max(p => p[2])) / 2 / 4096,
+					(points.Max(p => p[0]) - points.Min(p => p[0])) / 4096,
+					(points.Max(p => p[1]) - points.Min(p => p[1])) / 4096,
+					(points.Max(p => p[2]) - points.Min(p => p[2])) / 4096
+				};
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Adds the trigger for one exit slot: a box standing at a point, given in whole
+		/// units the way a .hich row and a jumps row give theirs.
+		/// </summary>
+		public static void AddJumpRegion(MclFile file, int slot, int x, int y, int z,
+			int width, int height, int depth)
+		{
+			if (slot < 1 || slot > JumpSlots)
+			{
+				throw new InvalidDataException("a map has " + JumpSlots
+					+ " exit slots, so there is no slot " + slot);
+			}
+			if (HasJump(file, slot))
+			{
+				throw new InvalidDataException("this map already has a trigger for exit "
+					+ slot);
+			}
+			if (file.Objects.Count == 0)
+			{
+				throw new InvalidDataException(
+					"this collision mesh has no object to put anything in");
+			}
+
+			MclObject item = file.Objects[0];
+
+			int halfWidth = Math.Max(1, width) * 4096 / 2;
+			int halfDepth = Math.Max(1, depth) * 4096 / 2;
+			int tall = Math.Max(1, height) * 4096;
+
+			int x0 = x * 4096 - halfWidth, x1 = x * 4096 + halfWidth;
+			int z0 = z * 4096 - halfDepth, z1 = z * 4096 + halfDepth;
+			int y0 = y * 4096 - RegionBelow * 4096, y1 = y0 + tall;
+
+			if (x0 < item.BoundsMin[0] || x1 > item.BoundsMax[0]
+				|| z0 < item.BoundsMin[2] || z1 > item.BoundsMax[2])
+			{
+				throw new InvalidDataException(
+					"that is outside the collision bounds, which run x "
+					+ item.BoundsMin[0] / 4096 + " to " + item.BoundsMax[0] / 4096
+					+ " and z " + item.BoundsMin[2] / 4096 + " to "
+					+ item.BoundsMax[2] / 4096
+					+ ". The grid the game searches is measured from those bounds, so "
+					+ "growing them would move every polygon already here into a "
+					+ "different cell of it - and a trigger outside them never fires");
+			}
+
+			// Eight corners, low four then high four, as the walls below index them.
+			int[][] corners =
+			{
+				new[] { x0, y0, z0, 4096 }, new[] { x1, y0, z0, 4096 },
+				new[] { x1, y0, z1, 4096 }, new[] { x0, y0, z1, 4096 },
+				new[] { x0, y1, z0, 4096 }, new[] { x1, y1, z0, 4096 },
+				new[] { x1, y1, z1, 4096 }, new[] { x0, y1, z1, 4096 }
+			};
+
+			ushort firstPoint = (ushort)item.Points.Count;
+			foreach (int[] corner in corners) item.Points.Add(corner);
+
+			ushort material = (ushort)item.Materials.Count;
+			MclMaterial attributes = new MclMaterial();
+			attributes.Set(JumpAttribute(slot), true);
+			item.Materials.Add(attributes);
+
+			// Four walls, outward facing, two triangles each.
+			int[][] walls =
+			{
+				new[] { 1, 0, 4, 5, 0, 0, -4096 },
+				new[] { 3, 2, 6, 7, 0, 0, 4096 },
+				new[] { 0, 3, 7, 4, -4096, 0, 0 },
+				new[] { 2, 1, 5, 6, 4096, 0, 0 }
+			};
+
+			ushort firstPolygon = (ushort)item.Polygons.Count;
+			foreach (int[] wall in walls)
+			{
+				int[] normal = { wall[4], wall[5], wall[6], 4096 };
+				item.Polygons.Add(
+					Triangle(firstPoint, wall[0], wall[1], wall[2], material, normal));
+				item.Polygons.Add(
+					Triangle(firstPoint, wall[0], wall[2], wall[3], material, normal));
+			}
+
+			foreach (int index in BlocksOver(item, x0, y0, z0, x1, y1, z1))
+			{
+				MclBlock block = item.Blocks[index];
+				List<ushort> held = new List<ushort>(block.Polygons);
+				for (int p = firstPolygon; p < item.Polygons.Count; p++)
+				{
+					held.Add((ushort)p);
+				}
+				block.Polygons = held.ToArray();
+			}
+		}
+
+		/// <summary>Takes a slot's trigger out, with the points and material only it used.</summary>
+		public static bool RemoveJumpRegion(MclFile file, int slot)
+		{
+			int attribute = JumpAttribute(slot);
+			bool removed = false;
+
+			foreach (MclObject item in file.Objects)
+			{
+				List<int> materials = Enumerable.Range(0, item.Materials.Count)
+					.Where(i => item.Materials[i].Has(attribute))
+					.ToList();
+				if (materials.Count == 0) continue;
+
+				HashSet<int> going = new HashSet<int>(
+					Enumerable.Range(0, item.Polygons.Count)
+						.Where(i => materials.Contains(item.Polygons[i].Material)));
+				if (going.Count == 0) continue;
+
+				// Only the points nothing else uses. A shipped region shares none, but
+				// this does not assume that of a mesh somebody has already edited.
+				HashSet<int> keptPoints = new HashSet<int>(
+					Enumerable.Range(0, item.Polygons.Count)
+						.Where(i => !going.Contains(i))
+						.SelectMany(i => item.Polygons[i].Vertex.Select(v => (int)v)));
+
+				Renumber(item, going, materials, keptPoints);
+				removed = true;
+			}
+
+			return removed;
+		}
+
+		private static MclPolygon Triangle(ushort first, int a, int b, int c,
+			ushort material, int[] normal)
+		{
+			return new MclPolygon
+			{
+				Vertex = new[]
+				{
+					(ushort)(first + a), (ushort)(first + b), (ushort)(first + c)
+				},
+				Material = material,
+				Normal = (int[])normal.Clone()
+			};
+		}
+
+		/// <summary>
+		/// Every block a box overlaps. The mapping is getBlock's, measured down from the
+		/// bounding box maximum, so this takes the two corners and everything between.
+		/// </summary>
+		private static IEnumerable<int> BlocksOver(MclObject item,
+			int x0, int y0, int z0, int x1, int y1, int z1)
+		{
+			int[] low = BlockAt(item, x0, y0, z0);
+			int[] high = BlockAt(item, x1, y1, z1);
+			int yz = item.BlockCount[1] * item.BlockCount[2];
+
+			for (int bx = Math.Min(low[0], high[0]); bx <= Math.Max(low[0], high[0]); bx++)
+			{
+				for (int by = Math.Min(low[1], high[1]); by <= Math.Max(low[1], high[1]); by++)
+				{
+					for (int bz = Math.Min(low[2], high[2]); bz <= Math.Max(low[2], high[2]); bz++)
+					{
+						int index = bx * yz + by * item.BlockCount[2] + bz;
+						if (index >= 0 && index < item.Blocks.Count) yield return index;
+					}
+				}
+			}
+		}
+
+		/// <summary>getBlock, as the game computes it.</summary>
+		private static int[] BlockAt(MclObject item, int x, int y, int z)
+		{
+			return new[]
+			{
+				Cell(item.BoundsMax[0] - x, item.BlockSize[0], item.BlockCount[0]),
+				Cell(item.BoundsMax[1] - y, item.BlockSize[1], item.BlockCount[1]),
+				Cell(item.BoundsMax[2] - z, item.BlockSize[2], item.BlockCount[2])
+			};
+		}
+
+		private static int Cell(int away, int size, int count)
+		{
+			if (count <= 0) return 0;
+			if (away <= 0 || size <= 0) return Math.Min(count - 1, Math.Max(0, count - 1));
+			int cell = count - 1 - away / size;
+			return Math.Max(0, Math.Min(count - 1, cell));
+		}
+
+		/// <summary>
+		/// Drops polygons, materials and points, and renumbers everything that pointed at
+		/// them - the polygon indices held by the blocks included.
+		/// </summary>
+		private static void Renumber(MclObject item, HashSet<int> droppedPolygons,
+			List<int> droppedMaterials, HashSet<int> keptPoints)
+		{
+			int[] pointMap = new int[item.Points.Count];
+			List<int[]> points = new List<int[]>();
+			for (int i = 0; i < item.Points.Count; i++)
+			{
+				pointMap[i] = keptPoints.Contains(i) ? points.Count : -1;
+				if (keptPoints.Contains(i)) points.Add(item.Points[i]);
+			}
+
+			int[] materialMap = new int[item.Materials.Count];
+			List<MclMaterial> materials = new List<MclMaterial>();
+			for (int i = 0; i < item.Materials.Count; i++)
+			{
+				materialMap[i] = droppedMaterials.Contains(i) ? -1 : materials.Count;
+				if (!droppedMaterials.Contains(i)) materials.Add(item.Materials[i]);
+			}
+
+			int[] polygonMap = new int[item.Polygons.Count];
+			List<MclPolygon> polygons = new List<MclPolygon>();
+			for (int i = 0; i < item.Polygons.Count; i++)
+			{
+				if (droppedPolygons.Contains(i))
+				{
+					polygonMap[i] = -1;
+					continue;
+				}
+				MclPolygon polygon = item.Polygons[i];
+				for (int v = 0; v < 3; v++)
+				{
+					polygon.Vertex[v] = (ushort)pointMap[polygon.Vertex[v]];
+				}
+				polygon.Material = (ushort)materialMap[polygon.Material];
+				polygonMap[i] = polygons.Count;
+				polygons.Add(polygon);
+			}
+
+			foreach (MclBlock block in item.Blocks)
+			{
+				block.Polygons = block.Polygons
+					.Where(p => polygonMap[p] >= 0)
+					.Select(p => (ushort)polygonMap[p])
+					.ToArray();
+			}
+
+			item.Points = points;
+			item.Materials = materials;
+			item.Polygons = polygons;
+		}
+
 		// ------------------------------------------------------------------ helpers
 
 		private static void Need(byte[] data, int at, int length, string what)

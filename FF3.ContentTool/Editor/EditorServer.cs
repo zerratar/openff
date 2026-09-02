@@ -224,6 +224,18 @@ namespace FF3.ContentTool.Editor
 					SaveExit(context);
 					return;
 
+				case "/api/map/exit/add":
+					AddExit(context);
+					return;
+
+				case "/api/map/exit/delete":
+					DeleteExit(context);
+					return;
+
+				case "/api/map/exits":
+					SendJson(context, MapExits.State(_workspace, Query(context, "name")));
+					return;
+
 				case "/api/images":
 					SendJson(context, Images.List(_workspace));
 					return;
@@ -491,6 +503,38 @@ namespace FF3.ContentTool.Editor
 					Kind = (int)body["kind"]
 				});
 			SendJson(context, saved);
+		}
+
+		/// <summary>Makes a whole exit: the row, and the region that fires it.</summary>
+		private void AddExit(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			int[] size = Mcl.DefaultRegion;
+			MapExitResult added = MapExits.Add(_workspace, (string)body["name"],
+				new MapExitEdit
+				{
+					X = (int)body["x"],
+					Y = (int)body["y"],
+					Z = (int)body["z"],
+					RotationY = body["rotationY"] == null ? 0 : (int)body["rotationY"],
+					To = (string)body["to"],
+					ToIndex = body["toIndex"] == null ? 0 : (int)body["toIndex"],
+					ConditionFlag = body["conditionFlag"] == null
+						? 1 : (int)body["conditionFlag"],
+					Kind = body["kind"] == null ? -1 : (int)body["kind"]
+				},
+				body["width"] == null ? size[0] : (int)body["width"],
+				body["height"] == null ? size[1] : (int)body["height"],
+				body["depth"] == null ? size[2] : (int)body["depth"]);
+			SendJson(context, added);
+		}
+
+		/// <summary>Takes both halves of an exit away again.</summary>
+		private void DeleteExit(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			SendJson(context, MapExits.Remove(_workspace, (string)body["name"],
+				(int)body["slot"]));
 		}
 
 		/// <summary>

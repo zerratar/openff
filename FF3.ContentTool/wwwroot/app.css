@@ -356,6 +356,9 @@ button {
 }
 button:hover { border-color: #3c4552; }
 button.primary { background: #2b4a7a; border-color: #37619c; }
+/* For the buttons that take something away rather than add one. */
+button.danger { background: #5a2b2b; border-color: #7a3838; }
+button.danger:hover { background: #6b3232; }
 button:disabled { opacity: .5; cursor: default; }
 
 select {
