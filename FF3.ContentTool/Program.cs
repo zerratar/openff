@@ -12,6 +12,7 @@
 //   dotnet run --project FF3.ContentTool -- script-build <file.ffs | dir> [out]
 //   dotnet run --project FF3.ContentTool -- ops [filter]
 //   dotnet run --project FF3.ContentTool -- tex         <file.lz | dir> [out]
+//   dotnet run --project FF3.ContentTool -- mdl         <file.lz | dir> [out]
 //   dotnet run --project FF3.ContentTool -- hich        <file.hich | dir> [out]
 //   dotnet run --project FF3.ContentTool -- editor [--content=<dir>] [--port=5050]
 //   dotnet run --project FF3.ContentTool -- lz          <file.lz | dir> [out]
@@ -113,6 +114,13 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return TexDump(args[1], args.Length > 2 ? args[2] : null);
+					case "mdl":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return MdlDump(args[1], args.Length > 2 ? args[2] : null);
 					case "hich":
 						if (args.Length < 2)
 						{
@@ -193,6 +201,7 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("                                    .ffs source -> event bytecode");
 			Console.Error.WriteLine("  ops [filter]                      list script instructions");
 			Console.Error.WriteLine("  tex         <file.lz | dir> [out]  textures -> PNG");
+			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
 			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--language=en]");
 			Console.Error.WriteLine("                                    open the content editor in a browser");
@@ -467,6 +476,219 @@ namespace FF3.ContentTool
 				? "all of them compile back to the exact bytes they came from"
 				: notExact + " do not compile back to the same bytes");
 			return failed > 0 || notExact > 0 ? 1 : 0;
+		}
+
+		/// <summary>
+		/// Turns the models into OBJ, and checks each one against what it says about
+		/// itself. Every model records its own vertex, triangle and quad counts and a
+		/// bounding box; a walk that has lost its place will miss all four, so those
+		/// are the test rather than a round-trip - there is nothing to write back to.
+		/// </summary>
+		private static int MdlDump(string input, string output)
+		{
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.nmdp.lz", SearchOption.AllDirectories)
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .nmdp.lz files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+			Directory.CreateDirectory(outputDir);
+
+			int models = 0;
+			int written = 0;
+			int countsMatch = 0;
+			int insideBox = 0;
+			int empty = 0;
+			List<string> problems = new List<string>();
+
+			foreach (string file in files)
+			{
+				byte[] data;
+				try
+				{
+					data = Lz.Decompress(File.ReadAllBytes(file));
+				}
+				catch (InvalidDataException)
+				{
+					problems.Add(Path.GetFileName(file) + ": will not decompress");
+					continue;
+				}
+
+				if (Mdl0.Find(data) < 0)
+				{
+					continue;
+				}
+
+				string stem = Path.GetFileNameWithoutExtension(
+					Path.GetFileNameWithoutExtension(file));
+
+				List<Mdl0Model> found;
+				try
+				{
+					found = Mdl0.Read(data);
+				}
+				catch (Exception ex)
+				{
+					problems.Add(stem + ": " + ex.Message);
+					continue;
+				}
+
+				foreach (Mdl0Model model in found)
+				{
+					models++;
+					if (model.GotVertices == 0)
+					{
+						empty++;
+						continue;
+					}
+
+					if (model.GotVertices == model.Vertices
+						&& model.GotTriangles == model.Triangles
+						&& model.GotQuads == model.Quads)
+					{
+						countsMatch++;
+					}
+					else
+					{
+						problems.Add(string.Format(CultureInfo.InvariantCulture,
+							"{0}: vertices {1}/{2}, triangles {3}/{4}, quads {5}/{6}",
+							stem, model.GotVertices, model.Vertices,
+							model.GotTriangles, model.Triangles,
+							model.GotQuads, model.Quads));
+					}
+
+					if (FitsBox(model))
+					{
+						insideBox++;
+					}
+					else
+					{
+						problems.Add(stem + ": geometry is larger than the box it declares");
+					}
+
+					// The textures usually live in the .ntxp of the same name, and the
+					// model that has its own TEX0 keeps it in the same file.
+					Dictionary<string, string> textures = WriteTextures(file, outputDir, stem);
+					Obj.Write(Path.Combine(outputDir, stem + ".obj"), model, textures);
+					written++;
+				}
+			}
+
+			Console.WriteLine("{0} model(s), {1} written as OBJ -> {2}",
+				models, written, Path.GetFullPath(outputDir));
+			Console.WriteLine("counts match the model's own: {0}/{1}", countsMatch, models - empty);
+			Console.WriteLine("geometry fits the declared box: {0}/{1}", insideBox, models - empty);
+			if (empty > 0)
+			{
+				Console.WriteLine("{0} model(s) hold no geometry at all", empty);
+			}
+			if (problems.Count > 0)
+			{
+				Console.WriteLine("{0} problem(s):", problems.Count);
+				foreach (string problem in problems.Take(10))
+				{
+					Console.WriteLine("   " + problem);
+				}
+			}
+			return problems.Count > 0 ? 1 : 0;
+		}
+
+		/// <summary>
+		/// How far the geometry reaches, against the box size the model declares.
+		///
+		/// Size, not position. The box corner is not where the SBC ends up putting the
+		/// pieces - it covers the model across its animation, so a resting pose sits
+		/// somewhere inside it rather than on its corner - but the size is a real
+		/// bound: measured against all 832 models, the span comes out exactly equal on
+		/// 1768 of 2481 axes and larger on one. A walk that lost its place would blow
+		/// straight through it.
+		/// </summary>
+		private static bool FitsBox(Mdl0Model model)
+		{
+			float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue;
+			float maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
+
+			foreach (Mdl0Piece piece in model.Pieces)
+			{
+				foreach (Mdl0Run run in piece.Runs)
+				{
+					foreach (Mdl0Vertex v in run.Vertices)
+					{
+						minX = Math.Min(minX, v.X); maxX = Math.Max(maxX, v.X);
+						minY = Math.Min(minY, v.Y); maxY = Math.Max(maxY, v.Y);
+						minZ = Math.Min(minZ, v.Z); maxZ = Math.Max(maxZ, v.Z);
+					}
+				}
+			}
+
+			if (minX > maxX)
+			{
+				return true;
+			}
+
+			float slack = 0.05f + Math.Max(model.BoxW, Math.Max(model.BoxH, model.BoxD)) * 0.01f;
+			return maxX - minX <= model.BoxW + slack
+				&& maxY - minY <= model.BoxH + slack
+				&& maxZ - minZ <= model.BoxD + slack;
+		}
+
+		/// <summary>
+		/// The PNGs a model's materials point at, written beside the OBJ. A model can
+		/// carry its own TEX0 or borrow the .ntxp of the same name, so both are tried.
+		/// </summary>
+		private static Dictionary<string, string> WriteTextures(string file, string outputDir,
+			string stem)
+		{
+			Dictionary<string, string> written =
+				new Dictionary<string, string>(StringComparer.Ordinal);
+
+			foreach (string source in new[] { file, file.Replace(".nmdp.lz", ".ntxp.lz") })
+			{
+				if (!File.Exists(source))
+				{
+					continue;
+				}
+
+				try
+				{
+					byte[] data = Lz.Decompress(File.ReadAllBytes(source));
+					if (Tex0.Find(data) < 0)
+					{
+						continue;
+					}
+
+					Tex0File package = Tex0.Read(data);
+					foreach (Tex0Texture texture in package.Textures)
+					{
+						if (texture.Problem != null || written.ContainsKey(texture.Name))
+						{
+							continue;
+						}
+
+						string safe = texture.Name;
+						foreach (char bad in Path.GetInvalidFileNameChars())
+						{
+							safe = safe.Replace(bad, '_');
+						}
+
+						string name = stem + "." + safe + ".png";
+						Png.Write(Path.Combine(outputDir, name), texture.Width, texture.Height,
+							Tex0.Decode(package, texture));
+						written[texture.Name] = name;
+					}
+				}
+				catch (Exception)
+				{
+					// A model whose textures will not read is still a model worth having.
+				}
+			}
+			return written;
 		}
 
 		/// <summary>

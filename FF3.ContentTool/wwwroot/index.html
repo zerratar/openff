@@ -17,6 +17,7 @@
     <button data-kind="table">Tables</button>
     <button data-kind="image">Images</button>
     <button data-kind="texture">Textures</button>
+    <button data-kind="model">Models</button>
     <button data-kind="audio">Audio</button>
   </nav>
   <span id="status"></span>
@@ -188,6 +189,23 @@
   </div>
 </template>
 
+<!-- Models -->
+<template id="view-model">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="facts"></span>
+      <label class="toggle"><input type="checkbox" class="hidden-parts"> hidden parts</label>
+      <span class="grow"></span>
+      <button class="recentre">Recentre</button>
+    </div>
+    <div class="model-body">
+      <div class="stage"><canvas class="scene"></canvas></div>
+      <aside class="detail"></aside>
+    </div>
+  </div>
+</template>
+
 <!-- Audio -->
 <template id="view-audio">
   <div class="view">
@@ -210,5 +228,6 @@
 <script src="app.js"></script>
 <script src="script-editor.js"></script>
 <script src="map-editor.js"></script>
+<script src="model-viewer.js"></script>
 </body>
 </html>

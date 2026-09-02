@@ -251,10 +251,18 @@ dotnet run --project FF3.ContentTool -- tex ..\extractediles ..	extures
 
 See `Docs/Graphics.md`.
 
+## 3D models
+
+All 833 models, as OBJ with their textures beside them:
+
+```bash
+dotnet run --project FF3.ContentTool -- mdl ..\extractediles ..\models
+```
+
 ## Not decoded yet
 
-What is left is the rest of the NitroSDK data: `MDL0` geometry, `NAMP` and `NCAP`
-animation, `MCL` collision, and the `.NSCR`/`.NCER` tables. The 2D pictures turned out
+What is left is the rest of the NitroSDK data: `NAMP` and `NCAP` animation, `MCL`
+collision, and the `.NSCR`/`.NCER` tables. The 2D pictures turned out
 to need no decoder at all - all 542 are PNGs. `Docs/Graphics.md` has what each format
 holds and which order is worth taking them in.
 

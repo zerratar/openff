@@ -193,6 +193,18 @@ namespace FF3.ContentTool.Editor
 					UploadImage(context);
 					return;
 
+				case "/api/models":
+					SendJson(context, Models.List(_workspace));
+					return;
+
+				case "/api/model":
+					GetModel(context);
+					return;
+
+				case "/api/model/texture":
+					GetModelTexture(context);
+					return;
+
 				case "/api/textures":
 					SendJson(context, new
 					{
@@ -406,6 +418,35 @@ namespace FF3.ContentTool.Editor
 
 			int changed = MapModel.Save(_workspace, map, moves);
 			SendJson(context, new { ok = true, changed, overridden = true });
+		}
+
+		/// <summary>One model, already turned into triangles for the viewer.</summary>
+		private void GetModel(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			try
+			{
+				SendJson(context, Models.Read(_workspace, name));
+			}
+			catch (Exception ex)
+			{
+				SendJson(context, new { error = ex.Message });
+			}
+		}
+
+		/// <summary>A texture a model asks for, found by name rather than by index.</summary>
+		private void GetModelTexture(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			string texture = Query(context, "texture");
+			try
+			{
+				Send(context, 200, "image/png", Models.Texture(_workspace, name, texture));
+			}
+			catch (Exception ex)
+			{
+				Send(context, 404, "text/plain", Encoding.UTF8.GetBytes(ex.Message));
+			}
 		}
 
 		/// <summary>

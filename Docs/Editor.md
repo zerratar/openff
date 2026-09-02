@@ -174,6 +174,21 @@ A model with no textures of its own says so and offers to open the `.ntxp` that 
 them. Textures are read-only; writing one back means re-quantising to a palette or to
 4x4 blocks, which is not done yet. `Docs/Graphics.md`.
 
+## Models
+
+All 833 models, drawn in the browser - drag to orbit, wheel to zoom, **Recentre** to get
+back if you lose it. Beside the view is what the model is made of: one row per part with
+its shape, node and texture, and above it the decoded vertex and triangle counts set
+against the counts the model records for itself, so you can see the decode agreeing with
+the file rather than take it on trust.
+
+Two models in the game have a part their node switches off, which the game never draws.
+**hidden parts** shows those in red rather than pretending they are not there.
+
+There is no lighting, because the game does not light these either - what you see in FF3
+is the texture and the material colour. A model that looks flat here looks flat in the
+game. `Docs/Graphics.md`.
+
 ## Audio
 
 445 sounds - 30 music tracks and the rest effects - with their length, format, parts
@@ -227,10 +242,10 @@ switch files.
   having the id filled in, or a map, or an item, is the obvious next step, and it wants
   a per-operand note saying which table an argument points into.
 
-- **3D geometry** - textures now decode and have a tab of their own, but `MDL0` does
-  not, so the map view still draws dots rather than a town. What is missing for a menu
-  that looks like the game is `.NCER` and `.NSCR`, which say which part of a sheet is
-  used and where it goes. `Docs/Graphics.md`.
+- **Maps drawn as maps** - models and textures both decode now, so the pieces are all
+  there; what the map view still needs is to place them from the `.hich` data rather
+  than drawing dots. What is missing for a menu that looks like the game is `.NCER` and
+  `.NSCR`, which say which part of a sheet is used and where it goes. `Docs/Graphics.md`.
 - **Writing textures back** - reading a TEX0 is done; writing one means re-quantising
   to a 256 colour palette or to 4x4 blocks.
 - **Audio** - deliberately untouched.

@@ -42,6 +42,9 @@ async function loadList() {
     const textures = await api('/api/textures');
     state.textureFormats = textures.formats;
     state.files = textures.packages.map(p => ({ name: p.name, overridden: false, kind: p.kind }));
+  } else if (state.kind === 'model') {
+    state.models = await api('/api/models');
+    state.files = state.models.map(m => ({ name: m.name, overridden: false }));
   } else if (state.kind === 'map') {
     const maps = await api('/api/maps');
     state.files = maps.map(name => ({ name, overridden: false }));
@@ -92,6 +95,7 @@ async function open(name) {
     else if (state.kind === 'audio') await openAudio(name);
     else if (state.kind === 'image') await openImage(name);
     else if (state.kind === 'texture') await openTexture(name);
+    else if (state.kind === 'model') await openModel(name);
     else await openText(name);
     say('');
   } catch (error) {
@@ -888,6 +892,98 @@ function showTexture(detail, packageName, texture) {
   note.textContent = 'Read-only for now. Putting a texture back means writing a TEX0 - '
     + 're-quantising to a palette, or to 4×4 blocks - which is a bigger job than reading one.';
   detail.append(note);
+}
+
+// ----------------------------------------------------------------------- models
+
+// The server hands over triangles, not display lists, so this only has to hang a
+// viewer on the canvas and list what the model is made of. The part list doubles as
+// the check that the decode is right: shape, node, material and texture per group,
+// against the counts the model records for itself.
+
+async function openModel(name) {
+  const node = view('model', name, false);
+  const canvas = $('.scene', node);
+  const detail = $('.detail', node);
+  const facts = $('.facts', node);
+
+  const model = await api(`/api/model?name=${encodeURIComponent(name)}`);
+  if (model.error || model.problem) {
+    facts.textContent = model.error || model.problem;
+    return;
+  }
+
+  const viewer = makeModelViewer(canvas, say);
+  if (!viewer) return;
+
+  const triangles = model.indices.length / 3;
+  facts.textContent = `${model.groups.length} part(s)  ·  `
+    + `${(model.buffer.length / 8).toLocaleString()} vertices  ·  `
+    + `${triangles.toLocaleString()} triangles  ·  `
+    + `the model says ${model.vertices.toLocaleString()} vertices, `
+    + `${model.triangles.toLocaleString()} triangles and ${model.quads.toLocaleString()} quads`;
+
+  const table = document.createElement('table');
+  table.className = 'parts';
+  table.innerHTML = '<thead><tr><th>part</th><th>node</th><th>texture</th></tr></thead>';
+  const body = document.createElement('tbody');
+  for (const group of model.groups) {
+    const row = document.createElement('tr');
+    if (group.hidden) row.className = 'hidden-part';
+    row.innerHTML = `<td>${escapeHtml(group.shape || '')}</td>`
+      + `<td>${escapeHtml(group.node || '')}</td>`
+      + `<td>${escapeHtml(group.texture || '—')}</td>`;
+    row.title = group.hidden
+      ? 'switched off by its node - the game never draws this'
+      : `material ${group.material || 'none'}`;
+    body.append(row);
+  }
+  table.append(body);
+  detail.append(table);
+
+  if (model.groups.some(g => g.hidden)) {
+    const note = document.createElement('p');
+    note.className = 'caveat';
+    note.textContent = 'One part is switched off by its node, so the game never draws '
+      + 'it - tick "hidden parts" to see it in red.';
+    detail.append(note);
+  }
+
+  // Drag to orbit, wheel to zoom.
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  canvas.onpointerdown = (e) => {
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  };
+  canvas.onpointermove = (e) => {
+    if (!dragging) return;
+    viewer.orbit(e.clientX - lastX, e.clientY - lastY);
+    lastX = e.clientX;
+    lastY = e.clientY;
+  };
+  canvas.onpointerup = (e) => {
+    dragging = false;
+    canvas.releasePointerCapture(e.pointerId);
+  };
+  canvas.onwheel = (e) => {
+    e.preventDefault();
+    viewer.zoom(Math.sign(e.deltaY));
+  };
+
+  $('.recentre', node).onclick = () => viewer.reset();
+  $('.hidden-parts', node).onchange = (e) => viewer.setShowHidden(e.target.checked);
+  window.addEventListener('resize', () => viewer.redraw());
+
+  await viewer.show(model, name);
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"]/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 // ------------------------------------------------------------------------ audio

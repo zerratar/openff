@@ -120,20 +120,69 @@ Textures are read-only. Putting one back means writing a TEX0 - re-quantising to
 palette, or to 4x4 blocks - which is a larger job than reading one, and the tab says so
 rather than offering a button that half works.
 
+## MDL0: the geometry
+
+**Done.** All 833 models decode. `ff3content mdl <dir> <out>` writes them as OBJ with
+their textures, and the editor's **Models** tab draws them in the browser - drag to
+orbit, wheel to zoom.
+
+A model is three things stacked on each other:
+
+- **Shapes** hold NDS *display lists* - GPU command streams, not vertex buffers.
+  Commands come four to a 32-bit word and their parameters follow the word they were
+  packed into, which is why walking one needs two pointers rather than one.
+- **The SBC** is a small byte code that walks the node tree, builds a matrix for each
+  node and says "draw shape 3 with material 1, here". Ten opcodes, all used.
+- **Materials** name a texture, resolved through a dictionary that runs backwards:
+  each texture name lists the materials that use it.
+
+### Checking it
+
+Two independent checks, and they agree.
+
+Every model records its own `numVertex`, `numTriangle` and `numQuad`, and its own
+bounding box. Both are things a decoder cannot fake: lose your place in a display list
+and the counts drift, misplace a matrix and the geometry bursts out of the box.
+
+| | |
+| --- | ---: |
+| counts match the model's own | **832 / 832** |
+| geometry fits the declared box | **832 / 832** |
+
+The 833rd is a 332-byte stub with `numShp = 0`, an empty shape dictionary and
+uninitialised counts in its header - not a decode failure, just an empty placeholder.
+
+Those two numbers were 830 and 708 before two real bugs were found, and it is worth
+recording what found them.
+
+- **4 missing vertices in b32** turned out not to be a bug at all: one shape is switched
+  off by its node's visibility flag, so the game never draws it, while the header still
+  counts it. The same is true of one shape in t10_02, and those two are the only ones in
+  the game. They are decoded and kept, marked hidden, rather than silently dropped.
+- **124 models burst out of their box**, which was the real bug. The display list's
+  `MTX_RESTORE` picks which stack matrix the following vertices go through, and it was
+  being skipped - harmless for a rigid prop, fatal for a character, whose arm then lands
+  at the origin instead of on its arm bone. `preBuild` ignores that opcode because the
+  game applies it in its render pass instead, which is exactly the sort of thing that
+  only shows up when two sources are read against each other. Fixing it took the box
+  check from 708 to 832 of 832 - the box had been right all along.
+
+The bind pose is what comes out. The game's animation blend keeps a weight of 1.0 when
+nothing is bound, so a static read takes that branch and gets the rest pose. Billboards
+keep their base matrix, since which way they face depends on a camera that is not there.
+
 ## What is left
 
-1. **MDL0** - geometry, which the map view needs before it can draw a town rather than
-   dots.
-2. **NANR / NCER / NSCR** - the 2D animation, cell and screen tables. The pictures are
-   already readable; these say which part of a sheet is used and where it goes, which
-   is what a menu preview needs to show the real thing.
+**NANR / NCER / NSCR** - the 2D animation, cell and screen tables. The pictures are
+already readable; these say which part of a sheet is used and where it goes, which is
+what a menu preview needs to show the real thing.
 
 ## What each format is
 
 | Extension | Count | What it holds | Readable |
 | --- | ---: | --- | --- |
 | `.NCGR`, `.NCBR` | 542 | pictures, as PNG | yes |
-| `.nmdp` | 833 | models (`BMD0`), 370 with their own textures | textures only |
+| `.nmdp` | 833 | models (`BMD0`), 370 with their own textures | yes |
 | `.ntxp` | 756 | textures (`BTX0`) | yes |
 | `.ncap` | 221 | motion | no |
 | `.namp` | 239 | animation | no |

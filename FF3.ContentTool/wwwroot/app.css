@@ -663,3 +663,54 @@ a.button {
 }
 
 a.button:hover { border-color: #3c4552; }
+
+/* ----------------------------------------------------------------- models */
+
+.model-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.model-body .stage {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.model-body .scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.model-body .scene:active { cursor: grabbing; }
+
+.model-body .detail {
+  width: 320px;
+  border-left: 1px solid var(--line);
+  padding: 12px;
+  overflow: auto;
+}
+
+table.parts { width: 100%; border-collapse: collapse; font-size: 11px; }
+table.parts th {
+  text-align: left;
+  color: var(--dim);
+  font-weight: normal;
+  border-bottom: 1px solid var(--line);
+  padding: 3px 6px 5px;
+}
+table.parts td {
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, .04);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+table.parts tr.hidden-part td { color: #d98080; }
+.model-body .detail .caveat { font-size: 11px; color: var(--dim); margin-top: 12px; }
