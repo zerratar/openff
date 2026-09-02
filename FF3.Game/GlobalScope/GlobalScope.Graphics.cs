@@ -243,9 +243,33 @@ internal static partial class GlobalScope
             gdm.GraphicsDevice.Clear(Color.Black);
         }
 
+        /// <summary>
+        /// The 800 by 480 the text is positioned in. drawString works every coordinate
+        /// out as x * 800 / LCD_WIDTH, so that is the space it hands us.
+        /// </summary>
+        private const float TextSpaceWidth = 800f;
+        private const float TextSpaceHeight = 480f;
+
         public void DrawStringStart()
         {
-            spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise);
+            // Text is the only thing that goes through SpriteBatch. Everything else -
+            // sprites, portraits, the cursor - is drawn by NativeRenderer with a
+            // projection matrix, so it fills whatever viewport the window has and scales
+            // with it for free. SpriteBatch has no such matrix by default: its
+            // coordinates are viewport pixels, so text laid out for 800 by 480 stayed
+            // in the top left corner of a fullscreen window while everything around it
+            // grew.
+            //
+            // Taken from the viewport rather than the back buffer, because the viewport
+            // is what the 3D path is drawing into as well - so the two cannot disagree,
+            // and if something has narrowed it this follows.
+            Viewport view = gdm.GraphicsDevice.Viewport;
+            Matrix fit = Matrix.CreateScale(
+                view.Width / TextSpaceWidth,
+                view.Height / TextSpaceHeight,
+                1f);
+
+            spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, fit);
             depth = 0f;
         }
 
