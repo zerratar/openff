@@ -3,15 +3,19 @@
 // The recipe, worked out by reading what the shipped maps do rather than by guessing:
 //
 //   1  .hich      a row: model, position, and a free cast number
-//   2  .script    bootPlainCharacter <cast>, 0, "<model>" next to the others, so the
-//                 character is actually put on the map
+//   2  .script    a boot call for that cast next to the others, so the character is
+//                 actually put on the map
 //   3  .script    a cast with that number, holding the talk sequence
 //   4  .msd       the line it says, with a fresh id
 //
 // Step 2 is the one that is easy to miss. A .hich row on its own places nothing: it is
-// a roster, and something has to boot from it. Every shipped map does that with
-// bootPlainCharacter, once per placed character - 36 rows and 36 calls in Ur - and
-// that command reads the position straight out of the .hich row.
+// a roster, and something has to boot from it. That command reads the position straight
+// out of the row it names.
+//
+// There are four boot calls, not one, and which a map uses matters: bootCharacter turns
+// up in 282 of the 356 maps and bootPlainCharacter in 11. Anchoring on the wrong one is
+// why adding a character used to fail almost everywhere. The new call copies whichever
+// form the map already uses.
 //
 // The talk sequence is copied from a real NPC rather than invented:
 //
@@ -102,8 +106,12 @@ namespace FF3.ContentTool.Editor
 			}
 
 			// ---- 4. the line, in every language that has this map's text
-			uint messageId = AddMessage(workspace, map, text, out List<string> textFiles,
-				out string textError);
+			//
+			// Worked out but not written yet. Everything below can still fail, and a
+			// half-added character - lines in nine files, no row and no script - is
+			// worse than none: it leaves a mess with nothing pointing at it.
+			Dictionary<string, MsdFile> pending = PrepareMessage(workspace, map, text,
+				out uint messageId, out string textError);
 			if (textError != null)
 			{
 				result.Error = textError;
@@ -137,16 +145,20 @@ namespace FF3.ContentTool.Editor
 
 			// Everything worked out, so write it all.
 			workspace.Write(hichName, Hich.Write(entries));
+			// Past every check, so now the four edits go out together.
+			foreach (KeyValuePair<string, MsdFile> pair in pending)
+			{
+				workspace.Write(pair.Key, Msd.Write(pair.Value));
+				result.Wrote.Add(pair.Key);
+			}
 			workspace.Write(scriptName, compiled);
 			result.Wrote.Add(hichName);
 			result.Wrote.Add(scriptName);
-			result.Wrote.AddRange(textFiles);
 
 			result.Notes.Add("cast " + cast.ToString(CultureInfo.InvariantCulture)
 				+ " boots with the other characters and says message "
 				+ messageId.ToString(CultureInfo.InvariantCulture));
-			result.Notes.Add("the model comes from " + model
-				+ ", which this map already loads");
+
 			result.Ok = true;
 			return result;
 		}
@@ -163,27 +175,48 @@ namespace FF3.ContentTool.Editor
 			error = null;
 			string[] lines = source.Replace("\r\n", "\n").Split('\n');
 
+			// Whichever form this map uses, and where the last one of them is. The two
+			// that take a position are not copied - a new character takes its position
+			// from its row, which is what the plain forms do.
 			int lastBoot = -1;
+			string form = "bootCharacter";
 			for (int i = 0; i < lines.Length; i++)
 			{
-				if (lines[i].TrimStart().StartsWith("bootPlainCharacter(",
-						StringComparison.Ordinal))
+				string line = lines[i].TrimStart();
+				if (line.StartsWith("bootCharacter(", StringComparison.Ordinal))
 				{
+					lastBoot = i;
+					form = "bootCharacter";
+				}
+				else if (line.StartsWith("bootPlainCharacter(", StringComparison.Ordinal))
+				{
+					lastBoot = i;
+					form = "bootPlainCharacter";
+				}
+				else if (lastBoot < 0
+					&& (line.StartsWith("bootCharacter_AbsoluteCoordination(", StringComparison.Ordinal)
+						|| line.StartsWith("bootCharacterAsTopPlayer(", StringComparison.Ordinal)))
+				{
+					// Somewhere to put it, when the map only ever places characters
+					// explicitly. The new one still boots from its row.
 					lastBoot = i;
 				}
 			}
 			if (lastBoot < 0)
 			{
-				error = "this map never calls bootPlainCharacter, so there is nowhere "
-					+ "obvious to boot a new character from";
+				error = "this map never boots a character, so there is nowhere obvious "
+					+ "to boot a new one from";
 				return null;
 			}
 
 			string number = cast.ToString(CultureInfo.InvariantCulture);
 			List<string> edited = new List<string>(lines.Length + 16);
 			edited.AddRange(lines.Take(lastBoot + 1));
-			edited.Add(string.Format(CultureInfo.InvariantCulture,
-				"    bootPlainCharacter({0}, 0, \"{1}\");", cast, model));
+			edited.Add(form == "bootPlainCharacter"
+				? string.Format(CultureInfo.InvariantCulture,
+					"    bootPlainCharacter({0}, 0, \"{1}\");", cast, model)
+				: string.Format(CultureInfo.InvariantCulture,
+					"    bootCharacter({0}, 0);", cast));
 			edited.AddRange(lines.Skip(lastBoot + 1));
 
 			// Written in the block form, because this is code a person will read and
@@ -216,10 +249,10 @@ namespace FF3.ContentTool.Editor
 		/// live in and cannot collide - lookup is a linear scan, so where it sits in
 		/// the file does not matter.
 		/// </summary>
-		private static uint AddMessage(Workspace workspace, string map, string text,
-			out List<string> written, out string error)
+		private static Dictionary<string, MsdFile> PrepareMessage(Workspace workspace,
+			string map, string text, out uint id, out string error)
 		{
-			written = new List<string>();
+			id = 0;
 			error = null;
 
 			List<string> files = workspace.List(".msd")
@@ -230,7 +263,7 @@ namespace FF3.ContentTool.Editor
 			if (files.Count == 0)
 			{
 				error = "no .msd file for " + map + ", so there is nowhere to put the line";
-				return 0;
+				return null;
 			}
 
 			uint next = 0;
@@ -253,11 +286,10 @@ namespace FF3.ContentTool.Editor
 					Id = next,
 					Pages = new List<string> { text }
 				});
-				workspace.Write(pair.Key, Msd.Write(pair.Value));
-				written.Add(pair.Key);
 			}
 
-			return next;
+			id = next;
+			return decoded;
 		}
 	}
 }

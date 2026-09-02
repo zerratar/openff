@@ -184,6 +184,10 @@ namespace FF3.ContentTool.Editor
 						Query(context, "name"), _messages.Text));
 					return;
 
+				case "/api/map/delete":
+					DeleteFromMap(context);
+					return;
+
 				case "/api/map/save":
 					SaveMap(context);
 					return;
@@ -421,6 +425,17 @@ namespace FF3.ContentTool.Editor
 			// A model placed for the first time is a model every other map can use now.
 			_characterIds.Invalidate();
 			SendJson(context, added);
+		}
+
+		/// <summary>Removes a character and everything that only existed for it.</summary>
+		private void DeleteFromMap(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			DeleteCharacterResult removed = DeleteCharacter.Delete(
+				_workspace, (string)body["name"], (int)body["cast"], _lookupMessage);
+			_messages.Invalidate();
+			_characterIds.Invalidate();
+			SendJson(context, removed);
 		}
 
 		private void SaveMap(HttpListenerContext context)
