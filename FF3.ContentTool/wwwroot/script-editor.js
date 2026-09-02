@@ -11,12 +11,17 @@
 
 'use strict';
 
-const ops = { list: null, byName: new Map() };
+const ops = { list: null, byName: new Map(), conditions: new Set() };
 
 async function loadOps() {
   if (ops.list) return ops.list;
-  ops.list = await api('/api/ops');
+  const data = await api('/api/ops');
+  ops.list = data.ops;
   for (const op of ops.list) ops.byName.set(op.name, op);
+  // Derived from the opcode table on the server; keeping a copy here would only
+  // give the two something to disagree about.
+  for (const condition of data.conditions) ops.conditions.add(condition.name);
+  ops.conditions.add('value');
   return ops.list;
 }
 
@@ -37,9 +42,6 @@ const escapeHtml = text => text
 const KEYWORDS = new Set(['map', 'cast', 'function', 'func', 'extern', 'data',
   'if', 'else', 'while', 'do', 'for', 'goto', 'break', 'continue',
   'init', 'main', 'exit', 'none']);
-
-const CONDITIONS = new Set(['value', 'flag', 'touch', 'button', 'partyTalkEvent',
-  'useItem_Flag', 'checkPartyPCMemberEnale', 'checkParty_NPCMemberEnale']);
 
 const LABEL = new RegExp('^(\\s*)([A-Za-z_][\\w.]*)(\\s*:)');
 const TOKEN = new RegExp('("(?:[^"' + String.fromCharCode(92, 92) + ']|'
@@ -78,7 +80,7 @@ function highlightLine(line) {
       // A name followed by ( is being called; anything else is a label or a value.
       const called = CALLED.test(code.slice(match.index + word.length));
       const kind = KEYWORDS.has(word) ? 't-key'
-        : CONDITIONS.has(word) ? 't-cond'
+        : ops.conditions.has(word) ? 't-cond'
         : ops.byName.has(word) ? 't-op'
         : called ? 't-unknown'
         : 't-name';

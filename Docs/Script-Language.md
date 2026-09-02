@@ -73,7 +73,8 @@ if (!flag(0, 13))  { ... }    ->   flagOnJump(0, 13, if_else_2);     // the othe
 ```
 
 The conditions are the seven On/Off jump pairs the game has, found by name rather than
-listed, so a wider opcode table would widen the language with it:
+listed, so a wider opcode table would widen the language with it. The editor is served
+the same list rather than keeping its own, so the two cannot drift:
 
 | Condition | Arguments |
 | --- | --- |

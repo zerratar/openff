@@ -104,6 +104,11 @@ namespace FF3.ContentTool.Ffs
 		public BlockStatement Body;
 	}
 
+	// A call to a function is not a node of its own. It cannot be: a name is only
+	// known to be a function once every declaration has been read, and the parser has
+	// not read them when it meets the call. So calls arrive as InstructionItem and
+	// Lowering.EmitCallOrInstruction decides which they are.
+
 	internal sealed class GotoStatement : Statement
 	{
 		public string Label;
@@ -113,12 +118,6 @@ namespace FF3.ContentTool.Ffs
 	internal sealed class LoopJump : Statement
 	{
 		public bool IsBreak;
-	}
-
-	/// <summary>A call to a function declared in this file or named by extern.</summary>
-	internal sealed class CallStatement : Statement
-	{
-		public string Name;
 	}
 
 	// ---------------------------------------------------------------- conditions

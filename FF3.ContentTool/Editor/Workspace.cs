@@ -118,29 +118,6 @@ namespace FF3.ContentTool.Editor
 			return data;
 		}
 
-		/// <summary>The archived copy, ignoring any override - what "revert" goes back to.</summary>
-		public byte[] ReadOriginal(string name)
-		{
-			string loose = OverridePath(name);
-			bool had = File.Exists(loose);
-			string moved = loose + ".reading";
-			try
-			{
-				if (had)
-				{
-					File.Move(loose, moved);
-				}
-				return Read(name);
-			}
-			finally
-			{
-				if (had && File.Exists(moved))
-				{
-					File.Move(moved, loose, overwrite: true);
-				}
-			}
-		}
-
 		public void Write(string name, byte[] data)
 		{
 			string path = OverridePath(name);

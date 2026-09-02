@@ -511,7 +511,21 @@ namespace FF3.ContentTool.Editor
 					}).ToArray()
 				});
 			}
-			SendJson(context, ops);
+			// Conditions travel with them, so the editor does not keep its own copy of
+			// a list that is derived from the opcode table in the first place.
+			SendJson(context, new
+			{
+				ops,
+				conditions = Ffs.Conditions.Forms
+					.OrderBy(form => form.Key, StringComparer.Ordinal)
+					.Select(form => new
+					{
+						name = form.Key,
+						arguments = form.Value.Arguments
+					})
+					.ToArray(),
+				comparisons = Ffs.Conditions.Comparisons.Keys.ToArray()
+			});
 		}
 
 		/// <summary>

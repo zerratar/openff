@@ -39,35 +39,6 @@ namespace FF3.ContentTool.Editor
 			_messages = null;
 		}
 
-		/// <summary>
-		/// The highest id in the files for one map, so a new line can be given one
-		/// past it. Ids are matched by a linear scan at runtime, so anything unused
-		/// works; staying just above the map's own range keeps it recognisable.
-		/// </summary>
-		public uint NextIdFor(string map)
-		{
-			uint highest = 0;
-			foreach (WorkspaceEntry entry in _workspace.List(".msd"))
-			{
-				if (!entry.Name.EndsWith("/" + map + ".msd", StringComparison.OrdinalIgnoreCase))
-				{
-					continue;
-				}
-				try
-				{
-					foreach (MsdMessage message in Msd.Read(_workspace.Read(entry.Name)).Messages)
-					{
-						highest = Math.Max(highest, message.Id);
-					}
-				}
-				catch (Exception)
-				{
-					// A file that will not decode cannot contribute an id.
-				}
-			}
-			return highest + 1;
-		}
-
 		private Dictionary<uint, string> Build()
 		{
 			if (_messages != null)
