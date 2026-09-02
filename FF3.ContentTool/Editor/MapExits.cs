@@ -16,9 +16,11 @@
 // row indexes past the end of the table. The shipped game has 37 of the first and 7 of
 // the second, so neither is fatal, but neither is worth making on purpose.
 //
-// That pairing is also why only the last exit can be removed. Taking one out of the
-// middle shifts every row after it down a slot while the attributes that name them stay
-// where they are, and every other map's arrival index pointing here would be wrong too.
+// That pairing is also what makes removing one from the middle a cascade rather than a
+// deletion: every slot above it shifts down, and three kinds of thing name a slot by
+// number - the mesh attribute, this map's setMapJumpFlag calls, and the nextMapIndex of
+// every exit on any map that arrives here. References.cs is what knows where they are,
+// and all of them move together or none of them do.
 //
 // A script can turn an exit off and on - setMapJumpFlag names one of the same twelve
 // slots - but that is switching a trigger that already exists.
@@ -26,8 +28,10 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace FF3.ContentTool.Editor
 {
@@ -335,8 +339,26 @@ namespace FF3.ContentTool.Editor
 			return result;
 		}
 
-		/// <summary>Takes both halves out again: the row, and the region that fired it.</summary>
-		public static MapExitResult Remove(Workspace workspace, string map, int slot)
+		/// <summary>
+		/// Takes an exit away, wherever it sits, and renumbers everything that named a
+		/// slot after it.
+		///
+		/// Removing the last one touches nothing else. Removing one from the middle
+		/// shifts every slot above it down by one, and three kinds of thing name a slot
+		/// by number - see Editor/References.cs. All three move together here, or none
+		/// of them do:
+		///
+		///   the mesh     each region's attribute, 24 + slot
+		///   the script   setMapJumpFlag and setMapJumpFlagJump, whose argument is the
+		///                slot minus one
+		///   other maps   the nextMapIndex of every jumps row that arrives here
+		///
+		/// Anything that pointed at the exit being removed cannot be renumbered, because
+		/// there is nothing left to point at. Those are reported rather than repointed at
+		/// a neighbour, which would send the player somewhere nobody chose.
+		/// </summary>
+		public static MapExitResult Remove(Workspace workspace, string map, int slot,
+			References references, Func<uint, string> lookupMessage)
 		{
 			MapExitResult result = new MapExitResult();
 			string pakName = "files/" + map + ".pak";
@@ -359,51 +381,227 @@ namespace FF3.ContentTool.Editor
 				return result;
 			}
 
-			// Only the last one. A row in the middle cannot go: every slot after it would
-			// shift down, and the collision attributes that name them would not - so the
-			// triggers and the rows would come apart, and so would every other map's
-			// arrival index pointing here.
-			if (slot != jumps.Records.Count)
-			{
-				result.Error = "only the last exit can be removed. Exit " + slot + " of "
-					+ jumps.Records.Count + " would shift every one after it down a slot, "
-					+ "and the triggers in the mesh - and the arrival index of every exit "
-					+ "on other maps that leads here - would still name the old numbers";
-				return result;
-			}
+			int rows = jumps.Records.Count;
+			int shifting = rows - slot;
 
-			jumps.Records.RemoveAt(slot - 1);
+			// Everything that named this exit, before it stops existing.
+			List<ExitReference> orphaned = references?.ToExit(map, slot)
+				?? new List<ExitReference>();
 
+			// ---- the mesh, both its own region and the ones above it
+			MclFile mesh = null;
 			bool hadRegion = false;
 			if (workspace.Exists(meshName))
 			{
 				try
 				{
-					MclFile mesh = Mcl.Read(Lz.Decompress(workspace.Read(meshName)));
-					hadRegion = Mcl.RemoveJumpRegion(mesh, slot);
-					if (hadRegion)
-					{
-						workspace.Write(meshName, Lz.Compress(Mcl.Build(mesh)));
-						result.Also = meshName;
-					}
+					mesh = Mcl.Read(Lz.Decompress(workspace.Read(meshName)));
 				}
 				catch (Exception problem)
 				{
-					result.Error = "the row is still there, because the collision mesh "
-						+ "would not read and removing one half is worse than neither: "
-						+ problem.Message;
+					result.Error = "nothing was written, because the collision mesh would "
+						+ "not read and removing one half of an exit is worse than "
+						+ "removing neither: " + problem.Message;
 					return result;
+				}
+
+				hadRegion = Mcl.RemoveJumpRegion(mesh, slot);
+				for (int above = slot + 1; above <= SlotLimit; above++)
+				{
+					if (Mcl.MoveJumpRegion(mesh, above, above - 1))
+					{
+						result.Notes.Add("moved the region for exit " + above + " down to "
+							+ (above - 1));
+					}
 				}
 			}
 
+			// ---- this map's own script
+			int scriptCalls = 0;
+			byte[] compiled = null;
+			string scriptName = "files/" + map + ".script";
+			if (shifting > 0 && workspace.Exists(scriptName))
+			{
+				string edited = Reslot(workspace, scriptName, slot, lookupMessage,
+					out scriptCalls, out string scriptError);
+				if (scriptError != null)
+				{
+					result.Error = "nothing was written: " + scriptError;
+					return result;
+				}
+				if (scriptCalls > 0)
+				{
+					try
+					{
+						compiled = Ffs.Compiler.Compile(Ffs.Parser.Parse(edited));
+					}
+					catch (Exception problem)
+					{
+						result.Error = "nothing was written, because the script would not "
+							+ "compile after renumbering: " + problem.Message;
+						return result;
+					}
+				}
+			}
+
+			// ---- every other map that arrives above this slot
+			List<KeyValuePair<string, PakFile>> arrivals =
+				new List<KeyValuePair<string, PakFile>>();
+			int arrivalRows = 0;
+			if (shifting > 0 && references != null)
+			{
+				foreach (string other in references.MapsArrivingAt(map))
+				{
+					string otherPak = "files/" + other + ".pak";
+					PakChainData otherJumps;
+					try
+					{
+						otherJumps = Jumps(workspace, otherPak, out PakFile otherFile);
+						if (otherJumps?.Records == null) continue;
+
+						bool touched = false;
+						foreach (JsonObject row in otherJumps.Records)
+						{
+							if (!string.Equals(NameOf(row, "nextMapName"), map,
+								StringComparison.OrdinalIgnoreCase))
+							{
+								continue;
+							}
+							int index = NumberOf(row, "nextMapIndex");
+							if (index <= slot) continue;
+							SetNumber(row, "nextMapIndex", index - 1);
+							touched = true;
+							arrivalRows++;
+						}
+						if (touched)
+						{
+							arrivals.Add(new KeyValuePair<string, PakFile>(otherPak, otherFile));
+						}
+					}
+					catch (Exception problem)
+					{
+						result.Error = "nothing was written, because " + otherPak
+							+ " arrives here and would not decode: " + problem.Message;
+						return result;
+					}
+				}
+			}
+
+			// ---- past every check, so all of it goes out together
+			jumps.Records.RemoveAt(slot - 1);
 			workspace.Write(pakName, Pak.Write(decoded));
 			result.Wrote = pakName;
 			result.Slot = slot;
+
+			if (mesh != null && (hadRegion || shifting > 0))
+			{
+				workspace.Write(meshName, Lz.Compress(Mcl.Build(mesh)));
+				result.Also = meshName;
+			}
+			if (compiled != null)
+			{
+				workspace.Write(scriptName, compiled);
+				result.Notes.Add("renumbered " + scriptCalls + " setMapJumpFlag call"
+					+ (scriptCalls == 1 ? string.Empty : "s") + " in " + map + "'s script");
+			}
+			foreach (KeyValuePair<string, PakFile> pair in arrivals)
+			{
+				workspace.Write(pair.Key, Pak.Write(pair.Value));
+			}
+
 			result.Ok = true;
-			result.Notes.Add(hadRegion
+			result.Notes.Insert(0, hadRegion
 				? "removed exit " + slot + " and the region that triggered it"
-				: "removed exit " + slot + " - it had no trigger in the mesh anyway");
+				: "removed exit " + slot + " - it had no trigger in the mesh");
+			if (shifting > 0)
+			{
+				result.Notes.Add("exits " + (slot + 1) + " to " + rows
+					+ " moved down a slot");
+			}
+			if (arrivalRows > 0)
+			{
+				result.Notes.Add("repointed " + arrivalRows + " arrival"
+					+ (arrivalRows == 1 ? string.Empty : "s") + " on "
+					+ arrivals.Count + " other map"
+					+ (arrivals.Count == 1 ? string.Empty : "s"));
+			}
+
+			// What named the exit itself, which nothing can renumber.
+			foreach (ExitReference gone in orphaned.Where(r => r.Kind != "mesh"))
+			{
+				result.Notes.Add(gone.Kind == "arrival"
+					? "left alone: " + gone.What + ", and now arrives at an exit that is "
+						+ "gone. Point it somewhere else"
+					: "left alone: " + gone.What + " in " + gone.File
+						+ " switched the exit that has just been removed");
+			}
+
 			return result;
+		}
+
+		/// <summary>
+		/// Rewrites this map's setMapJumpFlag calls for a slot going away. Their argument
+		/// is the slot minus one, so a call naming a slot above the one removed loses one.
+		/// </summary>
+		private static string Reslot(Workspace workspace, string scriptName, int removed,
+			Func<uint, string> lookupMessage, out int changed, out string error)
+		{
+			changed = 0;
+			error = null;
+
+			string source;
+			try
+			{
+				ScriptFile script = ScriptFile.Read(workspace.Read(scriptName));
+				using StringWriter writer = new StringWriter();
+				Ffs.SourceWriter.Write(writer, script, scriptName, lookupMessage);
+				source = writer.ToString();
+			}
+			catch (Exception problem)
+			{
+				error = scriptName + " would not read: " + problem.Message;
+				return null;
+			}
+
+			int count = 0;
+			// setMapJump_SE looks the same and is not a slot, so the names are spelled out.
+			string edited = Regex.Replace(source,
+				@"\b(setMapJumpFlag|setMapJumpFlagJump)\s*\(\s*(\d+)\s*,",
+				match =>
+				{
+					int zeroBased = int.Parse(match.Groups[2].Value,
+						CultureInfo.InvariantCulture);
+					if (zeroBased + 1 <= removed) return match.Value;
+					count++;
+					return match.Groups[1].Value + "("
+						+ (zeroBased - 1).ToString(CultureInfo.InvariantCulture) + ",";
+				});
+
+			changed = count;
+			return edited;
+		}
+
+		private static string NameOf(JsonObject record, string field)
+		{
+			if (!(record[field] is JsonArray array)) return null;
+			System.Text.StringBuilder text = new System.Text.StringBuilder();
+			foreach (JsonNode node in array)
+			{
+				if (!int.TryParse(node?.ToJsonString(), NumberStyles.Integer,
+					CultureInfo.InvariantCulture, out int value) || value == 0)
+				{
+					break;
+				}
+				text.Append((char)value);
+			}
+			return text.ToString();
+		}
+
+		private static int NumberOf(JsonObject record, string field)
+		{
+			return record[field] is JsonValue value
+				&& int.TryParse(value.ToJsonString(), NumberStyles.Integer,
+					CultureInfo.InvariantCulture, out int number) ? number : 0;
 		}
 
 		private static PakChainData Jumps(Workspace workspace, string name,

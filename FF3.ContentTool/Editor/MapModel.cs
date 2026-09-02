@@ -267,6 +267,12 @@ namespace FF3.ContentTool.Editor
 		}
 
 		/// <summary>The map's exits, from chain 0 of its .pak.</summary>
+		/// <summary>This map's exits, for anything that needs them without the rest.</summary>
+		public static List<MapExit> ReadExitsOf(Workspace workspace, string map)
+		{
+			return ReadExits(workspace, map);
+		}
+
 		private static List<MapExit> ReadExits(Workspace workspace, string map)
 		{
 			List<MapExit> exits = new List<MapExit>();

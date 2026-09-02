@@ -1066,9 +1066,10 @@ function selectCharacter(node, character, pin) {
 // twelve jump attributes, in <map>_col.mcl.lz. Both are written together - see
 // Editor/MapExits.cs - so an exit is never half made.
 //
-// Only the last one can be removed, because slot N fires row N and nothing else joins
-// them: taking one out of the middle would shift every row after it down a slot while
-// the attributes naming them stayed where they were.
+// Any of them can be removed. Slot N fires row N and nothing else joins them, so taking
+// one from the middle shifts every row above it down - and the mesh attributes, this
+// map's setMapJumpFlag calls and other maps' arrival indices all move with it. The panel
+// lists what names the slot before you decide.
 function buildExit(exit, index) {
   const panel = document.createElement('div');
   if (!exit) return panel;
@@ -1173,42 +1174,77 @@ function buildExit(exit, index) {
   };
   panel.append(save);
 
-  // Only the last one can go: removing a row from the middle would shift every slot
-  // after it down while the attributes that name them stay put.
+  // What names this slot by number, so removing it is a decision made with the
+  // consequences in front of you rather than after. Three kinds of thing can - the
+  // region that fires it, this map's own setMapJumpFlag calls, and the exits on other
+  // maps that arrive here - and the list arrives on its own.
+  const used = document.createElement('h3');
+  used.textContent = 'Referred to by';
+  const refs = document.createElement('ul');
+  refs.className = 'lines';
+  const counting = document.createElement('li');
+  counting.textContent = 'looking…';
+  refs.append(counting);
+  panel.append(used, refs);
+
   const exits = (doc.data.scene.exits || []).length;
-  if (index === exits - 1) {
-    const remove = document.createElement('button');
-    remove.className = 'danger';
-    remove.textContent = 'Remove this exit';
-    remove.onclick = async () => {
-      if (!confirm(`Remove exit ${index + 1} and the region in the collision mesh `
-        + 'that fires it?')) return;
-      remove.disabled = true;
-      try {
-        const result = await api('/api/map/exit/delete',
-          { name: mapState.name, slot: index + 1 });
-        if (!result.ok) {
-          say(result.error, 'bad');
-          remove.disabled = false;
-          return;
-        }
-        for (const line of result.notes || []) say(line);
-        say(`exit ${index + 1} removed`, 'good');
-        await open(mapState.name);
-      } catch (error) {
-        say(error.message, 'bad');
+  const remove = document.createElement('button');
+  remove.className = 'danger';
+  remove.textContent = 'Remove this exit';
+  remove.onclick = async () => {
+    const after = exits - (index + 1);
+    if (!confirm(`Remove exit ${index + 1} and the region that fires it?`
+      + (after > 0
+        ? `\n\nThe ${after} exit${after === 1 ? '' : 's'} after it will move down a `
+          + 'slot, and everything that names them by number moves with them.'
+        : ''))) return;
+    remove.disabled = true;
+    try {
+      const result = await api('/api/map/exit/delete',
+        { name: mapState.name, slot: index + 1 });
+      if (!result.ok) {
+        say(result.error, 'bad');
         remove.disabled = false;
+        return;
       }
-    };
-    panel.append(remove);
-  }
+      for (const line of result.notes || []) say(line);
+      say(`exit ${index + 1} removed`, 'good');
+      await open(mapState.name);
+    } catch (error) {
+      say(error.message, 'bad');
+      remove.disabled = false;
+    }
+  };
+  panel.append(remove);
+
+  api(`/api/map/exit/references?name=${encodeURIComponent(mapState.name)}`
+    + `&slot=${index + 1}`).then(found => {
+    refs.textContent = '';
+    if (!found.to.length) {
+      const none = document.createElement('li');
+      none.textContent = 'nothing names this slot by number';
+      refs.append(none);
+      return;
+    }
+    for (const one of found.to) {
+      const row = document.createElement('li');
+      row.textContent = `${one.kind} · ${one.what}`;
+      row.title = one.file;
+      refs.append(row);
+    }
+  }).catch(() => {
+    refs.textContent = '';
+    const failed = document.createElement('li');
+    failed.textContent = 'could not work out what points here';
+    refs.append(failed);
+  });
 
   const note = document.createElement('p');
   note.className = 'none';
   note.textContent = 'An exit is two halves. This row says where the player lands; '
     + 'what makes it fire is a region of ' + mapState.name + '_col.mcl.lz carrying one '
-    + 'of twelve jump attributes. Adding and removing an exit writes both, so a row '
-    + 'never ends up with nothing to trigger it.';
+    + 'of twelve jump attributes. Both are written together, and removing one from the '
+    + 'middle renumbers everything that named a slot after it.';
   panel.append(note);
   return panel;
 }

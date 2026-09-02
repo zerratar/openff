@@ -37,6 +37,7 @@ namespace FF3.ContentTool.Editor
 		private readonly MessageIndex _messages;
 		private readonly CharacterIds _characterIds;
 		private readonly FlagIndex _flags;
+		private readonly References _references;
 		private readonly Func<uint, string> _lookupMessage;
 
 		public EditorServer(Workspace workspace, string webRoot, MessageIndex messages)
@@ -47,6 +48,7 @@ namespace FF3.ContentTool.Editor
 			_lookupMessage = id => messages.Text(id);
 			_characterIds = new CharacterIds(workspace);
 			_flags = new FlagIndex(workspace, _lookupMessage);
+			_references = new References(workspace, _lookupMessage);
 		}
 
 		public void Run(int port)
@@ -88,19 +90,26 @@ namespace FF3.ContentTool.Editor
 					break;
 				}
 
+				// Read before the handler runs. A request that fails is often one the
+				// browser has already abandoned, and by then the request object can be
+				// disposed - so asking it what it was, in the middle of reporting that
+				// it failed, throws a second time.
+				string what = Describe(context);
+
 				try
 				{
 					Handle(context);
 				}
 				catch (Exception ex)
 				{
-					// Saying why, if the browser is still listening. It often is not:
-					// reloading the page cancels every request that was in flight, and
-					// a handler part way through one then fails on a socket nobody is
-					// holding. Sending 500 down that same socket throws again - and an
-					// exception thrown from in here escapes the loop and takes the whole
-					// editor with it. That is what "Bytes to be written to the stream
-					// exceed the Content-Length" was: not the bug, the second one.
+					// Nothing in here may throw. Reloading the page cancels every request
+					// that was in flight, and a handler part way through one then fails on
+					// a socket nobody is holding; sending 500 down that same socket throws
+					// again, and an exception raised inside a catch escapes the loop and
+					// takes the whole editor with it. That was "Bytes to be written to the
+					// stream exceed the Content-Length", and then "Cannot access a disposed
+					// object" one line further down - both of them the second failure
+					// rather than the first.
 					try
 					{
 						Send(context, 500, "application/json",
@@ -112,10 +121,31 @@ namespace FF3.ContentTool.Editor
 						// Nothing left to answer. The next request is what matters.
 					}
 
-					Console.Error.WriteLine("{0} {1}: {2}",
-						context.Request.HttpMethod, context.Request.Url.AbsolutePath,
-						ex.Message);
+					try
+					{
+						Console.Error.WriteLine("{0}: {1}", what, ex.Message);
+					}
+					catch (Exception)
+					{
+					}
 				}
+			}
+		}
+
+		/// <summary>
+		/// What a request was, taken while it is still safe to ask. An abandoned request
+		/// throws on every property, and the error path needs this after that has
+		/// happened.
+		/// </summary>
+		private static string Describe(HttpListenerContext context)
+		{
+			try
+			{
+				return context.Request.HttpMethod + " " + context.Request.Url.AbsolutePath;
+			}
+			catch (Exception)
+			{
+				return "a request";
 			}
 		}
 
@@ -234,6 +264,17 @@ namespace FF3.ContentTool.Editor
 
 				case "/api/map/exits":
 					SendJson(context, MapExits.State(_workspace, Query(context, "name")));
+					return;
+
+				case "/api/map/exit/references":
+					SendJson(context, new
+					{
+						to = _references.ToExit(Query(context, "name"),
+							int.Parse(Query(context, "slot"), CultureInfo.InvariantCulture)),
+						builtIn = _references.BuildMilliseconds,
+						maps = _references.MapsRead,
+						unreadable = _references.Unreadable
+					});
 					return;
 
 				case "/api/images":
@@ -489,6 +530,7 @@ namespace FF3.ContentTool.Editor
 		private void SaveExit(HttpListenerContext context)
 		{
 			JsonNode body = ReadBody(context);
+			_references.Invalidate();
 			MapExitResult saved = MapExits.Save(_workspace, (string)body["name"],
 				new MapExitEdit
 				{
@@ -526,6 +568,7 @@ namespace FF3.ContentTool.Editor
 				body["width"] == null ? size[0] : (int)body["width"],
 				body["height"] == null ? size[1] : (int)body["height"],
 				body["depth"] == null ? size[2] : (int)body["depth"]);
+			if (added.Ok) _references.Invalidate();
 			SendJson(context, added);
 		}
 
@@ -533,8 +576,10 @@ namespace FF3.ContentTool.Editor
 		private void DeleteExit(HttpListenerContext context)
 		{
 			JsonNode body = ReadBody(context);
-			SendJson(context, MapExits.Remove(_workspace, (string)body["name"],
-				(int)body["slot"]));
+			MapExitResult removed = MapExits.Remove(_workspace, (string)body["name"],
+				(int)body["slot"], _references, _lookupMessage);
+			if (removed.Ok) _references.Invalidate();
+			SendJson(context, removed);
 		}
 
 		/// <summary>

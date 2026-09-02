@@ -637,6 +637,32 @@ namespace FF3.ContentTool
 			}
 		}
 
+		/// <summary>
+		/// Renumbers a region: the material stops carrying one slot's attribute and
+		/// carries another's. The geometry does not move - only which of the twelve
+		/// rows it fires.
+		/// </summary>
+		public static bool MoveJumpRegion(MclFile file, int from, int to)
+		{
+			if (from == to) return false;
+			int was = JumpAttribute(from);
+			int now = JumpAttribute(to);
+			bool moved = false;
+
+			foreach (MclObject item in file.Objects)
+			{
+				foreach (MclMaterial material in item.Materials)
+				{
+					if (!material.Has(was)) continue;
+					material.Set(was, false);
+					material.Set(now, true);
+					moved = true;
+				}
+			}
+
+			return moved;
+		}
+
 		/// <summary>Takes a slot's trigger out, with the points and material only it used.</summary>
 		public static bool RemoveJumpRegion(MclFile file, int slot)
 		{

@@ -1,0 +1,296 @@
+// What points at what, so a thing can be renumbered without breaking the things that
+// name it by number.
+//
+// Most of the game does not need this. Almost everything that looks like a reference is
+// by name or by identity rather than by position:
+//
+//   a .hich row      is found by scanning for its cast number, so rows can be added,
+//                    removed and reordered freely - getManCastIndex does a linear search
+//   a message        is an id, not an offset into the file
+//   a flag           is a (group, index) pair in a fixed array of 3 x 1000
+//   an item          is an id
+//   a map            is named by string, in nextMapName and in mapWarp
+//   every .pak chain but one holds exactly one record in all 337 maps, so there is no
+//                    row order in them to disturb
+//
+// Which leaves exactly one thing in the map data that is addressed by position: the
+// jumps chain, whose rows are named by slot number. That is why a general reference
+// graph over all 6,962 files would be almost entirely empty, and why this indexes the
+// one coupling that is real instead.
+//
+// An exit slot N of map M is named in three places, and all three were counted rather
+// than assumed:
+//
+//   the mesh     M's collision mesh, as a material carrying attribute 24 + N. This is
+//                what fires it.
+//
+//   the script   setMapJumpFlag and setMapJumpFlagJump turn one on or off, and their
+//                first argument is a zero based index into the twelve - so slot N is
+//                written N - 1. 63 calls across 66 maps.
+//
+//                Worth being careful here: setMapJump_SE looks exactly the same and is
+//                used 59 times, but its first argument selects a sound flag, not a slot.
+//                Treating those as slot references would corrupt 59 scripts.
+//
+//   other maps   any map's jumps row whose nextMapName is M and whose nextMapIndex is N.
+//                That is where the player comes out when they arrive.
+//
+// Building the whole picture reads every script, every map .pak and every collision
+// mesh. It is held in memory and thrown away when anything is written, the same as
+// CharacterIds and FlagIndex - see BuildMilliseconds for what that costs.
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+
+namespace FF3.ContentTool.Editor
+{
+	/// <summary>One place that names an exit slot by its number.</summary>
+	internal sealed class ExitReference
+	{
+		/// <summary>"mesh", "script" or "arrival".</summary>
+		public string Kind { get; set; }
+
+		/// <summary>The file that holds the reference.</summary>
+		public string File { get; set; }
+
+		/// <summary>The map that file belongs to.</summary>
+		public string Map { get; set; }
+
+		/// <summary>Which of that map's exits, when the referrer is an arrival.</summary>
+		public int FromSlot { get; set; }
+
+		public string What { get; set; }
+	}
+
+	internal sealed class References
+	{
+		/// <summary>setMapJumpFlag and its jumping form. Both name a slot, zero based.</summary>
+		private static readonly Regex JumpFlag = new Regex(
+			@"\b(setMapJumpFlag|setMapJumpFlagJump)\s*\(\s*(\d+)\s*,",
+			RegexOptions.Compiled);
+
+		private readonly Workspace _workspace;
+		private readonly Func<uint, string> _lookupMessage;
+
+		/// <summary>Every arrival, as map -> slot -> who arrives there.</summary>
+		private Dictionary<string, Dictionary<int, List<ExitReference>>> _arrivals;
+
+		/// <summary>Every script that names a slot of its own map.</summary>
+		private Dictionary<string, Dictionary<int, List<ExitReference>>> _scripts;
+
+		public References(Workspace workspace, Func<uint, string> lookupMessage)
+		{
+			_workspace = workspace;
+			_lookupMessage = lookupMessage;
+		}
+
+		public void Invalidate()
+		{
+			_arrivals = null;
+			_scripts = null;
+		}
+
+		/// <summary>How long the last build took, so the cost is a measurement not a guess.</summary>
+		public long BuildMilliseconds { get; private set; }
+
+		public int MapsRead { get; private set; }
+
+		public List<string> Unreadable { get; } = new List<string>();
+
+		/// <summary>Everything that names this slot of this map.</summary>
+		public List<ExitReference> ToExit(string map, int slot)
+		{
+			Build();
+			List<ExitReference> found = new List<ExitReference>();
+
+			if (_arrivals.TryGetValue(map, out Dictionary<int, List<ExitReference>> arrivals)
+				&& arrivals.TryGetValue(slot, out List<ExitReference> who))
+			{
+				found.AddRange(who);
+			}
+			if (_scripts.TryGetValue(map, out Dictionary<int, List<ExitReference>> named)
+				&& named.TryGetValue(slot, out List<ExitReference> calls))
+			{
+				found.AddRange(calls);
+			}
+
+			string mesh = MapExits.MeshName(map);
+			if (_workspace.Exists(mesh))
+			{
+				try
+				{
+					if (Mcl.HasJump(Mcl.Read(Lz.Decompress(_workspace.Read(mesh))), slot))
+					{
+						found.Add(new ExitReference
+						{
+							Kind = "mesh",
+							File = mesh,
+							Map = map,
+							What = "the region that fires it, attribute "
+								+ Mcl.JumpAttribute(slot)
+						});
+					}
+				}
+				catch (Exception)
+				{
+					// A mesh that will not read cannot be spoken for, and Build has
+					// already recorded that it would not.
+				}
+			}
+
+			return found;
+		}
+
+		/// <summary>
+		/// Every arrival pointing at a slot of this map that does not exist, which is a
+		/// broken link somebody wants to know about.
+		/// </summary>
+		public List<ExitReference> Dangling(string map, int rows)
+		{
+			Build();
+			if (!_arrivals.TryGetValue(map, out Dictionary<int, List<ExitReference>> arrivals))
+			{
+				return new List<ExitReference>();
+			}
+			return arrivals
+				.Where(pair => pair.Key < 1 || pair.Key > rows)
+				.SelectMany(pair => pair.Value)
+				.ToList();
+		}
+
+		/// <summary>
+		/// The maps whose jumps rows would have to change if this map's slots shifted -
+		/// so a renumber knows which files to open.
+		/// </summary>
+		public List<string> MapsArrivingAt(string map)
+		{
+			Build();
+			return _arrivals.TryGetValue(map, out Dictionary<int, List<ExitReference>> arrivals)
+				? arrivals.Values.SelectMany(v => v).Select(r => r.Map).Distinct().ToList()
+				: new List<string>();
+		}
+
+		/// <summary>Whether this map's own script names any of its slots.</summary>
+		public bool ScriptNamesSlots(string map)
+		{
+			Build();
+			return _scripts.TryGetValue(map, out Dictionary<int, List<ExitReference>> named)
+				&& named.Count > 0;
+		}
+
+		private void Build()
+		{
+			if (_arrivals != null) return;
+
+			Stopwatch clock = Stopwatch.StartNew();
+			_arrivals = new Dictionary<string, Dictionary<int, List<ExitReference>>>(
+				StringComparer.OrdinalIgnoreCase);
+			_scripts = new Dictionary<string, Dictionary<int, List<ExitReference>>>(
+				StringComparer.OrdinalIgnoreCase);
+			Unreadable.Clear();
+			MapsRead = 0;
+
+			foreach (WorkspaceEntry entry in _workspace.List(".hich"))
+			{
+				string map = Path.GetFileNameWithoutExtension(entry.Name);
+				MapsRead++;
+				ReadArrivals(map);
+				ReadScript(map);
+			}
+
+			clock.Stop();
+			BuildMilliseconds = clock.ElapsedMilliseconds;
+		}
+
+		/// <summary>Where this map's exits lead, recorded against the maps they land on.</summary>
+		private void ReadArrivals(string map)
+		{
+			string name = "files/" + map + ".pak";
+			if (!_workspace.Exists(name)) return;
+
+			List<MapExit> exits;
+			try
+			{
+				exits = MapModel.ReadExitsOf(_workspace, map);
+			}
+			catch (Exception)
+			{
+				Unreadable.Add(name);
+				return;
+			}
+
+			for (int i = 0; i < exits.Count; i++)
+			{
+				MapExit exit = exits[i];
+				if (string.IsNullOrEmpty(exit.To)) continue;
+
+				Add(_arrivals, exit.To, exit.ToIndex, new ExitReference
+				{
+					Kind = "arrival",
+					File = name,
+					Map = map,
+					FromSlot = i + 1,
+					What = map + " exit " + (i + 1) + " arrives here"
+				});
+			}
+		}
+
+		/// <summary>Which of its own slots a map's script switches on and off.</summary>
+		private void ReadScript(string map)
+		{
+			string name = "files/" + map + ".script";
+			if (!_workspace.Exists(name)) return;
+
+			string source;
+			try
+			{
+				ScriptFile script = ScriptFile.Read(_workspace.Read(name));
+				using StringWriter writer = new StringWriter();
+				Ffs.SourceWriter.Write(writer, script, name, _lookupMessage);
+				source = writer.ToString();
+			}
+			catch (Exception)
+			{
+				Unreadable.Add(name);
+				return;
+			}
+
+			foreach (Match call in JumpFlag.Matches(source))
+			{
+				if (!int.TryParse(call.Groups[2].Value, NumberStyles.Integer,
+					CultureInfo.InvariantCulture, out int zeroBased))
+				{
+					continue;
+				}
+				Add(_scripts, map, zeroBased + 1, new ExitReference
+				{
+					Kind = "script",
+					File = name,
+					Map = map,
+					What = call.Groups[1].Value + "(" + zeroBased + ", ...)"
+				});
+			}
+		}
+
+		private static void Add(Dictionary<string, Dictionary<int, List<ExitReference>>> into,
+			string map, int slot, ExitReference reference)
+		{
+			if (!into.TryGetValue(map, out Dictionary<int, List<ExitReference>> slots))
+			{
+				slots = new Dictionary<int, List<ExitReference>>();
+				into[map] = slots;
+			}
+			if (!slots.TryGetValue(slot, out List<ExitReference> list))
+			{
+				list = new List<ExitReference>();
+				slots[slot] = list;
+			}
+			list.Add(reference);
+		}
+	}
+}
