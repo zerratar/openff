@@ -42,7 +42,8 @@ Four panels round a document area, the way a scene editor is laid out:
   Tabs **drag**. Onto another tab bar moves them; onto the right edge of the document
   area splits the view in two, which is how you read a script beside its map. Both
   halves stay live, but only one is focused, and the hierarchy and inspector follow
-  that one.
+  that one. The bar between the halves drags, so the split does not have to stay even -
+  a script usually wants more room than the map beside it.
 - **Inspector**, right - facts about the open asset even with nothing selected, and the
   details of whatever is selected underneath.
 - **Project and Console**, bottom - the libraries as a tree with their files beside
@@ -100,7 +101,18 @@ these files hold. Dragging it works off where the cursor lands on that plane rat
 where it is on screen, so the ring turns with the mouse from any camera angle, and a
 short arrow shows which way the character is facing without going to the inspector for it.
 
-The move gizmo is three arrows, one per axis. Dragging one slides the character along that axis and
+The move gizmo is three arrows, one per axis.
+
+With the gizmo on, the map's **exits** are drawn too - a pin with a ring on the ground
+where the exit is, and an arrow for the direction you are facing when you arrive. They
+are an editing aid rather than part of the scene, so they come and go with the gizmo.
+Clicking one selects it and the inspector says where it goes.
+
+Exits are the only thing on a map that is a place rather than an object. The `cameras`
+chain beside them in the `.pak` looks positional and is not - its numbers are offsets
+from whatever the camera is following, so there is nowhere to draw them. Their arrival
+angle is kept in a different unit from everything else, too: a 16 bit angle where a whole
+turn is 65536, where a `.hich` row uses plain degrees. Dragging one slides the character along that axis and
 nowhere else, snapping to whole units because that is what a `.hich` row holds. The
 arrows are geometry rather than lines: a line comes out one pixel wide however thick you
 ask for it, which is not something you can reliably grab. Dragging is worked out in

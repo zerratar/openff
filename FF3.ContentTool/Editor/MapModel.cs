@@ -45,6 +45,13 @@ namespace FF3.ContentTool.Editor
 		public int X { get; set; }
 		public int Y { get; set; }
 		public int Z { get; set; }
+
+		/// <summary>
+		/// Which way you are facing when you arrive, in degrees. The file keeps it as a
+		/// 16 bit angle where a whole turn is 65536, not the degrees a .hich row uses -
+		/// two formats for the same idea, in the same map.
+		/// </summary>
+		public int RotationY { get; set; }
 		public string To { get; set; }
 		public int ToIndex { get; set; }
 		public int ConditionFlag { get; set; }
@@ -246,6 +253,8 @@ namespace FF3.ContentTool.Editor
 						X = position[0],
 						Y = position[1],
 						Z = position[2],
+						RotationY = (int)Math.Round(
+							Number(record, "plRot") * 360.0 / 65536.0) % 360,
 						To = Name(record, "nextMapName"),
 						ToIndex = Number(record, "nextMapIndex"),
 						ConditionFlag = Number(record, "conditionFlag"),

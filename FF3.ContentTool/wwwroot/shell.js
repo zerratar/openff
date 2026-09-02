@@ -64,6 +64,31 @@ function makeGroup() {
   panesEl.className = 'doc-panes';
 
   el.append(tabsEl, panesEl);
+
+  // A second group arrives with a bar in front of it, so the split can be moved.
+  if (groups.length) {
+    const bar = document.createElement('div');
+    bar.className = 'splitter vertical group-split';
+    bar.onpointerdown = (event) => {
+      event.preventDefault();
+      bar.setPointerCapture(event.pointerId);
+      const move = (e) => {
+        const area = $('#doc-area').getBoundingClientRect();
+        const first = groups[0].el;
+        const width = Math.max(160, Math.min(area.width - 160, e.clientX - area.left));
+        first.style.flex = `0 0 ${width}px`;
+        layoutChanged();
+      };
+      const up = () => {
+        bar.removeEventListener('pointermove', move);
+        bar.removeEventListener('pointerup', up);
+      };
+      bar.addEventListener('pointermove', move);
+      bar.addEventListener('pointerup', up);
+    };
+    $('#doc-area').append(bar);
+  }
+
   $('#doc-area').append(el);
 
   const group = { el, tabsEl, panesEl, docs: [], preview: null, active: null };
@@ -94,6 +119,9 @@ function removeGroup(group) {
   if (groups.length < 2) return;
   group.el.remove();
   groups = groups.filter(g => g !== group);
+  $$('.group-split').forEach(bar => bar.remove());
+  // Whatever is left takes the whole width back.
+  groups.forEach(g => { g.el.style.flex = ''; });
   if (activeGroup === group) activeGroup = groups[0];
   layoutChanged();
 }
@@ -444,7 +472,12 @@ function outlineFor(doc) {
     groups.push({
       label: 'Exits',
       children: scene.exits.map((e, i) => ({
-        label: `${e.to || '?'} at ${e.x},${e.z}`, ref: `exit:${i}`, icon: 'exit'
+        label: `${e.to || '?'} at ${e.x},${e.z}`,
+        ref: `exit:${i}`,
+        icon: 'exit',
+        reveal: () => {
+          if (doc.scene3d && doc.mode === '3d') doc.scene3d.focusExit(i);
+        }
       }))
     });
     return groups;

@@ -92,6 +92,51 @@ function ringGeometry() {
   return new Float32Array(out);
 }
 
+/// A pin: a stem standing on the spot with a diamond above it. Used for the things a
+/// map has that are places rather than objects - its exits - which have somewhere to be
+/// but no model to be seen as.
+function markerGeometry() {
+  const out = [];
+  const push = (x, y, z) => out.push(x, y, z, 0, 0, 1, 1, 1);
+  const stem = 0.035;
+  const tall = 1.0;
+  const head = 0.22;
+  const sides = 6;
+
+  for (let i = 0; i < sides; i++) {
+    const a0 = (i / sides) * Math.PI * 2;
+    const a1 = ((i + 1) / sides) * Math.PI * 2;
+    const x0 = Math.cos(a0), z0 = Math.sin(a0);
+    const x1 = Math.cos(a1), z1 = Math.sin(a1);
+
+    // the stem
+    push(x0 * stem, 0, z0 * stem);
+    push(x0 * stem, tall, z0 * stem);
+    push(x1 * stem, tall, z1 * stem);
+    push(x0 * stem, 0, z0 * stem);
+    push(x1 * stem, tall, z1 * stem);
+    push(x1 * stem, 0, z1 * stem);
+
+    // the diamond, two cones back to back
+    push(x0 * head, tall + head, z0 * head);
+    push(0, tall + head * 2, 0);
+    push(x1 * head, tall + head, z1 * head);
+    push(x0 * head, tall + head, z0 * head);
+    push(x1 * head, tall + head, z1 * head);
+    push(0, tall, 0);
+
+    // a flat ring on the ground, so the spot itself is readable from above
+    const inner = 0.55, outer = 0.8;
+    push(x0 * inner, 0.01, z0 * inner);
+    push(x0 * outer, 0.01, z0 * outer);
+    push(x1 * outer, 0.01, z1 * outer);
+    push(x0 * inner, 0.01, z0 * inner);
+    push(x1 * outer, 0.01, z1 * outer);
+    push(x1 * inner, 0.01, z1 * inner);
+  }
+  return new Float32Array(out);
+}
+
 /// Places an arrow: rotates local +X onto the axis, scales it, moves it into place.
 function axisMatrix(axis, at, size) {
   const s = size;
@@ -140,6 +185,7 @@ function makeMapScene(canvas, status) {
   let scene = null;
   let instances = [];
   let selected = null;
+  let selectedExit = null;
   let onPick = () => {};
 
   const arrowBuffer = gl.createBuffer();
@@ -153,6 +199,15 @@ function makeMapScene(canvas, status) {
   gl.bindBuffer(gl.ARRAY_BUFFER, ringBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, ring, gl.STATIC_DRAW);
   const ringVertices = ring.length / 8;
+
+  const markerBuffer = gl.createBuffer();
+  const marker = markerGeometry();
+  gl.bindBuffer(gl.ARRAY_BUFFER, markerBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, marker, gl.STATIC_DRAW);
+  const markerVertices = marker.length / 8;
+
+  // The same brown the plan view uses for an exit pin, so the two views agree.
+  const EXIT_COLOUR = [0.86, 0.58, 0.30];
 
   let gizmoOn = true;
   let gizmoMode = 'move';        // 'move' or 'rotate'
@@ -269,7 +324,67 @@ function makeMapScene(canvas, status) {
       drawBundle(entry, placement(item), tint);
     }
 
+    drawMarkers();
     drawGizmo();
+  }
+
+  /// The places a map has that are not objects. Drawn with the gizmo, and hidden with
+  /// it: they are an editing aid, not part of the scene.
+  function drawMarkers() {
+    if (!gizmoOn || !scene || !scene.exits || !scene.exits.length) return;
+
+    gl.disable(gl.DEPTH_TEST);
+    gl.bindBuffer(gl.ARRAY_BUFFER, markerBuffer);
+    const stride = 8 * 4;
+    for (const [where, size, offset] of [
+      [attribute.position, 3, 0], [attribute.coord, 2, 3 * 4], [attribute.colour, 3, 5 * 4]
+    ]) {
+      if (where < 0) continue;
+      gl.enableVertexAttribArray(where);
+      gl.vertexAttribPointer(where, size, gl.FLOAT, false, stride, offset);
+    }
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, blank);
+    gl.uniform1i(uniform.picture, 0);
+    gl.uniform1i(uniform.textured, 0);
+    gl.uniform1f(uniform.alpha, 1);
+
+    const size = gizmoSize() * 0.8;
+    for (let i = 0; i < scene.exits.length; i++) {
+      const exit = scene.exits[i];
+      gl.uniform3fv(uniform.tint,
+        selectedExit === i ? [1, 0.95, 0.5] : EXIT_COLOUR);
+      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
+        size, 0, 0, 0, 0, size, 0, 0, 0, 0, size, 0, exit.x, exit.y, exit.z, 1
+      ]));
+      gl.drawArrays(gl.TRIANGLES, 0, markerVertices);
+
+      // Which way you are facing when you arrive.
+      const a = (exit.rotationY || 0) * Math.PI / 180;
+      gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
+      for (const [where, count, offset] of [
+        [attribute.position, 3, 0], [attribute.coord, 2, 3 * 4], [attribute.colour, 3, 5 * 4]
+      ]) {
+        if (where < 0) continue;
+        gl.vertexAttribPointer(where, count, gl.FLOAT, false, stride, offset);
+      }
+      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
+        Math.sin(a) * size, 0, Math.cos(a) * size, 0,
+        0, size, 0, 0,
+        Math.cos(a) * size, 0, -Math.sin(a) * size, 0,
+        exit.x, exit.y + size * 0.05, exit.z, 1
+      ]));
+      gl.drawArrays(gl.TRIANGLES, 0, arrowVertices);
+      gl.bindBuffer(gl.ARRAY_BUFFER, markerBuffer);
+      for (const [where, count, offset] of [
+        [attribute.position, 3, 0], [attribute.coord, 2, 3 * 4], [attribute.colour, 3, 5 * 4]
+      ]) {
+        if (where < 0) continue;
+        gl.vertexAttribPointer(where, count, gl.FLOAT, false, stride, offset);
+      }
+    }
+    gl.enable(gl.DEPTH_TEST);
   }
 
   function selectedItem() {
@@ -572,7 +687,20 @@ function makeMapScene(canvas, status) {
       draw();
     },
 
-    select(index) { selected = index; draw(); },
+    select(index) { selected = index; selectedExit = null; draw(); },
+
+    selectExit(index) { selectedExit = index; selected = null; draw(); },
+
+    /// Puts the camera on an exit, the way focus() does for a character.
+    focusExit(index) {
+      const exit = scene && scene.exits && scene.exits[index];
+      if (!exit) return;
+      selectedExit = index;
+      selected = null;
+      centre = [exit.x, exit.y, exit.z];
+      distance = 90;
+      draw();
+    },
 
     setGizmo(on) { gizmoOn = on; if (!on) gizmoAxis = null; draw(); },
 
@@ -698,6 +826,7 @@ function makeMapScene(canvas, status) {
       const ny = 1 - ((py - rect.top) / rect.height) * 2;
 
       let best = null;
+      let bestKind = null;
       let bestDistance = 0.06;             // a click has to land reasonably close
       for (const item of instances) {
         const at = project(item);
@@ -706,12 +835,31 @@ function makeMapScene(canvas, status) {
         if (away < bestDistance) {
           bestDistance = away;
           best = item;
+          bestKind = 'object';
         }
       }
+
+      // Exits are aimed at by their pin rather than their foot, which is where the
+      // eye goes and where the marker actually is on screen.
+      if (gizmoOn && scene && scene.exits) {
+        for (let i = 0; i < scene.exits.length; i++) {
+          const exit = scene.exits[i];
+          const at = project({ x: exit.x, y: exit.y + gizmoSize() * 0.9, z: exit.z });
+          if (!at) continue;
+          const away = Math.hypot(at.x - nx, at.y - ny);
+          if (away < bestDistance) {
+            bestDistance = away;
+            best = { ...exit, index: i };
+            bestKind = 'exit';
+          }
+        }
+      }
+
       if (best) {
-        selected = best.index;
+        selected = bestKind === 'object' ? best.index : null;
+        selectedExit = bestKind === 'exit' ? best.index : null;
         draw();
-        onPick(best);
+        onPick(best, bestKind);
       }
       return best;
     },

@@ -319,9 +319,14 @@ function wireModes(node, doc, scene) {
         drawInspector();
       });
 
-      await doc.scene3d.load(scene, (item) => {
-        mapState.selected = mapState.data.characters.find(c => c.index === item.index);
-        doc.selection = `object:${item.index}`;
+      await doc.scene3d.load(scene, (item, kind) => {
+        if (kind === 'exit') {
+          mapState.selected = null;
+          doc.selection = `exit:${item.index}`;
+        } else {
+          mapState.selected = mapState.data.characters.find(c => c.index === item.index);
+          doc.selection = `object:${item.index}`;
+        }
         drawHierarchy();
         drawInspector();
       });
@@ -598,6 +603,14 @@ function buildExit(exit) {
   sub.textContent = `arrives at index ${exit.toIndex} · needs flag ${exit.conditionFlag}`
     + ` · kind ${exit.kind}`;
   panel.append(title, sub);
+
+  const where = document.createElement('h3');
+  where.textContent = 'Where';
+  panel.append(where);
+  const at = document.createElement('p');
+  at.className = 'none';
+  at.textContent = `${exit.x}, ${exit.y}, ${exit.z} · facing ${exit.rotationY ?? 0}°`;
+  panel.append(at);
 
   const note = document.createElement('p');
   note.className = 'none';
