@@ -1348,3 +1348,110 @@ table.parts tr.hidden-part td { color: #d98080; }
   border-color: #37619c;
 }
 #inspector .caveat { font-size: 11px; color: var(--dim); margin: 6px 0 0; }
+
+/* A drawn thumbnail sits where the icon was. */
+#files.grid li .thumb {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  display: block;
+}
+#files li .thumb { width: 16px; height: 16px; object-fit: contain; flex: 0 0 auto; }
+
+/* ----------------------------------------------------------- the model picker */
+
+.picker-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(8, 10, 13, .62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.picker {
+  width: min(760px, 88vw);
+  height: min(520px, 82vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .5);
+  overflow: hidden;
+}
+
+.picker-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.picker-head strong { font-size: 13px; }
+.picker-head input {
+  flex: 1;
+  padding: 5px 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--ink);
+  font: inherit;
+}
+.picker-head .shut {
+  background: none; border: none; color: var(--dim);
+  font-size: 17px; cursor: pointer; padding: 0 4px; line-height: 1;
+}
+.picker-head .shut:hover { color: var(--bad); }
+
+.picker-grid {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+}
+
+.picker-cell {
+  width: 94px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--dim);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.picker-cell:hover { background: #1f242b; color: var(--ink); border-color: var(--line); }
+.picker-cell.on { border-color: var(--accent); background: #232c3a; color: var(--ink); }
+.picker-cell .icon { width: 44px; height: 44px; stroke-width: 1; }
+.picker-cell .thumb { width: 52px; height: 52px; object-fit: contain; image-rendering: pixelated; }
+.picker-cell i { font-style: normal; opacity: .5; font-size: 10px; }
+
+.picker-foot {
+  margin: 0;
+  padding: 7px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 11px;
+}
+
+/* The button that opens it. */
+#inspector .model-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 6px 9px;
+  text-align: left;
+}

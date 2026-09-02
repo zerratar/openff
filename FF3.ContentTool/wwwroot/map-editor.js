@@ -788,37 +788,23 @@ function buildCharacter(character) {
   modelHead.textContent = 'Model';
   panel.append(modelHead);
 
-  const modelLabel = document.createElement('label');
-  modelLabel.className = 'wide';
-  const models = document.createElement('select');
-  const placeable = state.placeable || [];
-  if (!placeable.some(m => m.model === character.model)) {
-    // Whatever it is wearing stays in the list even if nothing else knows the model,
-    // so opening the panel cannot quietly change it.
-    const own = document.createElement('option');
-    own.value = own.textContent = character.model || '';
-    models.append(own);
-  }
-  for (const entry of placeable) {
-    const option = document.createElement('option');
-    option.value = entry.model;
-    option.textContent = entry.uses
-      ? `${entry.model}  ·  used ${entry.uses}×`
-      : `${entry.model}  ·  not placed anywhere yet`;
-    models.append(option);
-  }
-  models.value = character.model || '';
-  models.onchange = () => {
-    const before = { ...positionOf(character), model: character.model };
-    character.model = models.value;
-    applyModel(doc, character.index, models.value);
+  // A button rather than a dropdown: 145 names tell you nothing about which one is a
+  // chest and which is a shopkeeper, and the picker shows them.
+  const choose = document.createElement('button');
+  choose.className = 'model-choice';
+  const chosenName = document.createElement('span');
+  chosenName.textContent = character.model || '(none)';
+  choose.append(icon('model'), chosenName);
+  choose.onclick = () => pickModel(character.model, (model) => {
+    if (model === character.model) return;
+    const was = character.model;
+    applyModel(doc, character.index, model);
     pushUndo(doc, `model of cast ${character.cast}`,
-      () => applyModel(doc, character.index, before.model),
-      () => applyModel(doc, character.index, models.value));
+      () => applyModel(doc, character.index, was),
+      () => applyModel(doc, character.index, model));
     say('model changed - use Save placement to keep it', 'good');
-  };
-  modelLabel.append(models);
-  panel.append(modelLabel);
+  });
+  panel.append(choose);
 
   const modelNote = document.createElement('p');
   modelNote.className = 'none';

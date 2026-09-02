@@ -71,6 +71,15 @@ Fields and text areas are deliberately left alone: the browser's own undo is bet
 inside one than anything this could do, and taking Ctrl+Z off a half-typed line would be
 worse than not having it.
 
+Models get **thumbnails**, drawn rather than stored: one hidden canvas renders each in
+turn and the result is kept for the session. Three things stop that being a nuisance -
+they are drawn one at a time, only for cells actually on screen, and only in the grid
+view. Pictures and textures need no drawing, being pictures already.
+
+Choosing a model goes through a **picker**: the same 145 models as a wrapped grid of
+thumbnails with a filter over it. A dropdown of names cannot tell you which of `o043`
+and `o001` is a treasure chest, and this can.
+
 Every asset kind has a mark of its own, and so does every kind of thing inside one - a
 character, a logic cast, an exit, a mesh part. They are inline SVG, drawn in
 `currentColor` so one copy of each serves a dim row, a bright one and a selected one

@@ -39,8 +39,15 @@ void main() {
   gl_FragColor = vec4(c.rgb * vColour * tint, c.a * alpha);
 }`;
 
-function makeModelViewer(canvas, status) {
-  const gl = canvas.getContext('webgl', { antialias: true, alpha: true });
+function makeModelViewer(canvas, status, options = {}) {
+  // preserveDrawingBuffer is off by default because it costs something on every frame;
+  // the thumbnail maker turns it on, since reading the canvas back without it gives an
+  // empty picture - the browser is free to discard the buffer after each frame.
+  const gl = canvas.getContext('webgl', {
+    antialias: true,
+    alpha: true,
+    preserveDrawingBuffer: Boolean(options.preserveDrawingBuffer)
+  });
   if (!gl) {
     status('this browser has no WebGL, so models cannot be drawn', 'bad');
     return null;

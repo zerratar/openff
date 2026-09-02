@@ -67,6 +67,11 @@ function drawList() {
   const list = $('#files');
   list.textContent = '';
 
+  // Pictures are only fetched for cells that are actually on screen, and only in the
+  // grid - a one-line row is not worth drawing a model for.
+  if (state.thumbWatcher) state.thumbWatcher.disconnect();
+  state.thumbWatcher = fileView === 'grid' ? watchThumbnails(list, state.browse) : null;
+
   for (const file of state.files) {
     if (filter && !file.name.toLowerCase().includes(filter)) continue;
     const item = document.createElement('li');
@@ -76,6 +81,10 @@ function drawList() {
     label.textContent = fileView === 'grid' ? shortName(file.name) : file.name;
     item.append(label);
     item.title = file.name;
+    if (state.thumbWatcher) {
+      item.dataset.thumbFor = file.name;
+      state.thumbWatcher.observe(item);
+    }
     const open_ = docs.has(docId(state.browse, file.name));
     const looking = inspected
       && inspected.kind === state.browse && inspected.name === file.name;
