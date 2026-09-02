@@ -35,6 +35,7 @@ namespace FF3.ContentTool.Editor
 		private readonly Workspace _workspace;
 		private readonly string _webRoot;
 		private readonly MessageIndex _messages;
+		private readonly CharacterIds _characterIds;
 		private readonly Func<uint, string> _lookupMessage;
 
 		public EditorServer(Workspace workspace, string webRoot, MessageIndex messages)
@@ -43,6 +44,7 @@ namespace FF3.ContentTool.Editor
 			_webRoot = webRoot;
 			_messages = messages;
 			_lookupMessage = id => messages.Text(id);
+			_characterIds = new CharacterIds(workspace);
 		}
 
 		public void Run(int port)
@@ -171,6 +173,10 @@ namespace FF3.ContentTool.Editor
 				case "/api/map":
 					SendJson(context, MapModel.Load(_workspace,
 						Query(context, "name"), _lookupMessage));
+					return;
+
+				case "/api/models/placeable":
+					SendJson(context, _characterIds.All());
 					return;
 
 				case "/api/map/scene":
@@ -403,14 +409,18 @@ namespace FF3.ContentTool.Editor
 			JsonNode body = ReadBody(context);
 			// The new line has to be visible to the very views that just wrote it.
 			_messages.Invalidate();
-			SendJson(context, AddCharacter.Add(
+			AddCharacterResult added = AddCharacter.Add(
 				_workspace,
 				(string)body["name"],
 				(string)body["model"],
 				(int)body["x"],
 				(int)body["z"],
 				(string)body["text"],
-				_lookupMessage));
+				_lookupMessage,
+				_characterIds);
+			// A model placed for the first time is a model every other map can use now.
+			_characterIds.Invalidate();
+			SendJson(context, added);
 		}
 
 		private void SaveMap(HttpListenerContext context)
@@ -418,18 +428,23 @@ namespace FF3.ContentTool.Editor
 			JsonNode body = ReadBody(context);
 			string map = (string)body["name"];
 
-			List<(int, int, int, int, int)> moves = new List<(int, int, int, int, int)>();
+			List<MapEdit> edits = new List<MapEdit>();
 			foreach (JsonNode move in body["characters"].AsArray())
 			{
-				moves.Add((
-					(int)move["index"],
-					(int)move["x"],
-					(int)move["y"],
-					(int)move["z"],
-					(int)move["rotationY"]));
+				edits.Add(new MapEdit
+				{
+					Index = (int)move["index"],
+					X = (int)move["x"],
+					Y = (int)move["y"],
+					Z = (int)move["z"],
+					RotationY = (int)move["rotationY"],
+					Model = (string)move["model"],
+					Cast = move["cast"] is null ? null : (int?)(int)move["cast"]
+				});
 			}
 
-			int changed = MapModel.Save(_workspace, map, moves);
+			int changed = MapModel.Save(_workspace, map, edits, _characterIds);
+			_characterIds.Invalidate();
 			SendJson(context, new { ok = true, changed, overridden = true });
 		}
 

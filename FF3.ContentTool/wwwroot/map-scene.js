@@ -628,6 +628,17 @@ function makeMapScene(canvas, status) {
 
     select(index) { selected = index; selectedExit = null; draw(); },
 
+    /// Picks up a model that was changed under it, fetching the geometry if this is
+    /// the first time the map has used it.
+    async reload() {
+      instances = scene.objects.filter(o => o.package);
+      draw();
+      for (const name of new Set(instances.map(o => o.package))) {
+        await ensure(name);
+      }
+      draw();
+    },
+
     selectExit(index) { selectedExit = index; selected = null; draw(); },
 
     /// Puts the camera on an exit, the way focus() does for a character.

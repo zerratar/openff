@@ -1,4 +1,4 @@
-// Adding an NPC, which is four edits in three formats.
+﻿// Adding an NPC, which is four edits in three formats.
 //
 // The recipe, worked out by reading what the shipped maps do rather than by guessing:
 //
@@ -48,7 +48,8 @@ namespace FF3.ContentTool.Editor
 		private const string TalkEnd = "0xC39DEA76";
 
 		public static AddCharacterResult Add(Workspace workspace, string map, string model,
-			int x, int z, string text, Func<uint, string> lookupMessage)
+			int x, int z, string text, Func<uint, string> lookupMessage,
+			CharacterIds ids)
 		{
 			AddCharacterResult result = new AddCharacterResult();
 
@@ -61,31 +62,44 @@ namespace FF3.ContentTool.Editor
 			}
 
 			// ---- 1. the roster row
+			//
+			// A row needs the model's id, not just its name. It used to have to be
+			// copied off another row on the same map, which meant only models already
+			// there could be placed; the id is global, so it can be looked up instead.
 			List<HichEntry> entries = Hich.Read(workspace.Read(hichName));
-			HichEntry template = entries.FirstOrDefault(e =>
-				e.Kind == 0 && string.Equals(e.Model, model, StringComparison.Ordinal));
-			if (template == null)
+			uint? characterId = ids?.For(model);
+			if (characterId == null)
 			{
-				result.Error = "no character on this map uses the model " + model
-					+ ", and only models the map already loads can be placed";
+				result.Error = "nothing in the game says what id the model " + model
+					+ " should carry, so a row for it would load the wrong thing";
 				return result;
 			}
+
+			HichEntry template = entries.FirstOrDefault(e =>
+				e.Kind == 0 && string.Equals(e.Model, model, StringComparison.Ordinal))
+				?? entries.FirstOrDefault(e => e.Kind == 0);
 
 			int cast = entries.Count == 0 ? 1 : entries.Max(e => e.Cast) + 1;
 			result.Cast = cast;
 
 			entries.Add(new HichEntry
 			{
-				CharacterId = template.CharacterId,
-				Model = template.Model,
-				ModelRaw = template.ModelRaw,
+				CharacterId = characterId.Value,
+				Model = model,
+				ModelRaw = null,
 				Cast = cast,
 				Kind = 0,
-				KindParameter = template.KindParameter,
-				Position = new[] { x, template.Position[1], z, template.Position[3] },
-				Posture = (int[])template.Posture.Clone(),
-				Scale = (int[])template.Scale.Clone()
+				KindParameter = template?.KindParameter ?? 0,
+				Position = new[] { x, template?.Position[1] ?? 0, z, 1 },
+				Posture = new[] { 0, 0, 0, 1 },
+				Scale = new[] { 1, 1, 1, 1 }
 			});
+
+			if (template == null || !string.Equals(template.Model, model, StringComparison.Ordinal))
+			{
+				result.Notes.Add("this map had no " + model
+					+ " already, so its id came from the rest of the game");
+			}
 
 			// ---- 4. the line, in every language that has this map's text
 			uint messageId = AddMessage(workspace, map, text, out List<string> textFiles,

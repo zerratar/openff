@@ -16,6 +16,9 @@ const mapState = { name: null, data: null, zoom: 2, selected: null, showLogic: f
 async function openMap(name) {
   const data = await api(`/api/map?name=${encodeURIComponent(name)}`);
   const scene = await api(`/api/map/scene?name=${encodeURIComponent(name)}`);
+  // Every model that can go in a .hich row, so the panel can offer them all rather
+  // than only the ones this map happens to use already.
+  if (!state.placeable) state.placeable = await api('/api/models/placeable');
   const node = view('map', name, data.overridden);
   const doc = activeDoc;
 
@@ -44,7 +47,8 @@ async function openMap(name) {
 
   $('.save', node).onclick = async () => {
     const characters = data.characters.map(c => ({
-      index: c.index, x: c.x, y: c.y, z: c.z, rotationY: c.rotationY
+      index: c.index, x: c.x, y: c.y, z: c.z, rotationY: c.rotationY,
+      model: c.model, cast: c.cast
     }));
     const result = await api('/api/map/save', { name, characters });
     markOverridden(`files/${name}.hich`, true);
@@ -53,7 +57,11 @@ async function openMap(name) {
   };
 
   $('.revert', node).onclick = async () => {
-    if (!confirm(`Throw away placement changes to ${name}?`)) return;
+    if (!confirm(`Revert the whole of ${name} to the shipped files?
+
+`
+      + 'Every placement change on this map goes, not just the last one, and undo '
+      + 'cannot bring them back.')) return;
     await api('/api/revert', { name: `files/${name}.hich` });
     await open(name);
     say('reverted', 'good');
@@ -357,6 +365,26 @@ function applyPosition(doc, index, to) {
   const view = $('.view', doc.pane);
   if (view && doc.mode === '2d') drawMap(view);
   if (doc.scene3d) doc.scene3d.redraw();
+  drawInspector();
+}
+
+/// Swaps the model a row wears, in the record, the scene and the panels.
+function applyModel(doc, index, model) {
+  const character = mapState.data.characters.find(c => c.index === index);
+  if (character) character.model = model;
+
+  const item = ((doc.data && doc.data.scene && doc.data.scene.objects) || [])
+    .find(o => o.index === index);
+  if (item) {
+    item.model = model;
+    item.package = `files/${model}.nmdp.lz`;
+    item.name = `${model} (cast ${item.cast})`;
+  }
+
+  const view = $('.view', doc.pane);
+  if (view && doc.mode === '2d') drawMap(view);
+  if (doc.scene3d) doc.scene3d.reload();
+  drawHierarchy();
   drawInspector();
 }
 
@@ -745,14 +773,94 @@ function buildExit(exit) {
 function buildCharacter(character) {
   const panel = document.createElement('div');
   const node = state.pane;
+  const doc = activeDoc;
 
   const title = document.createElement('h2');
   title.textContent = character.model || '(no model)';
   const sub = document.createElement('p');
   sub.className = 'sub';
-  sub.textContent = `${character.kindName} · cast ${character.cast}`
-    + (character.hasScript ? ` · ${character.instructions} instructions` : ' · no script');
+  sub.textContent = `${character.kindName} · cast ${character.cast}`;
   panel.append(title, sub);
+
+  // ------------------------------------------------------------------ model
+
+  const modelHead = document.createElement('h3');
+  modelHead.textContent = 'Model';
+  panel.append(modelHead);
+
+  const modelLabel = document.createElement('label');
+  modelLabel.className = 'wide';
+  const models = document.createElement('select');
+  const placeable = state.placeable || [];
+  if (!placeable.some(m => m.model === character.model)) {
+    // Whatever it is wearing stays in the list even if nothing else knows the model,
+    // so opening the panel cannot quietly change it.
+    const own = document.createElement('option');
+    own.value = own.textContent = character.model || '';
+    models.append(own);
+  }
+  for (const entry of placeable) {
+    const option = document.createElement('option');
+    option.value = entry.model;
+    option.textContent = entry.uses
+      ? `${entry.model}  ·  used ${entry.uses}×`
+      : `${entry.model}  ·  not placed anywhere yet`;
+    models.append(option);
+  }
+  models.value = character.model || '';
+  models.onchange = () => {
+    const before = { ...positionOf(character), model: character.model };
+    character.model = models.value;
+    applyModel(doc, character.index, models.value);
+    pushUndo(doc, `model of cast ${character.cast}`,
+      () => applyModel(doc, character.index, before.model),
+      () => applyModel(doc, character.index, models.value));
+    say('model changed - use Save placement to keep it', 'good');
+  };
+  modelLabel.append(models);
+  panel.append(modelLabel);
+
+  const modelNote = document.createElement('p');
+  modelNote.className = 'none';
+  modelNote.textContent = 'A row names its model twice: as text, and as the number the '
+    + 'game actually loads. Changing it here sets both.';
+  panel.append(modelNote);
+
+  // ------------------------------------------------------------------- cast
+
+  const castHead = document.createElement('h3');
+  castHead.textContent = 'Cast';
+  panel.append(castHead);
+
+  const castLabel = document.createElement('label');
+  castLabel.textContent = 'number';
+  const castBox = document.createElement('input');
+  castBox.value = character.cast;
+  castBox.onchange = () => {
+    const value = parseInt(castBox.value, 10);
+    if (Number.isNaN(value)) return;
+    const was = character.cast;
+    character.cast = value;
+    drawHierarchy();
+    drawInspector();
+    pushUndo(doc, `cast of ${character.model}`,
+      () => { character.cast = was; drawHierarchy(); drawInspector(); },
+      () => { character.cast = value; drawHierarchy(); drawInspector(); });
+    say('cast changed - use Save placement to keep it', 'good');
+  };
+  castLabel.append(castBox);
+  panel.append(castLabel);
+
+  const castNote = document.createElement('p');
+  castNote.className = 'none';
+  castNote.textContent = character.hasScript
+    ? `The map's script has a cast ${character.cast}, and that code is what this `
+      + `character does. It runs ${character.instructions} instructions.`
+    : `The map's script has no cast ${character.cast}. The character will stand there `
+      + `and do nothing until one is written, or until this points at a cast that exists.`;
+  panel.append(castNote);
+
+  // --------------------------------------------------------------- position
 
   const field = (label, key) => {
     const wrap = document.createElement('label');
@@ -795,6 +903,8 @@ function buildCharacter(character) {
   field('y (height)', 'y');
   field('facing', 'rotationY');
 
+  // ------------------------------------------------------------- what it says
+
   const heading = document.createElement('h3');
   heading.textContent = 'What it says';
   panel.append(heading);
@@ -805,7 +915,7 @@ function buildCharacter(character) {
     none.textContent = character.hasScript
       ? 'Its cast runs code but shows no dialogue - it may move, open a shop, or '
         + 'trigger a scene.'
-      : 'The map’s script has no cast with this number.';
+      : 'Nothing, because there is no cast with this number.';
     panel.append(none);
   } else {
     const list = document.createElement('ul');
@@ -818,18 +928,24 @@ function buildCharacter(character) {
     panel.append(list);
   }
 
+  // --------------------------------------------------------------- behaviour
+
   const behaviour = document.createElement('h3');
   behaviour.textContent = 'Behaviour';
   panel.append(behaviour);
 
   const link = document.createElement('a');
   link.href = '#';
-  link.textContent = `open ${mapState.name}.script at cast ${character.cast}`;
   link.style.color = 'var(--accent)';
+  // Offering to jump to a cast that does not exist was the thing that made the panel
+  // look like it was contradicting itself.
+  link.textContent = character.hasScript
+    ? `open ${mapState.name}.script at cast ${character.cast}`
+    : `open ${mapState.name}.script`;
   link.onclick = async event => {
     event.preventDefault();
-    const doc = await openDoc('script', `files/${mapState.name}.script`);
-    const text = $('textarea', doc.pane);
+    const opened = await openDoc('script', `files/${mapState.name}.script`);
+    const text = $('textarea', opened.pane);
     if (!text) return;
     const at = text.value.indexOf(`cast${character.cast}_main:`);
     if (at >= 0) goToLine(text, text.value.slice(0, at).split('\n').length, 1);

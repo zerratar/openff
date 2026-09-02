@@ -1294,3 +1294,18 @@ table.parts tr.hidden-part td { color: #d98080; }
 
 .bar .gizmo-size { display: flex; align-items: center; }
 .bar .gizmo-size input[type="range"] { width: 74px; accent-color: var(--accent); }
+
+/* An icon in place of a word, for the buttons that would otherwise run into the
+   inspector once the window gets narrow. */
+.bar .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 7px;
+  line-height: 0;
+}
+.bar .icon-button .icon { width: 15px; height: 15px; opacity: 1; }
+
+/* The bar wraps rather than overflowing, and the name never squeezes to nothing. */
+.bar { flex-wrap: wrap; row-gap: 4px; }
+.bar > strong { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

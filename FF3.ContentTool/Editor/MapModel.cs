@@ -40,6 +40,22 @@ namespace FF3.ContentTool.Editor
 		public int Instructions { get; set; }
 	}
 
+	/// <summary>One row's worth of changes, on the way back to the .hich.</summary>
+	internal sealed class MapEdit
+	{
+		public int Index { get; set; }
+		public int X { get; set; }
+		public int Y { get; set; }
+		public int Z { get; set; }
+		public int RotationY { get; set; }
+
+		/// <summary>Left null when the model is not being changed.</summary>
+		public string Model { get; set; }
+
+		/// <summary>Left null when the cast is not being changed.</summary>
+		public int? Cast { get; set; }
+	}
+
 	internal sealed class MapExit
 	{
 		public int X { get; set; }
@@ -121,25 +137,51 @@ namespace FF3.ContentTool.Editor
 			};
 		}
 
-		/// <summary>Saves moved characters back into the map's .hich.</summary>
+		/// <summary>
+		/// Saves changed rows back into the map's .hich - where they stand, which way
+		/// they face, which model they wear and which cast drives them.
+		///
+		/// Changing the model means changing its id as well: the name is what you read
+		/// and the number is what the game loads, and a row with the two disagreeing
+		/// loads the wrong thing without complaining.
+		/// </summary>
 		public static int Save(Workspace workspace, string map,
-			IEnumerable<(int Index, int X, int Y, int Z, int RotationY)> moves)
+			IEnumerable<MapEdit> edits, CharacterIds ids)
 		{
 			string hichName = "files/" + map + ".hich";
 			List<HichEntry> entries = Hich.Read(workspace.Read(hichName));
 
 			int changed = 0;
-			foreach ((int index, int x, int y, int z, int rotation) in moves)
+			foreach (MapEdit edit in edits)
 			{
-				if (index < 0 || index >= entries.Count)
+				if (edit.Index < 0 || edit.Index >= entries.Count)
 				{
 					continue;
 				}
-				HichEntry entry = entries[index];
-				entry.Position[0] = x;
-				entry.Position[1] = y;
-				entry.Position[2] = z;
-				entry.Posture[1] = rotation;
+
+				HichEntry entry = entries[edit.Index];
+				entry.Position[0] = edit.X;
+				entry.Position[1] = edit.Y;
+				entry.Position[2] = edit.Z;
+				entry.Posture[1] = edit.RotationY;
+
+				if (edit.Cast.HasValue)
+				{
+					entry.Cast = edit.Cast.Value;
+				}
+
+				if (!string.IsNullOrWhiteSpace(edit.Model)
+					&& !string.Equals(edit.Model, entry.Model, StringComparison.Ordinal))
+				{
+					uint? id = ids?.For(edit.Model);
+					if (id != null)
+					{
+						entry.Model = edit.Model;
+						entry.ModelRaw = null;
+						entry.CharacterId = id.Value;
+					}
+				}
+
 				changed++;
 			}
 
