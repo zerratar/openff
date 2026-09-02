@@ -655,11 +655,28 @@ document.addEventListener('keydown', event => {
 
 // ------------------------------------------------------------------------- text
 
+/// Makes a box exactly as tall as what is in it.
+///
+/// The row count only counts newlines, and a line longer than the box wraps into
+/// several - so a message sized from its newlines alone comes out too short as soon as
+/// the panel is anything but narrow.
+function fitToText(area) {
+  if (!area.isConnected || !area.clientWidth) return;
+  area.style.height = 'auto';
+  area.style.height = `${Math.max(30, area.scrollHeight)}px`;
+}
+
 async function openText(name) {
   const data = await api(`/api/text?name=${encodeURIComponent(name)}`);
   const node = view('text', name, data.overridden);
   const list = $('.messages', node);
   const messages = data.messages;
+
+  // A file can hold the same id more than once, and 73 of the 210 English ones do -
+  // 545 rows between them, every one word for word the same as the first. getMessage
+  // scans from the start and returns the first hit, so only the first is ever read.
+  // Editing one of the others changes a file and nothing else.
+  const seenIds = new Set();
 
   for (const message of messages) {
     const row = document.createElement('div');
@@ -667,9 +684,21 @@ async function openText(name) {
     // So a line quoted somewhere else can be opened where it is written.
     row.dataset.messageId = message.id;
 
+    const repeat = seenIds.has(message.id);
+    seenIds.add(message.id);
+    if (repeat) row.classList.add('dead');
+
     const id = document.createElement('div');
     id.className = 'id';
     id.textContent = message.id;
+    if (repeat) {
+      const note = document.createElement('em');
+      note.className = 'dead-note';
+      note.textContent = 'never read';
+      note.title = 'This id appears earlier in the file, and the game takes the first '
+        + 'one it finds. Editing this copy changes nothing in the game.';
+      id.append(note);
+    }
     if (message.encoding) {
       const note = document.createElement('em');
       note.textContent = message.encoding;
@@ -682,8 +711,14 @@ async function openText(name) {
       const area = document.createElement('textarea');
       area.value = page;
       area.rows = Math.max(1, page.split('\n').length);
-      area.oninput = () => { message.pages[index] = area.value; };
+      area.oninput = () => {
+        message.pages[index] = area.value;
+        fitToText(area);
+      };
       pages.append(area);
+      // Once it is in the page and has a width, it can be made as tall as its text -
+      // which is not the number of newlines, because a long line wraps.
+      requestAnimationFrame(() => fitToText(area));
     });
 
     row.append(id, pages);

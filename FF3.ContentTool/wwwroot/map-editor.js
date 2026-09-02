@@ -1552,7 +1552,7 @@ function buildExit(exit, index) {
 /// A map's lines live in one .msd per language, so which file is a question of which
 /// language is being edited - the server says which one it read the text through, and
 /// that is the one worth opening.
-async function openMessage(id) {
+async function openMessage(id, cast) {
   const file = `${state.language || 'en'}.lproj/${mapState.name}.msd`;
   if (!(state.files || []).some(f => f.name === file) && state.browse !== 'text') {
     // The project is showing something else, so its file list cannot confirm this.
@@ -1570,9 +1570,12 @@ async function openMessage(id) {
     say(`message ${id} is not in ${file}`, 'bad');
     return;
   }
+  // Marked until another one is opened. A highlight that fades is already gone by
+  // the time you have finished scrolling to it and looked up.
+  for (const lit of $$('.message.found', doc.pane)) lit.classList.remove('found');
   row.scrollIntoView({ block: 'center' });
   row.classList.add('found');
-  setTimeout(() => row.classList.remove('found'), 1600);
+  say(`message ${id}, said by cast ${cast}`);
   const area = $('textarea', row);
   if (area) area.focus();
 }
@@ -1780,7 +1783,7 @@ function buildCharacter(character) {
         edit.className = 'icon-button';
         edit.title = `edit message ${id}`;
         edit.append(icon('text'));
-        edit.onclick = () => openMessage(id);
+        edit.onclick = () => openMessage(id, character.cast);
         item.append(edit);
         item.classList.add('with-edit');
       }

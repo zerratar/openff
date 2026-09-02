@@ -377,7 +377,10 @@ button.primary { background: #2b4a7a; border-color: #37619c; }
 #inspector li.with-edit span { flex: 1; }
 #inspector li.with-edit button { flex: 0 0 auto; padding: 1px 5px; }
 /* Where a quoted line turned out to live, for a moment after arriving there. */
-.message.found { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+/* The line somebody came here to edit. It stays marked until another one is opened,
+   because a highlight that fades is gone by the time you have finished scrolling to it. */
+.message.found { background: #1d2735; box-shadow: inset 3px 0 0 var(--accent); border-radius: 4px; }
+.message.found .id { color: var(--accent); }
 /* Something true that is worth reading before you change anything. */
 #inspector .none.warn { color: var(--mark); border-left: 2px solid var(--mark); padding-left: 7px; }
 /* For the buttons that take something away rather than add one. */
@@ -613,7 +616,15 @@ select {
 }
 .message .id { color: var(--dim); font-family: ui-monospace, monospace; padding-top: 5px; }
 .message .id em { display: block; color: var(--mark); font-style: normal; font-size: 11px; }
+/* An id that appears earlier in the file. The game reads the first one and never gets
+   here, so this row is text nothing will ever show. */
+.message.dead textarea { opacity: .45; }
+.message .id em.dead-note { color: var(--dim); }
 .message textarea {
+  /* A textarea does not fill its box on its own - it sits at whatever its cols
+     attribute says, which is about twenty characters, however much room there is. */
+  width: 100%;
+  display: block;
   background: var(--bg);
   border: 1px solid var(--line);
   color: var(--ink);
@@ -622,6 +633,7 @@ select {
   font: inherit;
   resize: vertical;
   min-height: 30px;
+  overflow: hidden;
 }
 .message textarea + textarea { margin-top: 4px; }
 
