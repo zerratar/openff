@@ -178,6 +178,12 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
    printed across the middle of a map the first time. */
 #no-docs[hidden] { display: none; }
 
+/* And the general case, because that has now caught four different things out: a
+   placeholder over a map, a label that would not hide, and the model chooser sitting
+   there for an exit, which has no model. Anything given its own display needs telling
+   that hidden still means hidden. */
+[hidden] { display: none !important; }
+
 .view { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 /* ------------------------------------------------------------------ the trees */
@@ -368,6 +374,22 @@ button.primary { background: #2b4a7a; border-color: #37619c; }
 #inspector li.ref code { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* For the buttons that take something away rather than add one. */
 button.danger { background: #5a2b2b; border-color: #7a3838; }
+/* Two buttons that are one choice - which half of an exit the gizmo moves. */
+.segmented { display: flex; gap: 0; margin: 4px 0 9px; }
+.segmented button { flex: 1; border-radius: 0; font-size: 11px; }
+.segmented button:first-child { border-radius: 4px 0 0 4px; }
+.segmented button:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+.segmented button.on { background: #2b4a7a; border-color: #37619c; color: var(--ink); }
+/* A button that is its own row, for the ones that are an action rather than a field. */
+#inspector button.wide-button { display: block; width: 100%; margin: 2px 0 9px; }
+/* Waiting for a click that says where something goes. */
+.scene-wrap.placing .scene { cursor: crosshair; }
+.scene-wrap.placing::after {
+  content: "click where it goes"; position: absolute; left: 50%; top: 10px;
+  transform: translateX(-50%); pointer-events: none;
+  background: rgba(20, 22, 26, .85); border: 1px solid var(--accent);
+  color: var(--accent); font-size: 11px; padding: 3px 9px; border-radius: 4px;
+}
 button.danger:hover { background: #6b3232; }
 button:disabled { opacity: .5; cursor: default; }
 

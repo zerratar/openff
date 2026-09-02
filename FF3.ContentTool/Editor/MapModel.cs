@@ -84,6 +84,14 @@ namespace FF3.ContentTool.Editor
 		public int ToIndex { get; set; }
 		public int ConditionFlag { get; set; }
 		public int Kind { get; set; }
+
+		/// <summary>
+		/// Where the region that fires this exit is, as centre x, floor y, centre z and
+		/// then width, height and depth - or null when the mesh has no region for this
+		/// slot. The arrival position above is the other half and is somewhere else: the
+		/// region is the doorway you walk into, the position is where you come out.
+		/// </summary>
+		public int[] Region { get; set; }
 	}
 
 	/// <summary>

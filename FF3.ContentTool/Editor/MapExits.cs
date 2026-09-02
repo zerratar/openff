@@ -644,6 +644,72 @@ namespace FF3.ContentTool.Editor
 					CultureInfo.InvariantCulture, out int number) ? number : 0;
 		}
 
+		/// <summary>
+		/// Puts an exit's trigger somewhere else, or makes it a different size.
+		///
+		/// Taking it out and putting a new one back rather than moving the points: the
+		/// two operations are already tested, the region is self-contained - eight points
+		/// and a material nothing else uses - and rebuilding it means the blocks it is
+		/// registered in are worked out afresh for where it now is. Moving the points
+		/// alone would leave it in the blocks it used to be in, and a trigger in the
+		/// wrong block never fires.
+		/// </summary>
+		public static MapExitResult MoveRegion(Workspace workspace, string map, int slot,
+			int x, int y, int z, int width, int height, int depth)
+		{
+			MapExitResult result = new MapExitResult { Slot = slot };
+			string meshName = MeshName(map);
+
+			if (!workspace.Exists(meshName))
+			{
+				result.Error = map + " has no collision mesh";
+				return result;
+			}
+
+			MclFile mesh;
+			try
+			{
+				mesh = Mcl.Read(Lz.Decompress(workspace.Read(meshName)));
+			}
+			catch (Exception problem)
+			{
+				result.Error = "the collision mesh would not read: " + problem.Message;
+				return result;
+			}
+
+			int[] was = Mcl.JumpRegionAt(mesh, slot);
+			if (was == null)
+			{
+				result.Error = "exit " + slot + " has no region to move";
+				return result;
+			}
+
+			Mcl.RemoveJumpRegion(mesh, slot);
+			try
+			{
+				// The y that comes out of JumpRegionAt is the floor of the box, and the
+				// one AddJumpRegion takes is the point it stands on - which it puts the
+				// floor RegionBelow underneath. Passing one straight into the other drops
+				// the box by that much every time it is saved.
+				Mcl.AddJumpRegion(mesh, slot, x, y + Mcl.RegionBelow, z,
+					width > 0 ? width : was[3],
+					height > 0 ? height : was[4],
+					depth > 0 ? depth : was[5]);
+			}
+			catch (Exception problem)
+			{
+				// Nothing was written, so the mesh on disk still has the old region.
+				result.Error = problem.Message;
+				return result;
+			}
+
+			workspace.Write(meshName, Lz.Compress(Mcl.Build(mesh)));
+			result.Wrote = meshName;
+			result.Ok = true;
+			result.Notes.Add("moved the region for exit " + slot + " to " + x + ", " + z);
+			return result;
+		}
+
 		private static PakChainData Jumps(Workspace workspace, string name,
 			out PakFile decoded)
 		{

@@ -70,6 +70,30 @@ namespace FF3.ContentTool.Editor
 
 		public List<MapExit> Exits { get; set; } = new List<MapExit>();
 
+		/// <summary>
+		/// Reads the collision mesh once and hands each exit the region that fires it.
+		/// A map with no mesh, or one that will not read, simply leaves them null - the
+		/// scene is still worth drawing.
+		/// </summary>
+		private static void AddRegions(Workspace workspace, string map,
+			List<MapExit> exits)
+		{
+			string mesh = MapExits.MeshName(map);
+			if (exits.Count == 0 || !workspace.Exists(mesh)) return;
+
+			try
+			{
+				MclFile decoded = Mcl.Read(Lz.Decompress(workspace.Read(mesh)));
+				for (int i = 0; i < exits.Count; i++)
+				{
+					exits[i].Region = Mcl.JumpRegionAt(decoded, i + 1);
+				}
+			}
+			catch (Exception)
+			{
+			}
+		}
+
 		public static MapScene Load(Workspace workspace, string map,
 			Func<uint, string> lookupMessage)
 		{
@@ -84,6 +108,11 @@ namespace FF3.ContentTool.Editor
 				Terrain = Package(workspace, map),
 				Exits = loaded.Exits
 			};
+
+			// Where each exit is actually triggered, which is not where its row says the
+			// player arrives - one is the doorway, the other is where you come out. The
+			// scene draws both, because moving one is not moving the other.
+			AddRegions(workspace, map, scene.Exits);
 
 			foreach (MapCharacter character in loaded.Characters)
 			{

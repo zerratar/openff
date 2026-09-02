@@ -29,6 +29,29 @@ const AXES = [
 ];
 
 /// An arrow along +X, one unit long: a shaft and a head, both eight sided.
+/// A unit box from 0,0,0 to 1,1,1, as triangles. Used for the region that fires an
+/// exit, which is a real box in the collision mesh rather than a marker: seeing where
+/// its edges are is the difference between a door that works and one you walk past.
+function boxGeometry() {
+  const out = [];
+  const push = (x, y, z) => out.push(x, y, z, 0, 0, 1, 1, 1);
+  const quad = (a, b, c, d) => {
+    push(...a); push(...b); push(...c);
+    push(...a); push(...c); push(...d);
+  };
+  const p = [
+    [0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1],
+    [0, 1, 0], [1, 1, 0], [1, 1, 1], [0, 1, 1]
+  ];
+  quad(p[0], p[1], p[5], p[4]);
+  quad(p[1], p[2], p[6], p[5]);
+  quad(p[2], p[3], p[7], p[6]);
+  quad(p[3], p[0], p[4], p[7]);
+  quad(p[4], p[5], p[6], p[7]);
+  quad(p[3], p[2], p[1], p[0]);
+  return new Float32Array(out);
+}
+
 function arrowGeometry() {
   const out = [];
   const push = (x, y, z) => out.push(x, y, z, 0, 0, 1, 1, 1);
@@ -141,6 +164,11 @@ function makeMapScene(canvas, status) {
   let instances = [];
   let selected = null;
   let selectedExit = null;
+
+  // An exit is two positioned things and they are not in the same place: the region is
+  // the doorway you walk into, the arrival is where you come out on the other side. So
+  // which half is being moved has to be part of the selection.
+  let selectedPart = 'arrival';
   let onPick = () => {};
 
   const arrowBuffer = gl.createBuffer();
@@ -154,6 +182,12 @@ function makeMapScene(canvas, status) {
   gl.bindBuffer(gl.ARRAY_BUFFER, ringBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, ring, gl.STATIC_DRAW);
   const ringVertices = ring.length / 8;
+
+  const boxBuffer = gl.createBuffer();
+  const box = boxGeometry();
+  gl.bindBuffer(gl.ARRAY_BUFFER, boxBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, box, gl.STATIC_DRAW);
+  const boxVertices = box.length / 8;
 
   let gizmoOn = true;
   let gizmoScale = 1;            // how big the arrows are, as a multiplier
@@ -272,12 +306,51 @@ function makeMapScene(canvas, status) {
       drawBundle(entry, placement(item), tint);
     }
 
+    drawRegions();
     drawGizmo();
     onFrame();
   }
 
+  /// What the gizmo is acting on. Objects are their own row; an exit is either its
+  /// arrival point or its region, and both are handed back in the shape the gizmo
+  /// works in, so nothing below has to know the difference.
   function selectedItem() {
-    return instances.find(o => o.index === selected) || null;
+    if (selected !== null) {
+      return instances.find(o => o.index === selected) || null;
+    }
+    const exit = selectedExit !== null && scene && scene.exits
+      && scene.exits[selectedExit];
+    if (!exit) return null;
+
+    if (selectedPart === 'region') {
+      if (!exit.region) return null;
+      // The region is centre x, floor y, centre z then its size. The gizmo moves the
+      // first three; the box is drawn from them.
+      return {
+        get x() { return exit.region[0]; },
+        set x(v) { exit.region[0] = v; },
+        get y() { return exit.region[1]; },
+        set y(v) { exit.region[1] = v; },
+        get z() { return exit.region[2]; },
+        set z(v) { exit.region[2] = v; },
+        rotationY: 0,
+        exit: selectedExit,
+        part: 'region'
+      };
+    }
+
+    return {
+      get x() { return exit.x; },
+      set x(v) { exit.x = v; },
+      get y() { return exit.y; },
+      set y(v) { exit.y = v; },
+      get z() { return exit.z; },
+      set z(v) { exit.z = v; },
+      get rotationY() { return exit.rotationY || 0; },
+      set rotationY(v) { exit.rotationY = v; },
+      exit: selectedExit,
+      part: 'arrival'
+    };
   }
 
   /// How big an arrow has to be to stay the same size on screen.
@@ -293,6 +366,54 @@ function makeMapScene(canvas, status) {
       ? Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2])
       : distance;
     return Math.max(0.5, away) * 0.075 * gizmoScale;
+  }
+
+  /// The boxes that fire the exits. Drawn before the gizmo so the arrows sit over
+  /// them, and lightly, because they are volumes you look through rather than at.
+  function drawRegions() {
+    const exits = (scene && scene.exits) || [];
+    if (!exits.length) return;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, boxBuffer);
+    const stride = 8 * 4;
+    if (attribute.position >= 0) {
+      gl.enableVertexAttribArray(attribute.position);
+      gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+    }
+    if (attribute.coord >= 0) {
+      gl.enableVertexAttribArray(attribute.coord);
+      gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 3 * 4);
+    }
+    if (attribute.colour >= 0) {
+      gl.enableVertexAttribArray(attribute.colour);
+      gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 5 * 4);
+    }
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, blank);
+    gl.uniform1i(uniform.picture, 0);
+    gl.uniform1i(uniform.textured, 0);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+
+    exits.forEach((exit, index) => {
+      if (!exit.region) return;
+      const [cx, fy, cz, w, h, d] = exit.region;
+      const chosen = index === selectedExit;
+      gl.uniform3fv(uniform.tint, chosen ? [1, 0.78, 0.35] : [0.55, 0.42, 0.25]);
+      gl.uniform1f(uniform.alpha, chosen ? 0.34 : 0.16);
+      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
+        w, 0, 0, 0,
+        0, h, 0, 0,
+        0, 0, d, 0,
+        cx - w / 2, fy, cz - d / 2, 1
+      ]));
+      gl.drawArrays(gl.TRIANGLES, 0, boxVertices);
+    });
+
+    gl.depthMask(true);
+    gl.uniform1f(uniform.alpha, 1);
   }
 
   function drawGizmo() {
@@ -639,7 +760,12 @@ function makeMapScene(canvas, status) {
       draw();
     },
 
-    selectExit(index) { selectedExit = index; selected = null; draw(); },
+    selectExit(index, part) {
+      selectedExit = index;
+      selected = null;
+      if (part) selectedPart = part;
+      draw();
+    },
 
     /// Puts the camera on an exit, the way focus() does for a character.
     focusExit(index) {
@@ -653,6 +779,10 @@ function makeMapScene(canvas, status) {
     },
 
     setGizmo(on) { gizmoOn = on; if (!on) gizmoAxis = null; draw(); },
+
+    /// Which half of the selected exit the gizmo moves.
+    selectPart(part) { selectedPart = part; draw(); },
+    part() { return selectedPart; },
 
     setGizmoScale(scale) { gizmoScale = scale; draw(); },
 

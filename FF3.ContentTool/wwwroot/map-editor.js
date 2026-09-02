@@ -143,6 +143,30 @@ function wireDrop(node, doc) {
   });
 }
 
+// While this is set, the next click in the 3D scene is a place rather than a
+// selection. Adding a door to a building means putting it in the doorway, and no
+// number typed into a box will land there - you have to point at it.
+let placing = null;
+
+/// Waits for a click on the ground, then hands back where it landed.
+function placeOnMap(node, what, onPlaced) {
+  const wrap = $('.scene-wrap', node);
+  if (!wrap || wrap.hidden) {
+    say('the 3D view has to be open to place something', 'bad');
+    return;
+  }
+  placing = { onPlaced };
+  wrap.classList.add('placing');
+  say(`click where the ${what} goes`);
+}
+
+/// Takes the mode off, finding the pane itself - the click that ends it comes from
+/// deep inside the scene, where the view node is not in scope.
+function stopPlacing() {
+  placing = null;
+  for (const wrap of $$('.scene-wrap.placing')) wrap.classList.remove('placing');
+}
+
 /// The form for something new on the map. What it needs depends on what it is: a
 /// character needs a line to say, a chest needs something to hold, a prop needs
 /// neither. The model, a place to stand and a free cast number are common to all.
@@ -269,6 +293,17 @@ function buildAdd(node, start) {
   z.value = String((start && start.z) ?? 0);
   zLabel.append(z);
 
+  const pick = document.createElement('button');
+  pick.type = 'button';
+  pick.className = 'wide-button';
+  pick.textContent = 'Place it on the map';
+  pick.onclick = () => placeOnMap(node, kind.value === 'exit' ? 'doorway' : 'object',
+    (px, py, pz) => {
+      x.value = String(px);
+      z.value = String(pz);
+      say(`at ${px}, ${pz}`);
+    });
+
   // ------------------------------------------------------ what it says or holds
 
   const textLabel = document.createElement('label');
@@ -315,7 +350,7 @@ function buildAdd(node, start) {
   go.textContent = 'Add it';
 
   panel.append(kindLabel, kindNote, modelHead, choose, modelNote,
-    xLabel, zLabel, textLabel, itemLabel, goldLabel,
+    xLabel, zLabel, pick, textLabel, itemLabel, goldLabel,
     toLabel, arriveLabel, exitNote, go);
 
   // The item list is worth fetching once and keeping - it is the whole item table, and
@@ -633,6 +668,7 @@ function drawSceneTags(node, doc) {
       tag.onclick = () => {
         mapState.selected = null;
         doc.selection = `exit:${index}`;
+      if (doc.scene3d) doc.scene3d.selectExit(index);
         drawHierarchy();
         drawInspector();
         drawSceneTags(node, doc);
@@ -746,6 +782,24 @@ function wireModes(node, doc, scene) {
       // Dragging an arrow moves the scene object; the character behind it is what
       // gets saved, so the two are kept in step here rather than at save time.
       doc.scene3d.onMove((item) => {
+        // An exit's two halves come back tagged, because they are not rows in the
+        // .hich and Save placement has nothing to do with them - each has its own
+        // save in the panel.
+        if (item.part) {
+          const exit = mapState.data.exits[item.exit];
+          const sceneExit = doc.data.scene.exits[item.exit];
+          if (item.part === 'arrival' && exit) {
+            exit.x = sceneExit.x;
+            exit.y = sceneExit.y;
+            exit.z = sceneExit.z;
+            exit.rotationY = sceneExit.rotationY;
+          } else if (exit) {
+            exit.region = sceneExit.region;
+          }
+          drawInspector();
+          return;
+        }
+
         const character = mapState.data.characters.find(c => c.index === item.index);
         if (!character) return;
         character.x = item.x;
@@ -928,8 +982,22 @@ function wireSceneInput(canvas, doc) {
       return;
     }
     dragging = false;
-    // A click that did not really move is a pick, not the end of an orbit.
-    if (moved < 4) doc.scene3d.pickAt(event.clientX, event.clientY);
+    if (moved >= 4) return;
+
+    // While something is being placed, a click is a position rather than a pick.
+    if (placing) {
+      const at = doc.scene3d.groundAt(event.clientX, event.clientY);
+      if (!at) {
+        say('that is not somewhere on the ground', 'bad');
+        return;
+      }
+      const done = placing.onPlaced;
+      stopPlacing();
+      done(at[0], at[1], at[2]);
+      return;
+    }
+
+    doc.scene3d.pickAt(event.clientX, event.clientY);
   };
 
   // Letting go outside the canvas, or leaving the page mid-flight, still lands.
@@ -1190,6 +1258,91 @@ function buildExit(exit, index) {
   panel.append(field('x', 'x'), field('y', 'y'), field('z', 'z'),
     field('facing', 'rotationY',
       'Degrees. The file keeps it as a 16 bit angle where a whole turn is 65536.'));
+
+  // --------------------------------------------------------------- the trigger
+  //
+  // The other half. The arrival above is where the player comes out; this is the
+  // doorway they walk into, and it is a box in the collision mesh somewhere else
+  // entirely - about 20 units away in the shipped maps. Moving one does not move the
+  // other, so each gets its own gizmo and its own save.
+
+  const doorHead = document.createElement('h3');
+  doorHead.textContent = 'Doorway';
+  panel.append(doorHead);
+
+  if (!exit.region) {
+    const none = document.createElement('p');
+    none.className = 'none';
+    none.textContent = 'This exit has no region in the collision mesh, so nothing '
+      + 'fires it. 37 of the shipped exits are like this - they are places the player '
+      + 'arrives at rather than leaves by.';
+    panel.append(none);
+  } else {
+    const region = {
+      x: exit.region[0], y: exit.region[1], z: exit.region[2],
+      width: exit.region[3], height: exit.region[4], depth: exit.region[5]
+    };
+
+    const which = document.createElement('div');
+    which.className = 'segmented';
+    for (const [id, label] of [['arrival', 'Move arrival'], ['region', 'Move doorway']]) {
+      const button = document.createElement('button');
+      button.textContent = label;
+      button.className = (doc.scene3d && doc.scene3d.part() === id) ? 'on' : '';
+      button.onclick = () => {
+        if (doc.scene3d) doc.scene3d.selectExit(index, id);
+        drawInspector();
+      };
+      which.append(button);
+    }
+    panel.append(which);
+
+    const box = (label, key, hint) => {
+      const wrap = document.createElement('label');
+      wrap.textContent = label;
+      const input = document.createElement('input');
+      input.value = region[key];
+      if (hint) input.title = hint;
+      input.oninput = () => {
+        const value = parseInt(input.value, 10);
+        region[key] = Number.isNaN(value) ? 0 : value;
+      };
+      wrap.append(input);
+      return wrap;
+    };
+
+    panel.append(box('x', 'x'), box('z', 'z'),
+      box('width', 'width', 'The shipped doorways are about 19 across.'),
+      box('depth', 'depth', 'About 12 deep.'),
+      box('floor', 'y', 'The bottom of the box. It reaches below the floor so it still '
+        + 'catches a player on slightly lower ground.'),
+      box('height', 'height', 'About 54 tall.'));
+
+    const move = document.createElement('button');
+    move.textContent = 'Save doorway';
+    move.onclick = async () => {
+      move.disabled = true;
+      try {
+        const result = await api('/api/map/exit/region', {
+          name: mapState.name, slot: index + 1,
+          x: region.x, y: region.y, z: region.z,
+          width: region.width, height: region.height, depth: region.depth
+        });
+        if (!result.ok) {
+          say(result.error, 'bad');
+          move.disabled = false;
+          return;
+        }
+        for (const line of result.notes || []) say(line);
+        say(`doorway for exit ${index + 1} saved`, 'good');
+        await open(mapState.name);
+      } catch (error) {
+        say(error.message, 'bad');
+        move.disabled = false;
+      }
+    };
+    panel.append(move);
+  }
 
   // ------------------------------------------------------------- conditions
 

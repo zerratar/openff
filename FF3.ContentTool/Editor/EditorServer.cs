@@ -258,6 +258,10 @@ namespace FF3.ContentTool.Editor
 					AddExit(context);
 					return;
 
+				case "/api/map/exit/region":
+					MoveExitRegion(context);
+					return;
+
 				case "/api/map/exit/delete":
 					DeleteExit(context);
 					return;
@@ -582,6 +586,22 @@ namespace FF3.ContentTool.Editor
 				body["depth"] == null ? size[2] : (int)body["depth"]);
 			if (added.Ok) _references.Invalidate();
 			SendJson(context, added);
+		}
+
+		/// <summary>Moves or resizes the region that fires an exit.</summary>
+		private void MoveExitRegion(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			MapExitResult moved = MapExits.MoveRegion(_workspace,
+				(string)body["name"],
+				(int)body["slot"],
+				(int)body["x"],
+				(int)body["y"],
+				(int)body["z"],
+				body["width"] == null ? 0 : (int)body["width"],
+				body["height"] == null ? 0 : (int)body["height"],
+				body["depth"] == null ? 0 : (int)body["depth"]);
+			SendJson(context, moved);
 		}
 
 		/// <summary>Takes both halves of an exit away again.</summary>
