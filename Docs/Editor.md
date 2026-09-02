@@ -194,6 +194,13 @@ switch files.
 
 ## Not in it yet
 
+- **Reference picking.** A script names things by number: `startMessage2` takes a
+  message id, a warp takes a map, an item command takes an item id. The editor knows
+  what all of those numbers mean - it resolves them for the annotations already - but
+  it will not yet let you go the other way and *choose* one. Picking a line of text and
+  having the id filled in, or a map, or an item, is the obvious next step, and it wants
+  a per-operand note saying which table an argument points into.
+
 - **Graphics** - models, textures and sprites are still opaque. That is what stands
   between the preview and a menu that looks like the game, and between this and any
   kind of map editor.

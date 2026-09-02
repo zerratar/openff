@@ -235,6 +235,24 @@ an `if`. So adding a structured statement never means touching code generation, 
 code generation stays the two passes it always was - assign addresses, then emit with
 labels resolved.
 
+## Staying vanilla
+
+Everything the compiler emits runs on the shipped engine. No opcode here is invented,
+no handler has been changed, and a script built by this tool is a script the original
+game could have shipped. That is deliberate: it means edited content runs for anyone
+with the game, not only for someone with our build of it.
+
+Extending the interpreter - a new opcode, a new handler - is a different kind of
+change, and the line is worth crossing deliberately rather than by accident. When it
+happens, the format already has the place to say so: the header carries a major and a
+minor version, `ScriptData.cast` accepts only 1.1, and anything else is refused. So a
+script using opcodes outside the vanilla set should be marked 1.2, which makes an old
+engine reject it loudly instead of running it wrongly, and lets the tools tell the two
+apart.
+
+Until then, `s01_01.script` is the reminder of what that check is for: it is version
+1.0, and the game will not load it.
+
 ## What it does not do yet
 
 **The disassembler emits the flat form.** Recovering an `if` from a pair of jumps is
