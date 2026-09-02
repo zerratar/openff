@@ -77,6 +77,17 @@
       </div>
     </div>
   </div>
+
+  <!--
+    The last thing the editor said, always visible. Clicking it opens the console at
+    that line, so the answer to "did the compile work" does not need a trip to another
+    tab to find out.
+  -->
+  <button id="statusbar" type="button">
+    <span id="statusbar-dot"></span>
+    <span id="statusbar-text">ready</span>
+    <span id="statusbar-hint">console</span>
+  </button>
 </div>
 
 <!-- Scripts -->

@@ -241,6 +241,43 @@ function drawMap(node) {
   }
 }
 
+/// A character's placement, for the undo stack to hold on to.
+function positionOf(character) {
+  return {
+    x: character.x, y: character.y, z: character.z, rotationY: character.rotationY
+  };
+}
+
+function samePosition(a, b) {
+  return a.x === b.x && a.y === b.y && a.z === b.z && a.rotationY === b.rotationY;
+}
+
+/// Puts a character where it was, in both views and in the inspector.
+function applyPosition(doc, index, to) {
+  const character = mapState.data.characters.find(c => c.index === index);
+  if (character) Object.assign(character, to);
+
+  const item = ((doc.data && doc.data.scene && doc.data.scene.objects) || [])
+    .find(o => o.index === index);
+  if (item) Object.assign(item, to);
+
+  const view = $('.view', doc.pane);
+  if (view && doc.mode === '2d') drawMap(view);
+  if (doc.scene3d) doc.scene3d.redraw();
+  drawInspector();
+}
+
+/// Records one move, unless nothing actually moved.
+function recordMove(doc, character, before) {
+  if (!doc || !character) return;
+  const after = positionOf(character);
+  if (samePosition(before, after)) return;
+  const index = character.index;
+  pushUndo(doc, `move ${character.model || 'character'}`,
+    () => applyPosition(doc, index, before),
+    () => applyPosition(doc, index, after));
+}
+
 /// The 2D and 3D buttons, and the scene behind the second of them.
 function wireModes(node, doc, scene) {
   const flat = $('.map-wrap', node);
@@ -318,6 +355,7 @@ function wireSceneInput(canvas, doc) {
     // An arrow under the cursor takes the press; the camera only gets what is left.
     if (event.button === 0 && doc.scene3d.beginDrag(event.clientX, event.clientY)) {
       pinDoc(doc);
+      doc.movingFrom = mapState.selected ? positionOf(mapState.selected) : null;
       return;
     }
     dragging = true;
@@ -345,6 +383,8 @@ function wireSceneInput(canvas, doc) {
     canvas.releasePointerCapture(event.pointerId);
     if (doc.scene3d.dragging()) {
       doc.scene3d.endDrag();
+      if (doc.movingFrom) recordMove(doc, mapState.selected, doc.movingFrom);
+      doc.movingFrom = null;
       say('moved - use Save placement to keep it', 'good');
       return;
     }
@@ -416,6 +456,7 @@ function dragPin(event, node, character, pin, box) {
   const startY = event.clientY;
   const originX = character.x;
   const originZ = character.z;
+  const before = positionOf(character);
 
   const move = moveEvent => {
     character.x = originX + Math.round((moveEvent.clientX - startX) / mapState.zoom);
@@ -427,6 +468,7 @@ function dragPin(event, node, character, pin, box) {
   };
 
   const up = () => {
+    recordMove(activeDoc, character, before);
     pin.removeEventListener('pointermove', move);
     pin.removeEventListener('pointerup', up);
   };
@@ -484,6 +526,12 @@ function buildCharacter(character) {
     wrap.textContent = label;
     const input = document.createElement('input');
     input.value = character[key];
+    let before = null;
+    input.onfocus = () => { before = positionOf(character); };
+    input.onblur = () => {
+      if (before) recordMove(activeDoc, character, before);
+      before = null;
+    };
     input.oninput = () => {
       const value = parseInt(input.value, 10);
       if (!Number.isNaN(value)) {

@@ -125,7 +125,8 @@ async function openDoc(kind, name, options = {}) {
   const id = docId(kind, name);
   const existing = docs.get(id);
 
-  if (existing && !settings.reload) {
+  // An empty pane means the last run left it broken, so rebuild rather than show it.
+  if (existing && !settings.reload && existing.pane.childElementCount > 0) {
     if (!settings.preview) pinDoc(existing);
     activate(id);
     return existing;
@@ -155,6 +156,17 @@ async function openDoc(kind, name, options = {}) {
 
   doc.pane.textContent = '';
   doc.selection = null;
+
+  // Anything a view hung on its document belongs to the DOM that has just been thrown
+  // away. Leaving them behind is what made a reverted map come back blank: the scene
+  // viewer was still pointing at a canvas that had been removed, and the rebuild saw
+  // one already there and skipped making a new one.
+  doc.scene3d = null;
+  doc.onShow = null;
+  doc.inspect = null;
+  doc.data = null;
+  doc.mode = null;
+
   activate(id);
 
   say('loading…');
@@ -595,6 +607,8 @@ function setDocData(data, extra) {
 
 let consoleCount = 0;
 
+let lastLine = null;
+
 function logLine(text, tone) {
   if (!text) return;
   const line = document.createElement('div');
@@ -609,6 +623,9 @@ function logLine(text, tone) {
   lines.append(line);
   lines.scrollTop = lines.scrollHeight;
 
+  lastLine = line;
+  setStatusBar(text, tone);
+
   if (tone === 'bad') {
     consoleCount++;
     $('#console-count').textContent = consoleCount;
@@ -616,17 +633,76 @@ function logLine(text, tone) {
   }
 }
 
-// say() is the status line; everything it reports is worth keeping a record of, so it
-// goes to the console too rather than being overwritten by the next message.
-const baseSay = say;
+function setStatusBar(text, tone) {
+  $('#statusbar-text').textContent = text || 'ready';
+  $('#statusbar').className = tone || '';
+}
+
+// say() now reports along the bottom rather than in the header, and everything it says
+// is kept in the console rather than being wiped by the next message. "loading…" is the
+// exception: it is noise a second later, so it shows and is not recorded.
 say = function (message, tone) {
-  baseSay(message, tone);
+  setStatusBar(message, tone);
   if (message && message !== 'loading…') logLine(message, tone);
 };
 
 window.addEventListener('error', event => logLine(event.message, 'bad'));
 window.addEventListener('unhandledrejection', event =>
   logLine(String(event.reason && event.reason.message || event.reason), 'bad'));
+
+// -------------------------------------------------------------------- undo
+//
+// Per document, because undoing on a map should not reach into a script. Views record
+// their own steps: a step is a label and the two functions that put things back and
+// forward again, which keeps the stack out of the business of knowing what a map is.
+//
+// Fields and text areas are left alone. The browser's own undo is better than anything
+// this could do inside one, and taking Ctrl+Z off a half-typed line would be worse than
+// not having it at all.
+
+function pushUndo(doc, label, undo, redo) {
+  if (!doc) return;
+  doc.undo = doc.undo || [];
+  doc.redo = [];
+  doc.undo.push({ label, undo, redo });
+  if (doc.undo.length > 200) doc.undo.shift();
+}
+
+function undoLast() {
+  const doc = activeDoc;
+  if (!doc || !doc.undo || !doc.undo.length) {
+    say('nothing to undo');
+    return;
+  }
+  const step = doc.undo.pop();
+  step.undo();
+  (doc.redo = doc.redo || []).push(step);
+  say('undone: ' + step.label);
+}
+
+function redoLast() {
+  const doc = activeDoc;
+  if (!doc || !doc.redo || !doc.redo.length) {
+    say('nothing to redo');
+    return;
+  }
+  const step = doc.redo.pop();
+  step.redo();
+  doc.undo.push(step);
+  say('redone: ' + step.label);
+}
+
+document.addEventListener('keydown', event => {
+  if (!(event.ctrlKey || event.metaKey)) return;
+  const key = event.key.toLowerCase();
+  if (key !== 'z' && key !== 'y') return;
+  // Inside something you can type in, the browser's own undo wins.
+  if (event.target.matches('input, textarea, [contenteditable]')) return;
+
+  event.preventDefault();
+  if (key === 'y' || event.shiftKey) redoLast();
+  else undoLast();
+});
 
 // ------------------------------------------------------------------ project
 
@@ -809,6 +885,20 @@ $('#view-list').onclick = () => setFileView('list');
 $('#view-grid').onclick = () => setFileView('grid');
 setFileView(fileView);
 
+// Clicking the status line opens the console at the row it is showing.
+$('#statusbar').onclick = () => {
+  $$('#bottom-tabs button').forEach(b =>
+    b.classList.toggle('on', b.dataset.bottom === 'console'));
+  $$('.bottom-page').forEach(p => p.classList.toggle('on', p.dataset.page === 'console'));
+  consoleCount = 0;
+  $('#console-count').textContent = '';
+  $('#console-count').className = '';
+  if (!lastLine) return;
+  $$('.console-line.picked').forEach(l => l.classList.remove('picked'));
+  lastLine.classList.add('picked');
+  lastLine.scrollIntoView({ block: 'center' });
+};
+
 $('#hierarchy-filter').addEventListener('input', drawHierarchy);
 $('#filter').addEventListener('input', drawList);
 
@@ -845,6 +935,10 @@ drawHierarchy();
 drawInspector();
 
 api('/api/status')
-  .then(status => say(`${status.files} files  ·  overrides in ${status.overrides}`))
+  .then(status => {
+    // The header keeps the workspace summary; it is true all session and would only
+    // be wiped by the next thing that happened if say() owned it.
+    $('#status').textContent = `${status.files} files  ·  overrides in ${status.overrides}`;
+  })
   .then(applyHash)
   .catch(error => say(error.message, 'bad'));

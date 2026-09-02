@@ -50,6 +50,22 @@ Four panels round a document area, the way a scene editor is laid out:
   either one per line or as a wrapped grid of icons; which one is remembered. The three
   bars between the panels drag, and their sizes are remembered too.
 
+Along the very bottom is a **status line** showing the last thing the editor said, so
+the answer to "did that compile" is in front of you rather than one tab away. Clicking
+it opens the console at that row with the row highlighted. The header keeps the
+workspace summary, which is true all session and would only be wiped by the next thing
+that happened if it shared a line with the messages.
+
+**Ctrl+Z** undoes, **Ctrl+Y** or **Ctrl+Shift+Z** redoes. The stack is per document, so
+undoing on a map cannot reach into a script, and views record their own steps - a step
+being a label and the two functions that put things back and forward - which keeps the
+stack out of the business of knowing what a map is. Moving a character counts, whether
+it was moved with the gizmo, dragged on the plan, or typed into the inspector.
+
+Fields and text areas are deliberately left alone: the browser's own undo is better
+inside one than anything this could do, and taking Ctrl+Z off a half-typed line would be
+worse than not having it.
+
 Every asset kind has a mark of its own, and so does every kind of thing inside one - a
 character, a logic cast, an exit, a mesh part. They are inline SVG, drawn in
 `currentColor` so one copy of each serves a dim row, a bright one and a selected one
