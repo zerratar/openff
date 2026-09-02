@@ -34,7 +34,7 @@ Four panels round a document area, the way a scene editor is laid out:
   hidden rather than thrown away when you switch, so a half-typed script is still there
   when you come back to it.
 
-  A single click opens a **preview** tab: italic, one per group, replaced by the next
+  Middle click closes a tab. A single click opens a **preview** tab: italic, one per group, replaced by the next
   thing you click. It becomes a real tab as soon as you change something in it, double
   click the tab, or double click it in the project list - so skimming twenty files
   leaves one tab behind rather than twenty.
@@ -65,6 +65,16 @@ drag, which is still the right thing for moving somebody two steps left.
 Drag to orbit, right-drag or shift-drag to pan, wheel to zoom, click to pick. Picking in
 the scene and clicking in the hierarchy are the same selection, and editing a position in
 the inspector moves the character in whichever view is showing.
+
+Whatever is selected gets a **move gizmo** - three arrows, one per axis, on by default
+and switched off from the bar. Dragging one slides the character along that axis and
+nowhere else, snapping to whole units because that is what a `.hich` row holds. The
+arrows are geometry rather than lines: a line comes out one pixel wide however thick you
+ask for it, which is not something you can reliably grab. Dragging is worked out in
+screen space - the axis is projected, the mouse movement is projected onto it, and the
+ratio says how far to go - so an axis seen nearly end-on simply stops responding instead
+of sending the character into the distance. Moving something is a placement change like
+any other, so **Save placement** is still what writes it.
 
 The units needed no conversion, which was worth checking rather than assuming: a `.hich`
 position is in the same units as the geometry - measured across 179 maps, every character

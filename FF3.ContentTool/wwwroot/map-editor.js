@@ -247,6 +247,7 @@ function wireModes(node, doc, scene) {
   const solid = $('.scene-wrap', node);
   const canvas = $('.scene', node);
   const recentre = $('.recentre', node);
+  const gizmoBox = $('.gizmo-toggle', node);
 
   const show = async (mode) => {
     doc.mode = mode;
@@ -254,6 +255,7 @@ function wireModes(node, doc, scene) {
     flat.hidden = mode !== '2d';
     solid.hidden = mode !== '3d';
     recentre.hidden = mode !== '3d';
+    gizmoBox.hidden = mode !== '3d';
     $('.zoom', node).hidden = mode !== '2d';
 
     if (mode !== '3d') return;
@@ -262,6 +264,18 @@ function wireModes(node, doc, scene) {
       if (!doc.scene3d) return;
       wireSceneInput(canvas, doc);
       say('loading the scene…');
+
+      // Dragging an arrow moves the scene object; the character behind it is what
+      // gets saved, so the two are kept in step here rather than at save time.
+      doc.scene3d.onMove((item) => {
+        const character = mapState.data.characters.find(c => c.index === item.index);
+        if (!character) return;
+        character.x = item.x;
+        character.y = item.y;
+        character.z = item.z;
+        drawInspector();
+      });
+
       await doc.scene3d.load(scene, (item) => {
         mapState.selected = mapState.data.characters.find(c => c.index === item.index);
         doc.selection = `object:${item.index}`;
@@ -280,6 +294,9 @@ function wireModes(node, doc, scene) {
     button.onclick = () => show(button.dataset.mode).catch(e => say(e.message, 'bad'));
   });
   recentre.onclick = () => doc.scene3d && doc.scene3d.reset();
+  $('.gizmo', node).onchange = (event) => {
+    if (doc.scene3d) doc.scene3d.setGizmo(event.target.checked);
+  };
   show('3d');
 }
 
@@ -293,15 +310,29 @@ function wireSceneInput(canvas, doc) {
 
   canvas.oncontextmenu = (event) => event.preventDefault();
   canvas.onpointerdown = (event) => {
-    dragging = true;
-    panning = event.button === 2 || event.shiftKey;
     moved = 0;
     lastX = event.clientX;
     lastY = event.clientY;
     canvas.setPointerCapture(event.pointerId);
+
+    // An arrow under the cursor takes the press; the camera only gets what is left.
+    if (event.button === 0 && doc.scene3d.beginDrag(event.clientX, event.clientY)) {
+      pinDoc(doc);
+      return;
+    }
+    dragging = true;
+    panning = event.button === 2 || event.shiftKey;
   };
   canvas.onpointermove = (event) => {
-    if (!dragging) return;
+    if (doc.scene3d.dragging()) {
+      doc.scene3d.dragTo(event.clientX, event.clientY);
+      return;
+    }
+    if (!dragging) {
+      canvas.style.cursor = doc.scene3d.hovering(event.clientX, event.clientY)
+        ? 'move' : '';
+      return;
+    }
     const dx = event.clientX - lastX;
     const dy = event.clientY - lastY;
     moved += Math.abs(dx) + Math.abs(dy);
@@ -311,8 +342,13 @@ function wireSceneInput(canvas, doc) {
     lastY = event.clientY;
   };
   canvas.onpointerup = (event) => {
-    dragging = false;
     canvas.releasePointerCapture(event.pointerId);
+    if (doc.scene3d.dragging()) {
+      doc.scene3d.endDrag();
+      say('moved - use Save placement to keep it', 'good');
+      return;
+    }
+    dragging = false;
     // A click that did not really move is a pick, not the end of an orbit.
     if (moved < 4) doc.scene3d.pickAt(event.clientX, event.clientY);
   };

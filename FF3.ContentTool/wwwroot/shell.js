@@ -307,6 +307,17 @@ function makeTab(doc, group) {
 
   // The whole tab reacts, not just its name.
   tab.onclick = () => activate(doc.id);
+
+  // Middle click closes it. The pointerdown has to be swallowed as well, or the
+  // browser starts its own autoscroll on the tab strip instead.
+  tab.onpointerdown = (event) => {
+    if (event.button === 1) event.preventDefault();
+  };
+  tab.onauxclick = (event) => {
+    if (event.button !== 1) return;
+    event.preventDefault();
+    closeDoc(doc.id);
+  };
   tab.ondblclick = () => pinDoc(doc);
   tab.ondragstart = (event) => {
     event.dataTransfer.setData('text/plain', doc.id);

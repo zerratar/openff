@@ -11,6 +11,72 @@
 
 'use strict';
 
+// ------------------------------------------------------------------ the gizmo
+//
+// Three arrows at whatever is selected, one per axis, dragged to move it. The arrows
+// are real geometry rather than lines: a line comes out one pixel wide however thick
+// you ask for it, which is not something you can reliably grab.
+//
+// Dragging works in screen space. The axis is projected to the screen, the mouse
+// movement is projected onto that, and the ratio says how far along the axis to go -
+// which behaves sensibly whatever angle the axis is seen from, including nearly
+// end-on, where the axis simply stops responding rather than flying off.
+
+const AXES = [
+  { name: 'x', colour: [0.92, 0.35, 0.38], dir: [1, 0, 0] },
+  { name: 'y', colour: [0.45, 0.85, 0.45], dir: [0, 1, 0] },
+  { name: 'z', colour: [0.38, 0.60, 0.95], dir: [0, 0, 1] }
+];
+
+/// An arrow along +X, one unit long: a shaft and a head, both eight sided.
+function arrowGeometry() {
+  const out = [];
+  const push = (x, y, z) => out.push(x, y, z, 0, 0, 1, 1, 1);
+  const shaft = 0.022;
+  const head = 0.085;
+  const neck = 0.74;
+  const sides = 8;
+
+  for (let i = 0; i < sides; i++) {
+    const a0 = (i / sides) * Math.PI * 2;
+    const a1 = ((i + 1) / sides) * Math.PI * 2;
+    const y0 = Math.cos(a0), z0 = Math.sin(a0);
+    const y1 = Math.cos(a1), z1 = Math.sin(a1);
+
+    push(0, y0 * shaft, z0 * shaft);
+    push(neck, y0 * shaft, z0 * shaft);
+    push(neck, y1 * shaft, z1 * shaft);
+    push(0, y0 * shaft, z0 * shaft);
+    push(neck, y1 * shaft, z1 * shaft);
+    push(0, y1 * shaft, z1 * shaft);
+
+    push(neck, y0 * head, z0 * head);
+    push(1, 0, 0);
+    push(neck, y1 * head, z1 * head);
+
+    push(neck, 0, 0);
+    push(neck, y1 * head, z1 * head);
+    push(neck, y0 * head, z0 * head);
+  }
+  return new Float32Array(out);
+}
+
+/// Places an arrow: rotates local +X onto the axis, scales it, moves it into place.
+function axisMatrix(axis, at, size) {
+  const s = size;
+  const rows = {
+    x: [s, 0, 0, 0, s, 0, 0, 0, s],
+    y: [0, s, 0, -s, 0, 0, 0, 0, s],
+    z: [0, 0, s, 0, s, 0, -s, 0, 0]
+  }[axis];
+  return new Float32Array([
+    rows[0], rows[1], rows[2], 0,
+    rows[3], rows[4], rows[5], 0,
+    rows[6], rows[7], rows[8], 0,
+    at[0], at[1], at[2], 1
+  ]);
+}
+
 function makeMapScene(canvas, status) {
   const gl = canvas.getContext('webgl', { antialias: true, alpha: true });
   if (!gl) {
@@ -44,6 +110,17 @@ function makeMapScene(canvas, status) {
   let instances = [];
   let selected = null;
   let onPick = () => {};
+
+  const arrowBuffer = gl.createBuffer();
+  const arrow = arrowGeometry();
+  gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, arrow, gl.STATIC_DRAW);
+  const arrowVertices = arrow.length / 8;
+
+  let gizmoOn = true;
+  let gizmoAxis = null;          // the axis being dragged, if any
+  let gizmoFrom = null;          // where the drag started
+  let onMoved = () => {};
 
   let yaw = 0.7;
   let pitch = 0.9;
@@ -153,6 +230,104 @@ function makeMapScene(canvas, status) {
       const tint = selected === item.index ? [0.55, 0.75, 1.35] : null;
       drawBundle(entry, placement(item), tint);
     }
+
+    drawGizmo();
+  }
+
+  function selectedItem() {
+    return instances.find(o => o.index === selected) || null;
+  }
+
+  /// How big an arrow has to be to stay about the same size on screen.
+  function gizmoSize() {
+    return distance * 0.13;
+  }
+
+  function drawGizmo() {
+    const item = gizmoOn && selectedItem();
+    if (!item) return;
+
+    // Over the top of everything: a gizmo you cannot see is a gizmo you cannot use.
+    gl.disable(gl.DEPTH_TEST);
+    gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
+    const stride = 8 * 4;
+    if (attribute.position >= 0) {
+      gl.enableVertexAttribArray(attribute.position);
+      gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+    }
+    if (attribute.coord >= 0) {
+      gl.enableVertexAttribArray(attribute.coord);
+      gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 3 * 4);
+    }
+    if (attribute.colour >= 0) {
+      gl.enableVertexAttribArray(attribute.colour);
+      gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 5 * 4);
+    }
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, blank);
+    gl.uniform1i(uniform.picture, 0);
+    gl.uniform1i(uniform.textured, 0);
+    gl.uniform1f(uniform.alpha, 1);
+
+    const at = [item.x, item.y, item.z];
+    for (const axis of AXES) {
+      const lit = gizmoAxis === axis.name;
+      gl.uniform3fv(uniform.tint, lit ? [1, 0.95, 0.5] : axis.colour);
+      gl.uniformMatrix4fv(uniform.model, false, axisMatrix(axis.name, at, gizmoSize()));
+      gl.drawArrays(gl.TRIANGLES, 0, arrowVertices);
+    }
+    gl.enable(gl.DEPTH_TEST);
+  }
+
+  /// Where a world point lands on the canvas, in pixels.
+  function toScreen(point) {
+    const m = cameraMatrix();
+    const [x, y, z] = point;
+    const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+    if (w <= 0) return null;
+    const nx = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w;
+    const ny = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+    const rect = canvas.getBoundingClientRect();
+    return [(nx + 1) / 2 * rect.width, (1 - ny) / 2 * rect.height];
+  }
+
+  /// Which arrow is under the cursor, if any.
+  function axisAt(px, py) {
+    const item = gizmoOn && selectedItem();
+    if (!item) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouse = [px - rect.left, py - rect.top];
+    const at = [item.x, item.y, item.z];
+    const origin = toScreen(at);
+    if (!origin) return null;
+
+    let best = null;
+    let bestAway = 11;                    // pixels; a fat enough target to hit
+    for (const axis of AXES) {
+      const tip = toScreen([
+        at[0] + axis.dir[0] * gizmoSize(),
+        at[1] + axis.dir[1] * gizmoSize(),
+        at[2] + axis.dir[2] * gizmoSize()
+      ]);
+      if (!tip) continue;
+      const away = pointToSegment(mouse, origin, tip);
+      if (away < bestAway) {
+        bestAway = away;
+        best = axis;
+      }
+    }
+    return best;
+  }
+
+  function pointToSegment(p, a, b) {
+    const vx = b[0] - a[0], vy = b[1] - a[1];
+    const len = vx * vx + vy * vy;
+    if (len < 1e-6) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+    let t = ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / len;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p[0] - (a[0] + vx * t), p[1] - (a[1] + vy * t));
   }
 
   /// Fetches one package's geometry and its textures, once.
@@ -245,6 +420,68 @@ function makeMapScene(canvas, status) {
     },
 
     select(index) { selected = index; draw(); },
+
+    setGizmo(on) { gizmoOn = on; if (!on) gizmoAxis = null; draw(); },
+
+    /// True if the press landed on an arrow, in which case the camera stays put.
+    beginDrag(px, py) {
+      const axis = axisAt(px, py);
+      if (!axis) return false;
+      const item = selectedItem();
+      gizmoAxis = axis.name;
+      gizmoFrom = { px, py, x: item.x, y: item.y, z: item.z };
+      draw();
+      return true;
+    },
+
+    dragTo(px, py) {
+      if (!gizmoAxis || !gizmoFrom) return null;
+      const item = selectedItem();
+      if (!item) return null;
+
+      const axis = AXES.find(a => a.name === gizmoAxis);
+      const at = [gizmoFrom.x, gizmoFrom.y, gizmoFrom.z];
+      const origin = toScreen(at);
+      const tip = toScreen([
+        at[0] + axis.dir[0] * gizmoSize(),
+        at[1] + axis.dir[1] * gizmoSize(),
+        at[2] + axis.dir[2] * gizmoSize()
+      ]);
+      if (!origin || !tip) return null;
+
+      const ax = tip[0] - origin[0];
+      const ay = tip[1] - origin[1];
+      const along = ax * ax + ay * ay;
+      // Seen end on, an axis has almost no length on screen and dragging it would
+      // send the object into the distance. Leave it alone instead.
+      if (along < 30) return null;
+
+      const mx = px - gizmoFrom.px;
+      const my = py - gizmoFrom.py;
+      const howFar = ((mx * ax + my * ay) / along) * gizmoSize();
+
+      // .hich positions are whole numbers, so this snaps rather than drifting.
+      item.x = Math.round(at[0] + axis.dir[0] * howFar);
+      item.y = Math.round(at[1] + axis.dir[1] * howFar);
+      item.z = Math.round(at[2] + axis.dir[2] * howFar);
+      draw();
+      onMoved(item);
+      return item;
+    },
+
+    endDrag() {
+      gizmoAxis = null;
+      gizmoFrom = null;
+      draw();
+    },
+
+    /// True while an arrow is being dragged, so the caller leaves the camera alone.
+    dragging() { return Boolean(gizmoAxis); },
+
+    /// Whether an arrow is under the cursor, for the pointer shape.
+    hovering(px, py) { return Boolean(axisAt(px, py)); },
+
+    onMove(callback) { onMoved = callback || (() => {}); },
 
     focus(item) {
       selected = item.index;
