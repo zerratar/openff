@@ -1061,6 +1061,19 @@ function selectCharacter(node, character, pin) {
 
 // An exit, and what can be done to one.
 //
+// The three destinations that are not places. The game resolves each when the player
+// goes through it - see the strcmp chain in the map jump - so they are correct rather
+// than broken, and saying so matters when a fifth of the game's exits are not plain
+// map names.
+const SENTINELS = ['back_field_map', 'back_town_map', 'back_from_inv'];
+
+function whatSentinel(name) {
+  if (name === 'back_field_map') return 'Goes back to the world map you came from.';
+  if (name === 'back_town_map') return 'Goes back to the town you came from.';
+  if (name === 'back_from_inv') return 'Goes back to the field you boarded from.';
+  return '';
+}
+
 // An exit is two halves. The row here says where the player lands, on which map, facing
 // which way; what makes it fire is a region of the map's collision mesh carrying one of
 // twelve jump attributes, in <map>_col.mcl.lz. Both are written together - see
@@ -1089,6 +1102,7 @@ function buildExit(exit, index) {
     x: exit.x, y: exit.y, z: exit.z,
     rotationY: exit.rotationY || 0,
     to: exit.to || '',
+    modelNo: exit.modelNo === undefined ? -1 : exit.modelNo,
     toIndex: exit.toIndex || 0,
     conditionFlag: exit.conditionFlag || 0,
     kind: exit.kind || 0
@@ -1120,14 +1134,53 @@ function buildExit(exit, index) {
   const to = document.createElement('input');
   to.value = draft.to;
   to.setAttribute('list', 'map-names');
-  to.oninput = () => { draft.to = to.value.trim(); };
-  toLabel.append(to);
+
+  // Beside the box rather than under it, because it belongs to the box: the name is
+  // only half an answer until you have looked at the place.
+  const row = document.createElement('span');
+  row.className = 'with-button';
+  const go = document.createElement('button');
+  go.className = 'icon-button';
+  go.title = 'open that map';
+  go.append(icon('map'));
+  // Not every destination is a map you can open. Of the game's 666 exits, 542 lead to
+  // one; 122 lead to a world tile, which is a .flsc.lz and has no map to edit; and
+  // three names are instructions resolved when the player goes through them.
+  const openable = () => Boolean(draft.to)
+    && (state.files || []).some(f => f.name === draft.to);
+  const refresh = () => {
+    go.disabled = !openable();
+    go.title = openable() ? `open ${draft.to}`
+      : SENTINELS.includes(draft.to) ? whatSentinel(draft.to)
+        : draft.to ? `${draft.to} is not a map this can open - probably a world tile`
+          : 'nowhere to open';
+  };
+  to.oninput = () => { draft.to = to.value.trim(); refresh(); };
+  go.onclick = () => { if (openable()) openDoc('map', draft.to); };
+  refresh();
+  row.append(to, go);
+  toLabel.append(row);
   panel.append(toLabel);
 
   fillMapNames();
 
   panel.append(field('arrival index', 'toIndex',
     'Which exit on the far map the player comes out of.'));
+  panel.append(field('common model', 'modelNo',
+    'The model the destination loads, written after a # in the same field as its name. '
+    + '-1 for none. 55 of the game\u2019s exits use one.'));
+
+  const whatIs = document.createElement('p');
+  whatIs.className = 'none';
+  whatIs.textContent = SENTINELS.includes(draft.to)
+    ? whatSentinel(draft.to)
+    : (state.files || []).some(f => f.name === draft.to)
+      ? 'A map, so it can be opened and edited.'
+      : draft.to
+        ? 'Not a map with characters of its own - most likely a world tile, which is a '
+          + '.flsc.lz and has nothing here to edit.'
+        : 'This exit names nowhere.';
+  panel.append(whatIs);
 
   // --------------------------------------------------------- where it lands
 
@@ -1247,6 +1300,59 @@ function buildExit(exit, index) {
     + 'middle renumbers everything that named a slot after it.';
   panel.append(note);
   return panel;
+}
+
+/// What names a cast in this map's script, and the lines it says.
+///
+/// A cast number is identity rather than position - the game finds one by scanning for
+/// it - so nothing here has to be renumbered when a character is deleted. What this is
+/// for is the other question: what would be left reaching for somebody who is gone.
+function addCastReferences(panel, character) {
+  const head = document.createElement('h3');
+  head.textContent = 'Referred to by';
+  const list = document.createElement('ul');
+  list.className = 'lines';
+  const waiting = document.createElement('li');
+  waiting.textContent = 'looking…';
+  list.append(waiting);
+  panel.append(head, list);
+
+  api(`/api/map/cast/references?name=${encodeURIComponent(mapState.name)}`
+    + `&cast=${character.cast}`).then(found => {
+    list.textContent = '';
+    if (!found.to.length) {
+      const none = document.createElement('li');
+      none.textContent = 'nothing in the script names cast ' + character.cast;
+      list.append(none);
+    }
+    for (const one of found.to) {
+      const row = document.createElement('li');
+      row.className = 'ref';
+      const where = document.createElement('i');
+      where.textContent = one.kind;
+      const what = document.createElement('code');
+      what.textContent = one.text;
+      row.append(where, what);
+      row.title = one.what + ' · line ' + one.line;
+      // The script is a document like any other, and this is a line in it.
+      row.onclick = async () => {
+        const doc = await openDoc('script', `files/${mapState.name}.script`);
+        if (doc) revealLine(doc, one.line);
+      };
+      list.append(row);
+    }
+    if (found.says.length) {
+      const said = document.createElement('li');
+      said.textContent = `says ${found.says.length} line`
+        + `${found.says.length === 1 ? '' : 's'}: ${found.says.join(', ')}`;
+      list.append(said);
+    }
+  }).catch(() => {
+    list.textContent = '';
+    const failed = document.createElement('li');
+    failed.textContent = 'could not read the script';
+    list.append(failed);
+  });
 }
 
 function buildCharacter(character) {
@@ -1416,5 +1522,7 @@ function buildCharacter(character) {
     if (at >= 0) goToLine(text, text.value.slice(0, at).split('\n').length, 1);
   };
   panel.append(link);
+
+  addCastReferences(panel, character);
   return panel;
 }

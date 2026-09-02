@@ -266,6 +266,16 @@ namespace FF3.ContentTool.Editor
 					SendJson(context, MapExits.State(_workspace, Query(context, "name")));
 					return;
 
+				case "/api/map/cast/references":
+					SendJson(context, new
+					{
+						to = _references.ToCast(Query(context, "name"),
+							int.Parse(Query(context, "cast"), CultureInfo.InvariantCulture)),
+						says = _references.MessagesOf(Query(context, "name"),
+							int.Parse(Query(context, "cast"), CultureInfo.InvariantCulture))
+					});
+					return;
+
 				case "/api/map/exit/references":
 					SendJson(context, new
 					{
@@ -540,6 +550,7 @@ namespace FF3.ContentTool.Editor
 					Z = (int)body["z"],
 					RotationY = (int)body["rotationY"],
 					To = (string)body["to"],
+					ModelNo = body["modelNo"] == null ? -1 : (int)body["modelNo"],
 					ToIndex = (int)body["toIndex"],
 					ConditionFlag = (int)body["conditionFlag"],
 					Kind = (int)body["kind"]
@@ -560,6 +571,7 @@ namespace FF3.ContentTool.Editor
 					Z = (int)body["z"],
 					RotationY = body["rotationY"] == null ? 0 : (int)body["rotationY"],
 					To = (string)body["to"],
+					ModelNo = body["modelNo"] == null ? -1 : (int)body["modelNo"],
 					ToIndex = body["toIndex"] == null ? 0 : (int)body["toIndex"],
 					ConditionFlag = body["conditionFlag"] == null
 						? 1 : (int)body["conditionFlag"],

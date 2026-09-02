@@ -68,7 +68,19 @@ namespace FF3.ContentTool.Editor
 		/// two formats for the same idea, in the same map.
 		/// </summary>
 		public int RotationY { get; set; }
+		/// <summary>The map it leads to, without the model number.</summary>
 		public string To { get; set; }
+
+		/// <summary>
+		/// The common model the destination loads, or -1 for none.
+		///
+		/// The field in the file is one string, and the game splits it on a '#':
+		/// NextMapName is everything before, ModelNo is atoi of everything after. 55 of
+		/// the game's exits use it - "t23_02#04" is Gysahl's inn - and reading the whole
+		/// string as a map name makes all 55 look like they lead nowhere.
+		/// </summary>
+		public int ModelNo { get; set; } = -1;
+
 		public int ToIndex { get; set; }
 		public int ConditionFlag { get; set; }
 		public int Kind { get; set; }
@@ -303,7 +315,8 @@ namespace FF3.ContentTool.Editor
 						Z = position[2],
 						RotationY = (int)Math.Round(
 							Number(record, "plRot") * 360.0 / 65536.0) % 360,
-						To = Name(record, "nextMapName"),
+						To = Destination(record, out int modelNo),
+						ModelNo = modelNo,
 						ToIndex = Number(record, "nextMapIndex"),
 						ConditionFlag = Number(record, "conditionFlag"),
 						Kind = Number(record, "kind")
@@ -340,6 +353,27 @@ namespace FF3.ContentTool.Editor
 				}
 			}
 			return values;
+		}
+
+		/// <summary>
+		/// The destination, split the way CMapJumpParameter splits it.
+		/// </summary>
+		private static string Destination(System.Text.Json.Nodes.JsonObject record,
+			out int modelNo)
+		{
+			modelNo = -1;
+			string raw = Name(record, "nextMapName");
+			if (string.IsNullOrEmpty(raw)) return raw;
+
+			int hash = raw.IndexOf('#');
+			if (hash < 0) return raw;
+
+			if (int.TryParse(raw.Substring(hash + 1), NumberStyles.Integer,
+				CultureInfo.InvariantCulture, out int number))
+			{
+				modelNo = number;
+			}
+			return raw.Substring(0, hash);
 		}
 
 		/// <summary>A fixed length byte field read back as the name it holds.</summary>

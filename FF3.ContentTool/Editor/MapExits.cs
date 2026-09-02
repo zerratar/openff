@@ -1,4 +1,4 @@
-// Exits: making them, changing them, and taking them away.
+﻿// Exits: making them, changing them, and taking them away.
 //
 // An exit is two halves in two files, and both have to be there:
 //
@@ -45,6 +45,9 @@ namespace FF3.ContentTool.Editor
 		/// <summary>Degrees, as the panel shows them.</summary>
 		public int RotationY { get; set; }
 		public string To { get; set; }
+
+		/// <summary>The common model the destination loads, written after a '#'.</summary>
+		public int ModelNo { get; set; } = -1;
 		public int ToIndex { get; set; }
 		public int ConditionFlag { get; set; }
 		public int Kind { get; set; }
@@ -161,19 +164,22 @@ namespace FF3.ContentTool.Editor
 			if (edit.To != null)
 			{
 				string wanted = edit.To.Trim();
+				if (edit.ModelNo >= 0)
+				{
+					// Two digits, zero padded. atoi does not care, but every one of the
+					// 42 the game ships is written that way and byte-for-byte is the
+					// bar everything else here is held to.
+					wanted += "#" + edit.ModelNo.ToString("00", CultureInfo.InvariantCulture);
+				}
 				if (wanted.Length >= NameLength)
 				{
-					return "a map name has " + NameLength
+					return "the destination has " + NameLength
 						+ " bytes to fit in, with room for the zero that ends it, and "
 						+ wanted + " is " + wanted.Length;
 				}
-				if (wanted.Length > 0 && !workspace.Exists("files/" + wanted + ".hich"))
-				{
-					// Not refused - a name can lead somewhere this copy of the game does
-					// not have - but worth saying, because a typo looks exactly like this.
-					result.Notes.Add("there is no map called " + wanted
-						+ " in the content, so this exit leads nowhere that exists");
-				}
+
+				string trouble = Unknown(workspace, edit.To.Trim());
+				if (trouble != null) result.Notes.Add(trouble);
 				SetName(record, "nextMapName", wanted);
 			}
 
@@ -181,6 +187,40 @@ namespace FF3.ContentTool.Editor
 			SetNumber(record, "conditionFlag", edit.ConditionFlag);
 			SetNumber(record, "kind", edit.Kind);
 			return null;
+		}
+
+		/// <summary>
+		/// The three names that are not places but instructions, resolved when the
+		/// player goes through: go back to the world map, the town, or the field you
+		/// left the Invincible on.
+		/// </summary>
+		private static readonly string[] Sentinels =
+			{ "back_field_map", "back_town_map", "back_from_inv" };
+
+		/// <summary>
+		/// Why a destination looks wrong, or null when it is fine.
+		///
+		/// Not every destination is a map with a .hich. Of the game's 666 exits, 542 are;
+		/// 122 lead to a world tile, which is a .flsc.lz and is spelled in a different
+		/// case in the two places it appears; and two are sentinels. Warning about any of
+		/// those would be crying wolf on a fifth of the game.
+		/// </summary>
+		public static string Unknown(Workspace workspace, string name)
+		{
+			if (string.IsNullOrEmpty(name)) return null;
+			if (Sentinels.Contains(name, StringComparer.OrdinalIgnoreCase)) return null;
+			if (workspace.Exists("files/" + name + ".hich")) return null;
+
+			// The world tiles are lower case on disk and upper case in the exits.
+			if (workspace.List(".lz").Any(entry => string.Equals(entry.Name,
+				"files/" + name + ".flsc.lz", StringComparison.OrdinalIgnoreCase)))
+			{
+				return null;
+			}
+
+			return "nothing in the content is called " + name
+				+ " - not a map, not a world tile, and not one of the three names the "
+				+ "game resolves at run time";
 		}
 
 		/// <summary>Where a map keeps the half of its exits that is geometry.</summary>

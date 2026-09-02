@@ -16,7 +16,14 @@
 // Which leaves exactly one thing in the map data that is addressed by position: the
 // jumps chain, whose rows are named by slot number. That is why a general reference
 // graph over all 6,962 files would be almost entirely empty, and why this indexes the
-// one coupling that is real instead.
+// couplings that are real instead.
+//
+// There are two of them. Exit slots, below, which have to be renumbered when one is
+// removed. And cast numbers, which do not - a cast is found by scanning for its number,
+// so nothing shifts - but which are still worth being able to look up before deleting a
+// character, because what is left behind is a script reaching for somebody who is not
+// there. 73 commands take a cast number, and six take a second one as well; that list is
+// generated from the game into CastArgs.cs rather than written out by hand.
 //
 // An exit slot N of map M is named in three places, and all three were counted rather
 // than assumed:
@@ -64,6 +71,17 @@ namespace FF3.ContentTool.Editor
 		/// <summary>Which of that map's exits, when the referrer is an arrival.</summary>
 		public int FromSlot { get; set; }
 
+		public string What { get; set; }
+	}
+
+	/// <summary>One place in a script that names a cast.</summary>
+	internal sealed class CastReference
+	{
+		/// <summary>"declaration", "boot", "treasure", "code" or "command".</summary>
+		public string Kind { get; set; }
+
+		public int Line { get; set; }
+		public string Text { get; set; }
 		public string What { get; set; }
 	}
 
@@ -181,6 +199,155 @@ namespace FF3.ContentTool.Editor
 			Build();
 			return _scripts.TryGetValue(map, out Dictionary<int, List<ExitReference>> named)
 				&& named.Count > 0;
+		}
+
+		/// <summary>
+		/// Everything in a map's script that names one of its casts.
+		///
+		/// A cast number is how a script reaches a placed character, and 73 commands take
+		/// one - see CastArgs, which is generated from the game rather than written out,
+		/// because six of them take a second cast as well and a hand written list would
+		/// have missed those.
+		///
+		/// This is not the same question as "what would deleting it break". A cast is
+		/// found by scanning for its number, so nothing depends on where its row sits;
+		/// what matters is what would be left pointing at a character that is gone.
+		/// </summary>
+		public List<CastReference> ToCast(string map, int cast)
+		{
+			List<CastReference> found = new List<CastReference>();
+			string scriptName = "files/" + map + ".script";
+			if (!_workspace.Exists(scriptName)) return found;
+
+			string source;
+			try
+			{
+				ScriptFile script = ScriptFile.Read(_workspace.Read(scriptName));
+				using StringWriter writer = new StringWriter();
+				Ffs.SourceWriter.Write(writer, script, scriptName, _lookupMessage);
+				source = writer.ToString();
+			}
+			catch (Exception)
+			{
+				return found;
+			}
+
+			string number = cast.ToString(CultureInfo.InvariantCulture);
+			string[] lines = source.Replace("\r\n", "\n").Split('\n');
+
+			Regex castHead = new Regex(@"^\s*cast\s+" + number + @"\s*[{;]");
+			Regex ownLabel = new Regex(@"^\s*cast" + number + @"_(\w+)\s*:");
+			Regex call = new Regex(@"\b([A-Za-z_]\w*)\s*\(([^)]*)\)");
+
+			for (int i = 0; i < lines.Length; i++)
+			{
+				string line = lines[i];
+
+				if (castHead.IsMatch(line))
+				{
+					found.Add(new CastReference
+					{
+						Kind = "declaration",
+						Line = i + 1,
+						Text = line.Trim(),
+						What = "the cast block that makes it reachable"
+					});
+					continue;
+				}
+
+				Match label = ownLabel.Match(line);
+				if (label.Success)
+				{
+					found.Add(new CastReference
+					{
+						Kind = "code",
+						Line = i + 1,
+						Text = line.Trim(),
+						What = "its " + label.Groups[1].Value + " block"
+					});
+					continue;
+				}
+
+				foreach (Match found_ in call.Matches(line))
+				{
+					string name = found_.Groups[1].Value;
+					if (!CastArgs.Positions.TryGetValue(name, out int[] positions)) continue;
+
+					string[] args = found_.Groups[2].Value.Split(',');
+					foreach (int at in positions)
+					{
+						if (at >= args.Length) continue;
+						if (args[at].Trim() != number) continue;
+
+						found.Add(new CastReference
+						{
+							Kind = name.StartsWith("boot", StringComparison.Ordinal)
+								? "boot"
+								: name.StartsWith("setTreasure", StringComparison.Ordinal)
+									? "treasure"
+									: "command",
+							Line = i + 1,
+							Text = line.Trim(),
+							What = name + ", argument " + (at + 1)
+						});
+						break;
+					}
+				}
+			}
+
+			return found;
+		}
+
+		/// <summary>
+		/// The lines a cast says, found the same way DeleteCharacter finds them - by
+		/// walking the code under its own labels.
+		/// </summary>
+		public List<uint> MessagesOf(string map, int cast)
+		{
+			List<uint> said = new List<uint>();
+			string scriptName = "files/" + map + ".script";
+			if (!_workspace.Exists(scriptName)) return said;
+
+			string source;
+			try
+			{
+				ScriptFile script = ScriptFile.Read(_workspace.Read(scriptName));
+				using StringWriter writer = new StringWriter();
+				Ffs.SourceWriter.Write(writer, script, scriptName, _lookupMessage);
+				source = writer.ToString();
+			}
+			catch (Exception)
+			{
+				return said;
+			}
+
+			Regex ownLabel = new Regex(@"^\s*cast"
+				+ cast.ToString(CultureInfo.InvariantCulture) + @"_\w+\s*:");
+			Regex anyLabel = new Regex(@"^\s*[A-Za-z_]\w*\s*:");
+			Regex message = new Regex(
+				@"startMessage2?\s*\(\s*\d+\s*,\s*(0[xX][0-9a-fA-F]+|\d+)");
+
+			bool inside = false;
+			foreach (string line in source.Replace("\r\n", "\n").Split('\n'))
+			{
+				if (ownLabel.IsMatch(line)) inside = true;
+				else if (inside && anyLabel.IsMatch(line)) inside = false;
+				if (!inside) continue;
+
+				foreach (Match hit in message.Matches(line))
+				{
+					string digits = hit.Groups[1].Value;
+					bool hex = digits.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
+					if (uint.TryParse(hex ? digits.Substring(2) : digits,
+						hex ? NumberStyles.HexNumber : NumberStyles.Integer,
+						CultureInfo.InvariantCulture, out uint id))
+					{
+						said.Add(id);
+					}
+				}
+			}
+
+			return said.Distinct().ToList();
 		}
 
 		private void Build()

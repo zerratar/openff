@@ -356,6 +356,16 @@ button {
 }
 button:hover { border-color: #3c4552; }
 button.primary { background: #2b4a7a; border-color: #37619c; }
+/* A box with a button beside it rather than under it - the button belongs to the box. */
+.with-button { display: flex; gap: 5px; align-items: stretch; margin-top: 3px; }
+.with-button input { margin-top: 0; }
+.with-button button { flex: 0 0 auto; padding: 3px 7px; }
+.with-button button:disabled { opacity: .4; cursor: default; }
+/* One place that names the thing being inspected. Clicking goes there. */
+#inspector li.ref { cursor: pointer; display: flex; gap: 7px; align-items: baseline; }
+#inspector li.ref:hover { background: #232c3a; }
+#inspector li.ref i { color: var(--dim); font-style: normal; font-size: 11px; flex: 0 0 66px; }
+#inspector li.ref code { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* For the buttons that take something away rather than add one. */
 button.danger { background: #5a2b2b; border-color: #7a3838; }
 button.danger:hover { background: #6b3232; }
