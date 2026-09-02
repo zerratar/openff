@@ -33,7 +33,12 @@ function say(message, tone) {
 // ------------------------------------------------------------------- file list
 
 async function loadList() {
-  if (state.kind === 'map') {
+  if (state.kind === 'image') {
+    state.images = await api('/api/images');
+    state.files = state.images.map(image => ({
+      name: image.name, overridden: image.overridden
+    }));
+  } else if (state.kind === 'map') {
     const maps = await api('/api/maps');
     state.files = maps.map(name => ({ name, overridden: false }));
   } else if (state.kind === 'audio') {
@@ -81,6 +86,7 @@ async function open(name) {
     else if (state.kind === 'menu') await openMenu(name);
     else if (state.kind === 'table') await openTable(name);
     else if (state.kind === 'audio') await openAudio(name);
+    else if (state.kind === 'image') await openImage(name);
     else await openText(name);
     say('');
   } catch (error) {
@@ -718,6 +724,52 @@ function drawTable(node, chain, withPadding, filter) {
     }
     table.append(row);
   });
+}
+
+// ----------------------------------------------------------------------- images
+
+async function openImage(name) {
+  const image = state.images.find(i => i.name === name);
+  const node = view('image', name, image.overridden);
+
+  const picture = $('.picture', node);
+  const wrap = $('.image-wrap', node);
+  // Cache-bust, so a replaced picture is the one that shows.
+  picture.src = `/api/image?name=${encodeURIComponent(name)}&t=${Date.now()}`;
+
+  $('.facts', node).textContent = image.problem
+    ? image.problem
+    : `${image.width} × ${image.height}  ·  ${image.colour}, ${image.depth}-bit  ·  `
+      + `${(image.bytes / 1024).toFixed(1)} kB`;
+
+  const checker = $('.checker', node);
+  const paint = () => wrap.classList.toggle('checker', checker.checked);
+  checker.onchange = paint;
+  paint();
+
+  const picker = $('.picker', node);
+  $('.replace', node).onclick = () => picker.click();
+  picker.onchange = async () => {
+    const file = picker.files[0];
+    if (!file) return;
+    say('uploading…');
+    const response = await fetch(`/api/image/upload?name=${encodeURIComponent(name)}`, {
+      method: 'POST',
+      body: file
+    });
+    const result = await response.json();
+    if (!result.ok) {
+      say(result.error, 'bad');
+      return;
+    }
+    markOverridden(name, true);
+    picture.src = `/api/image?name=${encodeURIComponent(name)}&t=${Date.now()}`;
+    say(result.resized
+      ? `replaced, but it is ${result.width}×${result.height} and the original was `
+        + `${result.wasWidth}×${result.wasHeight} - the game may expect the old size`
+      : `replaced, ${result.width}×${result.height}`,
+      result.resized ? 'bad' : 'good');
+  };
 }
 
 // ------------------------------------------------------------------------ audio

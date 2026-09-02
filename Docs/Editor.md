@@ -148,6 +148,16 @@ Every message in a `.msd`, editable in place. Messages that are not valid UTF-8 
 marked `latin1` and are held byte for byte - see the encoding section of
 `Docs/Text.md` before changing one.
 
+## Images
+
+All 542 pictures in the game, which are PNGs rather than the NDS formats their
+extensions claim - see `Docs/Graphics.md`. Each shows at its real size on a
+checkerboard, so transparency is obvious, with its dimensions, colour type and size.
+
+**Replace…** takes a PNG from disk. It is checked before anything is written, and a
+different size is allowed but called out, because the game lays some of these out
+expecting a particular one. This is the only art that can be replaced today.
+
 ## Audio
 
 445 sounds - 30 music tracks and the rest effects - with their length, format, parts
@@ -201,9 +211,11 @@ switch files.
   having the id filled in, or a map, or an item, is the obvious next step, and it wants
   a per-operand note saying which table an argument points into.
 
-- **Graphics** - models, textures and sprites are still opaque. That is what stands
-  between the preview and a menu that looks like the game, and between this and any
-  kind of map editor.
+- **3D graphics** - models and textures are NitroSDK `BMD0`/`BTX0` inside an `NMDP`
+  wrapper and are not decoded. That is what stands between the map view and a town
+  rather than dots. The 2D pictures are readable; what is missing for a menu that
+  looks like the game is `.NCER` and `.NSCR`, which say which part of a sheet is used
+  and where it goes. `Docs/Graphics.md`.
 - **Audio** - deliberately untouched.
 - **New menus** - adding a widget means duplicating one.
 - **New maps** - cloning one is plausible; authoring geometry is not, because models

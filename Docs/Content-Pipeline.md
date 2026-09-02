@@ -243,9 +243,9 @@ See `Docs/Compression.md`.
 ## Not decoded yet
 
 What is left is the NitroSDK data itself: `NMDP` models and textures, `NAMP` and
-`NCAP` animation, `MCL` collision, and the 2D `.NCGR`/`.NSCR`/`.NCER` graphics. The
-archive extractor and the LZ decompressor hand over the bytes; reading them is its own
-project, and the one that a visual editor would need first.
+`NCAP` animation, `MCL` collision, and the `.NSCR`/`.NCER` tables. The pictures
+themselves turned out to need no decoder at all - all 542 are PNGs. `Docs/Graphics.md`
+has what each format holds and which order is worth taking them in.
 
 `--dump=<dir>` is the shortcut in the meantime: the running game writes out every
 image blob it decodes, which covers the art without decoding anything by hand.

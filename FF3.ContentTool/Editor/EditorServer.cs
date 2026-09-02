@@ -181,6 +181,18 @@ namespace FF3.ContentTool.Editor
 					AddToMap(context);
 					return;
 
+				case "/api/images":
+					SendJson(context, Images.List(_workspace));
+					return;
+
+				case "/api/image":
+					GetImage(context);
+					return;
+
+				case "/api/image/upload":
+					UploadImage(context);
+					return;
+
 				case "/api/audio":
 					SendJson(context, Audio.List(_workspace.ContentDirectory, _workspace));
 					return;
@@ -378,6 +390,73 @@ namespace FF3.ContentTool.Editor
 
 			int changed = MapModel.Save(_workspace, map, moves);
 			SendJson(context, new { ok = true, changed, overridden = true });
+		}
+
+		/// <summary>The picture itself, straight through - it is already a PNG.</summary>
+		private void GetImage(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			try
+			{
+				Send(context, 200, "image/png", _workspace.Read(name));
+			}
+			catch (Exception)
+			{
+				Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such image"));
+			}
+		}
+
+		/// <summary>
+		/// Replaces one. The body is the PNG itself rather than a form, because that is
+		/// all there is to send. It is checked before it is written - a file the game
+		/// cannot read is worse than no change at all - and the old size is reported
+		/// back, since the game lays some of these out expecting a particular one.
+		/// </summary>
+		private void UploadImage(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			using MemoryStream body = new MemoryStream();
+			context.Request.InputStream.CopyTo(body);
+			byte[] data = body.ToArray();
+
+			ImageInfo was;
+			try
+			{
+				was = Images.Describe(_workspace.Read(name));
+			}
+			catch (Exception ex)
+			{
+				SendJson(context, new { ok = false, error = "cannot read the original: " + ex.Message });
+				return;
+			}
+
+			ImageInfo now;
+			try
+			{
+				now = Images.Describe(data);
+			}
+			catch (Exception)
+			{
+				SendJson(context, new
+				{
+					ok = false,
+					error = "that file is not a PNG. The game reads these as PNG, so it "
+						+ "has to be one."
+				});
+				return;
+			}
+
+			_workspace.Write(name, data);
+			SendJson(context, new
+			{
+				ok = true,
+				bytes = data.Length,
+				width = now.Width,
+				height = now.Height,
+				resized = now.Width != was.Width || now.Height != was.Height,
+				wasWidth = was.Width,
+				wasHeight = was.Height
+			});
 		}
 
 		/// <summary>One part of a sound, as a wav the browser can play.</summary>

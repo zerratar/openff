@@ -15,6 +15,7 @@
     <button data-kind="menu">Menus</button>
     <button data-kind="text">Text</button>
     <button data-kind="table">Tables</button>
+    <button data-kind="image">Images</button>
     <button data-kind="audio">Audio</button>
   </nav>
   <span id="status"></span>
@@ -150,6 +151,23 @@
       <div class="map-wrap"><div class="map-scale"><div class="map"></div></div></div>
       <div class="inspector"><p class="empty">Pick something on the map.</p></div>
     </div>
+  </div>
+</template>
+
+<!-- Images -->
+<template id="view-image">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="badge override">override</span>
+      <span class="facts"></span>
+      <label class="toggle"><input type="checkbox" class="checker" checked> checkerboard</label>
+      <span class="grow"></span>
+      <button class="replace">Replace…</button>
+      <button class="revert">Revert</button>
+      <input type="file" class="picker" accept="image/png" hidden>
+    </div>
+    <div class="image-wrap"><img class="picture" alt=""></div>
   </div>
 </template>
 

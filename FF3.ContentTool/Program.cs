@@ -39,10 +39,13 @@ namespace FF3.ContentTool
 	{
 		private static int Main(string[] args)
 		{
-			if (args.Length == 0)
+			// The editor is what this is mostly used for now, so it is what you get
+			// when no command is named. Options still work: `ff3content --port=5051`
+			// opens the editor on that port. A word that is not a command is a typo,
+			// not an invitation to open the editor and hope.
+			if (args.Length == 0 || args[0].StartsWith("-", StringComparison.Ordinal))
 			{
-				Usage();
-				return 1;
+				return Editor(args);
 			}
 
 			try
@@ -163,6 +166,7 @@ namespace FF3.ContentTool
 		private static void Usage()
 		{
 			Console.Error.WriteLine("usage:");
+			Console.Error.WriteLine("  (no command)                      open the editor");
 			Console.Error.WriteLine("  info    <file.xnb | directory>");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");
