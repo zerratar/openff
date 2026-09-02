@@ -220,6 +220,10 @@ namespace FF3.ContentTool.Editor
 					GetItems(context);
 					return;
 
+				case "/api/map/exit/save":
+					SaveExit(context);
+					return;
+
 				case "/api/images":
 					SendJson(context, Images.List(_workspace));
 					return;
@@ -467,6 +471,26 @@ namespace FF3.ContentTool.Editor
 			_characterIds.Invalidate();
 			if (added.Ok) _flags.Invalidate();
 			SendJson(context, added);
+		}
+
+		/// <summary>Changes where one exit leads.</summary>
+		private void SaveExit(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			MapExitResult saved = MapExits.Save(_workspace, (string)body["name"],
+				new MapExitEdit
+				{
+					Index = (int)body["index"],
+					X = (int)body["x"],
+					Y = (int)body["y"],
+					Z = (int)body["z"],
+					RotationY = (int)body["rotationY"],
+					To = (string)body["to"],
+					ToIndex = (int)body["toIndex"],
+					ConditionFlag = (int)body["conditionFlag"],
+					Kind = (int)body["kind"]
+				});
+			SendJson(context, saved);
 		}
 
 		/// <summary>

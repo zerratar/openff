@@ -852,7 +852,8 @@ function inspectRef(doc, ref) {
   }
 
   if (ref.startsWith('exit:')) {
-    return buildExit(scene.exits[Number(ref.slice(5))]);
+    const index = Number(ref.slice(5));
+    return buildExit(scene.exits[index], index);
   }
   return null;
 }
@@ -899,30 +900,139 @@ function selectCharacter(node, character, pin) {
   }
 }
 
-function buildExit(exit) {
+// An exit, and what can be done to one.
+//
+// Only half of an exit is data. The row here says where the player lands, on which map,
+// facing which way; what makes it fire is a region of the map's collision mesh carrying
+// one of twelve jump attributes, and that lives in <map>_col.mcl.lz, which nothing here
+// reads yet. So an exit can be pointed somewhere else but not created - a new row with
+// no region to trigger it would sit in the file and never fire.
+function buildExit(exit, index) {
   const panel = document.createElement('div');
   if (!exit) return panel;
 
+  const doc = activeDoc;
   const title = document.createElement('h2');
   title.textContent = `Exit to ${exit.to || '(nowhere)'}`;
   const sub = document.createElement('p');
   sub.className = 'sub';
-  sub.textContent = `arrives at index ${exit.toIndex} · needs flag ${exit.conditionFlag}`
-    + ` · kind ${exit.kind}`;
+  sub.textContent = `slot ${index + 1} of ${(doc.data.scene.exits || []).length}`;
   panel.append(title, sub);
 
-  const where = document.createElement('h3');
-  where.textContent = 'Where';
-  panel.append(where);
-  const at = document.createElement('p');
-  at.className = 'none';
-  at.textContent = `${exit.x}, ${exit.y}, ${exit.z} · facing ${exit.rotationY ?? 0}°`;
-  panel.append(at);
+  // The row is edited in place and written when Save is pressed, so the numbers can be
+  // moved around without each keystroke touching the file.
+  const draft = {
+    index,
+    x: exit.x, y: exit.y, z: exit.z,
+    rotationY: exit.rotationY || 0,
+    to: exit.to || '',
+    toIndex: exit.toIndex || 0,
+    conditionFlag: exit.conditionFlag || 0,
+    kind: exit.kind || 0
+  };
+
+  const field = (label, key, hint) => {
+    const wrap = document.createElement('label');
+    wrap.textContent = label;
+    const box = document.createElement('input');
+    box.value = draft[key];
+    box.oninput = () => {
+      const value = key === 'to' ? box.value : parseInt(box.value, 10);
+      draft[key] = key === 'to' ? value : (Number.isNaN(value) ? 0 : value);
+    };
+    if (hint) box.title = hint;
+    wrap.append(box);
+    return wrap;
+  };
+
+  // ------------------------------------------------------------ where it goes
+
+  const toHead = document.createElement('h3');
+  toHead.textContent = 'Leads to';
+  panel.append(toHead);
+
+  const toLabel = document.createElement('label');
+  toLabel.className = 'wide';
+  toLabel.textContent = 'map';
+  const to = document.createElement('input');
+  to.value = draft.to;
+  to.setAttribute('list', 'map-names');
+  to.oninput = () => { draft.to = to.value.trim(); };
+  toLabel.append(to);
+  panel.append(toLabel);
+
+  // Every map, so the name can be chosen rather than remembered. A datalist rather than
+  // a dropdown, because 356 names are worth typing into.
+  let names = $('#map-names');
+  if (!names) {
+    names = document.createElement('datalist');
+    names.id = 'map-names';
+    document.body.append(names);
+  }
+  if (names.childElementCount !== (state.files || []).length && state.browse === 'map') {
+    names.textContent = '';
+    for (const file of state.files) {
+      const option = document.createElement('option');
+      option.value = file.name;
+      names.append(option);
+    }
+  }
+
+  panel.append(field('arrival index', 'toIndex',
+    'Which exit on the far map the player comes out of.'));
+
+  // --------------------------------------------------------- where it lands
+
+  const whereHead = document.createElement('h3');
+  whereHead.textContent = 'Arrives at';
+  panel.append(whereHead);
+  panel.append(field('x', 'x'), field('y', 'y'), field('z', 'z'),
+    field('facing', 'rotationY',
+      'Degrees. The file keeps it as a 16 bit angle where a whole turn is 65536.'));
+
+  // ------------------------------------------------------------- conditions
+
+  const whenHead = document.createElement('h3');
+  whenHead.textContent = 'Conditions';
+  panel.append(whenHead);
+  panel.append(field('flag', 'conditionFlag',
+    'What has to be true to go through. 1 is a plain exit - 646 of the game’s 676 '
+    + 'are - 2 wants the whole party Mini, 4 wants the whole party Toad, and 0 never '
+    + 'opens at all.'),
+    field('kind', 'kind',
+      'The door. -1 is no door and just walks through; 0 and up name a door model; '
+      + '800 and up name a story flag in group 0 that opens it for good.'));
+
+  const save = document.createElement('button');
+  save.className = 'primary';
+  save.textContent = 'Save exit';
+  save.onclick = async () => {
+    save.disabled = true;
+    try {
+      const result = await api('/api/map/exit/save', { name: mapState.name, ...draft });
+      if (!result.ok) {
+        say(result.error, 'bad');
+        save.disabled = false;
+        return;
+      }
+      for (const note of result.notes || []) say(note);
+      markOverridden(`files/${mapState.name}.pak`, true);
+      say(`exit ${index + 1} now leads to ${draft.to || '(nowhere)'}`, 'good');
+      await open(mapState.name);
+    } catch (error) {
+      say(error.message, 'bad');
+      save.disabled = false;
+    }
+  };
+  panel.append(save);
 
   const note = document.createElement('p');
   note.className = 'none';
-  note.textContent = 'Exits live in the map’s .pak, under jumps. '
-    + 'Edit them in the Tables view; they are not draggable here yet.';
+  note.textContent = 'Only half of an exit is data. This row says where the player '
+    + 'lands; what makes it fire is a region of the map’s collision mesh carrying '
+    + 'one of twelve jump attributes, in ' + mapState.name + '_col.mcl.lz, which '
+    + 'nothing here reads yet. So an exit can be pointed somewhere else, but a new one '
+    + 'cannot be made - a row with no region to trigger it would never fire.';
   panel.append(note);
   return panel;
 }
