@@ -15,12 +15,11 @@
 //
 // The talk sequence is copied from a real NPC rather than invented:
 //
-//   call 2, 0xB6744D73        turn to the player and begin
-//   startMessageWindow 0
-//   startMessage2 0, <id>, 0, 0
-//   deleteMessageWindow 0
-//   call 2, 0xC39DEA76        end the conversation
-//   end
+//   talkBegin();              turn to the player and begin
+//   startMessageWindow(0);
+//   startMessage2(0, <id>, 0, 0);
+//   deleteMessageWindow(0);
+//   talkEnd();                end the conversation
 //
 // Those two calls into the global script appear 1291 and 1185 times across the game.
 
@@ -153,7 +152,7 @@ namespace FF3.ContentTool.Editor
 			int lastBoot = -1;
 			for (int i = 0; i < lines.Length; i++)
 			{
-				if (lines[i].TrimStart().StartsWith("bootPlainCharacter ",
+				if (lines[i].TrimStart().StartsWith("bootPlainCharacter(",
 						StringComparison.Ordinal))
 				{
 					lastBoot = i;
@@ -170,28 +169,25 @@ namespace FF3.ContentTool.Editor
 			List<string> edited = new List<string>(lines.Length + 16);
 			edited.AddRange(lines.Take(lastBoot + 1));
 			edited.Add(string.Format(CultureInfo.InvariantCulture,
-				"    bootPlainCharacter {0}, 0, \"{1}\"", cast, model));
+				"    bootPlainCharacter({0}, 0, \"{1}\");", cast, model));
 			edited.AddRange(lines.Skip(lastBoot + 1));
 
+			// Written in the block form, because this is code a person will read and
+			// edit next - not the flat form the disassembler emits for shipped scripts.
 			edited.Add(string.Empty);
 			edited.Add("// added by the editor");
 			edited.Add("cast " + number + " {");
-			edited.Add("    init = none");
-			edited.Add("    main = cast" + number + "_main");
-			edited.Add("    exit = cast" + number + "_exit");
-			edited.Add("}");
-			edited.Add(string.Empty);
-			edited.Add("cast" + number + "_main:");
-			edited.Add("    call 2, " + TalkBegin);
-			edited.Add("    startMessageWindow 0");
+			edited.Add("    init = none;");
+			edited.Add("    main {");
+			edited.Add("        call(2, " + TalkBegin + ");        // turn to the player");
+			edited.Add("        startMessageWindow(0);");
 			edited.Add(string.Format(CultureInfo.InvariantCulture,
-				"    startMessage2 0, {0}, 0, 0", messageId));
-			edited.Add("    deleteMessageWindow 0");
-			edited.Add("    call 2, " + TalkEnd);
-			edited.Add("    end");
-			edited.Add(string.Empty);
-			edited.Add("cast" + number + "_exit:");
-			edited.Add("    end");
+				"        startMessage2(0, {0}, 0, 0);", messageId));
+			edited.Add("        deleteMessageWindow(0);");
+			edited.Add("        call(2, " + TalkEnd + ");        // end the conversation");
+			edited.Add("    }");
+			edited.Add("    exit { }");
+			edited.Add("}");
 			edited.Add(string.Empty);
 
 			return string.Join(Environment.NewLine, edited);

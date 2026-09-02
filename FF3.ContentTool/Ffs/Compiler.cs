@@ -58,6 +58,11 @@ namespace FF3.ContentTool.Ffs
 		public static byte[] Compile(ScriptDocument document)
 		{
 			List<Diagnostic> problems = new List<Diagnostic>();
+
+			// if, while, for and named functions stop existing here. Everything below
+			// this line sees nothing but labels, instructions and bytes.
+			Lowering.Flatten(document, problems);
+
 			uint codeStart = (uint)(HeaderSize + document.Casts.Count * 16);
 
 			Dictionary<string, uint> labels = Layout(document, codeStart, problems);
@@ -115,7 +120,7 @@ namespace FF3.ContentTool.Ffs
 			Dictionary<string, uint> labels = new Dictionary<string, uint>(StringComparer.Ordinal);
 			uint at = codeStart;
 
-			foreach (CodeItem item in document.Code)
+			foreach (Statement item in document.Code)
 			{
 				switch (item)
 				{
@@ -217,7 +222,7 @@ namespace FF3.ContentTool.Ffs
 			Dictionary<string, uint> labels, List<Diagnostic> problems)
 		{
 			using MemoryStream stream = new MemoryStream();
-			foreach (CodeItem item in document.Code)
+			foreach (Statement item in document.Code)
 			{
 				switch (item)
 				{

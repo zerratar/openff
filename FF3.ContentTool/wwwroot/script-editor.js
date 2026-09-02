@@ -34,47 +34,61 @@ const escapeHtml = text => text
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /// One line of source as highlighted HTML.
+const KEYWORDS = new Set(['map', 'cast', 'function', 'func', 'extern', 'data',
+  'if', 'else', 'while', 'do', 'for', 'goto', 'break', 'continue',
+  'init', 'main', 'exit', 'none']);
+
+const CONDITIONS = new Set(['value', 'flag', 'touch', 'button', 'partyTalkEvent',
+  'useItem_Flag', 'checkPartyPCMemberEnale', 'checkParty_NPCMemberEnale']);
+
+const LABEL = new RegExp('^(\\s*)([A-Za-z_][\\w.]*)(\\s*:)');
+const TOKEN = new RegExp('("(?:[^"' + String.fromCharCode(92, 92) + ']|'
+  + String.fromCharCode(92, 92) + '.)*")'
+  + '|(-?0[xX][0-9a-fA-F]+|-?[0-9]+)'
+  + '|([A-Za-z_][A-Za-z0-9_.]*)', 'g');
+const CALLED = /^\s*\(/;
+
 function highlightLine(line) {
   const comment = line.indexOf('//');
   const code = comment >= 0 ? line.slice(0, comment) : line;
   const trailing = comment >= 0 ? line.slice(comment) : '';
 
   let html = '';
-  let rest = code;
+  let at = 0;
 
-  // A label definition owns its whole line up to the colon.
-  const label = rest.match(/^(\s*)([A-Za-z_][\w.]*)(:)/);
-  if (label) {
-    html += label[1] + `<i class="t-label">${escapeHtml(label[2])}</i>:`;
-    rest = rest.slice(label[0].length);
-  } else {
-    const first = rest.match(/^(\s*)([A-Za-z_][\w.]*)/);
-    if (first) {
-      const word = first[2];
-      const known = ops.byName.has(word);
-      const kind = ['map', 'cast', 'function', 'data'].includes(word) ? 't-key'
-        : known ? 't-op' : 't-unknown';
-      html += first[1] + `<i class="${kind}">${escapeHtml(word)}</i>`;
-      rest = rest.slice(first[0].length);
-    }
+  // A label definition owns the line up to its colon.
+  const label = code.match(LABEL);
+  if (label && !KEYWORDS.has(label[2])) {
+    html += label[1] + '<i class="t-label">' + escapeHtml(label[2]) + '</i>' + label[3];
+    at = label[0].length;
   }
 
-  // Then numbers, strings, keywords and bare words - the arguments.
-  const token = /("(?:[^"\\]|\\.)*")|(-?0[xX][0-9a-fA-F]+|-?\d+)|\b(none|init|main|exit)\b|([A-Za-z_][\w.]*)/g;
-  let at = 0;
+  TOKEN.lastIndex = at;
   let match;
-  while ((match = token.exec(rest)) !== null) {
-    html += escapeHtml(rest.slice(at, match.index));
+  while ((match = TOKEN.exec(code)) !== null) {
+    html += escapeHtml(code.slice(at, match.index));
     const text = escapeHtml(match[0]);
-    if (match[1]) html += `<i class="t-string">${text}</i>`;
-    else if (match[2]) html += `<i class="t-number">${text}</i>`;
-    else if (match[3]) html += `<i class="t-key">${text}</i>`;
-    else html += `<i class="t-name">${text}</i>`;
+
+    if (match[1]) {
+      html += '<i class="t-string">' + text + '</i>';
+    } else if (match[2]) {
+      html += '<i class="t-number">' + text + '</i>';
+    } else {
+      const word = match[3];
+      // A name followed by ( is being called; anything else is a label or a value.
+      const called = CALLED.test(code.slice(match.index + word.length));
+      const kind = KEYWORDS.has(word) ? 't-key'
+        : CONDITIONS.has(word) ? 't-cond'
+        : ops.byName.has(word) ? 't-op'
+        : called ? 't-unknown'
+        : 't-name';
+      html += '<i class="' + kind + '">' + text + '</i>';
+    }
     at = match.index + match[0].length;
   }
-  html += escapeHtml(rest.slice(at));
+  html += escapeHtml(code.slice(at));
 
-  if (trailing) html += `<i class="t-comment">${escapeHtml(trailing)}</i>`;
+  if (trailing) html += '<i class="t-comment">' + escapeHtml(trailing) + '</i>';
   return html;
 }
 
@@ -96,10 +110,10 @@ function caretContext(text) {
   const op = ops.byName.get(words[1]);
   if (!op) return null;
 
-  const args = withoutComment.slice(words[0].length);
-  const argument = args.trim().length === 0 && !args.includes(',')
-    ? 0
-    : args.split(',').length - 1;
+  // Count the commas inside the brackets, so the strip follows the caret along.
+  let args = withoutComment.slice(words[0].length).trimStart();
+  if (args.startsWith('(')) args = args.slice(1);
+  const argument = args.split(',').length - 1;
   return { op, argument };
 }
 
@@ -207,9 +221,10 @@ function setupCompletion(text, list) {
     const typed = upto.slice(lineStart).match(/([A-Za-z_][\w.]*)$/);
     if (!typed) return hide();
     const from = lineStart + typed.index;
-    const suffix = op.operands.length ? ' ' : '';
-    text.value = text.value.slice(0, from) + op.name + suffix + text.value.slice(start);
-    const caret = from + op.name.length + suffix.length;
+    // Insert the call form, caret between the brackets where there are arguments.
+    const insert = op.operands.length ? op.name + '()' : op.name + '();';
+    text.value = text.value.slice(0, from) + insert + text.value.slice(start);
+    const caret = from + op.name.length + (op.operands.length ? 1 : insert.length);
     text.setSelectionRange(caret, caret);
     hide();
     text.dispatchEvent(new Event('input', { bubbles: true }));

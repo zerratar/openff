@@ -2,18 +2,34 @@
 //
 // The grammar, in full:
 //
-//   file        = item*
-//   item        = "map" number
+//   file        = declaration*
+//   declaration = "map" number ";"
 //               | "cast" number "{" entry* "}"
-//               | "function" number "=" label
-//               | label ":"
-//               | "data" number ("," number)*
-//               | mnemonic [ argument ("," argument)* ]
-//   entry       = ("init" | "main" | "exit") "=" (label | "none")
+//               | "function" number "=" target ";"          // an existing table entry
+//               | "func" name "(" ")" block                 // a new one
+//               | "extern" name "(" ")" "=" number "," number ";"
+//               | statement
+//   entry       = ("init" | "main" | "exit") ( "=" target ";" | block )
+//   target      = label | number | "none"
+//
+//   statement   = label ":"
+//               | "if" "(" condition ")" block [ "else" (block | if) ]
+//               | "while" "(" condition ")" block
+//               | "do" block "while" "(" condition ")" ";"
+//               | "for" "(" [call] ";" [condition] ";" [call] ")" block
+//               | "goto" label ";"
+//               | "break" ";" | "continue" ";"
+//               | "data" number ("," number)* ";"
+//               | name "(" [ argument ("," argument)* ] ")" ";"
+//               | block
+//
+//   condition   = "!" condition
+//               | "value" "(" argument "," argument ")" compare argument
+//               | name "(" [ argument ("," argument)* ] ")"
 //   argument    = number | string | label
 //
-// One statement per line. Labels may share a line with the statement that follows
-// them, so "loop: wait 10" is legal, and so is a label on its own line.
+// Statements end at a semicolon and blocks are braced, so a statement can be laid out
+// over as many lines as reads well.
 
 using System;
 using System.Collections.Generic;
@@ -23,6 +39,13 @@ namespace FF3.ContentTool.Ffs
 {
 	internal sealed class Parser
 	{
+		private static readonly HashSet<string> Keywords = new HashSet<string>(StringComparer.Ordinal)
+		{
+			"map", "cast", "function", "func", "extern", "data",
+			"if", "else", "while", "do", "for", "goto", "break", "continue",
+			"init", "main", "exit", "none"
+		};
+
 		private readonly List<Token> _tokens;
 		private int _at;
 
@@ -38,14 +61,27 @@ namespace FF3.ContentTool.Ffs
 
 		private Token Current => _tokens[_at];
 
+		private Token Next => _tokens[Math.Min(_at + 1, _tokens.Count - 1)];
+
 		private Token Take()
 		{
 			return _tokens[_at++];
 		}
 
-		private bool TakeIf(TokenKind kind, string text)
+		private bool TakeIf(string text)
 		{
-			if (Current.Is(kind, text))
+			if (Current.Is(TokenKind.Punctuation, text))
+			{
+				_at++;
+				return true;
+			}
+			return false;
+		}
+
+		private bool TakeWord(string word)
+		{
+			if (Current.Kind == TokenKind.Identifier
+				&& string.Equals(Current.Text, word, StringComparison.Ordinal))
 			{
 				_at++;
 				return true;
@@ -64,7 +100,7 @@ namespace FF3.ContentTool.Ffs
 
 		private void ExpectPunctuation(string text)
 		{
-			if (!TakeIf(TokenKind.Punctuation, text))
+			if (!TakeIf(text))
 			{
 				throw Error("expected '" + text + "', found " + Current);
 			}
@@ -75,81 +111,52 @@ namespace FF3.ContentTool.Ffs
 			return new ScriptSyntaxException(message, Current.Line, Current.Column);
 		}
 
-		private void SkipNewLines()
-		{
-			while (Current.Kind == TokenKind.NewLine)
-			{
-				_at++;
-			}
-		}
-
-		private void EndOfStatement()
-		{
-			if (TakeIf(TokenKind.Punctuation, ";"))
-			{
-				return;
-			}
-			if (Current.Kind == TokenKind.NewLine || Current.Kind == TokenKind.End)
-			{
-				return;
-			}
-			throw Error("expected the end of the line, found " + Current);
-		}
+		// ------------------------------------------------------------- declarations
 
 		private ScriptDocument ParseDocument()
 		{
 			ScriptDocument document = new ScriptDocument();
 			bool sawMap = false;
 
-			while (true)
+			while (Current.Kind != TokenKind.End)
 			{
-				SkipNewLines();
-				if (Current.Kind == TokenKind.End)
-				{
-					break;
-				}
-
 				Token token = Current;
 				if (token.Kind != TokenKind.Identifier)
 				{
-					throw Error("expected a statement, found " + token);
-				}
-
-				// A label is an identifier followed by a colon.
-				if (_tokens[_at + 1].Is(TokenKind.Punctuation, ":"))
-				{
-					_at += 2;
-					document.Code.Add(new LabelItem { Name = token.Text, Token = token });
-					continue;
+					throw Error("expected a declaration or a statement, found " + token);
 				}
 
 				switch (token.Text)
 				{
-					case "map":
+					case "map" when !Next.Is(TokenKind.Punctuation, "("):
 						if (sawMap)
 						{
 							throw Error("map is declared twice");
 						}
 						_at++;
 						document.Map = (int)Expect(TokenKind.Number, "the map number").Value;
+						ExpectPunctuation(";");
 						sawMap = true;
-						EndOfStatement();
 						continue;
 
-					case "cast":
+					case "cast" when !Next.Is(TokenKind.Punctuation, "("):
 						document.Casts.Add(ParseCast());
 						continue;
 
-					case "function":
-						document.Functions.Add(ParseFunction());
+					case "function" when !Next.Is(TokenKind.Punctuation, "("):
+						document.Functions.Add(ParseFunctionPointer());
 						continue;
 
-					case "data":
-						document.Code.Add(ParseData());
+					case "func":
+						document.Functions.Add(ParseFunctionBody());
+						continue;
+
+					case "extern":
+						document.Externs.Add(ParseExtern());
 						continue;
 
 					default:
-						document.Code.Add(ParseInstruction());
+						document.Code.Add(ParseStatement());
 						continue;
 				}
 			}
@@ -159,7 +166,7 @@ namespace FF3.ContentTool.Ffs
 
 		private CastDeclaration ParseCast()
 		{
-			Token token = Take();                       // cast
+			Token token = Take();
 			CastDeclaration cast = new CastDeclaration
 			{
 				Number = Expect(TokenKind.Number, "the cast number").Value,
@@ -167,54 +174,88 @@ namespace FF3.ContentTool.Ffs
 			};
 
 			ExpectPunctuation("{");
-			while (true)
+			while (!TakeIf("}"))
 			{
-				SkipNewLines();
-				if (TakeIf(TokenKind.Punctuation, "}"))
-				{
-					break;
-				}
-
 				Token entry = Expect(TokenKind.Identifier, "init, main or exit");
-				ExpectPunctuation("=");
-				EntryTarget label = ParseTarget();
+				EntryTarget target;
+
+				if (Current.Is(TokenKind.Punctuation, "{"))
+				{
+					target = new EntryTarget { Body = ParseBlock() };
+				}
+				else
+				{
+					ExpectPunctuation("=");
+					target = ParseTarget();
+					ExpectPunctuation(";");
+				}
 
 				switch (entry.Text)
 				{
-					case "init":
-						cast.Init = label;
-						break;
-					case "main":
-						cast.Main = label;
-						break;
-					case "exit":
-						cast.Exit = label;
-						break;
+					case "init": cast.Init = target; break;
+					case "main": cast.Main = target; break;
+					case "exit": cast.Exit = target; break;
 					default:
 						throw new ScriptSyntaxException(
 							"a cast has init, main and exit, not '" + entry.Text + "'",
 							entry.Line, entry.Column);
 				}
 			}
-			EndOfStatement();
 			return cast;
 		}
 
-		private FunctionDeclaration ParseFunction()
+		private FunctionDeclaration ParseFunctionPointer()
 		{
-			Token token = Take();                       // function
+			Token token = Take();
 			FunctionDeclaration function = new FunctionDeclaration
 			{
 				Id = Expect(TokenKind.Number, "the function id").Value,
+				HasId = true,
 				Token = token
 			};
 			ExpectPunctuation("=");
 			function.Target = ParseTarget();
-			EndOfStatement();
+			ExpectPunctuation(";");
 			return function;
 		}
 
-		/// <summary>A label, the word none, or a bare address.</summary>
+		/// <summary>func name() { ... } - the compiler gives it an id.</summary>
+		private FunctionDeclaration ParseFunctionBody()
+		{
+			Token token = Take();
+			Token name = Expect(TokenKind.Identifier, "the function's name");
+			ExpectPunctuation("(");
+			ExpectPunctuation(")");
+
+			return new FunctionDeclaration
+			{
+				Name = name.Text,
+				Token = token,
+				Target = new EntryTarget { Body = ParseBlock() }
+			};
+		}
+
+		private ExternDeclaration ParseExtern()
+		{
+			Token token = Take();
+			Token name = Expect(TokenKind.Identifier, "the name to use for it");
+			ExpectPunctuation("(");
+			ExpectPunctuation(")");
+			ExpectPunctuation("=");
+			long library = Expect(TokenKind.Number, "the library number").Value;
+			ExpectPunctuation(",");
+			long id = Expect(TokenKind.Number, "the function id").Value;
+			ExpectPunctuation(";");
+
+			return new ExternDeclaration
+			{
+				Name = name.Text,
+				Library = library,
+				Id = id,
+				Token = token
+			};
+		}
+
 		private EntryTarget ParseTarget()
 		{
 			if (Current.Kind == TokenKind.Number)
@@ -227,9 +268,150 @@ namespace FF3.ContentTool.Ffs
 				: new EntryTarget { Label = target.Text };
 		}
 
-		private DataItem ParseData()
+		// --------------------------------------------------------------- statements
+
+		private BlockStatement ParseBlock()
 		{
-			Token token = Take();                       // data
+			Token token = Current;
+			ExpectPunctuation("{");
+			BlockStatement block = new BlockStatement { Token = token };
+			while (!TakeIf("}"))
+			{
+				if (Current.Kind == TokenKind.End)
+				{
+					throw Error("this block is never closed");
+				}
+				block.Statements.Add(ParseStatement());
+			}
+			return block;
+		}
+
+		private Statement ParseStatement()
+		{
+			Token token = Current;
+
+			if (token.Is(TokenKind.Punctuation, "{"))
+			{
+				return ParseBlock();
+			}
+
+			if (token.Kind != TokenKind.Identifier)
+			{
+				throw Error("expected a statement, found " + token);
+			}
+
+			// A label: an identifier followed by a colon, and never a keyword.
+			if (Next.Is(TokenKind.Punctuation, ":") && !Keywords.Contains(token.Text))
+			{
+				_at += 2;
+				return new LabelItem { Name = token.Text, Token = token };
+			}
+
+			switch (token.Text)
+			{
+				case "if": return ParseIf();
+				case "while": return ParseWhile();
+				case "do": return ParseDoWhile();
+				case "for": return ParseFor();
+				case "goto": return ParseGoto();
+				case "break":
+				case "continue":
+					_at++;
+					ExpectPunctuation(";");
+					return new LoopJump { IsBreak = token.Text == "break", Token = token };
+				case "data": return ParseData();
+				default: return ParseCallOrInstruction(true);
+			}
+		}
+
+		private Statement ParseIf()
+		{
+			Token token = Take();
+			ExpectPunctuation("(");
+			Condition condition = ParseCondition();
+			ExpectPunctuation(")");
+
+			IfStatement statement = new IfStatement
+			{
+				Token = token,
+				Condition = condition,
+				Then = ParseBlock()
+			};
+
+			if (TakeWord("else"))
+			{
+				statement.Else = Current.Is(TokenKind.Punctuation, "{")
+					? (Statement)ParseBlock()
+					: ParseIf();
+			}
+			return statement;
+		}
+
+		private Statement ParseWhile()
+		{
+			Token token = Take();
+			ExpectPunctuation("(");
+			Condition condition = ParseCondition();
+			ExpectPunctuation(")");
+			return new WhileStatement
+			{
+				Token = token,
+				Condition = condition,
+				Body = ParseBlock()
+			};
+		}
+
+		private Statement ParseDoWhile()
+		{
+			Token token = Take();
+			BlockStatement body = ParseBlock();
+			if (!TakeWord("while"))
+			{
+				throw Error("expected 'while' after the body of a do, found " + Current);
+			}
+			ExpectPunctuation("(");
+			Condition condition = ParseCondition();
+			ExpectPunctuation(")");
+			ExpectPunctuation(";");
+			return new DoWhileStatement { Token = token, Condition = condition, Body = body };
+		}
+
+		private Statement ParseFor()
+		{
+			Token token = Take();
+			ExpectPunctuation("(");
+
+			ForStatement statement = new ForStatement { Token = token };
+			if (!TakeIf(";"))
+			{
+				statement.Initialiser = ParseCallOrInstruction(true);
+			}
+			if (!Current.Is(TokenKind.Punctuation, ";"))
+			{
+				statement.Condition = ParseCondition();
+			}
+			ExpectPunctuation(";");
+			if (!Current.Is(TokenKind.Punctuation, ")"))
+			{
+				statement.Step = ParseCallOrInstruction(false);
+			}
+			ExpectPunctuation(")");
+
+			statement.Body = ParseBlock();
+			return statement;
+		}
+
+		private Statement ParseGoto()
+		{
+			Token token = Take();
+			Token label = Expect(TokenKind.Identifier, "a label to go to");
+			ExpectPunctuation(";");
+			return new GotoStatement { Label = label.Text, Token = token };
+		}
+
+		private Statement ParseData()
+		{
+			Token token = Take();
 			DataItem data = new DataItem { Token = token };
 			do
 			{
@@ -242,12 +424,18 @@ namespace FF3.ContentTool.Ffs
 				}
 				data.Bytes.Add((byte)value.Value);
 			}
-			while (TakeIf(TokenKind.Punctuation, ","));
-			EndOfStatement();
+			while (TakeIf(","));
+			ExpectPunctuation(";");
 			return data;
 		}
 
-		private InstructionItem ParseInstruction()
+		/// <summary>
+		/// An instruction, or a call to a function this file declares. Which one it is
+		/// cannot be decided here - a name is only known to be a function once every
+		/// declaration has been seen - so both come out as an instruction and lowering
+		/// sorts it out.
+		/// </summary>
+		private Statement ParseCallOrInstruction(bool semicolon)
 		{
 			Token token = Take();
 			InstructionItem instruction = new InstructionItem
@@ -256,25 +444,33 @@ namespace FF3.ContentTool.Ffs
 				Token = token
 			};
 
-			// op(123) addresses an opcode by number, for anything without a name.
+			// op(123) names an opcode by number, for the ones with no handler.
 			if (token.Text == "op" && Current.Is(TokenKind.Punctuation, "("))
 			{
 				_at++;
 				instruction.Opcode = (int)Expect(TokenKind.Number, "an opcode number").Value;
 				ExpectPunctuation(")");
+				if (semicolon)
+				{
+					ExpectPunctuation(";");
+				}
+				return instruction;
 			}
 
-			if (Current.Kind != TokenKind.NewLine && Current.Kind != TokenKind.End
-				&& !Current.Is(TokenKind.Punctuation, ";"))
+			ExpectPunctuation("(");
+			if (!Current.Is(TokenKind.Punctuation, ")"))
 			{
 				do
 				{
 					instruction.Arguments.Add(ParseArgument());
 				}
-				while (TakeIf(TokenKind.Punctuation, ","));
+				while (TakeIf(","));
 			}
-
-			EndOfStatement();
+			ExpectPunctuation(")");
+			if (semicolon)
+			{
+				ExpectPunctuation(";");
+			}
 			return instruction;
 		}
 
@@ -295,6 +491,56 @@ namespace FF3.ContentTool.Ffs
 				default:
 					throw Error("expected a number, a string or a label, found " + token);
 			}
+		}
+
+		// --------------------------------------------------------------- conditions
+
+		private Condition ParseCondition()
+		{
+			Token token = Current;
+
+			if (TakeIf("!"))
+			{
+				return new NotCondition { Inner = ParseCondition(), Token = token };
+			}
+
+			Token name = Expect(TokenKind.Identifier, "a condition");
+
+			if (string.Equals(name.Text, Conditions.ValueName, StringComparison.Ordinal))
+			{
+				ExpectPunctuation("(");
+				Argument group = ParseArgument();
+				ExpectPunctuation(",");
+				Argument index = ParseArgument();
+				ExpectPunctuation(")");
+
+				string comparison = Current.Kind == TokenKind.Punctuation
+					&& Conditions.Comparisons.ContainsKey(Current.Text)
+					? Take().Text
+					: throw Error("expected a comparison after value(...), found " + Current);
+
+				return new ValueCondition
+				{
+					Token = name,
+					Group = group,
+					Index = index,
+					Comparison = comparison,
+					Value = ParseArgument()
+				};
+			}
+
+			FormCondition form = new FormCondition { Name = name.Text, Token = name };
+			ExpectPunctuation("(");
+			if (!Current.Is(TokenKind.Punctuation, ")"))
+			{
+				do
+				{
+					form.Arguments.Add(ParseArgument());
+				}
+				while (TakeIf(","));
+			}
+			ExpectPunctuation(")");
+			return form;
 		}
 	}
 }

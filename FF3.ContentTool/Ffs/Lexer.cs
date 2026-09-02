@@ -1,8 +1,10 @@
 // Tokenizer for the script language.
 //
-// Line structure matters - one statement per line - so newlines are tokens rather
-// than whitespace. Everything else is ordinary: identifiers, decimal and hex numbers,
-// quoted strings, and a handful of punctuation marks.
+// Statements end at a semicolon and blocks are braced, so newlines are whitespace and
+// a statement can be laid out however reads best. Everything else is ordinary:
+// identifiers, decimal and hex numbers, quoted strings, and punctuation - including
+// the two character operators, which have to be matched before the one character ones
+// or "==" lexes as two assignments.
 //
 // Errors carry a line and column, because a modder editing a 4000 line script needs
 // to be told where the problem is, not that there is one.
@@ -20,7 +22,6 @@ namespace FF3.ContentTool.Ffs
 		Number,
 		String,
 		Punctuation,
-		NewLine,
 		End
 	}
 
@@ -48,9 +49,7 @@ namespace FF3.ContentTool.Ffs
 
 		public override string ToString()
 		{
-			return Kind == TokenKind.NewLine ? "end of line"
-				: Kind == TokenKind.End ? "end of file"
-				: "'" + Text + "'";
+			return Kind == TokenKind.End ? "the end of the file" : "'" + Text + "'";
 		}
 	}
 
@@ -60,18 +59,25 @@ namespace FF3.ContentTool.Ffs
 		public int Line { get; }
 		public int Column { get; }
 
+		/// <summary>The message on its own, for callers that show the place themselves.</summary>
+		public string Detail { get; }
+
 		public ScriptSyntaxException(string message, int line, int column)
 			: base(string.Format(CultureInfo.InvariantCulture,
 				"line {0}, column {1}: {2}", line, column, message))
 		{
 			Line = line;
 			Column = column;
+			Detail = message;
 		}
 	}
 
 	internal static class Lexer
 	{
-		private const string Punctuation = "{}(),:=;";
+		private const string Punctuation = "{}(),:=;!<>";
+
+		/// <summary>Matched before the single characters, so == is one token.</summary>
+		private static readonly string[] Pairs = { "==", "!=", "<=", ">=" };
 
 		public static List<Token> Tokenize(string source)
 		{
@@ -86,20 +92,16 @@ namespace FF3.ContentTool.Ffs
 			{
 				char c = source[i];
 
-				if (c == '\r')
-				{
-					i++;
-					continue;
-				}
+				// Newlines only advance the line counter now: statements end at a
+				// semicolon, so where they sit on the page is nobody's business.
 				if (c == '\n')
 				{
-					tokens.Add(new Token(TokenKind.NewLine, "\n", 0, line, Column(i)));
 					i++;
 					line++;
 					lineStart = i;
 					continue;
 				}
-				if (c == ' ' || c == '\t')
+				if (c == '\r' || c == ' ' || c == '\t')
 				{
 					i++;
 					continue;
@@ -231,6 +233,22 @@ namespace FF3.ContentTool.Ffs
 					continue;
 				}
 
+				bool paired = false;
+				foreach (string pair in Pairs)
+				{
+					if (i + 1 < source.Length && source[i] == pair[0] && source[i + 1] == pair[1])
+					{
+						tokens.Add(new Token(TokenKind.Punctuation, pair, 0, line, Column(i)));
+						i += 2;
+						paired = true;
+						break;
+					}
+				}
+				if (paired)
+				{
+					continue;
+				}
+
 				if (Punctuation.IndexOf(c) >= 0)
 				{
 					tokens.Add(new Token(TokenKind.Punctuation, c.ToString(), 0, line, Column(i)));
@@ -242,7 +260,6 @@ namespace FF3.ContentTool.Ffs
 					"unexpected character '" + c + "'", line, Column(i));
 			}
 
-			tokens.Add(new Token(TokenKind.NewLine, "\n", 0, line, Column(i)));
 			tokens.Add(new Token(TokenKind.End, string.Empty, 0, line, Column(i)));
 			return tokens;
 		}

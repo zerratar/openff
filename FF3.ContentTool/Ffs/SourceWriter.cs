@@ -35,15 +35,15 @@ namespace FF3.ContentTool.Ffs
 			writer.WriteLine("//   ff3content script-build {0}",
 				Path.ChangeExtension(name, ".ffs"));
 			writer.WriteLine();
-			writer.WriteLine("map {0}", file.MapNumber);
+			writer.WriteLine("map {0};", file.MapNumber);
 			writer.WriteLine();
 
 			foreach (ScriptCast cast in file.Casts)
 			{
 				writer.WriteLine("cast {0} {{", cast.Number);
-				writer.WriteLine("    init = {0}", Target(cast.Constructor, labels));
-				writer.WriteLine("    main = {0}", Target(cast.Normal, labels));
-				writer.WriteLine("    exit = {0}", Target(cast.Destructor, labels));
+				writer.WriteLine("    init = {0};", Target(cast.Constructor, labels));
+				writer.WriteLine("    main = {0};", Target(cast.Normal, labels));
+				writer.WriteLine("    exit = {0};", Target(cast.Destructor, labels));
 				writer.WriteLine("}");
 			}
 
@@ -52,7 +52,7 @@ namespace FF3.ContentTool.Ffs
 				writer.WriteLine();
 				foreach (ScriptFunction function in file.Functions)
 				{
-					writer.WriteLine("function 0x{0:X8} = {1}",
+					writer.WriteLine("function 0x{0:X8} = {1};",
 						function.Id, Target(function.Offset, labels));
 				}
 			}
@@ -118,11 +118,22 @@ namespace FF3.ContentTool.Ffs
 				: Mnemonics.Name(instruction.Opcode);
 
 			StringBuilder line = new StringBuilder("    ").Append(mnemonic);
-			for (int i = 0; i < instruction.Operands.Count; i++)
+
+			// op(512) already carries its own brackets and never has operands.
+			if (instruction.Op != null)
 			{
-				line.Append(i == 0 ? " " : ", ");
-				line.Append(Format(instruction, i, labels));
+				line.Append('(');
+				for (int i = 0; i < instruction.Operands.Count; i++)
+				{
+					if (i > 0)
+					{
+						line.Append(", ");
+					}
+					line.Append(Format(instruction, i, labels));
+				}
+				line.Append(')');
 			}
+			line.Append(';');
 
 			string comment = Comment(instruction, lookupMessage);
 			if (comment != null)
@@ -211,7 +222,7 @@ namespace FF3.ContentTool.Ffs
 			for (uint start = 0; start < length; start += PerLine)
 			{
 				uint count = Math.Min(PerLine, length - start);
-				writer.WriteLine("    data {0}", string.Join(", ",
+				writer.WriteLine("    data {0};", string.Join(", ",
 					Enumerable.Range(0, (int)count)
 						.Select(i => "0x" + data[at + start + i]
 							.ToString("X2", CultureInfo.InvariantCulture))));

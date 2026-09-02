@@ -99,6 +99,9 @@ you use it:
   the argument you are on picked out - `bootCharacter_AbsoluteCoordination` reads
   `id:word, x:dword fixed, y:dword fixed, z:dword fixed`.
 
+Keywords, conditions and instructions are coloured differently, and a name the
+compiler does not know is underlined in red before you press anything.
+
 The names come from the game's own handlers; `Docs/Script-Language.md` explains how,
 and what "fixed" means.
 

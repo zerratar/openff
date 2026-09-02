@@ -4,7 +4,7 @@ Event scripts are bytecode. This is a text language for them, and a toolchain th
 goes both ways:
 
 ```
-.script  --[disassembler]-->  .ffs  --[lexer, parser, compiler]-->  .script
+.script  --[disassembler]-->  .ffs  --[lexer, parser, lowering, compiler]-->  .script
 ```
 
 **All 356 shipped scripts survive that trip byte for byte.** That is the test the whole
@@ -13,181 +13,240 @@ exactly, something has been lost, and the tool says so rather than letting a mod
 find out later.
 
 ```bash
-# bytecode -> source, with dialogue written in as comments
 dotnet run --project FF3.ContentTool -- script ..\extracted\files ..\ffs --text=..\text\en.lproj
-
-# edit ..\ffs\d01_02.ffs, then
-
 dotnet run --project FF3.ContentTool -- script-build ..\ffs\d01_02.ffs Content\Override\files
 ```
 
-Then run the game. Nothing is repacked and nothing is rebuilt - see
-`Docs/Content-Pipeline.md`.
-
-## What a script looks like
+## What it looks like
 
 ```
-// d01_02.script
+map 602;
 
-map 602
+extern talkBegin() = 2, 0xB6744D73;
+extern talkEnd()   = 2, 0xC39DEA76;
 
-cast 1 {
-    init = none
-    main = cast1_main
-    exit = cast1_exit
+func sayHello() {
+    startMessageWindow(0);
+    startMessage2(0, 0x98E569, 0, 0);
+    deleteMessageWindow(0);
 }
 
-function 0xD7D7BCDC = func_3621240028
+cast 1 {
+    main {
+        talkBegin();
 
-cast1_main:
-    flagOff 10, 0
-    bootCharacter 21, 0
-    startMessageWindow 0
-    startMessage2 0, 0xF456A, 0, 0        // "  %shuyaku2% / There they are!"
-    wait 15
-    flagOnJump 0, 986, skip_the_scene
-    turnCharacter_LookCharacter2 36, 51, 10, 3, 0
-skip_the_scene:
-    end
+        if (flag(0, 986)) {
+            sayHello();
+        } else {
+            wait(15);
+        }
+
+        for (setValue(0, 3, 0); value(0, 3) < 4; incValue(0, 3)) {
+            wait(2);
+            if (value(0, 3) == 2) { continue; }
+            playSE(270, 1, 192, 127);
+        }
+
+        while (!touch()) { wait(1); }
+
+        talkEnd();
+    }
+    exit { }
+}
 ```
 
-One statement per line. `//` and `/* */` are comments and are ignored by the compiler,
-so the dialogue written beside a `startMessage2` can go stale without breaking a build.
+Braces, brackets and semicolons; a statement can be laid out over as many lines as
+reads well. `//` and `/* */` are comments and the compiler ignores them, so the
+dialogue written beside a `startMessage2` can go stale without breaking a build.
+
+## Control flow
+
+`if`, `else`, `while`, `do ... while`, `for`, `break`, `continue`, `goto`.
+
+There are no expressions in this bytecode - there are conditional jumps - so a
+condition is one of those, and **negating one is free**. Every condition is half of an
+opcode pair, and `!` picks the other half:
+
+```
+if (flag(0, 986)) { ... }     ->   flagOffJump(0, 986, if_else_1);   // jump past
+if (!flag(0, 13))  { ... }    ->   flagOnJump(0, 13, if_else_2);     // the other half
+```
+
+The conditions are the seven On/Off jump pairs the game has, found by name rather than
+listed, so a wider opcode table would widen the language with it:
+
+| Condition | Arguments |
+| --- | --- |
+| `flag(group, index)` | a story flag |
+| `touch()` | the screen is being touched |
+| `button()` | a button is down |
+| `partyTalkEvent()` | |
+| `useItem_Flag()` | |
+| `checkPartyPCMemberEnale(who)` | |
+| `checkParty_NPCMemberEnale(who)` | |
+
+And **values**, which are the script's variables: `ifValueJump` reads one and compares
+it, with the comparison as an operand, so all six work and each has an opposite.
+
+```
+while (value(0, 5) < 3) { ... }
+if (value(0, 3) != 2) { ... }
+```
+
+`setValue`, `incValue`, `decValue`, `addValue`, `mulValue` and `divValue` write them.
+
+A `for` puts `continue` on the step, not the test, so the counter still moves.
+
+## Functions
+
+The format has a function table - id to offset - and `call library, id` looks an id up
+in it. Library 2 means `global.script`; anything else means this file's own table. So
+functions are not something the language invents; they are already there.
+
+**Your own:**
+
+```
+func sayHello() {
+    startMessageWindow(0);
+}
+
+sayHello();          // compiles to call(0, <id>)
+```
+
+The compiler gives the function an id - FNV-1a of its name - and adds the table entry.
+Any unused number would work, since the game matches ids exactly, but deriving it from
+the name keeps it stable between builds.
+
+**Someone else's:** the game's shared routines have ids but no names we know, so name
+them yourself:
+
+```
+extern talkBegin() = 2, 0xB6744D73;
+talkBegin();
+```
+
+Neither kind takes arguments. That is not a gap in the language - the bytecode's
+`call` has nowhere to put them. Values are the way to pass something.
+
+## Casts
+
+A **cast** is an actor on a map, with up to three entry points: `init` runs once,
+`main` every frame, `exit` when it stops. Write one either way:
+
+```
+cast 66 {
+    init = none;
+    main { talkBegin(); startMessageWindow(0); }   // block: laid out for you
+    exit { }
+}
+
+cast 2 { main = cast2_main; exit = none; init = none; }   // pointer: at a label
+```
+
+The pointer form is what the disassembler emits, because it is the only shape that
+fits every shipped script - entry points share addresses, and code runs on past the
+end of the block that appears to own it. The block form is what a person writes. They
+mix freely in one file.
+
+A block that would run off its end gets an `end()` so it cannot fall into whatever was
+laid out after it.
 
 ## The grammar
 
 ```
-file        = item*
-item        = "map" number
+file        = declaration*
+declaration = "map" number ";"
             | "cast" number "{" entry* "}"
-            | "function" number "=" target
-            | label ":"
-            | "data" number ("," number)*
-            | mnemonic [ argument ("," argument)* ]
-entry       = ("init" | "main" | "exit") "=" target
+            | "function" number "=" target ";"
+            | "func" name "(" ")" block
+            | "extern" name "(" ")" "=" number "," number ";"
+            | statement
+entry       = ("init" | "main" | "exit") ( "=" target ";" | block )
 target      = label | number | "none"
+
+statement   = label ":"
+            | "if" "(" condition ")" block [ "else" (block | if) ]
+            | "while" "(" condition ")" block
+            | "do" block "while" "(" condition ")" ";"
+            | "for" "(" [call] ";" [condition] ";" [call] ")" block
+            | "goto" label ";" | "break" ";" | "continue" ";"
+            | "data" number ("," number)* ";"
+            | name "(" [ argument ("," argument)* ] ")" ";"
+            | block
+
+condition   = "!" condition
+            | "value" "(" argument "," argument ")" compare argument
+            | name "(" [ argument ("," argument)* ] ")"
 argument    = number | string | label
 ```
 
 - **Numbers** are decimal (`15`, `-1`) or hex (`0xF456A`). Negative numbers are written
   as their two's complement, which is what the game reads back.
-- **Strings** are double quoted, with `\n \t \r \0 \" \\` escapes. Fifteen instructions
-  take one.
-- **Labels** name an address. Writing one as an argument compiles to that address, so
-  a jump is `jump loop` rather than `jump 0x0A3C`.
-- **`data`** is raw bytes, for the handful of places where the code region holds
-  something that is not an instruction.
-- **`op(512)`** addresses an opcode by number. Opcodes past the dispatch table have no
+- **Strings** are double quoted, with `\n \t \r \0 \" \\`. Fifteen instructions take one.
+- **Labels** name an address; writing one as an argument compiles to that address.
+- **`data`** is raw bytes, for the places the code region holds something that is not
+  an instruction.
+- **`op(512);`** names an opcode by number. Ones past the dispatch table have no
   handler and take no arguments; they turn up only in code nothing reaches.
-
-## Casts and functions
-
-A **cast** is an actor on the map, with up to three entry points: `init` runs once,
-`main` runs every frame, `exit` runs when it stops. `none` means the cast does not have
-that one.
-
-A **function** is called by a 32-bit id. `callCommand 2, id` looks the id up in
-`global.script`; any other library number looks it up in this file's own table.
-
-Both point at labels rather than owning blocks. That is not a simplification - it is
-the only shape that fits the shipped scripts, where two entry points share an address
-and execution runs on past the end of the block that appears to own it.
 
 ## What the numbers mean
 
-An operand table that says "a word and three dwords" tells you the shape of an
-instruction and nothing about what it is for. `Tools/gen_operand_names.py` fills that
-in, and like the rest of this it derives rather than guesses: each operand is followed
-to the call it ends up in, and the name is taken from the other side.
-
-`ff3Command_PlaySE` hands its four operands to
-`MtxSENDS_Play(int SeqArcNo, int SeqNo, int Volume, int Pan)`, so:
+`Tools/gen_operand_names.py` derives operand names by following each one to the call
+it ends up in and taking the name from the other side. `ff3Command_PlaySE` hands its
+four to `MtxSENDS_Play(int SeqArcNo, int SeqNo, int Volume, int Pan)`:
 
 ```
 playSE  seqArcNo:word, seqNo:word, volume:word, pan:word
 ```
 
-413 of the 772 operands (53%) get a name this way. The rest are left blank, because a
-wrong name is worse than none.
+413 of the 772 operands get a name that way. The rest stay blank, because a wrong name
+is worse than none.
 
-**Fixed point.** 126 operands reach `VecFx32`, which holds NDS fixed point - 1/4096ths
-of a unit. Those are decoded in a comment beside the line, since `0x64000` is not
-something to convert in your head while reading a cutscene:
+**Fixed point.** 126 operands reach `VecFx32`, which is 1/4096ths of a unit, and those
+are decoded in a comment on the line:
 
 ```
-bootCharacter_AbsoluteCoordination 35, 0xFFFA9000, 0, 0xFFFB9000, 0   // x -87  y 0  z -71
-moveCharacter_AbsoluteCoordination 53, 0xFFFAC000, 0, 0xFFFD0000, 45  // x -84  y 0  z -48
+bootCharacter_AbsoluteCoordination(35, 0xFFFA9000, 0, 0xFFFB9000, 0);   // x -87  y 0  z -71
 ```
-
-The receiver is checked, not just the method name: `FlagManager` has a `set()` too,
-and its arguments are a flag group and an index, not an x and a y.
-
-## The instruction set
-
-298 opcodes. Names come from the game's own handlers, tidied:
-
-| Handler | Mnemonic |
-| --- | --- |
-| `waitCommand` | `wait` |
-| `flagOnJumpCommand` | `flagOnJump` |
-| `ff3Command_StartMessage2` | `startMessage2` |
-
-List them, with their arguments:
 
 ```bash
 dotnet run --project FF3.ContentTool -- ops            # all 298
 dotnet run --project FF3.ContentTool -- ops camera     # just the camera ones
 ```
 
-```
-  48  moveCharacter_AbsoluteCoordination   hichIndex:word, x:dword fixed, y:dword fixed, z:dword fixed, frame:word
-  91  playBGM                              BGMNo:word, volume:byte, fadeinFrame:word
-  93  playSE                               seqArcNo:word, seqNo:word, volume:word, pan:word
-```
-
-The editor has the same table live: see `Docs/Editor.md`.
-
-`Docs/Events.md` covers how the engine runs them, and how the operand table is derived
-from the handlers rather than guessed.
-
-## Errors
-
-Problems are collected, not thrown one at a time, and each carries a line and column:
-
-```
-broken.ffs: 4 problem(s):
-  line 195, column 5: startMessageWindow takes 1 argument(s), not 2
-  line 247, column 5: unknown instruction 'wiat'
-  line 127, column 10: no label called 'nowhere_at_all'
-  line 195, column 24: 70000 does not fit in this argument, which holds 0 to 65535
-```
+The editor has the same table live - highlighting, completion and a signature strip.
+See `Docs/Editor.md`.
 
 ## How it is put together
 
 | Piece | File | Job |
 | --- | --- | --- |
-| Mnemonics | `Ffs/Mnemonics.cs` | opcode ↔ name, derived from the handler names |
-| Lexer | `Ffs/Lexer.cs` | text → tokens, with newlines significant |
+| Mnemonics | `Ffs/Mnemonics.cs` | opcode ↔ name, from the handler names |
+| Conditions | `Ffs/Conditions.cs` | the On/Off pairs, found by name |
+| Lexer | `Ffs/Lexer.cs` | text → tokens |
 | AST | `Ffs/Ast.cs` | the shape of a parsed script |
 | Parser | `Ffs/Parser.cs` | tokens → AST |
-| Compiler | `Ffs/Compiler.cs` | AST → bytecode, in two passes |
+| Lowering | `Ffs/Lowering.cs` | if/while/for/functions → labels and jumps |
+| Compiler | `Ffs/Compiler.cs` | flat AST → bytecode, in two passes |
 | Source writer | `Ffs/SourceWriter.cs` | bytecode → source |
 
-The compiler's first pass assigns an address to every instruction and label - possible
-because every instruction has a fixed length - and the second emits bytes with label
-references resolved. Then the tables are written around the code: casts before it,
-functions after.
+Lowering is the whole trick: by the time the compiler runs, there is no such thing as
+an `if`. So adding a structured statement never means touching code generation, and
+code generation stays the two passes it always was - assign addresses, then emit with
+labels resolved.
 
 ## What it does not do yet
 
-**No structured statements.** There is no `if`, no `while`, no block scoping - a jump
-is a jump to a label. The AST is built so those can be lowered onto it later without
-touching the compiler: an `if` is a conditional jump and a generated label, which is
-exactly what this already emits.
+**The disassembler emits the flat form.** Recovering an `if` from a pair of jumps is
+decompilation proper, and guessing wrong would silently change what a script does. So
+shipped scripts come back as labels and jumps; what you write stays as you wrote it.
 
-**No new message ids.** Adding dialogue means adding a message to a `.msd` file and
-referencing its id. Allocating ids automatically wants the two tools to know about each
-other, which they do not yet.
+**No new message ids from the language.** Adding dialogue means adding a message to a
+`.msd` and referencing its id. The editor's *Add character* does allocate one - see
+`Docs/Editor.md` - but the compiler on its own does not.
 
-**Labels are generated names.** `cast9_main`, `loc_0A3C`. Renaming them is safe and a
-good idea when editing - the compiler only cares that they are unique.
+**Functions take no arguments**, because `call` has nowhere to put them.
+
+**Parse errors stop at the first one.** Compile errors are all collected and reported
+together; a syntax error is not, because after one the parser no longer knows where it
+is.

@@ -251,7 +251,8 @@ namespace FF3.ContentTool.Editor
 				{
 					ok = false,
 					saved = false,
-					problems = new[] { new { line = ex.Line, column = ex.Column, message = ex.Message } }
+					// Detail, not Message: the browser shows the place itself.
+					problems = new[] { new { line = ex.Line, column = ex.Column, message = ex.Detail } }
 				});
 			}
 			catch (Ffs.ScriptCompileException ex)

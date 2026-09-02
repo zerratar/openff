@@ -126,6 +126,7 @@ it too, in `ScriptData.cast`, so it is dead weight in the archive rather than a 
 the tool.
 
 **Writing events** is covered by `Docs/Script-Language.md`: the disassembler emits a
-text language, and a lexer, parser and compiler take it back to bytecode. All 356
-shipped scripts survive that round trip byte for byte. What is still missing there is
-structured statements and a way to allocate new message ids.
+text language, and a lexer, parser, lowering pass and compiler take it back to
+bytecode. All 356 shipped scripts survive that round trip byte for byte. The language
+has `if`, `while`, `for`, `break`, `continue` and functions of your own; what it does
+not have is a decompiler that recovers those shapes from shipped jumps.
