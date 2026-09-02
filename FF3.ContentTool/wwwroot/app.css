@@ -1455,3 +1455,56 @@ table.parts tr.hidden-part td { color: #d98080; }
   padding: 6px 9px;
   text-align: left;
 }
+
+/* ------------------------------------------------------------- scrollbars
+
+   Two sets of rules for the same thing. `scrollbar-color` is the standard one and
+   is all Firefox takes; the ::-webkit- rules are what older Chromium and Safari
+   read, and give the rounded thumb the standard property cannot express. Recent
+   Chromium honours the standard one where both apply, so the two are kept to the
+   same colours rather than drifting. */
+
+:root {
+  --track: #15171c;
+  --thumb: #333b47;
+  --thumb-hover: #46505f;
+}
+
+/* Firefox only. Recent Chromium prefers the standard property wherever it is set and
+   then ignores the ::-webkit- rules below, which would cost the rounded thumb - so the
+   standard one is kept behind a query only Firefox matches, and each engine gets the
+   best version it can draw. */
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--thumb) var(--track);
+  }
+}
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+
+::-webkit-scrollbar-track {
+  background: var(--track);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--thumb);
+  border-radius: 6px;
+  /* A transparent border with background-clip leaves a gap round the thumb, so it
+     reads as a bar floating in the track rather than filling it. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--thumb-hover); background-clip: content-box; }
+::-webkit-scrollbar-thumb:active { background: var(--accent); background-clip: content-box; }
+
+/* Where a vertical and a horizontal bar meet. */
+::-webkit-scrollbar-corner { background: var(--track); }
+
+/* The buttons at the ends: off, they belong to a different decade. */
+::-webkit-scrollbar-button { display: none; }
+
+/* Panels that sit on the darker page background want a track to match it rather
+   than the panel colour. */
+#docs, .doc-panes, .map-wrap, #console-lines, .picker-grid { --track: #101216; }
