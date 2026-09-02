@@ -50,6 +50,10 @@ Four panels round a document area, the way a scene editor is laid out:
   either one per line or as a wrapped grid of icons; which one is remembered. The three
   bars between the panels drag, and their sizes are remembered too.
 
+A model's inspector lists its **materials**, each with the picture it is painted with and
+its tint and alpha. Seeing the texture beside the material is how a wrongly coloured
+character gives itself away - the atlas is blue and the model is not.
+
 Along the very bottom is a **status line** showing the last thing the editor said, so
 the answer to "did that compile" is in front of you rather than one tab away. Clicking
 it opens the console at that row with the row highlighted. The header keeps the

@@ -561,11 +561,13 @@ namespace FF3.ContentTool
 			int list = s + (int)U32(data, s + 8);
 			int size = (int)U32(data, s + 12);
 
+			Mdl0Material used = material >= 0 && material < model.Materials.Count
+				? model.Materials[material] : null;
+
 			Mdl0Piece piece = new Mdl0Piece
 			{
 				Shape = shapes[shape].Name,
-				Material = material >= 0 && material < model.Materials.Count
-					? model.Materials[material].Name : null,
+				Material = used?.Name,
 				Node = node < model.Nodes.Count ? model.Nodes[node] : null,
 				Hidden = hidden,
 				Billboard = billboard,
@@ -574,7 +576,7 @@ namespace FF3.ContentTool
 				PivotZ = matrix[11] / 4096f
 			};
 
-			Walk(data, list, size, matrix, stack, scale, piece, model);
+			Walk(data, list, size, matrix, stack, scale, piece, model, used);
 			model.Pieces.Add(piece);
 		}
 
@@ -587,7 +589,7 @@ namespace FF3.ContentTool
 		/// were packed into, which is why there are two pointers here.
 		/// </summary>
 		private static void Walk(byte[] data, int list, int size, int[] matrix, int[][] stack,
-			int scale, Mdl0Piece piece, Mdl0Model model)
+			int scale, Mdl0Piece piece, Mdl0Model model, Mdl0Material material)
 		{
 			int words = size / 4;
 			if (words == 0 || list + size > data.Length)
@@ -602,7 +604,13 @@ namespace FF3.ContentTool
 
 			int x = 0, y = 0, z = 0;              // the running vertex, in 1/4096ths
 			float u = 0, v = 0;
-			byte r = 255, g = 255, b = 255;
+
+			// Colour starts at the material's own, which is what the game puts in the
+			// colour register when it binds one.
+			byte litR = material?.R ?? 255;
+			byte litG = material?.G ?? 255;
+			byte litB = material?.B ?? 255;
+			byte r = litR, g = litG, b = litB;
 			Mdl0Run run = null;
 
 			// Which matrix the vertices go through. It starts as the one the SBC built
@@ -636,7 +644,21 @@ namespace FF3.ContentTool
 						break;
 					}
 
-					case 33:                      // normal, which nothing here needs
+					case 33:
+						// A normal. On the hardware this recomputes the vertex colour
+						// from the lighting equation, throwing away whatever the last
+						// colour command set - and in these files a colour command is
+						// always immediately followed by one, so those colours are
+						// working values that were never meant to be seen. Taking them
+						// at face value painted a blue robe black.
+						//
+						// Nothing here evaluates lighting, so the material's own colour
+						// stands in for its result. Only 888 of the 8294 shapes carry
+						// normals at all; the rest set colour and mean it, and they are
+						// left alone.
+						r = litR;
+						g = litG;
+						b = litB;
 						p++;
 						break;
 

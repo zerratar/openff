@@ -541,6 +541,9 @@ function drawInspector() {
     box.append(factList(facts));
   }
 
+  const materials = materialsFor(doc);
+  if (materials) box.append(materials);
+
   if (doc.selection && doc.inspect) {
     const detail = doc.inspect(doc.selection);
     if (detail) {
@@ -561,6 +564,67 @@ function factList(pairs) {
     list.append(dt, dd);
   }
   return list;
+}
+
+/// What a model is painted with: one swatch per material, with the picture it uses.
+/// Seeing the texture beside the material is how a wrongly coloured character gives
+/// itself away - the atlas is blue, the model is not.
+function materialsFor(doc) {
+  const data = doc.data;
+  if (doc.kind !== 'model' || !data || !data.groups) return null;
+
+  const seen = new Map();
+  for (const group of data.groups) {
+    const key = group.material || group.shape;
+    if (!seen.has(key)) seen.set(key, group);
+  }
+
+  const box = document.createElement('div');
+  const heading = document.createElement('h3');
+  heading.textContent = 'Materials';
+  box.append(heading);
+
+  for (const [name, group] of seen) {
+    const row = document.createElement('div');
+    row.className = 'material';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'material-thumb';
+    if (group.texture) {
+      const picture = document.createElement('img');
+      picture.loading = 'lazy';
+      picture.alt = group.texture;
+      picture.src = `/api/model/texture?name=${encodeURIComponent(doc.name)}`
+        + `&texture=${encodeURIComponent(group.texture)}`;
+      thumb.append(picture);
+    } else {
+      // No texture means the material's own colour is all there is.
+      thumb.style.background = '#' + (group.colour >>> 0).toString(16).padStart(6, '0');
+    }
+
+    const about = document.createElement('div');
+    about.className = 'material-about';
+    const title = document.createElement('b');
+    title.textContent = name || '(unnamed)';
+    const note = document.createElement('span');
+    note.textContent = group.texture || 'no texture';
+    const tint = document.createElement('span');
+    tint.className = 'material-tint';
+    const dot = document.createElement('i');
+    dot.style.background = '#' + (group.colour >>> 0).toString(16).padStart(6, '0');
+    tint.append(dot, document.createTextNode(
+      'tint · alpha ' + Math.round((group.alpha ?? 1) * 100) + '%'
+      + (group.translucent ? ' · translucent' : '')));
+    about.append(title, note, tint);
+
+    row.append(thumb, about);
+    row.onclick = () => {
+      if (!group.texture) return;
+      openDoc('texture', doc.name);
+    };
+    box.append(row);
+  }
+  return box;
 }
 
 function factsFor(doc) {

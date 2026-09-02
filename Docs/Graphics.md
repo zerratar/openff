@@ -274,6 +274,16 @@ by taste:
   than it sounds here: with atlases, a linear filter bleeds one cell into the next along
   every seam.
 
+- **A normal throws away the colour before it.** On the hardware, the `NORMAL` command
+  recomputes the vertex colour from the lighting equation, overwriting whatever the last
+  `COLOR` command set. In these files a `COLOR` is *always* immediately followed by one -
+  12027 times - so those colours are working values that were never meant to be seen.
+  Taking them at face value painted j301's blue coat solid black, and did the same to
+  parts of every character that carries normals. Nothing here evaluates lighting, so the
+  material's own colour stands in for its result, which is also what the game loads into
+  its colour register when it binds a material. Only 888 of the 8294 shapes carry normals
+  at all; the other 424735 `COLOR` commands set a colour and mean it, and are untouched.
+
 - **Billboards turn.** A billboard node has its rotation post-multiplied by the inverse
   camera, so the piece faces the viewer. What the decoder bakes is that step with the
   camera at identity, plus the pivot to turn about; the viewer finishes it, and kind 2
