@@ -477,6 +477,8 @@ function outlineFor(doc) {
         icon: 'exit',
         reveal: () => {
           if (doc.scene3d && doc.mode === '3d') doc.scene3d.focusExit(i);
+          const view = $('.view', doc.pane);
+          if (view) drawSceneTags(view, doc);
         }
       }))
     });

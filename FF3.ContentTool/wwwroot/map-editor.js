@@ -241,6 +241,66 @@ function drawMap(node) {
   }
 }
 
+/// How big the arrows are, remembered between visits.
+function gizmoScale() {
+  try {
+    return Number(localStorage.getItem('ff3-editor-gizmo')) || 1;
+  } catch (error) {
+    return 1;
+  }
+}
+
+/// The floating labels over the scene. One per exit: the map it leads to, sitting
+/// where the exit is. They are elements rather than geometry, so they stay legible
+/// however far out the camera is and take their own clicks.
+function drawSceneTags(node, doc) {
+  const layer = $('.scene-tags', node);
+  if (!layer || !doc.scene3d) return;
+
+  const scene = doc.data && doc.data.scene;
+  const exits = (scene && scene.exits) || [];
+  const on = $('.gizmo', node).checked;
+
+  // Built once, then only moved - rebuilding every frame would throw away the hover.
+  if (layer.childElementCount !== exits.length) {
+    layer.textContent = '';
+    exits.forEach((exit, index) => {
+      const tag = document.createElement('button');
+      tag.className = 'scene-tag';
+      tag.type = 'button';
+      tag.innerHTML = '<span class="dot"></span>';
+      const label = document.createElement('span');
+      label.textContent = exit.to || '(nowhere)';
+      tag.append(label);
+      tag.title = `exit to ${exit.to || '(nowhere)'} · arrives facing ${exit.rotationY ?? 0}°`;
+      tag.onclick = () => {
+        mapState.selected = null;
+        doc.selection = `exit:${index}`;
+        drawHierarchy();
+        drawInspector();
+        drawSceneTags(node, doc);
+      };
+      layer.append(tag);
+    });
+  }
+
+  layer.hidden = !on;
+  if (!on) return;
+
+  exits.forEach((exit, index) => {
+    const tag = layer.children[index];
+    const at = doc.scene3d.screenAt(exit.x, exit.y, exit.z);
+    if (!at) {
+      tag.style.display = 'none';
+      return;
+    }
+    tag.style.display = '';
+    tag.style.left = `${at[0]}px`;
+    tag.style.top = `${at[1]}px`;
+    tag.classList.toggle('on', doc.selection === `exit:${index}`);
+  });
+}
+
 /// A character's placement, for the undo stack to hold on to.
 function positionOf(character) {
   return {
@@ -286,6 +346,7 @@ function wireModes(node, doc, scene) {
   const recentre = $('.recentre', node);
   const gizmoBox = $('.gizmo-toggle', node);
   const tools = $('.tools', node);
+  const sizeBox = $('.gizmo-size', node);
 
   const show = async (mode) => {
     doc.mode = mode;
@@ -295,6 +356,7 @@ function wireModes(node, doc, scene) {
     recentre.hidden = mode !== '3d';
     gizmoBox.hidden = mode !== '3d';
     tools.hidden = mode !== '3d';
+    sizeBox.hidden = mode !== '3d';
     $('.zoom', node).hidden = mode !== '2d';
 
     if (mode !== '3d') return;
@@ -318,6 +380,11 @@ function wireModes(node, doc, scene) {
         character.rotationY = item.rotationY;
         drawInspector();
       });
+
+      // Exits are tags in the page rather than geometry in the scene: a label stays
+      // the same size however far out you are, and reading "to t01_07" beats working
+      // it out from a pin.
+      doc.scene3d.onFrame(() => drawSceneTags(node, doc));
 
       await doc.scene3d.load(scene, (item, kind) => {
         if (kind === 'exit') {
@@ -344,6 +411,19 @@ function wireModes(node, doc, scene) {
   recentre.onclick = () => doc.scene3d && doc.scene3d.reset();
   $('.gizmo', node).onchange = (event) => {
     if (doc.scene3d) doc.scene3d.setGizmo(event.target.checked);
+    drawSceneTags(node, doc);
+  };
+
+  const size = $('.gsize', node);
+  size.value = gizmoScale();
+  size.oninput = () => {
+    const scale = Number(size.value);
+    try {
+      localStorage.setItem('ff3-editor-gizmo', String(scale));
+    } catch (error) {
+      // Not remembering the size is not worth interrupting anyone over.
+    }
+    if (doc.scene3d) doc.scene3d.setGizmoScale(scale);
   };
 
   const useTool = (which) => {

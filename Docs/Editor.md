@@ -103,10 +103,18 @@ short arrow shows which way the character is facing without going to the inspect
 
 The move gizmo is three arrows, one per axis.
 
-With the gizmo on, the map's **exits** are drawn too - a pin with a ring on the ground
-where the exit is, and an arrow for the direction you are facing when you arrive. They
-are an editing aid rather than part of the scene, so they come and go with the gizmo.
-Clicking one selects it and the inspector says where it goes.
+With the gizmo on, the map's **exits** show as small tags floating over the scene, each
+naming the map it leads to with a stalk down to the spot. They are elements in the page
+rather than geometry in the scene, which is deliberate: a label stays the same size
+however far out the camera is, where a marker built out of triangles does not. Clicking
+one selects it and the inspector says where it goes and which way you arrive facing.
+
+The **slider** beside the gizmo toggle sets how big the arrows are, and is remembered.
+Their size is measured from the eye to the thing itself rather than from the camera's
+orbit distance - those are only the same for whatever the camera happens to be focused
+on, which is why a gizmo out at the edge of a zoomed-out map used to come out as big as
+the room and then shrink the moment you focused it. It now measures the same on screen
+at any zoom.
 
 Exits are the only thing on a map that is a place rather than an object. The `cameras`
 chain beside them in the `.pak` looks positional and is not - its numbers are offsets

@@ -1238,3 +1238,59 @@ table.parts tr.hidden-part td { color: #d98080; }
   font-weight: 600;
   letter-spacing: .04em;
 }
+
+/* ------------------------------------------------------- tags over the scene */
+
+.scene-tags {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* A tag sits at the point and hangs above it, with a stalk down to the spot. It is
+   an element rather than geometry so it stays this size however far out the camera
+   is - which is the whole reason it is not a pin any more. */
+.scene-tag {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 9px));
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid #a86f3c;
+  background: rgba(24, 18, 12, .88);
+  color: #e2b078;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.scene-tag:hover { background: rgba(40, 30, 18, .95); color: #f2c48c; }
+.scene-tag.on { border-color: var(--mark); color: #14161a; background: var(--mark); }
+
+.scene-tag .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+/* The stalk, so the label clearly belongs to the spot under it. */
+.scene-tag::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 9px;
+  background: #a86f3c;
+}
+.scene-tag.on::after { background: var(--mark); }
+
+.bar .gizmo-size { display: flex; align-items: center; }
+.bar .gizmo-size input[type="range"] { width: 74px; accent-color: var(--accent); }

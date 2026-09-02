@@ -92,51 +92,6 @@ function ringGeometry() {
   return new Float32Array(out);
 }
 
-/// A pin: a stem standing on the spot with a diamond above it. Used for the things a
-/// map has that are places rather than objects - its exits - which have somewhere to be
-/// but no model to be seen as.
-function markerGeometry() {
-  const out = [];
-  const push = (x, y, z) => out.push(x, y, z, 0, 0, 1, 1, 1);
-  const stem = 0.035;
-  const tall = 1.0;
-  const head = 0.22;
-  const sides = 6;
-
-  for (let i = 0; i < sides; i++) {
-    const a0 = (i / sides) * Math.PI * 2;
-    const a1 = ((i + 1) / sides) * Math.PI * 2;
-    const x0 = Math.cos(a0), z0 = Math.sin(a0);
-    const x1 = Math.cos(a1), z1 = Math.sin(a1);
-
-    // the stem
-    push(x0 * stem, 0, z0 * stem);
-    push(x0 * stem, tall, z0 * stem);
-    push(x1 * stem, tall, z1 * stem);
-    push(x0 * stem, 0, z0 * stem);
-    push(x1 * stem, tall, z1 * stem);
-    push(x1 * stem, 0, z1 * stem);
-
-    // the diamond, two cones back to back
-    push(x0 * head, tall + head, z0 * head);
-    push(0, tall + head * 2, 0);
-    push(x1 * head, tall + head, z1 * head);
-    push(x0 * head, tall + head, z0 * head);
-    push(x1 * head, tall + head, z1 * head);
-    push(0, tall, 0);
-
-    // a flat ring on the ground, so the spot itself is readable from above
-    const inner = 0.55, outer = 0.8;
-    push(x0 * inner, 0.01, z0 * inner);
-    push(x0 * outer, 0.01, z0 * outer);
-    push(x1 * outer, 0.01, z1 * outer);
-    push(x0 * inner, 0.01, z0 * inner);
-    push(x1 * outer, 0.01, z1 * outer);
-    push(x1 * inner, 0.01, z1 * inner);
-  }
-  return new Float32Array(out);
-}
-
 /// Places an arrow: rotates local +X onto the axis, scales it, moves it into place.
 function axisMatrix(axis, at, size) {
   const s = size;
@@ -200,16 +155,9 @@ function makeMapScene(canvas, status) {
   gl.bufferData(gl.ARRAY_BUFFER, ring, gl.STATIC_DRAW);
   const ringVertices = ring.length / 8;
 
-  const markerBuffer = gl.createBuffer();
-  const marker = markerGeometry();
-  gl.bindBuffer(gl.ARRAY_BUFFER, markerBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, marker, gl.STATIC_DRAW);
-  const markerVertices = marker.length / 8;
-
-  // The same brown the plan view uses for an exit pin, so the two views agree.
-  const EXIT_COLOUR = [0.86, 0.58, 0.30];
-
   let gizmoOn = true;
+  let gizmoScale = 1;            // how big the arrows are, as a multiplier
+  let onFrame = () => {};
   let gizmoMode = 'move';        // 'move' or 'rotate'
   let gizmoAxis = null;          // the axis being dragged, if any
   let gizmoFrom = null;          // where the drag started
@@ -324,76 +272,27 @@ function makeMapScene(canvas, status) {
       drawBundle(entry, placement(item), tint);
     }
 
-    drawMarkers();
     drawGizmo();
-  }
-
-  /// The places a map has that are not objects. Drawn with the gizmo, and hidden with
-  /// it: they are an editing aid, not part of the scene.
-  function drawMarkers() {
-    if (!gizmoOn || !scene || !scene.exits || !scene.exits.length) return;
-
-    gl.disable(gl.DEPTH_TEST);
-    gl.bindBuffer(gl.ARRAY_BUFFER, markerBuffer);
-    const stride = 8 * 4;
-    for (const [where, size, offset] of [
-      [attribute.position, 3, 0], [attribute.coord, 2, 3 * 4], [attribute.colour, 3, 5 * 4]
-    ]) {
-      if (where < 0) continue;
-      gl.enableVertexAttribArray(where);
-      gl.vertexAttribPointer(where, size, gl.FLOAT, false, stride, offset);
-    }
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, blank);
-    gl.uniform1i(uniform.picture, 0);
-    gl.uniform1i(uniform.textured, 0);
-    gl.uniform1f(uniform.alpha, 1);
-
-    const size = gizmoSize() * 0.8;
-    for (let i = 0; i < scene.exits.length; i++) {
-      const exit = scene.exits[i];
-      gl.uniform3fv(uniform.tint,
-        selectedExit === i ? [1, 0.95, 0.5] : EXIT_COLOUR);
-      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
-        size, 0, 0, 0, 0, size, 0, 0, 0, 0, size, 0, exit.x, exit.y, exit.z, 1
-      ]));
-      gl.drawArrays(gl.TRIANGLES, 0, markerVertices);
-
-      // Which way you are facing when you arrive.
-      const a = (exit.rotationY || 0) * Math.PI / 180;
-      gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
-      for (const [where, count, offset] of [
-        [attribute.position, 3, 0], [attribute.coord, 2, 3 * 4], [attribute.colour, 3, 5 * 4]
-      ]) {
-        if (where < 0) continue;
-        gl.vertexAttribPointer(where, count, gl.FLOAT, false, stride, offset);
-      }
-      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
-        Math.sin(a) * size, 0, Math.cos(a) * size, 0,
-        0, size, 0, 0,
-        Math.cos(a) * size, 0, -Math.sin(a) * size, 0,
-        exit.x, exit.y + size * 0.05, exit.z, 1
-      ]));
-      gl.drawArrays(gl.TRIANGLES, 0, arrowVertices);
-      gl.bindBuffer(gl.ARRAY_BUFFER, markerBuffer);
-      for (const [where, count, offset] of [
-        [attribute.position, 3, 0], [attribute.coord, 2, 3 * 4], [attribute.colour, 3, 5 * 4]
-      ]) {
-        if (where < 0) continue;
-        gl.vertexAttribPointer(where, count, gl.FLOAT, false, stride, offset);
-      }
-    }
-    gl.enable(gl.DEPTH_TEST);
+    onFrame();
   }
 
   function selectedItem() {
     return instances.find(o => o.index === selected) || null;
   }
 
-  /// How big an arrow has to be to stay about the same size on screen.
-  function gizmoSize() {
-    return distance * 0.13;
+  /// How big an arrow has to be to stay the same size on screen.
+  ///
+  /// Measured from the eye to the thing itself, not from the camera's orbit distance.
+  /// Those are only the same for whatever the camera happens to be focused on, which
+  /// is why a gizmo out at the edge of a zoomed-out map used to come out as big as the
+  /// room and then shrink the moment you focused it. The multiplier on the end is
+  /// yours, from the slider.
+  function gizmoSize(at) {
+    const eye = eyePosition();
+    const away = at
+      ? Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2])
+      : distance;
+    return Math.max(0.5, away) * 0.075 * gizmoScale;
   }
 
   function drawGizmo() {
@@ -425,7 +324,7 @@ function makeMapScene(canvas, status) {
 
     const at = [item.x, item.y, item.z];
     if (gizmoMode === 'rotate') {
-      const size = gizmoSize();
+      const size = gizmoSize(at);
       gl.bindBuffer(gl.ARRAY_BUFFER, ringBuffer);
       if (attribute.position >= 0) {
         gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
@@ -468,7 +367,7 @@ function makeMapScene(canvas, status) {
       for (const axis of AXES) {
         const lit = gizmoAxis === axis.name;
         gl.uniform3fv(uniform.tint, lit ? [1, 0.95, 0.5] : axis.colour);
-        gl.uniformMatrix4fv(uniform.model, false, axisMatrix(axis.name, at, gizmoSize()));
+        gl.uniformMatrix4fv(uniform.model, false, axisMatrix(axis.name, at, gizmoSize(at)));
         gl.drawArrays(gl.TRIANGLES, 0, arrowVertices);
       }
     }
@@ -560,7 +459,7 @@ function makeMapScene(canvas, status) {
     if (gizmoMode === 'rotate') {
       const ground = onGround(px, py, [item.x, item.y, item.z]);
       if (!ground) return null;
-      const size = gizmoSize();
+      const size = gizmoSize([item.x, item.y, item.z]);
       return Math.abs(ground.away - size) < size * 0.22
         ? { name: 'turn' } : null;
     }
@@ -574,10 +473,11 @@ function makeMapScene(canvas, status) {
     let best = null;
     let bestAway = 11;                    // pixels; a fat enough target to hit
     for (const axis of AXES) {
+      const size = gizmoSize(at);
       const tip = toScreen([
-        at[0] + axis.dir[0] * gizmoSize(),
-        at[1] + axis.dir[1] * gizmoSize(),
-        at[2] + axis.dir[2] * gizmoSize()
+        at[0] + axis.dir[0] * size,
+        at[1] + axis.dir[1] * size,
+        at[2] + axis.dir[2] * size
       ]);
       if (!tip) continue;
       const away = pointToSegment(mouse, origin, tip);
@@ -704,6 +604,23 @@ function makeMapScene(canvas, status) {
 
     setGizmo(on) { gizmoOn = on; if (!on) gizmoAxis = null; draw(); },
 
+    setGizmoScale(scale) { gizmoScale = scale; draw(); },
+
+    /// Called after every frame, so the page can put its tags where things are now.
+    onFrame(callback) { onFrame = callback || (() => {}); },
+
+    /// Where a world point is on the canvas, in CSS pixels, or null if it is behind.
+    screenAt(x, y, z) {
+      const rect = canvas.getBoundingClientRect();
+      const m = cameraMatrix();
+      const w = m[3] * x + m[7] * y + m[11] * z + m[15];
+      if (w <= 0) return null;
+      const nx = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w;
+      const ny = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+      if (nx < -1.4 || nx > 1.4 || ny < -1.4 || ny > 1.4) return null;
+      return [(nx + 1) / 2 * rect.width, (1 - ny) / 2 * rect.height];
+    },
+
     setGizmoMode(mode) { gizmoMode = mode; gizmoAxis = null; draw(); },
     gizmoMode() { return gizmoMode; },
 
@@ -771,10 +688,11 @@ function makeMapScene(canvas, status) {
       const axis = AXES.find(a => a.name === gizmoAxis);
       const at = [gizmoFrom.x, gizmoFrom.y, gizmoFrom.z];
       const origin = toScreen(at);
+      const size = gizmoSize(at);
       const tip = toScreen([
-        at[0] + axis.dir[0] * gizmoSize(),
-        at[1] + axis.dir[1] * gizmoSize(),
-        at[2] + axis.dir[2] * gizmoSize()
+        at[0] + axis.dir[0] * size,
+        at[1] + axis.dir[1] * size,
+        at[2] + axis.dir[2] * size
       ]);
       if (!origin || !tip) return null;
 
@@ -787,7 +705,7 @@ function makeMapScene(canvas, status) {
 
       const mx = px - gizmoFrom.px;
       const my = py - gizmoFrom.py;
-      const howFar = ((mx * ax + my * ay) / along) * gizmoSize();
+      const howFar = ((mx * ax + my * ay) / along) * size;
 
       // .hich positions are whole numbers, so this snaps rather than drifting.
       item.x = Math.round(at[0] + axis.dir[0] * howFar);
@@ -836,22 +754,6 @@ function makeMapScene(canvas, status) {
           bestDistance = away;
           best = item;
           bestKind = 'object';
-        }
-      }
-
-      // Exits are aimed at by their pin rather than their foot, which is where the
-      // eye goes and where the marker actually is on screen.
-      if (gizmoOn && scene && scene.exits) {
-        for (let i = 0; i < scene.exits.length; i++) {
-          const exit = scene.exits[i];
-          const at = project({ x: exit.x, y: exit.y + gizmoSize() * 0.9, z: exit.z });
-          if (!at) continue;
-          const away = Math.hypot(at.x - nx, at.y - ny);
-          if (away < bestDistance) {
-            bestDistance = away;
-            best = { ...exit, index: i };
-            bestKind = 'exit';
-          }
         }
       }
 

@@ -209,6 +209,9 @@
         <button class="tool" data-tool="rotate" title="rotate (E)">E</button>
       </span>
       <label class="toggle gizmo-toggle" hidden><input type="checkbox" class="gizmo" checked> gizmo</label>
+      <label class="toggle gizmo-size" hidden title="gizmo size">
+        <input type="range" class="gsize" min="0.4" max="2.5" step="0.1" value="1">
+      </label>
       <button class="recentre" hidden>Recentre</button>
       <span class="grow"></span>
       <button class="add">Add character</button>
@@ -217,7 +220,10 @@
     </div>
     <div class="map-body">
       <div class="map-wrap"><div class="map-scale"><div class="map"></div></div></div>
-      <div class="scene-wrap" hidden><canvas class="scene"></canvas></div>
+      <div class="scene-wrap" hidden>
+        <canvas class="scene"></canvas>
+        <div class="scene-tags"></div>
+      </div>
     </div>
     <div class="legend"></div>
   </div>
