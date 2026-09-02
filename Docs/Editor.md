@@ -84,6 +84,10 @@ names and facing the way that row says. **2D** is the plan it always was: pins y
 drag, which is still the right thing for moving somebody two steps left.
 
 Left-drag orbits, middle-drag or shift-drag pans, the wheel zooms, and a click picks.
+Clicking tests against the model's own size rather than the spot it stands on - a `.hich`
+position is where something's feet are, and aiming at the ground under somebody instead
+of at them was a miss that got worse the flatter the camera angle. Where two overlap, the
+nearer one wins.
 Holding the **right button flies**, the way a scene view usually does: the mouse looks
 around from where the camera already is rather than swinging it round a target, and WASD
 walks it, with Q and E for down and up and shift to hurry. Those keys are only listened

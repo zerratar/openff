@@ -543,14 +543,53 @@ function makeMapScene(canvas, status) {
 
   /// Where an object is on screen right now, for picking and for labels.
   function project(item) {
+    return projectPoint([item.x, item.y, item.z]);
+  }
+
+  function projectPoint(at) {
     const m = cameraMatrix();
-    const x = item.x, y = item.y, z = item.z;
+    const [x, y, z] = at;
     const w = m[3] * x + m[7] * y + m[11] * z + m[15];
     if (w <= 0) return null;
     return {
       x: (m[0] * x + m[4] * y + m[8] * z + m[12]) / w,
       y: (m[1] * x + m[5] * y + m[9] * z + m[13]) / w
     };
+  }
+
+  /// Roughly where an instance is and how big, as a sphere in the world.
+  ///
+  /// A .hich position is where something stands, which for a character is its feet.
+  /// Picking on that alone means aiming at the ground under somebody rather than at
+  /// them, and how far off it looks depends entirely on the camera angle. This lifts
+  /// the target onto the model and gives it the model's own size.
+  function boundsOf(item) {
+    const entry = item.package && loaded.get(item.package);
+    const k = item.scale || 1;
+    if (!entry || !entry.centre) {
+      return { at: [item.x, item.y + 4 * k, item.z], radius: 5 * k };
+    }
+
+    // The model's own centre, turned by the instance's facing and moved into place -
+    // the same transform placement() builds, applied to one point.
+    const a = (item.rotationY || 0) * Math.PI / 180;
+    const c = Math.cos(a), sn = Math.sin(a);
+    const cx = entry.centre[0] * k, cy = entry.centre[1] * k, cz = entry.centre[2] * k;
+    return {
+      at: [item.x + (c * cx + sn * cz), item.y + cy, item.z + (-sn * cx + c * cz)],
+      radius: Math.max(0.5, entry.radius * k)
+    };
+  }
+
+  /// How wide something of this size looks on screen, in the same units as project().
+  function screenRadius(at, radius) {
+    const { right } = basis();
+    const middle = projectPoint(at);
+    const edge = projectPoint([
+      at[0] + right[0] * radius, at[1] + right[1] * radius, at[2] + right[2] * radius
+    ]);
+    if (!middle || !edge) return 0;
+    return Math.hypot(edge.x - middle.x, edge.y - middle.y);
   }
 
   return {
@@ -750,17 +789,44 @@ function makeMapScene(canvas, status) {
       const nx = ((px - rect.left) / rect.width) * 2 - 1;
       const ny = 1 - ((py - rect.top) / rect.height) * 2;
 
+      // Anything the click actually lands on, nearest to the camera first - so
+      // clicking where two characters overlap picks the one in front rather than
+      // whichever happens to have its feet closer to the cursor.
+      const eye = eyePosition();
       let best = null;
       let bestKind = null;
-      let bestDistance = 0.06;             // a click has to land reasonably close
+      let bestDepth = Infinity;
+
       for (const item of instances) {
-        const at = project(item);
-        if (!at) continue;
-        const away = Math.hypot(at.x - nx, at.y - ny);
-        if (away < bestDistance) {
-          bestDistance = away;
+        const bounds = boundsOf(item);
+        const middle = projectPoint(bounds.at);
+        if (!middle) continue;
+
+        const reach = Math.max(screenRadius(bounds.at, bounds.radius), 0.02);
+        if (Math.hypot(middle.x - nx, middle.y - ny) > reach) continue;
+
+        const depth = Math.hypot(
+          bounds.at[0] - eye[0], bounds.at[1] - eye[1], bounds.at[2] - eye[2]);
+        if (depth < bestDepth) {
+          bestDepth = depth;
           best = item;
           bestKind = 'object';
+        }
+      }
+
+      // Nothing hit: fall back to whatever is nearest the cursor, so a click that
+      // just misses something small still lands on it.
+      if (!best) {
+        let bestDistance = 0.06;
+        for (const item of instances) {
+          const at = projectPoint(boundsOf(item).at);
+          if (!at) continue;
+          const away = Math.hypot(at.x - nx, at.y - ny);
+          if (away < bestDistance) {
+            bestDistance = away;
+            best = item;
+            bestKind = 'object';
+          }
         }
       }
 
