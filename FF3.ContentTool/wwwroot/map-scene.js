@@ -671,6 +671,24 @@ function makeMapScene(canvas, status) {
       return [(nx + 1) / 2 * rect.width, (1 - ny) / 2 * rect.height];
     },
 
+    /// Where a pixel lands on the ground, for dropping something onto the map. The
+    /// plane is the height most things stand at, which is the height of whatever is
+    /// already there rather than a guess at zero.
+    groundAt(px, py) {
+      const height = instances.length
+        ? instances.map(o => o.y).sort((a, b) => a - b)[instances.length >> 1]
+        : 0;
+      const { eye, dir } = rayAt(px, py);
+      if (Math.abs(dir[1]) < 1e-4) return null;
+      const along = (height - eye[1]) / dir[1];
+      if (along <= 0) return null;
+      return [
+        Math.round(eye[0] + dir[0] * along),
+        height,
+        Math.round(eye[2] + dir[2] * along)
+      ];
+    },
+
     setGizmoMode(mode) { gizmoMode = mode; gizmoAxis = null; draw(); },
     gizmoMode() { return gizmoMode; },
 

@@ -83,7 +83,11 @@ function drawList() {
     item.append(icon(state.browse));
     const label = document.createElement('span');
     // The grid has no room for a folder, and in a list the folder is worth keeping.
-    label.textContent = fileView === 'grid' ? shortName(file.name) : file.name;
+    // In the grid there is one line to read, and ".nmdp.lz" fills it - the icon
+    // already says what kind of thing it is.
+    label.textContent = fileView === 'grid'
+      ? shortName(file.name).replace(/\.(nmdp\.lz|lz|NCER|NSCR|hich|script|pak|msd|xbn)$/i, '')
+      : file.name;
     item.append(label);
     item.title = file.name;
     item.dataset.name = file.name;
@@ -101,6 +105,16 @@ function drawList() {
     // a double click is what opens it.
     item.onclick = () => inspectAsset(state.browse, file.name);
     item.ondblclick = () => openDoc(state.browse, file.name);
+
+    // A model can be dragged onto an open map, which is the shortest way from "that
+    // one" to "there".
+    if (state.browse === 'model') {
+      item.draggable = true;
+      item.ondragstart = (event) => {
+        event.dataTransfer.setData('text/ff3-model', modelNameOf(file.name));
+        event.dataTransfer.effectAllowed = 'copy';
+      };
+    }
     list.append(item);
   }
 
@@ -119,6 +133,12 @@ function markList() {
     item.classList.toggle('on',
       Boolean(inspected) && inspected.kind === state.browse && inspected.name === name);
   }
+}
+
+/// The name a .hich row holds, out of the package a model lives in: files/o001.nmdp.lz
+/// is the model o001.
+function modelNameOf(packageName) {
+  return packageName.replace(/^.*\//, '').replace(/\.nmdp\.lz$/i, '');
 }
 
 function markOverridden(name, overridden) {

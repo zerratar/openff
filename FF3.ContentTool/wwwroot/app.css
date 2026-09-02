@@ -1029,6 +1029,12 @@ table.parts tr.hidden-part td { color: #d98080; }
   touch-action: none;
 }
 .scene-wrap .scene:active { cursor: grabbing; }
+/* A model is being dragged over the map and this is where it would land. */
+.scene-wrap.dropping::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border: 2px dashed var(--accent, #6ea8fe); border-radius: 4px;
+  background: rgba(110, 168, 254, .07);
+}
 
 .view > .legend {
   display: flex;

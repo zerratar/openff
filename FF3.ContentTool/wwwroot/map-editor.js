@@ -68,17 +68,64 @@ async function openMap(name) {
   };
 
   $('.add', node).onclick = () => showAdd(node);
+  wireDrop(node, doc);
 
   drawMap(node);
+}
+
+/// Dropping a model from the project onto the scene.
+///
+/// The drop works out where on the ground it landed and opens the add panel with the
+/// model and the position already filled in, rather than writing something straight
+/// away - what a dropped model should do is a question only the person dropping it can
+/// answer, and a chest and a villager are the same drag.
+function wireDrop(node, doc) {
+  const scene = $('.scene', node);
+  const wrap = $('.scene-wrap', node);
+  if (!scene || !wrap) return;
+
+  const held = (event) => event.dataTransfer
+    && [...event.dataTransfer.types].includes('text/ff3-model');
+
+  wrap.addEventListener('dragover', (event) => {
+    if (!held(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    wrap.classList.add('dropping');
+  });
+
+  wrap.addEventListener('dragleave', (event) => {
+    if (event.target === wrap) wrap.classList.remove('dropping');
+  });
+
+  wrap.addEventListener('drop', (event) => {
+    if (!held(event)) return;
+    event.preventDefault();
+    wrap.classList.remove('dropping');
+
+    const model = event.dataTransfer.getData('text/ff3-model');
+    if (!model) return;
+
+    const at = doc.scene3d
+      && doc.scene3d.groundAt(event.clientX, event.clientY);
+    if (!at) {
+      say('that is not somewhere on the ground', 'bad');
+      return;
+    }
+
+    showAdd(node, { model, x: at[0], z: at[2] });
+    say(`${model} at ${at[0]}, ${at[2]} - choose what it does and add it`);
+  });
 }
 
 /// The form for something new on the map. What it needs depends on what it is: a
 /// character needs a line to say, a chest needs something to hold, a prop needs
 /// neither. The model, a place to stand and a free cast number are common to all.
-function showAdd(node) {
+function showAdd(node, start) {
   if (activeDoc) {
     activeDoc.selection = 'add';
-    activeDoc.inspect = (ref) => ref === 'add' ? buildAdd(node) : inspectRef(activeDoc, ref);
+    activeDoc.inspect = (ref) =>
+      ref === 'add' ? buildAdd(node, start) : inspectRef(activeDoc, ref);
     drawInspector();
   }
 }
@@ -123,7 +170,7 @@ function isObjectModel(name) {
   return first === 'o' || first === 'w' || first === 'O' || first === 'W';
 }
 
-function buildAdd(node) {
+function buildAdd(node, start) {
   const panel = document.createElement('div');
 
   const title = document.createElement('h2');
@@ -161,10 +208,10 @@ function buildAdd(node) {
   const here = [...new Set(mapState.data.characters
     .filter(c => c.kind === 0 && c.model)
     .map(c => c.model))].sort();
-  let model = here[0] || 'n011';
+  let model = (start && start.model) || here[0] || 'n011';
   // Once a model has been picked on purpose, changing the behaviour leaves it alone -
-  // unless it could not work at all.
-  let picked = false;
+  // unless it could not work at all. A dropped model counts as picked.
+  let picked = Boolean(start && start.model);
 
   const choose = document.createElement('button');
   choose.className = 'model-choice';
@@ -179,13 +226,13 @@ function buildAdd(node) {
   const xLabel = document.createElement('label');
   xLabel.textContent = 'x';
   const x = document.createElement('input');
-  x.value = '0';
+  x.value = String((start && start.x) ?? 0);
   xLabel.append(x);
 
   const zLabel = document.createElement('label');
   zLabel.textContent = 'z';
   const z = document.createElement('input');
-  z.value = '0';
+  z.value = String((start && start.z) ?? 0);
   zLabel.append(z);
 
   // ------------------------------------------------------ what it says or holds
