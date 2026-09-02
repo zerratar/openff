@@ -1508,3 +1508,13 @@ table.parts tr.hidden-part td { color: #d98080; }
 /* Panels that sit on the darker page background want a track to match it rather
    than the panel colour. */
 #docs, .doc-panes, .map-wrap, #console-lines, .picker-grid { --track: #101216; }
+
+/* The per-view detail panels are gone - there is one inspector, on the right - so the
+   bodies that held them give their width back to the thing itself. */
+.menu-body .properties,
+.texture-body .detail,
+.model-body .detail,
+.cell-body .detail { display: none; }
+
+#inspector table.parts { width: 100%; }
+#inspector .preview-stage { height: 130px; }

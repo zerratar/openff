@@ -523,16 +523,29 @@ function selectFrame(node, screen, frame, box) {
 }
 
 function showProperties(node, frame, screen) {
-  const panel = $('.properties', node);
-  panel.textContent = '';
+  if (!activeDoc) return;
 
   if (!frame) {
-    const empty = document.createElement('p');
-    empty.className = 'empty';
-    empty.textContent = 'Select a widget.';
-    panel.append(empty);
+    activeDoc.selection = null;
+    activeDoc.inspect = null;
+    drawInspector();
     return;
   }
+
+  // Held on the document so the inspector can rebuild it whenever it redraws -
+  // the panel is shared now, and it is redrawn for reasons this view knows nothing
+  // about.
+  activeDoc.menuFrame = { frame, screen, node };
+  activeDoc.selection = 'widget:' + (frame.id || '?');
+  activeDoc.inspect = () => buildWidget(activeDoc.menuFrame);
+  drawInspector();
+}
+
+/// One widget's properties, for the inspector.
+function buildWidget(held) {
+  const panel = document.createElement('div');
+  if (!held) return panel;
+  const { frame, screen, node } = held;
 
   const title = document.createElement('h2');
   title.textContent = frame.id || '(no id)';
@@ -579,6 +592,7 @@ function showProperties(node, frame, screen) {
   };
   xml.append(area);
   panel.append(xml);
+  return panel;
 }
 
 document.addEventListener('keydown', event => {
@@ -816,7 +830,6 @@ async function openImage(name) {
 async function openTexture(name) {
   const node = view('texture', name, false);
   const gallery = $('.gallery', node);
-  const detail = $('.detail', node);
   const facts = $('.facts', node);
 
   const textures = await api(`/api/texture?name=${encodeURIComponent(name)}`);
@@ -870,7 +883,10 @@ async function openTexture(name) {
       if (chosen) chosen.classList.remove('on');
       chosen = cell;
       cell.classList.add('on');
-      showTexture(detail, name, texture);
+      if (!activeDoc) return;
+      activeDoc.selection = `texture:${texture.index}`;
+      activeDoc.inspect = () => buildTexture(name, texture);
+      drawInspector();
     };
     gallery.append(cell);
   }
@@ -878,8 +894,8 @@ async function openTexture(name) {
   gallery.firstElementChild.onclick();
 }
 
-function showTexture(detail, packageName, texture) {
-  detail.textContent = '';
+function buildTexture(packageName, texture) {
+  const detail = document.createElement('div');
 
   const big = document.createElement('img');
   big.className = 'big';
@@ -917,6 +933,7 @@ function showTexture(detail, packageName, texture) {
   note.textContent = 'Read-only for now. Putting a texture back means writing a TEX0 - '
     + 're-quantising to a palette, or to 4×4 blocks - which is a bigger job than reading one.';
   detail.append(note);
+  return detail;
 }
 
 // ------------------------------------------------------------------------ cells
@@ -929,7 +946,6 @@ function showTexture(detail, packageName, texture) {
 async function openCell(name) {
   const node = view('cell', name, false);
   const list = $('.cell-list', node);
-  const detail = $('.detail', node);
   const facts = $('.facts', node);
 
   const bank = await api(`/api/cell?name=${encodeURIComponent(name)}`);
@@ -969,7 +985,12 @@ async function openCell(name) {
       const caption = document.createElement('figcaption');
       caption.textContent = `cell ${cell.index} \u00b7 ${cell.parts.length} part(s)`;
       figure.append(canvas, caption);
-      figure.onclick = () => showCellParts(detail, cell, bank);
+      figure.onclick = () => {
+        if (!activeDoc) return;
+        activeDoc.selection = `cell:${cell.index}`;
+        activeDoc.inspect = () => buildCellParts(cell, bank);
+        drawInspector();
+      };
       list.append(figure);
     }
     if (bank.cells.length) list.firstElementChild.onclick();
@@ -1030,8 +1051,8 @@ function cellBounds(cell, applySquash) {
   return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
 }
 
-function showCellParts(detail, cell, bank) {
-  detail.textContent = '';
+function buildCellParts(cell, bank) {
+  const detail = document.createElement('div');
   const heading = document.createElement('h3');
   heading.textContent = `cell ${cell.index}`;
   detail.append(heading);
@@ -1058,6 +1079,7 @@ function showCellParts(detail, cell, bank) {
   }
   table.append(body);
   detail.append(table);
+  return detail;
 }
 
 function showScreen(bank, facts, list) {
@@ -1103,7 +1125,6 @@ function showAnimation(bank, facts, list) {
 async function openModel(name) {
   const node = view('model', name, false);
   const canvas = $('.scene', node);
-  const detail = $('.detail', node);
   const facts = $('.facts', node);
 
   const model = await api(`/api/model?name=${encodeURIComponent(name)}`);
@@ -1123,34 +1144,14 @@ async function openModel(name) {
     + `the model says ${model.vertices.toLocaleString()} vertices, `
     + `${model.triangles.toLocaleString()} triangles and ${model.quads.toLocaleString()} quads`;
 
-  const table = document.createElement('table');
-  table.className = 'parts';
-  table.innerHTML = '<thead><tr><th>part</th><th>node</th><th>texture</th></tr></thead>';
-  const body = document.createElement('tbody');
-  for (const group of model.groups) {
-    const row = document.createElement('tr');
-    if (group.hidden) row.className = 'hidden-part';
-    row.innerHTML = `<td>${escapeHtml(group.shape || '')}</td>`
-      + `<td>${escapeHtml(group.node || '')}</td>`
-      + `<td>${escapeHtml(group.texture || '—')}</td>`;
-    const notes = [`material ${group.material || 'none'}`];
-    if (group.billboard === 1) notes.push('billboard - turns to face you');
-    if (group.billboard === 2) notes.push('billboard - turns about its vertical axis');
-    if (group.translucent) notes.push('drawn in the translucent pass');
-    row.title = group.hidden
-      ? 'switched off by its node - the game never draws this'
-      : notes.join(' \u00b7 ');
-    body.append(row);
+  // The parts are listed in the hierarchy; picking one there shows it here.
+  if (activeDoc) {
+    activeDoc.inspect = (ref) => ref && ref.startsWith('part:')
+      ? buildModelPart(model.groups[Number(ref.slice(5))], name) : null;
   }
-  table.append(body);
-  detail.append(table);
 
   if (model.groups.some(g => g.hidden)) {
-    const note = document.createElement('p');
-    note.className = 'caveat';
-    note.textContent = 'One part is switched off by its node, so the game never draws '
-      + 'it - tick "hidden parts" to see it in red.';
-    detail.append(note);
+    facts.textContent += '  ·  one part is switched off by its node';
   }
 
   // Drag to orbit, wheel to zoom.
@@ -1186,6 +1187,46 @@ async function openModel(name) {
 }
 
 // Shared with script-editor.js and map-editor.js, which both load after this file.
+/// One part of a model, for the inspector. The same facts the parts table used to
+/// carry, for whichever part is picked in the hierarchy.
+function buildModelPart(group, packageName) {
+  const panel = document.createElement('div');
+  if (!group) return panel;
+
+  const title = document.createElement('h3');
+  title.textContent = group.shape || 'part';
+  panel.append(title);
+
+  if (group.texture) {
+    const stage = document.createElement('div');
+    stage.className = 'preview-stage checker';
+    const picture = document.createElement('img');
+    picture.alt = group.texture;
+    picture.src = `/api/model/texture?name=${encodeURIComponent(packageName)}`
+      + `&texture=${encodeURIComponent(group.texture)}`;
+    picture.onerror = () => stage.remove();
+    stage.append(picture);
+    panel.append(stage);
+  }
+
+  const notes = [];
+  if (group.billboard === 1) notes.push('turns to face you');
+  if (group.billboard === 2) notes.push('turns about its vertical axis');
+  if (group.translucent) notes.push('drawn in the translucent pass');
+  if (group.hidden) notes.push('switched off by its node - never drawn');
+
+  panel.append(factList([
+    ['node', group.node],
+    ['material', group.material || 'none'],
+    ['texture', group.texture || 'none'],
+    ['triangles', group.count ? group.count / 3 : 0],
+    ['tint', '#' + (group.colour >>> 0).toString(16).padStart(6, '0')],
+    ['alpha', Math.round((group.alpha ?? 1) * 100) + '%'],
+    ['notes', notes.join(' · ')]
+  ]));
+  return panel;
+}
+
 function escapeHtml(text) {
   return String(text).replace(/[&<>"]/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

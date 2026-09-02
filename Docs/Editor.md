@@ -45,7 +45,9 @@ Four panels round a document area, the way a scene editor is laid out:
   that one. The bar between the halves drags, so the split does not have to stay even -
   a script usually wants more room than the map beside it.
 - **Inspector**, right - facts about the open asset even with nothing selected, and the
-  details of whatever is selected underneath.
+  details of whatever is selected underneath. There is exactly one of these, and every
+  view uses it: a menu widget's properties, a model part's material, a texture's format,
+  a cell's parts, a character's cast. A view holds the thing itself and nothing else.
 - **Project and Console**, bottom - the libraries as a tree with their files beside
   them, and a running record of everything the status line has said. The files show
   either one per line or as a wrapped grid of icons; which one is remembered. The three
