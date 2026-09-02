@@ -38,6 +38,7 @@ namespace FF3.ContentTool.Editor
 		private readonly CharacterIds _characterIds;
 		private readonly FlagIndex _flags;
 		private readonly References _references;
+		private readonly Fonts _fonts;
 		private readonly Func<uint, string> _lookupMessage;
 
 		public EditorServer(Workspace workspace, string webRoot, MessageIndex messages)
@@ -49,6 +50,7 @@ namespace FF3.ContentTool.Editor
 			_characterIds = new CharacterIds(workspace);
 			_flags = new FlagIndex(workspace, _lookupMessage);
 			_references = new References(workspace, _lookupMessage);
+			_fonts = new Fonts(workspace.ContentDirectory);
 		}
 
 		public void Run(int port)
@@ -247,6 +249,20 @@ namespace FF3.ContentTool.Editor
 
 				case "/api/map/add":
 					AddToMap(context);
+					return;
+
+				case "/api/font":
+					SendJson(context, new { sizes = _fonts.Sizes() });
+					return;
+
+				case "/api/font/layout":
+					SendJson(context, _fonts.Layout(
+						int.Parse(Query(context, "size") ?? "12", CultureInfo.InvariantCulture),
+						Query(context, "text") ?? string.Empty));
+					return;
+
+				case "/api/font/page":
+					GetFontPage(context);
 					return;
 
 				case "/api/items":
@@ -563,6 +579,17 @@ namespace FF3.ContentTool.Editor
 					Kind = (int)body["kind"]
 				});
 			SendJson(context, saved);
+		}
+
+		/// <summary>One page of the font atlas, as a PNG for the browser to blit from.</summary>
+		private void GetFontPage(HttpListenerContext context)
+		{
+			int size = int.Parse(Query(context, "size") ?? "12", CultureInfo.InvariantCulture);
+			int page = int.Parse(Query(context, "page") ?? "0", CultureInfo.InvariantCulture);
+			byte[] png = _fonts.PagePng(size, page);
+			// A glyph page never changes, so it is worth the browser keeping it.
+			context.Response.Headers["Cache-Control"] = "max-age=86400";
+			Send(context, 200, "image/png", png);
 		}
 
 		/// <summary>Makes a whole exit: the row, and the region that fires it.</summary>

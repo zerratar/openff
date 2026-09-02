@@ -550,6 +550,18 @@ select {
 .canvas.preview .widget { background: rgba(255, 255, 255, .02); border-color: #333a45; }
 .canvas.preview .widget.on { border-color: var(--accent); }
 .canvas.preview .widget .label { opacity: 1; white-space: pre-wrap; }
+
+/* The game's own font, blitted from its atlas. Nothing may smooth it. */
+.font-text { display: block; image-rendering: pixelated; }
+/* In preview, a widget stops being a box with something inside it and becomes just the
+   text. Most Text widgets declare a width of 0 - the game measures the string and the
+   box is however wide that came out - so clipping to the declared width would cut
+   nearly every label in half. */
+.canvas.preview .widget { overflow: visible; border-color: transparent; background: none;
+  padding: 0; }
+.canvas.preview .widget:hover { border-color: var(--accent); }
+.canvas.preview .widget.on { border-color: var(--accent); background: rgba(110, 168, 254, .12); }
+.canvas.preview .widget .label { overflow: visible; }
 .canvas.preview .widget .label.dynamic { opacity: .45; font-style: italic; }
 .canvas.preview { background: #101216; }
 

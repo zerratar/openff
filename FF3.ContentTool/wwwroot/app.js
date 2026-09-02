@@ -394,6 +394,19 @@ async function loadMessages(node) {
   }
 }
 
+/// How MBText places its string in the widget, from the third parameter:
+/// 0 left, 1 right, 2 centre, 3 flexible, 4 button, 5 menu - and button and menu
+/// centre the same way centre does.
+function textAlignment(element) {
+  const behavior = [...element.children].find(e => e.tagName === 'behavior');
+  if (!behavior) return 0;
+  const parameters = [...behavior.children].filter(e => e.tagName === 'parameter');
+  if (parameters.length < 3) return 0;
+  const value = parseInt(
+    parameters[2].getAttribute('value') ?? parameters[2].textContent, 10);
+  return Number.isNaN(value) ? 0 : value;
+}
+
 /// A Text widget's first parameter is the message id it draws. A negative one means
 /// the widget is filled in at runtime - a party member's name, for instance.
 function textMessageId(element) {
@@ -500,6 +513,22 @@ function drawScreen(node, screen, select) {
       const text = id === null ? null : menu.messages[id];
       if (text != null) {
         label.textContent = text;
+        // In the game's own font, once it arrives. The text stays as a fallback, so a
+        // font that will not load leaves a readable preview rather than an empty one.
+        drawFontText(text, frame.height >= 16 ? 16 : 12, '#f4f4f4')
+          .then(canvas => {
+            if (!canvas || !label.isConnected) return;
+            label.textContent = '';
+            // Where MBText would put it: left, right, or centred in the declared
+            // width. Most of the menu is centred, which is why every label sat
+            // hard against the left edge before.
+            const align = textAlignment(frame.element);
+            const room = frame.width - canvas.width;
+            if (align === 1) canvas.style.marginLeft = `${Math.round(room)}px`;
+            else if (align !== 0) canvas.style.marginLeft = `${Math.round(room / 2)}px`;
+            label.append(canvas);
+          })
+          .catch(() => {});
       } else if (id !== null && id >= 0) {
         // A message this file's language does not have - naming the id is more
         // use than naming the behaviour, because the id is what to go and look up.
