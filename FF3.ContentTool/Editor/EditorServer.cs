@@ -193,6 +193,14 @@ namespace FF3.ContentTool.Editor
 					UploadImage(context);
 					return;
 
+				case "/api/cells":
+					SendJson(context, CellBanks.List(_workspace));
+					return;
+
+				case "/api/cell":
+					GetCellBank(context);
+					return;
+
 				case "/api/models":
 					SendJson(context, Models.List(_workspace));
 					return;
@@ -418,6 +426,20 @@ namespace FF3.ContentTool.Editor
 
 			int changed = MapModel.Save(_workspace, map, moves);
 			SendJson(context, new { ok = true, changed, overridden = true });
+		}
+
+		/// <summary>One cell bank, screen or animation.</summary>
+		private void GetCellBank(HttpListenerContext context)
+		{
+			string name = Query(context, "name");
+			try
+			{
+				SendJson(context, CellBanks.Read(_workspace, name));
+			}
+			catch (Exception ex)
+			{
+				SendJson(context, new { error = ex.Message });
+			}
 		}
 
 		/// <summary>One model, already turned into triangles for the viewer.</summary>

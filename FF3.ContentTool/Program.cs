@@ -13,6 +13,7 @@
 //   dotnet run --project FF3.ContentTool -- ops [filter]
 //   dotnet run --project FF3.ContentTool -- tex         <file.lz | dir> [out]
 //   dotnet run --project FF3.ContentTool -- mdl         <file.lz | dir> [out]
+//   dotnet run --project FF3.ContentTool -- cells       <file | dir> [out]
 //   dotnet run --project FF3.ContentTool -- hich        <file.hich | dir> [out]
 //   dotnet run --project FF3.ContentTool -- editor [--content=<dir>] [--port=5050]
 //   dotnet run --project FF3.ContentTool -- lz          <file.lz | dir> [out]
@@ -121,6 +122,13 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return MdlDump(args[1], args.Length > 2 ? args[2] : null);
+					case "cells":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return CellsDump(args[1], args.Length > 2 ? args[2] : null);
 					case "hich":
 						if (args.Length < 2)
 						{
@@ -202,6 +210,7 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  ops [filter]                      list script instructions");
 			Console.Error.WriteLine("  tex         <file.lz | dir> [out]  textures -> PNG");
 			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
+			Console.Error.WriteLine("  cells       <file | dir> [out]     cells/screens/anim -> JSON");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
 			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--language=en]");
 			Console.Error.WriteLine("                                    open the content editor in a browser");
@@ -476,6 +485,175 @@ namespace FF3.ContentTool
 				? "all of them compile back to the exact bytes they came from"
 				: notExact + " do not compile back to the same bytes");
 			return failed > 0 || notExact > 0 ? 1 : 0;
+		}
+
+		/// <summary>
+		/// Decodes the cell banks, screens and animation to JSON.
+		///
+		/// The check here is that every part asks for a rectangle that is actually in
+		/// the sheet it draws from. A misread field - a size where an offset should be,
+		/// a stride off by two - sends those coordinates somewhere impossible almost
+		/// immediately, so it catches a wrong layout without needing a round-trip.
+		/// </summary>
+		private static int CellsDump(string input, string output)
+		{
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.*", SearchOption.AllDirectories)
+					.Where(p => p.EndsWith(".NCER", StringComparison.OrdinalIgnoreCase)
+						|| p.EndsWith(".NSCR", StringComparison.OrdinalIgnoreCase)
+						|| p.EndsWith(".NANR", StringComparison.OrdinalIgnoreCase))
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .NCER, .NSCR or .NANR files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+			Directory.CreateDirectory(outputDir);
+
+			// Every picture in the tree, by name, so a part can be checked against the
+			// sheet it claims to cut from.
+			Dictionary<string, (int Width, int Height)> sheets =
+				new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
+			string tree = File.Exists(input) ? Path.GetDirectoryName(Path.GetFullPath(input)) : input;
+			foreach (string picture in Directory.EnumerateFiles(tree, "*.*", SearchOption.AllDirectories))
+			{
+				if (!picture.EndsWith(".NCGR", StringComparison.OrdinalIgnoreCase)
+					&& !picture.EndsWith(".NCBR", StringComparison.OrdinalIgnoreCase))
+				{
+					continue;
+				}
+				try
+				{
+					FF3.ContentTool.Editor.ImageInfo info =
+						FF3.ContentTool.Editor.Images.Describe(File.ReadAllBytes(picture));
+					sheets[Path.GetFileName(picture)] = (info.Width, info.Height);
+				}
+				catch (Exception)
+				{
+					// Not a PNG after all, so nothing to check against.
+				}
+			}
+
+			int banks = 0, screens = 0, animations = 0;
+			int cells = 0, parts = 0, sequences = 0;
+			int inside = 0, missingSheet = 0, framesAddUp = 0;
+			List<string> problems = new List<string>();
+
+			foreach (string file in files)
+			{
+				byte[] data = File.ReadAllBytes(file);
+				string name = Path.GetFileName(file);
+				object result;
+
+				try
+				{
+					if (Cells.IsCellBank(data))
+					{
+						CellBank bank = Cells.ReadCellBank(data, name, sheets.ContainsKey);
+						banks++;
+						cells += bank.Cells.Count;
+
+						bool known = sheets.TryGetValue(bank.Sheet ?? string.Empty,
+							out (int Width, int Height) size);
+						if (!known)
+						{
+							missingSheet++;
+						}
+
+						foreach (Cell cell in bank.Cells)
+						{
+							foreach (CellPart part in cell.Parts)
+							{
+								parts++;
+								if (!known)
+								{
+									continue;
+								}
+								if (part.SourceX >= 0 && part.SourceY >= 0
+									&& part.SourceX + part.Width <= size.Width
+									&& part.SourceY + part.Height <= size.Height)
+								{
+									inside++;
+								}
+								else
+								{
+									problems.Add(string.Format(CultureInfo.InvariantCulture,
+										"{0} cell {1}: wants {2}x{3} at {4},{5} from {6}, which is {7}x{8}",
+										name, cell.Index, part.Width, part.Height,
+										part.SourceX, part.SourceY, bank.Sheet,
+										size.Width, size.Height));
+								}
+							}
+						}
+						result = bank;
+					}
+					else if (Cells.IsScreen(data))
+					{
+						screens++;
+						result = Cells.ReadScreen(data, name);
+					}
+					else if (Cells.IsAnimation(data))
+					{
+						AnimBank bank = Cells.ReadAnimation(data, name);
+						animations++;
+						sequences += bank.Sequences.Count;
+						if (bank.GotFrames == bank.TotalFrames)
+						{
+							framesAddUp++;
+						}
+						else
+						{
+							problems.Add(string.Format(CultureInfo.InvariantCulture,
+								"{0}: read {1} frames, but the header says {2}",
+								name, bank.GotFrames, bank.TotalFrames));
+						}
+						result = bank;
+					}
+					else
+					{
+						problems.Add(name + ": no CEBK, SCRN or ABNK block");
+						continue;
+					}
+				}
+				catch (Exception ex)
+				{
+					problems.Add(name + ": " + ex.Message);
+					continue;
+				}
+
+				File.WriteAllText(Path.Combine(outputDir, name + ".json"),
+					JsonSerializer.Serialize(result, Msd.Json));
+			}
+
+			Console.WriteLine("{0} cell bank(s) with {1} cells and {2} parts, "
+				+ "{3} screen(s), {4} animation(s) with {5} sequences -> {6}",
+				banks, cells, sequences == 0 && animations == 0 ? parts : parts,
+				screens, animations, sequences, Path.GetFullPath(outputDir));
+			int checkable = inside + problems.Count(p => p.Contains("wants", StringComparison.Ordinal));
+			Console.WriteLine("parts whose source rectangle is inside their sheet: {0}/{1}",
+				inside, checkable);
+			if (animations > 0)
+			{
+				Console.WriteLine("animation banks whose frames add up to their header: {0}/{1}",
+					framesAddUp, animations);
+			}
+			if (missingSheet > 0)
+			{
+				Console.WriteLine("{0} bank(s) name a sheet that is not in this tree", missingSheet);
+			}
+			if (problems.Count > 0)
+			{
+				Console.WriteLine("{0} problem(s):", problems.Count);
+				foreach (string problem in problems.Take(10))
+				{
+					Console.WriteLine("   " + problem);
+				}
+			}
+			return problems.Count > 0 ? 1 : 0;
 		}
 
 		/// <summary>

@@ -189,6 +189,20 @@ There is no lighting, because the game does not light these either - what you se
 is the texture and the material colour. A model that looks flat here looks flat in the
 game. `Docs/Graphics.md`.
 
+## Cells
+
+The tables that say which piece of a sheet goes where - 187 cell banks, 3 screens and 51
+animation banks. Each bank is composed against its sheet and drawn, so a window frame
+shows up as a window frame rather than a list of coordinates, and beside it is every
+part with its position, size, source and flags.
+
+**as the game draws it** applies the 0.6 x 2/3 squash and the half-size flag the way the
+game's own draw call does; turning it off shows the parts at their stored size.
+**outlines** draws a box round each part, which is how you see that a menu is 345 of them.
+
+A part that asks for more than its sheet has is marked in red. Fifteen do, all because
+the art was replaced at a smaller size and the table left alone. `Docs/Graphics.md`.
+
 ## Audio
 
 445 sounds - 30 music tracks and the rest effects - with their length, format, parts
@@ -244,8 +258,10 @@ switch files.
 
 - **Maps drawn as maps** - models and textures both decode now, so the pieces are all
   there; what the map view still needs is to place them from the `.hich` data rather
-  than drawing dots. What is missing for a menu that looks like the game is `.NCER` and
-  `.NSCR`, which say which part of a sheet is used and where it goes. `Docs/Graphics.md`.
+  than drawing dots.
+- **Menus drawn as menus** - the Menus tab still previews a layout as boxes. The window
+  frames it would need are decoded now and sit in the Cells tab, so joining the two is
+  the obvious next step. `Docs/Graphics.md`.
 - **Writing textures back** - reading a TEX0 is done; writing one means re-quantising
   to a 256 colour palette or to 4x4 blocks.
 - **Audio** - deliberately untouched.

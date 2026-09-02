@@ -259,10 +259,15 @@ All 833 models, as OBJ with their textures beside them:
 dotnet run --project FF3.ContentTool -- mdl ..\extractediles ..\models
 ```
 
+## Cells, screens and 2D animation
+
+```bash
+dotnet run --project FF3.ContentTool -- cells ..\\extracted ..\\cells
+```
+
 ## Not decoded yet
 
-What is left is the rest of the NitroSDK data: `NAMP` and `NCAP` animation, `MCL`
-collision, and the `.NSCR`/`.NCER` tables. The 2D pictures turned out
+What is left of the NitroSDK data is `NAMP` and `NCAP` animation and `MCL` collision. The 2D pictures turned out
 to need no decoder at all - all 542 are PNGs. `Docs/Graphics.md` has what each format
 holds and which order is worth taking them in.
 

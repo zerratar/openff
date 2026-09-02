@@ -42,6 +42,9 @@ async function loadList() {
     const textures = await api('/api/textures');
     state.textureFormats = textures.formats;
     state.files = textures.packages.map(p => ({ name: p.name, overridden: false, kind: p.kind }));
+  } else if (state.kind === 'cell') {
+    state.cells = await api('/api/cells');
+    state.files = state.cells.map(c => ({ name: c.name, overridden: false }));
   } else if (state.kind === 'model') {
     state.models = await api('/api/models');
     state.files = state.models.map(m => ({ name: m.name, overridden: false }));
@@ -96,6 +99,7 @@ async function open(name) {
     else if (state.kind === 'image') await openImage(name);
     else if (state.kind === 'texture') await openTexture(name);
     else if (state.kind === 'model') await openModel(name);
+    else if (state.kind === 'cell') await openCell(name);
     else await openText(name);
     say('');
   } catch (error) {
@@ -892,6 +896,179 @@ function showTexture(detail, packageName, texture) {
   note.textContent = 'Read-only for now. Putting a texture back means writing a TEX0 - '
     + 're-quantising to a palette, or to 4×4 blocks - which is a bigger job than reading one.';
   detail.append(note);
+}
+
+// ------------------------------------------------------------------------ cells
+
+// A cell bank is a cutting plan: each part copies a rectangle out of a sheet to a
+// position. Composing one is a canvas drawImage per part, with the same four flags the
+// game's own draw call applies - flip across, flip down, half size, and the 0.6 x 2/3
+// squash that nearly every part carries.
+
+async function openCell(name) {
+  const node = view('cell', name, false);
+  const list = $('.cell-list', node);
+  const detail = $('.detail', node);
+  const facts = $('.facts', node);
+
+  const bank = await api(`/api/cell?name=${encodeURIComponent(name)}`);
+  if (bank.error) {
+    facts.textContent = bank.error;
+    return;
+  }
+
+  if (bank.kind === 'screen') { showScreen(bank, facts, list); return; }
+  if (bank.kind === 'animation') { showAnimation(bank, facts, list); return; }
+
+  const parts = (bank.cells || []).reduce((n, c) => n + c.parts.length, 0);
+  facts.textContent = `${bank.cells.length} cell(s), ${parts} part(s)`
+    + (bank.sheet ? `  \u00b7  from ${bank.sheet} (${bank.sheetFrom})` : '');
+
+  if (!bank.sheet) {
+    const problem = document.createElement('p');
+    problem.className = 'empty';
+    problem.textContent = bank.problem || 'no sheet for this bank';
+    list.append(problem);
+    return;
+  }
+
+  const sheet = new Image();
+  sheet.src = `/api/image?name=${encodeURIComponent(bank.sheet)}`;
+  await new Promise(done => { sheet.onload = done; sheet.onerror = done; });
+
+  const squash = $('.squash', node);
+  const outlines = $('.outlines', node);
+  const paint = () => {
+    list.textContent = '';
+    for (const cell of bank.cells) {
+      const figure = document.createElement('figure');
+      figure.className = 'cell-cell';
+      const canvas = drawCell(cell, sheet, squash.checked, outlines.checked);
+      const caption = document.createElement('figcaption');
+      caption.textContent = `cell ${cell.index} \u00b7 ${cell.parts.length} part(s)`;
+      figure.append(canvas, caption);
+      figure.onclick = () => showCellParts(detail, cell, bank);
+      list.append(figure);
+    }
+    if (bank.cells.length) list.firstElementChild.onclick();
+  };
+  squash.onchange = paint;
+  outlines.onchange = paint;
+  paint();
+}
+
+// The game multiplies by 0.6 across and 2/3 down when flag 8 is set, and halves the
+// whole part when flag 4 is. Both apply to the destination only - the source rectangle
+// is always the stored one.
+function drawCell(cell, sheet, applySquash, showOutlines) {
+  const box = cellBounds(cell, applySquash);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(box.width));
+  canvas.height = Math.max(1, Math.ceil(box.height));
+  const g = canvas.getContext('2d');
+  g.imageSmoothingEnabled = false;
+
+  for (const part of cell.parts) {
+    const [dx, dy, dw, dh] = partRect(part, applySquash);
+    g.save();
+    g.translate(dx - box.x, dy - box.y);
+    if (part.flipX) { g.translate(dw, 0); g.scale(-1, 1); }
+    if (part.flipY) { g.translate(0, dh); g.scale(1, -1); }
+    try {
+      g.drawImage(sheet, part.sourceX, part.sourceY, part.width, part.height, 0, 0, dw, dh);
+    } catch (error) {
+      // A part can ask for a rectangle bigger than the sheet - 15 in the game do,
+      // where the art was replaced at a smaller size and the table left alone.
+    }
+    if (showOutlines) {
+      g.strokeStyle = 'rgba(110,168,254,.8)';
+      g.lineWidth = 1;
+      g.strokeRect(0.5, 0.5, dw - 1, dh - 1);
+    }
+    g.restore();
+  }
+  return canvas;
+}
+
+function partRect(part, applySquash) {
+  const sx = applySquash && part.squash ? 0.6 : 1;
+  const sy = applySquash && part.squash ? 2 / 3 : 1;
+  const half = part.half ? 0.5 : 1;
+  return [part.x * sx, part.y * sy, part.width * sx * half, part.height * sy * half];
+}
+
+function cellBounds(cell, applySquash) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const part of cell.parts) {
+    const [dx, dy, dw, dh] = partRect(part, applySquash);
+    x0 = Math.min(x0, dx); y0 = Math.min(y0, dy);
+    x1 = Math.max(x1, dx + dw); y1 = Math.max(y1, dy + dh);
+  }
+  if (!isFinite(x0)) return { x: 0, y: 0, width: 1, height: 1 };
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+}
+
+function showCellParts(detail, cell, bank) {
+  detail.textContent = '';
+  const heading = document.createElement('h3');
+  heading.textContent = `cell ${cell.index}`;
+  detail.append(heading);
+
+  const table = document.createElement('table');
+  table.className = 'parts';
+  table.innerHTML = '<thead><tr><th>at</th><th>size</th><th>from</th><th>flags</th></tr></thead>';
+  const body = document.createElement('tbody');
+  for (const part of cell.parts) {
+    const flags = [];
+    if (part.flipX) flags.push('flip \u2192');
+    if (part.flipY) flags.push('flip \u2193');
+    if (part.half) flags.push('half');
+    if (part.squash) flags.push('squash');
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${part.x},${part.y}</td><td>${part.width}\u00d7${part.height}</td>`
+      + `<td>${part.sourceX},${part.sourceY}</td><td>${flags.join(' ') || '\u2014'}</td>`;
+    if (bank.sheetWidth && (part.sourceX + part.width > bank.sheetWidth
+      || part.sourceY + part.height > bank.sheetHeight)) {
+      row.className = 'hidden-part';
+      row.title = `asks for more than the sheet has (${bank.sheetWidth}\u00d7${bank.sheetHeight})`;
+    }
+    body.append(row);
+  }
+  table.append(body);
+  detail.append(table);
+}
+
+function showScreen(bank, facts, list) {
+  const screen = bank.screen;
+  facts.textContent = `a real screen: ${screen.width}\u00d7${screen.height}, `
+    + `${screen.tiles.length} tiles, colour mode ${screen.colourMode}, format ${screen.format}`;
+  const note = document.createElement('p');
+  note.className = 'empty';
+  note.textContent = 'This is one of the only 3 .NSCR files that really is a screen - a '
+    + 'tile map rather than a cutting plan. The other 106 are cell banks.';
+  list.append(note);
+}
+
+function showAnimation(bank, facts, list) {
+  const sequences = bank.animation.sequences;
+  facts.textContent = `${sequences.length} sequence(s)`;
+  const modes = ['forward', 'loop', 'back and forth', 'loop back and forth'];
+  const table = document.createElement('table');
+  table.className = 'parts';
+  table.innerHTML = '<thead><tr><th>sequence</th><th>frames</th><th>loops from</th>'
+    + '<th>play</th><th>cells</th></tr></thead>';
+  const body = document.createElement('tbody');
+  for (const sequence of sequences) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${sequence.index}</td><td>${sequence.frames.length}</td>`
+      + `<td>${sequence.loopFrom}</td>`
+      + `<td>${modes[sequence.playMode] || sequence.playMode}</td>`
+      + `<td>${sequence.frames.slice(0, 12).map(f => f.cell).join(', ')}`
+      + `${sequence.frames.length > 12 ? ' \u2026' : ''}</td>`;
+    body.append(row);
+  }
+  table.append(body);
+  list.append(table);
 }
 
 // ----------------------------------------------------------------------- models

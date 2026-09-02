@@ -18,6 +18,7 @@
     <button data-kind="image">Images</button>
     <button data-kind="texture">Textures</button>
     <button data-kind="model">Models</button>
+    <button data-kind="cell">Cells</button>
     <button data-kind="audio">Audio</button>
   </nav>
   <span id="status"></span>
@@ -201,6 +202,23 @@
     </div>
     <div class="model-body">
       <div class="stage"><canvas class="scene"></canvas></div>
+      <aside class="detail"></aside>
+    </div>
+  </div>
+</template>
+
+<!-- Cells -->
+<template id="view-cell">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="facts"></span>
+      <label class="toggle"><input type="checkbox" class="squash" checked> as the game draws it</label>
+      <label class="toggle"><input type="checkbox" class="outlines"> outlines</label>
+      <span class="grow"></span>
+    </div>
+    <div class="cell-body">
+      <div class="cell-list"></div>
       <aside class="detail"></aside>
     </div>
   </div>

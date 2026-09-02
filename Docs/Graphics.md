@@ -171,11 +171,86 @@ The bind pose is what comes out. The game's animation blend keeps a weight of 1.
 nothing is bound, so a static read takes that branch and gets the rest pose. Billboards
 keep their base matrix, since which way they face depends on a camera that is not there.
 
+## NCER, NSCR and NANR: which piece goes where
+
+**Done.** `ff3content cells <dir> <out>` writes them all as JSON, and the editor's
+**Cells** tab composes each one against its sheet and shows the result.
+
+The pictures were already readable, but a picture is a sheet of parts. These are the
+tables that turn one back into a window frame, a button, or a whole menu screen.
+
+### The names lie
+
+106 of the 109 `.NSCR` files are **cell banks**, not screens. Only 3 are really screens.
+The block tag inside is the only thing that decides, and the game agrees - its own `Nscr`
+loader tries `SCRN` first and falls back to `CEBK` when that fails.
+
+| | | |
+| --- | ---: | --- |
+| `CEBK` cell banks | 187 | 81 `.NCER` + 106 `.NSCR` |
+| `SCRN` screens | 3 | the only real ones |
+| `ABNK` animation | 51 | all the `.NANR` |
+
+### It is not NDS OAM either
+
+Real OAM packs a sprite into three cryptic 16-bit words. The port threw that out and
+wrote seven plain ones, which is far easier to work with:
+
+| | |
+| --- | --- |
+| 0, 1 | where to put it, relative to the cell's origin |
+| 2, 3 | how big it is |
+| 4, 5 | where to take it from, in the sheet |
+| 6 | flags: 1 flip across, 2 flip down, 4 half size, 8 squash to 0.6 x 2/3 |
+
+That is read straight off the game's own draw call, which passes exactly those values to
+`drawImage(x, y, w, h, sx, sy, sw, sh)` - flips included, which it does by moving the
+source corner and negating the width. 7853 of the 7906 parts carry the squash flag.
+
+### Finding the sheet
+
+A bank never names the sheet it cuts from; the game names it at the call site:
+
+```csharp
+bg.bgLoad("menu_000_main.NSCR", "menu_bg_01.NCGR", "new_menu_bg.NCLR");
+sprite.Load("name_i.NCER", null, "name_i.NCGR", "name_i.NCLR");
+```
+
+so `Tools/gen_cell_pairs.py` reads those out of the game's 1116 source files rather than
+guessing. It follows three shapes: the two above, the arrays the menus index into
+(`bgLoad(main_bg_nscr[no], "menu_bg_01.NCGR", ...)`), and one call that picks its bank
+with a ternary on the language. Where a file names exactly one sheet anywhere in it,
+every bank in that file takes it - and a file naming two is **reported rather than
+guessed at**, so the rule cannot be quietly wrong.
+
+Everything else uses the sheet of the same name, trying `.NCBR` when there is no
+`.NCGR`, since 33 of the sheets are the other kind.
+
+### Checking it
+
+Every part asks for a rectangle out of a sheet whose size is known, so the check is
+whether that rectangle is actually in it. A misread field - a size where an offset
+belongs, a stride off by two - sends those coordinates somewhere impossible almost at
+once.
+
+| | |
+| --- | ---: |
+| parts whose source rectangle is inside their sheet | **7890 / 7905** |
+| animation banks whose frames add up to their own header | **51 / 51** |
+
+The 15 that fail are all the same thing and none of them is a decode error: the cell asks
+for more than the sheet has, because the port replaced that art at a smaller size and
+left the table alone. `end_20` wants 800x480 from a 640x480 picture; nine `map_marker_*`
+want 32x32 from 24x24. The game would sample past the edge of the texture and get away
+with it.
+
+One bank of the 187, `mastercard.NCER`, names a sheet that was never shipped. It has one
+cell holding one part.
+
 ## What is left
 
-**NANR / NCER / NSCR** - the 2D animation, cell and screen tables. The pictures are
-already readable; these say which part of a sheet is used and where it goes, which is
-what a menu preview needs to show the real thing.
+The NitroSDK animation - `.ncap` motion and `.namp`, 460 files - and `.mcl` collision.
+Neither blocks anything the editor does today.
 
 ## What each format is
 
@@ -186,7 +261,7 @@ what a menu preview needs to show the real thing.
 | `.ntxp` | 756 | textures (`BTX0`) | yes |
 | `.ncap` | 221 | motion | no |
 | `.namp` | 239 | animation | no |
-| `.NANR` | 51 | 2D animation | no |
-| `.NCER` | 81 | cells: which part of a sheet is a sprite | no |
-| `.NSCR` | 109 | screens: tile maps | no |
+| `.NANR` | 51 | 2D animation | yes |
+| `.NCER` | 81 | cells: which part of a sheet is a sprite | yes |
+| `.NSCR` | 109 | 106 are cell banks, 3 are really tile maps | yes |
 | `.mcl` | 322 | map collision (`MCL `) | no |
