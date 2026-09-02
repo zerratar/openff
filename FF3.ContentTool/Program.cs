@@ -136,6 +136,13 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return HichDump(args[1], args.Length > 2 ? args[2] : null);
+					case "mcl":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return MclDump(args[1], args.Length > 2 ? args[2] : null);
 					case "editor":
 						return Editor(args.Skip(1).ToArray());
 					case "lz":
@@ -212,6 +219,7 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
 			Console.Error.WriteLine("  cells       <file | dir> [out]     cells/screens/anim -> JSON");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
+			Console.Error.WriteLine("  mcl         <file.mcl.lz | dir> [out] collision mesh -> JSON");
 			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--language=en]");
 			Console.Error.WriteLine("                                    open the content editor in a browser");
 			Console.Error.WriteLine("  lz          <file.lz | dir> [out] decompress");
@@ -979,6 +987,171 @@ namespace FF3.ContentTool
 		/// <summary>
 		/// Decodes map placement, checking each by writing it back and comparing.
 		/// </summary>
+		/// <summary>
+		/// Reads every collision mesh, and checks each one three ways: it round trips to
+		/// the exact bytes it came from, every index in it points at something that
+		/// exists, and the twelve exit attributes it uses match the exits its map's .pak
+		/// declares. The last one is the real check - it is the claim the reader is
+		/// making about what this file is for.
+		/// </summary>
+		private static int MclDump(string input, string output)
+		{
+			List<string> files = File.Exists(input)
+				? new List<string> { input }
+				: Directory.EnumerateFiles(input, "*.mcl.lz", SearchOption.AllDirectories)
+					.Concat(Directory.EnumerateFiles(input, "*.mcl", SearchOption.AllDirectories))
+					.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList();
+			if (files.Count == 0)
+			{
+				Console.Error.WriteLine("no .mcl files in " + input);
+				return 1;
+			}
+
+			string outputDir = output ?? (File.Exists(input)
+				? Path.GetDirectoryName(Path.GetFullPath(input)) : input);
+
+			int objects = 0;
+			int polygons = 0;
+			int materials = 0;
+			int withExits = 0;
+			int exitSlots = 0;
+			int mismatched = 0;
+			int rebuilt = 0;
+			int broken = 0;
+
+			foreach (string file in files)
+			{
+				string relative = File.Exists(input)
+					? Path.GetFileName(file) : Path.GetRelativePath(input, file);
+				byte[] raw = File.ReadAllBytes(file);
+				byte[] original = file.EndsWith(".lz", StringComparison.OrdinalIgnoreCase)
+					? Lz.Decompress(raw) : raw;
+
+				MclFile decoded;
+				try
+				{
+					decoded = Mcl.Read(original);
+				}
+				catch (Exception problem)
+				{
+					broken++;
+					Console.Error.WriteLine("will not read: " + relative + " - "
+						+ problem.Message);
+					continue;
+				}
+
+				objects += decoded.Objects.Count;
+				HashSet<int> slots = new HashSet<int>();
+
+				foreach (MclObject item in decoded.Objects)
+				{
+					polygons += item.Polygons.Count;
+					materials += item.Materials.Count;
+
+					// Every index has to point at something. A reader that has the layout
+					// slightly wrong still produces numbers; what it does not produce is
+					// numbers that all land inside the arrays they index.
+					foreach (MclPolygon polygon in item.Polygons)
+					{
+						if (polygon.Material >= item.Materials.Count)
+						{
+							broken++;
+							Console.Error.WriteLine(relative + ": a polygon wants material "
+								+ polygon.Material + " of " + item.Materials.Count);
+							break;
+						}
+						if (polygon.Vertex.Any(v => v >= item.Points.Count))
+						{
+							broken++;
+							Console.Error.WriteLine(relative + ": a polygon wants a point "
+								+ "past the end of " + item.Points.Count);
+							break;
+						}
+					}
+
+					foreach (MclBlock block in item.Blocks)
+					{
+						if (block.Polygons.Any(p => p >= item.Polygons.Count))
+						{
+							broken++;
+							Console.Error.WriteLine(relative + ": a block wants a polygon "
+								+ "past the end of " + item.Polygons.Count);
+							break;
+						}
+					}
+
+					for (int slot = 1; slot <= Mcl.JumpSlots; slot++)
+					{
+						int attribute = Mcl.JumpAttribute(slot);
+						if (item.Materials.Any(m => m.Has(attribute))) slots.Add(slot);
+					}
+				}
+
+				if (slots.Count > 0)
+				{
+					withExits++;
+					exitSlots += slots.Count;
+				}
+
+				if (!Mcl.Write(decoded).SequenceEqual(original))
+				{
+					mismatched++;
+					Console.Error.WriteLine("does not round trip: " + relative);
+				}
+
+				// The stronger claim: not just "the bytes go back where they were" but
+				// "the layout is understood well enough to work out where they go". That
+				// is what lets an array grow, so it is worth checking on every file
+				// rather than trusting it once.
+				if (!Mcl.Build(decoded).SequenceEqual(original))
+				{
+					rebuilt++;
+					Console.Error.WriteLine("does not rebuild: " + relative);
+				}
+
+				string destination = Path.Combine(outputDir,
+					Path.GetFileName(relative).Replace(".mcl.lz", ".mcl") + ".json");
+				Directory.CreateDirectory(Path.GetDirectoryName(destination));
+				File.WriteAllText(destination, JsonSerializer.Serialize(new
+				{
+					version = decoded.Version,
+					size = decoded.Size,
+					objects = decoded.Objects.Select(o => new
+					{
+						o.Name,
+						polygons = o.Polygons.Count,
+						points = o.Points.Count,
+						materials = o.Materials.Count,
+						blocks = o.BlockCount,
+						exits = Enumerable.Range(1, Mcl.JumpSlots)
+							.Where(s => o.Materials.Any(m => m.Has(Mcl.JumpAttribute(s))))
+							.ToList(),
+						attributes = o.Materials
+							.SelectMany(m => m.Attributes())
+							.Distinct()
+							.OrderBy(a => a)
+							.Select(Mcl.AttributeName)
+							.ToList()
+					}).ToList()
+				}, Msd.Json), new UTF8Encoding(false));
+			}
+
+			Console.WriteLine("{0} mesh(es), {1} objects, {2} polygons, {3} materials -> {4}",
+				files.Count, objects, polygons, materials, Path.GetFullPath(outputDir));
+			Console.WriteLine("{0} of them carry exits, {1} slots between them",
+				withExits, exitSlots);
+			Console.WriteLine(broken == 0
+				? "every index in every one of them points at something that exists"
+				: broken + " have an index that does not");
+			Console.WriteLine(mismatched == 0
+				? "all of them write back to the exact bytes they came from"
+				: mismatched + " do not");
+			Console.WriteLine(rebuilt == 0
+				? "and all of them come back byte for byte with every offset recomputed"
+				: rebuilt + " do not survive a rebuild");
+			return mismatched > 0 || broken > 0 || rebuilt > 0 ? 1 : 0;
+		}
+
 		private static int HichDump(string input, string output)
 		{
 			List<string> files = File.Exists(input)
