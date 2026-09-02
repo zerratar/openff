@@ -664,6 +664,8 @@ async function openText(name) {
   for (const message of messages) {
     const row = document.createElement('div');
     row.className = 'message';
+    // So a line quoted somewhere else can be opened where it is written.
+    row.dataset.messageId = message.id;
 
     const id = document.createElement('div');
     id.className = 'id';

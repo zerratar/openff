@@ -36,6 +36,12 @@ namespace FF3.ContentTool.Editor
 		/// <summary>The lines this character says, in the order the code shows them.</summary>
 		public List<string> Lines { get; set; } = new List<string>();
 
+		/// <summary>
+		/// The message id each line came from, in the same order. Without these a line
+		/// can be read in the panel but not found in the text file it lives in.
+		/// </summary>
+		public List<uint> LineIds { get; set; } = new List<uint>();
+
 		/// <summary>Instructions in this cast's code, as a rough measure of how much it does.</summary>
 		public int Instructions { get; set; }
 	}
@@ -120,14 +126,15 @@ namespace FF3.ContentTool.Editor
 			string hichName = "files/" + map + ".hich";
 			List<HichEntry> entries = Hich.Read(workspace.Read(hichName));
 
-			Dictionary<int, (List<string> Lines, int Count)> perCast = ReadCasts(
-				workspace, map, lookupMessage);
+			Dictionary<int, (List<string> Lines, List<uint> Ids, int Count)> perCast =
+				ReadCasts(workspace, map, lookupMessage);
 
 			List<MapCharacter> characters = new List<MapCharacter>();
 			for (int i = 0; i < entries.Count; i++)
 			{
 				HichEntry entry = entries[i];
-				perCast.TryGetValue(entry.Cast, out (List<string> Lines, int Count) code);
+				perCast.TryGetValue(entry.Cast,
+					out (List<string> Lines, List<uint> Ids, int Count) code);
 
 				characters.Add(new MapCharacter
 				{
@@ -142,6 +149,7 @@ namespace FF3.ContentTool.Editor
 					RotationY = entry.Posture[1],
 					HasScript = code.Count > 0,
 					Lines = code.Lines ?? new List<string>(),
+					LineIds = code.Ids ?? new List<uint>(),
 					Instructions = code.Count
 				});
 			}
@@ -216,11 +224,11 @@ namespace FF3.ContentTool.Editor
 		/// walks from them the same way the disassembler does - following jumps,
 		/// stopping where flow stops - and collects the messages on the way.
 		/// </summary>
-		private static Dictionary<int, (List<string> Lines, int Count)> ReadCasts(
-			Workspace workspace, string map, Func<uint, string> lookupMessage)
+		private static Dictionary<int, (List<string> Lines, List<uint> Ids, int Count)>
+			ReadCasts(Workspace workspace, string map, Func<uint, string> lookupMessage)
 		{
-			Dictionary<int, (List<string>, int)> perCast =
-				new Dictionary<int, (List<string>, int)>();
+			Dictionary<int, (List<string>, List<uint>, int)> perCast =
+				new Dictionary<int, (List<string>, List<uint>, int)>();
 
 			ScriptFile script;
 			try
@@ -238,6 +246,7 @@ namespace FF3.ContentTool.Editor
 			foreach (ScriptCast cast in script.Casts)
 			{
 				List<string> lines = new List<string>();
+				List<uint> ids = new List<uint>();
 				HashSet<uint> seen = new HashSet<uint>();
 				Queue<uint> pending = new Queue<uint>();
 
@@ -262,6 +271,7 @@ namespace FF3.ContentTool.Editor
 							if (text != null && !lines.Contains(text))
 							{
 								lines.Add(text);
+								ids.Add(id);
 							}
 						}
 
@@ -280,7 +290,7 @@ namespace FF3.ContentTool.Editor
 					}
 				}
 
-				perCast[(int)cast.Number] = (lines, seen.Count);
+				perCast[(int)cast.Number] = (lines, ids, seen.Count);
 			}
 
 			return perCast;

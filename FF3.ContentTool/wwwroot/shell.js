@@ -1331,6 +1331,7 @@ api('/api/status')
   .then(status => {
     // The header keeps the workspace summary; it is true all session and would only
     // be wiped by the next thing that happened if say() owned it.
+    state.language = status.language || 'en';
     $('#status').textContent = `${status.files} files  ·  overrides in ${status.overrides}`;
   })
   .then(applyHash)

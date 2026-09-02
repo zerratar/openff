@@ -1,4 +1,4 @@
-// Message id -> text, read through the workspace.
+﻿// Message id -> text, read through the workspace.
 //
 // It matters that this goes through the workspace rather than a folder of extracted
 // files: a line added or changed in the editor lives in the override, and if the
@@ -18,6 +18,9 @@ namespace FF3.ContentTool.Editor
 	{
 		private readonly Workspace _workspace;
 		private readonly string _language;
+
+		/// <summary>The language folder, without the .lproj - "en", "ja" and so on.</summary>
+		public string Language => _language.Replace(".lproj/", string.Empty);
 		private Dictionary<uint, string> _messages;
 
 		public MessageIndex(Workspace workspace, string language)

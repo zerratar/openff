@@ -76,6 +76,12 @@ namespace FF3.ContentTool.Editor
 		public List<int> Triggers { get; set; } = new List<int>();
 
 		public int Slots { get; set; }
+
+		/// <summary>
+		/// One line per exit, for choosing an arrival by reading rather than counting.
+		/// </summary>
+		public List<string> Rowsuggestions { get; set; } = new List<string>();
+
 		public bool HasTable { get; set; }
 		public bool HasMesh { get; set; }
 		public string Note { get; set; }
@@ -223,6 +229,33 @@ namespace FF3.ContentTool.Editor
 				+ "game resolves at run time";
 		}
 
+		/// <summary>
+		/// Each of a map's exits in a line, so choosing which one to arrive at is a
+		/// matter of reading rather than guessing a number.
+		/// </summary>
+		private static List<string> Describe(Workspace workspace, string map)
+		{
+			List<string> said = new List<string>();
+			try
+			{
+				List<MapExit> exits = MapModel.ReadExitsOf(workspace, map);
+				for (int i = 0; i < exits.Count; i++)
+				{
+					MapExit exit = exits[i];
+					said.Add(string.Format(CultureInfo.InvariantCulture,
+						"{0} - arrive at {1}, {2}{3}",
+						i + 1, exit.X, exit.Z,
+						string.IsNullOrEmpty(exit.To)
+							? string.Empty
+							: ", leads on to " + exit.To));
+				}
+			}
+			catch (Exception)
+			{
+			}
+			return said;
+		}
+
 		/// <summary>Where a map keeps the half of its exits that is geometry.</summary>
 		public static string MeshName(string map)
 		{
@@ -245,6 +278,7 @@ namespace FF3.ContentTool.Editor
 					PakChainData jumps = Jumps(workspace, pak, out _);
 					state.Rows = jumps?.Records?.Count ?? 0;
 					state.HasTable = jumps != null;
+					state.Rowsuggestions = Describe(workspace, map);
 				}
 				catch (Exception)
 				{
@@ -684,6 +718,25 @@ namespace FF3.ContentTool.Editor
 				return result;
 			}
 
+			// Nothing asked for, nothing done.
+			//
+			// This matters more than it looks. A shipped box is not aligned to whole
+			// units - one of t23_01's runs from -30.44 to 29.93 - and the panel edits
+			// whole ones, so rebuilding it from what was read rounds it. Saving a
+			// doorway you had not touched used to shrink it by a fraction of a unit,
+			// which cost one of them two cells of the collision grid. Now an unchanged
+			// save writes nothing at all, and a real change says what it will cost.
+			if (x == was[0] && y == was[1] && z == was[2]
+				&& (width <= 0 || width == was[3])
+				&& (height <= 0 || height == was[4])
+				&& (depth <= 0 || depth == was[5]))
+			{
+				result.Ok = true;
+				result.Notes.Add("exit " + slot + "'s doorway is already there, so "
+					+ "nothing was written");
+				return result;
+			}
+
 			Mcl.RemoveJumpRegion(mesh, slot);
 			try
 			{
@@ -707,6 +760,14 @@ namespace FF3.ContentTool.Editor
 			result.Wrote = meshName;
 			result.Ok = true;
 			result.Notes.Add("moved the region for exit " + slot + " to " + x + ", " + z);
+			// A rebuilt box is a whole number of units on each side; the shipped ones are
+			// not, so the first move of one squares it up.
+			if (was[3] != width || was[5] != depth)
+			{
+				result.Notes.Add("it is now " + (width > 0 ? width : was[3]) + " by "
+					+ (depth > 0 ? depth : was[5])
+					+ " whole units, where the shipped boxes are measured in fractions");
+			}
 			return result;
 		}
 

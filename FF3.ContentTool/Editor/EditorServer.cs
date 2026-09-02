@@ -165,7 +165,10 @@ namespace FF3.ContentTool.Editor
 					SendJson(context, new
 					{
 						files = _workspace.FileCount,
-						overrides = _workspace.OverrideDirectory
+						overrides = _workspace.OverrideDirectory,
+						// Which .lproj the text was read through, so the page can open
+						// the file a line actually lives in rather than guessing "en".
+						language = _messages.Language
 					});
 					return;
 

@@ -1135,6 +1135,19 @@ function selectCharacter(node, character, pin) {
 // map names.
 const SENTINELS = ['back_field_map', 'back_town_map', 'back_from_inv'];
 
+// The number after the # in a destination is not an exit - it is which shared interior
+// to draw. getCommonMdl turns it into a stage name, and these are all of them. So
+// "t23_03#03" means: the characters, script and exits of t23_03, standing in the
+// scenery of s02_03 - which is why t23_03 has a jumps table and no collision mesh of
+// its own, and s02_03 has a mesh and no table. The two halves are in two maps.
+const INTERIORS = [
+  [-1, 'none - use the map\u2019s own scenery'],
+  [1, '1 - s02_01'], [2, '2 - s02_02'], [3, '3 - s02_03'],
+  [4, '4 - s02_04'], [5, '5 - s02_05'],
+  [30, '30 - t30_01'],
+  [99, '99 - keep the one already loaded']
+];
+
 function whatSentinel(name) {
   if (name === 'back_field_map') return 'Goes back to the world map you came from.';
   if (name === 'back_town_map') return 'Goes back to the town you came from.';
@@ -1223,7 +1236,7 @@ function buildExit(exit, index) {
         : draft.to ? `${draft.to} is not a map this can open - probably a world tile`
           : 'nowhere to open';
   };
-  to.oninput = () => { draft.to = to.value.trim(); refresh(); };
+  to.oninput = () => { draft.to = to.value.trim(); refresh(); fillArrivals(); };
   go.onclick = () => { if (openable()) openDoc('map', draft.to); };
   refresh();
   row.append(to, go);
@@ -1232,11 +1245,71 @@ function buildExit(exit, index) {
 
   fillMapNames();
 
-  panel.append(field('arrival index', 'toIndex',
-    'Which exit on the far map the player comes out of.'));
-  panel.append(field('common model', 'modelNo',
-    'The model the destination loads, written after a # in the same field as its name. '
-    + '-1 for none. 55 of the game\u2019s exits use one.'));
+  // Which of the far map's exits the player comes out of. A dropdown rather than a
+  // number, because the far map knows how many it has and typing a number that is not
+  // one of them is a link to nowhere.
+  const arriveLabel = document.createElement('label');
+  arriveLabel.className = 'wide';
+  arriveLabel.textContent = 'arrives at which of its exits';
+  const arrive = document.createElement('select');
+  arriveLabel.append(arrive);
+  panel.append(arriveLabel);
+
+  const fillArrivals = async () => {
+    arrive.textContent = '';
+    let slots = [];
+    if (draft.to && (state.files || []).some(f => f.name === draft.to)) {
+      try {
+        slots = (await api(`/api/map/exits?name=${encodeURIComponent(draft.to)}`))
+          .rowsuggestions || [];
+      } catch (error) {
+        slots = [];
+      }
+    }
+    if (!slots.length) {
+      // Nothing to read - a world tile, a sentinel, or a map with no table. The number
+      // still has to be settable, so it falls back to what it already is.
+      const only = document.createElement('option');
+      only.value = draft.toIndex;
+      only.textContent = draft.toIndex + ' - ' + (draft.to
+        ? 'cannot read that map\u2019s exits' : 'no destination');
+      arrive.append(only);
+      return;
+    }
+    slots.forEach((label, i) => {
+      const option = document.createElement('option');
+      option.value = i + 1;
+      option.textContent = label;
+      arrive.append(option);
+    });
+    // A row pointing past the end is a broken link, and hiding it would not mend it.
+    if (draft.toIndex < 1 || draft.toIndex > slots.length) {
+      const odd = document.createElement('option');
+      odd.value = draft.toIndex;
+      odd.textContent = draft.toIndex + ' - nothing there';
+      arrive.append(odd);
+    }
+    arrive.value = String(draft.toIndex);
+  };
+  arrive.onchange = () => { draft.toIndex = parseInt(arrive.value, 10) || 0; };
+  fillArrivals();
+
+  const interiorLabel = document.createElement('label');
+  interiorLabel.className = 'wide';
+  interiorLabel.textContent = 'shared interior';
+  const interior = document.createElement('select');
+  for (const [value, label] of INTERIORS) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    interior.append(option);
+  }
+  interior.value = String(draft.modelNo);
+  interior.onchange = () => { draft.modelNo = parseInt(interior.value, 10); };
+  interior.title = 'Which scenery the destination is drawn in. The houses of a town '
+    + 'share five interiors between them.';
+  interiorLabel.append(interior);
+  panel.append(interiorLabel);
 
   const whatIs = document.createElement('p');
   whatIs.className = 'none';
@@ -1253,8 +1326,15 @@ function buildExit(exit, index) {
   // --------------------------------------------------------- where it lands
 
   const whereHead = document.createElement('h3');
-  whereHead.textContent = 'Arrives at';
+  whereHead.textContent = 'Where people arrive here';
   panel.append(whereHead);
+  const whereNote = document.createElement('p');
+  whereNote.className = 'none';
+  whereNote.textContent = 'This is not where this exit takes you - it is where the '
+    + 'player appears when they come into ' + mapState.name + ' through this slot, '
+    + 'which is what another map\u2019s "arrives at" points to. Where this one goes '
+    + 'is above.';
+  panel.append(whereNote);
   panel.append(field('x', 'x'), field('y', 'y'), field('z', 'z'),
     field('facing', 'rotationY',
       'Degrees. The file keeps it as a 16 bit angle where a whole turn is 65536.'));
@@ -1455,6 +1535,36 @@ function buildExit(exit, index) {
   return panel;
 }
 
+/// Opens the text file a message is written in, and goes to it.
+///
+/// A map's lines live in one .msd per language, so which file is a question of which
+/// language is being edited - the server says which one it read the text through, and
+/// that is the one worth opening.
+async function openMessage(id) {
+  const file = `${state.language || 'en'}.lproj/${mapState.name}.msd`;
+  if (!(state.files || []).some(f => f.name === file) && state.browse !== 'text') {
+    // The project is showing something else, so its file list cannot confirm this.
+    // Opening it is still the right move; a missing file reports itself.
+  }
+  let doc;
+  try {
+    doc = await openDoc('text', file);
+  } catch (error) {
+    say(`${file} would not open: ${error.message}`, 'bad');
+    return;
+  }
+  const row = doc && $(`.message[data-message-id="${id}"]`, doc.pane);
+  if (!row) {
+    say(`message ${id} is not in ${file}`, 'bad');
+    return;
+  }
+  row.scrollIntoView({ block: 'center' });
+  row.classList.add('found');
+  setTimeout(() => row.classList.remove('found'), 1600);
+  const area = $('textarea', row);
+  if (area) area.focus();
+}
+
 /// What names a cast in this map's script, and the lines it says.
 ///
 /// A cast number is identity rather than position - the game finds one by scanning for
@@ -1644,11 +1754,26 @@ function buildCharacter(character) {
   } else {
     const list = document.createElement('ul');
     list.className = 'lines';
-    for (const line of character.lines) {
+    character.lines.forEach((line, at) => {
       const item = document.createElement('li');
-      item.textContent = line;
+      const words = document.createElement('span');
+      words.textContent = line;
+      item.append(words);
+
+      // The id the line came from, so it can be opened where it is written rather
+      // than hunted for in a file of two thousand.
+      const id = character.lineIds && character.lineIds[at];
+      if (id !== undefined) {
+        const edit = document.createElement('button');
+        edit.className = 'icon-button';
+        edit.title = `edit message ${id}`;
+        edit.append(icon('text'));
+        edit.onclick = () => openMessage(id);
+        item.append(edit);
+        item.classList.add('with-edit');
+      }
       list.append(item);
-    }
+    });
     panel.append(list);
   }
 
