@@ -100,7 +100,8 @@ namespace FF3.ContentTool.Editor
 			Ffs.SourceWriter.Write(source, script, map + ".script", lookupMessage);
 
 			string edited = Unwire(source.ToString(), cast, out List<uint> saidHere,
-				out int bootsRemoved, out bool castRemoved, out string error);
+				out int bootsRemoved, out bool castRemoved, out List<string> treasureGone,
+				out string error);
 			if (error != null)
 			{
 				result.Notes.Add("the row is gone, but the script was left alone: " + error);
@@ -140,6 +141,12 @@ namespace FF3.ContentTool.Editor
 				: "the script had no cast " + cast.ToString(CultureInfo.InvariantCulture)
 					+ " to remove");
 
+			foreach (string line in treasureGone)
+			{
+				result.Notes.Add("removed what it held: " + line
+					+ " - the flag it used is free again");
+			}
+
 			int kept = saidHere.Distinct().Count() - orphaned.Count;
 			if (orphaned.Count > 0)
 			{
@@ -177,9 +184,11 @@ namespace FF3.ContentTool.Editor
 		/// compiles it - the same way adding one puts them in.
 		/// </summary>
 		private static string Unwire(string source, int cast, out List<uint> said,
-			out int bootsRemoved, out bool castRemoved, out string error)
+			out int bootsRemoved, out bool castRemoved, out List<string> treasureGone,
+			out string error)
 		{
 			said = new List<uint>();
+			treasureGone = new List<string>();
 			bootsRemoved = 0;
 			castRemoved = false;
 			error = null;
@@ -196,6 +205,13 @@ namespace FF3.ContentTool.Editor
 
 			Regex castHead = new Regex(
 				@"^\s*cast\s+" + cast.ToString(CultureInfo.InvariantCulture) + @"\s*\{");
+
+			// What it holds, if it is a chest. This lives beside the boot call rather
+			// than in the cast, so nothing else would take it away - and left behind it
+			// names a cast that is gone and keeps a flag reserved for nobody.
+			Regex treasure = new Regex(
+				@"^\s*setTreasure(Item|Money)\s*\(\s*"
+				+ cast.ToString(CultureInfo.InvariantCulture) + @"\s*,");
 
 			// The ids are written in hex once a script has been through the compiler and
 			// come back out, and in decimal when a person has just typed one, so both.
@@ -261,6 +277,12 @@ namespace FF3.ContentTool.Editor
 				if (boots.IsMatch(line))
 				{
 					bootsRemoved++;
+					continue;
+				}
+
+				if (treasure.IsMatch(line))
+				{
+					treasureGone.Add(line.Trim());
 					continue;
 				}
 

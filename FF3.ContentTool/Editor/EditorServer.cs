@@ -36,6 +36,7 @@ namespace FF3.ContentTool.Editor
 		private readonly string _webRoot;
 		private readonly MessageIndex _messages;
 		private readonly CharacterIds _characterIds;
+		private readonly FlagIndex _flags;
 		private readonly Func<uint, string> _lookupMessage;
 
 		public EditorServer(Workspace workspace, string webRoot, MessageIndex messages)
@@ -45,6 +46,7 @@ namespace FF3.ContentTool.Editor
 			_messages = messages;
 			_lookupMessage = id => messages.Text(id);
 			_characterIds = new CharacterIds(workspace);
+			_flags = new FlagIndex(workspace, _lookupMessage);
 		}
 
 		public void Run(int port)
@@ -212,6 +214,10 @@ namespace FF3.ContentTool.Editor
 
 				case "/api/map/add":
 					AddToMap(context);
+					return;
+
+				case "/api/items":
+					GetItems(context);
 					return;
 
 				case "/api/images":
@@ -431,18 +437,82 @@ namespace FF3.ContentTool.Editor
 			JsonNode body = ReadBody(context);
 			// The new line has to be visible to the very views that just wrote it.
 			_messages.Invalidate();
-			AddCharacterResult added = AddCharacter.Add(
+
+			string behaviourName = (string)body["behaviour"] ?? "talk";
+			if (!Enum.TryParse(behaviourName, true, out EntityBehaviour behaviour))
+			{
+				SendJson(context, new
+				{
+					ok = false,
+					error = "there is no behaviour called " + behaviourName
+				});
+				return;
+			}
+
+			AddEntityResult added = AddEntity.Add(
 				_workspace,
 				(string)body["name"],
 				(string)body["model"],
 				(int)body["x"],
 				(int)body["z"],
+				behaviour,
 				(string)body["text"],
+				body["item"] == null ? 0 : (int)body["item"],
+				body["gold"] == null ? 0 : (int)body["gold"],
 				_lookupMessage,
-				_characterIds);
-			// A model placed for the first time is a model every other map can use now.
+				_characterIds,
+				_flags);
+			// A model placed for the first time is a model every other map can use now,
+			// and a chest has taken a flag nothing else may have.
 			_characterIds.Invalidate();
+			if (added.Ok) _flags.Invalidate();
 			SendJson(context, added);
+		}
+
+		/// <summary>
+		/// Every item a chest can hold, by id and name, so choosing one is a matter of
+		/// reading rather than knowing that 3101 is a Leather Cap.
+		/// </summary>
+		private void GetItems(HttpListenerContext context)
+		{
+			const string name = "files/item_parameter.pak";
+			PakFile decoded = Pak.Read(_workspace.Read(name), "Item", _lookupMessage);
+
+			List<object> items = new List<object>();
+			foreach (PakChainData chain in decoded.Chains)
+			{
+				if (chain.Records == null) continue;
+				foreach (JsonObject record in chain.Records)
+				{
+					if (!record.TryGetPropertyValue("itemId", out JsonNode id)) continue;
+					items.Add(new
+					{
+						id = Number(id),
+						name = record.TryGetPropertyValue("nameText", out JsonNode itemName)
+							? (string)itemName
+							: string.Empty,
+						category = chain.Label,
+						price = record.TryGetPropertyValue("price", out JsonNode price)
+							? Number(price)
+							: 0
+					});
+				}
+			}
+
+			SendJson(context, items);
+		}
+
+		/// <summary>
+		/// A number out of a decoded record. The fields keep the width the game gave
+		/// them - an item id is a short, a price an int - so a plain cast to int throws
+		/// on half of them.
+		/// </summary>
+		private static int Number(JsonNode node)
+		{
+			return node != null && int.TryParse(node.ToJsonString(), NumberStyles.Integer,
+				CultureInfo.InvariantCulture, out int value)
+				? value
+				: 0;
 		}
 
 		/// <summary>Removes a character and everything that only existed for it.</summary>

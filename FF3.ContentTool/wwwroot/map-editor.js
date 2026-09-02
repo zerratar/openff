@@ -72,8 +72,9 @@ async function openMap(name) {
   drawMap(node);
 }
 
-/// The form for a new character. Everything it needs is already on the map: a model
-/// the map loads, somewhere to stand, and a line to say.
+/// The form for something new on the map. What it needs depends on what it is: a
+/// character needs a line to say, a chest needs something to hold, a prop needs
+/// neither. The model, a place to stand and a free cast number are common to all.
 function showAdd(node) {
   if (activeDoc) {
     activeDoc.selection = 'add';
@@ -82,31 +83,98 @@ function showAdd(node) {
   }
 }
 
+// What can be added, and what each one writes. The wording matters more than it looks:
+// "cast" and "hich row" mean nothing until you have read the formats, and the panel is
+// where somebody finds out what they are.
+const BEHAVIOURS = [
+  {
+    id: 'talk',
+    label: 'Talks to the player',
+    note: 'Turns to face the player and says a line. The line is written into every '
+      + 'language this map has text for.',
+    objectsOnly: false
+  },
+  {
+    id: 'chest',
+    label: 'Chest holding an item',
+    note: 'Opens once and gives the item. It remembers being opened with a flag no '
+      + 'other chest in the game uses - the editor finds a free one.',
+    objectsOnly: true
+  },
+  {
+    id: 'money',
+    label: 'Chest holding gil',
+    note: 'The same as a chest, with gil in it instead of an item.',
+    objectsOnly: true
+  },
+  {
+    id: 'prop',
+    label: 'Stands there',
+    note: 'Placed and booted, with an empty cast. Somewhere to hang behaviour on later.',
+    objectsOnly: false
+  }
+];
+
+/// Whether a model is set up as a map object rather than a person. The game switches
+/// on the first letter of the name and only o and w go through setUpMapObject, which is
+/// what a chest has to be - see Editor/AddEntity.cs.
+function isObjectModel(name) {
+  const first = (name || '')[0];
+  return first === 'o' || first === 'w' || first === 'O' || first === 'W';
+}
+
 function buildAdd(node) {
   const panel = document.createElement('div');
 
   const title = document.createElement('h2');
-  title.textContent = 'Add a character';
+  title.textContent = 'Add a game object';
   const sub = document.createElement('p');
   sub.className = 'sub';
-  sub.textContent = 'Writes the .hich row, boots it in the script, gives it a cast '
-    + 'that talks, and adds the line to every language.';
+  sub.textContent = 'Writes the row that places it, the call that boots it, and the '
+    + 'cast that gives it behaviour.';
   panel.append(title, sub);
 
-  const models = [...new Set(mapState.data.characters
+  // ------------------------------------------------------------- what it does
+
+  const kindLabel = document.createElement('label');
+  kindLabel.className = 'wide';
+  kindLabel.textContent = 'behaviour';
+  const kind = document.createElement('select');
+  for (const entry of BEHAVIOURS) {
+    const option = document.createElement('option');
+    option.value = entry.id;
+    option.textContent = entry.label;
+    kind.append(option);
+  }
+  kindLabel.append(kind);
+
+  const kindNote = document.createElement('p');
+  kindNote.className = 'none';
+
+  // ------------------------------------------------------------------- model
+
+  const modelHead = document.createElement('h3');
+  modelHead.textContent = 'Model';
+
+  // Whatever this map already uses is the likeliest answer, so it starts there rather
+  // than on the first name in an alphabetical list of 145.
+  const here = [...new Set(mapState.data.characters
     .filter(c => c.kind === 0 && c.model)
     .map(c => c.model))].sort();
+  let model = here[0] || 'n011';
+  // Once a model has been picked on purpose, changing the behaviour leaves it alone -
+  // unless it could not work at all.
+  let picked = false;
 
-  const modelLabel = document.createElement('label');
-  modelLabel.className = 'wide';
-  modelLabel.textContent = 'model (only ones this map already loads)';
-  const model = document.createElement('select');
-  for (const name of models) {
-    const option = document.createElement('option');
-    option.value = option.textContent = name;
-    model.append(option);
-  }
-  modelLabel.append(model);
+  const choose = document.createElement('button');
+  choose.className = 'model-choice';
+  const chosenName = document.createElement('span');
+  choose.append(icon('model'), chosenName);
+
+  const modelNote = document.createElement('p');
+  modelNote.className = 'none';
+
+  // --------------------------------------------------------------- where
 
   const xLabel = document.createElement('label');
   xLabel.textContent = 'x';
@@ -120,6 +188,8 @@ function buildAdd(node) {
   z.value = '0';
   zLabel.append(z);
 
+  // ------------------------------------------------------ what it says or holds
+
   const textLabel = document.createElement('label');
   textLabel.className = 'wide';
   textLabel.textContent = 'what it says';
@@ -127,25 +197,112 @@ function buildAdd(node) {
   text.value = 'Hello.';
   textLabel.append(text);
 
+  const itemLabel = document.createElement('label');
+  itemLabel.className = 'wide';
+  itemLabel.textContent = 'what is in it';
+  const item = document.createElement('select');
+  itemLabel.append(item);
+
+  const goldLabel = document.createElement('label');
+  goldLabel.className = 'wide';
+  goldLabel.textContent = 'how much gil';
+  const gold = document.createElement('input');
+  gold.value = '100';
+  goldLabel.append(gold);
+
   const go = document.createElement('button');
   go.className = 'primary';
   go.textContent = 'Add it';
+
+  panel.append(kindLabel, kindNote, modelHead, choose, modelNote,
+    xLabel, zLabel, textLabel, itemLabel, goldLabel, go);
+
+  // The item list is worth fetching once and keeping - it is the whole item table, and
+  // every chest anyone adds wants the same list.
+  const fillItems = async () => {
+    if (!state.items) {
+      try {
+        state.items = await api('/api/items');
+      } catch (error) {
+        state.items = [];
+        say(error.message, 'bad');
+      }
+    }
+    if (item.childElementCount) return;
+    for (const entry of state.items) {
+      const option = document.createElement('option');
+      option.value = entry.id;
+      option.textContent = `${entry.name} · ${entry.category} · ${entry.id}`;
+      item.append(option);
+    }
+  };
+
+  const showFor = (id) => {
+    const behaviour = BEHAVIOURS.find(b => b.id === id) || BEHAVIOURS[0];
+    kindNote.textContent = behaviour.note;
+    textLabel.hidden = id !== 'talk';
+    itemLabel.hidden = id !== 'chest';
+    goldLabel.hidden = id !== 'money';
+    if (id === 'chest') fillItems();
+
+    // A chest has to be an object, and o001 is the chest: 377 of the game's 421
+    // treasure rows use it, and the other 44 use o000. So an unpicked model becomes the
+    // chest, and a picked one is only overridden when it is a person, which cannot work
+    // at all.
+    if (behaviour.objectsOnly && (!picked || !isObjectModel(model))) {
+      const placeable = (state.placeable || []).map(p => p.model);
+      const chest = placeable.includes('o001') ? 'o001'
+        : (here.find(isObjectModel) || placeable.find(isObjectModel));
+      if (chest) model = chest;
+    }
+    chosenName.textContent = model;
+    modelNote.textContent = behaviour.objectsOnly
+      ? 'A chest has to be an object model - one whose name starts with o or w. The '
+        + 'game sets those up as map objects, and the treasure command looks its cast '
+        + 'up in that list.'
+      : (here.includes(model)
+        ? 'This map already loads it.'
+        : 'This map has no ' + model + ' yet - its id comes from the rest of the game.');
+  };
+
+  kind.onchange = () => showFor(kind.value);
+
+  choose.onclick = () => {
+    const behaviour = BEHAVIOURS.find(b => b.id === kind.value);
+    pickModel(model, (chosen) => {
+      model = chosen;
+      picked = true;
+      showFor(kind.value);
+    }, behaviour.objectsOnly
+      ? { only: isObjectModel, title: 'Choose an object', what: 'object models' }
+      : {});
+  };
+
   go.onclick = async () => {
     go.disabled = true;
     try {
       const result = await api('/api/map/add', {
         name: mapState.name,
-        model: model.value,
+        model,
+        behaviour: kind.value,
         x: parseInt(x.value, 10) || 0,
         z: parseInt(z.value, 10) || 0,
-        text: text.value
+        text: text.value,
+        item: parseInt(item.value, 10) || 0,
+        gold: parseInt(gold.value, 10) || 0
       });
       if (!result.ok) {
         say(result.error, 'bad');
         go.disabled = false;
         return;
       }
-      say(`added cast ${result.cast}, message ${result.messageId}`, 'good');
+
+      let what = `added cast ${result.cast}`;
+      if (result.messageId) what += `, message ${result.messageId}`;
+      if (result.flagIndex) what += `, flag ${result.flagGroup},${result.flagIndex}`;
+      say(what, 'good');
+      for (const note of result.notes || []) say(note);
+
       await open(mapState.name);
       const added = mapState.data.characters.find(c => c.cast === result.cast);
       if (added && activeDoc) {
@@ -161,7 +318,7 @@ function buildAdd(node) {
     }
   };
 
-  panel.append(modelLabel, xLabel, zLabel, textLabel, go);
+  showFor(kind.value);
   return panel;
 }
 

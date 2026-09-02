@@ -11,7 +11,10 @@
 
 /// Opens the picker. Calls back with the chosen model name, or not at all if it is
 /// closed without choosing.
-function pickModel(current, onChosen) {
+///
+/// `options.only` narrows what is offered - a chest can only be an object model, and
+/// showing 145 people it cannot be is worse than showing nothing.
+function pickModel(current, onChosen, options = {}) {
   const veil = document.createElement('div');
   veil.className = 'picker-veil';
 
@@ -21,7 +24,7 @@ function pickModel(current, onChosen) {
   const head = document.createElement('div');
   head.className = 'picker-head';
   const title = document.createElement('strong');
-  title.textContent = 'Choose a model';
+  title.textContent = options.title || 'Choose a model';
   const filter = document.createElement('input');
   filter.type = 'search';
   filter.placeholder = 'filter';
@@ -42,7 +45,8 @@ function pickModel(current, onChosen) {
   veil.append(box);
   document.body.append(veil);
 
-  const models = state.placeable || [];
+  const models = (state.placeable || []).filter(
+    entry => !options.only || options.only(entry.model));
   let watcher = null;
 
   const draw = () => {
@@ -81,7 +85,7 @@ function pickModel(current, onChosen) {
     }
 
     foot.textContent = shown === models.length
-      ? `${models.length} models can go in a map row`
+      ? `${models.length} ${options.what || 'models can go in a map row'}`
       : `${shown} of ${models.length}`;
   };
 

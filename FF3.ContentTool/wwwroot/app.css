@@ -741,6 +741,9 @@ ul.uses a:hover { text-decoration: underline; }
   text-transform: uppercase; letter-spacing: .04em; margin: 18px 0 6px;
 }
 .inspector label, #inspector label { display: inline-block; width: 48%; color: var(--dim); font-size: 12px; margin-bottom: 8px; }
+/* A display of its own beats the hidden attribute, so hidden has to say so. This is
+   the third time that has caught something out. */
+.inspector label[hidden], #inspector label[hidden] { display: none; }
 .inspector input, #inspector input {
   width: 100%; margin-top: 3px; background: var(--bg); border: 1px solid var(--line);
   color: var(--ink); border-radius: 4px; padding: 4px 6px; font: inherit;
