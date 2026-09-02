@@ -251,6 +251,18 @@ namespace FF3.ContentTool.Editor
 					AddToMap(context);
 					return;
 
+				case "/api/menu/background":
+					{
+						string screen = Query(context, "screen") ?? string.Empty;
+						SendJson(context, new
+						{
+							screen,
+							bank = MenuBackgrounds.ForScreen.TryGetValue(screen,
+								out string bank) ? bank : null
+						});
+					}
+					return;
+
 				case "/api/font":
 					SendJson(context, new { sizes = _fonts.Sizes() });
 					return;

@@ -553,6 +553,8 @@ select {
 
 /* The game's own font, blitted from its atlas. Nothing may smooth it. */
 .font-text { display: block; image-rendering: pixelated; }
+/* The panel the screen sits on, behind everything and not in the way of a click. */
+.menu-bg { position: absolute; pointer-events: none; image-rendering: pixelated; }
 /* In preview, a widget stops being a box with something inside it and becomes just the
    text. Most Text widgets declare a width of 0 - the game measures the string and the
    box is however wide that came out - so clipping to the declared width would cut

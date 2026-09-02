@@ -371,6 +371,69 @@ async function openMenu(name) {
 }
 
 /// Redraws whichever screen the picker is on, keeping the selection.
+// What is behind a screen, once, because it is the same for every redraw.
+const menuBackgrounds = new Map();
+
+/// Draws the panel a screen sits on, behind its widgets.
+///
+/// The background is a cell bank rather than a picture - the parts are blitted from a
+/// sheet every menu shares, menu_bg_01.NCGR, which is why looking for a sheet of the
+/// same name found nothing. Its parts are laid out around an origin at the centre of an
+/// 800 by 480 screen, and a .xbn lays out in 480 by 320 from the top left, so the whole
+/// thing is moved and scaled by the same numbers the font uses.
+async function drawMenuBackground(node, screenName) {
+  const canvas = $('.canvas', node);
+  const existing = $('.menu-bg', canvas);
+  if (existing) existing.remove();
+  if (!menu.preview || !screenName) return;
+
+  let entry = menuBackgrounds.get(screenName);
+  if (entry === undefined) {
+    try {
+      const found = await api(
+        `/api/menu/background?screen=${encodeURIComponent(screenName)}`);
+      entry = found.bank || null;
+    } catch (error) {
+      entry = null;
+    }
+    menuBackgrounds.set(screenName, entry);
+  }
+  if (!entry) return;
+
+  let bank = menuBackgrounds.get('bank:' + entry);
+  if (!bank) {
+    try {
+      bank = await api(`/api/cell?name=${encodeURIComponent(entry)}`);
+    } catch (error) {
+      return;
+    }
+    menuBackgrounds.set('bank:' + entry, bank);
+  }
+  if (!bank.cells || !bank.cells.length) return;
+
+  const sheet = new Image();
+  await new Promise((resolve) => {
+    sheet.onload = resolve;
+    sheet.onerror = resolve;
+    sheet.src = `/api/image?name=${encodeURIComponent(bank.sheet)}`;
+  });
+  if (!sheet.width) return;
+
+  const drawn = drawCell(bank.cells[0], sheet, true, false);
+  const box = cellBounds(bank.cells[0], true);
+  drawn.className = 'menu-bg';
+  // The parts are laid out for an 800x480 screen and carry the squash flag, which is
+  // 0.6 across and 2/3 down - the same conversion the font needs, and drawCell has
+  // already applied it. So these are menu units, centred on the middle of a 480x320
+  // screen, and all that is left is moving the origin to the corner. Scaling here as
+  // well put the panels at half size in the wrong place.
+  drawn.style.left = `${box.x + 240}px`;
+  drawn.style.top = `${box.y + 160}px`;
+  drawn.style.width = `${box.width}px`;
+  drawn.style.height = `${box.height}px`;
+  canvas.prepend(drawn);
+}
+
 function redraw(node) {
   const picker = $('.screens', node);
   drawScreen(node, menu.screens[picker.value || 0], menu.selected);
@@ -495,6 +558,8 @@ function drawScreen(node, screen, select) {
   const scale = $('.canvas-scale', node);
   scale.style.width = `${width * menu.zoom}px`;
   scale.style.height = `${height * menu.zoom}px`;
+
+  drawMenuBackground(node, childText(screen, 'name'));
 
   for (const frame of frames) {
     const box = document.createElement('div');
