@@ -6560,6 +6560,12 @@ internal static partial class GlobalScope
 						{
 							byte[] array = (byte[])arg0;
 							char[] array2 = arg1.ToCharArray();
+							// PORT: a file the content does not have arrives as null or empty; C's memcmp
+							// would read garbage, this says "different" and lets the caller cope.
+							if (array == null || array.Length < arg2)
+							{
+								return -1;
+							}
 							for (int i = 0; i < arg2; i++)
 							{
 								if (array[i] != array2[i])

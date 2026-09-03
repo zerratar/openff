@@ -37,6 +37,8 @@ namespace FF3
 			("screenshot-dir", "FF3_SCREENSHOT_DIR", "<dir>", "Where F12 screenshots are written"),
 			("screenshot-every", "FF3_SCREENSHOT_EVERY", "<seconds>", "Capture a screenshot automatically every N seconds"),
 			("speed", "FF3_SPEED", "<n>", "Extra update passes per frame while fast-forwarding"),
+			("mod", "FF3_MOD", "<dir>[;dir]", "Mod folder(s) mirroring the game's file names; first wins"),
+			("project", "FF3_PROJECT", "<name|dir>", "An editor project whose edits are the mods"),
 			("size", "FF3_SIZE", "<WxH>", "Window size, e.g. 1600x960 (default 800x480)"),
 			("fullscreen", "FF3_FULLSCREEN", "", "Start fullscreen at the desktop resolution")
 		};

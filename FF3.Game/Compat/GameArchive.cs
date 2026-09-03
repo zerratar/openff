@@ -1,178 +1,151 @@
-// Runtime access to the game's data*.bin archives, with a loose-file override.
+﻿// Runtime access to the game's content, through the same chain the editor uses.
 //
-// The format itself lives in Shared/ArchiveFormat.cs, compiled into both this and
-// the content tool so the reader and the extractor cannot drift.
+// Shared/Content/ContentChain.cs answers "where does this file come from": the mods in
+// front (a project's edits, a downloaded mod folder, the legacy Content/Override), then
+// the shipped content in whatever shape it is - our data*.bin archives, a Steam FF3
+// install's loose files/, a Steam FF4 install's files plus mass files. So the client
+// boots from the game people bought as readily as from our archives, and a project made
+// in the editor is a mod here with no copy step.
 //
-// Override: before touching the archives, a request for "foo.NCGR" looks for a
-// loose file of that name under Content/Override (or --content-override=<dir>).
-// That is what makes new and edited content possible without repacking - extract
-// with `ff3content extract-archives`, drop an edited file in, and the game picks it
-// up. Nothing has to be rebuilt.
+//   --content=<dir>[;<dir>]    our Content, or a Steam install; more directories are
+//                              asked in turn for what the first lacks. A Steam install
+//                              on its own gets our Content behind it automatically.
+//   --mod=<dir>[;<dir>...]     mod folders mirroring the game's names, first wins
+//   --project=<name|dir>       an editor project: its edits are the mods
+//   --content-override=<dir>   the old single override directory; still honoured
+//
+// The names are the game's own, "files/d01_01.script", "sound/BGM01.dat".
 
 using System;
 using System.Collections.Generic;
 using System.IO;
-using FF3.Formats;
+using System.Linq;
+using FF3.Content;
 
 namespace FF3
 {
 	internal static class GameArchive
 	{
-		private static ArchiveIndex _index;
-		private static string _overrideDirectory;
-		private static readonly HashSet<string> _reportedOverrides =
-			new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		private static ContentChain _chain;
 
-		public static bool IsLoaded => _index != null;
+		public static bool IsLoaded => _chain != null;
 
-		/// <summary>Directory holding data000.bin, relative to the working directory.</summary>
-		public static string DataPath => "Content";
+		/// <summary>Where the shipped content was opened from. "Content" until Load has run.</summary>
+		public static string DataPath { get; private set; } = "Content";
 
-		/// <summary>Where loose replacement files are looked for, or null if disabled.</summary>
-		public static string OverrideDirectory => _overrideDirectory;
+		/// <summary>The first override directory, or null if there is none.</summary>
+		public static string OverrideDirectory => _chain?.Overrides.FirstOrDefault();
 
-		/// <summary>Loads the file table. Returns false if it or any archive is missing.</summary>
+		/// <summary>The chain itself, for anything that wants to list or probe.</summary>
+		public static ContentChain Chain => _chain;
+
+		/// <summary>"ff3" or "ff4", from the shape of the content.</summary>
+		public static string Game => _chain?.Game ?? "ff3";
+
+		/// <summary>Opens the content. Returns false, with the reason logged, if it cannot.</summary>
 		public static bool Load()
 		{
+			string root = ContentLocator.FindDataRoot();
+			if (root == null)
+			{
+				Log.Write(LogChannel.File, "no content found: no Content/data000.bin and no game install");
+				return false;
+			}
+			DataPath = root;
 			try
 			{
-				string table = GameFiles.Resolve(Path.Combine(DataPath, "data000.bin"));
-				if (table == null)
+				_chain = ContentChain.Open(root, Overrides(root));
+				foreach (string fallback in Fallbacks(root))
 				{
-					Log.Write(LogChannel.File, "archive table not found under " + DataPath);
-					return false;
+					_chain.AddFallback(fallback);
 				}
-				_index = ArchiveIndex.Load(File.ReadAllBytes(table));
 			}
 			catch (Exception ex)
 			{
-				Log.Write(LogChannel.File, "archive table could not be read: " + ex.Message);
-				_index = null;
+				Log.Write(LogChannel.File, "content could not be opened: " + ex.Message);
+				_chain = null;
 				return false;
 			}
-
-			for (int i = 0; i < _index.ArchiveCount; i++)
-			{
-				if (GameFiles.Resolve(ArchiveIndex.ArchiveName(DataPath, i)) == null)
-				{
-					Log.Write(LogChannel.File, "missing archive "
-						+ ArchiveIndex.ArchiveName(DataPath, i));
-					_index = null;
-					return false;
-				}
-			}
-
-			SetUpOverrides();
-
-			Log.Write(LogChannel.File, string.Format(
-				"archives loaded: {0} files across {1} volumes",
-				_index.FileCount, _index.ArchiveCount));
+			_chain.OnOverrideUsed = (name, path) => Log.Write(LogChannel.File, "override in use: " + name);
+			Log.Write(LogChannel.File, "content: " + _chain.Describe());
 			return true;
 		}
 
-		private static void SetUpOverrides()
+		/// <summary>
+		/// The content roots behind the first one: the rest of --content's list, and, when
+		/// the first is a game install, our own Content - the Steam build of FF3 does not
+		/// ship the files for screens it has no use for, and the game still asks for them.
+		/// </summary>
+		private static IEnumerable<string> Fallbacks(string root)
 		{
-			string configured = Options.Get("content-override");
-			string directory = string.IsNullOrEmpty(configured)
-				? Path.Combine(DataPath, "Override")
-				: configured;
-
-			try
+			List<string> roots = new List<string>();
+			string configured = Options.Get("content");
+			if (!string.IsNullOrEmpty(configured))
 			{
-				string full = Path.GetFullPath(directory);
-				if (Directory.Exists(full))
-				{
-					_overrideDirectory = full;
-					int count = Directory.GetFiles(full, "*", SearchOption.AllDirectories).Length;
-					Log.Write(LogChannel.File, string.Format(
-						"content overrides: {0} loose file(s) in {1}", count, full));
-				}
-				else
-				{
-					_overrideDirectory = null;
-				}
+				roots.AddRange(configured.Split(';').Select(r => r.Trim().Trim('"')).Where(r => r.Length > 0).Skip(1));
 			}
-			catch (Exception ex)
+			string ours = ContentLocator.FindContentRoot();
+			if (ours != null && !string.Equals(Path.GetFullPath(ours), root, StringComparison.OrdinalIgnoreCase)
+				&& !roots.Any(r => string.Equals(Path.GetFullPath(r), Path.GetFullPath(ours), StringComparison.OrdinalIgnoreCase)))
 			{
-				_overrideDirectory = null;
-				Log.Write(LogChannel.File, "override directory unusable: " + ex.Message);
+				roots.Add(ours);
 			}
+			return roots.Where(ContentChain.Looks);
 		}
 
-		/// <summary>Reads one file by name, or null if there is no such file.</summary>
+		/// <summary>The override directories the options ask for, most specific first.</summary>
+		private static IEnumerable<string> Overrides(string root)
+		{
+			List<string> directories = new List<string>();
+
+			string project = Options.Get("project");
+			if (!string.IsNullOrEmpty(project))
+			{
+				string directory = project.IndexOfAny(new[] { '/', '\\' }) >= 0 || Path.IsPathRooted(project)
+					? project
+					: Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+						"FF3ContentTool", "projects", project);
+				// A project targeting several games keeps ours under targets/ours/files;
+				// one targeting one game, or an older project, keeps it in files/.
+				directories.Add(Path.Combine(directory, "targets", "ours", "files"));
+				directories.Add(Path.Combine(directory, "files"));
+				if (!Directory.Exists(directory))
+				{
+					Log.Write(LogChannel.File, "project not found: " + directory);
+				}
+			}
+
+			string mods = Options.Get("mod");
+			if (!string.IsNullOrEmpty(mods))
+			{
+				directories.AddRange(mods.Split(';').Select(m => m.Trim().Trim('"')).Where(m => m.Length > 0));
+			}
+
+			string legacy = Options.Get("content-override");
+			directories.Add(string.IsNullOrEmpty(legacy) ? Path.Combine(root, "Override") : legacy);
+
+			foreach (string directory in directories.Where(Directory.Exists))
+			{
+				int count = Directory.GetFiles(directory, "*", SearchOption.AllDirectories).Length;
+				Log.Write(LogChannel.File, string.Format("content overrides: {0} loose file(s) in {1}", count, directory));
+			}
+			return directories;
+		}
+
+		/// <summary>Reads one file by name, or null if there is no such file anywhere.</summary>
 		public static byte[] Read(string filename)
 		{
-			if (string.IsNullOrEmpty(filename))
-			{
-				return null;
-			}
-
-			byte[] loose = ReadOverride(filename);
-			if (loose != null)
-			{
-				return loose;
-			}
-
-			if (_index == null || !_index.TryFind(filename, out ArchiveEntry entry))
-			{
-				return null;
-			}
-
-			try
-			{
-				string path = GameFiles.Resolve(ArchiveIndex.ArchiveName(DataPath, entry.Archive));
-				if (path == null)
-				{
-					return null;
-				}
-				using FileStream stream = File.OpenRead(path);
-				byte[] data = ArchiveIndex.ReadBlob(stream, entry.Index);
-				if (data == null)
-				{
-					Log.Write(LogChannel.File, "bad archive entry for " + filename);
-				}
-				return data;
-			}
-			catch (Exception ex)
-			{
-				Log.Write(LogChannel.File, "archive read failed for " + filename + ": " + ex.Message);
-				return null;
-			}
-		}
-
-		/// <summary>A loose file standing in for an archived one, or null.</summary>
-		private static byte[] ReadOverride(string filename)
-		{
-			if (_overrideDirectory == null)
+			if (_chain == null || string.IsNullOrEmpty(filename))
 			{
 				return null;
 			}
 			try
 			{
-				string path = Path.Combine(_overrideDirectory, filename);
-
-				// Keep the lookup inside the override directory: archive names come from
-				// game data, and one containing "..\" should not reach outside it.
-				string full = Path.GetFullPath(path);
-				if (!full.StartsWith(_overrideDirectory + Path.DirectorySeparatorChar,
-						StringComparison.OrdinalIgnoreCase)
-					|| !File.Exists(full))
-				{
-					return null;
-				}
-
-				lock (_reportedOverrides)
-				{
-					if (_reportedOverrides.Add(filename))
-					{
-						Log.Write(LogChannel.File, "override in use: " + filename);
-					}
-				}
-				return File.ReadAllBytes(full);
+				return _chain.Read(filename);
 			}
 			catch (Exception ex)
 			{
-				Log.Write(LogChannel.File, "override read failed for " + filename + ": " + ex.Message);
+				Log.Write(LogChannel.File, "read failed for " + filename + ": " + ex.Message);
 				return null;
 			}
 		}

@@ -74,6 +74,12 @@ NPCs and quests be written without touching the interpreter.
 from an editable format, with the binary as fallback, makes balance changes and new
 entries tractable.
 
+## Where this continues
+
+`Docs/Client-Plan.md` takes over from here: the shared content layer (done - the client
+boots from the Steam install), TrueType text, native sound, FF4, and what a client of our
+own can do beyond the shipped engines.
+
 ## Order
 
 Stage 2 before stage 3, and rendering fully native before either. The principle

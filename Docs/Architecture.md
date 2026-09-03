@@ -72,11 +72,15 @@ correctly and is due for removal.
 | `Content/*.xnb` | audio and font atlases | MonoGame ContentManager |
 | `Content/*.glp` | glyph tables: char → (atlas page, shift class) | `GameFiles.ReadAllBytes` |
 
-`GameArchive` is the format the whole game is built on: `data000.bin` is a
-name-sorted table of `(archive, index, name)`, and each `dataNNN.bin` is an offset
-table followed by length-prefixed blobs. It has nothing to do with XNA, which is why
-it ported unchanged. The format itself lives in `Shared/ArchiveFormat.cs`, compiled
-into both the game and the content tool so the reader and the extractor cannot drift.
+`GameArchive` reads through `Shared/Content/ContentChain.cs`, the same layer the
+editor uses: override directories first (an editor project's edits via `--project`, mod
+folders via `--mod`, the legacy `Content/Override`), then the shipped content in
+whatever shape it came - our archives, a Steam FF3 install's loose `files/`, a Steam FF4
+install's files plus `SSAM` mass files - then fallbacks for what the first lacks. So
+`--content=<Steam FF3 install>` boots the game people bought, with our archives filling
+the 44 files the Steam build does not ship (about screen, link icons). The formats -
+archive, LZ, mass files, the sources - live once in `Shared/`, compiled into both the
+game and the editor. `Docs/Client-Plan.md` is where this goes next.
 
 Names in the table are path qualified - `en.lproj/ca_text_01.NCGR`, `files/*.script`
 - and the localised copies share base names, so that structure has to be preserved

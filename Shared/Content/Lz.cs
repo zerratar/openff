@@ -1,4 +1,4 @@
-// LZ77, the NDS variety. 2734 of the archived files are compressed with it, which is
+﻿// LZ77, the NDS variety. 2734 of the archived files are compressed with it, which is
 // most of the graphics and model data.
 //
 //   ff3content lz          <file.lz | directory> [out]
@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 
-namespace FF3.ContentTool
+namespace FF3.Content
 {
 	internal static class Lz
 	{

@@ -14,13 +14,39 @@ namespace FF3
 		/// <summary>A file that only the real content directory has, used to reject look-alikes.</summary>
 		private const string Sentinel = "data000.bin";
 
+		/// <summary>
+		/// Where the game data comes from: --content when it names our Content or a game
+		/// install (Steam FF3's files/, FF4's EXTRACTED_DATA), else the Content directory
+		/// found the usual way. The XNB assets - fonts, sound - still come from Content,
+		/// which FindContentRoot finds regardless of what the data root is.
+		/// </summary>
+		public static string FindDataRoot()
+		{
+			string configured = Options.Get("content");
+			if (!string.IsNullOrEmpty(configured))
+			{
+				// The first of a ;-separated list is the primary; the rest are fallbacks
+				// GameArchive adds behind it.
+				string first = configured.Split(';')[0].Trim().Trim('"');
+				if (FF3.Content.ContentChain.Looks(first))
+				{
+					return Path.GetFullPath(first);
+				}
+			}
+			return FindContentRoot();
+		}
+
 		/// <summary>Absolute path of the Content directory, or null if it could not be found.</summary>
 		public static string FindContentRoot()
 		{
 			string configured = Options.Get("content");
-			if (!string.IsNullOrEmpty(configured) && IsContentRoot(configured))
+			if (!string.IsNullOrEmpty(configured))
 			{
-				return Path.GetFullPath(configured);
+				string first = configured.Split(';')[0].Trim().Trim('"');
+				if (IsContentRoot(first))
+				{
+					return Path.GetFullPath(first);
+				}
 			}
 
 			// Walk up from the executable. Covers both "Content sits next to the exe"

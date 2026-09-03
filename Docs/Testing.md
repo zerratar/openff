@@ -55,6 +55,15 @@ passed; these are the rest.
 | E-11 | Models ▸ a monster, e.g. `b_m005`-family model with `b_f005.ncap` | The battle idle plays; compare against the game's battle screen for direction and speed |
 | E-12 | Models ▸ `n441` with `n441_101_01` playing ▸ Export .glb ▸ open in Blender (File ▸ Import ▸ glTF 2.0) | The chocobo appears textured with an armature of 31 bones and an action of 90 frames that plays the same walk; UVs and vertex colours intact |
 
+## The client
+
+| # | Case | Steps | Expect |
+| --- | --- | --- | --- |
+| C-1 | Boot from Steam | `FF3.exe --content="C:\Program Files (x86)\Steam\steamapps\common\Final Fantasy III"` | Logos, then the title, drawn from Steam's higher-resolution 2D art; the log says `loose files: 5549 files ...; then archives (6962 files)` |
+| C-2 | Play from Steam | New game from C-1, walk out of Ur, talk to an NPC, open the menu | Everything the archive build does; text and sound still come from our Content (see Client-Plan stages B and C) |
+| C-3 | A project as a mod | `FF3.exe --project=<your project>` after the chest test | The Ultima Weapon chest edit is live without installing anything; the log lists the override in use |
+| C-4 | Mod folder | Copy one edited file into a folder mirroring `files/...`, `FF3.exe --mod=<folder>` | The edit is live |
+
 ## What "works" looks like in the log
 
 The console pane shows every install as `wrote <file>` or `rebuilt <container> (<n>
