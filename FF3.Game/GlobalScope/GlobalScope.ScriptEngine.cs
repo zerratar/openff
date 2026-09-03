@@ -100,6 +100,12 @@ internal static partial class GlobalScope
 			resumePC_ = pc_;
 		}
 
+		/// <summary>PORT: steps past operands a command's handler did not read (FF4's extra ones).</summary>
+		public void skip(uint bytes)
+		{
+			pc_ += bytes;
+		}
+
 		public byte getByte()
 		{
 			byte result = reinterpret_cast<byte[]>(scriptData_.m_abyData)[pc_];

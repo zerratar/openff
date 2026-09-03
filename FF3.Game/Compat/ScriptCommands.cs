@@ -17,6 +17,26 @@ namespace FF3
 	internal static class ScriptCommands
 	{
 		private static GlobalScope.SCRIPT_COMMAND[] _ff4;
+
+		/// <summary>
+		/// Same-numbered commands whose FF4 operands are FF3's followed by more (or, for the
+		/// two camera moves, whose extra word lands in operands FF3's handler reads but
+		/// ignores): bytes to step past after FF3's handler has read its own.
+		/// </summary>
+		private static readonly Dictionary<int, uint> _extraOperandBytes = new Dictionary<int, uint>
+		{
+			{ 66, 3 },   // bootEventBattle: W,B + B,B,B
+			{ 72, 2 },   // moveCamera_AbsoluteCoordination: D,D,D,W,[W],D - FF3 ignores the W and D
+			{ 73, 2 },   // moveCamera_RelativeCoordination: same
+			{ 91, 4 },   // playBGM: W,B,W + W,W
+			{ 92, 4 },   // stopBGM: W + W,W
+			{ 113, 8 },  // bootInn: W + D,D
+			{ 124, 16 }, // selectEndWait: D + D,D,D,D
+			{ 126, 4 },  // moveCamera_LookPlayer2: W,W,D + W,W
+			{ 200, 6 },  // setHalfWayBGM_Play: W,W + W,W,W
+			{ 203, 4 },  // setBGM_Volume: W,W,W + W,W
+			{ 217, 2 },  // setCamera_FOV: W,W + W
+		};
 		private static readonly HashSet<int> _reported = new HashSet<int>();
 		private static int _reusedCount;
 
@@ -57,6 +77,21 @@ namespace FF3
 			ScriptOpTable ff4 = ScriptOpTable.Ff4;
 			ScriptOpTable ff3 = ScriptOpTable.Ff3;
 			GlobalScope.SCRIPT_COMMAND[] table = new GlobalScope.SCRIPT_COMMAND[ff4.Count];
+			// FF4 renamed a few commands it kept: the same operands, FF3's handler.
+			Dictionary<string, string> aliases = new Dictionary<string, string>(StringComparer.Ordinal)
+			{
+				{ "startMessage", "startMessage2" },
+				{ "deleteMessage", "deleteMessage2" },
+			};
+			Dictionary<string, int> ff3ByName = new Dictionary<string, int>(StringComparer.Ordinal);
+			for (int i = 0; i < ff3.Count && i < GlobalScope.commandTable.Length; i++)
+			{
+				ScriptOp op = ff3.Get(i);
+				if (op != null)
+				{
+					ff3ByName[ScriptOpTable.Simplify(op.Name)] = i;
+				}
+			}
 			for (int i = 0; i < table.Length; i++)
 			{
 				ScriptOp op = ff4.Get(i);
@@ -65,6 +100,21 @@ namespace FF3
 					&& SameCommand(op, theirs))
 				{
 					table[i] = GlobalScope.commandTable[i];
+					_reusedCount++;
+				}
+				else if (op != null && theirs != null && i < GlobalScope.commandTable.Length
+					&& _extraOperandBytes.TryGetValue(i, out uint extra))
+				{
+					// FF4 appended operands FF3's handler never reads: run it, step past the rest.
+					GlobalScope.SCRIPT_COMMAND handler = GlobalScope.commandTable[i];
+					table[i] = engine => { handler(engine); engine.skip(extra); };
+					_reusedCount++;
+				}
+				else if (op != null && aliases.TryGetValue(ScriptOpTable.Simplify(op.Name), out string alias)
+					&& ff3ByName.TryGetValue(alias, out int ff3Index)
+					&& SameOperands(op, ff3.Get(ff3Index)))
+				{
+					table[i] = GlobalScope.commandTable[ff3Index];
 					_reusedCount++;
 				}
 				else
@@ -80,10 +130,16 @@ namespace FF3
 
 		private static bool SameCommand(ScriptOp mine, ScriptOp theirs)
 		{
-			if (ScriptOpTable.Simplify(mine.Name) != ScriptOpTable.Simplify(theirs.Name))
+			// flagON is FF3's flagOn: the same command, another hand on the keyboard.
+			if (!string.Equals(ScriptOpTable.Simplify(mine.Name), ScriptOpTable.Simplify(theirs.Name), StringComparison.OrdinalIgnoreCase))
 			{
 				return false;
 			}
+			return SameOperands(mine, theirs);
+		}
+
+		private static bool SameOperands(ScriptOp mine, ScriptOp theirs)
+		{
 			Operand[] a = mine.Operands ?? Array.Empty<Operand>();
 			Operand[] b = theirs.Operands ?? Array.Empty<Operand>();
 			if (a.Length != b.Length || mine.Variable != theirs.Variable)
