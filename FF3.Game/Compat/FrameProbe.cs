@@ -158,6 +158,11 @@ namespace FF3
 				if (world != null)
 				{
 					where += " world mode=" + world.Mode() + " state=" + (world.CrtState()?.GetType().Name ?? "none") + " canRunPlayer=" + world.canRunPlayerMng();
+					GlobalScope.pl.CBasePlayer leader = world.PlayerMng()?.Player(GlobalScope.chr.CBaseCharacter.getLookIndex());
+					if (leader != null)
+					{
+						where += " leader=" + Fx(leader.getPosition()) + " event=" + GlobalScope.evt.CEventManager.getInstance().isEvent();
+					}
 				}
 				Log.Write(LogChannel.General, "probe: frame " + _frames + " vertices=" + _lastVertices
 					+ " enable3D=" + GlobalScope.enable3D

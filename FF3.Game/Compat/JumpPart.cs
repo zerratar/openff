@@ -37,12 +37,16 @@ namespace FF3
 				string pos = Options.Get("pos");
 				if (string.IsNullOrEmpty(pos))
 				{
-					if (GameProfile.IsFf4 && string.Equals(Stage, "d01_00", StringComparison.OrdinalIgnoreCase))
+					// Where some other map's exit puts the party on arriving here, when the
+					// scripts say (FF4: setInsideMapJump in the neighbouring maps).
+					(int X, int Y, int Z, int Facing)? arrival = Ff4Exits.ArrivalInto(Stage);
+					if (arrival.HasValue)
 					{
-						// Where the world map's exit into Baron castle puts the party
-						// (f00.script: setInsideMapJump("j001", "d01_00", -241, 72, 270 ...)),
-						// until arrivals are read from the scripts in general.
-						v.x = -241 * 4096; v.y = 72 * 4096; v.z = 270 * 4096;
+						v.x = arrival.Value.X; v.y = arrival.Value.Y; v.z = arrival.Value.Z;
+						if (v.x == 0 && v.y == 0 && v.z == 0)
+						{
+							v.z = 4096;
+						}
 					}
 					return v;
 				}

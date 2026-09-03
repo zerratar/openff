@@ -125,6 +125,13 @@ own script running through the shared command table. The pieces:
   vertex runs; the phone decoder terminated on them (into an infinite loop). Unknown
   commands are stepped past by their parameter count; `0x2C` (FF4's 16.16 texcoord) is
   decoded. `OS_Terminate` now throws with a stack instead of spinning.
+- `Compat/Ff4Exits.cs` - FF4 declares a map's exits in its script (`setInsideMapJump`:
+  trigger, destination, arrival, facing, the door's box). The bytecode is decoded with
+  the shared table when the world sets a stage up, the leader is checked against the
+  boxes each frame, and walking into one requests the same absolute map jump FF3's
+  scripts do - fade, unload, load and arrival are the engine's own. Cecil walks from the
+  grounds through the gate into the castle (`d01_01`), whose four exits are read in turn.
+  The same decode over every script gives `--map` its default arrival for any FF4 map.
 - `Data/defaults/files/` - the two movement tuning tables FF4 compiled into its engine
   (`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`), as the last content
   root; see the README there.
@@ -136,8 +143,7 @@ own script running through the shared command table. The pieces:
   `--noscript` / `--noanim` isolate a map from its scripts and animations - the tools that
   found the black screen (the camera treats an all-zero position as unset).
 
-**Next, in order:** read arrivals from `setInsideMapJump` so any FF4 map starts where its
-neighbours put the party; implement the FF4-only commands Baron and the opening use
+**Next, in order:** implement the FF4-only commands Baron and the opening use
 (`setInsideMapJump` as an exit, `_3DS*` sprites, the name window, `startMessage`,
 `bindMotion`'s FF4 semantics); FF4's `.msd` text into the message window; the 26
 same-name commands with extra operands (`playBGM`, `moveCamera_AbsoluteCoordination`...);

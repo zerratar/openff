@@ -944,6 +944,7 @@ internal static partial class GlobalScope
 			public void setup()
 			{
 				setUpMapParameter();
+				FF3.Ff4Exits.Load(sceneMng.getStage());
 				setUpPcParameter();
 				setUpNpcParameter();
 				dgs.msg.CMessageSys.getInstance().Main().assignBG(3, 0, 0, 32, 24);
