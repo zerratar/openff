@@ -1,4 +1,4 @@
-// .pak - the parameter tables. Items, weapons, armour, spells, monsters, and the
+﻿// .pak - the parameter tables. Items, weapons, armour, spells, monsters, and the
 // per map data behind exits, encounters and cameras.
 //
 //   ff3content pak       <file.pak | directory> [out] [--text=<dir>]
@@ -106,6 +106,18 @@ namespace FF3.ContentTool
 		/// Which set of record layouts applies. The name settles it for the two
 		/// singular files; everything else with the seven chain shape is a map.
 		/// </summary>
+		/// <summary>
+		/// Which set of layouts a table file takes. FF4's files have FF3's names and
+		/// different records, so the game decides before the name does: an FF4
+		/// workspace gets the FF4 families (PakRecordsFf4), and never FF3's fields.
+		/// </summary>
+		public static string FamilyOf(string fileName, int chainCount, string game)
+		{
+			return string.Equals(game, "ff4", StringComparison.OrdinalIgnoreCase)
+				? PakRecordsFf4.FamilyOf(fileName, chainCount)
+				: FamilyOf(fileName, chainCount);
+		}
+
 		public static string FamilyOf(string fileName, int chainCount)
 		{
 			string name = Path.GetFileName(fileName);
@@ -141,6 +153,14 @@ namespace FF3.ContentTool
 			return Read(data, family, null);
 		}
 
+		/// <summary>FF3's generated layouts, or FF4's hand-written ones, by family.</summary>
+		private static PakChain FindLayout(string family, int index)
+		{
+			return family.StartsWith("Ff4", StringComparison.Ordinal)
+				? PakRecordsFf4.Find(family, index)
+				: PakRecords.Find(family, index);
+		}
+
 		public static PakFile Read(byte[] data, string family, Func<uint, string> lookupMessage)
 		{
 			if (data == null || data.Length < HeaderSize)
@@ -171,7 +191,14 @@ namespace FF3.ContentTool
 					throw new InvalidDataException("chain " + i + " runs outside the file");
 				}
 
-				PakChain layout = family == null ? null : PakRecords.Find(family, i);
+				PakChain layout = family == null ? null : FindLayout(family, i);
+				// A layout that does not divide the chain would drop the remainder on
+				// rebuild. Better raw and exact than typed and shorter.
+				if (layout != null && layout.Stride > 0 && !layout.Fields.Any(f => f.Count < 0)
+					&& size % layout.Stride != 0)
+				{
+					layout = null;
+				}
 				PakChainData chain = new PakChainData
 				{
 					Index = i,
@@ -274,7 +301,7 @@ namespace FF3.ContentTool
 			foreach (PakChainData chain in file.Chains)
 			{
 				PakChain layout = file.Family == null
-					? null : PakRecords.Find(file.Family, chain.Index);
+					? null : FindLayout(file.Family, chain.Index);
 				blobs.Add(chain.Records != null && layout != null
 					? WriteRecords(chain.Records, layout)
 					: FromHex(chain.Raw));

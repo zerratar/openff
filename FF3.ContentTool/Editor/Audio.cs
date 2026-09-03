@@ -1,4 +1,4 @@
-// Audio, and what plays it.
+﻿// Audio, and what plays it.
 //
 // The chain, end to end:
 //
@@ -13,6 +13,10 @@
 //
 // So a script naming a number and a file on disk are two ends of the same thing, and
 // this puts them back together.
+//
+// FF4 3D keeps its sound as files/SOUND/BGM|SE|VOICE/*.akb: an 'AKB ' header (channels,
+// sample rate, sample count, loop start and end in samples) in front of an Ogg Vorbis
+// stream at byte 204. Same names, one part each, and the browser plays Ogg as it is.
 
 using System;
 using System.Collections.Generic;
@@ -25,8 +29,8 @@ namespace FF3.ContentTool.Editor
 {
 	internal sealed class AudioAsset
 	{
-		public string Name { get; set; }             // BGM01, SE270_01
-		public string Kind { get; set; }             // bgm or se
+		public string Name { get; set; }             // BGM01, SE270_01, en_Ev01_000a
+		public string Kind { get; set; }             // bgm, se or voice
 		public List<int> Parts { get; set; } = new List<int>();
 		public int Milliseconds { get; set; }
 		public int SampleRate { get; set; }
@@ -53,6 +57,11 @@ namespace FF3.ContentTool.Editor
 		/// <summary>Every sound in the content directory, grouped into its parts.</summary>
 		public static List<AudioAsset> List(string contentDirectory, Workspace workspace)
 		{
+			if (workspace.Game == "ff4")
+			{
+				return ListAkb(workspace);
+			}
+
 			Dictionary<string, AudioAsset> assets =
 				new Dictionary<string, AudioAsset>(StringComparer.OrdinalIgnoreCase);
 
@@ -158,6 +167,22 @@ namespace FF3.ContentTool.Editor
 		}
 
 		/// <summary>One part of a sound, decoded to a playable wav.</summary>
+		/// <summary>
+		/// The sound as the browser can play it: a wav decoded from the XNB, or FF4's
+		/// Ogg stream lifted out of its AKB header. contentType says which.
+		/// </summary>
+		public static byte[] Playable(Workspace workspace, string name, int part,
+			out string contentType)
+		{
+			if (workspace.Game == "ff4")
+			{
+				contentType = "audio/ogg";
+				return Ogg(workspace, name);
+			}
+			contentType = "audio/wav";
+			return Wav(workspace.ContentDirectory, name, part);
+		}
+
 		public static byte[] Wav(string contentDirectory, string name, int part)
 		{
 			string file = Path.Combine(contentDirectory, string.Format(
@@ -183,7 +208,128 @@ namespace FF3.ContentTool.Editor
 
 		// ------------------------------------------------------------ what plays it
 
+		// ---- FF4: AKB ---------------------------------------------------------------------
+
+		private const int AkbOggOffset = 204;
+		private static readonly byte[] OggMagic = { (byte)'O', (byte)'g', (byte)'g', (byte)'S' };
+
+		private static readonly Dictionary<Workspace, List<AudioAsset>> _akb =
+			new Dictionary<Workspace, List<AudioAsset>>();
+
+		/// <summary>
+		/// Every .akb under files/SOUND, read once per workspace: the header carries what
+		/// the list shows, and the folder says what kind of sound it is.
+		/// </summary>
+		private static List<AudioAsset> ListAkb(Workspace workspace)
+		{
+			lock (_akb)
+			{
+				if (_akb.TryGetValue(workspace, out List<AudioAsset> known))
+				{
+					return known;
+				}
+			}
+
+			List<AudioAsset> assets = new List<AudioAsset>();
+			foreach (WorkspaceEntry entry in workspace.List(".akb"))
+			{
+				string folder = Path.GetFileName(Path.GetDirectoryName(entry.Name) ?? string.Empty);
+				string name = Path.GetFileNameWithoutExtension(entry.Name);
+				AudioAsset asset = new AudioAsset
+				{
+					Name = name,
+					Kind = folder.Equals("BGM", StringComparison.OrdinalIgnoreCase) ? "bgm"
+						: folder.Equals("VOICE", StringComparison.OrdinalIgnoreCase) ? "voice" : "se",
+					Call = CallFor(name)
+				};
+				asset.Parts.Add(0);
+				try
+				{
+					byte[] data = workspace.Read(entry.Name);
+					if (data.Length >= 32 && data[0] == 'A' && data[1] == 'K' && data[2] == 'B')
+					{
+						// 0x0C codec, 0x0D channels, 0x0E rate, 0x10 samples, 0x14 loop start,
+						// 0x18 loop end - measured against the files; nothing names them.
+						asset.Channels = data[0x0D];
+						asset.SampleRate = data[0x0E] | (data[0x0F] << 8);
+						uint samples = ReadUInt32(data, 0x10);
+						uint loopStart = ReadUInt32(data, 0x14);
+						if (asset.SampleRate > 0)
+						{
+							asset.Milliseconds = (int)(samples * 1000L / asset.SampleRate);
+							asset.LoopAt = loopStart > 0 ? (int)(loopStart * 1000L / asset.SampleRate) : -1;
+						}
+					}
+				}
+				catch (Exception)
+				{
+					// Listed regardless; the player will say if it cannot play it.
+				}
+				assets.Add(asset);
+			}
+
+			assets = assets
+				.OrderBy(a => a.Kind, StringComparer.Ordinal)
+				.ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+				.ToList();
+			lock (_akb)
+			{
+				_akb[workspace] = assets;
+			}
+			return assets;
+		}
+
+		/// <summary>The Ogg Vorbis stream inside an AKB, by the sound's name.</summary>
+		private static byte[] Ogg(Workspace workspace, string name)
+		{
+			foreach (string folder in new[] { "BGM", "SE", "VOICE" })
+			{
+				string entry = "files/SOUND/" + folder + "/" + name + ".akb";
+				if (!workspace.Exists(entry))
+				{
+					continue;
+				}
+				byte[] data = workspace.Read(entry);
+				int at = IndexOf(data, OggMagic, AkbOggOffset);
+				if (at < 0)
+				{
+					at = IndexOf(data, OggMagic, 0);
+				}
+				if (at < 0)
+				{
+					throw new FileNotFoundException("no Ogg stream in " + entry);
+				}
+				byte[] ogg = new byte[data.Length - at];
+				Buffer.BlockCopy(data, at, ogg, 0, ogg.Length);
+				return ogg;
+			}
+			throw new FileNotFoundException("no such sound: " + name);
+		}
+
+		private static int IndexOf(byte[] data, byte[] needle, int from)
+		{
+			for (int i = Math.Max(0, from); i + needle.Length <= data.Length; i++)
+			{
+				int k = 0;
+				while (k < needle.Length && data[i + k] == needle[k])
+				{
+					k++;
+				}
+				if (k == needle.Length)
+				{
+					return i;
+				}
+			}
+			return -1;
+		}
+
+		private static uint ReadUInt32(byte[] d, int at)
+		{
+			return (uint)(d[at] | (d[at + 1] << 8) | (d[at + 2] << 16) | (d[at + 3] << 24));
+		}
+
 		private static Dictionary<string, List<AudioUse>> _uses;
+		private static Workspace _usesFor;
 
 		/// <summary>
 		/// Which scripts play which sound, by walking every script once and reading the
@@ -192,9 +338,12 @@ namespace FF3.ContentTool.Editor
 		/// </summary>
 		public static List<AudioUse> Uses(Workspace workspace, string name)
 		{
-			if (_uses == null)
+			// Per workspace: File > Open can swap the game under this, and FF3's
+			// answers about FF4's sounds would be confidently wrong.
+			if (_uses == null || _usesFor != workspace)
 			{
 				_uses = BuildUses(workspace);
+				_usesFor = workspace;
 			}
 			return _uses.TryGetValue(name, out List<AudioUse> found)
 				? found : new List<AudioUse>();

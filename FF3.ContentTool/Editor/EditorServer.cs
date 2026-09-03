@@ -287,7 +287,7 @@ namespace FF3.ContentTool.Editor
 					return;
 
 				case "/api/list":
-					SendJson(context, _workspace.List(Extensions(Query(context, "kind"))));
+					SendJson(context, ListKind(Query(context, "kind")));
 					return;
 
 				case "/api/script":
@@ -1123,8 +1123,8 @@ namespace FF3.ContentTool.Editor
 
 			try
 			{
-				Send(context, 200, "audio/wav",
-					Audio.Wav(_workspace.ContentDirectory, name, part));
+				byte[] sound = Audio.Playable(_workspace, name, part, out string contentType);
+				Send(context, 200, contentType, sound);
 			}
 			catch (FileNotFoundException)
 			{
@@ -1215,8 +1215,15 @@ namespace FF3.ContentTool.Editor
 		{
 			string name = Query(context, "name");
 			byte[] data = _workspace.Read(name);
+			// FF4's loose tables are LZ-compressed on disk; the layout is of the bytes inside.
+			bool compressed = name.EndsWith(".lz", StringComparison.OrdinalIgnoreCase);
+			if (compressed)
+			{
+				data = Lz.Decompress(data);
+			}
 			int chains = data.Length >= 4 ? BitConverter.ToInt32(data, 0) : 0;
-			string family = Pak.FamilyOf(name, chains);
+			string family = Pak.FamilyOf(compressed ? name.Substring(0, name.Length - 3) : name,
+				chains, _workspace.Game);
 			PakFile decoded = Pak.Read(data, family, _lookupMessage);
 
 			SendJson(context, new
@@ -1225,7 +1232,7 @@ namespace FF3.ContentTool.Editor
 				family,
 				overridden = _workspace.IsOverridden(name),
 				// What each chain is for, so the grid is not 34 columns of mystery.
-				notes = PakRecords.Chains
+				notes = PakRecords.Chains.Concat(PakRecordsFf4.Chains)
 					.Where(chain => chain.Family == family)
 					.ToDictionary(chain => chain.Label, chain => chain.Note),
 				// The decoded file goes across as it stands. Chains with no known
@@ -1242,6 +1249,10 @@ namespace FF3.ContentTool.Editor
 			PakFile file = body["file"].Deserialize<PakFile>(Pak.Json);
 
 			byte[] data = Pak.Write(file);
+			if (name.EndsWith(".lz", StringComparison.OrdinalIgnoreCase))
+			{
+				data = Lz.Compress(data);
+			}
 			_workspace.Write(name, data);
 			SendJson(context, new { ok = true, bytes = data.Length, overridden = true });
 		}
@@ -1289,6 +1300,23 @@ namespace FF3.ContentTool.Editor
 
 		// ------------------------------------------------------------------ plumbing
 
+		/// <summary>
+		/// The files a browse kind lists. Tables need a second look: FF4 ships its three
+		/// loose tables LZ-compressed, and Workspace.List matches on the last extension,
+		/// which for item_parameter.pak.lz is .lz.
+		/// </summary>
+		private List<WorkspaceEntry> ListKind(string kind)
+		{
+			List<WorkspaceEntry> found = _workspace.List(Extensions(kind));
+			if (kind == "table")
+			{
+				found.AddRange(_workspace.List(".lz").Where(entry =>
+					entry.Name.EndsWith(".pak.lz", StringComparison.OrdinalIgnoreCase)
+					|| entry.Name.EndsWith(".chaindata.lz", StringComparison.OrdinalIgnoreCase)));
+			}
+			return found;
+		}
+
 		private static string[] Extensions(string kind)
 		{
 			switch (kind)
@@ -1296,7 +1324,8 @@ namespace FF3.ContentTool.Editor
 				case "script": return new[] { ".script" };
 				case "text": return new[] { ".msd" };
 				case "menu": return new[] { ".xbn" };
-				case "table": return new[] { ".pak", ".chaindata" };
+				// FF4 ships its three tables loose and LZ-compressed: item_parameter.pak.lz.
+				case "table": return new[] { ".pak", ".chaindata", ".pak.lz", ".chaindata.lz" };
 				default: return Array.Empty<string>();
 			}
 		}

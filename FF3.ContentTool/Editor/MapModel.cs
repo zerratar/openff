@@ -376,7 +376,7 @@ namespace FF3.ContentTool.Editor
 			{
 				byte[] data = workspace.Read(name);
 				int chains = data.Length >= 4 ? BitConverter.ToInt32(data, 0) : 0;
-				PakFile decoded = Pak.Read(data, Pak.FamilyOf(name, chains));
+				PakFile decoded = Pak.Read(data, Pak.FamilyOf(name, chains, workspace.Game));
 				PakChainData jumps = decoded.Chains.FirstOrDefault(c => c.Label == "jumps");
 				if (jumps?.Records == null)
 				{

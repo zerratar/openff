@@ -301,7 +301,9 @@ async function openMenu(name) {
   const error = menu.doc.querySelector('parsererror');
   if (error) throw new Error('the menu did not parse as XML');
 
-  const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu');
+  // FF3 files are <menulist> of <menu>; FF4's MenuLayout_*.xbn are <layout> of <unit>.
+  // Same frames inside either way.
+  const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu' || e.tagName === 'unit');
   menu.screens = found.length ? found : [menu.doc.documentElement];
 
   const picker = $('.screens', node);
@@ -512,7 +514,7 @@ function applyXml(node) {
       say('widget replaced - press Save to write it', 'good');
     } else {
       menu.doc = parsed;
-      const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu');
+      const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu' || e.tagName === 'unit');
       menu.screens = found.length ? found : [menu.doc.documentElement];
       redraw(node);
       say('applied - press Save to write it', 'good');
@@ -1543,14 +1545,17 @@ async function openAudio(name) {
     facts.append(dt, dd);
   };
 
-  fact('kind', sound.kind === 'bgm' ? 'music' : 'sound effect');
+  fact('kind', sound.kind === 'bgm' ? 'music' : sound.kind === 'voice' ? 'voice' : 'sound effect');
   fact('length', `${(sound.milliseconds / 1000).toFixed(2)} s`);
   fact('format', `${sound.sampleRate} Hz, ${sound.channels === 2 ? 'stereo' : 'mono'}`);
   fact('parts', sound.parts.length === 2
     ? 'intro (_0) and loop (_1)'
     : `one part (_${sound.parts[0]})`);
   if (sound.loopAt >= 0) {
-    fact('loops at', `${(sound.loopAt / 1000).toFixed(2)} s   (sound/${name}.dat)`);
+    // FF3 keeps the loop point beside the track in sound/<name>.dat; FF4's is in the
+    // .akb header itself.
+    fact('loops at', `${(sound.loopAt / 1000).toFixed(2)} s`
+      + (sound.parts.length === 2 ? `   (sound/${name}.dat)` : ''));
   }
 
   const players = $('.players', node);

@@ -356,8 +356,12 @@ namespace FF3.ContentTool.Editor
 		}
 
 		/// <summary>
-		/// The lines a cast says, found the same way DeleteCharacter finds them - by
-		/// walking the code under its own labels.
+		/// The lines a cast says: every startMessage reachable from the cast's own entry
+		/// points, following jumps and calls into this file's functions, and falling
+		/// through until the code ends or returns.
+		/// This used to read the decompiled text between the cast's label and the next
+		/// label, which stopped at the first loc_ label inside the cast's own code - and
+		/// FF4's casts branch before they speak, so it found nothing there.
 		/// </summary>
 		public List<uint> MessagesOf(string map, int cast)
 		{
@@ -365,43 +369,75 @@ namespace FF3.ContentTool.Editor
 			string scriptName = "files/" + map + ".script";
 			if (!_workspace.Exists(scriptName)) return said;
 
-			string source;
+			ScriptFile script;
+			List<ScriptInstruction> code;
 			try
 			{
-				ScriptFile script = ScriptFile.Read(_workspace.Read(scriptName), _workspace.Ops);
-				using StringWriter writer = new StringWriter();
-				Ffs.SourceWriter.Write(writer, script, scriptName, _lookupMessage);
-				source = writer.ToString();
+				script = ScriptFile.Read(_workspace.Read(scriptName), _workspace.Ops);
+				(code, _) = ScriptDisassembler.Disassemble(script);
 			}
 			catch (Exception)
 			{
 				return said;
 			}
 
-			Regex ownLabel = new Regex(@"^\s*cast"
-				+ cast.ToString(CultureInfo.InvariantCulture) + @"_\w+\s*:");
-			Regex anyLabel = new Regex(@"^\s*[A-Za-z_]\w*\s*:");
-			Regex message = new Regex(
-				@"startMessage2?\s*\(\s*\d+\s*,\s*(0[xX][0-9a-fA-F]+|\d+)");
-
-			bool inside = false;
-			foreach (string line in source.Replace("\r\n", "\n").Split('\n'))
+			Dictionary<uint, ScriptInstruction> at = new Dictionary<uint, ScriptInstruction>();
+			foreach (ScriptInstruction instruction in code)
 			{
-				if (ownLabel.IsMatch(line)) inside = true;
-				else if (inside && anyLabel.IsMatch(line)) inside = false;
-				if (!inside) continue;
+				at[instruction.At] = instruction;
+			}
 
-				foreach (Match hit in message.Matches(line))
+			Ffs.Mnemonics names = script.Ops.Names;
+			// Only these never fall through. flagOnEnd and its relatives end the script
+			// when the flag says so and carry on otherwise, so the code after them is
+			// as reachable as any.
+			HashSet<string> ends = new HashSet<string>(StringComparer.Ordinal) { "end", "return" };
+
+			Stack<uint> work = new Stack<uint>();
+			HashSet<uint> seen = new HashSet<uint>();
+			foreach (ScriptCast declared in script.Casts)
+			{
+				if (declared.Number != cast) continue;
+				foreach (uint entry in new[] { declared.Constructor, declared.Normal, declared.Destructor })
 				{
-					string digits = hit.Groups[1].Value;
-					bool hex = digits.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
-					if (uint.TryParse(hex ? digits.Substring(2) : digits,
-						hex ? NumberStyles.HexNumber : NumberStyles.Integer,
-						CultureInfo.InvariantCulture, out uint id))
+					if (entry != ScriptFile.NoScript) work.Push(entry);
+				}
+			}
+
+			while (work.Count > 0)
+			{
+				uint pc = work.Pop();
+				if (!seen.Add(pc) || !at.TryGetValue(pc, out ScriptInstruction instruction)) continue;
+
+				string name = names.Name(instruction.Opcode);
+				if ((name == "startMessage" || name == "startMessage2")
+					&& instruction.Operands.Count >= 2 && instruction.Operands[1] is uint id)
+				{
+					said.Add(id);
+				}
+
+				if (instruction.Target.HasValue) work.Push(instruction.Target.Value);
+				foreach (uint target in instruction.Targets) work.Push(target);
+
+				// call(library, id) and the flag-conditional calls run a function by id
+				// and come back. Library 0 is this file's own function table, so the
+				// callee's code is the cast's too - FF4 casts keep their dialogue there,
+				// behind a one-line main. Library 2 is the shared global script; skipped.
+				if ((name == "call" || name == "flagOnCall" || name == "flagOffCall")
+					&& instruction.Operands.Count >= 2
+					&& instruction.Operands[instruction.Operands.Count - 2] is uint library
+					&& instruction.Operands[instruction.Operands.Count - 1] is uint functionId
+					&& library == 0)
+				{
+					foreach (ScriptFunction function in script.Functions)
 					{
-						said.Add(id);
+						if (function.Id == functionId) work.Push(function.Offset);
 					}
 				}
+
+				// An unconditional jump and the end/return family do not fall through.
+				if (ends.Contains(name) || name == "jump") continue;
+				work.Push(instruction.At + Math.Max(instruction.Length, 1u));
 			}
 
 			return said.Distinct().ToList();

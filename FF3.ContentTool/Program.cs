@@ -1800,6 +1800,10 @@ namespace FF3.ContentTool
 			string textDir = null;
 			foreach (string arg in args)
 			{
+				if (arg.StartsWith("--", StringComparison.Ordinal) && !arg.StartsWith("--text=", StringComparison.OrdinalIgnoreCase))
+				{
+					continue;                                // --game=ff4 and friends are not paths
+				}
 				if (arg.StartsWith("--text=", StringComparison.OrdinalIgnoreCase))
 				{
 					textDir = arg.Substring("--text=".Length).Trim('"');
@@ -1840,7 +1844,7 @@ namespace FF3.ContentTool
 					byte[] original = File.ReadAllBytes(file);
 					int chains = original.Length >= 4
 						? BitConverter.ToInt32(original, 0) : 0;
-					string family = Pak.FamilyOf(file, chains);
+					string family = Pak.FamilyOf(file, chains, GameOption(args).Game);
 					PakFile decoded = Pak.Read(original, family, lookup);
 
 					string destination = Path.Combine(outputDir,

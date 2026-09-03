@@ -79,6 +79,9 @@ What is different, and what the editor does about it:
 | exits | rows in the map's `.pak` | `setInsideMapJump` in the map's script | read from the script when the game is FF4 |
 | script opcodes | 298 | 500; 222 at the same number, 48 of those with different operands | `ScriptOpsFf4.cs`, generated from `libff4.so`; every script decodes and rebuilds byte for byte |
 | model display lists | DS GX commands | plus `0x2C`, a 16.16 texture coordinate | every command stepped by its arity; `0x2C` decoded |
+| menu layouts | `<menulist>` of `<menu>`, 9 loose `.xbn` | `<layout>` of `<unit>`, 28 `MenuLayout_*.xbn` in `MENU_LAYOUT.dat` | same frames inside; the menu editor takes either root |
+| sound | `BGMnn_0/1.xnb`, loop point in `sound/*.dat` | `files/SOUND/BGM\|SE\|VOICE/*.akb`: an `AKB ` header over Ogg Vorbis | listed from the header (2757 sounds; loop start is in it); the Ogg is served as it is |
+| tables | `item_parameter.pak`, `monster.chaindata`, `player.chaindata` loose; 7-chain map `.pak` | the same three, LZ-compressed; 4-chain map `.pak` in `MAPPARAMETER.dat` | `PakRecordsFf4.cs`: FF4 families, so FF3's fields are never applied; see Tables below |
 
 The mass file is `SSAM | count | offset0 | size0`, then 40 byte records of
 `name[32] | offset | size`, data after the directory. Thirty of them: `CAST_SCRIPT.dat`
@@ -139,6 +142,22 @@ the two corners of the door's trigger box on this map. Opcode 333 in FF4's table
 instances across 369 maps, two strings then exactly ten S32s - and the handler's code
 later confirmed it. `MapModel` reads them when the game is FF4 and puts the exit at
 the box's centre.
+
+### Tables
+
+FF4's tables have FF3's file names and different records: 97 weapons of 88 bytes where
+FF3's are 56, 251 monsters of 152 where FF3's are 100, a map `.pak` of four single
+records (encount 52, landForm 42, monsterParty 16, environEffect 8) where FF3 has seven
+chains. Applying FF3's layouts typed the wrong bytes and a save would have rewritten the
+table wrongly, so `Pak.FamilyOf` takes the game and an FF4 workspace gets the FF4
+families in `PakRecordsFf4.cs`. There is no FF4 source to name fields from; what is
+there is the record stride wherever the file proves one (an id that counts up record
+after record, no bytes left over), and those chains are shown as rows of 16-bit words.
+Chains that do not divide cleanly stay raw - item chain 0 is 59 x 48 bytes plus 46,
+monster chain 0 is two bytes short of 252 records - and `Pak.Read` now refuses any
+layout whose stride does not divide the chain, for either game. All four FF4 table
+kinds rebuild byte for byte. Naming the fields is the open work; the getters on
+`itm::EquipParameter` in `libff4.so` are the place to start.
 
 ### Models
 
@@ -539,7 +558,10 @@ at. x across, z down, which is what the game's coordinates mean.
   with the map they lead to.
 - **Click** one and the inspector shows what it is: its model, its cast number, how
   much code that cast has, its position and facing, **every line it says**, and a link
-  that opens the script at its cast.
+  that opens the script at its cast. The lines are found by walking the bytecode from
+  the cast's own entry points - through jumps, and through `call(0, id)` into this
+  file's functions, which is where FF4 casts keep their dialogue behind a one-line
+  main - so they are the lines that cast can actually reach, in either game.
 - **Drag** to move it. *Save placement* writes the map's `.hich`.
 - **logic-only casts** shows the entries that have no position - casts that run the
   map itself rather than standing in it.
