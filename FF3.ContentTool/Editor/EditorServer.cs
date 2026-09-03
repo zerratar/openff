@@ -565,6 +565,16 @@ namespace FF3.ContentTool.Editor
 					GetModelTexture(context);
 					return;
 
+				case "/api/model/motions":
+					SendJson(context, Models.Motions(_workspace, Query(context, "name")));
+					return;
+
+				case "/api/model/pose":
+					SendJson(context, Models.ReadPose(_workspace, Query(context, "name"),
+						Query(context, "pack"),
+						int.Parse(Query(context, "index") ?? "0", CultureInfo.InvariantCulture)));
+					return;
+
 				case "/api/textures":
 					SendJson(context, new
 					{

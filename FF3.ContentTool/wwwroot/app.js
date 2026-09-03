@@ -1491,6 +1491,180 @@ async function openModel(name) {
   window.addEventListener('resize', () => viewer.redraw());
 
   await viewer.show(model, name);
+  wireAnimation(node, viewer, name).catch(error => say(error.message, 'bad'));
+}
+
+/// The transport under a model: motion packs the game has, the motions in the picked
+/// one, play/pause, loop, speed, and a timeline to scrub. Frames are the game's own -
+/// 30 a second - and the pose for every frame arrives at once, so scrubbing is free.
+async function wireAnimation(node, viewer, packageName) {
+  const bar = $('.anim-bar', node);
+  if (!bar) return;
+  const packs = await api(`/api/model/motions?name=${encodeURIComponent(packageName)}`);
+  if (!packs.length) return;
+  bar.hidden = false;
+
+  const packSelect = $('.anim-pack', bar);
+  const motionSelect = $('.anim-motion', bar);
+  const play = $('.anim-play', bar);
+  const loop = $('.anim-loop', bar);
+  const speed = $('.anim-speed', bar);
+  const label = $('.anim-frame', bar);
+  const timeline = $('.anim-timeline', bar);
+
+  // Fitting packs first, marked; the rest after a rule, since a person may know better.
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'bind pose (no motion)';
+  packSelect.append(none);
+  let ruled = false;
+  for (const pack of packs) {
+    if (!pack.fits && !ruled && packSelect.options.length > 1) {
+      const rule = document.createElement('option');
+      rule.disabled = true;
+      rule.textContent = '── other skeletons ──';
+      packSelect.append(rule);
+      ruled = true;
+    }
+    const option = document.createElement('option');
+    option.value = pack.name;
+    option.textContent = (pack.likely ? '★ ' : '') + shortName(pack.name).replace(/\.ncap\.lz$/i, '')
+      + ` (${pack.motions.length})`;
+    option.title = pack.fits ? 'same node count as this model' : 'a different skeleton - may not fit';
+    packSelect.append(option);
+  }
+
+  let pose = null;
+  let frame = 0;
+  let playing = false;
+  let last = 0;
+
+  const fillMotions = () => {
+    motionSelect.textContent = '';
+    const pack = packs.find(p => p.name === packSelect.value);
+    for (const motion of (pack ? pack.motions : [])) {
+      const option = document.createElement('option');
+      option.value = String(motion.index);
+      option.textContent = `${motion.name || 'motion ' + motion.index}  ·  ${motion.frames}f`;
+      option.title = `id ${motion.id}, ${motion.nodes} nodes`;
+      motionSelect.append(option);
+    }
+    motionSelect.hidden = !pack;
+  };
+
+  const drawTimeline = () => {
+    const width = timeline.clientWidth || 300;
+    const scale = window.devicePixelRatio || 1;
+    timeline.width = Math.round(width * scale);
+    timeline.height = Math.round(28 * scale);
+    const g = timeline.getContext('2d');
+    g.setTransform(scale, 0, 0, scale, 0, 0);
+    g.clearRect(0, 0, width, 28);
+    if (!pose) return;
+    const frames = Math.max(1, pose.frames);
+    const px = f => 6 + (width - 12) * (f / Math.max(1, frames - 1));
+    g.strokeStyle = '#3a4150';
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(6, 18.5); g.lineTo(width - 6, 18.5); g.stroke();
+    // Every frame is a key in these files; ticks every frame, taller every fifth.
+    for (let f = 0; f < frames; f++) {
+      const x = Math.round(px(f)) + 0.5;
+      g.strokeStyle = f % 5 === 0 ? '#8b93a1' : '#4a5262';
+      g.beginPath(); g.moveTo(x, f % 5 === 0 ? 10 : 14); g.lineTo(x, 22); g.stroke();
+    }
+    const x = px(frame);
+    g.fillStyle = '#6ea8fe';
+    g.beginPath(); g.moveTo(x, 4); g.lineTo(x - 5, 0); g.lineTo(x + 5, 0); g.closePath(); g.fill();
+    g.fillRect(x - 0.5, 4, 1, 22);
+    g.fillStyle = '#d7dbe2';
+    g.font = '10px system-ui, sans-serif';
+    g.textAlign = 'right';
+    g.fillText(String(frames - 1), width - 6, 8);
+    g.textAlign = 'left';
+    g.fillText('0', 6, 8);
+  };
+
+  const showFrame = f => {
+    frame = f;
+    viewer.setFrame(frame);
+    label.textContent = pose ? `${frame} / ${pose.frames - 1}` : '0 / 0';
+    drawTimeline();
+  };
+
+  const loadMotion = async () => {
+    playing = false;
+    play.textContent = '\u25B6';
+    if (!packSelect.value) {
+      pose = null;
+      viewer.setPose(null);
+      showFrame(0);
+      return;
+    }
+    say('loading motion\u2026');
+    pose = await api(`/api/model/pose?name=${encodeURIComponent(packageName)}`
+      + `&pack=${encodeURIComponent(packSelect.value)}&index=${motionSelect.value || 0}`);
+    viewer.setPose(pose);
+    showFrame(0);
+    say('');
+    playing = true;
+    play.textContent = '\u23F8';
+    last = performance.now();
+    requestAnimationFrame(tick);
+  };
+
+  const tick = now => {
+    if (!playing || !pose) return;
+    const fps = 30 * Number(speed.value || 1);
+    const advance = (now - last) * fps / 1000;
+    if (advance >= 1) {
+      last = now;
+      let next = frame + Math.floor(advance);
+      if (next >= pose.frames) {
+        if (loop.checked) next = next % pose.frames;
+        else { next = pose.frames - 1; playing = false; play.textContent = '\u25B6'; }
+      }
+      showFrame(next);
+    }
+    if (playing) requestAnimationFrame(tick);
+  };
+
+  play.onclick = () => {
+    if (!pose) { loadMotion(); return; }
+    playing = !playing;
+    play.textContent = playing ? '\u23F8' : '\u25B6';
+    if (playing) { last = performance.now(); requestAnimationFrame(tick); }
+  };
+  packSelect.onchange = () => { fillMotions(); loadMotion(); };
+  motionSelect.onchange = loadMotion;
+
+  // Scrub: click or drag along the timeline.
+  const scrub = e => {
+    if (!pose) return;
+    const box = timeline.getBoundingClientRect();
+    const t = Math.max(0, Math.min(1, (e.clientX - box.left - 6) / Math.max(1, box.width - 12)));
+    playing = false;
+    play.textContent = '\u25B6';
+    showFrame(Math.round(t * (pose.frames - 1)));
+  };
+  timeline.onpointerdown = e => { timeline.setPointerCapture(e.pointerId); scrub(e); };
+  timeline.onpointermove = e => { if (e.buttons & 1) scrub(e); };
+  node.addEventListener('keydown', e => {
+    if (e.key === ' ' && pose && !e.target.matches('input, select, textarea')) { e.preventDefault(); play.onclick(); }
+    if (e.key === 'ArrowRight' && pose) { e.preventDefault(); playing = false; showFrame(Math.min(pose.frames - 1, frame + 1)); }
+    if (e.key === 'ArrowLeft' && pose) { e.preventDefault(); playing = false; showFrame(Math.max(0, frame - 1)); }
+  });
+  node.tabIndex = 0;
+
+  // Start on the likeliest pack, playing its first motion.
+  const first = packs.find(p => p.likely) || null;
+  if (first) {
+    packSelect.value = first.name;
+    fillMotions();
+    await loadMotion();
+  } else {
+    fillMotions();
+    drawTimeline();
+  }
 }
 
 // Shared with script-editor.js and map-editor.js, which both load after this file.

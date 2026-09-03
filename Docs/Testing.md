@@ -51,6 +51,8 @@ passed; these are the rest.
 | E-7 | Open a map from each game, drag one tab beside the other | Both render, each with its own textures (no 404s in the console) |
 | E-8 | Edit a text line in FF4, then File ▸ Changes… | The FF4 tab in the dialog lists it; the FF3 tab is empty; Project ▸ Install — FF4 on Steam installs only that |
 | E-9 | File ▸ Export as .zip… | A zip beside the projects folder with project.json, the per-target files, and a README; Explorer opens on it |
+| E-10 | Models ▸ `n441` (FF3) - the motion bar picks `★ n441` and plays `n441_101_01` | The figure animates smoothly for 90 frames and loops; scrubbing the timeline and the arrow keys step frames; switching to a `b_f…` pack of another skeleton distorts it (expected - different bones) |
+| E-11 | Models ▸ a monster, e.g. `b_m005`-family model with `b_f005.ncap` | The battle idle plays; compare against the game's battle screen for direction and speed |
 
 ## What "works" looks like in the log
 

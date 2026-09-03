@@ -293,6 +293,21 @@
     </div>
     <div class="model-body">
       <div class="stage"><canvas class="scene"></canvas></div>
+      <!-- Motion: which pack, which motion in it, and where in it we are. -->
+      <div class="anim-bar" hidden>
+        <select class="anim-pack" title="motion pack (.ncap)"></select>
+        <select class="anim-motion" title="motion"></select>
+        <button class="anim-play" title="play / pause (space)">&#9654;</button>
+        <label class="toggle"><input type="checkbox" class="anim-loop" checked> loop</label>
+        <select class="anim-speed" title="speed">
+          <option value="0.25">&frac14;&times;</option>
+          <option value="0.5">&frac12;&times;</option>
+          <option value="1" selected>1&times;</option>
+          <option value="2">2&times;</option>
+        </select>
+        <span class="anim-frame">0 / 0</span>
+        <canvas class="anim-timeline" height="28"></canvas>
+      </div>
     </div>
   </div>
 </template>

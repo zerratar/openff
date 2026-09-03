@@ -31,6 +31,13 @@ namespace FF3.ContentTool
 		public float X, Y, Z;
 		public float U, V;                       // in texels, not 0..1
 		public byte R, G, B;
+
+		/// <summary>
+		/// Which matrix moved this vertex: -1 for the node's own, else the stack slot a
+		/// MTX_RESTORE inside the display list switched to. A character's arm is on its
+		/// arm bone because of that switch, and animation has to move it the same way.
+		/// </summary>
+		public int Slot;
 	}
 
 	internal enum Mdl0Primitive
@@ -53,6 +60,12 @@ namespace FF3.ContentTool
 		public string Shape;
 		public string Material;
 		public string Node;
+
+		/// <summary>The node's matrix this piece was drawn with (bind pose, fixed point).</summary>
+		public int[] Matrix;
+
+		/// <summary>The stack matrices its display list restored, by slot, as they were then.</summary>
+		public Dictionary<int, int[]> SlotMatrices = new Dictionary<int, int[]>();
 
 		/// <summary>
 		/// Switched off by its node, so the game never draws it. Two shapes in the whole
@@ -104,6 +117,19 @@ namespace FF3.ContentTool
 
 		/// <summary>What was actually decoded, to set against the four above.</summary>
 		public int GotVertices, GotTriangles, GotQuads;
+
+		/// <summary>
+		/// Set for a posed pass: (node, base matrix, base scale) -> the animated pair.
+		/// The SBC walk then builds every node from the animation instead of the file.
+		/// </summary>
+		public Func<int, int[], int[], (int[] Matrix, int[] Scale)> Pose;
+
+		/// <summary>
+		/// A posed pass wants matrices, not geometry: per piece, the node matrix and the
+		/// stack slots the geometry pass saw that piece restore. Display lists are not
+		/// walked again.
+		/// </summary>
+		public List<HashSet<int>> WantedSlots;
 
 		/// <summary>
 		/// Anything the reader stepped over rather than understood. Each distinct
@@ -170,9 +196,10 @@ namespace FF3.ContentTool
 			return models;
 		}
 
-		private static Mdl0Model ReadModel(byte[] data, int m, string name)
+		private static Mdl0Model ReadModel(byte[] data, int m, string name, Mdl0Model model = null)
 		{
-			Mdl0Model model = new Mdl0Model { Name = name.TrimStart('\\') };
+			model ??= new Mdl0Model();
+			model.Name = name.TrimStart('\\');
 
 			int ofsSbc = (int)U32(data, m + 4);
 			int ofsMat = (int)U32(data, m + 8);
@@ -446,6 +473,12 @@ namespace FF3.ContentTool
 						int store = data[at + 3];
 						int[] scaleBy = { 4096, 4096, 4096 };
 						int[] baseMatrix = NodeMatrix(data, nodeInfo, nodes, node, scaleBy);
+						if (model.Pose != null)
+						{
+							// The game does exactly this: the animation starts from the
+							// node's base pose and overwrites the channels it carries.
+							(baseMatrix, scaleBy) = model.Pose(node, baseMatrix, scaleBy);
+						}
 
 						at += 4;
 						int id = 0;
@@ -640,11 +673,49 @@ namespace FF3.ContentTool
 				Billboard = billboard,
 				PivotX = matrix[9] / 4096f,
 				PivotY = matrix[10] / 4096f,
-				PivotZ = matrix[11] / 4096f
+				PivotZ = matrix[11] / 4096f,
+				Matrix = Copy(matrix)
 			};
+			if (model.WantedSlots != null)
+			{
+				// Matrices only: the slots this piece used are known from the geometry
+				// pass, so copy those out of the stack as it stands and move on.
+				int index = model.Pieces.Count;
+				if (index < model.WantedSlots.Count)
+				{
+					foreach (int slot in model.WantedSlots[index])
+					{
+						piece.SlotMatrices[slot] = Copy(stack[slot]);
+					}
+				}
+				model.Pieces.Add(piece);
+				return;
+			}
 
 			Walk(data, list, size, matrix, stack, scale, piece, model, used);
 			model.Pieces.Add(piece);
+		}
+
+		/// <summary>
+		/// The matrices of one pose: the SBC walked with every node built from
+		/// <paramref name="pose"/>, geometry skipped. Pieces come back in the same order
+		/// as Read's, each with its node matrix and the slots it needs.
+		/// </summary>
+		public static List<Mdl0Piece> Posed(byte[] data, List<HashSet<int>> wantedSlots,
+			Func<int, int[], int[], (int[] Matrix, int[] Scale)> pose)
+		{
+			int at = Find(data);
+			if (at < 0)
+			{
+				throw new InvalidDataException("no MDL0 block in this package");
+			}
+			foreach ((string name, byte[] entry) in Dict(data, at + 8))
+			{
+				Mdl0Model model = new Mdl0Model { Pose = pose, WantedSlots = wantedSlots };
+				ReadModel(data, at + (int)U32(entry, 0), name, model);
+				return model.Pieces;
+			}
+			return new List<Mdl0Piece>();
 		}
 
 		/// <summary>
@@ -684,6 +755,7 @@ namespace FF3.ContentTool
 			// for this node, and a restore inside the list switches it - that is how a
 			// character's arm ends up on its arm bone rather than at the origin.
 			int[] active = matrix;
+			int slot = -1;
 
 			while (n < words)
 			{
@@ -693,6 +765,11 @@ namespace FF3.ContentTool
 					{
 						int id = (int)(U32(data, list + p * 4) & 63);
 						active = stack[id];
+						slot = id;
+						if (!piece.SlotMatrices.ContainsKey(id))
+						{
+							piece.SlotMatrices[id] = Copy(stack[id]);
+						}
 						p++;
 						break;
 					}
@@ -910,7 +987,8 @@ namespace FF3.ContentTool
 					V = v,
 					R = r,
 					G = g,
-					B = b
+					B = b,
+					Slot = slot
 				});
 				model.GotVertices++;
 			}

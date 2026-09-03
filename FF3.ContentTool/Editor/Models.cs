@@ -10,6 +10,7 @@
 // one job of drawing what it is given.
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -47,6 +48,20 @@ namespace FF3.ContentTool.Editor
 		/// <summary>0 none, 1 faces the camera, 2 turns only about its vertical axis.</summary>
 		public int Billboard { get; set; }
 
+		/// <summary>
+		/// The matrices this group's vertices went through, bind pose, as 4x3 in model
+		/// units (rotation rows then translation): index 0 is the node's own, the rest
+		/// are the stack slots its display list restored. Each vertex carries the index
+		/// of its matrix as the ninth float of the buffer.
+		/// </summary>
+		public List<float[]> Matrices { get; set; }
+
+		/// <summary>Which piece of the model this is, for posing.</summary>
+		public int Piece { get; set; }
+
+		/// <summary>The stack slots behind Matrices[1..], in order.</summary>
+		public List<int> Slots { get; set; }
+
 		/// <summary>What a billboard turns about.</summary>
 		public float[] Pivot { get; set; }
 	}
@@ -62,6 +77,9 @@ namespace FF3.ContentTool.Editor
 		/// <summary>x, y, z, u, v, r, g, b per vertex - u and v already 0..1.</summary>
 		public List<float> Buffer { get; set; }
 		public List<int> Indices { get; set; }
+
+		/// <summary>Per vertex, which of its group's Matrices moved it (0 = the node's own).</summary>
+		public List<int> MatrixIndex { get; set; } = new List<int>();
 		public List<ModelGroup> Groups { get; set; }
 
 		public float[] Centre { get; set; }
@@ -150,6 +168,13 @@ namespace FF3.ContentTool.Editor
 						? null : new[] { piece.PivotX, piece.PivotY, piece.PivotZ }
 				};
 
+				group.Piece = bundle.Groups.Count;
+				group.Slots = piece.SlotMatrices.Keys.OrderBy(s => s).ToList();
+				group.Matrices = new List<float[]> { ToFloat(piece.Matrix) };
+				foreach (int slot in group.Slots)
+				{
+					group.Matrices.Add(ToFloat(piece.SlotMatrices[slot]));
+				}
 				foreach (Mdl0Run run in piece.Runs)
 				{
 					int first = bundle.Buffer.Count / 8;
@@ -163,6 +188,9 @@ namespace FF3.ContentTool.Editor
 						bundle.Buffer.Add(v.R / 255f);
 						bundle.Buffer.Add(v.G / 255f);
 						bundle.Buffer.Add(v.B / 255f);
+						// Beside the buffer rather than in it, so every reader of the
+						// eight-float layout - the map scene, the thumbnails - is unchanged.
+						bundle.MatrixIndex.Add(v.Slot < 0 ? 0 : group.Slots.IndexOf(v.Slot) + 1);
 					}
 
 					Triangulate(run, first, bundle.Indices);
@@ -174,6 +202,246 @@ namespace FF3.ContentTool.Editor
 
 			Frame(bundle);
 			return bundle;
+		}
+
+		private static float[] ToFloat(int[] m)
+		{
+			if (m == null)
+			{
+				return new[] { 1f, 0, 0, 0, 1f, 0, 0, 0, 1f, 0, 0, 0 };
+			}
+			float[] f = new float[12];
+			for (int i = 0; i < 12; i++)
+			{
+				f[i] = m[i] / 4096f;
+			}
+			return f;
+		}
+
+		// ---- motion ---------------------------------------------------------------------------
+
+		/// <summary>One motion pack the workspace has, and what is in it.</summary>
+		public sealed class MotionPack
+		{
+			public string Name { get; set; }
+			public List<MotionInfo> Motions { get; set; } = new List<MotionInfo>();
+
+			/// <summary>True when every motion has as many nodes as the model, and the name is close.</summary>
+			public bool Likely { get; set; }
+			public bool Fits { get; set; }
+		}
+
+		public sealed class MotionInfo
+		{
+			public int Index { get; set; }
+			public uint Id { get; set; }
+			public string Name { get; set; }
+			public int Frames { get; set; }
+			public int Nodes { get; set; }
+		}
+
+		private static readonly Dictionary<Workspace, List<(string Name, NcapFile File)>> _packs =
+			new Dictionary<Workspace, List<(string, NcapFile)>>();
+
+		/// <summary>Every .ncap in the workspace, read once and kept.</summary>
+		private static List<(string Name, NcapFile File)> Packs(Workspace workspace)
+		{
+			lock (_packs)
+			{
+				if (_packs.TryGetValue(workspace, out List<(string, NcapFile)> known))
+				{
+					return known;
+				}
+			}
+			List<(string, NcapFile)> packs = new List<(string, NcapFile)>();
+			foreach (WorkspaceEntry entry in workspace.List(".lz"))
+			{
+				if (!entry.Name.EndsWith(".ncap.lz", StringComparison.OrdinalIgnoreCase))
+				{
+					continue;
+				}
+				try
+				{
+					packs.Add((entry.Name, NcapFile.Read(Lz.Decompress(workspace.Read(entry.Name)))));
+				}
+				catch (Exception)
+				{
+					// A pack that does not parse is left out rather than failing the list.
+				}
+			}
+			packs.Sort((a, b) => string.Compare(a.Item1, b.Item1, StringComparison.OrdinalIgnoreCase));
+			lock (_packs)
+			{
+				_packs[workspace] = packs;
+			}
+			return packs;
+		}
+
+		/// <summary>
+		/// The motion packs that could play on a model: the ones whose motions have the
+		/// model's node count first, and among those the ones whose name shares a token
+		/// with the model's (b_f005 for a family-5 monster, w_p00_02 for that character).
+		/// Everything else follows, so a person can still try anything.
+		/// </summary>
+		public static List<MotionPack> Motions(Workspace workspace, string modelName)
+		{
+			int nodes = -1;
+			string stem = Path.GetFileName(modelName ?? string.Empty);
+			stem = stem.Substring(0, Math.Max(0, stem.IndexOf('.') < 0 ? stem.Length : stem.IndexOf('.')));
+			try
+			{
+				byte[] data = Lz.Decompress(workspace.Read(modelName));
+				List<Mdl0Model> models = Mdl0.Read(data);
+				nodes = models.Count > 0 ? models[0].Nodes.Count : -1;
+			}
+			catch (Exception)
+			{
+			}
+			string[] tokens = stem.Split('_');
+			List<MotionPack> list = new List<MotionPack>();
+			foreach ((string name, NcapFile file) in Packs(workspace))
+			{
+				string packStem = Path.GetFileName(name);
+				packStem = packStem.Substring(0, packStem.IndexOf('.'));
+				MotionPack pack = new MotionPack { Name = name };
+				for (int i = 0; i < file.Motions.Count; i++)
+				{
+					JointAnimation motion = file.Motions[i];
+					pack.Motions.Add(new MotionInfo
+					{
+						Index = i,
+						Id = i < file.MotionIds.Length ? file.MotionIds[i] : 0,
+						Name = motion.Name,
+						Frames = motion.NumFrame,
+						Nodes = motion.NumNode
+					});
+				}
+				pack.Fits = pack.Motions.Count > 0 && pack.Motions.All(m => m.Nodes == nodes);
+				pack.Likely = pack.Fits && (packStem.IndexOf(stem, StringComparison.OrdinalIgnoreCase) >= 0
+					|| tokens.Any(t => t.Length >= 3 && packStem.IndexOf(t, StringComparison.OrdinalIgnoreCase) >= 0));
+				list.Add(pack);
+			}
+			return list.OrderByDescending(p => p.Likely).ThenByDescending(p => p.Fits)
+				.ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
+		}
+
+		/// <summary>One motion, evaluated: per frame, per group, per matrix, the delta from bind pose.</summary>
+		public sealed class Pose
+		{
+			public string Name { get; set; }
+			public int Frames { get; set; }
+			public int Fps { get; set; } = 30;
+
+			/// <summary>How many matrices each group has - the layout of one frame.</summary>
+			public List<int> Counts { get; set; }
+
+			/// <summary>
+			/// frames x (sum of Counts) x 12 floats: each 4x3 is animated x inverse(bind),
+			/// so the viewer applies it straight to the vertices it already has.
+			/// </summary>
+			public List<float> Matrices { get; set; }
+		}
+
+		public static Pose ReadPose(Workspace workspace, string modelName, string packName, int index)
+		{
+			byte[] data = Lz.Decompress(workspace.Read(modelName));
+			(string, NcapFile) found = Packs(workspace).FirstOrDefault(p => string.Equals(p.Name, packName, StringComparison.OrdinalIgnoreCase));
+			NcapFile pack = found.Item2 ?? NcapFile.Read(Lz.Decompress(workspace.Read(packName)));
+			byte[] packData = Lz.Decompress(workspace.Read(packName));
+			if (index < 0 || index >= pack.Motions.Count)
+			{
+				throw new ArgumentOutOfRangeException(nameof(index), "no motion " + index + " in " + packName);
+			}
+			JointAnimation motion = pack.Motions[index];
+
+			List<Mdl0Model> models = Mdl0.Read(data);
+			Mdl0Model model = models[0];
+			List<HashSet<int>> wanted = model.Pieces.Select(p => new HashSet<int>(p.SlotMatrices.Keys)).ToList();
+			List<int[]> bindInverse = new List<int[]>();
+
+			Pose pose = new Pose
+			{
+				Name = motion.Name,
+				Frames = motion.NumFrame,
+				Counts = model.Pieces.Select(p => 1 + p.SlotMatrices.Count).ToList(),
+				Matrices = new List<float>()
+			};
+			for (int frame = 0; frame < motion.NumFrame; frame++)
+			{
+				int f = frame;
+				List<Mdl0Piece> posed = Mdl0.Posed(data, wanted,
+					(node, baseMatrix, baseScale) => NcapFile.Evaluate(motion, node, f, baseMatrix, baseScale, packData));
+				for (int p = 0; p < model.Pieces.Count; p++)
+				{
+					Mdl0Piece bind = model.Pieces[p];
+					Mdl0Piece now = p < posed.Count ? posed[p] : bind;
+					Append(pose.Matrices, Delta(now.Matrix, bind.Matrix));
+					foreach (int slot in bind.SlotMatrices.Keys.OrderBy(s => s))
+					{
+						int[] animated = now.SlotMatrices.TryGetValue(slot, out int[] a) ? a : bind.SlotMatrices[slot];
+						Append(pose.Matrices, Delta(animated, bind.SlotMatrices[slot]));
+					}
+				}
+			}
+			return pose;
+		}
+
+		/// <summary>animated x inverse(bind), in floats: what moves a bind-pose vertex to its animated place.</summary>
+		private static float[] Delta(int[] animated, int[] bind)
+		{
+			double[] a = new double[12], b = new double[12];
+			for (int i = 0; i < 12; i++)
+			{
+				a[i] = animated[i] / 4096.0;
+				b[i] = bind[i] / 4096.0;
+			}
+			// Invert the bind 4x3 (row-vector convention: v' = v * R + t).
+			double det = b[0] * (b[4] * b[8] - b[5] * b[7]) - b[1] * (b[3] * b[8] - b[5] * b[6]) + b[2] * (b[3] * b[7] - b[4] * b[6]);
+			if (Math.Abs(det) < 1e-12)
+			{
+				return new[] { 1f, 0, 0, 0, 1f, 0, 0, 0, 1f, 0, 0, 0 };
+			}
+			double[] inv = new double[12];
+			inv[0] = (b[4] * b[8] - b[5] * b[7]) / det;
+			inv[1] = (b[2] * b[7] - b[1] * b[8]) / det;
+			inv[2] = (b[1] * b[5] - b[2] * b[4]) / det;
+			inv[3] = (b[5] * b[6] - b[3] * b[8]) / det;
+			inv[4] = (b[0] * b[8] - b[2] * b[6]) / det;
+			inv[5] = (b[2] * b[3] - b[0] * b[5]) / det;
+			inv[6] = (b[3] * b[7] - b[4] * b[6]) / det;
+			inv[7] = (b[1] * b[6] - b[0] * b[7]) / det;
+			inv[8] = (b[0] * b[4] - b[1] * b[3]) / det;
+			// t_inv = -t * R_inv
+			inv[9] = -(b[9] * inv[0] + b[10] * inv[3] + b[11] * inv[6]);
+			inv[10] = -(b[9] * inv[1] + b[10] * inv[4] + b[11] * inv[7]);
+			inv[11] = -(b[9] * inv[2] + b[10] * inv[5] + b[11] * inv[8]);
+			// delta = inv(bind) then animated: v * inv * A
+			double[] d = new double[12];
+			for (int r = 0; r < 3; r++)
+			{
+				for (int c = 0; c < 3; c++)
+				{
+					d[r * 3 + c] = inv[r * 3] * a[c] + inv[r * 3 + 1] * a[3 + c] + inv[r * 3 + 2] * a[6 + c];
+				}
+			}
+			for (int c = 0; c < 3; c++)
+			{
+				d[9 + c] = inv[9] * a[c] + inv[10] * a[3 + c] + inv[11] * a[6 + c] + a[9 + c];
+			}
+			float[] result = new float[12];
+			for (int i = 0; i < 12; i++)
+			{
+				result[i] = (float)d[i];
+			}
+			return result;
+		}
+
+		private static void Append(List<float> into, float[] m)
+		{
+			for (int i = 0; i < 12; i++)
+			{
+				into.Add(m[i]);
+			}
 		}
 
 		/// <summary>

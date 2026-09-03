@@ -11,15 +11,22 @@
 
 'use strict';
 
+// Each vertex names which of its group's matrices moved it - the node's own, or a
+// stack slot its display list restored - and the palette holds those matrices for the
+// group being drawn, multiplied by the current pose. With no pose every entry is the
+// billboard matrix (or identity), which is exactly what it drew before.
+const PALETTE = 24;
 const MODEL_VERTEX = `
 attribute vec3 position;
 attribute vec2 coord;
 attribute vec3 colour;
+attribute float mindex;
 uniform mat4 camera;
-uniform mat4 model;
+uniform mat4 palette[${PALETTE}];
 varying vec2 vCoord;
 varying vec3 vColour;
 void main() {
+  mat4 model = palette[int(mindex + 0.5)];
   gl_Position = camera * model * vec4(position, 1.0);
   vCoord = coord;
   vColour = colour;
@@ -57,11 +64,12 @@ function makeModelViewer(canvas, status, options = {}) {
   const attribute = {
     position: gl.getAttribLocation(program, 'position'),
     coord: gl.getAttribLocation(program, 'coord'),
-    colour: gl.getAttribLocation(program, 'colour')
+    colour: gl.getAttribLocation(program, 'colour'),
+    mindex: gl.getAttribLocation(program, 'mindex')
   };
   const uniform = {
     camera: gl.getUniformLocation(program, 'camera'),
-    model: gl.getUniformLocation(program, 'model'),
+    palette: gl.getUniformLocation(program, 'palette'),
     picture: gl.getUniformLocation(program, 'picture'),
     textured: gl.getUniformLocation(program, 'textured'),
     tint: gl.getUniformLocation(program, 'tint'),
@@ -70,6 +78,14 @@ function makeModelViewer(canvas, status, options = {}) {
 
   const vertexBuffer = gl.createBuffer();
   const indexBuffer = gl.createBuffer();
+  const indexAttrBuffer = gl.createBuffer();
+
+  // The pose being shown: {counts, matrices, frames} from /api/model/pose, and the
+  // frame of it. Null draws the bind pose.
+  let pose = null;
+  let poseFrame = 0;
+  let poseOffsets = [];
+  const paletteData = new Float32Array(16 * PALETTE);
   const blank = solidTexture(gl, [255, 255, 255, 255]);
 
   // Models can hold more than 65535 vertices, so 32-bit indices are needed where the
@@ -121,6 +137,12 @@ function makeModelViewer(canvas, status, options = {}) {
     bind(attribute.position, 3, 0);
     bind(attribute.coord, 2, 3 * 4);
     bind(attribute.colour, 3, 5 * 4);
+    if (attribute.mindex >= 0) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, indexAttrBuffer);
+      gl.enableVertexAttribArray(attribute.mindex);
+      gl.vertexAttribPointer(attribute.mindex, 1, gl.FLOAT, false, 4, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    }
 
     // The game draws the model twice - everything opaque, then everything
     // translucent - and that ordering is not cosmetic. Drawn in one pass, a
@@ -144,7 +166,7 @@ function makeModelViewer(canvas, status, options = {}) {
         : (texture ? [1, 1, 1] : rgb(group.colour));
       gl.uniform3fv(uniform.tint, tint);
       gl.uniform1f(uniform.alpha, group.hidden ? 0.5 : (group.alpha ?? 1));
-      gl.uniformMatrix4fv(uniform.model, false, billboardMatrix(group));
+      gl.uniformMatrix4fv(uniform.palette, false, paletteFor(group));
 
       gl.drawElements(gl.TRIANGLES, group.count, indexType, group.start * indexSize);
     }
@@ -189,6 +211,33 @@ function makeModelViewer(canvas, status, options = {}) {
     ]);
   }
 
+  /// The group's matrices for this frame, each times the billboard turn, in the
+  /// order the vertices index them. Entries the group does not use stay whatever
+  /// they were; nothing reads them.
+  function paletteFor(group) {
+    const board = billboardMatrix(group);
+    const count = Math.min(PALETTE, (group.matrices && group.matrices.length) || 1);
+    for (let i = 0; i < count; i++) {
+      let m = board;
+      if (pose && group.piece !== undefined && poseOffsets[group.piece] !== undefined) {
+        const stride = poseOffsets[poseOffsets.length - 1];
+        const at = (poseFrame * stride + poseOffsets[group.piece] + i) * 12;
+        const d = pose.matrices;
+        if (at + 12 <= d.length) {
+          const delta = [
+            d[at], d[at + 1], d[at + 2], 0,
+            d[at + 3], d[at + 4], d[at + 5], 0,
+            d[at + 6], d[at + 7], d[at + 8], 0,
+            d[at + 9], d[at + 10], d[at + 11], 1
+          ];
+          m = board === IDENTITY ? delta : multiply(board, delta);
+        }
+      }
+      paletteData.set(m, i * 16);
+    }
+    return paletteData;
+  }
+
   function cameraMatrix() {
     const aspect = canvas.width / Math.max(1, canvas.height);
     const near = Math.max(0.01, distance * 0.01);
@@ -229,6 +278,13 @@ function makeModelViewer(canvas, status, options = {}) {
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
         bigIndices ? new Uint32Array(model.indices) : new Uint16Array(model.indices),
         gl.STATIC_DRAW);
+      const vertexCount = model.buffer.length / 8;
+      const slots = new Float32Array(vertexCount);
+      if (model.matrixIndex && model.matrixIndex.length === vertexCount) slots.set(model.matrixIndex);
+      gl.bindBuffer(gl.ARRAY_BUFFER, indexAttrBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, slots, gl.STATIC_DRAW);
+      pose = null;
+      poseFrame = 0;
 
       centre = model.centre || [0, 0, 0];
       distance = (model.radius || 1) * 3;
@@ -273,6 +329,26 @@ function makeModelViewer(canvas, status, options = {}) {
     },
 
     setShowHidden(on) { showHidden = on; draw(); },
+
+    /// Shows a motion: `next` is the /api/model/pose answer, or null for the bind pose.
+    setPose(next) {
+      pose = next;
+      poseFrame = 0;
+      poseOffsets = [];
+      if (next && next.counts) {
+        let sum = 0;
+        for (const count of next.counts) { poseOffsets.push(sum); sum += count; }
+        poseOffsets.push(sum);            // the total: one frame's stride in matrices
+      }
+      draw();
+    },
+
+    setFrame(frame) {
+      if (!pose) return;
+      poseFrame = Math.max(0, Math.min(pose.frames - 1, Math.floor(frame)));
+      draw();
+    },
+
     redraw: draw
   };
 }

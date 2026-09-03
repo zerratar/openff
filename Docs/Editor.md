@@ -191,6 +191,27 @@ does not divide its chain, for either game. All four FF4 table kinds rebuild byt
 byte. `Tools/ff4_fields.py <libff4.so> '<symbol regex>'` prints the loads a getter does,
 which is how to name the next field.
 
+### Motion
+
+A model plays its motions under the viewer. Both games keep them as `.ncap.lz`: a pack
+of joint animations (Nitro BCA0 inside) for one skeleton - `b_f<family>` for a monster
+family, `w_<name>` for a field character, `w_event<nn>` for cutscenes, and the game
+decides which pack goes with which model in code, so the editor offers every pack and
+puts the ones that fit first: same node count as the model (★ when the name matches too).
+Pick a pack and a motion; it plays at the game's 30 frames a second, loops, scrubs on
+the timeline, steps with the arrow keys, pauses with space.
+
+How it works: the model reader already knows which matrix moved each vertex - the node's
+own, or the stack slot a `MTX_RESTORE` inside the display list switched to, which is how
+an arm sits on its arm bone - and now says so per vertex (`matrixIndex`). For a motion,
+`Ncap.cs` evaluates each node's scale, rotation and translation per frame exactly as the
+game's SBC `NODEDESC` handler does (pivot rotations from `rot3`, packed 3x3s from `rot5`,
+"base" channels keeping the model's own value), the SBC is walked again with those
+matrices and no geometry (`Mdl0.Posed`), and the viewer gets, per frame and per matrix,
+`animated × inverse(bind)` - so the same vertex buffer is skinned in the shader through a
+small matrix palette. Nothing is re-uploaded per frame. `/api/model/motions` lists the
+packs; `/api/model/pose` evaluates one motion for a model.
+
 ### Models
 
 The display-list walk used to end a shape at the first GX command it had no use for.
