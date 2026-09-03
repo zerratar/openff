@@ -1,4 +1,4 @@
-// The map view: what stands on a map, where, and what it says.
+﻿// The map view: what stands on a map, where, and what it says.
 //
 // Everything here is joined up from four files - see Editor/MapModel.cs. The canvas
 // is a plan view: x across, z down, because that is what the game's coordinates mean
@@ -296,7 +296,9 @@ function buildAdd(node, start) {
   const pick = document.createElement('button');
   pick.type = 'button';
   pick.className = 'wide-button';
-  pick.textContent = 'Place it on the map';
+  // It only picks the position; "place it" read as if it created the thing.
+  pick.textContent = 'Pick position on the map…';
+  pick.title = 'Then click a spot in the 3D view; the x and z above fill in.';
   pick.onclick = () => placeOnMap(node, kind.value === 'exit' ? 'doorway' : 'object',
     (px, py, pz) => {
       x.value = String(px);
@@ -347,11 +349,17 @@ function buildAdd(node, start) {
 
   const go = document.createElement('button');
   go.className = 'primary';
-  go.textContent = 'Add it';
+  go.textContent = 'Add to the map';
+
+  // The action sits in a strip that stays at the bottom of the panel while the form
+  // scrolls, so it is never below the fold.
+  const actions = document.createElement('div');
+  actions.className = 'sticky-actions';
+  actions.append(go);
 
   panel.append(kindLabel, kindNote, modelHead, choose, modelNote,
     xLabel, zLabel, pick, textLabel, itemLabel, goldLabel,
-    toLabel, arriveLabel, exitNote, go);
+    toLabel, arriveLabel, exitNote, actions);
 
   // The item list is worth fetching once and keeping - it is the whole item table, and
   // every chest anyone adds wants the same list.

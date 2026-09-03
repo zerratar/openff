@@ -245,8 +245,8 @@ function makeModelViewer(canvas, status, options = {}) {
           done();
         };
         image.onerror = () => done();
-        image.src = `/api/model/texture?name=${encodeURIComponent(packageName)}`
-          + `&texture=${encodeURIComponent(name)}`;
+        image.src = wsUrl(`/api/model/texture?name=${encodeURIComponent(packageName)}`
+          + `&texture=${encodeURIComponent(name)}`);
       })));
       draw();
     },

@@ -1437,9 +1437,28 @@ namespace FF3.ContentTool
 					return 1;
 				}
 				content ??= SafeContentOf(project);
-				overrides ??= project.Files;
+				overrides ??= project.FilesFor(project.File.Active);
 				if (content == null)
 				{
+					return 1;
+				}
+			}
+
+			// A project opens every game it targets, each as its own session, so the
+			// two can be worked on side by side. --content on its own opens one.
+			if (project != null)
+			{
+				try
+				{
+					Editor.EditorServer forProject = new Editor.EditorServer(
+						Path.GetFullPath(webRoot), language, project);
+					Console.WriteLine("  project   {0} in {1}", project.File.Name, project.Directory);
+					forProject.Run(port, openBrowser ? OpenInBrowser : null);
+					return 0;
+				}
+				catch (Exception ex) when (ex is FileNotFoundException or IOException)
+				{
+					Console.Error.WriteLine(ex.Message);
 					return 1;
 				}
 			}

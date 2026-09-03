@@ -32,56 +32,119 @@ namespace FF3.ContentTool.Editor
 			PropertyNamingPolicy = JsonNamingPolicy.CamelCase
 		};
 
-		// Not readonly, because opening a project replaces the lot. Everything here
-		// is derived from one workspace - the message index, the flag and reference
-		// indexes, the fonts - so switching which content is open means rebuilding all
-		// of them together. Doing that in place beats making the person restart the
-		// editor and find their way back to what they were looking at.
-		private Workspace _workspace;
+		// One session per game the project targets, in the project's order. A request
+		// names the one it means with ?ws=<target>; without that it gets the active one.
+		// The request loop is single-threaded (GetContext, then Handle, then the next),
+		// so a plain field is enough to carry "the session this request is about".
+		private readonly Dictionary<string, Session> _sessions =
+			new Dictionary<string, Session>(StringComparer.OrdinalIgnoreCase);
+		private readonly List<string> _order = new List<string>();
+		private readonly Dictionary<string, string> _missing =
+			new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		private string _active;
+		private Session _current;
+
 		private readonly string _webRoot;
-		private MessageIndex _messages;
-		private CharacterIds _characterIds;
-		private FlagIndex _flags;
-		private References _references;
-		private Fonts _fonts;
-		private Func<uint, string> _lookupMessage;
 		private string _language;
 		private Project _project;
 
+		private Session Current => _current ?? _sessions[_active];
+
+		// The handlers were written against one workspace and its indexes; these keep
+		// that vocabulary and route it to whichever session the request is about.
+		private Workspace _workspace => Current.Workspace;
+		private MessageIndex _messages => Current.Messages;
+		private CharacterIds _characterIds => Current.CharacterIds;
+		private FlagIndex _flags => Current.Flags;
+		private References _references => Current.References;
+		private Fonts _fonts => Current.Fonts;
+		private Func<uint, string> _lookupMessage => Current.LookupMessage;
+
+		/// <summary>One workspace, opened by path: --content without a project.</summary>
 		public EditorServer(Workspace workspace, string webRoot, MessageIndex messages,
 			string language = "en", Project project = null)
 		{
 			_webRoot = webRoot;
 			_language = language ?? "en";
 			_project = project;
-			Adopt(workspace, messages);
+			string name = project?.File.Active ?? "content";
+			Adopt(name, new Session(name, workspace, messages, _language));
 		}
 
-		/// <summary>Takes a workspace and builds everything that hangs off it.</summary>
-		private void Adopt(Workspace workspace, MessageIndex messages)
+		/// <summary>Every game the project targets, each in its own session.</summary>
+		public EditorServer(string webRoot, string language, Project project)
 		{
-			_workspace = workspace;
-			_messages = messages ?? new MessageIndex(workspace, _language);
-			// A field, not a method group: the indexes capture it, so it has to keep
-			// pointing at whichever message index is current.
-			_lookupMessage = id => _messages.Text(id);
-			_characterIds = new CharacterIds(workspace);
-			_flags = new FlagIndex(workspace, _lookupMessage);
-			_references = new References(workspace, _lookupMessage);
-			_fonts = new Fonts(workspace.ContentDirectory);
+			_webRoot = webRoot;
+			_language = language ?? "en";
+			OpenProject(project);
+		}
+
+		private void Adopt(string name, Session session)
+		{
+			_sessions.Clear();
+			_order.Clear();
+			_missing.Clear();
+			_sessions[name] = session;
+			_order.Add(name);
+			_active = name;
+			_current = null;
 		}
 
 		/// <summary>
-		/// Opens a project: its active target says which game's content to read, and its
-		/// files directory becomes the override. Nothing is written by this - it only
-		/// changes what is being looked at.
+		/// Opens a project: a session per target whose content can be found, the
+		/// project's active target first. Nothing is written by this - it only changes
+		/// what is being looked at. Throws only when no target at all can be opened.
 		/// </summary>
 		public void OpenProject(Project project)
 		{
-			Workspace workspace = new Workspace(project.ContentDirectory(), project.Files);
+			Dictionary<string, Session> sessions = new Dictionary<string, Session>(StringComparer.OrdinalIgnoreCase);
+			Dictionary<string, string> missing = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			List<string> order = new List<string>();
+			foreach (string target in project.File.Targets)
+			{
+				try
+				{
+					// Keep a session already open on the same content and override:
+					// its indexes took seconds to build and nothing about them changed.
+					if (_sessions.TryGetValue(target, out Session kept)
+						&& string.Equals(kept.Workspace.ContentDirectory, project.ContentDirectoryFor(target), StringComparison.OrdinalIgnoreCase)
+						&& string.Equals(kept.Workspace.OverrideDirectory, project.FilesFor(target), StringComparison.OrdinalIgnoreCase))
+					{
+						sessions[target] = kept;
+					}
+					else
+					{
+						Workspace workspace = new Workspace(project.ContentDirectoryFor(target), project.FilesFor(target));
+						sessions[target] = new Session(target, workspace, null, _language);
+					}
+					order.Add(target);
+				}
+				catch (Exception ex) when (ex is FileNotFoundException or IOException or InvalidDataException)
+				{
+					missing[target] = ex.Message;
+				}
+			}
+			if (order.Count == 0)
+			{
+				throw new FileNotFoundException(missing.Count > 0
+					? string.Join(" ", missing.Values)
+					: "the project has no targets");
+			}
+
 			_project = project;
-			Adopt(workspace, null);
+			_sessions.Clear();
+			_order.Clear();
+			_missing.Clear();
+			foreach (KeyValuePair<string, Session> entry in sessions) _sessions[entry.Key] = entry.Value;
+			foreach (KeyValuePair<string, string> entry in missing) _missing[entry.Key] = entry.Value;
+			_order.AddRange(order);
+			_active = order.Contains(project.File.Active, StringComparer.OrdinalIgnoreCase)
+				? project.File.Active : order[0];
+			_current = null;
 		}
+
+		/// <summary>The sessions open right now, active first.</summary>
+		public IEnumerable<Session> Sessions => _order.Select(name => _sessions[name]);
 
 		/// <summary>The project being edited, if the editor was started with one.</summary>
 		public Project CurrentProject => _project;
@@ -100,10 +163,17 @@ namespace FF3.ContentTool.Editor
 			listener.Prefixes.Add(address);
 			listener.Start();
 
-			Console.WriteLine("FF3 content editor");
-			Console.WriteLine("  content   {0} files, {1}, in {2}",
-				_workspace.FileCount, _workspace.Kind, _workspace.ContentDirectory);
-			Console.WriteLine("  overrides {0}", _workspace.OverrideDirectory);
+			Console.WriteLine("Crystal - the OpenFF editor");
+			foreach (Session session in Sessions)
+			{
+				Console.WriteLine("  {0,-12} {1} files, {2}, in {3}", session.Label,
+					session.Workspace.FileCount, session.Workspace.Kind, session.Workspace.ContentDirectory);
+				Console.WriteLine("  {0,-12} edits in {1}", string.Empty, session.Workspace.OverrideDirectory);
+			}
+			foreach (KeyValuePair<string, string> entry in _missing)
+			{
+				Console.WriteLine("  {0,-12} not opened: {1}", Targets.Describe(entry.Key), entry.Value);
+			}
 			Console.WriteLine();
 			Console.WriteLine("  {0}", address);
 			Console.WriteLine();
@@ -203,6 +273,12 @@ namespace FF3.ContentTool.Editor
 				return;
 			}
 
+			// Which game this request is about. Unknown names fall back to the active
+			// session rather than failing, so a stale tab still gets an answer.
+			string wanted = context.Request.QueryString["ws"];
+			_current = wanted != null && _sessions.TryGetValue(wanted, out Session named)
+				? named : _sessions[_active];
+
 			switch (path)
 			{
 				case "/api/status":
@@ -210,6 +286,21 @@ namespace FF3.ContentTool.Editor
 					{
 						files = _workspace.FileCount,
 						overrides = _workspace.OverrideDirectory,
+						// Every game that is open, so the page can offer them side by side.
+						workspace = Current.Target,
+						active = _active,
+						workspaces = _order.Select(name => new
+						{
+							target = name,
+							label = _sessions[name].Label,
+							game = _sessions[name].Game,
+							files = _sessions[name].Workspace.FileCount,
+							kind = _sessions[name].Workspace.Kind,
+							contentDirectory = _sessions[name].Workspace.ContentDirectory,
+							overrides = _sessions[name].Workspace.OverrideDirectory,
+							installable = _sessions[name].Workspace.Installable
+						}).ToList(),
+						missing = _missing,
 						// Which language the text was read as, and the directory it was
 						// read from, so the page can open the file a line actually lives
 						// in rather than guessing. The two are not the same thing: a
@@ -259,6 +350,14 @@ namespace FF3.ContentTool.Editor
 
 				case "/api/project/save":
 					SaveProjectDetails(context);
+					return;
+
+				case "/api/project/export":
+					ExportProject(context);
+					return;
+
+				case "/api/project/reveal":
+					RevealProject(context);
 					return;
 
 				case "/api/targets":
@@ -1002,7 +1101,8 @@ namespace FF3.ContentTool.Editor
 			{
 				OpenProject(_project);
 				_project.Save();
-				SendJson(context, new { ok = true, active = target,
+				_current = _sessions[_active];
+				SendJson(context, new { ok = true, active = _active,
 					content = _workspace.ContentDirectory, kind = _workspace.Kind });
 			}
 			catch (Exception ex) when (ex is FileNotFoundException or IOException)
@@ -1035,8 +1135,79 @@ namespace FF3.ContentTool.Editor
 					set((string)body[key]);
 				}
 			}
+
+			// Targets can change too. Adding one opens a session for it; removing one
+			// closes it, but the edits made for it stay on disk - deleting a folder of
+			// somebody's work is not what a settings dialog should do.
+			if (body?["targets"] is JsonArray wanted)
+			{
+				List<string> targets = wanted.Select(n => (string)n)
+					.Where(Targets.Known).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+				if (targets.Count == 0)
+				{
+					SendJson(context, new { ok = false, error = "a project needs at least one game" });
+					return;
+				}
+				_project.File.Targets = targets;
+				if (!targets.Contains(_project.File.Active, StringComparer.OrdinalIgnoreCase))
+				{
+					_project.File.Active = targets[0];
+				}
+				try
+				{
+					OpenProject(_project);
+				}
+				catch (FileNotFoundException ex)
+				{
+					SendJson(context, new { ok = false, error = ex.Message });
+					return;
+				}
+			}
 			_project.Save();
-			SendJson(context, new { ok = true });
+			SendJson(context, new { ok = true, active = _active });
+		}
+
+		/// <summary>
+		/// The project as a zip beside the projects folder: project.json, the edited
+		/// files per target, and a README saying what it is and how to install it. What
+		/// a modder uploads, so it should not need assembling by hand.
+		/// </summary>
+		private void ExportProject(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			try
+			{
+				string zip = ProjectExport.Write(_project);
+				SendJson(context, new { ok = true, path = zip, bytes = new FileInfo(zip).Length });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>Opens the project's folder (or a file in it) in the file manager.</summary>
+		private void RevealProject(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			string path = (string)ReadBody(context)?["path"] ?? _project.Directory;
+			try
+			{
+				ProjectExport.Reveal(path);
+				SendJson(context, new { ok = true });
+			}
+			catch (Exception ex)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
 		}
 
 		private void GetImage(HttpListenerContext context)

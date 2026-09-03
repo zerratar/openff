@@ -1,4 +1,4 @@
-// A project: one mod, and which game it is for.
+﻿// A project: one mod, and which game it is for.
 //
 // Editing has always written to an override directory. A project is that directory
 // with a name on it and a note of what it targets, which is what turns "my edits"
@@ -124,6 +124,28 @@ namespace FF3.ContentTool.Editor
 
 		/// <summary>Where the edits live - what the workspace uses as its override.</summary>
 		public string Files => Path.Combine(Directory, "files");
+
+		/// <summary>
+		/// Where a target's edits live. The two games name their files alike -
+		/// files/d01_01.script is a Baron corridor in one and Ur in the other - so a
+		/// project that targets both keeps them apart: targets/&lt;target&gt;/files. A
+		/// project with one target, and the first target of an older project, keep
+		/// using files/ so nothing already made moves.
+		/// </summary>
+		public string FilesFor(string target)
+		{
+			string perTarget = Path.Combine(Directory, "targets", target ?? string.Empty, "files");
+			if (System.IO.Directory.Exists(perTarget))
+			{
+				return perTarget;
+			}
+			if (File.Targets.Count <= 1
+				|| string.Equals(target, File.Targets[0], StringComparison.OrdinalIgnoreCase))
+			{
+				return Files;
+			}
+			return perTarget;
+		}
 
 		public string ManifestPath => Path.Combine(Directory, "project.json");
 
@@ -255,7 +277,12 @@ namespace FF3.ContentTool.Editor
 		/// </summary>
 		public string ContentDirectory()
 		{
-			string target = File.Active;
+			return ContentDirectoryFor(File.Active);
+		}
+
+		/// <summary>The content directory for one target, on the same terms.</summary>
+		public string ContentDirectoryFor(string target)
+		{
 
 			if (File.Content.TryGetValue(target, out string remembered)
 				&& System.IO.Directory.Exists(remembered)

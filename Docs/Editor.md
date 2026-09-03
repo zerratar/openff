@@ -1,4 +1,8 @@
-# The content editor
+# Crystal - the OpenFF editor
+
+Crystal is the editor for Final Fantasy III and Final Fantasy IV (3D) content: the
+shipped Steam games, and OpenFF, the client being built to run either. The executable
+is still called `ff3content`; the page, the start screen and the console say Crystal.
 
 ```bash
 dotnet run --project FF3.ContentTool -- editor --content=Content --text=..\text\en.lproj
@@ -42,7 +46,22 @@ somebody.
 
 `<projects>` is `%LOCALAPPDATA%\FF3ContentTool\projects`, or `FF3_PROJECTS`.
 `ff3content projects` lists them. In the editor they are under **File**: new, open,
-and details - the name, author, version and description a release page wants.
+**Changes…** (everything edited, per game, with revert), **Project settings…** (name,
+author, version, description, and which games), **Export as .zip…** and **Show project
+folder**. The start page - what the document area shows with nothing open - has the same
+things one click away, plus the list of projects.
+
+A project that targets two games keeps their edits apart, because the two games name
+their files alike (`files/d01_01.script` is a Baron corridor in one and Ur in the other):
+
+```
+<projects>/<name>/files/...                    the first target's edits (and a one-target project's)
+<projects>/<name>/targets/<target>/files/...   every further target's edits
+```
+
+**Export as .zip** writes `<projects>/<name>-<version>.zip`: `project.json`, the files
+per target in that same layout, and a `README.md` saying what the mod is, which game
+each folder is for, and how to install it - with Crystal, or by hand for loose files.
 
 ### Targets
 
@@ -53,8 +72,16 @@ There are two games, so a project says which it is for, and may say both:
 | `ours` | `Content` and its archives | nothing to do - our build reads the project directly, with `--content-override=<project>/files` |
 | `steam` | the install's `files/` | **Project ▸ Install into the game**, which copies in and keeps the originals |
 
-Switching target under **Project** re-opens the same edits against the other game
-without restarting. The edits do not move; only what they are read on top of changes.
+### Two games at once
+
+A project with two targets opens both. The server keeps a *session* per target - a
+workspace and the indexes built over it - and every request says which one it means
+with `?ws=<target>` (`api()` and `wsUrl()` add it; nothing in the page builds an API URL
+without them). The project panel gets a tab per game above the libraries; each document
+tab carries an FF3 or FF4 badge; the address bar becomes `#/<target>/maps/d01_01`.
+Focusing a document makes its game current for the inspector, the file list and the
+next thing opened. **Project ▸ Install / Remove** is per game, and the *default game*
+under the same menu is only what the command line opens first.
 
 Targeting both is worth it for data - `.pak`, `.msd` and `.script` are largely byte
 identical between the two releases - and wants care for art, which is authored against

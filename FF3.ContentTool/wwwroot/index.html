@@ -1,14 +1,14 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>FF3 content editor</title>
+<title>Crystal</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 
 <header>
-  <h1>FF3 content editor</h1>
+  <h1 title="Crystal - the OpenFF editor"><span class="gem"></span>Crystal</h1>
   <!-- Built by project.js from whatever is open. -->
   <nav id="menubar"></nav>
   <span id="project-name" title="File &#9656; New project&#8230;">no project</span>
@@ -47,7 +47,8 @@
 
     <section id="centre">
       <div id="doc-area"></div>
-      <p class="empty" id="no-docs">Open something from the Project panel below.</p>
+      <!-- The start page. project.js fills it; it hides itself when a document is open. -->
+      <div id="no-docs" class="start"></div>
       <div id="split-hint">drop here to split</div>
     </section>
 

@@ -6,12 +6,22 @@
 
 'use strict';
 
-const state = { kind: 'map', browse: 'map', files: [], name: null, pane: null };
+// state.ws is which game the page is talking about right now - a project can have two
+// open at once - and it rides along on every request as ?ws=.
+const state = { kind: 'map', browse: 'map', files: [], name: null, pane: null, ws: null, filesWs: null };
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
+/// A URL with the current game on it, for the places that set an img.src or fetch()
+/// directly rather than going through api(): textures, sprite sheets, sound.
+function wsUrl(path, ws = state.ws) {
+  if (!ws || /[?&]ws=/.test(path)) return path;
+  return path + (path.includes('?') ? '&' : '?') + 'ws=' + encodeURIComponent(ws);
+}
+
 async function api(path, body) {
+  path = wsUrl(path);
   const response = await fetch(path, body === undefined ? undefined : {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -83,6 +93,7 @@ async function loadList() {
   } else {
     state.files = await api(`/api/list?kind=${state.browse}`);
   }
+  state.filesWs = state.ws;
   drawList();
 }
 
@@ -454,7 +465,7 @@ async function drawMenuBackground(node, screenName) {
   await new Promise((resolve) => {
     sheet.onload = resolve;
     sheet.onerror = resolve;
-    sheet.src = `/api/image?name=${encodeURIComponent(bank.sheet)}`;
+    sheet.src = wsUrl(`/api/image?name=${encodeURIComponent(bank.sheet)}`);
   });
   if (!sheet.width) return;
 
@@ -1079,7 +1090,7 @@ async function openImage(name) {
   const picture = $('.picture', node);
   const wrap = $('.image-wrap', node);
   // Cache-bust, so a replaced picture is the one that shows.
-  picture.src = `/api/image?name=${encodeURIComponent(name)}&t=${Date.now()}`;
+  picture.src = wsUrl(`/api/image?name=${encodeURIComponent(name)}&t=${Date.now()}`);
 
   $('.facts', node).textContent = image.problem
     ? image.problem
@@ -1097,7 +1108,7 @@ async function openImage(name) {
     const file = picker.files[0];
     if (!file) return;
     say('uploading…');
-    const response = await fetch(`/api/image/upload?name=${encodeURIComponent(name)}`, {
+    const response = await fetch(wsUrl(`/api/image/upload?name=${encodeURIComponent(name)}`), {
       method: 'POST',
       body: file
     });
@@ -1107,7 +1118,7 @@ async function openImage(name) {
       return;
     }
     markOverridden(name, true);
-    picture.src = `/api/image?name=${encodeURIComponent(name)}&t=${Date.now()}`;
+    picture.src = wsUrl(`/api/image?name=${encodeURIComponent(name)}&t=${Date.now()}`);
     say(result.resized
       ? `replaced, but it is ${result.width}×${result.height} and the original was `
         + `${result.wasWidth}×${result.wasHeight} - the game may expect the old size`
@@ -1170,7 +1181,7 @@ async function openTexture(name) {
     const picture = document.createElement('img');
     picture.loading = 'lazy';
     picture.alt = texture.name;
-    picture.src = `/api/texture/png?name=${encodeURIComponent(name)}&index=${texture.index}`;
+    picture.src = wsUrl(`/api/texture/png?name=${encodeURIComponent(name)}&index=${texture.index}`);
     const caption = document.createElement('figcaption');
     caption.textContent = texture.name;
     cell.append(picture, caption);
@@ -1195,7 +1206,7 @@ function buildTexture(packageName, texture) {
 
   const big = document.createElement('img');
   big.className = 'big';
-  big.src = `/api/texture/png?name=${encodeURIComponent(packageName)}&index=${texture.index}`;
+  big.src = wsUrl(`/api/texture/png?name=${encodeURIComponent(packageName)}&index=${texture.index}`);
   detail.append(big);
 
   const facts = document.createElement('dl');
@@ -1267,7 +1278,7 @@ async function openCell(name) {
   }
 
   const sheet = new Image();
-  sheet.src = `/api/image?name=${encodeURIComponent(bank.sheet)}`;
+  sheet.src = wsUrl(`/api/image?name=${encodeURIComponent(bank.sheet)}`);
   await new Promise(done => { sheet.onload = done; sheet.onerror = done; });
 
   const squash = $('.squash', node);
@@ -1498,8 +1509,8 @@ function buildModelPart(group, packageName) {
     stage.className = 'preview-stage checker';
     const picture = document.createElement('img');
     picture.alt = group.texture;
-    picture.src = `/api/model/texture?name=${encodeURIComponent(packageName)}`
-      + `&texture=${encodeURIComponent(group.texture)}`;
+    picture.src = wsUrl(`/api/model/texture?name=${encodeURIComponent(packageName)}`
+      + `&texture=${encodeURIComponent(group.texture)}`);
     picture.onerror = () => stage.remove();
     stage.append(picture);
     panel.append(stage);
@@ -1569,7 +1580,7 @@ async function openAudio(name) {
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.preload = 'none';
-    audio.src = `/api/audio/wav?name=${encodeURIComponent(name)}&part=${part}`;
+    audio.src = wsUrl(`/api/audio/wav?name=${encodeURIComponent(name)}&part=${part}`);
     row.append(label, audio);
     players.append(row);
   }

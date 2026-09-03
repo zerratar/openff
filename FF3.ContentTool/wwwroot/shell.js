@@ -1,4 +1,4 @@
-// The workbench: panels, document tabs, hierarchy, inspector, console and project.
+﻿// The workbench: panels, document tabs, hierarchy, inspector, console and project.
 //
 // app.js owns the ten views - a script, a map, a table - and knows nothing about where
 // they are put. This file owns the arrangement: which documents are open, which one is
@@ -44,8 +44,18 @@ let groups = [];
 let activeDoc = null;
 let activeGroup = null;
 
-function docId(kind, name) {
-  return `${kind}|${name}`;
+function docId(kind, name, ws = state.ws) {
+  return `${ws || ''}|${kind}|${name}`;
+}
+
+/// The games the project has open, from the last /api/status.
+function workspaces() {
+  return (typeof projectState !== 'undefined' && projectState.workspaces) || [];
+}
+
+function workspaceLabel(target) {
+  const found = workspaces().find(w => w.target === target);
+  return found ? found.game.toUpperCase() : (target || '');
 }
 
 function shortName(name) {
@@ -169,7 +179,7 @@ async function openDoc(kind, name, options = {}) {
   }
 
   const doc = existing || {
-    id, kind, name, selection: null, data: null, group,
+    id, kind, name, ws: state.ws, selection: null, data: null, group,
     preview: Boolean(settings.preview),
     pane: Object.assign(document.createElement('div'), { className: 'doc-pane' })
   };
@@ -237,9 +247,11 @@ async function runView(doc) {
   state.kind = doc.kind;
   state.name = doc.name;
   state.pane = doc.pane;
+  state.ws = doc.ws;
 
-  // The views read their listing from state.files, so make sure it is the right one.
-  if (state.browse !== doc.kind || !state.files.length) {
+  // The views read their listing from state.files, so make sure it is the right one -
+  // the right kind, and the right game.
+  if (state.browse !== doc.kind || !state.files.length || state.filesWs !== doc.ws) {
     state.browse = doc.kind;
     await loadList();
   }
@@ -261,6 +273,15 @@ function activate(id) {
   state.kind = doc.kind;
   state.name = doc.name;
   state.pane = doc.pane;
+  if (doc.ws !== undefined && doc.ws !== state.ws) {
+    // Focusing the other game's document makes that game current everywhere - the
+    // inspector, the project list, the next thing opened.
+    state.ws = doc.ws;
+    if (typeof resetOps === 'function') resetOps();
+    browseKind = doc.kind;
+    state.browse = doc.kind;
+    loadList().then(drawProjectTree).catch(() => {});
+  }
 
   for (const other of docs.values()) {
     other.pane.classList.toggle('on', other === other.group.active);
@@ -338,6 +359,11 @@ function makeTab(doc, group) {
   const kind = icon(doc.kind);
   const label = document.createElement('span');
   label.textContent = shortName(doc.name);
+  // With two games open, a tab says which one it belongs to.
+  const badge = document.createElement('b');
+  badge.className = 'ws ' + (workspaceLabel(doc.ws) || '').toLowerCase();
+  badge.textContent = workspaceLabel(doc.ws);
+  badge.hidden = workspaces().length < 2;
 
   const shut = document.createElement('button');
   shut.className = 'shut';
@@ -349,7 +375,7 @@ function makeTab(doc, group) {
     closeDoc(doc.id);
   };
 
-  tab.append(kind, label, shut);
+  tab.append(badge, kind, label, shut);
 
   // The whole tab reacts, not just its name.
   tab.onclick = () => activate(doc.id);
@@ -759,12 +785,12 @@ function previewFor(kind, name, data) {
     stage.className = 'preview-stage checker';
     const picture = document.createElement('img');
     picture.alt = shortName(name);
-    picture.src = kind === 'image'
+    picture.src = wsUrl(kind === 'image'
       ? `/api/image?name=${encodeURIComponent(name)}`
       : kind === 'texture'
         ? `/api/texture/png?name=${encodeURIComponent(name)}&index=0`
         : (data && data.sheet
-            ? `/api/image?name=${encodeURIComponent(data.sheet)}` : '');
+            ? `/api/image?name=${encodeURIComponent(data.sheet)}` : ''));
     if (!picture.src) return null;
     picture.onerror = () => stage.remove();
     stage.append(picture);
@@ -923,8 +949,8 @@ function materialsFor(doc) {
       const picture = document.createElement('img');
       picture.loading = 'lazy';
       picture.alt = group.texture;
-      picture.src = `/api/model/texture?name=${encodeURIComponent(doc.name)}`
-        + `&texture=${encodeURIComponent(group.texture)}`;
+      picture.src = wsUrl(`/api/model/texture?name=${encodeURIComponent(doc.name)}`
+        + `&texture=${encodeURIComponent(group.texture)}`);
       thumb.append(picture);
     } else {
       // No texture means the material's own colour is all there is.
@@ -1105,6 +1131,26 @@ function drawProjectTree() {
   const tree = $('#project-tree');
   tree.textContent = '';
 
+  // Two games open: a tab per game above the libraries. One: nothing to choose.
+  const open = workspaces();
+  if (open.length > 1) {
+    const tabs = document.createElement('div');
+    tabs.className = 'ws-tabs';
+    for (const w of open) {
+      const tab = document.createElement('button');
+      tab.className = 'ws-tab ' + w.game + (w.target === state.ws ? ' on' : '');
+      tab.title = `${w.label} · ${w.files} files · ${w.contentDirectory}`;
+      const game = document.createElement('b');
+      game.textContent = w.game.toUpperCase();
+      const where = document.createElement('span');
+      where.textContent = w.label.replace(/^FF\d\s+/, '');
+      tab.append(game, where);
+      tab.onclick = () => selectWorkspace(w.target);
+      tabs.append(tab);
+    }
+    tree.append(tabs);
+  }
+
   for (const kind of KINDS) {
     const row = document.createElement('div');
     row.className = 'row' + (kind.id === browseKind ? ' on' : '');
@@ -1115,6 +1161,17 @@ function drawProjectTree() {
     row.onclick = () => selectKind(kind.id);
     tree.append(row);
   }
+}
+
+/// Switches the project panel - and the next thing opened - to another game.
+async function selectWorkspace(target) {
+  if (target === state.ws) return;
+  state.ws = target;
+  state.files = [];
+  if (typeof resetOps === 'function') resetOps();
+  clearInspected();
+  await selectKind(browseKind);
+  syncHash();
 }
 
 async function selectKind(kind) {
@@ -1206,31 +1263,45 @@ function encodeName(name) {
   return encodeURIComponent(name).replace(/%2F/g, '/');
 }
 
-function hashFor(kind, name) {
-  return `#/${slugFor(kind)}` + (name ? `/${encodeName(name)}` : '');
+/// #/maps/d01_01 with one game open; #/ff4steam/maps/d01_01 with two, so a link says
+/// which game it means.
+function hashFor(kind, name, ws = state.ws) {
+  const game = workspaces().length > 1 && ws ? `/${encodeURIComponent(ws)}` : '';
+  return `#${game}/${slugFor(kind)}` + (name ? `/${encodeName(name)}` : '');
 }
 
 function readHash() {
-  const raw = location.hash.replace(/^#\/?/, '');
-  if (!raw) return { kind: null, name: null };
+  let raw = location.hash.replace(/^#\/?/, '');
+  if (!raw) return { kind: null, name: null, ws: null };
+  let ws = null;
+  const first = raw.indexOf('/');
+  const head = first < 0 ? raw : raw.slice(0, first);
+  if (workspaces().some(w => w.target === decodeURIComponent(head))) {
+    ws = decodeURIComponent(head);
+    raw = first < 0 ? '' : raw.slice(first + 1);
+  }
   const cut = raw.indexOf('/');
   const slug = cut < 0 ? raw : raw.slice(0, cut);
   const name = cut < 0 ? null : decodeURIComponent(raw.slice(cut + 1));
-  return { kind: kindFor(slug), name: name || null };
+  return { kind: kindFor(slug), name: name || null, ws };
 }
 
 function syncHash() {
   const wanted = activeDoc
-    ? hashFor(activeDoc.kind, activeDoc.name)
+    ? hashFor(activeDoc.kind, activeDoc.name, activeDoc.ws)
     : hashFor(browseKind);
   if (location.hash !== wanted) history.replaceState(null, '', wanted);
 }
 
 async function applyHash() {
-  const { kind, name } = readHash();
+  const { kind, name, ws } = readHash();
   const wanted = kind || 'map';
 
-  if (wanted !== browseKind || !state.files.length) {
+  if (ws && ws !== state.ws) {
+    state.ws = ws;
+    state.files = [];
+  }
+  if (wanted !== browseKind || !state.files.length || state.filesWs !== state.ws) {
     await selectKind(wanted);
   }
   if (name) {

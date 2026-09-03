@@ -1713,3 +1713,108 @@ table.parts tr.hidden-part td { color: #d98080; }
 
 #inspector table.parts { width: 100%; }
 #inspector .preview-stage { height: 130px; }
+
+/* ------------------------------------------------------------- Crystal: the brand
+
+   A small gem before the name, drawn in CSS so there is no image to load. */
+
+header h1 { display: flex; align-items: center; gap: 8px; font-size: 14px; letter-spacing: .04em; }
+header h1 .gem {
+  width: 11px; height: 11px;
+  background: linear-gradient(135deg, #bfe0ff, var(--accent) 55%, #3d6fb8);
+  transform: rotate(45deg);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(110, 168, 254, .45);
+}
+
+/* ------------------------------------------------------------ two games open
+
+   A tab per game at the top of the project panel, and a badge on each document tab. */
+
+.ws-tabs { display: flex; gap: 4px; padding: 6px 8px 4px; border-bottom: 1px solid var(--line); }
+.ws-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+  background: none; border: 1px solid var(--line); border-radius: 6px;
+  padding: 4px 8px; color: var(--dim); cursor: pointer; font: inherit; text-align: left;
+}
+.ws-tab b { font-size: 12px; letter-spacing: .06em; }
+.ws-tab span { font-size: 10px; opacity: .8; }
+.ws-tab:hover { color: var(--ink); border-color: var(--accent); }
+.ws-tab.on { color: var(--ink); background: #232c3a; border-color: var(--accent); }
+.ws-tab.ff4.on { border-color: #d9a441; background: #33291a; }
+.doc-tab .ws {
+  font-weight: 600; font-size: 9px; letter-spacing: .06em; padding: 1px 4px;
+  border-radius: 3px; background: #2a3a52; color: #bcd3f5;
+}
+.doc-tab .ws.ff4 { background: #4a3a1a; color: #f0cf85; }
+
+/* ------------------------------------------------------------- the start page
+
+   What the document area shows when nothing is open: the project, its games, the
+   things worth doing next. It replaces a one-line "open something" message. */
+
+#no-docs.start {
+  position: absolute; inset: 30px 0 0 0; margin: 0;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 24px; overflow: auto; pointer-events: auto; color: var(--ink);
+}
+#no-docs.start[hidden] { display: none; }
+.start-card { width: min(720px, 100%); display: flex; flex-direction: column; gap: 22px; }
+.start-brand { display: flex; align-items: baseline; gap: 12px; }
+.start-brand h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: .02em; }
+.start-brand span { color: var(--dim); font-size: 12px; }
+.start-project { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--panel); }
+.start-project h3 { margin: 0 0 4px; font-size: 15px; }
+.start-project .meta { color: var(--dim); font-size: 12px; }
+.start-games { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.start-game {
+  flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px; text-align: left;
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+  background: var(--bg); color: var(--ink); cursor: pointer; font: inherit;
+}
+.start-game:hover { border-color: var(--accent); }
+.start-game b { font-size: 13px; }
+.start-game span { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-game.missing { opacity: .6; cursor: default; }
+.start-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.start-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.start-columns h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.start-list { display: flex; flex-direction: column; gap: 3px; }
+.start-row {
+  display: flex; flex-direction: column; gap: 1px; text-align: left; background: none;
+  border: 1px solid transparent; border-radius: 6px; padding: 6px 8px; color: var(--ink); cursor: pointer; font: inherit;
+}
+.start-row:hover { border-color: var(--line); background: var(--panel); }
+.start-row span { font-size: 11px; color: var(--dim); }
+.start-tips { font-size: 12px; color: var(--dim); line-height: 1.6; margin: 0; padding-left: 18px; }
+.start-tips b { color: var(--ink); font-weight: 500; }
+
+/* ------------------------------------------------------------ dialogs, more of them */
+
+.dialog-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.dialog-field textarea { font: inherit; font-size: 13px; padding: 5px 8px; min-height: 64px; resize: vertical;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; }
+.dialog-game {
+  display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px 10px; cursor: pointer;
+}
+.dialog-game:hover { border-color: var(--accent); }
+.dialog-game.checked { border-color: var(--accent); background: rgba(110, 168, 254, .08); }
+.dialog-game.missing { opacity: .6; cursor: default; }
+.dialog-game .what { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dialog-game .what b { font-size: 13px; font-weight: 500; }
+.dialog-game .what span { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dialog-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dialog-actions .grow { flex: 1; }
+.dialog-error { margin: 0; font-size: 12px; color: var(--bad); min-height: 1em; }
+.dialog-section { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); margin: 4px 0 -6px; }
+
+/* The add-object form's action strip stays at the bottom of the inspector. */
+.sticky-actions { position: sticky; bottom: 0; padding: 10px 0 4px; background: var(--panel);
+  border-top: 1px solid var(--line); margin-top: 8px; }
+
+/* Menu headings group the per-game entries when two games are open. */
+.menu-heading { padding: 6px 12px 2px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.picker.dialog.wide { width: min(760px, 92vw); }
+#project-name { cursor: pointer; }
+#project-name:hover { border-color: var(--accent); }

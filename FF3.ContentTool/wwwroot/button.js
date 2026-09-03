@@ -1,4 +1,4 @@
-// The window an ALIGN_BUTTON widget draws for itself.
+﻿// The window an ALIGN_BUTTON widget draws for itself.
 //
 // Most of a menu's boxes are painted into the screen background and cannot move: resize
 // com_save and the panel behind it stays exactly where the art puts it. Alignment 4 is
@@ -42,7 +42,7 @@ async function loadButtonWindow() {
     await new Promise((resolve) => {
       sheet.onload = resolve;
       sheet.onerror = resolve;
-      sheet.src = `/api/image?name=${encodeURIComponent(bank.sheet)}`;
+      sheet.src = wsUrl(`/api/image?name=${encodeURIComponent(bank.sheet)}`);
     });
     buttonWindow = sheet.width ? { bank, sheet } : null;
   } catch (error) {

@@ -1,4 +1,4 @@
-// A map drawn as a scene: the terrain with everything standing on it.
+﻿// A map drawn as a scene: the terrain with everything standing on it.
 //
 // The single-model viewer draws one bundle; this draws a terrain plus one instance per
 // .hich row, each with its own place and facing. The shader and the texture handling
@@ -679,8 +679,8 @@ function makeMapScene(canvas, status) {
         done();
       };
       image.onerror = () => done();
-      image.src = `/api/model/texture?name=${encodeURIComponent(name)}`
-        + `&texture=${encodeURIComponent(texture)}`;
+      image.src = wsUrl(`/api/model/texture?name=${encodeURIComponent(name)}`
+        + `&texture=${encodeURIComponent(texture)}`);
     })));
     draw();
   }

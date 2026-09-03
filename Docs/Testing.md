@@ -47,6 +47,10 @@ passed; these are the rest.
 | E-3 | Install while the game is running | A clear refusal or a note that the game must be restarted; no half-written container |
 | E-4 | Revert a file the game has since updated (touch the container) | Skipped with a reason; the file is left alone |
 | E-5 | Two projects for the same game, install A then B | B's files replace A's; Remove leaves vanilla, not A |
+| E-6 | Project targeting both games (Settings ▸ tick both) | Two tabs above the libraries; FF3 and FF4 badges on document tabs; `#/ff4steam/...` in the address bar |
+| E-7 | Open a map from each game, drag one tab beside the other | Both render, each with its own textures (no 404s in the console) |
+| E-8 | Edit a text line in FF4, then File ▸ Changes… | The FF4 tab in the dialog lists it; the FF3 tab is empty; Project ▸ Install — FF4 on Steam installs only that |
+| E-9 | File ▸ Export as .zip… | A zip beside the projects folder with project.json, the per-target files, and a README; Explorer opens on it |
 
 ## What "works" looks like in the log
 

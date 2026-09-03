@@ -1,4 +1,4 @@
-// Drawing text the way the game draws it.
+﻿// Drawing text the way the game draws it.
 //
 // A menu is mostly words - 348 of the 403 widgets across the eight .xbn files are Text -
 // so a preview in the browser's font is showing the layout of something else. The game's
@@ -26,7 +26,7 @@ function fontPage(size, page) {
     // A page that will not load leaves the text undrawn rather than the panel broken.
     image.onerror = () => resolve(null);
   });
-  image.src = `/api/font/page?size=${size}&page=${page}`;
+  image.src = wsUrl(`/api/font/page?size=${size}&page=${page}`);
   const entry = { image, ready };
   fontPages.set(key, entry);
   return entry;

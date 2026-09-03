@@ -1,4 +1,4 @@
-// Pictures of assets, for the grids that let you choose one.
+﻿// Pictures of assets, for the grids that let you choose one.
 //
 // A picture is easy for anything that already is one: an image, a texture, the sheet a
 // cell bank cuts from. A model has to be drawn, so one hidden canvas renders each in
@@ -89,10 +89,10 @@ function queueModelThumbnail(name) {
 /// A picture for anything that is already one, without drawing anything.
 function directThumbnail(kind, name) {
   if (kind === 'image') {
-    return `/api/image?name=${encodeURIComponent(name)}`;
+    return wsUrl(`/api/image?name=${encodeURIComponent(name)}`);
   }
   if (kind === 'texture') {
-    return `/api/texture/png?name=${encodeURIComponent(name)}&index=0`;
+    return wsUrl(`/api/texture/png?name=${encodeURIComponent(name)}&index=0`);
   }
   return null;
 }
