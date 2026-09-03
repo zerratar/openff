@@ -234,9 +234,30 @@ function makeMapScene(canvas, status) {
     return multiply(projection, lookAt(eye, centre, [0, 1, 0]));
   }
 
+  /// Which way round a facing turns, because the two kinds here disagree.
+  ///
+  /// A .hich row's posture is in degrees, and the game negates it before use:
+  ///
+  ///   vecFx2.set(..., 4096 * FX_DEG_TO_IDX(m_Posture[1]) * -1, ...);
+  ///
+  /// next to a position and a scale it passes straight through. An exit's arrival
+  /// facing is a different field in a different format - a 16 bit angle where a whole
+  /// turn is 65536 - and setupMapJumpPosition uses it as it stands, no negation. So
+  /// the same number turns opposite ways depending on which of the two it came from,
+  /// and drawing both the same way meant a placed character faced left in the editor
+  /// and right in the game.
+  function facingSign(item) {
+    return item && item.exit ? 1 : -1;
+  }
+
+  /// An item's facing in radians, the way the game will apply it.
+  function facingRadians(item) {
+    return facingSign(item) * (item.rotationY || 0) * Math.PI / 180;
+  }
+
   /// Place, face and size one instance. Posture is in degrees about the vertical.
   function placement(item) {
-    const a = (item.rotationY || 0) * Math.PI / 180;
+    const a = facingRadians(item);
     const c = Math.cos(a), s = Math.sin(a);
     const k = item.scale || 1;
     return new Float32Array([
@@ -464,7 +485,7 @@ function makeMapScene(canvas, status) {
 
       // A short arrow showing which way it is facing, so the angle is readable
       // without going to the inspector for it.
-      const a = (item.rotationY || 0) * Math.PI / 180;
+      const a = facingRadians(item);
       gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
       if (attribute.position >= 0) {
         gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
@@ -553,7 +574,9 @@ function makeMapScene(canvas, status) {
     const x = eye[0] + dir[0] * along - at[0];
     const z = eye[2] + dir[2] * along - at[2];
     return {
-      // atan2(x, z) matches the convention the placement matrix uses for facing.
+      // Where the cursor is, as a screen-space bearing. Turning that back into a
+      // stored facing goes through facingSign, since the two kinds store it opposite
+      // ways round.
       angle: Math.atan2(x, z) * 180 / Math.PI,
       away: Math.hypot(x, z)
     };
@@ -693,7 +716,7 @@ function makeMapScene(canvas, status) {
 
     // The model's own centre, turned by the instance's facing and moved into place -
     // the same transform placement() builds, applied to one point.
-    const a = (item.rotationY || 0) * Math.PI / 180;
+    const a = facingRadians(item);
     const c = Math.cos(a), sn = Math.sin(a);
     const cx = entry.centre[0] * k, cy = entry.centre[1] * k, cz = entry.centre[2] * k;
     return {
@@ -875,7 +898,10 @@ function makeMapScene(canvas, status) {
       if (gizmoAxis === 'turn') {
         const ground = onGround(px, py, [gizmoFrom.x, gizmoFrom.y, gizmoFrom.z]);
         if (!ground) return null;
-        let turned = Math.round(gizmoFrom.rotationY + (ground.angle - gizmoFrom.angle));
+        // Dragged towards a bearing, so the stored angle moves against it for a
+        // character and with it for an exit - whichever way that one is applied.
+        let turned = Math.round(gizmoFrom.rotationY
+          + facingSign(item) * (ground.angle - gizmoFrom.angle));
         turned = ((turned % 360) + 360) % 360;
         item.rotationY = turned;
         draw();

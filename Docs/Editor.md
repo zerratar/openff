@@ -124,6 +124,32 @@ It is built to be undone:
 `Tools/test_mod_install.py` exercises all of that against a fake install, so no real
 game is touched by the test.
 
+### Two facings, opposite ways round
+
+A character's facing and an exit's arrival facing are the same idea in two formats,
+and they are applied with opposite signs. Worth knowing before trusting either.
+
+A `.hich` row keeps a posture in **degrees**, and the game negates it:
+
+```
+vecFx2.set(..., 4096 * FX_DEG_TO_IDX(m_Posture[1]) * -1, ...);
+```
+
+sitting between a position and a scale that both pass straight through. An exit keeps
+a **16 bit angle where a whole turn is 65536**, and `setupMapJumpPosition` uses it as
+it stands:
+
+```
+vecFx2.y = MapJumpParameter(id).PlRot();
+```
+
+So the same number turns opposite ways depending on which of the two it came from.
+The 3D view drew both the same way, which meant a character placed facing right in
+the editor faced left in the game - found by putting a chest in d01_05, installing it
+into a Steam copy and opening it. `facingSign` in `map-scene.js` is that difference,
+and it applies to the model, its facing arrow, the picking bounds and the drag to
+turn, which all have to agree or the gizmo fights the model.
+
 ### Undoing one file
 
 **File ▸ Changes…** lists everything the project holds, with a checkbox each and a
