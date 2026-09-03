@@ -59,6 +59,11 @@ internal static partial class GlobalScope
 					return;
 				}
 				uint size = ds.g_File.getSize(LS_FILENAME);
+				if (size == 0)
+				{
+					// PORT: the install has no smith list (FF4).
+					return;
+				}
 				Array array = ds.CHeap.alloc_app(size);
 				ds.g_File.load(array, LS_FILENAME);
 				LSFileHeader lSFileHeader = (LSFileHeader)array;

@@ -87,6 +87,26 @@ internal static partial class GlobalScope
 									}
 									else
 									{
+										if (!FF3.GameProfile.Ff3MapParameters)
+										{
+											// PORT: FF4's chains (encounters, landforms, parties, environment)
+											// are not FF3's; until they are read, the map has no jumps, no
+											// encounters and default cameras.
+											m_MapJump = new CMapJumpParameter[16];
+											for (int jumpIndex = 0; jumpIndex < m_MapJump.Length; jumpIndex++)
+											{
+												m_MapJump[jumpIndex] = new CMapJumpParameter();
+												m_MapJump[jumpIndex].Kind_set(-1);
+											}
+											m_MapLandForm = new[] { new CMapLandFormParameter() };
+											m_MapMonsterParty = new[] { new CMapMonsterPartyParameter() };
+											m_MapSound = new[] { new CMapSoundParameter() };
+											m_MapEnCount = new[] { new CMapEnCountParameter() };
+											m_MapCamera = new[] { new CMapCameraParameter() };
+											m_pSecretWayParameter = null;
+										}
+										else
+										{
 										m_MapJump = CMapJumpParameter.ChainPointer((byte[])m_CurrentAddr, 0);
 										m_MapLandForm = CMapLandFormParameter.ChainPointer((byte[])m_CurrentAddr, 1);
 										m_MapMonsterParty = CMapMonsterPartyParameter.ChainPointer((byte[])m_CurrentAddr, 2);
@@ -94,6 +114,7 @@ internal static partial class GlobalScope
 										m_MapEnCount = CMapEnCountParameter.ChainPointer((byte[])m_CurrentAddr, 4);
 										m_MapCamera = CMapCameraParameter.ChainPointer((byte[])m_CurrentAddr, 5);
 										m_pSecretWayParameter = pack.ChainPointer((byte[])m_CurrentAddr, 6u);
+										}
 									}
 									return result;
 								}
@@ -109,36 +130,32 @@ internal static partial class GlobalScope
 
 								public CMapJumpParameter MapJumpParameter(int _id)
 								{
-									if (_id < 0)
-									{
-										_id = 0;
-									}
-									return m_MapJump[_id];
+									return Clamp(m_MapJump, _id);
 								}
 
 								public CMapLandFormParameter MapLandFormParameter(int _id)
 								{
-									return m_MapLandForm[_id];
+									return Clamp(m_MapLandForm, _id);
 								}
 
 								public CMapMonsterPartyParameter MapMonsterPartyParameter(int _id)
 								{
-									return m_MapMonsterParty[_id];
+									return Clamp(m_MapMonsterParty, _id);
 								}
 
 								public CMapSoundParameter MapSoundParameter(int _id)
 								{
-									return m_MapSound[_id];
+									return Clamp(m_MapSound, _id);
 								}
 
 								public CMapEnCountParameter MapEnCountParameter(int _id)
 								{
-									return m_MapEnCount[_id];
+									return Clamp(m_MapEnCount, _id);
 								}
 
 								public CMapCameraParameter MapCameraParameter(int _id)
 								{
-									return m_MapCamera[_id];
+									return Clamp(m_MapCamera, _id);
 								}
 
 								public void fieldBlockParameter(string pFileName)
@@ -148,6 +165,26 @@ internal static partial class GlobalScope
 										m_CurrentAddr = m_FileAddr;
 										uint num = 0u;
 										m_CurrentAddr = pack.ChainPointer(index: (uint)((pFileName != null) ? stageMng.getChipNo(pFileName) : stageMng.getChipNo()), addr: (byte[])m_CurrentAddr);
+										if (!FF3.GameProfile.Ff3MapParameters)
+										{
+											// PORT: FF4's chains (encounters, landforms, parties, environment)
+											// are not FF3's; until they are read, the map has no jumps, no
+											// encounters and default cameras.
+											m_MapJump = new CMapJumpParameter[16];
+											for (int jumpIndex = 0; jumpIndex < m_MapJump.Length; jumpIndex++)
+											{
+												m_MapJump[jumpIndex] = new CMapJumpParameter();
+												m_MapJump[jumpIndex].Kind_set(-1);
+											}
+											m_MapLandForm = new[] { new CMapLandFormParameter() };
+											m_MapMonsterParty = new[] { new CMapMonsterPartyParameter() };
+											m_MapSound = new[] { new CMapSoundParameter() };
+											m_MapEnCount = new[] { new CMapEnCountParameter() };
+											m_MapCamera = new[] { new CMapCameraParameter() };
+											m_pSecretWayParameter = null;
+										}
+										else
+										{
 										m_MapJump = CMapJumpParameter.ChainPointer((byte[])m_CurrentAddr, 0);
 										m_MapLandForm = CMapLandFormParameter.ChainPointer((byte[])m_CurrentAddr, 1);
 										m_MapMonsterParty = CMapMonsterPartyParameter.ChainPointer((byte[])m_CurrentAddr, 2);
@@ -155,11 +192,16 @@ internal static partial class GlobalScope
 										m_MapEnCount = CMapEnCountParameter.ChainPointer((byte[])m_CurrentAddr, 4);
 										m_MapCamera = CMapCameraParameter.ChainPointer((byte[])m_CurrentAddr, 5);
 										m_pSecretWayParameter = pack.ChainPointer((byte[])m_CurrentAddr, 6u);
+										}
 									}
 								}
 
 								public int mapJumpNum()
 								{
+									if (!FF3.GameProfile.Ff3MapParameters)
+									{
+										return 0;
+									}
 									return (int)(pack.ChainPointerSize((byte[])m_CurrentAddr, 0u) / 44);
 								}
 
@@ -171,6 +213,23 @@ internal static partial class GlobalScope
 								public static CMapParameterManager Instance()
 								{
 									return m_Instance;
+								}
+
+								/// <summary>
+								/// PORT: a table shorter than the id asked for answers with its last record
+								/// rather than throwing - FF4 maps carry none of these tables yet.
+								/// </summary>
+								private static T Clamp<T>(T[] table, int _id) where T : class
+								{
+									if (table == null || table.Length == 0)
+									{
+										return null;
+									}
+									if (_id < 0)
+									{
+										_id = 0;
+									}
+									return table[_id < table.Length ? _id : table.Length - 1];
 								}
 
 								public bool isLoaded()

@@ -88,7 +88,7 @@ Done in `Compat/OggSound.cs`: `MediaPlayer.setDataSource` asks the chain for
 loaded only when the chain has no Ogg. From the Steam install the title theme, the
 opening's intro-and-loop pair and the effects all come from Steam's own files.
 
-## Stage D - FF4
+## Stage D - FF4 (in progress: Baron castle renders)
 
 FF4 is the same engine with a 500-entry script table, its own tables, `setInsideMapJump`
 exits and a few format extensions the editor already handles. Running it in the client
@@ -97,6 +97,52 @@ editor - the 255 FF4-only handlers are the actual porting work, in order of how 
 scripts use them); the table readers take FF4's layouts; menus read `<layout>/<unit>`.
 The measure of progress is maps that play through: Baron castle first (`d01_00`), the
 opening (`t01_00`) second.
+
+The install has everything the game needs - FF4 boots and plays on Steam - but under its
+own names and in its own containers. What the FF3 logic asks for by FF3's name and does
+not get is logged as `missing: <name>` (`Compat/MissingFiles.cs`), and each of those is a
+mapping to write, not a file to ship.
+
+**Done (2026-09-03):** `FF3.exe --content="<FF4 install>"` lands Cecil (`p00_00`) in
+Baron castle's grounds (`d01_00`) from the Steam install alone: the map with its textures,
+water and bridge, Cecil with his shadow, the castle's BGM from `BGM12.akb`, and the map's
+own script running through the shared command table. The pieces:
+
+- `Compat/GameProfile.cs` - what the FF3 logic has to know about the other game: no jobs
+  or growth tables (`Ff3Party`), UTF-16 text (`MsdIsUtf16`), no FF3 map-parameter chains
+  (`Ff3MapParameters`), the leader's model (`LeaderModel`, Cecil unless `--leader=`), the
+  field motion sets (`FieldMotion`: `p00_00` walks with `f00.ncap`, NPC bodies with
+  `f_man001` and friends, objects with their own), the start map (`--map`, Baron by
+  default for FF4).
+- `Compat/JumpPart.cs` - the game part in the debug-menu slot that the world code always
+  expected: names the stage and the arrival (`--pos=x,y,z --rot=deg`), then hands over
+  to the world part. `--map=t01_01` does the same for FF3 - any map, no title.
+- `Compat/ScriptCommands.cs` - the FF4 command table: 200 of the 500 commands are FF3's
+  command at FF3's number with FF3's operands and run FF3's handler; the rest read their
+  operands per the shared table and are skipped, each logged once (`script: FF4 command
+  333 setInsideMapJump not implemented`). That log, per map, is the porting list.
+- `Compat/GxCommands.cs` - FF4's display lists carry matrix and material commands between
+  vertex runs; the phone decoder terminated on them (into an infinite loop). Unknown
+  commands are stepped past by their parameter count; `0x2C` (FF4's 16.16 texcoord) is
+  decoded. `OS_Terminate` now throws with a stack instead of spinning.
+- `Data/defaults/files/` - the two movement tuning tables FF4 compiled into its engine
+  (`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`), as the last content
+  root; see the README there.
+- Guards, all game-agnostic: empty tables clamp instead of throwing (map parameters,
+  secret ways, smith list, jump table), missing sounds do not dereference, a loose LZ file
+  answers to its plain name and a container entry to its `.lz` name, matrix stacks start
+  as identity.
+- `--probe` logs a per-frame heartbeat (vertices, bounds, camera, world state) and
+  `--noscript` / `--noanim` isolate a map from its scripts and animations - the tools that
+  found the black screen (the camera treats an all-zero position as unset).
+
+**Next, in order:** read arrivals from `setInsideMapJump` so any FF4 map starts where its
+neighbours put the party; implement the FF4-only commands Baron and the opening use
+(`setInsideMapJump` as an exit, `_3DS*` sprites, the name window, `startMessage`,
+`bindMotion`'s FF4 semantics); FF4's `.msd` text into the message window; the 26
+same-name commands with extra operands (`playBGM`, `moveCamera_AbsoluteCoordination`...);
+NPC body types; FF4 2D (menus and windows are `.xbn` layouts, not FF3's hard-coded
+screens); FF4's map parameter chains (encounters, landforms).
 
 ## Stage E - what "our client" can do that the engines cannot
 

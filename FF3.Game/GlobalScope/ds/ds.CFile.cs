@@ -111,6 +111,10 @@ internal static partial class GlobalScope
 					result = FS_GetLength(file);
 					FS_CloseFile(file);
 				}
+				else
+				{
+					FF3.MissingFiles.Report(filename);
+				}
 				return result;
 			}
 

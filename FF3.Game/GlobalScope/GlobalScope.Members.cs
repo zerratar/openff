@@ -5651,6 +5651,8 @@ internal static partial class GlobalScope
 							default(Matrix)
 						};
 
+						private static bool _matrixStacksInitialised;
+
 						private static Matrix[] _matrix_stack = new Matrix[64]
 						{
 							default(Matrix),
@@ -7369,9 +7371,9 @@ internal static partial class GlobalScope
 
 						internal static void OS_Terminate()
 						{
-							while (true)
-							{
-							}
+							// PORT: the phone build spun here forever. An exception names the caller.
+							FF3.Log.Write(FF3.LogChannel.Exception, "OS_Terminate: " + Environment.StackTrace);
+							throw new InvalidOperationException("OS_Terminate");
 						}
 
 						internal static void OS_EnableIrq()
@@ -8942,8 +8944,12 @@ internal static partial class GlobalScope
 							textBrightness[1] = brightness;
 						}
 
+						private static readonly Microsoft.Xna.Framework.Matrix _matrix_stack_identity = Microsoft.Xna.Framework.Matrix.Identity;
+
 						internal static void transVertex(Vertex v0, Vertex v1, Vertex v2, float[] p, float[] t, byte[] c, ref int d)
 						{
+							FF3.FrameProbe.Vertices += 3;
+							FF3.FrameProbe.Note(v0.pos0, v0.pos1, v0.pos2);
 							int num = d * 3;
 							int num2 = d * 2;
 							int num3 = d * 4;
@@ -8979,6 +8985,8 @@ internal static partial class GlobalScope
 
 						internal static void transVertex(Vertex v0, Vertex v1, Vertex v2, VertexPositionColorTexture[] ptc, ref int d)
 						{
+							FF3.FrameProbe.Vertices += 3;
+							FF3.FrameProbe.Note(v0.pos0, v0.pos1, v0.pos2);
 							ptc[d].Position.X = v0.pos0;
 							ptc[d].Position.Y = v0.pos1;
 							ptc[d].Position.Z = v0.pos2;
@@ -12625,6 +12633,19 @@ internal static partial class GlobalScope
 							MtxFx43 mtxFx2 = fnd_reuse_currentMtxN;
 							mtxFx.copy(currentMtx);
 							mtxFx2.copy(currentMtx);
+							if (!_matrixStacksInitialised)
+							{
+								// PORT: the matrix stack starts as identity, not zero. FF3's models store
+								// every slot before they read it; FF4's maps read slots they never
+								// stored, and a zero matrix there collapsed the whole map onto a point.
+								for (int slot = 0; slot < 64; slot++)
+								{
+									MTX_Identity43(stackMtx[slot]);
+									MTX_Identity43(stackMtxN[slot]);
+									_matrix_stack[slot] = Matrix.Identity;
+								}
+								_matrixStacksInitialised = true;
+							}
 							int num3 = 1;
 							MtxFx33 mtxFx3 = fnd_reuse_bbMtx;
 							MtxFx33 mtxFx4 = fnd_reuse_bbyMtx;
@@ -12906,6 +12927,7 @@ internal static partial class GlobalScope
 										array5[2] = (int)array6[num63 + 2];
 										num63 += 6;
 									}
+									FF3.FrameProbe.NoteNode(num61, num64, array5, mtxFx6.a, array6.Length, num63);
 									int[] array7 = fnd_reuse__scale;
 									MtxFx43 mtxFx7 = fnd_reuse_mtx;
 									array7[0] = 0;
@@ -13335,12 +13357,20 @@ internal static partial class GlobalScope
 									float[] cmd_vertex_z = nNSG3dResShpData.cmd_vertex_z;
 									convertMatrix(ref _matrix_current, currentMtx);
 									int num56 = checkComponent(_matrix_current);
+									FF3.FrameProbe.NoteShapeMatrix(num43, j, currentMtx.a, _matrix_current, mdl.nodeInfo.dict.numEntry, shp.dict.numEntry);
 									while (num46 < num49)
 									{
 										switch (num47 & 0xFF)
 										{
 										case 20u:
 											_matrix_current = _matrix_stack[cmd[num48]];
+											if (_matrix_current.M11 == 0f && _matrix_current.M22 == 0f && _matrix_current.M33 == 0f && _matrix_current.M44 == 0f)
+											{
+												// PORT: a stack slot nothing stored into (diagnostic; see FrameProbe).
+												FF3.FrameProbe.ZeroRestores++;
+												FF3.FrameProbe.NoteSlot((int)cmd[num48]);
+												_matrix_current = _matrix_stack_identity;
+											}
 											num56 = checkComponent(_matrix_current);
 											num48++;
 											break;
@@ -13358,8 +13388,19 @@ internal static partial class GlobalScope
 											num48++;
 											break;
 										case 34u:
-											tex = cmd_coord_u[num54];
-											tex2 = cmd_coord_v[num54];
+										case 44u:
+											if ((num47 & 0xFF) == 44)
+											{
+												// PORT: FF4's normalised coordinate - to texels, which texMtx expects.
+												tex = cmd_coord_u[num54] * nNSG3dResMatData4.origWidth;
+												tex2 = cmd_coord_v[num54] * nNSG3dResMatData4.origHeight;
+												num48++;
+											}
+											else
+											{
+												tex = cmd_coord_u[num54];
+												tex2 = cmd_coord_v[num54];
+											}
 											num54++;
 											if (texMtx[j].M12 != 0f || texMtx[j].M21 != 0f)
 											{
@@ -13398,6 +13439,7 @@ internal static partial class GlobalScope
 											vertex[num51].pos0 = cmd_vertex_x[num55];
 											vertex[num51].pos1 = cmd_vertex_y[num55];
 											vertex[num51].pos2 = cmd_vertex_z[num55];
+											FF3.FrameProbe.NoteRaw(cmd_vertex_x[num55], cmd_vertex_y[num55], cmd_vertex_z[num55], _matrix_current);
 											num55++;
 											if ((num56 & 2) != 0)
 											{
@@ -13476,7 +13518,8 @@ internal static partial class GlobalScope
 											break;
 										}
 										default:
-											OS_Terminate();
+											// PORT: FF4's lists carry matrix and material commands between runs.
+											num48 += FF3.GxCommands.Skip((int)(num47 & 0xFF));
 											break;
 										case 0u:
 											break;

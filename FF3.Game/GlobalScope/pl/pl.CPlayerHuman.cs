@@ -186,8 +186,16 @@ internal static partial class GlobalScope
 				flag = getAutoPilot();
 				characterMng.delCharacter(getCharacterId());
 				setCharacterId(-1);
-				sprintf(out var arg, "%c%c%02d", getModelName()[0], getModelName()[1], PlayerParty.instance().playerForId((byte)player_id).jobManager()
-					.nowJob() + 1);
+				string arg;
+				if (FF3.GameProfile.LeaderModel != null)
+				{
+					arg = FF3.GameProfile.LeaderModel;
+				}
+				else
+				{
+					sprintf(out arg, "%c%c%02d", getModelName()[0], getModelName()[1], PlayerParty.instance().playerForId((byte)player_id).jobManager()
+						.nowJob() + 1);
+				}
 				CCastCommandTransit.getInstance().cast_PlayerMng().setUpWorldCharacter(vecFx, rotation, scale, shadowScale, arg, _AutoPilot: false, _Operater: true);
 				into();
 				setAutoPilot(flag);

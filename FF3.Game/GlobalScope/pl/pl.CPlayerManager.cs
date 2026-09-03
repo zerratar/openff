@@ -162,6 +162,7 @@ internal static partial class GlobalScope
 				switch (_ChrName[0])
 				{
 				case 'j':
+				case 'p': // PORT: FF4's party models (p00_00 is Cecil) walk as the hero does.
 					if (num2 == 0)
 					{
 						strcpy(out arg, "j101");
@@ -336,7 +337,18 @@ internal static partial class GlobalScope
 				{
 					strcpy(out arg, "w_field_man");
 				}
-				if (flag)
+				if (FF3.GameProfile.IsFf4)
+				{
+					// PORT: FF4 names its field motion sets differently (see GameProfile.FieldMotion).
+					string ff4Motion = FF3.GameProfile.FieldMotion(_ChrName);
+					if (ff4Motion != null)
+					{
+						characterMng.addMotion(num, ff4Motion);
+					}
+					flag2 = false;
+					flag3 = false;
+				}
+				if (flag && !FF3.GameProfile.IsFf4)
 				{
 					characterMng.addMotion(num, arg);
 				}
@@ -443,6 +455,10 @@ internal static partial class GlobalScope
 				int num2 = -1;
 				strcpy(out var arg, _ChrName);
 				sprintf(out var arg2, "w_%s", _ChrName);
+				if (FF3.GameProfile.IsFf4)
+				{
+					arg2 = FF3.GameProfile.FieldMotion(_ChrName) ?? arg2;
+				}
 				num = characterMng.setCharacter(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
 				TexDivideLoader.getSingleton().tdlForceLoad();
 				characterMng.releaseMdlTexRes(num);

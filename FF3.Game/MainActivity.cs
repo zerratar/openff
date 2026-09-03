@@ -366,7 +366,7 @@ public class MainActivity
 		{
 			return null;
 		}
-		if (text.Equals(".msd") && filename[0] != 'e')
+		if (text.Equals(".msd") && filename[0] != 'e' && !FF3.GameProfile.MsdIsUtf16)
 		{
 			array2 = decodeString(array2);
 		}

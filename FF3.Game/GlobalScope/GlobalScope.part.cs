@@ -31,11 +31,17 @@ internal static partial class GlobalScope
                 // PORT: --start=<part> jumps past the logo and prologue, which otherwise cost
                 // about a minute before any 3D reaches the screen.
                 gAMEPART = FF3.RenderOverrides.StartPart(gAMEPART); /*FF3LOG*/
+                if (FF3.GameProfile.StartStage != null)
+                {
+                    // PORT: --map=<stage>, or FF4 (no title yet): straight into a map.
+                    gAMEPART = GAMEPART.GAMEPART_DEBUG_MENU;
+                }
                 sys.GGlobal.setPartAfterSoftReset(gAMEPART);
                 m_GamePart = gAMEPART;
                 ds.CDevice.singleton().setFPS(ds.CDevice.enFPS.enFPS_30);
                 ds.CDevice.singleton().setDepthBufferMode(0);
                 logo.CampanyLogoPart.registerPart();
+                FF3.JumpPart.registerPart();
                 ttl.TitlePart.registerPart();
                 ttl.LinkPart.registerPart();
                 btl.BattlePart.registerPart();

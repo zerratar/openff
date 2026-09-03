@@ -557,7 +557,9 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 		if (array[channel, 0] != null && array[channel, 1] != null)
 		{
 			byte[] array2 = MainActivity.loadFileEntry("sound/" + filename + ".dat");
-			soundLoop[channel] = (array2[0] & 0xFF) | ((array2[1] & 0xFF) << 8) | ((array2[2] & 0xFF) << 16) | (array2[3] << 24);
+			soundLoop[channel] = array2 != null && array2.Length >= 4
+				? (array2[0] & 0xFF) | ((array2[1] & 0xFF) << 8) | ((array2[2] & 0xFF) << 16) | (array2[3] << 24)
+				: 0;
 			soundLoop[channel] += Math.Max((int)(JavaSystem.currentTimeMillis() - soundTime), 0);
 			soundState[channel] = 1;
 			array[channel, 0].start();

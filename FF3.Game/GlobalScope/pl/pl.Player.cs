@@ -137,7 +137,10 @@ internal static partial class GlobalScope
 				jobManager_.initialize();
 				skillManager_.initialize();
 				jobPenaltyTime_ = 0;
-				changeJob(JOB_TYPE.SUPPINN);
+				if (FF3.GameProfile.Ff3Party)
+				{
+					changeJob(JOB_TYPE.SUPPINN);
+				}
 				for (int j = 0; j < 8; j++)
 				{
 					mp_[j].maxNow();
@@ -378,6 +381,11 @@ internal static partial class GlobalScope
 
 			public void updateParameter()
 			{
+				if (!FF3.GameProfile.Ff3Party)
+				{
+					// PORT: no growth tables to read; the FF4 party keeps its defaults.
+					return;
+				}
 				setParameter((byte)(level_.get() - 1));
 				bodyAndBonus_.copy(body_);
 				setMp((byte)(level_.get() - 1));

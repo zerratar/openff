@@ -102,6 +102,24 @@ namespace FF3
 					return candidate;
 				}
 			}
+			// FF4 keeps a track in one .akb, loop points in its header, where FF3 asked for
+			// an intro (_0) and a loop (_1): the loop half is the whole file; there is no intro.
+			if (name.EndsWith("_1", StringComparison.Ordinal))
+			{
+				string whole = name.Substring(0, name.Length - 2);
+				foreach (string candidate in new[]
+				{
+					"files/SOUND/BGM/" + whole + ".akb",
+					"files/SOUND/SE/" + whole + ".akb",
+					"files/SOUND/VOICE/" + whole + ".akb"
+				})
+				{
+					if (GameArchive.Chain.Exists(candidate))
+					{
+						return candidate;
+					}
+				}
+			}
 			return null;
 		}
 

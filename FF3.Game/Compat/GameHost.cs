@@ -64,6 +64,10 @@ namespace FF3
 		/// One game tick. The original ran the whole frame - input, logic and drawing -
 		/// from the surface callback, so update and draw are not separable here.
 		/// </summary>
-		public static void Tick() => _game?.onDrawFrame();
+		public static void Tick()
+		{
+			_game?.onDrawFrame();
+			FrameProbe.Tick();
+		}
 	}
 }

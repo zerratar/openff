@@ -67,6 +67,13 @@ internal static partial class GlobalScope
 								public void initialize(Array pData)
 								{
 									pData_ = pData;
+									if (pData == null)
+									{
+										// PORT: no secret-way chain in this map's parameters (FF4).
+										pFileHeader_ = null;
+										pSecretWayList_ = null;
+										return;
+									}
 									pFileHeader_ = (SWFileHeader)pData_;
 									_ = pFileHeader_.fileType;
 									byte numSecretWay = pFileHeader_.numSecretWay;
@@ -84,7 +91,7 @@ internal static partial class GlobalScope
 
 								public void terminate()
 								{
-									if (pSecretWayList_ != null)
+									if (pSecretWayList_ != null && pFileHeader_ != null)
 									{
 										for (int i = 0; i < pFileHeader_.numSecretWay; i++)
 										{

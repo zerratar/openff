@@ -100,6 +100,11 @@ internal static partial class GlobalScope
 					num9++;
 					num3++;
 					break;
+				case 44u:
+					// PORT: FF4's normalised texture coordinate, two words.
+					num9++;
+					num3 += 2;
+					break;
 				case 35u:
 				case 36u:
 				case 37u:
@@ -134,7 +139,8 @@ internal static partial class GlobalScope
 					num3++;
 					break;
 				default:
-					OS_Terminate();
+					// PORT: FF4's lists carry matrix and material commands between runs.
+					num3 += FF3.GxCommands.Skip((int)(num2 & 0xFF));
 					break;
 				case 0u:
 				case 65u:
@@ -204,6 +210,14 @@ internal static partial class GlobalScope
 					num9++;
 					num3++;
 					break;
+				case 44u:
+					// PORT: FF4's 16.16 coordinate, normalised to the texture; kept normalised
+					// here and scaled to texels by the drawer, which knows the texture.
+					cmd_coord_u[num9] = (int)array[num3] / 65536f;
+					cmd_coord_v[num9] = (int)array[num3 + 1] / 65536f;
+					num9++;
+					num3 += 2;
+					break;
 				case 35u:
 				case 36u:
 				case 37u:
@@ -256,7 +270,8 @@ internal static partial class GlobalScope
 					num3++;
 					break;
 				default:
-					OS_Terminate();
+					// PORT: FF4's lists carry matrix and material commands between runs.
+					num3 += FF3.GxCommands.Skip((int)(num2 & 0xFF));
 					break;
 				case 0u:
 				case 65u:

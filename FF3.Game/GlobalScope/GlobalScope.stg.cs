@@ -1199,6 +1199,8 @@ internal static partial class GlobalScope
 						break;
 					}
 					sprintf(out var arg4, "./MODEL/%s.nmdp.lz", name);
+					FF3.Log.Write(FF3.LogChannel.File, "stage: " + name + " model " + ds.g_File.getSize(arg4) + " bytes, animation "
+						+ ds.g_File.getSize("./ANIMATION/" + name + ".namp.lz") + ", collision " + ds.g_File.getSize("./COLLISION/" + name + "_col.mcl.lz"));
 					if (ds.g_File.getSize(arg4) != 0)
 					{
 						MdlData.setup(arg4, type);
@@ -1216,7 +1218,7 @@ internal static partial class GlobalScope
 						}
 					}
 					sprintf(out arg4, "./ANIMATION/%s.namp.lz", name);
-					if (ds.g_File.getSize(arg4) != 0)
+					if (ds.g_File.getSize(arg4) != 0 && FF3.Options.Get("noanim") == null)
 					{
 						AnmData.setup(arg4, type);
 						m_AnimSet.setup(AnmData.getAddr(), m_ModelSet.getMdlResource(), null);

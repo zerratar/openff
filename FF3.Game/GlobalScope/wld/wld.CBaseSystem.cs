@@ -380,7 +380,11 @@ internal static partial class GlobalScope
 				string arg = "";
 				int frontPlayerID = CWorldOutSideData.getInstance().PlayerData().getFrontPlayerID();
 				int num = pl.PlayerParty.instance().playerForId((byte)frontPlayerID).playerId();
-				if (pl.PlayerParty.instance().playerForId((byte)frontPlayerID).isEnable())
+				if (FF3.GameProfile.LeaderModel != null)
+				{
+					arg = FF3.GameProfile.LeaderModel;
+				}
+				else if (pl.PlayerParty.instance().playerForId((byte)frontPlayerID).isEnable())
 				{
 					sprintf(out arg, "j%d%02d", num + 1, pl.PlayerParty.instance().playerForId((byte)frontPlayerID).jobManager()
 						.nowJob() + 1);
@@ -727,7 +731,9 @@ internal static partial class GlobalScope
 				int zoomMin = 0;
 				int zoomSpd = 65536;
 				WorldCamera().initialize();
-				if (map.CMapParameterManager.Instance().isLoaded())
+				// PORT: FF4's map parameters carry no camera chain; its scripts place the
+				// camera. Until then the built-in defaults above stand.
+				if (map.CMapParameterManager.Instance().isLoaded() && FF3.GameProfile.Ff3MapParameters)
 				{
 					mCLCollision = map.CMapParameterManager.Instance().MapCameraParameter(0).Collision() != 0;
 					near = 4096 * map.CMapParameterManager.Instance().MapCameraParameter(0).ClipNear();

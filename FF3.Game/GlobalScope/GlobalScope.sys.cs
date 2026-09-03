@@ -331,7 +331,10 @@ internal static partial class GlobalScope
 				ds.g_Pad.setRepeatInterval(2u);
 				ds.g_TouchPanel.setRepeatDelay(10);
 				ds.g_TouchPanel.setRepeatInterval(2);
-				pl.PlayerParty.instance().load();
+				if (FF3.GameProfile.Ff3Party)
+				{
+					pl.PlayerParty.instance().load();
+				}
 				pl.PlayerParty.instance().initialize();
 				pl.PlayerParty.instance().addPlayer(0);
 				OptionSaveDataGlobal.getSingleton().setup();

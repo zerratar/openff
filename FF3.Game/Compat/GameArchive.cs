@@ -60,6 +60,14 @@ namespace FF3
 				{
 					_chain.AddFallback(fallback);
 				}
+				// Last of all, what OpenFF ships itself: Data/defaults/files holds the few
+				// tables the FF3 logic needs that another game's install does not carry
+				// (see the README there). Nothing in it is art, and the install always wins.
+				string defaults = Path.Combine(AppContext.BaseDirectory, "Data", "defaults");
+				if (Directory.Exists(Path.Combine(defaults, "files")))
+				{
+					_chain.AddFallback(defaults);
+				}
 			}
 			catch (Exception ex)
 			{

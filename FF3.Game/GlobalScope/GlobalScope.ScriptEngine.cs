@@ -50,7 +50,7 @@ internal static partial class GlobalScope
 				{
 					resumePC_ = pc_;
 					uint num = fetch();
-					commandTable[num](this);
+					FF3.ScriptCommands.Dispatch(this, num);
 				}
 				logicContext_.save(scriptData_, resumePC_);
 			}
