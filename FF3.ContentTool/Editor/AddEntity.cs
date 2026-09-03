@@ -230,7 +230,7 @@ namespace FF3.ContentTool.Editor
 			}
 
 			// ---- 2 and 3. the script
-			ScriptFile script = ScriptFile.Read(workspace.Read(scriptName));
+			ScriptFile script = ScriptFile.Read(workspace.Read(scriptName), workspace.Ops);
 			using StringWriter source = new StringWriter();
 			Ffs.SourceWriter.Write(source, script, map + ".script", lookupMessage);
 
@@ -245,7 +245,7 @@ namespace FF3.ContentTool.Editor
 			byte[] compiled;
 			try
 			{
-				compiled = Ffs.Compiler.Compile(Ffs.Parser.Parse(edited));
+				compiled = Ffs.Compiler.Compile(Ffs.Parser.Parse(edited), workspace.Ops);
 			}
 			catch (Exception problem)
 			{

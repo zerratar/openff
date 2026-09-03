@@ -190,6 +190,11 @@ argument    = number | string | label
 - **`op(512);`** names an opcode by number. Ones past the dispatch table have no
   handler and take no arguments; they turn up only in code nothing reaches.
 
+A script belongs to a game. FF3 and FF4 3D share the engine but not the command table
+(298 entries against 500, 48 of the shared numbers reading different operands), so
+the compiler and decompiler work against one table at a time: the workspace's in the
+editor, `--game=ff4` on the command line, FF3's by default. See `Docs/Editor.md`.
+
 ## What the numbers mean
 
 `Tools/gen_operand_names.py` derives operand names by following each one to the call
@@ -213,6 +218,7 @@ bootCharacter_AbsoluteCoordination(35, 0xFFFA9000, 0, 0xFFFB9000, 0);   // x -87
 ```bash
 dotnet run --project FF3.ContentTool -- ops            # all 298
 dotnet run --project FF3.ContentTool -- ops camera     # just the camera ones
+dotnet run --project FF3.ContentTool -- ops --game=ff4 # FF4's 500
 ```
 
 The editor has the same table live - highlighting, completion and a signature strip.
@@ -222,7 +228,8 @@ See `Docs/Editor.md`.
 
 | Piece | File | Job |
 | --- | --- | --- |
-| Mnemonics | `Ffs/Mnemonics.cs` | opcode ↔ name, from the handler names |
+| Tables | `ScriptOpTable.cs` | FF3's or FF4's command table; everything below takes one |
+| Mnemonics | `Ffs/Mnemonics.cs` | opcode ↔ name, from the handler names, one instance per table |
 | Conditions | `Ffs/Conditions.cs` | the On/Off pairs, found by name |
 | Lexer | `Ffs/Lexer.cs` | text → tokens |
 | AST | `Ffs/Ast.cs` | the shape of a parsed script |

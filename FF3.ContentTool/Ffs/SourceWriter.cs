@@ -1,4 +1,4 @@
-// Writes a .script back out as script language source.
+﻿// Writes a .script back out as script language source.
 //
 // The output is meant to be compiled again, so everything the format carries has to
 // survive the trip: the map number, the cast table, the function table, every
@@ -105,17 +105,17 @@ namespace FF3.ContentTool.Ffs
 						: "// ---- not reached from any entry point in this file");
 				}
 
-				WriteInstruction(writer, instruction, labels, lookupMessage);
+				WriteInstruction(writer, instruction, labels, lookupMessage, file.Ops);
 				at += Math.Max(instruction.Length, 1);
 			}
 		}
 
 		private static void WriteInstruction(TextWriter writer, ScriptInstruction instruction,
-			Dictionary<uint, List<string>> labels, Func<uint, string> lookupMessage)
+			Dictionary<uint, List<string>> labels, Func<uint, string> lookupMessage, ScriptOpTable ops)
 		{
 			string mnemonic = instruction.Op == null
 				? string.Format(CultureInfo.InvariantCulture, "op({0})", instruction.Opcode)
-				: Mnemonics.Name(instruction.Opcode);
+				: ops.Names.Name(instruction.Opcode);
 
 			StringBuilder line = new StringBuilder("    ").Append(mnemonic);
 
@@ -135,7 +135,7 @@ namespace FF3.ContentTool.Ffs
 			}
 			line.Append(';');
 
-			string comment = Comment(instruction, lookupMessage);
+			string comment = Comment(instruction, lookupMessage, ops);
 			if (comment != null)
 			{
 				// Line up where it can, but never run into the comment marker.
@@ -177,7 +177,7 @@ namespace FF3.ContentTool.Ffs
 		/// working that out in your head while reading a cutscene is no way to live.
 		/// </summary>
 		private static string Comment(ScriptInstruction instruction,
-			Func<uint, string> lookupMessage)
+			Func<uint, string> lookupMessage, ScriptOpTable ops)
 		{
 			if (lookupMessage != null && instruction.Opcode == StartMessage2
 				&& instruction.Operands.Count >= 2)
@@ -193,12 +193,12 @@ namespace FF3.ContentTool.Ffs
 			List<string> parts = new List<string>();
 			for (int i = 0; i < instruction.Operands.Count; i++)
 			{
-				if (!ScriptOperands.IsFixed(instruction.Opcode, i)
+				if (!ops.IsFixed(instruction.Opcode, i)
 					|| !(instruction.Operands[i] is uint raw))
 				{
 					continue;
 				}
-				string name = ScriptOperands.Name(instruction.Opcode, i)
+				string name = ops.OperandName(instruction.Opcode, i)
 					?? ("arg" + i.ToString(CultureInfo.InvariantCulture));
 				parts.Add(string.Format(CultureInfo.InvariantCulture, "{0} {1}",
 					name, FixedPoint(raw)));

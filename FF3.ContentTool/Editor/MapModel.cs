@@ -233,7 +233,7 @@ namespace FF3.ContentTool.Editor
 			ScriptFile script;
 			try
 			{
-				script = ScriptFile.Read(workspace.Read("files/" + map + ".script"));
+				script = ScriptFile.Read(workspace.Read("files/" + map + ".script"), workspace.Ops);
 			}
 			catch (Exception)
 			{
@@ -312,7 +312,7 @@ namespace FF3.ContentTool.Editor
 			ScriptFile script;
 			try
 			{
-				script = ScriptFile.Read(workspace.Read(scriptName));
+				script = ScriptFile.Read(workspace.Read(scriptName), workspace.Ops);
 			}
 			catch (Exception)
 			{
@@ -322,7 +322,7 @@ namespace FF3.ContentTool.Editor
 			(List<ScriptInstruction> code, _) = ScriptDisassembler.Disassemble(script);
 			foreach (ScriptInstruction instruction in code)
 			{
-				if (instruction.Opcode != ScriptOpsExtra.SetInsideMapJump
+				if (instruction.Opcode != ScriptOpsFf4.SetInsideMapJump
 					|| instruction.Operands.Count < 12)
 				{
 					continue;

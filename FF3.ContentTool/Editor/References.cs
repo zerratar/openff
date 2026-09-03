@@ -279,7 +279,7 @@ namespace FF3.ContentTool.Editor
 			string source;
 			try
 			{
-				ScriptFile script = ScriptFile.Read(_workspace.Read(scriptName));
+				ScriptFile script = ScriptFile.Read(_workspace.Read(scriptName), _workspace.Ops);
 				using StringWriter writer = new StringWriter();
 				Ffs.SourceWriter.Write(writer, script, scriptName, _lookupMessage);
 				source = writer.ToString();
@@ -368,7 +368,7 @@ namespace FF3.ContentTool.Editor
 			string source;
 			try
 			{
-				ScriptFile script = ScriptFile.Read(_workspace.Read(scriptName));
+				ScriptFile script = ScriptFile.Read(_workspace.Read(scriptName), _workspace.Ops);
 				using StringWriter writer = new StringWriter();
 				Ffs.SourceWriter.Write(writer, script, scriptName, _lookupMessage);
 				source = writer.ToString();
@@ -474,7 +474,7 @@ namespace FF3.ContentTool.Editor
 			string source;
 			try
 			{
-				ScriptFile script = ScriptFile.Read(_workspace.Read(name));
+				ScriptFile script = ScriptFile.Read(_workspace.Read(name), _workspace.Ops);
 				using StringWriter writer = new StringWriter();
 				Ffs.SourceWriter.Write(writer, script, name, _lookupMessage);
 				source = writer.ToString();

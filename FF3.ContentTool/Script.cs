@@ -1,4 +1,4 @@
-// .script - the event bytecode. 357 files: what an NPC does when you talk to it,
+﻿// .script - the event bytecode. 357 files: what an NPC does when you talk to it,
 // when a cutscene fires, what a chest holds, how a quest moves forward.
 //
 //   ff3content script <file.script | directory> [out] [--text=<dir>]
@@ -70,7 +70,10 @@ namespace FF3.ContentTool
 		public List<ScriptFunction> Functions = new List<ScriptFunction>();
 		public byte[] Data;
 
-		public static ScriptFile Read(byte[] data)
+		/// <summary>The command table this file is decoded against; FF3's unless told.</summary>
+		public ScriptOpTable Ops = ScriptOpTable.Ff3;
+
+		public static ScriptFile Read(byte[] data, ScriptOpTable ops = null)
 		{
 			if (data == null || data.Length < 16
 				|| data[0] != (byte)'M' || data[1] != (byte)'H'
@@ -82,6 +85,7 @@ namespace FF3.ContentTool
 			ScriptFile file = new ScriptFile
 			{
 				Data = data,
+				Ops = ops ?? ScriptOpTable.Ff3,
 				Major = ReadUInt16(data, 4),
 				Minor = ReadUInt16(data, 6),
 				FunctionTableOffset = ReadUInt32(data, 8),
@@ -310,7 +314,7 @@ namespace FF3.ContentTool
 
 			int opcode = data[pc] | (data[pc + 1] << 8);
 			instruction.Opcode = opcode;
-			instruction.Op = ScriptOps.Get(opcode);
+			instruction.Op = file.Ops.Get(opcode);
 
 			uint at = pc + 2;
 			if (instruction.Op?.Operands == null)

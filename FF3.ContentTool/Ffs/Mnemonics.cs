@@ -1,15 +1,20 @@
-// The names the script language uses for the 298 opcodes.
+// The names the script language uses for the opcodes of one command table.
 //
 // Derived from the handler names rather than invented, so anyone reading the game's
 // sources and anyone reading a .ffs file are looking at the same vocabulary:
 //
 //   waitCommand                     -> wait
 //   ff3Command_StartMessage2        -> startMessage2
+//   babilCommand_SetInsideMapJump   -> setInsideMapJump
 //   flagOnJumpCommand               -> flagOnJump
 //
 // Five opcodes share the name NOPCommand, so those get their opcode number appended
-// (nop0 .. nop4). Anything else can still be written as op(<number>), which is what
-// the disassembler falls back to for an opcode with no handler.
+// (nop0 .. nop4); FF4's eighteen UnUseCommand slots become unUse56 and so on. Anything
+// else can still be written as op(<number>), which is what the disassembler falls back
+// to for an opcode with no handler.
+//
+// One instance per table - FF3's and FF4's vocabularies overlap but are not the same,
+// and a name must resolve to the number the game being edited dispatches on.
 
 using System;
 using System.Collections.Generic;
@@ -18,26 +23,28 @@ using System.Text;
 
 namespace FF3.ContentTool.Ffs
 {
-	internal static class Mnemonics
+	internal sealed class Mnemonics
 	{
-		private static readonly string[] _names = new string[ScriptOps.Count];
-		private static readonly Dictionary<string, int> _opcodes =
+		private readonly string[] _names;
+		private readonly Dictionary<string, int> _opcodes =
 			new Dictionary<string, int>(StringComparer.Ordinal);
 
-		static Mnemonics()
+		public Mnemonics(ScriptOp[] table)
 		{
+			_names = new string[table.Length];
+
 			// Count first: a name shared by several opcodes has to be disambiguated,
 			// and that can only be decided once every name is known.
 			Dictionary<string, int> uses = new Dictionary<string, int>(StringComparer.Ordinal);
-			string[] plain = new string[ScriptOps.Count];
-			for (int opcode = 0; opcode < ScriptOps.Count; opcode++)
+			string[] plain = new string[table.Length];
+			for (int opcode = 0; opcode < table.Length; opcode++)
 			{
-				plain[opcode] = Simplify(ScriptOps.Get(opcode).Name);
+				plain[opcode] = Simplify(table[opcode].Name);
 				uses.TryGetValue(plain[opcode], out int count);
 				uses[plain[opcode]] = count + 1;
 			}
 
-			for (int opcode = 0; opcode < ScriptOps.Count; opcode++)
+			for (int opcode = 0; opcode < table.Length; opcode++)
 			{
 				string name = uses[plain[opcode]] > 1
 					? plain[opcode] + opcode.ToString(CultureInfo.InvariantCulture)
@@ -45,51 +52,36 @@ namespace FF3.ContentTool.Ffs
 				_names[opcode] = name;
 				_opcodes[name] = opcode;
 			}
-
-			// The other game's opcodes, named the same way. Past the array, so they
-			// live in the dictionary only; Name() looks there when the array has
-			// nothing to say.
-			foreach (KeyValuePair<int, ScriptOp> extra in ScriptOpsExtra.All)
-			{
-				string name = Simplify(extra.Value.Name);
-				_extraNames[extra.Key] = name;
-				_opcodes[name] = extra.Key;
-			}
 		}
 
-		private static readonly Dictionary<int, string> _extraNames = new Dictionary<int, string>();
-
 		/// <summary>The mnemonic for an opcode, or op(n) when there is no handler.</summary>
-		public static string Name(int opcode)
+		public string Name(int opcode)
 		{
-			if (opcode >= 0 && opcode < _names.Length)
-			{
-				return _names[opcode];
-			}
-			return _extraNames.TryGetValue(opcode, out string extra)
-				? extra
+			return opcode >= 0 && opcode < _names.Length
+				? _names[opcode]
 				: string.Format(CultureInfo.InvariantCulture, "op({0})", opcode);
 		}
 
 		/// <summary>The opcode for a mnemonic, or -1.</summary>
-		public static int Opcode(string name)
+		public int Opcode(string name)
 		{
 			return _opcodes.TryGetValue(name, out int opcode) ? opcode : -1;
 		}
 
-		public static IEnumerable<KeyValuePair<string, int>> All => _opcodes;
+		public IEnumerable<KeyValuePair<string, int>> All => _opcodes;
 
 		/// <summary>
 		/// handler name -> mnemonic: drop the ff3Command_ (or babilCommand_) prefix and
 		/// the Command suffix, then lower the leading run of capitals so NOPCommand
 		/// becomes nop and StartMessage2 becomes startMessage2.
 		/// </summary>
-		private static string Simplify(string handler)
+		public static string Simplify(string handler)
 		{
 			string name = handler;
 			// Two games, two prefixes: ours is ff3Command_, FF4's is babilCommand_ -
-			// Babil being what the FF4 team called it internally.
-			foreach (string prefix in new[] { "ff3Command_", "babilCommand_" })
+			// Babil being what the FF4 team called it internally. One FF4 handler is
+			// spelt babilCommands_.
+			foreach (string prefix in new[] { "ff3Command_", "babilCommands_", "babilCommand_" })
 			{
 				if (name.StartsWith(prefix, StringComparison.Ordinal))
 				{
@@ -105,6 +97,12 @@ namespace FF3.ContentTool.Ffs
 			if (name.Length == 0)
 			{
 				return handler;
+			}
+			// babilCommand_3DSSetup would become 3DSSetup, which no lexer reads as a
+			// name. Keep the underscore that separated it from the prefix: _3DSSetup.
+			if (char.IsDigit(name[0]))
+			{
+				name = "_" + name;
 			}
 
 			StringBuilder text = new StringBuilder(name);

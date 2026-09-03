@@ -202,8 +202,8 @@ namespace FF3.ContentTool.Editor
 
 		private static Dictionary<string, List<AudioUse>> BuildUses(Workspace workspace)
 		{
-			int playBgm = Ffs.Mnemonics.Opcode("playBGM");
-			int playSe = Ffs.Mnemonics.Opcode("playSE");
+			int playBgm = workspace.Ops.Names.Opcode("playBGM");
+			int playSe = workspace.Ops.Names.Opcode("playSE");
 			Dictionary<string, Dictionary<string, int>> counts =
 				new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
 
@@ -212,7 +212,7 @@ namespace FF3.ContentTool.Editor
 				ScriptFile script;
 				try
 				{
-					script = ScriptFile.Read(workspace.Read(entry.Name));
+					script = ScriptFile.Read(workspace.Read(entry.Name), workspace.Ops);
 				}
 				catch (Exception)
 				{

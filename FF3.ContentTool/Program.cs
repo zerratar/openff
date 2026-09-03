@@ -168,14 +168,20 @@ namespace FF3.ContentTool
 						}
 						return LzCompress(args[1], args.Length > 2 ? args[2] : null);
 					case "ops":
-						return Ops(args.Length > 1 ? args[1] : null);
+						return Ops(args.Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)),
+							GameOption(args));
 					case "script-build":
 						if (args.Length < 2)
 						{
 							Usage();
 							return 1;
 						}
-						return ScriptBuild(args[1], args.Length > 2 ? args[2] : null);
+					{
+						string[] positional = args.Skip(1)
+							.Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+						return ScriptBuild(positional[0], positional.Length > 1 ? positional[1] : null,
+							GameOption(args));
+					}
 					case "pak":
 						if (args.Length < 2)
 						{
@@ -430,11 +436,16 @@ namespace FF3.ContentTool
 			string input = null;
 			string output = null;
 			string textDir = null;
+			ScriptOpTable ops = GameOption(args);
 			foreach (string arg in args)
 			{
 				if (arg.StartsWith("--text=", StringComparison.OrdinalIgnoreCase))
 				{
 					textDir = arg.Substring("--text=".Length).Trim('"');
+				}
+				else if (arg.StartsWith("--game=", StringComparison.OrdinalIgnoreCase))
+				{
+					continue;
 				}
 				else if (input == null)
 				{
@@ -472,7 +483,7 @@ namespace FF3.ContentTool
 				try
 				{
 					byte[] original = File.ReadAllBytes(file);
-					ScriptFile script = ScriptFile.Read(original);
+					ScriptFile script = ScriptFile.Read(original, ops);
 					using (StreamWriter writer = new StreamWriter(destination, false,
 						new UTF8Encoding(false)))
 					{
@@ -484,7 +495,7 @@ namespace FF3.ContentTool
 					// cannot feed its own compiler has lost something, and it is
 					// better to say so here than to find out after an edit.
 					if (!Ffs.Compiler.Compile(
-							Ffs.Parser.Parse(File.ReadAllText(destination)))
+							Ffs.Parser.Parse(File.ReadAllText(destination)), ops)
 						.SequenceEqual(original))
 					{
 						notExact++;
@@ -1404,6 +1415,19 @@ namespace FF3.ContentTool
 			// the edits go - so it is resolved before the workspace. An explicit
 			// --content or --override still wins, for opening something once without
 			// making a project of it.
+			// --target on its own opens that game's install without a project; it used
+			// to be read only alongside --project and otherwise quietly opened FF3.
+			if (projectName == null && content == null && target != null)
+			{
+				content = FF3.ContentTool.Editor.Targets.Find(target);
+				if (content == null)
+				{
+					Console.Error.WriteLine("no install found for "
+						+ FF3.ContentTool.Editor.Targets.Describe(target));
+					return 1;
+				}
+			}
+
 			FF3.ContentTool.Editor.Project project = null;
 			if (projectName != null)
 			{
@@ -1618,10 +1642,10 @@ namespace FF3.ContentTool
 		/// The instruction set, as the script language spells it. Without this, writing
 		/// a script means grepping the disassembly for something that looks right.
 		/// </summary>
-		private static int Ops(string filter)
+		private static int Ops(string filter, ScriptOpTable ops)
 		{
 			int shown = 0;
-			foreach (KeyValuePair<string, int> entry in Ffs.Mnemonics.All
+			foreach (KeyValuePair<string, int> entry in ops.Names.All
 				.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase))
 			{
 				if (filter != null
@@ -1630,11 +1654,11 @@ namespace FF3.ContentTool
 					continue;
 				}
 
-				ScriptOp op = ScriptOps.Get(entry.Value);
+				ScriptOp op = ops.Get(entry.Value);
 				string arguments = op.Operands == null || op.Operands.Length == 0
 					? string.Empty
 					: string.Join(", ", op.Operands
-						.Select((operand, i) => Describe(entry.Value, i, operand)));
+						.Select((operand, i) => Describe(ops, entry.Value, i, operand)));
 				Console.WriteLine("{0,4}  {1,-42} {2}", entry.Value, entry.Key, arguments);
 				shown++;
 			}
@@ -1644,7 +1668,7 @@ namespace FF3.ContentTool
 		}
 
 		/// <summary>An operand as "name:type", with the type alone where no name is known.</summary>
-		private static string Describe(int opcode, int index, Operand operand)
+		private static string Describe(ScriptOpTable ops, int opcode, int index, Operand operand)
 		{
 			string type;
 			switch (operand)
@@ -1654,16 +1678,27 @@ namespace FF3.ContentTool
 				case Operand.Dword: type = "dword"; break;
 				default: type = "string"; break;
 			}
-			if (ScriptOperands.IsFixed(opcode, index))
+			if (ops.IsFixed(opcode, index))
 			{
 				type += " fixed";
 			}
-			string name = ScriptOperands.Name(opcode, index);
+			string name = ops.OperandName(opcode, index);
 			return name == null ? type : name + ":" + type;
 		}
 
+		/// <summary>
+		/// Which game's command table a script command works against: --game=ff4 for
+		/// FF4 3D, FF3's otherwise. The bytecode does not say; the same numbers mean
+		/// different instructions in the two games.
+		/// </summary>
+		private static ScriptOpTable GameOption(string[] args)
+		{
+			string game = args.FirstOrDefault(a => a.StartsWith("--game=", StringComparison.OrdinalIgnoreCase));
+			return ScriptOpTable.For(game?.Substring("--game=".Length).Trim('"'));
+		}
+
 		/// <summary>Compiles script language source back to bytecode.</summary>
-		private static int ScriptBuild(string input, string output)
+		private static int ScriptBuild(string input, string output, ScriptOpTable ops)
 		{
 			List<string> files = File.Exists(input)
 				? new List<string> { input }
@@ -1686,7 +1721,7 @@ namespace FF3.ContentTool
 				try
 				{
 					Ffs.ScriptDocument document = Ffs.Parser.Parse(File.ReadAllText(file));
-					byte[] data = Ffs.Compiler.Compile(document);
+					byte[] data = Ffs.Compiler.Compile(document, ops);
 
 					string destination = Path.Combine(outputDir,
 						Path.ChangeExtension(relative, ".script"));

@@ -1,4 +1,4 @@
-// What can go in an if or a while, and how it becomes a jump.
+﻿// What can go in an if or a while, and how it becomes a jump.
 //
 // The bytecode has no expressions. It has conditional jumps, and they come in pairs:
 // flagOnJump and flagOffJump, touchOnJump and touchOffJump, and five more. So a
@@ -62,27 +62,35 @@ namespace FF3.ContentTool.Ffs
 		public const string ValueName = "value";
 		public const string ValueJump = "ifValueJump";
 
-		private static Dictionary<string, ConditionForm> _forms;
+		private static readonly Dictionary<ScriptOpTable, Dictionary<string, ConditionForm>> _forms =
+			new Dictionary<ScriptOpTable, Dictionary<string, ConditionForm>>();
 
-		public static IReadOnlyDictionary<string, ConditionForm> Forms => Build();
-
-		public static ConditionForm Find(string name)
+		/// <summary>The conditions a game's table offers, by name.</summary>
+		public static IReadOnlyDictionary<string, ConditionForm> Forms(ScriptOpTable ops)
 		{
-			return Build().TryGetValue(name, out ConditionForm form) ? form : null;
+			return Build(ops);
+		}
+
+		public static ConditionForm Find(string name, ScriptOpTable ops)
+		{
+			return Build(ops).TryGetValue(name, out ConditionForm form) ? form : null;
 		}
 
 		/// <summary>
 		/// Every xxxOnJump with a matching xxxOffJump becomes a condition called xxx.
 		/// Both halves must take the same operands, or they are not really a pair.
 		/// </summary>
-		private static Dictionary<string, ConditionForm> Build()
+		private static Dictionary<string, ConditionForm> Build(ScriptOpTable ops)
 		{
-			if (_forms != null)
+			lock (_forms)
 			{
-				return _forms;
+				if (_forms.TryGetValue(ops, out Dictionary<string, ConditionForm> known))
+				{
+					return known;
+				}
 			}
 
-			Dictionary<string, int> byName = Mnemonics.All
+			Dictionary<string, int> byName = ops.Names.All
 				.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
 
 			Dictionary<string, ConditionForm> forms =
@@ -101,8 +109,8 @@ namespace FF3.ContentTool.Ffs
 					continue;
 				}
 
-				ScriptOp onOp = ScriptOps.Get(entry.Value);
-				ScriptOp offOp = ScriptOps.Get(offJump);
+				ScriptOp onOp = ops.Get(entry.Value);
+				ScriptOp offOp = ops.Get(offJump);
 				int onCount = onOp.Operands?.Length ?? 0;
 				if (onCount == 0 || onCount != (offOp.Operands?.Length ?? 0))
 				{
@@ -113,7 +121,10 @@ namespace FF3.ContentTool.Ffs
 				forms[stem] = new ConditionForm(stem, entry.Value, offJump, onCount - 1);
 			}
 
-			_forms = forms;
+			lock (_forms)
+			{
+				_forms[ops] = forms;
+			}
 			return forms;
 		}
 	}

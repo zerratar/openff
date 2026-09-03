@@ -86,7 +86,7 @@ namespace FF3.ContentTool.Editor
 			ScriptFile script;
 			try
 			{
-				script = ScriptFile.Read(workspace.Read(scriptName));
+				script = ScriptFile.Read(workspace.Read(scriptName), workspace.Ops);
 			}
 			catch (Exception problem)
 			{
@@ -119,7 +119,7 @@ namespace FF3.ContentTool.Editor
 			byte[] compiled;
 			try
 			{
-				compiled = Ffs.Compiler.Compile(Ffs.Parser.Parse(edited));
+				compiled = Ffs.Compiler.Compile(Ffs.Parser.Parse(edited), workspace.Ops);
 			}
 			catch (Exception problem)
 			{

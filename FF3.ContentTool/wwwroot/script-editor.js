@@ -1,4 +1,4 @@
-// Guidance for the script editor: highlighting, completion, and telling you what an
+﻿// Guidance for the script editor: highlighting, completion, and telling you what an
 // argument is for.
 //
 // The instruction set comes from the server once and is cached, because it is derived
@@ -12,6 +12,14 @@
 'use strict';
 
 const ops = { list: null, byName: new Map(), conditions: new Set() };
+
+/// Forget the cached set: the workspace can change games under us (File > Open a
+/// project that targets FF4), and FF4 numbers 500 instructions to FF3's 298.
+function resetOps() {
+  ops.list = null;
+  ops.byName.clear();
+  ops.conditions.clear();
+}
 
 async function loadOps() {
   if (ops.list) return ops.list;

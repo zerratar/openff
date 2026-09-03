@@ -507,7 +507,7 @@ namespace FF3.ContentTool.Editor
 				{
 					try
 					{
-						compiled = Ffs.Compiler.Compile(Ffs.Parser.Parse(edited));
+						compiled = Ffs.Compiler.Compile(Ffs.Parser.Parse(edited), workspace.Ops);
 					}
 					catch (Exception problem)
 					{
@@ -626,7 +626,7 @@ namespace FF3.ContentTool.Editor
 			string source;
 			try
 			{
-				ScriptFile script = ScriptFile.Read(workspace.Read(scriptName));
+				ScriptFile script = ScriptFile.Read(workspace.Read(scriptName), workspace.Ops);
 				using StringWriter writer = new StringWriter();
 				Ffs.SourceWriter.Write(writer, script, scriptName, lookupMessage);
 				source = writer.ToString();

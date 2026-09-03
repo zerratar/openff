@@ -47,6 +47,9 @@ global script; anything else means this file's own function table.
 python Tools/gen_opcodes.py
 ```
 
+(FF4 3D's table, `ScriptOpsFf4.cs`, is generated the same way from the handlers in its
+native engine - `Tools/gen_opcodes_ff4.py`, described in `Docs/Editor.md`.)
+
 It reads the decompiled handlers and records, for each opcode, the operands that
 handler reads and in what order. Two things make this reliable rather than a guess:
 

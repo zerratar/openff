@@ -510,7 +510,7 @@ namespace FF3.ContentTool.Editor
 		private void GetScript(HttpListenerContext context)
 		{
 			string name = Query(context, "name");
-			ScriptFile script = ScriptFile.Read(_workspace.Read(name));
+			ScriptFile script = ScriptFile.Read(_workspace.Read(name), _workspace.Ops);
 
 			using StringWriter text = new StringWriter();
 			Ffs.SourceWriter.Write(text, script, Path.GetFileName(name), _lookupMessage);
@@ -532,7 +532,7 @@ namespace FF3.ContentTool.Editor
 
 			try
 			{
-				byte[] data = Ffs.Compiler.Compile(Ffs.Parser.Parse(source));
+				byte[] data = Ffs.Compiler.Compile(Ffs.Parser.Parse(source), _workspace.Ops);
 				if (save)
 				{
 					_workspace.Write(name, data);
@@ -1140,9 +1140,10 @@ namespace FF3.ContentTool.Editor
 		private void GetOps(HttpListenerContext context)
 		{
 			List<object> ops = new List<object>();
-			foreach (KeyValuePair<string, int> entry in Ffs.Mnemonics.All)
+			ScriptOpTable table = _workspace.Ops;
+			foreach (KeyValuePair<string, int> entry in table.Names.All)
 			{
-				ScriptOp op = ScriptOps.Get(entry.Value);
+				ScriptOp op = table.Get(entry.Value);
 				Operand[] operands = op.Operands ?? Array.Empty<Operand>();
 				ops.Add(new
 				{
@@ -1152,8 +1153,8 @@ namespace FF3.ContentTool.Editor
 					operands = operands.Select((operand, i) => new
 					{
 						type = operand.ToString().ToLowerInvariant(),
-						name = ScriptOperands.Name(entry.Value, i),
-						@fixed = ScriptOperands.IsFixed(entry.Value, i)
+						name = table.OperandName(entry.Value, i),
+						@fixed = table.IsFixed(entry.Value, i)
 					}).ToArray()
 				});
 			}
@@ -1162,7 +1163,7 @@ namespace FF3.ContentTool.Editor
 			SendJson(context, new
 			{
 				ops,
-				conditions = Ffs.Conditions.Forms
+				conditions = Ffs.Conditions.Forms(table)
 					.OrderBy(form => form.Key, StringComparer.Ordinal)
 					.Select(form => new
 					{

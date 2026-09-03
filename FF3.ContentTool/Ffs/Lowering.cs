@@ -1,4 +1,4 @@
-// Structured statements down to labels and jumps.
+﻿// Structured statements down to labels and jumps.
 //
 // This is where if, while, for and functions stop existing. Everything below this
 // point is the flat stream the machine runs, which means code generation never had to
@@ -22,6 +22,7 @@ namespace FF3.ContentTool.Ffs
 	internal sealed class Lowering
 	{
 		private readonly List<Diagnostic> _problems;
+		private readonly ScriptOpTable _ops;
 		private readonly Dictionary<string, (long Library, long Id)> _callable;
 		private readonly List<Statement> _flat = new List<Statement>();
 		private readonly Stack<(string Break, string Continue)> _loops =
@@ -29,10 +30,11 @@ namespace FF3.ContentTool.Ffs
 
 		private int _counter;
 
-		private Lowering(List<Diagnostic> problems,
+		private Lowering(List<Diagnostic> problems, ScriptOpTable ops,
 			Dictionary<string, (long Library, long Id)> callable)
 		{
 			_problems = problems;
+			_ops = ops;
 			_callable = callable;
 		}
 
@@ -41,7 +43,8 @@ namespace FF3.ContentTool.Ffs
 		/// and instructions, and every function or cast written as a block gets its
 		/// code appended with a label the declaration then points at.
 		/// </summary>
-		public static void Flatten(ScriptDocument document, List<Diagnostic> problems)
+		public static void Flatten(ScriptDocument document, List<Diagnostic> problems,
+			ScriptOpTable ops)
 		{
 			Dictionary<string, (long, long)> callable =
 				new Dictionary<string, (long, long)>(StringComparer.Ordinal);
@@ -66,7 +69,7 @@ namespace FF3.ContentTool.Ffs
 				callable[function.Name] = (0, function.Id);
 			}
 
-			Lowering lowering = new Lowering(problems, callable);
+			Lowering lowering = new Lowering(problems, ops, callable);
 
 			foreach (Statement statement in document.Code)
 			{
@@ -200,7 +203,7 @@ namespace FF3.ContentTool.Ffs
 		private void EmitCallOrInstruction(InstructionItem instruction)
 		{
 			if (instruction.Opcode < 0
-				&& Mnemonics.Opcode(instruction.Mnemonic) < 0
+				&& _ops.Names.Opcode(instruction.Mnemonic) < 0
 				&& _callable.TryGetValue(instruction.Mnemonic,
 					out (long Library, long Id) target))
 			{
@@ -350,7 +353,7 @@ namespace FF3.ContentTool.Ffs
 			{
 				case FormCondition form:
 				{
-					ConditionForm shape = Conditions.Find(form.Name);
+					ConditionForm shape = Conditions.Find(form.Name, _ops);
 					if (shape == null)
 					{
 						_problems.Add(new Diagnostic(
@@ -368,7 +371,7 @@ namespace FF3.ContentTool.Ffs
 					InstructionItem jump = new InstructionItem
 					{
 						Opcode = jumpWhenTrue ? shape.JumpIfTrue : shape.JumpIfFalse,
-						Mnemonic = Mnemonics.Name(jumpWhenTrue ? shape.JumpIfTrue : shape.JumpIfFalse),
+						Mnemonic = _ops.Names.Name(jumpWhenTrue ? shape.JumpIfTrue : shape.JumpIfFalse),
 						Token = form.Token
 					};
 					jump.Arguments.AddRange(form.Arguments);

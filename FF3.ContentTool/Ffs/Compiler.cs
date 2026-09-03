@@ -1,4 +1,4 @@
-// Compiler for the script language: syntax tree in, a .script file out.
+﻿// Compiler for the script language: syntax tree in, a .script file out.
 //
 // Two passes. The first walks the code assigning an address to every instruction and
 // label, which it can do because every instruction has a fixed length. The second
@@ -55,18 +55,23 @@ namespace FF3.ContentTool.Ffs
 		private const int HeaderSize = 16;
 		private const uint NoScript = 0xFFFFFFFF;
 
-		public static byte[] Compile(ScriptDocument document)
+		/// <summary>
+		/// Bytecode for the document, against one game's command table - FF3's when
+		/// none is named. A mnemonic is only a number in the table it came from.
+		/// </summary>
+		public static byte[] Compile(ScriptDocument document, ScriptOpTable ops = null)
 		{
+			ops = ops ?? ScriptOpTable.Ff3;
 			List<Diagnostic> problems = new List<Diagnostic>();
 
 			// if, while, for and named functions stop existing here. Everything below
 			// this line sees nothing but labels, instructions and bytes.
-			Lowering.Flatten(document, problems);
+			Lowering.Flatten(document, problems, ops);
 
 			uint codeStart = (uint)(HeaderSize + document.Casts.Count * 16);
 
-			Dictionary<string, uint> labels = Layout(document, codeStart, problems);
-			byte[] code = Emit(document, labels, problems);
+			Dictionary<string, uint> labels = Layout(document, codeStart, problems, ops);
+			byte[] code = Emit(document, labels, problems, ops);
 
 			uint functionTable = codeStart + (uint)code.Length;
 			foreach (CastDeclaration cast in document.Casts)
@@ -115,7 +120,7 @@ namespace FF3.ContentTool.Ffs
 
 		/// <summary>First pass: where everything lands.</summary>
 		private static Dictionary<string, uint> Layout(ScriptDocument document,
-			uint codeStart, List<Diagnostic> problems)
+			uint codeStart, List<Diagnostic> problems, ScriptOpTable ops)
 		{
 			Dictionary<string, uint> labels = new Dictionary<string, uint>(StringComparer.Ordinal);
 			uint at = codeStart;
@@ -141,7 +146,7 @@ namespace FF3.ContentTool.Ffs
 						break;
 
 					case InstructionItem instruction:
-						at += Size(instruction, problems);
+						at += Size(instruction, problems, ops);
 						break;
 				}
 			}
@@ -149,11 +154,11 @@ namespace FF3.ContentTool.Ffs
 		}
 
 		/// <summary>How many bytes an instruction occupies, resolving its opcode.</summary>
-		private static uint Size(InstructionItem instruction, List<Diagnostic> problems)
+		private static uint Size(InstructionItem instruction, List<Diagnostic> problems, ScriptOpTable ops)
 		{
 			if (instruction.Opcode < 0)
 			{
-				instruction.Opcode = Mnemonics.Opcode(instruction.Mnemonic);
+				instruction.Opcode = ops.Names.Opcode(instruction.Mnemonic);
 			}
 			if (instruction.Opcode < 0)
 			{
@@ -167,7 +172,7 @@ namespace FF3.ContentTool.Ffs
 					"an opcode is a 16 bit number", instruction.Token));
 				return 0;
 			}
-			if (!ScriptOps.Known(instruction.Opcode))
+			if (!ops.Known(instruction.Opcode))
 			{
 				// Past the dispatch table: no handler, so no operands either. These
 				// only turn up in regions nothing reaches, where a linear sweep is
@@ -192,7 +197,7 @@ namespace FF3.ContentTool.Ffs
 				return 2;
 			}
 
-			ScriptOp op = ScriptOps.Get(instruction.Opcode);
+			ScriptOp op = ops.Get(instruction.Opcode);
 			Operand[] operands = op.Operands ?? Array.Empty<Operand>();
 			if (instruction.Arguments.Count != operands.Length)
 			{
@@ -230,7 +235,7 @@ namespace FF3.ContentTool.Ffs
 
 		/// <summary>Second pass: the bytes.</summary>
 		private static byte[] Emit(ScriptDocument document,
-			Dictionary<string, uint> labels, List<Diagnostic> problems)
+			Dictionary<string, uint> labels, List<Diagnostic> problems, ScriptOpTable ops)
 		{
 			using MemoryStream stream = new MemoryStream();
 			foreach (Statement item in document.Code)
@@ -245,7 +250,7 @@ namespace FF3.ContentTool.Ffs
 						break;
 
 					case InstructionItem instruction:
-						EmitInstruction(stream, instruction, labels, problems);
+						EmitInstruction(stream, instruction, labels, problems, ops);
 						break;
 				}
 			}
@@ -253,7 +258,7 @@ namespace FF3.ContentTool.Ffs
 		}
 
 		private static void EmitInstruction(Stream stream, InstructionItem instruction,
-			Dictionary<string, uint> labels, List<Diagnostic> problems)
+			Dictionary<string, uint> labels, List<Diagnostic> problems, ScriptOpTable ops)
 		{
 			if (instruction.Opcode < 0 || instruction.Opcode > ushort.MaxValue)
 			{
@@ -261,12 +266,12 @@ namespace FF3.ContentTool.Ffs
 			}
 
 			WriteUInt16(stream, (ushort)instruction.Opcode);
-			if (!ScriptOps.Known(instruction.Opcode))
+			if (!ops.Known(instruction.Opcode))
 			{
 				return;
 			}
 
-			ScriptOp op = ScriptOps.Get(instruction.Opcode);
+			ScriptOp op = ops.Get(instruction.Opcode);
 			Operand[] operands = op.Operands ?? Array.Empty<Operand>();
 
 			for (int i = 0; i < operands.Length && i < instruction.Arguments.Count; i++)

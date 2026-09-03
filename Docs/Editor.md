@@ -77,7 +77,7 @@ What is different, and what the editor does about it:
 | `.msd` text | UTF-8 | UTF-16LE | decided per file from how a message ends |
 | `.pak` records | 7 chains, `jumps` first | 4 fixed singletons: encount, landForm, monsterParty, environEffect | container reads; records stay raw. There is no jumps chain |
 | exits | rows in the map's `.pak` | `setInsideMapJump` in the map's script | read from the script when the game is FF4 |
-| script opcodes | 264 | 451, 199 shared | FF3's table plus `ScriptOpsExtra.cs`; unknown layouts become `op(N)` |
+| script opcodes | 298 | 500; 222 at the same number, 48 of those with different operands | `ScriptOpsFf4.cs`, generated from `libff4.so`; every script decodes and rebuilds byte for byte |
 | model display lists | DS GX commands | plus `0x2C`, a 16.16 texture coordinate | every command stepped by its arity; `0x2C` decoded |
 
 The mass file is `SSAM | count | offset0 | size0`, then 40 byte records of
@@ -90,13 +90,38 @@ tables; 389 of 389 scripts; 376 text files; 28 menus; 400 cell banks; 995 models
 no failures. Byte-exact round trips: 380 of 389 scripts, 361 of 362 text files, every
 menu.
 
-Known exceptions, all read correctly and only fail to rewrite byte for byte:
+Known exception, read correctly and only failing to rewrite byte for byte:
 
-- `e03_00 e05_00 e07_00 e09_01 e11_00 e14_00 e16_00 e26_00 e26_01`: event scripts
-  whose code grows by 2 to 12 bytes on rebuild - FF4-only opcodes with operand layouts
-  FF3's table does not have. The fix is FF4's own operand table, not a guess here.
 - `babil_scenario.msd`: message 10006's offset overlaps the tail of 10005 in Square's
   own file, so recomputing offsets from the text cannot reproduce it.
+
+### Scripts
+
+FF4 runs FF3's script engine with its own command table - 500 entries to FF3's 298.
+222 commands sit at the same number in both games, but 48 of those read different
+operands (`bootEventBattle` takes three more bytes, `moveCamera` an extra word), and
+255 are FF4's alone. So an FF4 script can only be decoded against FF4's table, and
+FF3's table plus a hand-written overlay - the first attempt - left 89% of FF4's
+bytecode as `op(N)` because functions began with instructions FF3 never had.
+
+There is no FF4 source, but the Android build of the engine (`libff4.so` in the APK)
+is unstripped: every handler is a named symbol, so are the operand accessors, and the
+dispatch table is 500 relocations against the handler symbols. `Tools/gen_opcodes_ff4.py`
+disassembles each handler and lists its calls to `getByte/getWord/getDword/getString`
+in order - the same evidence `gen_opcodes.py` reads from FF3's C# - and writes
+`ScriptOpsFf4.cs`. It needs `pip install capstone pyelftools` and the path to the `.so`;
+the generated file is committed, so the build does not.
+
+```bash
+python Tools/gen_opcodes_ff4.py <apk>/lib/arm64-v8a/libff4.so
+```
+
+`ScriptOpTable` is the seam: `ScriptOpTable.Ff3`, `.Ff4`, `.For(game)`. A `Workspace`
+hands out the right one as `Ops`; `ScriptFile.Read`, the source writer, the compiler
+and the mnemonics all take it, and the CLI script commands accept `--game=ff4`. With it
+all 389 FF4 scripts decompile with no `op(N)` and compile back to the exact bytes.
+Mnemonics whose handler name starts with a digit keep the underscore that separated
+it from the prefix - `_3DSSetup` - so they stay legal identifiers.
 
 ### Exits
 
@@ -109,11 +134,11 @@ setInsideMapJump("j002", "d01_01", ax, ay, az, facing, x1, y1, z1, x2, y2, z2);
 ```
 
 trigger object, destination, arrival position (FX32), facing in eighths of a turn, and
-the two corners of the door's trigger box on this map. Opcode 333, past FF3's table, so
-it lives in `ScriptOpsExtra.cs` - hand-written, because there is no FF4 source to
-generate from; `Tools/gen_opcodes.py` emits a `Get` that falls back to it. Its shape was
-measured: 658 instances across 369 maps, two strings then exactly ten S32s. `MapModel`
-reads them when the game is FF4 and puts the exit at the box's centre.
+the two corners of the door's trigger box on this map. Opcode 333 in FF4's table
+(`ScriptOpsFf4.SetInsideMapJump`); its shape was first measured from the scripts - 658
+instances across 369 maps, two strings then exactly ten S32s - and the handler's code
+later confirmed it. `MapModel` reads them when the game is FF4 and puts the exit at
+the box's centre.
 
 ### Models
 

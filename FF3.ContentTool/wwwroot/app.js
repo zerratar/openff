@@ -1,4 +1,4 @@
-// The editor's front end.
+﻿// The editor's front end.
 //
 // The server decodes and compiles; this side is the interface. Menus are edited as
 // XML in the browser - the DOM already knows how to parse and serialise it - so the
@@ -43,6 +43,7 @@ function projectChanged() {
   projectPending = true;
   setTimeout(() => {
     projectPending = false;
+    if (typeof resetOps === 'function') resetOps();
     refreshProject();
   }, 0);
 }

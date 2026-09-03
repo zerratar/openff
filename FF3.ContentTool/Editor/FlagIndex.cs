@@ -105,7 +105,7 @@ namespace FF3.ContentTool.Editor
 				string source;
 				try
 				{
-					ScriptFile script = ScriptFile.Read(_workspace.Read(entry.Name));
+					ScriptFile script = ScriptFile.Read(_workspace.Read(entry.Name), _workspace.Ops);
 					using StringWriter writer = new StringWriter();
 					Ffs.SourceWriter.Write(writer, script, entry.Name, _lookupMessage);
 					source = writer.ToString();

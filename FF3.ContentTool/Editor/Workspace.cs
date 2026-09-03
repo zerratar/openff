@@ -1,4 +1,4 @@
-// What the editor edits.
+﻿// What the editor edits.
 //
 // The same rule the game plays by: a file is read from the override directory if it
 // is there, and from the shipped content if it is not. Saving always writes to the
@@ -55,6 +55,9 @@ namespace FF3.ContentTool.Editor
 		/// few places that care ask this rather than guessing from a path.
 		/// </summary>
 		public string Game => _source is SsamContentSource ? "ff4" : "ff3";
+
+		/// <summary>The script command table for this game's bytecode.</summary>
+		public ScriptOpTable Ops => ScriptOpTable.For(Game);
 
 		/// <summary>
 		/// Whether a content name is served out of a mass file rather than a loose
