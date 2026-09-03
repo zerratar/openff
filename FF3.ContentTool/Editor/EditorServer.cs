@@ -32,32 +32,72 @@ namespace FF3.ContentTool.Editor
 			PropertyNamingPolicy = JsonNamingPolicy.CamelCase
 		};
 
-		private readonly Workspace _workspace;
+		// Not readonly, because opening a project replaces the lot. Everything here
+		// is derived from one workspace - the message index, the flag and reference
+		// indexes, the fonts - so switching which content is open means rebuilding all
+		// of them together. Doing that in place beats making the person restart the
+		// editor and find their way back to what they were looking at.
+		private Workspace _workspace;
 		private readonly string _webRoot;
-		private readonly MessageIndex _messages;
-		private readonly CharacterIds _characterIds;
-		private readonly FlagIndex _flags;
-		private readonly References _references;
-		private readonly Fonts _fonts;
-		private readonly Func<uint, string> _lookupMessage;
+		private MessageIndex _messages;
+		private CharacterIds _characterIds;
+		private FlagIndex _flags;
+		private References _references;
+		private Fonts _fonts;
+		private Func<uint, string> _lookupMessage;
+		private string _language;
+		private Project _project;
 
-		public EditorServer(Workspace workspace, string webRoot, MessageIndex messages)
+		public EditorServer(Workspace workspace, string webRoot, MessageIndex messages,
+			string language = "en", Project project = null)
+		{
+			_webRoot = webRoot;
+			_language = language ?? "en";
+			_project = project;
+			Adopt(workspace, messages);
+		}
+
+		/// <summary>Takes a workspace and builds everything that hangs off it.</summary>
+		private void Adopt(Workspace workspace, MessageIndex messages)
 		{
 			_workspace = workspace;
-			_webRoot = webRoot;
-			_messages = messages;
-			_lookupMessage = id => messages.Text(id);
+			_messages = messages ?? new MessageIndex(workspace, _language);
+			// A field, not a method group: the indexes capture it, so it has to keep
+			// pointing at whichever message index is current.
+			_lookupMessage = id => _messages.Text(id);
 			_characterIds = new CharacterIds(workspace);
 			_flags = new FlagIndex(workspace, _lookupMessage);
 			_references = new References(workspace, _lookupMessage);
 			_fonts = new Fonts(workspace.ContentDirectory);
 		}
 
-		public void Run(int port)
+		/// <summary>
+		/// Opens a project: its active target says which game's content to read, and its
+		/// files directory becomes the override. Nothing is written by this - it only
+		/// changes what is being looked at.
+		/// </summary>
+		public void OpenProject(Project project)
 		{
+			Workspace workspace = new Workspace(project.ContentDirectory(), project.Files);
+			_project = project;
+			Adopt(workspace, null);
+		}
+
+		/// <summary>The project being edited, if the editor was started with one.</summary>
+		public Project CurrentProject => _project;
+
+		/// <summary>
+		/// Serves until stopped. <paramref name="started"/> is called once the listener
+		/// is actually accepting, and is given the address - opening a browser before
+		/// that point is a race the browser can win, and it lands on a dead port.
+		/// </summary>
+		public void Run(int port, Action<string> started = null)
+		{
+			string address = string.Format(CultureInfo.InvariantCulture,
+				"http://localhost:{0}/", port);
+
 			using HttpListener listener = new HttpListener();
-			listener.Prefixes.Add(string.Format(CultureInfo.InvariantCulture,
-				"http://localhost:{0}/", port));
+			listener.Prefixes.Add(address);
 			listener.Start();
 
 			Console.WriteLine("FF3 content editor");
@@ -65,8 +105,9 @@ namespace FF3.ContentTool.Editor
 				_workspace.FileCount, _workspace.Kind, _workspace.ContentDirectory);
 			Console.WriteLine("  overrides {0}", _workspace.OverrideDirectory);
 			Console.WriteLine();
-			Console.WriteLine("  http://localhost:{0}/", port);
+			Console.WriteLine("  {0}", address);
 			Console.WriteLine();
+			started?.Invoke(address);
 			Console.WriteLine("Ctrl+C to stop.");
 
 			using ManualResetEventSlim stopping = new ManualResetEventSlim(false);
@@ -176,8 +217,56 @@ namespace FF3.ContentTool.Editor
 						// files/, with no .lproj anywhere.
 						language = _messages.Language,
 						messagePrefix = _messages.Prefix,
-						content = _workspace.Kind
+						content = _workspace.Kind,
+						contentDirectory = _workspace.ContentDirectory,
+						project = _project == null ? null : new
+						{
+							name = _project.File.Name,
+							directory = _project.Directory,
+							targets = _project.File.Targets,
+							active = _project.File.Active,
+							author = _project.File.Author,
+							version = _project.File.Version,
+							description = _project.File.Description
+						}
 					});
+					return;
+
+				case "/api/projects":
+					SendJson(context, Project.All().Select(p => new
+					{
+						name = p.File.Name,
+						directory = p.Directory,
+						targets = p.File.Targets,
+						active = p.File.Active,
+						current = _project != null && string.Equals(
+							p.Directory, _project.Directory, StringComparison.OrdinalIgnoreCase)
+					}).ToList());
+					return;
+
+				case "/api/project/create":
+					CreateProject(context);
+					return;
+
+				case "/api/project/open":
+					OpenProjectRequest(context);
+					return;
+
+				case "/api/project/target":
+					SetTarget(context);
+					return;
+
+				case "/api/project/save":
+					SaveProjectDetails(context);
+					return;
+
+				case "/api/targets":
+					SendJson(context, Targets.All.Select(name => new
+					{
+						name,
+						label = Targets.Describe(name),
+						content = Targets.Find(name)
+					}).ToList());
 					return;
 
 				case "/api/mod/status":
@@ -837,6 +926,114 @@ namespace FF3.ContentTool.Editor
 		}
 
 		/// <summary>The picture itself, straight through - it is already a PNG.</summary>
+		private void CreateProject(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			string name = (string)body?["name"];
+			List<string> targets = (body?["targets"] as JsonArray)?
+				.Select(n => (string)n).Where(s => s != null).ToList()
+				?? new List<string>();
+
+			try
+			{
+				Project project = Project.Create(name, targets);
+				OpenProject(project);
+				SendJson(context, new { ok = true, name = project.File.Name,
+					directory = project.Directory, active = project.File.Active });
+			}
+			catch (Exception ex) when (ex is ArgumentException or IOException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		private void OpenProjectRequest(HttpListenerContext context)
+		{
+			string directory = (string)ReadBody(context)?["directory"];
+			Project project = directory == null ? null : Project.TryOpen(directory);
+			if (project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project in " + directory });
+				return;
+			}
+			try
+			{
+				OpenProject(project);
+				SendJson(context, new { ok = true, name = project.File.Name,
+					active = project.File.Active });
+			}
+			catch (Exception ex) when (ex is FileNotFoundException or IOException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>
+		/// Switches which game the open project is edited against. The edits do not
+		/// move - the same files directory is the override either way - so this only
+		/// changes what they are read on top of.
+		/// </summary>
+		private void SetTarget(HttpListenerContext context)
+		{
+			string target = (string)ReadBody(context)?["target"];
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			if (!Targets.Known(target))
+			{
+				SendJson(context, new { ok = false, error = "no target called " + target });
+				return;
+			}
+
+			string was = _project.File.Active;
+			_project.File.Active = target;
+			if (!_project.File.Targets.Contains(target, StringComparer.OrdinalIgnoreCase))
+			{
+				_project.File.Targets.Add(target);
+			}
+			try
+			{
+				OpenProject(_project);
+				_project.Save();
+				SendJson(context, new { ok = true, active = target,
+					content = _workspace.ContentDirectory, kind = _workspace.Kind });
+			}
+			catch (Exception ex) when (ex is FileNotFoundException or IOException)
+			{
+				// Put it back, so a target that cannot be opened does not leave the
+				// project pointing at content that is not there.
+				_project.File.Active = was;
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		private void SaveProjectDetails(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			JsonNode body = ReadBody(context);
+			foreach ((string key, Action<string> set) in new (string, Action<string>)[]
+			{
+				("name", v => _project.File.Name = v),
+				("author", v => _project.File.Author = v),
+				("version", v => _project.File.Version = v),
+				("description", v => _project.File.Description = v)
+			})
+			{
+				if (body?[key] != null)
+				{
+					set((string)body[key]);
+				}
+			}
+			_project.Save();
+			SendJson(context, new { ok = true });
+		}
+
 		private void GetImage(HttpListenerContext context)
 		{
 			string name = Query(context, "name");

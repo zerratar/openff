@@ -145,6 +145,8 @@ namespace FF3.ContentTool
 						return MclDump(args[1], args.Length > 2 ? args[2] : null);
 					case "installs":
 						return ListInstalls();
+					case "projects":
+						return ListProjects();
 					case "install":
 						return ModCommand(args, install: true);
 					case "uninstall":
@@ -226,8 +228,10 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  cells       <file | dir> [out]     cells/screens/anim -> JSON");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
 			Console.Error.WriteLine("  mcl         <file.mcl.lz | dir> [out] collision mesh -> JSON");
-			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--language=en]");
+			Console.Error.WriteLine("  editor [--project=<name>] [--target=ours|steam] [--content=<dir>]");
+			Console.Error.WriteLine("         [--override=<dir>] [--port=<n>] [--language=en] [--no-browser]");
 			Console.Error.WriteLine("                                    open the content editor in a browser");
+			Console.Error.WriteLine("  projects                          mods on this machine");
 			Console.Error.WriteLine("  installs                          Steam copies of the game on this machine");
 			Console.Error.WriteLine("  install   [--content=<dir>] [--override=<dir>]");
 			Console.Error.WriteLine("                                    copy a mod into a Steam install");
@@ -1234,6 +1238,27 @@ namespace FF3.ContentTool
 			return FF3.ContentTool.Editor.SteamInstalls.FindOne() ?? "Content";
 		}
 
+		private static int ListProjects()
+		{
+			List<FF3.ContentTool.Editor.Project> all = FF3.ContentTool.Editor.Project.All();
+			if (all.Count == 0)
+			{
+				Console.WriteLine("no projects yet in {0}",
+					FF3.ContentTool.Editor.Project.Root);
+				Console.WriteLine("make one with: ff3content editor --project=<name>");
+				return 0;
+			}
+			foreach (FF3.ContentTool.Editor.Project project in all)
+			{
+				Console.WriteLine("  {0}", project.File.Name);
+				Console.WriteLine("    for  {0}", string.Join(", ",
+					project.File.Targets.Select(FF3.ContentTool.Editor.Targets.Describe)));
+				Console.WriteLine("    in   {0}", project.Directory);
+				Console.WriteLine();
+			}
+			return 0;
+		}
+
 		private static int ListInstalls()
 		{
 			List<FF3.ContentTool.Editor.SteamInstall> found = FF3.ContentTool.Editor.SteamInstalls.Find();
@@ -1324,6 +1349,9 @@ namespace FF3.ContentTool
 			string content = null;
 			string overrides = null;
 			string language = "en";
+			string projectName = null;
+			string target = null;
+			bool openBrowser = true;
 			int port = 5050;
 
 			foreach (string arg in args)
@@ -1339,6 +1367,18 @@ namespace FF3.ContentTool
 				else if (arg.StartsWith("--language=", StringComparison.OrdinalIgnoreCase))
 				{
 					language = arg.Substring("--language=".Length).Trim('"');
+				}
+				else if (arg.StartsWith("--project=", StringComparison.OrdinalIgnoreCase))
+				{
+					projectName = arg.Substring("--project=".Length).Trim('"');
+				}
+				else if (arg.StartsWith("--target=", StringComparison.OrdinalIgnoreCase))
+				{
+					target = arg.Substring("--target=".Length).Trim('"');
+				}
+				else if (arg.Equals("--no-browser", StringComparison.OrdinalIgnoreCase))
+				{
+					openBrowser = false;
 				}
 				else if (arg.StartsWith("--port=", StringComparison.OrdinalIgnoreCase))
 				{
@@ -1358,6 +1398,26 @@ namespace FF3.ContentTool
 				return 1;
 			}
 
+			// A project decides both halves - which game's content to read, and where
+			// the edits go - so it is resolved before the workspace. An explicit
+			// --content or --override still wins, for opening something once without
+			// making a project of it.
+			FF3.ContentTool.Editor.Project project = null;
+			if (projectName != null)
+			{
+				project = OpenOrCreateProject(projectName, target);
+				if (project == null)
+				{
+					return 1;
+				}
+				content ??= SafeContentOf(project);
+				overrides ??= project.Files;
+				if (content == null)
+				{
+					return 1;
+				}
+			}
+
 			Editor.Workspace workspace;
 			try
 			{
@@ -1373,8 +1433,102 @@ namespace FF3.ContentTool
 			// files, so a line edited in the editor is visible everywhere at once.
 			Editor.MessageIndex messages = new Editor.MessageIndex(workspace, language);
 			Console.WriteLine("  language  {0} ({1} messages)", language, messages.Count);
-			new Editor.EditorServer(workspace, Path.GetFullPath(webRoot), messages).Run(port);
+			if (project != null)
+			{
+				Console.WriteLine("  project   {0} ({1}) in {2}",
+					project.File.Name,
+					FF3.ContentTool.Editor.Targets.Describe(project.File.Active),
+					project.Directory);
+			}
+
+			new Editor.EditorServer(workspace, Path.GetFullPath(webRoot), messages,
+				language, project)
+				.Run(port, openBrowser ? OpenInBrowser : null);
 			return 0;
+		}
+
+		/// <summary>A project by name, made if it is not there yet.</summary>
+		private static FF3.ContentTool.Editor.Project OpenOrCreateProject(
+			string name, string target)
+		{
+			// A path is taken as a path, so an existing mod folder can be opened from
+			// anywhere; anything else is a name under the projects directory.
+			FF3.ContentTool.Editor.Project project =
+				name.IndexOfAny(new[] { '/', '\\' }) >= 0 || Path.IsPathRooted(name)
+					? FF3.ContentTool.Editor.Project.TryOpen(name)
+					: FF3.ContentTool.Editor.Project.All()
+						.FirstOrDefault(p => string.Equals(p.File.Name, name,
+							StringComparison.OrdinalIgnoreCase));
+
+			if (project == null)
+			{
+				try
+				{
+					project = FF3.ContentTool.Editor.Project.Create(
+						Path.GetFileName(name.TrimEnd('/', '\\')),
+						new[] { target ?? FF3.ContentTool.Editor.Targets.Steam });
+					Console.WriteLine("  created   {0}", project.Directory);
+				}
+				catch (Exception ex) when (ex is ArgumentException or IOException)
+				{
+					Console.Error.WriteLine(ex.Message);
+					return null;
+				}
+			}
+
+			if (target != null)
+			{
+				if (!FF3.ContentTool.Editor.Targets.Known(target))
+				{
+					Console.Error.WriteLine("no target called {0} - try {1}", target,
+						string.Join(" or ", FF3.ContentTool.Editor.Targets.All));
+					return null;
+				}
+				project.File.Active = target;
+				if (!project.File.Targets.Contains(target, StringComparer.OrdinalIgnoreCase))
+				{
+					project.File.Targets.Add(target);
+				}
+				project.Save();
+			}
+			return project;
+		}
+
+		private static string SafeContentOf(FF3.ContentTool.Editor.Project project)
+		{
+			try
+			{
+				return project.ContentDirectory();
+			}
+			catch (FileNotFoundException ex)
+			{
+				Console.Error.WriteLine(ex.Message);
+				return null;
+			}
+		}
+
+		/// <summary>
+		/// Opens the page. Without this the editor prints a URL and waits, and somebody
+		/// who does not read the console never learns there is a UI at all.
+		/// </summary>
+		private static void OpenInBrowser(string url)
+		{
+			try
+			{
+				// UseShellExecute, because the URL has to go to whatever the machine
+				// says is a browser rather than be run as a program.
+				System.Diagnostics.Process.Start(
+					new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+				Console.WriteLine("  opened it in your browser. --no-browser if you would rather it did not.");
+			}
+			catch (Exception ex)
+			{
+				// No browser, no default handler, a locked down machine. Not worth
+				// failing to start over - the URL is on the console either way - but
+				// worth saying, or the page simply never appears and nobody knows why.
+				Console.WriteLine("  could not open a browser ({0}) - open the address above yourself.",
+					ex.Message);
+			}
 		}
 
 		/// <summary>

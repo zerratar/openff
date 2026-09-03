@@ -14,14 +14,53 @@ starts, and undoing one is deleting a file.
 
 | Option | Default | |
 | --- | --- | --- |
+| `--project=<name>` | none | the mod to edit; made if it does not exist |
+| `--target=ours\|steam` | the project's own | which game to edit against |
 | `--content=<dir>` | `Content`, else a Steam install | a directory holding `data000.bin`, or a game install |
 | `--override=<dir>` | see below | where edits are written |
 | `--language=<code>` | `en` | which language the dialogue is read as |
 | `--port=<n>` | 5050 | |
+| `--no-browser` | | do not open the page |
 
 With no `--content` it takes the `Content` directory if there is one, and otherwise
 looks for a Steam copy of the game. `ff3content installs` prints what it found. So
-for somebody who just has the game, the whole of it is: run it.
+for somebody who just has the game, the whole of it is: run it - it finds the game,
+serves the editor, and opens the page, because an editor that prints a URL and waits
+is one whose UI most people never find.
+
+## Projects
+
+A project is one mod. It is the override directory with a name on it and a note of
+which game it is for, which is what turns "my edits" into something you can hand to
+somebody.
+
+```
+<projects>/<name>/project.json     what it is and what it targets
+<projects>/<name>/files/...        the edited content, named as the game names it
+<projects>/<name>.backup/          originals, once it has been installed
+```
+
+`<projects>` is `%LOCALAPPDATA%\FF3ContentTool\projects`, or `FF3_PROJECTS`.
+`ff3content projects` lists them. In the editor they are under **File**: new, open,
+and details - the name, author, version and description a release page wants.
+
+### Targets
+
+There are two games, so a project says which it is for, and may say both:
+
+| | content it opens | how a change is tested |
+| --- | --- | --- |
+| `ours` | `Content` and its archives | nothing to do - our build reads the project directly, with `--content-override=<project>/files` |
+| `steam` | the install's `files/` | **Project ▸ Install into the game**, which copies in and keeps the originals |
+
+Switching target under **Project** re-opens the same edits against the other game
+without restarting. The edits do not move; only what they are read on top of changes.
+
+Targeting both is worth it for data - `.pak`, `.msd` and `.script` are largely byte
+identical between the two releases - and wants care for art, which is authored against
+a different virtual screen in each. See *Borrowing Steam's art* below.
+
+A mod published to Nexus targets Steam, since that is the game other people have.
 
 ## Two content layouts
 

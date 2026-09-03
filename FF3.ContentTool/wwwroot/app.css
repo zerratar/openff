@@ -184,13 +184,88 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
    that hidden still means hidden. */
 [hidden] { display: none !important; }
 
-/* Installing a mod into a game install. Only a loose install needs it, so the whole
-   control is hidden for our own build - and the rule above is what makes that stick
-   over the display:flex here. */
-#mod { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+/* Whether the edits are in the game yet. Only a loose install needs it, so the whole
+   thing is hidden for our own build - and the [hidden] rule above is what makes that
+   stick over the display:flex here. */
+#mod { display: flex; align-items: center; gap: 8px; }
 #mod-state { color: var(--dim); font-size: 12px; }
-#mod button { font-size: 12px; padding: 3px 9px; }
-#mod button:disabled { opacity: .4; cursor: default; }
+
+/* The menu bar. Two menus, because File and Project are the ones with anything
+   behind them - undo belongs to whichever editor has focus, so an Edit menu would be
+   a row of items that did nothing. */
+#menubar { display: flex; align-items: stretch; gap: 2px; margin-left: 14px; }
+#menubar .menu { position: relative; }
+.menu-title {
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.menu-title:hover, .menu.open .menu-title { background: rgba(255, 255, 255, .08); }
+.menu-items { display: none; }
+.menu.open .menu-items {
+  display: block;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 60;
+  min-width: 240px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .5);
+}
+.menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-size: 12px;
+  padding: 6px 10px 6px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.menu-item:hover:not(:disabled) { background: var(--accent); color: #0b0d10; }
+.menu-item:disabled { opacity: .38; cursor: default; }
+/* The tick sits in the padding, so a checked item does not shift its neighbours. */
+.menu-item.checked::before { content: '\2713'; margin-left: -14px; padding-right: 4px; }
+.menu-rule { height: 1px; margin: 4px 6px; background: var(--line); }
+
+#project-name {
+  font-size: 12px;
+  color: var(--ink);
+  padding: 3px 8px;
+  margin-left: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Dialogs reuse the picker's veil and box; only the body differs. */
+.picker.dialog { height: auto; max-height: 82vh; width: min(560px, 88vw); }
+.dialog-body { padding: 14px 16px 16px; overflow: auto; display: flex;
+  flex-direction: column; gap: 12px; }
+.dialog-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px;
+  color: var(--dim); }
+.dialog-field input { font-size: 13px; padding: 5px 8px; }
+.dialog-check { display: flex; align-items: center; gap: 6px; font-size: 13px;
+  color: var(--ink); padding: 2px 0; }
+.dialog-note { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.5; }
+.dialog-list { display: flex; flex-direction: column; gap: 4px; }
+.dialog-row { display: flex; flex-direction: column; gap: 2px; text-align: left;
+  background: none; border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px 10px; color: var(--ink); cursor: pointer; }
+.dialog-row:hover { border-color: var(--accent); }
+.dialog-row.checked { border-color: var(--accent); background: rgba(110, 168, 254, .1); }
+.dialog-row span { font-size: 11px; color: var(--dim); }
+.dialog-body > button.primary { align-self: flex-start; }
 
 .view { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 

@@ -9,16 +9,16 @@
 
 <header>
   <h1>FF3 content editor</h1>
+  <!-- Built by project.js from whatever is open. -->
+  <nav id="menubar"></nav>
+  <span id="project-name" title="File &#9656; New project&#8230;">no project</span>
   <span id="status"></span>
   <!--
-    Only for a loose install. Our own build reads the override directory itself, so
-    there is nothing to install and the control stays hidden.
+    Whether the edits are in the game yet. Only a loose install can be installed
+    into - ours reads the project directly - so this stays hidden for our own build.
+    The two buttons that were here are on the Project menu now.
   -->
-  <span id="mod" hidden>
-    <span id="mod-state"></span>
-    <button id="mod-install">Install into the game</button>
-    <button id="mod-uninstall">Remove from the game</button>
-  </span>
+  <span id="mod" hidden><span id="mod-state"></span></span>
 </header>
 
 <!--
@@ -336,6 +336,7 @@
 <script src="model-viewer.js"></script>
 <script src="thumbnails.js"></script>
 <script src="picker.js"></script>
+<script src="project.js"></script>
 <script src="map-scene.js"></script>
 <script src="shell.js"></script>
 </body>
