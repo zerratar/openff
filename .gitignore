@@ -15,3 +15,4 @@ Content/obj/
 # Local scratch
 *.log
 captures/
+__pycache__/

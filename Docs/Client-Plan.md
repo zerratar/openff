@@ -10,7 +10,7 @@ This continues `Modernisation-Plan.md` (stages 1-2 are done: the phone boot chai
 gone, rendering is native). It is ordered so the game keeps running at every step and
 each step is useful on its own.
 
-## Stage A - one content layer, shared with the editor (in progress)
+## Stage A - one content layer, shared with the editor (done)
 
 The editor already reads every shape the content comes in: our `data*.bin` archives,
 Steam FF3's loose `files/`, FF4's `SSAM` mass files, all behind `IContentSource`, with
@@ -23,17 +23,38 @@ shape) gives the client:
 - the editor's projects as the client's mods, with no copy step - the same folder.
 - FF4's files readable by the same code, which is the first requirement of running FF4.
 
-Deliberately not touched yet: fonts (XNB atlases + `.glp`) and sound (XNB) keep coming
-from our `Content/`, found the way they are now, even when the data comes from Steam.
+The chain has no automatic fallback: what is in `--content` is all the client reads.
+Fonts and sound come from the install too (stages B and C), so a Steam install is enough
+on its own - see "Steam-only" below.
 
-Found on the way: the Steam build's 2D art (`.NCGR/.NCBR`) is authored at other pixel
-sizes - `pc1_01` 92x84 became 112x112, the title logo 576x499 became 1280x1109 - and its
-cell banks scale them back with the same display-scale flags this port's cell format
-already has (0x4 = half). Sprites may well draw right from Steam's files; the title logo
-did not, so until Steam's 2D coordinate space is understood the chain takes the six 2D
-formats from our archives when a Steam install is in front (`--steam-art` to try
-Steam's). Also missing from Steam: 44 files for screens it has no use for (about, link
-icons); the fallback covers them.
+## Steam-only - nothing of ours needed at runtime (done)
+
+The requirement: people can only play with what they bought, because none of Square's
+assets can be distributed with the client. So a boot from `--content=<Steam FF3>` must
+need nothing from our `Content/`. Three things stood in the way, all in the 2D layer:
+
+- **44 files Steam does not ship** - the about and repair title sprites, the achievement
+  `link_icon_00..37` and the menu's `icon_16dot_2` - all phone-only features. The 2D
+  loaders now treat a missing file as an empty bank (`NNS_G2dGetUnpackedBank` and the
+  cell/anim/sequence lookups return nothing instead of dereferencing), so those screens
+  simply draw nothing there.
+- **Steam's cell banks are laid out for Steam's UI.** Its `.NCER` files place and size
+  cells for a widescreen desktop over sheets authored at 1x, 1.2x, 1.33x and 2.22x the
+  phone's. But both builds keep the same cells in the same order (Steam only appends to
+  `m014_button`), and each Steam OAM's sheet rectangle covers the same picture as the
+  phone's. So `Tools/gen_steam_cells.py` writes `FF3.Game/Data/ff3-steam-cells.json` -
+  the phone's placement (x, y, w, h, flags) for the 29 banks that differ - and
+  `Compat/SteamCells.cs` applies it when a bank is loaded from a Steam install, keeping
+  the file's own sheet rectangle as the source. `NNSG2dCellOAMAttrData` grew a source
+  size (`srcW/srcH`) for this, and `NNS_G2dDrawCell`/the BG path pass it to `drawImage`.
+  The table is a few hundred positions of layout metadata we generated, not art.
+  `--steam-cells-off` draws Steam's banks as they are.
+- **The `.glp` glyph tables** were read at start-up from our XNBs; they are now optional
+  (TrueType does not use them) and the atlas text path returns when a size has none.
+
+Verified: from the Steam install alone the client shows the logos, the title (logo,
+menu, cursor), naming, the opening, and plays the first battle in the Altar Cave with its
+windows, HP bar and targeting cursor. A boot from our archives is unchanged.
 
 ## Stage B - TrueType text (done)
 
@@ -65,9 +86,7 @@ Done in `Compat/OggSound.cs`: `MediaPlayer.setDataSource` asks the chain for
 `sound/<name>.ogg` (or FF4's `files/SOUND/BGM|SE|VOICE/<name>.akb`, skipping to the
 `OggS` page) and decodes it with NVorbis into a `SoundEffect`, cached by name; the XNB is
 loaded only when the chain has no Ogg. From the Steam install the title theme, the
-opening's intro-and-loop pair and the effects all come from Steam's own files. Still from
-our `Content/`: the `.glp` glyph tables (read at start-up, unused with TrueType) and the
-six 2D formats - the two things standing between here and a boot with no Content at all.
+opening's intro-and-loop pair and the effects all come from Steam's own files.
 
 ## Stage D - FF4
 

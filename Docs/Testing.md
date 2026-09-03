@@ -59,13 +59,17 @@ passed; these are the rest.
 
 | # | Case | Steps | Expect |
 | --- | --- | --- | --- |
-| C-1 | Boot from Steam | `FF3.exe --content="C:\Program Files (x86)\Steam\steamapps\common\Final Fantasy III"` | Logos, then the title, drawn from Steam's higher-resolution 2D art; the log says `loose files: 5549 files ...; then archives (6962 files)` |
-| C-2 | Play from Steam | New game from C-1, walk out of Ur, talk to an NPC, open the menu | Everything the archive build does; text and sound still come from our Content (see Client-Plan stages B and C) |
+| C-1 | Boot from Steam alone | `FF3.exe --content="C:\Program Files (x86)\Steam\steamapps\common\Final Fantasy III"` (nothing else; the log's `content:` line must name only the install) | Logos, then the title with the logo at the phone's size, the three menu words and the hand cursor; `steam cells: phone placement applied to title_gousei_new.NCER` in the log |
+| C-2 | Play from Steam alone | New game from C-1: naming, the opening, the first battle, walk out of Ur, talk to an NPC, open the menu | Everything the archive build does, with no exception in the log; windows, HP bars, icons and the cursor sized as on the phone build; the about screen (title ▸ about) is blank rather than a crash |
+| C-2b | Steam-only really is Steam-only | Rename `Project\Content` briefly, run C-1 and C-2 | Identical; nothing in the log mentions `Content\` |
+| C-2c | Steam's own layouts | Add `--steam-cells-off` to C-1 | The title logo draws about a third too large and the copyright strip moves - the reason the table exists |
 | C-3 | A project as a mod | `FF3.exe --project=<your project>` after the chest test | The Ultima Weapon chest edit is live without installing anything; the log lists the override in use |
 | C-4 | Mod folder | Copy one edited file into a folder mirroring `files/...`, `FF3.exe --mod=<folder>` | The edit is live |
 | C-5 | TrueType text | `FF3.exe --content="<Steam FF3>" --size=1600x960`, New Game, read the opening dialogue; then the same with `--text=atlas` | Sharp Arial at window resolution vs the blurry 16px atlas; the text sits in the same place in both; menus line up |
 | C-6 | A face of your own | `--font=C:\Windows\Fonts\georgia.ttf` | Dialogue in Georgia; widths still consistent (right-aligned numbers in menus stay aligned) |
 | C-7 | Steam's sound | Boot from Steam with `--log=file`; listen through the title and the opening | Music and effects play; the log lists `sound: sound/BGM00_1.ogg -> 43.4s` and friends, no `Content.Load` of a sound XNB; the intro (`_0`) hands over to the loop (`_1`) without a gap |
+| C-8 | Regenerating the layout table | `python Tools/gen_steam_cells.py <extracted files/> "<Steam FF3>"` | `29 cell banks`; only `mastercard.NCER` skipped; the json under `FF3.Game/Data` is unchanged (git shows no diff) |
+| C-9 | World map and menus from Steam alone | From C-2 reach the world map; open the menu, status, items, config | The ship and map markers (`w_map_*`, `map_marker_*`), volume slider (`m008_volume`) and menu icons (`icon_8dot`, `icon_16dot`, `m015_bar`) are placed and sized as on the phone build |
 
 ## What "works" looks like in the log
 
