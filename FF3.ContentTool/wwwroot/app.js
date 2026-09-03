@@ -1609,15 +1609,27 @@ async function wireAnimation(node, viewer, packageName) {
     playing = true;
     play.textContent = '\u23F8';
     last = performance.now();
-    requestAnimationFrame(tick);
+    schedule();
   };
 
-  const tick = now => {
+  // A timer rather than requestAnimationFrame: the game's clock is 30 frames a
+  // second whatever the screen does, and a timer keeps stepping when the browser
+  // stops painting (a hidden tab, an embedded pane), so the count stays honest.
+  let timer = null;
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    const fps = 30 * Number(speed.value || 1);
+    timer = setTimeout(tick, Math.max(8, 1000 / fps));
+  };
+
+  const tick = () => {
+    timer = null;
     if (!playing || !pose) return;
+    const now = performance.now();
     const fps = 30 * Number(speed.value || 1);
     const advance = (now - last) * fps / 1000;
     if (advance >= 1) {
-      last = now;
+      last = now - ((advance - Math.floor(advance)) * 1000 / fps);
       let next = frame + Math.floor(advance);
       if (next >= pose.frames) {
         if (loop.checked) next = next % pose.frames;
@@ -1625,14 +1637,14 @@ async function wireAnimation(node, viewer, packageName) {
       }
       showFrame(next);
     }
-    if (playing) requestAnimationFrame(tick);
+    if (playing) schedule();
   };
 
   play.onclick = () => {
     if (!pose) { loadMotion(); return; }
     playing = !playing;
     play.textContent = playing ? '\u23F8' : '\u25B6';
-    if (playing) { last = performance.now(); requestAnimationFrame(tick); }
+    if (playing) { last = performance.now(); schedule(); }
   };
   packSelect.onchange = () => { fillMotions(); loadMotion(); };
   motionSelect.onchange = loadMotion;
