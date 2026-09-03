@@ -68,6 +68,15 @@ namespace FF3.ContentTool
 		[JsonPropertyName("raw")]
 		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
 		public string Raw { get; set; }
+
+		/// <summary>
+		/// Bytes the file is short of a whole last record. Two of FF4's chains end two
+		/// bytes early; the last record is shown padded and written back trimmed, so the
+		/// table is editable and still rebuilds byte for byte.
+		/// </summary>
+		[JsonPropertyName("short")]
+		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+		public int Short { get; set; }
 	}
 
 	internal sealed class PakFile
@@ -193,11 +202,19 @@ namespace FF3.ContentTool
 
 				PakChain layout = family == null ? null : FindLayout(family, i);
 				// A layout that does not divide the chain would drop the remainder on
-				// rebuild. Better raw and exact than typed and shorter.
+				// rebuild. A chain that is a few bytes short of its last record (Square's
+				// FF4 files do this twice) is read with that record padded and remembered
+				// as Short; anything else stays raw - exact beats typed and shorter.
+				int missing = 0;
 				if (layout != null && layout.Stride > 0 && !layout.Fields.Any(f => f.Count < 0)
 					&& size % layout.Stride != 0)
 				{
-					layout = null;
+					missing = layout.Stride - size % layout.Stride;
+					if (missing > 4)
+					{
+						layout = null;
+						missing = 0;
+					}
 				}
 				PakChainData chain = new PakChainData
 				{
@@ -205,12 +222,22 @@ namespace FF3.ContentTool
 					Label = layout?.Label ?? "chain" + i.ToString(CultureInfo.InvariantCulture),
 					Offset = offset,
 					Size = size,
+					Short = missing,
 					PadBefore = Hex(data, previous, offset - previous)
 				};
 
 				if (layout != null && size > 0)
 				{
-					chain.Records = ReadRecords(data, offset, size, layout);
+					if (missing > 0)
+					{
+						byte[] padded = new byte[offset + size + missing];
+						Buffer.BlockCopy(data, 0, padded, 0, offset + size);
+						chain.Records = ReadRecords(padded, offset, size + missing, layout);
+					}
+					else
+					{
+						chain.Records = ReadRecords(data, offset, size, layout);
+					}
 					if (lookupMessage != null)
 					{
 						Annotate(chain.Records, lookupMessage);
@@ -302,9 +329,17 @@ namespace FF3.ContentTool
 			{
 				PakChain layout = file.Family == null
 					? null : FindLayout(file.Family, chain.Index);
-				blobs.Add(chain.Records != null && layout != null
+				byte[] blob = chain.Records != null && layout != null
 					? WriteRecords(chain.Records, layout)
-					: FromHex(chain.Raw));
+					: FromHex(chain.Raw);
+				if (chain.Short > 0 && chain.Short < blob.Length)
+				{
+					// The padding Read added to the last record goes away again.
+					byte[] trimmed = new byte[blob.Length - chain.Short];
+					Buffer.BlockCopy(blob, 0, trimmed, 0, trimmed.Length);
+					blob = trimmed;
+				}
+				blobs.Add(blob);
 			}
 
 			// Nothing changed length: put everything back exactly where it was, down to

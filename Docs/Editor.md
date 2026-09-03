@@ -150,14 +150,19 @@ FF3's are 56, 251 monsters of 152 where FF3's are 100, a map `.pak` of four sing
 records (encount 52, landForm 42, monsterParty 16, environEffect 8) where FF3 has seven
 chains. Applying FF3's layouts typed the wrong bytes and a save would have rewritten the
 table wrongly, so `Pak.FamilyOf` takes the game and an FF4 workspace gets the FF4
-families in `PakRecordsFf4.cs`. There is no FF4 source to name fields from; what is
-there is the record stride wherever the file proves one (an id that counts up record
-after record, no bytes left over), and those chains are shown as rows of 16-bit words.
-Chains that do not divide cleanly stay raw - item chain 0 is 59 x 48 bytes plus 46,
-monster chain 0 is two bytes short of 252 records - and `Pak.Read` now refuses any
-layout whose stride does not divide the chain, for either game. All four FF4 table
-kinds rebuild byte for byte. Naming the fields is the open work; the getters on
-`itm::EquipParameter` in `libff4.so` are the place to start.
+families in `PakRecordsFf4.cs`. There is no FF4 source to name fields from, so each
+name carries its evidence: **engine** (a getter in `libff4.so` reads that offset -
+`itm::EquipParameter::aggressivity` is the word at 0x34, `ItemManager` finds an item by
+the id at 2 in tables of stride 48/88/84/32, `MonsterManager` a monster by the id at 8
+in a table of stride 152), **FF3** (same field, same offset, and FF4's values fit - a
+Potion has buy 30 and price 15 where FF3 keeps them), or **stride** alone (an id that
+counts up record after record). A field nobody has named is called by its offset,
+`x1A`, so it is still a column and its name says how much is known. Two of Square's
+chains are two bytes short of their last record (60 consumables, 252 monsters);
+`Pak.Read` pads that record and `Pak.Write` trims it, and refuses any other layout that
+does not divide its chain, for either game. All four FF4 table kinds rebuild byte for
+byte. `Tools/ff4_fields.py <libff4.so> '<symbol regex>'` prints the loads a getter does,
+which is how to name the next field.
 
 ### Models
 
