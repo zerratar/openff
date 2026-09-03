@@ -31,19 +31,21 @@ namespace FF3.ContentTool.Editor
 	{
 		public const string Ours = "ours";
 		public const string Steam = "steam";
+		public const string Ff4Steam = "ff4steam";
 
-		public static readonly string[] All = { Ours, Steam };
+		public static readonly string[] All = { Ours, Steam, Ff4Steam };
 
 		public static bool Known(string target)
 		{
 			return All.Contains(target, StringComparer.OrdinalIgnoreCase);
 		}
 
-		/// <summary>What to show a person: "our build", "Steam".</summary>
+		/// <summary>What to show a person: "our build", "FF3 on Steam", "FF4 on Steam".</summary>
 		public static string Describe(string target)
 		{
-			return string.Equals(target, Steam, StringComparison.OrdinalIgnoreCase)
-				? "Steam" : "our build";
+			if (string.Equals(target, Ff4Steam, StringComparison.OrdinalIgnoreCase)) return "FF4 on Steam";
+			if (string.Equals(target, Steam, StringComparison.OrdinalIgnoreCase)) return "FF3 on Steam";
+			return "our build";
 		}
 
 		/// <summary>
@@ -54,6 +56,10 @@ namespace FF3.ContentTool.Editor
 		/// </summary>
 		public static string Find(string target)
 		{
+			if (string.Equals(target, Ff4Steam, StringComparison.OrdinalIgnoreCase))
+			{
+				return SteamInstalls.FindOne(SteamInstalls.Ff4AppId);
+			}
 			if (string.Equals(target, Steam, StringComparison.OrdinalIgnoreCase))
 			{
 				return SteamInstalls.FindOne();

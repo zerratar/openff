@@ -44,15 +44,24 @@ namespace FF3.ContentTool.Editor
 		/// <summary>Final Fantasy III (3D Remake) on Steam.</summary>
 		public const string AppId = "239120";
 
-		/// <summary>Every copy this machine has, best guess first. Empty if none.</summary>
+		/// <summary>Final Fantasy IV (3D Remake) on Steam - the same engine, a year on.</summary>
+		public const string Ff4AppId = "312750";
+
+		/// <summary>Every copy of FF3 this machine has, best guess first. Empty if none.</summary>
 		public static List<SteamInstall> Find()
+		{
+			return Find(AppId);
+		}
+
+		/// <summary>Every copy of one game, by Steam app id.</summary>
+		public static List<SteamInstall> Find(string appId)
 		{
 			List<SteamInstall> found = new List<SteamInstall>();
 			HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 			foreach (string library in Libraries())
 			{
-				string manifest = Path.Combine(library, "steamapps", "appmanifest_" + AppId + ".acf");
+				string manifest = Path.Combine(library, "steamapps", "appmanifest_" + appId + ".acf");
 				if (!File.Exists(manifest))
 				{
 					continue;
@@ -91,10 +100,15 @@ namespace FF3.ContentTool.Editor
 			return found;
 		}
 
-		/// <summary>The first one, or null. What a default wants.</summary>
+		/// <summary>The first FF3, or null. What a default wants.</summary>
 		public static string FindOne()
 		{
-			List<SteamInstall> all = Find();
+			return FindOne(AppId);
+		}
+
+		public static string FindOne(string appId)
+		{
+			List<SteamInstall> all = Find(appId);
 			return all.Count > 0 ? all[0].Path : null;
 		}
 

@@ -158,7 +158,7 @@ namespace FF3.ContentTool.Editor
 		/// <summary>Where a content name lives inside the install.</summary>
 		private static string InstallPath(Workspace workspace, string name)
 		{
-			string root = Path.GetFullPath(workspace.ContentDirectory);
+			string root = Path.GetFullPath(workspace.LooseRoot);
 			string full = Path.GetFullPath(Path.Combine(root, name));
 			if (!full.StartsWith(root + Path.DirectorySeparatorChar,
 					StringComparison.OrdinalIgnoreCase))

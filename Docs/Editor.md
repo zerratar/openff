@@ -62,6 +62,43 @@ a different virtual screen in each. See *Borrowing Steam's art* below.
 
 A mod published to Nexus targets Steam, since that is the game other people have.
 
+## FF4
+
+The same engine shipped Final Fantasy IV (3D Remake) a year later, and the editor
+opens it: `--target=ff4steam`, or point `--content` at the install. `ff3content
+installs` lists both games. The status line and `/api/status` say `game: ff4`.
+
+What is different, and what the editor does about it:
+
+| | FF3 | FF4 | |
+| --- | --- | --- | --- |
+| install layout | `files/` beside the exe | `EXTRACTED_DATA/files/` | resolved; point at the install either way |
+| per-map script, hich, msd, pak | loose | bundled into `SSAM` mass files, `files/*.dat` | `SsamContentSource` exposes them under FF3's names, decompressed |
+| `.msd` text | UTF-8 | UTF-16LE | decided per file from how a message ends |
+| `.pak` records | `PakRecords.cs` | different structs | container reads; records stay raw, so a map shows **0 exits** for now |
+| script opcodes | 264 | 451, 199 shared | FF3's table decodes all 389; unknown operand layouts become `op(N)` |
+
+The mass file is `SSAM | count | offset0 | size0`, then 40 byte records of
+`name[32] | offset | size`, data after the directory. Thirty of them: `CAST_SCRIPT.dat`
+389 scripts, `CAST_HICH.dat` 388 placements, `CAST_EVENT_MSD.dat` 351 dialogue files,
+`MAPPARAMETER.dat` 321 paks, `MENU_LAYOUT.dat` 34 menus, `EFFECT.dat` 534 effects.
+
+Measured over the whole install through the editor: 388 of 388 maps, scenes and exit
+tables; 389 of 389 scripts; 376 text files; 28 menus; 400 cell banks; 995 models -
+no failures. Byte-exact round trips: 380 of 389 scripts, 361 of 362 text files, every
+menu.
+
+Known exceptions, all read correctly and only fail to rewrite byte for byte:
+
+- `e03_00 e05_00 e07_00 e09_01 e11_00 e14_00 e16_00 e26_00 e26_01`: event scripts
+  whose code grows by 2 to 12 bytes on rebuild - FF4-only opcodes with operand layouts
+  FF3's table does not have. The fix is FF4's own operand table, not a guess here.
+- `babil_scenario.msd`: message 10006's offset overlaps the tail of 10005 in Square's
+  own file, so recomputing offsets from the text cannot reproduce it.
+
+Writing into an FF4 install is not wired yet: an edited script or hich would have to
+go back inside its mass file, and that is the next piece.
+
 ## Two content layouts
 
 `--content` accepts either shape, and everything above this line reads the same

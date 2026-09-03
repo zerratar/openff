@@ -123,6 +123,16 @@ namespace FF3.ContentTool
 				throw new InvalidDataException("message count is not plausible: " + count);
 			}
 
+			// FF4 writes the same container with UTF-16LE text, terminated by a 16 bit
+			// zero; FF3 writes UTF-8. A whole file is one or the other, so this is
+			// decided once - and from how a message ends rather than what it says.
+			// Looking at the text was wrong twice: a one-letter UTF-8 page, "A" 00, is
+			// exactly a one-letter UTF-16 page; and FF4's item names open with a
+			// private-use icon glyph, U+E040, whose high byte is not zero. The ending
+			// is unambiguous. UTF-8 finishes text 00 00 - a nonzero byte, the page's
+			// terminator, the message's. UTF-16 finishes 00 00 00 00.
+			bool wide = SniffWide(data, (int)count);
+
 			for (int i = 0; i < count; i++)
 			{
 				int at = HeaderSize + i * EntrySize;
@@ -145,19 +155,28 @@ namespace FF3.ContentTool
 				int p = offset;
 				for (int page = 0; page < pages; page++)
 				{
-					int end = Array.IndexOf(data, (byte)0, p);
+					int end = wide ? IndexOfWideZero(data, p) : Array.IndexOf(data, (byte)0, p);
 					if (end < 0)
 					{
 						throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture,
 							"message {0} page {1} is not terminated", message.Id, page));
 					}
 					spans.Add((p, end - p));
-					p = end + 1;
+					p = end + (wide ? 2 : 1);
 				}
 
-				bool utf8 = spans.All(span => IsUtf8(data, span.At, span.Length));
-				Encoding encoding = utf8 ? Encoding.UTF8 : Encoding.Latin1;
-				message.TextEncoding = utf8 ? null : "latin1";
+				Encoding encoding;
+				if (wide)
+				{
+					encoding = Encoding.Unicode;
+					message.TextEncoding = "utf-16";
+				}
+				else
+				{
+					bool utf8 = spans.All(span => IsUtf8(data, span.At, span.Length));
+					encoding = utf8 ? Encoding.UTF8 : Encoding.Latin1;
+					message.TextEncoding = utf8 ? null : "latin1";
+				}
 				foreach ((int at2, int length) in spans)
 				{
 					message.Pages.Add(encoding.GetString(data, at2, length));
@@ -181,21 +200,24 @@ namespace FF3.ContentTool
 					throw new InvalidDataException("message " + message.Id
 						+ " has more pages than the format allows: " + message.Pages.Count);
 				}
-				Encoding encoding = message.TextEncoding == "latin1"
-					? Encoding.Latin1 : Encoding.UTF8;
+				bool wide = message.TextEncoding == "utf-16";
+				Encoding encoding = wide ? Encoding.Unicode
+					: message.TextEncoding == "latin1" ? Encoding.Latin1 : Encoding.UTF8;
 				using MemoryStream blob = new MemoryStream();
 				foreach (string page in message.Pages)
 				{
 					byte[] text = encoding.GetBytes(page ?? string.Empty);
-					if (Array.IndexOf(text, (byte)0) >= 0)
+					if (!wide && Array.IndexOf(text, (byte)0) >= 0)
 					{
 						throw new InvalidDataException("message " + message.Id
 							+ " contains a NUL, which separates pages");
 					}
 					blob.Write(text, 0, text.Length);
 					blob.WriteByte(0);
+					if (wide) blob.WriteByte(0);
 				}
 				blob.WriteByte(0);          // end of message
+				if (wide) blob.WriteByte(0);
 				byte[] bytes = blob.ToArray();
 				blobs.Add(bytes);
 				textSize += bytes.Length;
@@ -227,6 +249,39 @@ namespace FF3.ContentTool
 				write += blobs[i].Length;
 			}
 			return data;
+		}
+
+		/// <summary>Whether a file's text is UTF-16LE, from how its messages end.</summary>
+		private static bool SniffWide(byte[] data, int count)
+		{
+			for (int i = 0; i < count; i++)
+			{
+				int start = (int)ReadUInt32(data, HeaderSize + i * EntrySize + 8);
+				int end = i + 1 < count
+					? (int)ReadUInt32(data, HeaderSize + (i + 1) * EntrySize + 8)
+					: data.Length;
+				int length = end - start;
+				// Four bytes is the least a message with any text can be in either
+				// encoding; an empty page is shorter and says nothing.
+				if (start < 0 || end > data.Length || length < 4)
+				{
+					continue;
+				}
+				// The last byte of text sits three from the end in UTF-8 and is never
+				// zero there; in UTF-16 the two terminators are four zero bytes.
+				return data[end - 3] == 0 && data[end - 4] == 0;
+			}
+			return false;
+		}
+
+		/// <summary>The first 16 bit zero on an even boundary from <paramref name="from"/>.</summary>
+		private static int IndexOfWideZero(byte[] data, int from)
+		{
+			for (int i = from; i + 1 < data.Length; i += 2)
+			{
+				if (data[i] == 0 && data[i + 1] == 0) return i;
+			}
+			return -1;
 		}
 
 		/// <summary>Whether a span decodes as UTF-8 without substitutions.</summary>

@@ -181,6 +181,17 @@ namespace FF3.ContentTool.Ffs
 				return 2;
 			}
 
+			// op(N) with nothing in the brackets is the decompiler saying "two bytes
+			// here I could not decode" - an opcode whose operands would have run past
+			// the end of the file. FF4 scripts do this, because their table is bigger
+			// than FF3's and they keep a string pool where FF3 keeps code. It goes
+			// back as the two bytes it came from; asking the table what N takes would
+			// demand arguments that were never there.
+			if (instruction.Mnemonic == "op" && instruction.Arguments.Count == 0)
+			{
+				return 2;
+			}
+
 			ScriptOp op = ScriptOps.Get(instruction.Opcode);
 			Operand[] operands = op.Operands ?? Array.Empty<Operand>();
 			if (instruction.Arguments.Count != operands.Length)

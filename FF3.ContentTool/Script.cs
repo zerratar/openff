@@ -298,6 +298,16 @@ namespace FF3.ContentTool
 		{
 			byte[] data = file.Data;
 			ScriptInstruction instruction = new ScriptInstruction { At = pc };
+
+			// Off the end already: a stray word, not an instruction. Length 2 keeps
+			// the caller stepping; the caller stops at CodeEnd regardless.
+			if (pc + 1 >= data.Length)
+			{
+				instruction.Opcode = pc < data.Length ? data[pc] : 0;
+				instruction.Length = 2;
+				return instruction;
+			}
+
 			int opcode = data[pc] | (data[pc + 1] << 8);
 			instruction.Opcode = opcode;
 			instruction.Op = ScriptOps.Get(opcode);
@@ -309,8 +319,24 @@ namespace FF3.ContentTool
 				return instruction;
 			}
 
+			// This table is FF3's. FF4 shares the engine and most of the numbers, but
+			// has 251 opcodes of its own and a string pool where FF3 keeps code, and
+			// either can put a known opcode where its operands would run past the end
+			// of the file. That used to be an index exception, which the server turned
+			// into a 500 for the whole map - script, scene, placements, everything -
+			// when only the listing was in doubt. Now a read that would not fit makes
+			// the instruction a bare opcode, and the rest still opens.
 			foreach (Operand kind in instruction.Op.Operands)
 			{
+				int need = kind == Operand.Byte ? 1 : kind == Operand.Word ? 2
+					: kind == Operand.Dword ? 4 : 1;
+				if (at + need > data.Length)
+				{
+					instruction.Op = null;
+					instruction.Operands.Clear();
+					instruction.Length = 2;
+					return instruction;
+				}
 				switch (kind)
 				{
 					case Operand.Byte:

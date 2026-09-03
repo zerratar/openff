@@ -218,6 +218,7 @@ namespace FF3.ContentTool.Editor
 						language = _messages.Language,
 						messagePrefix = _messages.Prefix,
 						content = _workspace.Kind,
+						game = _workspace.Game,
 						contentDirectory = _workspace.ContentDirectory,
 						project = _project == null ? null : new
 						{

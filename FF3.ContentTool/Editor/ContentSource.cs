@@ -91,8 +91,32 @@ namespace FF3.ContentTool.Editor
 		/// <summary>Directories that are content. Everything else in an install is not.</summary>
 		private static readonly string[] Roots = { "files", "sound" };
 
+		/// <summary>
+		/// The directory the content directories actually hang off. FF3's install has
+		/// files/ beside the executable; FF4's puts the whole tree one level down, in
+		/// EXTRACTED_DATA - its executable says so itself, "./EXTRACTED_DATA/files/".
+		/// Either way the person points at the install, and this finds the data.
+		/// </summary>
+		public static string Resolve(string root)
+		{
+			if (Roots.Any(r => Directory.Exists(Path.Combine(root, r))))
+			{
+				return root;
+			}
+			string nested = Path.Combine(root, "EXTRACTED_DATA");
+			if (Roots.Any(r => Directory.Exists(Path.Combine(nested, r))))
+			{
+				return nested;
+			}
+			return root;
+		}
+
+		/// <summary>Where the content directories are - the install, or its EXTRACTED_DATA.</summary>
+		public string Root => _root;
+
 		public LooseContentSource(string root)
 		{
+			root = Resolve(root);
 			_root = root;
 			// Case-insensitively, because the names come from game data and from a
 			// browser, and this half of the world does not agree with the other half
@@ -150,6 +174,7 @@ namespace FF3.ContentTool.Editor
 		/// <summary>Whether this looks like a loose install at all, before we commit to it.</summary>
 		public static bool Looks(string root)
 		{
+			root = Resolve(root);
 			return Roots.Any(r => Directory.Exists(Path.Combine(root, r)));
 		}
 	}

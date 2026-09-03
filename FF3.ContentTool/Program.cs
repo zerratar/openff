@@ -1262,11 +1262,13 @@ namespace FF3.ContentTool
 		private static int ListInstalls()
 		{
 			List<FF3.ContentTool.Editor.SteamInstall> found = FF3.ContentTool.Editor.SteamInstalls.Find();
+			found.AddRange(FF3.ContentTool.Editor.SteamInstalls.Find(
+				FF3.ContentTool.Editor.SteamInstalls.Ff4AppId));
 			if (found.Count == 0)
 			{
-				Console.WriteLine("no Steam copy of the game found on this machine");
-				Console.WriteLine("(looked for appmanifest_{0}.acf in every Steam library)",
-					FF3.ContentTool.Editor.SteamInstalls.AppId);
+				Console.WriteLine("no Steam copy of either game found on this machine");
+				Console.WriteLine("(looked for appmanifest_{0}.acf and appmanifest_{1}.acf in every Steam library)",
+					FF3.ContentTool.Editor.SteamInstalls.AppId, FF3.ContentTool.Editor.SteamInstalls.Ff4AppId);
 				return 1;
 			}
 			foreach (FF3.ContentTool.Editor.SteamInstall install in found)

@@ -35,11 +35,26 @@ namespace FF3.ContentTool.Editor
 
 		public string OverrideDirectory { get; }
 
-		/// <summary>Where the shipped content lives.</summary>
+		/// <summary>Where the shipped content lives - the directory that was pointed at.</summary>
 		public string ContentDirectory => _contentDirectory;
+
+		/// <summary>
+		/// Where a content name is actually a path under, for anything that writes into
+		/// the install. The same as ContentDirectory except for FF4, whose files/ is a
+		/// level down in EXTRACTED_DATA.
+		/// </summary>
+		public string LooseRoot => _source is SsamContentSource || _source is LooseContentSource
+			? LooseContentSource.Resolve(_contentDirectory) : _contentDirectory;
 
 		/// <summary>"archives" or "loose files", for anything reporting what it opened.</summary>
 		public string Kind => _source.Kind;
+
+		/// <summary>
+		/// "ff3" or "ff4". The same engine shipped both, and nearly everything reads the
+		/// same, but the .pak record schemas and the text encoding are per game, so the
+		/// few places that care ask this rather than guessing from a path.
+		/// </summary>
+		public string Game => _source is SsamContentSource ? "ff4" : "ff3";
 
 		public Workspace(string contentDirectory, string overrideDirectory)
 		{
@@ -53,6 +68,12 @@ namespace FF3.ContentTool.Editor
 			{
 				_source = new ArchiveContentSource(
 					_contentDirectory, ArchiveIndex.Load(File.ReadAllBytes(table)));
+			}
+			else if (SsamContentSource.Looks(_contentDirectory))
+			{
+				// FF4 on Steam: loose files plus the mass files its map data is
+				// bundled into. Checked before the plain loose case, which it also is.
+				_source = new SsamContentSource(_contentDirectory);
 			}
 			else if (LooseContentSource.Looks(_contentDirectory))
 			{
