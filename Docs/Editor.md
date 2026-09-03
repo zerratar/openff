@@ -131,8 +131,32 @@ complete; `d10_13.nmdp.lz` is a 161 byte stub whose header claims 64 812 vertice
 there is nothing in it to read. A model's `notes` in `/api/model` say what, if anything,
 the reader stepped over.
 
-Writing into an FF4 install is not wired yet: an edited script or hich would have to
-go back inside its mass file, and that is the next piece.
+### Installing into a mass file
+
+An FF4 edit to a script, a placement file, a map's dialogue or its `.pak` goes back
+inside its container, so **Install into the game** rebuilds the container. The rule it
+is rebuilt by was measured against every entry of every container FF4 ships: entries in
+directory order, each starting at `roundup(size + 1, 32)` after the last, the first at
+offset 0, whatever trails the last entry kept as it was. With no replacements that
+reproduces all nineteen containers the editor writes to byte for byte.
+
+The container is the unit. Its pristine copy is taken once, into the same backup
+directory as loose files; every install rebuilds from that copy plus everything the
+project has recorded against the container, compressing an entry the way it was
+compressed; uninstall puts the pristine copy back; reverting one edit rebuilds from the
+copy plus the others that remain. A container whose bytes are neither the shipped ones
+nor the ones we wrote is left alone and said so - the game updated it.
+
+Two kinds of container are read but never written. Six - `EFFECT`, `FACE`, `BTL_CAMERA`,
+`EVT_CAMERA`, `MOTION_MENU`, `SIGHTRO`, `DEBUGJUMP` - have a different layout, with 504
+bytes after the directory; `Ssam.CanRepack` refuses them rather than guess. Four -
+`NAVIMAP`, `STAGEMNG_D`, `STAGEMNG_T`, `battle_map` - carry offsets past their own end,
+and the reader skips them entirely; that is 1 934 entries, mostly `.namp.lz` animations,
+and it is the next reading gap to close.
+
+`Tools/test_mod_ssam.py` runs the whole cycle against a copy of FF4's own
+`CAST_SCRIPT.dat`: install, reinstall, uninstall, revert one of two, and a container
+changed since.
 
 ## Two content layouts
 

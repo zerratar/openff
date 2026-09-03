@@ -42,6 +42,22 @@ namespace FF3.ContentTool.Editor
 
 		/// <summary>Whether the install had this file before. If not, uninstall deletes it.</summary>
 		public bool Replaced { get; set; }
+
+		/// <summary>
+		/// The mass file this entry was written into, as a content name
+		/// ("files/CAST_SCRIPT.dat"), or null for a loose file. For these, Wrote is the
+		/// hash of the whole container as written, shared by every entry in it - the
+		/// container is the unit that is compared, backed up and restored.
+		/// </summary>
+		public string Container { get; set; }
+
+		/// <summary>The entry's own name inside the container, "d01_01.script.lz".</summary>
+		public string EntryName { get; set; }
+
+		public bool Compressed { get; set; }
+
+		/// <summary>Hash of the project's bytes this entry was built from.</summary>
+		public string EntryHash { get; set; }
 	}
 
 	internal sealed class ModStatus
@@ -192,7 +208,7 @@ namespace FF3.ContentTool.Editor
 				Edited = Edits(workspace)
 			};
 
-			if (workspace.Kind != "loose files")
+			if (!workspace.Installable)
 			{
 				status.CanInstall = false;
 				status.Why = "this build reads the override directory itself, "
@@ -205,16 +221,39 @@ namespace FF3.ContentTool.Editor
 
 			foreach (string name in status.Edited)
 			{
-				string mine = HashOf(Path.Combine(workspace.OverrideDirectory,
+				manifest.TryGetValue(name, out InstalledFile record);
+
+				if (workspace.TryLocateInContainer(name, out string container, out _, out _))
+				{
+					// Inside a mass file. Installed means the container is the one we
+					// wrote and it was built with this edit's current bytes.
+					string liveContainer = HashOf(InstallPath(workspace, container));
+					string mine = HashOf(Path.Combine(workspace.OverrideDirectory,
+						name.Replace('/', Path.DirectorySeparatorChar)));
+					if (record != null && liveContainer == record.Wrote && record.EntryHash == mine)
+					{
+						status.Installed.Add(name);
+					}
+					else if (record != null && liveContainer != null && liveContainer != record.Wrote)
+					{
+						status.Changed.Add(name);
+					}
+					else
+					{
+						status.Pending.Add(name);
+					}
+					continue;
+				}
+
+				string mineLoose = HashOf(Path.Combine(workspace.OverrideDirectory,
 					name.Replace('/', Path.DirectorySeparatorChar)));
 				string live = HashOf(InstallPath(workspace, name));
 
-				if (live != null && live == mine)
+				if (live != null && live == mineLoose)
 				{
 					status.Installed.Add(name);
 				}
-				else if (manifest.TryGetValue(name, out InstalledFile record)
-					&& live != null && live != record.Wrote)
+				else if (record != null && live != null && live != record.Wrote)
 				{
 					// Installed once; something else has written it since.
 					status.Changed.Add(name);
@@ -243,7 +282,7 @@ namespace FF3.ContentTool.Editor
 		{
 			ModResult result = new ModResult();
 
-			if (workspace.Kind != "loose files")
+			if (!workspace.Installable)
 			{
 				result.Error = "this build reads the override directory itself, "
 					+ "so there is nothing to install";
@@ -259,7 +298,51 @@ namespace FF3.ContentTool.Editor
 
 			Dictionary<string, InstalledFile> manifest = Manifest(workspace);
 
+			// Edits that live inside a mass file are installed a container at a time:
+			// every such edit is recorded, then each affected container is rebuilt once
+			// from its pristine copy plus everything recorded against it.
+			HashSet<string> containers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			List<string> loose = new List<string>();
 			foreach (string name in edits)
+			{
+				if (workspace.TryLocateInContainer(name, out string container, out string entryName, out bool compressed))
+				{
+					string from = Path.Combine(workspace.OverrideDirectory,
+						name.Replace('/', Path.DirectorySeparatorChar));
+					manifest[name] = new InstalledFile
+					{
+						Name = name,
+						Container = container,
+						EntryName = entryName,
+						Compressed = compressed,
+						EntryHash = Hash(File.ReadAllBytes(from)),
+						Replaced = true
+					};
+					containers.Add(container);
+				}
+				else
+				{
+					loose.Add(name);
+				}
+			}
+			foreach (string container in containers)
+			{
+				string problem = RebuildContainer(workspace, manifest, container);
+				if (problem != null)
+				{
+					result.Notes.Add(problem);
+					continue;
+				}
+				foreach (InstalledFile record in manifest.Values)
+				{
+					if (string.Equals(record.Container, container, StringComparison.OrdinalIgnoreCase))
+					{
+						result.Wrote.Add(record.Name);
+					}
+				}
+			}
+
+			foreach (string name in loose)
 			{
 				string from = Path.Combine(workspace.OverrideDirectory,
 					name.Replace('/', Path.DirectorySeparatorChar));
@@ -308,6 +391,12 @@ namespace FF3.ContentTool.Editor
 		private static void TakeBack(Workspace workspace,
 			Dictionary<string, InstalledFile> manifest, InstalledFile record, ModResult result)
 		{
+			if (record.Container != null)
+			{
+				TakeBackFromContainer(workspace, manifest, record, result);
+				return;
+			}
+
 			string live = InstallPath(workspace, record.Name);
 			string here = HashOf(live);
 
@@ -369,7 +458,7 @@ namespace FF3.ContentTool.Editor
 				return result;
 			}
 
-			bool installable = workspace.Kind == "loose files";
+			bool installable = workspace.Installable;
 			Dictionary<string, InstalledFile> manifest = installable
 				? Manifest(workspace)
 				: new Dictionary<string, InstalledFile>(StringComparer.OrdinalIgnoreCase);
@@ -408,12 +497,126 @@ namespace FF3.ContentTool.Editor
 			return result;
 		}
 
+		/// <summary>
+		/// Writes a container as: its pristine copy, with every entry the manifest records
+		/// against it replaced by the project's current bytes. The pristine copy is taken
+		/// the first time and never again. Every record for the container gets the hash
+		/// of what was written, so uninstall can tell whether the game has since replaced
+		/// it. Returns a note on refusal, null on success.
+		/// </summary>
+		private static string RebuildContainer(Workspace workspace,
+			Dictionary<string, InstalledFile> manifest, string container)
+		{
+			string live = InstallPath(workspace, container);
+			string backup = BackupPath(workspace, container);
+			if (!File.Exists(live))
+			{
+				return container + " is not in the install";
+			}
+
+			List<InstalledFile> mine = manifest.Values
+				.Where(r => string.Equals(r.Container, container, StringComparison.OrdinalIgnoreCase))
+				.ToList();
+
+			// The live container must be either the shipped one or the one we wrote.
+			// Anything else means the game changed it under us, and rebuilding from
+			// our copy of the original would undo that.
+			string here = HashOf(live);
+			string wroteBefore = mine.Select(r => r.Wrote).FirstOrDefault(w => w != null);
+			if (File.Exists(backup) && wroteBefore != null && here != wroteBefore && here != HashOf(backup))
+			{
+				return container + " has changed since it was installed into - left alone";
+			}
+
+			if (!File.Exists(backup))
+			{
+				byte[] shipped = File.ReadAllBytes(live);
+				if (!Ssam.CanRepack(shipped))
+				{
+					return container + " is not laid out in a way that can be rewritten - left alone";
+				}
+				Directory.CreateDirectory(Path.GetDirectoryName(backup));
+				File.WriteAllBytes(backup, shipped);
+			}
+
+			byte[] pristine = File.ReadAllBytes(backup);
+			Dictionary<string, byte[]> replacements = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+			foreach (InstalledFile record in mine)
+			{
+				string from = Path.Combine(workspace.OverrideDirectory,
+					record.Name.Replace('/', Path.DirectorySeparatorChar));
+				if (!File.Exists(from))
+				{
+					continue;                            // reverted: falls back to the pristine entry
+				}
+				byte[] bytes = File.ReadAllBytes(from);
+				replacements[record.EntryName] = record.Compressed ? Lz.Compress(bytes) : bytes;
+			}
+
+			byte[] rebuilt = replacements.Count > 0 ? Ssam.Repack(pristine, replacements) : pristine;
+			File.WriteAllBytes(live, rebuilt);
+			string wrote = Hash(rebuilt);
+			foreach (InstalledFile record in mine)
+			{
+				record.Wrote = wrote;
+			}
+			return null;
+		}
+
+		private static void TakeBackFromContainer(Workspace workspace,
+			Dictionary<string, InstalledFile> manifest, InstalledFile record, ModResult result)
+		{
+			string live = InstallPath(workspace, record.Container);
+			string here = HashOf(live);
+			if (here == null)
+			{
+				result.Notes.Add(record.Container + " is already gone");
+				manifest.Remove(record.Name);
+				return;
+			}
+			if (here != record.Wrote)
+			{
+				result.Skipped.Add(record.Name);
+				return;
+			}
+
+			// Out of the set, then the container is rebuilt from the others that
+			// remain - or put back exactly as shipped when this was the last.
+			manifest.Remove(record.Name);
+			bool others = manifest.Values.Any(r =>
+				string.Equals(r.Container, record.Container, StringComparison.OrdinalIgnoreCase));
+			if (others)
+			{
+				string problem = RebuildContainer(workspace, manifest, record.Container);
+				if (problem != null)
+				{
+					result.Notes.Add(problem);
+					manifest[record.Name] = record;      // could not take it out after all
+					result.Skipped.Add(record.Name);
+					return;
+				}
+			}
+			else
+			{
+				string backup = BackupPath(workspace, record.Container);
+				if (!File.Exists(backup))
+				{
+					result.Skipped.Add(record.Name);
+					result.Notes.Add("no backup kept for " + record.Container);
+					manifest[record.Name] = record;
+					return;
+				}
+				File.Copy(backup, live, true);
+			}
+			result.Restored.Add(record.Name);
+		}
+
 		/// <summary>Puts the originals back, and removes files the mod added.</summary>
 		public static ModResult Uninstall(Workspace workspace)
 		{
 			ModResult result = new ModResult();
 
-			if (workspace.Kind != "loose files")
+			if (!workspace.Installable)
 			{
 				result.Error = "nothing was installed - this build reads the override "
 					+ "directory itself";

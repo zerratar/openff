@@ -56,6 +56,26 @@ namespace FF3.ContentTool.Editor
 		/// </summary>
 		public string Game => _source is SsamContentSource ? "ff4" : "ff3";
 
+		/// <summary>
+		/// Whether a content name is served out of a mass file rather than a loose
+		/// file, and which. Anything that installs an edit has to know, because the
+		/// edit goes back inside the container rather than beside it.
+		/// </summary>
+		public bool TryLocateInContainer(string name, out string container, out string entryName, out bool compressed)
+		{
+			if (_source is SsamContentSource packed)
+			{
+				return packed.TryLocate(name, out container, out entryName, out compressed);
+			}
+			container = null;
+			entryName = null;
+			compressed = false;
+			return false;
+		}
+
+		/// <summary>Whether edits can be installed into this content at all - a game install, not our archives.</summary>
+		public bool Installable => _source is LooseContentSource || _source is SsamContentSource;
+
 		public Workspace(string contentDirectory, string overrideDirectory)
 		{
 			_contentDirectory = Path.GetFullPath(contentDirectory);

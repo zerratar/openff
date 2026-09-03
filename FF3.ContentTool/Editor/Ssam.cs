@@ -41,6 +41,118 @@ namespace FF3.ContentTool.Editor
 		private const int RecordSize = 40;
 		private const int NameSize = 32;
 
+		/// <summary>
+		/// Entries sit at 32 byte strides with at least one byte between them - the
+		/// next starts at roundup(size + 1, 32). Measured against every entry of the
+		/// twenty-three containers whose first entry is at offset 0; it is the only
+		/// rule that fits all of them, and roundup(size, 32) is not, because an entry
+		/// that is already a multiple of 32 still gets a full 32 bytes of gap.
+		/// </summary>
+		private const int Stride = 32;
+
+		private static int Padded(int size)
+		{
+			return (size + 1 + Stride - 1) / Stride * Stride;
+		}
+
+		/// <summary>
+		/// Whether this container is laid out the way Repack lays one out: first entry at
+		/// offset 0, entries in order, every gap the stride rule's. Six of FF4's thirty
+		/// have a different shape - a 504 byte gap after the directory - and four carry
+		/// offsets past their own end. Those are read where they can be and never
+		/// written; a container this cannot reproduce byte for byte is not one to
+		/// rewrite behind somebody's back.
+		/// </summary>
+		public static bool CanRepack(byte[] data)
+		{
+			List<SsamEntry> entries;
+			try
+			{
+				entries = Read(data);
+			}
+			catch (InvalidDataException)
+			{
+				return false;
+			}
+			if (entries.Count == 0)
+			{
+				return false;
+			}
+			int directoryEnd = HeaderSize + RecordSize * entries.Count;
+			if (entries[0].Offset != directoryEnd)
+			{
+				return false;
+			}
+			for (int i = 0; i + 1 < entries.Count; i++)
+			{
+				if (entries[i + 1].Offset != entries[i].Offset + Padded(entries[i].Size))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/// <summary>
+		/// The container with the given entries' bytes replaced, everything else - the
+		/// order, the names, the padding rule, whatever trails the last entry - as it
+		/// was. Names not in the container are an error rather than an addition: a
+		/// mass file's entry count is what its game expects to find.
+		/// </summary>
+		public static byte[] Repack(byte[] data, IReadOnlyDictionary<string, byte[]> replacements)
+		{
+			if (!CanRepack(data))
+			{
+				throw new InvalidDataException("this mass file is not laid out in a way that can be rewritten");
+			}
+			List<SsamEntry> entries = Read(data);
+			HashSet<string> names = new HashSet<string>(entries.Select(e => e.Name), StringComparer.OrdinalIgnoreCase);
+			foreach (string name in replacements.Keys)
+			{
+				if (!names.Contains(name))
+				{
+					throw new InvalidDataException("no entry called " + name + " in this mass file");
+				}
+			}
+
+			SsamEntry last = entries[entries.Count - 1];
+			byte[] tail = data.Skip(last.Offset + last.Size).ToArray();
+
+			int directoryEnd = HeaderSize + RecordSize * entries.Count;
+			using MemoryStream body = new MemoryStream();
+			List<(int Offset, int Size)> placed = new List<(int, int)>(entries.Count);
+			foreach (SsamEntry entry in entries)
+			{
+				byte[] bytes = replacements.TryGetValue(entry.Name, out byte[] replaced)
+					? replaced
+					: data.Skip(entry.Offset).Take(entry.Size).ToArray();
+				placed.Add(((int)body.Position, bytes.Length));
+				body.Write(bytes, 0, bytes.Length);
+				int pad = Padded(bytes.Length) - bytes.Length;
+				for (int i = 0; i < pad; i++)
+				{
+					body.WriteByte(0);
+				}
+			}
+			// The original does not pad after its last entry the way the stride would;
+			// it carries whatever bytes it carries. Those go back as they were.
+			body.SetLength(placed[placed.Count - 1].Offset + placed[placed.Count - 1].Size);
+			body.Write(tail, 0, tail.Length);
+
+			byte[] result = new byte[directoryEnd + body.Length];
+			Array.Copy(data, 0, result, 0, HeaderSize);
+			for (int i = 0; i < entries.Count; i++)
+			{
+				int at = HeaderSize + RecordSize * i;
+				BitConverter.GetBytes((uint)placed[i].Offset).CopyTo(result, at);
+				BitConverter.GetBytes((uint)placed[i].Size).CopyTo(result, at + 4);
+				Array.Copy(data, at + 8, result, at + 8, NameSize);
+			}
+			body.Position = 0;
+			body.Read(result, directoryEnd, (int)body.Length);
+			return result;
+		}
+
 		public static bool Looks(byte[] data)
 		{
 			return data != null && data.Length >= 16
@@ -125,7 +237,11 @@ namespace FF3.ContentTool.Editor
 				{
 					continue;
 				}
-				_containers[path] = data;
+				// Containers are known by their content name - "files/CAST_SCRIPT.dat" -
+				// the same way everything else is, so that whatever installs into one
+				// can find it under the install root like any other file.
+				string containerName = "files/" + Path.GetFileName(path);
+				_containers[containerName] = data;
 
 				foreach (SsamEntry entry in entries)
 				{
@@ -137,7 +253,7 @@ namespace FF3.ContentTool.Editor
 					// the first container to claim a name keeps it.
 					if (!_packed.ContainsKey(exposed))
 					{
-						_packed[exposed] = (path, entry, compressed);
+						_packed[exposed] = (containerName, entry, compressed);
 					}
 				}
 			}
@@ -206,17 +322,25 @@ namespace FF3.ContentTool.Editor
 			return false;
 		}
 
-		/// <summary>The container an exposed name lives in, for anything that needs to write it back.</summary>
-		public bool TryLocate(string name, out string container, out SsamEntry entry)
+		/// <summary>
+		/// The container an exposed name lives in, for anything that needs to write it
+		/// back: the container's path, the entry's own name inside it, and whether that
+		/// entry is LZ compressed - so the bytes going in are compressed the same way.
+		/// False for a name that is loose, which the game reads in preference anyway.
+		/// </summary>
+		public bool TryLocate(string name, out string container, out string entryName, out bool compressed)
 		{
-			if (_packed.TryGetValue(name, out (string Container, SsamEntry Entry, bool Compressed) where))
+			if (!_loose.TryRead(name, out _)
+				&& _packed.TryGetValue(name, out (string Container, SsamEntry Entry, bool Compressed) where))
 			{
 				container = where.Container;
-				entry = where.Entry;
+				entryName = where.Entry.Name;
+				compressed = where.Compressed;
 				return true;
 			}
 			container = null;
-			entry = null;
+			entryName = null;
+			compressed = false;
 			return false;
 		}
 	}
