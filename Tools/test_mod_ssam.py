@@ -9,6 +9,7 @@ project's bytes, the pristine container must be kept once, uninstall must give b
 shipped bytes exactly, reverting one of two edits must rebuild from the pristine copy
 plus the other, and a container the game has changed since must be left alone.
 
+The 512-stride layout is covered too, with a portrait installed into FACE.dat.
 Runs against a fake install built from copies; the real one is never touched.
 """
 import hashlib
@@ -195,6 +196,32 @@ finally:
         server.wait(timeout=10)
     except Exception:
         server.kill()
+
+print()
+print('== the 512-stride layout: a portrait installed into FACE.dat ==')
+shutil.rmtree(MOD, ignore_errors=True); shutil.rmtree(BACKUP, ignore_errors=True)
+os.makedirs(os.path.join(MOD, 'files'))
+shutil.copy(os.path.join(SRC, 'FACE.dat'), FILES)
+FACE = os.path.join(FILES, 'FACE.dat')
+face_shipped = open(FACE, 'rb').read()
+face_entries = entries(FACE)
+first = sorted(face_entries)[0]                       # e.g. m095_001.face.lz
+exposed = 'files/' + first[:-3]
+portrait = decompress(face_entries[first])
+edited_face = bytes(portrait[:-1]) + bytes([portrait[-1] ^ 0x5A])
+os.makedirs(os.path.dirname(os.path.join(MOD, exposed)), exist_ok=True)
+open(os.path.join(MOD, exposed), 'wb').write(edited_face)
+code, out = run('install')
+check('install into FACE.dat succeeds', code, 0)
+face_now = entries(FACE)
+check('FACE.dat still has every entry', len(face_now), len(face_entries))
+check('edited portrait decompresses to the edit', decompress(face_now[first]) == edited_face, True)
+others = [n for n in face_entries if n != first and face_now[n] != face_entries[n]]
+check('every other portrait byte-identical', others, [])
+d = open(FACE, 'rb').read(); n = struct.unpack_from('<I', d, 4)[0]
+check('first entry still at offset 504', struct.unpack_from('<I', d, 8)[0], 504)
+code, out = run('uninstall')
+check('uninstall restores FACE.dat byte for byte', sha(FACE), sha(face_shipped))
 
 print()
 shutil.rmtree(HERE, ignore_errors=True)
