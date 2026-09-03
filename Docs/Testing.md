@@ -63,6 +63,8 @@ passed; these are the rest.
 | C-2 | Play from Steam | New game from C-1, walk out of Ur, talk to an NPC, open the menu | Everything the archive build does; text and sound still come from our Content (see Client-Plan stages B and C) |
 | C-3 | A project as a mod | `FF3.exe --project=<your project>` after the chest test | The Ultima Weapon chest edit is live without installing anything; the log lists the override in use |
 | C-4 | Mod folder | Copy one edited file into a folder mirroring `files/...`, `FF3.exe --mod=<folder>` | The edit is live |
+| C-5 | TrueType text | `FF3.exe --content="<Steam FF3>" --size=1600x960`, New Game, read the opening dialogue; then the same with `--text=atlas` | Sharp Arial at window resolution vs the blurry 16px atlas; the text sits in the same place in both; menus line up |
+| C-6 | A face of your own | `--font=C:\Windows\Fonts\georgia.ttf` | Dialogue in Georgia; widths still consistent (right-aligned numbers in menus stay aligned) |
 
 ## What "works" looks like in the log
 

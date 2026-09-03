@@ -35,7 +35,7 @@ formats from our archives when a Steam install is in front (`--steam-art` to try
 Steam's). Also missing from Steam: 44 files for screens it has no use for (about, link
 icons); the fallback covers them.
 
-## Stage B - TrueType text
+## Stage B - TrueType text (done)
 
 The Steam build ships `SE-EYEGLCOB.TTF` (the FF face), `TBUDRGoStd-Bold.otf`, `arial`,
 `unifont`, `simsun`, `mona`; the phone build baked two sizes into 256-page atlases and
@@ -45,6 +45,14 @@ a TrueType rasteriser (FontStashSharp is the MonoGame-native choice), rendering 
 window's real resolution with the same metrics the atlases had, so layout does not
 move. `--text=atlas` keeps the old path for A/B. Fonts are found in the Steam install
 or beside our content; a mod can ship its own.
+
+Done in `Compat/TrueTypeText.cs`: every string the game draws goes through
+`Graphics.DrawString`/`StringWidth`, and those ask TrueTypeText first. The face is
+rasterised at `size x 1.15 x window scale` (the atlas glyphs ran a little large) and
+drawn back down, so text is sharp at 1600x960 and lays out where it did. Faces: `--font`,
+then the install the content came from (Arial, Arial Unicode, TBUDRGothic, unifont - one
+FontSystem, per-glyph fallback), then `Content/Fonts`, then Windows' Arial. The title and
+its menu are unaffected - they are baked art, not text.
 
 ## Stage C - native sound
 

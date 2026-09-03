@@ -73,6 +73,8 @@ internal static partial class GlobalScope
         public void LoadContent()
         {
             spBatch = new SpriteBatch(gdm.GraphicsDevice);
+            // PORT: TrueType text when a face can be found; the atlases otherwise.
+            FF3.TrueTypeText.Initialise(gdm.GraphicsDevice);
             effect = new BasicEffect(gdm.GraphicsDevice);
             effect.VertexColorEnabled = true;
             color = Color.White;
@@ -172,6 +174,10 @@ internal static partial class GlobalScope
 
         public float StringWidth(string text, int iSize)
         {
+            if (FF3.TrueTypeText.Enabled)
+            {
+                return FF3.TrueTypeText.Width(text, iSize) * scale.X;
+            }
             int length = text.Length;
             float num = 0f;
             for (int i = 0; i < length; i++)
@@ -264,6 +270,8 @@ internal static partial class GlobalScope
             // is what the 3D path is drawing into as well - so the two cannot disagree,
             // and if something has narrowed it this follows.
             Viewport view = gdm.GraphicsDevice.Viewport;
+            FF3.TrueTypeText.Initialise(gdm.GraphicsDevice);
+            FF3.TrueTypeText.SetViewportScale(view.Height / TextSpaceHeight);
             Matrix fit = Matrix.CreateScale(
                 view.Width / TextSpaceWidth,
                 view.Height / TextSpaceHeight,
@@ -283,6 +291,12 @@ internal static partial class GlobalScope
         {
             if (text == null)
             {
+                return;
+            }
+            if (FF3.TrueTypeText.Enabled)
+            {
+                FF3.TrueTypeText.Draw(spBatch, text, x, y, color, rotation, origin, scale, flip, depth, iSize);
+                depth += 0.001f;
                 return;
             }
             int length = text.Length;
