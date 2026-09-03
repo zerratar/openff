@@ -143,6 +143,23 @@ own script running through the shared command table. The pieces:
   `--noscript` / `--noanim` isolate a map from its scripts and animations - the tools that
   found the black screen (the camera treats an all-zero position as unset).
 
+Commands, as of the latest count: 214 of FF4's 500 run FF3's handler - the same
+command at the same number (200), the same command renamed (`startMessage` is FF3's
+`startMessage2`, `flagON` is `flagOn`) or the same command with extra trailing operands
+FF3's handler never read (camera moves, BGM, inn, select wait: run it, step past the rest).
+
+Talking to an NPC needs contact: FF3 starts a talk when the tapped character is also the
+one the leader is pressing against (`ColType & 2`), and Baron's Tellah stands behind an
+invisible barrier object at the game's start, so the tap registers (`--probe` logs
+`touch: ... HIT`) but no talk begins - not an FF4 gap; test it on an NPC in the open.
+
+FF4's event maps (`e01_00`, the Red Wings over Baron) have no parameter file at all; the
+map-parameter accessors answer with a blank record there. They render, but their
+cutscenes run on FF4's own cutscene engine - the `ce_*` family (`ce_StartEvent`,
+`ce_SetupCharacter`, `ce_PlayCameraMotion` over `.dsc` camera files, `ce_SetupExpression`,
+`ce_ShadowSetting`...), some thirty FF4-only commands - which is a subsystem to write,
+not a mapping.
+
 **Next, in order:** implement the FF4-only commands Baron and the opening use
 (`setInsideMapJump` as an exit, `_3DS*` sprites, the name window, `startMessage`,
 `bindMotion`'s FF4 semantics); FF4's `.msd` text into the message window; the 26

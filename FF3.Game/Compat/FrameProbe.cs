@@ -74,6 +74,16 @@ namespace FF3
 				+ " shapes drawn with a zero matrix; currentMtx=[" + c + "] converted M11=" + m.M11 + " M22=" + m.M22 + " M44=" + m.M44 + " M41=" + m.M41);
 		}
 
+		/// <summary>A tap tested against a character's touch sphere.</summary>
+		public static void NoteTouch(int x, int y, string model, GlobalScope.VecFx32 at, int radius, bool hit)
+		{
+			if (!_enabled)
+			{
+				return;
+			}
+			Log.Write(LogChannel.General, "touch: (" + x + "," + y + ") vs " + model + " at " + Fx(at) + " r=" + (radius / 4096f).ToString("0.#") + (hit ? " HIT" : " miss"));
+		}
+
 		private static float _rawMax;
 		private static int _zeroMatrices;
 		private static string _lastRaw = "";

@@ -219,17 +219,23 @@ internal static partial class GlobalScope
 								/// PORT: a table shorter than the id asked for answers with its last record
 								/// rather than throwing - FF4 maps carry none of these tables yet.
 								/// </summary>
-								private static T Clamp<T>(T[] table, int _id) where T : class
+								private static T Clamp<T>(T[] table, int _id) where T : class, new()
 								{
 									if (table == null || table.Length == 0)
 									{
-										return null;
+										// A map with no parameter file at all (FF4's event maps): a blank record.
+										return Blank<T>.Value;
 									}
 									if (_id < 0)
 									{
 										_id = 0;
 									}
 									return table[_id < table.Length ? _id : table.Length - 1];
+								}
+
+								private static class Blank<T> where T : class, new()
+								{
+									public static readonly T Value = new T();
 								}
 
 								public bool isLoaded()

@@ -823,7 +823,9 @@ internal static partial class GlobalScope
 					{
 						ds.pri.DSSphere pl_reuse_sphere = pl.pl_reuse_sphere;
 						pl_reuse_sphere.set(cBasePlayer2.getPosition(), cBasePlayer2.getTchRadius());
-						if (ds.pri.PrimitiveTest.testRaySphere(l, pl_reuse_sphere, null, null))
+						bool touched = ds.pri.PrimitiveTest.testRaySphere(l, pl_reuse_sphere, null, null);
+						FF3.FrameProbe.NoteTouch(x, y, cBasePlayer2.getModelName(), cBasePlayer2.getPosition(), cBasePlayer2.getTchRadius(), touched);
+						if (touched)
 						{
 							cBasePlayer.getColType_or(4);
 							break;
