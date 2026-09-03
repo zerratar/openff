@@ -339,7 +339,7 @@ async function refreshProject() {
     projectState = { project: status.project, targets, mod };
     state.language = status.language || 'en';
     state.messagePrefix = status.messagePrefix || `${state.language}.lproj/`;
-    $('#status').textContent =
+    $('#summary').textContent =
       `${status.files} files  ·  ${status.contentDirectory}`;
     showModState(mod);
   } catch (error) {

@@ -21,7 +21,30 @@ async function api(path, body) {
     const detail = await response.json().catch(() => ({ error: response.statusText }));
     throw new Error(detail.error || response.statusText);
   }
-  return response.json();
+  const result = await response.json();
+
+  // Anything that saved has changed what the project holds, so the Project menu is
+  // now out of date - "Install into the game" would stay greyed out until the page
+  // was reloaded, which is exactly how this was found. Central rather than in each
+  // editor, because there are seven of them and the next one would forget.
+  if (path.includes('/save') && result && result.ok !== false) {
+    projectChanged();
+  }
+  return result;
+}
+
+/// Marks the project as needing a look, once per turn of the event loop.
+///
+/// A single save is several calls in some editors, and each one would otherwise
+/// re-read the whole override directory.
+let projectPending = false;
+function projectChanged() {
+  if (projectPending || typeof refreshProject !== 'function') return;
+  projectPending = true;
+  setTimeout(() => {
+    projectPending = false;
+    refreshProject();
+  }, 0);
 }
 
 function say(message, tone) {

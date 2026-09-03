@@ -12,6 +12,10 @@
   <!-- Built by project.js from whatever is open. -->
   <nav id="menubar"></nav>
   <span id="project-name" title="File &#9656; New project&#8230;">no project</span>
+  <!-- What is open. Its own element, because #status belongs to say(): the two used
+       to share one and whichever spoke last won, so a save confirmation and the
+       workspace summary kept wiping each other out. -->
+  <span id="summary"></span>
   <span id="status"></span>
   <!--
     Whether the edits are in the game yet. Only a loose install can be installed

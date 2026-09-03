@@ -317,33 +317,73 @@ namespace FF3.ContentTool.Editor
 			error = null;
 			string[] lines = source.Replace("\r\n", "\n").Split('\n');
 
-			// Whichever form this map uses, and where the last one of them is. The two
-			// that take a position are not copied - a new character takes its position
-			// from its row, which is what the plain forms do.
+			// Which block, and then where in it. Both halves matter.
+			//
+			// A map script is several labelled blocks, and only one of them is the map's
+			// init - the one that runs every time you walk in. The others are cutscenes,
+			// and a boot call in one of those runs once, or never again after the event
+			// has been seen. This used to anchor on the last boot call anywhere in the
+			// file, which is the init block in 199 of the 283 maps that boot anything
+			// and a cutscene in the rest.
+			//
+			// d01_05 is one of the rest, and it is the first map you can walk around, so
+			// it is what somebody tries first: its init is cast1_main, which boots casts
+			// 21 to 26 and sets their treasure, while the last boot in the file is in the
+			// opening cutscene, past a name entry and an event battle. A chest added
+			// there appears on a new game and never on a loaded save.
+			//
+			// The first boot call is the better anchor - it is in cast1_main in 251 of
+			// those 283 maps, against 199 for the last - and setTreasureItem agrees: it
+			// sits in cast1_main in 374 of the places the shipped maps use it. So: find
+			// the block the first boot is in, and insert after the last boot in that same
+			// block, which keeps the new one beside its siblings.
+			int firstBoot = -1;
 			int lastBoot = -1;
+			string bootBlock = null;
+			string block = null;
 			string form = "bootCharacter";
+
 			for (int i = 0; i < lines.Length; i++)
 			{
 				string line = lines[i].TrimStart();
-				if (line.StartsWith("bootCharacter(", StringComparison.Ordinal))
+
+				// A label on its own line opens a block: "cast1_main:", "loc_0208:".
+				if (line.EndsWith(":", StringComparison.Ordinal)
+					&& line.IndexOf(' ') < 0 && line.IndexOf('(') < 0)
 				{
-					lastBoot = i;
-					form = "bootCharacter";
+					block = line.Substring(0, line.Length - 1);
+					continue;
 				}
-				else if (line.StartsWith("bootPlainCharacter(", StringComparison.Ordinal))
+
+				bool plain = line.StartsWith("bootCharacter(", StringComparison.Ordinal);
+				bool named = line.StartsWith("bootPlainCharacter(", StringComparison.Ordinal);
+				bool placed = line.StartsWith("bootCharacter_AbsoluteCoordination(", StringComparison.Ordinal)
+					|| line.StartsWith("bootCharacterAsTopPlayer(", StringComparison.Ordinal);
+
+				if (!plain && !named && !placed)
 				{
-					lastBoot = i;
-					form = "bootPlainCharacter";
+					continue;
 				}
-				else if (lastBoot < 0
-					&& (line.StartsWith("bootCharacter_AbsoluteCoordination(", StringComparison.Ordinal)
-						|| line.StartsWith("bootCharacterAsTopPlayer(", StringComparison.Ordinal)))
+
+				if (firstBoot < 0)
 				{
-					// Somewhere to put it, when the map only ever places characters
-					// explicitly. The new one still boots from its row.
+					// The two that take a position are not copied - a new character
+					// takes its position from its row - but they still say which block
+					// this map does its booting in.
+					firstBoot = i;
+					bootBlock = block;
+					if (plain) form = "bootCharacter";
+					else if (named) form = "bootPlainCharacter";
+				}
+
+				if (block == bootBlock)
+				{
 					lastBoot = i;
+					if (plain) form = "bootCharacter";
+					else if (named) form = "bootPlainCharacter";
 				}
 			}
+
 			if (lastBoot < 0)
 			{
 				error = "this map never boots a character, so there is nowhere obvious "
