@@ -8,8 +8,9 @@
 // in the editor is a mod here with no copy step.
 //
 //   --content=<dir>[;<dir>]    our Content, or a Steam install; more directories are
-//                              asked in turn for what the first lacks. A Steam install
-//                              on its own gets our Content behind it automatically.
+//                              asked in turn for what the first lacks. Nothing is added
+//                              behind a Steam install on its own: the client has to run
+//                              from the game people bought and nothing else.
 //   --mod=<dir>[;<dir>...]     mod folders mirroring the game's names, first wins
 //   --project=<name|dir>       an editor project: its edits are the mods
 //   --content-override=<dir>   the old single override directory; still honoured
@@ -59,19 +60,6 @@ namespace FF3
 				{
 					_chain.AddFallback(fallback);
 				}
-				// Steam FF3's 2D art is drawn at other sizes in a coordinate space of its
-				// own (the title logo comes out a third too big), so with our archives
-				// behind a Steam install the 2D formats come from ours. --steam-art tries
-				// Steam's regardless, for anyone working on that.
-				if (_chain.Shipped is LooseContentSource && _chain.Fallbacks.Count > 0
-					&& string.IsNullOrEmpty(Options.Get("steam-art")))
-				{
-					foreach (string extension in new[] { ".NCGR", ".NCBR", ".NCER", ".NSCR", ".NANR", ".NCLR" })
-					{
-						_chain.PreferFallbackExtensions.Add(extension);
-					}
-					Log.Write(LogChannel.File, "2D art (NCGR/NCBR/NCER/NSCR/NANR/NCLR) taken from our archives; --steam-art to use Steam's");
-				}
 			}
 			catch (Exception ex)
 			{
@@ -85,9 +73,9 @@ namespace FF3
 		}
 
 		/// <summary>
-		/// The content roots behind the first one: the rest of --content's list, and, when
-		/// the first is a game install, our own Content - the Steam build of FF3 does not
-		/// ship the files for screens it has no use for, and the game still asks for them.
+		/// The content roots behind the first one: the rest of --content's list, in order.
+		/// Nothing is added on its own - a Steam install has to be enough by itself, and
+		/// mixing content is something a person asks for explicitly.
 		/// </summary>
 		private static IEnumerable<string> Fallbacks(string root)
 		{
@@ -96,12 +84,6 @@ namespace FF3
 			if (!string.IsNullOrEmpty(configured))
 			{
 				roots.AddRange(configured.Split(';').Select(r => r.Trim().Trim('"')).Where(r => r.Length > 0).Skip(1));
-			}
-			string ours = ContentLocator.FindContentRoot();
-			if (ours != null && !string.Equals(Path.GetFullPath(ours), root, StringComparison.OrdinalIgnoreCase)
-				&& !roots.Any(r => string.Equals(Path.GetFullPath(r), Path.GetFullPath(ours), StringComparison.OrdinalIgnoreCase)))
-			{
-				roots.Add(ours);
 			}
 			return roots.Where(ContentChain.Looks);
 		}

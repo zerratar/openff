@@ -32,6 +32,62 @@ internal static partial class GlobalScope
 
 		private ushort attr6;
 
+		/// <summary>
+		/// PORT: the rectangle on the sheet, when it is not the drawn size. -1 means "the
+		/// same as w and h", which is every cell the phone build shipped; SteamCells sets
+		/// these when the phone geometry is drawn over one of Steam's larger sheets.
+		/// </summary>
+		public short srcW = -1;
+		public short srcH = -1;
+
+		public void set(short x, short y, short w, short h, short u, short v, short flags, short sw, short sh)
+		{
+			attr0 = (ushort)x; attr1 = (ushort)y; attr2 = (ushort)w; attr3 = (ushort)h;
+			attr4 = (ushort)u; attr5 = (ushort)v; attr6 = (ushort)flags;
+			srcW = sw; srcH = sh;
+		}
+
+		/// <summary>
+		/// PORT: keeps the sheet rectangle the file gave (u, v and its size) as the source
+		/// and places the drawn quad elsewhere, at another size. Used to draw the phone's
+		/// layout from Steam's sheets.
+		/// </summary>
+		public void place(short x, short y, short w, short h, short flags)
+		{
+			if (srcW <= 0 || srcH <= 0)
+			{
+				srcW = (short)attr2; srcH = (short)attr3;
+			}
+			attr0 = (ushort)x; attr1 = (ushort)y; attr2 = (ushort)w; attr3 = (ushort)h; attr6 = (ushort)flags;
+		}
+
+		/// <summary>Source width and height: the explicit ones, or the drawn size.</summary>
+		public void source(out short sw, out short sh)
+		{
+			sw = srcW > 0 ? srcW : (short)attr2;
+			sh = srcH > 0 ? srcH : (short)attr3;
+		}
+
+		/// <summary>Nine shorts per entry - the seven attributes and the source size - for the BG path.</summary>
+		public static void copyWithSource(short[] aDst, NNSG2dCellOAMAttrData[] aSrc, int count)
+		{
+			for (int i = 0; i < count; i++)
+			{
+				aSrc[i].copy(aDst, i * 9, 7);
+				aSrc[i].source(out aDst[i * 9 + 7], out aDst[i * 9 + 8]);
+			}
+		}
+
+		private void copy(short[] aDst, int at, int count)
+		{
+			short[] tmp = new short[7];
+			copy(tmp, 14);
+			for (int i = 0; i < count; i++)
+			{
+				aDst[at + i] = tmp[i];
+			}
+		}
+
 		public void parse(ArrayReader reader)
 		{
 			attr0 = reader.readUInt16();

@@ -10521,7 +10521,7 @@ internal static partial class GlobalScope
 
 						internal static NNSG2dCellData NNS_G2dGetCellDataByIdx(NNSG2dCellDataBank pCellData, ushort idx)
 						{
-							if (pCellData != null)
+							if (pCellData != null && pCellData.pCellDataArrayHead != null && idx < pCellData.pCellDataArrayHead.Length)
 							{
 								return pCellData.pCellDataArrayHead[idx];
 							}
@@ -10530,7 +10530,8 @@ internal static partial class GlobalScope
 
 						internal static NNSG2dAnimSequenceData NNS_G2dGetAnimSequenceByIdx(NNSG2dAnimBankData pAnimBank, ushort idx)
 						{
-							if (pAnimBank != null)
+							// PORT: a bank the install does not ship is empty; asking it for a sequence yields none.
+							if (pAnimBank != null && pAnimBank.pSequenceArrayHead != null && idx < pAnimBank.pSequenceArrayHead.Length)
 							{
 								return pAnimBank.pSequenceArrayHead[idx];
 							}
@@ -10545,6 +10546,12 @@ internal static partial class GlobalScope
 						internal static int NNS_G2dGetUnpackedBank(Array pFile, string type, Array ppBank)
 						{
 							byte[] array = (byte[])pFile;
+							// PORT: a file the content does not have. The Steam build ships no
+							// about screen and no achievement icons; the game asks anyway.
+							if (array == null || array.Length < 16)
+							{
+								return 0;
+							}
 							byte[] bytes = StringUtil.getBytes(type);
 							int num = 0;
 							int num2 = num + ArrayReader.packInt32(array, num + 8);
@@ -10561,6 +10568,7 @@ internal static partial class GlobalScope
 
 						internal static int NNS_G2dGetUnpackedScreenData(Array pNscrFile, NNSG2dScreenData ppScrData)
 						{
+							if (pNscrFile == null || pNscrFile.Length < 16) return 0;
 							byte[] array = new byte[pNscrFile.Length];
 							int num = NNS_G2dGetUnpackedBank(pNscrFile, "SCRN", array);
 							if (num != 0)
@@ -10572,6 +10580,7 @@ internal static partial class GlobalScope
 
 						internal static int NNS_G2dGetUnpackedCellBank(Array pNcerFile, NNSG2dCellDataBank ppCellBank)
 						{
+							if (pNcerFile == null || pNcerFile.Length < 16) return 0;
 							byte[] array = new byte[pNcerFile.Length];
 							if (NNS_G2dGetUnpackedBank(pNcerFile, "CEBK", array) == 0)
 							{
@@ -10583,6 +10592,7 @@ internal static partial class GlobalScope
 
 						internal static int NNS_G2dGetUnpackedAnimBank(Array pNanrFile, NNSG2dAnimBankData ppAnimBank)
 						{
+							if (pNanrFile == null || pNanrFile.Length < 16) return 0;
 							byte[] array = new byte[pNanrFile.Length];
 							if (NNS_G2dGetUnpackedBank(pNanrFile, "ABNK", array) == 0)
 							{
@@ -10594,6 +10604,7 @@ internal static partial class GlobalScope
 
 						internal static int NNS_G2dGetUnpackedCharacterData(Array pNcgrFile, NNSG2dCharacterData ppCharData)
 						{
+							if (pNcgrFile == null || pNcgrFile.Length < 16) return 0;
 							if (memcmp(pNcgrFile, "\u0089PNG", 4) == 0)
 							{
 								ppCharData.m_aPng = pNcgrFile;
@@ -10611,6 +10622,7 @@ internal static partial class GlobalScope
 
 						internal static int NNS_G2dGetUnpackedBGCharacterData(Array pNcgrFile, NNSG2dCharacterData ppCharData)
 						{
+							if (pNcgrFile == null || pNcgrFile.Length < 16) return 0;
 							if (memcmp(pNcgrFile, "\u0089PNG", 4) == 0)
 							{
 								ppCharData.m_aPng = pNcgrFile;
@@ -10646,7 +10658,7 @@ internal static partial class GlobalScope
 						{
 							pCellAnim.animCtrl.pAnimSequence = pAnimSeq;
 							pCellAnim.animCtrl.pCurrent_idx = 0;
-							pCellAnim.animCtrl.pCurrent = pAnimSeq.pAnmFrameArray[pCellAnim.animCtrl.pCurrent_idx];
+							pCellAnim.animCtrl.pCurrent = pAnimSeq?.pAnmFrameArray[pCellAnim.animCtrl.pCurrent_idx];
 							pCellAnim.animCtrl.currentTime = 0;
 							pCellAnim.animCtrl.bActive = 1;
 							NNS_G2dTickCellAnimation(pCellAnim, 0);
@@ -10664,6 +10676,10 @@ internal static partial class GlobalScope
 								return;
 							}
 							pCellAnim.animCtrl.currentTime += frames;
+							if (pCellAnim.animCtrl.pCurrent == null || pCellAnim.animCtrl.pAnimSequence == null)
+							{
+								return;
+							}
 							while (pCellAnim.animCtrl.currentTime > pCellAnim.animCtrl.pCurrent.frames << 12)
 							{
 								pCellAnim.animCtrl.currentTime -= pCellAnim.animCtrl.pCurrent.frames << 12;
@@ -11067,10 +11083,11 @@ internal static partial class GlobalScope
 									short num5 = array2[4];
 									short num6 = array2[5];
 									short num7 = array2[6];
+									pCell.pOamAttrArray[i].source(out short sw, out short sh);
 									float num8 = (((num7 & 4) != 0) ? 0.5f : 1f);
 									float num9 = (((num7 & 8) != 0) ? 0.6f : 1f);
 									float num10 = (((num7 & 8) != 0) ? (2f / 3f) : 1f);
-									drawImage(vtc, i * 6, (float)num * num9 - (float)screenOffset[0], (float)num2 * num10 - (float)screenOffset[1], (float)num3 * num9 * num8, (float)num4 * num10 * num8, ((num7 & 1) == 0) ? num5 : (num5 + num3), ((num7 & 2) == 0) ? num6 : (num6 + num4), ((num7 & 1) == 0) ? num3 : (-num3), ((num7 & 2) == 0) ? num4 : (-num4), renderer.color);
+									drawImage(vtc, i * 6, (float)num * num9 - (float)screenOffset[0], (float)num2 * num10 - (float)screenOffset[1], (float)num3 * num9 * num8, (float)num4 * num10 * num8, ((num7 & 1) == 0) ? num5 : (num5 + sw), ((num7 & 2) == 0) ? num6 : (num6 + sh), ((num7 & 1) == 0) ? sw : (-sw), ((num7 & 2) == 0) ? sh : (-sh), renderer.color);
 								}
 								glEnable(3553u);
 								BindTexture(3553u, data.tex);
@@ -11084,7 +11101,7 @@ internal static partial class GlobalScope
 
 						internal static void NNS_G2dDrawCellAnimation(NNSG2dCellAnimation pCellAnim)
 						{
-							if (pCellAnim.pCurrentCell != null)
+							if (pCellAnim.pCurrentCell != null && pCellAnim.animCtrl.pCurrent != null && pCellAnim.animCtrl.pAnimSequence != null)
 							{
 								NNS_G2dPushMtx();
 								byte[] abyData = (byte[])pCellAnim.animCtrl.pCurrent.pContent;
@@ -11198,8 +11215,8 @@ internal static partial class GlobalScope
 							{
 								NNSG2dCellData nNSG2dCellData = pCellData.pCellDataArrayHead[0];
 								bgCell[index].numOAM = nNSG2dCellData.numOAMAttrs;
-								bgCell[index].oam = new short[nNSG2dCellData.numOAMAttrs * 7];
-								NNSG2dCellOAMAttrData.copy(bgCell[index].oam, nNSG2dCellData.pOamAttrArray, nNSG2dCellData.numOAMAttrs * 7 * 2);
+								bgCell[index].oam = new short[nNSG2dCellData.numOAMAttrs * 9];
+								NNSG2dCellOAMAttrData.copyWithSource(bgCell[index].oam, nNSG2dCellData.pOamAttrArray, nNSG2dCellData.numOAMAttrs);
 								bgCell[index].bg = bg;
 								bgCell[index].x = x;
 								bgCell[index].y = y;
@@ -11277,17 +11294,19 @@ internal static partial class GlobalScope
 											for (int j = 0; j < bG_CELL.numOAM; j++)
 											{
 												short[] oam = bG_CELL.oam;
-												short num2 = oam[j * 7];
-												short num3 = oam[1 + j * 7];
-												short num4 = oam[2 + j * 7];
-												short num5 = oam[3 + j * 7];
-												short num6 = oam[4 + j * 7];
-												short num7 = oam[5 + j * 7];
-												short num8 = oam[6 + j * 7];
+												short num2 = oam[j * 9];
+												short num3 = oam[1 + j * 9];
+												short num4 = oam[2 + j * 9];
+												short num5 = oam[3 + j * 9];
+												short num6 = oam[4 + j * 9];
+												short num7 = oam[5 + j * 9];
+												short num8 = oam[6 + j * 9];
+												short sw = oam[7 + j * 9];
+												short sh = oam[8 + j * 9];
 												float num9 = (((num8 & 4) != 0) ? 0.5f : 1f) * bG_CELL.scale;
 												float num10 = (((num8 & 8) != 0) ? 0.6f : 1f);
 												float num11 = (((num8 & 8) != 0) ? (2f / 3f) : 1f);
-												drawImage(vtc, j * 6, (float)bG_CELL.x + (float)num2 * num10 * bG_CELL.scale - (float)bgOffset[num, 0] - (float)screenOffset[0], (float)bG_CELL.y + (float)num3 * num11 * bG_CELL.scale - (float)bgOffset[num, 1] - (float)screenOffset[1], (float)num4 * num10 * num9, (float)num5 * num11 * num9, ((num8 & 1) == 0) ? num6 : (num6 + num4), ((num8 & 2) == 0) ? num7 : (num7 + num5), ((num8 & 1) == 0) ? num4 : (-num4), ((num8 & 2) == 0) ? num5 : (-num5), bG_CELL.color);
+												drawImage(vtc, j * 6, (float)bG_CELL.x + (float)num2 * num10 * bG_CELL.scale - (float)bgOffset[num, 0] - (float)screenOffset[0], (float)bG_CELL.y + (float)num3 * num11 * bG_CELL.scale - (float)bgOffset[num, 1] - (float)screenOffset[1], (float)num4 * num10 * num9, (float)num5 * num11 * num9, ((num8 & 1) == 0) ? num6 : (num6 + sw), ((num8 & 2) == 0) ? num7 : (num7 + sh), ((num8 & 1) == 0) ? sw : (-sw), ((num8 & 2) == 0) ? sh : (-sh), bG_CELL.color);
 											}
 											glEnable(3553u);
 											BindTexture(3553u, bG_CELL.image);

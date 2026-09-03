@@ -41,4 +41,9 @@
     <Compile Include="..\Shared\Content\*.cs" Link="Compat\Content\%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- OpenFF's own data: the phone cell geometry for Steam's sheets (Tools/gen_steam_cells.py). -->
+    <None Include="Data\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

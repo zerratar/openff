@@ -94,8 +94,19 @@ internal static partial class GlobalScope
             fontCount = 0;
             wordCount = 0;
             // Glyph tables: character -> (atlas page, vertical shift class).
-            aaGlyph[12] = FF3.GameFiles.ReadAllBytes("Content/Font12.glp");
-            aaGlyph[16] = FF3.GameFiles.ReadAllBytes("Content/Font16.glp");
+            // PORT: the atlas glyph tables ship with our Content only. Text is TrueType
+            // from a Steam install, so a boot without them is fine - the atlas path just
+            // has nothing to draw with.
+            try
+            {
+                aaGlyph[12] = FF3.GameFiles.ReadAllBytes("Content/Font12.glp");
+                aaGlyph[16] = FF3.GameFiles.ReadAllBytes("Content/Font16.glp");
+            }
+            catch (Exception)
+            {
+                aaGlyph[12] = null;
+                aaGlyph[16] = null;
+            }
             aaSpriteFont[12] = new SpriteFont[256];
             aaSpriteFont[16] = new SpriteFont[256];
             fontShiftY[12] = new float[6];
@@ -177,6 +188,10 @@ internal static partial class GlobalScope
             if (FF3.TrueTypeText.Enabled)
             {
                 return FF3.TrueTypeText.Width(text, iSize) * scale.X;
+            }
+            if (aaGlyph[iSize] == null)
+            {
+                return 0f;
             }
             int length = text.Length;
             float num = 0f;
@@ -297,6 +312,10 @@ internal static partial class GlobalScope
             {
                 FF3.TrueTypeText.Draw(spBatch, text, x, y, color, rotation, origin, scale, flip, depth, iSize);
                 depth += 0.001f;
+                return;
+            }
+            if (aaGlyph[iSize] == null)
+            {
                 return;
             }
             int length = text.Length;
