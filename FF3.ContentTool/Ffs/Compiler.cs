@@ -167,7 +167,7 @@ namespace FF3.ContentTool.Ffs
 					"an opcode is a 16 bit number", instruction.Token));
 				return 0;
 			}
-			if (instruction.Opcode >= ScriptOps.Count)
+			if (!ScriptOps.Known(instruction.Opcode))
 			{
 				// Past the dispatch table: no handler, so no operands either. These
 				// only turn up in regions nothing reaches, where a linear sweep is
@@ -261,7 +261,7 @@ namespace FF3.ContentTool.Ffs
 			}
 
 			WriteUInt16(stream, (ushort)instruction.Opcode);
-			if (instruction.Opcode >= ScriptOps.Count)
+			if (!ScriptOps.Known(instruction.Opcode))
 			{
 				return;
 			}

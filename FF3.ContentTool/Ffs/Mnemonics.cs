@@ -45,13 +45,29 @@ namespace FF3.ContentTool.Ffs
 				_names[opcode] = name;
 				_opcodes[name] = opcode;
 			}
+
+			// The other game's opcodes, named the same way. Past the array, so they
+			// live in the dictionary only; Name() looks there when the array has
+			// nothing to say.
+			foreach (KeyValuePair<int, ScriptOp> extra in ScriptOpsExtra.All)
+			{
+				string name = Simplify(extra.Value.Name);
+				_extraNames[extra.Key] = name;
+				_opcodes[name] = extra.Key;
+			}
 		}
+
+		private static readonly Dictionary<int, string> _extraNames = new Dictionary<int, string>();
 
 		/// <summary>The mnemonic for an opcode, or op(n) when there is no handler.</summary>
 		public static string Name(int opcode)
 		{
-			return opcode >= 0 && opcode < _names.Length
-				? _names[opcode]
+			if (opcode >= 0 && opcode < _names.Length)
+			{
+				return _names[opcode];
+			}
+			return _extraNames.TryGetValue(opcode, out string extra)
+				? extra
 				: string.Format(CultureInfo.InvariantCulture, "op({0})", opcode);
 		}
 
@@ -64,16 +80,22 @@ namespace FF3.ContentTool.Ffs
 		public static IEnumerable<KeyValuePair<string, int>> All => _opcodes;
 
 		/// <summary>
-		/// handler name -> mnemonic: drop the ff3Command_ prefix and the Command
-		/// suffix, then lower the leading run of capitals so NOPCommand becomes nop
-		/// and StartMessage2 becomes startMessage2.
+		/// handler name -> mnemonic: drop the ff3Command_ (or babilCommand_) prefix and
+		/// the Command suffix, then lower the leading run of capitals so NOPCommand
+		/// becomes nop and StartMessage2 becomes startMessage2.
 		/// </summary>
 		private static string Simplify(string handler)
 		{
 			string name = handler;
-			if (name.StartsWith("ff3Command_", StringComparison.Ordinal))
+			// Two games, two prefixes: ours is ff3Command_, FF4's is babilCommand_ -
+			// Babil being what the FF4 team called it internally.
+			foreach (string prefix in new[] { "ff3Command_", "babilCommand_" })
 			{
-				name = name.Substring("ff3Command_".Length);
+				if (name.StartsWith(prefix, StringComparison.Ordinal))
+				{
+					name = name.Substring(prefix.Length);
+					break;
+				}
 			}
 			if (name.Length > "Command".Length
 				&& name.EndsWith("Command", StringComparison.Ordinal))

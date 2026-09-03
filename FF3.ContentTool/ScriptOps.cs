@@ -361,9 +361,20 @@ namespace FF3.ContentTool
 			new ScriptOp("ff3Command_InAppPurchase", None, false, -1),
 		};
 
+		/// <summary>Whether an opcode has a handler, in this table or the hand-written one.</summary>
+		public static bool Known(int opcode)
+		{
+			return (opcode >= 0 && opcode < Table.Length) || ScriptOpsExtra.Known(opcode);
+		}
+
+		/// <summary>
+		/// This table first; past its end, ScriptOpsExtra - the opcodes the other game
+		/// numbers beyond FF3's range, kept by hand because there is no source to
+		/// generate them from.
+		/// </summary>
 		public static ScriptOp Get(int opcode)
 		{
-			return opcode >= 0 && opcode < Table.Length ? Table[opcode] : null;
+			return opcode >= 0 && opcode < Table.Length ? Table[opcode] : ScriptOpsExtra.Get(opcode);
 		}
 	}
 }

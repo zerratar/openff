@@ -217,9 +217,20 @@ namespace FF3.ContentTool
 
 tail = '''@T@T};
 
+@T@T/// <summary>Whether an opcode has a handler, in this table or the hand-written one.</summary>
+@T@Tpublic static bool Known(int opcode)
+@T@T{
+@T@T@Treturn (opcode >= 0 && opcode < Table.Length) || ScriptOpsExtra.Known(opcode);
+@T@T}
+
+@T@T/// <summary>
+@T@T/// This table first; past its end, ScriptOpsExtra - the opcodes the other game
+@T@T/// numbers beyond FF3's range, kept by hand because there is no source to
+@T@T/// generate them from.
+@T@T/// </summary>
 @T@Tpublic static ScriptOp Get(int opcode)
 @T@T{
-@T@T@Treturn opcode >= 0 && opcode < Table.Length ? Table[opcode] : null;
+@T@T@Treturn opcode >= 0 && opcode < Table.Length ? Table[opcode] : ScriptOpsExtra.Get(opcode);
 @T@T}
 @T}
 }

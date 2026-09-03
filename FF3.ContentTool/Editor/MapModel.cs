@@ -296,6 +296,56 @@ namespace FF3.ContentTool.Editor
 			return perCast;
 		}
 
+		/// <summary>
+		/// Exits declared in the script, FF4's way. Each is
+		/// setInsideMapJump(trigger, map, ax, ay, az, facing, x1, y1, z1, x2, y2, z2):
+		/// positions in FX32, facing in eighths of a turn.
+		/// </summary>
+		private static List<MapExit> ReadScriptedExits(Workspace workspace, string map)
+		{
+			List<MapExit> exits = new List<MapExit>();
+			string scriptName = "files/" + map + ".script";
+			if (!workspace.Exists(scriptName))
+			{
+				return exits;
+			}
+			ScriptFile script;
+			try
+			{
+				script = ScriptFile.Read(workspace.Read(scriptName));
+			}
+			catch (Exception)
+			{
+				return exits;
+			}
+
+			(List<ScriptInstruction> code, _) = ScriptDisassembler.Disassemble(script);
+			foreach (ScriptInstruction instruction in code)
+			{
+				if (instruction.Opcode != ScriptOpsExtra.SetInsideMapJump
+					|| instruction.Operands.Count < 12)
+				{
+					continue;
+				}
+				string to = instruction.Operands[1] as string ?? string.Empty;
+				int Fx(int i) => (int)Math.Round(unchecked((int)(uint)instruction.Operands[i]) / 4096.0);
+				exits.Add(new MapExit
+				{
+					// Where the door is on this map: the trigger box's centre.
+					X = (Fx(6) + Fx(9)) / 2,
+					Y = Math.Min(Fx(7), Fx(10)),
+					Z = (Fx(8) + Fx(11)) / 2,
+					RotationY = (int)((uint)instruction.Operands[5] * 45) % 360,
+					To = to,
+					ModelNo = -1,
+					ToIndex = 0,
+					ConditionFlag = 1,
+					Kind = -1
+				});
+			}
+			return exits;
+		}
+
 		/// <summary>The map's exits, from chain 0 of its .pak.</summary>
 		/// <summary>This map's exits, for anything that needs them without the rest.</summary>
 		public static List<MapExit> ReadExitsOf(Workspace workspace, string map)
@@ -306,6 +356,16 @@ namespace FF3.ContentTool.Editor
 		private static List<MapExit> ReadExits(Workspace workspace, string map)
 		{
 			List<MapExit> exits = new List<MapExit>();
+
+			// FF4 has no jumps chain. Its exits are declared by the map's own script,
+			// one setInsideMapJump per door: the trigger object, the destination, the
+			// arrival position and facing, and the door's box on this map. The box's
+			// centre is where the exit is, for anything drawing it here.
+			if (workspace.Game == "ff4")
+			{
+				return ReadScriptedExits(workspace, map);
+			}
+
 			string name = "files/" + map + ".pak";
 			if (!workspace.Exists(name))
 			{
