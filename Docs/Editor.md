@@ -113,7 +113,7 @@ What differs is presentation and revisions:
 | | Ours | Steam |
 | --- | --- | --- |
 | textures | 800x480, mostly 8-bit indexed PNG | up to 1496x720, 58 of them truecolour |
-| models | the same geometry | the same geometry, larger textures |
+| models | | 371 of 833 identical; the rest carry more geometry, not bigger textures |
 | `.msd` location | one folder per language, `en.lproj/` | one language, straight in `files/` |
 | menus | 7 of 9 `.xbn` differ - laid out for a phone | laid out for a desktop |
 | text | 4110 messages | 4372 |
@@ -122,6 +122,59 @@ What differs is presentation and revisions:
 The `.NCGR` and `.NCBR` extensions are vestigial in both: the files are PNGs, named
 after the DS formats they replaced. That is why the higher colour depths cost nothing
 here - the browser decodes them and the editor only moves the bytes.
+
+## Borrowing Steam's art for our build
+
+Tempting, and mostly not possible as a file copy. Measured over the 232 textures the
+two releases share:
+
+| | |
+| --- | --- |
+| byte identical | 57 |
+| same size, different bytes | 19 |
+| bigger on Steam | 156 |
+
+The middle group looks like the easy win and is not one. Comparing them pixel by
+pixel: `menu_bg_01` has 253 colours in ours and 244 in Steam's, and a mean channel
+difference under 1 - the same picture stored as RGBA rather than a palette. `ope_00`
+has 776 colours in ours and 268 in Steam's, so ours is the better one. And
+`icon_8dot`, `icon_yubi`, `w_map_mark` and `pad` differ by a mean of 88 to 204 per
+channel, which is not a quality difference at all - they are different pictures, the
+button prompts a desktop build needs instead of a phone's.
+
+All the real quality is in the third group, and that group cannot be copied, because
+in this engine resolution and layout are the same number. A cell part carries one
+width and height, used both for the rectangle it draws into and for how much of the
+sheet it reads; `G3_TexCoord` turns the source pixels into UVs with
+`texScaleU = 1f / sizeW` off the decoded image, so the sheet may be any size, but the
+part has to name its own extent in sheet pixels. Bigger art therefore means bigger
+numbers in the layout, which means a bigger virtual screen. Steam's is about 2.22x
+ours.
+
+Tried, rather than reasoned about. Dropping Steam's `title_gousei_new` pair - the
+1280x1109 sheet and the cell bank that goes with it - into `Content/Override` and
+starting the game: it decodes without complaint, the bank parses, nothing errors, and
+the logo draws 2.22x too large, cropped to "AL FANTAS" across an 800 wide window. The
+data is completely compatible. The coordinate space is not.
+
+Nor is it a per asset fix. Ours puts the logo at `(-288,-240) 576x272` and Steam at
+`(-640,-534) 1280x608`, but the strip under it goes `(-208,212) 416x16` to
+`(-368,472) 736x36` - 2.22x down, 1.77x across. The art was laid out again, not
+scaled.
+
+What would work is the render side: draw a bank at the numbers it was authored with
+and scale that plane by `ours / theirs`. That is the shape of the fix already in
+`DrawStringStart`, which scales text by `view.Width / 800f` so it tracks a resized
+window. Doing it per cell bank would let both coordinate spaces coexist, which is what
+mixing the two releases' art needs.
+
+Models are the exception worth knowing: 371 of 833 `.nmdp.lz` are byte identical, and
+where they differ it is geometry rather than textures - `t17_01` goes from 8875
+vertices in 1 node to 11843 in 38, and `b42` from 304 to 540. A model package carries
+its own UVs, so it has no screen coordinates to disagree about. Steam's `t19_01`
+renders correctly in the editor's 3D view with our textures and with the exit gizmos
+still in place. That path is untested in the game itself, which parses models through
+the decompiled `NNS_G3d` code rather than through `FF3.Formats`.
 
 The font preview is the one thing that does not carry over. It reads `Font{size}.glp`
 and the atlas pages beside it, and a Steam install has neither - it ships `arial.ttf`,
