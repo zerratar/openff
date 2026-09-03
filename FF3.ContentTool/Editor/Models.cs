@@ -254,15 +254,19 @@ namespace FF3.ContentTool.Editor
 				}
 			}
 			List<(string, NcapFile)> packs = new List<(string, NcapFile)>();
-			foreach (WorkspaceEntry entry in workspace.List(".lz"))
+			// Loose packs are .ncap.lz; the ones inside FF4's MOTION_MENU.dat come out of
+			// the mass file already named .ncap, and may or may not still be compressed.
+			foreach (WorkspaceEntry entry in workspace.List(".lz", ".ncap"))
 			{
-				if (!entry.Name.EndsWith(".ncap.lz", StringComparison.OrdinalIgnoreCase))
+				if (!entry.Name.EndsWith(".ncap.lz", StringComparison.OrdinalIgnoreCase)
+					&& !entry.Name.EndsWith(".ncap", StringComparison.OrdinalIgnoreCase))
 				{
 					continue;
 				}
 				try
 				{
-					packs.Add((entry.Name, NcapFile.Read(Lz.Decompress(workspace.Read(entry.Name)))));
+					byte[] raw = workspace.Read(entry.Name);
+					packs.Add((entry.Name, NcapFile.Read(Lz.IsCompressed(raw) ? Lz.Decompress(raw) : raw)));
 				}
 				catch (Exception)
 				{
@@ -346,8 +350,9 @@ namespace FF3.ContentTool.Editor
 		{
 			byte[] data = Lz.Decompress(workspace.Read(modelName));
 			(string, NcapFile) found = Packs(workspace).FirstOrDefault(p => string.Equals(p.Name, packName, StringComparison.OrdinalIgnoreCase));
-			NcapFile pack = found.Item2 ?? NcapFile.Read(Lz.Decompress(workspace.Read(packName)));
-			byte[] packData = Lz.Decompress(workspace.Read(packName));
+			byte[] packRaw = workspace.Read(packName);
+			byte[] packData = Lz.IsCompressed(packRaw) ? Lz.Decompress(packRaw) : packRaw;
+			NcapFile pack = found.Item2 ?? NcapFile.Read(packData);
 			if (index < 0 || index >= pack.Motions.Count)
 			{
 				throw new ArgumentOutOfRangeException(nameof(index), "no motion " + index + " in " + packName);
