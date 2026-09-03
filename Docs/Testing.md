@@ -65,6 +65,7 @@ passed; these are the rest.
 | C-4 | Mod folder | Copy one edited file into a folder mirroring `files/...`, `FF3.exe --mod=<folder>` | The edit is live |
 | C-5 | TrueType text | `FF3.exe --content="<Steam FF3>" --size=1600x960`, New Game, read the opening dialogue; then the same with `--text=atlas` | Sharp Arial at window resolution vs the blurry 16px atlas; the text sits in the same place in both; menus line up |
 | C-6 | A face of your own | `--font=C:\Windows\Fonts\georgia.ttf` | Dialogue in Georgia; widths still consistent (right-aligned numbers in menus stay aligned) |
+| C-7 | Steam's sound | Boot from Steam with `--log=file`; listen through the title and the opening | Music and effects play; the log lists `sound: sound/BGM00_1.ogg -> 43.4s` and friends, no `Content.Load` of a sound XNB; the intro (`_0`) hands over to the loop (`_1`) without a gap |
 
 ## What "works" looks like in the log
 

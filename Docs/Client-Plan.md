@@ -54,12 +54,20 @@ then the install the content came from (Arial, Arial Unicode, TBUDRGothic, unifo
 FontSystem, per-glyph fallback), then `Content/Fonts`, then Windows' Arial. The title and
 its menu are unaffected - they are baked art, not text.
 
-## Stage C - native sound
+## Stage C - native sound (done for Ogg)
 
 Steam FF3 ships `sound/BGMnn_0.ogg` + `_1.ogg` (intro and loop) with `.dat` loop points -
 the same names our XNBs use. A decoder (NVorbis) into `SoundEffect`/`DynamicSoundEffectInstance`
 lets the client play Steam's audio directly, and FF4's `.akb` (an Ogg with a header) with
 the same code. `SoundManager` already keys everything by name; only the loader changes.
+
+Done in `Compat/OggSound.cs`: `MediaPlayer.setDataSource` asks the chain for
+`sound/<name>.ogg` (or FF4's `files/SOUND/BGM|SE|VOICE/<name>.akb`, skipping to the
+`OggS` page) and decodes it with NVorbis into a `SoundEffect`, cached by name; the XNB is
+loaded only when the chain has no Ogg. From the Steam install the title theme, the
+opening's intro-and-loop pair and the effects all come from Steam's own files. Still from
+our `Content/`: the `.glp` glyph tables (read at start-up, unused with TrueType) and the
+six 2D formats - the two things standing between here and a boot with no Content at all.
 
 ## Stage D - FF4
 

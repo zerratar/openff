@@ -44,7 +44,10 @@ public class MediaPlayer
 		}
 		if (m_Sound != null)
 		{
-			m_Sound.Dispose();
+			if (!m_Shared)
+			{
+				m_Sound.Dispose();
+			}
 			m_Sound = null;
 		}
 		if (m_Content != null)
@@ -56,9 +59,20 @@ public class MediaPlayer
 
 	public void setDataSource(string path)
 	{
+		// PORT: the content chain first - a Steam install's sound/<name>.ogg, FF4's
+		// .akb - and the XNB the phone build shipped only when there is none.
+		m_Sound = FF3.OggSound.Load(path);
+		if (m_Sound != null)
+		{
+			m_Shared = true;
+			return;
+		}
 		m_Content = GlobalScope.m_Graphics.CreateContentManager();
 		m_Sound = m_Content.Load<SoundEffect>(path);
 	}
+
+	// A decoded Ogg is cached and shared between players, so release() must not dispose it.
+	private bool m_Shared;
 
 	public void setLooping(bool looping)
 	{
