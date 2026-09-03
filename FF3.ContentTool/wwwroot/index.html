@@ -10,6 +10,15 @@
 <header>
   <h1>FF3 content editor</h1>
   <span id="status"></span>
+  <!--
+    Only for a loose install. Our own build reads the override directory itself, so
+    there is nothing to install and the control stays hidden.
+  -->
+  <span id="mod" hidden>
+    <span id="mod-state"></span>
+    <button id="mod-install">Install into the game</button>
+    <button id="mod-uninstall">Remove from the game</button>
+  </span>
 </header>
 
 <!--

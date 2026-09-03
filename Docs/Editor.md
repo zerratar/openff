@@ -14,10 +14,14 @@ starts, and undoing one is deleting a file.
 
 | Option | Default | |
 | --- | --- | --- |
-| `--content=<dir>` | `Content` | a directory holding `data000.bin`, or a game install |
-| `--override=<dir>` | `<content>/Override` | where edits are written |
+| `--content=<dir>` | `Content`, else a Steam install | a directory holding `data000.bin`, or a game install |
+| `--override=<dir>` | see below | where edits are written |
 | `--language=<code>` | `en` | which language the dialogue is read as |
 | `--port=<n>` | 5050 | |
+
+With no `--content` it takes the `Content` directory if there is one, and otherwise
+looks for a Steam copy of the game. `ff3content installs` prints what it found. So
+for somebody who just has the game, the whole of it is: run it.
 
 ## Two content layouts
 
@@ -37,11 +41,64 @@ dotnet run --project FF3.ContentTool -- editor ^
   --override=..\SteamMods --port=5051
 ```
 
-Give a Steam install an `--override` **outside** the install. Overrides are a thing
-this editor and our own build understand; the Steam executable has none, so an edit
-does not reach that game by being written there, and Steam validates the files it
-shipped. Keeping them apart means a mod is a directory you can hand to someone,
-rather than a mutated install.
+Edits never go into a game install by accident. `--override` defaults to
+`Content/Override` for our own build, which is where that game reads them from, and
+to `%LOCALAPPDATA%\FF3ContentTool\mods\<install>` for anything else.
+
+Not Documents, which was the first choice for being easier to find: Windows protects
+it with Controlled Folder Access, on by default on plenty of machines, and creating a
+folder there fails with a "could not find file" naming the folder it is creating.
+Local application data is never protected and never needs administrator rights.
+
+## Installing a mod into a Steam install
+
+Our own build reads the override directory itself, so a change is live the next time
+the game starts. The Steam executable has no such idea - it reads `files/` and that
+is all - so for that one the edits have to be copied over the originals.
+
+The header grows two buttons when the content is a loose install, and the same thing
+is on the command line:
+
+```bash
+dotnet run --project FF3.ContentTool -- install      # edits -> the game
+dotnet run --project FF3.ContentTool -- uninstall    # the originals back
+```
+
+The override directory stays the master copy either way. That is what makes a mod a
+folder you can zip and put on Nexus, and it means Steam validating its own files
+costs the install rather than the work.
+
+It is built to be undone:
+
+- the original of every file it overwrites is copied out first, **once**, to
+  `<override>.backup`. A file already backed up is never backed up again - the first
+  copy is the pristine one, and a second install must not replace it with modded
+  bytes;
+- what was written is recorded by hash, and uninstall only restores a file that still
+  holds exactly those bytes. If the game has been updated or verified since, that file
+  is left alone and said so, rather than a stale original going back over a newer one;
+- a file the mod **adds**, that the install did not have, is recorded as new and
+  removed on uninstall rather than restored. This one was wrong first time round:
+  after one install the added file exists, so a second install decided it had replaced
+  an original and uninstall then left it behind.
+
+`Tools/test_mod_install.py` exercises all of that against a fake install, so no real
+game is touched by the test.
+
+## Giving it to somebody who does not have the SDK
+
+```bash
+dotnet publish FF3.ContentTool -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+```
+
+One 66 MB `ff3content.exe` and the `wwwroot` beside it. Run it with no arguments: it
+finds the Steam install, puts the mod directory in local application data, opens on
+<http://localhost:5050/>, and never writes into the game until somebody presses the
+button.
+
+Published as a single file, `Assembly.Location` is the empty string, so the web root
+comes from `AppContext.BaseDirectory` - otherwise the editor looks for its own pages
+in the root of the drive and serves nothing.
 
 ### What is the same, and what is not
 

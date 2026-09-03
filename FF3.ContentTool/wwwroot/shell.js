@@ -1334,6 +1334,81 @@ api('/api/status')
     state.language = status.language || 'en';
     state.messagePrefix = status.messagePrefix || `${state.language}.lproj/`;
     $('#status').textContent = `${status.files} files  ·  overrides in ${status.overrides}`;
+    refreshMod();
   })
   .then(applyHash)
   .catch(error => say(error.message, 'bad'));
+
+// ---------------------------------------------------------------------- installing
+
+/// Whether the edits are in the game yet, and the two buttons that change that.
+///
+/// Only a loose install has anything to do here. Our own build reads the override
+/// directory itself, so a change is already live and the control stays hidden - the
+/// server says which it is, rather than the page guessing from a path.
+async function refreshMod() {
+  const box = $('#mod');
+  if (!box) return;
+  let status;
+  try {
+    status = await api('/api/mod/status');
+  } catch (error) {
+    box.hidden = true;
+    return;
+  }
+
+  if (!status.canInstall) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+
+  const pending = status.pending.length;
+  const installed = status.installed.length;
+  const changed = status.changed.length;
+
+  let text;
+  if (!status.edited.length && !installed) text = 'nothing edited yet';
+  else if (pending) text = `${pending} edit${pending === 1 ? '' : 's'} not in the game yet`;
+  else if (installed) text = `${installed} file${installed === 1 ? '' : 's'} in the game`;
+  else text = 'nothing to install';
+  if (changed) text += ` · ${changed} changed since`;
+
+  $('#mod-state').textContent = text;
+  $('#mod-install').disabled = !status.edited.length;
+  $('#mod-uninstall').disabled = !installed && !changed;
+  box.title = `mod: ${status.override}\noriginals: ${status.backup}`;
+}
+
+/// Both buttons do the same shape of thing, so they are wired the same way.
+function wireMod(selector, endpoint, confirmation, describe) {
+  const button = $(selector);
+  if (!button) return;
+  button.onclick = async () => {
+    if (!confirm(confirmation)) return;
+    button.disabled = true;
+    try {
+      // A body, so this is a POST. Both of these change the game on disk, and a
+      // side effect behind a GET is one a reload or a prefetch can fire by itself.
+      const result = await api(endpoint, {});
+      if (!result.ok) throw new Error(result.error);
+      // One line, because say() owns the header and a loop would leave only the
+      // last note showing. A skipped file is the interesting case here.
+      const notes = (result.notes || []).join('  ·  ');
+      say(describe(result) + (notes ? '  ·  ' + notes : ''), notes ? 'bad' : 'good');
+    } catch (error) {
+      say(error.message, 'bad');
+    }
+    refreshMod();
+  };
+}
+
+wireMod('#mod-install', '/api/mod/install',
+  'Copy your edits over the game\'s own files?\n\n'
+  + 'The originals are kept, and "Remove from the game" puts them back.',
+  r => `${r.wrote.length} file(s) written into the game`);
+
+wireMod('#mod-uninstall', '/api/mod/uninstall',
+  'Put the game\'s original files back?\n\nYour edits stay in the mod directory.',
+  r => `${r.restored.length} restored, ${r.removed.length} removed`
+    + (r.skipped.length ? `, ${r.skipped.length} left alone` : ''));

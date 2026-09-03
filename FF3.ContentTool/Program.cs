@@ -143,6 +143,12 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return MclDump(args[1], args.Length > 2 ? args[2] : null);
+					case "installs":
+						return ListInstalls();
+					case "install":
+						return ModCommand(args, install: true);
+					case "uninstall":
+						return ModCommand(args, install: false);
 					case "editor":
 						return Editor(args.Skip(1).ToArray());
 					case "lz":
@@ -222,6 +228,11 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("  mcl         <file.mcl.lz | dir> [out] collision mesh -> JSON");
 			Console.Error.WriteLine("  editor [--content=<dir>] [--override=<dir>] [--port=<n>] [--language=en]");
 			Console.Error.WriteLine("                                    open the content editor in a browser");
+			Console.Error.WriteLine("  installs                          Steam copies of the game on this machine");
+			Console.Error.WriteLine("  install   [--content=<dir>] [--override=<dir>]");
+			Console.Error.WriteLine("                                    copy a mod into a Steam install");
+			Console.Error.WriteLine("  uninstall [--content=<dir>] [--override=<dir>]");
+			Console.Error.WriteLine("                                    put the originals back");
 			Console.Error.WriteLine("  lz          <file.lz | dir> [out] decompress");
 			Console.Error.WriteLine("  lz-compress <file> [out.lz]       compress");
 			Console.Error.WriteLine();
@@ -1204,9 +1215,113 @@ namespace FF3.ContentTool
 		/// Serves the editor. Everything it can do is something the command line can
 		/// already do - the point is that a person can see what they are changing.
 		/// </summary>
+		/// <summary>
+		/// Where the content is, from --content or by looking. Our own Content directory
+		/// wins when it is there, because that is what somebody working on the port
+		/// means; a Steam install is the answer for everybody else, and it is not a path
+		/// worth making them type.
+		/// </summary>
+		private static string ContentOrFind(string given)
+		{
+			if (!string.IsNullOrEmpty(given))
+			{
+				return given;
+			}
+			if (Directory.Exists("Content"))
+			{
+				return "Content";
+			}
+			return FF3.ContentTool.Editor.SteamInstalls.FindOne() ?? "Content";
+		}
+
+		private static int ListInstalls()
+		{
+			List<FF3.ContentTool.Editor.SteamInstall> found = FF3.ContentTool.Editor.SteamInstalls.Find();
+			if (found.Count == 0)
+			{
+				Console.WriteLine("no Steam copy of the game found on this machine");
+				Console.WriteLine("(looked for appmanifest_{0}.acf in every Steam library)",
+					FF3.ContentTool.Editor.SteamInstalls.AppId);
+				return 1;
+			}
+			foreach (FF3.ContentTool.Editor.SteamInstall install in found)
+			{
+				Console.WriteLine("  {0}", install.Name ?? "Final Fantasy III");
+				Console.WriteLine("  {0}", install.Path);
+				Console.WriteLine();
+			}
+			return 0;
+		}
+
+		/// <summary>install and uninstall, which differ only in which way they copy.</summary>
+		private static int ModCommand(string[] args, bool install)
+		{
+			string content = null;
+			string overrides = null;
+			foreach (string arg in args)
+			{
+				if (arg.StartsWith("--content=", StringComparison.OrdinalIgnoreCase))
+				{
+					content = arg.Substring("--content=".Length).Trim('"');
+				}
+				else if (arg.StartsWith("--override=", StringComparison.OrdinalIgnoreCase))
+				{
+					overrides = arg.Substring("--override=".Length).Trim('"');
+				}
+			}
+
+			Editor.Workspace workspace;
+			try
+			{
+				workspace = new Editor.Workspace(ContentOrFind(content), overrides);
+			}
+			catch (Exception ex) when (ex is FileNotFoundException or IOException)
+			{
+				Console.Error.WriteLine(ex.Message);
+				return 1;
+			}
+
+			Console.WriteLine("  content   {0} ({1})", workspace.ContentDirectory, workspace.Kind);
+			Console.WriteLine("  mod       {0}", workspace.OverrideDirectory);
+			Console.WriteLine("  originals {0}", FF3.ContentTool.Editor.ModInstall.BackupDirectory(workspace));
+			Console.WriteLine();
+
+			FF3.ContentTool.Editor.ModResult result = install
+				? FF3.ContentTool.Editor.ModInstall.Install(workspace)
+				: FF3.ContentTool.Editor.ModInstall.Uninstall(workspace);
+
+			if (!result.Ok)
+			{
+				Console.Error.WriteLine(result.Error);
+				return 1;
+			}
+
+			foreach ((string what, List<string> names) in new[]
+			{
+				("wrote", result.Wrote), ("restored", result.Restored),
+				("removed", result.Removed), ("left alone", result.Skipped)
+			})
+			{
+				foreach (string name in names)
+				{
+					Console.WriteLine("  {0,-10} {1}", what, name);
+				}
+			}
+			foreach (string note in result.Notes)
+			{
+				Console.WriteLine("  note       {0}", note);
+			}
+
+			Console.WriteLine();
+			Console.WriteLine("{0} file(s) written, {1} restored, {2} removed, {3} left alone",
+				result.Wrote.Count, result.Restored.Count,
+				result.Removed.Count, result.Skipped.Count);
+			return 0;
+		}
+
 		private static int Editor(string[] args)
 		{
-			string content = "Content";
+			string content = null;
 			string overrides = null;
 			string language = "en";
 			int port = 5050;
@@ -1232,8 +1347,11 @@ namespace FF3.ContentTool
 				}
 			}
 
-			string webRoot = Path.Combine(
-				Path.GetDirectoryName(typeof(Program).Assembly.Location), "wwwroot");
+			// BaseDirectory rather than Assembly.Location: published as a single file
+			// - which is how somebody who does not have the SDK gets this - Location
+			// is the empty string, and the editor would go looking for its own web
+			// files in the root of the drive.
+			string webRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
 			if (!Directory.Exists(webRoot))
 			{
 				Console.Error.WriteLine("the editor's files are missing from " + webRoot);
@@ -1243,9 +1361,9 @@ namespace FF3.ContentTool
 			Editor.Workspace workspace;
 			try
 			{
-				workspace = new Editor.Workspace(content, overrides);
+				workspace = new Editor.Workspace(ContentOrFind(content), overrides);
 			}
-			catch (FileNotFoundException ex)
+			catch (Exception ex) when (ex is FileNotFoundException or IOException)
 			{
 				Console.Error.WriteLine(ex.Message);
 				return 1;

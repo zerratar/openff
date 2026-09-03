@@ -180,6 +180,18 @@ namespace FF3.ContentTool.Editor
 					});
 					return;
 
+				case "/api/mod/status":
+					SendJson(context, ModInstall.Status(_workspace));
+					return;
+
+				case "/api/mod/install":
+					SendJson(context, ModInstall.Install(_workspace));
+					return;
+
+				case "/api/mod/uninstall":
+					SendJson(context, ModInstall.Uninstall(_workspace));
+					return;
+
 				case "/api/list":
 					SendJson(context, _workspace.List(Extensions(Query(context, "kind"))));
 					return;

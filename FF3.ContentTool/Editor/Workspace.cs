@@ -44,8 +44,6 @@ namespace FF3.ContentTool.Editor
 		public Workspace(string contentDirectory, string overrideDirectory)
 		{
 			_contentDirectory = Path.GetFullPath(contentDirectory);
-			OverrideDirectory = Path.GetFullPath(overrideDirectory
-				?? Path.Combine(contentDirectory, "Override"));
 
 			// Packed first: our own Content directory has both a data000.bin and,
 			// after an extract, possibly a files directory as well, and the archives
@@ -67,8 +65,41 @@ namespace FF3.ContentTool.Editor
 					+ " - point --content at our Content directory or at a game install");
 			}
 
+			// Only now, because where the edits go depends on which of the two this
+			// is. Our own build reads Content/Override itself, so that is where they
+			// belong. A game install must not be written into by default: that
+			// executable does not read an override directory anyway, the folder often
+			// needs administrator rights, and Steam validating its own files would
+			// sweep the work away with it.
+			//
+			// So a game install gets local application data. Documents would be easier
+			// to find and was the first choice, but Windows protects it - Controlled
+			// Folder Access is on by default on plenty of machines, and it was on for
+			// the one this was written on, where creating a folder there failed with
+			// "could not find file" pointing at the folder being created. Not a error
+			// worth handing somebody who only wanted to open the editor.
+			OverrideDirectory = Path.GetFullPath(overrideDirectory ?? (_source.Kind == "archives"
+				? Path.Combine(_contentDirectory, "Override")
+				: Path.Combine(
+					Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+					"FF3ContentTool", "mods",
+					Path.GetFileName(_contentDirectory.TrimEnd(
+						Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)))));
+
 			_names = _source.Names.ToList();
-			Directory.CreateDirectory(OverrideDirectory);
+
+			try
+			{
+				Directory.CreateDirectory(OverrideDirectory);
+			}
+			catch (Exception ex)
+			{
+				// Whatever the reason - permissions, a protected folder, a full disk -
+				// the useful thing to say is which folder and what to do about it.
+				throw new IOException(
+					"cannot create the mod directory " + OverrideDirectory + ": "
+					+ ex.Message + " - pass --override=<dir> to put it somewhere else", ex);
+			}
 		}
 
 		public int FileCount => _source.Count;
