@@ -69,10 +69,17 @@ function drawMenuBar() {
   const open = projectState.project;
   const mod = projectState.mod;
 
+  const edited = (mod && mod.edited.length) || 0;
+
   bar.append(buildMenu('File', [
     { label: 'New project…', run: newProjectDialog },
     { label: 'Open project…', run: openProjectDialog },
     '-',
+    {
+      label: edited ? `Changes… (${edited})` : 'Changes…',
+      run: changesDialog,
+      disabled: !edited,
+    },
     { label: 'Project details…', run: projectDetailsDialog, disabled: !open },
   ]));
 
@@ -274,6 +281,101 @@ function projectDetailsDialog() {
       if (!result.ok) throw new Error(result.error);
       body.close();
       await reloadEverything('saved');
+    } catch (error) {
+      say(error.message, 'bad');
+    }
+  };
+  body.append(go);
+}
+
+/// Everything the project has changed, and a way to throw any of it away.
+///
+/// Reverting is two things at once, and the dialog says so: the edit is deleted, and
+/// if it had been installed the game's own file goes back at the same time. Undoing
+/// only the first half is the trap - the file would read as shipped everywhere except
+/// in the game, which is the one place it matters.
+async function changesDialog() {
+  const body = dialog('Changes');
+  let mod;
+  try {
+    mod = await api('/api/mod/status');
+  } catch (error) {
+    say(error.message, 'bad');
+    return;
+  }
+
+  if (!mod.edited.length) {
+    const empty = document.createElement('p');
+    empty.className = 'dialog-note';
+    empty.textContent = 'Nothing edited in this project yet.';
+    body.append(empty);
+    return;
+  }
+
+  const inGame = new Set(mod.installed);
+  const stale = new Set(mod.changed);
+
+  const all = document.createElement('label');
+  all.className = 'dialog-check';
+  const every = document.createElement('input');
+  every.type = 'checkbox';
+  all.append(every, document.createTextNode(
+    `Select all (${mod.edited.length} file${mod.edited.length === 1 ? '' : 's'})`));
+  body.append(all);
+
+  const list = document.createElement('div');
+  list.className = 'dialog-list changes';
+  const boxes = [];
+  for (const name of mod.edited) {
+    const row = document.createElement('label');
+    row.className = 'dialog-row check';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    boxes.push({ box, name });
+
+    const text = document.createElement('span');
+    text.className = 'changes-name';
+    text.textContent = name;
+
+    const mark = document.createElement('span');
+    mark.className = 'changes-where';
+    mark.textContent = stale.has(name) ? 'in the game, but changed since'
+      : inGame.has(name) ? 'in the game'
+      : mod.canInstall ? 'not in the game yet'
+      : 'live — this build reads it directly';
+
+    row.append(box, text, mark);
+    list.append(row);
+  }
+  body.append(list);
+
+  every.onchange = () => boxes.forEach(b => { b.box.checked = every.checked; });
+
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Revert selected';
+  go.onclick = async () => {
+    const names = boxes.filter(b => b.box.checked).map(b => b.name);
+    if (!names.length) return say('nothing selected', 'bad');
+    const what = names.length === 1 ? names[0] : `${names.length} files`;
+    const alsoGame = names.some(n => inGame.has(n));
+    if (!confirm(`Throw away the edits to ${what}?`
+      + (alsoGame ? '\n\nThe game\'s own files go back at the same time.' : ''))) return;
+    try {
+      const result = await api('/api/mod/revert', { names });
+      if (!result.ok) throw new Error(result.error);
+      const notes = (result.notes || []).join('  ·  ');
+      say(`${result.reverted.length} reverted`
+        + (result.restored.length ? `, ${result.restored.length} put back in the game` : '')
+        + (result.removed.length ? `, ${result.removed.length} removed from the game` : '')
+        + (notes ? '  ·  ' + notes : ''), notes ? 'bad' : 'good');
+      body.close();
+      // The open tabs are showing what was just thrown away.
+      if (typeof docs !== 'undefined' && typeof closeDoc === 'function') {
+        for (const id of [...docs.keys()]) closeDoc(id);
+      }
+      await refreshProject();
+      if (typeof drawProjectTree === 'function') drawProjectTree();
     } catch (error) {
       say(error.message, 'bad');
     }

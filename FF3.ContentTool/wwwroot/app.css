@@ -238,6 +238,15 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
 .menu-item.checked::before { content: '\2713'; margin-left: -14px; padding-right: 4px; }
 .menu-rule { height: 1px; margin: 4px 6px; background: var(--line); }
 
+/* The changes list: a checkbox, the name, and where that file currently stands. */
+.dialog-list.changes { max-height: 46vh; overflow: auto; }
+.dialog-row.check { flex-direction: row; align-items: center; gap: 8px; cursor: pointer; }
+.dialog-row.check:hover { border-color: var(--accent); }
+.changes-name { flex: 1; font-size: 12px; color: var(--ink);
+  font-family: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.changes-where { font-size: 11px; color: var(--dim); white-space: nowrap; }
+
 #summary { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
 

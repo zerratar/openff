@@ -281,6 +281,10 @@ namespace FF3.ContentTool.Editor
 					SendJson(context, ModInstall.Uninstall(_workspace));
 					return;
 
+				case "/api/mod/revert":
+					RevertMany(context);
+					return;
+
 				case "/api/list":
 					SendJson(context, _workspace.List(Extensions(Query(context, "kind"))));
 					return;
@@ -1242,12 +1246,43 @@ namespace FF3.ContentTool.Editor
 
 		// ------------------------------------------------------------------- revert
 
+		/// <summary>The picked files, back to what the game shipped.</summary>
+		private void RevertMany(HttpListenerContext context)
+		{
+			List<string> names = (ReadBody(context)?["names"] as JsonArray)?
+				.Select(n => (string)n).Where(s => s != null).ToList()
+				?? new List<string>();
+			ModResult result = ModInstall.Revert(_workspace, names);
+			if (result.Reverted.Count > 0)
+			{
+				// A reverted .msd puts the shipped line back, and the views that show
+				// dialogue have to see that rather than the one that was thrown away.
+				_messages.Invalidate();
+				_flags.Invalidate();
+				_characterIds.Invalidate();
+			}
+			SendJson(context, result);
+		}
+
 		private void Revert(HttpListenerContext context)
 		{
 			JsonNode body = ReadBody(context);
 			string name = (string)body["name"];
-			bool removed = _workspace.Revert(name);
-			SendJson(context, new { ok = true, reverted = removed, overridden = false });
+			// Through ModInstall rather than the workspace directly: if this edit had
+			// been installed, deleting it here alone would leave the game still holding
+			// it, and the file would look reverted everywhere except where it matters.
+			ModResult result = ModInstall.Revert(_workspace, new[] { name });
+			_messages.Invalidate();
+			_flags.Invalidate();
+			_characterIds.Invalidate();
+			SendJson(context, new
+			{
+				ok = true,
+				reverted = result.Reverted.Count > 0,
+				overridden = _workspace.IsOverridden(name),
+				restored = result.Restored.Count > 0,
+				notes = result.Notes
+			});
 		}
 
 		// ------------------------------------------------------------------ plumbing

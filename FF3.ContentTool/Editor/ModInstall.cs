@@ -74,6 +74,10 @@ namespace FF3.ContentTool.Editor
 		public List<string> Restored { get; set; } = new List<string>();
 		public List<string> Removed { get; set; } = new List<string>();
 		public List<string> Skipped { get; set; } = new List<string>();
+
+		/// <summary>Edits thrown away - the file is back to what the game shipped.</summary>
+		public List<string> Reverted { get; set; } = new List<string>();
+
 		public List<string> Notes { get; set; } = new List<string>();
 	}
 
@@ -296,6 +300,114 @@ namespace FF3.ContentTool.Editor
 			return result;
 		}
 
+		/// <summary>
+		/// Undoes one installed file: the original back, or the file gone if the mod
+		/// added it. Shared by uninstall, which does the lot, and revert, which does
+		/// the ones that were picked.
+		/// </summary>
+		private static void TakeBack(Workspace workspace,
+			Dictionary<string, InstalledFile> manifest, InstalledFile record, ModResult result)
+		{
+			string live = InstallPath(workspace, record.Name);
+			string here = HashOf(live);
+
+			if (here == null)
+			{
+				result.Notes.Add(record.Name + " is already gone");
+				manifest.Remove(record.Name);
+				return;
+			}
+
+			// Only take back what is still ours. A game update or a Steam verify puts
+			// a newer original there, and restoring over that would undo it.
+			if (here != record.Wrote)
+			{
+				result.Skipped.Add(record.Name);
+				return;
+			}
+
+			if (!record.Replaced)
+			{
+				File.Delete(live);
+				result.Removed.Add(record.Name);
+				manifest.Remove(record.Name);
+				return;
+			}
+
+			string backup = BackupPath(workspace, record.Name);
+			if (!File.Exists(backup))
+			{
+				result.Skipped.Add(record.Name);
+				result.Notes.Add("no backup kept for " + record.Name
+					+ " - left as it is; Steam can restore it by verifying the files");
+				return;
+			}
+
+			File.Copy(backup, live, true);
+			result.Restored.Add(record.Name);
+			manifest.Remove(record.Name);
+		}
+
+		/// <summary>
+		/// Throws away the edits to the named files.
+		///
+		/// Two halves, and both are needed. Deleting the override is what makes the
+		/// editor read the shipped file again. But if that edit had been installed, the
+		/// game is still holding it - so the original goes back first, by the same rules
+		/// uninstall uses, and only then is the edit deleted. Doing just the first half
+		/// is the trap: the file would look reverted everywhere except in the game.
+		/// </summary>
+		public static ModResult Revert(Workspace workspace, IEnumerable<string> names)
+		{
+			ModResult result = new ModResult();
+			List<string> wanted = (names ?? Enumerable.Empty<string>())
+				.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(
+					StringComparer.OrdinalIgnoreCase).ToList();
+			if (wanted.Count == 0)
+			{
+				result.Error = "nothing was picked";
+				return result;
+			}
+
+			bool installable = workspace.Kind == "loose files";
+			Dictionary<string, InstalledFile> manifest = installable
+				? Manifest(workspace)
+				: new Dictionary<string, InstalledFile>(StringComparer.OrdinalIgnoreCase);
+
+			foreach (string name in wanted)
+			{
+				if (manifest.TryGetValue(name, out InstalledFile record))
+				{
+					TakeBack(workspace, manifest, record, result);
+					// Still in the manifest means it was left alone deliberately, so the
+					// edit stays too rather than leaving the game holding bytes nothing
+					// in the project explains any more.
+					if (manifest.ContainsKey(name))
+					{
+						continue;
+					}
+				}
+
+				if (workspace.Revert(name))
+				{
+					result.Reverted.Add(name);
+				}
+			}
+
+			if (installable)
+			{
+				SaveManifest(workspace, manifest);
+			}
+			if (result.Skipped.Count > 0)
+			{
+				result.Notes.Add(result.Skipped.Count
+					+ " file(s) hold bytes we did not write, so the game was left alone "
+					+ "and the edit kept - the game was updated or verified since");
+			}
+			result.Ok = true;
+			return result;
+		}
+
 		/// <summary>Puts the originals back, and removes files the mod added.</summary>
 		public static ModResult Uninstall(Workspace workspace)
 		{
@@ -317,44 +429,7 @@ namespace FF3.ContentTool.Editor
 
 			foreach (InstalledFile record in manifest.Values.OrderBy(f => f.Name).ToList())
 			{
-				string live = InstallPath(workspace, record.Name);
-				string here = HashOf(live);
-
-				if (here == null)
-				{
-					result.Notes.Add(record.Name + " is already gone");
-					manifest.Remove(record.Name);
-					continue;
-				}
-
-				// Only take back what is still ours. A game update or a Steam verify
-				// puts a newer original there, and restoring over that would undo it.
-				if (here != record.Wrote)
-				{
-					result.Skipped.Add(record.Name);
-					continue;
-				}
-
-				if (!record.Replaced)
-				{
-					File.Delete(live);
-					result.Removed.Add(record.Name);
-					manifest.Remove(record.Name);
-					continue;
-				}
-
-				string backup = BackupPath(workspace, record.Name);
-				if (!File.Exists(backup))
-				{
-					result.Skipped.Add(record.Name);
-					result.Notes.Add("no backup kept for " + record.Name
-						+ " - left as it is; Steam can restore it by verifying the files");
-					continue;
-				}
-
-				File.Copy(backup, live, true);
-				result.Restored.Add(record.Name);
-				manifest.Remove(record.Name);
+				TakeBack(workspace, manifest, record, result);
 			}
 
 			SaveManifest(workspace, manifest);

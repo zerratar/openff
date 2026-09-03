@@ -124,6 +124,21 @@ It is built to be undone:
 `Tools/test_mod_install.py` exercises all of that against a fake install, so no real
 game is touched by the test.
 
+### Undoing one file
+
+**File ▸ Changes…** lists everything the project holds, with a checkbox each and a
+select all, and reverts whichever are ticked.
+
+Reverting is two things at once, and it matters that it is both: the edit is deleted
+from the project, **and** if that edit had been installed, the game's own file goes
+back at the same moment. Undoing only the first half is the trap - the file would then
+read as shipped everywhere except in the game, which is the one place it matters. The
+per-file Revert button in each editor goes through the same path for the same reason.
+
+The rule about a game updated since install still holds: such a file is left alone and
+the edit kept, rather than a stale original going back over a newer one.
+`Tools/test_revert.py` covers all of it.
+
 ## Giving it to somebody who does not have the SDK
 
 ```bash
