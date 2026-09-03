@@ -457,6 +457,27 @@ async function loadMessages(node) {
   }
 }
 
+/// Which of the two fonts a Text widget uses, from its second parameter.
+///
+/// Not the widget's height, which is what this guessed at first - a 56 tall button
+/// would then have taken the large font and drawn "Equipment" at 72% of its box
+/// instead of 51%. MBText reads it as a threshold:
+///
+///   if (list[1].nodeValueInt() > 8) flagOn(4); else flagOff(4);
+///   int font = 1; if (flagCheck(4)) font = 0;
+///
+/// so over 8 picks font 0 and anything else font 1 - the large and small faces, 16
+/// and 12. Every command in the main menu passes 8, which is why they are small.
+function textFontSize(element) {
+  const behavior = [...element.children].find(e => e.tagName === 'behavior');
+  if (!behavior) return 12;
+  const parameters = [...behavior.children].filter(e => e.tagName === 'parameter');
+  if (parameters.length < 2) return 12;
+  const value = parseInt(
+    parameters[1].getAttribute('value') ?? parameters[1].textContent, 10);
+  return !Number.isNaN(value) && value > 8 ? 16 : 12;
+}
+
 /// How MBText places its string in the widget, from the third parameter:
 /// 0 left, 1 right, 2 centre, 3 flexible, 4 button, 5 menu - and button and menu
 /// centre the same way centre does.
@@ -580,17 +601,31 @@ function drawScreen(node, screen, select) {
         label.textContent = text;
         // In the game's own font, once it arrives. The text stays as a fallback, so a
         // font that will not load leaves a readable preview rather than an empty one.
-        drawFontText(text, frame.height >= 16 ? 16 : 12, '#f4f4f4')
+        drawFontText(text, textFontSize(frame.element), '#f4f4f4')
           .then(canvas => {
             if (!canvas || !label.isConnected) return;
             label.textContent = '';
-            // Where MBText would put it: left, right, or centred in the declared
-            // width. Most of the menu is centred, which is why every label sat
-            // hard against the left edge before.
+            // Where MBText would put it. Across, that is the alignment: left,
+            // right, or centred in the declared width. Down, it is the same for
+            // every alignment - mbtSetAlignment centres the text in the widget's
+            // height whenever that height is set at all:
+            //
+            //   if (height > 0) num1 = (height - textHeight) / 2;
+            //
+            // which is why the commands looked pinned to the top of their buttons.
+            // The menu's commands are 56 tall and the text is 12, so they belong
+            // 22 units down.
             const align = textAlignment(frame.element);
             const room = frame.width - canvas.width;
             if (align === 1) canvas.style.marginLeft = `${Math.round(room)}px`;
             else if (align !== 0) canvas.style.marginLeft = `${Math.round(room / 2)}px`;
+
+            // StringHeight returns the size itself, so that is the game's own
+            // answer for how tall a line is.
+            const size = textFontSize(frame.element);
+            if (frame.height > 0) {
+              canvas.style.marginTop = `${Math.round((frame.height - size) / 2)}px`;
+            }
             label.append(canvas);
           })
           .catch(() => {});
