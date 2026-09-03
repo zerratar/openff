@@ -147,12 +147,16 @@ compressed; uninstall puts the pristine copy back; reverting one edit rebuilds f
 copy plus the others that remain. A container whose bytes are neither the shipped ones
 nor the ones we wrote is left alone and said so - the game updated it.
 
-Two kinds of container are read but never written. Six - `EFFECT`, `FACE`, `BTL_CAMERA`,
-`EVT_CAMERA`, `MOTION_MENU`, `SIGHTRO`, `DEBUGJUMP` - have a different layout, with 504
-bytes after the directory; `Ssam.CanRepack` refuses them rather than guess. Four -
-`NAVIMAP`, `STAGEMNG_D`, `STAGEMNG_T`, `battle_map` - carry offsets past their own end,
-and the reader skips them entirely; that is 1 934 entries, mostly `.namp.lz` animations,
-and it is the next reading gap to close.
+FF4 lays its containers out two ways and the repacker reads which off the container:
+nineteen use a stride of 32 with the first entry at offset 0, six - `EFFECT`, `FACE`,
+`BTL_CAMERA`, `EVT_CAMERA`, `MOTION_MENU`, `SIGHTRO`, `DEBUGJUMP` - a stride of 512 with
+the first at 504. With no replacements, all twenty-five come back byte for byte.
+
+Four more - `NAVIMAP`, `STAGEMNG_D`, `STAGEMNG_T`, `battle_map` - are not containers at
+all any more. Each is exactly its header and records, with offsets running to tens of
+megabytes into a payload that is not there: an index left over from the Android build.
+Every one of their 1 934 entries ships as a loose file in Steam's `files/`, which is
+where the editor already reads them. The reader skips the four, and nothing is lost.
 
 `Tools/test_mod_ssam.py` runs the whole cycle against a copy of FF4's own
 `CAST_SCRIPT.dat`: install, reinstall, uninstall, revert one of two, and a container

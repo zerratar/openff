@@ -42,17 +42,36 @@ namespace FF3.ContentTool.Editor
 		private const int NameSize = 32;
 
 		/// <summary>
-		/// Entries sit at 32 byte strides with at least one byte between them - the
-		/// next starts at roundup(size + 1, 32). Measured against every entry of the
-		/// twenty-three containers whose first entry is at offset 0; it is the only
-		/// rule that fits all of them, and roundup(size, 32) is not, because an entry
-		/// that is already a multiple of 32 still gets a full 32 bytes of gap.
+		/// FF4 lays its containers out two ways, and both follow one rule: the next
+		/// entry starts at roundup(size + 1, stride) after the last - an entry that is
+		/// already a multiple of the stride still gets a full stride of gap, so
+		/// roundup(size, stride) is wrong. Nineteen containers use a stride of 32 with
+		/// the first entry at offset 0; six - EFFECT, FACE, BTL_CAMERA, EVT_CAMERA,
+		/// MOTION_MENU, SIGHTRO, DEBUGJUMP - use 512 with the first at 504. Measured
+		/// against every entry of every one, and read off the container rather than
+		/// assumed, so a container is rewritten the way it came.
 		/// </summary>
-		private const int Stride = 32;
-
-		private static int Padded(int size)
+		private static int Padded(int size, int stride)
 		{
-			return (size + 1 + Stride - 1) / Stride * Stride;
+			return (size + 1 + stride - 1) / stride * stride;
+		}
+
+		/// <summary>The stride a container's entries follow, or 0 if neither fits.</summary>
+		private static int StrideOf(List<SsamEntry> entries)
+		{
+			foreach (int stride in new[] { 32, 512 })
+			{
+				bool fits = true;
+				for (int i = 0; i + 1 < entries.Count && fits; i++)
+				{
+					fits = entries[i + 1].Offset == entries[i].Offset + Padded(entries[i].Size, stride);
+				}
+				if (fits)
+				{
+					return stride;
+				}
+			}
+			return 0;
 		}
 
 		/// <summary>
@@ -78,19 +97,10 @@ namespace FF3.ContentTool.Editor
 			{
 				return false;
 			}
-			int directoryEnd = HeaderSize + RecordSize * entries.Count;
-			if (entries[0].Offset != directoryEnd)
-			{
-				return false;
-			}
-			for (int i = 0; i + 1 < entries.Count; i++)
-			{
-				if (entries[i + 1].Offset != entries[i].Offset + Padded(entries[i].Size))
-				{
-					return false;
-				}
-			}
-			return true;
+			// A directory whose entries lie past the end of the file is an index left
+			// over from the Android build - NAVIMAP, STAGEMNG_*, battle_map - whose
+			// entries Steam ships loose. Read() already refuses those.
+			return StrideOf(entries) != 0;
 		}
 
 		/// <summary>
@@ -117,10 +127,15 @@ namespace FF3.ContentTool.Editor
 
 			SsamEntry last = entries[entries.Count - 1];
 			byte[] tail = data.Skip(last.Offset + last.Size).ToArray();
+			int stride = StrideOf(entries);
 
 			int directoryEnd = HeaderSize + RecordSize * entries.Count;
 			using MemoryStream body = new MemoryStream();
 			List<(int Offset, int Size)> placed = new List<(int, int)>(entries.Count);
+			// The first entry sits where it sat - 0 in one layout, 504 in the other -
+			// and the bytes before it are kept, not invented.
+			int lead = entries[0].Offset - directoryEnd;
+			body.Write(data, directoryEnd, lead);
 			foreach (SsamEntry entry in entries)
 			{
 				byte[] bytes = replacements.TryGetValue(entry.Name, out byte[] replaced)
@@ -128,7 +143,7 @@ namespace FF3.ContentTool.Editor
 					: data.Skip(entry.Offset).Take(entry.Size).ToArray();
 				placed.Add(((int)body.Position, bytes.Length));
 				body.Write(bytes, 0, bytes.Length);
-				int pad = Padded(bytes.Length) - bytes.Length;
+				int pad = Padded(bytes.Length, stride) - bytes.Length;
 				for (int i = 0; i < pad; i++)
 				{
 					body.WriteByte(0);
