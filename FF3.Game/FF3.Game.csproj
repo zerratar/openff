@@ -39,6 +39,7 @@
          the game and the content tool so the reader and the extractor cannot drift. -->
     <Compile Include="..\Shared\ArchiveFormat.cs" Link="Compat\ArchiveFormat.cs" />
     <Compile Include="..\Shared\Content\*.cs" Link="Compat\Content\%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\Script\*.cs" Link="Compat\Script\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

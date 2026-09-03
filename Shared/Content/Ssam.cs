@@ -287,6 +287,16 @@ namespace FF3.Content
 				{
 					seen.Add(name);
 					yield return name;
+					// The loose tables are LZ-compressed with the suffix to say so -
+					// item_parameter.pak.lz - and answer to FF3's name for them as well.
+					if (name.EndsWith(".lz", StringComparison.OrdinalIgnoreCase))
+					{
+						string plain = name.Substring(0, name.Length - 3);
+						if (seen.Add(plain))
+						{
+							yield return plain;
+						}
+					}
 				}
 				foreach (string name in _packed.Keys)
 				{
@@ -304,7 +314,23 @@ namespace FF3.Content
 			{
 				return true;
 			}
-			if (!_packed.TryGetValue(name, out (string Container, SsamEntry Entry, bool Compressed) where))
+			if (!name.EndsWith(".lz", StringComparison.OrdinalIgnoreCase) && _loose.TryRead(name + ".lz", out byte[] packedLoose))
+			{
+				// FF3's name for a loose compressed file: decompressed on the way out,
+				// the same as an entry inside a container.
+				data = Lz.IsCompressed(packedLoose) ? Lz.Decompress(packedLoose) : packedLoose;
+				return true;
+			}
+			// The game asks by its own names - d01_00.nmdp.lz - and decompresses what it
+			// gets itself, so a compressed entry asked for with its suffix comes out raw.
+			bool wantsCompressed = name.EndsWith(".lz", StringComparison.OrdinalIgnoreCase);
+			string key = wantsCompressed ? name.Substring(0, name.Length - 3) : name;
+			if (!_packed.TryGetValue(key, out (string Container, SsamEntry Entry, bool Compressed) where))
+			{
+				data = null;
+				return false;
+			}
+			if (wantsCompressed && !where.Compressed)
 			{
 				data = null;
 				return false;
@@ -312,7 +338,7 @@ namespace FF3.Content
 			byte[] container = _containers[where.Container];
 			byte[] raw = new byte[where.Entry.Size];
 			Buffer.BlockCopy(container, where.Entry.Offset, raw, 0, raw.Length);
-			data = where.Compressed && Lz.IsCompressed(raw) ? Lz.Decompress(raw) : raw;
+			data = !wantsCompressed && where.Compressed && Lz.IsCompressed(raw) ? Lz.Decompress(raw) : raw;
 			return true;
 		}
 

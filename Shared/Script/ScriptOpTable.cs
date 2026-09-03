@@ -9,9 +9,9 @@
 
 using System;
 
-namespace FF3.ContentTool
+namespace FF3.Script
 {
-	internal sealed class ScriptOpTable
+	internal sealed partial class ScriptOpTable
 	{
 		public static readonly ScriptOpTable Ff3 = new ScriptOpTable("ff3", ScriptOps.Table);
 		public static readonly ScriptOpTable Ff4 = new ScriptOpTable("ff4", ScriptOpsFf4.Table);
@@ -21,7 +21,6 @@ namespace FF3.ContentTool
 
 		public readonly ScriptOp[] Ops;
 
-		private Ffs.Mnemonics _names;
 
 		private ScriptOpTable(string game, ScriptOp[] ops)
 		{
@@ -49,17 +48,6 @@ namespace FF3.ContentTool
 		}
 
 		/// <summary>The mnemonics for this table, built once.</summary>
-		public Ffs.Mnemonics Names
-		{
-			get
-			{
-				if (_names == null)
-				{
-					_names = new Ffs.Mnemonics(Ops);
-				}
-				return _names;
-			}
-		}
 
 		/// <summary>
 		/// What an operand is called, where that is known. The names were followed
@@ -91,7 +79,52 @@ namespace FF3.ContentTool
 				return false;
 			}
 			return mine.Operands.Length == theirs.Operands.Length
-				&& Ffs.Mnemonics.Simplify(mine.Name) == Ffs.Mnemonics.Simplify(theirs.Name);
+				&& Simplify(mine.Name) == Simplify(theirs.Name);
+		}
+
+		/// <summary>
+		/// handler name -> mnemonic: drop the ff3Command_ (or babilCommand_) prefix and
+		/// the Command suffix, then lower the leading run of capitals so NOPCommand
+		/// becomes nop and StartMessage2 becomes startMessage2. babilCommand_3DSSetup
+		/// keeps its underscore (_3DSSetup) because no lexer reads a name that starts
+		/// with a digit.
+		/// </summary>
+		public static string Simplify(string handler)
+		{
+			string name = handler;
+			// Two games, two prefixes: ours is ff3Command_, FF4's is babilCommand_ -
+			// Babil being what the FF4 team called it internally. One FF4 handler is
+			// spelt babilCommands_.
+			foreach (string prefix in new[] { "ff3Command_", "babilCommands_", "babilCommand_" })
+			{
+				if (name.StartsWith(prefix, StringComparison.Ordinal))
+				{
+					name = name.Substring(prefix.Length);
+					break;
+				}
+			}
+			if (name.Length > "Command".Length
+				&& name.EndsWith("Command", StringComparison.Ordinal))
+			{
+				name = name.Substring(0, name.Length - "Command".Length);
+			}
+			if (name.Length == 0)
+			{
+				return handler;
+			}
+			if (char.IsDigit(name[0]))
+			{
+				name = "_" + name;
+			}
+			System.Text.StringBuilder text = new System.Text.StringBuilder(name);
+			int i = 0;
+			while (i < text.Length && char.IsUpper(text[i])
+				&& (i + 1 >= text.Length || !char.IsLower(text[i + 1]) || i == 0))
+			{
+				text[i] = char.ToLowerInvariant(text[i]);
+				i++;
+			}
+			return text.ToString();
 		}
 	}
 }

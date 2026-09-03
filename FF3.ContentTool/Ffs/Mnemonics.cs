@@ -77,43 +77,7 @@ namespace FF3.ContentTool.Ffs
 		/// </summary>
 		public static string Simplify(string handler)
 		{
-			string name = handler;
-			// Two games, two prefixes: ours is ff3Command_, FF4's is babilCommand_ -
-			// Babil being what the FF4 team called it internally. One FF4 handler is
-			// spelt babilCommands_.
-			foreach (string prefix in new[] { "ff3Command_", "babilCommands_", "babilCommand_" })
-			{
-				if (name.StartsWith(prefix, StringComparison.Ordinal))
-				{
-					name = name.Substring(prefix.Length);
-					break;
-				}
-			}
-			if (name.Length > "Command".Length
-				&& name.EndsWith("Command", StringComparison.Ordinal))
-			{
-				name = name.Substring(0, name.Length - "Command".Length);
-			}
-			if (name.Length == 0)
-			{
-				return handler;
-			}
-			// babilCommand_3DSSetup would become 3DSSetup, which no lexer reads as a
-			// name. Keep the underscore that separated it from the prefix: _3DSSetup.
-			if (char.IsDigit(name[0]))
-			{
-				name = "_" + name;
-			}
-
-			StringBuilder text = new StringBuilder(name);
-			int i = 0;
-			while (i < text.Length && char.IsUpper(text[i])
-				&& (i + 1 >= text.Length || !char.IsLower(text[i + 1]) || i == 0))
-			{
-				text[i] = char.ToLowerInvariant(text[i]);
-				i++;
-			}
-			return text.ToString();
+			return ScriptOpTable.Simplify(handler);
 		}
 	}
 }
