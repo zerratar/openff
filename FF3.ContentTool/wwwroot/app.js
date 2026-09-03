@@ -262,7 +262,8 @@ function goToLine(text, line, column) {
 
 const menu = {
   doc: null, screens: [], screen: null, selected: null, name: null,
-  zoom: 2, preview: false, messages: {}
+  zoom: 2, preview: false, messages: {},
+  xmlOpen: true, xmlHeight: 260
 };
 
 async function openMenu(name) {
@@ -304,36 +305,48 @@ async function openMenu(name) {
     redraw(node);
   };
 
-  // The whole document, not just the selected widget.
-  const xmlPanel = $('.xml-editor', node);
+  // The XML panel under the canvas. It shows whichever thing is selected - one widget
+  // if there is one, the whole file if there is not - so there is no XML mode to enter
+  // and leave, and the canvas stays visible either way. Clicking an empty spot selects
+  // nothing, which is how you get back to the whole file.
   const canvasWrap = $('.canvas-wrap', node);
-  const xmlArea = $('.xml', node);
-  $('.xmltoggle', node).onclick = () => {
-    const showing = !xmlPanel.hidden;
-    if (showing) {
-      xmlPanel.hidden = true;
-      canvasWrap.hidden = false;
-    } else {
-      xmlArea.value = formatXml(new XMLSerializer().serializeToString(menu.doc));
-      xmlPanel.hidden = false;
-      canvasWrap.hidden = true;
-    }
+  applyXmlHeight(node);
+
+  $('.xml-collapse', node).onclick = () => {
+    menu.xmlOpen = !menu.xmlOpen;
+    applyXmlHeight(node);
+    refreshXmlPanel(node);
   };
-  $('.apply', node).onclick = () => {
-    try {
-      const parsed = new DOMParser().parseFromString(xmlArea.value, 'application/xml');
-      if (parsed.querySelector('parsererror')) throw new Error('that is not valid XML');
-      menu.doc = parsed;
-      menu.selected = null;
-      const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu');
-      menu.screens = found.length ? found : [menu.doc.documentElement];
-      xmlPanel.hidden = true;
-      canvasWrap.hidden = false;
-      redraw(node);
-      say('applied - press Save to write it', 'good');
-    } catch (error) {
-      say(error.message, 'bad');
-    }
+
+  $('.xml-grip', node).onpointerdown = event => {
+    if (!menu.xmlOpen) return;
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = menu.xmlHeight;
+    // On the window rather than the grip: the pointer leaves a 6px strip immediately.
+    const move = e => {
+      menu.xmlHeight = Math.max(90, Math.min(760, startHeight + (startY - e.clientY)));
+      applyXmlHeight(node);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  $('.apply', node).onclick = () => applyXml(node);
+
+  // Anywhere in the canvas area that is not a widget. Selecting nothing is a real
+  // choice here rather than just the absence of one - it is what puts the whole file
+  // in the panel, and it is the only way to stop the arrow keys nudging something.
+  canvasWrap.onpointerdown = event => {
+    if (event.target.closest('.widget')) return;
+    if (!menu.selected) return;
+    menu.selected = null;
+    $$('.widget', node).forEach(w => w.classList.remove('on'));
+    showProperties(node, null);
   };
 
   $('.save', node).onclick = async () => {
@@ -432,6 +445,57 @@ async function drawMenuBackground(node, screenName) {
   drawn.style.width = `${box.width}px`;
   drawn.style.height = `${box.height}px`;
   canvas.prepend(drawn);
+}
+
+/// Puts the split at the height it is set to, or shuts it down to its own bar.
+function applyXmlHeight(node) {
+  const split = $('.xml-split', node);
+  if (!split) return;
+  split.classList.toggle('shut', !menu.xmlOpen);
+  split.style.height = menu.xmlOpen ? `${menu.xmlHeight}px` : '';
+  const button = $('.xml-collapse', node);
+  button.textContent = menu.xmlOpen ? '\u25be' : '\u25b4';
+  button.title = menu.xmlOpen ? 'collapse' : 'expand';
+}
+
+/// Fills the panel from whatever is selected.
+///
+/// Never while it is being typed in - this runs on every redraw, and a redraw happens
+/// while a widget is being dragged, so reserialising under the cursor would throw the
+/// edit away mid-word.
+function refreshXmlPanel(node) {
+  const area = $('.xml', node);
+  if (!area || !menu.xmlOpen || document.activeElement === area) return;
+  const target = menu.selected || menu.doc;
+  $('.xml-what', node).textContent = menu.selected
+    ? (childText(menu.selected, 'id') || 'this widget')
+    : 'the whole file';
+  area.value = formatXml(new XMLSerializer().serializeToString(target));
+}
+
+/// Applies what is in the panel back to whatever it was showing.
+function applyXml(node) {
+  const area = $('.xml', node);
+  try {
+    const parsed = new DOMParser().parseFromString(area.value, 'application/xml');
+    if (parsed.querySelector('parsererror')) throw new Error('that is not valid XML');
+    if (menu.selected) {
+      // importNode, because the parse produced a node belonging to another document.
+      const replacement = menu.doc.importNode(parsed.documentElement, true);
+      menu.selected.replaceWith(replacement);
+      menu.selected = replacement;
+      redraw(node);
+      say('widget replaced - press Save to write it', 'good');
+    } else {
+      menu.doc = parsed;
+      const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu');
+      menu.screens = found.length ? found : [menu.doc.documentElement];
+      redraw(node);
+      say('applied - press Save to write it', 'good');
+    }
+  } catch (error) {
+    say(error.message, 'bad');
+  }
 }
 
 function redraw(node) {
@@ -710,6 +774,7 @@ function showProperties(node, frame, screen) {
     activeDoc.selection = null;
     activeDoc.inspect = null;
     drawInspector();
+    refreshXmlPanel(node);
     return;
   }
 
@@ -720,6 +785,7 @@ function showProperties(node, frame, screen) {
   activeDoc.selection = 'widget:' + (frame.id || '?');
   activeDoc.inspect = () => buildWidget(activeDoc.menuFrame);
   drawInspector();
+  refreshXmlPanel(node);
 }
 
 /// One widget's properties, for the inspector.
@@ -755,24 +821,7 @@ function buildWidget(held) {
   field('left', 'left');
   field('right', 'right');
 
-  const xml = document.createElement('label');
-  xml.textContent = 'this widget as XML';
-  const area = document.createElement('textarea');
-  area.value = new XMLSerializer().serializeToString(frame.element);
-  area.spellcheck = false;
-  area.onchange = () => {
-    try {
-      const parsed = new DOMParser().parseFromString(area.value, 'application/xml');
-      if (parsed.querySelector('parsererror')) throw new Error('that is not valid XML');
-      frame.element.replaceWith(menu.doc.importNode(parsed.documentElement, true));
-      drawScreen(node, screen);
-      say('widget replaced', 'good');
-    } catch (error) {
-      say(error.message, 'bad');
-    }
-  };
-  xml.append(area);
-  panel.append(xml);
+  // The XML itself is in the panel under the canvas, where it has room to be read.
   return panel;
 }
 

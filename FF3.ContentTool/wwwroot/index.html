@@ -129,7 +129,6 @@
         <option value="4">400%</option>
       </select>
       <label class="toggle"><input type="checkbox" class="preview"> Preview</label>
-      <button class="xmltoggle">XML</button>
       <span class="grow"></span>
       <button class="duplicate">Duplicate</button>
       <button class="remove">Delete</button>
@@ -139,14 +138,18 @@
     <div class="menu-body">
       <div class="canvas-wrap">
         <div class="canvas-scale"><div class="canvas"></div></div>
-        <p class="hint">Drag a widget to move it. Arrow keys nudge, shift+arrow moves by 8.</p>
+        <p class="hint">Drag a widget to move it. Arrow keys nudge, shift+arrow moves by 8.
+          Click an empty spot to select nothing.</p>
       </div>
-      <div class="xml-editor" hidden>
-        <textarea class="xml" spellcheck="false" wrap="off"></textarea>
+      <div class="xml-split">
+        <div class="xml-grip" title="drag to resize"></div>
         <div class="xml-bar">
+          <span class="xml-note">XML for <strong class="xml-what">the whole file</strong></span>
+          <span class="grow"></span>
           <button class="apply primary">Apply to the canvas</button>
-          <span class="note">The whole file. Applying replaces everything; it is not saved until you press Save.</span>
+          <button class="xml-collapse" title="collapse">&#9662;</button>
         </div>
+        <textarea class="xml" spellcheck="false" wrap="off"></textarea>
       </div>
     </div>
   </div>
