@@ -18,15 +18,27 @@ namespace FF3.ContentTool.Editor
 	{
 		private readonly Workspace _workspace;
 		private readonly string _language;
+		private readonly string _name;
 
 		/// <summary>The language folder, without the .lproj - "en", "ja" and so on.</summary>
-		public string Language => _language.Replace(".lproj/", string.Empty);
+		public string Language => _name;
+
+		/// <summary>
+		/// What every .msd name starts with. Worth reporting on its own: it is not
+		/// always the language plus .lproj, so anything building a message file's name
+		/// has to be told rather than assume.
+		/// </summary>
+		public string Prefix => _language;
+
 		private Dictionary<uint, string> _messages;
 
 		public MessageIndex(Workspace workspace, string language)
 		{
 			_workspace = workspace;
-			_language = (language ?? "en") + ".lproj/";
+			_name = language ?? "en";
+			// Not always a .lproj - a Steam install is one language with the .msd
+			// files straight in files/, so the workspace works out where they are.
+			_language = workspace.MessagePrefix(language);
 		}
 
 		public int Count => Build().Count;

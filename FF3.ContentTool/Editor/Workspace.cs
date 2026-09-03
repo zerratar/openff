@@ -1,9 +1,14 @@
 // What the editor edits.
 //
 // The same rule the game plays by: a file is read from the override directory if it
-// is there, and from the archives if it is not. Saving always writes to the override,
-// so the shipped archives are never touched and reverting is a matter of deleting one
-// file. Nothing has to be extracted first.
+// is there, and from the shipped content if it is not. Saving always writes to the
+// override, so the shipped content is never touched and reverting is a matter of
+// deleting one file. Nothing has to be extracted first.
+//
+// The shipped content is behind IContentSource, so this works the same over our own
+// archives and over a Steam install's loose files directory. Overrides stay separate
+// either way - the Steam build has no override mechanism of its own, and writing back
+// into a directory Steam validates is not something to do behind someone's back.
 
 using System;
 using System.Collections.Generic;
@@ -24,13 +29,17 @@ namespace FF3.ContentTool.Editor
 	internal sealed class Workspace
 	{
 		private readonly string _contentDirectory;
-		private readonly ArchiveIndex _index;
-		private readonly Dictionary<int, string> _archivePaths = new Dictionary<int, string>();
+		private readonly IContentSource _source;
+		private readonly List<string> _names;
+		private string _messagePrefix;
 
 		public string OverrideDirectory { get; }
 
-		/// <summary>Where the archives and the XNBs live.</summary>
+		/// <summary>Where the shipped content lives.</summary>
 		public string ContentDirectory => _contentDirectory;
+
+		/// <summary>"archives" or "loose files", for anything reporting what it opened.</summary>
+		public string Kind => _source.Kind;
 
 		public Workspace(string contentDirectory, string overrideDirectory)
 		{
@@ -38,18 +47,68 @@ namespace FF3.ContentTool.Editor
 			OverrideDirectory = Path.GetFullPath(overrideDirectory
 				?? Path.Combine(contentDirectory, "Override"));
 
+			// Packed first: our own Content directory has both a data000.bin and,
+			// after an extract, possibly a files directory as well, and the archives
+			// are the copy the game itself reads.
 			string table = Path.Combine(_contentDirectory, "data000.bin");
-			if (!File.Exists(table))
+			if (File.Exists(table))
+			{
+				_source = new ArchiveContentSource(
+					_contentDirectory, ArchiveIndex.Load(File.ReadAllBytes(table)));
+			}
+			else if (LooseContentSource.Looks(_contentDirectory))
+			{
+				_source = new LooseContentSource(_contentDirectory);
+			}
+			else
 			{
 				throw new FileNotFoundException(
-					"no data000.bin in " + _contentDirectory
-					+ " - point --content at the game's Content directory");
+					"no data000.bin and no files directory in " + _contentDirectory
+					+ " - point --content at our Content directory or at a game install");
 			}
-			_index = ArchiveIndex.Load(File.ReadAllBytes(table));
+
+			_names = _source.Names.ToList();
 			Directory.CreateDirectory(OverrideDirectory);
 		}
 
-		public int FileCount => _index.FileCount;
+		public int FileCount => _source.Count;
+
+		/// <summary>
+		/// Where the .msd files are, which is not the same in both releases and is not
+		/// worth guessing at. Ours keeps a folder per language, en.lproj and its
+		/// siblings. A Steam install is one language and puts them straight in files/.
+		/// So: take the language folder if the content has one, and fall back to
+		/// wherever the .msd files actually are if it does not.
+		/// </summary>
+		public string MessagePrefix(string language)
+		{
+			if (_messagePrefix != null)
+			{
+				return _messagePrefix;
+			}
+
+			string wanted = (language ?? "en") + ".lproj/";
+			List<string> messages = _names
+				.Where(n => n.EndsWith(".msd", StringComparison.OrdinalIgnoreCase))
+				.ToList();
+
+			if (messages.Any(n => n.StartsWith(wanted, StringComparison.OrdinalIgnoreCase)))
+			{
+				return _messagePrefix = wanted;
+			}
+
+			// Whatever directory holds the most of them. On a Steam install that is
+			// files/; if some other build shipped a single lproj under another name,
+			// this finds that too rather than showing every message as a bare id.
+			string prefix = messages
+				.Select(n => n.LastIndexOf('/') < 0 ? string.Empty : n.Substring(0, n.LastIndexOf('/') + 1))
+				.GroupBy(s => s, StringComparer.OrdinalIgnoreCase)
+				.OrderByDescending(g => g.Count())
+				.Select(g => g.Key)
+				.FirstOrDefault();
+
+			return _messagePrefix = prefix ?? wanted;
+		}
 
 		/// <summary>Everything with one of the given extensions, archives and overrides.</summary>
 		public List<WorkspaceEntry> List(params string[] extensions)
@@ -57,18 +116,18 @@ namespace FF3.ContentTool.Editor
 			HashSet<string> wanted = new HashSet<string>(extensions, StringComparer.OrdinalIgnoreCase);
 			List<WorkspaceEntry> entries = new List<WorkspaceEntry>();
 
-			foreach (ArchiveEntry entry in _index.Entries)
+			foreach (string name in _names)
 			{
-				string extension = Path.GetExtension(entry.Name);
+				string extension = Path.GetExtension(name);
 				if (wanted.Count > 0 && !wanted.Contains(extension))
 				{
 					continue;
 				}
 				entries.Add(new WorkspaceEntry
 				{
-					Name = entry.Name,
+					Name = name,
 					Extension = extension,
-					Overridden = File.Exists(OverridePath(entry.Name))
+					Overridden = File.Exists(OverridePath(name))
 				});
 			}
 
@@ -77,7 +136,7 @@ namespace FF3.ContentTool.Editor
 
 		public bool Exists(string name)
 		{
-			return File.Exists(OverridePath(name)) || _index.TryFind(name, out _);
+			return File.Exists(OverridePath(name)) || _source.TryRead(name, out _);
 		}
 
 		public bool IsOverridden(string name)
@@ -85,35 +144,18 @@ namespace FF3.ContentTool.Editor
 			return File.Exists(OverridePath(name));
 		}
 
-		/// <summary>The override if there is one, the archived copy otherwise.</summary>
+		/// <summary>The override if there is one, the shipped copy otherwise.</summary>
 		public byte[] Read(string name)
 		{
-			string loose = OverridePath(name);
-			if (File.Exists(loose))
+			string overridden = OverridePath(name);
+			if (File.Exists(overridden))
 			{
-				return File.ReadAllBytes(loose);
+				return File.ReadAllBytes(overridden);
 			}
 
-			if (!_index.TryFind(name, out ArchiveEntry entry))
+			if (!_source.TryRead(name, out byte[] data))
 			{
 				throw new FileNotFoundException("no file called " + name);
-			}
-
-			if (!_archivePaths.TryGetValue(entry.Archive, out string path))
-			{
-				path = ArchiveIndex.ArchiveName(_contentDirectory, entry.Archive);
-				if (!File.Exists(path))
-				{
-					throw new FileNotFoundException("missing archive " + path);
-				}
-				_archivePaths[entry.Archive] = path;
-			}
-
-			using FileStream stream = File.OpenRead(path);
-			byte[] data = ArchiveIndex.ReadBlob(stream, entry.Index);
-			if (data == null)
-			{
-				throw new InvalidDataException("could not read " + name + " out of the archive");
 			}
 			return data;
 		}
@@ -125,7 +167,7 @@ namespace FF3.ContentTool.Editor
 			File.WriteAllBytes(path, data);
 		}
 
-		/// <summary>Removes the override, so the archived copy is what the game sees.</summary>
+		/// <summary>Removes the override, so the shipped copy is what the game sees.</summary>
 		public bool Revert(string name)
 		{
 			string path = OverridePath(name);

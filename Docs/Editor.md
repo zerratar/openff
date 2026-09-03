@@ -8,16 +8,68 @@ Then open <http://localhost:5050/>.
 
 It edits the game's content directly - nothing has to be extracted first, and nothing
 is repacked afterwards. A file is read from the override directory if it is there and
-from the archives if it is not, which is the same rule the game plays by, and saving
-always writes to the override. So a change is live the next time the game starts, and
-undoing one is deleting a file.
+from the shipped content if it is not, which is the same rule the game plays by, and
+saving always writes to the override. So a change is live the next time the game
+starts, and undoing one is deleting a file.
 
 | Option | Default | |
 | --- | --- | --- |
-| `--content=<dir>` | `Content` | the directory holding `data000.bin` |
+| `--content=<dir>` | `Content` | a directory holding `data000.bin`, or a game install |
 | `--override=<dir>` | `<content>/Override` | where edits are written |
-| `--language=<code>` | `en` | which `.lproj` the dialogue is read from |
+| `--language=<code>` | `en` | which language the dialogue is read as |
 | `--port=<n>` | 5050 | |
+
+## Two content layouts
+
+`--content` accepts either shape, and everything above this line reads the same
+through both:
+
+- **Archives** - `data000.bin` and its numbered blobs. Our own build and the phone's.
+- **Loose files** - a `files` directory next to the executable, plus `sound` and any
+  `.lproj` folders. This is how the Steam release ships, already unpacked, because a
+  desktop install has no reason to pack it.
+
+Which one it opened is on the status line and in `/api/status` as `content`.
+
+```bash
+dotnet run --project FF3.ContentTool -- editor ^
+  "--content=C:\Program Files (x86)\Steam\steamapps\common\Final Fantasy III" ^
+  --override=..\SteamMods --port=5051
+```
+
+Give a Steam install an `--override` **outside** the install. Overrides are a thing
+this editor and our own build understand; the Steam executable has none, so an edit
+does not reach that game by being written there, and Steam validates the files it
+shipped. Keeping them apart means a mod is a directory you can hand to someone,
+rather than a mutated install.
+
+### What is the same, and what is not
+
+The two releases ship the same formats. Of the 4647 files they have in common, 2918
+are byte for byte identical - every `.msd`, every `.efp`, `.wbc`, `.shp`, `.rmg`,
+`.area`, and 344 of the 345 `.pak` files. So the maps, the exits, the dialogue and
+the scripts are the same data, and the reference index, the exit editor and the
+collision reader work on either without knowing which they have.
+
+What differs is presentation and revisions:
+
+| | Ours | Steam |
+| --- | --- | --- |
+| textures | 800x480, mostly 8-bit indexed PNG | up to 1496x720, 58 of them truecolour |
+| models | the same geometry | the same geometry, larger textures |
+| `.msd` location | one folder per language, `en.lproj/` | one language, straight in `files/` |
+| menus | 7 of 9 `.xbn` differ - laid out for a phone | laid out for a desktop |
+| text | 4110 messages | 4372 |
+| fonts | `Font{size}.glp` plus atlas pages | TrueType, rendered at run time |
+
+The `.NCGR` and `.NCBR` extensions are vestigial in both: the files are PNGs, named
+after the DS formats they replaced. That is why the higher colour depths cost nothing
+here - the browser decodes them and the editor only moves the bytes.
+
+The font preview is the one thing that does not carry over. It reads `Font{size}.glp`
+and the atlas pages beside it, and a Steam install has neither - it ships `arial.ttf`,
+`TBUDRGoStd-Bold.otf` and friends and rasterises them as it goes. Menu text there
+falls back to the browser's own font.
 
 The server binds to localhost, has no authentication, and is meant to be run by the
 person editing their own copy of the game. It is not a service.

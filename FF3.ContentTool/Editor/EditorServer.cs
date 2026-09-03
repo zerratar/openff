@@ -61,7 +61,8 @@ namespace FF3.ContentTool.Editor
 			listener.Start();
 
 			Console.WriteLine("FF3 content editor");
-			Console.WriteLine("  content   {0} files", _workspace.FileCount);
+			Console.WriteLine("  content   {0} files, {1}, in {2}",
+				_workspace.FileCount, _workspace.Kind, _workspace.ContentDirectory);
 			Console.WriteLine("  overrides {0}", _workspace.OverrideDirectory);
 			Console.WriteLine();
 			Console.WriteLine("  http://localhost:{0}/", port);
@@ -168,9 +169,14 @@ namespace FF3.ContentTool.Editor
 					{
 						files = _workspace.FileCount,
 						overrides = _workspace.OverrideDirectory,
-						// Which .lproj the text was read through, so the page can open
-						// the file a line actually lives in rather than guessing "en".
-						language = _messages.Language
+						// Which language the text was read as, and the directory it was
+						// read from, so the page can open the file a line actually lives
+						// in rather than guessing. The two are not the same thing: a
+						// Steam install is one language with its .msd files straight in
+						// files/, with no .lproj anywhere.
+						language = _messages.Language,
+						messagePrefix = _messages.Prefix,
+						content = _workspace.Kind
 					});
 					return;
 

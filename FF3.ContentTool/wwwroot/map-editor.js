@@ -1553,7 +1553,7 @@ function buildExit(exit, index) {
 /// language is being edited - the server says which one it read the text through, and
 /// that is the one worth opening.
 async function openMessage(id, cast) {
-  const file = `${state.language || 'en'}.lproj/${mapState.name}.msd`;
+  const file = `${state.messagePrefix || 'en.lproj/'}${mapState.name}.msd`;
   if (!(state.files || []).some(f => f.name === file) && state.browse !== 'text') {
     // The project is showing something else, so its file list cannot confirm this.
     // Opening it is still the right move; a missing file reports itself.
