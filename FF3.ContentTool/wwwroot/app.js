@@ -1492,6 +1492,31 @@ async function openModel(name) {
 
   await viewer.show(model, name);
   wireAnimation(node, viewer, name).catch(error => say(error.message, 'bad'));
+
+  // Export: the mesh with its textures, plus whichever motion the transport is on.
+  const exportButton = $('.export-glb', node);
+  if (exportButton) {
+    exportButton.onclick = async () => {
+      const packSelect = $('.anim-pack', node);
+      const motionSelect = $('.anim-motion', node);
+      const body = { name };
+      if (packSelect && packSelect.value) {
+        body.pack = packSelect.value;
+        body.index = Number(motionSelect && motionSelect.value) || 0;
+      }
+      exportButton.disabled = true;
+      say('writing .glb\u2026');
+      try {
+        const result = await api('/api/model/export', body);
+        if (!result.ok) throw new Error(result.error);
+        say(`exported ${result.path} (${Math.max(1, Math.round(result.bytes / 1024))} KB)`, 'good');
+        if (typeof revealProject === 'function') revealProject(result.path);
+      } catch (error) {
+        say(error.message, 'bad');
+      }
+      exportButton.disabled = false;
+    };
+  }
 }
 
 /// The transport under a model: motion packs the game has, the motions in the picked

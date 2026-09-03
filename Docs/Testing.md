@@ -1,4 +1,4 @@
-# Testing the editor against the real games
+﻿# Testing the editor against the real games
 
 What to try at the computer, in the order that proves the most with the least effort.
 Each case says what to do in the UI, what the game should show, and how to get back to
@@ -53,6 +53,7 @@ passed; these are the rest.
 | E-9 | File ▸ Export as .zip… | A zip beside the projects folder with project.json, the per-target files, and a README; Explorer opens on it |
 | E-10 | Models ▸ `n441` (FF3) - the motion bar picks `★ n441` and plays `n441_101_01` | The figure animates smoothly for 90 frames and loops; scrubbing the timeline and the arrow keys step frames; switching to a `b_f…` pack of another skeleton distorts it (expected - different bones) |
 | E-11 | Models ▸ a monster, e.g. `b_m005`-family model with `b_f005.ncap` | The battle idle plays; compare against the game's battle screen for direction and speed |
+| E-12 | Models ▸ `n441` with `n441_101_01` playing ▸ Export .glb ▸ open in Blender (File ▸ Import ▸ glTF 2.0) | The chocobo appears textured with an armature of 31 bones and an action of 90 frames that plays the same walk; UVs and vertex colours intact |
 
 ## What "works" looks like in the log
 

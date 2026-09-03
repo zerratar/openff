@@ -569,6 +569,10 @@ namespace FF3.ContentTool.Editor
 					SendJson(context, Models.Motions(_workspace, Query(context, "name")));
 					return;
 
+				case "/api/model/export":
+					ExportModel(context);
+					return;
+
 				case "/api/model/pose":
 					SendJson(context, Models.ReadPose(_workspace, Query(context, "name"),
 						Query(context, "pack"),
@@ -984,6 +988,36 @@ namespace FF3.ContentTool.Editor
 			catch (Exception ex)
 			{
 				SendJson(context, new { error = ex.Message });
+			}
+		}
+
+		/// <summary>
+		/// The model as .glb, with the motion named in the body if any, written under the
+		/// project (or beside the override directory when there is no project) in
+		/// exports/, and revealed. A file on disk rather than a download, because the next
+		/// step is opening it in Blender, and that wants a path.
+		/// </summary>
+		private void ExportModel(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			string name = (string)body?["name"];
+			string pack = (string)body?["pack"];
+			int index = body?["index"] != null ? (int)body["index"] : 0;
+			if (string.IsNullOrEmpty(name))
+			{
+				SendJson(context, new { ok = false, error = "no model named" });
+				return;
+			}
+			try
+			{
+				string root = _project != null ? _project.Directory
+					: Path.GetDirectoryName(_workspace.OverrideDirectory) ?? _workspace.OverrideDirectory;
+				string path = Models.Export(_workspace, name, pack, index, Path.Combine(root, "exports"));
+				SendJson(context, new { ok = true, path, bytes = new FileInfo(path).Length });
+			}
+			catch (Exception ex)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
 			}
 		}
 

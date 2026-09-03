@@ -386,6 +386,47 @@ namespace FF3.ContentTool.Editor
 			return pose;
 		}
 
+		/// <summary>
+		/// Writes the model as .glb into <paramref name="directory"/> - with a motion when a
+		/// pack and index are given - and returns the path. The name carries the motion so
+		/// several exports of one model can sit side by side.
+		/// </summary>
+		public static string Export(Workspace workspace, string modelName, string packName, int index, string directory)
+		{
+			ModelBundle bundle = Read(workspace, modelName);
+			if (bundle.Problem != null)
+			{
+				throw new InvalidDataException(bundle.Problem);
+			}
+			Pose pose = null;
+			if (!string.IsNullOrEmpty(packName))
+			{
+				pose = ReadPose(workspace, modelName, packName, index);
+			}
+			byte[] glb = Gltf.Write(bundle, texture =>
+			{
+				try
+				{
+					return Texture(workspace, modelName, texture);
+				}
+				catch (Exception)
+				{
+					return null;
+				}
+			}, pose, pose?.Name);
+
+			string stem = Path.GetFileName(modelName);
+			stem = stem.Substring(0, stem.IndexOf('.') < 0 ? stem.Length : stem.IndexOf('.'));
+			if (pose != null)
+			{
+				stem += "." + new string((pose.Name ?? "motion").Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
+			}
+			Directory.CreateDirectory(directory);
+			string path = Path.Combine(directory, stem + ".glb");
+			File.WriteAllBytes(path, glb);
+			return path;
+		}
+
 		/// <summary>animated x inverse(bind), in floats: what moves a bind-pose vertex to its animated place.</summary>
 		private static float[] Delta(int[] animated, int[] bind)
 		{

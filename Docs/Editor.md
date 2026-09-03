@@ -1,4 +1,4 @@
-# Crystal - the OpenFF editor
+﻿# Crystal - the OpenFF editor
 
 Crystal is the editor for Final Fantasy III and Final Fantasy IV (3D) content: the
 shipped Steam games, and OpenFF, the client being built to run either. The executable
@@ -211,6 +211,16 @@ matrices and no geometry (`Mdl0.Posed`), and the viewer gets, per frame and per 
 `animated × inverse(bind)` - so the same vertex buffer is skinned in the shader through a
 small matrix palette. Nothing is re-uploaded per frame. `/api/model/motions` lists the
 packs; `/api/model/pose` evaluates one motion for a model.
+
+**Export .glb** (in the model's bar) writes the model as glTF 2.0 into the project's
+`exports/` folder and opens Explorer on it: the mesh with its textures embedded and
+vertex colours, a skin whose joints are the model's matrix instances (bind pose is the
+mesh as it is, so every inverse bind matrix is identity), and - if a motion is playing -
+that motion as an animation, one translation/rotation/scale key per frame at 30 fps.
+Blender's glTF importer opens it with the armature and the action. This is the way out
+for anyone who wants to look at, measure or retexture an asset in a real modelling tool;
+the way back in - a mesh to NDS display lists, a motion to packed joint tables - is not
+built yet.
 
 ### Models
 
