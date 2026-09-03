@@ -75,8 +75,10 @@ What is different, and what the editor does about it:
 | install layout | `files/` beside the exe | `EXTRACTED_DATA/files/` | resolved; point at the install either way |
 | per-map script, hich, msd, pak | loose | bundled into `SSAM` mass files, `files/*.dat` | `SsamContentSource` exposes them under FF3's names, decompressed |
 | `.msd` text | UTF-8 | UTF-16LE | decided per file from how a message ends |
-| `.pak` records | `PakRecords.cs` | different structs | container reads; records stay raw, so a map shows **0 exits** for now |
-| script opcodes | 264 | 451, 199 shared | FF3's table decodes all 389; unknown operand layouts become `op(N)` |
+| `.pak` records | 7 chains, `jumps` first | 4 fixed singletons: encount, landForm, monsterParty, environEffect | container reads; records stay raw. There is no jumps chain |
+| exits | rows in the map's `.pak` | `setInsideMapJump` in the map's script | read from the script when the game is FF4 |
+| script opcodes | 264 | 451, 199 shared | FF3's table plus `ScriptOpsExtra.cs`; unknown layouts become `op(N)` |
+| model display lists | DS GX commands | plus `0x2C`, a 16.16 texture coordinate | every command stepped by its arity; `0x2C` decoded |
 
 The mass file is `SSAM | count | offset0 | size0`, then 40 byte records of
 `name[32] | offset | size`, data after the directory. Thirty of them: `CAST_SCRIPT.dat`
@@ -95,6 +97,39 @@ Known exceptions, all read correctly and only fail to rewrite byte for byte:
   FF3's table does not have. The fix is FF4's own operand table, not a guess here.
 - `babil_scenario.msd`: message 10006's offset overlaps the tail of 10005 in Square's
   own file, so recomputing offsets from the text cannot reproduce it.
+
+### Exits
+
+FF4 has no exit table. Its `world::MapParameterManager` exposes encount, landForm,
+monsterParty and environEffect and nothing else, and each map's `.pak` is those four as
+one record apiece. A door is declared by the map's script instead:
+
+```
+setInsideMapJump("j002", "d01_01", ax, ay, az, facing, x1, y1, z1, x2, y2, z2);
+```
+
+trigger object, destination, arrival position (FX32), facing in eighths of a turn, and
+the two corners of the door's trigger box on this map. Opcode 333, past FF3's table, so
+it lives in `ScriptOpsExtra.cs` - hand-written, because there is no FF4 source to
+generate from; `Tools/gen_opcodes.py` emits a `Get` that falls back to it. Its shape was
+measured: 658 instances across 369 maps, two strings then exactly ten S32s. `MapModel`
+reads them when the game is FF4 and puts the exit at the box's centre.
+
+### Models
+
+The display-list walk used to end a shape at the first GX command it had no use for.
+Right for FF3, whose models never put one mid-list; wrong for FF4, which does. It now
+steps every command by its parameter count and only stops on a byte that is not a GX
+command at all - and FF4 has one of those too: `0x2C`, two words, a texture coordinate
+in 16.16 fixed point for textures too large for `TEXCOORD`'s 12.4. Eleven models used
+it and lost most of their geometry: `t01_00`, `t04_00`, the `d17` dungeon, `b17`,
+`e19_00`, `e22_00`.
+
+Whether a model is complete is measured against its own header - emitted faces against
+declared. FF4: 995 models, 1 436 131 faces declared, 1 436 131 emitted. FF3: 832 of 833
+complete; `d10_13.nmdp.lz` is a 161 byte stub whose header claims 64 812 vertices, and
+there is nothing in it to read. A model's `notes` in `/api/model` say what, if anything,
+the reader stepped over.
 
 Writing into an FF4 install is not wired yet: an edited script or hich would have to
 go back inside its mass file, and that is the next piece.

@@ -104,6 +104,20 @@ namespace FF3.ContentTool
 
 		/// <summary>What was actually decoded, to set against the four above.</summary>
 		public int GotVertices, GotTriangles, GotQuads;
+
+		/// <summary>
+		/// Anything the reader stepped over rather than understood. Each distinct
+		/// note once - a command skipped a thousand times is one fact, not a thousand.
+		/// </summary>
+		public List<string> Notes = new List<string>();
+
+		public void Note(string what)
+		{
+			if (!Notes.Contains(what))
+			{
+				Notes.Add(what);
+			}
+		}
 	}
 
 	internal static class Mdl0
@@ -226,6 +240,59 @@ namespace FF3.ContentTool
 			}
 
 			return model;
+		}
+
+		/// <summary>
+		/// How many 32 bit parameter words each GX display-list command carries, from
+		/// the DS geometry engine's command set. -1 for a byte that is not a command.
+		/// The walk needs this for the commands it steps over, and it is the whole set
+		/// so that a model using any of them still reads to the end.
+		/// </summary>
+		private static int GxParameterWords(int command)
+		{
+			switch (command)
+			{
+				case 0x00: return 0;                     // NOP
+				case 0x10: return 1;                     // MTX_MODE
+				case 0x11: return 0;                     // MTX_PUSH
+				case 0x12: return 1;                     // MTX_POP
+				case 0x13: return 1;                     // MTX_STORE
+				case 0x14: return 1;                     // MTX_RESTORE
+				case 0x15: return 0;                     // MTX_IDENTITY
+				case 0x16: return 16;                    // MTX_LOAD_4x4
+				case 0x17: return 12;                    // MTX_LOAD_4x3
+				case 0x18: return 16;                    // MTX_MULT_4x4
+				case 0x19: return 12;                    // MTX_MULT_4x3
+				case 0x1A: return 9;                     // MTX_MULT_3x3
+				case 0x1B: return 3;                     // MTX_SCALE
+				case 0x1C: return 3;                     // MTX_TRANS
+				case 0x20: return 1;                     // COLOR
+				case 0x21: return 1;                     // NORMAL
+				case 0x22: return 1;                     // TEXCOORD
+				case 0x23: return 2;                     // VTX_16
+				case 0x24: return 1;                     // VTX_10
+				case 0x25: return 1;                     // VTX_XY
+				case 0x26: return 1;                     // VTX_XZ
+				case 0x27: return 1;                     // VTX_YZ
+				case 0x28: return 1;                     // VTX_DIFF
+				case 0x29: return 1;                     // POLYGON_ATTR
+				case 0x2A: return 1;                     // TEXIMAGE_PARAM
+				case 0x2B: return 1;                     // PLTT_BASE
+				case 0x2C: return 2;                     // FF4's 16.16 texture coordinate (handled above)
+				case 0x30: return 1;                     // DIF_AMB
+				case 0x31: return 1;                     // SPE_EMI
+				case 0x32: return 1;                     // LIGHT_VECTOR
+				case 0x33: return 1;                     // LIGHT_COLOR
+				case 0x34: return 32;                    // SHININESS
+				case 0x40: return 1;                     // BEGIN_VTXS
+				case 0x41: return 0;                     // END_VTXS
+				case 0x50: return 1;                     // SWAP_BUFFERS
+				case 0x60: return 1;                     // VIEWPORT
+				case 0x70: return 3;                     // BOX_TEST
+				case 0x71: return 2;                     // POS_TEST
+				case 0x72: return 1;                     // VEC_TEST
+				default: return -1;
+			}
 		}
 
 		private static void ReadMaterials(byte[] data, int at, Mdl0Model model)
@@ -671,6 +738,26 @@ namespace FF3.ContentTool
 						break;
 					}
 
+					case 44:                      // 0x2C: FF4's high-precision texture coordinate
+					{
+						// Not a DS command. FF4's engine added it for textures too large for
+						// TEXCOORD's 12.4 fixed point: two words, u then v, as 16.16 fixed
+						// point already normalised to the texture. Worked out from the
+						// eleven models that use it - t01_00, the d17 dungeon, b17 - where
+						// the stream only re-synchronises if the command takes exactly two
+						// words, and those two read as 0.59, 0.03, -0.13, -0.55: coordinates
+						// in the 0..1 range, negatives wrapping. Everything downstream wants
+						// texels, so it is scaled up here and divided back out later.
+						int uFixed = (int)U32(data, list + p * 4);
+						int vFixed = (int)U32(data, list + (p + 1) * 4);
+						float texWidth = material != null && material.Width > 0 ? material.Width : 1f;
+						float texHeight = material != null && material.Height > 0 ? material.Height : 1f;
+						u = uFixed / 65536f * texWidth;
+						v = vFixed / 65536f * texHeight;
+						p += 2;
+						break;
+					}
+
 					case 35:                      // a full 16-bit position
 					{
 						uint first = U32(data, list + p * 4);
@@ -750,10 +837,37 @@ namespace FF3.ContentTool
 						break;
 
 					default:
-						// preBuild calls OS_Terminate here. Nothing in the game reaches
-						// it, and stopping beats emitting nonsense if anything ever does.
-						Close();
-						return;
+					{
+						// A command this walk has no use for. FF3's models never put one
+						// mid-list, so this used to end the shape - which was right for
+						// FF3 and wrong for FF4, whose character models carry matrix and
+						// polygon-attribute commands between vertex runs. Ending there
+						// dropped everything after: n212_01 lost its legs, n214_01 lost a
+						// whole figure. The parameter count is fixed per command, so the
+						// list is stepped past it and the rest still comes out. Only a byte
+						// that is not a GX command at all stops the walk, since then the
+						// stream is not what it claims to be.
+						int skip = GxParameterWords((int)(word & 0xFF));
+						if (skip < 0)
+						{
+							// Enough context to work out what it is: where in the list,
+							// which lane of the packet, and the words on either side.
+							System.Text.StringBuilder ctx = new System.Text.StringBuilder();
+							for (int w = Math.Max(0, n - 2); w < Math.Min(words, p + 6); w++)
+							{
+								ctx.Append(w == n ? " [" : " ").Append(U32(data, list + w * 4).ToString("X8"))
+									.Append(w == n ? "]" : string.Empty);
+							}
+							model.Note("display list has a byte that is not a GX command: 0x"
+								+ ((int)(word & 0xFF)).ToString("X2") + " at word " + n + "/" + words
+								+ " lane " + lane + ":" + ctx);
+							Close();
+							return;
+						}
+						model.Note("skipped GX command 0x" + ((int)(word & 0xFF)).ToString("X2"));
+						p += skip;
+						break;
+					}
 				}
 
 				n++;

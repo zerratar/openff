@@ -67,6 +67,9 @@ namespace FF3.ContentTool.Editor
 		public float[] Centre { get; set; }
 		public float Radius { get; set; }
 		public string Problem { get; set; }
+
+		/// <summary>What the reader stepped over, if anything - see Mdl0Model.Notes.</summary>
+		public List<string> Notes { get; set; }
 	}
 
 	internal static class Models
@@ -115,6 +118,7 @@ namespace FF3.ContentTool.Editor
 			{
 				Name = model.Name,
 				Vertices = model.Vertices,
+				Notes = model.Notes.Count > 0 ? model.Notes : null,
 				Triangles = model.Triangles,
 				Quads = model.Quads,
 				Nodes = model.Nodes,
