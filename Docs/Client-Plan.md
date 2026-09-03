@@ -1,4 +1,4 @@
-# The client: OpenFF
+﻿# The client: OpenFF
 
 Where the game goes now that the editor is in good shape. The aim Karl set: one client
 that runs FF3, FF4 (3D) and mods that mix the two, from the content people already own,
@@ -25,6 +25,15 @@ shape) gives the client:
 
 Deliberately not touched yet: fonts (XNB atlases + `.glp`) and sound (XNB) keep coming
 from our `Content/`, found the way they are now, even when the data comes from Steam.
+
+Found on the way: the Steam build's 2D art (`.NCGR/.NCBR`) is authored at other pixel
+sizes - `pc1_01` 92x84 became 112x112, the title logo 576x499 became 1280x1109 - and its
+cell banks scale them back with the same display-scale flags this port's cell format
+already has (0x4 = half). Sprites may well draw right from Steam's files; the title logo
+did not, so until Steam's 2D coordinate space is understood the chain takes the six 2D
+formats from our archives when a Steam install is in front (`--steam-art` to try
+Steam's). Also missing from Steam: 44 files for screens it has no use for (about, link
+icons); the fallback covers them.
 
 ## Stage B - TrueType text
 

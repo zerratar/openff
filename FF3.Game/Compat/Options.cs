@@ -39,6 +39,7 @@ namespace FF3
 			("speed", "FF3_SPEED", "<n>", "Extra update passes per frame while fast-forwarding"),
 			("mod", "FF3_MOD", "<dir>[;dir]", "Mod folder(s) mirroring the game's file names; first wins"),
 			("project", "FF3_PROJECT", "<name|dir>", "An editor project whose edits are the mods"),
+			("steam-art", "FF3_STEAM_ART", "", "Draw a Steam install's own 2D art (experimental; it is laid out for another screen)"),
 			("size", "FF3_SIZE", "<WxH>", "Window size, e.g. 1600x960 (default 800x480)"),
 			("fullscreen", "FF3_FULLSCREEN", "", "Start fullscreen at the desktop resolution")
 		};

@@ -48,6 +48,14 @@ namespace FF3.Content
 		/// <summary>Called with a name the first time an override serves it, if set.</summary>
 		public Action<string, string> OnOverrideUsed { get; set; }
 
+		/// <summary>
+		/// Extensions for which a fallback is asked before the shipped source. The Steam
+		/// build of FF3 authored its 2D art at other pixel sizes in a coordinate space of
+		/// its own; until that is understood, the client takes ours for those files and
+		/// Steam's for everything else. Compared case-insensitively, with the dot.
+		/// </summary>
+		public HashSet<string> PreferFallbackExtensions { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
 		private ContentChain(string root, IContentSource shipped)
 		{
 			Root = root;
@@ -203,6 +211,17 @@ namespace FF3.Content
 					}
 				}
 				return true;
+			}
+			if (_fallbacks.Count > 0 && PreferFallbackExtensions.Count > 0
+				&& PreferFallbackExtensions.Contains(Path.GetExtension(name)))
+			{
+				foreach (IContentSource fallback in _fallbacks)
+				{
+					if (fallback.TryRead(name, out data))
+					{
+						return true;
+					}
+				}
 			}
 			if (Shipped.TryRead(name, out data))
 			{

@@ -59,6 +59,19 @@ namespace FF3
 				{
 					_chain.AddFallback(fallback);
 				}
+				// Steam FF3's 2D art is drawn at other sizes in a coordinate space of its
+				// own (the title logo comes out a third too big), so with our archives
+				// behind a Steam install the 2D formats come from ours. --steam-art tries
+				// Steam's regardless, for anyone working on that.
+				if (_chain.Shipped is LooseContentSource && _chain.Fallbacks.Count > 0
+					&& string.IsNullOrEmpty(Options.Get("steam-art")))
+				{
+					foreach (string extension in new[] { ".NCGR", ".NCBR", ".NCER", ".NSCR", ".NANR", ".NCLR" })
+					{
+						_chain.PreferFallbackExtensions.Add(extension);
+					}
+					Log.Write(LogChannel.File, "2D art (NCGR/NCBR/NCER/NSCR/NANR/NCLR) taken from our archives; --steam-art to use Steam's");
+				}
 			}
 			catch (Exception ex)
 			{
