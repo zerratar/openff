@@ -592,6 +592,16 @@ function drawScreen(node, screen, select) {
     box.title = `${frame.id || '(no id)'}  ${frame.width}x${frame.height}`
       + (frame.behavior ? `  ${frame.behavior}` : '');
 
+    // Alignment 4 is the one kind of box that belongs to the widget rather than to
+    // the background art, so it is the one that follows a resize. Drawing it is the
+    // only way to see that without running the game.
+    if (menu.preview && textMessageId(frame.element) !== null
+        && textAlignment(frame.element) === 4) {
+      drawButtonWindow(frame.width, frame.height, false)
+        .then(window => { if (window && box.isConnected) box.prepend(window); })
+        .catch(() => {});
+    }
+
     const label = document.createElement('span');
     label.className = 'label';
     if (menu.preview) {
