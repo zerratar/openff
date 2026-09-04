@@ -18,6 +18,10 @@ internal static partial class GlobalScope
 {
 	public static class stg
 	{
+		// PORT: FF4's overworld is FF3's chip layout mirrored along z (see FF3.FieldMirror).
+		// Set with the stage type; read wherever a chip meets a world position.
+		public static bool MirrorZ;
+
 		public class CStageChip
 		{
 			public enum STATE_TYPE
@@ -122,6 +126,17 @@ internal static partial class GlobalScope
 				m_RdrObject.setup(m_ModelSet.getMdlResource());
 				m_pScene.addRenderObject(m_RdrObject, 0);
 				m_RdrObject.setPosition(m_Chip.Pos);
+				if (FF3.Options.Get("probe") != null)
+				{
+					FF3.Log.Write(FF3.LogChannel.General, "chip: " + m_Chip.Name + " at (" + m_Chip.Pos.x / 4096.0 + "," + m_Chip.Pos.z / 4096.0 + ")" + (MirrorZ ? " mirrored" : ""));
+				}
+				if (MirrorZ)
+				{
+					// PORT: the chip's own geometry mirrored about its centre (the models are centred:
+					// vertices span -96..96 in z, whatever the header's box says); DrawModel swaps the
+					// cull face for a mirroring matrix.
+					m_RdrObject.setScale(new VecFx32(4096, 4096, -4096));
+				}
 				if (m_pMdlTex != null)
 				{
 					m_ModelSet.bindReplaceTex(m_pMdlTex);
@@ -220,6 +235,10 @@ internal static partial class GlobalScope
 				int num3 = m_Chip.Pos.z + num2;
 				int num4 = pos.x - x2;
 				int num5 = pos.z - num3;
+				if (MirrorZ)
+				{
+					num5 = -(pos.z - m_Chip.Pos.z) - num2;
+				}
 				int num6 = num;
 				int num7 = num2;
 				if (num4 < 0)
@@ -790,6 +809,11 @@ internal static partial class GlobalScope
 					m_Chips[m_ColChipIdx].getPos(stg_reuse_v);
 				}
 				MTX_Identity43(@out);
+				if (MirrorZ)
+				{
+					// PORT: chip-local z runs the other way; the inverse carries queries into the chip.
+					@out._22 = -4096;
+				}
 				@out._30 = stg_reuse_v.x;
 				@out._31 = stg_reuse_v.y;
 				@out._32 = stg_reuse_v.z;
@@ -811,6 +835,13 @@ internal static partial class GlobalScope
 				}
 				if ((m_MngFlag & 8) == 0)
 				{
+					return stg_reuse_v;
+				}
+				if (MirrorZ)
+				{
+					VecFx32 edge = m_stgPrf.getEdge();
+					VecFx32 size = m_stgPrf.getSize();
+					stg_reuse_v.set(edge.x, edge.y, -(edge.z + size.z));
 					return stg_reuse_v;
 				}
 				return m_stgPrf.getEdge();
@@ -835,6 +866,10 @@ internal static partial class GlobalScope
 				stg_reuse_v.x += stg_reuse_v2.x;
 				stg_reuse_v.y += stg_reuse_v2.y;
 				stg_reuse_v.z += stg_reuse_v2.z;
+				if (MirrorZ)
+				{
+					stg_reuse_v.z = -m_stgPrf.getEdge().z;
+				}
 				return stg_reuse_v;
 			}
 
@@ -1107,6 +1142,16 @@ internal static partial class GlobalScope
 							b = (sbyte)strtol(name.Substring(num2, 2), null, 16);
 							sprintf(out arg, "f%02d.ntxp", b);
 							m_StageType = (STAGE_TYPE)b;
+							if (m_StageType == (STAGE_TYPE)0 && FF3.GameProfile.IsFf4)
+							{
+								// PORT: a field's type is its number, and every field behaviour here
+								// (chip streaming, collision, the loop) switches on FIELD01..04. FF3's
+								// fields are f01..f03; FF4's overworld is f00, which no case matched, so
+								// it drew one chip and collided with nothing. Its number stays in the
+								// file names above; its type is FF3's first field.
+								m_StageType = STAGE_TYPE.STAGE_TYPE_FIELD01;
+							}
+							MirrorZ = FF3.FieldMirror.Active(m_StageType);
 							m_State = STATE_TYPE.STATE_TYPE_NORMAL;
 							sprintf(out m_stagePath, "/MAP/FIELD/F%02d", b);
 							FS_ChangeDir(m_stagePath);
@@ -1179,6 +1224,7 @@ internal static partial class GlobalScope
 					ds.fs.enFDL_FILETYPE type = ds.fs.enFDL_FILETYPE.enFDL_FILETYPE_COMPRESS;
 					TexDivideLoader.getSingleton().tdlForceLoad();
 					OS_GetTick();
+					MirrorZ = false;
 					switch (name[0])
 					{
 					case 'd':
@@ -1677,7 +1723,7 @@ internal static partial class GlobalScope
 				@out.Size.z = m_pData.szChipZ;
 				@out.Pos.x = centerChip.Pos.x + @out.Size.x * relativeX;
 				@out.Pos.y = 0;
-				@out.Pos.z = centerChip.Pos.z + @out.Size.z * relativeZ;
+				@out.Pos.z = centerChip.Pos.z + @out.Size.z * (MirrorZ ? -relativeZ : relativeZ);
 				if (@out.SpotX < 0 || @out.SpotZ < 0 || @out.SpotX >= m_pData.numChipsX || @out.SpotZ >= m_pData.numChipsZ)
 				{
 					if (1 == m_pData.loopFlag)
@@ -1792,6 +1838,11 @@ internal static partial class GlobalScope
 					}
 				}
 				sprintf(out @out.Name, "f%02d_%x%x", m_pData.stageNo, @out.fnoX, @out.fnoZ);
+				if (MirrorZ)
+				{
+					// PORT: after the edge test, which knows FF3's layout; the world loop is symmetric.
+					@out.Pos.z = -@out.Pos.z;
+				}
 			}
 
 			public bool getLoopFlag()
@@ -1831,7 +1882,7 @@ internal static partial class GlobalScope
 			{
 				VecFx32 edge = getEdge();
 				int num = pos.x - edge.x;
-				int num2 = pos.z - edge.z;
+				int num2 = (MirrorZ ? -pos.z : pos.z) - edge.z;
 				VecFx32 size = getSize();
 				if (num < 0)
 				{

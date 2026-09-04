@@ -102,7 +102,9 @@ namespace FF3
 			// centre chip's index, then wrapped around the world.
 			int centreX = profile[2], centreZ = profile[3];
 			long x = (long)at.x + sizeX / 2 + (long)sizeX * centreX;
-			long z = (long)at.z + sizeZ / 2 + (long)sizeZ * centreZ;
+			// FF4 places the chips with z negated (FieldMirror), so its positions look up the
+			// chip at -z of FF3's layout.
+			long z = (FieldMirror.WantsFieldMirror ? -(long)at.z : at.z) + sizeZ / 2 + (long)sizeZ * centreZ;
 			long worldX = (long)sizeX * chipsX, worldZ = (long)sizeZ * chipsZ;
 			x = ((x % worldX) + worldX) % worldX;
 			z = ((z % worldZ) + worldZ) % worldZ;

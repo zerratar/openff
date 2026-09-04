@@ -12594,7 +12594,7 @@ internal static partial class GlobalScope
 								glEnableClientState(32886u);
 								glEnable(3553u);
 								glEnable(2884u);
-								glCullFace(1029u);
+								glCullFace(FF3.FieldMirror.CullFor(currentMtx));
 							}
 							int num6 = 1;
 							int num7 = 1;
@@ -13541,11 +13541,11 @@ internal static partial class GlobalScope
 																break;
 															case 1:
 																glEnable(2884u);
-																glCullFace(1028u);
+																glCullFace(FF3.FieldMirror.ForDraw(1028u));
 																break;
 															default:
 																glEnable(2884u);
-																glCullFace(1029u);
+																glCullFace(FF3.FieldMirror.ForDraw(1029u));
 																break;
 															}
 														}
