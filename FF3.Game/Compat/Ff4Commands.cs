@@ -19,7 +19,46 @@ namespace FF3
 			{ 358, OpenCharacterNameWindow },   // (nameTextId, x, y)
 			{ 359, CloseCharacterNameWindow },  // (x, y)
 			{ 87, ChangeCameraMode },           // () - FF3's takes the mode; FF4's means "back to following"
+			{ 333, SetInsideMapJump },          // (trigger, map, ax, ay, az, facing, x1, y1, z1, x2, y2, z2)
+			{ 334, SetOutsideMapJump },         // the same, for leaving by the map's edge
 		};
+
+		/// <summary>
+		/// setInsideMapJump: this map has an exit - a trigger box here, a destination and an
+		/// arrival there. Declared when executed, so a branch declares it only when taken.
+		/// </summary>
+		private static void SetInsideMapJump(GlobalScope.ScriptEngine engine)
+		{
+			DeclareExit(engine);
+		}
+
+		/// <summary>setOutsideMapJump: an exit by the map's edge onto the world map. The same box logic.</summary>
+		private static void SetOutsideMapJump(GlobalScope.ScriptEngine engine)
+		{
+			DeclareExit(engine);
+		}
+
+		private static void DeclareExit(GlobalScope.ScriptEngine engine)
+		{
+			string trigger = engine.getString();
+			string destination = engine.getString();
+			int[] v = new int[10];
+			for (int i = 0; i < v.Length; i++)
+			{
+				v[i] = unchecked((int)engine.getDword());
+			}
+			GlobalScope.VecFx32 leader = null;
+			try
+			{
+				leader = GlobalScope.wld.WorldPart.getInstance()?.getWorldSystem()?.PlayerMng()
+					?.Player(GlobalScope.chr.CBaseCharacter.getLookIndex())?.getPosition();
+			}
+			catch (System.Exception)
+			{
+				// No world yet: the exit is armed as declared.
+			}
+			Ff4Exits.Register(Ff4Exits.FromOperands(trigger, destination, v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9]), leader);
+		}
 
 		/// <summary>changeCamera_Mode(): the field camera follows the party again.</summary>
 		private static void ChangeCameraMode(GlobalScope.ScriptEngine engine)

@@ -42,21 +42,49 @@ namespace FF3
 		/// <summary>The current map's exits; empty for FF3 or a map without a script.</summary>
 		public static IReadOnlyList<Exit> Current => _exits;
 
-		/// <summary>Reads the exits of a stage's script. Called when the world sets a stage up.</summary>
+		/// <summary>
+		/// A new stage: no exits until its script declares them. Called when the world sets
+		/// a stage up. The exits themselves arrive through Register, from setInsideMapJump
+		/// and setOutsideMapJump as the script executes them - so an exit inside a branch
+		/// exists only when that branch runs, the same as in FF4, and a script of a modder's
+		/// own behaves as written.
+		/// </summary>
 		public static void Load(string stage)
 		{
 			_exits.Clear();
 			_stage = stage;
-			if (!GameProfile.IsFf4 || string.IsNullOrEmpty(stage))
+		}
+
+		/// <summary>
+		/// Declares (or redeclares, by trigger name) an exit of the current stage. Whether the
+		/// leader already stands inside it is checked first, so a door declared under the
+		/// party's feet does not fire until they step out and back in.
+		/// </summary>
+		public static void Register(Exit exit, GlobalScope.VecFx32 leader)
+		{
+			if (exit == null || string.IsNullOrEmpty(exit.Destination))
 			{
 				return;
 			}
-			byte[] data = GameArchive.Read("files/" + stage + ".script");
-			foreach (Exit exit in Decode(data))
+			for (int i = 0; i < _exits.Count; i++)
 			{
-				_exits.Add(exit);
+				if (string.Equals(_exits[i].Trigger, exit.Trigger, StringComparison.OrdinalIgnoreCase))
+				{
+					_exits.RemoveAt(i);
+					break;
+				}
 			}
-			Log.Write(LogChannel.General, "exits: " + stage + " has " + _exits.Count + " scripted exit(s)");
+			exit.Armed = leader == null || !Inside(exit, leader);
+			_exits.Add(exit);
+			Log.Write(LogChannel.General, "exits: " + (_stage ?? "?") + " declares " + exit.Trigger + " -> " + exit.Destination
+				+ " (" + _exits.Count + " now)");
+		}
+
+		private static bool Inside(Exit exit, GlobalScope.VecFx32 leader)
+		{
+			return leader.x >= exit.MinX && leader.x <= exit.MaxX
+				&& leader.z >= exit.MinZ && leader.z <= exit.MaxZ
+				&& leader.y >= exit.MinY - 8 * 4096 && leader.y <= exit.MaxY + 8 * 4096;
 		}
 
 		/// <summary>
@@ -71,9 +99,7 @@ namespace FF3
 			}
 			foreach (Exit exit in _exits)
 			{
-				bool inside = leader.x >= exit.MinX && leader.x <= exit.MaxX
-					&& leader.z >= exit.MinZ && leader.z <= exit.MaxZ
-					&& leader.y >= exit.MinY - 8 * 4096 && leader.y <= exit.MaxY + 8 * 4096;
+				bool inside = Inside(exit, leader);
 				if (!inside)
 				{
 					exit.Armed = true;
@@ -143,7 +169,28 @@ namespace FF3
 			return _arrivals.TryGetValue(stage, out (int X, int Y, int Z, int Facing) arrival) ? arrival : null;
 		}
 
-		/// <summary>Every setInsideMapJump in a script's bytecode, decoded linearly with the FF4 table.</summary>
+		/// <summary>An exit from the command's operands: trigger, map, arrival, facing, box corners (20.12).</summary>
+		public static Exit FromOperands(string trigger, string destination, int ax, int ay, int az, int facing,
+			int x1, int y1, int z1, int x2, int y2, int z2)
+		{
+			return new Exit
+			{
+				Trigger = trigger ?? "",
+				Destination = destination,
+				ArrivalX = ax, ArrivalY = ay, ArrivalZ = az,
+				Facing = facing & 7,
+				MinX = Math.Min(x1, x2), MaxX = Math.Max(x1, x2),
+				MinY = Math.Min(y1, y2), MaxY = Math.Max(y1, y2),
+				MinZ = Math.Min(z1, z2), MaxZ = Math.Max(z1, z2),
+				Armed = false
+			};
+		}
+
+		/// <summary>
+		/// Every setInsideMapJump in a script's bytecode, decoded linearly with the FF4
+		/// table, whatever branch it sits in. Only for choosing where a --map start lands
+		/// (ArrivalInto); the exits a map actually has come from running its script.
+		/// </summary>
 		public static List<Exit> Decode(byte[] data)
 		{
 			List<Exit> exits = new List<Exit>();
@@ -201,17 +248,8 @@ namespace FF3
 				if (opcode == SetInsideMapJump && count >= 12 && operands[1] is string destination)
 				{
 					int V(int i) => unchecked((int)(uint)operands[i]);
-					exits.Add(new Exit
-					{
-						Trigger = operands[0] as string ?? "",
-						Destination = destination,
-						ArrivalX = V(2), ArrivalY = V(3), ArrivalZ = V(4),
-						Facing = V(5) & 7,
-						MinX = Math.Min(V(6), V(9)), MaxX = Math.Max(V(6), V(9)),
-						MinY = Math.Min(V(7), V(10)), MaxY = Math.Max(V(7), V(10)),
-						MinZ = Math.Min(V(8), V(11)), MaxZ = Math.Max(V(8), V(11)),
-						Armed = false
-					});
+					exits.Add(FromOperands(operands[0] as string, destination, V(2), V(3), V(4), V(5),
+						V(6), V(7), V(8), V(9), V(10), V(11)));
 				}
 			}
 			return exits;

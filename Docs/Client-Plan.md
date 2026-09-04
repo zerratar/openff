@@ -125,13 +125,14 @@ own script running through the shared command table. The pieces:
   vertex runs; the phone decoder terminated on them (into an infinite loop). Unknown
   commands are stepped past by their parameter count; `0x2C` (FF4's 16.16 texcoord) is
   decoded. `OS_Terminate` now throws with a stack instead of spinning.
-- `Compat/Ff4Exits.cs` - FF4 declares a map's exits in its script (`setInsideMapJump`:
-  trigger, destination, arrival, facing, the door's box). The bytecode is decoded with
-  the shared table when the world sets a stage up, the leader is checked against the
-  boxes each frame, and walking into one requests the same absolute map jump FF3's
-  scripts do - fade, unload, load and arrival are the engine's own. Cecil walks from the
-  grounds through the gate into the castle (`d01_01`), whose four exits are read in turn.
-  The same decode over every script gives `--map` its default arrival for any FF4 map.
+- `Compat/Ff4Exits.cs` - FF4 declares a map's exits in its script (`setInsideMapJump` /
+  `setOutsideMapJump`: trigger, destination, arrival, facing, the door's box). Those are
+  real commands here (`Ff4Commands`): an exit exists from the moment the script executes
+  its declaration - so one inside a branch exists only when that branch runs, one
+  redeclared by trigger name replaces the old, and a modder's script behaves as written.
+  The leader is checked against the boxes each frame, and walking into one requests the
+  same absolute map jump FF3's scripts do - fade, unload, load and arrival are the
+  engine's own. A whole-script decode is used only to pick where `--map` lands.
 - `Compat/Ff4Text.cs` - FF4's `.msd` is UTF-16LE where the message code walks UTF-8 (FF3
   rewrote its SJIS files to UTF-8 at load); the same rewrite for UTF-16 gives whole lines
   instead of first letters. `Compat/Ff4Assets.cs` answers FF3's 2D asset names with FF4's
