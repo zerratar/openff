@@ -80,8 +80,10 @@ namespace OpenFF
 		void Stop();
 		/// <summary>Plays a motion by its index in the character's set (1001 is the talk pose).</summary>
 		void PlayMotion(int index, bool loop = false, int blendFrames = 5);
-		/// <summary>Adds a motion set to the hero's model so PlayMotion can play its ids: "b_b01" is the battle's common set (HeroMotion has the ids). Once per map.</summary>
+		/// <summary>Adds a motion set to the hero's model so PlayMotion can play its ids (HeroMotion has the ids). The battle's sets: "b_b01" idle, poise, damage, death, wins; "b_b02_040" the magic motions; "b_b02_" + a weapon's graph id (Item.Model without the w) that weapon's swings; the job's own set (see BindBattleMotions); "b_b04_002" the rest. Once per map.</summary>
 		void BindMotions(string set = "b_b01");
+		/// <summary>Binds what the battle binds on a party member: the common set, the magic set, the current job's set and the extra set - enough for HeroMotion's ids except a weapon's swings.</summary>
+		void BindBattleMotions();
 		/// <summary>Whether the motion PlayMotion started has finished (looping ones never do).</summary>
 		bool MotionDone { get; }
 		/// <summary>The "!" over the head.</summary>
@@ -372,7 +374,7 @@ namespace OpenFF
 
 namespace OpenFF
 {
-	/// <summary>The battle's motion ids for a party member's model, playable on the field after Hero.BindMotions("b_b01").</summary>
+	/// <summary>The battle's motion ids for a party member's model, playable on the field after Hero.BindBattleMotions() (idle/poise/damage/death/wins are in "b_b01", MagicPoise/MagicShot in "b_b02_040", a weapon's swings in its own "b_b02_" set).</summary>
 	public static class HeroMotion
 	{
 		public const int Idle = 101, Poise = 201, PoiseNearDeath = 301, PoisePoison = 401, PoiseMagic = 501;

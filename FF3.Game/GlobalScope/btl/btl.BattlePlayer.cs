@@ -96,6 +96,12 @@ internal static partial class GlobalScope
 				11, 15, 15, 16, 21, 23, 22, 14, 0
 			};
 
+			/// <summary>PORT: the engine API binds a job's battle motion set on the field.</summary>
+			public static int jobMotionFileId(int job)
+			{
+				return job >= 0 && job < JobMotionFileId.Length ? JobMotionFileId[job] : JobMotionFileId[0];
+			}
+
 			private static int[] JobMotionFileId = new int[23]
 			{
 				72, 50, 51, 52, 54, 56, 58, 59, 60, 61,

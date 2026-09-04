@@ -156,6 +156,67 @@ namespace FF3
 		// not bound twice.
 		private static readonly Dictionary<int, HashSet<string>> _boundMotions = new Dictionary<int, HashSet<string>>();
 
+		// A motion a mod asked for, held against the field's own motion control: the turn system
+		// and the walk restart the wait/walk motions at every transition, which would cut a cast
+		// or a swing short. While the request stands, a replaced motion is started again (a
+		// few times), until it ends or the mod asks for another.
+		internal sealed class MotionHold
+		{
+			public int Want = -1;
+			public bool Loop;
+			public uint Blend;
+			public int Restarts;
+			public long Since;
+
+			public void Ask(GlobalScope.pl.CBasePlayer player, int index, bool loop, uint blend, string who)
+			{
+				int id = player.getCharacterId();
+				if (!GlobalScope.characterMng.isMotion(id, index))
+				{
+					EngineApi.Warn("motion-" + index, who + ".PlayMotion: motion " + index + " is not in the model's sets - BindMotions first (b_b01 for a party member's model, the monster's MotionSet for its)");
+					Want = -1;
+					return;
+				}
+				Want = index;
+				Loop = loop;
+				Blend = blend;
+				Restarts = 0;
+				Since = OpenFF.Game.Time.Frame;
+				player.startMotion(index, loop, blend);
+			}
+
+			public void Tick(GlobalScope.pl.CBasePlayer player)
+			{
+				if (Want < 0 || player == null) return;
+				try
+				{
+					uint now = player.getMotionIndex();
+					if (now == (uint)Want)
+					{
+						if (!Loop && player.isEndOfMotion()) Want = -1;
+						return;
+					}
+					// The field put its own motion on: ours again, a few times at most, and never
+					// after it would have ended anyway.
+					if (Restarts >= 3 || OpenFF.Game.Time.Frame - Since > 240)
+					{
+						Want = -1;
+						return;
+					}
+					Restarts++;
+					player.startMotion(Want, Loop, Blend);
+				}
+				catch (Exception) { Want = -1; }
+			}
+
+			public bool Done(GlobalScope.pl.CBasePlayer player)
+			{
+				if (player == null) return true;
+				if (Want < 0) return true;
+				try { return !Loop && player.isEndOfMotion(); } catch (Exception) { return true; }
+			}
+		}
+
 		internal static void BindMotions(GlobalScope.pl.CBasePlayer player, string set)
 		{
 			int id = player.getCharacterId();
@@ -536,11 +597,13 @@ namespace FF3
 			_walk.Stop(EngineApi.HeroIndex);
 		}
 
+		private readonly EngineApi.MotionHold _motion = new EngineApi.MotionHold();
+
 		public void PlayMotion(int index, bool loop = false, int blendFrames = 5)
 		{
 			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
 			if (hero == null) return;
-			Game.Guard("Hero.PlayMotion", () => hero.startMotion(index, loop, (uint)Math.Max(0, blendFrames)));
+			Game.Guard("Hero.PlayMotion", () => _motion.Ask(hero, index, loop, (uint)Math.Max(0, blendFrames), "Hero"));
 		}
 
 		public void BindMotions(string set = "b_b01")
@@ -550,15 +613,25 @@ namespace FF3
 			Game.Guard("Hero.BindMotions", () => EngineApi.BindMotions(hero, set));
 		}
 
-		public bool MotionDone
+		// What btl.BattlePlayer binds when a fight starts: the common set, the magic set
+		// ("ADD PLAYER MAGIC MOTION"), the job's set and b_b04_002. The weapon's swing set is
+		// the one thing left to the mod, since it depends on what is in the hand.
+		public void BindBattleMotions()
 		{
-			get
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			if (hero == null) return;
+			Game.Guard("Hero.BindBattleMotions", () =>
 			{
-				GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
-				try { return hero == null || hero.isEndOfMotion(); }
-				catch (Exception) { return true; }
-			}
+				EngineApi.BindMotions(hero, "b_b01");
+				EngineApi.BindMotions(hero, "b_b02_040");
+				int job = 0;
+				try { job = GlobalScope.pl.PlayerParty.instance().player((byte)EngineApi.HeroIndex)?.jobManager().nowJob() ?? 0; } catch (Exception) { }
+				EngineApi.BindMotions(hero, "b_b03_" + GlobalScope.btl.BattlePlayer.jobMotionFileId(job).ToString("D3"));
+				EngineApi.BindMotions(hero, "b_b04_002");
+			});
 		}
+
+		public bool MotionDone => _motion.Done(EngineApi.HeroPlayer);
 
 		public bool Balloon
 		{
@@ -590,6 +663,7 @@ namespace FF3
 		/// <summary>Once per frame: a scripted walk in progress; when it ends and the hero is not frozen, control returns.</summary>
 		internal void Tick()
 		{
+			_motion.Tick(EngineApi.HeroPlayer);
 			if (!_walk.Moving) return;
 			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
 			_walk.Advance(hero, EngineApi.HeroIndex);
@@ -659,13 +733,20 @@ namespace FF3
 		public override void Stop() => _walk.Stop(Index);
 
 		/// <summary>One frame of a walk in progress; called by the host each tick.</summary>
-		internal void Advance() => _walk.Advance(Player, Index);
+		internal void Advance()
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			_walk.Advance(p, Index);
+			_motion.Tick(p);
+		}
+
+		private readonly EngineApi.MotionHold _motion = new EngineApi.MotionHold();
 
 		public override void PlayMotion(int index, bool loop = false, int blendFrames = 5)
 		{
 			GlobalScope.pl.CBasePlayer p = Player;
 			if (p == null) return;
-			Game.Guard("Npc.PlayMotion", () => p.startMotion(index, loop, (uint)Math.Max(0, blendFrames)));
+			Game.Guard("Npc.PlayMotion", () => _motion.Ask(p, index, loop, (uint)Math.Max(0, blendFrames), "Npc"));
 		}
 
 		public override void BindMotions(string set)
@@ -675,15 +756,7 @@ namespace FF3
 			Game.Guard("Npc.BindMotions", () => EngineApi.BindMotions(p, set));
 		}
 
-		public override bool MotionDone
-		{
-			get
-			{
-				GlobalScope.pl.CBasePlayer p = Player;
-				try { return p == null || p.isEndOfMotion(); }
-				catch (Exception) { return true; }
-			}
-		}
+		public override bool MotionDone => _motion.Done(Player);
 
 		public override int Alpha
 		{

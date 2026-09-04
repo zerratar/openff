@@ -115,7 +115,7 @@ namespace Survivors
 		{
 			string map = Game.Field.Map;
 			if (_boundOn == map) return;
-			Game.Hero.BindMotions("b_b01");
+			Game.Hero.BindBattleMotions();
 			_boundOn = map;
 		}
 
