@@ -244,6 +244,12 @@ namespace OpenFF
 		void Warp(string map, Vector3 position, int facing = 0);
 		/// <summary>Whether walking can start the game's random battles. Off for a mod that runs its own fights.</summary>
 		bool Encounters { get; set; }
+		/// <summary>The height of the walkable ground under a point (looking down from a little above it), or null where there is none - off the map, over a pit.</summary>
+		float? GroundHeight(Vector3 at);
+		/// <summary>The point moved down (or up) onto the ground; the point itself where there is no ground.</summary>
+		Vector3 OnGround(Vector3 at);
+		/// <summary>Whether something could stand there: ground under it, no wall between here and the ground.</summary>
+		bool Walkable(Vector3 at);
 	}
 
 	/// <summary>The game's own battles, started from a mod.</summary>
@@ -275,6 +281,10 @@ namespace OpenFF
 		void Zoom(int degrees);
 		/// <summary>Restores the map's camera settings.</summary>
 		void Reset();
+		/// <summary>Where a world point falls on the screen, in the 800x480 units Game.Draw uses; null when it is behind the camera. For HUD markers, names over heads, health bars.</summary>
+		Vector2? WorldToScreen(Vector3 world);
+		/// <summary>Whether a world point is in front of the camera and inside the screen.</summary>
+		bool OnScreen(Vector3 world);
 	}
 
 	/// <summary>Particle and sprite effects, by the game's own effect table.</summary>

@@ -154,7 +154,21 @@ namespace Hello
 					float d = Vector3.FlatDistance(_villager.Position, Game.Hero.Position);
 					Game.Draw.Rect(800 - w - 8, 82, w, 4, new OpenFF.Color(0, 0, 0, 140));
 					Game.Draw.Rect(800 - w - 8, 82, Math.Min(w, w * Math.Min(1f, d / 40f)), 4, d <= 14f ? OpenFF.Color.Green : OpenFF.Color.Red);
+					// A name over the villager's head: the world point 12 units above the feet, projected.
+					Vector2? head = Game.Camera.WorldToScreen(_villager.Position + new Vector3(0, 12, 0));
+					if (head.HasValue)
+					{
+						string name = "Villager";
+						float nw = Game.Draw.MeasureText(name, 12);
+						Game.Draw.Rect(head.Value.X - nw / 2 - 4, head.Value.Y - 18, nw + 8, 16, new OpenFF.Color(0, 0, 0, 140));
+						Game.Draw.Text(name, head.Value.X - nw / 2, head.Value.Y - 16, OpenFF.Color.White, 12);
+						Game.Draw.Line(head.Value.X, head.Value.Y - 2, head.Value.X, head.Value.Y + 4, OpenFF.Color.White, 1);
+					}
 				}
+				// The ground under the hero, from the map's collision, next to the hero's own height.
+				float? ground = Game.Field.GroundHeight(Game.Hero.Position);
+				string groundLine = "ground " + (ground.HasValue ? ground.Value.ToString("0.0") : "none") + "  hero y " + Game.Hero.Position.Y.ToString("0.0");
+				Game.Draw.Text(groundLine, 800 - Game.Draw.MeasureText(groundLine, 12) - 2, 90, OpenFF.Color.White, 12);
 			}
 			if (Frames % 600 == 0)
 			{

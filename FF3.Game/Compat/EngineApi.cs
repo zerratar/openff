@@ -1103,6 +1103,39 @@ namespace FF3
 			if (!EngineApi.InWorld) return;
 			Game.Guard("Camera.Reset", () => GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().setupCamera());
 		}
+
+		// The renderer's own matrices: the field camera writes the camera matrix (world -> eye)
+		// and the perspective matrix (eye -> clip) into NNS_G3dGlb each frame it executes
+		// (sys3d.CCamera.execute -> NNS_G3dGlbLookAt / NNS_G3dGlbPerspective), both in fx32.
+		// A 180-degree flip is applied when the port flips the screen. The 3D view fills the
+		// window, which is the 800x480 text space Game.Draw uses.
+		public Vector2? WorldToScreen(Vector3 world)
+		{
+			if (!EngineApi.InWorld) return null;
+			try
+			{
+				GlobalScope.NNSG3dGlb glb = GlobalScope.NNS_G3dGlb;
+				GlobalScope.VecFx32 eye = new GlobalScope.VecFx32();
+				GlobalScope.MTX_MultVec43(EngineApi.ToFx(world), glb.cameraMtx, eye);
+				double ex = eye.x / 4096.0, ey = eye.y / 4096.0, ez = eye.z / 4096.0;
+				GlobalScope.MtxFx44 p = glb.projMtx;
+				// _ij is column i, row j (GL order), so clip_j = sum_i _ij * v_i.
+				double cx = (p._00 * ex + p._10 * ey + p._20 * ez + p._30) / 4096.0;
+				double cy = (p._01 * ex + p._11 * ey + p._21 * ez + p._31) / 4096.0;
+				double cw = (p._03 * ex + p._13 * ey + p._23 * ez + p._33) / 4096.0;
+				if (cw <= 1e-6) return null;
+				double nx = cx / cw, ny = cy / cw;
+				if (GlobalScope.flipScreen != 0) { nx = -nx; ny = -ny; }
+				return new Vector2((float)((nx + 1.0) * 0.5 * 800.0), (float)((1.0 - ny) * 0.5 * 480.0));
+			}
+			catch (Exception ex) { EngineApi.Warn("w2s", "Camera.WorldToScreen: " + ex.Message); return null; }
+		}
+
+		public bool OnScreen(Vector3 world)
+		{
+			Vector2? s = WorldToScreen(world);
+			return s.HasValue && s.Value.X >= 0 && s.Value.X <= 800 && s.Value.Y >= 0 && s.Value.Y <= 480;
+		}
 	}
 
 	internal sealed class LegacyEffects : GameService, IEffects
@@ -1199,6 +1232,66 @@ namespace FF3
 			{
 				Game.Guard("Field.Encounters", () => GlobalScope.wld.CWorldOutSideData.getInstance().setCanEncount(value));
 			}
+		}
+
+		// The ground query the characters make each frame (chr.CCharacterEureka.calculateBottom):
+		// an arrow straight down from a little above the point, through every active collision
+		// restrictor (the stage's chips), in the stage's own space (its world matrix inverted),
+		// against material attribute 1 (walkable ground). The nearest hit wins.
+		private const int AboveFx = 28672;          // 7 units up, as the characters start
+		private const int ReachFx = 28672 + 81920;  // to 20 units below the point
+
+		public float? GroundHeight(Vector3 at)
+		{
+			GlobalScope.VecFx32 hit = GroundHit(at);
+			return hit == null ? (float?)null : hit.y / 4096f;
+		}
+
+		public Vector3 OnGround(Vector3 at)
+		{
+			float? y = GroundHeight(at);
+			return y.HasValue ? new Vector3(at.X, y.Value, at.Z) : at;
+		}
+
+		public bool Walkable(Vector3 at)
+		{
+			return GroundHit(at) != null;
+		}
+
+		private GlobalScope.VecFx32 GroundHit(Vector3 at)
+		{
+			if (!EngineApi.InWorld) return null;
+			try
+			{
+				GlobalScope.stg.CStageMng stage = GlobalScope.stageMng;
+				if (stage == null) return null;
+				GlobalScope.MtxFx43 inv = new GlobalScope.MtxFx43();
+				GlobalScope.MtxFx43 wld = new GlobalScope.MtxFx43();
+				stage.getInvWldMtx(inv);
+				stage.getWldMtx(wld);
+				GlobalScope.VecFx32 start = EngineApi.ToFx(at);
+				start.y += AboveFx;
+				GlobalScope.MTX_MultVec43(start, inv, start);
+				GlobalScope.VecFx32 down = new GlobalScope.VecFx32(0, -4096, 0);
+				GlobalScope.mcl.CollisionResult result = new GlobalScope.mcl.CollisionResult();
+				GlobalScope.VecFx32 best = null;
+				int bestLength = int.MaxValue;
+				for (GlobalScope.dgs.CRestrictor r = (GlobalScope.dgs.CRestrictor)GlobalScope.dgs.DGSLinkedList<GlobalScope.dgs.CRestrictor>.dgsllBase(); r != null; r = (GlobalScope.dgs.CRestrictor)r.dgsllNext())
+				{
+					if (!r.rorActivity()) continue;
+					result.clean();
+					if (!r.rorEvaluateArrow(start, down, ReachFx, 1, result)) continue;
+					if (result.length < bestLength)
+					{
+						bestLength = result.length;
+						best = new GlobalScope.VecFx32(result.pos);
+					}
+				}
+				if (best == null) return null;
+				GlobalScope.MTX_MultVec43(best, wld, best);
+				return best;
+			}
+			catch (Exception ex) { EngineApi.Warn("ground", "Field.GroundHeight: " + ex.Message); return null; }
 		}
 
 		public void Warp(string map, Vector3 position, int facing = 0)

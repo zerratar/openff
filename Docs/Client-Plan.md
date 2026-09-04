@@ -222,6 +222,18 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## World verbs: ground and screen (2026-09-04)
+
+`Game.Field.GroundHeight(at)` / `OnGround(at)` / `Walkable(at)` ask the map's collision
+what the characters ask each frame: an arrow straight down from seven units above the
+point through every active collision restrictor, in the stage's own space, against the
+walkable-ground attribute; nearest hit wins (`chr.CCharacterEureka.calculateBottom` is the
+model). `Game.Camera.WorldToScreen(world)` / `OnScreen(world)` run a world point through
+the renderer's own camera and perspective matrices (`NNS_G3dGlb.cameraMtx/projMtx`, fx32,
+GL column order) to the 800x480 units `Game.Draw` uses - names over heads, health bars,
+markers. `Vector3` gained the usual helpers (Length, Normalized, Distance, Dot, Cross,
+Lerp, MoveToward, FromYaw/Yaw) and `Vector2` exists for screen points. Testing C-27.
+
 ## The engine API, third slice: the raw material for new kinds of play (2026-09-04)
 
 Karl's aim is mods that are not the game's game - real-time fights, a bullet hell over

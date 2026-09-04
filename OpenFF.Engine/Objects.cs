@@ -25,13 +25,74 @@ namespace OpenFF
 		public static Vector3 operator +(Vector3 a, Vector3 b) => new Vector3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
 		public static Vector3 operator -(Vector3 a, Vector3 b) => new Vector3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
 		public static Vector3 operator *(Vector3 a, float k) => new Vector3(a.X * k, a.Y * k, a.Z * k);
+		public static Vector3 operator *(float k, Vector3 a) => new Vector3(a.X * k, a.Y * k, a.Z * k);
+		public static Vector3 operator /(Vector3 a, float k) => new Vector3(a.X / k, a.Y / k, a.Z / k);
+		public static Vector3 operator -(Vector3 a) => new Vector3(-a.X, -a.Y, -a.Z);
+		public static bool operator ==(Vector3 a, Vector3 b) => a.X == b.X && a.Y == b.Y && a.Z == b.Z;
+		public static bool operator !=(Vector3 a, Vector3 b) => !(a == b);
+		public override bool Equals(object obj) => obj is Vector3 v && v == this;
+		public override int GetHashCode() => X.GetHashCode() ^ (Y.GetHashCode() << 2) ^ (Z.GetHashCode() >> 2);
+		public float Length => (float)Math.Sqrt(X * X + Y * Y + Z * Z);
+		/// <summary>The same direction, length one (Zero stays Zero).</summary>
+		public Vector3 Normalized { get { float l = Length; return l > 1e-6f ? this / l : Zero; } }
+		/// <summary>The point without its height.</summary>
+		public Vector3 Flat => new Vector3(X, 0, Z);
+		public static float Distance(Vector3 a, Vector3 b) => (a - b).Length;
 		/// <summary>Distance on the ground, ignoring height.</summary>
 		public static float FlatDistance(Vector3 a, Vector3 b)
 		{
 			float dx = a.X - b.X, dz = a.Z - b.Z;
 			return (float)Math.Sqrt(dx * dx + dz * dz);
 		}
+		public static float Dot(Vector3 a, Vector3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+		public static Vector3 Cross(Vector3 a, Vector3 b) => new Vector3(a.Y * b.Z - a.Z * b.Y, a.Z * b.X - a.X * b.Z, a.X * b.Y - a.Y * b.X);
+		public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a + (b - a) * t;
+		/// <summary>A step of at most maxStep from a toward b.</summary>
+		public static Vector3 MoveToward(Vector3 a, Vector3 b, float maxStep)
+		{
+			Vector3 d = b - a; float l = d.Length;
+			return l <= maxStep || l < 1e-6f ? b : a + d * (maxStep / l);
+		}
+		/// <summary>A direction on the ground from a yaw in degrees (0 = +Z, 90 = +X), as Hero.Yaw and Npc.Yaw report it.</summary>
+		public static Vector3 FromYaw(float degrees)
+		{
+			double r = degrees * Math.PI / 180.0;
+			return new Vector3((float)Math.Sin(r), 0, (float)Math.Cos(r));
+		}
+		/// <summary>The yaw in degrees of a ground direction (0 = +Z, 90 = +X).</summary>
+		public float Yaw => (float)(Math.Atan2(X, Z) * 180.0 / Math.PI);
 		public override string ToString() => X.ToString("0.##") + ", " + Y.ToString("0.##") + ", " + Z.ToString("0.##");
+	}
+
+	/// <summary>A point on the screen (800x480 units) or any pair.</summary>
+	public struct Vector2
+	{
+		public float X, Y;
+		public Vector2(float x, float y) { X = x; Y = y; }
+		public static readonly Vector2 Zero = new Vector2(0, 0);
+		public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.X + b.X, a.Y + b.Y);
+		public static Vector2 operator -(Vector2 a, Vector2 b) => new Vector2(a.X - b.X, a.Y - b.Y);
+		public static Vector2 operator *(Vector2 a, float k) => new Vector2(a.X * k, a.Y * k);
+		public static Vector2 operator *(float k, Vector2 a) => new Vector2(a.X * k, a.Y * k);
+		public static Vector2 operator /(Vector2 a, float k) => new Vector2(a.X / k, a.Y / k);
+		public static Vector2 operator -(Vector2 a) => new Vector2(-a.X, -a.Y);
+		public static bool operator ==(Vector2 a, Vector2 b) => a.X == b.X && a.Y == b.Y;
+		public static bool operator !=(Vector2 a, Vector2 b) => !(a == b);
+		public override bool Equals(object obj) => obj is Vector2 v && v == this;
+		public override int GetHashCode() => X.GetHashCode() ^ (Y.GetHashCode() << 2);
+		public float Length => (float)Math.Sqrt(X * X + Y * Y);
+		public Vector2 Normalized { get { float l = Length; return l > 1e-6f ? this / l : Zero; } }
+		public static float Distance(Vector2 a, Vector2 b) => (a - b).Length;
+		public static float Dot(Vector2 a, Vector2 b) => a.X * b.X + a.Y * b.Y;
+		public static Vector2 Lerp(Vector2 a, Vector2 b, float t) => a + (b - a) * t;
+		/// <summary>A direction from an angle in degrees (0 = +X, 90 = +Y, screen down).</summary>
+		public static Vector2 FromAngle(float degrees)
+		{
+			double r = degrees * Math.PI / 180.0;
+			return new Vector2((float)Math.Cos(r), (float)Math.Sin(r));
+		}
+		public float Angle => (float)(Math.Atan2(Y, X) * 180.0 / Math.PI);
+		public override string ToString() => X.ToString("0.##") + ", " + Y.ToString("0.##");
 	}
 
 	public sealed class Transform
