@@ -4,7 +4,7 @@
     {
       "target": "map",
       "behaviour": "Welcome",
-      "fields": { "Text": "The Altar Cave. The hello mod put this line here from a scene file.", "Delay": 120, "EveryTime": true }
+      "fields": { "Text": "The Altar Cave. The hello mod put this line here from a scene file.", "Delay": 120, "EveryTime": true, "Then": "And a second line, said the moment the first was dismissed." }
     }
   ]
 }

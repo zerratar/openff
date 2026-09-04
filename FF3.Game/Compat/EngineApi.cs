@@ -186,9 +186,21 @@ namespace FF3
 			}
 		}
 
+		/// <summary>--debug=dialogue: every step of the window's life in the log.</summary>
+		internal static readonly bool Trace = Environment.GetCommandLineArgs().Any(a => a.StartsWith("--debug=", StringComparison.OrdinalIgnoreCase) && (a.Contains("dialogue") || a.Contains("all")));
+
+		private static void TraceLine(string what, GlobalScope.wld.CMessageWindow window)
+		{
+			if (!Trace) return;
+			string state = "no window";
+			try { if (window != null) state = "made " + window.isMadeWindow() + " open " + window.isWindowOpen() + " msg " + window.isMadeMessage() + " next " + window.isNextPageButton(); } catch (Exception) { }
+			OpenFF.Game.Log("dialogue f" + OpenFF.Game.Time.Frame + ": " + what + " (" + state + ")");
+		}
+
 		public void Say(string text, string speaker = null)
 		{
 			GlobalScope.wld.CMessageWindow window = Window;
+			TraceLine("Say \"" + (text ?? "").Substring(0, Math.Min(20, (text ?? "").Length)) + "\"", window);
 			if (window == null)
 			{
 				EngineApi.Warn("say", "Say: no message window (not on a map)");
@@ -196,10 +208,17 @@ namespace FF3
 			}
 			if (!window.isMadeWindow())
 			{
+				// A fresh window: the text waits for it to finish opening (Tick shows it). The
+				// window reports open for a frame after a release, so asking it here is no good -
+				// a Say on the frame a message was dismissed put its text on a closing window.
 				window.createWindow(1);
+				_createdFrame = OpenFF.Game.Time.Frame;
+				_pending = text ?? "";
+				return;
 			}
-			if (window.isWindowOpen())
+			if (_shown && window.isWindowOpen() && ClosedFrame != OpenFF.Game.Time.Frame)
 			{
+				// Our own window is up: the text changes in place.
 				Show(window, text ?? "");
 			}
 			else
@@ -231,7 +250,9 @@ namespace FF3
 
 		private void Show(GlobalScope.wld.CMessageWindow window, string text)
 		{
+			TraceLine("Show", window);
 			window.createText(text, 0);
+			TraceLine("Show done", window);
 			// A question keeps its text up until answered: no tap mark, no dismissal.
 			window.setProgressIconActivity(_SendMessage: _answer == null);
 			_pending = null;
@@ -242,9 +263,11 @@ namespace FF3
 		{
 			GlobalScope.wld.CMessageWindow window = Window;
 			bool wasOpen = _shown || _pending != null;
+			TraceLine("Close (wasOpen " + wasOpen + ")", window);
 			if (window != null && wasOpen)
 			{
 				window.release();
+				TraceLine("released", window);
 			}
 			_pending = null;
 			if (_answer != null)
@@ -262,6 +285,8 @@ namespace FF3
 
 		/// <summary>The frame the window closed on; a press that dismissed it must not also talk to someone.</summary>
 		internal long ClosedFrame = -1;
+		/// <summary>The frame Say created the window on; it reports open for a frame after a release, so pending text waits past that.</summary>
+		private long _createdFrame = -10;
 
 		/// <summary>
 		/// Pending text goes up once the window is open; a question reads the Yes/No box
@@ -278,7 +303,7 @@ namespace FF3
 					_pending = null;
 					return;
 				}
-				if (window.isWindowOpen())
+				if (window.isWindowOpen() && OpenFF.Game.Time.Frame - _createdFrame >= 2)
 				{
 					Show(window, _pending);
 				}

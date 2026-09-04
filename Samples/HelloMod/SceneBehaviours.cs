@@ -20,6 +20,8 @@ namespace Hello
 		public int Delay = 90;
 		/// <summary>Say it again on every visit, or only the first time this run.</summary>
 		public bool EveryTime = true;
+		/// <summary>A second line, said the moment the first is dismissed (empty for none).</summary>
+		public string Then = "";
 
 		private static readonly HashSet<string> Said = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		private int _frames;
@@ -36,6 +38,17 @@ namespace Hello
 			Said.Add(key);
 			Game.Dialogue.Say(Text);
 			Game.Log(HelloService.Greeting + ": Welcome on " + GameObject.Name + " said \"" + Text + "\"");
+			if (!string.IsNullOrEmpty(Then))
+			{
+				Action second = null;
+				second = () =>
+				{
+					Game.Dialogue.Closed -= second;
+					Game.Dialogue.Say(Then);
+					Game.Log(HelloService.Greeting + ": Welcome on " + GameObject.Name + " then said \"" + Then + "\"");
+				};
+				Game.Dialogue.Closed += second;
+			}
 		}
 
 		public override IEnumerable<string> DebugLines()
