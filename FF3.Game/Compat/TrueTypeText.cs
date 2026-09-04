@@ -48,9 +48,9 @@ namespace FF3
 		/// Glyph size relative to the atlases. The atlas glyphs were drawn a little
 		/// larger than their nominal size; without this, TrueType at 12 reads small.
 		/// </summary>
-		private const float SizeFactor = 1.15f;
+		public const float SizeFactor = 2f;//1.15f;
 
-		private static bool _initialised;
+        private static bool _initialised;
 
 		/// <summary>
 		/// Finds and loads the faces. Called from the text path once the content is open,

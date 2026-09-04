@@ -533,7 +533,9 @@ internal static partial class GlobalScope
 
 			public void SetMessageFontSize(int _FontSize)
 			{
-				m_MessageFontSize = ((_FontSize == 0) ? dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8 : dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+				m_MessageFontSize = ((_FontSize == 0) 
+					? dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8 
+					: dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
 			}
 
 			public int mwGetMessageID()
