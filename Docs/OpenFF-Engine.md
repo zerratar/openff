@@ -178,13 +178,21 @@ for it.
 
 - `mod.json` names the mod's assemblies; the engine loads each mod in its own
   `AssemblyLoadContext` (isolation for unloading and versioning, not a sandbox), in load
-  order, after all mods' assets are known. Dependencies between mods are declared and
-  ordered; a missing dependency disables the mod with a message, not a crash.
+  order, after all mods' assets are known. A mod *may* have dependencies (most will not):
+  an optional `dependencies` list of mod ids, with a minimum version each, in `mod.json`.
+  The load order is checked against them - a dependency must be enabled and come first -
+  and a mod whose dependency is missing is disabled with a message saying which, not a
+  crash (Karl, 2026-09-04).
 - The engine API is a separate, versioned assembly; a mod says `minEngine`. Reflection
   finds the mod's behaviours (for the inspector and the scene loader) and its services.
 - Crystal builds a mod's C# (`dotnet build` driven from the editor, errors shown inline)
-  and exports it with the assets. Hot reload in a running client comes later, for
-  iteration; the first version restarts.
+  and exports it with the assets. **Hot reload is a goal, not an afterthought** (Karl,
+  2026-09-04): the client watches a mod's assemblies, unloads the mod's load context and
+  loads the new build, re-creating its behaviours and services from their serialised
+  state. A change too large for the running state to survive (a removed field, a changed
+  service contract) is reported and the answer is a restart - expected, not a failure of
+  the feature. Behaviours therefore keep their state in serialised fields, which is also
+  what saving needs.
 
 ### Crystal for the OpenFF target
 
