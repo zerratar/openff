@@ -1,6 +1,7 @@
 // A diagnostic layer drawn over the finished frame.
 //
-// F1 toggles it. While it is up, more keys switch its parts on and off:
+// F1 toggles it. While it is up, more keys switch its parts on and off, and the layer's
+// last lines list those keys with each part's state, so nobody has to remember them:
 //
 //   F2  boxes    the menu's frames (Medgets) as rectangles, the focused one in yellow,
 //                with a cross where the hand cursor is told to go
@@ -198,6 +199,7 @@ namespace FF3
 			{
 				AppendStats(view);
 			}
+			AppendLegend();
 			int lines = 0;
 			for (int i = 0; i < _text.Length; i++)
 			{
@@ -411,6 +413,18 @@ namespace FF3
 					.Append("  cursor ").Append(focused.cursorX()).Append(',').Append(focused.cursorY()).Append('\n');
 			}
 		}
+
+		/// <summary>The keys and what each currently does, always shown while the overlay is up.</summary>
+		private void AppendLegend()
+		{
+			_text.Append("F1 debug overlay [on]   F2 boxes ").Append(State(Layer.Boxes))
+				.Append("   F3 labels ").Append(State(Layer.Labels))
+				.Append("   F4 sprites ").Append(State(Layer.Sprites))
+				.Append("   F5 world ").Append(State(Layer.World))
+				.Append("   F6 stats ").Append(State(Layer.Stats)).Append('\n');
+		}
+
+		private string State(Layer layer) => (_layers & layer) != 0 ? "[on]" : "[off]";
 
 		private void AppendStats(Viewport view)
 		{
