@@ -10234,6 +10234,26 @@ internal static partial class GlobalScope
 							return 0u;
 						}
 
+						/// <summary>
+						/// PORT: the wrap the material asks for, on the texture just bound. The DS has
+						/// repeat, clamp and flip - repeat with every other copy mirrored - per axis; the
+						/// port created every texture with repeat on both axes. FF3's materials leave the
+						/// repeat bits clear and still expect repeat (the phone port ignored them, and
+						/// its grass and water only look right that way), so clamp is never chosen; flip
+						/// is honoured, because FF4's world map blends its coast and grass tiles with it.
+						/// </summary>
+						internal static void BindTextureWrap(uint texImageParam)
+						{
+							if (FF3.Options.Get("texwrap") == "off")
+							{
+								return;
+							}
+							int s = ((texImageParam >> 18) & 1) != 0 ? 33648 : 10497;
+							int t = ((texImageParam >> 19) & 1) != 0 ? 33648 : 10497;
+							glTexParameteri(3553u, 10242u, s);
+							glTexParameteri(3553u, 10243u, t);
+						}
+
 						internal static void BindTexture(uint target, uint tex)
 						{
 							FF3.Log.First(FF3.LogChannel.Texture, "BindTexture", 200, () => $"tex={tex} data={(tex != 0 && tex < texBank.Length && texBank[tex] != null && texBank[tex].data != null ? texBank[tex].w + "x" + texBank[tex].h : "NONE")}"); /*FF3LOG*/
@@ -13497,6 +13517,7 @@ internal static partial class GlobalScope
 														if (texImageParam != null)
 														{
 															BindTexture(3553u, texImageParam.tex);
+															BindTextureWrap(nNSG3dResMatData2.texImageParamBits);
 														}
 														int num25 = ((texImageParam != null) ? 1 : 0);
 														if (num7 != num25)
@@ -21859,6 +21880,9 @@ internal static partial class GlobalScope
 								case 33071:
 									m_aGlTexture[m_uiBindTexture].m_TextureAddressModeS = TextureAddressMode.Clamp;
 									break;
+								case 33648:
+									m_aGlTexture[m_uiBindTexture].m_TextureAddressModeS = TextureAddressMode.Mirror;
+									break;
 								}
 								break;
 							case 10243u:
@@ -21869,6 +21893,9 @@ internal static partial class GlobalScope
 									break;
 								case 33071:
 									m_aGlTexture[m_uiBindTexture].m_TextureAddressModeT = TextureAddressMode.Clamp;
+									break;
+								case 33648:
+									m_aGlTexture[m_uiBindTexture].m_TextureAddressModeT = TextureAddressMode.Mirror;
 									break;
 								}
 								break;

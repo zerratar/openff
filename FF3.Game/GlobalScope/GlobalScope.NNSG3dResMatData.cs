@@ -33,6 +33,11 @@ internal static partial class GlobalScope
 		public TexVramList texImageParam;
 
 		public uint texImageParamMask;
+		// PORT: the material's own texImageParam word, kept for its wrap bits (16 repeat S,
+		// 17 repeat T, 18 flip S, 19 flip T). The texture object it names is shared between
+		// materials, so the wrap has to be set when the material binds it, not when the
+		// texture is made - FF4's world map blends its tiles with "flip" (mirrored repeat).
+		public uint texImageParamBits;
 
 		public ushort texPlttBase;
 
@@ -55,7 +60,7 @@ internal static partial class GlobalScope
 			nNSG3dResMatData.specEmi = src.readUInt32();
 			nNSG3dResMatData.polyAttr = src.readUInt32();
 			nNSG3dResMatData.polyAttrMask = src.readUInt32();
-			src.readUInt32();
+			nNSG3dResMatData.texImageParamBits = src.readUInt32();
 			nNSG3dResMatData.texImageParamMask = src.readUInt32();
 			nNSG3dResMatData.texPlttBase = src.readUInt16();
 			nNSG3dResMatData.flag = src.readUInt16();

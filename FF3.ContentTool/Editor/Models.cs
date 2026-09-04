@@ -284,7 +284,9 @@ namespace FF3.ContentTool.Editor
 
 		private static string Wrap(bool repeat, bool flip)
 		{
-			return !repeat ? "clamp" : (flip ? "mirror" : "repeat");
+			// Never clamp: FF3's materials leave the repeat bits clear and still expect repeat
+			// (the game ignores them), so only flip - mirrored repeat - is read.
+			return flip ? "mirror" : "repeat";
 		}
 
 		private static float[] ToFloat(int[] m)
