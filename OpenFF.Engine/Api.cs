@@ -192,13 +192,30 @@ namespace OpenFF
 		public int Slot { get; set; }
 		public string Name { get; set; }
 		public int Level { get; set; }
+		public int Experience { get; set; }
 		public int Hp { get; set; }
+		public int MaxHp { get; set; }
+		/// <summary>Charges left of magic level 1 (the game's MP are charges per level; see Charges).</summary>
 		public int Mp { get; set; }
-		/// <summary>The job's index in the game's job table.</summary>
+		/// <summary>Charges left per magic level, index 0 = level 1 .. 7 = level 8.</summary>
+		public int[] Charges { get; set; } = new int[8];
+		public int[] MaxCharges { get; set; } = new int[8];
+		/// <summary>The job's index in the game's job table (the Job enum names them).</summary>
 		public int Job { get; set; }
+		public Job JobName => (Job)Job;
+		/// <summary>The job's skill level, as the formulas use it.</summary>
+		public int JobSkill { get; set; }
+		/// <summary>Stats with equipment and job bonuses, as the formulas read them.</summary>
+		public Stats Stats { get; set; } = new Stats();
+		public Condition Conditions { get; set; }
+		/// <summary>The spells equipped, by id, in the order of their levels.</summary>
+		public List<int> Spells { get; } = new List<int>();
 		public bool Alive { get; set; }
-		public override string ToString() => Name + " L" + Level + " (" + Hp + " hp, job " + Job + ")";
+		public override string ToString() => Name + " L" + Level + " (" + Hp + "/" + MaxHp + " hp, " + JobName + ")";
 	}
+
+	/// <summary>A stat by name, for IParty.SetStat.</summary>
+	public enum Stat { Strength, Vitality, Agility, Intellect, Mind }
 
 	/// <summary>The party: money, items, members.</summary>
 	public interface IParty
@@ -218,6 +235,27 @@ namespace OpenFF
 		void SetLevel(int id, int level);
 		/// <summary>Heals everyone to full.</summary>
 		void HealAll();
+		/// <summary>Takes hit points off a character; with canKill false it stops at 1 (as the game's floors do), otherwise 0 kills. Returns the new HP.</summary>
+		int Hurt(int id, int amount, bool canKill = false);
+		/// <summary>Gives hit points back, up to the maximum (a dead character stays dead unless revive is true). Returns the new HP.</summary>
+		int Heal(int id, int amount, bool revive = false);
+		/// <summary>Sets HP now and, when max is given, the maximum too.</summary>
+		void SetHp(int id, int now, int max = -1);
+		/// <summary>Sets the charges of one magic level (1-8) now and, when max is given, the maximum too.</summary>
+		void SetCharges(int id, int level, int now, int max = -1);
+		/// <summary>Adds experience, levelling up as the game does; true when a level was gained.</summary>
+		bool GiveExperience(int id, int amount);
+		/// <summary>Changes job, with the game's own bookkeeping (abilities, charges, the penalty time).</summary>
+		void SetJob(int id, Job job);
+		/// <summary>Sets a base stat (bonuses are recomputed).</summary>
+		void SetStat(int id, Stat stat, int value);
+		/// <summary>Equips a spell into the character's slots for its level; false when the slots are full.</summary>
+		bool LearnSpell(int id, int spellId);
+		bool ForgetSpell(int id, int spellId);
+		/// <summary>Puts a character into conditions (Poison, Blind...).</summary>
+		void Inflict(int id, Condition conditions);
+		/// <summary>Takes conditions off.</summary>
+		void Cure(int id, Condition conditions);
 	}
 
 	public interface IAudio
@@ -233,6 +271,12 @@ namespace OpenFF
 		void FadeOut(int frames, bool white = false);
 		void FadeIn(int frames);
 		bool Faded { get; }
+		/// <summary>Flashes the screen a colour, as the game does for a damage floor: total frames, frames per flash.</summary>
+		void Flash(Color color, int frames = 8, int interval = 2);
+		/// <summary>The battle's floating number over a world point: white for damage, green-pink for healing (heal = true). Up to 9999.</summary>
+		void PopNumber(Vector3 at, int value, bool heal = false);
+		/// <summary>The battle's "Miss" over a world point.</summary>
+		void PopMiss(Vector3 at);
 	}
 
 	/// <summary>The map and moving between maps.</summary>
@@ -294,5 +338,15 @@ namespace OpenFF
 		int Spawn(int category, int member, Vector3 position);
 		void Remove(int id);
 		bool Alive(int id);
+		/// <summary>Loads an effect pack (e + category as three digits + .efp: the battle spells' packs) so its members can be spawned on this map. The field has room for a few at a time; false when none is left.</summary>
+		bool Load(int category);
+		/// <summary>Whether a pack is loaded on this map (the game's own field packs count as loaded for their categories).</summary>
+		bool Loaded(int category);
+		void Move(int id, Vector3 position);
+		void Scale(int id, float scale);
+		void Pause(int id, bool paused);
+		/// <summary>Keeps the effect on a character (plus an offset in world units) while both live.</summary>
+		void Follow(int id, Npc target, Vector3 offset = default);
+		void FollowHero(int id, Vector3 offset = default);
 	}
 }

@@ -244,6 +244,17 @@ internal static partial class GlobalScope
 				return null;
 			}
 
+			// PORT: the engine API lists the spells; the phone build only ever looked one up.
+			public int magicCount()
+			{
+				return magicItem_ == null ? 0 : m_MagicItemMax;
+			}
+
+			public MagicParameter magicAt(int index)
+			{
+				return magicItem_ != null && index >= 0 && index < m_MagicItemMax ? magicItem_[index] : null;
+			}
+
 			public MagicParameter magicParameter(short ItemId)
 			{
 				if (ItemId < 0)

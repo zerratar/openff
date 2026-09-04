@@ -81,6 +81,22 @@ internal static partial class GlobalScope
 				}
 			}
 
+			// PORT: the engine API lists the monsters; the battle only ever looked one up.
+			public int monsterCount()
+			{
+				return monster_ == null ? 0 : monsterMaxSize_;
+			}
+
+			public MonsterParameter monsterAt(int index)
+			{
+				return monster_ != null && index >= 0 && index < monsterMaxSize_ ? monster_[index] : null;
+			}
+
+			public bool isLoaded()
+			{
+				return monster_ != null;
+			}
+
 			public MonsterParameter monsterParameter(int monsterId)
 			{
 				for (int i = 0; i < monsterMaxSize_; i++)
@@ -1203,6 +1219,43 @@ internal static partial class GlobalScope
 					}
 				}
 				return monsterParty_[1];
+			}
+
+			// PORT: for the engine API, outside a battle: the normal encounter table by name, and
+			// a lookup that says "unknown" instead of handing back party 1.
+			public bool loadNormalTable()
+			{
+				free();
+				uint size = ds.g_File.getSize("monster_party_table.bbd");
+				if (size == 0)
+				{
+					return false;
+				}
+				Array array = ds.CHeap.alloc_app(size);
+				bool flag = ds.g_File.load(array, "monster_party_table.bbd");
+				monsterParty_ = MonsterParty.castArray(array);
+				return flag;
+			}
+
+			public bool isLoaded()
+			{
+				return monsterParty_ != null;
+			}
+
+			public MonsterParty findMonsterParty(int _id)
+			{
+				if (monsterParty_ == null)
+				{
+					return null;
+				}
+				for (int i = 0; i < MONSTER_PARTY_MAX && i < monsterParty_.Length; i++)
+				{
+					if (monsterParty_[i] != null && _id == monsterParty_[i].monsterPartyId())
+					{
+						return monsterParty_[i];
+					}
+				}
+				return null;
 			}
 
 			public static MonsterPartyManager instance()

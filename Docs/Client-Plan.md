@@ -222,6 +222,31 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## The abilities slice: spells, monsters, the formulas (2026-09-04)
+
+Karl's bullet hell, real-time fights and "a mod adds its own skill" all need the game's
+abilities as data, not as battle-menu behaviour. `Game.Magic` (`OpenFF.Engine/Abilities.cs`,
+host `Compat/EngineAbilities.cs`) reads the magic table (`itm.ItemManager`, item_parameter.pak
+chain 3) into `Spell` objects - school, level (charges), kind, power, accuracy, elements,
+targeting, conditions, the jobs that equip it, and the effect and sound the battle plays
+(from the normal-magic table) - with names resolved through the message system on a map.
+`Cast/CastOn/CastOnHero` play the effect (loading its pack, e%03d.efp, into the field's
+five slots) and the sound; `Damage` and `Healing` are `btl.NewMagicFormula` ported over plain
+`Stats` (so a mod's own creatures work), `CanCast/Spend` handle charges, `UseInField` is the
+menu's own Cure-on-the-field path. `Add` puts a mod's own `Spell` beside the game's, with
+`OnCast` for what it does. `Game.Monsters` reads monster.chaindata (names, family model,
+level, HP, stats, weakness/resist, gil, exp) and the normal encounter table (`Group`).
+`PartyMember` now carries the whole sheet (max HP, charges per level, stats with bonuses,
+job skill, conditions, equipped spells) and `IParty` gained Hurt/Heal/SetHp/SetCharges/
+GiveExperience/SetJob/SetStat/LearnSpell/ForgetSpell/Inflict/Cure. `IScreen` gained
+`Flash` (the damage-floor red) and `PopNumber/PopMiss` (the battle's floating numbers,
+whose sprite sheet is loaded on the field and released with the map). `IEffects` gained
+Load/Loaded/Move/Scale/Pause/Follow/FollowHero. Legacy additions: `ItemManager.magicCount/
+magicAt`, `MonsterManager.monsterCount/monsterAt/isLoaded`, `MonsterPartyManager.
+loadNormalTable/findMonsterParty`. Testing C-28, C-29. Not yet: a mod's spell in the
+battle's own menu (needs the command list hooks), monsters as fighting things on the field
+(the mod does that with SpawnModel + Stats + Damage today).
+
 ## World verbs: ground and screen (2026-09-04)
 
 `Game.Field.GroundHeight(at)` / `OnGround(at)` / `Walkable(at)` ask the map's collision

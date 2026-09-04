@@ -32,12 +32,18 @@ namespace FF3
 			OpenFF.Game.Services.Register(new LegacyFlags());
 			OpenFF.Game.Services.Register(new LegacyParty());
 			OpenFF.Game.Services.Register(new LegacyAudio());
-			OpenFF.Game.Services.Register(new LegacyScreen());
+			OpenFF.Game.Services.Register(Screen);
 			OpenFF.Game.Services.Register(new LegacyField());
 			OpenFF.Game.Services.Register(new LegacyCamera());
-			OpenFF.Game.Services.Register(new LegacyEffects());
+			OpenFF.Game.Services.Register(Effects);
 			OpenFF.Game.Services.Register(new LegacyBattle());
+			OpenFF.Game.Services.Register(Magic);
+			OpenFF.Game.Services.Register(new LegacyMonsters());
 		}
+
+		public static readonly LegacyScreen Screen = new LegacyScreen();
+		public static readonly LegacyEffects Effects = new LegacyEffects();
+		public static readonly LegacyMagic Magic = new LegacyMagic();
 
 		/// <summary>Once per frame, after the legacy tick: the message window, the hero's scripted walk, and spawned characters.</summary>
 		public static void Tick()
@@ -45,6 +51,9 @@ namespace FF3
 			Dialogue.Tick();
 			Hero.Tick();
 			Npcs.Tick();
+			Effects.Tick();
+			Screen.Tick();
+			Magic.Tick();
 		}
 
 		// ---- reaching the legacy world ----
@@ -950,11 +959,216 @@ namespace FF3
 		{
 			PartyMember m = new PartyMember { Id = player.playerId(), Slot = slot, Name = player.name() };
 			try { m.Level = player.level().get(); } catch (Exception) { }
-			try { m.Hp = player.hp().getNow(); } catch (Exception) { }
-			try { m.Mp = player.mp(0).getNow(); } catch (Exception) { }
+			try { m.Experience = player.exp().get(); } catch (Exception) { }
+			try { m.Hp = player.hp().getNow(); m.MaxHp = player.hp().getLimit(); } catch (Exception) { }
+			try
+			{
+				for (int level = 0; level < 8; level++)
+				{
+					m.Charges[level] = player.mp(level).getNow();
+					m.MaxCharges[level] = player.mp(level).getLimit();
+				}
+				m.Mp = m.Charges[0];
+			}
+			catch (Exception) { }
 			try { m.Job = player.jobManager().nowJob(); } catch (Exception) { }
-			m.Alive = m.Hp > 0;
+			try { m.JobSkill = player.jobManager().nowJobParameter().skill().skillLevel().get(); } catch (Exception) { }
+			try
+			{
+				GlobalScope.ys.BodyParameter body = player.bodyAndBonus();
+				m.Stats.Strength = body.strength().get();
+				m.Stats.Vitality = body.vitality().get();
+				m.Stats.Agility = body.dexterity().get();
+				m.Stats.Intellect = body.intelligence().get();
+				m.Stats.Mind = body.mind().get();
+				m.Stats.JobSkill = m.JobSkill;
+				m.Stats.MagicDefense = player.magicDefense().magicPhylacticPower();
+				m.Stats.Weakness = (Element)player.magicDefense().weakType();
+				m.Stats.Resist = (Element)player.physicsDefense().antiType();
+			}
+			catch (Exception) { }
+			try { m.Conditions = (Condition)player.condition().normalCondition(); } catch (Exception) { }
+			try
+			{
+				for (int level = 0; level < 8; level++)
+				{
+					GlobalScope.pl.EquipmentMagic equipped = player.equipParameter().equipMagic((GlobalScope.pl.MAGIC_LEVEL)level);
+					for (int i = 0; i < GlobalScope.pl.MAGIC_ONCE_LEVEL_EQUIP_MAX; i++)
+					{
+						int id = equipped.magicId(i);
+						if (id > 0) m.Spells.Add(id);
+					}
+				}
+			}
+			catch (Exception) { }
+			m.Alive = m.Hp > 0 && (m.Conditions & Condition.Death) == 0;
 			return m;
+		}
+
+		private static GlobalScope.pl.Player PlayerOf(int id)
+		{
+			try { return GlobalScope.pl.PlayerParty.instance().playerForId((byte)id); }
+			catch (Exception) { return null; }
+		}
+
+		public int Hurt(int id, int amount, bool canKill = false)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return 0;
+			try
+			{
+				int now = Math.Max(canKill ? 0 : 1, player.hp().getNow() - Math.Max(0, amount));
+				player.hp().setNow(now);
+				if (now == 0) player.condition().onDeath();
+				player.updateCondition();
+				return now;
+			}
+			catch (Exception ex) { EngineApi.Warn("party-hurt", "Hurt: " + ex.Message); return 0; }
+		}
+
+		public int Heal(int id, int amount, bool revive = false)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return 0;
+			try
+			{
+				if (player.condition().isDeath())
+				{
+					if (!revive) return 0;
+					player.condition().offDeath();
+				}
+				player.hp().addNow(Math.Max(0, amount));
+				int now = player.hp().getNow();
+				if (now >= player.hp().getLimit() * 25 / 100) player.condition().offNearDeath();
+				return now;
+			}
+			catch (Exception ex) { EngineApi.Warn("party-healone", "Heal: " + ex.Message); return 0; }
+		}
+
+		public void SetHp(int id, int now, int max = -1)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return;
+			try
+			{
+				if (max > 0) player.hp().setLimit(Math.Min(max, 999999));
+				player.hp().setNow(Math.Max(0, now));
+				if (player.hp().getNow() == 0) player.condition().onDeath();
+				else if (player.condition().isDeath()) player.condition().offDeath();
+				player.updateCondition();
+			}
+			catch (Exception ex) { EngineApi.Warn("party-sethp", "SetHp: " + ex.Message); }
+		}
+
+		public void SetCharges(int id, int level, int now, int max = -1)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return;
+			try
+			{
+				int index = Math.Clamp(level, 1, 8) - 1;
+				if (max >= 0) player.mp(index).setLimit(Math.Min(max, 99));
+				player.mp(index).setNow(Math.Max(0, now));
+				player.setJobChangeMp(index, (byte)player.mp(index).getNow());
+			}
+			catch (Exception ex) { EngineApi.Warn("party-charges", "SetCharges: " + ex.Message); }
+		}
+
+		public bool GiveExperience(int id, int amount)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return false;
+			try { return player.levelUp(Math.Max(0, amount)); }
+			catch (Exception ex) { EngineApi.Warn("party-exp", "GiveExperience: " + ex.Message); return false; }
+		}
+
+		public void SetJob(int id, Job job)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return;
+			try
+			{
+				player.changeJob((GlobalScope.pl.JOB_TYPE)(int)job);
+				RefreshDisplay();
+			}
+			catch (Exception ex) { EngineApi.Warn("party-job", "SetJob: " + ex.Message); }
+		}
+
+		public void SetStat(int id, Stat stat, int value)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return;
+			try
+			{
+				GlobalScope.ys.BodyParameter body = player.body();
+				value = Math.Clamp(value, 0, 99);
+				switch (stat)
+				{
+					case Stat.Strength: body.strength().set(value); break;
+					case Stat.Vitality: body.vitality().set(value); break;
+					case Stat.Agility: body.dexterity().set(value); break;
+					case Stat.Intellect: body.intelligence().set(value); break;
+					case Stat.Mind: body.mind().set(value); break;
+				}
+				player.updateParameter();
+			}
+			catch (Exception ex) { EngineApi.Warn("party-stat", "SetStat: " + ex.Message); }
+		}
+
+		public bool LearnSpell(int id, int spellId)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return false;
+			try
+			{
+				GlobalScope.itm.MagicParameter p = GlobalScope.itm.ItemManager.instance().magicParameter((short)spellId);
+				if (p == null) return false;
+				GlobalScope.pl.EquipmentMagic slots = player.equipParameter().equipMagic((GlobalScope.pl.MAGIC_LEVEL)p.magicClass());
+				return slots.equip(spellId) != GlobalScope.pl.EquipmentMagic.NO_MAGIC_ID;
+			}
+			catch (Exception ex) { EngineApi.Warn("party-learn", "LearnSpell: " + ex.Message); return false; }
+		}
+
+		public bool ForgetSpell(int id, int spellId)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return false;
+			try
+			{
+				for (int level = 0; level < 8; level++)
+				{
+					GlobalScope.pl.EquipmentMagic slots = player.equipParameter().equipMagic((GlobalScope.pl.MAGIC_LEVEL)level);
+					for (int i = 0; i < GlobalScope.pl.MAGIC_ONCE_LEVEL_EQUIP_MAX; i++)
+					{
+						if (slots.magicId(i) == spellId) return slots.release(i);
+					}
+				}
+				return false;
+			}
+			catch (Exception ex) { EngineApi.Warn("party-forget", "ForgetSpell: " + ex.Message); return false; }
+		}
+
+		public void Inflict(int id, Condition conditions) => SetConditions(id, conditions, true);
+		public void Cure(int id, Condition conditions) => SetConditions(id, conditions, false);
+
+		private static void SetConditions(int id, Condition conditions, bool on)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return;
+			try
+			{
+				GlobalScope.ys.Condition c = player.condition();
+				if ((conditions & Condition.Death) != 0) { if (on) { c.onDeath(); player.hp().setNow(0); } else { c.offDeath(); if (player.hp().getNow() == 0) player.hp().setNow(1); } }
+				if ((conditions & Condition.Stone) != 0) { if (on) c.onStone(); else c.offStone(); }
+				if ((conditions & Condition.Frog) != 0) { if (on) c.onFrog(); else c.offFrog(); }
+				if ((conditions & Condition.Silence) != 0) { if (on) c.onSilence(); else c.offSilence(); }
+				if ((conditions & Condition.Mini) != 0) { if (on) c.onLilliput(); else c.offLilliput(); }
+				if ((conditions & Condition.Blind) != 0) { if (on) c.onDarkness(); else c.offDarkness(); }
+				if ((conditions & Condition.Poison) != 0) { if (on) c.onPoison(); else c.offPoison(); }
+				if ((conditions & Condition.NearDeath) != 0) { if (on) c.onNearDeath(); else c.offNearDeath(); }
+				player.updateParameter();
+			}
+			catch (Exception ex) { EngineApi.Warn("party-condition", (on ? "Inflict: " : "Cure: ") + ex.Message); }
 		}
 
 		public bool AddMember(int id)
@@ -1038,6 +1252,74 @@ namespace FF3
 		}
 
 		public bool Faded => GlobalScope.dgs.CFade.Main().isFaded();
+
+		// The field's own flash (a damage floor's red), a 15-bit colour.
+		public void Flash(Color color, int frames = 8, int interval = 2)
+		{
+			if (!EngineApi.InWorld) return;
+			try
+			{
+				GlobalScope.wld.CBaseSystem world = GlobalScope.wld.CBaseSystem.Current;
+				if (world == null) return;
+				ushort rgb = GlobalScope.GX_RGB(color.R >> 3, color.G >> 3, color.B >> 3);
+				world.ScrFlash().setFlash((short)Math.Max(1, frames), (byte)Math.Clamp(interval, 1, 255), rgb);
+			}
+			catch (Exception ex) { EngineApi.Warn("flash", "Screen.Flash: " + ex.Message); }
+		}
+
+		// The battle's pop-up numbers, drawn by the 2D manager the field runs too. Their sprite
+		// sheet is the battle's; it is loaded here on first use on a map and released when the
+		// map or the world part goes, since the battle loads its own copy.
+		private GlobalScope.btl.Damage _numbers;
+		private GlobalScope.btl.Hit _hits;
+		private bool _sheetLoaded;
+		private int _slot;
+
+		private bool EnsureSheet()
+		{
+			if (!EngineApi.InWorld) return false;
+			if (!_sheetLoaded)
+			{
+				GlobalScope.u2d.PopUp.puInitializeSystem();
+				_sheetLoaded = true;
+				_numbers = new GlobalScope.btl.Damage();
+				_hits = new GlobalScope.btl.Hit();
+			}
+			return true;
+		}
+
+		public void PopNumber(Vector3 at, int value, bool heal = false)
+		{
+			try
+			{
+				if (!EnsureSheet()) return;
+				value = Math.Clamp(Math.Abs(value), 0, 9999);
+				_numbers.create(_slot, value, EngineApi.ToFx(at), heal ? 1 : 0);
+				_slot = (_slot + 1) % 12;
+			}
+			catch (Exception ex) { EngineApi.Warn("pop", "Screen.PopNumber: " + ex.Message); }
+		}
+
+		public void PopMiss(Vector3 at)
+		{
+			try
+			{
+				if (!EnsureSheet()) return;
+				_hits.create(0, EngineApi.ToFx(at), GlobalScope.u2d.PopUpHitNumber.puhnKIND.puhnkMISS);
+			}
+			catch (Exception ex) { EngineApi.Warn("pop-miss", "Screen.PopMiss: " + ex.Message); }
+		}
+
+		internal void Tick()
+		{
+			if (_sheetLoaded && !EngineApi.InWorld)
+			{
+				try { GlobalScope.u2d.PopUp.puReleaseSystem(); } catch (Exception) { }
+				_sheetLoaded = false;
+				_numbers = null;
+				_hits = null;
+			}
+		}
 	}
 
 	internal sealed class LegacyCamera : GameService, ICamera
@@ -1140,15 +1422,30 @@ namespace FF3
 
 	internal sealed class LegacyEffects : GameService, IEffects
 	{
+		// Effect packs loaded through the API on this map (the game frees them all with the map).
+		private readonly HashSet<int> _loaded = new HashSet<int>();
+		private string _loadedMap;
+		private readonly List<Follower> _followers = new List<Follower>();
+
+		private sealed class Follower
+		{
+			public int Id;
+			public Npc Target;
+			public bool Hero;
+			public Vector3 Offset;
+		}
+
+		private GlobalScope.eff.CEffectMng Manager => GlobalScope.eff.CEffectMng.instance();
+
 		public int Spawn(int category, int member, Vector3 position)
 		{
 			if (!EngineApi.InWorld) return -1;
 			try
 			{
-				int id = GlobalScope.eff.CEffectMng.instance().create(category, member);
+				int id = Manager.create(category, member);
 				if (id != -1)
 				{
-					GlobalScope.eff.CEffectMng.instance().setPosition(id, EngineApi.ToFx(position));
+					Manager.setPosition(id, EngineApi.ToFx(position));
 				}
 				return id;
 			}
@@ -1159,18 +1456,111 @@ namespace FF3
 		{
 			try
 			{
-				if (GlobalScope.eff.CEffectMng.instance().isEffectObject(id))
+				if (Manager.isEffectObject(id))
 				{
-					GlobalScope.eff.CEffectMng.instance().deleteEffect(id);
+					Manager.deleteEffect(id);
 				}
+				_followers.RemoveAll(f => f.Id == id);
 			}
 			catch (Exception) { }
 		}
 
 		public bool Alive(int id)
 		{
-			try { return GlobalScope.eff.CEffectMng.instance().isEffectObject(id); }
+			try { return Manager.isEffectObject(id); }
 			catch (Exception) { return false; }
+		}
+
+		public bool Load(int category)
+		{
+			if (!EngineApi.InWorld) return false;
+			ForgetOldMap();
+			if (_loaded.Contains(category)) return true;
+			try
+			{
+				if (Manager.getLoadedEfpNum() >= 5) return false;
+				int before = Manager.getLoadedEfpNum();
+				Manager.loadEfp("/EFFECT/e" + category.ToString("D3") + ".efp");
+				bool ok = Manager.getLoadedEfpNum() > before;
+				if (ok) _loaded.Add(category);
+				else EngineApi.Warn("efp-" + category, "Effects.Load: pack e" + category.ToString("D3") + " did not load");
+				return ok;
+			}
+			catch (Exception ex) { EngineApi.Warn("efp", "Effects.Load: " + ex.Message); return false; }
+		}
+
+		public bool Loaded(int category)
+		{
+			ForgetOldMap();
+			// 102 is w_common, which every map carries.
+			return category == 102 || _loaded.Contains(category);
+		}
+
+		private void ForgetOldMap()
+		{
+			string map = GlobalScope.stg.CStageMng.CurrentName;
+			if (map != _loadedMap)
+			{
+				_loaded.Clear();
+				_followers.Clear();
+				_loadedMap = map;
+			}
+		}
+
+		public void Move(int id, Vector3 position)
+		{
+			try { if (Manager.isEffectObject(id)) Manager.setPosition(id, EngineApi.ToFx(position)); }
+			catch (Exception) { }
+		}
+
+		public void Scale(int id, float scale)
+		{
+			try
+			{
+				if (!Manager.isEffectObject(id)) return;
+				int s = (int)(Math.Max(0.01f, scale) * 4096f);
+				Manager.setScale(id, new GlobalScope.VecFx32(s, s, s));
+			}
+			catch (Exception) { }
+		}
+
+		public void Pause(int id, bool paused)
+		{
+			try { if (Manager.isEffectObject(id)) Manager.setPause(id, paused); }
+			catch (Exception) { }
+		}
+
+		public void Follow(int id, Npc target, Vector3 offset = default)
+		{
+			if (target == null || id < 0) return;
+			_followers.RemoveAll(f => f.Id == id);
+			_followers.Add(new Follower { Id = id, Target = target, Offset = offset });
+		}
+
+		public void FollowHero(int id, Vector3 offset = default)
+		{
+			if (id < 0) return;
+			_followers.RemoveAll(f => f.Id == id);
+			_followers.Add(new Follower { Id = id, Hero = true, Offset = offset });
+		}
+
+		internal void Tick()
+		{
+			if (_followers.Count == 0) return;
+			if (!EngineApi.InWorld) { _followers.Clear(); return; }
+			for (int i = _followers.Count - 1; i >= 0; i--)
+			{
+				Follower f = _followers[i];
+				bool alive;
+				try { alive = Manager.isEffectObject(f.Id); } catch (Exception) { alive = false; }
+				if (!alive || (!f.Hero && (f.Target == null || !f.Target.Alive)))
+				{
+					_followers.RemoveAt(i);
+					continue;
+				}
+				Vector3 at = (f.Hero ? OpenFF.Game.Hero.Position : f.Target.Position) + f.Offset;
+				Move(f.Id, at);
+			}
 		}
 	}
 

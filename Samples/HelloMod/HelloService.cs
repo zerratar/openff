@@ -20,6 +20,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using OpenFF;
 using OpenFF.Events;
@@ -143,9 +144,15 @@ namespace Hello
 			{
 				Hud = !Hud;
 			}
+			// Y (V on the keyboard): the hero casts Fire at the villager - the game's own effect and
+			// sound, the game's damage formula against a goblin's stats, the battle's floating number.
+			if (Game.Input.Pressed(Pad.Y) && Game.Hero.Present && _villager != null && _villager.Alive)
+			{
+				CastFire();
+			}
 			if (Hud && Game.Hero.Present)
 			{
-				string line = "hello mod  gil " + Game.Party.Gil + "  talks " + Talks + "  party " + Game.Party.Members.Count + "  (Q hides)";
+				string line = "hello mod  gil " + Game.Party.Gil + "  talks " + Talks + "  party " + Game.Party.Members.Count + "  (Q hides, V casts)";
 				float w = Game.Draw.MeasureText(line, 12) + 12;
 				Game.Draw.Rect(800 - w - 8, 60, w, 20, new OpenFF.Color(0, 0, 0, 140));
 				Game.Draw.Text(line, 800 - w - 2, 63, OpenFF.Color.Yellow, 12);
@@ -202,6 +209,42 @@ namespace Hello
 		public override void OnQuit() => Game.Log(Greeting + ": OnQuit after " + Frames + " frames");
 
 		/// <summary>Shown by the F1 overlay's world layer.</summary>
+		public int Casts;
+		public int LastDamage;
+
+		private void CastFire()
+		{
+			Spell fire = Game.Magic.Find("Fire") ?? Game.Magic.All.FirstOrDefault(s => s.School == MagicSchool.Black && s.Kind == MagicKind.Attack && s.Level == 1);
+			if (fire == null)
+			{
+				Game.Log(Greeting + ": no Fire in the tables yet (" + Game.Magic.All.Count + " spells)");
+				return;
+			}
+			PartyMember hero = Game.Party.Members.Count > 0 ? Game.Party.Members[0] : null;
+			if (hero == null) return;
+			// The villager takes it as a goblin would: the first monster in the table stands in.
+			Monster goblin = Game.Monsters.All.FirstOrDefault(m => m.MaxHp > 0 && m.MaxHp < 9999);
+			Stats target = goblin?.Stats ?? new Stats { Mind = 5, MagicDefense = 0 };
+			int damage = Game.Magic.Damage(fire, hero.Stats, target);
+			int effect = Game.Magic.CastOn(fire, _villager);
+			Game.Screen.PopNumber(_villager.Position + new Vector3(0, 8, 0), damage);
+			Game.Screen.Flash(new OpenFF.Color(255, 120, 60), 6, 2);
+			_villager.Balloon = true;
+			Casts++;
+			LastDamage = damage;
+			Game.Log(Greeting + ": " + hero.Name + " (" + hero.JobName + ", int " + hero.Stats.Intellect + ", skill " + hero.JobSkill + ") cast " + fire.Name
+				+ " (power " + fire.Power + ", effect " + fire.EffectCategory + "/" + fire.EffectMember + " -> " + effect + ", sound " + fire.SoundArchive + "/" + fire.SoundNumber + ")"
+				+ " at the villager as " + (goblin?.Name ?? "nobody") + " (L" + (goblin?.Level ?? 0) + ", " + (goblin?.MaxHp ?? 0) + " hp, weak " + target.Weakness + "): " + damage + " damage");
+			if (Casts == 1)
+			{
+				Game.Log(Greeting + ": spells " + Game.Magic.All.Count + " - " + string.Join(", ", Game.Magic.All.Take(8).Select(s => s.Name + " L" + s.Level))
+					+ "; monsters " + Game.Monsters.All.Count + " - " + string.Join(", ", Game.Monsters.All.Take(5).Select(m => m.Name + " " + m.MaxHp + "hp"))
+					+ "; hero hp " + hero.Hp + "/" + hero.MaxHp + " charges " + string.Join("/", hero.Charges) + " spells " + string.Join(",", hero.Spells));
+				MonsterGroup group = Game.Monsters.Group(1);
+				if (group != null) Game.Log(Greeting + ": encounter group 1 = " + group);
+			}
+		}
+
 		public override IEnumerable<string> DebugLines()
 		{
 			yield return Greeting + " frames " + Frames + " maps " + MapsEntered + " last " + LastMap + " talks " + Talks;
