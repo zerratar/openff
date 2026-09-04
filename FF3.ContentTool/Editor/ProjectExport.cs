@@ -116,6 +116,19 @@ namespace FF3.ContentTool.Editor
 				}
 				assemblies.Add(Path.GetFileName(dll));
 			}
+			// The scene files: behaviours the editor put on map objects.
+			string scenesOut = Path.Combine(directory, ProjectScenes.FolderName);
+			if (Directory.Exists(scenesOut))
+			{
+				Directory.Delete(scenesOut, recursive: true);
+			}
+			int scenes = 0;
+			foreach (KeyValuePair<string, int> map in ProjectScenes.Maps(project))
+			{
+				Directory.CreateDirectory(scenesOut);
+				File.Copy(Path.Combine(ProjectScenes.Directory(project), map.Key + ".json"), Path.Combine(scenesOut, map.Key + ".json"), overwrite: true);
+				scenes++;
+			}
 			FF3.Content.ModsFolder.WriteManifest(manifestPath, new FF3.Content.ModManifest
 			{
 				Id = key,
@@ -133,6 +146,10 @@ namespace FF3.ContentTool.Editor
 			if (assemblies.Count > 0)
 			{
 				contents.Add("- code: " + string.Join(", ", assemblies));
+			}
+			if (scenes > 0)
+			{
+				contents.Add(string.Format(CultureInfo.InvariantCulture, "- scenes: {0} map(s) with behaviours attached under scenes/", scenes));
 			}
 			File.WriteAllText(Path.Combine(directory, "README.md"), Readme(project, contents), new UTF8Encoding(false));
 			return directory;

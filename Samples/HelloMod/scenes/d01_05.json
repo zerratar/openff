@@ -1,0 +1,10 @@
+{
+  "map": "d01_05",
+  "attachments": [
+    {
+      "target": "map",
+      "behaviour": "Welcome",
+      "fields": { "Text": "The Altar Cave. The hello mod put this line here from a scene file.", "Delay": 120, "EveryTime": true }
+    }
+  ]
+}

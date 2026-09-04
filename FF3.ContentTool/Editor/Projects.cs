@@ -69,7 +69,7 @@ namespace FF3.ContentTool.Editor
 			foreach (string start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
 			{
 				DirectoryInfo directory = new DirectoryInfo(start);
-				for (int up = 0; up < 4 && directory != null; up++, directory = directory.Parent)
+				for (int up = 0; up < 6 && directory != null; up++, directory = directory.Parent)
 				{
 					string candidate = Path.Combine(directory.FullName, "Content");
 					if (File.Exists(Path.Combine(candidate, "data000.bin")))

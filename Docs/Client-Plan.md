@@ -222,6 +222,28 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## Crystal for OpenFF projects: behaviours on map objects, Run, the API reference (2026-09-04)
+
+Karl asked for Crystal to think Unity when a project targets OpenFF. Three pieces:
+**Behaviours on map objects.** `Editor/ModCatalog.cs` reads the project's built assemblies
+in a collectible load context (the engine resolved from the client's copy) and lists every
+`Behaviour` and `GameService` with its public fields, their defaults (from an instance) and
+XML summaries (the generated csproj now documents). The map inspector (`map-editor.js`
+`behavioursSection`) ends with "Behaviours (OpenFF)" for a character (`object:N`), an exit
+(`exit:N`) and Terrain (`map`): add from the catalog, edit fields, remove, save. Saved as
+`<project>/scenes/<map>.json` (`Editor/ProjectScenes.cs`; routes `/api/project/scene`,
+`/api/project/scene/save`, `/api/project/code/catalog`); Export to OpenFF copies the folder
+into the mod as `scenes/` (mod.json `scenes`). The engine (`OpenFF.Engine/Scenes.cs`) reads
+each mod's `scenes/<map>.json` on entering the map: a GameObject per target in the legacy
+scene, a `MapObject` component (kind, index, and for a character the `Npc` handle from the
+new `Npcs.Existing(index)`), the behaviours with fields set from JSON (numbers, strings,
+bools, enums, Vector3/Vector2/Color); owned by the mod, so a hot reload remakes them.
+**Run in OpenFF** (`/api/project/run`): export, then start FF3.exe (`OpenFFClient.Executable`,
+from launch.json or the development build) unless it is running. **API reference**
+(`Editor/ApiReference.cs`, `/api/openff/reference`): OpenFF.Engine.xml as a searchable
+dialog. Testing C-30, E-21..E-23. Later: a scene view that shows attached behaviours in the
+hierarchy, gizmos for behaviour fields that are positions, and behaviours on spawned objects.
+
 ## The abilities slice: spells, monsters, the formulas (2026-09-04)
 
 Karl's bullet hell, real-time fights and "a mod adds its own skill" all need the game's

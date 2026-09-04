@@ -44,6 +44,14 @@ namespace FF3
 			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", "mods.json");
 			// The API on the legacy game, before any mod so a mod's OnGameStart can reach it.
 			EngineApi.Register();
+			OpenFF.SceneLoader.ResolveNpc = (kind, index) => kind == "object" ? EngineApi.Npcs.Existing(index) : null;
+			// A rebuilt mod: its objects went with its old code; make them again from its scene file.
+			OpenFF.Game.Events.Subscribe<OpenFF.Events.ModReloaded>(e =>
+			{
+				if (!_entered || _lastStage == null) return;
+				OpenFF.Modding.LoadedMod mod = OpenFF.Game.Mods.FirstOrDefault(m => string.Equals(m.Id, e.ModId, StringComparison.OrdinalIgnoreCase));
+				if (mod != null) OpenFF.Game.Guard("scenes reload " + mod.Id, () => OpenFF.SceneLoader.Apply(mod, _lastStage));
+			});
 
 			int withCode = 0;
 			if (CodeEnabled)
@@ -105,6 +113,7 @@ namespace FF3
 			{
 				return null;
 			}
+			string scenes = Path.Combine(mod.Directory, string.IsNullOrWhiteSpace(mod.Manifest.Scenes) ? "scenes" : mod.Manifest.Scenes);
 			return new ModDefinition
 			{
 				Id = mod.Id,
@@ -112,6 +121,7 @@ namespace FF3
 				Version = mod.Manifest.Version,
 				Directory = mod.Directory,
 				Assemblies = assemblies,
+				Scenes = Directory.Exists(scenes) ? scenes : null,
 			};
 		}
 
@@ -184,6 +194,8 @@ namespace FF3
 			{
 				legacy.Info = new SceneInfo { Name = stage, Type = StageType(), Source = GameArchive.Game };
 				_entered = true;
+				// The mods' scene files for this map: objects with behaviours from the editor.
+				OpenFF.Game.Guard("scenes " + stage, () => OpenFF.SceneLoader.ApplyAll(stage));
 				OpenFF.Game.Events.Publish(new OpenFF.Events.MapEntered { Scene = legacy.Info });
 				OpenFF.Game.Services.SceneLoadedInternal(legacy.Info);
 			}

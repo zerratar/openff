@@ -97,6 +97,11 @@ function drawMenuBar() {
       note: open && open.code ? 'dotnet build of code/; the output goes with Export to OpenFF' : 'A csproj and a starting class under code/, referencing the OpenFF engine' },
     { label: 'Open C# code in editor', run: openCode, disabled: !(open && open.code),
       note: 'Visual Studio, Rider, VS Code - whatever opens .csproj here' },
+    { label: 'OpenFF API reference…', run: apiReferenceDialog,
+      note: 'Game.Hero, Game.Dialogue, Game.Magic... what a mod\'s C# can call, from the engine\'s own docs' },
+    '-',
+    { label: 'Run in OpenFF', run: runInOpenFF, disabled: !(open && open.client),
+      note: open && open.client ? 'Export to the mods folder and start the client (a running client hot-reloads)' : 'No OpenFF client found: build FF3.Game or start FF3.exe once' },
     { label: 'Show project folder', run: () => revealProject(), disabled: !open },
   ]));
 
@@ -422,10 +427,106 @@ function projectSettingsDialog() {
     codeButton.title = 'A csproj and a starting class under code/, referencing the OpenFF engine';
     codeButton.onclick = addCode;
   }
+  const runButton = document.createElement('button');
+  runButton.textContent = 'Run in OpenFF';
+  runButton.title = open.client ? 'Export to the mods folder and start the client' : 'No OpenFF client found';
+  runButton.disabled = !open.client;
+  runButton.onclick = () => { body.close(); runInOpenFF(); };
   const grow = document.createElement('span');
   grow.className = 'grow';
-  actions.append(go, grow, reveal, exportButton, openffButton, codeButton);
+  actions.append(go, grow, reveal, exportButton, openffButton, codeButton, runButton);
   body.append(actions);
+}
+
+/// Export to the client's mods folder and start the client; a running client hot-reloads the
+/// code (and the scene files apply on the next map).
+async function runInOpenFF() {
+  try {
+    say('exporting…');
+    const result = await api('/api/project/run', {});
+    if (!result.ok) throw new Error(result.error);
+    say(result.started
+      ? `exported to ${result.path} - OpenFF is starting`
+      : `exported to ${result.path} - OpenFF is already running and picks the code up; re-enter the map for scene changes`, 'good');
+  } catch (error) {
+    say(error.message, 'bad');
+  }
+}
+
+/// The engine's API from its XML docs: a searchable list of types and members.
+async function apiReferenceDialog() {
+  const body = dialog('OpenFF API reference', { wide: true });
+  const search = document.createElement('input');
+  search.placeholder = 'Search - Hero, Say, Cast, MapEntered…';
+  search.className = 'api-search';
+  const list = document.createElement('div');
+  list.className = 'api-list';
+  body.append(search, list);
+  let types = [];
+  try {
+    const result = await api('/api/openff/reference');
+    types = result.types || [];
+    if (!types.length) {
+      const none = document.createElement('p');
+      none.className = 'dialog-note';
+      none.textContent = 'No engine documentation found: build FF3.Game (OpenFF.Engine.xml sits beside OpenFF.Engine.dll).';
+      list.append(none);
+      return;
+    }
+  } catch (error) {
+    say(error.message, 'bad');
+    return;
+  }
+  const render = () => {
+    const q = search.value.trim().toLowerCase();
+    list.innerHTML = '';
+    let shown = 0;
+    for (const type of types) {
+      const typeHit = !q || type.name.toLowerCase().includes(q) || (type.summary || '').toLowerCase().includes(q);
+      const members = (type.members || []).filter(m => !q || typeHit || m.name.toLowerCase().includes(q) || (m.summary || '').toLowerCase().includes(q));
+      if (!typeHit && !members.length) continue;
+      if (shown++ > 60) break;
+      const block = document.createElement('div');
+      block.className = 'api-type';
+      const head = document.createElement('div');
+      head.className = 'api-type-head';
+      const name = document.createElement('b');
+      name.textContent = type.name;
+      head.append(name);
+      if (type.summary) {
+        const sum = document.createElement('span');
+        sum.textContent = type.summary;
+        head.append(sum);
+      }
+      block.append(head);
+      const rows = document.createElement('div');
+      rows.className = 'api-members';
+      for (const m of (q && !typeHit ? members : (type.members || []))) {
+        const row = document.createElement('div');
+        row.className = 'api-member';
+        const sig = document.createElement('code');
+        sig.textContent = m.signature || m.name;
+        row.append(sig);
+        if (m.summary) {
+          const s = document.createElement('span');
+          s.textContent = m.summary;
+          row.append(s);
+        }
+        rows.append(row);
+      }
+      block.append(rows);
+      list.append(block);
+    }
+    if (!shown) {
+      const none = document.createElement('p');
+      none.className = 'dialog-note';
+      none.textContent = 'Nothing matches.';
+      list.append(none);
+    }
+  };
+  search.oninput = render;
+  render();
+  search.focus();
 }
 
 /// Everything the project has changed, per game, and a way to throw any of it away.
@@ -603,6 +704,8 @@ async function buildCode() {
       return;
     }
     say(`built ${result.assemblies.join(', ')} - Export to OpenFF to play it (the client hot-reloads a running game)`, 'good');
+    if (typeof invalidateCatalog === 'function') invalidateCatalog();
+    if (typeof drawInspector === 'function') drawInspector();
   } catch (error) {
     say(error.message, 'bad');
   }

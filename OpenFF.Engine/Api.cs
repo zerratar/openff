@@ -174,6 +174,8 @@ namespace OpenFF
 		/// character; the raw material of a real-time fight or a set piece.
 		/// </summary>
 		Npc SpawnModel(string model, Vector3 position, float yaw = 0f, float scale = 1f);
+		/// <summary>The map's own character by its index in the map's cast list (the editor's Characters, "object:N"), as a handle: move it, turn it, hear Interacted when the hero talks to it (the map's own script still runs). Null off a map or for no such character.</summary>
+		Npc Existing(int index);
 	}
 
 	/// <summary>The game's flag space: what the scripts store quest progress in.</summary>

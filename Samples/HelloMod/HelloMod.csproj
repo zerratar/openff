@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The scene files: behaviours the editor (or a hand) put on map objects; the engine reads scenes/<map>.json. -->
+    <None Include="scenes/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- `dotnet build -o <dir>` builds the referenced engine into the same directory. A mod

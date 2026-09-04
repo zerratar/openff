@@ -48,6 +48,9 @@ namespace FF3.Content
 		/// <summary>The mod's code: assembly files relative to the mod folder. Empty means every .dll at the mod's root.</summary>
 		[JsonPropertyName("assemblies")] public List<string> Assemblies { get; set; } = new List<string>();
 
+		/// <summary>The subfolder with scene files (behaviours attached to map objects, from Crystal); "scenes" unless said otherwise.</summary>
+		[JsonPropertyName("scenes")] public string Scenes { get; set; } = "scenes";
+
 		/// <summary>Mods this one needs enabled and loaded before it. Most mods have none.</summary>
 		[JsonPropertyName("dependencies")] public List<ModDependency> Dependencies { get; set; } = new List<ModDependency>();
 

@@ -38,6 +38,8 @@ namespace OpenFF.Modding
 		public string Directory { get; set; }
 		/// <summary>The assemblies to load, full paths, the main one first.</summary>
 		public List<string> Assemblies { get; set; } = new List<string>();
+		/// <summary>The folder with the mod's scene files (scenes/&lt;map&gt;.json), or null.</summary>
+		public string Scenes { get; set; }
 	}
 
 	public sealed class LoadedMod

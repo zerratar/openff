@@ -705,8 +705,30 @@ namespace FF3
 	internal sealed class LegacyNpcs : GameService, INpcs
 	{
 		private readonly List<LegacyNpc> _spawned = new List<LegacyNpc>();
+		// The map's own characters a mod asked for by index: not ours to place or remove with the
+		// map, but talked to and moved like ours while the map is up.
+		private readonly List<LegacyNpc> _wrapped = new List<LegacyNpc>();
 
 		public IReadOnlyList<Npc> Spawned => _spawned;
+
+		private IEnumerable<LegacyNpc> Tracked => _spawned.Concat(_wrapped);
+
+		public Npc Existing(int index)
+		{
+			if (!EngineApi.InWorld || index < 0) return null;
+			string map = GlobalScope.stg.CStageMng.CurrentName;
+			LegacyNpc have = _wrapped.FirstOrDefault(n => n.Index == index && n.Map == map);
+			if (have != null) return have;
+			try
+			{
+				GlobalScope.pl.CBasePlayer player = EngineApi.Players.Player(index);
+				if (player == null) return null;
+				LegacyNpc npc = new LegacyNpc(index, "object:" + index, map);
+				_wrapped.Add(npc);
+				return npc;
+			}
+			catch (Exception ex) { EngineApi.Warn("existing", "Npcs.Existing: " + ex.Message); return null; }
+		}
 
 		public Npc Spawn(string model, Vector3 position, float yaw = 0f)
 		{
@@ -828,12 +850,14 @@ namespace FF3
 		/// </summary>
 		internal void Tick()
 		{
-			foreach (LegacyNpc npc in _spawned)
+			foreach (LegacyNpc npc in Tracked.ToArray())
 			{
 				npc.Advance();
 			}
-			_spawned.RemoveAll(n => !n.Alive && n.Map != GlobalScope.stg.CStageMng.CurrentName);
-			if (_spawned.Count == 0 || !EngineApi.InWorld) return;
+			string current = GlobalScope.stg.CStageMng.CurrentName;
+			_spawned.RemoveAll(n => !n.Alive && n.Map != current);
+			_wrapped.RemoveAll(n => n.Map != current);
+			if ((_spawned.Count == 0 && _wrapped.Count == 0) || !EngineApi.InWorld) return;
 			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
 			if (hero == null) return;
 
@@ -844,7 +868,7 @@ namespace FF3
 				if (hero.getNowAct() == 4)
 				{
 					GlobalScope.chr.CCharacterEureka target = hero.getTarget();
-					talking = _spawned.FirstOrDefault(n => n.IsPlayer(target));
+					talking = Tracked.FirstOrDefault(n => n.IsPlayer(target));
 				}
 			}
 			catch (Exception) { }
@@ -870,7 +894,7 @@ namespace FF3
 			Vector3 at = EngineApi.ToUnits(hero.getPosition());
 			LegacyNpc nearest = null;
 			float best = float.MaxValue;
-			foreach (LegacyNpc npc in _spawned)
+			foreach (LegacyNpc npc in Tracked)
 			{
 				if (!npc.Alive || !npc.HasInteractHandler) continue;
 				Vector3 p = npc.Position;

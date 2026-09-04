@@ -181,6 +181,8 @@ namespace FF3.ContentTool.Editor
 				"    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>\n" +
 				"    <GenerateDependencyFile>false</GenerateDependencyFile>\n" +
 				"    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>\n" +
+				"    <GenerateDocumentationFile>true</GenerateDocumentationFile>\n" +
+				"    <NoWarn>$(NoWarn);CS1591</NoWarn>\n" +
 				"  </PropertyGroup>\n\n" +
 				"  <ItemGroup>\n" +
 				"    <Reference Include=\"OpenFF.Engine\">\n" +
@@ -202,6 +204,10 @@ namespace FF3.ContentTool.Editor
 				"// Public fields survive a hot reload: rebuild while the client runs and the new code takes\n" +
 				"// over with the old state. Anything it does is guarded; an exception is logged as\n" +
 				"// \"engine: WARNING ...\" in the client's log and the game goes on.\n" +
+				"//\n" +
+				"// A Behaviour (Sign, below) is a script for one object: Crystal lists the Behaviour classes\n" +
+				"// of the built code in a map's inspector, where they are attached to a character, an exit\n" +
+				"// or the map with their public fields filled in (saved as scenes/<map>.json).\n" +
 				"\n" +
 				"using System;\n" +
 				"using System.Collections.Generic;\n" +
@@ -231,6 +237,31 @@ namespace FF3.ContentTool.Editor
 				"\t\tpublic override IEnumerable<string> DebugLines()\n" +
 				"\t\t{\n" +
 				"\t\t\tyield return \"maps entered \" + MapsEntered;\n" +
+				"\t\t}\n" +
+				"\t}\n" +
+				"\n" +
+				"\t/// <summary>A sign: says its text when the hero comes near. Attach it to a map character or the map in Crystal (a map's inspector, Behaviours).</summary>\n" +
+				"\tpublic class Sign : Behaviour\n" +
+				"\t{\n" +
+				"\t\t/// <summary>What it says.</summary>\n" +
+				"\t\tpublic string Text = \"Hello from " + title + ".\";\n" +
+				"\t\t/// <summary>How close the hero must come, in world units (two characters side by side are about 8 apart). 0 says it once when the map opens.</summary>\n" +
+				"\t\tpublic float Radius = 12f;\n" +
+				"\t\t/// <summary>Frames between repeats while the hero stays near.</summary>\n" +
+				"\t\tpublic int Cooldown = 600;\n" +
+				"\t\tprivate long _last = -1000000;   // long enough ago; not MinValue, which overflows the subtraction\n" +
+				"\n" +
+				"\t\tprotected override void Update()\n" +
+				"\t\t{\n" +
+				"\t\t\tif (Game.Dialogue.IsOpen || !Game.Hero.Present || Game.Time.Frame - _last < Cooldown) return;\n" +
+				"\t\t\t// Where the sign stands: the character it is on, or the object's own position.\n" +
+				"\t\t\tMapObject link = GetComponent<MapObject>();\n" +
+				"\t\t\tVector3 at = link != null && link.Npc != null ? link.Npc.Position : Transform.Position;\n" +
+				"\t\t\tif (Radius > 0 && Vector3.FlatDistance(at, Game.Hero.Position) > Radius) return;\n" +
+				"\t\t\t_last = Game.Time.Frame;\n" +
+				"\t\t\tif (link != null && link.Npc != null) link.Npc.LookAt(Game.Hero.Position);\n" +
+				"\t\t\tGame.Dialogue.Say(Text);\n" +
+				"\t\t\tif (Radius <= 0) Enabled = false;\n" +
 				"\t\t}\n" +
 				"\t}\n" +
 				"}\n";

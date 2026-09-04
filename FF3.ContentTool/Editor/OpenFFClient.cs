@@ -60,6 +60,48 @@ namespace FF3.ContentTool.Editor
 			return null;
 		}
 
+		/// <summary>The client's FF3.exe: the one that last ran (launch.json), else the development build; null when neither is found.</summary>
+		public static string Executable()
+		{
+			try
+			{
+				if (File.Exists(SettingsPath))
+				{
+					using JsonDocument document = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+					if (document.RootElement.TryGetProperty("exe", out JsonElement exe) && exe.ValueKind == JsonValueKind.String && File.Exists(exe.GetString()))
+					{
+						return exe.GetString();
+					}
+				}
+			}
+			catch (Exception)
+			{
+			}
+			return DevelopmentBuild();
+		}
+
+		/// <summary>Whether the client is running now (by process name, on this machine).</summary>
+		public static bool IsRunning()
+		{
+			try { return System.Diagnostics.Process.GetProcessesByName("FF3").Length > 0; }
+			catch (Exception) { return false; }
+		}
+
+		/// <summary>Starts the client from its own folder. Throws when there is none.</summary>
+		public static void Launch()
+		{
+			string exe = Executable();
+			if (exe == null)
+			{
+				throw new InvalidOperationException("the OpenFF client was not found - start FF3.exe once (it records where it is), or build FF3.Game beside this repository");
+			}
+			System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe)
+			{
+				UseShellExecute = true,
+				WorkingDirectory = Path.GetDirectoryName(exe),
+			});
+		}
+
 		private static string Recorded()
 		{
 			try

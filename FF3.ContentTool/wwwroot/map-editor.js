@@ -1084,6 +1084,7 @@ function inspectRef(doc, ref) {
       openDoc('model', scene.terrain);
     };
     box.append(link);
+    behavioursSection(box, 'map', 'map');
     return box;
   }
 
@@ -1559,6 +1560,7 @@ function buildExit(exit, index) {
     + 'of twelve jump attributes. Both are written together, and removing one from the '
     + 'middle renumbers everything that named a slot after it.';
   panel.append(note);
+  behavioursSection(panel, 'exit:' + index, 'exit');
   return panel;
 }
 
@@ -1832,5 +1834,235 @@ function buildCharacter(character) {
   panel.append(link);
 
   addCastReferences(panel, character);
+  behavioursSection(panel, 'object:' + character.index, character.model || 'character');
   return panel;
+}
+
+// ------------------------------------------------------------- behaviours (OpenFF)
+//
+// For a project that targets our build and has C# code: the mod's Behaviour types, attached
+// to the selected object with their public fields filled in - Unity's inspector, in short.
+// Saved per map as scenes/<map>.json in the project; Export to OpenFF carries it into the
+// mod and the engine puts the behaviours on the objects when the map is entered.
+
+const sceneState = { map: null, attachments: null, catalog: null, dirty: false };
+
+function openFFProject() {
+  const project = typeof projectState !== 'undefined' && projectState.project;
+  return project && (project.targets || []).includes('ours') ? project : null;
+}
+
+async function loadSceneState(map) {
+  if (sceneState.map !== map || !sceneState.attachments) {
+    const scene = await api(`/api/project/scene?map=${encodeURIComponent(map)}`);
+    if (!scene.ok) throw new Error(scene.error);
+    sceneState.map = map;
+    sceneState.attachments = scene.attachments || [];
+    sceneState.dirty = false;
+  }
+  if (!sceneState.catalog) {
+    const catalog = await api('/api/project/code/catalog');
+    if (!catalog.ok) throw new Error(catalog.error);
+    sceneState.catalog = catalog;
+  }
+  return sceneState;
+}
+
+function invalidateCatalog() { sceneState.catalog = null; }
+
+function behavioursSection(panel, target, what) {
+  const project = openFFProject();
+  if (!project || !mapState.name) return;
+  const heading = document.createElement('h3');
+  heading.textContent = 'Behaviours (OpenFF)';
+  panel.append(heading);
+  const box = document.createElement('div');
+  box.className = 'behaviours';
+  panel.append(box);
+  if (!project.code) {
+    const note = document.createElement('p');
+    note.className = 'none';
+    note.textContent = 'Add C# code to the project (File menu) and Behaviour classes in it appear here, to attach to this ' + what + '.';
+    box.append(note);
+    return;
+  }
+  const map = mapState.name;
+  loadSceneState(map).then(state => drawBehaviours(box, state, target, what)).catch(error => {
+    const bad = document.createElement('p');
+    bad.className = 'none warn';
+    bad.textContent = error.message;
+    box.append(bad);
+  });
+}
+
+function drawBehaviours(box, state, target, what) {
+  box.innerHTML = '';
+  const catalog = state.catalog;
+  const mine = state.attachments.filter(a => (a.target || '').toLowerCase() === target.toLowerCase());
+  if (!catalog.built) {
+    const note = document.createElement('p');
+    note.className = 'none';
+    note.textContent = 'Build the C# code first (File > Build C# code); its Behaviour classes appear here.';
+    box.append(note);
+  } else if (!catalog.behaviours.length) {
+    const note = document.createElement('p');
+    note.className = 'none';
+    note.textContent = 'The code has no Behaviour classes yet. A class deriving OpenFF.Behaviour with public fields shows up here after a build.';
+    box.append(note);
+  }
+  for (const attachment of mine) {
+    box.append(behaviourCard(state, attachment, target));
+  }
+  if (catalog.behaviours.length) {
+    const row = document.createElement('div');
+    row.className = 'behaviour-add';
+    const select = document.createElement('select');
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = 'Add behaviour…';
+    select.append(first);
+    for (const b of catalog.behaviours) {
+      const option = document.createElement('option');
+      option.value = b.name;
+      option.textContent = b.name + (b.summary ? ' - ' + b.summary : '');
+      select.append(option);
+    }
+    select.onchange = () => {
+      const name = select.value;
+      if (!name) return;
+      const type = catalog.behaviours.find(b => b.name === name);
+      const fields = {};
+      for (const f of (type.fields || [])) if (f.default !== null && f.default !== undefined) fields[f.name] = f.default;
+      state.attachments.push({ target, behaviour: name, fields });
+      state.dirty = true;
+      drawBehaviours(box, state, target, what);
+    };
+    row.append(select);
+    box.append(row);
+  }
+  if (catalog.problems && catalog.problems.length) {
+    const p = document.createElement('p');
+    p.className = 'none warn';
+    p.textContent = catalog.problems.join(' · ');
+    box.append(p);
+  }
+  const actions = document.createElement('div');
+  actions.className = 'behaviour-actions';
+  const save = document.createElement('button');
+  save.textContent = state.dirty ? 'Save behaviours' : 'Saved';
+  save.disabled = !state.dirty;
+  save.onclick = async () => {
+    try {
+      const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments });
+      if (!result.ok) throw new Error(result.error);
+      state.dirty = false;
+      say(`scenes/${state.map}.json saved (${result.count} attachment(s)) - Run in OpenFF to see it`, 'good');
+      drawBehaviours(box, state, target, what);
+      if (typeof projectChanged === 'function') projectChanged();
+    } catch (error) {
+      say(error.message, 'bad');
+    }
+  };
+  actions.append(save);
+  const others = state.attachments.length - mine.length;
+  if (others > 0) {
+    const note = document.createElement('span');
+    note.className = 'dim';
+    note.textContent = `${others} more on other objects of this map`;
+    actions.append(note);
+  }
+  box.append(actions);
+}
+
+function behaviourCard(state, attachment, target) {
+  const catalog = state.catalog;
+  const type = catalog.behaviours.find(b => b.name === attachment.behaviour);
+  const card = document.createElement('div');
+  card.className = 'behaviour-card' + (type ? '' : ' missing');
+  const head = document.createElement('div');
+  head.className = 'behaviour-head';
+  const name = document.createElement('b');
+  name.textContent = attachment.behaviour;
+  name.title = type ? (type.fullName + (type.summary ? '\n' + type.summary : '')) : 'not in the built code';
+  const remove = document.createElement('button');
+  remove.textContent = '×';
+  remove.title = 'Remove this behaviour';
+  remove.onclick = () => {
+    state.attachments.splice(state.attachments.indexOf(attachment), 1);
+    state.dirty = true;
+    drawBehaviours(card.parentElement, state, target, '');
+  };
+  head.append(name, remove);
+  card.append(head);
+  if (type && type.summary) {
+    const sum = document.createElement('p');
+    sum.className = 'behaviour-summary';
+    sum.textContent = type.summary;
+    card.append(sum);
+  }
+  if (!type) {
+    const p = document.createElement('p');
+    p.className = 'none warn';
+    p.textContent = 'This behaviour is not in the built code (renamed, or not built yet).';
+    card.append(p);
+    return card;
+  }
+  attachment.fields = attachment.fields || {};
+  for (const f of (type.fields || [])) {
+    const row = document.createElement('label');
+    row.className = 'behaviour-field';
+    row.title = (f.summary || '') + (f.summary ? ' ' : '') + '(' + f.typeName + ')';
+    const label = document.createElement('span');
+    label.textContent = f.name;
+    row.append(label);
+    const has = Object.prototype.hasOwnProperty.call(attachment.fields, f.name);
+    const value = has ? attachment.fields[f.name] : f.default;
+    let input;
+    const changed = v => { attachment.fields[f.name] = v; state.dirty = true; markDirty(card); };
+    if (f.type === 'bool') {
+      input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = !!value;
+      input.onchange = () => changed(input.checked);
+    } else if (f.type === 'enum') {
+      input = document.createElement('select');
+      for (const o of (f.options || [])) {
+        const option = document.createElement('option');
+        option.value = o;
+        option.textContent = o;
+        input.append(option);
+      }
+      input.value = value == null ? '' : String(value);
+      input.onchange = () => changed(input.value);
+    } else if (f.type === 'vector3' || f.type === 'vector2' || f.type === 'color') {
+      input = document.createElement('div');
+      input.className = 'behaviour-parts';
+      const parts = f.type === 'vector3' ? ['x', 'y', 'z'] : f.type === 'vector2' ? ['x', 'y'] : ['r', 'g', 'b', 'a'];
+      const current = Object.assign({}, value || {});
+      for (const part of parts) {
+        const n = document.createElement('input');
+        n.type = 'number';
+        n.step = f.type === 'color' ? '1' : 'any';
+        n.placeholder = part;
+        n.value = current[part] == null ? '' : current[part];
+        n.oninput = () => { current[part] = Number(n.value); changed(Object.assign({}, current)); };
+        input.append(n);
+      }
+    } else {
+      input = document.createElement('input');
+      input.type = f.type === 'int' || f.type === 'float' ? 'number' : 'text';
+      if (f.type === 'float') input.step = 'any';
+      input.value = value == null ? '' : value;
+      input.oninput = () => changed(f.type === 'int' ? parseInt(input.value, 10) || 0 : f.type === 'float' ? Number(input.value) || 0 : input.value);
+    }
+    row.append(input);
+    card.append(row);
+  }
+  return card;
+}
+
+function markDirty(card) {
+  const box = card.closest('.behaviours');
+  const save = box && box.querySelector('.behaviour-actions button');
+  if (save) { save.textContent = 'Save behaviours'; save.disabled = false; }
 }

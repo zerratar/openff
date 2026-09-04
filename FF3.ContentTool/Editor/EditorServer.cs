@@ -384,7 +384,9 @@ namespace FF3.ContentTool.Editor
 							author = _project.File.Author,
 							version = _project.File.Version,
 							description = _project.File.Description,
-							code = ModCode.Has(_project)
+							code = ModCode.Has(_project),
+							client = OpenFFClient.Executable() != null,
+							scenes = ProjectScenes.Maps(_project).Count
 						}
 					});
 					return;
@@ -433,6 +435,26 @@ namespace FF3.ContentTool.Editor
 
 				case "/api/project/reveal":
 					RevealProject(context);
+					return;
+
+				case "/api/project/code/catalog":
+					ProjectCatalog(context);
+					return;
+
+				case "/api/project/scene":
+					ProjectScene(context);
+					return;
+
+				case "/api/project/scene/save":
+					SaveProjectScene(context);
+					return;
+
+				case "/api/project/run":
+					RunProject(context);
+					return;
+
+				case "/api/openff/reference":
+					SendJson(context, new { types = ApiReference.Read(out string source) ?? new List<ApiType>(), source });
 					return;
 
 				case "/api/targets":
@@ -1346,6 +1368,106 @@ namespace FF3.ContentTool.Editor
 			}
 		}
 
+		/// <summary>The behaviours and services the project's built code offers, for the inspector.</summary>
+		private void ProjectCatalog(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			try
+			{
+				ModCatalogResult catalog = ModCatalog.Read(_project);
+				SendJson(context, new { ok = true, code = ModCode.Has(_project), built = catalog.Assemblies.Count > 0, catalog.Behaviours, catalog.Services, catalog.Assemblies, catalog.Problems });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or BadImageFormatException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>A map's scene file: the behaviours attached to its objects (?map=).</summary>
+		private void ProjectScene(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			string map = Query(context, "map");
+			if (string.IsNullOrWhiteSpace(map))
+			{
+				SendJson(context, new { ok = true, maps = ProjectScenes.Maps(_project).Select(m => new { map = m.Key, attachments = m.Value }) });
+				return;
+			}
+			try
+			{
+				SendJson(context, new { ok = true, map, attachments = ProjectScenes.Read(_project, map) });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>Writes a map's scene file: { map, attachments: [ { target, behaviour, fields } ] }.</summary>
+		private void SaveProjectScene(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			try
+			{
+				JsonNode body = ReadBody(context);
+				string map = body?["map"]?.GetValue<string>();
+				JsonArray attachments = body?["attachments"] as JsonArray;
+				if (string.IsNullOrWhiteSpace(map))
+				{
+					SendJson(context, new { ok = false, error = "which map?" });
+					return;
+				}
+				ProjectScenes.Write(_project, map, attachments);
+				SendJson(context, new { ok = true, map, count = attachments?.Count ?? 0 });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or JsonException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>Export to OpenFF, then start the client (or leave a running one to hot-reload).</summary>
+		private void RunProject(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			string mods = OpenFFClient.ModsFolder();
+			if (mods == null)
+			{
+				SendJson(context, new { ok = false, error = "the OpenFF client has not been found - start FF3.exe once (it records where it is), or build FF3.Game beside this repository" });
+				return;
+			}
+			try
+			{
+				string directory = ProjectExport.WriteToOpenFF(_project, mods);
+				bool running = OpenFFClient.IsRunning();
+				if (!running)
+				{
+					OpenFFClient.Launch();
+				}
+				SendJson(context, new { ok = true, path = directory, started = !running, running });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
 		/// <summary>Writes the project as a mod into the OpenFF client's mods folder.</summary>
 		private void ExportProjectToOpenFF(HttpListenerContext context)
 		{
@@ -1739,7 +1861,11 @@ namespace FF3.ContentTool.Editor
 			context.Response.StatusCode = status;
 			context.Response.ContentType = type;
 			context.Response.ContentLength64 = body.Length;
-			context.Response.OutputStream.Write(body, 0, body.Length);
+			// A HEAD asks for the headers alone (a preview tool probing the server does that).
+			if (!string.Equals(context.Request.HttpMethod, "HEAD", StringComparison.OrdinalIgnoreCase))
+			{
+				context.Response.OutputStream.Write(body, 0, body.Length);
+			}
 			context.Response.OutputStream.Close();
 		}
 	}

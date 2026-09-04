@@ -1832,3 +1832,32 @@ header h1 .gem {
 .picker.dialog.wide { width: min(760px, 92vw); }
 #project-name { cursor: pointer; }
 #project-name:hover { border-color: var(--accent); }
+
+/* ---- behaviours on map objects (OpenFF projects) ---- */
+#inspector .behaviours { margin: 4px 0 10px; }
+#inspector .behaviour-card { border: 1px solid #2c333d; border-radius: 6px; padding: 6px 8px; margin: 0 0 6px; background: #171b21; }
+#inspector .behaviour-card.missing { border-color: #6a4b2a; }
+#inspector .behaviour-head { display: flex; align-items: center; justify-content: space-between; }
+#inspector .behaviour-head b { font-size: 12px; }
+#inspector .behaviour-head button { padding: 0 7px; line-height: 18px; font-size: 13px; margin: 0; }
+#inspector .behaviour-summary { color: var(--dim); font-size: 11px; margin: 3px 0 6px; }
+#inspector .behaviour-field { display: flex; align-items: center; gap: 6px; width: 100%; margin: 3px 0; }
+#inspector .behaviour-field span { width: 34%; color: var(--dim); font-size: 12px; }
+#inspector .behaviour-field input[type=text], #inspector .behaviour-field input[type=number], #inspector .behaviour-field select { flex: 1; min-width: 0; }
+#inspector .behaviour-field input[type=checkbox] { width: auto; }
+#inspector .behaviour-parts { display: flex; gap: 4px; flex: 1; min-width: 0; }
+#inspector .behaviour-parts input { flex: 1; min-width: 0; width: 20%; }
+#inspector .behaviour-add select { width: 100%; margin: 4px 0; }
+#inspector .behaviour-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+#inspector .behaviour-actions .dim { color: var(--dim); font-size: 11px; }
+
+/* ---- the API reference dialog ---- */
+.api-search { width: 100%; box-sizing: border-box; margin: 0 0 8px; font-size: 13px; padding: 6px 8px; }
+.api-list { max-height: 60vh; overflow: auto; }
+.api-type { margin: 0 0 10px; }
+.api-type-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
+.api-type-head b { font-size: 13px; }
+.api-type-head span { color: var(--dim); font-size: 12px; }
+.api-member { display: grid; grid-template-columns: minmax(180px, 40%) 1fr; gap: 8px; padding: 2px 0 2px 10px; font-size: 12px; }
+.api-member code { color: var(--accent); word-break: break-word; }
+.api-member span { color: var(--dim); }
