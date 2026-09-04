@@ -247,7 +247,8 @@ internal static partial class GlobalScope
 				message = dGSMessageManager.createMessage((uint)number, dgs.INVALID_MSDHANDLE, font);
 				if (message != null)
 				{
-					message.setPosition(ownerMedget.x(), ownerMedget.y(), erase: true);
+					// PORT: Steam's frames are sized to a row, not to the phone's tall boxes (SteamLayout).
+					message.setPosition(ownerMedget.x(), (short)(ownerMedget.y() + FF3.SteamLayout.TextDrop(ownerMedget.height(), font)), erase: true);
 					message.setVSpace(4);
 					message.setDisplaySpeed(byte.MaxValue);
 					message.setDisplayWait(0);
@@ -263,15 +264,16 @@ internal static partial class GlobalScope
 				message = dGSMessageManager.createMessage(pBuf, (!flagCheck(4)) ? 1 : 0);
 				if (message != null)
 				{
+					short dropped = (short)(ownerMedget.y() + FF3.SteamLayout.TextDrop(ownerMedget.height(), (!flagCheck(4)) ? 1 : 0));
 					if (!decWidth)
 					{
-						message.setPosition(ownerMedget.x(), ownerMedget.y(), erase: true);
+						message.setPosition(ownerMedget.x(), dropped, erase: true);
 					}
 					else
 					{
 						ds.Vector2<short> vector = new ds.Vector2<short>();
 						message.getTextSize(vector);
-						message.setPosition((short)(ownerMedget.x() - vector.vx), ownerMedget.y(), erase: true);
+						message.setPosition((short)(ownerMedget.x() - vector.vx), dropped, erase: true);
 					}
 					message.setVSpace(4);
 					message.setDisplaySpeed(byte.MaxValue);
@@ -453,6 +455,24 @@ internal static partial class GlobalScope
 
 			public override int bmGetCursorX(Medget M)
 			{
+				if (FF3.SteamLayout.Active && (alignment == ALIGNMENT.ALIGN_CENTER || alignment == ALIGNMENT.ALIGN_MENU || (int)alignment == FF3.SteamLayout.STEAM_ALIGN_MENU))
+				{
+					// PORT: the phone's offsets put the hand inside Steam's frames, over the word
+					// (and Steam's own alignment, 6, fell through to 0: the hand on the word's
+					// first letter). Here the hand ends before the text begins - for a centred
+					// line, before where that line actually starts; for a command in a panel,
+					// outside the panel's margin.
+					int textStart = 0;
+					int gap = FF3.SteamLayout.MENU_GAP;
+					if (alignment == ALIGNMENT.ALIGN_CENTER && message != null && M != null)
+					{
+						ds.Vector2<short> size = new ds.Vector2<short>();
+						message.getTextSize(size);
+						textStart = Math.Max(0, (M.width() - size.vx) / 2);
+						gap = FF3.SteamLayout.CENTER_GAP;
+					}
+					return FF3.SteamLayout.CursorOffset(MenuManager.getSingleton().GetCursor2d(), textStart, gap);
+				}
 				if (alignment == ALIGNMENT.ALIGN_CENTER)
 				{
 					return 12;

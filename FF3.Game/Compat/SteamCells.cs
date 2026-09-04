@@ -27,9 +27,175 @@ namespace FF3
 		private static bool _loaded;
 		private static readonly HashSet<string> _reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+		/// <summary>Whether the content in front is a Steam FF3 install: the table applies, and so do SteamLayout's rules.</summary>
+		public static bool SteamFf3 => Applies;
+
 		/// <summary>Whether the content in front is a Steam FF3 install, which is when the table applies.</summary>
 		private static bool Applies => GameArchive.Chain != null && GameArchive.Chain.Shipped is LooseContentSource
 			&& GameArchive.Game == "ff3" && string.IsNullOrEmpty(Options.Get("steam-cells-off"));
+
+		/// <summary>
+		/// The width of a cell as its bank lays it out: the span of its OAMs. 0 when the
+		/// bank or cell is not there. For Steam's banks, whose cells are one wide picture
+		/// each, this is the width to centre by; the phone code carries its own constants.
+		/// </summary>
+		public static int CellWidth(GlobalScope.sys2d.Cell cell, int index)
+		{
+			GlobalScope.NNSG2dCellOAMAttrData[] oams = Oams(cell, index);
+			if (oams == null || oams.Length == 0)
+			{
+				return 0;
+			}
+			int min = int.MaxValue, max = int.MinValue;
+			foreach (GlobalScope.NNSG2dCellOAMAttrData oam in oams)
+			{
+				DrawnRect(oam, out int x, out _, out int w, out _);
+				min = Math.Min(min, x);
+				max = Math.Max(max, x + w);
+			}
+			return max > min ? max - min : 0;
+		}
+
+		/// <summary>
+		/// The rectangle an OAM is drawn at, relative to the cell's position, the way
+		/// NNS_G2dDrawCell draws it: Steam's OAMs carry flag 8 (drawn at 0.6 of the sheet's
+		/// width and 2/3 of its height - the sheets are the desktop build's, larger than the
+		/// layout) and flag 4 halves the size again.
+		/// </summary>
+		public static void DrawnRect(GlobalScope.NNSG2dCellOAMAttrData oam, out int x, out int y, out int w, out int h)
+		{
+			short[] a = new short[7];
+			oam.copy(a, 14);
+			float half = (a[6] & 4) != 0 ? 0.5f : 1f;
+			float sx = (a[6] & 8) != 0 ? 0.6f : 1f;
+			float sy = (a[6] & 8) != 0 ? (2f / 3f) : 1f;
+			x = (int)Math.Round(a[0] * sx);
+			y = (int)Math.Round(a[1] * sy);
+			w = (int)Math.Round(a[2] * sx * half);
+			h = (int)Math.Round(a[3] * sy * half);
+		}
+
+		/// <summary>How far right of the cell's position its OAMs extend (max x + w), or the fallback when the bank is not there.</summary>
+		public static int CellRight(GlobalScope.sys2d.Cell cell, int index, int fallback)
+		{
+			GlobalScope.NNSG2dCellOAMAttrData[] oams = Oams(cell, index);
+			if (oams == null || oams.Length == 0)
+			{
+				return fallback;
+			}
+			int max = int.MinValue;
+			foreach (GlobalScope.NNSG2dCellOAMAttrData oam in oams)
+			{
+				DrawnRect(oam, out int x, out _, out int w, out _);
+				max = Math.Max(max, x + w);
+			}
+			return max;
+		}
+
+		/// <summary>
+		/// The span of what a cell actually paints, relative to the cell's position: the
+		/// leftmost and rightmost drawn x with any opaque pixel behind it, found by reading
+		/// the sheet's alpha inside each OAM's source rectangle. Steam's title cells are
+		/// 300 px strips with the words left-justified inside, so centring the strip does
+		/// not centre the words; this does. False when the sheet cannot be read.
+		/// </summary>
+		public static bool CellVisibleSpan(GlobalScope.sys2d.Cell cell, int index, out int left, out int right)
+		{
+			left = int.MaxValue; right = int.MinValue;
+			GlobalScope.NNSG2dCellOAMAttrData[] oams = Oams(cell, index);
+			int[] png = SheetPixels(cell);
+			if (oams == null || oams.Length == 0 || png == null)
+			{
+				return false;
+			}
+			int sheetW = png[0], sheetH = png[1];
+			short[] a = new short[7];
+			foreach (GlobalScope.NNSG2dCellOAMAttrData oam in oams)
+			{
+				oam.copy(a, 14);
+				oam.source(out short sw, out short sh);
+				DrawnRect(oam, out int x, out _, out int w, out _);
+				int u = a[4], v = a[5];
+				if (sw <= 0 || sh <= 0 || w <= 0)
+				{
+					continue;
+				}
+				int min = int.MaxValue, max = int.MinValue;
+				for (int px = Math.Max(0, u); px < Math.Min(sheetW, u + sw); px++)
+				{
+					bool opaque = false;
+					for (int py = Math.Max(0, v); py < Math.Min(sheetH, v + sh) && !opaque; py++)
+					{
+						opaque = ((png[2 + py * sheetW + px] >> 24) & 0xFF) > 16;
+					}
+					if (opaque)
+					{
+						min = Math.Min(min, px); max = Math.Max(max, px);
+					}
+				}
+				if (max < min)
+				{
+					continue;
+				}
+				// the sheet's columns to the drawn quad (the flip flag mirrors the source)
+				bool flipX = (a[6] & 1) != 0;
+				float scale = (float)w / sw;
+				int l = flipX ? (int)(x + (u + sw - 1 - max) * scale) : (int)(x + (min - u) * scale);
+				int r = flipX ? (int)(x + (u + sw - min) * scale) : (int)(x + (max + 1 - u) * scale);
+				left = Math.Min(left, l); right = Math.Max(right, r);
+			}
+			return right > left;
+		}
+
+		private static readonly Dictionary<object, int[]> _sheets = new Dictionary<object, int[]>();
+
+		/// <summary>The cell's sheet decoded to pixels (ImageDecoder's layout: width, height, then ABGR ints), cached per sheet.</summary>
+		private static int[] SheetPixels(GlobalScope.sys2d.Cell cell)
+		{
+			try
+			{
+				GlobalScope.NNSG2dCharacterData cg = cell?.ceGetCg()?.pDataCg();
+				byte[] png = cg?.m_aPng as byte[];
+				if (png == null || png.Length < 8)
+				{
+					return null;
+				}
+				if (!_sheets.TryGetValue(png, out int[] pixels))
+				{
+					pixels = ImageDecoder.Decode(png);
+					_sheets[png] = pixels;
+				}
+				return pixels;
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
+		/// <summary>Whether a cell draws anything at all: Steam's banks keep phone-only entries as empty cells.</summary>
+		public static bool CellHasPicture(GlobalScope.sys2d.Cell cell, int index)
+		{
+			GlobalScope.NNSG2dCellOAMAttrData[] oams = Oams(cell, index);
+			return oams != null && oams.Length > 0;
+		}
+
+		private static GlobalScope.NNSG2dCellOAMAttrData[] Oams(GlobalScope.sys2d.Cell cell, int index)
+		{
+			try
+			{
+				GlobalScope.NNSG2dCellDataBank bank = cell?.GetCellBank();
+				if (bank?.pCellDataArrayHead == null || index < 0 || index >= bank.pCellDataArrayHead.Length)
+				{
+					return null;
+				}
+				return bank.pCellDataArrayHead[index]?.pOamAttrArray;
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
 
 		private static void Load()
 		{

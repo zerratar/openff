@@ -222,6 +222,33 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## Debug overlay (2026-09-04, from Karl's note)
+
+F1 draws a diagnostic layer over the finished frame (`Compat/DebugOverlay.cs`, a
+DrawableGameComponent placed after the game and before the screenshot component, so
+`--screenshot-every` pictures include it). It reads state and draws on top; nothing in
+the game changes. Sub-toggles while it is up: F2 menu frames as boxes with a cross where
+the hand cursor is put, F3 their ids, F4 the 2D sprites as drawn, F5 the world text
+(part, stage, type, mirror, hero position and spot, focused frame), F6 the stats (fps,
+frame time, draw calls and vertices from `NativeRenderer`, memory, viewport).
+`--debug=all` or `--debug=boxes,labels` starts with it on, which is how a headless run is
+inspected: `FF3.exe --debug=all --screenshot-every=3 --screenshot-dir=<dir>` and read the
+pictures. Add to it freely: it is the place for anything that helps a diagnosis (camera,
+chip streaming, script state) rather than more log lines.
+
+## Steam's menu layouts (2026-09-04)
+
+Steam's `MenuDefine.xbn` is not the phone's: the main menu's commands are one column of
+96x28 frames in a side panel with alignment 6 (a value the phone enum does not have),
+its title cells are 300 px strips with the words left-justified inside, and its OAMs
+carry flag 8 (drawn at 0.6 of the sheet's width and 2/3 of its height). The phone code
+put the hand on top of the word and hung the text from the frame's top. `SteamLayout`
+(active when the content is a Steam FF3 install) centres text in frames taller than the
+line, puts the hand a gap before the text with the cell's drawn right edge in mind
+(`SteamCells.DrawnRect`), lifts it to the text's middle, and the title centres by the
+columns its strip actually paints (`SteamCells.CellVisibleSpan`, reading the sheet's
+alpha). Nothing there changes the layouts, which stay Steam's.
+
 ## Direction set by Karl (2026-09-04)
 
 The destination in full, with the layering and order of work: `Docs/OpenFF-Engine.md`.

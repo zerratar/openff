@@ -321,8 +321,12 @@ internal static partial class GlobalScope
 				setUpMapSound_ = true;
 			}
 
+			/// <summary>PORT: the system most recently made, for the debug overlay. May outlive its world; readers check.</summary>
+			public static CBaseSystem Current;
+
 			public CBaseSystem()
 			{
+				Current = this;
 				m_State = WORLD_STATE.WORLD_STATE_ERR;
 				for (int i = 0; i < m_CurrentMode.Length; i++)
 				{

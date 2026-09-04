@@ -424,6 +424,21 @@ internal static partial class GlobalScope
 
 		public class CStageMng
 		{
+			/// <summary>PORT: the name of the stage last loaded (d01_05, f00, t24_01...), for the debug overlay.</summary>
+			public static string CurrentName;
+
+			/// <summary>PORT: the stage's profile (chip grid, spots), for the debug overlay.</summary>
+			public CStageProfile StageProfile()
+			{
+				return m_stgPrf;
+			}
+
+			/// <summary>PORT: where the hero's feet are, as the world system last told the stage; for the debug overlay.</summary>
+			public VecFx32 FootPos()
+			{
+				return m_FootPos;
+			}
+
 			public enum FAKEMATERIAL_TYPE
 			{
 				TYPE_TOON,
@@ -1246,6 +1261,7 @@ internal static partial class GlobalScope
 						break;
 					}
 					sprintf(out var arg4, "./MODEL/%s.nmdp.lz", name);
+					CurrentName = name;
 					FF3.Log.Write(FF3.LogChannel.File, "stage: " + name + " model " + ds.g_File.getSize(arg4) + " bytes, animation "
 						+ ds.g_File.getSize("./ANIMATION/" + name + ".namp.lz") + ", collision " + ds.g_File.getSize("./COLLISION/" + name + "_col.mcl.lz"));
 					if (ds.g_File.getSize(arg4) != 0)

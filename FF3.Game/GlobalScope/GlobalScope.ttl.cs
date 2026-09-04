@@ -761,6 +761,12 @@ internal static partial class GlobalScope
                 setting.SetPriority(0);
                 setting.SetPositionI(8, 268);
                 sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(setting);
+                // PORT: the phone's fourth entry (network / achievements). The Steam build has
+                // no such feature and its title_items_i bank keeps cells 4 and 5 empty, so the
+                // entry would be a blank line the cursor can still land on. Only when the
+                // picture exists.
+                if (FF3.SteamCells.CellHasPicture(touch, (UserInfo.confirm_state != 2) ? 4 : 5))
+                {
                 tITLE_COMMAND = new TITLE_COMMAND();
                 tITLE_COMMAND.next_part = ((UserInfo.confirm_state != 2) ? 4 : 5);
                 tITLE_COMMAND.pos.vx = (short)WIFI_POS_X;
@@ -772,6 +778,7 @@ internal static partial class GlobalScope
                 tITLE_COMMAND.cell.SetPositionI(WIFI_POS_X + position_setting_x[(int)lANGUAGE_CODE], WIFI_POS_Y);
                 titleCommands.push_back(tITLE_COMMAND);
                 sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(titleCommands[titleCommands.size() - 1].cell);
+                }
                 touch.SetCell(0);
                 touch.SetShow(show: false);
                 touch.SetPriority(0);
@@ -791,7 +798,19 @@ internal static partial class GlobalScope
                         num = 136;
                         break;
                 }
-                touch.SetPositionI((480 - num) / 2, NEW_GAME_POS_Y);
+                // PORT: the widths above are the phone pictures'. The Steam bank draws the
+                // prompt as one 300 px strip with the words left-justified inside it, so
+                // centring the strip leaves the words off to the left; the words themselves
+                // are centred, by what the cell actually paints.
+                if (FF3.SteamCells.CellVisibleSpan(touch, 0, out int visibleLeft, out int visibleRight))
+                {
+                    touch.SetPositionI((480 - (visibleRight - visibleLeft)) / 2 - visibleLeft, NEW_GAME_POS_Y);
+                    FF3.Log.Write(FF3.LogChannel.General, "title: start prompt paints " + visibleLeft + ".." + visibleRight + " of its cell, placed at " + ((480 - (visibleRight - visibleLeft)) / 2 - visibleLeft));
+                }
+                else
+                {
+                    touch.SetPositionI((480 - num) / 2, NEW_GAME_POS_Y);
+                }
                 touch.ceReleaseCgCl();
                 sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(touch);
                 pushAlphaFlag = 1;

@@ -53,7 +53,7 @@ namespace FF3
 		private static readonly Dictionary<string, int> _counts = new Dictionary<string, int>();
 		private static readonly Stopwatch _clock = Stopwatch.StartNew();
 
-		private static LogChannel _channels = LogChannel.General | LogChannel.Exception;
+		private static LogChannel _channels = LogChannel.General | LogChannel.Exception | LogChannel.File;
 		private static string _path;
 		private static int _pendingLines;
 		private static System.Threading.Timer _flushTimer;

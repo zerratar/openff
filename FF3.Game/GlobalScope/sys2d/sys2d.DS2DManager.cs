@@ -290,6 +290,15 @@ internal static partial class GlobalScope
 				return true;
 			}
 
+			/// <summary>PORT: every sprite the manager holds, for the debug overlay.</summary>
+			public IEnumerable<Sprite> d2dSprites()
+			{
+				for (ds.SLNode<Sprite> node = _SpriteList.front(); node != null; node = node.next())
+				{
+					yield return node.data();
+				}
+			}
+
 			public bool d2dAddSprite(Sprite sp)
 			{
 				if (_SpriteList.size() + 1 >= DS2D_SPRITE_MAX)

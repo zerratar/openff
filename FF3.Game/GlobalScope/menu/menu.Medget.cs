@@ -398,7 +398,8 @@ internal static partial class GlobalScope
 
 			public int cursorY()
 			{
-				return y_ + height_ / 2;
+				// PORT: on Steam's layouts the hand is lifted to the text's middle (SteamLayout).
+				return y_ + height_ / 2 + FF3.SteamLayout.CursorLift;
 			}
 		}
 	}

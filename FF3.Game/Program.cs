@@ -141,6 +141,9 @@ namespace FF3
 				// --test=3d|2d : isolated render harness for the GL emulation.
 				RenderTest.Attach(game);
 
+				// F1 debug overlay (boxes, sprites, world, stats); --debug=all starts with it on.
+				DebugOverlay.Attach(game);
+
 				// F12 screenshots, or FF3_SCREENSHOT_EVERY=<seconds> for a filmstrip.
 				ScreenCapture.Attach(game);
 

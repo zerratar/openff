@@ -110,6 +110,8 @@ namespace FF3
 			{
 				return;
 			}
+			DebugOverlay.DrawCalls++;
+			DebugOverlay.Vertices += count;
 			EnsureEffects(device);
 
 			Matrix corrected = Matrix.Multiply(projection, DepthRangeFix);
