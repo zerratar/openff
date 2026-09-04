@@ -29,7 +29,9 @@ namespace FF3
 				"                              general, exception, gl, texture, content, file, sound,\n" +
 				"                              input, event, firstchance"),
 			("log-file", "FF3_LOG_FILE", "<path>", "Write the log somewhere other than logs/ff3.log"),
-			("content", "FF3_CONTENT", "<path>", "Path to the Content directory"),
+			("content", "FF3_CONTENT", "<path>", "Path to the Content directory or a game install (wins over --game/--source)"),
+			("game", "FF3_GAME", "ff3|ff4", "Which game to start when no --content is given (remembered; default ff3)"),
+			("source", "FF3_SOURCE", "steam|content", "The Steam install or our Content directory (remembered; default steam)"),
 			("content-override", "FF3_CONTENT_OVERRIDE", "<dir>",
 				"Loose files that replace archived ones (default Content/Override)"),
 			("dump", "FF3_DUMP", "<dir>", "Dump decoded source blobs (images the game loads)"),

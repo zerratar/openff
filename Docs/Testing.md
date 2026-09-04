@@ -64,6 +64,7 @@ passed; these are the rest.
 
 | # | Case | Steps | Expect |
 | --- | --- | --- | --- |
+| C-0 | Start with nothing | `FF3.exe` (no arguments), then `FF3.exe --game=ff4`, then `FF3.exe` again | The first boots FF3 from Steam and writes `%LocalAppData%\OpenFF\launch.json` with both install paths; the second boots FF4 (Baron town); the third boots FF4 again because the choice is remembered. `--source=content` boots our extracted Content; `--content=<dir>` ignores the file. The log's `launch:` line names game, source and path |
 | C-1 | Boot from Steam alone | `FF3.exe --content="C:\Program Files (x86)\Steam\steamapps\common\Final Fantasy III"` (nothing else; the log's `content:` line must name only the install) | Logos, then the title with the logo at the phone's size, the three menu words and the hand cursor; `steam cells: phone placement applied to title_gousei_new.NCER` in the log |
 | C-2 | Play from Steam alone | New game from C-1: naming, the opening, the first battle, walk out of Ur, talk to an NPC, open the menu | Everything the archive build does, with no exception in the log; windows, HP bars, icons and the cursor sized as on the phone build; the about screen (title ▸ about) is blank rather than a crash |
 | C-2b | Steam-only really is Steam-only | Rename `Project\Content` briefly, run C-1 and C-2 | Identical; nothing in the log mentions `Content\` |

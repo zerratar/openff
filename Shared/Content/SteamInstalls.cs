@@ -1,6 +1,7 @@
 // Finding a Steam copy of the game, so nobody has to type a path.
 //
-// The editor is meant to be usable by somebody who has the game and not much else, and
+// Shared by the editor and the client (compiled into both from Shared/). The editor is
+// meant to be usable by somebody who has the game and not much else, and
 // "point --content at your install" is a worse first step than it sounds: the path has
 // a space and a bracket in it, Steam puts libraries on whichever drive had room, and
 // the folder is not named after the game the store sells.
@@ -23,7 +24,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
-namespace FF3.ContentTool.Editor
+namespace FF3.Content
 {
 	internal sealed class SteamInstall
 	{

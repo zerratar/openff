@@ -212,6 +212,16 @@ a 4x PNG next to the model), TrueType at any size, widescreen UI layouts, more c
 map, longer scripts, new opcodes exposed to the script language, and a mod manifest the
 editor's Export already writes. Each is small once A-D exist; none is possible before.
 
+## Starting the client (2026-09-04, from Karl's note)
+
+`FF3.exe` with no arguments starts FF3 from its Steam install: the client finds the
+installs the way the editor does and remembers them, with the last choice, in
+`%LocalAppData%\OpenFF\launch.json`. `--game=ff4` switches game, `--source=content`
+uses our extracted Content directory instead of Steam; both are remembered, so the next
+plain start repeats them. `--content=<dir>` still wins for a one-off. The log's `launch:`
+line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
+`Shared/Content` so both programs find the games the same way.)
+
 ## Direction set by Karl (2026-09-04)
 
 The destination in full, with the layering and order of work: `Docs/OpenFF-Engine.md`.

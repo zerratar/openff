@@ -1246,7 +1246,7 @@ namespace FF3.ContentTool
 			{
 				return "Content";
 			}
-			return FF3.ContentTool.Editor.SteamInstalls.FindOne() ?? "Content";
+			return FF3.Content.SteamInstalls.FindOne() ?? "Content";
 		}
 
 		private static int ListProjects()
@@ -1272,17 +1272,17 @@ namespace FF3.ContentTool
 
 		private static int ListInstalls()
 		{
-			List<FF3.ContentTool.Editor.SteamInstall> found = FF3.ContentTool.Editor.SteamInstalls.Find();
-			found.AddRange(FF3.ContentTool.Editor.SteamInstalls.Find(
-				FF3.ContentTool.Editor.SteamInstalls.Ff4AppId));
+			List<FF3.Content.SteamInstall> found = FF3.Content.SteamInstalls.Find();
+			found.AddRange(FF3.Content.SteamInstalls.Find(
+				FF3.Content.SteamInstalls.Ff4AppId));
 			if (found.Count == 0)
 			{
 				Console.WriteLine("no Steam copy of either game found on this machine");
 				Console.WriteLine("(looked for appmanifest_{0}.acf and appmanifest_{1}.acf in every Steam library)",
-					FF3.ContentTool.Editor.SteamInstalls.AppId, FF3.ContentTool.Editor.SteamInstalls.Ff4AppId);
+					FF3.Content.SteamInstalls.AppId, FF3.Content.SteamInstalls.Ff4AppId);
 				return 1;
 			}
-			foreach (FF3.ContentTool.Editor.SteamInstall install in found)
+			foreach (FF3.Content.SteamInstall install in found)
 			{
 				Console.WriteLine("  {0}", install.Name ?? "Final Fantasy III");
 				Console.WriteLine("  {0}", install.Path);

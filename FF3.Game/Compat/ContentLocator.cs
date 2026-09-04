@@ -33,6 +33,12 @@ namespace FF3
 					return Path.GetFullPath(first);
 				}
 			}
+			// Nothing named: the game and source chosen or remembered (Steam by default).
+			string chosen = Launch.ResolveRoot();
+			if (chosen != null)
+			{
+				return Path.GetFullPath(chosen);
+			}
 			return FindContentRoot();
 		}
 

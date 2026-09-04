@@ -18,6 +18,7 @@
 // art, which is authored against a different virtual screen in each. See Docs/Editor.md.
 
 using System;
+using FF3.Content;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
