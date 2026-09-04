@@ -54,9 +54,11 @@ internal static partial class GlobalScope
 
 								private int messageIDConfirm_;
 
-								private menu.BasicWindow window_;
+								// PORT: the phone build never constructed this window (its inn confirm went another
+								// way), so these were never made; the engine API's Ask uses it.
+								private menu.BasicWindow window_ = new menu.BasicWindow();
 
-								private sys2d.Sprite3d cellCursor3d_;
+								private sys2d.Sprite3d cellCursor3d_ = new sys2d.Sprite3d();
 
 								public CConfirmWindow()
 								{
@@ -85,42 +87,39 @@ internal static partial class GlobalScope
 									releaseMessage(ref messageIDYes_);
 									releaseMessage(ref messageIDNo_);
 									releaseMessage(ref messageIDConfirm_);
+									// PORT: Yes and No must exist; the "Confirm?" line above them is optional (Steam's
+									// text has no entry for it, and the engine API puts its question in the message
+									// window instead). The phone build never made this window at all.
 									messageIDYes_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_YES, (ushort)(vector.vx + CONFIRMWND_OFFSET_YES_X), (ushort)(vector.vy + CONFIRMWND_OFFSET_YES_Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
-									if (-1 != messageIDYes_)
+									messageIDNo_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_NO, (ushort)(vector.vx + CONFIRMWND_OFFSET_NO_X), (ushort)(vector.vy + CONFIRMWND_OFFSET_NO_Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+									if (-1 == messageIDYes_ || -1 == messageIDNo_)
 									{
-										messageIDNo_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_NO, (ushort)(vector.vx + CONFIRMWND_OFFSET_NO_X), (ushort)(vector.vy + CONFIRMWND_OFFSET_NO_Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
-										if (-1 != messageIDNo_)
+										close();
+										return;
+									}
+									messageIDConfirm_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_CONFIRM, (ushort)(vector.vx + CONFIRMWND_OFFSET_MSG_X), (ushort)(vector.vy + CONFIRMWND_OFFSET_MSG_Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+									foreach (int id in new[] { messageIDYes_, messageIDNo_, messageIDConfirm_ })
+									{
+										if (id == -1)
 										{
-											messageIDConfirm_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_CONFIRM, (ushort)(vector.vx + CONFIRMWND_OFFSET_MSG_X), (ushort)(vector.vy + CONFIRMWND_OFFSET_MSG_Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_PERMANENT, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
-											if (-1 != messageIDConfirm_)
-											{
-												dgs.DGSMessage dGSMessage = dgs.msg.CMessageSys.getInstance().Main().Message(messageIDYes_);
-												dgs.DGSMessage dGSMessage2 = dgs.msg.CMessageSys.getInstance().Main().Message(messageIDNo_);
-												dgs.DGSMessage dGSMessage3 = dgs.msg.CMessageSys.getInstance().Main().Message(messageIDConfirm_);
-												if (dGSMessage != null && dGSMessage2 != null && dGSMessage3 != null)
-												{
-													dGSMessage.setDisplaySpeed(byte.MaxValue);
-													dGSMessage2.setDisplaySpeed(byte.MaxValue);
-													dGSMessage3.setDisplaySpeed(byte.MaxValue);
-													dGSMessage.setShadow(b: true);
-													dGSMessage2.setShadow(b: true);
-													dGSMessage3.setShadow(b: true);
-													changeGlobalDirectory();
-													cellCursor3d_.Load2(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "icon_yubi");
-													cellCursor3d_.SetShow(show: true);
-													cellCursor3d_.SetCell(0);
-													cellCursor3d_.SetDepth(0);
-													cellCursor3d_.SetPositionI(CONFIRMWND_POS_X + CONFIRMWND_OFFSET_YES_X, CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_YES_Y);
-													sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(cellCursor3d_);
-													visiblity_ = true;
-													return;
-												}
-											}
+											continue;
+										}
+										dgs.DGSMessage message = dgs.msg.CMessageSys.getInstance().Main().Message(id);
+										if (message != null)
+										{
+											message.setDisplaySpeed(byte.MaxValue);
+											message.setShadow(b: true);
 										}
 									}
-									close();
+									changeGlobalDirectory();
+									cellCursor3d_.Load2(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "icon_yubi");
+									cellCursor3d_.SetShow(show: true);
+									cellCursor3d_.SetCell(0);
+									cellCursor3d_.SetDepth(0);
+									cellCursor3d_.SetPositionI(CONFIRMWND_POS_X + CONFIRMWND_OFFSET_YES_X, CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_YES_Y);
+									sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(cellCursor3d_);
+									visiblity_ = true;
 								}
-
 								public void close()
 								{
 									cellCursor3d_.Release();

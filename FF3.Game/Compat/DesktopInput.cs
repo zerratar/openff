@@ -73,6 +73,18 @@ namespace FF3
 				{
 					return 0;
 				}
+				return RawPadBits();
+			}
+		}
+
+		/// <summary>The pad bits from the keyboard alone, ungated: what the engine's Game.Input gets even while a mod has captured input.</summary>
+		public static int RawPadBits()
+		{
+			{
+				if (_game == null || !_game.IsActive)
+				{
+					return 0;
+				}
 				KeyboardState keys = Keyboard.GetState();
 				int bits = 0;
 				foreach ((Keys key, int bit) in PadBindings)
@@ -159,9 +171,9 @@ namespace FF3
 			UpdateMouse();
 		}
 
-		/// <summary>True while a text field owns input, e.g. character naming.</summary>
+		/// <summary>True while something other than the game owns input: a text field, the mod list, or a mod that captured it (Game.Input.Capture).</summary>
 		private static bool IsTyping =>
-			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen;
+			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || EngineInput.Captured;
 
 		private static void UpdateMouse()
 		{

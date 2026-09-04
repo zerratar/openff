@@ -29,7 +29,10 @@ namespace OpenFF
 		public static IField Field => Services.Get<IField>();
 		public static ICamera Camera => Services.Get<ICamera>();
 		public static IEffects Effects => Services.Get<IEffects>();
+		public static IBattle Battle => Services.Get<IBattle>();
 	}
+
+	public enum BattleResult { Unknown, Won, Lost, Escaped }
 
 	/// <summary>The message window at the bottom of the field.</summary>
 	public interface IDialogue
@@ -163,6 +166,14 @@ namespace OpenFF
 
 		/// <summary>The characters scripts have spawned and not removed.</summary>
 		IReadOnlyList<Npc> Spawned { get; }
+
+		/// <summary>
+		/// Puts any character-format model on the map as a plain figure - a monster
+		/// (b_m005), an object, a character without the walker's behaviour - with no AI and
+		/// no talk of its own. Moved, turned, scaled, hidden and removed like a spawned
+		/// character; the raw material of a real-time fight or a set piece.
+		/// </summary>
+		Npc SpawnModel(string model, Vector3 position, float yaw = 0f, float scale = 1f);
 	}
 
 	/// <summary>The game's flag space: what the scripts store quest progress in.</summary>
@@ -231,6 +242,18 @@ namespace OpenFF
 		string Map { get; }
 		/// <summary>Goes to another map, as a script's MapWarp does: name, position, facing 0-7 (eighths of a turn).</summary>
 		void Warp(string map, Vector3 position, int facing = 0);
+		/// <summary>Whether walking can start the game's random battles. Off for a mod that runs its own fights.</summary>
+		bool Encounters { get; set; }
+	}
+
+	/// <summary>The game's own battles, started from a mod.</summary>
+	public interface IBattle
+	{
+		/// <summary>Starts the game's battle with a monster party (the game's table) on a battle background; BattleEnded follows.</summary>
+		void Start(int monsterParty, int battleMap = 0);
+		/// <summary>Whether the party may run from battles.</summary>
+		bool EscapeAllowed { get; set; }
+		bool InBattle { get; }
 	}
 
 	/// <summary>The field camera.</summary>

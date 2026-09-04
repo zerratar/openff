@@ -228,6 +228,11 @@ internal static partial class GlobalScope
 
 								public CConfirmWindow refConfirmWindow()
 								{
+									// PORT: made on first use; nothing in the phone build made one.
+									if (m_ConfirmWindow == null)
+									{
+										m_ConfirmWindow = new CConfirmWindow();
+									}
 									return m_ConfirmWindow;
 								}
 

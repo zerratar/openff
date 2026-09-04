@@ -222,6 +222,24 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## The engine API, third slice: the raw material for new kinds of play (2026-09-04)
+
+Karl's aim is mods that are not the game's game - real-time fights, a bullet hell over
+the field, whatever the imagination allows - so this slice opens the frame itself.
+`Game.Input` (`OpenFF.Engine/Input.cs`, fed by `Compat/EngineInput.cs`): the pad as
+held/pressed/released flags and a direction, the pointer in screen units with press and
+release, the keyboard by key name, and `Capture`, which takes all input away from the
+legacy game while a mod runs its own. `Game.Draw` (`Drawing.cs`, drawn by `Compat/ModDraw.cs`
+after the game): text in the game's font, rectangles, lines and sprites from PNGs the mod
+ships, in 800x480 screen units, immediate-mode (draw each frame). `Npcs.SpawnModel` puts
+any character-format model - a monster, an object - on the map as a plain figure with the
+same handle as a character (position, walk, turn, scale, alpha, hidden, motion).
+`Field.Encounters` turns random battles off and on; `Game.Battle.Start(monsterParty,
+map)` runs the game's own battle and `BattleEnded` reports Won/Lost/Escaped (for
+encounters too). Not yet: drawing into the 3D scene, a ground-height query, and
+world-to-screen projection for HUD markers over characters - the next of this kind.
+Testing C-25, C-26.
+
 ## The engine API, second slice (2026-09-04)
 
 Coroutines (`OpenFF.Engine/Coroutines.cs`): `Game.Run(IEnumerator)` steps a routine once

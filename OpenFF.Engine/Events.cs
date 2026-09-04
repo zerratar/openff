@@ -155,6 +155,12 @@ namespace OpenFF
 		/// <summary>A battle is about to begin (a script's, or an encounter).</summary>
 		public sealed class BattleStarting { }
 
+		/// <summary>A battle is over and the field is back.</summary>
+		public sealed class BattleEnded
+		{
+			public BattleResult Result { get; set; }
+		}
+
 		/// <summary>The party received an item from a script or a chest.</summary>
 		public sealed class ItemGained
 		{

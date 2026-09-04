@@ -188,6 +188,12 @@ internal static partial class GlobalScope
 					{
 						m_Message[i] = dGSMessage;
 					}
+					if (m_Message[i] == null)
+					{
+						// PORT: a number the text does not have. The phone's scripts never missed;
+						// Steam's text lacks a few, and the engine API asks for the window's texts.
+						return -1;
+					}
 					m_Message[i].setPosition((short)x, (short)y, erase: true);
 					m_Message[i].setDisplaySpeed(1);
 					m_Message[i].setDisplayWait(1);

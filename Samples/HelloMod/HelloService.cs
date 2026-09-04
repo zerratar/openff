@@ -133,9 +133,29 @@ namespace Hello
 			Game.Log(Greeting + ": talk " + Talks + " done, gil now " + Game.Party.Gil + ", party " + string.Join(", ", Game.Party.Members));
 		}
 
+		public bool Hud = true;
+
 		public override void OnUpdate()
 		{
 			Frames++;
+			// L (Q on the keyboard) toggles a HUD drawn by the mod; the HUD is redrawn every frame it is on.
+			if (Game.Input.Pressed(Pad.L))
+			{
+				Hud = !Hud;
+			}
+			if (Hud && Game.Hero.Present)
+			{
+				string line = "hello mod  gil " + Game.Party.Gil + "  talks " + Talks + "  party " + Game.Party.Members.Count + "  (Q hides)";
+				float w = Game.Draw.MeasureText(line, 12) + 12;
+				Game.Draw.Rect(800 - w - 8, 60, w, 20, new OpenFF.Color(0, 0, 0, 140));
+				Game.Draw.Text(line, 800 - w - 2, 63, OpenFF.Color.Yellow, 12);
+				if (_villager != null && _villager.Alive)
+				{
+					float d = Vector3.FlatDistance(_villager.Position, Game.Hero.Position);
+					Game.Draw.Rect(800 - w - 8, 82, w, 4, new OpenFF.Color(0, 0, 0, 140));
+					Game.Draw.Rect(800 - w - 8, 82, Math.Min(w, w * Math.Min(1f, d / 40f)), 4, d <= 14f ? OpenFF.Color.Green : OpenFF.Color.Red);
+				}
+			}
 			if (Frames % 600 == 0)
 			{
 				Game.Log(Greeting + ": " + Frames + " frames, " + MapsEntered + " maps, last " + LastMap);

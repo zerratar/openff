@@ -36,6 +36,7 @@ namespace FF3
 			OpenFF.Game.Services.Register(new LegacyField());
 			OpenFF.Game.Services.Register(new LegacyCamera());
 			OpenFF.Game.Services.Register(new LegacyEffects());
+			OpenFF.Game.Services.Register(new LegacyBattle());
 		}
 
 		/// <summary>Once per frame, after the legacy tick: the message window, the hero's scripted walk, and spawned characters.</summary>
@@ -155,7 +156,6 @@ namespace FF3
 		// A question in progress: the box is up, the answer goes here.
 		private Action<bool> _answer;
 		private bool _yes = true;
-		private bool _boxOpen;
 
 		public bool IsOpen => _shown || _pending != null;
 		public bool IsAsking => _answer != null;
@@ -173,20 +173,6 @@ namespace FF3
 					return null;
 				}
 				try { return transit.cast_Field2D()?.MessageWindow(); }
-				catch (Exception) { return null; }
-			}
-		}
-
-		private GlobalScope.wld.CConfirmWindow Box
-		{
-			get
-			{
-				GlobalScope.CCastCommandTransit transit = GlobalScope.CCastCommandTransit.getInstance();
-				if (transit.cast_BaseSystem() == null)
-				{
-					return null;
-				}
-				try { return transit.cast_Field2D()?.refConfirmWindow(); }
 				catch (Exception) { return null; }
 			}
 		}
@@ -215,8 +201,7 @@ namespace FF3
 
 		public void Ask(string question, Action<bool> answered)
 		{
-			GlobalScope.wld.CConfirmWindow box = Box;
-			if (box == null || Window == null)
+			if (Window == null)
 			{
 				EngineApi.Warn("ask", "Ask: not on a map");
 				Game.Guard("Dialogue.Ask", () => answered?.Invoke(false));
@@ -229,10 +214,10 @@ namespace FF3
 				_answer = null;
 				Game.Guard("Dialogue.Ask", () => earlier(false));
 			}
-			Say(question ?? "");
+			// The answer is recorded first: Show decides by it whether to put the box up.
 			_answer = answered ?? (_ => { });
 			_yes = true;
-			_boxOpen = false;
+			Say(question ?? "");
 		}
 
 		private void Show(GlobalScope.wld.CMessageWindow window, string text)
@@ -242,27 +227,12 @@ namespace FF3
 			window.setProgressIconActivity(_SendMessage: _answer == null);
 			_pending = null;
 			_shown = true;
-			if (_answer != null && !_boxOpen)
-			{
-				GlobalScope.wld.CConfirmWindow box = Box;
-				if (box != null)
-				{
-					box.open();
-					box.swCurPos(true);
-					_boxOpen = box.isOpen();
-				}
-			}
 		}
 
 		public void Close()
 		{
 			GlobalScope.wld.CMessageWindow window = Window;
 			bool wasOpen = _shown || _pending != null;
-			if (_boxOpen)
-			{
-				Box?.close();
-				_boxOpen = false;
-			}
 			if (window != null && wasOpen)
 			{
 				window.release();
@@ -324,48 +294,38 @@ namespace FF3
 			}
 		}
 
+		// The box: drawn each frame by the engine's own draw layer, over the message window's
+		// right end, in screen units (800x480).
+		private const float BoxX = 610f, BoxY = 262f, BoxW = 150f, BoxH = 74f, RowH = 30f;
+
 		private void TickQuestion()
 		{
-			GlobalScope.wld.CConfirmWindow box = Box;
-			if (box == null || !_boxOpen)
-			{
-				return;
-			}
+			OpenFF.InputState input = OpenFF.Game.Input;
 			int decided = -1;
-			try
+			if (input.Pressed(OpenFF.Pad.Up) || input.Pressed(OpenFF.Pad.Down))
 			{
-				ushort edge = GlobalScope.ds.g_Pad.edge();
-				if ((edge & 0x40) != 0 || (edge & 0x80) != 0)
-				{
-					_yes = !_yes;
-					box.swCurPos(_yes);
-				}
-				if ((edge & 1) != 0) decided = _yes ? 1 : 0;
-				if ((edge & 2) != 0) decided = 0;
-				if (decided < 0 && GlobalScope.ds.g_TouchPanel.isRelease())
-				{
-					GlobalScope.ds.g_TouchPanel.getLastPoint(out int x, out int y);
-					int hit = box.hitTest(x, y);
-					if (hit >= 0)
-					{
-						decided = hit;
-					}
-				}
+				_yes = !_yes;
 			}
-			catch (Exception ex)
+			if (input.Pressed(OpenFF.Pad.A)) decided = _yes ? 1 : 0;
+			if (input.Pressed(OpenFF.Pad.B)) decided = 0;
+			if (decided < 0 && input.PointerReleased)
 			{
-				EngineApi.Warn("ask-input", "Ask: " + ex.Message);
-				decided = 0;
+				float x = input.PointerX, y = input.PointerY;
+				if (x >= BoxX && x <= BoxX + BoxW)
+				{
+					if (y >= BoxY + 6 && y < BoxY + 6 + RowH) decided = 1;
+					else if (y >= BoxY + 6 + RowH && y < BoxY + BoxH) decided = 0;
+				}
 			}
 			if (decided < 0)
 			{
+				DrawBox();
 				return;
 			}
 			bool yes = decided == 1;
+			Log.Write(LogChannel.General, "engine api: Ask answered " + (yes ? "yes" : "no"));
 			Action<bool> answer = _answer;
 			_answer = null;
-			box.close();
-			_boxOpen = false;
 			GlobalScope.wld.CMessageWindow window = Window;
 			if (window != null)
 			{
@@ -376,6 +336,19 @@ namespace FF3
 			OpenFF.Game.Events.Publish(new OpenFF.Events.Answered { Yes = yes });
 			Game.Guard("Dialogue.Ask", () => answer(yes));
 			Game.Guard("Dialogue.Closed", () => Closed?.Invoke());
+		}
+
+		private void DrawBox()
+		{
+			OpenFF.DrawList draw = OpenFF.Game.Draw;
+			draw.Rect(BoxX, BoxY, BoxW, BoxH, new OpenFF.Color(24, 40, 96, 235));
+			draw.Rect(BoxX, BoxY, BoxW, BoxH, new OpenFF.Color(230, 230, 240), filled: false);
+			draw.Rect(BoxX + 1, BoxY + 1, BoxW - 2, BoxH - 2, new OpenFF.Color(120, 130, 170), filled: false);
+			float yesY = BoxY + 6, noY = BoxY + 6 + RowH;
+			draw.Rect(BoxX + 6, (_yes ? yesY : noY) + 2, BoxW - 12, RowH - 4, new OpenFF.Color(255, 255, 255, 40));
+			draw.Text(">", BoxX + 14, (_yes ? yesY : noY) + 6, OpenFF.Color.Yellow, 16);
+			draw.Text("Yes", BoxX + 40, yesY + 6, _yes ? OpenFF.Color.White : new OpenFF.Color(200, 200, 210), 16);
+			draw.Text("No", BoxX + 40, noY + 6, _yes ? new OpenFF.Color(200, 200, 210) : OpenFF.Color.White, 16);
 		}
 	}
 
@@ -785,6 +758,58 @@ namespace FF3
 			}
 		}
 
+		public Npc SpawnModel(string model, Vector3 position, float yaw = 0f, float scale = 1f)
+		{
+			if (!EngineApi.InWorld || string.IsNullOrEmpty(model))
+			{
+				EngineApi.Warn("spawn-model", "SpawnModel: not on a map");
+				return null;
+			}
+			try
+			{
+				string map = GlobalScope.stg.CStageMng.CurrentName;
+				int s = (int)Math.Round(Math.Max(0.01f, scale) * 4096);
+				GlobalScope.VecFx32 scl = new GlobalScope.VecFx32();
+				scl.set(s, s, s);
+				GlobalScope.VecFx32 shadow = new GlobalScope.VecFx32();
+				shadow.set(4915, 4096, 4915);
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				GlobalScope.changeGlobalDirectory();
+				int index = EngineApi.Players.setupPlainCharacter(model, scl, shadow);
+				if (index < 0)
+				{
+					EngineApi.Warn("spawn-model-full", "SpawnModel: " + model + " did not load or no slot is free");
+					return null;
+				}
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				GlobalScope.pl.CBasePlayer player = EngineApi.Players.Player(index);
+				if (player == null || player.getCharacterId() < 0)
+				{
+					EngineApi.Warn("spawn-model-fail", "SpawnModel: " + model + " did not load");
+					return null;
+				}
+				GlobalScope.characterMng.setupOrgTex(player.getCharacterId());
+				player.setPosition(EngineApi.ToFx(position));
+				GlobalScope.VecFx32 rot = new GlobalScope.VecFx32();
+				rot.set(0, EngineApi.YawToRot(yaw), 0);
+				player.setRotation(rot);
+				player.into();
+				player.setAutoPilot(_AutoPilot: true);
+				player.setHidden(false);
+				player.LogicIndex_set(GlobalScope.CastInfo.INVALID_SCRIPT);
+				LegacyNpc npc = new LegacyNpc(index, model, map);
+				npc.Solid = false;
+				_spawned.Add(npc);
+				Log.Write(LogChannel.General, "engine api: placed model " + model + " as character " + index + " at " + position + " on " + map);
+				return npc;
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("spawn-model-ex", "SpawnModel " + model + " failed: " + ex.GetType().Name + ": " + ex.Message);
+				return null;
+			}
+		}
+
 		private LegacyNpc _legacyTalkTarget;
 
 		/// <summary>
@@ -1116,9 +1141,65 @@ namespace FF3
 		}
 	}
 
+	internal sealed class LegacyBattle : GameService, IBattle
+	{
+		public bool InBattle
+		{
+			get
+			{
+				try { return ((GlobalScope.GAMEPART)GlobalScope.sys.FF3PartSys.getCurrentPart()) == GlobalScope.GAMEPART.GAMEPART_BATTLE; }
+				catch (Exception) { return false; }
+			}
+		}
+
+		public void Start(int monsterParty, int battleMap = 0)
+		{
+			if (!EngineApi.InWorld)
+			{
+				EngineApi.Warn("battle", "Battle.Start: not on a map");
+				return;
+			}
+			Game.Guard("Battle.Start", () =>
+			{
+				GlobalScope.btl.OutsideToBattle.getInstance().initializeMonster().setMonsterPartyId((short)monsterParty);
+				GlobalScope.btl.OutsideToBattle.getInstance().initializeBattleMap().setBattleMapId((byte)battleMap);
+				GlobalScope.wld.CBaseSystem.setBattle(b: true);
+			});
+		}
+
+		private bool _escape = true;
+
+		public bool EscapeAllowed
+		{
+			get => _escape;
+			set
+			{
+				_escape = value;
+				Game.Guard("Battle.EscapeAllowed", () =>
+				{
+					if (value) GlobalScope.btl.OutsideToBattle.getInstance().onEscape();
+					else GlobalScope.btl.OutsideToBattle.getInstance().offEscape();
+				});
+			}
+		}
+	}
+
 	internal sealed class LegacyField : GameService, IField
 	{
 		public string Map => GlobalScope.stg.CStageMng.CurrentName;
+
+		public bool Encounters
+		{
+			get
+			{
+				try { return GlobalScope.wld.CWorldOutSideData.getInstance().canEncount(); }
+				catch (Exception) { return false; }
+			}
+			set
+			{
+				Game.Guard("Field.Encounters", () => GlobalScope.wld.CWorldOutSideData.getInstance().setCanEncount(value));
+			}
+		}
 
 		public void Warp(string map, Vector3 position, int facing = 0)
 		{

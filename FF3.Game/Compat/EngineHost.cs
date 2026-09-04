@@ -125,6 +125,7 @@ namespace FF3
 			try
 			{
 				WatchLegacy();
+				EngineInput.Update();
 				EngineApi.Tick();
 				ModWatcher.Drain();
 				DateTime now = DateTime.Now;
@@ -134,8 +135,15 @@ namespace FF3
 			}
 			catch (Exception ex)
 			{
-				Log.First(LogChannel.General, "engine-tick", 5, () => "engine: tick failed: " + ex.GetType().Name + ": " + ex.Message);
+				Log.First(LogChannel.General, "engine-tick", 5, () => "engine: tick failed: " + ex.GetType().Name + ": " + ex.Message + " at " + FirstFrames(ex));
 			}
+		}
+
+		/// <summary>The first few frames of a stack trace, on one line, for the log.</summary>
+		private static string FirstFrames(Exception ex)
+		{
+			string[] lines = (ex.StackTrace ?? "").Split('\n');
+			return string.Join(" | ", lines.Take(4).Select(l => l.Trim()));
 		}
 
 		/// <summary>The legacy game's part and stage, turned into scene events when they change.</summary>
@@ -145,6 +153,10 @@ namespace FF3
 			if (part != _lastPart)
 			{
 				OpenFF.Game.Events.Publish(new OpenFF.Events.PartChanged { From = _lastPart, To = part });
+				if (_lastPart == "BATTLE")
+				{
+					OpenFF.Game.Events.Publish(new OpenFF.Events.BattleEnded { Result = BattleResult() });
+				}
 				_lastPart = part;
 			}
 
@@ -188,6 +200,24 @@ namespace FF3
 			catch (Exception)
 			{
 				return false;
+			}
+		}
+
+		private static OpenFF.BattleResult BattleResult()
+		{
+			try
+			{
+				switch (GlobalScope.btl.BattleToOutside.getInstance().battleResult())
+				{
+					case GlobalScope.btl.BATTLE_RESULT.WIN: return OpenFF.BattleResult.Won;
+					case GlobalScope.btl.BATTLE_RESULT.LOSE: return OpenFF.BattleResult.Lost;
+					case GlobalScope.btl.BATTLE_RESULT.PLAYER_ESCAPE: return OpenFF.BattleResult.Escaped;
+					default: return OpenFF.BattleResult.Unknown;
+				}
+			}
+			catch (Exception)
+			{
+				return OpenFF.BattleResult.Unknown;
 			}
 		}
 

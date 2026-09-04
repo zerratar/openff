@@ -144,6 +144,10 @@ namespace FF3
 				// The mod list, on the title where the phone's network entry was.
 				ModListScreen.Attach(game);
 
+				// What mods draw (Game.Draw) and what they read (Game.Input).
+				ModDraw.Attach(game);
+				EngineInput.Attach(game);
+
 				// F1 debug overlay (boxes, sprites, world, stats); --debug=all starts with it on.
 				DebugOverlay.Attach(game);
 
