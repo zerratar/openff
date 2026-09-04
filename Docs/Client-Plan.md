@@ -222,6 +222,26 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## The fifth API slice: motions, items, shops; Goblin Survivors (2026-09-04, night)
+
+Karl's redesign of the arena into a survivors-style run needed three more pieces of the
+game as API. **Motions:** the battle binds its motion sets onto the very models the field
+uses (`characterMng.addMotion(id, "b_b01")` for party members, `"b_f<family>"` for monsters)
+and plays them by id, so `Hero.BindMotions`/`Npc.BindMotions` + `PlayMotion(HeroMotion.MagicShot)`
+/ `MonsterMotion.Attack` give the field the battle's casting and attack animations;
+`MotionDone` says when one ends. **Items:** `Game.Items` reads all five item tables
+(`ItemManager.*Count/*At` added) into `Item` - name, caption, category, price, jobs, slot,
+attack/defence/evasion, elements, stat bonuses, weapon model; `Party.Items/RemoveItem/Equip/
+Unequip/Equipped` work the bag and the equipment slots through the game's own `doEquip`.
+**Shops:** `Game.Shops.Open(index, table)` is the script command BootShop with a PORT
+override of the shop table (`shop.CShopManager.OverrideTable`), so the game's shop screen
+opens on any map; `Info` lists what a shop sells. **Goblin Survivors** (`Samples/Survivors`)
+replaces the arena: waves of goblins that walk up and swing, a hero who auto-aims and casts,
+run levels with three cards, chests with wearable equipment, a trader between waves who opens
+the shop or the next wave. Testing C-31, C-32. Found on the way: the field's own buttons are
+X (menu), one shoulder button (menu or zoom by option) and Select (a debug encounter toggle),
+so mods take keyboard letters (`Game.Input.KeyPressed("T")`); the samples moved to H/J and T.
+
 ## Crystal for OpenFF projects: behaviours on map objects, Run, the API reference (2026-09-04)
 
 Karl asked for Crystal to think Unity when a project targets OpenFF. Three pieces:

@@ -244,6 +244,16 @@ internal static partial class GlobalScope
 				return null;
 			}
 
+			// PORT: the engine API lists every table; the phone build only ever looked items up.
+			public int consumptionCount() { return consumptionItem_ == null ? 0 : m_ConsumptionItemMax; }
+			public ConsumptionParameter consumptionAt(int index) { return consumptionItem_ != null && index >= 0 && index < m_ConsumptionItemMax ? consumptionItem_[index] : null; }
+			public int weaponCount() { return weaponItem_ == null ? 0 : m_WeaponItemMax; }
+			public WeaponParameter weaponAt(int index) { return weaponItem_ != null && index >= 0 && index < m_WeaponItemMax ? weaponItem_[index] : null; }
+			public int protectionCount() { return protectionItem_ == null ? 0 : m_ProtectionItemMax; }
+			public ProtectionParameter protectionAt(int index) { return protectionItem_ != null && index >= 0 && index < m_ProtectionItemMax ? protectionItem_[index] : null; }
+			public int importantCount() { return ImportantItem_ == null ? 0 : m_ImportantItemMax; }
+			public ImportantParameter importantAt(int index) { return ImportantItem_ != null && index >= 0 && index < m_ImportantItemMax ? ImportantItem_[index] : null; }
+
 			// PORT: the engine API lists the spells; the phone build only ever looked one up.
 			public int magicCount()
 			{

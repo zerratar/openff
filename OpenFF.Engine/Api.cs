@@ -80,6 +80,10 @@ namespace OpenFF
 		void Stop();
 		/// <summary>Plays a motion by its index in the character's set (1001 is the talk pose).</summary>
 		void PlayMotion(int index, bool loop = false, int blendFrames = 5);
+		/// <summary>Adds a motion set to the hero's model so PlayMotion can play its ids: "b_b01" is the battle's common set (HeroMotion has the ids). Once per map.</summary>
+		void BindMotions(string set = "b_b01");
+		/// <summary>Whether the motion PlayMotion started has finished (looping ones never do).</summary>
+		bool MotionDone { get; }
 		/// <summary>The "!" over the head.</summary>
 		bool Balloon { get; set; }
 		/// <summary>Takes control from the player: no walking, no menu button, the way an event does.</summary>
@@ -123,6 +127,9 @@ namespace OpenFF
 		public abstract bool Solid { get; set; }
 		/// <summary>Plays a motion by its index in the character's set (1001 is the talk pose).</summary>
 		public abstract void PlayMotion(int index, bool loop = false, int blendFrames = 5);
+		/// <summary>Adds a motion set to the character's model: "b_b01" for a party member's model, a monster's Monster.MotionSet ("b_f" + family) for its attack and idle (MonsterMotion).</summary>
+		public abstract void BindMotions(string set);
+		public abstract bool MotionDone { get; }
 		/// <summary>Opacity, 0 (gone) to 100.</summary>
 		public abstract int Alpha { get; set; }
 		/// <summary>Drawn or not; a hidden character is still there.</summary>
@@ -258,6 +265,16 @@ namespace OpenFF
 		void Inflict(int id, Condition conditions);
 		/// <summary>Takes conditions off.</summary>
 		void Cure(int id, Condition conditions);
+		/// <summary>The bag: every item the party carries and how many.</summary>
+		IReadOnlyList<ItemStack> Items { get; }
+		/// <summary>Takes items out of the bag; false when there are not that many.</summary>
+		bool RemoveItem(int itemId, int count);
+		/// <summary>Equips an item from the bag on a character (the item's own slot when Auto); false when they cannot wear it or the bag has none.</summary>
+		bool Equip(int id, int itemId, EquipSlot slot = EquipSlot.Auto);
+		/// <summary>Takes off what a slot holds, back into the bag.</summary>
+		void Unequip(int id, EquipSlot slot);
+		/// <summary>The item in a slot, or 0.</summary>
+		int Equipped(int id, EquipSlot slot);
 	}
 
 	public interface IAudio
@@ -350,5 +367,109 @@ namespace OpenFF
 		/// <summary>Keeps the effect on a character (plus an offset in world units) while both live.</summary>
 		void Follow(int id, Npc target, Vector3 offset = default);
 		void FollowHero(int id, Vector3 offset = default);
+	}
+}
+
+namespace OpenFF
+{
+	/// <summary>The battle's motion ids for a party member's model, playable on the field after Hero.BindMotions("b_b01").</summary>
+	public static class HeroMotion
+	{
+		public const int Idle = 101, Poise = 201, PoiseNearDeath = 301, PoisePoison = 401, PoiseMagic = 501;
+		public const int Front = 601, Back = 604;
+		public const int UseItem = 701, Escape = 702, GuardStart = 703, Guard = 704, Damage = 705, Death = 706, Comeback = 707;
+		public const int Hand1 = 1101, Hand2 = 1102, HandFinish = 1107;
+		public const int ShortSword1 = 1201, ShortSword2 = 1202, ShortSwordFinish = 1207;
+		public const int LongSword1 = 1301, LongSword2 = 1302, LongSwordFinish = 1307;
+		public const int Katana1 = 1401, Axe1 = 1501, Spear1 = 1601, Rod1 = 1701, RodFinish = 1707, Bow = 1801, BowFinish = 1807;
+		public const int Throw = 2101, Harp = 2201, Bell1 = 2301, Book1 = 2401;
+		public const int MagicPoise = 4001, MagicShotStart = 4002, MagicShot = 4003;
+		public const int Win1 = 4101, Win2 = 4102, Win3 = 4103, Win4 = 4104;
+		public const int LevelUp1 = 4201, LevelUp2 = 4202, LevelUp3 = 4203, LevelUp4 = 4204;
+		public const int Cover = 6001, Steal = 6101, Check = 6201, Geomancy = 6301, JumpStart = 6401, JumpEnd = 6403, Provoke = 6501, Dark = 6601, Song = 6901;
+	}
+
+	/// <summary>The battle's motion ids for a monster's model, playable after Npc.BindMotions(monster.MotionSet).</summary>
+	public static class MonsterMotion
+	{
+		public const int Idle = 101, Attack = 201, Special = 202;
+	}
+
+	public enum ItemCategory { Consumable = 0, Weapon = 1, Armor = 2, Magic = 3, Key = 4 }
+
+	/// <summary>Where a piece of equipment goes.</summary>
+	public enum EquipSlot { RightHand = 0, LeftHand = 1, Head = 2, Body = 3, Arm = 4, Auto = -1, None = -2 }
+
+	/// <summary>An item from the game's tables.</summary>
+	public sealed class Item
+	{
+		public int Id { get; set; }
+		public string Name { get; set; }
+		public string Caption { get; set; }
+		public ItemCategory Category { get; set; }
+		public int Price { get; set; }
+		/// <summary>Jobs that may equip it, a bitmask over Job; 0 for anything that is not equipment.</summary>
+		public int Jobs { get; set; }
+		/// <summary>Where it is worn: a weapon in a hand, a shield in the left, helmet/armour/gauntlet on head/body/arm.</summary>
+		public EquipSlot Slot { get; set; } = EquipSlot.None;
+		public int Attack { get; set; }
+		public int Accuracy { get; set; }
+		public int Defense { get; set; }
+		public int MagicDefense { get; set; }
+		public int Evasion { get; set; }
+		public int MagicEvasion { get; set; }
+		public Element Elements { get; set; }
+		/// <summary>Armour: elements it halves; weapons: none.</summary>
+		public Element Resist { get; set; }
+		public Element Weakness { get; set; }
+		/// <summary>Stat bonuses while equipped.</summary>
+		public Stats Bonus { get; set; } = new Stats();
+		public int Weight { get; set; }
+		/// <summary>The weapon's model ("w" + graph id), for a hand.</summary>
+		public string Model { get; set; }
+		public bool UsableInBattle { get; set; }
+		public bool UsableInField { get; set; }
+		public override string ToString() => (Name ?? ("item " + Id)) + " (" + Category + (Price > 0 ? ", " + Price + " gil" : "") + ")";
+	}
+
+	public sealed class ItemStack
+	{
+		public int ItemId { get; set; }
+		public int Count { get; set; }
+		public override string ToString() => ItemId + " x" + Count;
+	}
+
+	/// <summary>The game's items as data: consumables, weapons, armour, magic (also spells), key items.</summary>
+	public interface IItems
+	{
+		IReadOnlyList<Item> All { get; }
+		Item Find(int id);
+		Item Find(string name);
+		IEnumerable<Item> Of(ItemCategory category);
+	}
+
+	/// <summary>One of a shop table's shops.</summary>
+	public sealed class ShopInfo
+	{
+		public int Index { get; set; }
+		/// <summary>0 weapons, 1 armour, 2 magic, 3 items.</summary>
+		public int Kind { get; set; }
+		public List<int> ItemIds { get; } = new List<int>();
+	}
+
+	/// <summary>The game's shop screens.</summary>
+	public interface IShops
+	{
+		/// <summary>Opens the game's shop screen: shop number index of a shop table ("t01" is the first town's; the current map's own when table is null). Buying and selling are the game's. False off a map.</summary>
+		bool Open(int index, string table = null);
+		bool IsOpen { get; }
+		/// <summary>What a shop sells, from its table.</summary>
+		ShopInfo Info(int index, string table = null);
+	}
+
+	public static partial class Game
+	{
+		public static IItems Items => Services.Get<IItems>();
+		public static IShops Shops => Services.Get<IShops>();
 	}
 }

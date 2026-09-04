@@ -446,6 +446,7 @@ namespace FF3
 						Id = p.monsterId(),
 						Family = p.familyId(),
 						Model = "f" + p.familyId().ToString("D3"),
+						MotionSet = "b_f" + p.familyId().ToString("D3"),
 						Level = p.level(),
 						MaxHp = p.maxHp(),
 						Size = p.size(),

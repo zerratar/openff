@@ -1,0 +1,9 @@
+{
+  "id": "survivors",
+  "name": "Goblin Survivors",
+  "version": "1.0",
+  "author": "OpenFF",
+  "description": "Press T on any map: goblins come in waves and the hero throws spells at the nearest on their own. Level up for cards - speed, power, new spells, stats - find equipment in chests, and trade with the shopkeeper between waves.",
+  "target": "openff",
+  "assemblies": [ "Survivors.dll" ]
+}

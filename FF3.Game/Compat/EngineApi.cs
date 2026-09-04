@@ -39,6 +39,8 @@ namespace FF3
 			OpenFF.Game.Services.Register(new LegacyBattle());
 			OpenFF.Game.Services.Register(Magic);
 			OpenFF.Game.Services.Register(new LegacyMonsters());
+			OpenFF.Game.Services.Register(new LegacyItems());
+			OpenFF.Game.Services.Register(new LegacyShops());
 		}
 
 		public static readonly LegacyScreen Screen = new LegacyScreen();
@@ -146,6 +148,23 @@ namespace FF3
 			d.y /= 682;
 			d.z /= 682;
 			p.setTargetDirection(d);
+		}
+
+		// The motion sets a character's model was not loaded with: the battle binds "b_b01" (and a
+		// job's own) onto the same party models it uses on the field, and "b_f<family>" onto a
+		// monster's; the field can do the same. Eight slots per character; a set already bound is
+		// not bound twice.
+		private static readonly Dictionary<int, HashSet<string>> _boundMotions = new Dictionary<int, HashSet<string>>();
+
+		internal static void BindMotions(GlobalScope.pl.CBasePlayer player, string set)
+		{
+			int id = player.getCharacterId();
+			if (!_boundMotions.TryGetValue(id, out HashSet<string> sets))
+			{
+				_boundMotions[id] = sets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			}
+			if (!sets.Add(set)) return;
+			GlobalScope.characterMng.addMotion(id, set);
 		}
 
 		internal static void Warn(string key, string message)
@@ -524,6 +543,23 @@ namespace FF3
 			Game.Guard("Hero.PlayMotion", () => hero.startMotion(index, loop, (uint)Math.Max(0, blendFrames)));
 		}
 
+		public void BindMotions(string set = "b_b01")
+		{
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			if (hero == null || string.IsNullOrEmpty(set)) return;
+			Game.Guard("Hero.BindMotions", () => EngineApi.BindMotions(hero, set));
+		}
+
+		public bool MotionDone
+		{
+			get
+			{
+				GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+				try { return hero == null || hero.isEndOfMotion(); }
+				catch (Exception) { return true; }
+			}
+		}
+
 		public bool Balloon
 		{
 			get => EngineApi.HeroPlayer?.isBalloon() == true;
@@ -630,6 +666,23 @@ namespace FF3
 			GlobalScope.pl.CBasePlayer p = Player;
 			if (p == null) return;
 			Game.Guard("Npc.PlayMotion", () => p.startMotion(index, loop, (uint)Math.Max(0, blendFrames)));
+		}
+
+		public override void BindMotions(string set)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null || string.IsNullOrEmpty(set)) return;
+			Game.Guard("Npc.BindMotions", () => EngineApi.BindMotions(p, set));
+		}
+
+		public override bool MotionDone
+		{
+			get
+			{
+				GlobalScope.pl.CBasePlayer p = Player;
+				try { return p == null || p.isEndOfMotion(); }
+				catch (Exception) { return true; }
+			}
 		}
 
 		public override int Alpha
@@ -1195,6 +1248,103 @@ namespace FF3
 				return false;
 			}
 			catch (Exception ex) { EngineApi.Warn("party-forget", "ForgetSpell: " + ex.Message); return false; }
+		}
+
+		public IReadOnlyList<ItemStack> Items
+		{
+			get
+			{
+				List<ItemStack> list = new List<ItemStack>();
+				try
+				{
+					GlobalScope.itm.PossessionItemManager bag = GlobalScope.pl.PlayerParty.instance().item();
+					for (int i = 0; i < 384; i++)
+					{
+						GlobalScope.itm.PossessionItem entry = bag.normalItem(i);
+						if (entry != null && entry.itemId() > 0 && entry.itemNumber() > 0)
+						{
+							list.Add(new ItemStack { ItemId = entry.itemId(), Count = entry.itemNumber() });
+						}
+					}
+					for (int i = 0; i < 64; i++)
+					{
+						GlobalScope.itm.PossessionItem entry = bag.importantItem(i);
+						if (entry != null && entry.itemId() > 0)
+						{
+							list.Add(new ItemStack { ItemId = entry.itemId(), Count = Math.Max(1, (int)entry.itemNumber()) });
+						}
+					}
+				}
+				catch (Exception ex) { EngineApi.Warn("bag", "Items: " + ex.Message); }
+				return list;
+			}
+		}
+
+		public bool RemoveItem(int itemId, int count)
+		{
+			if (count <= 0) return true;
+			try
+			{
+				GlobalScope.itm.PossessionItem entry = GlobalScope.pl.PlayerParty.instance().item().serchNormalItem((short)itemId);
+				if (entry == null || entry.itemNumber() < count) return false;
+				int left = entry.itemNumber() - count;
+				entry.setItemNumber(left);
+				if (left <= 0) entry.setItemId(-1);
+				return true;
+			}
+			catch (Exception ex) { EngineApi.Warn("bag-remove", "RemoveItem: " + ex.Message); return false; }
+		}
+
+		internal static EquipSlot SlotOf(int itemId)
+		{
+			GlobalScope.itm.ItemManager items = GlobalScope.itm.ItemManager.instance();
+			if (items.weaponParameter((short)itemId) != null) return EquipSlot.RightHand;
+			GlobalScope.itm.ProtectionParameter armour = items.protectionParameter((short)itemId);
+			if (armour == null) return EquipSlot.None;
+			switch (armour.system())
+			{
+				case 0: return EquipSlot.LeftHand;   // shield
+				case 1: return EquipSlot.Head;
+				case 2: return EquipSlot.Body;
+				case 3: return EquipSlot.Arm;
+			}
+			return EquipSlot.None;
+		}
+
+		public bool Equip(int id, int itemId, EquipSlot slot = EquipSlot.Auto)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null) return false;
+			try
+			{
+				if (slot == EquipSlot.Auto) slot = SlotOf(itemId);
+				if (slot < 0) return false;
+				GlobalScope.itm.PossessionItem entry = GlobalScope.pl.PlayerParty.instance().item().serchNormalItem((short)itemId);
+				if (entry == null || entry.itemNumber() <= 0) return false;
+				return player.doEquip((int)slot, (short)itemId, sort: true);
+			}
+			catch (Exception ex) { EngineApi.Warn("equip", "Equip: " + ex.Message); return false; }
+		}
+
+		public void Unequip(int id, EquipSlot slot)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null || slot < 0) return;
+			try { player.releaseEquipItem((int)slot, sort: true); }
+			catch (Exception ex) { EngineApi.Warn("unequip", "Unequip: " + ex.Message); }
+		}
+
+		public int Equipped(int id, EquipSlot slot)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			if (player == null || slot < 0) return 0;
+			try
+			{
+				GlobalScope.pl.EquipmentItem point = player.equipParameter().equipPoint((int)slot);
+				int item = point?.equipItemInfo()?.itemId_ ?? 0;
+				return item > 0 ? item : 0;
+			}
+			catch (Exception) { return 0; }
 		}
 
 		public void Inflict(int id, Condition conditions) => SetConditions(id, conditions, true);

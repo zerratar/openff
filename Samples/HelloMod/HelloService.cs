@@ -139,20 +139,21 @@ namespace Hello
 		public override void OnUpdate()
 		{
 			Frames++;
-			// L (Q on the keyboard) toggles a HUD drawn by the mod; the HUD is redrawn every frame it is on.
-			if (Game.Input.Pressed(Pad.L))
+			// H toggles a HUD drawn by the mod; the HUD is redrawn every frame it is on. (Keys the pad
+			// has are the game's: X and a shoulder button open the menu, Select toggles encounters.)
+			if (Game.Input.KeyPressed("H"))
 			{
 				Hud = !Hud;
 			}
-			// Y (V on the keyboard): the hero casts Fire at the villager - the game's own effect and
+			// J: the hero casts Fire at the villager - the game's own effect and
 			// sound, the game's damage formula against a goblin's stats, the battle's floating number.
-			if (Game.Input.Pressed(Pad.Y) && Game.Hero.Present && _villager != null && _villager.Alive)
+			if (Game.Input.KeyPressed("J") && Game.Hero.Present && _villager != null && _villager.Alive)
 			{
 				CastFire();
 			}
 			if (Hud && Game.Hero.Present)
 			{
-				string line = "hello mod  gil " + Game.Party.Gil + "  talks " + Talks + "  party " + Game.Party.Members.Count + "  (Q hides, V casts)";
+				string line = "hello mod  gil " + Game.Party.Gil + "  talks " + Talks + "  party " + Game.Party.Members.Count + "  (H hides, J casts)";
 				float w = Game.Draw.MeasureText(line, 12) + 12;
 				Game.Draw.Rect(800 - w - 8, 60, w, 20, new OpenFF.Color(0, 0, 0, 140));
 				Game.Draw.Text(line, 800 - w - 2, 63, OpenFF.Color.Yellow, 12);

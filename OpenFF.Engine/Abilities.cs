@@ -132,6 +132,8 @@ namespace OpenFF
 		public int Level { get; set; }
 		public int MaxHp { get; set; }
 		public int Size { get; set; }
+		/// <summary>The battle motion set for its model ("b_f" + family), for Npc.BindMotions; MonsterMotion has the ids.</summary>
+		public string MotionSet { get; set; }
 		public Stats Stats { get; set; } = new Stats();
 		/// <summary>Whether the bestiary files it as special (a boss).</summary>
 		public bool Special { get; set; }

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Goblin Survivors: a real-time roguelite on the field out of the game's own monsters,
+       spells, motions, items, shops and formulas. Build it into the client's mods folder:
+
+         dotnet build Samples/Survivors -o "<client>/mods/survivors"
+
+       (mod.json is copied along.) Rebuild while the client runs and it hot-reloads. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Survivors</AssemblyName>
+    <RootNamespace>Survivors</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <DebugType>portable</DebugType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Private=false: the engine assembly is the client's; it is never copied into a mod. -->
+    <ProjectReference Include="..\..\OpenFF.Engine\OpenFF.Engine.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="DropEngineCopies" AfterTargets="Build">
+    <ItemGroup>
+      <EngineCopies Include="$(OutDir)OpenFF.Engine.*" />
+    </ItemGroup>
+    <Delete Files="@(EngineCopies)" />
+  </Target>
+
+</Project>

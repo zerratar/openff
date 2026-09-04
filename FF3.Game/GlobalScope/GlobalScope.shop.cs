@@ -342,6 +342,9 @@ internal static partial class GlobalScope
 
             private uint m_ShopIndex;
 
+            /// <summary>PORT: a shop table (three letters, e.g. "t01") to use instead of the map's own; null for the map's.</summary>
+            public static string OverrideTable;
+
             private SHOP_KIND m_Kind;
 
             private CShopParameterManager m_ShopParameterMng = new CShopParameterManager();
@@ -377,6 +380,11 @@ internal static partial class GlobalScope
                 changeGlobalDirectory();
                 strncpy(out var arg, wld.CWorldOutSideData.getInstance().MapData().getNowShopMapName(), 3);
                 sprintf(out arg, "%s.shp", arg);
+                // PORT: the engine API opens a shop from any map; it names the table itself.
+                if (OverrideTable != null)
+                {
+                    sprintf(out arg, "%s.shp", OverrideTable);
+                }
                 if (ds.g_File.getSize(arg) == 0)
                 {
                     sprintf(out arg, "%s.shp", "t01");
