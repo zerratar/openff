@@ -142,11 +142,16 @@ function makeMapScene(canvas, status) {
   const attribute = {
     position: gl.getAttribLocation(program, 'position'),
     coord: gl.getAttribLocation(program, 'coord'),
-    colour: gl.getAttribLocation(program, 'colour')
+    colour: gl.getAttribLocation(program, 'colour'),
+    mindex: gl.getAttribLocation(program, 'mindex')
   };
   const uniform = {
     camera: gl.getUniformLocation(program, 'camera'),
-    model: gl.getUniformLocation(program, 'model'),
+    // The shader is the viewer's, which skins each vertex through palette[mindex]. The
+    // scene poses nothing: mindex is pinned to 0 in draw(), and palette[0] - the location
+    // named 'palette' - is the instance matrix. (A uniform named 'model' no longer exists;
+    // WebGL ignores a null location silently, and every mesh collapsed to the origin.)
+    model: gl.getUniformLocation(program, 'palette'),
     picture: gl.getUniformLocation(program, 'picture'),
     textured: gl.getUniformLocation(program, 'textured'),
     tint: gl.getUniformLocation(program, 'tint'),
@@ -314,6 +319,10 @@ function makeMapScene(canvas, status) {
 
     gl.useProgram(program);
     gl.uniformMatrix4fv(uniform.camera, false, cameraMatrix());
+    if (attribute.mindex >= 0) {
+      gl.disableVertexAttribArray(attribute.mindex);
+      gl.vertexAttrib1f(attribute.mindex, 0);
+    }
 
     const terrain = scene.terrain && loaded.get(scene.terrain);
     if (terrain) drawBundle(terrain, IDENTITY, null);
