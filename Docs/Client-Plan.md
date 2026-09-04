@@ -150,10 +150,19 @@ own script running through the shared command table. The pieces:
   FF3's 78 types take the first type's radii. The FF4 start map is Baron town
   (`t01_00`), whose world exit lands beside the castle; motions are renumbered so idle,
   walk and run play as such (`GameProfile.FieldMotionId`).
-  Open: where the town's world exit lands (`-596,0,-150`, chip `f00_46`) is mountains at
-  the map's edge, and the castle object the field's cast list places at `(-280,0,0)` is
-  not on castle-shaped ground - the world-map coordinate frame FF4's exits and casts use
-  is offset from where the FF3 loader places chips. To be measured, not guessed.
+  Measured (2026-09-04): FF4 places the field's chips with z negated relative to FF3's
+  layout - 31 of the 33 scripted world-map arrivals land on ground with the mirror and
+  none on walls or sea, against 19 in the sea without it, and Crystal's chip-grid view
+  (E-15) shows the exits on coasts and plains with "mirror z" on and in the sea with it
+  off. `Compat/FieldMirror.cs` applies it in the client (chip position, chip scale,
+  the stage world matrix collision goes through, spot lookups, world edges, cull face
+  for a mirroring matrix); `stg` also promotes FF4's f00 (stage type 0) to FIELD01 so
+  chip streaming and collision run at all. `--fieldmirror=off|force`.
+  Open: the mirrored chips still draw wrong in the client - relief flattened into the
+  ground - while the same mirror draws right in Crystal (which ignores the models' node
+  matrices). The DS-side matrices check out; next is comparing per-node transformed
+  bounds against Crystal's, since FF4 chip models carry many nodes with large
+  translations that FF3's chips do not.
 - `Compat/MovementDefaults.cs` - the two movement tuning tables the FF3 logic reads at
   start-up (`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`), which
   FF4 compiled into its executable, are OpenFF's own tuning synthesised in code and served
