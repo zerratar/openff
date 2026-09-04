@@ -206,6 +206,39 @@ function makeMapScene(canvas, status) {
   let pitch = 0.9;
   let distance = 400;
   let centre = [0, 0, 0];
+  // A field's chips mirrored along z (FF4's layout of FF3's grid); the toolbar toggles it.
+  let mirrorZ = false;
+
+  /// Where a chip sits: FF3's placement, or the same grid with z negated and each chip
+  /// mirrored about its own centre. A mirror reverses winding, which does not matter
+  /// here because the scene draws both faces.
+  function chipMatrix(chip) {
+    const sz = mirrorZ ? -1 : 1;
+    return new Float32Array([
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, sz, 0,
+      chip.x, 0, sz * chip.z, 1
+    ]);
+  }
+
+  /// Frames the whole field, or the one chip an FF3 chip map is about.
+  function frameField() {
+    const field = scene && scene.field;
+    if (!field || !field.chips.length) return false;
+    const focus = field.focus && field.chips.find(c => c.package.endsWith('/' + field.focus + '.flsc.lz'));
+    if (focus) {
+      centre = [focus.x, 0, (mirrorZ ? -1 : 1) * focus.z];
+      distance = Math.max(field.sizeX, field.sizeZ) * 2.2;
+      return true;
+    }
+    const xs = field.chips.map(c => c.x), zs = field.chips.map(c => c.z);
+    centre = [(Math.min(...xs) + Math.max(...xs)) / 2, 0,
+              (mirrorZ ? -1 : 1) * (Math.min(...zs) + Math.max(...zs)) / 2];
+    distance = Math.max(Math.max(...xs) - Math.min(...xs) + field.sizeX,
+                        Math.max(...zs) - Math.min(...zs) + field.sizeZ) * 1.1;
+    return true;
+  }
 
   function resize() {
     const scale = window.devicePixelRatio || 1;
@@ -326,6 +359,12 @@ function makeMapScene(canvas, status) {
 
     const terrain = scene.terrain && loaded.get(scene.terrain);
     if (terrain) drawBundle(terrain, IDENTITY, null);
+    if (scene.field) {
+      for (const chip of scene.field.chips) {
+        const entry = loaded.get(chip.package);
+        if (entry) drawBundle(entry, chipMatrix(chip), null);
+      }
+    }
 
     for (const item of instances) {
       const entry = loaded.get(item.package);
@@ -761,6 +800,8 @@ function makeMapScene(canvas, status) {
         distance = Math.max(120, Math.max(
           Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) * 1.6);
       }
+      mirrorZ = !!(data.field && data.field.mirrorZ);
+      if (frameField()) draw();
       draw();
 
       await ensure(data.terrain);
@@ -770,6 +811,15 @@ function makeMapScene(canvas, status) {
         distance = Math.max(80, terrain.radius * 2.6);
       }
       draw();
+
+      // A field is a few hundred chips; fetch them a handful at a time, drawing as
+      // they land, rather than all at once or one after another.
+      if (data.field) {
+        const queue = data.field.chips.map(c => c.package);
+        const worker = async () => { while (queue.length) await ensure(queue.shift()); };
+        await Promise.all(Array.from({ length: 6 }, worker));
+        draw();
+      }
 
       // One fetch per distinct model, not per instance - a town of twenty villagers
       // usually wears three or four models between them.
@@ -1060,8 +1110,14 @@ function makeMapScene(canvas, status) {
         centre = terrain.centre.slice();
         distance = Math.max(80, terrain.radius * 2.6);
       }
+      frameField();
       draw();
     },
+
+    /// Flips a field between FF3's chip layout and the same grid mirrored along z.
+    setMirrorZ(on) { mirrorZ = !!on; frameField(); draw(); },
+    get mirrorZ() { return mirrorZ; },
+    get isField() { return !!(scene && scene.field); },
 
     redraw: draw
   };

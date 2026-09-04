@@ -13,6 +13,7 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace FF3.ContentTool.Editor
 {
@@ -116,9 +117,58 @@ namespace FF3.ContentTool.Editor
 		}
 
 		/// <summary>One model, flattened into something a browser can draw.</summary>
+		/// <summary>
+		/// The packages a model's textures may live in: the package itself, the .ntxp
+		/// beside a .nmdp, and for a field chip (fNN_XY.flsc) the field's one sheet -
+		/// fNN.ntxp in FF3, fNN_.ntxp in FF4 - which every chip of that field shares.
+		/// </summary>
+		private static IEnumerable<string> TextureSources(Workspace workspace, string name)
+		{
+			yield return name;
+			if (name.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase))
+			{
+				yield return name.Substring(0, name.Length - 8) + ".ntxp.lz";
+			}
+			Match chip = FieldChip.Match(name);
+			if (chip.Success)
+			{
+				string field = chip.Groups[1].Value;
+				yield return "files/" + field + ".ntxp.lz";
+				yield return "files/" + field + ".ntxp";
+				yield return "files/" + field + "_.ntxp.lz";
+				yield return "files/" + field + "_.ntxp";
+			}
+		}
+
+		private static readonly Regex FieldChip = new Regex(
+			@"^files/(f\d\d)_[0-9a-fA-F]{2}\.flsc(\.lz)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+		/// <summary>
+		/// A field chip (.flsc) is a pack - a 16-byte header, then (offset, size) pairs -
+		/// whose first chain is the model package, the second its animation and the third
+		/// its collision. Anything that is already a package comes back as it is.
+		/// </summary>
+		public static byte[] Unpack(byte[] data)
+		{
+			if (data == null || data.Length < 24 || (data[0] == 'N' && data[1] == 'M' && data[2] == 'D' && data[3] == 'P'))
+			{
+				return data;
+			}
+			uint offset = BitConverter.ToUInt32(data, 16);
+			uint size = BitConverter.ToUInt32(data, 20);
+			if (offset >= 24 && size >= 16 && offset + size <= (uint)data.Length
+				&& data[offset] == 'N' && data[offset + 1] == 'M' && data[offset + 2] == 'D' && data[offset + 3] == 'P')
+			{
+				byte[] inner = new byte[size];
+				Buffer.BlockCopy(data, (int)offset, inner, 0, (int)size);
+				return inner;
+			}
+			return data;
+		}
+
 		public static ModelBundle Read(Workspace workspace, string name)
 		{
-			byte[] data = Lz.Decompress(workspace.Read(name));
+			byte[] data = Unpack(Lz.Decompress(workspace.Read(name)));
 			if (Mdl0.Find(data) < 0)
 			{
 				return new ModelBundle { Name = name, Problem = "no geometry in this package" };
@@ -517,10 +567,7 @@ namespace FF3.ContentTool.Editor
 			Dictionary<string, int> formats =
 				new Dictionary<string, int>(StringComparer.Ordinal);
 
-			string sibling = name.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase)
-				? name.Substring(0, name.Length - 8) + ".ntxp.lz" : null;
-
-			foreach (string source in new[] { name, sibling })
+			foreach (string source in TextureSources(workspace, name))
 			{
 				if (source == null || !workspace.Exists(source))
 				{
@@ -528,7 +575,7 @@ namespace FF3.ContentTool.Editor
 				}
 				try
 				{
-					byte[] data = Lz.Decompress(workspace.Read(source));
+					byte[] data = Unpack(Lz.Decompress(workspace.Read(source)));
 					if (Tex0.Find(data) < 0)
 					{
 						continue;
@@ -642,10 +689,7 @@ namespace FF3.ContentTool.Editor
 		/// </summary>
 		public static byte[] Texture(Workspace workspace, string name, string texture)
 		{
-			string sibling = name.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase)
-				? name.Substring(0, name.Length - 8) + ".ntxp.lz" : null;
-
-			foreach (string source in new[] { name, sibling })
+			foreach (string source in TextureSources(workspace, name))
 			{
 				if (source == null || !workspace.Exists(source))
 				{
@@ -655,7 +699,7 @@ namespace FF3.ContentTool.Editor
 				byte[] data;
 				try
 				{
-					data = Lz.Decompress(workspace.Read(source));
+					data = Unpack(Lz.Decompress(workspace.Read(source)));
 				}
 				catch (Exception)
 				{

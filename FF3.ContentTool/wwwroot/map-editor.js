@@ -766,6 +766,7 @@ function wireModes(node, doc, scene) {
   const canvas = $('.scene', node);
   const recentre = $('.recentre', node);
   const gizmoBox = $('.gizmo-toggle', node);
+  const mirrorBox = $('.mirror-toggle', node);
   const tools = $('.tools', node);
   const sizeBox = $('.gizmo-size', node);
 
@@ -776,6 +777,7 @@ function wireModes(node, doc, scene) {
     solid.hidden = mode !== '3d';
     recentre.hidden = mode !== '3d';
     gizmoBox.hidden = mode !== '3d';
+    mirrorBox.hidden = mode !== '3d' || !(doc.scene3d && doc.scene3d.isField);
     tools.hidden = mode !== '3d';
     sizeBox.hidden = mode !== '3d';
     $('.zoom', node).hidden = mode !== '2d';
@@ -823,7 +825,11 @@ function wireModes(node, doc, scene) {
       // Exits are tags in the page rather than geometry in the scene: a label stays
       // the same size however far out you are, and reading "to t01_07" beats working
       // it out from a pin.
-      doc.scene3d.onFrame(() => drawSceneTags(node, doc));
+      doc.scene3d.onFrame(() => {
+        drawSceneTags(node, doc);
+        mirrorBox.hidden = doc.mode !== '3d' || !doc.scene3d.isField;
+        $('.mirror', node).checked = doc.scene3d.mirrorZ;
+      });
 
       await doc.scene3d.load(scene, (item, kind) => {
         if (kind === 'exit') {
@@ -848,6 +854,7 @@ function wireModes(node, doc, scene) {
     button.onclick = () => show(button.dataset.mode).catch(e => say(e.message, 'bad'));
   });
   recentre.onclick = () => doc.scene3d && doc.scene3d.reset();
+  $('.mirror', node).onchange = (event) => doc.scene3d && doc.scene3d.setMirrorZ(event.target.checked);
   $('.gizmo', node).onchange = (event) => {
     if (doc.scene3d) doc.scene3d.setGizmo(event.target.checked);
     drawSceneTags(node, doc);
