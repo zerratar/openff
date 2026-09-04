@@ -140,7 +140,7 @@ namespace Survivors
 				o.Owner = Mod;
 				o.Tags.Add("survivors");
 				int hp = _goblin.MaxHp * 6 + Wave * 20;   // two bolts each at first, so some reach the hero
-				Foe foe = new Foe { Arena = this, Npc = npc, Hp = hp, MaxHp = hp, Stats = _goblin.Stats, Speed = 0.35f + Wave * 0.03f, Cooldown = 30 + _random.Next(60) };
+				Foe foe = new Foe { Arena = this, Npc = npc, Hp = hp, MaxHp = hp, Stats = _goblin.Stats, Speed = 0.16f + Wave * 0.015f, Cooldown = 30 + _random.Next(60) };
 				o.AddComponent(foe);
 				_foes.Add(foe);
 				made++;

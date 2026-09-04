@@ -202,6 +202,41 @@ provenance; converters (Steam map to scene, FF3 tables to data assets, casts to 
 that run per asset, re-runnably; and Play, which starts the client with the project as a
 mod - which `--project` already does.
 
+## The API at a glance (2026-09-04, five slices in)
+
+Everything a mod reaches is a static facade on `OpenFF.Game`, each backed by a service the
+host registers (a mod may replace one by registering its own later in the load order):
+
+- `Game.Dialogue` - Say, Ask (Yes/No drawn by the engine), Close, IsOpen, Closed.
+- `Game.Hero` - Position/Yaw, Teleport, Face, LookAt, MoveTo (scripted walk), Freeze,
+  PlayMotion + BindMotions("b_b01") for the battle's motions (HeroMotion ids), MotionDone.
+- `Game.Npcs` - Spawn (a character with talk), SpawnModel (any model: monsters, chests),
+  Existing (the map's own character by index), each an `Npc` handle: move, turn, motions,
+  alpha, hidden, scale, Solid, Interacted, Remove.
+- `Game.Party` - Gil, Items/AddItem/RemoveItem, Members with the whole sheet (Stats,
+  charges, conditions, spells), Hurt/Heal/SetHp/SetCharges/GiveExperience/SetJob/SetStat/
+  LearnSpell/Inflict/Cure, Equip/Unequip/Equipped.
+- `Game.Magic` - the spells as data, Cast/CastOn (effect + sound on the field), Damage/
+  Healing (the game's formulas over Stats), CanCast/Spend, UseInField, Add (a mod's own).
+- `Game.Monsters` - the monsters as data (stats, weakness, model, motion set, gil, exp),
+  encounter groups.
+- `Game.Items` - the five item tables as data (price, slot, jobs, attack, defence...).
+- `Game.Shops` - the game's shop screen (a map trip) and what a shop sells.
+- `Game.Battle` - start the game's battle; BattleEnded. `Game.Field` - Map, Warp,
+  Encounters, GroundHeight/OnGround/Walkable. `Game.Camera` - move, look, follow, shake,
+  zoom, WorldToScreen. `Game.Effects` - the game's effects: spawn, packs, move, scale,
+  follow. `Game.Screen` - fades, Flash, PopNumber/PopMiss. `Game.Audio` - SE and BGM.
+  `Game.Flags` - the game's flags.
+- `Game.Input` - pad, pointer, keys by name, Capture. `Game.Draw` - text, rects, lines,
+  sprites in 800x480 units, drawn over the game each frame.
+- `Game.World` - scenes and GameObjects with Behaviours; `Game.Run` coroutines with
+  `Wait`; `Game.Events` for MapEntered, BattleEnded, FlagChanged, MessageShown and the
+  rest; `Game.Saves` for a mod's chunk in the save; `Game.Services` for a mod's own.
+
+Two samples show it in use: `Samples/HelloMod` (a service, a behaviour, a save chunk, a
+villager who talks, a HUD, a Fire cast, scene files) and `Samples/Survivors` (a real-time
+roguelite: waves, auto-aim with the casting motion, cards, chests, a trader).
+
 ### Order, refined
 
 The object model can arrive before the legacy engine is gone: a scene may contain a
