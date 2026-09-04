@@ -53,8 +53,36 @@ namespace FF3
 				// 1 left edge, 2 bottom-left, 3 top edge, 4 top-right, 5 right edge,
 				// 6 bottom-right, 7 bottom edge.
 				int[] order = { -1, 0, 1, 1, 2, 3, 3, 4, 5, 6, 7 };
+				GlobalScope.NNSG2dCellData[] ff4 = bank.pCellDataArrayHead;
+				// FF3 positions edge pieces by their centre; FF4's OAMs hang from one end.
+				Recentre(ff4, 1, -8, -32);
+				Recentre(ff4, 3, -32, -8);
+				Recentre(ff4, 5, -8, -32);
+				Recentre(ff4, 7, -32, -8);
 				Rebuild(bank, order);
+				// The wallpaper: FF4 fills its windows in code, its sheet has only the lines.
+				// One opaque white texel of the sheet, stretched over the window and tinted by
+				// the window (BasicWindow gives FF4's windows their dark blue), stands in.
+				GlobalScope.NNSG2dCellOAMAttrData fill = new GlobalScope.NNSG2dCellOAMAttrData();
+				fill.set(0, 0, 256, 256, 2, 2, 4, 1, 1);
+				bank.pCellDataArrayHead[0] = new GlobalScope.NNSG2dCellData
+				{
+					numOAMAttrs = 1,
+					cellAttr = 0,
+					pOamAttrArray = new[] { fill }
+				};
 				Report(loadedName, "FF3's window frame order");
+			}
+		}
+
+		private static void Recentre(GlobalScope.NNSG2dCellData[] cells, int index, short x, short y)
+		{
+			if (index < cells.Length && cells[index]?.pOamAttrArray != null && cells[index].pOamAttrArray.Length > 0)
+			{
+				GlobalScope.NNSG2dCellOAMAttrData oam = cells[index].pOamAttrArray[0];
+				short[] a = new short[7];
+				oam.copy(a, 14);
+				oam.place(x, y, a[2], a[3], a[6]);
 			}
 		}
 
