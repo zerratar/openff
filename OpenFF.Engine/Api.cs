@@ -8,8 +8,9 @@
 // Game.Field; a mod can also register its own implementation of any of them, later in
 // the load order, and every other script then talks to that one.
 //
-// Positions are in world units, the map's own (a character stands about one unit tall;
-// the legacy code keeps them in 1/4096ths); yaw is in degrees about the up axis.
+// Positions are in world units, the map's own (the legacy code keeps them in 1/4096ths).
+// For a feel of the scale: two characters standing together are about 8 units apart, and
+// a talk from arm's length happens within 12 or so. Yaw is in degrees about the up axis.
 
 using System;
 using System.Collections.Generic;
@@ -86,9 +87,11 @@ namespace OpenFF
 		public abstract Vector3 Position { get; }
 		public abstract float Yaw { get; }
 		public abstract void Teleport(Vector3 position);
-		/// <summary>Walks to a point over a number of frames (0 teleports).</summary>
+		/// <summary>Walks to a point over a number of frames (0 teleports). The character faces where it walks.</summary>
 		public abstract void MoveTo(Vector3 position, int frames);
 		public abstract bool Moving { get; }
+		/// <summary>Ends a walk where the character stands.</summary>
+		public abstract void Stop();
 		public abstract void Face(float yaw);
 		public abstract void LookAt(Vector3 point);
 		public abstract void SetAi(NpcAi ai);
@@ -100,10 +103,13 @@ namespace OpenFF
 		/// <summary>Takes the character off the map.</summary>
 		public abstract void Remove();
 
-		/// <summary>How close the hero must be, in world units, for A to count as talking to this one.</summary>
-		public float InteractRadius { get; set; } = 3f;
+		/// <summary>How close the hero must be, in world units, for A to count as talking to this one (two characters together stand about 8 apart).</summary>
+		public float InteractRadius { get; set; } = 14f;
 
-		/// <summary>The player pressed A (or tapped) within InteractRadius.</summary>
+		/// <summary>
+		/// The player talked to this character: pressed A within InteractRadius, or did what
+		/// the game itself counts as talking to it (a tap on it, or A while facing it).
+		/// </summary>
 		public event Action<Npc> Interacted;
 
 		protected void RaiseInteracted()

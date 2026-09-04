@@ -93,8 +93,34 @@ namespace FF3
 
 		internal static float YawBetween(Vector3 from, Vector3 to)
 		{
-			// The legacy "posture" is degrees about y; 0 faces +z, the same convention setRotation takes.
 			return (float)(Math.Atan2(to.X - from.X, to.Z - from.Z) * 180.0 / Math.PI);
+		}
+
+		/// <summary>A flat direction for a yaw in degrees (0 along +z, 90 along +x), in fx.</summary>
+		internal static GlobalScope.VecFx32 Direction(float yaw)
+		{
+			double r = yaw * Math.PI / 180.0;
+			GlobalScope.VecFx32 d = new GlobalScope.VecFx32();
+			d.set((int)Math.Round(Math.Sin(r) * 4096), 0, (int)Math.Round(Math.Cos(r) * 4096));
+			return d;
+		}
+
+		/// <summary>
+		/// Turns a character toward a direction the way the game's own talk does: the
+		/// normalised direction, scaled down by 682, handed to the turn system, which
+		/// rotates the model over the next frames. Setting the rotation directly is undone
+		/// by that system, and turned the model about the wrong axis.
+		/// </summary>
+		internal static void TurnToward(GlobalScope.pl.CBasePlayer p, GlobalScope.VecFx32 direction)
+		{
+			if (p == null || direction == null || (direction.x == 0 && direction.z == 0)) return;
+			GlobalScope.VecFx32 d = new GlobalScope.VecFx32();
+			d.set(direction.x, 0, direction.z);
+			GlobalScope.VEC_Normalize(d, d);
+			d.x /= 682;
+			d.y /= 682;
+			d.z /= 682;
+			p.setTargetDirection(d);
 		}
 
 		internal static void Warn(string key, string message)
@@ -193,10 +219,7 @@ namespace FF3
 		{
 			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
 			if (hero == null) return;
-			GlobalScope.VecFx32 rot = hero.getRotation();
-			GlobalScope.VecFx32 r = new GlobalScope.VecFx32();
-			r.set(rot.x, EngineApi.YawToRot(yaw), rot.z);
-			hero.setRotation(r);
+			EngineApi.TurnToward(hero, EngineApi.Direction(yaw));
 		}
 
 		public void Freeze()
@@ -282,10 +305,21 @@ namespace FF3
 			_walkStep = new GlobalScope.VecFx32();
 			_walkStep.set((_walkTarget.x - from.x) / frames, (_walkTarget.y - from.y) / frames, (_walkTarget.z - from.z) / frames);
 			_walkFrames = frames;
-			Face(EngineApi.YawBetween(EngineApi.ToUnits(from), position));
+			EngineApi.TurnToward(p, _walkStep);
 			try
 			{
 				EngineApi.Players.PlayerHuman(Index)?.setAction(GlobalScope.pl.CPlayerHuman.ACTION_ID.ACTION_ID_WALK);
+			}
+			catch (Exception) { }
+		}
+
+		public override void Stop()
+		{
+			if (_walkFrames <= 0) return;
+			_walkFrames = 0;
+			try
+			{
+				EngineApi.Players.PlayerHuman(Index)?.setAction(GlobalScope.pl.CPlayerHuman.ACTION_ID.ACTION_ID_WAIT);
 			}
 			catch (Exception) { }
 		}
@@ -313,6 +347,7 @@ namespace FF3
 			}
 			p.getPrePosition_set(p.getPosition());
 			p.setPosition(next);
+			EngineApi.TurnToward(p, _walkStep);
 			if (_walkFrames == 0)
 			{
 				try
@@ -328,13 +363,19 @@ namespace FF3
 		{
 			GlobalScope.pl.CBasePlayer p = Player;
 			if (p == null) return;
-			GlobalScope.VecFx32 rot = p.getRotation();
-			GlobalScope.VecFx32 r = new GlobalScope.VecFx32();
-			r.set(rot.x, EngineApi.YawToRot(yaw), rot.z);
-			p.setRotation(r);
+			EngineApi.TurnToward(p, EngineApi.Direction(yaw));
 		}
 
-		public override void LookAt(Vector3 point) => Face(EngineApi.YawBetween(Position, point));
+		public override void LookAt(Vector3 point)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null) return;
+			GlobalScope.VecFx32 to = EngineApi.ToFx(point);
+			GlobalScope.VecFx32 from = p.getPosition();
+			GlobalScope.VecFx32 d = new GlobalScope.VecFx32();
+			d.set(to.x - from.x, 0, to.z - from.z);
+			EngineApi.TurnToward(p, d);
+		}
 
 		public override void SetAi(NpcAi ai)
 		{
@@ -376,6 +417,8 @@ namespace FF3
 		}
 
 		internal void Interact() => RaiseInteracted();
+
+		internal bool IsPlayer(GlobalScope.chr.CCharacterEureka character) => character != null && ReferenceEquals(character, Player);
 	}
 
 	internal sealed class LegacyNpcs : GameService, INpcs
@@ -443,7 +486,13 @@ namespace FF3
 			}
 		}
 
-		/// <summary>A press of A (the pad's first bit) near a spawned character talks to it; dead handles are dropped.</summary>
+		private LegacyNpc _legacyTalkTarget;
+
+		/// <summary>
+		/// Talking, two ways: the game's own talk action aimed at a spawned character (a tap
+		/// on it, or A while facing it) fires once per talk; and a press of A within reach
+		/// fires for the nearest character that listens. Dead handles are dropped.
+		/// </summary>
 		internal void Tick()
 		{
 			foreach (LegacyNpc npc in _spawned)
@@ -452,12 +501,39 @@ namespace FF3
 			}
 			_spawned.RemoveAll(n => !n.Alive && n.Map != GlobalScope.stg.CStageMng.CurrentName);
 			if (_spawned.Count == 0 || !EngineApi.InWorld) return;
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			if (hero == null) return;
+
+			// The game's talk: the hero's target is one of ours and the hero is in its TALK action (4).
+			LegacyNpc talking = null;
+			try
+			{
+				if (hero.getNowAct() == 4)
+				{
+					GlobalScope.chr.CCharacterEureka target = hero.getTarget();
+					talking = _spawned.FirstOrDefault(n => n.IsPlayer(target));
+				}
+			}
+			catch (Exception) { }
+			if (talking != _legacyTalkTarget)
+			{
+				_legacyTalkTarget = talking;
+				if (talking != null)
+				{
+					// The game has the character's attention now: a walk in progress ends here.
+					talking.Stop();
+					if (talking.HasInteractHandler && !EngineApi.Dialogue.IsOpen)
+					{
+						talking.Interact();
+						return;
+					}
+				}
+			}
+
 			bool pressed;
 			try { pressed = (GlobalScope.ds.g_Pad.edge() & 1) != 0; }
 			catch (Exception) { return; }
-			if (!pressed || EngineApi.Dialogue.IsOpen || EngineApi.Dialogue.ClosedFrame == OpenFF.Game.Time.Frame) return;
-			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
-			if (hero == null) return;
+			if (!pressed || talking != null || EngineApi.Dialogue.IsOpen || EngineApi.Dialogue.ClosedFrame == OpenFF.Game.Time.Frame) return;
 			Vector3 at = EngineApi.ToUnits(hero.getPosition());
 			LegacyNpc nearest = null;
 			float best = float.MaxValue;
