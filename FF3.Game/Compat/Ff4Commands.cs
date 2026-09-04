@@ -18,7 +18,14 @@ namespace FF3
 		{
 			{ 358, OpenCharacterNameWindow },   // (nameTextId, x, y)
 			{ 359, CloseCharacterNameWindow },  // (x, y)
+			{ 87, ChangeCameraMode },           // () - FF3's takes the mode; FF4's means "back to following"
 		};
+
+		/// <summary>changeCamera_Mode(): the field camera follows the party again.</summary>
+		private static void ChangeCameraMode(GlobalScope.ScriptEngine engine)
+		{
+			GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera()?.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_AUTOFOLLOW_DEFAULT);
+		}
 
 		private static GlobalScope.wld.CMessageWindow Window =>
 			GlobalScope.CCastCommandTransit.getInstance().cast_Field2D()?.MessageWindow();

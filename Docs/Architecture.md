@@ -76,11 +76,13 @@ correctly and is due for removal.
 editor uses: override directories first (an editor project's edits via `--project`, mod
 folders via `--mod`, the legacy `Content/Override`), then the shipped content in
 whatever shape it came - our archives, a Steam FF3 install's loose `files/`, a Steam FF4
-install's files plus `SSAM` mass files - then fallbacks for what the first lacks. So
-`--content=<Steam FF3 install>` boots the game people bought, with our archives filling
-the 44 files the Steam build does not ship (about screen, link icons). The formats -
-archive, LZ, mass files, the sources - live once in `Shared/`, compiled into both the
-game and the editor. `Docs/Client-Plan.md` is where this goes next.
+install's files plus `SSAM` mass files - then the rest of `--content`'s list, and last
+`Data/defaults/` with the few tables OpenFF authors itself. Nothing is added on its own:
+`--content=<Steam FF3 install>` boots the game people bought from that install alone
+(what Steam does not ship, the 2D loaders treat as empty; what Steam laid out for its
+own screens, `Data/ff3-steam-cells.json` re-places). The formats - archive, LZ, mass
+files, the sources, the script command tables - live once in `Shared/`, compiled into
+both the game and the editor. `Docs/Client-Plan.md` is where this goes next.
 
 Names in the table are path qualified - `en.lproj/ca_text_01.NCGR`, `files/*.script`
 - and the localised copies share base names, so that structure has to be preserved
@@ -94,6 +96,27 @@ Lookups are held inside the override directory, because the names come from game
 data rather than from us.
 
 Saves go to `%APPDATA%\FF3` via `Compat/SaveFiles.cs`.
+
+## Two games
+
+The game logic is FF3's, decompiled. FF4 shares the engine and the formats, not the
+facts, so the client keeps one seam for everything the logic has to know about the game
+in front of it - `Compat/GameProfile.cs`, derived from the shape of the content - and a
+handful of adapters behind it, all game-agnostic in their guards:
+
+| Piece | What it does |
+| --- | --- |
+| `GameProfile` | no jobs or growth tables, UTF-16 text, no FF3 map-parameter chains, the leader's model, FF4's field motion-set names, the start map |
+| `JumpPart` | the game part in the debug-menu slot the world code checks for; `--map`, `--pos`, `--rot` land any map in either game |
+| `ScriptCommands` | dispatches the content's command table: FF3's handler where FF4 has the same command (by number, by alias, or with extra trailing operands stepped past), `Ff4Commands` where FF4 has one of its own, and an operand-exact skip, logged once, for the rest |
+| `Ff4Exits` | FF4 declares exits in its scripts; decoded with the shared table, checked against the leader, jumped through the engine's own map jump |
+| `Ff4Assets` / `Ff4Text` | FF4's names and cell layouts for the 2D assets FF3 asks for by FF3's names; FF4's UTF-16 text rewritten into the layout the message code walks |
+| `GxCommands` | display-list commands FF4 puts between vertex runs, stepped past by parameter count; FF4's 16.16 texcoord |
+| `MissingFiles`, `FrameProbe`, `DevSay` | the log of FF3-named files the install lacks; `--probe`'s per-frame heartbeat and tap log; `--say` to open a line |
+
+The rule for a new FF4 gap: find what the FF3 logic asks for (`missing:` or `not
+implemented` in the log), find where FF4 keeps the same thing, and add the mapping in
+one of these - never a copy of Square's file.
 
 ## Menus
 
@@ -111,7 +134,7 @@ scripts, and readable as JSON. `Docs/Text.md`.
 ## Events
 
 Everything that happens on a map is bytecode. `ScriptEngine` runs a 298 opcode
-instruction set cooperatively - `wait` and the message commands suspend a script and
+instruction set (FF4's has 500; `Shared/Script` holds both tables) cooperatively - `wait` and the message commands suspend a script and
 resume it frames later - and each map's `.script` holds one program per actor. Quest
 state lives in a global flag space that scripts set and branch on.
 
