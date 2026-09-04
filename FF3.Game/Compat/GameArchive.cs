@@ -60,14 +60,10 @@ namespace FF3
 				{
 					_chain.AddFallback(fallback);
 				}
-				// Last of all, what OpenFF ships itself: Data/defaults/files holds the few
-				// tables the FF3 logic needs that another game's install does not carry
-				// (see the README there). Nothing in it is art, and the install always wins.
-				string defaults = Path.Combine(AppContext.BaseDirectory, "Data", "defaults");
-				if (Directory.Exists(Path.Combine(defaults, "files")))
-				{
-					_chain.AddFallback(defaults);
-				}
+				// Last of all, what the program makes itself: the two movement tuning tables
+				// the FF3 logic reads at start-up, which FF4 compiled into its executable.
+				// The install always wins; nothing of either game's is shipped for this.
+				MovementDefaults.Register(_chain);
 			}
 			catch (Exception ex)
 			{

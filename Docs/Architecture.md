@@ -77,7 +77,7 @@ editor uses: override directories first (an editor project's edits via `--projec
 folders via `--mod`, the legacy `Content/Override`), then the shipped content in
 whatever shape it came - our archives, a Steam FF3 install's loose `files/`, a Steam FF4
 install's files plus `SSAM` mass files - then the rest of `--content`'s list, and last
-`Data/defaults/` with the few tables OpenFF authors itself. Nothing is added on its own:
+the few tables the program synthesises itself (`MovementDefaults`, in memory). Nothing is added on its own:
 `--content=<Steam FF3 install>` boots the game people bought from that install alone
 (what Steam does not ship, the 2D loaders treat as empty; what Steam laid out for its
 own screens, `Data/ff3-steam-cells.json` re-places). The formats - archive, LZ, mass

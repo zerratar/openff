@@ -154,9 +154,11 @@ own script running through the shared command table. The pieces:
   the map's edge, and the castle object the field's cast list places at `(-280,0,0)` is
   not on castle-shaped ground - the world-map coordinate frame FF4's exits and casts use
   is offset from where the FF3 loader places chips. To be measured, not guessed.
-- `Data/defaults/files/` - the two movement tuning tables FF4 compiled into its engine
-  (`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`), as the last content
-  root; see the README there.
+- `Compat/MovementDefaults.cs` - the two movement tuning tables the FF3 logic reads at
+  start-up (`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`), which
+  FF4 compiled into its executable, are OpenFF's own tuning synthesised in code and served
+  from memory as the last content source (`Shared/Content/MemoryContentSource.cs`). A
+  player who owns only FF4 needs nothing else; a mod shipping either file replaces them.
 - Guards, all game-agnostic: empty tables clamp instead of throwing (map parameters,
   secret ways, smith list, jump table), missing sounds do not dereference, a loose LZ file
   answers to its plain name and a container entry to its `.lz` name, matrix stacks start
@@ -195,6 +197,25 @@ Once both games run from the same code: higher-resolution textures by name (a mo
 a 4x PNG next to the model), TrueType at any size, widescreen UI layouts, more casts per
 map, longer scripts, new opcodes exposed to the script language, and a mod manifest the
 editor's Export already writes. Each is small once A-D exist; none is possible before.
+
+## Direction set by Karl (2026-09-04)
+
+- **Nothing of one game's is needed to play the other.** A player who owns only FF4 plays
+  FF4. Where the FF3 logic reads a table FF4 compiled into its executable, the client
+  synthesises the table (`MovementDefaults`); it never ships FF3's file.
+- **Mixed content is coming.** FF3 and FF4 assets are two *versions* of the same kinds of
+  thing. The asset pipeline should take either as input and produce one unified internal
+  object per kind - model, motion, map, cell bank, text, table - that the engine consumes,
+  so a custom OpenFF mod can draw on both games (with whatever limits the two data sets
+  impose). The format readers already live once in `Shared/`; the unified object types are
+  the next layer, ours to design. Nothing in the client should assume a single game's
+  layout below the `GameProfile` seam.
+- **Before the public repository, the code stops looking like the decompilation.** The
+  Android-shaped names (`MainActivity`, `android.*` namespaces, `syrcusW`, the JNI entry
+  points) get renamed and the frame reorganised, behind regression runs of the FF3 path -
+  the one that is nearly fully playable and must not break.
+- Seen in an FF3 new-game cutscene: one treasure chest drawn with geometry missing while
+  characters, monsters and the rest of the environment were fine. Screenshot to follow.
 
 ## Working rules
 

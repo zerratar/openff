@@ -99,6 +99,15 @@ namespace FF3.Content
 		}
 
 		/// <summary>Adds content to ask when the shipped source has no such name.</summary>
+		/// <summary>A source the program made itself (MemoryContentSource), last in line.</summary>
+		public void AddFallback(IContentSource source)
+		{
+			if (source != null)
+			{
+				_fallbacks.Add(source);
+			}
+		}
+
 		public void AddFallback(string root)
 		{
 			IContentSource source = OpenSource(Path.GetFullPath(root));
