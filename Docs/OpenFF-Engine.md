@@ -52,9 +52,11 @@ front-ends - FF3's dialect, FF4's dialect, C# - not FF3's code stretched over FF
 - **State is data.** No engine module keeps game state inside rendering or input code.
 - **The FF3 path is the oracle.** Every layer is introduced behind it, verified against it
   (`Docs/Testing.md`), before the old path is removed.
-- **C# mods are code.** Before release, decide the trust model: signed, from known sources,
-  or sandboxed. Compiled assemblies (Crystal driving `dotnet build`) come first; runtime
-  scripting and hot reload later.
+- **C# mods are code, and that is the player's and the modder's business** (Karl, 2026-09-04):
+  as with Skyrim's and Fallout's native plugins, OpenFF loads compiled mod assemblies
+  directly, with no signing or sandbox; whether a modder publishes source is up to them.
+  Compiled assemblies (Crystal driving `dotnet build`) come first; runtime scripting and
+  hot reload later.
 - **Rename before publishing.** The decompilation's Android-shaped names go when the frame
   is reorganised for the engine core, not before there is something to rename into.
 
