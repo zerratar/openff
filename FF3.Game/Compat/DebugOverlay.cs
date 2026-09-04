@@ -417,7 +417,7 @@ namespace FF3
 		/// <summary>The keys and what each currently does, always shown while the overlay is up.</summary>
 		private void AppendLegend()
 		{
-			_text.Append("F1 debug overlay [on]   F2 boxes ").Append(State(Layer.Boxes))
+			_text.Append("F2 boxes ").Append(State(Layer.Boxes))
 				.Append("   F3 labels ").Append(State(Layer.Labels))
 				.Append("   F4 sprites ").Append(State(Layer.Sprites))
 				.Append("   F5 world ").Append(State(Layer.World))
