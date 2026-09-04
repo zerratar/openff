@@ -125,11 +125,17 @@ internal static partial class GlobalScope
 
 			public bool _id(string _id)
 			{
-				if (strcmp(id_, _id) == 0)
-				{
-					return true;
-				}
-				return false;
+				return IdEquals(id_, _id);
+			}
+
+			/// <summary>
+			/// PORT: frame ids compare without regard to case. Steam's MenuDefine names the
+			/// quicksave dialog's answers YES and NO where the phone's (and the code that
+			/// listens for them) say yes and no; no menu has two ids that differ only in case.
+			/// </summary>
+			public static bool IdEquals(string a, string b)
+			{
+				return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 			}
 
 			public void setPosX(short posX)
@@ -159,7 +165,7 @@ internal static partial class GlobalScope
 			{
 				for (Medget medget = childNode(); medget != null; medget = medget.nextSibling())
 				{
-					if (strcmp(medget._id(), _id) == 0)
+					if (IdEquals(medget._id(), _id))
 					{
 						return medget;
 					}
@@ -172,7 +178,7 @@ internal static partial class GlobalScope
 				Medget medget = null;
 				for (Medget medget2 = childNode(); medget2 != null; medget2 = medget2.nextSibling())
 				{
-					if (strcmp(medget2._id(), _id) == 0)
+					if (IdEquals(medget2._id(), _id))
 					{
 						return medget2;
 					}
