@@ -211,5 +211,8 @@ are introduced around it. So step 4 above grows to: the mods folder (done); the 
 core - objects, components, services, events, save chunks - hosting the legacy game as a
 component (done 2026-09-04: `OpenFF.Engine`, hosted by `Compat/EngineHost.cs`; the legacy
 game is the World's "legacy" scene); C# mod loading with hot reload (done, `Samples/HelloMod`);
-then behaviours gain the engine API verbs as step 3 delivers them; then the scene format
-and Crystal's editing of it (step 5), with the first converters.
+the in-game mod list (done); then behaviours gain the engine API verbs as step 3 delivers
+them (first slice done 2026-09-04: dialogue, hero, NPC spawn/move/talk, flags, party, audio,
+fades, warp - `OpenFF.Engine/Api.cs`); then the scene format and Crystal's editing of it
+(step 5), with the first converters. Also wanted (Karl): Crystal generating a mod's csproj
+and letting the C# be edited and built in Visual Studio or any editor, not only ours.

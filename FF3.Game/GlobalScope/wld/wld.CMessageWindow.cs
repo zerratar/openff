@@ -73,6 +73,12 @@ internal static partial class GlobalScope
 									return m_MesWindow.mwSetWindow(static_cast<menu.MessageWindow.MESSAGE_WINDOW_POSITION>(_Pos));
 								}
 
+								/// <summary>PORT: a text that is in no message file, for the engine API.</summary>
+								public void createText(string text, int _Display)
+								{
+									m_MesWindow.mwSetMessageText(m_MessagePosition, text, _Display);
+								}
+
 								public void createMessage(int _MesNum, int _Who, int _Display)
 								{
 									if (_MesNum != -1)

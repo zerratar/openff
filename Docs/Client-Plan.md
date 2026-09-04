@@ -222,6 +222,32 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## The engine API, first slice (2026-09-04)
+
+`OpenFF.Engine/Api.cs` declares what a script may do, as interfaces a service implements;
+`FF3.Game/Compat/EngineApi.cs` implements them on the legacy game by calling what the
+FF3 script command handlers call, and registers them before any mod loads. Reached as
+`Game.Dialogue` (Say a text in the field's message window, with the tap-to-continue mark;
+IsOpen; Closed), `Game.Hero` (Position, Yaw, Model, Teleport, Face, Freeze/Unfreeze),
+`Game.Npcs` (Spawn a character model on the map: Position, Teleport, MoveTo over frames,
+Face, LookAt, SetAi, Solid, Remove, and an Interacted event when the player presses A
+within InteractRadius), `Game.Flags` (the scripts' flag space), `Game.Party` (Gil, AddItem,
+ItemCount), `Game.Audio` (PlaySe, PlayBgm, StopBgm), `Game.Screen` (FadeOut/FadeIn) and
+`Game.Field` (Map, Warp). A mod registering its own implementation later in the load order
+replaces one for everybody. Positions are world units (the legacy 1/4096ths hidden), yaw
+in degrees.
+
+Two things learnt on the legacy side: a character with no script cast behind it does not
+walk through MoveCharaImp (its acceleration is reset the frame after), so `MoveTo` steps
+the position itself and lets the WALK action play the motion; and a spawned character's
+character-collision (SetCharacter_CharaCollision, flag 4) shoves the hero frame after
+frame when it stands close, so spawned characters are non-solid unless asked. A text in
+the message window that is in no message file goes through `MessageWindow.mwSetMessageText`
+and `CMessageWindow.createText`. `Samples/HelloMod` exercises all of it (Testing C-22).
+
+Next: the rest of the vocabulary as it is needed - camera, effects, motions, party members,
+battle - and the events the legacy dialects raise as they run.
+
 ## The engine core (2026-09-04)
 
 `OpenFF.Engine` is its own project and assembly - the API mods reference, free of

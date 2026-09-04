@@ -322,6 +322,48 @@ internal static partial class GlobalScope
 				return true;
 			}
 
+			/// <summary>PORT: the same as mwSetMessage, for a text that is not in any message file (the engine API's Say).</summary>
+			public bool mwSetMessageText(ds.Vector2<short> message_pos, string text, int display)
+			{
+				m_Display = display;
+				if (text == null)
+				{
+					return false;
+				}
+				if (m_MessageId != -1)
+				{
+					mm[display].releaseMessage(m_MessageId);
+				}
+				m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize);
+				if (m_MessageId < 0)
+				{
+					return false;
+				}
+				mm[display].Message(m_MessageId).setMessageColor(m_MessageColor);
+				dgs.DGSMessage dGSMessage = mm[display].Message(m_MessageId);
+				ds.Vector2<short> vector = new ds.Vector2<short>(message_pos);
+				ds.Vector2<short> vector2 = new ds.Vector2<short>();
+				dGSMessage.setVSpace(mwMESSAGE_V_SPACE);
+				if (m_MessageStyle == MESSAGE_STYLE.MESSAGE_STYLE_CENTER)
+				{
+					dGSMessage.getCompleteTextSize(vector2);
+					vector.vx = (short)(ds.DS_SCREEN_WIDTH_HALF - (vector2.vx >> 1));
+				}
+				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
+				dGSMessage.setDisplaySpeed(mwDEFAULT_DISPLAY_SPEED);
+				dGSMessage.setShadow(m_MessageShadow);
+				if (m_MessageAlign != 0)
+				{
+					dGSMessage.setStyle(m_MessageAlign);
+					m_MessageAlign = 0u;
+				}
+				mwResetMessageWait_();
+				m_MessageNo = -2;
+				m_StartCount = 0u;
+				m_EndCount = 0u;
+				return true;
+			}
+
 			public bool mwSetNameMessage(ds.Vector2<short> name_message_pos, int who)
 			{
 				if (who < 0)

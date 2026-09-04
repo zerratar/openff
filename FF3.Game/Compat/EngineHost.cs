@@ -38,6 +38,8 @@ namespace FF3
 			OpenFF.Game.Log = message => Log.Write(LogChannel.General, "engine: " + message);
 			OpenFF.Game.Warn = message => Log.Write(LogChannel.General, "engine: WARNING " + message);
 			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", "mods.json");
+			// The API on the legacy game, before any mod so a mod's OnGameStart can reach it.
+			EngineApi.Register();
 
 			int withCode = 0;
 			if (CodeEnabled)
@@ -119,6 +121,7 @@ namespace FF3
 			try
 			{
 				WatchLegacy();
+				EngineApi.Tick();
 				ModWatcher.Drain();
 				DateTime now = DateTime.Now;
 				double delta = Math.Min(0.25, (now - _lastTick).TotalSeconds);

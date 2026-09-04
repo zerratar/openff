@@ -12,7 +12,7 @@ using System.Collections.Generic;
 
 namespace OpenFF
 {
-	public static class Game
+	public static partial class Game
 	{
 		/// <summary>The engine API version mods compile against.</summary>
 		public static readonly Version ApiVersion = typeof(Game).Assembly.GetName().Version;
