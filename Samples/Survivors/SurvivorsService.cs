@@ -28,12 +28,12 @@ namespace Survivors
 	{
 		public override bool WantsUpdate => true;
 
-		public enum Phase { Idle, Fighting, Cards, Between, Over }
+		public enum Phase { Idle, Fighting, Cards, Between, Shop, Over }
 
 		// Public: handed over across a hot reload.
 		public Phase State = Phase.Idle;
 		public int Wave, Kills, Level = 1, Xp, XpNext = 30;
-		public int AttackEvery = 75;      // frames between the hero's bolts
+		public int AttackEvery = 60;      // frames between the hero's bolts
 		public int Power = 100;           // percent of the formula's damage
 		public float Range = 40f;
 		public int Bolts = 1;             // targets per volley
@@ -51,7 +51,6 @@ namespace Survivors
 		private string _banner;
 		private int _bannerFrames;
 		private Npc _shopkeeper;
-		private bool _shopWasOpen;
 		private string _boundOn;
 		private IDisposable _mapLeaving;
 		private Card[] _hand;
@@ -81,7 +80,9 @@ namespace Survivors
 					ChooseCard();
 					break;
 				case Phase.Between:
-					Between();
+					break;
+				case Phase.Shop:
+					ShopInput();
 					break;
 			}
 			TickChests();
@@ -102,7 +103,7 @@ namespace Survivors
 			SpellId = _spell.Id;
 			_model = _goblin.Model;
 			Wave = 0; Kills = 0; Level = 1; Xp = 0; XpNext = 30;
-			AttackEvery = 75; Power = 100; Range = 40f; Bolts = 1; RegenEvery = 0; GreedPercent = 100;
+			AttackEvery = 60; Power = 100; Range = 40f; Bolts = 1; RegenEvery = 0; GreedPercent = 100;
 			Game.Field.Encounters = false;
 			BindHero();
 			State = Phase.Fighting;
@@ -121,7 +122,7 @@ namespace Survivors
 		private void NextWave()
 		{
 			Wave++;
-			int count = 2 + Wave * 2;
+			int count = 1 + Wave * 2;
 			Vector3 hero = Game.Hero.Position;
 			int made = 0;
 			for (int i = 0; i < count; i++)
@@ -138,7 +139,7 @@ namespace Survivors
 				GameObject o = Game.World.Legacy.Add("goblin " + Wave + "-" + i);
 				o.Owner = Mod;
 				o.Tags.Add("survivors");
-				int hp = _goblin.MaxHp * 2 + Wave * 12;
+				int hp = _goblin.MaxHp * 6 + Wave * 20;   // two bolts each at first, so some reach the hero
 				Foe foe = new Foe { Arena = this, Npc = npc, Hp = hp, MaxHp = hp, Stats = _goblin.Stats, Speed = 0.35f + Wave * 0.03f, Cooldown = 30 + _random.Next(60) };
 				o.AddComponent(foe);
 				_foes.Add(foe);
@@ -188,12 +189,15 @@ namespace Survivors
 			{
 				_attackIn = AttackEvery;
 				Volley(hero);
+				// A kill may have dealt cards: the wave's end waits until they are chosen.
+				if (State != Phase.Fighting) return;
 			}
 			if (_foes.All(f => !f.IsAlive))
 			{
 				_foes.RemoveAll(f => f.Gone);
 				State = Phase.Between;
 				Banner("Wave " + Wave + " cleared - a trader is here", 120);
+				Game.Log("survivors: wave " + Wave + " cleared");
 				SpawnShopkeeper();
 			}
 		}
@@ -224,7 +228,7 @@ namespace Survivors
 			Game.Party.Gil += gil;
 			bool levelled = Game.Party.GiveExperience(hero.Id, _goblin.Experience);
 			if (levelled) Banner(hero.Name + " reached level " + Game.Party.Member(hero.Id)?.Level, 90);
-			if (_random.Next(100) < 22) DropChest(foe.Npc.Position);
+			if (_random.Next(100) < 30) DropChest(foe.Npc.Position);
 			foe.Die();
 			Xp += 10 + Wave * 2;
 			Game.Log("survivors: goblin down (" + Kills + "), +" + _goblin.Experience + " exp, +" + gil + " gil, xp " + Xp + "/" + XpNext);
@@ -345,38 +349,101 @@ namespace Survivors
 		private void Trade()
 		{
 			PartyMember hero = Hero();
+			Game.Log("survivors: trader asked");
 			Game.Dialogue.Ask("Wave " + Wave + " is done. " + (hero != null ? hero.Name + " has " + Game.Party.Gil + " gil. " : "") + "Buy something? (No: next wave)", yes =>
 			{
 				if (yes)
 				{
-					// The first town's shops: weapons, armour, items, magic - one kind per wave, round and round.
-					int kind = (Wave - 1) % 4;
-					int index = 0;
-					for (int i = 0; i < 8; i++)
-					{
-						ShopInfo info = Game.Shops.Info(i, "t01");
-						if (info != null && info.Kind == kind) { index = i; break; }
-					}
-					_shopWasOpen = false;
-					Game.Shops.Open(index, "t01");
+					OpenTrader();
 				}
 				else
 				{
+					Game.Log("survivors: trader sends wave " + (Wave + 1));
 					RemoveShopkeeper();
 					NextWave();
 				}
 			});
 		}
 
-		private void Between()
+		// The trader's stock is drawn by the mod: the game's own shop screen is a map of its
+		// own (the shop interior), and a map change would end the run. The wares are what the
+		// first town's shops sell (Game.Shops.Info reads the table), at the game's prices.
+		private readonly List<Item> _stock = new List<Item>();
+		private int _stockPick, _stockTop;
+		private long _stockOpened;
+
+		private void OpenTrader()
 		{
-			bool open = Game.Shops.IsOpen;
-			if (open) _shopWasOpen = true;
-			else if (_shopWasOpen)
+			PartyMember hero = Hero();
+			_stock.Clear();
+			int jobBit = hero != null ? 1 << hero.Job : 0;
+			HashSet<int> seen = new HashSet<int>();
+			for (int i = 0; i < 8; i++)
 			{
-				_shopWasOpen = false;
-				Banner("Talk to the trader again for the next wave", 120);
+				ShopInfo info = Game.Shops.Info(i, "t01");
+				if (info == null) continue;
+				foreach (int id in info.ItemIds)
+				{
+					Item item = Game.Items.Find(id);
+					if (item == null || item.Price <= 0 || !seen.Add(id)) continue;
+					bool equipment = item.Category == ItemCategory.Weapon || item.Category == ItemCategory.Armor;
+					if (equipment && (item.Jobs & jobBit) == 0) continue;
+					if (item.Category == ItemCategory.Magic || item.Category == ItemCategory.Key) continue;
+					_stock.Add(item);
+				}
 			}
+			_stock.Sort((a, b) => a.Category != b.Category ? a.Category.CompareTo(b.Category) : a.Price.CompareTo(b.Price));
+			_stockPick = 0;
+			_stockTop = 0;
+			_stockOpened = Game.Time.Frame;
+			State = Phase.Shop;
+			Game.Input.Capture = true;
+			Game.Hero.Freeze();
+			Game.Log("survivors: trader shows " + _stock.Count + " wares");
+		}
+
+		private void ShopInput()
+		{
+			InputState input = Game.Input;
+			if (_stock.Count == 0) { CloseTrader(); return; }
+			// The press that answered the trader's question must not also buy the first ware.
+			if (Game.Time.Frame - _stockOpened < 2) return;
+			if (input.Pressed(Pad.Up) || input.KeyPressed("Up")) _stockPick = (_stockPick + _stock.Count - 1) % _stock.Count;
+			if (input.Pressed(Pad.Down) || input.KeyPressed("Down")) _stockPick = (_stockPick + 1) % _stock.Count;
+			if (_stockPick < _stockTop) _stockTop = _stockPick;
+			if (_stockPick >= _stockTop + 8) _stockTop = _stockPick - 7;
+			if (input.Pressed(Pad.B) || input.KeyPressed("Escape")) { CloseTrader(); return; }
+			if (input.Pressed(Pad.A))
+			{
+				Item item = _stock[_stockPick];
+				PartyMember hero = Hero();
+				if (Game.Party.Gil < item.Price)
+				{
+					Banner("Not enough gil for " + item.Name, 60);
+					Game.Audio.PlaySe(0, 2);
+					return;
+				}
+				Game.Party.Gil -= item.Price;
+				Game.Party.AddItem(item.Id, 1);
+				string worn = "";
+				if (hero != null && item.Slot >= 0)
+				{
+					int current = Game.Party.Equipped(hero.Id, item.Slot);
+					Item have = current > 0 ? Game.Items.Find(current) : null;
+					if ((have == null || item.Attack + item.Defense > have.Attack + have.Defense) && Game.Party.Equip(hero.Id, item.Id)) worn = " - equipped";
+				}
+				Game.Audio.PlaySe(0, 3);
+				Banner("Bought " + item.Name + worn, 90);
+				Game.Log("survivors: bought " + item.Name + " for " + item.Price + worn + ", gil left " + Game.Party.Gil);
+			}
+		}
+
+		private void CloseTrader()
+		{
+			Game.Input.Capture = false;
+			Game.Hero.Unfreeze();
+			State = Phase.Between;
+			Banner("Talk to the trader again: the next wave, or more wares", 120);
 		}
 
 		// ---- chests ----
@@ -394,11 +461,16 @@ namespace Survivors
 			int jobBit = 1 << hero.Job;
 			List<Item> wearable = Game.Items.All.Where(i => (i.Category == ItemCategory.Weapon || i.Category == ItemCategory.Armor)
 				&& (i.Jobs & jobBit) != 0 && i.Price > 0 && i.Price <= 300 + Wave * 400).ToList();
-			if (wearable.Count == 0) return;
+			if (wearable.Count == 0)
+			{
+				Game.Log("survivors: no wearable equipment for job " + hero.JobName + " among " + Game.Items.All.Count + " items");
+				return;
+			}
 			Item item = wearable[_random.Next(wearable.Count)];
 			// The treasure chest is an object model ("o" + number), not a character's.
 			Npc box = Game.Npcs.SpawnModel("o001", Game.Field.OnGround(at), 0f) ?? Game.Npcs.SpawnModel("o004", Game.Field.OnGround(at), 0f);
 			if (box == null) return;
+			Game.Log("survivors: a chest with " + (item.Name ?? item.Id.ToString()) + " dropped");
 			box.Owner = Mod;
 			box.Solid = false;
 			_chests.Add(new Chest { Npc = box, ItemId = item.Id });
@@ -493,6 +565,30 @@ namespace Survivors
 					if (line.Length > 0) d.Text(line, x + 12, ly, new Color(200, 200, 210), 12);
 				}
 			}
+			if (State == Phase.Shop)
+			{
+				d.Rect(0, 0, 800, 480, new Color(0, 0, 0, 110));
+				float x = 150, y = 90, w = 500, h = 300;
+				d.Rect(x, y, w, h, new Color(20, 28, 60, 235));
+				d.Rect(x, y, w, h, new Color(200, 200, 220), filled: false);
+				d.Text("The trader's wares", x + 14, y + 10, Color.Yellow, 16);
+				string gil = Game.Party.Gil + " gil";
+				d.Text(gil, x + w - 14 - d.MeasureText(gil, 14), y + 12, Color.White, 14);
+				for (int row = 0; row < 8 && _stockTop + row < _stock.Count; row++)
+				{
+					Item item = _stock[_stockTop + row];
+					bool on = _stockTop + row == _stockPick;
+					float ry = y + 42 + row * 26;
+					if (on) d.Rect(x + 8, ry - 2, w - 16, 24, new Color(60, 90, 170, 200));
+					d.Text(item.Name ?? ("item " + item.Id), x + 20, ry + 2, on ? Color.White : new Color(210, 210, 220), 14);
+					string what = item.Category == ItemCategory.Weapon ? "attack " + item.Attack : item.Category == ItemCategory.Armor ? "defence " + item.Defense : item.Category.ToString().ToLowerInvariant();
+					d.Text(what, x + 240, ry + 4, new Color(170, 180, 200), 12);
+					string price = item.Price.ToString();
+					d.Text(price, x + w - 20 - d.MeasureText(price, 14), ry + 2, Game.Party.Gil >= item.Price ? Color.White : new Color(200, 90, 90), 14);
+				}
+				string hint = "Up/Down choose, A buys, B leaves";
+				d.Text(hint, x + w / 2 - d.MeasureText(hint, 12) / 2, y + h - 24, new Color(200, 200, 210), 12);
+			}
 			if (_banner != null && _bannerFrames-- > 0)
 			{
 				float bw = d.MeasureText(_banner, 18);
@@ -533,7 +629,7 @@ namespace Survivors
 				if (--_swingFrames <= 0)
 				{
 					_swinging = false;
-					if (distance <= 9f) Arena.Hit(this, Math.Max(1, Stats.Strength / 2 + 1));
+					if (distance <= 9f) Arena.Hit(this, Math.Max(1, Stats.Strength / 4) + Arena.Wave);
 				}
 				return;
 			}
@@ -549,7 +645,7 @@ namespace Survivors
 				Npc.LookAt(hero);
 				if (--Cooldown <= 0)
 				{
-					Cooldown = 90;
+					Cooldown = 110;
 					_swinging = true;
 					_swingFrames = 18;   // the swing lands mid-motion
 					Npc.PlayMotion(MonsterMotion.Attack, false, 2);

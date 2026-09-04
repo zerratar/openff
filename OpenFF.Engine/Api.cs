@@ -460,7 +460,7 @@ namespace OpenFF
 	/// <summary>The game's shop screens.</summary>
 	public interface IShops
 	{
-		/// <summary>Opens the game's shop screen: shop number index of a shop table ("t01" is the first town's; the current map's own when table is null). Buying and selling are the game's. False off a map.</summary>
+		/// <summary>Opens the game's shop screen: shop number index of a shop table ("t01" is the first town's; the current map's own when table is null). Buying and selling are the game's. Mind that the game's shop is a map of its own: the field leaves for the shop interior and comes back (MapLeaving/MapEntered fire, spawned characters go), so a mod that must stay on its map draws its own shop with Game.Draw and Game.Items instead. False off a map.</summary>
 		bool Open(int index, string table = null);
 		bool IsOpen { get; }
 		/// <summary>What a shop sells, from its table.</summary>
