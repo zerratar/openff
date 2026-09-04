@@ -225,10 +225,11 @@ line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 ## The mods folder (2026-09-04)
 
 `mods/` beside `FF3.exe`, one mod per subfolder: `mod.json` (name, version, author,
-description, target, games), `files/` mirroring the game's names, a README. The client
+description, target), `files/` mirroring the game's names, a README. The client
 reads the folder at start (`Shared/Content/Mods.cs`, `GameArchive.ModsFolderOverrides`),
-puts the enabled mods that target `openff` and the running game in front of the shipped
-content in the order `mods/loadorder.json` gives - first wins on a file two carry, and the
+puts the enabled mods that target `openff` in front of the shipped content (an OpenFF mod
+is not tied to a game: the booted game is an asset source under OpenFF, mixed content is
+the point) in the order `mods/loadorder.json` gives - first wins on a file two carry, and the
 log's `mods:` lines say what applied and which conflicts fell which way - and writes the
 order back so a folder dropped in by hand is enabled at the end. The command line's
 `--project` and `--mod` still come first. Crystal's Project ▸ Export to OpenFF writes a

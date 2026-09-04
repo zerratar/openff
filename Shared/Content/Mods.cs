@@ -12,6 +12,10 @@
 // ModInstall, with its backup). A mod.json can say "steam" or "ff4steam" as its target
 // so Crystal knows; the OpenFF client only loads mods targeting "openff".
 //
+// An OpenFF mod is not for one game. Under OpenFF the game that was booted is an asset
+// source, and mixed content is the point (Karl, 2026-09-04), so every enabled OpenFF mod
+// applies whichever game's assets are in front.
+//
 // Shared by the client (which loads) and the editor (which writes and, later, lists).
 
 using System;
@@ -36,20 +40,11 @@ namespace FF3.Content
 		/// <summary>"openff" (default), "steam" (FF3 on Steam) or "ff4steam".</summary>
 		[JsonPropertyName("target")] public string Target { get; set; } = TargetOpenFF;
 
-		/// <summary>Which games the mod is for under OpenFF: "ff3", "ff4"; empty means both.</summary>
-		[JsonPropertyName("games")] public List<string> Games { get; set; } = new List<string>();
-
 		/// <summary>The subfolder with the game-named files; "files" unless said otherwise.</summary>
 		[JsonPropertyName("files")] public string Files { get; set; } = "files";
 
 		[JsonIgnore]
 		public bool ForOpenFF => string.IsNullOrEmpty(Target) || string.Equals(Target, TargetOpenFF, StringComparison.OrdinalIgnoreCase);
-
-		public bool ForGame(string game)
-		{
-			return Games == null || Games.Count == 0 || string.IsNullOrEmpty(game)
-				|| Games.Any(g => string.Equals(g, game, StringComparison.OrdinalIgnoreCase));
-		}
 	}
 
 	/// <summary>One entry of loadorder.json.</summary>
@@ -147,12 +142,12 @@ namespace FF3.Content
 		}
 
 		/// <summary>
-		/// The mods the client should put in front of the shipped content for a game, in
-		/// load order: enabled, targeting OpenFF, for that game, with a files folder.
+		/// The mods the client should put in front of the shipped content, in load order:
+		/// enabled, targeting OpenFF, with a files folder.
 		/// </summary>
-		public static List<InstalledMod> Active(IEnumerable<InstalledMod> mods, string game)
+		public static List<InstalledMod> Active(IEnumerable<InstalledMod> mods)
 		{
-			return mods.Where(m => m.Enabled && m.Manifest.ForOpenFF && m.Manifest.ForGame(game) && Directory.Exists(m.FilesDirectory)).ToList();
+			return mods.Where(m => m.Enabled && m.Manifest.ForOpenFF && Directory.Exists(m.FilesDirectory)).ToList();
 		}
 
 		/// <summary>

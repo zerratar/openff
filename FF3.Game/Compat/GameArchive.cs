@@ -138,10 +138,10 @@ namespace FF3
 		}
 
 		/// <summary>
-		/// The enabled mods of mods/ beside the executable that target OpenFF and the game
-		/// being started, as their files directories in load order. Logs what was taken and
-		/// which files more than one carries, and writes loadorder.json back so a folder
-		/// dropped in by hand appears there, enabled, at the end.
+		/// The enabled mods of mods/ beside the executable that target OpenFF, as their
+		/// files directories in load order. Logs what was taken and which files more than
+		/// one carries, and writes loadorder.json back so a folder dropped in by hand
+		/// appears there, enabled, at the end.
 		/// </summary>
 		private static IEnumerable<string> ModsFolderOverrides(string root)
 		{
@@ -151,13 +151,12 @@ namespace FF3
 			{
 				return Enumerable.Empty<string>();
 			}
-			string game = SsamContentSource.Looks(root) ? "ff4" : "ff3";
-			List<InstalledMod> active = ModsFolder.Active(installed, game);
-			Log.Write(LogChannel.General, "mods: " + active.Count + " of " + installed.Count + " in " + folder + " apply to " + game.ToUpperInvariant()
+			List<InstalledMod> active = ModsFolder.Active(installed);
+			Log.Write(LogChannel.General, "mods: " + active.Count + " of " + installed.Count + " in " + folder + " apply"
 				+ (active.Count > 0 ? ": " + string.Join(", ", active.Select(m => m.DisplayName + " (" + ModsFolder.FileCount(m) + " files)")) : ""));
 			foreach (InstalledMod mod in installed.Where(m => !active.Contains(m)))
 			{
-				string why = !mod.Enabled ? "disabled" : !mod.Manifest.ForOpenFF ? "targets " + mod.Manifest.Target : !mod.Manifest.ForGame(game) ? "for " + string.Join("/", mod.Manifest.Games) : "no files folder";
+				string why = !mod.Enabled ? "disabled" : !mod.Manifest.ForOpenFF ? "targets " + mod.Manifest.Target : "no files folder";
 				Log.Write(LogChannel.File, "mods: " + mod.DisplayName + " skipped (" + why + ")");
 			}
 			foreach (KeyValuePair<string, List<InstalledMod>> conflict in ModsFolder.Conflicts(active))
