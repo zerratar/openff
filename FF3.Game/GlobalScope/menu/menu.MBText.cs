@@ -455,13 +455,15 @@ internal static partial class GlobalScope
 
 			public override int bmGetCursorX(Medget M)
 			{
-				if (FF3.SteamLayout.Active && (alignment == ALIGNMENT.ALIGN_CENTER || alignment == ALIGNMENT.ALIGN_MENU || (int)alignment == FF3.SteamLayout.STEAM_ALIGN_MENU))
+				if (FF3.SteamLayout.Active && (alignment == ALIGNMENT.ALIGN_CENTER || (int)alignment == FF3.SteamLayout.STEAM_ALIGN_MENU))
 				{
 					// PORT: the phone's offsets put the hand inside Steam's frames, over the word
 					// (and Steam's own alignment, 6, fell through to 0: the hand on the word's
 					// first letter). Here the hand ends before the text begins - for a centred
 					// line, before where that line actually starts; for a command in a panel,
-					// outside the panel's margin.
+					// outside the panel's margin. ALIGN_MENU keeps the phone's +14: those frames
+					// (the character selector, at x 12) sit at the screen's edge, and the hand
+					// belongs inside them.
 					int textStart = 0;
 					int gap = FF3.SteamLayout.MENU_GAP;
 					if (alignment == ALIGNMENT.ALIGN_CENTER && message != null && M != null)
