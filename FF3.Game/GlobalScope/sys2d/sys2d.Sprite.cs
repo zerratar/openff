@@ -105,6 +105,7 @@ internal static partial class GlobalScope
 					// PORT: Steam's cell banks are laid out for another screen; the phone
 					// geometry replaces them, mapped onto whatever sheet was just loaded.
 					FF3.SteamCells.Apply(pCe, m_Ncer.pDataCe());
+					FF3.Ff4Assets.RemapCells(pCe, m_Ncer.pDataCe());
 					m_pCell = NNS_G2dGetCellDataByIdx(m_Ncer.pDataCe(), 0);
 				}
 			}

@@ -68,6 +68,7 @@ namespace FF3
 		{
 			_game?.onDrawFrame();
 			FrameProbe.Tick();
+			DevSay.Tick();
 		}
 	}
 }

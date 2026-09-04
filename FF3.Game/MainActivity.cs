@@ -366,9 +366,17 @@ public class MainActivity
 		{
 			return null;
 		}
-		if (text.Equals(".msd") && filename[0] != 'e' && !FF3.GameProfile.MsdIsUtf16)
+		if (text.Equals(".msd"))
 		{
-			array2 = decodeString(array2);
+			if (FF3.Ff4Text.IsWide(array2))
+			{
+				// PORT: FF4's text is UTF-16LE; the message code reads UTF-8 (see Ff4Text).
+				array2 = FF3.Ff4Text.DecodeWide(array2);
+			}
+			else if (filename[0] != 'e')
+			{
+				array2 = decodeString(array2);
+			}
 		}
 		return array2;
 	}
