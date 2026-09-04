@@ -10,7 +10,7 @@
 
 'use strict';
 
-let projectState = { project: null, targets: [], mod: null, workspaces: [], active: null, missing: {} };
+let projectState = { project: null, targets: [], mod: null, workspaces: [], active: null, missing: {}, available: [] };
 
 // ------------------------------------------------------------------ the menu bar
 
@@ -614,6 +614,8 @@ async function refreshProject() {
     projectState = {
       project: status.project, targets, mods, workspaces: open,
       active: status.active, missing: status.missing || {},
+      // Every game on the machine, open or not, for the tabs above the libraries.
+      available: status.available || [],
       mod: mods[state.ws] || null,
     };
     const current = open.find(w => w.target === state.ws) || {};

@@ -1131,9 +1131,15 @@ function drawProjectTree() {
   const tree = $('#project-tree');
   tree.textContent = '';
 
-  // Two games open: a tab per game above the libraries. One: nothing to choose.
+  // A tab per game above the libraries, whenever the machine has more than one. Open
+  // games switch the panel; a game found but not targeted by the open project sits
+  // greyed out with the reason, so nothing disappears just because a project is
+  // FF3-only. With no project every install is open (the server opens them all).
   const open = workspaces();
-  if (open.length > 1) {
+  const available = (typeof projectState !== 'undefined' && projectState.available) || [];
+  const found = available.filter(a => a.found);
+  const closed = found.filter(a => !open.some(w => w.target === a.target));
+  if (open.length + closed.length > 1) {
     const tabs = document.createElement('div');
     tabs.className = 'ws-tabs';
     for (const w of open) {
@@ -1146,6 +1152,18 @@ function drawProjectTree() {
       where.textContent = w.label.replace(/^FF\d\s+/, '');
       tab.append(game, where);
       tab.onclick = () => selectWorkspace(w.target);
+      tabs.append(tab);
+    }
+    for (const a of closed) {
+      const tab = document.createElement('button');
+      tab.className = 'ws-tab off ' + a.game;
+      tab.disabled = true;
+      tab.title = `${a.label} is installed, but this project does not target it. File ▸ Project settings… adds it.`;
+      const game = document.createElement('b');
+      game.textContent = a.game.toUpperCase();
+      const where = document.createElement('span');
+      where.textContent = a.label.replace(/^FF\d\s+/, '');
+      tab.append(game, where);
       tabs.append(tab);
     }
     tree.append(tabs);

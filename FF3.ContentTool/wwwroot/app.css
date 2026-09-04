@@ -1740,6 +1740,7 @@ header h1 .gem {
 .ws-tab b { font-size: 12px; letter-spacing: .06em; }
 .ws-tab span { font-size: 10px; opacity: .8; }
 .ws-tab:hover { color: var(--ink); border-color: var(--accent); }
+.ws-tab.off { opacity: 0.38; cursor: not-allowed; }
 .ws-tab.on { color: var(--ink); background: #232c3a; border-color: var(--accent); }
 .ws-tab.ff4.on { border-color: #d9a441; background: #33291a; }
 .doc-tab .ws {

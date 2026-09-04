@@ -67,8 +67,62 @@ namespace FF3.ContentTool.Editor
 			_webRoot = webRoot;
 			_language = language ?? "en";
 			_project = project;
-			string name = project?.File.Active ?? "content";
+			string name = project?.File.Active ?? NameFor(workspace);
 			Adopt(name, new Session(name, workspace, messages, _language));
+			if (project == null)
+			{
+				OpenOtherInstalls();
+			}
+		}
+
+		/// <summary>
+		/// The target whose install this workspace is, so a workspace opened by path gets
+		/// the same tab as it would under a project; "content" when it is none of them.
+		/// </summary>
+		private static string NameFor(Workspace workspace)
+		{
+			foreach (string target in Targets.All)
+			{
+				string found = Targets.Find(target);
+				if (found != null && string.Equals(Path.GetFullPath(found).TrimEnd(Path.DirectorySeparatorChar),
+					workspace.ContentDirectory.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+				{
+					return target;
+				}
+			}
+			return "content";
+		}
+
+		/// <summary>
+		/// With no project open, every game on the machine is open: the editor behaves as a
+		/// project targeting all of them would (Karl, 2026-09-04). Each install found gets
+		/// its own session beside the one the command line asked for, edits going to that
+		/// game's default mod directory; one that cannot be read is listed as missing.
+		/// </summary>
+		private void OpenOtherInstalls()
+		{
+			foreach (string target in Targets.All)
+			{
+				if (_sessions.ContainsKey(target))
+				{
+					continue;
+				}
+				string found = Targets.Find(target);
+				if (found == null)
+				{
+					continue;
+				}
+				try
+				{
+					Workspace workspace = new Workspace(found, null);
+					_sessions[target] = new Session(target, workspace, null, _language);
+					_order.Add(target);
+				}
+				catch (Exception ex) when (ex is FileNotFoundException or IOException or InvalidDataException)
+				{
+					_missing[target] = ex.Message;
+				}
+			}
 		}
 
 		/// <summary>Every game the project targets, each in its own session.</summary>
@@ -301,6 +355,16 @@ namespace FF3.ContentTool.Editor
 							installable = _sessions[name].Workspace.Installable
 						}).ToList(),
 						missing = _missing,
+						// Every game this machine has, open or not, so the page can show a
+						// tab for each and grey out the ones the project does not target.
+						available = Targets.All.Select(name => new
+						{
+							target = name,
+							label = Targets.Describe(name),
+							game = name == Targets.Ff4Steam ? "ff4" : "ff3",
+							found = Targets.Find(name) != null,
+							open = _order.Contains(name, StringComparer.OrdinalIgnoreCase)
+						}).ToList(),
 						// Which language the text was read as, and the directory it was
 						// read from, so the page can open the file a line actually lives
 						// in rather than guessing. The two are not the same thing: a
