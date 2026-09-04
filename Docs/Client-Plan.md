@@ -222,6 +222,18 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## Crystal makes a mod's C# project (2026-09-04)
+
+A project targeting our build gets code in one click (`Editor/ModCode.cs`): Project ▸ Add
+C# code writes `code/<Name>.csproj` referencing the client's `OpenFF.Engine.dll` (found
+through `OpenFFClient`, never copied into the mod), a starting `Mod.cs` and a `.gitignore`;
+Build C# code runs `dotnet build` with the output in `build/` and shows the first errors;
+Open C# code in editor hands the csproj to Visual Studio, Rider or VS Code, so nobody is
+limited to Crystal's own text editing; Export to OpenFF carries the assemblies and their
+symbols into the mod folder and names them in `mod.json`. The client loads them and
+hot-reloads a rebuild. `Samples/HelloMod/install.cmd` installs the sample the same way.
+Testing E-19, E-20.
+
 ## The engine API, first slice (2026-09-04)
 
 `OpenFF.Engine/Api.cs` declares what a script may do, as interfaces a service implements;

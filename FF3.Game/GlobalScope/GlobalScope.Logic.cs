@@ -93,6 +93,11 @@ internal static partial class GlobalScope
 
 		public void setEnable()
 		{
+			if (castInfo_ == null)
+			{
+				// PORT: no cast behind this logic; nothing to run.
+				return;
+			}
 			pc_ = castInfo_.getConstructor();
 			status_ = STATUS_TYPE.CONSTRUCTOR;
 			if (pc_ == CastInfo.INVALID_SCRIPT)

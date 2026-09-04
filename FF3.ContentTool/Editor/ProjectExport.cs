@@ -103,18 +103,38 @@ namespace FF3.ContentTool.Editor
 					count++;
 				}
 			}
+			// The code, when the project has some and it has been built: the assemblies and
+			// their symbols, at the mod's root, named in mod.json.
+			List<string> assemblies = new List<string>();
+			foreach (string dll in ModCode.Assemblies(project))
+			{
+				File.Copy(dll, Path.Combine(directory, Path.GetFileName(dll)), overwrite: true);
+				string pdb = Path.ChangeExtension(dll, ".pdb");
+				if (File.Exists(pdb))
+				{
+					File.Copy(pdb, Path.Combine(directory, Path.GetFileName(pdb)), overwrite: true);
+				}
+				assemblies.Add(Path.GetFileName(dll));
+			}
 			FF3.Content.ModsFolder.WriteManifest(manifestPath, new FF3.Content.ModManifest
 			{
+				Id = key,
 				Name = string.IsNullOrWhiteSpace(project.File.Name) ? key : project.File.Name.Trim(),
 				Version = string.IsNullOrWhiteSpace(project.File.Version) ? "1.0" : project.File.Version.Trim(),
 				Author = project.File.Author,
 				Description = project.File.Description,
 				Target = FF3.Content.ModManifest.TargetOpenFF,
+				Assemblies = assemblies,
 			});
-			File.WriteAllText(Path.Combine(directory, "README.md"), Readme(project, new List<string>
+			List<string> contents = new List<string>
 			{
 				string.Format(CultureInfo.InvariantCulture, "- OpenFF: {0} file(s) under files/", count),
-			}), new UTF8Encoding(false));
+			};
+			if (assemblies.Count > 0)
+			{
+				contents.Add("- code: " + string.Join(", ", assemblies));
+			}
+			File.WriteAllText(Path.Combine(directory, "README.md"), Readme(project, contents), new UTF8Encoding(false));
 			return directory;
 		}
 

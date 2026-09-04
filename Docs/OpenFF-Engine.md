@@ -214,5 +214,5 @@ game is the World's "legacy" scene); C# mod loading with hot reload (done, `Samp
 the in-game mod list (done); then behaviours gain the engine API verbs as step 3 delivers
 them (first slice done 2026-09-04: dialogue, hero, NPC spawn/move/talk, flags, party, audio,
 fades, warp - `OpenFF.Engine/Api.cs`); then the scene format and Crystal's editing of it
-(step 5), with the first converters. Also wanted (Karl): Crystal generating a mod's csproj
-and letting the C# be edited and built in Visual Studio or any editor, not only ours.
+(step 5), with the first converters. Crystal generating a mod's csproj, building it and
+handing it to Visual Studio or any editor is done (2026-09-04, `Editor/ModCode.cs`).

@@ -29,6 +29,37 @@ namespace FF3.ContentTool.Editor
 			return executable != null ? Path.Combine(Path.GetDirectoryName(executable), FF3.Content.ModsFolder.FolderName) : null;
 		}
 
+		/// <summary>The client's OpenFF.Engine.dll (beside its executable), or null when no client is known or built.</summary>
+		public static string EngineAssembly()
+		{
+			string mods = ModsFolder();
+			if (mods != null)
+			{
+				string beside = Path.Combine(Path.GetDirectoryName(mods), "OpenFF.Engine.dll");
+				if (File.Exists(beside))
+				{
+					return beside;
+				}
+			}
+			// A development checkout: the engine's own build.
+			foreach (string start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+			{
+				DirectoryInfo directory = new DirectoryInfo(start);
+				for (int up = 0; up < 6 && directory != null; up++, directory = directory.Parent)
+				{
+					foreach (string configuration in new[] { "Debug", "Release" })
+					{
+						string candidate = Path.Combine(directory.FullName, "OpenFF.Engine", "bin", configuration, "net8.0", "OpenFF.Engine.dll");
+						if (File.Exists(candidate))
+						{
+							return candidate;
+						}
+					}
+				}
+			}
+			return null;
+		}
+
 		private static string Recorded()
 		{
 			try

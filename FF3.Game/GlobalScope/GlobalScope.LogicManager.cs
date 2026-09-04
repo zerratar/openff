@@ -116,6 +116,12 @@ internal static partial class GlobalScope
 			if (isEnableLogic(mapNo, castNo) == 0)
 			{
 				CastInfo castInfoArray = getCastInfoArray(mapNo, castNo);
+				if (castInfoArray == null)
+				{
+					// PORT: a character with no cast in the map's script (one the engine API put
+					// there) has nothing to run when talked to.
+					return;
+				}
 				Logic logic = logicHandles_[numLogic_];
 				numLogic_++;
 				uint scriptDataIdxByMapNo = getScriptDataIdxByMapNo(mapNo);

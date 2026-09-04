@@ -383,7 +383,8 @@ namespace FF3.ContentTool.Editor
 							active = _project.File.Active,
 							author = _project.File.Author,
 							version = _project.File.Version,
-							description = _project.File.Description
+							description = _project.File.Description,
+							code = ModCode.Has(_project)
 						}
 					});
 					return;
@@ -422,6 +423,12 @@ namespace FF3.ContentTool.Editor
 
 				case "/api/project/export-openff":
 					ExportProjectToOpenFF(context);
+					return;
+
+				case "/api/project/code/create":
+				case "/api/project/code/build":
+				case "/api/project/code/open":
+					ProjectCode(context, path.Substring("/api/project/code/".Length));
 					return;
 
 				case "/api/project/reveal":
@@ -1297,6 +1304,43 @@ namespace FF3.ContentTool.Editor
 				SendJson(context, new { ok = true, path = zip, bytes = new FileInfo(zip).Length });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>The project's C# code: make it, build it, or open it in the machine's editor.</summary>
+		private void ProjectCode(HttpListenerContext context, string action)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			try
+			{
+				switch (action)
+				{
+					case "create":
+					{
+						string csproj = ModCode.Create(_project);
+						SendJson(context, new { ok = true, path = csproj, has = true });
+						return;
+					}
+					case "build":
+					{
+						bool built = ModCode.Build(_project, out string output);
+						SendJson(context, new { ok = built, output, error = built ? null : "the build failed", assemblies = ModCode.Assemblies(_project).Select(Path.GetFileName).ToList() });
+						return;
+					}
+					case "open":
+						ModCode.Open(_project);
+						SendJson(context, new { ok = true });
+						return;
+				}
+				SendJson(context, new { ok = false, error = "unknown code action " + action });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}

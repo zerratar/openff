@@ -92,6 +92,11 @@ function drawMenuBar() {
       note: 'The project as an upload: files, manifest and a README' },
     { label: 'Export to OpenFF…', run: exportToOpenFF, disabled: !open,
       note: 'Writes the mod into the OpenFF client\'s mods folder, ready to play' },
+    '-',
+    { label: open && open.code ? 'Build C# code' : 'Add C# code…', run: open && open.code ? buildCode : addCode, disabled: !open,
+      note: open && open.code ? 'dotnet build of code/; the output goes with Export to OpenFF' : 'A csproj and a starting class under code/, referencing the OpenFF engine' },
+    { label: 'Open C# code in editor', run: openCode, disabled: !(open && open.code),
+      note: 'Visual Studio, Rider, VS Code - whatever opens .csproj here' },
     { label: 'Show project folder', run: () => revealProject(), disabled: !open },
   ]));
 
@@ -407,9 +412,19 @@ function projectSettingsDialog() {
   openffButton.textContent = 'Export to OpenFF';
   openffButton.title = 'Write the mod into the OpenFF client\'s mods folder';
   openffButton.onclick = exportToOpenFF;
+  const codeButton = document.createElement('button');
+  if (open.code) {
+    codeButton.textContent = 'Build C# code';
+    codeButton.title = 'dotnet build of code/; then Export to OpenFF carries the assembly';
+    codeButton.onclick = buildCode;
+  } else {
+    codeButton.textContent = 'Add C# code';
+    codeButton.title = 'A csproj and a starting class under code/, referencing the OpenFF engine';
+    codeButton.onclick = addCode;
+  }
   const grow = document.createElement('span');
   grow.className = 'grow';
-  actions.append(go, grow, reveal, exportButton, openffButton);
+  actions.append(go, grow, reveal, exportButton, openffButton, codeButton);
   body.append(actions);
 }
 
@@ -564,6 +579,42 @@ async function runMod(endpoint, kind, target) {
     say(error.message, 'bad');
   }
   await refreshProject();
+}
+
+async function addCode() {
+  try {
+    say('writing the project…');
+    const result = await api('/api/project/code/create', {});
+    if (!result.ok) throw new Error(result.error);
+    say(`C# project made: ${result.path} - Build C# code, or open it in your editor`, 'good');
+    await refreshProject();
+  } catch (error) {
+    say(error.message, 'bad');
+  }
+}
+
+async function buildCode() {
+  try {
+    say('building…');
+    const result = await api('/api/project/code/build', {});
+    if (!result.ok) {
+      say('build failed: ' + (result.output || result.error || '').split('\n')[0], 'bad');
+      if (result.output) console.log(result.output);
+      return;
+    }
+    say(`built ${result.assemblies.join(', ')} - Export to OpenFF to play it (the client hot-reloads a running game)`, 'good');
+  } catch (error) {
+    say(error.message, 'bad');
+  }
+}
+
+async function openCode() {
+  try {
+    const result = await api('/api/project/code/open', {});
+    if (!result.ok) throw new Error(result.error);
+  } catch (error) {
+    say(error.message, 'bad');
+  }
 }
 
 async function exportToOpenFF() {

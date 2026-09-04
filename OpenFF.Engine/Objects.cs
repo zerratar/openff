@@ -22,6 +22,15 @@ namespace OpenFF
 		public Vector3(float x, float y, float z) { X = x; Y = y; Z = z; }
 		public static readonly Vector3 Zero = new Vector3(0, 0, 0);
 		public static readonly Vector3 One = new Vector3(1, 1, 1);
+		public static Vector3 operator +(Vector3 a, Vector3 b) => new Vector3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+		public static Vector3 operator -(Vector3 a, Vector3 b) => new Vector3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+		public static Vector3 operator *(Vector3 a, float k) => new Vector3(a.X * k, a.Y * k, a.Z * k);
+		/// <summary>Distance on the ground, ignoring height.</summary>
+		public static float FlatDistance(Vector3 a, Vector3 b)
+		{
+			float dx = a.X - b.X, dz = a.Z - b.Z;
+			return (float)Math.Sqrt(dx * dx + dz * dz);
+		}
 		public override string ToString() => X.ToString("0.##") + ", " + Y.ToString("0.##") + ", " + Z.ToString("0.##");
 	}
 

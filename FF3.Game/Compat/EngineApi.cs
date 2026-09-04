@@ -417,6 +417,8 @@ namespace FF3
 				player.into();
 				player.setAutoPilot(_AutoPilot: true);
 				player.setHidden(false);
+				// No script cast stands behind this character: the legacy talk finds nothing to run.
+				player.LogicIndex_set(GlobalScope.CastInfo.INVALID_SCRIPT);
 				LegacyNpc npc = new LegacyNpc(index, model, map);
 				npc.Solid = false;
 				_spawned.Add(npc);
