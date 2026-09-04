@@ -140,6 +140,11 @@ internal static partial class GlobalScope
 								{
 									return m_MesWindow.mwIsMade();
 								}
+								/// <summary>PORT: the window has finished opening; text set before that shows over a half-drawn frame.</summary>
+								public bool isWindowOpen()
+								{
+									return m_MesWindow.mwIsWindowOpen();
+								}
 
 								public bool isMadeMessage()
 								{

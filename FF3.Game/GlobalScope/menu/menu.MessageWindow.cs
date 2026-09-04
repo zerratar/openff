@@ -438,6 +438,18 @@ internal static partial class GlobalScope
 				return m_Made_1;
 			}
 
+			/// <summary>PORT: whether the window's opening animation (five frames from the bottom centre) has reached its full size.</summary>
+			public bool mwIsWindowOpen()
+			{
+				if (!m_Made_1)
+				{
+					return false;
+				}
+				ds.Vector2<int> now = m_Window.GetNowWindowSize();
+				ds.Vector2<short> max = m_Window.GetMaxWindowSize();
+				return now.vx >= max.vx && now.vy >= max.vy;
+			}
+
 			public bool mwIsMessageId()
 			{
 				if (m_MessageId != -1)

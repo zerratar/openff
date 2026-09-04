@@ -134,8 +134,11 @@ namespace FF3
 	internal sealed class LegacyDialogue : GameService, IDialogue
 	{
 		private bool _shown;
+		// Text waiting for the window to finish opening: the scripts open the window, wait,
+		// then set the text; set at once it shows over the half-drawn frame.
+		private string _pending;
 
-		public bool IsOpen => _shown;
+		public bool IsOpen => _shown || _pending != null;
 		public event Action Closed;
 
 		private GlobalScope.wld.CMessageWindow Window
@@ -159,19 +162,34 @@ namespace FF3
 			{
 				window.createWindow(1);
 			}
-			window.createText(text ?? "", 0);
+			if (window.isWindowOpen())
+			{
+				Show(window, text ?? "");
+			}
+			else
+			{
+				_pending = text ?? "";
+			}
+		}
+
+		private void Show(GlobalScope.wld.CMessageWindow window, string text)
+		{
+			window.createText(text, 0);
 			window.setProgressIconActivity(_SendMessage: true);
+			_pending = null;
 			_shown = true;
 		}
 
 		public void Close()
 		{
 			GlobalScope.wld.CMessageWindow window = Window;
-			if (window != null && _shown)
+			bool wasOpen = _shown || _pending != null;
+			if (window != null && wasOpen)
 			{
 				window.release();
 			}
-			if (_shown)
+			_pending = null;
+			if (wasOpen)
 			{
 				_shown = false;
 				Game.Guard("Dialogue.Closed", () => Closed?.Invoke());
@@ -184,8 +202,21 @@ namespace FF3
 		/// <summary>The player has tapped past the text (isNextPageButton, what WaitInputSendMessage waits for): take the window down.</summary>
 		internal void Tick()
 		{
-			if (!_shown) return;
 			GlobalScope.wld.CMessageWindow window = Window;
+			if (_pending != null)
+			{
+				if (window == null || !window.isMadeWindow())
+				{
+					_pending = null;
+					return;
+				}
+				if (window.isWindowOpen())
+				{
+					Show(window, _pending);
+				}
+				return;
+			}
+			if (!_shown) return;
 			if (window == null || !window.isMadeWindow() || window.isNextPageButton())
 			{
 				Close();
