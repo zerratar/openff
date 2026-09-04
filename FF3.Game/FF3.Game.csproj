@@ -21,6 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The OpenFF engine: the assembly mods reference; the client hosts it (Compat/EngineHost.cs). -->
+    <ProjectReference Include="..\OpenFF.Engine\OpenFF.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FontStashSharp.MonoGame" Version="1.5.8" />
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.5.1" />
     <PackageReference Include="NVorbis" Version="0.10.5" />

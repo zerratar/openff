@@ -1,0 +1,9 @@
+{
+  "id": "hello",
+  "name": "Hello mod",
+  "version": "1.0",
+  "author": "OpenFF",
+  "description": "The smallest mod with code: a service, a behaviour, a save chunk.",
+  "target": "openff",
+  "assemblies": [ "Hello.dll" ]
+}

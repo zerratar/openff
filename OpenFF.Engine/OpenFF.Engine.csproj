@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The OpenFF engine API: the assembly mods reference and the client hosts.
+       Kept free of MonoGame and of the decompiled game so a mod compiles against it
+       alone; the host (FF3.Game) plugs rendering, input and the legacy game in. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>OpenFF</RootNamespace>
+    <AssemblyName>OpenFF.Engine</AssemblyName>
+    <Version>0.1.0</Version>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>

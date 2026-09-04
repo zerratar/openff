@@ -32,6 +32,8 @@ namespace FF3.Content
 	{
 		public const string TargetOpenFF = "openff";
 
+		/// <summary>What other mods refer to; the folder's name when not given.</summary>
+		[JsonPropertyName("id")] public string Id { get; set; }
 		[JsonPropertyName("name")] public string Name { get; set; }
 		[JsonPropertyName("version")] public string Version { get; set; }
 		[JsonPropertyName("author")] public string Author { get; set; }
@@ -43,8 +45,21 @@ namespace FF3.Content
 		/// <summary>The subfolder with the game-named files; "files" unless said otherwise.</summary>
 		[JsonPropertyName("files")] public string Files { get; set; } = "files";
 
+		/// <summary>The mod's code: assembly files relative to the mod folder. Empty means every .dll at the mod's root.</summary>
+		[JsonPropertyName("assemblies")] public List<string> Assemblies { get; set; } = new List<string>();
+
+		/// <summary>Mods this one needs enabled and loaded before it. Most mods have none.</summary>
+		[JsonPropertyName("dependencies")] public List<ModDependency> Dependencies { get; set; } = new List<ModDependency>();
+
 		[JsonIgnore]
 		public bool ForOpenFF => string.IsNullOrEmpty(Target) || string.Equals(Target, TargetOpenFF, StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>One dependency: another mod's id and, optionally, the lowest version that will do.</summary>
+	internal sealed class ModDependency
+	{
+		[JsonPropertyName("id")] public string Id { get; set; }
+		[JsonPropertyName("minVersion")] public string MinVersion { get; set; }
 	}
 
 	/// <summary>One entry of loadorder.json.</summary>
@@ -69,6 +84,10 @@ namespace FF3.Content
 		public bool Enabled { get; set; }
 		public string FilesDirectory => Path.Combine(Directory, string.IsNullOrEmpty(Manifest?.Files) ? "files" : Manifest.Files);
 		public string DisplayName => string.IsNullOrWhiteSpace(Manifest?.Name) ? Key : Manifest.Name;
+		/// <summary>The id other mods depend on: mod.json's, or the folder's name.</summary>
+		public string Id => string.IsNullOrWhiteSpace(Manifest?.Id) ? Key : Manifest.Id.Trim();
+		/// <summary>Why the mod is not active, when it is not: "disabled", "targets steam", "needs x", ...; null when it is.</summary>
+		public string Skipped { get; set; }
 	}
 
 	internal static class ModsFolder
@@ -142,12 +161,85 @@ namespace FF3.Content
 		}
 
 		/// <summary>
-		/// The mods the client should put in front of the shipped content, in load order:
-		/// enabled, targeting OpenFF, with a files folder.
+		/// The mods the client should load, in load order: enabled, targeting OpenFF, with
+		/// their dependencies active and earlier in the order (a mod whose dependency is
+		/// missing, disabled, too old or later in the order is left out, and says why in
+		/// Skipped). An assets-only mod needs a files folder; a code-only mod needs none.
 		/// </summary>
 		public static List<InstalledMod> Active(IEnumerable<InstalledMod> mods)
 		{
-			return mods.Where(m => m.Enabled && m.Manifest.ForOpenFF && Directory.Exists(m.FilesDirectory)).ToList();
+			List<InstalledMod> active = new List<InstalledMod>();
+			foreach (InstalledMod mod in mods)
+			{
+				mod.Skipped = null;
+				if (!mod.Enabled)
+				{
+					mod.Skipped = "disabled";
+				}
+				else if (!mod.Manifest.ForOpenFF)
+				{
+					mod.Skipped = "targets " + mod.Manifest.Target;
+				}
+				else if (!Directory.Exists(mod.FilesDirectory) && !HasCode(mod))
+				{
+					mod.Skipped = "no files folder and no code";
+				}
+				else
+				{
+					foreach (ModDependency dependency in mod.Manifest.Dependencies ?? new List<ModDependency>())
+					{
+						if (string.IsNullOrWhiteSpace(dependency?.Id))
+						{
+							continue;
+						}
+						InstalledMod found = active.FirstOrDefault(a => string.Equals(a.Id, dependency.Id, StringComparison.OrdinalIgnoreCase));
+						if (found == null)
+						{
+							InstalledMod anywhere = mods.FirstOrDefault(a => string.Equals(a.Id, dependency.Id, StringComparison.OrdinalIgnoreCase));
+							mod.Skipped = "needs " + dependency.Id + (anywhere == null ? ", which is not installed"
+								: anywhere.Skipped != null ? ", which is " + anywhere.Skipped
+								: ", which must come before it in the load order");
+							break;
+						}
+						if (!string.IsNullOrWhiteSpace(dependency.MinVersion) && CompareVersions(found.Manifest.Version, dependency.MinVersion) < 0)
+						{
+							mod.Skipped = "needs " + dependency.Id + " " + dependency.MinVersion + " or later, has " + (found.Manifest.Version ?? "no version");
+							break;
+						}
+					}
+				}
+				if (mod.Skipped == null)
+				{
+					active.Add(mod);
+				}
+			}
+			return active;
+		}
+
+		/// <summary>Whether a mod brings code: assemblies named in mod.json, or a .dll at its root.</summary>
+		public static bool HasCode(InstalledMod mod)
+		{
+			if (mod.Manifest.Assemblies != null && mod.Manifest.Assemblies.Count > 0)
+			{
+				return true;
+			}
+			return Directory.Exists(mod.Directory) && Directory.EnumerateFiles(mod.Directory, "*.dll", SearchOption.TopDirectoryOnly).Any();
+		}
+
+		/// <summary>Dotted versions compared number by number; an unparseable part compares as text.</summary>
+		public static int CompareVersions(string a, string b)
+		{
+			string[] pa = (a ?? "0").Split('.'), pb = (b ?? "0").Split('.');
+			for (int i = 0; i < Math.Max(pa.Length, pb.Length); i++)
+			{
+				string sa = i < pa.Length ? pa[i].Trim() : "0", sb = i < pb.Length ? pb[i].Trim() : "0";
+				int c = int.TryParse(sa, out int na) && int.TryParse(sb, out int nb) ? na.CompareTo(nb) : string.Compare(sa, sb, StringComparison.OrdinalIgnoreCase);
+				if (c != 0)
+				{
+					return c;
+				}
+			}
+			return 0;
 		}
 
 		/// <summary>

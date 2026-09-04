@@ -10029,6 +10029,7 @@ internal static partial class GlobalScope
 							fseek(fILE, src, 0);
 							fread(dst, 1, (int)len, fILE);
 							fclose(fILE);
+							FF3.EngineHost.SaveRead((int)src, (int)len);
 							return 1;
 						}
 
@@ -10059,6 +10060,7 @@ internal static partial class GlobalScope
 							fseek(fILE, dst, 0);
 							fwrite(src, 1, (int)len, fILE);
 							fclose(fILE);
+							FF3.EngineHost.SaveWritten((int)dst, (int)len);
 							return 1;
 						}
 

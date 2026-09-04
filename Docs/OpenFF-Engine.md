@@ -209,6 +209,7 @@ The object model can arrive before the legacy engine is gone: a scene may contai
 FF3 keeps running as the oracle while behaviours, services, events and the save chunks
 are introduced around it. So step 4 above grows to: the mods folder (done); the engine
 core - objects, components, services, events, save chunks - hosting the legacy game as a
-component; C# mod loading; then behaviours gain the engine API verbs as step 3 delivers
-them; then the scene format and Crystal's editing of it (step 5), with the first
-converters.
+component (done 2026-09-04: `OpenFF.Engine`, hosted by `Compat/EngineHost.cs`; the legacy
+game is the World's "legacy" scene); C# mod loading with hot reload (done, `Samples/HelloMod`);
+then behaviours gain the engine API verbs as step 3 delivers them; then the scene format
+and Crystal's editing of it (step 5), with the first converters.

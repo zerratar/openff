@@ -222,6 +222,30 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## The engine core (2026-09-04)
+
+`OpenFF.Engine` is its own project and assembly - the API mods reference, free of
+MonoGame and of the decompiled game - and the client hosts it (`Compat/EngineHost.cs`):
+created after the content opens, ticked once per game tick after the legacy frame,
+told what the legacy game did. What exists: `Game` (Services, Events, World, Saves,
+Time, Log), `GameService` with its lifecycle and hand-over for hot reload, the typed
+`EventBus` (GameStarted, PartChanged, MapEntered/MapLeaving with a SceneInfo, SaveWritten/
+SaveRead, ModReloaded), the object model (`Scene`, `GameObject`, `Component`,
+`Behaviour` with Awake/Start/Update/LateUpdate/OnDestroy, `Transform`), `ISaveable` and
+`SaveChunks` (one chunk per owner per slot, the mod set recorded, unknown chunks kept,
+`%LocalAppData%\OpenFF\saves\mods.json` for now), and `ModLoader`/`ModWatcher`: a
+collectible `AssemblyLoadContext` per mod loading from bytes (the file stays free for
+the next build), the engine assembly shared, services found by reflection, a rebuilt
+assembly reloaded within a second with each service's state handed over. The legacy
+game is the World's one scene, "legacy", whose SceneInfo the host keeps current from
+the stage name and part. `mod.json` gained `id`, `assemblies` and optional
+`dependencies` (checked against the load order). `Samples/HelloMod` is the template.
+Testing.md C-17..C-20.
+
+Next on this path: the in-game mod list; the engine API verbs (message windows,
+movement, camera, flags) as services the legacy handlers implement, so behaviours can
+act rather than observe; then the scene format.
+
 ## The mods folder (2026-09-04)
 
 `mods/` beside `FF3.exe`, one mod per subfolder: `mod.json` (name, version, author,

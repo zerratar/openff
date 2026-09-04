@@ -39,6 +39,8 @@ namespace FF3
 
 			_game = new MainActivity();
 			_game.onCreate();
+			// The OpenFF engine and the mods' code, now that the content (and the mods folder) is open.
+			EngineHost.Attach();
 			return true;
 		}
 
@@ -58,7 +60,11 @@ namespace FF3
 
 		public static void Pause() => _game?.onPause();
 
-		public static void Destroy() => _game?.onDestroy();
+		public static void Destroy()
+		{
+			EngineHost.Quit();
+			_game?.onDestroy();
+		}
 
 		/// <summary>
 		/// One game tick. The original ran the whole frame - input, logic and drawing -
@@ -69,6 +75,8 @@ namespace FF3
 			_game?.onDrawFrame();
 			FrameProbe.Tick();
 			DevSay.Tick();
+			// The engine's frame, after the legacy one.
+			EngineHost.Tick();
 		}
 	}
 }

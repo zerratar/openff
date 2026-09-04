@@ -199,6 +199,13 @@ namespace FF3
             {
                 AppendStats(view);
             }
+            if ((_layers & Layer.World) != 0)
+            {
+                foreach (string line in EngineHost.DebugLines())
+                {
+                    _text.Append(line).Append('\n');
+                }
+            }
             AppendLegend();
             int lines = 0;
             for (int i = 0; i < _text.Length; i++)

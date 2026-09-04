@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The smallest OpenFF mod with code: a service that lives for the whole run, a
+       behaviour it spawns on each map, and a save chunk. Build it into the client's
+       mods folder and start the client:
+
+         dotnet build Samples/HelloMod -o "<client>/mods/hello"
+
+       (mod.json is copied along.) Rebuild while the client runs and it hot-reloads. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Hello</AssemblyName>
+    <RootNamespace>Hello</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <DebugType>portable</DebugType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Private=false: the engine assembly is the client's; it is never copied into a mod. -->
+    <ProjectReference Include="..\..\OpenFF.Engine\OpenFF.Engine.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- `dotnet build -o <dir>` builds the referenced engine into the same directory. A mod
+       folder must not carry its own engine (the client shares its own with every mod),
+       so whatever of it landed beside the mod goes again. -->
+  <Target Name="DropEngineCopies" AfterTargets="Build">
+    <ItemGroup>
+      <EngineCopies Include="$(OutDir)OpenFF.Engine.*" />
+    </ItemGroup>
+    <Delete Files="@(EngineCopies)" />
+  </Target>
+
+</Project>

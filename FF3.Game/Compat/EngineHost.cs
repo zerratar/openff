@@ -1,0 +1,269 @@
+// Where the OpenFF engine meets the legacy game.
+//
+// The engine (OpenFF.Engine, the assembly mods reference) knows nothing of MonoGame or
+// of the decompiled game. This host creates it once the content is open, loads the code
+// of the mods the mods folder enabled, ticks it once per game tick after the legacy
+// frame has run, and tells it what the legacy game did: which part is running, which
+// map was entered or left (the legacy scene's SceneInfo), and when a save slot was
+// written or read back (so the mods' save chunks follow). Docs/OpenFF-Engine.md, "The
+// object model and scripting"; the legacy game is, for now, the engine's one scene.
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using OpenFF;
+using OpenFF.Modding;
+
+namespace FF3
+{
+	internal static class EngineHost
+	{
+		private static bool _attached;
+		private static string _lastPart;
+		private static string _lastStage;
+		private static DateTime _lastTick;
+
+		/// <summary>Whether mods' code is loaded at all (--nomods turns it off; assets still apply).</summary>
+		public static bool CodeEnabled => Options.Get("nomods") == null;
+
+		/// <summary>Creates the engine and loads the enabled mods' code. Called once the content is open.</summary>
+		public static void Attach()
+		{
+			if (_attached)
+			{
+				return;
+			}
+			_attached = true;
+			OpenFF.Game.Log = message => Log.Write(LogChannel.General, "engine: " + message);
+			OpenFF.Game.Warn = message => Log.Write(LogChannel.General, "engine: WARNING " + message);
+			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", "mods.json");
+
+			int withCode = 0;
+			if (CodeEnabled)
+			{
+				foreach (InstalledMod mod in GameArchive.ActiveMods)
+				{
+					ModDefinition definition = Define(mod);
+					if (definition == null)
+					{
+						continue;
+					}
+					if (ModLoader.Load(definition) != null)
+					{
+						withCode++;
+					}
+				}
+				ModWatcher.Start();
+			}
+			else
+			{
+				Log.Write(LogChannel.General, "engine: --nomods, no mod code loaded");
+			}
+			OpenFF.Game.Start();
+			_lastTick = DateTime.Now;
+			Log.Write(LogChannel.General, "engine: OpenFF " + OpenFF.Game.ApiVersion + " started - " + withCode + " mod(s) with code, "
+				+ OpenFF.Game.Services.All.Count + " service(s), saves in " + OpenFF.Game.Saves.StorePath
+				+ (ModWatcher.Enabled ? ", watching for rebuilt assemblies" : ""));
+		}
+
+		/// <summary>
+		/// A mod's code, when it has any: the assemblies mod.json lists, or every .dll at the
+		/// mod's root when it lists none. Null for an assets-only mod.
+		/// </summary>
+		private static ModDefinition Define(InstalledMod mod)
+		{
+			List<string> assemblies = new List<string>();
+			if (mod.Manifest.Assemblies != null && mod.Manifest.Assemblies.Count > 0)
+			{
+				foreach (string name in mod.Manifest.Assemblies)
+				{
+					string path = Path.IsPathRooted(name) ? name : Path.Combine(mod.Directory, name);
+					if (File.Exists(path))
+					{
+						assemblies.Add(Path.GetFullPath(path));
+					}
+					else
+					{
+						Log.Write(LogChannel.General, "engine: mod " + mod.Id + " names " + name + ", which is not there");
+					}
+				}
+			}
+			else if (Directory.Exists(mod.Directory))
+			{
+				assemblies.AddRange(Directory.EnumerateFiles(mod.Directory, "*.dll", SearchOption.TopDirectoryOnly)
+					.Where(f => !string.Equals(Path.GetFileName(f), "OpenFF.Engine.dll", StringComparison.OrdinalIgnoreCase))
+					.OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
+			}
+			if (assemblies.Count == 0)
+			{
+				return null;
+			}
+			return new ModDefinition
+			{
+				Id = mod.Id,
+				Name = mod.DisplayName,
+				Version = mod.Manifest.Version,
+				Directory = mod.Directory,
+				Assemblies = assemblies,
+			};
+		}
+
+		/// <summary>Once per game tick, after the legacy frame: tell the engine what changed, reload rebuilt mods, run the engine's frame.</summary>
+		public static void Tick()
+		{
+			if (!_attached)
+			{
+				return;
+			}
+			try
+			{
+				WatchLegacy();
+				ModWatcher.Drain();
+				DateTime now = DateTime.Now;
+				double delta = Math.Min(0.25, (now - _lastTick).TotalSeconds);
+				_lastTick = now;
+				OpenFF.Game.Update(delta);
+			}
+			catch (Exception ex)
+			{
+				Log.First(LogChannel.General, "engine-tick", 5, () => "engine: tick failed: " + ex.GetType().Name + ": " + ex.Message);
+			}
+		}
+
+		/// <summary>The legacy game's part and stage, turned into scene events when they change.</summary>
+		private static void WatchLegacy()
+		{
+			string part = CurrentPart();
+			if (part != _lastPart)
+			{
+				OpenFF.Game.Events.Publish(new OpenFF.Events.PartChanged { From = _lastPart, To = part });
+				_lastPart = part;
+			}
+
+			string stage = GlobalScope.stg.CStageMng.CurrentName;
+			// The stage name changes when a map loads; outside the world part there is no map.
+			if (part != "WORLD")
+			{
+				stage = null;
+			}
+			if (stage != _lastStage)
+			{
+				Scene legacy = OpenFF.Game.World.Legacy;
+				if (legacy.Info != null)
+				{
+					OpenFF.Game.Services.SceneUnloadingInternal(legacy.Info);
+					OpenFF.Game.Events.Publish(new OpenFF.Events.MapLeaving { Scene = legacy.Info });
+				}
+				legacy.Info = stage == null ? null : new SceneInfo { Name = stage, Type = StageType(), Source = GameArchive.Game };
+				if (legacy.Info != null)
+				{
+					OpenFF.Game.Events.Publish(new OpenFF.Events.MapEntered { Scene = legacy.Info });
+					OpenFF.Game.Services.SceneLoadedInternal(legacy.Info);
+				}
+				_lastStage = stage;
+			}
+		}
+
+		private static string CurrentPart()
+		{
+			try
+			{
+				return ((GlobalScope.GAMEPART)GlobalScope.sys.FF3PartSys.getCurrentPart()).ToString().Replace("GAMEPART_", "");
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
+		private static string StageType()
+		{
+			try
+			{
+				return GlobalScope.stageMng?.getStageType().ToString().Replace("STAGE_TYPE_", "");
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
+		/// <summary>The legacy game wrote a save slot (CARD_WriteAndVerifyEeprom).</summary>
+		public static void SaveWritten(int offset, int length)
+		{
+			if (!_attached)
+			{
+				return;
+			}
+			OpenFF.Game.Events.Publish(new OpenFF.Events.SaveWritten { Offset = offset, Length = length });
+			OpenFF.Game.Saves.WriteSlot(offset, length);
+		}
+
+		/// <summary>The legacy game read from the save file (CARD_ReadEeprom); a slot it once wrote brings the mods' chunks back.</summary>
+		public static void SaveRead(int offset, int length)
+		{
+			if (!_attached)
+			{
+				return;
+			}
+			if (OpenFF.Game.Saves.ReadSlot(offset, length))
+			{
+				OpenFF.Game.Events.Publish(new OpenFF.Events.SaveRead { Offset = offset, Length = length });
+			}
+		}
+
+		/// <summary>The game is closing.</summary>
+		public static void Quit()
+		{
+			if (!_attached)
+			{
+				return;
+			}
+			ModWatcher.Stop();
+			OpenFF.Game.Quit();
+		}
+
+		/// <summary>Lines for the debug overlay: the engine's state, and what services and behaviours want shown.</summary>
+		public static IEnumerable<string> DebugLines()
+		{
+			if (!_attached)
+			{
+				yield break;
+			}
+			yield return "engine " + OpenFF.Game.ApiVersion + "  mods " + OpenFF.Game.Mods.Count + "  services " + OpenFF.Game.Services.All.Count
+				+ "  objects " + OpenFF.Game.World.ObjectCount + "  handlers " + OpenFF.Game.Events.HandlerCount + "  frame " + OpenFF.Game.Time.Frame
+				+ (ModWatcher.Enabled ? "  hot reload on" : "");
+			foreach (LoadedMod mod in OpenFF.Game.Mods)
+			{
+				yield return "  mod " + mod.Id + " " + mod.Version + (mod.Reloads > 0 ? "  reloaded x" + mod.Reloads : "");
+			}
+			foreach (GameService service in OpenFF.Game.Services.All)
+			{
+				IEnumerable<string> lines = null;
+				try { lines = service.DebugLines(); } catch (Exception) { }
+				if (lines == null) continue;
+				foreach (string line in lines)
+				{
+					yield return "  " + ServiceRegistry.Name(service) + ": " + line;
+				}
+			}
+			foreach (Scene scene in OpenFF.Game.World.Scenes)
+			{
+				foreach (GameObject o in scene.All())
+				{
+					foreach (Behaviour b in o.Components.OfType<Behaviour>())
+					{
+						IEnumerable<string> lines = null;
+						try { lines = b.DebugLines(); } catch (Exception) { }
+						if (lines == null) continue;
+						foreach (string line in lines)
+						{
+							yield return "  " + o.Name + "." + b.GetType().Name + ": " + line;
+						}
+					}
+				}
+			}
+		}
+	}
+}

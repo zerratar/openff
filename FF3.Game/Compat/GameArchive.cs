@@ -137,6 +137,9 @@ namespace FF3
 			return directories;
 		}
 
+		/// <summary>The mods the mods folder enabled, in load order, for the engine to load code from.</summary>
+		public static IReadOnlyList<InstalledMod> ActiveMods { get; private set; } = new List<InstalledMod>();
+
 		/// <summary>
 		/// The enabled mods of mods/ beside the executable that target OpenFF, as their
 		/// files directories in load order. Logs what was taken and which files more than
@@ -156,9 +159,9 @@ namespace FF3
 				+ (active.Count > 0 ? ": " + string.Join(", ", active.Select(m => m.DisplayName + " (" + ModsFolder.FileCount(m) + " files)")) : ""));
 			foreach (InstalledMod mod in installed.Where(m => !active.Contains(m)))
 			{
-				string why = !mod.Enabled ? "disabled" : !mod.Manifest.ForOpenFF ? "targets " + mod.Manifest.Target : "no files folder";
-				Log.Write(LogChannel.File, "mods: " + mod.DisplayName + " skipped (" + why + ")");
+				Log.Write(LogChannel.File, "mods: " + mod.DisplayName + " skipped (" + (mod.Skipped ?? "?") + ")");
 			}
+			ActiveMods = active;
 			foreach (KeyValuePair<string, List<InstalledMod>> conflict in ModsFolder.Conflicts(active))
 			{
 				Log.Write(LogChannel.General, "mods: " + conflict.Key + " in " + string.Join(", ", conflict.Value.Select(m => m.DisplayName)) + " - " + conflict.Value[0].DisplayName + " wins");
@@ -171,7 +174,7 @@ namespace FF3
 			{
 				Log.Write(LogChannel.General, "mods: loadorder.json not written: " + ex.Message);
 			}
-			return active.Select(m => m.FilesDirectory);
+			return active.Where(m => Directory.Exists(m.FilesDirectory)).Select(m => m.FilesDirectory);
 		}
 
 		/// <summary>Reads one file by name, or null if there is no such file anywhere.</summary>
