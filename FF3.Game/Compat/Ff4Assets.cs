@@ -21,6 +21,9 @@ namespace FF3
 			{ "m000_window.NCER", "window_frame_00.NCER" },
 			{ "m000_window.NCBR", "window_frame_00.NCGR" },
 			{ "m000_window.NCGR", "window_frame_00.NCGR" },
+			// The overworld's chip texture sheet: FF3 asks f00.ntxp, FF4 keeps it as f00_.ntxp
+			// (compressed; the chain adds the .lz). f01 and f02 ship both names.
+			{ "f00.ntxp", "f00_.ntxp" },
 		};
 
 		private static readonly HashSet<string> _reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -32,8 +35,22 @@ namespace FF3
 			{
 				return name;
 			}
-			return _names.TryGetValue(name, out string mapped) ? mapped : name;
+			if (_names.TryGetValue(name, out string mapped))
+			{
+				return mapped;
+			}
+			// The overworld's casts, script and text: FF3 keeps one set per chip (f01_3a.hich),
+			// FF4 one for the whole field (f00.hich).
+			System.Text.RegularExpressions.Match chip = _fieldChipFile.Match(name);
+			if (chip.Success)
+			{
+				return chip.Groups[1].Value + "f" + chip.Groups[2].Value + "." + chip.Groups[3].Value;
+			}
+			return name;
 		}
+
+		private static readonly System.Text.RegularExpressions.Regex _fieldChipFile = new System.Text.RegularExpressions.Regex(
+			@"^(.*/)?f(\d\d)_[0-9a-fA-F]{2}\.(hich|script|msd)$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
 		/// <summary>
 		/// Rearranges a bank loaded under FF4's name into the cell order the FF3 code

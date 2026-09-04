@@ -346,6 +346,7 @@ public class MainActivity
 
 	public static byte[] loadFile(string filename)
 	{
+		filename = FF3.Ff4Assets.MapName(filename);
 		string[] array = new string[9] { "ja", "en", "fr", "de", "it", "es", "zh_CN", "zh_TW", "ko" };
 		byte[] array2 = null;
 		int num = filename.LastIndexOf('.');

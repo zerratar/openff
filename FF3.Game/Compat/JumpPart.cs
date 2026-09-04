@@ -75,9 +75,39 @@ namespace FF3
 			}
 		}
 
+		/// <summary>
+		/// A field stage is entered by chip - f00_12, the chip at column 1, row 2 of the
+		/// overworld - and the stage profile says how big a chip is. Given just "f00", the
+		/// chip under the start position is worked out the way the stage manager does.
+		/// </summary>
+		private static string WithChip(string stage, GlobalScope.VecFx32 at)
+		{
+			if (stage == null || stage.Length != 3 || stage[0] != 'f' || !char.IsDigit(stage[1]) || !char.IsDigit(stage[2]))
+			{
+				return stage;
+			}
+			byte[] profile = GameArchive.Read("files/" + stage + ".stgprf");
+			if (profile == null || profile.Length < 28)
+			{
+				return stage + "_00";
+			}
+			int chipsX = profile[14], chipsZ = profile[15];
+			int sizeX = BitConverter.ToInt32(profile, 20), sizeZ = BitConverter.ToInt32(profile, 24);
+			if (chipsX <= 0 || chipsZ <= 0 || sizeX <= 0 || sizeZ <= 0)
+			{
+				return stage + "_00";
+			}
+			long x = at.x, z = at.z;
+			long worldX = (long)sizeX * chipsX, worldZ = (long)sizeZ * chipsZ;
+			x = ((x % worldX) + worldX) % worldX;
+			z = ((z % worldZ) + worldZ) % worldZ;
+			int spotX = (int)(x / sizeX), spotZ = (int)(z / sizeZ);
+			return stage + "_" + spotX.ToString("x") + spotZ.ToString("x");
+		}
+
 		protected override void doInitialize()
 		{
-			string stage = Stage;
+			string stage = WithChip(Stage, StartPosition);
 			Log.Write(LogChannel.General, "jump: " + GameProfile.Game + " -> " + stage + " at " + (Options.Get("pos") ?? "0,0,0"));
 			GlobalScope.sceneMng.setStage(stage);
 			GlobalScope.sys.GGlobal.setNextPart(GlobalScope.GAMEPART.GAMEPART_WORLD);

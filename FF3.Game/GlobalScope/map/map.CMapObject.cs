@@ -371,19 +371,22 @@ internal static partial class GlobalScope
 									getColFlag_not_and(16);
 									getColFlag_not_and(4096);
 									isGrv_set(arg0: false);
-									getColRadius_set(MapObjectCollisionRadius[(int)m_MapObjType]);
-									getCckRadius_set(MapObjectCheckRadius[(int)m_MapObjType]);
-									getTchRadius_set(MapObjectTouchRadius[(int)m_MapObjType]);
-									getColAabbRadius().x = MapObjectCollisionAABB[(int)m_MapObjType][0];
-									getColAabbRadius().y = MapObjectCollisionAABB[(int)m_MapObjType][1];
-									getColAabbRadius().z = MapObjectCollisionAABB[(int)m_MapObjType][2];
+									// PORT: FF4's map objects are numbered past FF3's 78 types; an unknown
+									// one takes the first type's radii and shadow.
+									int typeIndex = ((int)m_MapObjType >= 0 && (int)m_MapObjType < MapObjectCollisionRadius.Length) ? (int)m_MapObjType : 0;
+									getColRadius_set(MapObjectCollisionRadius[typeIndex]);
+									getCckRadius_set(MapObjectCheckRadius[typeIndex]);
+									getTchRadius_set(MapObjectTouchRadius[typeIndex]);
+									getColAabbRadius().x = MapObjectCollisionAABB[typeIndex][0];
+									getColAabbRadius().y = MapObjectCollisionAABB[typeIndex][1];
+									getColAabbRadius().z = MapObjectCollisionAABB[typeIndex][2];
 									if (m_MapObjType == MAP_OBJECT_TYPE.WIND_CRYSTAL)
 									{
 										VEC_Set(getCckOffset(), 0, 0, 40960);
 										VEC_Set(getTchOffset(), 0, 81920, -61440);
 									}
-									setShadowType(MapObjectShadowType[(int)m_MapObjType]);
-									setShadowScale(const_cast<VecFx32>(MapObjectShadowScale[(int)m_MapObjType]));
+									setShadowType(MapObjectShadowType[typeIndex]);
+									setShadowScale(const_cast<VecFx32>(MapObjectShadowScale[typeIndex]));
 								}
 
 								public override void update()

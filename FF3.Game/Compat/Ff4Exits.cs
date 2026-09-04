@@ -118,11 +118,15 @@ namespace FF3
 						names.Add(name);
 					}
 				}
+				// The game's first map first (its exit onto the world map is where the story
+				// begins), then the world map (a town's front door wins over a back room's).
+				string home = "files/" + GameProfile.DefaultStage + ".script";
+				int Rank(string n) => string.Equals(n, home, StringComparison.OrdinalIgnoreCase) ? 0
+					: n.StartsWith("files/f", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
 				names.Sort((a, b) =>
 				{
-					bool fa = a.StartsWith("files/f", StringComparison.OrdinalIgnoreCase);
-					bool fb = b.StartsWith("files/f", StringComparison.OrdinalIgnoreCase);
-					return fa == fb ? string.CompareOrdinal(a, b) : (fa ? -1 : 1);
+					int ra = Rank(a), rb = Rank(b);
+					return ra == rb ? string.CompareOrdinal(a, b) : ra.CompareTo(rb);
 				});
 				foreach (string name in names)
 				{
