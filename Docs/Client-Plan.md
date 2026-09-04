@@ -227,7 +227,7 @@ line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 Karl's redesign of the arena into a survivors-style run needed three more pieces of the
 game as API. **Motions:** the battle binds its motion sets onto the very models the field
 uses (`characterMng.addMotion(id, "b_b01")` for party members, `"b_f<family>"` for monsters)
-and plays them by id, so `Hero.BindMotions`/`Npc.BindMotions` + `PlayMotion(HeroMotion.MagicShot)`
+and plays them by id, so `Hero.BindBattleMotions` (common, magic, job and extra sets) / `Npc.BindMotions` + `PlayMotion(HeroMotion.MagicShot)`
 / `MonsterMotion.Attack` give the field the battle's casting and attack animations;
 `MotionDone` says when one ends. **Items:** `Game.Items` reads all five item tables
 (`ItemManager.*Count/*At` added) into `Item` - name, caption, category, price, jobs, slot,

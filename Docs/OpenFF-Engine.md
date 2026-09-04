@@ -209,7 +209,7 @@ host registers (a mod may replace one by registering its own later in the load o
 
 - `Game.Dialogue` - Say, Ask (Yes/No drawn by the engine), Close, IsOpen, Closed.
 - `Game.Hero` - Position/Yaw, Teleport, Face, LookAt, MoveTo (scripted walk), Freeze,
-  PlayMotion + BindMotions("b_b01") for the battle's motions (HeroMotion ids), MotionDone.
+  PlayMotion + BindBattleMotions for the battle's motions on the field (HeroMotion ids), MotionDone.
 - `Game.Npcs` - Spawn (a character with talk), SpawnModel (any model: monsters, chests),
   Existing (the map's own character by index), each an `Npc` handle: move, turn, motions,
   alpha, hidden, scale, Solid, Interacted, Remove.
