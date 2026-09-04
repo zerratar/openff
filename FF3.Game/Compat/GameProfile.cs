@@ -31,9 +31,10 @@ namespace FF3
 		public static ScriptOpTable ScriptOps => ScriptOpTable.For(Game);
 
 		/// <summary>
-		/// The map a --map start lands on when none is named: FF4's Baron castle, FF3's Ur.
+		/// The map a --map start lands on when none is named: FF4's Baron town, FF3's Ur.
+		/// (d01_00 is Baron's waterway entrance; its world exit is on the far coast.)
 		/// </summary>
-		public static string DefaultStage => IsFf4 ? "d01_00" : "t01_01";
+		public static string DefaultStage => IsFf4 ? "t01_00" : "t01_01";
 
 		/// <summary>
 		/// The model the party leader walks around as. FF3 derives it from the front

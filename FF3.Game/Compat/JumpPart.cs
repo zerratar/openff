@@ -97,7 +97,12 @@ namespace FF3
 			{
 				return stage + "_00";
 			}
-			long x = at.x, z = at.z;
+			// The stage manager's getSpot: the world's origin sits in the middle of the centre
+			// chip (profile bytes 2 and 3), so a position is offset by half a chip and by the
+			// centre chip's index, then wrapped around the world.
+			int centreX = profile[2], centreZ = profile[3];
+			long x = (long)at.x + sizeX / 2 + (long)sizeX * centreX;
+			long z = (long)at.z + sizeZ / 2 + (long)sizeZ * centreZ;
 			long worldX = (long)sizeX * chipsX, worldZ = (long)sizeZ * chipsZ;
 			x = ((x % worldX) + worldX) % worldX;
 			z = ((z % worldZ) + worldZ) % worldZ;

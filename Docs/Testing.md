@@ -78,6 +78,7 @@ passed; these are the rest.
 | D-8 | An event map | `--map=e01_00` on FF4 with `--log=general` | The Red Wings deck renders and stays up; the log lists the `ce_*` cutscene commands as `not implemented - skipped` and no `Exception` |
 | D-9 | FF4 dialogue | `--map=t01_00 --pos=0,0,72 --say=581000,100500` on FF4 | After ~4 s a navy window with a white frame at the bottom reads "So, you're Cecil." in TrueType, with "Cecil" as the speaker's name; the same window and text appear when a townsperson is touched and tapped |
 | D-10 | FF4 motions | Boot FF4, stand, then walk (drag or WASD) | Standing plays the idle (hand on hip), walking plays the walk cycle; no T-pose. FF4 numbers its motions 1000/1001/1002 where FF3 asks 1001/1004/1005; `GameProfile.FieldMotionId` renumbers them as a pack registers |
+| D-11 | FF4 overworld | `--map=f00` on FF4; wait ~10 s; also `--map=f00 --pos=-280,0,-40` | Mountains, grass and sea with Cecil on the ground; by the castle position a settlement is in view; walking streams new chips in; the log's `jump:` line names a chip (`f00_67`), never bare `f00` |
 | D-5 | FF3 unchanged | C-1, C-2 and the archive boot | Identical to before (the FF4 work is behind `GameProfile`, which reads the content's shape) |
 | C-9 | World map and menus from Steam alone | From C-2 reach the world map; open the menu, status, items, config | The ship and map markers (`w_map_*`, `map_marker_*`), volume slider (`m008_volume`) and menu icons (`icon_8dot`, `icon_16dot`, `m015_bar`) are placed and sized as on the phone build |
 

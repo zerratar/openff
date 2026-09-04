@@ -141,6 +141,18 @@ own script running through the shared command table. The pieces:
   holds FF4-only commands with an implementation of their own: `openCharacterNameWindow`
   and `closeCharacterNameWindow` (the speaker's name is a text id in the map's `.msd`).
   `--say=<message id>[,<name id>]` opens the field window with a line for checking.
+- The overworld: `--map=f00` enters FF4's world map. A field stage is a chip (`f00_67`),
+  which `JumpPart` works out from the start position and the stage profile the way the
+  stage manager's `getSpot` does (half a chip and the centre chip's index, wrapped);
+  the chips stream in over the first seconds. The field's chip texture sheet and its
+  casts, script and text answer to FF3's per-chip names; map objects numbered past
+  FF3's 78 types take the first type's radii. The FF4 start map is Baron town
+  (`t01_00`), whose world exit lands beside the castle; motions are renumbered so idle,
+  walk and run play as such (`GameProfile.FieldMotionId`).
+  Open: where the town's world exit lands (`-596,0,-150`, chip `f00_46`) is mountains at
+  the map's edge, and the castle object the field's cast list places at `(-280,0,0)` is
+  not on castle-shaped ground - the world-map coordinate frame FF4's exits and casts use
+  is offset from where the FF3 loader places chips. To be measured, not guessed.
 - `Data/defaults/files/` - the two movement tuning tables FF4 compiled into its engine
   (`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`), as the last content
   root; see the README there.
