@@ -102,6 +102,12 @@ namespace FF3
 					table[i] = GlobalScope.commandTable[i];
 					_reusedCount++;
 				}
+				else if (op != null && Ff4Commands.Table.TryGetValue(i, out GlobalScope.SCRIPT_COMMAND own))
+				{
+					// An FF4 command with an implementation of its own (Ff4Commands).
+					table[i] = own;
+					_reusedCount++;
+				}
 				else if (op != null && theirs != null && i < GlobalScope.commandTable.Length
 					&& _extraOperandBytes.TryGetValue(i, out uint extra))
 				{

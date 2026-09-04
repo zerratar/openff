@@ -9,7 +9,10 @@ namespace FF3
 {
 	internal static class DevSay
 	{
-		private static readonly int _id = int.TryParse(Options.Get("say"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int id) ? id : -1;
+		// --say=<message id>[,<name id>]
+		private static readonly string[] _parts = (Options.Get("say") ?? "").Split(',');
+		private static readonly int _id = _parts.Length > 0 && int.TryParse(_parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int id) ? id : -1;
+		private static readonly int _name = _parts.Length > 1 && int.TryParse(_parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int name) ? name : -1;
 		private static int _frames;
 		private static bool _done;
 
@@ -35,7 +38,11 @@ namespace FF3
 				}
 				window.createMessageWindow(0, _id, -1);
 				window.createMessage(_id, 0, 0);
-				Log.Write(LogChannel.General, "say: message " + _id + " opened");
+				if (_name >= 0)
+				{
+					window.setName(_name);
+				}
+				Log.Write(LogChannel.General, "say: message " + _id + " opened" + (_name >= 0 ? " with name " + _name : ""));
 			}
 			catch (Exception ex)
 			{

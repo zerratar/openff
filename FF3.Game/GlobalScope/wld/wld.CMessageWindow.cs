@@ -56,6 +56,18 @@ internal static partial class GlobalScope
 									return m_MesWindow.mwCreate(static_cast<menu.MessageWindow.MESSAGE_WINDOW_POSITION>(_Pos), message_pos, _MesNum, name_message_pos, _Who);
 								}
 
+								/// <summary>PORT: the speaker's name by its own text id (FF4 names it in the script).</summary>
+								public void setName(int who)
+								{
+									m_MesWindow.mwSetNameMessage(new ds.Vector2<short>(24, 139), who);
+								}
+
+								/// <summary>PORT: no speaker's name.</summary>
+								public void clearName()
+								{
+									m_MesWindow.NameMessageRelease();
+								}
+
 								public bool createWindow(int _Pos)
 								{
 									return m_MesWindow.mwSetWindow(static_cast<menu.MessageWindow.MESSAGE_WINDOW_POSITION>(_Pos));

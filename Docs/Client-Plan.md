@@ -132,6 +132,15 @@ own script running through the shared command table. The pieces:
   scripts do - fade, unload, load and arrival are the engine's own. Cecil walks from the
   grounds through the gate into the castle (`d01_01`), whose four exits are read in turn.
   The same decode over every script gives `--map` its default arrival for any FF4 map.
+- `Compat/Ff4Text.cs` - FF4's `.msd` is UTF-16LE where the message code walks UTF-8 (FF3
+  rewrote its SJIS files to UTF-8 at load); the same rewrite for UTF-16 gives whole lines
+  instead of first letters. `Compat/Ff4Assets.cs` answers FF3's 2D asset names with FF4's
+  files (`m000_window` is `MENU_Common`'s `window_frame_00`) and rearranges the bank into
+  the cell order FF3's window code indexes, re-centring FF4's edge pieces and standing in
+  for the wallpaper FF4 draws in code with one white texel tinted navy. `Compat/Ff4Commands.cs`
+  holds FF4-only commands with an implementation of their own: `openCharacterNameWindow`
+  and `closeCharacterNameWindow` (the speaker's name is a text id in the map's `.msd`).
+  `--say=<message id>[,<name id>]` opens the field window with a line for checking.
 - `Data/defaults/files/` - the two movement tuning tables FF4 compiled into its engine
   (`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`), as the last content
   root; see the README there.
