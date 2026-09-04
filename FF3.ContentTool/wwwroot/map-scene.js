@@ -324,6 +324,7 @@ function makeMapScene(canvas, status) {
         const texture = group.texture ? entry.textures.get(group.texture) : null;
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture || blank);
+        if (texture) applyWrap(gl, group);
         gl.uniform1i(uniform.picture, 0);
         gl.uniform1i(uniform.textured, texture ? 1 : 0);
         gl.uniform3fv(uniform.tint, tintWith || (texture ? [1, 1, 1] : rgb(group.colour)));

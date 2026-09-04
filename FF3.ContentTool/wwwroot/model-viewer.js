@@ -158,6 +158,7 @@ function makeModelViewer(canvas, status, options = {}) {
       const texture = group.texture ? textures.get(group.texture) : null;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, texture || blank);
+      if (texture) applyWrap(gl, group);
       gl.uniform1i(uniform.picture, 0);
       gl.uniform1i(uniform.textured, texture ? 1 : 0);
 
@@ -384,6 +385,16 @@ function solidTexture(gl, rgba) {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
     new Uint8Array(rgba));
   return texture;
+}
+
+/// The wrap a material asks for, set on the bound texture before its group draws. The
+/// DS has repeat, clamp and "flip" - repeat with every other copy mirrored - and FF4's
+/// world map tiles lean on flip to hide their seams; with plain repeat every other tile
+/// shows the wrong half of its texture. Power-of-two sizes only, which NDS textures are.
+const WRAP = { repeat: 0x2901, mirror: 0x8370, clamp: 0x812F };
+function applyWrap(gl, group) {
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, WRAP[group.wrapS] || gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, WRAP[group.wrapT] || gl.REPEAT);
 }
 
 function upload(gl, image) {

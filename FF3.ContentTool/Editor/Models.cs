@@ -45,6 +45,15 @@ namespace FF3.ContentTool.Editor
 		/// texture in one of the two formats that carry their own alpha.
 		/// </summary>
 		public bool Translucent { get; set; }
+		/// <summary>The material's texture scale, rotation (sin, cos) and translation, when not the identity.</summary>
+		public float[] TexMatrix { get; set; }
+		/// <summary>
+		/// How the texture wraps on each axis: "repeat", "mirror" (the DS's flip bit - repeat
+		/// with every other copy reflected, which FF4's world map uses for the tiles that
+		/// blend coast into grass) or "clamp".
+		/// </summary>
+		public string WrapS { get; set; }
+		public string WrapT { get; set; }
 
 		/// <summary>0 none, 1 faces the camera, 2 turns only about its vertical axis.</summary>
 		public int Billboard { get; set; }
@@ -201,6 +210,20 @@ namespace FF3.ContentTool.Editor
 					.FirstOrDefault(m => string.Equals(m.Name, piece.Material, StringComparison.Ordinal));
 				float width = material != null && material.Width > 0 ? material.Width : 1f;
 				float height = material != null && material.Height > 0 ? material.Height : 1f;
+				// The material's texture matrix, as the game composes it (GlobalScope's
+				// DrawModel for a texture SRT animation, whose static case is this): scale
+				// and rotation about the texture's centre, then the translation, taking
+				// texel coordinates to the 0..1 the sampler wants.
+				float m11 = 1f / width, m12 = 0, m21 = 0, m22 = 1f / height, m41 = 0, m42 = 0;
+				if (material != null && material.HasTexMatrix)
+				{
+					float cs = material.RotCos, sn = material.RotSin;
+					float sx = material.ScaleS / width, sy = material.ScaleT / height;
+					m11 = cs * sx; m12 = sn * sx;
+					m21 = -sn * sy; m22 = cs * sy;
+					m41 = -material.TransS - (m11 * width + m21 * height) * 0.5f + 0.5f;
+					m42 = material.TransT - (m12 * width + m22 * height) * 0.5f + 0.5f;
+				}
 
 				ModelGroup group = new ModelGroup
 				{
@@ -213,6 +236,11 @@ namespace FF3.ContentTool.Editor
 					Alpha = material != null ? Math.Min(1f, material.Alpha / 31f) : 1f,
 					Hidden = piece.Hidden,
 					Translucent = Translucent(material, formats),
+					WrapS = material == null ? "repeat" : Wrap(material.RepeatS, material.FlipS),
+					WrapT = material == null ? "repeat" : Wrap(material.RepeatT, material.FlipT),
+					TexMatrix = material != null && material.HasTexMatrix
+						? new[] { material.ScaleS, material.ScaleT, material.RotSin, material.RotCos, material.TransS, material.TransT }
+						: null,
 					Billboard = piece.Billboard,
 					Pivot = piece.Billboard == 0
 						? null : new[] { piece.PivotX, piece.PivotY, piece.PivotZ }
@@ -233,8 +261,8 @@ namespace FF3.ContentTool.Editor
 						bundle.Buffer.Add(v.X);
 						bundle.Buffer.Add(v.Y);
 						bundle.Buffer.Add(v.Z);
-						bundle.Buffer.Add(v.U / width);
-						bundle.Buffer.Add(v.V / height);
+						bundle.Buffer.Add(v.U * m11 + v.V * m21 + m41);
+						bundle.Buffer.Add(v.U * m12 + v.V * m22 + m42);
 						bundle.Buffer.Add(v.R / 255f);
 						bundle.Buffer.Add(v.G / 255f);
 						bundle.Buffer.Add(v.B / 255f);
@@ -252,6 +280,11 @@ namespace FF3.ContentTool.Editor
 
 			Frame(bundle);
 			return bundle;
+		}
+
+		private static string Wrap(bool repeat, bool flip)
+		{
+			return !repeat ? "clamp" : (flip ? "mirror" : "repeat");
 		}
 
 		private static float[] ToFloat(int[] m)

@@ -100,6 +100,18 @@ namespace FF3.ContentTool
 		public int Width;
 		public int Height;
 		public bool RepeatS, RepeatT, FlipS, FlipT;
+		// The material's own texture matrix - scale, rotation, translation - which the
+		// record carries after magW/magH unless a flag bit says the part is the identity
+		// (0x2 scale is one, 0x4 rotation is zero, 0x8 translation is zero). FF4's world
+		// map leans on it: every ground tile is one quad over a shared tile texture and
+		// the material picks its patch, so without this the grid shows the wrong
+		// squares. The DS applies it about the texture's centre; see Models.Read.
+		public ushort Flag;
+		public float ScaleS = 1, ScaleT = 1;
+		public float RotSin = 0, RotCos = 1;
+		public float TransS = 0, TransT = 0;
+		public bool HasTexMatrix =>
+			ScaleS != 1 || ScaleT != 1 || RotSin != 0 || RotCos != 1 || TransS != 0 || TransT != 0;
 	}
 
 	internal sealed class Mdl0Model
@@ -340,9 +352,36 @@ namespace FF3.ContentTool
 				uint diffAmb = U32(data, p + 4);
 				uint polyAttr = U32(data, p + 12);
 				uint texImageParam = U32(data, p + 20);
+				ushort flag = U16(data, p + 30);
+				float scaleS = 1, scaleT = 1, rotSin = 0, rotCos = 1, transS = 0, transT = 0;
+				int q = p + 44;
+				if ((flag & 0x2) == 0 && q + 8 <= data.Length)
+				{
+					scaleS = S32(data, q) / 4096f;
+					scaleT = S32(data, q + 4) / 4096f;
+					q += 8;
+				}
+				if ((flag & 0x4) == 0 && q + 4 <= data.Length)
+				{
+					rotSin = (short)U16(data, q) / 4096f;
+					rotCos = (short)U16(data, q + 2) / 4096f;
+					q += 4;
+				}
+				if ((flag & 0x8) == 0 && q + 8 <= data.Length)
+				{
+					transS = S32(data, q) / 4096f;
+					transT = S32(data, q + 4) / 4096f;
+				}
 
 				model.Materials.Add(new Mdl0Material
 				{
+					Flag = flag,
+					ScaleS = scaleS,
+					ScaleT = scaleT,
+					RotSin = rotSin,
+					RotCos = rotCos,
+					TransS = transS,
+					TransT = transT,
 					Name = materials[i].Name,
 					Texture = texture[i],
 					Palette = palette[i],
