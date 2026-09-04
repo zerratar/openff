@@ -200,6 +200,8 @@ editor's Export already writes. Each is small once A-D exist; none is possible b
 
 ## Direction set by Karl (2026-09-04)
 
+The destination in full, with the layering and order of work: `Docs/OpenFF-Engine.md`.
+
 - **Nothing of one game's is needed to play the other.** A player who owns only FF4 plays
   FF4. Where the FF3 logic reads a table FF4 compiled into its executable, the client
   synthesises the table (`MovementDefaults`); it never ships FF3's file.
