@@ -161,7 +161,7 @@ namespace FF3
 
 		/// <summary>True while a text field owns input, e.g. character naming.</summary>
 		private static bool IsTyping =>
-			TextEntry.Instance != null && TextEntry.Instance.IsActive;
+			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen;
 
 		private static void UpdateMouse()
 		{

@@ -141,6 +141,9 @@ namespace FF3
 				// --test=3d|2d : isolated render harness for the GL emulation.
 				RenderTest.Attach(game);
 
+				// The mod list, on the title where the phone's network entry was.
+				ModListScreen.Attach(game);
+
 				// F1 debug overlay (boxes, sprites, world, stats); --debug=all starts with it on.
 				DebugOverlay.Attach(game);
 
