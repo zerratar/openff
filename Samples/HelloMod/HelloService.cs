@@ -10,13 +10,15 @@
 //     engine's chunk store, keyed "hello/HelloService", with a version for migration.
 //
 // And it acts on the game through the engine API (Game.Npcs, Game.Dialogue, Game.Party,
-// Game.Audio...): on each map it puts a villager beside the hero who, when talked to,
-// greets the player and hands over some gil.
+// Game.Audio, Game.Camera...): on each map it puts a villager beside the hero who, when
+// talked to, runs a small scene as a coroutine - a greeting, a yes/no question, a walk,
+// a camera shake - and reacts to the game's own events (a flag set, a battle starting).
 //
 // Everything a script does is guarded: an exception is logged as "engine: WARNING ..."
 // and the game goes on.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text.Json;
 using OpenFF;
@@ -53,6 +55,13 @@ namespace Hello
 				SpawnVillager();
 			});
 			_partSubscription = Game.Events.Subscribe<PartChanged>(e => Game.Log(Greeting + ": part " + e.From + " -> " + e.To));
+			// The game's own story, heard as events.
+			Game.Events.Subscribe<FlagChanged>(e => { if (e.Value) Game.Log(Greeting + ": flag " + e.Group + "/" + e.Index + " set"); });
+			Game.Events.Subscribe<BattleStarting>(_ => Game.Log(Greeting + ": a battle starts - party " + string.Join(", ", Game.Party.Members)));
+			Game.Events.Subscribe<CutsceneStarted>(_ => Game.Log(Greeting + ": cutscene started"));
+			Game.Events.Subscribe<CutsceneEnded>(_ => Game.Log(Greeting + ": cutscene ended"));
+			Game.Events.Subscribe<MessageShown>(e => Game.Log(Greeting + ": the game showed message " + e.Number));
+			Game.Events.Subscribe<ItemGained>(e => Game.Log(Greeting + ": item " + e.ItemId + " x" + e.Count));
 		}
 
 		private void SpawnVillager()
@@ -73,14 +82,55 @@ namespace Hello
 			_villager.LookAt(at);
 			_villager.Interacted += npc =>
 			{
+				if (_scene != null && _scene.Running)
+				{
+					return;
+				}
 				Talks++;
-				npc.LookAt(Game.Hero.Position);
-				Game.Audio?.PlaySe(0, 1);
-				Game.Party.Gil += 10;
-				Game.Dialogue.Say("Hello from a mod! You have talked to me " + Talks + " time(s)." + (char)10 + "Here, have 10 gil. You now carry " + Game.Party.Gil + ".");
-				Game.Log(Greeting + ": talked to the villager (" + Talks + "), gil now " + Game.Party.Gil);
+				_scene = Game.Run(TalkScene(npc), "hello talk");
 			};
 			Game.Log(Greeting + ": villager spawned at " + spot + " next to the hero at " + at);
+		}
+
+		private Coroutine _scene;
+
+		/// <summary>The talk, as one routine: each yield waits for the player or the world.</summary>
+		private IEnumerator TalkScene(Npc npc)
+		{
+			npc.LookAt(Game.Hero.Position);
+			Game.Hero.Freeze();
+			Game.Hero.LookAt(npc.Position);
+			Game.Audio?.PlaySe(0, 1);
+			Game.Dialogue.Say("Hello from a mod! You have talked to me " + Talks + " time(s).");
+			yield return Wait.Dialogue();
+
+			bool? answer = null;
+			Game.Dialogue.Ask("Would you like 10 gil?", yes => answer = yes);
+			yield return Wait.Until(() => answer != null);
+
+			if (answer == true)
+			{
+				Game.Party.Gil += 10;
+				Game.Camera.Shake(20, 0.5f);
+				Game.Dialogue.Say("Here you are. You now carry " + Game.Party.Gil + " gil.");
+			}
+			else
+			{
+				npc.Balloon = true;
+				Game.Dialogue.Say("Suit yourself.");
+			}
+			yield return Wait.Dialogue();
+			npc.Balloon = false;
+
+			// A little walk around the hero, then back to facing them.
+			Vector3 hero = Game.Hero.Position;
+			npc.MoveTo(hero + new Vector3(0, 0, 10), 40);
+			yield return Wait.Walk(npc);
+			npc.MoveTo(hero + new Vector3(10, 0, 0), 40);
+			yield return Wait.Walk(npc);
+			npc.LookAt(Game.Hero.Position);
+			Game.Hero.Unfreeze();
+			Game.Log(Greeting + ": talk " + Talks + " done, gil now " + Game.Party.Gil + ", party " + string.Join(", ", Game.Party.Members));
 		}
 
 		public override void OnUpdate()
@@ -91,7 +141,7 @@ namespace Hello
 				Game.Log(Greeting + ": " + Frames + " frames, " + MapsEntered + " maps, last " + LastMap);
 			}
 			// The villager keeps up: when the hero has walked off, it comes over (MoveTo).
-			if (Frames % 90 == 0 && _villager != null && _villager.Alive && !_villager.Moving && Game.Hero.Present && !Game.Dialogue.IsOpen)
+			if (Frames % 90 == 0 && _villager != null && _villager.Alive && !_villager.Moving && Game.Hero.Present && !Game.Dialogue.IsOpen && (_scene == null || !_scene.Running))
 			{
 				Vector3 hero = Game.Hero.Position;
 				Vector3 me = _villager.Position;

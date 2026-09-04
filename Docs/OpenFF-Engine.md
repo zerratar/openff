@@ -213,6 +213,8 @@ component (done 2026-09-04: `OpenFF.Engine`, hosted by `Compat/EngineHost.cs`; t
 game is the World's "legacy" scene); C# mod loading with hot reload (done, `Samples/HelloMod`);
 the in-game mod list (done); then behaviours gain the engine API verbs as step 3 delivers
 them (first slice done 2026-09-04: dialogue, hero, NPC spawn/move/talk, flags, party, audio,
-fades, warp - `OpenFF.Engine/Api.cs`); then the scene format and Crystal's editing of it
+fades, warp - `OpenFF.Engine/Api.cs`; second slice the same day: coroutines, the events the
+game's scripts raise, a yes/no question, camera, effects, party members, richer characters);
+then the scene format and Crystal's editing of it
 (step 5), with the first converters. Crystal generating a mod's csproj, building it and
 handing it to Visual Studio or any editor is done (2026-09-04, `Editor/ModCode.cs`).

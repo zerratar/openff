@@ -83,6 +83,9 @@ namespace OpenFF
 		/// <summary>Lines for the debug overlay (F1). Return null for none.</summary>
 		public virtual IEnumerable<string> DebugLines() => null;
 
+		/// <summary>Starts a coroutine (Game.Run) named after this behaviour.</summary>
+		protected Coroutine StartCoroutine(System.Collections.IEnumerator routine) => Game.Run(routine, Name);
+
 		internal string Name => (GameObject?.Name ?? "?") + "." + GetType().Name;
 
 		internal void RunAwake()

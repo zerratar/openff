@@ -142,6 +142,34 @@ internal static partial class GlobalScope
 									y = y;
 								}
 
+								/// <summary>PORT: whether the box is up.</summary>
+								public bool isOpen()
+								{
+									return visiblity_;
+								}
+
+								/// <summary>PORT: which answer a tap at an LCD point lands on: 1 yes, 0 no, -1 neither.</summary>
+								public int hitTest(int x, int y)
+								{
+									int left = CONFIRMWND_POS_X;
+									int right = CONFIRMWND_POS_X + CONFIRMWND_WIDTH;
+									if (x < left || x > right)
+									{
+										return -1;
+									}
+									int yesTop = CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_YES_Y - 6;
+									int noTop = CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_NO_Y - 6;
+									if (y >= yesTop && y < noTop)
+									{
+										return 1;
+									}
+									if (y >= noTop && y < CONFIRMWND_POS_Y + CONFIRMWND_HEIGHT + 4)
+									{
+										return 0;
+									}
+									return -1;
+								}
+
 								public void swCurPos(bool b)
 								{
 									if (b)

@@ -1302,6 +1302,8 @@ internal static partial class GlobalScope
 				OS_Printf("setBattle %d\n", b);
 				if (b)
 				{
+					FF3.EngineHooks.BattleStarting();
+					FF3.EngineHooks.BattleStarting();
 					m_Next = NEXT_MODE.NEXT_BATTLE;
 				}
 			}

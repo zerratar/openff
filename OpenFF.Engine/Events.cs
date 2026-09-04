@@ -131,5 +131,49 @@ namespace OpenFF
 		{
 			public string ModId { get; set; }
 		}
+
+		// ---- raised by the game's own scripts and systems as they run ----
+
+		/// <summary>A flag in the scripts' flag space changed (quest progress lives there).</summary>
+		public sealed class FlagChanged
+		{
+			public uint Group { get; set; }
+			public uint Index { get; set; }
+			public bool Value { get; set; }
+		}
+
+		/// <summary>A script showed a message from the game's text (by its number).</summary>
+		public sealed class MessageShown
+		{
+			public int Number { get; set; }
+		}
+
+		/// <summary>A script took control for a scene (EventStart); Ended when it gave it back.</summary>
+		public sealed class CutsceneStarted { }
+		public sealed class CutsceneEnded { }
+
+		/// <summary>A battle is about to begin (a script's, or an encounter).</summary>
+		public sealed class BattleStarting { }
+
+		/// <summary>The party received an item from a script or a chest.</summary>
+		public sealed class ItemGained
+		{
+			public int ItemId { get; set; }
+			public int Count { get; set; }
+		}
+
+		/// <summary>A script asked for another map.</summary>
+		public sealed class WarpRequested
+		{
+			public string Map { get; set; }
+			public Vector3 Position { get; set; }
+			public int Facing { get; set; }
+		}
+
+		/// <summary>The player answered a question the API asked.</summary>
+		public sealed class Answered
+		{
+			public bool Yes { get; set; }
+		}
 	}
 }

@@ -222,6 +222,22 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## The engine API, second slice (2026-09-04)
+
+Coroutines (`OpenFF.Engine/Coroutines.cs`): `Game.Run(IEnumerator)` steps a routine once
+per engine frame; it yields `Wait.Frames`, `Wait.Seconds`, `Wait.Until`, `Wait.Dialogue`,
+`Wait.Walk(npc)`, `Wait.HeroWalk`, or another routine; a mod's routines end with it.
+`Behaviour.StartCoroutine` as in Unity. The events the game's own scripts raise as they run
+(`Compat/EngineHooks.cs`, one line each in the decompiled code): FlagChanged, MessageShown,
+CutsceneStarted/Ended, BattleStarting, ItemGained, WarpRequested; and Answered for the
+API's own question. The API grew: `Dialogue.Ask` (the field's Yes/No box over the message
+window, answered by tap, up/down + A, or B); the hero walks (`MoveTo`, `Stop`, `Moving`),
+looks, plays a motion, shows a balloon; a character plays a motion, has Alpha, Hidden,
+Balloon and Scale; `Party.Members` (id, slot, name, level, hp, mp, job), `AddMember`,
+`RemoveMember`, `SetLevel`, `HealAll`; `Game.Camera` (MoveTo, LookAt, Follow, Shake, Zoom,
+Reset over the field camera) and `Game.Effects` (Spawn/Remove by the game's effect table).
+The sample's talk is now one coroutine that uses most of it. Testing C-23, C-24.
+
 ## Crystal makes a mod's C# project (2026-09-04)
 
 A project targeting our build gets code in one click (`Editor/ModCode.cs`): Project ▸ Add

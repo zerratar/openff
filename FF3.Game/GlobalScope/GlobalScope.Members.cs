@@ -16232,6 +16232,7 @@ internal static partial class GlobalScope
 							CCastCommandTransit.getInstance().castParam_MapJump().initialize();
 							CCastCommandTransit.getInstance().castParam_MapJump().setUp(const_cast<string>(arg), (sbyte)dword2, pos, vecFx2, _Flag: true);
 							CCastCommandTransit.getInstance().cast_BaseSystem().setMapJump(b: true);
+							FF3.EngineHooks.WarpRequested(arg, pos, (int)dword);
 						}
 
 						internal static void ff3Command_AddItem(ScriptEngine engine)
@@ -16241,6 +16242,7 @@ internal static partial class GlobalScope
 							int num = (int)word;
 							int itemNum = b;
 							pl.PlayerParty.instance().addItem(num, itemNum);
+							FF3.EngineHooks.ItemGained(num, itemNum);
 							dgs.CCtrlCodeInterface.instance().setItemId(num);
 						}
 
@@ -16870,6 +16872,7 @@ internal static partial class GlobalScope
 								return;
 							}
 							CCastCommandTransit.getInstance().cast_BaseSystem().lastMessage_set((int)dword);
+							FF3.EngineHooks.MessageShown((int)dword);
 							CCastCommandTransit.getInstance().cast_Field2D().MessageWindow()
 								.createMessage((int)dword, 0, (int)word);
 							if (num != 0)

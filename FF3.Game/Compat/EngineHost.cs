@@ -28,6 +28,9 @@ namespace FF3
 		/// <summary>Whether mods' code is loaded at all (--nomods turns it off; assets still apply).</summary>
 		public static bool CodeEnabled => Options.Get("nomods") == null;
 
+		/// <summary>Whether the engine exists yet (the hooks stay quiet before that).</summary>
+		public static bool Attached => _attached;
+
 		/// <summary>Creates the engine and loads the enabled mods' code. Called once the content is open.</summary>
 		public static void Attach()
 		{

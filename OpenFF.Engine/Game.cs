@@ -56,6 +56,7 @@ namespace OpenFF
 			Time.Advance(deltaSeconds);
 			Services.UpdateAll();
 			World.Update();
+			Coroutines.Update();
 		}
 
 		/// <summary>The host is closing: services hear OnQuit, in reverse order.</summary>

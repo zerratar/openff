@@ -249,6 +249,7 @@ namespace OpenFF.Modding
 			{
 				Game.World.RemoveOwned(mod);
 				Game.Events.RemoveFrom(mod.Assembly);
+				Game.Coroutines.RemoveFrom(mod.Assembly);
 			}
 			_loaded.Remove(mod);
 			try

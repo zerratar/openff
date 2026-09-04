@@ -22,23 +22,27 @@ namespace FF3
 	{
 		public static readonly LegacyDialogue Dialogue = new LegacyDialogue();
 		public static readonly LegacyNpcs Npcs = new LegacyNpcs();
+		public static readonly LegacyHero Hero = new LegacyHero();
 
 		public static void Register()
 		{
 			OpenFF.Game.Services.Register(Dialogue);
-			OpenFF.Game.Services.Register(new LegacyHero());
+			OpenFF.Game.Services.Register(Hero);
 			OpenFF.Game.Services.Register(Npcs);
 			OpenFF.Game.Services.Register(new LegacyFlags());
 			OpenFF.Game.Services.Register(new LegacyParty());
 			OpenFF.Game.Services.Register(new LegacyAudio());
 			OpenFF.Game.Services.Register(new LegacyScreen());
 			OpenFF.Game.Services.Register(new LegacyField());
+			OpenFF.Game.Services.Register(new LegacyCamera());
+			OpenFF.Game.Services.Register(new LegacyEffects());
 		}
 
-		/// <summary>Once per frame, after the legacy tick: the message window's end, and talking to spawned characters.</summary>
+		/// <summary>Once per frame, after the legacy tick: the message window, the hero's scripted walk, and spawned characters.</summary>
 		public static void Tick()
 		{
 			Dialogue.Tick();
+			Hero.Tick();
 			Npcs.Tick();
 		}
 
@@ -148,8 +152,13 @@ namespace FF3
 		// Text waiting for the window to finish opening: the scripts open the window, wait,
 		// then set the text; set at once it shows over the half-drawn frame.
 		private string _pending;
+		// A question in progress: the box is up, the answer goes here.
+		private Action<bool> _answer;
+		private bool _yes = true;
+		private bool _boxOpen;
 
 		public bool IsOpen => _shown || _pending != null;
+		public bool IsAsking => _answer != null;
 		public event Action Closed;
 
 		private GlobalScope.wld.CMessageWindow Window
@@ -164,6 +173,20 @@ namespace FF3
 					return null;
 				}
 				try { return transit.cast_Field2D()?.MessageWindow(); }
+				catch (Exception) { return null; }
+			}
+		}
+
+		private GlobalScope.wld.CConfirmWindow Box
+		{
+			get
+			{
+				GlobalScope.CCastCommandTransit transit = GlobalScope.CCastCommandTransit.getInstance();
+				if (transit.cast_BaseSystem() == null)
+				{
+					return null;
+				}
+				try { return transit.cast_Field2D()?.refConfirmWindow(); }
 				catch (Exception) { return null; }
 			}
 		}
@@ -190,23 +213,67 @@ namespace FF3
 			}
 		}
 
+		public void Ask(string question, Action<bool> answered)
+		{
+			GlobalScope.wld.CConfirmWindow box = Box;
+			if (box == null || Window == null)
+			{
+				EngineApi.Warn("ask", "Ask: not on a map");
+				Game.Guard("Dialogue.Ask", () => answered?.Invoke(false));
+				return;
+			}
+			if (_answer != null)
+			{
+				// One question at a time: the earlier one is answered "no".
+				Action<bool> earlier = _answer;
+				_answer = null;
+				Game.Guard("Dialogue.Ask", () => earlier(false));
+			}
+			Say(question ?? "");
+			_answer = answered ?? (_ => { });
+			_yes = true;
+			_boxOpen = false;
+		}
+
 		private void Show(GlobalScope.wld.CMessageWindow window, string text)
 		{
 			window.createText(text, 0);
-			window.setProgressIconActivity(_SendMessage: true);
+			// A question keeps its text up until answered: no tap mark, no dismissal.
+			window.setProgressIconActivity(_SendMessage: _answer == null);
 			_pending = null;
 			_shown = true;
+			if (_answer != null && !_boxOpen)
+			{
+				GlobalScope.wld.CConfirmWindow box = Box;
+				if (box != null)
+				{
+					box.open();
+					box.swCurPos(true);
+					_boxOpen = box.isOpen();
+				}
+			}
 		}
 
 		public void Close()
 		{
 			GlobalScope.wld.CMessageWindow window = Window;
 			bool wasOpen = _shown || _pending != null;
+			if (_boxOpen)
+			{
+				Box?.close();
+				_boxOpen = false;
+			}
 			if (window != null && wasOpen)
 			{
 				window.release();
 			}
 			_pending = null;
+			if (_answer != null)
+			{
+				Action<bool> answer = _answer;
+				_answer = null;
+				Game.Guard("Dialogue.Ask", () => answer(false));
+			}
 			if (wasOpen)
 			{
 				_shown = false;
@@ -217,7 +284,11 @@ namespace FF3
 		/// <summary>The frame the window closed on; a press that dismissed it must not also talk to someone.</summary>
 		internal long ClosedFrame = -1;
 
-		/// <summary>The player has tapped past the text (isNextPageButton, what WaitInputSendMessage waits for): take the window down.</summary>
+		/// <summary>
+		/// Pending text goes up once the window is open; a question reads the Yes/No box
+		/// (tap on an answer, or up/down and A; B is no); a plain message comes down when
+		/// the player taps past it (isNextPageButton, what WaitInputSendMessage waits for).
+		/// </summary>
 		internal void Tick()
 		{
 			GlobalScope.wld.CMessageWindow window = Window;
@@ -235,11 +306,147 @@ namespace FF3
 				return;
 			}
 			if (!_shown) return;
-			if (window == null || !window.isMadeWindow() || window.isNextPageButton())
+			if (window == null || !window.isMadeWindow())
+			{
+				Close();
+				ClosedFrame = OpenFF.Game.Time.Frame;
+				return;
+			}
+			if (_answer != null)
+			{
+				TickQuestion();
+				return;
+			}
+			if (window.isNextPageButton())
 			{
 				Close();
 				ClosedFrame = OpenFF.Game.Time.Frame;
 			}
+		}
+
+		private void TickQuestion()
+		{
+			GlobalScope.wld.CConfirmWindow box = Box;
+			if (box == null || !_boxOpen)
+			{
+				return;
+			}
+			int decided = -1;
+			try
+			{
+				ushort edge = GlobalScope.ds.g_Pad.edge();
+				if ((edge & 0x40) != 0 || (edge & 0x80) != 0)
+				{
+					_yes = !_yes;
+					box.swCurPos(_yes);
+				}
+				if ((edge & 1) != 0) decided = _yes ? 1 : 0;
+				if ((edge & 2) != 0) decided = 0;
+				if (decided < 0 && GlobalScope.ds.g_TouchPanel.isRelease())
+				{
+					GlobalScope.ds.g_TouchPanel.getLastPoint(out int x, out int y);
+					int hit = box.hitTest(x, y);
+					if (hit >= 0)
+					{
+						decided = hit;
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("ask-input", "Ask: " + ex.Message);
+				decided = 0;
+			}
+			if (decided < 0)
+			{
+				return;
+			}
+			bool yes = decided == 1;
+			Action<bool> answer = _answer;
+			_answer = null;
+			box.close();
+			_boxOpen = false;
+			GlobalScope.wld.CMessageWindow window = Window;
+			if (window != null)
+			{
+				window.release();
+			}
+			_shown = false;
+			ClosedFrame = OpenFF.Game.Time.Frame;
+			OpenFF.Game.Events.Publish(new OpenFF.Events.Answered { Yes = yes });
+			Game.Guard("Dialogue.Ask", () => answer(yes));
+			Game.Guard("Dialogue.Closed", () => Closed?.Invoke());
+		}
+	}
+
+	// ---- a walk the host steps itself ----
+
+	/// <summary>
+	/// A walk over frames, stepped by the host: the legacy MoveSys leaves a character
+	/// without a script cast standing still, so the API moves the position itself and
+	/// lets the WALK action play the motion.
+	/// </summary>
+	internal sealed class HostWalk
+	{
+		private GlobalScope.VecFx32 _target;
+		private GlobalScope.VecFx32 _step;
+		private int _frames;
+
+		public bool Moving => _frames > 0;
+
+		public void Begin(GlobalScope.pl.CBasePlayer p, int humanIndex, Vector3 position, int frames)
+		{
+			_target = EngineApi.ToFx(position);
+			GlobalScope.VecFx32 from = p.getPosition();
+			_step = new GlobalScope.VecFx32();
+			_step.set((_target.x - from.x) / frames, (_target.y - from.y) / frames, (_target.z - from.z) / frames);
+			_frames = frames;
+			EngineApi.TurnToward(p, _step);
+			SetAction(humanIndex, GlobalScope.pl.CPlayerHuman.ACTION_ID.ACTION_ID_WALK);
+		}
+
+		public void Stop(int humanIndex)
+		{
+			if (_frames <= 0) return;
+			_frames = 0;
+			SetAction(humanIndex, GlobalScope.pl.CPlayerHuman.ACTION_ID.ACTION_ID_WAIT);
+		}
+
+		public void Advance(GlobalScope.pl.CBasePlayer p, int humanIndex)
+		{
+			if (_frames <= 0) return;
+			if (p == null)
+			{
+				_frames = 0;
+				return;
+			}
+			_frames--;
+			GlobalScope.VecFx32 next = new GlobalScope.VecFx32();
+			if (_frames == 0)
+			{
+				next.copy(_target);
+			}
+			else
+			{
+				GlobalScope.VecFx32 now = p.getPosition();
+				next.set(now.x + _step.x, now.y + _step.y, now.z + _step.z);
+			}
+			p.getPrePosition_set(p.getPosition());
+			p.setPosition(next);
+			EngineApi.TurnToward(p, _step);
+			if (_frames == 0)
+			{
+				SetAction(humanIndex, GlobalScope.pl.CPlayerHuman.ACTION_ID.ACTION_ID_WAIT);
+			}
+		}
+
+		private static void SetAction(int humanIndex, GlobalScope.pl.CPlayerHuman.ACTION_ID action)
+		{
+			try
+			{
+				EngineApi.Players.PlayerHuman(humanIndex)?.setAction(action);
+			}
+			catch (Exception) { }
 		}
 	}
 
@@ -248,17 +455,20 @@ namespace FF3
 	internal sealed class LegacyHero : GameService, IHero
 	{
 		private bool _frozen;
+		private readonly HostWalk _walk = new HostWalk();
 
 		public bool Present => EngineApi.HeroPlayer != null;
 		public Vector3 Position => EngineApi.ToUnits(EngineApi.HeroPlayer?.getPosition());
 		public float Yaw => EngineApi.HeroPlayer == null ? 0f : EngineApi.RotToYaw(EngineApi.HeroPlayer.getRotation().y);
 		public string Model => EngineApi.HeroPlayer?.getModelName();
 		public bool Frozen => _frozen;
+		public bool Moving => _walk.Moving && EngineApi.HeroPlayer != null;
 
 		public void Teleport(Vector3 position)
 		{
 			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
 			if (hero == null) return;
+			_walk.Stop(EngineApi.HeroIndex);
 			GlobalScope.VecFx32 pos = EngineApi.ToFx(position);
 			hero.setPosition(pos);
 			hero.getPrePosition_set(hero.getPosition());
@@ -269,6 +479,48 @@ namespace FF3
 			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
 			if (hero == null) return;
 			EngineApi.TurnToward(hero, EngineApi.Direction(yaw));
+		}
+
+		public void LookAt(Vector3 point)
+		{
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			if (hero == null) return;
+			GlobalScope.VecFx32 to = EngineApi.ToFx(point);
+			GlobalScope.VecFx32 from = hero.getPosition();
+			GlobalScope.VecFx32 d = new GlobalScope.VecFx32();
+			d.set(to.x - from.x, 0, to.z - from.z);
+			EngineApi.TurnToward(hero, d);
+		}
+
+		public void MoveTo(Vector3 position, int frames)
+		{
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			if (hero == null) return;
+			if (frames <= 0)
+			{
+				Teleport(position);
+				return;
+			}
+			hero.setAutoPilot(_AutoPilot: true);
+			_walk.Begin(hero, EngineApi.HeroIndex, position, frames);
+		}
+
+		public void Stop()
+		{
+			_walk.Stop(EngineApi.HeroIndex);
+		}
+
+		public void PlayMotion(int index, bool loop = false, int blendFrames = 5)
+		{
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			if (hero == null) return;
+			Game.Guard("Hero.PlayMotion", () => hero.startMotion(index, loop, (uint)Math.Max(0, blendFrames)));
+		}
+
+		public bool Balloon
+		{
+			get => EngineApi.HeroPlayer?.isBalloon() == true;
+			set { GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer; if (hero != null) hero.setBalloon(value); }
 		}
 
 		public void Freeze()
@@ -284,9 +536,24 @@ namespace FF3
 		{
 			if (!EngineApi.InWorld) { _frozen = false; return; }
 			int index = EngineApi.HeroIndex;
+			_walk.Stop(index);
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			hero?.setAutoPilot(_AutoPilot: false);
 			EngineApi.Players.setPlayerStart(index);
 			GlobalScope.dv.CDeviceManager.getInstance().Pad().setActivity(b: true);
 			_frozen = false;
+		}
+
+		/// <summary>Once per frame: a scripted walk in progress; when it ends and the hero is not frozen, control returns.</summary>
+		internal void Tick()
+		{
+			if (!_walk.Moving) return;
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			_walk.Advance(hero, EngineApi.HeroIndex);
+			if (!_walk.Moving && !_frozen && hero != null)
+			{
+				hero.setAutoPilot(_AutoPilot: false);
+			}
 		}
 	}
 
@@ -297,13 +564,7 @@ namespace FF3
 		internal int Index;
 		internal string Map;
 		private bool _removed;
-		// A walk in progress: the host steps the position itself each frame. The legacy
-		// MoveSys route (MoveCharaImp) leaves a character that has no script cast behind it
-		// standing still - its acceleration is reset the frame after - so the API walks the
-		// character by hand and lets the human's WALK action play the motion.
-		private GlobalScope.VecFx32 _walkTarget;
-		private GlobalScope.VecFx32 _walkStep;
-		private int _walkFrames;
+		private readonly HostWalk _walk = new HostWalk();
 
 		public LegacyNpc(int index, string model, string map)
 		{
@@ -329,13 +590,13 @@ namespace FF3
 		public override bool Alive => Player != null;
 		public override Vector3 Position => EngineApi.ToUnits(Player?.getPosition());
 		public override float Yaw => Player == null ? 0f : EngineApi.RotToYaw(Player.getRotation().y);
-		public override bool Moving => _walkFrames > 0 && Player != null;
+		public override bool Moving => _walk.Moving && Player != null;
 
 		public override void Teleport(Vector3 position)
 		{
 			GlobalScope.pl.CBasePlayer p = Player;
 			if (p == null) return;
-			_walkFrames = 0;
+			_walk.Stop(Index);
 			p.setPosition(EngineApi.ToFx(position));
 			p.getPrePosition_set(p.getPosition());
 		}
@@ -349,64 +610,53 @@ namespace FF3
 				Teleport(position);
 				return;
 			}
-			_walkTarget = EngineApi.ToFx(position);
-			GlobalScope.VecFx32 from = p.getPosition();
-			_walkStep = new GlobalScope.VecFx32();
-			_walkStep.set((_walkTarget.x - from.x) / frames, (_walkTarget.y - from.y) / frames, (_walkTarget.z - from.z) / frames);
-			_walkFrames = frames;
-			EngineApi.TurnToward(p, _walkStep);
-			try
-			{
-				EngineApi.Players.PlayerHuman(Index)?.setAction(GlobalScope.pl.CPlayerHuman.ACTION_ID.ACTION_ID_WALK);
-			}
-			catch (Exception) { }
+			_walk.Begin(p, Index, position, frames);
 		}
 
-		public override void Stop()
-		{
-			if (_walkFrames <= 0) return;
-			_walkFrames = 0;
-			try
-			{
-				EngineApi.Players.PlayerHuman(Index)?.setAction(GlobalScope.pl.CPlayerHuman.ACTION_ID.ACTION_ID_WAIT);
-			}
-			catch (Exception) { }
-		}
+		public override void Stop() => _walk.Stop(Index);
 
 		/// <summary>One frame of a walk in progress; called by the host each tick.</summary>
-		internal void Advance()
+		internal void Advance() => _walk.Advance(Player, Index);
+
+		public override void PlayMotion(int index, bool loop = false, int blendFrames = 5)
 		{
-			if (_walkFrames <= 0) return;
 			GlobalScope.pl.CBasePlayer p = Player;
-			if (p == null)
-			{
-				_walkFrames = 0;
-				return;
-			}
-			_walkFrames--;
-			GlobalScope.VecFx32 next = new GlobalScope.VecFx32();
-			if (_walkFrames == 0)
-			{
-				next.copy(_walkTarget);
-			}
-			else
-			{
-				GlobalScope.VecFx32 now = p.getPosition();
-				next.set(now.x + _walkStep.x, now.y + _walkStep.y, now.z + _walkStep.z);
-			}
-			p.getPrePosition_set(p.getPosition());
-			p.setPosition(next);
-			EngineApi.TurnToward(p, _walkStep);
-			if (_walkFrames == 0)
-			{
-				try
-				{
-					EngineApi.Players.PlayerHuman(Index)?.setAction(GlobalScope.pl.CPlayerHuman.ACTION_ID.ACTION_ID_WAIT);
-				}
-				catch (Exception) { }
-			}
+			if (p == null) return;
+			Game.Guard("Npc.PlayMotion", () => p.startMotion(index, loop, (uint)Math.Max(0, blendFrames)));
 		}
 
+		public override int Alpha
+		{
+			get { GlobalScope.pl.CBasePlayer p = Player; return p == null ? 0 : p.getTransparencyRate(); }
+			set { GlobalScope.pl.CBasePlayer p = Player; if (p != null) p.setTransparencyRate(Math.Clamp(value, 0, 100)); }
+		}
+
+		public override bool Hidden
+		{
+			get => Player?.isHidden() == true;
+			set { GlobalScope.pl.CBasePlayer p = Player; if (p != null) p.setHidden(value); }
+		}
+
+		public override bool Balloon
+		{
+			get => Player?.isBalloon() == true;
+			set { GlobalScope.pl.CBasePlayer p = Player; if (p != null) p.setBalloon(value); }
+		}
+
+		public override float Scale
+		{
+			get { GlobalScope.pl.CBasePlayer p = Player; return p == null ? 1f : p.getScale().x / 4096f; }
+			set
+			{
+				GlobalScope.pl.CBasePlayer p = Player;
+				if (p == null) return;
+				int s = (int)Math.Round(Math.Max(0.01f, value) * 4096);
+				GlobalScope.VecFx32 v = new GlobalScope.VecFx32();
+				v.set(s, s, s);
+				p.setScale(v);
+				p.setShadowScale(v);
+			}
+		}
 
 		public override void Face(float yaw)
 		{
@@ -633,6 +883,99 @@ namespace FF3
 			try { return GlobalScope.pl.PlayerParty.instance().item().serchNormalItem((short)itemId)?.itemNumber() ?? 0; }
 			catch (Exception) { return 0; }
 		}
+
+		public IReadOnlyList<PartyMember> Members
+		{
+			get
+			{
+				List<PartyMember> members = new List<PartyMember>();
+				try
+				{
+					for (byte slot = 0; slot < 4; slot++)
+					{
+						GlobalScope.pl.Player player = GlobalScope.pl.PlayerParty.instance().player(slot);
+						if (player != null && player.isEnable())
+						{
+							members.Add(Describe(player, slot));
+						}
+					}
+				}
+				catch (Exception ex) { EngineApi.Warn("party", "Members: " + ex.Message); }
+				return members;
+			}
+		}
+
+		public PartyMember Member(int id)
+		{
+			try
+			{
+				GlobalScope.pl.Player player = GlobalScope.pl.PlayerParty.instance().playerForId((byte)id);
+				if (player == null) return null;
+				int slot = -1;
+				for (byte s = 0; s < 4; s++)
+				{
+					if (ReferenceEquals(GlobalScope.pl.PlayerParty.instance().player(s), player)) { slot = s; break; }
+				}
+				return Describe(player, slot);
+			}
+			catch (Exception) { return null; }
+		}
+
+		private static PartyMember Describe(GlobalScope.pl.Player player, int slot)
+		{
+			PartyMember m = new PartyMember { Id = player.playerId(), Slot = slot, Name = player.name() };
+			try { m.Level = player.level().get(); } catch (Exception) { }
+			try { m.Hp = player.hp().getNow(); } catch (Exception) { }
+			try { m.Mp = player.mp(0).getNow(); } catch (Exception) { }
+			try { m.Job = player.jobManager().nowJob(); } catch (Exception) { }
+			m.Alive = m.Hp > 0;
+			return m;
+		}
+
+		public bool AddMember(int id)
+		{
+			try
+			{
+				bool added = GlobalScope.pl.PlayerParty.instance().addPlayer((byte)id);
+				if (added)
+				{
+					GlobalScope.pl.PlayerParty.instance().clearMemory();
+					RefreshDisplay();
+				}
+				return added;
+			}
+			catch (Exception ex) { EngineApi.Warn("party-add", "AddMember: " + ex.Message); return false; }
+		}
+
+		public bool RemoveMember(int id)
+		{
+			try
+			{
+				bool removed = GlobalScope.pl.PlayerParty.instance().releasePlayer((byte)id);
+				if (removed) RefreshDisplay();
+				return removed;
+			}
+			catch (Exception ex) { EngineApi.Warn("party-remove", "RemoveMember: " + ex.Message); return false; }
+		}
+
+		public void SetLevel(int id, int level)
+		{
+			try { GlobalScope.pl.PlayerParty.instance().playerForId((byte)id)?.growParameter((byte)Math.Clamp(level, 1, 99)); }
+			catch (Exception ex) { EngineApi.Warn("party-level", "SetLevel: " + ex.Message); }
+		}
+
+		public void HealAll()
+		{
+			try { GlobalScope.pl.PlayerParty.instance().fineAll(); }
+			catch (Exception ex) { EngineApi.Warn("party-heal", "HealAll: " + ex.Message); }
+		}
+
+		private static void RefreshDisplay()
+		{
+			if (!EngineApi.InWorld) return;
+			try { GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().changePlayerCharDisplay(); }
+			catch (Exception) { }
+		}
 	}
 
 	internal sealed class LegacyAudio : GameService, IAudio
@@ -670,6 +1013,107 @@ namespace FF3
 		}
 
 		public bool Faded => GlobalScope.dgs.CFade.Main().isFaded();
+	}
+
+	internal sealed class LegacyCamera : GameService, ICamera
+	{
+		private GlobalScope.cmr.CWorldCamera Camera
+		{
+			get
+			{
+				if (!EngineApi.InWorld) return null;
+				try { return GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera(); }
+				catch (Exception) { return null; }
+			}
+		}
+
+		public Vector3 Position => EngineApi.ToUnits(Camera?.Pos());
+		public Vector3 Target => EngineApi.ToUnits(Camera?.Trg());
+
+		public void MoveTo(Vector3 position)
+		{
+			GlobalScope.cmr.CWorldCamera cam = Camera;
+			if (cam == null) return;
+			cam.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_FREE);
+			cam.Pos_set(EngineApi.ToFx(position));
+			GlobalScope.VEC_Set(cam.PosOffset(), 0, 0, 0);
+		}
+
+		public void LookAt(Vector3 target)
+		{
+			GlobalScope.cmr.CWorldCamera cam = Camera;
+			if (cam == null) return;
+			cam.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_FREE);
+			cam.setTrg(EngineApi.ToFx(target));
+		}
+
+		public void Follow()
+		{
+			GlobalScope.cmr.CWorldCamera cam = Camera;
+			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+			if (cam == null || hero == null) return;
+			cam.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_AUTOFOLLOW);
+			GlobalScope.chr.CBaseCharacter.setLookIndex(EngineApi.HeroIndex);
+			cam.setTrg(hero.getPosition());
+		}
+
+		public void Shake(int frames, float strength = 1f, int speed = 2)
+		{
+			GlobalScope.cmr.CWorldCamera cam = Camera;
+			if (cam == null) return;
+			int amount = (int)Math.Round(Math.Max(0f, strength) * 4096);
+			Game.Guard("Camera.Shake", () => cam.composit2.startVibration(GlobalScope.cmr.CCameraVibration.VIBRATION_STATE.VIBRATION_EXE_1,
+				Math.Max(1, frames), Math.Max(1, speed), amount, amount, 0, false));
+		}
+
+		public void Zoom(int degrees)
+		{
+			GlobalScope.cmr.CWorldCamera cam = Camera;
+			if (cam == null) return;
+			Game.Guard("Camera.Zoom", () => cam.composit.setZoom(4096 * degrees));
+		}
+
+		public void Reset()
+		{
+			if (!EngineApi.InWorld) return;
+			Game.Guard("Camera.Reset", () => GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().setupCamera());
+		}
+	}
+
+	internal sealed class LegacyEffects : GameService, IEffects
+	{
+		public int Spawn(int category, int member, Vector3 position)
+		{
+			if (!EngineApi.InWorld) return -1;
+			try
+			{
+				int id = GlobalScope.eff.CEffectMng.instance().create(category, member);
+				if (id != -1)
+				{
+					GlobalScope.eff.CEffectMng.instance().setPosition(id, EngineApi.ToFx(position));
+				}
+				return id;
+			}
+			catch (Exception ex) { EngineApi.Warn("effect", "Effects.Spawn: " + ex.Message); return -1; }
+		}
+
+		public void Remove(int id)
+		{
+			try
+			{
+				if (GlobalScope.eff.CEffectMng.instance().isEffectObject(id))
+				{
+					GlobalScope.eff.CEffectMng.instance().deleteEffect(id);
+				}
+			}
+			catch (Exception) { }
+		}
+
+		public bool Alive(int id)
+		{
+			try { return GlobalScope.eff.CEffectMng.instance().isEffectObject(id); }
+			catch (Exception) { return false; }
+		}
 	}
 
 	internal sealed class LegacyField : GameService, IField

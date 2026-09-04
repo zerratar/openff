@@ -278,6 +278,10 @@ internal static partial class GlobalScope
 
 			public void setEvent(bool _Event)
 			{
+				if (m_Event != _Event)
+				{
+					FF3.EngineHooks.Cutscene(_Event);
+				}
 				m_Event = _Event;
 			}
 
