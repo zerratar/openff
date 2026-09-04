@@ -642,7 +642,8 @@ internal static partial class GlobalScope
 
 			public uint getMessageID()
 			{
-				return msdElement.number;
+				// PORT: a message made from a string (the engine API's Say) has no element.
+				return msdElement == null ? uint.MaxValue : msdElement.number;
 			}
 
 			public byte getCurrentPage()
@@ -652,7 +653,8 @@ internal static partial class GlobalScope
 
 			public byte numberOfPages()
 			{
-				return msdElement.num_pages;
+				// PORT: a message made from a string is one page.
+				return msdElement == null ? (byte)1 : msdElement.num_pages;
 			}
 
 			public byte getCurrentChar()

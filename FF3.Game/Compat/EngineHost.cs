@@ -22,6 +22,7 @@ namespace FF3
 		private static bool _attached;
 		private static string _lastPart;
 		private static string _lastStage;
+		private static bool _entered;
 		private static DateTime _lastTick;
 
 		/// <summary>Whether mods' code is loaded at all (--nomods turns it off; assets still apply).</summary>
@@ -145,26 +146,45 @@ namespace FF3
 			}
 
 			string stage = GlobalScope.stg.CStageMng.CurrentName;
-			// The stage name changes when a map loads; outside the world part there is no map.
+			// The stage name changes when a map's files load; outside the world part there is no map.
 			if (part != "WORLD")
 			{
 				stage = null;
 			}
+			Scene legacy = OpenFF.Game.World.Legacy;
 			if (stage != _lastStage)
 			{
-				Scene legacy = OpenFF.Game.World.Legacy;
 				if (legacy.Info != null)
 				{
 					OpenFF.Game.Services.SceneUnloadingInternal(legacy.Info);
 					OpenFF.Game.Events.Publish(new OpenFF.Events.MapLeaving { Scene = legacy.Info });
-				}
-				legacy.Info = stage == null ? null : new SceneInfo { Name = stage, Type = StageType(), Source = GameArchive.Game };
-				if (legacy.Info != null)
-				{
-					OpenFF.Game.Events.Publish(new OpenFF.Events.MapEntered { Scene = legacy.Info });
-					OpenFF.Game.Services.SceneLoadedInternal(legacy.Info);
+					legacy.Info = null;
 				}
 				_lastStage = stage;
+				_entered = false;
+			}
+			// Entered only once the field is up and moving: before that the hero is not placed
+			// and characters put on the map are swept away by the field's own setup.
+			if (stage != null && !_entered && FieldReady())
+			{
+				legacy.Info = new SceneInfo { Name = stage, Type = StageType(), Source = GameArchive.Game };
+				_entered = true;
+				OpenFF.Game.Events.Publish(new OpenFF.Events.MapEntered { Scene = legacy.Info });
+				OpenFF.Game.Services.SceneLoadedInternal(legacy.Info);
+			}
+		}
+
+		private static bool FieldReady()
+		{
+			try
+			{
+				GlobalScope.wld.CBaseSystem world = GlobalScope.wld.CBaseSystem.Current;
+				return world != null && world.State() == GlobalScope.wld.CBaseSystem.WORLD_STATE.WORLD_STATE_MOVE
+					&& GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng() != null;
+			}
+			catch (Exception)
+			{
+				return false;
 			}
 		}
 

@@ -152,14 +152,18 @@ namespace FF3
 			}
 		}
 
-		/// <summary>The legacy window has shown the text and the player has tapped past it: take the window down.</summary>
+		/// <summary>The frame the window closed on; a press that dismissed it must not also talk to someone.</summary>
+		internal long ClosedFrame = -1;
+
+		/// <summary>The player has tapped past the text (isNextPageButton, what WaitInputSendMessage waits for): take the window down.</summary>
 		internal void Tick()
 		{
 			if (!_shown) return;
 			GlobalScope.wld.CMessageWindow window = Window;
-			if (window == null || !window.isMadeWindow() || window.isMessageProgressEnded())
+			if (window == null || !window.isMadeWindow() || window.isNextPageButton())
 			{
 				Close();
+				ClosedFrame = OpenFF.Game.Time.Frame;
 			}
 		}
 	}
@@ -412,10 +416,22 @@ namespace FF3
 				GlobalScope.characterMng.setupOrgTex(player.getCharacterId());
 				player.into();
 				player.setAutoPilot(_AutoPilot: true);
+				player.setHidden(false);
 				LegacyNpc npc = new LegacyNpc(index, model, map);
 				npc.Solid = false;
 				_spawned.Add(npc);
-				Log.Write(LogChannel.General, "engine api: spawned " + model + " as character " + index + " at " + position + " on " + map);
+				Log.Write(LogChannel.General, "engine api: spawned " + model + " as character " + index + " at " + position + " on " + map
+					+ " (chr " + player.getCharacterId() + ", hidden " + player.isHidden() + ")");
+				// Diagnostic: everyone on the map, to place the new one among them.
+				for (int i = 0; i < 24; i++)
+				{
+					GlobalScope.pl.CBasePlayer other = EngineApi.Players.Player(i);
+					if (other != null && other.getCharacterId() >= 0)
+					{
+						Log.Write(LogChannel.File, "engine api:   character " + i + " " + other.getModelName() + " at " + EngineApi.ToUnits(other.getPosition())
+							+ " chr " + other.getCharacterId() + " hidden " + other.isHidden() + " auto " + other.isAutoPilot());
+					}
+				}
 				return npc;
 			}
 			catch (Exception ex)
@@ -437,7 +453,7 @@ namespace FF3
 			bool pressed;
 			try { pressed = (GlobalScope.ds.g_Pad.edge() & 1) != 0; }
 			catch (Exception) { return; }
-			if (!pressed || EngineApi.Dialogue.IsOpen) return;
+			if (!pressed || EngineApi.Dialogue.IsOpen || EngineApi.Dialogue.ClosedFrame == OpenFF.Game.Time.Frame) return;
 			GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
 			if (hero == null) return;
 			Vector3 at = EngineApi.ToUnits(hero.getPosition());
