@@ -62,6 +62,62 @@ namespace FF3.ContentTool.Editor
 			return zipPath;
 		}
 
+		/// <summary>
+		/// Writes the project's OpenFF files as a mod in the client's mods folder:
+		/// mods/&lt;name&gt;/mod.json, files/ and a README. Replaces an earlier export of the
+		/// same name (recognised by its mod.json); refuses to touch a folder that is not
+		/// one. Returns the mod's directory.
+		/// </summary>
+		public static string WriteToOpenFF(Project project, string modsFolder)
+		{
+			if (!project.File.Targets.Any(t => string.Equals(t, Targets.Ours, StringComparison.OrdinalIgnoreCase)))
+			{
+				throw new InvalidOperationException("the project does not target our build - tick it in Project settings first");
+			}
+			string source = project.FilesFor(Targets.Ours);
+			string key = Safe(project.File.Name);
+			string directory = Path.Combine(modsFolder, key);
+			string manifestPath = Path.Combine(directory, FF3.Content.ModsFolder.ManifestName);
+			string files = Path.Combine(directory, "files");
+			if (Directory.Exists(directory))
+			{
+				if (!File.Exists(manifestPath))
+				{
+					throw new IOException(directory + " exists and is not a mod exported before (no mod.json) - move it away first");
+				}
+				if (Directory.Exists(files))
+				{
+					Directory.Delete(files, recursive: true);
+				}
+			}
+			Directory.CreateDirectory(files);
+			int count = 0;
+			if (Directory.Exists(source))
+			{
+				foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+				{
+					string relative = Path.GetRelativePath(source, file);
+					string destination = Path.Combine(files, relative);
+					Directory.CreateDirectory(Path.GetDirectoryName(destination));
+					File.Copy(file, destination, overwrite: true);
+					count++;
+				}
+			}
+			FF3.Content.ModsFolder.WriteManifest(manifestPath, new FF3.Content.ModManifest
+			{
+				Name = string.IsNullOrWhiteSpace(project.File.Name) ? key : project.File.Name.Trim(),
+				Version = string.IsNullOrWhiteSpace(project.File.Version) ? "1.0" : project.File.Version.Trim(),
+				Author = project.File.Author,
+				Description = project.File.Description,
+				Target = FF3.Content.ModManifest.TargetOpenFF,
+			});
+			File.WriteAllText(Path.Combine(directory, "README.md"), Readme(project, new List<string>
+			{
+				string.Format(CultureInfo.InvariantCulture, "- OpenFF: {0} file(s) under files/", count),
+			}), new UTF8Encoding(false));
+			return directory;
+		}
+
 		private static void Add(ZipArchive zip, string file, string entryName)
 		{
 			zip.CreateEntryFromFile(file, entryName, CompressionLevel.Optimal);

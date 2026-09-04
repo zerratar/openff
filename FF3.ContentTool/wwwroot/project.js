@@ -90,6 +90,8 @@ function drawMenuBar() {
     '-',
     { label: 'Export as .zip…', run: exportProject, disabled: !open,
       note: 'The project as an upload: files, manifest and a README' },
+    { label: 'Export to OpenFF…', run: exportToOpenFF, disabled: !open,
+      note: 'Writes the mod into the OpenFF client\'s mods folder, ready to play' },
     { label: 'Show project folder', run: () => revealProject(), disabled: !open },
   ]));
 
@@ -401,9 +403,13 @@ function projectSettingsDialog() {
   const exportButton = document.createElement('button');
   exportButton.textContent = 'Export as .zip';
   exportButton.onclick = exportProject;
+  const openffButton = document.createElement('button');
+  openffButton.textContent = 'Export to OpenFF';
+  openffButton.title = 'Write the mod into the OpenFF client\'s mods folder';
+  openffButton.onclick = exportToOpenFF;
   const grow = document.createElement('span');
   grow.className = 'grow';
-  actions.append(go, grow, reveal, exportButton);
+  actions.append(go, grow, reveal, exportButton, openffButton);
   body.append(actions);
 }
 
@@ -558,6 +564,18 @@ async function runMod(endpoint, kind, target) {
     say(error.message, 'bad');
   }
   await refreshProject();
+}
+
+async function exportToOpenFF() {
+  try {
+    say('writing…');
+    const result = await api('/api/project/export-openff', {});
+    if (!result.ok) throw new Error(result.error);
+    say(`exported to ${result.path} (${result.files} file(s)) - start the client to play it`, 'good');
+    await revealProject(result.path);
+  } catch (error) {
+    say(error.message, 'bad');
+  }
 }
 
 async function exportProject() {
@@ -733,6 +751,7 @@ async function drawStartPage() {
       button(edited ? `Changes (${edited})` : 'Changes', changesDialog),
       button('Settings', projectSettingsDialog),
       button('Export .zip', exportProject),
+      button('Export to OpenFF', exportToOpenFF),
     );
     box.append(actions);
   } else {

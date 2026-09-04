@@ -73,6 +73,8 @@ namespace FF3
 			}
 			_chain.OnOverrideUsed = (name, path) => Log.Write(LogChannel.File, "override in use: " + name);
 			Log.Write(LogChannel.File, "content: " + _chain.Describe());
+			// So Crystal can find this client's mods folder.
+			Launch.RecordClient();
 			return true;
 		}
 
@@ -120,6 +122,10 @@ namespace FF3
 				directories.AddRange(mods.Split(';').Select(m => m.Trim().Trim('"')).Where(m => m.Length > 0));
 			}
 
+			// The mods folder beside the executable, in load order (Shared/Content/Mods.cs):
+			// after what the command line named, before the legacy Override directory.
+			directories.AddRange(ModsFolderOverrides(root));
+
 			string legacy = Options.Get("content-override");
 			directories.Add(string.IsNullOrEmpty(legacy) ? Path.Combine(root, "Override") : legacy);
 
@@ -129,6 +135,44 @@ namespace FF3
 				Log.Write(LogChannel.File, string.Format("content overrides: {0} loose file(s) in {1}", count, directory));
 			}
 			return directories;
+		}
+
+		/// <summary>
+		/// The enabled mods of mods/ beside the executable that target OpenFF and the game
+		/// being started, as their files directories in load order. Logs what was taken and
+		/// which files more than one carries, and writes loadorder.json back so a folder
+		/// dropped in by hand appears there, enabled, at the end.
+		/// </summary>
+		private static IEnumerable<string> ModsFolderOverrides(string root)
+		{
+			string folder = ModsFolder.Beside(AppContext.BaseDirectory);
+			List<InstalledMod> installed = ModsFolder.Load(folder);
+			if (installed.Count == 0)
+			{
+				return Enumerable.Empty<string>();
+			}
+			string game = SsamContentSource.Looks(root) ? "ff4" : "ff3";
+			List<InstalledMod> active = ModsFolder.Active(installed, game);
+			Log.Write(LogChannel.General, "mods: " + active.Count + " of " + installed.Count + " in " + folder + " apply to " + game.ToUpperInvariant()
+				+ (active.Count > 0 ? ": " + string.Join(", ", active.Select(m => m.DisplayName + " (" + ModsFolder.FileCount(m) + " files)")) : ""));
+			foreach (InstalledMod mod in installed.Where(m => !active.Contains(m)))
+			{
+				string why = !mod.Enabled ? "disabled" : !mod.Manifest.ForOpenFF ? "targets " + mod.Manifest.Target : !mod.Manifest.ForGame(game) ? "for " + string.Join("/", mod.Manifest.Games) : "no files folder";
+				Log.Write(LogChannel.File, "mods: " + mod.DisplayName + " skipped (" + why + ")");
+			}
+			foreach (KeyValuePair<string, List<InstalledMod>> conflict in ModsFolder.Conflicts(active))
+			{
+				Log.Write(LogChannel.General, "mods: " + conflict.Key + " in " + string.Join(", ", conflict.Value.Select(m => m.DisplayName)) + " - " + conflict.Value[0].DisplayName + " wins");
+			}
+			try
+			{
+				ModsFolder.SaveOrder(folder, installed);
+			}
+			catch (Exception ex)
+			{
+				Log.Write(LogChannel.General, "mods: loadorder.json not written: " + ex.Message);
+			}
+			return active.Select(m => m.FilesDirectory);
 		}
 
 		/// <summary>Reads one file by name, or null if there is no such file anywhere.</summary>

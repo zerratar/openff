@@ -31,6 +31,9 @@ namespace FF3
 			[JsonPropertyName("source")] public string Source { get; set; }
 			[JsonPropertyName("ff3Steam")] public string Ff3Steam { get; set; }
 			[JsonPropertyName("ff4Steam")] public string Ff4Steam { get; set; }
+			/// <summary>Where the client last ran from, and its mods folder, so Crystal can export straight into it.</summary>
+			[JsonPropertyName("exe")] public string Exe { get; set; }
+			[JsonPropertyName("mods")] public string Mods { get; set; }
 			[JsonPropertyName("updated")] public string Updated { get; set; }
 		}
 
@@ -46,6 +49,22 @@ namespace FF3
 		/// chosen game, or null to fall back to the Content directory found the usual way.
 		/// </summary>
 		public static string ResolveRoot()
+		{
+			// Asked twice at start (for the working directory, then for the content);
+			// one answer, one log line, one write of the settings.
+			if (_resolvedOnce)
+			{
+				return _resolved;
+			}
+			_resolvedOnce = true;
+			_resolved = Resolve();
+			return _resolved;
+		}
+
+		private static bool _resolvedOnce;
+		private static string _resolved;
+
+		private static string Resolve()
 		{
 			Settings settings = Read();
 			bool explicitGame = Options.Get("game") != null;
@@ -129,11 +148,19 @@ namespace FF3
 			return new Settings();
 		}
 
+		/// <summary>Writes the settings file with this executable's location and mods folder, keeping the rest.</summary>
+		public static void RecordClient()
+		{
+			Write(Read());
+		}
+
 		private static void Write(Settings settings)
 		{
 			try
 			{
 				settings.Updated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+				settings.Exe = Environment.ProcessPath;
+				settings.Mods = ModsFolder.Beside(AppContext.BaseDirectory);
 				Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath));
 				File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
 			}

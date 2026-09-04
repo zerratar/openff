@@ -76,6 +76,15 @@ namespace FF3
 				dir = dir.Parent;
 			}
 
+			// No Content directory anywhere: a machine with the game from Steam and this
+			// executable on its own. The chosen game's install is the working directory
+			// then; what the phone build kept as XNB assets comes from the install
+			// (TrueType faces, .ogg sound) or is not needed.
+			string chosen = Launch.ResolveRoot();
+			if (chosen != null)
+			{
+				return Path.GetFullPath(chosen);
+			}
 			return null;
 		}
 

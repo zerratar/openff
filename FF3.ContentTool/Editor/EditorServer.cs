@@ -420,6 +420,10 @@ namespace FF3.ContentTool.Editor
 					ExportProject(context);
 					return;
 
+				case "/api/project/export-openff":
+					ExportProjectToOpenFF(context);
+					return;
+
 				case "/api/project/reveal":
 					RevealProject(context);
 					return;
@@ -1293,6 +1297,34 @@ namespace FF3.ContentTool.Editor
 				SendJson(context, new { ok = true, path = zip, bytes = new FileInfo(zip).Length });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>Writes the project as a mod into the OpenFF client's mods folder.</summary>
+		private void ExportProjectToOpenFF(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			string mods = OpenFFClient.ModsFolder();
+			if (mods == null)
+			{
+				SendJson(context, new { ok = false, error = "the OpenFF client has not been found - start FF3.exe once (it records where it is), or build FF3.Game beside this repository" });
+				return;
+			}
+			try
+			{
+				string directory = ProjectExport.WriteToOpenFF(_project, mods);
+				int files = Directory.Exists(Path.Combine(directory, "files"))
+					? Directory.EnumerateFiles(Path.Combine(directory, "files"), "*", SearchOption.AllDirectories).Count()
+					: 0;
+				SendJson(context, new { ok = true, path = directory, files, mods });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}

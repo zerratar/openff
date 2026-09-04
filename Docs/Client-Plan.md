@@ -222,6 +222,24 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## The mods folder (2026-09-04)
+
+`mods/` beside `FF3.exe`, one mod per subfolder: `mod.json` (name, version, author,
+description, target, games), `files/` mirroring the game's names, a README. The client
+reads the folder at start (`Shared/Content/Mods.cs`, `GameArchive.ModsFolderOverrides`),
+puts the enabled mods that target `openff` and the running game in front of the shipped
+content in the order `mods/loadorder.json` gives - first wins on a file two carry, and the
+log's `mods:` lines say what applied and which conflicts fell which way - and writes the
+order back so a folder dropped in by hand is enabled at the end. The command line's
+`--project` and `--mod` still come first. Crystal's Project ▸ Export to OpenFF writes a
+project's `ours` files there as a mod; it finds the client through
+`%LocalAppData%\OpenFF\launch.json`, where the client records its location every run.
+
+Mods for the Steam builds are a different thing: those clients know no mods folder, so a
+Steam mod is installed by replacing files (Crystal's install, with its backup) and load
+order does not apply. Still to come here: the in-game mod list (enable, disable, reorder,
+conflicts shown) and C# mods as assemblies in the mod folder.
+
 ## Debug overlay (2026-09-04, from Karl's note)
 
 F1 draws a diagnostic layer over the finished frame (`Compat/DebugOverlay.cs`, a

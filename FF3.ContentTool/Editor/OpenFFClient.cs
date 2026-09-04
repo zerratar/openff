@@ -1,0 +1,78 @@
+// Where the OpenFF client is, so Crystal can write mods straight into its mods folder.
+//
+// The client records its own location every time it runs, in the same settings file
+// that remembers which game to start (%LocalAppData%\OpenFF\launch.json, written by the
+// client's Compat/Launch.cs). That is the first answer. When the client has never run
+// on this machine, a development checkout is the second: the FF3.Game build beside this
+// repository.
+
+using System;
+using System.IO;
+using System.Text.Json;
+
+namespace FF3.ContentTool.Editor
+{
+	internal static class OpenFFClient
+	{
+		public static string SettingsPath => Path.Combine(
+			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenFF", "launch.json");
+
+		/// <summary>The client's mods folder (it need not exist yet), or null when no client is known.</summary>
+		public static string ModsFolder()
+		{
+			string recorded = Recorded();
+			if (recorded != null)
+			{
+				return recorded;
+			}
+			string executable = DevelopmentBuild();
+			return executable != null ? Path.Combine(Path.GetDirectoryName(executable), FF3.Content.ModsFolder.FolderName) : null;
+		}
+
+		private static string Recorded()
+		{
+			try
+			{
+				if (!File.Exists(SettingsPath))
+				{
+					return null;
+				}
+				using JsonDocument document = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+				if (document.RootElement.TryGetProperty("mods", out JsonElement mods) && mods.ValueKind == JsonValueKind.String)
+				{
+					string folder = mods.GetString();
+					// The client that wrote it may have moved; its parent must still be there.
+					if (!string.IsNullOrEmpty(folder) && Directory.Exists(Path.GetDirectoryName(folder)))
+					{
+						return folder;
+					}
+				}
+			}
+			catch (Exception)
+			{
+			}
+			return null;
+		}
+
+		/// <summary>FF3.Game/bin/{Debug,Release}/net8.0/FF3.exe, looked for upward from where Crystal runs.</summary>
+		private static string DevelopmentBuild()
+		{
+			foreach (string start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+			{
+				DirectoryInfo directory = new DirectoryInfo(start);
+				for (int up = 0; up < 6 && directory != null; up++, directory = directory.Parent)
+				{
+					foreach (string configuration in new[] { "Debug", "Release" })
+					{
+						string candidate = Path.Combine(directory.FullName, "FF3.Game", "bin", configuration, "net8.0", "FF3.exe");
+						if (File.Exists(candidate))
+						{
+							return candidate;
+						}
+					}
+				}
+			}
+			return null;
+		}
+	}
+}

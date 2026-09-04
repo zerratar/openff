@@ -41,7 +41,7 @@ front-ends - FF3's dialect, FF4's dialect, C# - not FF3's code stretched over FF
 | Dialects | FF3's 298 and FF4's 500 commands lowered onto the API; C# behaviours calling it directly | dialects exist as tables in `Shared/Script`; lowering is the work |
 | Rules | progression (FF3 jobs, FF4 classes) as components on party members; battle and menus data-driven over them | the largest single piece; FF3's battle and menus are hand-wired to jobs today |
 | Scene format | the serialisation of engine objects and behaviours; Crystal edits it | after the API, so it does not freeze around the legacy engine |
-| Mods | `mods/<name>/mod.json`, `loadorder.json`, enable/disable/reorder in game; C# mods as compiled assemblies loaded in isolation | early and cheap on top of the chain |
+| Mods | `mods/<name>/mod.json`, `loadorder.json`, enable/disable/reorder in game; C# mods as compiled assemblies loaded in isolation | early and cheap on top of the chain. Folder, `mod.json`, `loadorder.json`, conflicts in the log and Crystal's Export to OpenFF are done (2026-09-04); the in-game list and C# assemblies remain |
 
 ## Decisions and constraints
 
