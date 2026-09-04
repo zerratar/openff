@@ -29,6 +29,9 @@ internal static partial class GlobalScope
 		public uint ofsEvpMtx;
 
 		public NNSG3dResMdlInfo info;
+		// PORT: the model's geometry was mirrored along z after loading (FF3.FieldMirror), so
+		// its triangles wind the other way and the drawer swaps the cull face for it.
+		public bool mirroredZ;
 
 		public NNSG3dResNodeInfo nodeInfo;
 

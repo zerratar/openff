@@ -748,6 +748,14 @@ internal static partial class GlobalScope
 					zoomSpd = 4096 * map.CMapParameterManager.Instance().MapCameraParameter(0).ZoomSpeed();
 				}
 				vecFx.z *= -1;
+				if (FF3.FieldMirror.Active(stageMng.getStageType()))
+				{
+					// PORT: FF4's overworld is FF3's chip layout mirrored along z (FieldMirror), and its
+					// camera stands on the other side of the party, looking towards +z: the chips'
+					// mountains and forests are quads baked with a tilt towards that camera, and from
+					// FF3's side they are seen edge-on and vanish into the ground.
+					vecFx.z = -vecFx.z;
+				}
 				if (Mode() == WORLD_MODE.WORLD_MODE_FIELD)
 				{
 					zoomEnable = false;

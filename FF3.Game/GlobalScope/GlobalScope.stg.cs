@@ -132,10 +132,11 @@ internal static partial class GlobalScope
 				}
 				if (MirrorZ)
 				{
-					// PORT: the chip's own geometry mirrored about its centre (the models are centred:
-					// vertices span -96..96 in z, whatever the header's box says); DrawModel swaps the
-					// cull face for a mirroring matrix.
-					m_RdrObject.setScale(new VecFx32(4096, 4096, -4096));
+					// PORT: the chip's own geometry mirrored about its centre, in the data rather than
+					// by a scale of -1 on the pose: a mirroring matrix lost the relief of FF4's
+					// multi-node chips somewhere past the transform, while the data mirror keeps every
+					// matrix a rotation. DrawModel swaps the cull face for a mirrored model.
+					FF3.FieldMirror.MirrorModel(m_ModelSet.getMdl(0u).getMdlResource(), m_Chip.Name);
 				}
 				if (m_pMdlTex != null)
 				{

@@ -222,10 +222,13 @@ function makeMapScene(canvas, status) {
     ]);
   }
 
-  /// Frames the whole field, or the one chip an FF3 chip map is about.
+  /// Frames the whole field, or the one chip an FF3 chip map is about. A mirrored field
+  /// is looked at from the far side, as FF4's camera does: its mountains and forests are
+  /// quads tilted towards that camera, and from FF3's side they show their backs.
   function frameField() {
     const field = scene && scene.field;
     if (!field || !field.chips.length) return false;
+    yaw = 0.7 + (mirrorZ ? Math.PI : 0);
     const focus = field.focus && field.chips.find(c => c.package.endsWith('/' + field.focus + '.flsc.lz'));
     if (focus) {
       centre = [focus.x, 0, (mirrorZ ? -1 : 1) * focus.z];
@@ -314,12 +317,27 @@ function makeMapScene(canvas, status) {
     bind(attribute.coord, 2, 3 * 4);
     bind(attribute.colour, 3, 5 * 4);
     gl.uniformMatrix4fv(uniform.model, false, matrix);
+    let current = matrix;
 
     for (let pass = 0; pass < 2; pass++) {
       gl.depthMask(pass === 0);
       for (const group of entry.groups) {
         if (!group.count || group.hidden) continue;
         if (Boolean(group.translucent) !== (pass === 1)) continue;
+
+        // A billboard turns to face the camera when the game draws it, so a mirroring
+        // matrix (a mirrored field chip) must move its pivot and leave its facing alone:
+        // the same matrix with the reflection taken out and the pivot's image kept.
+        let wanted = matrix;
+        if (matrix[10] < 0 && group.billboard && group.pivot) {
+          wanted = new Float32Array(matrix);
+          wanted[10] = -matrix[10];
+          wanted[14] = matrix[14] - 2 * group.pivot[2] * wanted[10];
+        }
+        if (wanted !== current) {
+          gl.uniformMatrix4fv(uniform.model, false, wanted);
+          current = wanted;
+        }
 
         const texture = group.texture ? entry.textures.get(group.texture) : null;
         gl.activeTexture(gl.TEXTURE0);

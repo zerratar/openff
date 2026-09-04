@@ -12614,7 +12614,8 @@ internal static partial class GlobalScope
 								glEnableClientState(32886u);
 								glEnable(3553u);
 								glEnable(2884u);
-								glCullFace(FF3.FieldMirror.CullFor(currentMtx));
+								glCullFace(FF3.FieldMirror.CullFor(currentMtx, mdl.mirroredZ));
+								FF3.ChipProbe.Begin(currentMtx, mdl.info.numVertex, mdl.info.posScale);
 							}
 							int num6 = 1;
 							int num7 = 1;
@@ -13394,6 +13395,7 @@ internal static partial class GlobalScope
 											vertex[num51].pos1 = cmd_vertex_y[num55];
 											vertex[num51].pos2 = cmd_vertex_z[num55];
 											FF3.FrameProbe.NoteRaw(cmd_vertex_x[num55], cmd_vertex_y[num55], cmd_vertex_z[num55], _matrix_current);
+											FF3.ChipProbe.Vertex(cmd_vertex_x[num55], cmd_vertex_y[num55], cmd_vertex_z[num55], _matrix_current);
 											num55++;
 											if ((num56 & 2) != 0)
 											{

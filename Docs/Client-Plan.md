@@ -158,11 +158,16 @@ own script running through the shared command table. The pieces:
   the stage world matrix collision goes through, spot lookups, world edges, cull face
   for a mirroring matrix); `stg` also promotes FF4's f00 (stage type 0) to FIELD01 so
   chip streaming and collision run at all. `--fieldmirror=off|force`.
-  Open: the mirrored chips still draw wrong in the client - relief flattened into the
-  ground - while the same mirror draws right in Crystal (which ignores the models' node
-  matrices). The DS-side matrices check out; next is comparing per-node transformed
-  bounds against Crystal's, since FF4 chip models carry many nodes with large
-  translations that FF3's chips do not.
+  Resolved (2026-09-04): the "flattened relief" was the camera, not the mirror. FF4's
+  mountains and forests are quads baked with a 45-degree tilt towards FF4's overworld
+  camera, which stands on the far side of the party (looking towards +z); from FF3's side
+  they are seen edge-on. `setupCamera` puts the camera on that side for FF4 field stages,
+  and the chips are mirrored in their data (`FieldMirror.MirrorModel`: vertices and node
+  offsets) rather than by a scale of -1, so every matrix stays a rotation. Verified at
+  Baron town's exit and the castle plain (Testing E-17). Crystal looks at a mirrored field
+  from the same side. The ground's hard-edged patchwork in both renderers was a third
+  thing: the coast and grass-blend tiles use the DS's flip wrap (mirrored repeat), which
+  neither renderer honoured (E-16).
 - `Compat/MovementDefaults.cs` - the two movement tuning tables the FF3 logic reads at
   start-up (`player_world_move_parameter.pak`, `npc_world_move_parameter.pak`), which
   FF4 compiled into its executable, are OpenFF's own tuning synthesised in code and served
