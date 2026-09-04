@@ -132,7 +132,8 @@ internal static partial class GlobalScope
 								m_MotNum++;
 								m_Flag[j] = 1;
 								m_MotSet[j].m_pMotData = motData;
-								m_MotSet[j].setIndex(motData.m_auiMotIdx[i]);
+								// PORT: FF4 numbers its field motions differently (GameProfile.FieldMotionId).
+								m_MotSet[j].setIndex(FF3.GameProfile.FieldMotionId(motData.m_auiMotIdx[i]));
 								m_MotSet[j].setup(motData.m_ResFileHeaderMot, m_pMdlResData, (uint)i, null);
 								break;
 							}

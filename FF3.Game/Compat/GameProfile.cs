@@ -69,6 +69,31 @@ namespace FF3
 			}
 		}
 
+		/// <summary>
+		/// A motion's number in FF3's scheme. FF3's field packs number idle 1001, walk 1004
+		/// and run 1005; FF4's number them 1000, 1001, 1002. The field code asks by FF3's
+		/// numbers, so an FF4 pack's motions are renumbered as they register. FF4 numbers
+		/// that would land on a renumbered slot move up by a hundred, out of the way.
+		/// </summary>
+		public static uint FieldMotionId(uint id)
+		{
+			if (!IsFf4)
+			{
+				return id;
+			}
+			switch (id)
+			{
+				case 1000: return 1001; // idle
+				case 1001: return 1004; // walk
+				case 1002: return 1005; // run
+				case 1004:
+				case 1005:
+					return id + 100;
+				default:
+					return id;
+			}
+		}
+
 		/// <summary>--map=<stage>: start straight in a map, through the jump part.</summary>
 		public static string StartStage
 		{
