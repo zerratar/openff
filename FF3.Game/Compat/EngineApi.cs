@@ -44,8 +44,19 @@ namespace FF3
 
 		// ---- reaching the legacy world ----
 
-		internal static bool InWorld => GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem() != null
-			&& GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng() != null;
+		internal static bool InWorld
+		{
+			get
+			{
+				GlobalScope.CCastCommandTransit transit = GlobalScope.CCastCommandTransit.getInstance();
+				if (transit.cast_BaseSystem() == null)
+				{
+					return false;
+				}
+				try { return transit.cast_PlayerMng() != null; }
+				catch (Exception) { return false; }
+			}
+		}
 
 		internal static GlobalScope.pl.CPlayerManager Players => GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng();
 
@@ -145,7 +156,14 @@ namespace FF3
 		{
 			get
 			{
-				try { return GlobalScope.CCastCommandTransit.getInstance().cast_Field2D()?.MessageWindow(); }
+				// Outside a map the transit has no world system, and cast_Field2D() would
+				// dereference it; ask only when there is one.
+				GlobalScope.CCastCommandTransit transit = GlobalScope.CCastCommandTransit.getInstance();
+				if (transit.cast_BaseSystem() == null)
+				{
+					return null;
+				}
+				try { return transit.cast_Field2D()?.MessageWindow(); }
 				catch (Exception) { return null; }
 			}
 		}
