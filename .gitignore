@@ -19,3 +19,6 @@ __pycache__/
 
 # Personal notes
 todo*.txt
+
+# The FF4 binary disassembled (Tools/ff4_dump_all.py); regenerate, do not commit the code
+Reference/libff4/asm/
