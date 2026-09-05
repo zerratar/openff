@@ -16,3 +16,6 @@ Content/obj/
 *.log
 captures/
 __pycache__/
+
+# Personal notes
+todo*.txt

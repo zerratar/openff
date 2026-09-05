@@ -30,6 +30,11 @@ namespace FF3
 		private static bool _follow;
 		private static GlobalScope.VecFx32 _followPos = new GlobalScope.VecFx32(0, 0, 0), _followTrg = new GlobalScope.VecFx32(0, 0, 0);
 
+		// The field of view: the camera keeps sin and cos of half the vertical angle (fx32); the
+		// field's own is about 30 degrees. Set for the battle stage, put back on Release.
+		private static bool _fovSet;
+		private static int _fovSin, _fovCos, _fovSavedSin, _fovSavedCos;
+
 		public static bool Active => _active;
 
 		private static GlobalScope.cmr.CWorldCamera Camera
@@ -51,6 +56,8 @@ namespace FF3
 			_trg = Copy(camera.getTarget());
 			_posFrames = _trgFrames = 0;
 			_follow = false;
+			_fovSet = false;
+			try { camera.getFOV(out _fovSavedSin, out _fovSavedCos); } catch (Exception) { _fovSavedSin = 0; }
 			_active = true;
 			GlobalScope.cmr.CWorldCamera.ExternalDrive = Drive;
 			return true;
@@ -63,6 +70,11 @@ namespace FF3
 			_active = false;
 			_follow = false;
 			_posFrames = _trgFrames = 0;
+			if (_fovSet && _fovSavedSin > 0)
+			{
+				try { Camera?.setFOV(_fovSavedSin, _fovSavedCos); } catch (Exception) { }
+			}
+			_fovSet = false;
 			if (GlobalScope.cmr.CWorldCamera.ExternalDrive == (Action<GlobalScope.cmr.CWorldCamera>)Drive)
 			{
 				GlobalScope.cmr.CWorldCamera.ExternalDrive = null;
@@ -70,6 +82,16 @@ namespace FF3
 		}
 
 		private static GlobalScope.VecFx32 Copy(GlobalScope.VecFx32 v) => new GlobalScope.VecFx32(v.x, v.y, v.z);
+
+		/// <summary>A vertical field of view in degrees while the event camera drives; the field's own returns on Release.</summary>
+		public static void SetFov(float degrees)
+		{
+			if (!Take()) return;
+			double half = Math.Clamp(degrees, 5f, 120f) * Math.PI / 360.0;
+			_fovSin = (int)Math.Round(Math.Sin(half) * 4096);
+			_fovCos = (int)Math.Round(Math.Cos(half) * 4096);
+			_fovSet = true;
+		}
 
 		// ---- the script commands ----
 
@@ -202,6 +224,7 @@ namespace FF3
 				camera.setPosition(pos);
 				camera.setTarget(trg);
 				camera.setCamUp(0, 4096, 0);
+				if (_fovSet) camera.setFOV(_fovSin, _fovCos);
 			}
 			catch (Exception ex)
 			{

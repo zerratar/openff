@@ -841,8 +841,9 @@ command. Tents and the like wait for camping. Test C-49.
 The earlier reading of the map parameter pack was wrong in one place: the groups. `world::
 MapParameterManager::load` keeps the four chains in order - 0 landFormParameter (50 bytes),
 1 monsterPartyParameter (8-byte entries of four u16 group ids), 2 encountParameter (16 bytes),
-3 unnamed - and `WSEncountSetting::wsProcess` reads the rate as the u16 at 0x18 + 2 x the
-party's land form in chain 0 (over 30 = none), rolls a group among the four of the land
+3 unnamed - and `WSEncountSetting::wsProcess` reads the rate as the u16 at 2 x the
+party's land form in chain 0 (the twelve u16s at 0x18 are the battle stage per land form,
+`world::battleMapID`, over 30 = none), rolls a group among the four of the land
 form's set in chain 1 (a static helper; up to five re-rolls when it repeats the last fight),
 and hands chain 2's first s16 to `world::attackType` with the party's average level (back
 attacks, pre-emptive strikes - not applied yet). So the Watery Pass (d01_00) is Sword Rat +
@@ -851,6 +852,69 @@ Helldiver or three Goblins at rate 1 - not the "base group 10 + 0..3" the old re
 (that u32 and its three floats are chain 2's attack-type parameter). The land form under
 the party (`PCObject` + 0x340/0x348, from the ground polygon's attribute) is not read yet;
 set 0 stands for every land form. `Ff4Encounters` and test C-41 updated.
+
+## FF4 battles on their battle stage (2026-09-05)
+
+Karl's biggest difference against the Steam game: FF4 moves the party onto a battle stage,
+ours fought where it stood. `battle_map.dat` holds b00..b30 (a `.nmdp` model with a `.namp`
+animation each; the b_soto/b_naka/b_uti backdrop entries are empty on Steam), and the map's
+land-form parameter names the stage per land form (the u16s at 0x18 of chain 0: b01 for the
+Baron plain, b08 for the Watery Pass). `Ff4BattleStage` gets there by a map jump - FF4's own
+battle is a part change, and a stage swap under the running field (`sceneMng.gotoStage` /
+`stageMng.setStage`, as a scene's `ce_SetMap` does) left the field's characters with dead
+textures on the way back (`glTexParameteri` in `BindTextureWrap`). Begin remembers the field
+map, the hero's position and facing and warps to `bNN`; the battle starts once the party
+stands there (a few frames after the map name changes; gives up after 600 frames and fights
+in place); End warps back to the spot left. On the stage the fight is a side view: monsters
+on the left in the encounter table's own placements (x across, z depth), the party on the
+right, the event camera (`Ff4EventCamera`) driving the view. Scene battles
+(`ce_CallBattle`) stay where the scene is. Tests C-40 (K jumps to the map's stage) and C-50.
+
+The view, second pass: the stage carries its own backdrop - b01's mountains, lake and clouds
+are a plane ("sky_pl", about 290 wide and 60 tall) along the far edge at z about -67, and
+the model's own sky geometry; there is no clear-colour sky (no FF4 part sets one for the
+battle, `WorldPart::vramSetting` aside). So the camera looks across the stage towards -z from
+in front of the line - (45, 18, 170) at (0, 2, -30) - with a 24-degree field of view (FF3's
+battle camera uses the same 852/4006; the field's is about 30): the narrow angle is what
+keeps the backdrop's edges out of frame and the leader a sixth of the screen tall, the
+horizon a third of the way down. `Ff4EventCamera.SetFov` sets it while the event camera
+drives and puts the field's back on Release. The encounter tables' placements are stage
+units already (x -8..-37 towards the monsters' side, z -35..32 along the line) and are used
+as they are; the party stands at x 42.
+
+The HUD, after FF4's screens (Karl's Steam screenshots): the command window bottom left
+(Attack / Magic / Items / Run, 41-px rows, a wedge for the glove), the party's rows bottom
+right (name, HP / max, MP, the ATB gauge), "Z Confirm  X Back  M Run away" over them (M runs,
+as FF4's), the target pick listing the foes with "Accuracy: NN%" and a card of the picked
+one (name, HP, Weaknesses, Absorbs), and the result as FF4's window at the top - Gil Found
+and New Total left, EXP right, level-ups and drops in a second window - closed by A. The
+panels are drawn (translucent blue-violet, a light top edge, a pale frame); FF4's own window
+art and layouts come next, see below. Gauges start staggered down the line so the leader acts
+first (the drives rely on it).
+
+## FF4's menu data, found (2026-09-05, Karl: "use the menu format/data we already have")
+
+Karl wants the FF4 screens 1:1 from FF4's own data, as FF3's are. The Steam install has it:
+`MENU_LAYOUT.dat` holds 34 `MenuLayout_*.xbn.lz` layouts (Root, Item, ItemWnd, Magic,
+Equipment, Status, Config, Save, Suspend, Title, Formation, Ability, ShopSpr, Name, the
+CS*/Chk* extras) in the same XBN binary-XML the FF3 client reads (`XbnFile`/`XbnNode`;
+`Tools/xbn_dump.py` prints one as a tree): `layout > unit {name, display} > frame {x, y,
+width, height} > frame {choices, group, id, x, y, width, height, link, top, behavior
+"FBText" {parameter = message id, ...}}` in the DS's 256 x 192 units (RootMenu: a 72 x 136
+frame at 20, 0 with 64 x 16 text rows every 16 px, messages 50002..). The binary's classes
+are `layout::Frame`, `FrameBehavior`, `FBText`, `FBTextSCC`, `FBSprite`, `Layout::makeup`.
+`MENU_Common.dat` holds the 2D art (NCGR/NCER/NANR, DS formats the FF3 port already draws):
+`frame_00..05` (the window frames), `cursor` (the glove, animated), `button_00..05`,
+`button_up_down`, `icon_16dot`, `icon_8`, `face`, `balloon`, `fukidashi`; `battle2d_Common.dat`
+has `gauge_atb`, `battle_icon`, `button_battle_00..05` (the C/M key badges); `battle2d.dat`
+`battle_number` (damage digits) and `battle_pause`. The battle windows have no XBN: their
+frames are laid out in code (`btl::BattleCommandWindow`, `BasicBattleWindow`,
+`BattleSelectWindow`, `HelpWindow`, `BattleHpGauge`, `BattleMenuNumber`) - to read from the
+binary. Steam's look (soft gradients, a soft glove) is these DS assets scaled up, with text
+from `arial.ttf` (SDL2_ttf) - so 1:1 means drawing FF4's frames and cursor at the layouts'
+positions with our font. Next: decode `frame_00` and `cursor` through the port's NCGR/NCER
+path, draw the battle windows from them, then the menu from the XBN layouts.
+
 
 ## Working rules
 

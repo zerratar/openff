@@ -41,17 +41,23 @@ namespace FF3
 			return new Vector3(42f + 4f * index, 0f, z);
 		}
 
-		/// <summary>A monster's spot from its encounter-table placement (x across from the centre, z depth); the left side.</summary>
+		/// <summary>A monster's spot: the encounter table's own placement (stage units: x -8..-37 towards the monsters' side, z -35..32 along the line), else a row there.</summary>
 		public static Vector3 MonsterSpot(Vector3 placement, int index, int count)
 		{
 			if (Math.Abs(placement.X) > 0.01f || Math.Abs(placement.Z) > 0.01f) return new Vector3(placement.X, 0f, placement.Z);
-			return new Vector3(-35f - 6f * index, 0f, (index - (count - 1) / 2f) * 20f);
+			return new Vector3(-22f - 8f * index, 0f, (index - (count - 1) / 2f) * 30f);
 		}
 
-		// The stage models run from about z -67 to +129 (b01 spans x -144..144); the camera stands
-		// at the short end, a little to the party's side, looking down the stage.
-		public static Vector3 CameraPosition => new Vector3(40f, 45f, -140f);
-		public static Vector3 CameraTarget => new Vector3(-10f, 10f, 20f);
+		// FF4's battle view: the stage's backdrop (b01's mountains and clouds, its "sky_pl" plane,
+		// about 290 wide and 60 tall) stands along the far edge at z about -67, so the camera looks
+		// across the stage towards -z from well in front of the line, a little to the party's side:
+		// the monsters left (x -8..-37), the party right (x about 42), the backdrop behind them all.
+		// The narrow field of view (24 degrees, as FF3's battle camera) is what keeps the backdrop's
+		// edges out of frame at that distance and the leader about a sixth of the screen tall; the
+		// horizon sits a third of the way down, the party's feet a little below the middle.
+		public static Vector3 CameraPosition => new Vector3(45f, 18f, 170f);
+		public static Vector3 CameraTarget => new Vector3(0f, 2f, -30f);
+		public static float CameraFov => 24f;
 
 		/// <summary>Remembers the field and jumps to the battle stage; false when there is no such stage (the fight then stays on the field).</summary>
 		public static bool Begin(int battleMap)

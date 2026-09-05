@@ -33,7 +33,7 @@ namespace FF3
 		private enum Phase { Idle, Intro, Fight, Victory, Defeat, Outro }
 		private enum Command { Fight, Magic, Item, Run }
 		private enum Pick { None, Command, Target, Item, Spell, Ally }
-		private static readonly string[] CommandNames = { "Fight", "Magic", "Item", "Run" };
+		private static readonly string[] CommandNames = { "Attack", "Magic", "Items", "Run" };
 
 		private sealed class Fighter
 		{
@@ -72,6 +72,7 @@ namespace FF3
 		private readonly List<string> _log = new List<string>();
 		private int _expWon, _gilWon;
 		private readonly List<int> _dropsWon = new List<int>();
+		private readonly List<string> _resultLines = new List<string>();   // level-ups and drops for the result window
 		private Vector3 _centre;
 		private int _heroMotionIdle = 2007, _heroMotionAttack = 2008, _heroMotionHurt = 2009;
 
@@ -150,7 +151,7 @@ namespace FF3
 					Attack = Math.Max(1, weapon > 0 ? weapon : stats.Strength / 2), Defence = Armour(c, tables), Agility = Math.Max(1, stats.Agility),
 					Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
 					Strength = stats.Strength, HitChance = weapon > 0 ? WeaponHit(c, tables) : 90, Evade = Evasion(c, tables),
-					Gauge = (float)_random.NextDouble() * 0.5f,
+					Gauge = Math.Max(0f, 0.5f - 0.12f * _party.Count) + (float)_random.NextDouble() * 0.08f,
 				});
 			}
 			if (onStage)
@@ -218,6 +219,7 @@ namespace FF3
 				Vector3 cp = Ff4BattleStage.CameraPosition, ct = Ff4BattleStage.CameraTarget;
 				Ff4EventCamera.MoveTo((int)(cp.X * 4096), (int)(cp.Y * 4096), (int)(cp.Z * 4096), 1, false);
 				Ff4EventCamera.LookAt((int)(ct.X * 4096), (int)(ct.Y * 4096), (int)(ct.Z * 4096), 1);
+				Ff4EventCamera.SetFov(Ff4BattleStage.CameraFov);
 			}
 			try { Game.Hero.BindMotions("b_p_player_" + party.Leader.Id.ToString("00")); Game.Hero.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
 			// The field camera stays: behind and above the leader it frames the monsters ahead on any
@@ -328,9 +330,12 @@ namespace FF3
 					Fight();
 					break;
 				case Phase.Victory:
+					// The result window (DrawResult) stands until A, B or a tap.
+					if (_timer > 20 && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased)) { _phase = Phase.Outro; _timer = 0; }
+					break;
 				case Phase.Defeat:
-					// The result stands in the message window; the legacy window's own A press is
-					// gated off while the battle holds the input, so the press is read here.
+					// The message window holds the word; the legacy window's own A press is gated
+					// off while the battle holds the input, so the press is read here.
 					if (Game.Dialogue.IsOpen && _timer > 20 && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased)) Game.Dialogue.Close();
 					if (!Game.Dialogue.IsOpen && _timer > 20) { _phase = Phase.Outro; _timer = 0; }
 					break;
@@ -365,7 +370,9 @@ namespace FF3
 				int count = CommandNames.Length;
 				if (input.Pressed(Pad.Up)) _cursor = (_cursor + count - 1) % count;
 				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % count;
-				if (input.Pressed(Pad.A))
+				bool runNow = input.KeyPressed("M");   // FF4's "M Run away"
+				if (runNow) _cursor = (int)Command.Run;
+				if (input.Pressed(Pad.A) || runNow)
 				{
 					_command = (Command)_cursor;
 					if (_command == Command.Fight) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
@@ -701,7 +708,8 @@ namespace FF3
 			_timer = 0;
 			Party party = Ff4Party.Party;
 			List<Fighter> alive = _party.FindAll(f => f.Alive);
-			List<string> lines = new List<string> { "Victory! " + _expWon + " exp, " + _gilWon + " gil." };
+			_resultLines.Clear();
+			List<string> lines = _resultLines;
 			party.Gil += _gilWon;
 			foreach (Fighter f in alive)
 			{
@@ -721,8 +729,7 @@ namespace FF3
 				lines.Add("Found " + (Ff4Party.Tables.Item(id)?.Name ?? ("item " + id)) + ".");
 			}
 			try { Game.Hero.PlayMotion(2010, false, 3); } catch (Exception) { }
-			Game.Dialogue.Say(string.Join("\n", lines));
-			Log.Write(LogChannel.General, "battle: won - " + string.Join(" ", lines));
+			Log.Write(LogChannel.General, "battle: won - " + _expWon + " exp, " + _gilWon + " gil. " + string.Join(" ", lines));
 		}
 
 		private void Lose()
@@ -792,106 +799,214 @@ namespace FF3
 			after?.Invoke();
 		}
 
-		// ---- the HUD ----
+		// ---- the HUD, after FF4's: the command window bottom left, the party's rows bottom right,
+		// translucent blue-violet panels with a light top edge and a pale frame, white text with a
+		// shadow, a wedge for the glove pointer; the target pick lists the foes with the chance to
+		// hit and shows the picked one's card; the result is a window at the top ----
+
+		private static readonly Color PanelFill = new Color(60, 64, 140, 205);
+		private static readonly Color PanelTop = new Color(128, 132, 200, 205);
+		private static readonly Color PanelEdge = new Color(214, 218, 242, 255);
+		private static readonly Color PanelDark = new Color(18, 20, 56, 255);
+		private static readonly Color RowLine = new Color(160, 164, 218, 150);
+		private static readonly Color RowPicked = new Color(150, 154, 220, 110);
+		private static readonly Color Dim = new Color(186, 190, 218);
+		private static readonly Color Gold = new Color(255, 232, 110);
+		private const float HudTop = 300f, HudHeight = 172f, RowHeight = 41f;
+		private const float LeftX = 12f, LeftWidth = 246f, RightX = 270f, RightWidth = 518f;
+
+		private void Panel(DrawList d, float x, float y, float w, float h)
+		{
+			d.Rect(x - 1, y - 1, w + 2, h + 2, PanelDark);
+			d.Rect(x, y, w, h, PanelFill);
+			d.Rect(x, y, w, 3, PanelTop);
+			d.Rect(x, y, w, h, PanelEdge, false);
+		}
+
+		private void Rows(DrawList d, float x, float y, float w, int count)
+		{
+			for (int i = 1; i < count; i++) d.Line(x + 4, y + RowHeight * i, x + w - 4, y + RowHeight * i, RowLine);
+		}
+
+		private void Shadowed(DrawList d, string text, float x, float y, Color color, int size = 16)
+		{
+			d.Text(text, x + 1, y + 1, new Color(0, 0, 0, 160), size);
+			d.Text(text, x, y, color, size);
+		}
+
+		private void RightAligned(DrawList d, string text, float right, float y, Color color, int size = 16)
+		{
+			Shadowed(d, text, right - d.MeasureText(text, size), y, color, size);
+		}
+
+		/// <summary>The pointer: a white wedge where FF4 draws its glove.</summary>
+		private void Pointer(DrawList d, float x, float y)
+		{
+			for (int i = 0; i < 6; i++) d.Rect(x + 2 * i + 1, y + i + 1, 2, 12 - 2 * i, new Color(0, 0, 0, 160));
+			for (int i = 0; i < 6; i++) d.Rect(x + 2 * i, y + i, 2, 12 - 2 * i, Color.White);
+		}
+
+		private void KeyHint(DrawList d, string key, string what, float x, float y)
+		{
+			d.Rect(x, y, 18, 18, new Color(30, 90, 150, 230));
+			d.Rect(x, y, 18, 18, PanelEdge, false);
+			d.Text(key, x + 9 - d.MeasureText(key, 12) / 2, y + 2, Color.White, 12);
+			Shadowed(d, what, x + 24, y + 1, Color.White, 14);
+		}
+
+		private int Accuracy(Fighter attacker, Fighter target) => Math.Clamp(attacker.HitChance + attacker.Agility - (target.Evade + target.Agility) + 20, 0, 100);
 
 		private void Draw()
 		{
-			// The result speaks through the message window; the panels would sit on top of it.
-			if (_phase == Phase.Victory || _phase == Phase.Defeat) return;
 			DrawList d = Game.Draw;
-			Color panel = new Color(16, 24, 72, 225);
-			Color frame = new Color(230, 230, 240);
-			Color dim = new Color(170, 175, 200);
-			// The party: bottom right.
-			float px = 420, py = 330, pw = 370, ph = 140;
-			d.Rect(px, py, pw, ph, panel);
-			d.Rect(px, py, pw, ph, frame, false);
-			float y = py + 10;
-			for (int i = 0; i < _party.Count; i++)
+			if (_phase == Phase.Defeat) return;
+			if (_phase == Phase.Victory) { DrawResult(d); return; }
+			bool choosing = _acting != null && _pick != Pick.None;
+
+			// Bottom left: the commands, or what the command asks for.
+			Panel(d, LeftX, HudTop, LeftWidth, HudHeight);
+			if (_pick == Pick.Target)
 			{
-				Fighter f = _party[i];
-				bool acting = f == _acting;
-				bool picked = _pick == Pick.Ally && i == _cursor;
-				d.Text((picked ? "> " : acting ? "* " : "  ") + f.Name, px + 10, y, picked || acting ? Color.Yellow : (f.Alive ? Color.White : dim), 14);
-				d.Text(f.Hp + "/" + f.MaxHp, px + 112, y + 1, f.Hp * 4 <= f.MaxHp ? Color.Red : Color.White, 13);
-				if (f.Member != null && f.Member.MaxMp > 0) d.Text(f.Mp + " mp", px + 200, y + 3, dim, 11);
-				d.Rect(px + 265, y + 5, 90, 8, new Color(40, 40, 40, 220));
-				d.Rect(px + 265, y + 5, 90 * Math.Clamp(f.Gauge, 0f, 1f), 8, f.Gauge >= 1f ? Color.Yellow : new Color(90, 160, 255));
-				y += 26;
+				int row = 0;
+				for (int i = 0; i < _foes.Count && row < 4; i++)
+				{
+					Fighter f = _foes[i];
+					if (!f.Alive) continue;
+					float y = HudTop + RowHeight * row;
+					bool target = i == _cursor;
+					if (target) { d.Rect(LeftX + 2, y + 2, LeftWidth - 4, RowHeight - 3, RowPicked); Pointer(d, LeftX + 10, y + 14); }
+					Shadowed(d, f.Name, LeftX + 34, y + 3, target ? Gold : Color.White, 14);
+					Shadowed(d, _casting != null ? _casting.Name : "Accuracy: " + Accuracy(_acting, f) + "%", LeftX + 34, y + 22, Dim, 12);
+					row++;
+				}
+				Rows(d, LeftX, HudTop, LeftWidth, Math.Max(1, row));
 			}
-			// The foes: bottom left.
-			float fx = 10, fy = 330, fw = 200, fh = 140;
-			d.Rect(fx, fy, fw, fh, panel);
-			d.Rect(fx, fy, fw, fh, frame, false);
-			y = fy + 10;
+			else if (_pick == Pick.Spell || _pick == Pick.Item)
+			{
+				List<int> list = _pick == Pick.Spell ? _spellChoices : _itemChoices;
+				for (int i = _listScroll; i < list.Count && i < _listScroll + 4; i++)
+				{
+					float y = HudTop + RowHeight * (i - _listScroll);
+					bool picked = i == _cursor;
+					if (picked) { d.Rect(LeftX + 2, y + 2, LeftWidth - 4, RowHeight - 3, RowPicked); Pointer(d, LeftX + 10, y + 14); }
+					if (_pick == Pick.Spell)
+					{
+						SpellDefinition spell = Ff4Party.Tables.Spell(list[i]);
+						bool can = spell != null && _acting.Mp >= spell.MpCost;
+						Shadowed(d, spell?.Name ?? "?", LeftX + 34, y + 11, picked ? Gold : (can ? Color.White : Dim), 16);
+						RightAligned(d, (spell?.MpCost ?? 0) + " MP", LeftX + LeftWidth - 14, y + 14, can ? Dim : Color.Red, 12);
+					}
+					else
+					{
+						ItemDefinition item = Ff4Party.Tables.Item(list[i]);
+						Shadowed(d, item?.Name ?? "?", LeftX + 34, y + 11, picked ? Gold : Color.White, 16);
+						RightAligned(d, Ff4Party.Party.CountItem(list[i]).ToString(), LeftX + LeftWidth - 14, y + 14, Dim, 12);
+					}
+				}
+				Rows(d, LeftX, HudTop, LeftWidth, 4);
+				if (list.Count > 4)
+				{
+					float track = HudHeight - 12, knob = Math.Max(12f, track * 4 / list.Count);
+					d.Rect(LeftX + LeftWidth - 8, HudTop + 6, 4, track, new Color(20, 22, 60, 160));
+					d.Rect(LeftX + LeftWidth - 8, HudTop + 6 + (track - knob) * _listScroll / Math.Max(1, list.Count - 4), 4, knob, PanelEdge);
+				}
+			}
+			else
+			{
+				for (int i = 0; i < CommandNames.Length; i++)
+				{
+					float y = HudTop + RowHeight * i;
+					bool picked = choosing && _pick == Pick.Command && i == _cursor;
+					if (picked) { d.Rect(LeftX + 2, y + 2, LeftWidth - 4, RowHeight - 3, RowPicked); Pointer(d, LeftX + 10, y + 14); }
+					float tx = LeftX + LeftWidth / 2 - d.MeasureText(CommandNames[i], 16) / 2 + 10;
+					Shadowed(d, CommandNames[i], tx, y + 11, choosing ? (picked ? Gold : Color.White) : Dim, 16);
+				}
+				Rows(d, LeftX, HudTop, LeftWidth, CommandNames.Length);
+			}
+
+			// Bottom right: the party's rows - name, hit points, magic points, gauge - or the picked foe's card.
+			Panel(d, RightX, HudTop, RightWidth, HudHeight);
+			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count)
+			{
+				Fighter f = _foes[_cursor];
+				Shadowed(d, f.Name, RightX + 20, HudTop + 12, Gold, 18);
+				Shadowed(d, "HP: " + f.Hp + " / " + f.MaxHp, RightX + 20, HudTop + 40, Color.White, 16);
+				Shadowed(d, "Weaknesses:", RightX + 20, HudTop + 92, Color.White, 16);
+				Shadowed(d, "Absorbs:", RightX + 20, HudTop + 120, Color.White, 16);
+			}
+			else
+			{
+				Rows(d, RightX, HudTop, RightWidth, Math.Max(2, _party.Count));
+				for (int i = 0; i < _party.Count; i++)
+				{
+					Fighter f = _party[i];
+					float y = HudTop + RowHeight * i;
+					bool acting = f == _acting && choosing;
+					bool picked = _pick == Pick.Ally && i == _cursor;
+					if (picked || acting) d.Rect(RightX + 2, y + 2, RightWidth - 4, RowHeight - 3, RowPicked);
+					if (picked) Pointer(d, RightX + 8, y + 14);
+					Color name = !f.Alive ? Dim : picked || acting ? Gold : Color.White;
+					Shadowed(d, f.Name, RightX + 28, y + 11, name, 16);
+					Color hp = !f.Alive ? Dim : f.Hp * 4 <= f.MaxHp ? new Color(255, 120, 110) : Color.White;
+					RightAligned(d, f.Hp.ToString(), RightX + 238, y + 11, hp, 16);
+					Shadowed(d, "/ " + f.MaxHp, RightX + 244, y + 11, hp, 16);
+					if (f.Member != null && f.Member.MaxMp > 0) RightAligned(d, f.Mp.ToString(), RightX + 360, y + 11, Color.White, 16);
+					float gx = RightX + 400, gy = y + 16;
+					d.Rect(gx - 1, gy - 1, 92, 10, PanelDark);
+					d.Rect(gx, gy, 90, 8, new Color(60, 60, 70, 255));
+					float frac = Math.Clamp(f.Gauge, 0f, 1f);
+					if (f.Alive && frac > 0f)
+					{
+						d.Rect(gx, gy, 90 * frac, 8, frac >= 1f ? Gold : new Color(210, 190, 90));
+						d.Rect(gx, gy, 90 * frac, 3, frac >= 1f ? new Color(255, 250, 200) : new Color(230, 215, 130));
+					}
+				}
+			}
+			// The keys, over the party's rows (FF4 writes "C Auto battle  M Run away" there).
+			KeyHint(d, "Z", "Confirm", RightX + RightWidth - 312, HudTop - 24);
+			KeyHint(d, "X", "Back", RightX + RightWidth - 206, HudTop - 24);
+			KeyHint(d, "M", "Run away", RightX + RightWidth - 128, HudTop - 24);
+
+			// The foes' health, over their heads.
 			for (int i = 0; i < _foes.Count; i++)
 			{
 				Fighter f = _foes[i];
+				if (!f.Alive || f.Npc == null) continue;
+				Vector2? head = Game.Camera.WorldToScreen(f.Npc.Position + new Vector3(0, 14, 0));
+				if (!head.HasValue) continue;
 				bool target = _pick == Pick.Target && i == _cursor;
-				d.Text((target ? "> " : "  ") + f.Name, fx + 10, y, target ? Color.Yellow : (f.Alive ? Color.White : dim), 13);
-				if (f.Alive && f.Npc != null)
-				{
-					Vector2? head = Game.Camera.WorldToScreen(f.Npc.Position + new Vector3(0, 14, 0));
-					if (head.HasValue)
-					{
-						float frac = Math.Clamp(f.Hp / (float)f.MaxHp, 0f, 1f);
-						d.Rect(head.Value.X - 16, head.Value.Y - 4, 32, 5, new Color(0, 0, 0, 160));
-						d.Rect(head.Value.X - 15, head.Value.Y - 3, 30 * frac, 3, frac > 0.4f ? new Color(255, 200, 60) : Color.Red);
-						if (target) d.Text("v", head.Value.X - 4, head.Value.Y - 22, Color.Yellow, 16);
-					}
-				}
-				y += 22;
+				float frac = Math.Clamp(f.Hp / (float)f.MaxHp, 0f, 1f);
+				d.Rect(head.Value.X - 16, head.Value.Y - 4, 32, 5, new Color(0, 0, 0, 160));
+				d.Rect(head.Value.X - 15, head.Value.Y - 3, 30 * frac, 3, frac > 0.4f ? new Color(255, 200, 60) : Color.Red);
+				if (target) Pointer(d, head.Value.X - 26, head.Value.Y - 30);
 			}
-			// Commands: middle.
-			if (_acting != null && _pick != Pick.None)
-			{
-				float cx = 220, cy = 330, cw = 190, ch = 140;
-				d.Rect(cx, cy, cw, ch, panel);
-				d.Rect(cx, cy, cw, ch, frame, false);
-				if (_pick == Pick.Command)
-				{
-					for (int i = 0; i < CommandNames.Length; i++) d.Text((i == _cursor ? "> " : "  ") + CommandNames[i], cx + 12, cy + 10 + 24 * i, i == _cursor ? Color.Yellow : Color.White, 15);
-				}
-				else if (_pick == Pick.Target)
-				{
-					d.Text(_casting != null ? _casting.Name + " on?" : "Target?", cx + 12, cy + 12, dim, 13);
-					d.Text("Left/Right, A", cx + 12, cy + 34, dim, 12);
-				}
-				else if (_pick == Pick.Ally)
-				{
-					d.Text((_casting != null ? _casting.Name : Ff4Party.Tables.Item(_usingItem)?.Name ?? "Item") + " on whom?", cx + 12, cy + 12, dim, 13);
-					d.Text("Up/Down, A", cx + 12, cy + 34, dim, 12);
-				}
-				else if (_pick == Pick.Spell)
-				{
-					for (int i = _listScroll; i < _spellChoices.Count && i < _listScroll + 5; i++)
-					{
-						SpellDefinition spell = Ff4Party.Tables.Spell(_spellChoices[i]);
-						bool can = spell != null && _acting.Mp >= spell.MpCost;
-						d.Text((i == _cursor ? "> " : "  ") + (spell?.Name ?? "?"), cx + 12, cy + 10 + 24 * (i - _listScroll), i == _cursor ? Color.Yellow : (can ? Color.White : dim), 13);
-						d.Text((spell?.MpCost ?? 0).ToString(), cx + cw - 30, cy + 10 + 24 * (i - _listScroll), can ? dim : Color.Red, 12);
-					}
-				}
-				else
-				{
-					for (int i = _listScroll; i < _itemChoices.Count && i < _listScroll + 5; i++)
-					{
-						ItemDefinition item = Ff4Party.Tables.Item(_itemChoices[i]);
-						d.Text((i == _cursor ? "> " : "  ") + (item?.Name ?? "?") + " x" + Ff4Party.Party.CountItem(_itemChoices[i]), cx + 12, cy + 10 + 24 * (i - _listScroll), i == _cursor ? Color.Yellow : Color.White, 13);
-					}
-				}
-			}
-			// The log: top.
-			int shown = Math.Min(3, _log.Count);
+
+			// What happened last, top centre, small.
+			int shown = Math.Min(2, _log.Count);
 			for (int i = 0; i < shown; i++)
 			{
 				string line = _log[_log.Count - shown + i];
-				d.Text(line, 400 - d.MeasureText(line, 13) / 2, 14 + 18 * i, i == shown - 1 ? Color.White : dim, 13);
+				Shadowed(d, line, 400 - d.MeasureText(line, 13) / 2, 12 + 18 * i, i == shown - 1 ? Color.White : Dim, 13);
 			}
-			if (_phase == Phase.Intro)
+		}
+
+		/// <summary>FF4's result window: gil found and the new total on the left, the experience on the right; level-ups and drops below.</summary>
+		private void DrawResult(DrawList d)
+		{
+			float x = 100, y = 24, w = 600, h = 92;
+			Panel(d, x, y, w, h);
+			d.Line(x + w / 2, y + 8, x + w / 2, y + h - 8, RowLine);
+			Shadowed(d, "Gil Found", x + 24, y + 16, Color.White, 16);
+			RightAligned(d, _gilWon.ToString(), x + w / 2 - 24, y + 16, Color.White, 16);
+			Shadowed(d, "New Total", x + 24, y + 52, Color.White, 16);
+			RightAligned(d, Ff4Party.Party.Gil.ToString(), x + w / 2 - 24, y + 52, Color.White, 16);
+			Shadowed(d, "EXP", x + w / 2 + 24, y + 16, Color.White, 16);
+			RightAligned(d, _expWon.ToString(), x + w - 24, y + 16, Color.White, 16);
+			if (_resultLines.Count > 0)
 			{
-				string title = "Encounter!";
-				d.Text(title, 400 - d.MeasureText(title, 22) / 2, 120, Color.Yellow, 22);
+				float ly = y + h + 10, lh = 14 + 24 * Math.Min(_resultLines.Count, 5);
+				Panel(d, x, ly, w, lh);
+				for (int i = 0; i < _resultLines.Count && i < 5; i++) Shadowed(d, _resultLines[i], x + 24, ly + 8 + 24 * i, _resultLines[i].EndsWith("!") ? Gold : Color.White, 16);
 			}
 		}
 	}
