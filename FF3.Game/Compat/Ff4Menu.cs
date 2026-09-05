@@ -144,9 +144,18 @@ namespace FF3
 			if (pick.Spells.Count > 0)
 			{
 				ty += 10;
-				List<string> names = new List<string>();
-				foreach (int id in pick.Spells) names.Add(Ff4Party.Tables?.AbilityName(id) ?? id.ToString());
-				d.Text("Abilities: " + string.Join(", ", names), x, ty, dim, 12);
+				d.Text("Magic", x, ty, Color.Yellow, 14); ty += 20;
+				int col = 0;
+				foreach (int id in pick.Spells)
+				{
+					OpenFF.Data.SpellDefinition spell = Ff4Party.Tables?.Spell(id);
+					string name = spell?.Name ?? Ff4Party.Tables?.AbilityName(id) ?? id.ToString();
+					d.Text(name, x + 115 * (col % 3), ty, Color.White, 12);
+					if (spell != null) d.Text(spell.MpCost.ToString(), x + 115 * (col % 3) + 88, ty, dim, 11);
+					col++;
+					if (col % 3 == 0) ty += 16;
+					if (ty > 400) break;
+				}
 			}
 		}
 

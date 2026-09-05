@@ -76,8 +76,26 @@ namespace OpenFF.Data
 		public LevelRow[] Levels = Array.Empty<LevelRow>();
 		/// <summary>True where the name and class were filled from knowledge of the game rather than its files.</summary>
 		public bool NameIsTentative;
+		/// <summary>Commands and spells with the level each arrives at, in the game's order; empty when the game has no such list.</summary>
+		public List<Learned> Learning = new List<Learned>();
 
 		public int MaxLevel => Levels.Length;
+
+		/// <summary>The spells known at a level, in the game's order.</summary>
+		public List<int> SpellsAt(int level)
+		{
+			List<int> spells = new List<int>();
+			foreach (Learned l in Learning) if (l.IsSpell && l.Level <= level && !spells.Contains(l.Ability)) spells.Add(l.Ability);
+			return spells;
+		}
+
+		/// <summary>The battle commands at a level (FF4: 1 fight, 3 item, 0x2e change... and the class's own).</summary>
+		public List<int> CommandsAt(int level)
+		{
+			List<int> commands = new List<int>();
+			foreach (Learned l in Learning) if (!l.IsSpell && l.Level <= level && !commands.Contains(l.Ability)) commands.Add(l.Ability);
+			return commands;
+		}
 
 		/// <summary>Maximum hit points at a level: the gains of every row up to it, the middle of each row's range (the game rolls).</summary>
 		public int MaxHpAt(int level)
@@ -146,13 +164,74 @@ namespace OpenFF.Data
 		public override string ToString() => Id + " " + (Name ?? "?") + " (" + Kind + (BuyPrice > 0 ? ", " + BuyPrice + " gil" : "") + ")";
 	}
 
+	/// <summary>Which magic a spell belongs to (FF4: the byte at 4 of magic_parameter.bbd; NewMagicFormula picks the stat by it - will for white, wisdom for the rest).</summary>
+	public enum MagicSchool { White = 0, Black = 1, Summon = 2, Song = 3, Item = 4, Enemy = 5, Ninjutsu = 6, Other = 7 }
+
+	/// <summary>
+	/// A spell or ability with battle numbers (FF4: magic_parameter.bbd, 36 bytes per record,
+	/// common::BabilMagicParameterManager - id s16 at 0, power s16 at 2, school byte at 4, MP
+	/// cost byte at 5 (pl::Player::isUseMagic), hit rate u16 at 6, effect group u16 at 10 and
+	/// its rank at 12, element bits at 22, the status it inflicts at 24, grants at 26 and 28,
+	/// and a target byte at 32).
+	/// </summary>
 	public sealed class SpellDefinition
 	{
 		public int Id;
 		public string Name;
+		public MagicSchool School;
+		public int MpCost;
+		/// <summary>The attack or healing power; 0 for a status spell.</summary>
+		public int Power;
+		/// <summary>Out of 100.</summary>
+		public int HitRate;
+		public int EffectGroup;
+		public int EffectRank;
+		/// <summary>Element bits (FF4: 0x20 fire, 0x10 ice, 0x08 lightning, 0x80 earth, 0x100 holy, 0x02 poison/bio, 0x04 drain).</summary>
+		public int Element;
+		public int Inflicts;
+		public int Grants;
+		public int Grants2;
+		/// <summary>FF4's byte at 32: 0x01 hits every target, 0x02 one target, 0x08 may spread to all, 0x10 usable in battle, 0x20 usable from the menu, 0x40 the player chooses the target.</summary>
+		public int TargetFlags;
 		public byte[] Raw;
 
-		public override string ToString() => Id + " " + (Name ?? "?");
+		public bool UsableInBattle => (TargetFlags & 0x10) != 0;
+		public bool UsableInMenu => (TargetFlags & 0x20) != 0;
+		public bool HitsAll => (TargetFlags & 0x01) != 0;
+		public bool CanSpread => (TargetFlags & 0x08) != 0;
+		/// <summary>Cures rather than hurts: FF4's healing groups (0xA0 the cure line and its kin) and the white school's recovery entries.</summary>
+		public bool Heals => Power > 0 && School == MagicSchool.White && EffectGroup == 0xA0;
+		public bool Revives => EffectGroup == 0xA0 && Power == 0 && (Grants & 0x200) != 0;
+
+		public override string ToString() => Id + " " + (Name ?? "?") + " (" + School + ", " + MpCost + " mp" + (Power > 0 ? ", power " + Power : "") + ")";
+	}
+
+	/// <summary>
+	/// What an item or an ability does when used (FF4: efficacy.beld, common::EfficacyDataConvection):
+	/// the potions' section gives hit and magic points restored (9999 for all of them); the
+	/// abilities' section names the ability an item casts.
+	/// </summary>
+	public sealed class Efficacy
+	{
+		public int Id;
+		public int Hp;
+		public int Mp;
+		/// <summary>The ability cast when this is used (a summon item, a rod), 0 for none.</summary>
+		public int CastsAbility;
+		public int X10;
+
+		public override string ToString() => Id + (CastsAbility > 0 ? " casts " + CastsAbility : " hp " + Hp + " mp " + Mp);
+	}
+
+	/// <summary>One line of a character's learn list: a command or a spell and the level it comes at (FF4: player.chaindata chains 17.., u32 = ability << 16 | level).</summary>
+	public struct Learned
+	{
+		/// <summary>The battle command the spell falls under (FF4: 6 white, 5 black, 13 summon, 4 sing, 0x53 ninjutsu), or the command itself when Ability is below 1500.</summary>
+		public int Command;
+		public int Ability;
+		public int Level;
+
+		public bool IsSpell => Ability >= 1500;
 	}
 
 	/// <summary>One thing a monster may leave behind.</summary>
@@ -245,6 +324,30 @@ namespace OpenFF.Data
 		public List<CharacterDefinition> Characters = new List<CharacterDefinition>();
 		public List<ItemDefinition> Items = new List<ItemDefinition>();
 		public List<SpellDefinition> Spells = new List<SpellDefinition>();
+		public List<Efficacy> Efficacies = new List<Efficacy>();
+		private Dictionary<int, SpellDefinition> _spells;
+		private Dictionary<int, Efficacy> _efficacies;
+
+		public SpellDefinition Spell(int id)
+		{
+			if (_spells == null)
+			{
+				_spells = new Dictionary<int, SpellDefinition>();
+				foreach (SpellDefinition s in Spells) if (!_spells.ContainsKey(s.Id)) _spells[s.Id] = s;
+			}
+			return _spells.TryGetValue(id, out SpellDefinition found) ? found : null;
+		}
+
+		public Efficacy Efficacy(int id)
+		{
+			if (_efficacies == null)
+			{
+				_efficacies = new Dictionary<int, Efficacy>();
+				foreach (Efficacy e in Efficacies) if (!_efficacies.ContainsKey(e.Id)) _efficacies[e.Id] = e;
+			}
+			return _efficacies.TryGetValue(id, out Efficacy found) ? found : null;
+		}
+
 		/// <summary>Names of abilities, summons and spells by the game's id (FF4: babil_ability.msd, whose message ids are the ability ids).</summary>
 		public Dictionary<int, string> AbilityNames = new Dictionary<int, string>();
 		/// <summary>What the reader could not do (a missing file, a name table it did not find), for the log.</summary>

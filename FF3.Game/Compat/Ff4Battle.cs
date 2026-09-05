@@ -6,11 +6,16 @@
 // monsters: the party stands where it is, the monsters appear in front of it (FF4's
 // m<family>_00 models with their b_m<family> motions - 101 idle, 201 attack), the field
 // camera frames them, and an ATB fight runs: every combatant's gauge fills with its agility;
-// a full gauge gives a party member the command window (Fight, Item, Run) and a monster
-// its attack. Damage is a placeholder formula until FF4's is read out of the binary
-// (noted in Docs/Client-Plan.md). Victory pays experience, gil and drops into the party;
-// defeat leaves everyone at 1 HP for now. K starts a test fight; scripted battles and
-// encounters hook in through Start once their tables are read.
+// a full gauge gives a party member the command window (Fight, Magic, Item, Run) and a
+// monster its attack. Physical damage is a placeholder formula until FF4's is read out of
+// the binary; magic follows btl::NewMagicFormula as read from libff4.so: attack damage =
+// power x caster level x caster stat (will for white, wisdom otherwise) / (target will +
+// target level + target magic defence), times 1.0..1.3; healing = (target vitality / 8 +
+// caster will / 2) x power, times 0.90..1.00; MP cost, power, school, hit rate and targets
+// from magic_parameter.bbd (SpellDefinition); items heal what efficacy.beld says. Victory
+// pays experience, gil and drops into the party (and levels teach spells); defeat leaves
+// everyone at 1 HP for now. K starts a test fight; scripted battles and encounters hook in
+// through Start.
 
 using System;
 using System.Collections.Generic;
@@ -22,8 +27,9 @@ namespace FF3
 	internal sealed class Ff4Battle : GameService
 	{
 		private enum Phase { Idle, Intro, Fight, Victory, Defeat, Outro }
-		private enum Command { Fight, Item, Run }
-		private enum Pick { None, Command, Target, Item }
+		private enum Command { Fight, Magic, Item, Run }
+		private enum Pick { None, Command, Target, Item, Spell, Ally }
+		private static readonly string[] CommandNames = { "Fight", "Magic", "Item", "Run" };
 
 		private sealed class Fighter
 		{
@@ -34,6 +40,8 @@ namespace FF3
 			public Npc Npc;
 			public int Hp, MaxHp;
 			public int Attack, Defence, Agility;
+			public int Level, Intellect, Spirit, Vitality, MagicDefence;
+			public int Mp => Member?.Mp ?? 0;
 			public float Gauge;               // 0..1
 			public bool Alive => Hp > 0;
 			public Vector3 Home;
@@ -52,6 +60,10 @@ namespace FF3
 		private int _cursor;
 		private Command _command;
 		private readonly List<int> _itemChoices = new List<int>();
+		private readonly List<int> _spellChoices = new List<int>();
+		private int _listScroll;
+		private SpellDefinition _casting;   // the spell picked, waiting on a target
+		private int _usingItem;             // the item picked, waiting on an ally
 		private readonly List<string> _log = new List<string>();
 		private int _expWon, _gilWon;
 		private readonly List<int> _dropsWon = new List<int>();
@@ -122,6 +134,7 @@ namespace FF3
 				{
 					Name = c.Name, Member = c, Hp = c.Hp, MaxHp = c.MaxHp,
 					Attack = stats.Strength + weapon, Defence = Armour(c, tables) + stats.Vitality / 2, Agility = Math.Max(1, stats.Agility),
+					Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
 					Gauge = (float)_random.NextDouble() * 0.5f,
 				});
 			}
@@ -137,7 +150,7 @@ namespace FF3
 			foreach (int id in ids)
 			{
 				MonsterDefinition m = tables.Monster(id);
-				if (m == null) { _log.Add("no monster " + id); continue; }
+				if (m == null) { Say("no monster " + id); continue; }
 				// The game's placement (x across, z depth, in its battle units - roughly halved for the field) or a row.
 				Vector3 at;
 				if (_placements != null && n < _placements.Count)
@@ -152,7 +165,7 @@ namespace FF3
 				}
 				Monster info = Game.Monsters.Find(id);
 				Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.Family.ToString("000") + "_00"), at, 0f);
-				if (npc == null) { _log.Add("no model for " + m.Name); continue; }
+				if (npc == null) { Say("no model for " + m.Name); continue; }
 				try { npc.BindMotions(info?.MotionSet ?? ("b_m" + m.Family.ToString("000"))); npc.PlayMotion(101, true); } catch (Exception) { }
 				npc.LookAt(hero);
 				npc.Solid = false;
@@ -161,6 +174,7 @@ namespace FF3
 					Name = m.Name ?? ("monster " + id), IsMonster = true, Monster = m, Npc = npc, Home = at,
 					Hp = Math.Max(1, m.MaxHp), MaxHp = Math.Max(1, m.MaxHp),
 					Attack = Math.Max(1, ChainPack.U16(m.Raw, 0x20)), Defence = m.Stats.Vitality, Agility = Math.Max(1, m.Stats.Agility),
+					Level = Math.Max(1, m.Level), Intellect = m.Stats.Intellect, Spirit = m.Stats.Spirit, Vitality = m.Stats.Vitality, MagicDefence = 0,
 					Gauge = (float)_random.NextDouble() * 0.3f,
 				});
 				n++;
@@ -201,6 +215,17 @@ namespace FF3
 			{
 				ItemDefinition item = id != 0 ? tables.Item(id) : null;
 				if (item?.Equip != null && item.Kind == ItemKind.Armour) total += item.Equip.Defence;
+			}
+			return total;
+		}
+
+		private static int MagicArmour(Character c, GameTables tables)
+		{
+			int total = 0;
+			foreach (int id in c.Equipment)
+			{
+				ItemDefinition item = id != 0 ? tables.Item(id) : null;
+				if (item?.Equip != null && item.Kind == ItemKind.Armour) total += item.Equip.MagicDefence;
 			}
 			return total;
 		}
@@ -258,29 +283,47 @@ namespace FF3
 				}
 				foreach (Fighter f in _party)
 				{
-					if (f.Alive && f.Gauge >= 1f) { _acting = f; _pick = Pick.Command; _cursor = 0; return; }
+					if (f.Alive && f.Gauge >= 1f) { _acting = f; _pick = Pick.Command; _cursor = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act"); return; }
 				}
 				return;
 			}
 			InputState input = Game.Input;
 			if (_pick == Pick.Command)
 			{
-				if (input.Pressed(Pad.Up)) _cursor = (_cursor + 2) % 3;
-				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % 3;
+				int count = CommandNames.Length;
+				if (input.Pressed(Pad.Up)) _cursor = (_cursor + count - 1) % count;
+				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % count;
 				if (input.Pressed(Pad.A))
 				{
 					_command = (Command)_cursor;
 					if (_command == Command.Fight) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
+					else if (_command == Command.Magic)
+					{
+						_spellChoices.Clear();
+						GameTables tables = Ff4Party.Tables;
+						foreach (int id in _acting.Member.Spells)
+						{
+							SpellDefinition spell = tables.Spell(id);
+							if (spell != null && spell.UsableInBattle) _spellChoices.Add(id);
+						}
+						foreach (int id in _acting.Member.Abilities)
+						{
+							SpellDefinition spell = id >= 1500 ? tables.Spell(id) : null;
+							if (spell != null && spell.UsableInBattle && !_spellChoices.Contains(id)) _spellChoices.Add(id);
+						}
+						if (_spellChoices.Count == 0) { Say(_acting.Name + " knows no magic."); return; }
+						_pick = Pick.Spell; _cursor = 0; _listScroll = 0;
+					}
 					else if (_command == Command.Item)
 					{
 						_itemChoices.Clear();
 						foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory)
 						{
 							ItemDefinition item = Ff4Party.Tables.Item(s.ItemId);
-							if (item != null && item.Kind == ItemKind.Consumable && HealAmount(item) != 0) _itemChoices.Add(s.ItemId);
+							if (item != null && item.Kind == ItemKind.Consumable && ItemEffect(item) != null) _itemChoices.Add(s.ItemId);
 						}
-						if (_itemChoices.Count == 0) { _log.Add("Nothing to use."); return; }
-						_pick = Pick.Item; _cursor = 0;
+						if (_itemChoices.Count == 0) { Say("Nothing to use."); return; }
+						_pick = Pick.Item; _cursor = 0; _listScroll = 0;
 					}
 					else Run();
 				}
@@ -290,16 +333,163 @@ namespace FF3
 			{
 				if (input.Pressed(Pad.Left) || input.Pressed(Pad.Up)) _cursor = NextAliveFoe(_cursor, -1);
 				if (input.Pressed(Pad.Right) || input.Pressed(Pad.Down)) _cursor = NextAliveFoe(_cursor, 1);
-				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = 0; return; }
-				if (input.Pressed(Pad.A) && _cursor >= 0) MemberAttacks(_acting, _foes[_cursor]);
+				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : Pick.Command; _cursor = 0; _casting = null; return; }
+				if (input.Pressed(Pad.A) && _cursor >= 0)
+				{
+					if (_casting != null) Cast(_acting, _casting, _casting.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { _foes[_cursor] });
+					else MemberAttacks(_acting, _foes[_cursor]);
+				}
+				return;
+			}
+			if (_pick == Pick.Spell)
+			{
+				if (input.Pressed(Pad.Up)) _cursor = (_cursor + _spellChoices.Count - 1) % _spellChoices.Count;
+				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % _spellChoices.Count;
+				if (_cursor < _listScroll) _listScroll = _cursor;
+				if (_cursor >= _listScroll + 5) _listScroll = _cursor - 4;
+				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = (int)Command.Magic; return; }
+				if (input.Pressed(Pad.A))
+				{
+					SpellDefinition spell = Ff4Party.Tables.Spell(_spellChoices[_cursor]);
+					if (spell == null) return;
+					if (_acting.Mp < spell.MpCost) { Say("Not enough MP for " + spell.Name + "."); return; }
+					_casting = spell;
+					if (Helps(spell)) { _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
+					else { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
+				}
+				return;
+			}
+			if (_pick == Pick.Ally)
+			{
+				if (input.Pressed(Pad.Up) || input.Pressed(Pad.Left)) _cursor = (_cursor + _party.Count - 1) % _party.Count;
+				if (input.Pressed(Pad.Down) || input.Pressed(Pad.Right)) _cursor = (_cursor + 1) % _party.Count;
+				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : Pick.Item; _casting = null; _cursor = 0; return; }
+				if (input.Pressed(Pad.A))
+				{
+					if (_casting != null) Cast(_acting, _casting, _casting.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { _party[_cursor] });
+					else UseItem(_acting, _usingItem, _party[_cursor]);
+				}
 				return;
 			}
 			if (_pick == Pick.Item)
 			{
 				if (input.Pressed(Pad.Up)) _cursor = (_cursor + _itemChoices.Count - 1) % _itemChoices.Count;
 				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % _itemChoices.Count;
-				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = 1; return; }
-				if (input.Pressed(Pad.A)) UseItem(_acting, _itemChoices[_cursor]);
+				if (_cursor < _listScroll) _listScroll = _cursor;
+				if (_cursor >= _listScroll + 5) _listScroll = _cursor - 4;
+				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = (int)Command.Item; return; }
+				if (input.Pressed(Pad.A)) { _usingItem = _itemChoices[_cursor]; _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
+			}
+		}
+
+		/// <summary>A spell cast on one's own side: healing, reviving, or a white spell that grants something.</summary>
+		private static bool Helps(SpellDefinition spell)
+		{
+			return spell.Heals || spell.Revives || (spell.Power == 0 && spell.Inflicts == 0 && (spell.Grants != 0 || spell.Grants2 != 0) && spell.School == OpenFF.Data.MagicSchool.White);
+		}
+
+		// ---- magic, as btl::NewMagicFormula computes it ----
+
+		private void Cast(Fighter caster, SpellDefinition spell, List<Fighter> targets)
+		{
+			_casting = null;
+			caster.Member.Mp = Math.Max(0, caster.Member.Mp - spell.MpCost);
+			try { Game.Hero.PlayMotion(_heroMotionAttack, false, 3); } catch (Exception) { }
+			Game.Audio.PlaySe(0, 5);
+			string name = spell.Name ?? ("spell " + spell.Id);
+			if (spell.Heals)
+			{
+				foreach (Fighter t in targets)
+				{
+					if (!t.Alive) continue;
+					int value = HealingValue(caster, t, spell, targets.Count);
+					int before = t.Hp;
+					t.Hp = Math.Min(t.MaxHp, t.Hp + value);
+					if (t.Member != null) t.Member.Hp = t.Hp;
+					Game.Screen.PopNumber(Where(t) + new Vector3(0, 12f, 0), t.Hp - before, true);
+					Say(caster.Name + " casts " + name + ": " + t.Name + " +" + (t.Hp - before) + ".");
+				}
+			}
+			else if (spell.Revives)
+			{
+				foreach (Fighter t in targets)
+				{
+					if (t.Alive) { Say(name + " does nothing for " + t.Name + "."); continue; }
+					t.Hp = spell.Id == 4007 ? t.MaxHp : Math.Max(1, t.MaxHp / 4);
+					if (t.Member != null) t.Member.Hp = t.Hp;
+					Say(caster.Name + " casts " + name + ": " + t.Name + " rises.");
+				}
+			}
+			else if (spell.Power > 0)
+			{
+				foreach (Fighter t in targets)
+				{
+					if (!t.Alive) continue;
+					int damage = AttackMagicDamage(caster, t, spell, targets.Count);
+					t.Hp = Math.Max(0, t.Hp - damage);
+					if (t.Member != null) t.Member.Hp = t.Hp;
+					Game.Screen.PopNumber(Where(t) + new Vector3(0, 12f, 0), damage);
+					Say(caster.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
+					if (!t.Alive) Fell(t);
+				}
+			}
+			else
+			{
+				// A status spell: the hit rate decides; only death is carried out, the rest is told.
+				foreach (Fighter t in targets)
+				{
+					if (!t.Alive) continue;
+					bool hit = _random.Next(100) < spell.HitRate;
+					if (hit && (spell.Inflicts & 0x200) != 0 && t.IsMonster) { t.Hp = 0; Say(caster.Name + " casts " + name + ": " + t.Name + " is slain."); Fell(t); }
+					else Say(caster.Name + " casts " + name + " on " + t.Name + (hit ? "." : ": it misses."));
+				}
+			}
+			caster.Gauge = 0f;
+			_acting = null;
+			_pick = Pick.None;
+			if (_foes.FindAll(f => f.Alive).Count == 0) Win();
+			else if (_party.FindAll(f => f.Alive).Count == 0) Lose();
+		}
+
+		/// <summary>A line for the fight's log on screen, and for the log file.</summary>
+		private void Say(string line)
+		{
+			_log.Add(line);
+			Log.Write(LogChannel.File, "battle: " + line);
+		}
+
+		private Vector3 Where(Fighter f) => f.Npc != null ? f.Npc.Position : Game.Hero.Position;
+
+		/// <summary>NewMagicFormula::calcAttackMagicDamage: power x level x stat over the target's will, level and magic defence, times 1.0..1.3.</summary>
+		private int AttackMagicDamage(Fighter caster, Fighter target, SpellDefinition spell, int targetCount)
+		{
+			int stat = spell.School == OpenFF.Data.MagicSchool.White ? caster.Spirit : caster.Intellect;
+			long numerator = (long)spell.Power * Math.Max(1, caster.Level) * Math.Max(1, stat);
+			int denominator = Math.Max(1, target.Spirit + target.Level + target.MagicDefence);
+			double value = numerator / (double)denominator * (1.0 + _random.Next(301) / 1000.0);
+			if (targetCount > 1) value *= Math.Max(0.3, (90 - 10 * targetCount) / 100.0);
+			return Math.Max(1, (int)value);
+		}
+
+		/// <summary>NewMagicFormula::healingMagicValue: (target vitality / 8 + caster will / 2) x power, times 0.90..1.00, less when spread.</summary>
+		private int HealingValue(Fighter caster, Fighter target, SpellDefinition spell, int targetCount)
+		{
+			int value = (target.Vitality / 8 + caster.Spirit / 2) * spell.Power;
+			value = value * (100 - _random.Next(10)) / 100;
+			if (targetCount > 1) value = value * Math.Max(30, 90 - 10 * targetCount) / 100;
+			return Math.Max(1, value);
+		}
+
+		private void Fell(Fighter foe)
+		{
+			if (!foe.IsMonster) { Say(foe.Name + " falls."); return; }
+			Say(foe.Name + " is defeated.");
+			if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
+			_expWon += foe.Monster.Experience;
+			_gilWon += foe.Monster.Gil;
+			foreach (DropChance drop in foe.Monster.Drops)
+			{
+				if (_random.Next(4096) < drop.Chance) { _dropsWon.Add(drop.ItemId); break; }
 			}
 		}
 
@@ -334,19 +524,8 @@ namespace FF3
 			try { Game.Hero.PlayMotion(_heroMotionAttack, false, 3); } catch (Exception) { }
 			Game.Screen.PopNumber(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
 			Game.Audio.PlaySe(0, 3);
-			_log.Add(member.Name + " hits " + foe.Name + " for " + damage + ".");
-			if (!foe.Alive)
-			{
-				_log.Add(foe.Name + " is defeated.");
-				foe.Npc.Alpha = 8;
-				foe.Npc.Hidden = true;
-				_expWon += foe.Monster.Experience;
-				_gilWon += foe.Monster.Gil;
-				foreach (DropChance drop in foe.Monster.Drops)
-				{
-					if (_random.Next(4096) < drop.Chance) { _dropsWon.Add(drop.ItemId); break; }
-				}
-			}
+			Say(member.Name + " hits " + foe.Name + " for " + damage + ".");
+			if (!foe.Alive) Fell(foe);
 			member.Gauge = 0f;
 			_acting = null;
 			_pick = Pick.None;
@@ -365,39 +544,40 @@ namespace FF3
 			Game.Screen.PopNumber(Game.Hero.Position + new Vector3(0, 12f, 0), damage);
 			Game.Screen.Flash(new Color(255, 60, 40), 6, 2);
 			try { Game.Hero.PlayMotion(_heroMotionHurt, false, 3); } catch (Exception) { }
-			_log.Add(foe.Name + " hits " + target.Name + " for " + damage + ".");
+			Say(foe.Name + " hits " + target.Name + " for " + damage + ".");
 			foe.Gauge = 0f;
-			if (!target.Alive) _log.Add(target.Name + " falls.");
+			if (!target.Alive) Say(target.Name + " falls.");
 			if (_party.FindAll(f => f.Alive).Count == 0) Lose();
 		}
 
-		private static int HealAmount(ItemDefinition item)
+		/// <summary>What a consumable does in a fight, from efficacy.beld: hit or magic points back (9999 for all), or a revival (Phoenix Down's efficacy 17 restores nothing by number). Null for anything else.</summary>
+		private static Efficacy ItemEffect(ItemDefinition item)
 		{
-			// FF4's consumables by id until the efficacy table is read: Potion 100, Hi-Potion 500, X-Potion 1000, Elixir all.
-			switch (item.Id)
-			{
-				case 5001: return 100;
-				case 5002: return 500;
-				case 5003: return 1000;
-				case 5006: return 99999;
-				default: return 0;
-			}
+			Efficacy e = item.EfficacyId > 0 ? Ff4Party.Tables.Efficacy(item.EfficacyId) : null;
+			if (e == null || e.CastsAbility > 0) return null;
+			return e.Hp > 0 || e.Mp > 0 || e.Id == 17 ? e : null;
 		}
 
-		private void UseItem(Fighter member, int itemId)
+		private void UseItem(Fighter member, int itemId, Fighter target)
 		{
 			ItemDefinition item = Ff4Party.Tables.Item(itemId);
-			int heal = HealAmount(item);
-			Fighter target = member;   // on oneself for now; the first fallen member if there is one
-			foreach (Fighter f in _party) if (!f.Alive) { target = f; break; }
-			if (!target.Alive && itemId != 5006) target = member;
+			Efficacy effect = item != null ? ItemEffect(item) : null;
+			if (effect == null) { _acting = null; _pick = Pick.None; return; }
+			bool revive = effect.Id == 17;
+			if (revive == target.Alive)
+			{
+				Say(item.Name + " does nothing for " + target.Name + ".");
+				return;
+			}
 			if (Ff4Party.Party.RemoveItem(itemId, 1))
 			{
 				int before = target.Hp;
-				target.Hp = Math.Min(target.MaxHp, target.Hp + heal);
+				if (revive) target.Hp = Math.Max(1, target.MaxHp / 4);
+				else if (effect.Hp > 0) target.Hp = Math.Min(target.MaxHp, target.Hp + effect.Hp);
 				target.Member.Hp = target.Hp;
-				Game.Screen.PopNumber(Game.Hero.Position + new Vector3(0, 12f, 0), target.Hp - before, true);
-				_log.Add(member.Name + " uses " + item.Name + ": " + target.Name + " +" + (target.Hp - before) + ".");
+				if (effect.Mp > 0) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
+				if (target.Hp != before) Game.Screen.PopNumber(Game.Hero.Position + new Vector3(0, 12f, 0), target.Hp - before, true);
+				Say(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
 			}
 			member.Gauge = 0f;
 			_acting = null;
@@ -408,12 +588,12 @@ namespace FF3
 		{
 			if (_random.Next(100) < 60)
 			{
-				_log.Add("The party runs.");
+				Say("The party runs.");
 				_phase = Phase.Outro;
 			}
 			else
 			{
-				_log.Add("Could not run!");
+				Say("Could not run!");
 				_acting.Gauge = 0f;
 				_acting = null;
 				_pick = Pick.None;
@@ -437,6 +617,7 @@ namespace FF3
 				{
 					f.Member.SetLevel(level, false);
 					lines.Add(f.Name + " reaches level " + level + "!");
+					foreach (int id in f.Member.Learn()) lines.Add(f.Name + " learns " + (Ff4Party.Tables.Spell(id)?.Name ?? ("spell " + id)) + "!");
 				}
 			}
 			foreach (int id in _dropsWon)
@@ -525,13 +706,16 @@ namespace FF3
 			d.Rect(px, py, pw, ph, panel);
 			d.Rect(px, py, pw, ph, frame, false);
 			float y = py + 10;
-			foreach (Fighter f in _party)
+			for (int i = 0; i < _party.Count; i++)
 			{
+				Fighter f = _party[i];
 				bool acting = f == _acting;
-				d.Text((acting ? "> " : "  ") + f.Name, px + 10, y, acting ? Color.Yellow : (f.Alive ? Color.White : dim), 14);
-				d.Text(f.Hp + "/" + f.MaxHp, px + 150, y + 1, f.Hp * 4 <= f.MaxHp ? Color.Red : Color.White, 13);
-				d.Rect(px + 250, y + 5, 100, 8, new Color(40, 40, 40, 220));
-				d.Rect(px + 250, y + 5, 100 * Math.Clamp(f.Gauge, 0f, 1f), 8, f.Gauge >= 1f ? Color.Yellow : new Color(90, 160, 255));
+				bool picked = _pick == Pick.Ally && i == _cursor;
+				d.Text((picked ? "> " : acting ? "* " : "  ") + f.Name, px + 10, y, picked || acting ? Color.Yellow : (f.Alive ? Color.White : dim), 14);
+				d.Text(f.Hp + "/" + f.MaxHp, px + 112, y + 1, f.Hp * 4 <= f.MaxHp ? Color.Red : Color.White, 13);
+				if (f.Member != null && f.Member.MaxMp > 0) d.Text(f.Mp + " mp", px + 200, y + 3, dim, 11);
+				d.Rect(px + 265, y + 5, 90, 8, new Color(40, 40, 40, 220));
+				d.Rect(px + 265, y + 5, 90 * Math.Clamp(f.Gauge, 0f, 1f), 8, f.Gauge >= 1f ? Color.Yellow : new Color(90, 160, 255));
 				y += 26;
 			}
 			// The foes: bottom left.
@@ -565,20 +749,34 @@ namespace FF3
 				d.Rect(cx, cy, cw, ch, frame, false);
 				if (_pick == Pick.Command)
 				{
-					string[] names = { "Fight", "Item", "Run" };
-					for (int i = 0; i < 3; i++) d.Text((i == _cursor ? "> " : "  ") + names[i], cx + 12, cy + 12 + 26 * i, i == _cursor ? Color.Yellow : Color.White, 15);
+					for (int i = 0; i < CommandNames.Length; i++) d.Text((i == _cursor ? "> " : "  ") + CommandNames[i], cx + 12, cy + 10 + 24 * i, i == _cursor ? Color.Yellow : Color.White, 15);
 				}
 				else if (_pick == Pick.Target)
 				{
-					d.Text("Target?", cx + 12, cy + 12, dim, 13);
+					d.Text(_casting != null ? _casting.Name + " on?" : "Target?", cx + 12, cy + 12, dim, 13);
 					d.Text("Left/Right, A", cx + 12, cy + 34, dim, 12);
+				}
+				else if (_pick == Pick.Ally)
+				{
+					d.Text((_casting != null ? _casting.Name : Ff4Party.Tables.Item(_usingItem)?.Name ?? "Item") + " on whom?", cx + 12, cy + 12, dim, 13);
+					d.Text("Up/Down, A", cx + 12, cy + 34, dim, 12);
+				}
+				else if (_pick == Pick.Spell)
+				{
+					for (int i = _listScroll; i < _spellChoices.Count && i < _listScroll + 5; i++)
+					{
+						SpellDefinition spell = Ff4Party.Tables.Spell(_spellChoices[i]);
+						bool can = spell != null && _acting.Mp >= spell.MpCost;
+						d.Text((i == _cursor ? "> " : "  ") + (spell?.Name ?? "?"), cx + 12, cy + 10 + 24 * (i - _listScroll), i == _cursor ? Color.Yellow : (can ? Color.White : dim), 13);
+						d.Text((spell?.MpCost ?? 0).ToString(), cx + cw - 30, cy + 10 + 24 * (i - _listScroll), can ? dim : Color.Red, 12);
+					}
 				}
 				else
 				{
-					for (int i = 0; i < _itemChoices.Count && i < 5; i++)
+					for (int i = _listScroll; i < _itemChoices.Count && i < _listScroll + 5; i++)
 					{
 						ItemDefinition item = Ff4Party.Tables.Item(_itemChoices[i]);
-						d.Text((i == _cursor ? "> " : "  ") + (item?.Name ?? "?") + " x" + Ff4Party.Party.CountItem(_itemChoices[i]), cx + 12, cy + 12 + 24 * i, i == _cursor ? Color.Yellow : Color.White, 13);
+						d.Text((i == _cursor ? "> " : "  ") + (item?.Name ?? "?") + " x" + Ff4Party.Party.CountItem(_itemChoices[i]), cx + 12, cy + 10 + 24 * (i - _listScroll), i == _cursor ? Color.Yellow : Color.White, 13);
 					}
 				}
 			}

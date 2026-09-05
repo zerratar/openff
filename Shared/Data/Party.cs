@@ -64,6 +64,26 @@ namespace OpenFF.Data
 				Hp = Math.Min(Hp, MaxHp);
 				Mp = Math.Min(Mp, MaxMp);
 			}
+			Learn();
+		}
+
+		/// <summary>Adds what the learn list gives up to the current level; nothing already known is touched. Returns the spells newly learnt.</summary>
+		public List<int> Learn()
+		{
+			List<int> fresh = new List<int>();
+			foreach (Learned l in Definition.Learning)
+			{
+				if (l.Level > Level) continue;
+				if (l.IsSpell)
+				{
+					if (!Spells.Contains(l.Ability)) { Spells.Add(l.Ability); fresh.Add(l.Ability); }
+				}
+				else if (!Abilities.Contains(l.Ability))
+				{
+					Abilities.Add(l.Ability);
+				}
+			}
+			return fresh;
 		}
 
 		/// <summary>Attributes with equipment bonuses, when the tables know the items.</summary>

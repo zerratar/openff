@@ -691,6 +691,55 @@ inside the cave's rock, on a fresh start as much as after a load - the dungeon c
 drawn from above where the real game's camera (or its culling) keeps them out of view. A
 camera stage for FF4 dungeons is owed.
 
+## FF4 magic, from the binary and its tables (2026-09-05)
+
+The MP costs and powers were not in player.chaindata's chain 32 after all (that 32-byte
+record is `pl::PlayerParty::normalMagic`'s, with an effect id at 10). Following
+`btl::NewMagicFormula` and `pl::Player::isUseMagic` in libff4.so (Tools/ff4_disasm.py,
+ff4_fields.py, and the new Tools/ff4_callers.py for who calls what) led to
+`common::BabilMagicParameterManager`, which loads **magic_parameter.bbd**: 36 bytes per
+spell - id s16, power s16, school byte (0 white, 1 black, 2 summon, 3 song, 6 ninjutsu),
+MP cost byte at 5, hit rate u16 at 6 (100, or 45 for Hold, 30 for Death), effect group
+u16 at 10 (0xA0 the cure line) and rank at 12, element bits at 22 (0x20 fire, 0x10 ice,
+0x08 lightning, 0x80 earth, 0x100 holy), status inflicted at 24, granted at 26 and 28,
+and a target byte at 32 (0x01 all, 0x02 one, 0x08 may spread, 0x10 in battle, 0x20 in
+the menu, 0x40 chosen). Cure 3 MP power 24, Fire 5 MP power 20, Meteor 99 MP power 250:
+the numbers the game shows. `SpellDefinition` carries them; `GameTables.Spell(id)` finds one.
+
+The formulas, as the disassembly reads: attack damage = power x caster level x caster stat
+(will for white, wisdom for the rest) / (target will + target level + target magic defence),
+times 1.0..1.3 (rand32(301)/1000); when spread over n targets times (90 - 10n)%. Healing =
+(target vitality / 8 + caster will / 2) x power, times (100 - rand(10))%, spread the same
+way. `Ff4Battle.AttackMagicDamage/HealingValue` do exactly that. Status spells roll the hit
+rate; only death is carried out so far.
+
+**efficacy.beld** (`EfficacyDataConvection::loadBELD`) gives what items do: a potions
+section (id, hp, mp: Potion 100, Hi-Potion 500, X-Potion 1000, Ether 50 mp, Elixir
+9999/9999, Phoenix Down 0/0 = revive) and a section of abilities items cast (40 casts
+1501, the Goblin summon item). `Efficacy`/`GameTables.Efficacy(id)`; the battle's Item
+command reads it instead of the old by-id amounts, and asks whom to use it on.
+
+**Learn lists**: player.chaindata chains 17..31 are one list per PLAYER_TYPE, u32 =
+ability << 16 | level: the class's commands (1 Fight, 3 Item, 0x2e Change, then its own -
+0x1f Jump, 0x0a Cover, 0x40 Pray, 0x34 Recall...) and under each magic command (6 white,
+5 black, 13 summon, 4 sing, 0x53 ninjutsu) the spells with the level each is learnt at.
+Every list ends with Sing and the eight songs - the Bardsong augment - so those are kept
+only for type 11 until augments exist. The lists settle the PLAYER_TYPE order, which the
+earlier guess had wrong: 0 Cecil (Dark Knight), 1 Cecil (Paladin), 2 Kain, 3 Rosa, 4 Rydia
+(child), 5 Rydia (adult), 6 Tellah, 7 Porom, 8 Palom, 9 Yang, 10 Cid, 11 Edward, 12 Edge,
+13 FuSoYa, 14 Golbez. `CharacterDefinition.Learning`, `SpellsAt/CommandsAt`;
+`Character.Learn()` runs at every SetLevel, so joining and levelling up teach spells.
+
+In the client: the battle's command window is Fight, Magic, Item, Run; Magic lists the
+member's spells with costs, picks an ally for healing, reviving and white buffs and a foe
+otherwise (0x01 in the target byte hits every one); `--party=<type[:level],...>` adds
+members for a test start; the menu's party page lists magic with costs. Test C-43.
+
+Not done: spreading a single-target spell over all (the 0x08 toggle), status effects
+beyond death, summons' own animations (they cast as black magic), monsters casting, the
+white/black command split (one Magic command holds all schools), monster magic defence
+(the record field is not named yet; 0 stands in), and the physical formula.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

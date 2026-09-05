@@ -58,6 +58,18 @@ namespace FF3
 		{
 			_party = new Party(Tables);
 			_party.Join(0, 10);
+			// --party=4:10,3:12 - extra members for a test start (the child Rydia at 10, Rosa at 12).
+			string extra = Options.Get("party");
+			if (!string.IsNullOrEmpty(extra))
+			{
+				foreach (string part in extra.Split(',', ';'))
+				{
+					string[] bits = part.Trim().Split(':');
+					if (bits.Length == 0 || !int.TryParse(bits[0], out int type)) continue;
+					int level = bits.Length > 1 && int.TryParse(bits[1], out int l) ? l : (_party.Leader?.Level ?? 1);
+					_party.Join(type, level);
+				}
+			}
 			Log.Write(LogChannel.File, "party: new game - " + _party.Describe().Replace("\n", " | "));
 		}
 
@@ -268,7 +280,7 @@ namespace FF3
 			m.Stats.Mind = s.Spirit;
 			m.Charges[0] = c.Mp;
 			m.MaxCharges[0] = c.MaxMp;
-			m.Spells.AddRange(c.Abilities);
+			m.Spells.AddRange(c.Spells);
 			return m;
 		}
 
