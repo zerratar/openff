@@ -12,11 +12,18 @@
 // code paints (the port tints a white texel 0x4A2214, blue-green-red) - the same class draws
 // FF4's dialogue in this client already.
 //
+// The Steam build draws the same windows with two files of its own beside FF4.exe:
+// window.png (598 x 288, the blue-violet gradient with a thin light border - the panel in
+// every Steam screenshot) stretched over the window, and point.png (48 x 48, the glove). When
+// the content is a Steam install those are used - the exact Steam look - and the phone's
+// sheets stand in otherwise (a Steam FF4 always has both, so this is the phone path's
+// safety net).
+//
 // Sizes: the phone UI lays these out in a 1136 x 640 space (the Steam window is that, letter
 // for letter: the glove is 85 px of 1122); the port draws at 800 x 480, so every piece is
 // drawn at 800/1136 of its sheet size. The battle windows' positions come from the Steam
 // screenshots for now (Docs/Client-Plan.md) - FF4 builds them in code (btl::TouchWindow,
-// ui::CWidgetMng::addWidget), still to be read from the binary.
+// ui::CWidgetMng::addWidget, sized by Battle2DManager::setIPadSize for the device).
 
 using System;
 using System.Collections.Generic;
@@ -37,6 +44,35 @@ namespace FF3
 
 		/// <summary>The fill under FF4's frames: BasicWindow's tint, 0x4A2214 stored blue-green-red.</summary>
 		public static readonly Color Fill = new Color(0x14, 0x22, 0x4A, 255);
+
+		private static Texture _steamWindow, _steamPointer;
+		private static bool _steamLooked;
+
+		/// <summary>The Steam install's own window.png and point.png (beside FF4.exe, two folders above the content's files), when the content is a Steam install.</summary>
+		private static void LookForSteamArt()
+		{
+			if (_steamLooked) return;
+			_steamLooked = true;
+			try
+			{
+				string files = ContentLocator.FindContentRoot();
+				if (string.IsNullOrEmpty(files)) return;
+				string dir = System.IO.Path.GetFullPath(files);
+				for (int up = 0; up < 3 && dir != null; up++)
+				{
+					string window = System.IO.Path.Combine(dir, "window.png"), pointer = System.IO.Path.Combine(dir, "point.png");
+					if (System.IO.File.Exists(window) && System.IO.File.Exists(pointer))
+					{
+						_steamWindow = Game.Draw.LoadTexture(window);
+						_steamPointer = Game.Draw.LoadTexture(pointer);
+						Log.Write(LogChannel.File, "ff4 ui: Steam's window.png and point.png from " + dir);
+						return;
+					}
+					dir = System.IO.Path.GetDirectoryName(dir);
+				}
+			}
+			catch (Exception ex) { Log.Write(LogChannel.File, "ff4 ui: looking for Steam's art: " + ex.Message); }
+		}
 
 		private static readonly Dictionary<string, Texture> _sheets = new Dictionary<string, Texture>(StringComparer.OrdinalIgnoreCase);
 		private static readonly Dictionary<string, CellBank> _banks = new Dictionary<string, CellBank>(StringComparer.OrdinalIgnoreCase);
@@ -113,6 +149,25 @@ namespace FF3
 		/// <summary>FF4's window: the fill, then the frame's eight cells of <paramref name="style"/> (0 white line, 1 blue bevel) around the rectangle. False (nothing drawn) when the assets are missing, so the caller can fall back.</summary>
 		public static bool Window(DrawList d, float x, float y, float w, float h, int style = 1, float alpha = 0.82f)
 		{
+			LookForSteamArt();
+			if (_steamWindow != null)
+			{
+				// Steam's panel: its border is baked into the picture's edges, so the edges keep
+				// their size (a 9-slice with 6-px margins) and the middle stretches.
+				Color tint = new Color(255, 255, 255, (byte)Math.Clamp((int)(alpha * 255 + 30), 0, 255));
+				float m = 6f, sw = _steamWindow.Width, sh = _steamWindow.Height;
+				float iw = Math.Max(1f, w - 2 * m), ih = Math.Max(1f, h - 2 * m);
+				d.Sprite(_steamWindow, x, y, m, m, tint, 0f, 0, 0, m, m);
+				d.Sprite(_steamWindow, x + m, y, iw, m, tint, 0f, m, 0, sw - 2 * m, m);
+				d.Sprite(_steamWindow, x + w - m, y, m, m, tint, 0f, sw - m, 0, m, m);
+				d.Sprite(_steamWindow, x, y + m, m, ih, tint, 0f, 0, m, m, sh - 2 * m);
+				d.Sprite(_steamWindow, x + m, y + m, iw, ih, tint, 0f, m, m, sw - 2 * m, sh - 2 * m);
+				d.Sprite(_steamWindow, x + w - m, y + m, m, ih, tint, 0f, sw - m, m, m, sh - 2 * m);
+				d.Sprite(_steamWindow, x, y + h - m, m, m, tint, 0f, 0, sh - m, m, m);
+				d.Sprite(_steamWindow, x + m, y + h - m, iw, m, tint, 0f, m, sh - m, sw - 2 * m, m);
+				d.Sprite(_steamWindow, x + w - m, y + h - m, m, m, tint, 0f, sw - m, sh - m, m, m);
+				return true;
+			}
 			CellBank bank = Bank(FrameBank);
 			Texture sheet = Sheet(FrameSheet);
 			if (bank == null || sheet == null || bank.Cells.Count < 8 * (style + 1)) return false;
@@ -155,6 +210,14 @@ namespace FF3
 		/// <summary>The glove, its fingertip at (x, y); the pressed one while a choice is being confirmed.</summary>
 		public static bool Glove(DrawList d, float x, float y, bool pressed = false)
 		{
+			LookForSteamArt();
+			if (_steamPointer != null)
+			{
+				// point.png is the phone's pointing glove at the same 48 x 48, hanging the same way.
+				float k = Scale, s = 48f * k;
+				d.Sprite(_steamPointer, x - 48f * k, y - 12f * k, s, s);
+				return true;
+			}
 			return Cell(d, CursorBank, CursorSheet, pressed ? 1 : 0, x, y);
 		}
 

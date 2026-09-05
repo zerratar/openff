@@ -286,6 +286,41 @@ Binary classes: `Layout::makeup(layout::Frame*, XbnNode*)`, `layout::Frame::setu
 `FrameBehavior`, `FBText`, `FBTextSCC`, `FBSprite`, `FrameBehaviorFactory`. Tool:
 `Tools/xbn_dump.py`. Not drawn by the client yet.
 
+### The field menu (`world::WSMenu`, the `MenuSubState`s)
+
+The menu FF4 opens on the field is `world::WSMenu` (41 functions; `wsmLoadData` pushes XBN
+mass 0x18 = MENU_LAYOUT.dat's layouts, `wsmReleaseData` frees them) running one
+`world::MenuSubState` at a time: `MSSRoot` (the command list), `MSSItem` (30), `MSSMagic`
+(12), `MSSEquipment` (16), `MSSStatus` + `MSSStatusWindow`, `MSSAbility`, `MSSFormation`,
+`MSSConfig`, `MSSSave`, `MSSLoad`, `MSSSuspend`, `MSSShop`, `MSSBackupErr`, `MSSSightro`;
+the shared planes `MSSPartyStatusMainPlane`/`SubPlane` (the party rows), `MSSMenuWindow`,
+`MSSMenuSlideWindow` (the windows that slide in), `MSSSaveDataPlane`, `MSSCurtain`; the 3D
+character on the menu's left (`MSSCharacter`, `MSSCharacterShadow`, `MSSParameterCamera`,
+`MSSModelDirection`, `MSSTouchRotate` - the model turns when dragged, `MSSCharaLoader2`,
+`MSSMotionLoader`); `MSSBridge`/`MSSBridgeToRoot` (the transitions; `MSSBridge::mssCommand`
+reads XBN nodes 26 times - it builds the command frames from the layouts). The command list
+on the right is `world::CurrentCommandFrame` / `ChildCommandFrame` / `DecantCommandFrame` /
+`AutoCommandFrame` (`init(int, void*)`, `regist`, `moveV(layout::Frame*, bool, int)` - the
+vertical slide, `draw`, `erase`), each a `layout::Frame` from the XBN. Item use is
+`world::DecantItemUse` (open/decide/cancel/close). `Layout::build(name, LayoutBehavior*)`
+itself is called only by `MSSBackupErr`; the other screens take the frames from the pushed
+mass through `Layout::makeup`. `layout::Frame::setup` (read in full) takes from a frame's
+node: id, name, x, y, width, height (s16), the `choices` flag (bit 2 of the flags byte),
+group (inherited from the parent when absent, 0xff at the root), and `behavior` through
+`FrameBehaviorFactory::createFrameBehavior(name)`; x and y become ABSOLUTE by adding the
+parent's, and `setPosition(x, y, propagate)` moves a frame and its children by the same
+delta. So the layouts are absolute DS-unit rectangles; where the phone puts them on a
+16:9 screen is the screens' own code (not read yet). `Reference/libff4/menu-layouts.txt`
+lists every layout's frames with absolute positions.
+
+The Steam build (`FF4.exe`, Qt + SDL2) draws these windows with two files of its own beside
+the executable: `window.png` (598 x 288, the blue-violet gradient panel with a thin light
+border seen in every Steam screenshot) and `point.png` (48 x 48, the glove); `menu.txt` is
+its pause menu's texts in eight languages (Resume / Quit / Yes / No / skip-scene prompt),
+`strings.dat` the launcher's Qt strings, `arial.ttf` and `lucon.ttf` its fonts. The
+Steam-only additions (keyboard hints, auto-battle, the pause menu) are not in the phone
+binary. Client: `Ff4Ui` uses window.png and point.png when the content is a Steam install.
+
 ### The phone UI's space
 
 The Steam window (2000 x 1122 in Karl's shots) is the phone's 1136 x 640 UI space: the glove

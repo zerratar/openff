@@ -39,21 +39,25 @@ md.detail = True
 
 
 def demangle(symbol):
-    m = re.match(r'_ZN?K?(\d+)', symbol)
+    """_ZN6layout5Frame5setupEPS0_ -> layout::Frame::setup (the parameter codes trail after a space)."""
+    m = re.match(r'_Z(N?)K?(\d+)', symbol)
     if not m:
         return symbol
+    nested = m.group(1) == 'N'
     rest = symbol[m.end():]
-    parts = []
-    while True:
+    n = int(m.group(2))
+    parts = [rest[:n]]
+    rest = rest[n:]
+    while nested:
         m2 = re.match(r'(\d+)', rest)
         if not m2:
             break
         n = int(m2.group(1))
         parts.append(rest[m2.end():m2.end() + n])
         rest = rest[m2.end() + n:]
-        if not symbol.startswith('_ZN'):
-            break
-    return '::'.join(parts) + (' ' + rest if rest else '') if parts else symbol
+    if nested and rest.startswith('E'):
+        rest = rest[1:]
+    return '::'.join(parts) + (' ' + rest if rest else '')
 
 
 def namespace(symbol):
