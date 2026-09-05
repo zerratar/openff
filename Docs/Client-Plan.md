@@ -1050,12 +1050,40 @@ Each traced to its cause, all three in `Ff4Cutscene` and its neighbours:
   the port switched to 26..43). `Ff4CameraMotion` no longer applies the channel; `SceneStarted()` sets
   the default at `ce_StartEvent`; the script's FOV persists across motions.
 - The window's title says which game runs (`GameProfile.Title`).
-- Found on the way, not yet acted on: the `Quiet` set still lists names that have handlers
-  (`ce_SetupExpression`, `ce_SetupCameraMotion`, the `3DS*` family - harmless, `ByName` wins) and
-  visible behaviours that are missing (`ce_setScale`, `ce_AutoRotation`, `ce_StartAnimation`,
-  `ce_SetBindObject*`, `ce_LoadBG`, `ce_setFog`); the sample `hello` mod's HUD and villager spawn run
-  on FF4 scenes (`--nomods` for clean screenshots); and `ff3content lz <file> <out>` makes `<out>` a
-  directory when it exists.
+- Found on the way: the sample `hello` mod's HUD and villager spawn run on FF4 scenes (`--nomods`
+  for clean screenshots), and `ff3content lz <file> <out>` makes `<out>` a directory when it exists.
+
+### The same night: what the intro still dropped, and a missed departure
+
+**The `Quiet` set is bookkeeping only now** - scene skipping and sound resource management, with
+the reason beside each group. It had grown to list handlers that exist (`ce_SetupExpression`,
+`ce_SetupCameraMotion`, the `3DS*` family) and visible behaviours that were missing, and two of
+the night's bugs hid in it. Two safeguards: the table build warns when a quiet name has a handler,
+and `ScriptCommands.ReportDropped` writes one line per scene and per map with everything skipped,
+by name and count (`script: FF4 scene e01_01 skipped 8 command(s): ...`), so a missing behaviour is
+read off the log of the scene that lacked it. The first report over the whole intro named three:
+`ce_setScale` (the hall's `o032` at (2, 2, -2), doubled and mirrored), `ce_PauseAnimation` (its
+material animation frozen; `ce_StartAnimation` came along) and `ce_SetBindObject("p02_01b", 4,
+"L_wepon", ...)` - a spear in a soldier's left hand. Bind objects (`Ff4Cutscene` `_binds`) are
+`pl.BindObject`'s mechanism: the host's joint matrix captured while it draws, the bound model posed
+from offset x joint each tick, hidden until the first capture; `ce_SetBindObject2` binds one cast to
+another's joint, `ce_BindObjectVisiblity` shows and hides what a cast holds; the rotation offset is
+logged, not applied (every shipped call passes zeros). After that the intro's reports list nothing
+but quiet bookkeeping.
+
+**A missed departure.** `EngineHost` watches the stage name once per tick; `e01_00`'s battle hands
+over to `e01_01`, whose script starts and swaps its stage to `e01_18` (`ce_SetMap`) within the same
+tick, so the watcher saw one change with `StageSwapPending` set and never called `MapLeft` for
+`e01_00`. The old scene's slots then pointed at the new scene's casts: `Setup(5)` deleted the
+soldier just made for slot 4 (both logged as character 6), the spear went to the wrong body, the
+camera sets and the scene FOV carried over, and `e01_00`'s dropped commands were reported under
+`e01_01`. `ce_StartEvent` now notices a scene state from another stage and releases it first
+(`script: FF4 cutscene: e01_00 was left unnoticed ...`); slots 0..5 come out as characters 2..7 and
+camera 118's low shot has its soldier. Open: camera 119 (Cecil's "..." and "prepare for landing")
+stands at deck level near the starboard rail looking across the deck at the origin, where soldiers
+4 and 5 stand, but the frame shows only sky and clouds - `e01_18`'s cloud geometry and its per-shot
+visibility animations are the suspect ("the flight's sky" above), not the casts. Also open: the
+casts' own discs (Cecil, the soldiers) follow their hips but do not show on the deck.
 
 ## Working rules
 

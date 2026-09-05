@@ -178,6 +178,21 @@ namespace FF3
 				}
 			}
 			Log.Write(LogChannel.General, "script: FF4 table built - " + _reusedCount + " of " + table.Length + " commands run FF3's handler, the rest are skipped with their operands");
+			// A quiet set is for commands with no handler. A name in both is stale at best and, at
+			// worst, hides a handler that stopped matching (a renamed command goes silent).
+			List<string> shadowed = new List<string>();
+			foreach (string name in Ff4Cutscene.Quiet)
+			{
+				if (Ff4Cutscene.ByName.ContainsKey(name) || Ff4Commands.ByName.ContainsKey(name)) shadowed.Add(name);
+			}
+			foreach (string name in Ff4Commands.Cosmetic)
+			{
+				if (Ff4Cutscene.ByName.ContainsKey(name) || Ff4Commands.ByName.ContainsKey(name)) shadowed.Add(name);
+			}
+			if (shadowed.Count > 0)
+			{
+				Log.Write(LogChannel.General, "script: FF4 quiet sets list " + shadowed.Count + " command(s) that have a handler - drop them from Quiet/Cosmetic: " + string.Join(", ", shadowed));
+			}
 			if (Options.Get("ff4table") != null)
 			{
 				// --ff4table: every command that is only skipped, by number and name, for the porting list.
@@ -242,14 +257,42 @@ namespace FF3
 					}
 				}
 			}
-			bool quiet = op != null && (Ff4Commands.Cosmetic.Contains(ScriptOpTable.Simplify(op.Name)) || Ff4Cutscene.Quiet.Contains(ScriptOpTable.Simplify(op.Name)));
+			string name = op != null ? ScriptOpTable.Simplify(op.Name) : "opcode " + opcode;
+			bool quiet = op != null && (Ff4Commands.Cosmetic.Contains(name) || Ff4Cutscene.Quiet.Contains(name));
 			lock (_reported)
 			{
 				if (!quiet && _reported.Add(opcode))
 				{
-					Log.Write(LogChannel.General, "script: FF4 command " + opcode + " " + (op != null ? ScriptOpTable.Simplify(op.Name) : "?") + " not implemented - skipped");
+					Log.Write(LogChannel.General, "script: FF4 command " + opcode + " " + name + " not implemented - skipped");
 				}
+				_dropped.TryGetValue(name, out int count);
+				_dropped[name] = count + 1;
 			}
+		}
+
+		private static readonly Dictionary<string, int> _dropped = new Dictionary<string, int>(StringComparer.Ordinal);
+
+		/// <summary>
+		/// One line with everything skipped since the last report, by name and count, quiet or not - the
+		/// scene engine calls it when a scene ends and when a map is left, so a missing behaviour can be
+		/// read off the log of the scene that lacked it rather than guessed at.
+		/// </summary>
+		public static void ReportDropped(string where)
+		{
+			List<string> lines;
+			lock (_reported)
+			{
+				if (_dropped.Count == 0) return;
+				lines = new List<string>();
+				foreach (KeyValuePair<string, int> entry in _dropped)
+				{
+					bool quiet = Ff4Commands.Cosmetic.Contains(entry.Key) || Ff4Cutscene.Quiet.Contains(entry.Key);
+					lines.Add(entry.Key + " x" + entry.Value + (quiet ? " (quiet)" : ""));
+				}
+				_dropped.Clear();
+			}
+			lines.Sort(StringComparer.Ordinal);
+			Log.Write(LogChannel.General, "script: FF4 " + where + " skipped " + lines.Count + " command(s): " + string.Join(", ", lines));
 		}
 	}
 }

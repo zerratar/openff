@@ -100,25 +100,29 @@ namespace FF3
 			{ "ce_SetEnbleViewClip", SetViewClip },          // (slot, on): view-volume culling of a cast; scenes turn it off so wide shots keep them
 			{ "ce_ShadowSetting", ShadowSetting },           // (slot, type, joint, x, y, z, scale): the cast's shadow, on; a cast has none until this
 			{ "ce_ShadowVisiblity", ShadowVisibility },      // (slot, on): CCharacterMng::setShadowEnable
+			{ "ce_setScale", SetScale },                     // (slot, x, y, z) fx12: the hall's o032 is (2, 2, -2), doubled and mirrored
+			{ "ce_PauseAnimation", PauseAnimation },         // (slot, type, on): type 0 texture SRT, 1 texture pattern, 2 material, 3 visibility
+			{ "ce_StartAnimation", StartAnimation },         // (slot, index, type, ?): CAnimSet.startAnimation
+			{ "ce_SetBindObject", SetBindObject },           // (model, slot, joint, x, y, z, rx, ry, rz): a model held at the cast's joint (a soldier's spear)
+			{ "ce_SetBindObject2", SetBindObject2 },         // (slot, host slot, joint, x, y, z, rx, ry, rz): one cast held at another's joint
+			{ "ce_BindObjectVisiblity", BindObjectVisibility }, // (slot, on): the things bound to this cast
 		};
 
-		/// <summary>Commands that only dress a scene, skipped without a log line.</summary>
+		/// <summary>
+		/// Scene commands that are bookkeeping and nothing else, skipped without a log line: the
+		/// player's scene-skip machinery (there is none here) and sound resource management FF3's
+		/// player has no slot for. Nothing that changes what is on the screen belongs in this set -
+		/// ce_SetEnbleViewClip sat in it while the soldiers vanished from the wide shots, and the shadow
+		/// commands while a stray disc lay on the deck. Anything else skipped is logged once by
+		/// ScriptCommands.Skip, and every scene ends with a count of what it dropped (ReportDropped);
+		/// the table build warns when a name here has a handler in ByName.
+		/// </summary>
 		public static readonly HashSet<string> Quiet = new HashSet<string>(StringComparer.Ordinal)
 		{
-			"ce_AddShadowVolume", "ce_ShadowVolumeONOFF",
-			"ce_SetSkip", "ce_StopSkip", "ce_EventSkipJump", "ce_VoiceSkipOn",
-			"ce_setSound", "ce_CleanupBGM", "ce_StopBGM_Streaming",
-			"ce_SetupSE", "ce_CleanupSE",
-			"3DSSetup", "3DSRelease", "3DSSetAlpha", "3DSSetPosition", "3DSSetVisiblity",
-			"_3DSSetup", "_3DSRelease", "_3DSSetAlpha", "_3DSSetPosition", "_3DSSetVisiblity",
-			"ce_SetLightEnableForCharacter", "ce_SetToonTable", "ce_setFog",
-			"ce_SetupExpression", "ce_SetupExpressionAsync", "ce_CleanupExpression", "ce_ChangeExpression",
-			"ce_LoadBG", "ce_setBGAlpha", "ce_setTelopMassage",
-			"ce_StartAnimation", "ce_PauseAnimation", "ce_SetPauseMotion", "ce_AutoRotation", "ce_setScale",
-			"ce_CleanupMap",
-			"ce_SetupCameraMotion", "ce_CleanupCameraMotion",
-			"ce_SetBindObject", "ce_SetBindObject2", "ce_BindObjectVisiblity",
-			"ce_3DSSetup", "ce_3DSRelease", "ce_3DSSetAlpha", "ce_3DSSetPosition", "ce_3DSSetVisiblity",
+			"ce_SetSkip", "ce_StopSkip", "ce_EventSkipJump", "ce_VoiceSkipOn",   // skipping a scene on a press
+			"ce_setSound", "ce_CleanupBGM", "ce_StopBGM_Streaming",             // BGM resource bookkeeping
+			"ce_SetupSE", "ce_CleanupSE",                                        // SE bank bookkeeping
+			"ce_CleanupMap",                                                     // the scene's stage unloads with the map here
 		};
 
 		private static GlobalScope.CCharacterMng Characters => GlobalScope.characterMng;
@@ -130,8 +134,19 @@ namespace FF3
 
 		private static void StartEvent(GlobalScope.ScriptEngine engine)
 		{
+			string stage = GlobalScope.stg.CStageMng.CurrentName;
+			if (SceneStage != null && !string.Equals(SceneStage, stage, StringComparison.OrdinalIgnoreCase))
+			{
+				// The last scene's map was left without the host seeing it: EngineHost watches the stage
+				// name once per tick, and e01_00's battle hands over to e01_01, whose script starts and
+				// swaps its stage to e01_18 before the tick - one change seen, taken for the swap. The old
+				// scene's slots then pointed at this scene's fresh casts (Setup(5) deleted the soldier
+				// just made for slot 4 and the spear went to the wrong body). Let it go first.
+				Log.Write(LogChannel.General, "script: FF4 cutscene: " + SceneStage + " was left unnoticed - its scene state released before " + stage + " starts");
+				MapLeft();
+			}
 			_active = true;
-			SceneStage = GlobalScope.stg.CStageMng.CurrentName;
+			SceneStage = stage;
 			// evt::ContEventPart::initialize sets the camera's clip to 2..4096 (the field's is 10..500,
 			// which cut the deck scene's sky dome away), and the scene's casts stand in for the party:
 			// the field's hero waits unseen until the scene ends.
@@ -154,6 +169,7 @@ namespace FF3
 			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(false));
 			Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up");
+			ScriptCommands.ReportDropped("scene " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
 			// FF4's event part hands back to the world at the return map; here the scene ran on the
 			// world part all along, so the hand-back is a map jump.
 			if (!string.IsNullOrEmpty(ReturnMap) && !string.Equals(ReturnMap, GlobalScope.stg.CStageMng.CurrentName, StringComparison.OrdinalIgnoreCase))
@@ -270,8 +286,188 @@ namespace FF3
 		{
 			int slot = engine.getByte();
 			if (!Slot(slot, out int ctrl)) return;
+			ReleaseBinds(ctrl);
 			try { Characters.delCharacter(ctrl); } catch (Exception) { }
 			_slots.Remove(slot);
+		}
+
+		/// <summary>ce_setScale(slot, x, y, z): the cast's scale in fx12 - a negative axis mirrors it, as the data asks.</summary>
+		private static void SetScale(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			if (!Slot(slot, out int ctrl)) return;
+			Guard("scale", () => Characters.setScale(ctrl, new GlobalScope.VecFx32(x, y, z)));
+		}
+
+		/// <summary>ce_PauseAnimation(slot, type, on): pauses one kind of the model's own animations (CAnimSet.enTYPE: 0 texture SRT, 1 texture pattern, 2 material, 3 visibility).</summary>
+		private static void PauseAnimation(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int type = engine.getByte();
+			int on = engine.getByte();
+			if (!Slot(slot, out int ctrl) || type < 0 || type > 3) return;
+			Guard("pause animation", () => Characters.setPause(ctrl, on != 0, (GlobalScope.ds.sys3d.CAnimSet.enTYPE)type));
+		}
+
+		/// <summary>ce_StartAnimation(slot, index, type, ?): starts animation `index` of the given kind from its first frame; the last byte is kept in the log until its meaning is read.</summary>
+		private static void StartAnimation(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			uint index = engine.getDword();
+			int type = engine.getByte();
+			int extra = engine.getByte();
+			if (!Slot(slot, out int ctrl) || type < 0 || type > 3) return;
+			if (extra != 0) Log.Write(LogChannel.File, "script: FF4 ce_StartAnimation(" + slot + ", " + index + ", " + type + ", " + extra + "): the last operand is not read");
+			Guard("start animation", () => Characters.startAnimation(ctrl, index, (GlobalScope.ds.sys3d.CAnimSet.enTYPE)type, 0));
+		}
+
+		// ---- bind objects (ce_SetBindObject*): a model, or another cast, held at a cast's joint ----
+		//
+		// FF4's EventConteManager::setBindObject(host, bound, pos, rot, joint) poses the bound thing from
+		// the host's joint every frame; here the joint's world matrix is captured while the host draws
+		// (CRenderObject.reserveToGetJntMtx / getJntMtx, as FF3's pl.BindObject does for weapons) and
+		// the bound character takes offset x joint as its pose matrix in Tick.
+
+		private sealed class Bind
+		{
+			public int Host, Bound;
+			public string Joint;
+			public GlobalScope.MtxFx43 Offset = new GlobalScope.MtxFx43();
+			public bool Own;        // a model this scene made for the binding (deleted with it)
+			public bool Shown = true;
+			public bool Reserved;   // the joint capture is registered on the host
+		}
+
+		private static readonly List<Bind> _binds = new List<Bind>();
+		private static readonly GlobalScope.MtxFx43 _bindJoint = new GlobalScope.MtxFx43();
+		private static readonly GlobalScope.MtxFx43 _bindPose = new GlobalScope.MtxFx43();
+
+		private static void SetBindObject(GlobalScope.ScriptEngine engine)
+		{
+			string model = engine.getString();
+			int slot = engine.getByte();
+			string joint = engine.getString();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int rx = (int)engine.getDword(), ry = (int)engine.getDword(), rz = (int)engine.getDword();
+			if (!Slot(slot, out int host)) return;
+			Guard("bind object " + model, () =>
+			{
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				int bound = Characters.setCharacterWithTexture(model, model, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
+				if (bound < 0) bound = Characters.setCharacter(model, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				if (bound < 0)
+				{
+					Log.Write(LogChannel.General, "script: FF4 cutscene: bind object " + model + " did not load for slot " + slot);
+					return;
+				}
+				Characters.setShadowVisible(bound, false);   // FF4: setShadowType(2), setShadowEnable(false)
+				Characters.setViewVolumeClip(bound, false);
+				Characters.setHidden(bound, true);           // until the joint has been captured once
+				AddBind(host, bound, joint, x, y, z, rx, ry, rz, own: true);
+				Log.Write(LogChannel.File, "script: FF4 bind object " + model + " as character " + bound + " at slot " + slot + "'s " + joint);
+			});
+		}
+
+		private static void SetBindObject2(GlobalScope.ScriptEngine engine)
+		{
+			int boundSlot = engine.getByte();
+			int hostSlot = engine.getByte();
+			string joint = engine.getString();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int rx = (int)engine.getDword(), ry = (int)engine.getDword(), rz = (int)engine.getDword();
+			if (!Slot(hostSlot, out int host) || !Slot(boundSlot, out int bound)) return;
+			Guard("bind cast", () => AddBind(host, bound, joint, x, y, z, rx, ry, rz, own: false));
+		}
+
+		private static void BindObjectVisibility(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int on = (int)engine.getDword();
+			if (!Slot(slot, out int host)) return;
+			foreach (Bind bind in _binds)
+			{
+				if (bind.Host != host) continue;
+				bind.Shown = on != 0;
+				if (!bind.Shown) Guard("bind hide", () => Characters.setHidden(bind.Bound, true));
+			}
+		}
+
+		private static void AddBind(int host, int bound, string joint, int x, int y, int z, int rx, int ry, int rz, bool own)
+		{
+			Bind bind = new Bind { Host = host, Bound = bound, Joint = joint, Own = own };
+			GlobalScope.MTX_Identity43(bind.Offset);
+			bind.Offset._30 = x;
+			bind.Offset._31 = y;
+			bind.Offset._32 = z;
+			if (rx != 0 || ry != 0 || rz != 0)
+			{
+				Log.Write(LogChannel.File, "script: FF4 bind object rotation " + rx + ", " + ry + ", " + rz + " on " + joint + " not applied");
+			}
+			_binds.RemoveAll(b => b.Bound == bound);
+			_binds.Add(bind);
+			ReserveBind(bind);
+		}
+
+		private static void ReserveBind(Bind bind)
+		{
+			if (bind.Reserved || !Characters.isLoadedObject(bind.Host)) return;
+			try
+			{
+				Characters.reserveToGetJntMtx(bind.Host, bind.Joint);
+				bind.Reserved = true;
+			}
+			catch (Exception ex)
+			{
+				Log.Write(LogChannel.General, "script: FF4 bind object: joint " + bind.Joint + ": " + ex.Message);
+				bind.Reserved = true;   // do not try every frame
+			}
+		}
+
+		/// <summary>Each frame: the bound things take their host's joint.</summary>
+		private static void TickBinds()
+		{
+			foreach (Bind bind in _binds)
+			{
+				try
+				{
+					if (!bind.Reserved) ReserveBind(bind);
+					if (!bind.Shown || !bind.Reserved) continue;
+					if (!Characters.getJntMtx(bind.Host, bind.Joint, _bindJoint)) continue;
+					GlobalScope.MTX_Concat43(bind.Offset, _bindJoint, _bindPose);
+					Characters.setPoseMtx(bind.Bound, _bindPose);
+					if (Characters.isHidden(bind.Bound)) Characters.setHidden(bind.Bound, false);
+				}
+				catch (Exception) { }
+			}
+		}
+
+		/// <summary>A cast goes: what it held goes with it, and what held it lets go.</summary>
+		private static void ReleaseBinds(int ctrl)
+		{
+			for (int i = _binds.Count - 1; i >= 0; i--)
+			{
+				Bind bind = _binds[i];
+				if (bind.Host != ctrl && bind.Bound != ctrl) continue;
+				if (bind.Own && bind.Bound != ctrl)
+				{
+					try { Characters.delCharacter(bind.Bound); } catch (Exception) { }
+				}
+				_binds.RemoveAt(i);
+			}
+		}
+
+		private static void ReleaseAllBinds()
+		{
+			foreach (Bind bind in _binds)
+			{
+				if (bind.Own)
+				{
+					try { Characters.delCharacter(bind.Bound); } catch (Exception) { }
+				}
+			}
+			_binds.Clear();
 		}
 
 		private static void DisplayCharacter(GlobalScope.ScriptEngine engine)
@@ -460,6 +656,7 @@ namespace FF3
 			{
 				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
 			}
+			if (_binds.Count > 0) TickBinds();
 			foreach (Plate plate in _plates.Values)
 			{
 				if (plate.AlphaFrames <= 0) continue;
@@ -981,6 +1178,8 @@ namespace FF3
 			_slots.Clear();
 			_frameWaits.Clear();
 			try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
+			ScriptCommands.ReportDropped("map " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
+			_binds.Clear();   // the characters go with the map; nothing to delete
 			_active = false;
 			SceneStage = null;
 			Ff4EventCamera.Release();

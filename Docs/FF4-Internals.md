@@ -274,6 +274,22 @@ n)` appear in e02_00 only. Client: `CCharacterMng.setShadowVisible` / `setShadow
 `CShadowObject.setJointName` + `GroundQuery`, `Ff4Cutscene.ShadowSetting` / `ShadowVisibility`; the
 FF3 path is untouched (`setupCharacter` gives every model a polygon shadow, as it always did).
 
+### Scene bind objects, scale, animations
+
+`babilCommand_CE_SetBindObject(model, slot, joint, x, y, z, rx, ry, rz)` (string, byte, string, dword
+x6): `CCharacterMng::setCharacterWithTexture(model, model, 1)`, `setShadowType(idx, 2)` (no shadow),
+`setShadowEnable(idx, false)`, `setViewVolumeClip(idx, ...)`, then `evt::EventConteManager::
+setBindObject(hostIdx, boundIdx, VecFx32 pos, VecFx32 rot, joint)`. `CE_SetBindObject2(slot, host
+slot, joint, ...)` (byte, byte, string, dword x6) resolves both casts and calls the same with -1 for
+a model. `CE_BindObjectVisiblity(slot, on)` (byte, dword). 25, 9 and 2 uses; the intro's is
+`("p02_01b", 4, "L_wepon", 0, 0, 0, 0, 0, 0)`, a soldier's spear. `CE_setScale(slot, x, y, z)` (byte,
+dword x3) is fx12 - `(7, 8192, 8192, 0xFFFFE000)` doubles and mirrors the hall's `o032`.
+`CE_PauseAnimation(slot, type, on)` and `CE_StartAnimation(slot, index, type, ?)` work the model's
+own animation set by kind (`CAnimSet.enTYPE`: 0 texture SRT, 1 texture pattern, 2 material, 3
+visibility); the last operand of `StartAnimation` is not read yet. Client: `Ff4Cutscene`
+`SetBindObject` / `SetBindObject2` / `BindObjectVisibility` / `SetScale` / `PauseAnimation` /
+`StartAnimation`.
+
 ## Data files
 
 ### Chain packs (`.pak`, `.chaindata`, `.chain`)
