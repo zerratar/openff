@@ -243,6 +243,12 @@ namespace FF3.ContentTool
 			foreach (string a in args.Skip(1)) if (a.StartsWith("--game=", StringComparison.Ordinal)) game = a.Substring(7);
 			OpenFF.Data.GameTables tables = OpenFF.Data.TableFiles.Read(chain, game);
 			Console.WriteLine(tables.Describe());
+			foreach (OpenFF.Data.JobDefinition job in tables.Jobs)
+			{
+				OpenFF.Data.LevelRow l1 = job.Levels.Length > 0 ? job.Levels[0] : null, l30 = job.Levels.Length >= 30 ? job.Levels[29] : null;
+				Console.WriteLine("  job " + job.Id + " " + job.Name + (job.NameIsTentative ? "*" : "") + ": curves " + string.Join(",", job.GrowthTypes)
+					+ (l1 != null ? "; L1 " + l1.Stats : "") + (l30 != null ? "; L30 " + l30.Stats + " hp ~" + job.MaxHpAt(30) + " charges " + string.Join("/", l30.Charges ?? Array.Empty<int>()) : ""));
+			}
 			if (items > 12)
 			{
 				int shown = 0;

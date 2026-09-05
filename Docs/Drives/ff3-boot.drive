@@ -1,0 +1,19 @@
+# FF3 regression: boot straight into Ur (d01_05), walk a little, open and close the menu, quit.
+#   FF3.exe --game=ff3 --map=d01_05 --drive=Docs/Drives/ff3-boot.drive --log=general,file
+# The log must show the map entered and no "Exception" lines (Testing.md C-46).
+until jump: ff3 90
+wait 8
+press Z
+wait 1.5
+press Z
+wait 1.5
+press Up 1200
+wait 1
+press Down 1200
+wait 1
+press C
+wait 2
+press X
+wait 1.5
+say ff3 boot done
+quit

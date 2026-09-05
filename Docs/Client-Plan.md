@@ -775,6 +775,24 @@ with the lines since the last satisfied until counted). `Docs/Drives/ff4-battle-
 plays C-43/C-45's fight in about a minute; test C-44. PowerShell drives (key2.ps1) remain
 for the FF3 title, which needs mouse taps.
 
+## FF3 onto the unified layer: jobs and spells (2026-09-05)
+
+FF3 grows by job, so the growth sits on a new `JobDefinition` (Shared/Data/Tables.cs): 23 jobs
+in pl.JOB_TYPE order, each with its six growth types (player.chaindata chain 1, 23 x 6 bytes:
+the curve for strength, vitality, agility, intellect, mind and the charge table), 99 LevelRows
+whose attributes come from the eight curves (chain 2, 99 bytes each), whose hit-point gain is
+level + vitality up to level + vitality + vitality / 2 (pl.Player.setHp; 32 at level 1), and
+whose `Charges[8]` come from the seven charge tables (chains 4..10, 99 x 8). Names are
+eureka_menu.msd 50105 + job (wmenu.CWMenuJob), with English fallbacks marked tentative.
+`GameTables.Jobs/Job(id)`, `ff3content tables --game=ff3` lists them (test E-26). The 52-byte
+magic records now fill `SpellDefinition`: `Level` = magicClass + 1 (the charge level), power,
+hit rate, `UseKind` (0 attack, 1 recovery, 2 special, 3 status), element bits, status and the
+`CanUse` job mask; schools by id range (4001 white, 4101 black, 4201 summon, 6001 songs).
+
+Still to come for FF3 on this layer: a read-only view of pl.PlayerParty as an OpenFF.Data.Party
+(so Game.Party and the editor speak one shape), and eventually the FF3 battle and menus on
+the same components as FF4's - the largest piece of the engine plan.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

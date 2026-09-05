@@ -58,6 +58,42 @@ namespace OpenFF.Data
 		public Stats Stats = new Stats();
 		/// <summary>FF4: the byte at 11, not yet named.</summary>
 		public int X0B;
+		/// <summary>FF3: magic charges per magic level 1..8 at this level (player.chaindata GrowUpMp); null where a game has one MP pool.</summary>
+		public int[] Charges;
+	}
+
+	/// <summary>
+	/// A class or job that grows on its own (FF3: the 23 jobs - a character grows by the job it
+	/// holds, from player.chaindata's growth-type table (chain 1, six bytes per job), the eight
+	/// growth curves (chain 2, 99 bytes each) and seven charge tables (chains 4..10); hit points
+	/// grow by level + vitality plus up to half the vitality again, from 32 at level 1; FF4's
+	/// classes are the characters themselves, see CharacterDefinition).
+	/// </summary>
+	public sealed class JobDefinition
+	{
+		public int Id;
+		public string Key;
+		public string Name;
+		public bool NameIsTentative;
+		/// <summary>FF3: the six growth types - strength, vitality, agility, intellect, mind curves (0..7) and the charge table (0 none, 1..7).</summary>
+		public int[] GrowthTypes = Array.Empty<int>();
+		public LevelRow[] Levels = Array.Empty<LevelRow>();
+
+		public Stats StatsAt(int level)
+		{
+			if (Levels.Length == 0) return new Stats();
+			return Levels[Math.Clamp(level, 1, Levels.Length) - 1].Stats.Clone();
+		}
+
+		/// <summary>Expected maximum hit points at a level: the middle of every row's range up to it.</summary>
+		public int MaxHpAt(int level)
+		{
+			int hp = 0;
+			for (int i = 0; i < Math.Min(level, Levels.Length); i++) hp += (Levels[i].HpGainMin + Levels[i].HpGainMax) / 2;
+			return hp;
+		}
+
+		public override string ToString() => (Name ?? ("job " + Id)) + ", " + Levels.Length + " levels";
 	}
 
 	public sealed class CharacterDefinition
@@ -182,6 +218,12 @@ namespace OpenFF.Data
 		public int MpCost;
 		/// <summary>The attack or healing power; 0 for a status spell.</summary>
 		public int Power;
+		/// <summary>FF3: the magic level (1..8) whose charges the spell spends; 0 where a game has one MP pool.</summary>
+		public int Level;
+		/// <summary>FF3: 0 attack, 1 recovery, 2 special, 3 status (magicUseKind); FF4 says it through the effect group.</summary>
+		public int UseKind;
+		/// <summary>FF3: which jobs may cast it (equipJob mask); 0 where the game does not say.</summary>
+		public uint CanUse;
 		/// <summary>Out of 100.</summary>
 		public int HitRate;
 		public int EffectGroup;
@@ -332,6 +374,18 @@ namespace OpenFF.Data
 		public List<ItemDefinition> Items = new List<ItemDefinition>();
 		public List<SpellDefinition> Spells = new List<SpellDefinition>();
 		public List<Efficacy> Efficacies = new List<Efficacy>();
+		public List<JobDefinition> Jobs = new List<JobDefinition>();
+		private Dictionary<int, JobDefinition> _jobs;
+
+		public JobDefinition Job(int id)
+		{
+			if (_jobs == null)
+			{
+				_jobs = new Dictionary<int, JobDefinition>();
+				foreach (JobDefinition j in Jobs) if (!_jobs.ContainsKey(j.Id)) _jobs[j.Id] = j;
+			}
+			return _jobs.TryGetValue(id, out JobDefinition found) ? found : null;
+		}
 		private Dictionary<int, SpellDefinition> _spells;
 		private Dictionary<int, Efficacy> _efficacies;
 
@@ -400,7 +454,7 @@ namespace OpenFF.Data
 		{
 			StringBuilder sb = new StringBuilder();
 			sb.Append(Game).Append(" tables: ").Append(ExperienceToLevel.Length).Append(" levels, ")
-				.Append(Characters.Count).Append(" characters, ").Append(Items.Count).Append(" items, ").Append(Spells.Count).Append(" spells, ").Append(Monsters.Count).Append(" monsters, ").Append(MonsterParties.Count).Append(" encounter groups");
+				.Append(Characters.Count).Append(" characters, ").Append(Jobs.Count).Append(" jobs, ").Append(Items.Count).Append(" items, ").Append(Spells.Count).Append(" spells, ").Append(Monsters.Count).Append(" monsters, ").Append(MonsterParties.Count).Append(" encounter groups");
 			if (ExperienceToLevel.Length > 10)
 			{
 				sb.Append("\n  exp to level 2..11: ");

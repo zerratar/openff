@@ -65,7 +65,7 @@ namespace FF3
 			{ "ce_CreateToonTable", CreateToonTable },       // (index, r, g, b): entries 0..31; index 100 applies the table
 			{ "effectLoadAsync", EffectLoad },               // (pack): /EFFECT/<pack>.efp, loaded at once
 			{ "cleanUpEffectData2", EffectUnload },          // (pack)
-			{ "ce_CallBattle", CallBattle },                 // (battle, ?, ?, return map, x, y, z): no FF4 battles yet - straight to the return map
+			{ "ce_CallBattle", CallBattle },                 // (battle, ?, ?, return map, x, y, z): the OpenFF battle here, then the return map
 			{ "conteEventJumpAndReturnMapJamp", ConteEventJump }, // (event, part, return map, x, y, z): play scene e<event>_<part>, come back here
 			{ "ce_setConteNextPart", SetConteNextPart },     // (map, x, y, z): where the scene chain ends up
 			{ "ce_SetupBGM", ReadDword },                    // (bgm): loads are on demand here
@@ -631,6 +631,10 @@ namespace FF3
 			Guard("effect pack " + pack, () => GlobalScope.eff.CEffectMng.instance().unLoadEfpNamed(pack));
 		}
 
+		// Scenes whose battle is running: the script holds at ce_CallBattle (the battle part took
+		// over in FF4; the story goes on from the return map, never from the line after).
+		private static readonly HashSet<GlobalScope.ScriptEngine> _inBattle = new HashSet<GlobalScope.ScriptEngine>();
+
 		private static void CallBattle(GlobalScope.ScriptEngine engine)
 		{
 			int battle = (int)engine.getWord();
@@ -639,13 +643,21 @@ namespace FF3
 			string returnMap = engine.getString();
 			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
 			GlobalScope.VecFx32 position = new GlobalScope.VecFx32(x, y, z);
+			if (_inBattle.Contains(engine))
+			{
+				// Still fighting, or fought and waiting for the jump to take the scene away.
+				engine.suspendRedo();
+				return;
+			}
 			// The OpenFF battle fights the encounter group where the scene stands and then jumps on;
 			// when it cannot (no field hero in this scene), the jump happens at once.
 			if (Ff4Battle.Instance != null && Ff4Battle.Instance.StartParty(battle, true))
 			{
 				Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " - then on to " + returnMap);
 				string map = returnMap;
+				_inBattle.Add(engine);
 				Ff4Battle.Instance.AfterBattle = () => { if (!string.IsNullOrEmpty(map)) JumpTo(map, position); };
+				engine.suspendRedo();
 				return;
 			}
 			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " skipped - on to " + returnMap);
@@ -873,6 +885,7 @@ namespace FF3
 		/// <summary>Leaving the map: the scene's characters go with it.</summary>
 		public static void MapLeft()
 		{
+			_inBattle.Clear();
 			_slots.Clear();
 			_frameWaits.Clear();
 			_active = false;

@@ -10,8 +10,20 @@
 //   Armour: equipJob @0x24, phylacticPower s16 @0x28, magicPhylacticPower @0x2A,
 //   avoidanceProbability u8 @0x2C, magicAvoidanceProbability u8 @0x2D.
 //   eureka_item.msd names them by name id.
-//   player.chaindata: chain 0 the experience curve (99 u32). FF3 grows by job, not by
-//   character (GrowUp per job); the four characters therefore carry no growth table here yet.
+//   The magic chain (52 bytes, itm.MagicParameter.parse): magicClass u8 @0x28 is the magic
+//   LEVEL less one (Cure 0, Aero 1, Cura 2... Tornado 7), aggressivity s16 @0x2A the power,
+//   successProbability u8 @0x2C the hit rate, magicUseKind u8 @0x2D (0 attack, 1 recovery,
+//   2 special, 3 status), magicType s16 @0x2E the element bits (32 fire, 8 lightning, 512 wind,
+//   128 earth, 1 recovery), changeCondition s16 @0x30, calculate @0x32, reflect @0x33; useBattle
+//   @0x10, useField @0x11, allTarget @0x12; equipJob u32 @0x24 says which jobs cast it.
+//   player.chaindata (pl.PlayerParty.load): chain 0 the experience curve (99 u32); chain 1 the
+//   growth types per job (23 x 6 bytes: strength, vitality, agility, intellect, mind curve and
+//   the charge table); chain 2 the eight growth curves (8 x 99 bytes, a stat per level);
+//   chains 4..10 seven charge tables (99 levels x 8 magic levels); 3 normal attacks, 11 job
+//   equipment, 12 normal magic (32 bytes), 13 abilities, 14 starting job abilities. FF3 grows
+//   by job (pl.Player.setParameter/setHp/setMp), so the growth lives on JobDefinition; hit points
+//   climb by level + vitality + rand(vitality / 2) from 32 at level 1. Job names are
+//   eureka_menu.msd 50105 + job (wmenu.CWMenuJob).
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +37,20 @@ namespace OpenFF.Data
 		{
 			("luneth", "Luneth"), ("arc", "Arc"), ("refia", "Refia"), ("ingus", "Ingus"),
 		};
+
+		/// <summary>The 23 jobs in pl.JOB_TYPE order; the names come from eureka_menu.msd when it is there.</summary>
+		private static readonly (string Key, string Name)[] Jobs =
+		{
+			("freelancer", "Freelancer"), ("onion-knight", "Onion Knight"), ("warrior", "Warrior"), ("monk", "Monk"),
+			("white-mage", "White Mage"), ("black-mage", "Black Mage"), ("red-mage", "Red Mage"), ("ranger", "Ranger"),
+			("knight", "Knight"), ("thief", "Thief"), ("scholar", "Scholar"), ("geomancer", "Geomancer"),
+			("dragoon", "Dragoon"), ("viking", "Viking"), ("dark-knight", "Dark Knight"), ("evoker", "Evoker"),
+			("bard", "Bard"), ("black-belt", "Black Belt"), ("devout", "Devout"), ("magus", "Magus"),
+			("summoner", "Summoner"), ("sage", "Sage"), ("ninja", "Ninja"),
+		};
+		private const int JobNameMessage = 50105;
+		private const int LevelMax = 99;
+		private const int DefaultHp = 32;
 
 		public static GameTables Read(ContentChain chain)
 		{
@@ -112,9 +138,10 @@ namespace OpenFF.Data
 				tables.Notes.Add("player.chaindata not found");
 				return;
 			}
+			ChainPack pack;
 			try
 			{
-				ChainPack pack = ChainPack.Read(data);
+				pack = ChainPack.Read(data);
 				int levels = pack.Size(0) / 4;
 				tables.ExperienceToLevel = new int[levels];
 				for (int i = 0; i < levels; i++) tables.ExperienceToLevel[i] = ChainPack.S32(pack.Data, pack.Offset(0) + 4 * i);
@@ -122,8 +149,52 @@ namespace OpenFF.Data
 			catch (Exception ex)
 			{
 				tables.Notes.Add("player.chaindata: " + ex.Message);
+				return;
 			}
-			tables.Notes.Add("FF3 grows by job; the characters carry no growth table yet");
+			if (pack.Count < 11 || pack.Size(1) < 23 * 6 || pack.Size(2) < 8 * LevelMax)
+			{
+				tables.Notes.Add("player.chaindata has " + pack.Count + " chains; the job growth tables were not found");
+				return;
+			}
+			Dictionary<uint, string> menu = TableFiles.ReadNames(chain, "eureka_menu.msd", tables);
+			int types = pack.Offset(1), curves = pack.Offset(2);
+			for (int job = 0; job < 23; job++)
+			{
+				JobDefinition def = new JobDefinition
+				{
+					Id = job,
+					Key = Jobs[job].Key,
+					Name = menu != null && menu.TryGetValue((uint)(JobNameMessage + job), out string name) ? name : Jobs[job].Name,
+					NameIsTentative = menu == null,
+					GrowthTypes = new int[6],
+					Levels = new LevelRow[LevelMax],
+				};
+				for (int k = 0; k < 6; k++) def.GrowthTypes[k] = pack.Data[types + 6 * job + k];
+				int mpType = def.GrowthTypes[5];
+				int charges = mpType >= 1 && mpType <= 7 && 3 + mpType < pack.Count ? pack.Offset(3 + mpType) : -1;
+				for (int lv = 0; lv < LevelMax; lv++)
+				{
+					LevelRow row = new LevelRow { Level = lv + 1 };
+					int Curve(int k) => pack.Data[curves + LevelMax * Math.Min(7, def.GrowthTypes[k]) + lv];
+					row.Stats = new Stats { Strength = Curve(0), Vitality = Curve(1), Agility = Curve(2), Intellect = Curve(3), Spirit = Curve(4) };
+					if (lv == 0)
+					{
+						row.HpGainMin = row.HpGainMax = DefaultHp;
+					}
+					else
+					{
+						row.HpGainMin = row.Level + row.Stats.Vitality;
+						row.HpGainMax = row.Level + row.Stats.Vitality + row.Stats.Vitality / 2;
+					}
+					row.Charges = new int[8];
+					if (charges >= 0)
+					{
+						for (int m = 0; m < 8; m++) row.Charges[m] = pack.Data[charges + 8 * lv + m];
+					}
+					def.Levels[lv] = row;
+				}
+				tables.Jobs.Add(def);
+			}
 		}
 
 		private static void ReadItems(ContentChain chain, GameTables tables)
@@ -157,7 +228,21 @@ namespace OpenFF.Data
 					string caption = names != null && captionId > 0 && names.TryGetValue((uint)captionId, out string cap) ? cap : null;
 					if (chains[c].Kind == ItemKind.Spell)
 					{
-						tables.Spells.Add(new SpellDefinition { Id = id, Name = name, Raw = r });
+						tables.Spells.Add(new SpellDefinition
+						{
+							Id = id,
+							Name = name,
+							School = id >= 4200 && id < 4300 ? MagicSchool.Summon : id >= 4100 && id < 4200 ? MagicSchool.Black : id >= 4000 && id < 4100 ? MagicSchool.White : id >= 6000 && id < 6100 ? MagicSchool.Song : MagicSchool.Other,
+							Level = r[0x28] + 1,
+							Power = ChainPack.S16(r, 0x2A),
+							HitRate = r[0x2C],
+							UseKind = r[0x2D],
+							Element = ChainPack.S16(r, 0x2E),
+							Inflicts = ChainPack.S16(r, 0x30),
+							CanUse = ChainPack.U32(r, 0x24),
+							TargetFlags = (r[0x10] != 0 ? 0x10 : 0) | (r[0x11] != 0 ? 0x20 : 0) | (r[0x12] != 0 ? 0x01 : 0x02) | 0x40,
+							Raw = r,
+						});
 						continue;
 					}
 					ItemDefinition item = new ItemDefinition
