@@ -211,17 +211,68 @@ talks use the framed window with the speaker's name tag. Client: `menu.BasicWind
 
 ```
 set    "CMS2" | u32 version 0x30000 | u16 0x2c | char name[..] | @0x28 u32 count | @0x2c count x { u32 id, u32 offset }
-motion "CM4\0" | ... | @0x10 u32 frames | @0x14 u32 channelOffset[8]
+motion "CM4\0" | @4 u32 loop count (0 = forever) | @8 u32 start wait | @0xc u32 loop wait | @0x10 u32 frames | @0x14 u32 channelOffset[8]
 channel u16 keys | u16 type | keys...
     type 0 (u8 frames, s8 delta)  type 1 (u16, s16)  type 2 (u32, s32)  type 3 float per frame  type 4 one s32 constant
     a delta key adds its delta once per frame for its frames; the value starts at 0
 channels: quaternion x, y, z, w (fx12); position x, y, z (fx32); field of view as a 16-bit angle index
 CameraHandle::calculatePosition: M = rotation(q) x translation; camera at the translation,
-    looks along (0,0,-1) x R, up (0,1,0) x R (row vectors); FOV from the angle's sine and cosine
+    looks along (0,0,-1) x R, up (0,1,0) x R (row vectors)
 ```
 
+**The FOV channel is never applied.** `calculatePosition` sets the FOV from channel 7 only when
+the handle's byte at +0x81 is set, and nothing in the game sets it - the constructor and `clear()`
+zero it, and no other store to that offset exists (the one at +0x141 is `mgs::vs::EffectViewer`,
+a debug viewer). A scene's FOV is `evt::EventCamera::initializeDefaultParameter`'s
+`setFOV(0x424, 0xf74)` - a 15-degree half angle, 30 degrees vertical, set in
+`ContEventPart::initialize`, so once per story map - and `eventCameraSetFovyMove(degrees, frames)`
+from the script (`EventCamera::update` runs the fovy move, then `CameraHandle::nextMotion(1)`,
+then `CCamera::execute`). The scripts rely on it: e01_00's `eventCameraSetFovyMove(30, 0)` follows
+shot 103 whose channel says 43 degrees, and eight of its nineteen shots set nothing and keep the
+previous value (all 627 shipped calls checked: the channel constants disagree with the script on
+most shots). The default's other numbers: `setDistance(0x400000)`, `setClip(0x2000, 0x800000)`
+(2..2048), position (65, 25, -5) looking at (0, 10, 0) before the first motion.
+
+**`ce_PlayCameraMotion(slot, id, blend, loop)`** = `EventCamera::startCameraMotion` =
+`CameraHandle::start(slot, id, loop, blend)` + `play()`. `start` calls `saveOldPosition` (the
+displayed pose: it lerps the old pose and the current channel values by the running blend ratio
+first, so a shot started mid-slide does not jump), then `blendFrames = wasActive ? blend : 0`
+(flag bit 0 at +0xd0 = a motion was up), `blendTick = 0`, and steps the decoders once (the frame
+shown first is frame 1). `nextMotion(steps)`: nothing advances during the start wait (+8 frames
+since start); otherwise per step `frame++` and `blendTick++` together; at `frames` the loop
+counter compares with +4 (0 = forever) or bit 4 marks the end (`isEndOfMotion` = flags & 0x18).
+`calculatePosition`: `t = FX_Div(blendTick, blendFrames)` or 1.0 when zero, position and FOV
+lerped, rotation through `ds::Quaternion::leap` (a plain component-wise fx12 lerp, no sign flip,
+no normalise), then `MTX_Concat43` with the handle's reference transform (+0x20; identity for the
+event camera, `setupCameraMotionSet` sets it so - the summon cameras will use it). No shipped
+script passes a blend or a loop (627 calls, all `0, 0`), and every e01_00 motion has zero at +4,
++8 and +0xc; the client logs those and does not slide.
+
 Client: `Compat/Ff4CameraMotion.cs` (plays them on the field camera; `Ff4Cutscene` calls
-`Setup(slot, name)` / `Play(slot, id, loop)`).
+`Setup(slot, name)` / `Play(slot, id, blend, loop)` / `SceneStarted()` for the default FOV at
+`ce_StartEvent`). `--ff4cam=off` skips the motions.
+
+### Scene shadows (`CE_ShadowSetting`, `CE_ShadowVisiblity`)
+
+A scene cast has no shadow until the script gives it one. `babilCommand_CE_ShadowSetting(slot,
+type, joint, x, y, z, scale)` (byte, byte, string, dword x4) calls, on the cast's character index,
+`CCharacterMng::setShadowEnable(true)`, `setShadowJntName(joint, true)`, `setPolygonID(0x3f)`,
+`setShadowType(type)`, `setShadowOffsetEnable(true)` and the offset and scale;
+`CE_ShadowVisiblity(slot, on)` (byte, dword) is `setShadowEnable(on != 0)`. Every shipped setting
+is `(0, "kosi", 0, 0, 0, 4096)` but one at scale 0xA000; 182 visibility calls turn on, 27 off;
+e01_00 gives shadows to Cecil and the four soldiers (slots 0..4) and to nobody else (slot 20,
+`n215_01`, is two more soldiers in one model - `polygon0_baron3`, `polygon1_baron4`, exactly twice
+`n024_00_01`'s 510 vertices). `ds::sys3d::CShadowObject::drawShadowPolygon`: the position is the
+render object's; when the render object names a joint (flag +0x1c0, name at +0x1c2) and is not
+clipped, x and z come from that joint's stored matrix (the render object keeps twelve 0x48-byte
+joint slots at +0x238), plus the offset when enabled; y is then `ground + height + 0x40` when the
+shadow has a ground interface (+0x18, a virtual call) and `height + 0x29` - absolute, a hair over
+the floor - when not. No event map ships an `.mcl`, so the scenes take the second path: the casts
+are moved by their motions' root joint, the object position stays at the origin, and only the
+joint keeps the disc under the body. `CE_AddShadowVolume(slot, name)` / `CE_ShadowVolumeONOFF(slot,
+n)` appear in e02_00 only. Client: `CCharacterMng.setShadowVisible` / `setShadowJntName` (PORT),
+`CShadowObject.setJointName` + `GroundQuery`, `Ff4Cutscene.ShadowSetting` / `ShadowVisibility`; the
+FF3 path is untouched (`setupCharacter` gives every model a polygon shadow, as it always did).
 
 ## Data files
 

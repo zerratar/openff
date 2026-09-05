@@ -11,10 +11,22 @@
 //     type 3: float per frame, absolute  type 4: one s32, constant
 //   A delta key adds its delta to the value once per frame for its frames; the value starts
 //   at zero. The eight channels are the rotation quaternion x, y, z, w (fx12), the position
-//   x, y, z (fx32) and the field of view as a 16-bit angle index (the half angle setFOV
-//   takes). Each frame CameraHandle::calculatePosition builds rotation x translation, puts
-//   the camera at the translation, looks along (0,0,-1) x R and takes (0,1,0) x R as up -
-//   row vectors, NNS style - and sets the FOV from the angle's sine and cosine.
+//   x, y, z (fx32) and a field of view as a 16-bit angle index. Each frame
+//   CameraHandle::calculatePosition builds rotation x translation, puts the camera at the
+//   translation, looks along (0,0,-1) x R and takes (0,1,0) x R as up - row vectors, NNS
+//   style. The FOV channel it applies only when the handle's flag at +0x81 is set, and
+//   nothing in the game sets it (the constructor and clear() zero it): a scene's FOV is
+//   evt::EventCamera::initializeDefaultParameter's setFOV(0x424, 0xf74) - 30 degrees - at
+//   the scene part's start and whatever eventCameraSetFovyMove set since. The scripts rely
+//   on that: e01_00 sets 30 for shots whose channel says 43, and eight of its nineteen shots
+//   set nothing and keep the previous value. (Read out with the channel constants of
+//   e01_00.dsc against the script's eventCameraSetFovyMove lines.)
+//   ce_PlayCameraMotion(slot, id, blend, loop): when a motion is already up, CameraHandle::start
+//   saves the displayed pose (saveOldPosition) and calculatePosition slides position, rotation
+//   (Quaternion::leap) and FOV to the new motion over `blend` frames. No shipped script passes
+//   a blend or a loop (627 calls, all 0), so the slide is not built; a nonzero value is logged.
+//   The CM4 header also carries a loop count (+4), a start wait (+8) and a loop wait (+0xc):
+//   zero in every e01_00 motion, logged when not.
 
 using System;
 using System.Collections.Generic;
@@ -42,14 +54,17 @@ namespace FF3
 		private static int _frame;
 		private static bool _loop;
 
-		// eventCameraSetFovyMove: the field of view as a 16-bit half-angle index, moved over frames.
-		// While set it takes precedence over the motion's FOV channel; the next Play drops it.
+		// The scene camera's field of view as a 16-bit half-angle index: the part's default at a
+		// scene's start, then eventCameraSetFovyMove's value, moved over frames. Motions never
+		// change it (see the header). -1 until a scene sets it on this map.
 		private static int _fovCurrent = -1;
 		private static int _fovTarget = -1;
 		private static int _fovFrom;
 		private static int _fovFrames;
 		private static int _fovTick;
-		private static bool _fovOverride;
+
+		/// <summary>The event camera's default: setFOV(0x424, 0xf74), a 15-degree half angle - index 2731 gives exactly those words.</summary>
+		public const int DefaultFovIndex = 2731;
 
 		public static bool Playing => _playing != null && (_loop || _frame < _playing.Frames);
 		public static bool Looping => _playing != null && _loop;
@@ -116,6 +131,11 @@ namespace FF3
 				if (offset <= 0 || offset + 0x34 > data.Length) continue;
 				if (data[offset] != 'C' || data[offset + 1] != 'M' || data[offset + 2] != '4') continue;
 				Motion motion = new Motion { Id = id, Frames = BitConverter.ToInt32(data, offset + 0x10) };
+				int loops = BitConverter.ToInt32(data, offset + 4), wait = BitConverter.ToInt32(data, offset + 8), loopWait = BitConverter.ToInt32(data, offset + 0xc);
+				if (loops != 0 || wait != 0 || loopWait != 0)
+				{
+					Log.Write(LogChannel.General, "script: FF4 camera motion " + id + " in " + name + " has loop count " + loops + ", start wait " + wait + ", loop wait " + loopWait + " (not played)");
+				}
 				for (int channel = 0; channel < 8; channel++)
 				{
 					int at = offset + BitConverter.ToInt32(data, offset + 0x14 + 4 * channel);
@@ -194,11 +214,20 @@ namespace FF3
 
 		// ---- playing ----
 
+		/// <summary>A scene starts on this map (ContEventPart::initialize): the event camera's default FOV, unless a scene already set one here.</summary>
+		public static void SceneStarted()
+		{
+			if (_fovCurrent >= 0) return;
+			_fovCurrent = DefaultFovIndex;
+			_fovTarget = DefaultFovIndex;
+			_fovFrames = 0;
+			ApplyFov(DefaultFovIndex);
+		}
+
 		/// <summary>The script's FOV move: degrees of full vertical FOV, over frames (0 = at once).</summary>
 		public static void SetFovy(int degrees, int frames)
 		{
 			int index = (int)(degrees * 0.5 / 360.0 * 65536.0) & 0xffff;
-			_fovOverride = true;
 			if (frames <= 0 || _fovCurrent < 0)
 			{
 				_fovCurrent = index;
@@ -225,7 +254,7 @@ namespace FF3
 			catch (Exception) { }
 		}
 
-		public static bool Play(int slot, uint id, bool loop)
+		public static bool Play(int slot, uint id, int blend, bool loop)
 		{
 			if (FF3.Options.Get("ff4cam") == "off")
 			{
@@ -242,11 +271,13 @@ namespace FF3
 				Log.Write(LogChannel.General, "script: FF4 camera motion " + id + " is not in set " + set.Name);
 				return false;
 			}
+			if (blend != 0 && _playing != null)
+			{
+				Log.Write(LogChannel.General, "script: FF4 camera motion " + id + " asks a " + blend + "-frame slide from the last shot (not built; the shipped scripts never do)");
+			}
 			_playing = motion;
 			_frame = 1;
 			_loop = loop;
-			_fovOverride = false;
-			_fovFrames = 0;
 			GlobalScope.cmr.CWorldCamera.ExternalDrive = Drive;
 			Log.Write(LogChannel.File, "script: FF4 camera motion " + id + " from " + set.Name + ", " + motion.Frames + " frames" + (loop ? ", looping" : ""));
 			return true;
@@ -307,7 +338,6 @@ namespace FF3
 			int tx = m.Channels[4][f], ty = m.Channels[5][f], tz = m.Channels[6][f];
 			double fx = -r20, fy = -r21, fz = -r22;
 			double ux = r10, uy = r11, uz = r12;
-			int angle = m.Channels[7][f] & 0xffff;
 			try
 			{
 				GlobalScope.VecFx32 pos = new GlobalScope.VecFx32(tx, ty, tz);
@@ -319,17 +349,11 @@ namespace FF3
 				camera.setPosition(pos);
 				camera.setTarget(trg);
 				camera.setCamUp((int)(ux * 4096), (int)(uy * 4096), (int)(uz * 4096));
-				if (_fovOverride && _fovCurrent >= 0)
+				// The motion's FOV channel (m.Channels[7]) is not applied - FF4 does not (see the header);
+				// the scene's FOV is held here against the camera's own updates.
+				if (_fovCurrent >= 0)
 				{
-					angle = _fovCurrent;
-				}
-				else if (angle != 0)
-				{
-					_fovCurrent = angle;
-				}
-				if (angle != 0)
-				{
-					double radians = angle / 65536.0 * 2 * Math.PI;
+					double radians = _fovCurrent / 65536.0 * 2 * Math.PI;
 					camera.setFOV((int)(Math.Sin(radians) * 4096), (int)(Math.Cos(radians) * 4096));
 				}
 			}
@@ -344,7 +368,6 @@ namespace FF3
 		{
 			Stop();
 			_slots.Clear();
-			_fovOverride = false;
 			_fovFrames = 0;
 			_fovCurrent = -1;
 		}

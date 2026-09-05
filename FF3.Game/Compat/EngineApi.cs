@@ -1964,8 +1964,14 @@ namespace FF3
 
 		private GlobalScope.VecFx32 GroundHit(Vector3 at)
 		{
+			try { return GroundHitFx(EngineApi.ToFx(at)); }
+			catch (Exception ex) { EngineApi.Warn("ground", "Field.GroundHeight: " + ex.Message); return null; }
+		}
+
+		/// <summary>The same query in engine units; the FF4 scene shadows' ground callback (ds.sys3d.CShadowObject.GroundQuery) uses it.</summary>
+		internal static GlobalScope.VecFx32 GroundHitFx(GlobalScope.VecFx32 at)
+		{
 			if (!EngineApi.InWorld) return null;
-			try
 			{
 				GlobalScope.stg.CStageMng stage = GlobalScope.stageMng;
 				if (stage == null) return null;
@@ -1973,7 +1979,7 @@ namespace FF3
 				GlobalScope.MtxFx43 wld = new GlobalScope.MtxFx43();
 				stage.getInvWldMtx(inv);
 				stage.getWldMtx(wld);
-				GlobalScope.VecFx32 start = EngineApi.ToFx(at);
+				GlobalScope.VecFx32 start = new GlobalScope.VecFx32(at.x, at.y, at.z);
 				start.y += AboveFx;
 				GlobalScope.MTX_MultVec43(start, inv, start);
 				GlobalScope.VecFx32 down = new GlobalScope.VecFx32(0, -4096, 0);
@@ -1995,7 +2001,6 @@ namespace FF3
 				GlobalScope.MTX_MultVec43(best, wld, best);
 				return best;
 			}
-			catch (Exception ex) { EngineApi.Warn("ground", "Field.GroundHeight: " + ex.Message); return null; }
 		}
 
 		public void Warp(string map, Vector3 position, int facing = 0)

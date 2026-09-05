@@ -55,6 +55,15 @@ internal static partial class GlobalScope
 
 			public uint shadow_type;
 
+			// PORT (FF4): a character whose shadow the script keeps off (a scene cast until
+			// ce_ShadowVisiblity says otherwise). Survives the asynchronous setup and setHidden(false),
+			// which both turn the shadow on. FF3 never sets it: its shadows behave as they did.
+			public bool shadowOff;
+
+			// PORT (FF4): the joint the shadow follows (ce_ShadowSetting's "kosi"); reserved on the
+			// render object once the model is set up.
+			public string shadowJoint;
+
 			public uint loadFlag;
 
 			public sbyte objDataIdx;
@@ -985,8 +994,41 @@ internal static partial class GlobalScope
 				if (!flag)
 				{
 					Character[ctrl].RdrObject.setHidden(b: false);
-					Character[ctrl].ShadowObject.setEnable(b: true);
+					Character[ctrl].ShadowObject.setEnable(!Character[ctrl].shadowOff);
 				}
+			}
+		}
+
+		// PORT (FF4): whether a character's shadow is drawn at all, apart from the character being
+		// hidden. FF4's scene casts have none until ce_ShadowSetting / ce_ShadowVisiblity(slot, 1);
+		// FF3 characters always have theirs (setupCharacter gives every model a polygon shadow).
+		public void setShadowVisible(int ctrl, bool visible)
+		{
+			if (!isValidCharacter(ctrl))
+			{
+				return;
+			}
+			Character[ctrl].shadowOff = !visible;
+			if ((1 & Character[ctrl].loadFlag) != 0)
+			{
+				Character[ctrl].ShadowObject.setEnable(visible && (8 & Character[ctrl].flag) == 0);
+			}
+		}
+
+		// PORT (FF4): CCharacterMng::setShadowJntName - the shadow's x and z follow this joint's world
+		// position (FF4's scene casts stand where their motion's root puts them, not at setPosition's
+		// spot). The joint matrix is captured while the model draws (reserveToGetJntMtx).
+		public void setShadowJntName(int ctrl, string jointName)
+		{
+			if (!isValidCharacter(ctrl))
+			{
+				return;
+			}
+			Character[ctrl].shadowJoint = string.IsNullOrEmpty(jointName) ? null : jointName;
+			Character[ctrl].ShadowObject.setJointName(Character[ctrl].shadowJoint);
+			if (Character[ctrl].shadowJoint != null && (1 & Character[ctrl].loadFlag) != 0)
+			{
+				Character[ctrl].RdrObject.reserveToGetJntMtx(Character[ctrl].shadowJoint);
 			}
 		}
 
@@ -1478,6 +1520,8 @@ internal static partial class GlobalScope
 		{
 			Character[ctrl].flag = 0u;
 			Character[ctrl].shadow_type = 1u;
+			Character[ctrl].shadowOff = false;
+			Character[ctrl].shadowJoint = null;
 			Character[ctrl].objDataIdx = -1;
 			for (byte b = 0; b < 8; b++)
 			{
@@ -1621,6 +1665,15 @@ internal static partial class GlobalScope
 			{
 				setupCharacter(ctrl);
 				setHidden(ctrl, (Character[ctrl].flag & 8) != 0);
+				if (Character[ctrl].shadowOff)
+				{
+					Character[ctrl].ShadowObject.setEnable(b: false);   // PORT (FF4): see shadowOff
+				}
+				if (Character[ctrl].shadowJoint != null)
+				{
+					Character[ctrl].ShadowObject.setJointName(Character[ctrl].shadowJoint);   // PORT (FF4): see shadowJoint
+					Character[ctrl].RdrObject.reserveToGetJntMtx(Character[ctrl].shadowJoint);
+				}
 				return true;
 			}
 			return false;

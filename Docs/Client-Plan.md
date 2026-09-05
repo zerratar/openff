@@ -1009,6 +1009,54 @@ Cecil / Baigan / King of Baron name tags, the throne room. Still off: the flight
 blocky grey with black holes where FF4 shows clouds), the intro name plates (`np00..` sheets,
 `ce_3DSSetup`), the scene's fog and lights.
 
+## The intro scene, second look (2026-09-05, night; Karl's three reports)
+
+Karl saw the sky fixed but the soldiers gone from the wide shots, a shadow on the deck's centre
+with nobody over it, and the name plates flickering instead of fading in, holding and fading out.
+Each traced to its cause, all three in `Ff4Cutscene` and its neighbours:
+
+- **The sky**: `evt::ContEventPart::initialize` sets the scene camera's clip to 2..4096 (the field's
+  10..500 cut the deck's sky dome away). `ce_StartEvent` sets it, `ce_EndEvent` restores the field's.
+- **The soldiers**: `ce_SetEnbleViewClip(slot, 0)` turns view-volume culling off for a cast so the wide
+  shots keep them; it sat in the `Quiet` set, silently dropped. It is `Characters.setViewVolumeClip` now.
+- **The plates**: sprite alpha is the DS's 0..31 and `DS2DManager` scales it to 0..255 itself
+  (`G3_PolygonAttr`, `NNS_G3dSetRenderColor`); a 0..255 value handed to `SetAlpha` wrapped the byte
+  about eight times over a fade - the flicker - and left the held plate at 49/255, the faint text in
+  Karl's screenshot. The plates pass 0..31 again, at half size (the phone's sheets are 2x its screen).
+- **The shadow**: a scene cast has no shadow in FF4 until `ce_ShadowSetting` + `ce_ShadowVisiblity(slot, 1)`
+  (e01_00 gives them to Cecil and the four soldiers only), and the shadow stands under the cast's
+  `kosi` joint because the casts are moved by their motions' root - the object position stays at the
+  origin. The port gave every model a disc at its object position, so every cast's disc lay stacked at
+  the origin: the shadow on the deck's centre, and in the flashback hall. Now `setupCharacter`'s disc
+  is off for scene casts (`CCharacterMng.setShadowVisible`, survives the asynchronous setup and
+  `setHidden(false)`), the two commands are real (`ShadowSetting`/`ShadowVisibility`), and the disc
+  follows the named joint's x and z through the port's existing joint capture (`reserveToGetJntMtx`,
+  world space) with a ground hook (`CShadowObject.GroundQuery` -> `LegacyField.GroundHitFx`) for maps
+  with collision - none of the event maps has one, as in FF4, which draws them at `height + 0x29`.
+  A first cut selected FF3's shadow type 0 for FF4's type 0: that is the player's `shadow02`, a rounded
+  body FF3 draws squashed to a quarter height, and at a cast's scale it stood on the deck as a
+  translucent block (Karl's second screenshot). The type is left alone now. Open: the discs under
+  Cecil and the soldiers are drawn at their hips' x/z but do not show yet - not visible enough to
+  chase tonight; the field hero is hidden through a scene (its own shadow goes with it) and shown
+  again at the end or on leaving the map.
+- **The camera "transitions"**: two readings of `CameraHandle` in the binary. `ce_PlayCameraMotion`'s
+  third operand is a blend length - `start` saves the displayed pose and `calculatePosition` slides
+  position, rotation (`Quaternion::leap`) and FOV to the new shot over that many frames - but no
+  shipped script passes one (627 calls, all `0, 0`), so it is read and logged, not built. What was off
+  is the FOV: `calculatePosition` applies a motion's FOV channel only behind a flag nothing in the game
+  sets, so FF4's scene FOV is the part's 30-degree default (`setFOV(0x424, 0xf74)`) and the script's
+  `eventCameraSetFovyMove`, and the channel constants disagree with the script on most shots (103's
+  channel says 43 degrees, the script 30; shots 105-110 and 115 set nothing and keep 30 and 23 where
+  the port switched to 26..43). `Ff4CameraMotion` no longer applies the channel; `SceneStarted()` sets
+  the default at `ce_StartEvent`; the script's FOV persists across motions.
+- The window's title says which game runs (`GameProfile.Title`).
+- Found on the way, not yet acted on: the `Quiet` set still lists names that have handlers
+  (`ce_SetupExpression`, `ce_SetupCameraMotion`, the `3DS*` family - harmless, `ByName` wins) and
+  visible behaviours that are missing (`ce_setScale`, `ce_AutoRotation`, `ce_StartAnimation`,
+  `ce_SetBindObject*`, `ce_LoadBG`, `ce_setFog`); the sample `hello` mod's HUD and villager spawn run
+  on FF4 scenes (`--nomods` for clean screenshots); and `ff3content lz <file> <out>` makes `<out>` a
+  directory when it exists.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

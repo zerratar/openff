@@ -36,9 +36,68 @@ internal static partial class GlobalScope
 
 				private bool _bEnable;
 
+				// PORT (FF4): the joint the shadow stands under. FF4's CShadowObject::drawShadowPolygon takes
+				// the shadow's x and z from this joint's stored matrix when the render object names one
+				// (CCharacterMng::setShadowJntName, from ce_ShadowSetting's "kosi"), and keeps the base
+				// height for y. Scene casts are moved by their motion's root, not by setPosition, so the
+				// render object's own position stays at the origin - and so would the shadow.
+				private string _jointName;
+
 				~CShadowObject()
 				{
 				}
+
+				public void setJointName(string name)
+				{
+					_jointName = string.IsNullOrEmpty(name) ? null : name;
+				}
+
+				/// <summary>
+				/// PORT (FF4): the ground under a point, in engine units, or null off the collision - FF4's shadow
+				/// keeps a ground interface and, when it has one, drops a joint-following shadow onto the ground
+				/// under the joint (drawShadowPolygon: ground + height + 0x40). Set by the FF4 scene code; only
+				/// shadows that follow a joint consult it.
+				/// </summary>
+				public static Func<VecFx32, VecFx32> GroundQuery;
+
+				/// <summary>Where the shadow is drawn: the render object's position; with a joint, its x and z and the ground under it.</summary>
+				private void basePosition(VecFx32 pos)
+				{
+					pos.copy(_pRenderObject.m_Position);
+					if (_jointName != null)
+					{
+						MtxFx43 joint = sys3d_reuse_joint_mtx;
+						if (_pRenderObject.getJntMtx(_jointName, joint))
+						{
+							pos.x = joint._30;
+							pos.z = joint._32;
+							VecFx32 ground = null;
+							if (GroundQuery != null)
+							{
+								try { ground = GroundQuery(new VecFx32(joint._30, joint._31, joint._32)); }
+								catch (Exception) { ground = null; }
+							}
+							if (ground != null)
+							{
+								pos.y = ground.y;
+							}
+							if (!_jointSeen)
+							{
+								_jointSeen = true;
+								FF3.Log.Write(FF3.LogChannel.File, "shadow: follows " + _jointName + " at " + (joint._30 / 4096f).ToString("0.0") + ", " + (joint._31 / 4096f).ToString("0.0") + ", " + (joint._32 / 4096f).ToString("0.0") + (ground != null ? ", ground " + (ground.y / 4096f).ToString("0.0") : ", no ground under it") + " (base " + (_pRenderObject.m_Position.y / 4096f).ToString("0.0") + ")");
+							}
+						}
+						else if (++_jointMissed == 120)
+						{
+							FF3.Log.Write(FF3.LogChannel.File, "shadow: " + _jointName + " not captured after 120 draws - the shadow stays at the model's position");
+						}
+					}
+					pos.y += _height;
+				}
+
+				private static readonly MtxFx43 sys3d_reuse_joint_mtx = new MtxFx43();
+				private bool _jointSeen;
+				private int _jointMissed;
 
 				public void initialize()
 				{
@@ -84,8 +143,7 @@ internal static partial class GlobalScope
 				public void drawShadowPolygon()
 				{
 					VecFx32 nitro_reuse_pos = GlobalScope.nitro_reuse_pos;
-					nitro_reuse_pos.copy(_pRenderObject.m_Position);
-					nitro_reuse_pos.y += _height;
+					basePosition(nitro_reuse_pos);
 					NNS_G3dGlbSetBaseScale(_scale);
 					NNS_G3dGlbSetBaseTrans(nitro_reuse_pos);
 					NNS_G3dGlbFlushP();
@@ -104,7 +162,8 @@ internal static partial class GlobalScope
 
 				public void drawShadowVolume()
 				{
-					VecFx32 pTrans = new VecFx32(_pRenderObject.m_Position.x, _pRenderObject.m_Position.y + _height, _pRenderObject.m_Position.z);
+					VecFx32 pTrans = new VecFx32();
+					basePosition(pTrans);
 					NNS_G3dGlbSetBaseScale(_scale);
 					NNS_G3dGlbSetBaseTrans(pTrans);
 					NNS_G3dGlbFlushP();
@@ -140,6 +199,9 @@ internal static partial class GlobalScope
 					_type = SHADOW_TYPE.SHADOW_TYPE_POLYGON;
 					_alpha = 10;
 					_bEnable = true;
+					_jointName = null;
+					_jointSeen = false;
+					_jointMissed = 0;
 				}
 
 				public void setScale(VecFx32 scale)

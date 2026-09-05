@@ -53,7 +53,7 @@ namespace FF3
 			{ "ce_StartMapAnimation", StartMapAnimation },   // (animation index, type): a .namp animation by index
 			{ "ce_SetupCameraMotion", SetupCameraMotion },   // (slot, set name): a .dsc set from EVT_CAMERA
 			{ "ce_CleanupCameraMotion", CleanupCameraMotion }, // (slot)
-			{ "ce_PlayCameraMotion", PlayCameraMotion },     // (slot, motion id, ?, loop)
+			{ "ce_PlayCameraMotion", PlayCameraMotion },     // (slot, motion id, blend frames from the last shot, loop) - every shipped call passes 0, 0
 			{ "ce_WaitTillEndOfCameraMotion", WaitTillEndOfCameraMotion }, // ()
 			{ "eventCameraSetFovyMove", SetFovyMove },       // (degrees, frames)
 			{ "ce_SetupExpression", SetupExpression },       // (slot, face pack): p00_001 -> FACE.dat's p00_001.face.lz
@@ -97,13 +97,16 @@ namespace FF3
 			{ "ce_SetShadingMode", SetShadingMode },         // (slot, 0 flat-lit | 1 toon)
 			{ "ce_SetLightForCharacter", SetLight },         // (slot, light 0..3, x, y, z, r, g, b): the global light
 			{ "ce_ShowMessageWindow", ShowMessageWindow },   // (on): 0 takes the scene's message bar down
+			{ "ce_SetEnbleViewClip", SetViewClip },          // (slot, on): view-volume culling of a cast; scenes turn it off so wide shots keep them
+			{ "ce_ShadowSetting", ShadowSetting },           // (slot, type, joint, x, y, z, scale): the cast's shadow, on; a cast has none until this
+			{ "ce_ShadowVisiblity", ShadowVisibility },      // (slot, on): CCharacterMng::setShadowEnable
 		};
 
 		/// <summary>Commands that only dress a scene, skipped without a log line.</summary>
 		public static readonly HashSet<string> Quiet = new HashSet<string>(StringComparer.Ordinal)
 		{
-			"ce_ShadowSetting", "ce_ShadowVisiblity", "ce_AddShadowVolume", "ce_ShadowVolumeONOFF",
-			"ce_SetEnbleViewClip", "ce_SetSkip", "ce_StopSkip", "ce_EventSkipJump", "ce_VoiceSkipOn",
+			"ce_AddShadowVolume", "ce_ShadowVolumeONOFF",
+			"ce_SetSkip", "ce_StopSkip", "ce_EventSkipJump", "ce_VoiceSkipOn",
 			"ce_setSound", "ce_CleanupBGM", "ce_StopBGM_Streaming",
 			"ce_SetupSE", "ce_CleanupSE",
 			"3DSSetup", "3DSRelease", "3DSSetAlpha", "3DSSetPosition", "3DSSetVisiblity",
@@ -129,6 +132,17 @@ namespace FF3
 		{
 			_active = true;
 			SceneStage = GlobalScope.stg.CStageMng.CurrentName;
+			// evt::ContEventPart::initialize sets the camera's clip to 2..4096 (the field's is 10..500,
+			// which cut the deck scene's sky dome away), and the scene's casts stand in for the party:
+			// the field's hero waits unseen until the scene ends.
+			Guard("scene clip", () => GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera().setClip(2 * 4096, 4096 * 4096));
+			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(true));
+			// EventCamera::initializeDefaultParameter: the scene part starts at a 30-degree FOV; the
+			// script's eventCameraSetFovyMove changes it from there, the camera motions never do.
+			Guard("scene fov", Ff4CameraMotion.SceneStarted);
+			// The casts' shadows follow their "kosi" joint (ce_ShadowSetting) and drop onto the stage's
+			// collision under it, as FF4's shadow does through its ground interface.
+			GlobalScope.ds.sys3d.CShadowObject.GroundQuery = LegacyField.GroundHitFx;
 			Log.Write(LogChannel.General, "script: FF4 cutscene starts on " + GlobalScope.stg.CStageMng.CurrentName);
 		}
 
@@ -136,6 +150,8 @@ namespace FF3
 		{
 			_active = false;
 			Ff4CameraMotion.Stop();
+			Guard("scene clip", () => GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera().setClip(40960, 2048000));
+			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(false));
 			Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up");
 			// FF4's event part hands back to the world at the return map; here the scene ran on the
@@ -238,6 +254,10 @@ namespace FF3
 				}
 				_slots[slot] = ctrl;
 				Characters.setHidden(ctrl, false);
+				// A scene cast has no shadow until ce_ShadowSetting gives it one (e01_00 gives them to
+				// Cecil and the four soldiers only); setupCharacter's default disc would otherwise stand
+				// under every cast, and at the origin under one not yet placed.
+				Characters.setShadowVisible(ctrl, false);
 				Log.Write(LogChannel.File, "script: FF4 cutscene slot " + slot + " = " + model + " (" + texture + ") as character " + ctrl);
 			}
 			catch (Exception ex)
@@ -378,6 +398,8 @@ namespace FF3
 				sprite.Load(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, Path.GetFileName(ce), Path.GetFileName(an), Path.GetFileName(cb), Path.GetFileName(cl));
 				sprite.SetCell(0);
 				sprite.SetShow(false);
+				// The phone's sheets are 2x its 480 x 320 screen (np00 is 820 x 192 for a 410 x 96 plate): half size.
+				sprite.SetScaleF(2048, 2048);
 				GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(sprite);
 				_plates[slot] = new Plate { Sprite = sprite, AlphaFrom = 31, AlphaTo = 31 };
 				Log.Write(LogChannel.File, "script: FF4 2D plate " + Path.GetFileName(ce) + " in slot " + slot);
@@ -410,6 +432,8 @@ namespace FF3
 			plate.AlphaTo = Math.Clamp(to, 0, 31);
 			plate.AlphaFrames = Math.Max(0, frames);
 			plate.AlphaTick = 0;
+			// The script counts 0..31 and so does the sprite (DS2DManager scales it to 0..255 itself; a
+			// 0..255 value here wraps the byte about eight times over a fade - the plates flickered).
 			Guard("2D plate alpha", () => plate.Sprite.SetAlpha((byte)plate.AlphaFrom));
 		}
 
@@ -429,9 +453,13 @@ namespace FF3
 			Guard("2D plate show", () => plate.Sprite.SetShow(shown != 0));
 		}
 
-		/// <summary>Each frame: the plates' alpha fades.</summary>
+		/// <summary>Each frame: the plates' alpha fades; the field's hero stays hidden through a scene (a reload would bring its shadow back).</summary>
 		public static void Tick()
 		{
+			if (_active)
+			{
+				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
+			}
 			foreach (Plate plate in _plates.Values)
 			{
 				if (plate.AlphaFrames <= 0) continue;
@@ -687,6 +715,62 @@ namespace FF3
 			});
 		}
 
+		/// <summary>ce_SetEnbleViewClip(slot, on): CCharacterMng::setViewVolumeClip - the scenes turn culling off for every cast, or the wide shots lose the party.</summary>
+		private static void SetViewClip(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int on = engine.getByte();
+			if (!Slot(slot, out int ctrl)) return;
+			Guard("view clip", () => Characters.setViewVolumeClip(ctrl, on != 0));
+		}
+
+		/// <summary>
+		/// ce_ShadowSetting(slot, type, joint, x, y, z, scale): babilCommand_CE_ShadowSetting calls setShadowEnable(true),
+		/// setShadowJntName(joint), setPolygonID(63), setShadowType(type), setShadowOffsetEnable(true) and the offset and
+		/// scale. Every shipped call is (0, "kosi", 0, 0, 0, 4096) but one at scale 0xA000. The shadow keeps the port's
+		/// flat disc (FF3's type numbering is not FF4's: type 0 here is the player's shadow02, a rounded body FF3 draws
+		/// squashed to a quarter height - drawn at a cast's scale it stood on the deck as a translucent block) and
+		/// follows the named joint's x and z, as FF4's drawShadowPolygon does; the offset is not modelled.
+		/// </summary>
+		private static void ShadowSetting(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int type = engine.getByte();
+			string joint = engine.getString();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int scale = (int)engine.getDword();
+			if (!Slot(slot, out int ctrl)) return;
+			Guard("shadow", () =>
+			{
+				Characters.setShadowJntName(ctrl, joint);
+				// FF4 lifts the disc 0x29 over the base and lets the DS's polygon ids settle the rest; here a
+				// disc flush with the deck loses the depth test, so it gets FF3's own half unit (CPlayerHuman.into).
+				Characters.setShadowHeight(ctrl, 2048);
+				if (scale > 0 && scale != 4096)
+				{
+					GlobalScope.VecFx32 s = new GlobalScope.VecFx32();
+					Characters.getShadowScale(ctrl, s);
+					s.x = (int)((long)s.x * scale / 4096);
+					s.z = (int)((long)s.z * scale / 4096);
+					Characters.setShadowScale(ctrl, s);
+				}
+				if (x != 0 || y != 0 || z != 0)
+				{
+					Log.Write(LogChannel.File, "script: FF4 shadow offset " + x + ", " + y + ", " + z + " on " + joint + " for slot " + slot + " not applied");
+				}
+				Characters.setShadowVisible(ctrl, true);
+			});
+		}
+
+		/// <summary>ce_ShadowVisiblity(slot, on): CCharacterMng::setShadowEnable(idx, on != 0).</summary>
+		private static void ShadowVisibility(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int on = (int)engine.getDword();
+			if (!Slot(slot, out int ctrl)) return;
+			Guard("shadow", () => Characters.setShadowVisible(ctrl, on != 0));
+		}
+
 		/// <summary>ce_ShowMessageWindow(on): FF4's evt::EventConteManager::enableMessageWindow - 0 hides the scene's message bar until the next line.</summary>
 		private static void ShowMessageWindow(GlobalScope.ScriptEngine engine)
 		{
@@ -874,9 +958,9 @@ namespace FF3
 		{
 			int slot = (int)engine.getDword();
 			uint id = engine.getDword();
-			engine.getDword();
+			int blend = (int)engine.getDword();
 			int loop = engine.getByte();
-			Ff4CameraMotion.Play(slot, id, loop != 0);
+			Ff4CameraMotion.Play(slot, id, blend, loop != 0);
 		}
 
 		private static void WaitTillEndOfCameraMotion(GlobalScope.ScriptEngine engine)
@@ -896,6 +980,7 @@ namespace FF3
 			_inBattle.Clear();
 			_slots.Clear();
 			_frameWaits.Clear();
+			try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
 			_active = false;
 			SceneStage = null;
 			Ff4EventCamera.Release();
