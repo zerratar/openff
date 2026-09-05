@@ -23,6 +23,21 @@ walking up from the executable and also checking `Unpacked/Content`. Override wi
 `FF3_CONTENT=<path>`. Nothing is copied into `bin/`, so the ~540 MB of original data
 stays where it is.
 
+## Game data
+
+None of the games' data is in this repository - it is Square Enix's. The client plays from
+what you own: with no arguments `FF3.exe` finds the Steam installs of Final Fantasy III and
+IV (3D) and remembers them (`--game=ff4` switches; `--content=<dir>` points at any install
+or at a `Content` directory extracted from the phone build with `ff3content extract`). The
+`Content/` folder here holds only the pipeline file and the override notes; put an extracted
+`Content` beside them if you have one, `.gitignore` keeps it out of commits.
+`Reference/libff4/` likewise carries only what we wrote; `symbols.txt`, `strings.txt` and
+`menu-layouts.txt` are regenerated from your own copy of the FF4 binary and files with
+`Tools/ff4_dump_all.py` and `Tools/xbn_dump.py` (see `Reference/libff4/INDEX.md`).
+
+This repository's history is the project's, rewritten once to leave the data out; the
+commits are otherwise as they were made.
+
 ## Controls
 
 | Input | Action |

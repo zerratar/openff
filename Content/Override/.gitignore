@@ -1,0 +1,4 @@
+# Local content experiments stay local; the README and this file do not.
+*
+!.gitignore
+!README.md

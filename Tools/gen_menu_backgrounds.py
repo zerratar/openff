@@ -17,7 +17,8 @@ import io
 import re
 import sys
 
-SOURCE = r'C:\Users\KarlJ\Downloads\FF3\Decompiled\syrcusW\GlobalScope.cs'
+# The decompiled game as one file (the raw ILSpy output, kept outside the repository); or pass a path.
+SOURCE = sys.argv[1] if len(sys.argv) > 1 else r'..\Decompiled\syrcusW\GlobalScope.cs'
 
 BUILD = re.compile(r'buildMenu\("([^"]+)"\)')
 SLOT = re.compile(r'this\.m_pCurrent\[(\d+)\]\s*=\s*\([^)]*\)\s*this\.(\w+)\s*;')

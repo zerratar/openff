@@ -6,6 +6,13 @@ obj/
 *.suo
 .vs/
 
+# The games' data is Square Enix's and stays out of this repository: the client reads a
+# Steam install (--content=<dir>, or found on its own) or an extracted Content directory
+# (FF3_CONTENT=<path>). Only the pipeline file and the override notes are tracked.
+Content/*
+!Content/Content.mgcb
+!Content/Override/
+
 # Runtime artefacts produced by the game
 logs/
 screenshots/
@@ -20,5 +27,9 @@ __pycache__/
 # Personal notes
 todo*.txt
 
-# The FF4 binary disassembled (Tools/ff4_dump_all.py); regenerate, do not commit the code
+# The FF4 binary disassembled (Tools/ff4_dump_all.py) and what it lists - symbols, strings,
+# the menu layouts dumped from the game's files: regenerate from your own copy, do not commit
 Reference/libff4/asm/
+Reference/libff4/symbols.txt
+Reference/libff4/strings.txt
+Reference/libff4/menu-layouts.txt
