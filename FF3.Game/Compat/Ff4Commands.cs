@@ -61,6 +61,20 @@ namespace FF3
 			"setBGMDownParam", "startBGMDown", "reverseBGMDown",         // BGM ducking
 			"setShadowScale",
 			"setMessageAlignment",                                     // message alignment
+			// Sound bookkeeping FF3's player has no slot for: the battle theme choice, the
+			// division of BGM data, a reset.
+			"setBattleBGM", "bgmContinueForConteEvent", "soundReset", "bgmDivideLoadDataTypeSpecific",
+			// Jumps whose condition a new game never meets: decantLevelChekcJump(type, level, label)
+			// jumps when the character's augment level equals `level` (2 in every script; it is 0
+			// here), checkCharacterStatusJump when a member carries a status condition.
+			"decantLevelChekcJump", "checkCharacterStatusJump",
+			// The party's roster, abilities and equipment are FF4's own data model (player.chaindata,
+			// the 4-chain item pack) - not FF3's; on the field only the leader is drawn, so these
+			// change nothing visible yet.
+			"addPartyPC", "subPartyPC", "addAbility", "setPartyPCEquipItem",
+			// Objects bound to a character's joint (a carried item, a torch), effect scaling, the
+			// sub-plane visibility of the DS's second screen.
+			"createBindObject", "setVisibleBindObject", "setEffect_Scale", "ce_CallProgParam",
 		};
 
 		/// <summary>

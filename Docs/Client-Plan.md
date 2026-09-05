@@ -584,8 +584,16 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
   named .ncer/.nanr/.ncbr (np00 = "Baron"), alpha faded per frame by `Ff4Cutscene.Tick`.
 - `clearCountJump(count, label)` jumps on a first playthrough (count 0); `setChacterOffset(cast,
   x, y, z)` is a pose-matrix translation on the cast's model; `setMessageAlignment` is quiet.
-- **What the scene still lacks**: effects (`setEffect_Scale`; packs load by name now), `setPartyPCEquipItem`
-  and the castle's `addItem` (FF4's item tables), the 2D
+- **Quiet on purpose** (Ff4Commands.Cosmetic, with the reason beside each): the battle-theme
+  and BGM bookkeeping, `decantLevelChekcJump` (jumps when an augment level equals 2 - it is 0
+  in a new game) and `checkCharacterStatusJump`, the party roster and equipment commands
+  (`addPartyPC`, `subPartyPC`, `addAbility`, `setPartyPCEquipItem` - FF4's own player and item
+  data, not FF3's; the field draws only the leader), bind objects, effect scale, the second
+  screen's sub-plane. The FF4 data model - `player.chaindata`, the 4-chain `item_parameter.pak`
+  (consumables 48 bytes, weapons 88, armour 84, key items 32; the editor's PakRecordsFf4 has the
+  fields) - is the foundation the menu, the roster and battles all need, and the next stage.
+- **What the scene still lacks**: `setEffect_Scale` (packs load by name now), the castle's
+  `addItem` (FF4's item tables), the 2D
   sprites (`ce_3DSSetup`: the "Baron" plate from /2D/MIDDLE_EVENT), `ce_CallBattle`, `ce_setFog` (FF4 has fog: the overworld enables it in `WSPrepare` with range
   0x80000..0x200000 and colour 0x73f5; the port has no fog at all), per-character light
   enables. The clear colour is black, as `ContEventPart::initialize` sets it - the sky in
