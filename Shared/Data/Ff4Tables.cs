@@ -96,13 +96,20 @@ namespace OpenFF.Data
 				tables.Characters.Add(def);
 			}
 
+			// babil_ability.msd names every ability, summon and spell under the ability's own id.
+			Dictionary<uint, string> abilities = TableFiles.ReadNames(chain, "babil_ability.msd", tables);
+			if (abilities != null)
+			{
+				foreach (KeyValuePair<uint, string> pair in abilities) tables.AbilityNames[(int)pair.Key] = pair.Value;
+			}
 			if (pack.Count > 32)
 			{
 				int spells = pack.Size(32) / 32;
 				for (int i = 0; i < spells; i++)
 				{
 					byte[] r = pack.Record(32, 32, i);
-					tables.Spells.Add(new SpellDefinition { Id = ChainPack.S16(r, 0), Raw = r });
+					int id = ChainPack.S16(r, 0);
+					tables.Spells.Add(new SpellDefinition { Id = id, Name = tables.AbilityName(id), Raw = r });
 				}
 			}
 		}

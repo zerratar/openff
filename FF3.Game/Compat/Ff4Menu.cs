@@ -1,4 +1,4 @@
-// The OpenFF menu on FF4: a status screen drawn by the engine from the unified party.
+﻿// The OpenFF menu on FF4: a status screen drawn by the engine from the unified party.
 //
 // FF3's menu part reads FF3's party, jobs and item tables and cannot show FF4's; FF4's own
 // menu (the MenuLayout_*.xbn layouts) is not ported. Until it is, the pad's menu button on
@@ -43,12 +43,13 @@ namespace FF3
 			}
 			if (input.Pressed(Pad.B) || input.Pressed(Pad.X) || input.KeyPressed("M") || input.KeyPressed("Escape"))
 			{
+				Log.Write(LogChannel.File, "menu: close - pad " + (int)input.Held + " keys " + string.Join("+", input.KeysHeld));
 				_open = false;
 				input.Capture = false;
 				return;
 			}
-			if (input.Pressed(Pad.Left)) { _page = Math.Max(0, _page - 1); _cursor = 0; _scroll = 0; }
-			if (input.Pressed(Pad.Right)) { _page = Math.Min(1, _page + 1); _cursor = 0; _scroll = 0; }
+			if (input.Pressed(Pad.Left)) { _page = Math.Max(0, _page - 1); _cursor = 0; _scroll = 0; Log.Write(LogChannel.File, "menu: page " + _page + " (left) pad " + (int)input.Held); }
+			if (input.Pressed(Pad.Right)) { _page = Math.Min(1, _page + 1); _cursor = 0; _scroll = 0; Log.Write(LogChannel.File, "menu: page " + _page + " (right) pad " + (int)input.Held); }
 			int count = _page == 0 ? Game.Party.Members.Count : Game.Party.Items.Count;
 			if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - 1);
 			if (input.Pressed(Pad.Down)) _cursor = Math.Min(Math.Max(0, count - 1), _cursor + 1);
@@ -117,7 +118,9 @@ namespace FF3
 			if (pick.Spells.Count > 0)
 			{
 				ty += 10;
-				d.Text("Abilities: " + string.Join(", ", pick.Spells), x, ty, dim, 12);
+				List<string> names = new List<string>();
+				foreach (int id in pick.Spells) names.Add(Ff4Party.Tables?.AbilityName(id) ?? id.ToString());
+				d.Text("Abilities: " + string.Join(", ", names), x, ty, dim, 12);
 			}
 		}
 

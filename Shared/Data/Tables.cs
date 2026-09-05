@@ -164,8 +164,12 @@ namespace OpenFF.Data
 		public List<CharacterDefinition> Characters = new List<CharacterDefinition>();
 		public List<ItemDefinition> Items = new List<ItemDefinition>();
 		public List<SpellDefinition> Spells = new List<SpellDefinition>();
+		/// <summary>Names of abilities, summons and spells by the game's id (FF4: babil_ability.msd, whose message ids are the ability ids).</summary>
+		public Dictionary<int, string> AbilityNames = new Dictionary<int, string>();
 		/// <summary>What the reader could not do (a missing file, a name table it did not find), for the log.</summary>
 		public List<string> Notes = new List<string>();
+
+		public string AbilityName(int id) => AbilityNames.TryGetValue(id, out string name) ? name : null;
 
 		private Dictionary<int, ItemDefinition> _items;
 		private Dictionary<int, CharacterDefinition> _characters;
