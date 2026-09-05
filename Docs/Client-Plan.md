@@ -599,6 +599,31 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
   enables. The clear colour is black, as `ContEventPart::initialize` sets it - the sky in
   e01_00 is geometry ("sora", "kumo"), not a backdrop.
 
+## FF4's player tables, read from the binary (2026-09-05)
+
+The stage after the scenes is FF4's data model - the party, its members' growth, items -
+because the menu, the roster commands (`addPartyPC`...) and battles all stand on it. Opening
+notes from `pl::PlayerParty::load`, `levelParameter`, `normalMagic`, `normalAttack` in
+libff4.so (Tools/ff4_disasm.py) and the file itself (`player.chaindata.lz`, 37 chains):
+
+| chain | bytes | records | what |
+| --- | --- | --- | --- |
+| 0 | 396 | 99 x u32 | experience to reach each level (0, 16, 47, 105, 204...) |
+| 1 | 1259 | 63 x 20 | normal attacks, id in the first word (`normalAttack(id)` walks 0x14 apart) |
+| 2..16 | 1187 each | 99 x 12 | one per PLAYER_TYPE (15 of them): the level table, `levelParameter(type, level)` = table[type] + 12 * (level - 1); 12 bytes = u16, u16, u16 then six bytes (hp, mp, ?, then the stats) |
+| 17..31 | 52..252 | size / 4 | fifteen small u32 tables, stored in order (`+0x22a0`, counts at `+0x2318`) |
+| 32 | 3936 | 123 x 32 | magic, id in the first word (`normalMagic(id)` walks 0x20 apart) - FF3's 32-byte magic record |
+| 33 | 400 | 50 x 8 | (id, value) pairs: 0->0, 1->11, 2->12, 3->13... |
+| 34 | 1296 | size / 4 | the engine counts it in u32s; the editor's 108-byte guess is unconfirmed |
+| 35 | 1104 | | zeros at the start |
+| 36 | 519 | size / 8 | |
+
+FF4's `Player::initialize(type)` builds a member from `GameParameter::playerSaveParameter(type)`
+- the save block per character (equipment at +0x24, abilities at +0x164, learning at +0x184)
+- not from these tables directly; `initForNewgame` (3752 bytes of code) fills those blocks
+for a new game. That save block, per PLAYER_TYPE, is the shape our FF4 party has to take.
+The 15 types match the scripts' `addPartyPC(0..14)` and the models `b_p_player_00..12`.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
