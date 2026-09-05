@@ -451,6 +451,13 @@ function drawHierarchy() {
       const text = document.createElement('span');
       text.textContent = child.label;
       row.append(text);
+      if (child.badge) {
+        const mark = document.createElement('em');
+        mark.className = 'badge';
+        mark.textContent = '\u25c6';
+        mark.title = 'has behaviours (OpenFF)';
+        row.append(mark);
+      }
       if (child.note) {
         const tag = document.createElement('i');
         tag.textContent = child.note;
@@ -515,6 +522,33 @@ function outlineFor(doc) {
         }
       }))
     });
+    // An OpenFF project's scene file: its points, and a mark on whatever carries behaviours.
+    const openff = typeof sceneState !== 'undefined' && typeof mapState !== 'undefined'
+      && sceneState.map === mapState.name && sceneState.points;
+    if (openff) {
+      const carried = new Set((sceneState.attachments || []).map(a => (a.target || '').toLowerCase()));
+      for (const group of groups) {
+        for (const child of group.children) {
+          if (carried.has(child.ref.toLowerCase())) child.badge = 'behaviour';
+        }
+      }
+      groups.push({
+        label: 'Points (OpenFF)',
+        children: sceneState.points.map((p, i) => ({
+          label: p.name,
+          note: (p.tags || []).join(' '),
+          ref: `point:${p.name}`,
+          icon: 'exit',
+          badge: carried.has(('point:' + p.name).toLowerCase()) ? 'behaviour' : null,
+          reveal: () => { if (doc.scene3d && doc.mode === '3d') doc.scene3d.focusPoint(i); }
+        })).concat([{
+          label: '+ add a point',
+          ref: 'point:+',
+          icon: 'exit',
+          reveal: () => { if (typeof addScenePoint === 'function') addScenePoint(doc); }
+        }])
+      });
+    }
     return groups;
   }
 

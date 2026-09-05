@@ -51,14 +51,19 @@ namespace FF3.ContentTool.Editor
 		}
 
 		/// <summary>The attachments of one map, as JSON (an empty array when there is no file).</summary>
-		public static JsonArray Read(Project project, string map)
+		public static JsonArray Read(Project project, string map) => Section(project, map, "attachments");
+
+		/// <summary>The points of one map: { name, x, y, z, yaw, tags } each, placed in the editor for mods to find.</summary>
+		public static JsonArray Points(Project project, string map) => Section(project, map, "points");
+
+		private static JsonArray Section(Project project, string map, string key)
 		{
 			string path = PathFor(project, map);
 			if (!File.Exists(path)) return new JsonArray();
 			try
 			{
 				JsonNode node = JsonNode.Parse(File.ReadAllText(path));
-				return node?["attachments"] as JsonArray ?? new JsonArray();
+				return node?[key] as JsonArray ?? new JsonArray();
 			}
 			catch (JsonException ex)
 			{
@@ -66,21 +71,20 @@ namespace FF3.ContentTool.Editor
 			}
 		}
 
-		/// <summary>Writes a map's attachments; an empty list deletes the file.</summary>
-		public static void Write(Project project, string map, JsonArray attachments)
+		/// <summary>Writes a map's attachments and points; nothing of either deletes the file.</summary>
+		public static void Write(Project project, string map, JsonArray attachments, JsonArray points)
 		{
 			string path = PathFor(project, map);
-			if (attachments == null || attachments.Count == 0)
+			bool empty = (attachments == null || attachments.Count == 0) && (points == null || points.Count == 0);
+			if (empty)
 			{
 				if (File.Exists(path)) File.Delete(path);
 				return;
 			}
 			System.IO.Directory.CreateDirectory(Directory(project));
-			JsonObject file = new JsonObject
-			{
-				["map"] = map,
-				["attachments"] = JsonNode.Parse(attachments.ToJsonString()),
-			};
+			JsonObject file = new JsonObject { ["map"] = map };
+			if (points != null && points.Count > 0) file["points"] = JsonNode.Parse(points.ToJsonString());
+			file["attachments"] = JsonNode.Parse((attachments ?? new JsonArray()).ToJsonString());
 			File.WriteAllText(path, file.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
 		}
 	}

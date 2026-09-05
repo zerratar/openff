@@ -1861,3 +1861,7 @@ header h1 .gem {
 .api-member { display: grid; grid-template-columns: minmax(180px, 40%) 1fr; gap: 8px; padding: 2px 0 2px 10px; font-size: 12px; }
 .api-member code { color: var(--accent); word-break: break-word; }
 .api-member span { color: var(--dim); }
+
+/* ---- OpenFF marks in the hierarchy, and a point's panel ---- */
+.tree .row .badge { color: #6fc7e6; font-style: normal; font-size: 10px; margin-left: 4px; }
+#inspector .point-grid { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; }

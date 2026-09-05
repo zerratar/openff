@@ -124,12 +124,20 @@ namespace Survivors
 			Wave++;
 			int count = 1 + Wave * 2;
 			Vector3 hero = Game.Hero.Position;
+			// Points tagged "spawn" placed in Crystal (an OpenFF project's scene file) say where
+			// the goblins come from; without them, a ring around the hero.
+			List<GameObject> spawns = Game.World.Legacy.WithTag("spawn").ToList();
 			int made = 0;
 			for (int i = 0; i < count; i++)
 			{
 				double angle = Math.PI * 2 * i / count + _random.NextDouble() * 0.4;
 				float radius = 34f + (float)_random.NextDouble() * 14f;
 				Vector3 at = Game.Field.OnGround(hero + new Vector3((float)Math.Sin(angle), 0, (float)Math.Cos(angle)) * radius);
+				if (spawns.Count > 0)
+				{
+					GameObject spawn = spawns[i % spawns.Count];
+					at = Game.Field.OnGround(spawn.Transform.Position + new Vector3((float)(_random.NextDouble() - 0.5) * 6f, 0, (float)(_random.NextDouble() - 0.5) * 6f));
+				}
 				Npc npc = Game.Npcs.SpawnModel(_model, at, 0f);
 				if (npc == null) continue;
 				npc.Owner = Mod;
@@ -147,7 +155,7 @@ namespace Survivors
 			}
 			State = Phase.Fighting;
 			Banner("Wave " + Wave + " - " + made + " " + _goblin.Name + "s", 90);
-			Game.Log("survivors: wave " + Wave + ", " + made + " goblins");
+			Game.Log("survivors: wave " + Wave + ", " + made + " goblins" + (spawns.Count > 0 ? " from " + spawns.Count + " spawn point(s)" : ""));
 		}
 
 		private void End(string message)

@@ -810,6 +810,13 @@ function wireModes(node, doc, scene) {
           return;
         }
 
+        if (item.point !== undefined) {
+          // A point: the scene state is what is saved (Save points in its panel).
+          sceneState.dirty = true;
+          drawInspector();
+          return;
+        }
+
         const character = mapState.data.characters.find(c => c.index === item.index);
         if (!character) return;
         character.x = item.x;
@@ -835,6 +842,9 @@ function wireModes(node, doc, scene) {
         if (kind === 'exit') {
           mapState.selected = null;
           doc.selection = `exit:${item.index}`;
+        } else if (kind === 'point') {
+          mapState.selected = null;
+          doc.selection = `point:${item.name}`;
         } else {
           mapState.selected = mapState.data.characters.find(c => c.index === item.index);
           doc.selection = `object:${item.index}`;
@@ -843,10 +853,15 @@ function wireModes(node, doc, scene) {
         drawInspector();
       });
       say('');
+      refreshScenePoints(doc);
     }
     doc.scene3d.redraw();
     if (doc.selection && doc.selection.startsWith('object:')) {
       doc.scene3d.select(Number(doc.selection.slice(7)));
+    }
+    if (doc.selection && doc.selection.startsWith('point:')) {
+      const index = (sceneState.points || []).findIndex(p => 'point:' + p.name === doc.selection);
+      if (index >= 0) doc.scene3d.selectPoint(index);
     }
   };
 
@@ -1084,6 +1099,14 @@ function inspectRef(doc, ref) {
       openDoc('model', scene.terrain);
     };
     box.append(link);
+    if (openFFProject()) {
+      const add = document.createElement('button');
+      add.className = 'wide-button';
+      add.textContent = 'Add a point where the camera looks';
+      add.title = 'A spot for mods: a spawn point, a camera mark. Drag it into place in the 3D view.';
+      add.onclick = () => addScenePoint(doc);
+      box.append(add);
+    }
     behavioursSection(box, 'map', 'map');
     return box;
   }
@@ -1097,6 +1120,12 @@ function inspectRef(doc, ref) {
   if (ref.startsWith('exit:')) {
     const index = Number(ref.slice(5));
     return buildExit(scene.exits[index], index);
+  }
+
+  if (ref.startsWith('point:')) {
+    const name = ref.slice(6);
+    const point = (sceneState.points || []).find(p => p.name === name);
+    return point ? buildPoint(doc, point) : null;
   }
   return null;
 }
@@ -1845,7 +1874,7 @@ function buildCharacter(character) {
 // Saved per map as scenes/<map>.json in the project; Export to OpenFF carries it into the
 // mod and the engine puts the behaviours on the objects when the map is entered.
 
-const sceneState = { map: null, attachments: null, catalog: null, dirty: false };
+const sceneState = { map: null, attachments: null, points: null, catalog: null, dirty: false };
 
 function openFFProject() {
   const project = typeof projectState !== 'undefined' && projectState.project;
@@ -1858,6 +1887,7 @@ async function loadSceneState(map) {
     if (!scene.ok) throw new Error(scene.error);
     sceneState.map = map;
     sceneState.attachments = scene.attachments || [];
+    sceneState.points = (scene.points || []).map(p => ({ name: p.name, x: p.x || 0, y: p.y || 0, z: p.z || 0, rotationY: p.yaw || 0, tags: p.tags || [] }));
     sceneState.dirty = false;
   }
   if (!sceneState.catalog) {
@@ -1953,10 +1983,10 @@ function drawBehaviours(box, state, target, what) {
   save.disabled = !state.dirty;
   save.onclick = async () => {
     try {
-      const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments });
+      const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments, points: pointsForFile(state) });
       if (!result.ok) throw new Error(result.error);
       state.dirty = false;
-      say(`scenes/${state.map}.json saved (${result.count} attachment(s)) - Run in OpenFF to see it`, 'good');
+      say(`scenes/${state.map}.json saved (${result.count} attachment(s), ${result.points} point(s)) - Run in OpenFF to see it`, 'good');
       drawBehaviours(box, state, target, what);
       if (typeof projectChanged === 'function') projectChanged();
     } catch (error) {
@@ -2059,6 +2089,142 @@ function behaviourCard(state, attachment, target) {
     card.append(row);
   }
   return card;
+}
+
+/// The points as the file holds them: yaw is the engine's (0 = +z, 90 = +x).
+function pointsForFile(state) {
+  return (state.points || []).map(p => ({ name: p.name, x: p.x, y: p.y, z: p.z, yaw: p.rotationY || 0, tags: p.tags || [] }));
+}
+
+/// Writes the scene file as it stands (points and attachments) - the points' own Save.
+async function saveScene() {
+  const state = sceneState;
+  if (!state.map) return;
+  try {
+    const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments || [], points: pointsForFile(state) });
+    if (!result.ok) throw new Error(result.error);
+    state.dirty = false;
+    say(`scenes/${state.map}.json saved (${result.points} point(s), ${result.count} attachment(s))`, 'good');
+    if (typeof projectChanged === 'function') projectChanged();
+    drawHierarchy();
+    drawInspector();
+  } catch (error) {
+    say(error.message, 'bad');
+  }
+}
+
+/// Points and behaviours for the map that is open, into the 3D view and the hierarchy.
+async function refreshScenePoints(doc) {
+  if (!openFFProject() || !mapState.name) return;
+  try {
+    const state = await loadSceneState(mapState.name);
+    if (doc && doc.scene3d) doc.scene3d.setPoints(state.points);
+    drawHierarchy();
+  } catch (error) {
+    console.warn(error);
+  }
+}
+
+/// A new point where the camera looks (or a given spot), named uniquely, selected.
+function addScenePoint(doc, at) {
+  const state = sceneState;
+  if (!state.points) state.points = [];
+  const spot = at || (doc && doc.scene3d ? doc.scene3d.viewCentre() : [0, 0, 0]);
+  let n = state.points.length + 1;
+  let name = 'point' + n;
+  while (state.points.some(p => p.name === name)) name = 'point' + (++n);
+  const point = { name, x: Math.round(spot[0]), y: Math.round(spot[1]), z: Math.round(spot[2]), rotationY: 0, tags: ['spawn'] };
+  state.points.push(point);
+  state.dirty = true;
+  if (doc && doc.scene3d) {
+    doc.scene3d.setPoints(state.points);
+    doc.scene3d.selectPoint(state.points.length - 1);
+  }
+  if (doc) doc.selection = 'point:' + name;
+  mapState.selected = null;
+  drawHierarchy();
+  drawInspector();
+}
+
+/// The inspector for a point: its name, spot and facing, tags, behaviours, and a way out.
+function buildPoint(doc, point) {
+  const panel = document.createElement('div');
+  const title = document.createElement('h2');
+  title.textContent = point.name;
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = 'point · an OpenFF scene object, found by mods by name or tag';
+  panel.append(title, sub);
+
+  const grid = document.createElement('div');
+  grid.className = 'point-grid';
+  const field = (label, key, step) => {
+    const wrap = document.createElement('label');
+    wrap.className = 'behaviour-field';
+    const span = document.createElement('span');
+    span.textContent = label;
+    const input = document.createElement('input');
+    input.type = key === 'name' || key === 'tags' ? 'text' : 'number';
+    if (step) input.step = step;
+    input.value = key === 'tags' ? (point.tags || []).join(' ') : point[key];
+    input.onchange = () => {
+      if (key === 'name') {
+        const fresh = input.value.trim();
+        if (!fresh || sceneState.points.some(p => p !== point && p.name === fresh)) { input.value = point.name; return; }
+        // Attachments follow the rename.
+        for (const a of sceneState.attachments) if ((a.target || '').toLowerCase() === ('point:' + point.name).toLowerCase()) a.target = 'point:' + fresh;
+        point.name = fresh;
+        doc.selection = 'point:' + fresh;
+      } else if (key === 'tags') {
+        point.tags = input.value.split(/[ ,]+/).map(s => s.trim()).filter(Boolean);
+      } else {
+        point[key] = Number(input.value) || 0;
+      }
+      sceneState.dirty = true;
+      if (doc.scene3d) doc.scene3d.setPoints(sceneState.points);
+      drawHierarchy();
+      drawInspector();
+    };
+    wrap.append(span, input);
+    grid.append(wrap);
+  };
+  field('name', 'name');
+  field('x', 'x', '1');
+  field('y', 'y', '1');
+  field('z', 'z', '1');
+  field('yaw', 'rotationY', '1');
+  field('tags', 'tags');
+  panel.append(grid);
+
+  const hint = document.createElement('p');
+  hint.className = 'none';
+  hint.textContent = 'Drag the arrows in the 3D view to move it; the turn ring sets the yaw (0 faces +z, 90 faces +x). In a mod: Game.World.Legacy.WithTag("spawn") or .Find("' + mapState.name + '/point:' + point.name + '").';
+  panel.append(hint);
+
+  const actions = document.createElement('div');
+  actions.className = 'behaviour-actions';
+  const save = document.createElement('button');
+  save.textContent = sceneState.dirty ? 'Save points' : 'Saved';
+  save.disabled = !sceneState.dirty;
+  save.onclick = saveScene;
+  const remove = document.createElement('button');
+  remove.textContent = 'Delete point';
+  remove.onclick = () => {
+    const index = sceneState.points.indexOf(point);
+    if (index < 0) return;
+    sceneState.points.splice(index, 1);
+    sceneState.attachments = sceneState.attachments.filter(a => (a.target || '').toLowerCase() !== ('point:' + point.name).toLowerCase());
+    sceneState.dirty = true;
+    doc.selection = null;
+    if (doc.scene3d) { doc.scene3d.setPoints(sceneState.points); doc.scene3d.selectPoint(null); }
+    drawHierarchy();
+    drawInspector();
+  };
+  actions.append(save, remove);
+  panel.append(actions);
+
+  behavioursSection(panel, 'point:' + point.name, 'point');
+  return panel;
 }
 
 function markDirty(card) {

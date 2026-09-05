@@ -169,6 +169,10 @@ function makeMapScene(canvas, status) {
   let instances = [];
   let selected = null;
   let selectedExit = null;
+  // Points from an OpenFF project's scene file: spots a mod finds by name. Not in the
+  // map's own files, so the page hands them in and hears about moves like the rest.
+  let points = [];
+  let selectedPoint = null;
 
   // An exit is two positioned things and they are not in the same place: the region is
   // the doorway you walk into, the arrival is where you come out on the other side. So
@@ -288,7 +292,9 @@ function makeMapScene(canvas, status) {
   /// and drawing both the same way meant a placed character faced left in the editor
   /// and right in the game.
   function facingSign(item) {
-    return item && item.exit ? 1 : -1;
+    // Exits and points hold the facing the way the engine reads it; a .hich character's
+    // is negated by the game.
+    return item && (item.exit !== undefined || item.point !== undefined) ? 1 : -1;
   }
 
   /// An item's facing in radians, the way the game will apply it.
@@ -395,6 +401,7 @@ function makeMapScene(canvas, status) {
     }
 
     drawRegions();
+    drawPoints();
     drawGizmo();
     onFrame();
   }
@@ -405,6 +412,22 @@ function makeMapScene(canvas, status) {
   function selectedItem() {
     if (selected !== null) {
       return instances.find(o => o.index === selected) || null;
+    }
+    if (selectedPoint !== null) {
+      const point = points[selectedPoint];
+      if (!point) return null;
+      return {
+        get x() { return point.x; },
+        set x(v) { point.x = v; },
+        get y() { return point.y; },
+        set y(v) { point.y = v; },
+        get z() { return point.z; },
+        set z(v) { point.z = v; },
+        get rotationY() { return point.rotationY || 0; },
+        set rotationY(v) { point.rotationY = v; },
+        point: selectedPoint,
+        name: point.name
+      };
     }
     const exit = selectedExit !== null && scene && scene.exits
       && scene.exits[selectedExit];
@@ -501,6 +524,56 @@ function makeMapScene(canvas, status) {
     });
 
     gl.depthMask(true);
+    gl.uniform1f(uniform.alpha, 1);
+  }
+
+  /// The points, as small boxes standing on their spot, with a sliver ahead for the facing.
+  function drawPoints() {
+    if (!points.length) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, boxBuffer);
+    const stride = 8 * 4;
+    if (attribute.position >= 0) {
+      gl.enableVertexAttribArray(attribute.position);
+      gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+    }
+    if (attribute.coord >= 0) {
+      gl.enableVertexAttribArray(attribute.coord);
+      gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 3 * 4);
+    }
+    if (attribute.colour >= 0) {
+      gl.enableVertexAttribArray(attribute.colour);
+      gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 5 * 4);
+    }
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, blank);
+    gl.uniform1i(uniform.picture, 0);
+    gl.uniform1i(uniform.textured, 0);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    points.forEach((point, index) => {
+      const chosen = index === selectedPoint;
+      const s = 3;
+      gl.uniform3fv(uniform.tint, chosen ? [0.5, 1.2, 1.3] : [0.3, 0.8, 0.95]);
+      gl.uniform1f(uniform.alpha, chosen ? 0.85 : 0.6);
+      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
+        s, 0, 0, 0,
+        0, s * 2, 0, 0,
+        0, 0, s, 0,
+        point.x - s / 2, point.y, point.z - s / 2, 1
+      ]));
+      gl.drawArrays(gl.TRIANGLES, 0, boxVertices);
+      // The facing: a thin bar out of the box along the yaw (0 = +z, 90 = +x).
+      const a = (point.rotationY || 0) * Math.PI / 180;
+      const c = Math.cos(a), sn = Math.sin(a);
+      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([
+        c, 0, -sn, 0,
+        0, 0.6, 0, 0,
+        sn * 5, 0, c * 5, 0,
+        point.x - c * 0.4 + sn * 1.5, point.y + s, point.z + sn * 0.4 + c * 1.5, 1
+      ]));
+      gl.drawArrays(gl.TRIANGLES, 0, boxVertices);
+    });
     gl.uniform1f(uniform.alpha, 1);
   }
 
@@ -848,7 +921,7 @@ function makeMapScene(canvas, status) {
       draw();
     },
 
-    select(index) { selected = index; selectedExit = null; draw(); },
+    select(index) { selected = index; selectedExit = null; selectedPoint = null; draw(); },
 
     /// Picks up a model that was changed under it, fetching the geometry if this is
     /// the first time the map has used it.
@@ -864,6 +937,7 @@ function makeMapScene(canvas, status) {
     selectExit(index, part) {
       selectedExit = index;
       selected = null;
+      selectedPoint = null;
       if (part) selectedPart = part;
       draw();
     },
@@ -1077,6 +1151,21 @@ function makeMapScene(canvas, status) {
         }
       }
 
+      // The points: small, so their box is the target.
+      points.forEach((point, index) => {
+        const at = [point.x, point.y + 3, point.z];
+        const middle = projectPoint(at);
+        if (!middle) return;
+        const reach = Math.max(screenRadius(at, 3.5), 0.02);
+        if (Math.hypot(middle.x - nx, middle.y - ny) > reach) return;
+        const depth = Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]);
+        if (depth < bestDepth) {
+          bestDepth = depth;
+          best = { index, name: point.name, x: point.x, y: point.y, z: point.z };
+          bestKind = 'point';
+        }
+      });
+
       // Nothing hit: fall back to whatever is nearest the cursor, so a click that
       // just misses something small still lands on it.
       if (!best) {
@@ -1096,11 +1185,40 @@ function makeMapScene(canvas, status) {
       if (best) {
         selected = bestKind === 'object' ? best.index : null;
         selectedExit = bestKind === 'exit' ? best.index : null;
+        selectedPoint = bestKind === 'point' ? best.index : null;
         draw();
         onPick(best, bestKind);
       }
       return best;
     },
+
+    /// The points of an OpenFF project's scene file, drawn and movable like the rest.
+    setPoints(list) {
+      points = list || [];
+      if (selectedPoint !== null && selectedPoint >= points.length) selectedPoint = null;
+      draw();
+    },
+
+    selectPoint(index) {
+      selectedPoint = index;
+      selected = null;
+      selectedExit = null;
+      draw();
+    },
+
+    focusPoint(index) {
+      const point = points[index];
+      if (!point) return;
+      selectedPoint = index;
+      selected = null;
+      selectedExit = null;
+      centre = [point.x, point.y + 4, point.z];
+      distance = 46;
+      draw();
+    },
+
+    /// Where the camera looks, for putting something new in view.
+    viewCentre() { return centre.slice(); },
 
     orbit(dx, dy) {
       yaw -= dx * 0.008;

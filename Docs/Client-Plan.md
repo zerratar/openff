@@ -222,6 +222,18 @@ plain start repeats them. `--content=<dir>` still wins for a one-off. The log's 
 line says what was chosen and why. (`Compat/Launch.cs`; `SteamInstalls` moved to
 `Shared/Content` so both programs find the games the same way.)
 
+## Points: spots placed in Crystal, objects in the engine (2026-09-05)
+
+The scene file gained `points`: `{ name, x, y, z, yaw, tags }`, placed and dragged in the map's
+3D view like characters (`map-scene.js` draws them as small boxes with a facing sliver, picks
+them, and the gizmo moves and turns them; yaw is the engine's, 0 = +z), listed under "Points
+(OpenFF)" in the hierarchy with a ◆ on anything that carries behaviours, edited in their own
+inspector (name, spot, yaw, tags, behaviours, delete), saved with the attachments. The engine
+makes a GameObject per point on entering the map - `<map>/point:<name>`, tags "point" plus
+its own, `Transform` at the spot, a `MapObject` with Kind "point" - so a mod finds spawn
+points by tag (`Game.World.Legacy.WithTag("spawn")`) and behaviours attach to `point:<name>`.
+Goblin Survivors uses spawn points when the map has them. Testing E-24, C-33.
+
 ## The fifth API slice: motions, items, shops; Goblin Survivors (2026-09-04, night)
 
 Karl's redesign of the arena into a survivors-style run needed three more pieces of the

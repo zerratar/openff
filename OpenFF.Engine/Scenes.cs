@@ -25,9 +25,11 @@ namespace OpenFF
 	/// <summary>What a scene-file object stands for on the legacy map.</summary>
 	public sealed class MapObject : Component
 	{
-		/// <summary>"object" (a character by its index in the map's cast list), "exit" (a slot), or "map".</summary>
+		/// <summary>"object" (a character by its index in the map's cast list), "exit" (a slot), "point" (a spot placed in the editor), or "map".</summary>
 		public string Kind { get; internal set; }
 		public int Index { get; internal set; } = -1;
+		/// <summary>A point's name from the editor; null for the rest.</summary>
+		public string Name { get; internal set; }
 		/// <summary>For a character: the handle to move, turn and talk through; null for exits and the map.</summary>
 		public Npc Npc { get; internal set; }
 		/// <summary>The map the object is on.</summary>
@@ -43,9 +45,23 @@ namespace OpenFF
 		public Dictionary<string, JsonElement> Fields { get; set; }
 	}
 
+	/// <summary>A spot placed in the editor: a spawn point, a camera mark, a trigger centre - whatever a mod makes of it.</summary>
+	public sealed class ScenePoint
+	{
+		public string Name { get; set; }
+		public float X { get; set; }
+		public float Y { get; set; }
+		public float Z { get; set; }
+		/// <summary>Facing in degrees, the engine's yaw (0 = +Z, 90 = +X).</summary>
+		public float Yaw { get; set; }
+		public List<string> Tags { get; set; } = new List<string>();
+	}
+
 	public sealed class SceneFile
 	{
 		public string Map { get; set; }
+		/// <summary>Points placed in the editor; each becomes a GameObject tagged "point" (and its own tags) at its position, behaviours or not.</summary>
+		public List<ScenePoint> Points { get; set; } = new List<ScenePoint>();
 		public List<SceneAttachment> Attachments { get; set; } = new List<SceneAttachment>();
 
 		public static SceneFile Read(string path)
@@ -88,11 +104,28 @@ namespace OpenFF
 				Game.Warn("mod " + mod.Id + ": scenes/" + map + ".json does not read: " + ex.Message);
 				return 0;
 			}
-			if (file?.Attachments == null) return 0;
+			if (file == null) return 0;
 			Scene scene = Game.World.Legacy;
 			Dictionary<string, GameObject> objects = new Dictionary<string, GameObject>(StringComparer.OrdinalIgnoreCase);
 			int made = 0;
-			foreach (SceneAttachment attachment in file.Attachments)
+			// Every point is an object, with or without behaviours: a mod finds them by name or tag.
+			foreach (ScenePoint point in file.Points ?? new List<ScenePoint>())
+			{
+				if (point == null || string.IsNullOrWhiteSpace(point.Name)) continue;
+				string key = "point:" + point.Name.Trim().ToLowerInvariant();
+				if (objects.ContainsKey(key)) continue;
+				GameObject o = scene.Add(map + "/" + key);
+				o.Owner = mod;
+				o.Tags.Add("scene");
+				o.Tags.Add("point");
+				foreach (string tag in point.Tags ?? new List<string>()) if (!string.IsNullOrWhiteSpace(tag)) o.Tags.Add(tag.Trim());
+				o.Transform.Position = new Vector3(point.X, point.Y, point.Z);
+				o.Transform.Rotation = new Vector3(0, point.Yaw, 0);
+				o.AddComponent(new MapObject { Kind = "point", Name = point.Name.Trim(), Map = map });
+				objects[key] = o;
+				made++;
+			}
+			foreach (SceneAttachment attachment in file.Attachments ?? new List<SceneAttachment>())
 			{
 				if (attachment == null || string.IsNullOrEmpty(attachment.Behaviour) || string.IsNullOrEmpty(attachment.Target)) continue;
 				if (!mod.BehaviourTypes.TryGetValue(attachment.Behaviour, out Type type))
@@ -132,9 +165,14 @@ namespace OpenFF
 				kind = key.Substring(0, colon);
 				if (!int.TryParse(key.Substring(colon + 1), out index)) index = -1;
 			}
+			if (kind == "point")
+			{
+				Game.Warn("mod " + mod.Id + ": scenes/" + map + ".json attaches to '" + key + "', which is not among its points");
+				return null;
+			}
 			if (kind != "map" && kind != "object" && kind != "exit")
 			{
-				Game.Warn("mod " + mod.Id + ": scenes/" + map + ".json has a target '" + key + "' (use map, object:<index> or exit:<slot>)");
+				Game.Warn("mod " + mod.Id + ": scenes/" + map + ".json has a target '" + key + "' (use map, object:<index>, exit:<slot> or point:<name>)");
 				return null;
 			}
 			GameObject o = Game.World.Legacy.Add(map + "/" + key);
