@@ -825,6 +825,17 @@ party did not stay - FF3's handler jumps on `cast_getInnConfirm()`, and the FF4 
 `setConditionRecovery(...)` clears the statuses the party service keeps. Test C-48; 24 maps
 have inns (t01_30 is Baron's, 50 gil a night).
 
+## FF4 menu: equipment and item use (2026-09-05)
+
+`Ff4Menu` grew what the loop needed once shops sold things: A on a member opens their five
+slots; A on a slot lists the bag's fitting items - an item fits when its position word's low
+bits name the slot (1 right hand, 2 left hand, 4 head, 8 body, 16 arms; a weapon with 3 goes
+in either hand; the high word is not read yet) and its canEquip mask has the character type's
+bit - plus "(take off)"; equipping goes through `Party.Equip`, which returns the old item to
+the bag. A on a consumable with a usable efficacy (hit or magic points, or Phoenix Down's
+revival) asks whom to use it on and applies it with the same numbers as the battle's Item
+command. Tents and the like wait for camping. Test C-49.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

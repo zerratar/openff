@@ -1,0 +1,44 @@
+# FF4: buy a Thunder Rod at the test shop (O), then equip it on Rydia from the menu.
+#   FF3.exe --game=ff4 --map=t01_00 --party=4:10 --gil=5000 --drive=Docs/Drives/ff4-equip.drive --log=general,file
+# The log shows "shop: bought 1 x Thunder Rod", then "menu: Rydia equips Thunder Rod (right hand)"
+# (Testing.md C-49).
+until jump: ff4 60
+wait 6
+press O
+until shop: open 10
+wait 0.8
+press Z
+wait 0.6
+press Z
+until shop: bought 5
+wait 0.5
+press X
+wait 0.5
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Z
+until shop: closed 5
+wait 1
+# The menu: Party page, Rydia is second; A opens her equipment, A on the right hand lists the rod.
+press C
+until menu: open 5
+wait 0.6
+press Down
+wait 0.4
+press Z
+wait 0.5
+press Z
+wait 0.6
+press Z
+until menu: Rydia equips 5
+wait 1
+press X
+wait 0.4
+press X
+wait 0.4
+press X
+wait 0.5
+say equip drive done
+quit
