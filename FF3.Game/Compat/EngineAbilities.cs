@@ -77,6 +77,8 @@ namespace FF3
 		private void EnsureTable()
 		{
 			if (_tableRead) return;
+			// FF4's tables have their own layouts (PakRecordsFf4 in the editor); reading them as FF3's throws.
+			if (GameProfile.IsFf4) { _tableRead = true; return; }
 			try
 			{
 				GlobalScope.itm.ItemManager items = GlobalScope.itm.ItemManager.instance();
@@ -432,6 +434,7 @@ namespace FF3
 		private void EnsureTable()
 		{
 			if (_read) return;
+			if (GameProfile.IsFf4) { _read = true; return; }
 			try
 			{
 				GlobalScope.mon.MonsterManager monsters = GlobalScope.mon.MonsterManager.instance();

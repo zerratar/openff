@@ -185,6 +185,7 @@ namespace FF3
 					OpenFF.Game.Events.Publish(new OpenFF.Events.MapLeaving { Scene = legacy.Info });
 					legacy.Info = null;
 				}
+				Ff4Cutscene.MapLeft();
 				_lastStage = stage;
 				_entered = false;
 			}

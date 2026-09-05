@@ -205,6 +205,31 @@ same-name commands with extra operands (`playBGM`, `moveCamera_AbsoluteCoordinat
 NPC body types; FF4 2D (menus and windows are `.xbn` layouts, not FF3's hard-coded
 screens); FF4's map parameter chains (encounters, landforms).
 
+### FF4, 2026-09-05: field commands, the cutscene engine's first cut, tools
+
+The FF4-only commands are registered **by name** now (`Ff4Commands.ByName`, `Ff4Cutscene.ByName`):
+the table is generated from the FF4 binary, and a number that moved between generations had
+the name window swallowing `cleanUpEffectData2`'s string and derailing the opening scene
+("opcode 14645 is outside the table"). `ScriptCommands.Dispatch` remembers the last ten
+opcodes and prints them with that message, which is how the culprit showed. A same-named
+FF4 command with the same operands at another number runs FF3's handler; 247 of 500 run.
+`Compat/Ff4FieldCommands.cs`: confirm/confirmWait (the engine's Yes/No box, jumps by the
+answer), waitByLocale (words: Japanese count, other count), jumpByLocale (falls through),
+setRewardMessage/executeRewardMessageWindow (the message window), setPlayerLevel by FF4's
+ids. Cosmetic commands (doors, footstep dust, BGM ducking, the jump history) skip quietly.
+`Compat/Ff4Cutscene.cs`: the `ce_*` character side - slots set up with model and texture
+through `CCharacterMng.setCharacterWithTexture`, motion files bound and started by id,
+placed, turned, shown, faded, cleaned up; `ce_CameraPos/Target` set the free camera;
+`ce_WaitTillEndOfMotion` waits. Not yet: camera motions (`ce_SetupCameraMotion` loads a
+CMS2 set from EVT_CAMERA.dat, `ce_PlayCameraMotion(set, id, ?, loop)` - the format is the next
+piece), `ce_SetMap` (a stage change inside a scene), expressions (face textures through
+`bindChainTexel`), lights and toon shading, `ce_CallBattle`. The opening (`--map=e01_00`)
+runs through with its characters; Baron town's script has no unanswered command.
+Tools: `Tools/ssam_extract.py` (a mass file to files), `Tools/ff4_calls.py` (a command's
+handler: operand layout and callees, from the unstripped libff4.so); `ff3content lz` +
+`ff3content script --game=ff4` over the extracted CAST_SCRIPT.dat gives every FF4 script
+as text, which is where the usage counts (`ce_*`: 20k uses on 42 maps) come from.
+
 ## Stage E - what "our client" can do that the engines cannot
 
 Once both games run from the same code: higher-resolution textures by name (a mod drops

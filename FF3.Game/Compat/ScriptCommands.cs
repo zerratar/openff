@@ -38,6 +38,8 @@ namespace FF3
 			{ 217, 2 },  // setCamera_FOV: W,W + W
 		};
 		private static readonly HashSet<int> _reported = new HashSet<int>();
+		private static readonly int[] _recent = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+		private static int _recentAt;
 		private static int _reusedCount;
 
 		/// <summary>Runs one command on the engine, from whichever table the content needs.</summary>
@@ -55,6 +57,8 @@ namespace FF3
 			GlobalScope.SCRIPT_COMMAND[] table = GameProfile.IsFf4 ? Ff4Table() : GlobalScope.commandTable;
 			if (opcode < table.Length && table[opcode] != null)
 			{
+				_recent[_recentAt] = (int)opcode;
+				_recentAt = (_recentAt + 1) % _recent.Length;
 				table[opcode](engine);
 				return;
 			}
@@ -62,7 +66,16 @@ namespace FF3
 			{
 				if (_reported.Add((int)opcode + 100000))
 				{
-					Log.Write(LogChannel.General, "script: opcode " + opcode + " is outside the " + GameProfile.Game + " table; ending the script");
+					// The commands before it, oldest first: the one that read too little or too much is among them.
+					List<string> recent = new List<string>();
+					for (int i = 0; i < _recent.Length; i++)
+					{
+						int op = _recent[(_recentAt + i) % _recent.Length];
+						if (op < 0) continue;
+						ScriptOp known = GameProfile.IsFf4 ? ScriptOpTable.Ff4.Get(op) : ScriptOpTable.Ff3.Get(op);
+						recent.Add(op + (known != null ? " " + ScriptOpTable.Simplify(known.Name) : ""));
+					}
+					Log.Write(LogChannel.General, "script: opcode " + opcode + " is outside the " + GameProfile.Game + " table; ending the script (after: " + string.Join(" > ", recent) + ")");
 				}
 			}
 			engine.end();
@@ -102,10 +115,16 @@ namespace FF3
 					table[i] = GlobalScope.commandTable[i];
 					_reusedCount++;
 				}
-				else if (op != null && Ff4Commands.Table.TryGetValue(i, out GlobalScope.SCRIPT_COMMAND own))
+				else if (op != null && Ff4Commands.ByName.TryGetValue(ScriptOpTable.Simplify(op.Name), out GlobalScope.SCRIPT_COMMAND own))
 				{
-					// An FF4 command with an implementation of its own (Ff4Commands).
+					// An FF4 command with an implementation of its own (Ff4Commands), by name.
 					table[i] = own;
+					_reusedCount++;
+				}
+				else if (op != null && Ff4Cutscene.ByName.TryGetValue(ScriptOpTable.Simplify(op.Name), out GlobalScope.SCRIPT_COMMAND scene))
+				{
+					// The cutscene engine's commands, by name.
+					table[i] = scene;
 					_reusedCount++;
 				}
 				else if (op != null && theirs != null && i < GlobalScope.commandTable.Length
@@ -147,7 +166,7 @@ namespace FF3
 					if (op == null) continue;
 					int opcode = i;
 					bool runs = (ff3.Get(i) != null && i < GlobalScope.commandTable.Length && SameCommand(op, ff3.Get(i)))
-						|| Ff4Commands.Table.ContainsKey(i) || _extraOperandBytes.ContainsKey(i)
+						|| Ff4Commands.ByName.ContainsKey(ScriptOpTable.Simplify(op.Name)) || Ff4Cutscene.ByName.ContainsKey(ScriptOpTable.Simplify(op.Name)) || _extraOperandBytes.ContainsKey(i)
 						|| (aliases.TryGetValue(ScriptOpTable.Simplify(op.Name), out string a) && ff3ByName.ContainsKey(a));
 					if (!runs) skipped.Add(i + " " + ScriptOpTable.Simplify(op.Name));
 				}
@@ -201,7 +220,7 @@ namespace FF3
 					}
 				}
 			}
-			bool quiet = Ff4Commands.Cosmetic.Contains(opcode);
+			bool quiet = op != null && (Ff4Commands.Cosmetic.Contains(ScriptOpTable.Simplify(op.Name)) || Ff4Cutscene.Quiet.Contains(ScriptOpTable.Simplify(op.Name)));
 			lock (_reported)
 			{
 				if (!quiet && _reported.Add(opcode))

@@ -49,6 +49,8 @@ namespace FF3
 		private void Ensure()
 		{
 			if (_read) return;
+			// FF4's tables have their own layouts; the engine's data facades are FF3's for now.
+			if (GameProfile.IsFf4) { _read = true; return; }
 			try
 			{
 				GlobalScope.itm.ItemManager items = GlobalScope.itm.ItemManager.instance();

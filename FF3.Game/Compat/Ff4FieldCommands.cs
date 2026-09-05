@@ -145,8 +145,8 @@ namespace FF3
 		/// <summary>waitByLocale(japanese, other): a wait of the second count.</summary>
 		public static void WaitByLocale(GlobalScope.ScriptEngine engine)
 		{
-			uint japanese = engine.getDword();
-			uint other = engine.getDword();
+			uint japanese = engine.getWord();
+			uint other = engine.getWord();
 			if (!_localeWaits.TryGetValue(engine, out int left))
 			{
 				left = (int)other;

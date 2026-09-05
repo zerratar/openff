@@ -5,6 +5,7 @@
 // message and character systems the FF3 handlers use. Each entry reads exactly the
 // operands Shared/Script/ScriptOpsFf4 lists for it.
 
+using System;
 using System.Collections.Generic;
 
 namespace FF3
@@ -14,32 +15,38 @@ namespace FF3
 		/// <summary>The speaker named by the last openCharacterNameWindow, or -1.</summary>
 		public static int PendingName = -1;
 
-		public static readonly Dictionary<int, GlobalScope.SCRIPT_COMMAND> Table = new Dictionary<int, GlobalScope.SCRIPT_COMMAND>
+		/// <summary>
+		/// FF4's commands by name, as Shared/Script/ScriptOpsFf4 spells them. By name and not by
+		/// number: the table is generated from the FF4 binary and a number that moves between
+		/// generations silently reads another command's operands - which is how the name window
+		/// once swallowed cleanUpEffectData2's string and derailed the opening scene.
+		/// </summary>
+		public static readonly Dictionary<string, GlobalScope.SCRIPT_COMMAND> ByName = new Dictionary<string, GlobalScope.SCRIPT_COMMAND>(StringComparer.Ordinal)
 		{
-			{ 358, OpenCharacterNameWindow },   // (nameTextId, x, y)
-			{ 359, CloseCharacterNameWindow },  // (x, y)
-			{ 87, ChangeCameraMode },           // () - FF3's takes the mode; FF4's means "back to following"
-			{ 333, SetInsideMapJump },          // (trigger, map, ax, ay, az, facing, x1, y1, z1, x2, y2, z2)
-			{ 334, SetOutsideMapJump },         // the same, for leaving by the map's edge
-			{ 338, Ff4FieldCommands.Confirm },                    // (a, b): the Yes/No box
-			{ 339, Ff4FieldCommands.ConfirmWait },                // (yesText, noText, jumpIfYes, jumpIfNo)
-			{ 132, Ff4FieldCommands.WaitByLocale },               // (japanese frames, other frames)
-			{ 170, Ff4FieldCommands.JumpByLocale },               // (locale, ?, label)
-			{ 106, Ff4FieldCommands.SetRewardMessage },           // (textId, 0, icon, 0, 0, 0)
-			{ 107, Ff4FieldCommands.SetRewardMessageInterval },   // (frames)
-			{ 111, Ff4FieldCommands.ExecuteRewardMessageWindow }, // ()
-			{ 258, Ff4FieldCommands.SetPlayerLevel },             // (playerType, level)
+			{ "openCharacterNameWindow", OpenCharacterNameWindow },   // (nameTextId, x, y)
+			{ "closeCharacterNameWindow", CloseCharacterNameWindow }, // (x, y)
+			{ "changeCamera_Mode", ChangeCameraMode },                 // () - FF3's takes the mode; FF4's means "back to following"
+			{ "setInsideMapJump", SetInsideMapJump },                 // (trigger, map, ax, ay, az, facing, x1, y1, z1, x2, y2, z2)
+			{ "setOutsideMapJump", SetOutsideMapJump },               // the same, for leaving by the map's edge
+			{ "confirm", Ff4FieldCommands.Confirm },                          // (a, b): the Yes/No box
+			{ "confirmWait", Ff4FieldCommands.ConfirmWait },                  // (yesText, noText, jumpIfYes, jumpIfNo)
+			{ "waitByLocale", Ff4FieldCommands.WaitByLocale },                // (japanese frames, other frames)
+			{ "jumpByLocale", Ff4FieldCommands.JumpByLocale },                // (locale, ?, label)
+			{ "setRewardMessage", Ff4FieldCommands.SetRewardMessage },        // (textId, 0, icon, 0, 0, 0)
+			{ "setRewardMessageInterval", Ff4FieldCommands.SetRewardMessageInterval }, // (frames)
+			{ "executeRewardMessageWindow", Ff4FieldCommands.ExecuteRewardMessageWindow }, // ()
+			{ "setPlayerLevel", Ff4FieldCommands.SetPlayerLevel },            // (playerType, level)
 		};
 
 		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
-		public static readonly HashSet<int> Cosmetic = new HashSet<int>
+		public static readonly HashSet<string> Cosmetic = new HashSet<string>(StringComparer.Ordinal)
 		{
-			57, 58,            // addDesionList, clearDesionList: the map-jump history
-			348,               // setMapjumpBGMOperation
-			417, 418, 443,     // setRelationMapjumpToDoorAttr, setDoor, setRelationOfMapjumpobjAndFlag: door swings on exits
-			468, 469, 470,     // createEffectTaskWalk/Run/Wait: footstep dust
-			495, 496, 497,     // setBGMDownParam, startBGMDown, reverseBGMDown: BGM ducking
-			494,               // setShadowScale
+			"addDesionList", "clearDesionList",                          // the map-jump history
+			"setMapjumpBGMOperation",
+			"setRelationMapjumpToDoorAttr", "setDoor", "setRelationOfMapjumpobjAndFlag",   // door swings on exits
+			"createEffectTaskWalk", "createEffectTaskRun", "createEffectTaskWait",        // footstep dust
+			"setBGMDownParam", "startBGMDown", "reverseBGMDown",         // BGM ducking
+			"setShadowScale",
 		};
 
 		/// <summary>
