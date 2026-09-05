@@ -53,7 +53,7 @@ namespace FF3
 		}
 
 		private static Ff4Battle _instance;
-		public static bool Active => _instance != null && _instance._phase != Phase.Idle;
+		public static bool Active => _instance != null && (_instance._phase != Phase.Idle || Ff4BattleStage.Pending);
 
 		private Phase _phase = Phase.Idle;
 		private readonly List<Fighter> _party = new List<Fighter>();
@@ -95,7 +95,7 @@ namespace FF3
 		public Action AfterBattle;
 
 		/// <summary>An encounter group from the tables (FF4's monster_party_table.bbd), with its placements.</summary>
-		public bool StartParty(int partyId, bool inScene = false)
+		public bool StartParty(int partyId, bool inScene = false, int battleMap = -1)
 		{
 			MonsterParty party = Ff4Party.Tables?.MonsterParty(partyId);
 			if (party == null || party.Slots.Count == 0)
@@ -114,17 +114,26 @@ namespace FF3
 				}
 			}
 			_placements = places;
-			bool started = Start(ids, inScene);
+			bool started = Start(ids, inScene, battleMap);
 			if (started) Log.Write(LogChannel.General, "battle: encounter group " + partyId);
 			return started;
 		}
 
 		private List<Vector3> _placements;
+		private List<int> _pendingIds;
 
 		/// <summary>A fight against these monsters (ids in the unified tables), on the spot.</summary>
-		public bool Start(IEnumerable<int> monsterIds, bool inScene = false)
+		public bool Start(IEnumerable<int> monsterIds, bool inScene = false, int battleMap = -1)
 		{
 			if (_phase != Phase.Idle || !EngineApi.InWorld || (Ff4Cutscene.Active && !inScene)) return false;
+			// FF4 fights on a battle stage (Ff4BattleStage): a jump there first, the fight once the
+			// party has arrived; a scene's fight stays where the scene is.
+			if (!inScene && !Ff4BattleStage.Active && battleMap >= 0 && Ff4BattleStage.Begin(battleMap))
+			{
+				_pendingIds = new List<int>(monsterIds);
+				return true;
+			}
+			bool onStage = Ff4BattleStage.Active;
 			GameTables tables = Ff4Party.Tables;
 			Party party = Ff4Party.Party;
 			if (tables == null || party.Members.Count == 0 || !Game.Hero.Present) return false;
@@ -144,10 +153,15 @@ namespace FF3
 					Gauge = (float)_random.NextDouble() * 0.5f,
 				});
 			}
+			if (onStage)
+			{
+				Game.Hero.Teleport(Ff4BattleStage.PartySpot(0, 1));
+			}
 			Vector3 hero = Game.Hero.Position;
 			// Ahead as the camera sees it: the monsters stand between the leader and the far side of
 			// the view, whichever way the leader was facing, so the follow camera frames them.
 			Vector3 forward = (hero - Game.Camera.Position).Flat.Normalized;
+			if (onStage) forward = new Vector3(-1f, 0f, 0f);
 			if (forward.Length < 0.5f) forward = Vector3.FromYaw(Game.Hero.Yaw).Flat.Normalized;
 			if (forward.Length < 0.5f) forward = new Vector3(0, 0, -1);
 			Vector3 side = new Vector3(-forward.Z, 0, forward.X);
@@ -159,7 +173,11 @@ namespace FF3
 				if (m == null) { Say("no monster " + id); continue; }
 				// The game's placement (x across, z depth, in its battle units - roughly halved for the field) or a row.
 				Vector3 at;
-				if (_placements != null && n < _placements.Count)
+				if (onStage)
+				{
+					at = Ff4BattleStage.MonsterSpot(_placements != null && n < _placements.Count ? _placements[n] : Vector3.Zero, n, ids.Count);
+				}
+				else if (_placements != null && n < _placements.Count)
 				{
 					Vector3 p = _placements[n];
 					at = Game.Field.OnGround(hero + forward * (22f + Math.Abs(p.Z) * 0.2f) + side * (p.X * 0.45f));
@@ -187,11 +205,20 @@ namespace FF3
 				n++;
 			}
 			_placements = null;
-			if (_foes.Count == 0) return false;
+			_pendingIds = null;
+			if (_foes.Count == 0) { if (Ff4BattleStage.Active) Ff4BattleStage.Leave(); return false; }
 
 			Game.Input.Capture = true;
 			Game.Hero.Freeze();
 			Game.Hero.Face(forward.Yaw);
+			if (onStage)
+			{
+				// FF4's field camera rebuilds a free position from a distance the maps never set, so
+				// the event camera (the scenes' hook) drives the battle view.
+				Vector3 cp = Ff4BattleStage.CameraPosition, ct = Ff4BattleStage.CameraTarget;
+				Ff4EventCamera.MoveTo((int)(cp.X * 4096), (int)(cp.Y * 4096), (int)(cp.Z * 4096), 1, false);
+				Ff4EventCamera.LookAt((int)(ct.X * 4096), (int)(ct.Y * 4096), (int)(ct.Z * 4096), 1);
+			}
 			try { Game.Hero.BindMotions("b_p_player_" + party.Leader.Id.ToString("00")); Game.Hero.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
 			// The field camera stays: behind and above the leader it frames the monsters ahead on any
 			// map, where a side view walks into cave walls. FF4's own side camera can come with its stage.
@@ -265,12 +292,24 @@ namespace FF3
 		{
 			if (_phase == Phase.Idle)
 			{
+				if (Ff4BattleStage.Pending)
+				{
+					// On the way to the battle stage; the fight starts when the party stands on it.
+					if (Ff4BattleStage.Arrived)
+					{
+						Ff4BattleStage.Arrive();
+						if (_pendingIds == null || !Start(_pendingIds, false, -1)) { _pendingIds = null; Ff4BattleStage.Leave(); }
+					}
+					return;
+				}
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !Game.Input.Capture)
 				{
 					if (Game.Input.KeyPressed("K"))
 					{
 						// A test fight: the tables' first encounter group (two Goblins) - or the first two monsters.
-						if (!StartParty(1)) Start(new[] { 0, 1 });
+						Ff4Encounters.Table here = Ff4Encounters.For(Game.Field.Map);
+						int stage = here != null && here.BattleMap >= 0 ? here.BattleMap : 1;
+						if (!StartParty(1, false, stage)) Start(new[] { 0, 1 }, false, stage);
 					}
 					else
 					{
@@ -304,6 +343,7 @@ namespace FF3
 
 		private void Fight()
 		{
+			if (Ff4BattleStage.Active) Log.Sample(LogChannel.File, "battle-camera", 120, () => "battle: camera at " + Game.Camera.Position + " hero at " + Game.Hero.Position);
 			if (_acting == null)
 			{
 				// Gauges fill; the first full one acts.
@@ -723,7 +763,7 @@ namespace FF3
 			if (_random.Next(4096) < table.Rate * 3)
 			{
 				int party = table.Roll(_random);
-				if (party > 0 && StartParty(party)) _sinceBattle = 0;
+				if (party > 0 && StartParty(party, false, table.BattleMap)) _sinceBattle = 0;
 			}
 		}
 
@@ -739,6 +779,11 @@ namespace FF3
 			}
 			_foes.Clear();
 			_party.Clear();
+			if (Ff4BattleStage.Active)
+			{
+				try { Ff4EventCamera.Release(); } catch (Exception) { }
+				Ff4BattleStage.Leave();
+			}
 			try { Game.Hero.Unfreeze(); } catch (Exception) { }
 			Game.Input.Capture = false;
 			_phase = Phase.Idle;

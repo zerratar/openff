@@ -2,9 +2,10 @@
 //
 // Each FF4 map has a .pak in MAPPARAMETER.dat with four chains, which world::
 // MapParameterManager::load keeps in order (Tools/ff4_disasm.py): chain 0 the land-form
-// parameters (landFormParameter, 50 bytes: twelve u16s at 0 and twelve at 0x18 - the ones at
-// 0x18 are the encounter rate per land form, WSEncountSetting::wsProcess reads
-// [0x18 + 2 x land form] and treats anything over 30 as none); chain 1 the encounter sets
+// parameters (landFormParameter, 50 bytes: twelve u16 encounter rates at 0, one per land
+// form - 11 in the Watery Pass, 0 in a town, 1..9 by terrain on an overworld chip - and
+// twelve u16 battle stage numbers at 0x18, world::battleMapID reads [0x18 + 2 x land form]
+// and treats anything over 30 as none: b08 for the Watery Pass); chain 1 the encounter sets
 // (monsterPartyParameter: 8-byte entries of four u16 group ids, 0xFFFF for none - the set
 // the party's land form names is rolled among its groups, re-rolled up to five times when
 // it repeats the last fight); chain 2 the encounter parameter (16 bytes: an s16 for
@@ -25,10 +26,14 @@ namespace FF3
 			public sealed class Table
 		{
 			public string Map;
-			/// <summary>The rate for land form 0 (chain 0 at 0x18); 0 means no fights.</summary>
+			/// <summary>The rate for the land form in use (0 for a dungeon, the first with fights on an overworld chip); 0 means no fights.</summary>
 			public int Rate;
-			/// <summary>Every land form's rate (the twelve u16s at 0x18).</summary>
+			/// <summary>Every land form's rate (the twelve u16s at 0).</summary>
 			public int[] Rates = new int[12];
+			/// <summary>The battle stage (b00..b30) for the land form in use, -1 for none.</summary>
+			public int BattleMap = -1;
+			/// <summary>Every land form's battle stage (the twelve u16s at 0x18), -1 for none.</summary>
+			public int[] BattleMaps = new int[12];
 			/// <summary>The encounter sets (chain 1): four group ids each, -1 for none.</summary>
 			public List<int[]> Sets = new List<int[]>();
 			/// <summary>The groups of set 0 that exist in the tables, for the log and the roll.</summary>
@@ -97,12 +102,20 @@ namespace FF3
 					if (pack != null && pack.Count == 4 && pack.Size(0) >= 0x30 && pack.Size(1) >= 8)
 					{
 						int land = pack.Offset(0);
+						int use = -1;
 						for (int i = 0; i < 12; i++)
 						{
-							int rate = ChainPack.U16(pack.Data, land + 0x18 + 2 * i);
-							table.Rates[i] = rate > 30 ? 0 : rate;
+							int rate = ChainPack.U16(pack.Data, land + 2 * i);
+							table.Rates[i] = rate > 100 ? 0 : rate;
+							int stageNo = ChainPack.U16(pack.Data, land + 0x18 + 2 * i);
+							table.BattleMaps[i] = stageNo > 30 ? -1 : stageNo;
+							if (use < 0 && table.Rates[i] > 0) use = i;
 						}
-						table.Rate = table.Rates[0];
+						// The land form under the party is not read yet: a dungeon's is 0, an overworld
+						// chip's first land form is the sea (no fights), so the first with fights stands in.
+						if (use < 0) use = 0;
+						table.Rate = table.Rates[use];
+						table.BattleMap = table.BattleMaps[use];
 						int sets = pack.Offset(1);
 						for (int e = 0; e + 8 <= pack.Size(1); e += 8)
 						{
@@ -130,7 +143,7 @@ namespace FF3
 							for (int i = 0; i < 3; i++) table.Thresholds[i] = BitConverter.ToSingle(pack.Data, at + 4 + 4 * i);
 						}
 					}
-					Log.Write(LogChannel.File, "encounters: " + key + " rate " + table.Rate + " (by land form " + string.Join("/", table.Rates) + "), set 0 groups " + string.Join(",", table.Parties) + " of " + table.Sets.Count + " set(s); attack type " + table.AttackType + " at " + string.Join("/", table.Thresholds) + "%");
+					Log.Write(LogChannel.File, "encounters: " + key + " rate " + table.Rate + " (by land form " + string.Join("/", table.Rates) + "), battle stage b" + table.BattleMap.ToString("00") + " (" + string.Join("/", table.BattleMaps) + "), set 0 groups " + string.Join(",", table.Parties) + " of " + table.Sets.Count + " set(s); attack type " + table.AttackType + " at " + string.Join("/", table.Thresholds) + "%");
 				}
 			}
 			catch (Exception ex)

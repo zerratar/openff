@@ -1,0 +1,3 @@
+do you remember we talked about mods, modloader, etc, these things? how far do you think we are to get that working? i also noticed that in the crystal editor it doesnt have "our game" aka "OpenFF" as option enabled yet. which is interesting.
+
+I want to start using the new mod folder structure we discusssed earlier, that way i can stop worrying about overwriting steam version content I have. since we will mostly testing against our own client for a while now.

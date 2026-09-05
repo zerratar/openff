@@ -5,7 +5,7 @@
 until jump: ff4 60
 wait 6
 press K
-until battle: encounter 10
+until battle: encounter 20
 # Cecil's turn: Fight, first Goblin.
 until battle: Cecil may act 30
 wait 0.3
@@ -60,4 +60,9 @@ press Z
 until battle: won 60
 say fight over
 wait 2
+# Close the result and let the battle end (the stage swaps back on FF4).
+press Z
+until battle: back 10
+wait 6
+say back on the field
 quit
