@@ -192,8 +192,10 @@ namespace FF3
 				{
 					Ff4Cutscene.StageSwapPending = false;
 				}
-				else if (_lastStage != null)
+				else if (_lastStage != null && !string.Equals(Ff4Cutscene.SceneStage, stage, StringComparison.OrdinalIgnoreCase))
 				{
+					// A scene that already started on the new stage (its script ran before this
+					// watcher saw the name change) keeps its camera set and characters.
 					Ff4Cutscene.MapLeft();
 				}
 				_lastStage = stage;

@@ -64,6 +64,8 @@ namespace FF3
 			{ "effectLoadAsync", EffectLoad },               // (pack): /EFFECT/<pack>.efp, loaded at once
 			{ "cleanUpEffectData2", EffectUnload },          // (pack)
 			{ "ce_CallBattle", CallBattle },                 // (battle, ?, ?, return map, x, y, z): no FF4 battles yet - straight to the return map
+			{ "conteEventJumpAndReturnMapJamp", ConteEventJump }, // (event, part, return map, x, y, z): play scene e<event>_<part>, come back here
+			{ "ce_setConteNextPart", SetConteNextPart },     // (map, x, y, z): where the scene chain ends up
 			{ "ce_SetShadingMode", SetShadingMode },         // (slot, 0 flat-lit | 1 toon)
 			{ "ce_SetLightForCharacter", SetLight },         // (slot, light 0..3, x, y, z, r, g, b): the global light
 		};
@@ -92,9 +94,13 @@ namespace FF3
 
 		private static bool Slot(int slot, out int ctrl) => _slots.TryGetValue(slot, out ctrl);
 
+		/// <summary>The stage the running scene started on: a stage-name change to this map is the scene's own arrival, not a departure.</summary>
+		public static string SceneStage { get; private set; }
+
 		private static void StartEvent(GlobalScope.ScriptEngine engine)
 		{
 			_active = true;
+			SceneStage = GlobalScope.stg.CStageMng.CurrentName;
 			Log.Write(LogChannel.General, "script: FF4 cutscene starts on " + GlobalScope.stg.CStageMng.CurrentName);
 		}
 
@@ -103,6 +109,61 @@ namespace FF3
 			_active = false;
 			Ff4CameraMotion.Stop();
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up");
+			// FF4's event part hands back to the world at the return map; here the scene ran on the
+			// world part all along, so the hand-back is a map jump.
+			if (!string.IsNullOrEmpty(ReturnMap) && !string.Equals(ReturnMap, GlobalScope.stg.CStageMng.CurrentName, StringComparison.OrdinalIgnoreCase))
+			{
+				string map = ReturnMap;
+				ReturnMap = null;
+				JumpTo(map, ReturnPosition);
+			}
+		}
+
+		// ---- the story-scene chain: EventConteParameter's return map and player position ----
+
+		/// <summary>Where the scene chain returns to (conteEventJumpAndReturnMapJamp, ce_setConteNextPart, ce_CallBattle).</summary>
+		public static string ReturnMap;
+		public static GlobalScope.VecFx32 ReturnPosition = new GlobalScope.VecFx32(0, 0, 0);
+
+		private static void ConteEventJump(GlobalScope.ScriptEngine engine)
+		{
+			int ev = engine.getByte();
+			int part = engine.getByte();
+			string returnMap = engine.getString();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			ReturnMap = returnMap;
+			ReturnPosition = new GlobalScope.VecFx32(x, y, z);
+			string scene = "e" + ev.ToString("00") + "_" + part.ToString("00");
+			Log.Write(LogChannel.General, "script: FF4 story scene " + scene + ", back to " + returnMap + " at (" + x / 4096 + "," + y / 4096 + "," + z / 4096 + ")");
+			JumpTo(scene, new GlobalScope.VecFx32(0, 0, 0));
+		}
+
+		private static void SetConteNextPart(GlobalScope.ScriptEngine engine)
+		{
+			string map = engine.getString();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			ReturnMap = map;
+			if (x != 0 || y != 0 || z != 0)
+			{
+				ReturnPosition = new GlobalScope.VecFx32(x, y, z);
+			}
+			Log.Write(LogChannel.File, "script: FF4 scene chain ends at " + map);
+		}
+
+		private static void JumpTo(string map, GlobalScope.VecFx32 position)
+		{
+			Guard("jump to " + map, () =>
+			{
+				if (position.x == 0 && position.y == 0 && position.z == 0)
+				{
+					// The world camera reads an all-zero position as unset (black screen).
+					position = new GlobalScope.VecFx32(0, 0, 4096);
+				}
+				GlobalScope.VecFx32 rot = new GlobalScope.VecFx32(0, 0, 0);
+				GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump().initialize();
+				GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump().setUp(map, 0, position, rot, true);
+				GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().setMapJump(true);
+			});
 		}
 
 		private static void Nothing(GlobalScope.ScriptEngine engine) { }
@@ -296,14 +357,8 @@ namespace FF3
 			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
 			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " skipped (no FF4 battles yet) - on to " + returnMap);
 			if (string.IsNullOrEmpty(returnMap)) return;
-			Guard("battle return map " + returnMap, () =>
-			{
-				GlobalScope.VecFx32 pos = new GlobalScope.VecFx32(x, y, z);
-				GlobalScope.VecFx32 rot = new GlobalScope.VecFx32(0, 0, 0);
-				GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump().initialize();
-				GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump().setUp(returnMap, 0, pos, rot, true);
-				GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().setMapJump(true);
-			});
+			// The battle would return to this map; the chain's own return map stays for the scene after it.
+			JumpTo(returnMap, new GlobalScope.VecFx32(x, y, z));
 		}
 
 		// ---- lights and shading, read from the FF4 handlers ----
@@ -528,7 +583,9 @@ namespace FF3
 			_slots.Clear();
 			_frameWaits.Clear();
 			_active = false;
+			SceneStage = null;
 			Ff4CameraMotion.MapLeft();
+			// ReturnMap survives: it is where the chain of scene maps ends up.
 		}
 	}
 }

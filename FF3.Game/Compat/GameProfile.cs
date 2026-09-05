@@ -34,7 +34,9 @@ namespace FF3
 		/// The map a --map start lands on when none is named: FF4's Baron town, FF3's Ur.
 		/// (d01_00 is Baron's waterway entrance; its world exit is on the far coast.)
 		/// </summary>
-		public static string DefaultStage => IsFf4 ? "t01_00" : "t01_01";
+		// FF4's NewGameInitPart sends the world part "t00_00" (Baron castle's throne room) and
+		// the origin; its script then plays the opening (conteEventJumpAndReturnMapJamp 1).
+		public static string DefaultStage => IsFf4 ? "t00_00" : "t01_01";
 
 		/// <summary>
 		/// The model the party leader walks around as. FF3 derives it from the front

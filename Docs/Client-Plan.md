@@ -546,7 +546,20 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
   r, g, b)` is the global light's vector (fx12) and colour.
 - `ce_setFrameWait(frames)` is a wait (it was skipped, so scenes rushed); `ce_SetMap(name)`
   names the script's own map in every script but e23_02 (logged when it differs).
-- **What the scene still lacks**: effects (`effectLoadAsync`, `setEffect_Scale`), the 2D
+- **The story-scene chain**: FF4 plays scenes on a separate part (ContEventPart) and comes
+  back to the world at a return map. Here everything runs on the world part, so
+  `conteEventJumpAndReturnMapJamp(event, part, returnMap, x, y, z)` records the return map and
+  position (EventConteParameter::setReturnMapName/setPlayerPosition) and map-jumps to
+  `e<event>_<part>`; `ce_setConteNextPart(map, x, y, z)` replaces the return map;
+  `ce_CallBattle(id, ?, ?, map, x, y, z)` would fight and return to `map` - with no FF4 battles
+  it jumps there at once; `ce_EndEvent` jumps to the return map when it is not the current
+  stage. `ce_SetMap` to another map (e01_01 -> e01_18) swaps the stage under the running
+  scene (`sceneMng.gotoStage` + `stageMng.setStage`) and `Ff4Cutscene.StageSwapPending` tells
+  EngineHost not to treat it as leaving the map. A new game starts on t00_00 at the origin
+  (NewGameInitPart's message to the world part), where the castle script starts scene 1.
+  FF4 dispatch now catches a throwing FF3 handler and logs it once (the castle's addItem with
+  FF4 item ids took the client down).
+- **What the scene still lacks**: effects (`setEffect_Scale`; packs load by name now), the 2D
   sprites (`ce_3DSSetup`: the "Baron" plate from /2D/MIDDLE_EVENT), `ce_CallBattle`, voices
   and BGM slots, `ce_setFog` (FF4 has fog: the overworld enables it in `WSPrepare` with range
   0x80000..0x200000 and colour 0x73f5; the port has no fog at all), per-character light

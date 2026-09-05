@@ -1,4 +1,4 @@
-// A game part that goes straight to a map.
+﻿// A game part that goes straight to a map.
 //
 // The phone build had a debug menu part (GAMEPART_DEBUG_MENU) whose body did not ship;
 // the world, battle and map-jump code still check whether they were entered from it and
@@ -37,6 +37,11 @@ namespace FF3
 				string pos = Options.Get("pos");
 				if (string.IsNullOrEmpty(pos))
 				{
+					// A new FF4 game: NewGameInitPart puts the party at the origin of t00_00.
+					if (GameProfile.IsFf4 && string.IsNullOrEmpty(Options.Get("map")))
+					{
+						return v;
+					}
 					// Where some other map's exit puts the party on arriving here, when the
 					// scripts say (FF4: setInsideMapJump in the neighbouring maps).
 					(int X, int Y, int Z, int Facing)? arrival = Ff4Exits.ArrivalInto(Stage);
