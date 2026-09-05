@@ -755,9 +755,28 @@ internal static partial class GlobalScope
 				{
 					// PORT: FF4's world::WorldCamera::initialize_usr - the camera stands at the
 					// leader + (0, 90, 85) and looks at that point + (0, -73, -80), i.e. the leader
-					// + (0, 17, 5). Read from libff4.so (Tools/ff4_disasm.py). The z is negated below.
-					VEC_Set(vecFx, 0, 90 * 4096, -85 * 4096);
-					VEC_Set(vecFx2, 0, 17 * 4096, 5 * 4096);
+					// + (0, 17, 5). WSPrepare::wsProcessSetupCamera then picks by the map's kind
+					// letter: a field ('f') gets (0, 100, 110) looking at leader + (0, 30, 30), a
+					// dungeon ('d') (0, 80, 105) looking at leader + (0, 27, 25); towns and the rest
+					// keep the defaults. Read from libff4.so (Tools/ff4_disasm.py, the tables at
+					// 0x1bc944 and 0x1bc95c). The z is negated below.
+					string stageName = stg.CStageMng.CurrentName ?? sceneMng.getStage() ?? "";
+					char kind = stageName.Length > 0 ? char.ToLowerInvariant(stageName[0]) : 't';
+					if (kind == 'f')
+					{
+						VEC_Set(vecFx, 0, 100 * 4096, -110 * 4096);
+						VEC_Set(vecFx2, 0, 30 * 4096, 30 * 4096);
+					}
+					else if (kind == 'd')
+					{
+						VEC_Set(vecFx, 0, 80 * 4096, -105 * 4096);
+						VEC_Set(vecFx2, 0, 27 * 4096, 25 * 4096);
+					}
+					else
+					{
+						VEC_Set(vecFx, 0, 90 * 4096, -85 * 4096);
+						VEC_Set(vecFx2, 0, 17 * 4096, 5 * 4096);
+					}
 				}
 				vecFx.z *= -1;
 				if (FF3.FieldMirror.Active(stageMng.getStageType()))

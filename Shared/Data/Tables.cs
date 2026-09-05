@@ -256,6 +256,13 @@ namespace OpenFF.Data
 		public int Size;
 		/// <summary>FF4's five bytes at 0x12; FF3 keeps them deeper in the record and they are not read yet.</summary>
 		public Stats Stats = new Stats();
+		/// <summary>FF4: the word at 0x20 (7 for a Goblin) and the hit chance at 0x22 (105); what btl::BattleMonster hands NewAttackFormula as its physics attack. Tentative.</summary>
+		public int Attack;
+		public int Hit;
+		/// <summary>FF4: the block BattleMonster::setMonster copies from 0x4C - defence at 0x4C (20 for a Goblin), evade at 0x50 (5) - and the word at 0x68 read as magic defence (5). Tentative.</summary>
+		public int Defence;
+		public int Evade;
+		public int MagicDefence;
 		public int Experience;
 		public int Gil;
 		public List<DropChance> Drops = new List<DropChance>();

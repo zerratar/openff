@@ -27,7 +27,7 @@ namespace FF3
 		{
 			OpenFF.InputState input = OpenFF.Game.Input;
 			bool active = _game != null && _game.IsActive && !(TextEntry.Instance != null && TextEntry.Instance.IsActive) && !ModListScreen.IsOpen;
-			if (!active)
+			if (!active && DesktopInput.Injected.Count == 0)
 			{
 				input.SetPad(0);
 				input.SetPointer(input.PointerX, input.PointerY, false, 0);
@@ -35,6 +35,14 @@ namespace FF3
 				return;
 			}
 			input.SetPad(DesktopInput.RawPadBits());
+			if (!active)
+			{
+				// A scripted drive without focus: its keys, nothing else.
+				_held.Clear();
+				foreach (Keys key in DesktopInput.Injected) _held.Add(key.ToString());
+				input.SetKeys(_held);
+				return;
+			}
 
 			MouseState mouse = Mouse.GetState();
 			Rectangle client = _game.Window.ClientBounds;
@@ -48,6 +56,10 @@ namespace FF3
 			foreach (Keys key in Keyboard.GetState().GetPressedKeys())
 			{
 				_held.Add(key.ToString());
+			}
+			foreach (Keys key in DesktopInput.Injected)
+			{
+				if (!_held.Contains(key.ToString())) _held.Add(key.ToString());
 			}
 			input.SetKeys(_held);
 		}

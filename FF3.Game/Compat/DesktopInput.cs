@@ -69,7 +69,7 @@ namespace FF3
 		{
 			get
 			{
-				if (_game == null || !_game.IsActive || IsTyping)
+				if (_game == null || (!_game.IsActive && Injected.Count == 0) || IsTyping)
 				{
 					return 0;
 				}
@@ -77,19 +77,23 @@ namespace FF3
 			}
 		}
 
+		/// <summary>Keys a scripted drive (--drive, Compat/Drive.cs) holds this frame; read beside the keyboard, with or without focus.</summary>
+		public static readonly HashSet<Keys> Injected = new HashSet<Keys>();
+
 		/// <summary>The pad bits from the keyboard alone, ungated: what the engine's Game.Input gets even while a mod has captured input.</summary>
 		public static int RawPadBits()
 		{
 			{
-				if (_game == null || !_game.IsActive)
+				if (_game == null || (!_game.IsActive && Injected.Count == 0))
 				{
 					return 0;
 				}
 				KeyboardState keys = Keyboard.GetState();
+				bool real = _game.IsActive;
 				int bits = 0;
 				foreach ((Keys key, int bit) in PadBindings)
 				{
-					if (keys.IsKeyDown(key))
+					if ((real && keys.IsKeyDown(key)) || Injected.Contains(key))
 					{
 						bits |= bit;
 					}
@@ -151,6 +155,7 @@ namespace FF3
 		/// <summary>Translates this frame's mouse and keyboard state into game callbacks.</summary>
 		public static void Update()
 		{
+			Drive.Update();
 			if (_game == null || !_game.IsActive)
 			{
 				// Release a held button rather than stranding the game mid-drag.

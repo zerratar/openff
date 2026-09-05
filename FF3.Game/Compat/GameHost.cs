@@ -41,6 +41,8 @@ namespace FF3
 			_game.onCreate();
 			// The OpenFF engine and the mods' code, now that the content (and the mods folder) is open.
 			EngineHost.Attach();
+			// A scripted key drive for headless tests (--drive=<file>).
+			Drive.Initialise();
 			return true;
 		}
 

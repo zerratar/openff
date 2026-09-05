@@ -45,6 +45,8 @@ namespace FF3
 			{ "setCamera_AbsoluteGaze", SetCameraGaze },                      // (x, y, z, frames, ?)
 			{ "setCamera_RelativeGaze", SetCameraRelativeGaze },              // (dx, dy, dz, frames, ?)
 			{ "setCameraOffset", SetCameraOffset },                           // (pos offset xyz, target offset xyz, ?, ?, ?): follow the leader
+			{ "setCamera_PositionOffset", SetCameraPositionOffset },          // (hich, dx, dy, dz, frames, also target, ?): the event camera moves by an offset
+			{ "setCamera_TargetOffset", SetCameraTargetOffset },              // (hich, dx, dy, dz, frames, ?): its target moves by an offset
 			{ "cancelCameraControl", CancelCameraControl },                   // (?, ?): the field camera again
 			{ "setCamera_BeforeEvent", SetCameraBeforeEvent },                // (x, y, z): the field camera again, FF3's setupCamera
 			{ "moveCamera_LookPlayer2", MoveCameraLookPlayer2 },              // (cast, ?, ?, ?, ?): FF3's, after letting the event camera go
@@ -185,6 +187,27 @@ namespace FF3
 			int frames = (int)engine.getWord();
 			engine.getDword();
 			Ff4EventCamera.LookBy(x, y, z, frames);
+		}
+
+		/// <summary>babilCommand_SetCamera_PositionOffset: the event camera slides from where it is by (dx, dy, dz) over frames; with the flag its target follows by the same amount.</summary>
+		private static void SetCameraPositionOffset(GlobalScope.ScriptEngine engine)
+		{
+			engine.getWord();
+			int dx = (int)engine.getDword(), dy = (int)engine.getDword(), dz = (int)engine.getDword();
+			int frames = (int)engine.getWord();
+			int alsoTarget = (int)engine.getWord();
+			engine.getDword();
+			Ff4EventCamera.MoveBy(dx, dy, dz, Math.Max(1, frames), alsoTarget == 1);
+		}
+
+		/// <summary>babilCommand_SetCamera_TargetOffset: the event camera's target slides by (dx, dy, dz) over frames.</summary>
+		private static void SetCameraTargetOffset(GlobalScope.ScriptEngine engine)
+		{
+			engine.getWord();
+			int dx = (int)engine.getDword(), dy = (int)engine.getDword(), dz = (int)engine.getDword();
+			int frames = (int)engine.getWord();
+			engine.getDword();
+			Ff4EventCamera.LookBy(dx, dy, dz, Math.Max(1, frames));
 		}
 
 		private static void SetCameraOffset(GlobalScope.ScriptEngine engine)

@@ -740,6 +740,41 @@ beyond death, summons' own animations (they cast as black magic), monsters casti
 white/black command split (one Magic command holds all schools), monster magic defence
 (the record field is not named yet; 0 stands in), and the physical formula.
 
+## Physical blows, camera tables, and a scripted drive (2026-09-05)
+
+**Physical formula** (`btl::NewAttackFormula`, read with Tools/ff4_disasm.py): calcHitRate =
+weapon hit + attacker agility - (target evade + target agility) + 20, clamped to 0..100
+(x0.8 when blinded); calcDamageValueForBabil's core = attack x attacker level x attacker
+strength / (target defence + target level + target vitality), times 1.0..1.3, then the
+element, row, critical (x1.5) and status factors, and x1.2 from a party member onto a
+monster or x0.7 the other way. `Ff4Battle.Hits/Damage` carry the core, the hit roll and
+the side factor; elements, rows, criticals and statuses are still owed. The monster record's
+blocks: `BattleMonster::setMonster` copies 16 bytes from 0x4C (defence at 0x4C, evade at
+0x50 - a Goblin's 20 and 5), a word at 0x68 (read as magic defence) and the five stat bytes;
+the attack word at 0x20 and hit at 0x22 stand until the monster's physics-attack block is
+named. `MonsterDefinition.Attack/Hit/Defence/Evade/MagicDefence` (FF4 reader; tentative).
+
+**Camera tables**: `world::WSPrepare::wsProcessSetupCamera` picks the follow camera's
+offsets by the map's kind letter: fields ('f') stand at leader + (0, 100, 110) looking at
+leader + (0, 30, 30); dungeons ('d') at (0, 80, 105) looking at (0, 27, 25); everything
+else keeps `WorldCamera::initialize_usr`'s (0, 90, 85) and (0, 17, 5). It also sets the
+clip to 11..2048, the FOV words 0x424/0xf74 and, on fields, the camera's limits from the
+stage's edges. `CBaseSystem.setupCamera` applies the three offset pairs; the rock over
+the waterway a few steps from its arrival is still drawn (culling overrides make no
+difference), so that is geometry the game hides some other way - open.
+`setCamera_PositionOffset/TargetOffset` (128 maps) are the EVENT camera's relative slides
+(current position + offset over frames, the target following when the flag says); they are
+handled through `Ff4EventCamera.MoveBy/LookBy`.
+
+**Scripted drive** (`Compat/Drive.cs`, `--drive=<file>`): the machine was locked while
+these were built, and key2.ps1's SetForegroundWindow taps went to the lock screen. The
+drive plays a step file from inside the game - wait / press <key> [ms] / until <regex> [s]
+/ say / quit - injecting keys where the keyboard is read (`DesktopInput.Injected`, read
+without focus; the engine's Game.Input sees them too) and waiting on log lines (Log.Written,
+with the lines since the last satisfied until counted). `Docs/Drives/ff4-battle-magic.drive`
+plays C-43/C-45's fight in about a minute; test C-44. PowerShell drives (key2.ps1) remain
+for the FF3 title, which needs mouse taps.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

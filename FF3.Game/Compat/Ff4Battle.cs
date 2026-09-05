@@ -7,8 +7,12 @@
 // m<family>_00 models with their b_m<family> motions - 101 idle, 201 attack), the field
 // camera frames them, and an ATB fight runs: every combatant's gauge fills with its agility;
 // a full gauge gives a party member the command window (Fight, Magic, Item, Run) and a
-// monster its attack. Physical damage is a placeholder formula until FF4's is read out of
-// the binary; magic follows btl::NewMagicFormula as read from libff4.so: attack damage =
+// monster its attack. Physical damage follows btl::NewAttackFormula::calcDamageValueForBabil
+// as far as it was read: attack x attacker level x attacker strength / (target defence +
+// target level + target vitality), times 1.0..1.3, times 1.2 from a party member onto a
+// monster and 0.7 the other way (the element, row and status factors are not applied yet);
+// the hit roll is calcHitRate's: weapon hit + agility - (evade + agility) + 20, out of 100.
+// Magic follows btl::NewMagicFormula as read from libff4.so: attack damage =
 // power x caster level x caster stat (will for white, wisdom otherwise) / (target will +
 // target level + target magic defence), times 1.0..1.3; healing = (target vitality / 8 +
 // caster will / 2) x power, times 0.90..1.00; MP cost, power, school, hit rate and targets
@@ -41,6 +45,7 @@ namespace FF3
 			public int Hp, MaxHp;
 			public int Attack, Defence, Agility;
 			public int Level, Intellect, Spirit, Vitality, MagicDefence;
+			public int Strength, HitChance, Evade;
 			public int Mp => Member?.Mp ?? 0;
 			public float Gauge;               // 0..1
 			public bool Alive => Hp > 0;
@@ -133,8 +138,9 @@ namespace FF3
 				_party.Add(new Fighter
 				{
 					Name = c.Name, Member = c, Hp = c.Hp, MaxHp = c.MaxHp,
-					Attack = stats.Strength + weapon, Defence = Armour(c, tables) + stats.Vitality / 2, Agility = Math.Max(1, stats.Agility),
+					Attack = Math.Max(1, weapon > 0 ? weapon : stats.Strength / 2), Defence = Armour(c, tables), Agility = Math.Max(1, stats.Agility),
 					Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
+					Strength = stats.Strength, HitChance = weapon > 0 ? WeaponHit(c, tables) : 90, Evade = Evasion(c, tables),
 					Gauge = (float)_random.NextDouble() * 0.5f,
 				});
 			}
@@ -173,8 +179,9 @@ namespace FF3
 				{
 					Name = m.Name ?? ("monster " + id), IsMonster = true, Monster = m, Npc = npc, Home = at,
 					Hp = Math.Max(1, m.MaxHp), MaxHp = Math.Max(1, m.MaxHp),
-					Attack = Math.Max(1, ChainPack.U16(m.Raw, 0x20)), Defence = m.Stats.Vitality, Agility = Math.Max(1, m.Stats.Agility),
-					Level = Math.Max(1, m.Level), Intellect = m.Stats.Intellect, Spirit = m.Stats.Spirit, Vitality = m.Stats.Vitality, MagicDefence = 0,
+					Attack = Math.Max(1, m.Attack), Defence = Math.Max(0, m.Defence), Agility = Math.Max(1, m.Stats.Agility),
+					Level = Math.Max(1, m.Level), Intellect = m.Stats.Intellect, Spirit = m.Stats.Spirit, Vitality = m.Stats.Vitality, MagicDefence = Math.Max(0, m.MagicDefence),
+					Strength = m.Stats.Strength, HitChance = m.Hit > 0 ? m.Hit : 90, Evade = Math.Max(0, m.Evade),
 					Gauge = (float)_random.NextDouble() * 0.3f,
 				});
 				n++;
@@ -215,6 +222,28 @@ namespace FF3
 			{
 				ItemDefinition item = id != 0 ? tables.Item(id) : null;
 				if (item?.Equip != null && item.Kind == ItemKind.Armour) total += item.Equip.Defence;
+			}
+			return total;
+		}
+
+		private static int WeaponHit(Character c, GameTables tables)
+		{
+			int best = 0;
+			foreach (int id in c.Equipment)
+			{
+				ItemDefinition item = id != 0 ? tables.Item(id) : null;
+				if (item?.Equip != null && item.Kind == ItemKind.Weapon) best = Math.Max(best, item.Equip.Hit);
+			}
+			return best > 0 ? best : 90;
+		}
+
+		private static int Evasion(Character c, GameTables tables)
+		{
+			int total = 0;
+			foreach (int id in c.Equipment)
+			{
+				ItemDefinition item = id != 0 ? tables.Item(id) : null;
+				if (item?.Equip != null && item.Kind == ItemKind.Armour) total += item.Equip.Evade;
 			}
 			return total;
 		}
@@ -509,23 +538,40 @@ namespace FF3
 			return from;
 		}
 
-		private int Damage(int attack, int defence)
+		/// <summary>NewAttackFormula::calcHitRate: attack hit + agility - (evade + agility) + 20, clamped to 0..100.</summary>
+		private bool Hits(Fighter attacker, Fighter target)
 		{
-			int raw = attack * 2 - defence;
-			double roll = 0.9 + _random.NextDouble() * 0.2;
-			return Math.Max(1, (int)Math.Round(raw * roll));
+			int rate = Math.Clamp(attacker.HitChance + attacker.Agility - (target.Evade + target.Agility) + 20, 0, 100);
+			return _random.Next(100) < rate;
+		}
+
+		/// <summary>NewAttackFormula::calcDamageValueForBabil, its core: attack x level x strength over defence + level + vitality, times 1.0..1.3, times 1.2 onto a monster and 0.7 onto a member.</summary>
+		private int Damage(Fighter attacker, Fighter target)
+		{
+			long numerator = (long)Math.Max(1, attacker.Attack) * Math.Max(1, attacker.Level) * Math.Max(1, attacker.Strength);
+			int denominator = Math.Max(1, target.Defence + target.Level + target.Vitality);
+			double value = numerator / (double)denominator * (1.0 + _random.Next(301) / 1000.0);
+			value *= target.IsMonster ? 1.2 : 0.7;
+			return Math.Max(1, (int)value);
 		}
 
 		private void MemberAttacks(Fighter member, Fighter foe)
 		{
 			if (!foe.Alive) { _pick = Pick.Target; _cursor = FirstAliveFoe(); return; }
-			int damage = Damage(member.Attack, foe.Defence);
-			foe.Hp = Math.Max(0, foe.Hp - damage);
 			try { Game.Hero.PlayMotion(_heroMotionAttack, false, 3); } catch (Exception) { }
-			Game.Screen.PopNumber(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
-			Game.Audio.PlaySe(0, 3);
-			Say(member.Name + " hits " + foe.Name + " for " + damage + ".");
-			if (!foe.Alive) Fell(foe);
+			if (!Hits(member, foe))
+			{
+				Say(member.Name + " misses " + foe.Name + ".");
+			}
+			else
+			{
+				int damage = Damage(member, foe);
+				foe.Hp = Math.Max(0, foe.Hp - damage);
+				Game.Screen.PopNumber(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
+				Game.Audio.PlaySe(0, 3);
+				Say(member.Name + " hits " + foe.Name + " for " + damage + ".");
+				if (!foe.Alive) Fell(foe);
+			}
 			member.Gauge = 0f;
 			_acting = null;
 			_pick = Pick.None;
@@ -537,10 +583,16 @@ namespace FF3
 			List<Fighter> alive = _party.FindAll(f => f.Alive);
 			if (alive.Count == 0) return;
 			Fighter target = alive[_random.Next(alive.Count)];
-			int damage = Damage(foe.Attack, target.Defence);
+			try { foe.Npc.PlayMotion(201, false, 3); } catch (Exception) { }
+			if (!Hits(foe, target))
+			{
+				Say(foe.Name + " misses " + target.Name + ".");
+				foe.Gauge = 0f;
+				return;
+			}
+			int damage = Damage(foe, target);
 			target.Hp = Math.Max(0, target.Hp - damage);
 			target.Member.Hp = target.Hp;
-			try { foe.Npc.PlayMotion(201, false, 3); } catch (Exception) { }
 			Game.Screen.PopNumber(Game.Hero.Position + new Vector3(0, 12f, 0), damage);
 			Game.Screen.Flash(new Color(255, 60, 40), 6, 2);
 			try { Game.Hero.PlayMotion(_heroMotionHurt, false, 3); } catch (Exception) { }

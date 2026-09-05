@@ -148,6 +148,9 @@ namespace FF3
 			return !_failed && (_channels & channel) != 0;
 		}
 
+		/// <summary>Every message written to an enabled channel, as it is written (the scripted driver waits on these).</summary>
+		public static event Action<string> Written;
+
 		public static void Write(LogChannel channel, string message)
 		{
 			if (!IsEnabled(channel))
@@ -155,6 +158,7 @@ namespace FF3
 				return;
 			}
 			Append(string.Format("{0,9:F3} {1,-9} {2}", _clock.Elapsed.TotalSeconds, channel, message));
+			Written?.Invoke(message);
 		}
 
 		/// <summary>Logs the first <paramref name="limit"/> hits on <paramref name="key"/>, then stays quiet.</summary>
