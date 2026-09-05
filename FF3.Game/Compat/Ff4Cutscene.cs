@@ -1,4 +1,4 @@
-// FF4's cutscene engine, first cut: the character side.
+﻿// FF4's cutscene engine, first cut: the character side.
 //
 // FF4's story scenes (e01_00, the Red Wings over Baron, and forty more maps) run on the
 // `ce_*` command family: a scene sets up numbered character slots (model + texture), binds
@@ -46,7 +46,13 @@ namespace FF3
 			{ "ce_CharaAlpha", CharaAlpha },                 // (slot, alpha, frames)
 			{ "ce_CameraPos", CameraPos },                   // (x, y, z, frames)
 			{ "ce_CameraTarget", CameraTarget },             // (x, y, z, frames)
-			{ "ce_WaitTillEndOfCameraMotion", Nothing },     // () - no camera motion plays yet, so nothing to wait for
+			{ "ce_SetMapMotion", SetMapMotion },             // (slot, pack name): an .ncap pack for the stage model
+			{ "ce_MapStartMotion", MapStartMotion },         // (motion id, loop, ?, blend frames)
+			{ "ce_StartMapAnimation", StartMapAnimation },   // (animation index, type): a .namp animation by index
+			{ "ce_SetupCameraMotion", SetupCameraMotion },   // (slot, set name): a .dsc set from EVT_CAMERA
+			{ "ce_CleanupCameraMotion", CleanupCameraMotion }, // (slot)
+			{ "ce_PlayCameraMotion", PlayCameraMotion },     // (slot, motion id, ?, loop)
+			{ "ce_WaitTillEndOfCameraMotion", WaitTillEndOfCameraMotion }, // ()
 		};
 
 		/// <summary>Commands that only dress a scene, skipped without a log line.</summary>
@@ -62,7 +68,7 @@ namespace FF3
 			"ce_SetupExpression", "ce_SetupExpressionAsync", "ce_CleanupExpression", "ce_ChangeExpression",
 			"ce_LoadBG", "ce_setBGAlpha", "ce_setTelopMassage", "ce_setFrameWait",
 			"ce_StartAnimation", "ce_PauseAnimation", "ce_SetPauseMotion", "ce_AutoRotation", "ce_setScale",
-			"ce_StartMapAnimation", "ce_MapStartMotion", "ce_SetMapMotion", "ce_CleanupMap",
+			"ce_CleanupMap",
 			"ce_SetupCameraMotion", "ce_CleanupCameraMotion",
 			"ce_SetBindObject", "ce_SetBindObject2", "ce_BindObjectVisiblity",
 			"ce_3DSSetup", "ce_3DSRelease", "ce_3DSSetAlpha", "ce_3DSSetPosition", "ce_3DSSetVisiblity",
@@ -82,6 +88,7 @@ namespace FF3
 		private static void EndEvent(GlobalScope.ScriptEngine engine)
 		{
 			_active = false;
+			Ff4CameraMotion.Stop();
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up");
 		}
 
@@ -247,6 +254,59 @@ namespace FF3
 			});
 		}
 
+		// ---- map motions ----
+
+		private static void SetMapMotion(GlobalScope.ScriptEngine engine)
+		{
+			engine.getDword();
+			string name = engine.getString();
+			Guard("map motion " + name, () => GlobalScope.stageMng.addMotion(name));
+		}
+
+		private static void MapStartMotion(GlobalScope.ScriptEngine engine)
+		{
+			int id = (int)engine.getDword();
+			int loop = engine.getByte();
+			engine.getDword();
+			uint blend = engine.getDword();
+			Guard("map motion " + id, () => GlobalScope.stageMng.startMotion(id, loop != 0, blend));
+		}
+
+		private static void StartMapAnimation(GlobalScope.ScriptEngine engine)
+		{
+			uint index = engine.getDword();
+			int type = engine.getByte();
+			Guard("map animation " + index, () => GlobalScope.stageMng.startAnimation(index, (GlobalScope.ds.sys3d.CAnimSet.enTYPE)type, 0));
+		}
+
+		// ---- camera motions ----
+
+		private static void SetupCameraMotion(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getDword();
+			string name = engine.getString();
+			Ff4CameraMotion.Setup(slot, name);
+		}
+
+		private static void CleanupCameraMotion(GlobalScope.ScriptEngine engine)
+		{
+			Ff4CameraMotion.Cleanup((int)engine.getDword());
+		}
+
+		private static void PlayCameraMotion(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getDword();
+			uint id = engine.getDword();
+			engine.getDword();
+			int loop = engine.getByte();
+			Ff4CameraMotion.Play(slot, id, loop != 0);
+		}
+
+		private static void WaitTillEndOfCameraMotion(GlobalScope.ScriptEngine engine)
+		{
+			if (Ff4CameraMotion.Playing && !Ff4CameraMotion.Looping) engine.suspendRedo();
+		}
+
 		private static void Guard(string what, Action action)
 		{
 			try { action(); }
@@ -258,6 +318,7 @@ namespace FF3
 		{
 			_slots.Clear();
 			_active = false;
+			Ff4CameraMotion.MapLeft();
 		}
 	}
 }

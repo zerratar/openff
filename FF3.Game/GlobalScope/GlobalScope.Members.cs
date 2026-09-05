@@ -6897,7 +6897,7 @@ internal static partial class GlobalScope
 								break;
 							case 22081:
 								src.setPosition(position);
-								nNSG3dResAnmHeader.m_Anm = null;
+								nNSG3dResAnmHeader.m_Anm = (NNSG3dResVisAnm)src;
 								break;
 							}
 							return nNSG3dResAnmHeader;
@@ -11789,6 +11789,10 @@ internal static partial class GlobalScope
 							{
 								return nNSG3dResJntAnm.numFrame * 4096;
 							}
+							if (pAnmObj.resAnm.m_Anm is NNSG3dResVisAnm nNSG3dResVisAnm)
+							{
+								return nNSG3dResVisAnm.numFrame * 4096;
+							}
 							return 0;
 						}
 
@@ -11815,6 +11819,10 @@ internal static partial class GlobalScope
 							{
 								next = pRenderObj.anmMat;
 							}
+							if (resAnm.category0 == 86)
+							{
+								next = pRenderObj.anmVis;
+							}
 							pAnmObj.next = next;
 							if (resAnm.category0 == 74)
 							{
@@ -11823,6 +11831,10 @@ internal static partial class GlobalScope
 							if (resAnm.category0 == 77)
 							{
 								pRenderObj.anmMat = pAnmObj;
+							}
+							if (resAnm.category0 == 86)
+							{
+								pRenderObj.anmVis = pAnmObj;
 							}
 						}
 
@@ -11843,6 +11855,10 @@ internal static partial class GlobalScope
 							{
 								nNSG3dAnmObj = pRenderObj.anmMat;
 							}
+							if (resAnm.category0 == 86)
+							{
+								nNSG3dAnmObj = pRenderObj.anmVis;
+							}
 							while (nNSG3dAnmObj != null && nNSG3dAnmObj != null)
 							{
 								if (nNSG3dAnmObj == pAnmObj)
@@ -11856,6 +11872,10 @@ internal static partial class GlobalScope
 										if (resAnm.category0 == 77)
 										{
 											nNSG3dAnmObj = pRenderObj.anmMat;
+										}
+										if (resAnm.category0 == 86)
+										{
+											nNSG3dAnmObj = pRenderObj.anmVis;
 										}
 										for (int i = 1; i < num; i++)
 										{
@@ -11872,6 +11892,10 @@ internal static partial class GlobalScope
 										if (resAnm.category0 == 77)
 										{
 											pRenderObj.anmMat = pAnmObj.next;
+										}
+										if (resAnm.category0 == 86)
+										{
+											pRenderObj.anmVis = pAnmObj.next;
 										}
 									}
 									pAnmObj.next = null;
@@ -12718,9 +12742,16 @@ internal static partial class GlobalScope
 									num++;
 									break;
 								case 2:
+								{
 									num3 = (((sbc[num + 2] & 1) != 0) ? 1 : 0);
+									NNSG3dAnmObj visObj = pRenderObj?.anmVis;
+									if (visObj != null && visObj.resAnm.m_Anm is NNSG3dResVisAnm visAnm)
+									{
+										num3 = visAnm.IsVisible(sbc[num + 1], visObj.frame >> 12) ? 1 : 0;
+									}
 									num += 3;
 									break;
+								}
 								case 9:
 								{
 									int num103 = sbc[num + 1];

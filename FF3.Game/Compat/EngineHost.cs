@@ -1,4 +1,4 @@
-// Where the OpenFF engine meets the legacy game.
+﻿// Where the OpenFF engine meets the legacy game.
 //
 // The engine (OpenFF.Engine, the assembly mods reference) knows nothing of MonoGame or
 // of the decompiled game. This host creates it once the content is open, loads the code
@@ -185,7 +185,9 @@ namespace FF3
 					OpenFF.Game.Events.Publish(new OpenFF.Events.MapLeaving { Scene = legacy.Info });
 					legacy.Info = null;
 				}
-				Ff4Cutscene.MapLeft();
+				// Leaving a map, not arriving at the first one: a scene's script can already be
+				// running (loading its camera set) when the stage name first appears.
+				if (_lastStage != null) Ff4Cutscene.MapLeft();
 				_lastStage = stage;
 				_entered = false;
 			}

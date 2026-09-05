@@ -57,6 +57,7 @@ namespace FF3
 			Screen.Tick();
 			Magic.Tick();
 			Ff4FieldCommands.Tick();
+			Ff4CameraMotion.Tick();
 		}
 
 		// ---- reaching the legacy world ----

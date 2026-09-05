@@ -546,6 +546,84 @@ internal static partial class GlobalScope
 
 			private ds.sys3d.CRenderObject m_RdrObject = new ds.sys3d.CRenderObject();
 
+			// PORT (FF4): a scene's map motions - .ncap packs played on the stage model, the way
+			// characters play theirs (ce_SetMapMotion / ce_MapStartMotion); FF4's CStageMng has
+			// addMotion(const char*), startMotion(int, bool, uint) and startAnimation(uint, enTYPE, int).
+			private ds.sys3d.CMotSet m_MotSet;
+
+			private readonly System.Collections.Generic.List<CFileData> m_MotData = new System.Collections.Generic.List<CFileData>();
+
+			public void addMotion(string motname)
+			{
+				if (m_Flag == 0 || m_ModelSet.getMdlResource() == null)
+				{
+					return;
+				}
+				CFileData data = new CFileData();
+				data.setup(motname + ".ncap.lz", ds.fs.enFDL_FILETYPE.enFDL_FILETYPE_COMPRESS);
+				if (data.getSize() <= 0)
+				{
+					FF3.Log.Write(FF3.LogChannel.General, "stage: map motion " + motname + " was not found");
+					return;
+				}
+				if (m_MotSet == null)
+				{
+					m_MotSet = new ds.sys3d.CMotSet();
+					m_MotSet.setup(m_ModelSet.getMdlResource());
+					m_MotSet.addRenderObject(m_RdrObject.getRenderObject());
+				}
+				m_MotData.Add(data);
+				m_MotSet.addMotion(data.getAddr<ds.sys3d.ncap.SMotionFileHeader>());
+				FF3.Log.Write(FF3.LogChannel.File, "stage: map motion pack " + motname + " (" + data.getSize() + " bytes) on " + CurrentName);
+			}
+
+			public bool startMotion(int id, bool loop, uint blendFrame)
+			{
+				if (m_MotSet == null)
+				{
+					return false;
+				}
+				if (!m_MotSet.isMotion((uint)id))
+				{
+					FF3.Log.Write(FF3.LogChannel.General, "stage: map motion " + id + " is not in the loaded packs");
+					return false;
+				}
+				m_MotSet.start((uint)id, loop, blendFrame);
+				FF3.Log.Write(FF3.LogChannel.File, "stage: map motion " + id + (loop ? " looping" : "") + " blend " + blendFrame + " -> index " + m_MotSet.getIndex() + ", " + m_MotSet.getMaxFrame() + " frames, type " + m_StageType);
+				return true;
+			}
+
+			public bool isEndOfMapMotion()
+			{
+				return m_MotSet == null || m_MotSet.isEndOfMotion();
+			}
+
+			public bool startAnimation(uint index, ds.sys3d.CAnimSet.enTYPE type, int frame)
+			{
+				if (m_Flag == 0 || type >= ds.sys3d.CAnimSet.enTYPE.enTYPE_END)
+				{
+					return false;
+				}
+				bool ok = m_AnimSet.startAnimation(index, type, frame);
+				FF3.Log.Write(FF3.LogChannel.File, "stage: map animation " + index + " type " + type + (ok ? " started" : " not started"));
+				return ok;
+			}
+
+			private void cleanupMapMotions()
+			{
+				if (m_MotSet != null)
+				{
+					m_MotSet.removeRenderObject(m_RdrObject.getRenderObject());
+					m_MotSet.cleanup();
+					m_MotSet = null;
+				}
+				foreach (CFileData data in m_MotData)
+				{
+					data.cleanup();
+				}
+				m_MotData.Clear();
+			}
+
 			private dgs.CRestrictor m_Collision = new dgs.CRestrictor();
 
 			private ds.sys3d.CBoxTest m_BoxTest;
@@ -1104,6 +1182,10 @@ internal static partial class GlobalScope
 					if (m_Flag != 0)
 					{
 						m_AnimSet.next();
+						if (m_MotSet != null)
+						{
+							m_MotSet.next();
+						}
 						executeFakeMaterialColor();
 					}
 					break;
@@ -1329,6 +1411,7 @@ internal static partial class GlobalScope
 				}
 				else
 				{
+					cleanupMapMotions();
 					m_RdrObject.cleanup();
 					pScene.removeRenderObject(m_RdrObject);
 					m_Collision.rorRemove();

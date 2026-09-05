@@ -446,6 +446,10 @@ internal static partial class GlobalScope
 
 							public class CWorldCamera : ds.sys3d.CCamera
 							{
+								// OpenFF: when set, this drives the camera each frame in place of the mode controllers
+								// (FF4 scene camera motions). It sets position, target, up and field of view itself.
+								public static Action<CWorldCamera> ExternalDrive;
+
 								public enum MODE
 								{
 									MODE_ERR = -1,
@@ -610,6 +614,11 @@ internal static partial class GlobalScope
 
 								public new void execute()
 								{
+									if (ExternalDrive != null)
+									{
+										ExternalDrive(this);
+										return;
+									}
 									control[(int)m_Mode]();
 									calculatePositionOffset();
 									calculateTargetOffset();
@@ -641,6 +650,15 @@ internal static partial class GlobalScope
 									PrePos_set(Pos());
 									PreTrg_set(Trg());
 									m_SavePos.copy(getPosition());
+									if (ExternalDrive != null)
+									{
+										ExternalDrive(this);
+										if (m_Activity)
+										{
+											base.execute();
+										}
+										return;
+									}
 									if (m_Mode == MODE.MODE_AUTOFOLLOW_DEFAULT || m_Mode == MODE.MODE_AUTOFOLLOW)
 									{
 										VecFx32 cmr_reuse_v = cmr_reuse_v0;

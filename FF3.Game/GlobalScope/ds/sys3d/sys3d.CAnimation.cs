@@ -50,6 +50,8 @@ internal static partial class GlobalScope
 
 				private NNSG3dResTex m_RelateTex;
 
+				private NNSG3dRenderObj m_pRenderObj;
+
 				public CAnimation()
 				{
 					m_CurrAnmNo = INVALID_ANIME_INDEX;
@@ -131,6 +133,7 @@ internal static partial class GlobalScope
 					if ((m_Flag & 4) == 0)
 					{
 						m_Flag |= 4;
+						m_pRenderObj = rdObj;
 						NNS_G3dRenderObjAddAnmObj(rdObj, m_AnmObject);
 					}
 				}
@@ -138,6 +141,7 @@ internal static partial class GlobalScope
 				public void removeRenderObject(NNSG3dRenderObj rdObj)
 				{
 					m_Flag &= -5;
+					m_pRenderObj = null;
 					NNS_G3dRenderObjRemoveAnmObj(rdObj, m_AnmObject);
 				}
 
@@ -208,8 +212,23 @@ internal static partial class GlobalScope
 					{
 						return false;
 					}
+					// PORT: setup allocates a new animation object for a new index; the render object
+					// still lists the old one (in C++ the freed block came back at the same address, so
+					// the stale pointer kept working). Swap it over.
+					NNSG3dAnmObj old = m_AnmObject;
+					bool attached = (m_Flag & 4) != 0;
+					NNSG3dRenderObj rdObj = m_pRenderObj;
 					setup(m_AnmData, m_RelateMdl, index, m_RelateTex);
 					start(frame, blend);
+					if (attached && rdObj != null && m_AnmObject != old)
+					{
+						if (old != null)
+						{
+							NNS_G3dRenderObjRemoveAnmObj(rdObj, old);
+						}
+						m_Flag &= -5;
+						addRenderObject(rdObj);
+					}
 					return true;
 				}
 
