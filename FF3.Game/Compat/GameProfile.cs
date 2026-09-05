@@ -18,6 +18,9 @@ namespace FF3
 
 		public static bool IsFf4 => string.Equals(Game, "ff4", StringComparison.OrdinalIgnoreCase);
 
+		/// <summary>The window's title: the client's name and the game whose content it runs ("OpenFF" alone once a mixed project is the content).</summary>
+		public static string Title => IsFf4 ? "OpenFF - Final Fantasy IV" : string.Equals(Game, "ff3", StringComparison.OrdinalIgnoreCase) ? "OpenFF - Final Fantasy III" : "OpenFF";
+
 		/// <summary>Whether player.chaindata is FF3's: jobs, growth types, job MP tables.</summary>
 		public static bool Ff3Party => !IsFf4;
 

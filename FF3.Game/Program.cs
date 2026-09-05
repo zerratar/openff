@@ -124,7 +124,7 @@ namespace FF3
 				gdm.ApplyChanges();
 
 				game.Window.AllowUserResizing = true;
-				game.Window.Title = "Final Fantasy III";
+				game.Window.Title = GameProfile.Title;
 
 				// Game1's constructor sets this to a full second, which is sensible on a
 				// phone and miserable on a desktop: the game crawls whenever the window
