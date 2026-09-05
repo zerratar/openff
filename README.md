@@ -36,7 +36,7 @@ With no arguments `FF3.exe` finds the Steam installs, boots FF3 and remembers th
 | Switch | Effect |
 | --- | --- |
 | `--game=ff4` | Boot FF4 (Baron town) instead; remembered for the next start |
-| `--content=<dir>` | A specific install, or a `Content` directory extracted from the phone build |
+| `--content=<dir>` | A specific Steam install, when it is not where Steam usually puts it |
 | `--map=<id> --pos=x,y,z --rot=<deg>` | Any map of either game, no title (`d01_05`, `t01_00`, `f00`, `e01_00`) |
 | `--party=4:10 --gil=500 --load=<slot>` | FF4 test starts: members by type and level, gil, a saved slot |
 | `--size=1600x960` | Window size |
@@ -121,16 +121,14 @@ real games.
 
 ## Game data
 
-The client plays from what you own: a Steam install found on its own or named with
-`--content=<dir>`, or a `Content` directory extracted from the phone build with
-`ff3content extract` and named with `--content=<dir>`, `FF3_CONTENT=<path>` or `--source=content`.
-The game locates such a directory by looking for `data000.bin`, walking up from the executable.
-`Content/` in this repository holds only the pipeline file and the override notes (loose files
-that replace a copy inside the archives without repacking - see `Content/Override/README.md`);
-put an extracted `Content` beside them if you have one, `.gitignore` keeps it out of commits.
-`Reference/libff4/` carries only what we wrote; `symbols.txt`, `strings.txt` and `menu-layouts.txt`
-are regenerated from your own copy of the FF4 binary and files with `Tools/ff4_dump_all.py` and
-`Tools/xbn_dump.py` (see `Reference/libff4/INDEX.md`).
+The client needs the Steam releases of the games and plays from them in place: it finds the
+installs on its own, or takes one with `--content=<dir>`. No game file is distributed here and
+none is written into the install (Crystal's *Install* into a Steam copy keeps a backup and
+*Remove* restores it). `Content/` in this repository holds only the pipeline file and the
+override notes (`Content/Override/README.md`); `.gitignore` keeps any game data placed there out
+of commits. `Reference/libff4/` carries only what we wrote; `symbols.txt`, `strings.txt` and
+`menu-layouts.txt` are regenerated from your own copy of the FF4 binary and files with
+`Tools/ff4_dump_all.py` and `Tools/xbn_dump.py` (see `Reference/libff4/INDEX.md`).
 
 This repository's history is the project's, rewritten once to leave the data out; the commits
 are otherwise as they were made.
