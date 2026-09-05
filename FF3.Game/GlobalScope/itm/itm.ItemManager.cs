@@ -202,7 +202,7 @@ internal static partial class GlobalScope
 				{
 					return null;
 				}
-				for (short num = 0; num < m_ConsumptionItemMax; num++)
+				for (short num = 0; num < m_ConsumptionItemMax && num < consumptionItem_.Length; num++)
 				{
 					if (ItemId == consumptionItem_[num].itemId())
 					{

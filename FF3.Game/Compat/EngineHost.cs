@@ -186,8 +186,16 @@ namespace FF3
 					legacy.Info = null;
 				}
 				// Leaving a map, not arriving at the first one: a scene's script can already be
-				// running (loading its camera set) when the stage name first appears.
-				if (_lastStage != null) Ff4Cutscene.MapLeft();
+				// running (loading its camera set) when the stage name first appears. A scene that
+				// swaps its own stage (ce_SetMap) keeps its characters and camera.
+				if (Ff4Cutscene.StageSwapPending)
+				{
+					Ff4Cutscene.StageSwapPending = false;
+				}
+				else if (_lastStage != null)
+				{
+					Ff4Cutscene.MapLeft();
+				}
 				_lastStage = stage;
 				_entered = false;
 			}

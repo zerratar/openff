@@ -61,6 +61,9 @@ namespace FF3
 			{ "ce_setFrameWait", FrameWait },                // (frames): a wait
 			{ "ce_SetMap", SetMap },                         // (map): the scene's stage - every script but one names its own map
 			{ "ce_CreateToonTable", CreateToonTable },       // (index, r, g, b): entries 0..31; index 100 applies the table
+			{ "effectLoadAsync", EffectLoad },               // (pack): /EFFECT/<pack>.efp, loaded at once
+			{ "cleanUpEffectData2", EffectUnload },          // (pack)
+			{ "ce_CallBattle", CallBattle },                 // (battle, ?, ?, return map, x, y, z): no FF4 battles yet - straight to the return map
 			{ "ce_SetShadingMode", SetShadingMode },         // (slot, 0 flat-lit | 1 toon)
 			{ "ce_SetLightForCharacter", SetLight },         // (slot, light 0..3, x, y, z, r, g, b): the global light
 		};
@@ -264,6 +267,45 @@ namespace FF3
 			});
 		}
 
+		// ---- effect packs and the scene battle ----
+
+		private static void EffectLoad(GlobalScope.ScriptEngine engine)
+		{
+			string pack = engine.getString();
+			Guard("effect pack " + pack, () =>
+			{
+				if (!GlobalScope.eff.CEffectMng.instance().loadEfpNamed(pack, "/EFFECT/" + pack + ".efp"))
+				{
+					Log.Write(LogChannel.General, "script: FF4 effect pack " + pack + " did not load");
+				}
+			});
+		}
+
+		private static void EffectUnload(GlobalScope.ScriptEngine engine)
+		{
+			string pack = engine.getString();
+			Guard("effect pack " + pack, () => GlobalScope.eff.CEffectMng.instance().unLoadEfpNamed(pack));
+		}
+
+		private static void CallBattle(GlobalScope.ScriptEngine engine)
+		{
+			int battle = (int)engine.getWord();
+			engine.getByte();
+			engine.getByte();
+			string returnMap = engine.getString();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " skipped (no FF4 battles yet) - on to " + returnMap);
+			if (string.IsNullOrEmpty(returnMap)) return;
+			Guard("battle return map " + returnMap, () =>
+			{
+				GlobalScope.VecFx32 pos = new GlobalScope.VecFx32(x, y, z);
+				GlobalScope.VecFx32 rot = new GlobalScope.VecFx32(0, 0, 0);
+				GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump().initialize();
+				GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump().setUp(returnMap, 0, pos, rot, true);
+				GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().setMapJump(true);
+			});
+		}
+
 		// ---- lights and shading, read from the FF4 handlers ----
 
 		private static readonly ushort[] _toon = new ushort[32];
@@ -400,11 +442,25 @@ namespace FF3
 			Ff4CameraMotion.SetFovy(degrees, frames);
 		}
 
+		/// <summary>
+		/// Set when a scene swaps its stage (ce_SetMap to another map, e01_01 -> e01_18): the
+		/// host must not treat the new stage name as leaving the map - the scene's characters
+		/// and camera carry over. Consumed by EngineHost.
+		/// </summary>
+		public static bool StageSwapPending;
+
 		private static void SetMap(GlobalScope.ScriptEngine engine)
 		{
 			string map = engine.getString();
 			if (string.Equals(map, GlobalScope.stg.CStageMng.CurrentName, StringComparison.OrdinalIgnoreCase)) return;
-			Log.Write(LogChannel.General, "script: FF4 ce_SetMap " + map + " inside " + GlobalScope.stg.CStageMng.CurrentName + " - changing the stage within a scene is not implemented");
+			string from = GlobalScope.stg.CStageMng.CurrentName;
+			Guard("ce_SetMap " + map, () =>
+			{
+				StageSwapPending = true;
+				GlobalScope.sceneMng.gotoStage(map);
+				GlobalScope.stageMng.setStage(map);
+				Log.Write(LogChannel.General, "script: FF4 ce_SetMap " + map + " replaces " + from + " within the scene");
+			});
 		}
 
 		// ---- map motions ----

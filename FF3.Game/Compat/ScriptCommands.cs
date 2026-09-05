@@ -59,7 +59,28 @@ namespace FF3
 			{
 				_recent[_recentAt] = (int)opcode;
 				_recentAt = (_recentAt + 1) % _recent.Length;
-				table[opcode](engine);
+				if (!GameProfile.IsFf4)
+				{
+					table[opcode](engine);
+					return;
+				}
+				// FF4 scripts feed FF3's handlers FF4 data (item ids, table indices the FF3 tables do
+				// not have): a handler that throws is logged once and the script goes on.
+				try
+				{
+					table[opcode](engine);
+				}
+				catch (Exception ex)
+				{
+					lock (_reported)
+					{
+						if (_reported.Add((int)opcode + 200000))
+						{
+							ScriptOp op = ScriptOpTable.Ff4.Get((int)opcode);
+							Log.Write(LogChannel.General, "script: FF4 command " + opcode + (op != null ? " " + op.Name : "") + " threw " + ex.GetType().Name + ": " + ex.Message + " - skipped from here on");
+						}
+					}
+				}
 				return;
 			}
 			lock (_reported)

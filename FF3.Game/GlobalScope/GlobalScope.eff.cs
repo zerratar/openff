@@ -65,6 +65,48 @@ internal static partial class GlobalScope
 				}
 			}
 
+			// PORT (FF4): effectLoadAsync(name) / cleanUpEffectData2(name) address packs by name.
+			private readonly string[] m_EfpName = new string[5];
+
+			public bool loadEfpNamed(string name, string path)
+			{
+				for (int i = 0; i < 5; i++)
+				{
+					if (m_EfpId[i] != null && m_EfpName[i] == name)
+					{
+						return true;
+					}
+				}
+				for (int i = 0; i < 5; i++)
+				{
+					if (m_EfpId[i] == null)
+					{
+						eld.SFileHeader header = static_cast<eld.SFileHeader>(eld.g_elsvr.loadEfp(path));
+						if (header == null)
+						{
+							return false;
+						}
+						m_EfpId[i] = header;
+						m_EfpName[i] = name;
+						return true;
+					}
+				}
+				return false;
+			}
+
+			public void unLoadEfpNamed(string name)
+			{
+				for (int i = 0; i < 5; i++)
+				{
+					if (m_EfpId[i] != null && m_EfpName[i] == name)
+					{
+						eld.g_elsvr.unloadEfp(m_EfpId[i]);
+						m_EfpId[i] = null;
+						m_EfpName[i] = null;
+					}
+				}
+			}
+
 			public void unLoadEfp(eld.SFileHeader _id)
 			{
 				if (_id == null)
