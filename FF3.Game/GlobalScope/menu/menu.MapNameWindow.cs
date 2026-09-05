@@ -68,8 +68,12 @@ internal static partial class GlobalScope
 				BasicWindow.bwReleaseSystem();
 			}
 
+			// PORT: the last place name shown, for the OpenFF menu's place line (Ff4Menu).
+			public static int LastMessageNo = -1;
+
 			public int open(int nMessageNo)
 			{
+				if (0 <= nMessageNo) LastMessageNo = nMessageNo;
 				ds.Vector2<short> vector = new ds.Vector2<short>();
 				ds.Vector2<short> vector2 = new ds.Vector2<short>();
 				if (0 <= nMessageNo && !bVisiblity_)

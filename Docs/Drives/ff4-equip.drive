@@ -24,21 +24,27 @@ wait 1
 # The menu: Party page, Rydia is second; A opens her equipment, A on the right hand lists the rod.
 press C
 until menu: open 5
-wait 0.6
+wait 0.5
+# Equipment is the third command; A asks whom - Down to Rydia; then the right hand, its list, the rod.
 press Down
-wait 0.4
+wait 0.3
+press Down
+wait 0.3
 press Z
+wait 0.4
+press Down
+wait 0.3
+press Z
+until menu: Equipment 5
 wait 0.5
 press Z
-wait 0.6
+wait 0.5
 press Z
 until menu: Rydia equips 5
 wait 1
 press X
 wait 0.4
-press X
-wait 0.4
-press X
-wait 0.5
-say equip drive done
+press C
+until menu: close 5
+say equip done
 quit

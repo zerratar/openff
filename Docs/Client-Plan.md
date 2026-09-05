@@ -953,6 +953,32 @@ Next: the menu from the XBN layouts with the same pieces, the damage digits from
 battle_number, the battle windows' numbers from the binary.
 
 
+## The FF4 menu in FF4's dress (2026-09-05, late)
+
+`Compat/Ff4Menu.cs` rewritten on FF4's own pieces and data: the windows are Steam's
+window.png / point.png through `Ff4Ui` (the phone frames when absent), the texts babil_menu.msd
+(`Ff4Layouts.Text`: 50002 Inventory .. 50011 Abilities, 50204.. Right/Left/Head/Body/Arms,
+50401 Lv, 50410 HP, 50411 MP, 50420.. the attributes, 50446 Gil, 50451 EXP), the command
+list in MenuLayout_Root's order (its FBText frames; Load added after them since the root has
+none), the Status screen's attribute rows where MenuLayout_Status puts them (frames 4030..
+and 4080.., a DS unit two pixels down the main window), the portraits face.NCER (a cell per
+player type). `Shared/Content/Xbn.cs` reads the layouts (`Xbn.ReadLayout`: frames with
+absolute DS positions as `layout::Frame::setup` computes them); `Compat/Ff4Layouts.cs`
+loads MenuLayout_<name> and the texts through the game's file system. The arrangement is
+the Steam game's, measured from Karl's screenshots (the phone code that places the DS-unit
+layouts on a 16:9 screen is not read yet): Root = the party's five rows on the left
+(portrait, name, Lv, HP, MP) and the commands on the right, six visible with a bar, the
+place and gil below; every other screen = a title bar, a main window and a footer of key
+hints. Screens: Status (attributes, EXP, next level, what is worn; Z opens Abilities),
+Inventory (two columns, a caption window, A on a usable item asks whom), Equipment (the five
+slots; A lists what fits with Attack or Defense, Remove first; the old piece returns to the
+bag), Magic and Abilities (three columns, MP costs), Party (A twice swaps two members; the
+leader changes at the next map), Save and Load (three slots). Settings and Quicksave say
+they come later. Left/Right on a member's screen switch member. The place line is the name
+the map's own plate last showed (`MapNameWindow.LastMessageNo`, a PORT hook), else the map
+id. Everything reads OpenFF.Data through Ff4Party - the unified path. Drive
+`Docs/Drives/ff4-menu.drive`, test C-51; C-39 and C-49 updated to the new navigation.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

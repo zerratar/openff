@@ -1,0 +1,71 @@
+# FF4: the OpenFF menu in FF4's own dress - root, Status, Abilities, Inventory, Equipment. Run with:
+#   FF3.exe --game=ff4 --map=t01_00 --party=4:10 --gil=500 --drive=Docs/Drives/ff4-menu.drive --log=general,file --screenshot-dir=shots --screenshot-every=1
+until jump: ff4 60
+wait 6
+press M
+until menu: open 10
+wait 1.5
+# Status of the first member (Inventory, Magic, Equipment, Abilities, Status in the layout's order).
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Z
+wait 0.5
+press Z
+until menu: Status 5
+wait 2
+# Right switches to the next member; Z opens Abilities; X back to the root.
+press Right
+wait 1.5
+press Z
+until menu: Abilities 5
+wait 1.5
+press X
+wait 0.5
+# Inventory.
+press Up
+wait 0.3
+press Up
+wait 0.3
+press Up
+wait 0.3
+press Up
+wait 0.3
+press Z
+until menu: Inventory 5
+wait 1.5
+press X
+wait 0.5
+# Equipment of Cecil: the right hand's list.
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Z
+wait 0.5
+press Z
+until menu: Equipment 5
+wait 1.5
+press Z
+wait 1.5
+press X
+wait 0.5
+# Party, then close.
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Down
+wait 0.3
+press Z
+until menu: Party 5
+wait 1.5
+press M
+until menu: close 5
+say menu tour done
+quit

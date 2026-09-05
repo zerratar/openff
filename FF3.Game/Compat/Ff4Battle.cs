@@ -263,7 +263,7 @@ namespace FF3
 			return true;
 		}
 
-		private static int Weapon(Character c, GameTables tables)
+		internal static int Weapon(Character c, GameTables tables)
 		{
 			int best = 0;
 			foreach (int id in c.Equipment)
@@ -274,7 +274,7 @@ namespace FF3
 			return best;
 		}
 
-		private static int Armour(Character c, GameTables tables)
+		internal static int Armour(Character c, GameTables tables)
 		{
 			int total = 0;
 			foreach (int id in c.Equipment)
@@ -285,7 +285,7 @@ namespace FF3
 			return total;
 		}
 
-		private static int WeaponHit(Character c, GameTables tables)
+		internal static int WeaponHit(Character c, GameTables tables)
 		{
 			int best = 0;
 			foreach (int id in c.Equipment)
@@ -296,7 +296,7 @@ namespace FF3
 			return best > 0 ? best : 90;
 		}
 
-		private static int Evasion(Character c, GameTables tables)
+		internal static int Evasion(Character c, GameTables tables)
 		{
 			int total = 0;
 			foreach (int id in c.Equipment)
@@ -307,7 +307,7 @@ namespace FF3
 			return total;
 		}
 
-		private static int MagicArmour(Character c, GameTables tables)
+		internal static int MagicArmour(Character c, GameTables tables)
 		{
 			int total = 0;
 			foreach (int id in c.Equipment)

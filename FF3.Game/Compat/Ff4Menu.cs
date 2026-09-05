@@ -1,15 +1,23 @@
-// The OpenFF menu on FF4: a status screen drawn by the engine from the unified party.
+// The OpenFF menu on FF4, drawn as the Steam game draws its own: FF4's window art (Ff4Ui -
+// Steam's window.png and point.png, or the phone's frames), its texts (babil_menu.msd through
+// Ff4Layouts), the command list in the order MenuLayout_Root gives it, the Status screen's
+// rows where MenuLayout_Status puts them - over the unified party (OpenFF.Data through
+// Ff4Party), the way a mod would draw it.
 //
-// FF3's menu part reads FF3's party, jobs and item tables and cannot show FF4's; FF4's own
-// menu (the MenuLayout_*.xbn layouts) is not ported. Until it is, the pad's menu button on
-// an FF4 map opens this: the line-up with levels, hit and magic points, attributes with
-// equipment, what each wears, and the bag - all from OpenFF.Data through Game.Party and
-// Game.Items, the way a mod would draw it - and the Save and Load pages, three slots each
-// through Ff4Saves. Up/Down pick a member or item, Left/Right switch pages, A on a member
-// opens their equipment (pick a slot, then something from the bag that fits: the item's
-// position bits name the slot - 1 right hand, 2 left hand, 4 head, 8 body, 16 arms - and its
-// canEquip mask the character types), A on a usable item picks whom to use it on, A saves or
-// loads a slot; B backs out, then closes. Input is captured while it is open.
+// FF4's own menu is world::WSMenu with a sub-state per screen (Docs/FF4-Internals.md); the
+// layouts are DS-unit rectangles and the phone stretches them over its 16:9 screen in code
+// not read yet, so the windows here stand where Karl's Steam screenshots show them: the
+// party's rows on the left and the commands on the right (Root), a title bar, a main window
+// and a footer of key hints (every other screen). The Status screen keeps the layout's
+// geometry: a DS unit is two of our pixels down the main window.
+//
+// Keys: the pad's menu button (keyboard C or M) opens and closes; Up/Down move the glove; A
+// picks (a command that needs a member first sends the glove to the party's rows); B goes
+// back; Left/Right on a member's screen switch member. Input is captured while it is open.
+// Inventory: A on a usable item asks whom; Equipment: A on a slot lists what fits (position
+// bits 1 right hand, 2 left hand, 4 head, 8 body, 16 arms and the character-type mask), the
+// old piece returns to the bag; Party: A twice swaps two members; Save and Load: three slots
+// through Ff4Saves.
 
 using System;
 using System.Collections.Generic;
@@ -20,24 +28,93 @@ namespace FF3
 {
 	internal sealed class Ff4Menu : GameService
 	{
-		private enum Mode { Browse, EquipSlot, EquipItem, ItemTarget }
+		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Party, Save, Load }
+		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember }
+
+		private sealed class Command
+		{
+			public uint Text;
+			public Screen Screen;
+			public bool NeedsMember;
+			public bool Later;   // named but not built: a notice instead
+		}
 
 		private bool _open;
-		private int _page;      // 0 party, 1 bag, 2 save, 3 load
-		private const int Pages = 4;
-		private int _cursor;
-		private int _scroll;
+		private Screen _screen;
 		private Mode _mode;
-		private int _slot;                 // the equipment slot under the cursor
-		private int _pick;                 // the cursor in the equip or target list
+		private readonly List<Command> _commands = new List<Command>();
+		private int _command, _commandScroll;
+		private int _member;              // the member a screen is about
+		private int _cursor, _scroll;     // the list cursor of the screen
+		private int _slot, _pick, _usingItem, _swapFrom = -1;
 		private readonly List<int> _equipChoices = new List<int>();
-		private int _usingItem;
-		private static readonly string[] SlotNames = { "Right hand", "Left hand", "Head", "Body", "Arms" };
 		private static readonly int[] SlotBits = { 1, 2, 4, 8, 16 };
+		private static readonly uint[] SlotTexts = { 50204, 50205, 50206, 50207, 50208 };
+		private static readonly string[] SlotFallback = { "Right", "Left", "Head", "Body", "Arms" };
 
 		public override bool WantsUpdate => true;
 
 		public bool IsOpen => _open;
+
+		// ---- the Steam arrangement, in the port's 800 x 480 ----
+		private const float PlaneX = 14f, PlaneW = 464f, PlaneRow = 94f, PlaneRowH = 90f;
+		private const float ColX = 488f, ColW = 272f, ColRow = 68f, ColRowH = 64f, ColVisible = 6;
+		private const float TitleX = 64f, TitleW = 674f, TitleH = 34f, MainY = 38f, MainH = 386f, FooterY = 428f, FooterH = 52f;
+
+		private static readonly Color Dim = new Color(186, 190, 218);
+		private static readonly Color Gold = new Color(255, 232, 110);
+		private static readonly Color Low = new Color(255, 120, 110);
+		private static readonly Color Line = new Color(170, 176, 230, 110);
+
+		// ---- opening and the root ----
+
+		private void Open()
+		{
+			_open = true;
+			_screen = Screen.Root;
+			_mode = Mode.Browse;
+			_command = _commandScroll = 0;
+			_member = 0;
+			_swapFrom = -1;
+			Game.Input.Capture = true;
+			BuildCommands();
+			Log.Write(LogChannel.File, "menu: open - " + Ff4Party.Party.Describe().Replace("\n", " | "));
+		}
+
+		private void Close()
+		{
+			_open = false;
+			Game.Input.Capture = false;
+			Log.Write(LogChannel.File, "menu: close");
+		}
+
+		/// <summary>The commands in MenuLayout_Root's order (its FBText frames: 50002 Inventory .. 50007 Save), Load added after them.</summary>
+		private void BuildCommands()
+		{
+			_commands.Clear();
+			FF3.Content.Layout root = Ff4Layouts.Get("Root");
+			List<uint> order = new List<uint>();
+			if (root != null)
+			{
+				foreach (FF3.Content.LayoutFrame f in root.Frames) if (f.MessageId >= 50002 && f.MessageId <= 50011) order.Add((uint)f.MessageId);
+			}
+			if (order.Count == 0) order.AddRange(new uint[] { 50002, 50003, 50004, 50011, 50005, 50010, 50006, 50009, 50007 });
+			foreach (uint id in order)
+			{
+				switch (id)
+				{
+					case 50002: _commands.Add(new Command { Text = id, Screen = Screen.Inventory }); break;
+					case 50003: _commands.Add(new Command { Text = id, Screen = Screen.Magic, NeedsMember = true }); break;
+					case 50004: _commands.Add(new Command { Text = id, Screen = Screen.Equipment, NeedsMember = true }); break;
+					case 50011: _commands.Add(new Command { Text = id, Screen = Screen.Abilities, NeedsMember = true }); break;
+					case 50005: _commands.Add(new Command { Text = id, Screen = Screen.Status, NeedsMember = true }); break;
+					case 50010: _commands.Add(new Command { Text = id, Screen = Screen.Party }); break;
+					case 50007: _commands.Add(new Command { Text = id, Screen = Screen.Save }); break;
+					default: _commands.Add(new Command { Text = id, Later = true }); break;   // Settings, Quicksave
+				}
+			}
+			_commands.Add(new Command { Text = 50008, Screen = Screen.Load });
+		}
 
 		public override void OnUpdate()
 		{
@@ -47,127 +124,175 @@ namespace FF3
 				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !Game.Battle.InBattle && !Ff4Battle.Active
 					&& !(Ff4Shop.Instance?.IsOpen ?? false) && (input.Pressed(Pad.X) || input.KeyPressed("M")))
 				{
-					_open = true;
-					_page = 0;
-					_cursor = 0;
-					_scroll = 0;
-					_mode = Mode.Browse;
-					input.Capture = true;
-					Log.Write(LogChannel.File, "menu: open - " + Ff4Party.Party.Describe().Replace("\n", " | "));
+					Open();
 				}
 				return;
 			}
 			if (Ff4Saves.NoticeFrames > 0) Ff4Saves.NoticeFrames--;
-			if (_mode != Mode.Browse)
+			if (input.Pressed(Pad.X) || input.KeyPressed("M") || input.KeyPressed("Escape")) { Close(); return; }
+			if (Ff4Party.Party.Members.Count == 0) { Close(); return; }
+			_member = Math.Clamp(_member, 0, Ff4Party.Party.Members.Count - 1);
+			switch (_screen)
 			{
-				UpdateMode(input);
-				Draw();
+				case Screen.Root: UpdateRoot(input); break;
+				case Screen.Status: UpdateMemberScreen(input, null); break;
+				case Screen.Inventory: UpdateInventory(input); break;
+				case Screen.Equipment: UpdateEquipment(input); break;
+				case Screen.Magic:
+				case Screen.Abilities: UpdateMemberScreen(input, ListCount()); break;
+				case Screen.Party: UpdateParty(input); break;
+				case Screen.Save:
+				case Screen.Load: UpdateSlots(input); break;
+			}
+			if (_open) Draw();
+		}
+
+		private void Back()
+		{
+			_screen = Screen.Root;
+			_mode = Mode.Browse;
+			_cursor = _scroll = 0;
+			_swapFrom = -1;
+		}
+
+		private void UpdateRoot(InputState input)
+		{
+			IReadOnlyList<Character> members = Ff4Party.Party.Members;
+			if (_mode == Mode.PickMember)
+			{
+				if (input.Pressed(Pad.Up)) _member = (_member + members.Count - 1) % members.Count;
+				if (input.Pressed(Pad.Down)) _member = (_member + 1) % members.Count;
+				if (input.Pressed(Pad.B)) { _mode = Mode.Browse; return; }
+				if (input.Pressed(Pad.A)) OpenScreen(_commands[_command].Screen);
 				return;
 			}
-			if (input.Pressed(Pad.B) || input.Pressed(Pad.X) || input.KeyPressed("M") || input.KeyPressed("Escape"))
-			{
-				Log.Write(LogChannel.File, "menu: close - pad " + (int)input.Held + " keys " + string.Join("+", input.KeysHeld));
-				_open = false;
-				input.Capture = false;
-				return;
-			}
-			if (input.Pressed(Pad.Left)) { _page = Math.Max(0, _page - 1); _cursor = 0; _scroll = 0; Log.Write(LogChannel.File, "menu: page " + _page + " (left) pad " + (int)input.Held); }
-			if (input.Pressed(Pad.Right)) { _page = Math.Min(Pages - 1, _page + 1); _cursor = 0; _scroll = 0; Log.Write(LogChannel.File, "menu: page " + _page + " (right) pad " + (int)input.Held); }
-			int count = _page == 0 ? Game.Party.Members.Count : _page == 1 ? Game.Party.Items.Count : Ff4Saves.SlotCount;
-			if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - 1);
-			if (input.Pressed(Pad.Down)) _cursor = Math.Min(Math.Max(0, count - 1), _cursor + 1);
+			if (input.Pressed(Pad.B)) { Close(); return; }
+			if (input.Pressed(Pad.Up)) _command = (_command + _commands.Count - 1) % _commands.Count;
+			if (input.Pressed(Pad.Down)) _command = (_command + 1) % _commands.Count;
+			if (_command < _commandScroll) _commandScroll = _command;
+			if (_command >= _commandScroll + ColVisible) _commandScroll = _command - (int)ColVisible + 1;
 			if (input.Pressed(Pad.A))
 			{
-				if (_page == 0 && count > 0)
-				{
-					_mode = Mode.EquipSlot;
-					_slot = 0;
-				}
-				else if (_page == 1 && count > 0)
-				{
-					int id = Game.Party.Items[_cursor].ItemId;
-					if (UsableEffect(id) != null) { _usingItem = id; _mode = Mode.ItemTarget; _pick = 0; }
-					else Notice("That cannot be used here.");
-				}
-				else if (_page >= 2)
-				{
-					int slot = _cursor + 1;
-					if (_page == 2)
-					{
-						Notice(Ff4Saves.Save(slot) ? "Saved to slot " + slot + "." : "Could not save here.");
-					}
-					else if (Ff4Saves.Exists(slot))
-					{
-						_open = false;
-						input.Capture = false;
-						if (!Ff4Saves.Load(slot, false)) Game.Dialogue.Say("Slot " + slot + " could not be loaded.");
-						return;
-					}
-					else Notice("Slot " + slot + " is empty.");
-				}
+				Command c = _commands[_command];
+				if (c.Later) { Notice(Ff4Layouts.Text(c.Text) + " comes later."); return; }
+				if (c.NeedsMember) { _mode = Mode.PickMember; return; }
+				OpenScreen(c.Screen);
 			}
-			Draw();
 		}
 
-		private static void Notice(string text)
+		private void OpenScreen(Screen screen)
 		{
-			Ff4Saves.Notice = text;
-			Ff4Saves.NoticeFrames = 150;
+			_screen = screen;
+			_mode = screen == Screen.Equipment ? Mode.EquipSlot : Mode.Browse;
+			_cursor = _scroll = 0;
+			_slot = 0;
+			_pick = 0;
+			Log.Write(LogChannel.File, "menu: " + screen + (NeedsMember(screen) ? " of " + Ff4Party.Party.Members[_member].Name : ""));
 		}
 
-		// ---- equipment and item use ----
+		private static bool NeedsMember(Screen s) => s == Screen.Status || s == Screen.Equipment || s == Screen.Magic || s == Screen.Abilities;
 
-		private Character Picked => _cursor < Ff4Party.Party.Members.Count ? Ff4Party.Party.Members[_cursor] : null;
+		private Character Member => Ff4Party.Party.Members[_member];
 
-		private void UpdateMode(InputState input)
+		private void SwitchMember(InputState input)
 		{
-			Character member = Picked;
-			if (member == null) { _mode = Mode.Browse; return; }
-			switch (_mode)
+			int n = Ff4Party.Party.Members.Count;
+			if (input.Pressed(Pad.Left)) { _member = (_member + n - 1) % n; _cursor = _scroll = 0; }
+			if (input.Pressed(Pad.Right)) { _member = (_member + 1) % n; _cursor = _scroll = 0; }
+		}
+
+		private void UpdateMemberScreen(InputState input, int? listCount)
+		{
+			if (input.Pressed(Pad.B)) { Back(); return; }
+			SwitchMember(input);
+			if (_screen == Screen.Status && input.Pressed(Pad.A)) { OpenScreen(Screen.Abilities); return; }
+			if (listCount.HasValue && listCount.Value > 0)
 			{
-				case Mode.EquipSlot:
-					if (input.Pressed(Pad.Up)) _slot = (_slot + 4) % 5;
-					if (input.Pressed(Pad.Down)) _slot = (_slot + 1) % 5;
-					if (input.Pressed(Pad.B)) { _mode = Mode.Browse; return; }
-					if (input.Pressed(Pad.A))
-					{
-						_equipChoices.Clear();
-						if (member.Equipment[_slot] != 0) _equipChoices.Add(0);
-						foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory)
-						{
-							if (Fits(Ff4Party.Tables?.Item(s.ItemId), member, _slot)) _equipChoices.Add(s.ItemId);
-						}
-						if (_equipChoices.Count == 0) { Notice("Nothing in the bag fits there."); return; }
-						_mode = Mode.EquipItem;
-						_pick = 0;
-					}
-					break;
-				case Mode.EquipItem:
-					if (input.Pressed(Pad.Up)) _pick = (_pick + _equipChoices.Count - 1) % _equipChoices.Count;
-					if (input.Pressed(Pad.Down)) _pick = (_pick + 1) % _equipChoices.Count;
-					if (input.Pressed(Pad.B)) { _mode = Mode.EquipSlot; return; }
-					if (input.Pressed(Pad.A))
-					{
-						int id = _equipChoices[_pick];
-						if (id != 0) Ff4Party.Party.RemoveItem(id, 1);
-						Ff4Party.Party.Equip(member.Id, (OpenFF.Data.EquipSlot)_slot, id);
-						Log.Write(LogChannel.File, "menu: " + member.Name + " " + (id == 0 ? "takes off the " + SlotNames[_slot].ToLower() : "equips " + (Ff4Party.Tables?.Item(id)?.Name ?? id.ToString()) + " (" + SlotNames[_slot].ToLower() + ")"));
-						_mode = Mode.EquipSlot;
-					}
-					break;
-				case Mode.ItemTarget:
-					int members = Ff4Party.Party.Members.Count;
-					if (input.Pressed(Pad.Up)) _pick = (_pick + members - 1) % members;
-					if (input.Pressed(Pad.Down)) _pick = (_pick + 1) % members;
-					if (input.Pressed(Pad.B)) { _mode = Mode.Browse; return; }
-					if (input.Pressed(Pad.A))
-					{
-						Character target = Ff4Party.Party.Members[_pick];
-						string said = Use(_usingItem, target);
-						Notice(said);
-						if (Ff4Party.Party.CountItem(_usingItem) == 0 || Game.Party.Items.Count == 0) { _mode = Mode.Browse; _cursor = Math.Min(_cursor, Math.Max(0, Game.Party.Items.Count - 1)); }
-					}
-					break;
+				int cols = 3, rows = 9;
+				if (input.Pressed(Pad.Left)) _cursor = Math.Max(0, _cursor - 1);
+				if (input.Pressed(Pad.Right)) _cursor = Math.Min(listCount.Value - 1, _cursor + 1);
+				if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - cols);
+				if (input.Pressed(Pad.Down)) _cursor = Math.Min(listCount.Value - 1, _cursor + cols);
+				int row = _cursor / cols, top = _scroll / cols;
+				if (row < top) _scroll = row * cols;
+				if (row >= top + rows) _scroll = (row - rows + 1) * cols;
+			}
+		}
+
+		private int ListCount() => _screen == Screen.Magic ? Member.Spells.Count : Member.Abilities.Count;
+
+		// ---- inventory ----
+
+		private void UpdateInventory(InputState input)
+		{
+			IReadOnlyList<OpenFF.Data.ItemStack> items = Ff4Party.Party.Inventory;
+			if (_mode == Mode.ItemTarget)
+			{
+				int n = Ff4Party.Party.Members.Count;
+				if (input.Pressed(Pad.Up)) _pick = (_pick + n - 1) % n;
+				if (input.Pressed(Pad.Down)) _pick = (_pick + 1) % n;
+				if (input.Pressed(Pad.B)) { _mode = Mode.Browse; return; }
+				if (input.Pressed(Pad.A))
+				{
+					Notice(Use(_usingItem, Ff4Party.Party.Members[_pick]));
+					if (Ff4Party.Party.CountItem(_usingItem) == 0) _mode = Mode.Browse;
+				}
+				return;
+			}
+			if (input.Pressed(Pad.B)) { Back(); return; }
+			if (items.Count == 0) return;
+			const int cols = 2, rows = 11;
+			if (input.Pressed(Pad.Left)) _cursor = Math.Max(0, _cursor - 1);
+			if (input.Pressed(Pad.Right)) _cursor = Math.Min(items.Count - 1, _cursor + 1);
+			if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - cols);
+			if (input.Pressed(Pad.Down)) _cursor = Math.Min(items.Count - 1, _cursor + cols);
+			_cursor = Math.Min(_cursor, items.Count - 1);
+			int row = _cursor / cols, top = _scroll / cols;
+			if (row < top) _scroll = row * cols;
+			if (row >= top + rows) _scroll = (row - rows + 1) * cols;
+			if (input.Pressed(Pad.A))
+			{
+				int id = items[_cursor].ItemId;
+				if (UsableEffect(id) != null) { _usingItem = id; _mode = Mode.ItemTarget; _pick = 0; }
+				else Notice("That cannot be used here.");
+			}
+		}
+
+		// ---- equipment ----
+
+		private void UpdateEquipment(InputState input)
+		{
+			Character member = Member;
+			if (_mode == Mode.EquipItem)
+			{
+				if (input.Pressed(Pad.Up)) _pick = (_pick + _equipChoices.Count - 1) % _equipChoices.Count;
+				if (input.Pressed(Pad.Down)) _pick = (_pick + 1) % _equipChoices.Count;
+				if (input.Pressed(Pad.B)) { _mode = Mode.EquipSlot; return; }
+				if (input.Pressed(Pad.A))
+				{
+					int id = _equipChoices[_pick];
+					if (id != 0) Ff4Party.Party.RemoveItem(id, 1);
+					Ff4Party.Party.Equip(member.Id, (OpenFF.Data.EquipSlot)_slot, id);
+					Log.Write(LogChannel.File, "menu: " + member.Name + " " + (id == 0 ? "takes off the " + SlotName(_slot).ToLower() : "equips " + (Ff4Party.Tables?.Item(id)?.Name ?? id.ToString()) + " (" + SlotName(_slot).ToLower() + ")"));
+					_mode = Mode.EquipSlot;
+				}
+				return;
+			}
+			if (input.Pressed(Pad.B)) { Back(); return; }
+			SwitchMember(input);
+			if (input.Pressed(Pad.Up)) _slot = (_slot + 4) % 5;
+			if (input.Pressed(Pad.Down)) _slot = (_slot + 1) % 5;
+			if (input.Pressed(Pad.A))
+			{
+				_equipChoices.Clear();
+				if (member.Equipment[_slot] != 0) _equipChoices.Add(0);
+				foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory)
+				{
+					if (Fits(Ff4Party.Tables?.Item(s.ItemId), member, _slot)) _equipChoices.Add(s.ItemId);
+				}
+				if (_equipChoices.Count == 0) { Notice("Nothing in the bag fits there."); return; }
+				_mode = Mode.EquipItem;
+				_pick = 0;
 			}
 		}
 
@@ -180,6 +305,59 @@ namespace FF3
 			int bits = item.Equip.Position & 0xFFFF;
 			if ((bits & SlotBits[slot]) == 0) return false;
 			return item.Equip.CanEquip == 0 || (item.Equip.CanEquip & (1u << member.Id)) != 0;
+		}
+
+		private static string SlotName(int slot) => Ff4Layouts.Text(SlotTexts[slot], SlotFallback[slot]);
+
+		// ---- party order ----
+
+		private void UpdateParty(InputState input)
+		{
+			int n = Ff4Party.Party.Members.Count;
+			if (input.Pressed(Pad.B)) { if (_swapFrom >= 0) _swapFrom = -1; else Back(); return; }
+			if (input.Pressed(Pad.Up)) _cursor = (_cursor + n - 1) % n;
+			if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % n;
+			if (input.Pressed(Pad.A))
+			{
+				if (_swapFrom < 0) { _swapFrom = _cursor; return; }
+				if (_swapFrom != _cursor)
+				{
+					List<Character> members = Ff4Party.Party.Members;
+					Character a = members[_swapFrom];
+					members[_swapFrom] = members[_cursor];
+					members[_cursor] = a;
+					Log.Write(LogChannel.File, "menu: party order " + string.Join(", ", members.ConvertAll(m => m.Name)) + (_swapFrom == 0 || _cursor == 0 ? " (the leader changes at the next map)" : ""));
+				}
+				_swapFrom = -1;
+			}
+		}
+
+		// ---- save and load ----
+
+		private void UpdateSlots(InputState input)
+		{
+			if (input.Pressed(Pad.B)) { Back(); return; }
+			if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - 1);
+			if (input.Pressed(Pad.Down)) _cursor = Math.Min(Ff4Saves.SlotCount - 1, _cursor + 1);
+			if (input.Pressed(Pad.A))
+			{
+				int slot = _cursor + 1;
+				if (_screen == Screen.Save) Notice(Ff4Saves.Save(slot) ? "Saved to slot " + slot + "." : "Could not save here.");
+				else if (Ff4Saves.Exists(slot))
+				{
+					Close();
+					if (!Ff4Saves.Load(slot, false)) Game.Dialogue.Say("Slot " + slot + " could not be loaded.");
+				}
+				else Notice("Slot " + slot + " is empty.");
+			}
+		}
+
+		// ---- items in the menu ----
+
+		private static void Notice(string text)
+		{
+			Ff4Saves.Notice = text;
+			Ff4Saves.NoticeFrames = 150;
 		}
 
 		/// <summary>What a consumable does from the menu: hit or magic points back, or a revival; null for anything else.</summary>
@@ -214,179 +392,341 @@ namespace FF3
 
 		// ---- drawing ----
 
+		private static string T(uint id, string fallback = null) => Ff4Layouts.Text(id, fallback);
+
+		private void Window(DrawList d, float x, float y, float w, float h)
+		{
+			if (Ff4Ui.Window(d, x, y, w, h)) return;
+			d.Rect(x, y, w, h, new Color(20, 34, 74, 220));
+			d.Rect(x, y, w, h, new Color(214, 218, 242), false);
+		}
+
+		private void Glove(DrawList d, float x, float y)
+		{
+			if (Ff4Ui.Glove(d, x, y)) return;
+			for (int i = 0; i < 6; i++) d.Rect(x - 14 + 2 * i, y - 6 + i, 2, 12 - 2 * i, Color.White);
+		}
+
+		private void Text(DrawList d, string text, float x, float y, Color color, int size = 16)
+		{
+			if (string.IsNullOrEmpty(text)) return;
+			d.Text(text, x + 1, y + 1, new Color(0, 0, 0, 160), size);
+			d.Text(text, x, y, color, size);
+		}
+
+		private void Right(DrawList d, string text, float right, float y, Color color, int size = 16) => Text(d, text, right - d.MeasureText(text, size), y, color, size);
+
+		private void Centred(DrawList d, string text, float centre, float y, Color color, int size = 16) => Text(d, text, centre - d.MeasureText(text, size) / 2, y, color, size);
+
+		private void KeyHint(DrawList d, string key, string what, float x, float y)
+		{
+			d.Rect(x, y, 18, 18, new Color(30, 90, 150, 230));
+			d.Rect(x, y, 18, 18, new Color(214, 218, 242), false);
+			d.Text(key, x + 9 - d.MeasureText(key, 12) / 2, y + 2, Color.White, 12);
+			Text(d, what, x + 24, y + 1, Color.White, 14);
+		}
+
+		/// <summary>A member's portrait from face.NCER (cell = player type), <paramref name="size"/> pixels square.</summary>
+		private void Portrait(DrawList d, Character c, float x, float y, float size)
+		{
+			if (!Ff4Ui.Cell(d, "face.NCER", "face.NCGR", c.Id, x, y, size / 80f))
+			{
+				d.Rect(x, y, size, size, new Color(60, 64, 120, 255));
+				d.Rect(x, y, size, size, new Color(214, 218, 242), false);
+			}
+		}
+
 		private void Draw()
 		{
 			DrawList d = Game.Draw;
-			Color panel = new Color(16, 24, 72, 235);
-			Color frame = new Color(230, 230, 240);
-			Color dim = new Color(170, 175, 200);
-			d.Rect(0, 0, 800, 480, new Color(0, 0, 0, 110));
-			d.Rect(40, 30, 720, 420, panel);
-			d.Rect(40, 30, 720, 420, frame, false);
-			string[] titles = { "Party", "Items", "Save", "Load" };
-			d.Text(titles[_page], 60, 42, Color.White, 20);
-			d.Text(Game.Party.Gil + " gil", 700 - d.MeasureText(Game.Party.Gil + " gil", 14), 46, Color.Yellow, 14);
-			string help = _mode == Mode.EquipSlot ? "Up/Down: slot   A: change   B: back"
-				: _mode == Mode.EquipItem ? "Up/Down: choose   A: equip   B: back"
-				: _mode == Mode.ItemTarget ? "Up/Down: whom   A: use   B: back"
-				: "Left/Right: page   Up/Down: choose   " + (_page == 0 ? "A: equipment   " : _page == 1 ? "A: use   " : "A: " + titles[_page].ToLower() + "   ") + "B: close";
-			d.Text(help, 60, 425, dim, 12);
-			if (_page == 0) DrawParty(d, dim);
-			else if (_page == 1) DrawBag(d, dim);
-			else DrawSlots(d, dim, _page == 3);
-			if (Ff4Saves.NoticeFrames > 0 && !string.IsNullOrEmpty(Ff4Saves.Notice)) d.Text(Ff4Saves.Notice, 60, 400, Color.Yellow, 14);
+			d.Rect(0, 0, 800, 480, new Color(0, 0, 0, 90));
+			switch (_screen)
+			{
+				case Screen.Root: DrawRoot(d); break;
+				case Screen.Status: DrawStatus(d); break;
+				case Screen.Inventory: DrawInventory(d); break;
+				case Screen.Equipment: DrawEquipment(d); break;
+				case Screen.Magic:
+				case Screen.Abilities: DrawList(d); break;
+				case Screen.Party: DrawParty(d); break;
+				case Screen.Save:
+				case Screen.Load: DrawSlots(d); break;
+			}
+			if (Ff4Saves.NoticeFrames > 0 && !string.IsNullOrEmpty(Ff4Saves.Notice))
+			{
+				float w = d.MeasureText(Ff4Saves.Notice, 15) + 40;
+				Window(d, 400 - w / 2, 220, w, 36);
+				Centred(d, Ff4Saves.Notice, 400, 229, Gold, 15);
+			}
 		}
 
-		private void DrawParty(DrawList d, Color dim)
+		/// <summary>The party's rows on the left, as the Root and Party screens show them.</summary>
+		private void DrawPlane(DrawList d, int gloveAt, int secondGlove = -1)
 		{
-			IReadOnlyList<PartyMember> members = Game.Party.Members;
-			if (members.Count == 0)
+			IReadOnlyList<Character> members = Ff4Party.Party.Members;
+			GameTables tables = Ff4Party.Tables;
+			for (int i = 0; i < 5; i++)
 			{
-				d.Text("Nobody is in the party.", 60, 90, dim, 14);
-				return;
+				float y = 4 + i * PlaneRow;
+				Window(d, PlaneX, y, PlaneW, PlaneRowH);
+				if (i >= members.Count) continue;
+				Character c = members[i];
+				Portrait(d, c, PlaneX + 10, y + 12, 66);
+				Text(d, c.Name, PlaneX + 104, y + 16, c.Alive ? Color.White : Dim, 17);
+				Text(d, T(50401, "Lv"), PlaneX + 104, y + 46, Color.White, 16);
+				Right(d, c.Level.ToString(), PlaneX + 190, y + 46, Color.White, 16);
+				Text(d, T(50410, "HP"), PlaneX + 276, y + 16, Color.White, 16);
+				Right(d, c.Hp + " / " + c.MaxHp, PlaneX + 440, y + 16, c.Hp * 4 <= c.MaxHp ? Low : Color.White, 16);
+				Text(d, T(50411, "MP"), PlaneX + 276, y + 46, Color.White, 16);
+				Right(d, c.Mp + " / " + c.MaxMp, PlaneX + 440, y + 46, Color.White, 16);
+				if (i == gloveAt) Glove(d, PlaneX + 44, y + 42);
+				if (i == secondGlove) Glove(d, PlaneX + 44, y + 70);
 			}
-			_cursor = Math.Min(_cursor, members.Count - 1);
-			float y = 80;
-			for (int i = 0; i < members.Count; i++)
+		}
+
+		private void DrawRoot(DrawList d)
+		{
+			DrawPlane(d, _mode == Mode.PickMember ? _member : -1);
+			// The commands, a window each, six visible, a bar for the rest.
+			for (int k = 0; k < ColVisible && _commandScroll + k < _commands.Count; k++)
 			{
-				PartyMember m = members[i];
-				bool on = i == _cursor;
-				if (on) d.Rect(52, y - 4, 330, 44, new Color(255, 255, 255, 28));
-				d.Text((on ? "> " : "  ") + m.Name, 60, y, on ? Color.Yellow : Color.White, 16);
-				d.Text("L" + m.Level, 240, y + 2, Color.White, 14);
-				d.Text("HP " + m.Hp + "/" + m.MaxHp, 70, y + 20, m.Hp * 4 <= m.MaxHp ? Color.Red : dim, 12);
-				d.Text("MP " + m.Charges[0] + "/" + m.MaxCharges[0], 220, y + 20, dim, 12);
-				y += 50;
+				int i = _commandScroll + k;
+				float y = 4 + k * ColRow;
+				Window(d, ColX, y, ColW, ColRowH);
+				Centred(d, T(_commands[i].Text), ColX + ColW / 2, y + 20, _commands[i].Later ? Dim : Color.White, 18);
+				if (i == _command && _mode == Mode.Browse) Glove(d, ColX + 40, y + 34);
 			}
-			PartyMember pick = members[_cursor];
-			float x = 410, ty = 80;
-			string cls = Ff4Party.Tables?.Character(pick.Id)?.ClassName;
-			d.Text(pick.Name + (cls != null ? "  -  " + cls : ""), x, ty, Color.White, 16); ty += 26;
-			d.Text("Level " + pick.Level + "     Exp " + pick.Experience, x, ty, dim, 12); ty += 20;
-			int next = NextLevelExp(pick);
-			if (next > 0) { d.Text("Next level in " + next, x, ty, dim, 12); }
-			ty += 26;
-			d.Text("Strength  " + pick.Stats.Strength, x, ty, Color.White, 13); d.Text("Agility  " + pick.Stats.Agility, x + 170, ty, Color.White, 13); ty += 18;
-			d.Text("Vitality  " + pick.Stats.Vitality, x, ty, Color.White, 13); d.Text("Wisdom   " + pick.Stats.Intellect, x + 170, ty, Color.White, 13); ty += 18;
-			d.Text("Will      " + pick.Stats.Mind, x, ty, Color.White, 13); ty += 30;
-			d.Text("Equipment", x, ty, Color.Yellow, 14); ty += 22;
-			for (int s = 0; s < 5; s++)
+			if (_commands.Count > ColVisible)
 			{
-				int id = Game.Party.Equipped(pick.Id, (OpenFF.EquipSlot)s);
-				Item item = id != 0 ? Game.Items.Find(id) : null;
-				bool on = _mode != Mode.Browse && s == _slot;
-				if (on) d.Rect(x - 6, ty - 2, 330, 18, new Color(255, 255, 255, 28));
-				d.Text((on ? "> " : "") + SlotNames[s], x, ty, on ? Color.Yellow : dim, 12);
-				d.Text(item?.Name ?? (id != 0 ? "item " + id : "-"), x + 110, ty, Color.White, 12);
-				ty += 18;
+				float track = ColVisible * ColRow - 4, knob = Math.Max(20f, track * ColVisible / _commands.Count);
+				d.Rect(768, 4, 24, track, new Color(20, 22, 60, 140));
+				d.Rect(770, 4 + (track - knob) * _commandScroll / Math.Max(1, _commands.Count - (int)ColVisible), 20, knob, new Color(214, 218, 242, 220));
+			}
+			// The place and the gil.
+			Window(d, ColX, 416, ColW, 60);
+			Text(d, PlaceName(), ColX + 14, 424, Color.White, 16);
+			Right(d, Ff4Party.Party.Gil + T(50446, "Gil"), ColX + ColW - 14, 448, Color.White, 16);
+		}
+
+		/// <summary>The place: the name the map's own plate last showed (a message of the common table), else the map's id.</summary>
+		private static string PlaceName()
+		{
+			try
+			{
+				int no = GlobalScope.menu.MapNameWindow.LastMessageNo;
+				if (no >= 0)
+				{
+					string text = GlobalScope.dgs.msg.CMessageSys.getInstance().Main().getMessage((uint)no);
+					if (!string.IsNullOrEmpty(text)) return text.Replace("\n", " ").Trim();
+				}
+			}
+			catch (Exception) { }
+			return Game.Field.Map ?? "";
+		}
+
+		private void Frame(DrawList d, string title)
+		{
+			Window(d, TitleX, 0, TitleW, TitleH);
+			Centred(d, title, TitleX + TitleW / 2, 8, Color.White, 17);
+			Window(d, TitleX, MainY, TitleW, MainH);
+			Window(d, TitleX, FooterY, TitleW, FooterH);
+		}
+
+		private void Header(DrawList d, Character c, float x, float y)
+		{
+			GameTables tables = Ff4Party.Tables;
+			Portrait(d, c, x + 32, y + 12, 56);
+			Text(d, c.Name, x + 100, y + 22, Color.White, 17);
+			Text(d, T(50401, "Lv"), x + 100, y + 46, Color.White, 16);
+			Right(d, c.Level.ToString(), x + 200, y + 46, Color.White, 16);
+			Text(d, tables?.Character(c.Id)?.ClassName ?? "", x + 270, y + 22, Color.White, 17);
+			Text(d, T(50410, "HP"), x + 460, y + 22, Color.White, 16);
+			Right(d, c.Hp + " / " + c.MaxHp, x + 650, y + 22, c.Hp * 4 <= c.MaxHp ? Low : Color.White, 16);
+			Text(d, T(50411, "MP"), x + 460, y + 46, Color.White, 16);
+			Right(d, c.Mp + " / " + c.MaxMp, x + 650, y + 46, Color.White, 16);
+		}
+
+		private void DrawStatus(DrawList d)
+		{
+			Character c = Member;
+			GameTables tables = Ff4Party.Tables;
+			Frame(d, T(50005, "Status"));
+			float x = TitleX, y = MainY;
+			Header(d, c, x, y);
+			// The attributes where MenuLayout_Status puts its rows (frames 4030.. and 4080..; a DS unit is two pixels here).
+			OpenFF.Data.Stats s = c.StatsWith(tables);
+			(uint text, int value, int frame, int fallbackY)[] rows =
+			{
+				(50420, s.Strength, 4030, 16), (50421, s.Agility, 4040, 28), (50422, s.Vitality, 4050, 40), (50423, s.Intellect, 4060, 52), (50424, s.Spirit, 4070, 64),
+				(50425, Math.Max(1, Ff4Battle.Weapon(c, tables) > 0 ? Ff4Battle.Weapon(c, tables) : s.Strength / 2), 4080, 84), (50426, Ff4Battle.Weapon(c, tables) > 0 ? Ff4Battle.WeaponHit(c, tables) : 90, 4090, 96),
+				(50427, Ff4Battle.Armour(c, tables), 4100, 108), (50428, Ff4Battle.Evasion(c, tables), 4110, 120), (50429, Ff4Battle.MagicArmour(c, tables), 4120, 132), (50430, 0, 4130, 144),
+			};
+			foreach (var r in rows)
+			{
+				float ry = y + 60 + Ff4Layouts.FrameY("Status", r.frame, r.fallbackY) * 2;
+				Text(d, T(r.text), x + 32, ry, Color.White, 15);
+				Right(d, r.value.ToString(), x + 250, ry, Color.White, 15);
+			}
+			Text(d, T(50451, "EXP"), x + 290, y + 92, Color.White, 16);
+			Right(d, c.Experience.ToString(), x + 644, y + 92, Color.White, 16);
+			Text(d, T(50402, "For next level"), x + 290, y + 116, Color.White, 16);
+			Right(d, NextLevel(c).ToString(), x + 644, y + 116, Color.White, 16);
+			// What is worn.
+			Window(d, x + 270, y + 197, 370, 154);
+			for (int i = 0; i < 5; i++)
+			{
+				float ry = y + 203 + 30 * i;
+				Centred(d, SlotName(i), x + 320, ry + 3, Color.White, 15);
+				Window(d, x + 364, ry, 274, 24);
+				int id = c.Equipment[i];
+				Text(d, id != 0 ? tables?.Item(id)?.Name ?? ("item " + id) : "", x + 374, ry + 3, Color.White, 15);
+			}
+			KeyHint(d, "Z", T(50011, "Abilities"), TitleX + 480, FooterY + 17);
+			KeyHint(d, "X", "Back", TitleX + 590, FooterY + 17);
+		}
+
+		private int NextLevel(Character c)
+		{
+			int[] curve = Ff4Party.Tables?.ExperienceToLevel;
+			if (curve == null || c.Level >= curve.Length) return 0;
+			return Math.Max(0, curve[c.Level] - c.Experience);
+		}
+
+		private void DrawInventory(DrawList d)
+		{
+			IReadOnlyList<OpenFF.Data.ItemStack> items = Ff4Party.Party.Inventory;
+			GameTables tables = Ff4Party.Tables;
+			Window(d, TitleX, 0, TitleW, TitleH);
+			Centred(d, T(50002, "Inventory"), TitleX + TitleW / 2, 8, Color.White, 17);
+			Window(d, TitleX, MainY, TitleW, 40);
+			ItemDefinition picked = items.Count > 0 && _cursor < items.Count ? tables?.Item(items[_cursor].ItemId) : null;
+			Text(d, picked?.Caption ?? picked?.Name ?? "", TitleX + 16, MainY + 10, Color.White, 15);
+			float listY = MainY + 44, listH = FooterY - listY - 4;
+			Window(d, TitleX, listY, TitleW, listH);
+			const int cols = 2, rows = 11;
+			float colW = (TitleW - 20) / cols, rowH = 30;
+			for (int k = 0; k < cols * rows && _scroll + k < items.Count; k++)
+			{
+				int i = _scroll + k;
+				float cx = TitleX + 10 + colW * (k % cols), cy = listY + 6 + rowH * (k / cols);
+				ItemDefinition item = tables?.Item(items[i].ItemId);
+				Text(d, item?.Name ?? ("item " + items[i].ItemId), cx + 40, cy + 5, Color.White, 15);
+				Right(d, items[i].Count.ToString(), cx + colW - 14, cy + 5, Dim, 15);
+				if (i == _cursor && _mode == Mode.Browse) Glove(d, cx + 34, cy + 16);
+			}
+			if (items.Count == 0) Text(d, "Nothing in the bag.", TitleX + 50, listY + 16, Dim, 15);
+			if (_mode == Mode.ItemTarget)
+			{
+				IReadOnlyList<Character> members = Ff4Party.Party.Members;
+				float w = 320, h = 30 + 28 * members.Count, wx = 400 - w / 2, wy = 150;
+				Window(d, wx, wy, w, h);
+				Text(d, "Use on whom?", wx + 16, wy + 6, Gold, 14);
+				for (int i = 0; i < members.Count; i++)
+				{
+					Character c = members[i];
+					Text(d, c.Name, wx + 50, wy + 30 + 28 * i, c.Alive ? Color.White : Dim, 15);
+					Right(d, c.Hp + " / " + c.MaxHp, wx + w - 16, wy + 30 + 28 * i, Color.White, 14);
+					if (i == _pick) Glove(d, wx + 42, wy + 42 + 28 * i);
+				}
+			}
+			Window(d, TitleX, FooterY, TitleW, FooterH);
+			KeyHint(d, "Z", T(50101, "Use"), TitleX + 480, FooterY + 17);
+			KeyHint(d, "X", "Back", TitleX + 590, FooterY + 17);
+		}
+
+		private void DrawEquipment(DrawList d)
+		{
+			Character c = Member;
+			GameTables tables = Ff4Party.Tables;
+			Frame(d, T(50004, "Equipment"));
+			float x = TitleX, y = MainY;
+			Header(d, c, x, y);
+			for (int i = 0; i < 5; i++)
+			{
+				float ry = y + 100 + 34 * i;
+				Text(d, SlotName(i), x + 48, ry, Color.White, 16);
+				Window(d, x + 130, ry - 4, 200, 28);
+				int id = c.Equipment[i];
+				Text(d, id != 0 ? tables?.Item(id)?.Name ?? ("item " + id) : "", x + 142, ry, Color.White, 15);
+				if (i == _slot && _mode == Mode.EquipSlot) Glove(d, x + 40, ry + 12);
 			}
 			if (_mode == Mode.EquipItem)
 			{
-				// The bag's fitting items, over the attributes.
-				float bx = 400, by = 78, bw = 350, bh = 24 + 20 * Math.Min(8, _equipChoices.Count) + 8;
-				d.Rect(bx, by, bw, bh, new Color(24, 32, 90, 245));
-				d.Rect(bx, by, bw, bh, Color.White, false);
-				d.Text(SlotNames[_slot] + ":", bx + 10, by + 6, Color.Yellow, 13);
-				int first = Math.Max(0, Math.Min(_pick - 7, _equipChoices.Count - 8));
-				for (int i = first; i < _equipChoices.Count && i < first + 8; i++)
+				float lx = x + 350, ly = y + 92, lw = 300, lh = 288;
+				Window(d, lx, ly, lw, lh);
+				int first = Math.Max(0, Math.Min(_pick - 9, _equipChoices.Count - 10));
+				for (int i = first; i < _equipChoices.Count && i < first + 10; i++)
 				{
 					int id = _equipChoices[i];
-					ItemDefinition item = id != 0 ? Ff4Party.Tables?.Item(id) : null;
-					string text = id == 0 ? "(take off)" : (item?.Name ?? ("item " + id)) + (item?.Equip != null ? (item.Kind == ItemKind.Weapon ? "   atk " + item.Equip.Attack : "   def " + item.Equip.Defence + " mdef " + item.Equip.MagicDefence) : "");
-					d.Text((i == _pick ? "> " : "  ") + text, bx + 10, by + 26 + 20 * (i - first), i == _pick ? Color.Yellow : Color.White, 12);
+					ItemDefinition item = id != 0 ? tables?.Item(id) : null;
+					float ry = ly + 8 + 27 * (i - first);
+					Text(d, id == 0 ? T(50202, "Remove") : item?.Name ?? ("item " + id), lx + 44, ry, Color.White, 15);
+					if (item?.Equip != null) Right(d, (item.Kind == ItemKind.Weapon ? T(50425, "Attack") + " " + item.Equip.Attack : T(50427, "Defense") + " " + item.Equip.Defence), lx + lw - 12, ry + 1, Dim, 13);
+					if (i == _pick) Glove(d, lx + 38, ry + 11);
 				}
-				return;
 			}
-			if (pick.Spells.Count > 0)
+			KeyHint(d, "Z", _mode == Mode.EquipItem ? "Equip" : "Change", TitleX + 460, FooterY + 17);
+			KeyHint(d, "X", "Back", TitleX + 590, FooterY + 17);
+		}
+
+		private void DrawList(DrawList d)
+		{
+			Character c = Member;
+			GameTables tables = Ff4Party.Tables;
+			bool magic = _screen == Screen.Magic;
+			Frame(d, T(magic ? 50003u : 50011u, magic ? "Magic" : "Abilities"));
+			float x = TitleX, y = MainY;
+			Header(d, c, x, y);
+			List<int> list = magic ? c.Spells : c.Abilities;
+			const int cols = 3, rows = 9;
+			float colW = (TitleW - 40) / cols;
+			for (int k = 0; k < cols * rows && _scroll + k < list.Count; k++)
 			{
-				ty += 10;
-				d.Text("Magic", x, ty, Color.Yellow, 14); ty += 20;
-				int col = 0;
-				foreach (int id in pick.Spells)
+				int i = _scroll + k;
+				float cx = x + 20 + colW * (k % cols), cy = y + 96 + 30 * (k / cols);
+				string name = magic ? tables?.Spell(list[i])?.Name ?? tables?.AbilityName(list[i]) : tables?.AbilityName(list[i]);
+				Text(d, name ?? list[i].ToString(), cx + 40, cy, Color.White, 15);
+				if (magic)
 				{
-					OpenFF.Data.SpellDefinition spell = Ff4Party.Tables?.Spell(id);
-					string name = spell?.Name ?? Ff4Party.Tables?.AbilityName(id) ?? id.ToString();
-					d.Text(name, x + 115 * (col % 3), ty, Color.White, 12);
-					if (spell != null) d.Text(spell.MpCost.ToString(), x + 115 * (col % 3) + 88, ty, dim, 11);
-					col++;
-					if (col % 3 == 0) ty += 16;
-					if (ty > 400) break;
+					SpellDefinition spell = tables?.Spell(list[i]);
+					if (spell != null) Right(d, spell.MpCost.ToString(), cx + colW - 12, cy + 2, Dim, 13);
 				}
+				if (i == _cursor) Glove(d, cx + 34, cy + 11);
 			}
+			if (list.Count == 0) Text(d, magic ? "No magic yet." : "No abilities.", x + 60, y + 100, Dim, 15);
+			KeyHint(d, "X", "Back", TitleX + 590, FooterY + 17);
 		}
 
-		private int NextLevelExp(PartyMember m)
+		private void DrawParty(DrawList d)
 		{
-			int[] curve = Ff4Party.Tables?.ExperienceToLevel;
-			if (curve == null || m.Level >= curve.Length) return 0;
-			return Math.Max(0, curve[m.Level] - m.Experience);
+			DrawPlane(d, _cursor, _swapFrom);
+			Window(d, ColX, 4, ColW, 100);
+			Text(d, T(50010, "Party"), ColX + 16, 14, Color.White, 17);
+			Text(d, _swapFrom < 0 ? "Pick a member, then the place to move them to." : "Move " + Ff4Party.Party.Members[_swapFrom].Name + " where?", ColX + 16, 44, Dim, 13);
+			Window(d, ColX, 416, ColW, 60);
+			KeyHint(d, "Z", "Pick", ColX + 16, 434);
+			KeyHint(d, "X", "Back", ColX + 150, 434);
 		}
 
-		private void DrawBag(DrawList d, Color dim)
+		private void DrawSlots(DrawList d)
 		{
-			IReadOnlyList<OpenFF.ItemStack> items = Game.Party.Items;
-			if (items.Count == 0)
-			{
-				d.Text("The bag is empty.", 60, 90, dim, 14);
-				return;
-			}
-			const int rows = 16;
-			_cursor = Math.Min(_cursor, items.Count - 1);
-			if (_cursor < _scroll) _scroll = _cursor;
-			if (_cursor >= _scroll + rows) _scroll = _cursor - rows + 1;
-			float y = 80;
-			for (int i = _scroll; i < Math.Min(items.Count, _scroll + rows); i++)
-			{
-				OpenFF.ItemStack stack = items[i];
-				Item item = Game.Items.Find(stack.ItemId);
-				bool on = i == _cursor;
-				if (on) d.Rect(52, y - 2, 340, 20, new Color(255, 255, 255, 28));
-				d.Text((on ? "> " : "  ") + (item?.Name ?? ("item " + stack.ItemId)), 60, y, on ? Color.Yellow : Color.White, 13);
-				d.Text("x" + stack.Count, 350, y, dim, 13);
-				y += 21;
-			}
-			Item picked = Game.Items.Find(items[_cursor].ItemId);
-			if (picked != null)
-			{
-				float x = 420, ty = 80;
-				d.Text(picked.Name ?? "", x, ty, Color.White, 16); ty += 26;
-				d.Text(picked.Category + (picked.Price > 0 ? "   " + picked.Price + " gil" : ""), x, ty, dim, 12); ty += 20;
-				if (!string.IsNullOrEmpty(picked.Caption)) { d.Text(picked.Caption, x, ty, Color.White, 12); ty += 20; }
-				if (picked.Category == ItemCategory.Weapon) d.Text("Attack " + picked.Attack + "   Hit " + picked.Accuracy, x, ty, dim, 12);
-				if (picked.Category == ItemCategory.Armor) d.Text("Defence " + picked.Defense + "   Magic defence " + picked.MagicDefense + "   Evade " + picked.Evasion, x, ty, dim, 12);
-				ty += 30;
-				if (_mode == Mode.ItemTarget)
-				{
-					d.Text("Use on whom?", x, ty, Color.Yellow, 14); ty += 22;
-					IReadOnlyList<Character> members = Ff4Party.Party.Members;
-					for (int i = 0; i < members.Count; i++)
-					{
-						Character c = members[i];
-						bool on = i == _pick;
-						d.Text((on ? "> " : "  ") + c.Name + "   " + c.Hp + "/" + c.MaxHp + " HP   " + c.Mp + "/" + c.MaxMp + " MP", x, ty, on ? Color.Yellow : (c.Alive ? Color.White : dim), 13);
-						ty += 20;
-					}
-				}
-			}
-		}
-
-		private void DrawSlots(DrawList d, Color dim, bool loading)
-		{
-			d.Text(loading ? "Pick a slot to load. The party, the bag, the flags and the spot come back." : "Pick a slot to save the game as it stands.", 60, 80, dim, 13);
-			float y = 120;
+			bool loading = _screen == Screen.Load;
+			Frame(d, T(loading ? 50008u : 50007u, loading ? "Load" : "Save"));
 			for (int i = 0; i < Ff4Saves.SlotCount; i++)
 			{
-				bool on = i == _cursor;
-				if (on) d.Rect(52, y - 6, 700, 40, new Color(255, 255, 255, 28));
-				d.Text((on ? "> " : "  ") + "Slot " + (i + 1), 60, y, on ? Color.Yellow : Color.White, 16);
-				d.Text(Ff4Saves.Describe(i + 1), 170, y + 2, Ff4Saves.Exists(i + 1) ? Color.White : dim, 13);
-				y += 50;
+				float y = MainY + 20 + 110 * i;
+				Window(d, TitleX + 30, y, TitleW - 60, 96);
+				Text(d, "Slot " + (i + 1), TitleX + 90, y + 16, Color.White, 17);
+				Text(d, Ff4Saves.Describe(i + 1), TitleX + 90, y + 50, Ff4Saves.Exists(i + 1) ? Color.White : Dim, 14);
+				if (i == _cursor) Glove(d, TitleX + 82, y + 30);
 			}
+			KeyHint(d, "Z", loading ? T(50008, "Load") : T(50007, "Save"), TitleX + 480, FooterY + 17);
+			KeyHint(d, "X", "Back", TitleX + 590, FooterY + 17);
 		}
 
 		public override IEnumerable<string> DebugLines()
 		{
-			if (_open) yield return "OpenFF menu open (" + new[] { "party", "items", "save", "load" }[_page] + (_mode != Mode.Browse ? ", " + _mode : "") + ")";
+			if (_open) yield return "OpenFF menu open (" + _screen + (_mode != Mode.Browse ? ", " + _mode : "") + ")";
 		}
 	}
 }
