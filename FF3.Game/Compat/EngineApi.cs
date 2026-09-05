@@ -41,7 +41,8 @@ namespace FF3
 			OpenFF.Game.Services.Register(new LegacyBattle());
 			OpenFF.Game.Services.Register(Magic);
 			OpenFF.Game.Services.Register(new LegacyMonsters());
-			OpenFF.Game.Services.Register(new LegacyItems());
+			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Items());
+			else OpenFF.Game.Services.Register(new LegacyItems());
 			OpenFF.Game.Services.Register(new LegacyShops());
 		}
 
