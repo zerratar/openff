@@ -616,7 +616,12 @@ content chain once, `Ff4Party.Party` is the roster (a new game: Cecil, type 0, a
 what `initForNewgame` leaves), and the scripts' `addItem`/`subItem`/`addPartyPC`/`subPartyPC`/
 `setPartyPCEquipItem` (left hand, right hand, head, body, arm)/`addAbility` act on it;
 `Ff4PartyService` is Game.Party on FF4 (FF3 keeps LegacyParty over pl.PlayerParty). A joiner
-takes the leader's level until FF4's own rule is read. Test C-38.
+takes the leader's level until FF4's own rule is read. Test C-38. `Ff4Items` is Game.Items on
+FF4 from the same tables, and `Ff4Menu` is the first thing built on nothing but OpenFF.Data: a
+status menu the engine draws (Game.Draw/Game.Input, as a mod would) on the pad's menu button -
+party page and bag page (C-39). FF3's menu part is blocked on FF4 (CStateWorldMove), where it
+crashed on FF3-only face cells. FF4's own menu layouts (MenuLayout_*.xbn) remain to be ported
+onto this data.
 
 The stage after the scenes is FF4's data model - the party, its members' growth, items -
 because the menu, the roster commands (`addPartyPC`...) and battles all stand on it. Opening
