@@ -15865,8 +15865,8 @@ internal static partial class GlobalScope
 						{
 							uint hichIndex = static_cast<uint>(engine.getWord());
 							VecFx32 vecFx = ff3Command_reuse_v0;
-							vecFx.set(static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()));
-							int num = static_cast<int>(engine.getDword());
+							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
+							int num = (int)engine.getDword();
 							int num2 = CCastCommandTransit.getInstance().changeHichNumber(hichIndex);
 							if (num2 != -1)
 							{
@@ -15882,8 +15882,8 @@ internal static partial class GlobalScope
 							uint hichIndex = static_cast<uint>(engine.getWord());
 							uint hichIndex2 = static_cast<uint>(engine.getWord());
 							VecFx32 vecFx = ff3Command_reuse_v0;
-							vecFx.set(static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()));
-							int num = static_cast<int>(engine.getDword());
+							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
+							int num = (int)engine.getDword();
 							int num2 = CCastCommandTransit.getInstance().changeHichNumber(hichIndex);
 							int num3 = CCastCommandTransit.getInstance().changeHichNumber(hichIndex2);
 							if (num2 != -1 && num3 != -1)
@@ -16342,7 +16342,7 @@ internal static partial class GlobalScope
 						internal static void ff3Command_MoveCamera_AbsoluteCoordination(ScriptEngine engine)
 						{
 							VecFx32 vecFx = ff3Command_reuse_v0;
-							vecFx.set(static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()));
+							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
 							engine.getWord();
 							engine.getDword();
 							if (vecFx.x == 0 && vecFx.y == 0 && vecFx.z == 0)
@@ -16357,7 +16357,7 @@ internal static partial class GlobalScope
 						internal static void ff3Command_MoveCamera_RelativeCoordination(ScriptEngine engine)
 						{
 							VecFx32 vecFx = ff3Command_reuse_v0;
-							vecFx.set(static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()));
+							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
 							engine.getWord();
 							engine.getDword();
 							if (vecFx.x == 0 && vecFx.y == 0 && vecFx.z == 0)
@@ -16528,7 +16528,7 @@ internal static partial class GlobalScope
 
 						internal static void ff3Command_PauseEffect(ScriptEngine engine)
 						{
-							int id = static_cast<int>(engine.getWord());
+							int id = (int)engine.getWord();
 							bool flag = ((engine.getWord() != 0) ? true : false);
 							if (eff.CEffectMng.instance().isEffectObject(id))
 							{
@@ -16538,10 +16538,10 @@ internal static partial class GlobalScope
 
 						internal static void ff3Command_SetEffect_Scale(ScriptEngine engine)
 						{
-							int id = static_cast<int>(engine.getWord());
+							int id = (int)engine.getWord();
 							engine.getWord();
 							VecFx32 vecFx = ff3Command_reuse_v0;
-							vecFx.set(static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()));
+							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
 							vecFx.z *= -1;
 							if (eff.CEffectMng.instance().isEffectObject(id))
 							{
@@ -16684,7 +16684,7 @@ internal static partial class GlobalScope
 						internal static void ff3Command_SetCamera_AbsoluteGaze(ScriptEngine engine)
 						{
 							VecFx32 vecFx = ff3Command_reuse_v0;
-							vecFx.set(static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()));
+							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
 							engine.getWord();
 							engine.getDword();
 							if (vecFx.x == 0 && vecFx.y == 0 && vecFx.z == 0)
@@ -16699,7 +16699,7 @@ internal static partial class GlobalScope
 						internal static void ff3Command_SetCamera_RelativeGaze(ScriptEngine engine)
 						{
 							VecFx32 vecFx = ff3Command_reuse_v0;
-							vecFx.set(static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()), static_cast<int>(engine.getDword()));
+							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
 							engine.getWord();
 							engine.getDword();
 							if (vecFx.x == 0 && vecFx.y == 0 && vecFx.z == 0)
@@ -17211,7 +17211,7 @@ internal static partial class GlobalScope
 
 						internal static void ff3Command_PartyMemberFine(ScriptEngine engine)
 						{
-							switch (static_cast<int>(engine.getWord()))
+							switch ((int)engine.getWord())
 							{
 							case 0:
 								pl.PlayerParty.instance().fineAll();
@@ -17528,7 +17528,7 @@ internal static partial class GlobalScope
 
 						internal static void ff3Command_SetCamera_ZoomSpeed(ScriptEngine engine)
 						{
-							int num = static_cast<int>(engine.getWord());
+							int num = (int)engine.getWord();
 							if (engine.getWord() != 0)
 							{
 								num *= -1;
@@ -19476,8 +19476,8 @@ internal static partial class GlobalScope
 						internal static void ff3Command_AddPositionWorldBG(ScriptEngine engine)
 						{
 							NNSG2dBGSelect nNSG2dBGSelect = static_cast<NNSG2dBGSelect>(engine.getByte());
-							int x = static_cast<int>(engine.getDword() / 4096);
-							int y = static_cast<int>(engine.getDword() / 4096);
+							int x = (int)(engine.getDword() / 4096);
+							int y = (int)(engine.getDword() / 4096);
 							engine.getDword();
 							CCastCommandTransit.getInstance().cast_BaseSystem().WorldBGCtrl()
 								.wbcAddPosition(nNSG2dBGSelect, x, y);
@@ -19487,8 +19487,8 @@ internal static partial class GlobalScope
 						{
 							NNSG2dBGSelect nNSG2dBGSelect = static_cast<NNSG2dBGSelect>(engine.getByte());
 							ushort word = engine.getWord();
-							int x = static_cast<int>(engine.getDword() / 4096);
-							int y = static_cast<int>(engine.getDword() / 4096);
+							int x = (int)(engine.getDword() / 4096);
+							int y = (int)(engine.getDword() / 4096);
 							engine.getDword();
 							CCastCommandTransit.getInstance().cast_BaseSystem().WorldBGCtrl()
 								.wbcSetScroll(nNSG2dBGSelect, word, x, y);
@@ -19552,8 +19552,8 @@ internal static partial class GlobalScope
 						internal static void ff3Command_AddPositionWorldOBJ(ScriptEngine engine)
 						{
 							byte idx = engine.getByte();
-							int x = static_cast<int>(engine.getDword() / 4096);
-							int y = static_cast<int>(engine.getDword() / 4096);
+							int x = (int)(engine.getDword() / 4096);
+							int y = (int)(engine.getDword() / 4096);
 							engine.getDword();
 							CCastCommandTransit.getInstance().cast_BaseSystem().WorldOBJCtrl()
 								.wocAddPosition(idx, x, y);
@@ -20730,7 +20730,7 @@ internal static partial class GlobalScope
 						{
 							uint word = engine.getWord();
 							uint word2 = engine.getWord();
-							int num = static_cast<int>(engine.getDword());
+							int num = (int)engine.getDword();
 							int num2 = ValueManager.singleton().get(word, word2);
 							ValueManager.singleton().set(word, word2, num2 + num);
 						}
@@ -20739,7 +20739,7 @@ internal static partial class GlobalScope
 						{
 							uint word = engine.getWord();
 							uint word2 = engine.getWord();
-							int num = static_cast<int>(engine.getDword());
+							int num = (int)engine.getDword();
 							int num2 = ValueManager.singleton().get(word, word2);
 							ValueManager.singleton().set(word, word2, num2 * num);
 						}
@@ -20748,7 +20748,7 @@ internal static partial class GlobalScope
 						{
 							uint word = engine.getWord();
 							uint word2 = engine.getWord();
-							int num = static_cast<int>(engine.getDword());
+							int num = (int)engine.getDword();
 							int num2 = ValueManager.singleton().get(word, word2);
 							ValueManager.singleton().set(word, word2, num2 / num);
 						}

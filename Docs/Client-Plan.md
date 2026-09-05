@@ -559,6 +559,11 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
   (NewGameInitPart's message to the world part), where the castle script starts scene 1.
   FF4 dispatch now catches a throwing FF3 handler and logs it once (the castle's addItem with
   FF4 item ids took the client down).
+- **Sound**: `ce_PlayBGM(bgm)` / `ce_SlotBGMPlay(slot, bgm)` / `ce_SlotBGMStop` / `ce_StopBGM(fade)` /
+  `ce_SetVolumeBGM` / `ce_SlotBGMSetVolume` drive MatrixSound's four BGM slots (BGMnn.akb by
+  number); `ce_PlaySE(bank, no, volume, pan)` and the `_slot` variants are FF3's SE player;
+  `ce_StartVoice(file.ahx)` plays SOUND/VOICE/en_<file>.akb (ja_ when English is missing)
+  through OggSound as a SoundEffect and `ce_EndVoice` waits for it; `--novoice` mutes voices.
 - **What the scene still lacks**: effects (`setEffect_Scale`; packs load by name now), the 2D
   sprites (`ce_3DSSetup`: the "Baron" plate from /2D/MIDDLE_EVENT), `ce_CallBattle`, voices
   and BGM slots, `ce_setFog` (FF4 has fog: the overworld enables it in `WSPrepare` with range

@@ -13,6 +13,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using Microsoft.Xna.Framework.Audio;
 
 namespace FF3
 {
@@ -66,6 +68,20 @@ namespace FF3
 			{ "ce_CallBattle", CallBattle },                 // (battle, ?, ?, return map, x, y, z): no FF4 battles yet - straight to the return map
 			{ "conteEventJumpAndReturnMapJamp", ConteEventJump }, // (event, part, return map, x, y, z): play scene e<event>_<part>, come back here
 			{ "ce_setConteNextPart", SetConteNextPart },     // (map, x, y, z): where the scene chain ends up
+			{ "ce_SetupBGM", ReadDword },                    // (bgm): loads are on demand here
+			{ "ce_PlayBGM", PlayBgm },                       // (bgm)
+			{ "ce_SlotBGMPlay", SlotBgmPlay },               // (slot, bgm)
+			{ "ce_SlotBGMStop", SlotBgmStop },               // (slot, fade frames)
+			{ "ce_StopBGM", StopBgm },                       // (fade frames): every slot
+			{ "ce_SetVolumeBGM", SetVolumeBgm },             // (volume, frames)
+			{ "ce_PlaySE", PlaySe },                         // (bank, number, volume, pan)
+			{ "ce_PlaySE_slot", PlaySeSlot },                // (slot, bank, number, volume, pan)
+			{ "ce_StopSE_slot", StopSeSlot },                // (slot, fade)
+			{ "ce_SlotBGMSetVolume", SlotBgmSetVolume },     // (slot, volume, frames)
+			{ "ce_StopSE", StopSe },                         // (bank): stops what this scene played
+			{ "ce_StartVoice", StartVoice },                 // (file.ahx): SOUND/VOICE/<lang>_<file>.akb
+			{ "ce_StartVoice2", StartVoice2 },               // (file.ahx, ?, ?, ?, ?)
+			{ "ce_EndVoice", EndVoice },                     // (): waits for the line to finish
 			{ "ce_SetShadingMode", SetShadingMode },         // (slot, 0 flat-lit | 1 toon)
 			{ "ce_SetLightForCharacter", SetLight },         // (slot, light 0..3, x, y, z, r, g, b): the global light
 		};
@@ -75,10 +91,10 @@ namespace FF3
 		{
 			"ce_ShadowSetting", "ce_ShadowVisiblity", "ce_AddShadowVolume", "ce_ShadowVolumeONOFF",
 			"ce_SetEnbleViewClip", "ce_SetSkip", "ce_StopSkip", "ce_EventSkipJump", "ce_VoiceSkipOn",
-			"ce_setSound", "ce_SetupBGM", "ce_CleanupBGM", "ce_PlayBGM", "ce_StopBGM", "ce_SetVolumeBGM", "ce_StopBGM_Streaming",
-			"ce_SlotBGMPlay", "ce_SlotBGMStop", "ce_SlotBGMSetVolume",
-			"ce_SetupSE", "ce_CleanupSE", "ce_PlaySE", "ce_PlaySE_slot", "ce_StopSE", "ce_StopSE_slot",
-			"ce_StartVoice", "ce_StartVoice2", "ce_EndVoice",
+			"ce_setSound", "ce_CleanupBGM", "ce_StopBGM_Streaming",
+			"ce_SetupSE", "ce_CleanupSE",
+			"3DSSetup", "3DSRelease", "3DSSetAlpha", "3DSSetPosition", "3DSSetVisiblity",
+			"_3DSSetup", "_3DSRelease", "_3DSSetAlpha", "_3DSSetPosition", "_3DSSetVisiblity",
 			"ce_SetLightEnableForCharacter", "ce_SetToonTable", "ce_setFog",
 			"ce_SetupExpression", "ce_SetupExpressionAsync", "ce_CleanupExpression", "ce_ChangeExpression",
 			"ce_LoadBG", "ce_setBGAlpha", "ce_setTelopMassage",
@@ -326,6 +342,174 @@ namespace FF3
 				camera.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_FREE);
 				camera.Trg_set(new GlobalScope.VecFx32(x, y, z));
 			});
+		}
+
+		// ---- sound: BGM slots, sound effects and the voice lines ----
+
+		private static void ReadDword(GlobalScope.ScriptEngine engine) { engine.getDword(); }
+
+		private static GlobalScope.MatrixSound.enMtxBGMSlot BgmSlot(int slot)
+		{
+			return (GlobalScope.MatrixSound.enMtxBGMSlot)Math.Clamp(slot, 0, 3);
+		}
+
+		private static void PlayBgm(GlobalScope.ScriptEngine engine)
+		{
+			int bgm = (int)engine.getDword();
+			Guard("bgm " + bgm, () => GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().play(bgm, 127, 0, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0));
+		}
+
+		private static void SlotBgmPlay(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getDword();
+			int bgm = (int)engine.getDword();
+			Guard("bgm " + bgm, () => GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().play(bgm, 127, 0, BgmSlot(slot)));
+		}
+
+		private static void SlotBgmStop(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getDword();
+			int frames = (int)engine.getDword();
+			Guard("bgm stop", () => GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(frames, BgmSlot(slot)));
+		}
+
+		private static void StopBgm(GlobalScope.ScriptEngine engine)
+		{
+			int frames = (int)engine.getDword();
+			Guard("bgm stop", () =>
+			{
+				for (int slot = 0; slot < 4; slot++)
+				{
+					GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(frames, BgmSlot(slot));
+				}
+			});
+		}
+
+		private static void SlotBgmSetVolume(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getDword();
+			int volume = (int)engine.getDword();
+			int frames = (int)engine.getDword();
+			Guard("bgm volume", () => GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().setVolume(volume, frames, BgmSlot(slot)));
+		}
+
+		private static void SetVolumeBgm(GlobalScope.ScriptEngine engine)
+		{
+			int volume = (int)engine.getDword();
+			int frames = (int)engine.getDword();
+			Guard("bgm volume", () =>
+			{
+				for (int slot = 0; slot < 4; slot++)
+				{
+					GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().setVolume(volume, frames, BgmSlot(slot));
+				}
+			});
+		}
+
+		private static readonly Dictionary<int, GlobalScope.MatrixSound.MtxSEHandle> _seSlots = new Dictionary<int, GlobalScope.MatrixSound.MtxSEHandle>();
+		private static readonly List<GlobalScope.MatrixSound.MtxSEHandle> _sePlayed = new List<GlobalScope.MatrixSound.MtxSEHandle>();
+
+		private static void PlaySe(GlobalScope.ScriptEngine engine)
+		{
+			int bank = (int)engine.getDword(), number = (int)engine.getDword(), volume = (int)engine.getDword(), pan = (int)engine.getDword();
+			Guard("se", () =>
+			{
+				GlobalScope.MatrixSound.MtxSEHandle handle = GlobalScope.MatrixSound.MtxSENDS_Play(bank, number, volume, pan);
+				if (handle != null) _sePlayed.Add(handle);
+			});
+		}
+
+		private static void PlaySeSlot(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getDword();
+			int bank = (int)engine.getDword(), number = (int)engine.getDword(), volume = (int)engine.getDword(), pan = (int)engine.getDword();
+			Guard("se", () =>
+			{
+				GlobalScope.MatrixSound.MtxSEHandle handle = GlobalScope.MatrixSound.MtxSENDS_Play(bank, number, volume, pan);
+				if (handle != null) { _seSlots[slot] = handle; _sePlayed.Add(handle); }
+			});
+		}
+
+		private static void StopSeSlot(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getDword();
+			engine.getDword();
+			if (_seSlots.TryGetValue(slot, out GlobalScope.MatrixSound.MtxSEHandle handle))
+			{
+				Guard("se stop", () => GlobalScope.MatrixSound.MtxSENDS_Stop(handle, 0));
+				_seSlots.Remove(slot);
+			}
+		}
+
+		private static void StopSe(GlobalScope.ScriptEngine engine)
+		{
+			engine.getDword();
+			Guard("se stop", () =>
+			{
+				foreach (GlobalScope.MatrixSound.MtxSEHandle handle in _sePlayed) GlobalScope.MatrixSound.MtxSENDS_Stop(handle, 0);
+				_sePlayed.Clear();
+				_seSlots.Clear();
+			});
+		}
+
+		// The voice lines: files/SOUND/VOICE/<lang>_<name>.akb, one SoundEffect at a time.
+		private static SoundEffectInstance _voice;
+		private static string _voiceLanguage = "en";
+
+		public static bool VoicePlaying => _voice != null && _voice.State == SoundState.Playing;
+
+		private static void StartVoice(GlobalScope.ScriptEngine engine)
+		{
+			string file = engine.getString();
+			PlayVoice(file);
+		}
+
+		private static void StartVoice2(GlobalScope.ScriptEngine engine)
+		{
+			string file = engine.getString();
+			engine.getByte();
+			engine.getByte();
+			engine.getDword();
+			engine.getWord();
+			PlayVoice(file);
+		}
+
+		private static void PlayVoice(string file)
+		{
+			if (string.IsNullOrEmpty(file) || FF3.Options.Get("novoice") != null) return;
+			string name = Path.GetFileNameWithoutExtension(file);
+			Guard("voice " + name, () =>
+			{
+				// Some lines exist only in Japanese (861 ja_ files to 698 en_): fall back rather than go silent.
+				SoundEffect sound = FF3.OggSound.Load(_voiceLanguage + "_" + name) ?? FF3.OggSound.Load("ja_" + name) ?? FF3.OggSound.Load(name);
+				if (sound == null)
+				{
+					Log.Write(LogChannel.File, "script: FF4 voice " + name + " not found");
+					return;
+				}
+				if (_voice != null)
+				{
+					_voice.Stop();
+					_voice.Dispose();
+				}
+				_voice = sound.CreateInstance();
+				_voice.Play();
+				Log.Write(LogChannel.File, "script: FF4 voice " + name + " (" + sound.Duration.TotalSeconds.ToString("0.0") + "s)");
+			});
+		}
+
+		private static void EndVoice(GlobalScope.ScriptEngine engine)
+		{
+			if (VoicePlaying) engine.suspendRedo();
+		}
+
+		private static void StopVoice()
+		{
+			if (_voice != null)
+			{
+				try { _voice.Stop(); _voice.Dispose(); } catch (Exception) { }
+				_voice = null;
+			}
 		}
 
 		// ---- effect packs and the scene battle ----
@@ -584,6 +768,9 @@ namespace FF3
 			_frameWaits.Clear();
 			_active = false;
 			SceneStage = null;
+			StopVoice();
+			_seSlots.Clear();
+			_sePlayed.Clear();
 			Ff4CameraMotion.MapLeft();
 			// ReturnMap survives: it is where the chain of scene maps ends up.
 		}
