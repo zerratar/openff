@@ -70,6 +70,8 @@ namespace FF3
 					_party.Join(type, level);
 				}
 			}
+			string gil = Options.Get("gil");
+			if (!string.IsNullOrEmpty(gil) && int.TryParse(gil, out int g)) _party.Gil = Math.Max(0, g);
 			Log.Write(LogChannel.File, "party: new game - " + _party.Describe().Replace("\n", " | "));
 		}
 

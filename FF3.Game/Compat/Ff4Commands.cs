@@ -58,6 +58,7 @@ namespace FF3
 			{ "subPartyPC", Ff4Party.SubPartyPC },                            // (type, ?)
 			{ "setPartyPCEquipItem", Ff4Party.SetPartyPCEquipItem },          // (type, right, left, head, body, arm)
 			{ "addAbility", Ff4Party.AddAbility },                            // (type, ability)
+			{ "bootShop", BootShop },                                         // (row, ?): babil_shop.bbd's row; the script holds while the shop is open
 			{ "bootEventBattle", BootEventBattle },                           // (party, map, ?, ?, ?): the OpenFF battle on that encounter group
 		};
 
@@ -232,6 +233,28 @@ namespace FF3
 			if (camera == null) return;
 			camera.setPosOffset(new GlobalScope.VecFx32(ox, oy, oz));
 			camera.setTrgOffset(new GlobalScope.VecFx32(ox + tx, oy + ty, oz + tz));
+		}
+
+		private static readonly HashSet<GlobalScope.ScriptEngine> _shopping = new HashSet<GlobalScope.ScriptEngine>();
+
+		/// <summary>bootShop(row, ?): opens the engine's shop for babil_shop.bbd's row and holds the script until it closes.</summary>
+		private static void BootShop(GlobalScope.ScriptEngine engine)
+		{
+			int row = engine.getByte();
+			engine.getByte();
+			if (_shopping.Contains(engine))
+			{
+				if (Ff4Shop.Instance != null && Ff4Shop.Instance.IsOpen) { engine.suspendRedo(); return; }
+				_shopping.Remove(engine);
+				return;
+			}
+			if (Ff4Shop.Instance != null && Ff4Shop.Instance.Open(row))
+			{
+				_shopping.Add(engine);
+				engine.suspendRedo();
+				return;
+			}
+			Log.Write(LogChannel.General, "script: bootShop " + row + " could not open");
 		}
 
 		private static void BootEventBattle(GlobalScope.ScriptEngine engine)

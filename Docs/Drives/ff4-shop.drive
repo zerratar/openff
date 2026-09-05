@@ -1,0 +1,38 @@
+# FF4: the engine's shop. O opens Baron's weaponsmith (row 1 of babil_shop.bbd) on any map;
+# buy two of the first ware, sell one back, leave.
+#   FF3.exe --game=ff4 --map=t01_00 --gil=5000 --drive=Docs/Drives/ff4-shop.drive --log=general,file
+# The log shows "shop: open row 1 'Baron Weapon' (Weaponsmith): ...", "shop: bought 2 x ...",
+# "shop: sold 1 x ...", "shop: closed with N gil" (Testing.md C-47).
+until jump: ff4 60
+wait 6
+press O
+until shop: open 10
+wait 0.8
+# Buy: the first ware, twice.
+press Z
+wait 0.6
+press Right
+wait 0.4
+press Z
+until shop: bought 5
+wait 0.6
+press X
+wait 0.6
+# Sell: one of them back (the menu cursor stands on Buy after B).
+press Down
+wait 0.4
+press Z
+wait 0.6
+press Z
+until shop: sold 5
+wait 0.6
+press X
+wait 0.6
+# Leave: B from Sell leaves the cursor on Sell; one Down is Leave.
+press Down
+wait 0.3
+press Z
+until shop: closed 5
+say shop drive done
+wait 1
+quit

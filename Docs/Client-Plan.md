@@ -793,6 +793,26 @@ Still to come for FF3 on this layer: a read-only view of pl.PlayerParty as an Op
 (so Game.Party and the editor speak one shape), and eventually the FF3 battle and menus on
 the same components as FF4's - the largest piece of the engine plan.
 
+## FF4 shops, and the scene battle's hold (2026-09-05)
+
+`bootShop(row, ?)` (Ff4Commands) opens `Ff4Shop`, the engine-drawn shop on the unified party
+and items, and holds the calling script (suspendRedo) until it closes. The row is the record
+in MENU/babil_shop.bbd, 124 bytes each: a 32-byte label, the keeper's title id and six line
+ids (babil_menu.msd 51220.. and 51260..), up to sixteen item ids - read straight from
+`world::MSSShop::mssInitialize` (row x 124, one 0x7C read) and `babilCommand_BootShop`
+(the byte lands in the menu node's word at 0x58). Row 0 is the "Debug Shop!"; the shop
+interiors s02_xx boot rows 1 and up (s02_01 = Baron Weapon); the town-square buildings'
+`bootShop 0..3` in t01_04..07 look like leftovers - to be seen in play. Prices are the item
+records' own: buy at 0x1C, sell at 0x20 (half). `Game.Shops` on FF4 is this service
+(`Open(row)`, `Info(row)`); O opens row 1 anywhere for tests (C-47). Not done: the inns
+(no bootShop; their scripts ask and heal), the wares' "equip who" preview, FF4's own layout.
+
+The scene battle: `ce_CallBattle` now holds its script (suspendRedo) while the battle runs,
+as the battle part took over in FF4; the story goes on from the return map through the
+jump `AfterBattle` makes, never from the line after (the first drive showed the next scene
+starting under the fight). The battle's result message is closed by A/B on Game.Input,
+since the legacy window's own button is gated off while the battle holds the input.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

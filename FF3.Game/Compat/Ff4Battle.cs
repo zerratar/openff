@@ -290,6 +290,9 @@ namespace FF3
 					break;
 				case Phase.Victory:
 				case Phase.Defeat:
+					// The result stands in the message window; the legacy window's own A press is
+					// gated off while the battle holds the input, so the press is read here.
+					if (Game.Dialogue.IsOpen && _timer > 20 && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased)) Game.Dialogue.Close();
 					if (!Game.Dialogue.IsOpen && _timer > 20) { _phase = Phase.Outro; _timer = 0; }
 					break;
 				case Phase.Outro:

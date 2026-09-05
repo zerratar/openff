@@ -55,7 +55,9 @@ namespace FF3
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Menu());
 			// ... and the OpenFF battle for FF4 (Ff4Battle), on the unified party and monsters.
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Battle());
-			OpenFF.Game.Services.Register(new LegacyShops());
+			// FF4's shops are drawn by the engine from the unified tables (Ff4Shop); FF3 keeps its own screen.
+			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Shop());
+			else OpenFF.Game.Services.Register(new LegacyShops());
 		}
 
 		public static readonly LegacyScreen Screen = new LegacyScreen();
