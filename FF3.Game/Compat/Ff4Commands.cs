@@ -48,6 +48,7 @@ namespace FF3
 			{ "cancelCameraControl", CancelCameraControl },                   // (?, ?): the field camera again
 			{ "setCamera_BeforeEvent", SetCameraBeforeEvent },                // (x, y, z): the field camera again, FF3's setupCamera
 			{ "moveCamera_LookPlayer2", MoveCameraLookPlayer2 },              // (cast, ?, ?, ?, ?): FF3's, after letting the event camera go
+			{ "setWorldCameraPosAndTargetOffset", SetWorldCameraOffsets },   // (offset xyz, target-from-offset xyz, ?, ?): the follow camera's offsets
 		};
 
 		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
@@ -176,6 +177,20 @@ namespace FF3
 			engine.getDword();
 			engine.getDword();
 			Ff4EventCamera.Follow(pos, trg);
+		}
+
+		/// <summary>WorldCamera::setOffset / setTrgFromOffset: the camera at leader + offset, looking at that point + target offset.</summary>
+		private static void SetWorldCameraOffsets(GlobalScope.ScriptEngine engine)
+		{
+			int ox = (int)engine.getDword(), oy = (int)engine.getDword(), oz = (int)engine.getDword();
+			int tx = (int)engine.getDword(), ty = (int)engine.getDword(), tz = (int)engine.getDword();
+			engine.getDword();
+			engine.getDword();
+			Ff4EventCamera.Release();
+			GlobalScope.cmr.CWorldCamera camera = GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera();
+			if (camera == null) return;
+			camera.setPosOffset(new GlobalScope.VecFx32(ox, oy, oz));
+			camera.setTrgOffset(new GlobalScope.VecFx32(ox + tx, oy + ty, oz + tz));
 		}
 
 		private static void CancelCameraControl(GlobalScope.ScriptEngine engine)

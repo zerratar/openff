@@ -574,6 +574,11 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
   whose controller rebuilds the position from a distance FF4's maps never set - the throne
   room scene played at the party's legs. By-name FF4 handlers now take precedence over the
   "same number, same operands" reuse of FF3's handler in the table build.
+- **The follow camera on FF4 maps**: FF4's map parameters carry no camera chain; its
+  `world::WorldCamera::initialize_usr` puts the camera at the leader + (0, 90, 85) looking at
+  that point + (0, -73, -80). `CBaseSystem.setupCamera` uses those offsets on FF4 (FF3's built-in
+  (0, 110, 110) / (0, 10, 0) framed Baron town from above its gate);
+  `setWorldCameraPosAndTargetOffset(offset xyz, target-from-offset xyz, ?, ?)` changes them.
 - **2D plates** (`ce_3DSSetup` and the field spelling `3DSSetup`, `..SetAlpha(from, to, frames)`,
   `..SetPosition`, `..SetVisiblity`, `..Release`): a `sys2d.Sprite3d` on the MAIN3D plane from the
   named .ncer/.nanr/.ncbr (np00 = "Baron"), alpha faded per frame by `Ff4Cutscene.Tick`.

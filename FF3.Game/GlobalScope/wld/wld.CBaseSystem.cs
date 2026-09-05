@@ -751,6 +751,14 @@ internal static partial class GlobalScope
 					zoomMin = 4096 * map.CMapParameterManager.Instance().MapCameraParameter(0).ZoomMin();
 					zoomSpd = 4096 * map.CMapParameterManager.Instance().MapCameraParameter(0).ZoomSpeed();
 				}
+				if (FF3.GameProfile.IsFf4)
+				{
+					// PORT: FF4's world::WorldCamera::initialize_usr - the camera stands at the
+					// leader + (0, 90, 85) and looks at that point + (0, -73, -80), i.e. the leader
+					// + (0, 17, 5). Read from libff4.so (Tools/ff4_disasm.py). The z is negated below.
+					VEC_Set(vecFx, 0, 90 * 4096, -85 * 4096);
+					VEC_Set(vecFx2, 0, 17 * 4096, 5 * 4096);
+				}
 				vecFx.z *= -1;
 				if (FF3.FieldMirror.Active(stageMng.getStageType()))
 				{
