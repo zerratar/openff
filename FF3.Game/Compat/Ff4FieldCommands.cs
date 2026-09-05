@@ -77,6 +77,35 @@ namespace FF3
 			}
 		}
 
+		// ---- a Yes/No asked by another command (the inn) ----
+
+		private static readonly HashSet<GlobalScope.ScriptEngine> _asking = new HashSet<GlobalScope.ScriptEngine>();
+
+		/// <summary>Opens the box for a command of its own and holds the engine until it is answered; true, with the answer, once it is.</summary>
+		public static bool Ask(GlobalScope.ScriptEngine engine, string yes, string no, out bool answer)
+		{
+			answer = false;
+			if (!_asking.Contains(engine))
+			{
+				_asking.Add(engine);
+				_yesText = yes ?? "Yes";
+				_noText = no ?? "No";
+				_open = true;
+				_decided = false;
+				_yes = true;
+				_openedFrame = OpenFF.Game.Time.Frame;
+			}
+			if (_open && !_decided)
+			{
+				engine.suspendRedo();
+				return false;
+			}
+			_asking.Remove(engine);
+			_open = false;
+			answer = _result;
+			return true;
+		}
+
 		private static string Text(uint id)
 		{
 			if (id == 0) return null;

@@ -302,6 +302,9 @@ namespace FF3
 			_conditions.Clear();
 		}
 
+		/// <summary>Every status off everyone (an inn's night, a tent).</summary>
+		public void CureAll() => _conditions.Clear();
+
 		public int Hurt(int id, int amount, bool canKill = false)
 		{
 			Character c = P.Get(id);

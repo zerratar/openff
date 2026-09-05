@@ -813,6 +813,17 @@ jump `AfterBattle` makes, never from the line after (the first drive showed the 
 starting under the fight). The battle's result message is closed by A/B on Game.Input,
 since the legacy window's own button is gated off while the battle holds the input.
 
+## FF4 inns (2026-09-05)
+
+`bootInn(price, ?, ?)` (babilCommand_BootInn: message, gil and confirm windows, then a hold)
+opens the engine's Yes/No box through `Ff4FieldCommands.Ask` and holds the script until it is
+answered; Yes with enough gil takes the price. `selectEndWait(label, ...)` then jumps when the
+party did not stay - FF3's handler jumps on `cast_getInnConfirm()`, and the FF4 scripts put the
+"come again" line at the label and the night's routine after the command. `setRecovery2(order,
+?, ?, amount)` restores one member (order 1..) or all (0), 9999 meaning everything;
+`setConditionRecovery(...)` clears the statuses the party service keeps. Test C-48; 24 maps
+have inns (t01_08 is Baron's).
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

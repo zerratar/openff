@@ -59,6 +59,10 @@ namespace FF3
 			{ "setPartyPCEquipItem", Ff4Party.SetPartyPCEquipItem },          // (type, right, left, head, body, arm)
 			{ "addAbility", Ff4Party.AddAbility },                            // (type, ability)
 			{ "bootShop", BootShop },                                         // (row, ?): babil_shop.bbd's row; the script holds while the shop is open
+			{ "bootInn", BootInn },                                           // (price, ?, ?): asks to stay the night and takes the gil
+			{ "selectEndWait", SelectEndWait },                               // (label, ?, ?, ?, ?): jumps when the inn was declined
+			{ "setRecovery2", SetRecovery2 },                                 // (member order or 0 = all, ?, ?, amount): hit and magic points back
+			{ "setConditionRecovery", SetConditionRecovery },                 // (six condition words): statuses cured
 			{ "bootEventBattle", BootEventBattle },                           // (party, map, ?, ?, ?): the OpenFF battle on that encounter group
 		};
 
@@ -236,6 +240,61 @@ namespace FF3
 		}
 
 		private static readonly HashSet<GlobalScope.ScriptEngine> _shopping = new HashSet<GlobalScope.ScriptEngine>();
+
+		// ---- the inn: babilCommand_BootInn opens the message, gil and confirm windows and holds; selectEndWait reads the answer ----
+
+		private static bool _innAccepted;
+
+		/// <summary>bootInn(price, ?, ?): "Stay the night?" - taken when the party can pay.</summary>
+		private static void BootInn(GlobalScope.ScriptEngine engine)
+		{
+			int price = (int)engine.getWord();
+			engine.getDword();
+			engine.getDword();
+			if (!Ff4FieldCommands.Ask(engine, price > 0 ? "Stay (" + price + " gil)" : "Stay", "No", out bool yes)) return;
+			OpenFF.Data.Party party = Ff4Party.Party;
+			if (yes && party.Gil < price)
+			{
+				OpenFF.Game.Dialogue.Say("I'm afraid you're short on gil.");
+				yes = false;
+			}
+			if (yes) party.Gil -= price;
+			_innAccepted = yes;
+			Log.Write(LogChannel.General, "script: inn " + (yes ? "taken for " + price + " gil (" + party.Gil + " left)" : "declined"));
+		}
+
+		/// <summary>selectEndWait(label, ?, ?, ?, ?): after bootInn, the script jumps to the label when the party did not stay.</summary>
+		private static void SelectEndWait(GlobalScope.ScriptEngine engine)
+		{
+			uint label = engine.getDword();
+			engine.getDword(); engine.getDword(); engine.getDword(); engine.getDword();
+			if (!_innAccepted && label != 0) engine.jump(label);
+		}
+
+		/// <summary>setRecovery2(order, ?, ?, amount): hit and magic points back for one member (order 1..) or all (0); 9999 is everything.</summary>
+		private static void SetRecovery2(GlobalScope.ScriptEngine engine)
+		{
+			int order = (int)engine.getDword();
+			engine.getDword();
+			engine.getDword();
+			int amount = (int)engine.getWord();
+			int healed = 0;
+			foreach (OpenFF.Data.Character m in Ff4Party.Party.Members)
+			{
+				if (order > 0 && m.Slot != order - 1) continue;
+				if (amount >= 9999) { m.Hp = m.MaxHp; m.Mp = m.MaxMp; }
+				else { m.Hp = Math.Min(m.MaxHp, m.Hp + amount); m.Mp = Math.Min(m.MaxMp, m.Mp + amount); }
+				healed++;
+			}
+			Log.Write(LogChannel.File, "script: setRecovery2 - " + healed + " member(s) " + (amount >= 9999 ? "fully restored" : "+" + amount));
+		}
+
+		/// <summary>setConditionRecovery(...): the listed statuses are cured; the engine keeps its conditions in the party service, all of them go.</summary>
+		private static void SetConditionRecovery(GlobalScope.ScriptEngine engine)
+		{
+			for (int i = 0; i < 6; i++) engine.getDword();
+			(OpenFF.Game.Party as Ff4PartyService)?.CureAll();
+		}
 
 		/// <summary>bootShop(row, ?): opens the engine's shop for babil_shop.bbd's row and holds the script until it closes.</summary>
 		private static void BootShop(GlobalScope.ScriptEngine engine)
