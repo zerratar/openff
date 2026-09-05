@@ -73,6 +73,7 @@ namespace FF3
 		private int _expWon, _gilWon;
 		private readonly List<int> _dropsWon = new List<int>();
 		private readonly List<string> _resultLines = new List<string>();   // level-ups and drops for the result window
+		private int _cameraType;            // the encounter group's battle camera (Ff4BattleStage.CameraPosition)
 		private Vector3 _centre;
 		private int _heroMotionIdle = 2007, _heroMotionAttack = 2008, _heroMotionHurt = 2009;
 
@@ -115,6 +116,7 @@ namespace FF3
 				}
 			}
 			_placements = places;
+			_cameraType = party.CameraType;
 			bool started = Start(ids, inScene, battleMap);
 			if (started) Log.Write(LogChannel.General, "battle: encounter group " + partyId);
 			return started;
@@ -156,7 +158,27 @@ namespace FF3
 			}
 			if (onStage)
 			{
-				Game.Hero.Teleport(Ff4BattleStage.PartySpot(0, 1));
+				// FF4 fights with its battle models: pNN_00 per player type (the field walks pNN_01,
+				// whose joints do not match the battle motion sets b_p_player_NN - binding one onto
+				// the other crashes the joint animation). So every member, the leader included,
+				// stands as a spawned battle model, and the field's hero waits unseen at the
+				// leader's spot until the jump back.
+				Game.Hero.Teleport(Ff4BattleStage.PartySpot(0, _party.Count));
+				try { EngineApi.HeroPlayer?.setTransparencyRate(100); } catch (Exception) { }
+				for (int i = 0; i < _party.Count; i++)
+				{
+					Fighter ally = _party[i];
+					CharacterDefinition who = ally.Member.Definition;
+					Vector3 spot = Ff4BattleStage.PartySpot(i, _party.Count);
+					Npc npc = null;
+					try { npc = Game.Npcs.SpawnModel("p" + who.Id.ToString("00") + "_00", spot, 0f); } catch (Exception) { }
+					if (npc == null) { Log.Write(LogChannel.File, "battle: no battle model for " + ally.Name); continue; }
+					try { npc.BindMotions("b_p_player_" + who.Id.ToString("00")); npc.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
+					npc.Solid = false;
+					npc.LookAt(spot + Ff4BattleStage.PartyFacing(i) * 10f);
+					ally.Npc = npc;
+					ally.Home = spot;
+				}
 			}
 			Vector3 hero = Game.Hero.Position;
 			// Ahead as the camera sees it: the monsters stand between the leader and the far side of
@@ -214,14 +236,22 @@ namespace FF3
 			Game.Hero.Face(forward.Yaw);
 			if (onStage)
 			{
-				// FF4's field camera rebuilds a free position from a distance the maps never set, so
-				// the event camera (the scenes' hook) drives the battle view.
-				Vector3 cp = Ff4BattleStage.CameraPosition, ct = Ff4BattleStage.CameraTarget;
-				Ff4EventCamera.MoveTo((int)(cp.X * 4096), (int)(cp.Y * 4096), (int)(cp.Z * 4096), 1, false);
-				Ff4EventCamera.LookAt((int)(ct.X * 4096), (int)(ct.Y * 4096), (int)(ct.Z * 4096), 1);
+				// FF4's own battle camera (btl::CBattleDisplay, Ff4BattleStage): the opening pose, a
+				// short slide back to the standing shot the encounter group's camera type names, its
+				// 18-degree field of view and 10..2000 clip; driven through the event camera.
+				Vector3 op = Ff4BattleStage.OpeningPosition, ot = Ff4BattleStage.OpeningTarget;
+				Vector3 cp = Ff4BattleStage.CameraPosition(_cameraType), ct = Ff4BattleStage.CameraTarget(_cameraType);
+				Ff4EventCamera.MoveTo((int)(op.X * 4096), (int)(op.Y * 4096), (int)(op.Z * 4096), 0, false);
+				Ff4EventCamera.LookAt((int)(ot.X * 4096), (int)(ot.Y * 4096), (int)(ot.Z * 4096), 0);
 				Ff4EventCamera.SetFov(Ff4BattleStage.CameraFov);
+				Ff4EventCamera.SetClip(Ff4BattleStage.ClipNear, Ff4BattleStage.ClipFar);
+				Ff4EventCamera.MoveTo((int)(cp.X * 4096), (int)(cp.Y * 4096), (int)(cp.Z * 4096), Ff4BattleStage.OpeningFrames, false);
+				Ff4EventCamera.LookAt((int)(ct.X * 4096), (int)(ct.Y * 4096), (int)(ct.Z * 4096), Ff4BattleStage.OpeningFrames);
 			}
-			try { Game.Hero.BindMotions("b_p_player_" + party.Leader.Id.ToString("00")); Game.Hero.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
+			if (!onStage)
+			{
+				try { Game.Hero.BindMotions("b_p_player_" + party.Leader.Id.ToString("00")); Game.Hero.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
+			}
 			// The field camera stays: behind and above the leader it frames the monsters ahead on any
 			// map, where a side view walks into cave walls. FF4's own side camera can come with its stage.
 			_centre = hero + forward * 13f;
@@ -473,7 +503,7 @@ namespace FF3
 		{
 			_casting = null;
 			caster.Member.Mp = Math.Max(0, caster.Member.Mp - spell.MpCost);
-			try { Game.Hero.PlayMotion(_heroMotionAttack, false, 3); } catch (Exception) { }
+			Play(caster, _heroMotionAttack);
 			Game.Audio.PlaySe(0, 5);
 			string name = spell.Name ?? ("spell " + spell.Id);
 			if (spell.Heals)
@@ -538,6 +568,17 @@ namespace FF3
 		}
 
 		private Vector3 Where(Fighter f) => f.Npc != null ? f.Npc.Position : Game.Hero.Position;
+
+		/// <summary>Plays a battle motion on a member: the leader is the hero, the others their spawned models.</summary>
+		private void Play(Fighter f, int motion, bool loop = false, int blend = 3)
+		{
+			try
+			{
+				if (f.Npc != null) f.Npc.PlayMotion(motion, loop, blend);
+				else Game.Hero.PlayMotion(motion, loop, blend);
+			}
+			catch (Exception) { }
+		}
 
 		/// <summary>NewMagicFormula::calcAttackMagicDamage: power x level x stat over the target's will, level and magic defence, times 1.0..1.3.</summary>
 		private int AttackMagicDamage(Fighter caster, Fighter target, SpellDefinition spell, int targetCount)
@@ -608,7 +649,7 @@ namespace FF3
 		private void MemberAttacks(Fighter member, Fighter foe)
 		{
 			if (!foe.Alive) { _pick = Pick.Target; _cursor = FirstAliveFoe(); return; }
-			try { Game.Hero.PlayMotion(_heroMotionAttack, false, 3); } catch (Exception) { }
+			Play(member, _heroMotionAttack);
 			if (!Hits(member, foe))
 			{
 				Say(member.Name + " misses " + foe.Name + ".");
@@ -643,9 +684,9 @@ namespace FF3
 			int damage = Damage(foe, target);
 			target.Hp = Math.Max(0, target.Hp - damage);
 			target.Member.Hp = target.Hp;
-			Game.Screen.PopNumber(Game.Hero.Position + new Vector3(0, 12f, 0), damage);
+			Game.Screen.PopNumber(Where(target) + new Vector3(0, 12f, 0), damage);
 			Game.Screen.Flash(new Color(255, 60, 40), 6, 2);
-			try { Game.Hero.PlayMotion(_heroMotionHurt, false, 3); } catch (Exception) { }
+			Play(target, _heroMotionHurt);
 			Say(foe.Name + " hits " + target.Name + " for " + damage + ".");
 			foe.Gauge = 0f;
 			if (!target.Alive) Say(target.Name + " falls.");
@@ -678,7 +719,7 @@ namespace FF3
 				else if (effect.Hp > 0) target.Hp = Math.Min(target.MaxHp, target.Hp + effect.Hp);
 				target.Member.Hp = target.Hp;
 				if (effect.Mp > 0) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
-				if (target.Hp != before) Game.Screen.PopNumber(Game.Hero.Position + new Vector3(0, 12f, 0), target.Hp - before, true);
+				if (target.Hp != before) Game.Screen.PopNumber(Where(target) + new Vector3(0, 12f, 0), target.Hp - before, true);
 				Say(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
 			}
 			member.Gauge = 0f;
@@ -728,7 +769,7 @@ namespace FF3
 				party.AddItem(id, 1);
 				lines.Add("Found " + (Ff4Party.Tables.Item(id)?.Name ?? ("item " + id)) + ".");
 			}
-			try { Game.Hero.PlayMotion(2010, false, 3); } catch (Exception) { }
+			foreach (Fighter f in _party) { if (f.Alive) Play(f, 2010); }
 			Log.Write(LogChannel.General, "battle: won - " + _expWon + " exp, " + _gilWon + " gil. " + string.Join(" ", lines));
 		}
 
@@ -784,10 +825,15 @@ namespace FF3
 			{
 				try { f.Npc?.Remove(); } catch (Exception) { }
 			}
+			foreach (Fighter f in _party)
+			{
+				try { f.Npc?.Remove(); } catch (Exception) { }
+			}
 			_foes.Clear();
 			_party.Clear();
 			if (Ff4BattleStage.Active)
 			{
+				try { EngineApi.HeroPlayer?.setTransparencyRate(0); } catch (Exception) { }
 				try { Ff4EventCamera.Release(); } catch (Exception) { }
 				Ff4BattleStage.Leave();
 			}
@@ -963,9 +1009,9 @@ namespace FF3
 				}
 			}
 			// The keys, over the party's rows (FF4 writes "C Auto battle  M Run away" there).
-			KeyHint(d, "Z", "Confirm", RightX + RightWidth - 312, HudTop - 24);
-			KeyHint(d, "X", "Back", RightX + RightWidth - 206, HudTop - 24);
-			KeyHint(d, "M", "Run away", RightX + RightWidth - 128, HudTop - 24);
+			KeyHint(d, "Z", "Confirm", RightX + RightWidth - 336, HudTop - 24);
+			KeyHint(d, "X", "Back", RightX + RightWidth - 222, HudTop - 24);
+			KeyHint(d, "M", "Run away", RightX + RightWidth - 134, HudTop - 24);
 
 			// The foes' health, over their heads.
 			for (int i = 0; i < _foes.Count; i++)

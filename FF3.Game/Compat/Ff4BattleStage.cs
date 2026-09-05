@@ -34,11 +34,26 @@ namespace FF3
 		private static int _fieldFacing;
 		private static int _pendingFrames;
 
-		/// <summary>Where party member <paramref name="index"/> of <paramref name="count"/> stands: the right side, staggered in depth.</summary>
-		public static Vector3 PartySpot(int index, int count)
+		// FF4's own spots (battle_parameter.chain chain 0, record 0, the front row), the stand-in when
+		// the tables lack them: x 17..19, z from -25 at the top of the screen to 50 at the bottom.
+		private static readonly Vector3[] FrontRow = { new Vector3(18f, 0f, -25f), new Vector3(17f, 0f, -5f), new Vector3(19f, 0f, 12f), new Vector3(17f, 0f, 35f), new Vector3(19f, 0f, 50f) };
+
+		/// <summary>Where party member <paramref name="index"/> stands: FF4's party root for the normal fight (OpenFF.Data.PartyRoot 0), the front row unless <paramref name="backRow"/>; slot 0 at the top of the screen.</summary>
+		public static Vector3 PartySpot(int index, int count, bool backRow = false)
 		{
-			float z = (index - (count - 1) / 2f) * 18f;
-			return new Vector3(42f + 4f * index, 0f, z);
+			int slot = Math.Clamp(index, 0, 4);
+			OpenFF.Data.PartyRoot root = Ff4Party.Tables?.PartyRoot(0);
+			OpenFF.Data.PartyRootSlot s = root != null && root.Rows[backRow ? 1 : 0] != null ? root.Rows[backRow ? 1 : 0][slot] : null;
+			return s != null ? new Vector3(s.X, s.Y, s.Z) : FrontRow[slot];
+		}
+
+		/// <summary>The way a member faces at their spot: FF4's root says -90 degrees, towards -x and the monsters.</summary>
+		public static Vector3 PartyFacing(int index)
+		{
+			OpenFF.Data.PartyRoot root = Ff4Party.Tables?.PartyRoot(0);
+			float degrees = root != null && root.Rows[0] != null ? root.Rows[0][Math.Clamp(index, 0, 4)].Facing : -90f;
+			double r = degrees * Math.PI / 180.0;
+			return new Vector3((float)Math.Sin(r), 0f, (float)Math.Cos(r));
 		}
 
 		/// <summary>A monster's spot: the encounter table's own placement (stage units: x -8..-37 towards the monsters' side, z -35..32 along the line), else a row there.</summary>
@@ -48,16 +63,25 @@ namespace FF3
 			return new Vector3(-22f - 8f * index, 0f, (index - (count - 1) / 2f) * 30f);
 		}
 
-		// FF4's battle view: the stage's backdrop (b01's mountains and clouds, its "sky_pl" plane,
-		// about 290 wide and 60 tall) stands along the far edge at z about -67, so the camera looks
-		// across the stage towards -z from well in front of the line, a little to the party's side:
-		// the monsters left (x -8..-37), the party right (x about 42), the backdrop behind them all.
-		// The narrow field of view (24 degrees, as FF3's battle camera) is what keeps the backdrop's
-		// edges out of frame at that distance and the leader about a sixth of the screen tall; the
-		// horizon sits a third of the way down, the party's feet a little below the middle.
-		public static Vector3 CameraPosition => new Vector3(45f, 18f, 170f);
-		public static Vector3 CameraTarget => new Vector3(0f, 2f, -30f);
-		public static float CameraFov => 24f;
+		// FF4's battle camera, read from libff4.so (btl::CBattleDisplay, Tools/ff4_disasm.py and the
+		// data symbols): initialize sets the field of view to 641/4046 (18 degrees) and the clip to
+		// 10..2000; readyOpeningCamera puts the camera at (0, 32.7, 166) looking at (0, 0, -34) and
+		// goOpeningCamera eases it a fifth of the way per frame for five frames, then snaps to
+		// CAMERA_BATTLE_POSITION[type] looking at CAMERA_BATTLE_TARGET[type], type being byte 3 of
+		// the encounter group's record (0 for 515 of the 520 groups). So the standing view is a long
+		// shot from z 240, 45 up, looking a little down the stage towards -z at the backdrop (b01's
+		// mountains and clouds stand along the far edge at z about -67): the monsters left (x -8..-37
+		// in the tables' own placements), the party right. BTL_CAMERA.dat's CMS2 sets (s00_00..) are
+		// the ability and summon cameras (ds::sys3d::CameraHandle), not this one.
+		private static readonly Vector3[] BattlePositions = { new Vector3(0f, 45f, 240f), new Vector3(0f, 36f, 117.6f), new Vector3(0f, 45f, 240f) };
+		private static readonly Vector3[] BattleTargets = { new Vector3(0f, -5f, -20f), new Vector3(0f, -10f, -44f), new Vector3(0f, -3f, -40f) };
+		public static Vector3 CameraPosition(int type) => BattlePositions[type >= 0 && type < BattlePositions.Length ? type : 0];
+		public static Vector3 CameraTarget(int type) => BattleTargets[type >= 0 && type < BattleTargets.Length ? type : 0];
+		public static Vector3 OpeningPosition => new Vector3(0f, 32.7f, 166f);
+		public static Vector3 OpeningTarget => new Vector3(0f, 0f, -34f);
+		public const int OpeningFrames = 6;
+		public const float CameraFov = 18f;
+		public const float ClipNear = 10f, ClipFar = 2000f;
 
 		/// <summary>Remembers the field and jumps to the battle stage; false when there is no such stage (the fight then stays on the field).</summary>
 		public static bool Begin(int battleMap)

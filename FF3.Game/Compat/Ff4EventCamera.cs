@@ -34,6 +34,8 @@ namespace FF3
 		// field's own is about 30 degrees. Set for the battle stage, put back on Release.
 		private static bool _fovSet;
 		private static int _fovSin, _fovCos, _fovSavedSin, _fovSavedCos;
+		private static bool _clipSet;
+		private static int _clipNear, _clipFar;
 
 		public static bool Active => _active;
 
@@ -75,6 +77,7 @@ namespace FF3
 				try { Camera?.setFOV(_fovSavedSin, _fovSavedCos); } catch (Exception) { }
 			}
 			_fovSet = false;
+			_clipSet = false;
 			if (GlobalScope.cmr.CWorldCamera.ExternalDrive == (Action<GlobalScope.cmr.CWorldCamera>)Drive)
 			{
 				GlobalScope.cmr.CWorldCamera.ExternalDrive = null;
@@ -91,6 +94,15 @@ namespace FF3
 			_fovSin = (int)Math.Round(Math.Sin(half) * 4096);
 			_fovCos = (int)Math.Round(Math.Cos(half) * 4096);
 			_fovSet = true;
+		}
+
+		/// <summary>Near and far clip planes (world units) while the event camera drives; the field's map setup restores its own on the next map.</summary>
+		public static void SetClip(float near, float far)
+		{
+			if (!Take()) return;
+			_clipNear = (int)Math.Round(near * 4096);
+			_clipFar = (int)Math.Round(far * 4096);
+			_clipSet = true;
 		}
 
 		// ---- the script commands ----
@@ -225,6 +237,7 @@ namespace FF3
 				camera.setTarget(trg);
 				camera.setCamUp(0, 4096, 0);
 				if (_fovSet) camera.setFOV(_fovSin, _fovCos);
+				if (_clipSet) camera.setClip(_clipNear, _clipFar);
 			}
 			catch (Exception ex)
 			{

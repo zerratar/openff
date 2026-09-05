@@ -333,15 +333,41 @@ namespace OpenFF.Data
 	{
 		public int Id;
 		public int Flags;
+		/// <summary>FF4: the record's byte 3, which btl::CBattleDisplay::setBattleCamera uses to pick the battle camera (0 for all but five groups; 1 and 2 are closer shots).</summary>
+		public int CameraType => (sbyte)((Flags >> 8) & 0xFF);
 		public List<MonsterPartySlot> Slots = new List<MonsterPartySlot>();
 
 		public override string ToString() => "party " + Id + ": " + string.Join(", ", Slots.ConvertAll(s => s.MonsterId + (s.Count > 1 ? " x" + s.Count : "")));
+	}
+
+	/// <summary>One spot a party member stands on in battle, and the way they face (degrees about y; FF4's -90 faces -x, towards the monsters).</summary>
+	public sealed class PartyRootSlot
+	{
+		public float X, Y, Z;
+		public float Facing;
+	}
+
+	/// <summary>
+	/// Where the party stands in battle: FF4's battle_parameter.chain, chain 0 (btl::BattleParameter::partyRoot
+	/// finds the record by id, BattlePartyPosition::position takes row x 80 + slot x 16 + 4 from it). One
+	/// record per situation - 0 the normal fight, 1 a back attack (the party turned, spread across), 2 a
+	/// pincer - with two rows (front, back) of five slots each, the slots running from the top of the
+	/// screen (z -25) to the bottom (z 50) as the camera sees them.
+	/// </summary>
+	public sealed class PartyRoot
+	{
+		public int Id;
+		/// <summary>[row][slot]: row 0 the front row, 1 the back row; five slots.</summary>
+		public PartyRootSlot[][] Rows = new PartyRootSlot[2][];
 	}
 
 	/// <summary>Everything a game defines, read once from its files.</summary>
 	public sealed class GameTables
 	{
 		public List<MonsterParty> MonsterParties = new List<MonsterParty>();
+		/// <summary>Where the party stands in battle, by situation (FF4; empty for FF3 so far).</summary>
+		public List<PartyRoot> PartyRoots = new List<PartyRoot>();
+		public PartyRoot PartyRoot(int id) => PartyRoots.Find(r => r.Id == id);
 		private Dictionary<int, MonsterParty> _parties;
 
 		public MonsterParty MonsterParty(int id)

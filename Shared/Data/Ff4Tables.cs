@@ -58,6 +58,7 @@ namespace OpenFF.Data
 			ReadItems(chain, tables);
 			ReadMonsters(chain, tables);
 			ReadMonsterParties(chain, tables);
+			ReadBattleParameter(chain, tables);
 			return tables;
 		}
 
@@ -163,6 +164,49 @@ namespace OpenFF.Data
 					});
 				}
 				tables.MonsterParties.Add(party);
+			}
+		}
+
+		/// <summary>
+		/// battle_parameter.chain (29 chains; btl::BattleParameter). Chain 0 is the party's roots: records
+		/// of 164 bytes - a u16 id, two bytes, then two rows of five 16-byte slots (x, y, z fx32 and a
+		/// facing in degrees as fx32) - partyRoot(id) walks them by the id, position(row, slot) reads
+		/// record + 4 + row x 80 + slot x 16. Record 0 is the normal fight: the front row at x 17..19,
+		/// the back row at x 29..33, z -25, -5, 12, 35, 50 down the screen, facing -90 (towards -x, the
+		/// monsters); record 1 the back attack, record 2 a pincer. The other chains are not read yet.
+		/// </summary>
+		private static void ReadBattleParameter(ContentChain chain, GameTables tables)
+		{
+			if (!TableFiles.ReadAny(chain, "battle_parameter.chain", out byte[] data))
+			{
+				tables.Notes.Add("battle_parameter.chain not found");
+				return;
+			}
+			ChainPack pack;
+			try { pack = ChainPack.Read(data); }
+			catch (Exception ex) { tables.Notes.Add("battle_parameter.chain: " + ex.Message); return; }
+			if (pack.Count < 1) return;
+			const int stride = 164;
+			int off = pack.Offset(0);
+			for (int i = 0; i + stride <= pack.Size(0); i += stride)
+			{
+				PartyRoot root = new PartyRoot { Id = ChainPack.U16(data, off + i) };
+				for (int row = 0; row < 2; row++)
+				{
+					root.Rows[row] = new PartyRootSlot[5];
+					for (int slot = 0; slot < 5; slot++)
+					{
+						int at = off + i + 4 + row * 80 + slot * 16;
+						root.Rows[row][slot] = new PartyRootSlot
+						{
+							X = ChainPack.S32(data, at) / 4096f,
+							Y = ChainPack.S32(data, at + 4) / 4096f,
+							Z = ChainPack.S32(data, at + 8) / 4096f,
+							Facing = ChainPack.S32(data, at + 12) / 4096f,
+						};
+					}
+				}
+				tables.PartyRoots.Add(root);
 			}
 		}
 

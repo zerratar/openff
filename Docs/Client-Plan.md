@@ -870,17 +870,30 @@ on the left in the encounter table's own placements (x across, z depth), the par
 right, the event camera (`Ff4EventCamera`) driving the view. Scene battles
 (`ce_CallBattle`) stay where the scene is. Tests C-40 (K jumps to the map's stage) and C-50.
 
-The view, second pass: the stage carries its own backdrop - b01's mountains, lake and clouds
-are a plane ("sky_pl", about 290 wide and 60 tall) along the far edge at z about -67, and
-the model's own sky geometry; there is no clear-colour sky (no FF4 part sets one for the
-battle, `WorldPart::vramSetting` aside). So the camera looks across the stage towards -z from
-in front of the line - (45, 18, 170) at (0, 2, -30) - with a 24-degree field of view (FF3's
-battle camera uses the same 852/4006; the field's is about 30): the narrow angle is what
-keeps the backdrop's edges out of frame and the leader a sixth of the screen tall, the
-horizon a third of the way down. `Ff4EventCamera.SetFov` sets it while the event camera
-drives and puts the field's back on Release. The encounter tables' placements are stage
-units already (x -8..-37 towards the monsters' side, z -35..32 along the line) and are used
-as they are; the party stands at x 42.
+The view, from the binary (Karl asked whether the angle was right - it is FF4's own now):
+`btl::CBattleDisplay::initialize` sets the battle camera's field of view to 641/4046 (18
+degrees) and its clip to 10..2000; `readyOpeningCamera` starts it at (0, 32.7, 166) looking
+at (0, 0, -34) and `goOpeningCamera` eases it a fifth of the way per frame for five frames
+to `CAMERA_BATTLE_POSITION[type]` / `CAMERA_BATTLE_TARGET[type]` - (0, 45, 240) looking at
+(0, -5, -20) for type 0, which 515 of the 520 encounter groups use (the type is byte 3 of
+the group's record, `MonsterParty.CameraType`; types 1 and 2 are closer shots). A long,
+level-ish shot down the stage towards -z: the backdrop (b01's mountains, lake and clouds, a
+plane along the far edge at z about -67) fills the top, the monsters stand left in the
+tables' own placements, the party right. `Ff4EventCamera` drives it (SetFov, SetClip, a
+six-frame slide from the opening pose). BTL_CAMERA.dat's CMS2 sets (s00_00..s91_00) turned
+out to be the ability and summon cameras (`ds::sys3d::CameraHandle`), not this one.
+
+The party stands where FF4 puts it: `battle_parameter.chain` chain 0 (`BattleParameter::
+partyRoot`, `BattlePartyPosition::position`) - records of 164 bytes, a u16 id and two rows
+of five 16-byte slots (x, y, z, facing in degrees), record 0 the normal fight: the front
+row at x 17..19 and the back row at x 29..33, z -25, -5, 12, 35, 50 down the screen, facing
+-90 (towards the monsters); record 1 the back attack, 2 a pincer. Read into
+`GameTables.PartyRoots` (`PartyRoot`, `PartyRootSlot`); `Ff4BattleStage.PartySpot` uses the
+front row (a member's row is not modelled yet). Every member stands on the stage as FF4's
+own battle model pNN_00 (`Game.Npcs.SpawnModel`) with the b_p_player_NN motion set - the
+field's pNN_01 has different joints and binding the set onto it crashed the joint
+animation - so the field's hero waits unseen (transparency 100) at the leader's spot and
+the battle animates the spawned bodies (`Play(fighter, motion)`).
 
 The HUD, after FF4's screens (Karl's Steam screenshots): the command window bottom left
 (Attack / Magic / Items / Run, 41-px rows, a wedge for the glove), the party's rows bottom
