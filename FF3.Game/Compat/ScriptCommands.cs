@@ -130,15 +130,10 @@ namespace FF3
 			{
 				ScriptOp op = ff4.Get(i);
 				ScriptOp theirs = ff3.Get(i);
-				if (op != null && theirs != null && i < GlobalScope.commandTable.Length
-					&& SameCommand(op, theirs))
+				if (op != null && Ff4Commands.ByName.TryGetValue(ScriptOpTable.Simplify(op.Name), out GlobalScope.SCRIPT_COMMAND own))
 				{
-					table[i] = GlobalScope.commandTable[i];
-					_reusedCount++;
-				}
-				else if (op != null && Ff4Commands.ByName.TryGetValue(ScriptOpTable.Simplify(op.Name), out GlobalScope.SCRIPT_COMMAND own))
-				{
-					// An FF4 command with an implementation of its own (Ff4Commands), by name.
+					// An FF4 command with an implementation of its own (Ff4Commands), by name - also
+					// where FF3 has the same command with the same operands but another meaning.
 					table[i] = own;
 					_reusedCount++;
 				}
@@ -146,6 +141,12 @@ namespace FF3
 				{
 					// The cutscene engine's commands, by name.
 					table[i] = scene;
+					_reusedCount++;
+				}
+				else if (op != null && theirs != null && i < GlobalScope.commandTable.Length
+					&& SameCommand(op, theirs))
+				{
+					table[i] = GlobalScope.commandTable[i];
 					_reusedCount++;
 				}
 				else if (op != null && theirs != null && i < GlobalScope.commandTable.Length

@@ -564,9 +564,24 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
   number); `ce_PlaySE(bank, no, volume, pan)` and the `_slot` variants are FF3's SE player;
   `ce_StartVoice(file.ahx)` plays SOUND/VOICE/en_<file>.akb (ja_ when English is missing)
   through OggSound as a SoundEffect and `ce_EndVoice` waits for it; `--novoice` mutes voices.
-- **What the scene still lacks**: effects (`setEffect_Scale`; packs load by name now), the 2D
-  sprites (`ce_3DSSetup`: the "Baron" plate from /2D/MIDDLE_EVENT), `ce_CallBattle`, voices
-  and BGM slots, `ce_setFog` (FF4 has fog: the overworld enables it in `WSPrepare` with range
+- **The field event camera** (`Ff4EventCamera`): `moveCamera_AbsoluteCoordination(x, y, z, frames,
+  alsoTarget, ?)`, `moveCamera_RelativeCoordination`, `setCamera_AbsoluteGaze(x, y, z, frames, ?)`,
+  `setCamera_RelativeGaze` move a position and a target linearly over frames (FF4's
+  EventCamera::setPositionLinerMove / setTargetLinerMove); `setCameraOffset(pos xyz, trg xyz, ?, ?, ?)`
+  follows the leader at pos-offset, looking at that point + trg-offset (CUFollowCamera::set);
+  `changeCamera_Mode`, `setCamera_BeforeEvent`, `cancelCameraControl`, `moveCamera_LookPlayer2` and a
+  map change hand the camera back. FF3's handlers for the same names set Pos/Trg in MODE_FREE,
+  whose controller rebuilds the position from a distance FF4's maps never set - the throne
+  room scene played at the party's legs. By-name FF4 handlers now take precedence over the
+  "same number, same operands" reuse of FF3's handler in the table build.
+- **2D plates** (`ce_3DSSetup` and the field spelling `3DSSetup`, `..SetAlpha(from, to, frames)`,
+  `..SetPosition`, `..SetVisiblity`, `..Release`): a `sys2d.Sprite3d` on the MAIN3D plane from the
+  named .ncer/.nanr/.ncbr (np00 = "Baron"), alpha faded per frame by `Ff4Cutscene.Tick`.
+- `clearCountJump(count, label)` jumps on a first playthrough (count 0); `setChacterOffset(cast,
+  x, y, z)` is a pose-matrix translation on the cast's model; `setMessageAlignment` is quiet.
+- **What the scene still lacks**: effects (`setEffect_Scale`; packs load by name now), `setPartyPCEquipItem`
+  and the castle's `addItem` (FF4's item tables), the 2D
+  sprites (`ce_3DSSetup`: the "Baron" plate from /2D/MIDDLE_EVENT), `ce_CallBattle`, `ce_setFog` (FF4 has fog: the overworld enables it in `WSPrepare` with range
   0x80000..0x200000 and colour 0x73f5; the port has no fog at all), per-character light
   enables. The clear colour is black, as `ContEventPart::initialize` sets it - the sky in
   e01_00 is geometry ("sora", "kumo"), not a backdrop.

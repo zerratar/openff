@@ -1,4 +1,4 @@
-// FF4's own script commands, implemented on the FF3 engine.
+﻿// FF4's own script commands, implemented on the FF3 engine.
 //
 // Everything FF4 shares with FF3 runs FF3's handler (ScriptCommands). What is here is
 // what FF4 added and this client has an answer for, written against the same field,
@@ -36,6 +36,18 @@ namespace FF3
 			{ "setRewardMessageInterval", Ff4FieldCommands.SetRewardMessageInterval }, // (frames)
 			{ "executeRewardMessageWindow", Ff4FieldCommands.ExecuteRewardMessageWindow }, // ()
 			{ "setPlayerLevel", Ff4FieldCommands.SetPlayerLevel },            // (playerType, level)
+			{ "clearCountJump", ClearCountJump },                             // (count, label): jumps when the game has been cleared `count` times
+			{ "setChacterOffset", SetCharacterOffset },                       // (cast, x, y, z): a draw offset for a cast's model
+			// The field event camera (Ff4EventCamera): FF3's handlers put these through MODE_FREE, which
+			// rebuilds the position from a distance FF4's maps never set.
+			{ "moveCamera_AbsoluteCoordination", MoveCameraAbsolute },       // (x, y, z, frames, alsoTarget, ?)
+			{ "moveCamera_RelativeCoordination", MoveCameraRelative },       // (dx, dy, dz, frames, alsoTarget, ?)
+			{ "setCamera_AbsoluteGaze", SetCameraGaze },                      // (x, y, z, frames, ?)
+			{ "setCamera_RelativeGaze", SetCameraRelativeGaze },              // (dx, dy, dz, frames, ?)
+			{ "setCameraOffset", SetCameraOffset },                           // (pos offset xyz, target offset xyz, ?, ?, ?): follow the leader
+			{ "cancelCameraControl", CancelCameraControl },                   // (?, ?): the field camera again
+			{ "setCamera_BeforeEvent", SetCameraBeforeEvent },                // (x, y, z): the field camera again, FF3's setupCamera
+			{ "moveCamera_LookPlayer2", MoveCameraLookPlayer2 },              // (cast, ?, ?, ?, ?): FF3's, after letting the event camera go
 		};
 
 		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
@@ -47,12 +59,41 @@ namespace FF3
 			"createEffectTaskWalk", "createEffectTaskRun", "createEffectTaskWait",        // footstep dust
 			"setBGMDownParam", "startBGMDown", "reverseBGMDown",         // BGM ducking
 			"setShadowScale",
+			"setMessageAlignment",                                     // message alignment
 		};
 
 		/// <summary>
 		/// setInsideMapJump: this map has an exit - a trigger box here, a destination and an
 		/// arrival there. Declared when executed, so a branch declares it only when taken.
 		/// </summary>
+		/// <summary>clearCountJump(count, label): FF4 counts finished playthroughs; this is a first one.</summary>
+		private static void ClearCountJump(GlobalScope.ScriptEngine engine)
+		{
+			int count = engine.getByte();
+			uint label = engine.getDword();
+			if (count == 0)
+			{
+				engine.jump(label);
+			}
+		}
+
+		/// <summary>setChacterOffset(cast, x, y, z): FF4's setOffsetMtxPosition - the model drawn off its cast's position.</summary>
+		private static void SetCharacterOffset(GlobalScope.ScriptEngine engine)
+		{
+			uint cast = engine.getWord();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int num = GlobalScope.CCastCommandTransit.getInstance().changeHichNumber(cast);
+			if (num == -1) return;
+			int characterId = GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng().Player(num).getCharacterId();
+			if (characterId == -1) return;
+			GlobalScope.MtxFx43 mtx = new GlobalScope.MtxFx43();
+			GlobalScope.MTX_Identity43(mtx);
+			mtx.a[9] = x;
+			mtx.a[10] = y;
+			mtx.a[11] = z;
+			GlobalScope.characterMng.setPoseMtx(characterId, mtx);
+		}
+
 		private static void SetInsideMapJump(GlobalScope.ScriptEngine engine)
 		{
 			DeclareExit(engine);
@@ -89,7 +130,72 @@ namespace FF3
 		/// <summary>changeCamera_Mode(): the field camera follows the party again.</summary>
 		private static void ChangeCameraMode(GlobalScope.ScriptEngine engine)
 		{
+			Ff4EventCamera.Release();
 			GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera()?.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_AUTOFOLLOW_DEFAULT);
+		}
+
+		private static void MoveCameraAbsolute(GlobalScope.ScriptEngine engine)
+		{
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int frames = (int)engine.getWord();
+			int alsoTarget = (int)engine.getWord();
+			engine.getDword();
+			Ff4EventCamera.MoveTo(x, y, z, frames, alsoTarget == 1);
+		}
+
+		private static void MoveCameraRelative(GlobalScope.ScriptEngine engine)
+		{
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int frames = (int)engine.getWord();
+			int alsoTarget = (int)engine.getWord();
+			engine.getDword();
+			Ff4EventCamera.MoveBy(x, y, z, frames, alsoTarget == 1);
+		}
+
+		private static void SetCameraGaze(GlobalScope.ScriptEngine engine)
+		{
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int frames = (int)engine.getWord();
+			engine.getDword();
+			Ff4EventCamera.LookAt(x, y, z, frames);
+		}
+
+		private static void SetCameraRelativeGaze(GlobalScope.ScriptEngine engine)
+		{
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int frames = (int)engine.getWord();
+			engine.getDword();
+			Ff4EventCamera.LookBy(x, y, z, frames);
+		}
+
+		private static void SetCameraOffset(GlobalScope.ScriptEngine engine)
+		{
+			GlobalScope.VecFx32 pos = new GlobalScope.VecFx32((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
+			GlobalScope.VecFx32 trg = new GlobalScope.VecFx32((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
+			engine.getDword();
+			engine.getDword();
+			engine.getDword();
+			Ff4EventCamera.Follow(pos, trg);
+		}
+
+		private static void CancelCameraControl(GlobalScope.ScriptEngine engine)
+		{
+			engine.getDword();
+			engine.getDword();
+			Ff4EventCamera.Release();
+		}
+
+		private static void SetCameraBeforeEvent(GlobalScope.ScriptEngine engine)
+		{
+			Ff4EventCamera.Release();
+			GlobalScope.ff3Command_SetCamera_BeforeEvent(engine);
+		}
+
+		private static void MoveCameraLookPlayer2(GlobalScope.ScriptEngine engine)
+		{
+			Ff4EventCamera.Release();
+			GlobalScope.ff3Command_MoveCamera_LookPlayer2(engine);
+			engine.skip(4);   // FF4's two trailing words
 		}
 
 		private static GlobalScope.wld.CMessageWindow Window =>

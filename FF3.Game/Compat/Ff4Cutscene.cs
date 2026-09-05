@@ -82,6 +82,18 @@ namespace FF3
 			{ "ce_StartVoice", StartVoice },                 // (file.ahx): SOUND/VOICE/<lang>_<file>.akb
 			{ "ce_StartVoice2", StartVoice2 },               // (file.ahx, ?, ?, ?, ?)
 			{ "ce_EndVoice", EndVoice },                     // (): waits for the line to finish
+			// The 2D plates come in a scene spelling (ce_3DS*) and a field one (3DS*, which
+			// Simplify prefixes with "_"); same operands, same handlers.
+			{ "ce_3DSSetup", SpriteSetup },                  // (slot, .ncer, .nanr, .ncbr, .nclr): a 2D plate over the scene
+			{ "ce_3DSRelease", SpriteRelease },              // (slot)
+			{ "ce_3DSSetAlpha", SpriteSetAlpha },            // (slot, from, to, frames): 0..31
+			{ "ce_3DSSetPosition", SpriteSetPosition },      // (slot, x, y)
+			{ "ce_3DSSetVisiblity", SpriteSetVisibility },   // (slot, shown)
+			{ "_3DSSetup", SpriteSetup },
+			{ "_3DSRelease", SpriteRelease },
+			{ "_3DSSetAlpha", SpriteSetAlpha },
+			{ "_3DSSetPosition", SpriteSetPosition },
+			{ "_3DSSetVisiblity", SpriteSetVisibility },
 			{ "ce_SetShadingMode", SetShadingMode },         // (slot, 0 flat-lit | 1 toon)
 			{ "ce_SetLightForCharacter", SetLight },         // (slot, light 0..3, x, y, z, r, g, b): the global light
 		};
@@ -342,6 +354,93 @@ namespace FF3
 				camera.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_FREE);
 				camera.Trg_set(new GlobalScope.VecFx32(x, y, z));
 			});
+		}
+
+		// ---- 2D plates (ce_3DS*): a cell sprite on the 3D plane, the "Baron" name plate and its kin ----
+
+		private sealed class Plate
+		{
+			public GlobalScope.sys2d.Sprite3d Sprite;
+			public int AlphaFrom, AlphaTo, AlphaFrames, AlphaTick;
+		}
+
+		private static readonly Dictionary<int, Plate> _plates = new Dictionary<int, Plate>();
+
+		private static void SpriteSetup(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getWord();
+			string ce = engine.getString(), an = engine.getString(), cb = engine.getString(), cl = engine.getString();
+			Guard("2D plate " + ce, () =>
+			{
+				ReleasePlate(slot);
+				GlobalScope.sys2d.Sprite3d sprite = new GlobalScope.sys2d.Sprite3d();
+				sprite.Load(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, Path.GetFileName(ce), Path.GetFileName(an), Path.GetFileName(cb), Path.GetFileName(cl));
+				sprite.SetCell(0);
+				sprite.SetShow(false);
+				GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(sprite);
+				_plates[slot] = new Plate { Sprite = sprite, AlphaFrom = 31, AlphaTo = 31 };
+				Log.Write(LogChannel.File, "script: FF4 2D plate " + Path.GetFileName(ce) + " in slot " + slot);
+			});
+		}
+
+		private static void ReleasePlate(int slot)
+		{
+			if (!_plates.TryGetValue(slot, out Plate plate)) return;
+			_plates.Remove(slot);
+			try
+			{
+				GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(plate.Sprite);
+				plate.Sprite.Release();
+			}
+			catch (Exception) { }
+		}
+
+		private static void SpriteRelease(GlobalScope.ScriptEngine engine)
+		{
+			ReleasePlate((int)engine.getWord());
+		}
+
+		private static void SpriteSetAlpha(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getWord();
+			int from = (int)engine.getDword(), to = (int)engine.getDword(), frames = (int)engine.getDword();
+			if (!_plates.TryGetValue(slot, out Plate plate)) return;
+			plate.AlphaFrom = Math.Clamp(from, 0, 31);
+			plate.AlphaTo = Math.Clamp(to, 0, 31);
+			plate.AlphaFrames = Math.Max(0, frames);
+			plate.AlphaTick = 0;
+			Guard("2D plate alpha", () => plate.Sprite.SetAlpha((byte)plate.AlphaFrom));
+		}
+
+		private static void SpriteSetPosition(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getWord();
+			int x = (int)engine.getDword(), y = (int)engine.getDword();
+			if (!_plates.TryGetValue(slot, out Plate plate)) return;
+			Guard("2D plate position", () => plate.Sprite.SetPositionI(x, y));
+		}
+
+		private static void SpriteSetVisibility(GlobalScope.ScriptEngine engine)
+		{
+			int slot = (int)engine.getWord();
+			int shown = (int)engine.getDword();
+			if (!_plates.TryGetValue(slot, out Plate plate)) return;
+			Guard("2D plate show", () => plate.Sprite.SetShow(shown != 0));
+		}
+
+		/// <summary>Each frame: the plates' alpha fades.</summary>
+		public static void Tick()
+		{
+			foreach (Plate plate in _plates.Values)
+			{
+				if (plate.AlphaFrames <= 0) continue;
+				plate.AlphaTick++;
+				int alpha = plate.AlphaTick >= plate.AlphaFrames
+					? plate.AlphaTo
+					: plate.AlphaFrom + (plate.AlphaTo - plate.AlphaFrom) * plate.AlphaTick / plate.AlphaFrames;
+				if (plate.AlphaTick >= plate.AlphaFrames) plate.AlphaFrames = 0;
+				try { plate.Sprite.SetAlpha((byte)alpha); } catch (Exception) { }
+			}
 		}
 
 		// ---- sound: BGM slots, sound effects and the voice lines ----
@@ -768,9 +867,11 @@ namespace FF3
 			_frameWaits.Clear();
 			_active = false;
 			SceneStage = null;
+			Ff4EventCamera.Release();
 			StopVoice();
 			_seSlots.Clear();
 			_sePlayed.Clear();
+			foreach (int slot in new List<int>(_plates.Keys)) ReleasePlate(slot);
 			Ff4CameraMotion.MapLeft();
 			// ReturnMap survives: it is where the chain of scene maps ends up.
 		}
