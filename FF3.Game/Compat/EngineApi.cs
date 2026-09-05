@@ -1,4 +1,4 @@
-// The engine API on the legacy game.
+﻿// The engine API on the legacy game.
 //
 // OpenFF.Engine/Api.cs says what a script may do; these services do it by calling what
 // the FF3 script command handlers call (GlobalScope.Members.cs, ff3Command_*): the
@@ -30,7 +30,9 @@ namespace FF3
 			OpenFF.Game.Services.Register(Hero);
 			OpenFF.Game.Services.Register(Npcs);
 			OpenFF.Game.Services.Register(new LegacyFlags());
-			OpenFF.Game.Services.Register(new LegacyParty());
+			// FF4's party is the unified OpenFF.Data.Party (Ff4Party); FF3's is still pl.PlayerParty.
+			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4PartyService());
+			else OpenFF.Game.Services.Register(new LegacyParty());
 			OpenFF.Game.Services.Register(new LegacyAudio());
 			OpenFF.Game.Services.Register(Screen);
 			OpenFF.Game.Services.Register(new LegacyField());

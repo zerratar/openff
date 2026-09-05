@@ -49,6 +49,13 @@ namespace FF3
 			{ "setCamera_BeforeEvent", SetCameraBeforeEvent },                // (x, y, z): the field camera again, FF3's setupCamera
 			{ "moveCamera_LookPlayer2", MoveCameraLookPlayer2 },              // (cast, ?, ?, ?, ?): FF3's, after letting the event camera go
 			{ "setWorldCameraPosAndTargetOffset", SetWorldCameraOffsets },   // (offset xyz, target-from-offset xyz, ?, ?): the follow camera's offsets
+			// The roster and the bag: the unified party (Ff4Party on OpenFF.Data).
+			{ "addItem", Ff4Party.AddItem },                                  // (item, count)
+			{ "subItem", Ff4Party.SubItem },                                  // (item, count)
+			{ "addPartyPC", Ff4Party.AddPartyPC },                            // (type, ?)
+			{ "subPartyPC", Ff4Party.SubPartyPC },                            // (type, ?)
+			{ "setPartyPCEquipItem", Ff4Party.SetPartyPCEquipItem },          // (type, right, left, head, body, arm)
+			{ "addAbility", Ff4Party.AddAbility },                            // (type, ability)
 		};
 
 		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
@@ -68,10 +75,6 @@ namespace FF3
 			// jumps when the character's augment level equals `level` (2 in every script; it is 0
 			// here), checkCharacterStatusJump when a member carries a status condition.
 			"decantLevelChekcJump", "checkCharacterStatusJump",
-			// The party's roster, abilities and equipment are FF4's own data model (player.chaindata,
-			// the 4-chain item pack) - not FF3's; on the field only the leader is drawn, so these
-			// change nothing visible yet.
-			"addPartyPC", "subPartyPC", "addAbility", "setPartyPCEquipItem",
 			// Objects bound to a character's joint (a carried item, a torch), effect scaling, the
 			// sub-plane visibility of the DS's second screen.
 			"createBindObject", "setVisibleBindObject", "setEffect_Scale", "ce_CallProgParam",

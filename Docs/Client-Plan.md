@@ -609,6 +609,13 @@ container), `Tables.cs` (`GameTables`, `CharacterDefinition` with `LevelRow` gro
 `Ff4Tables` (the FF4 reader). The editor's msd reader moved to `Shared/Text` so names resolve
 on both sides. `ff3content tables <install>` dumps a game's tables through it (E-25).
 
+The client's side (`FF3.Game/Compat/Ff4Party.cs`): `Ff4Party.Tables` reads FF4's tables from the
+content chain once, `Ff4Party.Party` is the roster (a new game: Cecil, type 0, at level 10 -
+what `initForNewgame` leaves), and the scripts' `addItem`/`subItem`/`addPartyPC`/`subPartyPC`/
+`setPartyPCEquipItem` (left hand, right hand, head, body, arm)/`addAbility` act on it;
+`Ff4PartyService` is Game.Party on FF4 (FF3 keeps LegacyParty over pl.PlayerParty). A joiner
+takes the leader's level until FF4's own rule is read. Test C-38.
+
 The stage after the scenes is FF4's data model - the party, its members' growth, items -
 because the menu, the roster commands (`addPartyPC`...) and battles all stand on it. Opening
 notes from `pl::PlayerParty::load`, `levelParameter`, `normalMagic`, `normalAttack` in
