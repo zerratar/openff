@@ -925,8 +925,32 @@ frames are laid out in code (`btl::BattleCommandWindow`, `BasicBattleWindow`,
 `BattleSelectWindow`, `HelpWindow`, `BattleHpGauge`, `BattleMenuNumber`) - to read from the
 binary. Steam's look (soft gradients, a soft glove) is these DS assets scaled up, with text
 from `arial.ttf` (SDL2_ttf) - so 1:1 means drawing FF4's frames and cursor at the layouts'
-positions with our font. Next: decode `frame_00` and `cursor` through the port's NCGR/NCER
-path, draw the battle windows from them, then the menu from the XBN layouts.
+positions with our font.
+
+Built the same evening: `FF3.Game/Compat/Ff4Ui.cs`. The phone and Steam builds' .NCGR/.NCBR
+are PNG sheets (8-bit palette or RGBA) and their .NCER cell banks the port's seven-word
+parts, so the client reads a sheet through the game's own file system (`ds.g_File`, archive
+members by name) into a texture (`Game.Draw.LoadTexture(key, bytes)`, new; the host makes a
+Texture2D from the bytes) and the bank through `Shared/Content/CellBanks.cs` (Crystal's
+Cells.cs reader, shared). `Ff4Ui.Window` paints the fill (winsample.NCGR's navy gradient,
+else BasicWindow's 0x4A2214) and the frame's eight cells of window_frame_00 style 1 (the
+blue bevel; style 0 is the white line; frame_01..05 are the other window colours) around a
+rectangle; `Glove` draws cursor.NCER's cell 0 (pressed: cell 1) with its fingertip at the
+spot; `Gauge` the ATB trough and a fill cut to the fraction. The phone UI's space is
+1136 x 640 (the Steam window is exactly that; the glove is 85 px of 1122), so pieces are
+drawn at 800/1136 of their sheet size. The battle HUD now draws only these: the command
+window at (58, 300, 188 x 180) with 45-px rows and centred names, the party window at
+(276, 338, 460 x 142) with 28-px rows (name, HP / max, MP, gauge), the hints above, the
+target pick's foe list and card, the magic and item grid as one wide window of three
+columns by four rows (`BtlMagicMenu::BMTEXT_POS` has the three columns; Left/Right step,
+Up/Down move a row, `GridMove`), the last action in a small window at the top, the result
+window. Those positions are measured from Karl's Steam screenshots; FF4 lays its battle
+windows out in code (`btl::TouchWindow`, `BattleCommandWindow::create`, windows are
+`menu::BasicWindow`s from `ui::CWidgetMng::addWidget(id, x, y, w, h, type, ...)`), so the
+exact numbers are still to be read from the binary. The np00..np11 sheets turned out to be
+the intro name plates (Cecil / Lord Captain / Baron Red Wings), useful for `ce_3DSSetup`.
+Next: the menu from the XBN layouts with the same pieces, the damage digits from
+battle_number, the battle windows' numbers from the binary.
 
 
 ## Working rules

@@ -64,6 +64,9 @@ namespace OpenFF
 		/// <summary>The host's texture loader (a PNG, JPG or BMP file); set by the host.</summary>
 		public Func<string, Texture> TextureLoader { get; set; }
 
+		/// <summary>The host's texture loader for picture bytes already in hand (a PNG out of an archive), cached under a key; set by the host.</summary>
+		public Func<string, byte[], Texture> TextureBytesLoader { get; set; }
+
 		/// <summary>The host's text measure, in screen units at a size; set by the host.</summary>
 		public Func<string, int, float> TextMeasure { get; set; }
 
@@ -113,6 +116,19 @@ namespace OpenFF
 			}
 			try { return TextureLoader(path); }
 			catch (Exception ex) { Game.Warn("Draw.LoadTexture " + path + ": " + ex.Message); return null; }
+		}
+
+		/// <summary>A picture from bytes (PNG, JPG or BMP), cached under <paramref name="key"/>; null (and a warning) when it cannot.</summary>
+		public Texture LoadTexture(string key, byte[] data)
+		{
+			if (TextureBytesLoader == null)
+			{
+				Game.Warn("Draw.LoadTexture: the host has no texture loader");
+				return null;
+			}
+			if (data == null || data.Length == 0) return null;
+			try { return TextureBytesLoader(key, data); }
+			catch (Exception ex) { Game.Warn("Draw.LoadTexture " + key + ": " + ex.Message); return null; }
 		}
 
 		/// <summary>Host entry: the frame's commands were drawn.</summary>

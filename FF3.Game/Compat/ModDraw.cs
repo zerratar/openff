@@ -43,6 +43,7 @@ namespace FF3
 			ModDraw draw = new ModDraw(game);
 			game.Components.Add(draw);
 			OpenFF.Game.Draw.TextureLoader = draw.Load;
+			OpenFF.Game.Draw.TextureBytesLoader = draw.LoadBytes;
 			OpenFF.Game.Draw.TextMeasure = (text, size) => TrueTypeText.Width(text, size);
 		}
 
@@ -54,6 +55,20 @@ namespace FF3
 				return cached;
 			}
 			using FileStream stream = File.OpenRead(full);
+			Texture2D texture = Texture2D.FromStream(GraphicsDevice, stream);
+			ModTexture wrapped = new ModTexture(full, texture);
+			_textures[full] = wrapped;
+			return wrapped;
+		}
+
+		private OpenFF.Texture LoadBytes(string key, byte[] data)
+		{
+			string full = "bytes:" + key;
+			if (_textures.TryGetValue(full, out ModTexture cached) && cached.Texture2D != null && !cached.Texture2D.IsDisposed)
+			{
+				return cached;
+			}
+			using MemoryStream stream = new MemoryStream(data, false);
 			Texture2D texture = Texture2D.FromStream(GraphicsDevice, stream);
 			ModTexture wrapped = new ModTexture(full, texture);
 			_textures[full] = wrapped;

@@ -28,31 +28,27 @@ wait 0.3
 press Z
 wait 0.4
 press Z
-# Rydia again: Magic, the fifth spell (Blizzard), on the first Goblin standing.
+# Rydia again: Magic, the fifth spell (Blizzard - the grid has three columns, so Right then Down), on the first Goblin standing.
 until battle: Rydia may act 30
 wait 0.3
 press Down
 wait 0.3
 press Z
 wait 0.4
-press Down
-wait 0.25
-press Down
-wait 0.25
-press Down
+press Right
 wait 0.25
 press Down
 wait 0.3
 press Z
 wait 0.4
 press Z
-# Whoever acts next fights until the Goblins are gone.
-until battle: (Cecil|Rydia) may act 30
+# Whoever acts next fights until the Goblins are gone (the fight may already be won).
+until battle: (won|(Cecil|Rydia) may act) 30
 wait 0.3
 press Z
 wait 0.4
 press Z
-until battle: (Cecil|Rydia) may act 30
+until battle: (won|(Cecil|Rydia) may act) 30
 wait 0.3
 press Z
 wait 0.4
