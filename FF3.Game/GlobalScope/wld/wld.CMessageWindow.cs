@@ -73,6 +73,12 @@ internal static partial class GlobalScope
 									return m_MesWindow.mwSetWindow(static_cast<menu.MessageWindow.MESSAGE_WINDOW_POSITION>(_Pos));
 								}
 
+								/// <summary>PORT: FF4's scene message bar across the bottom (frameless, dark, translucent).</summary>
+								public bool createBarWindow()
+								{
+									return m_MesWindow.mwSetBarWindow();
+								}
+
 								/// <summary>PORT: a text that is in no message file, for the engine API.</summary>
 								public void createText(string text, int _Display)
 								{

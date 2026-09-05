@@ -16904,6 +16904,12 @@ internal static partial class GlobalScope
 							}
 							CCastCommandTransit.getInstance().cast_BaseSystem().lastMessage_set((int)dword);
 							FF3.EngineHooks.MessageShown((int)dword);
+							if (FF3.GameProfile.IsFf4 && FF3.Ff4Cutscene.Active && !CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().isMadeWindow())
+							{
+								// PORT: FF4's scenes speak over a dark bar across the bottom (the event conte's
+								// message window); ce_ShowMessageWindow(0) takes it down between lines.
+								CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().createBarWindow();
+							}
 							CCastCommandTransit.getInstance().cast_Field2D().MessageWindow()
 								.createMessage((int)dword, 0, (int)word);
 							if (num != 0)

@@ -474,6 +474,24 @@ internal static partial class GlobalScope
 				}
 			}
 
+			// PORT: FF4's scene message bar (evt::EventConteManager::enableMessageWindow): the same
+			// window with its frame invisible and a dark, translucent fill across the bottom.
+			private bool m_BarStyle;
+
+			public void SetBarStyle()
+			{
+				m_BarStyle = true;
+				for (int k = 0; k < 18; k++)
+				{
+					if (m_pFrame[k] != null) m_pFrame[k].SetAlpha(0);
+				}
+				for (int i = 0; i < 2; i++)
+				{
+					if (m_pWindow1dArray[i] != null) m_pWindow1dArray[i].SetColor(0u);
+				}
+				SetAlpha(150);
+			}
+
 			public void SetAlpha(byte alpha)
 			{
 				m_Alpha = alpha;
@@ -527,7 +545,8 @@ internal static partial class GlobalScope
 							{
 								// PORT: FF4 fills its windows in code - dark blue under white lines.
 								// The wallpaper cell Ff4Assets gives it is a white texel; tint it.
-								pSprite.SetColor(0x4A2214u); // stored blue-green-red
+								pSprite.SetColor(m_BarStyle ? 0u : 0x4A2214u); // stored blue-green-red
+								if (m_BarStyle) pSprite.SetAlpha(150);
 							}
 						}
 					}
@@ -548,6 +567,7 @@ internal static partial class GlobalScope
 					{
 						bwAllocAndCopy(ref m_pFrame[k], m_Plane);
 						m_pFrame[k].SetCell((ushort)BW_FRAME_ANIM_NO[0][k]);
+						if (m_BarStyle) m_pFrame[k].SetAlpha(0);
 					}
 				}
 				return true;

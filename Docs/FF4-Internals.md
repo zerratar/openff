@@ -197,6 +197,16 @@ degrees (`setFOV(1060, 3956)` in the port's `setupCamera`). The overworld enable
 `setTargetLinerMove`; `setCameraOffset` = follow the leader at fixed offsets,
 `CUFollowCamera::set`). Client: `Compat/Ff4EventCamera.cs`, `wld.CBaseSystem.setupCamera`.
 
+### Scene messages
+
+`babilCommand_CE_ShowMessageWindow(engine)`: `byte b = getByte(); if (conte->flag[0x5fb]) return;
+EventConteManager::enableMessageWindow(b != 0)` - the scene's message bar (a frameless, dark,
+translucent BasicWindow across the bottom) is on by default and the scripts turn it off between
+lines with `ce_ShowMessageWindow(0)`; `startMessage(pos, id, 2, 0)` in a scene shows the text
+in it (type 2 = no wait for a press; the voice line runs alongside, `ce_StartVoice`). Field
+talks use the framed window with the speaker's name tag. Client: `menu.BasicWindow.SetBarStyle`,
+`menu.MessageWindow.mwSetBarWindow`, `Ff4Cutscene.ShowMessageWindow`.
+
 ### Scene camera motions (`EVT_CAMERA.dat`, `.dsc` = CMS2)
 
 ```

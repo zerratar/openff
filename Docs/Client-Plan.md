@@ -991,6 +991,24 @@ renderer does not honour (now `setHidden`), and the one-shot motions (attack, hu
 never followed by the idle loop - `Idle()` restarts it for every fighter whose motion has
 finished (`Fighter.Acted`).
 
+## The scenes' message bar (2026-09-05, late)
+
+FF4's scenes speak over a dark, translucent bar across the bottom of the screen (Karl's deck
+screenshots); ours showed bare text. In the binary `babilCommand_CE_ShowMessageWindow` reads a
+byte and calls `evt::EventConteManager::enableMessageWindow(byte != 0)` - the scripts call
+`ce_ShowMessageWindow(0)` after a `deleteMessage` to take the bar down for a pause, and the
+next `startMessage` brings it back. The port: `menu.BasicWindow.SetBarStyle` (frames at alpha
+0, the fill black at alpha 150), `menu.MessageWindow.mwSetBarWindow` (the window at (0, 236)
+size 480 x 84 in the 2D plane, the text centred on 240), `wld.CMessageWindow.createBarWindow`;
+`ff3Command_StartMessage2` creates the bar when a FF4 cutscene is active and no window is made;
+`Ff4Cutscene` handles `ce_ShowMessageWindow` (0 releases the window) and releases it when the
+scene ends. Field talks keep their framed window with the name tag. The intro run
+(`ff4-story.drive`, 250 s) now shows: the deck scenes over the bar, the Mysidia flashback in
+green, the Floating Eye fight with FF4's HUD on the deck, the flight, the castle scenes with
+Cecil / Baigan / King of Baron name tags, the throne room. Still off: the flight's sky (a
+blocky grey with black holes where FF4 shows clouds), the intro name plates (`np00..` sheets,
+`ce_3DSSetup`), the scene's fog and lights.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

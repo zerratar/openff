@@ -280,6 +280,38 @@ internal static partial class GlobalScope
 				return true;
 			}
 
+			// PORT: FF4's scene message bar - the whole width of the bottom, no frame, the text centred.
+			private bool m_Bar;
+
+			public bool mwSetBarWindow()
+			{
+				if (m_Made_1 || m_Window.GetEnable() != -1)
+				{
+					return false;
+				}
+				ds.Vector2<short> vector = new ds.Vector2<short>(0, 236);
+				ds.Vector2<short> vector2 = new ds.Vector2<short>(480, 84);
+				m_Window.SetMaxWindowPos(vector);
+				m_Window.SetMaxWindowSize(vector2);
+				m_Window.ClearNowWindowSize();
+				m_Window.CalcOneRatio(1);
+				m_Window.GetWindowHandle().SetBarStyle();
+				vector2.vx = (vector2.vy = 0);
+				m_Window.GetWindowHandle().bwCreateUL(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, vector, vector2, 3);
+				m_Window.GetWindowHandle().SetBarStyle();
+				m_Window.GetWindowHandle().SetPriority(3);
+				m_Window.GetWindowHandle().SetShow(show: true, user: true);
+				m_Window.SetEnable(1);
+				m_Loaded_1 = true;
+				m_Made_1 = true;
+				m_Bar = true;
+				m_MessageStyle = MESSAGE_STYLE.MESSAGE_STYLE_CENTER;
+				m_State = 0;
+				return true;
+			}
+
+			public bool mwIsBar() => m_Bar && m_Made_1;
+
 			public bool mwSetMessage(ds.Vector2<short> message_pos, int msg_no, int display)
 			{
 				m_Display = display;
@@ -305,7 +337,7 @@ internal static partial class GlobalScope
 				if (m_MessageStyle == MESSAGE_STYLE.MESSAGE_STYLE_CENTER)
 				{
 					dGSMessage.getCompleteTextSize(vector2);
-					vector.vx = (short)(ds.DS_SCREEN_WIDTH_HALF - (vector2.vx >> 1));
+					vector.vx = (short)((m_Bar ? 240 : ds.DS_SCREEN_WIDTH_HALF) - (vector2.vx >> 1));   // PORT: the scene bar centres on its own width
 				}
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
 				dGSMessage.setDisplaySpeed(mwDEFAULT_DISPLAY_SPEED);
@@ -347,7 +379,7 @@ internal static partial class GlobalScope
 				if (m_MessageStyle == MESSAGE_STYLE.MESSAGE_STYLE_CENTER)
 				{
 					dGSMessage.getCompleteTextSize(vector2);
-					vector.vx = (short)(ds.DS_SCREEN_WIDTH_HALF - (vector2.vx >> 1));
+					vector.vx = (short)((m_Bar ? 240 : ds.DS_SCREEN_WIDTH_HALF) - (vector2.vx >> 1));   // PORT: the scene bar centres on its own width
 				}
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
 				dGSMessage.setDisplaySpeed(mwDEFAULT_DISPLAY_SPEED);
@@ -461,6 +493,11 @@ internal static partial class GlobalScope
 
 			public void WindowRelease()
 			{
+				if (m_Bar)
+				{
+					m_Bar = false;
+					m_MessageStyle = MESSAGE_STYLE.MESSAGE_STYLE_LEFT;
+				}
 				if (m_Made_1)
 				{
 					m_Window.GetWindowHandle().Release();

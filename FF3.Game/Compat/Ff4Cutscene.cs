@@ -96,6 +96,7 @@ namespace FF3
 			{ "_3DSSetVisiblity", SpriteSetVisibility },
 			{ "ce_SetShadingMode", SetShadingMode },         // (slot, 0 flat-lit | 1 toon)
 			{ "ce_SetLightForCharacter", SetLight },         // (slot, light 0..3, x, y, z, r, g, b): the global light
+			{ "ce_ShowMessageWindow", ShowMessageWindow },   // (on): 0 takes the scene's message bar down
 		};
 
 		/// <summary>Commands that only dress a scene, skipped without a log line.</summary>
@@ -115,7 +116,6 @@ namespace FF3
 			"ce_SetupCameraMotion", "ce_CleanupCameraMotion",
 			"ce_SetBindObject", "ce_SetBindObject2", "ce_BindObjectVisiblity",
 			"ce_3DSSetup", "ce_3DSRelease", "ce_3DSSetAlpha", "ce_3DSSetPosition", "ce_3DSSetVisiblity",
-			"ce_ShowMessageWindow",
 		};
 
 		private static GlobalScope.CCharacterMng Characters => GlobalScope.characterMng;
@@ -136,6 +136,7 @@ namespace FF3
 		{
 			_active = false;
 			Ff4CameraMotion.Stop();
+			Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up");
 			// FF4's event part hands back to the world at the return map; here the scene ran on the
 			// world part all along, so the hand-back is a map jump.
@@ -684,6 +685,13 @@ namespace FF3
 				GlobalScope.G3X_SetToonTable(_toon);
 				GlobalScope.G3X_SetShading(0);
 			});
+		}
+
+		/// <summary>ce_ShowMessageWindow(on): FF4's evt::EventConteManager::enableMessageWindow - 0 hides the scene's message bar until the next line.</summary>
+		private static void ShowMessageWindow(GlobalScope.ScriptEngine engine)
+		{
+			int on = engine.getByte();
+			if (on == 0) Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
 		}
 
 		private static void SetShadingMode(GlobalScope.ScriptEngine engine)
