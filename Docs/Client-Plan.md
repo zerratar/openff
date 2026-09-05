@@ -624,7 +624,14 @@ FF4 from the same tables, and `Ff4Menu` is the first thing built on nothing but 
 status menu the engine draws (Game.Draw/Game.Input, as a mod would) on the pad's menu button -
 party page and bag page (C-39). FF3's menu part is blocked on FF4 (CStateWorldMove), where it
 crashed on FF3-only face cells. FF4's own menu layouts (MenuLayout_*.xbn) remain to be ported
-onto this data.
+onto this data. `Ff4Battle` is the second: an ATB fight on the current map over the unified party
+and monsters (FF4's m<model>_00 models with b_m<model> motions 101/201; the leader's
+b_p_player_<type> motions 2007-2010), with Fight/Item/Run, targets, damage pops, victory paying
+experience, gil and rolled drops into the party (C-40). K starts a test fight; `bootEventBattle`,
+`ce_CallBattle` and the overworld's encounter tables (MAPPARAMETER's encount and monsterParty
+chains, 52 and 16 bytes, fields not yet named) are the hooks still to connect. The damage
+formula is a placeholder (attack x 2 - defence, +-10%) until FF4's is read from libff4.so;
+FF4's monster record has an attack-like word at 0x20 and a hit chance at 0x22.
 
 The stage after the scenes is FF4's data model - the party, its members' growth, items -
 because the menu, the roster commands (`addPartyPC`...) and battles all stand on it. Opening

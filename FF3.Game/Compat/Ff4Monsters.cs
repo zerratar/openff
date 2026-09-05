@@ -1,4 +1,4 @@
-// Game.Monsters on FF4: the unified tables through the engine's monster interface. FF3
+﻿// Game.Monsters on FF4: the unified tables through the engine's monster interface. FF3
 // keeps LegacyMonsters over mon.MonsterManager. Encounter groups (the map parameters'
 // monsterParty chain) are not read yet, so Group answers an empty group.
 
@@ -28,7 +28,9 @@ namespace FF3
 					Id = d.Id,
 					Name = d.Name,
 					Family = d.Family,
-					Model = "b_m" + d.ModelId.ToString("000"),
+					// FF4's monster models are m<model>_00.nmdp, their battle motions b_m<model>.ncap.
+					Model = "m" + d.ModelId.ToString("000") + "_00",
+					MotionSet = "b_m" + d.ModelId.ToString("000"),
 					Level = d.Level,
 					MaxHp = d.MaxHp,
 					Size = d.Size,

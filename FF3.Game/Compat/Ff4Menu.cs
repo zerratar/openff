@@ -29,7 +29,7 @@ namespace FF3
 			InputState input = Game.Input;
 			if (!_open)
 			{
-				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !Game.Battle.InBattle
+				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !Game.Battle.InBattle && !Ff4Battle.Active
 					&& (input.Pressed(Pad.X) || input.KeyPressed("M")))
 				{
 					_open = true;

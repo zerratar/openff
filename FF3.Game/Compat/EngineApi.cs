@@ -46,6 +46,8 @@ namespace FF3
 			else OpenFF.Game.Services.Register(new LegacyItems());
 			// FF3's menu part cannot read FF4's party; the engine draws a status menu for FF4 (Ff4Menu).
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Menu());
+			// ... and the OpenFF battle for FF4 (Ff4Battle), on the unified party and monsters.
+			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Battle());
 			OpenFF.Game.Services.Register(new LegacyShops());
 		}
 
