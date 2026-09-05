@@ -1,4 +1,4 @@
-// Putting something new on a map, which is several edits in three formats.
+﻿// Putting something new on a map, which is several edits in three formats.
 //
 // The recipe, worked out by reading what the shipped maps do rather than by guessing:
 //
@@ -44,6 +44,7 @@
 // to get back to a map-object slot. Give it a person and the subtraction lands outside
 // the array.
 
+using FF3.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

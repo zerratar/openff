@@ -601,6 +601,14 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
 
 ## FF4's player tables, read from the binary (2026-09-05)
 
+**Started 2026-09-05 (Karl: "do the unified approach"):** `Shared/Data` (namespace `OpenFF.Data`),
+compiled into the editor and the client like the other Shared code: `ChainPack` (the tables'
+container), `Tables.cs` (`GameTables`, `CharacterDefinition` with `LevelRow` growth,
+`ItemDefinition` with `EquipStats`, `SpellDefinition`, the five `Attribute`s), `Party.cs`
+(`Party`, `Character`, `ItemStack` - the runtime roster the scripts and Game.Party act on) and
+`Ff4Tables` (the FF4 reader). The editor's msd reader moved to `Shared/Text` so names resolve
+on both sides. `ff3content tables <install>` dumps a game's tables through it (E-25).
+
 The stage after the scenes is FF4's data model - the party, its members' growth, items -
 because the menu, the roster commands (`addPartyPC`...) and battles all stand on it. Opening
 notes from `pl::PlayerParty::load`, `levelParameter`, `normalMagic`, `normalAttack` in

@@ -8,6 +8,7 @@
 // Built on first use and dropped whenever a .msd is written, which is cheap - one
 // language is about 200 files.
 
+using FF3.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

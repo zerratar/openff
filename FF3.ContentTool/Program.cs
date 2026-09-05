@@ -26,6 +26,7 @@
 //   Audio/<name>.wav                   PCM/ADPCM audio, straight from the XNB
 // and writes a Content.mgcb so the MonoGame pipeline can rebuild them.
 
+using FF3.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -189,6 +190,13 @@ namespace FF3.ContentTool
 							return 1;
 						}
 						return PakDecode(args.Skip(1).ToArray());
+					case "tables":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return Tables(args.Skip(1).ToArray());
 					case "pak-build":
 						if (args.Length < 2)
 						{
@@ -208,11 +216,49 @@ namespace FF3.ContentTool
 			}
 		}
 
+		/// <summary>tables &lt;install root&gt; [--items=N]: the game's tables in the unified shape (OpenFF.Data), for checking a reader.</summary>
+		private static int Tables(string[] args)
+		{
+			string root = args[0];
+			int items = 12;
+			foreach (string a in args.Skip(1))
+			{
+				if (a.StartsWith("--items=", StringComparison.Ordinal)) int.TryParse(a.Substring(8), out items);
+			}
+			if (!Directory.Exists(root))
+			{
+				Console.Error.WriteLine("not a directory: " + root);
+				return 1;
+			}
+			ContentChain chain = ContentChain.Open(root);
+			if (Environment.GetEnvironmentVariable("FF3_TABLES_DEBUG") != null)
+			{
+				Console.WriteLine(chain.Describe());
+				foreach (string probe in new[] { "player.chaindata", "player.chaindata.lz", "files/player.chaindata.lz", "EXTRACTED_DATA/files/player.chaindata.lz", "item_parameter.pak", "babil_item.msd", "e01_00.dsc.lz", "d01_00.script" })
+				{
+					Console.WriteLine("  " + probe + ": " + chain.Exists(probe));
+				}
+			}
+			OpenFF.Data.GameTables tables = OpenFF.Data.Ff4Tables.Read(chain);
+			Console.WriteLine(tables.Describe());
+			if (items > 12)
+			{
+				int shown = 0;
+				foreach (OpenFF.Data.ItemDefinition item in tables.Items)
+				{
+					if (shown++ >= items) break;
+					Console.WriteLine("  " + item + (item.Equip != null ? " " + item.Equip : "") + (item.Caption != null ? " - " + item.Caption : ""));
+				}
+			}
+			return 0;
+		}
+
 		private static void Usage()
 		{
 			Console.Error.WriteLine("usage:");
 			Console.Error.WriteLine("  (no command)                      open the editor");
 			Console.Error.WriteLine("  info    <file.xnb | directory>");
+			Console.Error.WriteLine("  tables  <install root> [--items=N]      the game's tables in the unified shape (FF4)");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");
 			Console.Error.WriteLine("  extract-archives <content-directory> <output-directory> [pattern ...]");

@@ -9,6 +9,7 @@
 // means the rules that matter - what compiles, what a menu's coordinates mean - stay
 // in one place and are the same ones the command line uses.
 
+using FF3.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

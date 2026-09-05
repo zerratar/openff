@@ -1,4 +1,4 @@
-// MSD - every line of text in the game. 1890 files, 55431 messages: dialogue,
+﻿// MSD - every line of text in the game. 1890 files, 55431 messages: dialogue,
 // menu labels, item and spell names and descriptions, battle chatter.
 //
 //   ff3content msd        <file.msd | directory> [out]
@@ -42,7 +42,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace FF3.ContentTool
+namespace FF3.Content
 {
 	internal sealed class MsdMessage
 	{
