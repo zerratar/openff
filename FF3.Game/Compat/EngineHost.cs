@@ -41,7 +41,9 @@ namespace FF3
 			_attached = true;
 			OpenFF.Game.Log = message => Log.Write(LogChannel.General, "engine: " + message);
 			OpenFF.Game.Warn = message => Log.Write(LogChannel.General, "engine: WARNING " + message);
-			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", "mods.json");
+			// FF3's chunks ride beside its legacy save file; FF4 has no legacy save here, so its
+			// whole game lives in the store (Ff4Saves) - a file of its own.
+			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", GameProfile.IsFf4 ? "ff4.json" : "mods.json");
 			// The API on the legacy game, before any mod so a mod's OnGameStart can reach it.
 			EngineApi.Register();
 			OpenFF.SceneLoader.ResolveNpc = (kind, index) => kind == "object" ? EngineApi.Npcs.Existing(index) : null;
@@ -75,6 +77,8 @@ namespace FF3
 				Log.Write(LogChannel.General, "engine: --nomods, no mod code loaded");
 			}
 			OpenFF.Game.Start();
+			// --load=<slot>: an FF4 game starts from a save; the jump part lands the party there.
+			Ff4Saves.LoadAtBoot();
 			_lastTick = DateTime.Now;
 			Log.Write(LogChannel.General, "engine: OpenFF " + OpenFF.Game.ApiVersion + " started - " + withCode + " mod(s) with code, "
 				+ OpenFF.Game.Services.All.Count + " service(s), saves in " + OpenFF.Game.Saves.StorePath

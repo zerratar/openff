@@ -47,7 +47,8 @@ namespace FF3
 			("text", "FF3_TEXT", "atlas", "Text from the phone build's glyph atlases instead of TrueType"),
 			("font", "FF3_FONT", "<file|dir>", "TrueType/OpenType face to use first (default: the Steam install's, then Content\\Fonts, then Windows)"),
 			("size", "FF3_SIZE", "<WxH>", "Window size, e.g. 1600x960 (default 800x480)"),
-			("fullscreen", "FF3_FULLSCREEN", "", "Start fullscreen at the desktop resolution")
+			("fullscreen", "FF3_FULLSCREEN", "", "Start fullscreen at the desktop resolution"),
+			("load", "FF3_LOAD", "<slot>", "FF4: start from a save slot (1-3) instead of the new game")
 		};
 
 		public static bool HelpRequested { get; private set; }

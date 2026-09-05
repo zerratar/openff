@@ -4,7 +4,8 @@
 // menu (the MenuLayout_*.xbn layouts) is not ported. Until it is, the pad's menu button on
 // an FF4 map opens this: the line-up with levels, hit and magic points, attributes with
 // equipment, what each wears, and the bag - all from OpenFF.Data through Game.Party and
-// Game.Items, the way a mod would draw it. Up/Down pick a member, Left/Right switch pages,
+// Game.Items, the way a mod would draw it - and the Save and Load pages, three slots each
+// through Ff4Saves. Up/Down pick a member, Left/Right switch pages, A saves or loads a slot,
 // B or the menu button closes. Input is captured while it is open.
 
 using System;
@@ -16,7 +17,8 @@ namespace FF3
 	internal sealed class Ff4Menu : GameService
 	{
 		private bool _open;
-		private int _page;      // 0 party, 1 bag
+		private int _page;      // 0 party, 1 bag, 2 save, 3 load
+		private const int Pages = 4;
 		private int _cursor;
 		private int _scroll;
 
@@ -49,10 +51,32 @@ namespace FF3
 				return;
 			}
 			if (input.Pressed(Pad.Left)) { _page = Math.Max(0, _page - 1); _cursor = 0; _scroll = 0; Log.Write(LogChannel.File, "menu: page " + _page + " (left) pad " + (int)input.Held); }
-			if (input.Pressed(Pad.Right)) { _page = Math.Min(1, _page + 1); _cursor = 0; _scroll = 0; Log.Write(LogChannel.File, "menu: page " + _page + " (right) pad " + (int)input.Held); }
-			int count = _page == 0 ? Game.Party.Members.Count : Game.Party.Items.Count;
+			if (input.Pressed(Pad.Right)) { _page = Math.Min(Pages - 1, _page + 1); _cursor = 0; _scroll = 0; Log.Write(LogChannel.File, "menu: page " + _page + " (right) pad " + (int)input.Held); }
+			int count = _page == 0 ? Game.Party.Members.Count : _page == 1 ? Game.Party.Items.Count : Ff4Saves.SlotCount;
 			if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - 1);
 			if (input.Pressed(Pad.Down)) _cursor = Math.Min(Math.Max(0, count - 1), _cursor + 1);
+			if (Ff4Saves.NoticeFrames > 0) Ff4Saves.NoticeFrames--;
+			if (input.Pressed(Pad.A) && _page >= 2)
+			{
+				int slot = _cursor + 1;
+				if (_page == 2)
+				{
+					Ff4Saves.Notice = Ff4Saves.Save(slot) ? "Saved to slot " + slot + "." : "Could not save here.";
+					Ff4Saves.NoticeFrames = 150;
+				}
+				else if (Ff4Saves.Exists(slot))
+				{
+					_open = false;
+					input.Capture = false;
+					if (!Ff4Saves.Load(slot, false)) Game.Dialogue.Say("Slot " + slot + " could not be loaded.");
+					return;
+				}
+				else
+				{
+					Ff4Saves.Notice = "Slot " + slot + " is empty.";
+					Ff4Saves.NoticeFrames = 150;
+				}
+			}
 			Draw();
 		}
 
@@ -65,12 +89,14 @@ namespace FF3
 			d.Rect(0, 0, 800, 480, new Color(0, 0, 0, 110));
 			d.Rect(40, 30, 720, 420, panel);
 			d.Rect(40, 30, 720, 420, frame, false);
-			string title = _page == 0 ? "Party" : "Items";
-			d.Text(title, 60, 42, Color.White, 20);
+			string[] titles = { "Party", "Items", "Save", "Load" };
+			d.Text(titles[_page], 60, 42, Color.White, 20);
 			d.Text(Game.Party.Gil + " gil", 700 - d.MeasureText(Game.Party.Gil + " gil", 14), 46, Color.Yellow, 14);
-			d.Text("Left/Right: Party - Items     Up/Down: choose     B: close", 60, 425, dim, 12);
+			d.Text("Left/Right: page   Up/Down: choose   " + (_page >= 2 ? "A: " + titles[_page].ToLower() + "   " : "") + "B: close", 60, 425, dim, 12);
 			if (_page == 0) DrawParty(d, dim);
-			else DrawBag(d, dim);
+			else if (_page == 1) DrawBag(d, dim);
+			else DrawSlots(d, dim, _page == 3);
+			if (Ff4Saves.NoticeFrames > 0 && !string.IsNullOrEmpty(Ff4Saves.Notice)) d.Text(Ff4Saves.Notice, 60, 400, Color.Yellow, 14);
 		}
 
 		private void DrawParty(DrawList d, Color dim)
@@ -166,9 +192,23 @@ namespace FF3
 			}
 		}
 
+		private void DrawSlots(DrawList d, Color dim, bool loading)
+		{
+			d.Text(loading ? "Pick a slot to load. The party, the bag, the flags and the spot come back." : "Pick a slot to save the game as it stands.", 60, 80, dim, 13);
+			float y = 120;
+			for (int i = 0; i < Ff4Saves.SlotCount; i++)
+			{
+				bool on = i == _cursor;
+				if (on) d.Rect(52, y - 6, 700, 40, new Color(255, 255, 255, 28));
+				d.Text((on ? "> " : "  ") + "Slot " + (i + 1), 60, y, on ? Color.Yellow : Color.White, 16);
+				d.Text(Ff4Saves.Describe(i + 1), 170, y + 2, Ff4Saves.Exists(i + 1) ? Color.White : dim, 13);
+				y += 50;
+			}
+		}
+
 		public override IEnumerable<string> DebugLines()
 		{
-			if (_open) yield return "OpenFF menu open (" + (_page == 0 ? "party" : "items") + ")";
+			if (_open) yield return "OpenFF menu open (" + new[] { "party", "items", "save", "load" }[_page] + ")";
 		}
 	}
 }

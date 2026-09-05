@@ -31,7 +31,14 @@ namespace FF3
 			OpenFF.Game.Services.Register(Npcs);
 			OpenFF.Game.Services.Register(new LegacyFlags());
 			// FF4's party is the unified OpenFF.Data.Party (Ff4Party); FF3's is still pl.PlayerParty.
-			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4PartyService());
+			if (GameProfile.IsFf4)
+			{
+				Ff4PartyService ff4Party = new Ff4PartyService();
+				OpenFF.Game.Services.Register(ff4Party);
+				// FF4 saves through the engine's chunks (Ff4Saves): the party and the field state.
+				OpenFF.Game.Saves.Register(ff4Party);
+				OpenFF.Game.Saves.Register(new Ff4FieldState());
+			}
 			else OpenFF.Game.Services.Register(new LegacyParty());
 			OpenFF.Game.Services.Register(new LegacyAudio());
 			OpenFF.Game.Services.Register(Screen);
@@ -68,6 +75,7 @@ namespace FF3
 			Ff4CameraMotion.Tick();
 			Ff4EventCamera.Tick();
 			Ff4Cutscene.Tick();
+			Ff4Saves.Tick();
 		}
 
 		// ---- reaching the legacy world ----

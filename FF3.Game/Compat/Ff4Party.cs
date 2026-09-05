@@ -9,6 +9,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using OpenFF;
 using OpenFF.Data;
 
@@ -58,6 +59,71 @@ namespace FF3
 			_party = new Party(Tables);
 			_party.Join(0, 10);
 			Log.Write(LogChannel.File, "party: new game - " + _party.Describe().Replace("\n", " | "));
+		}
+
+		// ---- the save chunk (Ff4Saves) ----
+
+		public sealed class SavedCharacter
+		{
+			public int Id;
+			public string Name;
+			public int Level, Experience, Hp, MaxHp, Mp, MaxMp, Slot;
+			public int[] Equipment;
+			public List<int> Abilities;
+			public List<int> Spells;
+		}
+
+		public sealed class Saved
+		{
+			public int Gil;
+			public List<SavedCharacter> Roster = new List<SavedCharacter>();
+			/// <summary>(item id, count) pairs, in bag order.</summary>
+			public List<int[]> Items = new List<int[]>();
+		}
+
+		public static Saved Snapshot()
+		{
+			Party p = Party;
+			Saved s = new Saved { Gil = p.Gil };
+			foreach (Character c in p.Roster)
+			{
+				s.Roster.Add(new SavedCharacter
+				{
+					Id = c.Id, Name = c.Name, Level = c.Level, Experience = c.Experience,
+					Hp = c.Hp, MaxHp = c.MaxHp, Mp = c.Mp, MaxMp = c.MaxMp, Slot = c.Slot,
+					Equipment = (int[])c.Equipment.Clone(),
+					Abilities = new List<int>(c.Abilities), Spells = new List<int>(c.Spells),
+				});
+			}
+			foreach (OpenFF.Data.ItemStack stack in p.Inventory) s.Items.Add(new[] { stack.ItemId, stack.Count });
+			return s;
+		}
+
+		/// <summary>The party as a save left it; replaces the one in play.</summary>
+		public static void Restore(Saved s)
+		{
+			if (s == null) return;
+			Party p = new Party(Tables) { Gil = Math.Max(0, s.Gil) };
+			foreach (SavedCharacter sc in s.Roster)
+			{
+				Character c = p.Ensure(sc.Id, sc.Level);
+				if (c == null) continue;
+				if (!string.IsNullOrEmpty(sc.Name)) c.Name = sc.Name;
+				c.Experience = sc.Experience;
+				c.MaxHp = Math.Max(1, sc.MaxHp);
+				c.MaxMp = Math.Max(0, sc.MaxMp);
+				c.Hp = Math.Clamp(sc.Hp, 0, c.MaxHp);
+				c.Mp = Math.Clamp(sc.Mp, 0, c.MaxMp);
+				if (sc.Equipment != null) for (int i = 0; i < 5 && i < sc.Equipment.Length; i++) c.Equipment[i] = sc.Equipment[i];
+				c.Abilities.Clear(); if (sc.Abilities != null) c.Abilities.AddRange(sc.Abilities);
+				c.Spells.Clear(); if (sc.Spells != null) c.Spells.AddRange(sc.Spells);
+			}
+			List<SavedCharacter> lineUp = s.Roster.FindAll(r => r.Slot >= 0);
+			lineUp.Sort((a, b) => a.Slot.CompareTo(b.Slot));
+			foreach (SavedCharacter sc in lineUp) p.Join(sc.Id, sc.Level);
+			foreach (int[] stack in s.Items) if (stack != null && stack.Length >= 2) p.AddItem(stack[0], stack[1]);
+			_party = p;
+			Log.Write(LogChannel.General, "party: restored - " + p.Describe().Replace("\n", " | "));
 		}
 
 		/// <summary>The level a character joins at: the leader's, as FF4 scales joiners to the party (the exact rule is not read yet).</summary>
@@ -135,11 +201,21 @@ namespace FF3
 	}
 
 	/// <summary>Game.Party on FF4: the unified party through the engine's party interface.</summary>
-	internal sealed class Ff4PartyService : GameService, IParty
+	internal sealed class Ff4PartyService : GameService, IParty, ISaveable
 	{
 		private readonly Dictionary<int, Condition> _conditions = new Dictionary<int, Condition>();
 
 		private static Party P => Ff4Party.Party;
+
+		// ISaveable: the whole party rides in the save slot (Ff4Saves).
+		public string ChunkId => "ff4/party";
+		public int ChunkVersion => 1;
+		public object Save() => Ff4Party.Snapshot();
+		public void Load(int version, JsonElement data)
+		{
+			Ff4Party.Restore(JsonSerializer.Deserialize<Ff4Party.Saved>(data.GetRawText(), Ff4Saves.Json));
+			_conditions.Clear();
+		}
 
 		public int Gil
 		{

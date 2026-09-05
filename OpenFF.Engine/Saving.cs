@@ -152,6 +152,51 @@ namespace OpenFF
 			return true;
 		}
 
+		/// <summary>The slots the store knows, by offset, in the order they were first written.</summary>
+		public IReadOnlyList<int> Slots
+		{
+			get
+			{
+				List<int> slots = new List<int>();
+				if (!string.IsNullOrEmpty(StorePath) && Store()["slots"] is JsonObject known)
+				{
+					foreach (KeyValuePair<string, JsonNode> pair in known)
+					{
+						if (int.TryParse(pair.Key, out int offset)) slots.Add(offset);
+					}
+				}
+				return slots;
+			}
+		}
+
+		/// <summary>When a slot was written ("yyyy-MM-dd HH:mm:ss"), or null when the store has no such slot.</summary>
+		public string WrittenAt(int offset)
+		{
+			if (string.IsNullOrEmpty(StorePath) || !(Store()["slots"] is JsonObject slots) || !(slots[offset.ToString()] is JsonObject slot))
+			{
+				return null;
+			}
+			return slot["written"]?.GetValue<string>();
+		}
+
+		/// <summary>A chunk's data as it sits in a slot, without handing it to its owner; null when the slot or the chunk is absent.</summary>
+		public JsonElement? Peek(int offset, string chunkId)
+		{
+			if (string.IsNullOrEmpty(StorePath) || !(Store()["slots"] is JsonObject slots) || !(slots[offset.ToString()] is JsonObject slot)
+				|| !(slot["chunks"] is JsonObject chunks) || !(chunks[chunkId] is JsonObject chunk) || chunk["data"] == null)
+			{
+				return null;
+			}
+			try
+			{
+				return JsonSerializer.Deserialize<JsonElement>(chunk["data"].ToJsonString());
+			}
+			catch (Exception)
+			{
+				return null;
+			}
+		}
+
 		/// <summary>The mods a slot was written under, or null when the slot is unknown.</summary>
 		public IReadOnlyList<(string id, string version)> ModsOf(int offset)
 		{

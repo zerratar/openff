@@ -664,6 +664,33 @@ FF4's `Player::initialize(type)` builds a member from `GameParameter::playerSave
 for a new game. That save block, per PLAYER_TYPE, is the shape our FF4 party has to take.
 The 15 types match the scripts' `addPartyPC(0..14)` and the models `b_p_player_00..12`.
 
+## FF4 saves on the unified layer (2026-09-05)
+
+FF4's own save part did not come across with the port, and FF3's legacy save file cannot
+hold FF4's party. The engine's save chunks (OpenFF.Engine/Saving.cs, built for mods) hold
+the whole FF4 game instead: `Ff4PartyService` is an `ISaveable` ("ff4/party": roster with
+levels, experience, hit and magic points, equipment, abilities, line-up slots; the bag; gil)
+and `Ff4FieldState` another ("ff4/field": map, position, the leader's rotation, every set
+script flag as "group:index", and a summary line). A slot is offsets 1..3 in
+`saves/ff4.json` - FF4 gets a store of its own (`EngineHost.Attach`) so FF3's mods.json is
+untouched. `Ff4Saves.Save/Load` drive it; the menu (`Ff4Menu`) grew Save and Load pages; at
+boot `--load=<slot>` reads the slot before the parts start and `JumpPart` takes the stage,
+position and rotation from `Ff4Saves.Pending` instead of --map/--pos; in play the Load page
+warps through `Game.Field.Warp` (the overworld gets its chip through `JumpPart.WithChip`).
+`SaveChunks` gained `Slots`, `WrittenAt` and `Peek` so a menu can list slots without handing
+chunks to their owners. Mods' saveables ride in the same slot as they do on FF3. Test C-42.
+
+Not in a save yet: NPC positions and states, the scene chain (`SceneStage`), the conditions
+map, a member's `SetStat` overrides (the growth table wins on restore), and the legacy save
+file's own contents (the game's write at map entry still lands as slot 41568 - harmless).
+FF4 restricts saving to the overworld and save points (a flag on the map); ours saves
+anywhere until that flag is read.
+
+Seen while testing: a few steps north of the d01_00 arrival the FF4 follow camera sits
+inside the cave's rock, on a fresh start as much as after a load - the dungeon ceilings are
+drawn from above where the real game's camera (or its culling) keeps them out of view. A
+camera stage for FF4 dungeons is owed.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

@@ -22,8 +22,8 @@ namespace FF3
 			GlobalScope.sys.GGlobal.registerPart(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, Instance);
 		}
 
-		/// <summary>The stage this part lands on: --map, or the game's default.</summary>
-		public static string Stage => GameProfile.StartStage ?? GameProfile.DefaultStage;
+		/// <summary>The stage this part lands on: a loaded save's (--load), --map, or the game's default.</summary>
+		public static string Stage => Ff4Saves.Pending?.Map ?? GameProfile.StartStage ?? GameProfile.DefaultStage;
 
 		/// <summary>--pos=x,y,z in world units (the .mcl's units), as 20.12 fixed point.</summary>
 		public static GlobalScope.VecFx32 StartPosition
@@ -34,6 +34,15 @@ namespace FF3
 				// "not set yet" and skips its update, which leaves the camera matrix zero
 				// and the screen black.
 				GlobalScope.VecFx32 v = new GlobalScope.VecFx32(0, 0, 4096);
+				Ff4FieldState.Data saved = Ff4Saves.Pending;
+				if (saved != null)
+				{
+					v.x = (int)Math.Round(saved.X * 4096);
+					v.y = (int)Math.Round(saved.Y * 4096);
+					v.z = (int)Math.Round(saved.Z * 4096);
+					if (v.x == 0 && v.y == 0 && v.z == 0) v.z = 4096;
+					return v;
+				}
 				string pos = Options.Get("pos");
 				if (string.IsNullOrEmpty(pos))
 				{
@@ -74,6 +83,7 @@ namespace FF3
 		{
 			get
 			{
+				if (Ff4Saves.Pending != null) return Ff4Saves.Pending.Rotation;
 				string rot = Options.Get("rot");
 				return !string.IsNullOrEmpty(rot) && float.TryParse(rot, NumberStyles.Float, CultureInfo.InvariantCulture, out float degrees)
 					? (int)Math.Round(degrees * 65536 / 360) : 0;
@@ -85,7 +95,7 @@ namespace FF3
 		/// overworld - and the stage profile says how big a chip is. Given just "f00", the
 		/// chip under the start position is worked out the way the stage manager does.
 		/// </summary>
-		private static string WithChip(string stage, GlobalScope.VecFx32 at)
+		internal static string WithChip(string stage, GlobalScope.VecFx32 at)
 		{
 			if (stage == null || stage.Length != 3 || stage[0] != 'f' || !char.IsDigit(stage[1]) || !char.IsDigit(stage[2]))
 			{
@@ -120,7 +130,7 @@ namespace FF3
 		protected override void doInitialize()
 		{
 			string stage = WithChip(Stage, StartPosition);
-			Log.Write(LogChannel.General, "jump: " + GameProfile.Game + " -> " + stage + " at " + (Options.Get("pos") ?? "0,0,0"));
+			Log.Write(LogChannel.General, "jump: " + GameProfile.Game + " -> " + stage + " at " + (Ff4Saves.Pending != null ? "the saved spot" : Options.Get("pos") ?? "0,0,0"));
 			GlobalScope.sceneMng.setStage(stage);
 			GlobalScope.sys.GGlobal.setNextPart(GlobalScope.GAMEPART.GAMEPART_WORLD);
 			abort();
