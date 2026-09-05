@@ -1,4 +1,4 @@
-// FF4's own 2D pieces for the OpenFF battle and menus on FF4: the window frames, the glove
+﻿// FF4's own 2D pieces for the OpenFF battle and menus on FF4: the window frames, the glove
 // cursor and the ATB gauge, drawn from the game's sheets and cell banks.
 //
 // The phone and Steam builds keep the DS names but not the DS formats: a .NCGR/.NCBR is a
@@ -34,8 +34,13 @@ namespace FF3
 {
 	internal static class Ff4Ui
 	{
-		/// <summary>FF4's phone UI space (1136 wide) onto the port's 800.</summary>
-		public const float Scale = 800f / 1136f;
+		/// <summary>
+		/// A sheet pixel in the port's 800 x 480. The Steam shell (FF4.exe, read in the Babil Decompilation
+		/// Project's CalculateViewportDimensions) renders a 480 x 320 logical space - the phone's screen,
+		/// widened for wide windows and capped at 21:9 - and the phone's sheets are drawn at 2x, so a
+		/// sheet pixel is half a logical pixel; the port's 480 rows are 1.5 logical pixels each: 0.75.
+		/// </summary>
+		public const float Scale = 0.75f;
 
 		public const string FrameSheet = "window_frame_00.NCGR", FrameBank = "window_frame_00.NCER";
 		public const string CursorSheet = "cursor.NCGR", CursorBank = "cursor.NCER";

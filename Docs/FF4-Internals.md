@@ -338,6 +338,36 @@ is 85 px tall there (48 x 640/... ), text about 40 px. The client draws at 800 x
 every piece by 800/1136. Fonts: the phone build has `BABIL_SYMBOL.NFTR`; Steam draws text with
 `arial.ttf` through SDL2_ttf.
 
+## The Steam shell (FF4.exe), from the Babil Decompilation Project
+
+Karl pointed at `D:\Git\Babil-Decompilation-Project` (GlitchedDeveloper on GitHub): an early
+Ghidra decompilation of the Steam `FF4.exe` - eight files so far, the Win32/SDL/Steam shell
+around the engine (ini, joystick, the pause screen with `menu.txt`'s texts, `TTF_RenderText`)
+- and, more useful now, `Structure/src`: the engine's original source tree, 228 file paths
+recovered from its debug strings (`Reference/libff4/source-tree.txt` keeps the list). The
+paths name the modules the disassembly's namespaces come from: `system/ds/{device, sys2d,
+sys3d, sound, movie, utility}` and `system/dgs` (the DS-era engine: file system, sprites,
+models, camera motions, messages, `mcl` collision), `user/battle/...` (`battle_formula.cpp`,
+`battle_parameter.cpp`, `battle_status/battle_status_2d_mng.cpp`, `command_select/`, `script/`),
+`user/character/{player, monster, common, condition}`, `user/event/{cast/babil_commands*.cpp,
+main/event_conte_manager.cpp, main/event_camera.cpp}`, `user/menu/{layout.cpp, xbn.cpp,
+frame.cpp, behavior/fb_text.cpp, basic_window.cpp, message_window.cpp, map_name_window.cpp}`,
+`user/world/state/user/menu/mss_*.cpp` (the field menu: root, item, magic, equipment,
+config, save, shop, decant, chara_model, menu_camera, ability), `user/world/state/user/
+world_state_*.cpp` (move, encount, mapjump, menu, field_event, tresure, vehicle...),
+`user/world/param/map_parameter.cpp`, `user/world/misc/world_camera.cpp`, `user/part/
+{battle_display.cpp, battle_part.cpp, main/world_part.cpp}`, `user/2d/u2d_pop_up.cpp`.
+
+`Main::CalculateViewportDimensions` (read in full) settles the UI space: the game renders a
+**480 x 320 logical screen** - the phone's - letterboxed to 4:3 when the window is narrower,
+widened to the window's aspect when wider and capped at 21:9 (`RenderHeight = 320;
+RenderWidth = ViewportWidth * 320 / WindowHeight`). So the legacy 2D plane of 480 x 320 (the
+message window at (5, 233) size 470 x 84) IS the UI space, the phone's sheets are 2x (the
+48-px glove is 24 logical pixels, 7.5 % of the height as in the screenshots), and in the
+port's 800 x 480 a sheet pixel is 0.75 px (`Ff4Ui.Scale`). The pause screen (Resume / Quit,
+Yes / No, the skip-scene prompt) is drawn by the shell with SDL over a frame grab, using
+`window.png`, `point.png` and `button_on/off.png`.
+
 ## Not yet read
 
 `btl::TouchWindow`/`BattleCommandWindow` rectangles; `BattleParameter` chains 1..28;
