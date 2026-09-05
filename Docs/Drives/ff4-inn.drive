@@ -1,8 +1,9 @@
-# FF4: Baron's inn (t01_08). Walk up to the keeper from the door, talk, take the room.
-#   FF3.exe --game=ff4 --map=t01_08 --gil=500 --drive=Docs/Drives/ff4-inn.drive --log=general,file
-# The log shows "script: FF4 confirm answered Stay (N gil)", "script: inn taken for N gil",
-# "script: setRecovery2 - 1 member(s) fully restored" (Testing.md C-48). A blind walk: the
-# keeper may stand elsewhere on another map.
+# FF4: Baron's inn (t01_30 in the Steam data; 50 gil). Walk up to the keeper from the door,
+# talk, take the room.
+#   FF3.exe --game=ff4 --map=t01_30 --gil=500 --drive=Docs/Drives/ff4-inn.drive --log=general,file
+# The log shows "script: FF4 confirm answered Stay (50 gil)", "script: inn taken for 50 gil",
+# "script: setRecovery2 - 1 member(s) fully restored" (Testing.md C-48). A blind walk: if the
+# keeper stands elsewhere, the drive times out and the test is done by hand.
 until jump: ff4 60
 wait 6
 press Up 2200

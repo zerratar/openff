@@ -800,9 +800,10 @@ and items, and holds the calling script (suspendRedo) until it closes. The row i
 in MENU/babil_shop.bbd, 124 bytes each: a 32-byte label, the keeper's title id and six line
 ids (babil_menu.msd 51220.. and 51260..), up to sixteen item ids - read straight from
 `world::MSSShop::mssInitialize` (row x 124, one 0x7C read) and `babilCommand_BootShop`
-(the byte lands in the menu node's word at 0x58). Row 0 is the "Debug Shop!"; the shop
-interiors s02_xx boot rows 1 and up (s02_01 = Baron Weapon); the town-square buildings'
-`bootShop 0..3` in t01_04..07 look like leftovers - to be seen in play. Prices are the item
+(the byte lands in the menu node's word at 0x58). Row 0 is the "Debug Shop!"; the Steam
+build's Baron interiors boot rows 1 and 2 (t01_40: weapons, armour) and 3 and 40 (t01_60:
+items). (An older script set in the scratch area named other maps and rows - the Steam
+CAST_SCRIPT.dat is the authority.) Prices are the item
 records' own: buy at 0x1C, sell at 0x20 (half). `Game.Shops` on FF4 is this service
 (`Open(row)`, `Info(row)`); O opens row 1 anywhere for tests (C-47). Not done: the inns
 (no bootShop; their scripts ask and heal), the wares' "equip who" preview, FF4's own layout.
@@ -822,7 +823,7 @@ party did not stay - FF3's handler jumps on `cast_getInnConfirm()`, and the FF4 
 "come again" line at the label and the night's routine after the command. `setRecovery2(order,
 ?, ?, amount)` restores one member (order 1..) or all (0), 9999 meaning everything;
 `setConditionRecovery(...)` clears the statuses the party service keeps. Test C-48; 24 maps
-have inns (t01_08 is Baron's).
+have inns (t01_30 is Baron's, 50 gil a night).
 
 ## Working rules
 
