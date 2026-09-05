@@ -239,7 +239,9 @@ namespace FF3.ContentTool
 					Console.WriteLine("  " + probe + ": " + chain.Exists(probe));
 				}
 			}
-			OpenFF.Data.GameTables tables = OpenFF.Data.Ff4Tables.Read(chain);
+			string game = null;
+			foreach (string a in args.Skip(1)) if (a.StartsWith("--game=", StringComparison.Ordinal)) game = a.Substring(7);
+			OpenFF.Data.GameTables tables = OpenFF.Data.TableFiles.Read(chain, game);
 			Console.WriteLine(tables.Describe());
 			if (items > 12)
 			{
@@ -258,7 +260,7 @@ namespace FF3.ContentTool
 			Console.Error.WriteLine("usage:");
 			Console.Error.WriteLine("  (no command)                      open the editor");
 			Console.Error.WriteLine("  info    <file.xnb | directory>");
-			Console.Error.WriteLine("  tables  <install root> [--items=N]      the game's tables in the unified shape (FF4)");
+			Console.Error.WriteLine("  tables  <install root> [--items=N] [--game=ff3|ff4]    the game's tables in the unified shape (FF3 or FF4)");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");
 			Console.Error.WriteLine("  extract-archives <content-directory> <output-directory> [pattern ...]");

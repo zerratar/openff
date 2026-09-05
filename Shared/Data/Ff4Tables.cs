@@ -45,7 +45,7 @@ namespace OpenFF.Data
 
 		private static void ReadPlayers(ContentChain chain, GameTables tables)
 		{
-			if (!ReadAny(chain, "player.chaindata", out byte[] data))
+			if (!TableFiles.ReadAny(chain, "player.chaindata", out byte[] data))
 			{
 				tables.Notes.Add("player.chaindata not found");
 				return;
@@ -109,7 +109,7 @@ namespace OpenFF.Data
 
 		private static void ReadItems(ContentChain chain, GameTables tables)
 		{
-			if (!ReadAny(chain, "item_parameter.pak", out byte[] data))
+			if (!TableFiles.ReadAny(chain, "item_parameter.pak", out byte[] data))
 			{
 				tables.Notes.Add("item_parameter.pak not found");
 				return;
@@ -122,7 +122,7 @@ namespace OpenFF.Data
 				tables.Notes.Add("item_parameter.pak has " + pack.Count + " chains, not FF4's 4");
 				return;
 			}
-			Dictionary<uint, string> names = ReadNames(chain, "babil_item.msd", tables);
+			Dictionary<uint, string> names = TableFiles.ReadNames(chain, "babil_item.msd", tables);
 			(ItemKind Kind, int Stride)[] chains = { (ItemKind.Consumable, 48), (ItemKind.Weapon, 88), (ItemKind.Armour, 84), (ItemKind.KeyItem, 32) };
 			for (int c = 0; c < 4; c++)
 			{
@@ -175,60 +175,6 @@ namespace OpenFF.Data
 					}
 					tables.Items.Add(item);
 				}
-			}
-		}
-
-		/// <summary>The file by FF3's name or FF4's compressed one (player.chaindata.lz), decompressed.</summary>
-		private static bool ReadAny(ContentChain chain, string name, out byte[] data)
-		{
-			// The chain names the game's files under files/, as FF3's install lays them out.
-			foreach (string candidate in new[] { "files/" + name, name })
-			{
-				if (chain.TryRead(candidate, out data) && data != null && data.Length > 0) return true;
-				if (chain.TryRead(candidate + ".lz", out byte[] packed) && packed != null && packed.Length > 0)
-				{
-					data = Lz.IsCompressed(packed) ? Lz.Decompress(packed) : packed;
-					return true;
-				}
-			}
-			data = null;
-			return false;
-		}
-
-		/// <summary>A message without its icon glyphs and control characters (the item names start with one).</summary>
-		private static string Plain(string text)
-		{
-			var sb = new System.Text.StringBuilder(text.Length);
-			foreach (char c in text)
-			{
-				System.Globalization.UnicodeCategory category = char.GetUnicodeCategory(c);
-				if (char.IsControl(c) || category == System.Globalization.UnicodeCategory.PrivateUse || category == System.Globalization.UnicodeCategory.OtherNotAssigned || c == '�') continue;
-				sb.Append(c);
-			}
-			return sb.ToString().Trim();
-		}
-
-		/// <summary>An .msd's messages by id, first page only, or null when the file is missing.</summary>
-		private static Dictionary<uint, string> ReadNames(ContentChain chain, string file, GameTables tables)
-		{
-			if (!ReadAny(chain, file, out byte[] data))
-			{
-				tables.Notes.Add(file + " not found; items keep their ids");
-				return null;
-			}
-			try
-			{
-				Dictionary<uint, string> names = new Dictionary<uint, string>();
-				foreach (MsdMessage message in Msd.Read(data).Messages)
-				{
-					if (message.Pages.Count > 0 && !names.ContainsKey(message.Id)) names[message.Id] = Plain(message.Pages[0]);
-				}
-				return names;
-			}
-			catch (Exception ex)
-			{
-				tables.Notes.Add(file + ": " + ex.Message);
-				return null;
 			}
 		}
 	}

@@ -605,8 +605,10 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
 compiled into the editor and the client like the other Shared code: `ChainPack` (the tables'
 container), `Tables.cs` (`GameTables`, `CharacterDefinition` with `LevelRow` growth,
 `ItemDefinition` with `EquipStats`, `SpellDefinition`, the five `Attribute`s), `Party.cs`
-(`Party`, `Character`, `ItemStack` - the runtime roster the scripts and Game.Party act on) and
-`Ff4Tables` (the FF4 reader). The editor's msd reader moved to `Shared/Text` so names resolve
+(`Party`, `Character`, `ItemStack` - the runtime roster the scripts and Game.Party act on),
+`Ff4Tables` and `Ff3Tables` (the readers; `TableFiles.Read` picks by the item pack's chain
+count) - FF3's items, spells and experience curve come through the same shape, its per-job
+growth not yet. The editor's msd reader moved to `Shared/Text` so names resolve
 on both sides. `ff3content tables <install>` dumps a game's tables through it (E-25).
 
 The client's side (`FF3.Game/Compat/Ff4Party.cs`): `Ff4Party.Tables` reads FF4's tables from the
