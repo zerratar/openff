@@ -62,6 +62,17 @@ namespace FF3.Content
 			Shipped = shipped;
 		}
 
+		/// <summary>A chain around a source already open (the editor's workspace), with its override directories.</summary>
+		public static ContentChain Around(IContentSource shipped, string root, IEnumerable<string> overrides = null)
+		{
+			ContentChain chain = new ContentChain(root, shipped);
+			foreach (string directory in overrides ?? Enumerable.Empty<string>())
+			{
+				if (!string.IsNullOrEmpty(directory)) chain.AddOverride(directory);
+			}
+			return chain;
+		}
+
 		/// <summary>
 		/// Opens the content under a directory: our Content (data000.bin), a Steam FF3
 		/// install (files/ beside the executable) or a Steam FF4 install (EXTRACTED_DATA

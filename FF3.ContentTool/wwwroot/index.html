@@ -201,6 +201,20 @@
   </div>
 </template>
 
+<!-- Game data: the unified tables, read only -->
+<template id="view-data">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <input class="rowfilter" type="search" placeholder="filter rows" autocomplete="off">
+      <span class="count muted"></span>
+      <span class="grow"></span>
+    </div>
+    <p class="note"></p>
+    <div class="grid-wrap"><table class="grid"></table></div>
+  </div>
+</template>
+
 <!-- Maps -->
 <template id="view-map">
   <div class="view">

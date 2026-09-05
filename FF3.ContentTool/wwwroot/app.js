@@ -190,6 +190,7 @@ async function dispatchOpen(kind, name) {
   else if (kind === 'script') await openScript(name);
   else if (kind === 'menu') await openMenu(name);
   else if (kind === 'table') await openTable(name);
+  else if (kind === 'data') await openData(name);
   else if (kind === 'audio') await openAudio(name);
   else if (kind === 'image') await openImage(name);
   else if (kind === 'texture') await openTexture(name);
@@ -1074,6 +1075,72 @@ function drawTable(node, chain, withPadding, filter) {
         }
         cell.append(input);
       }
+      row.append(cell);
+    }
+    table.append(row);
+  });
+}
+
+// -------------------------------------------------------------------- game data
+//
+// The unified tables (OpenFF.Data) with their meaning: characters, jobs, spells, items,
+// monsters, encounter groups, shops. Read-only; the raw records are edited under Tables.
+
+async function openData(name) {
+  const data = await api(`/api/data?name=${encodeURIComponent(name)}`);
+  const node = view('data', name, false);
+  const note = $('.note', node);
+  note.textContent = data.note || '';
+  note.classList.toggle('on', Boolean(data.note));
+  const count = $('.count', node);
+  const rowFilter = $('.rowfilter', node);
+  let sortBy = -1, sortUp = true;
+  const draw = () => {
+    const filter = rowFilter.value.trim().toLowerCase();
+    let rows = data.rows;
+    if (filter) rows = rows.filter(r => r.some(v => String(v ?? '').toLowerCase().includes(filter)));
+    if (sortBy >= 0) {
+      rows = rows.slice().sort((a, b) => {
+        const x = a[sortBy], y = b[sortBy];
+        const nx = Number(x), ny = Number(y);
+        const c = Number.isFinite(nx) && Number.isFinite(ny) && x !== '' && y !== '' ? nx - ny : String(x ?? '').localeCompare(String(y ?? ''));
+        return sortUp ? c : -c;
+      });
+    }
+    count.textContent = `${rows.length} of ${data.rows.length}`;
+    drawData(node, data.columns, rows, sortBy, sortUp, i => { sortUp = sortBy === i ? !sortUp : true; sortBy = i; draw(); });
+  };
+  rowFilter.oninput = draw;
+  draw();
+  if (data.notes && data.notes.length) say(data.notes.join(' / '), 'warn');
+}
+
+function drawData(node, columns, rows, sortBy, sortUp, onSort) {
+  const table = $('.grid', node);
+  table.textContent = '';
+  const head = document.createElement('tr');
+  const corner = document.createElement('th');
+  corner.className = 'row';
+  corner.textContent = '#';
+  head.append(corner);
+  columns.forEach((column, i) => {
+    const cell = document.createElement('th');
+    cell.textContent = column + (sortBy === i ? (sortUp ? ' \u25B4' : ' \u25BE') : '');
+    cell.className = 'sortable';
+    cell.onclick = () => onSort(i);
+    head.append(cell);
+  });
+  table.append(head);
+  rows.forEach((values, index) => {
+    const row = document.createElement('tr');
+    const number = document.createElement('td');
+    number.className = 'row';
+    number.textContent = index;
+    row.append(number);
+    for (const value of values) {
+      const cell = document.createElement('td');
+      cell.className = 'plain';
+      cell.textContent = value ?? '';
       row.append(cell);
     }
     table.append(row);

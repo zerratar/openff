@@ -49,6 +49,12 @@ namespace FF3.ContentTool.Editor
 		/// <summary>"archives" or "loose files", for anything reporting what it opened.</summary>
 		public string Kind => _source.Kind;
 
+		/// <summary>The shipped content this workspace reads (for readers that want a ContentChain of their own).</summary>
+		public IContentSource Source => _source;
+
+		/// <summary>Climbs at every write, so cached readings of the content can tell they are stale.</summary>
+		public int Version { get; private set; }
+
 		/// <summary>
 		/// "ff3" or "ff4". The same engine shipped both, and nearly everything reads the
 		/// same, but the .pak record schemas and the text encoding are per game, so the
@@ -237,6 +243,7 @@ namespace FF3.ContentTool.Editor
 
 		public void Write(string name, byte[] data)
 		{
+			Version++;
 			string path = OverridePath(name);
 			Directory.CreateDirectory(Path.GetDirectoryName(path));
 			File.WriteAllBytes(path, data);

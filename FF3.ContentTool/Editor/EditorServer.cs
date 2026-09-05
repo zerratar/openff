@@ -590,6 +590,10 @@ namespace FF3.ContentTool.Editor
 					GetItems(context);
 					return;
 
+				case "/api/data":
+					SendJson(context, GameData.Page(_workspace, Query(context, "name")));
+					return;
+
 				case "/api/map/exit/save":
 					SaveExit(context);
 					return;
@@ -1786,6 +1790,11 @@ namespace FF3.ContentTool.Editor
 		/// </summary>
 		private List<WorkspaceEntry> ListKind(string kind)
 		{
+			if (kind == "data")
+			{
+				// The unified game data: virtual documents, one per page (GameData).
+				return GameData.PagesFor(_workspace).Select(page => new WorkspaceEntry { Name = page, Extension = "", Overridden = false, Size = 0 }).ToList();
+			}
 			List<WorkspaceEntry> found = _workspace.List(Extensions(kind));
 			if (kind == "table")
 			{

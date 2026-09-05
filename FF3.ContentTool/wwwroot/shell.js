@@ -20,6 +20,7 @@ const KINDS = [
   { id: 'menu', label: 'Menus' },
   { id: 'text', label: 'Text' },
   { id: 'table', label: 'Tables' },
+  { id: 'data', label: 'Game data' },
   { id: 'image', label: 'Images' },
   { id: 'texture', label: 'Textures' },
   { id: 'model', label: 'Models' },

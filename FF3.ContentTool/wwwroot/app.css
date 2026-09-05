@@ -805,6 +805,9 @@ table.grid td input {
 }
 table.grid td input:focus { outline: 1px solid var(--accent); background: #1b2330; }
 table.grid td.text input { min-width: 180px; color: var(--mark); }
+table.grid td.plain { padding: 3px 8px; white-space: nowrap; max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+table.grid th.sortable { cursor: pointer; user-select: none; }
+table.grid th.sortable:hover { color: var(--accent); }
 table.grid tr:hover td { background: #1b1f26; }
 
 .bar label.pads { color: var(--dim); font-size: 12px; display: flex; align-items: center; gap: 4px; }

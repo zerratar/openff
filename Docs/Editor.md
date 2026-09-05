@@ -612,6 +612,21 @@ Static files are served `no-store`. The editor gets rebuilt while it is open, an
 browser holding on to an old script shows bugs that are already fixed - or hides ones
 that are not.
 
+## Game data
+
+The Tables library shows a file's records as the game stores them; **Game data** shows what
+they mean. It lists one page per kind of thing the unified tables (`Shared/Data`, the
+`OpenFF.Data` the client plays from) know about: Characters, Jobs (FF3), Spells, Items,
+Monsters, Encounter groups, and for FF4 Shops and Efficacies. Each page is a read-only grid
+with named columns and the game's own names - a job's growth curves and level 30 attributes,
+a spell's MP cost and power, a monster's drops with item names, an encounter group's members
+and placements, a shop row's wares and prices - built from the same files the Tables library
+edits, through the workspace's own content chain, so a saved override shows up on the next
+open. The note above the grid says which file and offsets the page reads; a `*` after a
+name marks one the reader guessed because no text file named it. Filter rows with the box,
+sort by clicking a column, click again to flip. `/api/list?kind=data` lists the pages,
+`/api/data?name=<page>` serves one (`Editor/GameData.cs`).
+
 ## Maps
 
 A plan view of a map: everything that stands on it, drawn at the position it stands
