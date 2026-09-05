@@ -836,6 +836,22 @@ the bag. A on a consumable with a usable efficacy (hit or magic points, or Phoen
 revival) asks whom to use it on and applies it with the same numbers as the battle's Item
 command. Tents and the like wait for camping. Test C-49.
 
+## FF4 encounters, read again from the binary (2026-09-05)
+
+The earlier reading of the map parameter pack was wrong in one place: the groups. `world::
+MapParameterManager::load` keeps the four chains in order - 0 landFormParameter (50 bytes),
+1 monsterPartyParameter (8-byte entries of four u16 group ids), 2 encountParameter (16 bytes),
+3 unnamed - and `WSEncountSetting::wsProcess` reads the rate as the u16 at 0x18 + 2 x the
+party's land form in chain 0 (over 30 = none), rolls a group among the four of the land
+form's set in chain 1 (a static helper; up to five re-rolls when it repeats the last fight),
+and hands chain 2's first s16 to `world::attackType` with the party's average level (back
+attacks, pre-emptive strikes - not applied yet). So the Watery Pass (d01_00) is Sword Rat +
+Goblin, Tiny Mages and Fangshells at rate 9, and the Baron plain chip a Floating Eye, a
+Helldiver or three Goblins at rate 1 - not the "base group 10 + 0..3" the old reading gave
+(that u32 and its three floats are chain 2's attack-type parameter). The land form under
+the party (`PCObject` + 0x340/0x348, from the ground polygon's attribute) is not read yet;
+set 0 stands for every land form. `Ff4Encounters` and test C-41 updated.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

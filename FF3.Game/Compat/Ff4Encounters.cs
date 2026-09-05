@@ -1,14 +1,18 @@
 ﻿// FF4's random encounters, from the map's parameter pack.
 //
-// Each FF4 map has a .pak in MAPPARAMETER.dat with four single records. The first
-// (encountParameter, 52 bytes) holds the encounter rate as the u16 at 0 (11 in the Mist
-// cave, 0 in a town); the third (monsterPartyParameter, 16 bytes) holds the first encounter
-// group as a u32 and three cumulative percentages as floats: a roll under the first gives
-// the first group, under the second the next, under the third the one after, else the
-// fourth (d01_00: 10 with 45/55/65 - three Goblins, three Goblins, a Goblin, a Sword Rat).
-// The twelve u16s from 0x18 of the first record (8 in the Mist cave) are not the groups.
-// The overworld's pack holds one such four-record pack per chip (256 x 192 bytes); the chip
-// under the party picks the record; its rate is not read yet (6 stands in).
+// Each FF4 map has a .pak in MAPPARAMETER.dat with four chains, which world::
+// MapParameterManager::load keeps in order (Tools/ff4_disasm.py): chain 0 the land-form
+// parameters (landFormParameter, 50 bytes: twelve u16s at 0 and twelve at 0x18 - the ones at
+// 0x18 are the encounter rate per land form, WSEncountSetting::wsProcess reads
+// [0x18 + 2 x land form] and treats anything over 30 as none); chain 1 the encounter sets
+// (monsterPartyParameter: 8-byte entries of four u16 group ids, 0xFFFF for none - the set
+// the party's land form names is rolled among its groups, re-rolled up to five times when
+// it repeats the last fight); chain 2 the encounter parameter (16 bytes: an s16 for
+// world::attackType - back attacks and the like - and three floats); chain 3 eight bytes.
+// The land form under the party is not read yet, so land form 0 stands for all: the Watery
+// Pass (d01_00) gives Sword Rat + Goblin, Tiny Mages, Fangshells at rate 9; the Baron plain
+// chip (f00_48) Floating Eye, Helldiver, three Goblins at rate 1. The overworld's pack holds
+// one such four-chain pack per chip (256 x 192 bytes); the chip under the party picks it.
 
 using System;
 using System.Collections.Generic;
@@ -18,22 +22,30 @@ namespace FF3
 {
 	internal static class Ff4Encounters
 	{
-		public sealed class Table
+			public sealed class Table
 		{
 			public string Map;
+			/// <summary>The rate for land form 0 (chain 0 at 0x18); 0 means no fights.</summary>
 			public int Rate;
-			/// <summary>The first encounter group; the roll adds 0..3.</summary>
-			public int BaseParty;
-			/// <summary>Cumulative percentages for groups base, base+1, base+2; the rest is base+3.</summary>
-			public float[] Thresholds = new float[3];
+			/// <summary>Every land form's rate (the twelve u16s at 0x18).</summary>
+			public int[] Rates = new int[12];
+			/// <summary>The encounter sets (chain 1): four group ids each, -1 for none.</summary>
+			public List<int[]> Sets = new List<int[]>();
+			/// <summary>The groups of set 0 that exist in the tables, for the log and the roll.</summary>
 			public List<int> Parties = new List<int>();
+			/// <summary>The attack-type word and the three percentages of chain 2 (back attacks and the like; not applied yet).</summary>
+			public int AttackType;
+			public float[] Thresholds = new float[3];
+			private int _last = -1;
 
+			/// <summary>A group from set 0 (the land form is not read yet), not the last one when there is a choice.</summary>
 			public int Roll(Random random)
 			{
 				if (Parties.Count == 0) return -1;
-				double r = random.NextDouble() * 100.0;
-				int k = r < Thresholds[0] ? 0 : r < Thresholds[1] ? 1 : r < Thresholds[2] ? 2 : 3;
-				return Parties[Math.Min(k, Parties.Count - 1)];
+				int pick = Parties[random.Next(Parties.Count)];
+				for (int tries = 0; tries < 5 && pick == _last && Parties.Count > 1; tries++) pick = Parties[random.Next(Parties.Count)];
+				_last = pick;
+				return pick;
 			}
 		}
 
@@ -82,21 +94,43 @@ namespace FF3
 					{
 						pack = chip < pack.Count ? ChainPack.Read(pack.Record(chip, pack.Size(chip), 0)) : null;
 					}
-					if (pack != null && pack.Count == 4 && pack.Size(0) >= 4 && pack.Size(2) >= 16)
+					if (pack != null && pack.Count == 4 && pack.Size(0) >= 0x30 && pack.Size(1) >= 8)
 					{
-						table.Rate = ChainPack.U16(pack.Data, pack.Offset(0));
-						int at = pack.Offset(2);
-						table.BaseParty = ChainPack.S32(pack.Data, at);
-						for (int i = 0; i < 3; i++) table.Thresholds[i] = BitConverter.ToSingle(pack.Data, at + 4 + 4 * i);
-						if (table.BaseParty > 0 && table.Thresholds[0] >= 0f)
+						int land = pack.Offset(0);
+						for (int i = 0; i < 12; i++)
 						{
-							for (int k = 0; k < 4; k++) table.Parties.Add(table.BaseParty + k);
+							int rate = ChainPack.U16(pack.Data, land + 0x18 + 2 * i);
+							table.Rates[i] = rate > 30 ? 0 : rate;
 						}
-						// The overworld chips keep no rate in the first record's first word (a land-form table
-						// sits there instead); until it is read, a middling rate.
-						if (chip >= 0 && table.Parties.Count > 0 && table.Rate == 0) table.Rate = 6;
+						table.Rate = table.Rates[0];
+						int sets = pack.Offset(1);
+						for (int e = 0; e + 8 <= pack.Size(1); e += 8)
+						{
+							int[] set = new int[4];
+							for (int k = 0; k < 4; k++)
+							{
+								int id = ChainPack.U16(pack.Data, sets + e + 2 * k);
+								set[k] = id == 0xFFFF ? -1 : id;
+							}
+							table.Sets.Add(set);
+						}
+						GameTables tables = Ff4Party.Tables;
+						if (table.Sets.Count > 0)
+						{
+							foreach (int id in table.Sets[0])
+							{
+								MonsterParty party = id > 0 && tables != null ? tables.MonsterParty(id) : null;
+								if (party != null && party.Slots.Count > 0 && !table.Parties.Contains(id)) table.Parties.Add(id);
+							}
+						}
+						if (pack.Size(2) >= 16)
+						{
+							int at = pack.Offset(2);
+							table.AttackType = ChainPack.S16(pack.Data, at);
+							for (int i = 0; i < 3; i++) table.Thresholds[i] = BitConverter.ToSingle(pack.Data, at + 4 + 4 * i);
+						}
 					}
-					Log.Write(LogChannel.File, "encounters: " + key + " rate " + table.Rate + ", groups " + string.Join(",", table.Parties) + " at " + string.Join("/", table.Thresholds) + "%");
+					Log.Write(LogChannel.File, "encounters: " + key + " rate " + table.Rate + " (by land form " + string.Join("/", table.Rates) + "), set 0 groups " + string.Join(",", table.Parties) + " of " + table.Sets.Count + " set(s); attack type " + table.AttackType + " at " + string.Join("/", table.Thresholds) + "%");
 				}
 			}
 			catch (Exception ex)

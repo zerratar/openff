@@ -718,8 +718,9 @@ namespace FF3
 			_walked += step;
 			if (_walked < 1f) return;
 			_walked -= 1f;
-			// The rate is per FF4 step; one unit here is a small stride. Roughly one fight in a few hundred units at rate 11.
-			if (_random.Next(4096) < table.Rate * 2)
+			// The rate is the map's own per-land-form number (1 on the Baron plain, 9 in the Watery Pass);
+			// one unit here is a small stride, so about one fight in a few hundred units at rate 9.
+			if (_random.Next(4096) < table.Rate * 3)
 			{
 				int party = table.Roll(_random);
 				if (party > 0 && StartParty(party)) _sinceBattle = 0;
