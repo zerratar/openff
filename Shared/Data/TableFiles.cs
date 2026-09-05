@@ -28,7 +28,8 @@ namespace OpenFF.Data
 		/// <summary>The file by FF3's name (under files/, as the chain lays the games out) or FF4's compressed one, decompressed.</summary>
 		public static bool ReadAny(ContentChain chain, string name, out byte[] data)
 		{
-			foreach (string candidate in new[] { "files/" + name, name })
+			// Our own build keeps the text files under a language folder (files/en.lproj/eureka_item.msd).
+			foreach (string candidate in new[] { "files/" + name, name, "files/en.lproj/" + name, "en.lproj/" + name })
 			{
 				if (chain.TryRead(candidate, out data) && data != null && data.Length > 0) return true;
 				if (chain.TryRead(candidate + ".lz", out byte[] packed) && packed != null && packed.Length > 0)
