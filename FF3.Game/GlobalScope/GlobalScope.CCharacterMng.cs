@@ -865,6 +865,15 @@ internal static partial class GlobalScope
 			}
 		}
 
+		// PORT (FF4): ce_SetShadingMode switches a scene character between lit and toon polygons.
+		public void setPolygonMode(int ctrl, GXPolygonMode mode)
+		{
+			if (isValidCharacter(ctrl))
+			{
+				Character[ctrl].RdrObject.setPolygonMode(mode);
+			}
+		}
+
 		public void setDiffuse(int ctrl, ushort diffuse)
 		{
 			if (isValidCharacter(ctrl))

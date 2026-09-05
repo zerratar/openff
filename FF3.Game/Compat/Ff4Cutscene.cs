@@ -53,6 +53,16 @@ namespace FF3
 			{ "ce_CleanupCameraMotion", CleanupCameraMotion }, // (slot)
 			{ "ce_PlayCameraMotion", PlayCameraMotion },     // (slot, motion id, ?, loop)
 			{ "ce_WaitTillEndOfCameraMotion", WaitTillEndOfCameraMotion }, // ()
+			{ "eventCameraSetFovyMove", SetFovyMove },       // (degrees, frames)
+			{ "ce_SetupExpression", SetupExpression },       // (slot, face pack): p00_001 -> FACE.dat's p00_001.face.lz
+			{ "ce_SetupExpressionAsync", SetupExpression },  // the same, loads are synchronous here
+			{ "ce_CleanupExpression", CleanupExpression },   // (slot)
+			{ "ce_ChangeExpression", ChangeExpression },     // (slot, 0 eye | 1 mouth, texture index) - FF3's ChangeFaceEye/Mouth
+			{ "ce_setFrameWait", FrameWait },                // (frames): a wait
+			{ "ce_SetMap", SetMap },                         // (map): the scene's stage - every script but one names its own map
+			{ "ce_CreateToonTable", CreateToonTable },       // (index, r, g, b): entries 0..31; index 100 applies the table
+			{ "ce_SetShadingMode", SetShadingMode },         // (slot, 0 flat-lit | 1 toon)
+			{ "ce_SetLightForCharacter", SetLight },         // (slot, light 0..3, x, y, z, r, g, b): the global light
 		};
 
 		/// <summary>Commands that only dress a scene, skipped without a log line.</summary>
@@ -64,9 +74,9 @@ namespace FF3
 			"ce_SlotBGMPlay", "ce_SlotBGMStop", "ce_SlotBGMSetVolume",
 			"ce_SetupSE", "ce_CleanupSE", "ce_PlaySE", "ce_PlaySE_slot", "ce_StopSE", "ce_StopSE_slot",
 			"ce_StartVoice", "ce_StartVoice2", "ce_EndVoice",
-			"ce_SetLightForCharacter", "ce_SetLightEnableForCharacter", "ce_SetShadingMode", "ce_SetToonTable", "ce_CreateToonTable", "ce_setFog",
+			"ce_SetLightEnableForCharacter", "ce_SetToonTable", "ce_setFog",
 			"ce_SetupExpression", "ce_SetupExpressionAsync", "ce_CleanupExpression", "ce_ChangeExpression",
-			"ce_LoadBG", "ce_setBGAlpha", "ce_setTelopMassage", "ce_setFrameWait",
+			"ce_LoadBG", "ce_setBGAlpha", "ce_setTelopMassage",
 			"ce_StartAnimation", "ce_PauseAnimation", "ce_SetPauseMotion", "ce_AutoRotation", "ce_setScale",
 			"ce_CleanupMap",
 			"ce_SetupCameraMotion", "ce_CleanupCameraMotion",
@@ -254,6 +264,149 @@ namespace FF3
 			});
 		}
 
+		// ---- lights and shading, read from the FF4 handlers ----
+
+		private static readonly ushort[] _toon = new ushort[32];
+
+		private static void CreateToonTable(GlobalScope.ScriptEngine engine)
+		{
+			int index = (short)engine.getWord();
+			uint r = engine.getWord(), g = engine.getWord(), b = engine.getWord();
+			if (index >= 0 && index <= 31)
+			{
+				_toon[index] = (ushort)((r & 31) | ((g & 31) << 5) | ((b & 31) << 10));
+				return;
+			}
+			Guard("toon table", () =>
+			{
+				GlobalScope.G3X_SetToonTable(_toon);
+				GlobalScope.G3X_SetShading(0);
+			});
+		}
+
+		private static void SetShadingMode(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int mode = engine.getByte();
+			if (!Slot(slot, out int ctrl)) return;
+			Guard("shading mode", () =>
+			{
+				if (mode == 1)
+				{
+					Characters.setPolygonMode(ctrl, GlobalScope.GXPolygonMode.GX_POLYGONMODE_TOON);
+					Characters.setDiffuse(ctrl, 0x7fff);
+					Characters.setAmbient(ctrl, 0);
+					Characters.setSpecular(ctrl, 0);
+					Characters.setEmission(ctrl, 0);
+				}
+				else
+				{
+					Characters.setPolygonMode(ctrl, GlobalScope.GXPolygonMode.GX_POLYGONMODE_MODULATE);
+					Characters.setDiffuse(ctrl, 0x6739);
+					Characters.setAmbient(ctrl, 0x7fff);
+					Characters.setSpecular(ctrl, 0);
+					Characters.setEmission(ctrl, 0x7fff);
+				}
+			});
+		}
+
+		private static void SetLight(GlobalScope.ScriptEngine engine)
+		{
+			engine.getByte();
+			int light = engine.getByte();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int r = engine.getByte(), g = engine.getByte(), b = engine.getByte();
+			if (light < 0 || light > 3 || (x == 0 && y == 0 && z == 0)) return;
+			Guard("light", () =>
+			{
+				GlobalScope.NNS_G3dGlbLightVector((GlobalScope.GXLightId)light, (short)Math.Clamp(x, -4096, 4096), (short)Math.Clamp(y, -4096, 4096), (short)Math.Clamp(z, -4096, 4096));
+				GlobalScope.NNS_G3dGlbLightColor((GlobalScope.GXLightId)light, (ushort)((r & 31) | ((g & 31) << 5) | ((b & 31) << 10)));
+			});
+		}
+
+		// ---- expressions: the chain textures FF3's face commands use, eye/eye_pl and mouth/mouth_pl ----
+
+		private static void SetupExpression(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			string pack = engine.getString();
+			if (!Slot(slot, out int ctrl)) return;
+			Guard("expression pack " + pack, () =>
+			{
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				if (!Characters.setChainTexture(ctrl, pack + ".face"))
+				{
+					Log.Write(LogChannel.General, "script: FF4 cutscene: face pack " + pack + " did not load for slot " + slot);
+				}
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+			});
+		}
+
+		private static void CleanupExpression(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			if (!Slot(slot, out int ctrl)) return;
+			Guard("expression cleanup", () =>
+			{
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				Characters.delChainTexture(ctrl);
+			});
+		}
+
+		private static void ChangeExpression(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			int which = engine.getByte();
+			uint index = engine.getDword();
+			if (!Slot(slot, out int ctrl)) return;
+			if (!GlobalScope.TexDivideLoader.getSingleton().tdlIsEmpty())
+			{
+				engine.suspendRedo();
+				return;
+			}
+			Guard("expression", () =>
+			{
+				string part = which == 1 ? "mouth" : "eye";
+				Characters.bindChainTexel(ctrl, index, part);
+				Characters.bindChainPltt(ctrl, index, part + "_pl");
+			});
+		}
+
+		// ---- waits, FOV, the stage ----
+
+		private static readonly Dictionary<GlobalScope.ScriptEngine, int> _frameWaits = new Dictionary<GlobalScope.ScriptEngine, int>();
+
+		private static void FrameWait(GlobalScope.ScriptEngine engine)
+		{
+			int frames = (int)engine.getDword();
+			if (!_frameWaits.TryGetValue(engine, out int left))
+			{
+				left = frames;
+				_frameWaits[engine] = left;
+			}
+			if (left > 0)
+			{
+				_frameWaits[engine] = left - 1;
+				engine.suspendRedo();
+				return;
+			}
+			_frameWaits.Remove(engine);
+		}
+
+		private static void SetFovyMove(GlobalScope.ScriptEngine engine)
+		{
+			int degrees = (int)engine.getDword();
+			int frames = (int)engine.getDword();
+			Ff4CameraMotion.SetFovy(degrees, frames);
+		}
+
+		private static void SetMap(GlobalScope.ScriptEngine engine)
+		{
+			string map = engine.getString();
+			if (string.Equals(map, GlobalScope.stg.CStageMng.CurrentName, StringComparison.OrdinalIgnoreCase)) return;
+			Log.Write(LogChannel.General, "script: FF4 ce_SetMap " + map + " inside " + GlobalScope.stg.CStageMng.CurrentName + " - changing the stage within a scene is not implemented");
+		}
+
 		// ---- map motions ----
 
 		private static void SetMapMotion(GlobalScope.ScriptEngine engine)
@@ -317,6 +470,7 @@ namespace FF3
 		public static void MapLeft()
 		{
 			_slots.Clear();
+			_frameWaits.Clear();
 			_active = false;
 			Ff4CameraMotion.MapLeft();
 		}

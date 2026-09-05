@@ -501,6 +501,58 @@ The destination in full, with the layering and order of work: `Docs/OpenFF-Engin
 - Seen in an FF3 new-game cutscene: one treasure chest drawn with geometry missing while
   characters, monsters and the rest of the environment were fine. Screenshot to follow.
 
+## FF4 scenes: camera, stage and faces (2026-09-05)
+
+The `ce_*` scene engine now stages a scene the way FF4 does, read out of the binary with
+`Tools/ff4_calls.py` (operands, callees) and `Tools/ff4_disasm.py` (the bodies):
+
+- **Camera motions** (`Ff4CameraMotion`): EVT_CAMERA.dat holds one LZ'd "CMS2" set per scene,
+  a table of {id, offset} to "CM4" motions of `frames` frames and eight channels - rotation
+  quaternion x, y, z, w (fx12), position x, y, z (fx32), field of view as a 16-bit half-angle
+  index. A channel is `u16 keys | u16 type | keys`; delta keys (types 0/1/2: u8/u16/u32 frames
+  with s8/s16/s32 delta) add their delta once per frame from zero, type 3 is a float per frame,
+  type 4 one constant. `CameraHandle::calculatePosition` builds R x T, puts the camera at T,
+  looks along (0,0,-1) x R with (0,1,0) x R up - **row vectors**, so up is the matrix's second
+  row and forward the negated third; the columns give a plausible but wrong scene (Karl saw
+  "angles off in some transitions") - and calls setFOV(sin, cos) of the half angle. The frame
+  shown first is frame 1. `CWorldCamera.ExternalDrive` is a hook the camera calls in place of
+  its mode controllers (MODE_FREE recomputes position from distance and angle every frame, so
+  Pos_set alone never took). `ce_PlayCameraMotion(slot, id, ?, loop)`,
+  `ce_WaitTillEndOfCameraMotion` suspends until a non-looping motion ends; `ce_EndEvent` and
+  a map change let the field camera go. `eventCameraSetFovyMove(degrees, frames)` = the full
+  vertical FOV in degrees, moved over frames, taking precedence over the channel until the
+  next Play. `--ff4cam=off` skips the motions (debugging the stage).
+- **Map motions**: `ce_SetMapMotion(slot, name)` loads `name.ncap.lz` onto the stage model
+  (`CStageMng.addMotion`, a CMotSet like a character's), `ce_MapStartMotion(id, loop, ?, blend)`
+  starts one, `ce_StartMapAnimation(index, type)` picks animation `index` of the stage's .namp
+  by type (3 = visibility). e01_00's pack has 13 joint motions with the camera motions' ids;
+  its .namp has 13 visibility animations that hide the flashback hall or the deck per shot.
+- **Visibility animations were dropped by the port** (`NNS_G3dRenderObjAddAnmObj` kept only
+  'J' and 'M'); `NNSG3dResVisAnm` parses BVA0 (4-byte header, u16 frames, u16 nodes, u32 size,
+  bits frame-major: bit `frame * nodes + node`) and the SBC NODE command consults it. FF3
+  never used one; FF4 scenes do, everywhere.
+- **`CAnimation.startAnimation` made a new animation object and left the render object holding
+  the old one** - C++ got the same address back from the heap; C# does not. It swaps them now.
+- **`EngineHost` cleared the cutscene when the first stage name appeared** (the script was
+  already loading its camera set); it clears on leaving a map only.
+- **Expressions**: `ce_SetupExpression(slot, pack)` = FF3's `setChainTexture(ctrl, pack + ".face")`
+  (FACE.dat: p00_001 ... p11_001, m095_001, n034_001), `ce_ChangeExpression(slot, 0 | 1, index)`
+  = `bindChainTexel/Pltt` on "eye"/"eye_pl" or "mouth"/"mouth_pl", waiting for the texture
+  loader like FF3's ChangeFaceEye.
+- **Lights and shading**: `ce_CreateToonTable(index, r, g, b)` fills a 32-entry RGB555 table,
+  index 100 applies it (`G3X_SetToonTable`, shading 0); `ce_SetShadingMode(slot, mode)` sets
+  polygon mode MODULATE with diffuse 0x6739 / ambient 0x7fff / emission 0x7fff (mode 0) or
+  TOON with diffuse 0x7fff and the rest 0 (mode 1); `ce_SetLightForCharacter(slot, light, x, y, z,
+  r, g, b)` is the global light's vector (fx12) and colour.
+- `ce_setFrameWait(frames)` is a wait (it was skipped, so scenes rushed); `ce_SetMap(name)`
+  names the script's own map in every script but e23_02 (logged when it differs).
+- **What the scene still lacks**: effects (`effectLoadAsync`, `setEffect_Scale`), the 2D
+  sprites (`ce_3DSSetup`: the "Baron" plate from /2D/MIDDLE_EVENT), `ce_CallBattle`, voices
+  and BGM slots, `ce_setFog` (FF4 has fog: the overworld enables it in `WSPrepare` with range
+  0x80000..0x200000 and colour 0x73f5; the port has no fog at all), per-character light
+  enables. The clear colour is black, as `ContEventPart::initialize` sets it - the sky in
+  e01_00 is geometry ("sora", "kumo"), not a backdrop.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

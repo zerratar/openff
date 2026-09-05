@@ -42,6 +42,15 @@ namespace FF3
 		private static int _frame;
 		private static bool _loop;
 
+		// eventCameraSetFovyMove: the field of view as a 16-bit half-angle index, moved over frames.
+		// While set it takes precedence over the motion's FOV channel; the next Play drops it.
+		private static int _fovCurrent = -1;
+		private static int _fovTarget = -1;
+		private static int _fovFrom;
+		private static int _fovFrames;
+		private static int _fovTick;
+		private static bool _fovOverride;
+
 		public static bool Playing => _playing != null && (_loop || _frame < _playing.Frames);
 		public static bool Looping => _playing != null && _loop;
 
@@ -185,8 +194,44 @@ namespace FF3
 
 		// ---- playing ----
 
+		/// <summary>The script's FOV move: degrees of full vertical FOV, over frames (0 = at once).</summary>
+		public static void SetFovy(int degrees, int frames)
+		{
+			int index = (int)(degrees * 0.5 / 360.0 * 65536.0) & 0xffff;
+			_fovOverride = true;
+			if (frames <= 0 || _fovCurrent < 0)
+			{
+				_fovCurrent = index;
+				_fovTarget = index;
+				_fovFrames = 0;
+				ApplyFov(index);
+				return;
+			}
+			_fovFrom = _fovCurrent;
+			_fovTarget = index;
+			_fovFrames = frames;
+			_fovTick = 0;
+		}
+
+		private static void ApplyFov(int index)
+		{
+			try
+			{
+				GlobalScope.cmr.CWorldCamera camera = GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera();
+				if (camera == null) return;
+				double radians = index / 65536.0 * 2 * Math.PI;
+				camera.setFOV((int)(Math.Sin(radians) * 4096), (int)(Math.Cos(radians) * 4096));
+			}
+			catch (Exception) { }
+		}
+
 		public static bool Play(int slot, uint id, bool loop)
 		{
+			if (FF3.Options.Get("ff4cam") == "off")
+			{
+				Log.Write(LogChannel.File, "script: FF4 camera motion " + id + " skipped (--ff4cam=off)");
+				return false;
+			}
 			if (!_slots.TryGetValue(slot, out MotionSet set))
 			{
 				Log.Write(LogChannel.General, "script: FF4 camera motion " + id + ": no set in slot " + slot);
@@ -200,6 +245,8 @@ namespace FF3
 			_playing = motion;
 			_frame = 1;
 			_loop = loop;
+			_fovOverride = false;
+			_fovFrames = 0;
 			GlobalScope.cmr.CWorldCamera.ExternalDrive = Drive;
 			Log.Write(LogChannel.File, "script: FF4 camera motion " + id + " from " + set.Name + ", " + motion.Frames + " frames" + (loop ? ", looping" : ""));
 			return true;
@@ -218,6 +265,20 @@ namespace FF3
 		/// <summary>Each frame: on to the next frame; the camera picks the pose up in its own update.</summary>
 		public static void Tick()
 		{
+			if (_fovFrames > 0)
+			{
+				_fovTick++;
+				if (_fovTick >= _fovFrames)
+				{
+					_fovCurrent = _fovTarget;
+					_fovFrames = 0;
+				}
+				else
+				{
+					_fovCurrent = _fovFrom + (int)((long)(_fovTarget - _fovFrom) * _fovTick / _fovFrames);
+				}
+				if (_playing == null) ApplyFov(_fovCurrent);
+			}
 			if (_playing == null) return;
 			if (_frame < _playing.Frames)
 			{
@@ -258,6 +319,14 @@ namespace FF3
 				camera.setPosition(pos);
 				camera.setTarget(trg);
 				camera.setCamUp((int)(ux * 4096), (int)(uy * 4096), (int)(uz * 4096));
+				if (_fovOverride && _fovCurrent >= 0)
+				{
+					angle = _fovCurrent;
+				}
+				else if (angle != 0)
+				{
+					_fovCurrent = angle;
+				}
 				if (angle != 0)
 				{
 					double radians = angle / 65536.0 * 2 * Math.PI;
@@ -275,6 +344,9 @@ namespace FF3
 		{
 			Stop();
 			_slots.Clear();
+			_fovOverride = false;
+			_fovFrames = 0;
+			_fovCurrent = -1;
 		}
 	}
 }
