@@ -137,8 +137,15 @@ createTouchWindow` adds the widgets (an `addWidget(..., 0x100 ..., 3)` and a sec
 command list is `BattleCommandWindow::create(BattlePlayer*)`. Constants seen: `btl::
 COMMAND_WINDOW_POSITION = 1968` (probably y x 16 = 123 of 192), `SELECT_WINDOW_POSITION =
 160`, `BtlMagicMenu::BMTEXT_POS` = three columns x 24, 98, 172 by rows y 18, 28, 38, 48 (the
-magic grid is three columns wide). Exact window rectangles still to be read from those
-routines; the client's layout (`Ff4Battle.Draw`) is measured from the Steam screenshots.
+magic grid is three columns wide). The one caller of `BasicBattleWindow::create(x, y, w, h, kind)` is `BattleStatus2DManager::
+setStatusWindow(BATTLE_WINDOW_TYPE, char, int, int)`, whose numbers come out of
+`Battle2DManager::setIPadSize(NNSG2dSVec2, int)` - the layout adapts to the device's screen,
+so there is no fixed rectangle to read; `create` then adds five row widgets (ids 0x2f..0x33,
+y +2, +21, +39, +57, +75, heights 19/18/18/18/19 in DS units - 18 units = the 106-px rows of
+the 1122-px Steam window, so the widget space is the DS's 192-unit height, 341 wide at 16:9,
+and the sheets are drawn at a third of a unit per pixel). The client's layout
+(`Ff4Battle.Draw`) is measured from the Steam screenshots, which is the same code's answer
+for a 16:9 screen.
 
 Art (`MENU_Common.dat`, `battle2d_Common.dat`, `battle2d.dat`; the phone build's "NCGR" and
 "NCBR" are PNG sheets, "NCER" the port's cell banks - see 2D below): `window_frame_00..05`
