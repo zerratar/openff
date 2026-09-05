@@ -237,5 +237,39 @@ namespace FF3
 
 		/// <summary>The gauge's drawn width at the port's scale.</summary>
 		public static float GaugeWidth => 80f * Scale;
+
+		// battle2d.dat's battle_number: cells 0..9 the digits (24 x 24, centred), 10 "Hit!!", 11 "CRITICAL!",
+		// 12 "MISS!", 13 "AUTO-BATTLE", 14..19 the turning target arrow, 30 "NO EFFECT!", 31 "DEFENSE",
+		// 33 "DEATH", 34 "WEAKNESS"; the second row's five squares are the tints (grey, green, red,
+		// yellow, blue). The digits are white; a heal is drawn green, as FF4 tints its numbers.
+		public const string NumberSheet = "battle_number.NCBR", NumberBank = "battle_number.NCER";
+		public const int WordHit = 10, WordCritical = 11, WordMiss = 12, WordNoEffect = 30, WordDefense = 31, WordDeath = 33, WordWeakness = 34;
+		public static readonly Color HealTint = new Color(120, 255, 140, 255);
+		public static readonly Color DrainTint = new Color(255, 110, 110, 255);
+
+		/// <summary>A number in FF4's battle digits, centred on (x, y); false when the sheet is missing.</summary>
+		public static bool Number(DrawList d, float x, float y, int value, Color? tint = null, float scale = -1f)
+		{
+			CellBank bank = Bank(NumberBank);
+			Texture sheet = Sheet(NumberSheet);
+			if (bank == null || sheet == null || bank.Cells.Count < 10) return false;
+			if (scale <= 0f) scale = Scale;
+			string digits = Math.Abs(value).ToString();
+			float step = 20f * scale, width = step * digits.Length;
+			float cx = x - width / 2 + step / 2;
+			foreach (char ch in digits)
+			{
+				Cell cell = bank[ch - '0'];
+				if (cell != null) foreach (CellPart p in cell.Parts) Part(d, sheet, p, cx, y, scale, tint);
+				cx += step;
+			}
+			return true;
+		}
+
+		/// <summary>One of the battle words (WordMiss and the like), centred on (x, y).</summary>
+		public static bool Word(DrawList d, float x, float y, int cell, Color? tint = null, float scale = -1f)
+		{
+			return Cell(d, NumberBank, NumberSheet, cell, x, y, scale <= 0f ? Scale : scale, tint);
+		}
 	}
 }

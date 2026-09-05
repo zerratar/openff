@@ -979,6 +979,18 @@ the map's own plate last showed (`MapNameWindow.LastMessageNo`, a PORT hook), el
 id. Everything reads OpenFF.Data through Ff4Party - the unified path. Drive
 `Docs/Drives/ff4-menu.drive`, test C-51; C-39 and C-49 updated to the new navigation.
 
+## Battle digits and two fixes from Karl's screenshot (2026-09-05, late)
+
+Damage and healing now pop in FF4's own battle digits (battle2d.dat's battle_number: cells
+0..9 the 24 x 24 digits, 10 "Hit!!", 11 "CRITICAL!", 12 "MISS!", 30 "NO EFFECT!", 33 "DEATH", 34
+"WEAKNESS"; `Ff4Ui.Number` / `Ff4Ui.Word`), white for damage, green for a heal, rising with a
+small bounce and fading over 70 frames (`Ff4Battle.Pop`, `PopWord` for a miss) - the legacy
+`Screen.PopNumber` stays for FF3. Karl's screenshot showed two Cecils on the stage and every
+animation freezing after the first kill: the field's hero was "hidden" by a transparency the
+renderer does not honour (now `setHidden`), and the one-shot motions (attack, hurt, cast) were
+never followed by the idle loop - `Idle()` restarts it for every fighter whose motion has
+finished (`Fighter.Acted`).
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

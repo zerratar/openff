@@ -50,6 +50,7 @@ namespace FF3
 			public float Gauge;               // 0..1
 			public bool Alive => Hp > 0;
 			public Vector3 Home;
+			public bool Acted;   // a one-shot motion is playing; Idle() restarts the loop when it ends
 		}
 
 		private static Ff4Battle _instance;
@@ -164,7 +165,7 @@ namespace FF3
 				// stands as a spawned battle model, and the field's hero waits unseen at the
 				// leader's spot until the jump back.
 				Game.Hero.Teleport(Ff4BattleStage.PartySpot(0, _party.Count));
-				try { EngineApi.HeroPlayer?.setTransparencyRate(100); } catch (Exception) { }
+				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
 				for (int i = 0; i < _party.Count; i++)
 				{
 					Fighter ally = _party[i];
@@ -376,8 +377,25 @@ namespace FF3
 			Draw();
 		}
 
+		/// <summary>A fighter whose one-shot motion has finished goes back to its idle loop.</summary>
+		private void Idle()
+		{
+			foreach (Fighter f in _party)
+			{
+				if (!f.Alive || !f.Acted) continue;
+				bool done = f.Npc != null ? f.Npc.MotionDone : Game.Hero.MotionDone;
+				if (done) { Play(f, _heroMotionIdle, true, 4); f.Acted = false; }
+			}
+			foreach (Fighter f in _foes)
+			{
+				if (!f.Alive || !f.Acted || f.Npc == null) continue;
+				if (f.Npc.MotionDone) { try { f.Npc.PlayMotion(101, true, 4); } catch (Exception) { } f.Acted = false; }
+			}
+		}
+
 		private void Fight()
 		{
+			Idle();
 			if (Ff4BattleStage.Active) Log.Sample(LogChannel.File, "battle-camera", 120, () => "battle: camera at " + Game.Camera.Position + " hero at " + Game.Hero.Position);
 			if (_acting == null)
 			{
@@ -527,7 +545,7 @@ namespace FF3
 					int before = t.Hp;
 					t.Hp = Math.Min(t.MaxHp, t.Hp + value);
 					if (t.Member != null) t.Member.Hp = t.Hp;
-					Game.Screen.PopNumber(Where(t) + new Vector3(0, 12f, 0), t.Hp - before, true);
+					Pop(Where(t) + new Vector3(0, 12f, 0), t.Hp - before, true);
 					Say(caster.Name + " casts " + name + ": " + t.Name + " +" + (t.Hp - before) + ".");
 				}
 			}
@@ -549,7 +567,7 @@ namespace FF3
 					int damage = AttackMagicDamage(caster, t, spell, targets.Count);
 					t.Hp = Math.Max(0, t.Hp - damage);
 					if (t.Member != null) t.Member.Hp = t.Hp;
-					Game.Screen.PopNumber(Where(t) + new Vector3(0, 12f, 0), damage);
+					Pop(Where(t) + new Vector3(0, 12f, 0), damage);
 					Say(caster.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
 					if (!t.Alive) Fell(t);
 				}
@@ -581,9 +599,59 @@ namespace FF3
 
 		private Vector3 Where(Fighter f) => f.Npc != null ? f.Npc.Position : Game.Hero.Position;
 
+		// ---- the numbers and words that pop over a fighter, in FF4's battle digits ----
+
+		private sealed class PopUp
+		{
+			public Vector3 At;
+			public int Value;
+			public int Word = -1;
+			public bool Heal;
+			public int Frame;
+			public const int Frames = 70;
+		}
+
+		private readonly List<PopUp> _pops = new List<PopUp>();
+
+		/// <summary>A number over a spot in the world: white for damage, green for a heal; it rises, bounces once and fades.</summary>
+		private void Pop(Vector3 at, int value, bool heal = false)
+		{
+			_pops.Add(new PopUp { At = at, Value = Math.Abs(value), Heal = heal });
+		}
+
+		private void PopWord(Vector3 at, int word)
+		{
+			_pops.Add(new PopUp { At = at, Word = word });
+		}
+
+		private void DrawPops(DrawList d)
+		{
+			for (int i = _pops.Count - 1; i >= 0; i--)
+			{
+				PopUp p = _pops[i];
+				if (++p.Frame > PopUp.Frames) { _pops.RemoveAt(i); continue; }
+				Vector2? screen = Game.Camera.WorldToScreen(p.At);
+				if (!screen.HasValue) continue;
+				// Up fast, a small bounce, then a hold while it fades.
+				float t = p.Frame;
+				float rise = t < 12 ? -3.2f * t : t < 20 ? -38f + 2.2f * (t - 12) : t < 26 ? -20f - 1.2f * (t - 20) : -27f;
+				byte alpha = (byte)(t > 55 ? Math.Max(0, 255 - (t - 55) * 17) : 255);
+				Color tint = p.Heal ? new Color(Ff4Ui.HealTint.R, Ff4Ui.HealTint.G, Ff4Ui.HealTint.B, alpha) : new Color(255, 255, 255, alpha);
+				float x = screen.Value.X, y = screen.Value.Y + rise;
+				bool drawn = p.Word >= 0 ? Ff4Ui.Word(d, x, y, p.Word, tint) : Ff4Ui.Number(d, x, y, p.Value, tint);
+				if (!drawn)
+				{
+					string text = p.Word >= 0 ? (p.Word == Ff4Ui.WordMiss ? "Miss" : "!") : p.Value.ToString();
+					d.Text(text, x - d.MeasureText(text, 22) / 2 + 1, y - 10, new Color(0, 0, 0, alpha), 22);
+					d.Text(text, x - d.MeasureText(text, 22) / 2, y - 11, tint, 22);
+				}
+			}
+		}
+
 		/// <summary>Plays a battle motion on a member: the leader is the hero, the others their spawned models.</summary>
 		private void Play(Fighter f, int motion, bool loop = false, int blend = 3)
 		{
+			if (!loop) f.Acted = true;
 			try
 			{
 				if (f.Npc != null) f.Npc.PlayMotion(motion, loop, blend);
@@ -664,13 +732,14 @@ namespace FF3
 			Play(member, _heroMotionAttack);
 			if (!Hits(member, foe))
 			{
+				PopWord(Where(foe) + new Vector3(0, 12f, 0), Ff4Ui.WordMiss);
 				Say(member.Name + " misses " + foe.Name + ".");
 			}
 			else
 			{
 				int damage = Damage(member, foe);
 				foe.Hp = Math.Max(0, foe.Hp - damage);
-				Game.Screen.PopNumber(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
+				Pop(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
 				Game.Audio.PlaySe(0, 3);
 				Say(member.Name + " hits " + foe.Name + " for " + damage + ".");
 				if (!foe.Alive) Fell(foe);
@@ -686,9 +755,10 @@ namespace FF3
 			List<Fighter> alive = _party.FindAll(f => f.Alive);
 			if (alive.Count == 0) return;
 			Fighter target = alive[_random.Next(alive.Count)];
-			try { foe.Npc.PlayMotion(201, false, 3); } catch (Exception) { }
+			try { foe.Npc.PlayMotion(201, false, 3); foe.Acted = true; } catch (Exception) { }
 			if (!Hits(foe, target))
 			{
+				PopWord(Where(target) + new Vector3(0, 12f, 0), Ff4Ui.WordMiss);
 				Say(foe.Name + " misses " + target.Name + ".");
 				foe.Gauge = 0f;
 				return;
@@ -696,7 +766,7 @@ namespace FF3
 			int damage = Damage(foe, target);
 			target.Hp = Math.Max(0, target.Hp - damage);
 			target.Member.Hp = target.Hp;
-			Game.Screen.PopNumber(Where(target) + new Vector3(0, 12f, 0), damage);
+			Pop(Where(target) + new Vector3(0, 12f, 0), damage);
 			Game.Screen.Flash(new Color(255, 60, 40), 6, 2);
 			Play(target, _heroMotionHurt);
 			Say(foe.Name + " hits " + target.Name + " for " + damage + ".");
@@ -731,7 +801,7 @@ namespace FF3
 				else if (effect.Hp > 0) target.Hp = Math.Min(target.MaxHp, target.Hp + effect.Hp);
 				target.Member.Hp = target.Hp;
 				if (effect.Mp > 0) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
-				if (target.Hp != before) Game.Screen.PopNumber(Where(target) + new Vector3(0, 12f, 0), target.Hp - before, true);
+				if (target.Hp != before) Pop(Where(target) + new Vector3(0, 12f, 0), target.Hp - before, true);
 				Say(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
 			}
 			member.Gauge = 0f;
@@ -843,9 +913,10 @@ namespace FF3
 			}
 			_foes.Clear();
 			_party.Clear();
+			_pops.Clear();
 			if (Ff4BattleStage.Active)
 			{
-				try { EngineApi.HeroPlayer?.setTransparencyRate(0); } catch (Exception) { }
+				try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
 				try { Ff4EventCamera.Release(); } catch (Exception) { }
 				Ff4BattleStage.Leave();
 			}
@@ -921,6 +992,7 @@ namespace FF3
 		private void Draw()
 		{
 			DrawList d = Game.Draw;
+			DrawPops(d);
 			if (_phase == Phase.Defeat) return;
 			if (_phase == Phase.Victory) { DrawResult(d); return; }
 			bool choosing = _acting != null && _pick != Pick.None;
