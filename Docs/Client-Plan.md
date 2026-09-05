@@ -625,7 +625,7 @@ status menu the engine draws (Game.Draw/Game.Input, as a mod would) on the pad's
 party page and bag page (C-39). FF3's menu part is blocked on FF4 (CStateWorldMove), where it
 crashed on FF3-only face cells. FF4's own menu layouts (MenuLayout_*.xbn) remain to be ported
 onto this data. `Ff4Battle` is the second: an ATB fight on the current map over the unified party
-and monsters (FF4's m<model>_00 models with b_m<model> motions 101/201; the leader's
+and monsters (FF4's m<family>_00 models with b_m<family> motions 101/201; the leader's
 b_p_player_<type> motions 2007-2010), with Fight/Item/Run, targets, damage pops, victory paying
 experience, gil and rolled drops into the party (C-40). K starts a test fight against group 1. The hooks are
 connected: `bootEventBattle(group, ...)`, `Game.Battle.Start(group)` and `ce_CallBattle` (which

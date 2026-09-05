@@ -28,9 +28,10 @@ namespace FF3
 					Id = d.Id,
 					Name = d.Name,
 					Family = d.Family,
-					// FF4's monster models are m<model>_00.nmdp, their battle motions b_m<model>.ncap.
-					Model = "m" + d.ModelId.ToString("000") + "_00",
-					MotionSet = "b_m" + d.ModelId.ToString("000"),
+					// FF4's monster models are m<family>_00.nmdp, their battle motions b_m<family>.ncap - by the
+					// family, as FF3's f<family> are (the Goblin, family 0, is m000; its modelId 1 is a bird).
+					Model = "m" + d.Family.ToString("000") + "_00",
+					MotionSet = "b_m" + d.Family.ToString("000"),
 					Level = d.Level,
 					MaxHp = d.MaxHp,
 					Size = d.Size,

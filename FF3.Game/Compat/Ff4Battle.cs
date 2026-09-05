@@ -4,8 +4,8 @@
 // FF3's battle part runs FF3's rules over FF3's tables and cannot take FF4's party; FF4's
 // own battle is not ported. This is the first battle that reads the unified party and
 // monsters: the party stands where it is, the monsters appear in front of it (FF4's
-// m<model>_00 models with their b_m<model> motions - 101 idle, 201 attack), the camera
-// takes a side view, and an ATB fight runs: every combatant's gauge fills with its agility;
+// m<family>_00 models with their b_m<family> motions - 101 idle, 201 attack), the field
+// camera frames them, and an ATB fight runs: every combatant's gauge fills with its agility;
 // a full gauge gives a party member the command window (Fight, Item, Run) and a monster
 // its attack. Damage is a placeholder formula until FF4's is read out of the binary
 // (noted in Docs/Client-Plan.md). Victory pays experience, gil and drops into the party;
@@ -151,9 +151,9 @@ namespace FF3
 					at = Game.Field.OnGround(hero + forward * 26f + side * spread);
 				}
 				Monster info = Game.Monsters.Find(id);
-				Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.ModelId.ToString("000") + "_00"), at, 0f);
+				Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.Family.ToString("000") + "_00"), at, 0f);
 				if (npc == null) { _log.Add("no model for " + m.Name); continue; }
-				try { npc.BindMotions(info?.MotionSet ?? ("b_m" + m.ModelId.ToString("000"))); npc.PlayMotion(101, true); } catch (Exception) { }
+				try { npc.BindMotions(info?.MotionSet ?? ("b_m" + m.Family.ToString("000"))); npc.PlayMotion(101, true); } catch (Exception) { }
 				npc.LookAt(hero);
 				npc.Solid = false;
 				_foes.Add(new Fighter
