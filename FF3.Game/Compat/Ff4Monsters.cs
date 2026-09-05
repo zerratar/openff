@@ -62,6 +62,15 @@ namespace FF3
 			return null;
 		}
 
-		public MonsterGroup Group(int partyId) => new MonsterGroup { Id = partyId };
+		public MonsterGroup Group(int partyId)
+		{
+			MonsterGroup group = new MonsterGroup { Id = partyId };
+			MonsterParty party = Ff4Party.Tables?.MonsterParty(partyId);
+			if (party != null)
+			{
+				foreach (MonsterPartySlot slot in party.Slots) group.Members.Add(new MonsterCount { MonsterId = slot.MonsterId, Min = slot.Count, Max = slot.Count });
+			}
+			return group;
+		}
 	}
 }

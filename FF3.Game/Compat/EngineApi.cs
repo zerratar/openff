@@ -1861,6 +1861,12 @@ namespace FF3
 
 		public void Start(int monsterParty, int battleMap = 0)
 		{
+			if (GameProfile.IsFf4)
+			{
+				// FF4's battles are the OpenFF battle over the unified tables.
+				if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(monsterParty)) EngineApi.Warn("battle", "Battle.Start: no FF4 encounter group " + monsterParty);
+				return;
+			}
 			if (!EngineApi.InWorld)
 			{
 				EngineApi.Warn("battle", "Battle.Start: not on a map");

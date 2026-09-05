@@ -627,9 +627,15 @@ crashed on FF3-only face cells. FF4's own menu layouts (MenuLayout_*.xbn) remain
 onto this data. `Ff4Battle` is the second: an ATB fight on the current map over the unified party
 and monsters (FF4's m<model>_00 models with b_m<model> motions 101/201; the leader's
 b_p_player_<type> motions 2007-2010), with Fight/Item/Run, targets, damage pops, victory paying
-experience, gil and rolled drops into the party (C-40). K starts a test fight; `bootEventBattle`,
-`ce_CallBattle` and the overworld's encounter tables (MAPPARAMETER's encount and monsterParty
-chains, 52 and 16 bytes, fields not yet named) are the hooks still to connect. The damage
+experience, gil and rolled drops into the party (C-40). K starts a test fight against group 1. The hooks are
+connected: `bootEventBattle(group, ...)`, `Game.Battle.Start(group)` and `ce_CallBattle` (which
+jumps on after the fight, or at once where the scene has no field hero) start it, and random
+encounters come from the map's parameter pack (`Ff4Encounters`: the encount record's rate at 0,
+the monsterParty record's first group and three cumulative percentages) - the Mist cave rolls
+groups 10..13 at rate 11; towns are 0; the overworld pack is laid out differently and gives none
+yet. `monster_party_table.bbd` is FF4's encounter-group table: 520 records of 140 bytes, id
+first, up to six slots of monster id, flag and x/y/z placement (`MonsterParty` in OpenFF.Data,
+read for FF3's 18-byte records too). The damage
 formula is a placeholder (attack x 2 - defence, +-10%) until FF4's is read from libff4.so;
 FF4's monster record has an attack-like word at 0x20 and a hit chance at 0x22.
 

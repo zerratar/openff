@@ -188,9 +188,44 @@ namespace OpenFF.Data
 		public override string ToString() => Id + " " + (Name ?? "?") + " L" + Level + " (" + MaxHp + " hp, " + Experience + " exp, " + Gil + " gil)";
 	}
 
+	/// <summary>One monster's place in an encounter group.</summary>
+	public sealed class MonsterPartySlot
+	{
+		public int MonsterId;
+		public int Flag;
+		/// <summary>The game's placement, in world units (FF4: fx32 x, y, z; x across, z depth).</summary>
+		public float X, Y, Z;
+		/// <summary>FF4's fourth word, not yet named (66 for most groups, 20 for a boss).</summary>
+		public float W;
+		public int Count = 1;
+	}
+
+	/// <summary>An encounter group: what appears together, and where.</summary>
+	public sealed class MonsterParty
+	{
+		public int Id;
+		public int Flags;
+		public List<MonsterPartySlot> Slots = new List<MonsterPartySlot>();
+
+		public override string ToString() => "party " + Id + ": " + string.Join(", ", Slots.ConvertAll(s => s.MonsterId + (s.Count > 1 ? " x" + s.Count : "")));
+	}
+
 	/// <summary>Everything a game defines, read once from its files.</summary>
 	public sealed class GameTables
 	{
+		public List<MonsterParty> MonsterParties = new List<MonsterParty>();
+		private Dictionary<int, MonsterParty> _parties;
+
+		public MonsterParty MonsterParty(int id)
+		{
+			if (_parties == null)
+			{
+				_parties = new Dictionary<int, MonsterParty>();
+				foreach (MonsterParty p in MonsterParties) if (!_parties.ContainsKey(p.Id)) _parties[p.Id] = p;
+			}
+			return _parties.TryGetValue(id, out MonsterParty found) ? found : null;
+		}
+
 		public List<MonsterDefinition> Monsters = new List<MonsterDefinition>();
 		private Dictionary<int, MonsterDefinition> _monsters;
 
@@ -255,7 +290,7 @@ namespace OpenFF.Data
 		{
 			StringBuilder sb = new StringBuilder();
 			sb.Append(Game).Append(" tables: ").Append(ExperienceToLevel.Length).Append(" levels, ")
-				.Append(Characters.Count).Append(" characters, ").Append(Items.Count).Append(" items, ").Append(Spells.Count).Append(" spells, ").Append(Monsters.Count).Append(" monsters");
+				.Append(Characters.Count).Append(" characters, ").Append(Items.Count).Append(" items, ").Append(Spells.Count).Append(" spells, ").Append(Monsters.Count).Append(" monsters, ").Append(MonsterParties.Count).Append(" encounter groups");
 			if (ExperienceToLevel.Length > 10)
 			{
 				sb.Append("\n  exp to level 2..11: ");

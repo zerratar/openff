@@ -32,7 +32,30 @@ namespace OpenFF.Data
 			ReadPlayers(chain, tables);
 			ReadItems(chain, tables);
 			ReadMonsters(chain, tables);
+			ReadMonsterParties(chain, tables);
 			return tables;
+		}
+
+		/// <summary>monster_party_table.bbd: 18-byte records - party id s16, then four (monster id s16, min u8, max u8).</summary>
+		private static void ReadMonsterParties(ContentChain chain, GameTables tables)
+		{
+			if (!TableFiles.ReadAny(chain, "monster_party_table.bbd", out byte[] data))
+			{
+				tables.Notes.Add("monster_party_table.bbd not found");
+				return;
+			}
+			for (int i = 0; i + 18 <= data.Length; i += 18)
+			{
+				MonsterParty party = new MonsterParty { Id = ChainPack.S16(data, i) };
+				for (int s = 0; s < 4; s++)
+				{
+					int id = ChainPack.S16(data, i + 2 + 4 * s);
+					int min = data[i + 4 + 4 * s], max = data[i + 5 + 4 * s];
+					if (id < 0 || max == 0) continue;
+					party.Slots.Add(new MonsterPartySlot { MonsterId = id, Count = max, X = (s - 1.5f) * 12f });
+				}
+				tables.MonsterParties.Add(party);
+			}
 		}
 
 		/// <summary>

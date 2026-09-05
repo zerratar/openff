@@ -72,10 +72,42 @@ namespace FF3
 
 		// ---- starting ----
 
-		/// <summary>A fight against these monsters (ids in the unified tables), on the spot.</summary>
-		public bool Start(IEnumerable<int> monsterIds)
+		public static Ff4Battle Instance => _instance;
+
+		/// <summary>Runs once when the fight ends, however it ends (a scene's return jump, for one).</summary>
+		public Action AfterBattle;
+
+		/// <summary>An encounter group from the tables (FF4's monster_party_table.bbd), with its placements.</summary>
+		public bool StartParty(int partyId, bool inScene = false)
 		{
-			if (_phase != Phase.Idle || !EngineApi.InWorld || Ff4Cutscene.Active) return false;
+			MonsterParty party = Ff4Party.Tables?.MonsterParty(partyId);
+			if (party == null || party.Slots.Count == 0)
+			{
+				Log.Write(LogChannel.General, "battle: no encounter group " + partyId);
+				return false;
+			}
+			List<int> ids = new List<int>();
+			List<Vector3> places = new List<Vector3>();
+			foreach (MonsterPartySlot slot in party.Slots)
+			{
+				for (int k = 0; k < Math.Max(1, slot.Count); k++)
+				{
+					ids.Add(slot.MonsterId);
+					places.Add(new Vector3(slot.X, 0, slot.Z));
+				}
+			}
+			_placements = places;
+			bool started = Start(ids, inScene);
+			if (started) Log.Write(LogChannel.General, "battle: encounter group " + partyId);
+			return started;
+		}
+
+		private List<Vector3> _placements;
+
+		/// <summary>A fight against these monsters (ids in the unified tables), on the spot.</summary>
+		public bool Start(IEnumerable<int> monsterIds, bool inScene = false)
+		{
+			if (_phase != Phase.Idle || !EngineApi.InWorld || (Ff4Cutscene.Active && !inScene)) return false;
 			GameTables tables = Ff4Party.Tables;
 			Party party = Ff4Party.Party;
 			if (tables == null || party.Members.Count == 0 || !Game.Hero.Present) return false;
@@ -103,8 +135,18 @@ namespace FF3
 			{
 				MonsterDefinition m = tables.Monster(id);
 				if (m == null) { _log.Add("no monster " + id); continue; }
-				float spread = (n - (ids.Count - 1) / 2f) * 14f;
-				Vector3 at = Game.Field.OnGround(hero + forward * 34f + side * spread);
+				// The game's placement (x across, z depth, in its battle units - roughly halved for the field) or a row.
+				Vector3 at;
+				if (_placements != null && n < _placements.Count)
+				{
+					Vector3 p = _placements[n];
+					at = Game.Field.OnGround(hero + forward * (22f + Math.Abs(p.Z) * 0.2f) + side * (p.X * 0.45f));
+				}
+				else
+				{
+					float spread = (n - (ids.Count - 1) / 2f) * 12f;
+					at = Game.Field.OnGround(hero + forward * 26f + side * spread);
+				}
 				Monster info = Game.Monsters.Find(id);
 				Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.ModelId.ToString("000") + "_00"), at, 0f);
 				if (npc == null) { _log.Add("no model for " + m.Name); continue; }
@@ -120,15 +162,16 @@ namespace FF3
 				});
 				n++;
 			}
+			_placements = null;
 			if (_foes.Count == 0) return false;
 
 			Game.Input.Capture = true;
 			Game.Hero.Freeze();
 			Game.Hero.Face(forward.Yaw);
 			try { Game.Hero.BindMotions("b_p_player_" + party.Leader.Id.ToString("00")); Game.Hero.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
-			_centre = hero + forward * 17f;
-			Game.Camera.MoveTo(_centre + side * 62f + new Vector3(0, 22f, 0) - forward * 6f);
-			Game.Camera.LookAt(_centre + new Vector3(0, 6f, 0));
+			_centre = hero + forward * 13f;
+			Game.Camera.MoveTo(_centre + side * 44f + new Vector3(0, 15f, 0) - forward * 4f);
+			Game.Camera.LookAt(_centre + new Vector3(0, 5f, 0));
 			_phase = Phase.Intro;
 			_timer = 0;
 			_acting = null;
@@ -165,10 +208,17 @@ namespace FF3
 		{
 			if (_phase == Phase.Idle)
 			{
-				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !Game.Input.Capture && Game.Input.KeyPressed("K"))
+				if (EngineApi.InWorld && !Ff4Cutscene.Active && !Game.Dialogue.IsOpen && !Game.Input.Capture)
 				{
-					// A test fight: the first two monsters of the tables (Goblin and Sword Rat).
-					Start(new[] { 0, 1 });
+					if (Game.Input.KeyPressed("K"))
+					{
+						// A test fight: the tables' first encounter group (two Goblins) - or the first two monsters.
+						if (!StartParty(1)) Start(new[] { 0, 1 });
+					}
+					else
+					{
+						Encounters();
+					}
 				}
 				return;
 			}
@@ -405,8 +455,39 @@ namespace FF3
 			Log.Write(LogChannel.General, "battle: lost");
 		}
 
+		// ---- random encounters: the map's encounter chain, rolled per unit walked ----
+
+		private Vector3 _lastStep;
+		private float _walked;
+		private int _sinceBattle;
+
+		private void Encounters()
+		{
+			_sinceBattle++;
+			if (_sinceBattle < 90 || !Game.Hero.Present) return;
+			Vector3 at = Game.Hero.Position;
+			float step = (at - _lastStep).Flat.Length;
+			_lastStep = at;
+			if (step <= 0.01f || step > 20f) return;
+			Ff4Encounters.Table table = Ff4Encounters.For(Game.Field.Map);
+			if (table == null || table.Rate <= 0 || table.Parties.Count == 0) return;
+			_walked += step;
+			if (_walked < 1f) return;
+			_walked -= 1f;
+			// The rate is per FF4 step; one unit here is a small stride. Roughly one fight in a few hundred units at rate 11.
+			if (_random.Next(4096) < table.Rate * 2)
+			{
+				int party = table.Roll(_random);
+				if (party > 0 && StartParty(party)) _sinceBattle = 0;
+			}
+		}
+
 		private void End()
 		{
+			_sinceBattle = 0;
+			_lastStep = Game.Hero.Present ? Game.Hero.Position : Vector3.Zero;
+			Action after = AfterBattle;
+			AfterBattle = null;
 			foreach (Fighter f in _foes)
 			{
 				try { f.Npc?.Remove(); } catch (Exception) { }
@@ -419,6 +500,7 @@ namespace FF3
 			_phase = Phase.Idle;
 			_acting = null;
 			_pick = Pick.None;
+			after?.Invoke();
 		}
 
 		// ---- the HUD ----

@@ -638,10 +638,20 @@ namespace FF3
 			engine.getByte();
 			string returnMap = engine.getString();
 			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
-			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " skipped (no FF4 battles yet) - on to " + returnMap);
+			GlobalScope.VecFx32 position = new GlobalScope.VecFx32(x, y, z);
+			// The OpenFF battle fights the encounter group where the scene stands and then jumps on;
+			// when it cannot (no field hero in this scene), the jump happens at once.
+			if (Ff4Battle.Instance != null && Ff4Battle.Instance.StartParty(battle, true))
+			{
+				Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " - then on to " + returnMap);
+				string map = returnMap;
+				Ff4Battle.Instance.AfterBattle = () => { if (!string.IsNullOrEmpty(map)) JumpTo(map, position); };
+				return;
+			}
+			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " skipped - on to " + returnMap);
 			if (string.IsNullOrEmpty(returnMap)) return;
 			// The battle would return to this map; the chain's own return map stays for the scene after it.
-			JumpTo(returnMap, new GlobalScope.VecFx32(x, y, z));
+			JumpTo(returnMap, position);
 		}
 
 		// ---- lights and shading, read from the FF4 handlers ----

@@ -56,6 +56,7 @@ namespace FF3
 			{ "subPartyPC", Ff4Party.SubPartyPC },                            // (type, ?)
 			{ "setPartyPCEquipItem", Ff4Party.SetPartyPCEquipItem },          // (type, right, left, head, body, arm)
 			{ "addAbility", Ff4Party.AddAbility },                            // (type, ability)
+			{ "bootEventBattle", BootEventBattle },                           // (party, map, ?, ?, ?): the OpenFF battle on that encounter group
 		};
 
 		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
@@ -208,6 +209,16 @@ namespace FF3
 			if (camera == null) return;
 			camera.setPosOffset(new GlobalScope.VecFx32(ox, oy, oz));
 			camera.setTrgOffset(new GlobalScope.VecFx32(ox + tx, oy + ty, oz + tz));
+		}
+
+		private static void BootEventBattle(GlobalScope.ScriptEngine engine)
+		{
+			int party = (int)engine.getWord();
+			engine.getByte(); engine.getByte(); engine.getByte(); engine.getByte();
+			if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(party))
+			{
+				Log.Write(LogChannel.General, "script: bootEventBattle " + party + " could not start");
+			}
 		}
 
 		private static void CancelCameraControl(GlobalScope.ScriptEngine engine)

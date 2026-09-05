@@ -41,7 +41,45 @@ namespace OpenFF.Data
 			ReadPlayers(chain, tables);
 			ReadItems(chain, tables);
 			ReadMonsters(chain, tables);
+			ReadMonsterParties(chain, tables);
 			return tables;
+		}
+
+		/// <summary>
+		/// monster_party_table.bbd: 520 records of 140 bytes (mon::MonsterPartyManager::load divides
+		/// by 0x8C; monsterParty(id) walks them comparing the s16 at 0). Then up to six slots of 20
+		/// bytes from offset 4 - monster id s16, flag s16, x, y, z fx32 and a fourth fx32 word - the
+		/// list ending at a -1 id; the tail holds words not yet named. Party 1 is two Goblins at x
+		/// -37 and -15, z -50; the scripted battles 900..934 are here too.
+		/// </summary>
+		private static void ReadMonsterParties(ContentChain chain, GameTables tables)
+		{
+			if (!TableFiles.ReadAny(chain, "monster_party_table.bbd", out byte[] data))
+			{
+				tables.Notes.Add("monster_party_table.bbd not found");
+				return;
+			}
+			const int stride = 140;
+			for (int i = 0; i + stride <= data.Length; i += stride)
+			{
+				MonsterParty party = new MonsterParty { Id = ChainPack.S16(data, i), Flags = ChainPack.S16(data, i + 2) };
+				for (int s = 0; s < 6; s++)
+				{
+					int at = i + 4 + 20 * s;
+					int id = ChainPack.S16(data, at);
+					if (id < 0) break;
+					party.Slots.Add(new MonsterPartySlot
+					{
+						MonsterId = id,
+						Flag = ChainPack.S16(data, at + 2),
+						X = ChainPack.S32(data, at + 4) / 4096f,
+						Y = ChainPack.S32(data, at + 8) / 4096f,
+						Z = ChainPack.S32(data, at + 12) / 4096f,
+						W = ChainPack.S32(data, at + 16) / 4096f,
+					});
+				}
+				tables.MonsterParties.Add(party);
+			}
 		}
 
 		/// <summary>
