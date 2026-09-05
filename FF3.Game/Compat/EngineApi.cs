@@ -1899,7 +1899,21 @@ namespace FF3
 
 	internal sealed class LegacyField : GameService, IField
 	{
-		public string Map => GlobalScope.stg.CStageMng.CurrentName;
+		/// <summary>The stage's name; on the overworld, whose stage has none, the chip's stage (f00 from f00_48).</summary>
+		public string Map
+		{
+			get
+			{
+				string name = GlobalScope.stg.CStageMng.CurrentName;
+				if (!string.IsNullOrEmpty(name)) return name;
+				try
+				{
+					string chip = GlobalScope.stageMng?.getChipName();
+					return !string.IsNullOrEmpty(chip) && chip.Length >= 3 ? chip.Substring(0, 3) : name;
+				}
+				catch (Exception) { return name; }
+			}
+		}
 
 		public bool Encounters
 		{

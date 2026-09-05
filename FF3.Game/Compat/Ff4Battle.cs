@@ -1,4 +1,4 @@
-// The OpenFF battle on FF4: a fight on the current map, built on nothing but OpenFF.Data
+﻿// The OpenFF battle on FF4: a fight on the current map, built on nothing but OpenFF.Data
 // and the engine API - the way a mod would build one.
 //
 // FF3's battle part runs FF3's rules over FF3's tables and cannot take FF4's party; FF4's
@@ -126,7 +126,10 @@ namespace FF3
 				});
 			}
 			Vector3 hero = Game.Hero.Position;
-			Vector3 forward = Vector3.FromYaw(Game.Hero.Yaw).Flat.Normalized;
+			// Ahead as the camera sees it: the monsters stand between the leader and the far side of
+			// the view, whichever way the leader was facing, so the follow camera frames them.
+			Vector3 forward = (hero - Game.Camera.Position).Flat.Normalized;
+			if (forward.Length < 0.5f) forward = Vector3.FromYaw(Game.Hero.Yaw).Flat.Normalized;
 			if (forward.Length < 0.5f) forward = new Vector3(0, 0, -1);
 			Vector3 side = new Vector3(-forward.Z, 0, forward.X);
 			int n = 0;
@@ -169,9 +172,9 @@ namespace FF3
 			Game.Hero.Freeze();
 			Game.Hero.Face(forward.Yaw);
 			try { Game.Hero.BindMotions("b_p_player_" + party.Leader.Id.ToString("00")); Game.Hero.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
+			// The field camera stays: behind and above the leader it frames the monsters ahead on any
+			// map, where a side view walks into cave walls. FF4's own side camera can come with its stage.
 			_centre = hero + forward * 13f;
-			Game.Camera.MoveTo(_centre + side * 44f + new Vector3(0, 15f, 0) - forward * 4f);
-			Game.Camera.LookAt(_centre + new Vector3(0, 5f, 0));
 			_phase = Phase.Intro;
 			_timer = 0;
 			_acting = null;
@@ -458,6 +461,7 @@ namespace FF3
 		// ---- random encounters: the map's encounter chain, rolled per unit walked ----
 
 		private Vector3 _lastStep;
+		private string _noTableLogged;
 		private float _walked;
 		private int _sinceBattle;
 
@@ -470,7 +474,11 @@ namespace FF3
 			_lastStep = at;
 			if (step <= 0.01f || step > 20f) return;
 			Ff4Encounters.Table table = Ff4Encounters.For(Game.Field.Map);
-			if (table == null || table.Rate <= 0 || table.Parties.Count == 0) return;
+			if (table == null || table.Rate <= 0 || table.Parties.Count == 0)
+			{
+				if (_noTableLogged != Game.Field.Map) { _noTableLogged = Game.Field.Map; Log.Write(LogChannel.File, "encounters: map '" + Game.Field.Map + "' has no encounter table here"); }
+				return;
+			}
 			_walked += step;
 			if (_walked < 1f) return;
 			_walked -= 1f;
@@ -495,7 +503,6 @@ namespace FF3
 			_foes.Clear();
 			_party.Clear();
 			try { Game.Hero.Unfreeze(); } catch (Exception) { }
-			Game.Camera.Follow();
 			Game.Input.Capture = false;
 			_phase = Phase.Idle;
 			_acting = null;
@@ -507,6 +514,8 @@ namespace FF3
 
 		private void Draw()
 		{
+			// The result speaks through the message window; the panels would sit on top of it.
+			if (_phase == Phase.Victory || _phase == Phase.Defeat) return;
 			DrawList d = Game.Draw;
 			Color panel = new Color(16, 24, 72, 225);
 			Color frame = new Color(230, 230, 240);

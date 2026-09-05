@@ -632,8 +632,10 @@ connected: `bootEventBattle(group, ...)`, `Game.Battle.Start(group)` and `ce_Cal
 jumps on after the fight, or at once where the scene has no field hero) start it, and random
 encounters come from the map's parameter pack (`Ff4Encounters`: the encount record's rate at 0,
 the monsterParty record's first group and three cumulative percentages) - the Mist cave rolls
-groups 10..13 at rate 11; towns are 0; the overworld pack is laid out differently and gives none
-yet. `monster_party_table.bbd` is FF4's encounter-group table: 520 records of 140 bytes, id
+groups 10..13 at rate 11; towns are 0; the overworld's pack holds one such four-record pack per chip (256 x 192
+bytes) and the chip under the party (`stageMng.getChipName`, f00_48) picks it - its rate word is
+a land-form table instead, so 6 stands in. `Game.Field.Map` answers the chip's stage (f00) on the
+overworld, whose stage has no name of its own. `monster_party_table.bbd` is FF4's encounter-group table: 520 records of 140 bytes, id
 first, up to six slots of monster id, flag and x/y/z placement (`MonsterParty` in OpenFF.Data,
 read for FF3's 18-byte records too). The damage
 formula is a placeholder (attack x 2 - defence, +-10%) until FF4's is read from libff4.so;
