@@ -40,7 +40,55 @@ namespace OpenFF.Data
 			GameTables tables = new GameTables { Game = "ff4" };
 			ReadPlayers(chain, tables);
 			ReadItems(chain, tables);
+			ReadMonsters(chain, tables);
 			return tables;
+		}
+
+		/// <summary>
+		/// monster.chaindata chain 0: 252 records of 152 bytes. The head is FF3's (nameId, textId,
+		/// familyId, modelId, monsterId at 8, level, size, maxHp s32 at 0xC); five attribute bytes
+		/// at 0x12; four (item, chance of 4096) drop pairs from 0x6C; experience s32 at 0x88 and
+		/// gil at 0x8C, read off the records (they climb with the level; the last boss gives 12000
+		/// and 100000). babil_battle.msd names them by name id.
+		/// </summary>
+		private static void ReadMonsters(ContentChain chain, GameTables tables)
+		{
+			if (!TableFiles.ReadAny(chain, "monster.chaindata", out byte[] data))
+			{
+				tables.Notes.Add("monster.chaindata not found");
+				return;
+			}
+			ChainPack pack;
+			try { pack = ChainPack.Read(data); }
+			catch (Exception ex) { tables.Notes.Add("monster.chaindata: " + ex.Message); return; }
+			Dictionary<uint, string> names = TableFiles.ReadNames(chain, "babil_battle.msd", tables);
+			int records = pack.Records(0, 152);
+			for (int i = 0; i < records; i++)
+			{
+				byte[] r = pack.Record(0, 152, i);
+				MonsterDefinition m = new MonsterDefinition
+				{
+					Id = ChainPack.S16(r, 8),
+					NameId = ChainPack.S16(r, 0),
+					TextId = ChainPack.S16(r, 2),
+					Family = ChainPack.S16(r, 4),
+					ModelId = ChainPack.S16(r, 6),
+					Level = r[0xA],
+					Size = r[0xB],
+					MaxHp = ChainPack.S32(r, 0xC),
+					Stats = new Stats { Strength = r[0x12], Vitality = r[0x13], Agility = r[0x14], Intellect = r[0x15], Spirit = r[0x16] },
+					Experience = ChainPack.S32(r, 0x88),
+					Gil = ChainPack.S32(r, 0x8C),
+					Raw = r,
+				};
+				for (int d = 0; d < 4; d++)
+				{
+					int item = ChainPack.S16(r, 0x6C + 4 * d), chance = ChainPack.S16(r, 0x6E + 4 * d);
+					if (item > 0 && chance > 0) m.Drops.Add(new DropChance { ItemId = item, Chance = chance });
+				}
+				if (names != null && m.NameId > 0 && names.TryGetValue((uint)m.NameId, out string name)) m.Name = name;
+				tables.Monsters.Add(m);
+			}
 		}
 
 		private static void ReadPlayers(ContentChain chain, GameTables tables)

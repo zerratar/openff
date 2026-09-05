@@ -31,7 +31,51 @@ namespace OpenFF.Data
 			GameTables tables = new GameTables { Game = "ff3" };
 			ReadPlayers(chain, tables);
 			ReadItems(chain, tables);
+			ReadMonsters(chain, tables);
 			return tables;
+		}
+
+		/// <summary>
+		/// monster.chaindata chain 0: 255 records of 100 bytes (mon.MonsterParameter.parse): nameId,
+		/// textId, familyId, modelId, monsterId at 8, level, size, maxHp s32 at 0xC, then the body,
+		/// attack and defence blocks (not read yet), and DroppingDataParameter at 0x54: probability
+		/// s16, table id s16, gold s32 at 0x58, exp s32 at 0x5C (Goblin: 10 gil, 1 exp).
+		/// eureka_battle.msd names them by name id.
+		/// </summary>
+		private static void ReadMonsters(ContentChain chain, GameTables tables)
+		{
+			if (!TableFiles.ReadAny(chain, "monster.chaindata", out byte[] data))
+			{
+				tables.Notes.Add("monster.chaindata not found");
+				return;
+			}
+			ChainPack pack;
+			try { pack = ChainPack.Read(data); }
+			catch (Exception ex) { tables.Notes.Add("monster.chaindata: " + ex.Message); return; }
+			Dictionary<uint, string> names = TableFiles.ReadNames(chain, "eureka_battle.msd", tables);
+			int records = pack.Size(0) / 100;
+			for (int i = 0; i < records; i++)
+			{
+				byte[] r = pack.Record(0, 100, i);
+				MonsterDefinition m = new MonsterDefinition
+				{
+					Id = ChainPack.S16(r, 8),
+					NameId = ChainPack.S16(r, 0),
+					TextId = ChainPack.S16(r, 2),
+					Family = ChainPack.S16(r, 4),
+					ModelId = ChainPack.S16(r, 6),
+					Level = r[0xA],
+					Size = r[0xB],
+					MaxHp = ChainPack.S32(r, 0xC),
+					DropProbability = ChainPack.S16(r, 0x54),
+					DropTable = ChainPack.S16(r, 0x56),
+					Gil = ChainPack.S32(r, 0x58),
+					Experience = ChainPack.S32(r, 0x5C),
+					Raw = r,
+				};
+				if (names != null && m.NameId > 0 && names.TryGetValue((uint)m.NameId, out string name)) m.Name = name;
+				tables.Monsters.Add(m);
+			}
 		}
 
 		private static void ReadPlayers(ContentChain chain, GameTables tables)

@@ -155,9 +155,55 @@ namespace OpenFF.Data
 		public override string ToString() => Id + " " + (Name ?? "?");
 	}
 
+	/// <summary>One thing a monster may leave behind.</summary>
+	public sealed class DropChance
+	{
+		public int ItemId;
+		/// <summary>FF4: out of 4096 (819 = one in five); FF3 keeps a table id and a probability on the record instead.</summary>
+		public int Chance;
+	}
+
+	public sealed class MonsterDefinition
+	{
+		/// <summary>The game's monster id (monsterId at 8), what encounters and scripts name.</summary>
+		public int Id;
+		public int NameId;
+		public string Name;
+		public int TextId;
+		public int Family;
+		public int ModelId;
+		public int Level;
+		public int MaxHp;
+		public int Size;
+		/// <summary>FF4's five bytes at 0x12; FF3 keeps them deeper in the record and they are not read yet.</summary>
+		public Stats Stats = new Stats();
+		public int Experience;
+		public int Gil;
+		public List<DropChance> Drops = new List<DropChance>();
+		/// <summary>FF3: the drop table id and probability of the record's DroppingDataParameter.</summary>
+		public int DropTable = -1;
+		public int DropProbability;
+		public byte[] Raw;
+
+		public override string ToString() => Id + " " + (Name ?? "?") + " L" + Level + " (" + MaxHp + " hp, " + Experience + " exp, " + Gil + " gil)";
+	}
+
 	/// <summary>Everything a game defines, read once from its files.</summary>
 	public sealed class GameTables
 	{
+		public List<MonsterDefinition> Monsters = new List<MonsterDefinition>();
+		private Dictionary<int, MonsterDefinition> _monsters;
+
+		public MonsterDefinition Monster(int id)
+		{
+			if (_monsters == null)
+			{
+				_monsters = new Dictionary<int, MonsterDefinition>();
+				foreach (MonsterDefinition m in Monsters) if (!_monsters.ContainsKey(m.Id)) _monsters[m.Id] = m;
+			}
+			return _monsters.TryGetValue(id, out MonsterDefinition found) ? found : null;
+		}
+
 		public string Game;
 		/// <summary>Experience needed to reach each level: index 0 is level 1 (0), index 1 level 2...</summary>
 		public int[] ExperienceToLevel = Array.Empty<int>();
@@ -209,7 +255,7 @@ namespace OpenFF.Data
 		{
 			StringBuilder sb = new StringBuilder();
 			sb.Append(Game).Append(" tables: ").Append(ExperienceToLevel.Length).Append(" levels, ")
-				.Append(Characters.Count).Append(" characters, ").Append(Items.Count).Append(" items, ").Append(Spells.Count).Append(" spells");
+				.Append(Characters.Count).Append(" characters, ").Append(Items.Count).Append(" items, ").Append(Spells.Count).Append(" spells, ").Append(Monsters.Count).Append(" monsters");
 			if (ExperienceToLevel.Length > 10)
 			{
 				sb.Append("\n  exp to level 2..11: ");
@@ -234,6 +280,18 @@ namespace OpenFF.Data
 				if (item.Equip != null) sb.Append(" ").Append(item.Equip);
 			}
 			if (Items.Count > shown) sb.Append("\n  ... ").Append(Items.Count - shown).Append(" more items");
+			shown = 0;
+			foreach (MonsterDefinition m in Monsters)
+			{
+				if (shown++ >= 6) break;
+				sb.Append("\n  ").Append(m);
+				if (m.Drops.Count > 0)
+				{
+					sb.Append(" drops");
+					foreach (DropChance d in m.Drops) sb.Append(' ').Append(Item(d.ItemId)?.Name ?? d.ItemId.ToString()).Append(' ').Append(d.Chance).Append(';');
+				}
+			}
+			if (Monsters.Count > shown) sb.Append("\n  ... ").Append(Monsters.Count - shown).Append(" more monsters");
 			foreach (string note in Notes) sb.Append("\n  note: ").Append(note);
 			return sb.ToString();
 		}

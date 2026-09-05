@@ -608,7 +608,10 @@ container), `Tables.cs` (`GameTables`, `CharacterDefinition` with `LevelRow` gro
 (`Party`, `Character`, `ItemStack` - the runtime roster the scripts and Game.Party act on),
 `Ff4Tables` and `Ff3Tables` (the readers; `TableFiles.Read` picks by the item pack's chain
 count) - FF3's items, spells and experience curve come through the same shape, its per-job
-growth not yet. The editor's msd reader moved to `Shared/Text` so names resolve
+growth not yet. Monsters too (`MonsterDefinition`: FF4's 152-byte records with attributes at
+0x12, drops at 0x6C, experience at 0x88 and gil at 0x8C; FF3's 100-byte records with the drop
+block at 0x54), named from babil_battle.msd / eureka_battle.msd; `Ff4Monsters` is Game.Monsters
+on FF4. The editor's msd reader moved to `Shared/Text` so names resolve
 on both sides. `ff3content tables <install>` dumps a game's tables through it (E-25).
 
 The client's side (`FF3.Game/Compat/Ff4Party.cs`): `Ff4Party.Tables` reads FF4's tables from the
