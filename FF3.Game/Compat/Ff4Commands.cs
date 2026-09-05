@@ -21,6 +21,25 @@ namespace FF3
 			{ 87, ChangeCameraMode },           // () - FF3's takes the mode; FF4's means "back to following"
 			{ 333, SetInsideMapJump },          // (trigger, map, ax, ay, az, facing, x1, y1, z1, x2, y2, z2)
 			{ 334, SetOutsideMapJump },         // the same, for leaving by the map's edge
+			{ 338, Ff4FieldCommands.Confirm },                    // (a, b): the Yes/No box
+			{ 339, Ff4FieldCommands.ConfirmWait },                // (yesText, noText, jumpIfYes, jumpIfNo)
+			{ 132, Ff4FieldCommands.WaitByLocale },               // (japanese frames, other frames)
+			{ 170, Ff4FieldCommands.JumpByLocale },               // (locale, ?, label)
+			{ 106, Ff4FieldCommands.SetRewardMessage },           // (textId, 0, icon, 0, 0, 0)
+			{ 107, Ff4FieldCommands.SetRewardMessageInterval },   // (frames)
+			{ 111, Ff4FieldCommands.ExecuteRewardMessageWindow }, // ()
+			{ 258, Ff4FieldCommands.SetPlayerLevel },             // (playerType, level)
+		};
+
+		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
+		public static readonly HashSet<int> Cosmetic = new HashSet<int>
+		{
+			57, 58,            // addDesionList, clearDesionList: the map-jump history
+			348,               // setMapjumpBGMOperation
+			417, 418, 443,     // setRelationMapjumpToDoorAttr, setDoor, setRelationOfMapjumpobjAndFlag: door swings on exits
+			468, 469, 470,     // createEffectTaskWalk/Run/Wait: footstep dust
+			495, 496, 497,     // setBGMDownParam, startBGMDown, reverseBGMDown: BGM ducking
+			494,               // setShadowScale
 		};
 
 		/// <summary>

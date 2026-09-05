@@ -123,6 +123,13 @@ namespace FF3
 					table[i] = GlobalScope.commandTable[ff3Index];
 					_reusedCount++;
 				}
+				else if (op != null && ff3ByName.TryGetValue(ScriptOpTable.Simplify(op.Name), out int sameName)
+					&& sameName != i && SameOperands(op, ff3.Get(sameName)))
+				{
+					// The same command under another number: FF3's handler, FF4's place in the table.
+					table[i] = GlobalScope.commandTable[sameName];
+					_reusedCount++;
+				}
 				else
 				{
 					int opcode = i;
@@ -130,6 +137,22 @@ namespace FF3
 				}
 			}
 			Log.Write(LogChannel.General, "script: FF4 table built - " + _reusedCount + " of " + table.Length + " commands run FF3's handler, the rest are skipped with their operands");
+			if (Options.Get("ff4table") != null)
+			{
+				// --ff4table: every command that is only skipped, by number and name, for the porting list.
+				List<string> skipped = new List<string>();
+				for (int i = 0; i < table.Length; i++)
+				{
+					ScriptOp op = ff4.Get(i);
+					if (op == null) continue;
+					int opcode = i;
+					bool runs = (ff3.Get(i) != null && i < GlobalScope.commandTable.Length && SameCommand(op, ff3.Get(i)))
+						|| Ff4Commands.Table.ContainsKey(i) || _extraOperandBytes.ContainsKey(i)
+						|| (aliases.TryGetValue(ScriptOpTable.Simplify(op.Name), out string a) && ff3ByName.ContainsKey(a));
+					if (!runs) skipped.Add(i + " " + ScriptOpTable.Simplify(op.Name));
+				}
+				Log.Write(LogChannel.General, "script: FF4 skipped: " + string.Join(", ", skipped));
+			}
 			_ff4 = table;
 			return table;
 		}
@@ -178,9 +201,10 @@ namespace FF3
 					}
 				}
 			}
+			bool quiet = Ff4Commands.Cosmetic.Contains(opcode);
 			lock (_reported)
 			{
-				if (_reported.Add(opcode))
+				if (!quiet && _reported.Add(opcode))
 				{
 					Log.Write(LogChannel.General, "script: FF4 command " + opcode + " " + (op != null ? ScriptOpTable.Simplify(op.Name) : "?") + " not implemented - skipped");
 				}
