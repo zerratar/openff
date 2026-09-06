@@ -62,6 +62,10 @@ opens Crystal in the browser. With a command (`extract`, `script`, `tables`, `ms
 `xbn`, `mdl`, `tex`, `cells`, `hich`, `mcl`, `lz` ...) it converts the games' files on the
 command line instead; `crystal` alone prints the list.
 
+**For people without the SDK:** `publish.cmd` builds `dist\OpenFF\` - `OpenFF.exe`, `crystal.exe`,
+the engine, an empty `mods\` folder and these documents, with the .NET runtime included. Zip
+that folder and hand it over; it needs nothing but the Steam games on the machine it runs on.
+
 ## The layout
 
 ```

@@ -4,7 +4,6 @@ using System.Threading;
 using Microsoft.Phone.Tasks;
 using Microsoft.Xna.Framework.Media;
 using MediaPlayer = Microsoft.Xna.Framework.Media.MediaPlayer;   // not the platform shim's
-using OpenFF.Platform;
 
 // The game host. Was an Android Activity implementing a GLSurfaceView renderer;
 // Game1 now drives these callbacks directly, so the lifecycle indirection is gone

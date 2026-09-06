@@ -33,3 +33,6 @@ Reference/libff4/asm/
 Reference/libff4/symbols.txt
 Reference/libff4/strings.txt
 Reference/libff4/menu-layouts.txt
+
+# publish.cmd's output
+dist/
