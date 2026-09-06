@@ -1,9 +1,9 @@
-﻿// The editor's half of ScriptOpTable: the mnemonic index the script language uses.
+// The editor's half of ScriptOpTable: the mnemonic index the script language uses.
 // The table itself lives in Shared/Script, compiled into the client too.
 
-using Ffs = FF3.ContentTool.Ffs;
+using Ffs = Crystal.Ffs;
 
-namespace FF3.Script
+namespace OpenFF.Script
 {
 	internal sealed partial class ScriptOpTable
 	{

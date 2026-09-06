@@ -1,4 +1,4 @@
-﻿// In-game screenshot capture.
+// In-game screenshot capture.
 //
 // Grabs the backbuffer and writes a PNG. Useful for checking rendering without
 // depending on desktop screen capture, which fails whenever the session is locked
@@ -18,8 +18,13 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+	using GameTime = Microsoft.Xna.Framework.GameTime;
+	using Color = Microsoft.Xna.Framework.Color;
+
 	internal sealed class ScreenCapture : DrawableGameComponent
 	{
 		private readonly string _directory;

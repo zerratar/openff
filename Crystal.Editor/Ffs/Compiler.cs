@@ -1,4 +1,4 @@
-﻿// Compiler for the script language: syntax tree in, a .script file out.
+// Compiler for the script language: syntax tree in, a .script file out.
 //
 // Two passes. The first walks the code assigning an address to every instruction and
 // label, which it can do because every instruction has a fixed length. The second
@@ -15,7 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace FF3.ContentTool.Ffs
+namespace Crystal.Ffs
 {
 	internal sealed class Diagnostic
 	{

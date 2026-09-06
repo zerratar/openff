@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -18,7 +18,7 @@ internal static partial class GlobalScope
 {
 	public static class stg
 	{
-		// PORT: FF4's overworld is FF3's chip layout mirrored along z (see FF3.FieldMirror).
+		// PORT: FF4's overworld is FF3's chip layout mirrored along z (see OpenFF.Client.FieldMirror).
 		// Set with the stage type; read wherever a chip meets a world position.
 		public static bool MirrorZ;
 
@@ -126,9 +126,9 @@ internal static partial class GlobalScope
 				m_RdrObject.setup(m_ModelSet.getMdlResource());
 				m_pScene.addRenderObject(m_RdrObject, 0);
 				m_RdrObject.setPosition(m_Chip.Pos);
-				if (FF3.Options.Get("probe") != null)
+				if (OpenFF.Client.Options.Get("probe") != null)
 				{
-					FF3.Log.Write(FF3.LogChannel.General, "chip: " + m_Chip.Name + " at (" + m_Chip.Pos.x / 4096.0 + "," + m_Chip.Pos.z / 4096.0 + ")" + (MirrorZ ? " mirrored" : ""));
+					OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "chip: " + m_Chip.Name + " at (" + m_Chip.Pos.x / 4096.0 + "," + m_Chip.Pos.z / 4096.0 + ")" + (MirrorZ ? " mirrored" : ""));
 				}
 				if (MirrorZ)
 				{
@@ -136,7 +136,7 @@ internal static partial class GlobalScope
 					// by a scale of -1 on the pose: a mirroring matrix lost the relief of FF4's
 					// multi-node chips somewhere past the transform, while the data mirror keeps every
 					// matrix a rotation. DrawModel swaps the cull face for a mirrored model.
-					FF3.FieldMirror.MirrorModel(m_ModelSet.getMdl(0u).getMdlResource(), m_Chip.Name);
+					OpenFF.Client.FieldMirror.MirrorModel(m_ModelSet.getMdl(0u).getMdlResource(), m_Chip.Name);
 				}
 				if (m_pMdlTex != null)
 				{
@@ -563,7 +563,7 @@ internal static partial class GlobalScope
 				data.setup(motname + ".ncap.lz", ds.fs.enFDL_FILETYPE.enFDL_FILETYPE_COMPRESS);
 				if (data.getSize() <= 0)
 				{
-					FF3.Log.Write(FF3.LogChannel.General, "stage: map motion " + motname + " was not found");
+					OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "stage: map motion " + motname + " was not found");
 					return;
 				}
 				if (m_MotSet == null)
@@ -574,7 +574,7 @@ internal static partial class GlobalScope
 				}
 				m_MotData.Add(data);
 				m_MotSet.addMotion(data.getAddr<ds.sys3d.ncap.SMotionFileHeader>());
-				FF3.Log.Write(FF3.LogChannel.File, "stage: map motion pack " + motname + " (" + data.getSize() + " bytes) on " + CurrentName);
+				OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "stage: map motion pack " + motname + " (" + data.getSize() + " bytes) on " + CurrentName);
 			}
 
 			public bool startMotion(int id, bool loop, uint blendFrame)
@@ -585,11 +585,11 @@ internal static partial class GlobalScope
 				}
 				if (!m_MotSet.isMotion((uint)id))
 				{
-					FF3.Log.Write(FF3.LogChannel.General, "stage: map motion " + id + " is not in the loaded packs");
+					OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "stage: map motion " + id + " is not in the loaded packs");
 					return false;
 				}
 				m_MotSet.start((uint)id, loop, blendFrame);
-				FF3.Log.Write(FF3.LogChannel.File, "stage: map motion " + id + (loop ? " looping" : "") + " blend " + blendFrame + " -> index " + m_MotSet.getIndex() + ", " + m_MotSet.getMaxFrame() + " frames, type " + m_StageType);
+				OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "stage: map motion " + id + (loop ? " looping" : "") + " blend " + blendFrame + " -> index " + m_MotSet.getIndex() + ", " + m_MotSet.getMaxFrame() + " frames, type " + m_StageType);
 				return true;
 			}
 
@@ -605,7 +605,7 @@ internal static partial class GlobalScope
 					return false;
 				}
 				bool ok = m_AnimSet.startAnimation(index, type, frame);
-				FF3.Log.Write(FF3.LogChannel.File, "stage: map animation " + index + " type " + type + (ok ? " started" : " not started"));
+				OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "stage: map animation " + index + " type " + type + (ok ? " started" : " not started"));
 				return ok;
 			}
 
@@ -1240,7 +1240,7 @@ internal static partial class GlobalScope
 							b = (sbyte)strtol(name.Substring(num2, 2), null, 16);
 							sprintf(out arg, "f%02d.ntxp", b);
 							m_StageType = (STAGE_TYPE)b;
-							if (m_StageType == (STAGE_TYPE)0 && FF3.GameProfile.IsFf4)
+							if (m_StageType == (STAGE_TYPE)0 && OpenFF.Client.GameProfile.IsFf4)
 							{
 								// PORT: a field's type is its number, and every field behaviour here
 								// (chip streaming, collision, the loop) switches on FIELD01..04. FF3's
@@ -1249,7 +1249,7 @@ internal static partial class GlobalScope
 								// file names above; its type is FF3's first field.
 								m_StageType = STAGE_TYPE.STAGE_TYPE_FIELD01;
 							}
-							MirrorZ = FF3.FieldMirror.Active(m_StageType);
+							MirrorZ = OpenFF.Client.FieldMirror.Active(m_StageType);
 							m_State = STATE_TYPE.STATE_TYPE_NORMAL;
 							sprintf(out m_stagePath, "/MAP/FIELD/F%02d", b);
 							FS_ChangeDir(m_stagePath);
@@ -1344,7 +1344,7 @@ internal static partial class GlobalScope
 					}
 					sprintf(out var arg4, "./MODEL/%s.nmdp.lz", name);
 					CurrentName = name;
-					FF3.Log.Write(FF3.LogChannel.File, "stage: " + name + " model " + ds.g_File.getSize(arg4) + " bytes, animation "
+					OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "stage: " + name + " model " + ds.g_File.getSize(arg4) + " bytes, animation "
 						+ ds.g_File.getSize("./ANIMATION/" + name + ".namp.lz") + ", collision " + ds.g_File.getSize("./COLLISION/" + name + "_col.mcl.lz"));
 					if (ds.g_File.getSize(arg4) != 0)
 					{
@@ -1363,7 +1363,7 @@ internal static partial class GlobalScope
 						}
 					}
 					sprintf(out arg4, "./ANIMATION/%s.namp.lz", name);
-					if (ds.g_File.getSize(arg4) != 0 && FF3.Options.Get("noanim") == null)
+					if (ds.g_File.getSize(arg4) != 0 && OpenFF.Client.Options.Get("noanim") == null)
 					{
 						AnmData.setup(arg4, type);
 						m_AnimSet.setup(AnmData.getAddr(), m_ModelSet.getMdlResource(), null);

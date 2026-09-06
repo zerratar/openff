@@ -180,7 +180,7 @@ what the editor's map view is built on.
 
 ## Tooling
 
-`FF3.ContentTool` reads and writes every format the game uses that has been worked
+`Crystal` reads and writes every format the game uses that has been worked
 out, and `crystal editor` puts a browser front end on the ones worth seeing while
 editing - scripts, menus and text. `Docs/Editor.md`.
 

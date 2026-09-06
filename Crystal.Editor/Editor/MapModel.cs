@@ -1,4 +1,4 @@
-﻿// A map, assembled from the four files that describe it.
+// A map, assembled from the four files that describe it.
 //
 //   <map>.hich     what stands there: model, position, and the cast that drives it
 //   <map>.script   the casts themselves - what each one does when you talk to it
@@ -16,7 +16,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class MapCharacter
 	{

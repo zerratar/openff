@@ -15,9 +15,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using FF3.Formats;
+using OpenFF.Formats;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class Archives
 	{

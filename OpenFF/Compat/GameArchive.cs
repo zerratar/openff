@@ -1,4 +1,4 @@
-﻿// Runtime access to the game's content, through the same chain the editor uses.
+// Runtime access to the game's content, through the same chain the editor uses.
 //
 // Shared/Content/ContentChain.cs answers "where does this file come from": the mods in
 // front (a project's edits, a downloaded mod folder, the legacy Content/Override), then
@@ -21,9 +21,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using FF3.Content;
+using OpenFF.Content;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class GameArchive
 	{

@@ -1,4 +1,4 @@
-﻿// Desktop input for the port.
+// Desktop input for the port.
 //
 // The game is driven entirely through the Android-style touch callbacks
 // (Android.onTouchDown / onTouchMove / onTouchUp) and a Back key. This turns real
@@ -16,8 +16,11 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+
 	internal static class DesktopInput
 	{
 		/// <summary>The coordinate space MainActivity normalises against.</summary>

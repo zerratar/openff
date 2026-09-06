@@ -1,4 +1,4 @@
-﻿// Game.Monsters on FF4: the unified tables through the engine's monster interface. FF3
+// Game.Monsters on FF4: the unified tables through the engine's monster interface. FF3
 // keeps LegacyMonsters over mon.MonsterManager. Encounter groups (the map parameters'
 // monsterParty chain) are not read yet, so Group answers an empty group.
 
@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using OpenFF;
 using OpenFF.Data;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal sealed class Ff4Monsters : GameService, IMonsters
 	{

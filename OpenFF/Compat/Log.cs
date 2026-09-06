@@ -1,4 +1,4 @@
-﻿// Diagnostic logging for the port.
+// Diagnostic logging for the port.
 //
 // Large parts of the decompiled game swallow exceptions and draw through an
 // OpenGL ES 1.x emulation layer, so a porting bug usually surfaces as "nothing
@@ -20,7 +20,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	[Flags]
 	internal enum LogChannel

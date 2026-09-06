@@ -1,4 +1,4 @@
-﻿// FF4's party on the unified data layer (Shared/Data, OpenFF.Data).
+// FF4's party on the unified data layer (Shared/Data, OpenFF.Data).
 //
 // FF3's party lives in the decompiled pl.PlayerParty with FF3's tables and jobs; FF4's
 // roster changes every chapter and its numbers come from other files. Rather than bend
@@ -13,7 +13,7 @@ using System.Text.Json;
 using OpenFF;
 using OpenFF.Data;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4Party
 	{

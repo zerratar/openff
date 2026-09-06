@@ -1,4 +1,4 @@
-﻿// Isolated render harness for the GL emulation.
+// Isolated render harness for the GL emulation.
 //
 //   --test=3d     textured + vertex-coloured quads through a perspective projection
 //   --test=2d     the same geometry through the game's 2D orthographic projection
@@ -18,8 +18,15 @@ using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+	using GameTime = Microsoft.Xna.Framework.GameTime;
+	using Color = Microsoft.Xna.Framework.Color;
+	using Vector2 = Microsoft.Xna.Framework.Vector2;
+	using Vector3 = Microsoft.Xna.Framework.Vector3;
+
 	internal sealed class RenderTest : DrawableGameComponent
 	{
 		/// <summary>True when a render test owns the frame; the game must not draw.</summary>

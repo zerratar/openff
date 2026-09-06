@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -84,12 +84,12 @@ internal static partial class GlobalScope
 							if (!_jointSeen)
 							{
 								_jointSeen = true;
-								FF3.Log.Write(FF3.LogChannel.File, "shadow: follows " + _jointName + " at " + (joint._30 / 4096f).ToString("0.0") + ", " + (joint._31 / 4096f).ToString("0.0") + ", " + (joint._32 / 4096f).ToString("0.0") + (ground != null ? ", ground " + (ground.y / 4096f).ToString("0.0") : ", no ground under it") + " (base " + (_pRenderObject.m_Position.y / 4096f).ToString("0.0") + ")");
+								OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "shadow: follows " + _jointName + " at " + (joint._30 / 4096f).ToString("0.0") + ", " + (joint._31 / 4096f).ToString("0.0") + ", " + (joint._32 / 4096f).ToString("0.0") + (ground != null ? ", ground " + (ground.y / 4096f).ToString("0.0") : ", no ground under it") + " (base " + (_pRenderObject.m_Position.y / 4096f).ToString("0.0") + ")");
 							}
 						}
 						else if (++_jointMissed == 120)
 						{
-							FF3.Log.Write(FF3.LogChannel.File, "shadow: " + _jointName + " not captured after 120 draws - the shadow stays at the model's position");
+							OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "shadow: " + _jointName + " not captured after 120 draws - the shadow stays at the model's position");
 						}
 					}
 					pos.y += _height;

@@ -1,4 +1,4 @@
-﻿// Dumps SpriteFont pages as they are loaded, so the glyph atlases can be inspected.
+// Dumps SpriteFont pages as they are loaded, so the glyph atlases can be inspected.
 //
 // The game renders text as one tinted SpriteBatch.DrawString per glyph, with no
 // outline pass anywhere in the code, so any outline has to be baked into these
@@ -9,8 +9,11 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+
 	internal static class FontDump
 	{
 		private static string Directory_ => Options.Get("dump-fonts");

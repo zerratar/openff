@@ -12,7 +12,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class ScriptCommands
 	{

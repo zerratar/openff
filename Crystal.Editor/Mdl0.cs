@@ -24,7 +24,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal struct Mdl0Vertex
 	{

@@ -257,7 +257,7 @@ head = '''// Generated: what each script operand means - see Docs/Script-Languag
 //
 // Do not edit by hand - run Tools/gen_operand_names.py.
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 @Tinternal static class ScriptOperands
 @T{

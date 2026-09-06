@@ -87,7 +87,7 @@ def main():
     out.write('// all of them - which is why these never appeared: the cell reader looks\n')
     out.write('// for a sheet of the same name and there is none.\n\n')
     out.write('using System;\nusing System.Collections.Generic;\n\n')
-    out.write('namespace FF3.ContentTool.Editor\n{\n')
+    out.write('namespace Crystal.Editor\n{\n')
     out.write('\tinternal static class MenuBackgrounds\n\t{\n')
     out.write('\t\t/// <summary>Screen name in a .xbn to the cell bank drawn behind it.</summary>\n')
     out.write('\t\tpublic static readonly IReadOnlyDictionary<string, string> ForScreen =\n')

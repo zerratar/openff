@@ -1,4 +1,4 @@
-﻿// Batch-level geometry diagnostics for the GL emulation.
+// Batch-level geometry diagnostics for the GL emulation.
 //
 // Logging one vertex tells you nothing about a 4887-vertex mesh: the first vertex of
 // a map is usually a corner that is legitimately off screen. This projects the whole
@@ -11,7 +11,7 @@ using System.Globalization;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class GlDiag
 	{

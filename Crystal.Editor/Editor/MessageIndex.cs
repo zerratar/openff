@@ -1,4 +1,4 @@
-﻿// Message id -> text, read through the workspace.
+// Message id -> text, read through the workspace.
 //
 // It matters that this goes through the workspace rather than a folder of extracted
 // files: a line added or changed in the editor lives in the override, and if the
@@ -8,12 +8,12 @@
 // Built on first use and dropped whenever a .msd is written, which is cheap - one
 // language is about 200 files.
 
-using FF3.Content;
+using OpenFF.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class MessageIndex
 	{

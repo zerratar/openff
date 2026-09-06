@@ -16,7 +16,7 @@ using System.Text.Json;
 using OpenFF;
 using OpenFF.Data;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	/// <summary>Where the party stands and what the scripts have done: the field chunk of an FF4 save.</summary>
 	internal sealed class Ff4FieldState : ISaveable

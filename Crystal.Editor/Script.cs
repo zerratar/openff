@@ -30,7 +30,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal sealed class ScriptCast
 	{

@@ -12,8 +12,14 @@ using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+	using GameTime = Microsoft.Xna.Framework.GameTime;
+	using Color = Microsoft.Xna.Framework.Color;
+	using Vector2 = Microsoft.Xna.Framework.Vector2;
+
 	internal sealed class ModDraw : DrawableGameComponent
 	{
 		private const float TextSpaceWidth = 800f;

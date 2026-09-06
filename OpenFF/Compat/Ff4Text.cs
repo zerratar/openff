@@ -9,7 +9,7 @@
 using System;
 using System.Text;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4Text
 	{

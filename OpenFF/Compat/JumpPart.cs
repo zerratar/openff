@@ -1,4 +1,4 @@
-﻿// A game part that goes straight to a map.
+// A game part that goes straight to a map.
 //
 // The phone build had a debug menu part (GAMEPART_DEBUG_MENU) whose body did not ship;
 // the world, battle and map-jump code still check whether they were entered from it and
@@ -11,7 +11,7 @@
 using System;
 using System.Globalization;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal sealed class JumpPart : GlobalScope.sys.FF3GamePart
 	{

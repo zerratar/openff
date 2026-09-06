@@ -17,7 +17,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace FF3.ContentTool.Ffs
+namespace Crystal.Ffs
 {
 	internal static class SourceWriter
 	{

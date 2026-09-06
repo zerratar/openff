@@ -27,7 +27,7 @@ using System.Collections.Generic;
 using System.IO;
 
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal sealed class CellPart
 	{

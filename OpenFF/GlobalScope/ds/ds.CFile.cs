@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -113,7 +113,7 @@ internal static partial class GlobalScope
 				}
 				else
 				{
-					FF3.MissingFiles.Report(filename);
+					OpenFF.Client.MissingFiles.Report(filename);
 				}
 				return result;
 			}

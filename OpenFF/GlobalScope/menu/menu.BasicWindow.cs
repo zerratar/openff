@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -541,7 +541,7 @@ internal static partial class GlobalScope
 						{
 							bwAllocAndCopy(ref pSprite, m_Plane);
 							m_pWindow1dArray[i * 2 + j] = pSprite;
-							if (FF3.GameProfile.IsFf4)
+							if (OpenFF.Client.GameProfile.IsFf4)
 							{
 								// PORT: FF4 fills its windows in code - dark blue under white lines.
 								// The wallpaper cell Ff4Assets gives it is a white texel; tint it.

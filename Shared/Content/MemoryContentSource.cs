@@ -8,7 +8,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace FF3.Content
+namespace OpenFF.Content
 {
 	internal sealed class MemoryContentSource : IContentSource
 	{

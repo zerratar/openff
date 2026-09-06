@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -73,11 +73,11 @@ internal static partial class GlobalScope
 								vecFx.y = 0;
 								CWorldOutSideData.getInstance().MapData().setBackupPosJump(b: false);
 							}
-							else if (!FF3.GameProfile.Ff3MapParameters || map.CMapParameterManager.Instance().MapJumpParameter(id) == null)
+							else if (!OpenFF.Client.GameProfile.Ff3MapParameters || map.CMapParameterManager.Instance().MapJumpParameter(id) == null)
 							{
 								// PORT: no jump table to take the arrival from - the jump part's position.
-								vecFx.copy(FF3.JumpPart.StartPosition);
-								vecFx2.y = FF3.JumpPart.StartRotation;
+								vecFx.copy(OpenFF.Client.JumpPart.StartPosition);
+								vecFx2.y = OpenFF.Client.JumpPart.StartRotation;
 							}
 							else
 							{

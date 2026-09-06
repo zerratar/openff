@@ -1,4 +1,4 @@
-﻿// Small helpers used by the logging probes: hex previews and raw-asset dumps.
+// Small helpers used by the logging probes: hex previews and raw-asset dumps.
 //
 // Dumping is opt-in via FF3_DUMP=<directory>. When set, decoded source blobs are
 // written there so they can be inspected outside the game.
@@ -8,7 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Diagnostics
 	{

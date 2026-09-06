@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1015,7 +1015,7 @@ internal static partial class GlobalScope
 						}
 					}
 					focusedMedget = focusMedgets[focusedCursor];
-					FF3.SteamLayout.Trace(focusedMedget, cellCursor2d);
+					OpenFF.Client.SteamLayout.Trace(focusedMedget, cellCursor2d);
 					if (mode2d3d == 2)
 					{
 						cellCursor2d.SetPositionI(focusedMedget.cursorX(), focusedMedget.cursorY());
@@ -1074,7 +1074,7 @@ internal static partial class GlobalScope
 					{
 						focusedMedget.behavior().bmActivate(focusedMedget);
 					}
-					FF3.SteamLayout.Trace(focusedMedget, cellCursor2d);
+					OpenFF.Client.SteamLayout.Trace(focusedMedget, cellCursor2d);
 					if (mode2d3d == 2)
 					{
 						cellCursor2d.SetPositionI(focusedMedget.cursorX(), focusedMedget.cursorY());

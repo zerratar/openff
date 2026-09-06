@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -140,7 +140,7 @@ internal static partial class GlobalScope
 					break;
 				default:
 					// PORT: FF4's lists carry matrix and material commands between runs.
-					num3 += FF3.GxCommands.Skip((int)(num2 & 0xFF));
+					num3 += OpenFF.Client.GxCommands.Skip((int)(num2 & 0xFF));
 					break;
 				case 0u:
 				case 65u:
@@ -271,7 +271,7 @@ internal static partial class GlobalScope
 					break;
 				default:
 					// PORT: FF4's lists carry matrix and material commands between runs.
-					num3 += FF3.GxCommands.Skip((int)(num2 & 0xFF));
+					num3 += OpenFF.Client.GxCommands.Skip((int)(num2 & 0xFF));
 					break;
 				case 0u:
 				case 65u:

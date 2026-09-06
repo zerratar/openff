@@ -1,4 +1,4 @@
-﻿// What can go in an if or a while, and how it becomes a jump.
+// What can go in an if or a while, and how it becomes a jump.
 //
 // The bytecode has no expressions. It has conditional jumps, and they come in pairs:
 // flagOnJump and flagOffJump, touchOnJump and touchOffJump, and five more. So a
@@ -16,7 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace FF3.ContentTool.Ffs
+namespace Crystal.Ffs
 {
 	/// <summary>A condition that becomes one conditional jump.</summary>
 	internal sealed class ConditionForm

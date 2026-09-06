@@ -1,8 +1,8 @@
-﻿// FF4's own 2D pieces for the OpenFF battle and menus on FF4: the window frames, the glove
+// FF4's own 2D pieces for the OpenFF battle and menus on FF4: the window frames, the glove
 // cursor and the ATB gauge, drawn from the game's sheets and cell banks.
 //
 // The phone and Steam builds keep the DS names but not the DS formats: a .NCGR/.NCBR is a
-// PNG sheet, a .NCER a bank of cells whose parts are seven plain words (FF3.Content.CellBanks).
+// PNG sheet, a .NCER a bank of cells whose parts are seven plain words (OpenFF.Content.CellBanks).
 // MENU_Common.dat has window_frame_00..05 (two frame styles per sheet, eight cells each in the
 // bank: corner, left edge, corner, top edge, corner, right edge, corner, bottom edge - 16-px
 // corners, 64-px edges; style 0 a white line, style 1 the blue bevel the battle uses) and
@@ -27,10 +27,10 @@
 
 using System;
 using System.Collections.Generic;
-using FF3.Content;
+using OpenFF.Content;
 using OpenFF;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4Ui
 	{

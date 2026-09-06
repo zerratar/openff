@@ -60,7 +60,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	/// <summary>One triangle: three points, a material, and the normal it was built with.</summary>
 	internal sealed class MclPolygon

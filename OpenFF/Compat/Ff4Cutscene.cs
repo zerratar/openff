@@ -1,4 +1,4 @@
-﻿// FF4's cutscene engine, first cut: the character side.
+// FF4's cutscene engine, first cut: the character side.
 //
 // FF4's story scenes (e01_00, the Red Wings over Baron, and forty more maps) run on the
 // `ce_*` command family: a scene sets up numbered character slots (model + texture), binds
@@ -16,7 +16,7 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Xna.Framework.Audio;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4Cutscene
 	{
@@ -801,12 +801,12 @@ namespace FF3
 
 		private static void PlayVoice(string file)
 		{
-			if (string.IsNullOrEmpty(file) || FF3.Options.Get("novoice") != null) return;
+			if (string.IsNullOrEmpty(file) || OpenFF.Client.Options.Get("novoice") != null) return;
 			string name = Path.GetFileNameWithoutExtension(file);
 			Guard("voice " + name, () =>
 			{
 				// Some lines exist only in Japanese (861 ja_ files to 698 en_): fall back rather than go silent.
-				SoundEffect sound = FF3.OggSound.Load(_voiceLanguage + "_" + name) ?? FF3.OggSound.Load("ja_" + name) ?? FF3.OggSound.Load(name);
+				SoundEffect sound = OpenFF.Client.OggSound.Load(_voiceLanguage + "_" + name) ?? OpenFF.Client.OggSound.Load("ja_" + name) ?? OpenFF.Client.OggSound.Load(name);
 				if (sound == null)
 				{
 					Log.Write(LogChannel.File, "script: FF4 voice " + name + " not found");

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using OpenFF;
 using OpenFF.Data;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal sealed class Ff4Items : GameService, IItems
 	{

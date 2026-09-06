@@ -30,7 +30,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class InstalledFile
 	{

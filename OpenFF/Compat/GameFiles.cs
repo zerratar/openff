@@ -1,4 +1,4 @@
-﻿// Raw (non-ContentManager) game file access.
+// Raw (non-ContentManager) game file access.
 //
 // The phone build read its archives with TitleContainer.OpenStream, which resolves
 // relative to the executable's directory. Here the content deliberately lives
@@ -9,8 +9,11 @@ using System;
 using System.IO;
 using Microsoft.Xna.Framework;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+
 	internal static class GameFiles
 	{
 		/// <summary>Directory that "Content/..." paths are relative to. Set once at start-up.</summary>

@@ -1,4 +1,4 @@
-﻿// The 3D models, for the editor.
+// The 3D models, for the editor.
 //
 // The viewer in the browser wants triangles and a texture, not display lists and a
 // matrix stack, so the unpacking happens here and what goes over the wire is one
@@ -15,7 +15,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class ModelPackage
 	{

@@ -1,4 +1,4 @@
-﻿// FF4's own script commands, implemented on the FF3 engine.
+// FF4's own script commands, implemented on the FF3 engine.
 //
 // Everything FF4 shares with FF3 runs FF3's handler (ScriptCommands). What is here is
 // what FF4 added and this client has an answer for, written against the same field,
@@ -8,7 +8,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4Commands
 	{

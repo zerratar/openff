@@ -24,9 +24,9 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using FF3.ContentTool.Editor;
+using Crystal.Editor;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class Gltf
 	{

@@ -5,7 +5,7 @@
 using System;
 using System.Globalization;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class DevSay
 	{

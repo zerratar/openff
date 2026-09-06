@@ -13,7 +13,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal static class ProjectScenes
 	{

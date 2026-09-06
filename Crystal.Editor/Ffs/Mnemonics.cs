@@ -21,7 +21,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace FF3.ContentTool.Ffs
+namespace Crystal.Ffs
 {
 	internal sealed class Mnemonics
 	{

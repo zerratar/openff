@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -187,9 +187,9 @@ internal static partial class GlobalScope
 				characterMng.delCharacter(getCharacterId());
 				setCharacterId(-1);
 				string arg;
-				if (FF3.GameProfile.LeaderModel != null)
+				if (OpenFF.Client.GameProfile.LeaderModel != null)
 				{
-					arg = FF3.GameProfile.LeaderModel;
+					arg = OpenFF.Client.GameProfile.LeaderModel;
 				}
 				else
 				{

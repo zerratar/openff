@@ -1,4 +1,4 @@
-﻿// What the editor edits.
+// What the editor edits.
 //
 // The same rule the game plays by: a file is read from the override directory if it
 // is there, and from the shipped content if it is not. Saving always writes to the
@@ -14,9 +14,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using FF3.Formats;
+using OpenFF.Formats;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class WorkspaceEntry
 	{

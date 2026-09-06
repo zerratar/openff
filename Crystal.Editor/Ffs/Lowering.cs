@@ -1,4 +1,4 @@
-﻿// Structured statements down to labels and jumps.
+// Structured statements down to labels and jumps.
 //
 // This is where if, while, for and functions stop existing. Everything below this
 // point is the flat stream the machine runs, which means code generation never had to
@@ -17,7 +17,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 
-namespace FF3.ContentTool.Ffs
+namespace Crystal.Ffs
 {
 	internal sealed class Lowering
 	{

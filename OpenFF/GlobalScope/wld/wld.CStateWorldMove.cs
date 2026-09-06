@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -364,7 +364,7 @@ internal static partial class GlobalScope
 								}
 								// PORT: FF3's menu reads FF3's party, jobs and face cells; on FF4 the engine draws
 								// its own status menu (Ff4Menu) from the unified party instead.
-								if (!FF3.GameProfile.IsFf4 && ((ds.g_Pad.edge() & 0x400) != 0 || (ds.g_Pad.edge() & num) != 0 || _sys.World2DMng().MenuStartButton().isTouch()))
+								if (!OpenFF.Client.GameProfile.IsFf4 && ((ds.g_Pad.edge() & 0x400) != 0 || (ds.g_Pad.edge() & num) != 0 || _sys.World2DMng().MenuStartButton().isTouch()))
 								{
 									_sys.World2DMng().refMapNameWindow().close();
 									MatrixSound.MtxSENDS_Play(0, 1, 192, 127);

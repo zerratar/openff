@@ -7,7 +7,7 @@
 //
 // Do not edit by hand - run Tools/gen_opcodes_ff4.py <libff4.so>, which rebuilds it.
 
-namespace FF3.Script
+namespace OpenFF.Script
 {
 	internal static class ScriptOpsFf4
 	{

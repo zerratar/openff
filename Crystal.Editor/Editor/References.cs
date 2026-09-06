@@ -1,4 +1,4 @@
-﻿// What points at what, so a thing can be renumbered without breaking the things that
+// What points at what, so a thing can be renumbered without breaking the things that
 // name it by number.
 //
 // Most of the game does not need this. Almost everything that looks like a reference is
@@ -54,7 +54,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	/// <summary>One place that names an exit slot by its number.</summary>
 	internal sealed class ExitReference

@@ -5,7 +5,7 @@
 
 using System;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class Dxt
 	{

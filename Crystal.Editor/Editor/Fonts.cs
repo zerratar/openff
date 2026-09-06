@@ -44,7 +44,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	/// <summary>Where one character comes from and where it goes.</summary>
 	internal sealed class GlyphPlacement

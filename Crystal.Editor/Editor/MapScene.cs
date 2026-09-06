@@ -1,4 +1,4 @@
-﻿// A map as a scene, rather than as a table.
+// A map as a scene, rather than as a table.
 //
 // The 2D view draws a map as pins on a plan, which is the right thing when you are
 // moving somebody two steps to the left. This is the other half: the terrain model with
@@ -23,7 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class SceneObject
 	{

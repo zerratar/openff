@@ -1,4 +1,4 @@
-﻿// Where a game file comes from, in order: the mods, then the shipped content.
+// Where a game file comes from, in order: the mods, then the shipped content.
 //
 // The editor and the client used to answer that question separately - the editor with
 // a Workspace over IContentSource, the client with GameArchive over data*.bin and one
@@ -15,9 +15,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using FF3.Formats;
+using OpenFF.Formats;
 
-namespace FF3.Content
+namespace OpenFF.Content
 {
 	internal sealed class ContentChain
 	{

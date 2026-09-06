@@ -91,7 +91,7 @@ namespace Microsoft.Xna.Framework.GamerServices
 		/// Text entry deliberately does NOT set this. Game1.Draw clears the screen to
 		/// black whenever the guide is up (that was correct when the phone's keyboard
 		/// covered the screen); here you type into a field over the live scene instead,
-		/// and FF3.DesktopInput suppresses game input for the duration.
+		/// and OpenFF.Client.DesktopInput suppresses game input for the duration.
 		public static bool IsVisible => MgInput.MessageBox.IsVisible;
 
 		/// <summary>There is no trial build of the desktop port.</summary>
@@ -109,7 +109,7 @@ namespace Microsoft.Xna.Framework.GamerServices
 			string defaultText, AsyncCallback callback, object state, bool usePasswordMode)
 		{
 			GuideAsyncResult<string> result = new GuideAsyncResult<string>(state);
-			FF3.TextEntry entry = FF3.TextEntry.Instance;
+			OpenFF.Client.TextEntry entry = OpenFF.Client.TextEntry.Instance;
 			if (entry == null)
 			{
 				// No component attached (shouldn't happen); cancel rather than hang.

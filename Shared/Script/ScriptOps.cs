@@ -7,7 +7,7 @@
 //
 // Do not edit by hand - run Tools/gen_opcodes.py, which rebuilds it from the sources.
 
-namespace FF3.Script
+namespace OpenFF.Script
 {
 	internal enum Operand
 	{

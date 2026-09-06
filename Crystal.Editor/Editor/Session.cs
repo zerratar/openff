@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class Session
 	{

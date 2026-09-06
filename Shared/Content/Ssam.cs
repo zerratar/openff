@@ -1,4 +1,4 @@
-﻿// FF4's mass files, and a content source that reads through them.
+// FF4's mass files, and a content source that reads through them.
 //
 // FF4 on Steam leaves most of its data loose in files/, like FF3 does, but bundles the
 // per-map pieces into containers: CAST_SCRIPT.dat holds every map's script,
@@ -25,7 +25,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace FF3.Content
+namespace OpenFF.Content
 {
 	internal sealed class SsamEntry
 	{

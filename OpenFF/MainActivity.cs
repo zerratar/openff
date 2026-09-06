@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using android.app;
 using android.content;
 using System.Threading;
@@ -148,7 +148,7 @@ public class MainActivity
 		}
 		catch (Exception ex)
 		{
-			FF3.Log.Write(FF3.LogChannel.General, "language resource unreadable: " + ex.Message);
+			OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "language resource unreadable: " + ex.Message);
 		}
 		// The surface is the game window; report its size so the touch mapping and
 		// the renderer agree on the 800x480 view the game was authored against.
@@ -168,7 +168,7 @@ public class MainActivity
 
 	public void onPause()
 	{
-		// PORT: dismissed the Android soft keyboard here. FF3.TextEntry is drawn by
+		// PORT: dismissed the Android soft keyboard here. OpenFF.Client.TextEntry is drawn by
 		// the game itself and needs no dismissing when the window loses focus.
 		pause();
 		sound.pauseSoundAll(pause: true);
@@ -341,12 +341,12 @@ public class MainActivity
 	{
 		// PORT: content could also be served from a downloaded data.zip. A Windows
 		// build always ships the archives, so only that path remains.
-		return FF3.GameArchive.Read(filename);
+		return OpenFF.Client.GameArchive.Read(filename);
 	}
 
 	public static byte[] loadFile(string filename)
 	{
-		filename = FF3.Ff4Assets.MapName(filename);
+		filename = OpenFF.Client.Ff4Assets.MapName(filename);
 		string[] array = new string[9] { "ja", "en", "fr", "de", "it", "es", "zh_CN", "zh_TW", "ko" };
 		byte[] array2 = null;
 		int num = filename.LastIndexOf('.');
@@ -369,10 +369,10 @@ public class MainActivity
 		}
 		if (text.Equals(".msd"))
 		{
-			if (FF3.Ff4Text.IsWide(array2))
+			if (OpenFF.Client.Ff4Text.IsWide(array2))
 			{
 				// PORT: FF4's text is UTF-16LE; the message code reads UTF-8 (see Ff4Text).
-				array2 = FF3.Ff4Text.DecodeWide(array2);
+				array2 = OpenFF.Client.Ff4Text.DecodeWide(array2);
 			}
 			else if (filename[0] != 'e')
 			{
@@ -436,7 +436,7 @@ public class MainActivity
 	public static void createSaveFile(int size)
 	{
 		// PORT: was Android per-app private storage, mapped onto IsolatedStorage.
-		FF3.SaveFiles.Create("save.bin", size);
+		OpenFF.Client.SaveFiles.Create("save.bin", size);
 	}
 
 	public static void trace(string text)
@@ -486,7 +486,7 @@ public class MainActivity
 		// PORT: fold in the Windows keyboard. This is the game's own NDS pad register,
 		// so keys drive every menu and field control the DS original supported; the
 		// phone build only ever set the B bit here, from the hardware Back button.
-		return result | FF3.DesktopInput.PadBits;
+		return result | OpenFF.Client.DesktopInput.PadBits;
 	}
 
 	public static void webTo()
@@ -502,7 +502,7 @@ public class MainActivity
 	{
 		// PORT: went through android.graphics.BitmapFactory -> Bitmap -> ByteBuffer,
 		// all of which only wrapped Texture2D.FromStream.
-		return FF3.ImageDecoder.Decode(data);
+		return OpenFF.Client.ImageDecoder.Decode(data);
 	}
 
 	// PORT: drawFont() rendered text into a bitmap via android.graphics.Canvas
@@ -539,9 +539,9 @@ public class MainActivity
 	{
 		// PORT: built an Android AlertDialog wrapping an EditText, which the shim
 		// forwarded to GlobalScope.Dialog and on to the Guide keyboard. On Windows
-		// you type into the game itself; FF3.TextEntry is the field.
+		// you type into the game itself; OpenFF.Client.TextEntry is the field.
 		activity.editString = null;
-		FF3.TextEntry entry = FF3.TextEntry.Instance;
+		OpenFF.Client.TextEntry entry = OpenFF.Client.TextEntry.Instance;
 		if (entry == null)
 		{
 			return;

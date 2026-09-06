@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -280,7 +280,7 @@ internal static partial class GlobalScope
 			{
 				if (m_Event != _Event)
 				{
-					FF3.EngineHooks.Cutscene(_Event);
+					OpenFF.Client.EngineHooks.Cutscene(_Event);
 				}
 				m_Event = _Event;
 			}

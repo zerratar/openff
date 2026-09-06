@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -74,7 +74,7 @@ internal static partial class GlobalScope
         {
             spBatch = new SpriteBatch(gdm.GraphicsDevice);
             // PORT: TrueType text when a face can be found; the atlases otherwise.
-            FF3.TrueTypeText.Initialise(gdm.GraphicsDevice);
+            OpenFF.Client.TrueTypeText.Initialise(gdm.GraphicsDevice);
             effect = new BasicEffect(gdm.GraphicsDevice);
             effect.VertexColorEnabled = true;
             color = Color.White;
@@ -99,8 +99,8 @@ internal static partial class GlobalScope
             // has nothing to draw with.
             try
             {
-                aaGlyph[12] = FF3.GameFiles.ReadAllBytes("Content/Font12.glp");
-                aaGlyph[16] = FF3.GameFiles.ReadAllBytes("Content/Font16.glp");
+                aaGlyph[12] = OpenFF.Client.GameFiles.ReadAllBytes("Content/Font12.glp");
+                aaGlyph[16] = OpenFF.Client.GameFiles.ReadAllBytes("Content/Font16.glp");
             }
             catch (Exception)
             {
@@ -185,9 +185,9 @@ internal static partial class GlobalScope
 
         public float StringWidth(string text, int iSize)
         {
-            if (FF3.TrueTypeText.Enabled)
+            if (OpenFF.Client.TrueTypeText.Enabled)
             {
-                return FF3.TrueTypeText.Width(text, iSize) * scale.X;
+                return OpenFF.Client.TrueTypeText.Width(text, iSize) * scale.X;
             }
             if (aaGlyph[iSize] == null)
             {
@@ -224,7 +224,7 @@ internal static partial class GlobalScope
                 if (aaSpriteFont[iSize][b] == null)
                 {
                     aaSpriteFont[iSize][b] = loadAsset<SpriteFont>("Font" + iSize + "_" + b);
-                    FF3.FontDump.Dump("Font" + iSize + "_" + b, aaSpriteFont[iSize][b]); /*FF3LOG*/
+                    OpenFF.Client.FontDump.Dump("Font" + iSize + "_" + b, aaSpriteFont[iSize][b]); /*FF3LOG*/
                     fontCount++;
                 }
                 num += aaSpriteFont[iSize][b].MeasureString(astrWord[(uint)c]).X * scale.X;
@@ -285,8 +285,8 @@ internal static partial class GlobalScope
             // is what the 3D path is drawing into as well - so the two cannot disagree,
             // and if something has narrowed it this follows.
             Viewport view = gdm.GraphicsDevice.Viewport;
-            FF3.TrueTypeText.Initialise(gdm.GraphicsDevice);
-            FF3.TrueTypeText.SetViewportScale(view.Height / TextSpaceHeight);
+            OpenFF.Client.TrueTypeText.Initialise(gdm.GraphicsDevice);
+            OpenFF.Client.TrueTypeText.SetViewportScale(view.Height / TextSpaceHeight);
             Matrix fit = Matrix.CreateScale(
                 view.Width / TextSpaceWidth,
                 view.Height / TextSpaceHeight,
@@ -308,9 +308,9 @@ internal static partial class GlobalScope
             {
                 return;
             }
-            if (FF3.TrueTypeText.Enabled)
+            if (OpenFF.Client.TrueTypeText.Enabled)
             {
-                FF3.TrueTypeText.Draw(spBatch, text, x, y, color, rotation, origin, scale, flip, depth, iSize);
+                OpenFF.Client.TrueTypeText.Draw(spBatch, text, x, y, color, rotation, origin, scale, flip, depth, iSize);
                 depth += 0.001f;
                 return;
             }
@@ -349,7 +349,7 @@ internal static partial class GlobalScope
                 if (aaSpriteFont[iSize][b] == null)
                 {
                     aaSpriteFont[iSize][b] = loadAsset<SpriteFont>("Font" + iSize + "_" + b);
-                    FF3.FontDump.Dump("Font" + iSize + "_" + b, aaSpriteFont[iSize][b]); /*FF3LOG*/
+                    OpenFF.Client.FontDump.Dump("Font" + iSize + "_" + b, aaSpriteFont[iSize][b]); /*FF3LOG*/
                     fontCount++;
                 }
                 if (GX_GetFlipScreen() == 1)

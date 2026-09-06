@@ -1,4 +1,4 @@
-﻿// A project: one mod, and which game it is for.
+// A project: one mod, and which game it is for.
 //
 // Editing has always written to an override directory. A project is that directory
 // with a name on it and a note of what it targets, which is what turns "my edits"
@@ -18,14 +18,14 @@
 // art, which is authored against a different virtual screen in each. See Docs/Editor.md.
 
 using System;
-using FF3.Content;
+using OpenFF.Content;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	/// <summary>Which game a project is for.</summary>
 	internal static class Targets

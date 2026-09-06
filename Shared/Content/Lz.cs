@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 
-namespace FF3.Content
+namespace OpenFF.Content
 {
 	internal static class Lz
 	{

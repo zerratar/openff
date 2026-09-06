@@ -1,4 +1,4 @@
-﻿// The OpenFF battle on FF4: a fight on the current map, built on nothing but OpenFF.Data
+// The OpenFF battle on FF4: a fight on the current map, built on nothing but OpenFF.Data
 // and the engine API - the way a mod would build one.
 //
 // FF3's battle part runs FF3's rules over FF3's tables and cannot take FF4's party; FF4's
@@ -26,7 +26,7 @@ using System.Collections.Generic;
 using OpenFF;
 using OpenFF.Data;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal sealed class Ff4Battle : GameService
 	{

@@ -15,7 +15,7 @@ using System;
 using System.Collections.Generic;
 using OpenFF;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4FieldCommands
 	{

@@ -1,4 +1,4 @@
-﻿// Desktop entry point.
+// Desktop entry point.
 //
 // The original syrcusW.dll was a library: Windows Phone hosted syrcusW.Game1 from
 // its own shell project, so the assembly had no Main. This supplies one.
@@ -9,8 +9,11 @@ using System.Runtime.ExceptionServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.GamerServices;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+
 	internal static class Program
 	{
 		[STAThread]

@@ -17,7 +17,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class Obj
 	{

@@ -18,7 +18,7 @@
 using System;
 using OpenFF;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4BattleStage
 	{

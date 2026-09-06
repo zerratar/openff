@@ -18,7 +18,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	/// <summary>One motion: per-node channels over a number of frames.</summary>
 	internal sealed class JointAnimation

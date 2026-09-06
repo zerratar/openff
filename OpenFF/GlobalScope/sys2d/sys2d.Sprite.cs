@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -104,8 +104,8 @@ internal static partial class GlobalScope
 					m_Ncer.Load(pCe);
 					// PORT: Steam's cell banks are laid out for another screen; the phone
 					// geometry replaces them, mapped onto whatever sheet was just loaded.
-					FF3.SteamCells.Apply(pCe, m_Ncer.pDataCe());
-					FF3.Ff4Assets.RemapCells(pCe, m_Ncer.pDataCe());
+					OpenFF.Client.SteamCells.Apply(pCe, m_Ncer.pDataCe());
+					OpenFF.Client.Ff4Assets.RemapCells(pCe, m_Ncer.pDataCe());
 					m_pCell = NNS_G2dGetCellDataByIdx(m_Ncer.pDataCe(), 0);
 				}
 			}

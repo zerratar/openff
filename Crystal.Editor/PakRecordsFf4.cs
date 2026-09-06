@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class PakRecordsFf4
 	{

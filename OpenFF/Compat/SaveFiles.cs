@@ -7,7 +7,7 @@
 using System;
 using System.IO;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class SaveFiles
 	{

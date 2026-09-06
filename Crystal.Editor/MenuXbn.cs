@@ -32,7 +32,7 @@ using System.IO;
 using System.Xml;
 using System.Xml.Linq;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class MenuXbn
 	{

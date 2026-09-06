@@ -1,4 +1,4 @@
-﻿// Exits: making them, changing them, and taking them away.
+// Exits: making them, changing them, and taking them away.
 //
 // An exit is two halves in two files, and both have to be there:
 //
@@ -33,7 +33,7 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class MapExitEdit
 	{

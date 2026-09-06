@@ -25,7 +25,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace FF3.Content
+namespace OpenFF.Content
 {
 	/// <summary>What mod.json holds.</summary>
 	internal sealed class ModManifest

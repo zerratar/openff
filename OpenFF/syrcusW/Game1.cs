@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Input;
@@ -38,13 +38,13 @@ public class Game1 : Game
 
 	protected override void BeginRun()
 	{
-		FF3.GameHost.Start();
+		OpenFF.Client.GameHost.Start();
 		base.BeginRun();
 	}
 
 	protected override void EndRun()
 	{
-		FF3.GameHost.Stop();
+		OpenFF.Client.GameHost.Stop();
 		base.EndRun();
 	}
 
@@ -56,25 +56,25 @@ public class Game1 : Game
 	protected override void LoadContent()
 	{
 		GlobalScope.m_Graphics.LoadContent();
-		FF3.GameHost.Create();
+		OpenFF.Client.GameHost.Create();
 		base.LoadContent();
 	}
 
 	protected override void UnloadContent()
 	{
-		FF3.GameHost.Destroy();
+		OpenFF.Client.GameHost.Destroy();
 		base.UnloadContent();
 	}
 
 	protected override void OnActivated(object sender, EventArgs args)
 	{
-		FF3.GameHost.Resume();
+		OpenFF.Client.GameHost.Resume();
 		base.OnActivated(sender, args);
 	}
 
 	protected override void OnDeactivated(object sender, EventArgs args)
 	{
-		FF3.GameHost.Pause();
+		OpenFF.Client.GameHost.Pause();
 		base.OnDeactivated(sender, args);
 	}
 
@@ -82,11 +82,11 @@ public class Game1 : Game
 	{
 		// PORT: the original read TouchPanel here and folded the touch points into a
 		// single gesture. This is a Windows build, so input comes from the mouse and
-		// keyboard instead; FF3.DesktopInput raises the same Android.onTouch* callbacks
+		// keyboard instead; OpenFF.Client.DesktopInput raises the same Android.onTouch* callbacks
 		// the rest of the game listens to. See Compat/DesktopInput.cs.
 		if (!Guide.IsVisible)
 		{
-			FF3.DesktopInput.Update();
+			OpenFF.Client.DesktopInput.Update();
 		}
 
 		// Fast-forward (hold Tab). Normally this just flips the game's own boost flag
@@ -94,10 +94,10 @@ public class Game1 : Game
 		// Fast-forward. Android.onUpdate() was empty, so the game's whole tick ran
 		// from the draw callback; --speed therefore has to run extra ticks here, on
 		// top of the one Draw performs.
-		int repeats = FF3.DesktopInput.BeginFrame();
+		int repeats = OpenFF.Client.DesktopInput.BeginFrame();
 		for (int i = 1; i < repeats; i++)
 		{
-			FF3.GameHost.Tick();
+			OpenFF.Client.GameHost.Tick();
 		}
 
 		try
@@ -125,14 +125,14 @@ public class Game1 : Game
 		}
 		// PORT: a render test owns the whole frame, so the game must not draw over
 		// it or leave device state behind that the test would then inherit.
-		if (FF3.RenderTest.Active)
+		if (OpenFF.Client.RenderTest.Active)
 		{
 			base.Draw(gameTime);
 			return;
 		}
 		if (!GlobalScope.m_Graphics.isPause())
 		{
-			FF3.GameHost.Tick();
+			OpenFF.Client.GameHost.Tick();
 		}
 		else
 		{

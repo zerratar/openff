@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -248,7 +248,7 @@ internal static partial class GlobalScope
 				if (message != null)
 				{
 					// PORT: Steam's frames are sized to a row, not to the phone's tall boxes (SteamLayout).
-					message.setPosition(ownerMedget.x(), (short)(ownerMedget.y() + FF3.SteamLayout.TextDrop(ownerMedget.height(), font)), erase: true);
+					message.setPosition(ownerMedget.x(), (short)(ownerMedget.y() + OpenFF.Client.SteamLayout.TextDrop(ownerMedget.height(), font)), erase: true);
 					message.setVSpace(4);
 					message.setDisplaySpeed(byte.MaxValue);
 					message.setDisplayWait(0);
@@ -264,7 +264,7 @@ internal static partial class GlobalScope
 				message = dGSMessageManager.createMessage(pBuf, (!flagCheck(4)) ? 1 : 0);
 				if (message != null)
 				{
-					short dropped = (short)(ownerMedget.y() + FF3.SteamLayout.TextDrop(ownerMedget.height(), (!flagCheck(4)) ? 1 : 0));
+					short dropped = (short)(ownerMedget.y() + OpenFF.Client.SteamLayout.TextDrop(ownerMedget.height(), (!flagCheck(4)) ? 1 : 0));
 					if (!decWidth)
 					{
 						message.setPosition(ownerMedget.x(), dropped, erase: true);
@@ -455,7 +455,7 @@ internal static partial class GlobalScope
 
 			public override int bmGetCursorX(Medget M)
 			{
-				if (FF3.SteamLayout.Active && (alignment == ALIGNMENT.ALIGN_CENTER || (int)alignment == FF3.SteamLayout.STEAM_ALIGN_MENU))
+				if (OpenFF.Client.SteamLayout.Active && (alignment == ALIGNMENT.ALIGN_CENTER || (int)alignment == OpenFF.Client.SteamLayout.STEAM_ALIGN_MENU))
 				{
 					// PORT: the phone's offsets put the hand inside Steam's frames, over the word
 					// (and Steam's own alignment, 6, fell through to 0: the hand on the word's
@@ -465,15 +465,15 @@ internal static partial class GlobalScope
 					// (the character selector, at x 12) sit at the screen's edge, and the hand
 					// belongs inside them.
 					int textStart = 0;
-					int gap = FF3.SteamLayout.MENU_GAP;
+					int gap = OpenFF.Client.SteamLayout.MENU_GAP;
 					if (alignment == ALIGNMENT.ALIGN_CENTER && message != null && M != null)
 					{
 						ds.Vector2<short> size = new ds.Vector2<short>();
 						message.getTextSize(size);
 						textStart = Math.Max(0, (M.width() - size.vx) / 2);
-						gap = FF3.SteamLayout.CENTER_GAP;
+						gap = OpenFF.Client.SteamLayout.CENTER_GAP;
 					}
-					return FF3.SteamLayout.CursorOffset(MenuManager.getSingleton().GetCursor2d(), textStart, gap);
+					return OpenFF.Client.SteamLayout.CursorOffset(MenuManager.getSingleton().GetCursor2d(), textStart, gap);
 				}
 				if (alignment == ALIGNMENT.ALIGN_CENTER)
 				{

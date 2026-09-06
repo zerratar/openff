@@ -7,10 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using FF3.Content;
+using OpenFF.Content;
 using OpenFF.Data;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal static class GameData
 	{

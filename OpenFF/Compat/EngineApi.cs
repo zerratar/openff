@@ -1,4 +1,4 @@
-﻿// The engine API on the legacy game.
+// The engine API on the legacy game.
 //
 // OpenFF.Engine/Api.cs says what a script may do; these services do it by calling what
 // the FF3 script command handlers call (GlobalScope.Members.cs, ff3Command_*): the
@@ -16,7 +16,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenFF;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class EngineApi
 	{

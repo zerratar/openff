@@ -10,7 +10,7 @@ using System;
 using OpenFF;
 using OpenFF.Events;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class EngineHooks
 	{

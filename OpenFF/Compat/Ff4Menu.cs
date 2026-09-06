@@ -24,7 +24,7 @@ using System.Collections.Generic;
 using OpenFF;
 using OpenFF.Data;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal sealed class Ff4Menu : GameService
 	{
@@ -92,11 +92,11 @@ namespace FF3
 		private void BuildCommands()
 		{
 			_commands.Clear();
-			FF3.Content.Layout root = Ff4Layouts.Get("Root");
+			OpenFF.Content.Layout root = Ff4Layouts.Get("Root");
 			List<uint> order = new List<uint>();
 			if (root != null)
 			{
-				foreach (FF3.Content.LayoutFrame f in root.Frames) if (f.MessageId >= 50002 && f.MessageId <= 50011) order.Add((uint)f.MessageId);
+				foreach (OpenFF.Content.LayoutFrame f in root.Frames) if (f.MessageId >= 50002 && f.MessageId <= 50011) order.Add((uint)f.MessageId);
 			}
 			if (order.Count == 0) order.AddRange(new uint[] { 50002, 50003, 50004, 50011, 50005, 50010, 50006, 50009, 50007 });
 			foreach (uint id in order)

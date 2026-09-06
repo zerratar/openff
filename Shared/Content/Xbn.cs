@@ -16,7 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace FF3.Content
+namespace OpenFF.Content
 {
 	public sealed class XbnNode
 	{

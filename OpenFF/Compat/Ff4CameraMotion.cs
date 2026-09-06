@@ -1,4 +1,4 @@
-﻿// FF4's camera motions: the .dsc sets in EVT_CAMERA.dat, played on the field camera.
+// FF4's camera motions: the .dsc sets in EVT_CAMERA.dat, played on the field camera.
 //
 // Read out of the FF4 binary (ds::sys3d::CameraMotionSet, CameraMotion, CameraHandle and
 // ds::AbstractKeyDecoder, Tools/ff4_disasm.py):
@@ -32,7 +32,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4CameraMotion
 	{
@@ -83,7 +83,7 @@ namespace FF3
 				}
 				if (data.Length > 4 && (data[0] == 0x10 || data[0] == 0x11) && !(data[0] == 'C' && data[1] == 'M'))
 				{
-					data = FF3.Content.Lz.Decompress(data);
+					data = OpenFF.Content.Lz.Decompress(data);
 				}
 				MotionSet set = Parse(data, name);
 				_slots[slot] = set;
@@ -256,7 +256,7 @@ namespace FF3
 
 		public static bool Play(int slot, uint id, int blend, bool loop)
 		{
-			if (FF3.Options.Get("ff4cam") == "off")
+			if (OpenFF.Client.Options.Get("ff4cam") == "off")
 			{
 				Log.Write(LogChannel.File, "script: FF4 camera motion " + id + " skipped (--ff4cam=off)");
 				return false;

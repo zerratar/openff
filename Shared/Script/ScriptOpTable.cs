@@ -9,7 +9,7 @@
 
 using System;
 
-namespace FF3.Script
+namespace OpenFF.Script
 {
 	internal sealed partial class ScriptOpTable
 	{

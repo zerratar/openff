@@ -26,7 +26,7 @@
 //   Audio/<name>.wav                   PCM/ADPCM audio, straight from the XNB
 // and writes a Content.mgcb so the MonoGame pipeline can rebuild them.
 
-using FF3.Content;
+using OpenFF.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -37,7 +37,7 @@ using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class Program
 	{
@@ -616,8 +616,8 @@ namespace FF3.ContentTool
 				}
 				try
 				{
-					FF3.ContentTool.Editor.ImageInfo info =
-						FF3.ContentTool.Editor.Images.Describe(File.ReadAllBytes(picture));
+					Crystal.Editor.ImageInfo info =
+						Crystal.Editor.Images.Describe(File.ReadAllBytes(picture));
 					sheets[Path.GetFileName(picture)] = (info.Width, info.Height);
 				}
 				catch (Exception)
@@ -1300,24 +1300,24 @@ namespace FF3.ContentTool
 			{
 				return "Content";
 			}
-			return FF3.Content.SteamInstalls.FindOne() ?? "Content";
+			return OpenFF.Content.SteamInstalls.FindOne() ?? "Content";
 		}
 
 		private static int ListProjects()
 		{
-			List<FF3.ContentTool.Editor.Project> all = FF3.ContentTool.Editor.Project.All();
+			List<Crystal.Editor.Project> all = Crystal.Editor.Project.All();
 			if (all.Count == 0)
 			{
 				Console.WriteLine("no projects yet in {0}",
-					FF3.ContentTool.Editor.Project.Root);
+					Crystal.Editor.Project.Root);
 				Console.WriteLine("make one with: crystal editor --project=<name>");
 				return 0;
 			}
-			foreach (FF3.ContentTool.Editor.Project project in all)
+			foreach (Crystal.Editor.Project project in all)
 			{
 				Console.WriteLine("  {0}", project.File.Name);
 				Console.WriteLine("    for  {0}", string.Join(", ",
-					project.File.Targets.Select(FF3.ContentTool.Editor.Targets.Describe)));
+					project.File.Targets.Select(Crystal.Editor.Targets.Describe)));
 				Console.WriteLine("    in   {0}", project.Directory);
 				Console.WriteLine();
 			}
@@ -1326,17 +1326,17 @@ namespace FF3.ContentTool
 
 		private static int ListInstalls()
 		{
-			List<FF3.Content.SteamInstall> found = FF3.Content.SteamInstalls.Find();
-			found.AddRange(FF3.Content.SteamInstalls.Find(
-				FF3.Content.SteamInstalls.Ff4AppId));
+			List<OpenFF.Content.SteamInstall> found = OpenFF.Content.SteamInstalls.Find();
+			found.AddRange(OpenFF.Content.SteamInstalls.Find(
+				OpenFF.Content.SteamInstalls.Ff4AppId));
 			if (found.Count == 0)
 			{
 				Console.WriteLine("no Steam copy of either game found on this machine");
 				Console.WriteLine("(looked for appmanifest_{0}.acf and appmanifest_{1}.acf in every Steam library)",
-					FF3.Content.SteamInstalls.AppId, FF3.Content.SteamInstalls.Ff4AppId);
+					OpenFF.Content.SteamInstalls.AppId, OpenFF.Content.SteamInstalls.Ff4AppId);
 				return 1;
 			}
-			foreach (FF3.Content.SteamInstall install in found)
+			foreach (OpenFF.Content.SteamInstall install in found)
 			{
 				Console.WriteLine("  {0}", install.Name ?? "Final Fantasy III");
 				Console.WriteLine("  {0}", install.Path);
@@ -1375,12 +1375,12 @@ namespace FF3.ContentTool
 
 			Console.WriteLine("  content   {0} ({1})", workspace.ContentDirectory, workspace.Kind);
 			Console.WriteLine("  mod       {0}", workspace.OverrideDirectory);
-			Console.WriteLine("  originals {0}", FF3.ContentTool.Editor.ModInstall.BackupDirectory(workspace));
+			Console.WriteLine("  originals {0}", Crystal.Editor.ModInstall.BackupDirectory(workspace));
 			Console.WriteLine();
 
-			FF3.ContentTool.Editor.ModResult result = install
-				? FF3.ContentTool.Editor.ModInstall.Install(workspace)
-				: FF3.ContentTool.Editor.ModInstall.Uninstall(workspace);
+			Crystal.Editor.ModResult result = install
+				? Crystal.Editor.ModInstall.Install(workspace)
+				: Crystal.Editor.ModInstall.Uninstall(workspace);
 
 			if (!result.Ok)
 			{
@@ -1473,16 +1473,16 @@ namespace FF3.ContentTool
 			// to be read only alongside --project and otherwise quietly opened FF3.
 			if (projectName == null && content == null && target != null)
 			{
-				content = FF3.ContentTool.Editor.Targets.Find(target);
+				content = Crystal.Editor.Targets.Find(target);
 				if (content == null)
 				{
 					Console.Error.WriteLine("no install found for "
-						+ FF3.ContentTool.Editor.Targets.Describe(target));
+						+ Crystal.Editor.Targets.Describe(target));
 					return 1;
 				}
 			}
 
-			FF3.ContentTool.Editor.Project project = null;
+			Crystal.Editor.Project project = null;
 			if (projectName != null)
 			{
 				project = OpenOrCreateProject(projectName, target);
@@ -1536,7 +1536,7 @@ namespace FF3.ContentTool
 			{
 				Console.WriteLine("  project   {0} ({1}) in {2}",
 					project.File.Name,
-					FF3.ContentTool.Editor.Targets.Describe(project.File.Active),
+					Crystal.Editor.Targets.Describe(project.File.Active),
 					project.Directory);
 			}
 
@@ -1547,15 +1547,15 @@ namespace FF3.ContentTool
 		}
 
 		/// <summary>A project by name, made if it is not there yet.</summary>
-		private static FF3.ContentTool.Editor.Project OpenOrCreateProject(
+		private static Crystal.Editor.Project OpenOrCreateProject(
 			string name, string target)
 		{
 			// A path is taken as a path, so an existing mod folder can be opened from
 			// anywhere; anything else is a name under the projects directory.
-			FF3.ContentTool.Editor.Project project =
+			Crystal.Editor.Project project =
 				name.IndexOfAny(new[] { '/', '\\' }) >= 0 || Path.IsPathRooted(name)
-					? FF3.ContentTool.Editor.Project.TryOpen(name)
-					: FF3.ContentTool.Editor.Project.All()
+					? Crystal.Editor.Project.TryOpen(name)
+					: Crystal.Editor.Project.All()
 						.FirstOrDefault(p => string.Equals(p.File.Name, name,
 							StringComparison.OrdinalIgnoreCase));
 
@@ -1563,9 +1563,9 @@ namespace FF3.ContentTool
 			{
 				try
 				{
-					project = FF3.ContentTool.Editor.Project.Create(
+					project = Crystal.Editor.Project.Create(
 						Path.GetFileName(name.TrimEnd('/', '\\')),
-						new[] { target ?? FF3.ContentTool.Editor.Targets.Steam });
+						new[] { target ?? Crystal.Editor.Targets.Steam });
 					Console.WriteLine("  created   {0}", project.Directory);
 				}
 				catch (Exception ex) when (ex is ArgumentException or IOException)
@@ -1577,10 +1577,10 @@ namespace FF3.ContentTool
 
 			if (target != null)
 			{
-				if (!FF3.ContentTool.Editor.Targets.Known(target))
+				if (!Crystal.Editor.Targets.Known(target))
 				{
 					Console.Error.WriteLine("no target called {0} - try {1}", target,
-						string.Join(" or ", FF3.ContentTool.Editor.Targets.All));
+						string.Join(" or ", Crystal.Editor.Targets.All));
 					return null;
 				}
 				project.File.Active = target;
@@ -1593,7 +1593,7 @@ namespace FF3.ContentTool
 			return project;
 		}
 
-		private static string SafeContentOf(FF3.ContentTool.Editor.Project project)
+		private static string SafeContentOf(Crystal.Editor.Project project)
 		{
 			try
 			{

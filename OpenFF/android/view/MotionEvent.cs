@@ -1,4 +1,4 @@
-﻿namespace android.view;
+namespace android.view;
 
 public sealed class MotionEvent
 {
@@ -32,7 +32,7 @@ public sealed class MotionEvent
 
 	public MotionEvent(int iAction, int iPointerCount, float[] afX, float[] afY)
 	{
-		FF3.Log.First(FF3.LogChannel.Input, "MotionEvent", 40, () => $"action={iAction} n={iPointerCount} x={(afX != null && afX.Length > 0 ? afX[0] : -1)} y={(afY != null && afY.Length > 0 ? afY[0] : -1)}"); /*FF3LOG*/
+		OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Input, "MotionEvent", 40, () => $"action={iAction} n={iPointerCount} x={(afX != null && afX.Length > 0 ? afX[0] : -1)} y={(afY != null && afY.Length > 0 ? afY[0] : -1)}"); /*FF3LOG*/
 		m_iAction = iAction;
 		m_iPointerCount = iPointerCount;
 		m_afX = new float[m_iPointerCount];

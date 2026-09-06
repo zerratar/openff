@@ -24,7 +24,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
-namespace FF3.Content
+namespace OpenFF.Content
 {
 	internal sealed class SteamInstall
 	{

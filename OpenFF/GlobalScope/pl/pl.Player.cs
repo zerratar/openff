@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -137,7 +137,7 @@ internal static partial class GlobalScope
 				jobManager_.initialize();
 				skillManager_.initialize();
 				jobPenaltyTime_ = 0;
-				if (FF3.GameProfile.Ff3Party)
+				if (OpenFF.Client.GameProfile.Ff3Party)
 				{
 					changeJob(JOB_TYPE.SUPPINN);
 				}
@@ -381,7 +381,7 @@ internal static partial class GlobalScope
 
 			public void updateParameter()
 			{
-				if (!FF3.GameProfile.Ff3Party)
+				if (!OpenFF.Client.GameProfile.Ff3Party)
 				{
 					// PORT: no growth tables to read; the FF4 party keeps its defaults.
 					return;

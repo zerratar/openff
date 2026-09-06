@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Options
 	{

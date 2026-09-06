@@ -19,7 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4Exits
 	{

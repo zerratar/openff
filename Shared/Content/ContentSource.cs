@@ -1,4 +1,4 @@
-﻿// Where the shipped bytes come from.
+// Where the shipped bytes come from.
 //
 // Two releases of this game ship the same data two different ways. Ours packs it into
 // data000.bin plus numbered archives, the way the phone build did. The Steam build
@@ -14,9 +14,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using FF3.Formats;
+using OpenFF.Formats;
 
-namespace FF3.Content
+namespace OpenFF.Content
 {
 	/// <summary>One release's shipped content, whatever shape it is stored in.</summary>
 	internal interface IContentSource

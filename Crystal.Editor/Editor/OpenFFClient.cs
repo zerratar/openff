@@ -10,7 +10,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal static class OpenFFClient
 	{
@@ -26,7 +26,7 @@ namespace FF3.ContentTool.Editor
 				return recorded;
 			}
 			string executable = DevelopmentBuild();
-			return executable != null ? Path.Combine(Path.GetDirectoryName(executable), FF3.Content.ModsFolder.FolderName) : null;
+			return executable != null ? Path.Combine(Path.GetDirectoryName(executable), OpenFF.Content.ModsFolder.FolderName) : null;
 		}
 
 		/// <summary>The client's OpenFF.Engine.dll (beside its executable), or null when no client is known or built.</summary>

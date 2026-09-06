@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
@@ -61,7 +61,7 @@ public class MediaPlayer
 	{
 		// PORT: the content chain first - a Steam install's sound/<name>.ogg, FF4's
 		// .akb - and the XNB the phone build shipped only when there is none.
-		m_Sound = FF3.OggSound.Load(path);
+		m_Sound = OpenFF.Client.OggSound.Load(path);
 		if (m_Sound != null)
 		{
 			m_Shared = true;

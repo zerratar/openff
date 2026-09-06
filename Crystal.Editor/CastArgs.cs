@@ -9,7 +9,7 @@
 
 using System.Collections.Generic;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class CastArgs
 	{

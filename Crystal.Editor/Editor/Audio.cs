@@ -1,4 +1,4 @@
-﻿// Audio, and what plays it.
+// Audio, and what plays it.
 //
 // The chain, end to end:
 //
@@ -25,7 +25,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class AudioAsset
 	{
@@ -197,7 +197,7 @@ namespace FF3.ContentTool.Editor
 			{
 				XnbSoundEffect sound = xnb.ReadSoundEffect();
 				using MemoryStream stream = new MemoryStream();
-				ContentTool.Wav.Write(stream, sound.Format, sound.Data);
+				global::Crystal.Wav.Write(stream, sound.Format, sound.Data);
 				return stream.ToArray();
 			}
 			finally

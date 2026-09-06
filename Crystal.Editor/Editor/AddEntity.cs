@@ -1,4 +1,4 @@
-﻿// Putting something new on a map, which is several edits in three formats.
+// Putting something new on a map, which is several edits in three formats.
 //
 // The recipe, worked out by reading what the shipped maps do rather than by guessing:
 //
@@ -44,7 +44,7 @@
 // to get back to a map-object slot. Give it a person and the subtraction lands outside
 // the array.
 
-using FF3.Content;
+using OpenFF.Content;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -52,7 +52,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	/// <summary>What a new entity does once it is on the map.</summary>
 	internal enum EntityBehaviour

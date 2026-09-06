@@ -15,9 +15,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using FF3.Content;
+using OpenFF.Content;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class MovementDefaults
 	{

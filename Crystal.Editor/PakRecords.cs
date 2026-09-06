@@ -10,7 +10,7 @@
 //
 // Do not edit by hand - run Tools/gen_records.py, which rebuilds it from the sources.
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal enum FieldType
 	{

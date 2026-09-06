@@ -19,9 +19,9 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FF3.Content;
+using OpenFF.Content;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Launch
 	{

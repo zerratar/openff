@@ -15,7 +15,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class ImageInfo
 	{

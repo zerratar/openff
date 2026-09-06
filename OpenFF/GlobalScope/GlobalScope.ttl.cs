@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -762,11 +762,11 @@ internal static partial class GlobalScope
                 setting.SetPositionI(8, 268);
                 sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(setting);
                 // PORT: the phone's fourth entry (network / achievements). On this client it
-                // opens the mod list (FF3.ModListScreen), which draws its own "MODS" label at
+                // opens the mod list (OpenFF.Client.ModListScreen), which draws its own "MODS" label at
                 // the entry's position; so the entry exists whenever the list is available,
                 // and otherwise only when its picture does (the Steam build's title bank keeps
                 // cells 4 and 5 empty, and a blank line the cursor can land on is no entry).
-                if (FF3.ModListScreen.Available || FF3.SteamCells.CellHasPicture(touch, (UserInfo.confirm_state != 2) ? 4 : 5))
+                if (OpenFF.Client.ModListScreen.Available || OpenFF.Client.SteamCells.CellHasPicture(touch, (UserInfo.confirm_state != 2) ? 4 : 5))
                 {
                 tITLE_COMMAND = new TITLE_COMMAND();
                 tITLE_COMMAND.next_part = ((UserInfo.confirm_state != 2) ? 4 : 5);
@@ -803,10 +803,10 @@ internal static partial class GlobalScope
                 // prompt as one 300 px strip with the words left-justified inside it, so
                 // centring the strip leaves the words off to the left; the words themselves
                 // are centred, by what the cell actually paints.
-                if (FF3.SteamCells.CellVisibleSpan(touch, 0, out int visibleLeft, out int visibleRight))
+                if (OpenFF.Client.SteamCells.CellVisibleSpan(touch, 0, out int visibleLeft, out int visibleRight))
                 {
                     touch.SetPositionI((480 - (visibleRight - visibleLeft)) / 2 - visibleLeft, NEW_GAME_POS_Y);
-                    FF3.Log.Write(FF3.LogChannel.General, "title: start prompt paints " + visibleLeft + ".." + visibleRight + " of its cell, placed at " + ((480 - (visibleRight - visibleLeft)) / 2 - visibleLeft));
+                    OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "title: start prompt paints " + visibleLeft + ".." + visibleRight + " of its cell, placed at " + ((480 - (visibleRight - visibleLeft)) / 2 - visibleLeft));
                 }
                 else
                 {
@@ -824,7 +824,7 @@ internal static partial class GlobalScope
                 logoSprite[1].Release();
                 sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(logoSprite[1]);
                 tPrologue.tpTerminate();
-                FF3.ModListScreen.HideTitleLabel();
+                OpenFF.Client.ModListScreen.HideTitleLabel();
                 cursor.Release();
                 sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(cursor);
                 touch.Release();
@@ -883,11 +883,11 @@ internal static partial class GlobalScope
                     }
                     if ((ds.g_Pad.edge() & 9) != 0)
                     {
-                        if (FF3.ModListScreen.Available && titleCommands[cIndexNo].next_part >= 4)
+                        if (OpenFF.Client.ModListScreen.Available && titleCommands[cIndexNo].next_part >= 4)
                         {
                             // PORT: the fourth entry is the mod list on this client, not the network part.
                             MatrixSound.MtxSENDS_Play(0, 1, 192, 127);
-                            FF3.ModListScreen.Open();
+                            OpenFF.Client.ModListScreen.Open();
                             return false;
                         }
                         cIndexNo = titleCommands[cIndexNo].next_part;
@@ -986,9 +986,9 @@ internal static partial class GlobalScope
                 cursor.SetShow(show: true);
                 setting.SetShow(show: true);
                 about.SetShow(show: false);
-                if (FF3.ModListScreen.Available && !FF3.SteamCells.CellHasPicture(touch, (UserInfo.confirm_state != 2) ? 4 : 5))
+                if (OpenFF.Client.ModListScreen.Available && !OpenFF.Client.SteamCells.CellHasPicture(touch, (UserInfo.confirm_state != 2) ? 4 : 5))
                 {
-                    FF3.ModListScreen.ShowTitleLabel(WIFI_POS_X + position_setting_x[(int)languageCode()], WIFI_POS_Y);
+                    OpenFF.Client.ModListScreen.ShowTitleLabel(WIFI_POS_X + position_setting_x[(int)languageCode()], WIFI_POS_Y);
                 }
             }
 
@@ -1022,11 +1022,11 @@ internal static partial class GlobalScope
                             return false;
                         }
                         cursor.SetPositionI(titleCommands[i].pos.vx - 16 + position_setting_x[(int)lANGUAGE_CODE], titleCommands[i].pos.vy + title_command_height / 2);
-                        if (FF3.ModListScreen.Available && titleCommands[i].next_part >= 4)
+                        if (OpenFF.Client.ModListScreen.Available && titleCommands[i].next_part >= 4)
                         {
                             // PORT: the fourth entry is the mod list on this client, not the network part.
                             MatrixSound.MtxSENDS_Play(0, 1, 192, 127);
-                            FF3.ModListScreen.Open();
+                            OpenFF.Client.ModListScreen.Open();
                             return false;
                         }
                         cIndexNo = titleCommands[i].next_part;

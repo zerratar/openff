@@ -1,4 +1,4 @@
-﻿// Removing a placed character, and everything that only existed for it.
+// Removing a placed character, and everything that only existed for it.
 //
 // A character is not one record. It is a .hich row, a boot call, a cast in the map's
 // script, and the lines that cast shows - four edits across three formats, which is
@@ -31,7 +31,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class DeleteCharacterResult
 	{

@@ -14,7 +14,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal static class ProjectExport
 	{
@@ -77,7 +77,7 @@ namespace FF3.ContentTool.Editor
 			string source = project.FilesFor(Targets.Ours);
 			string key = Safe(project.File.Name);
 			string directory = Path.Combine(modsFolder, key);
-			string manifestPath = Path.Combine(directory, FF3.Content.ModsFolder.ManifestName);
+			string manifestPath = Path.Combine(directory, OpenFF.Content.ModsFolder.ManifestName);
 			string files = Path.Combine(directory, "files");
 			if (Directory.Exists(directory))
 			{
@@ -129,14 +129,14 @@ namespace FF3.ContentTool.Editor
 				File.Copy(Path.Combine(ProjectScenes.Directory(project), map.Key + ".json"), Path.Combine(scenesOut, map.Key + ".json"), overwrite: true);
 				scenes++;
 			}
-			FF3.Content.ModsFolder.WriteManifest(manifestPath, new FF3.Content.ModManifest
+			OpenFF.Content.ModsFolder.WriteManifest(manifestPath, new OpenFF.Content.ModManifest
 			{
 				Id = key,
 				Name = string.IsNullOrWhiteSpace(project.File.Name) ? key : project.File.Name.Trim(),
 				Version = string.IsNullOrWhiteSpace(project.File.Version) ? "1.0" : project.File.Version.Trim(),
 				Author = project.File.Author,
 				Description = project.File.Description,
-				Target = FF3.Content.ModManifest.TargetOpenFF,
+				Target = OpenFF.Content.ModManifest.TargetOpenFF,
 				Assemblies = assemblies,
 			});
 			List<string> contents = new List<string>

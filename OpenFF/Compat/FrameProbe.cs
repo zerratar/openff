@@ -7,7 +7,7 @@
 
 using System;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class FrameProbe
 	{

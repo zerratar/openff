@@ -159,7 +159,7 @@ def main():
         'using System;',
         'using System.Collections.Generic;',
         '',
-        'namespace FF3.ContentTool',
+        'namespace Crystal',
         '{',
         '\tinternal static class CellPairs',
         '\t{',

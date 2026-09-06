@@ -12,7 +12,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal static class MenuBackgrounds
 	{

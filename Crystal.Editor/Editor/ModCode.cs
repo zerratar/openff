@@ -17,7 +17,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal static class ModCode
 	{

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -7306,7 +7306,7 @@ internal static partial class GlobalScope
 						internal static void OS_Terminate()
 						{
 							// PORT: the phone build spun here forever. An exception names the caller.
-							FF3.Log.Write(FF3.LogChannel.Exception, "OS_Terminate: " + Environment.StackTrace);
+							OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.Exception, "OS_Terminate: " + Environment.StackTrace);
 							throw new InvalidOperationException("OS_Terminate");
 						}
 
@@ -8882,8 +8882,8 @@ internal static partial class GlobalScope
 
 						internal static void transVertex(Vertex v0, Vertex v1, Vertex v2, float[] p, float[] t, byte[] c, ref int d)
 						{
-							FF3.FrameProbe.Vertices += 3;
-							FF3.FrameProbe.Note(v0.pos0, v0.pos1, v0.pos2);
+							OpenFF.Client.FrameProbe.Vertices += 3;
+							OpenFF.Client.FrameProbe.Note(v0.pos0, v0.pos1, v0.pos2);
 							int num = d * 3;
 							int num2 = d * 2;
 							int num3 = d * 4;
@@ -8919,8 +8919,8 @@ internal static partial class GlobalScope
 
 						internal static void transVertex(Vertex v0, Vertex v1, Vertex v2, VertexPositionColorTexture[] ptc, ref int d)
 						{
-							FF3.FrameProbe.Vertices += 3;
-							FF3.FrameProbe.Note(v0.pos0, v0.pos1, v0.pos2);
+							OpenFF.Client.FrameProbe.Vertices += 3;
+							OpenFF.Client.FrameProbe.Note(v0.pos0, v0.pos1, v0.pos2);
 							ptc[d].Position.X = v0.pos0;
 							ptc[d].Position.Y = v0.pos1;
 							ptc[d].Position.Z = v0.pos2;
@@ -10029,7 +10029,7 @@ internal static partial class GlobalScope
 							fseek(fILE, src, 0);
 							fread(dst, 1, (int)len, fILE);
 							fclose(fILE);
-							FF3.EngineHost.SaveRead((int)src, (int)len);
+							OpenFF.Client.EngineHost.SaveRead((int)src, (int)len);
 							return 1;
 						}
 
@@ -10060,7 +10060,7 @@ internal static partial class GlobalScope
 							fseek(fILE, dst, 0);
 							fwrite(src, 1, (int)len, fILE);
 							fclose(fILE);
-							FF3.EngineHost.SaveWritten((int)dst, (int)len);
+							OpenFF.Client.EngineHost.SaveWritten((int)dst, (int)len);
 							return 1;
 						}
 
@@ -10218,7 +10218,7 @@ internal static partial class GlobalScope
 
 						internal static uint GenTexture(int w, int h, byte[] pSrcData, uint wrap, uint filter, uint format)
 						{
-							FF3.Log.First(FF3.LogChannel.Texture, "GenTexture", 200, () => $"{w}x{h} bytes={(pSrcData == null ? -1 : pSrcData.Length)} wrap={wrap} filter={filter} fmt={format}"); /*FF3LOG*/
+							OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Texture, "GenTexture", 200, () => $"{w}x{h} bytes={(pSrcData == null ? -1 : pSrcData.Length)} wrap={wrap} filter={filter} fmt={format}"); /*FF3LOG*/
 							for (int i = 1; i < LENGTH(texBank); i++)
 							{
 								if (texBank[i].data == null)
@@ -10246,7 +10246,7 @@ internal static partial class GlobalScope
 						/// </summary>
 						internal static void BindTextureWrap(uint texImageParam)
 						{
-							if (FF3.Options.Get("texwrap") == "off")
+							if (OpenFF.Client.Options.Get("texwrap") == "off")
 							{
 								return;
 							}
@@ -10258,7 +10258,7 @@ internal static partial class GlobalScope
 
 						internal static void BindTexture(uint target, uint tex)
 						{
-							FF3.Log.First(FF3.LogChannel.Texture, "BindTexture", 200, () => $"tex={tex} data={(tex != 0 && tex < texBank.Length && texBank[tex] != null && texBank[tex].data != null ? texBank[tex].w + "x" + texBank[tex].h : "NONE")}"); /*FF3LOG*/
+							OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Texture, "BindTexture", 200, () => $"tex={tex} data={(tex != 0 && tex < texBank.Length && texBank[tex] != null && texBank[tex].data != null ? texBank[tex].w + "x" + texBank[tex].h : "NONE")}"); /*FF3LOG*/
 							if (tex == 0 || texBank[tex].data == null)
 							{
 								glBindTexture(target, 0u);
@@ -10724,7 +10724,7 @@ internal static partial class GlobalScope
 
 						internal static uint LoadPNG(byte[] pSrcData, out int sizeW, out int sizeH)
 						{
-							FF3.Log.First(FF3.LogChannel.Texture, "LoadPNG", 200, () => $"src={(pSrcData == null ? -1 : pSrcData.Length)} bytes"); /*FF3LOG*/
+							OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Texture, "LoadPNG", 200, () => $"src={(pSrcData == null ? -1 : pSrcData.Length)} bytes"); /*FF3LOG*/
 							int num = 8;
 							byte[] arg;
 							do
@@ -12640,8 +12640,8 @@ internal static partial class GlobalScope
 								glEnableClientState(32886u);
 								glEnable(3553u);
 								glEnable(2884u);
-								glCullFace(FF3.FieldMirror.CullFor(currentMtx, mdl.mirroredZ));
-								FF3.ChipProbe.Begin(currentMtx, mdl.info.numVertex, mdl.info.posScale);
+								glCullFace(OpenFF.Client.FieldMirror.CullFor(currentMtx, mdl.mirroredZ));
+								OpenFF.Client.ChipProbe.Begin(currentMtx, mdl.info.numVertex, mdl.info.posScale);
 							}
 							int num6 = 1;
 							int num7 = 1;
@@ -12915,7 +12915,7 @@ internal static partial class GlobalScope
 										array5[2] = (int)array6[num63 + 2];
 										num63 += 6;
 									}
-									FF3.FrameProbe.NoteNode(num61, num64, array5, mtxFx6.a, array6.Length, num63);
+									OpenFF.Client.FrameProbe.NoteNode(num61, num64, array5, mtxFx6.a, array6.Length, num63);
 									int[] array7 = fnd_reuse__scale;
 									MtxFx43 mtxFx7 = fnd_reuse_mtx;
 									array7[0] = 0;
@@ -13345,7 +13345,7 @@ internal static partial class GlobalScope
 									float[] cmd_vertex_z = nNSG3dResShpData.cmd_vertex_z;
 									convertMatrix(ref _matrix_current, currentMtx);
 									int num56 = checkComponent(_matrix_current);
-									FF3.FrameProbe.NoteShapeMatrix(num43, j, currentMtx.a, _matrix_current, mdl.nodeInfo.dict.numEntry, shp.dict.numEntry);
+									OpenFF.Client.FrameProbe.NoteShapeMatrix(num43, j, currentMtx.a, _matrix_current, mdl.nodeInfo.dict.numEntry, shp.dict.numEntry);
 									while (num46 < num49)
 									{
 										switch (num47 & 0xFF)
@@ -13355,8 +13355,8 @@ internal static partial class GlobalScope
 											if (_matrix_current.M11 == 0f && _matrix_current.M22 == 0f && _matrix_current.M33 == 0f && _matrix_current.M44 == 0f)
 											{
 												// PORT: a stack slot nothing stored into (diagnostic; see FrameProbe).
-												FF3.FrameProbe.ZeroRestores++;
-												FF3.FrameProbe.NoteSlot((int)cmd[num48]);
+												OpenFF.Client.FrameProbe.ZeroRestores++;
+												OpenFF.Client.FrameProbe.NoteSlot((int)cmd[num48]);
 												_matrix_current = _matrix_stack_identity;
 											}
 											num56 = checkComponent(_matrix_current);
@@ -13427,8 +13427,8 @@ internal static partial class GlobalScope
 											vertex[num51].pos0 = cmd_vertex_x[num55];
 											vertex[num51].pos1 = cmd_vertex_y[num55];
 											vertex[num51].pos2 = cmd_vertex_z[num55];
-											FF3.FrameProbe.NoteRaw(cmd_vertex_x[num55], cmd_vertex_y[num55], cmd_vertex_z[num55], _matrix_current);
-											FF3.ChipProbe.Vertex(cmd_vertex_x[num55], cmd_vertex_y[num55], cmd_vertex_z[num55], _matrix_current);
+											OpenFF.Client.FrameProbe.NoteRaw(cmd_vertex_x[num55], cmd_vertex_y[num55], cmd_vertex_z[num55], _matrix_current);
+											OpenFF.Client.ChipProbe.Vertex(cmd_vertex_x[num55], cmd_vertex_y[num55], cmd_vertex_z[num55], _matrix_current);
 											num55++;
 											if ((num56 & 2) != 0)
 											{
@@ -13508,7 +13508,7 @@ internal static partial class GlobalScope
 										}
 										default:
 											// PORT: FF4's lists carry matrix and material commands between runs.
-											num48 += FF3.GxCommands.Skip((int)(num47 & 0xFF));
+											num48 += OpenFF.Client.GxCommands.Skip((int)(num47 & 0xFF));
 											break;
 										case 0u:
 											break;
@@ -13597,11 +13597,11 @@ internal static partial class GlobalScope
 																break;
 															case 1:
 																glEnable(2884u);
-																glCullFace(FF3.FieldMirror.ForDraw(1028u));
+																glCullFace(OpenFF.Client.FieldMirror.ForDraw(1028u));
 																break;
 															default:
 																glEnable(2884u);
-																glCullFace(FF3.FieldMirror.ForDraw(1029u));
+																glCullFace(OpenFF.Client.FieldMirror.ForDraw(1029u));
 																break;
 															}
 														}
@@ -16263,7 +16263,7 @@ internal static partial class GlobalScope
 							CCastCommandTransit.getInstance().castParam_MapJump().initialize();
 							CCastCommandTransit.getInstance().castParam_MapJump().setUp(const_cast<string>(arg), (sbyte)dword2, pos, vecFx2, _Flag: true);
 							CCastCommandTransit.getInstance().cast_BaseSystem().setMapJump(b: true);
-							FF3.EngineHooks.WarpRequested(arg, pos, (int)dword);
+							OpenFF.Client.EngineHooks.WarpRequested(arg, pos, (int)dword);
 						}
 
 						internal static void ff3Command_AddItem(ScriptEngine engine)
@@ -16273,7 +16273,7 @@ internal static partial class GlobalScope
 							int num = (int)word;
 							int itemNum = b;
 							pl.PlayerParty.instance().addItem(num, itemNum);
-							FF3.EngineHooks.ItemGained(num, itemNum);
+							OpenFF.Client.EngineHooks.ItemGained(num, itemNum);
 							dgs.CCtrlCodeInterface.instance().setItemId(num);
 						}
 
@@ -16903,8 +16903,8 @@ internal static partial class GlobalScope
 								return;
 							}
 							CCastCommandTransit.getInstance().cast_BaseSystem().lastMessage_set((int)dword);
-							FF3.EngineHooks.MessageShown((int)dword);
-							if (FF3.GameProfile.IsFf4 && FF3.Ff4Cutscene.Active && !CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().isMadeWindow())
+							OpenFF.Client.EngineHooks.MessageShown((int)dword);
+							if (OpenFF.Client.GameProfile.IsFf4 && OpenFF.Client.Ff4Cutscene.Active && !CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().isMadeWindow())
 							{
 								// PORT: FF4's scenes speak over a dark bar across the bottom (the event conte's
 								// message window); ce_ShowMessageWindow(0) takes it down between lines.
@@ -21051,7 +21051,7 @@ internal static partial class GlobalScope
 
 						internal static void glBindTexture(uint target, uint texture)
 						{
-							FF3.Log.Count(FF3.LogChannel.Gl, "glBindTexture"); /*FF3LOG*/
+							OpenFF.Client.Log.Count(OpenFF.Client.LogChannel.Gl, "glBindTexture"); /*FF3LOG*/
 							m_uiBindTexture = texture;
 						}
 
@@ -21062,12 +21062,12 @@ internal static partial class GlobalScope
 
 						internal static void glClear(uint mask)
 						{
-							FF3.Log.Sample(FF3.LogChannel.Gl, "glClear", 120, () => $"mask={mask} color={m_ClearColor}"); /*FF3LOG*/
+							OpenFF.Client.Log.Sample(OpenFF.Client.LogChannel.Gl, "glClear", 120, () => $"mask={mask} color={m_ClearColor}"); /*FF3LOG*/
 							GraphicsDevice graphicsDevice = m_Graphics.GetGraphicsDeviceManager().GraphicsDevice;
 							ClearOptions _opts = (ClearOptions)((((mask & 0x4000) != 0) ? 1 : 0) | (((mask & 0x100) != 0) ? 2 : 0) | (((mask & 0x400) != 0) ? 4 : 0));
-							if (FF3.NativeRenderer.Enabled)
+							if (OpenFF.Client.NativeRenderer.Enabled)
 							{
-								FF3.NativeRenderer.Clear(graphicsDevice, _opts, m_ClearColor, m_fClearDepth, 0);
+								OpenFF.Client.NativeRenderer.Clear(graphicsDevice, _opts, m_ClearColor, m_fClearDepth, 0);
 							}
 							else
 							{
@@ -21223,7 +21223,7 @@ internal static partial class GlobalScope
 
 						internal static void glDrawArrays(uint mode, int first, int count)
 						{
-							FF3.Log.First(FF3.LogChannel.Gl, "glDrawArrays3", 40, () => $"mode={mode} count={count} texEnabled={m_Graphics.getBasicEffect().TextureEnabled} bind={m_uiBindTexture}"); /*FF3LOG*/
+							OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Gl, "glDrawArrays3", 40, () => $"mode={mode} count={count} texEnabled={m_Graphics.getBasicEffect().TextureEnabled} bind={m_uiBindTexture}"); /*FF3LOG*/
 							if (count <= 0)
 							{
 								return;
@@ -21285,7 +21285,7 @@ internal static partial class GlobalScope
 							// runs with whatever texture it happened to be holding - usually none - and a
 							// textureless AlphaTestEffect samples alpha 0, so every fragment is discarded and
 							// the whole 3D scene renders black. Track the chosen effect and keep it in sync.
-							if (FF3.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
+							if (OpenFF.Client.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
 							{
 								// PORT: this selects a different BasicEffect shader permutation, so the
 								// effect must be re-applied. The original never marked it dirty.
@@ -21296,12 +21296,12 @@ internal static partial class GlobalScope
 								basicEffect.TextureEnabled = false;
 								m_bApplyEffect = true;
 							}
-							bool _useAlphaTest = FF3.RenderOverrides.AlphaTest(m_bAlphaTest)
+							bool _useAlphaTest = OpenFF.Client.RenderOverrides.AlphaTest(m_bAlphaTest)
 								&& basicEffect.TextureEnabled && m_aGlTexture[m_uiBindTexture] != null;
 							Effect _effect = _useAlphaTest ? (Effect)alphaTestEffect : (Effect)basicEffect;
-							if (!object.ReferenceEquals(_effect, FF3.RenderOverrides.LastEffect))
+							if (!object.ReferenceEquals(_effect, OpenFF.Client.RenderOverrides.LastEffect))
 							{
-								FF3.RenderOverrides.LastEffect = _effect;
+								OpenFF.Client.RenderOverrides.LastEffect = _effect;
 								m_uiApplyTexture = uint.MaxValue;
 								m_bApplyEffect = true;
 							}
@@ -21327,7 +21327,7 @@ internal static partial class GlobalScope
 								m_uiApplyTexture = 0u;
 								m_bApplyEffect = true;
 							}
-							RasterizerState _rs = FF3.RenderOverrides.Rasterizer(m_bCullFace ? m_RasterizerState : RasterizerState.CullNone); /*FF3LOG*/
+							RasterizerState _rs = OpenFF.Client.RenderOverrides.Rasterizer(m_bCullFace ? m_RasterizerState : RasterizerState.CullNone); /*FF3LOG*/
 							if (graphicsDevice.RasterizerState != _rs)
 							{
 								m_bApplyEffect = true;
@@ -21425,7 +21425,7 @@ internal static partial class GlobalScope
 							DepthStencilState depthStencilState = graphicsDevice.DepthStencilState;
 							if (depthStencilState.DepthBufferEnable != m_bDepthTest || depthStencilState.DepthBufferWriteEnable != m_bDepthMask || depthStencilState.DepthBufferFunction != m_DepthFunc)
 							{
-								graphicsDevice.DepthStencilState = FF3.RenderOverrides.DepthState(m_bDepthTest, m_bDepthMask, m_DepthFunc); /*FF3LOG*/
+								graphicsDevice.DepthStencilState = OpenFF.Client.RenderOverrides.DepthState(m_bDepthTest, m_bDepthMask, m_DepthFunc); /*FF3LOG*/
 								m_bApplyEffect = true;
 							}
 							if (m_bApplyEffect)
@@ -21445,7 +21445,7 @@ internal static partial class GlobalScope
 
 						internal static void glDrawArrays(uint mode, int first, int count, VertexPositionColorTexture[] v)
 						{
-							FF3.Log.Sample(FF3.LogChannel.Gl, "draw", FF3.GlDiag.Burst() ? 1 : 60, () => { var _be = m_Graphics.getBasicEffect(); var _gd = m_Graphics.GetGraphicsDeviceManager().GraphicsDevice; return $"mode={mode} first={first} count={count} tex={(_be.TextureEnabled ? (m_aGlTexture[m_uiBindTexture]?.m_Texture2D == null ? "BOUND-NULL" : m_aGlTexture[m_uiBindTexture].m_Texture2D.Width + "x" + m_aGlTexture[m_uiBindTexture].m_Texture2D.Height) : "off")} " + $"alphaTest={m_bAlphaTest} apply={m_bApplyEffect} depth={m_bDepthTest}/{m_bDepthMask} cull={(m_bCullFace ? m_RasterizerState.CullMode.ToString() : "none")} blendDst={m_Blend} " + $"v0=({v[first].Position.X:F1},{v[first].Position.Y:F1},{v[first].Position.Z:F1}) v1=({v[first+1].Position.X:F1},{v[first+1].Position.Y:F1},{v[first+1].Position.Z:F1}) col0={v[first].Color} " + $"W=[{_be.World.M11:F3} {_be.World.M22:F3} {_be.World.M33:F3} | {_be.World.M41:F1} {_be.World.M42:F1} {_be.World.M43:F1}] " + $"P=[{_be.Projection.M11:F4} {_be.Projection.M22:F4} {_be.Projection.M33:F4} {_be.Projection.M34:F4} | {_be.Projection.M43:F3} {_be.Projection.M44:F3}] " + $"vp={_gd.Viewport.Width}x{_gd.Viewport.Height} " + FF3.GlDiag.Describe(v, first, count, _be.World, _be.View, _be.Projection); }); /*FF3LOG*/
+							OpenFF.Client.Log.Sample(OpenFF.Client.LogChannel.Gl, "draw", OpenFF.Client.GlDiag.Burst() ? 1 : 60, () => { var _be = m_Graphics.getBasicEffect(); var _gd = m_Graphics.GetGraphicsDeviceManager().GraphicsDevice; return $"mode={mode} first={first} count={count} tex={(_be.TextureEnabled ? (m_aGlTexture[m_uiBindTexture]?.m_Texture2D == null ? "BOUND-NULL" : m_aGlTexture[m_uiBindTexture].m_Texture2D.Width + "x" + m_aGlTexture[m_uiBindTexture].m_Texture2D.Height) : "off")} " + $"alphaTest={m_bAlphaTest} apply={m_bApplyEffect} depth={m_bDepthTest}/{m_bDepthMask} cull={(m_bCullFace ? m_RasterizerState.CullMode.ToString() : "none")} blendDst={m_Blend} " + $"v0=({v[first].Position.X:F1},{v[first].Position.Y:F1},{v[first].Position.Z:F1}) v1=({v[first+1].Position.X:F1},{v[first+1].Position.Y:F1},{v[first+1].Position.Z:F1}) col0={v[first].Color} " + $"W=[{_be.World.M11:F3} {_be.World.M22:F3} {_be.World.M33:F3} | {_be.World.M41:F1} {_be.World.M42:F1} {_be.World.M43:F1}] " + $"P=[{_be.Projection.M11:F4} {_be.Projection.M22:F4} {_be.Projection.M33:F4} {_be.Projection.M34:F4} | {_be.Projection.M43:F3} {_be.Projection.M44:F3}] " + $"vp={_gd.Viewport.Width}x{_gd.Viewport.Height} " + OpenFF.Client.GlDiag.Describe(v, first, count, _be.World, _be.View, _be.Projection); }); /*FF3LOG*/
 							if (count <= 0)
 							{
 								return;
@@ -21501,9 +21501,9 @@ internal static partial class GlobalScope
 								OS_Terminate();
 								break;
 							}
-							if (FF3.NativeRenderer.Enabled)
+							if (OpenFF.Client.NativeRenderer.Enabled)
 							{
-								FF3.NativeRenderer.Draw(graphicsDevice, mode, v, first, count,
+								OpenFF.Client.NativeRenderer.Draw(graphicsDevice, mode, v, first, count,
 									basicEffect.World, basicEffect.Projection,
 									(basicEffect.TextureEnabled && m_uiBindTexture < m_aGlTexture.Length
 										&& m_aGlTexture[m_uiBindTexture] != null)
@@ -21525,8 +21525,8 @@ internal static partial class GlobalScope
 							// runs with whatever texture it happened to be holding - usually none - and a
 							// textureless AlphaTestEffect samples alpha 0, so every fragment is discarded and
 							// the whole 3D scene renders black. Track the chosen effect and keep it in sync.
-							FF3.ModelCapture.Offer(v, first, count, m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null ? m_aGlTexture[m_uiBindTexture].m_Texture2D : null, basicEffect.Projection); /*FF3LOG*/
-							if (FF3.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
+							OpenFF.Client.ModelCapture.Offer(v, first, count, m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null ? m_aGlTexture[m_uiBindTexture].m_Texture2D : null, basicEffect.Projection); /*FF3LOG*/
+							if (OpenFF.Client.RenderOverrides.NoTextures && basicEffect.TextureEnabled)
 							{
 								// PORT: this selects a different BasicEffect shader permutation, so the
 								// effect must be re-applied. The original never marked it dirty.
@@ -21537,12 +21537,12 @@ internal static partial class GlobalScope
 								basicEffect.TextureEnabled = false;
 								m_bApplyEffect = true;
 							}
-							bool _useAlphaTest = FF3.RenderOverrides.AlphaTest(m_bAlphaTest)
+							bool _useAlphaTest = OpenFF.Client.RenderOverrides.AlphaTest(m_bAlphaTest)
 								&& basicEffect.TextureEnabled && m_aGlTexture[m_uiBindTexture] != null;
 							Effect _effect = _useAlphaTest ? (Effect)alphaTestEffect : (Effect)basicEffect;
-							if (!object.ReferenceEquals(_effect, FF3.RenderOverrides.LastEffect))
+							if (!object.ReferenceEquals(_effect, OpenFF.Client.RenderOverrides.LastEffect))
 							{
-								FF3.RenderOverrides.LastEffect = _effect;
+								OpenFF.Client.RenderOverrides.LastEffect = _effect;
 								m_uiApplyTexture = uint.MaxValue;
 								m_bApplyEffect = true;
 							}
@@ -21568,7 +21568,7 @@ internal static partial class GlobalScope
 								m_uiApplyTexture = 0u;
 								m_bApplyEffect = true;
 							}
-							RasterizerState _rs = FF3.RenderOverrides.Rasterizer(m_bCullFace ? m_RasterizerState : RasterizerState.CullNone); /*FF3LOG*/
+							RasterizerState _rs = OpenFF.Client.RenderOverrides.Rasterizer(m_bCullFace ? m_RasterizerState : RasterizerState.CullNone); /*FF3LOG*/
 							if (graphicsDevice.RasterizerState != _rs)
 							{
 								m_bApplyEffect = true;
@@ -21605,7 +21605,7 @@ internal static partial class GlobalScope
 							DepthStencilState depthStencilState = graphicsDevice.DepthStencilState;
 							if (depthStencilState.DepthBufferEnable != m_bDepthTest || depthStencilState.DepthBufferWriteEnable != m_bDepthMask || depthStencilState.DepthBufferFunction != m_DepthFunc)
 							{
-								graphicsDevice.DepthStencilState = FF3.RenderOverrides.DepthState(m_bDepthTest, m_bDepthMask, m_DepthFunc); /*FF3LOG*/
+								graphicsDevice.DepthStencilState = OpenFF.Client.RenderOverrides.DepthState(m_bDepthTest, m_bDepthMask, m_DepthFunc); /*FF3LOG*/
 								m_bApplyEffect = true;
 							}
 							if (m_bApplyEffect)
@@ -21625,7 +21625,7 @@ internal static partial class GlobalScope
 
 						internal static void glEnable(uint cap)
 						{
-							FF3.Log.First(FF3.LogChannel.Gl, "glEnable", 24, () => $"cap={cap}"); /*FF3LOG*/
+							OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Gl, "glEnable", 24, () => $"cap={cap}"); /*FF3LOG*/
 							BasicEffect basicEffect = m_Graphics.getBasicEffect();
 							AlphaTestEffect alphaTestEffect = m_Graphics.getAlphaTestEffect();
 							switch (cap)
@@ -21793,7 +21793,7 @@ internal static partial class GlobalScope
 
 						internal static void glOrthof(float left, float right, float bottom, float top, float zNear, float zFar)
 						{
-							FF3.Log.First(FF3.LogChannel.Gl, "glOrthof", 8, () => $"l={left} r={right} b={bottom} t={top}"); /*FF3LOG*/
+							OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Gl, "glOrthof", 8, () => $"l={left} r={right} b={bottom} t={top}"); /*FF3LOG*/
 							float num = 1f / (right - left);
 							float num2 = right + left;
 							float num3 = 1f / (top - bottom);
@@ -21867,7 +21867,7 @@ internal static partial class GlobalScope
 
 						internal static void glTexImage2D(uint target, int level, int internalformat, int width, int height, int border, uint format, uint type, Array pixels)
 						{
-							FF3.Log.First(FF3.LogChannel.Gl, "glTexImage2D", 60, () => $"{width}x{height} fmt={format} type={type} bind={m_uiBindTexture} slot={(m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null ? "ok" : "NULL")} src={(pixels == null ? "null" : pixels.GetType().Name + "[" + pixels.Length + "]")}"); /*FF3LOG*/
+							OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Gl, "glTexImage2D", 60, () => $"{width}x{height} fmt={format} type={type} bind={m_uiBindTexture} slot={(m_uiBindTexture < m_aGlTexture.Length && m_aGlTexture[m_uiBindTexture] != null ? "ok" : "NULL")} src={(pixels == null ? "null" : pixels.GetType().Name + "[" + pixels.Length + "]")}"); /*FF3LOG*/
 							if (width == 0 || height == 0)
 							{
 								return;
@@ -21961,7 +21961,7 @@ internal static partial class GlobalScope
 
 						internal static void glViewport(int x, int y, int width, int height)
 						{
-							FF3.Log.First(FF3.LogChannel.Gl, "glViewport", 8, () => $"{x},{y} {width}x{height}"); /*FF3LOG*/
+							OpenFF.Client.Log.First(OpenFF.Client.LogChannel.Gl, "glViewport", 8, () => $"{x},{y} {width}x{height}"); /*FF3LOG*/
 							GraphicsDevice graphicsDevice = m_Graphics.GetGraphicsDeviceManager().GraphicsDevice;
 							Viewport viewport = graphicsDevice.Viewport;
 							viewport.X = x;

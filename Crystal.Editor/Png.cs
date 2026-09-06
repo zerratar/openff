@@ -1,4 +1,4 @@
-﻿// Minimal 8-bit RGBA PNG writer.
+// Minimal 8-bit RGBA PNG writer.
 //
 // Deliberately dependency-free: the content tool has to run headless, so it cannot
 // borrow MonoGame's Texture2D.SaveAsPng (that needs a GraphicsDevice), and pulling
@@ -8,7 +8,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal static class Png
 	{

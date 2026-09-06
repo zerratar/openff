@@ -17,8 +17,11 @@ using System.IO;
 using Microsoft.Xna.Framework.Audio;
 using NVorbis;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+
 	internal static class OggSound
 	{
 		private static readonly Dictionary<string, SoundEffect> _cache =

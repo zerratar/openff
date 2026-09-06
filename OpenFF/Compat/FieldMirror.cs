@@ -26,7 +26,7 @@
 // --fieldmirror=force turns it on for FF3, which renders FF3's world mirrored - the check
 // that mirrored chips draw right independently of FF4's data.
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class FieldMirror
 	{

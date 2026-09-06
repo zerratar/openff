@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -125,7 +125,7 @@ internal static partial class GlobalScope
 										swMng_.execute(PlayerMng().Player(chr.CBaseCharacter.getLookIndex()).getPosition());
 										if (canRunPlayerMng() && !evt.CEventManager.getInstance().isEvent())
 										{
-											FF3.Ff4Exits.Update(PlayerMng().Player(chr.CBaseCharacter.getLookIndex()).getPosition(), this);
+											OpenFF.Client.Ff4Exits.Update(PlayerMng().Player(chr.CBaseCharacter.getLookIndex()).getPosition(), this);
 										}
 										if ((WorldCamera().Mode() == cmr.CWorldCamera.MODE.MODE_AUTOFOLLOW_DEFAULT || WorldCamera().Mode() == cmr.CWorldCamera.MODE.MODE_AUTOFOLLOW) && PlayerMng().Player(chr.CBaseCharacter.getLookIndex()).getCharacterId() != -1)
 										{

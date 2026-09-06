@@ -7,7 +7,7 @@
 using System;
 using System.IO;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class ContentLocator
 	{
@@ -28,7 +28,7 @@ namespace FF3
 				// The first of a ;-separated list is the primary; the rest are fallbacks
 				// GameArchive adds behind it.
 				string first = configured.Split(';')[0].Trim().Trim('"');
-				if (FF3.Content.ContentChain.Looks(first))
+				if (OpenFF.Content.ContentChain.Looks(first))
 				{
 					return Path.GetFullPath(first);
 				}

@@ -32,7 +32,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace FF3.ContentTool
+namespace Crystal
 {
 	internal sealed class PakChainData
 	{

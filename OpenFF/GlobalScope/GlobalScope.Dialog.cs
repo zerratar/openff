@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -17,7 +17,7 @@ using syrcusW.res.values;
 internal static partial class GlobalScope
 {
 						// PORT: the text-entry half of this went through an Android EditText and the
-// Guide soft keyboard. MainActivity.createEditText now drives FF3.TextEntry
+// Guide soft keyboard. MainActivity.createEditText now drives OpenFF.Client.TextEntry
 // directly, so only the message-box path remains.
 public static class Dialog
 						{

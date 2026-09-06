@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -87,7 +87,7 @@ internal static partial class GlobalScope
 									}
 									else
 									{
-										if (!FF3.GameProfile.Ff3MapParameters)
+										if (!OpenFF.Client.GameProfile.Ff3MapParameters)
 										{
 											// PORT: FF4's chains (encounters, landforms, parties, environment)
 											// are not FF3's; until they are read, the map has no jumps, no
@@ -165,7 +165,7 @@ internal static partial class GlobalScope
 										m_CurrentAddr = m_FileAddr;
 										uint num = 0u;
 										m_CurrentAddr = pack.ChainPointer(index: (uint)((pFileName != null) ? stageMng.getChipNo(pFileName) : stageMng.getChipNo()), addr: (byte[])m_CurrentAddr);
-										if (!FF3.GameProfile.Ff3MapParameters)
+										if (!OpenFF.Client.GameProfile.Ff3MapParameters)
 										{
 											// PORT: FF4's chains (encounters, landforms, parties, environment)
 											// are not FF3's; until they are read, the map has no jumps, no
@@ -198,7 +198,7 @@ internal static partial class GlobalScope
 
 								public int mapJumpNum()
 								{
-									if (!FF3.GameProfile.Ff3MapParameters)
+									if (!OpenFF.Client.GameProfile.Ff3MapParameters)
 									{
 										return 0;
 									}

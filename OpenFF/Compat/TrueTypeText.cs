@@ -1,4 +1,4 @@
-﻿// Text from TrueType, at the window's resolution.
+// Text from TrueType, at the window's resolution.
 //
 // The phone build baked its two text sizes, 12 and 16 pixels, into 256-page SpriteFont
 // atlases indexed through .glp tables: every glyph a tiny bitmap, scaled up with the
@@ -29,8 +29,13 @@ using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+	using Color = Microsoft.Xna.Framework.Color;
+	using Vector2 = Microsoft.Xna.Framework.Vector2;
+
 	internal static class TrueTypeText
 	{
 		private static FontSystem _system;

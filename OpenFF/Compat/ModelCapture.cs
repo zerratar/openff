@@ -13,8 +13,14 @@ using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+	using Color = Microsoft.Xna.Framework.Color;
+	using Vector2 = Microsoft.Xna.Framework.Vector2;
+	using Vector3 = Microsoft.Xna.Framework.Vector3;
+
 	internal static class ModelCapture
 	{
 		private const int Magic = 0x33464601;   // "FF3\x01"

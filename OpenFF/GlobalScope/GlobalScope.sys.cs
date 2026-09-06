@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -331,7 +331,7 @@ internal static partial class GlobalScope
 				ds.g_Pad.setRepeatInterval(2u);
 				ds.g_TouchPanel.setRepeatDelay(10);
 				ds.g_TouchPanel.setRepeatInterval(2);
-				if (FF3.GameProfile.Ff3Party)
+				if (OpenFF.Client.GameProfile.Ff3Party)
 				{
 					pl.PlayerParty.instance().load();
 				}

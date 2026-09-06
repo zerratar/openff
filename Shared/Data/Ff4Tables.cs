@@ -1,4 +1,4 @@
-﻿// FF4 3D's tables into the unified shape. What is read, and the evidence for it:
+// FF4 3D's tables into the unified shape. What is read, and the evidence for it:
 //
 //   player.chaindata (37 chains; pl::PlayerParty::load, levelParameter, normalMagic,
 //   normalAttack in libff4.so): chain 0 the experience curve (99 u32); chains 2..16 one
@@ -32,7 +32,7 @@
 
 using System;
 using System.Collections.Generic;
-using FF3.Content;
+using OpenFF.Content;
 
 namespace OpenFF.Data
 {

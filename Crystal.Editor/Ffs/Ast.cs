@@ -13,7 +13,7 @@
 
 using System.Collections.Generic;
 
-namespace FF3.ContentTool.Ffs
+namespace Crystal.Ffs
 {
 	internal enum ArgumentKind
 	{

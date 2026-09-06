@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -337,10 +337,10 @@ internal static partial class GlobalScope
 				{
 					strcpy(out arg, "w_field_man");
 				}
-				if (FF3.GameProfile.IsFf4)
+				if (OpenFF.Client.GameProfile.IsFf4)
 				{
 					// PORT: FF4 names its field motion sets differently (see GameProfile.FieldMotion).
-					string ff4Motion = FF3.GameProfile.FieldMotion(_ChrName);
+					string ff4Motion = OpenFF.Client.GameProfile.FieldMotion(_ChrName);
 					if (ff4Motion != null)
 					{
 						characterMng.addMotion(num, ff4Motion);
@@ -348,7 +348,7 @@ internal static partial class GlobalScope
 					flag2 = false;
 					flag3 = false;
 				}
-				if (flag && !FF3.GameProfile.IsFf4)
+				if (flag && !OpenFF.Client.GameProfile.IsFf4)
 				{
 					characterMng.addMotion(num, arg);
 				}
@@ -455,9 +455,9 @@ internal static partial class GlobalScope
 				int num2 = -1;
 				strcpy(out var arg, _ChrName);
 				sprintf(out var arg2, "w_%s", _ChrName);
-				if (FF3.GameProfile.IsFf4)
+				if (OpenFF.Client.GameProfile.IsFf4)
 				{
-					arg2 = FF3.GameProfile.FieldMotion(_ChrName) ?? arg2;
+					arg2 = OpenFF.Client.GameProfile.FieldMotion(_ChrName) ?? arg2;
 				}
 				num = characterMng.setCharacter(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
 				TexDivideLoader.getSingleton().tdlForceLoad();
@@ -824,7 +824,7 @@ internal static partial class GlobalScope
 						ds.pri.DSSphere pl_reuse_sphere = pl.pl_reuse_sphere;
 						pl_reuse_sphere.set(cBasePlayer2.getPosition(), cBasePlayer2.getTchRadius());
 						bool touched = ds.pri.PrimitiveTest.testRaySphere(l, pl_reuse_sphere, null, null);
-						FF3.FrameProbe.NoteTouch(x, y, cBasePlayer2.getModelName(), cBasePlayer2.getPosition(), cBasePlayer2.getTchRadius(), touched);
+						OpenFF.Client.FrameProbe.NoteTouch(x, y, cBasePlayer2.getModelName(), cBasePlayer2.getPosition(), cBasePlayer2.getTchRadius(), touched);
 						if (touched)
 						{
 							cBasePlayer.getColType_or(4);

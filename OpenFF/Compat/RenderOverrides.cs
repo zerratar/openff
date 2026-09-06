@@ -1,4 +1,4 @@
-﻿// Debug overrides for the GL emulation's render state.
+// Debug overrides for the GL emulation's render state.
 //
 // The emulation picks cull / depth / alpha-test state from the NDS renderer's
 // intent. When 3D geometry is submitted but nothing appears, the fastest way to
@@ -14,8 +14,11 @@
 using System;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace FF3
+namespace OpenFF.Client
 {
+	// MonoGame's types by name: the engine's OpenFF.Game, GameTime, Color and vectors sit a namespace up.
+	using Game = Microsoft.Xna.Framework.Game;
+
 	internal static class RenderOverrides
 	{
 		private static readonly string _cull = (Options.Get("cull") ?? "game").ToLowerInvariant();

@@ -1,4 +1,4 @@
-﻿// FF4's random encounters, from the map's parameter pack.
+// FF4's random encounters, from the map's parameter pack.
 //
 // Each FF4 map has a .pak in MAPPARAMETER.dat with four chains, which world::
 // MapParameterManager::load keeps in order (Tools/ff4_disasm.py): chain 0 the land-form
@@ -19,7 +19,7 @@ using System;
 using System.Collections.Generic;
 using OpenFF.Data;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4Encounters
 	{

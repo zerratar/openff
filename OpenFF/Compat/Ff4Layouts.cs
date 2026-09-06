@@ -1,17 +1,17 @@
 // FF4's menu layouts and menu texts, for the OpenFF menu on FF4.
 //
 // MENU_LAYOUT.dat holds MenuLayout_<name>.xbn.lz (Root, Status, Item, Equipment, Magic, ...;
-// FF3.Content.Xbn reads them; Reference/libff4/menu-layouts.txt lists their frames); the
+// OpenFF.Content.Xbn reads them; Reference/libff4/menu-layouts.txt lists their frames); the
 // texts are babil_menu.msd (50002 Inventory .. 50011 Abilities, 50204.. Right/Left/Head/Body/
 // Arms, 50401 Lv, 50410 HP, 50411 MP, 50420.. the attributes, 50446 Gil, 50451 EXP, 51000..
 // the class names). Both are read through the game's file system on first use.
 
 using System;
 using System.Collections.Generic;
-using FF3.Content;
+using OpenFF.Content;
 using OpenFF.Data;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class Ff4Layouts
 	{

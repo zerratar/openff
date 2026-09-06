@@ -375,7 +375,7 @@ the edit kept, rather than a stale original going back over a newer one.
 ## Giving it to somebody who does not have the SDK
 
 ```bash
-dotnet publish FF3.ContentTool -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish Crystal -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
 One 66 MB `crystal.exe` and the `wwwroot` beside it. Run it with no arguments: it
@@ -461,7 +461,7 @@ vertices in 1 node to 11843 in 38, and `b42` from 304 to 540. A model package ca
 its own UVs, so it has no screen coordinates to disagree about. Steam's `t19_01`
 renders correctly in the editor's 3D view with our textures and with the exit gizmos
 still in place. That path is untested in the game itself, which parses models through
-the decompiled `NNS_G3d` code rather than through `FF3.Formats`.
+the decompiled `NNS_G3d` code rather than through `OpenFF.Formats`.
 
 The font preview is the one thing that does not carry over. It reads `Font{size}.glp`
 and the atlas pages beside it, and a Steam install has neither - it ships `arial.ttf`,

@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenFF;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal sealed class LegacyItems : GameService, IItems
 	{

@@ -35,7 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace FF3.ContentTool.Ffs
+namespace Crystal.Ffs
 {
 	internal sealed class Parser
 	{

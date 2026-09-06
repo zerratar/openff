@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -45,10 +45,10 @@ internal static partial class GlobalScope
 			public override void Load(DS2D_OBJ_PLANE plane, string pCe, string pAn, string pCb, string pCl)
 			{
 				// PORT: FF4 keeps the same pictures under other names (Ff4Assets).
-				pCe = FF3.Ff4Assets.MapName(pCe);
-				pAn = FF3.Ff4Assets.MapName(pAn);
-				pCb = FF3.Ff4Assets.MapName(pCb);
-				pCl = FF3.Ff4Assets.MapName(pCl);
+				pCe = OpenFF.Client.Ff4Assets.MapName(pCe);
+				pAn = OpenFF.Client.Ff4Assets.MapName(pAn);
+				pCb = OpenFF.Client.Ff4Assets.MapName(pCb);
+				pCl = OpenFF.Client.Ff4Assets.MapName(pCl);
 				SetPlane(plane);
 				s3dLoadCb(pCb);
 				s3dLoadCl(pCl);

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -50,7 +50,7 @@ internal static partial class GlobalScope
 				{
 					resumePC_ = pc_;
 					uint num = fetch();
-					FF3.ScriptCommands.Dispatch(this, num);
+					OpenFF.Client.ScriptCommands.Dispatch(this, num);
 				}
 				logicContext_.save(scriptData_, resumePC_);
 			}

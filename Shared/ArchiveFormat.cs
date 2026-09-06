@@ -1,7 +1,7 @@
 // The data*.bin archive format, with no dependencies.
 //
 // Shared source: compiled into both OpenFF (which reads through it at runtime)
-// and FF3.ContentTool (which extracts through it). One implementation, so the two
+// and Crystal (which extracts through it). One implementation, so the two
 // cannot drift.
 //
 // Layout
@@ -25,7 +25,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace FF3.Formats
+namespace OpenFF.Formats
 {
 	public readonly struct ArchiveEntry
 	{

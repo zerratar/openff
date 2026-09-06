@@ -1,4 +1,4 @@
-﻿// Where the OpenFF engine meets the legacy game.
+// Where the OpenFF engine meets the legacy game.
 //
 // The engine (OpenFF.Engine, the assembly mods reference) knows nothing of MonoGame or
 // of the decompiled game. This host creates it once the content is open, loads the code
@@ -15,7 +15,7 @@ using System.Linq;
 using OpenFF;
 using OpenFF.Modding;
 
-namespace FF3
+namespace OpenFF.Client
 {
 	internal static class EngineHost
 	{

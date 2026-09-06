@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -45,7 +45,7 @@ internal static partial class GlobalScope
 				group = 2u;
 			}
 			flags[group, index] = 1;
-			FF3.EngineHooks.FlagChanged(group, index, true);
+			OpenFF.Client.EngineHooks.FlagChanged(group, index, true);
 			switch (group)
 			{
 			case 0u:
@@ -117,7 +117,7 @@ internal static partial class GlobalScope
 				group = 2u;
 			}
 			flags[group, index] = 0;
-			FF3.EngineHooks.FlagChanged(group, index, false);
+			OpenFF.Client.EngineHooks.FlagChanged(group, index, false);
 		}
 
 		public void reverse(uint group, uint index)

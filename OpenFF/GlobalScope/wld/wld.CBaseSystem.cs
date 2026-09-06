@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -384,9 +384,9 @@ internal static partial class GlobalScope
 				string arg = "";
 				int frontPlayerID = CWorldOutSideData.getInstance().PlayerData().getFrontPlayerID();
 				int num = pl.PlayerParty.instance().playerForId((byte)frontPlayerID).playerId();
-				if (FF3.GameProfile.LeaderModel != null)
+				if (OpenFF.Client.GameProfile.LeaderModel != null)
 				{
-					arg = FF3.GameProfile.LeaderModel;
+					arg = OpenFF.Client.GameProfile.LeaderModel;
 				}
 				else if (pl.PlayerParty.instance().playerForId((byte)frontPlayerID).isEnable())
 				{
@@ -737,7 +737,7 @@ internal static partial class GlobalScope
 				WorldCamera().initialize();
 				// PORT: FF4's map parameters carry no camera chain; its scripts place the
 				// camera. Until then the built-in defaults above stand.
-				if (map.CMapParameterManager.Instance().isLoaded() && FF3.GameProfile.Ff3MapParameters)
+				if (map.CMapParameterManager.Instance().isLoaded() && OpenFF.Client.GameProfile.Ff3MapParameters)
 				{
 					mCLCollision = map.CMapParameterManager.Instance().MapCameraParameter(0).Collision() != 0;
 					near = 4096 * map.CMapParameterManager.Instance().MapCameraParameter(0).ClipNear();
@@ -751,7 +751,7 @@ internal static partial class GlobalScope
 					zoomMin = 4096 * map.CMapParameterManager.Instance().MapCameraParameter(0).ZoomMin();
 					zoomSpd = 4096 * map.CMapParameterManager.Instance().MapCameraParameter(0).ZoomSpeed();
 				}
-				if (FF3.GameProfile.IsFf4)
+				if (OpenFF.Client.GameProfile.IsFf4)
 				{
 					// PORT: FF4's world::WorldCamera::initialize_usr - the camera stands at the
 					// leader + (0, 90, 85) and looks at that point + (0, -73, -80), i.e. the leader
@@ -779,7 +779,7 @@ internal static partial class GlobalScope
 					}
 				}
 				vecFx.z *= -1;
-				if (FF3.FieldMirror.Active(stageMng.getStageType()))
+				if (OpenFF.Client.FieldMirror.Active(stageMng.getStageType()))
 				{
 					// PORT: FF4's overworld is FF3's chip layout mirrored along z (FieldMirror), and its
 					// camera stands on the other side of the party, looking towards +z: the chips'
@@ -983,7 +983,7 @@ internal static partial class GlobalScope
 			public void setup()
 			{
 				setUpMapParameter();
-				FF3.Ff4Exits.Load(sceneMng.getStage());
+				OpenFF.Client.Ff4Exits.Load(sceneMng.getStage());
 				setUpPcParameter();
 				setUpNpcParameter();
 				dgs.msg.CMessageSys.getInstance().Main().assignBG(3, 0, 0, 32, 24);
@@ -1329,8 +1329,8 @@ internal static partial class GlobalScope
 				OS_Printf("setBattle %d\n", b);
 				if (b)
 				{
-					FF3.EngineHooks.BattleStarting();
-					FF3.EngineHooks.BattleStarting();
+					OpenFF.Client.EngineHooks.BattleStarting();
+					OpenFF.Client.EngineHooks.BattleStarting();
 					m_Next = NEXT_MODE.NEXT_BATTLE;
 				}
 			}

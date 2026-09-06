@@ -1,4 +1,4 @@
-﻿// The 3D textures, for the editor.
+// The 3D textures, for the editor.
 //
 // These are not files on their own. A texture lives inside a TEX0 block, inside an
 // NMDP package, inside an LZ-compressed archive entry - so nothing here can be served
@@ -16,7 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace FF3.ContentTool.Editor
+namespace Crystal.Editor
 {
 	internal sealed class TexturePackage
 	{
@@ -112,7 +112,7 @@ namespace FF3.ContentTool.Editor
 			}
 
 			Tex0Texture texture = package.Textures[index];
-			return FF3.ContentTool.Png.Encode(texture.Width, texture.Height,
+			return Crystal.Png.Encode(texture.Width, texture.Height,
 				Tex0.Decode(package, texture));
 		}
 
