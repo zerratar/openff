@@ -16,6 +16,15 @@ listed in `Docs/Client-Plan.md`, and every unread piece of FF4's binary in `Docs
 
 None of the games' data is in this repository (see *Game data*).
 
+| | |
+| --- | --- |
+| ![Final Fantasy III's title, from the Steam install](Docs/Images/ff3-title.png) | ![Ur, in Final Fantasy III](Docs/Images/ff3-ur.png) |
+| *FF3 from its Steam install: the title, TrueType text at the window's resolution* | *Ur; the game plays as shipped* |
+| ![The Red Wings deck, Final Fantasy IV's opening scene](Docs/Images/ff4-deck.png) | ![A battle on FF4's battle stage with its HUD](Docs/Images/ff4-battle.png) |
+| *FF4's opening on its own scene engine: camera motions, casts, the message bar* | *A battle on FF4's battle stage - its stage, party positions, window art and glove* |
+| ![FF4's menu drawn from its own layouts and data](Docs/Images/ff4-menu.png) | ![Crystal, the editor, with an FF3 map open in 3D](Docs/Images/crystal-map.png) |
+| *FF4's menu from its own layouts, over the unified party data* | *Crystal: a map in 3D, its characters and exits in the hierarchy, the inspector* |
+
 ## What you need
 
 - Windows, the .NET 8 SDK. MonoGame (DesktopGL), FontStashSharp and NVorbis come from NuGet.

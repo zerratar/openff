@@ -1303,7 +1303,9 @@ namespace Crystal
 			{
 				return given;
 			}
-			if (Directory.Exists("Content"))
+			// The repository's Content folder holds only the pipeline file and the override notes
+			// unless somebody has put a game's data beside them; only then is it the content.
+			if (Directory.Exists("Content") && (File.Exists(Path.Combine("Content", "data000.bin")) || Directory.Exists(Path.Combine("Content", "files"))))
 			{
 				return "Content";
 			}
