@@ -11,10 +11,10 @@ Program.Main
   Game1           -> MonoGame Game
 
 Game1.LoadContent   -> GameHost.Create()   -> GameArchive.Load()   (6962 files, 52 volumes)
-                                            -> new MainActivity().onCreate()
-Game1.Update        -> DesktopInput.Update()  -> MainActivity.onTouchEvent
+                                            -> new AppShell().onCreate()
+Game1.Update        -> DesktopInput.Update()  -> AppShell.onTouchEvent
                     -> DesktopInput.BeginFrame()  (sets GlobalScope.boost)
-Game1.Draw          -> GameHost.Tick()        -> MainActivity.onDrawFrame()
+Game1.Draw          -> GameHost.Tick()        -> AppShell.onDrawFrame()
                                                    touch(...)   feeds the touch state in
                                                    render()     runs the whole game frame
                                                    updateSound()
@@ -26,7 +26,7 @@ method, so nothing ever ran in the update half. `--speed` therefore has to run e
 `Tick()` calls, which is why it is documented as the crude option next to `boost`.
 
 Before, this path went `Game1 -> Android (activity list) -> Activity -> View ->
-GLSurfaceView -> Renderer -> MainActivity`, with the list never holding more than one
+GLSurfaceView -> Renderer -> AppShell`, with the list never holding more than one
 activity. `GameHost` replaces all of it.
 
 ## Input
@@ -34,13 +34,13 @@ activity. `GameHost` replaces all of it.
 Two surfaces, both fed from `Compat/DesktopInput.cs`:
 
 **Touch** — mouse position is mapped from the window's client area into the fixed
-800×480 space `MainActivity.onTouchEvent` normalises against, then delivered as a
+800×480 space `AppShell.onTouchEvent` normalises against, then delivered as a
 `MotionEvent` (action 0 down, 1 up, 2 move).
 
 **Pad** — `GlobalScope.cont` is an NDS button bitmask (A=1, B=2, Select=4, Start=8,
 Right=16, Left=32, Up=64, Down=128, R=256, L=512, X=1024, Y=2048), read through
 `PAD_Read()` into `ds.CPad`, which does edge detection and key repeat. Nearly 200 call
-sites poll it. `MainActivity.getKeyEvent` ORs the keyboard into it once per frame.
+sites poll it. `AppShell.getKeyEvent` ORs the keyboard into it once per frame.
 
 Do not route keys through the old `Android.onKeyDown`: it only ever produced the Back
 keycode, and an unhandled Back quit the game.
@@ -149,18 +149,21 @@ each chain an array of fixed size records. The record layouts are generated from
 own parse methods by `Tools/gen_records.py`, and checked against the strides the game
 divides by. `Docs/Tables.md`.
 
-## What is still Android-shaped, and why that is fine
+## The platform layer
 
-`android/` retains a handful of types that are genuinely carrying behaviour or are
-plain data:
+`OpenFF/Platform` (namespace `OpenFF.Platform`) holds the handful of small types the
+game logic talks to the host through:
 
-- `MotionEvent`, `KeyEvent` — data types the input path uses
+- `MotionEvent`, `KeyEvent` — the input events the field and menus read
 - `DialogInterface`, `AlertDialog` — the yes/no prompt, which reaches MonoGame's
   `MessageBox` through `GlobalScope.Dialog`
 - `MediaPlayer` + `SoundManager` — the audio implementation
 
-The name is historical. These are not costing anything, and audio in particular is
-working; there is no reason to rewrite it for tidiness.
+`AppShell` is the application object above the game loop: the exit, confirm and update
+prompts, the language table (`OpenFF/Resources`: `Strings` and `Language`, embedded under
+fixed names), and the native entry points the game exposes (`hostInit`, `hostQuit`,
+`hostPause`, `hostResume`, `hostTouch`, `hostRender`, `hostEncode` over a `HostEnv`).
+`GameHost` is the single point where the MonoGame loop meets the game (`Compat/GameHost.cs`).
 
 ## What a map is
 
