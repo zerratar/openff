@@ -1,4 +1,4 @@
-﻿// Command-line options, with the environment variables kept as fallbacks.
+// Command-line options, with the environment variables kept as fallbacks.
 //
 // Parsed as the very first thing in Main, so every other component can read from
 // here during its own initialisation. A command-line value always wins over the
@@ -56,6 +56,33 @@ namespace FF3
 
 		public static bool HelpRequested { get; private set; }
 
+		/// <summary>
+		/// Options whose value is a path. Main moves the working directory to the content root's
+		/// parent before the game runs, so a relative path typed on the command line is resolved
+		/// here, against the directory the client was started from, while that is still current.
+		/// </summary>
+		private static readonly HashSet<string> PathOptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		{
+			"log-file", "content", "content-override", "dump", "dump-fonts", "screenshot-dir", "mod", "project", "font", "drive",
+		};
+
+		private static readonly string LaunchDirectory = System.IO.Directory.GetCurrentDirectory();
+
+		private static string Resolve(string name, string value)
+		{
+			if (value == null || value == "1" || !PathOptions.Contains(name)) return value;
+			string[] parts = value.Split(';');
+			for (int i = 0; i < parts.Length; i++)
+			{
+				string part = parts[i].Trim();
+				if (part.Length == 0 || System.IO.Path.IsPathRooted(part)) continue;
+				// A project is a name unless it looks like a path.
+				if (name.Equals("project", StringComparison.OrdinalIgnoreCase) && part.IndexOfAny(new[] { '\\', '/' }) < 0 && !System.IO.Directory.Exists(System.IO.Path.Combine(LaunchDirectory, part))) continue;
+				parts[i] = System.IO.Path.GetFullPath(System.IO.Path.Combine(LaunchDirectory, part));
+			}
+			return string.Join(";", parts);
+		}
+
 		public static void Parse(string[] args)
 		{
 			if (args == null)
@@ -92,7 +119,7 @@ namespace FF3
 						? args[++i]
 						: "1";
 				}
-				_values[name] = value.Trim('"');
+				_values[name] = Resolve(name, value.Trim('"'));
 			}
 		}
 
@@ -108,7 +135,7 @@ namespace FF3
 				if (string.Equals(known, name, StringComparison.OrdinalIgnoreCase))
 				{
 					string fromEnv = Environment.GetEnvironmentVariable(env);
-					return string.IsNullOrEmpty(fromEnv) ? null : fromEnv;
+					return string.IsNullOrEmpty(fromEnv) ? null : Resolve(name, fromEnv);
 				}
 			}
 			return null;
@@ -131,9 +158,9 @@ namespace FF3
 		public static string HelpText()
 		{
 			StringBuilder text = new StringBuilder();
-			text.AppendLine("Final Fantasy III (MonoGame, Windows)");
+			text.AppendLine("OpenFF - Final Fantasy III and IV (3D) from their Steam releases");
 			text.AppendLine();
-			text.AppendLine("Usage: FF3.exe [options]");
+			text.AppendLine("Usage: OpenFF.exe [options]");
 			text.AppendLine();
 			foreach ((string name, string env, string arg, string help) in Known)
 			{
@@ -144,9 +171,9 @@ namespace FF3
 			}
 			text.AppendLine();
 			text.AppendLine("Examples:");
-			text.AppendLine("  FF3.exe --log=gl,firstchance");
-			text.AppendLine("  FF3.exe --log=all --screenshot-every=5");
-			text.AppendLine("  FF3.exe --content=..\\..\\..\\..\\Content");
+			text.AppendLine("  OpenFF.exe --log=gl,firstchance");
+			text.AppendLine("  OpenFF.exe --log=all --screenshot-every=5");
+			text.AppendLine("  OpenFF.exe --content=..\\..\\..\\..\\Content");
 			return text.ToString();
 		}
 	}

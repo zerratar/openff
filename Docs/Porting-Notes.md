@@ -28,7 +28,7 @@ ilspycmd syrcusW.dll -p -o out -r "$refs" --ignore-decompilation-errors
 
 That took 257k lines of uncompilable output down to 200k lines with five distinct
 problems. `GlobalScope` — one static class with ~350 nested types — is then split into
-one file per type under `FF3.Game/GlobalScope/`, everything `partial`, so nothing moves
+one file per type under `OpenFF/GlobalScope/`, everything `partial`, so nothing moves
 semantically.
 
 **Caveat that comes with the recipe:** names resolved against MonoGame are wrong wherever
@@ -127,7 +127,7 @@ XNA's behaviour, so it is faithful rather than a port bug.
 
 ## Compatibility shims
 
-Everything new lives in `FF3.Game/Compat/`; the decompiled sources are kept as close to
+Everything new lives in `OpenFF/Compat/`; the decompiled sources are kept as close to
 the decompiler output as possible so they can be re-derived.
 
 | File | Replaces |

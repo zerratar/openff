@@ -1,6 +1,6 @@
 # FF4: land on a map, walk north for a few seconds and back, then quit - for camera and
 # rendering checks with --screenshot-dir / --screenshot-every.
-#   FF3.exe --game=ff4 --map=d02_01 --drive=Docs/Drives/ff4-walk.drive --screenshot-dir=shots --screenshot-every=2
+#   OpenFF.exe --game=ff4 --map=d02_01 --drive=Docs/Drives/ff4-walk.drive --screenshot-dir=shots --screenshot-every=2
 until jump: ff4 60
 wait 6
 press Up 2500

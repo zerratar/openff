@@ -1,11 +1,11 @@
 // The data*.bin side of the content tool.
 //
-//   ff3content archives         <content-dir>
-//   ff3content extract-archives <content-dir> <out-dir> [pattern ...]
+//   crystal archives         <content-dir>
+//   crystal extract-archives <content-dir> <out-dir> [pattern ...]
 //
 // Extraction is deliberately flat: the game looks an override up as
 // <override-dir>/<name>, so an extracted directory can be pointed at directly with
-//   FF3.exe --content-override=<out-dir>
+//   OpenFF.exe --content-override=<out-dir>
 // and every file in it takes precedence over the archived copy. Edit one, keep it,
 // throw the rest away - the game only reads what is there.
 
@@ -158,7 +158,7 @@ namespace FF3.ContentTool
 			Console.WriteLine("written to " + Path.GetFullPath(outputDir));
 			Console.WriteLine();
 			Console.WriteLine("to have the game read these instead of the archives:");
-			Console.WriteLine("  FF3.exe --content-override=" + Path.GetFullPath(outputDir));
+			Console.WriteLine("  OpenFF.exe --content-override=" + Path.GetFullPath(outputDir));
 			return failed > 0 ? 1 : 0;
 		}
 

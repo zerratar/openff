@@ -18,7 +18,7 @@ symbol through the GOT slot it loads. Reads that sit after a conditional branch 
 reported so they can be checked by hand; the three in this build (SetRewardMessage
 Interval, SetBattleBGM, CE_SetMapAsysnc) branch on unrelated state and read regardless.
 
-Reads libff4.so; writes FF3.ContentTool/ScriptOpsFf4.cs and nothing else.
+Reads libff4.so; writes Crystal.Editor/ScriptOpsFf4.cs and nothing else.
 """
 import io
 import os
@@ -31,7 +31,7 @@ from elftools.elf.relocation import RelocationSection
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-DEST = os.path.join(ROOT, 'FF3.ContentTool', 'ScriptOpsFf4.cs')
+DEST = os.path.join(ROOT, 'Crystal.Editor', 'ScriptOpsFf4.cs')
 
 TAB = chr(9)
 NL = chr(10)

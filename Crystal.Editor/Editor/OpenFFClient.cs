@@ -3,7 +3,7 @@
 // The client records its own location every time it runs, in the same settings file
 // that remembers which game to start (%LocalAppData%\OpenFF\launch.json, written by the
 // client's Compat/Launch.cs). That is the first answer. When the client has never run
-// on this machine, a development checkout is the second: the FF3.Game build beside this
+// on this machine, a development checkout is the second: the OpenFF build beside this
 // repository.
 
 using System;
@@ -60,7 +60,7 @@ namespace FF3.ContentTool.Editor
 			return null;
 		}
 
-		/// <summary>The client's FF3.exe: the one that last ran (launch.json), else the development build; null when neither is found.</summary>
+		/// <summary>The client's OpenFF.exe: the one that last ran (launch.json), else the development build; null when neither is found.</summary>
 		public static string Executable()
 		{
 			try
@@ -93,7 +93,7 @@ namespace FF3.ContentTool.Editor
 			string exe = Executable();
 			if (exe == null)
 			{
-				throw new InvalidOperationException("the OpenFF client was not found - start FF3.exe once (it records where it is), or build FF3.Game beside this repository");
+				throw new InvalidOperationException("the OpenFF client was not found - start OpenFF.exe once (it records where it is), or build OpenFF beside this repository");
 			}
 			System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe)
 			{
@@ -127,7 +127,7 @@ namespace FF3.ContentTool.Editor
 			return null;
 		}
 
-		/// <summary>FF3.Game/bin/{Debug,Release}/net8.0/FF3.exe, looked for upward from where Crystal runs.</summary>
+		/// <summary>OpenFF/bin/{Debug,Release}/net8.0/OpenFF.exe, looked for upward from where Crystal runs.</summary>
 		private static string DevelopmentBuild()
 		{
 			foreach (string start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
@@ -137,7 +137,7 @@ namespace FF3.ContentTool.Editor
 				{
 					foreach (string configuration in new[] { "Debug", "Release" })
 					{
-						string candidate = Path.Combine(directory.FullName, "FF3.Game", "bin", configuration, "net8.0", "FF3.exe");
+						string candidate = Path.Combine(directory.FullName, "OpenFF", "bin", configuration, "net8.0", "OpenFF.exe");
 						if (File.Exists(candidate))
 						{
 							return candidate;

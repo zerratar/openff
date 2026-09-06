@@ -19,11 +19,11 @@ one of those files, and none of them needs the game rebuilt.
 ## Editing one
 
 ```bash
-dotnet run --project FF3.ContentTool -- extract-archives Content Content/Override "files/MenuDefine.xbn"
-dotnet run --project FF3.ContentTool -- xbn Content/Override/files/MenuDefine.xbn
+dotnet run --project Crystal.Editor -- extract-archives Content Content/Override "files/MenuDefine.xbn"
+dotnet run --project Crystal.Editor -- xbn Content/Override/files/MenuDefine.xbn
 # edit Content/Override/files/MenuDefine.xml
-dotnet run --project FF3.ContentTool -- xbn-build Content/Override/files/MenuDefine.xml
-FF3.exe
+dotnet run --project Crystal.Editor -- xbn-build Content/Override/files/MenuDefine.xml
+OpenFF.exe
 ```
 
 `xbn` decodes and then immediately rebuilds what it decoded, comparing against the

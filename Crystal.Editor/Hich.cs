@@ -1,6 +1,6 @@
 // .hich - what stands on a map.
 //
-//   ff3content hich <file.hich | directory> [out]
+//   crystal hich <file.hich | directory> [out]
 //
 // One row per character: which model it wears, where it stands, and - the useful part
 // - the cast number that gives it its behaviour. That cast is a program in the map's

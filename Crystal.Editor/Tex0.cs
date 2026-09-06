@@ -1,6 +1,6 @@
-﻿// TEX0 - the textures inside an NMDP package.
+// TEX0 - the textures inside an NMDP package.
 //
-//   ff3content tex <file.lz | directory> [out]
+//   crystal tex <file.lz | directory> [out]
 //
 // Every .nmdp and .ntxp is an NMDP wrapper around a standard NitroSDK file - BMD0 for
 // a model with its textures, BTX0 for textures alone - and the TEX0 block inside holds

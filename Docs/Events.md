@@ -5,7 +5,7 @@ it, when a cutscene fires, what a chest holds, how a quest moves forward. 357 fi
 3059 casts, 72770 instructions.
 
 ```bash
-dotnet run --project FF3.ContentTool -- script ..\extracted\files ..\scripts --text=..\text\en.lproj
+dotnet run --project Crystal.Editor -- script ..\extracted\files ..\scripts --text=..\text\en.lproj
 ```
 
 `--text` points at decoded `.msd` JSON and writes each line of dialogue in beside the
@@ -41,7 +41,7 @@ global script; anything else means this file's own function table.
 
 ## The instruction set
 
-`FF3.ContentTool/ScriptOps.cs` is generated, not written:
+`Crystal.Editor/ScriptOps.cs` is generated, not written:
 
 ```bash
 python Tools/gen_opcodes.py

@@ -1,4 +1,4 @@
-﻿// Writes a .script back out as script language source.
+// Writes a .script back out as script language source.
 //
 // The output is meant to be compiled again, so everything the format carries has to
 // survive the trip: the map number, the cast table, the function table, every
@@ -31,8 +31,8 @@ namespace FF3.ContentTool.Ffs
 			Dictionary<uint, ScriptInstruction> byAddress = code.ToDictionary(i => i.At);
 
 			writer.WriteLine("// {0}", name);
-			writer.WriteLine("// Decompiled by ff3content. Compile with:");
-			writer.WriteLine("//   ff3content script-build {0}",
+			writer.WriteLine("// Decompiled by crystal. Compile with:");
+			writer.WriteLine("//   crystal script-build {0}",
 				Path.ChangeExtension(name, ".ffs"));
 			writer.WriteLine();
 			writer.WriteLine("map {0};", file.MapNumber);

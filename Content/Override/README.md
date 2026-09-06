@@ -14,12 +14,12 @@ Content/Override/files/some.script
 Get a correct tree by extracting one:
 
 ```
-dotnet run --project FF3.ContentTool -- archives Content
-dotnet run --project FF3.ContentTool -- extract-archives Content <somewhere> "en.lproj/*"
+dotnet run --project Crystal.Editor -- archives Content
+dotnet run --project Crystal.Editor -- extract-archives Content <somewhere> "en.lproj/*"
 ```
 
 Copy out only the files actually being changed - the rest just costs load time.
-Another directory can be used instead, with `FF3.exe --content-override=<dir>`.
+Another directory can be used instead, with `OpenFF.exe --content-override=<dir>`.
 
 Files here are ignored by git (see `.gitignore`), so local experiments do not end
 up in the repository. Content meant to ship goes in deliberately, with the

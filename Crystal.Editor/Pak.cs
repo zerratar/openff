@@ -1,8 +1,8 @@
-﻿// .pak - the parameter tables. Items, weapons, armour, spells, monsters, and the
+// .pak - the parameter tables. Items, weapons, armour, spells, monsters, and the
 // per map data behind exits, encounters and cameras.
 //
-//   ff3content pak       <file.pak | directory> [out] [--text=<dir>]
-//   ff3content pak-build <file.json> [out.pak]
+//   crystal pak       <file.pak | directory> [out] [--text=<dir>]
+//   crystal pak-build <file.json> [out.pak]
 //
 // A .pak is a container of chains; a chain is an array of fixed size records. The
 // record layouts are generated from the game's own parse methods into PakRecords.cs,

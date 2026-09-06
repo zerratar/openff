@@ -2,8 +2,8 @@
 // described in. Eight files, and between them they define nearly every screen in
 // the game: layout, focus order, and which behaviour class drives each widget.
 //
-//   ff3content xbn        <file.xbn> [out.xml]     binary -> XML
-//   ff3content xbn-build  <file.xml> [out.xbn]     XML -> binary
+//   crystal xbn        <file.xbn> [out.xml]     binary -> XML
+//   crystal xbn-build  <file.xml> [out.xbn]     XML -> binary
 //
 // With the override path, that is the whole loop for changing a menu: decode,
 // edit, build, drop the .xbn in Content/Override/files/, restart.

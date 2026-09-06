@@ -11,7 +11,7 @@ Also works out which operand a branching handler passes to engine.jump(), becaus
 "the first Dword" is wrong: conditional jumps read their flags first, and some read a
 whole coordinate box before the destination.
 
-Reads the game sources; writes FF3.ContentTool/ScriptOps.cs and nothing else.
+Reads the game sources; writes Crystal.Editor/ScriptOps.cs and nothing else.
 """
 import io
 import os
@@ -19,8 +19,8 @@ import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-MEMBERS = os.path.join(ROOT, 'FF3.Game', 'GlobalScope', 'GlobalScope.Members.cs')
-DEST = os.path.join(ROOT, 'FF3.ContentTool', 'ScriptOps.cs')
+MEMBERS = os.path.join(ROOT, 'OpenFF', 'GlobalScope', 'GlobalScope.Members.cs')
+DEST = os.path.join(ROOT, 'Crystal.Editor', 'ScriptOps.cs')
 
 TAB = chr(9)
 NL = chr(10)

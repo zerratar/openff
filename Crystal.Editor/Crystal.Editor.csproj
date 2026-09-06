@@ -1,10 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <RootNamespace>FF3.ContentTool</RootNamespace>
-    <AssemblyName>ff3content</AssemblyName>
+    <RootNamespace>Crystal</RootNamespace>
+    <AssemblyName>crystal</AssemblyName>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -21,7 +21,7 @@
     <Compile Include="..\Shared\Data\*.cs" Link="Formats\Data\%(Filename)%(Extension)" />
     <!-- The game's own Shift-JIS tables, so text written by the tool decodes
          back through the game's decoder unchanged. -->
-    <Compile Include="..\FF3.Game\Sjis.cs" Link="Formats\Sjis.cs" />
+    <Compile Include="..\OpenFF\Sjis.cs" Link="Formats\Sjis.cs" />
   </ItemGroup>
 
   <ItemGroup>

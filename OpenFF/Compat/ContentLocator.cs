@@ -1,4 +1,4 @@
-﻿// Finds the game's Content directory.
+// Finds the game's Content directory.
 //
 // The extracted content is ~540 MB, so the project deliberately does not copy it
 // into bin/. Instead the game runs with its working directory set to whichever
@@ -56,7 +56,7 @@ namespace FF3
 			}
 
 			// Walk up from the executable. Covers both "Content sits next to the exe"
-			// (a published build) and "…/Project/FF3.Game/bin/Debug/net8.0" running from
+			// (a published build) and "…/Project/OpenFF/bin/Debug/net8.0" running from
 			// the repo, where the content lives in a sibling of Project/.
 			DirectoryInfo dir = new DirectoryInfo(AppContext.BaseDirectory);
 			while (dir != null)

@@ -43,10 +43,9 @@ namespace FF3
 			if (contentRoot == null)
 			{
 				Console.Error.WriteLine(
-					"FF3: could not locate the Content directory.\n" +
-					"Expected a folder named 'Content' containing data000.bin next to the\n" +
-					"executable, or at ..\\..\\Unpacked\\Content relative to the project.\n" +
-					"Set the FF3_CONTENT environment variable to override.");
+					"OpenFF: no game content found.\n" +
+					"Expected a Steam install of Final Fantasy III or Final Fantasy IV (3D Remake),\n" +
+					"or a directory named with --content=<dir> (also FF3_CONTENT).");
 				return;
 			}
 			GameFiles.BaseDirectory = Directory.GetParent(contentRoot).FullName;

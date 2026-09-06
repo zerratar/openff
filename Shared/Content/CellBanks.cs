@@ -11,7 +11,7 @@
 //   6    flags: 1 flip across, 2 flip down, 4 half size, 8 squash to 0.6 x 2/3
 //
 // Every cell header comes first (parts count, attributes, 8 bytes each) and every part
-// list after, in that order. Crystal's FF3.ContentTool/Cells.cs reads the same files with
+// list after, in that order. Crystal's Crystal.Editor/Cells.cs reads the same files with
 // more bookkeeping (sheet pairing, screens, animation); this is the reader the client draws
 // from - FF4's window frames, glove cursor and gauges under the OpenFF battle and menus.
 

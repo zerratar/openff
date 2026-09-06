@@ -17,7 +17,7 @@ Which is why every layout is checked against the stride the game itself divides 
 ItemManager counts weapons in steps of 56, mon counts monsters in steps of 100. A
 layout that does not add up is reported and not emitted.
 
-Reads the game sources; writes FF3.ContentTool/PakRecords.cs and nothing else.
+Reads the game sources; writes Crystal.Editor/PakRecords.cs and nothing else.
 """
 import io
 import os
@@ -29,8 +29,8 @@ from record_notes import NOTES
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-GAME = os.path.join(ROOT, 'FF3.Game', 'GlobalScope')
-DEST = os.path.join(ROOT, 'FF3.ContentTool', 'PakRecords.cs')
+GAME = os.path.join(ROOT, 'OpenFF', 'GlobalScope')
+DEST = os.path.join(ROOT, 'Crystal.Editor', 'PakRecords.cs')
 
 TAB = chr(9)
 NL = chr(10)

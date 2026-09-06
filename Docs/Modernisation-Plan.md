@@ -58,7 +58,7 @@ time, each one verified with `--test=3d` and `--renderer=emulated` as the baseli
 Only worth doing once stage 2 is done, because the shims constrain the shape.
 
 **Content.** `GameArchive` reports 6962 files across 52 volumes. The next step is an
-extractor (`ff3content extract-archives`) so the assets become editable, followed by
+extractor (`crystal extract-archives`) so the assets become editable, followed by
 an override path — look for a loose file before falling back to the archive — so new
 or modified content can be added without repacking.
 

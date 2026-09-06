@@ -48,7 +48,7 @@ wrapper needs no guessing either.
 
 ## TEX0: the textures
 
-**Done.** All 2828 of them decode. `ff3content tex <dir> <out>` writes the lot as PNG,
+**Done.** All 2828 of them decode. `crystal tex <dir> <out>` writes the lot as PNG,
 and the editor's **Textures** tab shows any package as a gallery.
 
 Of the 1589 packages, 1126 hold a TEX0 - every one of the 756 `.ntxp`, and 370 of the
@@ -122,7 +122,7 @@ rather than offering a button that half works.
 
 ## MDL0: the geometry
 
-**Done.** All 833 models decode. `ff3content mdl <dir> <out>` writes them as OBJ with
+**Done.** All 833 models decode. `crystal mdl <dir> <out>` writes them as OBJ with
 their textures, and the editor's **Models** tab draws them in the browser - drag to
 orbit, wheel to zoom.
 
@@ -173,7 +173,7 @@ keep their base matrix, since which way they face depends on a camera that is no
 
 ## NCER, NSCR and NANR: which piece goes where
 
-**Done.** `ff3content cells <dir> <out>` writes them all as JSON, and the editor's
+**Done.** `crystal cells <dir> <out>` writes them all as JSON, and the editor's
 **Cells** tab composes each one against its sheet and shows the result.
 
 The pictures were already readable, but a picture is a sheet of parts. These are the

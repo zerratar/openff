@@ -14,7 +14,7 @@ operand to the call it ends up in and taking the parameter name from the other s
 
 Anything that cannot be followed is left unnamed rather than guessed at.
 
-Writes FF3.ContentTool/ScriptOperands.cs; reads everything else.
+Writes Crystal.Editor/ScriptOperands.cs; reads everything else.
 """
 import io
 import os
@@ -22,9 +22,9 @@ import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-GAME = os.path.join(ROOT, 'FF3.Game')
+GAME = os.path.join(ROOT, 'OpenFF')
 MEMBERS = os.path.join(GAME, 'GlobalScope', 'GlobalScope.Members.cs')
-DEST = os.path.join(ROOT, 'FF3.ContentTool', 'ScriptOperands.cs')
+DEST = os.path.join(ROOT, 'Crystal.Editor', 'ScriptOperands.cs')
 
 TAB = chr(9)
 NL = chr(10)

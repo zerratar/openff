@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TOOL = os.path.join(PROJECT, 'FF3.ContentTool', 'bin', 'Debug', 'net8.0', 'ff3content.exe')
+TOOL = os.path.join(PROJECT, 'Crystal.Editor', 'bin', 'Debug', 'net8.0', 'crystal.exe')
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'obj-revert')
 INSTALL = os.path.join(HERE, 'install')
 MOD = os.path.join(HERE, 'mod')

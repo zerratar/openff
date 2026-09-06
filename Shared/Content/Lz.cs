@@ -1,8 +1,8 @@
-﻿// LZ77, the NDS variety. 2734 of the archived files are compressed with it, which is
+// LZ77, the NDS variety. 2734 of the archived files are compressed with it, which is
 // most of the graphics and model data.
 //
-//   ff3content lz          <file.lz | directory> [out]
-//   ff3content lz-compress <file> [out.lz]
+//   crystal lz          <file.lz | directory> [out]
+//   crystal lz-compress <file> [out.lz]
 //
 // The decompressor is the same algorithm as the game's MI_ReadUncompLZ8, which is the
 // live path - the one shot MI_UncompressLZ8 next to it is an empty stub in this build,

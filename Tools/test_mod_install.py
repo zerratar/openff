@@ -9,7 +9,7 @@ removed rather than restored. The last of those was wrong the first time - after
 install the added file exists, so a second install decided it had replaced an
 original and uninstall then left it behind.
 
-Sample files come from whatever loose install `ff3content installs` finds; set
+Sample files come from whatever loose install `crystal installs` finds; set
 FF3_STEAM_FILES to a files directory to point it somewhere else.
 """
 import hashlib
@@ -19,7 +19,7 @@ import subprocess
 import sys
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TOOL = os.path.join(PROJECT, 'FF3.ContentTool', 'bin', 'Debug', 'net8.0', 'ff3content.exe')
+TOOL = os.path.join(PROJECT, 'Crystal.Editor', 'bin', 'Debug', 'net8.0', 'crystal.exe')
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'obj')
 INSTALL = os.path.join(HERE, 'fakeinstall')
 MOD = os.path.join(HERE, 'fakemod')

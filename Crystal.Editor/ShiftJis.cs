@@ -1,6 +1,6 @@
 // Shift-JIS, over the game's own tables.
 //
-// Sjis.cs is compiled in from FF3.Game rather than copied, and CP932 is
+// Sjis.cs is compiled in from OpenFF rather than copied, and CP932 is
 // deliberately not used instead: what matters is not that the tool agrees with
 // Windows, but that it agrees with the game. Encoding is the exact inverse of
 // StringUtil.SJISEncoding.GetChars, so anything written here reads back through

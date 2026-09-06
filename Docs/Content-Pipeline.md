@@ -7,7 +7,7 @@ The shipped game data comes in two very different forms.
 Most of what follows has a graphical front end:
 
 ```bash
-dotnet run --project FF3.ContentTool -- editor --content=Content
+dotnet run --project Crystal.Editor -- editor --content=Content
 ```
 
 Scripts, menus and text, edited in a browser and written straight to the override
@@ -71,8 +71,8 @@ needed.
 ## Extracting
 
 ```bash
-dotnet run --project FF3.ContentTool -- info    <xnb-dir>
-dotnet run --project FF3.ContentTool -- extract <xnb-dir> ./Content
+dotnet run --project Crystal.Editor -- info    <xnb-dir>
+dotnet run --project Crystal.Editor -- extract <xnb-dir> ./Content
 ```
 
 `extract` produces:
@@ -129,7 +129,7 @@ content tool so there is exactly one implementation of it.
 See what is in there:
 
 ```bash
-dotnet run --project FF3.ContentTool -- archives Content
+dotnet run --project Crystal.Editor -- archives Content
 ```
 
 ```
@@ -147,8 +147,8 @@ dotnet run --project FF3.ContentTool -- archives Content
 Extract, all of it or a subset:
 
 ```bash
-dotnet run --project FF3.ContentTool -- extract-archives Content ..\extracted
-dotnet run --project FF3.ContentTool -- extract-archives Content ..\extracted "en.lproj/*" "*.script"
+dotnet run --project Crystal.Editor -- extract-archives Content ..\extracted
+dotnet run --project Crystal.Editor -- extract-archives Content ..\extracted "en.lproj/*" "*.script"
 ```
 
 Patterns are globs over the archived name. The output mirrors the archive's own
@@ -162,9 +162,9 @@ Nothing has to be packed back. `GameArchive.Read` looks in `Content/Override/<na
 before it looks in the archives:
 
 ```bash
-dotnet run --project FF3.ContentTool -- extract-archives Content Content/Override "files/*.script"
+dotnet run --project Crystal.Editor -- extract-archives Content Content/Override "files/*.script"
 # edit Content/Override/files/whatever.script
-FF3.exe
+OpenFF.exe
 ```
 
 `--content-override=<dir>` points somewhere else instead - handy for keeping a whole
@@ -185,8 +185,8 @@ Content meant to ship goes in deliberately.
 The `.xbn` files are binary XML and decode to editable XML and back, byte for byte:
 
 ```bash
-dotnet run --project FF3.ContentTool -- xbn       files/MenuDefine.xbn
-dotnet run --project FF3.ContentTool -- xbn-build files/MenuDefine.xml
+dotnet run --project Crystal.Editor -- xbn       files/MenuDefine.xbn
+dotnet run --project Crystal.Editor -- xbn-build files/MenuDefine.xml
 ```
 
 See `Docs/Menus.md`.
@@ -196,8 +196,8 @@ See `Docs/Menus.md`.
 The `.msd` files hold every line in the game and decode to JSON and back:
 
 ```bash
-dotnet run --project FF3.ContentTool -- msd       ..\extracted ..	ext
-dotnet run --project FF3.ContentTool -- msd-build en.lproj/eureka_menu.json
+dotnet run --project Crystal.Editor -- msd       ..\extracted ..	ext
+dotnet run --project Crystal.Editor -- msd-build en.lproj/eureka_menu.json
 ```
 
 See `Docs/Text.md`, which also covers the 15251 messages that are not the UTF-8 the
@@ -209,13 +209,13 @@ The `.script` files are the event bytecode and disassemble, with dialogue writte
 beside the instructions that show it:
 
 ```bash
-dotnet run --project FF3.ContentTool -- script ..\extracted\files ..\scripts --text=..\text\en.lproj
+dotnet run --project Crystal.Editor -- script ..\extracted\files ..\scripts --text=..\text\en.lproj
 ```
 
 They also compile back, from a text language with a real lexer, parser and compiler:
 
 ```bash
-dotnet run --project FF3.ContentTool -- script-build ..\ffs\d01_02.ffs Content\Override\files
+dotnet run --project Crystal.Editor -- script-build ..\ffs\d01_02.ffs Content\Override\files
 ```
 
 See `Docs/Events.md` and `Docs/Script-Language.md`.
@@ -225,7 +225,7 @@ See `Docs/Events.md` and `Docs/Script-Language.md`.
 Items, monsters and per map data decode to JSON and back:
 
 ```bash
-dotnet run --project FF3.ContentTool -- pak ..\extracted\files ..\tables --text=..\text\en.lproj
+dotnet run --project Crystal.Editor -- pak ..\extracted\files ..\tables --text=..\text\en.lproj
 ```
 
 See `Docs/Tables.md`.
@@ -235,7 +235,7 @@ See `Docs/Tables.md`.
 2734 archived files are LZ77 compressed and unpack with:
 
 ```bash
-dotnet run --project FF3.ContentTool -- lz ..\extracted\files ..\unpacked
+dotnet run --project Crystal.Editor -- lz ..\extracted\files ..\unpacked
 ```
 
 See `Docs/Compression.md`.
@@ -246,7 +246,7 @@ All 2828 textures inside the `NMDP` packages decode. Unpack the archives first, 
 they are LZ compressed:
 
 ```bash
-dotnet run --project FF3.ContentTool -- tex ..\extractediles ..	extures
+dotnet run --project Crystal.Editor -- tex ..\extractediles ..	extures
 ```
 
 See `Docs/Graphics.md`.
@@ -256,13 +256,13 @@ See `Docs/Graphics.md`.
 All 833 models, as OBJ with their textures beside them:
 
 ```bash
-dotnet run --project FF3.ContentTool -- mdl ..\extractediles ..\models
+dotnet run --project Crystal.Editor -- mdl ..\extractediles ..\models
 ```
 
 ## Cells, screens and 2D animation
 
 ```bash
-dotnet run --project FF3.ContentTool -- cells ..\\extracted ..\\cells
+dotnet run --project Crystal.Editor -- cells ..\\extracted ..\\cells
 ```
 
 ## Not decoded yet

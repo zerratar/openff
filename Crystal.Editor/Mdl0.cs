@@ -1,6 +1,6 @@
-﻿// MDL0 - the geometry inside an NMDP package.
+// MDL0 - the geometry inside an NMDP package.
 //
-//   ff3content mdl <file.lz | directory> [out]
+//   crystal mdl <file.lz | directory> [out]
 //
 // A model is three things stacked on each other. The shapes hold NDS display lists,
 // which are GPU command streams rather than vertex buffers. The SBC is a little byte

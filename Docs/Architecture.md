@@ -91,7 +91,7 @@ anywhere content is written out.
 **Overrides.** `GameArchive.Read` checks `Content/Override/<name>` before the
 archives (`--content-override=<dir>` to point elsewhere). A changed file therefore
 needs no repacking and no rebuild. That is the seam every content change goes
-through from here: extract with `ff3content extract-archives`, edit, drop it in.
+through from here: extract with `crystal extract-archives`, edit, drop it in.
 Lookups are held inside the override directory, because the names come from game
 data rather than from us.
 
@@ -181,7 +181,7 @@ what the editor's map view is built on.
 ## Tooling
 
 `FF3.ContentTool` reads and writes every format the game uses that has been worked
-out, and `ff3content editor` puts a browser front end on the ones worth seeing while
+out, and `crystal editor` puts a browser front end on the ones worth seeing while
 editing - scripts, menus and text. `Docs/Editor.md`.
 
 ## Diagnostics
@@ -189,7 +189,7 @@ editing - scripts, menus and text. `Docs/Editor.md`.
 Every run writes `bin/Debug/net8.0/logs/ff3.log`. `--log=all` or a channel list
 (`gl, texture, content, file, sound, input, event, firstchance`). `--test=3d` and
 `--test=model` are isolated render harnesses; `--capture-model` grabs live geometry
-out of the game so it can be inspected on its own. `FF3.exe --help` lists everything.
+out of the game so it can be inspected on its own. `OpenFF.exe --help` lists everything.
 
 `firstchance` matters: large parts of the decompiled game swallow exceptions, so a
 fault usually surfaces as "nothing happened" rather than an error.

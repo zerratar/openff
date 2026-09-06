@@ -1,6 +1,6 @@
 // The data*.bin archive format, with no dependencies.
 //
-// Shared source: compiled into both FF3.Game (which reads through it at runtime)
+// Shared source: compiled into both OpenFF (which reads through it at runtime)
 // and FF3.ContentTool (which extracts through it). One implementation, so the two
 // cannot drift.
 //

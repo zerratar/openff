@@ -1,7 +1,7 @@
 // The engine API: the verbs a script uses to act on the game.
 //
 // Each group is an interface a service implements. Today the client implements them on
-// the legacy game (FF3.Game/Compat/EngineApi.cs), which is why they read like the FF3
+// the legacy game (OpenFF/Compat/EngineApi.cs), which is why they read like the FF3
 // script commands they lower to - BootCharacter, MoveCharacter, StartMessage2, PlaySE,
 // AddItem, MapWarp - and why a verb can be a no-op outside a map. A mod reaches them as
 // Game.Dialogue, Game.Hero, Game.Npcs, Game.Flags, Game.Party, Game.Audio, Game.Screen,

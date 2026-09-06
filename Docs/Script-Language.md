@@ -13,8 +13,8 @@ exactly, something has been lost, and the tool says so rather than letting a mod
 find out later.
 
 ```bash
-dotnet run --project FF3.ContentTool -- script ..\extracted\files ..\ffs --text=..\text\en.lproj
-dotnet run --project FF3.ContentTool -- script-build ..\ffs\d01_02.ffs Content\Override\files
+dotnet run --project Crystal.Editor -- script ..\extracted\files ..\ffs --text=..\text\en.lproj
+dotnet run --project Crystal.Editor -- script-build ..\ffs\d01_02.ffs Content\Override\files
 ```
 
 ## What it looks like
@@ -216,9 +216,9 @@ bootCharacter_AbsoluteCoordination(35, 0xFFFA9000, 0, 0xFFFB9000, 0);   // x -87
 ```
 
 ```bash
-dotnet run --project FF3.ContentTool -- ops            # all 298
-dotnet run --project FF3.ContentTool -- ops camera     # just the camera ones
-dotnet run --project FF3.ContentTool -- ops --game=ff4 # FF4's 500
+dotnet run --project Crystal.Editor -- ops            # all 298
+dotnet run --project Crystal.Editor -- ops camera     # just the camera ones
+dotnet run --project Crystal.Editor -- ops --game=ff4 # FF4's 500
 ```
 
 The editor has the same table live - highlighting, completion and a signature strip.

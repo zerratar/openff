@@ -1,8 +1,8 @@
-﻿// MSD - every line of text in the game. 1890 files, 55431 messages: dialogue,
+// MSD - every line of text in the game. 1890 files, 55431 messages: dialogue,
 // menu labels, item and spell names and descriptions, battle chatter.
 //
-//   ff3content msd        <file.msd | directory> [out]
-//   ff3content msd-build  <file.json>            [out.msd]
+//   crystal msd        <file.msd | directory> [out]
+//   crystal msd-build  <file.json>            [out.msd]
 //
 // Menus reference these by number: MenuDefine.xbn gives the main menu's Item
 // command <parameter>50003</parameter>, and message 50003 in eureka_menu.msd is

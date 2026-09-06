@@ -1,11 +1,11 @@
-﻿# Crystal - the OpenFF editor
+# Crystal - the OpenFF editor
 
 Crystal is the editor for Final Fantasy III and Final Fantasy IV (3D) content: the
 shipped Steam games, and OpenFF, the client being built to run either. The executable
-is still called `ff3content`; the page, the start screen and the console say Crystal.
+is still called `crystal`; the page, the start screen and the console say Crystal.
 
 ```bash
-dotnet run --project FF3.ContentTool -- editor --content=Content --text=..\text\en.lproj
+dotnet run --project Crystal.Editor -- editor --content=Content --text=..\text\en.lproj
 ```
 
 Then open <http://localhost:5050/>.
@@ -27,7 +27,7 @@ starts, and undoing one is deleting a file.
 | `--no-browser` | | do not open the page |
 
 With no `--content` it takes the `Content` directory if there is one, and otherwise
-looks for a Steam copy of the game. `ff3content installs` prints what it found. So
+looks for a Steam copy of the game. `crystal installs` prints what it found. So
 for somebody who just has the game, the whole of it is: run it - it finds the game,
 serves the editor, and opens the page, because an editor that prints a URL and waits
 is one whose UI most people never find.
@@ -45,7 +45,7 @@ somebody.
 ```
 
 `<projects>` is `%LOCALAPPDATA%\FF3ContentTool\projects`, or `FF3_PROJECTS`.
-`ff3content projects` lists them. In the editor they are under **File**: new, open,
+`crystal projects` lists them. In the editor they are under **File**: new, open,
 **Changes…** (everything edited, per game, with revert), **Project settings…** (name,
 author, version, description, and which games), **Export as .zip…** and **Show project
 folder**. The start page - what the document area shows with nothing open - has the same
@@ -92,7 +92,7 @@ A mod published to Nexus targets Steam, since that is the game other people have
 ## FF4
 
 The same engine shipped Final Fantasy IV (3D Remake) a year later, and the editor
-opens it: `--target=ff4steam`, or point `--content` at the install. `ff3content
+opens it: `--target=ff4steam`, or point `--content` at the install. `crystal
 installs` lists both games. The status line and `/api/status` say `game: ff4`.
 
 What is different, and what the editor does about it:
@@ -282,7 +282,7 @@ through both:
 Which one it opened is on the status line and in `/api/status` as `content`.
 
 ```bash
-dotnet run --project FF3.ContentTool -- editor ^
+dotnet run --project Crystal.Editor -- editor ^
   "--content=C:\Program Files (x86)\Steam\steamapps\common\Final Fantasy III" ^
   --override=..\SteamMods --port=5051
 ```
@@ -306,8 +306,8 @@ The header grows two buttons when the content is a loose install, and the same t
 is on the command line:
 
 ```bash
-dotnet run --project FF3.ContentTool -- install      # edits -> the game
-dotnet run --project FF3.ContentTool -- uninstall    # the originals back
+dotnet run --project Crystal.Editor -- install      # edits -> the game
+dotnet run --project Crystal.Editor -- uninstall    # the originals back
 ```
 
 The override directory stays the master copy either way. That is what makes a mod a
@@ -378,7 +378,7 @@ the edit kept, rather than a stale original going back over a newer one.
 dotnet publish FF3.ContentTool -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
-One 66 MB `ff3content.exe` and the `wwwroot` beside it. Run it with no arguments: it
+One 66 MB `crystal.exe` and the `wwwroot` beside it. Run it with no arguments: it
 finds the Steam install, puts the mod directory in local application data, opens on
 <http://localhost:5050/>, and never writes into the game until somebody presses the
 button.

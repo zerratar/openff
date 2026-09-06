@@ -5,17 +5,17 @@ lives in 1890 `.msd` files: 55431 messages, ten languages. They decode to JSON a
 back, byte for byte.
 
 ```bash
-dotnet run --project FF3.ContentTool -- msd Content/Override/en.lproj/eureka_menu.msd
+dotnet run --project Crystal.Editor -- msd Content/Override/en.lproj/eureka_menu.msd
 # edit the .json
-dotnet run --project FF3.ContentTool -- msd-build Content/Override/en.lproj/eureka_menu.json
+dotnet run --project Crystal.Editor -- msd-build Content/Override/en.lproj/eureka_menu.json
 ```
 
 Point `msd` at a directory to do the lot at once, which is the way to get something
 greppable:
 
 ```bash
-dotnet run --project FF3.ContentTool -- extract-archives Content ..\extracted
-dotnet run --project FF3.ContentTool -- msd ..\extracted ..\text
+dotnet run --project Crystal.Editor -- extract-archives Content ..\extracted
+dotnet run --project Crystal.Editor -- msd ..\extracted ..\text
 rg -i "crystal" ..\text\en.lproj
 ```
 

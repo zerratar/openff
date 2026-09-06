@@ -1,7 +1,7 @@
-﻿// .script - the event bytecode. 357 files: what an NPC does when you talk to it,
+// .script - the event bytecode. 357 files: what an NPC does when you talk to it,
 // when a cutscene fires, what a chest holds, how a quest moves forward.
 //
-//   ff3content script <file.script | directory> [out] [--text=<dir>]
+//   crystal script <file.script | directory> [out] [--text=<dir>]
 //
 // The engine (GlobalScope.ScriptEngine) fetches a 16 bit opcode and dispatches it
 // through a 298 entry table. Every handler reads its operands straight off the

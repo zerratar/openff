@@ -101,7 +101,7 @@ function drawMenuBar() {
       note: 'Game.Hero, Game.Dialogue, Game.Magic... what a mod\'s C# can call, from the engine\'s own docs' },
     '-',
     { label: 'Run in OpenFF', run: runInOpenFF, disabled: !(open && open.client),
-      note: open && open.client ? 'Export to the mods folder and start the client (a running client hot-reloads)' : 'No OpenFF client found: build FF3.Game or start FF3.exe once' },
+      note: open && open.client ? 'Export to the mods folder and start the client (a running client hot-reloads)' : 'No OpenFF client found: build OpenFF or start OpenFF.exe once' },
     { label: 'Show project folder', run: () => revealProject(), disabled: !open },
   ]));
 
@@ -469,7 +469,7 @@ async function apiReferenceDialog() {
     if (!types.length) {
       const none = document.createElement('p');
       none.className = 'dialog-note';
-      none.textContent = 'No engine documentation found: build FF3.Game (OpenFF.Engine.xml sits beside OpenFF.Engine.dll).';
+      none.textContent = 'No engine documentation found: build OpenFF (OpenFF.Engine.xml sits beside OpenFF.Engine.dll).';
       list.append(none);
       return;
     }

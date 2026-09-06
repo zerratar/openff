@@ -13,7 +13,7 @@ second shape does anyway, for all but a handful.
 
     python Tools/gen_cell_pairs.py
 
-Writes FF3.ContentTool/CellPairs.cs. Read-only against the game source.
+Writes Crystal.Editor/CellPairs.cs. Read-only against the game source.
 """
 import os
 import re
@@ -21,8 +21,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-GAME = os.path.join(ROOT, 'FF3.Game')
-OUT = os.path.join(ROOT, 'FF3.ContentTool', 'CellPairs.cs')
+GAME = os.path.join(ROOT, 'OpenFF')
+OUT = os.path.join(ROOT, 'Crystal.Editor', 'CellPairs.cs')
 
 # "cell.NSCR", "sheet.NCGR", ...    - the background form, sheet second
 BG = re.compile(r'"([A-Za-z0-9_]+\.(?:NSCR|NCER))"\s*,\s*"([A-Za-z0-9_]+\.(?:NCGR|NCBR))"')

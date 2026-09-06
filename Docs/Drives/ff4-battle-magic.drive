@@ -1,6 +1,6 @@
 # FF4: a test fight with Cecil and the child Rydia - Cecil fights, Rydia casts Cure on
 # herself and then Blizzard on a Goblin. Run with:
-#   FF3.exe --game=ff4 --map=t01_00 --party=4:10 --drive=Docs/Drives/ff4-battle-magic.drive --log=general,file
+#   OpenFF.exe --game=ff4 --map=t01_00 --party=4:10 --drive=Docs/Drives/ff4-battle-magic.drive --log=general,file
 # and read logs/ff3.log for the "battle:" lines (Testing.md C-43, C-44).
 until jump: ff4 60
 wait 6

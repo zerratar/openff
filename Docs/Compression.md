@@ -4,8 +4,8 @@
 animation and collision data. They decompress and compress again:
 
 ```bash
-dotnet run --project FF3.ContentTool -- lz ..\extracted\files ..\unpacked
-dotnet run --project FF3.ContentTool -- lz-compress ..\unpacked\b01.nmdp
+dotnet run --project Crystal.Editor -- lz ..\extracted\files ..\unpacked
+dotnet run --project Crystal.Editor -- lz-compress ..\unpacked\b01.nmdp
 ```
 
 119 MB of `.lz` becomes 238 MB of data.

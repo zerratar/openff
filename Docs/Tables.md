@@ -5,8 +5,8 @@ encounters and cameras. All of it lives in `.pak` files and decodes to JSON and 
 byte for byte.
 
 ```bash
-dotnet run --project FF3.ContentTool -- pak ..\extracted\files ..\tables --text=..\text\en.lproj
-dotnet run --project FF3.ContentTool -- pak-build ..\tables\item_parameter.json
+dotnet run --project Crystal.Editor -- pak ..\extracted\files ..\tables --text=..\text\en.lproj
+dotnet run --project Crystal.Editor -- pak-build ..\tables\item_parameter.json
 ```
 
 `--text` points at decoded `.msd` JSON and writes each record's name in beside it.
@@ -52,7 +52,7 @@ message it points at, in `.msd`. See `Docs/Text.md`.
      chain data follows, each chain aligned to 16 bytes
 ```
 
-A chain is an array of fixed size records. `FF3.ContentTool/PakRecords.cs` holds those
+A chain is an array of fixed size records. `Crystal.Editor/PakRecords.cs` holds those
 record layouts and is generated, not written:
 
 ```bash

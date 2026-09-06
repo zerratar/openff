@@ -19,7 +19,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-RECORDS = os.path.join(ROOT, 'FF3.ContentTool', 'PakRecords.cs')
+RECORDS = os.path.join(ROOT, 'Crystal.Editor', 'PakRecords.cs')
 
 
 def layouts():

@@ -1,25 +1,25 @@
-﻿// FF3 content tool.
+// FF3 content tool.
 //
-//   dotnet run --project FF3.ContentTool -- info    <file-or-dir>
-//   dotnet run --project FF3.ContentTool -- extract <xnb-dir> <out-dir>
-//   dotnet run --project FF3.ContentTool -- archives         <content-dir>
-//   dotnet run --project FF3.ContentTool -- extract-archives <content-dir> <out-dir> [pattern ...]
-//   dotnet run --project FF3.ContentTool -- xbn        <file.xbn> [out.xml]
-//   dotnet run --project FF3.ContentTool -- xbn-build  <file.xml> [out.xbn]
-//   dotnet run --project FF3.ContentTool -- msd        <file.msd | dir> [out]
-//   dotnet run --project FF3.ContentTool -- msd-build  <file.json> [out.msd]
-//   dotnet run --project FF3.ContentTool -- script       <file.script | dir> [out] [--text=<dir>]
-//   dotnet run --project FF3.ContentTool -- script-build <file.ffs | dir> [out]
-//   dotnet run --project FF3.ContentTool -- ops [filter]
-//   dotnet run --project FF3.ContentTool -- tex         <file.lz | dir> [out]
-//   dotnet run --project FF3.ContentTool -- mdl         <file.lz | dir> [out]
-//   dotnet run --project FF3.ContentTool -- cells       <file | dir> [out]
-//   dotnet run --project FF3.ContentTool -- hich        <file.hich | dir> [out]
-//   dotnet run --project FF3.ContentTool -- editor [--content=<dir>] [--port=5050]
-//   dotnet run --project FF3.ContentTool -- lz          <file.lz | dir> [out]
-//   dotnet run --project FF3.ContentTool -- lz-compress <file> [out.lz]
-//   dotnet run --project FF3.ContentTool -- pak        <file.pak | dir> [out]
-//   dotnet run --project FF3.ContentTool -- pak-build  <file.json> [out.pak]
+//   dotnet run --project Crystal.Editor -- info    <file-or-dir>
+//   dotnet run --project Crystal.Editor -- extract <xnb-dir> <out-dir>
+//   dotnet run --project Crystal.Editor -- archives         <content-dir>
+//   dotnet run --project Crystal.Editor -- extract-archives <content-dir> <out-dir> [pattern ...]
+//   dotnet run --project Crystal.Editor -- xbn        <file.xbn> [out.xml]
+//   dotnet run --project Crystal.Editor -- xbn-build  <file.xml> [out.xbn]
+//   dotnet run --project Crystal.Editor -- msd        <file.msd | dir> [out]
+//   dotnet run --project Crystal.Editor -- msd-build  <file.json> [out.msd]
+//   dotnet run --project Crystal.Editor -- script       <file.script | dir> [out] [--text=<dir>]
+//   dotnet run --project Crystal.Editor -- script-build <file.ffs | dir> [out]
+//   dotnet run --project Crystal.Editor -- ops [filter]
+//   dotnet run --project Crystal.Editor -- tex         <file.lz | dir> [out]
+//   dotnet run --project Crystal.Editor -- mdl         <file.lz | dir> [out]
+//   dotnet run --project Crystal.Editor -- cells       <file | dir> [out]
+//   dotnet run --project Crystal.Editor -- hich        <file.hich | dir> [out]
+//   dotnet run --project Crystal.Editor -- editor [--content=<dir>] [--port=5050]
+//   dotnet run --project Crystal.Editor -- lz          <file.lz | dir> [out]
+//   dotnet run --project Crystal.Editor -- lz-compress <file> [out.lz]
+//   dotnet run --project Crystal.Editor -- pak        <file.pak | dir> [out]
+//   dotnet run --project Crystal.Editor -- pak-build  <file.json> [out.pak]
 //
 // "extract" turns the shipped .xnb files back into editable sources:
 //   Fonts/<name>.png   + <name>.json   glyph atlas and metrics
@@ -44,7 +44,7 @@ namespace FF3.ContentTool
 		private static int Main(string[] args)
 		{
 			// The editor is what this is mostly used for now, so it is what you get
-			// when no command is named. Options still work: `ff3content --port=5051`
+			// when no command is named. Options still work: `crystal --port=5051`
 			// opens the editor on that port. A word that is not a command is a typo,
 			// not an invitation to open the editor and hope.
 			if (args.Length == 0 || args[0].StartsWith("-", StringComparison.Ordinal))
@@ -1310,7 +1310,7 @@ namespace FF3.ContentTool
 			{
 				Console.WriteLine("no projects yet in {0}",
 					FF3.ContentTool.Editor.Project.Root);
-				Console.WriteLine("make one with: ff3content editor --project=<name>");
+				Console.WriteLine("make one with: crystal editor --project=<name>");
 				return 0;
 			}
 			foreach (FF3.ContentTool.Editor.Project project in all)

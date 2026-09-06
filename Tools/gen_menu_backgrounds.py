@@ -11,7 +11,7 @@ Which gives equip -> menu_003_soubi_01.NSCR. Doing it by eye would get most of t
 quietly invent the rest: "equip" and "soubi" are the same word in two languages, and
 half_save maps to tyudan.
 
-    python Tools/gen_menu_backgrounds.py > FF3.ContentTool/Editor/MenuBackgrounds.cs
+    python Tools/gen_menu_backgrounds.py > Crystal.Editor/Editor/MenuBackgrounds.cs
 """
 import io
 import re

@@ -1,6 +1,6 @@
-﻿// NCER cell banks, NSCR screens and NANR animation.
+// NCER cell banks, NSCR screens and NANR animation.
 //
-//   ff3content cells <file | directory> [out]
+//   crystal cells <file | directory> [out]
 //
 // These are the tables that say which piece of a sheet goes where. The pictures were
 // already readable - all 542 are PNGs - but a picture on its own is a sheet of parts,

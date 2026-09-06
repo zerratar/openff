@@ -27,10 +27,10 @@ None of the games' data is in this repository (see *Game data*).
 
 ```
 dotnet build
-FF3.Game\bin\Debug\net8.0\FF3.exe
+OpenFF\bin\Debug\net8.0\OpenFF.exe
 ```
 
-With no arguments `FF3.exe` finds the Steam installs, boots FF3 and remembers the choice in
+With no arguments `OpenFF.exe` finds the Steam installs, boots FF3 and remembers the choice in
 `%LocalAppData%\OpenFF\launch.json`. The switches that matter:
 
 | Switch | Effect |
@@ -46,21 +46,21 @@ With no arguments `FF3.exe` finds the Steam installs, boots FF3 and remembers th
 The editor:
 
 ```
-FF3.ContentTool\bin\Debug\net8.0\ff3content.exe
+Crystal.Editor\bin\Debug\net8.0\crystal.exe
 ```
 
 opens Crystal in the browser. With a command (`extract`, `script`, `tables`, `msd`, `pak`,
 `xbn`, `mdl`, `tex`, `cells`, `hich`, `mcl`, `lz` ...) it converts the games' files on the
-command line instead; `ff3content` alone prints the list.
+command line instead; `crystal` alone prints the list.
 
 ## The layout
 
 ```
-FF3.Game/          the client
+OpenFF/          the client
   GlobalScope/     the decompiled game (FF3's own code, ported)
   Compat/          the port's seams: GameProfile, the FF4 systems (Ff4*), the engine host, the API implementation
 OpenFF.Engine/     the mod API and object model: what a mod references (no MonoGame, no game code)
-FF3.ContentTool/   Crystal, the editor, and the command-line converters
+Crystal.Editor/   Crystal, the editor, and the command-line converters
 Shared/            every file format once - Content, Data (the unified tables), Script, Text - compiled into both programs
 Samples/           HelloMod (a service, a behaviour, a save chunk) and Survivors (a survivors-style run on the field)
 Tools/             Python: the FF4 binary dumps, table generators, format tests
@@ -71,7 +71,7 @@ Content/           the pipeline file and the override notes; the data goes besid
 
 ## Mods
 
-A `mods/` folder beside `FF3.exe`, one mod per subfolder:
+A `mods/` folder beside `OpenFF.exe`, one mod per subfolder:
 
 - `mod.json` - `id`, `name`, `version`, `author`, `description`, `target` (`openff`, or `steam`
   for a file-replacement mod Crystal installs into a Steam copy), `assemblies`, `dependencies`.
@@ -91,7 +91,7 @@ builds the sample into the mods folder; Crystal writes the `mod.json` and the C#
 
 ## Crystal
 
-`ff3content.exe` opens Crystal, the editor, in the browser. A project targets **FF3 on Steam**,
+`crystal.exe` opens Crystal, the editor, in the browser. A project targets **FF3 on Steam**,
 **FF4 on Steam** or **OpenFF** (or several at once):
 
 - For a Steam target it edits the game's own files - text, scripts (as source, `.ffs`), tables,
@@ -174,7 +174,7 @@ map on FF4 ends with one log line of the script commands it skipped.
 
 FF3 is complete from its Steam install. FF4 plays its opening and its first maps, battles,
 menus and shops on the unified layer and is being brought to the same standard, in the order
-`Docs/Client-Plan.md` sets out. The code in `FF3.Game/GlobalScope` is the game's own logic
+`Docs/Client-Plan.md` sets out. The code in `OpenFF/GlobalScope` is the game's own logic
 recovered from the mobile build and ported; the games' assets are not distributed here and are
 required, in the form of the Steam releases, to run anything. This project is not affiliated
 with or endorsed by Square Enix; Final Fantasy is their trademark.

@@ -11,7 +11,7 @@ arguments in order with getWord/getByte/getDword, and resolves a cast by handing
 them to changeHichNumber or getManCastIndex; so the argument position is found by seeing
 which read produced the variable that gets passed.
 
-    python Tools/gen_cast_args.py > FF3.ContentTool/CastArgs.cs
+    python Tools/gen_cast_args.py > Crystal.Editor/CastArgs.cs
 """
 import io
 import re
@@ -64,7 +64,7 @@ def main():
               % (len(found), sum(1 for v in found.values() if len(v) > 1)))
     out.write('// the part a hand written list would have got wrong.\n\n')
     out.write('using System.Collections.Generic;\n\n')
-    out.write('namespace FF3.ContentTool\n{\n')
+    out.write('namespace Crystal.Editor\n{\n')
     out.write('\tinternal static class CastArgs\n\t{\n')
     out.write('\t\t/// <summary>Command name to the argument positions that are cast numbers.</summary>\n')
     out.write('\t\tpublic static readonly IReadOnlyDictionary<string, int[]> Positions =\n')

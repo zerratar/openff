@@ -1,6 +1,6 @@
 # FF4: the engine's shop. O opens Baron's weaponsmith (row 1 of babil_shop.bbd) on any map;
 # buy two of the first ware, sell one back, leave.
-#   FF3.exe --game=ff4 --map=t01_00 --gil=5000 --drive=Docs/Drives/ff4-shop.drive --log=general,file
+#   OpenFF.exe --game=ff4 --map=t01_00 --gil=5000 --drive=Docs/Drives/ff4-shop.drive --log=general,file
 # The log shows "shop: open row 1 'Baron Weapon' (Weaponsmith): ...", "shop: bought 2 x ...",
 # "shop: sold 1 x ...", "shop: closed with N gil" (Testing.md C-47).
 until jump: ff4 60

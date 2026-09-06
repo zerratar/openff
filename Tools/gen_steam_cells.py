@@ -14,7 +14,7 @@ as the port draws them - and at runtime SteamCells keeps the sheet rectangle the
 file gave that OAM as the source, drawn at the phone's size. Sheet pixel sizes never
 enter into it, which matters because the runtime texture is padded to a power of two.
 
-This writes FF3.Game/Data/ff3-steam-cells.json for every cell bank both builds ship
+This writes OpenFF/Data/ff3-steam-cells.json for every cell bank both builds ship
 whose cells differ. Banks that are identical in both builds, or that Steam does not
 ship, need nothing and are left out.
 
@@ -27,7 +27,7 @@ import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEST = os.path.join(os.path.dirname(HERE), 'FF3.Game', 'Data', 'ff3-steam-cells.json')
+DEST = os.path.join(os.path.dirname(HERE), 'OpenFF', 'Data', 'ff3-steam-cells.json')
 
 
 def cells(path):

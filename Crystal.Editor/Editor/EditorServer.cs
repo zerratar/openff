@@ -1,6 +1,6 @@
-﻿// The editor's back end: a small local HTTP server over the codecs.
+// The editor's back end: a small local HTTP server over the codecs.
 //
-//   ff3content editor [--content=<dir>] [--override=<dir>] [--language=en] [--port=5050]
+//   crystal editor [--content=<dir>] [--override=<dir>] [--language=en] [--port=5050]
 //
 // It binds to localhost only, has no authentication, and is meant to be run by the
 // person editing their own copy of the game. It is not a service.
@@ -1455,7 +1455,7 @@ namespace FF3.ContentTool.Editor
 			string mods = OpenFFClient.ModsFolder();
 			if (mods == null)
 			{
-				SendJson(context, new { ok = false, error = "the OpenFF client has not been found - start FF3.exe once (it records where it is), or build FF3.Game beside this repository" });
+				SendJson(context, new { ok = false, error = "the OpenFF client has not been found - start OpenFF.exe once (it records where it is), or build OpenFF beside this repository" });
 				return;
 			}
 			try
@@ -1485,7 +1485,7 @@ namespace FF3.ContentTool.Editor
 			string mods = OpenFFClient.ModsFolder();
 			if (mods == null)
 			{
-				SendJson(context, new { ok = false, error = "the OpenFF client has not been found - start FF3.exe once (it records where it is), or build FF3.Game beside this repository" });
+				SendJson(context, new { ok = false, error = "the OpenFF client has not been found - start OpenFF.exe once (it records where it is), or build OpenFF beside this repository" });
 				return;
 			}
 			try

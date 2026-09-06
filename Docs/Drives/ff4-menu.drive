@@ -1,5 +1,5 @@
 # FF4: the OpenFF menu in FF4's own dress - root, Status, Abilities, Inventory, Equipment. Run with:
-#   FF3.exe --game=ff4 --map=t01_00 --party=4:10 --gil=500 --drive=Docs/Drives/ff4-menu.drive --log=general,file --screenshot-dir=shots --screenshot-every=1
+#   OpenFF.exe --game=ff4 --map=t01_00 --party=4:10 --gil=500 --drive=Docs/Drives/ff4-menu.drive --log=general,file --screenshot-dir=shots --screenshot-every=1
 until jump: ff4 60
 wait 6
 press M

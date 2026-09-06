@@ -344,7 +344,7 @@ source y, flags (1 flip across, 2 flip down, 4 half size, 8 squash 0.6 x 2/3) - 
 off the game's `drawImage(x, y, w, h, sx, sy, sw, sh)`. Blocks keep the NDS layout (16-byte
 header, blocks tagged back to front: "KBEC"). Cell headers first (parts count, attributes, 8
 bytes each), then every part list. `.NANR`: sequences of (cell, hold) frames. Client:
-`Shared/Content/CellBanks.cs`; Crystal: `FF3.ContentTool/Cells.cs`.
+`Shared/Content/CellBanks.cs`; Crystal: `Crystal.Editor/Cells.cs`.
 
 ### Menu layouts (`MENU_LAYOUT.dat`, XBN)
 

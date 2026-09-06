@@ -5,7 +5,7 @@ not in the archives, and the editor's **Audio** tab lists them, plays them, and 
 which scripts play them.
 
 ```bash
-dotnet run --project FF3.ContentTool -- editor --content=Content
+dotnet run --project Crystal.Editor -- editor --content=Content
 ```
 
 ## How a script reaches a sound
@@ -50,7 +50,7 @@ directly will not appear, because they never go through a script.
 
 Not yet. Sounds are XNBs loaded by MonoGame's content manager, not archive entries, so
 the override directory does not reach them - a replacement means writing an XNB, and
-the tool only reads them today. `ff3content extract` already pulls all 475 of them out
+the tool only reads them today. `crystal extract` already pulls all 475 of them out
 as WAV, so the missing half is a writer.
 
 Nothing in the game's audio code has been rewritten. It works, and the only thing

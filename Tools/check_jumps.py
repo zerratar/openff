@@ -16,7 +16,7 @@ import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-MEMBERS = os.path.join(ROOT, 'FF3.Game', 'GlobalScope', 'GlobalScope.Members.cs')
+MEMBERS = os.path.join(ROOT, 'OpenFF', 'GlobalScope', 'GlobalScope.Members.cs')
 
 NL = chr(10)
 BS = chr(92)

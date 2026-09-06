@@ -1,4 +1,4 @@
-﻿# The client: OpenFF
+# The client: OpenFF
 
 Where the game goes now that the editor is in good shape. The aim Karl set: one client
 that runs FF3, FF4 (3D) and mods that mix the two, from the content people already own,
@@ -42,7 +42,7 @@ need nothing from our `Content/`. Three things stood in the way, all in the 2D l
   cells for a widescreen desktop over sheets authored at 1x, 1.2x, 1.33x and 2.22x the
   phone's. But both builds keep the same cells in the same order (Steam only appends to
   `m014_button`), and each Steam OAM's sheet rectangle covers the same picture as the
-  phone's. So `Tools/gen_steam_cells.py` writes `FF3.Game/Data/ff3-steam-cells.json` -
+  phone's. So `Tools/gen_steam_cells.py` writes `OpenFF/Data/ff3-steam-cells.json` -
   the phone's placement (x, y, w, h, flags) for the 29 banks that differ - and
   `Compat/SteamCells.cs` applies it when a bank is loaded from a Steam install, keeping
   the file's own sheet rectangle as the source. `NNSG2dCellOAMAttrData` grew a source
@@ -103,7 +103,7 @@ own names and in its own containers. What the FF3 logic asks for by FF3's name a
 not get is logged as `missing: <name>` (`Compat/MissingFiles.cs`), and each of those is a
 mapping to write, not a file to ship.
 
-**Done (2026-09-03):** `FF3.exe --content="<FF4 install>"` lands Cecil (`p00_00`) in
+**Done (2026-09-03):** `OpenFF.exe --content="<FF4 install>"` lands Cecil (`p00_00`) in
 Baron castle's grounds (`d01_00`) from the Steam install alone: the map with its textures,
 water and bridge, Cecil with his shadow, the castle's BGM from `BGM12.akb`, and the map's
 own script running through the shared command table. The pieces:
@@ -226,8 +226,8 @@ piece), `ce_SetMap` (a stage change inside a scene), expressions (face textures 
 `bindChainTexel`), lights and toon shading, `ce_CallBattle`. The opening (`--map=e01_00`)
 runs through with its characters; Baron town's script has no unanswered command.
 Tools: `Tools/ssam_extract.py` (a mass file to files), `Tools/ff4_calls.py` (a command's
-handler: operand layout and callees, from the unstripped libff4.so); `ff3content lz` +
-`ff3content script --game=ff4` over the extracted CAST_SCRIPT.dat gives every FF4 script
+handler: operand layout and callees, from the unstripped libff4.so); `crystal lz` +
+`crystal script --game=ff4` over the extracted CAST_SCRIPT.dat gives every FF4 script
 as text, which is where the usage counts (`ce_*`: 20k uses on 42 maps) come from.
 
 ## Stage E - what "our client" can do that the engines cannot
@@ -239,7 +239,7 @@ editor's Export already writes. Each is small once A-D exist; none is possible b
 
 ## Starting the client (2026-09-04, from Karl's note)
 
-`FF3.exe` with no arguments starts FF3 from its Steam install: the client finds the
+`OpenFF.exe` with no arguments starts FF3 from its Steam install: the client finds the
 installs the way the editor does and remembers them, with the last choice, in
 `%LocalAppData%\OpenFF\launch.json`. `--game=ff4` switches game, `--source=content`
 uses our extracted Content directory instead of Steam; both are remembered, so the next
@@ -295,7 +295,7 @@ each mod's `scenes/<map>.json` on entering the map: a GameObject per target in t
 scene, a `MapObject` component (kind, index, and for a character the `Npc` handle from the
 new `Npcs.Existing(index)`), the behaviours with fields set from JSON (numbers, strings,
 bools, enums, Vector3/Vector2/Color); owned by the mod, so a hot reload remakes them.
-**Run in OpenFF** (`/api/project/run`): export, then start FF3.exe (`OpenFFClient.Executable`,
+**Run in OpenFF** (`/api/project/run`): export, then start OpenFF.exe (`OpenFFClient.Executable`,
 from launch.json or the development build) unless it is running. **API reference**
 (`Editor/ApiReference.cs`, `/api/openff/reference`): OpenFF.Engine.xml as a searchable
 dialog. Testing C-30, E-21..E-23. Later: a scene view that shows attached behaviours in the
@@ -387,7 +387,7 @@ Testing E-19, E-20.
 ## The engine API, first slice (2026-09-04)
 
 `OpenFF.Engine/Api.cs` declares what a script may do, as interfaces a service implements;
-`FF3.Game/Compat/EngineApi.cs` implements them on the legacy game by calling what the
+`OpenFF/Compat/EngineApi.cs` implements them on the legacy game by calling what the
 FF3 script command handlers call, and registers them before any mod loads. Reached as
 `Game.Dialogue` (Say a text in the field's message window, with the tap-to-continue mark;
 IsOpen; Closed), `Game.Hero` (Position, Yaw, Model, Teleport, Face, Freeze/Unfreeze),
@@ -436,7 +436,7 @@ act rather than observe; then the scene format.
 
 ## The mods folder (2026-09-04)
 
-`mods/` beside `FF3.exe`, one mod per subfolder: `mod.json` (name, version, author,
+`mods/` beside `OpenFF.exe`, one mod per subfolder: `mod.json` (name, version, author,
 description, target), `files/` mirroring the game's names, a README. The client
 reads the folder at start (`Shared/Content/Mods.cs`, `GameArchive.ModsFolderOverrides`),
 puts the enabled mods that target `openff` in front of the shipped content (an OpenFF mod
@@ -463,7 +463,7 @@ the hand cursor is put, F3 their ids, F4 the 2D sprites as drawn, F5 the world t
 (part, stage, type, mirror, hero position and spot, focused frame), F6 the stats (fps,
 frame time, draw calls and vertices from `NativeRenderer`, memory, viewport).
 `--debug=all` or `--debug=boxes,labels` starts with it on, which is how a headless run is
-inspected: `FF3.exe --debug=all --screenshot-every=3 --screenshot-dir=<dir>` and read the
+inspected: `OpenFF.exe --debug=all --screenshot-every=3 --screenshot-dir=<dir>` and read the
 pictures. Add to it freely: it is the place for anything that helps a diagnosis (camera,
 chip streaming, script state) rather than more log lines.
 
@@ -612,9 +612,9 @@ growth not yet. Monsters too (`MonsterDefinition`: FF4's 152-byte records with a
 0x12, drops at 0x6C, experience at 0x88 and gil at 0x8C; FF3's 100-byte records with the drop
 block at 0x54), named from babil_battle.msd / eureka_battle.msd; `Ff4Monsters` is Game.Monsters
 on FF4. The editor's msd reader moved to `Shared/Text` so names resolve
-on both sides. `ff3content tables <install>` dumps a game's tables through it (E-25).
+on both sides. `crystal tables <install>` dumps a game's tables through it (E-25).
 
-The client's side (`FF3.Game/Compat/Ff4Party.cs`): `Ff4Party.Tables` reads FF4's tables from the
+The client's side (`OpenFF/Compat/Ff4Party.cs`): `Ff4Party.Tables` reads FF4's tables from the
 content chain once, `Ff4Party.Party` is the roster (a new game: Cecil, type 0, at level 10 -
 what `initForNewgame` leaves), and the scripts' `addItem`/`subItem`/`addPartyPC`/`subPartyPC`/
 `setPartyPCEquipItem` (left hand, right hand, head, body, arm)/`addAbility` act on it;
@@ -784,7 +784,7 @@ whose attributes come from the eight curves (chain 2, 99 bytes each), whose hit-
 level + vitality up to level + vitality + vitality / 2 (pl.Player.setHp; 32 at level 1), and
 whose `Charges[8]` come from the seven charge tables (chains 4..10, 99 x 8). Names are
 eureka_menu.msd 50105 + job (wmenu.CWMenuJob), with English fallbacks marked tentative.
-`GameTables.Jobs/Job(id)`, `ff3content tables --game=ff3` lists them (test E-26). The 52-byte
+`GameTables.Jobs/Job(id)`, `crystal tables --game=ff3` lists them (test E-26). The 52-byte
 magic records now fill `SpellDefinition`: `Level` = magicClass + 1 (the charge level), power,
 hit rate, `UseKind` (0 attack, 1 recovery, 2 special, 3 status), element bits, status and the
 `CanUse` job mask; schools by id range (4001 white, 4101 black, 4201 summon, 6001 songs).
@@ -927,7 +927,7 @@ binary. Steam's look (soft gradients, a soft glove) is these DS assets scaled up
 from `arial.ttf` (SDL2_ttf) - so 1:1 means drawing FF4's frames and cursor at the layouts'
 positions with our font.
 
-Built the same evening: `FF3.Game/Compat/Ff4Ui.cs`. The phone and Steam builds' .NCGR/.NCBR
+Built the same evening: `OpenFF/Compat/Ff4Ui.cs`. The phone and Steam builds' .NCGR/.NCBR
 are PNG sheets (8-bit palette or RGBA) and their .NCER cell banks the port's seven-word
 parts, so the client reads a sheet through the game's own file system (`ds.g_File`, archive
 members by name) into a texture (`Game.Draw.LoadTexture(key, bytes)`, new; the host makes a
@@ -1051,7 +1051,7 @@ Each traced to its cause, all three in `Ff4Cutscene` and its neighbours:
   the default at `ce_StartEvent`; the script's FOV persists across motions.
 - The window's title says which game runs (`GameProfile.Title`).
 - Found on the way: the sample `hello` mod's HUD and villager spawn run on FF4 scenes (`--nomods`
-  for clean screenshots), and `ff3content lz <file> <out>` makes `<out>` a directory when it exists.
+  for clean screenshots), and `crystal lz <file> <out>` makes `<out>` a directory when it exists.
 
 ### The same night: what the intro still dropped, and a missed departure
 

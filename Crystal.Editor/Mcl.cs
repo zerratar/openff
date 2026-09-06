@@ -1,6 +1,6 @@
 // .mcl - the collision mesh, and the half of an exit that is not in the .pak.
 //
-//   ff3content mcl <file.mcl.lz | directory> [out]
+//   crystal mcl <file.mcl.lz | directory> [out]
 //
 // Every map ships one, as <map>_col.mcl.lz. It is a second, much simpler mesh than the
 // one you can see: triangles carrying attributes rather than textures. Walking, walls,

@@ -2,7 +2,7 @@
 
   <!-- The OpenFF engine API: the assembly mods reference and the client hosts.
        Kept free of MonoGame and of the decompiled game so a mod compiles against it
-       alone; the host (FF3.Game) plugs rendering, input and the legacy game in. -->
+       alone; the host (OpenFF) plugs rendering, input and the legacy game in. -->
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
