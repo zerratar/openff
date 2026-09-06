@@ -17,10 +17,15 @@ namespace OpenFF
 		/// <summary>The engine API version mods compile against.</summary>
 		public static readonly Version ApiVersion = typeof(Game).Assembly.GetName().Version;
 
+		/// <summary>Every registered service, the game's and the mods'; Get&lt;T&gt; finds the current implementation of an interface.</summary>
 		public static ServiceRegistry Services { get; } = new ServiceRegistry();
+		/// <summary>The typed event bus: what the game and the mods publish as they run (see OpenFF.Events).</summary>
 		public static EventBus Events { get; } = new EventBus();
+		/// <summary>The object model: scenes and their game objects; the running game is the scene called "legacy".</summary>
 		public static World World { get; } = new World();
+		/// <summary>Save chunks: one per ISaveable per slot, kept across mod changes.</summary>
 		public static SaveChunks Saves { get; } = new SaveChunks();
+		/// <summary>The engine clock: frame count, delta and total seconds.</summary>
 		public static GameTime Time { get; } = new GameTime();
 
 		/// <summary>Where engine messages go; the host points this at its log.</summary>

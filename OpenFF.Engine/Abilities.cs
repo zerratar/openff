@@ -201,7 +201,9 @@ namespace OpenFF
 
 	public static partial class Game
 	{
+		/// <summary>Spells as data and as actions: the tables, casting with the game's effects, damage and healing by the game's formulas, a mod's own spells.</summary>
 		public static IMagic Magic => Services.Get<IMagic>();
+		/// <summary>Monsters and encounter groups as data.</summary>
 		public static IMonsters Monsters => Services.Get<IMonsters>();
 	}
 }

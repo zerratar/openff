@@ -58,6 +58,12 @@ namespace Crystal
 				{
 					case "info":
 						return Info(args.Length > 1 ? args[1] : ".");
+					case "api-docs":
+					{
+						string engine = args.FirstOrDefault(a => a.StartsWith("--engine=", StringComparison.OrdinalIgnoreCase))?.Substring("--engine=".Length).Trim('"');
+						string output = args.Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? Path.Combine("Docs", "API.md");
+						return ApiDocs.Write(output, engine);
+					}
 					case "extract":
 						if (args.Length < 3)
 						{
@@ -267,6 +273,7 @@ namespace Crystal
 			Console.Error.WriteLine("  (no command)                      open the editor");
 			Console.Error.WriteLine("  info    <file.xnb | directory>");
 			Console.Error.WriteLine("  tables  <install root> [--items=N] [--game=ff3|ff4]    the game's tables in the unified shape (FF3 or FF4)");
+			Console.Error.WriteLine("  api-docs [out.md] [--engine=<dll>]  the modding API reference from OpenFF.Engine (default Docs/API.md)");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");
 			Console.Error.WriteLine("  extract-archives <content-directory> <output-directory> [pattern ...]");

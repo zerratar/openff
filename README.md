@@ -87,7 +87,11 @@ The API (`OpenFF.Engine`, reached as `Game.*`): `Dialogue`, `Hero`, `Npcs`, `Par
 `Draw`, `Input`, `Flags`, `Saves`, `Events`, coroutines (`Game.Run`, `Wait.*`), and scene files
 (`scenes/<map>.json`) that put behaviours and spawn points on a map. `Samples/HelloMod/install.cmd`
 builds the sample into the mods folder; Crystal writes the `mod.json` and the C# project for you.
-`Docs/OpenFF-Engine.md` is the design, `Docs/Client-Plan.md` the log of each slice as it landed.
+
+**`Docs/Modding.md` is the tutorial** - a Steam mod with Crystal, an OpenFF mod's folder, and
+code from the first service to scenes and saving - and **`Docs/API.md` the reference**, generated
+from the engine by `crystal api-docs`. `Docs/OpenFF-Engine.md` is the design, `Docs/Client-Plan.md`
+the log of each slice as it landed.
 
 ## Crystal
 
@@ -109,6 +113,8 @@ real games.
 
 | File | What it covers |
 | --- | --- |
+| `Docs/Modding.md` | How to make a mod: a Steam mod with Crystal; an OpenFF mod's folder, code, scenes and saving |
+| `Docs/API.md` | The modding API, every public type and member, generated from the engine (`crystal api-docs`) |
 | `Docs/Architecture.md` | The frame, input, rendering, content, the two games, menus, events, tables |
 | `Docs/OpenFF-Engine.md` | The engine we are building towards: goal, layers, object model, scripting, saving, the API at a glance |
 | `Docs/Client-Plan.md` | The client's stages and the journal of every piece as it landed (long; the running record) |

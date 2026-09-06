@@ -186,6 +186,7 @@ namespace OpenFF
 
 	public static partial class Game
 	{
+		/// <summary>The running coroutines; Game.Run starts one.</summary>
 		public static CoroutineRunner Coroutines { get; } = new CoroutineRunner();
 
 		/// <summary>Starts a coroutine; it advances once per engine frame.</summary>

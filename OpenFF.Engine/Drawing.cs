@@ -137,6 +137,7 @@ namespace OpenFF
 
 	public static partial class Game
 	{
+		/// <summary>Immediate-mode drawing over the finished frame in 800x480 screen units: text, rectangles, lines, sprites.</summary>
 		public static DrawList Draw { get; } = new DrawList();
 	}
 }

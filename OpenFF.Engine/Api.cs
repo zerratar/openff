@@ -19,16 +19,27 @@ namespace OpenFF
 {
 	public static partial class Game
 	{
+		/// <summary>The field's message window: say a line, ask a yes/no question, know when it closed.</summary>
 		public static IDialogue Dialogue => Services.Get<IDialogue>();
+		/// <summary>The player's character on the map: where it is, where it looks, walking, freezing, motions.</summary>
 		public static IHero Hero => Services.Get<IHero>();
+		/// <summary>Characters and models on the map: spawn, move, turn, talk, and the ones the map already has.</summary>
 		public static INpcs Npcs => Services.Get<INpcs>();
+		/// <summary>The scripts' flag space, shared with the game's own event scripts.</summary>
 		public static IFlags Flags => Services.Get<IFlags>();
+		/// <summary>The party: members and their sheets, gil, the bag, equipment, experience, jobs, conditions.</summary>
 		public static IParty Party => Services.Get<IParty>();
+		/// <summary>Music and sound effects by the game's own names.</summary>
 		public static IAudio Audio => Services.Get<IAudio>();
+		/// <summary>Fades, flashes and the battle's floating numbers over the whole screen.</summary>
 		public static IScreen Screen => Services.Get<IScreen>();
+		/// <summary>The map: its name, warping, ground height and walkability, random encounters on and off.</summary>
 		public static IField Field => Services.Get<IField>();
+		/// <summary>The field camera: move, look, follow, shake, zoom, and world-to-screen for HUD markers.</summary>
 		public static ICamera Camera => Services.Get<ICamera>();
+		/// <summary>The game's visual effects by table id, spawned at a point or following a character.</summary>
 		public static IEffects Effects => Services.Get<IEffects>();
+		/// <summary>The game's own battle: start one against a monster party and hear how it ended.</summary>
 		public static IBattle Battle => Services.Get<IBattle>();
 	}
 
@@ -471,7 +482,9 @@ namespace OpenFF
 
 	public static partial class Game
 	{
+		/// <summary>The item tables as data: names, categories, prices, who can equip what, stats.</summary>
 		public static IItems Items => Services.Get<IItems>();
+		/// <summary>The game's shop screen, opened on any map with any shop table; what a shop sells.</summary>
 		public static IShops Shops => Services.Get<IShops>();
 	}
 }

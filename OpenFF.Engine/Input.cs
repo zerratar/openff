@@ -107,6 +107,7 @@ namespace OpenFF
 
 	public static partial class Game
 	{
+		/// <summary>The pad, pointer and keyboard as the mod sees them this frame; Capture takes them away from the game.</summary>
 		public static InputState Input { get; } = new InputState();
 	}
 }
