@@ -4,7 +4,11 @@ using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
 
-namespace syrcusW;
+namespace OpenFF.Client;
+
+// MonoGame's Game and GameTime by name: the engine's OpenFF.Game and GameTime sit a namespace up.
+using Game = Microsoft.Xna.Framework.Game;
+using GameTime = Microsoft.Xna.Framework.GameTime;
 
 public class Game1 : Game
 {
@@ -108,7 +112,7 @@ public class Game1 : Game
 		{
 			if (!Guide.IsVisible)
 			{
-				MainActivity.updateApp();
+				AppShell.updateApp();
 			}
 		}
 	}

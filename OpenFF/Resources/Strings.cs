@@ -5,12 +5,12 @@ using System.Globalization;
 using System.Resources;
 using System.Runtime.CompilerServices;
 
-namespace syrcusW.res.values;
+namespace OpenFF.Resources;
 
 [CompilerGenerated]
 [GeneratedCode("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
 [DebuggerNonUserCode]
-public class strings
+public class Strings
 {
 	private static ResourceManager resourceMan;
 
@@ -23,7 +23,7 @@ public class strings
 		{
 			if (object.ReferenceEquals(resourceMan, null))
 			{
-				ResourceManager resourceManager = new ResourceManager("syrcusW.res.values.strings", typeof(strings).Assembly);
+				ResourceManager resourceManager = new ResourceManager("OpenFF.Resources.Strings", typeof(Strings).Assembly);
 				resourceMan = resourceManager;
 			}
 			return resourceMan;
@@ -153,7 +153,7 @@ public class strings
 
 	public static string YES => ResourceManager.GetString("YES", resourceCulture);
 
-	internal strings()
+	internal Strings()
 	{
 	}
 }

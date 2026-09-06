@@ -1,15 +1,15 @@
 using System;
-using android.app;
-using android.content;
+using OpenFF.Platform;
 using System.Threading;
 using Microsoft.Phone.Tasks;
 using Microsoft.Xna.Framework.Media;
-using android.view;
+using MediaPlayer = Microsoft.Xna.Framework.Media.MediaPlayer;   // not the platform shim's
+using OpenFF.Platform;
 
 // The game host. Was an Android Activity implementing a GLSurfaceView renderer;
 // Game1 now drives these callbacks directly, so the lifecycle indirection is gone
 // and the per-frame path is one hop instead of four.
-public class MainActivity
+public class AppShell
 {
 	/// <summary>Resource strings are plain constants; this was a pass-through.</summary>
 	public string getString(string resId) => resId;
@@ -63,7 +63,7 @@ public class MainActivity
 		}
 	}
 
-	public static MainActivity activity;
+	public static AppShell activity;
 
 	private string editString;
 
@@ -97,41 +97,41 @@ public class MainActivity
 
 
 
-	private static GlobalScope.JNIEnv m_Env = new GlobalScope.JNIEnv();
+	private static GlobalScope.HostEnv m_Env = new GlobalScope.HostEnv();
 
 	public int init()
 	{
-		return GlobalScope.Java_com_square_1enix_FFIII_1J_MainActivity_init(m_Env, this);
+		return GlobalScope.hostInit(m_Env, this);
 	}
 
 	public void quit()
 	{
-		GlobalScope.Java_com_square_1enix_FFIII_1J_MainActivity_quit(m_Env, this);
+		GlobalScope.hostQuit(m_Env, this);
 	}
 
 	public void resume()
 	{
-		GlobalScope.Java_com_square_1enix_FFIII_1J_MainActivity_resume(m_Env, this);
+		GlobalScope.hostResume(m_Env, this);
 	}
 
 	public void pause()
 	{
-		GlobalScope.Java_com_square_1enix_FFIII_1J_MainActivity_pause(m_Env, this);
+		GlobalScope.hostPause(m_Env, this);
 	}
 
 	public void render()
 	{
-		GlobalScope.Java_com_square_1enix_FFIII_1J_MainActivity_render(m_Env, this);
+		GlobalScope.hostRender(m_Env, this);
 	}
 
 	public void touch(int count, int peak, float x0, float y0, float x1, float y1)
 	{
-		GlobalScope.Java_com_square_1enix_FFIII_1J_MainActivity_touch(m_Env, this, count, peak, x0, y0, x1, y1);
+		GlobalScope.hostTouch(m_Env, this, count, peak, x0, y0, x1, y1);
 	}
 
 	public static void encode(byte[] data, int mask)
 	{
-		GlobalScope.Java_com_square_1enix_FFIII_1J_MainActivity_encode(m_Env, null, data, mask);
+		GlobalScope.hostEncode(m_Env, null, data, mask);
 	}
 
 	public void onCreate()
@@ -140,7 +140,7 @@ public class MainActivity
 		// used to be read through an Android raw-resource InputStream.
 		try
 		{
-			byte[] selected = syrcusW.res.raw.language.language_dat;
+			byte[] selected = OpenFF.Resources.Language.language_dat;
 			if (selected != null && selected.Length > 0)
 			{
 				language = selected[0];
@@ -197,7 +197,7 @@ public class MainActivity
 	{
 		end = true;
 		sound.stopSoundAll();
-		JavaSystem.exit(0);
+		SystemUtil.exit(0);
 	}
 
 	private object onCreateDialog(int id)
@@ -205,10 +205,10 @@ public class MainActivity
 		if (id == 0)
 		{
 			AlertDialog.Builder builder = new AlertDialog.Builder(this);
-			builder.setTitle(getString(R.@string.CLOSE_APP_TITLE));
-			builder.setMessage(getString(R.@string.CLOSE_APP));
-			builder.setPositiveButton(getString(R.@string.YES), new ExitDialogPositiveButtonListener());
-			builder.setNegativeButton(getString(R.@string.NO), new ExitDialogNegativeButtonListener());
+			builder.setTitle(getString(Res.@string.CLOSE_APP_TITLE));
+			builder.setMessage(getString(Res.@string.CLOSE_APP));
+			builder.setPositiveButton(getString(Res.@string.YES), new ExitDialogPositiveButtonListener());
+			builder.setNegativeButton(getString(Res.@string.NO), new ExitDialogNegativeButtonListener());
 			return builder.create();
 		}
 		_ = 1;
@@ -391,7 +391,7 @@ public class MainActivity
 		string charsetName = ((activity.language == 0) ? "SJIS" : "windows-1252");
 		byte[] array = new byte[file.Length * 2];
 		int num = (file[8] & 0xFF) | ((file[9] & 0xFF) << 8) | ((file[10] & 0xFF) << 16) | ((file[11] & 0xFF) << 24);
-		JavaSystem.arraycopy(file, 0, array, 0, 16 + 12 * num);
+		SystemUtil.arraycopy(file, 0, array, 0, 16 + 12 * num);
 		int num2 = 16;
 		int num3 = 16;
 		int num4 = 16 + 12 * num;
@@ -418,7 +418,7 @@ public class MainActivity
 				{
 					array2 = new byte[1];
 				}
-				JavaSystem.arraycopy(array2, 0, array, num4, array2.Length);
+				SystemUtil.arraycopy(array2, 0, array, num4, array2.Length);
 				array[num4 + array2.Length] = 0;
 				num6 += k + 1;
 				num4 += array2.Length + 1;
@@ -429,7 +429,7 @@ public class MainActivity
 		}
 		trace("decodeString " + num);
 		byte[] array3 = new byte[num4];
-		JavaSystem.arraycopy(array, 0, array3, 0, num4);
+		SystemUtil.arraycopy(array, 0, array3, 0, num4);
 		return array3;
 	}
 
@@ -446,7 +446,7 @@ public class MainActivity
 	public static long getCurrentFrame(long prevFrame)
 	{
 		long num;
-		for (num = JavaSystem.currentTimeMillis() * 3 / 100; num == prevFrame; num = JavaSystem.currentTimeMillis() * 3 / 100)
+		for (num = SystemUtil.currentTimeMillis() * 3 / 100; num == prevFrame; num = SystemUtil.currentTimeMillis() * 3 / 100)
 		{
 			try
 			{
@@ -546,7 +546,7 @@ public class MainActivity
 		{
 			return;
 		}
-		entry.Show(activity.getString(R.@string.CHANGE_NAME), string.Empty, text, 6,
+		entry.Show(activity.getString(Res.@string.CHANGE_NAME), string.Empty, text, 6,
 			delegate(string entered)
 			{
 				// null means cancelled, and the game reads that as "leave the name alone".
@@ -564,10 +564,10 @@ public class MainActivity
 	public static void confirmApp()
 	{
 		AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-		builder.setTitle(activity.getString(R.@string.app_name));
-		builder.setMessage(activity.getString(R.@string.iap_confirm_purchase));
-		builder.setPositiveButton(activity.getString(R.@string.iap_purchase), new ConfirmDialogPositiveButtonListener());
-		builder.setNegativeButton(activity.getString(R.@string.iap_goto_title), new ConfirmDialogNegativeButtonListener());
+		builder.setTitle(activity.getString(Res.@string.app_name));
+		builder.setMessage(activity.getString(Res.@string.iap_confirm_purchase));
+		builder.setPositiveButton(activity.getString(Res.@string.iap_purchase), new ConfirmDialogPositiveButtonListener());
+		builder.setNegativeButton(activity.getString(Res.@string.iap_goto_title), new ConfirmDialogNegativeButtonListener());
 		builder.create();
 	}
 
@@ -579,10 +579,10 @@ public class MainActivity
 	public static void updateApp()
 	{
 		AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-		builder.setTitle(activity.getString(R.@string.UPDATE_APP_TITLE));
-		builder.setMessage(activity.getString(R.@string.UPDATE_APP));
-		builder.setPositiveButton(activity.getString(R.@string.YES), new UpdateDialogPositiveButtonListener());
-		builder.setNegativeButton(activity.getString(R.@string.NO), new UpdateDialogNegativeButtonListener());
+		builder.setTitle(activity.getString(Res.@string.UPDATE_APP_TITLE));
+		builder.setMessage(activity.getString(Res.@string.UPDATE_APP));
+		builder.setPositiveButton(activity.getString(Res.@string.YES), new UpdateDialogPositiveButtonListener());
+		builder.setNegativeButton(activity.getString(Res.@string.NO), new UpdateDialogNegativeButtonListener());
 		builder.create();
 	}
 }

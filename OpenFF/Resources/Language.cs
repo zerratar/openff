@@ -5,12 +5,12 @@ using System.Globalization;
 using System.Resources;
 using System.Runtime.CompilerServices;
 
-namespace syrcusW.res.raw;
+namespace OpenFF.Resources;
 
 [GeneratedCode("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
 [DebuggerNonUserCode]
 [CompilerGenerated]
-public class language
+public class Language
 {
 	private static ResourceManager resourceMan;
 
@@ -23,7 +23,7 @@ public class language
 		{
 			if (object.ReferenceEquals(resourceMan, null))
 			{
-				ResourceManager resourceManager = new ResourceManager("syrcusW.res.raw.language", typeof(language).Assembly);
+				ResourceManager resourceManager = new ResourceManager("OpenFF.Resources.Language", typeof(Language).Assembly);
 				resourceMan = resourceManager;
 			}
 			return resourceMan;
@@ -52,7 +52,7 @@ public class language
 		}
 	}
 
-	internal language()
+	internal Language()
 	{
 	}
 }

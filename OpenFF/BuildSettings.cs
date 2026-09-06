@@ -1,4 +1,4 @@
-public sealed class BuildConfig
+public sealed class BuildSettings
 {
 	public const bool DEBUG = true;
 }

@@ -1,6 +1,6 @@
-﻿using android.content;
+using OpenFF.Platform;
 
-namespace android.app;
+namespace OpenFF.Platform;
 
 // PORT: was an Android Dialog. Only the yes/no prompt survives, and it goes
 // through GlobalScope.Dialog to MonoGame's MessageBox.

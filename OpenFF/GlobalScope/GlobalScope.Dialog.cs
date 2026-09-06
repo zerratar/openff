@@ -10,14 +10,13 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
-using android.content;
-using syrcusW.res.raw;
-using syrcusW.res.values;
+using OpenFF.Platform;
+using OpenFF.Resources;
 
 internal static partial class GlobalScope
 {
 						// PORT: the text-entry half of this went through an Android EditText and the
-// Guide soft keyboard. MainActivity.createEditText now drives OpenFF.Client.TextEntry
+// Guide soft keyboard. AppShell.createEditText now drives OpenFF.Client.TextEntry
 // directly, so only the message-box path remains.
 public static class Dialog
 						{

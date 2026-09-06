@@ -1,6 +1,6 @@
 // Windows Phone launcher compatibility layer.
 //
-// MainActivity.webTo() opens the Square Enix support page through the phone's
+// AppShell.webTo() opens the Square Enix support page through the phone's
 // WebBrowserTask. On desktop that is just "open this URL in the default browser".
 
 using System;

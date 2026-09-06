@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using android.media;
+using OpenFF.Platform;
 
 internal class SoundManager : MediaPlayer.OnCompletionListener
 {
@@ -484,7 +484,7 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 
 	public void updateSound()
 	{
-		long num = JavaSystem.currentTimeMillis();
+		long num = SystemUtil.currentTimeMillis();
 		int num2 = Math.Max((int)(num - soundTime), 0);
 		soundTime = num;
 		for (int i = 0; i < sound.GetLength(0); i++)
@@ -556,11 +556,11 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 		}
 		if (array[channel, 0] != null && array[channel, 1] != null)
 		{
-			byte[] array2 = MainActivity.loadFileEntry("sound/" + filename + ".dat");
+			byte[] array2 = AppShell.loadFileEntry("sound/" + filename + ".dat");
 			soundLoop[channel] = array2 != null && array2.Length >= 4
 				? (array2[0] & 0xFF) | ((array2[1] & 0xFF) << 8) | ((array2[2] & 0xFF) << 16) | (array2[3] << 24)
 				: 0;
-			soundLoop[channel] += Math.Max((int)(JavaSystem.currentTimeMillis() - soundTime), 0);
+			soundLoop[channel] += Math.Max((int)(SystemUtil.currentTimeMillis() - soundTime), 0);
 			soundState[channel] = 1;
 			array[channel, 0].start();
 			array[channel, 1].start();
@@ -624,7 +624,7 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 
 	public void pauseSoundAll(bool pause)
 	{
-		soundTime = JavaSystem.currentTimeMillis();
+		soundTime = SystemUtil.currentTimeMillis();
 		for (int i = 0; i < sound.GetLength(0); i++)
 		{
 			if (!pause && soundState[i] != 1)

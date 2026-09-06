@@ -2,7 +2,7 @@
 //
 // Both games keep dialogue in .msd: a header, twelve bytes per entry (id, how many
 // strings, offset) and the strings. The phone FF3 stored them in SJIS or Windows-1252 and
-// MainActivity.decodeString rewrote each file at load into UTF-8, NUL-terminated - which is
+// AppShell.decodeString rewrote each file at load into UTF-8, NUL-terminated - which is
 // what the message manager walks. FF4 stores them as UTF-16LE. This does for UTF-16 what
 // decodeString does for the legacy encodings, so the rest of the text path is unchanged.
 

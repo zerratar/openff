@@ -1,6 +1,6 @@
 // Desktop entry point.
 //
-// The original syrcusW.dll was a library: Windows Phone hosted syrcusW.Game1 from
+// The original game assembly was a library: Windows Phone hosted Game1 from
 // its own shell project, so the assembly had no Main. This supplies one.
 
 using System;
@@ -54,7 +54,7 @@ namespace OpenFF.Client
 			GameFiles.BaseDirectory = Directory.GetParent(contentRoot).FullName;
 			Directory.SetCurrentDirectory(GameFiles.BaseDirectory);
 
-			using (syrcusW.Game1 game = new syrcusW.Game1())
+			using (OpenFF.Client.Game1 game = new OpenFF.Client.Game1())
 			{
 				// Game1's constructor sets RootDirectory = "Content", which MonoGame
 				// resolves against the executable's directory. Point it at the real one.

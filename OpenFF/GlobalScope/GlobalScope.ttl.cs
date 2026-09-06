@@ -10,9 +10,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
-using android.content;
-using syrcusW.res.raw;
-using syrcusW.res.values;
+using OpenFF.Platform;
+using OpenFF.Resources;
 
 internal static partial class GlobalScope
 {
@@ -1164,7 +1163,7 @@ internal static partial class GlobalScope
                         if (next_part == 4)
                         {
                             UserInfo.confirm_state = 1;
-                            MainActivity.purchaseApp();
+                            AppShell.purchaseApp();
                             next_part = -1;
                             m_State = 6;
                         }

@@ -3,7 +3,7 @@ using System.Threading;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
 
-namespace android.media;
+namespace OpenFF.Platform;
 
 public class MediaPlayer
 {

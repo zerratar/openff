@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -10,9 +10,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
-using android.content;
-using syrcusW.res.raw;
-using syrcusW.res.values;
+using OpenFF.Platform;
+using OpenFF.Resources;
 
 internal static partial class GlobalScope
 {
@@ -89,46 +88,46 @@ internal static partial class GlobalScope
 
         private static string[] ACHIEVEMENT_NAME_TABLE => new string[18]
         {
-                                R.@string.ACHIEVEMENT_TITLE_A,
-                                R.@string.ACHIEVEMENT_TITLE_B,
-                                R.@string.ACHIEVEMENT_TITLE_C,
-                                R.@string.ACHIEVEMENT_TITLE_D,
-                                R.@string.ACHIEVEMENT_TITLE_E,
-                                R.@string.ACHIEVEMENT_TITLE_F,
-                                R.@string.ACHIEVEMENT_TITLE_G,
-                                R.@string.ACHIEVEMENT_TITLE_H,
-                                R.@string.ACHIEVEMENT_TITLE_I,
-                                R.@string.ACHIEVEMENT_TITLE_J,
-                                R.@string.ACHIEVEMENT_TITLE_K,
-                                R.@string.ACHIEVEMENT_TITLE_L,
-                                R.@string.ACHIEVEMENT_TITLE_M,
-                                R.@string.ACHIEVEMENT_TITLE_N,
-                                R.@string.ACHIEVEMENT_TITLE_O,
-                                R.@string.ACHIEVEMENT_TITLE_P,
-                                R.@string.ACHIEVEMENT_TITLE_Q,
-                                R.@string.ACHIEVEMENT_TITLE_R
+                                Res.@string.ACHIEVEMENT_TITLE_A,
+                                Res.@string.ACHIEVEMENT_TITLE_B,
+                                Res.@string.ACHIEVEMENT_TITLE_C,
+                                Res.@string.ACHIEVEMENT_TITLE_D,
+                                Res.@string.ACHIEVEMENT_TITLE_E,
+                                Res.@string.ACHIEVEMENT_TITLE_F,
+                                Res.@string.ACHIEVEMENT_TITLE_G,
+                                Res.@string.ACHIEVEMENT_TITLE_H,
+                                Res.@string.ACHIEVEMENT_TITLE_I,
+                                Res.@string.ACHIEVEMENT_TITLE_J,
+                                Res.@string.ACHIEVEMENT_TITLE_K,
+                                Res.@string.ACHIEVEMENT_TITLE_L,
+                                Res.@string.ACHIEVEMENT_TITLE_M,
+                                Res.@string.ACHIEVEMENT_TITLE_N,
+                                Res.@string.ACHIEVEMENT_TITLE_O,
+                                Res.@string.ACHIEVEMENT_TITLE_P,
+                                Res.@string.ACHIEVEMENT_TITLE_Q,
+                                Res.@string.ACHIEVEMENT_TITLE_R
         };
 
         private static string[] ACHIEVEMENT_DESC_TABLE => new string[18]
         {
-                                R.@string.ACHIEVEMENT_MESSAGE_A,
-                                R.@string.ACHIEVEMENT_MESSAGE_B,
-                                R.@string.ACHIEVEMENT_MESSAGE_C,
-                                R.@string.ACHIEVEMENT_MESSAGE_D,
-                                R.@string.ACHIEVEMENT_MESSAGE_E,
-                                R.@string.ACHIEVEMENT_MESSAGE_F,
-                                R.@string.ACHIEVEMENT_MESSAGE_G,
-                                R.@string.ACHIEVEMENT_MESSAGE_H,
-                                R.@string.ACHIEVEMENT_MESSAGE_I,
-                                R.@string.ACHIEVEMENT_MESSAGE_J,
-                                R.@string.ACHIEVEMENT_MESSAGE_K,
-                                R.@string.ACHIEVEMENT_MESSAGE_L,
-                                R.@string.ACHIEVEMENT_MESSAGE_M,
-                                R.@string.ACHIEVEMENT_MESSAGE_N,
-                                R.@string.ACHIEVEMENT_MESSAGE_O,
-                                R.@string.ACHIEVEMENT_MESSAGE_P,
-                                R.@string.ACHIEVEMENT_MESSAGE_Q,
-                                R.@string.ACHIEVEMENT_MESSAGE_R
+                                Res.@string.ACHIEVEMENT_MESSAGE_A,
+                                Res.@string.ACHIEVEMENT_MESSAGE_B,
+                                Res.@string.ACHIEVEMENT_MESSAGE_C,
+                                Res.@string.ACHIEVEMENT_MESSAGE_D,
+                                Res.@string.ACHIEVEMENT_MESSAGE_E,
+                                Res.@string.ACHIEVEMENT_MESSAGE_F,
+                                Res.@string.ACHIEVEMENT_MESSAGE_G,
+                                Res.@string.ACHIEVEMENT_MESSAGE_H,
+                                Res.@string.ACHIEVEMENT_MESSAGE_I,
+                                Res.@string.ACHIEVEMENT_MESSAGE_J,
+                                Res.@string.ACHIEVEMENT_MESSAGE_K,
+                                Res.@string.ACHIEVEMENT_MESSAGE_L,
+                                Res.@string.ACHIEVEMENT_MESSAGE_M,
+                                Res.@string.ACHIEVEMENT_MESSAGE_N,
+                                Res.@string.ACHIEVEMENT_MESSAGE_O,
+                                Res.@string.ACHIEVEMENT_MESSAGE_P,
+                                Res.@string.ACHIEVEMENT_MESSAGE_Q,
+                                Res.@string.ACHIEVEMENT_MESSAGE_R
         };
 
         public static void init()

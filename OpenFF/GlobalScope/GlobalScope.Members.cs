@@ -10,9 +10,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
-using android.content;
-using syrcusW.res.raw;
-using syrcusW.res.values;
+using OpenFF.Platform;
+using OpenFF.Resources;
 
 internal static partial class GlobalScope
 {
@@ -4758,7 +4757,7 @@ internal static partial class GlobalScope
 
 						internal static float tapY;
 
-						internal static JNIEnv env;
+						internal static HostEnv env;
 
 						internal static Type activity;
 
@@ -6973,17 +6972,17 @@ internal static partial class GlobalScope
 
 						internal static void trace(string format, params object[] args)
 						{
-							MainActivity.trace(StringUtil.format(format, args));
+							AppShell.trace(StringUtil.format(format, args));
 						}
 
 						internal static void webTo()
 						{
-							MainActivity.webTo();
+							AppShell.webTo();
 						}
 
 						internal static void startDownload()
 						{
-							MainActivity.startDownload();
+							AppShell.startDownload();
 						}
 
 						internal static bool isAutoSave()
@@ -7160,14 +7159,14 @@ internal static partial class GlobalScope
 							}
 						}
 
-						internal static void pause(JNIEnv _env, object thiz)
+						internal static void pause(HostEnv _env, object thiz)
 						{
 							ds.GlobalPlayTimeCounter.getSingleton().pause(b: true);
 							SuspendFont();
 							SuspendTexture();
 						}
 
-						internal static void resume(JNIEnv _env, object thiz)
+						internal static void resume(HostEnv _env, object thiz)
 						{
 							ds.GlobalPlayTimeCounter.getSingleton().pause(b: false);
 							m_Graphics.DrawStringStart();
@@ -7175,7 +7174,7 @@ internal static partial class GlobalScope
 							m_Graphics.DrawStringEnd();
 						}
 
-						internal static void touch(JNIEnv _env, object thiz, int count, int peak, float x0, float y0, float x1, float y1)
+						internal static void touch(HostEnv _env, object thiz, int count, int peak, float x0, float y0, float x1, float y1)
 						{
 							if (peak != 1)
 							{
@@ -7221,12 +7220,12 @@ internal static partial class GlobalScope
 							trg |= ~num & cont;
 						}
 
-						internal static void render(JNIEnv _env, object thiz)
+						internal static void render(HostEnv _env, object thiz)
 						{
 							env = _env;
-							ulong currentFrame = (ulong)MainActivity.getCurrentFrame((long)prevFrame);
+							ulong currentFrame = (ulong)AppShell.getCurrentFrame((long)prevFrame);
 							int num = MATH_CLAMP((int)(currentFrame - prevFrame), 1, 3) * ((boost == 0) ? 1 : 3);
-							cont |= MainActivity.getKeyEvent();
+							cont |= AppShell.getKeyEvent();
 							int num2 = backButton;
 							glClearColor(0f, 0f, 0f, 1f);
 							glClear(16640u);
@@ -7272,7 +7271,7 @@ internal static partial class GlobalScope
 							NNS_SndUpdate();
 							if (backButton != num2)
 							{
-								MainActivity.assignBackButton(backButton);
+								AppShell.assignBackButton(backButton);
 							}
 						}
 
@@ -7282,12 +7281,12 @@ internal static partial class GlobalScope
 
 						internal static int OS_GetLanguage()
 						{
-							return MainActivity.getLanguage();
+							return AppShell.getLanguage();
 						}
 
 						internal static void OS_SetLanguage(int language)
 						{
-							MainActivity.setLanguage(language);
+							AppShell.setLanguage(language);
 						}
 
 						internal static void OS_EnableInterrupts()
@@ -9924,7 +9923,7 @@ internal static partial class GlobalScope
 
 						internal static sbyte[] loadFile(string _filename, ref int size)
 						{
-							Array array = MainActivity.loadFile(_filename);
+							Array array = AppShell.loadFile(_filename);
 							if (array == null)
 							{
 								return null;
@@ -10050,7 +10049,7 @@ internal static partial class GlobalScope
 							}
 							if (num != 65536)
 							{
-								MainActivity.createSaveFile(65536);
+								AppShell.createSaveFile(65536);
 							}
 							fILE = fopen("/data/data/com.square_enix.FFIII_J/files/save.bin", "r+b");
 							if (fILE == null)
@@ -10739,7 +10738,7 @@ internal static partial class GlobalScope
 								num += 12 + ((pSrcData[num] << 24) | (pSrcData[num + 1] << 16) | (pSrcData[num + 2] << 8) | pSrcData[num + 3]);
 							}
 							while (memcmp(arg, "IEND", 4) != 0);
-							Array array = MainActivity.loadTexture(pSrcData);
+							Array array = AppShell.loadTexture(pSrcData);
 							int[] intArrayElements = env.GetIntArrayElements(array, null);
 							int num2 = intArrayElements[0];
 							int num3 = intArrayElements[1];
@@ -14064,12 +14063,12 @@ internal static partial class GlobalScope
 						internal static void UpdateVolume(NNSSndHandle handle)
 						{
 							float volume = (soundMute[handle.player] ? 0f : ((float)(handle.volume * baseVolume[handle.player]) * 6.200012E-05f));
-							MainActivity.setSoundVolume((int)handle.source, volume);
+							AppShell.setSoundVolume((int)handle.source, volume);
 						}
 
 						internal static void StopSound(NNSSndHandle handle)
 						{
-							MainActivity.stopSound((int)handle.source);
+							AppShell.stopSound((int)handle.source);
 							handle.flag = 0u;
 							handle.fadeFrame = 0;
 						}
@@ -14093,7 +14092,7 @@ internal static partial class GlobalScope
 								return 0;
 							}
 							UpdateVolume(handle);
-							MainActivity.playSound((int)handle.source, _filename);
+							AppShell.playSound((int)handle.source, _filename);
 							handle.flag |= 2u;
 							return 1;
 						}
@@ -14112,7 +14111,7 @@ internal static partial class GlobalScope
 									{
 										next.fadeTime++;
 										float num = (next.fadeVolume[0] * (next.fadeFrame - next.fadeTime) + next.fadeVolume[1] * next.fadeTime) / next.fadeFrame;
-										MainActivity.setSoundVolume((int)next.source, soundMute[next.player] ? 0f : (num * (float)baseVolume[next.player] * 6.200012E-05f));
+										AppShell.setSoundVolume((int)next.source, soundMute[next.player] ? 0f : (num * (float)baseVolume[next.player] * 6.200012E-05f));
 										if (next.fadeTime == next.fadeFrame)
 										{
 											next.fadeFrame = 0;
@@ -14122,7 +14121,7 @@ internal static partial class GlobalScope
 											}
 										}
 									}
-									if (MainActivity.getSoundState((int)next.source) == 0)
+									if (AppShell.getSoundState((int)next.source) == 0)
 									{
 										next.flag = 0u;
 									}
@@ -14268,7 +14267,7 @@ internal static partial class GlobalScope
 						{
 							if ((handle.flag & 2) != 0)
 							{
-								MainActivity.pauseSound((int)handle.source, flag);
+								AppShell.pauseSound((int)handle.source, flag);
 							}
 						}
 
@@ -14893,36 +14892,36 @@ internal static partial class GlobalScope
 						{
 						}
 
-						internal static int Java_com_square_1enix_FFIII_1J_MainActivity_init(JNIEnv _env, object thiz)
+						internal static int hostInit(HostEnv _env, object thiz)
 						{
 							return 0;
 						}
 
-						internal static void Java_com_square_1enix_FFIII_1J_MainActivity_quit(JNIEnv _env, object thiz)
+						internal static void hostQuit(HostEnv _env, object thiz)
 						{
 						}
 
-						internal static void Java_com_square_1enix_FFIII_1J_MainActivity_pause(JNIEnv _env, object thiz)
+						internal static void hostPause(HostEnv _env, object thiz)
 						{
 							pause(_env, thiz);
 						}
 
-						internal static void Java_com_square_1enix_FFIII_1J_MainActivity_resume(JNIEnv _env, object thiz)
+						internal static void hostResume(HostEnv _env, object thiz)
 						{
 							resume(_env, thiz);
 						}
 
-						internal static void Java_com_square_1enix_FFIII_1J_MainActivity_touch(JNIEnv _env, object thiz, int count, int peak, float x0, float y0, float x1, float y1)
+						internal static void hostTouch(HostEnv _env, object thiz, int count, int peak, float x0, float y0, float x1, float y1)
 						{
 							touch(_env, thiz, count, peak, x0, y0, x1, y1);
 						}
 
-						internal static void Java_com_square_1enix_FFIII_1J_MainActivity_render(JNIEnv _env, object thiz)
+						internal static void hostRender(HostEnv _env, object thiz)
 						{
 							render(_env, thiz);
 						}
 
-						internal static void Java_com_square_1enix_FFIII_1J_MainActivity_encode(JNIEnv _env, Type cls, Array array, int mask)
+						internal static void hostEncode(HostEnv _env, Type cls, Array array, int mask)
 						{
 							sbyte[] byteArrayElements = _env.GetByteArrayElements(array, null);
 							_env.GetArrayLength(array);
@@ -22007,12 +22006,12 @@ internal static partial class GlobalScope
 
 						public static void startTimer(int iId)
 						{
-							m_aTestTimer[iId].m_lStart = JavaSystem.currentTimeMillis();
+							m_aTestTimer[iId].m_lStart = SystemUtil.currentTimeMillis();
 						}
 
 						public static void stopTimer(int iId, bool bAppend)
 						{
-							long num = JavaSystem.currentTimeMillis() - m_aTestTimer[iId].m_lStart;
+							long num = SystemUtil.currentTimeMillis() - m_aTestTimer[iId].m_lStart;
 							if (bAppend)
 							{
 								m_aTestTimer[iId].m_iCount++;
@@ -22027,8 +22026,8 @@ internal static partial class GlobalScope
 						public static void setResourceCulture(int iLanguage)
 						{
 							string[] array = new string[9] { "ja-JP", "en", "fr-FR", "de-DE", "it-IT", "es-ES", "zh-CN", "zh-TW", "ko-KR" };
-							CultureInfo culture = (language.Culture = new CultureInfo(array[iLanguage]));
-							strings.Culture = culture;
+							CultureInfo culture = (Language.Culture = new CultureInfo(array[iLanguage]));
+							Strings.Culture = culture;
 						}
 
 						static GlobalScope()

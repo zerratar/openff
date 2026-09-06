@@ -10,9 +10,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.GamerServices;
 using Microsoft.Xna.Framework.Graphics;
-using android.content;
-using syrcusW.res.raw;
-using syrcusW.res.values;
+using OpenFF.Platform;
+using OpenFF.Resources;
 
 internal static partial class GlobalScope
 {
@@ -408,7 +407,7 @@ internal static partial class GlobalScope
 				{
 					if (num == 52080)
 					{
-						message = dGSMessageManager.createMessage(R.@string.ACHIEVEMENTS, (!flagCheck(4)) ? 1 : 0);
+						message = dGSMessageManager.createMessage(Res.@string.ACHIEVEMENTS, (!flagCheck(4)) ? 1 : 0);
 					}
 					else
 					{

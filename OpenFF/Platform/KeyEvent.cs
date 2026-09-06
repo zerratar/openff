@@ -1,4 +1,4 @@
-namespace android.view;
+namespace OpenFF.Platform;
 
 public class KeyEvent
 {

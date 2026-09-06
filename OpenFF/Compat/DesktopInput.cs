@@ -6,7 +6,7 @@
 // MonoGame's TouchPanel: TouchPanel.EnableMouseTouchPoint depends on SDL emitting
 // synthetic touch events, which it does not do for a plain mouse on Windows.
 //
-// Coordinates: MainActivity.onTouchEvent divides by the view size that
+// Coordinates: AppShell.onTouchEvent divides by the view size that
 // GLSurfaceView.setRenderer hard-codes as 800x480, so mouse positions are mapped
 // from the window's client area into that same 800x480 space. This keeps input
 // correct when the window is resized.
@@ -23,7 +23,7 @@ namespace OpenFF.Client
 
 	internal static class DesktopInput
 	{
-		/// <summary>The coordinate space MainActivity normalises against.</summary>
+		/// <summary>The coordinate space AppShell normalises against.</summary>
 		private const int ViewWidth = 800;
 		private const int ViewHeight = 480;
 
@@ -64,7 +64,7 @@ namespace OpenFF.Client
 		};
 
 		/// <summary>
-		/// Pad bits held this frame. MainActivity.getKeyEvent ORs this into the game's
+		/// Pad bits held this frame. AppShell.getKeyEvent ORs this into the game's
 		/// pad register once per rendered frame; edge and repeat detection then happen
 		/// in ds.CPad exactly as they did on the DS.
 		/// </summary>
@@ -210,7 +210,7 @@ namespace OpenFF.Client
 			_lastY = y;
 		}
 
-		// The game reads touch through MainActivity.onTouchEvent. These build the
+		// The game reads touch through AppShell.onTouchEvent. These build the
 		// MotionEvent it expects - action 0 down, 1 up, 2 move - which used to go
 		// through the Android activity broadcast.
 		private static void TouchDown(int x, int y) => Send(0, x, y);
@@ -221,10 +221,10 @@ namespace OpenFF.Client
 
 		private static void Send(int action, int x, int y)
 		{
-			MainActivity game = GameHost.Game;
+			AppShell game = GameHost.Game;
 			if (game != null)
 			{
-				game.onTouchEvent(new android.view.MotionEvent(
+				game.onTouchEvent(new OpenFF.Platform.MotionEvent(
 					action, 1, new float[1] { x }, new float[1] { y }));
 			}
 		}

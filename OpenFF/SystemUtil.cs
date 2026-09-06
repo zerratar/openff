@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-public static class JavaSystem
+public static class SystemUtil
 {
 
 	public static void arraycopy(Array src, int srcPos, Array dst, int dstPos, int length)

@@ -1,4 +1,4 @@
-namespace android.content;
+namespace OpenFF.Platform;
 
 public abstract class DialogInterface
 {
