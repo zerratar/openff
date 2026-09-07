@@ -1253,6 +1253,21 @@ overridable), and the map's facts at the top of the panel are in the way.
   likely) held `bin\Debug\net8.0`, so the test build went to `bin\Debug\net8.0-test`; the
   wwwroot copy that build serves is the same files.
 
+### The hierarchy's right click and drag
+
+Karl asked for the tree to be worked in the tree. `drawHierarchy` takes three more things
+on an outline node: `menu()` (items for `showContextMenu`, a `.dropdown` at the pointer,
+closed by the next click or Escape; the right click selects the row first), `drag` (a key
+the row carries) and `drop(key)` (on rows and on group headers; `wireDrop` lights the target
+while a drag is over it). The scene objects use all three: `sceneObjectMenu` - New child
+object, Duplicate (`duplicateSceneObject`: the subtree through `objectsForFile` and back,
+a fresh sibling name, the attachments on it and under it copied to the new paths), Rename
+(the caret into the inspector's name box), Focus in view, Move to top level, Delete; the
+group's menu has New object; dropping a row on another calls `reparentSceneObject`, on the
+group with `null`, so the object keeps its world place either way. The inspector lost its
+"Add a child object" button; the children stay listed as links. Open: the game's own rows
+(characters, exits) have no menu yet - "Add Behaviour…" there would be the natural one.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

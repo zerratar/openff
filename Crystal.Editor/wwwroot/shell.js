@@ -481,6 +481,9 @@ function drawHierarchy() {
       count.textContent = group.children.length;
       head.append(count);
     }
+    // A group can take a right click (New object…) and a drop (to the top level).
+    if (group.menu) head.oncontextmenu = event => { event.preventDefault(); showContextMenu(event, group.menu()); };
+    if (group.drop) wireDrop(head, group.drop);
     tree.append(head);
 
     let shown = 0;
@@ -514,11 +517,101 @@ function drawHierarchy() {
         drawHierarchy();
         drawInspector();
       };
+      // Right click: the row's own menu (new child, rename, delete...), with the row selected first.
+      if (child.menu) {
+        row.oncontextmenu = event => {
+          event.preventDefault();
+          if (activeDoc.selection !== child.ref) {
+            clearInspected();
+            activeDoc.selection = child.ref;
+            drawHierarchy();
+            drawInspector();
+          }
+          showContextMenu(event, child.menu());
+        };
+      }
+      // Drag one row onto another to make it that one's child.
+      if (child.drag) {
+        row.draggable = true;
+        row.ondragstart = event => {
+          event.dataTransfer.setData('text/x-hierarchy', child.drag);
+          event.dataTransfer.effectAllowed = 'move';
+          row.classList.add('dragging');
+        };
+        row.ondragend = () => row.classList.remove('dragging');
+      }
+      if (child.drop) wireDrop(row, child.drop);
       tree.append(row);
     }
 
     if (filter && !shown) head.remove();
   }
+}
+
+/// Makes a hierarchy row a drop target for another row: the handler gets the dragged key.
+function wireDrop(row, handler) {
+  row.ondragover = event => {
+    if (![...event.dataTransfer.types].includes('text/x-hierarchy')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    row.classList.add('drop');
+  };
+  row.ondragleave = () => row.classList.remove('drop');
+  row.ondrop = event => {
+    row.classList.remove('drop');
+    const key = event.dataTransfer.getData('text/x-hierarchy');
+    if (!key) return;
+    event.preventDefault();
+    handler(key);
+  };
+}
+
+// ------------------------------------------------------------- context menu
+//
+// One small menu at the pointer, built from { label, run, disabled?, sep? } items; the
+// next click anywhere, or Escape, takes it away. The same box the Add Behaviour list uses.
+
+function showContextMenu(event, items) {
+  document.querySelectorAll('.context-menu').forEach(m => m.remove());
+  if (!items || !items.length) return;
+  const menu = document.createElement('div');
+  menu.className = 'dropdown context-menu';
+  const list = document.createElement('ul');
+  list.className = 'dropdown-list';
+  const close = () => {
+    menu.remove();
+    document.removeEventListener('pointerdown', outside, true);
+    document.removeEventListener('keydown', key, true);
+  };
+  const outside = e => { if (!menu.contains(e.target)) close(); };
+  const key = e => { if (e.key === 'Escape') { close(); e.preventDefault(); } };
+  for (const item of items) {
+    if (item.sep) {
+      const hr = document.createElement('li');
+      hr.className = 'menu-sep';
+      list.append(hr);
+      continue;
+    }
+    const li = document.createElement('li');
+    if (item.icon) li.append(icon(item.icon));
+    const label = document.createElement('span');
+    label.className = 'dropdown-name';
+    label.textContent = item.label;
+    li.append(label);
+    if (item.disabled) li.classList.add('dim');
+    else li.onclick = () => { close(); item.run(); };
+    list.append(li);
+  }
+  menu.append(list);
+  document.body.append(menu);
+  const x = Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 6);
+  const y = Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 6);
+  menu.style.left = Math.max(4, x) + 'px';
+  menu.style.top = Math.max(4, y) + 'px';
+  setTimeout(() => {
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', key, true);
+  }, 0);
 }
 
 /// The outline of a document, which is whatever that kind of asset is made of.
@@ -578,8 +671,18 @@ function outlineFor(doc) {
         }
       }
       const flat = typeof flattenSceneObjects === 'function' ? flattenSceneObjects(sceneState) : [];
+      // Dropping a row on another makes it that one's child; on the group, top level.
+      const dropOn = parent => key => {
+        const dragged = findSceneObject(key);
+        if (!dragged || dragged.source === parent) return;
+        reparentSceneObject(doc, dragged.source, parent);
+      };
       groups.push({
         label: 'Objects (OpenFF)',
+        menu: () => [
+          { label: 'New object', icon: 'exit', run: () => addSceneObject(doc) },
+        ],
+        drop: dropOn(null),
         children: flat.map((item, i) => ({
           label: item.name,
           note: item.model || (item.source.tags || []).join(' '),
@@ -587,7 +690,10 @@ function outlineFor(doc) {
           icon: item.model ? 'model' : 'exit',
           depth: item.depth,
           badge: carried.has(item.path.toLowerCase()) ? 'behaviour' : null,
-          reveal: () => { if (doc.scene3d && doc.mode === '3d') doc.scene3d.focusPoint(i); }
+          reveal: () => { if (doc.scene3d && doc.mode === '3d') doc.scene3d.focusPoint(i); },
+          drag: item.path,
+          drop: dropOn(item.source),
+          menu: () => sceneObjectMenu(doc, item.source)
         })).concat([{
           label: '+ add an object',
           ref: 'scene:+',

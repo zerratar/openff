@@ -2578,6 +2578,55 @@ function removeSceneObject(doc, object) {
   drawInspector();
 }
 
+/// The right-click menu of an object in the hierarchy: what the inspector used to need
+/// buttons for.
+function sceneObjectMenu(doc, object) {
+  const path = scenePathOf(object);
+  return [
+    { label: 'New child object', icon: 'exit', run: () => addSceneObject(doc, { parent: object }) },
+    { label: 'Duplicate', icon: 'model', run: () => duplicateSceneObject(doc, object) },
+    { label: 'Rename', icon: 'code', run: () => {
+      doc.selection = 'scene:' + path;
+      drawHierarchy();
+      drawInspector();
+      const input = document.querySelector('#inspector .object-name');
+      if (input) { input.focus(); input.select(); }
+    } },
+    { label: 'Focus in view', icon: 'scene', run: () => {
+      const index = flattenSceneObjects(sceneState).findIndex(i => i.source === object);
+      if (doc.scene3d && index >= 0) doc.scene3d.focusPoint(index);
+    } },
+    { sep: true },
+    { label: 'Move to top level', icon: 'exit', disabled: !object.parent, run: () => reparentSceneObject(doc, object, null) },
+    { sep: true },
+    { label: object.children.length ? 'Delete with children' : 'Delete', icon: 'exit', run: () => removeSceneObject(doc, object) },
+  ];
+}
+
+/// A copy beside the original - the subtree, its attachments (copied), a fresh name.
+function duplicateSceneObject(doc, object) {
+  const siblings = object.parent ? object.parent.children : sceneState.objects;
+  const copy = fromSceneFile(objectsForFile([object]), object.parent)[0];
+  copy.name = uniqueSceneName(siblings, object.name);
+  siblings.splice(siblings.indexOf(object) + 1, 0, copy);
+  // Attachments on the original and under it, targeted at the copy's paths.
+  const from = scenePathOf(object).toLowerCase();
+  const to = scenePathOf(copy);
+  for (const a of [...(sceneState.attachments || [])]) {
+    const t = (a.target || '').toLowerCase();
+    if (t === from || t.startsWith(from + '/')) {
+      sceneState.attachments.push({ target: to + a.target.slice(from.length), behaviour: a.behaviour, fields: JSON.parse(JSON.stringify(a.fields || {})) });
+    }
+  }
+  sceneChanged();
+  doc.selection = 'scene:' + to;
+  syncSceneObjects(doc);
+  const index = flattenSceneObjects(sceneState).findIndex(i => i.source === copy);
+  if (doc.scene3d && index >= 0) doc.scene3d.selectPoint(index);
+  drawHierarchy();
+  drawInspector();
+}
+
 /// Moves an object under another parent (or to the root), keeping its place in the world.
 function reparentSceneObject(doc, object, parent) {
   if (parent === object.parent) return;
@@ -2789,10 +2838,12 @@ function buildSceneObject(doc, object) {
 
   // --------------------------------------------------------- children, out
 
-  const kidsHead = document.createElement('h3');
-  kidsHead.textContent = 'Children';
-  panel.append(kidsHead);
+  // Children are made from the hierarchy (right click ▸ New child object, or drop a row
+  // on this one); here they are listed for the way down.
   if (object.children.length) {
+    const kidsHead = document.createElement('h3');
+    kidsHead.textContent = 'Children';
+    panel.append(kidsHead);
     const list = document.createElement('ul');
     list.className = 'scene-children';
     for (const child of object.children) {
@@ -2814,12 +2865,6 @@ function buildSceneObject(doc, object) {
     }
     panel.append(list);
   }
-  const addChild = document.createElement('button');
-  addChild.className = 'wide-button';
-  addChild.textContent = 'Add a child object';
-  addChild.title = 'A new object under this one, at its spot; it moves with it';
-  addChild.onclick = () => addSceneObject(doc, { parent: object });
-  panel.append(addChild);
 
   const foot = document.createElement('div');
   foot.className = 'behaviour-actions';

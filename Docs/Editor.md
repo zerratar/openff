@@ -743,12 +743,16 @@ terrain's inspector has *Add an OpenFF object where the camera looks* for the sa
 
 They are listed as a tree under **Objects (OpenFF)** in the hierarchy, drawn in the 3D
 view (the model itself, or a small blue box for one without) and moved with the same
-gizmo as everything else. The inspector of one is laid out as Unity lays out a
+gizmo as everything else. The hierarchy is where the tree is worked: **right-click** a row
+for *New child object*, *Duplicate* (the subtree and its behaviours, under a fresh name),
+*Rename*, *Focus in view*, *Move to top level* and *Delete*; right-click the group for
+*New object*; and **drag** a row onto another to make it that one's child, or onto the
+group to put it back at the top level - it keeps its place in the world either way. The inspector of one is laid out as Unity lays out a
 GameObject, and it is all the file's: the **name** at the top (free to change -
 behaviours on it and under it follow), then **Transform** (Position X Y Z, Rotation Y,
 Scale), then **Model** (the picker, with a × to have none - a spot with logic on it),
-**Tags** (what a mod finds it by), **Parent**, the **behaviours**, its **children** with
-*Add a child object*, and *Delete*. A child's numbers are relative to its parent - turned
+**Tags** (what a mod finds it by), **Parent**, the **behaviours**, its **children** (links
+down the tree), and *Delete*. A child's numbers are relative to its parent - turned
 by the parent's yaw, scaled by its scale - so moving the parent moves the lot, and
 reparenting keeps the child where it stands in the world. The document's own facts
 (terrain, characters, exits) fold away under *About <map>* at the bottom while something
