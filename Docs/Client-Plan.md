@@ -1172,6 +1172,50 @@ document's hash and is not a request. Saves are held while restoring and while
 `reloadEverything` closes the old project's tabs, which would otherwise be written as the new
 project's empty session. The export does not carry the file.
 
+### The mod's own objects: no script, a model or none, a tree
+
+Karl's point: an OpenFF mod should be able to add game objects that owe the game nothing -
+no `.hich` row, no cast, no `.ffs` - with a model or without one (a spot that only holds
+logic, for "the hero walked here"), renamed freely, nested under one another, every property
+a field in the JSON so a chest's item or its model can change any time. The scene file's
+`points` were most of the way there and are generalised into **objects**:
+
+- **Format** (`OpenFF.Engine/Scenes.cs`, `SceneObject`): `{ name, x, y, z, yaw, scale, model,
+  tags, children }`, a tree under `"objects"`. Each becomes a `GameObject` named `<map>/<path>`
+  (`d01_05/Chest/Trigger`), tagged `scene` plus its own, with `MapObject { Kind = "scene",
+  Name, Path, Model, Npc }`; `GameObject.SetParent` holds the tree. `Transform` has no
+  hierarchy, so `SceneLoader.Place` works out the world transform - a child's offset turned
+  by the parent's yaw and scaled by its scale, yaw added, scale multiplied - and the objects
+  carry world values. Attachments target the path (`"chest/trigger"`); the older `points` and
+  `point:<name>` still read (`SceneFile.AllObjects`), and Crystal writes the new shape on save.
+- **A model** is shown through `Game.Npcs.SpawnModel(model, at, yaw, scale)` - a plain
+  character without a cast - kept on `MapObject.Npc` and removed when the object goes.
+  `Component` gained an internal `OnDetached` hook for that (a `Behaviour` has `OnDestroy`; a
+  plain component had nothing).
+- **Objects went with the map now.** Nothing destroyed a scene file's objects when a map was
+  left: the next map's file added to them and the old behaviours kept updating. `EngineHost`
+  calls `SceneLoader.Clear()` on leaving (after `MapLeaving`), and `ApplyAll` clears first.
+- **`Trigger`**, an engine behaviour (`Radius`, `Once`, `HeroInside`, `Entered`/`Left`,
+  `Events.TriggerEntered`/`TriggerLeft`, a log line), so a trigger is placeable from the editor
+  with no code, and a `GameService` can hear it by the object's tags. `SceneLoader` falls back
+  to the engine's behaviours when the mod's code lacks the name; `ModCatalog` lists them too
+  (from `OpenFF.Engine.dll` with its XML summaries), whether or not the project has code.
+- **Crystal**: `sceneState.objects` is the tree (a non-enumerable `parent` on each);
+  `flattenSceneObjects` hands the 3D view a flat list in world terms with `package` for a
+  model, and `map-scene.js` draws those as the model (washed blue when chosen, picked by
+  bounds) and the rest as the blue box; a gizmo move comes back in world terms and
+  `sceneSetWorld` writes it into the object as local ones, so children follow. Hierarchy:
+  *Objects (OpenFF)* as an indented tree (`depth` on rows). Inspector (`buildSceneObject`):
+  model picker or *No model*, name (attachments retarget on rename, on it and under it),
+  x/y/z/yaw/scale/tags, a parent dropdown (reparenting keeps the world place), children with
+  *Add a child object*, delete with children, behaviours. *Add a game object* offers *OpenFF
+  object* first on an OpenFF project (name, model or none, spot). Verified: a chest (`o001`)
+  with a child trigger 6 ahead, moved and turned (the child landed 6 along +x at yaw 90),
+  renamed, saved as `objects`, exported; the client placed the model ("placed model o001 as
+  character 3"), made 4 objects, and the trigger logged "hero entered". ff3-boot passes.
+- Open: reparenting by drag in the hierarchy (the dropdown does it for now); a child with a
+  model of its own works but has no separate pick priority over its parent's model.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

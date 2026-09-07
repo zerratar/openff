@@ -1,4 +1,4 @@
-﻿// The workbench: panels, document tabs, hierarchy, inspector, console and project.
+// The workbench: panels, document tabs, hierarchy, inspector, console and project.
 //
 // app.js owns the ten views - a script, a map, a table - and knows nothing about where
 // they are put. This file owns the arrangement: which documents are open, which one is
@@ -29,7 +29,7 @@ const KINDS = [
   // The mod's own files sit under a folder of their own at the bottom, below a rule:
   // they belong to the project, not to either game, so they are the same whichever
   // game tab is current. Code is the C# (and project.json, the csproj); Scenes are the
-  // maps the mod has put behaviours or points on - each opens the map editor.
+  // maps the mod has put behaviours or objects on - each opens the map editor.
   { id: 'code', label: 'Code', mod: true },
   { id: 'scene', label: 'Scenes', mod: true }
 ];
@@ -488,7 +488,9 @@ function drawHierarchy() {
       if (filter && !child.label.toLowerCase().includes(filter)) continue;
       shown++;
       const row = document.createElement('li');
-      row.className = 'row' + (activeDoc.selection === child.ref ? ' on' : '');
+      row.className = 'row' + (activeDoc.selection === child.ref ? ' on' : '') + (child.dim ? ' dim' : '');
+      // A tree inside the group: children indented under their parent (scene objects).
+      if (child.depth) row.style.paddingLeft = (20 + child.depth * 14) + 'px';
       row.append(icon(child.icon || 'file'));
       const text = document.createElement('span');
       text.textContent = child.label;
@@ -564,9 +566,10 @@ function outlineFor(doc) {
         }
       }))
     });
-    // An OpenFF project's scene file: its points, and a mark on whatever carries behaviours.
+    // An OpenFF project's scene file: the mod's own objects as a tree, and a mark on
+    // whatever carries behaviours - the game's things above, the mod's here.
     const openff = typeof sceneState !== 'undefined' && typeof mapState !== 'undefined'
-      && sceneState.map === mapState.name && sceneState.points;
+      && sceneState.map === mapState.name && sceneState.objects;
     if (openff) {
       const carried = new Set((sceneState.attachments || []).map(a => (a.target || '').toLowerCase()));
       for (const group of groups) {
@@ -574,20 +577,23 @@ function outlineFor(doc) {
           if (carried.has(child.ref.toLowerCase())) child.badge = 'behaviour';
         }
       }
+      const flat = typeof flattenSceneObjects === 'function' ? flattenSceneObjects(sceneState) : [];
       groups.push({
-        label: 'Points (OpenFF)',
-        children: sceneState.points.map((p, i) => ({
-          label: p.name,
-          note: (p.tags || []).join(' '),
-          ref: `point:${p.name}`,
-          icon: 'exit',
-          badge: carried.has(('point:' + p.name).toLowerCase()) ? 'behaviour' : null,
+        label: 'Objects (OpenFF)',
+        children: flat.map((item, i) => ({
+          label: item.name,
+          note: item.model || (item.source.tags || []).join(' '),
+          ref: `scene:${item.path}`,
+          icon: item.model ? 'model' : 'exit',
+          depth: item.depth,
+          badge: carried.has(item.path.toLowerCase()) ? 'behaviour' : null,
           reveal: () => { if (doc.scene3d && doc.mode === '3d') doc.scene3d.focusPoint(i); }
         })).concat([{
-          label: '+ add a point',
-          ref: 'point:+',
+          label: '+ add an object',
+          ref: 'scene:+',
           icon: 'exit',
-          reveal: () => { if (typeof addScenePoint === 'function') addScenePoint(doc); }
+          dim: true,
+          reveal: () => { if (typeof addSceneObject === 'function') addSceneObject(doc); }
         }])
       });
     }
@@ -838,7 +844,7 @@ function drawInspectedAsset(box) {
   const open = document.createElement('button');
   open.className = 'wide-button';
   open.textContent = kind === 'scene' ? 'Open map' : 'Open';
-  if (kind === 'scene') open.title = 'The map in the map editor, with the mod\'s behaviours and points on it';
+  if (kind === 'scene') open.title = 'The map in the map editor, with the mod\'s behaviours and objects on it';
   open.onclick = () => openDoc(kind, name);
   box.append(open);
 
@@ -987,7 +993,8 @@ function inspectedFacts(kind, data) {
     facts[0] = ['kind', 'scene file'];
     facts.push(['map', data.map]);
     facts.push(['behaviours', (data.attachments || []).length]);
-    facts.push(['points', (data.points || []).length]);
+    const countObjects = list => (list || []).reduce((n, o) => n + 1 + countObjects(o && o.children), 0);
+    facts.push(['objects', countObjects(data.objects)]);
     const names = [...new Set((data.attachments || []).map(a => a.behaviour).filter(Boolean))];
     if (names.length) facts.push(['classes', names.join(', ')]);
     const targets = [...new Set((data.attachments || []).map(a => a.target).filter(Boolean))];
@@ -1344,7 +1351,7 @@ function drawProjectTree() {
         ? 'The project\'s own files - its C# code and the maps it puts behaviours on. File ▸ New project… makes one.'
         : !openff
           ? `${project.name} is a Steam mod: files replaced in the game, no code. Tick FF3 or FF4 under OpenFF in Project settings to make it an OpenFF mod as well.`
-          : `${project.name}: an OpenFF mod - its C# code, and the maps it puts behaviours and points on. ${project.directory}`;
+          : `${project.name}: an OpenFF mod - its C# code, and the maps it puts behaviours and objects on. ${project.directory}`;
       head.onclick = () => selectKind('code');
       foot.append(head);
       tree.append(foot);
@@ -1361,7 +1368,7 @@ function drawProjectTree() {
       count.textContent = kind.id === 'scene' ? (project.scenes || '') : '';
       if (count.textContent) row.append(count);
       row.title = kind.id === 'scene'
-        ? 'Maps this mod has put behaviours or points on (scenes/<map>.json). Each opens in the map editor.'
+        ? 'Maps this mod has put behaviours or objects on (scenes/<map>.json). Each opens in the map editor.'
         : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
     }
     row.onclick = () => selectKind(kind.id);

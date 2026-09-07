@@ -1986,3 +1986,8 @@ header h1 .gem {
 /* ---- OpenFF marks in the hierarchy, and a point's panel ---- */
 .tree .row .badge { color: #6fc7e6; font-style: normal; font-size: 10px; margin-left: 4px; }
 #inspector .point-grid { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; }
+#inspector .scene-children { list-style: none; margin: 4px 0; padding: 0; }
+#inspector .scene-children li { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-size: 12px; }
+#inspector .scene-children .icon { width: 13px; height: 13px; opacity: .7; }
+#inspector .scene-children a { color: var(--accent); text-decoration: none; }
+.tree .row.dim { color: var(--dim); }

@@ -426,7 +426,9 @@ function makeMapScene(canvas, status) {
         get rotationY() { return point.rotationY || 0; },
         set rotationY(v) { point.rotationY = v; },
         point: selectedPoint,
-        name: point.name
+        name: point.name,
+        package: point.package,
+        scale: point.scale || 1
       };
     }
     const exit = selectedExit !== null && scene && scene.exits
@@ -527,9 +529,18 @@ function makeMapScene(canvas, status) {
     gl.uniform1f(uniform.alpha, 1);
   }
 
-  /// The points, as small boxes standing on their spot, with a sliver ahead for the facing.
+  /// The mod's objects: one with a model is drawn as that model (washed blue when chosen,
+  /// as the map's characters are); the rest, and one whose model has not arrived, as a
+  /// small box standing on its spot with a sliver ahead for the facing.
   function drawPoints() {
     if (!points.length) return;
+    for (const point of points) {
+      const entry = point.package && loaded.get(point.package);
+      if (!entry) continue;
+      const chosen = points.indexOf(point) === selectedPoint;
+      drawBundle(entry, placement(point), chosen ? [0.55, 0.75, 1.35] : null);
+    }
+    if (!points.some(p => !(p.package && loaded.get(p.package)))) return;
     gl.bindBuffer(gl.ARRAY_BUFFER, boxBuffer);
     const stride = 8 * 4;
     if (attribute.position >= 0) {
@@ -552,6 +563,7 @@ function makeMapScene(canvas, status) {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
     points.forEach((point, index) => {
+      if (point.package && loaded.get(point.package)) return;
       const chosen = index === selectedPoint;
       const s = 3;
       gl.uniform3fv(uniform.tint, chosen ? [0.5, 1.2, 1.3] : [0.3, 0.8, 0.95]);
@@ -1151,12 +1163,15 @@ function makeMapScene(canvas, status) {
         }
       }
 
-      // The points: small, so their box is the target.
+      // The mod's objects: one with a model is as big as the model; the rest are small, so
+      // their box is the target.
       points.forEach((point, index) => {
-        const at = [point.x, point.y + 3, point.z];
+        const drawn = point.package && loaded.get(point.package);
+        const bounds = drawn ? boundsOf(point) : { at: [point.x, point.y + 3, point.z], radius: 3.5 };
+        const at = bounds.at;
         const middle = projectPoint(at);
         if (!middle) return;
-        const reach = Math.max(screenRadius(at, 3.5), 0.02);
+        const reach = Math.max(screenRadius(at, bounds.radius), 0.02);
         if (Math.hypot(middle.x - nx, middle.y - ny) > reach) return;
         const depth = Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]);
         if (depth < bestDepth) {
@@ -1192,10 +1207,14 @@ function makeMapScene(canvas, status) {
       return best;
     },
 
-    /// The points of an OpenFF project's scene file, drawn and movable like the rest.
+    /// The objects of an OpenFF project's scene file, in world terms, drawn and movable
+    /// like the rest; one with a model (package) fetches it and is drawn as it.
     setPoints(list) {
       points = list || [];
       if (selectedPoint !== null && selectedPoint >= points.length) selectedPoint = null;
+      for (const point of points) {
+        if (point.package && !loaded.has(point.package)) ensure(point.package).catch(() => {});
+      }
       draw();
     },
 
@@ -1212,8 +1231,11 @@ function makeMapScene(canvas, status) {
       selectedPoint = index;
       selected = null;
       selectedExit = null;
-      centre = [point.x, point.y + 4, point.z];
-      distance = 46;
+      const entry = point.package && loaded.get(point.package);
+      const radius = entry && entry.radius ? entry.radius * (point.scale || 1) : 6;
+      const lift = entry && entry.centre ? entry.centre[1] * (point.scale || 1) : 4;
+      centre = [point.x, point.y + lift, point.z];
+      distance = Math.max(30, radius * 3.2);
       draw();
     },
 

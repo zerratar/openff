@@ -1518,7 +1518,7 @@ namespace Crystal.Editor
 			}
 			try
 			{
-				SendJson(context, new { ok = true, map, attachments = ProjectScenes.Read(_project, map), points = ProjectScenes.Points(_project, map) });
+				SendJson(context, new { ok = true, map, attachments = ProjectScenes.Read(_project, map), objects = ProjectScenes.Objects(_project, map) });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
 			{
@@ -1539,14 +1539,14 @@ namespace Crystal.Editor
 				JsonNode body = ReadBody(context);
 				string map = body?["map"]?.GetValue<string>();
 				JsonArray attachments = body?["attachments"] as JsonArray;
-				JsonArray points = body?["points"] as JsonArray;
+				JsonArray objects = body?["objects"] as JsonArray ?? body?["points"] as JsonArray;
 				if (string.IsNullOrWhiteSpace(map))
 				{
 					SendJson(context, new { ok = false, error = "which map?" });
 					return;
 				}
-				ProjectScenes.Write(_project, map, attachments, points);
-				SendJson(context, new { ok = true, map, count = attachments?.Count ?? 0, points = points?.Count ?? 0 });
+				ProjectScenes.Write(_project, map, attachments, objects);
+				SendJson(context, new { ok = true, map, count = attachments?.Count ?? 0, points = objects?.Count ?? 0 });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or JsonException)
 			{

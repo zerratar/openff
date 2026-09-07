@@ -245,6 +245,15 @@ function buildAdd(node, start) {
   kindLabel.className = 'wide';
   kindLabel.textContent = 'behaviour';
   const kind = document.createElement('select');
+  // An OpenFF mod's own object comes first for an OpenFF project: nothing of the game's
+  // is written for it - no .hich row, no cast, no script - so it is the light way in.
+  const openff = openFFProject();
+  if (openff) {
+    const option = document.createElement('option');
+    option.value = 'openff';
+    option.textContent = 'OpenFF object - the mod\'s own, no script';
+    kind.append(option);
+  }
   for (const entry of BEHAVIOURS) {
     const option = document.createElement('option');
     option.value = entry.id;
@@ -255,6 +264,19 @@ function buildAdd(node, start) {
 
   const kindNote = document.createElement('p');
   kindNote.className = 'none';
+
+  // The OpenFF object's own: its name, and whether it has a model at all.
+  const nameLabel = document.createElement('label');
+  nameLabel.className = 'wide';
+  nameLabel.textContent = 'name';
+  const objectName = document.createElement('input');
+  objectName.placeholder = 'Chest, Trigger, Spawn…';
+  nameLabel.append(objectName);
+  const noModelLabel = document.createElement('label');
+  noModelLabel.className = 'wide toggle';
+  const noModel = document.createElement('input');
+  noModel.type = 'checkbox';
+  noModelLabel.append(noModel, document.createTextNode(' no model - a spot with logic on it'));
 
   // ------------------------------------------------------------------- model
 
@@ -357,7 +379,7 @@ function buildAdd(node, start) {
   actions.className = 'sticky-actions';
   actions.append(go);
 
-  panel.append(kindLabel, kindNote, modelHead, choose, modelNote,
+  panel.append(kindLabel, kindNote, nameLabel, noModelLabel, modelHead, choose, modelNote,
     xLabel, zLabel, pick, textLabel, itemLabel, goldLabel,
     toLabel, arriveLabel, exitNote, actions);
 
@@ -382,6 +404,22 @@ function buildAdd(node, start) {
   };
 
   const showFor = (id) => {
+    nameLabel.hidden = id !== 'openff';
+    noModelLabel.hidden = id !== 'openff';
+    sub.textContent = id === 'openff'
+      ? 'The mod\'s own object: nothing of the game\'s is written for it.'
+      : 'Writes the row that places it, the call that boots it, and the cast that gives it behaviour.';
+    if (id === 'openff') {
+      kindNote.textContent = 'Saved in the mod\'s scenes/' + mapState.name + '.json, not in the game\'s data: '
+        + 'a GameObject the OpenFF client makes when the map is entered, with the model standing there (or nothing, for a trigger or a spawn point). '
+        + 'Rename it, swap its model, put children under it, attach the mod\'s C# behaviours - all in the inspector, any time.';
+      textLabel.hidden = itemLabel.hidden = goldLabel.hidden = toLabel.hidden = arriveLabel.hidden = exitNote.hidden = true;
+      modelHead.hidden = choose.hidden = modelNote.hidden = noModel.checked;
+      chosenName.textContent = model;
+      modelNote.textContent = 'Any of the game\'s models - it need not be one this map loads.';
+      go.disabled = false;
+      return;
+    }
     const behaviour = BEHAVIOURS.find(b => b.id === id) || BEHAVIOURS[0];
     kindNote.textContent = behaviour.note;
     textLabel.hidden = id !== 'talk';
@@ -434,6 +472,7 @@ function buildAdd(node, start) {
   };
 
   kind.onchange = () => showFor(kind.value);
+  noModel.onchange = () => showFor(kind.value);
 
   choose.onclick = () => {
     const behaviour = BEHAVIOURS.find(b => b.id === kind.value);
@@ -441,13 +480,32 @@ function buildAdd(node, start) {
       model = chosen;
       picked = true;
       showFor(kind.value);
-    }, behaviour.objectsOnly
+    }, behaviour && behaviour.objectsOnly
       ? { only: isObjectModel, title: 'Choose an object', what: 'object models' }
       : {});
   };
 
   go.onclick = async () => {
     go.disabled = true;
+
+    if (kind.value === 'openff') {
+      // Nothing to ask the server: the object goes into the scene state, selected, and
+      // the panel's Save writes the file.
+      const doc = activeDoc;
+      try {
+        await loadSceneState(mapState.name);
+        const object = addSceneObject(doc, {
+          name: objectName.value.trim() || (noModel.checked ? 'Object' : model),
+          model: noModel.checked ? null : model,
+          at: [parseInt(x.value, 10) || 0, 0, parseInt(z.value, 10) || 0]
+        });
+        say(`${object.name} added to the OpenFF scene - Save objects in its panel keeps it`, 'good');
+      } catch (error) {
+        say(error.message, 'bad');
+        go.disabled = false;
+      }
+      return;
+    }
 
     if (kind.value === 'exit') {
       try {
@@ -811,7 +869,14 @@ function wireModes(node, doc, scene) {
         }
 
         if (item.point !== undefined) {
-          // A point: the scene state is what is saved (Save points in its panel).
+          // One of the mod's objects: the 3D view moved its world copy; the object keeps
+          // local numbers (relative to its parent), and its children come along.
+          const moved = flattenSceneObjects(sceneState)[item.point];
+          if (moved) {
+            sceneSetWorld(moved.source, item.x, item.y, item.z, item.rotationY);
+            syncSceneObjects(doc);
+            doc.scene3d.selectPoint(item.point);
+          }
           sceneState.dirty = true;
           drawInspector();
           return;
@@ -844,7 +909,8 @@ function wireModes(node, doc, scene) {
           doc.selection = `exit:${item.index}`;
         } else if (kind === 'point') {
           mapState.selected = null;
-          doc.selection = `point:${item.name}`;
+          const picked = flattenSceneObjects(sceneState)[item.index];
+          doc.selection = picked ? `scene:${picked.path}` : null;
         } else {
           mapState.selected = mapState.data.characters.find(c => c.index === item.index);
           doc.selection = `object:${item.index}`;
@@ -859,8 +925,8 @@ function wireModes(node, doc, scene) {
     if (doc.selection && doc.selection.startsWith('object:')) {
       doc.scene3d.select(Number(doc.selection.slice(7)));
     }
-    if (doc.selection && doc.selection.startsWith('point:')) {
-      const index = (sceneState.points || []).findIndex(p => 'point:' + p.name === doc.selection);
+    if (doc.selection && doc.selection.startsWith('scene:')) {
+      const index = flattenSceneObjects(sceneState).findIndex(i => 'scene:' + i.path === doc.selection);
       if (index >= 0) doc.scene3d.selectPoint(index);
     }
   };
@@ -1102,9 +1168,9 @@ function inspectRef(doc, ref) {
     if (openFFProject()) {
       const add = document.createElement('button');
       add.className = 'wide-button';
-      add.textContent = 'Add a point where the camera looks';
-      add.title = 'A spot for mods: a spawn point, a camera mark. Drag it into place in the 3D view.';
-      add.onclick = () => addScenePoint(doc);
+      add.textContent = 'Add an OpenFF object where the camera looks';
+      add.title = 'The mod\'s own object: a spot with logic on it, or a model standing there - no script of the game\'s behind it. Drag it into place in the 3D view.';
+      add.onclick = () => addSceneObject(doc);
       box.append(add);
     }
     behavioursSection(box, 'map', 'map');
@@ -1122,10 +1188,9 @@ function inspectRef(doc, ref) {
     return buildExit(scene.exits[index], index);
   }
 
-  if (ref.startsWith('point:')) {
-    const name = ref.slice(6);
-    const point = (sceneState.points || []).find(p => p.name === name);
-    return point ? buildPoint(doc, point) : null;
+  if (ref.startsWith('scene:')) {
+    const found = findSceneObject(ref.slice(6));
+    return found ? buildSceneObject(doc, found.source) : null;
   }
   return null;
 }
@@ -1877,7 +1942,128 @@ function buildCharacter(character) {
 // puts behaviours on FF3's and FF4's d01_05 would meet in one file; per-game scene folders
 // are the engine's to add.
 
-const sceneState = { map: null, attachments: null, points: null, catalog: null, dirty: false };
+const sceneState = { map: null, attachments: null, objects: null, catalog: null, dirty: false };
+
+// ------------------------------------------------------ the mod's own objects
+//
+// sceneState.objects is the tree the file holds: each { name, x, y, z, rotationY, scale,
+// model, tags, children }, a child's numbers relative to its parent (the offset turned by
+// the parent's yaw and scaled by its scale, the yaw added, the scale multiplied - what the
+// engine's SceneLoader does). Every object also gets a non-enumerable `parent`, so a path
+// and a world transform can be worked out from the object alone. The 3D view is handed a
+// flat list in world terms; a drag there comes back in world terms and is written into
+// the object as local ones.
+
+function fromSceneFile(list, parent) {
+  return (list || []).filter(o => o && o.name).map(o => {
+    const object = {
+      name: String(o.name), x: o.x || 0, y: o.y || 0, z: o.z || 0,
+      rotationY: o.yaw || 0, scale: o.scale > 0 ? o.scale : 1,
+      model: o.model || null, tags: o.tags || [], children: []
+    };
+    Object.defineProperty(object, 'parent', { value: parent || null, writable: true, enumerable: false });
+    object.children = fromSceneFile(o.children, object);
+    return object;
+  });
+}
+
+/// The objects as the file holds them: yaw is the engine's (0 = +z, 90 = +x).
+function objectsForFile(list) {
+  return (list || []).map(o => {
+    const out = { name: o.name, x: o.x, y: o.y, z: o.z, yaw: o.rotationY || 0 };
+    if (o.scale && o.scale !== 1) out.scale = o.scale;
+    if (o.model) out.model = o.model;
+    if (o.tags && o.tags.length) out.tags = o.tags;
+    if (o.children && o.children.length) out.children = objectsForFile(o.children);
+    return out;
+  });
+}
+
+function scenePathOf(object) {
+  const parts = [];
+  for (let o = object; o; o = o.parent) parts.unshift(o.name);
+  return parts.join('/');
+}
+
+/// Where an object stands in the world, its parents' transforms applied.
+function sceneWorldOf(object) {
+  if (!object.parent) {
+    return { x: object.x, y: object.y, z: object.z, rotationY: object.rotationY || 0, scale: object.scale || 1 };
+  }
+  const p = sceneWorldOf(object.parent);
+  const a = p.rotationY * Math.PI / 180;
+  const c = Math.cos(a), s = Math.sin(a);
+  const ox = object.x * p.scale, oy = object.y * p.scale, oz = object.z * p.scale;
+  return {
+    x: p.x + c * ox + s * oz, y: p.y + oy, z: p.z - s * ox + c * oz,
+    rotationY: p.rotationY + (object.rotationY || 0), scale: p.scale * (object.scale || 1)
+  };
+}
+
+/// Sets an object's local numbers from a world position (the inverse of sceneWorldOf).
+function sceneSetWorld(object, wx, wy, wz, worldYaw) {
+  if (!object.parent) {
+    object.x = wx; object.y = wy; object.z = wz;
+    if (worldYaw !== undefined) object.rotationY = worldYaw;
+    return;
+  }
+  const p = sceneWorldOf(object.parent);
+  const a = p.rotationY * Math.PI / 180;
+  const c = Math.cos(a), s = Math.sin(a);
+  const dx = wx - p.x, dy = wy - p.y, dz = wz - p.z;
+  const k = p.scale || 1;
+  object.x = (c * dx - s * dz) / k;
+  object.y = dy / k;
+  object.z = (s * dx + c * dz) / k;
+  if (worldYaw !== undefined) object.rotationY = worldYaw - p.rotationY;
+}
+
+/// The tree as one list in world terms, parents before children, for the 3D view and the
+/// hierarchy. `point` is the row's index (the 3D view's key for it); `source` the object.
+function flattenSceneObjects(state, list, depth, out) {
+  out = out || [];
+  for (const object of (list || (state && state.objects) || [])) {
+    const world = sceneWorldOf(object);
+    out.push({
+      point: out.length, path: scenePathOf(object), name: object.name, depth: depth || 0,
+      x: world.x, y: world.y, z: world.z, rotationY: world.rotationY, scale: world.scale,
+      model: object.model || null,
+      package: object.model ? `files/${object.model}.nmdp.lz` : null,
+      source: object
+    });
+    flattenSceneObjects(state, object.children, (depth || 0) + 1, out);
+  }
+  return out;
+}
+
+function findSceneObject(path) {
+  return flattenSceneObjects(sceneState).find(i => i.path.toLowerCase() === (path || '').toLowerCase()) || null;
+}
+
+/// A fresh, unique name among siblings: Object, Object 2, Object 3...
+function uniqueSceneName(siblings, wanted) {
+  const base = (wanted || 'Object').replace(/[\/:]/g, ' ').trim() || 'Object';
+  let name = base;
+  let n = 2;
+  while (siblings.some(o => o.name.toLowerCase() === name.toLowerCase())) name = base + ' ' + (n++);
+  return name;
+}
+
+/// Hands the 3D view the objects as they stand now.
+function syncSceneObjects(doc) {
+  if (doc && doc.scene3d) doc.scene3d.setPoints(flattenSceneObjects(sceneState));
+}
+
+/// Renames or moves an object in the tree: every attachment on it or under it follows.
+function retargetAttachments(oldPath, newPath) {
+  const from = oldPath.toLowerCase();
+  for (const a of (sceneState.attachments || [])) {
+    const t = (a.target || '').toLowerCase();
+    if (t === from) a.target = newPath;
+    else if (t.startsWith(from + '/')) a.target = newPath + a.target.slice(oldPath.length);
+    else if (t === 'point:' + from) a.target = newPath;
+  }
+}
 
 function openFFProject() {
   const project = typeof projectState !== 'undefined' && projectState.project;
@@ -1890,7 +2076,9 @@ async function loadSceneState(map) {
     if (!scene.ok) throw new Error(scene.error);
     sceneState.map = map;
     sceneState.attachments = scene.attachments || [];
-    sceneState.points = (scene.points || []).map(p => ({ name: p.name, x: p.x || 0, y: p.y || 0, z: p.z || 0, rotationY: p.yaw || 0, tags: p.tags || [] }));
+    // The older files' "point:<name>" targets read as the object's path.
+    for (const a of sceneState.attachments) if (/^point:/i.test(a.target || '')) a.target = a.target.slice(6);
+    sceneState.objects = fromSceneFile(scene.objects || scene.points);
     sceneState.dirty = false;
   }
   if (!sceneState.catalog) {
@@ -1964,10 +2152,10 @@ function drawBehaviours(box, state, target, what) {
   save.disabled = !state.dirty;
   save.onclick = async () => {
     try {
-      const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments, points: pointsForFile(state) });
+      const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments, objects: objectsForFile(state.objects) });
       if (!result.ok) throw new Error(result.error);
       state.dirty = false;
-      say(`scenes/${state.map}.json saved (${result.count} attachment(s), ${result.points} point(s)) - Run in OpenFF to see it`, 'good');
+      say(`scenes/${state.map}.json saved (${result.count} attachment(s), ${flattenSceneObjects(state).length} object(s)) - Run in OpenFF to see it`, 'good');
       drawBehaviours(box, state, target, what);
       if (typeof projectChanged === 'function') projectChanged();
     } catch (error) {
@@ -2245,20 +2433,15 @@ function behaviourCard(state, attachment, target) {
   return card;
 }
 
-/// The points as the file holds them: yaw is the engine's (0 = +z, 90 = +x).
-function pointsForFile(state) {
-  return (state.points || []).map(p => ({ name: p.name, x: p.x, y: p.y, z: p.z, yaw: p.rotationY || 0, tags: p.tags || [] }));
-}
-
-/// Writes the scene file as it stands (points and attachments) - the points' own Save.
+/// Writes the scene file as it stands (objects and attachments) - the objects' own Save.
 async function saveScene() {
   const state = sceneState;
   if (!state.map) return;
   try {
-    const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments || [], points: pointsForFile(state) });
+    const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments || [], objects: objectsForFile(state.objects) });
     if (!result.ok) throw new Error(result.error);
     state.dirty = false;
-    say(`scenes/${state.map}.json saved (${result.points} point(s), ${result.count} attachment(s))`, 'good');
+    say(`scenes/${state.map}.json saved (${flattenSceneObjects(state).length} object(s), ${result.count} attachment(s))`, 'good');
     if (typeof projectChanged === 'function') projectChanged();
     drawHierarchy();
     drawInspector();
@@ -2267,117 +2450,271 @@ async function saveScene() {
   }
 }
 
-/// Points and behaviours for the map that is open, into the 3D view and the hierarchy.
+/// Objects and behaviours for the map that is open, into the 3D view and the hierarchy.
 async function refreshScenePoints(doc) {
   if (!openFFProject() || !mapState.name) return;
   try {
-    const state = await loadSceneState(mapState.name);
-    if (doc && doc.scene3d) doc.scene3d.setPoints(state.points);
+    await loadSceneState(mapState.name);
+    syncSceneObjects(doc);
     drawHierarchy();
   } catch (error) {
     console.warn(error);
   }
 }
 
-/// A new point where the camera looks (or a given spot), named uniquely, selected.
-function addScenePoint(doc, at) {
+/// A new object where the camera looks (or at a given spot, or under a parent), named
+/// uniquely and selected. With a model it stands there as that model; without one it is a
+/// spot with logic on it - a trigger, a spawn point, a mark.
+function addSceneObject(doc, options = {}) {
   const state = sceneState;
-  if (!state.points) state.points = [];
-  const spot = at || (doc && doc.scene3d ? doc.scene3d.viewCentre() : [0, 0, 0]);
-  let n = state.points.length + 1;
-  let name = 'point' + n;
-  while (state.points.some(p => p.name === name)) name = 'point' + (++n);
-  const point = { name, x: Math.round(spot[0]), y: Math.round(spot[1]), z: Math.round(spot[2]), rotationY: 0, tags: ['spawn'] };
-  state.points.push(point);
-  state.dirty = true;
-  if (doc && doc.scene3d) {
-    doc.scene3d.setPoints(state.points);
-    doc.scene3d.selectPoint(state.points.length - 1);
+  if (!state.objects) state.objects = [];
+  const parent = options.parent || null;
+  const siblings = parent ? parent.children : state.objects;
+  const name = uniqueSceneName(siblings, options.name || (options.model ? options.model : parent ? 'Child' : 'Object'));
+  const object = {
+    name, x: 0, y: 0, z: 0, rotationY: 0, scale: 1,
+    model: options.model || null, tags: options.tags || [], children: []
+  };
+  Object.defineProperty(object, 'parent', { value: parent, writable: true, enumerable: false });
+  siblings.push(object);
+  if (!parent) {
+    const spot = options.at || (doc && doc.scene3d ? doc.scene3d.viewCentre() : [0, 0, 0]);
+    object.x = Math.round(spot[0]);
+    object.y = Math.round(spot[1]);
+    object.z = Math.round(spot[2]);
   }
-  if (doc) doc.selection = 'point:' + name;
+  state.dirty = true;
+  const path = scenePathOf(object);
+  syncSceneObjects(doc);
+  if (doc && doc.scene3d) {
+    const index = flattenSceneObjects(state).findIndex(i => i.path === path);
+    if (index >= 0) doc.scene3d.selectPoint(index);
+  }
+  if (doc) doc.selection = 'scene:' + path;
   mapState.selected = null;
+  drawHierarchy();
+  drawInspector();
+  return object;
+}
+
+/// Takes an object (and its subtree) out, with every attachment on any of them.
+function removeSceneObject(doc, object) {
+  const siblings = object.parent ? object.parent.children : sceneState.objects;
+  const index = siblings.indexOf(object);
+  if (index < 0) return;
+  const gone = flattenSceneObjects(sceneState, [object]).map(i => i.path.toLowerCase());
+  siblings.splice(index, 1);
+  sceneState.attachments = (sceneState.attachments || []).filter(a => !gone.includes((a.target || '').toLowerCase()));
+  sceneState.dirty = true;
+  if (doc) doc.selection = null;
+  syncSceneObjects(doc);
+  if (doc && doc.scene3d) doc.scene3d.selectPoint(null);
   drawHierarchy();
   drawInspector();
 }
 
-/// The inspector for a point: its name, spot and facing, tags, behaviours, and a way out.
-function buildPoint(doc, point) {
+/// Moves an object under another parent (or to the root), keeping its place in the world.
+function reparentSceneObject(doc, object, parent) {
+  if (parent === object.parent) return;
+  for (let p = parent; p; p = p.parent) if (p === object) return; // not under itself
+  const world = sceneWorldOf(object);
+  const oldPath = scenePathOf(object);
+  const from = object.parent ? object.parent.children : sceneState.objects;
+  from.splice(from.indexOf(object), 1);
+  object.parent = parent;
+  const to = parent ? parent.children : sceneState.objects;
+  object.name = uniqueSceneName(to, object.name);
+  to.push(object);
+  sceneSetWorld(object, world.x, world.y, world.z, world.rotationY);
+  const p = parent ? sceneWorldOf(parent) : { scale: 1 };
+  object.scale = world.scale / (p.scale || 1);
+  retargetAttachments(oldPath, scenePathOf(object));
+  sceneState.dirty = true;
+  if (doc) doc.selection = 'scene:' + scenePathOf(object);
+  syncSceneObjects(doc);
+  drawHierarchy();
+  drawInspector();
+}
+
+/// The inspector for one of the mod's objects: its name, model, place, tags, parent,
+/// children, behaviours, and a way out. Everything here is the file's - no game data behind it.
+function buildSceneObject(doc, object) {
   const panel = document.createElement('div');
+  const path = scenePathOf(object);
   const title = document.createElement('h2');
-  title.textContent = point.name;
+  title.textContent = object.name;
   const sub = document.createElement('p');
   sub.className = 'sub';
-  sub.textContent = 'point · an OpenFF scene object, found by mods by name or tag';
+  sub.textContent = (object.model ? object.model + ' · ' : '') + 'OpenFF object · ' + mapState.name + '/' + path;
   panel.append(title, sub);
 
+  const redraw = () => {
+    sceneState.dirty = true;
+    syncSceneObjects(doc);
+    drawHierarchy();
+    drawInspector();
+  };
+
+  // ------------------------------------------------------------------ model
+
+  const modelHead = document.createElement('h3');
+  modelHead.textContent = 'Model';
+  panel.append(modelHead);
+  const choose = document.createElement('button');
+  choose.className = 'model-choice';
+  const chosenName = document.createElement('span');
+  chosenName.textContent = object.model || '(none - a spot with logic on it)';
+  choose.append(icon('model'), chosenName);
+  choose.onclick = () => pickModel(object.model || 'n011', (model) => {
+    if (model === object.model) return;
+    object.model = model;
+    redraw();
+  });
+  panel.append(choose);
+  if (object.model) {
+    const none = document.createElement('button');
+    none.className = 'wide-button';
+    none.textContent = 'No model - logic only';
+    none.onclick = () => { object.model = null; redraw(); };
+    panel.append(none);
+  }
+  const modelNote = document.createElement('p');
+  modelNote.className = 'none';
+  modelNote.textContent = object.model
+    ? 'The game shows it as a plain character - the model standing there, no cast, no script. Swap it any time; the mod\'s behaviours are what it does.'
+    : 'Nothing is drawn for it in the game; its behaviours run at this spot (a Trigger, a spawn point). Pick a model to make it visible.';
+  panel.append(modelNote);
+
+  // ------------------------------------------------------------- place
+
+  const placeHead = document.createElement('h3');
+  placeHead.textContent = object.parent ? 'Place (relative to ' + object.parent.name + ')' : 'Place';
+  panel.append(placeHead);
   const grid = document.createElement('div');
   grid.className = 'point-grid';
-  const field = (label, key, step) => {
+  const field = (label, key, step, title) => {
     const wrap = document.createElement('label');
     wrap.className = 'behaviour-field';
+    if (title) wrap.title = title;
     const span = document.createElement('span');
     span.textContent = label;
     const input = document.createElement('input');
     input.type = key === 'name' || key === 'tags' ? 'text' : 'number';
     if (step) input.step = step;
-    input.value = key === 'tags' ? (point.tags || []).join(' ') : point[key];
+    input.value = key === 'tags' ? (object.tags || []).join(' ') : object[key];
     input.onchange = () => {
       if (key === 'name') {
-        const fresh = input.value.trim();
-        if (!fresh || sceneState.points.some(p => p !== point && p.name === fresh)) { input.value = point.name; return; }
-        // Attachments follow the rename.
-        for (const a of sceneState.attachments) if ((a.target || '').toLowerCase() === ('point:' + point.name).toLowerCase()) a.target = 'point:' + fresh;
-        point.name = fresh;
-        doc.selection = 'point:' + fresh;
+        const fresh = input.value.trim().replace(/[\/:]/g, ' ').trim();
+        const siblings = object.parent ? object.parent.children : sceneState.objects;
+        if (!fresh || fresh.toLowerCase() === 'map' || siblings.some(o => o !== object && o.name.toLowerCase() === fresh.toLowerCase())) { input.value = object.name; return; }
+        // Attachments on it and under it follow the rename.
+        const was = scenePathOf(object);
+        object.name = fresh;
+        retargetAttachments(was, scenePathOf(object));
+        doc.selection = 'scene:' + scenePathOf(object);
       } else if (key === 'tags') {
-        point.tags = input.value.split(/[ ,]+/).map(s => s.trim()).filter(Boolean);
+        object.tags = input.value.split(/[ ,]+/).map(s => s.trim()).filter(Boolean);
+      } else if (key === 'scale') {
+        object.scale = Number(input.value) > 0 ? Number(input.value) : 1;
       } else {
-        point[key] = Number(input.value) || 0;
+        object[key] = Number(input.value) || 0;
       }
-      sceneState.dirty = true;
-      if (doc.scene3d) doc.scene3d.setPoints(sceneState.points);
-      drawHierarchy();
-      drawInspector();
+      redraw();
     };
     wrap.append(span, input);
     grid.append(wrap);
   };
-  field('name', 'name');
+  field('name', 'name', null, 'Free to change; behaviours attached to it follow. Not / or :');
   field('x', 'x', '1');
   field('y', 'y', '1');
   field('z', 'z', '1');
-  field('yaw', 'rotationY', '1');
-  field('tags', 'tags');
+  field('yaw', 'rotationY', '1', '0 faces +z, 90 faces +x');
+  field('scale', 'scale', '0.1', '1 is the model\'s own size');
+  field('tags', 'tags', null, 'Words a mod finds it by: Game.World.Legacy.WithTag("chest")');
   panel.append(grid);
+
+  // The parent: a list of every other object, and the root.
+  const parentWrap = document.createElement('label');
+  parentWrap.className = 'behaviour-field';
+  const parentLabel = document.createElement('span');
+  parentLabel.textContent = 'parent';
+  const parentPick = document.createElement('select');
+  const rootOption = document.createElement('option');
+  rootOption.value = '';
+  rootOption.textContent = '(none - top level)';
+  parentPick.append(rootOption);
+  const mine = flattenSceneObjects(sceneState, [object]).map(i => i.source);
+  for (const item of flattenSceneObjects(sceneState)) {
+    if (mine.includes(item.source)) continue;
+    const option = document.createElement('option');
+    option.value = item.path;
+    option.textContent = ' '.repeat(item.depth * 2) + item.path;
+    parentPick.append(option);
+  }
+  parentPick.value = object.parent ? scenePathOf(object.parent) : '';
+  parentPick.onchange = () => {
+    const found = parentPick.value ? findSceneObject(parentPick.value) : null;
+    reparentSceneObject(doc, object, found ? found.source : null);
+  };
+  parentWrap.append(parentLabel, parentPick);
+  panel.append(parentWrap);
 
   const hint = document.createElement('p');
   hint.className = 'none';
-  hint.textContent = 'Drag the arrows in the 3D view to move it; the turn ring sets the yaw (0 faces +z, 90 faces +x). In a mod: Game.World.Legacy.WithTag("spawn") or .Find("' + mapState.name + '/point:' + point.name + '").';
+  hint.textContent = 'Drag the arrows in the 3D view to move it; the turn ring sets the yaw. '
+    + (object.parent ? 'Its numbers are relative to its parent, so moving the parent moves it too. ' : '')
+    + 'In a mod: Game.World.Legacy.Find("' + mapState.name + '/' + path + '")' + (object.tags && object.tags.length ? ' or .WithTag("' + object.tags[0] + '")' : '') + '.';
   panel.append(hint);
+
+  // --------------------------------------------------------- children
+
+  const kidsHead = document.createElement('h3');
+  kidsHead.textContent = 'Children';
+  panel.append(kidsHead);
+  if (object.children.length) {
+    const list = document.createElement('ul');
+    list.className = 'scene-children';
+    for (const child of object.children) {
+      const li = document.createElement('li');
+      li.append(icon(child.model ? 'model' : 'exit'));
+      const name = document.createElement('a');
+      name.href = '#';
+      name.textContent = child.name + (child.model ? '  (' + child.model + ')' : '');
+      name.onclick = (event) => {
+        event.preventDefault();
+        doc.selection = 'scene:' + scenePathOf(child);
+        const index = flattenSceneObjects(sceneState).findIndex(i => i.source === child);
+        if (doc.scene3d && index >= 0) doc.scene3d.selectPoint(index);
+        drawHierarchy();
+        drawInspector();
+      };
+      li.append(name);
+      list.append(li);
+    }
+    panel.append(list);
+  }
+  const addChild = document.createElement('button');
+  addChild.className = 'wide-button';
+  addChild.textContent = 'Add a child object';
+  addChild.title = 'A new object under this one, at its spot; it moves with it';
+  addChild.onclick = () => addSceneObject(doc, { parent: object });
+  panel.append(addChild);
+
+  // ---------------------------------------------------------- actions
 
   const actions = document.createElement('div');
   actions.className = 'behaviour-actions';
   const save = document.createElement('button');
-  save.textContent = sceneState.dirty ? 'Save points' : 'Saved';
+  save.textContent = sceneState.dirty ? 'Save objects' : 'Saved';
   save.disabled = !sceneState.dirty;
   save.onclick = saveScene;
   const remove = document.createElement('button');
-  remove.textContent = 'Delete point';
-  remove.onclick = () => {
-    const index = sceneState.points.indexOf(point);
-    if (index < 0) return;
-    sceneState.points.splice(index, 1);
-    sceneState.attachments = sceneState.attachments.filter(a => (a.target || '').toLowerCase() !== ('point:' + point.name).toLowerCase());
-    sceneState.dirty = true;
-    doc.selection = null;
-    if (doc.scene3d) { doc.scene3d.setPoints(sceneState.points); doc.scene3d.selectPoint(null); }
-    drawHierarchy();
-    drawInspector();
-  };
+  remove.textContent = object.children.length ? 'Delete with children' : 'Delete object';
+  remove.onclick = () => removeSceneObject(doc, object);
   actions.append(save, remove);
   panel.append(actions);
 
-  behavioursSection(panel, 'point:' + point.name, 'point');
+  behavioursSection(panel, path, 'object');
   return panel;
 }
 

@@ -730,15 +730,39 @@ Those two calls into `global.script` appear 1291 and 1185 times across the game.
 Only models the map already loads are offered. A model the map has never loaded would
 need the map's model data changed too, and that is graphics.
 
+### The mod's own objects (OpenFF)
+
+Everything above edits the game's data: a character is a `.hich` row, a boot call and a
+cast, and a chest is a treasure command in a script. An OpenFF mod can also have objects
+of its **own**, which owe the game nothing. **Add a game object** on an OpenFF project
+offers *OpenFF object - the mod's own, no script* first: a name, a model or *no model*,
+a spot. It goes into `scenes/<map>.json`, and the OpenFF client makes a `GameObject`
+for it when the map is entered - the model standing there as a plain character, or
+nothing drawn at all, for a spot that only holds logic (a trigger, a spawn point). The
+terrain's inspector has *Add an OpenFF object where the camera looks* for the same.
+
+They are listed as a tree under **Objects (OpenFF)** in the hierarchy, drawn in the 3D
+view (the model itself, or a small blue box for one without) and moved with the same
+gizmo as everything else. The inspector of one is all the file's: **name** (free to
+change - behaviours on it and under it follow), **model** (the picker, or *No model -
+logic only*), **x y z yaw scale**, **tags** (what a mod finds it by), **parent**, its
+**children** with *Add a child object*, *Delete*, and its behaviours. A child's numbers
+are relative to its parent - turned by the parent's yaw, scaled by its scale - so moving
+the parent moves the lot, and reparenting keeps the child where it stands in the world.
+*Save objects* writes the file. A chest that gives an item is such an object with the
+chest's model and a behaviour whose `Item` field is the item - change either any time.
+
 ### Behaviours (OpenFF)
 
-In an OpenFF project the inspector of a character, an exit, the terrain or a point ends
-with **Behaviours (OpenFF)**: the mod's `Behaviour` classes attached to that object, each
+In an OpenFF project the inspector of a character, an exit, the terrain or one of the
+mod's objects ends with **Behaviours (OpenFF)**: the mod's `Behaviour` classes attached to that object, each
 a card with its public fields as inputs, and an **Add Behaviour** button - Unity's *Add
 Component*. It drops a list with a search box: one row per class, its icon and name, the
 summary as the tooltip; arrow keys and Enter pick, Escape closes. A class the source
 declares but no build has seen yet is listed too, marked *not built*: it attaches now and
-gets its fields after **Build**. Type a name nobody has written and the last row becomes
+gets its fields after **Build**. The engine's own behaviours are in the list as well,
+code or no code: **Trigger** (`Radius`, `Once`) says when the hero walks into the object's
+spot - an event for the mod's code, and a line in the log. Type a name nobody has written and the last row becomes
 **New Behaviour "Name"** - it writes `code/Name.cs` from the Behaviour starter, attaches
 it to the object, and opens the file. **Save behaviours** writes `scenes/<map>.json`.
 

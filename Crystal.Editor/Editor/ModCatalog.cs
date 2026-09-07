@@ -56,22 +56,37 @@ namespace Crystal.Editor
 		public static ModCatalogResult Read(Project project)
 		{
 			List<string> assemblies = ModCode.Assemblies(project);
-			string key = string.Join("|", assemblies.Select(a => a + "@" + File.GetLastWriteTimeUtc(a).Ticks));
+			string engine = OpenFFClient.EngineAssembly();
+			string key = string.Join("|", assemblies.Select(a => a + "@" + File.GetLastWriteTimeUtc(a).Ticks))
+				+ "|" + engine + "@" + (engine != null && File.Exists(engine) ? File.GetLastWriteTimeUtc(engine).Ticks : 0);
 			if (key == _cacheKey && _cache != null)
 			{
 				return _cache;
 			}
 			ModCatalogResult result = new ModCatalogResult { Assemblies = assemblies.Select(Path.GetFileName).ToList() };
-			if (assemblies.Count == 0)
-			{
-				_cacheKey = key;
-				_cache = result;
-				return result;
-			}
-			string engine = OpenFFClient.EngineAssembly();
 			CatalogContext context = new CatalogContext(engine);
 			try
 			{
+				// The engine's own behaviours (Trigger) first: a scene may place them whether
+				// or not the mod has code of its own, so they are always on offer.
+				if (engine != null && File.Exists(engine))
+				{
+					try
+					{
+						Assembly engineAssembly = context.LoadFromAssemblyName(new AssemblyName("OpenFF.Engine"));
+						Dictionary<string, string> engineDocs = ReadDocs(Path.ChangeExtension(engine, ".xml"));
+						foreach (Type type in engineAssembly.GetTypes())
+						{
+							if (type.IsAbstract || type.IsGenericTypeDefinition || !type.IsPublic) continue;
+							if (!Derives(type, "OpenFF.Behaviour") || type.GetConstructor(Type.EmptyTypes) == null) continue;
+							result.Behaviours.Add(Describe(type, "behaviour", "OpenFF.Engine.dll", engineDocs, result.Problems));
+						}
+					}
+					catch (Exception ex)
+					{
+						result.Problems.Add("OpenFF.Engine.dll: " + ex.Message);
+					}
+				}
 				foreach (string path in assemblies)
 				{
 					Assembly assembly;
