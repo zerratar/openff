@@ -1986,6 +1986,35 @@ header h1 .gem {
 /* ---- OpenFF marks in the hierarchy, and a point's panel ---- */
 .tree .row .badge { color: #6fc7e6; font-style: normal; font-size: 10px; margin-left: 4px; }
 #inspector .point-grid { display: flex; flex-direction: column; gap: 2px; margin: 6px 0; }
+/* ---- an OpenFF object's inspector, laid out as Unity lays out a GameObject ---- */
+#inspector .object-head { display: flex; align-items: center; gap: 8px; margin: 2px 0 2px; }
+#inspector .object-head .icon { width: 18px; height: 18px; flex: none; color: #8ab4f8; }
+#inspector .object-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; padding: 4px 8px; }
+#inspector .component { border: 1px solid #2c333d; border-radius: 6px; padding: 6px 8px; margin: 6px 0; background: #171b21; }
+#inspector .component-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+#inspector .component-head .icon { width: 14px; height: 14px; color: #8ab4f8; }
+#inspector .component-head b { font-size: 12px; }
+#inspector .component-head i { margin-left: auto; color: var(--dim); font-style: normal; font-size: 11px; }
+#inspector .transform-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+#inspector .transform-row > span { width: 34%; color: var(--dim); font-size: 12px; }
+#inspector .transform-cells { display: flex; gap: 4px; flex: 1; min-width: 0; }
+#inspector .transform-cells label { display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; }
+#inspector .transform-cells em { font-style: normal; color: var(--dim); font-size: 11px; width: 9px; text-align: center; }
+#inspector .transform-cells input { flex: 1; min-width: 0; width: 20%; }
+#inspector .model-pick { display: flex; align-items: center; gap: 4px; }
+#inspector .model-pick .model-choice { flex: 1; min-width: 0; margin: 0; }
+#inspector .model-pick .dim { color: var(--dim); }
+#inspector .clear-button { flex: none; padding: 0 8px; line-height: 22px; font-size: 14px; margin: 0; }
+#inspector .behaviour-header { font-size: 11px; font-weight: 600; margin: 8px 0 2px; color: var(--ink); }
+#inspector .behaviour-range { display: flex; gap: 6px; flex: 1; min-width: 0; align-items: center; }
+#inspector .behaviour-range input[type=range] { flex: 1; min-width: 0; }
+#inspector .behaviour-range input[type=number] { width: 64px; flex: none; }
+#inspector .behaviour-field textarea { flex: 1; min-width: 0; font: inherit; font-size: 12px; resize: vertical; }
+#inspector .about-doc { margin-top: 18px; border-top: 1px solid #2c333d; padding-top: 8px; }
+#inspector .about-doc summary { color: var(--dim); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+#inspector .about-doc summary:hover { color: var(--ink); }
+.dropdown-list li.dropdown-group { color: var(--dim); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; cursor: default; padding-top: 6px; }
+.dropdown-list li.dropdown-group:hover { background: none; }
 #inspector .scene-children { list-style: none; margin: 4px 0; padding: 0; }
 #inspector .scene-children li { display: flex; align-items: center; gap: 6px; padding: 2px 0; font-size: 12px; }
 #inspector .scene-children .icon { width: 13px; height: 13px; opacity: .7; }

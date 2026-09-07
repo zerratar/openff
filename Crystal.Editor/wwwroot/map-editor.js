@@ -499,7 +499,7 @@ function buildAdd(node, start) {
           model: noModel.checked ? null : model,
           at: [parseInt(x.value, 10) || 0, 0, parseInt(z.value, 10) || 0]
         });
-        say(`${object.name} added to the OpenFF scene - Save objects in its panel keeps it`, 'good');
+        say(`${object.name} added to the OpenFF scene`, 'good');
       } catch (error) {
         say(error.message, 'bad');
         go.disabled = false;
@@ -877,7 +877,7 @@ function wireModes(node, doc, scene) {
             syncSceneObjects(doc);
             doc.scene3d.selectPoint(item.point);
           }
-          sceneState.dirty = true;
+          sceneChanged();
           drawInspector();
           return;
         }
@@ -2145,32 +2145,27 @@ function drawBehaviours(box, state, target, what) {
     p.textContent = catalog.problems.join(' · ');
     box.append(p);
   }
-  const actions = document.createElement('div');
-  actions.className = 'behaviour-actions';
-  const save = document.createElement('button');
-  save.textContent = state.dirty ? 'Save behaviours' : 'Saved';
-  save.disabled = !state.dirty;
-  save.onclick = async () => {
-    try {
-      const result = await api('/api/project/scene/save', { map: state.map, attachments: state.attachments, objects: objectsForFile(state.objects) });
-      if (!result.ok) throw new Error(result.error);
-      state.dirty = false;
-      say(`scenes/${state.map}.json saved (${result.count} attachment(s), ${flattenSceneObjects(state).length} object(s)) - Run in OpenFF to see it`, 'good');
-      drawBehaviours(box, state, target, what);
-      if (typeof projectChanged === 'function') projectChanged();
-    } catch (error) {
-      say(error.message, 'bad');
-    }
-  };
-  actions.append(save);
   const others = state.attachments.length - mine.length;
   if (others > 0) {
-    const note = document.createElement('span');
-    note.className = 'dim';
+    const note = document.createElement('p');
+    note.className = 'none';
     note.textContent = `${others} more on other objects of this map`;
-    actions.append(note);
+    box.append(note);
   }
-  box.append(actions);
+}
+
+// The scene file saves itself: a change (a field typed, an object moved, a behaviour
+// added) is written a moment later, the way the session is - nobody should have to
+// remember a Save button for every panel. The write says so in the status line only, and
+// redraws nothing, since a redraw under a half-typed field would take the field away.
+let sceneSaveTimer = null;
+function sceneChanged() {
+  sceneState.dirty = true;
+  clearTimeout(sceneSaveTimer);
+  sceneSaveTimer = setTimeout(() => {
+    sceneSaveTimer = null;
+    saveScene({ quiet: true }).catch(() => {});
+  }, 700);
 }
 
 /// Every behaviour the picker can offer: the built ones with their fields, and the ones
@@ -2179,13 +2174,15 @@ function drawBehaviours(box, state, target, what) {
 function behaviourChoices(catalog) {
   const choices = (catalog.behaviours || []).map(b => ({
     name: b.name, fullName: b.fullName, summary: b.summary, fields: b.fields || [], built: true,
+    engine: /^OpenFF\.Engine/i.test(b.assembly || ''),
     file: (catalog.sources || []).find(s => s.kind === 'behaviour' && s.name === b.name)?.file || null,
   }));
   for (const s of (catalog.sources || [])) {
     if (s.kind !== 'behaviour' || choices.some(c => c.name === s.name)) continue;
-    choices.push({ name: s.name, fullName: s.name, summary: null, fields: [], built: false, file: s.file, line: s.line });
+    choices.push({ name: s.name, fullName: s.name, summary: null, fields: [], built: false, engine: false, file: s.file, line: s.line });
   }
-  choices.sort((a, b) => a.name.localeCompare(b.name));
+  // The engine's own first (Chest, Talk, Trigger), then the mod's, each by name.
+  choices.sort((a, b) => (a.engine === b.engine ? 0 : a.engine ? -1 : 1) || a.name.localeCompare(b.name));
   return choices;
 }
 
@@ -2198,7 +2195,7 @@ function attachBehaviour(state, target, choice) {
   const fields = {};
   for (const f of choice.fields) if (f.default !== null && f.default !== undefined) fields[f.name] = f.default;
   state.attachments.push({ target, behaviour: choice.name, fields });
-  state.dirty = true;
+  sceneChanged();
 }
 
 /// Unity's Add Component list, for behaviours: a search box, one row per class with its
@@ -2258,7 +2255,17 @@ function behaviourPicker(anchor, state, target, box, what) {
     list.innerHTML = '';
     rows = [];
     const shown = choices.filter(c => !q || c.name.toLowerCase().includes(q) || (c.fullName || '').toLowerCase().includes(q));
+    // The engine's built-in components under their own heading, the mod's under theirs.
+    let lastGroup = null;
     for (const choice of shown) {
+      const group = choice.engine ? 'Built in' : (catalog.assemblies && catalog.assemblies[0] ? catalog.assemblies[0].replace(/\.dll$/i, '') : 'This mod');
+      if (group !== lastGroup && shown.some(c => Boolean(c.engine) !== Boolean(shown[0].engine))) {
+        const h = document.createElement('li');
+        h.className = 'dropdown-group';
+        h.textContent = group;
+        list.append(h);
+        lastGroup = group;
+      }
       const li = document.createElement('li');
       li.append(icon('behaviour'));
       const name = document.createElement('span');
@@ -2330,13 +2337,18 @@ async function createBehaviourScript(state, target, name, box, what) {
     attachBehaviour(state, target, { name, fields: [] });
     state.catalog = null;
     await loadSceneState(state.map);
-    say(`${made.name} written and attached to this ${what} - Build to give it fields, Save behaviours to keep it on the map`, 'good');
+    say(`${made.name} written and attached to this ${what} - Build to give it fields`, 'good');
     drawBehaviours(box, sceneState, target, what);
     if (typeof projectChanged === 'function') projectChanged();
     if (typeof openDoc === 'function') await openDoc('code', made.name);
   } catch (error) {
     say(error.message, 'bad');
   }
+}
+
+/// "EmptyMessage" as "Empty Message": a field's name the way Unity labels it.
+function spaceName(name) {
+  return String(name || '').replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
 }
 
 function behaviourCard(state, attachment, target) {
@@ -2365,7 +2377,7 @@ function behaviourCard(state, attachment, target) {
   remove.title = 'Remove this behaviour';
   remove.onclick = () => {
     state.attachments.splice(state.attachments.indexOf(attachment), 1);
-    state.dirty = true;
+    sceneChanged();
     drawBehaviours(card.parentElement, state, target, '');
   };
   head.append(remove);
@@ -2381,17 +2393,67 @@ function behaviourCard(state, attachment, target) {
   }
   attachment.fields = attachment.fields || {};
   for (const f of (type.fields || [])) {
+    // [Header] over a group of fields, as Unity draws it.
+    if (f.header) {
+      const h = document.createElement('div');
+      h.className = 'behaviour-header';
+      h.textContent = f.header;
+      card.append(h);
+    }
     const row = document.createElement('label');
     row.className = 'behaviour-field';
-    row.title = (f.summary || '') + (f.summary ? ' ' : '') + '(' + f.typeName + ')';
+    row.title = (f.tooltip || f.summary || '') + (f.tooltip || f.summary ? ' ' : '') + '(' + f.typeName + ')';
     const label = document.createElement('span');
-    label.textContent = f.name;
+    label.textContent = spaceName(f.name);
     row.append(label);
     const has = Object.prototype.hasOwnProperty.call(attachment.fields, f.name);
     const value = has ? attachment.fields[f.name] : f.default;
     let input;
-    const changed = v => { attachment.fields[f.name] = v; state.dirty = true; markDirty(card); };
-    if (f.type === 'bool') {
+    const changed = v => { attachment.fields[f.name] = v; sceneChanged(); };
+    if (f.type === 'item') {
+      // An item id: the game's item list to pick from, fetched once for the session.
+      input = document.createElement('select');
+      const none = document.createElement('option');
+      none.value = '0';
+      none.textContent = '(none)';
+      input.append(none);
+      const fill = () => {
+        for (const entry of state.items || []) {
+          const option = document.createElement('option');
+          option.value = entry.id;
+          option.textContent = `${entry.name} · ${entry.category}`;
+          input.append(option);
+        }
+        input.value = String(value || 0);
+      };
+      if (state.items) fill();
+      else api('/api/items').then(items => { state.items = items; fill(); }).catch(() => {});
+      input.onchange = () => changed(parseInt(input.value, 10) || 0);
+    } else if (f.type === 'strings') {
+      // A list of strings: one per line.
+      input = document.createElement('textarea');
+      input.rows = Math.min(6, Math.max(2, (value || []).length + 1));
+      input.value = (value || []).join('\n');
+      input.oninput = () => changed(input.value.split('\n').filter((l, i, a) => l.length || i < a.length - 1));
+    } else if ((f.type === 'int' || f.type === 'float') && f.min != null && f.max != null) {
+      // [Range]: a slider with the number beside it.
+      input = document.createElement('div');
+      input.className = 'behaviour-range';
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = f.min;
+      slider.max = f.max;
+      slider.step = f.type === 'int' ? '1' : String((f.max - f.min) / 100);
+      const number = document.createElement('input');
+      number.type = 'number';
+      number.min = f.min;
+      number.max = f.max;
+      number.step = f.type === 'int' ? '1' : 'any';
+      slider.value = number.value = value == null ? f.min : value;
+      slider.oninput = () => { number.value = slider.value; changed(Number(slider.value)); };
+      number.oninput = () => { slider.value = number.value; changed(Number(number.value) || 0); };
+      input.append(slider, number);
+    } else if (f.type === 'bool') {
       input = document.createElement('input');
       input.type = 'checkbox';
       input.checked = !!value;
@@ -2433,8 +2495,9 @@ function behaviourCard(state, attachment, target) {
   return card;
 }
 
-/// Writes the scene file as it stands (objects and attachments) - the objects' own Save.
-async function saveScene() {
+/// Writes the scene file as it stands (objects and attachments). Quiet is the autosave:
+/// the status line only, no redraw.
+async function saveScene(options = {}) {
   const state = sceneState;
   if (!state.map) return;
   try {
@@ -2443,8 +2506,10 @@ async function saveScene() {
     state.dirty = false;
     say(`scenes/${state.map}.json saved (${flattenSceneObjects(state).length} object(s), ${result.count} attachment(s))`, 'good');
     if (typeof projectChanged === 'function') projectChanged();
-    drawHierarchy();
-    drawInspector();
+    if (!options.quiet) {
+      drawHierarchy();
+      drawInspector();
+    }
   } catch (error) {
     say(error.message, 'bad');
   }
@@ -2483,7 +2548,7 @@ function addSceneObject(doc, options = {}) {
     object.y = Math.round(spot[1]);
     object.z = Math.round(spot[2]);
   }
-  state.dirty = true;
+  sceneChanged();
   const path = scenePathOf(object);
   syncSceneObjects(doc);
   if (doc && doc.scene3d) {
@@ -2505,7 +2570,7 @@ function removeSceneObject(doc, object) {
   const gone = flattenSceneObjects(sceneState, [object]).map(i => i.path.toLowerCase());
   siblings.splice(index, 1);
   sceneState.attachments = (sceneState.attachments || []).filter(a => !gone.includes((a.target || '').toLowerCase()));
-  sceneState.dirty = true;
+  sceneChanged();
   if (doc) doc.selection = null;
   syncSceneObjects(doc);
   if (doc && doc.scene3d) doc.scene3d.selectPoint(null);
@@ -2529,115 +2594,173 @@ function reparentSceneObject(doc, object, parent) {
   const p = parent ? sceneWorldOf(parent) : { scale: 1 };
   object.scale = world.scale / (p.scale || 1);
   retargetAttachments(oldPath, scenePathOf(object));
-  sceneState.dirty = true;
+  sceneChanged();
   if (doc) doc.selection = 'scene:' + scenePathOf(object);
   syncSceneObjects(doc);
   drawHierarchy();
   drawInspector();
 }
 
-/// The inspector for one of the mod's objects: its name, model, place, tags, parent,
-/// children, behaviours, and a way out. Everything here is the file's - no game data behind it.
+/// The inspector for one of the mod's objects, laid out as Unity lays out a GameObject:
+/// the name, then Transform, then the model, then tags and parent, then the components.
+/// Everything here is the file's - no game data behind it - and every change saves itself.
 function buildSceneObject(doc, object) {
   const panel = document.createElement('div');
+  panel.className = 'scene-object';
   const path = scenePathOf(object);
-  const title = document.createElement('h2');
-  title.textContent = object.name;
-  const sub = document.createElement('p');
-  sub.className = 'sub';
-  sub.textContent = (object.model ? object.model + ' · ' : '') + 'OpenFF object · ' + mapState.name + '/' + path;
-  panel.append(title, sub);
 
   const redraw = () => {
-    sceneState.dirty = true;
+    sceneChanged();
     syncSceneObjects(doc);
     drawHierarchy();
     drawInspector();
   };
+  const changed = () => {
+    sceneChanged();
+    syncSceneObjects(doc);
+    drawHierarchy();
+  };
+
+  // ------------------------------------------------------------------- name
+
+  const head = document.createElement('div');
+  head.className = 'object-head';
+  head.append(icon(object.model ? 'model' : 'exit'));
+  const name = document.createElement('input');
+  name.className = 'object-name';
+  name.value = object.name;
+  name.title = 'Free to change; behaviours on it and under it follow. Not / or :';
+  name.onchange = () => {
+    const fresh = name.value.trim().replace(/[\/:]/g, ' ').trim();
+    const siblings = object.parent ? object.parent.children : sceneState.objects;
+    if (!fresh || fresh.toLowerCase() === 'map' || siblings.some(o => o !== object && o.name.toLowerCase() === fresh.toLowerCase())) { name.value = object.name; return; }
+    const was = scenePathOf(object);
+    object.name = fresh;
+    retargetAttachments(was, scenePathOf(object));
+    doc.selection = 'scene:' + scenePathOf(object);
+    redraw();
+  };
+  head.append(name);
+  panel.append(head);
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = 'OpenFF object · ' + mapState.name + '/' + path;
+  panel.append(sub);
+
+  // -------------------------------------------------------------- transform
+
+  const transform = document.createElement('div');
+  transform.className = 'component';
+  const tHead = document.createElement('div');
+  tHead.className = 'component-head';
+  tHead.append(icon('terrain'));
+  const tName = document.createElement('b');
+  tName.textContent = 'Transform';
+  tHead.append(tName);
+  if (object.parent) {
+    const rel = document.createElement('i');
+    rel.textContent = 'relative to ' + object.parent.name;
+    tHead.append(rel);
+  }
+  transform.append(tHead);
+  const number = (key, step, onchange) => {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = step;
+    input.value = object[key];
+    input.onchange = () => { onchange(Number(input.value)); changed(); };
+    return input;
+  };
+  const row = (label, title, ...inputs) => {
+    const r = document.createElement('div');
+    r.className = 'transform-row';
+    r.title = title || '';
+    const l = document.createElement('span');
+    l.textContent = label;
+    r.append(l);
+    const cells = document.createElement('div');
+    cells.className = 'transform-cells';
+    for (const [axis, input] of inputs) {
+      const cell = document.createElement('label');
+      const a = document.createElement('em');
+      a.textContent = axis;
+      cell.append(a, input);
+      cells.append(cell);
+    }
+    r.append(cells);
+    transform.append(r);
+  };
+  row('Position', object.parent ? 'In the parent\'s frame: turned by its yaw, scaled by its scale' : 'World units',
+    ['X', number('x', '1', v => { object.x = v || 0; })],
+    ['Y', number('y', '1', v => { object.y = v || 0; })],
+    ['Z', number('z', '1', v => { object.z = v || 0; })]);
+  row('Rotation', 'Yaw in degrees: 0 faces +z, 90 faces +x' + (object.parent ? '; added to the parent\'s' : ''),
+    ['Y', number('rotationY', '1', v => { object.rotationY = v || 0; })]);
+  row('Scale', '1 is the model\'s own size' + (object.parent ? '; multiplied by the parent\'s' : ''),
+    ['', number('scale', '0.1', v => { object.scale = v > 0 ? v : 1; })]);
+  panel.append(transform);
 
   // ------------------------------------------------------------------ model
 
-  const modelHead = document.createElement('h3');
-  modelHead.textContent = 'Model';
-  panel.append(modelHead);
+  const modelRow = document.createElement('div');
+  modelRow.className = 'component';
+  const mHead = document.createElement('div');
+  mHead.className = 'component-head';
+  mHead.append(icon('model'));
+  const mName = document.createElement('b');
+  mName.textContent = 'Model';
+  mHead.append(mName);
+  modelRow.append(mHead);
+  const pickRow = document.createElement('div');
+  pickRow.className = 'model-pick';
   const choose = document.createElement('button');
   choose.className = 'model-choice';
   const chosenName = document.createElement('span');
-  chosenName.textContent = object.model || '(none - a spot with logic on it)';
+  chosenName.textContent = object.model || 'None - a spot with logic on it';
+  if (!object.model) chosenName.className = 'dim';
   choose.append(icon('model'), chosenName);
+  choose.title = object.model
+    ? 'Shown in the game as this model standing there - no cast, no script. Click to swap it.'
+    : 'Nothing is drawn for it; its behaviours run at this spot. Click to give it a model.';
   choose.onclick = () => pickModel(object.model || 'n011', (model) => {
     if (model === object.model) return;
     object.model = model;
     redraw();
   });
-  panel.append(choose);
+  pickRow.append(choose);
   if (object.model) {
-    const none = document.createElement('button');
-    none.className = 'wide-button';
-    none.textContent = 'No model - logic only';
-    none.onclick = () => { object.model = null; redraw(); };
-    panel.append(none);
+    const clear = document.createElement('button');
+    clear.className = 'clear-button';
+    clear.textContent = '×';
+    clear.title = 'No model - a spot with logic on it';
+    clear.onclick = () => { object.model = null; redraw(); };
+    pickRow.append(clear);
   }
-  const modelNote = document.createElement('p');
-  modelNote.className = 'none';
-  modelNote.textContent = object.model
-    ? 'The game shows it as a plain character - the model standing there, no cast, no script. Swap it any time; the mod\'s behaviours are what it does.'
-    : 'Nothing is drawn for it in the game; its behaviours run at this spot (a Trigger, a spawn point). Pick a model to make it visible.';
-  panel.append(modelNote);
+  modelRow.append(pickRow);
+  panel.append(modelRow);
 
-  // ------------------------------------------------------------- place
+  // ----------------------------------------------------------- tags, parent
 
-  const placeHead = document.createElement('h3');
-  placeHead.textContent = object.parent ? 'Place (relative to ' + object.parent.name + ')' : 'Place';
-  panel.append(placeHead);
-  const grid = document.createElement('div');
-  grid.className = 'point-grid';
-  const field = (label, key, step, title) => {
-    const wrap = document.createElement('label');
-    wrap.className = 'behaviour-field';
-    if (title) wrap.title = title;
-    const span = document.createElement('span');
-    span.textContent = label;
-    const input = document.createElement('input');
-    input.type = key === 'name' || key === 'tags' ? 'text' : 'number';
-    if (step) input.step = step;
-    input.value = key === 'tags' ? (object.tags || []).join(' ') : object[key];
-    input.onchange = () => {
-      if (key === 'name') {
-        const fresh = input.value.trim().replace(/[\/:]/g, ' ').trim();
-        const siblings = object.parent ? object.parent.children : sceneState.objects;
-        if (!fresh || fresh.toLowerCase() === 'map' || siblings.some(o => o !== object && o.name.toLowerCase() === fresh.toLowerCase())) { input.value = object.name; return; }
-        // Attachments on it and under it follow the rename.
-        const was = scenePathOf(object);
-        object.name = fresh;
-        retargetAttachments(was, scenePathOf(object));
-        doc.selection = 'scene:' + scenePathOf(object);
-      } else if (key === 'tags') {
-        object.tags = input.value.split(/[ ,]+/).map(s => s.trim()).filter(Boolean);
-      } else if (key === 'scale') {
-        object.scale = Number(input.value) > 0 ? Number(input.value) : 1;
-      } else {
-        object[key] = Number(input.value) || 0;
-      }
-      redraw();
-    };
-    wrap.append(span, input);
-    grid.append(wrap);
-  };
-  field('name', 'name', null, 'Free to change; behaviours attached to it follow. Not / or :');
-  field('x', 'x', '1');
-  field('y', 'y', '1');
-  field('z', 'z', '1');
-  field('yaw', 'rotationY', '1', '0 faces +z, 90 faces +x');
-  field('scale', 'scale', '0.1', '1 is the model\'s own size');
-  field('tags', 'tags', null, 'Words a mod finds it by: Game.World.Legacy.WithTag("chest")');
-  panel.append(grid);
+  const misc = document.createElement('div');
+  misc.className = 'component';
+  const tags = document.createElement('label');
+  tags.className = 'behaviour-field';
+  tags.title = 'Words a mod finds it by: Game.World.Legacy.WithTag("chest")';
+  const tagsLabel = document.createElement('span');
+  tagsLabel.textContent = 'Tags';
+  const tagsInput = document.createElement('input');
+  tagsInput.type = 'text';
+  tagsInput.value = (object.tags || []).join(' ');
+  tagsInput.placeholder = 'chest spawn …';
+  tagsInput.onchange = () => { object.tags = tagsInput.value.split(/[ ,]+/).map(s => s.trim()).filter(Boolean); changed(); };
+  tags.append(tagsLabel, tagsInput);
+  misc.append(tags);
 
-  // The parent: a list of every other object, and the root.
   const parentWrap = document.createElement('label');
   parentWrap.className = 'behaviour-field';
+  parentWrap.title = 'Under another object it moves with it; changing this keeps it where it stands';
   const parentLabel = document.createElement('span');
-  parentLabel.textContent = 'parent';
+  parentLabel.textContent = 'Parent';
   const parentPick = document.createElement('select');
   const rootOption = document.createElement('option');
   rootOption.value = '';
@@ -2657,16 +2780,14 @@ function buildSceneObject(doc, object) {
     reparentSceneObject(doc, object, found ? found.source : null);
   };
   parentWrap.append(parentLabel, parentPick);
-  panel.append(parentWrap);
+  misc.append(parentWrap);
+  panel.append(misc);
 
-  const hint = document.createElement('p');
-  hint.className = 'none';
-  hint.textContent = 'Drag the arrows in the 3D view to move it; the turn ring sets the yaw. '
-    + (object.parent ? 'Its numbers are relative to its parent, so moving the parent moves it too. ' : '')
-    + 'In a mod: Game.World.Legacy.Find("' + mapState.name + '/' + path + '")' + (object.tags && object.tags.length ? ' or .WithTag("' + object.tags[0] + '")' : '') + '.';
-  panel.append(hint);
+  // -------------------------------------------------------------- behaviours
 
-  // --------------------------------------------------------- children
+  behavioursSection(panel, path, 'object');
+
+  // --------------------------------------------------------- children, out
 
   const kidsHead = document.createElement('h3');
   kidsHead.textContent = 'Children';
@@ -2677,10 +2798,10 @@ function buildSceneObject(doc, object) {
     for (const child of object.children) {
       const li = document.createElement('li');
       li.append(icon(child.model ? 'model' : 'exit'));
-      const name = document.createElement('a');
-      name.href = '#';
-      name.textContent = child.name + (child.model ? '  (' + child.model + ')' : '');
-      name.onclick = (event) => {
+      const link = document.createElement('a');
+      link.href = '#';
+      link.textContent = child.name + (child.model ? '  (' + child.model + ')' : '');
+      link.onclick = (event) => {
         event.preventDefault();
         doc.selection = 'scene:' + scenePathOf(child);
         const index = flattenSceneObjects(sceneState).findIndex(i => i.source === child);
@@ -2688,7 +2809,7 @@ function buildSceneObject(doc, object) {
         drawHierarchy();
         drawInspector();
       };
-      li.append(name);
+      li.append(link);
       list.append(li);
     }
     panel.append(list);
@@ -2700,26 +2821,16 @@ function buildSceneObject(doc, object) {
   addChild.onclick = () => addSceneObject(doc, { parent: object });
   panel.append(addChild);
 
-  // ---------------------------------------------------------- actions
-
-  const actions = document.createElement('div');
-  actions.className = 'behaviour-actions';
-  const save = document.createElement('button');
-  save.textContent = sceneState.dirty ? 'Save objects' : 'Saved';
-  save.disabled = !sceneState.dirty;
-  save.onclick = saveScene;
+  const foot = document.createElement('div');
+  foot.className = 'behaviour-actions';
   const remove = document.createElement('button');
   remove.textContent = object.children.length ? 'Delete with children' : 'Delete object';
   remove.onclick = () => removeSceneObject(doc, object);
-  actions.append(save, remove);
-  panel.append(actions);
-
-  behavioursSection(panel, path, 'object');
+  const find = document.createElement('span');
+  find.className = 'dim';
+  find.textContent = 'Game.World.Legacy.Find("' + mapState.name + '/' + path + '")';
+  find.title = 'How a mod\'s code gets hold of it' + (object.tags && object.tags.length ? ', or .WithTag("' + object.tags[0] + '")' : '');
+  foot.append(remove, find);
+  panel.append(foot);
   return panel;
-}
-
-function markDirty(card) {
-  const box = card.closest('.behaviours');
-  const save = box && box.querySelector('.behaviour-actions button');
-  if (save) { save.textContent = 'Save behaviours'; save.disabled = false; }
 }

@@ -1216,6 +1216,43 @@ a field in the JSON so a chest's item or its model can change any time. The scen
 - Open: reparenting by drag in the hierarchy (the dropdown does it for now); a child with a
   model of its own works but has no separate pick priority over its parent's model.
 
+### The inspector as Unity's, components built in, and no Save buttons
+
+Karl's next look: Transform belongs at the top, the "No model" button is a × on the picker,
+scripts should expose editor fields with headings and the like, a chest needs a way to say
+what it gives, saving should be automatic, common things should be components (built in but
+overridable), and the map's facts at the top of the panel are in the way.
+
+- **Layout** (`buildSceneObject`): the name in a box with the object's icon, then cards -
+  Transform (Position X Y Z, Rotation Y, Scale; "relative to <parent>" for a child), Model
+  (the picker with a × beside it), Tags and Parent - then Behaviours, Children, Delete. The
+  document's own facts (`factsFor`, materials) fold under *About <name>* at the bottom of the
+  inspector whenever something is selected (`drawInspector`); with nothing selected they are
+  the panel as before.
+- **Autosave** (`sceneChanged`): every edit to the scene state - a field, a move, an attach,
+  a rename - writes `scenes/<map>.json` 700 ms later, quietly (the status line, no redraw:
+  a redraw under a half-typed field would take the field away). The Save buttons are gone.
+- **Editor fields** (`OpenFF.Engine/Inspector.cs`): `[Header]`, `[Tooltip]`, `[Range]`,
+  `[ItemField]`, `[HideInInspector]`. `ModCatalog.Decorate` reads them by attribute type
+  name (the types live in the catalog's own load context), fields come base class first in
+  declaration order, `string[]`/`List<string>` classify as `strings`; the card draws headings,
+  tooltips (the XML summary when there is none), a slider with its number, the item list
+  (`/api/items`, fetched once) and a textarea of lines.
+- **Built-in components** (`Scenes.cs`): `Interactable` (abstract: `Radius`; the object's Npc's
+  `Interacted` when it has a model, the hero walking within Radius when not; `Activate`),
+  `Chest : Interactable` (Item, Count, Gil; Once, Message, EmptyMessage; `OnOpened` hook;
+  gives through `Game.Party.AddItem` / `.Gil`, says "Found {what}!"), `Talk : Interactable`
+  (Speaker, Lines, FaceHero; one window per line, the next when the last has closed and a
+  frame has passed; `OnSaid`). Neither is sealed: a mod's class deriving them is a component
+  with theirs plus its own. `SceneMemory : ISaveable` ("openff/scene", a list of keys) is
+  what `Chest.Once` remembers by, registered at `Game.Start`. The picker heads its list with
+  *Built in*, then the mod's assembly. Verified from the editor with no code in play: a Chest
+  on an object, Item Potion (5001) x2 and 100 gil, exported; the client said "Found Potion x2
+  and 100 gil!" and logged it.
+- Found on the way: a `crystal.exe` with no readable command line (Visual Studio's, most
+  likely) held `bin\Debug\net8.0`, so the test build went to `bin\Debug\net8.0-test`; the
+  wwwroot copy that build serves is the same files.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

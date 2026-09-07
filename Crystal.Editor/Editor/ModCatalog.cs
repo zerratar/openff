@@ -21,12 +21,19 @@ namespace Crystal.Editor
 	internal sealed class CatalogField
 	{
 		public string Name { get; set; }
-		/// <summary>int, float, bool, string, enum, vector3, vector2, color, or other.</summary>
+		/// <summary>int, float, bool, string, enum, vector3, vector2, color, strings (a list), item (an item id), or other.</summary>
 		public string Type { get; set; }
 		public string TypeName { get; set; }
 		public object Default { get; set; }
 		public List<string> Options { get; set; }
 		public string Summary { get; set; }
+		/// <summary>[Header]: a heading above this field.</summary>
+		public string Header { get; set; }
+		/// <summary>[Tooltip], else the XML summary.</summary>
+		public string Tooltip { get; set; }
+		/// <summary>[Range]: a slider between the two.</summary>
+		public float? Min { get; set; }
+		public float? Max { get; set; }
 	}
 
 	internal sealed class CatalogType
@@ -156,14 +163,17 @@ namespace Crystal.Editor
 				try { instance = Activator.CreateInstance(type); }
 				catch (Exception ex) { problems.Add(type.Name + ": its constructor threw (" + (ex.InnerException ?? ex).Message + "); defaults are blank"); }
 			}
-			foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance))
+			// Fields in declaration order, base class first: a derived component's own fields
+			// come after the ones it inherits, as Unity shows them.
+			foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Instance).OrderBy(f => Depth(f.DeclaringType)).ThenBy(f => f.MetadataToken))
 			{
-				if (field.IsInitOnly) continue;
+				if (field.IsInitOnly || Has(field, "OpenFF.HideInInspectorAttribute")) continue;
 				string fieldType = Classify(field.FieldType);
 				if (fieldType == null) continue;
 				CatalogField f = new CatalogField { Name = field.Name, Type = fieldType, TypeName = field.FieldType.Name };
-				docs.TryGetValue("F:" + type.FullName + "." + field.Name, out string fieldSummary);
+				docs.TryGetValue("F:" + field.DeclaringType.FullName + "." + field.Name, out string fieldSummary);
 				f.Summary = fieldSummary;
+				Decorate(f, field);
 				if (field.FieldType.IsEnum)
 				{
 					f.Options = Enum.GetNames(field.FieldType).ToList();
@@ -177,12 +187,13 @@ namespace Crystal.Editor
 			foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
 			{
 				if (!property.CanWrite || !property.CanRead || property.GetIndexParameters().Length > 0) continue;
-				if (property.GetSetMethod(false) == null) continue;
+				if (property.GetSetMethod(false) == null || Has(property, "OpenFF.HideInInspectorAttribute")) continue;
 				string propertyType = Classify(property.PropertyType);
 				if (propertyType == null) continue;
 				CatalogField f = new CatalogField { Name = property.Name, Type = propertyType, TypeName = property.PropertyType.Name };
 				docs.TryGetValue("P:" + type.FullName + "." + property.Name, out string propertySummary);
 				f.Summary = propertySummary;
+				Decorate(f, property);
 				if (property.PropertyType.IsEnum)
 				{
 					f.Options = Enum.GetNames(property.PropertyType).ToList();
@@ -196,12 +207,54 @@ namespace Crystal.Editor
 			return entry;
 		}
 
+		private static int Depth(Type type)
+		{
+			int depth = 0;
+			for (Type t = type; t != null; t = t.BaseType) depth++;
+			return depth;
+		}
+
+		/// <summary>Whether a member carries an attribute, by the attribute type's full name (the types live in another load context).</summary>
+		private static bool Has(MemberInfo member, string attribute)
+		{
+			return member.GetCustomAttributesData().Any(a => a.AttributeType.FullName == attribute);
+		}
+
+		/// <summary>[Header], [Tooltip], [Range], [ItemField] onto the field's description.</summary>
+		private static void Decorate(CatalogField f, MemberInfo member)
+		{
+			foreach (CustomAttributeData a in member.GetCustomAttributesData())
+			{
+				switch (a.AttributeType.FullName)
+				{
+					case "OpenFF.HeaderAttribute":
+						f.Header = a.ConstructorArguments.Count > 0 ? a.ConstructorArguments[0].Value as string : null;
+						break;
+					case "OpenFF.TooltipAttribute":
+						f.Tooltip = a.ConstructorArguments.Count > 0 ? a.ConstructorArguments[0].Value as string : null;
+						break;
+					case "OpenFF.RangeAttribute":
+						if (a.ConstructorArguments.Count >= 2)
+						{
+							f.Min = System.Convert.ToSingle(a.ConstructorArguments[0].Value);
+							f.Max = System.Convert.ToSingle(a.ConstructorArguments[1].Value);
+						}
+						break;
+					case "OpenFF.ItemFieldAttribute":
+						if (f.Type == "int") f.Type = "item";
+						break;
+				}
+			}
+			if (f.Tooltip == null) f.Tooltip = f.Summary;
+		}
+
 		private static string Classify(Type type)
 		{
 			if (type == typeof(int) || type == typeof(long) || type == typeof(short) || type == typeof(byte)) return "int";
 			if (type == typeof(float) || type == typeof(double)) return "float";
 			if (type == typeof(bool)) return "bool";
 			if (type == typeof(string)) return "string";
+			if (type == typeof(string[]) || (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>) && type.GetGenericArguments()[0] == typeof(string))) return "strings";
 			if (type.IsEnum) return "enum";
 			switch (type.FullName)
 			{
@@ -219,6 +272,8 @@ namespace Crystal.Editor
 			Type type = value.GetType();
 			if (type.IsEnum) return value.ToString();
 			if (type.IsPrimitive || value is string) return value;
+			if (value is string[] strings) return strings;
+			if (value is List<string> list) return list.ToArray();
 			switch (type.FullName)
 			{
 				case "OpenFF.Vector3":

@@ -743,14 +743,22 @@ terrain's inspector has *Add an OpenFF object where the camera looks* for the sa
 
 They are listed as a tree under **Objects (OpenFF)** in the hierarchy, drawn in the 3D
 view (the model itself, or a small blue box for one without) and moved with the same
-gizmo as everything else. The inspector of one is all the file's: **name** (free to
-change - behaviours on it and under it follow), **model** (the picker, or *No model -
-logic only*), **x y z yaw scale**, **tags** (what a mod finds it by), **parent**, its
-**children** with *Add a child object*, *Delete*, and its behaviours. A child's numbers
-are relative to its parent - turned by the parent's yaw, scaled by its scale - so moving
-the parent moves the lot, and reparenting keeps the child where it stands in the world.
-*Save objects* writes the file. A chest that gives an item is such an object with the
-chest's model and a behaviour whose `Item` field is the item - change either any time.
+gizmo as everything else. The inspector of one is laid out as Unity lays out a
+GameObject, and it is all the file's: the **name** at the top (free to change -
+behaviours on it and under it follow), then **Transform** (Position X Y Z, Rotation Y,
+Scale), then **Model** (the picker, with a × to have none - a spot with logic on it),
+**Tags** (what a mod finds it by), **Parent**, the **behaviours**, its **children** with
+*Add a child object*, and *Delete*. A child's numbers are relative to its parent - turned
+by the parent's yaw, scaled by its scale - so moving the parent moves the lot, and
+reparenting keeps the child where it stands in the world. The document's own facts
+(terrain, characters, exits) fold away under *About <map>* at the bottom while something
+is selected: the selection is the panel.
+
+Nothing here has a Save button. A change - a field typed, an object dragged, a behaviour
+added - writes `scenes/<map>.json` a moment later, the way the session is kept; the
+status line says so. A chest that gives an item is such an object with the chest's model
+and the built-in **Chest** behaviour, its item picked from the game's list - change either
+any time.
 
 ### Behaviours (OpenFF)
 
@@ -760,9 +768,13 @@ a card with its public fields as inputs, and an **Add Behaviour** button - Unity
 Component*. It drops a list with a search box: one row per class, its icon and name, the
 summary as the tooltip; arrow keys and Enter pick, Escape closes. A class the source
 declares but no build has seen yet is listed too, marked *not built*: it attaches now and
-gets its fields after **Build**. The engine's own behaviours are in the list as well,
-code or no code: **Trigger** (`Radius`, `Once`) says when the hero walks into the object's
-spot - an event for the mod's code, and a line in the log. Type a name nobody has written and the last row becomes
+gets its fields after **Build**. The engine's own behaviours head the list under *Built
+in*, code or no code: **Chest** (an item from the game's list, a count, gil; once, and
+what it says), **Talk** (a speaker and lines, one per line), **Trigger** (`Radius`,
+`Once`: says when the hero walks in - an event for the mod's code, and a line in the
+log). A card shows a behaviour's public fields the way Unity does - `[Header]` groups,
+`[Tooltip]` on hover, `[Range]` as a slider, an `[ItemField]` as the item list, a list of
+strings as lines - and every change saves itself. Type a name nobody has written and the last row becomes
 **New Behaviour "Name"** - it writes `code/Name.cs` from the Behaviour starter, attaches
 it to the object, and opens the file. **Save behaviours** writes `scenes/<map>.json`.
 

@@ -1027,28 +1027,38 @@ function drawInspector() {
   }
 
   const doc = activeDoc;
+  const facts = factsFor(doc);
+  const materials = materialsFor(doc);
+  const detail = doc.selection && doc.inspect ? doc.inspect(doc.selection) : null;
+
+  // With something selected, the selection is the panel: the document's own facts fold
+  // away at the bottom, where they are a click off rather than in the way. With nothing
+  // selected they are the panel, as before.
+  if (detail) {
+    box.append(detail);
+    const about = document.createElement('details');
+    about.className = 'about-doc';
+    const summary = document.createElement('summary');
+    summary.textContent = 'About ' + shortName(doc.name);
+    about.append(summary);
+    const kind = document.createElement('p');
+    kind.className = 'sub';
+    kind.textContent = doc.name;
+    about.append(kind);
+    if (facts.length) about.append(factList(facts));
+    if (materials) about.append(materials);
+    box.append(about);
+    return;
+  }
+
   const heading = document.createElement('h2');
   heading.textContent = shortName(doc.name);
   const kind = document.createElement('p');
   kind.className = 'sub';
   kind.textContent = doc.name;
   box.append(heading, kind);
-
-  const facts = factsFor(doc);
-  if (facts.length) {
-    box.append(factList(facts));
-  }
-
-  const materials = materialsFor(doc);
+  if (facts.length) box.append(factList(facts));
   if (materials) box.append(materials);
-
-  if (doc.selection && doc.inspect) {
-    const detail = doc.inspect(doc.selection);
-    if (detail) {
-      const rule = document.createElement('hr');
-      box.append(rule, detail);
-    }
-  }
 }
 
 function factList(pairs) {
