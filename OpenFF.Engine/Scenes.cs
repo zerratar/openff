@@ -533,6 +533,14 @@ namespace OpenFF
 		[Tooltip("The cast in the map's script this object runs: talking to it runs cast<N>_main")]
 		public int Cast;
 
+		/// <summary>
+		/// A scene's actor: not spawned with the map, but when the script boots the cast - where
+		/// it boots it, facing as it does - and the script drives it from there. The object's own
+		/// place is where Crystal shows it; the scene decides in play.
+		/// </summary>
+		[Tooltip("Appears when the game's script boots the cast (a scene's actor), where it boots it, and the script drives it from there")]
+		public bool OnBoot;
+
 		/// <summary>A chest: the boot's setTreasureItem/setTreasureMoney for this cast.</summary>
 		[Header("Treasure (a chest's cast)")]
 		[Tooltip("Set up as the game's treasure chest, from the boot's setTreasureItem/Money")]
@@ -938,6 +946,64 @@ namespace OpenFF
 			return gone.Length;
 		}
 
+		private static IDisposable _boots;
+
+		/// <summary>The game's character a Removed attachment means (its target, object:&lt;row&gt;), when it is on the map.</summary>
+		private static Npc OriginalOf(SceneAttachment removal)
+		{
+			string key = removal?.Target?.Trim().ToLowerInvariant() ?? "";
+			if (!key.StartsWith("object:", StringComparison.Ordinal) || !int.TryParse(key.Substring(7), out int row) || ResolveNpc == null) return null;
+			Npc npc = null;
+			Game.Guard("original " + key, () => npc = ResolveNpc("object", row));
+			return npc;
+		}
+
+		/// <summary>
+		/// The script booted a cast (Events.CastBooted): when one of the mod's objects on this
+		/// map carries a GameCast for it, the object takes over - spawned (or moved) to where the
+		/// script put the character, facing as it does, the game's own taken off, and RunCast so
+		/// the script drives the stand-in from here. A scene's actor comes when the scene says,
+		/// where it says, exactly as the original would have.
+		/// </summary>
+		private static void WatchBoots()
+		{
+			if (_boots != null) return;
+			_boots = Game.Events.Subscribe<Events.CastBooted>(e =>
+			{
+				if (e?.Character == null || e.Cast <= 0) return;
+				foreach (GameObject o in Game.World.Legacy.All().ToArray())
+				{
+					MapObject link = o.GetComponent<MapObject>();
+					GameCast cast = o.GetComponent<GameCast>();
+					if (link == null || cast == null || cast.Cast != e.Cast || !string.Equals(link.Map, e.Map, StringComparison.OrdinalIgnoreCase)) continue;
+					if (link.Npc != null && ReferenceEquals(link.Npc, e.Character)) continue;
+					Game.Guard("cast " + e.Cast + " booted", () =>
+					{
+						Vector3 at = e.Character.Position;
+						float yaw = e.Character.Yaw;
+						o.Transform.WorldPosition = at;
+						o.Transform.WorldYaw = yaw;
+						if (link.Npc == null)
+						{
+							// Spawned beside the original, then the original goes: a model only it
+							// used stays loaded that way.
+							SpawnModel(o.Owner, link.Map, o);
+							e.Character.Remove();
+						}
+						else
+						{
+							e.Character.Remove();
+							link.Npc.Teleport(at);
+							link.Npc.Face(yaw);
+							cast.NpcReady(link);
+						}
+						Game.Log("engine: " + o.Name + " took over cast " + e.Cast + " as the script booted it at " + at);
+					});
+					return;
+				}
+			});
+		}
+
 		/// <summary>The engine's own behaviours a scene file may name without the mod's code having them: Trigger.</summary>
 		public static Type EngineBehaviour(string name)
 		{
@@ -997,18 +1063,39 @@ namespace OpenFF
 			}
 			// An object whose WhenFlags do not hold is not spawned yet - the game would not have
 			// booted it; WhenFlags spawns it when they come true. Its Removed still goes through.
+			// A GameCast with OnBoot (a scene's actor) is not spawned either: it comes when the
+			// script boots its cast, where it boots it (CastBooted).
 			Dictionary<string, string> gates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-			foreach (SceneAttachment a in attachments.Where(a => string.Equals(a.Behaviour, "WhenFlags", StringComparison.OrdinalIgnoreCase)))
+			HashSet<string> onBoot = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (SceneAttachment a in attachments)
 			{
-				if (a.Fields != null && a.Fields.TryGetValue("When", out JsonElement w) && w.ValueKind == JsonValueKind.String) gates[a.Target.Trim()] = w.GetString();
+				if (a.Fields == null) continue;
+				if (string.Equals(a.Behaviour, "WhenFlags", StringComparison.OrdinalIgnoreCase)
+					&& a.Fields.TryGetValue("When", out JsonElement w) && w.ValueKind == JsonValueKind.String) gates[a.Target.Trim()] = w.GetString();
+				if (string.Equals(a.Behaviour, "GameCast", StringComparison.OrdinalIgnoreCase)
+					&& a.Fields.TryGetValue("OnBoot", out JsonElement b) && b.ValueKind == JsonValueKind.True) onBoot.Add(a.Target.Trim());
 			}
 			foreach (SceneObject root in file.AllObjects())
 			{
 				made += Place(mod, map, scene, root, null, null, objects, path =>
 				{
-					if (byStandIn.TryGetValue(path, out SceneAttachment removal) && removals.Contains(removal)) Remove(removal);
-				}, path => !gates.TryGetValue(path, out string when) || WhenFlags.Holds(when));
+					if (!byStandIn.TryGetValue(path, out SceneAttachment removal) || !removals.Contains(removal)) return;
+					if (onBoot.Contains(path) && objects.TryGetValue(path.ToLowerInvariant(), out GameObject standIn))
+					{
+						// The scene already booted its actor (a scene that opens with the map runs
+						// before the files apply): the stand-in takes over where it stands, now.
+						Npc original = OriginalOf(removal);
+						if (original != null && original.Alive)
+						{
+							standIn.Transform.WorldPosition = original.Position;
+							standIn.Transform.WorldYaw = original.Yaw;
+							SpawnModel(mod, map, standIn);
+						}
+					}
+					Remove(removal);
+				}, path => !onBoot.Contains(path) && (!gates.TryGetValue(path, out string when) || WhenFlags.Holds(when)));
 			}
+			WatchBoots();
 			foreach (SceneAttachment removal in removals.ToList())
 			{
 				Remove(removal);

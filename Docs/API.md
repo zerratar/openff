@@ -11,7 +11,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 - [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
-- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
+- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
 - [Saving](#saving): [`ISaveable`](#isaveable), [`SaveChunks`](#savechunks)
 - [Mods and loading](#mods-and-loading): [`LoadedMod`](#loadedmod), [`ModDefinition`](#moddefinition), [`ModLoader`](#modloader), [`ModWatcher`](#modwatcher)
 - [Constants](#constants): [`BattleResult`](#battleresult), [`Condition`](#condition), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting)
@@ -413,6 +413,7 @@ The game's own cast on one of the mod's objects: talking to the object runs the 
 | `string Flag` |  |
 | `int Gil` |  |
 | `int Item` |  |
+| `bool OnBoot` | A scene's actor: not spawned with the map, but when the script boots the cast - where it boots it, facing as it does - and the script drives it from there. The object's own place is where Crystal shows it; the scene decides in play. |
 | `string Recolour` | The boot's changeColorCharacter for this cast: a texture variant (n024 on n021). |
 | `bool Treasure` | A chest: the boot's setTreasureItem/setTreasureMoney for this cast. |
 | `void NpcReady(MapObject link)` |  |
@@ -1246,6 +1247,18 @@ A battle is over and the field is back.
 
 A battle is about to begin (a script's, or an encounter).
 
+### CastBooted
+
+`class CastBooted` - `OpenFF.Events`
+
+The map's script booted one of its casts (bootCharacter): the character it made, on which map. Raised for the boot's own placements and for a scene's; a mod's stand-in for the cast (GameCast) takes over from here.
+
+| Member | What it does |
+| --- | --- |
+| `int Cast { get; set; }` |  |
+| `Npc Character { get; set; }` |  |
+| `string Map { get; set; }` |  |
+
 ### CutsceneEnded
 
 `class CutsceneEnded` - `OpenFF.Events`
@@ -1782,4 +1795,4 @@ Whom a spell may be aimed at, as flags.
 
 ---
 
-111 types, 803 members; 384 without a summary yet.
+112 types, 807 members; 387 without a summary yet.

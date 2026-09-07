@@ -46,7 +46,9 @@ namespace OpenFF.Client
 			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", GameProfile.IsFf4 ? "ff4.json" : "mods.json");
 			// The API on the legacy game, before any mod so a mod's OnGameStart can reach it.
 			EngineApi.Register();
-			OpenFF.SceneLoader.ResolveNpc = (kind, index) => kind == "object" ? EngineApi.Npcs.Existing(index) : null;
+			// A scene file's object:<n> is the map's .hich row, as Crystal lists them; the row's
+			// character is whichever slot the script booted it into (the hich table says).
+			OpenFF.SceneLoader.ResolveNpc = (kind, index) => kind == "object" ? EngineApi.Npcs.ByRow(index) : null;
 			// A rebuilt mod: its objects went with its old code; make them again from its scene file.
 			OpenFF.Game.Events.Subscribe<OpenFF.Events.ModReloaded>(e =>
 			{

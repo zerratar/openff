@@ -98,6 +98,28 @@ namespace OpenFF.Client
 
 		internal static GlobalScope.pl.CPlayerManager Players => GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng();
 
+		/// <summary>
+		/// bootCharacterImp's last word: the map's script booted cast <paramref name="cast"/>
+		/// into player slot <paramref name="slot"/>. Published as Events.CastBooted so a mod's
+		/// stand-in for the cast can take over; nothing when the engine is not up. Never throws
+		/// into the script.
+		/// </summary>
+		internal static void CastBooted(int cast, int slot)
+		{
+			if (!OpenFF.Game.Started || cast <= 0 || slot < 0) return;
+			try
+			{
+				Npc character = Npcs.Existing(slot);
+				Log.Write(LogChannel.File, "engine api: cast " + cast + " booted into slot " + slot + " on " + GlobalScope.stg.CStageMng.CurrentName + (character == null ? " (no handle)" : ""));
+				if (character == null) return;
+				OpenFF.Game.Events.Publish(new OpenFF.Events.CastBooted { Cast = cast, Character = character, Map = GlobalScope.stg.CStageMng.CurrentName });
+			}
+			catch (Exception ex)
+			{
+				Warn("cast-booted", "CastBooted " + cast + ": " + ex.Message);
+			}
+		}
+
 		internal static int HeroIndex => GlobalScope.wld.CWorldOutSideData.getInstance().PlayerData().getPlayCharacterIndex();
 
 		internal static GlobalScope.pl.CBasePlayer HeroPlayer
@@ -981,6 +1003,23 @@ namespace OpenFF.Client
 		public IReadOnlyList<Npc> Spawned => _spawned;
 
 		private IEnumerable<LegacyNpc> Tracked => _spawned.Concat(_wrapped);
+
+		/// <summary>
+		/// The character the map's .hich row <paramref name="row"/> was booted into, or null
+		/// while nothing has booted it (a scene's actor before its scene, an opened chest). The
+		/// row is what Crystal shows and a scene file's object:&lt;n&gt; means; the slot is the
+		/// hich table's business (bootCharacterImp's setCharaIndex).
+		/// </summary>
+		public Npc ByRow(int row)
+		{
+			if (!EngineApi.InWorld || row < 0 || row >= 48) return null;
+			try
+			{
+				int slot = GlobalScope.evt.CHichParameterManager.getInstance().CharaIndex(row);
+				return slot >= 0 ? Existing(slot) : null;
+			}
+			catch (Exception ex) { EngineApi.Warn("by-row", "Npcs.ByRow " + row + ": " + ex.Message); return null; }
+		}
 
 		public Npc Existing(int index)
 		{

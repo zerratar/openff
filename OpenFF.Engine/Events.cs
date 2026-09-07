@@ -119,6 +119,18 @@ namespace OpenFF
 			public GameObject Object { get; set; }
 		}
 
+		/// <summary>
+		/// The map's script booted one of its casts (bootCharacter): the character it made, on
+		/// which map. Raised for the boot's own placements and for a scene's; a mod's stand-in
+		/// for the cast (GameCast) takes over from here.
+		/// </summary>
+		public sealed class CastBooted
+		{
+			public int Cast { get; set; }
+			public Npc Character { get; set; }
+			public string Map { get; set; }
+		}
+
 		/// <summary>The legacy game moved to another part: TITLE, WORLD, BATTLE, ...</summary>
 		public sealed class PartChanged
 		{

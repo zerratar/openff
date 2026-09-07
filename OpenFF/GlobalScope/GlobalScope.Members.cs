@@ -15511,6 +15511,8 @@ internal static partial class GlobalScope
 								CCastCommandTransit.getInstance().cast_PlayerMng().Player(num2)
 									.setShadowAlpha(20);
 							}
+							// OpenFF: a mod's stand-in for this cast takes over from here (Events.CastBooted).
+							OpenFF.Client.EngineApi.CastBooted((int)logicIdx, num2);
 						}
 
 						internal static void ff3Command_BootCharacter(ScriptEngine engine)
