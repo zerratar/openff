@@ -398,6 +398,8 @@ namespace Crystal.Editor
 							version = _project.File.Version,
 							description = _project.File.Description,
 							code = ModCode.Has(_project),
+							// The mod's entry point, for the header's button: the first GameService in the source.
+							service = ModCode.Has(_project) ? ModCode.Sources(_project).FirstOrDefault(s => s.Kind == "service")?.File : null,
 							client = OpenFFClient.Executable() != null,
 							scenes = ProjectScenes.Maps(_project).Count
 						}
@@ -1483,7 +1485,8 @@ namespace Crystal.Editor
 			try
 			{
 				ModCatalogResult catalog = ModCatalog.Read(_project);
-				SendJson(context, new { ok = true, code = ModCode.Has(_project), built = catalog.Assemblies.Count > 0, catalog.Behaviours, catalog.Services, catalog.Assemblies, catalog.Problems });
+				// The built types, and the classes the source declares (built or not) with their files.
+				SendJson(context, new { ok = true, code = ModCode.Has(_project), built = catalog.Assemblies.Count > 0, catalog.Behaviours, catalog.Services, catalog.Assemblies, catalog.Problems, sources = ModCode.Sources(_project) });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or BadImageFormatException)
 			{

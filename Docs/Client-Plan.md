@@ -1135,6 +1135,27 @@ scene file opened as JSON when it is a map.
 - Open: `SceneTest`'s Code row lists the `.gitignore` too - harmless, but a filter on what is
   a source may come. The tree's Scenes count is the project's, not the current game's.
 
+### Later the same morning: Add Behaviour as Unity has it, and the cog
+
+Karl's second look: opening a scene by double click threw `Cannot set properties of null
+(setting 'problem')` - `inspectAsset` awaited the scene's details while the double click's
+open cleared `inspected`, and the catch wrote to null; the details land on a local now and
+draw only if it is still the one shown. The Behaviours section's `<select>` of "Name - summary"
+rows is an **Add Behaviour** button with a dropdown (`behaviourPicker`: search box, icon +
+name rows, summary as tooltip, arrows/Enter/Escape), and a name that matches nothing is a
+**New Behaviour "Name"** row that writes the file from the Behaviour starter, attaches it and
+opens it. For that the server reads the *source* as well as the build: `ModCode.Sources`
+finds `class X : Behaviour|GameService` by regular expression over `code/**/*.cs` (line
+comments blanked), so a class is offered the moment it is written and marked *not built* until
+`Build` gives it fields; `/api/project/code/catalog` carries `sources`, `/api/status`'s project
+a `service` file. The cards lost their summary paragraph (icon, name, open-source, ×). The
+header has a cog beside the project's name for the GameService: open, stub, or add the code.
+And the tree's highlight follows the list when a document switches it (`runView`).
+
+Also this morning: Crystal's Visual Studio profile still said `editor --content=..\Content
+--text=...` from the old repository, so F5 failed on `bin\Debug\Content` before the Steam
+lookup ran; the profiles are a plain start, FF4 first, no browser on 5077, and `installs`.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

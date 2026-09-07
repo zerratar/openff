@@ -720,6 +720,24 @@ Those two calls into `global.script` appear 1291 and 1185 times across the game.
 Only models the map already loads are offered. A model the map has never loaded would
 need the map's model data changed too, and that is graphics.
 
+### Behaviours (OpenFF)
+
+In an OpenFF project the inspector of a character, an exit, the terrain or a point ends
+with **Behaviours (OpenFF)**: the mod's `Behaviour` classes attached to that object, each
+a card with its public fields as inputs, and an **Add Behaviour** button - Unity's *Add
+Component*. It drops a list with a search box: one row per class, its icon and name, the
+summary as the tooltip; arrow keys and Enter pick, Escape closes. A class the source
+declares but no build has seen yet is listed too, marked *not built*: it attaches now and
+gets its fields after **Build**. Type a name nobody has written and the last row becomes
+**New Behaviour "Name"** - it writes `code/Name.cs` from the Behaviour starter, attaches
+it to the object, and opens the file. **Save behaviours** writes `scenes/<map>.json`.
+
+The cog beside the project's name in the header is the mod's **GameService** - its entry
+point, where `Start`, the map events and saving live. It opens the file when there is
+one (`Mod.cs` as the starter writes it), writes the stub when the code has none, and
+adds the C# project when there is no code at all. Whatever the page shows, the mod's
+own code is that one click away.
+
 ## Scripts
 
 The event bytecode, as source in the script language, with dialogue written in beside

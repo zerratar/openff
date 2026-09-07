@@ -876,8 +876,51 @@ async function refreshProject() {
     say(error.message, 'bad');
   }
   drawMenuBar();
+  drawServiceButton();
   drawStartPage();
   if (typeof drawProjectTree === 'function') drawProjectTree();
+}
+
+/// The cog in the header: the mod's GameService. Open when there is one; the stub when
+/// there is code but no service; the whole C# project when there is no code. An OpenFF
+/// mod's entry point should never be more than a click away, whatever the page shows.
+function drawServiceButton() {
+  const button = $('#service-button');
+  if (!button) return;
+  const project = projectState.project;
+  if (!project || !isOpenFFProject(project)) {
+    button.hidden = true;
+    return;
+  }
+  button.hidden = false;
+  button.innerHTML = '';
+  button.append(icon('service'));
+  button.classList.toggle('stub', !project.service);
+  if (project.service) {
+    button.title = `GameService: ${project.service} - the mod's entry point. Click to open it.`;
+    button.onclick = () => { if (typeof openDoc === 'function') openDoc('code', project.service); };
+  } else if (project.code) {
+    button.title = 'The code has no GameService yet - click to write the stub (the mod\'s entry point: Start, map events, saving)';
+    button.onclick = () => createServiceStub();
+  } else {
+    button.title = 'No C# code yet - click to add the project and its starting GameService';
+    button.onclick = () => addCode();
+  }
+}
+
+/// A GameService where there is code but none: Mod.cs, or Service.cs when that name is taken.
+async function createServiceStub() {
+  try {
+    let made = await api('/api/project/file/new', { name: 'Mod', template: 'service' });
+    if (!made.ok && /already/.test(made.error || '')) made = await api('/api/project/file/new', { name: 'Service', template: 'service' });
+    if (!made.ok) throw new Error(made.error);
+    say(`${made.name} written - the mod's GameService; Build, then Export or Run in OpenFF`, 'good');
+    await refreshProject();
+    if (typeof projectChanged === 'function') projectChanged();
+    if (typeof openDoc === 'function') await openDoc('code', made.name);
+  } catch (error) {
+    say(error.message, 'bad');
+  }
 }
 
 /// Whether the edits are in the game yet. Hidden for our own build, which reads the

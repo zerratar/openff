@@ -16,6 +16,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Crystal.Editor
 {
@@ -135,6 +136,79 @@ namespace Crystal.Editor
 			// The scene files are listed under Scenes, where each opens its map; their JSON
 			// still reads and saves through ReadText/WriteText (Resolve allows scenes/).
 			return entries;
+		}
+
+		/// <summary>A class in the mod's source that derives Behaviour or GameService, and where.</summary>
+		public sealed class SourceType
+		{
+			public string Name { get; set; }
+			/// <summary>behaviour or service.</summary>
+			public string Kind { get; set; }
+			/// <summary>The file as the tree names it: code/Greeter.cs.</summary>
+			public string File { get; set; }
+			public int Line { get; set; }
+		}
+
+		private static readonly Regex ClassDeclaration = new Regex(
+			@"\bclass\s+([A-Za-z_]\w*)\s*(?:<[^>{]*>)?\s*:\s*([^{]+)",
+			RegexOptions.Compiled);
+
+		/// <summary>
+		/// The Behaviour and GameService classes as the source declares them, built or not -
+		/// read with a regular expression over code/**/*.cs, which is enough to find
+		/// "class Greeter : Behaviour" and say which file it is in. The catalog knows the
+		/// built types and their fields; this knows the files, and knows a class the moment
+		/// it is written, so the inspector can offer it (and open it) before the first build.
+		/// </summary>
+		public static List<SourceType> Sources(Project project)
+		{
+			List<SourceType> found = new List<SourceType>();
+			string code = CodeDirectory(project);
+			if (!Directory.Exists(code))
+			{
+				return found;
+			}
+			foreach (string file in Directory.EnumerateFiles(code, "*.cs", SearchOption.AllDirectories)
+				.Where(f => !Hidden(code, f))
+				.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+			{
+				string text;
+				try
+				{
+					text = File.ReadAllText(file);
+				}
+				catch (IOException)
+				{
+					continue;
+				}
+				// Line comments blanked (not removed, so the line numbers hold): the starter's
+				// commented examples must not count as classes.
+				text = Regex.Replace(text, @"//[^\r\n]*", m => new string(' ', m.Length));
+				foreach (Match match in ClassDeclaration.Matches(text))
+				{
+					// The base list up to the brace: "Behaviour", "OpenFF.GameService, ISaveable"...
+					string bases = match.Groups[2].Value;
+					string kind = Regex.IsMatch(bases, @"(^|[\s,.])Behaviour\b") ? "behaviour"
+						: Regex.IsMatch(bases, @"(^|[\s,.])GameService\b") ? "service" : null;
+					if (kind == null)
+					{
+						continue;
+					}
+					int line = 1;
+					for (int i = 0; i < match.Index; i++)
+					{
+						if (text[i] == '\n') line++;
+					}
+					found.Add(new SourceType
+					{
+						Name = match.Groups[1].Value,
+						Kind = kind,
+						File = Path.GetRelativePath(project.Directory, file).Replace('\\', '/'),
+						Line = line
+					});
+				}
+			}
+			return found;
 		}
 
 		/// <summary>bin/, obj/, .vs/ and anything else that starts with a dot: the IDE's, not the mod's.</summary>

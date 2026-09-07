@@ -1,4 +1,4 @@
-﻿// The map view: what stands on a map, where, and what it says.
+// The map view: what stands on a map, where, and what it says.
 //
 // Everything here is joined up from four files - see Editor/MapModel.cs. The canvas
 // is a plan view: x across, z down, because that is what the game's coordinates mean
@@ -1913,10 +1913,12 @@ function behavioursSection(panel, target, what) {
   box.className = 'behaviours';
   panel.append(box);
   if (!project.code) {
-    const note = document.createElement('p');
-    note.className = 'none';
-    note.textContent = 'Add C# code to the project (File menu) and Behaviour classes in it appear here, to attach to this ' + what + '.';
-    box.append(note);
+    const add = document.createElement('button');
+    add.className = 'behaviour-add-button';
+    add.textContent = 'Add C# code';
+    add.title = 'Writes the mod\'s C# project and a starting GameService; Behaviour classes in it attach to this ' + what;
+    add.onclick = () => { if (typeof addCode === 'function') addCode(); };
+    box.append(add);
     return;
   }
   const map = mapState.name;
@@ -1932,46 +1934,22 @@ function drawBehaviours(box, state, target, what) {
   box.innerHTML = '';
   const catalog = state.catalog;
   const mine = state.attachments.filter(a => (a.target || '').toLowerCase() === target.toLowerCase());
-  if (!catalog.built) {
-    const note = document.createElement('p');
-    note.className = 'none';
-    note.textContent = 'Build the C# code first (File > Build C# code); its Behaviour classes appear here.';
-    box.append(note);
-  } else if (!catalog.behaviours.length) {
-    const note = document.createElement('p');
-    note.className = 'none';
-    note.textContent = 'The code has no Behaviour classes yet. A class deriving OpenFF.Behaviour with public fields shows up here after a build.';
-    box.append(note);
-  }
   for (const attachment of mine) {
     box.append(behaviourCard(state, attachment, target));
   }
-  if (catalog.behaviours.length) {
-    const row = document.createElement('div');
-    row.className = 'behaviour-add';
-    const select = document.createElement('select');
-    const first = document.createElement('option');
-    first.value = '';
-    first.textContent = 'Add behaviour…';
-    select.append(first);
-    for (const b of catalog.behaviours) {
-      const option = document.createElement('option');
-      option.value = b.name;
-      option.textContent = b.name + (b.summary ? ' - ' + b.summary : '');
-      select.append(option);
-    }
-    select.onchange = () => {
-      const name = select.value;
-      if (!name) return;
-      const type = catalog.behaviours.find(b => b.name === name);
-      const fields = {};
-      for (const f of (type.fields || [])) if (f.default !== null && f.default !== undefined) fields[f.name] = f.default;
-      state.attachments.push({ target, behaviour: name, fields });
-      state.dirty = true;
-      drawBehaviours(box, state, target, what);
-    };
-    row.append(select);
-    box.append(row);
+  // One wide button, as Unity's Add Component: the list of behaviours drops down from it
+  // with a search box, and a name nobody has written yet becomes a new script.
+  const add = document.createElement('button');
+  add.className = 'behaviour-add-button';
+  add.textContent = 'Add Behaviour';
+  add.title = 'Attach one of the code\'s Behaviour classes to this ' + what + ', or write a new one';
+  add.onclick = () => behaviourPicker(add, state, target, box, what);
+  box.append(add);
+  if (!catalog.built && behaviourChoices(catalog).length) {
+    const note = document.createElement('p');
+    note.className = 'none';
+    note.textContent = 'Not built yet - the behaviours attach now and get their fields after Build.';
+    box.append(note);
   }
   if (catalog.problems && catalog.problems.length) {
     const p = document.createElement('p');
@@ -2007,16 +1985,193 @@ function drawBehaviours(box, state, target, what) {
   box.append(actions);
 }
 
+/// Every behaviour the picker can offer: the built ones with their fields, and the ones
+/// the source declares but no build has seen yet (marked, so the fields' absence is
+/// explained). A name in both is one entry.
+function behaviourChoices(catalog) {
+  const choices = (catalog.behaviours || []).map(b => ({
+    name: b.name, fullName: b.fullName, summary: b.summary, fields: b.fields || [], built: true,
+    file: (catalog.sources || []).find(s => s.kind === 'behaviour' && s.name === b.name)?.file || null,
+  }));
+  for (const s of (catalog.sources || [])) {
+    if (s.kind !== 'behaviour' || choices.some(c => c.name === s.name)) continue;
+    choices.push({ name: s.name, fullName: s.name, summary: null, fields: [], built: false, file: s.file, line: s.line });
+  }
+  choices.sort((a, b) => a.name.localeCompare(b.name));
+  return choices;
+}
+
+/// The source file a behaviour lives in, when the code declares it.
+function behaviourSource(catalog, name) {
+  return (catalog.sources || []).find(s => s.kind === 'behaviour' && s.name === name) || null;
+}
+
+function attachBehaviour(state, target, choice) {
+  const fields = {};
+  for (const f of choice.fields) if (f.default !== null && f.default !== undefined) fields[f.name] = f.default;
+  state.attachments.push({ target, behaviour: choice.name, fields });
+  state.dirty = true;
+}
+
+/// Unity's Add Component list, for behaviours: a search box, one row per class with its
+/// icon and name (the summary as a tooltip - the row is a name, not a paragraph), the
+/// arrow keys and Enter, and at the bottom the way to a class that does not exist yet:
+/// the text typed becomes a new Behaviour script, attached at once and opened.
+function behaviourPicker(anchor, state, target, box, what) {
+  document.querySelectorAll('.dropdown').forEach(p => p.remove());
+  const catalog = state.catalog;
+  const choices = behaviourChoices(catalog);
+  const picker = document.createElement('div');
+  picker.className = 'dropdown';
+  const search = document.createElement('input');
+  search.type = 'search';
+  search.placeholder = 'search, or a name for a new one';
+  search.autocomplete = 'off';
+  const head = document.createElement('div');
+  head.className = 'dropdown-head';
+  head.textContent = 'Behaviour';
+  const list = document.createElement('ul');
+  list.className = 'dropdown-list';
+  picker.append(search, head, list);
+
+  // Fixed, under the button, as wide as it; above it when the panel's bottom is near.
+  document.body.append(picker);
+  const at = anchor.getBoundingClientRect();
+  picker.style.width = Math.max(220, at.width) + 'px';
+  picker.style.left = at.left + 'px';
+  const height = Math.min(320, picker.offsetHeight || 320);
+  if (at.bottom + height + 8 < window.innerHeight) picker.style.top = (at.bottom + 2) + 'px';
+  else picker.style.top = Math.max(4, at.top - height - 2) + 'px';
+
+  let rows = [];
+  let cursor = 0;
+  const close = () => {
+    picker.remove();
+    document.removeEventListener('pointerdown', outside, true);
+  };
+  const outside = e => { if (!picker.contains(e.target) && e.target !== anchor) close(); };
+  document.addEventListener('pointerdown', outside, true);
+
+  const pick = async row => {
+    if (!row) return;
+    if (row.create) {
+      await createBehaviourScript(state, target, row.create, box, what);
+      close();
+      return;
+    }
+    attachBehaviour(state, target, row.choice);
+    close();
+    drawBehaviours(box, state, target, what);
+  };
+
+  const draw = () => {
+    const query = search.value.trim();
+    const q = query.toLowerCase();
+    list.innerHTML = '';
+    rows = [];
+    const shown = choices.filter(c => !q || c.name.toLowerCase().includes(q) || (c.fullName || '').toLowerCase().includes(q));
+    for (const choice of shown) {
+      const li = document.createElement('li');
+      li.append(icon('behaviour'));
+      const name = document.createElement('span');
+      name.className = 'dropdown-name';
+      name.textContent = choice.name;
+      li.append(name);
+      if (!choice.built) {
+        const note = document.createElement('span');
+        note.className = 'dropdown-note';
+        note.textContent = 'not built';
+        li.append(note);
+      }
+      li.title = (choice.summary ? choice.summary + '\n' : '') + (choice.file || choice.fullName || '');
+      li.onclick = () => pick({ choice });
+      list.append(li);
+      rows.push({ choice, element: li });
+    }
+    if (!shown.length && !query) {
+      const li = document.createElement('li');
+      li.className = 'dropdown-empty';
+      li.textContent = catalog.code ? 'No Behaviour classes yet - type a name to write one.' : 'The project has no C# code yet.';
+      list.append(li);
+    }
+    // The new-script row: whatever was typed, when nothing is called exactly that.
+    const exact = shown.some(c => c.name.toLowerCase() === q);
+    if (catalog.code && (!query || !exact)) {
+      const li = document.createElement('li');
+      li.className = 'dropdown-create' + (query ? '' : ' dim');
+      li.append(icon('code'));
+      const label = document.createElement('span');
+      label.className = 'dropdown-name';
+      const cleaned = query.replace(/[^A-Za-z0-9_]/g, '');
+      label.textContent = cleaned ? `New Behaviour "${cleaned}"` : 'New Behaviour… (type its name)';
+      li.append(label);
+      li.title = cleaned ? `Writes code/${cleaned}.cs, attaches it here and opens it` : '';
+      if (cleaned) {
+        li.onclick = () => pick({ create: cleaned });
+        list.append(li);
+        rows.push({ create: cleaned, element: li });
+      } else {
+        list.append(li);
+      }
+    }
+    cursor = Math.min(cursor, Math.max(0, rows.length - 1));
+    mark();
+  };
+  const mark = () => {
+    rows.forEach((r, i) => r.element.classList.toggle('on', i === cursor));
+    const on = rows[cursor];
+    if (on) on.element.scrollIntoView({ block: 'nearest' });
+  };
+  search.oninput = () => { cursor = 0; draw(); };
+  search.onkeydown = e => {
+    if (e.key === 'ArrowDown') { cursor = Math.min(rows.length - 1, cursor + 1); mark(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { cursor = Math.max(0, cursor - 1); mark(); e.preventDefault(); }
+    else if (e.key === 'Enter') { pick(rows[cursor]); e.preventDefault(); }
+    else if (e.key === 'Escape') { close(); e.preventDefault(); }
+  };
+  draw();
+  search.focus();
+}
+
+/// A new Behaviour class from the picker: the file from the starter, attached to the object
+/// straight away (its fields come with the next build), and opened in the code view.
+async function createBehaviourScript(state, target, name, box, what) {
+  try {
+    const made = await api('/api/project/file/new', { name, template: 'behaviour' });
+    if (!made.ok) throw new Error(made.error);
+    attachBehaviour(state, target, { name, fields: [] });
+    state.catalog = null;
+    await loadSceneState(state.map);
+    say(`${made.name} written and attached to this ${what} - Build to give it fields, Save behaviours to keep it on the map`, 'good');
+    drawBehaviours(box, sceneState, target, what);
+    if (typeof projectChanged === 'function') projectChanged();
+    if (typeof openDoc === 'function') await openDoc('code', made.name);
+  } catch (error) {
+    say(error.message, 'bad');
+  }
+}
+
 function behaviourCard(state, attachment, target) {
   const catalog = state.catalog;
   const type = catalog.behaviours.find(b => b.name === attachment.behaviour);
+  const source = behaviourSource(catalog, attachment.behaviour);
   const card = document.createElement('div');
   card.className = 'behaviour-card' + (type ? '' : ' missing');
   const head = document.createElement('div');
   head.className = 'behaviour-head';
+  head.append(icon('behaviour'));
   const name = document.createElement('b');
   name.textContent = attachment.behaviour;
-  name.title = type ? (type.fullName + (type.summary ? '\n' + type.summary : '')) : 'not in the built code';
+  name.title = type ? (type.fullName + (type.summary ? '\n' + type.summary : '')) : source ? source.file + ' - not built yet' : 'not in the code';
+  head.append(name);
+  if (source && typeof openDoc === 'function') {
+    const open = document.createElement('button');
+    open.className = 'icon-button';
+    open.append(icon('code'));
+    open.title = 'Open ' + source.file;
+    open.onclick = () => openDoc('code', source.file);
+    head.append(open);
+  }
   const remove = document.createElement('button');
   remove.textContent = '×';
   remove.title = 'Remove this behaviour';
@@ -2025,18 +2180,14 @@ function behaviourCard(state, attachment, target) {
     state.dirty = true;
     drawBehaviours(card.parentElement, state, target, '');
   };
-  head.append(name, remove);
+  head.append(remove);
   card.append(head);
-  if (type && type.summary) {
-    const sum = document.createElement('p');
-    sum.className = 'behaviour-summary';
-    sum.textContent = type.summary;
-    card.append(sum);
-  }
   if (!type) {
     const p = document.createElement('p');
-    p.className = 'none warn';
-    p.textContent = 'This behaviour is not in the built code (renamed, or not built yet).';
+    p.className = 'none' + (source ? '' : ' warn');
+    p.textContent = source
+      ? 'Not built yet - Build the C# code and its fields appear here.'
+      : 'This behaviour is not in the code (renamed or removed).';
     card.append(p);
     return card;
   }
