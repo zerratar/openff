@@ -64,44 +64,58 @@ namespace Crystal.Editor
 
 		/// <summary>
 		/// Writes the project's OpenFF files as a mod in the client's mods folder:
-		/// mods/&lt;name&gt;/mod.json, files/ and a README. Replaces an earlier export of the
-		/// same name (recognised by its mod.json); refuses to touch a folder that is not
-		/// one. Returns the mod's directory.
+		/// mods/&lt;name&gt;/mod.json, ff3/files/ and ff4/files/ (one per OpenFF target the
+		/// project has - the two games name their files alike, so the client applies only
+		/// the booted game's), and a README. Replaces an earlier export of the same name
+		/// (recognised by its mod.json); refuses to touch a folder that is not one.
+		/// Returns the mod's directory.
 		/// </summary>
 		public static string WriteToOpenFF(Project project, string modsFolder)
 		{
-			if (!project.File.Targets.Any(t => string.Equals(t, Targets.Ours, StringComparison.OrdinalIgnoreCase)))
+			List<string> ours = project.File.Targets.Where(Targets.IsOurs).ToList();
+			if (ours.Count == 0)
 			{
-				throw new InvalidOperationException("the project does not target our build - tick it in Project settings first");
+				throw new InvalidOperationException("the project is not an OpenFF mod - tick FF3 or FF4 under OpenFF in Project settings first");
 			}
-			string source = project.FilesFor(Targets.Ours);
 			string key = Safe(project.File.Name);
 			string directory = Path.Combine(modsFolder, key);
 			string manifestPath = Path.Combine(directory, OpenFF.Content.ModsFolder.ManifestName);
-			string files = Path.Combine(directory, "files");
 			if (Directory.Exists(directory))
 			{
 				if (!File.Exists(manifestPath))
 				{
 					throw new IOException(directory + " exists and is not a mod exported before (no mod.json) - move it away first");
 				}
-				if (Directory.Exists(files))
+				// Every files folder an export writes or wrote: the per-game ones, and the
+				// shared files/ an export before 2026-09-07 put the FF3 edits in.
+				foreach (string old in OpenFF.Content.ModsFolder.Games.Select(g => Path.Combine(directory, g)).Append(Path.Combine(directory, "files")))
 				{
-					Directory.Delete(files, recursive: true);
+					if (Directory.Exists(old))
+					{
+						Directory.Delete(old, recursive: true);
+					}
 				}
 			}
-			Directory.CreateDirectory(files);
-			int count = 0;
-			if (Directory.Exists(source))
+			Directory.CreateDirectory(directory);
+			List<string> contents = new List<string>();
+			foreach (string target in ours)
 			{
-				foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+				string source = project.FilesFor(target);
+				string files = Path.Combine(directory, Targets.GameOf(target), "files");
+				int count = 0;
+				if (Directory.Exists(source))
 				{
-					string relative = Path.GetRelativePath(source, file);
-					string destination = Path.Combine(files, relative);
-					Directory.CreateDirectory(Path.GetDirectoryName(destination));
-					File.Copy(file, destination, overwrite: true);
-					count++;
+					foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+					{
+						string relative = Path.GetRelativePath(source, file);
+						string destination = Path.Combine(files, relative);
+						Directory.CreateDirectory(Path.GetDirectoryName(destination));
+						File.Copy(file, destination, overwrite: true);
+						count++;
+					}
 				}
+				contents.Add(string.Format(CultureInfo.InvariantCulture, "- {0}: {1} file(s) under {2}/files/",
+					Targets.Describe(target), count, Targets.GameOf(target)));
 			}
 			// The code, when the project has some and it has been built: the assemblies and
 			// their symbols, at the mod's root, named in mod.json.
@@ -123,10 +137,10 @@ namespace Crystal.Editor
 				Directory.Delete(scenesOut, recursive: true);
 			}
 			int scenes = 0;
-			foreach (KeyValuePair<string, int> map in ProjectScenes.Maps(project))
+			foreach (ProjectScenes.Summary map in ProjectScenes.Maps(project))
 			{
 				Directory.CreateDirectory(scenesOut);
-				File.Copy(Path.Combine(ProjectScenes.Directory(project), map.Key + ".json"), Path.Combine(scenesOut, map.Key + ".json"), overwrite: true);
+				File.Copy(Path.Combine(ProjectScenes.Directory(project), map.Map + ".json"), Path.Combine(scenesOut, map.Map + ".json"), overwrite: true);
 				scenes++;
 			}
 			OpenFF.Content.ModsFolder.WriteManifest(manifestPath, new OpenFF.Content.ModManifest
@@ -139,10 +153,6 @@ namespace Crystal.Editor
 				Target = OpenFF.Content.ModManifest.TargetOpenFF,
 				Assemblies = assemblies,
 			});
-			List<string> contents = new List<string>
-			{
-				string.Format(CultureInfo.InvariantCulture, "- OpenFF: {0} file(s) under files/", count),
-			};
 			if (assemblies.Count > 0)
 			{
 				contents.Add("- code: " + string.Join(", ", assemblies));
@@ -151,7 +161,7 @@ namespace Crystal.Editor
 			{
 				contents.Add(string.Format(CultureInfo.InvariantCulture, "- scenes: {0} map(s) with behaviours attached under scenes/", scenes));
 			}
-			File.WriteAllText(Path.Combine(directory, "README.md"), Readme(project, contents), new UTF8Encoding(false));
+			File.WriteAllText(Path.Combine(directory, "README.md"), Readme(project, contents, openff: true), new UTF8Encoding(false));
 			return directory;
 		}
 
@@ -160,7 +170,7 @@ namespace Crystal.Editor
 			zip.CreateEntryFromFile(file, entryName, CompressionLevel.Optimal);
 		}
 
-		private static string Readme(Project project, List<string> contents)
+		private static string Readme(Project project, List<string> contents, bool openff = false)
 		{
 			StringBuilder text = new StringBuilder();
 			text.Append("# ").Append(project.File.Name).Append('\n');
@@ -185,6 +195,13 @@ namespace Crystal.Editor
 			}
 			text.Append('\n');
 			text.Append("## Installing\n\n");
+			if (openff)
+			{
+				text.Append("An OpenFF mod: put this folder under `mods/` beside `OpenFF.exe` and start the client;\n");
+				text.Append("the title screen's MODS entry enables, disables and orders mods. `ff3/files/` applies\n");
+				text.Append("when FF3 is played, `ff4/files/` when FF4 is; `scenes/` and the assemblies apply to both.\n");
+				return text.ToString();
+			}
 			text.Append("Made with Crystal, the OpenFF editor. Open Crystal, choose File > Open project, and\n");
 			text.Append("point it at this folder; then Project > Install into the game. Crystal keeps a backup of\n");
 			text.Append("every file it replaces and Project > Remove puts the originals back.\n\n");

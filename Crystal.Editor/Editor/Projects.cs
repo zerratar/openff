@@ -16,6 +16,13 @@
 // A project may target both. That is worth having for data - .pak, .msd and .script
 // are largely byte identical between the releases - and worth being careful with for
 // art, which is authored against a different virtual screen in each. See Docs/Editor.md.
+//
+// A target is two things at once, and the editor shows them apart (Karl, 2026-09-07):
+// which game's content it opens (FF3 or FF4 - the tabs above the libraries), and what
+// kind of mod comes out (an OpenFF mod the client plays, which may draw on both games;
+// or a Steam mod, files copied into one Steam copy). "ours" is FF3 in OpenFF; "oursff4"
+// is FF4 in OpenFF, opening the same install "ff4steam" does, because that is where the
+// client reads FF4 from too - only what happens to the edits differs.
 
 using System;
 using OpenFF.Content;
@@ -31,22 +38,59 @@ namespace Crystal.Editor
 	internal static class Targets
 	{
 		public const string Ours = "ours";
+		public const string OursFf4 = "oursff4";
 		public const string Steam = "steam";
 		public const string Ff4Steam = "ff4steam";
 
-		public static readonly string[] All = { Ours, Steam, Ff4Steam };
+		/// <summary>The kinds of mod a target makes.</summary>
+		public const string KindOpenFF = "openff";
+		public const string KindSteam = "steam";
+
+		/// <summary>
+		/// Every target. The Steam ones come first, so that with no project open (every
+		/// install open once, under the first target that finds it) a Steam install is
+		/// labelled as the Steam copy it is; the OpenFF targets open the same folders.
+		/// </summary>
+		public static readonly string[] All = { Steam, Ff4Steam, Ours, OursFf4 };
 
 		public static bool Known(string target)
 		{
 			return All.Contains(target, StringComparer.OrdinalIgnoreCase);
 		}
 
-		/// <summary>What to show a person: "our build", "FF3 on Steam", "FF4 on Steam".</summary>
+		/// <summary>"ff3" or "ff4": whose content the target opens.</summary>
+		public static string GameOf(string target)
+		{
+			return string.Equals(target, Ff4Steam, StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(target, OursFf4, StringComparison.OrdinalIgnoreCase) ? "ff4" : "ff3";
+		}
+
+		/// <summary>"openff" when the OpenFF client plays the result, "steam" when it is installed into a Steam copy.</summary>
+		public static string KindOf(string target)
+		{
+			return IsOurs(target) ? KindOpenFF : KindSteam;
+		}
+
+		/// <summary>Whether the target is one of the OpenFF ones ("ours", "oursff4").</summary>
+		public static bool IsOurs(string target)
+		{
+			return string.Equals(target, Ours, StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(target, OursFf4, StringComparison.OrdinalIgnoreCase);
+		}
+
+		/// <summary>The target for a game and a kind: ("ff4", "openff") is "oursff4".</summary>
+		public static string For(string game, string kind)
+		{
+			bool ff4 = string.Equals(game, "ff4", StringComparison.OrdinalIgnoreCase);
+			bool openff = string.Equals(kind, KindOpenFF, StringComparison.OrdinalIgnoreCase);
+			return openff ? (ff4 ? OursFf4 : Ours) : (ff4 ? Ff4Steam : Steam);
+		}
+
+		/// <summary>What to show a person: "FF3 in OpenFF", "FF4 in OpenFF", "FF3 on Steam", "FF4 on Steam".</summary>
 		public static string Describe(string target)
 		{
-			if (string.Equals(target, Ff4Steam, StringComparison.OrdinalIgnoreCase)) return "FF4 on Steam";
-			if (string.Equals(target, Steam, StringComparison.OrdinalIgnoreCase)) return "FF3 on Steam";
-			return "our build";
+			string game = GameOf(target).ToUpperInvariant();
+			return IsOurs(target) ? game + " in OpenFF" : game + " on Steam";
 		}
 
 		/// <summary>
@@ -57,8 +101,11 @@ namespace Crystal.Editor
 		/// </summary>
 		public static string Find(string target)
 		{
-			if (string.Equals(target, Ff4Steam, StringComparison.OrdinalIgnoreCase))
+			if (string.Equals(target, Ff4Steam, StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(target, OursFf4, StringComparison.OrdinalIgnoreCase))
 			{
+				// FF4 has one source on this machine, the Steam install; the OpenFF client
+				// plays it from there as well, so an OpenFF mod's FF4 side opens the same.
 				return SteamInstalls.FindOne(SteamInstalls.Ff4AppId);
 			}
 			if (string.Equals(target, Steam, StringComparison.OrdinalIgnoreCase))
@@ -78,7 +125,9 @@ namespace Crystal.Editor
 					}
 				}
 			}
-			return null;
+			// No archives about: the OpenFF client plays FF3 from the Steam install then
+			// (ContentLocator, Launch.ResolveRoot), so that is what FF3 in OpenFF opens.
+			return SteamInstalls.FindOne();
 		}
 	}
 
@@ -299,7 +348,7 @@ namespace Crystal.Editor
 				throw new FileNotFoundException(string.Format(
 					"cannot find the content for {0}. {1}",
 					Targets.Describe(target),
-					string.Equals(target, Targets.Steam, StringComparison.OrdinalIgnoreCase)
+					!string.Equals(target, Targets.Ours, StringComparison.OrdinalIgnoreCase)
 						? "No Steam copy of the game was found on this machine - pass "
 							+ "--content=<install> to say where it is."
 						: "No Content directory with a data000.bin was found - pass "

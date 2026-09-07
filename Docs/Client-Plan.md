@@ -1085,6 +1085,56 @@ stands at deck level near the starboard rail looking across the deck at the orig
 visibility animations are the suspect ("the flight's sky" above), not the casts. Also open: the
 casts' own discs (Cecil, the soldiers) follow their hips but do not show on the deck.
 
+## Crystal: the mod's own things in the tree, and one mod for both games (2026-09-07)
+
+Karl's report: a project's C# code and scenes were reachable only from the File menu, so the
+tree - the thing a user reads the project off - said nothing about them, and the OpenFF path
+felt like a separate tool for C# rather than the same editor with more in it. Three tabs
+labelled *FF3 our build / FF3 on Steam / FF4 on Steam* had drifted from what they were meant
+to be, a filter on whose content shows, into a statement about what kind of mod this is. And a
+scene file opened as JSON when it is a map.
+
+- **The OpenFF mod folder** ends the project tree, pinned to the bottom (`tree-foot`, sticky),
+  with two rows: **Code** (`code/`, listed by `ModCode.Files` - the csproj and sources, not
+  `bin/`/`obj/`) and **Scenes** (`scenes/<map>.json`, `ProjectScenes.Maps` with attachment and
+  point counts). Both are libraries like the others: `state.browse` of `code` and `scene`,
+  inspected and opened the same way. Code files open in `code-editor.js` - a `<pre>` behind a
+  transparent `<textarea>` with the same metrics, as the script editor does, with a C#/JSON/XML
+  tokenizer, line numbers, Tab/Shift+Tab, Ctrl+S; the original line ending is kept (the textarea
+  normalises to LF, which used to flag a freshly opened file as unsaved). Routes:
+  `/api/project/files`, `/api/project/file[/save|/new|/open]`, all through `ModCode.Resolve`,
+  which refuses anything outside `code/` and `scenes/`. `dotnet build`'s output is parsed into
+  problems (file, line, column, code, message); the strip lists them and a click lands on the
+  line. A scene opens the **map editor** on its map (`openScene`: switch to the project's OpenFF
+  workspace, clear the map list so it reloads, `openDoc('map', ...)`); *Open as JSON* in the
+  inspector is the text. Maps with a scene carry a mark in the Maps library.
+- **A target is a game and a kind.** `Targets` gained `oursff4` (FF4 content in an OpenFF mod)
+  beside `ours`, and `GameOf`/`KindOf`/`For`; labels read *FF3 in OpenFF*, *FF4 on Steam*. The
+  New project and Project settings dialogs are a grid, games down, kinds across (OpenFF mod:
+  "plays in the OpenFF client; may use both games; can carry C# code"; Steam mod: "files copied
+  into the Steam game with Project ▸ Install"); with both games installed the default is both
+  under OpenFF. An OpenFF target is never *installable* (`Session.Installable`), so Install /
+  Remove leave the menu for it and `/api/mod/status` says why. With no project open, sessions
+  are one per install (the OpenFF and Steam targets of a game read the same folder;
+  `Targets.All` puts Steam first so that is the one shown).
+- **The tabs are games again.** FF3, FF4 - a filter on whose libraries the panel shows. The
+  kind appears as a subtitle only when a game is open twice (an OpenFF and a Steam target).
+  A greyed tab (installed, not targeted) opens Project settings.
+- **One mod, both games.** Export to OpenFF writes `ff3/files/` and `ff4/files/`, one per OpenFF
+  target the project has, and clears an older export's folders first (the pre-07 layout put
+  FF3's edits in `files/`). `ModsFolder.Mod.FilesDirectories(game)` yields the game's folder and
+  then `files/`; `GameArchive.ModsFolderOverrides` applies them in that order, `Conflicts` takes
+  the game so an FF3 name and the same FF4 name never meet. `--project=<dir>` reads the booted
+  game's target folder (`GameArchive.ProjectFiles`, from the project's own target list). The
+  README names which folder is which game. `ContentChain.GameOf(root)` tells the two apart by
+  the mass files. ff3-boot passed with a probe mod carrying both folders, and each game took
+  only its own.
+- **The tree is resizable**: a fourth splitter (`data-split="tree"`, 110..400px, kept
+  in localStorage). The splitters carry `role="separator"` now; `setPointerCapture` is guarded
+  and the move/up listeners sit on `document`, so a drag that leaves the bar still ends.
+- Open: `SceneTest`'s Code row lists the `.gitignore` too - harmless, but a filter on what is
+  a source may come. The tree's Scenes count is the project's, not the current game's.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

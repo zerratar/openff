@@ -12,6 +12,26 @@
 
 let projectState = { project: null, targets: [], mod: null, workspaces: [], active: null, missing: {}, available: [] };
 
+// A target is a game and a kind of mod at once: ours = FF3 in OpenFF, oursff4 = FF4 in
+// OpenFF, steam = FF3 on Steam, ff4steam = FF4 on Steam. The page shows the two apart -
+// the tabs above the libraries are games; the kind is the project's.
+const OURS = ['ours', 'oursff4'];
+function isOursTarget(target) { return OURS.includes(target); }
+function gameOfTarget(target) { return target === 'oursff4' || target === 'ff4steam' ? 'ff4' : 'ff3'; }
+function kindOfTarget(target) { return isOursTarget(target) ? 'openff' : 'steam'; }
+function targetFor(game, kind) {
+  return kind === 'openff' ? (game === 'ff4' ? 'oursff4' : 'ours') : (game === 'ff4' ? 'ff4steam' : 'steam');
+}
+/// Whether the project makes an OpenFF mod: it has an OpenFF target (code, scenes, export
+/// to the client all hang off this).
+function isOpenFFProject(project = projectState.project) {
+  return !!project && (project.targets || []).some(isOursTarget);
+}
+/// The OpenFF workspaces open right now (for a scene file, the game it is opened under).
+function oursWorkspaces() {
+  return (projectState.workspaces || []).filter(w => isOursTarget(w.target));
+}
+
 // ------------------------------------------------------------------ the menu bar
 
 /// Builds one menu. `items` are {label, run, checked, disabled, note} or the string '-'.
@@ -105,11 +125,23 @@ function drawMenuBar() {
     { label: 'Show project folder', run: () => revealProject(), disabled: !open },
   ]));
 
-  // One entry per game the project has open. With one game it reads as it always
-  // did; with two, each line says which game it means.
+  // The Steam side: one install/remove pair per Steam copy the project has open. With
+  // one it reads as it always did; with two, each line says which game it means. The
+  // OpenFF side has nothing to install - the client plays the export - so it gets its
+  // own lines, with the games it covers.
   const many = projectState.workspaces.length > 1;
+  const steamOpen = projectState.workspaces.filter(w => !isOursTarget(w.target));
+  const oursOpen = oursWorkspaces();
   const items = [];
-  for (const w of projectState.workspaces) {
+  if (open && oursOpen.length) {
+    const games = oursOpen.map(w => w.game.toUpperCase()).join(' + ');
+    items.push({ heading: `OpenFF mod · ${games}` });
+    items.push({ label: 'Export to OpenFF…', run: exportToOpenFF,
+      note: `Writes the mod into the client's mods folder: ${oursOpen.map(w => w.game + '/files').join(', ')}, the code and the scenes` });
+    items.push({ label: 'Run in OpenFF', run: runInOpenFF, disabled: !open.client,
+      note: open.client ? 'Export and start the client (a running client hot-reloads)' : 'No OpenFF client found: build OpenFF or start OpenFF.exe once' });
+  }
+  for (const w of steamOpen) {
     const mod = projectState.mods[w.target];
     const suffix = many ? ` — ${w.label}` : '';
     if (many) items.push({ heading: w.label });
@@ -218,34 +250,57 @@ function errorLine(parent) {
   return line;
 }
 
-/// A row per game: a checkbox, the game's name, and where it was found (or that it
-/// was not). Returns a function giving the checked target names.
+/// The games and the kinds of mod as a grid: a row per game (FF3, FF4), a column per
+/// kind (an OpenFF mod the client plays; a Steam mod copied into the Steam game), and
+/// in each cell a checkbox with where that content was found (or that it was not). A
+/// project may tick any of the four; each tick is one target. Returns a function
+/// giving the checked target names.
 function gameRows(parent, checked) {
-  const list = document.createElement('div');
-  list.className = 'dialog-list';
+  const grid = document.createElement('div');
+  grid.className = 'dialog-matrix';
+  const head = (text, note) => {
+    const cell = document.createElement('div');
+    cell.className = 'matrix-head';
+    const b = document.createElement('b');
+    b.textContent = text;
+    cell.append(b);
+    if (note) {
+      const s = document.createElement('span');
+      s.textContent = note;
+      cell.append(s);
+    }
+    grid.append(cell);
+  };
+  head('');
+  head('OpenFF mod', 'plays in the OpenFF client; may use both games; can carry C# code');
+  head('Steam mod', 'files copied into the Steam game with Project ▸ Install');
   const boxes = [];
-  for (const target of projectState.targets) {
-    const row = document.createElement('label');
-    row.className = 'dialog-game' + (target.content ? '' : ' missing');
-    const box = document.createElement('input');
-    box.type = 'checkbox';
-    box.checked = checked.includes(target.name) && !!target.content;
-    box.disabled = !target.content;
-    row.classList.toggle('checked', box.checked);
-    box.onchange = () => row.classList.toggle('checked', box.checked);
-    const what = document.createElement('div');
-    what.className = 'what';
-    const name = document.createElement('b');
-    name.textContent = target.label;
-    const where = document.createElement('span');
-    where.textContent = target.content || 'not found on this machine';
-    where.title = target.content || '';
-    what.append(name, where);
-    row.append(box, what);
-    boxes.push({ box, name: target.name });
-    list.append(row);
+  for (const game of ['ff3', 'ff4']) {
+    const label = document.createElement('div');
+    label.className = 'matrix-game';
+    label.textContent = game.toUpperCase();
+    grid.append(label);
+    for (const kind of ['openff', 'steam']) {
+      const name = targetFor(game, kind);
+      const target = projectState.targets.find(t => t.name === name) || { name, content: null };
+      const cell = document.createElement('label');
+      cell.className = 'dialog-game matrix-cell' + (target.content ? '' : ' missing');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = checked.includes(name) && !!target.content;
+      box.disabled = !target.content;
+      cell.classList.toggle('checked', box.checked);
+      box.onchange = () => cell.classList.toggle('checked', box.checked);
+      const where = document.createElement('span');
+      where.className = 'where';
+      where.textContent = target.content || 'not found on this machine';
+      where.title = target.content ? `${describeTarget(name)} · ${target.content}` : describeTarget(name);
+      cell.append(box, where);
+      boxes.push({ box, name });
+      grid.append(cell);
+    }
   }
-  parent.append(list);
+  parent.append(grid);
   return () => boxes.filter(b => b.box.checked).map(b => b.name);
 }
 
@@ -260,14 +315,20 @@ function newProjectDialog() {
   const description = field(body, 'Description', '',
     { multiline: true, placeholder: 'What the mod does. Ends up in the README when you export.' });
 
-  section(body, 'For which games');
-  const picked = gameRows(body, ['steam']);
+  section(body, 'What kind of mod, for which games');
+  // An OpenFF mod of both games when the client's content is here, else a Steam mod of
+  // whatever is installed - the choice most people open the editor for.
+  const found = name => (projectState.targets.find(t => t.name === name) || {}).content;
+  const preset = found('ours') ? ['ours', 'oursff4'].filter(found)
+    : ['steam', 'ff4steam'].filter(found);
+  const picked = gameRows(body, preset);
 
   const note = document.createElement('p');
   note.className = 'dialog-note';
-  note.textContent = 'A project is a folder: project.json plus the files you edit. Targeting both '
-    + 'games opens them side by side, each with its own edits - the two name their files '
-    + 'alike, so they are kept apart.';
+  note.textContent = 'A project is a folder: project.json plus the files you edit. An OpenFF mod '
+    + 'is played by the OpenFF client from its mods folder and may take from both games; a '
+    + 'Steam mod is the game\'s own files, replaced. Each game opens as a tab above the '
+    + 'libraries with its own edits - the two name their files alike, so they are kept apart.';
   body.append(note);
 
   const problem = errorLine(body);
@@ -360,7 +421,7 @@ function projectSettingsDialog() {
   body.append(columns);
   const description = field(body, 'Description', open.description || '', { multiline: true });
 
-  section(body, 'Games');
+  section(body, 'What kind of mod, for which games');
   const picked = gameRows(body, open.targets || []);
   for (const [target, why] of Object.entries(projectState.missing || {})) {
     const warn = document.createElement('p');
@@ -968,8 +1029,8 @@ async function drawStartPage() {
     ['Browse', ' the libraries in the panel below - maps, scripts, text, tables, models, sound. Click to inspect, double-click to open.'],
     ['Edit and save.', ' Every save goes into the project, never into the game.'],
     ['Project ▸ Install', ' copies the edits into the game and keeps the originals; Remove puts them back.'],
-    ['Two games', ' can be open at once; the tabs above the libraries switch between them, and every document tab says which game it is.'],
-    ['OpenFF mod', ', at the bottom of the tree, is the project\'s own: its C# code and scene files. Open them here, or in your IDE; Build compiles them.'],
+    ['FF3 and FF4', ' are the tabs above the libraries: whose content the panel shows. An OpenFF mod may open both and take from either; every document tab says which game it is.'],
+    ['OpenFF mod', ', at the bottom of the tree, is the project\'s own: its C# code, and the maps it puts behaviours on. Open them here, or in your IDE; Build compiles; Export to OpenFF writes the mod.'],
     ['Export as .zip', ' packs the project with a README - what you upload.'],
   ]) {
     const li = document.createElement('li');

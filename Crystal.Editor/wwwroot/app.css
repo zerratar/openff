@@ -378,9 +378,9 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
 .bottom-page.on { display: flex; }
 
 #project-tree {
-  width: 160px;
-  flex: 0 0 160px;
-  border-right: 1px solid var(--line);
+  width: var(--tree, 160px);
+  flex: 0 0 var(--tree, 160px);
+  min-width: 0;
   padding: 4px 0;
   /* A column, so the mod folder can sit at the bottom edge whatever the height. */
   display: flex;
@@ -400,8 +400,11 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
 }
 #project-tree .tree-rule { border-top: 1px solid var(--line); margin: 6px 8px 4px; }
 #project-tree .row.mod > span { flex: 0 0 auto; }
-#project-tree .row.mod i { margin-left: auto; padding-right: 6px; flex: 0 1 auto; min-width: 0; }
+#project-tree .row.mod i, #project-tree .row.sub i { margin-left: auto; padding-right: 8px; flex: 0 1 auto; min-width: 0; font-size: 10px; }
 #project-tree .row.mod .icon { color: #d7b96a; }
+#project-tree .row.mod.open { color: var(--ink); }
+/* The folder's contents, indented under it. */
+#project-tree .row.sub { padding-left: 26px; }
 
 #project-side { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
@@ -1373,6 +1376,17 @@ table.parts tr.hidden-part td { color: #d98080; }
 #files.grid li.overridden::after { content: none; }
 #files.grid li.overridden > span::after { content: " *"; color: var(--mark); }
 
+/* A map the mod has a scene file for: a word in the list, a dot in the grid. */
+#files li .scene-mark {
+  font-style: normal; font-size: 10px; color: #d7b96a; border: 1px solid rgba(215, 185, 106, .45);
+  border-radius: 4px; padding: 0 4px; margin-left: auto; flex: 0 0 auto;
+}
+#files.grid li .scene-mark {
+  position: absolute; top: 6px; right: 8px; width: 7px; height: 7px; padding: 0; margin: 0;
+  border-radius: 50%; background: #d7b96a; border: none;
+}
+#files.grid li { position: relative; }
+
 /* --------------------------------------------------------- the status line */
 
 #statusbar {
@@ -1785,16 +1799,18 @@ header h1 .gem {
 
    A tab per game at the top of the project panel, and a badge on each document tab. */
 
-.ws-tabs { display: flex; gap: 4px; padding: 6px 8px 4px; border-bottom: 1px solid var(--line); }
+.ws-tabs { display: flex; gap: 4px; padding: 6px 8px 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .ws-tab {
-  flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 0;
   background: none; border: 1px solid var(--line); border-radius: 6px;
-  padding: 4px 8px; color: var(--dim); cursor: pointer; font: inherit; text-align: left;
+  padding: 4px 6px; color: var(--dim); cursor: pointer; font: inherit; text-align: center;
 }
 .ws-tab b { font-size: 12px; letter-spacing: .06em; }
 .ws-tab span { font-size: 10px; opacity: .8; }
 .ws-tab:hover { color: var(--ink); border-color: var(--accent); }
-.ws-tab.off { opacity: 0.38; cursor: not-allowed; }
+.ws-tab.off { opacity: 0.38; }
+.ws-tab.off:disabled { cursor: not-allowed; }
+.ws-tab.off:not(:disabled):hover { opacity: .7; }
 .ws-tab.on { color: var(--ink); background: #232c3a; border-color: var(--accent); }
 .ws-tab.ff4.on { border-color: #d9a441; background: #33291a; }
 .doc-tab .ws {
@@ -1859,6 +1875,17 @@ header h1 .gem {
 .dialog-game .what { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .dialog-game .what b { font-size: 13px; font-weight: 500; }
 .dialog-game .what span { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Games down, kinds of mod across: each cell is one target. */
+.dialog-matrix {
+  display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 8px; align-items: stretch;
+}
+.dialog-matrix .matrix-head { display: flex; flex-direction: column; gap: 1px; padding: 0 2px 2px; min-width: 0; }
+.dialog-matrix .matrix-head b { font-size: 13px; font-weight: 500; }
+.dialog-matrix .matrix-head span { font-size: 11px; color: var(--dim); line-height: 1.35; }
+.dialog-matrix .matrix-game { display: flex; align-items: center; font-weight: 600; font-size: 13px; padding: 0 4px; }
+.dialog-matrix .matrix-cell { min-width: 0; }
+.dialog-matrix .matrix-cell .where { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.dialog-matrix .matrix-cell.checked .where { color: var(--ink); }
 .dialog-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .dialog-actions .grow { flex: 1; }
 .dialog-error { margin: 0; font-size: 12px; color: var(--bad); min-height: 1em; }

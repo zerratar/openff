@@ -85,13 +85,18 @@ namespace Crystal.Editor
 			foreach (string target in Targets.All)
 			{
 				string found = Targets.Find(target);
-				if (found != null && string.Equals(Path.GetFullPath(found).TrimEnd(Path.DirectorySeparatorChar),
-					workspace.ContentDirectory.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+				if (found != null && SameDirectory(found, workspace.ContentDirectory))
 				{
 					return target;
 				}
 			}
 			return "content";
+		}
+
+		private static bool SameDirectory(string a, string b)
+		{
+			return string.Equals(Path.GetFullPath(a).TrimEnd(Path.DirectorySeparatorChar),
+				Path.GetFullPath(b).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
@@ -109,8 +114,11 @@ namespace Crystal.Editor
 					continue;
 				}
 				string found = Targets.Find(target);
-				if (found == null)
+				if (found == null || _sessions.Values.Any(s => SameDirectory(s.Workspace.ContentDirectory, found)))
 				{
+					// Not there, or that install is open already under another target's
+					// name (FF4 in OpenFF and FF4 on Steam read the same folder): with no
+					// project, one tab per game is the point.
 					continue;
 				}
 				try
@@ -349,11 +357,14 @@ namespace Crystal.Editor
 							target = name,
 							label = _sessions[name].Label,
 							game = _sessions[name].Game,
+							// "openff" or "steam": what becomes of the edits. An install
+							// opened without a project is browsed, and reads as Steam's.
+							mod = Targets.KindOf(name),
 							files = _sessions[name].Workspace.FileCount,
 							kind = _sessions[name].Workspace.Kind,
 							contentDirectory = _sessions[name].Workspace.ContentDirectory,
 							overrides = _sessions[name].Workspace.OverrideDirectory,
-							installable = _sessions[name].Workspace.Installable
+							installable = _sessions[name].Installable
 						}).ToList(),
 						missing = _missing,
 						// Every game this machine has, open or not, so the page can show a
@@ -362,7 +373,8 @@ namespace Crystal.Editor
 						{
 							target = name,
 							label = Targets.Describe(name),
-							game = name == Targets.Ff4Steam ? "ff4" : "ff3",
+							game = Targets.GameOf(name),
+							mod = Targets.KindOf(name),
 							found = Targets.Find(name) != null,
 							open = _order.Contains(name, StringComparer.OrdinalIgnoreCase)
 						}).ToList(),
@@ -471,20 +483,28 @@ namespace Crystal.Editor
 					{
 						name,
 						label = Targets.Describe(name),
+						game = Targets.GameOf(name),
+						mod = Targets.KindOf(name),
 						content = Targets.Find(name)
 					}).ToList());
 					return;
 
 				case "/api/mod/status":
-					SendJson(context, ModInstall.Status(_workspace));
+					SendJson(context, Current.Installable
+						? ModInstall.Status(_workspace)
+						: ModInstall.NotInstallable(_workspace, "an OpenFF mod is played by the client from the project - nothing to install; Export to OpenFF puts it in the mods folder"));
 					return;
 
 				case "/api/mod/install":
-					SendJson(context, ModInstall.Install(_workspace));
+					SendJson(context, Current.Installable
+						? ModInstall.Install(_workspace)
+						: new ModResult { Ok = false, Error = "this is the OpenFF side of the project; the client reads it, nothing is installed" });
 					return;
 
 				case "/api/mod/uninstall":
-					SendJson(context, ModInstall.Uninstall(_workspace));
+					SendJson(context, Current.Installable
+						? ModInstall.Uninstall(_workspace)
+						: new ModResult { Ok = false, Error = "this is the OpenFF side of the project; nothing was installed" });
 					return;
 
 				case "/api/mod/revert":
@@ -1482,7 +1502,11 @@ namespace Crystal.Editor
 			string map = Query(context, "map");
 			if (string.IsNullOrWhiteSpace(map))
 			{
-				SendJson(context, new { ok = true, maps = ProjectScenes.Maps(_project).Select(m => new { map = m.Key, attachments = m.Value }) });
+				SendJson(context, new
+				{
+					ok = true,
+					maps = ProjectScenes.Maps(_project).Select(m => new { map = m.Map, attachments = m.Attachments, points = m.Points, bytes = m.Bytes, modified = m.Modified })
+				});
 				return;
 			}
 			try
@@ -1570,9 +1594,10 @@ namespace Crystal.Editor
 			try
 			{
 				string directory = ProjectExport.WriteToOpenFF(_project, mods);
-				int files = Directory.Exists(Path.Combine(directory, "files"))
-					? Directory.EnumerateFiles(Path.Combine(directory, "files"), "*", SearchOption.AllDirectories).Count()
-					: 0;
+				// The files per game (ff3/files, ff4/files) and any in the shared files/.
+				int files = OpenFF.Content.ModsFolder.Games.Select(g => Path.Combine(directory, g, "files")).Append(Path.Combine(directory, "files"))
+					.Where(Directory.Exists)
+					.Sum(folder => Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).Count());
 				SendJson(context, new { ok = true, path = directory, files, mods });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
@@ -1827,7 +1852,7 @@ namespace Crystal.Editor
 			List<string> names = (ReadBody(context)?["names"] as JsonArray)?
 				.Select(n => (string)n).Where(s => s != null).ToList()
 				?? new List<string>();
-			ModResult result = ModInstall.Revert(_workspace, names);
+			ModResult result = ModInstall.Revert(_workspace, names, Current.Installable);
 			if (result.Reverted.Count > 0)
 			{
 				// A reverted .msd puts the shipped line back, and the views that show
@@ -1846,7 +1871,7 @@ namespace Crystal.Editor
 			// Through ModInstall rather than the workspace directly: if this edit had
 			// been installed, deleting it here alone would leave the game still holding
 			// it, and the file would look reverted everywhere except where it matters.
-			ModResult result = ModInstall.Revert(_workspace, new[] { name });
+			ModResult result = ModInstall.Revert(_workspace, new[] { name }, Current.Installable);
 			_messages.Invalidate();
 			_flags.Invalidate();
 			_characterIds.Invalidate();

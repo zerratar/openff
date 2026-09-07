@@ -30,22 +30,36 @@ namespace Crystal.Editor
 			return Path.Combine(Directory(project), map + ".json");
 		}
 
-		/// <summary>The maps with a scene file, and how many attachments each has.</summary>
-		public static List<KeyValuePair<string, int>> Maps(Project project)
+		/// <summary>One scene file, as the project panel lists it.</summary>
+		public sealed class Summary
 		{
-			List<KeyValuePair<string, int>> maps = new List<KeyValuePair<string, int>>();
+			public string Map { get; set; }
+			public int Attachments { get; set; }
+			public int Points { get; set; }
+			public long Bytes { get; set; }
+			public DateTime Modified { get; set; }
+		}
+
+		/// <summary>The maps with a scene file, and how many attachments and points each has.</summary>
+		public static List<Summary> Maps(Project project)
+		{
+			List<Summary> maps = new List<Summary>();
 			string directory = Directory(project);
 			if (!System.IO.Directory.Exists(directory)) return maps;
 			foreach (string file in System.IO.Directory.EnumerateFiles(directory, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
 			{
-				int count = 0;
+				Summary summary = new Summary { Map = Path.GetFileNameWithoutExtension(file) };
 				try
 				{
+					FileInfo info = new FileInfo(file);
+					summary.Bytes = info.Length;
+					summary.Modified = info.LastWriteTime;
 					JsonNode node = JsonNode.Parse(File.ReadAllText(file));
-					count = node?["attachments"] is JsonArray array ? array.Count : 0;
+					summary.Attachments = node?["attachments"] is JsonArray array ? array.Count : 0;
+					summary.Points = node?["points"] is JsonArray points ? points.Count : 0;
 				}
 				catch (Exception) { }
-				maps.Add(new KeyValuePair<string, int>(Path.GetFileNameWithoutExtension(file), count));
+				maps.Add(summary);
 			}
 			return maps;
 		}

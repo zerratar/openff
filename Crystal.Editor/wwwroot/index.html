@@ -43,7 +43,7 @@
       <ul id="hierarchy" class="tree"></ul>
     </aside>
 
-    <div class="splitter vertical" data-split="left"></div>
+    <div class="splitter vertical" data-split="left" role="separator" aria-orientation="vertical" aria-label="resize the hierarchy"></div>
 
     <section id="centre">
       <div id="doc-area"></div>
@@ -52,7 +52,7 @@
       <div id="split-hint">drop here to split</div>
     </section>
 
-    <div class="splitter vertical" data-split="right"></div>
+    <div class="splitter vertical" data-split="right" role="separator" aria-orientation="vertical" aria-label="resize the inspector"></div>
 
     <aside id="inspector-panel" class="panel">
       <div class="panel-head"><span>Inspector</span></div>
@@ -61,7 +61,7 @@
 
   </div>
 
-  <div class="splitter horizontal" data-split="bottom"></div>
+  <div class="splitter horizontal" data-split="bottom" role="separator" aria-orientation="horizontal" aria-label="resize the project panel"></div>
 
   <div id="lower">
     <div id="bottom-tabs">
@@ -71,6 +71,7 @@
     <div id="bottom-body">
       <div class="bottom-page on" id="project" data-page="project">
         <div id="project-tree" class="tree"></div>
+        <div class="splitter vertical" data-split="tree" role="separator" aria-orientation="vertical" aria-label="resize the project tree"></div>
         <div id="project-side">
           <div id="project-bar">
             <input id="filter" type="search" placeholder="filter" autocomplete="off">

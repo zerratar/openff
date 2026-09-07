@@ -132,14 +132,8 @@ namespace Crystal.Editor
 					entries.Add(entry);
 				}
 			}
-			string scenes = ProjectScenes.Directory(project);
-			if (Directory.Exists(scenes))
-			{
-				foreach (string file in Directory.EnumerateFiles(scenes, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
-				{
-					entries.Add(Describe(project, file, readOnly: false));
-				}
-			}
+			// The scene files are listed under Scenes, where each opens its map; their JSON
+			// still reads and saves through ReadText/WriteText (Resolve allows scenes/).
 			return entries;
 		}
 

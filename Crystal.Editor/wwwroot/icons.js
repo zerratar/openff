@@ -62,6 +62,11 @@ const ICONS = {
   code: '<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/>'
       + '<path d="M6 9.2h4.2M6 11.4h4.2M7.3 8v4.6M8.9 8v4.6"/>',
 
+  // A map with a pin on it: a scene file, the mod's behaviours placed on a map.
+  scene: '<path d="M1.6 4.7 5.6 3.2l4.8 1.7 4-1.5v8.9l-4 1.5-4.8-1.7-4 1.5z"/>'
+       + '<path d="M5.6 3.2v8.9M10.4 4.9v8.9"/>'
+       + '<circle cx="12.2" cy="3.6" r="1.9"/><path d="M12.2 5.5v3"/>',
+
   // ------------------------------------------------------------ inside a map
 
   // Layered ground.

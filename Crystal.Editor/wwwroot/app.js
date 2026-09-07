@@ -85,6 +85,15 @@ async function loadList() {
   } else if (state.browse === 'map') {
     const maps = await api('/api/maps');
     state.files = maps.map(name => ({ name, overridden: false }));
+    // The maps the mod has put behaviours or points on carry a mark, so the two lists -
+    // the game's maps here, the mod's scenes in its folder - are visibly the same maps.
+    if (typeof isOpenFFProject === 'function' && isOpenFFProject()) {
+      const scenes = await api('/api/project/scene').catch(() => null);
+      const marked = new Set(scenes && scenes.ok ? (scenes.maps || []).map(s => s.map.toLowerCase()) : []);
+      for (const file of state.files) {
+        if (marked.has(file.name.toLowerCase())) { file.scene = true; file.note = 'has a scene file: behaviours or points from this mod'; }
+      }
+    }
   } else if (state.browse === 'audio') {
     // Sounds are not archive entries - they are XNBs beside the game - so the list
     // comes from somewhere else and carries more with it.
@@ -98,6 +107,17 @@ async function loadList() {
     state.files = (state.codeTree.files || []).map(f => ({
       name: f.name, overridden: Boolean(f.stale), kind: f.kind, readOnly: f.readOnly,
       note: f.stale ? 'changed since the last build' : ''
+    }));
+  } else if (state.browse === 'scene') {
+    // The maps the mod has put behaviours or points on: scenes/<map>.json each. Listed
+    // by map name; opening one opens the map itself, with the mod's additions on it.
+    const scenes = await api('/api/project/scene');
+    state.scenes = scenes.ok ? (scenes.maps || []) : [];
+    state.scenesError = scenes.ok ? '' : scenes.error;
+    state.files = state.scenes.map(s => ({
+      name: s.map, overridden: false, attachments: s.attachments, points: s.points,
+      note: [s.attachments && `${s.attachments} behaviour${s.attachments === 1 ? '' : 's'}`,
+        s.points && `${s.points} point${s.points === 1 ? '' : 's'}`].filter(Boolean).join(', ')
     }));
   } else {
     state.files = await api(`/api/list?kind=${state.browse}`);
@@ -133,6 +153,13 @@ function drawList() {
       ? shortName(file.name).replace(/\.(nmdp\.lz|lz|NCER|NSCR|hich|script|pak|msd|xbn)$/i, '')
       : file.name;
     item.append(label);
+    if (file.scene) {
+      const mark = document.createElement('i');
+      mark.className = 'scene-mark';
+      mark.textContent = fileView === 'grid' ? '' : 'scene';
+      mark.title = 'this mod puts behaviours or points on it';
+      item.append(mark);
+    }
     item.title = file.name + (file.note ? `  (${file.note})` : '');
     item.dataset.name = file.name;
     if (state.thumbWatcher) {
@@ -168,9 +195,24 @@ function drawList() {
     const note = document.createElement('li');
     note.className = 'note';
     const tree = state.codeTree || {};
+    const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
     note.textContent = !tree.project
-      ? 'No project open. File ▸ New project… makes one; its C# code and scene files show here.'
-      : `${tree.project} has no C# code yet. Add C# code (the button above, or the File menu) writes a project and a starting class.`;
+      ? 'No project open. File ▸ New project… makes one; its C# code shows here.'
+      : !openff
+        ? `${tree.project} is a Steam mod - the game's files, replaced - and a Steam game runs no mod code. Tick FF3 or FF4 under OpenFF in Project settings and C# code can be added.`
+        : `${tree.project} has no C# code yet. Add C# code (the button above, or the File menu) writes a project and a starting class.`;
+    list.append(note);
+  }
+  if (state.browse === 'scene' && !list.childElementCount && !filter) {
+    const note = document.createElement('li');
+    note.className = 'note';
+    const project = typeof projectState !== 'undefined' && projectState.project;
+    const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
+    note.textContent = state.scenesError && !project
+      ? 'No project open. File ▸ New project… makes one; the maps its mod puts behaviours on show here.'
+      : !openff
+        ? `${project.name} is a Steam mod: behaviours and points are the OpenFF client's, so a Steam game has none. Tick FF3 or FF4 under OpenFF in Project settings.`
+        : 'No scenes yet. Open a map, select an object and add a behaviour from its inspector (Behaviours (OpenFF)), or place a point; the map appears here once saved.';
     list.append(note);
   }
 
@@ -179,6 +221,7 @@ function drawList() {
 
 /// The mark a file gets in the list: the library's, or for the mod folder its own kind.
 function fileIcon(file) {
+  if (state.browse === 'scene') return 'scene';
   if (state.browse !== 'code') return state.browse;
   if (file.kind === 'cs' || file.kind === 'csproj') return 'code';
   if (file.kind === 'json') return 'logic';

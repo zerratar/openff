@@ -19,7 +19,7 @@ starts, and undoing one is deleting a file.
 | Option | Default | |
 | --- | --- | --- |
 | `--project=<name>` | none | the mod to edit; made if it does not exist |
-| `--target=ours\|steam` | the project's own | which game to edit against |
+| `--target=ours\|oursff4\|steam\|ff4steam` | the project's own | which game to open first |
 | `--content=<dir>` | `Content`, else a Steam install | a directory holding `data000.bin`, or a game install |
 | `--override=<dir>` | see below | where edits are written |
 | `--language=<code>` | `en` | which language the dialogue is read as |
@@ -65,23 +65,38 @@ each folder is for, and how to install it - with Crystal, or by hand for loose f
 
 ### Targets
 
-There are two games, so a project says which it is for, and may say both:
+A project is one of two kinds of mod, for one game or both. The New project and Project
+settings dialogs show that as a grid - the games down the side, the kinds across the top:
 
-| | content it opens | how a change is tested |
+| | what it is | how a change is tested |
 | --- | --- | --- |
-| `ours` | `Content` and its archives | nothing to do - our build reads the project directly, with `--content-override=<project>/files` |
-| `steam` | the install's `files/` | **Project ▸ Install into the game**, which copies in and keeps the originals |
+| **OpenFF mod** (`ours`, `oursff4`) | a folder the OpenFF client loads from `mods/`; may carry C# code and scenes | **Project ▸ Export to OpenFF** or **Run in OpenFF**; nothing is installed into any game |
+| **Steam mod** (`steam`, `ff4steam`) | the game's own files, replaced | **Project ▸ Install into the game**, which copies in and keeps the originals |
+
+A target is a game and a kind; `Targets.GameOf` and `Targets.KindOf` read them apart, and
+the labels say both: *FF3 in OpenFF*, *FF4 on Steam*. An OpenFF target opens the same
+content as the Steam target of that game (the client plays the Steam installs, and a
+`Content` folder of our own when there is one), so ticking both games under OpenFF is the
+normal thing to do: the mod can then take a model from FF4 and a sound from FF3, and the
+client applies each game's edits only when that game is played (`ff3/files/`, `ff4/files/`
+in the export). Nothing stops a project from being both an OpenFF mod and a Steam mod of
+the same game, but the two never share edits, because a Steam install and an OpenFF mod
+are not the same place.
 
 ### Two games at once
 
 A project with two targets opens both. The server keeps a *session* per target - a
 workspace and the indexes built over it - and every request says which one it means
 with `?ws=<target>` (`api()` and `wsUrl()` add it; nothing in the page builds an API URL
-without them). The project panel gets a tab per game above the libraries; each document
-tab carries an FF3 or FF4 badge; the address bar becomes `#/<target>/maps/d01_01`.
-Focusing a document makes its game current for the inspector, the file list and the
-next thing opened. **Project ▸ Install / Remove** is per game, and the *default game*
-under the same menu is only what the command line opens first.
+without them). The project panel gets a tab per **game** above the libraries - FF3, FF4 -
+which is a filter over whose content the panel shows, no more; the kind appears under the
+game's name only when the same game is open twice (an OpenFF and a Steam target at once).
+Each document tab carries an FF3 or FF4 badge; the address bar becomes
+`#/<target>/maps/d01_01`. Focusing a document makes its game current for the inspector,
+the file list and the next thing opened. **Project ▸ Install / Remove** is per game, and
+the *default game* under the same menu is only what the command line opens first. With
+no project open, the panel shows every installed game once, live, as if a project
+targeted all of them.
 
 Targeting both is worth it for data - `.pak`, `.msd` and `.script` are largely byte
 identical between the two releases - and wants care for art, which is authored against
@@ -499,8 +514,27 @@ Four panels round a document area, the way a scene editor is laid out:
   a cell's parts, a character's cast. A view holds the thing itself and nothing else.
 - **Project and Console**, bottom - the libraries as a tree with their files beside
   them, and a running record of everything the status line has said. The files show
-  either one per line or as a wrapped grid of icons; which one is remembered. The three
-  bars between the panels drag, and their sizes are remembered too.
+  either one per line or as a wrapped grid of icons; which one is remembered. The four
+  bars between the panels drag - the three round the document area and the one between
+  the tree and its file list - and their sizes are remembered too.
+
+  The tree ends with the **OpenFF mod** folder, pinned to the bottom so it never scrolls
+  away: the project's own things, as against the games' libraries above it. It has two
+  rows - **Code**, the C# project's files (`code/`, with the `.csproj` and anything the
+  build leaves out of `bin/` and `obj/`), and **Scenes**, the maps the project has put
+  behaviours or points on (`scenes/<map>.json`). Both list like any library: click to
+  inspect, double-click to open. A code file opens in a text pane with line numbers,
+  colouring, Tab/Shift+Tab, Ctrl+S, and an unsaved mark; line endings are kept as found.
+  A scene opens the **map editor** on that map - the 3D view, its characters and exits,
+  the behaviours and points, everything a map has - because a scene is a map with extras,
+  not a file of its own; the raw JSON is one click away in the inspector (*Open as JSON*).
+  Maps that have a scene carry a small mark in the Maps library too. Above the list a
+  strip of actions follows the row: on Code, **Add C# code** until there is some, then
+  **New file…**, **Build** and **Open in IDE** (whatever opens `.csproj` on the machine),
+  with a build's errors listed under it, each a click to the line; on Scenes, **Export to
+  OpenFF** and **Run in OpenFF**; **Folder** on both. A Steam-only project sees *Make it
+  an OpenFF mod…* instead, which is Project settings - the OpenFF path is the same editor
+  with more in it, not a different one.
 
 A model's inspector lists its **materials**, each with the picture it is painted with and
 its tint and alpha. Seeing the texture beside the material is how a wrongly coloured

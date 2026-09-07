@@ -41,5 +41,12 @@ namespace Crystal.Editor
 
 		/// <summary>What to show a person for this session: "FF3 on Steam".</summary>
 		public string Label => Target == "content" ? Workspace.Game.ToUpperInvariant() : Targets.Describe(Target);
+
+		/// <summary>
+		/// Whether Project ▸ Install may write into this content. The Steam targets, when
+		/// the content is an install; never the OpenFF ones - "oursff4" opens the FF4 Steam
+		/// install to read, but its edits are the client's to play, not the install's.
+		/// </summary>
+		public bool Installable => Workspace.Installable && !Targets.IsOurs(Target);
 	}
 }

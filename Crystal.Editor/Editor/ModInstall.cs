@@ -217,6 +217,30 @@ namespace Crystal.Editor
 			}
 
 			status.CanInstall = true;
+			return Fill(workspace, status);
+		}
+
+		/// <summary>
+		/// The status of a workspace that must not be installed into, whatever its content
+		/// is: an OpenFF mod's FF4 side opens the Steam install to read, and the client
+		/// plays the edits from the project. The edits are still listed.
+		/// </summary>
+		public static ModStatus NotInstallable(Workspace workspace, string why)
+		{
+			return new ModStatus
+			{
+				Kind = workspace.Kind,
+				Content = workspace.ContentDirectory,
+				Override = workspace.OverrideDirectory,
+				Backup = BackupDirectory(workspace),
+				Edited = Edits(workspace),
+				CanInstall = false,
+				Why = why
+			};
+		}
+
+		private static ModStatus Fill(Workspace workspace, ModStatus status)
+		{
 			Dictionary<string, InstalledFile> manifest = Manifest(workspace);
 
 			foreach (string name in status.Edited)
@@ -446,7 +470,7 @@ namespace Crystal.Editor
 		/// uninstall uses, and only then is the edit deleted. Doing just the first half
 		/// is the trap: the file would look reverted everywhere except in the game.
 		/// </summary>
-		public static ModResult Revert(Workspace workspace, IEnumerable<string> names)
+		public static ModResult Revert(Workspace workspace, IEnumerable<string> names, bool mayInstall = true)
 		{
 			ModResult result = new ModResult();
 			List<string> wanted = (names ?? Enumerable.Empty<string>())
@@ -458,7 +482,9 @@ namespace Crystal.Editor
 				return result;
 			}
 
-			bool installable = workspace.Installable;
+			// An OpenFF workspace over a Steam install (mayInstall false) never wrote into
+			// the install, so there is no manifest to consult and none to save.
+			bool installable = workspace.Installable && mayInstall;
 			Dictionary<string, InstalledFile> manifest = installable
 				? Manifest(workspace)
 				: new Dictionary<string, InstalledFile>(StringComparer.OrdinalIgnoreCase);

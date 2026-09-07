@@ -26,10 +26,12 @@ const KINDS = [
   { id: 'model', label: 'Models' },
   { id: 'cell', label: 'Cells' },
   { id: 'audio', label: 'Audio' },
-  // The mod's own files - its C# code, scene files and project.json - sit under a
-  // folder of their own at the bottom, below a rule: they belong to the project, not
-  // to either game, so they are the same whichever game tab is current. Slug: openff.
-  { id: 'code', label: 'OpenFF', mod: true }
+  // The mod's own files sit under a folder of their own at the bottom, below a rule:
+  // they belong to the project, not to either game, so they are the same whichever
+  // game tab is current. Code is the C# (and project.json, the csproj); Scenes are the
+  // maps the mod has put behaviours or points on - each opens the map editor.
+  { id: 'code', label: 'Code', mod: true },
+  { id: 'scene', label: 'Scenes', mod: true }
 ];
 
 // ---------------------------------------------------------------- documents
@@ -167,6 +169,7 @@ function moveDoc(doc, group) {
 
 /// Opens an asset. Single clicks ask for a preview; anything else pins it.
 async function openDoc(kind, name, options = {}) {
+  if (kind === 'scene') return openScene(name, options);
   const settings = options === true ? { reload: true } : options;
   const id = docId(kind, name);
   const existing = docs.get(id);
@@ -231,6 +234,32 @@ async function openDoc(kind, name, options = {}) {
   drawHierarchy();
   drawInspector();
   return doc;
+}
+
+/// A scene file is a map with the mod's additions on it, so opening one opens the map -
+/// in the map editor, under an OpenFF game (the current one when it is, else the
+/// project's first), with the panel following to Maps as it does for any map. The file
+/// itself is a click away in the inspector.
+async function openScene(map, options = {}) {
+  const ws = sceneWorkspace();
+  if (ws && ws !== state.ws) {
+    state.ws = ws;
+    if (typeof resetOps === 'function') resetOps();
+  }
+  // The panel follows to Maps; an emptied list makes runView load the maps for it.
+  browseKind = 'map';
+  state.files = [];
+  const doc = await openDoc('map', map, options);
+  drawProjectTree();
+  return doc;
+}
+
+/// The game a scene opens under: the current one if it is an OpenFF one, else the
+/// project's first OpenFF game, else whatever is current.
+function sceneWorkspace() {
+  const ours = typeof oursWorkspaces === 'function' ? oursWorkspaces() : [];
+  if (ours.some(w => w.target === state.ws)) return state.ws;
+  return ours.length ? ours[0].target : state.ws;
 }
 
 /// Changing anything in a document is what turns a preview into a real tab.
@@ -662,6 +691,10 @@ async function inspectAsset(kind, name, options = {}) {
       const file = await api(`/api/project/file?name=${encodeURIComponent(name)}`);
       if (file.ok === false) throw new Error(file.error);
       inspected.data = file;
+    } else if (kind === 'scene') {
+      const scene = await api(`/api/project/scene?map=${encodeURIComponent(name)}`);
+      if (scene.ok === false) throw new Error(scene.error);
+      inspected.data = scene;
     }
   } catch (error) {
     inspected.problem = error.message;
@@ -796,9 +829,20 @@ function drawInspectedAsset(box) {
 
   const open = document.createElement('button');
   open.className = 'wide-button';
-  open.textContent = 'Open';
+  open.textContent = kind === 'scene' ? 'Open map' : 'Open';
+  if (kind === 'scene') open.title = 'The map in the map editor, with the mod\'s behaviours and points on it';
   open.onclick = () => openDoc(kind, name);
   box.append(open);
+
+  // The scene file itself, for reading or a careful edit by hand.
+  if (kind === 'scene') {
+    const json = document.createElement('button');
+    json.className = 'wide-button';
+    json.textContent = 'Open as JSON';
+    json.title = `scenes/${name}.json as text - what Export to OpenFF copies into the mod`;
+    json.onclick = () => openDoc('code', `scenes/${name}.json`);
+    box.append(json);
+  }
 
   // A mod file can go to the machine's own editor as well as to a tab here.
   if (kind === 'code') {
@@ -931,6 +975,16 @@ function inspectedFacts(kind, data) {
     facts.push(['format', data.format]);
   } else if (kind === 'code' && typeof codeFacts === 'function') {
     return codeFacts(data);
+  } else if (kind === 'scene') {
+    facts[0] = ['kind', 'scene file'];
+    facts.push(['map', data.map]);
+    facts.push(['behaviours', (data.attachments || []).length]);
+    facts.push(['points', (data.points || []).length]);
+    const names = [...new Set((data.attachments || []).map(a => a.behaviour).filter(Boolean))];
+    if (names.length) facts.push(['classes', names.join(', ')]);
+    const targets = [...new Set((data.attachments || []).map(a => a.target).filter(Boolean))];
+    if (targets.length) facts.push(['on', targets.join(', ')]);
+    facts.push(['file', `scenes/${data.map}.json`]);
   }
   return facts;
 }
@@ -1207,48 +1261,59 @@ function drawProjectTree() {
   const tree = $('#project-tree');
   tree.textContent = '';
 
-  // A tab per game above the libraries, whenever the machine has more than one. Open
-  // games switch the panel; a game found but not targeted by the open project sits
-  // greyed out with the reason, so nothing disappears just because a project is
-  // FF3-only. With no project every install is open (the server opens them all).
+  // A tab per game above the libraries: FF3, FF4 - a filter on whose content the panel
+  // shows. What kind of mod the edits become (OpenFF or Steam) is the project's affair
+  // and is only written on a tab when the same game is open twice, once each way, as it
+  // is with no project (every install open, the repository's Content beside Steam's
+  // FF3). A game installed but not opened by the project sits greyed out; clicking it
+  // opens the settings, where a tick adds it.
   const open = workspaces();
   const available = (typeof projectState !== 'undefined' && projectState.available) || [];
   const found = available.filter(a => a.found);
-  const closed = found.filter(a => !open.some(w => w.target === a.target));
-  if (open.length + closed.length > 1) {
+  const closedGames = [...new Set(found.map(a => a.game))].filter(g => !open.some(w => w.game === g));
+  if (open.length + closedGames.length > 1) {
     const tabs = document.createElement('div');
     tabs.className = 'ws-tabs';
-    for (const w of open) {
+    const byGame = ['ff3', 'ff4'];
+    const sorted = [...open].sort((a, b) => byGame.indexOf(a.game) - byGame.indexOf(b.game));
+    for (const w of sorted) {
+      const twice = open.filter(o => o.game === w.game).length > 1;
       const tab = document.createElement('button');
       tab.className = 'ws-tab ' + w.game + (w.target === state.ws ? ' on' : '');
       tab.title = `${w.label} · ${w.files} files · ${w.contentDirectory}`;
       const game = document.createElement('b');
       game.textContent = w.game.toUpperCase();
-      const where = document.createElement('span');
-      where.textContent = w.label.replace(/^FF\d\s+/, '');
-      tab.append(game, where);
+      tab.append(game);
+      if (twice) {
+        const where = document.createElement('span');
+        where.textContent = w.mod === 'openff' ? 'OpenFF' : 'Steam';
+        tab.append(where);
+      }
       tab.onclick = () => selectWorkspace(w.target);
       tabs.append(tab);
     }
-    for (const a of closed) {
+    for (const g of closedGames) {
       const tab = document.createElement('button');
-      tab.className = 'ws-tab off ' + a.game;
-      tab.disabled = true;
-      tab.title = `${a.label} is installed, but this project does not target it. File ▸ Project settings… adds it.`;
+      tab.className = 'ws-tab off ' + g;
+      const project = (typeof projectState !== 'undefined' && projectState.project) || null;
+      tab.title = project
+        ? `${g.toUpperCase()} is installed, but this project does not open it. Project settings adds it - as part of the OpenFF mod, or as a Steam mod of its own.`
+        : `${g.toUpperCase()} is installed but could not be opened.`;
       const game = document.createElement('b');
-      game.textContent = a.game.toUpperCase();
-      const where = document.createElement('span');
-      where.textContent = a.label.replace(/^FF\d\s+/, '');
-      tab.append(game, where);
+      game.textContent = g.toUpperCase();
+      tab.append(game);
+      if (project && typeof projectSettingsDialog === 'function') tab.onclick = () => projectSettingsDialog();
+      else tab.disabled = true;
       tabs.append(tab);
     }
     tree.append(tabs);
   }
 
   const project = (typeof projectState !== 'undefined' && projectState.project) || null;
+  const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
   let into = tree;
   for (const kind of KINDS) {
-    if (kind.mod) {
+    if (kind.mod && into === tree) {
       // The mod's own folder, below a rule: it is the project's, not a game's. It
       // sticks to the panel's bottom, so a short panel that scrolls the libraries
       // still shows it - a folder nobody can see is the confusion this is here to end.
@@ -1257,24 +1322,39 @@ function drawProjectTree() {
       const rule = document.createElement('div');
       rule.className = 'tree-rule';
       foot.append(rule);
+      const head = document.createElement('div');
+      head.className = 'row mod' + (KINDS.some(k => k.mod && k.id === browseKind) ? ' open' : '');
+      head.append(icon('mod'));
+      const label = document.createElement('span');
+      label.textContent = 'OpenFF mod';
+      head.append(label);
+      const note = document.createElement('i');
+      if (!project) note.textContent = 'no project';
+      else if (!openff) note.textContent = 'Steam only';
+      if (note.textContent) head.append(note);
+      head.title = !project
+        ? 'The project\'s own files - its C# code and the maps it puts behaviours on. File ▸ New project… makes one.'
+        : !openff
+          ? `${project.name} is a Steam mod: files replaced in the game, no code. Tick FF3 or FF4 under OpenFF in Project settings to make it an OpenFF mod as well.`
+          : `${project.name}: an OpenFF mod - its C# code, and the maps it puts behaviours and points on. ${project.directory}`;
+      head.onclick = () => selectKind('code');
+      foot.append(head);
       tree.append(foot);
       into = foot;
     }
     const row = document.createElement('div');
-    row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod ? ' mod' : '');
-    row.append(icon(kind.mod ? 'mod' : kind.id));
+    row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod ? ' sub' : '');
+    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : 'code') : kind.id));
     const label = document.createElement('span');
-    label.textContent = kind.mod ? 'OpenFF mod' : kind.label;
+    label.textContent = kind.label;
     row.append(label);
-    if (kind.mod) {
-      row.title = project
-        ? `${project.name}: its C# code, scene files and project.json - ${project.directory}`
-        : 'The open project\'s C# code and scene files. File ▸ New project… makes one.';
-      if (!project) {
-        const note = document.createElement('i');
-        note.textContent = 'no project';
-        row.append(note);
-      }
+    if (kind.mod && project && openff) {
+      const count = document.createElement('i');
+      count.textContent = kind.id === 'scene' ? (project.scenes || '') : '';
+      if (count.textContent) row.append(count);
+      row.title = kind.id === 'scene'
+        ? 'Maps this mod has put behaviours or points on (scenes/<map>.json). Each opens in the map editor.'
+        : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
     }
     row.onclick = () => selectKind(kind.id);
     into.append(row);
@@ -1289,10 +1369,11 @@ function drawCodeActions() {
   const strip = $('#code-actions');
   if (!strip) return;
   strip.textContent = '';
-  strip.hidden = browseKind !== 'code';
+  strip.hidden = !KINDS.some(k => k.mod && k.id === browseKind);
   if (strip.hidden) return;
 
   const project = (typeof projectState !== 'undefined' && projectState.project) || null;
+  const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
   const button = (label, title, run, primary) => {
     const b = document.createElement('button');
     b.textContent = label;
@@ -1306,12 +1387,22 @@ function drawCodeActions() {
     button('New project…', 'A project holds the edits, the C# code and the scene files', () => newProjectDialog(), true);
     return;
   }
-  if (!project.code) {
-    button('Add C# code', 'Writes code/<Name>.csproj referencing the OpenFF engine, and a starting class', () => addCode(), true);
+  if (!openff) {
+    button('Make it an OpenFF mod…', 'Tick FF3 or FF4 under OpenFF in the project settings: the client plays it, and it may carry code', () => projectSettingsDialog(), true);
+    button('Folder', 'The project\'s folder in Explorer', () => revealProject());
+    return;
+  }
+  if (browseKind === 'code') {
+    if (!project.code) {
+      button('Add C# code', 'Writes code/<Name>.csproj referencing the OpenFF engine, and a starting class', () => addCode(), true);
+    } else {
+      button('New file…', 'A new C# file under code/: a Behaviour, a GameService, or an empty frame', () => newCodeFileDialog());
+      button('Build', 'dotnet build of code/; errors land under the file they are in', () => buildCode());
+      button('Open in IDE', 'The C# project in Visual Studio, Rider, VS Code - whatever opens .csproj here', () => openCode());
+    }
   } else {
-    button('New file…', 'A new C# file under code/: a Behaviour, a GameService, or an empty frame', () => newCodeFileDialog());
-    button('Build', 'dotnet build of code/; errors land under the file they are in', () => buildCode());
-    button('Open in IDE', 'The C# project in Visual Studio, Rider, VS Code - whatever opens .csproj here', () => openCode());
+    button('Export to OpenFF', 'Writes the mod - files per game, code, scenes - into the client\'s mods folder', () => exportToOpenFF());
+    if (project.client) button('Run in OpenFF', 'Export and start the client; a running one hot-reloads the code and takes scene changes on the next map', () => runInOpenFF());
   }
   button('Folder', 'The project\'s folder in Explorer', () => revealProject());
 }
@@ -1418,6 +1509,7 @@ function loadSizes() {
   if (saved.left) root.setProperty('--left', saved.left + 'px');
   if (saved.right) root.setProperty('--right', saved.right + 'px');
   if (saved.bottom) root.setProperty('--bottom', saved.bottom + 'px');
+  if (saved.tree) root.setProperty('--tree', saved.tree + 'px');
 }
 
 function saveSize(which, px) {
@@ -1440,24 +1532,30 @@ function wireSplitters() {
     const which = bar.dataset.split;
     bar.onpointerdown = (event) => {
       event.preventDefault();
-      bar.setPointerCapture(event.pointerId);
+      // Capture keeps the drag when the pointer leaves the 4px bar; the listeners sit
+      // on the document for the same reason, so a capture refused still drags.
+      try { bar.setPointerCapture(event.pointerId); } catch (error) { /* no active pointer */ }
       const move = (e) => {
         const box = $('#workbench').getBoundingClientRect();
         let px;
         if (which === 'left') px = e.clientX - box.left;
         else if (which === 'right') px = box.right - e.clientX;
+        else if (which === 'tree') px = e.clientX - $('#project-tree').getBoundingClientRect().left;
         else px = box.bottom - e.clientY;
-        px = Math.max(120, Math.min(which === 'bottom' ? 600 : 640, px));
+        // The tree inside the project panel is the narrow one: it holds a dozen words.
+        px = which === 'tree'
+          ? Math.max(110, Math.min(400, px))
+          : Math.max(120, Math.min(which === 'bottom' ? 600 : 640, px));
         document.documentElement.style.setProperty('--' + which, px + 'px');
         saveSize(which, px);
         layoutChanged();
       };
       const up = () => {
-        bar.removeEventListener('pointermove', move);
-        bar.removeEventListener('pointerup', up);
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
       };
-      bar.addEventListener('pointermove', move);
-      bar.addEventListener('pointerup', up);
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
     };
   }
 }

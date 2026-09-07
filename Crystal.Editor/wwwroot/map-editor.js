@@ -1869,16 +1869,19 @@ function buildCharacter(character) {
 
 // ------------------------------------------------------------- behaviours (OpenFF)
 //
-// For a project that targets our build and has C# code: the mod's Behaviour types, attached
-// to the selected object with their public fields filled in - Unity's inspector, in short.
-// Saved per map as scenes/<map>.json in the project; Export to OpenFF carries it into the
-// mod and the engine puts the behaviours on the objects when the map is entered.
+// For an OpenFF project (one targeting ours or oursff4) with C# code: the mod's Behaviour
+// types, attached to the selected object with their public fields filled in - Unity's
+// inspector, in short. Saved per map as scenes/<map>.json in the project; Export to OpenFF
+// carries it into the mod and the engine puts the behaviours on the objects when the map is
+// entered. The file is keyed by the map's name alone, which both games share - a mod that
+// puts behaviours on FF3's and FF4's d01_05 would meet in one file; per-game scene folders
+// are the engine's to add.
 
 const sceneState = { map: null, attachments: null, points: null, catalog: null, dirty: false };
 
 function openFFProject() {
   const project = typeof projectState !== 'undefined' && projectState.project;
-  return project && (project.targets || []).includes('ours') ? project : null;
+  return project && typeof isOpenFFProject === 'function' && isOpenFFProject(project) ? project : null;
 }
 
 async function loadSceneState(map) {
