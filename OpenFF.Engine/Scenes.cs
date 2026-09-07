@@ -50,6 +50,8 @@ namespace OpenFF
 		public string Path { get; internal set; }
 		/// <summary>A scene object's model, when it has one; null for a spot with logic only.</summary>
 		public string Model { get; internal set; }
+		/// <summary>With a model: whether it is a walking character (talked to, wandering) rather than a plain figure.</summary>
+		public bool Character { get; internal set; }
 		/// <summary>For a character, or a scene object with a model: the handle to move, turn, hide and talk through; null otherwise.</summary>
 		public Npc Npc { get; internal set; }
 		/// <summary>The map the object is on.</summary>
@@ -180,6 +182,52 @@ namespace OpenFF
 		/// <summary>The player talked to it, or walked into it: what the component does.</summary>
 		protected abstract void Activate();
 
+		/// <summary>
+		/// Whether this one applies right now (a Talk under a flag). Of the Interactables on
+		/// one object, the first that applies is the one that acts - so a converted villager
+		/// with three Talks, one per flag branch, says the right one.
+		/// </summary>
+		protected virtual bool Applies() => true;
+
+		/// <summary>A flag list as the editor writes it - "0:14 !0:11" - all of which must hold.</summary>
+		protected static bool FlagsHold(string when)
+		{
+			if (string.IsNullOrWhiteSpace(when)) return true;
+			foreach (string part in when.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries))
+			{
+				bool wantOff = part.StartsWith("!", StringComparison.Ordinal);
+				string[] pair = part.TrimStart('!').Split(':');
+				if (pair.Length != 2 || !uint.TryParse(pair[0], out uint group) || !uint.TryParse(pair[1], out uint index)) continue;
+				if (Game.Flags.Get(group, index) == wantOff) return false;
+			}
+			return true;
+		}
+
+		/// <summary>Sets a flag list as the editor writes it - "0:13 !1:2".</summary>
+		protected static void SetFlags(string then)
+		{
+			if (string.IsNullOrWhiteSpace(then)) return;
+			foreach (string part in then.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries))
+			{
+				bool off = part.StartsWith("!", StringComparison.Ordinal);
+				string[] pair = part.TrimStart('!').Split(':');
+				if (pair.Length != 2 || !uint.TryParse(pair[0], out uint group) || !uint.TryParse(pair[1], out uint index)) continue;
+				Game.Flags.Set(group, index, !off);
+			}
+		}
+
+		private bool IsTheOne()
+		{
+			if (!Enabled || GameObject == null || !GameObject.ActiveInHierarchy) return false;
+			foreach (Interactable other in GameObject.GetComponents<Interactable>())
+			{
+				if (!other.Enabled) continue;
+				if (other == this) return Applies();
+				if (other.Applies()) return false;
+			}
+			return false;
+		}
+
 		protected override void Start()
 		{
 			MapObject link = GetComponent<MapObject>();
@@ -192,7 +240,7 @@ namespace OpenFF
 
 		private void OnInteracted(Npc npc)
 		{
-			if (Enabled && GameObject != null && GameObject.ActiveInHierarchy) Game.Guard(Name + ".Activate", Activate);
+			if (IsTheOne()) Game.Guard(Name + ".Activate", Activate);
 		}
 
 		protected override void Update()
@@ -201,9 +249,9 @@ namespace OpenFF
 			bool near = Vector3.FlatDistance(Transform.WorldPosition, Game.Hero.Position) <= Radius;
 			if (OnWalkIn)
 			{
-				if (near && !_near) Game.Guard(Name + ".Activate", Activate);
+				if (near && !_near && IsTheOne()) Game.Guard(Name + ".Activate", Activate);
 			}
-			else if (near && !Game.Dialogue.IsOpen && Game.Input.Pressed(Pad.A))
+			else if (near && !Game.Dialogue.IsOpen && Game.Input.Pressed(Pad.A) && IsTheOne())
 			{
 				Game.Guard(Name + ".Activate", Activate);
 			}
@@ -307,8 +355,18 @@ namespace OpenFF
 		[Tooltip("Turn to the hero while talking (a model's own facing otherwise)")]
 		public bool FaceHero = true;
 
+		/// <summary>Game flags that must hold for this Talk to be the one that speaks: "0:14 !0:11" (group:index, ! for off); empty for always.</summary>
+		[Header("Flags")]
+		[Tooltip("Flags that must hold for this one to speak: group:index, ! for off, e.g. 0:14 !0:11. Empty: always. Of several Talks on one object the first that holds speaks")]
+		public string When = "";
+		/// <summary>Game flags set after the last line: "0:13 !1:2".</summary>
+		[Tooltip("Flags set after the last line: group:index, ! to clear, e.g. 0:13")]
+		public string Then = "";
+
 		private int _next = -1;
 		private long _saidAt;
+
+		protected override bool Applies() => FlagsHold(When);
 
 		protected override void Activate()
 		{
@@ -332,6 +390,7 @@ namespace OpenFF
 			if (_next >= Lines.Length)
 			{
 				_next = -1;
+				SetFlags(Then);
 				Game.Guard(Name + ".OnSaid", OnSaid);
 				return;
 			}
@@ -344,6 +403,65 @@ namespace OpenFF
 	}
 
 	/// <summary>
+	/// The object is there only while game flags hold: hidden and inactive otherwise, shown
+	/// again when they change. What a map's boot does with flagOnJump around a boot - a
+	/// villager who is home only after the elders have spoken - on the mod's own object.
+	/// </summary>
+	public sealed class WhenFlags : Behaviour
+	{
+		/// <summary>Flags that must hold: "0:14 !0:11" (group:index, ! for off).</summary>
+		[Tooltip("Flags that must hold for the object to be there: group:index, ! for off, e.g. !0:14")]
+		public string When = "";
+
+		private bool? _shown;
+
+		protected override void Update()
+		{
+			bool hold = Holds(When);
+			if (_shown == hold) return;
+			_shown = hold;
+			MapObject link = GetComponent<MapObject>();
+			if (link?.Npc != null) link.Npc.Hidden = !hold;
+			foreach (Behaviour b in GameObject.GetComponents<Behaviour>())
+			{
+				if (b != this && !(b is ModelFollow)) b.Enabled = hold;
+			}
+		}
+
+		/// <summary>Whether a flag list as the editor writes it holds.</summary>
+		public static bool Holds(string when)
+		{
+			if (string.IsNullOrWhiteSpace(when)) return true;
+			foreach (string part in when.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries))
+			{
+				bool wantOff = part.StartsWith("!", StringComparison.Ordinal);
+				string[] pair = part.TrimStart('!').Split(':');
+				if (pair.Length != 2 || !uint.TryParse(pair[0], out uint group) || !uint.TryParse(pair[1], out uint index)) continue;
+				if (Game.Flags.Get(group, index) == wantOff) return false;
+			}
+			return true;
+		}
+	}
+
+	/// <summary>
+	/// Makes the object's character wander about its spot (or stand, or follow the hero), as
+	/// the map scripts' moveCharacter_StartRandom does. The object needs a model marked as a
+	/// character; a plain model has no walker to drive.
+	/// </summary>
+	public sealed class Wander : Behaviour
+	{
+		/// <summary>Still, Wander or Follow.</summary>
+		public NpcAi Ai = NpcAi.Wander;
+
+		protected override void Start()
+		{
+			MapObject link = GetComponent<MapObject>();
+			if (link?.Npc == null) return;
+			Game.Guard("wander " + link.Path, () => link.Npc.SetAi(Ai));
+		}
+	}
+
+	/// <summary>
 	/// Takes the game's own character this is attached to off the map when the map is
 	/// entered - what Crystal's "Convert to OpenFF object" leaves on the original, so the
 	/// mod's object stands in its place. The map's script still has the cast; nothing
@@ -353,8 +471,14 @@ namespace OpenFF
 	{
 		/// <summary>Hide it instead of removing it (it still blocks and can be talked to); off by default.</summary>
 		public bool HideOnly;
+		/// <summary>The mod's object that stands in for it (its path): spawned first, then the original goes - a model only this character used stays loaded for the stand-in.</summary>
+		[Tooltip("The mod's object standing in for it, by path; it is spawned before this one is removed")]
+		public string StandIn = "";
 
-		protected override void Start()
+		// Awake, not Start: the loader attaches these as it goes - after the stand-in has
+		// spawned (a model the removed character alone used would be unloaded with it), and
+		// before the rest, so the slot it held is free for the next.
+		protected override void Awake()
 		{
 			MapObject link = GetComponent<MapObject>();
 			if (link == null || link.Kind != "object" || link.Npc == null) return;
@@ -495,7 +619,7 @@ namespace OpenFF
 			SceneObject copy = new SceneObject
 			{
 				Name = name, X = at.X, Y = at.Y, Z = at.Z, Yaw = yaw, Scale = d.Object.Scale,
-				Model = d.Object.Model, Tags = new List<string>(d.Object.Tags ?? new List<string>())
+				Model = d.Object.Model, Character = d.Object.Character, Tags = new List<string>(d.Object.Tags ?? new List<string>())
 			};
 			GameObject o = SceneLoader.Build(_map, name, name, copy);
 			o.Owner = d.Mod;
@@ -553,6 +677,8 @@ namespace OpenFF
 		public float Scale { get; set; } = 1f;
 		/// <summary>A model name (o001, n011...) to show, or null for a spot with logic only.</summary>
 		public string Model { get; set; }
+		/// <summary>With a model: a character (walks, turns to the player, can wander) rather than a plain figure. What a converted villager is.</summary>
+		public bool Character { get; set; }
 		/// <summary>Words a mod finds it by (GameObject.Tags).</summary>
 		public List<string> Tags { get; set; } = new List<string>();
 		/// <summary>Objects under this one, their transforms relative to it.</summary>
@@ -678,13 +804,45 @@ namespace OpenFF
 			// Every object in the tree, with or without behaviours: a mod finds them by name or tag.
 			// The definitions are kept, so SceneObjects.Spawn can make more of one later.
 			SceneObjects.Remember(map, mod, file);
+			List<SceneAttachment> attachments = (file.Attachments ?? new List<SceneAttachment>())
+				.Where(a => a != null && !string.IsNullOrEmpty(a.Behaviour) && !string.IsNullOrEmpty(a.Target)).ToList();
+			// The game's characters the mod takes off the map, by the stand-in that replaces
+			// each: the stand-in spawns first (a model only the original used would go with it),
+			// then the original goes, freeing its slot for the next. The rest go at the end.
+			List<SceneAttachment> removals = attachments.Where(a => string.Equals(a.Behaviour, "Removed", StringComparison.OrdinalIgnoreCase)).ToList();
+			attachments.RemoveAll(a => removals.Contains(a));
+			Dictionary<string, SceneAttachment> byStandIn = new Dictionary<string, SceneAttachment>(StringComparer.OrdinalIgnoreCase);
+			foreach (SceneAttachment r in removals)
+			{
+				string standIn = r.Fields != null && r.Fields.TryGetValue("StandIn", out JsonElement s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+				if (!string.IsNullOrWhiteSpace(standIn) && !byStandIn.ContainsKey(standIn.Trim())) byStandIn[standIn.Trim()] = r;
+			}
+			void Remove(SceneAttachment removal)
+			{
+				string key = removal.Target.Trim().ToLowerInvariant();
+				if (!objects.TryGetValue(key, out GameObject target))
+				{
+					target = MakeTarget(mod, map, key);
+					if (target == null) return;
+					objects[key] = target;
+					made++;
+				}
+				Attach(mod, map, target, removal);
+				removals.Remove(removal);
+			}
 			foreach (SceneObject root in file.AllObjects())
 			{
-				made += Place(mod, map, scene, root, null, null, objects);
+				made += Place(mod, map, scene, root, null, null, objects, path =>
+				{
+					if (byStandIn.TryGetValue(path, out SceneAttachment removal) && removals.Contains(removal)) Remove(removal);
+				});
 			}
-			foreach (SceneAttachment attachment in file.Attachments ?? new List<SceneAttachment>())
+			foreach (SceneAttachment removal in removals.ToList())
 			{
-				if (attachment == null || string.IsNullOrEmpty(attachment.Behaviour) || string.IsNullOrEmpty(attachment.Target)) continue;
+				Remove(removal);
+			}
+			foreach (SceneAttachment attachment in attachments)
+			{
 				string key = attachment.Target.Trim().ToLowerInvariant();
 				// The older files' "point:<name>" is the object called <name>.
 				if (key.StartsWith("point:", StringComparison.Ordinal)) key = key.Substring(6);
@@ -710,7 +868,7 @@ namespace OpenFF
 		/// (WorldPosition, WorldYaw, WorldScale), so a parent moved by code takes its children
 		/// along, and a model spawned for an object follows its transform (ModelFollow).
 		/// </summary>
-		private static int Place(Modding.LoadedMod mod, string map, Scene scene, SceneObject item, GameObject parent, string parentPath, Dictionary<string, GameObject> objects)
+		private static int Place(Modding.LoadedMod mod, string map, Scene scene, SceneObject item, GameObject parent, string parentPath, Dictionary<string, GameObject> objects, Action<string> placed = null)
 		{
 			if (item == null || string.IsNullOrWhiteSpace(item.Name)) return 0;
 			string name = item.Name.Trim();
@@ -727,10 +885,11 @@ namespace OpenFF
 			scene.Add(o);
 			SpawnModel(mod, map, o);
 			objects[key] = o;
+			placed?.Invoke(path);
 			int made = 1;
 			foreach (SceneObject child in item.Children ?? new List<SceneObject>())
 			{
-				made += Place(mod, map, scene, child, o, path, objects);
+				made += Place(mod, map, scene, child, o, path, objects, placed);
 			}
 			return made;
 		}
@@ -767,7 +926,7 @@ namespace OpenFF
 			o.Transform.Position = new Vector3(item.X, item.Y, item.Z);
 			o.Transform.Rotation = new Vector3(0, item.Yaw, 0);
 			o.Transform.Scale = new Vector3(scale, scale, scale);
-			o.AddComponent(new MapObject { Kind = "scene", Name = name, Path = path, Map = map, Model = string.IsNullOrWhiteSpace(item.Model) ? null : item.Model.Trim() });
+			o.AddComponent(new MapObject { Kind = "scene", Name = name, Path = path, Map = map, Model = string.IsNullOrWhiteSpace(item.Model) ? null : item.Model.Trim(), Character = item.Character });
 			return o;
 		}
 
@@ -778,7 +937,12 @@ namespace OpenFF
 			if (link == null || link.Model == null) return;
 			Game.Guard("scene object " + link.Path + " model " + link.Model, () =>
 			{
-				link.Npc = Game.Npcs.SpawnModel(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw, o.Transform.WorldScale);
+				// A character has the walker behind it (turns to the player, can wander, is talked to
+				// the game's way); a plain figure is just the model standing there.
+				link.Npc = link.Character
+					? Game.Npcs.Spawn(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw)
+					: Game.Npcs.SpawnModel(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw, o.Transform.WorldScale);
+				if (link.Npc != null && link.Character && o.Transform.WorldScale != 1f) link.Npc.Scale = o.Transform.WorldScale;
 				link.OwnsNpc = link.Npc != null;
 			});
 			if (link.Npc == null)

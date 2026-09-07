@@ -288,7 +288,16 @@ under *Built in* whether or not the mod has code, so the usual things need no C#
 | `Chest` | Item (picked from the game's list), Count, Gil; Once, Message, EmptyMessage | gives the contents and says so when the player talks to it (a model) or, without one, walks in - or presses A standing there, with OnWalkIn off; Once remembers it across saves |
 | `Talk` | Speaker, Lines (one per line), FaceHero | says the lines one window at a time when talked to (or walked into / A, without a model) |
 | `Trigger` | Radius, Once | raises `Entered`/`Left` and publishes `Events.TriggerEntered` / `TriggerLeft` (with the `GameObject`, so its tags say which) when the hero comes within Radius; logs `trigger <map>/<path>: hero entered` |
-| `Removed` | HideOnly | on one of the *game's* characters (`object:N`): takes it off the map when the map is entered - what Crystal's *Convert to OpenFF object* leaves on the original, so the mod's stand-in is the only one there |
+| `Wander` | Ai (Still, Wander, Follow) | the object's character walks about its spot, as the map scripts' `moveCharacter_StartRandom` does (the object marked as a character) |
+| `WhenFlags` | When | the object is there only while the flags hold - hidden and its behaviours off otherwise, back when they change |
+| `Removed` | HideOnly, StandIn | on one of the *game's* characters (`object:N`): takes it off the map when the map is entered - what Crystal's conversions leave on the original, so the mod's stand-in (spawned first) is the only one there |
+
+`Talk` also takes `When` and `Then` - flags as "0:14 !0:11" (group:index, `!` for off). Of
+several Talks on one object the first whose `When` holds is the one that speaks, and `Then`
+is set after its last line - the shape of a villager's flag-branched cast, which is what
+Crystal's *Convert the map's characters* turns them into. An object with a model is spawned
+as a plain figure unless marked **character** in the inspector (`"character": true`), which
+gives it the game's walker: it turns to the player, can `Wander`, is talked to the game's way.
 
 So a chest is: an OpenFF object with the chest's model (`o001`), a `Chest` on it, the item
 picked in the inspector - every one of those changeable later. `Chest` and `Talk` derive

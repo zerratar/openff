@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags)
-- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3)
+- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -638,6 +638,7 @@ Takes the game's own character this is attached to off the map when the map is e
 | Member | What it does |
 | --- | --- |
 | `bool HideOnly` | Hide it instead of removing it (it still blocks and can be talked to); off by default. |
+| `string StandIn` | The mod's object that stands in for it (its path): spawned first, then the original goes - a model only this character used stays loaded for the stand-in. |
 
 ### SavedBehaviour
 
@@ -678,6 +679,7 @@ The mod's own object in a scene file: a spot, or a model standing there, with ch
 
 | Member | What it does |
 | --- | --- |
+| `bool Character { get; set; }` | With a model: a character (walks, turns to the player, can wander) rather than a plain figure. What a converted villager is. |
 | `List<SceneObject> Children { get; set; }` | Objects under this one, their transforms relative to it. |
 | `string Model { get; set; }` | A model name (o001, n011...) to show, or null for a spot with logic only. |
 | `string Name { get; set; }` | The name; unique among its siblings, not / or :. |
@@ -793,6 +795,8 @@ Someone (or something) to talk to, placed from the editor: lines said one after 
 | `bool FaceHero` | Turn to the hero while talking (the model keeps its facing otherwise). |
 | `string[] Lines` | The lines, said in turn, one window each; A goes on to the next. |
 | `string Speaker` | The name over the window; empty for none. |
+| `string Then` | Game flags set after the last line: "0:13 !1:2". |
+| `string When` | Game flags that must hold for this Talk to be the one that speaks: "0:14 !0:11" (group:index, ! for off); empty for always. |
 
 ### Texture
 
@@ -878,6 +882,27 @@ A point on the screen (800x480 units) or any pair.
 | `static Vector3 MoveToward(Vector3 a, Vector3 b, float maxStep)` | A step of at most maxStep from a toward b. |
 | `string ToString()` | "x, y, z" to two decimals. |
 
+### Wander
+
+`class Wander : Behaviour`
+
+Makes the object's character wander about its spot (or stand, or follow the hero), as the map scripts' moveCharacter_StartRandom does. The object needs a model marked as a character; a plain model has no walker to drive.
+
+| Member | What it does |
+| --- | --- |
+| `NpcAi Ai` | Still, Wander or Follow. |
+
+### WhenFlags
+
+`class WhenFlags : Behaviour`
+
+The object is there only while game flags hold: hidden and inactive otherwise, shown again when they change. What a map's boot does with flagOnJump around a boot - a villager who is home only after the elders have spoken - on the mod's own object.
+
+| Member | What it does |
+| --- | --- |
+| `string When` | Flags that must hold: "0:14 !0:11" (group:index, ! for off). |
+| `static bool Holds(string when)` | Whether a flag list as the editor writes it holds. |
+
 ## Services you write, objects and scenes
 
 A `GameService` lives as long as its mod; `Behaviour`s attach to `GameObject`s in a `Scene`, with `Awake`/`Start`/`Update` in the Unity manner. Scene files (`scenes/<map>.json`) put behaviours and points on a map without code.
@@ -953,6 +978,7 @@ What a scene-file object stands for on the legacy map.
 
 | Member | What it does |
 | --- | --- |
+| `bool Character { get; }` | With a model: whether it is a walking character (talked to, wandering) rather than a plain figure. |
 | `int Index { get; }` |  |
 | `string Kind { get; }` | "object" (a character by its index in the map's cast list), "exit" (a slot), "scene" (the mod's own object, placed in the editor), or "map". |
 | `string Map { get; }` | The map the object is on. |
@@ -1719,4 +1745,4 @@ Whom a spell may be aimed at, as flags.
 
 ---
 
-107 types, 776 members; 375 without a summary yet.
+109 types, 784 members; 375 without a summary yet.
