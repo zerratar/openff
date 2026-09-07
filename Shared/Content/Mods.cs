@@ -14,7 +14,11 @@
 //
 // An OpenFF mod is not for one game. Under OpenFF the game that was booted is an asset
 // source, and mixed content is the point (Karl, 2026-09-04), so every enabled OpenFF mod
-// applies whichever game's assets are in front.
+// applies whichever game's assets are in front. The two games name their files alike,
+// though - d01_05.script is a different map in each - so a mod keeps edits meant for one
+// game apart: ff3/files/ applies when FF3 was booted, ff4/files/ when FF4 was, and
+// files/ whichever it was (2026-09-07). Crystal writes the first two; a hand-made mod
+// with only files/ reads as it always did.
 //
 // Shared by the client (which loads) and the editor (which writes and, later, lists).
 
@@ -86,6 +90,24 @@ namespace OpenFF.Content
 		public ModManifest Manifest { get; set; }
 		public bool Enabled { get; set; }
 		public string FilesDirectory => Path.Combine(Directory, string.IsNullOrEmpty(Manifest?.Files) ? "files" : Manifest.Files);
+
+		/// <summary>The folder with the files meant for one game only: &lt;mod&gt;/ff3/files or &lt;mod&gt;/ff4/files.</summary>
+		public string FilesDirectoryFor(string game) => Path.Combine(Directory, game, "files");
+
+		/// <summary>
+		/// Every files folder the mod has, the booted game's first (it is the more specific
+		/// and wins), then the one for either game. With game null, all of them.
+		/// </summary>
+		public IEnumerable<string> FilesDirectories(string game)
+		{
+			foreach (string g in game == null ? ModsFolder.Games : new[] { game })
+			{
+				string mine = FilesDirectoryFor(g);
+				if (System.IO.Directory.Exists(mine)) yield return mine;
+			}
+			if (System.IO.Directory.Exists(FilesDirectory)) yield return FilesDirectory;
+		}
+
 		public string DisplayName => string.IsNullOrWhiteSpace(Manifest?.Name) ? Key : Manifest.Name;
 		/// <summary>The id other mods depend on: mod.json's, or the folder's name.</summary>
 		public string Id => string.IsNullOrWhiteSpace(Manifest?.Id) ? Key : Manifest.Id.Trim();
@@ -98,6 +120,9 @@ namespace OpenFF.Content
 		public const string FolderName = "mods";
 		public const string ManifestName = "mod.json";
 		public const string LoadOrderName = "loadorder.json";
+
+		/// <summary>The games a mod may keep a files folder for, as the folder names: ff3/files, ff4/files.</summary>
+		public static readonly string[] Games = { "ff3", "ff4" };
 
 		private static readonly JsonSerializerOptions Json = new JsonSerializerOptions
 		{
@@ -183,7 +208,7 @@ namespace OpenFF.Content
 				{
 					mod.Skipped = "targets " + mod.Manifest.Target;
 				}
-				else if (!Directory.Exists(mod.FilesDirectory) && !HasCode(mod))
+				else if (!mod.FilesDirectories(null).Any() && !HasCode(mod))
 				{
 					mod.Skipped = "no files folder and no code";
 				}
@@ -247,34 +272,39 @@ namespace OpenFF.Content
 
 		/// <summary>
 		/// Files more than one active mod carries, with the mods that carry them in load
-		/// order (the first wins). Names are the game's, with forward slashes.
+		/// order (the first wins). Names are the game's, with forward slashes. For one game
+		/// when given, since a name in ff3/files and the same in ff4/files never meet.
 		/// </summary>
-		public static Dictionary<string, List<InstalledMod>> Conflicts(IEnumerable<InstalledMod> active)
+		public static Dictionary<string, List<InstalledMod>> Conflicts(IEnumerable<InstalledMod> active, string game = null)
 		{
 			Dictionary<string, List<InstalledMod>> owners = new Dictionary<string, List<InstalledMod>>(StringComparer.OrdinalIgnoreCase);
 			foreach (InstalledMod mod in active)
 			{
-				string root = mod.FilesDirectory;
-				if (!Directory.Exists(root))
+				HashSet<string> mine = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+				foreach (string root in mod.FilesDirectories(game))
 				{
-					continue;
-				}
-				foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
-				{
-					string name = Path.GetRelativePath(root, file).Replace('\\', '/');
-					if (!owners.TryGetValue(name, out List<InstalledMod> list))
+					foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
 					{
-						owners[name] = list = new List<InstalledMod>();
+						string name = Path.GetRelativePath(root, file).Replace('\\', '/');
+						if (!mine.Add(name))
+						{
+							continue; // the same name in the mod's own ff3/files and files/ is not a conflict
+						}
+						if (!owners.TryGetValue(name, out List<InstalledMod> list))
+						{
+							owners[name] = list = new List<InstalledMod>();
+						}
+						list.Add(mod);
 					}
-					list.Add(mod);
 				}
 			}
 			return owners.Where(pair => pair.Value.Count > 1).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
 		}
 
-		public static int FileCount(InstalledMod mod)
+		/// <summary>How many files the mod carries, over every folder (or one game's and the shared one).</summary>
+		public static int FileCount(InstalledMod mod, string game = null)
 		{
-			return Directory.Exists(mod.FilesDirectory) ? Directory.EnumerateFiles(mod.FilesDirectory, "*", SearchOption.AllDirectories).Count() : 0;
+			return mod.FilesDirectories(game).Sum(root => Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).Count());
 		}
 
 		public static ModManifest ReadManifest(string path)

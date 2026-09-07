@@ -98,6 +98,9 @@ namespace OpenFF.Client
 		private static IEnumerable<string> Overrides(string root)
 		{
 			List<string> directories = new List<string>();
+			// Which game this is, from the shape of the content: the folders a project or a
+			// mod keeps for the other game must not apply, since the two name maps alike.
+			string game = ContentChain.GameOf(root);
 
 			string project = Options.Get("project");
 			if (!string.IsNullOrEmpty(project))
@@ -106,10 +109,7 @@ namespace OpenFF.Client
 					? project
 					: Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
 						"FF3ContentTool", "projects", project);
-				// A project targeting several games keeps ours under targets/ours/files;
-				// one targeting one game, or an older project, keeps it in files/.
-				directories.Add(Path.Combine(directory, "targets", "ours", "files"));
-				directories.Add(Path.Combine(directory, "files"));
+				directories.AddRange(ProjectFiles(directory, game));
 				if (!Directory.Exists(directory))
 				{
 					Log.Write(LogChannel.File, "project not found: " + directory);
@@ -124,7 +124,7 @@ namespace OpenFF.Client
 
 			// The mods folder beside the executable, in load order (Shared/Content/Mods.cs):
 			// after what the command line named, before the legacy Override directory.
-			directories.AddRange(ModsFolderOverrides(root));
+			directories.AddRange(ModsFolderOverrides(game));
 
 			string legacy = Options.Get("content-override");
 			directories.Add(string.IsNullOrEmpty(legacy) ? Path.Combine(root, "Override") : legacy);
@@ -137,16 +137,53 @@ namespace OpenFF.Client
 			return directories;
 		}
 
+		/// <summary>
+		/// An editor project's edit folders for the booted game, most specific first. The
+		/// project keeps one target's edits in files/ (its first target's, or its only
+		/// one) and every other target's under targets/&lt;target&gt;/files - Crystal's
+		/// Project.FilesFor, read from the other side. The OpenFF targets are "ours" (FF3)
+		/// and "oursff4" (FF4); the Steam ones are not the client's to apply.
+		/// </summary>
+		private static IEnumerable<string> ProjectFiles(string directory, string game)
+		{
+			string mine = game == "ff4" ? "oursff4" : "ours";
+			List<string> targets = new List<string>();
+			try
+			{
+				string manifest = Path.Combine(directory, "project.json");
+				if (File.Exists(manifest))
+				{
+					using System.Text.Json.JsonDocument json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(manifest));
+					if (json.RootElement.TryGetProperty("targets", out System.Text.Json.JsonElement list) && list.ValueKind == System.Text.Json.JsonValueKind.Array)
+					{
+						targets.AddRange(list.EnumerateArray().Select(t => t.GetString()).Where(t => t != null));
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				Log.Write(LogChannel.File, "project.json not read: " + ex.Message);
+			}
+			yield return Path.Combine(directory, "targets", mine, "files");
+			// files/ is the first target's; a project without a readable manifest is an
+			// older, one-target one, whose files/ is what it has.
+			if (targets.Count == 0 || string.Equals(targets[0], mine, StringComparison.OrdinalIgnoreCase))
+			{
+				yield return Path.Combine(directory, "files");
+			}
+		}
+
 		/// <summary>The mods the mods folder enabled, in load order, for the engine to load code from.</summary>
 		public static IReadOnlyList<InstalledMod> ActiveMods { get; private set; } = new List<InstalledMod>();
 
 		/// <summary>
 		/// The enabled mods of mods/ beside the executable that target OpenFF, as their
-		/// files directories in load order. Logs what was taken and which files more than
-		/// one carries, and writes loadorder.json back so a folder dropped in by hand
-		/// appears there, enabled, at the end.
+		/// files directories in load order - each mod's folder for the booted game, then
+		/// its folder for either. Logs what was taken and which files more than one
+		/// carries, and writes loadorder.json back so a folder dropped in by hand appears
+		/// there, enabled, at the end.
 		/// </summary>
-		private static IEnumerable<string> ModsFolderOverrides(string root)
+		private static IEnumerable<string> ModsFolderOverrides(string game)
 		{
 			string folder = ModsFolder.Beside(AppContext.BaseDirectory);
 			List<InstalledMod> installed = ModsFolder.Load(folder);
@@ -156,13 +193,13 @@ namespace OpenFF.Client
 			}
 			List<InstalledMod> active = ModsFolder.Active(installed);
 			Log.Write(LogChannel.General, "mods: " + active.Count + " of " + installed.Count + " in " + folder + " apply"
-				+ (active.Count > 0 ? ": " + string.Join(", ", active.Select(m => m.DisplayName + " (" + ModsFolder.FileCount(m) + " files)")) : ""));
+				+ (active.Count > 0 ? ": " + string.Join(", ", active.Select(m => m.DisplayName + " (" + ModsFolder.FileCount(m, game) + " files)")) : ""));
 			foreach (InstalledMod mod in installed.Where(m => !active.Contains(m)))
 			{
 				Log.Write(LogChannel.File, "mods: " + mod.DisplayName + " skipped (" + (mod.Skipped ?? "?") + ")");
 			}
 			ActiveMods = active;
-			foreach (KeyValuePair<string, List<InstalledMod>> conflict in ModsFolder.Conflicts(active))
+			foreach (KeyValuePair<string, List<InstalledMod>> conflict in ModsFolder.Conflicts(active, game))
 			{
 				Log.Write(LogChannel.General, "mods: " + conflict.Key + " in " + string.Join(", ", conflict.Value.Select(m => m.DisplayName)) + " - " + conflict.Value[0].DisplayName + " wins");
 			}
@@ -174,7 +211,7 @@ namespace OpenFF.Client
 			{
 				Log.Write(LogChannel.General, "mods: loadorder.json not written: " + ex.Message);
 			}
-			return active.Where(m => Directory.Exists(m.FilesDirectory)).Select(m => m.FilesDirectory);
+			return active.SelectMany(m => m.FilesDirectories(game));
 		}
 
 		/// <summary>Reads one file by name, or null if there is no such file anywhere.</summary>

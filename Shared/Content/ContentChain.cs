@@ -147,6 +147,19 @@ namespace OpenFF.Content
 			return null;
 		}
 
+		/// <summary>"ff3" or "ff4" for a directory before it is opened: FF4 is the one with mass files.</summary>
+		public static string GameOf(string root)
+		{
+			try
+			{
+				return SsamContentSource.Looks(root) ? "ff4" : "ff3";
+			}
+			catch (Exception)
+			{
+				return "ff3";
+			}
+		}
+
 		/// <summary>Whether a directory is something Open would accept.</summary>
 		public static bool Looks(string root)
 		{

@@ -56,9 +56,11 @@ The client reads a `mods/` folder beside `OpenFF.exe`, one mod per subfolder:
 mods/
   my-mod/
     mod.json
-    files/                the game's own file names; a file here replaces the game's
+    files/                the game's own file names; a file here replaces the game's, whichever game runs
       babil_menu.msd
       t01_00.script
+    ff3/files/            optional: files that apply only when FF3 is played
+    ff4/files/            optional: ... only when FF4 is played (the two games name files alike)
     scenes/               optional: behaviours and points placed on maps (Part 3)
     MyMod.dll             optional: code (Part 3)
   loadorder.json          written by the client; order and enabled flags
@@ -83,13 +85,19 @@ mods/
   client does not load those.)
 - An OpenFF mod is not tied to one game: under OpenFF the booted game is an asset source, so
   the same mod applies whether FF3 or FF4 was started, and a mod may carry files for both.
+  `ff3/files/` and `ff4/files/` are read only for their game (a `d01_01.script` is Ur in one
+  and a Baron corridor in the other); `files/` is read for either. Code and scenes apply to
+  both.
 - Files: the first mod in the load order wins a file two mods both carry; the log's `mods:`
   lines say what applied and which conflicts fell which way.
 - `loadorder.json` is written for you the first time a folder appears; the title screen's
   **MODS** entry lets you enable, disable and reorder in play (it applies at the next start).
-- Crystal makes this folder for you: a project targeting **OpenFF** (Project settings) has
-  **Project ▸ Export to OpenFF**, which writes `mod.json` and `files/` into the client's mods
-  folder; **Run in OpenFF** exports and starts the client.
+- Crystal makes this folder for you: a project with a game ticked under **OpenFF mod** (New
+  project, or Project settings) has **Project ▸ Export to OpenFF**, which writes `mod.json`,
+  `ff3/files/` and `ff4/files/` (one per game ticked - tick both and the mod may take from
+  either game), the built code and the scenes into the client's mods folder; **Run in OpenFF**
+  exports and starts the client. In the editor the mod's own things - its code and its scenes -
+  are the **OpenFF mod** folder at the bottom of the project tree, beside the games' libraries.
 
 ## Part 3 - an OpenFF mod: code
 
@@ -98,7 +106,11 @@ mods/
 With Crystal: **Project ▸ Add C# code…** writes `code/<Name>.csproj` referencing the client's
 `OpenFF.Engine.dll`, a starting `Mod.cs`, and a `.gitignore`; **Build C# code** compiles it;
 **Open C# code in editor** hands the project to Visual Studio, Rider or VS Code; **Export to
-OpenFF** carries the assembly into the mod folder and names it in `mod.json`.
+OpenFF** carries the assembly into the mod folder and names it in `mod.json`. The same things
+sit on the **OpenFF mod ▸ Code** row of the project tree, where the files list and open in the
+editor itself (line numbers, colouring, Ctrl+S; **New file…** starts a Behaviour, a
+GameService or an empty class; a build's errors click through to the line), so a small mod
+never needs an IDE, and a large one has *Open in IDE* one click away.
 
 By hand: a class library targeting `net8.0` that references the engine without copying it -
 the client shares its own `OpenFF.Engine.dll` with every mod, and a mod folder must not carry
@@ -233,7 +245,10 @@ exits, the terrain, or **points** you place and drag in 3D (`Points (OpenFF)` in
 hierarchy). The result is saved as `scenes/<map>.json` in the project and exported with the
 mod; the engine reads it when the map is entered and makes a `GameObject` per target with the
 behaviours and their fields set. A point is a `GameObject` named `<map>/point:<name>` with
-its tags, so a mod finds spawn points with `Game.World.Legacy.WithTag("spawn")`.
+its tags, so a mod finds spawn points with `Game.World.Legacy.WithTag("spawn")`. The scenes
+a project has are listed under **OpenFF mod ▸ Scenes** in the project tree; opening one
+opens the map itself, in 3D with its behaviours and points, and the inspector offers the
+JSON as text for when that is what you want.
 
 ```json
 {
