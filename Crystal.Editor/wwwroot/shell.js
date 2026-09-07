@@ -630,6 +630,19 @@ function outlineFor(doc) {
         }]
       });
     }
+    const openffProject = typeof openFFProject === 'function' && openFFProject();
+    // The game's rows get a menu too: the behaviours, the script, and on an OpenFF
+    // project the way across to the mod's own objects.
+    const gameMenu = (ref, extra) => () => [
+      { label: 'Add Behaviour…', icon: 'behaviour', disabled: !openffProject, run: () => {
+        doc.selection = ref;
+        drawHierarchy();
+        drawInspector();
+        const add = document.querySelector('#inspector .behaviour-add-button');
+        if (add) add.click();
+      } },
+      ...(extra || []),
+    ];
     groups.push({
       label: 'Characters',
       children: scene.objects.map(o => ({
@@ -637,7 +650,22 @@ function outlineFor(doc) {
         note: o.hasScript ? `${o.instructions}` : 'no script',
         ref: `object:${o.index}`,
         icon: 'character',
-        reveal: () => revealObject(doc, o)
+        reveal: () => revealObject(doc, o),
+        menu: gameMenu(`object:${o.index}`, [
+          { label: 'Focus in view', icon: 'scene', run: () => revealObject(doc, o) },
+          { label: o.hasScript ? `Open script at cast ${o.cast}` : 'Open script', icon: 'logic', run: async () => {
+            const opened = await openDoc('script', `files/${shortName(doc.name)}.script`);
+            const text = opened && opened.pane.querySelector('textarea');
+            if (!text) return;
+            const at = text.value.indexOf(`cast${o.cast}_main:`);
+            if (at >= 0 && typeof goToLine === 'function') goToLine(text, text.value.slice(0, at).split('\n').length, 1);
+          } },
+          { sep: true },
+          { label: 'Convert to OpenFF object', icon: 'mod', disabled: !openffProject || typeof convertToSceneObject !== 'function', run: () => {
+            const character = (typeof mapState !== 'undefined' && mapState.data && mapState.data.characters || []).find(c => c.index === o.index);
+            if (character) convertToSceneObject(doc, character).catch(error => say(error.message, 'bad'));
+          } },
+        ])
       }))
     });
     groups.push({
@@ -656,9 +684,19 @@ function outlineFor(doc) {
           if (doc.scene3d && doc.mode === '3d') doc.scene3d.focusExit(i);
           const view = $('.view', doc.pane);
           if (view) drawSceneTags(view, doc);
-        }
+        },
+        menu: gameMenu(`exit:${i}`, [
+          { label: 'Focus in view', icon: 'scene', run: () => { if (doc.scene3d && doc.mode === '3d') doc.scene3d.focusExit(i); } },
+          { label: e.to ? `Open ${e.to}` : 'Open the destination', icon: 'map', disabled: !e.to, run: () => openDoc('map', e.to) },
+        ])
       }))
     });
+    if (scene.terrain) {
+      groups[0].children[0].menu = gameMenu('terrain', [
+        { label: 'Open the terrain model', icon: 'model', run: () => openDoc('model', scene.terrain) },
+        { label: 'New OpenFF object here', icon: 'exit', disabled: !openffProject, run: () => { if (typeof addSceneObject === 'function') addSceneObject(doc); } },
+      ]);
+    }
     // An OpenFF project's scene file: the mod's own objects as a tree, and a mark on
     // whatever carries behaviours - the game's things above, the mod's here.
     const openff = typeof sceneState !== 'undefined' && typeof mapState !== 'undefined'

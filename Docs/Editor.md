@@ -45,7 +45,7 @@ somebody.
 <projects>/<name>.backup/          originals, once it has been installed
 ```
 
-`<projects>` is `%LOCALAPPDATA%\FF3ContentTool\projects`, or `FF3_PROJECTS`.
+`<projects>` is `%LOCALAPPDATA%\OpenFF\Crystal\projects`, or `FF3_PROJECTS`; the tool's first home, `%LOCALAPPDATA%\FF3ContentTool`, is moved there on the first start that finds it.
 `crystal projects` lists them. In the editor they are under **File**: new, open,
 **Changes…** (everything edited, per game, with revert), **Project settings…** (name,
 author, version, description, and which games), **Export as .zip…** and **Show project
@@ -317,7 +317,7 @@ dotnet run --project Crystal.Editor -- editor ^
 
 Edits never go into a game install by accident. `--override` defaults to
 `Content/Override` for our own build, which is where that game reads them from, and
-to `%LOCALAPPDATA%\FF3ContentTool\mods\<install>` for anything else.
+to `%LOCALAPPDATA%\OpenFF\Crystal\mods\<install>` for anything else.
 
 Not Documents, which was the first choice for being easier to find: Windows protects
 it with Controlled Folder Access, on by default on plenty of machines, and creating a
@@ -781,7 +781,19 @@ the script for whatever else names it, and everything about the stand-in is the 
 Nothing on an OpenFF object has a Save button. A change - a field typed, an object
 dragged, a behaviour added - writes `scenes/<map>.json` a moment later, the way the
 session is kept; the status line says so. (The game's own rows keep their *Save
-placement* / *Save exit*, since those write into the game's files.) A chest that gives an item is such an object with the chest's model
+placement* / *Save exit*, since those write into the game's files.) Every change is also a
+step on the map's undo stack - **Ctrl+Z** / **Ctrl+Y** with the rest of the map's edits -
+with changes within a second folded into one step, so a number typed digit by digit is
+one undo.
+
+Three shortcuts round it off. **Drag a model** from the Models library onto the 3D view
+and it is an OpenFF object with that model where it landed (Shift while dropping asks the
+game's way, through *Add a game object*). The **play button** in the map's toolbar is
+*play here*: the mod exported and the client started on this map, at the selection's spot
+or where the camera looks. And the game's rows in the hierarchy have a right-click menu
+of their own - *Add Behaviour…*, *Focus in view*, *Open script at cast N*, *Convert to
+OpenFF object* for a character; *Open <map>* for an exit; *New OpenFF object here* on the
+terrain. A behaviour field of type `ObjectRef` is a list of the map's objects to pick from. A chest that gives an item is such an object with the chest's model
 and the built-in **Chest** behaviour, its item picked from the game's list - change either
 any time.
 

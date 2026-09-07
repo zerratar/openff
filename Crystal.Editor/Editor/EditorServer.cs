@@ -1610,11 +1610,28 @@ namespace Crystal.Editor
 			{
 				string directory = ProjectExport.WriteToOpenFF(_project, mods);
 				bool running = OpenFFClient.IsRunning();
+				// "Play here": the map that is open and a spot on it, straight into the client -
+				// the game the page is looking at, since the two name their maps alike.
+				JsonNode body = ReadBody(context);
+				string map = body?["map"]?.GetValue<string>();
+				JsonArray pos = body?["pos"] as JsonArray;
+				string ws = Query(context, "ws");
+				string game = Targets.Known(ws) ? Targets.GameOf(ws) : "ff3";
+				List<string> arguments = new List<string>();
+				if (!string.IsNullOrWhiteSpace(map))
+				{
+					arguments.Add("--game=" + game);
+					arguments.Add("--map=" + map.Trim());
+					if (pos != null && pos.Count >= 3)
+					{
+						arguments.Add("--pos=" + string.Join(",", pos.Take(3).Select(p => Math.Round(p?.GetValue<double>() ?? 0).ToString(CultureInfo.InvariantCulture))));
+					}
+				}
 				if (!running)
 				{
-					OpenFFClient.Launch();
+					OpenFFClient.Launch(arguments.ToArray());
 				}
-				SendJson(context, new { ok = true, path = directory, started = !running, running });
+				SendJson(context, new { ok = true, path = directory, started = !running, running, arguments });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
 			{

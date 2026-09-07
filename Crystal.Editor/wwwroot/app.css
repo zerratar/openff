@@ -2022,8 +2022,10 @@ header h1 .gem {
 #inspector .component-head i { margin-left: auto; color: var(--dim); font-style: normal; font-size: 11px; }
 #inspector .transform-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
 #inspector .transform-row > span { width: 58px; flex: none; color: var(--dim); font-size: 12px; }
-#inspector .transform-cells { display: flex; gap: 4px; flex: 1; min-width: 0; }
-#inspector .transform-cells label { display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; }
+#inspector .transform-cells { display: flex; gap: 4px; flex: 1; min-width: 0; flex-wrap: wrap; }
+#inspector .transform-cells label { display: flex; align-items: center; gap: 3px; flex: 1 1 58px; min-width: 58px; }
+/* The inspector does not squeeze below the width its cards need; the document area gives instead. */
+#inspector-panel { min-width: 250px; }
 #inspector .transform-cells em { font-style: normal; color: var(--dim); font-size: 11px; width: 9px; flex: none; text-align: center; }
 #inspector .transform-cells input { flex: 1; min-width: 34px; width: 20%; padding-left: 4px; padding-right: 2px; }
 #inspector .model-pick { display: flex; align-items: center; gap: 4px; }

@@ -1132,8 +1132,8 @@ scene file opened as JSON when it is a map.
 - **The tree is resizable**: a fourth splitter (`data-split="tree"`, 110..400px, kept
   in localStorage). The splitters carry `role="separator"` now; `setPointerCapture` is guarded
   and the move/up listeners sit on `document`, so a drag that leaves the bar still ends.
-- Open: `SceneTest`'s Code row lists the `.gitignore` too - harmless, but a filter on what is
-  a source may come. The tree's Scenes count is the project's, not the current game's.
+- Open: the tree's Scenes count is the project's, not the current game's. (The Code row does
+  not list the `.gitignore` - `Hidden` drops dot-files - as a note here once said.)
 
 ### Later the same morning: Add Behaviour as Unity has it, and the cog
 
@@ -1301,6 +1301,41 @@ page**: a × (sessionStorage, File ▸ Start page back), project rows carry `pro
 (the `mod` folder, a new `steam` game pad, both for both) here and in Open project. **Dialogs**
 close with `.shut` × like the model picker. **Fields**: one base rule for `input`/`textarea`
 (dark, bordered, accent on focus) so a dialog's boxes stop being the browser's white ones.
+
+### The list of improvements, done (2026-09-07, evening)
+
+Asked what else the editor and engine wanted, then told to do all of it:
+
+- **Transform has a hierarchy** (`Objects.cs`). `Position`/`Rotation`/`Scale` stay public
+  fields - so `Transform.Rotation.Y = ...` in the samples still compiles - and mean the local
+  values (the world's at the top); `WorldPosition`, `WorldYaw`, `WorldScale` resolve through
+  `GameObject.Parent` (yaw only, as the field and the files do) and are settable, working the
+  local value out. `SetParent(parent, keepWorld = true)` keeps the world place. `SceneLoader.
+  Place` sets local values and parents with `keepWorld: false`; a spawned model follows its
+  transform through an internal `ModelFollow` behaviour (Teleport/Face/Scale when the world
+  values change). C-41: the child trigger fired on its world spot in the client.
+- **`SceneObjects`**: `Find(path)`, `All()`, `Defined`, `Spawn(path, at, yaw, parent)` from the
+  definitions the loader remembers per map (`Remember`), named `<map>/<path>#N`, with the
+  file's attachments through `SceneLoader.Attach` (the attachment loop factored out);
+  `Destroy`. **`ObjectRef`** as a field type (a path; `Resolve`, `Link`), read from JSON as a
+  string, classified `object` by the catalog and picked from the map's objects in the
+  inspector, renamed along with the object. **`SavedBehaviour`**: `ISaveable` registered at
+  Awake, dropped at OnDestroy, chunk `<mod>/<object>/<type>`. **`Interactable.OnWalkIn`**: off,
+  a modelless object waits for A within Radius.
+- **Editor**: undo for the scene (`recordSceneStep` in `sceneChanged`: snapshots before and
+  after on the map document's stack, coalesced within a second, `restoreSceneSnapshot` redraws
+  and autosaves); *play here* (`/api/project/run` takes `map` and `pos`, `OpenFFClient.Launch`
+  takes arguments: `--game --map --pos`); a model dropped on the 3D view of an OpenFF project is
+  an object there and then (Shift for the game's way); right-click menus on the game's rows
+  (characters: Add Behaviour…, Focus, Open script at cast, Convert; exits: Focus, Open map;
+  terrain: the model, a new object); the conversion says when the script still uses the cast
+  beyond boot and treasure; `#inspector-panel` has a minimum width and the transform cells wrap.
+- **Housekeeping**: Crystal's home is `%LocalAppData%\OpenFF\Crystal` (`CrystalHome`: projects,
+  mods; the old `FF3ContentTool` moved on first start - done on this machine: "moved ... ->
+  ...OpenFF\Crystal"); the client's `--project=<name>` looks in both. ~90 members got XML
+  summaries (GameObject, Scene, Component, the vectors, Npc, IHero, IParty, InputState,
+  LoadedMod, the scene classes). README says where the projects are and why a running
+  `crystal.exe` blocks the editor's build.
 
 ## Working rules
 

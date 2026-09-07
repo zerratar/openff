@@ -526,14 +526,17 @@ function projectSettingsDialog() {
 
 /// Export to the client's mods folder and start the client; a running client hot-reloads the
 /// code (and the scene files apply on the next map).
-async function runInOpenFF() {
+/// Export and start the client; with a map (and a spot), straight onto that map at that
+/// spot - "play here" from the map that is open.
+async function runInOpenFF(where = {}) {
   try {
     say('exporting…');
-    const result = await api('/api/project/run', {});
+    const result = await api('/api/project/run', where);
     if (!result.ok) throw new Error(result.error);
+    const at = where.map ? ` on ${where.map}${where.pos ? ' at ' + where.pos.map(Math.round).join(', ') : ''}` : '';
     say(result.started
-      ? `exported to ${result.path} - OpenFF is starting`
-      : `exported to ${result.path} - OpenFF is already running and picks the code up; re-enter the map for scene changes`, 'good');
+      ? `exported to ${result.path} - OpenFF is starting${at}`
+      : `exported to ${result.path} - OpenFF is already running and picks the code up; re-enter the map for scene changes${where.map ? ' (close it for a start on ' + where.map + ')' : ''}`, 'good');
   } catch (error) {
     say(error.message, 'bad');
   }

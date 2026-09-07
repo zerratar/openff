@@ -261,6 +261,7 @@ namespace Crystal.Editor
 				case "OpenFF.Vector3": return "vector3";
 				case "OpenFF.Vector2": return "vector2";
 				case "OpenFF.Color": return "color";
+				case "OpenFF.ObjectRef": return "object";
 			}
 			return null;
 		}
@@ -282,6 +283,8 @@ namespace Crystal.Editor
 					return new { x = Field(value, "X"), y = Field(value, "Y") };
 				case "OpenFF.Color":
 					return new { r = Field(value, "R"), g = Field(value, "G"), b = Field(value, "B"), a = Field(value, "A") };
+				case "OpenFF.ObjectRef":
+					return type.GetProperty("Path")?.GetValue(value) as string ?? "";
 			}
 			return value.ToString();
 		}

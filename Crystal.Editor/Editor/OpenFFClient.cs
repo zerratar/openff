@@ -87,19 +87,27 @@ namespace Crystal.Editor
 			catch (Exception) { return false; }
 		}
 
-		/// <summary>Starts the client from its own folder. Throws when there is none.</summary>
-		public static void Launch()
+		/// <summary>
+		/// Starts the client from its own folder, with switches when given (--game=ff3
+		/// --map=d01_05 --pos=x,y,z for "play here"). Throws when there is none.
+		/// </summary>
+		public static void Launch(params string[] arguments)
 		{
 			string exe = Executable();
 			if (exe == null)
 			{
 				throw new InvalidOperationException("the OpenFF client was not found - start OpenFF.exe once (it records where it is), or build OpenFF beside this repository");
 			}
-			System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe)
+			System.Diagnostics.ProcessStartInfo start = new System.Diagnostics.ProcessStartInfo(exe)
 			{
 				UseShellExecute = true,
 				WorkingDirectory = Path.GetDirectoryName(exe),
-			});
+			};
+			foreach (string argument in arguments ?? Array.Empty<string>())
+			{
+				if (!string.IsNullOrWhiteSpace(argument)) start.ArgumentList.Add(argument);
+			}
+			System.Diagnostics.Process.Start(start);
 		}
 
 		private static string Recorded()

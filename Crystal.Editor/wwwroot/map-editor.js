@@ -138,6 +138,16 @@ function wireDrop(node, doc) {
       return;
     }
 
+    // On an OpenFF project a dropped model is an object of the mod's own, there and then
+    // - the shortest way from the library to the map. Shift held asks the game's way
+    // (a .hich row and a cast) through the Add dialog instead.
+    if (openFFProject() && !event.shiftKey) {
+      loadSceneState(mapState.name).then(() => {
+        const object = addSceneObject(doc, { model, name: model, at: [Math.round(at[0]), Math.round(at[1]), Math.round(at[2])] });
+        say(`${object.name} placed at ${Math.round(at[0])}, ${Math.round(at[2])} - an OpenFF object (drop with Shift for one of the game's)`, 'good');
+      }).catch(error => say(error.message, 'bad'));
+      return;
+    }
     showAdd(node, { model, x: at[0], z: at[2] });
     say(`${model} at ${at[0]}, ${at[2]} - choose what it does and add it`);
   });
@@ -935,6 +945,29 @@ function wireModes(node, doc, scene) {
     button.onclick = () => show(button.dataset.mode).catch(e => say(e.message, 'bad'));
   });
   recentre.onclick = () => doc.scene3d && doc.scene3d.reset();
+
+  // Play here: an OpenFF project's shortest loop - this map, the selection's spot (or the
+  // camera's), in the client, with the mod exported first.
+  const play = $('.play', node);
+  if (play) {
+    play.hidden = !openFFProject();
+    play.onclick = () => {
+      let pos = null;
+      const sel = doc.selection || '';
+      if (sel.startsWith('scene:')) {
+        const found = findSceneObject(sel.slice(6));
+        if (found) pos = [found.x, found.y, found.z];
+      } else if (sel.startsWith('object:')) {
+        const c = mapState.data.characters.find(ch => ch.index === Number(sel.slice(7)));
+        if (c) pos = [c.x, c.y, c.z];
+      } else if (sel.startsWith('exit:')) {
+        const e = (doc.data.scene.exits || [])[Number(sel.slice(5))];
+        if (e) pos = [e.x, e.y, e.z];
+      }
+      if (!pos && doc.scene3d) pos = doc.scene3d.viewCentre();
+      runInOpenFF({ map: mapState.name, pos });
+    };
+  }
   $('.mirror', node).onchange = (event) => doc.scene3d && doc.scene3d.setMirrorZ(event.target.checked);
   $('.gizmo', node).onchange = (event) => {
     if (doc.scene3d) doc.scene3d.setGizmo(event.target.checked);
@@ -2084,11 +2117,22 @@ async function convertToSceneObject(doc, character) {
     });
   }
   sceneState.attachments.push({ target: 'object:' + character.index, behaviour: 'Removed', fields: {} });
-  sceneChanged();
+  sceneChanged('convert ' + object.name);
   syncSceneObjects(doc);
   drawHierarchy();
   drawInspector();
   say(`${object.name} is the mod's now${treasure ? ' - a Chest with the same contents' : ''}; the game's cast ${character.cast} is taken off the map in the client`, 'good');
+  // What else the script does with that cast: a boot and a treasure are expected, code
+  // that moves or talks through it is a scene the removal breaks - said now, not found later.
+  try {
+    const found = await api(`/api/map/cast/references?name=${encodeURIComponent(mapState.name)}&cast=${character.cast}`);
+    const scripted = (found.to || []).filter(r => r.kind !== 'declaration' && r.kind !== 'boot' && r.kind !== 'treasure');
+    if (scripted.length) {
+      say(`note: the script still uses cast ${character.cast} in ${scripted.length} place(s) (${scripted.map(r => r.kind).join(', ')}) - a scene that moves or talks through it will find nobody there`, 'bad');
+    }
+  } catch (error) {
+    // The references are a courtesy; the conversion stands without them.
+  }
 }
 
 // ------------------------------------------------------------- behaviours (OpenFF)
@@ -2216,11 +2260,24 @@ function syncSceneObjects(doc) {
 /// Renames or moves an object in the tree: every attachment on it or under it follows.
 function retargetAttachments(oldPath, newPath) {
   const from = oldPath.toLowerCase();
+  const move = s => {
+    const t = (s || '').toLowerCase();
+    if (t === from) return newPath;
+    if (t.startsWith(from + '/')) return newPath + s.slice(oldPath.length);
+    return null;
+  };
   for (const a of (sceneState.attachments || [])) {
     const t = (a.target || '').toLowerCase();
-    if (t === from) a.target = newPath;
-    else if (t.startsWith(from + '/')) a.target = newPath + a.target.slice(oldPath.length);
+    const moved = move(a.target);
+    if (moved) a.target = moved;
     else if (t === 'point:' + from) a.target = newPath;
+    // Fields that name the object (ObjectRef) follow too.
+    const type = (sceneState.catalog && sceneState.catalog.behaviours || []).find(b => b.name === a.behaviour);
+    for (const f of (type && type.fields || [])) {
+      if (f.type !== 'object' || !a.fields || typeof a.fields[f.name] !== 'string') continue;
+      const m = move(a.fields[f.name]);
+      if (m) a.fields[f.name] = m;
+    }
   }
 }
 
@@ -2239,6 +2296,9 @@ async function loadSceneState(map) {
     for (const a of sceneState.attachments) if (/^point:/i.test(a.target || '')) a.target = a.target.slice(6);
     sceneState.objects = fromSceneFile(scene.objects || scene.points);
     sceneState.dirty = false;
+    // The loaded state is where undo counts from.
+    sceneLastSnapshot = sceneSnapshot();
+    sceneOpenStep = null;
   }
   if (!sceneState.catalog) {
     const catalog = await api('/api/project/code/catalog');
@@ -2318,13 +2378,66 @@ function drawBehaviours(box, state, target, what) {
 // remember a Save button for every panel. The write says so in the status line only, and
 // redraws nothing, since a redraw under a half-typed field would take the field away.
 let sceneSaveTimer = null;
-function sceneChanged() {
+function sceneChanged(label) {
   sceneState.dirty = true;
+  recordSceneStep(label);
   clearTimeout(sceneSaveTimer);
   sceneSaveTimer = setTimeout(() => {
     sceneSaveTimer = null;
     saveScene({ quiet: true }).catch(() => {});
   }, 700);
+}
+
+// Undo for the scene: every change is a step on the map document's stack (Ctrl+Z / Ctrl+Y
+// with the rest of the map's edits), as a snapshot of the objects and attachments before
+// and after. Changes within a second of each other fold into one step, so a number typed
+// digit by digit or a gizmo drag is one undo, not twenty. Autosave without undo would be
+// the wrong combination.
+let sceneLastSnapshot = null;
+let sceneLastStepAt = 0;
+let sceneOpenStep = null;
+
+function sceneSnapshot() {
+  return JSON.stringify({ objects: objectsForFile(sceneState.objects || []), attachments: sceneState.attachments || [] });
+}
+
+function restoreSceneSnapshot(snapshot) {
+  const data = JSON.parse(snapshot);
+  sceneState.objects = fromSceneFile(data.objects);
+  sceneState.attachments = data.attachments;
+  sceneLastSnapshot = snapshot;
+  sceneOpenStep = null;
+  const doc = activeDoc;
+  if (doc && doc.selection && doc.selection.startsWith('scene:') && !findSceneObject(doc.selection.slice(6))) doc.selection = null;
+  syncSceneObjects(doc);
+  if (doc && doc.scene3d && doc.selection && doc.selection.startsWith('scene:')) {
+    const index = flattenSceneObjects(sceneState).findIndex(i => 'scene:' + i.path === doc.selection);
+    doc.scene3d.selectPoint(index >= 0 ? index : null);
+  }
+  drawHierarchy();
+  drawInspector();
+  sceneState.dirty = true;
+  clearTimeout(sceneSaveTimer);
+  sceneSaveTimer = setTimeout(() => { sceneSaveTimer = null; saveScene({ quiet: true }).catch(() => {}); }, 700);
+}
+
+function recordSceneStep(label) {
+  const doc = activeDoc;
+  if (!doc || doc.kind !== 'map') return;
+  const now = sceneSnapshot();
+  if (sceneLastSnapshot === null) { sceneLastSnapshot = now; return; }
+  if (now === sceneLastSnapshot) return;
+  const at = Date.now();
+  if (sceneOpenStep && at - sceneLastStepAt < 1000) {
+    // The same spell of editing: the step's "after" moves on, its "before" stays.
+    sceneOpenStep.after = now;
+  } else {
+    const step = { before: sceneLastSnapshot, after: now };
+    sceneOpenStep = step;
+    pushUndo(doc, label || 'scene change', () => restoreSceneSnapshot(step.before), () => restoreSceneSnapshot(step.after));
+  }
+  sceneLastStepAt = at;
+  sceneLastSnapshot = now;
 }
 
 /// Every behaviour the picker can offer: the built ones with their fields, and the ones
@@ -2354,7 +2467,7 @@ function attachBehaviour(state, target, choice) {
   const fields = {};
   for (const f of choice.fields) if (f.default !== null && f.default !== undefined) fields[f.name] = f.default;
   state.attachments.push({ target, behaviour: choice.name, fields });
-  sceneChanged();
+  sceneChanged('add ' + choice.name);
 }
 
 /// Unity's Add Component list, for behaviours: a search box, one row per class with its
@@ -2536,7 +2649,7 @@ function behaviourCard(state, attachment, target) {
   remove.title = 'Remove this behaviour';
   remove.onclick = () => {
     state.attachments.splice(state.attachments.indexOf(attachment), 1);
-    sceneChanged();
+    sceneChanged('remove ' + attachment.behaviour);
     drawBehaviours(card.parentElement, state, target, '');
   };
   head.append(remove);
@@ -2588,6 +2701,29 @@ function behaviourCard(state, attachment, target) {
       if (state.items) fill();
       else api('/api/items').then(items => { state.items = items; fill(); }).catch(() => {});
       input.onchange = () => changed(parseInt(input.value, 10) || 0);
+    } else if (f.type === 'object') {
+      // A reference to another of the mod's objects on this map, by path.
+      input = document.createElement('select');
+      const none = document.createElement('option');
+      none.value = '';
+      none.textContent = '(none)';
+      input.append(none);
+      for (const item of flattenSceneObjects(sceneState)) {
+        if (item.path.toLowerCase() === (target || '').toLowerCase()) continue;
+        const option = document.createElement('option');
+        option.value = item.path;
+        option.textContent = ' '.repeat(item.depth * 2) + item.path + (item.model ? '  (' + item.model + ')' : '');
+        input.append(option);
+      }
+      const current = value && typeof value === 'object' ? (value.path || value.Path || '') : (value || '');
+      if (current && ![...input.options].some(o => o.value === current)) {
+        const gone = document.createElement('option');
+        gone.value = current;
+        gone.textContent = current + '  (not on this map)';
+        input.append(gone);
+      }
+      input.value = current;
+      input.onchange = () => changed(input.value);
     } else if (f.type === 'strings') {
       // A list of strings: one per line.
       input = document.createElement('textarea');
@@ -2717,7 +2853,7 @@ function addSceneObject(doc, options = {}) {
     object.y = Math.round(spot[1]);
     object.z = Math.round(spot[2]);
   }
-  sceneChanged();
+  sceneChanged('add ' + name);
   const path = scenePathOf(object);
   syncSceneObjects(doc);
   if (doc && doc.scene3d) {
@@ -2739,7 +2875,7 @@ function removeSceneObject(doc, object) {
   const gone = flattenSceneObjects(sceneState, [object]).map(i => i.path.toLowerCase());
   siblings.splice(index, 1);
   sceneState.attachments = (sceneState.attachments || []).filter(a => !gone.includes((a.target || '').toLowerCase()));
-  sceneChanged();
+  sceneChanged('delete ' + object.name);
   if (doc) doc.selection = null;
   syncSceneObjects(doc);
   if (doc && doc.scene3d) doc.scene3d.selectPoint(null);
@@ -2813,7 +2949,7 @@ function reparentSceneObject(doc, object, parent) {
   const p = parent ? sceneWorldOf(parent) : { scale: 1 };
   object.scale = world.scale / (p.scale || 1);
   retargetAttachments(oldPath, scenePathOf(object));
-  sceneChanged();
+  sceneChanged('move ' + object.name);
   if (doc) doc.selection = 'scene:' + scenePathOf(object);
   syncSceneObjects(doc);
   drawHierarchy();
