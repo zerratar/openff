@@ -2533,16 +2533,26 @@ async function refreshScenePoints(doc) {
 function addSceneObject(doc, options = {}) {
   const state = sceneState;
   if (!state.objects) state.objects = [];
-  const parent = options.parent || null;
+  // Beside a given object: the same parent, right after it in the list, at its spot.
+  const after = options.after || null;
+  const parent = after ? after.parent : (options.parent || null);
   const siblings = parent ? parent.children : state.objects;
-  const name = uniqueSceneName(siblings, options.name || (options.model ? options.model : parent ? 'Child' : 'Object'));
+  const name = uniqueSceneName(siblings, options.name || (options.model ? options.model : parent && !after ? 'Child' : 'Object'));
   const object = {
     name, x: 0, y: 0, z: 0, rotationY: 0, scale: 1,
     model: options.model || null, tags: options.tags || [], children: []
   };
   Object.defineProperty(object, 'parent', { value: parent, writable: true, enumerable: false });
-  siblings.push(object);
-  if (!parent) {
+  if (after) {
+    siblings.splice(siblings.indexOf(after) + 1, 0, object);
+    object.x = after.x;
+    object.y = after.y;
+    object.z = after.z;
+    object.rotationY = after.rotationY || 0;
+  } else {
+    siblings.push(object);
+  }
+  if (!parent && !after) {
     const spot = options.at || (doc && doc.scene3d ? doc.scene3d.viewCentre() : [0, 0, 0]);
     object.x = Math.round(spot[0]);
     object.y = Math.round(spot[1]);
@@ -2583,6 +2593,7 @@ function removeSceneObject(doc, object) {
 function sceneObjectMenu(doc, object) {
   const path = scenePathOf(object);
   return [
+    { label: 'New object', icon: 'exit', run: () => addSceneObject(doc, { after: object }) },
     { label: 'New child object', icon: 'exit', run: () => addSceneObject(doc, { parent: object }) },
     { label: 'Duplicate', icon: 'model', run: () => duplicateSceneObject(doc, object) },
     { label: 'Rename', icon: 'code', run: () => {

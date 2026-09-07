@@ -744,7 +744,7 @@ terrain's inspector has *Add an OpenFF object where the camera looks* for the sa
 They are listed as a tree under **Objects (OpenFF)** in the hierarchy, drawn in the 3D
 view (the model itself, or a small blue box for one without) and moved with the same
 gizmo as everything else. The hierarchy is where the tree is worked: **right-click** a row
-for *New child object*, *Duplicate* (the subtree and its behaviours, under a fresh name),
+for *New object* (a sibling right below it, at its spot), *New child object*, *Duplicate* (the subtree and its behaviours, under a fresh name),
 *Rename*, *Focus in view*, *Move to top level* and *Delete*; right-click the group for
 *New object*; and **drag** a row onto another to make it that one's child, or onto the
 group to put it back at the top level - it keeps its place in the world either way. The inspector of one is laid out as Unity lays out a
