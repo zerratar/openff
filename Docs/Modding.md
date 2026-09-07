@@ -273,6 +273,7 @@ under *Built in* whether or not the mod has code, so the usual things need no C#
 | `Chest` | Item (picked from the game's list), Count, Gil; Once, Message, EmptyMessage | gives the contents and says so when the player talks to it (a model) or walks in (none); Once remembers it across saves |
 | `Talk` | Speaker, Lines (one per line), FaceHero | says the lines one window at a time when talked to |
 | `Trigger` | Radius, Once | raises `Entered`/`Left` and publishes `Events.TriggerEntered` / `TriggerLeft` (with the `GameObject`, so its tags say which) when the hero comes within Radius; logs `trigger <map>/<path>: hero entered` |
+| `Removed` | HideOnly | on one of the *game's* characters (`object:N`): takes it off the map when the map is entered - what Crystal's *Convert to OpenFF object* leaves on the original, so the mod's stand-in is the only one there |
 
 So a chest is: an OpenFF object with the chest's model (`o001`), a `Chest` on it, the item
 picked in the inspector - every one of those changeable later. `Chest` and `Talk` derive

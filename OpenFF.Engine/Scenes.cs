@@ -333,6 +333,27 @@ namespace OpenFF
 		protected virtual void OnSaid() { }
 	}
 
+	/// <summary>
+	/// Takes the game's own character this is attached to off the map when the map is
+	/// entered - what Crystal's "Convert to OpenFF object" leaves on the original, so the
+	/// mod's object stands in its place. The map's script still has the cast; nothing
+	/// talks to it any more. Nothing happens on a scene object of the mod's own.
+	/// </summary>
+	public sealed class Removed : Behaviour
+	{
+		/// <summary>Hide it instead of removing it (it still blocks and can be talked to); off by default.</summary>
+		public bool HideOnly;
+
+		protected override void Start()
+		{
+			MapObject link = GetComponent<MapObject>();
+			if (link == null || link.Kind != "object" || link.Npc == null) return;
+			if (HideOnly) link.Npc.Hidden = true;
+			else Game.Guard("removed " + link, link.Npc.Remove);
+			Game.Log("removed: the map's " + link + " (replaced by the mod)");
+		}
+	}
+
 	/// <summary>The mod's own object in a scene file: a spot, or a model standing there, with children under it.</summary>
 	public sealed class SceneObject
 	{
