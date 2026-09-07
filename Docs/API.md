@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags)
-- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3)
+- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -88,23 +88,23 @@ The character the player controls.
 | Member | What it does |
 | --- | --- |
 | `bool Balloon { get; set; }` | The "!" over the head. |
-| `bool Frozen { get; }` |  |
+| `bool Frozen { get; }` | Whether the hero is held still (Freeze); the field does not move them. |
 | `string Model { get; }` | The model the hero wears (j101 and the like). |
 | `bool MotionDone { get; }` | Whether the motion PlayMotion started has finished (looping ones never do). |
-| `bool Moving { get; }` |  |
+| `bool Moving { get; }` | Whether walking right now. |
 | `Vector3 Position { get; }` |  |
 | `bool Present { get; }` | Whether there is a hero on a map right now. |
 | `float Yaw { get; }` | Degrees about the up axis. |
 | `void BindBattleMotions()` | Binds what the battle binds on a party member: the common set, the magic set, the current job's set and the extra set - enough for HeroMotion's ids except a weapon's swings. |
 | `void BindMotions(string set = "b_b01")` | Adds a motion set to the hero's model so PlayMotion can play its ids (HeroMotion has the ids). The battle's sets: "b_b01" idle, poise, damage, death, wins; "b_b02_040" the magic motions; "b_b02_" + a weapon's graph id (Item.Model without the w) that weapon's swings; the job's own set (see BindBattleMotions); "b_b04_002" the rest. Once per map. |
-| `void Face(float yaw)` |  |
+| `void Face(float yaw)` | Turns to a yaw in degrees (0 = +Z, 90 = +X). |
 | `void Freeze()` | Takes control from the player: no walking, no menu button, the way an event does. |
-| `void LookAt(Vector3 point)` |  |
+| `void LookAt(Vector3 point)` | Turns to face a point on the ground. |
 | `void MoveTo(Vector3 position, int frames)` | Walks the hero to a point over frames (a scripted walk; freeze first so the player does not fight it). |
 | `void PlayMotion(int index, bool loop = false, int blendFrames = 5)` | Plays a motion by its index in the character's set (1001 is the talk pose). |
-| `void Stop()` |  |
-| `void Teleport(Vector3 position)` |  |
-| `void Unfreeze()` |  |
+| `void Stop()` | Ends a walk where they stand. |
+| `void Teleport(Vector3 position)` | Puts them at a position at once, no walk. |
+| `void Unfreeze()` | Lets the hero move again after Freeze. |
 
 ### INpcs
 
@@ -127,15 +127,15 @@ The party: money, items, members.
 
 | Member | What it does |
 | --- | --- |
-| `int Gil { get; set; }` |  |
+| `int Gil { get; set; }` | The party's money; set it to give or take. |
 | `IReadOnlyList<ItemStack> Items { get; }` | The bag: every item the party carries and how many. |
 | `IReadOnlyList<PartyMember> Members { get; }` | The characters in the party, in slot order. |
-| `void AddItem(int itemId, int count)` |  |
+| `void AddItem(int itemId, int count)` | Puts items in the bag (Game.Items.Find for the id). |
 | `bool AddMember(int id)` | Puts a character into the party (the game's id); false when the party is full or the id unknown. |
 | `void Cure(int id, Condition conditions)` | Takes conditions off. |
 | `bool Equip(int id, int itemId, EquipSlot slot = Auto)` | Equips an item from the bag on a character (the item's own slot when Auto); false when they cannot wear it or the bag has none. |
 | `int Equipped(int id, EquipSlot slot)` | The item in a slot, or 0. |
-| `bool ForgetSpell(int id, int spellId)` |  |
+| `bool ForgetSpell(int id, int spellId)` | Takes a spell out of the character's slots; false when they did not have it. |
 | `bool GiveExperience(int id, int amount)` | Adds experience, levelling up as the game does; true when a level was gained. |
 | `int Heal(int id, int amount, bool revive = false)` | Gives hit points back, up to the maximum (a dead character stays dead unless revive is true). Returns the new HP. |
 | `void HealAll()` | Heals everyone to full. |
@@ -145,7 +145,7 @@ The party: money, items, members.
 | `bool LearnSpell(int id, int spellId)` | Equips a spell into the character's slots for its level; false when the slots are full. |
 | `PartyMember Member(int id)` | A character by the game's id, in the party or not. |
 | `bool RemoveItem(int itemId, int count)` | Takes items out of the bag; false when there are not that many. |
-| `bool RemoveMember(int id)` |  |
+| `bool RemoveMember(int id)` | Takes a character out of the party; false when not in it. |
 | `void SetCharges(int id, int level, int now, int max = -1)` | Sets the charges of one magic level (1-8) now and, when max is given, the maximum too. |
 | `void SetHp(int id, int now, int max = -1)` | Sets HP now and, when max is given, the maximum too. |
 | `void SetJob(int id, Job job)` | Changes job, with the game's own bookkeeping (abilities, charges, the penalty time). |
@@ -420,23 +420,23 @@ A public field the inspector leaves out (still set from a scene file when named)
 
 | Member | What it does |
 | --- | --- |
-| `const float ScreenHeight` |  |
-| `const float ScreenWidth` |  |
+| `const float ScreenHeight` | The screen's height in the engine's units. |
+| `const float ScreenWidth` | The screen's width in the engine's units. |
 | `bool Capture { get; set; }` | While true the game itself receives no input; the mod that set it has the player. Freeze the hero as well if the field should stand still under a mod's own game. |
 | `Vector3 Direction { get; }` | The direction the pad gives, as a unit vector on the ground plane (x right, y up on screen). |
-| `Pad Held { get; }` |  |
-| `IEnumerable<string> KeysHeld { get; }` |  |
-| `bool PointerDown { get; }` |  |
-| `bool PointerPressed { get; }` |  |
-| `bool PointerReleased { get; }` |  |
+| `Pad Held { get; }` | Every pad button down this frame. |
+| `IEnumerable<string> KeysHeld { get; }` | Every key down this frame, by name. |
+| `bool PointerDown { get; }` | Whether the pointer (mouse button, finger) is down. |
+| `bool PointerPressed { get; }` | Whether the pointer went down this frame. |
+| `bool PointerReleased { get; }` | Whether the pointer came up this frame. |
 | `float PointerX { get; }` | The pointer (mouse or finger) in screen units. |
-| `float PointerY { get; }` |  |
+| `float PointerY { get; }` | The pointer's y in screen units. |
 | `int Wheel { get; }` | Mouse wheel movement this frame, in notches. |
-| `bool IsHeld(Pad button)` |  |
+| `bool IsHeld(Pad button)` | Whether a button is down. |
 | `bool KeyHeld(string key)` | A keyboard key by its name (Space, Enter, F, D1, Left...), for mods that want the keyboard itself. |
-| `bool KeyPressed(string key)` |  |
-| `bool Pressed(Pad button)` |  |
-| `bool Released(Pad button)` |  |
+| `bool KeyPressed(string key)` | Whether a key went down this frame. |
+| `bool Pressed(Pad button)` | Whether a button went down this frame. |
+| `bool Released(Pad button)` | Whether a button came up this frame. |
 | `void SetKeys(IEnumerable<string> held)` | Host entry: the keys held this frame, by name. |
 | `void SetPad(int bits)` | Host entry: the frame's pad bits (the same layout the game's pad uses). |
 | `void SetPointer(float x, float y, bool down, int wheel)` | Host entry: the pointer in screen units and whether it is down. |
@@ -449,6 +449,7 @@ The common ground of the built-in components an editor places on a scene object:
 
 | Member | What it does |
 | --- | --- |
+| `bool OnWalkIn` | Without a model: act when the hero walks in (on), or when the player presses A standing within Radius (off) - an invisible sign or switch. |
 | `float Radius` | Without a model to talk to: how close the hero comes, in world units, for the object to act. |
 
 ### Item
@@ -551,7 +552,7 @@ A character a script put on the map.
 
 | Member | What it does |
 | --- | --- |
-| `bool Alive { get; }` |  |
+| `bool Alive { get; }` | Whether the character is still on the map (not removed, the map not left). |
 | `int Alpha { get; set; }` | Opacity, 0 (gone) to 100. |
 | `bool Balloon { get; set; }` | The "!" over the head. |
 | `bool HasInteractHandler { get; }` |  |
@@ -559,22 +560,36 @@ A character a script put on the map.
 | `float InteractRadius { get; set; }` | How close the hero must be, in world units, for A to count as talking to this one (two characters together stand about 8 apart). |
 | `string Model { get; }` |  |
 | `bool MotionDone { get; }` |  |
-| `bool Moving { get; }` |  |
+| `bool Moving { get; }` | Whether walking right now. |
 | `LoadedMod Owner { get; set; }` | The mod that spawned it, or null. |
-| `Vector3 Position { get; }` |  |
+| `Vector3 Position { get; }` | Where it stands, in world units. |
 | `float Scale { get; set; }` | Size, 1 = as modelled. |
 | `bool Solid { get; set; }` | Whether the character blocks and shoves other characters. Off by default: a solid character standing beside the hero pushes the hero away, frame after frame. |
-| `float Yaw { get; }` |  |
+| `float Yaw { get; }` | Which way it faces, in degrees (0 = +Z, 90 = +X). |
 | `event Action<Npc> Interacted` | The player talked to this character: pressed A within InteractRadius, or did what the game itself counts as talking to it (a tap on it, or A while facing it). |
 | `void BindMotions(string set)` | Adds a motion set to the character's model: "b_b01" for a party member's model, a monster's Monster.MotionSet ("b_f" + family) for its attack and idle (MonsterMotion). |
-| `void Face(float yaw)` |  |
-| `void LookAt(Vector3 point)` |  |
+| `void Face(float yaw)` | Turns to a yaw in degrees. |
+| `void LookAt(Vector3 point)` | Turns to face a point. |
 | `void MoveTo(Vector3 position, int frames)` | Walks to a point over a number of frames (0 teleports). The character faces where it walks. |
 | `void PlayMotion(int index, bool loop = false, int blendFrames = 5)` | Plays a motion by its index in the character's set (1001 is the talk pose). |
 | `void Remove()` | Takes the character off the map. |
-| `void SetAi(NpcAi ai)` |  |
+| `void SetAi(NpcAi ai)` | What it does on its own: stand, wander, follow. |
 | `void Stop()` | Ends a walk where the character stands. |
-| `void Teleport(Vector3 position)` |  |
+| `void Teleport(Vector3 position)` | Puts it at a position at once. |
+
+### ObjectRef
+
+`class ObjectRef`
+
+A reference from a behaviour's field to another of the mod's scene objects, by its path on the map ("chest", "gate/left"). Crystal offers the map's objects to pick from; Resolve gives the GameObject when the map is up.
+
+| Member | What it does |
+| --- | --- |
+| `bool IsSet { get; }` |  |
+| `MapObject Link { get; }` | The object's MapObject, for its model handle (Npc) and the like. |
+| `string Path { get; set; }` | The object's path in the scene file; empty for none. |
+| `GameObject Resolve()` | The object on the current map, or null when there is none of that path. |
+| `string ToString()` |  |
 
 ### PartyMember
 
@@ -624,6 +639,19 @@ Takes the game's own character this is attached to off the map when the map is e
 | --- | --- |
 | `bool HideOnly` | Hide it instead of removing it (it still blocks and can be talked to); off by default. |
 
+### SavedBehaviour
+
+`abstract class SavedBehaviour : Behaviour, ISaveable`
+
+A behaviour whose state rides in the saves: derive, keep the state in Save/Load, and it is written with the game's own save and back on load, keyed by the object it is on and its type (one chest, one key). Registered when it wakes, dropped when it goes.
+
+| Member | What it does |
+| --- | --- |
+| `string ChunkId { get; }` | <mod>/<object name>/<type>, unless overridden. |
+| `int ChunkVersion { get; }` |  |
+| `void Load(int version, JsonElement data)` | What was kept, back. |
+| `object Save()` | What to keep: anything System.Text.Json can serialise; null for nothing. |
+
 ### SceneMemory
 
 `class SceneMemory : ISaveable`
@@ -650,15 +678,30 @@ The mod's own object in a scene file: a spot, or a model standing there, with ch
 
 | Member | What it does |
 | --- | --- |
-| `List<SceneObject> Children { get; set; }` |  |
+| `List<SceneObject> Children { get; set; }` | Objects under this one, their transforms relative to it. |
 | `string Model { get; set; }` | A model name (o001, n011...) to show, or null for a spot with logic only. |
-| `string Name { get; set; }` |  |
+| `string Name { get; set; }` | The name; unique among its siblings, not / or :. |
 | `float Scale { get; set; }` | Uniform scale, 1 = the model's own size; for a child, multiplied by the parent's. |
-| `List<string> Tags { get; set; }` |  |
+| `List<string> Tags { get; set; }` | Words a mod finds it by (GameObject.Tags). |
 | `float X { get; set; }` | Position; for a child, relative to its parent (turned by the parent's yaw, scaled by its scale). |
-| `float Y { get; set; }` |  |
+| `float Y { get; set; }` | Height; relative to the parent for a child. |
 | `float Yaw { get; set; }` | Facing in degrees, the engine's yaw (0 = +Z, 90 = +X); for a child, added to the parent's. |
-| `float Z { get; set; }` |  |
+| `float Z { get; set; }` | Forward; relative to the parent for a child. |
+
+### SceneObjects
+
+`static class SceneObjects`
+
+The mod's scene objects on the current map, by path, and copies of them: what a scene file authored in Crystal offers to code. Spawn makes a new object from a definition in the file - its model, tags and behaviours - at a spot of the code's choosing, so one authored object serves as the template for many.
+
+| Member | What it does |
+| --- | --- |
+| `static IEnumerable<string> Defined { get; }` | The paths the current map's scene file defines - what a mod may Spawn. |
+| `static string Map { get; }` | The map the definitions are for. |
+| `static IEnumerable<GameObject> All()` | Every scene object on the current map (the ones with a MapObject of kind scene). |
+| `static void Destroy(GameObject o)` | Takes a spawned (or any scene) object off the map, its model with it. |
+| `static GameObject Find(string path)` | A scene object on the current map by its path ("chest", "gate/left"); null when there is none. |
+| `static GameObject Spawn(string path, Vector3 at, float yaw = 0, GameObject parent = null)` | A new object from the scene file's definition at a path - the same model, tags and behaviours (with the file's field values) - at a spot, facing a yaw, at the top level of the scene. Named <map>/<path>#N. Null when the path is not defined. |
 
 ### ShopInfo
 
@@ -795,17 +838,17 @@ A point on the screen (800x480 units) or any pair.
 
 | Member | What it does |
 | --- | --- |
-| `float X` |  |
-| `float Y` |  |
-| `static Vector2 Zero` |  |
+| `float X` | The components: x right, y up on screen (or whatever the pair stands for). |
+| `float Y` | The components: x right, y up on screen (or whatever the pair stands for). |
+| `static Vector2 Zero` | Both zero. |
 | `float Angle { get; }` |  |
-| `float Length { get; }` |  |
+| `float Length { get; }` | How long the vector is. |
 | `Vector2 Normalized { get; }` |  |
 | `static float Distance(Vector2 a, Vector2 b)` |  |
 | `static float Dot(Vector2 a, Vector2 b)` |  |
 | `bool Equals(object obj)` |  |
 | `static Vector2 FromAngle(float degrees)` | A direction from an angle in degrees (0 = +X, 90 = +Y, screen down). |
-| `int GetHashCode()` |  |
+| `int GetHashCode()` | A hash of the three components. |
 | `static Vector2 Lerp(Vector2 a, Vector2 b, float t)` |  |
 | `string ToString()` |  |
 
@@ -815,25 +858,25 @@ A point on the screen (800x480 units) or any pair.
 
 | Member | What it does |
 | --- | --- |
-| `static Vector3 One` |  |
-| `float X` |  |
-| `float Y` |  |
-| `float Z` |  |
-| `static Vector3 Zero` |  |
+| `static Vector3 One` | All ones. |
+| `float X` | The components; x right, y up, z forward (0 yaw looks along +Z). |
+| `float Y` | The components; x right, y up, z forward (0 yaw looks along +Z). |
+| `float Z` | The components; x right, y up, z forward (0 yaw looks along +Z). |
+| `static Vector3 Zero` | All zeros. |
 | `Vector3 Flat { get; }` | The point without its height. |
-| `float Length { get; }` |  |
+| `float Length { get; }` | How long the vector is. |
 | `Vector3 Normalized { get; }` | The same direction, length one (Zero stays Zero). |
 | `float Yaw { get; }` | The yaw in degrees of a ground direction (0 = +Z, 90 = +X). |
-| `static Vector3 Cross(Vector3 a, Vector3 b)` |  |
-| `static float Distance(Vector3 a, Vector3 b)` |  |
-| `static float Dot(Vector3 a, Vector3 b)` |  |
-| `bool Equals(object obj)` |  |
+| `static Vector3 Cross(Vector3 a, Vector3 b)` | The cross product: a vector at right angles to both. |
+| `static float Distance(Vector3 a, Vector3 b)` | The straight-line distance between two points. |
+| `static float Dot(Vector3 a, Vector3 b)` | The dot product. |
+| `bool Equals(object obj)` | Component-wise equality. |
 | `static float FlatDistance(Vector3 a, Vector3 b)` | Distance on the ground, ignoring height. |
 | `static Vector3 FromYaw(float degrees)` | A direction on the ground from a yaw in degrees (0 = +Z, 90 = +X), as Hero.Yaw and Npc.Yaw report it. |
-| `int GetHashCode()` |  |
-| `static Vector3 Lerp(Vector3 a, Vector3 b, float t)` |  |
+| `int GetHashCode()` | A hash of the three components. |
+| `static Vector3 Lerp(Vector3 a, Vector3 b, float t)` | The point t of the way from a to b (0 is a, 1 is b). |
 | `static Vector3 MoveToward(Vector3 a, Vector3 b, float maxStep)` | A step of at most maxStep from a toward b. |
-| `string ToString()` |  |
+| `string ToString()` | "x, y, z" to two decimals. |
 
 ## Services you write, objects and scenes
 
@@ -856,10 +899,10 @@ A component with a lifecycle, the unit of script on an object.
 
 | Member | What it does |
 | --- | --- |
-| `GameObject GameObject { get; }` |  |
-| `Scene Scene { get; }` |  |
-| `Transform Transform { get; }` |  |
-| `T GetComponent<T>()` |  |
+| `GameObject GameObject { get; }` | The object this component is on; null once removed. |
+| `Scene Scene { get; }` | The scene the object is in, for short. |
+| `Transform Transform { get; }` | The object's Transform, for short. |
+| `T GetComponent<T>()` | Another component on the same object, or null. |
 
 ### GameObject
 
@@ -867,23 +910,23 @@ A component with a lifecycle, the unit of script on an object.
 
 | Member | What it does |
 | --- | --- |
-| `bool Active { get; set; }` |  |
-| `bool ActiveInHierarchy { get; }` |  |
-| `IReadOnlyList<GameObject> Children { get; }` |  |
-| `IReadOnlyList<Component> Components { get; }` |  |
-| `long Id { get; }` |  |
-| `string Name { get; set; }` |  |
+| `bool Active { get; set; }` | Whether its behaviours run; an inactive parent stops the children too (ActiveInHierarchy). |
+| `bool ActiveInHierarchy { get; }` | Active, and every parent active, and not destroyed. |
+| `IReadOnlyList<GameObject> Children { get; }` | The objects under it. |
+| `IReadOnlyList<Component> Components { get; }` | Every component on it, in the order added. |
+| `long Id { get; }` | A number unique to this object for the run. |
+| `string Name { get; set; }` | The name: a scene file's objects are <map>/<path>; find one with Scene.Find. |
 | `LoadedMod Owner { get; set; }` | The mod that created this object, or null. |
-| `GameObject Parent { get; }` |  |
-| `Scene Scene { get; }` |  |
-| `HashSet<string> Tags { get; }` |  |
-| `Transform Transform { get; }` |  |
-| `T AddComponent<T>()` |  |
-| `Component AddComponent(Component component)` |  |
-| `T GetComponent<T>()` |  |
-| `IEnumerable<T> GetComponents<T>()` |  |
-| `void RemoveComponent(Component component)` |  |
-| `void SetParent(GameObject parent)` |  |
+| `GameObject Parent { get; }` | The object above it in the tree, or null at the top. |
+| `Scene Scene { get; }` | The scene it is in; null before Add and after Destroy. |
+| `HashSet<string> Tags { get; }` | Words to find the object by (Scene.WithTag); case does not matter. |
+| `Transform Transform { get; }` | Where it is: relative to the parent when it has one. |
+| `T AddComponent<T>()` | Makes a component of that type and adds it (a Behaviour wakes if the object is in a scene). |
+| `Component AddComponent(Component component)` | Adds a component made elsewhere (its fields set first, so Awake sees them). |
+| `T GetComponent<T>()` | The first component of that type, or null. |
+| `IEnumerable<T> GetComponents<T>()` | Every component of that type. |
+| `void RemoveComponent(Component component)` | Takes a component off (a Behaviour hears OnDisable and OnDestroy). |
+| `void SetParent(GameObject parent, bool keepWorld = true)` | Puts the object under another (or at the top with null). With keepWorld, the default, it stays where it is in the world and its Transform is worked out in the new parent's frame; without, its Transform is kept as written and it moves. |
 
 ### GameService
 
@@ -926,14 +969,14 @@ What a scene-file object stands for on the legacy map.
 | Member | What it does |
 | --- | --- |
 | `SceneInfo Info { get; set; }` | What the host knows about the legacy map this scene stands for, when it does. |
-| `string Name { get; }` |  |
-| `IReadOnlyList<GameObject> Roots { get; }` |  |
-| `GameObject Add(GameObject gameObject)` |  |
-| `GameObject Add(string name)` |  |
-| `IEnumerable<GameObject> All()` |  |
-| `void Destroy(GameObject gameObject)` |  |
-| `GameObject Find(string name)` |  |
-| `IEnumerable<GameObject> WithTag(string tag)` |  |
+| `string Name { get; }` | The scene's name; the legacy map's is "legacy". |
+| `IReadOnlyList<GameObject> Roots { get; }` | The objects at the top of the tree. |
+| `GameObject Add(GameObject gameObject)` | Puts an object (and its children) into the scene; behaviours wake. |
+| `GameObject Add(string name)` | A new, empty object of that name in the scene. |
+| `IEnumerable<GameObject> All()` | Every object in the scene, parents before children. |
+| `void Destroy(GameObject gameObject)` | Takes an object and its children out; behaviours hear OnDestroy. |
+| `GameObject Find(string name)` | The object of that name (case does not matter), or null. |
+| `IEnumerable<GameObject> WithTag(string tag)` | Every object carrying a tag. |
 
 ### SceneAttachment
 
@@ -992,16 +1035,16 @@ Applies the mods' scene files to the map the game is on.
 
 `class ScenePoint`
 
-A spot placed in the editor: a spawn point, a camera mark, a trigger centre - whatever a mod makes of it.
+The older files' spot placed in the editor; read as a SceneObject without a model. New files write objects.
 
 | Member | What it does |
 | --- | --- |
-| `string Name { get; set; }` |  |
-| `List<string> Tags { get; set; }` |  |
-| `float X { get; set; }` |  |
-| `float Y { get; set; }` |  |
+| `string Name { get; set; }` | The name, unique on the map. |
+| `List<string> Tags { get; set; }` | Words a mod finds it by (GameObject.Tags). |
+| `float X { get; set; }` | World position. |
+| `float Y { get; set; }` | World height. |
 | `float Yaw { get; set; }` | Facing in degrees, the engine's yaw (0 = +Z, 90 = +X). |
-| `float Z { get; set; }` |  |
+| `float Z { get; set; }` | World forward. |
 
 ### ServiceRegistry
 
@@ -1022,11 +1065,17 @@ A spot placed in the editor: a spawn point, a camera mark, a trigger centre - wh
 
 `class Transform`
 
+Where an object is. Position, Rotation and Scale are relative to the parent object when there is one (Unity's local values) and the world's when there is not, so a child moves with its parent; WorldPosition, WorldYaw and WorldScale are the resolved values, readable and settable either way. The hierarchy turns about the vertical only (Rotation.Y), which is what the field's characters and the scene files do.
+
 | Member | What it does |
 | --- | --- |
-| `Vector3 Position` |  |
-| `Vector3 Rotation` | Euler degrees. |
-| `Vector3 Scale` |  |
+| `Vector3 Position` | Relative to the parent's frame: turned by its yaw, scaled by its scale. |
+| `Vector3 Rotation` | Euler degrees; Y is the yaw (0 = +Z, 90 = +X), added to the parent's. |
+| `Vector3 Scale` | Multiplied by the parent's. |
+| `Vector3 Forward { get; }` | The world direction the object faces, from WorldYaw. |
+| `Vector3 WorldPosition { get; set; }` | The position in the world, the parents' transforms applied; setting it keeps the object where you say and works the local value out. |
+| `float WorldScale { get; set; }` | The uniform scale in the world: the parents' multiplied by Scale.X. |
+| `float WorldYaw { get; set; }` | The yaw in the world, in degrees: the parents' added to Rotation.Y. |
 
 ### World
 
@@ -1326,13 +1375,13 @@ How the client finds, loads and hot-reloads mod assemblies; `mod.json` is `ModDe
 | --- | --- |
 | `Assembly Assembly { get; }` | The main assembly. |
 | `Dictionary<string, Type> BehaviourTypes { get; }` | The mod's Behaviour types, by simple name, for scenes to instantiate. |
-| `ModDefinition Definition { get; }` |  |
+| `ModDefinition Definition { get; }` | What mod.json said. |
 | `string Directory { get; }` |  |
 | `string Id { get; }` |  |
-| `DateTime LoadedAt { get; }` |  |
+| `DateTime LoadedAt { get; }` | When its code was last loaded. |
 | `string Name { get; }` |  |
-| `int Reloads { get; }` |  |
-| `List<GameService> Services { get; }` |  |
+| `int Reloads { get; }` | How many times its code has been hot-reloaded this run. |
+| `List<GameService> Services { get; }` | The mod's services, one instance each. |
 | `string Version { get; }` |  |
 | `string ToString()` |  |
 
@@ -1345,11 +1394,11 @@ What the host tells the engine about a mod whose code is to be loaded.
 | Member | What it does |
 | --- | --- |
 | `List<string> Assemblies { get; set; }` | The assemblies to load, full paths, the main one first. |
-| `string Directory { get; set; }` |  |
-| `string Id { get; set; }` |  |
-| `string Name { get; set; }` |  |
+| `string Directory { get; set; }` | The mod's folder. |
+| `string Id { get; set; }` | The mod's id from mod.json. |
+| `string Name { get; set; }` | The mod's name from mod.json. |
 | `string Scenes { get; set; }` | The folder with the mod's scene files (scenes/<map>.json), or null. |
-| `string Version { get; set; }` |  |
+| `string Version { get; set; }` | The mod's version from mod.json. |
 
 ### ModLoader
 
@@ -1670,4 +1719,4 @@ Whom a spell may be aimed at, as flags.
 
 ---
 
-104 types, 756 members; 469 without a summary yet.
+107 types, 776 members; 375 without a summary yet.

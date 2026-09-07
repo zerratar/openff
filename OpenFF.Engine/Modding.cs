@@ -32,9 +32,13 @@ namespace OpenFF.Modding
 	/// <summary>What the host tells the engine about a mod whose code is to be loaded.</summary>
 	public sealed class ModDefinition
 	{
+		/// <summary>The mod's id from mod.json.</summary>
 		public string Id { get; set; }
+		/// <summary>The mod's name from mod.json.</summary>
 		public string Name { get; set; }
+		/// <summary>The mod's version from mod.json.</summary>
 		public string Version { get; set; }
+		/// <summary>The mod's folder.</summary>
 		public string Directory { get; set; }
 		/// <summary>The assemblies to load, full paths, the main one first.</summary>
 		public List<string> Assemblies { get; set; } = new List<string>();
@@ -48,14 +52,18 @@ namespace OpenFF.Modding
 		public string Name => Definition.Name ?? Definition.Id;
 		public string Version => Definition.Version ?? "";
 		public string Directory => Definition.Directory;
+		/// <summary>What mod.json said.</summary>
 		public ModDefinition Definition { get; internal set; }
 		/// <summary>The main assembly.</summary>
 		public Assembly Assembly { get; internal set; }
 		internal ModLoadContext Context;
+		/// <summary>The mod's services, one instance each.</summary>
 		public List<GameService> Services { get; } = new List<GameService>();
 		/// <summary>The mod's Behaviour types, by simple name, for scenes to instantiate.</summary>
 		public Dictionary<string, Type> BehaviourTypes { get; } = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
+		/// <summary>How many times its code has been hot-reloaded this run.</summary>
 		public int Reloads { get; internal set; }
+		/// <summary>When its code was last loaded.</summary>
 		public DateTime LoadedAt { get; internal set; }
 		public override string ToString() => Id + " " + Version;
 	}

@@ -82,12 +82,17 @@ namespace OpenFF
 		float Yaw { get; }
 		/// <summary>The model the hero wears (j101 and the like).</summary>
 		string Model { get; }
+		/// <summary>Puts them at a position at once, no walk.</summary>
 		void Teleport(Vector3 position);
+		/// <summary>Turns to a yaw in degrees (0 = +Z, 90 = +X).</summary>
 		void Face(float yaw);
+		/// <summary>Turns to face a point on the ground.</summary>
 		void LookAt(Vector3 point);
 		/// <summary>Walks the hero to a point over frames (a scripted walk; freeze first so the player does not fight it).</summary>
 		void MoveTo(Vector3 position, int frames);
+		/// <summary>Whether walking right now.</summary>
 		bool Moving { get; }
+		/// <summary>Ends a walk where they stand.</summary>
 		void Stop();
 		/// <summary>Plays a motion by its index in the character's set (1001 is the talk pose).</summary>
 		void PlayMotion(int index, bool loop = false, int blendFrames = 5);
@@ -101,7 +106,9 @@ namespace OpenFF
 		bool Balloon { get; set; }
 		/// <summary>Takes control from the player: no walking, no menu button, the way an event does.</summary>
 		void Freeze();
+		/// <summary>Lets the hero move again after Freeze.</summary>
 		void Unfreeze();
+		/// <summary>Whether the hero is held still (Freeze); the field does not move them.</summary>
 		bool Frozen { get; }
 	}
 
@@ -121,17 +128,25 @@ namespace OpenFF
 		public string Model { get; protected set; }
 		/// <summary>The mod that spawned it, or null.</summary>
 		public Modding.LoadedMod Owner { get; set; }
+		/// <summary>Whether the character is still on the map (not removed, the map not left).</summary>
 		public abstract bool Alive { get; }
+		/// <summary>Where it stands, in world units.</summary>
 		public abstract Vector3 Position { get; }
+		/// <summary>Which way it faces, in degrees (0 = +Z, 90 = +X).</summary>
 		public abstract float Yaw { get; }
+		/// <summary>Puts it at a position at once.</summary>
 		public abstract void Teleport(Vector3 position);
 		/// <summary>Walks to a point over a number of frames (0 teleports). The character faces where it walks.</summary>
 		public abstract void MoveTo(Vector3 position, int frames);
+		/// <summary>Whether walking right now.</summary>
 		public abstract bool Moving { get; }
 		/// <summary>Ends a walk where the character stands.</summary>
 		public abstract void Stop();
+		/// <summary>Turns to a yaw in degrees.</summary>
 		public abstract void Face(float yaw);
+		/// <summary>Turns to face a point.</summary>
 		public abstract void LookAt(Vector3 point);
+		/// <summary>What it does on its own: stand, wander, follow.</summary>
 		public abstract void SetAi(NpcAi ai);
 		/// <summary>
 		/// Whether the character blocks and shoves other characters. Off by default: a solid
@@ -242,7 +257,9 @@ namespace OpenFF
 	/// <summary>The party: money, items, members.</summary>
 	public interface IParty
 	{
+		/// <summary>The party's money; set it to give or take.</summary>
 		int Gil { get; set; }
+		/// <summary>Puts items in the bag (Game.Items.Find for the id).</summary>
 		void AddItem(int itemId, int count);
 		/// <summary>How many of an item the party carries.</summary>
 		int ItemCount(int itemId);
@@ -252,6 +269,7 @@ namespace OpenFF
 		PartyMember Member(int id);
 		/// <summary>Puts a character into the party (the game's id); false when the party is full or the id unknown.</summary>
 		bool AddMember(int id);
+		/// <summary>Takes a character out of the party; false when not in it.</summary>
 		bool RemoveMember(int id);
 		/// <summary>Sets a character's level, growing their parameters as the game does.</summary>
 		void SetLevel(int id, int level);
@@ -273,6 +291,7 @@ namespace OpenFF
 		void SetStat(int id, Stat stat, int value);
 		/// <summary>Equips a spell into the character's slots for its level; false when the slots are full.</summary>
 		bool LearnSpell(int id, int spellId);
+		/// <summary>Takes a spell out of the character's slots; false when they did not have it.</summary>
 		bool ForgetSpell(int id, int spellId);
 		/// <summary>Puts a character into conditions (Poison, Blind...).</summary>
 		void Inflict(int id, Condition conditions);

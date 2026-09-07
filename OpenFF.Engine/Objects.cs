@@ -18,9 +18,12 @@ namespace OpenFF
 {
 	public struct Vector3
 	{
+		/// <summary>The components; x right, y up, z forward (0 yaw looks along +Z).</summary>
 		public float X, Y, Z;
 		public Vector3(float x, float y, float z) { X = x; Y = y; Z = z; }
+		/// <summary>All zeros.</summary>
 		public static readonly Vector3 Zero = new Vector3(0, 0, 0);
+		/// <summary>All ones.</summary>
 		public static readonly Vector3 One = new Vector3(1, 1, 1);
 		public static Vector3 operator +(Vector3 a, Vector3 b) => new Vector3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
 		public static Vector3 operator -(Vector3 a, Vector3 b) => new Vector3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
@@ -30,13 +33,17 @@ namespace OpenFF
 		public static Vector3 operator -(Vector3 a) => new Vector3(-a.X, -a.Y, -a.Z);
 		public static bool operator ==(Vector3 a, Vector3 b) => a.X == b.X && a.Y == b.Y && a.Z == b.Z;
 		public static bool operator !=(Vector3 a, Vector3 b) => !(a == b);
+		/// <summary>Component-wise equality.</summary>
 		public override bool Equals(object obj) => obj is Vector3 v && v == this;
+		/// <summary>A hash of the three components.</summary>
 		public override int GetHashCode() => X.GetHashCode() ^ (Y.GetHashCode() << 2) ^ (Z.GetHashCode() >> 2);
+		/// <summary>How long the vector is.</summary>
 		public float Length => (float)Math.Sqrt(X * X + Y * Y + Z * Z);
 		/// <summary>The same direction, length one (Zero stays Zero).</summary>
 		public Vector3 Normalized { get { float l = Length; return l > 1e-6f ? this / l : Zero; } }
 		/// <summary>The point without its height.</summary>
 		public Vector3 Flat => new Vector3(X, 0, Z);
+		/// <summary>The straight-line distance between two points.</summary>
 		public static float Distance(Vector3 a, Vector3 b) => (a - b).Length;
 		/// <summary>Distance on the ground, ignoring height.</summary>
 		public static float FlatDistance(Vector3 a, Vector3 b)
@@ -44,8 +51,11 @@ namespace OpenFF
 			float dx = a.X - b.X, dz = a.Z - b.Z;
 			return (float)Math.Sqrt(dx * dx + dz * dz);
 		}
+		/// <summary>The dot product.</summary>
 		public static float Dot(Vector3 a, Vector3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+		/// <summary>The cross product: a vector at right angles to both.</summary>
 		public static Vector3 Cross(Vector3 a, Vector3 b) => new Vector3(a.Y * b.Z - a.Z * b.Y, a.Z * b.X - a.X * b.Z, a.X * b.Y - a.Y * b.X);
+		/// <summary>The point t of the way from a to b (0 is a, 1 is b).</summary>
 		public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a + (b - a) * t;
 		/// <summary>A step of at most maxStep from a toward b.</summary>
 		public static Vector3 MoveToward(Vector3 a, Vector3 b, float maxStep)
@@ -61,14 +71,17 @@ namespace OpenFF
 		}
 		/// <summary>The yaw in degrees of a ground direction (0 = +Z, 90 = +X).</summary>
 		public float Yaw => (float)(Math.Atan2(X, Z) * 180.0 / Math.PI);
+		/// <summary>"x, y, z" to two decimals.</summary>
 		public override string ToString() => X.ToString("0.##") + ", " + Y.ToString("0.##") + ", " + Z.ToString("0.##");
 	}
 
 	/// <summary>A point on the screen (800x480 units) or any pair.</summary>
 	public struct Vector2
 	{
+		/// <summary>The components: x right, y up on screen (or whatever the pair stands for).</summary>
 		public float X, Y;
 		public Vector2(float x, float y) { X = x; Y = y; }
+		/// <summary>Both zero.</summary>
 		public static readonly Vector2 Zero = new Vector2(0, 0);
 		public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.X + b.X, a.Y + b.Y);
 		public static Vector2 operator -(Vector2 a, Vector2 b) => new Vector2(a.X - b.X, a.Y - b.Y);
@@ -79,7 +92,9 @@ namespace OpenFF
 		public static bool operator ==(Vector2 a, Vector2 b) => a.X == b.X && a.Y == b.Y;
 		public static bool operator !=(Vector2 a, Vector2 b) => !(a == b);
 		public override bool Equals(object obj) => obj is Vector2 v && v == this;
+		/// <summary>A hash of the three components.</summary>
 		public override int GetHashCode() => X.GetHashCode() ^ (Y.GetHashCode() << 2);
+		/// <summary>How long the vector is.</summary>
 		public float Length => (float)Math.Sqrt(X * X + Y * Y);
 		public Vector2 Normalized { get { float l = Length; return l > 1e-6f ? this / l : Zero; } }
 		public static float Distance(Vector2 a, Vector2 b) => (a - b).Length;
@@ -95,19 +110,81 @@ namespace OpenFF
 		public override string ToString() => X.ToString("0.##") + ", " + Y.ToString("0.##");
 	}
 
+	/// <summary>
+	/// Where an object is. Position, Rotation and Scale are relative to the parent object
+	/// when there is one (Unity's local values) and the world's when there is not, so a
+	/// child moves with its parent; WorldPosition, WorldYaw and WorldScale are the resolved
+	/// values, readable and settable either way. The hierarchy turns about the vertical
+	/// only (Rotation.Y), which is what the field's characters and the scene files do.
+	/// </summary>
 	public sealed class Transform
 	{
+		/// <summary>Relative to the parent's frame: turned by its yaw, scaled by its scale.</summary>
 		public Vector3 Position = Vector3.Zero;
-		/// <summary>Euler degrees.</summary>
+		/// <summary>Euler degrees; Y is the yaw (0 = +Z, 90 = +X), added to the parent's.</summary>
 		public Vector3 Rotation = Vector3.Zero;
+		/// <summary>Multiplied by the parent's.</summary>
 		public Vector3 Scale = Vector3.One;
+
+		internal GameObject Owner;
+
+		private Transform ParentTransform => Owner?.Parent?.Transform;
+
+		/// <summary>The position in the world, the parents' transforms applied; setting it keeps the object where you say and works the local value out.</summary>
+		public Vector3 WorldPosition
+		{
+			get
+			{
+				Transform p = ParentTransform;
+				if (p == null) return Position;
+				Vector3 at = p.WorldPosition;
+				float k = p.WorldScale;
+				double a = p.WorldYaw * Math.PI / 180.0;
+				float c = (float)Math.Cos(a), s = (float)Math.Sin(a);
+				float ox = Position.X * k, oy = Position.Y * k, oz = Position.Z * k;
+				return new Vector3(at.X + c * ox + s * oz, at.Y + oy, at.Z - s * ox + c * oz);
+			}
+			set
+			{
+				Transform p = ParentTransform;
+				if (p == null) { Position = value; return; }
+				Vector3 at = p.WorldPosition;
+				float k = p.WorldScale;
+				if (k == 0) k = 1;
+				double a = p.WorldYaw * Math.PI / 180.0;
+				float c = (float)Math.Cos(a), s = (float)Math.Sin(a);
+				float dx = value.X - at.X, dy = value.Y - at.Y, dz = value.Z - at.Z;
+				Position = new Vector3((c * dx - s * dz) / k, dy / k, (s * dx + c * dz) / k);
+			}
+		}
+
+		/// <summary>The yaw in the world, in degrees: the parents' added to Rotation.Y.</summary>
+		public float WorldYaw
+		{
+			get { Transform p = ParentTransform; return p == null ? Rotation.Y : p.WorldYaw + Rotation.Y; }
+			set { Transform p = ParentTransform; Rotation = new Vector3(Rotation.X, p == null ? value : value - p.WorldYaw, Rotation.Z); }
+		}
+
+		/// <summary>The uniform scale in the world: the parents' multiplied by Scale.X.</summary>
+		public float WorldScale
+		{
+			get { Transform p = ParentTransform; return p == null ? Scale.X : p.WorldScale * Scale.X; }
+			set { Transform p = ParentTransform; float k = p == null ? value : (p.WorldScale == 0 ? value : value / p.WorldScale); Scale = new Vector3(k, k, k); }
+		}
+
+		/// <summary>The world direction the object faces, from WorldYaw.</summary>
+		public Vector3 Forward => Vector3.FromYaw(WorldYaw);
 	}
 
 	public abstract class Component
 	{
+		/// <summary>The object this component is on; null once removed.</summary>
 		public GameObject GameObject { get; internal set; }
+		/// <summary>The object's Transform, for short.</summary>
 		public Transform Transform => GameObject?.Transform;
+		/// <summary>The scene the object is in, for short.</summary>
 		public Scene Scene => GameObject?.Scene;
+		/// <summary>Another component on the same object, or null.</summary>
 		public T GetComponent<T>() where T : Component => GameObject?.GetComponent<T>();
 
 		/// <summary>The object is leaving its scene: a plain component's chance to let go of what it holds (a Behaviour has OnDestroy).</summary>
@@ -198,14 +275,23 @@ namespace OpenFF
 		private readonly List<Component> _components = new List<Component>();
 		private readonly List<GameObject> _children = new List<GameObject>();
 
+		/// <summary>A number unique to this object for the run.</summary>
 		public long Id { get; }
+		/// <summary>The name: a scene file's objects are &lt;map&gt;/&lt;path&gt;; find one with Scene.Find.</summary>
 		public string Name { get; set; }
+		/// <summary>Words to find the object by (Scene.WithTag); case does not matter.</summary>
 		public HashSet<string> Tags { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		/// <summary>Where it is: relative to the parent when it has one.</summary>
 		public Transform Transform { get; } = new Transform();
+		/// <summary>Whether its behaviours run; an inactive parent stops the children too (ActiveInHierarchy).</summary>
 		public bool Active { get; set; } = true;
+		/// <summary>The scene it is in; null before Add and after Destroy.</summary>
 		public Scene Scene { get; internal set; }
+		/// <summary>The object above it in the tree, or null at the top.</summary>
 		public GameObject Parent { get; private set; }
+		/// <summary>The objects under it.</summary>
 		public IReadOnlyList<GameObject> Children => _children;
+		/// <summary>Every component on it, in the order added.</summary>
 		public IReadOnlyList<Component> Components => _components;
 		/// <summary>The mod that created this object, or null.</summary>
 		public Modding.LoadedMod Owner { get; set; }
@@ -215,10 +301,13 @@ namespace OpenFF
 		{
 			Id = _nextId++;
 			Name = name ?? "GameObject";
+			Transform.Owner = this;
 		}
 
+		/// <summary>Active, and every parent active, and not destroyed.</summary>
 		public bool ActiveInHierarchy => Active && !Destroyed && (Parent == null || Parent.ActiveInHierarchy);
 
+		/// <summary>Makes a component of that type and adds it (a Behaviour wakes if the object is in a scene).</summary>
 		public T AddComponent<T>() where T : Component, new()
 		{
 			T component = new T();
@@ -226,6 +315,7 @@ namespace OpenFF
 			return component;
 		}
 
+		/// <summary>Adds a component made elsewhere (its fields set first, so Awake sees them).</summary>
 		public Component AddComponent(Component component)
 		{
 			if (component == null) throw new ArgumentNullException(nameof(component));
@@ -238,9 +328,12 @@ namespace OpenFF
 			return component;
 		}
 
+		/// <summary>The first component of that type, or null.</summary>
 		public T GetComponent<T>() where T : Component => _components.OfType<T>().FirstOrDefault();
+		/// <summary>Every component of that type.</summary>
 		public IEnumerable<T> GetComponents<T>() where T : Component => _components.OfType<T>();
 
+		/// <summary>Takes a component off (a Behaviour hears OnDisable and OnDestroy).</summary>
 		public void RemoveComponent(Component component)
 		{
 			if (component == null || !_components.Remove(component)) return;
@@ -251,11 +344,26 @@ namespace OpenFF
 			component.GameObject = null;
 		}
 
-		public void SetParent(GameObject parent)
+		/// <summary>
+		/// Puts the object under another (or at the top with null). With keepWorld, the
+		/// default, it stays where it is in the world and its Transform is worked out in
+		/// the new parent's frame; without, its Transform is kept as written and it moves.
+		/// </summary>
+		public void SetParent(GameObject parent, bool keepWorld = true)
 		{
+			if (parent == this) return;
+			for (GameObject p = parent; p != null; p = p.Parent) if (p == this) return; // not under itself
+			Vector3 at = Transform.WorldPosition;
+			float yaw = Transform.WorldYaw, scale = Transform.WorldScale;
 			Parent?._children.Remove(this);
 			Parent = parent;
 			parent?._children.Add(this);
+			if (keepWorld)
+			{
+				Transform.WorldPosition = at;
+				Transform.WorldYaw = yaw;
+				Transform.WorldScale = scale;
+			}
 		}
 
 		internal void Attached(Scene scene)
@@ -294,9 +402,11 @@ namespace OpenFF
 	{
 		private readonly List<GameObject> _roots = new List<GameObject>();
 
+		/// <summary>The scene's name; the legacy map's is "legacy".</summary>
 		public string Name { get; }
 		/// <summary>What the host knows about the legacy map this scene stands for, when it does.</summary>
 		public SceneInfo Info { get; set; }
+		/// <summary>The objects at the top of the tree.</summary>
 		public IReadOnlyList<GameObject> Roots => _roots;
 
 		public Scene(string name)
@@ -304,6 +414,7 @@ namespace OpenFF
 			Name = name;
 		}
 
+		/// <summary>Puts an object (and its children) into the scene; behaviours wake.</summary>
 		public GameObject Add(GameObject gameObject)
 		{
 			if (gameObject == null) throw new ArgumentNullException(nameof(gameObject));
@@ -315,11 +426,13 @@ namespace OpenFF
 			return gameObject;
 		}
 
+		/// <summary>A new, empty object of that name in the scene.</summary>
 		public GameObject Add(string name)
 		{
 			return Add(new GameObject(name));
 		}
 
+		/// <summary>Takes an object and its children out; behaviours hear OnDestroy.</summary>
 		public void Destroy(GameObject gameObject)
 		{
 			if (gameObject == null || gameObject.Destroyed) return;
@@ -328,6 +441,7 @@ namespace OpenFF
 			_roots.Remove(gameObject);
 		}
 
+		/// <summary>Every object in the scene, parents before children.</summary>
 		public IEnumerable<GameObject> All()
 		{
 			foreach (GameObject root in _roots)
@@ -339,7 +453,9 @@ namespace OpenFF
 			}
 		}
 
+		/// <summary>Every object carrying a tag.</summary>
 		public IEnumerable<GameObject> WithTag(string tag) => All().Where(o => o.Tags.Contains(tag));
+		/// <summary>The object of that name (case does not matter), or null.</summary>
 		public GameObject Find(string name) => All().FirstOrDefault(o => string.Equals(o.Name, name, StringComparison.OrdinalIgnoreCase));
 
 		private static IEnumerable<GameObject> Walk(GameObject o)

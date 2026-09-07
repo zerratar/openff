@@ -258,9 +258,24 @@ property in the file, changeable at any time: its name (attachments on it follow
 model, its place, yaw and scale, its tags, its parent. Objects nest: **Add a child object**
 puts one under another, the hierarchy shows the tree, and a child's x/y/z, yaw and scale
 are relative to its parent (turned by the parent's yaw, scaled by its scale), so moving the
-parent moves the lot. `GameObject.Parent` and `.Children` carry the tree in the engine;
-`Transform` holds the worked-out world values. Attachments target an object by its path:
-`"chest"`, `"chest/trigger"`.
+parent moves the lot - in the editor and in play. `GameObject.Parent` and `.Children` carry
+the tree in the engine, and `Transform` knows it: `Position`, `Rotation`, `Scale` are the
+values relative to the parent (the world's for an object at the top), `WorldPosition`,
+`WorldYaw` and `WorldScale` the resolved ones, settable either way; `SetParent(parent)`
+keeps the object where it stands in the world unless told `keepWorld: false`. A model
+spawned for an object follows its transform, so a behaviour that slides the parent slides
+the children and their models. Attachments target an object by its path: `"chest"`,
+`"chest/trigger"`.
+
+From code the objects are `SceneObjects.Find("chest")` (the current map's, by path),
+`SceneObjects.All()`, and **`SceneObjects.Spawn("chest", at, yaw)`** - a new object from
+the file's definition of that path, with its model, tags and behaviours (the fields as the
+file has them), named `<map>/chest#N`: one authored object as the template for many, a
+Destroy to take one down. A behaviour's field of type **`ObjectRef`** names another object
+on the map by path; Crystal offers the map's objects to pick from, a rename follows, and
+`field.Resolve()` is the `GameObject` (`.Link` its `MapObject`, `.Link.Npc` its model).
+A behaviour deriving **`SavedBehaviour`** (Save/Load, as `ISaveable`) has its state written
+with the game's save and back on load, keyed by the object it is on and its type.
 
 A mod finds them with `Game.World.Legacy.Find("d01_05/chest")` or by tag:
 `Game.World.Legacy.WithTag("spawn")`.
@@ -270,8 +285,8 @@ under *Built in* whether or not the mod has code, so the usual things need no C#
 
 | | fields | does |
 | --- | --- | --- |
-| `Chest` | Item (picked from the game's list), Count, Gil; Once, Message, EmptyMessage | gives the contents and says so when the player talks to it (a model) or walks in (none); Once remembers it across saves |
-| `Talk` | Speaker, Lines (one per line), FaceHero | says the lines one window at a time when talked to |
+| `Chest` | Item (picked from the game's list), Count, Gil; Once, Message, EmptyMessage | gives the contents and says so when the player talks to it (a model) or, without one, walks in - or presses A standing there, with OnWalkIn off; Once remembers it across saves |
+| `Talk` | Speaker, Lines (one per line), FaceHero | says the lines one window at a time when talked to (or walked into / A, without a model) |
 | `Trigger` | Radius, Once | raises `Entered`/`Left` and publishes `Events.TriggerEntered` / `TriggerLeft` (with the `GameObject`, so its tags say which) when the hero comes within Radius; logs `trigger <map>/<path>: hero entered` |
 | `Removed` | HideOnly | on one of the *game's* characters (`object:N`): takes it off the map when the map is entered - what Crystal's *Convert to OpenFF object* leaves on the original, so the mod's stand-in is the only one there |
 

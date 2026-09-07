@@ -91,7 +91,7 @@ namespace OpenFF
 		protected override void Update()
 		{
 			if (Transform == null || !Game.Hero.Present) return;
-			bool inside = Vector3.FlatDistance(Transform.Position, Game.Hero.Position) <= Radius;
+			bool inside = Vector3.FlatDistance(Transform.WorldPosition, Game.Hero.Position) <= Radius;
 			if (inside == HeroInside) return;
 			HeroInside = inside;
 			// Said in the log, so a trigger placed in the editor can be seen to work before any code hears it.
@@ -167,6 +167,9 @@ namespace OpenFF
 		[Header("Without a model")]
 		[Tooltip("Without a model to talk to: how close the hero comes for it to act (two characters side by side are about 8 apart)")]
 		public float Radius = 8f;
+		/// <summary>Without a model: act when the hero walks in (on), or when the player presses A standing within Radius (off) - an invisible sign or switch.</summary>
+		[Tooltip("Act when the hero walks in; off, it waits for A pressed within Radius - an invisible sign or switch")]
+		public bool OnWalkIn = true;
 
 		private bool _near;
 		private Npc _npc;
@@ -195,8 +198,15 @@ namespace OpenFF
 		protected override void Update()
 		{
 			if (_npc != null || Transform == null || !Game.Hero.Present) return;
-			bool near = Vector3.FlatDistance(Transform.Position, Game.Hero.Position) <= Radius;
-			if (near && !_near) Game.Guard(Name + ".Activate", Activate);
+			bool near = Vector3.FlatDistance(Transform.WorldPosition, Game.Hero.Position) <= Radius;
+			if (OnWalkIn)
+			{
+				if (near && !_near) Game.Guard(Name + ".Activate", Activate);
+			}
+			else if (near && !Game.Dialogue.IsOpen && Game.Input.Pressed(Pad.A))
+			{
+				Game.Guard(Name + ".Activate", Activate);
+			}
 			_near = near;
 		}
 
@@ -354,13 +364,188 @@ namespace OpenFF
 		}
 	}
 
+	/// <summary>
+	/// Keeps a scene object's spawned model where its Transform says: move the object (or
+	/// its parent) from code and the model comes along. Added by the loader to every object
+	/// with a model; a mod need not touch it.
+	/// </summary>
+	internal sealed class ModelFollow : Behaviour
+	{
+		private Vector3 _at;
+		private float _yaw, _scale;
+
+		protected override void Start()
+		{
+			_at = Transform.WorldPosition;
+			_yaw = Transform.WorldYaw;
+			_scale = Transform.WorldScale;
+		}
+
+		protected override void LateUpdate()
+		{
+			MapObject link = GetComponent<MapObject>();
+			Npc npc = link?.Npc;
+			if (npc == null) return;
+			Vector3 at = Transform.WorldPosition;
+			float yaw = Transform.WorldYaw, scale = Transform.WorldScale;
+			if (at != _at) { npc.Teleport(at); _at = at; }
+			if (yaw != _yaw) { npc.Face(yaw); _yaw = yaw; }
+			if (scale != _scale) { npc.Scale = scale; _scale = scale; }
+		}
+	}
+
+	/// <summary>
+	/// A reference from a behaviour's field to another of the mod's scene objects, by its
+	/// path on the map ("chest", "gate/left"). Crystal offers the map's objects to pick
+	/// from; Resolve gives the GameObject when the map is up.
+	/// </summary>
+	public sealed class ObjectRef
+	{
+		/// <summary>The object's path in the scene file; empty for none.</summary>
+		public string Path { get; set; } = "";
+
+		public ObjectRef() { }
+		public ObjectRef(string path) { Path = path ?? ""; }
+
+		public bool IsSet => !string.IsNullOrWhiteSpace(Path);
+
+		/// <summary>The object on the current map, or null when there is none of that path.</summary>
+		public GameObject Resolve() => IsSet ? SceneObjects.Find(Path) : null;
+
+		/// <summary>The object's MapObject, for its model handle (Npc) and the like.</summary>
+		public MapObject Link => Resolve()?.GetComponent<MapObject>();
+
+		public override string ToString() => Path;
+	}
+
+	/// <summary>
+	/// The mod's scene objects on the current map, by path, and copies of them: what a scene
+	/// file authored in Crystal offers to code. Spawn makes a new object from a definition in
+	/// the file - its model, tags and behaviours - at a spot of the code's choosing, so one
+	/// authored object serves as the template for many.
+	/// </summary>
+	public static class SceneObjects
+	{
+		private sealed class Definition
+		{
+			public SceneObject Object;
+			public string Path;
+			public Modding.LoadedMod Mod;
+			public List<SceneAttachment> Attachments = new List<SceneAttachment>();
+		}
+
+		private static string _map;
+		private static readonly Dictionary<string, Definition> _definitions = new Dictionary<string, Definition>(StringComparer.OrdinalIgnoreCase);
+		private static int _spawned;
+
+		/// <summary>The map the definitions are for.</summary>
+		public static string Map => _map;
+
+		internal static void Remember(string map, Modding.LoadedMod mod, SceneFile file)
+		{
+			if (!string.Equals(_map, map, StringComparison.OrdinalIgnoreCase))
+			{
+				_definitions.Clear();
+				_spawned = 0;
+				_map = map;
+			}
+			foreach (SceneObject root in file.AllObjects()) Walk(root, null, mod);
+			foreach (SceneAttachment a in file.Attachments ?? new List<SceneAttachment>())
+			{
+				if (a?.Target == null) continue;
+				string key = a.Target.Trim().ToLowerInvariant();
+				if (key.StartsWith("point:", StringComparison.Ordinal)) key = key.Substring(6);
+				if (_definitions.TryGetValue(key, out Definition d)) d.Attachments.Add(a);
+			}
+		}
+
+		private static void Walk(SceneObject item, string parentPath, Modding.LoadedMod mod)
+		{
+			if (item == null || string.IsNullOrWhiteSpace(item.Name)) return;
+			string path = parentPath == null ? item.Name.Trim() : parentPath + "/" + item.Name.Trim();
+			_definitions[path] = new Definition { Object = item, Path = path, Mod = mod };
+			foreach (SceneObject child in item.Children ?? new List<SceneObject>()) Walk(child, path, mod);
+		}
+
+		/// <summary>A scene object on the current map by its path ("chest", "gate/left"); null when there is none.</summary>
+		public static GameObject Find(string path)
+		{
+			if (string.IsNullOrWhiteSpace(path) || _map == null) return null;
+			return Game.World.Legacy.Find(_map + "/" + path.Trim());
+		}
+
+		/// <summary>Every scene object on the current map (the ones with a MapObject of kind scene).</summary>
+		public static IEnumerable<GameObject> All()
+		{
+			return Game.World.Legacy.All().Where(o => o.GetComponent<MapObject>()?.Kind == "scene");
+		}
+
+		/// <summary>The paths the current map's scene file defines - what a mod may Spawn.</summary>
+		public static IEnumerable<string> Defined => _definitions.Keys;
+
+		/// <summary>
+		/// A new object from the scene file's definition at a path - the same model, tags and
+		/// behaviours (with the file's field values) - at a spot, facing a yaw, at the top
+		/// level of the scene. Named &lt;map&gt;/&lt;path&gt;#N. Null when the path is not defined.
+		/// </summary>
+		public static GameObject Spawn(string path, Vector3 at, float yaw = 0f, GameObject parent = null)
+		{
+			if (string.IsNullOrWhiteSpace(path) || !_definitions.TryGetValue(path.Trim(), out Definition d)) return null;
+			string name = d.Path + "#" + (++_spawned);
+			SceneObject copy = new SceneObject
+			{
+				Name = name, X = at.X, Y = at.Y, Z = at.Z, Yaw = yaw, Scale = d.Object.Scale,
+				Model = d.Object.Model, Tags = new List<string>(d.Object.Tags ?? new List<string>())
+			};
+			GameObject o = SceneLoader.Build(_map, name, name, copy);
+			o.Owner = d.Mod;
+			o.Tags.Add("spawned");
+			if (parent != null) o.SetParent(parent, keepWorld: false);
+			Game.World.Legacy.Add(o);
+			SceneLoader.SpawnModel(d.Mod, _map, o);
+			foreach (SceneAttachment a in d.Attachments)
+			{
+				SceneLoader.Attach(d.Mod, _map, o, a);
+			}
+			return o;
+		}
+
+		/// <summary>Takes a spawned (or any scene) object off the map, its model with it.</summary>
+		public static void Destroy(GameObject o)
+		{
+			if (o != null) Game.World.Legacy.Destroy(o);
+		}
+	}
+
+	/// <summary>
+	/// A behaviour whose state rides in the saves: derive, keep the state in Save/Load, and
+	/// it is written with the game's own save and back on load, keyed by the object it is
+	/// on and its type (one chest, one key). Registered when it wakes, dropped when it goes.
+	/// </summary>
+	public abstract class SavedBehaviour : Behaviour, ISaveable
+	{
+		/// <summary>&lt;mod&gt;/&lt;object name&gt;/&lt;type&gt;, unless overridden.</summary>
+		public virtual string ChunkId => (GameObject?.Owner?.Id ?? "scene") + "/" + (GameObject?.Name ?? "?") + "/" + GetType().Name;
+		public virtual int ChunkVersion => 1;
+		/// <summary>What to keep: anything System.Text.Json can serialise; null for nothing.</summary>
+		public abstract object Save();
+		/// <summary>What was kept, back.</summary>
+		public abstract void Load(int version, JsonElement data);
+
+		protected override void Awake() => Game.Saves.Register(this);
+		protected override void OnDestroy() => Game.Saves.Unregister(this);
+	}
+
 	/// <summary>The mod's own object in a scene file: a spot, or a model standing there, with children under it.</summary>
 	public sealed class SceneObject
 	{
+		/// <summary>The name; unique among its siblings, not / or :.</summary>
 		public string Name { get; set; }
 		/// <summary>Position; for a child, relative to its parent (turned by the parent's yaw, scaled by its scale).</summary>
 		public float X { get; set; }
+		/// <summary>Height; relative to the parent for a child.</summary>
 		public float Y { get; set; }
+		/// <summary>Forward; relative to the parent for a child.</summary>
 		public float Z { get; set; }
 		/// <summary>Facing in degrees, the engine's yaw (0 = +Z, 90 = +X); for a child, added to the parent's.</summary>
 		public float Yaw { get; set; }
@@ -368,7 +553,9 @@ namespace OpenFF
 		public float Scale { get; set; } = 1f;
 		/// <summary>A model name (o001, n011...) to show, or null for a spot with logic only.</summary>
 		public string Model { get; set; }
+		/// <summary>Words a mod finds it by (GameObject.Tags).</summary>
 		public List<string> Tags { get; set; } = new List<string>();
+		/// <summary>Objects under this one, their transforms relative to it.</summary>
 		public List<SceneObject> Children { get; set; } = new List<SceneObject>();
 	}
 
@@ -380,15 +567,20 @@ namespace OpenFF
 		public Dictionary<string, JsonElement> Fields { get; set; }
 	}
 
-	/// <summary>A spot placed in the editor: a spawn point, a camera mark, a trigger centre - whatever a mod makes of it.</summary>
+	/// <summary>The older files' spot placed in the editor; read as a SceneObject without a model. New files write objects.</summary>
 	public sealed class ScenePoint
 	{
+		/// <summary>The name, unique on the map.</summary>
 		public string Name { get; set; }
+		/// <summary>World position.</summary>
 		public float X { get; set; }
+		/// <summary>World height.</summary>
 		public float Y { get; set; }
+		/// <summary>World forward.</summary>
 		public float Z { get; set; }
 		/// <summary>Facing in degrees, the engine's yaw (0 = +Z, 90 = +X).</summary>
 		public float Yaw { get; set; }
+		/// <summary>Words a mod finds it by (GameObject.Tags).</summary>
 		public List<string> Tags { get; set; } = new List<string>();
 	}
 
@@ -484,22 +676,15 @@ namespace OpenFF
 			Dictionary<string, GameObject> objects = new Dictionary<string, GameObject>(StringComparer.OrdinalIgnoreCase);
 			int made = 0;
 			// Every object in the tree, with or without behaviours: a mod finds them by name or tag.
+			// The definitions are kept, so SceneObjects.Spawn can make more of one later.
+			SceneObjects.Remember(map, mod, file);
 			foreach (SceneObject root in file.AllObjects())
 			{
-				made += Place(mod, map, scene, root, null, null, 0f, 1f, Vector3.Zero, objects);
+				made += Place(mod, map, scene, root, null, null, objects);
 			}
 			foreach (SceneAttachment attachment in file.Attachments ?? new List<SceneAttachment>())
 			{
 				if (attachment == null || string.IsNullOrEmpty(attachment.Behaviour) || string.IsNullOrEmpty(attachment.Target)) continue;
-				if (!mod.BehaviourTypes.TryGetValue(attachment.Behaviour, out Type type))
-				{
-					type = EngineBehaviour(attachment.Behaviour);
-				}
-				if (type == null)
-				{
-					Game.Warn("mod " + mod.Id + ": scenes/" + map + ".json names behaviour " + attachment.Behaviour + ", which neither the mod's code nor the engine has");
-					continue;
-				}
 				string key = attachment.Target.Trim().ToLowerInvariant();
 				// The older files' "point:<name>" is the object called <name>.
 				if (key.StartsWith("point:", StringComparison.Ordinal)) key = key.Substring(6);
@@ -510,12 +695,7 @@ namespace OpenFF
 					objects[key] = target;
 					made++;
 				}
-				Behaviour behaviour = null;
-				Game.Guard("new " + type.Name, () => behaviour = (Behaviour)Activator.CreateInstance(type));
-				if (behaviour == null) continue;
-				SetFields(behaviour, attachment.Fields, mod.Id);
-				// Fields first, then the component: Awake sees them.
-				target.AddComponent(behaviour);
+				Attach(mod, map, target, attachment);
 			}
 			if (made > 0)
 			{
@@ -525,13 +705,12 @@ namespace OpenFF
 		}
 
 		/// <summary>
-		/// One scene object and its children as GameObjects. A child's transform is relative
-		/// to its parent's: its offset turned by the parent's yaw and scaled by the parent's
-		/// scale, its yaw added, its scale multiplied. Transform has no hierarchy of its own,
-		/// so the world values are what the objects get; GameObject.Parent holds the tree.
+		/// One scene object and its children as GameObjects. A child's Transform is relative
+		/// to its parent's, as the file has it; Transform works the world values out
+		/// (WorldPosition, WorldYaw, WorldScale), so a parent moved by code takes its children
+		/// along, and a model spawned for an object follows its transform (ModelFollow).
 		/// </summary>
-		private static int Place(Modding.LoadedMod mod, string map, Scene scene, SceneObject item, GameObject parent, string parentPath,
-			float parentYaw, float parentScale, Vector3 parentAt, Dictionary<string, GameObject> objects)
+		private static int Place(Modding.LoadedMod mod, string map, Scene scene, SceneObject item, GameObject parent, string parentPath, Dictionary<string, GameObject> objects)
 		{
 			if (item == null || string.IsNullOrWhiteSpace(item.Name)) return 0;
 			string name = item.Name.Trim();
@@ -542,49 +721,72 @@ namespace OpenFF
 				Game.Warn("mod " + mod.Id + ": scenes/" + map + ".json has two objects at '" + path + "', or a reserved name; the second is skipped");
 				return 0;
 			}
-			float scale = item.Scale <= 0 ? 1f : item.Scale;
-			float worldScale = parentScale * scale;
-			float worldYaw = parentYaw + item.Yaw;
-			// The offset in the parent's frame: yaw 0 looks along +z, 90 along +x.
-			float a = parentYaw * (float)Math.PI / 180f;
-			float c = (float)Math.Cos(a), s = (float)Math.Sin(a);
-			float ox = item.X * parentScale, oy = item.Y * parentScale, oz = item.Z * parentScale;
-			Vector3 at = parent == null
-				? new Vector3(item.X, item.Y, item.Z)
-				: new Vector3(parentAt.X + c * ox + s * oz, parentAt.Y + oy, parentAt.Z - s * ox + c * oz);
-
-			GameObject o = new GameObject(map + "/" + path);
+			GameObject o = Build(map, path, name, item);
 			o.Owner = mod;
-			o.Tags.Add("scene");
-			foreach (string tag in item.Tags ?? new List<string>()) if (!string.IsNullOrWhiteSpace(tag)) o.Tags.Add(tag.Trim());
-			o.Transform.Position = at;
-			o.Transform.Rotation = new Vector3(0, worldYaw, 0);
-			o.Transform.Scale = new Vector3(worldScale, worldScale, worldScale);
-			MapObject link = new MapObject { Kind = "scene", Name = name, Path = path, Map = map, Model = string.IsNullOrWhiteSpace(item.Model) ? null : item.Model.Trim() };
-			o.AddComponent(link);
-			if (parent != null) o.SetParent(parent);
+			if (parent != null) o.SetParent(parent, keepWorld: false);
 			scene.Add(o);
-			if (link.Model != null)
-			{
-				// The model, standing there with nothing of the game's behind it: a plain
-				// character without a cast. It goes when the object does (OnDetached).
-				Game.Guard("scene object " + path + " model " + link.Model, () =>
-				{
-					link.Npc = Game.Npcs.SpawnModel(link.Model, at, worldYaw, worldScale);
-					link.OwnsNpc = link.Npc != null;
-				});
-				if (link.Npc == null)
-				{
-					Game.Warn("mod " + mod.Id + ": scenes/" + map + ".json: the model " + link.Model + " for '" + path + "' did not spawn");
-				}
-			}
+			SpawnModel(mod, map, o);
 			objects[key] = o;
 			int made = 1;
 			foreach (SceneObject child in item.Children ?? new List<SceneObject>())
 			{
-				made += Place(mod, map, scene, child, o, path, worldYaw, worldScale, at, objects);
+				made += Place(mod, map, scene, child, o, path, objects);
 			}
 			return made;
+		}
+
+		/// <summary>One attachment onto an object: the behaviour (the mod's or the engine's) with its fields set, then added so Awake sees them.</summary>
+		internal static Behaviour Attach(Modding.LoadedMod mod, string map, GameObject target, SceneAttachment attachment)
+		{
+			if (target == null || attachment == null || string.IsNullOrEmpty(attachment.Behaviour)) return null;
+			Type type = null;
+			if (mod == null || !mod.BehaviourTypes.TryGetValue(attachment.Behaviour, out type))
+			{
+				type = EngineBehaviour(attachment.Behaviour);
+			}
+			if (type == null)
+			{
+				Game.Warn("mod " + (mod?.Id ?? "?") + ": scenes/" + map + ".json names behaviour " + attachment.Behaviour + ", which neither the mod's code nor the engine has");
+				return null;
+			}
+			Behaviour behaviour = null;
+			Game.Guard("new " + type.Name, () => behaviour = (Behaviour)Activator.CreateInstance(type));
+			if (behaviour == null) return null;
+			SetFields(behaviour, attachment.Fields, mod?.Id ?? "scene");
+			target.AddComponent(behaviour);
+			return behaviour;
+		}
+
+		/// <summary>A GameObject from a definition: name, tags, the local transform, the MapObject link; not yet in a scene.</summary>
+		internal static GameObject Build(string map, string path, string name, SceneObject item)
+		{
+			float scale = item.Scale <= 0 ? 1f : item.Scale;
+			GameObject o = new GameObject(map + "/" + path);
+			o.Tags.Add("scene");
+			foreach (string tag in item.Tags ?? new List<string>()) if (!string.IsNullOrWhiteSpace(tag)) o.Tags.Add(tag.Trim());
+			o.Transform.Position = new Vector3(item.X, item.Y, item.Z);
+			o.Transform.Rotation = new Vector3(0, item.Yaw, 0);
+			o.Transform.Scale = new Vector3(scale, scale, scale);
+			o.AddComponent(new MapObject { Kind = "scene", Name = name, Path = path, Map = map, Model = string.IsNullOrWhiteSpace(item.Model) ? null : item.Model.Trim() });
+			return o;
+		}
+
+		/// <summary>The model for a scene object that has one: a plain character without a cast, following the transform, gone with the object.</summary>
+		internal static void SpawnModel(Modding.LoadedMod mod, string map, GameObject o)
+		{
+			MapObject link = o.GetComponent<MapObject>();
+			if (link == null || link.Model == null) return;
+			Game.Guard("scene object " + link.Path + " model " + link.Model, () =>
+			{
+				link.Npc = Game.Npcs.SpawnModel(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw, o.Transform.WorldScale);
+				link.OwnsNpc = link.Npc != null;
+			});
+			if (link.Npc == null)
+			{
+				Game.Warn("mod " + (mod?.Id ?? "?") + ": scenes/" + map + ".json: the model " + link.Model + " for '" + link.Path + "' did not spawn");
+				return;
+			}
+			o.AddComponent(new ModelFollow());
 		}
 
 		private static GameObject MakeTarget(Modding.LoadedMod mod, string map, string key)
@@ -698,6 +900,13 @@ namespace OpenFF
 			{
 				List<string> list = value.ValueKind == JsonValueKind.Array ? value.EnumerateArray().Select(e => e.ToString()).ToList() : new List<string> { value.ToString() };
 				return type == typeof(string[]) ? (object)list.ToArray() : list;
+			}
+			if (type == typeof(ObjectRef))
+			{
+				// The editor writes the path as a string; {"path": ...} reads too.
+				if (value.ValueKind == JsonValueKind.String) return new ObjectRef(value.GetString());
+				if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("path", out JsonElement p)) return new ObjectRef(p.GetString());
+				return new ObjectRef();
 			}
 			return JsonSerializer.Deserialize(value.GetRawText(), type);
 		}
