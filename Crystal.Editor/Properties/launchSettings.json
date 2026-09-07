@@ -1,8 +1,19 @@
 {
   "profiles": {
-    "FF3.ContentTool": {
+    "Crystal": {
+      "commandName": "Project"
+    },
+    "Crystal (FF4 first)": {
       "commandName": "Project",
-      "commandLineArgs": "editor --content=..\\Content --text=..\\text\\en.lproj"
+      "commandLineArgs": "--target=ff4steam"
+    },
+    "Crystal (no browser, port 5077)": {
+      "commandName": "Project",
+      "commandLineArgs": "--no-browser --port=5077"
+    },
+    "Crystal (installs found)": {
+      "commandName": "Project",
+      "commandLineArgs": "installs"
     }
   }
 }
