@@ -473,10 +473,20 @@ namespace OpenFF
 		[Tooltip("Flags that must hold for the object to be there: group:index, ! for off, e.g. !0:14")]
 		public string When = "";
 
+		/// <summary>
+		/// Follow the flags as they change while the map is up (on): the object comes and goes
+		/// with them. Off, the flags count once, at the map's start - as the game's boot tests
+		/// them: a character booted behind a flag stays or stays away until the map is entered
+		/// again. Crystal's conversions set this off.
+		/// </summary>
+		[Tooltip("Follow the flags while the map is up; off, they count once at the map's start, as the boot's own tests do")]
+		public bool Live = true;
+
 		private bool? _shown;
 
 		protected override void Update()
 		{
+			if (_shown.HasValue && !Live) return;
 			bool hold = Holds(When);
 			if (_shown == hold) return;
 			_shown = hold;
@@ -497,10 +507,23 @@ namespace OpenFF
 			}
 		}
 
-		/// <summary>Whether a flag list as the editor writes it holds.</summary>
+		/// <summary>
+		/// Whether a flag expression as the editor writes it holds: flags that must all hold
+		/// ("0:14 !0:11" - group:index, ! for off), or several such lists as alternatives with |
+		/// ("!0:14 | 0:14 !0:11" - either), as a boot reached by more than one path has.
+		/// </summary>
 		public static bool Holds(string when)
 		{
 			if (string.IsNullOrWhiteSpace(when)) return true;
+			foreach (string alternative in when.Split('|'))
+			{
+				if (All(alternative)) return true;
+			}
+			return false;
+		}
+
+		private static bool All(string when)
+		{
 			foreach (string part in when.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries))
 			{
 				bool wantOff = part.StartsWith("!", StringComparison.Ordinal);
@@ -561,6 +584,18 @@ namespace OpenFF
 		[Tooltip("The boot's changeColorCharacter: the texture variant, e.g. n024")]
 		public string Recolour = "";
 
+		/// <summary>
+		/// The boot's own commands on this cast, replayed on the stand-in once it runs the cast
+		/// (Npc.RunScript): one per line as the disassembly writes them - setTreasureItem,
+		/// bindMotion, startMotionCharacter, setCharacterDetectionRadius, setSignEffect, whatever
+		/// the boot did. A line may start with a flag condition in brackets, "[!0:14] ...", for a
+		/// command the boot ran under a test of its own. Crystal's exact conversion fills this
+		/// with everything the boot did to the character, so nothing is approximated.
+		/// </summary>
+		[Header("Boot setup (the script's own commands)")]
+		[Tooltip("The boot's commands on this cast, one per line, replayed on the stand-in; \"[flags] command(...)\" for one under a flag test")]
+		public string[] Setup = new string[0];
+
 		protected override void Awake()
 		{
 			MapObject link = GetComponent<MapObject>();
@@ -581,6 +616,20 @@ namespace OpenFF
 				link.Npc.SetTreasure(Item, Gil, group, index);
 			}
 			if (!string.IsNullOrWhiteSpace(Recolour)) link.Npc.Recolour(Recolour.Trim());
+			foreach (string raw in Setup ?? new string[0])
+			{
+				string line = (raw ?? "").Trim();
+				if (line.Length == 0 || line.StartsWith("//", StringComparison.Ordinal)) continue;
+				if (line.StartsWith("[", StringComparison.Ordinal))
+				{
+					int close = line.IndexOf(']');
+					if (close < 0) continue;
+					string when = line.Substring(1, close - 1);
+					line = line.Substring(close + 1).Trim();
+					if (!WhenFlags.Holds(when)) continue;
+				}
+				link.Npc.RunScript(line);
+			}
 		}
 	}
 

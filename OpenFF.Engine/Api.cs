@@ -212,6 +212,16 @@ namespace OpenFF
 		/// <summary>The scripts' moveCharacter_EndRandom: the walk stops, the character stands where it is.</summary>
 		public virtual void EndWander() { SetAi(NpcAi.Still); }
 
+		/// <summary>
+		/// Runs one command of the map script's language as its boot would have - the line as
+		/// Crystal's disassembly writes it: "setCharacterDetectionRadius(21, 12)",
+		/// "setSignEffect(15, 1, 22, 0, 0x5000, 0, 0, 0)". Cast numbers in it resolve as the
+		/// script's do, so after RunCast(n) a command on cast n lands on this character. What
+		/// GameCast.Setup replays, so that nothing the boot did is approximated. False, with the
+		/// reason in the log, when the line does not parse or the host has no script engine.
+		/// </summary>
+		public virtual bool RunScript(string line) { return false; }
+
 		/// <summary>How close the hero must be, in world units, for A to count as talking to this one (two characters together stand about 8 apart).</summary>
 		public float InteractRadius { get; set; } = 14f;
 

@@ -885,6 +885,18 @@ namespace OpenFF.Client
 			}
 		}
 
+		public override bool RunScript(string line)
+		{
+			if (Player == null) return false;
+			if (ScriptSnippet.Run(line, out string error))
+			{
+				Log.Write(LogChannel.File, "engine api: " + Model + " (character " + Index + ") ran " + line.Trim());
+				return true;
+			}
+			EngineApi.Warn("run-script", "RunScript on " + Model + ": " + error + " - " + line.Trim());
+			return false;
+		}
+
 		/// <summary>ff3Command_MoveCharacter_EndRandom: no operator, the default AI.</summary>
 		public override void EndWander()
 		{

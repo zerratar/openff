@@ -415,6 +415,7 @@ The game's own cast on one of the mod's objects: talking to the object runs the 
 | `int Item` |  |
 | `bool OnBoot` | A scene's actor: not spawned with the map, but when the script boots the cast - where it boots it, facing as it does - and the script drives it from there. The object's own place is where Crystal shows it; the scene decides in play. |
 | `string Recolour` | The boot's changeColorCharacter for this cast: a texture variant (n024 on n021). |
+| `string[] Setup` | The boot's own commands on this cast, replayed on the stand-in once it runs the cast (Npc.RunScript): one per line as the disassembly writes them - setTreasureItem, bindMotion, startMotionCharacter, setCharacterDetectionRadius, setSignEffect, whatever the boot did. A line may start with a flag condition in brackets, "[!0:14] ...", for a command the boot ran under a test of its own. Crystal's exact conversion fills this with everything the boot did to the character, so nothing is approximated. |
 | `bool Treasure` | A chest: the boot's setTreasureItem/setTreasureMoney for this cast. |
 | `void NpcReady(MapObject link)` |  |
 
@@ -610,6 +611,7 @@ A character a script put on the map.
 | `void Recolour(string variant)` | The game's changeColorCharacter: the model's texture replaced by a variant named <model>_<variant> (n021 with "n024"). |
 | `void Remove()` | Takes the character off the map. |
 | `void RunCast(int cast)` | Makes this character the one the map's script means by a cast number: talking to it runs that cast's code, and the script's commands on that cast (motions, moves, recolours) land here. What a mod's stand-in for one of the game's characters does to behave exactly as the original did. Nothing on a host without casts. |
+| `bool RunScript(string line)` | Runs one command of the map script's language as its boot would have - the line as Crystal's disassembly writes it: "setCharacterDetectionRadius(21, 12)", "setSignEffect(15, 1, 22, 0, 0x5000, 0, 0, 0)". Cast numbers in it resolve as the script's do, so after RunCast(n) a command on cast n lands on this character. What GameCast.Setup replays, so that nothing the boot did is approximated. False, with the reason in the log, when the line does not parse or the host has no script engine. |
 | `void SetAi(NpcAi ai)` | What it does on its own: stand, wander, follow. |
 | `void SetTreasure(int itemId, int gil, int flagGroup, int flagIndex)` | Sets the character up as a treasure chest the game's way (setTreasureItem / setTreasureMoney): the item or gil, the game's flag for it (opened when set), the chest's own opening - sound, lid, message, flag, the treasure count. A chest model (o000, o001) spawned as a character. |
 | `void StartWander(WanderGait gait)` | The map scripts' moveCharacter_StartRandom, exactly: the character walks about its spot on its own, with the gait the script names (a boy's, an old woman's - the pattern and pace of the random walk). SetAi(Wander) alone keeps the gait it had. |
@@ -941,8 +943,9 @@ The object is there only while game flags hold: hidden and inactive otherwise, s
 
 | Member | What it does |
 | --- | --- |
+| `bool Live` | Follow the flags as they change while the map is up (on): the object comes and goes with them. Off, the flags count once, at the map's start - as the game's boot tests them: a character booted behind a flag stays or stays away until the map is entered again. Crystal's conversions set this off. |
 | `string When` | Flags that must hold: "0:14 !0:11" (group:index, ! for off). |
-| `static bool Holds(string when)` | Whether a flag list as the editor writes it holds. |
+| `static bool Holds(string when)` | Whether a flag expression as the editor writes it holds: flags that must all hold ("0:14 !0:11" - group:index, ! for off), or several such lists as alternatives with \| ("!0:14 \| 0:14 !0:11" - either), as a boot reached by more than one path has. |
 
 ## Services you write, objects and scenes
 
@@ -1816,4 +1819,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-113 types, 819 members; 396 without a summary yet.
+113 types, 822 members; 396 without a summary yet.

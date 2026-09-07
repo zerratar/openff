@@ -105,6 +105,38 @@ internal static partial class GlobalScope
 			pc_ += bytes;
 		}
 
+		/// <summary>
+		/// OpenFF: runs a snippet of bytecode - whole commands, as the map's boot would have
+		/// run them - on this engine, then puts back whatever it was executing. For the mod
+		/// engine's stand-ins, which replay the boot's setup commands on themselves
+		/// (GameCast.Setup). No logic context: a command that reaches for one (a wait, an end,
+		/// a message) is not a setup command and is the caller's mistake.
+		/// </summary>
+		public void runSnippet(byte[] code)
+		{
+			ScriptData data = scriptData_;
+			uint pc = pc_;
+			int suspend = suspend_;
+			ScriptData snippet = new ScriptData();
+			snippet.m_abyData = code;
+			scriptData_ = snippet;
+			pc_ = 0;
+			try
+			{
+				while (pc_ < code.Length)
+				{
+					uint num = fetch();
+					OpenFF.Client.ScriptCommands.Dispatch(this, num);
+				}
+			}
+			finally
+			{
+				scriptData_ = data;
+				pc_ = pc;
+				suspend_ = suspend;
+			}
+		}
+
 		public byte getByte()
 		{
 			byte result = reinterpret_cast<byte[]>(scriptData_.m_abyData)[pc_];
