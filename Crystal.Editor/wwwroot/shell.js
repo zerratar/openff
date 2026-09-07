@@ -452,6 +452,9 @@ function layoutChanged() {
 // ---------------------------------------------------------------- hierarchy
 
 /// What is inside the open document. Selecting a row fills the inspector.
+/// Whether the hierarchy lists the game's characters the mod has replaced (off unless asked; remembered).
+let hierarchyShowReplaced = (() => { try { return localStorage.getItem('hierarchy.replaced') === '1'; } catch (e) { return false; } })();
+
 function drawHierarchy() {
   const tree = $('#hierarchy');
   const note = $('#hierarchy-note');
@@ -476,10 +479,28 @@ function drawHierarchy() {
     const head = document.createElement('li');
     head.className = 'group';
     head.textContent = group.label;
+    // The game's characters the mod has replaced are out of the way unless asked for: the
+    // group's count is what is left, and a toggle on the header shows the replaced too.
+    const replaced = group.children.filter(c => c.replaced);
+    const showReplaced = replaced.length > 0 && hierarchyShowReplaced;
+    const visible = group.children.filter(c => !c.replaced || showReplaced || activeDoc.selection === c.ref);
     if (group.children.length) {
       const count = document.createElement('b');
-      count.textContent = group.children.length;
+      count.textContent = visible.length;
+      if (replaced.length && !showReplaced) count.title = `${replaced.length} replaced by the mod's objects, hidden`;
       head.append(count);
+    }
+    if (replaced.length) {
+      const toggle = document.createElement('label');
+      toggle.className = 'group-toggle';
+      toggle.title = `${replaced.length} of the game's characters are replaced by the mod's objects (Removed). Show them too?`;
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = showReplaced;
+      box.onchange = () => { hierarchyShowReplaced = box.checked; try { localStorage.setItem('hierarchy.replaced', box.checked ? '1' : '0'); } catch (e) { /* no storage */ } drawHierarchy(); };
+      toggle.onclick = event => event.stopPropagation();
+      toggle.append(box, document.createTextNode(`replaced (${replaced.length})`));
+      head.append(toggle);
     }
     // A group can take a right click (New object…) and a drop (to the top level).
     if (group.menu) head.oncontextmenu = event => { event.preventDefault(); showContextMenu(event, group.menu()); };
@@ -487,7 +508,7 @@ function drawHierarchy() {
     tree.append(head);
 
     let shown = 0;
-    for (const child of group.children) {
+    for (const child of visible) {
       if (filter && !child.label.toLowerCase().includes(filter)) continue;
       shown++;
       const row = document.createElement('li');
@@ -717,7 +738,7 @@ function outlineFor(doc) {
       for (const group of groups) {
         for (const child of group.children) {
           if (carried.has(child.ref.toLowerCase())) child.badge = 'behaviour';
-          if (removed.has(child.ref.toLowerCase())) { child.note = 'replaced'; child.dim = true; }
+          if (removed.has(child.ref.toLowerCase())) { child.note = 'replaced'; child.dim = true; child.replaced = true; }
         }
       }
       const flat = typeof flattenSceneObjects === 'function' ? flattenSceneObjects(sceneState) : [];

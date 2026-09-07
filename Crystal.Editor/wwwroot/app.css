@@ -297,6 +297,9 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
   background: var(--panel);
 }
 .tree .group b { font-weight: normal; opacity: .6; }
+.tree .group .group-toggle { float: right; display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; font-size: 11px; cursor: pointer; opacity: .75; }
+.tree .group .group-toggle:hover { opacity: 1; color: var(--ink); }
+.tree .group .group-toggle input { width: 12px; height: 12px; margin: 0; }
 .tree .row {
   display: flex;
   gap: 8px;

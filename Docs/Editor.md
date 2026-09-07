@@ -821,6 +821,11 @@ talking to the old man says "Luneth! The elders are looking for you." - the game
 cast 22, on the mod's object. A new game with the Altar Cave converted plays its opening on
 the mod's Luneth, crystal and chest.
 
+In the hierarchy the replaced characters are out of the way: the Characters group counts
+what is still the game's, and a *replaced (N)* tick on its header lists them too, greyed
+and marked *replaced* (off unless asked; remembered). A replaced row that is selected stays
+listed while it is.
+
 A converted object's **GameCast card** is not just a cast number: under its fields it shows
 *what the cast does*, read from the map's script - the lines as the text file has them
 (`%shuyaku2%` and all; the game expands them), or a note that its code does other things -

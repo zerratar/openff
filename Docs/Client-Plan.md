@@ -1477,6 +1477,9 @@ between what is left (`WhenFlags.Holds` reads `|` now). Ur's cast 30 reads "!0:1
 count once, as the boot's test did. Every map's plan answers; the setup commands across all
 355 are exactly the survey's 31. In play: 37 lines replayed on Ur's 14 stand-ins, no
 warnings. The test dll: the editor was built to a temp folder while Karl's Crystal ran.
+Also, at Karl's ask: the replaced characters are hidden in the hierarchy - the Characters
+group counts what is still the game's, a *replaced (N)* tick on the header lists them,
+off unless asked and remembered.
 
 ## Working rules
 
