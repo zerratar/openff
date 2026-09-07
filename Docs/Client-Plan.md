@@ -1337,6 +1337,32 @@ Asked what else the editor and engine wanted, then told to do all of it:
   LoadedMod, the scene classes). README says where the projects are and why a running
   `crystal.exe` blocks the editor's build.
 
+### Converting a map's characters, stage one (2026-09-07, evening)
+
+Karl asked whether a whole map could be the mod's. Stage one of the plan laid out for it:
+everything a cast does that the built-in components can stand in for. `MapConvert.Plan`
+reads the map's characters (`MapModel`) and its script's disassembly (as `References.
+MessagesOf` does) and decides per character: logic rows are skipped; `BootedBy` walks every
+cast's reachable code for boot commands (`CastArgs.Positions`), and a character not booted by
+the map's boot cast (the lowest-numbered) stays the game's - a scene's actor appears when the
+scene says; a `setTreasureItem/Money` naming the cast is a Chest; a cast with no main is a
+prop; otherwise `Walk` follows every path from the cast's main - `flagOnJump`/`flagOffJump`
+split into taken and not taken with the flag on the path's condition, `flagOn/Off` go to its
+Then, `startMessage2` ids resolve through the message lookup (" / " to a line break), library-0
+calls are followed, library-2 calls other than talkBegin/talkEnd and any command outside the
+talk set make the cast unknown with the names. `BootConditions` walks the boot cast the same
+way and keeps, per booted cast, the flags every booting path agrees on (`flagOnEnd` counts as
+a guard) - Ur's villagers are there while `!0:439`, Arc (j201) while `!0:14`. The engine grew
+`Talk.When/Then` (Interactable picks the first component whose `Applies()` holds), `Wander`,
+`WhenFlags`, `SceneObject.Character` (spawned with `Npcs.Spawn`, the walker, rather than
+`SpawnModel`), and `Removed.StandIn`: the loader spawns a stand-in and then removes its
+original, pair by pair - the first run removed everything first and eight stand-ins failed to
+spawn (a model only the removed character used goes with it; and the slots were still held).
+Recolours (`changeColorCharacter` to n024/n073) are not models the map loads, so the row's own
+model stands. On Ur: 14 of 36 converted, the village stands in the client with no failures.
+Stage two (flag-gated talk is in; shops, inns, item hand-ins remain) and stage three (a
+`Sequence` component for the scenes' casts) are the open items.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

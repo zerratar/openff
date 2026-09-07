@@ -476,6 +476,21 @@ namespace Crystal.Editor
 					ProjectSession(context);
 					return;
 
+				case "/api/map/convert-plan":
+				{
+					// What each of the map's characters would be as the mod's own (MapConvert).
+					string name = Query(context, "name");
+					try
+					{
+						SendJson(context, new { ok = true, map = name, casts = MapConvert.Plan(_workspace, name, _lookupMessage) });
+					}
+					catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or KeyNotFoundException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
+
 				case "/api/project/run":
 					RunProject(context);
 					return;

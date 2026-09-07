@@ -778,6 +778,25 @@ a `Removed` behaviour on the original, which takes the game's one off the map wh
 client enters it. The character's row reads *replaced* from then on; its cast stays in
 the script for whatever else names it, and everything about the stand-in is the mod's.
 
+**Convert the map's characters** (the terrain's OpenFF card, or right-click *Characters*)
+does that for every character the mod's components can stand in for, in one go. Crystal
+reads the map's script the way the game runs it - each cast's code walked from its entry
+points, every flag branch followed - and decides per character: a `setTreasureItem` /
+`setTreasureMoney` in the boot makes a **Chest** with the same contents; a cast that only
+talks makes a **Talk** per branch, each with the lines resolved from the text file (one
+window per line) and the flags along its branch as its `When`, the `flagOn` after as its
+`Then`; a `moveCharacter_StartRandom` in the boot adds **Wander**; a boot behind a flag test
+adds **WhenFlags**, so the object is there only while the game's flags say the character
+would be; a cast with no code is a bare model. People are spawned as characters (they turn to
+the player and can wander), things as plain figures. Each original gets `Removed` naming its
+stand-in, and the client spawns the stand-in before it takes the original away, so a model
+only that character used stays loaded and the slot it held is free for the next. What the
+converter will not take stays the game's and is listed with the reason: a cast that does
+more than talk (menus, effects, motions, a shop), a character a scene boots rather than the
+map (it appears when the scene says), a row nothing boots. On Ur that is 14 of 36 converted
+(2 chests, 11 talkers, 8 of them wandering, 1 prop) and 22 left - the scene's actors and the
+item-using old man - each with its reason.
+
 Nothing on an OpenFF object has a Save button. A change - a field typed, an object
 dragged, a behaviour added - writes `scenes/<map>.json` a moment later, the way the
 session is kept; the status line says so. (The game's own rows keep their *Save

@@ -645,6 +645,9 @@ function outlineFor(doc) {
     ];
     groups.push({
       label: 'Characters',
+      menu: () => [
+        { label: 'Convert the map to OpenFF objects…', icon: 'mod', disabled: !openffProject || typeof convertMap !== 'function', run: () => convertMap(doc).catch(error => say(error.message, 'bad')) },
+      ],
       children: scene.objects.map(o => ({
         label: o.name,
         note: o.hasScript ? `${o.instructions}` : 'no script',
