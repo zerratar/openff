@@ -1212,13 +1212,18 @@ function inspectRef(doc, ref) {
       box.append(convertHead);
       const convertNote = document.createElement('p');
       convertNote.className = 'none';
-      convertNote.textContent = 'Every character of the game\'s that the mod\'s components can stand in for - chests, talking villagers, props, wanderers - becomes an object of the mod\'s own, with its lines, its treasure and its place; the originals are taken off the map in the client. Casts that do more stay the game\'s, and are listed.';
+      convertNote.textContent = 'Every character the map\'s boot places becomes an object of the mod\'s own - same model, place, idle, recolour - and the original is taken off the map in the client. Exact: each keeps its own cast, so talk, branches, menus and chests run as before, 1:1. With components: a Chest or Talk stands in where the cast is one, editable in the inspector. Characters a scene places stay the game\'s, and are listed.';
       box.append(convertNote);
       const convert = document.createElement('button');
       convert.className = 'wide-button';
-      convert.textContent = 'Convert the map\'s characters to OpenFF objects';
+      convert.textContent = 'Convert the map\'s characters (exact)';
       convert.onclick = () => convertMap(doc).catch(error => say(error.message, 'bad'));
       box.append(convert);
+      const convertParts = document.createElement('button');
+      convertParts.className = 'wide-button';
+      convertParts.textContent = 'Convert with components (Chest, Talk where they fit)';
+      convertParts.onclick = () => convertMap(doc, { components: true }).catch(error => say(error.message, 'bad'));
+      box.append(convertParts);
     }
     behavioursSection(box, 'map', 'map');
     return cardify(box);
@@ -2100,14 +2105,19 @@ function addConvert(panel, character) {
   note.className = 'none';
   note.textContent = replaced
     ? 'Replaced: a Removed behaviour on it takes it off the map in the OpenFF client; the mod\'s own object stands there instead.'
-    : 'Make this the mod\'s own: an OpenFF object at the same spot with the same model (a Chest with the same contents, for a chest), and the game\'s one taken off the map. Its cast stays in the script for whatever else names it.';
+    : 'Make this the mod\'s own: an OpenFF object at the same spot with the same model and idle, the game\'s one taken off the map. Exact keeps its cast - talking to it runs the same script, 1:1; with components a Chest or Talk stands in for a chest or a plain talker, editable in the inspector.';
   panel.append(note);
   if (!replaced) {
     const go = document.createElement('button');
     go.className = 'wide-button';
-    go.textContent = 'Convert to OpenFF object';
+    go.textContent = 'Convert to OpenFF object (exact)';
     go.onclick = () => convertToSceneObject(activeDoc, character).catch(error => say(error.message, 'bad'));
     panel.append(go);
+    const parts = document.createElement('button');
+    parts.className = 'wide-button';
+    parts.textContent = 'Convert with components (Chest / Talk)';
+    parts.onclick = () => convertToSceneObject(activeDoc, character, { components: true }).catch(error => say(error.message, 'bad'));
+    panel.append(parts);
   }
 }
 
@@ -2119,15 +2129,18 @@ async function convertPlan() {
   return plan.casts || [];
 }
 
-/// Applies one cast's plan: the object at the character's spot with its model (the
-/// recoloured one when the boot recolours it), the components the plan calls for, and
-/// Removed on the original. Returns the object, or null when the plan is unknown.
+/// Applies one cast's plan: the object at the character's spot with its model, the
+/// components, and Removed on the original. Two ways: exact (the default) puts GameCast on
+/// the stand-in, so it runs the game's own cast and behaves as the original did in every
+/// respect - talk, branches, menus, items; components (options.components) puts the plan's
+/// Chest / Talk / Wander on it instead, for a chest or a talker the mod means to edit.
+/// Either way the boot's idle motion, random walk, recolour and flag-guard come along.
+/// Returns the object, or null when the plan is unknown (a scene's actor, an unbooted row).
 function applyCastPlan(doc, plan, options = {}) {
   if (!plan || plan.kind === 'unknown') return null;
   const already = (sceneState.attachments || []).some(a => (a.target || '').toLowerCase() === 'object:' + plan.index && a.behaviour === 'Removed');
   if (already && !options.again) return null;
-  // The row's own model: a recolour the boot applies (changeColorCharacter) is not a model
-  // the map loads, so it cannot be spawned; the base model is what stands there.
+  const components = Boolean(options.components) && ['chest', 'talk', 'prop'].includes(plan.kind);
   const model = plan.model || null;
   const object = addSceneObject(doc, {
     name: `${plan.model || 'object'} ${plan.cast}`,
@@ -2136,18 +2149,28 @@ function applyCastPlan(doc, plan, options = {}) {
   });
   // A .hich facing is negated by the game; the mod's yaw is the engine's own.
   object.rotationY = -(plan.rotationY || 0);
-  object.character = Boolean(plan.character && model);
+  // Spawned as a character (the walker; a chest model as the game's map object) so the cast
+  // and its motions have what they had.
+  object.character = Boolean(model) && (plan.character || !components || plan.kind === 'chest');
   const path = scenePathOf(object);
-  if (plan.kind === 'chest') {
+  if (!components) {
+    const cast = { Cast: plan.cast, Treasure: plan.kind === 'chest', Item: 0, Gil: 0, Flag: plan.treasureFlag || '', Recolour: plan.colorModel || '' };
+    if (plan.kind === 'chest') { if (plan.treasure === 'item') cast.Item = plan.treasureValue; else cast.Gil = plan.treasureValue; }
+    sceneState.attachments.push({ target: path, behaviour: 'GameCast', fields: cast });
+  } else if (plan.kind === 'chest') {
     sceneState.attachments.push({
       target: path, behaviour: 'Chest',
-      fields: plan.treasure === 'item' ? { Item: plan.treasureValue, Count: 1, Gil: 0 } : { Item: 0, Gil: plan.treasureValue }
+      fields: Object.assign(plan.treasure === 'item' ? { Item: plan.treasureValue, Count: 1, Gil: 0 } : { Item: 0, Gil: plan.treasureValue },
+        { Flag: plan.treasureFlag || '', ChestLook: true })
     });
-  }
-  if (plan.kind === 'talk') {
+  } else if (plan.kind === 'talk') {
     for (const talk of plan.talks || []) {
       sceneState.attachments.push({ target: path, behaviour: 'Talk', fields: { Speaker: '', Lines: talk.lines || [], FaceHero: true, When: talk.when || '', Then: talk.then || '' } });
     }
+  }
+  if (plan.motionSet || plan.motionIndex) {
+    // The idle the boot gives it: the same set and motion.
+    sceneState.attachments.push({ target: path, behaviour: 'Motion', fields: { Set: plan.motionSet || '', Index: plan.motionIndex || 1001, Loop: plan.motionLoop !== false } });
   }
   if (plan.wander) {
     sceneState.attachments.push({ target: path, behaviour: 'Wander', fields: { Ai: 'Wander' } });
@@ -2160,32 +2183,38 @@ function applyCastPlan(doc, plan, options = {}) {
   return object;
 }
 
-async function convertToSceneObject(doc, character) {
+async function convertToSceneObject(doc, character, options = {}) {
   await loadSceneState(mapState.name);
   const plans = await convertPlan().catch(() => []);
   const plan = plans.find(p => p.index === character.index) || {
     index: character.index, cast: character.cast, model: character.model, x: character.x, y: character.y, z: character.z, rotationY: character.rotationY,
-    kind: 'prop', character: !/^[ow]/i.test(character.model || '')
+    kind: 'script', character: !/^[ow]/i.test(character.model || '')
   };
   if (plan.kind === 'unknown') {
-    // Converted all the same, as a prop: the shape stands there, the cast's code does not
-    // come along - said plainly, with what it did.
-    plan.kind = 'prop';
-    say(`cast ${character.cast} uses ${(plan.commands || []).slice(0, 5).join(', ')} - converted as a prop; its script does not come along`, 'bad');
+    // A scene's actor or an unbooted row: converting one would put it there all along.
+    // Taken across as its cast all the same when asked outright, with the reason said.
+    say(`${plan.reason} - taken across all the same; check it in play`, 'bad');
+    plan.kind = 'script';
   }
-  const object = applyCastPlan(doc, plan, { again: true });
+  if (options.components && !['chest', 'talk', 'prop'].includes(plan.kind)) {
+    say(`cast ${character.cast} uses ${(plan.commands || []).slice(0, 5).join(', ')} - no component does that; it keeps its own cast (GameCast)`, 'bad');
+  }
+  const object = applyCastPlan(doc, plan, { again: true, components: options.components });
   if (!object) return;
   sceneChanged('convert ' + object.name);
   syncSceneObjects(doc);
   drawHierarchy();
   drawInspector();
-  const what = plan.kind === 'chest' ? ' - a Chest with the same contents' : plan.kind === 'talk' ? ` - ${(plan.talks || []).length} Talk(s) with its lines` : '';
-  say(`${object.name} is the mod's now${what}; the game's cast ${character.cast} is taken off the map in the client`, 'good');
+  const exact = !(options.components && ['chest', 'talk', 'prop'].includes(plan.kind));
+  const what = exact
+    ? ` - it runs the game's cast ${character.cast} itself (GameCast), 1:1`
+    : plan.kind === 'chest' ? ' - a Chest with the same contents' : plan.kind === 'talk' ? ` - ${(plan.talks || []).length} Talk(s) with its lines` : ' - a bare model';
+  say(`${object.name} is the mod's now${what}; the game's own is taken off the map in the client`, 'good');
 }
 
-/// Every character of the map the plan can take, in one go; the ones it cannot are listed
-/// with what stood in the way, and stay the game's.
-async function convertMap(doc) {
+/// Every character of the map the boot places, in one go, each running its own cast
+/// (exact); the ones a scene places or nothing boots stay the game's and are listed.
+async function convertMap(doc, options = {}) {
   await loadSceneState(mapState.name);
   let plans;
   try {
@@ -2201,7 +2230,7 @@ async function convertMap(doc) {
     const already = (sceneState.attachments || []).some(a => (a.target || '').toLowerCase() === 'object:' + plan.index && a.behaviour === 'Removed');
     if (already) { skipped.push(plan); continue; }
     if (plan.kind === 'unknown') { left.push(plan); continue; }
-    const object = applyCastPlan(doc, plan);
+    const object = applyCastPlan(doc, plan, { components: options.components });
     if (object) done.push({ plan, object });
   }
   if (done.length) sceneChanged('convert map');
@@ -2214,15 +2243,24 @@ async function convertMap(doc) {
   const body = dialog(`Convert ${mapState.name} to OpenFF objects`);
   const summary = document.createElement('p');
   summary.className = 'dialog-note';
-  summary.textContent = `${done.length} converted: `
-    + ['chest', 'talk', 'prop'].map(k => `${done.filter(d => d.plan.kind === k).length} ${k === 'talk' ? 'talking' : k === 'chest' ? 'chests' : 'props'}`).join(', ')
-    + `${done.filter(d => d.plan.wander).length ? `, ${done.filter(d => d.plan.wander).length} wandering` : ''}. `
-    + 'Each is an object of the mod\'s own with the same model and place; the original is taken off the map in the client (Removed). Everything saved.';
+  const kinds = ['chest', 'talk', 'prop', 'script'].map(k => [k, done.filter(d => d.plan.kind === k).length]).filter(([, n]) => n);
+  summary.textContent = `${done.length} converted`
+    + (options.components
+      ? ' into components: ' + kinds.map(([k, n]) => `${n} ${k === 'talk' ? 'talking (Talk)' : k === 'chest' ? 'chests (Chest)' : k === 'prop' ? 'props' : 'with their own cast (GameCast - no component does what they do)'}`).join(', ')
+      : ', each running its own cast (GameCast) - talk, branches, menus, chests exactly as before; the analysis: ' + kinds.map(([k, n]) => `${n} ${k === 'talk' ? 'plain talkers' : k === 'chest' ? 'chests' : k === 'prop' ? 'props' : 'with scripted casts'}`).join(', '))
+    + `${done.filter(d => d.plan.wander).length ? `; ${done.filter(d => d.plan.wander).length} wander` : ''}. `
+    + 'Each is an object of the mod\'s own with the same model, place, idle motion and recolour; the original is taken off the map in the client (Removed). Everything saved.';
   body.append(summary);
+  if (!options.components && done.some(d => ['chest', 'talk', 'prop'].includes(d.plan.kind))) {
+    const tip = document.createElement('p');
+    tip.className = 'dialog-note';
+    tip.textContent = 'To edit what a chest holds or a villager says in the inspector, convert with components instead (right-click Characters ▸ Convert with components): a Chest or Talk stands in for the cast, exact for those kinds too.';
+    body.append(tip);
+  }
   if (left.length) {
     const head = document.createElement('div');
     head.className = 'dialog-section';
-    head.textContent = `Still the game's (${left.length}) - their casts do things the components do not cover yet`;
+    head.textContent = `Still the game's (${left.length})`;
     body.append(head);
     const list = document.createElement('div');
     list.className = 'dialog-list';
@@ -2232,14 +2270,14 @@ async function convertMap(doc) {
       const title = document.createElement('strong');
       title.textContent = `${plan.model} (cast ${plan.cast})`;
       const why = document.createElement('span');
-      why.textContent = (plan.commands || []).join(', ');
+      why.textContent = plan.reason || (plan.commands || []).join(', ');
       row.append(title, why);
       list.append(row);
     }
     body.append(list);
     const note = document.createElement('p');
     note.className = 'dialog-note';
-    note.textContent = 'Right-click one of them ▸ Convert to OpenFF object takes it across as a prop (its script stays behind), or leave them: the game runs their casts as before, beside the mod\'s objects.';
+    note.textContent = 'A scene places these when it plays, or nothing places them at all; an object standing there from the start would not be the game. The scenes are the next stage; the game runs them as before, beside the mod\'s objects.';
     body.append(note);
   }
 }

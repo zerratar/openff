@@ -646,7 +646,8 @@ function outlineFor(doc) {
     groups.push({
       label: 'Characters',
       menu: () => [
-        { label: 'Convert the map to OpenFF objects…', icon: 'mod', disabled: !openffProject || typeof convertMap !== 'function', run: () => convertMap(doc).catch(error => say(error.message, 'bad')) },
+        { label: 'Convert the map to OpenFF objects (exact - each keeps its cast)…', icon: 'mod', disabled: !openffProject || typeof convertMap !== 'function', run: () => convertMap(doc).catch(error => say(error.message, 'bad')) },
+        { label: 'Convert with components (Chest, Talk… where they fit)…', icon: 'behaviour', disabled: !openffProject || typeof convertMap !== 'function', run: () => convertMap(doc, { components: true }).catch(error => say(error.message, 'bad')) },
       ],
       children: scene.objects.map(o => ({
         label: o.name,
@@ -664,9 +665,13 @@ function outlineFor(doc) {
             if (at >= 0 && typeof goToLine === 'function') goToLine(text, text.value.slice(0, at).split('\n').length, 1);
           } },
           { sep: true },
-          { label: 'Convert to OpenFF object', icon: 'mod', disabled: !openffProject || typeof convertToSceneObject !== 'function', run: () => {
+          { label: 'Convert to OpenFF object (exact - keeps its cast)', icon: 'mod', disabled: !openffProject || typeof convertToSceneObject !== 'function', run: () => {
             const character = (typeof mapState !== 'undefined' && mapState.data && mapState.data.characters || []).find(c => c.index === o.index);
             if (character) convertToSceneObject(doc, character).catch(error => say(error.message, 'bad'));
+          } },
+          { label: 'Convert with components (Chest / Talk)', icon: 'behaviour', disabled: !openffProject || typeof convertToSceneObject !== 'function', run: () => {
+            const character = (typeof mapState !== 'undefined' && mapState.data && mapState.data.characters || []).find(c => c.index === o.index);
+            if (character) convertToSceneObject(doc, character, { components: true }).catch(error => say(error.message, 'bad'));
           } },
         ])
       }))

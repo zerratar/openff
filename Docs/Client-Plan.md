@@ -1363,6 +1363,31 @@ model stands. On Ur: 14 of 36 converted, the village stands in the client with n
 Stage two (flag-gated talk is in; shops, inns, item hand-ins remain) and stage three (a
 `Sequence` component for the scenes' casts) are the open items.
 
+### Exact conversion: the stand-in is the cast (2026-09-07, evening)
+
+Karl: if it is not 1:1 nobody will convert. The components approximated the game's handlers
+(idle motions missing, a wanderer talking on the move, a chest without the lid and sound,
+recolours lost); the way to 1:1 is not to approximate at all. `bootCharacterImp` is what
+makes a game character its cast: `LogicIndex_set(cast)` (talking runs `cast<N>_main`) and
+`CHichParameterManager.setCharaIndex(row, slot)` (every `changeHichNumber(cast)` in a command
+resolves to that slot). `Npc.RunCast(cast)` does both on a stand-in, so the same bytecode
+runs on it - the old man's item hand-in, the shop calls, the branches, the placeholders
+(`%shuyaku1%` came out as "Luneth" on the mod's object). `Npc.SetTreasure` does what
+`ff3Command_SetTreasureItem` does to the map object (flag, item or gold, the arrow count of
+20, shut lid or open), so the chest opens the game's own way; `Npc.Recolour` is
+`changeColorCharacter`'s `bindReplaceTex(model_variant)`. `GameCast` carries the three; the
+converter's exact mode puts it on every stand-in (a chest spawned as a character, so it is a
+map object with its lid motions), with `Motion` (the boot's `bindMotion` + `startMotion
+Character`), `Wander`, `WhenFlags`. Two more things the client taught: a stand-in whose
+WhenFlags do not hold must not be spawned at all (its model is not loaded - the game did not
+boot it either), so the loader gates the spawn and `WhenFlags` spawns it when the flags come
+true, with `INeedsNpc` letting GameCast/Motion/Wander/Interactable take the character then;
+and the components mode is kept for editing (`Chest` now with the game's lid motions, sound
+36, sparkle 102 and its flag; `Talk` stopping a wanderer for the talk). Ur, exact: 16 of 36
+(the 20 left are the scenes' actors), 14 spawned at once, no warnings, the talk verified in
+play. Open: the scenes' actors (stage three), and the recolour needs the character spawned
+before `bindReplaceTex` - it is, but a variant texture the map has not loaded is untested.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

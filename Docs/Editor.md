@@ -779,23 +779,33 @@ client enters it. The character's row reads *replaced* from then on; its cast st
 the script for whatever else names it, and everything about the stand-in is the mod's.
 
 **Convert the map's characters** (the terrain's OpenFF card, or right-click *Characters*)
-does that for every character the mod's components can stand in for, in one go. Crystal
-reads the map's script the way the game runs it - each cast's code walked from its entry
-points, every flag branch followed - and decides per character: a `setTreasureItem` /
-`setTreasureMoney` in the boot makes a **Chest** with the same contents; a cast that only
-talks makes a **Talk** per branch, each with the lines resolved from the text file (one
-window per line) and the flags along its branch as its `When`, the `flagOn` after as its
-`Then`; a `moveCharacter_StartRandom` in the boot adds **Wander**; a boot behind a flag test
-adds **WhenFlags**, so the object is there only while the game's flags say the character
-would be; a cast with no code is a bare model. People are spawned as characters (they turn to
-the player and can wander), things as plain figures. Each original gets `Removed` naming its
-stand-in, and the client spawns the stand-in before it takes the original away, so a model
-only that character used stays loaded and the slot it held is free for the next. What the
-converter will not take stays the game's and is listed with the reason: a cast that does
-more than talk (menus, effects, motions, a shop), a character a scene boots rather than the
-map (it appears when the scene says), a row nothing boots. On Ur that is 14 of 36 converted
-(2 chests, 11 talkers, 8 of them wandering, 1 prop) and 22 left - the scene's actors and the
-item-using old man - each with its reason.
+does that for every character the map's boot places, in one go, and it is **exact**: each
+stand-in gets a **GameCast** naming the original's cast, and the client makes the stand-in
+*be* that cast for the script - talking to it runs `cast<N>_main`, and every command the
+script addresses to cast N (motions, moves, recolours, item hand-ins, shops) lands on the
+stand-in. The same bytecode runs on the same kind of character; there is nothing to
+approximate. With it come the boot's idle (**Motion**: the bound set and the started
+motion), its random walk (**Wander**), its recolour (`changeColorCharacter`, on the
+GameCast), the chest's treasure (`setTreasureItem/Money` on the GameCast, set up the game's
+way: lid, sound, message, flag, treasure count), and a boot behind a flag test as
+**WhenFlags** - the object is not even spawned until the flags hold, as the game would not
+have booted it. Each original gets `Removed` naming its stand-in; the client spawns the
+stand-in first and then takes the original away, pair by pair, so a model only that
+character used stays loaded and the slot it held is free for the next.
+
+**Convert with components** is the other way, for what you mean to *edit*: Crystal reads
+the cast's code (walked from its entry points, every flag branch followed) and where it is
+a chest or a plain talker puts a **Chest** with the same contents or a **Talk** per branch -
+the lines from the text file, one window each, the branch's flags as `When`, the `flagOn`
+after as `Then` - so the item or the words are fields in the inspector. A cast that does
+more keeps its GameCast. Both ways are on the Characters group's menu, a character's menu,
+and its OpenFF card.
+
+What neither takes stays the game's and is listed with the reason: a character a *scene*
+boots rather than the map (it must appear when the scene says), and a row nothing boots.
+On Ur that is 16 of 36 converted and 20 left, all of them the cutscenes' actors; the
+village stands with the mod's people, and talking to the old man says "Luneth! The elders
+are looking for you." - the game's own cast 22, on the mod's object.
 
 Nothing on an OpenFF object has a Save button. A change - a field typed, an object
 dragged, a behaviour added - writes `scenes/<map>.json` a moment later, the way the

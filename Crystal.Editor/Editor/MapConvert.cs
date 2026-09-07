@@ -56,6 +56,12 @@ namespace Crystal.Editor
 		public bool Character { get; set; }
 		/// <summary>The flags the boot cast tests on its way to booting this one - "!0:14": the object is there only while they hold.</summary>
 		public string When { get; set; } = "";
+		/// <summary>chest: the game's flag for it, "1:22", from the treasure command.</summary>
+		public string TreasureFlag { get; set; } = "";
+		/// <summary>The motion set the boot binds (bindMotion) and the motion it starts (startMotionCharacter), for the idle.</summary>
+		public string MotionSet { get; set; } = "";
+		public int MotionIndex { get; set; }
+		public bool MotionLoop { get; set; } = true;
 	}
 
 	internal static class MapConvert
@@ -93,15 +99,17 @@ namespace Crystal.Editor
 			Dictionary<uint, ScriptInstruction> at = code.ToDictionary(i => i.At, i => i);
 
 			// The boot side: what the map does to each cast before anyone talks to it.
-			Dictionary<int, (string kind, int value)> treasure = new Dictionary<int, (string, int)>();
+			Dictionary<int, (string kind, int value, string flag)> treasure = new Dictionary<int, (string, int, string)>();
 			HashSet<int> wander = new HashSet<int>();
 			Dictionary<int, string> colour = new Dictionary<int, string>();
+			Dictionary<int, string> motionSet = new Dictionary<int, string>();
+			Dictionary<int, (int index, bool loop)> motion = new Dictionary<int, (int, bool)>();
 			foreach (ScriptInstruction i in code)
 			{
 				string name = names.Name(i.Opcode);
-				if ((name == "setTreasureItem" || name == "setTreasureMoney") && i.Operands.Count >= 2 && Int(i.Operands[0], out int cast) && Int(i.Operands[1], out int value))
+				if ((name == "setTreasureItem" || name == "setTreasureMoney") && i.Operands.Count >= 4 && Int(i.Operands[0], out int cast) && Int(i.Operands[1], out int value) && Int(i.Operands[2], out int group) && Int(i.Operands[3], out int index))
 				{
-					treasure[cast] = (name == "setTreasureItem" ? "item" : "gil", value);
+					treasure[cast] = (name == "setTreasureItem" ? "item" : "gil", value, group.ToString(CultureInfo.InvariantCulture) + ":" + index.ToString(CultureInfo.InvariantCulture));
 				}
 				else if (name == "moveCharacter_StartRandom" && i.Operands.Count >= 1 && Int(i.Operands[0], out int wanderer))
 				{
@@ -110,6 +118,14 @@ namespace Crystal.Editor
 				else if (name == "changeColorCharacter" && i.Operands.Count >= 2 && Int(i.Operands[0], out int coloured) && i.Operands[1] is string model)
 				{
 					colour[coloured] = model;
+				}
+				else if (name == "bindMotion" && i.Operands.Count >= 2 && Int(i.Operands[0], out int bound) && i.Operands[1] is string set)
+				{
+					if (!motionSet.ContainsKey(bound)) motionSet[bound] = set;
+				}
+				else if (name == "startMotionCharacter" && i.Operands.Count >= 3 && Int(i.Operands[0], out int mover) && Int(i.Operands[1], out int which) && Int(i.Operands[2], out int loop))
+				{
+					if (!motion.ContainsKey(mover)) motion[mover] = (which, loop != 0);
 				}
 			}
 
@@ -132,6 +148,8 @@ namespace Crystal.Editor
 					Character = !IsObjectModel(character.Model),
 				};
 				if (colour.TryGetValue(character.Cast, out string recoloured)) plan.ColorModel = recoloured;
+				if (motionSet.TryGetValue(character.Cast, out string set)) plan.MotionSet = set;
+				if (motion.TryGetValue(character.Cast, out (int index, bool loop) idle)) { plan.MotionIndex = idle.index; plan.MotionLoop = idle.loop; }
 				bootedBy.TryGetValue(character.Cast, out HashSet<int> booters);
 				if (booters == null || booters.Count == 0)
 				{
@@ -150,13 +168,19 @@ namespace Crystal.Editor
 					continue;
 				}
 				if (bootWhen.TryGetValue(character.Cast, out string when)) plan.When = when;
-				if (treasure.TryGetValue(character.Cast, out (string kind, int value) held))
+				if (treasure.TryGetValue(character.Cast, out (string kind, int value, string flag) held))
 				{
 					plan.Kind = "chest";
-					// A chest's own flag guards its boot (opened chests are not booted): the Chest remembers that itself.
+					// A chest's own flag guards its boot (opened chests are not booted): the Chest keeps that flag itself.
 					plan.When = "";
 					plan.Treasure = held.kind;
 					plan.TreasureValue = held.value;
+					plan.TreasureFlag = held.flag;
+					plan.MotionSet = "";
+					plan.MotionIndex = 0;
+					// Spawned the game's way (setUpWorldCharacter sends an o/w model through
+					// setUpMapObject): that is where a chest's lid motions come from.
+					plan.Character = true;
 					plan.Character = false;
 					plans.Add(plan);
 					continue;
@@ -396,7 +420,9 @@ namespace Crystal.Editor
 
 			if (odd.Count > 0)
 			{
-				plan.Kind = "unknown";
+				// Code the components do not cover: the stand-in runs the cast itself (GameCast),
+				// which is exact; the names say what a component version would have to do.
+				plan.Kind = "script";
 				plan.Commands = odd.OrderBy(c => c, StringComparer.Ordinal).ToList();
 				plan.Reason = "cast " + plan.Cast + " uses " + string.Join(", ", plan.Commands.Take(6)) + (plan.Commands.Count > 6 ? " and " + (plan.Commands.Count - 6) + " more" : "");
 				return;
