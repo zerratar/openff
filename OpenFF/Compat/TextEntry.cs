@@ -95,6 +95,25 @@ namespace OpenFF.Client
 			callback?.Invoke(result);
 		}
 
+		/// <summary>A drive typing into the open field (Drive's "type"): appended as the keyboard's characters would be.</summary>
+		internal void Inject(string text)
+		{
+			if (!IsActive) return;
+			// Empty: the field cleared (Backspace over everything).
+			if (string.IsNullOrEmpty(text)) { _text.Clear(); return; }
+			foreach (char c in text)
+			{
+				if (!char.IsControl(c) && _text.Length < _maxLength) _text.Append(c);
+			}
+		}
+
+		/// <summary>A drive's Enter (submit: true) or Escape (submit: false) on the open field.</summary>
+		internal void Finish(bool submit)
+		{
+			if (!IsActive) return;
+			Complete(submit ? _text.ToString() : null);
+		}
+
 		private void OnTextInput(object sender, TextInputEventArgs e)
 		{
 			if (!IsActive)

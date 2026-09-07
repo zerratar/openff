@@ -1,0 +1,48 @@
+# FF3: a new game from the title into the name screen, then the name changed and confirmed (Testing.md C-51).
+#   OpenFF.exe --game=ff3 --drive=Docs/Drives/ff3-name.drive --log=general,file,input --screenshot-dir=shots --screenshot-every=2
+# The screen is touch-only, so the taps are in the 800x480 view: the name at ~160,285, Confirm at ~333,428.
+# Twelve A presses 2.5 s apart carry the title and the opening to the name screen (~78 s).
+wait 6
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+press Z
+wait 2.5
+say at the name screen
+wait 2
+tap 160 285
+wait 1.5
+type
+type Karl
+wait 1
+submit
+wait 1.5
+say typed
+tap 333 428
+wait 4
+say confirmed
+wait 6
+press Z
+wait 3
+press Z
+wait 3
+quit

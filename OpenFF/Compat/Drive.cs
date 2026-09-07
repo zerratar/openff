@@ -4,6 +4,8 @@
 //
 //   wait <seconds>                 pause
 //   press <key> [holdMs]           hold a key (XNA Keys names: K, Z, Down, Right, C, M...) - 120 ms unless said
+//   tap <x> <y> [holdMs]           a touch at a point of the 800x480 view (a click on the window), released after the hold
+//   type <text>                    typed into the open text field (the name entry's); "type" alone clears it; submit / cancel are its Enter and Escape
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
@@ -94,7 +96,15 @@ namespace OpenFF.Client
 			if (_framesLeft > 0)
 			{
 				_framesLeft--;
-				if (_framesLeft == 0) DesktopInput.Injected.Clear();
+				if (_framesLeft == 0)
+				{
+					DesktopInput.Injected.Clear();
+					if (_tapHeld)
+					{
+						_tapHeld = false;
+						DesktopInput.InjectTouch(1, _tapX, _tapY);
+					}
+				}
 				return;
 			}
 			if (_waitFor != null)
@@ -137,6 +147,42 @@ namespace OpenFF.Client
 					}
 					break;
 				}
+				case "tap":
+				{
+					// A touch at a point of the 800x480 view, held a moment then released - what a
+					// click on the window does (DesktopInput.UpdateMouse).
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 2 || !int.TryParse(bits[0], out _tapX) || !int.TryParse(bits[1], out _tapY))
+					{
+						Log.Write(LogChannel.General, "drive: tap wants <x> <y> [holdMs] in the 800x480 view");
+						break;
+					}
+					int hold = bits.Length > 2 && int.TryParse(bits[2], out int ms) ? ms : 120;
+					_framesLeft = Math.Max(2, hold * 60 / 1000);
+					_tapHeld = true;
+					DesktopInput.InjectTouch(0, _tapX, _tapY);
+					Log.Write(LogChannel.File, "drive: tap " + _tapX + "," + _tapY + " for " + _framesLeft + " frame(s)");
+					break;
+				}
+				case "type":
+					// Into the text field that is open (the name entry's), as typing would.
+					if (TextEntry.Instance != null && TextEntry.Instance.IsActive)
+					{
+						TextEntry.Instance.Inject(step.Arg);
+						Log.Write(LogChannel.File, "drive: typed \"" + step.Arg + "\"");
+					}
+					else Log.Write(LogChannel.General, "drive: type - no text field is open");
+					break;
+				case "submit":
+				case "cancel":
+					// Enter or Escape on the open text field.
+					if (TextEntry.Instance != null && TextEntry.Instance.IsActive)
+					{
+						TextEntry.Instance.Finish(step.Verb == "submit");
+						Log.Write(LogChannel.File, "drive: " + step.Verb);
+					}
+					else Log.Write(LogChannel.General, "drive: " + step.Verb + " - no text field is open");
+					break;
 				case "until":
 				{
 					string pattern = step.Arg;
@@ -176,6 +222,8 @@ namespace OpenFF.Client
 		}
 
 		private static int _timeoutFrames;
+		private static bool _tapHeld;
+		private static int _tapX, _tapY;
 
 		private static double Seconds(string text, double fallback)
 		{

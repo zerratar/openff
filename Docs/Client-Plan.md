@@ -1413,6 +1413,27 @@ open shared one `mapState`/`sceneState`, so a conversion could act on the other 
 `onShow` re-points them (writing a pending autosave first). Ur converts 30 of 36 now, the 6
 left the rows nothing boots.
 
+### The name screen, and drives that can touch (2026-09-07, night)
+
+Karl asked whether Luneth's name entry works - the new-game drive above had sat on it. It
+does: the screen is touch-only in the original (`NameEntry.execute` reads `g_TouchPanel`;
+A does nothing there), so a drive pressing Z could not leave it. Drives can touch now:
+`tap <x> <y> [ms]` sends a touch down/up at a point of the 800x480 view through
+`DesktopInput.InjectTouch`, the same `Send` a click goes through after `MapToViewSpace`;
+`type <text>` puts characters into the open `TextEntry` (bare `type` clears it), `submit` /
+`cancel` are its Enter and Escape (the field reads the real keyboard, so `press Enter` would
+not reach it). `Docs/Drives/ff3-name.drive` taps the name, types Karl, confirms, and the
+first battle's row reads "Karl 32 / 32" (C-51). The 2D plane's touch rectangles map to the
+view as x * 800/480, y * 480/320.
+
+Two things seen on the way, not fixed: `--pos` on a town (`t01_01`) is overridden by the
+map's own entry placement, so a drive cannot start beside a character - walking blind from
+the entrance is the only way, and the chests are out of reach that way (the components-mode
+Chest/Talk are therefore verified by their fields and the log, not by a walk-up); and
+`ff3-boot.drive` on `d01_05` spends its 40 s in the opening scene and the name screen rather
+than walking and opening the menu as its comment says - it still catches exceptions, which
+is what it is for.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

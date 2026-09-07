@@ -215,6 +215,14 @@ namespace OpenFF.Client
 		// through the Android activity broadcast.
 		private static void TouchDown(int x, int y) => Send(0, x, y);
 
+		/// <summary>A drive's touch (action 0 down, 1 up, 2 move) at a point of the 800x480 view, the way a click arrives.</summary>
+		internal static void InjectTouch(int action, int x, int y)
+		{
+			Log.Write(LogChannel.Input, $"touch {(action == 0 ? "down" : action == 1 ? "up" : "move")} {x},{y} (drive)");
+			Send(action, x, y);
+			if (action == 0) { _wasDown = false; }
+		}
+
 		private static void TouchUp(int x, int y) => Send(1, x, y);
 
 		private static void TouchMove(int x, int y) => Send(2, x, y);
