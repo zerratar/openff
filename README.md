@@ -60,7 +60,11 @@ Crystal.Editor\bin\Debug\net8.0\crystal.exe
 
 opens Crystal in the browser. With a command (`extract`, `script`, `tables`, `msd`, `pak`,
 `xbn`, `mdl`, `tex`, `cells`, `hich`, `mcl`, `lz` ...) it converts the games' files on the
-command line instead; `crystal` alone prints the list.
+command line instead; `crystal` alone prints the list. Crystal keeps its projects under
+`%LocalAppData%\OpenFF\Crystal\projects` (an older `FF3ContentTool` folder is moved there on
+first start). A running `crystal.exe` - one started from Visual Studio included - holds its
+own build output, so `dotnet build` fails on `Crystal.Editor` with "file is locked by
+crystal.exe" until it is closed; the client's build is not affected.
 
 **For people without the SDK:** `publish.cmd` builds `dist\OpenFF\` - `OpenFF.exe`, `crystal.exe`,
 the engine, an empty `mods\` folder and these documents, with the .NET runtime included. Zip

@@ -131,8 +131,7 @@ namespace Crystal.Editor
 			OverrideDirectory = Path.GetFullPath(overrideDirectory ?? (_source.Kind == "archives"
 				? Path.Combine(_contentDirectory, "Override")
 				: Path.Combine(
-					Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-					"FF3ContentTool", "mods",
+					CrystalHome.Mods,
 					Path.GetFileName(_contentDirectory.TrimEnd(
 						Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)))));
 

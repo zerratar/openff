@@ -105,10 +105,13 @@ namespace OpenFF.Client
 			string project = Options.Get("project");
 			if (!string.IsNullOrEmpty(project))
 			{
+				// By name: Crystal's projects folder - %LocalAppData%\OpenFF\Crystal\projects, or the
+				// tool's first home, FF3ContentTool, when the editor has not moved it yet.
+				string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 				string directory = project.IndexOfAny(new[] { '/', '\\' }) >= 0 || Path.IsPathRooted(project)
 					? project
-					: Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-						"FF3ContentTool", "projects", project);
+					: new[] { Path.Combine(local, "OpenFF", "Crystal", "projects", project), Path.Combine(local, "FF3ContentTool", "projects", project) }
+						.FirstOrDefault(Directory.Exists) ?? Path.Combine(local, "OpenFF", "Crystal", "projects", project);
 				directories.AddRange(ProjectFiles(directory, game));
 				if (!Directory.Exists(directory))
 				{

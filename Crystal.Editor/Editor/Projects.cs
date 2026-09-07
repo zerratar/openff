@@ -205,9 +205,7 @@ namespace Crystal.Editor
 			get
 			{
 				string given = Environment.GetEnvironmentVariable("FF3_PROJECTS");
-				return !string.IsNullOrEmpty(given) ? given : Path.Combine(
-					Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-					"FF3ContentTool", "projects");
+				return !string.IsNullOrEmpty(given) ? given : CrystalHome.Projects;
 			}
 		}
 
