@@ -867,6 +867,40 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>ff3Command_MoveCharacter_StartRandom on this character: no autopilot, no operator, the random-move AI, the gait.</summary>
+		public override void StartWander(WanderGait gait)
+		{
+			try
+			{
+				GlobalScope.pl.CPlayerHuman human = EngineApi.Players.PlayerHuman(Index);
+				if (human == null || Player == null) return;
+				human.setAutoPilot(_AutoPilot: false);
+				human.setOperater(_Operater: false);
+				human.NPCAiManager().AiKind_set(GlobalScope.pl.CNPCAiManager.AI_KIND.AI_KIND_RANDOM_MOVE);
+				human.NPCRandomMoveType_set((GlobalScope.pl.NPC_RANDOM_MOVE_TYPE)(int)gait);
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("wander", "StartWander: " + ex.Message);
+			}
+		}
+
+		/// <summary>ff3Command_MoveCharacter_EndRandom: no operator, the default AI.</summary>
+		public override void EndWander()
+		{
+			try
+			{
+				GlobalScope.pl.CPlayerHuman human = EngineApi.Players.PlayerHuman(Index);
+				if (human == null || Player == null) return;
+				human.setOperater(_Operater: false);
+				human.NPCAiManager().AiKind_set(GlobalScope.pl.CNPCAiManager.AI_KIND.AI_KIND_DEFAULT);
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("wander", "EndWander: " + ex.Message);
+			}
+		}
+
 		private bool _solid;
 
 		public override bool Solid

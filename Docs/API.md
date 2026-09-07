@@ -14,7 +14,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
 - [Saving](#saving): [`ISaveable`](#isaveable), [`SaveChunks`](#savechunks)
 - [Mods and loading](#mods-and-loading): [`LoadedMod`](#loadedmod), [`ModDefinition`](#moddefinition), [`ModLoader`](#modloader), [`ModWatcher`](#modwatcher)
-- [Constants](#constants): [`BattleResult`](#battleresult), [`Condition`](#condition), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting)
+- [Constants](#constants): [`BattleResult`](#battleresult), [`Condition`](#condition), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting), [`WanderGait`](#wandergait)
 
 ## The entry point
 
@@ -320,7 +320,7 @@ What the services hand out: a character on the map, a party member, an item, a s
 
 `class Chest : Interactable`
 
-A treasure chest, placed from the editor: an item (with a count) and/or gil, given when the player opens it, said in the message window, remembered across saves when Once. Give the object the chest's model (o001) and it opens on talking to it; without a model it opens when the hero walks in. Derive and override OnOpened to add to it.
+A treasure chest, placed from the editor: an item (with a count) and/or gil, given when the player opens it, said in the message window, remembered across saves when Once. Give the object the chest's model (o001) and it opens on talking to it; without a model, on A within Radius (or on walking in, with OnWalkIn). Derive and override OnOpened to add to it.
 
 | Member | What it does |
 | --- | --- |
@@ -469,7 +469,7 @@ The common ground of the built-in components an editor places on a scene object:
 
 | Member | What it does |
 | --- | --- |
-| `bool OnWalkIn` | Without a model: act when the hero walks in (on), or when the player presses A standing within Radius (off) - an invisible sign or switch. |
+| `bool OnWalkIn` | Without a model: act the moment the hero walks in (on), or when the player presses A standing within Radius (off, the default) - approach, then interact, as with any character. With a model the game's own talk applies: face it and press A. |
 | `float Radius` | Without a model to talk to: how close the hero comes, in world units, for the object to act. |
 | `void NpcReady(MapObject link)` |  |
 
@@ -602,6 +602,7 @@ A character a script put on the map.
 | `float Yaw { get; }` | Which way it faces, in degrees (0 = +Z, 90 = +X). |
 | `event Action<Npc> Interacted` | The player talked to this character: pressed A within InteractRadius, or did what the game itself counts as talking to it (a tap on it, or A while facing it). |
 | `void BindMotions(string set)` | Adds a motion set to the character's model: "b_b01" for a party member's model, a monster's Monster.MotionSet ("b_f" + family) for its attack and idle (MonsterMotion). |
+| `void EndWander()` | The scripts' moveCharacter_EndRandom: the walk stops, the character stands where it is. |
 | `void Face(float yaw)` | Turns to a yaw in degrees. |
 | `void LookAt(Vector3 point)` | Turns to face a point. |
 | `void MoveTo(Vector3 position, int frames)` | Walks to a point over a number of frames (0 teleports). The character faces where it walks. |
@@ -611,6 +612,7 @@ A character a script put on the map.
 | `void RunCast(int cast)` | Makes this character the one the map's script means by a cast number: talking to it runs that cast's code, and the script's commands on that cast (motions, moves, recolours) land here. What a mod's stand-in for one of the game's characters does to behave exactly as the original did. Nothing on a host without casts. |
 | `void SetAi(NpcAi ai)` | What it does on its own: stand, wander, follow. |
 | `void SetTreasure(int itemId, int gil, int flagGroup, int flagIndex)` | Sets the character up as a treasure chest the game's way (setTreasureItem / setTreasureMoney): the item or gil, the game's flag for it (opened when set), the chest's own opening - sound, lid, message, flag, the treasure count. A chest model (o000, o001) spawned as a character. |
+| `void StartWander(WanderGait gait)` | The map scripts' moveCharacter_StartRandom, exactly: the character walks about its spot on its own, with the gait the script names (a boy's, an old woman's - the pattern and pace of the random walk). SetAi(Wander) alone keeps the gait it had. |
 | `void Stop()` | Ends a walk where the character stands. |
 | `void Teleport(Vector3 position)` | Puts it at a position at once. |
 
@@ -928,6 +930,7 @@ Makes the object's character wander about its spot (or stand, or follow the hero
 | Member | What it does |
 | --- | --- |
 | `NpcAi Ai` | Still, Wander or Follow. |
+| `WanderGait Gait` | The walk's pattern and pace, as the scripts name it (moveCharacter_StartRandom's second operand): Man, Woman, Boy, Girl, Uncle, Aunt, OldMan, OldWoman. |
 | `void NpcReady(MapObject link)` |  |
 
 ### WhenFlags
@@ -1793,6 +1796,24 @@ Whom a spell may be aimed at, as flags.
 | `FriendAll` = 512 |  |
 | `Everyone` = 4096 |  |
 
+### WanderGait
+
+`enum WanderGait`
+
+The random walk's pattern and pace, as the map scripts name them (moveCharacter_StartRandom's second operand; the game's NPC_RANDOM_MOVE_TYPE).
+
+| Value | Meaning |
+| --- | --- |
+| `Default` = 0 |  |
+| `Man` = 1 |  |
+| `Woman` = 2 |  |
+| `Boy` = 3 |  |
+| `Girl` = 4 |  |
+| `Uncle` = 5 |  |
+| `Aunt` = 6 |  |
+| `OldMan` = 7 |  |
+| `OldWoman` = 8 |  |
+
 ---
 
-112 types, 807 members; 387 without a summary yet.
+113 types, 819 members; 396 without a summary yet.

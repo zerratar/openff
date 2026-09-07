@@ -167,11 +167,15 @@ namespace OpenFF
 	{
 		/// <summary>Without a model to talk to: how close the hero comes, in world units, for the object to act.</summary>
 		[Header("Without a model")]
-		[Tooltip("Without a model to talk to: how close the hero comes for it to act (two characters side by side are about 8 apart)")]
+		[Tooltip("Without a model to talk to: how close the hero must stand for A to act on it (two characters side by side are about 8 apart)")]
 		public float Radius = 8f;
-		/// <summary>Without a model: act when the hero walks in (on), or when the player presses A standing within Radius (off) - an invisible sign or switch.</summary>
-		[Tooltip("Act when the hero walks in; off, it waits for A pressed within Radius - an invisible sign or switch")]
-		public bool OnWalkIn = true;
+		/// <summary>
+		/// Without a model: act the moment the hero walks in (on), or when the player presses A
+		/// standing within Radius (off, the default) - approach, then interact, as with any
+		/// character. With a model the game's own talk applies: face it and press A.
+		/// </summary>
+		[Tooltip("Act the moment the hero walks in; off, it waits for A pressed within Radius - approach, then interact")]
+		public bool OnWalkIn;
 
 		private bool _near;
 		private Npc _npc;
@@ -272,7 +276,8 @@ namespace OpenFF
 	/// A treasure chest, placed from the editor: an item (with a count) and/or gil, given
 	/// when the player opens it, said in the message window, remembered across saves when
 	/// Once. Give the object the chest's model (o001) and it opens on talking to it; without
-	/// a model it opens when the hero walks in. Derive and override OnOpened to add to it.
+	/// a model, on A within Radius (or on walking in, with OnWalkIn). Derive and override
+	/// OnOpened to add to it.
 	/// </summary>
 	public class Chest : Interactable
 	{
@@ -423,7 +428,7 @@ namespace OpenFF
 			{
 				// As the game's talkBegin: a wanderer stops and turns to the player for the talk,
 				// and walks on after (talkEnd).
-				if (GetComponent<Wander>() != null) { Npc.Stop(); Npc.SetAi(NpcAi.Still); }
+				if (GetComponent<Wander>() != null) { Npc.Stop(); Npc.EndWander(); }
 				if (FaceHero) Npc.LookAt(Game.Hero.Position);
 			}
 			_next = 0;
@@ -445,8 +450,7 @@ namespace OpenFF
 			{
 				_next = -1;
 				SetFlags(Then);
-				Wander wander = GetComponent<Wander>();
-				if (wander != null && Npc != null) Npc.SetAi(wander.Ai);
+				GetComponent<Wander>()?.Resume(Npc);
 				Game.Guard(Name + ".OnSaid", OnSaid);
 				return;
 			}
@@ -620,6 +624,9 @@ namespace OpenFF
 	{
 		/// <summary>Still, Wander or Follow.</summary>
 		public NpcAi Ai = NpcAi.Wander;
+		/// <summary>The walk's pattern and pace, as the scripts name it (moveCharacter_StartRandom's second operand): Man, Woman, Boy, Girl, Uncle, Aunt, OldMan, OldWoman.</summary>
+		[Tooltip("The walk's pattern and pace, as the map scripts name it: a boy's, an old woman's...")]
+		public WanderGait Gait = WanderGait.Default;
 
 		protected override void Start()
 		{
@@ -629,8 +636,19 @@ namespace OpenFF
 
 		public void NpcReady(MapObject link)
 		{
-			if (link?.Npc == null) return;
-			Game.Guard("wander " + link.Path, () => link.Npc.SetAi(Ai));
+			if (link?.Npc != null) Resume(link.Npc);
+		}
+
+		/// <summary>The walk as set: the scripts' StartRandom with the gait for Wander, EndRandom for Still, the follow AI otherwise.</summary>
+		internal void Resume(Npc npc)
+		{
+			if (npc == null) return;
+			Game.Guard("wander " + (GameObject?.Name ?? "?"), () =>
+			{
+				if (Ai == NpcAi.Wander) npc.StartWander(Gait);
+				else if (Ai == NpcAi.Still) npc.EndWander();
+				else npc.SetAi(Ai);
+			});
 		}
 	}
 

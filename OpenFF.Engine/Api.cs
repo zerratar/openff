@@ -112,6 +112,20 @@ namespace OpenFF
 		bool Frozen { get; }
 	}
 
+	/// <summary>The random walk's pattern and pace, as the map scripts name them (moveCharacter_StartRandom's second operand; the game's NPC_RANDOM_MOVE_TYPE).</summary>
+	public enum WanderGait
+	{
+		Default = 0,
+		Man = 1,
+		Woman = 2,
+		Boy = 3,
+		Girl = 4,
+		Uncle = 5,
+		Aunt = 6,
+		OldMan = 7,
+		OldWoman = 8,
+	}
+
 	public enum NpcAi
 	{
 		/// <summary>Stands where put, turns to the player when talked to.</summary>
@@ -187,6 +201,16 @@ namespace OpenFF
 
 		/// <summary>The game's changeColorCharacter: the model's texture replaced by a variant named &lt;model&gt;_&lt;variant&gt; (n021 with "n024").</summary>
 		public virtual void Recolour(string variant) { }
+
+		/// <summary>
+		/// The map scripts' moveCharacter_StartRandom, exactly: the character walks about its spot
+		/// on its own, with the gait the script names (a boy's, an old woman's - the pattern and
+		/// pace of the random walk). SetAi(Wander) alone keeps the gait it had.
+		/// </summary>
+		public virtual void StartWander(WanderGait gait) { SetAi(NpcAi.Wander); }
+
+		/// <summary>The scripts' moveCharacter_EndRandom: the walk stops, the character stands where it is.</summary>
+		public virtual void EndWander() { SetAi(NpcAi.Still); }
 
 		/// <summary>How close the hero must be, in world units, for A to count as talking to this one (two characters together stand about 8 apart).</summary>
 		public float InteractRadius { get; set; } = 14f;
