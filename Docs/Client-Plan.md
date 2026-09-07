@@ -1434,6 +1434,23 @@ Chest/Talk are therefore verified by their fields and the log, not by a walk-up)
 than walking and opening the menu as its comment says - it still catches exceptions, which
 is what it is for.
 
+### The wanderers' gait, what a GameCast says, approach then interact (2026-09-07, late)
+
+Karl's three questions. Do the converted wander as before? Not quite: `Wander` set the AI
+kind only, where `moveCharacter_StartRandom` also clears autopilot and operator and sets the
+`NPC_RANDOM_MOVE_TYPE` from its second operand - the gait (man, woman, boy, girl, uncle,
+aunt, old man, old woman: the walk's pattern and pace). `Npc.StartWander(gait)` /
+`EndWander()` are those two commands exactly, `Wander.Gait` carries the operand, the
+converter reads it (Ur's are all 0), and `Talk` pauses and resumes through the same calls.
+Standing in Ur for 16 s with the mod: the girl and the woman have moved, the old man has not
+- as without it. Where do a GameCast's lines come from? From the cast's own code in the map
+script, at talk time - that is the point; the card was hiding it, so it now shows what the
+cast does (the script's lines, read by `MapModel`), opens the script at `castN_main:`, and
+offers *Make it editable*, which swaps in the analysis's Talk/Chest. Approach then
+interact: with a model that was always so (the game's own talk: face it, press A); without
+one, `Interactable.OnWalkIn` defaulted to on, so an invisible Talk spoke when walked into.
+It defaults to off now - A within Radius - and walk-in is the option.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

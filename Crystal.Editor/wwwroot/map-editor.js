@@ -2184,7 +2184,9 @@ function applyCastPlan(doc, plan, options = {}) {
     sceneState.attachments.push({ target: path, behaviour: 'Motion', fields: { Set: plan.motionSet || '', Index: plan.motionIndex || 1001, Loop: plan.motionLoop !== false } });
   }
   if (plan.wander) {
-    sceneState.attachments.push({ target: path, behaviour: 'Wander', fields: { Ai: 'Wander' } });
+    // The walk's gait as the boot named it (moveCharacter_StartRandom's second operand).
+    const gaits = ['Default', 'Man', 'Woman', 'Boy', 'Girl', 'Uncle', 'Aunt', 'OldMan', 'OldWoman'];
+    sceneState.attachments.push({ target: path, behaviour: 'Wander', fields: { Ai: 'Wander', Gait: gaits[plan.wanderGait] || 'Default' } });
   }
   if (plan.when) {
     // Booted only under flags: there only while they hold.
@@ -2949,7 +2951,100 @@ function behaviourCard(state, attachment, target) {
     row.append(input);
     card.append(row);
   }
+  if (attachment.behaviour === 'GameCast') gameCastNotes(card, state, attachment, target);
   return card;
+}
+
+/// Under a GameCast's fields: what the cast does, read from the map's script - its lines
+/// as the text file has them, the flags they hang on, the commands beyond talking - so the
+/// stand-in is not a number in a box. The lines are the game's, not fields: the cast's
+/// code says them. "Make it editable" swaps the GameCast for the analysis's Chest / Talk
+/// components, where a chest or a talker can be one; "Open script" goes to the code.
+function gameCastNotes(card, state, attachment, target) {
+  const cast = parseInt(attachment.fields.Cast, 10) || 0;
+  if (!cast || !mapState.data) return;
+  const character = (mapState.data.characters || []).find(c => c.cast === cast && !/^logic$/i.test(c.kindName || ''));
+  const box = document.createElement('div');
+  box.className = 'cast-notes';
+  const head = document.createElement('div');
+  head.className = 'behaviour-header';
+  head.textContent = `What cast ${cast} does (the game's script)`;
+  box.append(head);
+  const note = document.createElement('p');
+  note.className = 'none';
+  note.textContent = 'The object runs this cast as the game does: talk to it and its code runs, with these lines and whatever else it does. To change the words or the contents, make it editable - a Talk or Chest of the mod\'s own stands in.';
+  box.append(note);
+  const lines = character ? (character.lines || []) : [];
+  if (lines.length) {
+    const list = document.createElement('div');
+    list.className = 'cast-lines';
+    for (const line of lines.slice(0, 12)) {
+      const q = document.createElement('div');
+      q.className = 'cast-line';
+      q.textContent = line;
+      list.append(q);
+    }
+    if (lines.length > 12) {
+      const more = document.createElement('div');
+      more.className = 'cast-line none';
+      more.textContent = `… and ${lines.length - 12} more`;
+      list.append(more);
+    }
+    box.append(list);
+  } else {
+    const none = document.createElement('p');
+    none.className = 'none';
+    none.textContent = character && character.hasScript ? 'No message lines - its code does other things (see the script).' : 'No code of its own.';
+    box.append(none);
+  }
+  const actions = document.createElement('div');
+  actions.className = 'cast-actions';
+  const open = document.createElement('button');
+  open.textContent = character && character.hasScript ? `Open script at cast ${cast}` : 'Open script';
+  open.onclick = async () => {
+    if (typeof openDoc !== 'function') return;
+    const opened = await openDoc('script', `files/${mapState.name}.script`);
+    const text = opened && opened.pane.querySelector('textarea');
+    if (!text) return;
+    const at = text.value.indexOf(`cast${cast}_main:`);
+    if (at >= 0 && typeof goToLine === 'function') goToLine(text, text.value.slice(0, at).split('\n').length, 1);
+  };
+  actions.append(open);
+  const editable = document.createElement('button');
+  editable.textContent = 'Make it editable (Talk / Chest)';
+  editable.title = 'Replace the GameCast with the components the script analysis finds - a Chest with the same contents, a Talk per branch with its lines';
+  editable.onclick = () => makeCastEditable(state, attachment, target, cast).catch(error => say(error.message, 'bad'));
+  actions.append(editable);
+  box.append(actions);
+  card.append(box);
+}
+
+/// Swaps a stand-in's GameCast for the analysis's components: Chest or Talk(s), as
+/// "Convert with components" would have made them. A cast beyond those stays a GameCast.
+async function makeCastEditable(state, attachment, target, cast) {
+  const plans = await convertPlan();
+  const plan = plans.find(p => p.cast === cast);
+  if (!plan || !['chest', 'talk'].includes(plan.kind)) {
+    say(plan ? `cast ${cast} uses ${(plan.commands || []).slice(0, 5).join(', ')} - no component does that; it stays a GameCast` : `no analysis for cast ${cast}`, 'bad');
+    return;
+  }
+  const at = state.attachments.indexOf(attachment);
+  const replacements = [];
+  if (plan.kind === 'chest') {
+    replacements.push({
+      target, behaviour: 'Chest',
+      fields: Object.assign(plan.treasure === 'item' ? { Item: plan.treasureValue, Count: 1, Gil: 0 } : { Item: 0, Gil: plan.treasureValue },
+        { Flag: plan.treasureFlag || '', ChestLook: true })
+    });
+  } else {
+    for (const talk of plan.talks || []) {
+      replacements.push({ target, behaviour: 'Talk', fields: { Speaker: '', Lines: talk.lines || [], FaceHero: true, When: talk.when || '', Then: talk.then || '' } });
+    }
+  }
+  state.attachments.splice(at, 1, ...replacements);
+  sceneChanged('make editable ' + target);
+  drawInspector();
+  say(`${target}: ${replacements.length} ${plan.kind === 'chest' ? 'Chest' : 'Talk'} component(s) stand in for cast ${cast} now - its words and contents are fields`, 'good');
 }
 
 /// Writes the scene file as it stands (objects and attachments). Quiet is the autosave:

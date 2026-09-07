@@ -813,6 +813,14 @@ talking to the old man says "Luneth! The elders are looking for you." - the game
 cast 22, on the mod's object. A new game with the Altar Cave converted plays its opening on
 the mod's Luneth, crystal and chest.
 
+A converted object's **GameCast card** is not just a cast number: under its fields it shows
+*what the cast does*, read from the map's script - the lines as the text file has them
+(`%shuyaku2%` and all; the game expands them), or a note that its code does other things -
+with *Open script at cast N* and *Make it editable (Talk / Chest)*, which swaps the GameCast
+for the analysis's components where the cast is a chest or a talker, so the words or the
+contents become fields. The lines are the game's, not fields, because the cast's own code
+says them; that is what makes it exact.
+
 A scene file's `object:<n>` is the map's `.hich` row, as the editor lists them; the client
 finds the row's character through the game's own hich table (`Npcs.ByRow`), whichever
 slot the script booted it into.

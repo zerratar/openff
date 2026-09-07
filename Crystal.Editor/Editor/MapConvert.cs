@@ -50,6 +50,8 @@ namespace Crystal.Editor
 		public int TreasureValue { get; set; }
 		public List<TalkPlan> Talks { get; set; } = new List<TalkPlan>();
 		public bool Wander { get; set; }
+		/// <summary>The walk's gait, moveCharacter_StartRandom's second operand (0 default, 1 man, 2 woman, 3 boy, 4 girl, 5 uncle, 6 aunt, 7 old man, 8 old woman).</summary>
+		public int WanderGait { get; set; }
 		/// <summary>A changeColorCharacter in the boot: the recoloured model the game really shows.</summary>
 		public string ColorModel { get; set; }
 		/// <summary>Whether it is a person (walks, turns, is talked to) rather than a thing.</summary>
@@ -100,7 +102,7 @@ namespace Crystal.Editor
 
 			// The boot side: what the map does to each cast before anyone talks to it.
 			Dictionary<int, (string kind, int value, string flag)> treasure = new Dictionary<int, (string, int, string)>();
-			HashSet<int> wander = new HashSet<int>();
+			Dictionary<int, int> wander = new Dictionary<int, int>();
 			Dictionary<int, string> colour = new Dictionary<int, string>();
 			Dictionary<int, string> motionSet = new Dictionary<int, string>();
 			Dictionary<int, (int index, bool loop)> motion = new Dictionary<int, (int, bool)>();
@@ -113,7 +115,8 @@ namespace Crystal.Editor
 				}
 				else if (name == "moveCharacter_StartRandom" && i.Operands.Count >= 1 && Int(i.Operands[0], out int wanderer))
 				{
-					wander.Add(wanderer);
+					// The second operand is the gait (NPC_RANDOM_MOVE_TYPE: man, woman, boy, girl, uncle, aunt, old man, old woman).
+					wander[wanderer] = i.Operands.Count >= 2 && Int(i.Operands[1], out int gait) ? gait : 0;
 				}
 				else if (name == "changeColorCharacter" && i.Operands.Count >= 2 && Int(i.Operands[0], out int coloured) && i.Operands[1] is string model)
 				{
@@ -144,7 +147,8 @@ namespace Crystal.Editor
 				{
 					Index = character.Index, Cast = character.Cast, Model = character.Model,
 					X = character.X, Y = character.Y, Z = character.Z, RotationY = character.RotationY,
-					Wander = wander.Contains(character.Cast),
+					Wander = wander.ContainsKey(character.Cast),
+					WanderGait = wander.TryGetValue(character.Cast, out int gaitOf) ? gaitOf : 0,
 					Character = !IsObjectModel(character.Model),
 				};
 				if (colour.TryGetValue(character.Cast, out string recoloured)) plan.ColorModel = recoloured;
