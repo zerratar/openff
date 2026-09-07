@@ -1267,6 +1267,21 @@ group's menu has New object; dropping a row on another calls `reparentSceneObjec
 group with `null`, so the object keeps its world place either way. The inspector lost its
 "Add a child object" button; the children stay listed as links. Open: the game's own rows
 (characters, exits) have no menu yet - "Add Behaviour…" there would be the natural one.
+Also from Karl: *New object* on a row's menu makes a sibling right below it, at its spot.
+
+### One inspector shape for the game's things and the mod's
+
+Karl: the workflow must not change between a Steam mod's objects and an OpenFF mod's. Three
+helpers now shape every map inspector - `inspectorHead` (icon and name, an input that is
+read-only for the game's things), `transformCard` (Position X Y Z, Rotation Y, Scale when
+there is one; `read`/`write` callbacks, focus/blur for an undo record), `componentCard` - and
+`cardify` folds a panel written as h3 headings and fields into cards, so the game's panels
+(characters, exits, terrain) kept their content and gained the shape: a character is head,
+Transform (its `.hich` position and facing, typed numbers moving it in the view as before),
+Model, Cast, What it says, Behaviour, Referred to by, Behaviours; an exit is head, Transform
+(the arrival spot, noted "arrival"), Leads to, Doorway, Conditions, Referred to by; the
+terrain head, Model, Behaviours. `buildSceneObject` uses the same helpers. `inspectRef`
+applies `cardify` to all four.
 
 ## Working rules
 

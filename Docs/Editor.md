@@ -758,9 +758,17 @@ reparenting keeps the child where it stands in the world. The document's own fac
 (terrain, characters, exits) fold away under *About <map>* at the bottom while something
 is selected: the selection is the panel.
 
-Nothing here has a Save button. A change - a field typed, an object dragged, a behaviour
-added - writes `scenes/<map>.json` a moment later, the way the session is kept; the
-status line says so. A chest that gives an item is such an object with the chest's model
+The game's own things are inspected in the same shape, so the hand does not relearn the
+panel between a Steam mod and an OpenFF one: a character is its icon and model name at
+the top, **Transform** (its `.hich` position and facing), then Model, Cast, What it says,
+Behaviour, Referred to by, and its OpenFF behaviours; an exit is its name, **Transform**
+(the arrival spot - where the player appears coming in through it), Leads to, Doorway,
+Conditions, Referred to by; the terrain is its model and behaviours. Each aspect is a card.
+
+Nothing on an OpenFF object has a Save button. A change - a field typed, an object
+dragged, a behaviour added - writes `scenes/<map>.json` a moment later, the way the
+session is kept; the status line says so. (The game's own rows keep their *Save
+placement* / *Save exit*, since those write into the game's files.) A chest that gives an item is such an object with the chest's model
 and the built-in **Chest** behaviour, its item picked from the game's list - change either
 any time.
 

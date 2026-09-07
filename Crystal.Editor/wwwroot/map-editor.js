@@ -1153,8 +1153,10 @@ function inspectRef(doc, ref) {
 
   if (ref === 'terrain') {
     const box = document.createElement('div');
+    box.className = 'scene-object';
+    box.append(inspectorHead('terrain', shortName(scene.terrain), 'terrain · the map itself, and its behaviours'));
     const heading = document.createElement('h3');
-    heading.textContent = 'Terrain';
+    heading.textContent = 'Model';
     box.append(heading);
     const link = document.createElement('a');
     link.href = '#';
@@ -1174,23 +1176,23 @@ function inspectRef(doc, ref) {
       box.append(add);
     }
     behavioursSection(box, 'map', 'map');
-    return box;
+    return cardify(box);
   }
 
   if (ref.startsWith('object:')) {
     const index = Number(ref.slice(7));
     const character = doc.data.characters.find(c => c.index === index);
-    return character ? buildCharacter(character) : null;
+    return character ? cardify(buildCharacter(character)) : null;
   }
 
   if (ref.startsWith('exit:')) {
     const index = Number(ref.slice(5));
-    return buildExit(scene.exits[index], index);
+    return cardify(buildExit(scene.exits[index], index));
   }
 
   if (ref.startsWith('scene:')) {
     const found = findSceneObject(ref.slice(6));
-    return found ? buildSceneObject(doc, found.source) : null;
+    return found ? cardify(buildSceneObject(doc, found.source)) : null;
   }
   return null;
 }
@@ -1279,12 +1281,9 @@ function buildExit(exit, index) {
   if (!exit) return panel;
 
   const doc = activeDoc;
-  const title = document.createElement('h2');
-  title.textContent = `Exit to ${exit.to || '(nowhere)'}`;
-  const sub = document.createElement('p');
-  sub.className = 'sub';
-  sub.textContent = `slot ${index + 1} of ${(doc.data.scene.exits || []).length}`;
-  panel.append(title, sub);
+  panel.className = 'scene-object';
+  panel.append(inspectorHead('exit', `Exit to ${exit.to || '(nowhere)'}`,
+    `slot ${index + 1} of ${(doc.data.scene.exits || []).length} · the game's own (.pak row and collision region)`));
 
   // The row is edited in place and written when Save is pressed, so the numbers can be
   // moved around without each keystroke touching the file.
@@ -1298,6 +1297,19 @@ function buildExit(exit, index) {
     conditionFlag: exit.conditionFlag || 0,
     kind: exit.kind || 0
   };
+
+  // The arrival spot is the exit's transform: where the player appears coming into this
+  // map through this slot. (Where the exit leads is the card below; the doorway that fires
+  // it is a box elsewhere in the mesh, with its own card.)
+  panel.append(transformCard({
+    read: key => draft[key],
+    write: (key, value) => { draft[key] = Math.round(value); },
+    rotation: 'rotationY',
+    note: 'arrival',
+    positionTitle: 'Where the player appears when they come into ' + mapState.name + ' through this slot',
+    rotationTitle: 'Degrees. The file keeps it as a 16 bit angle where a whole turn is 65536.',
+    hint: 'Where the player appears coming in through this slot - what another map\u2019s "arrives at" points to. Not where this exit takes you; that is Leads to. Save exit keeps it.'
+  }));
 
   const field = (label, key, hint) => {
     const wrap = document.createElement('label');
@@ -1432,22 +1444,6 @@ function buildExit(exit, index) {
           + '.flsc.lz and has nothing here to edit.'
         : 'This exit names nowhere.';
   panel.append(whatIs);
-
-  // --------------------------------------------------------- where it lands
-
-  const whereHead = document.createElement('h3');
-  whereHead.textContent = 'Where people arrive here';
-  panel.append(whereHead);
-  const whereNote = document.createElement('p');
-  whereNote.className = 'none';
-  whereNote.textContent = 'This is not where this exit takes you - it is where the '
-    + 'player appears when they come into ' + mapState.name + ' through this slot, '
-    + 'which is what another map\u2019s "arrives at" points to. Where this one goes '
-    + 'is above.';
-  panel.append(whereNote);
-  panel.append(field('x', 'x'), field('y', 'y'), field('z', 'z'),
-    field('facing', 'rotationY',
-      'Degrees. The file keeps it as a 16 bit angle where a whole turn is 65536.'));
 
   // --------------------------------------------------------------- the trigger
   //
@@ -1749,12 +1745,37 @@ function buildCharacter(character) {
   const node = state.pane;
   const doc = activeDoc;
 
-  const title = document.createElement('h2');
-  title.textContent = character.model || '(no model)';
-  const sub = document.createElement('p');
-  sub.className = 'sub';
-  sub.textContent = `${character.kindName} · cast ${character.cast}`;
-  panel.append(title, sub);
+  panel.className = 'scene-object';
+  panel.append(inspectorHead('character', character.model || '(no model)',
+    `${character.kindName} · cast ${character.cast} · the game's own (.hich row ${character.index})`));
+
+  // -------------------------------------------------------------- transform
+  //
+  // Typed numbers move the character in the plan and the scene as they are typed; the
+  // spell of typing is one undo step, recorded when the field is left.
+  let before = null;
+  panel.append(transformCard({
+    read: key => character[key],
+    write: (key, value) => {
+      character[key] = Math.round(value);
+      if (node) drawMap(node);
+      if (activeDoc && activeDoc.scene3d) {
+        const item = (activeDoc.data.scene.objects || []).find(o => o.index === character.index);
+        if (item) {
+          item.x = character.x;
+          item.y = character.y;
+          item.z = character.z;
+          item.rotationY = character.rotationY;
+          activeDoc.scene3d.redraw();
+        }
+      }
+    },
+    onFocus: () => { before = positionOf(character); },
+    onBlur: () => { if (before) recordMove(activeDoc, character, before); before = null; },
+    rotation: 'rotationY',
+    rotationTitle: 'Facing in degrees, as the .hich row keeps it (the game negates it)',
+    positionTitle: 'Whole units, as the .hich row keeps them',
+  }));
 
   // ------------------------------------------------------------------ model
 
@@ -1819,49 +1840,6 @@ function buildCharacter(character) {
     : `The map's script has no cast ${character.cast}. The character will stand there `
       + `and do nothing until one is written, or until this points at a cast that exists.`;
   panel.append(castNote);
-
-  // --------------------------------------------------------------- position
-
-  const field = (label, key) => {
-    const wrap = document.createElement('label');
-    wrap.textContent = label;
-    const input = document.createElement('input');
-    input.value = character[key];
-    let before = null;
-    input.onfocus = () => { before = positionOf(character); };
-    input.onblur = () => {
-      if (before) recordMove(activeDoc, character, before);
-      before = null;
-    };
-    input.oninput = () => {
-      const value = parseInt(input.value, 10);
-      if (!Number.isNaN(value)) {
-        character[key] = value;
-        if (node) drawMap(node);
-        if (activeDoc && activeDoc.scene3d) {
-          const item = (activeDoc.data.scene.objects || [])
-            .find(o => o.index === character.index);
-          if (item) {
-            item.x = character.x;
-            item.y = character.y;
-            item.z = character.z;
-            item.rotationY = character.rotationY;
-            activeDoc.scene3d.redraw();
-          }
-        }
-      }
-    };
-    wrap.append(input);
-    panel.append(wrap);
-  };
-
-  const position = document.createElement('h3');
-  position.textContent = 'Position';
-  panel.append(position);
-  field('x', 'x');
-  field('z', 'z');
-  field('y (height)', 'y');
-  field('facing', 'rotationY');
 
   // ------------------------------------------------------------- what it says
 
@@ -2661,6 +2639,140 @@ function reparentSceneObject(doc, object, parent) {
   drawInspector();
 }
 
+// ------------------------------------------------------- the inspector's shape
+//
+// Every object on a map - the game's characters and exits, the terrain, the mod's own -
+// is inspected in the same shape, so the hand does not have to relearn the panel between
+// a Steam mod and an OpenFF one: an icon and the name at the top, then Transform when the
+// thing has a place, then one card per aspect (model, cast, where an exit leads...), the
+// behaviours among them. The game's panels were written as headings and fields; cardify
+// folds each heading and what follows it into a card, so they need not be rewritten.
+
+/// The top of an inspector: the kind's icon and the name, editable when onRename is given.
+function inspectorHead(iconName, name, sub, onRename) {
+  const wrap = document.createDocumentFragment();
+  const head = document.createElement('div');
+  head.className = 'object-head';
+  head.append(icon(iconName));
+  const box = document.createElement('input');
+  box.className = 'object-name';
+  box.value = name;
+  if (onRename) {
+    box.title = 'Free to change';
+    box.onchange = () => onRename(box);
+  } else {
+    box.readOnly = true;
+    box.title = 'The game names it; the name is not edited here';
+  }
+  head.append(box);
+  wrap.append(head);
+  if (sub) {
+    const p = document.createElement('p');
+    p.className = 'sub';
+    p.textContent = sub;
+    wrap.append(p);
+  }
+  return wrap;
+}
+
+/// One card of the inspector: a heading with an icon, an optional note at its right, and
+/// whatever is appended to it afterwards.
+function componentCard(iconName, title, note) {
+  const card = document.createElement('div');
+  card.className = 'component';
+  const head = document.createElement('div');
+  head.className = 'component-head';
+  head.append(icon(iconName));
+  const name = document.createElement('b');
+  name.textContent = title;
+  head.append(name);
+  if (note) {
+    const i = document.createElement('i');
+    i.textContent = note;
+    head.append(i);
+  }
+  card.append(head);
+  return card;
+}
+
+/// The Transform card: Position X Y Z, Rotation Y, and Scale when there is one. `read(key)`
+/// gives the current number, `write(key, value)` takes a typed one; focus and blur are for
+/// an undo record around a spell of typing.
+function transformCard(spec) {
+  const card = componentCard('terrain', 'Transform', spec.note);
+  const number = (key, step) => {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = step;
+    input.value = spec.read(key);
+    if (spec.onFocus) input.onfocus = () => spec.onFocus(key);
+    if (spec.onBlur) input.onblur = () => spec.onBlur(key);
+    input.oninput = () => {
+      const value = Number(input.value);
+      if (!Number.isNaN(value)) spec.write(key, value);
+    };
+    return input;
+  };
+  const row = (label, title, cells) => {
+    const r = document.createElement('div');
+    r.className = 'transform-row';
+    r.title = title || '';
+    const l = document.createElement('span');
+    l.textContent = label;
+    r.append(l);
+    const box = document.createElement('div');
+    box.className = 'transform-cells';
+    for (const [axis, key, step] of cells) {
+      const cell = document.createElement('label');
+      const a = document.createElement('em');
+      a.textContent = axis;
+      cell.append(a, number(key, step));
+      box.append(cell);
+    }
+    r.append(box);
+    card.append(r);
+  };
+  const p = spec.position || { x: 'x', y: 'y', z: 'z' };
+  row('Position', spec.positionTitle || 'World units', [['X', p.x, '1'], ['Y', p.y, '1'], ['Z', p.z, '1']]);
+  if (spec.rotation) row('Rotation', spec.rotationTitle || 'Yaw in degrees', [['Y', spec.rotation, '1']]);
+  if (spec.scale) row('Scale', spec.scaleTitle || '1 is the model\'s own size', [['', spec.scale, '0.1']]);
+  if (spec.hint) {
+    const hint = document.createElement('p');
+    hint.className = 'none';
+    hint.textContent = spec.hint;
+    card.append(hint);
+  }
+  return card;
+}
+
+/// Folds a panel written as headings and fields into cards: each h3 and what follows it,
+/// up to the next h3, becomes one component card with an icon guessed from the title.
+function cardify(panel) {
+  if (!panel || !panel.querySelector) return panel;
+  const icons = [
+    [/behaviour/i, 'behaviour'], [/model/i, 'model'], [/cast|script|what it says|referred/i, 'logic'],
+    [/leads to|doorway|arrive|exit|condition/i, 'exit'], [/children|object/i, 'exit'], [/terrain/i, 'terrain'],
+  ];
+  let card = null;
+  for (const node of [...panel.childNodes]) {
+    if (node.nodeType !== 1) { if (card) card.append(node); continue; }
+    if (node.tagName === 'H3') {
+      const title = node.textContent;
+      const iconName = (icons.find(([re]) => re.test(title)) || [null, 'file'])[1];
+      card = componentCard(iconName, title);
+      panel.insertBefore(card, node);
+      node.remove();
+      continue;
+    }
+    if (node.tagName === 'H2' || node.classList.contains('object-head') || node.classList.contains('sub') || node.classList.contains('component')) {
+      card = null;
+      continue;
+    }
+    if (card) card.append(node);
+  }
+  return panel;
+}
+
 /// The inspector for one of the mod's objects, laid out as Unity lays out a GameObject:
 /// the name, then Transform, then the model, then tags and parent, then the components.
 /// Everything here is the file's - no game data behind it - and every change saves itself.
@@ -2683,94 +2795,38 @@ function buildSceneObject(doc, object) {
 
   // ------------------------------------------------------------------- name
 
-  const head = document.createElement('div');
-  head.className = 'object-head';
-  head.append(icon(object.model ? 'model' : 'exit'));
-  const name = document.createElement('input');
-  name.className = 'object-name';
-  name.value = object.name;
-  name.title = 'Free to change; behaviours on it and under it follow. Not / or :';
-  name.onchange = () => {
-    const fresh = name.value.trim().replace(/[\/:]/g, ' ').trim();
-    const siblings = object.parent ? object.parent.children : sceneState.objects;
-    if (!fresh || fresh.toLowerCase() === 'map' || siblings.some(o => o !== object && o.name.toLowerCase() === fresh.toLowerCase())) { name.value = object.name; return; }
-    const was = scenePathOf(object);
-    object.name = fresh;
-    retargetAttachments(was, scenePathOf(object));
-    doc.selection = 'scene:' + scenePathOf(object);
-    redraw();
-  };
-  head.append(name);
-  panel.append(head);
-  const sub = document.createElement('p');
-  sub.className = 'sub';
-  sub.textContent = 'OpenFF object · ' + mapState.name + '/' + path;
-  panel.append(sub);
+  panel.append(inspectorHead(object.model ? 'model' : 'exit', object.name,
+    'OpenFF object · ' + mapState.name + '/' + path, (box) => {
+      const fresh = box.value.trim().replace(/[\/:]/g, ' ').trim();
+      const siblings = object.parent ? object.parent.children : sceneState.objects;
+      if (!fresh || fresh.toLowerCase() === 'map' || siblings.some(o => o !== object && o.name.toLowerCase() === fresh.toLowerCase())) { box.value = object.name; return; }
+      const was = scenePathOf(object);
+      object.name = fresh;
+      retargetAttachments(was, scenePathOf(object));
+      doc.selection = 'scene:' + scenePathOf(object);
+      redraw();
+    }));
 
   // -------------------------------------------------------------- transform
 
-  const transform = document.createElement('div');
-  transform.className = 'component';
-  const tHead = document.createElement('div');
-  tHead.className = 'component-head';
-  tHead.append(icon('terrain'));
-  const tName = document.createElement('b');
-  tName.textContent = 'Transform';
-  tHead.append(tName);
-  if (object.parent) {
-    const rel = document.createElement('i');
-    rel.textContent = 'relative to ' + object.parent.name;
-    tHead.append(rel);
-  }
-  transform.append(tHead);
-  const number = (key, step, onchange) => {
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.step = step;
-    input.value = object[key];
-    input.onchange = () => { onchange(Number(input.value)); changed(); };
-    return input;
-  };
-  const row = (label, title, ...inputs) => {
-    const r = document.createElement('div');
-    r.className = 'transform-row';
-    r.title = title || '';
-    const l = document.createElement('span');
-    l.textContent = label;
-    r.append(l);
-    const cells = document.createElement('div');
-    cells.className = 'transform-cells';
-    for (const [axis, input] of inputs) {
-      const cell = document.createElement('label');
-      const a = document.createElement('em');
-      a.textContent = axis;
-      cell.append(a, input);
-      cells.append(cell);
-    }
-    r.append(cells);
-    transform.append(r);
-  };
-  row('Position', object.parent ? 'In the parent\'s frame: turned by its yaw, scaled by its scale' : 'World units',
-    ['X', number('x', '1', v => { object.x = v || 0; })],
-    ['Y', number('y', '1', v => { object.y = v || 0; })],
-    ['Z', number('z', '1', v => { object.z = v || 0; })]);
-  row('Rotation', 'Yaw in degrees: 0 faces +z, 90 faces +x' + (object.parent ? '; added to the parent\'s' : ''),
-    ['Y', number('rotationY', '1', v => { object.rotationY = v || 0; })]);
-  row('Scale', '1 is the model\'s own size' + (object.parent ? '; multiplied by the parent\'s' : ''),
-    ['', number('scale', '0.1', v => { object.scale = v > 0 ? v : 1; })]);
-  panel.append(transform);
+  panel.append(transformCard({
+    read: key => object[key],
+    write: (key, value) => {
+      if (key === 'scale') object.scale = value > 0 ? value : 1;
+      else object[key] = value || 0;
+      changed();
+    },
+    rotation: 'rotationY',
+    scale: 'scale',
+    note: object.parent ? 'relative to ' + object.parent.name : null,
+    positionTitle: object.parent ? 'In the parent\'s frame: turned by its yaw, scaled by its scale' : 'World units',
+    rotationTitle: 'Yaw in degrees: 0 faces +z, 90 faces +x' + (object.parent ? '; added to the parent\'s' : ''),
+    scaleTitle: '1 is the model\'s own size' + (object.parent ? '; multiplied by the parent\'s' : ''),
+  }));
 
   // ------------------------------------------------------------------ model
 
-  const modelRow = document.createElement('div');
-  modelRow.className = 'component';
-  const mHead = document.createElement('div');
-  mHead.className = 'component-head';
-  mHead.append(icon('model'));
-  const mName = document.createElement('b');
-  mName.textContent = 'Model';
-  mHead.append(mName);
-  modelRow.append(mHead);
+  const modelRow = componentCard('model', 'Model');
   const pickRow = document.createElement('div');
   pickRow.className = 'model-pick';
   const choose = document.createElement('button');
@@ -2801,8 +2857,7 @@ function buildSceneObject(doc, object) {
 
   // ----------------------------------------------------------- tags, parent
 
-  const misc = document.createElement('div');
-  misc.className = 'component';
+  const misc = componentCard('scene', 'Scene', mapState.name + '/' + path);
   const tags = document.createElement('label');
   tags.className = 'behaviour-field';
   tags.title = 'Words a mod finds it by: Game.World.Legacy.WithTag("chest")';
