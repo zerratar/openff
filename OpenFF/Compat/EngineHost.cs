@@ -187,6 +187,9 @@ namespace OpenFF.Client
 				{
 					OpenFF.Game.Services.SceneUnloadingInternal(legacy.Info);
 					OpenFF.Game.Events.Publish(new OpenFF.Events.MapLeaving { Scene = legacy.Info });
+					// The scene files' objects stood for things on this map; they go with it
+					// (their spawned models too), after the services have heard the map is leaving.
+					OpenFF.Game.Guard("scenes clear", () => OpenFF.SceneLoader.Clear());
 					legacy.Info = null;
 				}
 				// Leaving a map, not arriving at the first one: a scene's script can already be

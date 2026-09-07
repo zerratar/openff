@@ -104,6 +104,21 @@ namespace OpenFF
 			public SceneInfo Scene { get; set; }
 		}
 
+		/// <summary>The hero walked into a Trigger placed on a scene object (the editor's Trigger behaviour).</summary>
+		public sealed class TriggerEntered
+		{
+			public Trigger Trigger { get; set; }
+			/// <summary>The object the trigger is on: its Name is &lt;map&gt;/&lt;path&gt;, its Tags what the editor gave it.</summary>
+			public GameObject Object { get; set; }
+		}
+
+		/// <summary>The hero walked out of a Trigger.</summary>
+		public sealed class TriggerLeft
+		{
+			public Trigger Trigger { get; set; }
+			public GameObject Object { get; set; }
+		}
+
 		/// <summary>The legacy game moved to another part: TITLE, WORLD, BATTLE, ...</summary>
 		public sealed class PartChanged
 		{

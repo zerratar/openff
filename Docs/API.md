@@ -8,10 +8,10 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags)
-- [Handles and data](#handles-and-data): [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`InputState`](#inputstate), [`Item`](#item), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`PartyMember`](#partymember), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Texture`](#texture), [`Vector2`](#vector2), [`Vector3`](#vector3)
+- [Handles and data](#handles-and-data): [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`InputState`](#inputstate), [`Item`](#item), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`PartyMember`](#partymember), [`SceneObject`](#sceneobject), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Texture`](#texture), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
-- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`WarpRequested`](#warprequested)
+- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
 - [Saving](#saving): [`ISaveable`](#isaveable), [`SaveChunks`](#savechunks)
 - [Mods and loading](#mods-and-loading): [`LoadedMod`](#loadedmod), [`ModDefinition`](#moddefinition), [`ModLoader`](#modloader), [`ModWatcher`](#modwatcher)
 - [Constants](#constants): [`BattleResult`](#battleresult), [`Condition`](#condition), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting)
@@ -555,6 +555,24 @@ One of the party's characters as the game keeps them.
 | `Stats Stats { get; set; }` | Stats with equipment and job bonuses, as the formulas read them. |
 | `string ToString()` |  |
 
+### SceneObject
+
+`class SceneObject`
+
+The mod's own object in a scene file: a spot, or a model standing there, with children under it.
+
+| Member | What it does |
+| --- | --- |
+| `List<SceneObject> Children { get; set; }` |  |
+| `string Model { get; set; }` | A model name (o001, n011...) to show, or null for a spot with logic only. |
+| `string Name { get; set; }` |  |
+| `float Scale { get; set; }` | Uniform scale, 1 = the model's own size; for a child, multiplied by the parent's. |
+| `List<string> Tags { get; set; }` |  |
+| `float X { get; set; }` | Position; for a child, relative to its parent (turned by the parent's yaw, scaled by its scale). |
+| `float Y { get; set; }` |  |
+| `float Yaw { get; set; }` | Facing in degrees, the engine's yaw (0 = +Z, 90 = +X); for a child, added to the parent's. |
+| `float Z { get; set; }` |  |
+
 ### ShopInfo
 
 `class ShopInfo`
@@ -645,6 +663,20 @@ A picture the host loaded for a mod; drawn with Game.Draw.Sprite.
 | `int Height { get; }` |  |
 | `string Path { get; }` |  |
 | `int Width { get; }` |  |
+
+### Trigger
+
+`class Trigger : Behaviour`
+
+A spot inside which the hero counts as present: a behaviour for the editor to put on a scene object, so a mod's code (or another behaviour on the same object) hears when the hero walks in or out without polling distances itself. Fires Entered and Left on this instance and publishes Events.TriggerEntered / TriggerLeft for services.
+
+| Member | What it does |
+| --- | --- |
+| `bool Once` | Fire Entered once and then disable; off, it fires every time the hero comes back. |
+| `float Radius` | How close the hero has to come, in world units (two characters side by side are about 8 apart). |
+| `bool HeroInside { get; }` | True while the hero is inside. |
+| `event Action<Trigger> Entered` | The hero came within Radius. |
+| `event Action<Trigger> Left` | The hero went out of Radius. |
 
 ### Vector2
 
@@ -770,10 +802,12 @@ What a scene-file object stands for on the legacy map.
 | Member | What it does |
 | --- | --- |
 | `int Index { get; }` |  |
-| `string Kind { get; }` | "object" (a character by its index in the map's cast list), "exit" (a slot), "point" (a spot placed in the editor), or "map". |
+| `string Kind { get; }` | "object" (a character by its index in the map's cast list), "exit" (a slot), "scene" (the mod's own object, placed in the editor), or "map". |
 | `string Map { get; }` | The map the object is on. |
-| `string Name { get; }` | A point's name from the editor; null for the rest. |
-| `Npc Npc { get; }` | For a character: the handle to move, turn and talk through; null for exits and the map. |
+| `string Model { get; }` | A scene object's model, when it has one; null for a spot with logic only. |
+| `string Name { get; }` | A scene object's name from the editor (the last part of its path); null for the rest. |
+| `Npc Npc { get; }` | For a character, or a scene object with a model: the handle to move, turn, hide and talk through; null otherwise. |
+| `string Path { get; }` | A scene object's path in the file: "chest", "chest/trigger"; what an attachment targets. |
 | `string ToString()` |  |
 
 ### Scene
@@ -812,7 +846,9 @@ One attachment in a scene file.
 | --- | --- |
 | `List<SceneAttachment> Attachments { get; set; }` |  |
 | `string Map { get; set; }` |  |
-| `List<ScenePoint> Points { get; set; }` | Points placed in the editor; each becomes a GameObject tagged "point" (and its own tags) at its position, behaviours or not. |
+| `List<SceneObject> Objects { get; set; }` | The mod's own objects, a tree; each becomes a GameObject named <map>/<path>, behaviours or not. |
+| `List<ScenePoint> Points { get; set; }` | The older shape: points, read as objects without a model. |
+| `List<SceneObject> AllObjects()` | The objects with the points folded in (a point whose name an object already has is dropped). |
 | `static SceneFile Read(string path)` |  |
 
 ### SceneInfo
@@ -838,7 +874,9 @@ Applies the mods' scene files to the map the game is on.
 | --- | --- |
 | `static Func<string, int, Npc> ResolveNpc` | The host's way from a target to a character handle: kind and index in, an Npc (or null) out. |
 | `static int Apply(LoadedMod mod, string map)` | One mod's scene file for a map; the number of objects made. |
-| `static int ApplyAll(string map)` | Every loaded mod's scene file for a map. |
+| `static int ApplyAll(string map)` | Every loaded mod's scene file for a map. What an earlier map's files made goes first. |
+| `static int Clear()` | Destroys every object a scene file made (anything carrying a MapObject), with the models spawned for them. Called when a map is left and before the next one's files apply: the objects stand for things on one map and used to outlive it. |
+| `static Type EngineBehaviour(string name)` | The engine's own behaviours a scene file may name without the mod's code having them: Trigger. |
 | `static void SetFields(object target, Dictionary<string, JsonElement> fields, string modId)` | Public fields (and settable properties) by name, from JSON: numbers, booleans, strings, enums, Vector3 ({x,y,z} or [x,y,z]), Color ({r,g,b,a} or "#rrggbb"). |
 
 ### ScenePoint
@@ -1098,6 +1136,28 @@ The legacy game wrote a save (a slot or the quicksave) to its save file.
 | --- | --- |
 | `int Length { get; set; }` |  |
 | `int Offset { get; set; }` | The slot: the offset written in the 64 KB save file. |
+
+### TriggerEntered
+
+`class TriggerEntered` - `OpenFF.Events`
+
+The hero walked into a Trigger placed on a scene object (the editor's Trigger behaviour).
+
+| Member | What it does |
+| --- | --- |
+| `GameObject Object { get; set; }` | The object the trigger is on: its Name is <map>/<path>, its Tags what the editor gave it. |
+| `Trigger Trigger { get; set; }` |  |
+
+### TriggerLeft
+
+`class TriggerLeft` - `OpenFF.Events`
+
+The hero walked out of a Trigger.
+
+| Member | What it does |
+| --- | --- |
+| `GameObject Object { get; set; }` |  |
+| `Trigger Trigger { get; set; }` |  |
 
 ### WarpRequested
 
@@ -1501,4 +1561,4 @@ Whom a spell may be aimed at, as flags.
 
 ---
 
-90 types, 707 members; 457 without a summary yet.
+94 types, 731 members; 465 without a summary yet.

@@ -241,25 +241,59 @@ letters: `Game.Input.KeyPressed("T")`.
 ### Scenes without code: `scenes/<map>.json`
 
 Crystal's map view puts behaviours from your built assembly onto a map's characters, its
-exits, the terrain, or **points** you place and drag in 3D (`Points (OpenFF)` in the
-hierarchy). The result is saved as `scenes/<map>.json` in the project and exported with the
-mod; the engine reads it when the map is entered and makes a `GameObject` per target with the
-behaviours and their fields set. A point is a `GameObject` named `<map>/point:<name>` with
-its tags, so a mod finds spawn points with `Game.World.Legacy.WithTag("spawn")`. The scenes
-a project has are listed under **OpenFF mod ▸ Scenes** in the project tree; opening one
-opens the map itself, in 3D with its behaviours and points, and the inspector offers the
-JSON as text for when that is what you want.
+exits, the terrain, or the mod's **own objects**, which you place and drag in 3D
+(`Objects (OpenFF)` in the hierarchy). The result is saved as `scenes/<map>.json` in the
+project and exported with the mod; the engine reads it when the map is entered and makes a
+`GameObject` per target with the behaviours and their fields set, and takes them all down
+again when the map is left.
+
+The mod's own objects are the part of this that owes the game nothing. **Add a game
+object** on an OpenFF project offers *OpenFF object* first: no `.hich` row, no cast, no
+script - a `GameObject` named `<map>/<name>`, tagged `scene` and whatever tags you give it,
+with a `MapObject` of kind `scene`. Give it a **model** (any of the game's - `o001` is the
+chest) and the client shows it as a plain character standing there, with `MapObject.Npc`
+to move, turn, hide or talk through; leave the model off and it is a spot with logic on it -
+a spawn point, a mark, a trigger. Everything about it is a field in the inspector and a
+property in the file, changeable at any time: its name (attachments on it follow), its
+model, its place, yaw and scale, its tags, its parent. Objects nest: **Add a child object**
+puts one under another, the hierarchy shows the tree, and a child's x/y/z, yaw and scale
+are relative to its parent (turned by the parent's yaw, scaled by its scale), so moving the
+parent moves the lot. `GameObject.Parent` and `.Children` carry the tree in the engine;
+`Transform` holds the worked-out world values. Attachments target an object by its path:
+`"chest"`, `"chest/trigger"`.
+
+A mod finds them with `Game.World.Legacy.Find("d01_05/chest")` or by tag:
+`Game.World.Legacy.WithTag("spawn")`. For a chest that gives an item, the object's model is
+the chest and the item is a public field of the behaviour you attach - change it in the
+inspector whenever you like. For "when the hero walks here", attach the engine's own
+**`Trigger`** (it is in the Add Behaviour list whether or not the mod has code): `Radius`,
+`Once`; it raises `Entered`/`Left` on itself and publishes `Events.TriggerEntered` /
+`TriggerLeft` (with the `GameObject`, so its tags say which trigger) for a `GameService` to
+hear, and logs `trigger <map>/<path>: hero entered`.
+
+The scenes a project has are listed under **OpenFF mod ▸ Scenes** in the project tree;
+opening one opens the map itself, in 3D with its objects and behaviours, and the inspector
+offers the JSON as text for when that is what you want.
 
 ```json
 {
   "map": "d01_05",
-  "attachments": [
-    { "target": "map", "behaviour": "Welcome",
-      "fields": { "Text": "The Altar Cave.", "Delay": 120 } }
+  "objects": [
+    { "name": "Chest", "x": 110, "y": 52, "z": -30, "yaw": 90, "model": "o001", "tags": [ "chest" ],
+      "children": [ { "name": "Trigger", "x": 0, "y": 0, "z": 6, "yaw": 0 } ] },
+    { "name": "north", "x": 12, "y": 0, "z": -20, "yaw": 180, "tags": [ "spawn" ] }
   ],
-  "points": [ { "name": "north", "x": 12.0, "y": 0.0, "z": -20.0, "yaw": 180, "tags": [ "spawn" ] } ]
+  "attachments": [
+    { "target": "map", "behaviour": "Welcome", "fields": { "Text": "The Altar Cave.", "Delay": 120 } },
+    { "target": "chest", "behaviour": "GiveItem", "fields": { "Item": 30 } },
+    { "target": "chest/trigger", "behaviour": "Trigger", "fields": { "Radius": 10, "Once": true } }
+  ]
 }
 ```
+
+Files from before the objects had `"points"` (a flat list, no model) and targeted them as
+`point:<name>`; both still read, as objects without a model, and Crystal writes the new
+shape the next time the scene is saved.
 
 ### Seeing what happens
 

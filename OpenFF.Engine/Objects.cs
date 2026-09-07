@@ -109,6 +109,9 @@ namespace OpenFF
 		public Transform Transform => GameObject?.Transform;
 		public Scene Scene => GameObject?.Scene;
 		public T GetComponent<T>() where T : Component => GameObject?.GetComponent<T>();
+
+		/// <summary>The object is leaving its scene: a plain component's chance to let go of what it holds (a Behaviour has OnDestroy).</summary>
+		internal virtual void OnDetached() { }
 	}
 
 	/// <summary>A component with a lifecycle, the unit of script on an object.</summary>
@@ -278,6 +281,10 @@ namespace OpenFF
 			foreach (Behaviour behaviour in _components.OfType<Behaviour>().ToArray())
 			{
 				behaviour.RunDestroy();
+			}
+			foreach (Component component in _components.Where(c => !(c is Behaviour)).ToArray())
+			{
+				Game.Guard(Name + "." + component.GetType().Name + ".OnDetached", component.OnDetached);
 			}
 			Scene = null;
 		}
