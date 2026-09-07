@@ -53,7 +53,10 @@ folder**. The start page - what the document area shows with nothing open - has 
 things one click away. With no project it is about the projects: the list, New, Open. With
 one open it is about that project - *Open project* over its name, its games, its actions -
 and the other projects fold away under *Switch to another project…*, so the page never
-reads as a question of which one is open.
+reads as a question of which one is open. Every project listed carries the mark of what
+it is: the OpenFF folder for an OpenFF mod, a game pad for a Steam mod, both for one that
+is both. The page has an × and stays away for the session once closed (a line saying
+*Nothing open* with a link back; **File ▸ Start page** too).
 
 Opening a project puts back what was open in it: the tabs (not previews), which one was
 focused, and which library and game the panel showed, from `session.json`, written a
@@ -764,6 +767,16 @@ the top, **Transform** (its `.hich` position and facing), then Model, Cast, What
 Behaviour, Referred to by, and its OpenFF behaviours; an exit is its name, **Transform**
 (the arrival spot - where the player appears coming in through it), Leads to, Doorway,
 Conditions, Referred to by; the terrain is its model and behaviours. Each aspect is a card.
+
+The game's own chests are edited in place too: a character whose cast the map's script
+sets a treasure for (`setTreasureItem` / `setTreasureMoney`) gets a **Treasure** card -
+an item from the game's list, or gil - and *Save treasure* rewrites that one line of the
+script and compiles it. And on an OpenFF project every game character has an **OpenFF**
+card with **Convert to OpenFF object**: it makes an object of the mod's own at the same
+spot with the same model - a `Chest` with the same contents when it was a chest - and puts
+a `Removed` behaviour on the original, which takes the game's one off the map when the
+client enters it. The character's row reads *replaced* from then on; its cast stays in
+the script for whatever else names it, and everything about the stand-in is the mod's.
 
 Nothing on an OpenFF object has a Save button. A change - a field typed, an object
 dragged, a behaviour added - writes `scenes/<map>.json` a moment later, the way the

@@ -58,6 +58,10 @@ const ICONS = {
   mod: '<path d="M1.8 4.2h4.2l1.4 1.6h6.8v7.8H1.8z"/>'
      + '<path d="M7.6 9h4.2M7.6 11.2h4.2M8.9 7.8v4.8M10.5 7.8v4.8"/>',
 
+  // A game pad: a Steam mod, the game's own files replaced.
+  steam: '<path d="M4.6 4.6h6.8a3 3 0 0 1 3 3l-.6 4.2a1.6 1.6 0 0 1-2.9.6L9.9 11H6.1l-1 1.4a1.6 1.6 0 0 1-2.9-.6L1.6 7.6a3 3 0 0 1 3-3z"/>'
+       + '<path d="M5.2 6.6v2.6M3.9 7.9h2.6"/><circle cx="11" cy="7.2" r=".7"/><circle cx="12.4" cy="8.6" r=".7"/>',
+
   // A page with a sharp: a C# source file.
   code: '<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/>'
       + '<path d="M6 9.2h4.2M6 11.4h4.2M7.3 8v4.6M8.9 8v4.6"/>',

@@ -1905,9 +1905,190 @@ function buildCharacter(character) {
   };
   panel.append(link);
 
+  addTreasure(panel, character);
   addCastReferences(panel, character);
+  if (openFFProject()) addConvert(panel, character);
   behavioursSection(panel, 'object:' + character.index, character.model || 'character');
   return panel;
+}
+
+// ----------------------------------------------------------- the game's chests
+//
+// A chest of the game's is one command in the map's boot cast - setTreasureItem(cast,
+// item, group, index, 0, 0), or setTreasureMoney with gil in the item's place - so what
+// it holds is edited by rewriting that one line and compiling the script again. The
+// same card the OpenFF Chest has, on the game's own.
+
+const TREASURE = /setTreasure(Item|Money)\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/g;
+
+/// The treasure command for a cast in a script's source, or null.
+function treasureOf(source, cast) {
+  TREASURE.lastIndex = 0;
+  let m;
+  while ((m = TREASURE.exec(source))) {
+    if (Number(m[2]) === cast) {
+      return { kind: m[1] === 'Item' ? 'item' : 'gil', value: Number(m[3]), group: Number(m[4]), index: Number(m[5]), text: m[0], at: m.index };
+    }
+  }
+  return null;
+}
+
+/// The script's text with a cast's treasure command replaced.
+function withTreasure(source, cast, kind, value) {
+  const found = treasureOf(source, cast);
+  if (!found) return source;
+  const call = `setTreasure${kind === 'item' ? 'Item' : 'Money'}(${cast}, ${value}, ${found.group}, ${found.index}, 0, 0)`;
+  return source.slice(0, found.at) + call + source.slice(found.at + found.text.length);
+}
+
+async function mapScriptSource() {
+  const data = await api(`/api/script?name=${encodeURIComponent('files/' + mapState.name + '.script')}`);
+  return data && data.source || '';
+}
+
+function addTreasure(panel, character) {
+  const holder = document.createElement('div');
+  panel.append(holder);
+  mapScriptSource().then(source => {
+    const found = treasureOf(source, character.cast);
+    if (!found) return;
+    // Built after cardify ran over the panel, so it is a card of its own from the start.
+    const card = componentCard('logic', 'Treasure');
+    holder.append(card);
+    const note = document.createElement('p');
+    note.className = 'none';
+    note.textContent = `The map's script sets what this chest holds (${found.text}). Change it here; Save treasure rewrites that line and compiles the script.`;
+    card.append(note);
+
+    let kind = found.kind;
+    let value = found.value;
+    const kindRow = document.createElement('label');
+    kindRow.className = 'behaviour-field';
+    const kindLabel = document.createElement('span');
+    kindLabel.textContent = 'Holds';
+    const kindPick = document.createElement('select');
+    for (const [v, l] of [['item', 'an item'], ['gil', 'gil']]) {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = l;
+      kindPick.append(o);
+    }
+    kindPick.value = kind;
+    kindRow.append(kindLabel, kindPick);
+    card.append(kindRow);
+
+    const itemRow = document.createElement('label');
+    itemRow.className = 'behaviour-field';
+    const itemLabel = document.createElement('span');
+    itemLabel.textContent = 'Item';
+    const itemPick = document.createElement('select');
+    const fill = () => {
+      itemPick.textContent = '';
+      for (const entry of state.items || []) {
+        const o = document.createElement('option');
+        o.value = entry.id;
+        o.textContent = `${entry.name} · ${entry.category}`;
+        itemPick.append(o);
+      }
+      if (kind === 'item' && ![...itemPick.options].some(o => Number(o.value) === value)) {
+        const odd = document.createElement('option');
+        odd.value = value;
+        odd.textContent = `item ${value}`;
+        itemPick.append(odd);
+      }
+      itemPick.value = String(kind === 'item' ? value : (itemPick.options[0] && itemPick.options[0].value) || 0);
+    };
+    if (state.items) fill();
+    else api('/api/items').then(items => { state.items = items; fill(); }).catch(() => {});
+    itemRow.append(itemLabel, itemPick);
+    card.append(itemRow);
+
+    const gilRow = document.createElement('label');
+    gilRow.className = 'behaviour-field';
+    const gilLabel = document.createElement('span');
+    gilLabel.textContent = 'Gil';
+    const gil = document.createElement('input');
+    gil.type = 'number';
+    gil.value = kind === 'gil' ? value : 100;
+    gilRow.append(gilLabel, gil);
+    card.append(gilRow);
+
+    const show = () => { itemRow.hidden = kind !== 'item'; gilRow.hidden = kind !== 'gil'; };
+    kindPick.onchange = () => { kind = kindPick.value; show(); };
+    show();
+
+    const save = document.createElement('button');
+    save.textContent = 'Save treasure';
+    save.onclick = async () => {
+      save.disabled = true;
+      value = kind === 'item' ? parseInt(itemPick.value, 10) || 0 : parseInt(gil.value, 10) || 0;
+      try {
+        const fresh = await mapScriptSource();
+        const result = await api('/api/script/save', { name: `files/${mapState.name}.script`, source: withTreasure(fresh, character.cast, kind, value), save: true });
+        if (!result.ok) throw new Error((result.problems || []).map(p => `line ${p.line}: ${p.message}`).join('; ') || 'the script did not compile');
+        markOverridden(`files/${mapState.name}.script`, true);
+        say(`cast ${character.cast} now holds ${kind === 'item' ? ((state.items || []).find(i => i.id === value) || {}).name || ('item ' + value) : value + ' gil'}`, 'good');
+        drawInspector();
+      } catch (error) {
+        say(error.message, 'bad');
+        save.disabled = false;
+      }
+    };
+    card.append(save);
+  }).catch(() => {});
+}
+
+// ------------------------------------------------- converting to an OpenFF object
+//
+// The game's character stays in the .hich and the script (other things there name it by
+// cast), so converting is two things in the mod: an object of the mod's own at the same
+// spot with the same model - a Chest with the same contents when it was a chest - and a
+// Removed behaviour on the original, which takes the game's one off the map when it is
+// entered. Everything about it is the mod's from then on.
+
+function addConvert(panel, character) {
+  const head = document.createElement('h3');
+  head.textContent = 'OpenFF';
+  panel.append(head);
+  const replaced = (sceneState.attachments || []).some(a => (a.target || '').toLowerCase() === 'object:' + character.index && a.behaviour === 'Removed');
+  const note = document.createElement('p');
+  note.className = 'none';
+  note.textContent = replaced
+    ? 'Replaced: a Removed behaviour on it takes it off the map in the OpenFF client; the mod\'s own object stands there instead.'
+    : 'Make this the mod\'s own: an OpenFF object at the same spot with the same model (a Chest with the same contents, for a chest), and the game\'s one taken off the map. Its cast stays in the script for whatever else names it.';
+  panel.append(note);
+  if (!replaced) {
+    const go = document.createElement('button');
+    go.className = 'wide-button';
+    go.textContent = 'Convert to OpenFF object';
+    go.onclick = () => convertToSceneObject(activeDoc, character).catch(error => say(error.message, 'bad'));
+    panel.append(go);
+  }
+}
+
+async function convertToSceneObject(doc, character) {
+  await loadSceneState(mapState.name);
+  const source = await mapScriptSource().catch(() => '');
+  const treasure = treasureOf(source, character.cast);
+  const object = addSceneObject(doc, {
+    name: `${character.model || 'object'} ${character.cast}`,
+    model: character.model || null,
+    at: [character.x, character.y, character.z]
+  });
+  // A .hich facing is negated by the game; the mod's yaw is the engine's own.
+  object.rotationY = -(character.rotationY || 0);
+  if (treasure) {
+    sceneState.attachments.push({
+      target: scenePathOf(object), behaviour: 'Chest',
+      fields: treasure.kind === 'item' ? { Item: treasure.value, Count: 1, Gil: 0 } : { Item: 0, Gil: treasure.value }
+    });
+  }
+  sceneState.attachments.push({ target: 'object:' + character.index, behaviour: 'Removed', fields: {} });
+  sceneChanged();
+  syncSceneObjects(doc);
+  drawHierarchy();
+  drawInspector();
+  say(`${object.name} is the mod's now${treasure ? ' - a Chest with the same contents' : ''}; the game's cast ${character.cast} is taken off the map in the client`, 'good');
 }
 
 // ------------------------------------------------------------- behaviours (OpenFF)

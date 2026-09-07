@@ -665,9 +665,13 @@ function outlineFor(doc) {
       && sceneState.map === mapState.name && sceneState.objects;
     if (openff) {
       const carried = new Set((sceneState.attachments || []).map(a => (a.target || '').toLowerCase()));
+      // A game character the mod has converted: taken off the map in the client, its
+      // stand-in among the objects below.
+      const removed = new Set((sceneState.attachments || []).filter(a => a.behaviour === 'Removed').map(a => (a.target || '').toLowerCase()));
       for (const group of groups) {
         for (const child of group.children) {
           if (carried.has(child.ref.toLowerCase())) child.badge = 'behaviour';
+          if (removed.has(child.ref.toLowerCase())) { child.note = 'replaced'; child.dim = true; }
         }
       }
       const flat = typeof flattenSceneObjects === 'function' ? flattenSceneObjects(sceneState) : [];

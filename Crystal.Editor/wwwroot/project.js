@@ -100,6 +100,7 @@ function drawMenuBar() {
   bar.append(buildMenu('File', [
     { label: 'New project…', run: newProjectDialog },
     { label: 'Open project…', run: openProjectDialog },
+    { label: 'Start page', run: showStartPage },
     '-',
     {
       label: edited ? `Changes… (${edited})` : 'Changes…',
@@ -204,8 +205,12 @@ function dialog(title, { onClose, wide } = {}) {
   head.className = 'picker-head';
   const name = document.createElement('strong');
   name.textContent = title;
+  name.style.flex = '1';
+  // The × in the corner, as the model picker has and every window does.
   const close = document.createElement('button');
-  close.textContent = 'Close';
+  close.className = 'shut';
+  close.textContent = '×';
+  close.title = 'Close (Esc)';
   const body = document.createElement('div');
   body.className = 'dialog-body';
 
@@ -381,10 +386,10 @@ async function openProjectDialog() {
   list.className = 'dialog-list';
   for (const project of projects) {
     const row = document.createElement('button');
-    row.className = 'dialog-row';
+    row.className = 'dialog-row project-row';
     if (project.current) row.classList.add('checked');
     const title = document.createElement('strong');
-    title.textContent = project.name;
+    title.append(projectKindIcon(project), document.createTextNode(project.name));
     const where = document.createElement('span');
     where.textContent = project.targets.map(describeTarget).join(', ')
       + '  ·  ' + project.directory;
@@ -393,6 +398,26 @@ async function openProjectDialog() {
     list.append(row);
   }
   body.append(list);
+}
+
+/// The mark of what kind of mod a project is, wherever projects are listed: the OpenFF
+/// folder for an OpenFF mod, the game for a Steam mod, both for one that is both.
+function projectKindIcon(project) {
+  const kinds = new Set((project.targets || []).map(kindOfTarget));
+  const wrap = document.createElement('span');
+  wrap.className = 'project-kind';
+  if (kinds.has('openff')) {
+    const i = icon('mod');
+    i.setAttribute('title', 'OpenFF mod');
+    wrap.append(i);
+  }
+  if (kinds.has('steam')) {
+    const i = icon('steam');
+    i.setAttribute('title', 'Steam mod');
+    wrap.append(i);
+  }
+  wrap.title = [kinds.has('openff') && 'OpenFF mod', kinds.has('steam') && 'Steam mod'].filter(Boolean).join(' and ');
+  return wrap;
 }
 
 async function openProjectAt(directory, body) {
@@ -957,10 +982,35 @@ function showModState(mod, workspace) {
 
 /// What the document area shows when nothing is open. It is drawn on every refresh
 /// and hides itself whenever a document is open, so it costs nothing to keep current.
+// The start page is a page: it has an × and stays away for the session once closed
+// (File ▸ Start page brings it back), so the document area is not a brochure every time
+// the last tab closes.
+const START_KEY = 'crystal-start-page';
+function startPageHidden() {
+  try { return sessionStorage.getItem(START_KEY) === 'closed'; } catch (error) { return false; }
+}
+function showStartPage() {
+  try { sessionStorage.removeItem(START_KEY); } catch (error) { }
+  drawStartPage();
+}
+
 async function drawStartPage() {
   const start = $('#no-docs');
   if (!start) return;
   start.textContent = '';
+
+  if (startPageHidden()) {
+    const quiet = document.createElement('p');
+    quiet.className = 'start-quiet';
+    quiet.textContent = 'Nothing open. ';
+    const back = document.createElement('a');
+    back.href = '#';
+    back.textContent = 'Start page';
+    back.onclick = event => { event.preventDefault(); showStartPage(); };
+    quiet.append(back);
+    start.append(quiet);
+    return;
+  }
 
   const card = document.createElement('div');
   card.className = 'start-card';
@@ -971,7 +1021,15 @@ async function drawStartPage() {
   title.textContent = 'Crystal';
   const tag = document.createElement('span');
   tag.textContent = 'the OpenFF editor · Final Fantasy III & IV (3D)';
-  brand.append(title, tag);
+  const shut = document.createElement('button');
+  shut.className = 'shut';
+  shut.textContent = '×';
+  shut.title = 'Close the start page (File ▸ Start page brings it back)';
+  shut.onclick = () => {
+    try { sessionStorage.setItem(START_KEY, 'closed'); } catch (error) { }
+    drawStartPage();
+  };
+  brand.append(title, tag, shut);
   card.append(brand);
 
   const open = projectState.project;
@@ -1126,7 +1184,7 @@ async function drawStartPage() {
       const row = document.createElement('button');
       row.className = 'start-row';
       const b = document.createElement('b');
-      b.textContent = project.name;
+      b.append(projectKindIcon(project), document.createTextNode(project.name));
       const s = document.createElement('span');
       s.textContent = project.targets.map(describeTarget).join(', ');
       row.append(b, s);

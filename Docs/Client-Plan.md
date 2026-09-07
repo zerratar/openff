@@ -1283,6 +1283,25 @@ Model, Cast, What it says, Behaviour, Referred to by, Behaviours; an exit is hea
 terrain head, Model, Behaviours. `buildSceneObject` uses the same helpers. `inspectRef`
 applies `cardify` to all four.
 
+### The game's chests edited and converted; the start page, dialogs and fields
+
+Karl's afternoon list. **Treasure**: a game chest is one line in the map's boot cast
+(`setTreasureItem(cast, item, group, index, 0, 0)`, `setTreasureMoney` with gil), so the
+character's inspector gets a Treasure card when the script has one for its cast
+(`treasureOf` over `/api/script`'s source): item from the game's list or gil; *Save treasure*
+rewrites that one call (`withTreasure`) and goes through `/api/script/save` - the same
+compile the script editor uses - then marks the override. **Convert to OpenFF object**: the
+`.hich` row and the cast stay (other things name them), so the conversion is two things in
+the mod - `addSceneObject` at the character's spot with its model, yaw negated (a `.hich`
+facing is negated by the game; `facingSign`), a `Chest` with the parsed contents when it was
+one - and a new engine behaviour `Removed` on `object:N`, which calls `Npc.Remove()` (or
+`Hidden` with HideOnly) at Start; the client logged "removed: the map's object:5 on d01_05"
+beside the placed stand-in. The character's hierarchy row reads *replaced*, greyed. **Start
+page**: a × (sessionStorage, File ▸ Start page back), project rows carry `projectKindIcon`
+(the `mod` folder, a new `steam` game pad, both for both) here and in Open project. **Dialogs**
+close with `.shut` × like the model picker. **Fields**: one base rule for `input`/`textarea`
+(dark, bordered, accent on focus) so a dialog's boxes stop being the browser's white ones.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
