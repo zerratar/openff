@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags)
-- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -324,13 +324,16 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 
 | Member | What it does |
 | --- | --- |
+| `bool ChestLook` | Play the game's chest motions (closed lid, opening, open lid), sound and sparkle - for a chest model (o000, o001). |
 | `int Count` | How many of the item. |
 | `string EmptyMessage` | What the window says when it is already open. |
+| `string Flag` | The game's own flag for this chest ("1:22"), as its setTreasureItem named it: set when opened and read at start, so the game's treasure count and anything else reading it agree. Empty for a chest of the mod's own. |
 | `int Gil` | Gil inside, on top of the item or instead of it. |
 | `int Item` | The item inside, by id; 0 to give only gil. |
 | `string Message` | What the window says on opening; {what} is the contents ("Potion x2 and 100 gil"). |
 | `bool Once` | Opens once and stays open, across saves (SceneMemory); off, it gives its contents every time. |
 | `bool Opened { get; }` | Whether it has been opened (this visit, or ever when Once). |
+| `void NpcReady(MapObject link)` |  |
 
 ### Color
 
@@ -398,6 +401,22 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 | `void Sprite(Texture texture, float x, float y, float w, float h, Color? tint = null, float rotation = 0, float srcX = 0, float srcY = 0, float srcW = 0, float srcH = 0)` | A texture (or part of it) drawn into a rectangle, tinted, turned about its centre. |
 | `void Text(string text, float x, float y, Color color, int size = 12)` | Text at a position, in the game's own font. Sizes as the game's: 12 small, 16 normal. |
 
+### GameCast
+
+`class GameCast : Behaviour`
+
+The game's own cast on one of the mod's objects: talking to the object runs the map script's cast<N>_main, and every command the script addresses to that cast lands on the object - the stand-in is the original as far as the script can tell, 1:1. What Crystal's conversions put on a stand-in by default; swap it for Talk, Chest and the rest when the behaviour should become the mod's to edit. A chest's contents come from the boot's setTreasureItem/Money, so they are fields here.
+
+| Member | What it does |
+| --- | --- |
+| `int Cast` | The cast number in the map's script (the .hich row's). |
+| `string Flag` |  |
+| `int Gil` |  |
+| `int Item` |  |
+| `string Recolour` | The boot's changeColorCharacter for this cast: a texture variant (n024 on n021). |
+| `bool Treasure` | A chest: the boot's setTreasureItem/setTreasureMoney for this cast. |
+| `void NpcReady(MapObject link)` |  |
+
 ### HeaderAttribute
 
 `class HeaderAttribute : Attribute`
@@ -451,6 +470,7 @@ The common ground of the built-in components an editor places on a scene object:
 | --- | --- |
 | `bool OnWalkIn` | Without a model: act when the hero walks in (on), or when the player presses A standing within Radius (off) - an invisible sign or switch. |
 | `float Radius` | Without a model to talk to: how close the hero comes, in world units, for the object to act. |
+| `void NpcReady(MapObject link)` |  |
 
 ### Item
 
@@ -544,6 +564,19 @@ A monster party from the game's encounter table: which monsters, how many of eac
 | `List<MonsterCount> Members { get; }` |  |
 | `string ToString()` |  |
 
+### Motion
+
+`class Motion : Behaviour`
+
+A motion set bound to the object's model and the motion it plays from the start - what a map's boot does with bindMotion and startMotionCharacter (the villagers' idle sway, "w_light_old" 1001). Set may be empty for a motion the model has of its own.
+
+| Member | What it does |
+| --- | --- |
+| `int Index` | The motion to play, by index (1001 is the idle). |
+| `bool Loop` |  |
+| `string Set` | The motion set to bind (w_light_man, w_light_old, b_b01...); empty for none. |
+| `void NpcReady(MapObject link)` |  |
+
 ### Npc
 
 `abstract class Npc`
@@ -572,8 +605,11 @@ A character a script put on the map.
 | `void LookAt(Vector3 point)` | Turns to face a point. |
 | `void MoveTo(Vector3 position, int frames)` | Walks to a point over a number of frames (0 teleports). The character faces where it walks. |
 | `void PlayMotion(int index, bool loop = false, int blendFrames = 5)` | Plays a motion by its index in the character's set (1001 is the talk pose). |
+| `void Recolour(string variant)` | The game's changeColorCharacter: the model's texture replaced by a variant named <model>_<variant> (n021 with "n024"). |
 | `void Remove()` | Takes the character off the map. |
+| `void RunCast(int cast)` | Makes this character the one the map's script means by a cast number: talking to it runs that cast's code, and the script's commands on that cast (motions, moves, recolours) land here. What a mod's stand-in for one of the game's characters does to behave exactly as the original did. Nothing on a host without casts. |
 | `void SetAi(NpcAi ai)` | What it does on its own: stand, wander, follow. |
+| `void SetTreasure(int itemId, int gil, int flagGroup, int flagIndex)` | Sets the character up as a treasure chest the game's way (setTreasureItem / setTreasureMoney): the item or gil, the game's flag for it (opened when set), the chest's own opening - sound, lid, message, flag, the treasure count. A chest model (o000, o001) spawned as a character. |
 | `void Stop()` | Ends a walk where the character stands. |
 | `void Teleport(Vector3 position)` | Puts it at a position at once. |
 
@@ -891,6 +927,7 @@ Makes the object's character wander about its spot (or stand, or follow the hero
 | Member | What it does |
 | --- | --- |
 | `NpcAi Ai` | Still, Wander or Follow. |
+| `void NpcReady(MapObject link)` |  |
 
 ### WhenFlags
 
@@ -1745,4 +1782,4 @@ Whom a spell may be aimed at, as flags.
 
 ---
 
-109 types, 784 members; 375 without a summary yet.
+111 types, 803 members; 384 without a summary yet.

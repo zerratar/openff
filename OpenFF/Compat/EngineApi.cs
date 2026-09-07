@@ -873,6 +873,102 @@ namespace OpenFF.Client
 		internal void Interact() => RaiseInteracted();
 
 		internal bool IsPlayer(GlobalScope.chr.CCharacterEureka character) => character != null && ReferenceEquals(character, Player);
+
+		/// <summary>
+		/// What bootCharacterImp does for the game's own: the logic index is the cast number
+		/// (talking to the character runs cast&lt;N&gt;_main), and the .hich row's character index
+		/// points here, so every command the script addresses to that cast - changeHichNumber -
+		/// lands on this character from now on. The stand-in is the original, as far as the
+		/// script can tell. Solid, as booted characters are.
+		/// </summary>
+		public override void RunCast(int cast)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null || cast <= 0) return;
+			try
+			{
+				p.LogicIndex_set((uint)cast);
+				int row = GlobalScope.evt.CHichParameterManager.getInstance().getManCastIndex((uint)cast);
+				if (row >= 0) GlobalScope.evt.CHichParameterManager.getInstance().setCharaIndex(row, Index);
+				p.flagOff(GlobalScope.pl.CBasePlayer.CBP_FLAG.NPC_NOT_TURN_TALKED);
+				Solid = true;
+				Log.Write(LogChannel.General, "engine api: " + Model + " (character " + Index + ") runs cast " + cast + (row >= 0 ? " (row " + row + ")" : " (no row)") + " on " + Map);
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("run-cast", "RunCast " + cast + " on " + Model + " failed: " + ex.Message);
+			}
+		}
+
+		/// <summary>
+		/// ff3Command_SetTreasureItem / SetTreasureMoney on this character: the map object keeps
+		/// the flag, the item (or gold) and its count; an opened chest (flag set) shows the open
+		/// lid, a closed one shuts. The chest then opens the game's own way when talked to -
+		/// sound, lid, message, flag, treasure count - since it is a map object like any other.
+		/// </summary>
+		public override void SetTreasure(int itemId, int gil, int flagGroup, int flagIndex)
+		{
+			if (Player == null) return;
+			try
+			{
+				int num = Index - (int)(GlobalScope.pl.FIELD_CHARACTER_NUM - GlobalScope.pl.MAP_OBJECT_NUM);
+				GlobalScope.map.CMapObject box = GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng().MapObject(num);
+				if (box == null)
+				{
+					EngineApi.Warn("treasure", "SetTreasure: " + Model + " (character " + Index + ") is not a map object - a chest wants an o or w model spawned as a character");
+					return;
+				}
+				box.setFlag((uint)flagGroup, (uint)flagIndex);
+				if (GlobalScope.FlagManager.singleton().get((uint)flagGroup, (uint)flagIndex) == 1)
+				{
+					box.setNowAct(6);
+					return;
+				}
+				box.setEnCountIndex(0);
+				if (gil > 0)
+				{
+					box.setGold(gil);
+				}
+				else
+				{
+					box.setItemId((uint)itemId);
+					int count = 1;
+					if (GlobalScope.itm.ItemManager.instance().itemCategory((short)itemId) == GlobalScope.itm.CATEGORY.CATEGORY_WEAPON
+						&& GlobalScope.itm.ItemManager.instance().itemParameter((short)itemId).system() == 8)
+					{
+						count = 20;
+					}
+					box.setItemNum(count);
+				}
+				box.startMotion(1003, _Loop: false, 5u);
+				Log.Write(LogChannel.General, "engine api: " + Model + " (character " + Index + ") is a chest: " + (gil > 0 ? gil + " gil" : "item " + itemId) + ", flag " + flagGroup + ":" + flagIndex);
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("treasure", "SetTreasure on " + Model + " failed: " + ex.Message);
+			}
+		}
+
+		/// <summary>ff3Command_ChangeColorCharacter: the texture set &lt;model&gt;_&lt;variant&gt; in place of the model's own.</summary>
+		public override void Recolour(string variant)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null || string.IsNullOrWhiteSpace(variant)) return;
+			try
+			{
+				int characterId = p.getCharacterId();
+				string name = Model + "_" + variant.Trim();
+				GlobalScope.characterMng.releaseTex(characterId);
+				GlobalScope.characterMng.bindReplaceTex(characterId, name);
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				GlobalScope.characterMng.setupReplaceTex(characterId);
+				Log.Write(LogChannel.General, "engine api: " + Model + " (character " + Index + ") recoloured " + name);
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("recolour", "Recolour " + variant + " on " + Model + " failed: " + ex.Message);
+			}
+		}
 	}
 
 	internal sealed class LegacyNpcs : GameService, INpcs

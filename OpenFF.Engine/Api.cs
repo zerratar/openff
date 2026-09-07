@@ -169,6 +169,25 @@ namespace OpenFF
 		/// <summary>Takes the character off the map.</summary>
 		public abstract void Remove();
 
+		/// <summary>
+		/// Makes this character the one the map's script means by a cast number: talking to it
+		/// runs that cast's code, and the script's commands on that cast (motions, moves,
+		/// recolours) land here. What a mod's stand-in for one of the game's characters does
+		/// to behave exactly as the original did. Nothing on a host without casts.
+		/// </summary>
+		public virtual void RunCast(int cast) { }
+
+		/// <summary>
+		/// Sets the character up as a treasure chest the game's way (setTreasureItem /
+		/// setTreasureMoney): the item or gil, the game's flag for it (opened when set), the
+		/// chest's own opening - sound, lid, message, flag, the treasure count. A chest model
+		/// (o000, o001) spawned as a character.
+		/// </summary>
+		public virtual void SetTreasure(int itemId, int gil, int flagGroup, int flagIndex) { }
+
+		/// <summary>The game's changeColorCharacter: the model's texture replaced by a variant named &lt;model&gt;_&lt;variant&gt; (n021 with "n024").</summary>
+		public virtual void Recolour(string variant) { }
+
 		/// <summary>How close the hero must be, in world units, for A to count as talking to this one (two characters together stand about 8 apart).</summary>
 		public float InteractRadius { get; set; } = 14f;
 

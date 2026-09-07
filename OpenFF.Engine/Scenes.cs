@@ -163,7 +163,7 @@ namespace OpenFF
 	/// walking into a radius when it has none. Derive from it for a component of your own
 	/// that works the same way; override Activate.
 	/// </summary>
-	public abstract class Interactable : Behaviour
+	public abstract class Interactable : Behaviour, INeedsNpc
 	{
 		/// <summary>Without a model to talk to: how close the hero comes, in world units, for the object to act.</summary>
 		[Header("Without a model")]
@@ -231,11 +231,15 @@ namespace OpenFF
 		protected override void Start()
 		{
 			MapObject link = GetComponent<MapObject>();
-			_npc = link?.Npc;
-			if (_npc != null)
-			{
-				_npc.Interacted += OnInteracted;
-			}
+			if (link?.Npc != null) NpcReady(link);
+		}
+
+		public virtual void NpcReady(MapObject link)
+		{
+			if (link?.Npc == null || _npc == link.Npc) return;
+			if (_npc != null) _npc.Interacted -= OnInteracted;
+			_npc = link.Npc;
+			_npc.Interacted += OnInteracted;
 		}
 
 		private void OnInteracted(Npc npc)
@@ -293,16 +297,36 @@ namespace OpenFF
 		/// <summary>What the window says when it is already open.</summary>
 		[Tooltip("What the window says when it is already open")]
 		public string EmptyMessage = "The chest is empty.";
+		/// <summary>The game's own flag for this chest ("1:22"), as its setTreasureItem named it: set when opened and read at start, so the game's treasure count and anything else reading it agree. Empty for a chest of the mod's own.</summary>
+		[Tooltip("The game's flag for the chest, group:index (a converted chest keeps its own); set when opened, read at start")]
+		public string Flag = "";
+		/// <summary>Play the game's chest motions (closed lid, opening, open lid), sound and sparkle - for a chest model (o000, o001).</summary>
+		[Tooltip("The game's lid motions, sound and sparkle on opening - for a chest model")]
+		public bool ChestLook = true;
 
 		/// <summary>Whether it has been opened (this visit, or ever when Once).</summary>
 		public bool Opened { get; private set; }
 
 		private string Key => GameObject?.Name;
+		private bool _opening;
 
 		protected override void Start()
 		{
 			base.Start();
-			if (Once && SceneMemory.Instance.Has(Key)) Opened = true;
+			if (Once && (SceneMemory.Instance.Has(Key) || (!string.IsNullOrWhiteSpace(Flag) && FlagsHold(Flag)))) Opened = true;
+			if (Npc != null) Lid();
+		}
+
+		public override void NpcReady(MapObject link)
+		{
+			base.NpcReady(link);
+			if (StartedFlag) Lid();
+		}
+
+		/// <summary>The lid as the game shows it: 1003 shut, 1002 open (map.CMapObject's acts 0 and 6).</summary>
+		private void Lid()
+		{
+			if (ChestLook && Npc != null) Npc.PlayMotion(Opened ? 1002 : 1003, Opened);
 		}
 
 		protected override void Activate()
@@ -327,10 +351,34 @@ namespace OpenFF
 			}
 			Opened = true;
 			if (Once) SceneMemory.Instance.Mark(Key);
+			if (!string.IsNullOrWhiteSpace(Flag)) SetFlags(Flag);
+			if (ChestLook && Npc != null)
+			{
+				// As the game opens one: the sound (archive 1, 36), the lid's opening motion, the
+				// sparkle (effect 102) a little above it; the open lid once the motion is done.
+				Game.Guard(Name + ".look", () =>
+				{
+					Game.Audio.PlaySe(1, 36, 192, 127);
+					Npc.PlayMotion(1001);
+					Vector3 at = Npc.Position;
+					Game.Effects.Spawn(102, 1, new Vector3(at.X, at.Y + 6f, at.Z));
+				});
+				_opening = true;
+			}
 			string what = got.Count == 0 ? "nothing" : string.Join(" and ", got);
 			if (!string.IsNullOrEmpty(Message)) Game.Dialogue.Say(Message.Replace("{what}", what));
 			Game.Log("chest " + Key + ": " + what);
 			OnOpened(what);
+		}
+
+		protected override void Update()
+		{
+			base.Update();
+			if (_opening && Npc != null && Npc.MotionDone)
+			{
+				_opening = false;
+				Npc.PlayMotion(1002, true);
+			}
 		}
 
 		/// <summary>After the contents are given and said: a hook for a derived chest (a sound, a flag, a spawn).</summary>
@@ -371,7 +419,13 @@ namespace OpenFF
 		protected override void Activate()
 		{
 			if (Lines == null || Lines.Length == 0 || _next >= 0) return;
-			if (FaceHero && Npc != null) Npc.LookAt(Game.Hero.Position);
+			if (Npc != null)
+			{
+				// As the game's talkBegin: a wanderer stops and turns to the player for the talk,
+				// and walks on after (talkEnd).
+				if (GetComponent<Wander>() != null) { Npc.Stop(); Npc.SetAi(NpcAi.Still); }
+				if (FaceHero) Npc.LookAt(Game.Hero.Position);
+			}
 			_next = 0;
 			SayNext();
 		}
@@ -391,6 +445,8 @@ namespace OpenFF
 			{
 				_next = -1;
 				SetFlags(Then);
+				Wander wander = GetComponent<Wander>();
+				if (wander != null && Npc != null) Npc.SetAi(wander.Ai);
 				Game.Guard(Name + ".OnSaid", OnSaid);
 				return;
 			}
@@ -421,7 +477,16 @@ namespace OpenFF
 			if (_shown == hold) return;
 			_shown = hold;
 			MapObject link = GetComponent<MapObject>();
-			if (link?.Npc != null) link.Npc.Hidden = !hold;
+			if (hold && link != null && link.Npc == null && link.Model != null)
+			{
+				// Not spawned at the map's start because the flags did not hold then - the
+				// game would not have booted it either; now they do, so it comes.
+				SceneLoader.SpawnModel(GameObject.Owner, link.Map, GameObject);
+			}
+			else if (link?.Npc != null)
+			{
+				link.Npc.Hidden = !hold;
+			}
 			foreach (Behaviour b in GameObject.GetComponents<Behaviour>())
 			{
 				if (b != this && !(b is ModelFollow)) b.Enabled = hold;
@@ -444,11 +509,106 @@ namespace OpenFF
 	}
 
 	/// <summary>
+	/// A component that wants the object's character (MapObject.Npc) and may be added before
+	/// it exists - an object whose WhenFlags do not hold yet is spawned when they do. The
+	/// loader calls NpcReady after a spawn; a component's Awake calls it itself when the
+	/// character is already there.
+	/// </summary>
+	internal interface INeedsNpc
+	{
+		void NpcReady(MapObject link);
+	}
+
+	/// <summary>
+	/// The game's own cast on one of the mod's objects: talking to the object runs the map
+	/// script's cast&lt;N&gt;_main, and every command the script addresses to that cast lands on
+	/// the object - the stand-in is the original as far as the script can tell, 1:1. What
+	/// Crystal's conversions put on a stand-in by default; swap it for Talk, Chest and the
+	/// rest when the behaviour should become the mod's to edit. A chest's contents come from
+	/// the boot's setTreasureItem/Money, so they are fields here.
+	/// </summary>
+	public sealed class GameCast : Behaviour, INeedsNpc
+	{
+		/// <summary>The cast number in the map's script (the .hich row's).</summary>
+		[Tooltip("The cast in the map's script this object runs: talking to it runs cast<N>_main")]
+		public int Cast;
+
+		/// <summary>A chest: the boot's setTreasureItem/setTreasureMoney for this cast.</summary>
+		[Header("Treasure (a chest's cast)")]
+		[Tooltip("Set up as the game's treasure chest, from the boot's setTreasureItem/Money")]
+		public bool Treasure;
+		[ItemField, Tooltip("The item inside (setTreasureItem)")]
+		public int Item;
+		[Tooltip("Gil inside instead (setTreasureMoney)")]
+		public int Gil;
+		[Tooltip("The chest's own flag, group:index - set when opened; an opened chest shows its open lid")]
+		public string Flag = "";
+
+		/// <summary>The boot's changeColorCharacter for this cast: a texture variant (n024 on n021).</summary>
+		[Header("Look")]
+		[Tooltip("The boot's changeColorCharacter: the texture variant, e.g. n024")]
+		public string Recolour = "";
+
+		protected override void Awake()
+		{
+			MapObject link = GetComponent<MapObject>();
+			if (link == null) return;
+			if (link.Npc != null) NpcReady(link);
+			else if (link.Model == null && Cast > 0) Game.Warn("GameCast " + Cast + " on " + (GameObject?.Name ?? "?") + ": the object has no model - a model spawned as a character is what runs a cast");
+		}
+
+		public void NpcReady(MapObject link)
+		{
+			if (link?.Npc == null) return;
+			if (Cast > 0) link.Npc.RunCast(Cast);
+			if (Treasure)
+			{
+				string[] pair = (Flag ?? "").Split(':');
+				int group = 0, index = 0;
+				if (pair.Length == 2) { int.TryParse(pair[0], out group); int.TryParse(pair[1], out index); }
+				link.Npc.SetTreasure(Item, Gil, group, index);
+			}
+			if (!string.IsNullOrWhiteSpace(Recolour)) link.Npc.Recolour(Recolour.Trim());
+		}
+	}
+
+	/// <summary>
+	/// A motion set bound to the object's model and the motion it plays from the start - what
+	/// a map's boot does with bindMotion and startMotionCharacter (the villagers' idle sway,
+	/// "w_light_old" 1001). Set may be empty for a motion the model has of its own.
+	/// </summary>
+	public sealed class Motion : Behaviour, INeedsNpc
+	{
+		/// <summary>The motion set to bind (w_light_man, w_light_old, b_b01...); empty for none.</summary>
+		[Tooltip("The motion set to bind: w_light_man, w_light_old...; empty for the model's own")]
+		public string Set = "";
+		/// <summary>The motion to play, by index (1001 is the idle).</summary>
+		public int Index = 1001;
+		public bool Loop = true;
+
+		protected override void Start()
+		{
+			MapObject link = GetComponent<MapObject>();
+			if (link?.Npc != null) NpcReady(link);
+		}
+
+		public void NpcReady(MapObject link)
+		{
+			if (link?.Npc == null) return;
+			Game.Guard("motion " + link.Path, () =>
+			{
+				if (!string.IsNullOrWhiteSpace(Set)) link.Npc.BindMotions(Set.Trim());
+				if (Index > 0) link.Npc.PlayMotion(Index, Loop);
+			});
+		}
+	}
+
+	/// <summary>
 	/// Makes the object's character wander about its spot (or stand, or follow the hero), as
 	/// the map scripts' moveCharacter_StartRandom does. The object needs a model marked as a
 	/// character; a plain model has no walker to drive.
 	/// </summary>
-	public sealed class Wander : Behaviour
+	public sealed class Wander : Behaviour, INeedsNpc
 	{
 		/// <summary>Still, Wander or Follow.</summary>
 		public NpcAi Ai = NpcAi.Wander;
@@ -456,6 +616,11 @@ namespace OpenFF
 		protected override void Start()
 		{
 			MapObject link = GetComponent<MapObject>();
+			if (link?.Npc != null) NpcReady(link);
+		}
+
+		public void NpcReady(MapObject link)
+		{
 			if (link?.Npc == null) return;
 			Game.Guard("wander " + link.Path, () => link.Npc.SetAi(Ai));
 		}
@@ -830,12 +995,19 @@ namespace OpenFF
 				Attach(mod, map, target, removal);
 				removals.Remove(removal);
 			}
+			// An object whose WhenFlags do not hold is not spawned yet - the game would not have
+			// booted it; WhenFlags spawns it when they come true. Its Removed still goes through.
+			Dictionary<string, string> gates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			foreach (SceneAttachment a in attachments.Where(a => string.Equals(a.Behaviour, "WhenFlags", StringComparison.OrdinalIgnoreCase)))
+			{
+				if (a.Fields != null && a.Fields.TryGetValue("When", out JsonElement w) && w.ValueKind == JsonValueKind.String) gates[a.Target.Trim()] = w.GetString();
+			}
 			foreach (SceneObject root in file.AllObjects())
 			{
 				made += Place(mod, map, scene, root, null, null, objects, path =>
 				{
 					if (byStandIn.TryGetValue(path, out SceneAttachment removal) && removals.Contains(removal)) Remove(removal);
-				});
+				}, path => !gates.TryGetValue(path, out string when) || WhenFlags.Holds(when));
 			}
 			foreach (SceneAttachment removal in removals.ToList())
 			{
@@ -868,7 +1040,7 @@ namespace OpenFF
 		/// (WorldPosition, WorldYaw, WorldScale), so a parent moved by code takes its children
 		/// along, and a model spawned for an object follows its transform (ModelFollow).
 		/// </summary>
-		private static int Place(Modding.LoadedMod mod, string map, Scene scene, SceneObject item, GameObject parent, string parentPath, Dictionary<string, GameObject> objects, Action<string> placed = null)
+		private static int Place(Modding.LoadedMod mod, string map, Scene scene, SceneObject item, GameObject parent, string parentPath, Dictionary<string, GameObject> objects, Action<string> placed = null, Func<string, bool> spawnNow = null)
 		{
 			if (item == null || string.IsNullOrWhiteSpace(item.Name)) return 0;
 			string name = item.Name.Trim();
@@ -883,13 +1055,13 @@ namespace OpenFF
 			o.Owner = mod;
 			if (parent != null) o.SetParent(parent, keepWorld: false);
 			scene.Add(o);
-			SpawnModel(mod, map, o);
+			if (spawnNow == null || spawnNow(path)) SpawnModel(mod, map, o);
 			objects[key] = o;
 			placed?.Invoke(path);
 			int made = 1;
 			foreach (SceneObject child in item.Children ?? new List<SceneObject>())
 			{
-				made += Place(mod, map, scene, child, o, path, objects, placed);
+				made += Place(mod, map, scene, child, o, path, objects, placed, spawnNow);
 			}
 			return made;
 		}
@@ -930,11 +1102,11 @@ namespace OpenFF
 			return o;
 		}
 
-		/// <summary>The model for a scene object that has one: a plain character without a cast, following the transform, gone with the object.</summary>
+		/// <summary>The model for a scene object that has one: a plain character without a cast, following the transform, gone with the object. Components waiting for the character (INeedsNpc) hear of it.</summary>
 		internal static void SpawnModel(Modding.LoadedMod mod, string map, GameObject o)
 		{
 			MapObject link = o.GetComponent<MapObject>();
-			if (link == null || link.Model == null) return;
+			if (link == null || link.Model == null || link.Npc != null) return;
 			Game.Guard("scene object " + link.Path + " model " + link.Model, () =>
 			{
 				// A character has the walker behind it (turns to the player, can wander, is talked to
@@ -950,7 +1122,11 @@ namespace OpenFF
 				Game.Warn("mod " + (mod?.Id ?? "?") + ": scenes/" + map + ".json: the model " + link.Model + " for '" + link.Path + "' did not spawn");
 				return;
 			}
-			o.AddComponent(new ModelFollow());
+			if (o.GetComponent<ModelFollow>() == null) o.AddComponent(new ModelFollow());
+			foreach (INeedsNpc waiting in o.Components.OfType<INeedsNpc>().ToArray())
+			{
+				Game.Guard(o.Name + " npc ready", () => waiting.NpcReady(link));
+			}
 		}
 
 		private static GameObject MakeTarget(Modding.LoadedMod mod, string map, string key)
