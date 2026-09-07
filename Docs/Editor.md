@@ -41,6 +41,7 @@ somebody.
 ```
 <projects>/<name>/project.json     what it is and what it targets
 <projects>/<name>/files/...        the edited content, named as the game names it
+<projects>/<name>/session.json     what was open in the editor last time (not exported)
 <projects>/<name>.backup/          originals, once it has been installed
 ```
 
@@ -49,7 +50,16 @@ somebody.
 **Changes…** (everything edited, per game, with revert), **Project settings…** (name,
 author, version, description, and which games), **Export as .zip…** and **Show project
 folder**. The start page - what the document area shows with nothing open - has the same
-things one click away, plus the list of projects.
+things one click away. With no project it is about the projects: the list, New, Open. With
+one open it is about that project - *Open project* over its name, its games, its actions -
+and the other projects fold away under *Switch to another project…*, so the page never
+reads as a question of which one is open.
+
+Opening a project puts back what was open in it: the tabs (not previews), which one was
+focused, and which library and game the panel showed, from `session.json`, written a
+moment after every change. A link in the address bar to something else opens that on top;
+a file that has gone since is skipped. The file is the page's, not the mod's - the export
+leaves it out.
 
 A project that targets two games keeps their edits apart, because the two games name
 their files alike (`files/d01_01.script` is a Baron corridor in one and Ur in the other):

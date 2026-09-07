@@ -1837,6 +1837,13 @@ header h1 .gem {
 .start-project { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--panel); }
 .start-project h3 { margin: 0 0 4px; font-size: 15px; }
 .start-project .meta { color: var(--dim); font-size: 12px; }
+/* The open project: the accent on its card and the word above its name say which one it is. */
+.start-project.open { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(90, 150, 230, .18) inset; }
+.start-eyebrow { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.start-projects summary { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); cursor: pointer; margin: 0 0 6px; list-style-position: inside; }
+.start-projects summary:hover { color: var(--ink); }
+.start-actions.small { margin-top: 8px; }
+.start-actions.small button { font-size: 11px; padding: 3px 8px; }
 .start-games { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
 .start-game {
   flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px; text-align: left;

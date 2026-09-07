@@ -277,6 +277,7 @@ function pinDoc(doc) {
   doc.preview = false;
   if (doc.group.preview === doc) doc.group.preview = null;
   drawDocTabs();
+  noteSession();
 }
 
 /// Runs the view for a document into its own pane.
@@ -1499,6 +1500,7 @@ async function selectKind(kind) {
   } catch (error) {
     say(error.message, 'bad');
   }
+  noteSession();
 }
 
 // ---------------------------------------------------------------- splitters
@@ -1611,6 +1613,88 @@ function syncHash() {
     ? hashFor(activeDoc.kind, activeDoc.name, activeDoc.ws)
     : hashFor(browseKind);
   if (location.hash !== wanted) history.replaceState(null, '', wanted);
+  noteSession();
+}
+
+// ------------------------------------------------------------------ the session
+//
+// What is open is kept with the project (session.json beside project.json), so opening
+// the project again opens the same tabs, focused on the same one, with the panel on the
+// same library and game - the work is where it was left rather than behind a start page.
+// Previews are not kept: they were a look, not a decision. Saves are debounced and held
+// while tabs are being restored or a project is being switched, since either would
+// otherwise write a half-state, or an empty one into the wrong project.
+
+let sessionTimer = null;
+let sessionHold = false;
+
+function sessionSnapshot() {
+  const list = [];
+  groups.forEach((group, index) => {
+    for (const doc of group.docs) {
+      if (doc.preview) continue;
+      list.push({ kind: doc.kind, name: doc.name, ws: doc.ws || null, group: index });
+    }
+  });
+  const active = activeDoc && !activeDoc.preview ? { kind: activeDoc.kind, name: activeDoc.name } : null;
+  return { docs: list, active, browse: browseKind, ws: state.ws || null };
+}
+
+function noteSession() {
+  if (sessionHold) return;
+  if (typeof projectState === 'undefined' || !projectState.project) return;
+  clearTimeout(sessionTimer);
+  sessionTimer = setTimeout(() => {
+    sessionTimer = null;
+    if (sessionHold || !projectState.project) return;
+    api('/api/project/session', sessionSnapshot()).catch(() => {});
+  }, 600);
+}
+
+/// Opens what the project's session.json says was open. True when it opened anything
+/// or set the panel; false when there was nothing to go on, so the caller falls back.
+async function restoreSession() {
+  if (typeof projectState === 'undefined' || !projectState.project) return false;
+  let session = null;
+  try {
+    const result = await api('/api/project/session');
+    session = result && result.session;
+  } catch (error) {
+    return false;
+  }
+  if (!session) return false;
+  const known = workspaces().map(w => w.target);
+  const wanted = (session.docs || []).filter(d => d && d.kind && d.name && KINDS.some(k => k.id === d.kind));
+  sessionHold = true;
+  try {
+    // A second group for tabs that sat in one, made when the first of them is opened.
+    for (const d of wanted) {
+      if (d.ws && known.includes(d.ws)) state.ws = d.ws;
+      else if (d.ws && !known.includes(d.ws)) continue; // a game the project no longer targets
+      while (groups.length <= Math.min(1, d.group || 0)) makeGroup();
+      activeGroup = groups[Math.min(1, d.group || 0)] || groups[0];
+      try {
+        await openDoc(d.kind, d.name);
+      } catch (error) {
+        // A file that has gone since is not worth stopping the rest for.
+      }
+    }
+    if (session.active) {
+      const doc = docs.get(docId(session.active.kind, session.active.name));
+      if (doc) activate(doc.id);
+    }
+    if (session.ws && known.includes(session.ws) && session.ws !== state.ws && !session.active) {
+      state.ws = session.ws;
+      state.files = [];
+    }
+    if (session.browse && KINDS.some(k => k.id === session.browse) && (session.browse !== browseKind || !state.files.length)) {
+      await selectKind(session.browse);
+    }
+  } finally {
+    sessionHold = false;
+  }
+  syncHash();
+  return wanted.length > 0 || Boolean(session.browse);
 }
 
 async function applyHash() {
@@ -1721,6 +1805,15 @@ drawInspector();
 // The project, the targets and whether the edits are installed, in one go. It also
 // fills the header, which is true all session and would only be wiped by the next
 // thing that happened if say() owned it.
+// A project's last session comes back first; the address bar, when it names something,
+// then has its say on top of it (a link into a project opens that, beside the rest).
 refreshProject()
-  .then(applyHash)
+  .then(async () => {
+    // Read before the restore, which writes its own hash for what it focused. A reload
+    // carries the hash of the very document the session focuses, and that is not a
+    // request for anything more; a link to something else is.
+    const asked = location.hash.replace(/^#\/?/, '') ? location.hash : '';
+    const restored = await restoreSession();
+    if (!restored || (asked && asked !== location.hash)) await applyHash();
+  })
   .catch(error => say(error.message, 'bad'));

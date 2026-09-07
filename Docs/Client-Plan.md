@@ -1156,6 +1156,22 @@ Also this morning: Crystal's Visual Studio profile still said `editor --content=
 --text=...` from the old repository, so F5 failed on `bin\Debug\Content` before the Steam
 lookup ran; the profiles are a plain start, FF4 first, no browser on 5077, and `installs`.
 
+### The session, and a start page that says what is open
+
+Karl, on opening a project: the start page still showed the list of projects, so it read as
+"which one did I open?" - and the work was behind it every time. Two changes. The page with a
+project open says **Open project** over the name and puts the other projects under a folded
+*Switch to another project…* (the open one left out); with no project it is the list as before.
+And the project remembers its session: `session.json` beside `project.json` holds the tabs
+(previews left out), the focused one, the panel's library and game, and which split group
+each tab sat in; `syncHash`, `pinDoc` and `selectKind` note it, debounced 600 ms, through
+`/api/project/session` (GET/POST; the server stores what the page sends). `restoreSession`
+opens them on start and after a project switch, then the address bar's hash has its say only
+when it names something other than what was just focused - a reload carries the focused
+document's hash and is not a request. Saves are held while restoring and while
+`reloadEverything` closes the old project's tabs, which would otherwise be written as the new
+project's empty session. The export does not carry the file.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

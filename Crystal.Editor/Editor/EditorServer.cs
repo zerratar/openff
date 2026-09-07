@@ -472,6 +472,10 @@ namespace Crystal.Editor
 					SaveProjectScene(context);
 					return;
 
+				case "/api/project/session":
+					ProjectSession(context);
+					return;
+
 				case "/api/project/run":
 					RunProject(context);
 					return;
@@ -1545,6 +1549,44 @@ namespace Crystal.Editor
 				SendJson(context, new { ok = true, map, count = attachments?.Count ?? 0, points = points?.Count ?? 0 });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or JsonException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>
+		/// What the page had open, kept with the project as session.json - the tabs, which
+		/// was focused, which library and game the panel showed - so opening the project
+		/// again lands where the work stopped. GET reads it ({} when there is none), POST
+		/// writes whatever the page sends; the page owns the shape. It is the page's state,
+		/// not the mod's, so the export leaves it out.
+		/// </summary>
+		private void ProjectSession(HttpListenerContext context)
+		{
+			if (_project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			string path = Path.Combine(_project.Directory, "session.json");
+			try
+			{
+				if (string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+				{
+					JsonNode body = ReadBody(context) ?? new JsonObject();
+					File.WriteAllText(path, body.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
+					SendJson(context, new { ok = true });
+					return;
+				}
+				if (!File.Exists(path))
+				{
+					SendJson(context, new { ok = true, session = (object)null });
+					return;
+				}
+				JsonNode session = JsonNode.Parse(File.ReadAllText(path));
+				SendJson(context, new { ok = true, session });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}

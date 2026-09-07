@@ -832,6 +832,8 @@ async function revealProject(path) {
 /// Re-reads what is open. Switching project changes the content underneath every open
 /// tab, so those go too rather than being left showing another project's data.
 async function reloadEverything(message) {
+  // Closing the old project's tabs must not be written down as the new project's session.
+  if (typeof sessionHold !== 'undefined') sessionHold = true;
   if (typeof docs !== 'undefined' && typeof closeDoc === 'function') {
     for (const id of [...docs.keys()]) closeDoc(id);
   }
@@ -839,7 +841,10 @@ async function reloadEverything(message) {
   state.files = [];
   await refreshProject();
   if (typeof resetOps === 'function') resetOps();
-  if (typeof selectKind === 'function') await selectKind(typeof browseKind !== 'undefined' ? browseKind : 'map');
+  if (typeof sessionHold !== 'undefined') sessionHold = false;
+  // The project opened comes back as it was left; otherwise the panel just reloads.
+  const restored = typeof restoreSession === 'function' ? await restoreSession() : false;
+  if (!restored && typeof selectKind === 'function') await selectKind(typeof browseKind !== 'undefined' ? browseKind : 'map');
   if (typeof drawHierarchy === 'function') drawHierarchy();
   if (typeof drawInspector === 'function') drawInspector();
   if (message) say(message, 'good');
@@ -973,6 +978,12 @@ async function drawStartPage() {
   const box = document.createElement('div');
   box.className = 'start-project';
   if (open) {
+    box.classList.add('open');
+    // Said outright: this is the project that is open, not one of a list.
+    const eyebrow = document.createElement('div');
+    eyebrow.className = 'start-eyebrow';
+    eyebrow.textContent = 'Open project';
+    box.append(eyebrow);
     const name = document.createElement('h3');
     name.textContent = open.name + (open.version ? `  v${open.version}` : '');
     const meta = document.createElement('div');
@@ -1054,13 +1065,29 @@ async function drawStartPage() {
   const columns = document.createElement('div');
   columns.className = 'start-columns';
 
-  const recent = document.createElement('div');
-  const recentHead = document.createElement('h4');
-  recentHead.textContent = 'Projects';
+  // With nothing open, the projects are the point of the page. With one open they are
+  // a way to switch, folded away under a heading that says so, so nobody reads the list
+  // as "which of these did I open?".
+  const recent = document.createElement(open ? 'details' : 'div');
+  recent.className = 'start-projects';
+  const recentHead = document.createElement(open ? 'summary' : 'h4');
+  recentHead.textContent = open ? 'Switch to another project…' : 'Projects';
   recent.append(recentHead);
   const list = document.createElement('div');
   list.className = 'start-list';
   recent.append(list);
+  if (open) {
+    const more = document.createElement('div');
+    more.className = 'start-actions small';
+    const make = document.createElement('button');
+    make.textContent = 'New project…';
+    make.onclick = newProjectDialog;
+    const browse = document.createElement('button');
+    browse.textContent = 'Open project…';
+    browse.onclick = openProjectDialog;
+    more.append(make, browse);
+    recent.append(more);
+  }
   columns.append(recent);
 
   const tips = document.createElement('div');
@@ -1088,22 +1115,22 @@ async function drawStartPage() {
   start.append(card);
 
   try {
-    const projects = await api('/api/projects');
+    const projects = (await api('/api/projects')).filter(p => !(open && p.current));
     if (!projects.length) {
       const none = document.createElement('p');
       none.className = 'dialog-note';
-      none.textContent = 'None yet.';
+      none.textContent = open ? 'No other projects.' : 'None yet.';
       list.append(none);
     }
     for (const project of projects.slice(0, 8)) {
       const row = document.createElement('button');
       row.className = 'start-row';
       const b = document.createElement('b');
-      b.textContent = project.name + (project.current ? '  (open)' : '');
+      b.textContent = project.name;
       const s = document.createElement('span');
       s.textContent = project.targets.map(describeTarget).join(', ');
       row.append(b, s);
-      row.onclick = () => { if (!project.current) openProjectAt(project.directory); };
+      row.onclick = () => openProjectAt(project.directory);
       list.append(row);
     }
   } catch (error) {
