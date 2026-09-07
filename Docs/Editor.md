@@ -784,14 +784,22 @@ stand-in gets a **GameCast** naming the original's cast, and the client makes th
 *be* that cast for the script - talking to it runs `cast<N>_main`, and every command the
 script addresses to cast N (motions, moves, recolours, item hand-ins, shops) lands on the
 stand-in. The same bytecode runs on the same kind of character; there is nothing to
-approximate. With it come the boot's idle (**Motion**: the bound set and the started
-motion), its random walk (**Wander**), its recolour (`changeColorCharacter`, on the
-GameCast), the chest's treasure (`setTreasureItem/Money` on the GameCast, set up the game's
-way: lid, sound, message, flag, treasure count), and a boot behind a flag test as
-**WhenFlags** - the object is not even spawned until the flags hold, as the game would not
-have booted it. Each original gets `Removed` naming its stand-in; the client spawns the
-stand-in first and then takes the original away, pair by pair, so a model only that
-character used stays loaded and the slot it held is free for the next.
+approximate. The boot's own setup comes along the same way: Crystal walks the boot cast's
+code down every path and collects each command it ran on the cast - `setTreasureItem`,
+`bindMotion`, `startMotionCharacter`, `moveCharacter_StartRandom`, `changeColorCharacter`,
+`setCharacterDetectionRadius`, `setCharacter_CheckTurnType`, `setSignEffect`,
+`setCharacter_TalkMotion`, the collision radii, `setCharacter_ItemEvent`... 31 distinct
+commands across FF3's 356 maps, every one the boots use - into the GameCast's **Setup**,
+one line each as the disassembly writes it, and the client replays them through the game's
+own script engine once the stand-in runs the cast. A line the boot ran under a test of its
+own carries the flags in brackets. A boot behind a flag test becomes **WhenFlags** (with
+`|` between alternatives when several paths boot it; *Live* off, so the flags count once at
+the map's start as the boot's did) - the object is not even spawned until they hold, as the
+game would not have booted it. `bootPlainCharacter`'s model and
+`bootCharacter_AbsoluteCoordination`'s spot go into the object itself. Each original gets
+`Removed` naming its stand-in; the client spawns the stand-in first and then takes the
+original away, pair by pair, so a model only that character used stays loaded and the slot
+it held is free for the next.
 
 **Convert with components** is the other way, for what you mean to *edit*: Crystal reads
 the cast's code (walked from its entry points, every flag branch followed) and where it is

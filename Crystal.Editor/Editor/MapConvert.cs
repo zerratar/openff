@@ -52,6 +52,8 @@ namespace Crystal.Editor
 		public bool Wander { get; set; }
 		/// <summary>The walk's gait, moveCharacter_StartRandom's second operand (0 default, 1 man, 2 woman, 3 boy, 4 girl, 5 uncle, 6 aunt, 7 old man, 8 old woman).</summary>
 		public int WanderGait { get; set; }
+		/// <summary>The boot's own commands on the cast after booting it, as GameCast.Setup replays them (Npc.RunScript); "[flags] command(...)" for one under a test beyond the boot's.</summary>
+		public List<string> Setup { get; set; } = new List<string>();
 		/// <summary>A changeColorCharacter in the boot: the recoloured model the game really shows.</summary>
 		public string ColorModel { get; set; }
 		/// <summary>Whether it is a person (walks, turns, is talked to) rather than a thing.</summary>
@@ -137,7 +139,7 @@ namespace Crystal.Editor
 			// when the scene says, and a mod's object standing there all along would be wrong.
 			Dictionary<int, HashSet<int>> bootedBy = BootedBy(script, code, names);
 			int bootCast = script != null && script.Casts.Count > 0 ? (int)script.Casts.Min(c => c.Number) : 1;
-			Dictionary<int, string> bootWhen = BootConditions(script, at, names, bootCast);
+			Dictionary<int, List<BootLine>> bootLines = BootLines(script, at, names, bootCast);
 
 			foreach (MapCharacter character in data.Characters)
 			{
@@ -178,12 +180,12 @@ namespace Crystal.Editor
 					plans.Add(plan);
 					continue;
 				}
-				if (bootWhen.TryGetValue(character.Cast, out string when)) plan.When = when;
+				// Everything the boot did to it, for the exact stand-in to replay, and the flags its boot hangs on.
+				if (bootLines.TryGetValue(character.Cast, out List<BootLine> did)) FillSetup(plan, did);
 				if (treasure.TryGetValue(character.Cast, out (string kind, int value, string flag) held))
 				{
 					plan.Kind = "chest";
-					// A chest's own flag guards its boot (opened chests are not booted): the Chest keeps that flag itself.
-					plan.When = "";
+					// A chest's own flag guards its boot (opened chests are not booted): When says so; a Chest component keeps the flag itself instead.
 					plan.Treasure = held.kind;
 					plan.TreasureValue = held.value;
 					plan.TreasureFlag = held.flag;
@@ -191,7 +193,6 @@ namespace Crystal.Editor
 					plan.MotionIndex = 0;
 					// Spawned the game's way (setUpWorldCharacter sends an o/w model through
 					// setUpMapObject): that is where a chest's lid motions come from.
-					plan.Character = true;
 					plan.Character = false;
 					plans.Add(plan);
 					continue;
@@ -209,16 +210,25 @@ namespace Crystal.Editor
 			return plans;
 		}
 
-		/// <summary>
-		/// For every cast the boot cast boots: the flags tested on the way there, as a When
-		/// ("!0:14" - booted only while flag 0:14 is off). Empty when booted unconditionally;
-		/// absent when booted under several different conditions (then the object is simply there).
-		/// </summary>
-		private static Dictionary<int, string> BootConditions(ScriptFile script, Dictionary<uint, ScriptInstruction> at, Ffs.Mnemonics names, int bootCast)
+		/// <summary>One boot command on a cast, with the flags tested on the path to it.</summary>
+		private sealed class BootLine
 		{
-			Dictionary<int, HashSet<string>> found = new Dictionary<int, HashSet<string>>();
+			public string Name;
+			public string Text;
+			public HashSet<string> When;
+			public ScriptInstruction Instruction;
+		}
+
+		/// <summary>
+		/// Everything the boot cast does to each cast, in order, following every path: the
+		/// boot command itself and the setup after it (treasure, motions, radii, sign effects,
+		/// item events...). Any command whose cast operands (CastArgs) name the cast counts.
+		/// </summary>
+		private static Dictionary<int, List<BootLine>> BootLines(ScriptFile script, Dictionary<uint, ScriptInstruction> at, Ffs.Mnemonics names, int bootCast)
+		{
+			Dictionary<int, List<BootLine>> found = new Dictionary<int, List<BootLine>>();
 			ScriptCast boot = script?.Casts.FirstOrDefault(c => (int)c.Number == bootCast);
-			if (boot == null) return new Dictionary<int, string>();
+			if (boot == null) return found;
 			int paths = 0;
 
 			void Follow(uint pc, List<string> when, HashSet<uint> seen, int depth)
@@ -241,46 +251,136 @@ namespace Crystal.Editor
 					}
 					if (name == "flagOnEnd" || name == "flagOffEnd")
 					{
-						// Ends the boot when the flag says so: what follows runs only when it does not.
 						when = new List<string>(when) { (name == "flagOnEnd" ? "!" : "") + Flag(i) };
 					}
-					if (name.StartsWith("boot", StringComparison.Ordinal) && CastArgs.Positions.TryGetValue(name, out int[] positions))
+					if (CastArgs.Positions.TryGetValue(name, out int[] positions) && positions.Length > 0)
 					{
-						foreach (int position in positions)
+						// The command belongs to the cast it acts on - the first cast operand
+						// (turnCharacter_LookCharacter2(a, b) turns a); replayed once, by a's stand-in.
+						int position = positions[0];
+						if (position < i.Operands.Count && Int(i.Operands[position], out int cast))
 						{
-							if (position < i.Operands.Count && Int(i.Operands[position], out int booted))
-							{
-								if (!found.TryGetValue(booted, out HashSet<string> set)) found[booted] = set = new HashSet<string>(StringComparer.Ordinal);
-								set.Add(string.Join(" ", when));
-							}
+							if (!found.TryGetValue(cast, out List<BootLine> list)) found[cast] = list = new List<BootLine>();
+							list.Add(new BootLine { Name = name, Text = Render(name, i), When = new HashSet<string>(when, StringComparer.Ordinal), Instruction = i });
 						}
 					}
 					if ((name == "call" || name == "flagOnCall" || name == "flagOffCall") && i.Operands.Count >= 2
 						&& i.Operands[i.Operands.Count - 2] is uint library && i.Operands[i.Operands.Count - 1] is uint function && library == 0)
 					{
+						// A conditional call runs the function under its flag; the code after it runs either way.
+						List<string> inside = new List<string>(when);
+						if (name == "flagOnCall") inside.Add(Flag(i));
+						else if (name == "flagOffCall") inside.Add("!" + Flag(i));
 						ScriptFunction f = script.Functions.FirstOrDefault(x => x.Id == function);
-						if (f != null) Follow(f.Offset, new List<string>(when), new HashSet<uint>(seen), depth);
+						if (f != null) Follow(f.Offset, inside, new HashSet<uint>(seen), depth);
 					}
 					pc = i.At + Math.Max(i.Length, 1u);
 				}
 			}
 
 			foreach (uint entry in new[] { boot.Constructor, boot.Normal }) if (entry != ScriptFile.NoScript) Follow(entry, new List<string>(), new HashSet<uint>(), 0);
-			// The flags every path that boots the cast agrees on: the chest flags tested on
-			// the way there vary from path to path and drop out; the one test that guards this
-			// boot on every path stays.
-			Dictionary<int, string> conditions = new Dictionary<int, string>();
-			foreach (KeyValuePair<int, HashSet<string>> pair in found)
+			return found;
+		}
+
+		/// <summary>The command as the disassembly writes it: name(operands), strings quoted, big numbers in hex. What Npc.RunScript reads.</summary>
+		private static string Render(string name, ScriptInstruction i)
+		{
+			List<string> parts = new List<string>();
+			foreach (object operand in i.Operands)
 			{
-				HashSet<string> common = null;
-				foreach (string path in pair.Value)
-				{
-					HashSet<string> parts = new HashSet<string>(path.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
-					if (common == null) common = parts; else common.IntersectWith(parts);
-				}
-				conditions[pair.Key] = common == null ? "" : string.Join(" ", common.OrderBy(c => c, StringComparer.Ordinal));
+				if (operand is string s) parts.Add("\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n") + "\"");
+				else if (Int(operand, out int n)) parts.Add(n < 0 || n > 9999 ? "0x" + ((uint)n).ToString("X", CultureInfo.InvariantCulture) : n.ToString(CultureInfo.InvariantCulture));
+				else parts.Add(operand?.ToString() ?? "0");
 			}
-			return conditions;
+			return name + "(" + string.Join(", ", parts) + ")";
+		}
+
+		/// <summary>
+		/// The boot's setup for one cast as GameCast.Setup wants it: every command after the
+		/// boot command, in order, once each; a line whose path tested flags beyond the boot's
+		/// own condition carries them in brackets. The boot commands themselves are left out -
+		/// the stand-in's spawn is their equivalent - but what they said (a model, a spot) goes
+		/// into the plan.
+		/// </summary>
+		private static void FillSetup(CastPlan plan, List<BootLine> lines)
+		{
+			// The boot's own condition: every path that boots the cast, simplified to one
+			// expression (alternatives with |). A line under the same condition needs no prefix.
+			string bootWhen = Condition(lines.Where(l => l.Name.StartsWith("boot", StringComparison.Ordinal)).Select(l => l.When));
+			plan.When = bootWhen;
+			foreach (BootLine line in lines.Where(l => l.Name.StartsWith("boot", StringComparison.Ordinal)))
+			{
+				ScriptInstruction i = line.Instruction;
+				if (line.Name == "bootPlainCharacter" && i.Operands.Count >= 3 && i.Operands[2] is string model && model.Length > 0) plan.Model = model;
+				if (line.Name == "bootCharacter_AbsoluteCoordination" && i.Operands.Count >= 4 && Int(i.Operands[1], out int x) && Int(i.Operands[2], out int y) && Int(i.Operands[3], out int z))
+				{
+					plan.X = (int)Math.Round(x / 4096.0);
+					plan.Y = (int)Math.Round(y / 4096.0);
+					plan.Z = (int)Math.Round(z / 4096.0);
+				}
+			}
+			// The setup lines, once each in the order first seen, each under the paths it was on.
+			List<string> order = new List<string>();
+			Dictionary<string, List<HashSet<string>>> paths = new Dictionary<string, List<HashSet<string>>>(StringComparer.Ordinal);
+			foreach (BootLine line in lines.Where(l => !l.Name.StartsWith("boot", StringComparison.Ordinal)))
+			{
+				if (!paths.TryGetValue(line.Text, out List<HashSet<string>> list)) { paths[line.Text] = list = new List<HashSet<string>>(); order.Add(line.Text); }
+				list.Add(line.When);
+			}
+			foreach (string text in order)
+			{
+				string when = Condition(paths[text]);
+				plan.Setup.Add((when.Length > 0 && when != bootWhen ? "[" + when + "] " : "") + text);
+			}
+		}
+
+		/// <summary>
+		/// One flag expression for "reached on any of these paths": each path's tests as a
+		/// conjunction, the paths as alternatives (" | "), simplified - contradictory paths
+		/// (a flag on and off) drop, two alternatives that differ only in one flag's sense
+		/// merge without it, an alternative implied by another goes. Empty when the paths
+		/// cover every case. What WhenFlags.Holds reads.
+		/// </summary>
+		private static string Condition(IEnumerable<HashSet<string>> paths)
+		{
+			List<HashSet<string>> alts = new List<HashSet<string>>();
+			foreach (HashSet<string> path in paths)
+			{
+				if (path.Any(f => path.Contains(f.StartsWith("!", StringComparison.Ordinal) ? f.Substring(1) : "!" + f))) continue;
+				if (!alts.Any(a => a.SetEquals(path))) alts.Add(new HashSet<string>(path, StringComparer.Ordinal));
+			}
+			if (alts.Count == 0) return "";
+			bool changed = true;
+			while (changed)
+			{
+				changed = false;
+				for (int a = 0; a < alts.Count && !changed; a++)
+				{
+					for (int b = a + 1; b < alts.Count && !changed; b++)
+					{
+						if (alts[a].Count != alts[b].Count) continue;
+						List<string> onlyA = alts[a].Except(alts[b]).ToList();
+						List<string> onlyB = alts[b].Except(alts[a]).ToList();
+						if (onlyA.Count == 1 && onlyB.Count == 1 && onlyA[0].TrimStart('!') == onlyB[0].TrimStart('!'))
+						{
+							HashSet<string> merged = new HashSet<string>(alts[a], StringComparer.Ordinal);
+							merged.Remove(onlyA[0]);
+							alts.RemoveAt(b);
+							alts.RemoveAt(a);
+							if (!alts.Any(x => x.SetEquals(merged))) alts.Add(merged);
+							changed = true;
+						}
+					}
+				}
+				// An alternative that another one implies (a superset of it) says nothing more.
+				for (int a = alts.Count - 1; a >= 0 && !changed; a--)
+				{
+					HashSet<string> wide = alts[a];
+					if (alts.Any(b => b != wide && wide.IsProperSupersetOf(b))) { alts.RemoveAt(a); changed = true; }
+				}
+			}
+			if (alts.Any(a => a.Count == 0)) return "";
+			return string.Join(" | ", alts.Select(a => string.Join(" ", a.OrderBy(f => f, StringComparer.Ordinal))).OrderBy(s => s, StringComparer.Ordinal));
 		}
 
 		/// <summary>For every cast that is booted: the casts whose reachable code boots it.</summary>

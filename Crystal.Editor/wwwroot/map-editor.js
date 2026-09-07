@@ -2165,10 +2165,18 @@ function applyCastPlan(doc, plan, options = {}) {
   object.character = Boolean(model) && (plan.character || !components || plan.kind === 'chest');
   const path = scenePathOf(object);
   if (!components) {
-    const cast = { Cast: plan.cast, OnBoot: plan.kind === 'actor', Treasure: plan.kind === 'chest', Item: 0, Gil: 0, Flag: plan.treasureFlag || '', Recolour: plan.colorModel || '' };
-    if (plan.kind === 'chest') { if (plan.treasure === 'item') cast.Item = plan.treasureValue; else cast.Gil = plan.treasureValue; }
-    sceneState.attachments.push({ target: path, behaviour: 'GameCast', fields: cast });
-  } else if (plan.kind === 'chest') {
+    // Exact: the cast, and every command the boot ran on it, replayed as the script's
+    // own (Setup) - treasure, motions, radii, sign effects, recolours, the random walk.
+    // Nothing is translated into a component, so nothing is approximated.
+    sceneState.attachments.push({ target: path, behaviour: 'GameCast', fields: { Cast: plan.cast, OnBoot: plan.kind === 'actor', Setup: plan.setup || [] } });
+    if (plan.when && plan.kind !== 'actor') {
+      // Booted only under flags: the flags count once, at the map's start, as the boot's test did.
+      sceneState.attachments.push({ target: path, behaviour: 'WhenFlags', fields: { When: plan.when, Live: false } });
+    }
+    if (!already) sceneState.attachments.push({ target: 'object:' + plan.index, behaviour: 'Removed', fields: { StandIn: path } });
+    return object;
+  }
+  if (plan.kind === 'chest') {
     sceneState.attachments.push({
       target: path, behaviour: 'Chest',
       fields: Object.assign(plan.treasure === 'item' ? { Item: plan.treasureValue, Count: 1, Gil: 0 } : { Item: 0, Gil: plan.treasureValue },
@@ -2188,9 +2196,11 @@ function applyCastPlan(doc, plan, options = {}) {
     const gaits = ['Default', 'Man', 'Woman', 'Boy', 'Girl', 'Uncle', 'Aunt', 'OldMan', 'OldWoman'];
     sceneState.attachments.push({ target: path, behaviour: 'Wander', fields: { Ai: 'Wander', Gait: gaits[plan.wanderGait] || 'Default' } });
   }
-  if (plan.when) {
-    // Booted only under flags: there only while they hold.
-    sceneState.attachments.push({ target: path, behaviour: 'WhenFlags', fields: { When: plan.when } });
+  // Booted only under flags: there only while they hold. A Chest keeps its own flag (the
+  // open lid) rather than going away, so that one is left out of its When.
+  const when = (plan.when || '').split(' ').filter(w => w && !(plan.kind === 'chest' && w === '!' + plan.treasureFlag)).join(' ');
+  if (when) {
+    sceneState.attachments.push({ target: path, behaviour: 'WhenFlags', fields: { When: when, Live: false } });
   }
   if (!already) sceneState.attachments.push({ target: 'object:' + plan.index, behaviour: 'Removed', fields: { StandIn: path } });
   return object;

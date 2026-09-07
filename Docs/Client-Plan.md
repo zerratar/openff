@@ -1451,6 +1451,33 @@ interact: with a model that was always so (the game's own talk: face it, press A
 one, `Interactable.OnWalkIn` defaulted to on, so an invisible Talk spoke when walked into.
 It defaults to off now - A within Radius - and walk-in is the option.
 
+### Every boot command, replayed (2026-09-07, night)
+
+Karl: cover everything. The survey first: every FF3 map disassembled (`crystal script`),
+every command in each boot cast whose first operand is one of the map's casts, counted -
+1023 bootCharacter, 400 setTreasureItem, 168 moveCharacter_StartRandom, 160
+changeColorCharacter, 120 setCharacterDetectionRadius, 120 setCharacter_CheckTurnType, 104
+startMotionCharacter, 75 bindMotion, 64 setSignEffect (the sparkle over an unopened chest),
+59 bootPlainCharacter (the model named in the command), 49 setCharacter_TalkMotion, the
+collision radii, shadow alpha, wall collision, 12 bootCharacter_AbsoluteCoordination (the
+spot named in the command, not the .hich's), moveCharacter_AbsoluteCoordination, scale,
+alpha, face data, setCharacter_ItemEvent... 31 distinct setup commands. The converter knew
+five. Translating each into a component field would be 26 more approximations, so it does
+none: `GameCast.Setup` is the boot's own lines, and the client replays them through the
+game's own script engine - `ScriptSnippet` encodes a line against the FF3 command table
+(Shared/Script's operand kinds; little-endian words and dwords, NUL-ended strings) and
+`ScriptEngine.runSnippet` dispatches it on a spare engine, after `RunCast` has pointed the
+cast at the stand-in. `Npc.RunScript(line)` is the API. Crystal's `MapConvert.BootLines`
+walks the boot cast down every path (calls included, conditional calls under their flag),
+collects each command by the cast it acts on (`CastArgs`' first cast operand), and
+`Condition` turns the paths a line was on into one flag expression - contradictory paths
+dropped, alternatives differing in one flag's sense merged, implied ones removed, `|`
+between what is left (`WhenFlags.Holds` reads `|` now). Ur's cast 30 reads "!0:11 !0:439
+0:14 | !0:14 !0:439", which is what the script says. `WhenFlags.Live` off makes the flags
+count once, as the boot's test did. Every map's plan answers; the setup commands across all
+355 are exactly the survey's 31. In play: 37 lines replayed on Ur's 14 stand-ins, no
+warnings. The test dll: the editor was built to a temp folder while Karl's Crystal ran.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
