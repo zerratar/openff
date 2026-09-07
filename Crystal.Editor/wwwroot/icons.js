@@ -52,6 +52,16 @@ const ICONS = {
   audio: '<path d="M2.4 6.1h2.5l3.3-2.8v9.4L4.9 9.9H2.4z"/>'
        + '<path d="M10.9 6.2a3.2 3.2 0 0 1 0 3.6M12.9 4.4a5.8 5.8 0 0 1 0 7.2"/>',
 
+  // ------------------------------------------------------------ the mod's own
+
+  // A folder with a sharp on it: the OpenFF mod's code and data.
+  mod: '<path d="M1.8 4.2h4.2l1.4 1.6h6.8v7.8H1.8z"/>'
+     + '<path d="M7.6 9h4.2M7.6 11.2h4.2M8.9 7.8v4.8M10.5 7.8v4.8"/>',
+
+  // A page with a sharp: a C# source file.
+  code: '<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/>'
+      + '<path d="M6 9.2h4.2M6 11.4h4.2M7.3 8v4.6M8.9 8v4.6"/>',
+
   // ------------------------------------------------------------ inside a map
 
   // Layered ground.

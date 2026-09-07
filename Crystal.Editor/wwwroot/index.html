@@ -74,6 +74,8 @@
         <div id="project-side">
           <div id="project-bar">
             <input id="filter" type="search" placeholder="filter" autocomplete="off">
+            <!-- What the OpenFF mod folder offers: a new file, a build, the IDE. shell.js fills it. -->
+            <span id="code-actions" hidden></span>
             <span class="views">
               <button id="view-list" class="on" title="list">
                 <svg viewBox="0 0 16 16" class="icon"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
@@ -124,6 +126,29 @@
       </div>
     </div>
     <div class="signature"></div>
+    <ul class="problems"></ul>
+  </div>
+</template>
+
+<!-- The mod's own files: C#, scene files, project.json -->
+<template id="view-code">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="badge readonly">read only</span>
+      <span class="badge dirty">unsaved</span>
+      <span class="grow"></span>
+      <button class="ide" title="Open this file with whatever opens it on this machine - Visual Studio, Rider, VS Code">Open in IDE</button>
+      <button class="build" title="Save, then dotnet build of the mod's code; errors land below">Build</button>
+      <button class="save primary" title="Ctrl+S">Save</button>
+    </div>
+    <div class="editor">
+      <div class="gutter"></div>
+      <div class="code">
+        <pre class="highlight" aria-hidden="true"></pre>
+        <textarea spellcheck="false" wrap="off"></textarea>
+      </div>
+    </div>
     <ul class="problems"></ul>
   </div>
 </template>
@@ -368,6 +393,7 @@
 <script src="button.js"></script>
 <script src="app.js"></script>
 <script src="script-editor.js"></script>
+<script src="code-editor.js"></script>
 <script src="map-editor.js"></script>
 <script src="model-viewer.js"></script>
 <script src="thumbnails.js"></script>

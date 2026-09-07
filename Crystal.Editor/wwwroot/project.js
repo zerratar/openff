@@ -687,8 +687,14 @@ async function addCode() {
     say('writing the project…');
     const result = await api('/api/project/code/create', {});
     if (!result.ok) throw new Error(result.error);
-    say(`C# project made: ${result.path} - Build C# code, or open it in your editor`, 'good');
+    say(`C# project made: ${result.path} - it is under OpenFF mod in the project tree; Build C# code, or open it in your editor`, 'good');
     await refreshProject();
+    // The mod folder lists the new files; open the starting class so the way in is plain.
+    if (typeof selectKind === 'function') {
+      await selectKind('code');
+      const starter = (state.files || []).find(f => /\/Mod\.cs$/i.test(f.name));
+      if (starter && typeof openDoc === 'function') await openDoc('code', starter.name);
+    }
   } catch (error) {
     say(error.message, 'bad');
   }
@@ -698,14 +704,22 @@ async function buildCode() {
   try {
     say('building…');
     const result = await api('/api/project/code/build', {});
+    // Every problem goes to the console, and to the open file it is in.
+    for (const p of result.problems || []) {
+      logLine(`${p.file}(${p.line},${p.column}): ${p.kind} ${p.code}: ${p.message}`, p.kind === 'error' ? 'bad' : undefined);
+    }
+    if (typeof showBuildProblems === 'function') await showBuildProblems(result.problems || []);
     if (!result.ok) {
       say('build failed: ' + (result.output || result.error || '').split('\n')[0], 'bad');
       if (result.output) console.log(result.output);
       return;
     }
-    say(`built ${result.assemblies.join(', ')} - Export to OpenFF to play it (the client hot-reloads a running game)`, 'good');
+    const warnings = (result.problems || []).filter(p => p.kind === 'warning').length;
+    say(`built ${result.assemblies.join(', ')}${warnings ? ` with ${warnings} warning(s)` : ''} - Export to OpenFF to play it (the client hot-reloads a running game)`, 'good');
     if (typeof invalidateCatalog === 'function') invalidateCatalog();
     if (typeof drawInspector === 'function') drawInspector();
+    // The list marks files changed since the last build; there are none now.
+    if (typeof browseKind !== 'undefined' && browseKind === 'code' && typeof loadList === 'function') loadList().catch(() => {});
   } catch (error) {
     say(error.message, 'bad');
   }
@@ -955,6 +969,7 @@ async function drawStartPage() {
     ['Edit and save.', ' Every save goes into the project, never into the game.'],
     ['Project ▸ Install', ' copies the edits into the game and keeps the originals; Remove puts them back.'],
     ['Two games', ' can be open at once; the tabs above the libraries switch between them, and every document tab says which game it is.'],
+    ['OpenFF mod', ', at the bottom of the tree, is the project\'s own: its C# code and scene files. Open them here, or in your IDE; Build compiles them.'],
     ['Export as .zip', ' packs the project with a README - what you upload.'],
   ]) {
     const li = document.createElement('li');

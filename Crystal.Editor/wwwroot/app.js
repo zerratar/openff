@@ -90,6 +90,15 @@ async function loadList() {
     // comes from somewhere else and carries more with it.
     state.audio = await api('/api/audio');
     state.files = state.audio.map(sound => ({ name: sound.name, overridden: false }));
+  } else if (state.browse === 'code') {
+    // The mod's own files - the project's, not a game's - so the same whichever game
+    // the page is looking at. A source file changed since the last build is marked
+    // the way an edited game file is.
+    state.codeTree = await api('/api/project/files');
+    state.files = (state.codeTree.files || []).map(f => ({
+      name: f.name, overridden: Boolean(f.stale), kind: f.kind, readOnly: f.readOnly,
+      note: f.stale ? 'changed since the last build' : ''
+    }));
   } else {
     state.files = await api(`/api/list?kind=${state.browse}`);
   }
@@ -115,7 +124,7 @@ function drawList() {
   for (const file of state.files) {
     if (filter && !file.name.toLowerCase().includes(filter)) continue;
     const item = document.createElement('li');
-    item.append(icon(state.browse));
+    item.append(icon(fileIcon(file)));
     const label = document.createElement('span');
     // The grid has no room for a folder, and in a list the folder is worth keeping.
     // In the grid there is one line to read, and ".nmdp.lz" fills it - the icon
@@ -124,7 +133,7 @@ function drawList() {
       ? shortName(file.name).replace(/\.(nmdp\.lz|lz|NCER|NSCR|hich|script|pak|msd|xbn)$/i, '')
       : file.name;
     item.append(label);
-    item.title = file.name;
+    item.title = file.name + (file.note ? `  (${file.note})` : '');
     item.dataset.name = file.name;
     if (state.thumbWatcher) {
       item.dataset.thumbFor = file.name;
@@ -153,7 +162,27 @@ function drawList() {
     list.append(item);
   }
 
+  // The mod folder with nothing in it says why, since an empty list beside "OpenFF mod"
+  // reads as broken: there is no project, or the project has no code yet.
+  if (state.browse === 'code' && !list.childElementCount && !filter) {
+    const note = document.createElement('li');
+    note.className = 'note';
+    const tree = state.codeTree || {};
+    note.textContent = !tree.project
+      ? 'No project open. File ▸ New project… makes one; its C# code and scene files show here.'
+      : `${tree.project} has no C# code yet. Add C# code (the button above, or the File menu) writes a project and a starting class.`;
+    list.append(note);
+  }
+
   list.scrollTop = scrolled;
+}
+
+/// The mark a file gets in the list: the library's, or for the mod folder its own kind.
+function fileIcon(file) {
+  if (state.browse !== 'code') return state.browse;
+  if (file.kind === 'cs' || file.kind === 'csproj') return 'code';
+  if (file.kind === 'json') return 'logic';
+  return 'file';
 }
 
 /// Which file is selected, and which are open, without rebuilding the list.
@@ -196,6 +225,7 @@ async function dispatchOpen(kind, name) {
   else if (kind === 'texture') await openTexture(name);
   else if (kind === 'model') await openModel(name);
   else if (kind === 'cell') await openCell(name);
+  else if (kind === 'code') await openCodeFile(name);
   else await openText(name);
 }
 

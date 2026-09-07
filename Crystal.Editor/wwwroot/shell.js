@@ -25,7 +25,11 @@ const KINDS = [
   { id: 'texture', label: 'Textures' },
   { id: 'model', label: 'Models' },
   { id: 'cell', label: 'Cells' },
-  { id: 'audio', label: 'Audio' }
+  { id: 'audio', label: 'Audio' },
+  // The mod's own files - its C# code, scene files and project.json - sit under a
+  // folder of their own at the bottom, below a rule: they belong to the project, not
+  // to either game, so they are the same whichever game tab is current. Slug: openff.
+  { id: 'code', label: 'OpenFF', mod: true }
 ];
 
 // ---------------------------------------------------------------- documents
@@ -46,6 +50,9 @@ let activeDoc = null;
 let activeGroup = null;
 
 function docId(kind, name, ws = state.ws) {
+  // The mod's files are the project's, not a game's: one document however many games
+  // are open, so opening Mod.cs from the FF4 tab finds the one opened from FF3's.
+  if (kind === 'code') ws = null;
   return `${ws || ''}|${kind}|${name}`;
 }
 
@@ -274,9 +281,10 @@ function activate(id) {
   state.kind = doc.kind;
   state.name = doc.name;
   state.pane = doc.pane;
-  if (doc.ws !== undefined && doc.ws !== state.ws) {
+  if (doc.kind !== 'code' && doc.ws !== undefined && doc.ws !== state.ws) {
     // Focusing the other game's document makes that game current everywhere - the
-    // inspector, the project list, the next thing opened.
+    // inspector, the project list, the next thing opened. (A mod file belongs to no
+    // game and leaves the current one alone.)
     state.ws = doc.ws;
     if (typeof resetOps === 'function') resetOps();
     browseKind = doc.kind;
@@ -364,7 +372,7 @@ function makeTab(doc, group) {
   const badge = document.createElement('b');
   badge.className = 'ws ' + (workspaceLabel(doc.ws) || '').toLowerCase();
   badge.textContent = workspaceLabel(doc.ws);
-  badge.hidden = workspaces().length < 2;
+  badge.hidden = workspaces().length < 2 || doc.kind === 'code';
 
   const shut = document.createElement('button');
   shut.className = 'shut';
@@ -594,6 +602,10 @@ function outlineFor(doc) {
     return children.length ? [{ label: 'Declarations', children }] : [];
   }
 
+  if (doc.kind === 'code' && typeof outlineForCode === 'function') {
+    return outlineForCode(doc);
+  }
+
   return [];
 }
 
@@ -646,6 +658,10 @@ async function inspectAsset(kind, name, options = {}) {
       inspected.data = await api(`/api/map/scene?name=${encodeURIComponent(name)}`);
     } else if (kind === 'audio') {
       inspected.data = (state.audio || []).find(s => s.name === name) || null;
+    } else if (kind === 'code') {
+      const file = await api(`/api/project/file?name=${encodeURIComponent(name)}`);
+      if (file.ok === false) throw new Error(file.error);
+      inspected.data = file;
     }
   } catch (error) {
     inspected.problem = error.message;
@@ -698,7 +714,7 @@ function listColumns(items) {
 }
 
 function moveInList(key) {
-  const items = Array.from($('#files').children);
+  const items = Array.from($('#files').children).filter(item => item.dataset.name);
   if (!items.length) return;
 
   let at = items.findIndex(item => item.classList.contains('on'));
@@ -747,7 +763,7 @@ document.addEventListener('keydown', (event) => {
   if (event.target.tagName === 'INPUT') {
     $('#files').focus();
     if (!inspected) {
-      const first = $('#files').firstElementChild;
+      const first = $('#files li[data-name]');
       if (first) inspectAsset(state.browse, first.dataset.name, { reveal: true });
       return;
     }
@@ -783,6 +799,24 @@ function drawInspectedAsset(box) {
   open.textContent = 'Open';
   open.onclick = () => openDoc(kind, name);
   box.append(open);
+
+  // A mod file can go to the machine's own editor as well as to a tab here.
+  if (kind === 'code') {
+    const ide = document.createElement('button');
+    ide.className = 'wide-button';
+    ide.textContent = 'Open in IDE';
+    ide.title = 'Whatever opens this kind of file here - Visual Studio, Rider, VS Code';
+    ide.onclick = async () => {
+      try {
+        const result = await api('/api/project/file/open', { name });
+        if (!result.ok) throw new Error(result.error);
+        say(`opened ${shortName(name)} in your editor`, 'good');
+      } catch (error) {
+        say(error.message, 'bad');
+      }
+    };
+    box.append(ide);
+  }
 
   const hint = document.createElement('p');
   hint.className = 'caveat';
@@ -830,6 +864,9 @@ function previewFor(kind, name, data) {
     picture.onerror = () => stage.remove();
     stage.append(picture);
     return stage;
+  }
+  if (kind === 'code' && typeof codePeek === 'function') {
+    return codePeek(name, data);
   }
   return null;
 }
@@ -892,6 +929,8 @@ function inspectedFacts(kind, data) {
   } else if (kind === 'audio' && data.name) {
     facts.push(['length', data.length]);
     facts.push(['format', data.format]);
+  } else if (kind === 'code' && typeof codeFacts === 'function') {
+    return codeFacts(data);
   }
   return facts;
 }
@@ -1045,6 +1084,8 @@ function factsFor(doc) {
     facts.push(['size', `${data.width} × ${data.height}`]);
     facts.push(['colour', `${data.colour}, ${data.depth}-bit`]);
     facts.push(['bytes', data.bytes]);
+  } else if (doc.kind === 'code' && typeof codeFacts === 'function') {
+    return codeFacts(data);
   }
 
   return facts;
@@ -1204,16 +1245,137 @@ function drawProjectTree() {
     tree.append(tabs);
   }
 
+  const project = (typeof projectState !== 'undefined' && projectState.project) || null;
+  let into = tree;
   for (const kind of KINDS) {
+    if (kind.mod) {
+      // The mod's own folder, below a rule: it is the project's, not a game's. It
+      // sticks to the panel's bottom, so a short panel that scrolls the libraries
+      // still shows it - a folder nobody can see is the confusion this is here to end.
+      const foot = document.createElement('div');
+      foot.className = 'tree-foot';
+      const rule = document.createElement('div');
+      rule.className = 'tree-rule';
+      foot.append(rule);
+      tree.append(foot);
+      into = foot;
+    }
     const row = document.createElement('div');
-    row.className = 'row' + (kind.id === browseKind ? ' on' : '');
-    row.append(icon(kind.id));
+    row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod ? ' mod' : '');
+    row.append(icon(kind.mod ? 'mod' : kind.id));
     const label = document.createElement('span');
-    label.textContent = kind.label;
+    label.textContent = kind.mod ? 'OpenFF mod' : kind.label;
     row.append(label);
+    if (kind.mod) {
+      row.title = project
+        ? `${project.name}: its C# code, scene files and project.json - ${project.directory}`
+        : 'The open project\'s C# code and scene files. File ▸ New project… makes one.';
+      if (!project) {
+        const note = document.createElement('i');
+        note.textContent = 'no project';
+        row.append(note);
+      }
+    }
     row.onclick = () => selectKind(kind.id);
-    tree.append(row);
+    into.append(row);
   }
+  drawCodeActions();
+}
+
+/// The buttons beside the filter while the mod folder is showing: what the project
+/// can do next. No project: make one. No code: add it. Code: a new file, a build, the
+/// whole project in the IDE, and the folder on disk.
+function drawCodeActions() {
+  const strip = $('#code-actions');
+  if (!strip) return;
+  strip.textContent = '';
+  strip.hidden = browseKind !== 'code';
+  if (strip.hidden) return;
+
+  const project = (typeof projectState !== 'undefined' && projectState.project) || null;
+  const button = (label, title, run, primary) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.title = title;
+    if (primary) b.className = 'primary';
+    b.onclick = run;
+    strip.append(b);
+    return b;
+  };
+  if (!project) {
+    button('New project…', 'A project holds the edits, the C# code and the scene files', () => newProjectDialog(), true);
+    return;
+  }
+  if (!project.code) {
+    button('Add C# code', 'Writes code/<Name>.csproj referencing the OpenFF engine, and a starting class', () => addCode(), true);
+  } else {
+    button('New file…', 'A new C# file under code/: a Behaviour, a GameService, or an empty frame', () => newCodeFileDialog());
+    button('Build', 'dotnet build of code/; errors land under the file they are in', () => buildCode());
+    button('Open in IDE', 'The C# project in Visual Studio, Rider, VS Code - whatever opens .csproj here', () => openCode());
+  }
+  button('Folder', 'The project\'s folder in Explorer', () => revealProject());
+}
+
+/// Name and starter for a new C# file; opens it when made.
+function newCodeFileDialog() {
+  const body = dialog('New C# file');
+  const name = field(body, 'Name', '', { placeholder: 'Greeter, or Quests/Fetch - .cs is added' });
+  section(body, 'Start from');
+  const list = document.createElement('div');
+  list.className = 'dialog-list';
+  const choices = [
+    ['behaviour', 'A Behaviour', 'a script for one map object: Start, Update, public fields Crystal can edit'],
+    ['service', 'A GameService', 'one instance for the whole run; hears the game\'s events'],
+    ['empty', 'Empty', 'the usings and the namespace, nothing else'],
+  ];
+  let picked = 'behaviour';
+  for (const [id, title, what] of choices) {
+    const row = document.createElement('label');
+    row.className = 'dialog-game' + (id === picked ? ' checked' : '');
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'starter';
+    radio.checked = id === picked;
+    radio.onchange = () => {
+      picked = id;
+      $$('.dialog-game', list).forEach(r => r.classList.toggle('checked', r === row));
+    };
+    const text = document.createElement('div');
+    text.className = 'what';
+    const b = document.createElement('b');
+    b.textContent = title;
+    const s = document.createElement('span');
+    s.textContent = what;
+    text.append(b, s);
+    row.append(radio, text);
+    list.append(row);
+  }
+  body.append(list);
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Create';
+  go.onclick = async () => {
+    if (!name.value.trim()) { problem.textContent = 'The file needs a name.'; name.focus(); return; }
+    go.disabled = true;
+    try {
+      const result = await api('/api/project/file/new', { name: name.value.trim(), template: picked });
+      if (!result.ok) throw new Error(result.error);
+      body.close();
+      await loadList();
+      await openDoc('code', result.name);
+      say(`made ${result.name}`, 'good');
+    } catch (error) {
+      problem.textContent = error.message;
+      go.disabled = false;
+    }
+  };
+  name.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+  actions.append(go);
+  body.append(actions);
+  name.focus();
 }
 
 /// Switches the project panel - and the next thing opened - to another game.

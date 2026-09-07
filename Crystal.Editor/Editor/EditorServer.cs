@@ -434,6 +434,14 @@ namespace Crystal.Editor
 					ProjectCode(context, path.Substring("/api/project/code/".Length));
 					return;
 
+				case "/api/project/files":
+				case "/api/project/file":
+				case "/api/project/file/save":
+				case "/api/project/file/new":
+				case "/api/project/file/open":
+					ProjectFiles(context, path.Substring("/api/project/".Length));
+					return;
+
 				case "/api/project/reveal":
 					RevealProject(context);
 					return;
@@ -1356,8 +1364,8 @@ namespace Crystal.Editor
 					}
 					case "build":
 					{
-						bool built = ModCode.Build(_project, out string output);
-						SendJson(context, new { ok = built, output, error = built ? null : "the build failed", assemblies = ModCode.Assemblies(_project).Select(Path.GetFileName).ToList() });
+						bool built = ModCode.Build(_project, out string output, out List<ModCode.Problem> problems);
+						SendJson(context, new { ok = built, output, problems, error = built ? null : "the build failed", assemblies = ModCode.Assemblies(_project).Select(Path.GetFileName).ToList() });
 						return;
 					}
 					case "open":
@@ -1368,6 +1376,77 @@ namespace Crystal.Editor
 				SendJson(context, new { ok = false, error = "unknown code action " + action });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>
+		/// The mod's own files - code/, scenes/, project.json - as the project tree's "OpenFF
+		/// mod" folder shows them: the list, one file's text, a save, a new C# file, and
+		/// opening one with the machine's editor. With no project open the list is empty
+		/// rather than an error, since the folder is always in the tree.
+		/// </summary>
+		private void ProjectFiles(HttpListenerContext context, string action)
+		{
+			if (_project == null)
+			{
+				if (action == "files")
+				{
+					SendJson(context, new { ok = true, project = (string)null, code = false, files = new List<ModCode.Entry>() });
+					return;
+				}
+				SendJson(context, new { ok = false, error = "no project is open" });
+				return;
+			}
+			try
+			{
+				switch (action)
+				{
+					case "files":
+						SendJson(context, new
+						{
+							ok = true,
+							project = _project.File.Name,
+							directory = _project.Directory,
+							code = ModCode.Has(_project),
+							csproj = ModCode.Has(_project) ? Path.GetRelativePath(_project.Directory, ModCode.ProjectFile(_project)).Replace('\\', '/') : null,
+							built = ModCode.Assemblies(_project).Select(Path.GetFileName).ToList(),
+							files = ModCode.Tree(_project)
+						});
+						return;
+					case "file":
+					{
+						string name = Query(context, "name");
+						string text = ModCode.ReadText(_project, name, out ModCode.Entry entry);
+						SendJson(context, new { ok = true, name = entry.Name, kind = entry.Kind, entry.Bytes, entry.Modified, entry.ReadOnly, text });
+						return;
+					}
+					case "file/save":
+					{
+						JsonNode body = ReadBody(context);
+						ModCode.Entry entry = ModCode.WriteText(_project, body?["name"]?.GetValue<string>(), body?["text"]?.GetValue<string>());
+						SendJson(context, new { ok = true, name = entry.Name, entry.Bytes, entry.Modified });
+						return;
+					}
+					case "file/new":
+					{
+						JsonNode body = ReadBody(context);
+						string made = ModCode.CreateFile(_project, body?["name"]?.GetValue<string>(), body?["template"]?.GetValue<string>());
+						SendJson(context, new { ok = true, name = made });
+						return;
+					}
+					case "file/open":
+					{
+						JsonNode body = ReadBody(context);
+						ModCode.OpenFile(_project, body?["name"]?.GetValue<string>());
+						SendJson(context, new { ok = true });
+						return;
+					}
+				}
+				SendJson(context, new { ok = false, error = "unknown file action " + action });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or System.ComponentModel.Win32Exception)
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}

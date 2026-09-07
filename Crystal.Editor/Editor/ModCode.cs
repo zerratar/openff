@@ -84,9 +84,214 @@ namespace Crystal.Editor
 			return csproj;
 		}
 
+		// ------------------------------------------------------------ the mod's own files
+		//
+		// What the project tree's "OpenFF mod" folder lists: the C# under code/, the scene
+		// files under scenes/, and project.json. They are the project's files rather than a
+		// game's, so they are the same whichever game the page is looking at, and they can be
+		// read and written here as text - the IDE is one way in, this is the other.
+
+		/// <summary>One entry of the mod folder as the page lists it.</summary>
+		public sealed class Entry
+		{
+			public string Name { get; set; }
+			public string Kind { get; set; }
+			public long Bytes { get; set; }
+			public DateTime Modified { get; set; }
+			public bool ReadOnly { get; set; }
+			/// <summary>A source file changed since the last build (false when there is no build to compare with).</summary>
+			public bool Stale { get; set; }
+		}
+
+		/// <summary>The files a mod is made of, in the order the tree shows them: project.json, code/, scenes/.</summary>
+		public static List<Entry> Tree(Project project)
+		{
+			List<Entry> entries = new List<Entry>();
+			if (File.Exists(project.ManifestPath))
+			{
+				entries.Add(Describe(project, project.ManifestPath, readOnly: true));
+			}
+			DateTime built = DateTime.MinValue;
+			foreach (string dll in Assemblies(project))
+			{
+				DateTime when = File.GetLastWriteTimeUtc(dll);
+				if (when > built) built = when;
+			}
+			string code = CodeDirectory(project);
+			if (Directory.Exists(code))
+			{
+				foreach (string file in Directory.EnumerateFiles(code, "*", SearchOption.AllDirectories)
+					.Where(f => !Hidden(code, f))
+					.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+				{
+					Entry entry = Describe(project, file, readOnly: false);
+					if (entry.Kind == "cs" && built != DateTime.MinValue)
+					{
+						entry.Stale = File.GetLastWriteTimeUtc(file) > built;
+					}
+					entries.Add(entry);
+				}
+			}
+			string scenes = ProjectScenes.Directory(project);
+			if (Directory.Exists(scenes))
+			{
+				foreach (string file in Directory.EnumerateFiles(scenes, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+				{
+					entries.Add(Describe(project, file, readOnly: false));
+				}
+			}
+			return entries;
+		}
+
+		/// <summary>bin/, obj/, .vs/ and anything else that starts with a dot: the IDE's, not the mod's.</summary>
+		private static bool Hidden(string root, string file)
+		{
+			string relative = Path.GetRelativePath(root, file);
+			return relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+				.Any(part => part.StartsWith('.') || part.Equals("bin", StringComparison.OrdinalIgnoreCase) || part.Equals("obj", StringComparison.OrdinalIgnoreCase));
+		}
+
+		private static Entry Describe(Project project, string file, bool readOnly)
+		{
+			FileInfo info = new FileInfo(file);
+			string extension = info.Extension.TrimStart('.').ToLowerInvariant();
+			return new Entry
+			{
+				Name = Path.GetRelativePath(project.Directory, file).Replace('\\', '/'),
+				Kind = extension == "cs" || extension == "csproj" || extension == "json" ? extension : "text",
+				Bytes = info.Length,
+				Modified = info.LastWriteTimeUtc,
+				ReadOnly = readOnly,
+			};
+		}
+
+		/// <summary>
+		/// The full path of a mod file named the way the tree names it, checked to lie under
+		/// code/ or scenes/ (or to be project.json). Anything else - a path that climbs out,
+		/// a game file - is refused, since this reads and writes what it is given.
+		/// </summary>
+		public static string Resolve(Project project, string name, out bool readOnly)
+		{
+			if (string.IsNullOrWhiteSpace(name))
+			{
+				throw new ArgumentException("which file?");
+			}
+			string full = Path.GetFullPath(Path.Combine(project.Directory, name.Replace('/', Path.DirectorySeparatorChar)));
+			string root = Path.GetFullPath(project.Directory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+			if (string.Equals(full, Path.GetFullPath(project.ManifestPath), StringComparison.OrdinalIgnoreCase))
+			{
+				readOnly = true;
+				return full;
+			}
+			readOnly = false;
+			bool inside = full.StartsWith(root, StringComparison.OrdinalIgnoreCase);
+			string code = Path.GetFullPath(CodeDirectory(project)) + Path.DirectorySeparatorChar;
+			string scenes = Path.GetFullPath(ProjectScenes.Directory(project)) + Path.DirectorySeparatorChar;
+			if (!inside || !(full.StartsWith(code, StringComparison.OrdinalIgnoreCase) || full.StartsWith(scenes, StringComparison.OrdinalIgnoreCase)))
+			{
+				throw new ArgumentException("not one of the mod's files: " + name);
+			}
+			if (Hidden(project.Directory, full))
+			{
+				throw new ArgumentException("not one of the mod's files: " + name);
+			}
+			return full;
+		}
+
+		/// <summary>A mod file's text.</summary>
+		public static string ReadText(Project project, string name, out Entry entry)
+		{
+			string full = Resolve(project, name, out bool readOnly);
+			if (!File.Exists(full))
+			{
+				throw new FileNotFoundException("no such file in the project: " + name);
+			}
+			entry = Describe(project, full, readOnly);
+			return File.ReadAllText(full);
+		}
+
+		/// <summary>Writes a mod file's text. project.json is edited through the settings, not here.</summary>
+		public static Entry WriteText(Project project, string name, string text)
+		{
+			string full = Resolve(project, name, out bool readOnly);
+			if (readOnly)
+			{
+				throw new InvalidOperationException("project.json is edited through File > Project settings");
+			}
+			Directory.CreateDirectory(Path.GetDirectoryName(full));
+			File.WriteAllText(full, text ?? string.Empty, new UTF8Encoding(false));
+			return Describe(project, full, readOnly: false);
+		}
+
+		/// <summary>
+		/// A new C# file under code/, from one of the starters: "behaviour" (a Behaviour for a
+		/// map object), "service" (a GameService), or "empty" (the usings and a namespace).
+		/// The class takes the file's name. Refuses a file that exists.
+		/// </summary>
+		public static string CreateFile(Project project, string name, string template)
+		{
+			if (!Has(project))
+			{
+				throw new InvalidOperationException("the project has no C# code yet - Add C# code first");
+			}
+			string stem = Path.GetFileNameWithoutExtension((name ?? string.Empty).Trim());
+			char[] bad = Path.GetInvalidFileNameChars();
+			if (stem.Length == 0 || stem.Any(c => bad.Contains(c)) || (name ?? string.Empty).Contains("..") )
+			{
+				throw new ArgumentException("a file needs a plain name, like Greeter or Quests/Fetch");
+			}
+			string className = new string(stem.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
+			if (className.Length == 0 || char.IsDigit(className[0]))
+			{
+				className = "Class" + className;
+			}
+			string relative = Path.Combine("code", (name ?? string.Empty).Trim().Replace('/', Path.DirectorySeparatorChar));
+			if (!relative.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+			{
+				relative += ".cs";
+			}
+			string full = Resolve(project, relative, out _);
+			if (File.Exists(full))
+			{
+				throw new IOException("there is already a " + relative.Replace('\\', '/'));
+			}
+			Directory.CreateDirectory(Path.GetDirectoryName(full));
+			File.WriteAllText(full, StarterFile(AssemblyName(project), className, template), new UTF8Encoding(false));
+			return Path.GetRelativePath(project.Directory, full).Replace('\\', '/');
+		}
+
+		/// <summary>Opens one of the mod's files with whatever the machine opens that kind with.</summary>
+		public static void OpenFile(Project project, string name)
+		{
+			string full = Resolve(project, name, out _);
+			if (!File.Exists(full))
+			{
+				throw new FileNotFoundException("no such file in the project: " + name);
+			}
+			Process.Start(new ProcessStartInfo(full) { UseShellExecute = true });
+		}
+
+		/// <summary>One line of a build's output that names a place: file, line, column, what.</summary>
+		public sealed class Problem
+		{
+			public string File { get; set; }
+			public int Line { get; set; }
+			public int Column { get; set; }
+			public string Kind { get; set; }
+			public string Code { get; set; }
+			public string Message { get; set; }
+		}
+
 		/// <summary>Builds the code with the .NET SDK. Returns whether it succeeded and what the build said.</summary>
 		public static bool Build(Project project, out string output)
 		{
+			return Build(project, out output, out _);
+		}
+
+		/// <summary>Builds the code; the errors and warnings come back as a list too, each naming its file relative to the project.</summary>
+		public static bool Build(Project project, out string output, out List<Problem> problems)
+		{
+			problems = new List<Problem>();
 			string csproj = ProjectFile(project);
 			if (!File.Exists(csproj))
 			{
@@ -118,6 +323,7 @@ namespace Crystal.Editor
 					return false;
 				}
 				process.WaitForExit();
+				problems = Problems(project, text.ToString());
 				output = Tidy(text.ToString());
 				return process.ExitCode == 0;
 			}
@@ -137,6 +343,45 @@ namespace Crystal.Editor
 				throw new FileNotFoundException("the project has no code yet");
 			}
 			Process.Start(new ProcessStartInfo(csproj) { UseShellExecute = true });
+		}
+
+		// "C:\...\code\Mod.cs(12,9): error CS0103: The name 'x' does not exist [C:\...\Mod.csproj]"
+		private static readonly System.Text.RegularExpressions.Regex ProblemLine = new System.Text.RegularExpressions.Regex(
+			@"^(?<file>.+?)\((?<line>\d+),(?<column>\d+)\): (?<kind>error|warning) (?<code>\w+): (?<message>.*?)(?: \[[^\]]*\])?$",
+			System.Text.RegularExpressions.RegexOptions.Compiled);
+
+		/// <summary>The errors and warnings in a build's output, each once, the file named relative to the project.</summary>
+		private static List<Problem> Problems(Project project, string output)
+		{
+			List<Problem> found = new List<Problem>();
+			HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
+			foreach (string raw in output.Replace("\r", "").Split('\n'))
+			{
+				System.Text.RegularExpressions.Match match = ProblemLine.Match(raw.Trim());
+				if (!match.Success || !seen.Add(raw.Trim()))
+				{
+					continue;
+				}
+				string file = match.Groups["file"].Value;
+				try
+				{
+					if (Path.IsPathRooted(file))
+					{
+						file = Path.GetRelativePath(project.Directory, file);
+					}
+				}
+				catch (Exception) { }
+				found.Add(new Problem
+				{
+					File = file.Replace('\\', '/'),
+					Line = int.Parse(match.Groups["line"].Value),
+					Column = int.Parse(match.Groups["column"].Value),
+					Kind = match.Groups["kind"].Value,
+					Code = match.Groups["code"].Value,
+					Message = match.Groups["message"].Value,
+				});
+			}
+			return found;
 		}
 
 		/// <summary>The build's lines a person wants: errors and warnings, then the last few lines.</summary>
@@ -265,6 +510,53 @@ namespace Crystal.Editor
 				"\t\t}\n" +
 				"\t}\n" +
 				"}\n";
+		}
+
+		/// <summary>A new file's text: a Behaviour, a GameService, or just the frame.</summary>
+		private static string StarterFile(string ns, string className, string template)
+		{
+			string head = "using System;\n" +
+				"using System.Collections.Generic;\n" +
+				"using OpenFF;\n" +
+				"using OpenFF.Events;\n" +
+				"\n" +
+				"namespace " + ns + "\n" +
+				"{\n";
+			switch ((template ?? "behaviour").Trim().ToLowerInvariant())
+			{
+				case "service":
+					return head +
+						"\t/// <summary>" + className + ": one instance for the whole run; it hears the game's events and acts through Game.*.</summary>\n" +
+						"\tpublic class " + className + " : GameService\n" +
+						"\t{\n" +
+						"\t\tpublic override void OnGameStart()\n" +
+						"\t\t{\n" +
+						"\t\t\tGame.Log(\"" + className + ": started\");\n" +
+						"\t\t\tGame.Events.Subscribe<MapEntered>(e => Game.Log(\"" + className + ": entered \" + e.Scene.Name));\n" +
+						"\t\t}\n" +
+						"\t}\n" +
+						"}\n";
+				case "empty":
+					return head + "}\n";
+				default:
+					return head +
+						"\t/// <summary>" + className + ": a script for one object. Attach it in Crystal (a map's inspector, Behaviours) or with AddComponent.</summary>\n" +
+						"\tpublic class " + className + " : Behaviour\n" +
+						"\t{\n" +
+						"\t\t/// <summary>Public fields show up in Crystal as editable, and survive a hot reload.</summary>\n" +
+						"\t\tpublic float Speed = 1f;\n" +
+						"\n" +
+						"\t\tprotected override void Start()\n" +
+						"\t\t{\n" +
+						"\t\t\tGame.Log(\"" + className + " on \" + GameObject.Name);\n" +
+						"\t\t}\n" +
+						"\n" +
+						"\t\tprotected override void Update()\n" +
+						"\t\t{\n" +
+						"\t\t}\n" +
+						"\t}\n" +
+						"}\n";
+			}
 		}
 	}
 }

@@ -382,10 +382,42 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
   flex: 0 0 160px;
   border-right: 1px solid var(--line);
   padding: 4px 0;
+  /* A column, so the mod folder can sit at the bottom edge whatever the height. */
+  display: flex;
+  flex-direction: column;
 }
+#project-tree > .row, #project-tree .ws-tabs { flex: 0 0 auto; }
 #project-tree .row { padding-left: 12px; }
 
+/* The mod's own folder sits below the games' libraries, past a rule, with the project's
+   name beside it. */
+#project-tree .tree-foot {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  background: var(--panel);
+  padding-bottom: 2px;
+}
+#project-tree .tree-rule { border-top: 1px solid var(--line); margin: 6px 8px 4px; }
+#project-tree .row.mod > span { flex: 0 0 auto; }
+#project-tree .row.mod i { margin-left: auto; padding-right: 6px; flex: 0 1 auto; min-width: 0; }
+#project-tree .row.mod .icon { color: #d7b96a; }
+
 #project-side { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+#code-actions { display: flex; gap: 4px; }
+#code-actions button { padding: 3px 9px; font-size: 12px; }
+#code-actions button.primary { border-color: #37619c; }
+
+#files li.note {
+  color: var(--dim);
+  white-space: normal;
+  cursor: default;
+  padding: 10px 14px;
+  line-height: 1.5;
+  max-width: 60ch;
+}
+#files li.note:hover { background: none; color: var(--dim); }
 
 #filter {
   margin: 6px 8px;
@@ -560,6 +592,24 @@ select {
 .t-string { color: #d69d85; font-style: normal; }
 .t-name { color: #9fb3c8; font-style: normal; }
 .t-comment { color: #5f6b7a; font-style: normal; }
+.t-type { color: #6fc7e6; font-style: normal; }
+
+/* The mod's files: the same editor, plus a read-only badge and the first lines as a
+   preview in the inspector. */
+.badge.readonly { border-color: var(--dim); color: var(--dim); }
+.badge.dirty { border-color: #d7b96a; color: #d7b96a; }
+.code-peek {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: 11px/1.5 "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  white-space: pre;
+  overflow: auto;
+  max-height: 260px;
+  color: var(--ink);
+}
 
 .completions {
   position: absolute;
@@ -601,6 +651,7 @@ select {
 .problems li { padding: 5px 12px; color: var(--bad); cursor: pointer; }
 .problems li:hover { background: #241c1e; }
 .problems li b { color: var(--dim); font-weight: 400; margin-right: 8px; }
+.problems li.warning { color: #d7b96a; }
 
 /* ------------------------------------------------------------------ menus */
 
