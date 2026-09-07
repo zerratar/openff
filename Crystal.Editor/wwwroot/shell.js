@@ -290,7 +290,10 @@ async function runView(doc) {
   // the right kind, and the right game.
   if (state.browse !== doc.kind || !state.files.length || state.filesWs !== doc.ws) {
     state.browse = doc.kind;
+    // The tree's highlight says which library the list shows; it moves with the list.
+    browseKind = doc.kind;
     await loadList();
+    drawProjectTree();
   }
 
   await dispatchOpen(doc.kind, doc.name);
@@ -667,7 +670,11 @@ let inspected = null;
 let inspectedViewer = null;
 
 async function inspectAsset(kind, name, options = {}) {
-  inspected = { kind, name, data: null };
+  // Held locally as well: a double click inspects and then opens, and opening clears
+  // the inspector while the details are still on their way. They land on this
+  // object, which nobody shows any more, rather than on null.
+  const me = { kind, name, data: null };
+  inspected = me;
   markList();
   if (options.reveal) revealInList(name);
   drawInspector();
@@ -676,31 +683,31 @@ async function inspectAsset(kind, name, options = {}) {
   // worth a red line - the panel just shows less.
   try {
     if (kind === 'model') {
-      inspected.data = await api(`/api/model?name=${encodeURIComponent(name)}`);
+      me.data = await api(`/api/model?name=${encodeURIComponent(name)}`);
     } else if (kind === 'cell') {
-      inspected.data = await api(`/api/cell?name=${encodeURIComponent(name)}`);
+      me.data = await api(`/api/cell?name=${encodeURIComponent(name)}`);
     } else if (kind === 'texture') {
-      inspected.data = await api(`/api/texture?name=${encodeURIComponent(name)}`);
+      me.data = await api(`/api/texture?name=${encodeURIComponent(name)}`);
     } else if (kind === 'image') {
-      inspected.data = (state.images || []).find(i => i.name === name) || null;
+      me.data = (state.images || []).find(i => i.name === name) || null;
     } else if (kind === 'map') {
-      inspected.data = await api(`/api/map/scene?name=${encodeURIComponent(name)}`);
+      me.data = await api(`/api/map/scene?name=${encodeURIComponent(name)}`);
     } else if (kind === 'audio') {
-      inspected.data = (state.audio || []).find(s => s.name === name) || null;
+      me.data = (state.audio || []).find(s => s.name === name) || null;
     } else if (kind === 'code') {
       const file = await api(`/api/project/file?name=${encodeURIComponent(name)}`);
       if (file.ok === false) throw new Error(file.error);
-      inspected.data = file;
+      me.data = file;
     } else if (kind === 'scene') {
       const scene = await api(`/api/project/scene?map=${encodeURIComponent(name)}`);
       if (scene.ok === false) throw new Error(scene.error);
-      inspected.data = scene;
+      me.data = scene;
     }
   } catch (error) {
-    inspected.problem = error.message;
+    me.problem = error.message;
   }
 
-  if (inspected && inspected.name === name) drawInspector();
+  if (inspected === me) drawInspector();
 }
 
 function clearInspected() {
