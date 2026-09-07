@@ -161,9 +161,16 @@ namespace Crystal.Editor
 				}
 				if (!booters.Contains(bootCast))
 				{
-					plan.Kind = "unknown";
-					plan.Reason = "cast " + plan.Cast + " is placed by cast " + string.Join(", ", booters.OrderBy(b => b)) + " (a scene), not the map's boot";
+					// A scene's actor: the stand-in comes when the scene boots the cast, where it
+					// boots it (GameCast.OnBoot), and the scene drives it. No idle or walk of its
+					// own - the scene gives those.
+					plan.Kind = "actor";
+					plan.Reason = "cast " + plan.Cast + " is placed by cast " + string.Join(", ", booters.OrderBy(b => b)) + " (a scene): the object appears when the scene boots it";
 					plan.Commands.Add("(booted by a scene: cast " + string.Join(", ", booters.OrderBy(b => b)) + ")");
+					plan.Wander = false;
+					plan.MotionSet = "";
+					plan.MotionIndex = 0;
+					plan.ColorModel = null;
 					plans.Add(plan);
 					continue;
 				}

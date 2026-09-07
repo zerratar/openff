@@ -1388,6 +1388,31 @@ and the components mode is kept for editing (`Chest` now with the game's lid mot
 play. Open: the scenes' actors (stage three), and the recolour needs the character spawned
 before `bindReplaceTex` - it is, but a variant texture the map has not loaded is untested.
 
+### The scenes' actors, and a row is not a slot (2026-09-07, later)
+
+Stage three turned out not to need a `Sequence` component: with the stand-in being its
+cast, a scene's actor only has to *arrive* when the scene boots it. `bootCharacterImp` -
+every boot path ends there - now tells the host (`EngineApi.CastBooted`, a one-line hook
+guarded against the engine being down), which publishes `Events.CastBooted` with the
+character it made. `GameCast.OnBoot` marks an actor: the loader does not spawn it with the
+map; on the event it spawns the stand-in where the script put the original, facing as it
+does, removes the original and runs the cast - the scene's next commands land on the
+stand-in. A scene that opens with the map (the Altar Cave's falling Luneth, casts 40/36/35
+booted at 1.35 s, the files applied at 2.36 s) has booted before the files apply, so the
+loader takes over on the spot when the original is already there. A new game then plays
+the opening on the mod's Luneth, crystal and chest, frame for frame the same.
+
+The check of the slots found a real bug in the conversion so far: a scene file's
+`object:<n>` is the map's `.hich` *row* (what Crystal lists), but the client resolved it as
+a player *slot* (`Npcs.Existing(n)`), and those coincide only by luck - in the Altar Cave
+the chests' rows 5-7 are slots 28-30. `Removed` had been taking off whichever character sat
+in slot n, and the originals stayed behind their stand-ins. `Npcs.ByRow` goes through the
+hich table (`CharaIndex(row)`), and the log now shows each stand-in spawned and then the
+right row removed, the freed slot reused by the next. Also fixed on the way: two map tabs
+open shared one `mapState`/`sceneState`, so a conversion could act on the other tab's map -
+`onShow` re-points them (writing a pending autosave first). Ur converts 30 of 36 now, the 6
+left the rows nothing boots.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

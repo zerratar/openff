@@ -35,7 +35,18 @@ async function openMap(name) {
   setDocData({ ...data, scene }, {
     mode: '3d',
     inspect: (ref) => inspectRef(doc, ref),
-    onShow: () => { if (doc.scene3d && doc.mode === '3d') doc.scene3d.redraw(); }
+    onShow: () => {
+      // Two maps open: coming back to this one makes it the map the editor's state is
+      // about again - the placement, the OpenFF scene (its pending save written first).
+      if (mapState.name !== name) {
+        mapState.name = name;
+        mapState.data = data;
+        mapState.selected = null;
+        const pending = sceneState.dirty && sceneState.map && sceneState.map !== name ? saveScene({ quiet: true }).catch(() => {}) : Promise.resolve();
+        pending.then(() => loadSceneState(name)).then(() => { syncSceneObjects(doc); drawHierarchy(); }).catch(() => {});
+      }
+      if (doc.scene3d && doc.mode === '3d') doc.scene3d.redraw();
+    }
   });
 
   drawLegend(node);
@@ -2154,7 +2165,7 @@ function applyCastPlan(doc, plan, options = {}) {
   object.character = Boolean(model) && (plan.character || !components || plan.kind === 'chest');
   const path = scenePathOf(object);
   if (!components) {
-    const cast = { Cast: plan.cast, Treasure: plan.kind === 'chest', Item: 0, Gil: 0, Flag: plan.treasureFlag || '', Recolour: plan.colorModel || '' };
+    const cast = { Cast: plan.cast, OnBoot: plan.kind === 'actor', Treasure: plan.kind === 'chest', Item: 0, Gil: 0, Flag: plan.treasureFlag || '', Recolour: plan.colorModel || '' };
     if (plan.kind === 'chest') { if (plan.treasure === 'item') cast.Item = plan.treasureValue; else cast.Gil = plan.treasureValue; }
     sceneState.attachments.push({ target: path, behaviour: 'GameCast', fields: cast });
   } else if (plan.kind === 'chest') {
@@ -2207,7 +2218,9 @@ async function convertToSceneObject(doc, character, options = {}) {
   drawInspector();
   const exact = !(options.components && ['chest', 'talk', 'prop'].includes(plan.kind));
   const what = exact
-    ? ` - it runs the game's cast ${character.cast} itself (GameCast), 1:1`
+    ? plan.kind === 'actor'
+      ? ` - a scene's actor: it appears when the scene boots cast ${character.cast}, where the scene puts it, and runs the cast itself (GameCast), 1:1`
+      : ` - it runs the game's cast ${character.cast} itself (GameCast), 1:1`
     : plan.kind === 'chest' ? ' - a Chest with the same contents' : plan.kind === 'talk' ? ` - ${(plan.talks || []).length} Talk(s) with its lines` : ' - a bare model';
   say(`${object.name} is the mod's now${what}; the game's own is taken off the map in the client`, 'good');
 }
@@ -2243,11 +2256,12 @@ async function convertMap(doc, options = {}) {
   const body = dialog(`Convert ${mapState.name} to OpenFF objects`);
   const summary = document.createElement('p');
   summary.className = 'dialog-note';
-  const kinds = ['chest', 'talk', 'prop', 'script'].map(k => [k, done.filter(d => d.plan.kind === k).length]).filter(([, n]) => n);
+  const kinds = ['chest', 'talk', 'prop', 'script', 'actor'].map(k => [k, done.filter(d => d.plan.kind === k).length]).filter(([, n]) => n);
+  const kindName = { talk: 'plain talkers', chest: 'chests', prop: 'props', script: 'with scripted casts', actor: "scenes' actors (they appear when their scene boots them)" };
   summary.textContent = `${done.length} converted`
     + (options.components
-      ? ' into components: ' + kinds.map(([k, n]) => `${n} ${k === 'talk' ? 'talking (Talk)' : k === 'chest' ? 'chests (Chest)' : k === 'prop' ? 'props' : 'with their own cast (GameCast - no component does what they do)'}`).join(', ')
-      : ', each running its own cast (GameCast) - talk, branches, menus, chests exactly as before; the analysis: ' + kinds.map(([k, n]) => `${n} ${k === 'talk' ? 'plain talkers' : k === 'chest' ? 'chests' : k === 'prop' ? 'props' : 'with scripted casts'}`).join(', '))
+      ? ' into components: ' + kinds.map(([k, n]) => `${n} ${k === 'talk' ? 'talking (Talk)' : k === 'chest' ? 'chests (Chest)' : k === 'prop' ? 'props' : k === 'actor' ? kindName.actor + ' (GameCast)' : 'with their own cast (GameCast - no component does what they do)'}`).join(', ')
+      : ', each running its own cast (GameCast) - talk, branches, menus, chests, scenes exactly as before; the analysis: ' + kinds.map(([k, n]) => `${n} ${kindName[k]}`).join(', '))
     + `${done.filter(d => d.plan.wander).length ? `; ${done.filter(d => d.plan.wander).length} wander` : ''}. `
     + 'Each is an object of the mod\'s own with the same model, place, idle motion and recolour; the original is taken off the map in the client (Removed). Everything saved.';
   body.append(summary);
@@ -2277,7 +2291,7 @@ async function convertMap(doc, options = {}) {
     body.append(list);
     const note = document.createElement('p');
     note.className = 'dialog-note';
-    note.textContent = 'A scene places these when it plays, or nothing places them at all; an object standing there from the start would not be the game. The scenes are the next stage; the game runs them as before, beside the mod\'s objects.';
+    note.textContent = 'Nothing in the script places these rows, so there is nothing for an object to stand in for; they stay as they are.';
     body.append(note);
   }
 }

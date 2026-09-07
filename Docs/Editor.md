@@ -801,11 +801,21 @@ after as `Then` - so the item or the words are fields in the inspector. A cast t
 more keeps its GameCast. Both ways are on the Characters group's menu, a character's menu,
 and its OpenFF card.
 
-What neither takes stays the game's and is listed with the reason: a character a *scene*
-boots rather than the map (it must appear when the scene says), and a row nothing boots.
-On Ur that is 16 of 36 converted and 20 left, all of them the cutscenes' actors; the
-village stands with the mod's people, and talking to the old man says "Luneth! The elders
-are looking for you." - the game's own cast 22, on the mod's object.
+A character a *scene* boots rather than the map's boot is converted too, as an **actor**:
+its GameCast has *OnBoot*, so the object is not spawned with the map but when the script
+boots its cast (`Events.CastBooted`, raised from the game's own `bootCharacterImp`) - at
+the spot the scene boots it, facing as it does - and the scene drives it from there, since
+its commands land on the stand-in. A scene that opens with the map (the Altar Cave's
+falling Luneth) has booted before the files apply; the stand-in takes over where the actor
+stands. What stays the game's is listed: rows nothing boots. On Ur that is 30 of 36
+converted (14 of them actors) and 6 left; the village stands with the mod's people, and
+talking to the old man says "Luneth! The elders are looking for you." - the game's own
+cast 22, on the mod's object. A new game with the Altar Cave converted plays its opening on
+the mod's Luneth, crystal and chest.
+
+A scene file's `object:<n>` is the map's `.hich` row, as the editor lists them; the client
+finds the row's character through the game's own hich table (`Npcs.ByRow`), whichever
+slot the script booted it into.
 
 Nothing on an OpenFF object has a Save button. A change - a field typed, an object
 dragged, a behaviour added - writes `scenes/<map>.json` a moment later, the way the
