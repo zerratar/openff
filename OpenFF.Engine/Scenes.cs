@@ -115,6 +115,224 @@ namespace OpenFF
 		}
 	}
 
+	/// <summary>
+	/// What the built-in components remember across saves: which chests have been opened,
+	/// which once-only things have happened, by the object's name (&lt;map&gt;/&lt;path&gt;). One
+	/// chunk in the engine's save store; a mod's own code may use it too.
+	/// </summary>
+	public sealed class SceneMemory : ISaveable
+	{
+		/// <summary>The one instance, registered with the saves at Game.Start.</summary>
+		public static SceneMemory Instance { get; } = new SceneMemory();
+		private readonly HashSet<string> _done = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>The chunk's key in the save store.</summary>
+		public string ChunkId => "openff/scene";
+		/// <summary>The shape written: 1, a list of keys.</summary>
+		public int ChunkVersion => 1;
+
+		/// <summary>Whether a key has been marked (a chest opened, an event done).</summary>
+		public bool Has(string key) => key != null && _done.Contains(key);
+		/// <summary>Remembers a key.</summary>
+		public void Mark(string key) { if (!string.IsNullOrEmpty(key)) _done.Add(key); }
+		/// <summary>Forgets a key (a chest closes again).</summary>
+		public void Forget(string key) { if (key != null) _done.Remove(key); }
+		/// <summary>How many keys are remembered.</summary>
+		public int Count => _done.Count;
+
+		/// <summary>The keys, sorted; nothing when there are none.</summary>
+		public object Save() => _done.Count == 0 ? null : _done.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+
+		/// <summary>The keys back from a save.</summary>
+		public void Load(int version, JsonElement data)
+		{
+			_done.Clear();
+			if (data.ValueKind != JsonValueKind.Array) return;
+			foreach (JsonElement e in data.EnumerateArray())
+			{
+				if (e.ValueKind == JsonValueKind.String) _done.Add(e.GetString());
+			}
+		}
+	}
+
+	/// <summary>
+	/// The common ground of the built-in components an editor places on a scene object: the
+	/// object's character when it has a model (to hear the player talk to it), or the hero
+	/// walking into a radius when it has none. Derive from it for a component of your own
+	/// that works the same way; override Activate.
+	/// </summary>
+	public abstract class Interactable : Behaviour
+	{
+		/// <summary>Without a model to talk to: how close the hero comes, in world units, for the object to act.</summary>
+		[Header("Without a model")]
+		[Tooltip("Without a model to talk to: how close the hero comes for it to act (two characters side by side are about 8 apart)")]
+		public float Radius = 8f;
+
+		private bool _near;
+		private Npc _npc;
+
+		/// <summary>The object's character, when it has a model.</summary>
+		protected Npc Npc => _npc;
+
+		/// <summary>The player talked to it, or walked into it: what the component does.</summary>
+		protected abstract void Activate();
+
+		protected override void Start()
+		{
+			MapObject link = GetComponent<MapObject>();
+			_npc = link?.Npc;
+			if (_npc != null)
+			{
+				_npc.Interacted += OnInteracted;
+			}
+		}
+
+		private void OnInteracted(Npc npc)
+		{
+			if (Enabled && GameObject != null && GameObject.ActiveInHierarchy) Game.Guard(Name + ".Activate", Activate);
+		}
+
+		protected override void Update()
+		{
+			if (_npc != null || Transform == null || !Game.Hero.Present) return;
+			bool near = Vector3.FlatDistance(Transform.Position, Game.Hero.Position) <= Radius;
+			if (near && !_near) Game.Guard(Name + ".Activate", Activate);
+			_near = near;
+		}
+
+		protected override void OnDestroy()
+		{
+			if (_npc != null) _npc.Interacted -= OnInteracted;
+		}
+	}
+
+	/// <summary>
+	/// A treasure chest, placed from the editor: an item (with a count) and/or gil, given
+	/// when the player opens it, said in the message window, remembered across saves when
+	/// Once. Give the object the chest's model (o001) and it opens on talking to it; without
+	/// a model it opens when the hero walks in. Derive and override OnOpened to add to it.
+	/// </summary>
+	public class Chest : Interactable
+	{
+		/// <summary>The item inside, by id; 0 to give only gil.</summary>
+		[Header("Contents")]
+		[ItemField, Tooltip("The item inside; none to give only gil")]
+		public int Item;
+		/// <summary>How many of the item.</summary>
+		[Range(1, 99)]
+		public int Count = 1;
+		/// <summary>Gil inside, on top of the item or instead of it.</summary>
+		[Tooltip("Gil inside, on top of the item or instead of it")]
+		public int Gil;
+
+		/// <summary>Opens once and stays open, across saves (SceneMemory); off, it gives its contents every time.</summary>
+		[Header("Opening")]
+		[Tooltip("Opens once and stays open, across saves; off, it gives its contents every time")]
+		public bool Once = true;
+		/// <summary>What the window says on opening; {what} is the contents ("Potion x2 and 100 gil").</summary>
+		[Tooltip("What the window says; {what} is the contents (\"Potion x2 and 100 gil\")")]
+		public string Message = "Found {what}!";
+		/// <summary>What the window says when it is already open.</summary>
+		[Tooltip("What the window says when it is already open")]
+		public string EmptyMessage = "The chest is empty.";
+
+		/// <summary>Whether it has been opened (this visit, or ever when Once).</summary>
+		public bool Opened { get; private set; }
+
+		private string Key => GameObject?.Name;
+
+		protected override void Start()
+		{
+			base.Start();
+			if (Once && SceneMemory.Instance.Has(Key)) Opened = true;
+		}
+
+		protected override void Activate()
+		{
+			if (Opened)
+			{
+				if (!string.IsNullOrEmpty(EmptyMessage)) Game.Dialogue.Say(EmptyMessage);
+				return;
+			}
+			List<string> got = new List<string>();
+			if (Item > 0)
+			{
+				int count = Math.Max(1, Count);
+				Game.Party.AddItem(Item, count);
+				string name = Game.Items.Find(Item)?.Name ?? ("item " + Item);
+				got.Add(count > 1 ? name + " x" + count : name);
+			}
+			if (Gil > 0)
+			{
+				Game.Party.Gil += Gil;
+				got.Add(Gil + " gil");
+			}
+			Opened = true;
+			if (Once) SceneMemory.Instance.Mark(Key);
+			string what = got.Count == 0 ? "nothing" : string.Join(" and ", got);
+			if (!string.IsNullOrEmpty(Message)) Game.Dialogue.Say(Message.Replace("{what}", what));
+			Game.Log("chest " + Key + ": " + what);
+			OnOpened(what);
+		}
+
+		/// <summary>After the contents are given and said: a hook for a derived chest (a sound, a flag, a spawn).</summary>
+		protected virtual void OnOpened(string what) { }
+	}
+
+	/// <summary>
+	/// Someone (or something) to talk to, placed from the editor: lines said one after the
+	/// other in the message window when the player talks to the object (or walks into it,
+	/// without a model). Derive and override OnSaid for what happens after the last line.
+	/// </summary>
+	public class Talk : Interactable
+	{
+		/// <summary>The name over the window; empty for none.</summary>
+		[Header("Dialogue")]
+		[Tooltip("The name over the window; empty for none")]
+		public string Speaker;
+		/// <summary>The lines, said in turn, one window each; A goes on to the next.</summary>
+		[Tooltip("Said in turn, one window each; A goes on to the next")]
+		public string[] Lines = { "Hello." };
+		/// <summary>Turn to the hero while talking (the model keeps its facing otherwise).</summary>
+		[Tooltip("Turn to the hero while talking (a model's own facing otherwise)")]
+		public bool FaceHero = true;
+
+		private int _next = -1;
+		private long _saidAt;
+
+		protected override void Activate()
+		{
+			if (Lines == null || Lines.Length == 0 || _next >= 0) return;
+			if (FaceHero && Npc != null) Npc.LookAt(Game.Hero.Position);
+			_next = 0;
+			SayNext();
+		}
+
+		protected override void Update()
+		{
+			base.Update();
+			// The next line once the window has closed on the last one - a frame later at
+			// the least, since the window may open on the frame after Say.
+			if (_next > 0 && !Game.Dialogue.IsOpen && Game.Time.Frame > _saidAt + 1) SayNext();
+		}
+
+		private void SayNext()
+		{
+			if (_next < 0) return;
+			if (_next >= Lines.Length)
+			{
+				_next = -1;
+				Game.Guard(Name + ".OnSaid", OnSaid);
+				return;
+			}
+			_saidAt = Game.Time.Frame;
+			Game.Dialogue.Say(Lines[_next++], string.IsNullOrWhiteSpace(Speaker) ? null : Speaker);
+		}
+
+		/// <summary>After the last line has been dismissed.</summary>
+		protected virtual void OnSaid() { }
+	}
+
 	/// <summary>The mod's own object in a scene file: a spot, or a model standing there, with children under it.</summary>
 	public sealed class SceneObject
 	{

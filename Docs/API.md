@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags)
-- [Handles and data](#handles-and-data): [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`InputState`](#inputstate), [`Item`](#item), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`PartyMember`](#partymember), [`SceneObject`](#sceneobject), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Texture`](#texture), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3)
+- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Npc`](#npc), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -316,6 +316,22 @@ The game's flag space: what the scripts store quest progress in.
 
 What the services hand out: a character on the map, a party member, an item, a spell, a monster, the input state, a texture to draw.
 
+### Chest
+
+`class Chest : Interactable`
+
+A treasure chest, placed from the editor: an item (with a count) and/or gil, given when the player opens it, said in the message window, remembered across saves when Once. Give the object the chest's model (o001) and it opens on talking to it; without a model it opens when the hero walks in. Derive and override OnOpened to add to it.
+
+| Member | What it does |
+| --- | --- |
+| `int Count` | How many of the item. |
+| `string EmptyMessage` | What the window says when it is already open. |
+| `int Gil` | Gil inside, on top of the item or instead of it. |
+| `int Item` | The item inside, by id; 0 to give only gil. |
+| `string Message` | What the window says on opening; {what} is the contents ("Potion x2 and 100 gil"). |
+| `bool Once` | Opens once and stays open, across saves (SceneMemory); off, it gives its contents every time. |
+| `bool Opened { get; }` | Whether it has been opened (this visit, or ever when Once). |
+
 ### Color
 
 `struct Color`
@@ -382,6 +398,22 @@ What the services hand out: a character on the map, a party member, an item, a s
 | `void Sprite(Texture texture, float x, float y, float w, float h, Color? tint = null, float rotation = 0, float srcX = 0, float srcY = 0, float srcW = 0, float srcH = 0)` | A texture (or part of it) drawn into a rectangle, tinted, turned about its centre. |
 | `void Text(string text, float x, float y, Color color, int size = 12)` | Text at a position, in the game's own font. Sizes as the game's: 12 small, 16 normal. |
 
+### HeaderAttribute
+
+`class HeaderAttribute : Attribute`
+
+A heading in the inspector above this field and the ones after it.
+
+| Member | What it does |
+| --- | --- |
+| `string Text { get; }` |  |
+
+### HideInInspectorAttribute
+
+`class HideInInspectorAttribute : Attribute`
+
+A public field the inspector leaves out (still set from a scene file when named).
+
 ### InputState
 
 `class InputState`
@@ -408,6 +440,16 @@ What the services hand out: a character on the map, a party member, an item, a s
 | `void SetKeys(IEnumerable<string> held)` | Host entry: the keys held this frame, by name. |
 | `void SetPad(int bits)` | Host entry: the frame's pad bits (the same layout the game's pad uses). |
 | `void SetPointer(float x, float y, bool down, int wheel)` | Host entry: the pointer in screen units and whether it is down. |
+
+### Interactable
+
+`abstract class Interactable : Behaviour`
+
+The common ground of the built-in components an editor places on a scene object: the object's character when it has a model (to hear the player talk to it), or the hero walking into a radius when it has none. Derive from it for a component of your own that works the same way; override Activate.
+
+| Member | What it does |
+| --- | --- |
+| `float Radius` | Without a model to talk to: how close the hero comes, in world units, for the object to act. |
 
 ### Item
 
@@ -439,6 +481,12 @@ An item from the game's tables.
 | `Element Weakness { get; set; }` |  |
 | `int Weight { get; set; }` |  |
 | `string ToString()` |  |
+
+### ItemFieldAttribute
+
+`class ItemFieldAttribute : Attribute`
+
+An int that is an item id: the inspector offers the game's item list to pick from.
 
 ### ItemStack
 
@@ -555,6 +603,35 @@ One of the party's characters as the game keeps them.
 | `Stats Stats { get; set; }` | Stats with equipment and job bonuses, as the formulas read them. |
 | `string ToString()` |  |
 
+### RangeAttribute
+
+`class RangeAttribute : Attribute`
+
+A number the inspector edits with a slider between two bounds.
+
+| Member | What it does |
+| --- | --- |
+| `float Max { get; }` |  |
+| `float Min { get; }` |  |
+
+### SceneMemory
+
+`class SceneMemory : ISaveable`
+
+What the built-in components remember across saves: which chests have been opened, which once-only things have happened, by the object's name (<map>/<path>). One chunk in the engine's save store; a mod's own code may use it too.
+
+| Member | What it does |
+| --- | --- |
+| `string ChunkId { get; }` | The chunk's key in the save store. |
+| `int ChunkVersion { get; }` | The shape written: 1, a list of keys. |
+| `int Count { get; }` | How many keys are remembered. |
+| `static SceneMemory Instance { get; }` | The one instance, registered with the saves at Game.Start. |
+| `void Forget(string key)` | Forgets a key (a chest closes again). |
+| `bool Has(string key)` | Whether a key has been marked (a chest opened, an event done). |
+| `void Load(int version, JsonElement data)` | The keys back from a save. |
+| `void Mark(string key)` | Remembers a key. |
+| `object Save()` | The keys, sorted; nothing when there are none. |
+
 ### SceneObject
 
 `class SceneObject`
@@ -652,6 +729,18 @@ The stats a formula needs, of a party member or a monster (or a mod's own creatu
 | `Element Weakness` | Elements that hit twice as hard. |
 | `Stats Clone()` |  |
 
+### Talk
+
+`class Talk : Interactable`
+
+Someone (or something) to talk to, placed from the editor: lines said one after the other in the message window when the player talks to the object (or walks into it, without a model). Derive and override OnSaid for what happens after the last line.
+
+| Member | What it does |
+| --- | --- |
+| `bool FaceHero` | Turn to the hero while talking (the model keeps its facing otherwise). |
+| `string[] Lines` | The lines, said in turn, one window each; A goes on to the next. |
+| `string Speaker` | The name over the window; empty for none. |
+
 ### Texture
 
 `abstract class Texture`
@@ -663,6 +752,16 @@ A picture the host loaded for a mod; drawn with Game.Draw.Sprite.
 | `int Height { get; }` |  |
 | `string Path { get; }` |  |
 | `int Width { get; }` |  |
+
+### TooltipAttribute
+
+`class TooltipAttribute : Attribute`
+
+What the inspector says when the pointer rests on the field (else the XML summary).
+
+| Member | What it does |
+| --- | --- |
+| `string Text { get; }` |  |
 
 ### Trigger
 
@@ -1561,4 +1660,4 @@ Whom a spell may be aimed at, as flags.
 
 ---
 
-94 types, 731 members; 465 without a summary yet.
+103 types, 755 members; 469 without a summary yet.

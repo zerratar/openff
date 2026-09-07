@@ -51,6 +51,8 @@ namespace OpenFF
 				return;
 			}
 			Started = true;
+			// What the built-in scene components remember (opened chests) rides in the saves.
+			Saves.Register(SceneMemory.Instance);
 			Services.StartAll();
 			Events.Publish(new Events.GameStarted());
 		}

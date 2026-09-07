@@ -263,13 +263,44 @@ parent moves the lot. `GameObject.Parent` and `.Children` carry the tree in the 
 `"chest"`, `"chest/trigger"`.
 
 A mod finds them with `Game.World.Legacy.Find("d01_05/chest")` or by tag:
-`Game.World.Legacy.WithTag("spawn")`. For a chest that gives an item, the object's model is
-the chest and the item is a public field of the behaviour you attach - change it in the
-inspector whenever you like. For "when the hero walks here", attach the engine's own
-**`Trigger`** (it is in the Add Behaviour list whether or not the mod has code): `Radius`,
-`Once`; it raises `Entered`/`Left` on itself and publishes `Events.TriggerEntered` /
-`TriggerLeft` (with the `GameObject`, so its tags say which trigger) for a `GameService` to
-hear, and logs `trigger <map>/<path>: hero entered`.
+`Game.World.Legacy.WithTag("spawn")`.
+
+**Built-in components.** The engine has behaviours of its own, in the Add Behaviour list
+under *Built in* whether or not the mod has code, so the usual things need no C# at all:
+
+| | fields | does |
+| --- | --- | --- |
+| `Chest` | Item (picked from the game's list), Count, Gil; Once, Message, EmptyMessage | gives the contents and says so when the player talks to it (a model) or walks in (none); Once remembers it across saves |
+| `Talk` | Speaker, Lines (one per line), FaceHero | says the lines one window at a time when talked to |
+| `Trigger` | Radius, Once | raises `Entered`/`Left` and publishes `Events.TriggerEntered` / `TriggerLeft` (with the `GameObject`, so its tags say which) when the hero comes within Radius; logs `trigger <map>/<path>: hero entered` |
+
+So a chest is: an OpenFF object with the chest's model (`o001`), a `Chest` on it, the item
+picked in the inspector - every one of those changeable later. `Chest` and `Talk` derive
+from `Interactable` (talked to with a model, walked into without) and are not sealed: a
+class of your own deriving `Chest` and overriding `OnOpened`, or `Talk` and `OnSaid`, or
+`Interactable` and `Activate`, is a component with everything the built-in one has plus
+yours, and shows in the list under the mod's name. What `Chest` remembers lives in
+`SceneMemory` (`Has`/`Mark`/`Forget` by key), one chunk in the engine's saves, which a mod's
+code may use for its own once-only things.
+
+**Editor fields.** Every public field (or settable property) of a Behaviour is an editor
+field: the inspector shows it with an input for its type - number, text, checkbox, enum
+list, x/y/z, a colour, a list of strings one per line - filled with the code's default, and
+the scene file carries what was typed. The attributes in `OpenFF` say more, the way Unity's
+do: `[Header("Contents")]` puts a heading over the fields that follow, `[Tooltip("…")]` is
+the hover text (the `///` summary otherwise), `[Range(1, 99)]` makes a slider, `[ItemField]`
+on an int offers the game's item list, `[HideInInspector]` keeps a public field out.
+
+```csharp
+public class GiveKey : Chest
+{
+    [Header("Quest")]
+    [Tooltip("The flag set when the key is taken")]
+    public int Flag = 12;
+
+    protected override void OnOpened(string what) => Game.Flags.Set(0, (uint)Flag, true);
+}
+```
 
 The scenes a project has are listed under **OpenFF mod ▸ Scenes** in the project tree;
 opening one opens the map itself, in 3D with its objects and behaviours, and the inspector
