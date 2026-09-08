@@ -1,4 +1,4 @@
-﻿// Guidance for the script editor: highlighting, completion, and telling you what an
+// Guidance for the script editor: highlighting, completion, and telling you what an
 // argument is for.
 //
 // The instruction set comes from the server once and is cached, because it is derived
@@ -130,6 +130,7 @@ function caretContext(text) {
 
 function setupSignature(text, bar) {
   const update = () => {
+    if (!ops.list) { loadOps().then(update).catch(() => {}); return; }
     const context = caretContext(text);
     if (!context) {
       bar.textContent = '';
@@ -178,6 +179,9 @@ function setupCompletion(text, list) {
   const hide = () => { list.hidden = true; matches = []; };
 
   const show = () => {
+    // The set is dropped when the project changes under us (a scene saved, a file
+    // installed): fetch it again and come back, rather than fail on every keystroke.
+    if (!ops.list) { loadOps().then(show).catch(() => {}); return; }
     const word = wordBefore();
     if (!word || word.length < 2) return hide();
 
@@ -279,7 +283,10 @@ async function enhanceScriptEditor(node) {
   const bar = $('.signature', node);
 
   repaint(text, highlight);
-  text.addEventListener('input', () => repaint(text, highlight));
+  text.addEventListener('input', () => {
+    if (!ops.list) loadOps().then(() => repaint(text, highlight)).catch(() => {});
+    repaint(text, highlight);
+  });
   text.addEventListener('scroll', () => {
     highlight.scrollTop = text.scrollTop;
     highlight.scrollLeft = text.scrollLeft;
