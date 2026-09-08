@@ -119,6 +119,19 @@ namespace Crystal.Editor
 			return output.Length;
 		}
 
+		/// <summary>A new texture package (.ntxp.lz) of the project's own from pictures; the size written.</summary>
+		public static int Create(Workspace workspace, string name, IReadOnlyList<Tex0Write.NewTexture> textures)
+		{
+			byte[] package = Tex0Write.Build(textures);
+			// Read back through the reader before anything is written: a package the editor
+			// cannot read is one the game cannot either.
+			Tex0File check = Tex0.Read(package);
+			if (check.Textures.Count != textures.Count) throw new System.IO.InvalidDataException("the package read back with " + check.Textures.Count + " textures");
+			byte[] output = name.EndsWith(".lz", StringComparison.OrdinalIgnoreCase) ? Lz.Compress(package) : package;
+			workspace.Write(name, output);
+			return output.Length;
+		}
+
 		public static byte[] Png(Workspace workspace, string name, int index)
 		{
 			Tex0File package = Tex0.Read(Lz.Decompress(workspace.Read(name)));

@@ -35,116 +35,344 @@ namespace Crystal
 
 			byte[] data = (byte[])package.Clone();
 			int texel = file.TexData + ((int)(texture.Param & 0xFFFFF) << 3);
-			int count = width * height;
-
+			int room = texture.Format == 7 ? 0 : PaletteRoom(file, texture);
+			Encoded e = Encode(texture.Format, texture.Transparent0, rgba, width, height, room);
 			if (texture.Format == 5)
 			{
-				Encode4x4(file, texture, data, rgba);
-				return data;
+				int address = (int)(texture.Param & 0xFFFFF) << 3;
+				Array.Copy(e.Texels, 0, data, file.Tex4x4Data + address, e.Texels.Length);
+				Array.Copy(e.Indices, 0, data, file.Tex4x4Index + (address >> 1), e.Indices.Length);
 			}
-
-			if (texture.Format == 7)
+			else
 			{
-				// Straight colour: 15 bits and the alpha bit.
-				for (int i = 0; i < count; i++)
+				Array.Copy(e.Texels, 0, data, texel, e.Texels.Length);
+			}
+			if (e.Palette != null)
+			{
+				int paletteAt = file.PaletteData + texture.PaletteOffset;
+				for (int i = 0; i < room; i++)
 				{
-					int a = rgba[i * 4 + 3] >= 128 ? 0x8000 : 0;
-					int c = To555(rgba, i * 4) | a;
-					data[texel + i * 2] = (byte)c;
-					data[texel + i * 2 + 1] = (byte)(c >> 8);
+					int c = i < e.Palette.Length ? e.Palette[i] : 0;
+					data[paletteAt + i * 2] = (byte)c;
+					data[paletteAt + i * 2 + 1] = (byte)(c >> 8);
 				}
-				return data;
-			}
-
-			// How many palette entries this texture may use: the format's count, no more than
-			// the room its palette has in the block before the next one starts.
-			int formatColours = texture.Format switch { 1 => 32, 2 => 4, 3 => 16, 4 => 256, 6 => 8, _ => 0 };
-			int room = PaletteRoom(file, texture);
-			int colours = Math.Min(formatColours, room);
-			if (colours <= 0) throw new InvalidDataException("the texture has no palette to write");
-			bool alphaFormat = texture.Format == 1 || texture.Format == 6;
-			bool transparent0 = texture.Transparent0 && !alphaFormat;
-
-			// The colours to quantise: every pixel for the alpha formats (their alpha rides
-			// beside the index), the opaque ones where entry 0 stands for see-through.
-			List<int> samples = new List<int>(count);
-			for (int i = 0; i < count; i++)
-			{
-				if (transparent0 && rgba[i * 4 + 3] < 128) continue;
-				if (alphaFormat && rgba[i * 4 + 3] == 0) continue;
-				samples.Add(To555(rgba, i * 4));
-			}
-			int usable = transparent0 ? colours - 1 : colours;
-			List<int> palette = Quantise(samples, Math.Max(1, usable));
-			if (transparent0) palette.Insert(0, 0);
-			while (palette.Count < colours) palette.Add(0);
-
-			// The palette entries, in place.
-			int paletteAt = file.PaletteData + texture.PaletteOffset;
-			for (int i = 0; i < colours; i++)
-			{
-				data[paletteAt + i * 2] = (byte)palette[i];
-				data[paletteAt + i * 2 + 1] = (byte)(palette[i] >> 8);
-			}
-
-			// The texels.
-			int[] nearestCache = new int[32768];
-			for (int i = 0; i < nearestCache.Length; i++) nearestCache[i] = -1;
-			int Nearest(int c555)
-			{
-				if (nearestCache[c555] >= 0) return nearestCache[c555];
-				int best = transparent0 ? 1 : 0, bestD = int.MaxValue;
-				for (int p = transparent0 ? 1 : 0; p < palette.Count && p < colours; p++)
-				{
-					int d = Distance(c555, palette[p]);
-					if (d < bestD) { bestD = d; best = p; }
-				}
-				nearestCache[c555] = best;
-				return best;
-			}
-			switch (texture.Format)
-			{
-				case 1: // a3i5
-					for (int i = 0; i < count; i++)
-					{
-						int alpha = (rgba[i * 4 + 3] * 7 + 127) / 255;
-						int idx = alpha == 0 ? 0 : Nearest(To555(rgba, i * 4));
-						data[texel + i] = (byte)((alpha << 5) | (idx & 0x1F));
-					}
-					break;
-				case 6: // a5i3
-					for (int i = 0; i < count; i++)
-					{
-						int alpha = (rgba[i * 4 + 3] * 31 + 127) / 255;
-						int idx = alpha == 0 ? 0 : Nearest(To555(rgba, i * 4));
-						data[texel + i] = (byte)((alpha << 3) | (idx & 7));
-					}
-					break;
-				case 2: // pal4: four pixels a byte, low bits first
-					Array.Clear(data, texel, (count + 3) / 4);
-					for (int i = 0; i < count; i++)
-					{
-						int idx = transparent0 && rgba[i * 4 + 3] < 128 ? 0 : Nearest(To555(rgba, i * 4));
-						data[texel + (i >> 2)] |= (byte)((idx & 3) << ((i & 3) * 2));
-					}
-					break;
-				case 3: // pal16: two pixels a byte
-					Array.Clear(data, texel, (count + 1) / 2);
-					for (int i = 0; i < count; i++)
-					{
-						int idx = transparent0 && rgba[i * 4 + 3] < 128 ? 0 : Nearest(To555(rgba, i * 4));
-						data[texel + (i >> 1)] |= (byte)((idx & 0xF) << ((i & 1) * 4));
-					}
-					break;
-				case 4: // pal256
-					for (int i = 0; i < count; i++)
-					{
-						data[texel + i] = (byte)(transparent0 && rgba[i * 4 + 3] < 128 ? 0 : Nearest(To555(rgba, i * 4)));
-					}
-					break;
 			}
 			return data;
 		}
+
+		/// <summary>A texture's encoded parts: the texels (for 4x4 the block words), the 4x4 control words, the palette entries (null for rgb555).</summary>
+		public sealed class Encoded
+		{
+			public byte[] Texels;
+			public byte[] Indices;
+			public int[] Palette;
+		}
+
+		/// <summary>Bytes per pixel times eight, per format - how large a texture's texel data is.</summary>
+		public static int TexelBytes(int format, int width, int height)
+		{
+			int count = width * height;
+			switch (format)
+			{
+				case 1: case 4: case 6: return count;
+				case 2: return (count + 3) / 4;
+				case 3: return (count + 1) / 2;
+				case 5: return count / 4;
+				case 7: return count * 2;
+				default: return 0;
+			}
+		}
+
+		/// <summary>How many palette entries a format may have at most.</summary>
+		public static int FormatColours(int format) => format switch { 1 => 32, 2 => 4, 3 => 16, 4 => 256, 6 => 8, _ => 0 };
+
+		/// <summary>The pixels encoded for a format, with at most `room` palette entries (4x4: pairs of them).</summary>
+		public static Encoded Encode(int format, bool transparent0, byte[] rgba, int width, int height, int room)
+		{
+			int count = width * height;
+			if (format == 5) return Encode4x4(rgba, width, height, room & ~1);
+			Encoded e = new Encoded { Texels = new byte[TexelBytes(format, width, height)] };
+			if (format == 7)
+			{
+				for (int i = 0; i < count; i++)
+				{
+					int c = To555(rgba, i * 4) | (rgba[i * 4 + 3] >= 128 ? 0x8000 : 0);
+					e.Texels[i * 2] = (byte)c;
+					e.Texels[i * 2 + 1] = (byte)(c >> 8);
+				}
+				return e;
+			}
+			int colours = Math.Min(FormatColours(format), room);
+			if (colours <= 0) throw new InvalidDataException("the texture has no palette to write");
+			bool alphaFormat = format == 1 || format == 6;
+			bool clear0 = transparent0 && !alphaFormat;
+			List<int> samples = new List<int>(count);
+			for (int i = 0; i < count; i++)
+			{
+				if (clear0 && rgba[i * 4 + 3] < 128) continue;
+				if (alphaFormat && rgba[i * 4 + 3] == 0) continue;
+				samples.Add(To555(rgba, i * 4));
+			}
+			List<int> palette = Quantise(samples, Math.Max(1, clear0 ? colours - 1 : colours));
+			if (clear0) palette.Insert(0, 0);
+			while (palette.Count < colours) palette.Add(0);
+			e.Palette = palette.Take(colours).ToArray();
+			int[] cache = new int[32768];
+			for (int i = 0; i < cache.Length; i++) cache[i] = -1;
+			int Nearest(int c555)
+			{
+				if (cache[c555] >= 0) return cache[c555];
+				int best = clear0 ? 1 : 0, bestD = int.MaxValue;
+				for (int p = clear0 ? 1 : 0; p < colours; p++) { int d = Distance(c555, e.Palette[p]); if (d < bestD) { bestD = d; best = p; } }
+				cache[c555] = best;
+				return best;
+			}
+			switch (format)
+			{
+				case 1:
+					for (int i = 0; i < count; i++) { int a = (rgba[i * 4 + 3] * 7 + 127) / 255; e.Texels[i] = (byte)((a << 5) | (a == 0 ? 0 : Nearest(To555(rgba, i * 4)) & 0x1F)); }
+					break;
+				case 6:
+					for (int i = 0; i < count; i++) { int a = (rgba[i * 4 + 3] * 31 + 127) / 255; e.Texels[i] = (byte)((a << 3) | (a == 0 ? 0 : Nearest(To555(rgba, i * 4)) & 7)); }
+					break;
+				case 2:
+					for (int i = 0; i < count; i++) { int idx = clear0 && rgba[i * 4 + 3] < 128 ? 0 : Nearest(To555(rgba, i * 4)); e.Texels[i >> 2] |= (byte)((idx & 3) << ((i & 3) * 2)); }
+					break;
+				case 3:
+					for (int i = 0; i < count; i++) { int idx = clear0 && rgba[i * 4 + 3] < 128 ? 0 : Nearest(To555(rgba, i * 4)); e.Texels[i >> 1] |= (byte)((idx & 0xF) << ((i & 1) * 4)); }
+					break;
+				case 4:
+					for (int i = 0; i < count; i++) e.Texels[i] = (byte)(clear0 && rgba[i * 4 + 3] < 128 ? 0 : Nearest(To555(rgba, i * 4)));
+					break;
+				default: throw new InvalidDataException("format " + format + " holds no pixels");
+			}
+			return e;
+		}
+		// ------------------------------------------------------------------ a new package
+		//
+		// A texture package from nothing: NMDP wrapper, BTX0, one TEX0 with every texture
+		// given - the layout n021.ntxp has, read off the file: a 48-byte NMDP head (the BTX0's
+		// size at 24, its offset 48 at 28), a 16-byte BTX0 head with one block offset, then the
+		// TEX0: three info blocks (texInfo at +8, tex4x4Info at +24, plttInfo at +44), the
+		// texture dictionary at +0x3C, the palette dictionary after it, the texel data, the 4x4
+		// block data, the 4x4 index data, the palette data. Dictionaries are NNSG3dResDict: an
+		// 8-byte head, a patricia tree of numEntries+1 four-byte nodes, an entry head (unit
+		// size, names offset), the entries, then 16-byte names. Textures and palettes of a 4x4
+		// texture cross-reference by position; a palette is named <texture>_pl as the game's are.
+
+		/// <summary>One texture to put in a new package.</summary>
+		public sealed class NewTexture
+		{
+			public string Name;
+			public int Format = 4;          // pal256
+			public bool Transparent0;
+			public byte[] Rgba;
+			public int Width, Height;
+		}
+
+		/// <summary>A complete .ntxp (uncompressed NMDP) holding the textures given.</summary>
+		public static byte[] Build(IReadOnlyList<NewTexture> textures)
+		{
+			if (textures == null || textures.Count == 0) throw new InvalidDataException("no textures to write");
+			if (textures.Count > 255) throw new InvalidDataException("a package holds at most 255 textures");
+			foreach (NewTexture t in textures)
+			{
+				if (!IsSize(t.Width) || !IsSize(t.Height)) throw new InvalidDataException(t.Name + ": " + t.Width + "x" + t.Height + " - a texture's sides are 8, 16, 32, 64, 128, 256, 512 or 1024");
+				if (t.Format == 5 && (t.Width < 8 || t.Height < 8)) throw new InvalidDataException(t.Name + ": a 4x4 texture is at least 8x8");
+				if (t.Rgba == null || t.Rgba.Length < t.Width * t.Height * 4) throw new InvalidDataException(t.Name + ": not enough pixels");
+				if (t.Format < 1 || t.Format > 7) throw new InvalidDataException(t.Name + ": format " + t.Format + " holds no pixels");
+			}
+
+			// Encode every texture; the palette room a fresh texture gets is the format's full count
+			// (4x4: four entries a block, so the fit is never forced down).
+			List<Encoded> encoded = new List<Encoded>();
+			foreach (NewTexture t in textures)
+			{
+				int room = t.Format == 5 ? (t.Width / 4) * (t.Height / 4) * 4 : FormatColours(t.Format);
+				encoded.Add(Encode(t.Format, t.Transparent0, t.Rgba, t.Width, t.Height, room));
+			}
+
+			// Data layout: texels (non-4x4), then 4x4 blocks, then 4x4 indices, then palettes; each
+			// texture's offset in 8-byte units, so every piece is padded to 8.
+			int n = textures.Count;
+			int[] texOfs = new int[n], plttOfs = new int[n];
+			using (MemoryStream texels = new MemoryStream(), blocks = new MemoryStream(), indices = new MemoryStream(), palettes = new MemoryStream())
+			{
+				for (int i = 0; i < n; i++)
+				{
+					Encoded e = encoded[i];
+					if (textures[i].Format == 5)
+					{
+						texOfs[i] = (int)blocks.Length;
+						blocks.Write(e.Texels, 0, e.Texels.Length); Pad(blocks, 8);
+						indices.Write(e.Indices, 0, e.Indices.Length); Pad(indices, 8);
+					}
+					else
+					{
+						texOfs[i] = (int)texels.Length;
+						texels.Write(e.Texels, 0, e.Texels.Length); Pad(texels, 8);
+					}
+					if (e.Palette != null)
+					{
+						plttOfs[i] = (int)palettes.Length;
+						foreach (int c in e.Palette) { palettes.WriteByte((byte)c); palettes.WriteByte((byte)(c >> 8)); }
+						Pad(palettes, 8);
+					}
+					else plttOfs[i] = -1;
+				}
+
+				byte[] texDict = Dictionary(textures.Select(t => t.Name).ToList(), 8, i =>
+				{
+					NewTexture t = textures[i];
+					uint param = (uint)(texOfs[i] >> 3) | ((uint)Log2(t.Width) << 20) | ((uint)Log2(t.Height) << 23) | ((uint)t.Format << 26) | (t.Transparent0 ? 1u << 29 : 0u);
+					uint extra = (uint)t.Width | ((uint)t.Height << 11) | 0x80000000u;
+					byte[] entry = new byte[8];
+					Array.Copy(BitConverter.GetBytes(param), 0, entry, 0, 4);
+					Array.Copy(BitConverter.GetBytes(extra), 0, entry, 4, 4);
+					return entry;
+				});
+				List<int> withPalette = Enumerable.Range(0, n).Where(i => plttOfs[i] >= 0).ToList();
+				byte[] plttDict = Dictionary(withPalette.Select(i => textures[i].Name + "_pl").ToList(), 4, k =>
+				{
+					int i = withPalette[k];
+					byte[] entry = new byte[4];
+					ushort ofs = (ushort)(plttOfs[i] >> 3);
+					entry[0] = (byte)ofs; entry[1] = (byte)(ofs >> 8);
+					entry[2] = (byte)(textures[i].Format == 2 ? 1 : 0);   // flag: a 4-colour palette
+					return entry;
+				});
+
+				int headSize = 0x3C;
+				int texDictAt = headSize;
+				int plttDictAt = texDictAt + texDict.Length;
+				int texDataAt = Align(plttDictAt + plttDict.Length, 8);
+				int blocksAt = texDataAt + (int)texels.Length;
+				int indicesAt = blocksAt + (int)blocks.Length;
+				int plttDataAt = indicesAt + (int)indices.Length;
+				int tex0Size = plttDataAt + (int)palettes.Length;
+
+				byte[] tex0 = new byte[tex0Size];
+				Ascii(tex0, 0, "TEX0");
+				Put32(tex0, 4, (uint)tex0Size);
+				// texInfo: vramKey, sizeTex>>3, ofsDict, flag, pad, ofsTex
+				Put16(tex0, 8 + 4, (ushort)(texels.Length >> 3)); Put16(tex0, 8 + 6, (ushort)texDictAt); Put32(tex0, 8 + 12, (uint)texDataAt);
+				// tex4x4Info at +24: vramKey, sizeTex>>3, ofsDict, flag, pad, ofsTex (+36), ofsTexPlttIdx (+40)
+				Put16(tex0, 24 + 4, (ushort)(blocks.Length >> 3)); Put16(tex0, 24 + 6, (ushort)texDictAt); Put32(tex0, 24 + 12, (uint)blocksAt); Put32(tex0, 24 + 16, (uint)indicesAt);
+				// plttInfo at +44: vramKey, sizePltt>>3 (+48), flag, ofsDict (+52), pad, ofsPlttData (+56)
+				Put16(tex0, 44 + 4, (ushort)(palettes.Length >> 3)); Put16(tex0, 44 + 8, (ushort)plttDictAt); Put32(tex0, 44 + 12, (uint)plttDataAt);
+				Array.Copy(texDict, 0, tex0, texDictAt, texDict.Length);
+				Array.Copy(plttDict, 0, tex0, plttDictAt, plttDict.Length);
+				texels.ToArray().CopyTo(tex0, texDataAt);
+				blocks.ToArray().CopyTo(tex0, blocksAt);
+				indices.ToArray().CopyTo(tex0, indicesAt);
+				palettes.ToArray().CopyTo(tex0, plttDataAt);
+
+				// BTX0: head 16 + one block offset (4) = 20, then the TEX0.
+				byte[] btx0 = new byte[20 + tex0.Length];
+				Ascii(btx0, 0, "BTX0"); Put16(btx0, 4, 0xFEFF); Put16(btx0, 6, 1); Put32(btx0, 8, (uint)btx0.Length); Put16(btx0, 12, 16); Put16(btx0, 14, 1); Put32(btx0, 16, 20);
+				Array.Copy(tex0, 0, btx0, 20, tex0.Length);
+
+				// NMDP wrapper: as n021.ntxp has it.
+				byte[] nmdp = new byte[48 + btx0.Length];
+				Ascii(nmdp, 0, "NMDP"); Put32(nmdp, 4, 0x1000); Put32(nmdp, 16, 1); Put32(nmdp, 20, 4); Put32(nmdp, 24, (uint)btx0.Length); Put32(nmdp, 28, 48);
+				Array.Copy(btx0, 0, nmdp, 48, btx0.Length);
+				return nmdp;
+			}
+		}
+
+		/// <summary>An NNSG3dResDict with the names and entries given. The tree is the one the game's own single-entry dictionaries carry, grown by a node per entry: every name walks to its own entry when the game looks one up by name.</summary>
+		private static byte[] Dictionary(List<string> names, int unit, Func<int, byte[]> entry)
+		{
+			int count = names.Count;
+			int nodes = count + 1;
+			int entriesAt = 8 + nodes * 4;
+			int size = entriesAt + 4 + count * unit + count * 16;
+			byte[] d = new byte[size];
+			d[0] = 0; d[1] = (byte)count; Put16(d, 2, (ushort)size); Put16(d, 4, 8); Put16(d, 6, (ushort)entriesAt);
+			// The patricia tree. The root tests bit 127 (never set in a name of ASCII) and goes
+			// left; each next node tests a bit that tells its entry from the ones before it, as
+			// NNS's own builder does; for one entry the shipped files' node stands as it is.
+			byte[][] keys = names.Select(nm => NameBytes(nm)).ToArray();
+			d[8] = 0x7F; d[9] = 1; d[10] = 0; d[11] = 0;
+			BuildTree(d, 8, keys);
+			Put16(d, entriesAt, (ushort)unit); Put16(d, entriesAt + 2, (ushort)(4 + count * unit));
+			for (int i = 0; i < count; i++)
+			{
+				byte[] e = entry(i);
+				Array.Copy(e, 0, d, entriesAt + 4 + i * unit, Math.Min(unit, e.Length));
+				Array.Copy(keys[i], 0, d, entriesAt + 4 + count * unit + i * 16, 16);
+			}
+			return d;
+		}
+
+		/// <summary>
+		/// The patricia tree the game searches: NNS_G3dGetResDataByName walks from node 0, at each
+		/// node testing one bit of the 128-bit name and going left or right, until it reaches a node
+		/// whose refBit is not less than the last - then compares the name at that node's entry.
+		/// Built as NNS's converter does: names inserted one by one; a new node splits at the highest
+		/// bit where the new name differs from the name found for it.
+		/// </summary>
+		private static void BuildTree(byte[] d, int at, byte[][] keys)
+		{
+			int count = keys.Length;
+			// node i (1..count) is entry i-1's node. Fields: refBit, idxLeft, idxRight, idxEntry.
+			int[] refBit = new int[count + 1], left = new int[count + 1], right = new int[count + 1], entry = new int[count + 1];
+			refBit[0] = 127; left[0] = 1; right[0] = 0; entry[0] = 0;
+			// The first name: its node tests a bit of its own (any; the shipped files use one of
+			// the name's set bits) and points to itself both ways.
+			refBit[1] = 0x1D; left[1] = 0; right[1] = 1; entry[1] = 0;
+			if (count == 1 && !Bit(keys[0], 0x1D)) { refBit[1] = FirstSetBit(keys[0]); }
+			for (int i = 1; i < count; i++)
+			{
+				byte[] key = keys[i];
+				// Search as the game does.
+				int node = 0, next = left[0];
+				while (refBit[next] < refBit[node])
+				{
+					node = next;
+					next = Bit(key, refBit[node]) ? right[node] : left[node];
+				}
+				byte[] found = keys[entry[next]];
+				int bit = 127;
+				while (bit >= 0 && Bit(key, bit) == Bit(found, bit)) bit--;
+				if (bit < 0) throw new InvalidDataException("two textures named " + NameOf(key));
+				// Insert a node testing that bit, below the last node whose bit is higher.
+				int me = i + 1;
+				refBit[me] = bit; entry[me] = i;
+				node = 0; next = left[0];
+				while (refBit[next] < refBit[node] && refBit[next] > bit)
+				{
+					node = next;
+					next = Bit(key, refBit[node]) ? right[node] : left[node];
+				}
+				if (Bit(key, bit)) { right[me] = me; left[me] = next; } else { left[me] = me; right[me] = next; }
+				if (Bit(key, refBit[node])) right[node] = me; else left[node] = me;
+			}
+			for (int i = 0; i <= count; i++)
+			{
+				d[at + i * 4] = (byte)refBit[i]; d[at + i * 4 + 1] = (byte)left[i]; d[at + i * 4 + 2] = (byte)right[i]; d[at + i * 4 + 3] = (byte)entry[i];
+			}
+		}
+
+		private static bool Bit(byte[] key, int bit) => bit >= 0 && bit < 128 && (key[bit >> 3] & (1 << (bit & 7))) != 0;
+		private static int FirstSetBit(byte[] key) { for (int b = 0; b < 128; b++) if (Bit(key, b)) return b; return 0; }
+		private static string NameOf(byte[] key) => System.Text.Encoding.ASCII.GetString(key).TrimEnd('\0');
+
+		private static byte[] NameBytes(string name)
+		{
+			byte[] key = new byte[16];
+			byte[] ascii = System.Text.Encoding.ASCII.GetBytes(name ?? "");
+			Array.Copy(ascii, key, Math.Min(16, ascii.Length));
+			return key;
+		}
+
+		private static bool IsSize(int v) => v >= 8 && v <= 1024 && (v & (v - 1)) == 0;
+		private static int Log2(int v) { int n = 0; while ((8 << n) < v) n++; return n; }
+		private static int Align(int v, int to) => (v + to - 1) / to * to;
+		private static void Pad(MemoryStream s, int to) { while (s.Length % to != 0) s.WriteByte(0); }
+		private static void Ascii(byte[] d, int at, string s) { for (int i = 0; i < s.Length; i++) d[at + i] = (byte)s[i]; }
+		private static void Put16(byte[] d, int at, ushort v) { d[at] = (byte)v; d[at + 1] = (byte)(v >> 8); }
+		private static void Put32(byte[] d, int at, uint v) { d[at] = (byte)v; d[at + 1] = (byte)(v >> 8); d[at + 2] = (byte)(v >> 16); d[at + 3] = (byte)(v >> 24); }
 
 		// ------------------------------------------------------------------ 4x4 blocks
 		//
@@ -171,15 +399,9 @@ namespace Crystal
 			public uint Texels;
 		}
 
-		private static void Encode4x4(Tex0File file, Tex0Texture texture, byte[] data, byte[] rgba)
+		private static Encoded Encode4x4(byte[] rgba, int width, int height, int room)
 		{
-			int width = texture.Width, height = texture.Height;
 			int bw = width >> 2, bh = height >> 2;
-			int address = (int)(texture.Param & 0xFFFFF) << 3;
-			int blocksAt = file.Tex4x4Data + address;
-			int indicesAt = file.Tex4x4Index + (address >> 1);
-			int paletteAt = file.PaletteData + texture.PaletteOffset;
-			int room = PaletteRoom(file, texture) & ~1;   // pairs
 			if (room < 2) throw new InvalidDataException("the texture has no palette room to write");
 
 			// Read the blocks.
@@ -256,24 +478,20 @@ namespace Crystal
 				at += b.Palette.Length;
 			}
 			if (at > room) throw new InvalidDataException("the picture needs " + at + " palette entries; the texture has room for " + room);
-			for (int i = 0; i < room; i++)
-			{
-				int c = i < paletteWords.Count ? paletteWords[i] : 0;
-				data[paletteAt + i * 2] = (byte)c;
-				data[paletteAt + i * 2 + 1] = (byte)(c >> 8);
-			}
+			Encoded e = new Encoded { Texels = new byte[blocks.Count * 4], Indices = new byte[blocks.Count * 2], Palette = paletteWords.ToArray() };
 			for (int n = 0; n < blocks.Count; n++)
 			{
 				Block4x4 b = blocks[n];
 				int pairs = offsets[string.Join(",", b.Palette)] >> 1;
 				int control = (pairs & 0xFFF) | (b.Interpolated ? 0x4000 : 0) | (b.Variant ? 0x8000 : 0);
-				data[indicesAt + n * 2] = (byte)control;
-				data[indicesAt + n * 2 + 1] = (byte)(control >> 8);
-				data[blocksAt + n * 4] = (byte)b.Texels;
-				data[blocksAt + n * 4 + 1] = (byte)(b.Texels >> 8);
-				data[blocksAt + n * 4 + 2] = (byte)(b.Texels >> 16);
-				data[blocksAt + n * 4 + 3] = (byte)(b.Texels >> 24);
+				e.Indices[n * 2] = (byte)control;
+				e.Indices[n * 2 + 1] = (byte)(control >> 8);
+				e.Texels[n * 4] = (byte)b.Texels;
+				e.Texels[n * 4 + 1] = (byte)(b.Texels >> 8);
+				e.Texels[n * 4 + 2] = (byte)(b.Texels >> 16);
+				e.Texels[n * 4 + 3] = (byte)(b.Texels >> 24);
 			}
+			return e;
 		}
 
 		/// <summary>Two endpoints along the block's colour range; the mid or the 5/8-3/8 mixes between; a transparent texel where the block has one.</summary>

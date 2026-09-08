@@ -749,6 +749,41 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/texture/new":
+				{
+					// A texture package of the mod's own from pictures: name, and textures [{ name,
+					// format (pal256|pal16|pal4|a3i5|a5i3|rgb555|4x4), transparent0, width, height, rgba }].
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>();
+						if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a name for the package");
+						if (name.IndexOfAny(new[] { ':', '*', '?', '"', '<', '>', '|' }) >= 0 || name.Contains("..")) throw new ArgumentException("not a content name: " + name);
+						if (!(body?["overwrite"]?.GetValue<bool>() ?? false) && _workspace.Exists(name)) throw new ArgumentException(name + " exists already");
+						string[] formats = { "none", "a3i5", "pal4", "pal16", "pal256", "4x4", "a5i3", "rgb555" };
+						List<Tex0Write.NewTexture> textures = new List<Tex0Write.NewTexture>();
+						foreach (JsonNode t in body?["textures"] as JsonArray ?? new JsonArray())
+						{
+							string format = t?["format"]?.GetValue<string>() ?? "pal256";
+							int code = Array.IndexOf(formats, format);
+							if (code < 1) throw new ArgumentException("no format '" + format + "'");
+							textures.Add(new Tex0Write.NewTexture
+							{
+								Name = t?["name"]?.GetValue<string>() ?? "texture",
+								Format = code,
+								Transparent0 = t?["transparent0"]?.GetValue<bool>() ?? false,
+								Width = t?["width"]?.GetValue<int>() ?? 0,
+								Height = t?["height"]?.GetValue<int>() ?? 0,
+								Rgba = System.Convert.FromBase64String(t?["rgba"]?.GetValue<string>() ?? "")
+							});
+						}
+						int bytes = Textures.Create(_workspace, name, textures);
+						SendJson(context, new { ok = true, name, bytes, textures = textures.Count });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/texture/replace":
 				{
 					// A texture written back from a picture: the browser decodes the PNG and sends
