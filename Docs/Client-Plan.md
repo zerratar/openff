@@ -1513,6 +1513,14 @@ Editor: the dialog's *Undo this conversion*, *Restore the game's character* on a
 row (the Removed and the stand-in go), and `[FlagField]`: flag strings get a picker of the
 map's flags (`/api/map/flags`: who tests, who sets, whose chest) and a shape check.
 
+Karl's first Play from Ur after this: no colliders, no talk, everyone shrunk, walking over
+the houses. All one thing - *Play here* with nothing selected sent the 3D view's camera
+target as the spot, and its Y drifts up as the camera flies; with `--pos` honoured on towns
+now, the hero stood 60 units in the air, closer to the camera than the village (so bigger),
+above every wall and character. `scene3d.viewGround()` is the ground under the view's
+centre pixel (the height the map's things stand at), and Play here and a new object at the
+view's centre use it.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

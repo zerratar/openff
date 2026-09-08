@@ -1006,6 +1006,18 @@ function makeMapScene(canvas, status) {
       ];
     },
 
+    /// The spot on the ground the view looks at: where the centre pixel lands on the
+    /// height things stand at. For "play here" and a new object at the view's centre -
+    /// the camera's own target drifts up and down as it flies, and a hero put there would
+    /// stand on the roofs.
+    viewGround() {
+      const rect = canvas.getBoundingClientRect();
+      const hit = this.groundAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      if (hit) return hit;
+      const height = instances.length ? instances.map(o => o.y).sort((a, b) => a - b)[instances.length >> 1] : 0;
+      return [Math.round(centre[0]), height, Math.round(centre[2])];
+    },
+
     setGizmoMode(mode) { gizmoMode = mode; gizmoAxis = null; draw(); },
     gizmoMode() { return gizmoMode; },
 

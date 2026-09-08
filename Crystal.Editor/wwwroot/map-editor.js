@@ -975,7 +975,9 @@ function wireModes(node, doc, scene) {
         const e = (doc.data.scene.exits || [])[Number(sel.slice(5))];
         if (e) pos = [e.x, e.y, e.z];
       }
-      if (!pos && doc.scene3d) pos = doc.scene3d.viewCentre();
+      // With nothing selected the hero arrives where the map's own entry puts them - not at
+      // the camera's target, which drifts up as the camera flies (a hero put there stood on
+      // the roofs, over everything) and is nowhere a player would start.
       runInOpenFF({ map: mapState.name, pos });
     };
   }
@@ -3178,7 +3180,7 @@ function addSceneObject(doc, options = {}) {
     siblings.push(object);
   }
   if (!parent && !after) {
-    const spot = options.at || (doc && doc.scene3d ? doc.scene3d.viewCentre() : [0, 0, 0]);
+    const spot = options.at || (doc && doc.scene3d ? (doc.scene3d.viewGround ? doc.scene3d.viewGround() : doc.scene3d.viewCentre()) : [0, 0, 0]);
     object.x = Math.round(spot[0]);
     object.y = Math.round(spot[1]);
     object.z = Math.round(spot[2]);
