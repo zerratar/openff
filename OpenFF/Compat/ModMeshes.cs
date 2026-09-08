@@ -45,6 +45,48 @@ namespace OpenFF.Client
 			public override int Triangles => Model?.Triangles ?? 0;
 			public override string Problem => Model?.Problem;
 			public override void Remove() { Removed = true; _instance?._handles.Remove(this); }
+
+			// The clip playing: its index in the file, the time along it, the frame's vertices.
+			public OpenFF.Graphics.GltfAnimation Playing;
+			public bool Loop;
+			public float Speed = 1f, Time;
+			public long LastTick;
+			public VertexPositionColorTexture[][] Posed;
+			public override IReadOnlyList<string> Clips => Model?.File == null ? Array.Empty<string>() : Model.File.Animations.ConvertAll(a => a.Name);
+			public override string Clip => Playing?.Name;
+			public override bool Play(string clip, bool loop = true, float speed = 1f)
+			{
+				if (Model?.File == null) return false;
+				OpenFF.Graphics.GltfAnimation found = Model.File.Animations.Find(a => string.Equals(a.Name, clip, StringComparison.OrdinalIgnoreCase));
+				if (found == null) return false;
+				Playing = found; Loop = loop; Speed = speed <= 0 ? 1f : speed; Time = 0; LastTick = Environment.TickCount64; Posed = null;
+				return true;
+			}
+			public override void Stop() { Playing = null; Posed = null; }
+
+			/// <summary>The clip a step further and the vertices for it; the file's meshes are posed in place, so one handle at a time.</summary>
+			public void Advance()
+			{
+				if (Playing == null || Model?.File == null) return;
+				long now = Environment.TickCount64;
+				float dt = LastTick == 0 ? 0 : Math.Min(0.25f, (now - LastTick) / 1000f);
+				LastTick = now;
+				Time += dt * Speed;
+				if (Playing.Duration > 0)
+				{
+					if (Loop) Time %= Playing.Duration;
+					else if (Time > Playing.Duration) Time = Playing.Duration;
+				}
+				OpenFF.Graphics.GltfFile file = Model.File;
+				file.Pose(file.WorldMatrices(Playing, Time));
+				if (Posed == null || Posed.Length != file.Meshes.Count) Posed = new VertexPositionColorTexture[file.Meshes.Count][];
+				for (int i = 0; i < file.Meshes.Count; i++)
+				{
+					OpenFF.Graphics.GltfMesh mesh = file.Meshes[i];
+					OpenFF.Graphics.GltfMaterial material = mesh.Material >= 0 && mesh.Material < file.Materials.Count ? file.Materials[mesh.Material] : new OpenFF.Graphics.GltfMaterial();
+					Posed[i] = GltfModel.Vertices(mesh, material);
+				}
+			}
 		}
 
 		public MeshHandle Spawn(string path, OpenFF.Vector3 position, float yaw = 0f, float scale = 1f)
@@ -106,10 +148,13 @@ namespace OpenFF.Client
 				foreach (Handle h in me._handles.ToArray())
 				{
 					if (h.Hidden || h.Removed || h.Model == null || h.Model.Primitives.Count == 0) continue;
+					if (h.Playing != null) h.Advance();
 					Matrix world = Matrix.CreateScale(h.Scale) * Matrix.CreateRotationY(MathHelper.ToRadians(h.Yaw)) * Matrix.CreateTranslation(new XnaVector3(h.Position.X, h.Position.Y, h.Position.Z)) * camera;
-					foreach (GltfPrimitive p in h.Model.Primitives)
+					for (int i = 0; i < h.Model.Primitives.Count; i++)
 					{
-						NativeRenderer.Draw(device, 4u, p.Vertices, 0, p.Vertices.Length, world, projection, p.Texture,
+						GltfPrimitive p = h.Model.Primitives[i];
+						VertexPositionColorTexture[] vertices = h.Posed != null && i < h.Posed.Length && h.Posed[i] != null ? h.Posed[i] : p.Vertices;
+						NativeRenderer.Draw(device, 4u, vertices, 0, vertices.Length, world, projection, p.Texture,
 							TextureFilter.Linear, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
 							alphaTest: !p.Translucent, alphaReference: 0.5f, alphaFunction: CompareFunction.Greater,
 							depthTest: true, depthWrite: !p.Translucent, depthFunction: CompareFunction.LessEqual,

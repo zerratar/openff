@@ -30,6 +30,9 @@ namespace OpenFF.Client
 	internal sealed class GltfModel
 	{
 		public string Path;
+		/// <summary>The file, kept when it has animations, for posing; null for a static model.</summary>
+		public GltfFile File;
+		/// <summary>Primitive i is File.Meshes[i].</summary>
 		public List<GltfPrimitive> Primitives = new List<GltfPrimitive>();
 		public Vector3 Min, Max;
 		public int Triangles;
@@ -39,7 +42,7 @@ namespace OpenFF.Client
 		public static GltfModel Load(string path, GraphicsDevice device)
 		{
 			GltfFile file = GltfFile.Load(path);
-			GltfModel model = new GltfModel { Path = path, Triangles = file.Triangles };
+			GltfModel model = new GltfModel { Path = path, Triangles = file.Triangles, File = file.Animations.Count > 0 ? file : null };
 			model.Min = new Vector3(file.Min[0], file.Min[1], file.Min[2]);
 			model.Max = new Vector3(file.Max[0], file.Max[1], file.Max[2]);
 			if (file.Meshes.Count == 0) { model.Problem = string.Join("; ", file.Notes); return model; }
@@ -61,10 +64,22 @@ namespace OpenFF.Client
 				return texture;
 			}
 
-			Vector3 light = Vector3.Normalize(new Vector3(0.4f, 1f, 0.6f));
 			foreach (GltfMesh mesh in file.Meshes)
 			{
 				GltfMaterial material = mesh.Material >= 0 && mesh.Material < file.Materials.Count ? file.Materials[mesh.Material] : new GltfMaterial();
+				model.Primitives.Add(new GltfPrimitive { Vertices = Vertices(mesh, material), Texture = TextureOf(material.Image), DoubleSided = material.DoubleSided, Translucent = material.Blend });
+			}
+			if (file.Notes.Count > 0 && model.Problem == null) Log.Write(LogChannel.General, "meshes: " + System.IO.Path.GetFileName(path) + ": " + string.Join("; ", file.Notes));
+			return model;
+		}
+
+		private static readonly Vector3 Light = Vector3.Normalize(new Vector3(0.4f, 1f, 0.6f));
+
+		/// <summary>A mesh's triangle list from its Positions and Normals as they stand (the bind pose, or a pose an animation set).</summary>
+		public static VertexPositionColorTexture[] Vertices(GltfMesh mesh, GltfMaterial material)
+		{
+			Vector3 light = Light;
+			{
 				VertexPositionColorTexture[] vertices = new VertexPositionColorTexture[mesh.Indices.Length];
 				for (int i = 0; i < mesh.Indices.Length; i++)
 				{
@@ -84,10 +99,8 @@ namespace OpenFF.Client
 					Vector2 uv = mesh.Uvs != null ? new Vector2(mesh.Uvs[v * 2], mesh.Uvs[v * 2 + 1]) : Vector2.Zero;
 					vertices[i] = new VertexPositionColorTexture(p, colour, uv);
 				}
-				model.Primitives.Add(new GltfPrimitive { Vertices = vertices, Texture = TextureOf(material.Image), DoubleSided = material.DoubleSided, Translucent = material.Blend });
+				return vertices;
 			}
-			if (file.Notes.Count > 0 && model.Problem == null) Log.Write(LogChannel.General, "meshes: " + System.IO.Path.GetFileName(path) + ": " + string.Join("; ", file.Notes));
-			return model;
 		}
 
 		private static float Clamp(float v) => Math.Max(0f, Math.Min(1f, v));

@@ -973,6 +973,12 @@ namespace OpenFF
 		/// <summary>Stand the model on its feet: its lowest point on the object's position rather than its origin.</summary>
 		[Tooltip("Lift the model so its lowest point stands on the object's position")]
 		public bool OnGround = true;
+		/// <summary>An animation clip of the file (a Blender action by name) to play, looping, from the start; empty for the bind pose.</summary>
+		[Tooltip("The file's animation clip to play, looping (a Blender action by its name); empty for the bind pose")]
+		public string Clip = "";
+		/// <summary>The clip's speed; 1 is the file's own.</summary>
+		[Range(0.1f, 4f), Tooltip("The clip's speed; 1 is the file's own")]
+		public float Speed = 1f;
 
 		/// <summary>The client's handle while it stands.</summary>
 		public MeshHandle Handle { get; private set; }
@@ -996,6 +1002,8 @@ namespace OpenFF
 			if (Handle == null) { Game.Warn("Mesh " + Path + " on " + (GameObject?.Name ?? "?") + ": not spawned"); return; }
 			if (Handle.Problem != null) Game.Warn("Mesh " + Path + ": " + Handle.Problem);
 			else if (OnGround) Handle.Position = Place();
+			if (!string.IsNullOrWhiteSpace(Clip) && Handle.Problem == null && !Handle.Play(Clip, true, Speed))
+				Game.Warn("Mesh " + Path + ": no clip '" + Clip + "' (it has: " + string.Join(", ", Handle.Clips) + ")");
 			_at = Transform.WorldPosition; _yaw = Transform.WorldYaw; _scale = Transform.WorldScale;
 			_hidden = !GameObject.ActiveInHierarchy;
 			Handle.Hidden = _hidden;

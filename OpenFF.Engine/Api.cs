@@ -628,6 +628,14 @@ namespace OpenFF
 		public abstract int Triangles { get; }
 		/// <summary>What went wrong reading it, or null.</summary>
 		public abstract string Problem { get; }
+		/// <summary>The animation clips the file has, by name (Blender's actions).</summary>
+		public abstract IReadOnlyList<string> Clips { get; }
+		/// <summary>The clip playing, or null.</summary>
+		public abstract string Clip { get; }
+		/// <summary>Plays a clip by name from its start, looping or once; false when the file has none by that name.</summary>
+		public abstract bool Play(string clip, bool loop = true, float speed = 1f);
+		/// <summary>Back to the bind pose.</summary>
+		public abstract void Stop();
 		/// <summary>Takes it off the map.</summary>
 		public abstract void Remove();
 	}
