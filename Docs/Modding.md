@@ -199,7 +199,7 @@ replaces one for everybody. The whole list is `Docs/API.md`; the shape of it:
 | --- | --- |
 | `Game.Dialogue` | `Say(text)` in the field's window, `Ask(question, yes => ...)` with the game's yes/no box, `IsOpen` |
 | `Game.Hero` | `Position`, `Yaw`, `Teleport`, `Face`, `LookAt`, `MoveTo`, `Freeze`/`Unfreeze`, `PlayMotion`, `BindBattleMotions` |
-| `Game.Npcs` | `Spawn(model, position, yaw)` a character, `SpawnModel` any model (a monster, an object), `Existing(index)` the map's own; an `Npc` moves, turns, talks (`Interacted`), fades, scales |
+| `Game.Npcs` | `Spawn(model, position, yaw)` a character, `SpawnPlain` the scripts' bootPlainCharacter kind, `SpawnModel` any model (a monster, an object), `Existing(slot)` / `ByRow(row)` the map's own; an `Npc` moves, turns, talks (`Interacted`), fades, scales |
 | `Game.Party` | `Members` with their sheets, `Gil`, `Items`/`AddItem`/`RemoveItem`, `Equip`, `Hurt`/`Heal`, `GiveExperience`, `SetJob`, `LearnSpell`, `Inflict`/`Cure` |
 | `Game.Items`, `Game.Magic`, `Game.Monsters`, `Game.Shops` | the tables as data; `Magic.Cast`/`CastOn` play the game's own effects, `Damage`/`Healing` are the game's formulas, `Magic.Add` a spell of your own; `Shops.Open(row)` the game's shop screen |
 | `Game.Battle` | `Start(monsterParty)` the game's own battle; `BattleEnded` says Won, Lost or Escaped |
@@ -291,6 +291,7 @@ under *Built in* whether or not the mod has code, so the usual things need no C#
 | `GameCast` | Cast, OnBoot; Setup; Treasure, Item, Gil, Flag; Recolour | the object *is* that cast of the map's script: talking to it runs `cast<N>_main` and the script's commands on cast N land on it (`Npc.RunCast`). *Setup* is the boot's own commands on the cast, one per line as the disassembly writes them (`setTreasureItem(15, 5001, 1, 22, 0, 0)`, `bindMotion(21, "w_light_old")`, `setCharacterDetectionRadius(…)`, `setSignEffect(…)` - any of them), replayed through the game's script engine once the stand-in runs the cast (`Npc.RunScript`); `[flags] command(...)` runs one only while the flags hold. *OnBoot*: a scene's actor - not spawned with the map but when the script boots the cast (`Events.CastBooted`), where it boots it, and driven by the scene from there. Treasure and Recolour are the same two things as fields, for an object made by hand (`Npc.SetTreasure`, `Npc.Recolour`). What Crystal's exact conversion puts on a stand-in - the same code on the same kind of character, set up by the same commands, 1:1 |
 | `Motion` | Set, Index, Loop | binds a motion set and plays a motion from the start - the boot's `bindMotion` + `startMotionCharacter`, the villagers' idle sway |
 | `Wander` | Ai (Still, Wander, Follow), Gait | the object's character walks about its spot exactly as the map scripts' `moveCharacter_StartRandom` does (`Npc.StartWander`: no autopilot, no operator, the random-move AI, the gait - Man, Woman, Boy, Girl, Uncle, Aunt, OldMan, OldWoman, the walk's pattern and pace); Still is `moveCharacter_EndRandom` |
+| `[FlagField]` on a string | | the inspector offers the map's flags to pick from (who tests and sets each) and checks the shape - what `WhenFlags.When`, `Talk.When/Then`, `Chest.Flag`, `GameCast.Flag` carry |
 | `WhenFlags` | When, Live | the object is there only while the flags hold - not even spawned until they do; hidden and its behaviours off otherwise. `When` is "0:14 !0:11" (all of them), or alternatives with `|` ("!0:14 \| 0:14 !0:11" - either), as a boot reached by more than one path has. *Live* follows the flags while the map is up; off, they count once at the map's start, as the game's boot tests do (what the conversions set) |
 | `Removed` | HideOnly, StandIn | on one of the *game's* characters (`object:N`): takes it off the map when the map is entered - what Crystal's conversions leave on the original, so the mod's stand-in (spawned first) is the only one there |
 
@@ -300,10 +301,14 @@ is set after its last line - the shape of a villager's flag-branched cast, which
 Crystal's *Convert the map's characters* turns them into. An object with a model is spawned
 as a plain figure unless marked **character** in the inspector (`"character": true`), which
 gives it the game's walker: it turns to the player, can `Wander`, is talked to the game's way.
+The scripts boot characters two ways, and **plain** (`"plain": true`, under *character*) picks
+the second: `bootPlainCharacter`'s light walker with the model's own scale and kind (a child's
+model at 0.8, the chocobo, the frog) - `Npcs.SpawnPlain` against `Npcs.Spawn`. The converter
+keeps whichever the original had.
 
 So a chest is: an OpenFF object with the chest's model (`o001`), a `Chest` on it, the item
 picked in the inspector - every one of those changeable later. `Chest` and `Talk` derive
-from `Interactable` (talked to with a model, walked into without) and are not sealed: a
+from `Interactable` (talked to with a model; A within Radius without one, or walked into with OnWalkIn) and are not sealed: a
 class of your own deriving `Chest` and overriding `OnOpened`, or `Talk` and `OnSaid`, or
 `Interactable` and `Activate`, is a component with everything the built-in one has plus
 yours, and shows in the list under the mod's name. What `Chest` remembers lives in

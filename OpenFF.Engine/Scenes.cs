@@ -52,6 +52,8 @@ namespace OpenFF
 		public string Model { get; internal set; }
 		/// <summary>With a model: whether it is a walking character (talked to, wandering) rather than a plain figure.</summary>
 		public bool Character { get; internal set; }
+		/// <summary>With Character: spawned as the scripts' bootPlainCharacter does - the light walker with the model's own scale and kind.</summary>
+		public bool Plain { get; internal set; }
 		/// <summary>For a character, or a scene object with a model: the handle to move, turn, hide and talk through; null otherwise.</summary>
 		public Npc Npc { get; internal set; }
 		/// <summary>The map the object is on.</summary>
@@ -248,7 +250,9 @@ namespace OpenFF
 
 		private void OnInteracted(Npc npc)
 		{
-			if (IsTheOne()) Game.Guard(Name + ".Activate", Activate);
+			bool mine = IsTheOne();
+			Game.Log("engine: " + (GameObject?.Name ?? "?") + " talked to: " + Name + (mine ? " acts" : " passes (another applies, or disabled)"));
+			if (mine) Game.Guard(Name + ".Activate", Activate);
 		}
 
 		protected override void Update()
@@ -296,14 +300,15 @@ namespace OpenFF
 		[Header("Opening")]
 		[Tooltip("Opens once and stays open, across saves; off, it gives its contents every time")]
 		public bool Once = true;
-		/// <summary>What the window says on opening; {what} is the contents ("Potion x2 and 100 gil").</summary>
+		/// <summary>What the window says on opening; {what} is the contents ("Potion x2 and 100 gil"). The game's own chests say "You find Potion."</summary>
 		[Tooltip("What the window says; {what} is the contents (\"Potion x2 and 100 gil\")")]
-		public string Message = "Found {what}!";
+		public string Message = "You find {what}.";
 		/// <summary>What the window says when it is already open.</summary>
 		[Tooltip("What the window says when it is already open")]
 		public string EmptyMessage = "The chest is empty.";
 		/// <summary>The game's own flag for this chest ("1:22"), as its setTreasureItem named it: set when opened and read at start, so the game's treasure count and anything else reading it agree. Empty for a chest of the mod's own.</summary>
 		[Tooltip("The game's flag for the chest, group:index (a converted chest keeps its own); set when opened, read at start")]
+		[FlagField]
 		public string Flag = "";
 		/// <summary>Play the game's chest motions (closed lid, opening, open lid), sound and sparkle - for a chest model (o000, o001).</summary>
 		[Tooltip("The game's lid motions, sound and sparkle on opening - for a chest model")]
@@ -411,9 +416,11 @@ namespace OpenFF
 		/// <summary>Game flags that must hold for this Talk to be the one that speaks: "0:14 !0:11" (group:index, ! for off); empty for always.</summary>
 		[Header("Flags")]
 		[Tooltip("Flags that must hold for this one to speak: group:index, ! for off, e.g. 0:14 !0:11. Empty: always. Of several Talks on one object the first that holds speaks")]
+		[FlagField]
 		public string When = "";
 		/// <summary>Game flags set after the last line: "0:13 !1:2".</summary>
 		[Tooltip("Flags set after the last line: group:index, ! to clear, e.g. 0:13")]
+		[FlagField]
 		public string Then = "";
 
 		private int _next = -1;
@@ -471,6 +478,7 @@ namespace OpenFF
 	{
 		/// <summary>Flags that must hold: "0:14 !0:11" (group:index, ! for off).</summary>
 		[Tooltip("Flags that must hold for the object to be there: group:index, ! for off, e.g. !0:14")]
+		[FlagField]
 		public string When = "";
 
 		/// <summary>
@@ -577,6 +585,7 @@ namespace OpenFF
 		[Tooltip("Gil inside instead (setTreasureMoney)")]
 		public int Gil;
 		[Tooltip("The chest's own flag, group:index - set when opened; an opened chest shows its open lid")]
+		[FlagField]
 		public string Flag = "";
 
 		/// <summary>The boot's changeColorCharacter for this cast: a texture variant (n024 on n021).</summary>
@@ -919,6 +928,8 @@ namespace OpenFF
 		public string Model { get; set; }
 		/// <summary>With a model: a character (walks, turns to the player, can wander) rather than a plain figure. What a converted villager is.</summary>
 		public bool Character { get; set; }
+		/// <summary>With Character: made as the scripts' bootPlainCharacter makes one - the light walker with the model's own scale and kind (a child's model at 0.8). What a plain-booted villager is.</summary>
+		public bool Plain { get; set; }
 		/// <summary>Words a mod finds it by (GameObject.Tags).</summary>
 		public List<string> Tags { get; set; } = new List<string>();
 		/// <summary>Objects under this one, their transforms relative to it.</summary>
@@ -1252,7 +1263,7 @@ namespace OpenFF
 			o.Transform.Position = new Vector3(item.X, item.Y, item.Z);
 			o.Transform.Rotation = new Vector3(0, item.Yaw, 0);
 			o.Transform.Scale = new Vector3(scale, scale, scale);
-			o.AddComponent(new MapObject { Kind = "scene", Name = name, Path = path, Map = map, Model = string.IsNullOrWhiteSpace(item.Model) ? null : item.Model.Trim(), Character = item.Character });
+			o.AddComponent(new MapObject { Kind = "scene", Name = name, Path = path, Map = map, Model = string.IsNullOrWhiteSpace(item.Model) ? null : item.Model.Trim(), Character = item.Character, Plain = item.Plain });
 			return o;
 		}
 
@@ -1264,11 +1275,12 @@ namespace OpenFF
 			Game.Guard("scene object " + link.Path + " model " + link.Model, () =>
 			{
 				// A character has the walker behind it (turns to the player, can wander, is talked to
-				// the game's way); a plain figure is just the model standing there.
+				// the game's way) - the scripts' bootCharacter kind, or their bootPlainCharacter kind
+				// (Plain: the model's own scale and kind); a plain figure is just the model standing there.
 				link.Npc = link.Character
-					? Game.Npcs.Spawn(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw)
+					? (link.Plain ? Game.Npcs.SpawnPlain(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw) : Game.Npcs.Spawn(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw))
 					: Game.Npcs.SpawnModel(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw, o.Transform.WorldScale);
-				if (link.Npc != null && link.Character && o.Transform.WorldScale != 1f) link.Npc.Scale = o.Transform.WorldScale;
+				if (link.Npc != null && link.Character && !link.Plain && o.Transform.WorldScale != 1f) link.Npc.Scale = o.Transform.WorldScale;
 				link.OwnsNpc = link.Npc != null;
 			});
 			if (link.Npc == null)

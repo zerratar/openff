@@ -42,6 +42,16 @@ namespace OpenFF
 	{
 	}
 
+	/// <summary>
+	/// A string that is a flag expression - "0:14 !0:11", alternatives with | - as WhenFlags
+	/// and Talk read them: the inspector offers the map's flags to pick from (the ones its
+	/// script tests and sets, with who does), and checks the shape.
+	/// </summary>
+	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+	public sealed class FlagFieldAttribute : Attribute
+	{
+	}
+
 	/// <summary>A public field the inspector leaves out (still set from a scene file when named).</summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
 	public sealed class HideInInspectorAttribute : Attribute

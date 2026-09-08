@@ -262,8 +262,20 @@ namespace OpenFF
 		/// character; the raw material of a real-time fight or a set piece.
 		/// </summary>
 		Npc SpawnModel(string model, Vector3 position, float yaw = 0f, float scale = 1f);
-		/// <summary>The map's own character by its index in the map's cast list (the editor's Characters, "object:N"), as a handle: move it, turn it, hear Interacted when the hero talks to it (the map's own script still runs). Null off a map or for no such character.</summary>
+
+		/// <summary>
+		/// Puts a character on the map the way the map scripts' bootPlainCharacter does: the
+		/// light walker with the model's own scale and kind (the children's models at 0.8, the
+		/// chocobo, the frog, the fairy). The stand-in for a character the script booted that
+		/// way; Spawn is the bootCharacter kind.
+		/// </summary>
+		Npc SpawnPlain(string model, Vector3 position, float yaw = 0f);
+
+		/// <summary>The map's own character by its player slot, as a handle: move it, turn it, hear Interacted when the hero talks to it (the map's own script still runs). Null off a map or for no such character. A scene file's object:&lt;n&gt; is a .hich row, not a slot - ByRow is for that.</summary>
 		Npc Existing(int index);
+
+		/// <summary>The character the map's .hich row was booted into (the editor's Characters, a scene file's object:&lt;n&gt;), or null while nothing has booted it.</summary>
+		Npc ByRow(int row);
 	}
 
 	/// <summary>The game's flag space: what the scripts store quest progress in.</summary>

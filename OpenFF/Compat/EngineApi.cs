@@ -790,7 +790,27 @@ namespace OpenFF.Client
 		{
 			GlobalScope.pl.CBasePlayer p = Player;
 			if (p == null) return;
+			// A map object (a chest, a sign: o/w models) has its own motions - the lid's 1002/1003 -
+			// and plays them itself (map.CMapObject.startMotion), not through the walkers' sets.
+			GlobalScope.map.CMapObject box = AsMapObject();
+			if (box != null)
+			{
+				Game.Guard("Npc.PlayMotion", () => box.startMotion(index, loop, (uint)Math.Max(0, blendFrames)));
+				return;
+			}
 			Game.Guard("Npc.PlayMotion", () => _motion.Ask(p, index, loop, (uint)Math.Max(0, blendFrames), "Npc"));
+		}
+
+		/// <summary>The character as the game's map object, when its slot is one of those (the o/w models); null for a walker.</summary>
+		private GlobalScope.map.CMapObject AsMapObject()
+		{
+			try
+			{
+				int num = Index - (int)(GlobalScope.pl.FIELD_CHARACTER_NUM - GlobalScope.pl.MAP_OBJECT_NUM);
+				if (num < 0 || num >= (int)GlobalScope.pl.MAP_OBJECT_NUM) return null;
+				return GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng().MapObject(num);
+			}
+			catch (Exception) { return null; }
 		}
 
 		public override void BindMotions(string set)
@@ -979,8 +999,7 @@ namespace OpenFF.Client
 			if (Player == null) return;
 			try
 			{
-				int num = Index - (int)(GlobalScope.pl.FIELD_CHARACTER_NUM - GlobalScope.pl.MAP_OBJECT_NUM);
-				GlobalScope.map.CMapObject box = GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng().MapObject(num);
+				GlobalScope.map.CMapObject box = AsMapObject();
 				if (box == null)
 				{
 					EngineApi.Warn("treasure", "SetTreasure: " + Model + " (character " + Index + ") is not a map object - a chest wants an o or w model spawned as a character");
@@ -1143,6 +1162,51 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>
+		/// The map scripts' bootPlainCharacter, without a cast: the light walker
+		/// (setupPlainCharacter) with the model's own scale and human type - the children's
+		/// n031/n041 at 0.8, the chocobo, the frog, the fairy - through the very code the
+		/// command runs (bootPlainCharacterImp). What a stand-in for a plain-booted character
+		/// must be to look and move as the original did.
+		/// </summary>
+		public Npc SpawnPlain(string model, Vector3 position, float yaw = 0f)
+		{
+			if (!EngineApi.InWorld || string.IsNullOrEmpty(model))
+			{
+				EngineApi.Warn("spawn", "SpawnPlain: not on a map");
+				return null;
+			}
+			try
+			{
+				string map = GlobalScope.stg.CStageMng.CurrentName;
+				GlobalScope.VecFx32 pos = EngineApi.ToFx(position);
+				GlobalScope.VecFx32 rot = new GlobalScope.VecFx32();
+				rot.set(0, EngineApi.YawToRot(yaw), 0);
+				GlobalScope.VecFx32 scale = new GlobalScope.VecFx32();
+				scale.set(4096, 4096, 4096);
+				GlobalScope.VecFx32 shadow = new GlobalScope.VecFx32();
+				shadow.set(4915, 4096, 4915);
+				int index = GlobalScope.bootPlainCharacterImp(GlobalScope.CastInfo.INVALID_SCRIPT, model, pos, rot, scale, shadow);
+				if (index < 0)
+				{
+					EngineApi.Warn("spawn-full", "SpawnPlain: no character slot free for " + model);
+					return null;
+				}
+				GlobalScope.pl.CBasePlayer player = EngineApi.Players.Player(index);
+				player.setHidden(false);
+				LegacyNpc npc = new LegacyNpc(index, model, map);
+				_spawned.Add(npc);
+				Log.Write(LogChannel.General, "engine api: spawned " + model + " as plain character " + index + " at " + position + " on " + map
+					+ " (chr " + player.getCharacterId() + ")");
+				return npc;
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("spawn-fail", "SpawnPlain " + model + " failed: " + ex.GetType().Name + ": " + ex.Message);
+				return null;
+			}
+		}
+
 		public Npc SpawnModel(string model, Vector3 position, float yaw = 0f, float scale = 1f)
 		{
 			if (!EngineApi.InWorld || string.IsNullOrEmpty(model))
@@ -1231,6 +1295,7 @@ namespace OpenFF.Client
 				_legacyTalkTarget = talking;
 				if (talking != null)
 				{
+					Log.Write(LogChannel.File, "engine api: the hero talks to " + talking.Model + " (character " + talking.Index + ")" + (talking.HasInteractHandler ? "" : " - nothing listens"));
 					// The game has the character's attention now: a walk in progress ends here.
 					talking.Stop();
 					if (talking.HasInteractHandler && !EngineApi.Dialogue.IsOpen)
@@ -1245,6 +1310,7 @@ namespace OpenFF.Client
 			try { pressed = (GlobalScope.ds.g_Pad.edge() & 1) != 0; }
 			catch (Exception) { return; }
 			if (!pressed || talking != null || EngineApi.Dialogue.IsOpen || EngineApi.Dialogue.ClosedFrame == OpenFF.Game.Time.Frame) return;
+			Log.Write(LogChannel.File, "engine api: A pressed near " + Tracked.Count(n => n.Alive) + " character(s) of ours" + (hero.getNowAct() == 4 ? " (hero in talk)" : ""));
 			Vector3 at = EngineApi.ToUnits(hero.getPosition());
 			LegacyNpc nearest = null;
 			float best = float.MaxValue;

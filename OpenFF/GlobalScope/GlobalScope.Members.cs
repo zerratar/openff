@@ -19964,6 +19964,21 @@ internal static partial class GlobalScope
 								sprintf(out text2, "j%d%02d", pl.PlayerParty.instance().playerForId((byte)num).playerId() + 1, pl.PlayerParty.instance().playerForId((byte)num).jobManager()
 									.nowJob() + 1);
 							}
+							int num2 = bootPlainCharacterImp(word, text2, vecFx, vecFx2, vecFx3, vecFx4);
+							evt.CHichParameterManager.getInstance().setCharaIndex(manCastIndex, num2);
+							// OpenFF: a mod's stand-in for this cast takes over from here (Events.CastBooted).
+							OpenFF.Client.EngineApi.CastBooted((int)word, num2);
+						}
+
+						/// <summary>
+						/// OpenFF: the body of bootPlainCharacter after the .hich row has been read - the
+						/// light walker (setupPlainCharacter) with the model's own scale and human type,
+						/// placed and turned. Split out so a mod's stand-in for a plain-booted character
+						/// (Npcs.SpawnPlain) is made by the very same code; the row's character index is
+						/// the caller's business.
+						/// </summary>
+						internal static int bootPlainCharacterImp(uint word, string text2, VecFx32 vecFx, VecFx32 vecFx2, VecFx32 vecFx3, VecFx32 vecFx4)
+						{
 							TexDivideLoader.getSingleton().tdlForceLoad();
 							pl.PLAYER_HUMAN_TYPE arg = pl.PLAYER_HUMAN_TYPE.PLAYER_HUMAN_TYPE_HUMAN;
 							if (strcmp(text2, "n441") == 0)
@@ -20033,7 +20048,6 @@ internal static partial class GlobalScope
 							CCastCommandTransit.getInstance().cast_PlayerMng().Player(num2)
 								.setMainPos(CCastCommandTransit.getInstance().cast_PlayerMng().Player(num2)
 									.getPosition());
-							evt.CHichParameterManager.getInstance().setCharaIndex(manCastIndex, num2);
 							CCastCommandTransit.getInstance().cast_PlayerMng().PlayerHuman(num2)
 								.HumanType_set(arg);
 							CCastCommandTransit.getInstance().cast_PlayerMng().PlayerHuman(num2)
@@ -20042,6 +20056,7 @@ internal static partial class GlobalScope
 								.NPCRandomMoveType_set(pl.NPC_RANDOM_MOVE_TYPE.NPC_RANDOM_MOVE_TYPE_DEFAULT);
 							CCastCommandTransit.getInstance().cast_PlayerMng().PlayerHuman(num2)
 								.NPCAutoFollowType_set(pl.NPC_AUTO_FOLLOW_TYPE.NPC_AUTO_FOLLOW_TYPE_DEFAULT);
+							return num2;
 						}
 
 						internal static bool isClaw(string pObjName)

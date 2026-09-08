@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags)
-- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`FlagFieldAttribute`](#flagfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -115,9 +115,11 @@ Characters on the map: spawning and finding them.
 | Member | What it does |
 | --- | --- |
 | `IReadOnlyList<Npc> Spawned { get; }` | The characters scripts have spawned and not removed. |
-| `Npc Existing(int index)` | The map's own character by its index in the map's cast list (the editor's Characters, "object:N"), as a handle: move it, turn it, hear Interacted when the hero talks to it (the map's own script still runs). Null off a map or for no such character. |
+| `Npc ByRow(int row)` | The character the map's .hich row was booted into (the editor's Characters, a scene file's object:<n>), or null while nothing has booted it. |
+| `Npc Existing(int index)` | The map's own character by its player slot, as a handle: move it, turn it, hear Interacted when the hero talks to it (the map's own script still runs). Null off a map or for no such character. A scene file's object:<n> is a .hich row, not a slot - ByRow is for that. |
 | `Npc Spawn(string model, Vector3 position, float yaw = 0)` | Puts a character model (n011, n272, j101...) on the current map. Null when there is no map, the model is unknown, or the map's character slots are full. |
 | `Npc SpawnModel(string model, Vector3 position, float yaw = 0, float scale = 1)` | Puts any character-format model on the map as a plain figure - a monster (b_m005), an object, a character without the walker's behaviour - with no AI and no talk of its own. Moved, turned, scaled, hidden and removed like a spawned character; the raw material of a real-time fight or a set piece. |
+| `Npc SpawnPlain(string model, Vector3 position, float yaw = 0)` | Puts a character on the map the way the map scripts' bootPlainCharacter does: the light walker with the model's own scale and kind (the children's models at 0.8, the chocobo, the frog, the fairy). The stand-in for a character the script booted that way; Spawn is the bootCharacter kind. |
 
 ### IParty
 
@@ -330,7 +332,7 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 | `string Flag` | The game's own flag for this chest ("1:22"), as its setTreasureItem named it: set when opened and read at start, so the game's treasure count and anything else reading it agree. Empty for a chest of the mod's own. |
 | `int Gil` | Gil inside, on top of the item or instead of it. |
 | `int Item` | The item inside, by id; 0 to give only gil. |
-| `string Message` | What the window says on opening; {what} is the contents ("Potion x2 and 100 gil"). |
+| `string Message` | What the window says on opening; {what} is the contents ("Potion x2 and 100 gil"). The game's own chests say "You find Potion." |
 | `bool Once` | Opens once and stays open, across saves (SceneMemory); off, it gives its contents every time. |
 | `bool Opened { get; }` | Whether it has been opened (this visit, or ever when Once). |
 | `void NpcReady(MapObject link)` |  |
@@ -400,6 +402,12 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 | `void Rect(float x, float y, float w, float h, Color color, bool filled = true)` |  |
 | `void Sprite(Texture texture, float x, float y, float w, float h, Color? tint = null, float rotation = 0, float srcX = 0, float srcY = 0, float srcW = 0, float srcH = 0)` | A texture (or part of it) drawn into a rectangle, tinted, turned about its centre. |
 | `void Text(string text, float x, float y, Color color, int size = 12)` | Text at a position, in the game's own font. Sizes as the game's: 12 small, 16 normal. |
+
+### FlagFieldAttribute
+
+`class FlagFieldAttribute : Attribute`
+
+A string that is a flag expression - "0:14 !0:11", alternatives with | - as WhenFlags and Talk read them: the inspector offers the map's flags to pick from (the ones its script tests and sets, with who does), and checks the shape.
 
 ### GameCast
 
@@ -724,6 +732,7 @@ The mod's own object in a scene file: a spot, or a model standing there, with ch
 | `List<SceneObject> Children { get; set; }` | Objects under this one, their transforms relative to it. |
 | `string Model { get; set; }` | A model name (o001, n011...) to show, or null for a spot with logic only. |
 | `string Name { get; set; }` | The name; unique among its siblings, not / or :. |
+| `bool Plain { get; set; }` | With Character: made as the scripts' bootPlainCharacter makes one - the light walker with the model's own scale and kind (a child's model at 0.8). What a plain-booted villager is. |
 | `float Scale { get; set; }` | Uniform scale, 1 = the model's own size; for a child, multiplied by the parent's. |
 | `List<string> Tags { get; set; }` | Words a mod finds it by (GameObject.Tags). |
 | `float X { get; set; }` | Position; for a child, relative to its parent (turned by the parent's yaw, scaled by its scale). |
@@ -1030,6 +1039,7 @@ What a scene-file object stands for on the legacy map.
 | `string Name { get; }` | A scene object's name from the editor (the last part of its path); null for the rest. |
 | `Npc Npc { get; }` | For a character, or a scene object with a model: the handle to move, turn, hide and talk through; null otherwise. |
 | `string Path { get; }` | A scene object's path in the file: "chest", "chest/trigger"; what an attachment targets. |
+| `bool Plain { get; }` | With Character: spawned as the scripts' bootPlainCharacter does - the light walker with the model's own scale and kind. |
 | `string ToString()` |  |
 
 ### Scene
@@ -1819,4 +1829,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-113 types, 822 members; 396 without a summary yet.
+114 types, 826 members; 396 without a summary yet.
