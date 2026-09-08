@@ -147,17 +147,25 @@ namespace OpenFF.Client
 			return r;
 		}
 
-		/// <summary>The legacy rotation word for a yaw in degrees: the scripts' 4096 * FX_DEG_TO_IDX(deg) * -1.</summary>
+		/// <summary>
+		/// The legacy rotation word for a yaw in degrees, in the engine's convention: 0 faces
+		/// +z, 90 faces +x - what Direction(yaw) turns toward, what an exit's arrival facing
+		/// says, and how Crystal draws a scene object. The scripts' bootCharacter negates its
+		/// posture (4096 * FX_DEG_TO_IDX(deg) * -1), so a .hich character's 90 faces -x; that
+		/// is the converter's business (it negates once), not this word's. With the negation
+		/// here, a chest placed in Crystal stood mirrored in play, and Face(Yaw) turned a
+		/// character the other way from where Yaw said it faced.
+		/// </summary>
 		internal static int YawToRot(float yaw)
 		{
 			int deg = ((int)Math.Round(yaw) % 360 + 360) % 360;
-			return -4096 * GlobalScope.FX_DEG_TO_IDX(deg);
+			return 4096 * GlobalScope.FX_DEG_TO_IDX(deg);
 		}
 
 		internal static float RotToYaw(int rot)
 		{
 			// FX_DEG_TO_IDX maps 360 degrees onto 65536; undo it.
-			long idx = -(long)rot / 4096;
+			long idx = (long)rot / 4096;
 			float deg = (float)(idx * 360.0 / 65536.0);
 			return ((deg % 360f) + 360f) % 360f;
 		}
@@ -842,6 +850,19 @@ namespace OpenFF.Client
 			Game.Guard("Npc.PlayMotion", () => _motion.Ask(p, index, loop, (uint)Math.Max(0, blendFrames), "Npc"));
 		}
 
+		public override void HoldMotion(int index)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null) return;
+			PlayMotion(index, false, 0);
+			// Straight to the last frame: the closed lid without the closing, whatever pose the
+			// model was in (its bind pose is the open one).
+			Game.Guard("Npc.HoldMotion", () =>
+			{
+				if ((int)p.getMotionIndex() == index) p.setCurrentFrame(p.getMaxFrame());
+			});
+		}
+
 		/// <summary>The character as the game's map object, when its slot is one of those (the o/w models); null for a walker.</summary>
 		private GlobalScope.map.CMapObject AsMapObject()
 		{
@@ -1090,7 +1111,12 @@ namespace OpenFF.Client
 					}
 					box.setItemNum(count);
 				}
-				box.startMotion(1003, _Loop: false, 5u);
+				// Shut, at once: the game's act 0 plays 1003 from the model's open pose, behind the
+				// fade-in of a map boot; a stand-in appears on a map in view, so the lid is held at
+				// the motion's end and the act moves on to 2 (shut, waiting) as if it had played.
+				box.startMotion(1003, _Loop: false, 0u);
+				box.setCurrentFrame(box.getMaxFrame());
+				box.setNowAct(2);
 				Log.Write(LogChannel.General, "engine api: " + Model + " (character " + Index + ") is a chest: " + (gil > 0 ? gil + " gil" : "item " + itemId) + ", flag " + flagGroup + ":" + flagIndex);
 			}
 			catch (Exception ex)
