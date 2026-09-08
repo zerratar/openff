@@ -565,10 +565,23 @@ group 1 is the usual one), so a map that has random fights keeps having them, wi
 formation among them - or only yours. The client accepts a mod formation's number where
 the game checks a party id against its own table's size.
 
-A texture of the monster's own, until Crystal writes `.ntxp` files: the battle asks for
-`f<family>_<id>.ntxp.lz` (`f001_1001.ntxp.lz` for a family-1 monster numbered 1001) and a
-file of that name under the mod's `ff3/files/files/` is used before any alias - so a
-texture made with another tool goes in as any replaced file does.
+A skin of the monster's own: *A skin of its own…* on the monster copies the texture it
+wears to `files/f<family>_<number>.ntxp.lz` - the name the battle asks for - and opens it
+in Textures, where *Replace with a PNG…* paints it (every format, the monsters' 4x4 blocks
+included). The file is the project's; Export carries it, and the game reads it before any
+look-alike.
+
+### New content from existing: Duplicate as…
+
+Any file in the libraries - a model, a texture package, a picture, a sound, a menu, a
+script, a table - has *Duplicate as…* in its inspector: a copy under a name of the mod's
+own, as a file of the project's. A model brings its `.ntxp` along, so the copy can be
+retextured without touching the original; the copy shows in the Models library and in the
+model picker ("the project's own"), an OpenFF object wears it by name (`n900` from
+`n021`, recoloured green, stands in Ur beside the untouched original), and a Steam mod
+carries the file the same way (a `.hich` row would still need a character id). Pictures
+come in directly: *Import a PNG…* in the Images library puts a new picture under a name
+the menus can refer to; *Replace with a PNG…* on one of the game's swaps it.
 
 ### The heroes: `defs/characters/<id>.json`
 

@@ -1934,6 +1934,27 @@ different writer, a simpler one).
 Every one of these lands in `Shared/` as a writer beside its reader and serves both the
 OpenFF client and a Steam install through the same override files, as the tables do.
 
+### New content from existing (2026-09-08, night)
+
+Karl's point sharpened: not replacing the game's assets but adding to them. The quickest
+true path there is a copy under a new name - the game loads models, textures and pictures
+by name and nothing else (`setUpWorldCharacter(model)` reads `<model>.nmdp.lz`, the battle
+`f<family>_<id>.ntxp.lz`, a menu its picture) - so `Workspace` now lists the project's own
+files beside the shipped ones (an override with no shipped twin; `IsShipped` tells them
+apart; `Write` adds to the list, `Revert` of one of ours removes it), `/api/file/duplicate`
+copies any file under a new name, and *Duplicate as…* sits in every library file's
+inspector - a model bringing its `.ntxp`. `CharacterIds` lists a project-own model as
+placeable with id 0 ("the project's own"). Tried: n021 → n900, tinted green, an OpenFF
+object wearing it in Ur beside the originals (`spawned n900 as character 13`; the game
+asked for `n900.namp.lz` and `n900.nsbtx.lz` too and did without, as it does for n021).
+The monster got *A skin of its own…* (`/api/project/monsters/skin`: the worn package copied
+to `f<family>_<number>.ntxp.lz`, then Replace with a PNG) - the alias was the stopgap, the
+file is the thing. Pictures: `/api/image/import` takes a PNG as a new `.NCGR` or over one
+of the game's (*Import a PNG…* in Images, *Replace with a PNG…* on one).
+
+What "new" still needs a writer for: a model that is not a copy (the glTF importer - next),
+a map that is not a copy (the collision and parameter files beside it), a font, a sound.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
