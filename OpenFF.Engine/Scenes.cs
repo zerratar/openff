@@ -694,16 +694,20 @@ namespace OpenFF
 	/// </summary>
 	public sealed class CastScript : Interactable
 	{
-		/// <summary>The cast number the code runs as - the original's, so the commands that name it (talkBegin(23)) reach this object through the bound row.</summary>
-		[Tooltip("The cast the code runs as (the original's number); the row is bound to this object")]
+		/// <summary>The cast number the code runs as - a converted character's original number, so the commands that name it (talkBegin(23)) reach this object through the bound row; 0 for an object of the mod's own, which is given a number of its own (from 5000) and may write "@me" in its lines.</summary>
+		[Tooltip("The cast the code runs as: a converted character's own number, or 0 for an object of the mod's own (a number is given, \"@me\" in the lines stands for it)")]
 		public int Cast;
 
-		/// <summary>The main function's lines, one per entry: commands, "label:" lines, comments after //.</summary>
+		/// <summary>The main function's lines, one per entry: commands, "label:" lines, comments after //. "@me" is this cast's number.</summary>
 		[Header("Code (the game's script language)")]
-		[Tooltip("The cast's main function, one line per entry: commands as the disassembly writes them, labels as \"loc_419E:\", // comments; ends with end()")]
+		[Tooltip("The cast's main function, one line per entry: commands as the disassembly writes them, labels as \"loc_419E:\", // comments, @me for this cast's number; ends with end()")]
 		public string[] Main = new string[0];
 
 		private bool _defined;
+		private int _cast;
+
+		/// <summary>The number the code runs as: Cast, or the one given to an object of the mod's own.</summary>
+		public int RunsAs => _cast;
 
 		protected override void Start()
 		{
@@ -713,18 +717,24 @@ namespace OpenFF
 
 		private void Define()
 		{
-			if (_defined || Cast <= 0 || Main == null || Main.Length == 0) return;
+			if (_defined || Main == null || Main.Length == 0) return;
 			IScripts scripts = Game.Scripts;
 			if (scripts == null) return;
-			_defined = scripts.Define(Cast, Main);
-			if (!_defined) Game.Warn("CastScript " + Cast + " on " + (GameObject?.Name ?? "?") + ": the code did not compile - see the log");
+			if (_cast <= 0) _cast = Cast > 0 ? Cast : scripts.Allocate();
+			_defined = scripts.Define(_cast, Main);
+			if (!_defined) Game.Warn("CastScript " + _cast + " on " + (GameObject?.Name ?? "?") + ": the code did not compile - see the log");
+			// An object of the mod's own: its row claimed now that the number is known.
+			MapObject link = GetComponent<MapObject>();
+			if (_defined && Cast <= 0 && link?.Npc != null) link.Npc.BindCast(_cast);
 		}
 
 		public override void NpcReady(MapObject link)
 		{
 			base.NpcReady(link);
 			// The row bound here even without a GameCast beside: the code's commands name the cast.
-			if (Cast > 0 && GetComponent<GameCast>() == null) link.Npc.BindCast(Cast);
+			if (GetComponent<GameCast>() != null) return;
+			if (Cast > 0) link.Npc.BindCast(Cast);
+			else if (_cast > 0) link.Npc.BindCast(_cast);
 		}
 
 		protected override void Activate()
@@ -732,8 +742,8 @@ namespace OpenFF
 			Define();
 			IScripts scripts = Game.Scripts;
 			if (scripts == null || !_defined) return;
-			if (scripts.IsRunning(Cast)) return;
-			if (!scripts.Start(Cast)) Game.Warn("CastScript " + Cast + ": did not start");
+			if (scripts.IsRunning(_cast)) return;
+			if (!scripts.Start(_cast)) Game.Warn("CastScript " + _cast + ": did not start");
 		}
 	}
 

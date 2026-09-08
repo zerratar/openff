@@ -38,7 +38,8 @@ namespace OpenFF.Client
 			if (GameProfile.IsFf4) { Log.Write(LogChannel.General, "scripts: FF3's language only for now"); return false; }
 			if (cast <= 0 || lines == null) return false;
 			Fresh();
-			string[] body = lines.Where(l => l != null).Select(l => l.TrimEnd()).ToArray();
+			// "@me" in a line is the cast itself: an object of the mod's own has no number to write.
+			string[] body = lines.Where(l => l != null).Select(l => l.TrimEnd().Replace("@me", cast.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray();
 			// Compiled alone first, so a broken definition is refused and the others stand.
 			if (!TryCompile(new Dictionary<int, string[]> { [cast] = body }, out _, out string problem))
 			{
@@ -48,6 +49,14 @@ namespace OpenFF.Client
 			_code[cast] = body;
 			_dirty = true;
 			return true;
+		}
+
+		private int _nextOwn = 5000;
+
+		public int Allocate()
+		{
+			Fresh();
+			return _nextOwn++;
 		}
 
 		public bool IsRunning(int cast)
@@ -85,6 +94,7 @@ namespace OpenFF.Client
 			_code.Clear();
 			_registered = null;
 			_dirty = false;
+			_nextOwn = 5000;
 		}
 
 		/// <summary>The mod's script compiled and registered as it stands; true when there is one.</summary>

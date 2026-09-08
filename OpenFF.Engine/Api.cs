@@ -595,6 +595,8 @@ namespace OpenFF
 		bool Start(int cast);
 		/// <summary>Whether the cast's code is running.</summary>
 		bool IsRunning(int cast);
+		/// <summary>A cast number no cast of the map's script has, for an object of the mod's own with code: counted from 5000 on this map. In the lines, "@me" stands for it.</summary>
+		int Allocate();
 	}
 
 	/// <summary>The game's shop screens.</summary>

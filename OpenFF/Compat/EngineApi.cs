@@ -1063,8 +1063,28 @@ namespace OpenFF.Client
 			try
 			{
 				p.LogicIndex_set(logic ? (uint)cast : GlobalScope.CastInfo.INVALID_SCRIPT);
-				int row = GlobalScope.evt.CHichParameterManager.getInstance().getManCastIndex((uint)cast);
-				if (row >= 0) GlobalScope.evt.CHichParameterManager.getInstance().setCharaIndex(row, Index);
+				GlobalScope.evt.CHichParameterManager hich = GlobalScope.evt.CHichParameterManager.getInstance();
+				int row = hich.getManCastIndex((uint)cast);
+				if (row < 0)
+				{
+					// A cast the map's .hich does not know - a new object with code of its own: the
+					// first row past the map's is claimed for it (the table has 48; the map's own
+					// stop at m_NumMan, and initialize clears every row at the next map), so the
+					// commands that name the cast find this character through the row as ever.
+					GlobalScope.evt.CHichManParameter.HICH_MAN_COMPOSITE table = hich.getHichManParam();
+					for (int i = (int)table.m_NumMan; i < GlobalScope.evt.CHichManParameter.HICH_MAN_PARAMETER_MAX; i++)
+					{
+						GlobalScope.evt.CHichManParameter.HICH_MAN_INDIVIDUAL slot = table.m_HichInd[i];
+						if (slot == null || slot.m_Kind != GlobalScope.evt.CHichManParameter.KIND.KIND_ERR) continue;
+						slot.m_Kind = GlobalScope.evt.CHichManParameter.KIND.KIND_CAST;
+						slot.m_Id = cast;
+						slot.m_CharaName = Model;
+						row = i;
+						break;
+					}
+					if (row < 0) EngineApi.Warn("run-cast", "no free .hich row for cast " + cast + " (" + Model + ")");
+				}
+				if (row >= 0) hich.setCharaIndex(row, Index);
 				p.flagOff(GlobalScope.pl.CBasePlayer.CBP_FLAG.NPC_NOT_TURN_TALKED);
 				Solid = true;
 				Log.Write(LogChannel.General, "engine api: " + Model + " (character " + Index + ") " + (logic ? "runs" : "is bound to") + " cast " + cast + (row >= 0 ? " (row " + row + ")" : " (no row)") + " on " + Map);
