@@ -412,6 +412,16 @@ end();
 
 The message id is the mod's own line - the next section.
 
+Writing the code: the CastScript card shows the first lines and *Edit code…* (or *Write
+code…*) opens them in a tab of their own - the script editor Crystal uses for the game's
+`.ffs` files. Command names complete as you type (Ctrl+Space asks), the strip under the
+editor says what each argument of the command under the caret is (`flagOn group:word,
+index:word`), *Commands…* lists all 298 with what they take and puts one at the caret, and
+the lines are compiled as the client will compile them a moment after each change
+(`Ffs.CastCode`, the same frame on both sides): a wrong name or a missing bracket shows
+under the editor with its line, and a click goes there. What you type is the scene's
+within half a second - the map's autosave takes it from there.
+
 ### Lines of the mod's own: `defs/text/<name>.json`
 
 Text is a definition as an item is. Under *OpenFF mod ▸ Strings*, *New text file…* makes a

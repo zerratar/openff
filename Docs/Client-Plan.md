@@ -1779,6 +1779,29 @@ and the maps' encounter data picks formations per area, so a new monster needs a
 an existing formation, or a formation of its own placed on a map. That last part is the
 real design; the record and the name are the item pattern again. Next on the list.
 
+### The cast's code with the script editor's help (2026-09-08, late afternoon)
+
+The CastScript's `Main` was a text area in a 250px inspector: no command list, no word on
+what an argument is, a slip found in the log at the next Play. Now the frame the client
+puts around a cast's lines - `map 60000; cast N { main = castN_main; } castN_main: …` -
+lives once in `Shared/Script/Ffs/CastCode.cs` (`Source` with the line map back to the
+cast's own lines, `Compile` with `CastCodeProblem`s placed on them, `Substitute` for
+`@me`); `LegacyScripts.TryCompile` is three lines over it, and Crystal's
+`/api/scene/cast-check` compiles the same way with the workspace's op table. In the
+editor `cast-code.js` is a document kind (`castcode`, not in the session - it belongs to
+the map's object and is opened again from it): the `.ffs` editor's template with its
+completion, signature strip and highlighting (`enhanceScriptEditor`, unchanged), a
+*Commands…* picker over `/api/ops` with the operand shapes, problems under the editor
+with a click to the line, and a write into the attachment 400 ms after a keystroke that
+hands over to the scene's autosave. The card keeps a five-line preview and the button.
+Found on the way: `projectChanged` → `resetOps` after every scene save emptied the op set
+under an open script editor, and `show()` then threw on `ops.list.filter` at each
+keystroke - the game's own script editor had the same hole; the three users of the set now
+fetch it again and come back. Tried in the browser: the list, the strip, the wrong-name
+problem on its line, the picker's `flagOn();` landing with the caret between the brackets,
+the scene file carrying the lines; the greeter drive runs the same through the shared
+frame.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
