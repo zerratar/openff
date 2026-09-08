@@ -243,6 +243,9 @@ namespace Crystal.Editor
 					case "OpenFF.ItemFieldAttribute":
 						if (f.Type == "int") f.Type = "item";
 						break;
+					case "OpenFF.FlagFieldAttribute":
+						if (f.Type == "string") f.Type = "flags";
+						break;
 				}
 			}
 			if (f.Tooltip == null) f.Tooltip = f.Summary;

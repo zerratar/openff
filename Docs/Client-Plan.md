@@ -1481,6 +1481,38 @@ Also, at Karl's ask: the replaced characters are hidden in the hierarchy - the C
 group counts what is still the game's, a *replaced (N)* tick on the header lists them,
 off unless asked and remembered.
 
+### The loose ends, in play (2026-09-08, morning)
+
+`--pos` on a town: `wld.MapJump`'s entry placement takes the arrival from the map's jump
+table whenever there is one, so the jump part's position only counted where there was
+none. When the previous part is the jump part and `--pos` was given, it counts now; a
+map's own exits still arrive where the table says. That made every walk-up test possible.
+Exact mode: the boy (cast 23) says his script's line, the west chest "You find Potion." -
+the game's code on the stand-ins. Components: *Make it editable* on the boy, his line
+changed in the inspector, and the Talk says the new words in play; the Chest gives its
+Potion - and its lid motions had been going nowhere: `Npc.PlayMotion` asked the walkers'
+motion sets, but a chest is a `map.CMapObject` with motions of its own (`startMotion`), so
+the map-object slots route there now. The Chest's default message is the game's wording
+("You find {what}."). The scene path proper - a boot *after* the files applied - with a new
+drive verb `flag g:i on|off` and `--pos=150,0,-80` inside Ur's opening-scene trigger box:
+casts 33 and 35-39 "booted into slot", each "took over cast N as the script booted it",
+and the scene played on the mod's actors.
+
+One more thing the survey had not shown, because it counts commands and not what they do:
+`bootPlainCharacter` is not `bootCharacter` with a model name. It goes through
+`setupPlainCharacter` - the light walker - with a scale table by model (n031/n041 children
+0.8, n551 1.3, n431 the frog 0.3, n221 the fairy 0.4...) and a human type (chocobo, frog,
+sheep, fairy). Twelve of Ur's villagers are booted that way, and their stand-ins had been
+full walkers at 1.0 - the girl a head too tall. The command's body is split into
+`bootPlainCharacterImp` (the same code, the .hich row's index left to the caller), the
+CastBooted hook is on it too (Arc in cast 6 is booted plain), `Npcs.SpawnPlain` calls it,
+`SceneObject.Plain` says which, the converter sets it, and the Model card has the tick.
+Side by side with the original the children are the same size.
+
+Editor: the dialog's *Undo this conversion*, *Restore the game's character* on a replaced
+row (the Removed and the stand-in go), and `[FlagField]`: flag strings get a picker of the
+map's flags (`/api/map/flags`: who tests, who sets, whose chest) and a shape check.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

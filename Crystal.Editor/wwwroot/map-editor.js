@@ -2163,6 +2163,8 @@ function applyCastPlan(doc, plan, options = {}) {
   // Spawned as a character (the walker; a chest model as the game's map object) so the cast
   // and its motions have what they had.
   object.character = Boolean(model) && (plan.character || !components || plan.kind === 'chest');
+  // Booted with bootPlainCharacter: the light walker with the model's own scale and kind.
+  object.plain = object.character && Boolean(plan.plain);
   const path = scenePathOf(object);
   if (!components) {
     // Exact: the cast, and every command the boot ran on it, replayed as the script's
@@ -2277,6 +2279,18 @@ async function convertMap(doc, options = {}) {
     + `${done.filter(d => d.plan.wander).length ? `; ${done.filter(d => d.plan.wander).length} wander` : ''}. `
     + 'Each is an object of the mod\'s own with the same model, place, idle motion and recolour; the original is taken off the map in the client (Removed). Everything saved.';
   body.append(summary);
+  if (done.length && typeof undoLast === 'function') {
+    // The whole conversion is one undo step; the button is that step, in plain sight.
+    const undo = document.createElement('button');
+    undo.className = 'wide-button';
+    undo.textContent = `Undo this conversion (${done.length} object${done.length === 1 ? '' : 's'} back to the game's)`;
+    undo.onclick = () => { undoLast(); const open = document.querySelector('.picker.dialog .shut'); if (open) open.click(); };
+    body.append(undo);
+    const tip = document.createElement('p');
+    tip.className = 'dialog-note';
+    tip.textContent = 'Later, one at a time: right-click a replaced character (tick "replaced" on the Characters header to list them) ▸ Restore the game\'s character.';
+    body.append(tip);
+  }
   if (!options.components && done.some(d => ['chest', 'talk', 'prop'].includes(d.plan.kind))) {
     const tip = document.createElement('p');
     tip.className = 'dialog-note';
@@ -2335,7 +2349,7 @@ function fromSceneFile(list, parent) {
     const object = {
       name: String(o.name), x: o.x || 0, y: o.y || 0, z: o.z || 0,
       rotationY: o.yaw || 0, scale: o.scale > 0 ? o.scale : 1,
-      model: o.model || null, character: Boolean(o.character), tags: o.tags || [], children: []
+      model: o.model || null, character: Boolean(o.character), plain: Boolean(o.plain), tags: o.tags || [], children: []
     };
     Object.defineProperty(object, 'parent', { value: parent || null, writable: true, enumerable: false });
     object.children = fromSceneFile(o.children, object);
@@ -2350,6 +2364,7 @@ function objectsForFile(list) {
     if (o.scale && o.scale !== 1) out.scale = o.scale;
     if (o.model) out.model = o.model;
     if (o.model && o.character) out.character = true;
+    if (o.model && o.character && o.plain) out.plain = true;
     if (o.tags && o.tags.length) out.tags = o.tags;
     if (o.children && o.children.length) out.children = objectsForFile(o.children);
     return out;
@@ -2898,6 +2913,54 @@ function behaviourCard(state, attachment, target) {
       }
       input.value = current;
       input.onchange = () => changed(input.value);
+    } else if (f.type === 'flags') {
+      // A flag expression ("0:14 !0:11", alternatives with |): typed, but with the map's own
+      // flags to pick from - the ones its script tests and sets, with who does - and the
+      // shape checked as it is typed.
+      input = document.createElement('div');
+      input.className = 'behaviour-flags';
+      const text = document.createElement('input');
+      text.type = 'text';
+      text.value = value == null ? '' : value;
+      text.placeholder = 'e.g. !0:14  or  0:14 !0:11 | 1:22';
+      text.spellcheck = false;
+      const check = () => {
+        const bad = text.value.split(/[\s|,]+/).filter(Boolean).find(p => !/^!?\d+:\d+$/.test(p));
+        text.classList.toggle('bad', Boolean(bad));
+        text.title = bad ? `"${bad}" is not a flag - group:index, ! for off, | between alternatives` : (f.tooltip || '');
+      };
+      text.oninput = () => { check(); changed(text.value); };
+      check();
+      const pick = document.createElement('select');
+      pick.title = 'Add one of the flags this map\'s script uses';
+      const first = document.createElement('option');
+      first.value = '';
+      first.textContent = '+ flag…';
+      pick.append(first);
+      const fillFlags = list => {
+        for (const u of list) {
+          const who = [];
+          if (u.chest >= 0) who.push(`chest ${u.chest}`);
+          if (u.setBy.length) who.push('set by cast ' + u.setBy.join(', '));
+          if (u.testedBy.length) who.push('tested by cast ' + u.testedBy.join(', '));
+          for (const sense of ['', '!']) {
+            const option = document.createElement('option');
+            option.value = sense + u.flag;
+            option.textContent = `${sense}${u.flag}  ·  ${sense ? 'off' : 'on'}${who.length ? ' · ' + who.join('; ') : ''}`;
+            pick.append(option);
+          }
+        }
+      };
+      if (state.mapFlags && state.mapFlags.map === mapState.name) fillFlags(state.mapFlags.list);
+      else api(`/api/map/flags?name=${encodeURIComponent(mapState.name)}`).then(r => { state.mapFlags = { map: mapState.name, list: r.flags || [] }; fillFlags(state.mapFlags.list); }).catch(() => {});
+      pick.onchange = () => {
+        if (!pick.value) return;
+        text.value = (text.value.trim() ? text.value.trim() + ' ' : '') + pick.value;
+        pick.value = '';
+        check();
+        changed(text.value);
+      };
+      input.append(text, pick);
     } else if (f.type === 'strings') {
       // A list of strings: one per line.
       input = document.createElement('textarea');
@@ -3148,6 +3211,34 @@ function removeSceneObject(doc, object) {
   if (doc && doc.scene3d) doc.scene3d.selectPoint(null);
   drawHierarchy();
   drawInspector();
+}
+
+/// Undoes one character's conversion: the Removed on the game's row goes, and the stand-in
+/// it names (with its behaviours) is deleted, so the game's own character is back in the
+/// client. The row reads as before in the hierarchy.
+function restoreCharacter(doc, index) {
+  const key = 'object:' + index;
+  const removals = (sceneState.attachments || []).filter(a => a.behaviour === 'Removed' && (a.target || '').toLowerCase() === key);
+  if (!removals.length) return false;
+  for (const removal of removals) {
+    const standIn = removal.fields && removal.fields.StandIn ? findSceneObject(removal.fields.StandIn) : null;
+    sceneState.attachments.splice(sceneState.attachments.indexOf(removal), 1);
+    if (standIn && standIn.source) {
+      const object = standIn.source;
+      const siblings = object.parent ? object.parent.children : sceneState.objects;
+      const at = siblings.indexOf(object);
+      const gone = flattenSceneObjects(sceneState, [object]).map(i => i.path.toLowerCase());
+      if (at >= 0) siblings.splice(at, 1);
+      sceneState.attachments = sceneState.attachments.filter(a => !gone.includes((a.target || '').toLowerCase()));
+    }
+  }
+  sceneChanged('restore ' + key);
+  if (doc) doc.selection = key;
+  syncSceneObjects(doc);
+  drawHierarchy();
+  drawInspector();
+  say(`${key} is the game's again; its stand-in is gone`, 'good');
+  return true;
 }
 
 /// The right-click menu of an object in the hierarchy: what the inspector used to need
@@ -3449,6 +3540,19 @@ function buildSceneObject(doc, object) {
     box.onchange = () => { object.character = box.checked; changed(); };
     kind.append(box, document.createTextNode(' character - walks, turns, is talked to'));
     modelRow.append(kind);
+    if (object.character) {
+      // The scripts have two ways of booting a character; the converter keeps whichever the
+      // original had. Plain is bootPlainCharacter: the model's own scale (a child at 0.8) and kind.
+      const plain = document.createElement('label');
+      plain.className = 'toggle';
+      plain.title = 'Made as the map scripts\' bootPlainCharacter makes a character: the light walker with the model\'s own scale and kind (a child\'s model at 0.8, the chocobo, the frog). Off: bootCharacter\'s kind, the full walker.';
+      const pbox = document.createElement('input');
+      pbox.type = 'checkbox';
+      pbox.checked = Boolean(object.plain);
+      pbox.onchange = () => { object.plain = pbox.checked; changed(); };
+      plain.append(pbox, document.createTextNode(' plain - the scripts\' light walker, the model\'s own scale'));
+      modelRow.append(plain);
+    }
   }
   panel.append(modelRow);
 

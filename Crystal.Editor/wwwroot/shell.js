@@ -694,6 +694,9 @@ function outlineFor(doc) {
             const character = (typeof mapState !== 'undefined' && mapState.data && mapState.data.characters || []).find(c => c.index === o.index);
             if (character) convertToSceneObject(doc, character, { components: true }).catch(error => say(error.message, 'bad'));
           } },
+          { label: 'Restore the game\'s character (drop the stand-in)', icon: 'character', disabled: !openffProject || typeof restoreCharacter !== 'function'
+            || !(typeof sceneState !== 'undefined' && (sceneState.attachments || []).some(a => a.behaviour === 'Removed' && (a.target || '').toLowerCase() === `object:${o.index}`)),
+            run: () => restoreCharacter(doc, o.index) },
         ])
       }))
     });

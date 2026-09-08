@@ -491,6 +491,22 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/map/flags":
+				{
+					// The flags the map's script tests and sets, and by which casts: what a flag
+					// field in the inspector offers to pick from.
+					string name = Query(context, "name");
+					try
+					{
+						SendJson(context, new { ok = true, map = name, flags = MapConvert.Flags(_workspace, name) });
+					}
+					catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or KeyNotFoundException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
+
 				case "/api/project/run":
 					RunProject(context);
 					return;

@@ -2040,6 +2040,10 @@ header h1 .gem {
 #inspector .behaviour-range input[type=range] { flex: 1; min-width: 0; }
 #inspector .behaviour-range input[type=number] { width: 64px; flex: none; }
 #inspector .behaviour-field textarea { flex: 1; min-width: 0; font: inherit; font-size: 12px; resize: vertical; }
+#inspector .behaviour-flags { display: flex; gap: 4px; flex: 1; min-width: 0; align-items: center; }
+#inspector .behaviour-flags input[type=text] { flex: 1; min-width: 0; font-family: Consolas, monospace; font-size: 12px; }
+#inspector .behaviour-flags input.bad { border-color: #c0504d; color: #e8a09e; }
+#inspector .behaviour-flags select { width: 64px; flex: none; }
 #inspector .cast-notes { margin-top: 6px; border-top: 1px dashed #2c333d; padding-top: 4px; }
 #inspector .cast-lines { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 #inspector .cast-line { font-size: 12px; white-space: pre-wrap; padding: 4px 6px; border-left: 2px solid #3b4654; background: rgba(255,255,255,.03); border-radius: 0 4px 4px 0; }

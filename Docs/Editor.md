@@ -821,6 +821,12 @@ talking to the old man says "Luneth! The elders are looking for you." - the game
 cast 22, on the mod's object. A new game with the Altar Cave converted plays its opening on
 the mod's Luneth, crystal and chest.
 
+A conversion can be taken back: the dialog's *Undo this conversion* is the whole step, and
+later, one at a time, right-click a replaced character ▸ *Restore the game's character*
+drops the Removed and deletes its stand-in with its behaviours. Flag fields (WhenFlags'
+When, a Talk's When and Then, a chest's Flag) have a *+ flag…* list of the map's flags -
+each on and off, saying who tests and sets it - and turn red on a token that is not a flag.
+
 In the hierarchy the replaced characters are out of the way: the Characters group counts
 what is still the game's, and a *replaced (N)* tick on its header lists them too, greyed
 and marked *replaced* (off unless asked; remembered). A replaced row that is selected stays

@@ -58,6 +58,8 @@ namespace Crystal.Editor
 		public string ColorModel { get; set; }
 		/// <summary>Whether it is a person (walks, turns, is talked to) rather than a thing.</summary>
 		public bool Character { get; set; }
+		/// <summary>Booted with bootPlainCharacter: the light walker with the model's own scale and kind (Npcs.SpawnPlain), not bootCharacter's.</summary>
+		public bool Plain { get; set; }
 		/// <summary>The flags the boot cast tests on its way to booting this one - "!0:14": the object is there only while they hold.</summary>
 		public string When { get; set; } = "";
 		/// <summary>chest: the game's flag for it, "1:22", from the treasure command.</summary>
@@ -311,7 +313,11 @@ namespace Crystal.Editor
 			foreach (BootLine line in lines.Where(l => l.Name.StartsWith("boot", StringComparison.Ordinal)))
 			{
 				ScriptInstruction i = line.Instruction;
-				if (line.Name == "bootPlainCharacter" && i.Operands.Count >= 3 && i.Operands[2] is string model && model.Length > 0) plan.Model = model;
+				if (line.Name == "bootPlainCharacter")
+				{
+					plan.Plain = true;
+					if (i.Operands.Count >= 3 && i.Operands[2] is string model && model.Length > 0) plan.Model = model;
+				}
 				if (line.Name == "bootCharacter_AbsoluteCoordination" && i.Operands.Count >= 4 && Int(i.Operands[1], out int x) && Int(i.Operands[2], out int y) && Int(i.Operands[3], out int z))
 				{
 					plan.X = (int)Math.Round(x / 4096.0);
@@ -381,6 +387,77 @@ namespace Crystal.Editor
 			}
 			if (alts.Any(a => a.Count == 0)) return "";
 			return string.Join(" | ", alts.Select(a => string.Join(" ", a.OrderBy(f => f, StringComparer.Ordinal))).OrderBy(s => s, StringComparer.Ordinal));
+		}
+
+		/// <summary>One of the map's flags as the script uses it: who tests it, who sets it.</summary>
+		internal sealed class FlagUse
+		{
+			/// <summary>"group:index".</summary>
+			public string Flag { get; set; }
+			/// <summary>The casts whose code tests it (flagOnJump, flagOffJump, flagOnEnd...).</summary>
+			public List<int> TestedBy { get; set; } = new List<int>();
+			/// <summary>The casts whose code sets or clears it (flagOn, flagOff), and the chests it belongs to (setTreasureItem).</summary>
+			public List<int> SetBy { get; set; } = new List<int>();
+			/// <summary>A chest's own flag: the cast of the chest.</summary>
+			public int Chest { get; set; } = -1;
+		}
+
+		private static readonly HashSet<string> FlagTests = new HashSet<string>(StringComparer.Ordinal) { "flagOnJump", "flagOffJump", "flagOnEnd", "flagOffEnd", "flagOnCall", "flagOffCall" };
+		private static readonly HashSet<string> FlagSets = new HashSet<string>(StringComparer.Ordinal) { "flagOn", "flagOff" };
+
+		/// <summary>
+		/// Every flag the map's script touches, with the casts that test and set it, sorted by
+		/// group and index - what a flag field in the inspector offers, so a When is picked
+		/// from the flags that mean something on this map rather than typed from memory.
+		/// </summary>
+		public static List<FlagUse> Flags(Workspace workspace, string map)
+		{
+			string scriptName = "files/" + map + ".script";
+			if (!workspace.Exists(scriptName)) return new List<FlagUse>();
+			ScriptFile script = ScriptFile.Read(workspace.Read(scriptName), workspace.Ops);
+			(List<ScriptInstruction> code, _) = ScriptDisassembler.Disassemble(script);
+			Ffs.Mnemonics names = script.Ops.Names;
+			Dictionary<uint, ScriptInstruction> at = code.ToDictionary(i => i.At, i => i);
+			Dictionary<string, FlagUse> uses = new Dictionary<string, FlagUse>(StringComparer.Ordinal);
+			FlagUse Of(string flag)
+			{
+				if (!uses.TryGetValue(flag, out FlagUse use)) uses[flag] = use = new FlagUse { Flag = flag };
+				return use;
+			}
+			foreach (ScriptCast cast in script.Casts)
+			{
+				HashSet<uint> seen = new HashSet<uint>();
+				Stack<uint> work = new Stack<uint>();
+				foreach (uint entry in new[] { cast.Constructor, cast.Normal, cast.Destructor }) if (entry != ScriptFile.NoScript) work.Push(entry);
+				while (work.Count > 0)
+				{
+					uint pc = work.Pop();
+					if (!seen.Add(pc) || !at.TryGetValue(pc, out ScriptInstruction i)) continue;
+					string name = names.Name(i.Opcode);
+					int who = (int)cast.Number;
+					if (FlagTests.Contains(name)) { FlagUse u = Of(Flag(i)); if (!u.TestedBy.Contains(who)) u.TestedBy.Add(who); }
+					else if (FlagSets.Contains(name)) { FlagUse u = Of(Flag(i)); if (!u.SetBy.Contains(who)) u.SetBy.Add(who); }
+					else if ((name == "setTreasureItem" || name == "setTreasureMoney") && i.Operands.Count >= 4 && Int(i.Operands[0], out int chest) && Int(i.Operands[2], out int g) && Int(i.Operands[3], out int x))
+					{
+						FlagUse u = Of(g.ToString(CultureInfo.InvariantCulture) + ":" + x.ToString(CultureInfo.InvariantCulture));
+						u.Chest = chest;
+					}
+					if (i.Target.HasValue) work.Push(i.Target.Value);
+					foreach (uint t in i.Targets) work.Push(t);
+					if ((name == "call" || name == "flagOnCall" || name == "flagOffCall") && i.Operands.Count >= 2
+						&& i.Operands[i.Operands.Count - 2] is uint library && i.Operands[i.Operands.Count - 1] is uint function && library == 0)
+					{
+						foreach (ScriptFunction f in script.Functions) if (f.Id == function) work.Push(f.Offset);
+					}
+					if (name == "end" || name == "return" || name == "jump") continue;
+					work.Push(i.At + Math.Max(i.Length, 1u));
+				}
+			}
+			return uses.Values
+				.Where(u => u.Flag != "?")
+				.OrderBy(u => int.Parse(u.Flag.Split(':')[0], CultureInfo.InvariantCulture))
+				.ThenBy(u => int.Parse(u.Flag.Split(':')[1], CultureInfo.InvariantCulture))
+				.ToList();
 		}
 
 		/// <summary>For every cast that is booted: the casts whose reachable code boots it.</summary>
