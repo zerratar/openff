@@ -583,6 +583,14 @@ carries the file the same way (a `.hich` row would still need a character id). P
 come in directly: *Import a PNG…* in the Images library puts a new picture under a name
 the menus can refer to; *Replace with a PNG…* on one of the game's swaps it.
 
+A texture package from nothing: *New texture package…* in the Textures library builds a
+`.ntxp.lz` of the mod's own from a PNG - the package's name, the texture's name inside it
+(a model's material asks for its texture by that name: n021's for "n021", a monster
+family's for its own), the format (pal256 for most things, a5i3 for shadows, 4x4 for the
+battle monsters, rgb555 for true colour), whether entry 0 is see-through, and the size
+(powers of two, 8 to 1024; the picture is scaled to it). The file is written and read back
+through Crystal's own reader before it is kept, and the game loads it like any of its own.
+
 ### The heroes: `defs/characters/<id>.json`
 
 The first slice of character definitions: what a hero slot is as a game begins. Under

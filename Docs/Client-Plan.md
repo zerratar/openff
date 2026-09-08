@@ -1955,6 +1955,26 @@ of the game's (*Import a PNG…* in Images, *Replace with a PNG…* on one).
 What "new" still needs a writer for: a model that is not a copy (the glTF importer - next),
 a map that is not a copy (the collision and parameter files beside it), a font, a sound.
 
+### A texture package from nothing (2026-09-08, night)
+
+The first writer that makes a file rather than patching one: `Tex0Write.Build` lays out a
+whole `.ntxp` - NMDP wrapper, BTX0, one TEX0 with any number of textures - the way
+n021.ntxp has it, read off the file byte by byte (the head layout is in the code's comment;
+the info blocks sit at +8, +24 and +44, which is also where the reader's +20/+36/+40/+48/+56
+offsets come from). The encoders were refactored to give back arrays (`Encode` → texels,
+4x4 indices, palette) so `Replace` copies them in place and `Build` lays them out fresh, a
+4x4 texture getting palette room for four entries a block so the fit is never forced.
+The dictionaries are NNSG3dResDict with a patricia tree the game walks when it looks a
+texture up by name: built as NNS's converter does (each name inserted below the last node
+whose bit is higher, splitting at the highest differing bit), and for one entry exactly
+the shipped files' node. Every package is read back through `Tex0.Read` before it is
+written. Tried: a three-format package reading back within the encoders' error; a fresh
+pal256 package on a duplicated model standing in Ur (E-59). Crystal: *New texture
+package…* in Textures with name, texture name, format, transparency, size, PNG.
+
+This is the texture half of the model importer; what a new model still wants is the MDL0
+(geometry as display lists, materials, the node tree, the SBC) - the next writer.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
