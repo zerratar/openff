@@ -336,6 +336,8 @@ internal static partial class GlobalScope
 				}
 				pl.PlayerParty.instance().initialize();
 				pl.PlayerParty.instance().addPlayer(0);
+				// OpenFF: a mod's character definitions on the fresh party (defs/characters).
+				OpenFF.Client.ModCharactersLayer.ApplyToNewParty();
 				OptionSaveDataGlobal.getSingleton().setup();
 				if (OptionSaveDataGlobal.getSingleton().isProper())
 				{

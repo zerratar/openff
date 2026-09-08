@@ -185,6 +185,8 @@ internal static partial class GlobalScope
                                 pl.PlayerParty.instance().addPlayer(0);
                                 pl.PlayerParty.instance().playerForId(0).changeJob(pl.JOB_TYPE.SUPPINN);
                                 pl.PlayerParty.instance().playerForId(0).updateParameter();
+                                // OpenFF: a mod's character definitions on the new game's party (defs/characters).
+                                OpenFF.Client.ModCharactersLayer.ApplyToNewParty();
                                 VecFx32 pos = new VecFx32(0, 0, 0);
                                 VecFx32 rot = new VecFx32(0, 0, 0);
                                 CCastCommandTransit.getInstance().castParam_MapJump().setUp("d01_05", 0, pos, rot, _Flag: true);

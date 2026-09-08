@@ -173,7 +173,15 @@ namespace OpenFF.Client
 					if (bag.Length > 0) bag.Append(' ');
 					bag.Append(item.itemId()).Append('x').Append(item.itemNumber());
 				}
-				Line("party", "gil " + party.gold().get() + " bag " + (bag.Length > 0 ? bag.ToString() : "-"));
+				StringBuilder heroes = new StringBuilder();
+				for (byte i = 0; i < 4; i++)
+				{
+					GlobalScope.pl.Player p = party.playerForId(i);
+					if (p == null || !p.isEnable()) continue;
+					if (heroes.Length > 0) heroes.Append(", ");
+					heroes.Append(p.name()).Append(" L").Append(p.level().get()).Append(" job ").Append((int)p.jobManager().nowJob());
+				}
+				Line("party", "gil " + party.gold().get() + " bag " + (bag.Length > 0 ? bag.ToString() : "-") + (heroes.Length > 0 ? " heroes " + heroes : ""));
 			}
 			catch (Exception) { }
 		}
