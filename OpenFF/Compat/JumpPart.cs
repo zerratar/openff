@@ -78,6 +78,9 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>Whether --pos named a spot: then the jump part's entry lands there even on a map whose jump table would say otherwise (a town's entrance).</summary>
+		public static bool PositionGiven => !string.IsNullOrEmpty(Options.Get("pos"));
+
 		/// <summary>--rot=<degrees> about Y, in the engine's 16-bit angle units.</summary>
 		public static int StartRotation
 		{

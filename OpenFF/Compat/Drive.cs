@@ -6,6 +6,7 @@
 //   press <key> [holdMs]           hold a key (XNA Keys names: K, Z, Down, Right, C, M...) - 120 ms unless said
 //   tap <x> <y> [holdMs]           a touch at a point of the 800x480 view (a click on the window), released after the hold
 //   type <text>                    typed into the open text field (the name entry's); "type" alone clears it; submit / cancel are its Enter and Escape
+//   flag <group>:<index> [on|off]  a game flag set (or cleared) - a story state without playing there
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
@@ -173,6 +174,26 @@ namespace OpenFF.Client
 					}
 					else Log.Write(LogChannel.General, "drive: type - no text field is open");
 					break;
+				case "flag":
+				{
+					// A game flag set or cleared: "flag 0:14 on" - to put a map in a story state
+					// without playing there (a scene that boots under it, a chest opened).
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					string[] pair = bits.Length > 0 ? bits[0].Split(':') : new string[0];
+					if (pair.Length != 2 || !uint.TryParse(pair[0], out uint group) || !uint.TryParse(pair[1], out uint index))
+					{
+						Log.Write(LogChannel.General, "drive: flag wants <group>:<index> [on|off]");
+						break;
+					}
+					bool on = bits.Length < 2 || !string.Equals(bits[1], "off", StringComparison.OrdinalIgnoreCase);
+					try
+					{
+						if (on) GlobalScope.FlagManager.singleton().set(group, index); else GlobalScope.FlagManager.singleton().reset(group, index);
+						Log.Write(LogChannel.File, "drive: flag " + group + ":" + index + (on ? " on" : " off"));
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: flag " + bits[0] + " failed: " + ex.Message); }
+					break;
+				}
 				case "submit":
 				case "cancel":
 					// Enter or Escape on the open text field.

@@ -72,9 +72,11 @@ internal static partial class GlobalScope
 								vecFx.y = 0;
 								CWorldOutSideData.getInstance().MapData().setBackupPosJump(b: false);
 							}
-							else if (!OpenFF.Client.GameProfile.Ff3MapParameters || map.CMapParameterManager.Instance().MapJumpParameter(id) == null)
+							else if (!OpenFF.Client.GameProfile.Ff3MapParameters || map.CMapParameterManager.Instance().MapJumpParameter(id) == null
+								|| (GlobalScope.sys.GGlobal.getPreviousPart() == GAMEPART.GAMEPART_DEBUG_MENU && OpenFF.Client.JumpPart.PositionGiven))
 							{
-								// PORT: no jump table to take the arrival from - the jump part's position.
+								// PORT: no jump table to take the arrival from - or --pos said where, on the
+								// jump part's own entry (a map's exits still arrive where the table says).
 								vecFx.copy(OpenFF.Client.JumpPart.StartPosition);
 								vecFx2.y = OpenFF.Client.JumpPart.StartRotation;
 							}
