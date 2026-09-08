@@ -22,13 +22,32 @@ namespace OpenFF.Client
 			foreach (string note in notes) Log.Write(LogChannel.General, "text: " + note);
 			if (lines.Count == 0) return;
 			Log.Write(LogChannel.General, "text: " + lines.Count + " line(s) of the mods' own (" + lines.Keys.Min() + ".." + lines.Keys.Max() + ")");
+			// A line written per language follows the game's language setting, which the player
+			// may change after this runs: the lines are picked per language the first time the
+			// file is read in it (the map's load), English by default.
+			Dictionary<string, Dictionary<uint, string>> byLanguage = new Dictionary<string, Dictionary<uint, string>> { ["en"] = lines };
 			chain.AddTransform((name, data) =>
 			{
 				if (!ModText.IsPermanent(name)) return data;
-				byte[] composed = ModText.Compose(data, lines);
-				Log.Write(LogChannel.File, "text: eureka_permanent.msd composed, " + data.Length + " -> " + composed.Length + " bytes");
+				string language = GameLanguage();
+				if (!byLanguage.TryGetValue(language, out Dictionary<uint, string> picked))
+					byLanguage[language] = picked = ModText.Load(roots, null, language);
+				byte[] composed = ModText.Compose(data, picked);
+				Log.Write(LogChannel.File, "text: eureka_permanent.msd composed (" + language + "), " + data.Length + " -> " + composed.Length + " bytes");
 				return composed;
 			});
+		}
+
+		/// <summary>The game's language setting as a code the text files use: en, ja, fr, de, it, es, zh-CN, zh-TW, ko.</summary>
+		private static string GameLanguage()
+		{
+			string[] codes = { "ja", "en", "fr", "de", "it", "es", "zh-CN", "zh-TW", "ko" };
+			try
+			{
+				int index = AppShell.getLanguage();
+				return index >= 0 && index < codes.Length ? codes[index] : "en";
+			}
+			catch (Exception) { return "en"; }
 		}
 
 		/// <summary>The definitions in play, in load order (a --project's first, then the mods').</summary>
