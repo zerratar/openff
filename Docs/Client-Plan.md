@@ -1550,6 +1550,21 @@ find Potion.", gold 1000141, nothing 1000140 - and EmptyMessage is empty, as the
 opened chests say nothing. `@<id>` works in every string field (Talk's Lines too); the
 inspector shows what the id says under the field (`/api/messages`).
 
+Two more from Karl's chest. "It rotates towards the player": it did not turn - it stood
+mirrored. `YawToRot` carried the scripts' negation (`4096 * FX_DEG_TO_IDX(deg) * -1`), so a
+scene object at yaw 90 faced -x in play while Crystal drew it (and `Direction(90)`,
+`Face(90)`, an exit's arrival facing) toward +x; `Yaw` and `Face(Yaw)` disagreed on the
+host too. Four chests at 0/90/180/270 beside the hero (`--rot=90`, who faces +x) showed
+it. The word is the engine's convention now, no negation, `RotToYaw` its inverse; the
+converter already negated a .hich posture once ("the mod's yaw is the engine's own"), so
+its stand-ins come out facing as the originals, and the exact path's `Npc.Yaw` round-trips.
+"The chests open and close as the scene loads": the model's own pose is the open lid, and
+1003 (shut) is a motion *to* it - the game's chests play it behind the boot's fade-in, a
+scene object appears on a map in view. `Npc.HoldMotion(index)`: the motion at its last
+frame, no blend (`setCurrentFrame(getMaxFrame())`); the Chest holds 1003 when it appears,
+`SetTreasure` does the same for a stand-in and moves the box to act 2 (shut, waiting).
+`ChestLook` is `Animate` - the old name read as "look at".
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

@@ -317,9 +317,9 @@ namespace OpenFF
 		[Tooltip("The game's flag for the chest, group:index (a converted chest keeps its own); set when opened, read at start")]
 		[FlagField]
 		public string Flag = "";
-		/// <summary>Play the game's chest motions (closed lid, opening, open lid), sound and sparkle - for a chest model (o000, o001).</summary>
-		[Tooltip("The game's lid motions, sound and sparkle on opening - for a chest model")]
-		public bool ChestLook = true;
+		/// <summary>Play the opening as the game's chests do - the lid shut, swinging open, then open; the sound; the sparkle. For a chest model (o001); off for a model with no lid, or for an opening of your own in OnOpened.</summary>
+		[Tooltip("The lid motions, the sound and the sparkle on opening, as the game's chests - for a chest model; off for a model without a lid")]
+		public bool Animate = true;
 
 		/// <summary>Whether it has been opened (this visit, or ever when Once).</summary>
 		public bool Opened { get; private set; }
@@ -348,10 +348,17 @@ namespace OpenFF
 		// a box says "The chest contained ..."; so does a chest with no model at all.
 		private bool _spot = true;
 
-		/// <summary>The lid as the game shows it: 1003 shut, 1002 open (map.CMapObject's acts 0 and 6).</summary>
+		/// <summary>
+		/// The lid as the game shows it: 1003 shut, 1002 open (map.CMapObject's acts 0 and 6).
+		/// The shut lid is held at the motion's end: the model's own pose is the open one, and
+		/// the game's chests play 1003 before the screen fades in, where a scene object appears
+		/// on a map already in view - played, the lid would be seen swinging shut.
+		/// </summary>
 		private void Lid()
 		{
-			if (ChestLook && Npc != null) Npc.PlayMotion(Opened ? 1002 : 1003, Opened);
+			if (!Animate || Npc == null) return;
+			if (Opened) Npc.PlayMotion(1002, true);
+			else Npc.HoldMotion(1003);
 		}
 
 		protected override void Activate()
@@ -377,7 +384,7 @@ namespace OpenFF
 			Opened = true;
 			if (Once) SceneMemory.Instance.Mark(Key);
 			if (!string.IsNullOrWhiteSpace(Flag)) SetFlags(Flag);
-			if (ChestLook && Npc != null)
+			if (Animate && Npc != null)
 			{
 				// As the game opens one: the sound (archive 1, 36), the lid's opening motion, the
 				// sparkle (effect 102) a little above it; the open lid once the motion is done.

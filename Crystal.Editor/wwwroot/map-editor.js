@@ -2194,7 +2194,7 @@ function applyCastPlan(doc, plan, options = {}) {
     sceneState.attachments.push({
       target: path, behaviour: 'Chest',
       fields: Object.assign(plan.treasure === 'item' ? { Item: plan.treasureValue, Count: 1, Gil: 0 } : { Item: 0, Gil: plan.treasureValue },
-        { Flag: plan.treasureFlag || '', ChestLook: true })
+        { Flag: plan.treasureFlag || '', Animate: true })
     });
   } else if (plan.kind === 'talk') {
     for (const talk of plan.talks || []) {
@@ -3155,7 +3155,7 @@ async function makeCastEditable(state, attachment, target, cast) {
     replacements.push({
       target, behaviour: 'Chest',
       fields: Object.assign(plan.treasure === 'item' ? { Item: plan.treasureValue, Count: 1, Gil: 0 } : { Item: 0, Gil: plan.treasureValue },
-        { Flag: plan.treasureFlag || '', ChestLook: true })
+        { Flag: plan.treasureFlag || '', Animate: true })
     });
   } else {
     for (const talk of plan.talks || []) {

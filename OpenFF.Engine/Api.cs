@@ -172,6 +172,12 @@ namespace OpenFF
 		public abstract bool Solid { get; set; }
 		/// <summary>Plays a motion by its index in the character's set (1001 is the talk pose).</summary>
 		public abstract void PlayMotion(int index, bool loop = false, int blendFrames = 5);
+		/// <summary>
+		/// The pose a motion ends in, at once: the motion set to its last frame with no blend
+		/// from the pose before. For a state an object should simply be in when it appears - a
+		/// chest's shut lid (1003) - where PlayMotion would be seen closing it.
+		/// </summary>
+		public virtual void HoldMotion(int index) { PlayMotion(index, false, 0); }
 		/// <summary>Adds a motion set to the character's model: "b_b01" for a party member's model, a monster's Monster.MotionSet ("b_f" + family) for its attack and idle (MonsterMotion).</summary>
 		public abstract void BindMotions(string set);
 		public abstract bool MotionDone { get; }

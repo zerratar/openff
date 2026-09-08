@@ -326,7 +326,7 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 
 | Member | What it does |
 | --- | --- |
-| `bool ChestLook` | Play the game's chest motions (closed lid, opening, open lid), sound and sparkle - for a chest model (o000, o001). |
+| `bool Animate` | Play the opening as the game's chests do - the lid shut, swinging open, then open; the sound; the sparkle. For a chest model (o001); off for a model with no lid, or for an opening of your own in OnOpened. |
 | `int Count` | How many of the item. |
 | `string EmptyMessage` | What the window says when it is already open; empty (the default) says nothing, as the game's opened chests do. "@<id>" for a line of the .msd. |
 | `string Flag` | The game's own flag for this chest ("1:22"), as its setTreasureItem named it: set when opened and read at start, so the game's treasure count and anything else reading it agree. Empty for a chest of the mod's own. |
@@ -613,6 +613,7 @@ A character a script put on the map.
 | `void BindMotions(string set)` | Adds a motion set to the character's model: "b_b01" for a party member's model, a monster's Monster.MotionSet ("b_f" + family) for its attack and idle (MonsterMotion). |
 | `void EndWander()` | The scripts' moveCharacter_EndRandom: the walk stops, the character stands where it is. |
 | `void Face(float yaw)` | Turns to a yaw in degrees. |
+| `void HoldMotion(int index)` | The pose a motion ends in, at once: the motion set to its last frame with no blend from the pose before. For a state an object should simply be in when it appears - a chest's shut lid (1003) - where PlayMotion would be seen closing it. |
 | `void LookAt(Vector3 point)` | Turns to face a point. |
 | `void MoveTo(Vector3 position, int frames)` | Walks to a point over a number of frames (0 teleports). The character faces where it walks. |
 | `void OwnChest()` | The opposite of SetTreasure: the game's own chest logic steps aside for this map object (o001 is a treasure box to the game, which would open it itself on A, with its own flag and message), so a component - the Chest - runs the opening. The player's talk still reaches Interacted. |
@@ -1830,4 +1831,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-114 types, 827 members; 396 without a summary yet.
+114 types, 828 members; 396 without a summary yet.
