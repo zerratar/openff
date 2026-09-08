@@ -783,6 +783,13 @@ namespace OpenFF.Client
 			Map = map;
 		}
 
+		// The character id the slot held when this handle was made for one of the engine's own
+		// spawns: when the game deletes that character (a scene clearing the villagers) and
+		// boots another into the same slot, this handle is dead, not the newcomer's. Not kept
+		// for the game's own characters (Existing): a toad changes its character id.
+		private int _chr = -1;
+		internal void Pin() { try { _chr = EngineApi.Players.Player(Index)?.getCharacterId() ?? -1; } catch (Exception) { _chr = -1; } }
+
 		private GlobalScope.pl.CBasePlayer Player
 		{
 			get
@@ -791,7 +798,9 @@ namespace OpenFF.Client
 				{
 					if (_removed || !EngineApi.InWorld || Map != GlobalScope.stg.CStageMng.CurrentName) return null;
 					GlobalScope.pl.CBasePlayer p = EngineApi.Players.Player(Index);
-					return p != null && p.getCharacterId() >= 0 ? p : null;
+					if (p == null || p.getCharacterId() < 0) return null;
+					if (_chr >= 0 && p.getCharacterId() != _chr) return null;
+					return p;
 				}
 				catch (Exception) { return null; }
 			}
@@ -1059,12 +1068,7 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>
-		/// ff3Command_SetTreasureItem / SetTreasureMoney on this character: the map object keeps
-		/// the flag, the item (or gold) and its count; an opened chest (flag set) shows the open
-		/// lid, a closed one shuts. The chest then opens the game's own way when talked to -
-		/// sound, lid, message, flag, treasure count - since it is a map object like any other.
-		/// </summary>
+		/// <summary>The game's own treasure logic stepped aside for a component's: see Npc.OwnChest.</summary>
 		public override void OwnChest()
 		{
 			// The model's number is its type to the game (o001 = TREASURE_BOX, o000 = INVISIBLE, an item spot): CPlayerHumanCheck
@@ -1078,6 +1082,12 @@ namespace OpenFF.Client
 			catch (Exception ex) { EngineApi.Warn("chest", "OwnChest: " + ex.Message); }
 		}
 
+		/// <summary>
+		/// ff3Command_SetTreasureItem / SetTreasureMoney on this character: the map object keeps
+		/// the flag, the item (or gold) and its count; an opened chest (flag set) shows the open
+		/// lid, a closed one shuts. The chest then opens the game's own way when talked to -
+		/// sound, lid, message, flag, treasure count - since it is a map object like any other.
+		/// </summary>
 		public override void SetTreasure(int itemId, int gil, int flagGroup, int flagIndex)
 		{
 			if (Player == null) return;
@@ -1180,6 +1190,11 @@ namespace OpenFF.Client
 			if (!EngineApi.InWorld || index < 0) return null;
 			string map = GlobalScope.stg.CStageMng.CurrentName;
 			LegacyNpc have = _wrapped.FirstOrDefault(n => n.Index == index && n.Map == map);
+			// A handle whose character is gone (Removed, or the slot emptied) is not the one for
+			// whoever the game booted into the slot since: Ur's opening scene boots its actors
+			// into the slots the villagers' stand-ins left, and a dead handle said "at 0,0,0"
+			// and removed nothing (Tools/parity.ps1).
+			if (have != null && !have.Alive) { _wrapped.Remove(have); have = null; }
 			if (have != null) return have;
 			try
 			{
@@ -1225,9 +1240,11 @@ namespace OpenFF.Client
 				player.into();
 				player.setAutoPilot(_AutoPilot: true);
 				player.setHidden(false);
+				FreshSlot(index);
 				// No script cast stands behind this character: the legacy talk finds nothing to run.
 				player.LogicIndex_set(GlobalScope.CastInfo.INVALID_SCRIPT);
 				LegacyNpc npc = new LegacyNpc(index, model, map);
+				npc.Pin();
 				npc.Solid = false;
 				_spawned.Add(npc);
 				Log.Write(LogChannel.General, "engine api: spawned " + model + " as character " + index + " at " + position + " on " + map
@@ -1249,6 +1266,25 @@ namespace OpenFF.Client
 				EngineApi.Warn("spawn-fail", "Spawn " + model + " failed: " + ex.GetType().Name + ": " + ex.Message);
 				return null;
 			}
+		}
+
+		/// <summary>
+		/// What a slot has at a map's start (CPlayerCharacter.initialize: the DEFAULT AI) and a
+		/// boot does not touch. A stand-in spawns
+		/// into a slot the original was just taken out of, and the game's terminate leaves the
+		/// slot's NPCAiManager as it was - a wanderer's RANDOM_MOVE carried over to a character
+		/// that stood still (Tools/parity.ps1 caught three in Ur).
+		/// </summary>
+		private static void FreshSlot(int index)
+		{
+			try
+			{
+				GlobalScope.pl.CPlayerHuman human = EngineApi.Players.PlayerHuman(index);
+				if (human == null) return;
+				human.NPCAiManager().AiKind_set(GlobalScope.pl.CNPCAiManager.AI_KIND.AI_KIND_DEFAULT);
+				human.NPCRandomMoveType_set(GlobalScope.pl.NPC_RANDOM_MOVE_TYPE.NPC_RANDOM_MOVE_TYPE_DEFAULT);
+			}
+			catch (Exception) { }
 		}
 
 		/// <summary>
@@ -1283,7 +1319,9 @@ namespace OpenFF.Client
 				}
 				GlobalScope.pl.CBasePlayer player = EngineApi.Players.Player(index);
 				player.setHidden(false);
+				FreshSlot(index);
 				LegacyNpc npc = new LegacyNpc(index, model, map);
+				npc.Pin();
 				_spawned.Add(npc);
 				Log.Write(LogChannel.General, "engine api: spawned " + model + " as plain character " + index + " at " + position + " on " + map
 					+ " (chr " + player.getCharacterId() + ")");
@@ -1336,6 +1374,7 @@ namespace OpenFF.Client
 				player.setHidden(false);
 				player.LogicIndex_set(GlobalScope.CastInfo.INVALID_SCRIPT);
 				LegacyNpc npc = new LegacyNpc(index, model, map);
+				npc.Pin();
 				npc.Solid = false;
 				_spawned.Add(npc);
 				Log.Write(LogChannel.General, "engine api: placed model " + model + " as character " + index + " at " + position + " on " + map);
