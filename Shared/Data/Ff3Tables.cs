@@ -87,7 +87,7 @@ namespace OpenFF.Data
 		/// <summary>
 		/// monster.chaindata chain 0: 255 records of 100 bytes (mon.MonsterParameter.parse): nameId,
 		/// textId, familyId, modelId, monsterId at 8, level, size, maxHp s32 at 0xC, then the body,
-		/// attack and defence blocks (not read yet), and DroppingDataParameter at 0x54: probability
+		/// attack and defence blocks (ModMonsters.Fields has every offset), and DroppingDataParameter at 0x54: probability
 		/// s16, table id s16, gold s32 at 0x58, exp s32 at 0x5C (Goblin: 10 gil, 1 exp).
 		/// eureka_battle.msd names them by name id.
 		/// </summary>
@@ -116,6 +116,15 @@ namespace OpenFF.Data
 					Level = r[0xA],
 					Size = r[0xB],
 					MaxHp = ChainPack.S32(r, 0xC),
+					// ys.BodyParameter at 0x10 (five bytes), PhysicsAttackParameter at 0x1C (aggressivity s32,
+					// hitProbability u8), PhysicsDefenseParameter at 0x2C (phylacticPower s32, avoidanceNumber
+					// s32), MagicDefenseParameter at 0x40 (weakType s16, magicPhylacticPower s16).
+					Stats = new Stats { Strength = r[0x10], Vitality = r[0x11], Agility = r[0x12], Intellect = r[0x13], Spirit = r[0x14] },
+					Attack = ChainPack.S32(r, 0x1C),
+					Hit = r[0x20],
+					Defence = ChainPack.S32(r, 0x2C),
+					Evade = ChainPack.S32(r, 0x30),
+					MagicDefence = ChainPack.S16(r, 0x42),
 					DropProbability = ChainPack.S16(r, 0x54),
 					DropTable = ChainPack.S16(r, 0x56),
 					Gil = ChainPack.S32(r, 0x58),

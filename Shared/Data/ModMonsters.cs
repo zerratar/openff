@@ -274,6 +274,15 @@ namespace OpenFF.Data
 			return i < 0 ? null : pack.Record(0, Stride, i);
 		}
 
+		/// <summary>Writes a field by name into a record; false for an unknown name (the ids are not fields to set).</summary>
+		public static bool Set(byte[] record, string name, int value)
+		{
+			if (string.Equals(name, "monsterId", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "nameId", StringComparison.OrdinalIgnoreCase)) return false;
+			if (!Fields.TryGetValue(name, out Field f) || f.Offset + f.Size > record.Length) return false;
+			Put(record, f, value);
+			return true;
+		}
+
 		/// <summary>A field's value in a record by name; null for an unknown name.</summary>
 		public static int? Get(byte[] record, string name)
 		{

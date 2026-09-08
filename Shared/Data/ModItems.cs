@@ -242,6 +242,20 @@ namespace OpenFF.Data
 			}
 		}
 
+		/// <summary>Writes a field by name into a record; false for a name the chain has not (the ids are not fields to set).</summary>
+		public static bool Set(byte[] record, int chain, string name, int value)
+		{
+			if (string.Equals(name, "itemId", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "nameId", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "captionId", StringComparison.OrdinalIgnoreCase)) return false;
+			Field field;
+			if (!(Head.TryGetValue(name, out field) || (chain != 4 && Priced.TryGetValue(name, out field)) || (chain >= 0 && chain < PerChain.Length && PerChain[chain].TryGetValue(name, out field)))) return false;
+			if (field.Offset + field.Size > record.Length) return false;
+			Put(record, field, value);
+			return true;
+		}
+
+		/// <summary>The stride of a chain's records.</summary>
+		public static int StrideOf(int chain) => chain >= 0 && chain < Strides.Length ? Strides[chain] : 0;
+
 		/// <summary>A field's value in a record, by name; null for a name the chain has not.</summary>
 		public static int? Get(byte[] record, int chain, string name)
 		{
