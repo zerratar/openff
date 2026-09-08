@@ -103,6 +103,22 @@ namespace Crystal.Editor
 		}
 
 		/// <summary>One texture as a PNG.</summary>
+		/// <summary>
+		/// One texture replaced by a picture of the same size (RGBA bytes), the package written
+		/// into the project as an override - compressed again as it came. Returns the package
+		/// size written; throws with the reason (size, a 4x4 texture) when it cannot be done.
+		/// </summary>
+		public static int Replace(Workspace workspace, string name, int index, byte[] rgba, int width, int height)
+		{
+			byte[] raw = workspace.Read(name);
+			bool compressed = name.EndsWith(".lz", StringComparison.OrdinalIgnoreCase);
+			byte[] package = compressed ? Lz.Decompress(raw) : raw;
+			byte[] written = Tex0Write.Replace(package, index, rgba, width, height);
+			byte[] output = compressed ? Lz.Compress(written) : written;
+			workspace.Write(name, output);
+			return output.Length;
+		}
+
 		public static byte[] Png(Workspace workspace, string name, int index)
 		{
 			Tex0File package = Tex0.Read(Lz.Decompress(workspace.Read(name)));
