@@ -358,6 +358,37 @@ Files from before the objects had `"points"` (a flat list, no model) and targete
 `point:<name>`; both still read, as objects without a model, and Crystal writes the new
 shape the next time the scene is saved.
 
+### Items of the mod's own: `defs/items/<id>.json`
+
+An item is a definition, not code. In Crystal, under *OpenFF mod ▸ Items*, *New item…* asks
+for a name and the game's item to start from (a Hi-Potion for a stronger potion, a sword
+for a new sword); the definition opens in the inspector - the name, the caption, the shop
+prices, and every field of the base's record by the game's own name (`usedPower`,
+`aggressivity`, `phylacticPower`, `equipJob`…) with the base's value greyed in. Set a field
+to change it, clear it to fall back to the base's. Every change saves itself. The file:
+
+```json
+{
+  "id": "hi-potion-plus",
+  "number": 20001,
+  "base": 5002,
+  "name": "Hi-Potion+",
+  "caption": "Restores 999 HP to one ally.",
+  "buy": 1500,
+  "fields": { "usedPower": 999 }
+}
+```
+
+`number` is the item id the game knows it by - a Chest's `Item`, `Game.Party.AddItem`, a
+save - given once by Crystal (from 20001 up) and kept for good; the [ItemField] picker
+lists the mod's items after the game's, marked "(mod)". *Export to OpenFF* copies `defs/`
+into the mod. In play the client appends every enabled mod's definitions to
+`item_parameter.pak` and their names and captions to `eureka_item.msd` as the game reads
+those files (a content-chain transform, `Shared/Data/ModItems.cs`), so menus, shops, chests
+and `Game.Items` see them as the game's own; with no definitions anywhere the files pass
+through untouched, and `--nomods` reads them as shipped. Two mods that claim one number:
+the first in load order keeps it. FF3 for now; FF4's tables get their own composer.
+
 ### Seeing what happens
 
 - The log (`logs/ff3.log` beside the client, `--log=general,file`): `engine: mod my-mod 1.0: 1

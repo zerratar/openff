@@ -1605,6 +1605,35 @@ a cutscene, second didn't"). A dead handle is dropped now, and the engine's own 
 the character id they were made for, so a slot reused under them is not theirs. All three
 drives agree - 58, 77 and 189 lines, the scene over 13 marks.
 
+### Items as definitions (2026-09-08)
+
+The first of the data objects Karl asked for - "I have no idea how to create an item".
+`defs/items/<id>.json` in a mod: a base item (whose record it starts from), a name, a
+caption, prices, and any field of the record by the game's own name; a `number` from 20001
+that Crystal gives once and the game then knows the item by. Composition happens where the
+game reads its tables: `ContentChain.AddTransform` is a step on a file's bytes after they
+are found, and `ModItemsLayer` registers one for `item_parameter.pak` (every definition's
+record - the base's bytes with the id, the text ids, the prices and the fields written in -
+appended to its chain, the pak laid out again) and one for `eureka_item.msd` (a name and a
+caption message per definition, ids from 31001 and 32001, past the file's own 30217 and
+within a record's signed-short name id). Nothing downstream knows: `ItemManager` counts the
+records, the menus and the chest's `%unfixed_item%` resolve the names, `Game.Items` reads
+the manager. No definitions, no transform; `--nomods` skips them too, so the parity
+harness's game-as-shipped run is that. Field layouts live in `Shared/Data/ModItems.cs`
+from the `itm.*Parameter.parse` methods; the editor's generated `PakRecords` has the same
+and could feed it later.
+
+Crystal: *Items* under the OpenFF mod folder, the list by name with "number · chain from
+base", *New item…* (name + base picker over the game's 409), the inspector as the editor -
+Item, Shop, Record cards, the base's values as placeholders, autosave - Open as JSON,
+Delete; `/api/items` lists the mod's after the game's, "(mod)", so a Chest's Item picks
+one; Export copies `defs/`. A Hi-Potion+ (usedPower 999) from a chest in Ur: "The chest
+contained Hi-Potion+.", `20001x2` in the bag. Karl: "it said hi-potion+ so it worked :)".
+
+Left for the definitions line: characters (the job/class seam), and the Steam-mod path -
+the same composer writing the two files into a Steam project's `files/` at Install, so a
+native mod gets new items too.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
