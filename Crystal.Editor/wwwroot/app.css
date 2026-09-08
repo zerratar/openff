@@ -749,6 +749,26 @@ select {
   flex: 0 0 auto;
   border-top: 1px solid var(--line);
 }
+/* The mod's text: the table of lines above the JSON pane. */
+.strings-wrap { flex: 1; overflow: auto; padding: 14px 20px; min-height: 0; }
+.strings-wrap .hint { margin: 0 0 12px; max-width: 90ch; line-height: 1.5; }
+.strings-wrap .hint code { color: var(--ink); }
+table.strings { border-collapse: collapse; width: 100%; max-width: 1100px; }
+table.strings th { text-align: left; font-weight: 500; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 0 8px 6px 4px; }
+table.strings td { padding: 3px 4px; vertical-align: top; }
+table.strings td.id { width: 120px; }
+table.strings td.copy, table.strings td.remove { width: 1px; white-space: nowrap; padding-top: 5px; }
+table.strings input.id { width: 112px; font-family: var(--mono, ui-monospace, Consolas, monospace); }
+table.strings textarea.line { width: 100%; min-height: 28px; resize: none; overflow: hidden; line-height: 1.4; font: inherit; }
+table.strings tr.on input.id, table.strings tr.on textarea.line { border-color: var(--accent); }
+table.strings tr.bad input.id { border-color: #d76a6a; color: #f0b3b3; background: #3a2323; }
+table.strings td.empty { color: var(--dim); padding: 24px 4px; }
+table.strings i.langs { display: block; color: var(--dim); font-size: 11px; font-style: normal; margin: 2px 2px 0; }
+table.strings button.small { padding: 2px 8px; font-size: 11px; min-width: 0; }
+table.strings button.shut { padding: 2px 7px; }
+.badge.saving { border-color: var(--dim); color: var(--dim); }
+.badge.problem { border-color: #d76a6a; color: #e39a9a; }
+#inspector .button-row { display: flex; gap: 6px; margin-top: 8px; }
 .xml-grip { height: 6px; flex: 0 0 auto; cursor: ns-resize; }
 .xml-grip:hover { background: var(--accent); }
 .xml-split.shut .xml-grip { cursor: default; }
@@ -1393,6 +1413,22 @@ table.parts tr.hidden-part td { color: #d98080; }
   max-height: 2.5em;
   overflow: hidden;
 }
+/* The "nothing here yet" note: not a tile - the whole width, centred, at ease. */
+#files.grid li.note,
+#files li.note {
+  flex: 1 1 100%;
+  width: auto;
+  max-width: none;
+  align-self: stretch;
+  justify-content: center;
+  text-align: center;
+  padding: 36px 24px;
+}
+#files li.note > span,
+#files.grid li.note > span { max-width: 60ch; white-space: normal; max-height: none; line-height: 1.55; }
+#files.grid li.note .icon { display: none; }
+/* Alone in the list, the note sits in the middle of the panel, not at its top edge. */
+#files:has(> li.note:only-child) { display: flex; align-items: center; justify-content: center; align-content: center; }
 #files.grid li.overridden::after { content: none; }
 #files.grid li.overridden > span::after { content: " *"; color: var(--mark); }
 

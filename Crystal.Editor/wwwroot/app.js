@@ -1,4 +1,4 @@
-﻿// The editor's front end.
+// The editor's front end.
 //
 // The server decodes and compiles; this side is the interface. Menus are edited as
 // XML in the browser - the DOM already knows how to parse and serialise it - so the
@@ -153,6 +153,17 @@ async function loadList() {
   drawList();
 }
 
+/// The list's "nothing here yet" line: one li across the whole width, its words centred
+/// and no wider than a paragraph, whichever view the list is in.
+function emptyNote() {
+  const note = document.createElement('li');
+  note.className = 'note';
+  const words = document.createElement('span');
+  note.append(words);
+  note.say = text => { words.textContent = text; };
+  return note;
+}
+
 function drawList() {
   const filter = $('#filter').value.trim().toLowerCase();
   const list = $('#files');
@@ -228,60 +239,55 @@ function drawList() {
   // The mod folder with nothing in it says why, since an empty list beside "OpenFF mod"
   // reads as broken: there is no project, or the project has no code yet.
   if (state.browse === 'code' && !list.childElementCount && !filter) {
-    const note = document.createElement('li');
-    note.className = 'note';
+    const note = emptyNote();
     const tree = state.codeTree || {};
     const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
-    note.textContent = !tree.project
+    note.say(!tree.project
       ? 'No project open. File ▸ New project… makes one; its C# code shows here.'
       : !openff
         ? `${tree.project} is a Steam mod - the game's files, replaced - and a Steam game runs no mod code. Tick FF3 or FF4 under OpenFF in Project settings and C# code can be added.`
-        : `${tree.project} has no C# code yet. Add C# code (the button above, or the File menu) writes a project and a starting class.`;
+        : `${tree.project} has no C# code yet. Add C# code (the button above, or the File menu) writes a project and a starting class.`);
     list.append(note);
   }
   if (state.browse === 'items' && !list.childElementCount && !filter) {
-    const note = document.createElement('li');
-    note.className = 'note';
+    const note = emptyNote();
     const project = typeof projectState !== 'undefined' && projectState.project;
     const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
-    note.textContent = state.itemDefsError && !project
+    note.say(state.itemDefsError && !project
       ? 'No project open. File ▸ New project… makes one; the items its mod defines show here.'
       : !openff
         ? `${project.name} is a Steam mod: items of its own need the OpenFF client, which adds them to the game's tables as it reads them. Tick FF3 under OpenFF in Project settings.`
-        : 'No items of the mod\'s own yet. New item… (the button above) starts one from an item of the game\'s - a stronger potion, a new sword - with a name, a caption, prices and any field of the record.';
+        : 'No items of the mod\'s own yet. New item… (the button above) starts one from an item of the game\'s - a stronger potion, a new sword - with a name, a caption, prices and any field of the record.');
     list.append(note);
   }
   if (state.browse === 'characters' && !list.childElementCount && !filter) {
-    const note = document.createElement('li');
-    note.className = 'note';
+    const note = emptyNote();
     const project = typeof projectState !== 'undefined' && projectState.project;
     const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
-    note.textContent = state.characterDefsError && !project
+    note.say(state.characterDefsError && !project
       ? 'No project open. File ▸ New project… makes one; the heroes its mod defines show here.'
       : !openff
         ? `${project.name} is a Steam mod: the heroes' defaults are set by the OpenFF client as a game begins. Tick FF3 under OpenFF in Project settings.`
-        : 'No hero definitions yet. New character… (the button above) takes one of the four hero slots and sets its name, starting job and level as a game begins.';
+        : 'No hero definitions yet. New character… (the button above) takes one of the four hero slots and sets its name, starting job and level as a game begins.');
     list.append(note);
   }
   if (state.browse === 'strings' && !list.childElementCount && !filter) {
-    const note = document.createElement('li');
-    note.className = 'note';
+    const note = emptyNote();
     const project = typeof projectState !== 'undefined' && projectState.project;
-    note.textContent = state.textError && !project
+    note.say(state.textError && !project
       ? 'No project open. File › New project… makes one; the lines its mod adds show here.'
-      : 'No lines of the mod\'s own yet. New text file… (the button above) starts a defs/text/<name>.json of message id → line; "@<id>" in a Chest or Talk field and startMessage2(0, <id>, 0, 0) in a CastScript say them through the game\'s window.';
+      : 'No lines of the mod\'s own yet. New text file… (the button above) starts a defs/text/<name>.json of message id → line; "@<id>" in a Chest or Talk field and startMessage2(0, <id>, 0, 0) in a CastScript say them through the game\'s window.');
     list.append(note);
   }
   if (state.browse === 'scene' && !list.childElementCount && !filter) {
-    const note = document.createElement('li');
-    note.className = 'note';
+    const note = emptyNote();
     const project = typeof projectState !== 'undefined' && projectState.project;
     const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
-    note.textContent = state.scenesError && !project
+    note.say(state.scenesError && !project
       ? 'No project open. File ▸ New project… makes one; the maps its mod puts behaviours on show here.'
       : !openff
         ? `${project.name} is a Steam mod: behaviours and points are the OpenFF client's, so a Steam game has none. Tick FF3 or FF4 under OpenFF in Project settings.`
-        : 'No scenes yet. Open a map, select an object and add a behaviour from its inspector (Behaviours (OpenFF)), or place a point; the map appears here once saved.';
+        : 'No scenes yet. Open a map, select an object and add a behaviour from its inspector (Behaviours (OpenFF)), or place a point; the map appears here once saved.');
     list.append(note);
   }
 
@@ -341,6 +347,7 @@ async function dispatchOpen(kind, name) {
   else if (kind === 'model') await openModel(name);
   else if (kind === 'cell') await openCell(name);
   else if (kind === 'code') await openCodeFile(name);
+  else if (kind === 'strings') await openStrings(name);
   else await openText(name);
 }
 
