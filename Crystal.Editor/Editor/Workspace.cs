@@ -240,6 +240,12 @@ namespace Crystal.Editor
 			return data;
 		}
 
+		/// <summary>The shipped copy, whether or not an override exists; null when the game has no such file.</summary>
+		public byte[] ReadShipped(string name)
+		{
+			return _source.TryRead(name, out byte[] data) ? data : null;
+		}
+
 		public void Write(string name, byte[] data)
 		{
 			Version++;

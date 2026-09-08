@@ -22,8 +22,8 @@
 //     "fields": { "usedPower": 999 }   fields of the record by the game's own names
 //   }
 //
-// Numbers: the game's ids run to the 9000s (FF3: 4001 magic, 5001 consumables, 6001
-// weapons, 8001 armour, 9001 key items); a mod's start at 20001. Names take message ids
+// Numbers: FF3's ids stop under 7000 (weapons 1000-2309, armour 3001-3331, magic and songs
+// 4001-6660, consumables 5001-5122, key items 5201-5241); a mod's start at 20001. Names take message ids
 // from 31001, captions from 32001 - eureka_item.msd's own stop at 30217 and a record's
 // name id is a signed short.
 
@@ -272,12 +272,17 @@ namespace OpenFF.Data
 			if (pack.Count != 5) { notes?.Add("item_parameter.pak has " + pack.Count + " chains, not 5: no mod items"); return pak; }
 			List<byte[]>[] extra = new List<byte[]>[5];
 			for (int c = 0; c < 5; c++) extra[c] = new List<byte[]>();
+			bool any = false;
 			for (int k = 0; k < items.Count; k++)
 			{
+				// Already in the pak (a Steam project's files/ composed at Install, read again by
+				// the client's transform): the definition is there, nothing to add twice.
+				if (ChainOf(pack, items[k].Number, out _) >= 0) continue;
 				TextIds(k, out int nameId, out int captionId);
 				byte[] record = Record(pack, items[k], nameId, captionId, out int chain, notes);
-				if (record != null) extra[chain].Add(record);
+				if (record != null) { extra[chain].Add(record); any = true; }
 			}
+			if (!any) return pak;
 			// The header (16 bytes, the count at 0) and the chain table as they were, the chains
 			// laid out again after it with the new records at each one's end. Square's chains
 			// are sometimes two bytes short of their last record: the appended ones start at a

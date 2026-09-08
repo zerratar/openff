@@ -362,7 +362,8 @@ shape the next time the scene is saved.
 
 An item is a definition, not code. In Crystal, under *OpenFF mod ▸ Items*, *New item…* asks
 for a name and the game's item to start from (a Hi-Potion for a stronger potion, a sword
-for a new sword); the definition opens in the inspector - the name, the caption, the shop
+for a new sword - FF3's own ids: weapons 1000-2309, armour 3001-3331, magic 4001-6660,
+consumables 5001-5122, key items 5201-5241); the definition opens in the inspector - the name, the caption, the shop
 prices, and every field of the base's record by the game's own name (`usedPower`,
 `aggressivity`, `phylacticPower`, `equipJob`…) with the base's value greyed in. Set a field
 to change it, clear it to fall back to the base's. Every change saves itself. The file:
@@ -387,7 +388,10 @@ into the mod. In play the client appends every enabled mod's definitions to
 those files (a content-chain transform, `Shared/Data/ModItems.cs`), so menus, shops, chests
 and `Game.Items` see them as the game's own; with no definitions anywhere the files pass
 through untouched, and `--nomods` reads them as shipped. Two mods that claim one number:
-the first in load order keeps it. FF3 for now; FF4's tables get their own composer.
+the first in load order keeps it. A Steam project gets the same items the native way: at
+Install and in the zip the two files are composed from the shipped ones and written into
+the target's `files/`, so the Steam game reads them as any replaced file. FF3 for now;
+FF4's tables get their own composer.
 
 ### Seeing what happens
 

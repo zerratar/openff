@@ -106,6 +106,41 @@ namespace Crystal.Editor
 			return true;
 		}
 
+		/// <summary>
+		/// The Steam side: a native mod has no client to compose the tables as they are read, so
+		/// the two files are composed here - the shipped item_parameter.pak and eureka_item.msd
+		/// with the project's definitions appended - and written into the target's files/, where
+		/// Install copies them into the game and the zip carries them. Run before either. With no
+		/// definitions the two files are left as the project has them (an edit of the tables by
+		/// hand stays); returns what was written.
+		/// </summary>
+		public static List<string> WriteTables(Project project, Workspace workspace, string target)
+		{
+			List<string> written = new List<string>();
+			if (project == null || workspace == null || !string.Equals(Targets.GameOf(target), "ff3", StringComparison.OrdinalIgnoreCase)) return written;
+			List<ModItem> items = All(project);
+			if (items.Count == 0) return written;
+			string files = project.FilesFor(target);
+			foreach ((string name, Func<byte[], byte[]> compose) in new (string, Func<byte[], byte[]>)[]
+			{
+				("files/item_parameter.pak", data => ModItems.ComposePak(data, items)),
+				("files/eureka_item.msd", data => ModItems.ComposeMsd(data, items)),
+			})
+			{
+				// From the shipped file, not the project's copy: the definitions are the source, and
+				// composing over an earlier composition would only skip what is there already.
+				byte[] shipped = workspace.ReadShipped(name);
+				if (shipped == null) continue;
+				byte[] composed = compose(shipped);
+				if (composed == null || ReferenceEquals(composed, shipped)) continue;
+				string path = Path.Combine(files, name.Replace('/', Path.DirectorySeparatorChar));
+				System.IO.Directory.CreateDirectory(Path.GetDirectoryName(path));
+				File.WriteAllBytes(path, composed);
+				written.Add(name);
+			}
+			return written;
+		}
+
 		/// <summary>"Hi-Potion+" -> "hi-potion-plus": a file name and a word a mod can use.</summary>
 		public static string Slug(string name)
 		{

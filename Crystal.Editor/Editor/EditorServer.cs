@@ -633,6 +633,16 @@ namespace Crystal.Editor
 					return;
 
 				case "/api/mod/install":
+					if (Current.Installable && _project != null)
+					{
+						// The mod's items into the game's tables first: a Steam game reads files, not
+						// definitions, so the composed pak and msd go in with the other edits.
+						try
+						{
+							foreach (string written in ProjectItems.WriteTables(_project, _workspace, Current.Target)) Console.Error.WriteLine("items: " + written + " composed for the install");
+						}
+						catch (Exception ex) { Console.Error.WriteLine("items: tables not composed: " + ex.Message); }
+					}
 					SendJson(context, Current.Installable
 						? ModInstall.Install(_workspace)
 						: new ModResult { Ok = false, Error = "this is the OpenFF side of the project; the client reads it, nothing is installed" });
@@ -1181,8 +1191,11 @@ namespace Crystal.Editor
 			// by, so a Chest's Item field (and any [ItemField]) can hold one.
 			if (_project != null)
 			{
+				// Not twice: a Steam project's files/ may hold the composed pak already (WriteTables).
+				HashSet<int> have = new HashSet<int>(items.Select(i => (int)i.GetType().GetProperty("id").GetValue(i)));
 				foreach (ModItem mine in ProjectItems.All(_project))
 				{
+					if (have.Contains(mine.Number)) continue;
 					ProjectItems.BaseRecord(_workspace, mine.Base, out int chain);
 					items.Add(new
 					{
@@ -1508,6 +1521,13 @@ namespace Crystal.Editor
 			}
 			try
 			{
+				// The Steam targets' tables composed from the definitions before the zip is packed.
+				foreach (KeyValuePair<string, Session> pair in _sessions)
+				{
+					if (!pair.Value.Installable || !_project.File.Targets.Contains(pair.Key, StringComparer.OrdinalIgnoreCase)) continue;
+					try { ProjectItems.WriteTables(_project, pair.Value.Workspace, pair.Key); }
+					catch (Exception ex) { Console.Error.WriteLine("items: tables not composed for " + pair.Key + ": " + ex.Message); }
+				}
 				string zip = ProjectExport.Write(_project);
 				SendJson(context, new { ok = true, path = zip, bytes = new FileInfo(zip).Length });
 			}
