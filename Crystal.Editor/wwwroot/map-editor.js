@@ -2183,6 +2183,13 @@ function applyCastPlan(doc, plan, options = {}) {
     // own (Setup) - treasure, motions, radii, sign effects, recolours, the random walk.
     // Nothing is translated into a component, so nothing is approximated.
     sceneState.attachments.push({ target: path, behaviour: 'GameCast', fields: { Cast: plan.cast, OnBoot: plan.kind === 'actor', Setup: plan.setup || [] } });
+    // Scripts: the cast's main as the mod's own code (CastScript) - the same lines, run by
+    // the engine on the game's interpreter, editable in the inspector. A cast whose main
+    // reaches outside itself (a call into the map's script, a jump to another function's
+    // label) keeps the game's, with the reason in the plan.
+    if (options.scripts && plan.kind !== 'actor' && plan.kind !== 'chest' && plan.main && plan.main.length && !plan.mainProblem) {
+      sceneState.attachments.push({ target: path, behaviour: 'CastScript', fields: { Cast: plan.cast, Main: plan.main } });
+    }
     if (plan.when && plan.kind !== 'actor') {
       // Booted only under flags: the flags count once, at the map's start, as the boot's test did.
       sceneState.attachments.push({ target: path, behaviour: 'WhenFlags', fields: { When: plan.when, Live: false } });
@@ -2269,7 +2276,7 @@ async function convertMap(doc, options = {}) {
     const already = (sceneState.attachments || []).some(a => (a.target || '').toLowerCase() === 'object:' + plan.index && a.behaviour === 'Removed');
     if (already) { skipped.push(plan); continue; }
     if (plan.kind === 'unknown') { left.push(plan); continue; }
-    const object = applyCastPlan(doc, plan, { components: options.components });
+    const object = applyCastPlan(doc, plan, { components: options.components, scripts: options.scripts });
     if (object) done.push({ plan, object });
   }
   if (done.length) sceneChanged('convert map');

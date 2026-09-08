@@ -1,0 +1,18 @@
+# Parity: the old man in Ur who wants a Potion (cast 22: flag branches, the item menu, checkUseItem). Tools\parity.ps1 -Map t01_01 -Drive Docs\Drives\parity-ur-elder.drive -Pos -40,0,138 -Rot 0
+wait 3
+flag 0:11 on
+wait 1
+say before
+press Z 150
+wait 3
+say talking
+press Z 150
+wait 3
+say menu
+press X 150
+wait 3
+say closed
+press Z 150
+wait 2
+say again
+quit

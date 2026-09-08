@@ -68,6 +68,10 @@ namespace Crystal.Editor
 		public string MotionSet { get; set; } = "";
 		public int MotionIndex { get; set; }
 		public bool MotionLoop { get; set; } = true;
+		/// <summary>The cast's main as source lines (the scripts conversion, CastScript); null when the script has none.</summary>
+		public List<string> Main { get; set; }
+		/// <summary>Why the main cannot stand alone as the mod's code; null when it can.</summary>
+		public string MainProblem { get; set; }
 	}
 
 	internal static class MapConvert
@@ -209,7 +213,66 @@ namespace Crystal.Editor
 				Walk(plan, script, at, names, new List<uint> { declared.Normal }, lookupMessage);
 				plans.Add(plan);
 			}
+			// The casts' mains as source, for the scripts conversion (CastScript): the lines from
+			// "castN_main:" to the next function's label, as the disassembly writes them.
+			if (script != null)
+			{
+				Dictionary<int, List<string>> mains = Mains(script, lookupMessage);
+				foreach (CastPlan plan in plans)
+				{
+					if (!mains.TryGetValue(plan.Cast, out List<string> main)) continue;
+					plan.Main = main;
+					plan.MainProblem = Outside(main);
+				}
+			}
 			return plans;
+		}
+
+		/// <summary>Every "castN_main:" function of the script as source lines (labels and commands, the label of the function itself left out), by cast.</summary>
+		internal static Dictionary<int, List<string>> Mains(ScriptFile script, Func<uint, string> lookupMessage)
+		{
+			Dictionary<int, List<string>> mains = new Dictionary<int, List<string>>();
+			string text;
+			using (System.IO.StringWriter writer = new System.IO.StringWriter())
+			{
+				Ffs.SourceWriter.Write(writer, script, "script", lookupMessage);
+				text = writer.ToString();
+			}
+			int current = -1;
+			foreach (string raw in text.Split('\n'))
+			{
+				string line = raw.TrimEnd('\r');
+				System.Text.RegularExpressions.Match head = System.Text.RegularExpressions.Regex.Match(line, @"^cast(\d+)_(main|exit|init)\s*:\s*$");
+				if (head.Success)
+				{
+					current = head.Groups[2].Value == "main" ? int.Parse(head.Groups[1].Value, CultureInfo.InvariantCulture) : -1;
+					if (current >= 0) mains[current] = new List<string>();
+					continue;
+				}
+				if (current < 0) continue;
+				// Another function's label at the margin ends this one (loc_ labels belong to it).
+				if (line.Length > 0 && !char.IsWhiteSpace(line[0]) && line.EndsWith(":", StringComparison.Ordinal) && !line.StartsWith("loc_", StringComparison.Ordinal)) { current = -1; continue; }
+				string t = line.Trim();
+				if (t.Length == 0) continue;
+				mains[current].Add(t);
+			}
+			return mains;
+		}
+
+		/// <summary>Why a main could not stand alone as the mod's code: a jump to a label outside it, a call into the map's own script; null when it can.</summary>
+		private static string Outside(List<string> main)
+		{
+			HashSet<string> labels = new HashSet<string>(main.Where(l => l.EndsWith(":", StringComparison.Ordinal) && !l.Contains("(")).Select(l => l.TrimEnd(':').Trim()), StringComparer.Ordinal);
+			foreach (string line in main)
+			{
+				if (line.StartsWith("call(", StringComparison.Ordinal) && !line.StartsWith("call(2,", StringComparison.Ordinal)) return "calls a function of the map's script: " + line;
+				foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(line, @"\b(loc_[0-9A-Fa-f]+|cast\d+_\w+)\b"))
+				{
+					if (line.EndsWith(":", StringComparison.Ordinal)) continue;
+					if (!labels.Contains(m.Value)) return "jumps to " + m.Value + ", outside its own code";
+				}
+			}
+			return null;
 		}
 
 		/// <summary>One boot command on a cast, with the flags tested on the path to it.</summary>

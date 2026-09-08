@@ -673,6 +673,7 @@ function outlineFor(doc) {
       label: 'Characters',
       menu: () => [
         { label: 'Convert the map to OpenFF objects (exact - each keeps its cast)…', icon: 'mod', disabled: !openffProject || typeof convertMap !== 'function', run: () => convertMap(doc).catch(error => say(error.message, 'bad')) },
+        { label: 'Convert to OpenFF scripts (each cast\'s code as the mod\'s own, editable)…', icon: 'code', disabled: !openffProject || typeof convertMap !== 'function', run: () => convertMap(doc, { scripts: true }).catch(error => say(error.message, 'bad')) },
         { label: 'Convert with components (Chest, Talk… where they fit)…', icon: 'behaviour', disabled: !openffProject || typeof convertMap !== 'function', run: () => convertMap(doc, { components: true }).catch(error => say(error.message, 'bad')) },
       ],
       children: scene.objects.map(o => ({
