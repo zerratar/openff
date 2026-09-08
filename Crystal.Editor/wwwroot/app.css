@@ -933,6 +933,11 @@ table.grid td.plain { padding: 3px 8px; white-space: nowrap; max-width: 420px; o
 table.grid th.sortable { cursor: pointer; user-select: none; }
 table.grid th.sortable:hover { color: var(--accent); }
 table.grid tr:hover td { background: #1b1f26; }
+table.grid tr.pick { cursor: pointer; }
+table.grid tr.on td { background: #232c3a; color: var(--ink); }
+/* A record's form: a field changed from the shipped value is marked. */
+.record-form input.changed { border-color: var(--accent); }
+#inspector .object-name.static { border: 0; background: none; padding-left: 0; }
 
 .bar label.pads { color: var(--dim); font-size: 12px; display: flex; align-items: center; gap: 4px; }
 .bar .rowfilter {

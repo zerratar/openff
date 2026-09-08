@@ -923,6 +923,12 @@ async function inspectAsset(kind, name, options = {}) {
       const f = await api(`/api/project/formations?id=${encodeURIComponent(name)}`);
       if (f.ok === false) throw new Error(f.error);
       me.data = f.formation;
+    } else if (kind === 'record') {
+      // One of the game's records: name is kind:id (item:5001, monster:1, party:2).
+      const cut = name.indexOf(':');
+      const r = await api(`/api/record?kind=${encodeURIComponent(name.slice(0, cut))}&id=${encodeURIComponent(name.slice(cut + 1))}`);
+      if (r.ok === false) throw new Error(r.error);
+      me.data = r;
     } else if (kind === 'strings') {
       const t = await api('/api/project/text');
       if (t.ok === false) throw new Error(t.error);
@@ -1045,6 +1051,10 @@ function drawInspectedAsset(box) {
   // An item definition is edited right here, as a scene object is: the form is the panel.
   if (kind === 'characters' && data && typeof characterDefinitionPanel === 'function') {
     box.append(characterDefinitionPanel(data, () => { loadList(); }));
+    return;
+  }
+  if (kind === 'record' && data && typeof recordPanel === 'function') {
+    box.append(recordPanel(data, () => { if (activeDoc && activeDoc.kind === 'data' && typeof dispatchOpen === 'function') dispatchOpen('data', activeDoc.name); }));
     return;
   }
   if (kind === 'monsters' && data && typeof monsterDefinitionPanel === 'function') {
