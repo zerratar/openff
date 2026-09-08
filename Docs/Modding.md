@@ -571,6 +571,22 @@ in Textures, where *Replace with a PNG…* paints it (every format, the monsters
 included). The file is the project's; Export carries it, and the game reads it before any
 look-alike.
 
+### Models of the mod's own: glTF (OpenFF targets)
+
+A Steam target is held to the game's own formats - a model there is a package in the DS
+format, so the game can read it. An OpenFF target is not: the OpenFF client reads glTF
+itself. Put a Blender export (`.glb`, or `.gltf` with its `.bin` and pictures) in the
+project's `assets/` folder - the model picker's *Import a model…* does it - and give an
+OpenFF object `assets/hut.glb` as its Model. The map editor's 3D view draws it in place like
+any of the game's models; in play the client draws it with the field's camera, in the
+game's depth, lit from above as the DS models are shaded. Materials' base colour and
+texture come through; the node tree is applied; skins and animations are not read yet (the
+model stands at its bind pose) and a mesh has no collision (walked through - a Solid box
+is on the list). One glTF unit is one world unit (two characters side by side are about 8
+apart), and the model is stood on its lowest point unless the `Mesh` component's *On
+Ground* is off. Export copies `assets/` into the mod. From code: `Game.Meshes.Spawn(path,
+position, yaw, scale)` gives a handle to move, hide and remove.
+
 ### New content from existing: Duplicate as…
 
 Any file in the libraries - a model, a texture package, a picture, a sound, a menu, a

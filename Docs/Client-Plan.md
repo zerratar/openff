@@ -1975,6 +1975,45 @@ package…* in Textures with name, texture name, format, transparency, size, PNG
 This is the texture half of the model importer; what a new model still wants is the MDL0
 (geometry as display lists, materials, the node tree, the SBC) - the next writer.
 
+### The OpenFF target's own formats: glTF drawn by the client (2026-09-08, night)
+
+Karl's point redrew the plan: a Steam target is held to the game's formats, an OpenFF target
+is not - so a model of the mod's own need not become a DS package at all when the client
+can read the modern one. It can now. `Shared/Graphics/GltfFile.cs` reads glTF 2.0 (.glb and
+.gltf; the node tree composed into each mesh's vertices; positions, normals, uvs, colours,
+indices, strips and fans; materials with base colour, texture, double sided, blend; images)
+into plain arrays - Shared, so both ends use one reader. The client's `GltfModel` makes
+MonoGame triangle lists of it (the normal baked into the vertex colour as the DS models
+carry their shade) and `ModMeshes` (the `IMeshes` service; `MeshHandle`; `Game.Meshes`)
+draws them from `WorldPart.onDrawPart` right after `m_Scene.draw` - the field's camera
+read off `NNS_G3dGlb.cameraMtx` as GL floats (the emulation transforms the game's own
+vertices on the CPU with that matrix and leaves the GL model-view identity; the first try
+read the effect's World and drew nothing), the frame's projection from the effect, each
+mesh's pose as an XNA matrix on top, through `NativeRenderer.Draw` so depth, blend and the
+depth-range fix are the game's. The engine: `Mesh` component (Path, OnGround), the loader
+routing a Model ending .glb/.gltf to it instead of the character system. Crystal:
+`GltfBundle` lays the same reader's arrays out as the map editor's ModelBundle so the 3D
+view draws the file in place; `/api/project/assets` and `/import`; the model picker lists
+the mod's files first with *Import a model…*; Export carries `assets/`. Tried: a red box
+standing in Ur in the game (C-58) and beside the chest in the editor (E-60).
+
+**The roadmap, redrawn.** For OpenFF targets the client reads the modern format, and the
+Steam converters (glTF → MDL0, PNG → XNB, TTF → SpriteFont) are a separate, later line for
+mods that must also install into the Steam games:
+
+- Models: glTF in - done for static meshes. Next: skins and animations (a glTF animation
+  clip driving a Mesh, so a mod's character walks), a Solid box for collision, then the
+  `Motion` and `Wander` components on a glTF character.
+- Maps: a whole map from a glTF - the look is this path already (a big Mesh); the ground
+  the hero walks needs a collision mesh, which for the OpenFF target can be the glTF
+  itself (a triangle mesh walked with the engine's own raycast) rather than an `.mcl`;
+  then a map's own camera, exits and encounter areas as scene objects. That is the "new
+  map" for OpenFF: a scene file with a Mesh, a ground, exits.
+- Images, fonts, sounds: PNG is read already for pictures; a TTF for text and an OGG/WAV
+  for sound through `Game.Draw` and `Game.Audio` are the same shape of work as the meshes.
+- Steam targets keep to the game's formats: the duplication path, Replace with a PNG, the
+  record forms, the table composers - and the DS converters when someone needs them.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

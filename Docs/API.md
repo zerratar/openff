@@ -7,8 +7,8 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 ## Contents
 
 - [The entry point](#the-entry-point): [`Game`](#game)
-- [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMeshes`](#imeshes), [`IScripts`](#iscripts)
+- [Handles and data](#handles-and-data): [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -42,6 +42,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 | `static IItems Items { get; }` | The item tables as data: names, categories, prices, who can equip what, stats. |
 | `static Action<string> Log { get; set; }` | Where engine messages go; the host points this at its log. |
 | `static IMagic Magic { get; }` | Spells as data and as actions: the tables, casting with the game's effects, damage and healing by the game's formulas, a mod's own spells. |
+| `static IMeshes Meshes { get; }` | The mod's own models (glTF), drawn by the client. |
 | `static IReadOnlyList<LoadedMod> Mods { get; }` | The mods whose code is loaded, in load order. |
 | `static IMonsters Monsters { get; }` | Monsters and encounter groups as data. |
 | `static INpcs Npcs { get; }` | Characters and models on the map: spawn, move, turn, talk, and the ones the map already has. |
@@ -315,6 +316,17 @@ The game's flag space: what the scripts store quest progress in.
 | `bool Get(uint group, uint index)` |  |
 | `void Set(uint group, uint index, bool value)` |  |
 
+### IMeshes
+
+`interface IMeshes`
+
+Models in the mod's own format - glTF (.glb, .gltf), as Blender exports them - drawn by the OpenFF client with the field's camera, on top of the game's own scene. No DS format in between: this is what an OpenFF mod may do that a Steam mod cannot. A scene object whose Model names such a file (assets/hut.glb) is one of these; from code, Spawn. Read: meshes, materials with a base colour and texture, the node tree; not yet: skins, animations, collision (a mesh is walked through - a Solid box is on the list).
+
+| Member | What it does |
+| --- | --- |
+| `IReadOnlyList<MeshHandle> All { get; }` | Every mesh standing. |
+| `MeshHandle Spawn(string path, Vector3 position, float yaw = 0, float scale = 1)` | Puts a model on the map at a position, turned by yaw degrees, scaled; the path is the mod's own file (relative to the mod's folder) or absolute. |
+
 ### IScripts
 
 `interface IScripts`
@@ -576,6 +588,37 @@ An int that is an item id: the inspector offers the game's item list to pick fro
 | `int Count { get; set; }` |  |
 | `int ItemId { get; set; }` |  |
 | `string ToString()` |  |
+
+### Mesh
+
+`class Mesh : Behaviour`
+
+Keeps a scene object's spawned model where its Transform says: move the object (or its parent) from code and the model comes along. Added by the loader to every object with a model; a mod need not touch it.
+
+| Member | What it does |
+| --- | --- |
+| `bool OnGround` | Stand the model on its feet: its lowest point on the object's position rather than its origin. |
+| `string Path` | The file, relative to the mod's folder (assets/hut.glb). |
+| `MeshHandle Handle { get; }` | The client's handle while it stands. |
+
+### MeshHandle
+
+`abstract class MeshHandle`
+
+A model of the mod's own standing on the map: a glTF file drawn by the client directly, moved and removed through this.
+
+| Member | What it does |
+| --- | --- |
+| `bool Hidden { get; set; }` |  |
+| `Vector3 Max { get; }` |  |
+| `Vector3 Min { get; }` | The file's extent, in its own units before Scale - to stand it on the ground, to size a box around it. |
+| `string Path { get; }` | The file it was loaded from (assets/hut.glb in the mod). |
+| `Vector3 Position { get; set; }` | Where it stands; set to move it. |
+| `string Problem { get; }` | What went wrong reading it, or null. |
+| `float Scale { get; set; }` | Its scale; the file's own units times this. |
+| `int Triangles { get; }` | How many triangles it draws. |
+| `float Yaw { get; set; }` | Its turn about the up axis, in degrees (the scene's yaw). |
+| `void Remove()` | Takes it off the map. |
 
 ### Monster
 
@@ -1160,6 +1203,7 @@ Applies the mods' scene files to the map the game is on.
 | `static int ApplyAll(string map)` | Every loaded mod's scene file for a map. What an earlier map's files made goes first. |
 | `static int Clear()` | Destroys every object a scene file made (anything carrying a MapObject), with the models spawned for them. Called when a map is left and before the next one's files apply: the objects stand for things on one map and used to outlive it. |
 | `static Type EngineBehaviour(string name)` | The engine's own behaviours a scene file may name without the mod's code having them: Trigger. |
+| `static bool IsMeshFile(string model)` | The model for a scene object that has one: a plain character without a cast, following the transform, gone with the object. Components waiting for the character (INeedsNpc) hear of it. |
 | `static void SetFields(object target, Dictionary<string, JsonElement> fields, string modId)` | Public fields (and settable properties) by name, from JSON: numbers, booleans, strings, enums, Vector3 ({x,y,z} or [x,y,z]), Color ({r,g,b,a} or "#rrggbb"). |
 
 ### ScenePoint
@@ -1880,4 +1924,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-118 types, 844 members; 399 without a summary yet.
+121 types, 861 members; 401 without a summary yet.
