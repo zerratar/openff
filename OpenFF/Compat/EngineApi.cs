@@ -60,6 +60,8 @@ namespace OpenFF.Client
 			else OpenFF.Game.Services.Register(new LegacyShops());
 			// The game's script language as the engine's own (CastScript): FF3's for now.
 			if (!GameProfile.IsFf4) OpenFF.Game.Services.Register(new LegacyScripts());
+			// The mod's own models (glTF), drawn by the client with the field's camera.
+			OpenFF.Game.Services.Register(new ModMeshes());
 		}
 
 		public static readonly LegacyScreen Screen = new LegacyScreen();
