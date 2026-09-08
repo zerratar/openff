@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`FlagFieldAttribute`](#flagfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -430,11 +430,32 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 | `void Sprite(Texture texture, float x, float y, float w, float h, Color? tint = null, float rotation = 0, float srcX = 0, float srcY = 0, float srcW = 0, float srcH = 0)` | A texture (or part of it) drawn into a rectangle, tinted, turned about its centre. |
 | `void Text(string text, float x, float y, Color color, int size = 12)` | Text at a position, in the game's own font. Sizes as the game's: 12 small, 16 normal. |
 
+### Encounter
+
+`class Encounter : Interactable`
+
+A monster on the map: walk into it (or press A at it) and the game's battle begins with a formation - one of the game's monster parties, or one of the mod's own (defs/formations). Won once, it is gone for good (SceneMemory) unless Once is off; run from, it stays. The model is any the map can show; a monster's own battle model is the battle's, so a field figure stands for it here as the game's own visible foes do. Inherit and override OnWon / OnLost for what follows.
+
+| Member | What it does |
+| --- | --- |
+| `int BattleMap` | The battle background, as the game's battleMap ids; 0 for the map's default. |
+| `bool CanEscape` | Whether the party may run from this battle. |
+| `int Formation` | The monster party to fight: the game's (monster_party_table.bbd) or the mod's own formation by number. |
+| `bool Once` | Fought and won once: the object is gone, across saves. Off, it is there again every visit. |
+| `bool Beaten { get; }` | Whether this one has been beaten (this visit, or ever when Once). |
+| `void NpcReady(MapObject link)` |  |
+
 ### FlagFieldAttribute
 
 `class FlagFieldAttribute : Attribute`
 
 A string that is a flag expression - "0:14 !0:11", alternatives with | - as WhenFlags and Talk read them: the inspector offers the map's flags to pick from (the ones its script tests and sets, with who does), and checks the shape.
+
+### FormationFieldAttribute
+
+`class FormationFieldAttribute : Attribute`
+
+An int field that holds a monster party (formation) number: the editor offers the game's and the mod's formations to pick from.
 
 ### GameCast
 
@@ -1859,4 +1880,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-116 types, 838 members; 398 without a summary yet.
+118 types, 844 members; 399 without a summary yet.

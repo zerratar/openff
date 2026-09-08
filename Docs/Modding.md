@@ -496,6 +496,66 @@ Install and in the zip the two files are composed from the shipped ones and writ
 the target's `files/`, so the Steam game reads them as any replaced file. FF3 for now;
 FF4's tables get their own composer.
 
+### Monsters of the mod's own: `defs/monsters/<id>.json`
+
+A monster is a definition too. Under *OpenFF mod ▸ Monsters*, *New monster…* asks for a name
+and the game's monster to start from; the inspector then has the base (its family is the
+battle model), the *Look* - whose texture it wears, any monster of the same family, so a
+recolour is one pick away - and every field of the record by the game's own name
+(`mon.MonsterParameter`: `level`, `maxHp`, the five stats, `aggressivity`, `hitProbability`,
+`phylacticPower`, `avoidanceNumber`, `weakType`, the two special actions, `dropProbability`,
+`dropTable`, `gil`, `exp`…) with the base's value greyed in. Every change saves itself.
+
+```json
+{
+  "id": "goblin-chief",
+  "number": 1001,
+  "base": 1,
+  "name": "Goblin Chief",
+  "look": 44,
+  "fields": { "maxHp": 60, "level": 4, "exp": 30, "gil": 80, "strength": 9 }
+}
+```
+
+`number` is the monster id the game knows it by, given by Crystal from 1001 up. In play the
+client appends the record to `monster.chaindata` (chain 0, and the base's offset record -
+where the cursor and the damage numbers go - under the new id in chain 4), the name to every
+language's `eureka_battle.msd` from 2001 up, and answers the battle's request for the
+monster's texture (`f<family>_<id>.ntxp.lz`, which a mod monster has none of) with the one
+`look` names - all as the files are read (`Shared/Data/ModMonsters.cs`). A Steam project has
+the composed files written into `files/` at Install and Export. Not yet: a model of the
+monster's own (a family's model with a texture of the mod's is the next step), a bestiary
+page, a drop table of its own.
+
+### Formations: `defs/formations/<id>.json`
+
+A formation is a monster party - up to four slots of a monster with a count, the game's
+monsters or the mod's. *OpenFF mod ▸ Formations ▸ New formation…* (or *New formation with
+it…* on a monster) makes one; the inspector sets the slots.
+
+```json
+{
+  "id": "chief-and-goblins",
+  "number": 1001,
+  "name": "Chief and goblins",
+  "slots": [ { "monster": 1001, "min": 1, "max": 1 }, { "monster": 1, "min": 1, "max": 2 } ]
+}
+```
+
+The client appends it to `monster_party_table.bbd`; `number` is the party id. The battle
+draws each slot's count between min and max, as it does for the game's own parties (six
+fighters at most, three of the medium size).
+
+To put it in the game: the **Encounter** component. On any object with a figure (an n021
+villager, an o000 spot, nothing at all), it starts the game's battle with its *Formation*
+when the hero walks into it (or presses A at it), on the *Battle Map* background given (0
+for the default). Won once, the figure is gone for good across saves (`Once`); run from, it
+stays; `CanEscape` off holds the party in. The picker offers the game's 242 parties and the
+mod's formations. Inherit and override `OnWon` / `OnLost` for what follows (a reward, a
+flag, a line) - they run on the object as the map comes back from the battle. From code,
+`Game.Battle.Start(number)` fights a formation anywhere; in a CastScript the game's own
+battle commands do.
+
 ### The heroes: `defs/characters/<id>.json`
 
 The first slice of character definitions: what a hero slot is as a game begins. Under

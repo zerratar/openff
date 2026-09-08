@@ -1802,6 +1802,54 @@ problem on its line, the picker's `flagOn();` landing with the caret between the
 the scene file carrying the lines; the greeter drive runs the same through the shared
 frame.
 
+### Monsters and formations as definitions (2026-09-08, evening)
+
+The item pattern once more, with the battle's own quirks read out of the code first.
+`monster.chaindata` has six chains: 0 the 100-byte `MonsterParameter` records (255, ids
+0-254 - the offsets now written down field by field in `ModMonsters.Fields`, the body at
+0x10, attack 0x1C, defence 0x2C, magic defence 0x40, two specials at 0x44, drops 0x54), 1
+drop tables (18), 2 normal attacks (28), 3 special attacks (16), 4 `MonsterOffsetParameter`
+(160, keyed by monster id: cursor, damage numbers, shadow - `offset(id)` returns null for
+an id it lacks, and the battle dereferences it), 5 effects (56). The header is 128 bytes
+and every chain starts on a 128-byte line; `ModMonsters.Append` keeps that (`Append` is the
+general rebuild - `ModItems.ComposePak` could sit on it). The battle model is the family's
+(`f%03d.nmdp`) and a monster's own part is only a replacement texture `f%03d_%03d.ntxp.lz`,
+optional (Goblin has none) - so a mod monster needs no model at all: `ContentChain.AddAlias`
+(a name to try when a file is nowhere) answers `f001_1001.ntxp.lz` with the texture of the
+monster `look` names, and a Red Cap-coloured goblin is one number in a JSON. Names go to
+`eureka_battle.msd` (the game's 1001-1373; ours from 2001), every `.lproj` copy since the
+transform matches by file name.
+
+Two of the game's loops had the table size baked in: `MonsterPartyManager.monsterParty`
+scanned `MONSTER_PARTY_MAX` = 259 rows - exactly the shipped table, so an appended party was
+never found and the fallback (party 1, a Goblin) fought instead, which is what the first
+run showed; and `setMonsterIdForMonsterManaia` ran `i <= MONSTER_MAX` (256) over the
+bestiary's 256 entries, fine for 255 monsters, out of range with two of ours. Both now use
+the table's own length / `<`; with the shipped files they do exactly what they did.
+
+Formations: `monster_party_table.bbd` records appended (party id s16, four (monster s16,
+min u8, max u8); an empty slot is -1). The `Encounter` component (an Interactable that acts
+on walking in even with a figure - `Interactable.Update` now lets OnWalkIn through when the
+object has an Npc; Talk and Chest keep OnWalkIn off) starts `Game.Battle.Start(Formation,
+BattleMap)`. The battle takes the game out of the map and back, and the scene is cleared
+and placed again around it, so the component that started the fight is gone when
+`BattleEnded` comes: a static watch keeps the pending object's key, marks `SceneMemory` on
+a win, and hands the result to the object's next `Start`, which hides it, makes it
+walk-through (`Npc.Solid`) and calls `OnWon`. Crystal: Monsters and Formations under the
+mod folder with the item-style inspectors (base picker, Look among the family, fields by
+block), `[FormationField]` for the Encounter's picker (`/api/formations`: the game's 242
+parties, the mod's), `/api/monsters`, `ProjectMonsters.WriteTables` for Steam targets.
+Tried: three goblins on the grass, the middle one red-capped, "Goblin Chief" in the target
+list; a lone goblin fought to the end and the figure gone on return (C-57).
+
+Also on the way: the text transform reads the language off the `.lproj` folder the game
+asks for (`en.lproj/eureka_permanent.msd`) before falling back to the game's setting.
+
+Next for monsters: a texture of the mod's own (a `.ntxp` beside the definition, served
+through the same alias), the encounter areas of a map (`map.CEnCountManager` checks party
+ids against `MONSTER_PARTY_MAX`; the map's own encounter table is where random fights
+come from), a bestiary page.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
