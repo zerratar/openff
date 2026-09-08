@@ -659,6 +659,25 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/map/encounters":
+					// A map's random encounters: the five groups of four monster parties in its .pak
+					// (chain 2, CMapMonsterPartyParameter), the tiles' land forms pointing at a group.
+					SendJson(context, MapEncounters.Read(_workspace, Query(context, "name")));
+					return;
+
+				case "/api/map/encounters/save":
+				{
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string map = body?["name"]?.GetValue<string>();
+						int[][] groups = body?["groups"] is JsonArray a ? a.Select(g => (g as JsonArray)?.Select(n => n?.GetValue<int>() ?? 0).ToArray() ?? new int[4]).ToArray() : null;
+						SendJson(context, MapEncounters.Write(_workspace, map, groups));
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/monsters":
 					// The game's monsters then the mod's, for the pickers (a formation's slots, a base to start from).
 					SendJson(context, ProjectMonsters.Monsters(_workspace, _project));

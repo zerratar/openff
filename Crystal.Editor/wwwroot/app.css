@@ -1,4 +1,4 @@
-﻿/* The editor's look: dark, dense, and out of the way. */
+/* The editor's look: dark, dense, and out of the way. */
 
 :root {
   --bg: #14161a;
@@ -766,6 +766,13 @@ select {
 .command-row:hover { background: #1f242b; }
 .command-row b { font-family: var(--mono, ui-monospace, Consolas, monospace); font-weight: 500; color: var(--ink); min-width: 220px; }
 .command-row span { color: var(--dim); font-size: 12px; }
+
+/* A map's random encounters on the terrain card. */
+.encounters .encounter-group { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 8px; }
+.encounters .encounter-group b { font-weight: 500; font-size: 12px; }
+.encounters .encounter-group b i { color: var(--dim); font-style: normal; font-size: 11px; margin-left: 8px; }
+.encounters .encounter-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.encounters .encounter-slots select { min-width: 0; width: 100%; font-size: 11px; }
 
 /* A formation's slots: monster, min - max, remove. */
 .formation-slot { display: flex; align-items: center; gap: 6px; margin: 4px 0; }

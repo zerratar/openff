@@ -1203,6 +1203,91 @@ function drawLegend(node) {
 }
 
 /// Turns a hierarchy or scene selection into something the inspector can show.
+/// The map's random encounters on the terrain card: five groups of four monster parties
+/// (the map's .pak, chain 2), each a picker over the game's parties and the mod's
+/// formations; a tile type's land form sends the player to a group. Every change saves
+/// into the map's .pak - a file of the project's, so a Steam mod carries it too.
+function encountersSection(box, map) {
+  const head = document.createElement('h3');
+  head.textContent = 'Random encounters';
+  box.append(head);
+  const body = document.createElement('div');
+  body.className = 'encounters';
+  const note = document.createElement('p');
+  note.className = 'none';
+  note.textContent = 'loading…';
+  body.append(note);
+  box.append(body);
+  api(`/api/map/encounters?name=${encodeURIComponent(map)}`).then(async data => {
+    body.textContent = '';
+    if (!data.ok) {
+      note.textContent = data.error === `no ${map}.pak` ? 'This map has no parameter file - no random encounters.' : data.error;
+      body.append(note);
+      return;
+    }
+    if (!state.formations) { try { state.formations = await api('/api/formations'); } catch (e) { state.formations = []; } }
+    const groups = data.groups.map(g => g.slice());
+    let timer = null;
+    const save = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try {
+          const r = await api('/api/map/encounters/save', { name: map, groups });
+          if (!r.ok) throw new Error(r.error);
+          markOverridden(r.name, true);
+          say(`saved ${shortName(r.name)} - the map's encounters`, 'good');
+        } catch (e) { say('encounters: ' + e.message, 'bad'); }
+      }, 400);
+    };
+    const intro = document.createElement('p');
+    intro.className = 'none';
+    intro.textContent = 'A fight on this map draws one of its group\'s four parties (blank slots skipped). Which ground fights which group is in the terrain\'s collision materials (attribute flags 20-24 - group 1 is the usual one); a map without such ground has no random fights.';
+    body.append(intro);
+    groups.forEach((slots, g) => {
+      const row = document.createElement('div');
+      row.className = 'encounter-group';
+      const label = document.createElement('b');
+      label.textContent = `Group ${g + 1}`;
+      label.title = `The parties the ground marked for group ${g + 1} fights`;
+      row.append(label);
+      const picks = document.createElement('div');
+      picks.className = 'encounter-slots';
+      slots.forEach((party, s) => {
+        const pick = document.createElement('select');
+        const none = document.createElement('option');
+        none.value = '0';
+        none.textContent = '–';
+        pick.append(none);
+        const mod = document.createElement('optgroup');
+        mod.label = 'the mod\'s formations';
+        const game = document.createElement('optgroup');
+        game.label = 'the game\'s parties';
+        for (const entry of state.formations || []) {
+          const option = document.createElement('option');
+          option.value = entry.id;
+          option.textContent = `${entry.id} · ${entry.name}`;
+          (entry.mod ? mod : game).append(option);
+        }
+        if (mod.childElementCount) pick.append(mod);
+        pick.append(game);
+        pick.value = String(party || 0);
+        if (pick.value !== String(party || 0)) {
+          const unknown = document.createElement('option');
+          unknown.value = String(party);
+          unknown.textContent = `${party} · (not in the tables)`;
+          pick.append(unknown);
+          pick.value = String(party);
+        }
+        pick.title = `Slot ${s + 1} of group ${g + 1}`;
+        pick.onchange = () => { groups[g][s] = parseInt(pick.value, 10) || 0; save(); };
+        picks.append(pick);
+      });
+      row.append(picks);
+      body.append(row);
+    });
+  }).catch(e => { note.textContent = e.message; });
+}
+
 function inspectRef(doc, ref) {
   const scene = doc.data && doc.data.scene;
   if (!scene) return null;
@@ -1249,6 +1334,7 @@ function inspectRef(doc, ref) {
       box.append(convertParts);
     }
     behavioursSection(box, 'map', 'map');
+    encountersSection(box, doc.name);
     return cardify(box);
   }
 
