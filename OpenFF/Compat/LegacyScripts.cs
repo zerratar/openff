@@ -26,7 +26,7 @@ namespace OpenFF.Client
 	internal sealed class LegacyScripts : GameService, IScripts
 	{
 		/// <summary>The map number the mod's script carries: none of the game's, so its logics are its own.</summary>
-		public const uint ModMap = 60000;
+		public const uint ModMap = Ffs.CastCode.ModMap;
 
 		private readonly Dictionary<int, string[]> _code = new Dictionary<int, string[]>();
 		private string _map;
@@ -38,8 +38,7 @@ namespace OpenFF.Client
 			if (GameProfile.IsFf4) { Log.Write(LogChannel.General, "scripts: FF3's language only for now"); return false; }
 			if (cast <= 0 || lines == null) return false;
 			Fresh();
-			// "@me" in a line is the cast itself: an object of the mod's own has no number to write.
-			string[] body = lines.Where(l => l != null).Select(l => l.TrimEnd().Replace("@me", cast.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray();
+			string[] body = Ffs.CastCode.Substitute(cast, lines);
 			// Compiled alone first, so a broken definition is refused and the others stand.
 			if (!TryCompile(new Dictionary<int, string[]> { [cast] = body }, out _, out string problem))
 			{
@@ -129,54 +128,10 @@ namespace OpenFF.Client
 
 		private static bool TryCompile(Dictionary<int, string[]> code, out byte[] bytes, out string problem)
 		{
-			bytes = null;
-			problem = null;
-			StringBuilder source = new StringBuilder();
-			source.Append("map ").Append(ModMap).AppendLine(";");
-			foreach (int cast in code.Keys.OrderBy(k => k))
-			{
-				source.Append("cast ").Append(cast).AppendLine(" {");
-				source.AppendLine("    init = none;");
-				source.Append("    main = cast").Append(cast).AppendLine("_main;");
-				source.AppendLine("    exit = none;");
-				source.AppendLine("}");
-			}
-			foreach (int cast in code.Keys.OrderBy(k => k))
-			{
-				source.AppendLine();
-				source.Append("cast").Append(cast).AppendLine("_main:");
-				bool ends = false;
-				foreach (string line in code[cast])
-				{
-					string t = line.Trim();
-					if (t.Length == 0) continue;
-					// A label stands at the margin; a command is indented, as the disassembly writes them.
-					source.AppendLine(t.EndsWith(":", StringComparison.Ordinal) && !t.Contains("(") ? t : "    " + t);
-					if (t.StartsWith("end(", StringComparison.Ordinal)) ends = true;
-					if (t.StartsWith("call(", StringComparison.Ordinal) && !t.StartsWith("call(2,", StringComparison.Ordinal))
-					{
-						problem = "cast " + cast + " calls a function of the map's own script (" + t + ") - not in the mod's";
-						return false;
-					}
-				}
-				if (!ends) source.AppendLine("    end();");
-			}
-			try
-			{
-				Ffs.ScriptDocument document = Ffs.Parser.Parse(source.ToString());
-				bytes = Ffs.Compiler.Compile(document, ScriptOpTable.Ff3);
-				return bytes != null;
-			}
-			catch (Ffs.ScriptCompileException ex)
-			{
-				problem = string.Join("; ", ex.Diagnostics.Select(d => d.ToString()));
-				return false;
-			}
-			catch (Exception ex)
-			{
-				problem = ex.GetType().Name + ": " + ex.Message;
-				return false;
-			}
+			// The frame and the compile are Shared (Ffs.CastCode): Crystal checks a cast's lines the same way as the modder types.
+			bytes = Ffs.CastCode.Compile(code, ScriptOpTable.Ff3, out List<Ffs.CastCodeProblem> problems);
+			problem = bytes == null ? string.Join("; ", problems.Select(p => p.ToString())) : null;
+			return bytes != null;
 		}
 	}
 }
