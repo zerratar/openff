@@ -674,6 +674,18 @@ name marks one the reader guessed because no text file named it. Filter rows wit
 sort by clicking a column, click again to flip. `/api/list?kind=data` lists the pages,
 `/api/data?name=<page>` serves one (`Editor/GameData.cs`).
 
+On the Items, Spells, Monsters and Encounter groups pages a row opens its record in the
+inspector as a form (`record-editor.js`, `Editor/GameRecords.cs`): every field by the game's
+own name, grouped as the record is (level and HP, body, attack, defence, drops; shop, magic),
+the shipped value greyed in and a changed one marked; an encounter group as its four slots
+with a monster picker. Edits save into the project's copy of the table (`files/
+item_parameter.pak`, `monster.chaindata`, `monster_party_table.bbd` - the override the
+Tables grid writes too, so the two agree byte for byte), and the grid follows. A Steam mod
+installs the file; an OpenFF mod carries it, and the client's own definitions compose on
+top of it. The words - a name, a caption - stay in the text files: the form says which
+message and opens Text. *Revert* puts the whole shipped table back. `/api/record?kind=item|
+monster|party&id=`, `/api/record/save`.
+
 ## Maps
 
 A plan view of a map: everything that stands on it, drawn at the position it stands
@@ -980,8 +992,17 @@ decoded on the way out. The listing is deliberately in two steps - naming the pa
 is free, opening one costs a decompression - so it happens when you click, not up front.
 
 A model with no textures of its own says so and offers to open the `.ntxp` that has
-them. Textures are read-only; writing one back means re-quantising to a palette or to
-4x4 blocks, which is not done yet. `Docs/Graphics.md`.
+them. `Docs/Graphics.md`.
+
+**Replace with a PNG…** writes a picture back (`Tex0Write.cs`): the browser decodes it and
+draws it at the texture's size (a larger or smaller one is scaled), the server quantises the
+pixels to the texture's own format - a palette format's colours reduced by median cut to the
+entries its palette has room for, the alpha formats keeping alpha per pixel, rgb555 straight
+in, and the 4x4 blocks each fitted with two blended colours or four, sharing the palette room
+- and writes the texels and palette entries in place, so the package's layout and every
+other texture in it stay as they were. The package goes into the project as an override,
+compressed again as it came; the game reads it as any replaced file. Tried: Red Cap's 4x4
+skin and a villager's pal256 face tinted blue, seen so in play (E-57). `/api/texture/replace`.
 
 ## Models
 

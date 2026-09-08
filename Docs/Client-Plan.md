@@ -1871,6 +1871,69 @@ mind for mod files by hand: the game's names carry `files/`, so a loose override
 A `.ntxp` writer is what a texture of the monster's own still wants; until then a file of
 the right name under `ff3/files/files/` is used before the alias, and Modding.md says so.
 
+### The game's records as forms; the first texture written back (2026-09-08, evening)
+
+Karl asked for UI editors on the data definitions generally, and for asset import - models,
+fonts, images, in time whole maps - for both clients. Two pieces of that today.
+
+**Records as forms.** The Game data pages were read-only grids and the only way to change
+a shipped item or monster was the Tables grid, field by unnamed field. Now a row on Items,
+Spells, Monsters or Encounter groups opens the record in the inspector with the same field
+tables the mod definitions use (`GameRecords.cs` over `ModItems.Set` / `ModMonsters.Set`;
+`record-editor.js`), grouped as the record is, the shipped value greyed in, autosave into
+the project's copy of the table (the same override the Tables grid writes). Names and
+captions stay in Text - the form says which message. Steam mods install the table; OpenFF
+mods carry it and the client's definitions compose on top. On the way `Ff3Tables.
+ReadMonsters` learned the attack/defence/stat offsets that `ModMonsters.Fields` had written
+down, so the Monsters grid stopped showing zeros there.
+
+**Textures written back.** `Tex0Write.cs`: a texture replaced in place - same size, same
+format - so the TEX0's four kinds of offsets and every other texture in the package stand.
+The browser decodes the PNG on a canvas at the texture's size and sends RGBA; the server
+quantises. Palette formats: 15-bit colours, median cut to the entries the texture's palette
+has room for (its offset to the next palette's, within `sizePltt` - which sits at +48 of
+the TEX0 header, after the `vramKey`; the first try read +44 and got nothing), entry 0 kept
+for see-through where the texture says so; a3i5/a5i3 keep alpha per pixel; rgb555 straight
+in. The 4x4 format - what every battle monster wears - has an encoder: per block two
+endpoints along its colour range (the two blended variants: mid + transparent, or 5/8-3/8)
+against an explicit fit of three colours + transparent or four; the better kept while the
+palette room holds, the four-entry blocks demoted by least gain, and as a last resort the
+endpoint pairs merged nearest-first to fit. Round trips: Red Cap's 4x4 skin back within
+4.9/255 a channel (the 15-bit floor is 4), n021's pal256 within 1.4, a5i3 exact; the game
+draws them (a blue Goblin Chief in battle, blue villagers in Ur; E-57). `Textures.Replace`
+recompresses and writes the override. Not done: changing a texture's size or format (a
+relayout of the block), and the Images tab's 2D pictures (XNB SpriteFont/Texture2D - a
+different writer, a simpler one).
+
+**The rest of asset import, as it stands** - what each needs, from the readers we have:
+
+- *Images (menus, the 2D layer)*: `Xnb.cs` reads XNBm Texture2D (Color, and DXT via
+  `Dxt.cs`) and SpriteFont. A writer for uncompressed Color is a header and the pixels; the
+  game's `SurfaceFormats` decide whether a DXT original may come back as Color (the reader
+  side takes any). Days, not weeks; the same PNG-in path as textures.
+- *Fonts*: FF3's are XNB SpriteFonts (glyph rectangles, cropping, kerning, a texture) and the
+  DS-side `NNSG2dFont` for the message window. A SpriteFont writer is the XNB writer plus a
+  glyph packer; the G2d font is a bitmap font with a character table - `GlobalScope.
+  dgsmFontVector` loads it, and the Shift-JIS table in `ShiftJis.cs` is half of it. Medium.
+- *Models*: `Mdl0.cs` reads BMD0 (geometry as DS display lists, materials, the bones), `Gltf.cs`
+  exports it; `Ncap.cs` reads the motions. Import is the reverse of the export: glTF in →
+  display lists, a material per texture, the bone tree, then `.ncap` from the animation.
+  The DS geometry model (fixed-point vertices, 8 KB of matrix stack, texture coordinates in
+  12.4 or 16.16) is small enough that a converter is real work but bounded; the joints must
+  match the game's motion sets to reuse animations, or ship their own. Weeks.
+- *Maps*: a `.nmdp` for the look (a model import), an `.mcl` for the ground (`Mcl.cs` reads
+  the collision mesh with its material attributes - the very flags the encounter groups
+  hang on), a `.pak` of parameters (already editable), a `.hich` of casts (readable), the
+  scripts (compiler in hand), the camera set. A "new map" is all of those from a scene
+  description; the pieces exist as readers, the writers do not yet. The order that pays:
+  the collision writer first (a retextured or re-lit existing map with a changed floor),
+  then a model importer, then the whole.
+- *Sound*: `Wav.cs` reads; the archives (`Archives.cs`) hold the banks. A WAV-in for SEs is
+  small; music is the sequence format and larger.
+
+Every one of these lands in `Shared/` as a writer beside its reader and serves both the
+OpenFF client and a Steam install through the same override files, as the tables do.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
