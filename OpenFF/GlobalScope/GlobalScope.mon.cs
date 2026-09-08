@@ -180,7 +180,8 @@ internal static partial class GlobalScope
 
 			public void setMonsterIdForMonsterManaia()
 			{
-				for (int i = 0; i < monsterMaxSize_ && i <= MONSTER_MAX; i++)
+				// PORT: < rather than <=: the bestiary has MONSTER_MAX entries (the game's 255 monsters never reached it); a mod's monsters past them have no bestiary page.
+				for (int i = 0; i < monsterMaxSize_ && i < MONSTER_MAX; i++)
 				{
 					monsterManiaManager_.monsterMania(i).setMonsterId(monster_[i].monsterId());
 				}
@@ -1210,7 +1211,10 @@ internal static partial class GlobalScope
 
 			public MonsterParty monsterParty(int _id)
 			{
-				for (int i = 0; i < MONSTER_PARTY_MAX; i++)
+				// PORT: the table's own length, not MONSTER_PARTY_MAX: the shipped table has exactly 259
+				// records, so the game's own lookups run as before, and a mod's formations appended
+				// past them are found.
+				for (int i = 0; i < monsterParty_.Length; i++)
 				{
 					if (_id == monsterParty_[i].monsterPartyId())
 					{
