@@ -767,6 +767,13 @@ select {
 .command-row b { font-family: var(--mono, ui-monospace, Consolas, monospace); font-weight: 500; color: var(--ink); min-width: 220px; }
 .command-row span { color: var(--dim); font-size: 12px; }
 
+/* A formation's slots: monster, min - max, remove. */
+.formation-slot { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.formation-slot select { flex: 1; min-width: 0; }
+.formation-slot input[type=number] { width: 44px; }
+.formation-slot i { color: var(--dim); font-style: normal; }
+.formation-slot button.shut { padding: 2px 7px; }
+
 /* The mod's text: the table of lines above the JSON pane. */
 .strings-wrap { flex: 1; overflow: auto; padding: 14px 20px; min-height: 0; }
 .strings-wrap .hint { margin: 0 0 12px; max-width: 90ch; line-height: 1.5; }

@@ -138,6 +138,22 @@ async function loadList() {
       name: d.id, overridden: false, def: d,
       note: `slot ${d.slot} (${d.hero})${d.jobName ? ' · ' + d.jobName : ''}${d.level > 1 ? ' · L' + d.level : ''}`
     }));
+  } else if (state.browse === 'monsters') {
+    // The mod's monsters: defs/monsters/<id>.json each, with the base they start from.
+    const defs = await api('/api/project/monsters');
+    state.monsterDefsError = defs.ok ? '' : defs.error;
+    state.files = (defs.ok ? (defs.monsters || []) : []).map(d => ({
+      name: d.id, overridden: false, def: d,
+      note: `${d.number} · from ${d.baseName || d.base}${d.lookName ? ' · looks like ' + d.lookName : ''}`
+    }));
+  } else if (state.browse === 'formations') {
+    // The mod's formations: defs/formations/<id>.json each, with their monsters.
+    const defs = await api('/api/project/formations');
+    state.formationDefsError = defs.ok ? '' : defs.error;
+    state.files = (defs.ok ? (defs.formations || []) : []).map(d => ({
+      name: d.id, overridden: false, def: d,
+      note: `${d.number} · ${(d.slots || []).map(s => (s.monsterName || 'monster ' + s.monster) + (s.max > 1 ? ' x' + s.max : '')).join(', ')}`
+    }));
   } else if (state.browse === 'strings') {
     // The mod's own lines: defs/text/<name>.json each, listed with their id range.
     const defs = await api('/api/project/text');
@@ -271,6 +287,25 @@ function drawList() {
         : 'No hero definitions yet. New character… (the button above) takes one of the four hero slots and sets its name, starting job and level as a game begins.');
     list.append(note);
   }
+  if (state.browse === 'monsters' && !list.childElementCount && !filter) {
+    const note = emptyNote();
+    const project = typeof projectState !== 'undefined' && projectState.project;
+    const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
+    note.say(state.monsterDefsError && !project
+      ? 'No project open. File ▸ New project… makes one; the monsters its mod defines show here.'
+      : !openff
+        ? `${project.name} is a Steam mod: monsters of its own are composed into the game's tables at Install. Tick FF3 under OpenFF in Project settings for the client to add them as it reads.`
+        : 'No monsters of the mod\'s own yet. New monster… (the button above) starts one from a monster of the game\'s - its family is the battle model - with a name, a look and any field of the record changed. A Formation puts it in a fight; an Encounter on a map starts one.');
+    list.append(note);
+  }
+  if (state.browse === 'formations' && !list.childElementCount && !filter) {
+    const note = emptyNote();
+    const project = typeof projectState !== 'undefined' && projectState.project;
+    note.say(state.formationDefsError && !project
+      ? 'No project open. File ▸ New project… makes one; the formations its mod defines show here.'
+      : 'No formations yet. New formation… (the button above) makes a monster party of up to four slots - the game\'s monsters or the mod\'s, each with a count. An Encounter component on a map object fights it; so does Game.Battle.Start(number).');
+    list.append(note);
+  }
   if (state.browse === 'strings' && !list.childElementCount && !filter) {
     const note = emptyNote();
     const project = typeof projectState !== 'undefined' && projectState.project;
@@ -300,6 +335,8 @@ function fileIcon(file) {
   if (state.browse === 'items') return 'item';
   if (state.browse === 'characters') return 'character';
   if (state.browse === 'strings') return 'text';
+  if (state.browse === 'monsters') return 'monster';
+  if (state.browse === 'formations') return 'formation';
   if (state.browse !== 'code') return state.browse;
   if (file.kind === 'cs' || file.kind === 'csproj') return 'code';
   if (file.kind === 'json') return 'logic';

@@ -15,7 +15,7 @@ async function itemsCountChanged() {
     const c = await api('/api/project/characters');
     const t = await api('/api/project/text');
     if (typeof projectState !== 'undefined' && projectState.project) { projectState.project.items = (r.items || []).length; projectState.project.characters = (c.characters || []).length; projectState.project.text = (t.lines || []).length; }
-    if (typeof drawProjectTree === 'function') drawProjectTree();
+    if (typeof monstersCountChanged === 'function') await monstersCountChanged(); else if (typeof drawProjectTree === 'function') drawProjectTree();
   } catch (e) { /* the count is a nicety */ }
 }
 

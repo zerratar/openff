@@ -405,7 +405,9 @@ namespace Crystal.Editor
 							scenes = ProjectScenes.Maps(_project).Count,
 							items = ProjectItems.All(_project).Count,
 							characters = ProjectCharacters.All(_project).Count,
-							text = ProjectText.Lines(_project).Count
+							text = ProjectText.Lines(_project).Count,
+							monsters = ProjectMonsters.All(_project).Count,
+							formations = ProjectMonsters.AllFormations(_project).Count
 						}
 					});
 					return;
@@ -541,6 +543,131 @@ namespace Crystal.Editor
 					SendJson(context, new { ok = ProjectItems.Delete(_project, id) });
 					return;
 				}
+
+				case "/api/project/monsters":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					List<string> notes = new List<string>();
+					List<ModMonster> all = ProjectMonsters.All(_project, notes);
+					string one = Query(context, "id");
+					if (!string.IsNullOrEmpty(one))
+					{
+						ModMonster m = all.FirstOrDefault(x => string.Equals(x.Id, one, StringComparison.OrdinalIgnoreCase));
+						if (m == null) { SendJson(context, new { ok = false, error = "no monster definition '" + one + "'" }); return; }
+						SendJson(context, new { ok = true, monster = ProjectMonsters.Describe(_workspace, m) });
+						return;
+					}
+					SendJson(context, new { ok = true, monsters = all.Select(m => ProjectMonsters.Describe(_workspace, m)).ToList(), notes });
+					return;
+				}
+
+				case "/api/project/monsters/save":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						ModMonster m = ModMonster.Parse(body?.ToJsonString() ?? "{}");
+						if (m == null) throw new ArgumentException("no monster");
+						if (m.Id != null && m.Id.IndexOfAny(new[] { '/', '\\', '.' }) >= 0) throw new ArgumentException("a monster's id is a plain word");
+						ProjectMonsters.Save(_project, m);
+						SendJson(context, new { ok = true, monster = ProjectMonsters.Describe(_workspace, m) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/monsters/new":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>();
+						int baseId = body?["base"]?.GetValue<int>() ?? -1;
+						if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a monster needs a name");
+						if (ProjectMonsters.BaseRecord(_workspace, baseId) == null) throw new ArgumentException("no monster " + baseId + " in the game's tables to start from");
+						ModMonster m = ProjectMonsters.New(_project, name, baseId);
+						SendJson(context, new { ok = true, monster = ProjectMonsters.Describe(_workspace, m) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/monsters/delete":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					SendJson(context, new { ok = ProjectMonsters.Delete(_project, body?["id"]?.GetValue<string>()) });
+					return;
+				}
+
+				case "/api/project/formations":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					List<string> notes = new List<string>();
+					List<ModFormation> all = ProjectMonsters.AllFormations(_project, notes);
+					string one = Query(context, "id");
+					if (!string.IsNullOrEmpty(one))
+					{
+						ModFormation f = all.FirstOrDefault(x => string.Equals(x.Id, one, StringComparison.OrdinalIgnoreCase));
+						if (f == null) { SendJson(context, new { ok = false, error = "no formation '" + one + "'" }); return; }
+						SendJson(context, new { ok = true, formation = ProjectMonsters.DescribeFormation(_workspace, _project, f) });
+						return;
+					}
+					SendJson(context, new { ok = true, formations = all.Select(f => ProjectMonsters.DescribeFormation(_workspace, _project, f)).ToList(), notes });
+					return;
+				}
+
+				case "/api/project/formations/save":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						ModFormation f = ModFormation.Parse(body?.ToJsonString() ?? "{}");
+						if (f == null) throw new ArgumentException("no formation");
+						if (f.Id != null && f.Id.IndexOfAny(new[] { '/', '\\', '.' }) >= 0) throw new ArgumentException("a formation's id is a plain word");
+						ProjectMonsters.SaveFormation(_project, f);
+						SendJson(context, new { ok = true, formation = ProjectMonsters.DescribeFormation(_workspace, _project, f) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/formations/new":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>();
+						if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a formation needs a name");
+						List<int> monsters = body?["monsters"] is JsonArray a ? a.Select(n => n?.GetValue<int>() ?? -1).Where(n => n >= 0).ToList() : new List<int>();
+						ModFormation f = ProjectMonsters.NewFormation(_project, name, monsters);
+						SendJson(context, new { ok = true, formation = ProjectMonsters.DescribeFormation(_workspace, _project, f) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/formations/delete":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					SendJson(context, new { ok = ProjectMonsters.DeleteFormation(_project, body?["id"]?.GetValue<string>()) });
+					return;
+				}
+
+				case "/api/monsters":
+					// The game's monsters then the mod's, for the pickers (a formation's slots, a base to start from).
+					SendJson(context, ProjectMonsters.Monsters(_workspace, _project));
+					return;
+
+				case "/api/formations":
+					// The game's monster parties then the mod's formations, for an Encounter's [FormationField].
+					SendJson(context, ProjectMonsters.Formations(_workspace, _project));
+					return;
 
 				case "/api/project/characters":
 				{
@@ -746,6 +873,7 @@ namespace Crystal.Editor
 						try
 						{
 							foreach (string written in ProjectItems.WriteTables(_project, _workspace, Current.Target)) Console.Error.WriteLine("items: " + written + " composed for the install");
+							foreach (string written in ProjectMonsters.WriteTables(_project, _workspace, Current.Target)) Console.Error.WriteLine("monsters: " + written + " composed for the install");
 						}
 						catch (Exception ex) { Console.Error.WriteLine("items: tables not composed: " + ex.Message); }
 					}
@@ -1631,7 +1759,7 @@ namespace Crystal.Editor
 				foreach (KeyValuePair<string, Session> pair in _sessions)
 				{
 					if (!pair.Value.Installable || !_project.File.Targets.Contains(pair.Key, StringComparer.OrdinalIgnoreCase)) continue;
-					try { ProjectItems.WriteTables(_project, pair.Value.Workspace, pair.Key); }
+					try { ProjectItems.WriteTables(_project, pair.Value.Workspace, pair.Key); ProjectMonsters.WriteTables(_project, pair.Value.Workspace, pair.Key); }
 					catch (Exception ex) { Console.Error.WriteLine("items: tables not composed for " + pair.Key + ": " + ex.Message); }
 				}
 				string zip = ProjectExport.Write(_project);

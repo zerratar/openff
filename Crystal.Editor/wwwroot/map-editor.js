@@ -2909,6 +2909,31 @@ function behaviourCard(state, attachment, target) {
       if (state.items) fill();
       else api('/api/items').then(items => { state.items = items; fill(); }).catch(() => {});
       input.onchange = () => changed(parseInt(input.value, 10) || 0);
+    } else if (f.type === 'formation') {
+      // [FormationField]: the game's monster parties and the mod's formations to pick from.
+      input = document.createElement('select');
+      const none = document.createElement('option');
+      none.value = '0';
+      none.textContent = '(none)';
+      input.append(none);
+      const fill = () => {
+        const game = document.createElement('optgroup');
+        game.label = 'the game\'s parties';
+        const mod = document.createElement('optgroup');
+        mod.label = 'the mod\'s formations';
+        for (const entry of state.formations || []) {
+          const option = document.createElement('option');
+          option.value = entry.id;
+          option.textContent = `${entry.id} · ${entry.name}`;
+          (entry.mod ? mod : game).append(option);
+        }
+        if (mod.childElementCount) input.append(mod);
+        input.append(game);
+        input.value = String(value || 0);
+      };
+      if (state.formations) fill();
+      else api('/api/formations').then(list => { state.formations = list; fill(); }).catch(() => {});
+      input.onchange = () => changed(parseInt(input.value, 10) || 0);
     } else if (f.type === 'object') {
       // A reference to another of the mod's objects on this map, by path.
       input = document.createElement('select');
