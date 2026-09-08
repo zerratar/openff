@@ -580,12 +580,18 @@ project's `assets/` folder - the model picker's *Import a model…* does it - an
 OpenFF object `assets/hut.glb` as its Model. The map editor's 3D view draws it in place like
 any of the game's models; in play the client draws it with the field's camera, in the
 game's depth, lit from above as the DS models are shaded. Materials' base colour and
-texture come through; the node tree is applied; skins and animations are not read yet (the
-model stands at its bind pose) and a mesh has no collision (walked through - a Solid box
-is on the list). One glTF unit is one world unit (two characters side by side are about 8
-apart), and the model is stood on its lowest point unless the `Mesh` component's *On
-Ground* is off. Export copies `assets/` into the mod. From code: `Game.Meshes.Spawn(path,
-position, yaw, scale)` gives a handle to move, hide and remove.
+texture come through; the node tree is applied; a mesh has no collision yet (walked
+through - a Solid box is on the list). One glTF unit is one world unit (two characters side
+by side are about 8 apart), and the model is stood on its lowest point unless the `Mesh`
+component's *On Ground* is off. Export copies `assets/` into the mod. From code:
+`Game.Meshes.Spawn(path, position, yaw, scale)` gives a handle to move, hide and remove.
+
+Animation: the file's clips (Blender's actions) play by name - the `Mesh` component's *Clip*
+loops one from the start at *Speed*; from code `handle.Play("Walk")`, `handle.Stop()`,
+`handle.Clips`. Node animation (a turning sign, a bobbing lantern) and skinned meshes
+(joints and weights, the inverse bind matrices) both pose on the CPU each frame; STEP and
+LINEAR keys as they are, CUBICSPLINE by its values. Without a clip the model stands at its
+bind pose.
 
 ### New content from existing: Duplicate as…
 

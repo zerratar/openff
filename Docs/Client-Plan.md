@@ -2001,9 +2001,8 @@ standing in Ur in the game (C-58) and beside the chest in the editor (E-60).
 Steam converters (glTF → MDL0, PNG → XNB, TTF → SpriteFont) are a separate, later line for
 mods that must also install into the Steam games:
 
-- Models: glTF in - done for static meshes. Next: skins and animations (a glTF animation
-  clip driving a Mesh, so a mod's character walks), a Solid box for collision, then the
-  `Motion` and `Wander` components on a glTF character.
+- Models: glTF in - done for static meshes, and now for animated ones (below). Next: a
+  Solid box for collision, then the `Motion` and `Wander` components on a glTF character.
 - Maps: a whole map from a glTF - the look is this path already (a big Mesh); the ground
   the hero walks needs a collision mesh, which for the OpenFF target can be the glTF
   itself (a triangle mesh walked with the engine's own raycast) rather than an `.mcl`;
@@ -2013,6 +2012,23 @@ mods that must also install into the Steam games:
   for sound through `Game.Draw` and `Game.Audio` are the same shape of work as the meshes.
 - Steam targets keep to the game's formats: the duplication path, Replace with a PNG, the
   record forms, the table composers - and the DS converters when someone needs them.
+
+### glTF animation: nodes and skins (2026-09-08, late night)
+
+The reader keeps what it used to bake away: every node with its TRS or matrix and its
+parent, the skins (joints and inverse bind matrices), the animations (channels of
+translation, rotation, scale with their keys; STEP kept, CUBICSPLINE taken by its values),
+and each mesh's local positions and normals with its JOINTS_0 and WEIGHTS_0.
+`WorldMatrices(animation, time)` lays a clip's sampled values over the tree (rotations by
+the shorter-way normalised lerp) and `Pose(world)` puts the meshes through it - an
+unskinned mesh through its node, a skinned one through Σ w · (inverseBind · jointWorld) -
+so the bind pose at load is the same call with no clip. The client's `GltfModel.Vertices`
+rebuilds a mesh's triangle list from posed arrays; a `MeshHandle` plays a clip (`Play`,
+`Stop`, `Clips`), advances it by wall time each draw and keeps its own posed vertices, so
+two handles on one file may run different clips. The `Mesh` component gained `Clip` and
+`Speed`. Tried: a box skinned to one joint rising and turning in Ur (C-59). CPU posing is
+fine for the sizes a field model has; a skinned mesh of tens of thousands of vertices
+would want the joint matrices in a shader, which the NativeRenderer path can grow.
 
 ## Working rules
 

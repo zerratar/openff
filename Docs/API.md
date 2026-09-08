@@ -597,8 +597,10 @@ Keeps a scene object's spawned model where its Transform says: move the object (
 
 | Member | What it does |
 | --- | --- |
+| `string Clip` | An animation clip of the file (a Blender action by name) to play, looping, from the start; empty for the bind pose. |
 | `bool OnGround` | Stand the model on its feet: its lowest point on the object's position rather than its origin. |
 | `string Path` | The file, relative to the mod's folder (assets/hut.glb). |
+| `float Speed` | The clip's speed; 1 is the file's own. |
 | `MeshHandle Handle { get; }` | The client's handle while it stands. |
 
 ### MeshHandle
@@ -609,6 +611,8 @@ A model of the mod's own standing on the map: a glTF file drawn by the client di
 
 | Member | What it does |
 | --- | --- |
+| `string Clip { get; }` | The clip playing, or null. |
+| `IReadOnlyList<string> Clips { get; }` | The animation clips the file has, by name (Blender's actions). |
 | `bool Hidden { get; set; }` |  |
 | `Vector3 Max { get; }` |  |
 | `Vector3 Min { get; }` | The file's extent, in its own units before Scale - to stand it on the ground, to size a box around it. |
@@ -618,7 +622,9 @@ A model of the mod's own standing on the map: a glTF file drawn by the client di
 | `float Scale { get; set; }` | Its scale; the file's own units times this. |
 | `int Triangles { get; }` | How many triangles it draws. |
 | `float Yaw { get; set; }` | Its turn about the up axis, in degrees (the scene's yaw). |
+| `bool Play(string clip, bool loop = true, float speed = 1)` | Plays a clip by name from its start, looping or once; false when the file has none by that name. |
 | `void Remove()` | Takes it off the map. |
+| `void Stop()` | Back to the bind pose. |
 
 ### Monster
 
@@ -1924,4 +1930,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-121 types, 861 members; 401 without a summary yet.
+121 types, 867 members; 401 without a summary yet.
