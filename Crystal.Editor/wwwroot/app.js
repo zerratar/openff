@@ -119,6 +119,16 @@ async function loadList() {
       note: [s.attachments && `${s.attachments} behaviour${s.attachments === 1 ? '' : 's'}`,
         s.points && `${s.points} point${s.points === 1 ? '' : 's'}`].filter(Boolean).join(', ')
     }));
+  } else if (state.browse === 'items') {
+    // The mod's own items: defs/items/<id>.json each, listed by name with the number the
+    // game knows them by and the item they start from.
+    const defs = await api('/api/project/items');
+    state.itemDefs = defs.ok ? (defs.items || []) : [];
+    state.itemDefsError = defs.ok ? '' : defs.error;
+    state.files = state.itemDefs.map(d => ({
+      name: d.id, overridden: false, def: d,
+      note: `${d.number} · ${d.chain || '?'} from ${d.baseName || d.base}`
+    }));
   } else {
     state.files = await api(`/api/list?kind=${state.browse}`);
   }
@@ -149,10 +159,19 @@ function drawList() {
     // The grid has no room for a folder, and in a list the folder is worth keeping.
     // In the grid there is one line to read, and ".nmdp.lz" fills it - the icon
     // already says what kind of thing it is.
-    label.textContent = fileView === 'grid'
-      ? shortName(file.name).replace(/\.(nmdp\.lz|lz|NCER|NSCR|hich|script|pak|msd|xbn)$/i, '')
-      : file.name;
+    label.textContent = file.def
+      ? (file.def.name || file.name)
+      : fileView === 'grid'
+        ? shortName(file.name).replace(/\.(nmdp\.lz|lz|NCER|NSCR|hich|script|pak|msd|xbn)$/i, '')
+        : file.name;
     item.append(label);
+    if (file.def && fileView !== 'grid') {
+      // A definition's number and base beside its name: what the game calls it, what it starts from.
+      const mark = document.createElement('i');
+      mark.className = 'scene-mark';
+      mark.textContent = file.note;
+      item.append(mark);
+    }
     if (file.scene) {
       const mark = document.createElement('i');
       mark.className = 'scene-mark';
@@ -203,6 +222,18 @@ function drawList() {
         : `${tree.project} has no C# code yet. Add C# code (the button above, or the File menu) writes a project and a starting class.`;
     list.append(note);
   }
+  if (state.browse === 'items' && !list.childElementCount && !filter) {
+    const note = document.createElement('li');
+    note.className = 'note';
+    const project = typeof projectState !== 'undefined' && projectState.project;
+    const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
+    note.textContent = state.itemDefsError && !project
+      ? 'No project open. File ▸ New project… makes one; the items its mod defines show here.'
+      : !openff
+        ? `${project.name} is a Steam mod: items of its own need the OpenFF client, which adds them to the game's tables as it reads them. Tick FF3 under OpenFF in Project settings.`
+        : 'No items of the mod\'s own yet. New item… (the button above) starts one from an item of the game\'s - a stronger potion, a new sword - with a name, a caption, prices and any field of the record.';
+    list.append(note);
+  }
   if (state.browse === 'scene' && !list.childElementCount && !filter) {
     const note = document.createElement('li');
     note.className = 'note';
@@ -222,6 +253,7 @@ function drawList() {
 /// The mark a file gets in the list: the library's, or for the mod folder its own kind.
 function fileIcon(file) {
   if (state.browse === 'scene') return 'scene';
+  if (state.browse === 'items') return 'item';
   if (state.browse !== 'code') return state.browse;
   if (file.kind === 'cs' || file.kind === 'csproj') return 'code';
   if (file.kind === 'json') return 'logic';

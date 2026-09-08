@@ -31,7 +31,8 @@ const KINDS = [
   // game tab is current. Code is the C# (and project.json, the csproj); Scenes are the
   // maps the mod has put behaviours or objects on - each opens the map editor.
   { id: 'code', label: 'Code', mod: true },
-  { id: 'scene', label: 'Scenes', mod: true }
+  { id: 'scene', label: 'Scenes', mod: true },
+  { id: 'items', label: 'Items', mod: true }
 ];
 
 // ---------------------------------------------------------------- documents
@@ -170,6 +171,8 @@ function moveDoc(doc, group) {
 /// Opens an asset. Single clicks ask for a preview; anything else pins it.
 async function openDoc(kind, name, options = {}) {
   if (kind === 'scene') return openScene(name, options);
+  // An item definition is edited in the inspector; opening it opens its file as text.
+  if (kind === 'items') return openDoc('code', 'defs/items/' + name + '.json', options);
   const settings = options === true ? { reload: true } : options;
   const id = docId(kind, name);
   const existing = docs.get(id);
@@ -889,6 +892,10 @@ async function inspectAsset(kind, name, options = {}) {
       const scene = await api(`/api/project/scene?map=${encodeURIComponent(name)}`);
       if (scene.ok === false) throw new Error(scene.error);
       me.data = scene;
+    } else if (kind === 'items') {
+      const item = await api(`/api/project/items?id=${encodeURIComponent(name)}`);
+      if (item.ok === false) throw new Error(item.error);
+      me.data = item.item;
     }
   } catch (error) {
     me.problem = error.message;
@@ -1001,6 +1008,18 @@ document.addEventListener('keydown', (event) => {
 /// The preview and facts for whatever was clicked in the project.
 function drawInspectedAsset(box) {
   const { kind, name, data } = inspected;
+
+  // An item definition is edited right here, as a scene object is: the form is the panel.
+  if (kind === 'items' && data && typeof itemDefinitionPanel === 'function') {
+    box.append(itemDefinitionPanel(data, () => { loadList(); }));
+    if (inspected.problem) {
+      const problem = document.createElement('p');
+      problem.className = 'none';
+      problem.textContent = inspected.problem;
+      box.append(problem);
+    }
+    return;
+  }
 
   const heading = document.createElement('h2');
   heading.textContent = shortName(name);
@@ -1549,17 +1568,19 @@ function drawProjectTree() {
     }
     const row = document.createElement('div');
     row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod ? ' sub' : '');
-    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : 'code') : kind.id));
+    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : 'code') : kind.id));
     const label = document.createElement('span');
     label.textContent = kind.label;
     row.append(label);
     if (kind.mod && project && openff) {
       const count = document.createElement('i');
-      count.textContent = kind.id === 'scene' ? (project.scenes || '') : '';
+      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : '';
       if (count.textContent) row.append(count);
       row.title = kind.id === 'scene'
         ? 'Maps this mod has put behaviours or objects on (scenes/<map>.json). Each opens in the map editor.'
-        : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
+        : kind.id === 'items'
+          ? 'The mod\'s own items (defs/items/<id>.json): each starts from one of the game\'s and changes what it names; the client adds them to the game\'s item table.'
+          : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
     }
     row.onclick = () => selectKind(kind.id);
     into.append(row);
@@ -1606,7 +1627,10 @@ function drawCodeActions() {
       button('Open in IDE', 'The C# project in Visual Studio, Rider, VS Code - whatever opens .csproj here', () => openCode());
     }
   } else {
-    button('Export to OpenFF', 'Writes the mod - files per game, code, scenes - into the client\'s mods folder', () => exportToOpenFF());
+    if (browseKind === 'items' && typeof newItemDialog === 'function') {
+      button('New item…', 'An item of the mod\'s own: starts from one of the game\'s, with a name, a caption, prices and any field of the record changed', () => newItemDialog(), true);
+    }
+    button('Export to OpenFF', 'Writes the mod - files per game, code, scenes, definitions - into the client\'s mods folder', () => exportToOpenFF());
     if (project.client) button('Run in OpenFF', 'Export and start the client; a running one hot-reloads the code and takes scene changes on the next map', () => runInOpenFF());
   }
   button('Folder', 'The project\'s folder in Explorer', () => revealProject());

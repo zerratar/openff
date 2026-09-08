@@ -255,7 +255,8 @@ namespace Crystal.Editor
 			bool inside = full.StartsWith(root, StringComparison.OrdinalIgnoreCase);
 			string code = Path.GetFullPath(CodeDirectory(project)) + Path.DirectorySeparatorChar;
 			string scenes = Path.GetFullPath(ProjectScenes.Directory(project)) + Path.DirectorySeparatorChar;
-			if (!inside || !(full.StartsWith(code, StringComparison.OrdinalIgnoreCase) || full.StartsWith(scenes, StringComparison.OrdinalIgnoreCase)))
+			string defs = Path.GetFullPath(Path.Combine(project.Directory, "defs")) + Path.DirectorySeparatorChar;
+			if (!inside || !(full.StartsWith(code, StringComparison.OrdinalIgnoreCase) || full.StartsWith(scenes, StringComparison.OrdinalIgnoreCase) || full.StartsWith(defs, StringComparison.OrdinalIgnoreCase)))
 			{
 				throw new ArgumentException("not one of the mod's files: " + name);
 			}

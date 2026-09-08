@@ -70,6 +70,10 @@ const ICONS = {
   behaviour: '<rect x="2" y="2" width="12" height="12" rx="2.4"/>'
            + '<path d="M5.2 6.6h5.6M5.2 9.4h5.6M6.8 4.6v6.8M9.2 4.6v6.8"/>',
 
+  // A potion bottle: an item definition, the mod's own item.
+  item: '<path d="M6.4 1.8h3.2v2.6l2.6 3.2v5.4a1.4 1.4 0 0 1-1.4 1.4H5.2a1.4 1.4 0 0 1-1.4-1.4V7.6l2.6-3.2z"/>'
+      + '<path d="M4.2 9.4h7.6"/>',
+
   // A cog: the GameService, the mod's engine room.
   service: '<circle cx="8" cy="8" r="2.4"/>'
          + '<path d="M8 1.8v2.1M8 12.1v2.1M1.8 8h2.1M12.1 8h2.1M3.6 3.6l1.5 1.5M10.9 10.9l1.5 1.5M3.6 12.4l1.5-1.5M10.9 5.1l1.5-1.5"/>',

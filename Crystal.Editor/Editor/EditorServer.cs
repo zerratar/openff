@@ -10,6 +10,7 @@
 // in one place and are the same ones the command line uses.
 
 using OpenFF.Content;
+using OpenFF.Data;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -401,7 +402,8 @@ namespace Crystal.Editor
 							// The mod's entry point, for the header's button: the first GameService in the source.
 							service = ModCode.Has(_project) ? ModCode.Sources(_project).FirstOrDefault(s => s.Kind == "service")?.File : null,
 							client = OpenFFClient.Executable() != null,
-							scenes = ProjectScenes.Maps(_project).Count
+							scenes = ProjectScenes.Maps(_project).Count,
+							items = ProjectItems.All(_project).Count
 						}
 					});
 					return;
@@ -477,6 +479,66 @@ namespace Crystal.Editor
 					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
 					SendJson(context, new { ok = true, tags = ProjectScenes.Tags(_project), global = _project.File.Tags ?? new List<string>() });
 					return;
+
+				case "/api/project/items":
+				{
+					// The mod's item definitions (defs/items), each beside the record it starts from.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					List<string> notes = new List<string>();
+					List<ModItem> all = ProjectItems.All(_project, notes);
+					string one = Query(context, "id");
+					if (!string.IsNullOrEmpty(one))
+					{
+						ModItem item = all.FirstOrDefault(i => string.Equals(i.Id, one, StringComparison.OrdinalIgnoreCase));
+						if (item == null) { SendJson(context, new { ok = false, error = "no item definition '" + one + "'" }); return; }
+						SendJson(context, new { ok = true, item = ProjectItems.Describe(_workspace, item, _lookupMessage) });
+						return;
+					}
+					SendJson(context, new { ok = true, items = all.Select(i => ProjectItems.Describe(_workspace, i, _lookupMessage)).ToList(), notes });
+					return;
+				}
+
+				case "/api/project/items/save":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						ModItem item = ModItem.Parse(body?.ToJsonString() ?? "{}");
+						if (item == null) throw new ArgumentException("no item");
+						if (item.Id != null && item.Id.IndexOfAny(new[] { '/', '\\', '.' }) >= 0) throw new ArgumentException("an item's id is a plain word");
+						ProjectItems.Save(_project, item);
+						SendJson(context, new { ok = true, item = ProjectItems.Describe(_workspace, item, _lookupMessage) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/items/new":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>();
+						int baseId = body?["base"]?.GetValue<int>() ?? 0;
+						if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("an item needs a name");
+						if (ProjectItems.BaseRecord(_workspace, baseId, out _) == null) throw new ArgumentException("no item " + baseId + " in the game's tables to start from");
+						ModItem item = ProjectItems.New(_project, name, baseId);
+						SendJson(context, new { ok = true, item = ProjectItems.Describe(_workspace, item, _lookupMessage) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/items/delete":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					string id = body?["id"]?.GetValue<string>();
+					SendJson(context, new { ok = ProjectItems.Delete(_project, id) });
+					return;
+				}
 
 				case "/api/project/tags/global":
 				{
@@ -1112,6 +1174,22 @@ namespace Crystal.Editor
 						price = record.TryGetPropertyValue("price", out JsonNode price)
 							? Number(price)
 							: 0
+					});
+				}
+			}
+			// The project's own items after the game's, with the number the game will know them
+			// by, so a Chest's Item field (and any [ItemField]) can hold one.
+			if (_project != null)
+			{
+				foreach (ModItem mine in ProjectItems.All(_project))
+				{
+					ProjectItems.BaseRecord(_workspace, mine.Base, out int chain);
+					items.Add(new
+					{
+						id = mine.Number,
+						name = (mine.Name ?? mine.Id) + " (mod)",
+						category = chain >= 0 ? ModItems.ChainNames[chain] : "mod",
+						price = mine.Buy ?? 0
 					});
 				}
 			}

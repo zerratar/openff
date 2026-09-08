@@ -143,6 +143,24 @@ namespace Crystal.Editor
 				File.Copy(Path.Combine(ProjectScenes.Directory(project), map.Map + ".json"), Path.Combine(scenesOut, map.Map + ".json"), overwrite: true);
 				scenes++;
 			}
+			// The definitions: the mod's own items (defs/items), composed into the game's tables
+			// by the client as it reads them.
+			string defsOut = Path.Combine(directory, "defs");
+			if (Directory.Exists(defsOut))
+			{
+				Directory.Delete(defsOut, recursive: true);
+			}
+			string defsIn = Path.Combine(project.Directory, "defs");
+			if (Directory.Exists(defsIn))
+			{
+				foreach (string file in Directory.EnumerateFiles(defsIn, "*.json", SearchOption.AllDirectories))
+				{
+					string relative = file.Substring(defsIn.Length).TrimStart(Path.DirectorySeparatorChar);
+					string target = Path.Combine(defsOut, relative);
+					Directory.CreateDirectory(Path.GetDirectoryName(target));
+					File.Copy(file, target, overwrite: true);
+				}
+			}
 			OpenFF.Content.ModsFolder.WriteManifest(manifestPath, new OpenFF.Content.ModManifest
 			{
 				Id = key,

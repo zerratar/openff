@@ -2059,6 +2059,11 @@ header h1 .gem {
 #inspector .behaviour-flags input.bad { border-color: #c0504d; color: #e8a09e; }
 #inspector .behaviour-flags select { width: 64px; flex: none; }
 #inspector .cast-notes { margin-top: 6px; border-top: 1px dashed #2c333d; padding-top: 4px; }
+#inspector .item-def .sub { margin: -2px 0 8px; font-size: 11px; }
+#inspector .item-def textarea { width: 100%; min-height: 40px; resize: vertical; }
+#inspector .item-def .none { font-size: 11px; margin: 4px 0 2px; }
+.item-base-pick { width: 100%; min-width: 0; }
+.picker.dialog .item-base-pick { margin: 4px 0 8px; }
 #inspector .msd-hint { margin: -2px 0 6px 0; font-size: 11px; line-height: 1.35; padding-left: 8px; border-left: 2px solid #3a4250; }
 #inspector .cast-lines { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 #inspector .cast-line { font-size: 12px; white-space: pre-wrap; padding: 4px 6px; border-left: 2px solid #3b4654; background: rgba(255,255,255,.03); border-radius: 0 4px 4px 0; }
