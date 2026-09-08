@@ -1298,14 +1298,14 @@ async function openData(name) {
       });
     }
     count.textContent = `${rows.length} of ${data.rows.length}`;
-    drawData(node, data.columns, rows, sortBy, sortUp, i => { sortUp = sortBy === i ? !sortUp : true; sortBy = i; draw(); });
+    drawData(node, data.columns, rows, sortBy, sortUp, i => { sortUp = sortBy === i ? !sortUp : true; sortBy = i; draw(); }, typeof RECORD_PAGES !== 'undefined' ? RECORD_PAGES[name] : null);
   };
   rowFilter.oninput = draw;
   draw();
   if (data.notes && data.notes.length) say(data.notes.join(' / '), 'warn');
 }
 
-function drawData(node, columns, rows, sortBy, sortUp, onSort) {
+function drawData(node, columns, rows, sortBy, sortUp, onSort, recordKind) {
   const table = $('.grid', node);
   table.textContent = '';
   const head = document.createElement('tr');
@@ -1332,6 +1332,16 @@ function drawData(node, columns, rows, sortBy, sortUp, onSort) {
       cell.className = 'plain';
       cell.textContent = value ?? '';
       row.append(cell);
+    }
+    // A page of records the inspector can edit: the row opens its form.
+    if (recordKind && typeof inspectAsset === 'function') {
+      row.className = 'pick';
+      row.title = 'Open this record in the inspector';
+      row.onclick = () => {
+        table.querySelectorAll('tr.on').forEach(r => r.classList.remove('on'));
+        row.classList.add('on');
+        inspectAsset('record', recordKind + ':' + values[0]);
+      };
     }
     table.append(row);
   });
@@ -1491,11 +1501,52 @@ function buildTexture(packageName, texture) {
   save.download = `${packageName.replace(/\.lz$/, '')}.${texture.name}.png`;
   detail.append(save);
 
+  // Putting a picture back: the browser reads the PNG, draws it at the texture's size and
+  // sends the pixels; the server quantises them to the texture's own format and palette and
+  // writes the package into the project. The 4x4 format stays read-only.
+  const replace = document.createElement('button');
+  replace.textContent = 'Replace with a PNG…';
+  replace.title = `A picture of ${texture.width} × ${texture.height} (a larger or smaller one is scaled to fit); its colours are reduced to the texture's ${texture.format} ${texture.format === '4x4' ? 'blocks' : 'palette'}`;
+  const chooser = document.createElement('input');
+  chooser.type = 'file';
+  chooser.accept = 'image/png,image/*';
+  chooser.hidden = true;
+  replace.onclick = () => chooser.click();
+  chooser.onchange = async () => {
+    const file = chooser.files && chooser.files[0];
+    if (!file) return;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      canvas.width = texture.width;
+      canvas.height = texture.height;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = bitmap.width !== texture.width || bitmap.height !== texture.height;
+      ctx.drawImage(bitmap, 0, 0, texture.width, texture.height);
+      const pixels = ctx.getImageData(0, 0, texture.width, texture.height).data;
+      let binary = '';
+      for (let i = 0; i < pixels.length; i += 0x8000) binary += String.fromCharCode.apply(null, pixels.subarray(i, i + 0x8000));
+      say('writing the texture…');
+      const r = await api('/api/texture/replace', { name: packageName, index: texture.index, width: texture.width, height: texture.height, rgba: btoa(binary) });
+      if (!r.ok) throw new Error(r.error);
+      markOverridden(packageName, true);
+      big.src = wsUrl(`/api/texture/png?name=${encodeURIComponent(packageName)}&index=${texture.index}&t=${Date.now()}`);
+      document.querySelectorAll(`img[alt="${texture.name}"]`).forEach(img => { img.src = big.src; });
+      say(`${texture.name} replaced${bitmap.width !== texture.width || bitmap.height !== texture.height ? ` (scaled from ${bitmap.width} × ${bitmap.height})` : ''} - ${r.bytes} bytes written`, 'good');
+    } catch (e) {
+      say('texture: ' + e.message, 'bad');
+    } finally {
+      chooser.value = '';
+    }
+  };
+  detail.append(replace, chooser);
+
   const note = document.createElement('p');
   // Not .note - that class is already a hidden-until-toggled banner elsewhere.
   note.className = 'caveat';
-  note.textContent = 'Read-only for now. Putting a texture back means writing a TEX0 - '
-    + 're-quantising to a palette, or to 4×4 blocks - which is a bigger job than reading one.';
+  note.textContent = texture.format === '4x4'
+    ? 'Replacing keeps the size and the 4x4 block format: each block of the picture is fitted with two blended colours or four, sharing the palette room this texture has. Revert puts the shipped package back.'
+    : `Replacing keeps the size and the ${texture.format} format: the picture's colours are reduced to the palette this texture has room for${texture.format === 'rgb555' ? ' (none here - 15-bit colour straight in)' : ''}. Revert puts the shipped package back.`;
   detail.append(note);
   return detail;
 }

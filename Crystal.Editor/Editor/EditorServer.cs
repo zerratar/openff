@@ -678,6 +678,46 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/texture/replace":
+				{
+					// A texture written back from a picture: the browser decodes the PNG and sends
+					// the pixels at the texture's size.
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>();
+						int index = body?["index"]?.GetValue<int>() ?? 0;
+						int width = body?["width"]?.GetValue<int>() ?? 0, height = body?["height"]?.GetValue<int>() ?? 0;
+						byte[] rgba = System.Convert.FromBase64String(body?["rgba"]?.GetValue<string>() ?? "");
+						int bytes = Textures.Replace(_workspace, name, index, rgba, width, height);
+						SendJson(context, new { ok = true, bytes, overridden = true });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/record":
+				{
+					// One of the game's own records as a form: an item, a monster, a monster party.
+					int id = int.TryParse(Query(context, "id"), out int n) ? n : -1;
+					SendJson(context, GameRecords.Describe(_workspace, Query(context, "kind"), id, _lookupMessage));
+					return;
+				}
+
+				case "/api/record/save":
+				{
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string kind = body?["kind"]?.GetValue<string>();
+						int id = body?["id"]?.GetValue<int>() ?? -1;
+						object result = GameRecords.Save(_workspace, kind, id, body?["fields"] as JsonObject, body?["slots"] as JsonArray, _lookupMessage);
+						SendJson(context, result);
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/monsters":
 					// The game's monsters then the mod's, for the pickers (a formation's slots, a base to start from).
 					SendJson(context, ProjectMonsters.Monsters(_workspace, _project));
