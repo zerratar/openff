@@ -18,6 +18,7 @@ namespace OpenFF.Client
 
 		public static void FlagChanged(uint group, uint index, bool value)
 		{
+			Trace.Flag(group, index, value);
 			if (!On) return;
 			Publish(new FlagChanged { Group = group, Index = index, Value = value });
 		}
@@ -36,12 +37,14 @@ namespace OpenFF.Client
 
 		public static void BattleStarting()
 		{
+			Trace.Battle();
 			if (!On) return;
 			Publish(new BattleStarting());
 		}
 
 		public static void ItemGained(int itemId, int count)
 		{
+			Trace.Item(itemId, count);
 			if (!On) return;
 			Publish(new ItemGained { ItemId = itemId, Count = count });
 		}

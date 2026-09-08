@@ -1,0 +1,13 @@
+# Parity: the boy in Ur (cast 23). Tools\parity.ps1 -Map t01_01 -Drive Docs\Drives\parity-ur-talk.drive -Pos -88,0,140 -Rot 270
+wait 4
+say before
+press Z 150
+wait 3
+say talking
+press Z 150
+wait 2
+say next
+press Z 150
+wait 2
+say done
+quit

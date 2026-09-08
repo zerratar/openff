@@ -183,6 +183,7 @@ Every run writes `logs/ff3.log` beside the executable (the previous run kept as 
 | `--log=general,file` (`all`, `gl`, `texture`, `content`, `sound`, `input`, `event`, `firstchance`) | The log channels; `FF3_LOG=all` does the same |
 | `--log-file=<path>`, `FF3_LOG_FILE=<path>` | Write the log elsewhere |
 | `--screenshot-dir=<dir> --screenshot-every=<s>` | Capture a picture every N seconds - with `--drive=`, a headless run that can be read from its pictures |
+| `--trace=<file>` | A parity trace: what the game did (flags, messages, sounds, maps, everyone on the map at each `say` of the drive); `Tools\parity.ps1` runs a drive with and without mods and diffs two |
 | `--debug=all` or `--debug=boxes,labels` | Start with the F1 overlay on |
 | `--probe` | A per-frame heartbeat in the log (vertices, bounds, camera, world state) |
 | `--ff4table` | List every FF4 script command that is only skipped |

@@ -43,6 +43,7 @@ namespace OpenFF.Client
 			EngineHost.Attach();
 			// A scripted key drive for headless tests (--drive=<file>).
 			Drive.Initialise();
+			Trace.Initialise();
 			return true;
 		}
 
@@ -77,6 +78,7 @@ namespace OpenFF.Client
 			_game?.onDrawFrame();
 			FrameProbe.Tick();
 			DevSay.Tick();
+			Trace.Tick();
 			// The engine's frame, after the legacy one.
 			EngineHost.Tick();
 		}

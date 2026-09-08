@@ -1,0 +1,10 @@
+# Parity: Ur's west chest (cast 16). Tools\parity.ps1 -Map t01_01 -Drive Docs\Drives\parity-ur-chest.drive -Pos -110,0,-112 -Rot 180
+wait 4
+say before
+press Z 150
+wait 3
+say opened
+press Z 150
+wait 3
+say dismissed
+quit

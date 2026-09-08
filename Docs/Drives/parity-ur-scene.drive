@@ -1,0 +1,40 @@
+# Parity: Ur's opening scene (casts 33, 35-39 booted by the script). Tools\parity.ps1 -Map t01_01 -Drive Docs\Drives\parity-ur-scene.drive -Pos 150,0,-80
+wait 4
+say start
+press Z 150
+wait 2.5
+say step1
+press Z 150
+wait 2.5
+say step2
+press Z 150
+wait 2.5
+say step3
+press Z 150
+wait 2.5
+say step4
+press Z 150
+wait 2.5
+say step5
+press Z 150
+wait 2.5
+say step6
+press Z 150
+wait 2.5
+say step7
+press Z 150
+wait 2.5
+say step8
+press Z 150
+wait 2.5
+say step9
+press Z 150
+wait 2.5
+say step10
+press Z 150
+wait 2.5
+say step11
+press Z 150
+wait 2.5
+say step12
+quit

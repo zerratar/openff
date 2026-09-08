@@ -313,6 +313,7 @@ internal static partial class GlobalScope
 
 			public bool mwSetMessage(ds.Vector2<short> message_pos, int msg_no, int display)
 			{
+				OpenFF.Client.Trace.MessageId(msg_no);
 				m_Display = display;
 				if (msg_no < 0)
 				{
@@ -356,6 +357,7 @@ internal static partial class GlobalScope
 			/// <summary>PORT: the same as mwSetMessage, for a text that is not in any message file (the engine API's Say).</summary>
 			public bool mwSetMessageText(ds.Vector2<short> message_pos, string text, int display)
 			{
+				OpenFF.Client.Trace.Text(text);
 				m_Display = display;
 				if (text == null)
 				{

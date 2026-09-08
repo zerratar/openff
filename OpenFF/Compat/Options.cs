@@ -51,7 +51,8 @@ namespace OpenFF.Client
 			("load", "FF3_LOAD", "<slot>", "FF4: start from a save slot (1-3) instead of the new game"),
 			("party", "FF3_PARTY", "<type[:level],...>", "FF4: extra party members for a test start (4:10 is the child Rydia at level 10)"),
 			("drive", "FF3_DRIVE", "<file>", "Play a scripted key drive from a file - wait/press/until/quit lines (headless tests; Docs/Drives)"),
-			("gil", "FF3_GIL", "<n>", "FF4: gil for a test start")
+			("gil", "FF3_GIL", "<n>", "FF4: gil for a test start"),
+			("trace", "FF3_TRACE", "<file>", "Write a parity trace - flags, messages, sounds, maps, and everyone on the map at each drive say (Tools/parity.ps1 diffs two)")
 		};
 
 		public static bool HelpRequested { get; private set; }
@@ -63,7 +64,7 @@ namespace OpenFF.Client
 		/// </summary>
 		private static readonly HashSet<string> PathOptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
-			"log-file", "content", "content-override", "dump", "dump-fonts", "screenshot-dir", "mod", "project", "font", "drive",
+			"log-file", "content", "content-override", "dump", "dump-fonts", "screenshot-dir", "mod", "project", "font", "drive", "trace",
 		};
 
 		private static readonly string LaunchDirectory = System.IO.Directory.GetCurrentDirectory();

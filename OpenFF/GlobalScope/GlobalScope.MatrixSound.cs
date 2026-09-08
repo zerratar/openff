@@ -1027,6 +1027,7 @@ internal static partial class GlobalScope
 
 		internal static MtxSEHandle MtxSENDS_Play(int SeqArcNo, int SeqNo, int Volume, int Pan)
 		{
+			OpenFF.Client.Trace.Se(SeqArcNo, SeqNo);
 			MtxSoundSEImplNDS mtxSoundSEImplNDS = (MtxSoundSEImplNDS)MtxSoundSE.getSingleton().getImplement();
 			return mtxSoundSEImplNDS.play(SeqArcNo, SeqNo, Volume, Pan);
 		}

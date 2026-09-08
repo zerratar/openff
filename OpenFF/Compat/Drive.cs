@@ -229,6 +229,7 @@ namespace OpenFF.Client
 				}
 				case "say":
 					Log.Write(LogChannel.General, "drive: " + step.Arg);
+					Trace.Mark(step.Arg);
 					break;
 				case "quit":
 					_done = true;
