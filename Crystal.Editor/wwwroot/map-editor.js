@@ -3035,9 +3035,45 @@ function behaviourCard(state, attachment, target) {
     }
     row.append(input);
     card.append(row);
+    if (f.type === 'string' || f.type === 'strings') msdHint(card, input, () => f.type === 'strings' ? input.value.split('\n') : [input.value]);
   }
   if (attachment.behaviour === 'GameCast') gameCastNotes(card, state, attachment, target);
   return card;
+}
+
+/// Under a text field: what the game's .msd says for a value of the form "@1000142" (one
+/// of the game's messages by id, said through the game's own message system, in every
+/// language), so the id is not a number in a box. "@" alone on a Chest is its own message
+/// for the contents. Refreshed as the field is typed in; nothing for plain text.
+const msdHintCache = {};
+function msdHint(card, input, values) {
+  const hint = document.createElement('p');
+  hint.className = 'none msd-hint';
+  hint.hidden = true;
+  card.append(hint);
+  let timer = null;
+  const refresh = async () => {
+    const ids = [];
+    for (const v of values()) {
+      const m = /^\s*@(\d+)/.exec(v || '');
+      if (m) ids.push(m[1]);
+    }
+    const plainAt = values().some(v => /^\s*@\s*$/.test(v || ''));
+    if (!ids.length && !plainAt) { hint.hidden = true; return; }
+    const missing = ids.filter(id => !(id in msdHintCache));
+    if (missing.length) {
+      try {
+        const r = await api('/api/messages', { ids: missing.map(Number) });
+        for (const id of missing) msdHintCache[id] = (r.messages || {})[id] || null;
+      } catch (e) { for (const id of missing) msdHintCache[id] = null; }
+    }
+    const parts = ids.map(id => `@${id}: ${msdHintCache[id] == null ? 'no such message in the game\'s text' : '"' + msdHintCache[id].replace(/\s+/g, ' ').trim() + '"'}`);
+    if (plainAt) parts.unshift('@: the game\'s own message for the contents ("The chest contained Potion."), in the player\'s language');
+    hint.textContent = parts.join('  ·  ');
+    hint.hidden = false;
+  };
+  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refresh, 250); });
+  refresh();
 }
 
 /// Under a GameCast's fields: what the cast does, read from the map's script - its lines
@@ -3700,7 +3736,7 @@ function buildSceneObject(doc, object) {
     // is talked to the game's way. A plain figure just stands there.
     const kind = document.createElement('label');
     kind.className = 'toggle';
-    kind.title = 'Spawned as a character (turns to the player, can wander, is talked to) rather than a plain figure';
+    kind.title = 'Spawned as a character (turns to the player, can wander, is talked to) rather than a plain figure. An object model (o…, w…: chests, signs, crates) is the game\'s map object whichever way - its lid and its opening come with it.';
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.checked = Boolean(object.character);

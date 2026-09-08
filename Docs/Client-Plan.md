@@ -1527,6 +1527,29 @@ the inspector; and Tags are Unity's way - chips with an × each, a picker of the
 project's scene files already use (`/api/project/tags`), New tag…, and Edit tags…, which
 renames or removes a tag across every object on the map.
 
+### A chest of the mod's own, opened as the game opens one (2026-09-08)
+
+Karl's chest with a Chest component played no lid, made no sound, stayed shut, and said
+"It's locked." Three things. The object was not ticked *character*, so the model went the
+plain-figure way (`SpawnModel`) and had no map-object motions to play: an o/w model is one
+of the game's map objects whichever way now (`SceneLoader.IsObjectModel`) - that is where a
+lid comes from. `Npc.MotionDone` asked the walkers' bookkeeping for a map object; it asks
+the box (`isEndOfMotion`) now, so the open lid (1002) follows the opening (1001). And the
+game had opened it too: o001 is `TREASURE_BOX` to the game by its number, so
+`CPlayerHumanCheck` ran the game's own opening beside ours - flag 0:0, no treasure set,
+"It's locked." (1000140, the "nothing" line). `Npc.OwnChest()` makes the box a plain object
+to the game (`MAP_OBJECT_TYPE_ERR`, also for o000 `INVISIBLE`), the Chest calls it when its
+character is ready, and the talk reaches Interacted the characters' way.
+
+Messages: `Dialogue.Say("@1000142 item=5001 color=9")` says one of the game's lines by its
+.msd id through `createMessage`, with the item's and the gold's control codes set as
+`CMapObject` sets them, and the window's colour (9, the chests' gold). The Chest's Message
+is `@` by default - the game's own words for the contents in the player's language: a box
+says 1000142 "The chest contained Potion.", an item spot (o000, or no model) 1000146 "You
+find Potion.", gold 1000141, nothing 1000140 - and EmptyMessage is empty, as the game's
+opened chests say nothing. `@<id>` works in every string field (Talk's Lines too); the
+inspector shows what the id says under the field (`/api/messages`).
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
