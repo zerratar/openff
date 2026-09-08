@@ -1521,6 +1521,12 @@ above every wall and character. `scene3d.viewGround()` is the ground under the v
 centre pixel (the height the map's things stand at), and Play here and a new object at the
 view's centre use it.
 
+Two inspector asks: the Add dialog's "no model" checkbox (misaligned, and a second way of
+saying what the inspector's × says) is gone - the model row is the picker with an × as in
+the inspector; and Tags are Unity's way - chips with an × each, a picker of the tags the
+project's scene files already use (`/api/project/tags`), New tag…, and Edit tags…, which
+renames or removes a tag across every object on the map.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

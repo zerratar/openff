@@ -472,6 +472,12 @@ namespace Crystal.Editor
 					SaveProjectScene(context);
 					return;
 
+				case "/api/project/tags":
+					// Every tag the project's scene files use, with its use: the inspector's tag picker.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					SendJson(context, new { ok = true, tags = ProjectScenes.Tags(_project) });
+					return;
+
 				case "/api/project/session":
 					ProjectSession(context);
 					return;

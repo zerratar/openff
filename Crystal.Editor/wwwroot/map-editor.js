@@ -293,11 +293,9 @@ function buildAdd(node, start) {
   const objectName = document.createElement('input');
   objectName.placeholder = 'Chest, Trigger, Spawn…';
   nameLabel.append(objectName);
-  const noModelLabel = document.createElement('label');
-  noModelLabel.className = 'wide toggle';
-  const noModel = document.createElement('input');
-  noModel.type = 'checkbox';
-  noModelLabel.append(noModel, document.createTextNode(' no model - a spot with logic on it'));
+  // An OpenFF object without a model - a spot with logic on it - is the model row's ×,
+  // as in the inspector; noModel says where that stands.
+  const noModel = { checked: false };
 
   // ------------------------------------------------------------------- model
 
@@ -314,10 +312,18 @@ function buildAdd(node, start) {
   // unless it could not work at all. A dropped model counts as picked.
   let picked = Boolean(start && start.model);
 
+  const pickRow = document.createElement('div');
+  pickRow.className = 'model-pick';
   const choose = document.createElement('button');
   choose.className = 'model-choice';
   const chosenName = document.createElement('span');
   choose.append(icon('model'), chosenName);
+  const clearModel = document.createElement('button');
+  clearModel.type = 'button';
+  clearModel.className = 'clear-button';
+  clearModel.textContent = '×';
+  clearModel.title = 'No model - a spot with logic on it (a trigger, a spawn point)';
+  pickRow.append(choose, clearModel);
 
   const modelNote = document.createElement('p');
   modelNote.className = 'none';
@@ -400,7 +406,7 @@ function buildAdd(node, start) {
   actions.className = 'sticky-actions';
   actions.append(go);
 
-  panel.append(kindLabel, kindNote, nameLabel, noModelLabel, modelHead, choose, modelNote,
+  panel.append(kindLabel, kindNote, nameLabel, modelHead, pickRow, modelNote,
     xLabel, zLabel, pick, textLabel, itemLabel, goldLabel,
     toLabel, arriveLabel, exitNote, actions);
 
@@ -426,7 +432,7 @@ function buildAdd(node, start) {
 
   const showFor = (id) => {
     nameLabel.hidden = id !== 'openff';
-    noModelLabel.hidden = id !== 'openff';
+    clearModel.hidden = id !== 'openff' || noModel.checked;
     sub.textContent = id === 'openff'
       ? 'The mod\'s own object: nothing of the game\'s is written for it.'
       : 'Writes the row that places it, the call that boots it, and the cast that gives it behaviour.';
@@ -435,9 +441,11 @@ function buildAdd(node, start) {
         + 'a GameObject the OpenFF client makes when the map is entered, with the model standing there (or nothing, for a trigger or a spawn point). '
         + 'Rename it, swap its model, put children under it, attach the mod\'s C# behaviours - all in the inspector, any time.';
       textLabel.hidden = itemLabel.hidden = goldLabel.hidden = toLabel.hidden = arriveLabel.hidden = exitNote.hidden = true;
-      modelHead.hidden = choose.hidden = modelNote.hidden = noModel.checked;
-      chosenName.textContent = model;
-      modelNote.textContent = 'Any of the game\'s models - it need not be one this map loads.';
+      modelHead.hidden = pickRow.hidden = modelNote.hidden = false;
+      choose.classList.toggle('none-picked', noModel.checked);
+      chosenName.textContent = noModel.checked ? 'None - a spot with logic on it' : model;
+      choose.title = noModel.checked ? 'Nothing is drawn for it; its behaviours run at the spot. Click to give it a model.' : 'Click to swap the model; × for none';
+      modelNote.textContent = noModel.checked ? 'A trigger, a spawn point, a place a behaviour watches: nothing is drawn, the object is still there to find by name or tag.' : 'Any of the game\'s models - it need not be one this map loads.';
       go.disabled = false;
       return;
     }
@@ -450,7 +458,8 @@ function buildAdd(node, start) {
     arriveLabel.hidden = id !== 'exit';
     exitNote.hidden = id !== 'exit';
     modelHead.hidden = Boolean(behaviour.noModel);
-    choose.hidden = Boolean(behaviour.noModel);
+    pickRow.hidden = Boolean(behaviour.noModel);
+    choose.classList.remove('none-picked');
     modelNote.hidden = Boolean(behaviour.noModel);
     if (id === 'chest') fillItems();
     if (id === 'exit') {
@@ -492,14 +501,15 @@ function buildAdd(node, start) {
         : 'This map has no ' + model + ' yet - its id comes from the rest of the game.');
   };
 
-  kind.onchange = () => showFor(kind.value);
-  noModel.onchange = () => showFor(kind.value);
+  kind.onchange = () => { noModel.checked = false; showFor(kind.value); };
+  clearModel.onclick = () => { noModel.checked = true; showFor(kind.value); };
 
   choose.onclick = () => {
     const behaviour = BEHAVIOURS.find(b => b.id === kind.value);
     pickModel(model, (chosen) => {
       model = chosen;
       picked = true;
+      noModel.checked = false;
       showFor(kind.value);
     }, behaviour && behaviour.objectsOnly
       ? { only: isObjectModel, title: 'Choose an object', what: 'object models' }
@@ -3453,6 +3463,161 @@ function cardify(panel) {
 /// The inspector for one of the mod's objects, laid out as Unity lays out a GameObject:
 /// the name, then Transform, then the model, then tags and parent, then the components.
 /// Everything here is the file's - no game data behind it - and every change saves itself.
+/// Every tag the mod knows: on this map's objects, and in the project's other scene files
+/// (fetched once per session; refreshed after Edit tags).
+function knownTags() {
+  const here = new Set();
+  for (const item of flattenSceneObjects(sceneState)) for (const t of item.source.tags || []) here.add(t);
+  const project = (state.projectTags || []).map(u => u.tag);
+  return [...new Set([...project, ...here])].sort((a, b) => a.localeCompare(b));
+}
+
+function loadProjectTags() {
+  return api('/api/project/tags').then(r => { state.projectTags = r.tags || []; }).catch(() => {});
+}
+
+/// The Tags row of an object, Unity's way: the tags as chips with an × each, and a picker
+/// that adds one of the tags the mod already uses, a new one, or opens Edit tags - where a
+/// tag is renamed or removed across every object on the map.
+function tagsField(object, changed) {
+  const row = document.createElement('div');
+  row.className = 'behaviour-field tags-field';
+  row.title = 'Words a mod finds it by: Game.World.Legacy.WithTag("chest")';
+  const label = document.createElement('span');
+  label.textContent = 'Tags';
+  const body = document.createElement('div');
+  body.className = 'tag-chips';
+  const draw = () => {
+    body.textContent = '';
+    for (const tag of object.tags || []) {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+      chip.textContent = tag;
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.textContent = '×';
+      x.title = 'Take this tag off the object';
+      x.onclick = () => { object.tags = (object.tags || []).filter(t => t !== tag); changed(); draw(); };
+      chip.append(x);
+      body.append(chip);
+    }
+    const pick = document.createElement('select');
+    pick.className = 'tag-pick';
+    pick.title = 'Add a tag the mod already uses, a new one, or edit the tags';
+    const head = document.createElement('option');
+    head.value = '';
+    head.textContent = (object.tags || []).length ? '+' : '+ tag…';
+    pick.append(head);
+    const have = new Set(object.tags || []);
+    const known = knownTags().filter(t => !have.has(t));
+    for (const tag of known) {
+      const option = document.createElement('option');
+      option.value = 'tag:' + tag;
+      const use = (state.projectTags || []).find(u => u.tag.toLowerCase() === tag.toLowerCase());
+      option.textContent = tag + (use ? `  (${use.count} on ${use.maps.join(', ')})` : '');
+      pick.append(option);
+    }
+    const sep = document.createElement('option');
+    sep.disabled = true;
+    sep.textContent = '────────';
+    pick.append(sep);
+    const fresh = document.createElement('option');
+    fresh.value = 'new';
+    fresh.textContent = 'New tag…';
+    pick.append(fresh);
+    const edit = document.createElement('option');
+    edit.value = 'edit';
+    edit.textContent = 'Edit tags…';
+    pick.append(edit);
+    pick.onchange = () => {
+      const v = pick.value;
+      pick.value = '';
+      if (v.startsWith('tag:')) { object.tags = [...(object.tags || []), v.slice(4)]; changed(); draw(); }
+      else if (v === 'new') {
+        const name = (prompt('New tag - one word, as a mod would ask for it: Game.World.Legacy.WithTag("…")', '') || '').trim().replace(/\s+/g, '-');
+        if (!name) return;
+        if (!have.has(name)) { object.tags = [...(object.tags || []), name]; changed(); }
+        draw();
+      }
+      else if (v === 'edit') editTagsDialog(() => { changed(); draw(); });
+    };
+    body.append(pick);
+  };
+  if (!state.projectTags) loadProjectTags().then(draw);
+  draw();
+  row.append(label, body);
+  return row;
+}
+
+/// Edit tags: every tag on this map's objects, each renamable and removable - across all
+/// the objects that carry it - as Unity's Tags & Layers is for a project.
+function editTagsDialog(done) {
+  if (typeof dialog !== 'function') return;
+  const body = dialog('Edit tags - ' + mapState.name);
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'The tags on this map\'s objects. Renaming or removing one changes every object here that carries it; a mod\'s code that asks for the old name (WithTag) is yours to update. Tags used only on other maps are listed greyed, for the spelling.';
+  body.append(note);
+  const list = document.createElement('div');
+  list.className = 'dialog-list';
+  const objects = flattenSceneObjects(sceneState).map(i => i.source);
+  const counts = new Map();
+  for (const o of objects) for (const t of o.tags || []) counts.set(t, (counts.get(t) || 0) + 1);
+  const renames = new Map();
+  const removals = new Set();
+  for (const tag of [...counts.keys()].sort((a, b) => a.localeCompare(b))) {
+    const row = document.createElement('div');
+    row.className = 'dialog-row tag-edit-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = tag;
+    input.oninput = () => { const v = input.value.trim().replace(/\s+/g, '-'); if (v && v !== tag) renames.set(tag, v); else renames.delete(tag); };
+    const use = document.createElement('span');
+    use.textContent = `${counts.get(tag)} object${counts.get(tag) === 1 ? '' : 's'}`;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '×';
+    x.title = 'Remove this tag from every object on the map';
+    x.onclick = () => { if (removals.has(tag)) { removals.delete(tag); row.classList.remove('struck'); } else { removals.add(tag); row.classList.add('struck'); } };
+    row.append(input, use, x);
+    list.append(row);
+  }
+  for (const u of (state.projectTags || []).filter(u => !counts.has(u.tag))) {
+    const row = document.createElement('div');
+    row.className = 'dialog-row dim';
+    row.textContent = `${u.tag}  ·  elsewhere: ${u.maps.join(', ')}`;
+    list.append(row);
+  }
+  if (!counts.size) {
+    const none = document.createElement('p');
+    none.className = 'dialog-note';
+    none.textContent = 'No object on this map has a tag yet.';
+    list.append(none);
+  }
+  body.append(list);
+  const apply = document.createElement('button');
+  apply.className = 'wide-button';
+  apply.textContent = 'Apply';
+  apply.onclick = () => {
+    let touched = 0;
+    for (const o of objects) {
+      if (!o.tags || !o.tags.length) continue;
+      const before = o.tags.join('\n');
+      o.tags = [...new Set(o.tags.filter(t => !removals.has(t)).map(t => renames.get(t) || t))];
+      if (o.tags.join('\n') !== before) touched++;
+    }
+    const shut = document.querySelector('.picker.dialog .shut');
+    if (shut) shut.click();
+    if (touched) {
+      sceneChanged('edit tags');
+      say(`tags changed on ${touched} object(s)`, 'good');
+    }
+    loadProjectTags().then(() => done && done());
+    if (!touched && done) done();
+  };
+  body.append(apply);
+}
+
 function buildSceneObject(doc, object) {
   const panel = document.createElement('div');
   panel.className = 'scene-object';
@@ -3561,18 +3726,7 @@ function buildSceneObject(doc, object) {
   // ----------------------------------------------------------- tags, parent
 
   const misc = componentCard('scene', 'Scene', mapState.name + '/' + path);
-  const tags = document.createElement('label');
-  tags.className = 'behaviour-field';
-  tags.title = 'Words a mod finds it by: Game.World.Legacy.WithTag("chest")';
-  const tagsLabel = document.createElement('span');
-  tagsLabel.textContent = 'Tags';
-  const tagsInput = document.createElement('input');
-  tagsInput.type = 'text';
-  tagsInput.value = (object.tags || []).join(' ');
-  tagsInput.placeholder = 'chest spawn …';
-  tagsInput.onchange = () => { object.tags = tagsInput.value.split(/[ ,]+/).map(s => s.trim()).filter(Boolean); changed(); };
-  tags.append(tagsLabel, tagsInput);
-  misc.append(tags);
+  misc.append(tagsField(object, changed));
 
   const parentWrap = document.createElement('label');
   parentWrap.className = 'behaviour-field';

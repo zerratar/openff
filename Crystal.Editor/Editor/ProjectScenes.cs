@@ -71,6 +71,55 @@ namespace Crystal.Editor
 			return maps;
 		}
 
+		/// <summary>One tag as the project's scene files use it: on how many objects, on which maps.</summary>
+		public sealed class TagUse
+		{
+			public string Tag { get; set; }
+			public int Count { get; set; }
+			public List<string> Maps { get; set; } = new List<string>();
+		}
+
+		/// <summary>
+		/// Every tag on any object in any of the project's scene files, with its use - what the
+		/// inspector's tag picker offers, so a tag is picked from the ones the mod already
+		/// speaks of (Game.World.Legacy.WithTag) rather than typed anew each time.
+		/// </summary>
+		public static List<TagUse> Tags(Project project)
+		{
+			Dictionary<string, TagUse> uses = new Dictionary<string, TagUse>(StringComparer.OrdinalIgnoreCase);
+			string directory = Directory(project);
+			if (!System.IO.Directory.Exists(directory)) return new List<TagUse>();
+			foreach (string file in System.IO.Directory.EnumerateFiles(directory, "*.json"))
+			{
+				string map = Path.GetFileNameWithoutExtension(file);
+				try
+				{
+					JsonNode node = JsonNode.Parse(File.ReadAllText(file));
+					Walk(node?["objects"] as JsonArray);
+					Walk(node?["points"] as JsonArray);
+				}
+				catch (Exception) { }
+
+				void Walk(JsonArray objects)
+				{
+					foreach (JsonNode o in objects ?? new JsonArray())
+					{
+						if (o == null) continue;
+						foreach (JsonNode t in o["tags"] as JsonArray ?? new JsonArray())
+						{
+							string tag = t?.GetValue<string>()?.Trim();
+							if (string.IsNullOrEmpty(tag)) continue;
+							if (!uses.TryGetValue(tag, out TagUse use)) uses[tag] = use = new TagUse { Tag = tag };
+							use.Count++;
+							if (!use.Maps.Contains(map)) use.Maps.Add(map);
+						}
+						Walk(o["children"] as JsonArray);
+					}
+				}
+			}
+			return uses.Values.OrderBy(u => u.Tag, StringComparer.OrdinalIgnoreCase).ToList();
+		}
+
 		private static int Count(JsonArray objects)
 		{
 			int n = 0;
