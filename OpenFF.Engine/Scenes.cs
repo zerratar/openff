@@ -959,6 +959,78 @@ namespace OpenFF
 	/// its parent) from code and the model comes along. Added by the loader to every object
 	/// with a model; a mod need not touch it.
 	/// </summary>
+	/// <summary>
+	/// A model of the mod's own on a scene object: its Model names a glTF file (assets/hut.glb)
+	/// and the client draws it with the field's camera, no game character behind it. Follows
+	/// the Transform; hidden with the object. Added by the loader; a mod may add one itself
+	/// with a Path.
+	/// </summary>
+	public sealed class Mesh : Behaviour
+	{
+		/// <summary>The file, relative to the mod's folder (assets/hut.glb).</summary>
+		[Tooltip("The glTF file in the mod's assets folder")]
+		public string Path;
+		/// <summary>Stand the model on its feet: its lowest point on the object's position rather than its origin.</summary>
+		[Tooltip("Lift the model so its lowest point stands on the object's position")]
+		public bool OnGround = true;
+
+		/// <summary>The client's handle while it stands.</summary>
+		public MeshHandle Handle { get; private set; }
+
+		private Vector3 _at;
+		private float _yaw, _scale;
+		private bool _hidden;
+
+		protected override void Start()
+		{
+			Spawn();
+		}
+
+		private void Spawn()
+		{
+			if (Handle != null || string.IsNullOrWhiteSpace(Path) || Game.Meshes == null) return;
+			string file = Path;
+			Modding.LoadedMod mod = GameObject?.Owner;
+			if (mod != null && !System.IO.Path.IsPathRooted(file)) file = System.IO.Path.Combine(mod.Directory, file);
+			Handle = Game.Meshes.Spawn(file, Place(), Transform.WorldYaw, Transform.WorldScale);
+			if (Handle == null) { Game.Warn("Mesh " + Path + " on " + (GameObject?.Name ?? "?") + ": not spawned"); return; }
+			if (Handle.Problem != null) Game.Warn("Mesh " + Path + ": " + Handle.Problem);
+			else if (OnGround) Handle.Position = Place();
+			_at = Transform.WorldPosition; _yaw = Transform.WorldYaw; _scale = Transform.WorldScale;
+			_hidden = !GameObject.ActiveInHierarchy;
+			Handle.Hidden = _hidden;
+		}
+
+		private Vector3 Place()
+		{
+			Vector3 at = Transform.WorldPosition;
+			if (OnGround && Handle != null && Handle.Problem == null) at.Y -= Handle.Min.Y * Transform.WorldScale;
+			return at;
+		}
+
+		protected override void LateUpdate()
+		{
+			if (Handle == null) { Spawn(); if (Handle == null) return; if (OnGround) Handle.Position = Place(); }
+			Vector3 at = Transform.WorldPosition;
+			float yaw = Transform.WorldYaw, scale = Transform.WorldScale;
+			if (at != _at || scale != _scale) { _at = at; _scale = scale; Handle.Scale = scale; Handle.Position = Place(); }
+			if (yaw != _yaw) { Handle.Yaw = yaw; _yaw = yaw; }
+			bool hidden = !GameObject.ActiveInHierarchy;
+			if (hidden != _hidden) { Handle.Hidden = hidden; _hidden = hidden; }
+		}
+
+		protected override void OnDisable()
+		{
+			if (Handle != null) { Handle.Hidden = true; _hidden = true; }
+		}
+
+		protected override void OnDestroy()
+		{
+			Handle?.Remove();
+			Handle = null;
+		}
+	}
+
 	internal sealed class ModelFollow : Behaviour
 	{
 		private Vector3 _at;
@@ -1492,10 +1564,19 @@ namespace OpenFF
 		}
 
 		/// <summary>The model for a scene object that has one: a plain character without a cast, following the transform, gone with the object. Components waiting for the character (INeedsNpc) hear of it.</summary>
+		/// <summary>Whether a model name is a file of the mod's own (glTF) rather than one of the game's models.</summary>
+		public static bool IsMeshFile(string model) => model != null && (model.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) || model.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase));
+
 		internal static void SpawnModel(Modding.LoadedMod mod, string map, GameObject o)
 		{
 			MapObject link = o.GetComponent<MapObject>();
 			if (link == null || link.Model == null || link.Npc != null) return;
+			// A model of the mod's own (a glTF in its assets): drawn by the client, no character behind it.
+			if (IsMeshFile(link.Model))
+			{
+				if (o.GetComponent<Mesh>() == null) o.AddComponent(new Mesh { Path = link.Model });
+				return;
+			}
 			Game.Guard("scene object " + link.Path + " model " + link.Model, () =>
 			{
 				// A character has the walker behind it (turns to the player, can wander, is talked to

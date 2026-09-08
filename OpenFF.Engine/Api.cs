@@ -609,6 +609,45 @@ namespace OpenFF
 		ShopInfo Info(int index, string table = null);
 	}
 
+	/// <summary>A model of the mod's own standing on the map: a glTF file drawn by the client directly, moved and removed through this.</summary>
+	public abstract class MeshHandle
+	{
+		/// <summary>The file it was loaded from (assets/hut.glb in the mod).</summary>
+		public abstract string Path { get; }
+		/// <summary>Where it stands; set to move it.</summary>
+		public abstract Vector3 Position { get; set; }
+		/// <summary>Its turn about the up axis, in degrees (the scene's yaw).</summary>
+		public abstract float Yaw { get; set; }
+		/// <summary>Its scale; the file's own units times this.</summary>
+		public abstract float Scale { get; set; }
+		public abstract bool Hidden { get; set; }
+		/// <summary>The file's extent, in its own units before Scale - to stand it on the ground, to size a box around it.</summary>
+		public abstract Vector3 Min { get; }
+		public abstract Vector3 Max { get; }
+		/// <summary>How many triangles it draws.</summary>
+		public abstract int Triangles { get; }
+		/// <summary>What went wrong reading it, or null.</summary>
+		public abstract string Problem { get; }
+		/// <summary>Takes it off the map.</summary>
+		public abstract void Remove();
+	}
+
+	/// <summary>
+	/// Models in the mod's own format - glTF (.glb, .gltf), as Blender exports them - drawn by
+	/// the OpenFF client with the field's camera, on top of the game's own scene. No DS format
+	/// in between: this is what an OpenFF mod may do that a Steam mod cannot. A scene object
+	/// whose Model names such a file (assets/hut.glb) is one of these; from code, Spawn.
+	/// Read: meshes, materials with a base colour and texture, the node tree; not yet: skins,
+	/// animations, collision (a mesh is walked through - a Solid box is on the list).
+	/// </summary>
+	public interface IMeshes
+	{
+		/// <summary>Puts a model on the map at a position, turned by yaw degrees, scaled; the path is the mod's own file (relative to the mod's folder) or absolute.</summary>
+		MeshHandle Spawn(string path, Vector3 position, float yaw = 0f, float scale = 1f);
+		/// <summary>Every mesh standing.</summary>
+		IReadOnlyList<MeshHandle> All { get; }
+	}
+
 	public static partial class Game
 	{
 		/// <summary>The item tables as data: names, categories, prices, who can equip what, stats.</summary>
@@ -616,5 +655,7 @@ namespace OpenFF
 		/// <summary>The game's shop screen, opened on any map with any shop table; what a shop sells.</summary>
 		public static IShops Shops => Services.Get<IShops>();
 		public static IScripts Scripts => Services.Get<IScripts>();
+		/// <summary>The mod's own models (glTF), drawn by the client.</summary>
+		public static IMeshes Meshes => Services.Get<IMeshes>();
 	}
 }
