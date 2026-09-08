@@ -129,6 +129,15 @@ async function loadList() {
       name: d.id, overridden: false, def: d,
       note: `${d.number} · ${d.chain || '?'} from ${d.baseName || d.base}`
     }));
+  } else if (state.browse === 'characters') {
+    // The heroes as a game begins: defs/characters/<id>.json each, one per hero slot.
+    const defs = await api('/api/project/characters');
+    state.characterDefs = defs.ok ? (defs.characters || []) : [];
+    state.characterDefsError = defs.ok ? '' : defs.error;
+    state.files = state.characterDefs.map(d => ({
+      name: d.id, overridden: false, def: d,
+      note: `slot ${d.slot} (${d.hero})${d.jobName ? ' · ' + d.jobName : ''}${d.level > 1 ? ' · L' + d.level : ''}`
+    }));
   } else {
     state.files = await api(`/api/list?kind=${state.browse}`);
   }
@@ -234,6 +243,18 @@ function drawList() {
         : 'No items of the mod\'s own yet. New item… (the button above) starts one from an item of the game\'s - a stronger potion, a new sword - with a name, a caption, prices and any field of the record.';
     list.append(note);
   }
+  if (state.browse === 'characters' && !list.childElementCount && !filter) {
+    const note = document.createElement('li');
+    note.className = 'note';
+    const project = typeof projectState !== 'undefined' && projectState.project;
+    const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
+    note.textContent = state.characterDefsError && !project
+      ? 'No project open. File ▸ New project… makes one; the heroes its mod defines show here.'
+      : !openff
+        ? `${project.name} is a Steam mod: the heroes' defaults are set by the OpenFF client as a game begins. Tick FF3 under OpenFF in Project settings.`
+        : 'No hero definitions yet. New character… (the button above) takes one of the four hero slots and sets its name, starting job and level as a game begins.';
+    list.append(note);
+  }
   if (state.browse === 'scene' && !list.childElementCount && !filter) {
     const note = document.createElement('li');
     note.className = 'note';
@@ -254,6 +275,7 @@ function drawList() {
 function fileIcon(file) {
   if (state.browse === 'scene') return 'scene';
   if (state.browse === 'items') return 'item';
+  if (state.browse === 'characters') return 'character';
   if (state.browse !== 'code') return state.browse;
   if (file.kind === 'cs' || file.kind === 'csproj') return 'code';
   if (file.kind === 'json') return 'logic';

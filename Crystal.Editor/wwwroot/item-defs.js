@@ -1,4 +1,4 @@
-// The mod's item definitions in the editor: defs/items/<id>.json each - an item of the
+// The mod's definitions in the editor - items, and the heroes (characters). Items: defs/items/<id>.json each - an item of the
 // mod's own that starts from one of the game's (its base) and changes what it names. The
 // inspector shows one as a form laid out like a scene object's: the name and the caption,
 // the base item, the prices, then every field of the base's record by the game's own name
@@ -8,11 +8,12 @@
 //
 // Server: /api/project/items (list, ?id= one), /api/project/items/save, /new, /delete.
 
-/// The tree's count beside Items, after a definition came or went.
+/// The tree's counts beside Items and Characters, after a definition came or went.
 async function itemsCountChanged() {
   try {
     const r = await api('/api/project/items');
-    if (typeof projectState !== 'undefined' && projectState.project) projectState.project.items = (r.items || []).length;
+    const c = await api('/api/project/characters');
+    if (typeof projectState !== 'undefined' && projectState.project) { projectState.project.items = (r.items || []).length; projectState.project.characters = (c.characters || []).length; }
     if (typeof drawProjectTree === 'function') drawProjectTree();
   } catch (e) { /* the count is a nicety */ }
 }
@@ -215,6 +216,167 @@ function newItemDialog() {
       await loadList();
       inspectAsset('items', r.item.id);
       say(`"${n}" is item ${r.item.number} of the mod`, 'good');
+    } catch (e) { problem.textContent = e.message; }
+  };
+  name.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+  actions.append(go);
+  body.append(actions);
+  setTimeout(() => name.focus(), 0);
+}
+
+// ---------------------------------------------------------------- characters
+
+/// The inspector's form for a hero definition: which slot, the name, the starting job and
+/// level as a game begins. data = { character, jobs, heroes } from /api/project/characters.
+function characterDefinitionPanel(data, onSaved) {
+  const def = data.character;
+  const panel = document.createElement('div');
+  panel.className = 'scene-object item-def';
+  const model = { id: def.id, slot: def.slot, name: def.name || '', job: def.job === null || def.job === undefined ? null : String(def.job), level: def.level || 0 };
+  let timer = null;
+  const save = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try {
+        const body = { id: model.id, slot: model.slot, name: model.name };
+        if (model.job !== null) body.job = model.job;
+        if (model.level > 1) body.level = model.level;
+        const r = await api('/api/project/characters/save', body);
+        if (!r.ok) throw new Error(r.error);
+        if (onSaved) onSaved(r.character);
+      } catch (e) { say('character: ' + e.message, 'bad'); }
+    }, 250);
+  };
+
+  const head = document.createElement('div');
+  head.className = 'object-head';
+  const title = document.createElement('input');
+  title.type = 'text';
+  title.className = 'object-name';
+  title.value = model.name;
+  title.placeholder = data.heroes[def.slot] || 'name';
+  title.title = 'The hero\'s name as a game begins; the name entry still lets the player change it';
+  title.oninput = () => { model.name = title.value; save(); };
+  head.append(title);
+  panel.append(head);
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = def.file;
+  panel.append(sub);
+
+  const card = document.createElement('div');
+  card.className = 'component';
+  const h = document.createElement('div');
+  h.className = 'behaviour-header';
+  h.textContent = 'As a game begins';
+  card.append(h);
+  const row = (label, input, tip) => {
+    const r = document.createElement('div');
+    r.className = 'behaviour-field';
+    const l = document.createElement('span');
+    l.textContent = label;
+    if (tip) r.title = tip;
+    r.append(l, input);
+    card.append(r);
+  };
+  const slot = document.createElement('select');
+  data.heroes.forEach((hero, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${i} - ${hero}`;
+    slot.append(o);
+  });
+  slot.value = String(model.slot);
+  slot.onchange = () => { model.slot = parseInt(slot.value, 10); save(); };
+  row('Hero slot', slot, 'Which of the four heroes this defines');
+  const job = document.createElement('select');
+  const keep = document.createElement('option');
+  keep.value = '';
+  keep.textContent = 'the game\'s (Freelancer)';
+  job.append(keep);
+  for (const j of data.jobs) {
+    const o = document.createElement('option');
+    o.value = String(j.number);
+    o.textContent = `${j.name}  (${j.number})`;
+    job.append(o);
+  }
+  job.value = model.job === null ? '' : model.job;
+  job.onchange = () => { model.job = job.value === '' ? null : job.value; save(); };
+  row('Starting job', job, 'The job the hero begins in; the crystals still change it');
+  const level = document.createElement('input');
+  level.type = 'number';
+  level.min = 1;
+  level.max = 99;
+  level.value = model.level > 1 ? model.level : '';
+  level.placeholder = '1';
+  level.oninput = () => { model.level = parseInt(level.value, 10) || 0; save(); };
+  row('Starting level', level, 'Levelled the game\'s own way, one level at a time along the job\'s growth');
+  panel.append(card);
+
+  const note = document.createElement('p');
+  note.className = 'none';
+  note.textContent = 'Applied when the client sets a party up (a --map start, the title\'s New Game); a save carries its own heroes. A character\'s own model, a fixed class instead of jobs, and heroes beyond the four are the next slice.';
+  panel.append(note);
+
+  const actions = document.createElement('div');
+  actions.className = 'component';
+  const json = document.createElement('button');
+  json.className = 'wide-button';
+  json.textContent = 'Open as JSON';
+  json.onclick = () => openDoc('code', def.file);
+  actions.append(json);
+  const remove = document.createElement('button');
+  remove.className = 'wide-button';
+  remove.textContent = 'Delete this definition';
+  remove.onclick = async () => {
+    if (!confirm(`Delete the definition "${model.name || model.id}" (${def.file})?`)) return;
+    const r = await api('/api/project/characters/delete', { id: model.id });
+    if (!r.ok) { say('character: not deleted', 'bad'); return; }
+    if (typeof clearInspected === 'function') clearInspected();
+    itemsCountChanged();
+    loadList();
+  };
+  actions.append(remove);
+  panel.append(actions);
+  return panel;
+}
+
+function newCharacterDialog() {
+  if (typeof dialog !== 'function') return;
+  const body = dialog('New character');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'One of the four heroes as a game begins: its name here, the starting job and level in the inspector after.';
+  body.append(note);
+  const name = field(body, 'Name', '', { placeholder: 'Luneth' });
+  section(body, 'Hero slot');
+  const slot = document.createElement('select');
+  ['Luneth', 'Arc', 'Refia', 'Ingus'].forEach((hero, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${i} - ${hero}`;
+    slot.append(o);
+  });
+  slot.className = 'item-base-pick';
+  body.append(slot);
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Create';
+  go.onclick = async () => {
+    const n = name.value.trim();
+    if (!n) { problem.textContent = 'A character needs a name.'; return; }
+    try {
+      const r = await api('/api/project/characters/new', { name: n, slot: parseInt(slot.value, 10) });
+      if (!r.ok) throw new Error(r.error);
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      itemsCountChanged();
+      await loadList();
+      inspectAsset('characters', r.character.id);
+      say(`"${n}" defines hero ${r.character.slot}`, 'good');
     } catch (e) { problem.textContent = e.message; }
   };
   name.onkeydown = e => { if (e.key === 'Enter') go.click(); };

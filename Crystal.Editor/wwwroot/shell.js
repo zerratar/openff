@@ -32,7 +32,8 @@ const KINDS = [
   // maps the mod has put behaviours or objects on - each opens the map editor.
   { id: 'code', label: 'Code', mod: true },
   { id: 'scene', label: 'Scenes', mod: true },
-  { id: 'items', label: 'Items', mod: true }
+  { id: 'items', label: 'Items', mod: true },
+  { id: 'characters', label: 'Characters', mod: true }
 ];
 
 // ---------------------------------------------------------------- documents
@@ -173,6 +174,7 @@ async function openDoc(kind, name, options = {}) {
   if (kind === 'scene') return openScene(name, options);
   // An item definition is edited in the inspector; opening it opens its file as text.
   if (kind === 'items') return openDoc('code', 'defs/items/' + name + '.json', options);
+  if (kind === 'characters') return openDoc('code', 'defs/characters/' + name + '.json', options);
   const settings = options === true ? { reload: true } : options;
   const id = docId(kind, name);
   const existing = docs.get(id);
@@ -896,6 +898,10 @@ async function inspectAsset(kind, name, options = {}) {
       const item = await api(`/api/project/items?id=${encodeURIComponent(name)}`);
       if (item.ok === false) throw new Error(item.error);
       me.data = item.item;
+    } else if (kind === 'characters') {
+      const c = await api(`/api/project/characters?id=${encodeURIComponent(name)}`);
+      if (c.ok === false) throw new Error(c.error);
+      me.data = { character: c.character, jobs: c.jobs, heroes: c.heroes };
     }
   } catch (error) {
     me.problem = error.message;
@@ -1010,6 +1016,10 @@ function drawInspectedAsset(box) {
   const { kind, name, data } = inspected;
 
   // An item definition is edited right here, as a scene object is: the form is the panel.
+  if (kind === 'characters' && data && typeof characterDefinitionPanel === 'function') {
+    box.append(characterDefinitionPanel(data, () => { loadList(); }));
+    return;
+  }
   if (kind === 'items' && data && typeof itemDefinitionPanel === 'function') {
     box.append(itemDefinitionPanel(data, () => { loadList(); }));
     if (inspected.problem) {
@@ -1568,19 +1578,21 @@ function drawProjectTree() {
     }
     const row = document.createElement('div');
     row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod ? ' sub' : '');
-    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : 'code') : kind.id));
+    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'characters' ? 'character' : 'code') : kind.id));
     const label = document.createElement('span');
     label.textContent = kind.label;
     row.append(label);
     if (kind.mod && project && openff) {
       const count = document.createElement('i');
-      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : '';
+      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : kind.id === 'characters' ? (project.characters || '') : '';
       if (count.textContent) row.append(count);
       row.title = kind.id === 'scene'
         ? 'Maps this mod has put behaviours or objects on (scenes/<map>.json). Each opens in the map editor.'
         : kind.id === 'items'
           ? 'The mod\'s own items (defs/items/<id>.json): each starts from one of the game\'s and changes what it names; the client adds them to the game\'s item table.'
-          : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
+          : kind.id === 'characters'
+            ? 'The heroes as a game begins (defs/characters/<id>.json): a slot\'s name, starting job and level.'
+            : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
     }
     row.onclick = () => selectKind(kind.id);
     into.append(row);
@@ -1627,6 +1639,9 @@ function drawCodeActions() {
       button('Open in IDE', 'The C# project in Visual Studio, Rider, VS Code - whatever opens .csproj here', () => openCode());
     }
   } else {
+    if (browseKind === 'characters' && typeof newCharacterDialog === 'function') {
+      button('New character…', 'A hero slot\'s definition: the name, the starting job and level as a game begins', () => newCharacterDialog(), true);
+    }
     if (browseKind === 'items' && typeof newItemDialog === 'function') {
       button('New item…', 'An item of the mod\'s own: starts from one of the game\'s, with a name, a caption, prices and any field of the record changed', () => newItemDialog(), true);
     }

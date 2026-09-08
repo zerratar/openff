@@ -403,7 +403,8 @@ namespace Crystal.Editor
 							service = ModCode.Has(_project) ? ModCode.Sources(_project).FirstOrDefault(s => s.Kind == "service")?.File : null,
 							client = OpenFFClient.Executable() != null,
 							scenes = ProjectScenes.Maps(_project).Count,
-							items = ProjectItems.All(_project).Count
+							items = ProjectItems.All(_project).Count,
+							characters = ProjectCharacters.All(_project).Count
 						}
 					});
 					return;
@@ -537,6 +538,63 @@ namespace Crystal.Editor
 					JsonNode body = ReadBody(context);
 					string id = body?["id"]?.GetValue<string>();
 					SendJson(context, new { ok = ProjectItems.Delete(_project, id) });
+					return;
+				}
+
+				case "/api/project/characters":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					List<string> notes = new List<string>();
+					List<ModCharacter> all = ProjectCharacters.All(_project, notes);
+					string one = Query(context, "id");
+					if (!string.IsNullOrEmpty(one))
+					{
+						ModCharacter c = all.FirstOrDefault(x => string.Equals(x.Id, one, StringComparison.OrdinalIgnoreCase));
+						if (c == null) { SendJson(context, new { ok = false, error = "no character definition '" + one + "'" }); return; }
+						SendJson(context, new { ok = true, character = ProjectCharacters.Describe(c), jobs = ProjectCharacters.Jobs(), heroes = ProjectCharacters.Heroes });
+						return;
+					}
+					SendJson(context, new { ok = true, characters = all.Select(ProjectCharacters.Describe).ToList(), jobs = ProjectCharacters.Jobs(), heroes = ProjectCharacters.Heroes, notes });
+					return;
+				}
+
+				case "/api/project/characters/save":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						ModCharacter c = ModCharacter.Parse(body?.ToJsonString() ?? "{}");
+						if (c == null) throw new ArgumentException("no character");
+						if (c.Id != null && c.Id.IndexOfAny(new[] { '/', '\\', '.' }) >= 0) throw new ArgumentException("a character's id is a plain word");
+						ProjectCharacters.Save(_project, c);
+						SendJson(context, new { ok = true, character = ProjectCharacters.Describe(c) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/characters/new":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>();
+						int slot = body?["slot"]?.GetValue<int>() ?? 0;
+						if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a character needs a name");
+						ModCharacter c = ProjectCharacters.New(_project, name, slot);
+						SendJson(context, new { ok = true, character = ProjectCharacters.Describe(c) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/characters/delete":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					SendJson(context, new { ok = ProjectCharacters.Delete(_project, body?["id"]?.GetValue<string>()) });
 					return;
 				}
 
