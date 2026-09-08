@@ -650,7 +650,13 @@ namespace OpenFF
 		public void NpcReady(MapObject link)
 		{
 			if (link?.Npc == null) return;
-			if (Cast > 0) link.Npc.RunCast(Cast);
+			// With a CastScript beside it, the cast's code is the engine's to run: bind the row
+			// (so the setup below and the code's commands land here) but leave the game's logic
+			// out, or the talk would run the original as well.
+			if (Cast > 0)
+			{
+				if (GetComponent<CastScript>() != null) link.Npc.BindCast(Cast); else link.Npc.RunCast(Cast);
+			}
 			if (Treasure)
 			{
 				string[] pair = (Flag ?? "").Split(':');
@@ -673,6 +679,61 @@ namespace OpenFF
 				}
 				link.Npc.RunScript(line);
 			}
+		}
+	}
+
+	/// <summary>
+	/// The cast's own code, run by the engine: the lines of its main function as Crystal's
+	/// disassembly writes them (talkBegin through the library call, a message window, its
+	/// lines, flag tests and jumps to labels, end) - every command meaning what it means in
+	/// the game, since the game's interpreter runs it, but the code living here, in the scene
+	/// file, where a modder reads and changes it. With a GameCast beside it for the boot's
+	/// setup, a converted talker is the game's talker to the last flag, and its words are a
+	/// text field. Talking to the object (or the hero walking in, without a model) starts the
+	/// code, as the game's talk would have started the cast's main.
+	/// </summary>
+	public sealed class CastScript : Interactable
+	{
+		/// <summary>The cast number the code runs as - the original's, so the commands that name it (talkBegin(23)) reach this object through the bound row.</summary>
+		[Tooltip("The cast the code runs as (the original's number); the row is bound to this object")]
+		public int Cast;
+
+		/// <summary>The main function's lines, one per entry: commands, "label:" lines, comments after //.</summary>
+		[Header("Code (the game's script language)")]
+		[Tooltip("The cast's main function, one line per entry: commands as the disassembly writes them, labels as \"loc_419E:\", // comments; ends with end()")]
+		public string[] Main = new string[0];
+
+		private bool _defined;
+
+		protected override void Start()
+		{
+			base.Start();
+			Define();
+		}
+
+		private void Define()
+		{
+			if (_defined || Cast <= 0 || Main == null || Main.Length == 0) return;
+			IScripts scripts = Game.Scripts;
+			if (scripts == null) return;
+			_defined = scripts.Define(Cast, Main);
+			if (!_defined) Game.Warn("CastScript " + Cast + " on " + (GameObject?.Name ?? "?") + ": the code did not compile - see the log");
+		}
+
+		public override void NpcReady(MapObject link)
+		{
+			base.NpcReady(link);
+			// The row bound here even without a GameCast beside: the code's commands name the cast.
+			if (Cast > 0 && GetComponent<GameCast>() == null) link.Npc.BindCast(Cast);
+		}
+
+		protected override void Activate()
+		{
+			Define();
+			IScripts scripts = Game.Scripts;
+			if (scripts == null || !_defined) return;
+			if (scripts.IsRunning(Cast)) return;
+			if (!scripts.Start(Cast)) Game.Warn("CastScript " + Cast + ": did not start");
 		}
 	}
 

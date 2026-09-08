@@ -7,8 +7,8 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 ## Contents
 
 - [The entry point](#the-entry-point): [`Game`](#game)
-- [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags)
-- [Handles and data](#handles-and-data): [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`FlagFieldAttribute`](#flagfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IScripts`](#iscripts)
+- [Handles and data](#handles-and-data): [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`FlagFieldAttribute`](#flagfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -48,6 +48,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 | `static IParty Party { get; }` | The party: members and their sheets, gil, the bag, equipment, experience, jobs, conditions. |
 | `static SaveChunks Saves { get; }` | Save chunks: one per ISaveable per slot, kept across mod changes. |
 | `static IScreen Screen { get; }` | Fades, flashes and the battle's floating numbers over the whole screen. |
+| `static IScripts Scripts { get; }` |  |
 | `static ServiceRegistry Services { get; }` | Every registered service, the game's and the mods'; Get<T> finds the current implementation of an interface. |
 | `static IShops Shops { get; }` | The game's shop screen, opened on any map with any shop table; what a shop sells. |
 | `static bool Started { get; }` | True once Start has run. |
@@ -314,9 +315,33 @@ The game's flag space: what the scripts store quest progress in.
 | `bool Get(uint group, uint index)` |  |
 | `void Set(uint group, uint index, bool value)` |  |
 
+### IScripts
+
+`interface IScripts`
+
+The game's own script language, run by the engine: a cast's code as text - the lines Crystal's disassembly writes (talkBegin, a message window, flag tests and jumps, end) - compiled and run on the game's script loop under the engine's own script, beside the map's. Every command means exactly what it means in the game, since it is the game's interpreter that runs it; what is the engine's is where the code lives (a scene file, a component the editor shows and a modder edits) and who starts it (a component's Activate, not the game's talk). FF3's command set; FF4's comes with its script work.
+
+| Member | What it does |
+| --- | --- |
+| `bool Define(int cast, IReadOnlyList<string> lines)` | Defines (or replaces) the code a cast number runs on this map: a label per function is not needed, the lines are one function's body. False, with the problems logged, when it does not compile. |
+| `bool IsRunning(int cast)` | Whether the cast's code is running. |
+| `bool Start(int cast)` | Starts the cast's code, as the game's talk starts a cast's main. False when nothing is defined for it or it is running already. |
+
 ## Handles and data
 
 What the services hand out: a character on the map, a party member, an item, a spell, a monster, the input state, a texture to draw.
+
+### CastScript
+
+`class CastScript : Interactable`
+
+The cast's own code, run by the engine: the lines of its main function as Crystal's disassembly writes them (talkBegin through the library call, a message window, its lines, flag tests and jumps to labels, end) - every command meaning what it means in the game, since the game's interpreter runs it, but the code living here, in the scene file, where a modder reads and changes it. With a GameCast beside it for the boot's setup, a converted talker is the game's talker to the last flag, and its words are a text field. Talking to the object (or the hero walking in, without a model) starts the code, as the game's talk would have started the cast's main.
+
+| Member | What it does |
+| --- | --- |
+| `int Cast` | The cast number the code runs as - the original's, so the commands that name it (talkBegin(23)) reach this object through the bound row. |
+| `string[] Main` | The main function's lines, one per entry: commands, "label:" lines, comments after //. |
+| `void NpcReady(MapObject link)` |  |
 
 ### Chest
 
@@ -610,6 +635,7 @@ A character a script put on the map.
 | `bool Solid { get; set; }` | Whether the character blocks and shoves other characters. Off by default: a solid character standing beside the hero pushes the hero away, frame after frame. |
 | `float Yaw { get; }` | Which way it faces, in degrees (0 = +Z, 90 = +X). |
 | `event Action<Npc> Interacted` | The player talked to this character: pressed A within InteractRadius, or did what the game itself counts as talking to it (a tap on it, or A while facing it). |
+| `void BindCast(int cast)` | RunCast without the logic: the .hich row's character index points here, so every command the script addresses to the cast lands on this character, but talking to it runs nothing of the game's - a CastScript's code, started by the component, does. |
 | `void BindMotions(string set)` | Adds a motion set to the character's model: "b_b01" for a party member's model, a monster's Monster.MotionSet ("b_f" + family) for its attack and idle (MonsterMotion). |
 | `void EndWander()` | The scripts' moveCharacter_EndRandom: the walk stops, the character stands where it is. |
 | `void Face(float yaw)` | Turns to a yaw in degrees. |
@@ -1831,4 +1857,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-114 types, 828 members; 396 without a summary yet.
+116 types, 836 members; 398 without a summary yet.

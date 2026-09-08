@@ -201,6 +201,13 @@ namespace OpenFF
 		public virtual void RunCast(int cast) { }
 
 		/// <summary>
+		/// RunCast without the logic: the .hich row's character index points here, so every
+		/// command the script addresses to the cast lands on this character, but talking to it
+		/// runs nothing of the game's - a CastScript's code, started by the component, does.
+		/// </summary>
+		public virtual void BindCast(int cast) { }
+
+		/// <summary>
 		/// Sets the character up as a treasure chest the game's way (setTreasureItem /
 		/// setTreasureMoney): the item or gil, the game's flag for it (opened when set), the
 		/// chest's own opening - sound, lid, message, flag, the treasure count. A chest model
@@ -571,6 +578,25 @@ namespace OpenFF
 		public List<int> ItemIds { get; } = new List<int>();
 	}
 
+	/// <summary>
+	/// The game's own script language, run by the engine: a cast's code as text - the lines
+	/// Crystal's disassembly writes (talkBegin, a message window, flag tests and jumps, end) -
+	/// compiled and run on the game's script loop under the engine's own script, beside the
+	/// map's. Every command means exactly what it means in the game, since it is the game's
+	/// interpreter that runs it; what is the engine's is where the code lives (a scene file, a
+	/// component the editor shows and a modder edits) and who starts it (a component's
+	/// Activate, not the game's talk). FF3's command set; FF4's comes with its script work.
+	/// </summary>
+	public interface IScripts
+	{
+		/// <summary>Defines (or replaces) the code a cast number runs on this map: a label per function is not needed, the lines are one function's body. False, with the problems logged, when it does not compile.</summary>
+		bool Define(int cast, IReadOnlyList<string> lines);
+		/// <summary>Starts the cast's code, as the game's talk starts a cast's main. False when nothing is defined for it or it is running already.</summary>
+		bool Start(int cast);
+		/// <summary>Whether the cast's code is running.</summary>
+		bool IsRunning(int cast);
+	}
+
 	/// <summary>The game's shop screens.</summary>
 	public interface IShops
 	{
@@ -587,5 +613,6 @@ namespace OpenFF
 		public static IItems Items => Services.Get<IItems>();
 		/// <summary>The game's shop screen, opened on any map with any shop table; what a shop sells.</summary>
 		public static IShops Shops => Services.Get<IShops>();
+		public static IScripts Scripts => Services.Get<IScripts>();
 	}
 }

@@ -43,7 +43,9 @@ internal static partial class GlobalScope
 
 			private ValueManager m_ValueMng;
 
-			private ScriptData[] scriptDatas_ = new ScriptData[1];
+			// PORT: two scripts, not one - the map's own and the mod engine's (CastScript), which
+			// runs the casts it took over on this same logic loop under its own map number.
+			private ScriptData[] scriptDatas_ = new ScriptData[2];
 
 			private Logic[] logicHandles_ = new Logic[16];
 
@@ -77,7 +79,7 @@ internal static partial class GlobalScope
 			public void initializeLogic()
 			{
 				m_GlobalScript = (m_MapScript = null);
-				m_LogicMng.init(1u, 16u, scriptDatas_, logicHandles_, logicDatas_);
+				m_LogicMng.init(2u, 16u, scriptDatas_, logicHandles_, logicDatas_);
 			}
 
 			public void initializeFlag(bool set_reset)

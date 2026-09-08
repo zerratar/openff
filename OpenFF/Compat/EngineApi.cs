@@ -58,6 +58,8 @@ namespace OpenFF.Client
 			// FF4's shops are drawn by the engine from the unified tables (Ff4Shop); FF3 keeps its own screen.
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Shop());
 			else OpenFF.Game.Services.Register(new LegacyShops());
+			// The game's script language as the engine's own (CastScript): FF3's for now.
+			if (!GameProfile.IsFf4) OpenFF.Game.Services.Register(new LegacyScripts());
 		}
 
 		public static readonly LegacyScreen Screen = new LegacyScreen();
@@ -1049,22 +1051,27 @@ namespace OpenFF.Client
 		/// lands on this character from now on. The stand-in is the original, as far as the
 		/// script can tell. Solid, as booted characters are.
 		/// </summary>
-		public override void RunCast(int cast)
+		public override void RunCast(int cast) => TakeCast(cast, true);
+
+		public override void BindCast(int cast) => TakeCast(cast, false);
+
+		/// <summary>The cast's row bound here, and - with the logic - the game's talk running the cast's main on this character.</summary>
+		private void TakeCast(int cast, bool logic)
 		{
 			GlobalScope.pl.CBasePlayer p = Player;
 			if (p == null || cast <= 0) return;
 			try
 			{
-				p.LogicIndex_set((uint)cast);
+				p.LogicIndex_set(logic ? (uint)cast : GlobalScope.CastInfo.INVALID_SCRIPT);
 				int row = GlobalScope.evt.CHichParameterManager.getInstance().getManCastIndex((uint)cast);
 				if (row >= 0) GlobalScope.evt.CHichParameterManager.getInstance().setCharaIndex(row, Index);
 				p.flagOff(GlobalScope.pl.CBasePlayer.CBP_FLAG.NPC_NOT_TURN_TALKED);
 				Solid = true;
-				Log.Write(LogChannel.General, "engine api: " + Model + " (character " + Index + ") runs cast " + cast + (row >= 0 ? " (row " + row + ")" : " (no row)") + " on " + Map);
+				Log.Write(LogChannel.General, "engine api: " + Model + " (character " + Index + ") " + (logic ? "runs" : "is bound to") + " cast " + cast + (row >= 0 ? " (row " + row + ")" : " (no row)") + " on " + Map);
 			}
 			catch (Exception ex)
 			{
-				EngineApi.Warn("run-cast", "RunCast " + cast + " on " + Model + " failed: " + ex.Message);
+				EngineApi.Warn("run-cast", (logic ? "RunCast " : "BindCast ") + cast + " on " + Model + " failed: " + ex.Message);
 			}
 		}
 
