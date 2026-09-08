@@ -232,7 +232,7 @@ function characterDefinitionPanel(data, onSaved) {
   const def = data.character;
   const panel = document.createElement('div');
   panel.className = 'scene-object item-def';
-  const model = { id: def.id, slot: def.slot, name: def.name || '', job: def.job === null || def.job === undefined ? null : String(def.job), level: def.level || 0 };
+  const model = { id: def.id, slot: def.slot, name: def.name || '', job: def.job === null || def.job === undefined ? null : String(def.job), level: def.level || 0, fixedJob: !!def.fixedJob, look: def.look === null || def.look === undefined ? -1 : def.look };
   let timer = null;
   const save = () => {
     clearTimeout(timer);
@@ -241,6 +241,8 @@ function characterDefinitionPanel(data, onSaved) {
         const body = { id: model.id, slot: model.slot, name: model.name };
         if (model.job !== null) body.job = model.job;
         if (model.level > 1) body.level = model.level;
+        if (model.fixedJob) body.fixedJob = true;
+        if (model.look >= 0) body.look = model.look;
         const r = await api('/api/project/characters/save', body);
         if (!r.ok) throw new Error(r.error);
         if (onSaved) onSaved(r.character);
@@ -311,6 +313,25 @@ function characterDefinitionPanel(data, onSaved) {
   level.placeholder = '1';
   level.oninput = () => { model.level = parseInt(level.value, 10) || 0; save(); };
   row('Starting level', level, 'Levelled the game\'s own way, one level at a time along the job\'s growth');
+  const fixed = document.createElement('input');
+  fixed.type = 'checkbox';
+  fixed.checked = !!def.fixedJob;
+  fixed.onchange = () => { model.fixedJob = fixed.checked; save(); };
+  row('Fixed job', fixed, 'The hero keeps its job: the job menu refuses a change, as it does for a job not yet won - a class of its own rather than the job system');
+  const look = document.createElement('select');
+  const own = document.createElement('option');
+  own.value = '';
+  own.textContent = 'its own slot\'s';
+  look.append(own);
+  data.heroes.forEach((hero, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${hero}'s figures (j${i + 1}xx)`;
+    look.append(o);
+  });
+  look.value = def.look === null || def.look === undefined || def.look < 0 ? '' : String(def.look);
+  look.onchange = () => { model.look = look.value === '' ? -1 : parseInt(look.value, 10); save(); };
+  row('Look', look, 'Which hero\'s model set it wears - on the field, in battle, in the menus; every job has a figure in every set');
   panel.append(card);
 
   const note = document.createElement('p');
