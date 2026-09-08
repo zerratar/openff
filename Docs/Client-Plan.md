@@ -1634,6 +1634,36 @@ Left for the definitions line: characters (the job/class seam), and the Steam-mo
 the same composer writing the two files into a Steam project's `files/` at Install, so a
 native mod gets new items too.
 
+### Items the native way; the heroes as definitions (2026-09-08, afternoon)
+
+The Steam-mod path for items: `ProjectItems.WriteTables` composes the shipped
+`item_parameter.pak` and `eureka_item.msd` with the project's definitions and writes them
+into the target's `files/` at Install and before the zip, so the Steam game reads them as
+any replaced file; the composer skips a number the pak already has, so a Steam project's
+composed files read again by the client's transform add nothing twice, and `/api/items`
+lists such an item once. A probe project with a definition based on 6001 came out in the
+*magic* chain - 6001 is Minne, a song: FF3's ids are weapons 1000-2309, armour 3001-3331,
+magic and songs 4001-6660, consumables 5001-5122, key items 5201-5241 (the earlier note had
+FF4's ranges). Corrected in `ModItems.cs` and Modding.md.
+
+Characters, the first slice: `defs/characters/<id>.json` - a hero slot (0..3), a name, a
+starting job (by `JOB_TYPE` word, English name or number) and level.
+`ModCharactersLayer.ApplyToNewParty` runs where the game builds its party - after
+`addPlayer(0)` at boot (`GlobalScope.sys`) and after the title's New Game sets slot 0 back
+to Freelancer (`GlobalScope.ttl`) - `setName`, `changeJob`, `setExp(level-1)` then
+`levelUp(0)` so the growth tables do the climbing, `updateParameter`. The field model
+follows the job (`j109` for a Knight in slot 0). A save carries its own; `--nomods` is the
+game's. Trace: the party line names the heroes with level and job now (`heroes Karl L7 job
+8`), so parity sees them too. Crystal: *Characters* under the mod folder, New character…,
+the inspector as the form (slot, job, level), delete, Open as JSON.
+
+What the party code showed for the seam: `GameProfile.Ff3Party` already switches the shared
+`pl.Player` between FF3's job growth and FF4's fixed party (`updateParameter` returns for
+FF4; `initialize` changes to SUPPINN only for FF3), the heroes' names are four literals per
+language in `pl.getPlayerInitialName`, and the field model is `j<slot+1><job+1>` in
+`bootCharacterImp`. A fixed-class character in FF3's engine is a job that cannot change plus
+a model of its own; that gate and the model hook are where the next slice goes.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

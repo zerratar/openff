@@ -393,6 +393,26 @@ Install and in the zip the two files are composed from the shipped ones and writ
 the target's `files/`, so the Steam game reads them as any replaced file. FF3 for now;
 FF4's tables get their own composer.
 
+### The heroes: `defs/characters/<id>.json`
+
+The first slice of character definitions: what a hero slot is as a game begins. Under
+*OpenFF mod ▸ Characters*, *New character…* takes one of the four slots (0 Luneth, 1 Arc,
+2 Refia, 3 Ingus) and a name; the inspector sets the starting job (any of the 23, by the
+game's `JOB_TYPE` order) and level.
+
+```json
+{ "id": "karl", "slot": 0, "name": "Karl", "job": "knight", "level": 7 }
+```
+
+The client applies it where the game sets the party up - a `--map` start and the title's
+New Game (`ModCharactersLayer.ApplyToNewParty`): the name through `setName` (the name entry
+still lets the player change it), the job through `changeJob`, the level the game's own way
+(`setExp` then `levelUp`, one level at a time along the job's growth tables), so the field
+model follows (a Knight in slot 0 is `j109`). A save loaded afterwards carries its own
+heroes. One definition per slot; a `--nomods` run is the game's. Not yet: a model of the
+character's own, a fixed class in place of the job system, heroes beyond the four - the
+seam for those is the next slice.
+
 ### Seeing what happens
 
 - The log (`logs/ff3.log` beside the client, `--log=general,file`): `engine: mod my-mod 1.0: 1
