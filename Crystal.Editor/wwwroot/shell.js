@@ -57,7 +57,7 @@ let activeGroup = null;
 function docId(kind, name, ws = state.ws) {
   // The mod's files are the project's, not a game's: one document however many games
   // are open, so opening Mod.cs from the FF4 tab finds the one opened from FF3's.
-  if (kind === 'code') ws = null;
+  if (kind === 'code' || kind === 'strings') ws = null;
   return `${ws || ''}|${kind}|${name}`;
 }
 
@@ -176,7 +176,6 @@ async function openDoc(kind, name, options = {}) {
   // An item definition is edited in the inspector; opening it opens its file as text.
   if (kind === 'items') return openDoc('code', 'defs/items/' + name + '.json', options);
   if (kind === 'characters') return openDoc('code', 'defs/characters/' + name + '.json', options);
-  if (kind === 'strings') return openDoc('code', 'defs/text/' + name + '.json', options);
   const settings = options === true ? { reload: true } : options;
   const id = docId(kind, name);
   const existing = docs.get(id);
@@ -412,7 +411,7 @@ function makeTab(doc, group) {
   const badge = document.createElement('b');
   badge.className = 'ws ' + (workspaceLabel(doc.ws) || '').toLowerCase();
   badge.textContent = workspaceLabel(doc.ws);
-  badge.hidden = workspaces().length < 2 || doc.kind === 'code';
+  badge.hidden = workspaces().length < 2 || doc.kind === 'code' || doc.kind === 'strings';
 
   const shut = document.createElement('button');
   shut.className = 'shut';
@@ -832,6 +831,9 @@ function outlineFor(doc) {
   if (doc.kind === 'code' && typeof outlineForCode === 'function') {
     return outlineForCode(doc);
   }
+  if (doc.kind === 'strings' && typeof outlineForStrings === 'function') {
+    return outlineForStrings(doc);
+  }
 
   return [];
 }
@@ -1052,9 +1054,16 @@ function drawInspectedAsset(box) {
     }
     box.append(table);
     const open = document.createElement('button');
-    open.textContent = 'Edit the file';
+    open.className = 'primary';
+    open.textContent = 'Edit the lines';
     open.onclick = () => openDoc('strings', name);
-    box.append(open);
+    const asJson = document.createElement('button');
+    asJson.textContent = 'Open as JSON';
+    asJson.onclick = () => openDoc('code', data.file.path);
+    const row = document.createElement('div');
+    row.className = 'button-row';
+    row.append(open, asJson);
+    box.append(row);
     return;
   }
   if (kind === 'items' && data && typeof itemDefinitionPanel === 'function') {
@@ -1411,6 +1420,8 @@ function factsFor(doc) {
     facts.push(['bytes', data.bytes]);
   } else if (doc.kind === 'code' && typeof codeFacts === 'function') {
     return codeFacts(data);
+  } else if (doc.kind === 'strings' && typeof stringsFacts === 'function') {
+    return stringsFacts(data);
   }
 
   return facts;
@@ -1717,7 +1728,7 @@ function newTextFileDialog() {
       if (shut) shut.click();
       if (typeof itemsCountChanged === 'function') itemsCountChanged();
       await loadList();
-      openDoc('code', r.path);
+      openDoc('strings', r.name || shortName(r.path).replace(/\.json$/i, ''));
     } catch (e) { problem.textContent = e.message; }
   };
   name.onkeydown = e => { if (e.key === 'Enter') go.click(); };

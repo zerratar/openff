@@ -582,7 +582,7 @@ namespace Crystal.Editor
 					try
 					{
 						string made = ProjectText.New(_project, body?["name"]?.GetValue<string>());
-						SendJson(context, new { ok = true, path = made });
+						SendJson(context, new { ok = true, path = made, name = Path.GetFileNameWithoutExtension(made) });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;

@@ -107,6 +107,8 @@ const ICONS = {
 
   file: '<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/>'
 };
+// The mod's text is text: the same bubble as the game's.
+ICONS.strings = ICONS.text;
 
 /// One icon, as an element ready to put in a row.
 function icon(name, extra) {

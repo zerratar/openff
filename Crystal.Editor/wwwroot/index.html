@@ -156,6 +156,39 @@
   </div>
 </template>
 
+<!-- The mod's text: a table of id -> line, the JSON underneath -->
+<template id="view-strings">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="badge saving">saving…</span>
+      <span class="badge problem"></span>
+      <span class="grow"></span>
+      <button class="add primary" title="A new line at the next free id">Add line</button>
+      <button class="as-code" title="The file as text in the code editor">Open as JSON</button>
+    </div>
+    <div class="menu-body strings-body">
+      <div class="strings-wrap">
+        <p class="hint">Each line has an id the mod says it by: <code>"@id"</code> in a Chest or Talk field, <code>startMessage2(0, id, 0, 0)</code> in a CastScript, <code>Game.Say("@id")</code> in C#. Enter breaks the line in the window; <code>%shuyaku1%</code> is the first hero's name.</p>
+        <table class="strings">
+          <thead><tr><th class="id">Id</th><th></th><th>Line</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="xml-split">
+        <div class="xml-grip" title="drag to resize"></div>
+        <div class="xml-bar">
+          <span class="xml-note">JSON - <strong class="xml-what">the file as saved</strong></span>
+          <span class="grow"></span>
+          <button class="apply primary">Apply to the table</button>
+          <button class="xml-collapse" title="collapse">&#9662;</button>
+        </div>
+        <textarea class="xml" spellcheck="false" wrap="off"></textarea>
+      </div>
+    </div>
+  </div>
+</template>
+
 <!-- Menus -->
 <template id="view-menu">
   <div class="view">
@@ -402,6 +435,7 @@
 <script src="code-editor.js"></script>
 <script src="map-editor.js"></script>
 <script src="item-defs.js"></script>
+<script src="strings-editor.js"></script>
 <script src="model-viewer.js"></script>
 <script src="thumbnails.js"></script>
 <script src="picker.js"></script>

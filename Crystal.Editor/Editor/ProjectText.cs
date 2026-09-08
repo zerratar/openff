@@ -47,9 +47,8 @@ namespace Crystal.Editor
 					{
 						foreach (JsonNode item in a)
 						{
-							uint id = item?["id"]?.GetValue<uint>() ?? 0;
 							string text = item?["text"]?.GetValue<string>();
-							if (id != 0 && text != null) lines[id] = text;
+							if (ModText.TryId(item?["id"], out uint id) && text != null) lines[id] = text;
 						}
 					}
 				}
