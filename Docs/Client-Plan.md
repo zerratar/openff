@@ -2001,13 +2001,13 @@ standing in Ur in the game (C-58) and beside the chest in the editor (E-60).
 Steam converters (glTF → MDL0, PNG → XNB, TTF → SpriteFont) are a separate, later line for
 mods that must also install into the Steam games:
 
-- Models: glTF in - done for static meshes, and now for animated ones (below). Next: a
-  Solid box for collision, then the `Motion` and `Wander` components on a glTF character.
-- Maps: a whole map from a glTF - the look is this path already (a big Mesh); the ground
-  the hero walks needs a collision mesh, which for the OpenFF target can be the glTF
-  itself (a triangle mesh walked with the engine's own raycast) rather than an `.mcl`;
-  then a map's own camera, exits and encounter areas as scene objects. That is the "new
-  map" for OpenFF: a scene file with a Mesh, a ground, exits.
+- Models: glTF in - done for static meshes, animated ones, and as collision (`Solid`,
+  below). Next: the `Motion` and `Wander` components on a glTF character.
+- Maps: a whole map from a glTF - the look (a big Mesh) and the ground and walls (the same
+  Mesh, Solid) are this path now; what is left is the map itself as a thing of the mod's:
+  an id the client accepts without a game map behind it (no model, no `.mcl`), its camera,
+  exits and encounter areas as scene objects. That is the "new map" for OpenFF: a scene
+  file with a Solid Mesh, a camera, exits.
 - Images, fonts, sounds: PNG is read already for pictures; a TTF for text and an OGG/WAV
   for sound through `Game.Draw` and `Game.Audio` are the same shape of work as the meshes.
 - Steam targets keep to the game's formats: the duplication path, Replace with a PNG, the
@@ -2029,6 +2029,23 @@ two handles on one file may run different clips. The `Mesh` component gained `Cl
 `Speed`. Tried: a box skinned to one joint rising and turning in Ur (C-59). CPU posing is
 fine for the sizes a field model has; a skinned mesh of tens of thousands of vertices
 would want the joint matrices in a shader, which the NativeRenderer path can grow.
+
+### glTF as ground and walls: Mesh.Solid (2026-09-08, night)
+
+The characters ask `dgs.CRestrictor` for their collision: an arrow down for the ground
+(`getBottomPolygon`, GROUND polygons), a sphere along the step for walls (`calculateWallCollision`,
+WALL_01..05, pushed out by `radius - length` along the averaged normal). The restrictor
+walks the map's `mcl.CObject`s; it now also asks `ModCollision` (client, `Compat/`) - after
+the map's objects: the arrow takes a mod triangle when nearer than the map's hit
+(`ret.length` is the distance to beat), the sphere only where the map has no wall. The
+arithmetic is `evaluateArrowImp`/`evaluateSphereImp`'s, on `ds.pri`'s own primitives, so
+the behaviour is the map's. A solid is a bag of world-space fixed-point triangles with a
+material: up-facing GROUND, side-facing WALL_01, ceilings dropped (a floor polygon with the
+wall flag would lift the hero as the sphere test grazes it). `MeshHandle.Solid` rebuilds it
+from the bind pose through the pose matrix whenever the handle moves; the `Mesh` component's
+*Solid* field drives it. Tried: the hero stopped by a 6-wide box at 3 units (its radius),
+standing at y = 2 on a 20 × 2 slab and dropping to 0 off its edge (C-60). The restrictor
+also survives a map with no collision object now, which the whole-map-from-glTF line needs.
 
 ## Working rules
 

@@ -979,6 +979,9 @@ namespace OpenFF
 		/// <summary>The clip's speed; 1 is the file's own.</summary>
 		[Range(0.1f, 4f), Tooltip("The clip's speed; 1 is the file's own")]
 		public float Speed = 1f;
+		/// <summary>Its triangles are ground and walls to the characters: a floor to stand on, a wall to bump into. Off, it is walked through.</summary>
+		[Tooltip("Its triangles are ground and walls: stand on it, bump into it; off, it is walked through")]
+		public bool Solid;
 
 		/// <summary>The client's handle while it stands.</summary>
 		public MeshHandle Handle { get; private set; }
@@ -1002,6 +1005,7 @@ namespace OpenFF
 			if (Handle == null) { Game.Warn("Mesh " + Path + " on " + (GameObject?.Name ?? "?") + ": not spawned"); return; }
 			if (Handle.Problem != null) Game.Warn("Mesh " + Path + ": " + Handle.Problem);
 			else if (OnGround) Handle.Position = Place();
+			Handle.Solid = Solid;
 			if (!string.IsNullOrWhiteSpace(Clip) && Handle.Problem == null && !Handle.Play(Clip, true, Speed))
 				Game.Warn("Mesh " + Path + ": no clip '" + Clip + "' (it has: " + string.Join(", ", Handle.Clips) + ")");
 			_at = Transform.WorldPosition; _yaw = Transform.WorldYaw; _scale = Transform.WorldScale;
@@ -1025,6 +1029,7 @@ namespace OpenFF
 			if (yaw != _yaw) { Handle.Yaw = yaw; _yaw = yaw; }
 			bool hidden = !GameObject.ActiveInHierarchy;
 			if (hidden != _hidden) { Handle.Hidden = hidden; _hidden = hidden; }
+			if (Handle.Solid != Solid) Handle.Solid = Solid;
 		}
 
 		protected override void OnDisable()

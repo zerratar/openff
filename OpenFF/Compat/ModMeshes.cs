@@ -36,15 +36,35 @@ namespace OpenFF.Client
 			private OpenFF.Vector3 _position;
 			private float _yaw, _scale = 1f;
 			public override string Path => Model?.Path;
-			public override OpenFF.Vector3 Position { get => _position; set => _position = value; }
-			public override float Yaw { get => _yaw; set => _yaw = value; }
-			public override float Scale { get => _scale; set => _scale = value; }
+			public override OpenFF.Vector3 Position { get => _position; set { _position = value; Resolidify(); } }
+			public override float Yaw { get => _yaw; set { _yaw = value; Resolidify(); } }
+			public override float Scale { get => _scale; set { _scale = value; Resolidify(); } }
 			public override bool Hidden { get; set; }
+
+			private bool _solid;
+			public override bool Solid
+			{
+				get => _solid;
+				set { if (_solid == value) return; _solid = value; if (value) Resolidify(); else ModCollision.Remove(this); }
+			}
+
+			/// <summary>The pose matrix the mesh is drawn with, as the collision needs it: the bind pose's triangles through it.</summary>
+			public Matrix Pose => Matrix.CreateScale(_scale) * Matrix.CreateRotationY(MathHelper.ToRadians(_yaw)) * Matrix.CreateTranslation(new XnaVector3(_position.X, _position.Y, _position.Z));
+
+			private void Resolidify()
+			{
+				if (!_solid || Removed || Model == null) return;
+				Matrix pose = Pose;
+				List<XnaVector3> world = new List<XnaVector3>();
+				foreach (GltfPrimitive p in Model.Primitives)
+					foreach (VertexPositionColorTexture v in p.Vertices) world.Add(XnaVector3.Transform(v.Position, pose));
+				ModCollision.Set(this, world);
+			}
 			public override OpenFF.Vector3 Min => Model == null ? default : new OpenFF.Vector3(Model.Min.X, Model.Min.Y, Model.Min.Z);
 			public override OpenFF.Vector3 Max => Model == null ? default : new OpenFF.Vector3(Model.Max.X, Model.Max.Y, Model.Max.Z);
 			public override int Triangles => Model?.Triangles ?? 0;
 			public override string Problem => Model?.Problem;
-			public override void Remove() { Removed = true; _instance?._handles.Remove(this); }
+			public override void Remove() { Removed = true; ModCollision.Remove(this); _instance?._handles.Remove(this); }
 
 			// The clip playing: its index in the file, the time along it, the frame's vertices.
 			public OpenFF.Graphics.GltfAnimation Playing;
@@ -127,6 +147,7 @@ namespace OpenFF.Client
 			if (_instance == null) return;
 			foreach (Handle h in _instance._handles) h.Removed = true;
 			_instance._handles.Clear();
+			ModCollision.Clear();
 		}
 
 		/// <summary>Called by the world part after its scene has drawn: the meshes with the field's camera.</summary>
@@ -149,7 +170,7 @@ namespace OpenFF.Client
 				{
 					if (h.Hidden || h.Removed || h.Model == null || h.Model.Primitives.Count == 0) continue;
 					if (h.Playing != null) h.Advance();
-					Matrix world = Matrix.CreateScale(h.Scale) * Matrix.CreateRotationY(MathHelper.ToRadians(h.Yaw)) * Matrix.CreateTranslation(new XnaVector3(h.Position.X, h.Position.Y, h.Position.Z)) * camera;
+					Matrix world = h.Pose * camera;
 					for (int i = 0; i < h.Model.Primitives.Count; i++)
 					{
 						GltfPrimitive p = h.Model.Primitives[i];

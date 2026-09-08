@@ -600,6 +600,7 @@ Keeps a scene object's spawned model where its Transform says: move the object (
 | `string Clip` | An animation clip of the file (a Blender action by name) to play, looping, from the start; empty for the bind pose. |
 | `bool OnGround` | Stand the model on its feet: its lowest point on the object's position rather than its origin. |
 | `string Path` | The file, relative to the mod's folder (assets/hut.glb). |
+| `bool Solid` | Its triangles are ground and walls to the characters: a floor to stand on, a wall to bump into. Off, it is walked through. |
 | `float Speed` | The clip's speed; 1 is the file's own. |
 | `MeshHandle Handle { get; }` | The client's handle while it stands. |
 
@@ -620,6 +621,7 @@ A model of the mod's own standing on the map: a glTF file drawn by the client di
 | `Vector3 Position { get; set; }` | Where it stands; set to move it. |
 | `string Problem { get; }` | What went wrong reading it, or null. |
 | `float Scale { get; set; }` | Its scale; the file's own units times this. |
+| `bool Solid { get; set; }` | Whether its triangles are ground and walls to the characters: a floor to stand on (faces up), a wall to bump into (faces sideways). Off, it is walked through. The bind pose's triangles, at the mesh's place. |
 | `int Triangles { get; }` | How many triangles it draws. |
 | `float Yaw { get; set; }` | Its turn about the up axis, in degrees (the scene's yaw). |
 | `bool Play(string clip, bool loop = true, float speed = 1)` | Plays a clip by name from its start, looping or once; false when the file has none by that name. |
@@ -1930,4 +1932,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-121 types, 867 members; 401 without a summary yet.
+121 types, 869 members; 401 without a summary yet.

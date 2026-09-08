@@ -47,15 +47,23 @@ internal static partial class GlobalScope
 
 			public bool rorEvaluateArrow(VecFx32 _position, VecFx32 _direction, int _length, int mat, mcl.CollisionResult _result)
 			{
-				for (int i = 0; i < m_Collision.getNumberOfObject(); i++)
+				bool hit = false;
+				for (int i = 0; m_Collision != null && i < m_Collision.getNumberOfObject(); i++)
 				{
 					mcl.CObject cObject = const_cast<mcl.CObject>(m_Collision.getObject((uint)i));
 					if (cObject.evaluateArrow(_position, _direction, _length, mat, _result))
 					{
-						return true;
+						hit = true;
+						break;
 					}
 				}
-				return false;
+				// PORT: the mod's own solids (a glTF floor or wall) after the map's, taken when nearer.
+				if (OpenFF.Client.ModCollision.Count > 0)
+				{
+					if (!hit) { _result.clean(); _result.length = _length; }
+					if (OpenFF.Client.ModCollision.Arrow(_position, _direction, _length, mat, _result)) hit = true;
+				}
+				return hit;
 			}
 
 			public bool rorEvaluateArrow2(VecFx32 pos, VecFx32 dir, int len, int[] matList, byte matNum, mcl.CollisionResult ret)
@@ -81,7 +89,8 @@ internal static partial class GlobalScope
 						return true;
 					}
 				}
-				return false;
+				// PORT: the mod's own solids where the map has no wall.
+				return OpenFF.Client.ModCollision.Count > 0 && OpenFF.Client.ModCollision.Sphere(_center, _dir, _radius, mat, _result);
 			}
 
 			public bool rorEvaluateSphere2(VecFx32 center, VecFx32 prePos, VecFx32 dir, int radius, int[] matList, byte matNum, mcl.CollisionResult ret)

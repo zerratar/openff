@@ -621,6 +621,8 @@ namespace OpenFF
 		/// <summary>Its scale; the file's own units times this.</summary>
 		public abstract float Scale { get; set; }
 		public abstract bool Hidden { get; set; }
+		/// <summary>Whether its triangles are ground and walls to the characters: a floor to stand on (faces up), a wall to bump into (faces sideways). Off, it is walked through. The bind pose's triangles, at the mesh's place.</summary>
+		public abstract bool Solid { get; set; }
 		/// <summary>The file's extent, in its own units before Scale - to stand it on the ground, to size a box around it.</summary>
 		public abstract Vector3 Min { get; }
 		public abstract Vector3 Max { get; }
