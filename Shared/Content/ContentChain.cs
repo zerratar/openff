@@ -24,6 +24,7 @@ namespace OpenFF.Content
 		private readonly List<string> _overrides = new List<string>();
 		private readonly List<IContentSource> _fallbacks = new List<IContentSource>();
 		private readonly List<Func<string, byte[], byte[]>> _transforms = new List<Func<string, byte[], byte[]>>();
+		private readonly List<Func<string, string>> _aliases = new List<Func<string, string>>();
 		private readonly HashSet<string> _reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>The shipped content, whatever shape it is in.</summary>
@@ -199,6 +200,30 @@ namespace OpenFF.Content
 			if (transform != null) _transforms.Add(transform);
 		}
 
+		/// <summary>
+		/// Another name to try when a file is nowhere: a mod monster's texture answered with the
+		/// base monster's. Called with the name asked for; returns the name to read instead, or
+		/// null to leave it missing. Tried only after every source has said no.
+		/// </summary>
+		public void AddAlias(Func<string, string> alias)
+		{
+			if (alias != null) _aliases.Add(alias);
+		}
+
+		private string Alias(string name)
+		{
+			foreach (Func<string, string> step in _aliases)
+			{
+				try
+				{
+					string other = step(name);
+					if (!string.IsNullOrEmpty(other) && !string.Equals(other, name, StringComparison.OrdinalIgnoreCase)) return other;
+				}
+				catch (Exception) { }
+			}
+			return null;
+		}
+
 		private byte[] Transform(string name, byte[] data)
 		{
 			foreach (Func<string, byte[], byte[]> step in _transforms)
@@ -236,8 +261,10 @@ namespace OpenFF.Content
 
 		public bool Exists(string name)
 		{
-			return !string.IsNullOrEmpty(name)
-				&& (OverridePath(name) != null || Shipped.TryRead(name, out _) || _fallbacks.Any(f => f.TryRead(name, out _)));
+			if (string.IsNullOrEmpty(name)) return false;
+			if (OverridePath(name) != null || Shipped.TryRead(name, out _) || _fallbacks.Any(f => f.TryRead(name, out _))) return true;
+			string other = _aliases.Count > 0 ? Alias(name) : null;
+			return other != null && Exists(other);
 		}
 
 		/// <summary>The bytes of a file, from the first override that has it or the shipped content; null if nowhere.</summary>
@@ -249,6 +276,11 @@ namespace OpenFF.Content
 		public bool TryRead(string name, out byte[] data)
 		{
 			bool found = TryReadRaw(name, out data);
+			if (!found && _aliases.Count > 0)
+			{
+				string other = Alias(name);
+				if (other != null) return TryRead(other, out data);
+			}
 			if (found && _transforms.Count > 0) data = Transform(name, data);
 			return found;
 		}
