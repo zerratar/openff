@@ -1664,6 +1664,23 @@ language in `pl.getPlayerInitialName`, and the field model is `j<slot+1><job+1>`
 `bootCharacterImp`. A fixed-class character in FF3's engine is a job that cannot change plus
 a model of its own; that gate and the model hook are where the next slice goes.
 
+Both landed the same afternoon. `fixedJob`: the job menu's confirm (`CWMenuJob`, case 0)
+asks `ModCharactersLayer.JobFixed(slot)` beside the game's own "is the job won" test and
+beeps the same way - the only place a job changes outside the title's reset. `look`: every
+site that names a hero's model - `bootCharacterImp`, `setupHero`, the event boot as top
+player, the battle's three and its `_stone`, the shop, the job menu's two - builds
+`j<set+1><job+1>`, and the set now comes from `ModelSet(playerId)` (the definition's look or
+the slot). Every job has a figure in every set, so a look is safe everywhere a job is; a
+model of the character's own is not - an NPC model has no job figures and no battle
+motions - and stays out until there is something to stand in with. Slot 0 as a Knight in
+Refia's figures: `j309`. Boot drive and the chest parity agree.
+
+A note on method, for the next time: the eleven sprintf sites were edited with a PowerShell
+table of replacements, and PowerShell's comma binds tighter than `+`, so every "pair" was a
+flat list and `Replace` ran on single characters - two files were shredded and restored from
+git before the build saw them. Code edits go through the editor's replace tool, one at a
+time, and `git diff` is read before `dotnet build`.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

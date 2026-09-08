@@ -401,8 +401,14 @@ The first slice of character definitions: what a hero slot is as a game begins. 
 game's `JOB_TYPE` order) and level.
 
 ```json
-{ "id": "karl", "slot": 0, "name": "Karl", "job": "knight", "level": 7 }
+{ "id": "karl", "slot": 0, "name": "Karl", "job": "knight", "level": 7, "fixedJob": true, "look": 2 }
 ```
+
+`fixedJob` keeps the hero in its job - the job menu beeps at a change, as it does for a job
+not yet won - which is a class of its own in place of the job system, the first step toward
+FF4-style characters. `look` is which hero's model set the character wears (0 Luneth, 1 Arc,
+2 Refia, 3 Ingus: `j<look+1><job+1>` on the field, in battle, in the menus and shops); every
+job has a figure in every set, so nothing is missing anywhere.
 
 The client applies it where the game sets the party up - a `--map` start and the title's
 New Game (`ModCharactersLayer.ApplyToNewParty`): the name through `setName` (the name entry
@@ -410,8 +416,8 @@ still lets the player change it), the job through `changeJob`, the level the gam
 (`setExp` then `levelUp`, one level at a time along the job's growth tables), so the field
 model follows (a Knight in slot 0 is `j109`). A save loaded afterwards carries its own
 heroes. One definition per slot; a `--nomods` run is the game's. Not yet: a model of the
-character's own, a fixed class in place of the job system, heroes beyond the four - the
-seam for those is the next slice.
+character's own (an NPC model has no job figures and no battle motions to stand in with),
+and heroes beyond the four.
 
 ### Seeing what happens
 
