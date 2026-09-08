@@ -389,7 +389,7 @@ internal static partial class GlobalScope
 				}
 				else if (pl.PlayerParty.instance().playerForId((byte)frontPlayerID).isEnable())
 				{
-					sprintf(out arg, "j%d%02d", num + 1, pl.PlayerParty.instance().playerForId((byte)frontPlayerID).jobManager()
+					sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(num) + 1, pl.PlayerParty.instance().playerForId((byte)frontPlayerID).jobManager()
 						.nowJob() + 1);
 				}
 				VecFx32 position = new VecFx32(0, 0, 0);

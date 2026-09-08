@@ -15490,7 +15490,7 @@ internal static partial class GlobalScope
 								array[0] = pChrName[1];
 								array[1] = '\0';
 								num = atoi(new string(array)) - 1;
-								sprintf(out pChrName, "j%d%02d", pl.PlayerParty.instance().playerForId((byte)num).playerId() + 1, pl.PlayerParty.instance().playerForId((byte)num).jobManager()
+								sprintf(out pChrName, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().playerForId((byte)num).playerId()) + 1, pl.PlayerParty.instance().playerForId((byte)num).jobManager()
 									.nowJob() + 1);
 							}
 							TexDivideLoader.getSingleton().tdlForceLoad();
@@ -19961,7 +19961,7 @@ internal static partial class GlobalScope
 								array[0] = text2[1];
 								array[1] = '\0';
 								num = atoi(new string(array)) - 1;
-								sprintf(out text2, "j%d%02d", pl.PlayerParty.instance().playerForId((byte)num).playerId() + 1, pl.PlayerParty.instance().playerForId((byte)num).jobManager()
+								sprintf(out text2, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().playerForId((byte)num).playerId()) + 1, pl.PlayerParty.instance().playerForId((byte)num).jobManager()
 									.nowJob() + 1);
 							}
 							int num2 = bootPlainCharacterImp(word, text2, vecFx, vecFx2, vecFx3, vecFx4);
@@ -20252,7 +20252,7 @@ internal static partial class GlobalScope
 								}
 							}
 							string arg = "";
-							sprintf(out arg, "j%d01", num + 1);
+							sprintf(out arg, "j%d01", OpenFF.Client.ModCharactersLayer.ModelSet(num) + 1);
 							int manCastIndex = evt.CHichParameterManager.getInstance().getManCastIndex(word);
 							VecFx32 vecFx = ff3Command_reuse_v0;
 							VecFx32 vecFx2 = ff3Command_reuse_v1;

@@ -419,6 +419,11 @@ internal static partial class GlobalScope
 										{
 											flag = false;
 										}
+										// OpenFF: a hero a mod defined with a fixed job keeps it (defs/characters).
+										if (flag && OpenFF.Client.ModCharactersLayer.JobFixed(playerBox[playerIndex]))
+										{
+											flag = false;
+										}
 										if (flag)
 										{
 											_State = STATE.STATE_BEGIN_JOB_CHANGE;
@@ -581,7 +586,7 @@ internal static partial class GlobalScope
 												VecFx32 vecFx3 = new VecFx32(0, 61532, 0);
 												VecFx32 scale = new VecFx32(4096, 4096, 4096);
 												rot_.copy(vecFx3);
-												sprintf(out arg, "j%d%02d", pl.PlayerParty.instance().player((byte)playerIndex).playerId() + 1, pl.PlayerParty.instance().player((byte)playerIndex).jobManager()
+												sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().player((byte)playerIndex).playerId()) + 1, pl.PlayerParty.instance().player((byte)playerIndex).jobManager()
 													.nowJob() + 1);
 												jobModelID_ = cPlayerManager.setUpPlayerHuman(arg, _AutoPilot: false, _Operater: false);
 												wld.WorldPart.getInstance().getWorldSystem().PlayerMng()
@@ -660,7 +665,7 @@ internal static partial class GlobalScope
 											wld.WorldPart.getInstance().getWorldSystem().PlayerMng()
 												.Player(jobModelID_)
 												.terminate();
-											sprintf(out arg2, "j%d%02d", pl.PlayerParty.instance().player((byte)playerIndex).playerId() + 1, pl.PlayerParty.instance().player((byte)playerIndex).jobManager()
+											sprintf(out arg2, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().player((byte)playerIndex).playerId()) + 1, pl.PlayerParty.instance().player((byte)playerIndex).jobManager()
 												.nowJob() + 1);
 											jobModelID_ = wld.WorldPart.getInstance().getWorldSystem().PlayerMng()
 												.setUpPlayerHuman(arg2, _AutoPilot: false, _Operater: false);

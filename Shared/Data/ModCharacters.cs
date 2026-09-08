@@ -8,7 +8,16 @@
 // party up - the boot and the title's New Game - and a save loaded after that carries its
 // own, as it always did.
 //
-//   { "id": "luneth", "slot": 0, "name": "Luneth", "job": "knight", "level": 5 }
+//   { "id": "luneth", "slot": 0, "name": "Luneth", "job": "knight", "level": 5,
+//     "fixedJob": true, "look": 2 }
+//
+// fixedJob keeps the hero in its job - the job menu beeps at a change, as it does for a job
+// not yet won - the first step toward a character with a class of its own rather than the
+// job system. look is which hero's model set the character wears, 0..3 (Luneth's, Arc's,
+// Refia's, Ingus's: j<look+1><job+1> on the field, in battle, in the menus), so a definition
+// can give slot 0 Refia's figures; every job has a model in every set, so nothing is
+// missing anywhere. A model of the character's own comes later: an NPC model has no job
+// figures and no battle motions to stand in with.
 //
 // Jobs by the game's own enum names or the English ones (pl.JOB_TYPE: freelancer/suppinn,
 // onion-knight, warrior/fighter, monk, white-mage, black-mage, red-mage, ranger/hunter,
@@ -38,6 +47,10 @@ namespace OpenFF.Data
 		public string Job;
 		/// <summary>The starting level, 1..99; 0 keeps the game's (1).</summary>
 		public int Level;
+		/// <summary>The hero keeps its job: the job menu refuses a change.</summary>
+		public bool FixedJob;
+		/// <summary>Which hero's model set it wears, 0..3; -1 its own slot's.</summary>
+		public int Look = -1;
 		public string Source;
 
 		public static ModCharacter Parse(string json, string source = null)
@@ -51,6 +64,8 @@ namespace OpenFF.Data
 				Name = node["name"]?.GetValue<string>(),
 				Job = node["job"] is JsonValue j ? (j.TryGetValue(out int n) ? n.ToString() : j.GetValue<string>()) : null,
 				Level = node["level"]?.GetValue<int>() ?? 0,
+				FixedJob = node["fixedJob"]?.GetValue<bool>() ?? false,
+				Look = node["look"]?.GetValue<int>() ?? -1,
 				Source = source
 			};
 		}
@@ -60,6 +75,8 @@ namespace OpenFF.Data
 			JsonObject node = new JsonObject { ["id"] = Id, ["slot"] = Slot, ["name"] = Name ?? "" };
 			if (!string.IsNullOrEmpty(Job)) node["job"] = Job;
 			if (Level > 0) node["level"] = Level;
+			if (FixedJob) node["fixedJob"] = true;
+			if (Look >= 0) node["look"] = Look;
 			return node.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 		}
 	}
@@ -114,6 +131,7 @@ namespace OpenFF.Data
 						if (c.Slot < 0 || c.Slot > 3) { notes?.Add(file + ": slot " + c.Slot + " - FF3 has heroes 0..3"); continue; }
 						if (!string.IsNullOrEmpty(c.Job) && JobNumber(c.Job) < 0) { notes?.Add(file + ": no job called '" + c.Job + "'"); c.Job = null; }
 						if (c.Level < 0 || c.Level > 99) { notes?.Add(file + ": level " + c.Level + " - 1..99"); c.Level = 0; }
+						if (c.Look > 3) { notes?.Add(file + ": look " + c.Look + " - a hero's model set is 0..3"); c.Look = -1; }
 						all.Add(c);
 					}
 					catch (Exception ex) { notes?.Add(file + ": " + ex.Message); }

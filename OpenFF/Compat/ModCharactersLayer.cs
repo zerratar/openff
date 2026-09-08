@@ -40,6 +40,28 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>Which hero's model set a slot wears: the definition's look, or its own. Every j-model site asks (bootCharacterImp, setupHero, the battle, the menus).</summary>
+		public static int ModelSet(int playerId)
+		{
+			try
+			{
+				foreach (ModCharacter c in Characters) if (c.Slot == playerId && c.Look >= 0 && c.Look <= 3) return c.Look;
+			}
+			catch (Exception) { }
+			return playerId;
+		}
+
+		/// <summary>Whether a slot's hero keeps its job (the job menu refuses a change).</summary>
+		public static bool JobFixed(int playerId)
+		{
+			try
+			{
+				foreach (ModCharacter c in Characters) if (c.Slot == playerId && c.FixedJob) return true;
+			}
+			catch (Exception) { }
+			return false;
+		}
+
 		/// <summary>The party as a game begins: each defined slot's hero renamed, re-jobbed, levelled.</summary>
 		public static void ApplyToNewParty()
 		{
