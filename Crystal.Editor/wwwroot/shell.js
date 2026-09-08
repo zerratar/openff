@@ -1719,7 +1719,7 @@ function drawCodeActions() {
   strip.textContent = '';
   const project = (typeof projectState !== 'undefined' && projectState.project) || null;
   // The game's picture library takes new pictures in: a PNG under a name of the mod's own.
-  const imports = browseKind === 'image' && project;
+  const imports = (browseKind === 'image' || browseKind === 'texture') && project;
   strip.hidden = !imports && !KINDS.some(k => k.mod && k.id === browseKind);
   if (strip.hidden) return;
 
@@ -1734,7 +1734,8 @@ function drawCodeActions() {
     return b;
   };
   if (imports) {
-    button('Import a PNG…', 'A picture of the mod\'s own, as a file of the project\'s: the menus reference it by name', () => importImageDialog(), true);
+    if (browseKind === 'image') button('Import a PNG…', 'A picture of the mod\'s own, as a file of the project\'s: the menus reference it by name', () => importImageDialog(), true);
+    else button('New texture package…', 'A .ntxp of the mod\'s own from a PNG: a texture in the format you pick, for a model of the mod\'s or a monster\'s skin', () => newTexturePackageDialog(), true);
     return;
   }
   if (!project) {
@@ -1774,6 +1775,94 @@ function drawCodeActions() {
     if (project.client) button('Run in OpenFF', 'Export and start the client; a running one hot-reloads the code and takes scene changes on the next map', () => runInOpenFF());
   }
   button('Folder', 'The project\'s folder in Explorer', () => revealProject());
+}
+
+/// A texture package of the mod's own from a PNG: the package's name, the texture's name (the
+/// one a model's material asks for), the format, and whether entry 0 is see-through.
+function newTexturePackageDialog() {
+  const body = dialog('New texture package');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'A .ntxp.lz of the mod\'s own, built from a PNG. A model finds its texture by the name inside the package (n021\'s material asks for "n021"), so a duplicated model wants the same texture name as its original; a monster\'s skin the family\'s. Sides are powers of two from 8 to 1024; the picture is scaled to the size you give.';
+  body.append(note);
+  const sample = (state.files || []).find(f => f.name) || {};
+  const folder = sample.name && sample.name.includes('/') ? sample.name.slice(0, sample.name.lastIndexOf('/') + 1) : 'files/';
+  const pkg = field(body, 'Package name', '', { placeholder: 'n903  (.ntxp.lz is added)' });
+  const tex = field(body, 'Texture name', '', { placeholder: 'the name the model asks for, e.g. n021' });
+  section(body, 'Format');
+  const format = document.createElement('select');
+  for (const [v, label] of [['pal256', 'pal256 - 256 colours, one byte a pixel (most characters and maps)'], ['pal16', 'pal16 - 16 colours'], ['pal4', 'pal4 - 4 colours'], ['a3i5', 'a3i5 - 32 colours with 8 levels of alpha'], ['a5i3', 'a5i3 - 8 colours with 32 levels of alpha (shadows)'], ['rgb555', 'rgb555 - true colour, one bit of alpha, twice the size'], ['4x4', '4x4 - compressed blocks, a quarter the size (the battle monsters)']]) {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = label;
+    format.append(o);
+  }
+  body.append(format);
+  const clearWrap = document.createElement('label');
+  clearWrap.className = 'toggle';
+  const clear = document.createElement('input');
+  clear.type = 'checkbox';
+  clearWrap.append(clear, document.createTextNode(' transparent pixels (palette formats: entry 0 is see-through)'));
+  body.append(clearWrap);
+  section(body, 'Size');
+  const size = document.createElement('select');
+  for (const s of [8, 16, 32, 64, 128, 256, 512, 1024]) { const o = document.createElement('option'); o.value = s; o.textContent = `${s} × ${s}`; size.append(o); }
+  size.value = '64';
+  const sizeNote = document.createElement('span');
+  sizeNote.className = 'muted';
+  sizeNote.textContent = '  the picture\'s own size when it is a power of two';
+  body.append(size, sizeNote);
+  section(body, 'Picture');
+  const chooser = document.createElement('input');
+  chooser.type = 'file';
+  chooser.accept = 'image/png,image/*';
+  body.append(chooser);
+  chooser.onchange = async () => {
+    const file = chooser.files && chooser.files[0];
+    if (!file) return;
+    const bmp = await createImageBitmap(file);
+    const pow2 = v => v >= 8 && v <= 1024 && (v & (v - 1)) === 0;
+    if (pow2(bmp.width) && bmp.width === bmp.height) size.value = String(bmp.width);
+    if (!tex.value) tex.value = file.name.replace(/\.[^.]+$/, '');
+    if (!pkg.value) pkg.value = file.name.replace(/\.[^.]+$/, '');
+  };
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Create';
+  go.onclick = async () => {
+    const file = chooser.files && chooser.files[0];
+    const p = pkg.value.trim().replace(/\.ntxp(\.lz)?$/i, ''), t = tex.value.trim();
+    if (!file) { problem.textContent = 'Pick a PNG.'; return; }
+    if (!p || /[\\/:*?"<>|.]/.test(p)) { problem.textContent = 'A plain package name.'; return; }
+    if (!t || t.length > 16) { problem.textContent = 'A texture name of up to 16 characters.'; return; }
+    try {
+      const bmp = await createImageBitmap(file);
+      const side = parseInt(size.value, 10);
+      const canvas = document.createElement('canvas');
+      canvas.width = side; canvas.height = side;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = bmp.width !== side || bmp.height !== side;
+      ctx.drawImage(bmp, 0, 0, side, side);
+      const px = ctx.getImageData(0, 0, side, side).data;
+      let bin = '';
+      for (let i = 0; i < px.length; i += 0x8000) bin += String.fromCharCode.apply(null, px.subarray(i, i + 0x8000));
+      const name = folder + p + '.ntxp.lz';
+      const r = await api('/api/texture/new', { name, textures: [{ name: t, format: format.value, transparent0: clear.checked, width: side, height: side, rgba: btoa(bin) }] });
+      if (!r.ok) throw new Error(r.error);
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      markOverridden(name, true);
+      state.files = [];
+      await loadList();
+      say(`${shortName(name)} - ${r.bytes} bytes, the project's own`, 'good');
+      openDoc('texture', name, { pin: true });
+    } catch (e) { problem.textContent = e.message; }
+  };
+  actions.append(go);
+  body.append(actions);
+  setTimeout(() => pkg.focus(), 0);
 }
 
 /// A picture in: a PNG as a new file of the project's (or over one of the game's, by name).
