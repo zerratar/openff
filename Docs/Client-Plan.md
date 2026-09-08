@@ -1717,6 +1717,34 @@ run (`--nomods`) draws it the same. `menu.BasicWindow.SetBar` makes the `m015_ba
 original positioned it through something the port lost, or the phone's item-use window
 never had a visible bar, is the open question. FF3 1:1: an open item, not touched today.
 
+### Code and words for objects of the mod's own (2026-09-08, evening)
+
+CastScript was for converted casts: the code names a number the map's `.hich` knows. A
+villager the modder placed has no number and no row, so its `startMotionCharacter(N, …)`
+had nobody to reach. Now `Cast` 0 means "mine": `IScripts.Allocate` gives a number from
+5000 on each map (the map's script never has those; `Fresh` resets the count), and
+`LegacyNpc.TakeCast` finding no row for the number claims the first row past the map's
+`m_NumMan` (`m_Kind` ERR → CAST, `m_Id`, `m_CharaName`, `setCharaIndex`) - the table has 48,
+a town uses 20-odd, and `CHichParameterManager.initialize` clears every row at the next
+map, so nothing leaks. `getManCastIndex` scans all 48, so every command that names the cast
+finds the object; `startAllMapLogic` looks for MAP_LOGIC rows only and skips it. `@me` in
+the lines is the number (`LegacyScripts.Define` substitutes before compiling). Tried: an
+n021 at Ur's crossroads with `bindMotion(@me, …)`, a bow (1002) while the window is up, back
+to 1001 after - "n021 (character 13) is bound to cast 5000 (row 41)", the trace shows the
+motions change.
+
+Its words: `defs/text/<name>.json`, message id → line, ids from 40000000 (`Shared/Data/
+ModText.cs`). The client appends every mod's lines to `eureka_permanent.msd` as it is read
+(`ModItemsLayer.RegisterText`, the same content-chain transform as the items) - PERMANENT
+is the file every `mwSetMessage` falls back to after the map's own, so `startMessage2(0,
+40000001, 0, 0)`, a Talk's `@40000001`, `Game.Say("@…")` all reach it, `\n` breaks the line,
+the control codes work. Crystal: *OpenFF mod ▸ Strings* lists the files with their id range,
+*New text file…* makes one at the next free id and opens it, the inspector shows the lines,
+`/api/messages` answers the `@id` hints from the project's lines where the game's have
+nothing, and a Steam target gets the composed `files/eureka_permanent.msd` at Install and
+Export beside the item tables (`ProjectItems.WriteTables`). The game's own "Text" kind kept
+its name; the mod's is "Strings" so the two rows read apart.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

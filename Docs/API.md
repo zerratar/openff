@@ -323,6 +323,7 @@ The game's own script language, run by the engine: a cast's code as text - the l
 
 | Member | What it does |
 | --- | --- |
+| `int Allocate()` | A cast number no cast of the map's script has, for an object of the mod's own with code: counted from 5000 on this map. In the lines, "@me" stands for it. |
 | `bool Define(int cast, IReadOnlyList<string> lines)` | Defines (or replaces) the code a cast number runs on this map: a label per function is not needed, the lines are one function's body. False, with the problems logged, when it does not compile. |
 | `bool IsRunning(int cast)` | Whether the cast's code is running. |
 | `bool Start(int cast)` | Starts the cast's code, as the game's talk starts a cast's main. False when nothing is defined for it or it is running already. |
@@ -339,8 +340,9 @@ The cast's own code, run by the engine: the lines of its main function as Crysta
 
 | Member | What it does |
 | --- | --- |
-| `int Cast` | The cast number the code runs as - the original's, so the commands that name it (talkBegin(23)) reach this object through the bound row. |
-| `string[] Main` | The main function's lines, one per entry: commands, "label:" lines, comments after //. |
+| `int Cast` | The cast number the code runs as - a converted character's original number, so the commands that name it (talkBegin(23)) reach this object through the bound row; 0 for an object of the mod's own, which is given a number of its own (from 5000) and may write "@me" in its lines. |
+| `string[] Main` | The main function's lines, one per entry: commands, "label:" lines, comments after //. "@me" is this cast's number. |
+| `int RunsAs { get; }` | The number the code runs as: Cast, or the one given to an object of the mod's own. |
 | `void NpcReady(MapObject link)` |  |
 
 ### Chest
@@ -1857,4 +1859,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-116 types, 836 members; 398 without a summary yet.
+116 types, 838 members; 398 without a summary yet.

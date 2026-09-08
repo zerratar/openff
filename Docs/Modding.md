@@ -391,6 +391,50 @@ to another function's label, a `call` into the map's script), with the reason in
 Judge: `Tools\parity.ps1` - Ur's four drives (chest, boy, elder with the item menu, the
 opening scene) agree with the game's own run after the conversion.
 
+An object of the mod's own can have code too - a villager you placed, nothing converted.
+Add a `CastScript` and leave `Cast` at 0: the engine gives the object a cast number of its
+own (from 5000 on each map; the map's script never has those) and claims a free row of the
+map's cast table for it (`.hich` has 48; a map uses the first few, the rest are cleared at
+every map change), so the game's commands find it as they find any cast. In the lines
+`@me` stands for that number:
+
+```
+bindMotion(@me, "w_light_old");
+call(2, 0xB6744D73);
+startMotionCharacter(@me, 1002, 0, 5, 0);
+startMessageWindow(0);
+startMessage2(0, 40000001, 0, 0);
+deleteMessageWindow(0);
+startMotionCharacter(@me, 1001, 1, 5, 0);
+call(2, 0xC39DEA76);
+end();
+```
+
+The message id is the mod's own line - the next section.
+
+### Lines of the mod's own: `defs/text/<name>.json`
+
+Text is a definition as an item is. Under *OpenFF mod ▸ Strings*, *New text file…* makes a
+`defs/text/<name>.json` of message id → line, the first free id filled in; the file is
+edited as JSON, the inspector lists its lines:
+
+```json
+{
+  "40000000": "Hello there, traveller!\nWelcome to Ur.",
+  "40000001": "%shuyaku1% looks tired.\nCome back tomorrow."
+}
+```
+
+Ids from 40000000 are the mod's to use (the game's own stop far below); `\n` breaks the
+line in the window and the game's control codes (`%shuyaku1%` the first hero's name,
+`%unfixed_item%` the item a chest gave) work as in its own text. Say a line with `"@id"` in
+a `Chest`'s or `Talk`'s text field (the inspector shows the line under the field), with
+`startMessage2(0, id, 0, 0)` in a `CastScript`, or `Game.Say("@40000000")` from C#. In play
+the client appends every mod's lines to `eureka_permanent.msd` - the file every map falls
+back to - as it is read (`Shared/Data/ModText.cs`), so the game's own message window says
+them; a Steam project has the composed file written into its `files/` at Install and
+Export, like the item tables. Two mods with one id: the first in load order keeps it.
+
 ### Items of the mod's own: `defs/items/<id>.json`
 
 An item is a definition, not code. In Crystal, under *OpenFF mod ▸ Items*, *New item…* asks
