@@ -46,6 +46,7 @@
     <Compile Include="..\Shared\Script\Ffs\*.cs" Link="Compat\Script\Ffs\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Text\*.cs" Link="Compat\Text\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Data\*.cs" Link="Compat\Data\%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\Graphics\*.cs" Link="Compat\Graphics\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
