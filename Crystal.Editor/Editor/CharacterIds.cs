@@ -178,6 +178,18 @@ namespace Crystal.Editor
 						Uses = 0
 					};
 				}
+				else if (!_workspace.IsShipped(entry.Name))
+				{
+					// A model of the project's own (a duplicate under a new name): the OpenFF client
+					// loads it by name with no id at all; a .hich row would still need one.
+					known[model] = new PlaceableModel
+					{
+						Model = model,
+						CharacterId = 0,
+						From = "the project's own",
+						Uses = 0
+					};
+				}
 			}
 
 			_known = known;

@@ -678,6 +678,77 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/file/duplicate":
+				{
+					// New content from existing: a package copied under a name of the mod's own (a new
+					// NPC model from n021, a monster's skin from the one it wears). The copy is the
+					// project's file; the game loads it by its name like any other.
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>();
+						string asName = body?["as"]?.GetValue<string>();
+						bool overwrite = body?["overwrite"]?.GetValue<bool>() ?? false;
+						if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(asName)) throw new ArgumentException("a file and a new name");
+						if (asName.IndexOfAny(new[] { ':', '*', '?', '"', '<', '>', '|' }) >= 0 || asName.Contains("..")) throw new ArgumentException("not a content name: " + asName);
+						if (!overwrite && _workspace.Exists(asName)) throw new ArgumentException(asName + " exists already");
+						byte[] data = _workspace.Read(name);
+						_workspace.Write(asName, data);
+						_characterIds.Invalidate();
+						SendJson(context, new { ok = true, name = asName, bytes = data.Length });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/monsters/skin":
+				{
+					// A skin of the monster's own: the package it wears now (its look's, or the family's),
+					// copied to the name the battle asks for - f<family>_<number>.ntxp.lz - ready for
+					// Replace with a PNG in Textures. The alias is no longer needed once the file exists.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string id = body?["id"]?.GetValue<string>();
+						ModMonster m = ProjectMonsters.All(_project).FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+						if (m == null) throw new ArgumentException("no monster definition '" + id + "'");
+						byte[] record = ProjectMonsters.BaseRecord(_workspace, m.Base);
+						if (record == null) throw new ArgumentException("no monster " + m.Base + " in the game's tables");
+						int family = ChainPack.S16(record, 4);
+						int wear = m.Look > 0 ? m.Look : m.Base;
+						string own = "files/f" + family.ToString("000") + "_" + m.Number.ToString("000") + ".ntxp.lz";
+						string from = null;
+						foreach (string candidate in new[] { "files/f" + family.ToString("000") + "_" + wear.ToString("000") + ".ntxp.lz", "files/f" + family.ToString("000") + ".ntxp.lz" })
+							if (_workspace.Exists(candidate)) { from = candidate; break; }
+						if (from == null) throw new ArgumentException("the family has no texture package to start from");
+						if (!_workspace.Exists(own)) _workspace.Write(own, _workspace.Read(from));
+						SendJson(context, new { ok = true, name = own, from });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/image/import":
+				{
+					// A picture in, as a file of the project's: a new one under a name of the mod's own,
+					// or the game's replaced. The 2D pictures are PNGs under DS names (.NCGR, .NCBR).
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string name = body?["name"]?.GetValue<string>();
+						byte[] png = System.Convert.FromBase64String(body?["png"]?.GetValue<string>() ?? "");
+						if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a name for the picture");
+						if (png.Length < 8 || png[0] != 0x89 || png[1] != 'P' || png[2] != 'N' || png[3] != 'G') throw new ArgumentException("not a PNG");
+						if (name.IndexOfAny(new[] { ':', '*', '?', '"', '<', '>', '|' }) >= 0 || name.Contains("..")) throw new ArgumentException("not a content name: " + name);
+						bool existed = _workspace.Exists(name);
+						_workspace.Write(name, png);
+						SendJson(context, new { ok = true, name, bytes = png.Length, replaced = existed });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/texture/replace":
 				{
 					// A texture written back from a picture: the browser decodes the PNG and sends

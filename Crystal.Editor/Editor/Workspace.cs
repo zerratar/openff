@@ -136,6 +136,21 @@ namespace Crystal.Editor
 						Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)))));
 
 			_names = _source.Names.ToList();
+			// The project's own files with no shipped twin - a duplicated model, a new picture -
+			// are content too: listed with the rest, so the libraries show them.
+			try
+			{
+				if (Directory.Exists(OverrideDirectory))
+				{
+					HashSet<string> have = new HashSet<string>(_names, StringComparer.OrdinalIgnoreCase);
+					foreach (string file in Directory.EnumerateFiles(OverrideDirectory, "*", SearchOption.AllDirectories))
+					{
+						string name = Path.GetRelativePath(OverrideDirectory, file).Replace(Path.DirectorySeparatorChar, '/');
+						if (!have.Contains(name)) { _names.Add(name); have.Add(name); }
+					}
+				}
+			}
+			catch (Exception) { }
 
 			try
 			{
@@ -252,7 +267,11 @@ namespace Crystal.Editor
 			string path = OverridePath(name);
 			Directory.CreateDirectory(Path.GetDirectoryName(path));
 			File.WriteAllBytes(path, data);
+			if (!_names.Contains(name, StringComparer.OrdinalIgnoreCase)) _names.Add(name);
 		}
+
+		/// <summary>Whether the game shipped a file of this name (an override with no twin is the project's own).</summary>
+		public bool IsShipped(string name) => _source.TryRead(name, out _);
 
 		/// <summary>Removes the override, so the shipped copy is what the game sees.</summary>
 		public bool Revert(string name)
@@ -263,6 +282,8 @@ namespace Crystal.Editor
 				return false;
 			}
 			File.Delete(path);
+			// A file of the project's own, gone: off the list too.
+			if (!_source.TryRead(name, out _)) _names.RemoveAll(n => string.Equals(n, name, StringComparison.OrdinalIgnoreCase));
 			return true;
 		}
 
