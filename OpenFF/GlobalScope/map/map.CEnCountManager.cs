@@ -141,7 +141,8 @@ internal static partial class GlobalScope
 										{
 											return false;
 										}
-										if (num <= 0 || mon.MONSTER_PARTY_MAX <= num)
+										// PORT: a mod's formation (appended past the game's 259 parties) is a party too.
+										if (num <= 0 || (mon.MONSTER_PARTY_MAX <= num && !OpenFF.Client.ModItemsLayer.HasFormation(num)))
 										{
 											return false;
 										}

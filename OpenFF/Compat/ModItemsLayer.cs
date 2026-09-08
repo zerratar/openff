@@ -66,6 +66,13 @@ namespace OpenFF.Client
 		public static IReadOnlyList<ModMonster> Monsters { get; private set; } = new List<ModMonster>();
 		public static IReadOnlyList<ModFormation> Formations { get; private set; } = new List<ModFormation>();
 
+		/// <summary>Whether a monster party id is one of the mods' formations (the map's encounter tables may name one).</summary>
+		public static bool HasFormation(int number)
+		{
+			foreach (ModFormation f in Formations) if (f.Number == number) return true;
+			return false;
+		}
+
 		/// <summary>
 		/// The mods' monsters (defs/monsters) into monster.chaindata and eureka_battle.msd, their
 		/// formations (defs/formations) into monster_party_table.bbd, as the game reads them; and a
