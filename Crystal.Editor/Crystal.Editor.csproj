@@ -17,6 +17,7 @@
     <Compile Include="..\Shared\ArchiveFormat.cs" Link="Formats\ArchiveFormat.cs" />
     <Compile Include="..\Shared\Content\*.cs" Link="Formats\Content\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Script\*.cs" Link="Formats\Script\%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\Script\Ffs\*.cs" Link="Formats\Script\Ffs\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Text\*.cs" Link="Formats\Text\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Data\*.cs" Link="Formats\Data\%(Filename)%(Extension)" />
     <!-- The game's own Shift-JIS tables, so text written by the tool decodes

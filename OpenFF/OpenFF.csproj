@@ -43,6 +43,7 @@
     <Compile Include="..\Shared\ArchiveFormat.cs" Link="Compat\ArchiveFormat.cs" />
     <Compile Include="..\Shared\Content\*.cs" Link="Compat\Content\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Script\*.cs" Link="Compat\Script\%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\Script\Ffs\*.cs" Link="Compat\Script\Ffs\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Text\*.cs" Link="Compat\Text\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Data\*.cs" Link="Compat\Data\%(Filename)%(Extension)" />
   </ItemGroup>
