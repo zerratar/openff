@@ -257,7 +257,10 @@ namespace OpenFF
 
 		protected override void Update()
 		{
-			if (_npc != null || Transform == null || !Game.Hero.Present) return;
+			if (Transform == null || !Game.Hero.Present) return;
+			// With a model the game's own talk applies (face it, press A) - unless it acts on the
+			// hero walking in, which a figure can too: a monster met by touching it.
+			if (_npc != null && !OnWalkIn) return;
 			bool near = Vector3.FlatDistance(Transform.WorldPosition, Game.Hero.Position) <= Radius;
 			if (OnWalkIn)
 			{
@@ -501,6 +504,115 @@ namespace OpenFF
 
 		/// <summary>After the last line has been dismissed.</summary>
 		protected virtual void OnSaid() { }
+	}
+
+	/// <summary>
+	/// A monster on the map: walk into it (or press A at it) and the game's battle begins with
+	/// a formation - one of the game's monster parties, or one of the mod's own
+	/// (defs/formations). Won once, it is gone for good (SceneMemory) unless Once is off; run
+	/// from, it stays. The model is any the map can show; a monster's own battle model is the
+	/// battle's, so a field figure stands for it here as the game's own visible foes do.
+	/// Inherit and override OnWon / OnLost for what follows.
+	/// </summary>
+	public class Encounter : Interactable
+	{
+		/// <summary>The monster party to fight: the game's (monster_party_table.bbd) or the mod's own formation by number.</summary>
+		[Header("Battle")]
+		[FormationField, Tooltip("The formation: one of the game's monster parties, or one of the mod's own (Formations in the project)")]
+		public int Formation;
+		/// <summary>The battle background, as the game's battleMap ids; 0 for the map's default.</summary>
+		[Tooltip("The battle background by the game's id; 0 for the default")]
+		public int BattleMap;
+		/// <summary>Fought and won once: the object is gone, across saves. Off, it is there again every visit.</summary>
+		[Tooltip("Won once and gone for good, across saves; off, it comes back every visit")]
+		public bool Once = true;
+		/// <summary>Whether the party may run from this battle.</summary>
+		[Tooltip("Whether the party may run from this battle")]
+		public bool CanEscape = true;
+
+		public Encounter()
+		{
+			// A monster is met by walking into it; A at it works too. Two figures stop about 8
+			// apart, so the reach is a little more than that.
+			OnWalkIn = true;
+			Radius = 10f;
+		}
+
+		private string Key => "encounter:" + (GameObject?.Name ?? "?");
+		private bool _fighting;
+
+		/// <summary>Whether this one has been beaten (this visit, or ever when Once).</summary>
+		public bool Beaten { get; private set; }
+
+		// The battle takes the game out of the map and back: the scene is cleared on the way
+		// out and placed again on the way in, so the component that started the fight is gone
+		// when BattleEnded comes. The fight in progress is kept here, by the object's key; the
+		// result waits for the object's next Start.
+		private static string _pendingKey;
+		private static bool _pendingOnce;
+		private static IDisposable _watch;
+		private static readonly Dictionary<string, BattleResult> _results = new Dictionary<string, BattleResult>();
+
+		private static void Watch()
+		{
+			if (_watch != null) return;
+			_watch = Game.Events.Subscribe<Events.BattleEnded>(e =>
+			{
+				if (_pendingKey == null) return;
+				Game.Log("encounter " + _pendingKey + ": battle " + e.Result);
+				if (e.Result == BattleResult.Won && _pendingOnce) SceneMemory.Instance.Mark(_pendingKey);
+				_results[_pendingKey] = e.Result;
+				_pendingKey = null;
+			});
+		}
+
+		protected override void Start()
+		{
+			base.Start();
+			if (Once && SceneMemory.Instance.Has(Key)) Gone();
+			if (_results.TryGetValue(Key, out BattleResult result))
+			{
+				_results.Remove(Key);
+				if (result == BattleResult.Won) { Gone(); OnWon(); }
+				else if (result == BattleResult.Lost) OnLost();
+			}
+		}
+
+		public override void NpcReady(MapObject link)
+		{
+			base.NpcReady(link);
+			if (Beaten && link.Npc != null) { link.Npc.Hidden = true; link.Npc.Solid = false; }
+		}
+
+		protected override bool Applies() => !Beaten && !_fighting;
+
+		protected override void Activate()
+		{
+			if (Beaten || _fighting || Formation <= 0) return;
+			if (Game.Battle.InBattle) return;
+			_fighting = true;
+			Game.Log("encounter " + (GameObject?.Name ?? "?") + ": formation " + Formation);
+			Watch();
+			_pendingKey = Key;
+			_pendingOnce = Once;
+			Game.Battle.EscapeAllowed = CanEscape;
+			Game.Battle.Start(Formation, BattleMap);
+		}
+
+		/// <summary>The figure off the map: hidden and walked through, so nothing is left to bump into or talk to.</summary>
+		private void Gone()
+		{
+			Beaten = true;
+			MapObject link = GetComponent<MapObject>();
+			if (link?.Npc == null) return;
+			link.Npc.Hidden = true;
+			link.Npc.Solid = false;
+		}
+
+		/// <summary>The party won: the figure is gone (called on the object as the map comes back). Override for a reward, a flag, a line.</summary>
+		protected virtual void OnWon() { }
+		/// <summary>The party lost (the game's own game over follows).</summary>
+		protected virtual void OnLost() { }
 	}
 
 	/// <summary>

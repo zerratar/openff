@@ -52,6 +52,12 @@ namespace OpenFF
 	{
 	}
 
+	/// <summary>An int field that holds a monster party (formation) number: the editor offers the game's and the mod's formations to pick from.</summary>
+	[AttributeUsage(AttributeTargets.Field)]
+	public sealed class FormationFieldAttribute : Attribute
+	{
+	}
+
 	/// <summary>A public field the inspector leaves out (still set from a scene file when named).</summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
 	public sealed class HideInInspectorAttribute : Attribute
