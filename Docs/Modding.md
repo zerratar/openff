@@ -358,6 +358,39 @@ Files from before the objects had `"points"` (a flat list, no model) and targete
 `point:<name>`; both still read, as objects without a model, and Crystal writes the new
 shape the next time the scene is saved.
 
+### A cast's code as the mod's own: `CastScript`
+
+The third conversion, *Convert to OpenFF scripts*, gives each converted talker a `CastScript`
+beside its `GameCast`: the cast's main function as text, one line per entry, exactly as
+Crystal's disassembly writes it -
+
+```
+flagOnJump(0, 14, loc_419E);
+call(2, 0xB6744D73);                 // the library's talk begin
+startMessageWindow(0);
+startMessage2(0, 0x98E569, 0, 0);    // "Aren't those your friends making a ruckus…"
+deleteMessageWindow(0);
+flagOn(0, 13);
+call(2, 0xC39DEA76);                 // talk end
+end();
+loc_419E:
+…
+```
+
+- and the code is the mod's: it lives in the scene file, the inspector shows it as a text
+field, a modder changes a line, a flag, a message id, adds a branch. In play the engine
+compiles the lines with the script language's own compiler (`Shared/Script/Ffs`, the same
+one `crystal script-build` uses) into a script of the mod's, registers it with the game's
+logic manager beside the map's under a map number of its own, and starts the cast's main
+when the object is talked to - through the same `startLogic` the game's talk uses. The
+game's interpreter runs every command, so each means exactly what it means in the game;
+the `GameCast` beside it binds the cast's row to the object (`Npc.BindCast`) so the
+commands that name the cast reach it, and replays the boot's setup as before. The
+converter leaves a cast on `GameCast` alone when its main reaches outside itself (a jump
+to another function's label, a `call` into the map's script), with the reason in the plan.
+Judge: `Tools\parity.ps1` - Ur's four drives (chest, boy, elder with the item menu, the
+opening scene) agree with the game's own run after the conversion.
+
 ### Items of the mod's own: `defs/items/<id>.json`
 
 An item is a definition, not code. In Crystal, under *OpenFF mod ▸ Items*, *New item…* asks

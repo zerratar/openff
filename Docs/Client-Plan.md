@@ -1681,6 +1681,42 @@ flat list and `Replace` ran on single characters - two files were shredded and r
 git before the build saw them. Code edits go through the editor's replace tool, one at a
 time, and `git diff` is read before `dotnet build`.
 
+### The casts' code as the engine's own (2026-09-08, afternoon)
+
+The script translator, first form - and the form that may stay. The `.ffs` language is
+already a language with a compiler (`Crystal.Editor/Ffs`: lexer, parser, two-pass compiler
+that round-trips every shipped script byte for byte), so a cast's main function as *text*
+is the action list Karl asked for: one line per command, labels for the branches, the
+disassembly's comments carrying the lines' words. The compiler moved to
+`Shared/Script/Ffs` (with `ScriptOpTable.Names`; `SourceWriter`, which reads the editor's
+decoded types, stayed), so the client has it too.
+
+`CastScript : Interactable` holds `Cast` and `Main` (string[]). `Game.Scripts`
+(`IScripts`, `LegacyScripts` on the host) compiles every defined cast of a map into one
+`.script` of the mod's - `map 60000;`, a cast entry each, `castN_main:` and its lines -
+`ScriptData.cast(bytes)`, and registers it with the game's `LogicManager` beside the map's
+(the manager holds two scripts now, `CEventManager` PORT: `new ScriptData[2]`, `init(2u,
+…)`); `Start(cast)` is the manager's own `startLogic(60000, cast)`, and the game's logic
+loop runs it - the same interpreter, every command the game's. The object's `GameCast`
+binds the row without the logic (`Npc.BindCast`: `setCharaIndex`, `LogicIndex`
+INVALID) so the game's talk starts nothing and the component's `Activate` does. A cast
+whose main jumps outside itself or calls into the map's script (`call(1, …)`) is refused
+with the reason; the library calls (`call(2, hash)`) resolve everywhere. Crystal: *Convert
+to OpenFF scripts* (`MapConvert.Mains`, the source sliced from `castN_main:` to the next
+function's label; `CastPlan.Main`/`MainProblem`), a CastScript beside each GameCast for the
+talkers - 14 of Ur's; chests and the scene's actors stay GameCast alone.
+
+Parity, Ur converted this way: the boy, the elder both ways (`flag 0:11 on` for the item
+menu; SE 0/2 on its cancel), the chest, the opening scene - all agree. So the whole town's
+talk is the mod's code now, read and changed in the inspector, and the game cannot tell.
+
+Karl watched the elder run: the item-use menu with nothing in the bag draws a crosshair -
+a line across the screen and one down its middle - over the empty list, and the game's own
+run (`--nomods`) draws it the same. `menu.BasicWindow.SetBar` makes the `m015_bar` sprite
+(cell 1) and never positions it, so it sits at the sprite's default place; whether the
+original positioned it through something the port lost, or the phone's item-use window
+never had a visible bar, is the open question. FF3 1:1: an open item, not touched today.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
