@@ -556,6 +556,20 @@ flag, a line) - they run on the object as the map comes back from the battle. Fr
 `Game.Battle.Start(number)` fights a formation anywhere; in a CastScript the game's own
 battle commands do.
 
+Random fights too: the map's terrain card (click the terrain in the hierarchy) has
+**Random encounters** - the five groups of four parties the map's `.pak` holds, each slot a
+picker over the game's parties and the mod's formations, saved into the map's `.pak` as you
+change them (a file of the project's: Export carries it, a Steam mod installs it). Which
+ground fights which group is in the terrain's collision materials (attribute flags 20-24;
+group 1 is the usual one), so a map that has random fights keeps having them, with your
+formation among them - or only yours. The client accepts a mod formation's number where
+the game checks a party id against its own table's size.
+
+A texture of the monster's own, until Crystal writes `.ntxp` files: the battle asks for
+`f<family>_<id>.ntxp.lz` (`f001_1001.ntxp.lz` for a family-1 monster numbered 1001) and a
+file of that name under the mod's `ff3/files/files/` is used before any alias - so a
+texture made with another tool goes in as any replaced file does.
+
 ### The heroes: `defs/characters/<id>.json`
 
 The first slice of character definitions: what a hero slot is as a game begins. Under

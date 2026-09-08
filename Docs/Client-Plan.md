@@ -1850,6 +1850,27 @@ through the same alias), the encounter areas of a map (`map.CEnCountManager` che
 ids against `MONSTER_PARTY_MAX`; the map's own encounter table is where random fights
 come from), a bestiary page.
 
+### Random encounters from the map's own table (2026-09-08, late)
+
+Where random fights come from, read out: `CMapParameterManager` loads `<map>.pak` (chain 2,
+`CMapMonsterPartyParameter`, one 40-byte record = five groups × four party ids); the step's
+ground says the group - not the `.pak`'s land forms, as first assumed, but the terrain's
+collision material attribute flags 20-24 (`chr.CCharacterEureka.getMonsterGroupId`); a rare
+monster lottery (`RareMonsterGroupMng`) may pre-empt; then `setMonsterPartyId` draws one of
+the group's four parties, skipping zeros, and refused any id ≥ `MONSTER_PARTY_MAX` - now it
+asks `ModItemsLayer.HasFormation` first, so the game's ids are checked as before and a
+mod's pass. Crystal's terrain card gained *Random encounters*: `MapEncounters` reads and
+writes the chain through the Tables view's own `Pak` reader (the record's s16 fields come
+as shorts and must go back as shorts for `Pak.Write`), the pickers are the Encounter's
+(`/api/formations`), a change saves into the map's `.pak` as a project override - which is
+the Steam path too. Tried on d01_02: group 1 set to formation 1001, the first fight on the
+cave floor Goblin / Goblin Chief / Goblin on the cave's own b09 (E-55). One thing to keep in
+mind for mod files by hand: the game's names carry `files/`, so a loose override lives at
+`ff3/files/files/d01_02.pak` - the first try in `ff3/files/` was never read.
+
+A `.ntxp` writer is what a texture of the monster's own still wants; until then a file of
+the right name under `ff3/files/files/` is used before the alias, and Modding.md says so.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
