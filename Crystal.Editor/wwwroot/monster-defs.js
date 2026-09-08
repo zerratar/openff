@@ -194,6 +194,20 @@ function monsterDefinitionPanel(def, onSaved) {
   json.title = `${def.file} as text - what Export to OpenFF copies into the mod`;
   json.onclick = () => openDoc('code', def.file);
   actions.append(json);
+  const skin = document.createElement('button');
+  skin.className = 'wide-button';
+  skin.textContent = 'A skin of its own…';
+  skin.title = `Copies the texture it wears now to files/f${String(def.family).padStart(3, '0')}_${String(def.number).padStart(3, '0')}.ntxp.lz - the name the battle asks for - and opens it in Textures, where Replace with a PNG paints it`;
+  skin.onclick = async () => {
+    try {
+      const r = await api('/api/project/monsters/skin', { id: model.id });
+      if (!r.ok) throw new Error(r.error);
+      markOverridden(r.name, true);
+      say(`${shortName(r.name)} is the monster's own skin (from ${shortName(r.from)}) - Replace with a PNG paints it`, 'good');
+      openDoc('texture', r.name, { pin: true });
+    } catch (e) { say('skin: ' + e.message, 'bad'); }
+  };
+  actions.append(skin);
   const formation = document.createElement('button');
   formation.className = 'wide-button';
   formation.textContent = 'New formation with it…';

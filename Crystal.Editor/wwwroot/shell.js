@@ -1147,6 +1147,26 @@ function drawInspectedAsset(box) {
     box.append(json);
   }
 
+  // New content from existing: a copy of the file under a name of the mod's own. A model
+  // brings its textures along; the game loads either by its name, so a scene object may
+  // wear the copy at once and the copy is retextured in Textures.
+  if (kind === 'image' && typeof projectState !== 'undefined' && projectState.project) {
+    const replace = document.createElement('button');
+    replace.className = 'wide-button';
+    replace.textContent = 'Replace with a PNG…';
+    replace.title = 'Your PNG in place of this picture, as a file of the project\'s; Revert puts the game\'s back';
+    replace.onclick = () => importImageDialog(name);
+    box.append(replace);
+  }
+  if (['texture', 'model', 'image', 'audio', 'cell', 'menu', 'script', 'table'].includes(kind) && typeof projectState !== 'undefined' && projectState.project) {
+    const dup = document.createElement('button');
+    dup.className = 'wide-button';
+    dup.textContent = 'Duplicate as…';
+    dup.title = 'A copy of this file under a new name, as a file of the project\'s: new content the game loads by that name';
+    dup.onclick = () => duplicateFileDialog(kind, name);
+    box.append(dup);
+  }
+
   // A mod file can go to the machine's own editor as well as to a tab here.
   if (kind === 'code') {
     const ide = document.createElement('button');
@@ -1697,10 +1717,12 @@ function drawCodeActions() {
   const strip = $('#code-actions');
   if (!strip) return;
   strip.textContent = '';
-  strip.hidden = !KINDS.some(k => k.mod && k.id === browseKind);
+  const project = (typeof projectState !== 'undefined' && projectState.project) || null;
+  // The game's picture library takes new pictures in: a PNG under a name of the mod's own.
+  const imports = browseKind === 'image' && project;
+  strip.hidden = !imports && !KINDS.some(k => k.mod && k.id === browseKind);
   if (strip.hidden) return;
 
-  const project = (typeof projectState !== 'undefined' && projectState.project) || null;
   const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
   const button = (label, title, run, primary) => {
     const b = document.createElement('button');
@@ -1711,6 +1733,10 @@ function drawCodeActions() {
     strip.append(b);
     return b;
   };
+  if (imports) {
+    button('Import a PNG…', 'A picture of the mod\'s own, as a file of the project\'s: the menus reference it by name', () => importImageDialog(), true);
+    return;
+  }
   if (!project) {
     button('New project…', 'A project holds the edits, the C# code and the scene files', () => newProjectDialog(), true);
     return;
@@ -1748,6 +1774,127 @@ function drawCodeActions() {
     if (project.client) button('Run in OpenFF', 'Export and start the client; a running one hot-reloads the code and takes scene changes on the next map', () => runInOpenFF());
   }
   button('Folder', 'The project\'s folder in Explorer', () => revealProject());
+}
+
+/// A picture in: a PNG as a new file of the project's (or over one of the game's, by name).
+function importImageDialog(replacing) {
+  const body = dialog(replacing ? 'Replace the picture' : 'Import a PNG');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = replacing
+    ? `${replacing} replaced by a PNG of yours; Revert puts the game's back.`
+    : 'The 2D pictures are PNGs under the game\'s names (.NCGR, .NCBR). A new one goes in under a name of the mod\'s own, in the same folder the game\'s are in; a menu refers to it by that name.';
+  body.append(note);
+  const sample = (state.files || []).find(f => f.name) || {};
+  const folder = sample.name && sample.name.includes('/') ? sample.name.slice(0, sample.name.lastIndexOf('/') + 1) : '';
+  let name = null;
+  if (!replacing) {
+    name = field(body, 'Name', '', { placeholder: 'my_banner.NCGR' });
+    const hint = document.createElement('p');
+    hint.className = 'muted';
+    hint.textContent = `${folder}<name>  - .NCGR added when no extension is given`;
+    body.append(hint);
+  }
+  const chooser = document.createElement('input');
+  chooser.type = 'file';
+  chooser.accept = 'image/png';
+  body.append(chooser);
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = replacing ? 'Replace' : 'Import';
+  go.onclick = async () => {
+    const file = chooser.files && chooser.files[0];
+    if (!file) { problem.textContent = 'Pick a PNG.'; return; }
+    let target = replacing;
+    if (!replacing) {
+      let n = name.value.trim();
+      if (!n || /[\\/:*?"<>|]/.test(n)) { problem.textContent = 'A plain file name.'; return; }
+      if (!/\.[A-Za-z0-9]+$/.test(n)) n += '.NCGR';
+      target = folder + n;
+    }
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      const r = await api('/api/image/import', { name: target, png: btoa(bin) });
+      if (!r.ok) throw new Error(r.error);
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      markOverridden(target, true);
+      state.files = [];
+      await loadList();
+      say(`${shortName(target)} ${r.replaced ? 'replaced' : 'imported'} - ${r.bytes} bytes`, 'good');
+      inspectAsset('image', target);
+    } catch (e) { problem.textContent = e.message; }
+  };
+  actions.append(go);
+  body.append(actions);
+}
+
+/// A copy of a content file under a new name - new content from existing. A model's
+/// textures (.ntxp of the same stem) come along by default.
+function duplicateFileDialog(kind, name) {
+  const body = dialog('Duplicate as…');
+  const folder = name.includes('/') ? name.slice(0, name.lastIndexOf('/') + 1) : '';
+  const file = shortName(name);
+  const dot = file.indexOf('.');
+  const stem = dot > 0 ? file.slice(0, dot) : file;
+  const ext = dot > 0 ? file.slice(dot) : '';
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = kind === 'model'
+    ? `A new model from ${file}: the copy is the project's, the game loads it by its name (an OpenFF object's Model field, a .hich row), and its textures can be replaced in Textures without touching the original. The .ntxp of the same name comes along.`
+    : `A copy of ${file} as a file of the project's own, under a new name the game will load it by.`;
+  body.append(note);
+  const input = field(body, 'New name', stem + '_2', { placeholder: stem + '_2' });
+  const hint = document.createElement('p');
+  hint.className = 'muted';
+  hint.textContent = `${folder}<name>${ext}` + (kind === 'model' ? `  (+ ${folder}<name>.ntxp.lz)` : '');
+  body.append(hint);
+  let sibling = null;
+  if (kind === 'model') {
+    const wrap = document.createElement('label');
+    wrap.className = 'toggle';
+    sibling = document.createElement('input');
+    sibling.type = 'checkbox';
+    sibling.checked = true;
+    wrap.append(sibling, document.createTextNode(' also copy the textures (.ntxp.lz of the same name), so the copy can be recoloured on its own'));
+    body.append(wrap);
+  }
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Duplicate';
+  go.onclick = async () => {
+    const stemNew = input.value.trim();
+    if (!stemNew || /[\\/:*?"<>|.]/.test(stemNew)) { problem.textContent = 'A plain name without dots or slashes.'; return; }
+    try {
+      const target = folder + stemNew + ext;
+      const r = await api('/api/file/duplicate', { name, as: target });
+      if (!r.ok) throw new Error(r.error);
+      const made = [target];
+      if (sibling && sibling.checked) {
+        const tex = folder + stem + '.ntxp.lz', texNew = folder + stemNew + '.ntxp.lz';
+        const t = await api('/api/file/duplicate', { name: tex, as: texNew });
+        if (t.ok) made.push(texNew); else if (!/exists already|no file/.test(t.error || '')) throw new Error(t.error);
+      }
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      state.files = [];
+      await loadList();
+      say(`${made.join(' and ')} - the project's own now`, 'good');
+      inspectAsset(kind, target);
+    } catch (e) { problem.textContent = e.message; }
+  };
+  input.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+  actions.append(go);
+  body.append(actions);
+  setTimeout(() => { input.focus(); input.select(); }, 0);
 }
 
 /// A new defs/text/<name>.json: one line at the next free id, opened for editing.
