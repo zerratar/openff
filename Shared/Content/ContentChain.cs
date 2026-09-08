@@ -23,6 +23,7 @@ namespace OpenFF.Content
 	{
 		private readonly List<string> _overrides = new List<string>();
 		private readonly List<IContentSource> _fallbacks = new List<IContentSource>();
+		private readonly List<Func<string, byte[], byte[]>> _transforms = new List<Func<string, byte[], byte[]>>();
 		private readonly HashSet<string> _reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>The shipped content, whatever shape it is in.</summary>
@@ -188,6 +189,26 @@ namespace OpenFF.Content
 			}
 		}
 
+		/// <summary>
+		/// A step applied to a file's bytes after they are found, wherever they came from: a
+		/// mod's items appended to the game's item table when the game reads it. Called with
+		/// the name and the bytes; returns the bytes to serve (the same array to leave them).
+		/// </summary>
+		public void AddTransform(Func<string, byte[], byte[]> transform)
+		{
+			if (transform != null) _transforms.Add(transform);
+		}
+
+		private byte[] Transform(string name, byte[] data)
+		{
+			foreach (Func<string, byte[], byte[]> step in _transforms)
+			{
+				try { data = step(name, data) ?? data; }
+				catch (Exception) { }
+			}
+			return data;
+		}
+
 		/// <summary>Whether an override exists for a name, and where.</summary>
 		public string OverridePath(string name)
 		{
@@ -226,6 +247,13 @@ namespace OpenFF.Content
 		}
 
 		public bool TryRead(string name, out byte[] data)
+		{
+			bool found = TryReadRaw(name, out data);
+			if (found && _transforms.Count > 0) data = Transform(name, data);
+			return found;
+		}
+
+		private bool TryReadRaw(string name, out byte[] data)
 		{
 			data = null;
 			if (string.IsNullOrEmpty(name))

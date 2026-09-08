@@ -64,6 +64,8 @@ namespace OpenFF.Client
 				// the FF3 logic reads at start-up, which FF4 compiled into its executable.
 				// The install always wins; nothing of either game's is shipped for this.
 				MovementDefaults.Register(_chain);
+				// A mod's item definitions, appended to the game's item table and names as they are read.
+				ModItemsLayer.Register(_chain);
 			}
 			catch (Exception ex)
 			{
@@ -112,6 +114,7 @@ namespace OpenFF.Client
 					? project
 					: new[] { Path.Combine(local, "OpenFF", "Crystal", "projects", project), Path.Combine(local, "FF3ContentTool", "projects", project) }
 						.FirstOrDefault(Directory.Exists) ?? Path.Combine(local, "OpenFF", "Crystal", "projects", project);
+				ProjectDirectory = directory;
 				directories.AddRange(ProjectFiles(directory, game));
 				if (!Directory.Exists(directory))
 				{
@@ -175,6 +178,9 @@ namespace OpenFF.Client
 				yield return Path.Combine(directory, "files");
 			}
 		}
+
+		/// <summary>The editor project --project named, once resolved; null without one.</summary>
+		public static string ProjectDirectory { get; private set; }
 
 		/// <summary>The mods the mods folder enabled, in load order, for the engine to load code from.</summary>
 		public static IReadOnlyList<InstalledMod> ActiveMods { get; private set; } = new List<InstalledMod>();
