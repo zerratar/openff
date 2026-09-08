@@ -300,12 +300,19 @@ namespace OpenFF
 		[Header("Opening")]
 		[Tooltip("Opens once and stays open, across saves; off, it gives its contents every time")]
 		public bool Once = true;
-		/// <summary>What the window says on opening; {what} is the contents ("Potion x2 and 100 gil"). The game's own chests say "You find Potion."</summary>
-		[Tooltip("What the window says; {what} is the contents (\"Potion x2 and 100 gil\")")]
-		public string Message = "You find {what}.";
-		/// <summary>What the window says when it is already open.</summary>
-		[Tooltip("What the window says when it is already open")]
-		public string EmptyMessage = "The chest is empty.";
+		/// <summary>
+		/// What the window says on opening. "@" (the default) is the game's own chest message
+		/// for the contents - "The chest contained Potion." / "... 250 gil.", "You find Potion."
+		/// for an item spot (o000) or a chest without a model - from the .msd, with the
+		/// item and the gil filled in as the game fills them, in every language; "@1000142" is
+		/// any line of the .msd by its id; anything else is said as written, with {what} the
+		/// contents ("Potion x2 and 100 gil"). Empty says nothing.
+		/// </summary>
+		[Tooltip("What the window says: @ for the game's own chest message (any language), @<id> for a line of the .msd by id, or text with {what} for the contents; empty for nothing")]
+		public string Message = "@";
+		/// <summary>What the window says when it is already open; empty (the default) says nothing, as the game's opened chests do. "@&lt;id&gt;" for a line of the .msd.</summary>
+		[Tooltip("What the window says when it is already open; empty says nothing, as the game's opened chests do; @<id> for a line of the .msd")]
+		public string EmptyMessage = "";
 		/// <summary>The game's own flag for this chest ("1:22"), as its setTreasureItem named it: set when opened and read at start, so the game's treasure count and anything else reading it agree. Empty for a chest of the mod's own.</summary>
 		[Tooltip("The game's flag for the chest, group:index (a converted chest keeps its own); set when opened, read at start")]
 		[FlagField]
@@ -330,8 +337,16 @@ namespace OpenFF
 		public override void NpcReady(MapObject link)
 		{
 			base.NpcReady(link);
+			// A chest model is a treasure box to the game, which would open it itself (its own
+			// flag, "It's locked." for an empty one); this component runs the opening instead.
+			link.Npc.OwnChest();
+			_spot = string.Equals(link.Model, "o000", StringComparison.OrdinalIgnoreCase);
 			if (StartedFlag) Lid();
 		}
+
+		// An item lying about (the game's o000, its INVISIBLE object) says "You find ..." where
+		// a box says "The chest contained ..."; so does a chest with no model at all.
+		private bool _spot = true;
 
 		/// <summary>The lid as the game shows it: 1003 shut, 1002 open (map.CMapObject's acts 0 and 6).</summary>
 		private void Lid()
@@ -376,7 +391,19 @@ namespace OpenFF
 				_opening = true;
 			}
 			string what = got.Count == 0 ? "nothing" : string.Join(" and ", got);
-			if (!string.IsNullOrEmpty(Message)) Game.Dialogue.Say(Message.Replace("{what}", what));
+			if (Message == "@")
+			{
+				// The game's own words (map.CMapObject's act 4, in the chests' gold colour 9): a
+				// box says 1000142 "The chest contained ..." for an item, 1000141 for gold,
+				// 1000140 for nothing; an item spot (o000, or no model) says 1000146 "You find ...".
+				// The item and the gold go to the message's control codes. The game's chests hold
+				// one or the other; one of ours with both is said in the game's phrasing, as text.
+				if (Item > 0 && Gil > 0) Game.Dialogue.Say((_spot ? "You find " : "The chest contained ") + what + ".");
+				else if (Item > 0) Game.Dialogue.Say((_spot ? "@1000146" : "@1000142") + " item=" + Item + " color=9");
+				else if (Gil > 0) Game.Dialogue.Say("@1000141 gold=" + Gil + " color=9");
+				else Game.Dialogue.Say("@1000140 color=9");
+			}
+			else if (!string.IsNullOrEmpty(Message)) Game.Dialogue.Say(Message.Replace("{what}", what));
 			Game.Log("chest " + Key + ": " + what);
 			OnOpened(what);
 		}
@@ -1267,6 +1294,13 @@ namespace OpenFF
 			return o;
 		}
 
+		/// <summary>o and w models are the game's map objects (chests, signs, crates); the rest are people and creatures.</summary>
+		internal static bool IsObjectModel(string model)
+		{
+			char first = string.IsNullOrEmpty(model) ? ' ' : char.ToLowerInvariant(model[0]);
+			return first == 'o' || first == 'w';
+		}
+
 		/// <summary>The model for a scene object that has one: a plain character without a cast, following the transform, gone with the object. Components waiting for the character (INeedsNpc) hear of it.</summary>
 		internal static void SpawnModel(Modding.LoadedMod mod, string map, GameObject o)
 		{
@@ -1277,10 +1311,14 @@ namespace OpenFF
 				// A character has the walker behind it (turns to the player, can wander, is talked to
 				// the game's way) - the scripts' bootCharacter kind, or their bootPlainCharacter kind
 				// (Plain: the model's own scale and kind); a plain figure is just the model standing there.
-				link.Npc = link.Character
-					? (link.Plain ? Game.Npcs.SpawnPlain(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw) : Game.Npcs.Spawn(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw))
+				// An object model (o000, o001, w...) is one of the game's map objects whichever way:
+				// that is where a chest's lid motions and its opening come from. The character
+				// tick is about people.
+				bool asCharacter = link.Character || IsObjectModel(link.Model);
+				link.Npc = asCharacter
+					? (link.Plain && !IsObjectModel(link.Model) ? Game.Npcs.SpawnPlain(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw) : Game.Npcs.Spawn(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw))
 					: Game.Npcs.SpawnModel(link.Model, o.Transform.WorldPosition, o.Transform.WorldYaw, o.Transform.WorldScale);
-				if (link.Npc != null && link.Character && !link.Plain && o.Transform.WorldScale != 1f) link.Npc.Scale = o.Transform.WorldScale;
+				if (link.Npc != null && asCharacter && !link.Plain && o.Transform.WorldScale != 1f) link.Npc.Scale = o.Transform.WorldScale;
 				link.OwnsNpc = link.Npc != null;
 			});
 			if (link.Npc == null)

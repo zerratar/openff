@@ -372,10 +372,51 @@ namespace OpenFF.Client
 			Say(question ?? "");
 		}
 
+		/// <summary>
+		/// A text of the form "@1000142" is one of the game's own messages, by its id in the
+		/// .msd, shown through createMessage so its control codes (the item, the gold, the
+		/// hero's name) expand as the game's do; "@1000142 item=5001" or "gold=250" sets the
+		/// codes first, as the game's chest does before its "The chest contained ..." line;
+		/// "color=9" is the window's text colour (dgs.TXT_COLOR; 9 is the chests' gold).
+		/// </summary>
+		private static bool TryMessageId(string text, out uint id, out int itemId, out int gold, out int color)
+		{
+			id = 0; itemId = 0; gold = 0; color = -1;
+			if (string.IsNullOrEmpty(text) || text[0] != '@') return false;
+			string[] parts = text.Substring(1).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length == 0 || !uint.TryParse(parts[0], out id)) return false;
+			foreach (string part in parts.Skip(1))
+			{
+				int eq = part.IndexOf('=');
+				if (eq <= 0 || !int.TryParse(part.Substring(eq + 1), out int value)) continue;
+				string key = part.Substring(0, eq).ToLowerInvariant();
+				if (key == "item") itemId = value; else if (key == "gold" || key == "gil") gold = value; else if (key == "color") color = value;
+			}
+			return true;
+		}
+
 		private void Show(GlobalScope.wld.CMessageWindow window, string text)
 		{
 			TraceLine("Show", window);
-			window.createText(text, 0);
+			if (TryMessageId(text, out uint id, out int itemId, out int gold, out int color))
+			{
+				try
+				{
+					if (color >= 0) window.setMessageColor(color);
+					if (gold != 0) GlobalScope.dgs.CCtrlCodeInterface.instance().setGold(gold);
+					if (itemId != 0) GlobalScope.dgs.CCtrlCodeInterface.instance().setItemId(GlobalScope.itm.ItemManager.instance().itemParameter((short)itemId).nameId());
+					window.createMessage((int)id, 0, 0);
+				}
+				catch (Exception ex)
+				{
+					EngineApi.Warn("say-id", "Say @" + id + ": " + ex.Message);
+					window.createText(text, 0);
+				}
+			}
+			else
+			{
+				window.createText(text, 0);
+			}
 			TraceLine("Show done", window);
 			// A question keeps its text up until answered: no tap mark, no dismissal.
 			window.setProgressIconActivity(_SendMessage: _answer == null);
@@ -820,7 +861,16 @@ namespace OpenFF.Client
 			Game.Guard("Npc.BindMotions", () => EngineApi.BindMotions(p, set));
 		}
 
-		public override bool MotionDone => _motion.Done(Player);
+		public override bool MotionDone
+		{
+			get
+			{
+				// A map object (a chest) plays its own motions: ask it, not the walkers' bookkeeping.
+				GlobalScope.map.CMapObject box = AsMapObject();
+				if (box != null) { try { return box.isEndOfMotion(); } catch (Exception) { return true; } }
+				return _motion.Done(Player);
+			}
+		}
 
 		public override int Alpha
 		{
@@ -994,6 +1044,19 @@ namespace OpenFF.Client
 		/// lid, a closed one shuts. The chest then opens the game's own way when talked to -
 		/// sound, lid, message, flag, treasure count - since it is a map object like any other.
 		/// </summary>
+		public override void OwnChest()
+		{
+			// The model's number is its type to the game (o001 = TREASURE_BOX, o000 = INVISIBLE, an item spot): CPlayerHumanCheck
+			// runs the game's own opening for one on A. As a plain object the talk goes the
+			// characters' way (turn, startLogic of nothing) and reaches Interacted.
+			GlobalScope.map.CMapObject box = AsMapObject();
+			if (box == null) return;
+			GlobalScope.map.MAP_OBJECT_TYPE type = box.MapObjType();
+			if (type != GlobalScope.map.MAP_OBJECT_TYPE.TREASURE_BOX && type != GlobalScope.map.MAP_OBJECT_TYPE.INVISIBLE) return;
+			try { box.setMapObjType(GlobalScope.map.MAP_OBJECT_TYPE.MAP_OBJECT_TYPE_ERR); }
+			catch (Exception ex) { EngineApi.Warn("chest", "OwnChest: " + ex.Message); }
+		}
+
 		public override void SetTreasure(int itemId, int gil, int flagGroup, int flagIndex)
 		{
 			if (Player == null) return;

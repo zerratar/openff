@@ -77,7 +77,7 @@ The message window at the bottom of the field.
 | `event Action Closed` | Fired when a message the script showed has been dismissed. |
 | `void Ask(string question, Action<bool> answered)` | A yes/no question: the text in the message window and the game's own Yes/No box. The answer comes back once, then both close. While IsAsking, Say waits its turn. |
 | `void Close()` | Closes the window now. |
-| `void Say(string text, string speaker = null)` | Shows a text in the message window, with the "tap to continue" mark; the window closes when the player taps (or presses A). One at a time: while IsOpen, a new Say replaces the text. Optionally a speaker's name. |
+| `void Say(string text, string speaker = null)` | Shows a text in the message window, with the "tap to continue" mark; the window closes when the player taps (or presses A). One at a time: while IsOpen, a new Say replaces the text. Optionally a speaker's name. A text of the form "@1000142" is one of the game's own lines by its id in the .msd, in the player's language; "@1000142 item=5001 gold=250 color=9" fills the line's item and gold codes and sets the window's text colour (dgs.TXT_COLOR; 9 is the chests' gold). |
 
 ### IHero
 
@@ -328,11 +328,11 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 | --- | --- |
 | `bool ChestLook` | Play the game's chest motions (closed lid, opening, open lid), sound and sparkle - for a chest model (o000, o001). |
 | `int Count` | How many of the item. |
-| `string EmptyMessage` | What the window says when it is already open. |
+| `string EmptyMessage` | What the window says when it is already open; empty (the default) says nothing, as the game's opened chests do. "@<id>" for a line of the .msd. |
 | `string Flag` | The game's own flag for this chest ("1:22"), as its setTreasureItem named it: set when opened and read at start, so the game's treasure count and anything else reading it agree. Empty for a chest of the mod's own. |
 | `int Gil` | Gil inside, on top of the item or instead of it. |
 | `int Item` | The item inside, by id; 0 to give only gil. |
-| `string Message` | What the window says on opening; {what} is the contents ("Potion x2 and 100 gil"). The game's own chests say "You find Potion." |
+| `string Message` | What the window says on opening. "@" (the default) is the game's own chest message for the contents - "The chest contained Potion." / "... 250 gil.", "You find Potion." for an item spot (o000) or a chest without a model - from the .msd, with the item and the gil filled in as the game fills them, in every language; "@1000142" is any line of the .msd by its id; anything else is said as written, with {what} the contents ("Potion x2 and 100 gil"). Empty says nothing. |
 | `bool Once` | Opens once and stays open, across saves (SceneMemory); off, it gives its contents every time. |
 | `bool Opened { get; }` | Whether it has been opened (this visit, or ever when Once). |
 | `void NpcReady(MapObject link)` |  |
@@ -615,6 +615,7 @@ A character a script put on the map.
 | `void Face(float yaw)` | Turns to a yaw in degrees. |
 | `void LookAt(Vector3 point)` | Turns to face a point. |
 | `void MoveTo(Vector3 position, int frames)` | Walks to a point over a number of frames (0 teleports). The character faces where it walks. |
+| `void OwnChest()` | The opposite of SetTreasure: the game's own chest logic steps aside for this map object (o001 is a treasure box to the game, which would open it itself on A, with its own flag and message), so a component - the Chest - runs the opening. The player's talk still reaches Interacted. |
 | `void PlayMotion(int index, bool loop = false, int blendFrames = 5)` | Plays a motion by its index in the character's set (1001 is the talk pose). |
 | `void Recolour(string variant)` | The game's changeColorCharacter: the model's texture replaced by a variant named <model>_<variant> (n021 with "n024"). |
 | `void Remove()` | Takes the character off the map. |
@@ -1829,4 +1830,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-114 types, 826 members; 396 without a summary yet.
+114 types, 827 members; 396 without a summary yet.

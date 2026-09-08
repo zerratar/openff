@@ -54,7 +54,10 @@ namespace OpenFF
 		/// <summary>
 		/// Shows a text in the message window, with the "tap to continue" mark; the window
 		/// closes when the player taps (or presses A). One at a time: while IsOpen, a new
-		/// Say replaces the text. Optionally a speaker's name.
+		/// Say replaces the text. Optionally a speaker's name. A text of the form "@1000142"
+		/// is one of the game's own lines by its id in the .msd, in the player's language;
+		/// "@1000142 item=5001 gold=250 color=9" fills the line's item and gold codes and sets
+		/// the window's text colour (dgs.TXT_COLOR; 9 is the chests' gold).
 		/// </summary>
 		void Say(string text, string speaker = null);
 
@@ -198,6 +201,14 @@ namespace OpenFF
 		/// (o000, o001) spawned as a character.
 		/// </summary>
 		public virtual void SetTreasure(int itemId, int gil, int flagGroup, int flagIndex) { }
+
+		/// <summary>
+		/// The opposite of SetTreasure: the game's own chest logic steps aside for this map
+		/// object (o001 is a treasure box to the game, which would open it itself on A, with its
+		/// own flag and message), so a component - the Chest - runs the opening. The player's
+		/// talk still reaches Interacted.
+		/// </summary>
+		public virtual void OwnChest() { }
 
 		/// <summary>The game's changeColorCharacter: the model's texture replaced by a variant named &lt;model&gt;_&lt;variant&gt; (n021 with "n024").</summary>
 		public virtual void Recolour(string variant) { }
