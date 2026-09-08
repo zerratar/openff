@@ -907,6 +907,8 @@ table.grid tr:hover td { background: #1b1f26; }
 dl.facts { display: grid; grid-template-columns: 130px 1fr; gap: 4px 14px; margin: 0; }
 dl.facts dt { color: var(--dim); }
 dl.facts dd { margin: 0; }
+dl.facts.text-lines { grid-template-columns: 90px 1fr; margin: 8px 0 12px; }
+dl.facts.text-lines dd { white-space: pre-wrap; }
 
 .players { display: flex; flex-direction: column; gap: 10px; }
 .player { display: flex; align-items: center; gap: 10px; }

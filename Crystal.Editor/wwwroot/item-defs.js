@@ -13,7 +13,8 @@ async function itemsCountChanged() {
   try {
     const r = await api('/api/project/items');
     const c = await api('/api/project/characters');
-    if (typeof projectState !== 'undefined' && projectState.project) { projectState.project.items = (r.items || []).length; projectState.project.characters = (c.characters || []).length; }
+    const t = await api('/api/project/text');
+    if (typeof projectState !== 'undefined' && projectState.project) { projectState.project.items = (r.items || []).length; projectState.project.characters = (c.characters || []).length; projectState.project.text = (t.lines || []).length; }
     if (typeof drawProjectTree === 'function') drawProjectTree();
   } catch (e) { /* the count is a nicety */ }
 }

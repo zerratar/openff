@@ -404,7 +404,8 @@ namespace Crystal.Editor
 							client = OpenFFClient.Executable() != null,
 							scenes = ProjectScenes.Maps(_project).Count,
 							items = ProjectItems.All(_project).Count,
-							characters = ProjectCharacters.All(_project).Count
+							characters = ProjectCharacters.All(_project).Count,
+							text = ProjectText.Lines(_project).Count
 						}
 					});
 					return;
@@ -555,6 +556,35 @@ namespace Crystal.Editor
 						return;
 					}
 					SendJson(context, new { ok = true, characters = all.Select(ProjectCharacters.Describe).ToList(), jobs = ProjectCharacters.Jobs(), heroes = ProjectCharacters.Heroes, notes });
+					return;
+				}
+
+				case "/api/project/text":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					List<string> notes = new List<string>();
+					Dictionary<uint, string> lines = ProjectText.Lines(_project, notes);
+					SendJson(context, new
+					{
+						ok = true,
+						files = ProjectText.Files(_project),
+						lines = lines.OrderBy(p => p.Key).Select(p => new { id = p.Key, text = p.Value }).ToList(),
+						next = ProjectText.NextId(_project),
+						notes
+					});
+					return;
+				}
+
+				case "/api/project/text/new":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string made = ProjectText.New(_project, body?["name"]?.GetValue<string>());
+						SendJson(context, new { ok = true, path = made });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
 				}
 
@@ -2058,6 +2088,9 @@ namespace Crystal.Editor
 		{
 			JsonNode body = ReadBody(context);
 			Dictionary<string, string> found = new Dictionary<string, string>();
+			// The mod's own lines (defs/text) answer where the game's files have nothing: the
+			// client composes them into eureka_permanent.msd, so an "@40000001" says them.
+			Dictionary<uint, string> own = _project != null ? ProjectText.Lines(_project) : null;
 
 			if (_lookupMessage != null && body["ids"] != null)
 			{
@@ -2073,6 +2106,7 @@ namespace Crystal.Editor
 						continue;
 					}
 					string text = _lookupMessage((uint)value);
+					if (text == null && own != null && own.TryGetValue((uint)value, out string line)) text = line;
 					if (text != null)
 					{
 						found[value.ToString(CultureInfo.InvariantCulture)] = text;

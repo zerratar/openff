@@ -138,6 +138,14 @@ async function loadList() {
       name: d.id, overridden: false, def: d,
       note: `slot ${d.slot} (${d.hero})${d.jobName ? ' · ' + d.jobName : ''}${d.level > 1 ? ' · L' + d.level : ''}`
     }));
+  } else if (state.browse === 'strings') {
+    // The mod's own lines: defs/text/<name>.json each, listed with their id range.
+    const defs = await api('/api/project/text');
+    state.textError = defs.ok ? '' : defs.error;
+    state.files = (defs.ok ? (defs.files || []) : []).map(f => ({
+      name: f.name, overridden: false, def: f,
+      note: f.problem ? f.problem : f.lines ? `${f.lines} line${f.lines === 1 ? '' : 's'} · @${f.first}${f.last !== f.first ? '..@' + f.last : ''}` : 'no lines'
+    }));
   } else {
     state.files = await api(`/api/list?kind=${state.browse}`);
   }
@@ -255,6 +263,15 @@ function drawList() {
         : 'No hero definitions yet. New character… (the button above) takes one of the four hero slots and sets its name, starting job and level as a game begins.';
     list.append(note);
   }
+  if (state.browse === 'strings' && !list.childElementCount && !filter) {
+    const note = document.createElement('li');
+    note.className = 'note';
+    const project = typeof projectState !== 'undefined' && projectState.project;
+    note.textContent = state.textError && !project
+      ? 'No project open. File › New project… makes one; the lines its mod adds show here.'
+      : 'No lines of the mod\'s own yet. New text file… (the button above) starts a defs/text/<name>.json of message id → line; "@<id>" in a Chest or Talk field and startMessage2(0, <id>, 0, 0) in a CastScript say them through the game\'s window.';
+    list.append(note);
+  }
   if (state.browse === 'scene' && !list.childElementCount && !filter) {
     const note = document.createElement('li');
     note.className = 'note';
@@ -276,6 +293,7 @@ function fileIcon(file) {
   if (state.browse === 'scene') return 'scene';
   if (state.browse === 'items') return 'item';
   if (state.browse === 'characters') return 'character';
+  if (state.browse === 'strings') return 'text';
   if (state.browse !== 'code') return state.browse;
   if (file.kind === 'cs' || file.kind === 'csproj') return 'code';
   if (file.kind === 'json') return 'logic';

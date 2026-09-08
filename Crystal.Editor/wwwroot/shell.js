@@ -33,7 +33,8 @@ const KINDS = [
   { id: 'code', label: 'Code', mod: true },
   { id: 'scene', label: 'Scenes', mod: true },
   { id: 'items', label: 'Items', mod: true },
-  { id: 'characters', label: 'Characters', mod: true }
+  { id: 'characters', label: 'Characters', mod: true },
+  { id: 'strings', label: 'Strings', mod: true }
 ];
 
 // ---------------------------------------------------------------- documents
@@ -175,6 +176,7 @@ async function openDoc(kind, name, options = {}) {
   // An item definition is edited in the inspector; opening it opens its file as text.
   if (kind === 'items') return openDoc('code', 'defs/items/' + name + '.json', options);
   if (kind === 'characters') return openDoc('code', 'defs/characters/' + name + '.json', options);
+  if (kind === 'strings') return openDoc('code', 'defs/text/' + name + '.json', options);
   const settings = options === true ? { reload: true } : options;
   const id = docId(kind, name);
   const existing = docs.get(id);
@@ -903,6 +905,12 @@ async function inspectAsset(kind, name, options = {}) {
       const c = await api(`/api/project/characters?id=${encodeURIComponent(name)}`);
       if (c.ok === false) throw new Error(c.error);
       me.data = { character: c.character, jobs: c.jobs, heroes: c.heroes };
+    } else if (kind === 'strings') {
+      const t = await api('/api/project/text');
+      if (t.ok === false) throw new Error(t.error);
+      const file = (t.files || []).find(f => f.name === name);
+      if (!file) throw new Error('no text file ' + name);
+      me.data = { file, lines: file.entries || [] };
     }
   } catch (error) {
     me.problem = error.message;
@@ -1019,6 +1027,34 @@ function drawInspectedAsset(box) {
   // An item definition is edited right here, as a scene object is: the form is the panel.
   if (kind === 'characters' && data && typeof characterDefinitionPanel === 'function') {
     box.append(characterDefinitionPanel(data, () => { loadList(); }));
+    return;
+  }
+  // A text file: its lines by id, and the way to use one. The file itself is edited as JSON.
+  if (kind === 'strings' && data) {
+    const head = document.createElement('p');
+    head.className = 'muted';
+    head.textContent = `${data.file.path} - ${data.lines.length} line${data.lines.length === 1 ? '' : 's'}. Say one with "@<id>" in a Chest or Talk field, or startMessage2(0, <id>, 0, 0) in a CastScript; the client adds them to the game's text.`;
+    box.append(head);
+    if (data.file.problem) {
+      const problem = document.createElement('p');
+      problem.className = 'none';
+      problem.textContent = data.file.problem;
+      box.append(problem);
+    }
+    const table = document.createElement('dl');
+    table.className = 'facts text-lines';
+    for (const line of data.lines) {
+      const id = document.createElement('dt');
+      id.textContent = '@' + line.id;
+      const text = document.createElement('dd');
+      text.textContent = line.text;
+      table.append(id, text);
+    }
+    box.append(table);
+    const open = document.createElement('button');
+    open.textContent = 'Edit the file';
+    open.onclick = () => openDoc('strings', name);
+    box.append(open);
     return;
   }
   if (kind === 'items' && data && typeof itemDefinitionPanel === 'function') {
@@ -1579,13 +1615,13 @@ function drawProjectTree() {
     }
     const row = document.createElement('div');
     row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod ? ' sub' : '');
-    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'characters' ? 'character' : 'code') : kind.id));
+    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'characters' ? 'character' : kind.id === 'strings' ? 'text' : 'code') : kind.id));
     const label = document.createElement('span');
     label.textContent = kind.label;
     row.append(label);
     if (kind.mod && project && openff) {
       const count = document.createElement('i');
-      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : kind.id === 'characters' ? (project.characters || '') : '';
+      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : kind.id === 'characters' ? (project.characters || '') : kind.id === 'strings' ? (project.text || '') : '';
       if (count.textContent) row.append(count);
       row.title = kind.id === 'scene'
         ? 'Maps this mod has put behaviours or objects on (scenes/<map>.json). Each opens in the map editor.'
@@ -1593,7 +1629,9 @@ function drawProjectTree() {
           ? 'The mod\'s own items (defs/items/<id>.json): each starts from one of the game\'s and changes what it names; the client adds them to the game\'s item table.'
           : kind.id === 'characters'
             ? 'The heroes as a game begins (defs/characters/<id>.json): a slot\'s name, starting job and level.'
-            : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
+            : kind.id === 'strings'
+              ? 'The mod\'s own lines of text (defs/text/<name>.json): message id -> line. "@<id>" in a Chest or Talk, startMessage2(0, <id>, 0, 0) in a CastScript; the client adds them to the game\'s text.'
+              : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
     }
     row.onclick = () => selectKind(kind.id);
     into.append(row);
@@ -1643,6 +1681,9 @@ function drawCodeActions() {
     if (browseKind === 'characters' && typeof newCharacterDialog === 'function') {
       button('New character…', 'A hero slot\'s definition: the name, the starting job and level as a game begins', () => newCharacterDialog(), true);
     }
+    if (browseKind === 'strings') {
+      button('New text file…', 'A defs/text/<name>.json of the mod\'s own lines, message id -> text, starting at the next free id', () => newTextFileDialog(), true);
+    }
     if (browseKind === 'items' && typeof newItemDialog === 'function') {
       button('New item…', 'An item of the mod\'s own: starts from one of the game\'s, with a name, a caption, prices and any field of the record changed', () => newItemDialog(), true);
     }
@@ -1650,6 +1691,39 @@ function drawCodeActions() {
     if (project.client) button('Run in OpenFF', 'Export and start the client; a running one hot-reloads the code and takes scene changes on the next map', () => runInOpenFF());
   }
   button('Folder', 'The project\'s folder in Explorer', () => revealProject());
+}
+
+/// A new defs/text/<name>.json: one line at the next free id, opened for editing.
+function newTextFileDialog() {
+  const body = dialog('New text file');
+  const name = field(body, 'Name', '', { placeholder: 'greeter, or quests - .json is added' });
+  const hint = document.createElement('p');
+  hint.className = 'muted';
+  hint.textContent = 'A file of message id -> line. Ids from 40000000 are the mod\'s to use; the first free one is filled in. "\\n" breaks a line, %shuyaku1% is the hero\'s name, as in the game\'s own text.';
+  body.append(hint);
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Create';
+  go.onclick = async () => {
+    const n = name.value.trim();
+    if (!n) { problem.textContent = 'A text file needs a name.'; return; }
+    try {
+      const r = await api('/api/project/text/new', { name: n });
+      if (!r.ok) throw new Error(r.error);
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      if (typeof itemsCountChanged === 'function') itemsCountChanged();
+      await loadList();
+      openDoc('code', r.path);
+    } catch (e) { problem.textContent = e.message; }
+  };
+  name.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+  actions.append(go);
+  body.append(actions);
+  setTimeout(() => name.focus(), 0);
 }
 
 /// Name and starter for a new C# file; opens it when made.

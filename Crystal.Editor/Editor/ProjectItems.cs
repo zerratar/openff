@@ -119,12 +119,15 @@ namespace Crystal.Editor
 			List<string> written = new List<string>();
 			if (project == null || workspace == null || !string.Equals(Targets.GameOf(target), "ff3", StringComparison.OrdinalIgnoreCase)) return written;
 			List<ModItem> items = All(project);
-			if (items.Count == 0) return written;
+			Dictionary<uint, string> text = ProjectText.Lines(project);
+			if (items.Count == 0 && text.Count == 0) return written;
 			string files = project.FilesFor(target);
 			foreach ((string name, Func<byte[], byte[]> compose) in new (string, Func<byte[], byte[]>)[]
 			{
-				("files/item_parameter.pak", data => ModItems.ComposePak(data, items)),
-				("files/eureka_item.msd", data => ModItems.ComposeMsd(data, items)),
+				("files/item_parameter.pak", data => items.Count > 0 ? ModItems.ComposePak(data, items) : data),
+				("files/eureka_item.msd", data => items.Count > 0 ? ModItems.ComposeMsd(data, items) : data),
+				// The mod's own lines, into the file every map falls back to.
+				("files/eureka_permanent.msd", data => ModText.Compose(data, text)),
 			})
 			{
 				// From the shipped file, not the project's copy: the definitions are the source, and
