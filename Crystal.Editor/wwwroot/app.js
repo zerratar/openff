@@ -348,6 +348,7 @@ async function dispatchOpen(kind, name) {
   else if (kind === 'cell') await openCell(name);
   else if (kind === 'code') await openCodeFile(name);
   else if (kind === 'strings') await openStrings(name);
+  else if (kind === 'castcode') await openCastCodeView(name);
   else await openText(name);
 }
 

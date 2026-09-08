@@ -295,7 +295,8 @@ async function runView(doc) {
 
   // The views read their listing from state.files, so make sure it is the right one -
   // the right kind, and the right game.
-  if (state.browse !== doc.kind || !state.files.length || state.filesWs !== doc.ws) {
+  // A cast's code belongs to a map's object, not to a library: the list stays where it is.
+  if (doc.kind !== 'castcode' && (state.browse !== doc.kind || !state.files.length || state.filesWs !== doc.ws)) {
     state.browse = doc.kind;
     // The tree's highlight says which library the list shows; it moves with the list.
     browseKind = doc.kind;
@@ -833,6 +834,9 @@ function outlineFor(doc) {
   }
   if (doc.kind === 'strings' && typeof outlineForStrings === 'function') {
     return outlineForStrings(doc);
+  }
+  if (doc.kind === 'castcode' && typeof outlineForCastCode === 'function') {
+    return outlineForCastCode(doc);
   }
 
   return [];
@@ -1422,6 +1426,8 @@ function factsFor(doc) {
     return codeFacts(data);
   } else if (doc.kind === 'strings' && typeof stringsFacts === 'function') {
     return stringsFacts(data);
+  } else if (doc.kind === 'castcode' && typeof castCodeFacts === 'function') {
+    return castCodeFacts(data);
   }
 
   return facts;
@@ -1955,6 +1961,8 @@ function sessionSnapshot() {
   groups.forEach((group, index) => {
     for (const doc of group.docs) {
       if (doc.preview) continue;
+      // A cast's code lives in the map's scene; it is opened again from the object, not from here.
+      if (doc.kind === 'castcode') continue;
       list.push({ kind: doc.kind, name: doc.name, ws: doc.ws || null, group: index });
     }
   });

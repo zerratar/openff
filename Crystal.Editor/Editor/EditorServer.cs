@@ -575,6 +575,24 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/scene/cast-check":
+				{
+					// A CastScript's lines compiled as the client compiles them (Ffs.CastCode, the same
+					// frame), so a slip shows in the editor with its line rather than in the log at Play.
+					JsonNode body = ReadBody(context);
+					int cast = body?["cast"]?.GetValue<int>() ?? 0;
+					if (cast <= 0) cast = 5000;
+					string[] lines = body?["lines"] is JsonArray array ? array.Select(n => n?.GetValue<string>() ?? "").ToArray() : Array.Empty<string>();
+					byte[] bytes = Ffs.CastCode.Compile(new Dictionary<int, string[]> { [cast] = Ffs.CastCode.Substitute(cast, lines) }, _workspace.Ops, out List<Ffs.CastCodeProblem> problems);
+					SendJson(context, new
+					{
+						ok = bytes != null,
+						bytes = bytes?.Length ?? 0,
+						problems = problems.Select(p => new { line = p.Line, column = p.Column, message = p.Message }).ToList()
+					});
+					return;
+				}
+
 				case "/api/project/text/new":
 				{
 					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }

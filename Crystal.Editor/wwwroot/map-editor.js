@@ -2980,6 +2980,23 @@ function behaviourCard(state, attachment, target) {
         changed(text.value);
       };
       input.append(text, pick);
+    } else if (f.type === 'strings' && attachment.behaviour === 'CastScript' && f.name === 'Main' && typeof openCastCode === 'function') {
+      // The cast's code: a short preview here, the script editor - completion, the
+      // signature strip, a compile check - in a tab of its own.
+      input = document.createElement('div');
+      input.className = 'cast-code-preview';
+      const lines = Array.isArray(value) ? value : [];
+      const pre = document.createElement('pre');
+      const shown = lines.filter(l => (l || '').trim().length).slice(0, 5);
+      pre.textContent = shown.join('\n') + (lines.length > shown.length ? `\n… ${lines.length} lines` : '');
+      if (!lines.length) pre.textContent = '(no code yet)';
+      pre.title = 'The main function, one command per line; opens in the code editor';
+      const edit = document.createElement('button');
+      edit.className = 'primary';
+      edit.textContent = lines.length ? 'Edit code…' : 'Write code…';
+      edit.onclick = () => openCastCode(state, attachment, target);
+      pre.onclick = edit.onclick;
+      input.append(pre, edit);
     } else if (f.type === 'strings') {
       // A list of strings: one per line.
       input = document.createElement('textarea');
@@ -3042,7 +3059,7 @@ function behaviourCard(state, attachment, target) {
     }
     row.append(input);
     card.append(row);
-    if (f.type === 'string' || f.type === 'strings') msdHint(card, input, () => f.type === 'strings' ? input.value.split('\n') : [input.value]);
+    if ((f.type === 'string' || f.type === 'strings') && 'value' in input) msdHint(card, input, () => f.type === 'strings' ? input.value.split('\n') : [input.value]);
   }
   if (attachment.behaviour === 'GameCast') gameCastNotes(card, state, attachment, target);
   return card;

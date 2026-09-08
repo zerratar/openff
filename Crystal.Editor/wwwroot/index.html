@@ -156,6 +156,31 @@
   </div>
 </template>
 
+<!-- A CastScript's code: the script editor with its completion and signatures, saving into the scene -->
+<template id="view-castcode">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <span class="note cast-where"></span>
+      <span class="badge saving">saving…</span>
+      <span class="badge problem"></span>
+      <span class="grow"></span>
+      <button class="commands" title="Every command of the script language with what it takes; picks one into the code">Commands…</button>
+      <button class="check" title="Compile the lines as the client will">Check</button>
+    </div>
+    <div class="editor">
+      <div class="gutter"></div>
+      <div class="code">
+        <pre class="highlight" aria-hidden="true"></pre>
+        <textarea spellcheck="false" wrap="off"></textarea>
+        <ul class="completions" hidden></ul>
+      </div>
+    </div>
+    <div class="signature"></div>
+    <ul class="problems"></ul>
+  </div>
+</template>
+
 <!-- The mod's text: a table of id -> line, the JSON underneath -->
 <template id="view-strings">
   <div class="view">
@@ -436,6 +461,7 @@
 <script src="map-editor.js"></script>
 <script src="item-defs.js"></script>
 <script src="strings-editor.js"></script>
+<script src="cast-code.js"></script>
 <script src="model-viewer.js"></script>
 <script src="thumbnails.js"></script>
 <script src="picker.js"></script>
