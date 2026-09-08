@@ -23,6 +23,11 @@ async function openMap(name) {
   // Every model that can go in a .hich row, so the panel can offer them all rather
   // than only the ones this map happens to use already.
   if (!state.placeable) state.placeable = await api('/api/models/placeable');
+  // The mod's own model files (assets/*.glb), which an OpenFF object may wear: the client
+  // draws them directly. Not for a Steam mod, whose game knows only its own formats.
+  if (!state.assets && typeof isOpenFFProject === 'function' && isOpenFFProject()) {
+    try { state.assets = await api('/api/project/assets'); } catch (e) { state.assets = []; }
+  }
   const node = view('map', name, data.overridden);
   const doc = activeDoc;
 
@@ -826,7 +831,7 @@ function applyModel(doc, index, model) {
     .find(o => o.index === index);
   if (item) {
     item.model = model;
-    item.package = `files/${model}.nmdp.lz`;
+    item.package = /\.(glb|gltf)$/i.test(model) ? model : `files/${model}.nmdp.lz`;
     item.name = `${model} (cast ${item.cast})`;
   }
 
@@ -2525,7 +2530,8 @@ function flattenSceneObjects(state, list, depth, out) {
       point: out.length, path: scenePathOf(object), name: object.name, depth: depth || 0,
       x: world.x, y: world.y, z: world.z, rotationY: world.rotationY, scale: world.scale,
       model: object.model || null,
-      package: object.model ? `files/${object.model}.nmdp.lz` : null,
+      // A model file of the mod's own (assets/hut.glb) is its own package; the view draws it through the same route.
+      package: object.model ? (/\.(glb|gltf)$/i.test(object.model) ? object.model : `files/${object.model}.nmdp.lz`) : null,
       source: object
     });
     flattenSceneObjects(state, object.children, (depth || 0) + 1, out);

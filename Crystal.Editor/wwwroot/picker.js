@@ -45,9 +45,50 @@ function pickModel(current, onChosen, options = {}) {
   veil.append(box);
   document.body.append(veil);
 
-  const models = (state.placeable || []).filter(
-    entry => !options.only || options.only(entry.model));
+  // The mod's own model files first (an OpenFF project's assets/*.glb - the client draws
+  // them directly), then the game's models.
+  const own = !options.only && Array.isArray(state.assets)
+    ? state.assets.map(a => ({ model: a.name, characterId: 0, from: 'the mod\'s own model file', uses: 0, asset: true }))
+    : [];
+  let models = own.concat((state.placeable || []).filter(
+    entry => !options.only || options.only(entry.model)));
   let watcher = null;
+
+  // A model file in: .glb (or a .gltf with its .bin and pictures, picked together) into assets/.
+  if (!options.only && Array.isArray(state.assets)) {
+    const imp = document.createElement('button');
+    imp.type = 'button';
+    imp.textContent = 'Import a model…';
+    imp.title = 'A glTF file (.glb, or .gltf with its .bin and pictures) into the project\'s assets folder; the client draws it directly';
+    const chooser = document.createElement('input');
+    chooser.type = 'file';
+    chooser.multiple = true;
+    chooser.accept = '.glb,.gltf,.bin,.png,.jpg,.jpeg';
+    chooser.hidden = true;
+    imp.onclick = () => chooser.click();
+    chooser.onchange = async () => {
+      const files = [...(chooser.files || [])];
+      if (!files.length) return;
+      try {
+        const payload = [];
+        for (const f of files) {
+          const bytes = new Uint8Array(await f.arrayBuffer());
+          let bin = '';
+          for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+          payload.push({ name: f.name, bytes: btoa(bin) });
+        }
+        const r = await api('/api/project/assets/import', { files: payload });
+        if (!r.ok) throw new Error(r.error);
+        state.assets = r.models || [];
+        models = state.assets.map(a => ({ model: a.name, characterId: 0, from: 'the mod\'s own model file', uses: 0, asset: true })).concat(state.placeable || []);
+        say(`${r.files.join(', ')} imported`, 'good');
+        draw();
+      } catch (e) { say('import: ' + e.message, 'bad'); }
+      chooser.value = '';
+    };
+    head.insertBefore(imp, shut);
+    head.append(chooser);
+  }
 
   const draw = () => {
     const wanted = filter.value.trim().toLowerCase();
@@ -63,17 +104,18 @@ function pickModel(current, onChosen, options = {}) {
       const cell = document.createElement('button');
       cell.type = 'button';
       cell.className = 'picker-cell' + (entry.model === current ? ' on' : '');
-      cell.title = `${entry.model} · id ${entry.characterId} · ${entry.from}`;
+      cell.title = entry.asset ? `${entry.model} · ${entry.from}` : `${entry.model} · id ${entry.characterId} · ${entry.from}`;
 
       // The package is what the thumbnail maker needs; the model name is what a row holds.
-      const pkg = `files/${entry.model}.nmdp.lz`;
+      // A model file of the mod's own is its own package.
+      const pkg = entry.asset ? entry.model : `files/${entry.model}.nmdp.lz`;
       cell.dataset.thumbFor = pkg;
       cell.append(icon('model'));
 
       const label = document.createElement('span');
-      label.textContent = entry.model;
+      label.textContent = entry.asset ? entry.model.replace(/^assets\//, '') : entry.model;
       const note = document.createElement('i');
-      note.textContent = entry.uses ? `${entry.uses}×` : 'unused';
+      note.textContent = entry.asset ? 'the mod\'s' : entry.uses ? `${entry.uses}×` : 'unused';
       cell.append(label, note);
 
       cell.onclick = () => {

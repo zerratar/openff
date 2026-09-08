@@ -1113,6 +1113,35 @@ namespace Crystal.Editor
 						Query(context, "name"), _lookupMessage));
 					return;
 
+				case "/api/project/assets":
+					// The project's own model files (assets/*.glb, *.gltf), for the model picker.
+					SendJson(context, GltfBundle.List(_project));
+					return;
+
+				case "/api/project/assets/import":
+				{
+					// A model file in: bytes as base64 under assets/<name>; a .gltf's .bin and pictures come as more files.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						List<string> written = new List<string>();
+						foreach (JsonNode f in body?["files"] as JsonArray ?? new JsonArray())
+						{
+							string fileName = Path.GetFileName(f?["name"]?.GetValue<string>() ?? "");
+							if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) throw new ArgumentException("a plain file name");
+							byte[] bytes = System.Convert.FromBase64String(f?["bytes"]?.GetValue<string>() ?? "");
+							string folder = Path.Combine(_project.Directory, GltfBundle.Folder);
+							Directory.CreateDirectory(folder);
+							File.WriteAllBytes(Path.Combine(folder, fileName), bytes);
+							written.Add(GltfBundle.Folder + "/" + fileName);
+						}
+						SendJson(context, new { ok = true, files = written, models = GltfBundle.List(_project) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/models/placeable":
 					SendJson(context, _characterIds.All());
 					return;
@@ -1678,7 +1707,8 @@ namespace Crystal.Editor
 			string name = Query(context, "name");
 			try
 			{
-				SendJson(context, Models.Read(_workspace, name));
+				// A model of the project's own (assets/hut.glb): the shared glTF reader, laid out the same.
+				SendJson(context, GltfBundle.IsAsset(name) ? GltfBundle.Read(_project, name) : Models.Read(_workspace, name));
 			}
 			catch (Exception ex)
 			{
@@ -1723,6 +1753,12 @@ namespace Crystal.Editor
 			string texture = Query(context, "texture");
 			try
 			{
+				if (GltfBundle.IsAsset(name))
+				{
+					(byte[] bytes, string mime) picture = GltfBundle.Texture(_project, name, texture);
+					Send(context, 200, picture.mime, picture.bytes);
+					return;
+				}
 				Send(context, 200, "image/png", Models.Texture(_workspace, name, texture));
 			}
 			catch (Exception ex)

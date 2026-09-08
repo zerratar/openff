@@ -161,6 +161,21 @@ namespace Crystal.Editor
 					File.Copy(file, target, overwrite: true);
 				}
 			}
+			// The mod's own models (assets/*.glb and what a .gltf brings along), which the client
+			// draws directly - the OpenFF target's own formats.
+			string assetsOut = Path.Combine(directory, GltfBundle.Folder);
+			if (Directory.Exists(assetsOut)) Directory.Delete(assetsOut, recursive: true);
+			string assetsIn = Path.Combine(project.Directory, GltfBundle.Folder);
+			if (Directory.Exists(assetsIn))
+			{
+				foreach (string file in Directory.EnumerateFiles(assetsIn, "*.*", SearchOption.AllDirectories))
+				{
+					string relative = file.Substring(assetsIn.Length).TrimStart(Path.DirectorySeparatorChar);
+					string target = Path.Combine(assetsOut, relative);
+					Directory.CreateDirectory(Path.GetDirectoryName(target));
+					File.Copy(file, target, overwrite: true);
+				}
+			}
 			OpenFF.Content.ModsFolder.WriteManifest(manifestPath, new OpenFF.Content.ModManifest
 			{
 				Id = key,
