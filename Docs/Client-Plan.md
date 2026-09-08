@@ -1745,6 +1745,40 @@ nothing, and a Steam target gets the composed `files/eureka_permanent.msd` at In
 Export beside the item tables (`ProjectItems.WriteTables`). The game's own "Text" kind kept
 its name; the mod's is "Strings" so the two rows read apart.
 
+Karl's look at it: the empty-list note was a grid tile - 84px wide, a column of words -
+and a text file as raw JSON asks the modder to type ids by hand. Now `emptyNote()` in
+app.js wraps the words in a span, and the note is one li across the list, centred in the
+panel when it is alone (`#files:has(> li.note:only-child)`). And `strings-editor.js` is a
+view of its own for the kind: a table of id / Copy / words / ×, *Add line* at the next free
+id (the file's max + 1, or the project's `next` for an empty file), autosave 500 ms after
+a change through `/api/project/file/save`, the ids checked live (`stringsIdProblem`: a
+number, no twins, not below 40000000 - a line with one of the game's ids is skipped by
+`Compose` in the game's favour), the hierarchy listing the lines and the inspector the
+facts. The JSON pane underneath reuses the menu editor's `xml-split` (grip, collapse,
+Apply); `stringsUi` remembers its height across files. One catch found on the way: with
+two rows on one id the object form folds them into one at the next `JSON.parse`, so the
+table writes the array form `[{ id, text }]` while a problem stands (`ModText.TryId` reads
+an id as a number or a string) and goes back to the object form when it is fixed.
+
+Localisation, the first step only: a line may be `{ "en": …, "de": … }`; `ModText.TextOf`
+picks the language asked for, then English, then the first; the client asks per read with
+the game's setting (`AppShell.getLanguage()` → ja, en, fr, de, it, es, zh-CN, zh-TW, ko),
+cached per language, since the player can change it after the mods load. The table shows
+the English and carries the rest through untouched. Not yet: the same for item names and
+captions, a language column in the table, and whether the game's own message files come
+per language on Steam (`changeCompanyDirectory` is the place to read).
+
+Enemies are the definition class still missing beside items, heroes and text. What one
+needs: the monster record (`monster.chaindata`, chain 0 - 100-byte `MonsterParameter`
+records, chain 1 the 18-byte drop records; `MonsterManager.load` reads it whole, so a
+composer appends to the chain as `ModItems` appends to `item_parameter.pak`), its name in
+the monster msd, a battle model and its motions (an existing monster's, recoloured or not,
+is the realistic first slice - as items start from a base), and a way into an encounter:
+`monster_party_table.bbd` / `event_monster_party_table.bbd` name monster ids per formation
+and the maps' encounter data picks formations per area, so a new monster needs a slot in
+an existing formation, or a formation of its own placed on a map. That last part is the
+real design; the record and the name are the item pattern again. Next on the list.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

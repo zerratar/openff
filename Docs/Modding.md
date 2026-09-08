@@ -415,8 +415,14 @@ The message id is the mod's own line - the next section.
 ### Lines of the mod's own: `defs/text/<name>.json`
 
 Text is a definition as an item is. Under *OpenFF mod ▸ Strings*, *New text file…* makes a
-`defs/text/<name>.json` of message id → line, the first free id filled in; the file is
-edited as JSON, the inspector lists its lines:
+`defs/text/<name>.json` of message id → line, the first free id filled in, and opens it as
+a table: a row per line with its id, a *Copy* button for the id, the words (Enter breaks
+the line; Ctrl+Enter adds a row after), and ×. *Add line* takes the next free id. Every
+change saves itself; an id that is not a number, is used twice, or sits in the game's own
+range is marked red with the reason. The JSON the file holds sits in a pane underneath
+(collapsed by default, like the menu editor's XML): it follows the table, and *Apply to the
+table* reads it back after a hand edit. *Open as JSON* has the file in the code editor
+instead. The file:
 
 ```json
 {
@@ -434,6 +440,16 @@ the client appends every mod's lines to `eureka_permanent.msd` - the file every 
 back to - as it is read (`Shared/Data/ModText.cs`), so the game's own message window says
 them; a Steam project has the composed file written into its `files/` at Install and
 Export, like the item tables. Two mods with one id: the first in load order keeps it.
+
+A line can be written per language - the first step of localisation, no more yet:
+
+```json
+{ "40000003": { "en": "Welcome!", "de": "Willkommen!", "ja": "ようこそ！" } }
+```
+
+The client picks the game's language setting (`ja`, `en`, `fr`, `de`, `it`, `es`, `zh-CN`,
+`zh-TW`, `ko`), then English, then the first written; the table shows the English and keeps
+the rest as they are (the JSON pane edits them).
 
 ### Items of the mod's own: `defs/items/<id>.json`
 
