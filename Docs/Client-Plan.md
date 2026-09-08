@@ -1577,6 +1577,34 @@ each rename or removal applied to every scene file of the project by the server
 and the map's own tags below, with ↑ to promote one. A tag on one map only still lives in
 that map's file; nothing in the engine changes - `WithTag` is a string either way.
 
+### The parity harness (2026-09-08)
+
+Karl's direction: the unified path - scripts and scenes of both games as the engine's own,
+assets mixed - with FF3 1:1 on the Steam assets as the standing condition, FF4 to follow,
+and Crystal always offering the native Steam games for modding as it does. Before any
+translator of the script vocabulary, the thing every step gets measured against:
+`--trace=<file>` writes what the game did - flag changes, messages by id with their
+item/gold codes (`menu.MessageWindow.mwSetMessage`), texts, sounds (`MtxSENDS_Play`), maps,
+battles, items - and at every `say` of a drive everyone on the map (cast or model, position
+to the unit, motion; a wanderer as "wandering", since where the random walk took it is
+not the fact) and the party's gil and bag. `Tools/parity.ps1` runs a drive with `--nomods`
+and with the mods folder and diffs the traces with the frame column off (`-Ignore` for the
+mod's own objects, `-Keep`, exit 1 on a difference). One line per hook, after the game's
+own call; nothing changes for FF3.
+
+Ur, converted exactly, against itself - three drives (`Docs/Drives/parity-ur-*.drive`):
+the west chest, the boy, the opening scene. Both bugs it found on the first run were slot
+reuse. A stand-in spawns into the slot the original just left, and the game's `terminate`
+leaves the slot's `NPCAiManager` as it was, so a wanderer's RANDOM_MOVE carried over to
+three characters that stood still (`FreshSlot`: the DEFAULT AI, as `initialize` gives a
+slot at a map's start). And the scene: it deletes the villagers and boots its actors into
+their slots; `Npcs.Existing(slot)` handed back the villager's dead handle, whose position
+read 0,0,0 and whose Remove did nothing - the actors were taken over "at 0,0,0" and the
+game's own stood beside them, and the cutscene did not play (Karl saw it: "first one played
+a cutscene, second didn't"). A dead handle is dropped now, and the engine's own spawns pin
+the character id they were made for, so a slot reused under them is not theirs. All three
+drives agree - 58, 77 and 189 lines, the scene over 13 marks.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new
