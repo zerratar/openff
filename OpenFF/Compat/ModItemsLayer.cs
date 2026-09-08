@@ -14,6 +14,23 @@ namespace OpenFF.Client
 {
 	internal static class ModItemsLayer
 	{
+		/// <summary>The mods' text (defs/text/*.json), composed into eureka_permanent.msd - the file every map falls back to - as it is read.</summary>
+		private static void RegisterText(ContentChain chain, List<string> roots)
+		{
+			List<string> notes = new List<string>();
+			Dictionary<uint, string> lines = ModText.Load(roots, notes);
+			foreach (string note in notes) Log.Write(LogChannel.General, "text: " + note);
+			if (lines.Count == 0) return;
+			Log.Write(LogChannel.General, "text: " + lines.Count + " line(s) of the mods' own (" + lines.Keys.Min() + ".." + lines.Keys.Max() + ")");
+			chain.AddTransform((name, data) =>
+			{
+				if (!ModText.IsPermanent(name)) return data;
+				byte[] composed = ModText.Compose(data, lines);
+				Log.Write(LogChannel.File, "text: eureka_permanent.msd composed, " + data.Length + " -> " + composed.Length + " bytes");
+				return composed;
+			});
+		}
+
 		/// <summary>The definitions in play, in load order (a --project's first, then the mods').</summary>
 		public static IReadOnlyList<ModItem> Items { get; private set; } = new List<ModItem>();
 
@@ -24,6 +41,7 @@ namespace OpenFF.Client
 			List<string> roots = new List<string>();
 			if (!string.IsNullOrEmpty(GameArchive.ProjectDirectory)) roots.Add(GameArchive.ProjectDirectory);
 			roots.AddRange(GameArchive.ActiveMods.Select(m => m.Directory).Where(d => !string.IsNullOrEmpty(d)));
+			RegisterText(chain, roots);
 			List<string> notes = new List<string>();
 			List<ModItem> items = ModItems.Load(roots, notes);
 			foreach (string note in notes) Log.Write(LogChannel.General, "items: " + note);
