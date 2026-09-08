@@ -2042,7 +2042,9 @@ header h1 .gem {
 #inspector .tag-chip button { border: 0; background: transparent; color: var(--dim); padding: 0 4px; font-size: 13px; line-height: 16px; cursor: pointer; }
 #inspector .tag-chip button:hover { color: var(--ink); }
 #inspector .tag-pick { width: auto; min-width: 44px; max-width: 160px; font-size: 12px; }
-.dialog-row.tag-edit-row { display: flex; gap: 8px; align-items: center; }
+.dialog-row.tag-edit-row { display: flex; flex-direction: row; gap: 8px; align-items: center; }
+.dialog-row.tag-edit-row button { flex: 0 0 auto; }
+#inspector .tag-pick optgroup { font-style: normal; color: var(--dim); }
 .dialog-row.tag-edit-row input { flex: 1; min-width: 0; }
 .dialog-row.tag-edit-row span { color: var(--dim); font-size: 12px; white-space: nowrap; }
 .dialog-row.struck input { text-decoration: line-through; opacity: .5; }

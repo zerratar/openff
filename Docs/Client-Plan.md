@@ -1565,6 +1565,18 @@ frame, no blend (`setCurrentFrame(getMaxFrame())`); the Chest holds 1003 when it
 `SetTreasure` does the same for a stand-in and moves the box to act 2 (shut, waiting).
 `ChestLook` is `Animate` - the old name read as "look at".
 
+### The mod's tags (2026-09-08)
+
+Tags had one home: the objects that carry them, with the picker offering whatever the
+project's scene files happened to use. Karl wants a vocabulary shared by every scene of the
+mod, Unity's Tags & Layers. `project.json` has a `tags` list now; the picker shows *Mod
+tags* first (offered everywhere, carried or not) and *On the maps* after; New tag… asks
+whether the tag is mod-wide (default yes); Edit tags has the mod's list - add, rename, ×,
+each rename or removal applied to every scene file of the project by the server
+(`ProjectScenes.Retag`, `/api/project/tags/retag`) and to the open map's objects at once -
+and the map's own tags below, with ↑ to promote one. A tag on one map only still lives in
+that map's file; nothing in the engine changes - `WithTag` is a string either way.
+
 ## Working rules
 
 - Keep the game running at every commit; keep the old path behind a flag until the new

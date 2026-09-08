@@ -120,6 +120,71 @@ namespace Crystal.Editor
 			return uses.Values.OrderBy(u => u.Tag, StringComparer.OrdinalIgnoreCase).ToList();
 		}
 
+		/// <summary>
+		/// Renames a tag (or removes it, with no new name) on every object in every scene file
+		/// of the project, and in the project's own tag list. Returns the maps whose files
+		/// changed - the editor refreshes those it has open.
+		/// </summary>
+		public static List<string> Retag(Project project, string from, string to)
+		{
+			List<string> touched = new List<string>();
+			from = (from ?? "").Trim();
+			to = (to ?? "").Trim();
+			if (from.Length == 0) return touched;
+			string directory = Directory(project);
+			if (System.IO.Directory.Exists(directory))
+			{
+				foreach (string file in System.IO.Directory.EnumerateFiles(directory, "*.json"))
+				{
+					try
+					{
+						JsonNode node = JsonNode.Parse(File.ReadAllText(file));
+						bool changed = Walk(node?["objects"] as JsonArray) | Walk(node?["points"] as JsonArray);
+						if (!changed) continue;
+						File.WriteAllText(file, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
+						touched.Add(Path.GetFileNameWithoutExtension(file));
+					}
+					catch (Exception) { }
+				}
+			}
+			List<string> tags = project.File.Tags ?? new List<string>();
+			if (tags.RemoveAll(t => string.Equals(t, from, StringComparison.OrdinalIgnoreCase)) > 0 || to.Length > 0)
+			{
+				if (to.Length > 0 && !tags.Any(t => string.Equals(t, to, StringComparison.OrdinalIgnoreCase))) tags.Add(to);
+				tags.Sort(StringComparer.OrdinalIgnoreCase);
+				project.File.Tags = tags;
+				project.Save();
+			}
+			return touched;
+
+			bool Walk(JsonArray objects)
+			{
+				bool changed = false;
+				foreach (JsonNode o in objects ?? new JsonArray())
+				{
+					if (o == null) continue;
+					if (o["tags"] is JsonArray list)
+					{
+						List<string> next = new List<string>();
+						bool hit = false;
+						foreach (JsonNode t in list)
+						{
+							string tag = t?.GetValue<string>()?.Trim() ?? "";
+							if (string.Equals(tag, from, StringComparison.OrdinalIgnoreCase)) { hit = true; tag = to; }
+							if (tag.Length > 0 && !next.Contains(tag)) next.Add(tag);
+						}
+						if (hit)
+						{
+							o["tags"] = new JsonArray(next.Select(t => (JsonNode)t).ToArray());
+							changed = true;
+						}
+					}
+					changed |= Walk(o["children"] as JsonArray);
+				}
+				return changed;
+			}
+		}
+
 		private static int Count(JsonArray objects)
 		{
 			int n = 0;

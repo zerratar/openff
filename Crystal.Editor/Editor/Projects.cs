@@ -152,6 +152,13 @@ namespace Crystal.Editor
 		/// </summary>
 		public Dictionary<string, string> Content { get; set; } =
 			new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>
+		/// The mod's tags - Unity's Tags &amp; Layers: the words every scene of the mod offers
+		/// in its tag picker whether or not an object carries them yet. A tag used on one map
+		/// only still lives in that map's file; this list is the mod-wide vocabulary.
+		/// </summary>
+		public List<string> Tags { get; set; } = new List<string>();
 	}
 
 	internal sealed class Project

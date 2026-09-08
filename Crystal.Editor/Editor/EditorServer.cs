@@ -475,8 +475,40 @@ namespace Crystal.Editor
 				case "/api/project/tags":
 					// Every tag the project's scene files use, with its use: the inspector's tag picker.
 					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
-					SendJson(context, new { ok = true, tags = ProjectScenes.Tags(_project) });
+					SendJson(context, new { ok = true, tags = ProjectScenes.Tags(_project), global = _project.File.Tags ?? new List<string>() });
 					return;
+
+				case "/api/project/tags/global":
+				{
+					// The mod's own tag list (project.json): what every scene's picker offers.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					List<string> tags = new List<string>();
+					foreach (JsonNode t in body?["tags"] as JsonArray ?? new JsonArray())
+					{
+						string tag = t?.GetValue<string>()?.Trim();
+						if (!string.IsNullOrEmpty(tag) && !tags.Any(x => string.Equals(x, tag, StringComparison.OrdinalIgnoreCase))) tags.Add(tag);
+					}
+					tags.Sort(StringComparer.OrdinalIgnoreCase);
+					_project.File.Tags = tags;
+					_project.Save();
+					SendJson(context, new { ok = true, global = tags });
+					return;
+				}
+
+				case "/api/project/tags/retag":
+				{
+					// A tag renamed (or removed: no "to") on every object of every scene file, and in
+					// the mod's list; the maps whose files changed come back.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					string from = body?["from"]?.GetValue<string>();
+					string to = body?["to"]?.GetValue<string>() ?? "";
+					if (string.IsNullOrWhiteSpace(from)) { SendJson(context, new { ok = false, error = "which tag?" }); return; }
+					List<string> touched = ProjectScenes.Retag(_project, from, to);
+					SendJson(context, new { ok = true, maps = touched, global = _project.File.Tags });
+					return;
+				}
 
 				case "/api/project/session":
 					ProjectSession(context);

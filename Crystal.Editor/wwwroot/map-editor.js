@@ -3499,17 +3499,85 @@ function cardify(panel) {
 /// The inspector for one of the mod's objects, laid out as Unity lays out a GameObject:
 /// the name, then Transform, then the model, then tags and parent, then the components.
 /// Everything here is the file's - no game data behind it - and every change saves itself.
-/// Every tag the mod knows: on this map's objects, and in the project's other scene files
-/// (fetched once per session; refreshed after Edit tags).
+/// Every tag the mod knows, in two kinds. The mod's tags (project.json, Unity's Tags &
+/// Layers) are the vocabulary every scene offers whether an object carries them yet or not;
+/// the rest are tags found on this map's objects and in the project's other scene files -
+/// a map's own words. Fetched once per session; refreshed after Edit tags.
 function knownTags() {
   const here = new Set();
   for (const item of flattenSceneObjects(sceneState)) for (const t of item.source.tags || []) here.add(t);
-  const project = (state.projectTags || []).map(u => u.tag);
-  return [...new Set([...project, ...here])].sort((a, b) => a.localeCompare(b));
+  const used = (state.projectTags || []).map(u => u.tag);
+  const mod = new Set((state.modTags || []).map(t => t.toLowerCase()));
+  return [...new Set([...used, ...here])].filter(t => !mod.has(t.toLowerCase())).sort((a, b) => a.localeCompare(b));
+}
+
+function modTags() {
+  return [...(state.modTags || [])].sort((a, b) => a.localeCompare(b));
 }
 
 function loadProjectTags() {
-  return api('/api/project/tags').then(r => { state.projectTags = r.tags || []; }).catch(() => {});
+  return api('/api/project/tags').then(r => { state.projectTags = r.tags || []; state.modTags = r.global || []; }).catch(() => {});
+}
+
+/// The mod's tag list written back (project.json).
+function saveModTags(tags) {
+  return api('/api/project/tags/global', { tags }).then(r => { state.modTags = r.global || tags; }).catch(e => say('tags: ' + e.message, 'bad'));
+}
+
+/// A tag renamed or removed (to = '') across every scene file of the project and the mod's
+/// list, on the server; then the same on the map in hand, so what is on screen is what is
+/// on disk (another open map reloads its scene when shown).
+async function retagEverywhere(from, to) {
+  const r = await api('/api/project/tags/retag', { from, to });
+  let touched = 0;
+  for (const o of flattenSceneObjects(sceneState).map(i => i.source)) {
+    if (!o.tags || !o.tags.some(t => t.toLowerCase() === from.toLowerCase())) continue;
+    o.tags = [...new Set(o.tags.map(t => t.toLowerCase() === from.toLowerCase() ? to : t).filter(Boolean))];
+    touched++;
+  }
+  state.modTags = r.global || state.modTags;
+  return { maps: r.maps || [], here: touched };
+}
+
+/// New tag: the name, and whether it is the mod's (every scene's picker offers it) or this
+/// object's alone. Resolves to the name, or null.
+function newTagDialog(defaultModWide = true) {
+  return new Promise(resolve => {
+    if (typeof dialog !== 'function') { resolve((prompt('New tag', '') || '').trim().replace(/\s+/g, '-') || null); return; }
+    let settled = false;
+    const body = dialog('New tag', { onClose: () => { if (!settled) { settled = true; resolve(null); } } });
+    const note = document.createElement('p');
+    note.className = 'dialog-note';
+    note.textContent = 'One word, as a mod asks for it: Game.World.Legacy.WithTag("…"). A mod-wide tag is offered on every map of the mod; one that is not lives only on the objects that carry it.';
+    body.append(note);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'tag';
+    body.append(input);
+    const wideRow = document.createElement('label');
+    wideRow.className = 'dialog-check';
+    const wide = document.createElement('input');
+    wide.type = 'checkbox';
+    wide.checked = defaultModWide;
+    wideRow.append(wide, document.createTextNode(' Mod-wide - offered in every scene of the mod'));
+    body.append(wideRow);
+    const ok = document.createElement('button');
+    ok.className = 'wide-button';
+    ok.textContent = 'Add';
+    const finish = async () => {
+      const name = input.value.trim().replace(/\s+/g, '-');
+      if (!name) return;
+      settled = true;
+      if (wide.checked && !(state.modTags || []).some(t => t.toLowerCase() === name.toLowerCase())) await saveModTags([...(state.modTags || []), name]);
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      resolve(name);
+    };
+    ok.onclick = finish;
+    input.onkeydown = e => { if (e.key === 'Enter') finish(); };
+    body.append(ok);
+    setTimeout(() => input.focus(), 0);
+  });
 }
 
 /// The Tags row of an object, Unity's way: the tags as chips with an × each, and a picker
@@ -3544,35 +3612,43 @@ function tagsField(object, changed) {
     head.value = '';
     head.textContent = (object.tags || []).length ? '+' : '+ tag…';
     pick.append(head);
-    const have = new Set(object.tags || []);
-    const known = knownTags().filter(t => !have.has(t));
-    for (const tag of known) {
-      const option = document.createElement('option');
-      option.value = 'tag:' + tag;
-      const use = (state.projectTags || []).find(u => u.tag.toLowerCase() === tag.toLowerCase());
-      option.textContent = tag + (use ? `  (${use.count} on ${use.maps.join(', ')})` : '');
-      pick.append(option);
-    }
-    const sep = document.createElement('option');
-    sep.disabled = true;
-    sep.textContent = '────────';
-    pick.append(sep);
+    const have = new Set((object.tags || []).map(t => t.toLowerCase()));
+    const useOf = tag => (state.projectTags || []).find(u => u.tag.toLowerCase() === tag.toLowerCase());
+    const group = (label, tags) => {
+      const list = tags.filter(t => !have.has(t.toLowerCase()));
+      if (!list.length) return;
+      const g = document.createElement('optgroup');
+      g.label = label;
+      for (const tag of list) {
+        const option = document.createElement('option');
+        option.value = 'tag:' + tag;
+        const use = useOf(tag);
+        option.textContent = tag + (use ? `  (${use.count} on ${use.maps.join(', ')})` : '');
+        g.append(option);
+      }
+      pick.append(g);
+    };
+    group('Mod tags', modTags());
+    group('On the maps', knownTags());
+    const more = document.createElement('optgroup');
+    more.label = '─────';
     const fresh = document.createElement('option');
     fresh.value = 'new';
     fresh.textContent = 'New tag…';
-    pick.append(fresh);
+    more.append(fresh);
     const edit = document.createElement('option');
     edit.value = 'edit';
     edit.textContent = 'Edit tags…';
-    pick.append(edit);
-    pick.onchange = () => {
+    more.append(edit);
+    pick.append(more);
+    pick.onchange = async () => {
       const v = pick.value;
       pick.value = '';
       if (v.startsWith('tag:')) { object.tags = [...(object.tags || []), v.slice(4)]; changed(); draw(); }
       else if (v === 'new') {
-        const name = (prompt('New tag - one word, as a mod would ask for it: Game.World.Legacy.WithTag("…")', '') || '').trim().replace(/\s+/g, '-');
+        const name = await newTagDialog();
         if (!name) return;
-        if (!have.has(name)) { object.tags = [...(object.tags || []), name]; changed(); }
+        if (!have.has(name.toLowerCase())) { object.tags = [...(object.tags || []), name]; changed(); }
         draw();
       }
       else if (v === 'edit') editTagsDialog(() => { changed(); draw(); });
@@ -3585,23 +3661,114 @@ function tagsField(object, changed) {
   return row;
 }
 
-/// Edit tags: every tag on this map's objects, each renamable and removable - across all
-/// the objects that carry it - as Unity's Tags & Layers is for a project.
+/// Edit tags, as Unity's Tags & Layers is for a project, in two parts. The mod's tags: the
+/// list every scene offers - add one, rename or remove one across every scene file of the
+/// mod. This map's tags: the words on this map's objects alone - rename or remove across the
+/// objects here that carry them, or make one mod-wide.
 function editTagsDialog(done) {
   if (typeof dialog !== 'function') return;
-  const body = dialog('Edit tags - ' + mapState.name);
-  const note = document.createElement('p');
-  note.className = 'dialog-note';
-  note.textContent = 'The tags on this map\'s objects. Renaming or removing one changes every object here that carries it; a mod\'s code that asks for the old name (WithTag) is yours to update. Tags used only on other maps are listed greyed, for the spelling.';
-  body.append(note);
-  const list = document.createElement('div');
-  list.className = 'dialog-list';
+  const body = dialog('Edit tags', { wide: true });
   const objects = flattenSceneObjects(sceneState).map(i => i.source);
   const counts = new Map();
   for (const o of objects) for (const t of o.tags || []) counts.set(t, (counts.get(t) || 0) + 1);
+  const useOf = tag => (state.projectTags || []).find(u => u.tag.toLowerCase() === tag.toLowerCase());
+  const isMod = tag => (state.modTags || []).some(t => t.toLowerCase() === tag.toLowerCase());
+  const shutDialog = () => { const shut = document.querySelector('.picker.dialog .shut'); if (shut) shut.click(); };
+  const finish = async (touchedHere, message) => {
+    shutDialog();
+    if (touchedHere) { sceneChanged('edit tags'); syncSceneObjects(activeDoc); drawHierarchy(); }
+    if (message) say(message, 'good');
+    await loadProjectTags();
+    if (done) done();
+    if (touchedHere && typeof drawInspector === 'function') drawInspector();
+  };
+
+  // ---- the mod's tags
+  const modHead = document.createElement('div');
+  modHead.className = 'behaviour-header';
+  modHead.textContent = 'Mod tags - offered in every scene';
+  body.append(modHead);
+  const modNote = document.createElement('p');
+  modNote.className = 'dialog-note';
+  modNote.textContent = 'Kept in the project (project.json). Renaming or removing one here changes every object on every map of the mod that carries it; a mod\'s code asking for the old name (WithTag) is yours to update.';
+  body.append(modNote);
+  const modList = document.createElement('div');
+  modList.className = 'dialog-list';
+  for (const tag of modTags()) {
+    const row = document.createElement('div');
+    row.className = 'dialog-row tag-edit-row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = tag;
+    const use = document.createElement('span');
+    const u = useOf(tag);
+    use.textContent = u ? `${u.count} object${u.count === 1 ? '' : 's'} on ${u.maps.join(', ')}` : 'not on any object yet';
+    const rename = document.createElement('button');
+    rename.type = 'button';
+    rename.textContent = 'Rename';
+    rename.title = 'Rename this tag on every object of every map, and in the mod\'s list';
+    rename.hidden = true;
+    input.oninput = () => { const v = input.value.trim().replace(/\s+/g, '-'); rename.hidden = !v || v === tag; };
+    rename.onclick = async () => {
+      const to = input.value.trim().replace(/\s+/g, '-');
+      if (!to || to === tag) return;
+      const r = await retagEverywhere(tag, to);
+      finish(r.here > 0, `"${tag}" is "${to}" on ${r.maps.length} map file(s)`);
+    };
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '×';
+    x.title = 'Remove this tag from the mod\'s list and from every object of every map';
+    x.onclick = async () => {
+      const carried = u ? ` and off ${u.count} object(s) on ${u.maps.join(', ')}` : '';
+      if (!confirm(`Remove the tag "${tag}" from the mod's list${carried}?`)) return;
+      const r = await retagEverywhere(tag, '');
+      finish(r.here > 0, `"${tag}" removed (${r.maps.length} map file(s) changed)`);
+    };
+    row.append(input, use, rename, x);
+    modList.append(row);
+  }
+  if (!modTags().length) {
+    const none = document.createElement('p');
+    none.className = 'dialog-note';
+    none.textContent = 'The mod has no tags of its own yet.';
+    modList.append(none);
+  }
+  const addRow = document.createElement('div');
+  addRow.className = 'dialog-row tag-edit-row';
+  const addInput = document.createElement('input');
+  addInput.type = 'text';
+  addInput.placeholder = 'new mod tag';
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.textContent = 'Add';
+  const addIt = async () => {
+    const name = addInput.value.trim().replace(/\s+/g, '-');
+    if (!name || isMod(name)) return;
+    await saveModTags([...(state.modTags || []), name]);
+    finish(false, `"${name}" is a tag of the mod`);
+  };
+  add.onclick = addIt;
+  addInput.onkeydown = e => { if (e.key === 'Enter') addIt(); };
+  addRow.append(addInput, add);
+  modList.append(addRow);
+  body.append(modList);
+
+  // ---- this map's own
+  const mapHead = document.createElement('div');
+  mapHead.className = 'behaviour-header';
+  mapHead.textContent = `This map's tags - ${mapState.name}`;
+  body.append(mapHead);
+  const mapNote = document.createElement('p');
+  mapNote.className = 'dialog-note';
+  mapNote.textContent = 'Tags on this map\'s objects that are not the mod\'s. Renaming or removing one changes every object here that carries it; ↑ makes it a tag of the mod. Tags used only on other maps are greyed, for the spelling.';
+  body.append(mapNote);
+  const list = document.createElement('div');
+  list.className = 'dialog-list';
   const renames = new Map();
   const removals = new Set();
-  for (const tag of [...counts.keys()].sort((a, b) => a.localeCompare(b))) {
+  const local = [...counts.keys()].filter(t => !isMod(t)).sort((a, b) => a.localeCompare(b));
+  for (const tag of local) {
     const row = document.createElement('div');
     row.className = 'dialog-row tag-edit-row';
     const input = document.createElement('input');
@@ -3610,30 +3777,35 @@ function editTagsDialog(done) {
     input.oninput = () => { const v = input.value.trim().replace(/\s+/g, '-'); if (v && v !== tag) renames.set(tag, v); else renames.delete(tag); };
     const use = document.createElement('span');
     use.textContent = `${counts.get(tag)} object${counts.get(tag) === 1 ? '' : 's'}`;
+    const up = document.createElement('button');
+    up.type = 'button';
+    up.textContent = '↑';
+    up.title = 'Make this a tag of the mod, offered in every scene';
+    up.onclick = async () => { await saveModTags([...(state.modTags || []), tag]); finish(false, `"${tag}" is a tag of the mod`); };
     const x = document.createElement('button');
     x.type = 'button';
     x.textContent = '×';
     x.title = 'Remove this tag from every object on the map';
     x.onclick = () => { if (removals.has(tag)) { removals.delete(tag); row.classList.remove('struck'); } else { removals.add(tag); row.classList.add('struck'); } };
-    row.append(input, use, x);
+    row.append(input, use, up, x);
     list.append(row);
   }
-  for (const u of (state.projectTags || []).filter(u => !counts.has(u.tag))) {
+  for (const u of (state.projectTags || []).filter(u => !counts.has(u.tag) && !isMod(u.tag))) {
     const row = document.createElement('div');
     row.className = 'dialog-row dim';
     row.textContent = `${u.tag}  ·  elsewhere: ${u.maps.join(', ')}`;
     list.append(row);
   }
-  if (!counts.size) {
+  if (!local.length) {
     const none = document.createElement('p');
     none.className = 'dialog-note';
-    none.textContent = 'No object on this map has a tag yet.';
+    none.textContent = 'No object on this map has a tag of its own.';
     list.append(none);
   }
   body.append(list);
   const apply = document.createElement('button');
   apply.className = 'wide-button';
-  apply.textContent = 'Apply';
+  apply.textContent = 'Apply to this map';
   apply.onclick = () => {
     let touched = 0;
     for (const o of objects) {
@@ -3642,14 +3814,7 @@ function editTagsDialog(done) {
       o.tags = [...new Set(o.tags.filter(t => !removals.has(t)).map(t => renames.get(t) || t))];
       if (o.tags.join('\n') !== before) touched++;
     }
-    const shut = document.querySelector('.picker.dialog .shut');
-    if (shut) shut.click();
-    if (touched) {
-      sceneChanged('edit tags');
-      say(`tags changed on ${touched} object(s)`, 'good');
-    }
-    loadProjectTags().then(() => done && done());
-    if (!touched && done) done();
+    finish(touched > 0, touched ? `tags changed on ${touched} object(s)` : null);
   };
   body.append(apply);
 }
