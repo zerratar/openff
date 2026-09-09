@@ -30,6 +30,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The guide's pictures are in Git LFS (.gitattributes sends every png/jpg there);
+          # without this the site gets the pointer files.
+          lfs: true
       - uses: actions/configure-pages@v5
         with:
           enablement: true

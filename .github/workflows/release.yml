@@ -30,6 +30,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          # The guide's pictures (Guide\ in the zip) are in Git LFS.
+          lfs: true
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
