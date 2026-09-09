@@ -129,6 +129,18 @@ namespace Crystal
 							return 1;
 						}
 						return MdlDump(args[1], args.Length > 2 ? args[2] : null);
+					case "mdl-import":
+					{
+						string[] positional = args.Skip(1).Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+						if (positional.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						string scaleText = args.FirstOrDefault(a => a.StartsWith("--scale=", StringComparison.OrdinalIgnoreCase))?.Substring(8);
+						float scale = scaleText != null && float.TryParse(scaleText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float s) ? s : 1f;
+						return MdlImport(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, scale);
+					}
 					case "cells":
 						if (args.Length < 2)
 						{
@@ -292,6 +304,8 @@ namespace Crystal
 			Console.Error.WriteLine("  ops [filter]                      list script instructions");
 			Console.Error.WriteLine("  tex         <file.lz | dir> [out]  textures -> PNG");
 			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
+			Console.Error.WriteLine("  mdl-import  <file.glb|.gltf> <name> [out-dir] [--scale=n]");
+			Console.Error.WriteLine("                                    glTF -> <name>.nmdp.lz and <name>.ntxp.lz, the game's own model (a w123 for a weapon)");
 			Console.Error.WriteLine("  cells       <file | dir> [out]     cells/screens/anim -> JSON");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
 			Console.Error.WriteLine("  mcl         <file.mcl.lz | dir> [out] collision mesh -> JSON");
@@ -757,6 +771,39 @@ namespace Crystal
 		/// bounding box; a walk that has lost its place will miss all four, so those
 		/// are the test rather than a round-trip - there is nothing to write back to.
 		/// </summary>
+		/// <summary>A glTF as the game's own model: <name>.nmdp.lz and <name>.ntxp.lz in the output directory (the file's by default), then the result read back and checked.</summary>
+		private static int MdlImport(string input, string name, string outputDir, float scale)
+		{
+			if (!File.Exists(input))
+			{
+				Console.Error.WriteLine("no such file: " + input);
+				return 1;
+			}
+			outputDir ??= Path.GetDirectoryName(Path.GetFullPath(input));
+			try
+			{
+				OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(input);
+				Mdl0Write.Result made = Mdl0Write.Build(file, name, scale);
+				Directory.CreateDirectory(outputDir);
+				string modelPath = Path.Combine(outputDir, name + ".nmdp.lz"), texPath = Path.Combine(outputDir, name + ".ntxp.lz");
+				File.WriteAllBytes(modelPath, Lz.Compress(made.Nmdp));
+				File.WriteAllBytes(texPath, Lz.Compress(made.Ntxp));
+				Console.WriteLine(name + ": " + made.Triangles + " triangles, " + made.Vertices + " vertices, " + made.Materials + " material(s) -> " + modelPath + " (" + made.Nmdp.Length + " bytes) and " + texPath + " (" + made.Ntxp.Length + " bytes)");
+				foreach (string note in file.Notes.Concat(made.Notes)) Console.WriteLine("  note: " + note);
+				// Read back through the game's reader: the counts and the box as the writer meant them.
+				List<Mdl0Model> models = Mdl0.Read(made.Nmdp);
+				Tex0File textures = Tex0.Read(made.Ntxp);
+				foreach (Mdl0Model m in models)
+					Console.WriteLine("  read back: " + m.Name + " - " + m.Vertices + " vertices, " + m.Triangles + " triangles, " + m.Materials.Count + " material(s), " + m.Pieces.Count + " piece(s); box " + m.BoxW.ToString("0.##") + " x " + m.BoxH.ToString("0.##") + " x " + m.BoxD.ToString("0.##") + " at " + m.BoxX.ToString("0.##") + ", " + m.BoxY.ToString("0.##") + ", " + m.BoxZ.ToString("0.##") + "; textures " + string.Join(", ", textures.Textures.Select(t => t.Name + " " + t.Width + "x" + t.Height)));
+				return 0;
+			}
+			catch (Exception ex)
+			{
+				Console.Error.WriteLine(name + ": " + ex.Message);
+				return 1;
+			}
+		}
+
 		private static int MdlDump(string input, string output)
 		{
 			List<string> files = File.Exists(input)

@@ -171,6 +171,36 @@ The bind pose is what comes out. The game's animation blend keeps a weight of 1.
 nothing is bound, so a static read takes that branch and gets the rest pose. Billboards
 keep their base matrix, since which way they face depends on a camera that is not there.
 
+### Writing one
+
+`crystal mdl-import <file.glb> <name> [out-dir] [--scale=n]` goes the other way
+(`Crystal.Editor/Mdl0Write.cs`): a glTF becomes `<name>.nmdp.lz` - an NMDP wrapping a
+BMD0 with one MDL0 - and `<name>.ntxp.lz` with its textures (`Tex0Write.Build`). The
+layout is `w005.nmdp`'s, read off the bytes: the 48-byte NMDP head (kind 2, the BMD0's
+size at 24, its offset at 28), the model dictionary, then the model's five offsets, the
+44-byte info (position scale, counts, the box under its own scale), the node dictionary
+with one identity node (flag `0xF807`), the SBC (`NODEDESC`, `NODE`, then `MAT i` / `SHP i`
+for each material, `RET`), the material block with its three dictionaries (materials, and
+the two that run backwards from texture and palette names to material lists) and 44-byte
+material records copied from w005's words, and the shape block - a 16-byte header and a
+display list per shape: `BEGIN_VTXS` triangles, then `TEXCOORD` (texels, 12.4), `NORMAL`
+(10-bit) and `VTX_16` (1.12 under the position scale) per vertex, `END_VTXS`, commands
+four to a word with their parameters after the word. Every glTF material becomes one
+material, one shape and one pal256 texture (its picture times the base colour, or 8x8 of
+the colour); the total texel size is kept under the 512 KB a texel block's 16-bit size
+field can say. Skins, animations and vertex colours are not written; the meshes go in as
+the file's node tree places them.
+
+Checking it is the reader above: `mdl-import` reads its own output back and prints the
+counts and the box, and `crystal mdl` dumps it as OBJ like any shipped model; the model
+viewer draws it; the client plays it (a `w300` in a weapon definition's *Model* shows in
+the hero's hand in battle - Testing.md C-79). One thing the writer found in the reader's
+neighbour: the dictionaries' patricia tree must number every child after its parent, since
+the game's lookup walks while the index grows and treats a step back as the end
+(`NNS_G3dGetResDictIdxByName`); `Tex0Write.Dictionary` numbers its nodes by a walk from
+the root now, which also fixes a package of three or more textures from *New texture
+package…*.
+
 ## NCER, NSCR and NANR: which piece goes where
 
 **Done.** `crystal cells <dir> <out>` writes them all as JSON, and the editor's

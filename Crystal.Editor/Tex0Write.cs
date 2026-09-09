@@ -281,7 +281,7 @@ namespace Crystal
 		}
 
 		/// <summary>An NNSG3dResDict with the names and entries given. The tree is the one the game's own single-entry dictionaries carry, grown by a node per entry: every name walks to its own entry when the game looks one up by name.</summary>
-		private static byte[] Dictionary(List<string> names, int unit, Func<int, byte[]> entry)
+		internal static byte[] Dictionary(List<string> names, int unit, Func<int, byte[]> entry)
 		{
 			int count = names.Count;
 			int nodes = count + 1;
@@ -348,9 +348,28 @@ namespace Crystal
 				if (Bit(key, bit)) { right[me] = me; left[me] = next; } else { left[me] = me; right[me] = next; }
 				if (Bit(key, refBit[node])) right[node] = me; else left[node] = me;
 			}
+			// The game's walk (NNS_G3dGetResDictIdxByName) steps to the next node only while its index
+			// grows and takes a step back or to itself as the end: so a node's children must be numbered
+			// after it. Insertion order does not give that for every set of names (the third of
+			// w150_0, w150_1, w150_2 split above the second and took index 3 as its parent); number the
+			// nodes again by a walk from the root along the tree's forward edges - the ones to a lower
+			// bit - so every parent comes before its children and every back edge goes to an ancestor.
+			int[] renumber = new int[count + 1];
+			for (int i = 0; i <= count; i++) renumber[i] = -1;
+			int nextIndex = 0;
+			void Visit(int node)
+			{
+				if (renumber[node] >= 0) return;
+				renumber[node] = nextIndex++;
+				if (left[node] != node && refBit[left[node]] < refBit[node]) Visit(left[node]);
+				if (right[node] != node && refBit[right[node]] < refBit[node]) Visit(right[node]);
+			}
+			Visit(0);
+			for (int i = 0; i <= count; i++) if (renumber[i] < 0) renumber[i] = nextIndex++;   // unreachable nodes (none expected) after the rest
 			for (int i = 0; i <= count; i++)
 			{
-				d[at + i * 4] = (byte)refBit[i]; d[at + i * 4 + 1] = (byte)left[i]; d[at + i * 4 + 2] = (byte)right[i]; d[at + i * 4 + 3] = (byte)entry[i];
+				int to = renumber[i];
+				d[at + to * 4] = (byte)refBit[i]; d[at + to * 4 + 1] = (byte)renumber[left[i]]; d[at + to * 4 + 2] = (byte)renumber[right[i]]; d[at + to * 4 + 3] = (byte)entry[i];
 			}
 		}
 

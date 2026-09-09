@@ -2017,7 +2017,11 @@ mods that must also install into the Steam games:
 - Images, fonts, sounds: PNG is read already for pictures; music and effects of the mod's
   own as OGG/WAV - done; a TTF/OTF face of the mod's own for all the game's text - done.
 - Steam targets keep to the game's formats: the duplication path, Replace with a PNG, the
-  record forms, the table composers - and the DS converters when someone needs them.
+  record forms, the table composers - and now the first DS converter: **glTF → MDL0**
+  (`Crystal.Editor/Mdl0Write.cs`, `crystal mdl-import`, the *Look* card's *Write as a w###
+  model*) for static meshes with textures, laid out as `w005.nmdp` is and checked through
+  the reader, the viewer and the client. Not yet: skins and animations into the game's
+  joint format, vertex colours; PNG → XNB and TTF → SpriteFont stay on the list.
 
 ### glTF animation: nodes and skins (2026-09-08, late night)
 

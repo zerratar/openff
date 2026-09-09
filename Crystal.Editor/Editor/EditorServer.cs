@@ -564,6 +564,42 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/project/items/model-from-gltf":
+				{
+					// A weapon's look in the game's own format: the project's glTF written as a w### model
+					// (Mdl0Write: <name>.nmdp.lz and <name>.ntxp.lz into this target's files, under the first
+					// number from 300 the game does not use) and the definition's graphId set to it. What a
+					// Steam target needs - it reads only the game's formats - and an option on an OpenFF one.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string id = body?["id"]?.GetValue<string>();
+						string asset = body?["asset"]?.GetValue<string>();
+						float scale = (float)(body?["scale"]?.GetValue<double>() ?? 1.0);
+						if (string.IsNullOrWhiteSpace(asset)) throw new ArgumentException("no glTF named");
+						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
+						ModItem item = string.IsNullOrEmpty(id) ? null : ProjectItems.All(_project).FirstOrDefault(i => string.Equals(i.Id, id, StringComparison.OrdinalIgnoreCase));
+						// The number: the definition's own graphId when it already names a model of the project's, else the first free from 300.
+						int number = -1;
+						if (item != null && item.Fields.TryGetValue("graphId", out int have) && have >= 300 && _workspace.IsOverridden("files/w" + have.ToString("000") + ".nmdp.lz")) number = have;
+						for (int n = 300; number < 0 && n < 1000; n++) if (!_workspace.Exists("files/w" + n.ToString("000") + ".nmdp.lz")) number = n;
+						if (number < 0) throw new InvalidOperationException("no free weapon model number");
+						string name = "w" + number.ToString("000");
+						Mdl0Write.Result made = Mdl0Write.Build(OpenFF.Graphics.GltfFile.Load(gltfPath), name, scale);
+						_workspace.Write("files/" + name + ".nmdp.lz", Lz.Compress(made.Nmdp));
+						_workspace.Write("files/" + name + ".ntxp.lz", Lz.Compress(made.Ntxp));
+						if (item != null)
+						{
+							item.Fields["graphId"] = number;
+							ProjectItems.Save(_project, item);
+						}
+						SendJson(context, new { ok = true, model = name, number, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, notes = made.Notes, item = item != null ? ProjectItems.Describe(_workspace, item, _lookupMessage) : null });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/project/monsters":
 				{
 					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }

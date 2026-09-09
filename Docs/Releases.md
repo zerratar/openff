@@ -18,6 +18,16 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   the origin, blade along +Z. Crystal's item inspector has the *Look* card for weapons - the
   project's glTFs as pictures, *Import a model…*, *View*, the scale and the clip. Drives can
   set a fight up: `item <id> [count]`, `equip <member> <id>`, `battle <formation> [map]`.
+- **A glTF as the game's own model (Steam target too).** The *Look* card's *Write as a w###
+  model* converts the picked glTF into `w###.nmdp.lz` and `w###.ntxp.lz` - BMD0/MDL0 and its
+  textures, the format the Steam games read - into the target's files under the first free
+  number from 300, and sets the definition's *Model* to it; `crystal mdl-import file.glb w300`
+  does the same at the command line. One node, a shape and a pal256 texture per material,
+  triangles with normals and texture coordinates; skins and animations are not carried (the
+  bind pose is). Read back by the reader, drawn by the model viewer, played by the client. On
+  the way: the dictionary writer numbered its tree nodes in insertion order, which the game's
+  lookup misreads for three or more names - fixed, which also mends *New texture package…*
+  with three or more textures.
 
 ## 0.1.1 - game pads (2026-09-09)
 

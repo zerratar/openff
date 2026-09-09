@@ -546,9 +546,23 @@ when a battle sets it up and `weapons: rune-blade.glb drawn in the hand at x, y,
 first time it shows (the weapon shows in the swing, not while standing, as the game does).
 
 A Steam target plays only the game's own formats, so `model` is left out there: the look is
-the *Model* field - *Duplicate as…* an existing `w###` and *Replace with a PNG* on its
-texture for a new colour on the same shape - or a `w###` written from a glTF by
-`crystal mdl-import` (below), which the Steam game reads as its own.
+the *Model* field. Two ways to a new one: *Duplicate as…* an existing `w###` and *Replace
+with a PNG* on its texture (a new colour on the same shape), or the glTF converted into the
+game's own model - the *Look* card's **Write as a w### model** writes the picked glTF as
+`w###.nmdp.lz` (BMD0/MDL0) and `w###.ntxp.lz` (its textures) into the target's `files/`,
+under the first number from 300 the game does not use, and sets *Model* to it; the card
+offers this on OpenFF projects too, as the game-format alternative to the glTF look. The
+same at the command line: `crystal mdl-import blade.glb w300 [out-dir] [--scale=n]`. What
+the converter makes (`Crystal.Editor/Mdl0Write.cs`, laid out as `w005.nmdp` is): one node,
+one material and one shape per glTF material, a display list of triangles with normals and
+texture coordinates (VTX_16 under a position scale that fits the model; the meshes as the
+file's node tree places them, so a Blender hierarchy flattens), one pal256 texture per
+material - its PNG times the base colour, or an 8x8 of the colour - resampled to a power
+of two and kept under the package's 512 KB of texels. Not carried: skins and animations (a
+skinned model comes in at its bind pose), vertex colours, JPEG pictures (the base colour
+stands in, with a note). The model viewer opens the result like any `w###`, and the client
+plays it the game's way (a w### of the mod's is a file override, so `--nomods` shows the
+game's).
 
 ### Monsters of the mod's own: `defs/monsters/<id>.json`
 

@@ -158,49 +158,53 @@ function itemDefinitionPanel(def, onSaved) {
     const look = card('Look - the model in the hand');
     const lookNote = document.createElement('p');
     lookNote.className = 'none';
-    lookNote.textContent = openff
-      ? 'On the OpenFF target the client can draw a glTF of the project\'s in the hand in place of the game\'s w### model (the Model field below still names the model the game loads and poses). Grip at the origin, blade along +Z, guard across Y; a sword is about 7 units long.'
-      : 'A Steam target plays only the game\'s own formats: the look is the Model field below (Duplicate as… a w### and replace its texture for a new colour). A glTF look needs the OpenFF target.';
+    lookNote.textContent = (openff
+      ? 'On the OpenFF target the client draws the glTF in the hand as it is, in place of the game\'s w### model (the Model field below still names the model the game loads and poses). '
+      : 'A Steam target plays only the game\'s own formats, so the look is the Model field below: a w### of the game\'s, or one written from the glTF here. ')
+      + 'Model the weapon in the hand\'s frame: grip at the origin, blade along +Z, guard across Y; a sword is about 7 units long.';
     look.append(lookNote);
+    // The glTF: on the OpenFF target the definition's "model"; on a Steam-only project the source for the game-format model alone.
+    let chosen = model.model || null;
+    const pick = document.createElement('span');
+    pick.className = 'field-pick';
+    const shown = document.createElement('select');
+    const fill = () => {
+      shown.textContent = '';
+      const none = document.createElement('option');
+      none.value = ''; none.textContent = openff ? '(the game\'s model)' : '(none picked)';
+      shown.append(none);
+      for (const a of state.assets || []) {
+        const o = document.createElement('option');
+        o.value = a.name; o.textContent = a.name;
+        shown.append(o);
+      }
+      if (chosen && ![...shown.options].some(o => o.value === chosen)) {
+        const o = document.createElement('option');
+        o.value = chosen; o.textContent = chosen + (def.modelExists === false ? ' (no such file)' : '');
+        shown.append(o);
+      }
+      shown.value = chosen || '';
+    };
+    const setChosen = (name) => { chosen = name || null; if (openff) { model.model = chosen; save(); } fill(); };
+    if (Array.isArray(state.assets)) fill();
+    else api('/api/project/assets').then(list => { state.assets = list || []; fill(); }).catch(() => { state.assets = []; fill(); });
+    shown.onchange = () => setChosen(shown.value);
+    const choose = document.createElement('button');
+    choose.textContent = 'Pick…';
+    choose.title = 'The project\'s model files as pictures; Import a model… takes a Blender export in';
+    choose.onclick = () => pickModel(chosen, (name) => setChosen(name), { title: 'The weapon\'s look - a glTF of the project\'s', assetsOnly: true });
+    const view = document.createElement('button');
+    view.textContent = 'View';
+    view.title = 'The file in the model viewer';
+    view.onclick = () => { if (chosen) openDoc('model', chosen); };
+    pick.append(shown, choose, view);
+    row(look, 'glTF', pick, openff ? 'The file in the project\'s assets folder the client draws in the hand; blank for the game\'s w### model' : 'A file in the project\'s assets folder to write the game\'s model from');
+    const scale = document.createElement('input');
+    scale.type = 'number'; scale.step = '0.05'; scale.min = '0.05';
+    scale.value = model.modelScale || 1;
+    scale.oninput = () => { const v = parseFloat(scale.value); model.modelScale = v > 0 ? v : 1; if (openff) save(); };
+    row(look, 'Scale', scale, 'The file\'s units into the hand\'s; 1 is as exported (a sword about 7 units long)');
     if (openff) {
-      const pick = document.createElement('span');
-      pick.className = 'field-pick';
-      const shown = document.createElement('select');
-      const fill = () => {
-        shown.textContent = '';
-        const none = document.createElement('option');
-        none.value = ''; none.textContent = '(the game\'s model)';
-        shown.append(none);
-        for (const a of state.assets || []) {
-          const o = document.createElement('option');
-          o.value = a.name; o.textContent = a.name;
-          shown.append(o);
-        }
-        if (model.model && ![...shown.options].some(o => o.value === model.model)) {
-          const o = document.createElement('option');
-          o.value = model.model; o.textContent = model.model + (def.modelExists === false ? ' (no such file)' : '');
-          shown.append(o);
-        }
-        shown.value = model.model || '';
-      };
-      if (Array.isArray(state.assets)) fill();
-      else api('/api/project/assets').then(list => { state.assets = list || []; fill(); }).catch(() => { state.assets = []; fill(); });
-      shown.onchange = () => { model.model = shown.value || null; save(); };
-      const choose = document.createElement('button');
-      choose.textContent = 'Pick…';
-      choose.title = 'The project\'s model files as pictures; Import a model… takes a Blender export in';
-      choose.onclick = () => pickModel(model.model, (name) => { model.model = name || null; fill(); save(); }, { title: 'The weapon\'s look - a glTF of the project\'s', assetsOnly: true });
-      const view = document.createElement('button');
-      view.textContent = 'View';
-      view.title = 'The file in the model viewer';
-      view.onclick = () => { if (model.model) openDoc('model', model.model); };
-      pick.append(shown, choose, view);
-      row(look, 'glTF', pick, 'The file in the project\'s assets folder the client draws in the hand; blank for the game\'s w### model');
-      const scale = document.createElement('input');
-      scale.type = 'number'; scale.step = '0.05'; scale.min = '0.05';
-      scale.value = model.modelScale || 1;
-      scale.oninput = () => { const v = parseFloat(scale.value); model.modelScale = v > 0 ? v : 1; save(); };
-      row(look, 'Scale', scale, 'The file\'s units into the hand\'s; 1 is as exported (a sword about 7 units long)');
       const clip = document.createElement('input');
       clip.type = 'text';
       clip.value = model.modelClip || '';
@@ -208,6 +212,25 @@ function itemDefinitionPanel(def, onSaved) {
       clip.oninput = () => { model.modelClip = clip.value.trim() || null; save(); };
       row(look, 'Clip', clip, 'An animation of the glTF (a Blender action by name) looping while the weapon is held - a glowing rune, a turning gem');
     }
+    // The game's own format: the glTF written as a w### (nmdp + ntxp) and the Model field set to it.
+    const asGame = document.createElement('button');
+    asGame.className = 'wide-button';
+    asGame.textContent = 'Write as a w### model (the game\'s format)';
+    asGame.title = 'The glTF converted to the game\'s model and texture packages (w###.nmdp.lz and w###.ntxp.lz in this target\'s files, a free number from 300) and Model set to it - what a Steam target plays; one node, triangles with normals and texture coordinates, pal256 textures';
+    asGame.onclick = async () => {
+      if (!chosen) { say('pick a glTF first', 'bad'); return; }
+      asGame.disabled = true;
+      try {
+        const r = await api('/api/project/items/model-from-gltf', { id: model.id, asset: chosen, scale: model.modelScale || 1 });
+        if (!r.ok) throw new Error(r.error);
+        model.fields.graphId = r.number;
+        state.models = null;
+        say(`${r.model}: ${r.triangles} triangles, ${r.materials} material(s) - Model is now ${r.model}${(r.notes || []).length ? ' · ' + r.notes.join('; ') : ''}`, 'good');
+        setTimeout(() => inspectAsset('items', model.id), 300);
+      } catch (e) { say('model: ' + e.message, 'bad'); }
+      asGame.disabled = false;
+    };
+    look.append(asGame);
   }
 
   // ---- the record's fields
