@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reference - OpenFF guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>Reference</h1>
+  <p class="lead">To look things up: every built-in component and its fields, every timeline clip, the files a project is made of, the settings, the shortcuts.</p>
+
+  <h2 id="components">Components (behaviours)</h2>
+  <p>Attached from the inspector's <b>Add Behaviour</b>. <b>Flags</b> are written <code>group:index</code>, <code>!</code> for off, spaces between several: <code>0:14 !0:11</code>. <b>Radius</b> is in world units - two villagers side by side are about 8 apart, a doorway 3.</p>
+
+  <h3>Talk</h3>
+  <p>Someone to talk to. Lines said one after another in the message window.</p>
+  <table>
+    <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
+    <tr><td><code>Speaker</code></td><td></td><td>The name over the window; empty for none</td></tr>
+    <tr><td><code>Lines</code></td><td>Hello.</td><td>One window each; A goes on. <code>@40000001</code> says a line of the mod's text by id, <code>@1000142</code> one of the game's</td></tr>
+    <tr><td><code>FaceHero</code></td><td>on</td><td>Turn to the hero while talking</td></tr>
+    <tr><td><code>When</code></td><td></td><td>Flags that must hold for this one to speak; of several Talks the first that holds speaks</td></tr>
+    <tr><td><code>Then</code></td><td></td><td>Flags set after the last line</td></tr>
+    <tr><td><code>Radius</code>, <code>OnWalkIn</code></td><td>8, off</td><td>Without a model: how close A counts; act on walking in instead</td></tr>
+  </table>
+
+  <h3>Chest</h3>
+  <table>
+    <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
+    <tr><td><code>Item</code>, <code>Count</code></td><td>none, 1</td><td>The item inside and how many</td></tr>
+    <tr><td><code>Gil</code></td><td>0</td><td>Gil inside, on top or instead</td></tr>
+    <tr><td><code>Once</code></td><td>on</td><td>Opens once, across saves</td></tr>
+    <tr><td><code>Message</code></td><td>@</td><td><code>@</code> the game's own chest message; <code>@&lt;id&gt;</code> a line by id; text with <code>{what}</code> for the contents</td></tr>
+    <tr><td><code>EmptyMessage</code></td><td></td><td>When already open; empty says nothing</td></tr>
+    <tr><td><code>Flag</code></td><td></td><td>The game's flag for the chest, set when opened</td></tr>
+    <tr><td><code>Animate</code></td><td>on</td><td>Lid motion, sound and sparkle - for a chest model (<code>o001</code>)</td></tr>
+  </table>
+
+  <h3>Exit</h3>
+  <table>
+    <tr><th>Field</th><th>Meaning</th></tr>
+    <tr><td><code>Map</code></td><td>The map to go to - the game's (<code>t01_01</code>) or the mod's own</td></tr>
+    <tr><td><code>Arrive</code></td><td>Where the hero arrives, in world units</td></tr>
+    <tr><td><code>Facing</code></td><td>Degrees on arriving (0 = +Z, 90 = +X)</td></tr>
+    <tr><td><code>Radius</code></td><td>How close counts as walking through (3 for a doorway)</td></tr>
+  </table>
+
+  <h3>Mesh</h3>
+  <p>A glTF model on the object. Added for you when the object's model is a glTF.</p>
+  <table>
+    <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
+    <tr><td><code>Path</code></td><td></td><td>The file in <code>assets\</code></td></tr>
+    <tr><td><code>OnGround</code></td><td>on</td><td>Lift the model so its lowest point stands on the object's position</td></tr>
+    <tr><td><code>Clip</code>, <code>Speed</code></td><td>, 1</td><td>A Blender action to loop; empty for the bind pose</td></tr>
+    <tr><td><code>Solid</code></td><td>off</td><td>Ground and walls: stand on it, bump into it</td></tr>
+  </table>
+
+  <h3>Roam</h3>
+  <p>A glTF model that walks about its spot (a fox). <code>Radius</code> 10, <code>Speed</code> 4 units/s, <code>Pause</code> up to 3 s, <code>WalkClip</code> Walk, <code>IdleClip</code> Idle, <code>OnGround</code> on, <code>AvoidHero</code> on.</p>
+
+  <h3>Wander</h3>
+  <p>A game character that wanders (<code>Ai</code>: Still, Wander, Follow) with a <code>Gait</code> (Man, Woman, Boy, Girl, Uncle, Aunt, OldMan, OldWoman). Needs a model marked as a character.</p>
+
+  <h3>Motion</h3>
+  <p>A motion set bound to a character model and the motion played from the start: <code>Set</code> (w_light_man, w_light_old…), <code>Index</code> (1001 is the idle), <code>Loop</code>.</p>
+
+  <h3>Music, Sound</h3>
+  <p><b>Music</b>: <code>Bgm</code> number, <code>Volume</code> 0-127, <code>FadeIn</code> frames; starts as the map is entered. <b>Sound</b>: <code>Archive</code> and <code>Number</code> (SE001_36 is the chest's; the mod's own archives start at 300), <code>Volume</code> 0-255, <code>Radius</code> (0 plays as the map is entered), <code>Once</code>.</p>
+
+  <h3>MapSettings</h3>
+  <p>One per map, on any object. <code>Background</code> the sky colour; <code>CameraOffset</code> where the camera hangs off the hero (the game's maps: 0, 110, 110 - keep Z positive or the controls turn round); <code>LookOffset</code> where it looks (0, 10, 0); <code>ZoomRange</code> how far the zoom button goes (60; 0 for none).</p>
+
+  <h3>Encounter</h3>
+  <p>A monster on the map: walk into it and a battle begins. <code>Formation</code> (the game's or the mod's), <code>BattleMap</code>, <code>Once</code> (gone for good when won), <code>CanEscape</code>, <code>Radius</code> 10, <code>OnWalkIn</code> on.</p>
+
+  <h3>Cutscene</h3>
+  <p><code>Timeline</code> (the dock), <code>Begins</code> OnTalk / OnEnterMap / Manual, <code>If</code> and <code>Then</code> flags, <code>Once</code>, <code>FreezeHero</code> on, <code>Skippable</code> on (B), <code>CameraBack</code> on, and Radius / OnWalkIn for an object without a model. See <a href="#timeline">timeline clips</a>.</p>
+
+  <h3>Trigger, WhenFlags, Removed, GameCast, CastScript</h3>
+  <p><b>Trigger</b>: the hero within <code>Radius</code> fires Entered / Left for code (<code>Once</code>). <b>WhenFlags</b>: the object exists only while <code>When</code> holds (<code>Live</code> follows changes). <b>Removed</b>: takes the game's own character off the map so a stand-in of the mod's takes its place (<code>HideOnly</code>, <code>StandIn</code>). <b>GameCast</b> and <b>CastScript</b>: a converted villager's original script logic, kept 1:1 or as editable lines - what <i>Convert to OpenFF</i> leaves on a game character.</p>
+
+  <h2 id="timeline">Timeline clips</h2>
+  <p>Times in seconds. <code>ease</code> is <code>smooth</code> (default), <code>linear</code>, <code>in</code>, <code>out</code>. A point is <code>{ "x", "y", "z" }</code> in world units.</p>
+  <table>
+    <tr><th>Track</th><th>Clip</th><th>Arguments</th><th>Does</th></tr>
+    <tr><td rowspan="7">object, hero</td><td><code>move</code></td><td><code>to</code> point, <code>walk</code> (on), <code>face</code> (on), <code>ease</code></td><td>A character walks there with its animation; a model glides. Ends exactly at <code>to</code></td></tr>
+    <tr><td><code>turn</code></td><td><code>yaw</code> degrees, or <code>at</code> (<code>@hero</code>, an object's path, <code>x,y,z</code>), <code>ease</code></td><td>Turns over the clip's length</td></tr>
+    <tr><td><code>motion</code></td><td><code>index</code> (1001 idle), <code>loop</code>, <code>set</code> (b_b01…)</td><td>A pose or animation of the character's set</td></tr>
+    <tr><td><code>show</code></td><td><code>visible</code></td><td>Shown or hidden from here on</td></tr>
+    <tr><td><code>fade</code></td><td><code>alpha</code> 0-100, <code>ease</code></td><td>A character's opacity</td></tr>
+    <tr><td><code>scale</code></td><td><code>scale</code>, <code>ease</code></td><td>Size, 1 as modelled</td></tr>
+    <tr><td><code>clip</code></td><td><code>name</code>, <code>speed</code></td><td>A glTF animation on a Mesh; empty name stops it</td></tr>
+    <tr><td rowspan="4">camera</td><td><code>camera</code></td><td><code>position</code>, <code>target</code>, optional <code>from</code>, <code>fromTarget</code>, <code>ease</code></td><td>Glides from where it stands (or <code>from</code>) to the shot</td></tr>
+    <tr><td><code>follow</code></td><td></td><td>Back on the hero</td></tr>
+    <tr><td><code>shake</code></td><td><code>strength</code>, <code>speed</code></td><td>For the clip's length</td></tr>
+    <tr><td><code>zoom</code></td><td><code>degrees</code></td><td>The camera's zoom</td></tr>
+    <tr><td rowspan="2">dialogue</td><td><code>say</code></td><td><code>text</code> (<code>\n</code> breaks a line), <code>speaker</code>, <code>hold</code> (on)</td><td>A line; with hold the playhead waits until dismissed</td></tr>
+    <tr><td><code>ask</code></td><td><code>question</code>, <code>yes</code> flags, <code>no</code> flags</td><td>A yes/no; flags set either way; holds</td></tr>
+    <tr><td rowspan="3">screen</td><td><code>fadeOut</code></td><td><code>white</code></td><td>To black (or white) over the clip</td></tr>
+    <tr><td><code>fadeIn</code></td><td></td><td>Back over the clip</td></tr>
+    <tr><td><code>flash</code></td><td><code>white</code> (on), <code>interval</code></td><td>A flash of white or red</td></tr>
+    <tr><td rowspan="3">audio</td><td><code>se</code></td><td><code>archive</code>, <code>number</code>, <code>volume</code></td><td>A sound effect</td></tr>
+    <tr><td><code>bgm</code></td><td><code>number</code>, <code>volume</code>, <code>fade</code> frames</td><td>Music</td></tr>
+    <tr><td><code>stopBgm</code></td><td><code>fade</code></td><td>Music out</td></tr>
+    <tr><td rowspan="6">game</td><td><code>flags</code></td><td><code>set</code> flags</td><td>Set or clear flags</td></tr>
+    <tr><td><code>wait</code></td><td></td><td>Nothing - spacing</td></tr>
+    <tr><td><code>warp</code></td><td><code>map</code>, <code>position</code>, <code>facing</code></td><td>To another map; ends the cutscene</td></tr>
+    <tr><td><code>battle</code></td><td><code>formation</code>, <code>map</code></td><td>A battle; ends the cutscene</td></tr>
+    <tr><td><code>item</code></td><td><code>item</code>, <code>count</code></td><td>Into the inventory</td></tr>
+    <tr><td><code>signal</code></td><td><code>name</code></td><td><code>CutsceneSignal</code> for code</td></tr>
+  </table>
+
+  <h2 id="files">Files</h2>
+  <p>A <b>project</b> lives in <code>%LocalAppData%\OpenFF\Crystal\projects\&lt;name&gt;\</code>:</p>
+  <table>
+    <tr><th>Path</th><th>Holds</th></tr>
+    <tr><td><code>project.json</code></td><td>Name, author, version, description, the games and kinds</td></tr>
+    <tr><td><code>files\</code></td><td>Changed game files, mirroring the game's names (per game when both are open)</td></tr>
+    <tr><td><code>scenes\&lt;map&gt;.json</code></td><td>A map's objects and behaviours - a game map changed, or a map of the mod's own (<code>"own": true</code>)</td></tr>
+    <tr><td><code>defs\items\</code>, <code>monsters\</code>, <code>formations\</code>, <code>characters\</code>, <code>text\</code></td><td>Definitions, one JSON each (below)</td></tr>
+    <tr><td><code>assets\</code></td><td>glTF models and what they bring along</td></tr>
+    <tr><td><code>code\</code>, <code>build\</code></td><td>The C# project and its built assembly</td></tr>
+  </table>
+  <p><b>Export to OpenFF</b> writes the mod as <code>mods\&lt;name&gt;\</code> beside <code>OpenFF.exe</code>: <code>mod.json</code>, <code>ff3\files\</code>, <code>scenes\</code>, <code>defs\</code>, <code>assets\</code>, the assemblies. <code>mods\loadorder.json</code> (and the title's MODS entry) orders and enables mods. A mod with no code and no changed files - scenes, definitions and assets alone - is a complete mod.</p>
+
+  <h2 id="defs">Definitions</h2>
+  <h3>Items - <code>defs/items/&lt;id&gt;.json</code></h3>
+<pre><code>{ "id": "rune-blade", "number": 20501, "base": 1107,
+  "name": "Rune Blade", "caption": "A blade with a light of its own.",
+  "buy": 4800, "sell": 2400,
+  "fields": { "aggressivity": 34 },
+  "model": "assets/rune-blade.glb", "modelScale": 1, "modelClip": "Glow",
+  "modelRotation": [0, 0, 0], "modelOffset": [0, 0, 0] }</code></pre>
+  <p><code>number</code> from 20001 (Crystal gives it); <code>base</code> the game's item it starts from; <code>fields</code> the record's fields by the game's names; <code>model</code> and the rest the weapon's look on the OpenFF target.</p>
+  <h3>Monsters and formations</h3>
+<pre><code>{ "id": "goblin-chief", "number": 1001, "base": 1, "name": "Goblin Chief", "look": 1,
+  "fields": { "maxHp": 60, "level": 4, "exp": 30, "gil": 80, "strength": 12 } }
+
+{ "id": "chief-and-goblins", "number": 1001, "name": "Goblin Chief and two Goblins",
+  "slots": [ { "monster": 1001, "min": 1, "max": 1 }, { "monster": 1, "min": 2, "max": 2 } ] }</code></pre>
+  <p>A monster's battle model is its family's; <code>look</code> is which family member's texture it wears.</p>
+  <h3>Characters - <code>defs/characters/&lt;id&gt;.json</code></h3>
+<pre><code>{ "id": "luneth", "slot": 0, "name": "Luneth", "job": "knight", "level": 5, "fixedJob": true, "look": 2 }</code></pre>
+  <h3>Text - <code>defs/text/&lt;name&gt;.json</code></h3>
+<pre><code>{ "40000001": "Hello there, traveller!",
+  "40000002": { "en": "Welcome!", "de": "Willkommen!" } }</code></pre>
+  <p>Ids from 40000000 are clear of the game's. <code>@40000001</code> in a Talk, a Chest or a say clip says the line through the game's own window.</p>
+
+  <h2 id="settings">Settings and command line</h2>
+  <p><code>%LocalAppData%\OpenFF\settings.json</code>, also the client's <kbd>Esc</kbd> menu:</p>
+  <table>
+    <tr><th>Key</th><th>Values</th></tr>
+    <tr><td><code>width</code>, <code>height</code></td><td>The window (1600 × 960 to begin with)</td></tr>
+    <tr><td><code>mode</code></td><td><code>windowed</code>, <code>borderless</code>, <code>fullscreen</code>; <kbd>Alt</kbd>+<kbd>Enter</kbd> switches</td></tr>
+    <tr><td><code>msaa</code>, <code>vsync</code></td><td>0 / 2 / 4 / 8; true / false</td></tr>
+    <tr><td><code>run</code></td><td><code>stick</code> (push the stick further to run) or <code>hold</code> (the run button)</td></tr>
+    <tr><td><code>pad</code></td><td>Each DS button (<code>a b x y l r start select run fast</code>) to a pad button (<code>cross circle square triangle l1 r1 l2 r2 l3 r3 options share touchpad none</code>)</td></tr>
+  </table>
+  <p><b>OpenFF.exe</b> switches: <code>--game=ff3|ff4</code>, <code>--map=t01_01</code>, <code>--pos=x,y,z</code>, <code>--rot=degrees</code>, <code>--cutscene=&lt;object path&gt;</code> (play it as the map is up), <code>--size=WxH</code>, <code>--fullscreen</code> / <code>--borderless</code> / <code>--windowed</code>, <code>--msaa=off|2|4|8</code>, <code>--novsync</code>, <code>--log=general,file</code>, <code>--log-file=&lt;path&gt;</code>, <code>--drive=&lt;file&gt;</code> (a scripted run), <code>--screenshot-dir</code> and <code>--screenshot-every=&lt;s&gt;</code>.</p>
+  <p><b>crystal.exe</b>: <code>editor --project=&lt;name&gt; --port=5050 --no-browser</code>; the converters <code>mdl</code>, <code>mdl-import file.glb w300 [--scale=n]</code>, <code>tex</code>, <code>msd</code>, <code>script</code>, <code>pak</code>, <code>lz</code>, <code>sample-assets</code>, <code>api-docs</code>, <code>projects</code>, <code>installs</code>.</p>
+
+  <h2 id="shortcuts">Shortcuts</h2>
+  <table>
+    <tr><th>Where</th><th>Key</th><th>Does</th></tr>
+    <tr><td>Everywhere</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
+    <tr><td>3D view</td><td>drag · wheel · middle drag</td><td>Orbit · zoom · pan</td></tr>
+    <tr><td>3D view</td><td>right button + <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>Q</kbd><kbd>E</kbd> (<kbd>Shift</kbd>)</td><td>Fly</td></tr>
+    <tr><td>3D view</td><td><kbd>W</kbd> / <kbd>E</kbd> · <kbd>F</kbd></td><td>Move / rotate gizmo · frame the selection</td></tr>
+    <tr><td>Timeline</td><td><kbd>Space</kbd> · <kbd>Home</kbd> <kbd>End</kbd> · ← → (<kbd>Shift</kbd>) · <kbd>Delete</kbd> · <kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Play · ends · a frame / a second · remove · duplicate</td></tr>
+    <tr><td>Model viewer</td><td><kbd>Space</kbd> · ← →</td><td>Play the motion · a frame</td></tr>
+    <tr><td>Game</td><td><kbd>Esc</kbd> / Start · <kbd>Alt</kbd>+<kbd>Enter</kbd> · <kbd>B</kbd></td><td>The client's menu · full screen · skip a cutscene</td></tr>
+    <tr><td>Game (keyboard)</td><td>arrows or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · <kbd>Z</kbd>/<kbd>Space</kbd>/<kbd>Enter</kbd> <kbd>X</kbd>/<kbd>Backspace</kbd> <kbd>C</kbd> <kbd>V</kbd> · <kbd>Q</kbd> <kbd>E</kbd> · right <kbd>Ctrl</kbd> right <kbd>Shift</kbd> · left <kbd>Shift</kbd></td><td>Move · A B X Y · L R · Start Select · run</td></tr>
+  </table>
+
+  <footer>The longer manual is <code>Modding.md</code>; the C# API is Help ▸ OpenFF API reference in Crystal, or <code>Docs/API.md</code>.</footer>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

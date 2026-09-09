@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Items and weapons - OpenFF guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>Items and weapons</h1>
+  <p class="lead">A new item starts from one of the game's and changes what you say. A weapon can wear a model of your own.</p>
+
+  <h2>A new item</h2>
+  <ol class="steps">
+    <li><b>Mod ▸ Items ▸ New item…</b>. Pick the item it starts from - a Potion for a consumable, a Knife for a weapon, a Leather Shield for a shield. Everything you do not change stays the base's.
+      <figure><img src="img/items-list.png" alt="The Items list on the Mod side, with the inspector showing a definition"><figcaption>The mod's items. The list says what each looks like; the inspector edits it.</figcaption></figure></li>
+    <li><b>Name and caption</b> - what the menus show. <b>Buy / Sell</b> for the shops.</li>
+    <li><b>Record</b> - the game's own fields for that kind of item: attack, hit rate, the jobs that may equip it, elements, status effects. Flags and kinds are pickers; the base's values are greyed in until you set your own; the ↺ goes back to the base's.</li>
+    <li><b>Put it somewhere:</b> a <b>Chest</b> behaviour's <b>Item</b> picker lists it at once; so does a timeline's <b>give item</b> clip and C#'s <code>Game.Party.AddItem</code>.</li>
+  </ol>
+  <figure><img src="img/inspector-item.png" alt="The item inspector: identity, shop, look, record fields" class="small"><figcaption>An item definition, top to bottom.</figcaption></figure>
+
+  <h2>A weapon with its own model</h2>
+  <p>On the OpenFF target a weapon or shield can be drawn from a glTF instead of the game's model - the <b>Look</b> card.</p>
+  <ol class="steps">
+    <li><b>Model it.</b> In Blender, the hand's frame: grip at the origin, <b>blade along +Z</b>, guard across Y; a sword is about 7 units long. A shield: face in the XY plane, boss toward <b>-Z</b>, tilted about 35° toward +Y, centred near (0, 0.3, -0.4), radius about 1.6 (the game's shields' size). Export as <code>.glb</code>.</li>
+    <li><b>Import it.</b> The Look card's <b>Pick…</b> ▸ <b>Import a model…</b>, or drop the file into the project's <code>assets\</code> folder.</li>
+    <li><b>Pick it</b> in the Look card. That is all the client needs: in battle the glTF is posed from the hand exactly where the game's model would be, faded and hidden as the game does.</li>
+    <li><b>A clip</b> loops an animation of the file while it is held - the Rune Blade's ring of light is a <code>Glow</code> clip.</li>
+  </ol>
+  <figure><img src="img/inspector-item-shield.png" alt="The Look card on a shield: glTF, scale, rotation, offset, clip" class="small"><figcaption>The Look card: the file, its scale, rotation and offset, a clip, and the buttons.</figcaption></figure>
+
+  <h2>Fit it to the hand</h2>
+  <p>A file made in another frame does not need re-exporting: turn and move it here.</p>
+  <ol class="steps">
+    <li><b>On a character…</b> in the Look card opens the model viewer with the weapon in a party member's hand, the battle motions playing.
+      <figure><img src="img/model-on-character.png" alt="The model viewer with the rune blade in the hero's hand" class="medium"><figcaption>The blade in the idle stance. The transport under it plays the swings; scrub the frames.</figcaption></figure></li>
+    <li><b>fit</b> - scale, rotation about X/Y/Z, offset - move the model live. Arrow keys nudge a field; <kbd>Shift</kbd> for ten steps. Every change saves to the definition; <b>reset</b> clears it.</li>
+    <li>Pick another character or hand from the two menus; untick <b>on a character</b> to see the model on its own. The game's own weapons (<code>w021</code>…) take the toggle too, to compare.</li>
+  </ol>
+
+  <h2>For a Steam mod</h2>
+  <p>The Steam game reads only its own formats, so the glTF has to become a <code>w###</code> model: <b>Write as a w### model</b> in the Look card converts it (geometry, textures, the fit baked in) and sets the record's <b>Model</b> to it. Textures become 256-colour; skins and animations are not carried.</p>
+
+  <div class="note"><b>Files:</b> <code>defs/items/&lt;id&gt;.json</code>. <a href="reference.html#defs">The reference</a> lists every field. Monsters and formations work the same way from <b>Mod ▸ Monsters</b> and <b>Formations</b>.</div>
+  <div class="note"><b>Next:</b> <a href="cutscenes.html">cutscenes</a>.</div>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

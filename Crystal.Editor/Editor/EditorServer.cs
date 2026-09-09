@@ -428,6 +428,28 @@ namespace Crystal.Editor
 					CreateProject(context);
 					return;
 
+				case "/api/samples":
+					// The sample mods shipped beside Crystal (or the repository's), for Sample projects….
+					SendJson(context, new { ok = true, folder = Samples.Folder(), samples = Samples.All() });
+					return;
+
+				case "/api/samples/open":
+				{
+					// A sample copied into a new project and opened.
+					JsonNode body = ReadBody(context);
+					try
+					{
+						Project project = Samples.OpenAsProject(body?["id"]?.GetValue<string>(), body?["name"]?.GetValue<string>());
+						OpenProject(project);
+						SendJson(context, new { ok = true, name = project.File.Name, directory = project.Directory, active = project.File.Active, code = ModCode.Has(project) });
+					}
+					catch (Exception ex) when (ex is ArgumentException or IOException or InvalidOperationException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
+
 				case "/api/project/open":
 					OpenProjectRequest(context);
 					return;
@@ -2755,9 +2777,23 @@ namespace Crystal.Editor
 		private void ServeStatic(HttpListenerContext context, string path)
 		{
 			string relative = path == "/" ? "index.html" : path.TrimStart('/');
-			string full = Path.GetFullPath(Path.Combine(_webRoot, relative));
+			string root = _webRoot;
+			// The guide: the HTML tutorials, from the Guide folder beside the executable (a
+			// release) or the repository's Docs\Guide, at /guide/.
+			if (relative.StartsWith("guide/", StringComparison.OrdinalIgnoreCase) || relative.Equals("guide", StringComparison.OrdinalIgnoreCase))
+			{
+				root = GuideFolder();
+				relative = relative.Length > 6 ? relative.Substring(6) : "index.html";
+				if (relative.Length == 0 || relative.EndsWith("/", StringComparison.Ordinal)) relative += "index.html";
+				if (root == null)
+				{
+					Send(context, 404, "text/html; charset=utf-8", Encoding.UTF8.GetBytes("<p>The guide was not found beside Crystal (a Guide folder, or the repository's Docs\\Guide).</p>"));
+					return;
+				}
+			}
+			string full = Path.GetFullPath(Path.Combine(root, relative));
 
-			if (!full.StartsWith(_webRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+			if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal)
 				|| !File.Exists(full))
 			{
 				Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("not found"));
@@ -2771,6 +2807,22 @@ namespace Crystal.Editor
 			Send(context, 200, ContentType(full), File.ReadAllBytes(full));
 		}
 
+		/// <summary>Where the guide's pages are: Guide\ beside the executable (a release), else the repository's Docs\Guide up from it; null for neither.</summary>
+		private static string GuideFolder()
+		{
+			string at = AppContext.BaseDirectory;
+			for (int i = 0; i < 6 && !string.IsNullOrEmpty(at); i++)
+			{
+				foreach (string name in new[] { "Guide", Path.Combine("Docs", "Guide") })
+				{
+					string candidate = Path.Combine(at, name);
+					if (File.Exists(Path.Combine(candidate, "index.html"))) return Path.GetFullPath(candidate).TrimEnd(Path.DirectorySeparatorChar);
+				}
+				at = Path.GetDirectoryName(at.TrimEnd(Path.DirectorySeparatorChar));
+			}
+			return null;
+		}
+
 		private static string ContentType(string path)
 		{
 			switch (Path.GetExtension(path).ToLowerInvariant())
@@ -2779,6 +2831,12 @@ namespace Crystal.Editor
 				case ".js": return "text/javascript; charset=utf-8";
 				case ".css": return "text/css; charset=utf-8";
 				case ".svg": return "image/svg+xml";
+				case ".png": return "image/png";
+				case ".jpg": case ".jpeg": return "image/jpeg";
+				case ".gif": return "image/gif";
+				case ".webp": return "image/webp";
+				case ".ico": return "image/x-icon";
+				case ".woff2": return "font/woff2";
 				default: return "application/octet-stream";
 			}
 		}

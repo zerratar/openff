@@ -607,8 +607,10 @@ joint each frame exactly as the game poses it (`R_te` / `L_te`; a shield the for
 rotation, offset - move the model live and save to the definition as you change them
 (arrow keys nudge a field, Shift for ten steps), so a Blender export is fitted to the attack
 animations by eye. The toggle works on any weapon model, the game's `w###` too, for
-comparison; off, the viewer shows the model on its own as before. The record's *Model*
-(graphId) still names the model
+comparison; off, the viewer shows the model on its own as before. Not yet: while the
+character is on, the transport is the character's - the glTF's own clips (the Rune Blade's
+glow) do not play in the viewer; the client plays them in battle regardless. The record's
+*Model* (graphId) still names the model
 the game loads and poses - the base's is fine - and *Kind* still picks the swing motions; the
 game's weapon character is hidden, shown, faded and shrunk exactly as before (its render
 object gets a stand-in, `CRenderObject.StandIn`, and only the draw is the glTF's:
@@ -873,6 +875,10 @@ and heroes beyond the four.
   a test that repeats.
 
 ### The samples
+
+Each is a finished mod folder; *File ▸ Sample projects…* in Crystal copies one into a project of
+your own (the code under `code/` with Crystal's csproj), to read, change and Run in OpenFF. The
+release zip carries them in `Samples\`.
 
 - `Samples/HelloMod` - a service, a behaviour, a save chunk, a villager who talks through a
   coroutine, and a scene file; `install.cmd` builds it into the mods folder.

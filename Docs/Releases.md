@@ -34,6 +34,21 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   SBC walk the viewer's poses come from), a second model and an attach matrix in the viewer,
   and a transport that can be pointed at another model. The Look card now shows for a shield
   (armour with a model of its own) as well as a weapon.
+- **The modding guide.** `Guide\index.html` in the release (the repository's `Docs/Guide`):
+  short HTML tutorials with pictures - getting started, the map editor, a map of your own,
+  items and weapons, cutscenes, models/sounds/fonts, C# code, Steam mods - and a reference
+  of every component, timeline clip, file, setting and shortcut. Crystal opens it with
+  *Help ▸ Guide* (a Help menu is new: the guide's pages, the API reference, the samples).
+- **Sample projects.** The three sample mods ship in the release (`Samples\`; the Showcase
+  also as a ready mod in `mods\`), and *File ▸ Sample projects…* copies one into a project
+  of your own - laid out as any project, the C# under `code/` with a csproj against the
+  client's engine - to read, change and Run in OpenFF.
+- **The project panel's two sides.** The game's libraries and the mod's own folders were one
+  list, too tall for the panel with the mod's rows below the fold. A **Mod** tab now sits
+  beside FF3 / FF4: the tree shows one side at a time and each tab remembers the library
+  last browsed on it. The Behaviours section of the inspector no longer asks for C# code
+  first: the built-in behaviours attach on a project without any (they always could in the
+  client; the editor hid them).
 - **`Game.Camera.MoveTo` did nothing.** In the game's free camera mode a set position is
   rebuilt every frame from the target, an angle pair and a distance, so the position the
   API wrote was overwritten before it was seen and the camera parked 16 units behind its

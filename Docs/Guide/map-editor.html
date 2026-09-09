@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The map editor - OpenFF guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>The map editor</h1>
+  <p class="lead">Open a map, pick things, move them, give them behaviours. If you know Unity's scene view you know this.</p>
+
+  <figure><img src="img/map-editor.png" alt="The map editor: hierarchy on the left, 3D view in the middle, inspector on the right, project panel below"><figcaption>Left: the <b>hierarchy</b> - what is on the map. Middle: the <b>3D view</b>. Right: the <b>inspector</b> - what is selected. Bottom: the <b>project panel</b>.</figcaption></figure>
+
+  <h2>Open a map</h2>
+  <ol class="steps">
+    <li><b>Mod ▸ Scenes</b> in the project panel lists the maps your project touches. Double-click <b>Crystal Shrine (t91_00)</b>.</li>
+    <li>Any of the game's maps opens the same way from <b>FF3 ▸ Maps</b> - <code>t01_01</code> is Ur. Changes to a game map go into a <b>scene file</b> of your project; the game's own file is never written.</li>
+  </ol>
+
+  <h2>Move around</h2>
+  <table>
+    <tr><th>Do</th><th>Result</th></tr>
+    <tr><td>Drag</td><td>Orbit the camera</td></tr>
+    <tr><td>Wheel</td><td>Zoom</td></tr>
+    <tr><td>Middle button, or <kbd>Shift</kbd> + drag</td><td>Pan</td></tr>
+    <tr><td>Hold the right button; <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> walk, <kbd>Q</kbd> <kbd>E</kbd> down and up, <kbd>Shift</kbd> faster</td><td>Fly, looking with the mouse</td></tr>
+    <tr><td>Click</td><td>Select; click the sky to deselect</td></tr>
+    <tr><td><kbd>F</kbd></td><td>Frame the selection</td></tr>
+    <tr><td><b>Recentre</b></td><td>Back to the whole map</td></tr>
+  </table>
+
+  <h2>Select and move</h2>
+  <ol class="steps">
+    <li><b>Click the fox</b> in the 3D view, or <b>Fox</b> in the hierarchy. The inspector shows it: <b>Transform</b> (position, rotation, scale), <b>Model</b>, <b>Scene</b> (tags, parent) and its <b>Behaviours</b>.
+      <div class="row2">
+        <figure><img src="img/hierarchy.png" alt="The hierarchy listing the shrine's objects" class="small"><figcaption>The hierarchy. Right-click a row for rename, duplicate, delete; drag to re-parent.</figcaption></figure>
+        <figure><img src="img/inspector-object.png" alt="The inspector for the fox: transform, model, behaviours" class="small"><figcaption>The inspector. Every number saves as you type.</figcaption></figure>
+      </div></li>
+    <li><b>Drag the arrows</b> in the 3D view to move it (<kbd>W</kbd> tool); <kbd>E</kbd> switches to the rotate ring. Or type into Transform.</li>
+    <li><b>Undo</b> is <kbd>Ctrl</kbd>+<kbd>Z</kbd>, redo <kbd>Ctrl</kbd>+<kbd>Y</kbd>. The scene saves itself a moment after each change.</li>
+  </ol>
+
+  <h2>Add an object</h2>
+  <ol class="steps">
+    <li><b>+ add an object</b> at the bottom of the hierarchy, or right-click in the hierarchy. A new object appears where the camera looks.</li>
+    <li><b>Give it a model.</b> In the inspector, <b>Model ▸ Pick…</b> opens the model picker: the game's characters, props and monsters as pictures, and your own glTF files first. Or drag a model from <b>FF3 ▸ Models</b> onto the 3D view.
+      <figure><img src="img/model-picker.png" alt="The model picker showing the mod's glTF files and the game's models as pictures" class="medium"><figcaption>The model picker. <b>Import a model…</b> takes a Blender export (.glb / .gltf).</figcaption></figure></li>
+    <li><b>Tick "character"</b> under the model if it should walk and be talked to (a villager); leave it off for a prop (a crate, a sign).</li>
+  </ol>
+
+  <h2>Give it a behaviour</h2>
+  <p>Behaviours are what make an object do something. They attach like components in Unity.</p>
+  <ol class="steps">
+    <li><b>Add Behaviour</b> in the inspector. A list drops down with a search box.</li>
+    <li>Pick <b>Talk</b> and write a line or two under <b>Lines</b>. That is a villager.</li>
+    <li>Pick <b>Chest</b> on a chest model (<code>o001</code>), choose the <b>Item</b>. That is a treasure chest, opened once, remembered in the save.</li>
+    <li><b>Run in OpenFF</b> and go and talk to it.</li>
+  </ol>
+  <p>The built-in behaviours cover most of a map: <b>Talk</b>, <b>Chest</b>, <b>Exit</b> (a door to another map), <b>Music</b>, <b>Sound</b>, <b>Wander</b> and <b>Roam</b> (NPCs and props that walk about), <b>Mesh</b> (a glTF model, with collision), <b>Trigger</b>, <b>WhenFlags</b>, <b>Cutscene</b>. The <a href="reference.html#components">reference</a> lists every field.</p>
+
+  <div class="tip"><b>Play here.</b> The ▶ button above the 3D view starts the game on this map, at the selected object. The quickest loop there is: change, ▶, walk over, look.</div>
+
+  <h2>Converting a game's map</h2>
+  <p>On one of the game's own maps the hierarchy also lists its <b>characters</b>, <b>logic</b> and <b>exits</b>. You can move them and save the placement (a Steam mod), or <b>convert</b> a villager into an object of your mod's - the inspector offers it - which keeps the game's own dialogue and lets you add behaviours on top.</p>
+
+  <div class="note"><b>Next:</b> <a href="own-map.html">a map of your own</a>.</div>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

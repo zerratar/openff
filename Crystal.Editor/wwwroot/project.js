@@ -100,7 +100,11 @@ function drawMenuBar() {
   bar.append(buildMenu('File', [
     { label: 'New project…', run: newProjectDialog },
     { label: 'Open project…', run: openProjectDialog },
+    { label: 'Sample projects…', run: sampleProjectsDialog,
+      note: 'The sample mods (Showcase, Hello, Survivors) as a project of your own to read and change' },
     { label: 'Start page', run: showStartPage },
+    '-',
+    { label: 'Guide', run: () => openGuide(), note: 'The modding guide: short tutorials with pictures, and the reference' },
     '-',
     {
       label: edited ? `Changes… (${edited})` : 'Changes…',
@@ -171,6 +175,18 @@ function drawMenuBar() {
   }
   bar.append(buildMenu('Project', items.length ? items : [
     { label: 'No project open', disabled: true, run: () => {} },
+  ]));
+
+  bar.append(buildMenu('Help', [
+    { label: 'Guide', run: () => openGuide(), note: 'Short tutorials with pictures: a first mod, a map of your own, a weapon, a cutscene' },
+    { label: 'Guide: the map editor', run: () => openGuide('map-editor.html') },
+    { label: 'Guide: items and weapons', run: () => openGuide('items.html') },
+    { label: 'Guide: cutscenes', run: () => openGuide('cutscenes.html') },
+    { label: 'Guide: reference', run: () => openGuide('reference.html'), note: 'Every component, every clip, every file - to look things up' },
+    '-',
+    { label: 'OpenFF API reference…', run: apiReferenceDialog,
+      note: 'Game.Hero, Game.Dialogue, Game.Magic... what a mod\'s C# can call, from the engine\'s own docs' },
+    { label: 'Sample projects…', run: sampleProjectsDialog },
   ]));
 
   const where = $('#project-name');
@@ -399,6 +415,71 @@ async function openProjectDialog() {
     list.append(row);
   }
   body.append(list);
+}
+
+/// The sample mods shipped beside Crystal, each openable as a fresh project of your own -
+/// a copy under a name you pick, laid out as any project, so it reads and changes like one.
+async function sampleProjectsDialog() {
+  const body = dialog('Sample projects', { wide: true });
+  let result = null;
+  try { result = await api('/api/samples'); } catch (error) { say(error.message, 'bad'); }
+  const samples = (result && result.samples) || [];
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = samples.length
+    ? 'Each sample becomes a project of its own - a copy you can read, change and Run in OpenFF; the sample stays as it is. Pick one and a name.'
+    : 'No samples were found beside Crystal' + (result && result.folder ? ' in ' + result.folder : '') + '. The release zip carries them in Samples\\.';
+  body.append(note);
+  if (!samples.length) return;
+
+  const list = document.createElement('div');
+  list.className = 'dialog-list';
+  let picked = samples[0];
+  const rows = [];
+  for (const sample of samples) {
+    const row = document.createElement('button');
+    row.className = 'dialog-row project-row' + (sample === picked ? ' checked' : '');
+    const title = document.createElement('strong');
+    title.append(icon('mod'), document.createTextNode(sample.name));
+    const what = document.createElement('span');
+    const parts = [];
+    if (sample.scenes) parts.push(`${sample.scenes} scene${sample.scenes === 1 ? '' : 's'}`);
+    if (sample.definitions) parts.push(`${sample.definitions} definition${sample.definitions === 1 ? '' : 's'}`);
+    if (sample.assets) parts.push(`${sample.assets} asset${sample.assets === 1 ? '' : 's'}`);
+    if (sample.code) parts.push('C# code');
+    what.textContent = (sample.description || '') + (parts.length ? '  ·  ' + parts.join(', ') : '');
+    row.append(title, what);
+    row.onclick = () => { picked = sample; rows.forEach(r => r.classList.toggle('checked', r === row)); nameField.value = sample.name; };
+    rows.push(row);
+    list.append(row);
+  }
+  body.append(list);
+  const nameField = field(body, 'Project name', picked.name, { placeholder: 'a name for your copy' });
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Open as a project';
+  go.onclick = async () => {
+    go.disabled = true;
+    try {
+      const r = await api('/api/samples/open', { id: picked.id, name: nameField.value.trim() || picked.name });
+      if (!r.ok) throw new Error(r.error);
+      body.close();
+      await reloadEverything(`${r.name} is yours now - a copy of the ${picked.name} sample${r.code ? '; Build C# code, then Run in OpenFF' : '; Run in OpenFF plays it'}`);
+    } catch (error) {
+      say(error.message, 'bad');
+      go.disabled = false;
+    }
+  };
+  actions.append(go);
+  body.append(actions);
+}
+
+/// The modding guide: HTML pages Crystal serves from its own Guide folder (the release zip's
+/// Guide\, or the repository's Docs\Guide), in a new browser tab; a page name opens that page.
+function openGuide(page) {
+  window.open(wsUrl('/guide/' + (page || 'index.html')), '_blank');
 }
 
 /// The mark of what kind of mod a project is, wherever projects are listed: the OpenFF
@@ -1119,7 +1200,15 @@ async function drawStartPage() {
     const openButton = document.createElement('button');
     openButton.textContent = 'Open project…';
     openButton.onclick = openProjectDialog;
-    actions.append(make, openButton);
+    const samples = document.createElement('button');
+    samples.textContent = 'Sample projects…';
+    samples.title = 'The sample mods as a project of your own: a finished map, weapons and cutscene to read and change';
+    samples.onclick = sampleProjectsDialog;
+    const guide = document.createElement('button');
+    guide.textContent = 'Guide';
+    guide.title = 'The modding guide: short tutorials with pictures';
+    guide.onclick = () => openGuide();
+    actions.append(make, openButton, samples, guide);
     box.append(actions);
   }
   card.append(box);
@@ -1162,7 +1251,8 @@ async function drawStartPage() {
     ['Edit and save.', ' Every save goes into the project, never into the game.'],
     ['Project ▸ Install', ' copies the edits into the game and keeps the originals; Remove puts them back.'],
     ['FF3 and FF4', ' are the tabs above the libraries: whose content the panel shows. An OpenFF mod may open both and take from either; every document tab says which game it is.'],
-    ['OpenFF mod', ', at the bottom of the tree, is the project\'s own: its C# code, and the maps it puts behaviours on. Open them here, or in your IDE; Build compiles; Export to OpenFF writes the mod.'],
+    ['Mod', ', the tab beside the games, is the project\'s own side: its C# code, scenes, items, characters, monsters, formations and strings. Open them here, or in your IDE; Build compiles; Export to OpenFF writes the mod.'],
+    ['Help ▸ Guide', ' is the modding guide - short tutorials with pictures; Sample projects… opens a finished mod as a project of yours to read and change.'],
     ['Export as .zip', ' packs the project with a README - what you upload.'],
   ]) {
     const li = document.createElement('li');

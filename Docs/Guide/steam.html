@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Steam mods - OpenFF guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>Steam mods</h1>
+  <p class="lead">Edits that go into the Steam game itself. No client, no code - changed files, put in place and taken out again.</p>
+
+  <h2>What a Steam mod can change</h2>
+  <ul>
+    <li><b>Text</b> - every line the game says, per language (<b>FF3 ▸ Text</b>).</li>
+    <li><b>Tables</b> and <b>Game data</b> - items, monsters, jobs, shops, formations: the numbers.</li>
+    <li><b>Images</b> and <b>Textures</b> - menu pictures, model skins, replaced with PNGs.</li>
+    <li><b>Models</b> - recoloured copies (<b>Duplicate as…</b>), or a glTF converted with <b>Write as a w### model</b>.</li>
+    <li><b>Maps</b> - where the game's characters stand (<b>Save placement</b>), and their scripts.</li>
+    <li><b>Menus</b> - the menu layouts.</li>
+  </ul>
+  <p>What it cannot: new maps, glTF drawn directly, C# code, cutscenes on a timeline - those need the client.</p>
+
+  <h2>Make one</h2>
+  <ol class="steps">
+    <li><b>File ▸ New project…</b>; tick the game under <b>Steam</b>. (A project may be both a Steam and an OpenFF mod - tick both.)</li>
+    <li><b>Edit.</b> Every save goes into the project's <code>files\</code>, never into the game. The tab shows a badge on anything you changed; <b>File ▸ Changes…</b> lists them all.</li>
+    <li><b>Project ▸ Install into the game</b> copies the changed files into the Steam folder and keeps the originals beside them. <b>Remove from the game</b> puts them back. Start the game from Steam as usual.</li>
+    <li><b>Export as .zip</b> packs the project with a README - what you upload for others, who install it the same way.</li>
+  </ol>
+
+  <div class="warn"><b>Steam updates</b> can overwrite installed files. Remove, update, install again. The project keeps everything.</div>
+
+  <div class="note"><b>Next:</b> the <a href="reference.html">reference</a>.</div>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

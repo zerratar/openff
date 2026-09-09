@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Getting started - OpenFF guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>Getting started</h1>
+  <p class="lead">From the zip to a sample mod running in the game. Nothing to install.</p>
+
+  <h2>What you need</h2>
+  <ul>
+    <li>Windows 10 or 11.</li>
+    <li>Final Fantasy III and/or Final Fantasy IV - the 3D remakes - installed from Steam. OpenFF reads the game's files from there; none of them are in the download.</li>
+    <li>The release zip: <code>OpenFF-&lt;version&gt;-win-x64.zip</code>. Unzip it anywhere.</li>
+  </ul>
+
+  <h2>Start the game once</h2>
+  <ol class="steps">
+    <li><b>Run <code>OpenFF.exe</code>.</b> It finds the Steam install by itself and starts Final Fantasy III. Play a minute if you like; the point is that the client now knows where it lives, and Crystal can find it.</li>
+    <li><b>Try the pad.</b> A connected controller works out of the box. <kbd>Esc</kbd> (or Start on the pad) opens the client's own menu: window size, full screen, anti-aliasing, how running works.</li>
+  </ol>
+  <div class="tip"><b>Settings</b> are in <code>%LocalAppData%\OpenFF\settings.json</code> - the same things the Esc menu changes. Saves are in <code>%AppData%\FF3</code>.</div>
+
+  <h2>Open Crystal</h2>
+  <ol class="steps">
+    <li><b>Run <code>crystal.exe</code>.</b> It opens in your browser. The first page is the start page.
+      <figure><img src="img/start-page.png" alt="Crystal's start page with a project open"><figcaption>The start page: the open project, its games, and the projects to switch to.</figcaption></figure></li>
+    <li><b>Open a sample.</b> <b>File ▸ Sample projects…</b> lists the mods that come with the release. Pick <b>Showcase</b>, keep the name, <b>Open as a project</b>. You get a copy of your own - change anything; the sample stays as it is.
+      <figure><img src="img/samples-dialog.png" alt="The Sample projects dialog listing Hello mod, Showcase and Goblin Survivors" class="medium"><figcaption>Three samples: a map with weapons and a cutscene (no code), the smallest mod with code, and a whole game mode.</figcaption></figure></li>
+    <li><b>Play it.</b> <b>Project ▸ Run in OpenFF</b> (or the <b>Run in OpenFF</b> button in the project panel). Crystal exports the mod into the client's <code>mods</code> folder and starts the game. In Ur, the town you start in, walk out of the <b>north gate</b>: the Crystal Shrine is the Showcase's own map.</li>
+  </ol>
+  <figure><img src="img/game-shrine-path.jpg" alt="The hero walking into the Crystal Shrine"><figcaption>The Showcase in play. Talk to the crystal for a cutscene; the chests hold a sword and a shield of the mod's own.</figcaption></figure>
+
+  <h2>The project panel</h2>
+  <p>The panel at the bottom is where everything is found. Two sides:</p>
+  <div class="row2">
+    <figure><img src="img/project-panel-game.png" alt="The project panel on the FF3 side: Maps, Scripts, Menus..."><figcaption><b>FF3 / FF4</b> - the game's own libraries: maps, scripts, menus, text, tables, images, textures, models, cells, audio. Click to inspect, double-click to open.</figcaption></figure>
+    <figure><img src="img/project-panel-mod.png" alt="The project panel on the Mod side: Code, Scenes, Items..."><figcaption><b>Mod</b> - your project's own: code, scenes (the maps you changed or made), items, characters, monsters, formations, strings.</figcaption></figure>
+  </div>
+  <p>The <b>filter</b> box narrows any list. The buttons at the right of the filter are the actions for that library - <b>New map…</b>, <b>New item…</b>, <b>Import a model…</b>, <b>Run in OpenFF</b>.</p>
+
+  <h2>Two kinds of project</h2>
+  <table>
+    <tr><th></th><th>OpenFF mod</th><th>Steam mod</th></tr>
+    <tr><td>Played by</td><td>the OpenFF client</td><td>the Steam game itself</td></tr>
+    <tr><td>Can add</td><td>maps, items, monsters, cutscenes, glTF models, sounds, fonts, C# code</td><td>changed files only: texts, textures, tables, existing models recoloured</td></tr>
+    <tr><td>Ships as</td><td>a folder in <code>mods\</code> - Export to OpenFF</td><td>files installed into the game - Project ▸ Install</td></tr>
+  </table>
+  <p>A project can be both. <b>File ▸ Project settings…</b> ticks the games and the kinds. This guide is mostly about OpenFF mods; <a href="steam.html">Steam mods</a> has the other side.</p>
+
+  <h2>Menus</h2>
+  <div class="row2">
+    <figure><img src="img/menu-file.png" alt="The File menu" class="small"><figcaption><b>File</b>: projects, changes, export, code, run.</figcaption></figure>
+    <figure><img src="img/menu-help.png" alt="The Help menu" class="small"><figcaption><b>Help</b>: this guide, the API reference, the samples.</figcaption></figure>
+  </div>
+
+  <div class="note"><b>Next:</b> <a href="map-editor.html">the map editor</a> - open the shrine and change it.</div>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

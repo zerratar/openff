@@ -2634,15 +2634,8 @@ function behavioursSection(panel, target, what) {
   const box = document.createElement('div');
   box.className = 'behaviours';
   panel.append(box);
-  if (!project.code) {
-    const add = document.createElement('button');
-    add.className = 'behaviour-add-button';
-    add.textContent = 'Add C# code';
-    add.title = 'Writes the mod\'s C# project and a starting GameService; Behaviour classes in it attach to this ' + what;
-    add.onclick = () => { if (typeof addCode === 'function') addCode(); };
-    box.append(add);
-    return;
-  }
+  // No code is no bar: the engine's own behaviours (Talk, Chest, Mesh, Cutscene...) attach
+  // without a line of C#; a mod's own classes join them once there is a code project.
   const map = mapState.name;
   loadSceneState(map).then(state => drawBehaviours(box, state, target, what)).catch(error => {
     const bad = document.createElement('p');
@@ -2667,10 +2660,21 @@ function drawBehaviours(box, state, target, what) {
   add.title = 'Attach one of the code\'s Behaviour classes to this ' + what + ', or write a new one';
   add.onclick = () => behaviourPicker(add, state, target, box, what);
   box.append(add);
-  if (!catalog.built && behaviourChoices(catalog).length) {
+  if (catalog.code && !catalog.built && behaviourChoices(catalog).length) {
     const note = document.createElement('p');
     note.className = 'none';
     note.textContent = 'Not built yet - the behaviours attach now and get their fields after Build.';
+    box.append(note);
+  }
+  if (!catalog.code) {
+    const note = document.createElement('p');
+    note.className = 'none';
+    note.textContent = 'The built-in behaviours. For behaviours of your own: ';
+    const add = document.createElement('button');
+    add.textContent = 'Add C# code';
+    add.title = 'Writes the mod\'s C# project and a starting GameService; Behaviour classes in it attach here too';
+    add.onclick = () => { if (typeof addCode === 'function') addCode(); };
+    note.append(add);
     box.append(note);
   }
   if (catalog.problems && catalog.problems.length) {

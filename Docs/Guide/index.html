@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenFF modding guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>Modding Final Fantasy III &amp; IV (3D) with OpenFF</h1>
+  <p class="lead">Short tutorials with pictures. Each one takes a few minutes and ends with something you can play.</p>
+
+  <div class="hero">
+    <img src="img/game-shrine.jpg" alt="The Crystal Shrine, a map made in Crystal, running in the OpenFF client">
+    <div class="over">The Crystal Shrine - a map, its models, a cutscene and two weapons, all made in Crystal. Not a line of code.</div>
+  </div>
+
+  <h2>Two programs</h2>
+  <p><b>OpenFF</b> plays the games. It reads your Steam copy of Final Fantasy III or IV and runs it with a modern client: any window size, game pads, and a <b>mods</b> folder that can add new maps, items, monsters, cutscenes and C# code.</p>
+  <p><b>Crystal</b> is the editor. It opens the game's files - maps, models, text, tables, sound - and lets you change them or add your own. Everything you make is a <b>project</b>; <b>Run in OpenFF</b> plays it.</p>
+
+  <h2>Pick a tutorial</h2>
+  <div class="cards">
+    <a class="card game" href="getting-started.html"><b>Getting started</b><span>Install, open Crystal, open a sample project, play it. 5 minutes.</span></a>
+    <a class="card editor" href="map-editor.html"><b>The map editor</b><span>Select, move, add an object, give it a behaviour: a talking villager, a chest.</span></a>
+    <a class="card editor" href="own-map.html"><b>A map of your own</b><span>A new map from a ground model, exits to and from the game's maps, music.</span></a>
+    <a class="card mod" href="items.html"><b>Items and weapons</b><span>A new item from an existing one; a sword drawn from your own glTF, fitted in the hand.</span></a>
+    <a class="card mod" href="cutscenes.html"><b>Cutscenes</b><span>Camera moves, lines, a fox that runs over: the timeline.</span></a>
+    <a class="card mod" href="assets.html"><b>Models, sounds, fonts</b><span>Bring a Blender export, an Ogg tune, a TrueType font into the game.</span></a>
+    <a class="card mod" href="code.html"><b>C# code</b><span>When a behaviour is not enough: a script that hot-reloads while the game runs.</span></a>
+    <a class="card game" href="steam.html"><b>Steam mods</b><span>Edits that install into the Steam game itself - texts, textures, tables.</span></a>
+    <a class="card editor" href="reference.html"><b>Reference</b><span>Every component and its fields, every timeline clip, the files, the settings.</span></a>
+  </div>
+
+  <h2>What a mod can do</h2>
+  <div class="row2">
+    <figure><img src="img/game-weapons.png" alt="A glTF sword and shield in the hero's hands in battle"><figcaption>Weapons and shields of your own, from a glTF, in battle.</figcaption></figure>
+    <figure><img src="img/game-cutscene-line.jpg" alt="A cutscene made on the timeline: a camera shot and a line"><figcaption>Cutscenes laid out on a timeline: camera, lines, effects.</figcaption></figure>
+    <figure><img src="img/timeline-full.png" alt="Crystal with the map editor and the timeline dock open"><figcaption>Crystal: the 3D view, the hierarchy, the inspector and the timeline.</figcaption></figure>
+    <figure><img src="img/model-on-character.png" alt="The model viewer showing a sword in a character's hand, mid animation"><figcaption>Fit a weapon to the hand while the battle animation plays.</figcaption></figure>
+  </div>
+
+  <div class="note"><b>Where things are.</b> This guide is <code>Guide\index.html</code> in the release folder, and <b>Help ▸ Guide</b> in Crystal. The longer written manual is <code>Modding.md</code> beside it; the C# API is <b>Help ▸ OpenFF API reference</b>.</div>
+
+  <footer>OpenFF is a fan project for people who own the games. It is not affiliated with Square Enix; the games' files never leave your machine.</footer>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

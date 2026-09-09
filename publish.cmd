@@ -18,6 +18,12 @@ copy /y README.md dist\OpenFF\README.md >nul
 copy /y Docs\Modding.md dist\OpenFF\Modding.md >nul
 copy /y Docs\Releases.md dist\OpenFF\Releases.md >nul
 copy /y LICENSE dist\OpenFF\LICENSE.txt >nul
+rem The sample mods, for Crystal's Sample projects… (Samples\ beside crystal.exe); their build
+rem output is left out. The Showcase is also a ready mod: mods\Showcase plays as it stands.
+robocopy Samples dist\OpenFF\Samples /e /xd bin obj /njh /njs /ndl /nfl /nc /ns >nul
+robocopy Samples\Showcase dist\OpenFF\mods\Showcase /e /xd bin obj /njh /njs /ndl /nfl /nc /ns >nul
+rem The guide: the HTML tutorials Crystal opens with Help, readable on their own too.
+if exist Docs\Guide robocopy Docs\Guide dist\OpenFF\Guide /e /njh /njs /ndl /nfl /nc /ns >nul
 if exist dist\OpenFF-%VERSION%-win-x64.zip del dist\OpenFF-%VERSION%-win-x64.zip
 powershell -NoProfile -Command "Compress-Archive -Path dist\OpenFF -DestinationPath dist\OpenFF-%VERSION%-win-x64.zip -CompressionLevel Optimal" || goto fail
 echo.

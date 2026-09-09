@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Models, sounds, fonts - OpenFF guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>Models, sounds, fonts</h1>
+  <p class="lead">Files of your own, in the game. Blender exports, Ogg tunes, TrueType faces - and the game's own textures swapped for a PNG.</p>
+
+  <h2>A model from Blender (glTF)</h2>
+  <ol class="steps">
+    <li><b>Export</b> from Blender as <b>glTF Binary (.glb)</b>. Units: the game's - a villager is about 10 tall, a doorway about 3 wide. +Y is up, +Z is forward. Textures embedded, or a <code>.gltf</code> with its files beside it.</li>
+    <li><b>Import</b>: the model picker's <b>Import a model…</b> (anywhere a model is picked), or copy the file into the project's <code>assets\</code> folder.</li>
+    <li><b>Use it</b>: as an object's <b>Model</b> on a map (a prop, a building, a whole ground with <b>Solid</b> on), as a <a href="items.html">weapon's look</a>, or as a character with <b>Roam</b> - the fox.</li>
+    <li><b>Animate it</b>: Blender actions come along as clips. A <b>Mesh</b>'s <b>Clip</b> loops one; <b>Roam</b> plays <b>Walk</b> and <b>Idle</b> clips; a weapon's <b>Clip</b> loops while held; a timeline's <b>glTF clip</b> switches them in a cutscene.</li>
+  </ol>
+  <figure><img src="img/model-viewer.png" alt="The model viewer showing the rune blade" class="medium"><figcaption>Double-click a file under <b>FF3 ▸ Models</b> - yours are listed first - to see it in the viewer. <b>Export .glb</b> goes the other way: any of the game's models, with a motion, for Blender.</figcaption></figure>
+  <div class="tip"><b>What carries over:</b> geometry, normals, texture coordinates, textures, vertex colours, node transforms, skins and animations. Lighting is the game's - a shade from the normal, as its own models have - so do not bake dramatic lighting into the textures.</div>
+
+  <h2>A sound or a tune</h2>
+  <ol class="steps">
+    <li><b>FF3 ▸ Audio ▸ Import a sound…</b>. An <b>Ogg Vorbis</b> or <b>WAV</b> file.</li>
+    <li>Pick <b>music</b> (a BGM number the game does not use, 59 and up) or <b>effect</b> (an archive of your own, <code>SE300_00</code> and up).</li>
+    <li>A <b>Music</b> behaviour's <b>Bgm</b> and a <b>Sound</b>'s <b>Archive / Number</b> list it; so do the timeline's <b>music</b> and <b>sound</b> clips and C#'s <code>Game.Audio</code>.</li>
+  </ol>
+
+  <h2>A font</h2>
+  <ol class="steps">
+    <li><b>FF3 ▸ Text ▸ Import a font…</b>. A <b>.ttf</b> or <b>.otf</b>.</li>
+    <li>The client draws every line of text from it; glyphs it lacks fall back to the game's faces. The preview shows sample text at the game's sizes.</li>
+  </ol>
+
+  <h2>Pictures and textures</h2>
+  <ol class="steps">
+    <li><b>FF3 ▸ Images</b>: the menus' pictures. Open one, <b>Replace…</b> with a PNG of the same size. <b>Import a PNG…</b> adds a new one under a name of your own for the menus to reference.</li>
+    <li><b>FF3 ▸ Textures</b>: a model's skin. Open a texture package, pick a texture, <b>Replace with a PNG</b> - the game's formats and palettes are made for you. A recoloured villager is this and nothing else.</li>
+    <li><b>Duplicate as…</b> on any model copies it (and its textures) under a new name, so a recolour can live beside the original.</li>
+  </ol>
+
+  <div class="note"><b>Files:</b> models in <code>assets\</code>; sounds, fonts, replaced textures and images under <code>files\</code>, mirroring the game's names. Export to OpenFF copies them all into the mod.</div>
+  <div class="note"><b>Next:</b> <a href="code.html">C# code</a>.</div>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

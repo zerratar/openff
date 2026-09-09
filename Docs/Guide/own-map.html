@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A map of your own - OpenFF guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>A map of your own</h1>
+  <p class="lead">A new place in the world: a ground to walk on, a door from a town, music, a sky. The Crystal Shrine was made this way.</p>
+
+  <h2>Make it</h2>
+  <ol class="steps">
+    <li><b>FF3 ▸ Maps ▸ New map…</b> (the button beside the filter). Give it a name.
+      <figure><img src="img/new-map-dialog.png" alt="The New map dialog: name, kind, ground, slab size, music" class="medium"><figcaption>A map is a name, a kind (town, dungeon, field - the camera and the encounters follow), a ground and a tune.</figcaption></figure></li>
+    <li><b>Ground:</b> a flat slab to begin with, or one of your glTF files (<a href="assets.html">Models, sounds, fonts</a> - a ground is just a model with <b>Solid</b> on). The shrine's ground, kerb, pillars and walls are one glTF.</li>
+    <li><b>Create.</b> The map opens in the editor with a <b>Ground</b> object and a <b>Music</b> object. Its number (<code>t91_00</code>, say) is the mod's own; the game has no such map, and needs none.</li>
+  </ol>
+
+  <h2>Furnish it</h2>
+  <ol class="steps">
+    <li><b>Objects:</b> <a href="map-editor.html">add objects</a> as on any map - trees, chests, a fox with <b>Roam</b>, a crystal with <b>Talk</b>. Their models can be the game's or your glTF.</li>
+    <li><b>Collision:</b> a glTF <b>Mesh</b> with <b>Solid</b> ticked is ground and wall in one - the hero stands on it and cannot walk through it. Small steps (under a unit) are stepped over.</li>
+    <li><b>Camera and sky:</b> select the map itself (click the sky) and look at <b>MapSettings</b>: <b>Background</b> is the colour behind everything, <b>CameraOffset</b> and <b>LookOffset</b> where the camera hangs off the hero, <b>ZoomRange</b> how far the zoom button goes.</li>
+    <li><b>Music:</b> the Music object's <b>Bgm</b> picks a tune - the game's, or one you imported.</li>
+  </ol>
+
+  <h2>Connect it</h2>
+  <ol class="steps">
+    <li><b>A way in.</b> Open the town it hangs off (<code>t01_01</code>, Ur). Add an object where the door should be, give it an <b>Exit</b>: <b>Map</b> your map, <b>Arrive</b> where the hero appears, <b>Facing</b> which way, <b>Radius</b> how close counts as walking in.</li>
+    <li><b>A way out.</b> On your map, an <b>Exit</b> back, arriving just outside that door.</li>
+    <li><b>Run in OpenFF</b>, walk through both. The Showcase's <code>scenes/t01_01.json</code> is exactly this: one object with an Exit at Ur's north gate.</li>
+  </ol>
+
+  <figure><img src="img/game-shrine.jpg" alt="The Crystal Shrine in play"><figcaption>Ground, trees, pillars, chests, a crystal, a fox, a sky colour and a tune - a map from nothing.</figcaption></figure>
+
+  <div class="tip"><b>Encounters.</b> A map's random battles come from its kind and an <b>Encounter</b> behaviour: formations of the game's monsters, or <a href="reference.html#defs">formations of your own</a>.</div>
+
+  <h2>What was written</h2>
+  <p>A map of your own is a scene file, <code>scenes/&lt;map&gt;.json</code> in your project, marked <code>"own": true</code>, with its title. The ground is <code>assets/&lt;file&gt;.glb</code>. That is the whole map - copy those two into another project and it is there too.</p>
+
+  <div class="note"><b>Next:</b> <a href="items.html">items and weapons</a> to put in its chests.</div>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

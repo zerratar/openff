@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C# code - OpenFF guide</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="wrap">
+<main>
+  <h1>C# code</h1>
+  <p class="lead">When a behaviour is not enough. A script hot-reloads into the running game within a second of building.</p>
+
+  <div class="note"><b>You need the .NET 8 SDK</b> for this page (free, from Microsoft). Everything else in this guide works without it.</div>
+
+  <h2>Add code to a project</h2>
+  <ol class="steps">
+    <li><b>File ▸ Add C# code…</b>. Crystal writes <code>code\&lt;Name&gt;.csproj</code> referencing the OpenFF engine, and a starting <code>Mod.cs</code> with a <b>GameService</b>.</li>
+    <li><b>Open in IDE</b> (Visual Studio, Rider, VS Code - whatever opens a csproj), or edit under <b>Mod ▸ Code</b> right here.</li>
+    <li><b>Build</b> (<b>File ▸ Build C# code</b>). Errors show under the file. <b>Run in OpenFF</b> exports the assembly with the mod; build again while the game runs and it reloads - the service's public fields survive the swap.</li>
+  </ol>
+
+  <h2>Three things a mod is made of</h2>
+  <table>
+    <tr><th>Kind</th><th>Lives</th><th>For</th></tr>
+    <tr><td><b>GameService</b></td><td>the whole run</td><td>hearing events (<code>MapEntered</code>, <code>FlagChanged</code>, <code>BattleStarting</code>…), spawning things, keeping counts</td></tr>
+    <tr><td><b>Behaviour</b></td><td>on an object; Awake / Start / Update / OnDestroy</td><td>what one thing does - and it appears in the inspector's <b>Add Behaviour</b> list with its public fields as editable fields</td></tr>
+    <tr><td><b>ISaveable</b></td><td>in the save slot</td><td>data that has to survive - a chunk with a version</td></tr>
+  </table>
+
+  <h2>A behaviour of your own</h2>
+<pre><code>using OpenFF;
+
+public class Greeter : Interactable        // talk to the object (or walk in), as Talk does
+{
+    [Tooltip("Said when the player talks to this")]
+    public string Line = "Hello!";
+    [Range(1, 10)] public int Times = 1;
+
+    protected override void Activate()
+    {
+        StartCoroutine(Say());
+    }
+
+    IEnumerator Say()
+    {
+        for (int i = 0; i &lt; Times; i++)
+        {
+            Game.Dialogue.Say(Line);
+            yield return Wait.Dialogue();       // until the player dismisses it
+        }
+        Game.Camera.Shake(20);
+    }
+}</code></pre>
+  <p>Build, and <b>Greeter</b> is in the Add Behaviour list with <b>Line</b> and <b>Times</b> as fields. <code>[Tooltip]</code>, <code>[Header]</code>, <code>[Range]</code>, <code>[ItemField]</code>, <code>[FlagField]</code>, <code>[MapField]</code>, <code>[BgmField]</code> shape how a field shows; <code>ObjectRef</code> is a picker for another object on the map; <code>Vector3</code>, <code>Color</code>, enums and string lists all have their own editors.</p>
+
+  <h2>Acting on the game</h2>
+  <p>Everything goes through <code>Game.*</code>: <b>Hero</b> (walk, face, motion, freeze), <b>Npcs</b> (spawn, walk, talk), <b>Dialogue</b> (say, ask), <b>Party</b> (items, gil, members, stats), <b>Magic</b>, <b>Monsters</b>, <b>Battle</b> (start one), <b>Field</b> (warp, ground, walls), <b>Camera</b> (move, look, follow, shake), <b>Effects</b>, <b>Audio</b>, <b>Screen</b> (fades), <b>Draw</b> (text and shapes over the game), <b>Input</b>, <b>Flags</b>, <b>Saves</b>, <b>Events</b>. Coroutines with <code>Game.Run</code> and <code>Wait.Frames / Seconds / Until / Dialogue / Walk</code>.</p>
+  <figure><img src="img/api-reference.png" alt="The OpenFF API reference dialog, searching for Hero" class="medium"><figcaption><b>Help ▸ OpenFF API reference…</b> is the whole API, searchable, from the engine's own documentation.</figcaption></figure>
+
+  <h2>A cutscene's signal</h2>
+  <p>A <b>signal</b> clip on a timeline's game track publishes <code>CutsceneSignal</code> with its name - the way a hand-laid cutscene reaches code:</p>
+<pre><code>Game.Events.Subscribe&lt;CutsceneSignal&gt;(s =&gt; { if (s.Name == "door") OpenTheDoor(); });</code></pre>
+
+  <h2>The samples</h2>
+  <ul>
+    <li><b>Hello mod</b> - a service, a behaviour, a save chunk, a villager who runs a small scene as a coroutine. Read it first.</li>
+    <li><b>Goblin Survivors</b> - a whole game mode in one service: waves, auto-aimed spells with the game's own effects, level-up cards, chests, a shop. What the API can carry when pushed.</li>
+  </ul>
+  <p><b>File ▸ Sample projects…</b> opens either as a project of yours; <b>Build</b>, then <b>Run in OpenFF</b>.</p>
+
+  <div class="note"><b>Next:</b> <a href="steam.html">Steam mods</a>, or the <a href="reference.html">reference</a>.</div>
+</main>
+</div>
+<script src="nav.js"></script>
+</body>
+</html>

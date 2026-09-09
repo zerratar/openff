@@ -1622,7 +1622,13 @@ function drawProjectTree() {
   const available = (typeof projectState !== 'undefined' && projectState.available) || [];
   const found = available.filter(a => a.found);
   const closedGames = [...new Set(found.map(a => a.game))].filter(g => !open.some(w => w.game === g));
-  if (open.length + closedGames.length > 1) {
+  const project = (typeof projectState !== 'undefined' && projectState.project) || null;
+  const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
+  // Which side the tree shows: the game's libraries, or the mod's own folders. One at a
+  // time - both stacked made a list too tall for the panel, with the mod's rows below the
+  // fold. The side follows what is being browsed; the Mod tab beside the game tabs flips it.
+  const modSide = KINDS.some(k => k.mod && k.id === browseKind);
+  if (open.length + closedGames.length > 1 || project) {
     const tabs = document.createElement('div');
     tabs.className = 'ws-tabs';
     const byGame = ['ff3', 'ff4'];
@@ -1630,7 +1636,7 @@ function drawProjectTree() {
     for (const w of sorted) {
       const twice = open.filter(o => o.game === w.game).length > 1;
       const tab = document.createElement('button');
-      tab.className = 'ws-tab ' + w.game + (w.target === state.ws ? ' on' : '');
+      tab.className = 'ws-tab ' + w.game + (w.target === state.ws && !modSide ? ' on' : '');
       tab.title = `${w.label} · ${w.files} files · ${w.contentDirectory}`;
       const game = document.createElement('b');
       game.textContent = w.game.toUpperCase();
@@ -1640,13 +1646,16 @@ function drawProjectTree() {
         where.textContent = w.mod === 'openff' ? 'OpenFF' : 'Steam';
         tab.append(where);
       }
-      tab.onclick = () => selectWorkspace(w.target);
+      // The game's libraries: this game's, and back from the mod's side to the library last browsed.
+      tab.onclick = async () => {
+        if (modSide) { await selectWorkspace(w.target); await selectKind(lastGameKind); }
+        else await selectWorkspace(w.target);
+      };
       tabs.append(tab);
     }
     for (const g of closedGames) {
       const tab = document.createElement('button');
       tab.className = 'ws-tab off ' + g;
-      const project = (typeof projectState !== 'undefined' && projectState.project) || null;
       tab.title = project
         ? `${g.toUpperCase()} is installed, but this project does not open it. Project settings adds it - as part of the OpenFF mod, or as a Steam mod of its own.`
         : `${g.toUpperCase()} is installed but could not be opened.`;
@@ -1657,44 +1666,41 @@ function drawProjectTree() {
       else tab.disabled = true;
       tabs.append(tab);
     }
+    // The mod's side: the project's own folders, apart from the games' - the rows below
+    // are one side or the other, never both stacked.
+    if (project) {
+      const gap = document.createElement('span');
+      gap.className = 'ws-gap';
+      tabs.append(gap);
+      const tab = document.createElement('button');
+      tab.className = 'ws-tab mod' + (modSide ? ' on' : '') + (openff ? '' : ' off');
+      tab.append(icon('mod'));
+      const label = document.createElement('b');
+      label.textContent = 'Mod';
+      tab.append(label);
+      const count = (project.scenes || 0) + (project.items || 0) + (project.characters || 0) + (project.monsters || 0) + (project.formations || 0) + (project.text || 0);
+      if (openff && count) { const n = document.createElement('span'); n.textContent = String(count); tab.append(n); }
+      tab.title = !openff
+        ? `${project.name} is a Steam mod: files replaced in the game, no code. Tick FF3 or FF4 under OpenFF in Project settings to make it an OpenFF mod as well.`
+        : `${project.name}: the mod's own - its C# code, scenes, items, characters, monsters, formations and strings. ${project.directory}`;
+      tab.onclick = () => openff ? selectKind(lastModKind) : (typeof projectSettingsDialog === 'function' && projectSettingsDialog());
+      tabs.append(tab);
+    }
     tree.append(tabs);
   }
 
-  const project = (typeof projectState !== 'undefined' && projectState.project) || null;
-  const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
-  let into = tree;
+  if (modSide && !project) {
+    // Nothing of a mod's to show without a project; a line says so and offers the way.
+    const none = document.createElement('div');
+    none.className = 'tree-none';
+    none.textContent = 'No project: File ▸ New project… makes one, with a folder for its code and scenes.';
+    tree.append(none);
+  }
   for (const kind of KINDS) {
-    if (kind.mod && into === tree) {
-      // The mod's own folder, below a rule: it is the project's, not a game's. It
-      // sticks to the panel's bottom, so a short panel that scrolls the libraries
-      // still shows it - a folder nobody can see is the confusion this is here to end.
-      const foot = document.createElement('div');
-      foot.className = 'tree-foot';
-      const rule = document.createElement('div');
-      rule.className = 'tree-rule';
-      foot.append(rule);
-      const head = document.createElement('div');
-      head.className = 'row mod' + (KINDS.some(k => k.mod && k.id === browseKind) ? ' open' : '');
-      head.append(icon('mod'));
-      const label = document.createElement('span');
-      label.textContent = 'OpenFF mod';
-      head.append(label);
-      const note = document.createElement('i');
-      if (!project) note.textContent = 'no project';
-      else if (!openff) note.textContent = 'Steam only';
-      if (note.textContent) head.append(note);
-      head.title = !project
-        ? 'The project\'s own files - its C# code and the maps it puts behaviours on. File ▸ New project… makes one.'
-        : !openff
-          ? `${project.name} is a Steam mod: files replaced in the game, no code. Tick FF3 or FF4 under OpenFF in Project settings to make it an OpenFF mod as well.`
-          : `${project.name}: an OpenFF mod - its C# code, and the maps it puts behaviours and objects on. ${project.directory}`;
-      head.onclick = () => selectKind('code');
-      foot.append(head);
-      tree.append(foot);
-      into = foot;
-    }
+    if (Boolean(kind.mod) !== modSide) continue;
+    if (kind.mod && !project) continue;
     const row = document.createElement('div');
-    row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod ? ' sub' : '');
+    row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod && !openff ? ' dim' : '');
     row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'characters' ? 'character' : kind.id === 'strings' ? 'text' : kind.id === 'monsters' ? 'monster' : kind.id === 'formations' ? 'formation' : 'code') : kind.id));
     const label = document.createElement('span');
     label.textContent = kind.label;
@@ -1718,10 +1724,14 @@ function drawProjectTree() {
               : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
     }
     row.onclick = () => selectKind(kind.id);
-    into.append(row);
+    tree.append(row);
   }
   drawCodeActions();
 }
+
+// The library last browsed on each side, so the tabs go back to where you were.
+let lastGameKind = 'map';
+let lastModKind = 'scene';
 
 /// The buttons beside the filter while the mod folder is showing: what the project
 /// can do next. No project: make one. No code: add it. Code: a new file, a build, the
@@ -2301,6 +2311,7 @@ async function selectWorkspace(target) {
 async function selectKind(kind) {
   browseKind = kind;
   state.browse = kind;
+  if (KINDS.some(k => k.mod && k.id === kind)) lastModKind = kind; else lastGameKind = kind;
   drawProjectTree();
   $('#filter').value = '';
   say('loading…');
