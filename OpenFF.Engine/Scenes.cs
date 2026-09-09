@@ -1156,6 +1156,115 @@ namespace OpenFF
 		protected override void OnDisable() { _inside = false; }
 	}
 
+	/// <summary>
+	/// Makes a model of the mod's own (a Mesh) roam about its spot: a walk to a point within
+	/// Radius of where it started, a pause, another - facing the way it goes, on the ground,
+	/// its Walk clip while moving and its Idle clip while standing (when the file has them).
+	/// What Wander is for a game character, this is for a glTF; it moves the object's
+	/// Transform, so anything else on the object comes along.
+	/// </summary>
+	public sealed class Roam : Behaviour
+	{
+		/// <summary>How far from its starting spot it goes, in world units.</summary>
+		[Range(1f, 60f), Tooltip("How far from its starting spot it goes, in world units")]
+		public float Radius = 10f;
+		/// <summary>Its pace, in world units a second (a villager walks about 4).</summary>
+		[Range(0.5f, 20f), Tooltip("Its pace, in world units a second (a villager walks about 4)")]
+		public float Speed = 4f;
+		/// <summary>How long it stands between walks, in seconds, at most (at least half that).</summary>
+		[Range(0f, 20f), Tooltip("How long it stands between walks, in seconds, at most")]
+		public float Pause = 3f;
+		/// <summary>The file's clip to play while walking; empty for none.</summary>
+		[Tooltip("The Mesh's clip while it walks (a Blender action by name); empty for none")]
+		public string WalkClip = "Walk";
+		/// <summary>The file's clip to play while standing; empty for the bind pose.</summary>
+		[Tooltip("The Mesh's clip while it stands; empty for the bind pose")]
+		public string IdleClip = "Idle";
+		/// <summary>Keep it on the ground: its height follows the ground under it (the map's, or a Solid Mesh).</summary>
+		[Tooltip("Its height follows the ground under it - the map's, or a Solid Mesh - as it goes")]
+		public bool OnGround = true;
+		/// <summary>Stop where the hero stands rather than walking through them.</summary>
+		[Tooltip("Stop short of the hero rather than walking through them")]
+		public bool AvoidHero = true;
+
+		private Vector3 _home;
+		private Vector3 _target;
+		private bool _walking;
+		private double _wait;
+		private readonly Random _random = new Random();
+
+		protected override void Start()
+		{
+			_home = Transform.WorldPosition;
+			_wait = Pause * 0.5;
+			Clip(IdleClip);
+		}
+
+		protected override void Update()
+		{
+			if (Transform == null) return;
+			float dt = (float)Game.Time.Delta;
+			if (!_walking)
+			{
+				_wait -= dt;
+				if (_wait > 0) return;
+				// Somewhere within Radius of home, at least a step away.
+				double angle = _random.NextDouble() * Math.PI * 2;
+				float distance = (float)(Radius * (0.3 + 0.7 * _random.NextDouble()));
+				_target = new Vector3(_home.X + (float)Math.Cos(angle) * distance, _home.Y, _home.Z + (float)Math.Sin(angle) * distance);
+				_walking = true;
+				Clip(WalkClip);
+			}
+			Vector3 at = Transform.WorldPosition;
+			Vector3 to = new Vector3(_target.X - at.X, 0, _target.Z - at.Z);
+			float left = to.Length;
+			float step = Speed * dt;
+			if (left <= step || left < 0.05f)
+			{
+				at = new Vector3(_target.X, at.Y, _target.Z);
+				Arrive();
+			}
+			else
+			{
+				Vector3 dir = to / left;
+				Vector3 next = at + dir * step;
+				if (AvoidHero && Game.Hero.Present && Vector3.FlatDistance(next, Game.Hero.Position) < 4f)
+				{
+					Arrive();   // the hero is in the way: stand here and pick another walk later
+				}
+				else
+				{
+					at = next;
+					Transform.WorldYaw = (float)(Math.Atan2(dir.X, dir.Z) * 180.0 / Math.PI);
+				}
+			}
+			if (OnGround)
+			{
+				float? ground = Game.Field.GroundHeight(new Vector3(at.X, at.Y + 2f, at.Z));
+				if (ground.HasValue) at.Y = ground.Value;
+			}
+			Transform.WorldPosition = at;
+		}
+
+		private void Arrive()
+		{
+			_walking = false;
+			_wait = Pause * (0.5 + 0.5 * _random.NextDouble());
+			Clip(IdleClip);
+		}
+
+		private void Clip(string name)
+		{
+			Mesh mesh = GetComponent<Mesh>();
+			if (mesh?.Handle == null || mesh.Handle.Problem != null) return;
+			if (string.IsNullOrWhiteSpace(name)) { mesh.Handle.Stop(); return; }
+			if (!mesh.Handle.Play(name, true, mesh.Speed) && mesh.Handle.Clips.Count > 0)
+				Game.Warn("Roam " + (GameObject?.Name ?? "?") + ": no clip '" + name + "' (it has: " + string.Join(", ", mesh.Handle.Clips) + ")");
+		}
+
+		protected override void OnDisable() { _walking = false; }
+	}
+
 	internal sealed class ModelFollow : Behaviour
 	{
 		private Vector3 _at;

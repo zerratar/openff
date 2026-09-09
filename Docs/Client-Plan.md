@@ -2001,8 +2001,8 @@ standing in Ur in the game (C-58) and beside the chest in the editor (E-60).
 Steam converters (glTF → MDL0, PNG → XNB, TTF → SpriteFont) are a separate, later line for
 mods that must also install into the Steam games:
 
-- Models: glTF in - done for static meshes, animated ones, and as collision (`Solid`,
-  below). Next: the `Motion` and `Wander` components on a glTF character.
+- Models: glTF in - done for static meshes, animated ones, as collision (`Solid`) and
+  walking about (`Roam`, below). Next: `Talk` and the other Interactables on a glTF.
 - Maps: a whole map of the mod's own - done (below): a free stage name, a scene file with
   a Solid Mesh for the ground, `Exit` and `Music` components, *New map…* in Crystal. Next
   on it: the map's own camera settings and a background colour, its name on the menu.
@@ -2096,6 +2096,18 @@ dialog became *Import a sound…* with a tune/effect switch; the engine gained `
 SE300_00, `Sound { Archive: 300, Radius: 0 }` on The Old Quarry - the trace's `se 300/0`
 as the map opens. Left: the same import for a Steam target as an XNB writer; an SE picker
 for `Sound`'s two numbers.
+
+### Roam: a glTF that walks (2026-09-09, morning)
+
+`Wander` drives a game character's walker; a Mesh has none, so `Roam` moves the Transform
+itself: a target within Radius of home, Speed units a second, a Pause between walks, the
+yaw from the step, the height from `Game.Field.GroundHeight` (which now also asks
+`ModCollision` outright - on a map with no collision object of the game's no restrictor is
+active, so the loop over them found nothing), a stop short of the hero, and the Mesh's
+Walk/Idle clips as it goes and stands. Tried: a red crate roaming a slab raised to y = 4
+on The Old Quarry, the hero standing at 4 beside it (C-63). Next on this line: `Talk` on a
+glTF (an Interactable without an Npc - the radius path exists), and a glTF character's
+clips from Blender end to end.
 
 ## Working rules
 

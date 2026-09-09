@@ -2401,6 +2401,18 @@ namespace OpenFF.Client
 						best = new GlobalScope.VecFx32(result.pos);
 					}
 				}
+				// The mod's own solids (a glTF floor) are asked by the restrictors above; on a map
+				// with no collision object of the game's none is active, so ask them outright.
+				if (ModCollision.Count > 0)
+				{
+					result.clean();
+					result.length = ReachFx;
+					if (ModCollision.Arrow(start, down, ReachFx, 1, result) && result.length < bestLength)
+					{
+						bestLength = result.length;
+						best = new GlobalScope.VecFx32(result.pos);
+					}
+				}
 				if (best == null) return null;
 				GlobalScope.MTX_MultVec43(best, wld, best);
 				return best;

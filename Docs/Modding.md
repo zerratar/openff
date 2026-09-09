@@ -623,6 +623,13 @@ What a map needs, as components on its objects:
   to lead back; a two-way door is two Exits.
 - **Music** - the game's tune by number (*Bgm*, the Audio library's BGMnn) at *Volume*,
   fading in over *Fade In* frames, started as the map is entered.
+- **Sound** - an effect (the game's or the mod's own, by archive and number) as the hero
+  comes within *Radius*, or as the map is entered with Radius 0; *Once* or every time.
+- **Roam** - on an object with a `Mesh`: the model walks about its spot (*Radius*, *Speed*,
+  *Pause* between walks), faces the way it goes, keeps to the ground (the map's or a Solid
+  Mesh's), stops short of the hero, and plays the file's *Walk Clip* while moving and
+  *Idle Clip* while standing when it has them. What `Wander` is for a game character,
+  this is for a glTF creature of yours.
 - **Encounter**, **Chest**, **Talk**, **Trigger**, **Mesh** and the rest as on any map;
   characters of the game's models as scene objects with a model (an `Npc` behind them).
 
