@@ -119,31 +119,6 @@ internal static partial class GlobalScope
 			public bool touchPanelAction()
 			{
 				CPlayerHuman cPlayerHuman = static_cast<CPlayerHuman>(Player());
-				if (!dv.CDeviceManager.getInstance().Tp().isTouch())
-				{
-					return false;
-				}
-				dv.CDeviceManager.getInstance().Tp().TouchPanel_2d(out var x, out var y);
-				CPlayerHuman cPlayerHuman2 = (CPlayerHuman)Player();
-				if (cPlayerHuman2.getMenuIcon() != null && ds.g_TouchPanel.isEdge() && cPlayerHuman2.getMenuIcon().isButtonTouch(x, y))
-				{
-					return false;
-				}
-				if (cPlayerHuman2.getTalkIcon() != null && ds.g_TouchPanel.isEdge() && cPlayerHuman2.getTalkIcon().isButtonTouch(x, y))
-				{
-					return false;
-				}
-				if (cPlayerHuman2.getCameraIcon() != null)
-				{
-					if (cPlayerHuman2.getCameraIcon().isEdgeAndRepeatTouch())
-					{
-						return false;
-					}
-					if (ds.g_TouchPanel.isEdge() && cPlayerHuman2.getCameraIcon().isButtonTouch(x, y))
-					{
-						return false;
-					}
-				}
 				int num = 151552;
 				int num2 = 147456;
 				if (opt.COptionManager.getSingleton().gameOption().worldMoveType() == opt.WORLD_MOVE_TYPE.WORLD_MOVE_TYPE_RUN)
@@ -153,12 +128,58 @@ internal static partial class GlobalScope
 				}
 				int num3 = FX_Mul(num, num);
 				int num4 = FX_Mul(num2, num2);
-				TPData dispPoint = dv.CDeviceManager.getInstance().Tp().getDispPoint();
-				VecFx32 vecFx = new VecFx32(dispPoint.x - dispPoint.dragX, 0, dispPoint.y - dispPoint.dragY);
-				int num5 = (vecFx.x * vecFx.x + vecFx.z * vecFx.z) * 4096;
-				if (num5 < 65536)
+				VecFx32 vecFx;
+				int num5;
+				if (!dv.CDeviceManager.getInstance().Tp().isTouch())
 				{
-					return false;
+					// PORT: a game pad's left stick walks as the phone's touch stick did - the drag vector
+					// is the stick's, so the hero faces the way it points and not the nearest of eight -
+					// and its push is the pace: a short drag walks, a long one runs, as the thresholds
+					// below read them (settings.json's "run" says whether the push or a button runs).
+					if (!OpenFF.Client.DesktopInput.LeftStick(out float stickX, out float stickY, out bool stickRun))
+					{
+						return false;
+					}
+					// The touch drag is in screen pixels (the thresholds below: 37 walks, past it runs), so
+					// the stick's push is scaled to a drag of 25 to walk or 50 to run.
+					int reach = stickRun ? 50 : 25;
+					vecFx = new VecFx32((int)Math.Round(stickX * reach), 0, (int)Math.Round(-stickY * reach));
+					num5 = (vecFx.x * vecFx.x + vecFx.z * vecFx.z) * 4096;
+					if (num5 < 65536)
+					{
+						return false;
+					}
+				}
+				else
+				{
+					dv.CDeviceManager.getInstance().Tp().TouchPanel_2d(out var x, out var y);
+					CPlayerHuman cPlayerHuman2 = (CPlayerHuman)Player();
+					if (cPlayerHuman2.getMenuIcon() != null && ds.g_TouchPanel.isEdge() && cPlayerHuman2.getMenuIcon().isButtonTouch(x, y))
+					{
+						return false;
+					}
+					if (cPlayerHuman2.getTalkIcon() != null && ds.g_TouchPanel.isEdge() && cPlayerHuman2.getTalkIcon().isButtonTouch(x, y))
+					{
+						return false;
+					}
+					if (cPlayerHuman2.getCameraIcon() != null)
+					{
+						if (cPlayerHuman2.getCameraIcon().isEdgeAndRepeatTouch())
+						{
+							return false;
+						}
+						if (ds.g_TouchPanel.isEdge() && cPlayerHuman2.getCameraIcon().isButtonTouch(x, y))
+						{
+							return false;
+						}
+					}
+					TPData dispPoint = dv.CDeviceManager.getInstance().Tp().getDispPoint();
+					vecFx = new VecFx32(dispPoint.x - dispPoint.dragX, 0, dispPoint.y - dispPoint.dragY);
+					num5 = (vecFx.x * vecFx.x + vecFx.z * vecFx.z) * 4096;
+					if (num5 < 65536)
+					{
+						return false;
+					}
 				}
 				VEC_Add(cPlayerHuman.getPosition(), vecFx, vecFx);
 				cPlayerHuman.MoveSys().setFlag(_Flag: true);

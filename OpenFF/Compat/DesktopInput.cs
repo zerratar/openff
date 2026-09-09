@@ -152,7 +152,7 @@ namespace OpenFF.Client
 				// when "run" is "stick" (the touch stick's way): part way walks, all the way runs.
 				GamePadDPad d = pad.DPad;
 				Microsoft.Xna.Framework.Vector2 stick = pad.ThumbSticks.Left;
-				const float deadZone = 0.3f, runZone = 0.8f;
+				const float deadZone = 0.3f;
 				float push = stick.Length();
 				if (push < deadZone) stick = Microsoft.Xna.Framework.Vector2.Zero;
 				// A direction from the stick's angle: within 22.5 degrees of an axis is that axis alone, else a diagonal.
@@ -178,10 +178,40 @@ namespace OpenFF.Client
 				if (DisplaySettings.Held(pad, map.R)) bits |= PadR;
 				if (DisplaySettings.Held(pad, map.Start)) bits |= PadStart;
 				if (DisplaySettings.Held(pad, map.Select)) bits |= PadSelect;
-				_padRun = DisplaySettings.Held(pad, map.RunButton) || (settings.Run == "stick" && push >= runZone);
+				// The run button is B held while moving (the keyboard's Shift alias); the stick's push
+				// runs through the field's own stick path (LeftStick), not through B.
+				_padRun = DisplaySettings.Held(pad, map.RunButton);
 				return bits;
 			}
 			return 0;
+		}
+
+		/// <summary>
+		/// The left stick as the field's analog stick: its direction (x right, y up, dead zone
+		/// taken out) and whether that push runs - past 80% with "run": "stick", or the run
+		/// button held. False when no pad is connected or the stick rests. The field walks the
+		/// hero by it the way the phone's touch stick did; the eight-way bits it also raises
+		/// are for the menus.
+		/// </summary>
+		internal static bool LeftStick(out float x, out float y, out bool run)
+		{
+			x = y = 0; run = false;
+			if (_game == null || !_game.IsActive || IsTyping) return false;
+			for (int i = 0; i < 4; i++)
+			{
+				GamePadState pad;
+				try { pad = GamePad.GetState((PlayerIndex)i, GamePadDeadZone.Circular); }
+				catch (Exception) { continue; }
+				if (!pad.IsConnected) continue;
+				Microsoft.Xna.Framework.Vector2 stick = pad.ThumbSticks.Left;
+				float push = stick.Length();
+				if (push < 0.3f) return false;
+				x = stick.X; y = stick.Y;
+				DisplaySettings settings = DisplaySettings.Current;
+				run = DisplaySettings.Held(pad, (settings.Pad ?? new DisplaySettings.PadMap()).RunButton) || (settings.Run == "stick" && push >= 0.8f);
+				return true;
+			}
+			return false;
 		}
 
 		/// <summary>The pad's bits alone, no keyboard: for a screen that types with the keyboard and steers with the pad (the name entry's on-screen keys).</summary>

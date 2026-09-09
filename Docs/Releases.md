@@ -48,6 +48,11 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   client's own screens (this, the menu, the mod list) share one look now: the game's window
   blue, crisp TrueType, rounded plates, and hints as the pad's own button glyphs (Cross /
   Circle / Square / Triangle on a PlayStation pad, A / B / X / Y elsewhere).
+- **The stick walks like the touch stick.** The left stick's direction is the hero's, at any
+  angle, and its push the pace - the phone's touch stick's own path in the game, fed the
+  stick's vector - where before it was read as eight keys and the hero snapped to one of
+  eight ways. The eight-way reading stays for the menus.
+- **The quick save notice** ("returning to the title") takes A or B as well as a tap.
 - **Config with a pad.** L and R turn Config 1 and Config 2 (the tabs were touch only), and
   Up past the first option no longer crashes (an index off the explanation table). Reported
   by testing.

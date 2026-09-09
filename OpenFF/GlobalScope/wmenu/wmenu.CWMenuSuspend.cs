@@ -201,7 +201,8 @@ internal static partial class GlobalScope
 								public void cwmsShutdown()
 								{
 									OS_AssignBackButton(0);
-									if (dgs.CFade.Sub().isCleared() && ds.g_TouchPanel.isTap())
+									// PORT: the "quick save done" notice went on a tap only; A or B (Z / X, a pad's buttons) do too.
+									if (dgs.CFade.Sub().isCleared() && (ds.g_TouchPanel.isTap() || (ds.g_Pad.edge() & 3) != 0))
 									{
 										wld.CBaseSystem.setTitle(b: true);
 										CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_END);
