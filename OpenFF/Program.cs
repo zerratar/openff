@@ -69,48 +69,11 @@ namespace OpenFF.Client
 				// vertex-count caps and allows better render-target formats.
 				gdm.GraphicsProfile = Microsoft.Xna.Framework.Graphics.GraphicsProfile.HiDef;
 
-				gdm.IsFullScreen = false;
-				gdm.PreferredBackBufferWidth = 800;
-				gdm.PreferredBackBufferHeight = 480;
-
-				// --size=1600x960 or --fullscreen. The game lays out in a fixed space and
-				// everything scales to the window, so being able to start at another size
-				// is how that stays true rather than being assumed.
-				string wanted = Options.Get("size");
-				if (!string.IsNullOrEmpty(wanted))
-				{
-					string[] parts = wanted.Split('x', 'X');
-					if (parts.Length == 2
-						&& int.TryParse(parts[0], out int width)
-						&& int.TryParse(parts[1], out int height)
-						&& width > 0 && height > 0)
-					{
-						gdm.PreferredBackBufferWidth = width;
-						gdm.PreferredBackBufferHeight = height;
-					}
-					else
-					{
-						Log.Write(LogChannel.General, "ignoring --size=" + wanted
-							+ ", which is not <width>x<height>");
-					}
-				}
-
-				if (Options.Get("fullscreen") != null)
-				{
-					gdm.IsFullScreen = true;
-					gdm.PreferredBackBufferWidth = Microsoft.Xna.Framework.Graphics
-						.GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
-					gdm.PreferredBackBufferHeight = Microsoft.Xna.Framework.Graphics
-						.GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
-				}
-
-				// The Graphics constructor asks for multisampling. On DesktopGL that
-				// changes how the depth attachment is created, so make it switchable
-				// while the 3D path is still being brought up: --msaa=off
-				if (string.Equals(Options.Get("msaa"), "off", StringComparison.OrdinalIgnoreCase))
-				{
-					gdm.PreferMultiSampling = false;
-				}
+				// The player's display settings (%LocalAppData%\OpenFF\settings.json: size, windowed /
+				// borderless / fullscreen, anti-aliasing, vsync), the command line on top for one run
+				// (--size=WxH, --fullscreen, --windowed, --borderless, --msaa=off|2|4|8, --novsync).
+				// The game lays out in a fixed 800x480 space and everything scales to the window.
+				DisplaySettings.Load().Apply(gdm);
 
 				// Report what the device actually gave us, not what we asked for.
 				gdm.DeviceCreated += delegate
@@ -127,6 +90,8 @@ namespace OpenFF.Client
 
 				game.Window.AllowUserResizing = true;
 				game.Window.Title = GameProfile.Title;
+				// A window the player resizes is the size next time; Alt+Enter is polled each frame (DesktopInput.BeginFrame).
+				game.Window.ClientSizeChanged += delegate { DisplaySettings.WindowResized(gdm, game); };
 
 				// Game1's constructor sets this to a full second, which is sensible on a
 				// phone and miserable on a desktop: the game crawls whenever the window

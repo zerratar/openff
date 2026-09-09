@@ -54,7 +54,7 @@ With no arguments `OpenFF.exe` finds the Steam installs, boots FF3 and remembers
 | `--content=<dir>` | A specific Steam install, when it is not where Steam usually puts it |
 | `--map=<id> --pos=x,y,z --rot=<deg>` | Any map of either game, no title (`d01_05`, `t01_00`, `f00`, `e01_00`) |
 | `--party=4:10 --gil=500 --load=<slot>` | FF4 test starts: members by type and level, gil, a saved slot |
-| `--size=1600x960` | Window size |
+| `--size=1600x960`, `--fullscreen`, `--borderless`, `--windowed`, `--msaa=off|2|4|8`, `--novsync` | Display for this run; the lasting settings are in `%LocalAppData%\OpenFF\settings.json` (size, windowed / borderless / fullscreen, anti-aliasing, vsync), written with its defaults on the first start |
 | `--drive=<file>` | Play a scripted key drive from inside the game (see `Docs/Drives/`) |
 | `--nomods` | Load no mod code |
 
@@ -174,6 +174,7 @@ are otherwise as they were made.
 | Left Shift / Right Shift | Start / Select |
 | Mouse | Touch (click, drag) |
 | Tab (hold) | Fast-forward |
+| Alt+Enter | Windowed and full screen in turn (remembered in `settings.json`) |
 | Game pad (XInput, DualShock, DualSense, Switch Pro …) | D-pad or left stick: directions; A/B/X/Y (Cross/Circle/Square/Triangle): the DS's A/B/X/Y; LB/RB: L/R; Start (Options): Start; Back (Share/Create): Select; right trigger held: run; left trigger held: fast-forward. The first connected pad; plugged in at any time. A pad SDL does not know can be described in a `gamecontrollerdb.txt` beside the executable |
 | F1 | Debug overlay (F2 menu frames, F3 ids, F4 sprites, F5 world text, F6 stats) |
 | F12 | Screenshot |

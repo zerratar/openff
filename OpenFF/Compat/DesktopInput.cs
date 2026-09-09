@@ -215,6 +215,7 @@ namespace OpenFF.Client
 		/// </summary>
 		public static int BeginFrame()
 		{
+			DisplaySettings.Poll(_game, GlobalScope.m_Graphics?.GetGraphicsDeviceManager());
 			bool fast = _game != null && _game.IsActive && (Keyboard.GetState().IsKeyDown(Keys.Tab) || GamePadFast());
 			GlobalScope.boost = fast ? 1 : 0;
 			return (fast && _fastForwardFactor > 1) ? _fastForwardFactor : 1;

@@ -17,8 +17,19 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   read it through `Game.Input` with the keyboard. XInput pads, DualShock 4, DualSense and
   Switch Pro are known to SDL; an unknown one can be described in a `gamecontrollerdb.txt`
   beside the executable. Reported by Karl on a DualSense.
+- **Display settings.** `%LocalAppData%\OpenFF\settings.json`, written with its defaults on
+  the first start: `width`/`height` (1600×960 to begin with - the game's 800×480 space,
+  doubled), `mode` (`windowed`, `borderless` - the desktop's size with no frame - or
+  `fullscreen`), `msaa` (0, 2, 4 or 8; 4 to begin with) and `vsync`. A resized window is the
+  size next time. The command line still takes a run: `--size=WxH`, `--fullscreen`,
+  `--borderless`, `--windowed`, `--msaa=off|2|4|8`, `--novsync`.
+- **Anti-aliasing.** The edges were stair-stepped because the sample count asked of the
+  driver was never a real one; it is the setting's now, and 4× is on by default (the DS
+  look - pixel textures, no filtering - is untouched; only polygon edges smooth).
+- **Alt+Enter** switches windowed and full screen while playing and remembers the choice.
 - The release description carries only the version's notes (the procedure moved to
-  `Docs/Releasing.md`).
+  `Docs/Releasing.md`). A settings screen in the game, or a launcher, is the plan for
+  editing these without a text editor.
 
 ## 0.1.0 - the first release (2026-09-09)
 
