@@ -6,15 +6,14 @@ the way down - so that a mod can use both games' content, give each character th
 system of either game, or make something that is not the game's game at all. Each game stays
 playable on its own; a mod can target one game or the client.
 
-It began as a Windows port of the FF3 mobile build, reconstructed from the Windows Phone
-assembly and rebuilt on MonoGame. That path - **FF3 from the Steam install, title to credits,
-1:1 with the original** - is the one that works today and must not break. FF4 (3D) runs
-through the same code behind a `GameProfile` seam and is the work in progress: Baron and the
-overworld, the opening scenes on FF4's own scene engine, battles on their battle stages with
-FF4's HUD, the menu in FF4's dress, shops, inns, saves, encounters - with what is still missing
-listed in `Docs/Client-Plan.md`, and every unread piece of FF4's binary in `Docs/FF4-Internals.md`.
+It began as a Windows port of the FF3 mobile build - the game's logic recreated in C# from the
+Windows Phone release by reverse engineering, and rebuilt on MonoGame. That path - **FF3 from
+the Steam install, title to credits, 1:1 with the original** - is the one that works today and
+must not break. FF4 (3D) runs through the same code behind a `GameProfile` seam and is the work
+in progress; *Status* below says what works, what is ours, and what is still to do.
 
-None of the games' data is in this repository (see *Game data*).
+None of the games' data is in this repository (see *Game data*). MIT licence, for study and
+for play with the copies you own (see *Licence*).
 
 | | |
 | --- | --- |
@@ -29,15 +28,15 @@ None of the games' data is in this repository (see *Game data*).
 
 The [Releases](https://github.com/zerratar/openff/releases) page has `OpenFF-<version>-win-x64.zip`:
 unzip anywhere, `OpenFF.exe` plays, `crystal.exe` edits and makes mods, `mods\` is where mods
-go. Nothing to install; it needs the Steam copies of the games on the machine. What each
-release carries is in `Docs/Releases.md`.
+go. What each release carries is in `Docs/Releases.md`.
 
-## What you need (to build)
+## What you need
 
-- Windows, the .NET 8 SDK. MonoGame (DesktopGL), FontStashSharp and NVorbis come from NuGet.
-- Your own copy of **Final Fantasy III** and/or **Final Fantasy IV (3D Remake)** on Steam. The
-  client reads the installs in place; nothing is extracted or copied.
-- Python 3 for the scripts in `Tools/` (optional).
+| To | You need |
+| --- | --- |
+| **Play**, and **make mods** in Crystal - for the Steam games (files the game itself plays) or for OpenFF (maps, objects, models, sounds, text, definitions, scenes with the built-in components) - and **test them in the client** | Windows 10/11 x64, the release zip (the .NET runtime is inside; nothing to install), and your own copy of **Final Fantasy III** and/or **Final Fantasy IV (3D Remake)** on Steam. The client reads the installs in place; nothing is extracted or copied. |
+| **Write C# for a mod** (behaviours, services - Crystal's *Add C# code* and *Build*) | The above, plus the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (the *SDK*, not just the runtime; x64). Crystal builds the mod's project with it. A mod without C# never needs it. |
+| **Build OpenFF itself** | The .NET 8 SDK; `dotnet build` fetches MonoGame (DesktopGL), FontStashSharp and NVorbis from NuGet. Python 3 for the scripts in `Tools/` (optional). |
 
 ## Build and run
 
@@ -81,7 +80,7 @@ that folder and hand it over; it needs nothing but the Steam games on the machin
 
 ```
 OpenFF/          the client
-  GlobalScope/     the decompiled game (FF3's own code, ported)
+  GlobalScope/     the game's logic, recreated from the FF3 mobile build (its own names kept, so the reference stays readable)
   Compat/          the port's seams: GameProfile, the FF4 systems (Ff4*), the engine host, the API implementation
 OpenFF.Engine/     the mod API and object model: what a mod references (no MonoGame, no game code)
 Crystal.Editor/   Crystal, the editor, and the command-line converters
@@ -197,15 +196,62 @@ Every run writes `logs/ff3.log` beside the executable (the previous run kept as 
 | `FF3_DUMP=<dir>`, `FF3_DUMP_FONTS=<dir>` | Dump decoded source blobs and font atlases as they load |
 | `FF3_SPEED=<n>` | Extra update passes while fast-forwarding |
 
-`firstchance` is worth knowing about: large parts of the decompiled game swallow exceptions,
+`firstchance` is worth knowing about: large parts of the game's own logic swallow exceptions,
 so a porting bug usually shows up as "nothing rendered" rather than a crash. Every scene and
 map on FF4 ends with one log line of the script commands it skipped.
 
-## Status and legal
+## Status
 
-FF3 is complete from its Steam install. FF4 plays its opening and its first maps, battles,
-menus and shops on the unified layer and is being brought to the same standard, in the order
-`Docs/Client-Plan.md` sets out. The code in `OpenFF/GlobalScope` is the game's own logic
-recovered from the mobile build and ported; the games' assets are not distributed here and are
-required, in the form of the Steam releases, to run anything. This project is not affiliated
-with or endorsed by Square Enix; Final Fantasy is their trademark.
+Three columns matter: what runs **1:1** - the game's own logic, recreated, doing what the
+original does; what is **ours** - written for this client where the original's code was not
+available or not usable (FF4's engine is a native binary; the phone build's touch shell); and
+what is **not there yet**. `Docs/Client-Plan.md` is the journal behind every row,
+`Docs/Testing.md` the cases that check them, `Docs/FF4-Internals.md` what has been read out of
+FF4's binary so far.
+
+**Final Fantasy III** - complete: title to credits from the Steam install.
+
+| Piece | State | Note |
+| --- | --- | --- |
+| Field, events, battles, jobs, magic, menus, shops, inns, saves, vehicles, the ending | 1:1 | The mobile build's own logic |
+| Rendering | ours | The DS-style GL state is drawn natively on MonoGame (depth, blending, texture formats as the DS had them); the phone's software path is kept as a fallback |
+| Text | ours | TrueType at the window's resolution from the Steam build's faces, as the Steam release draws it; `--text=atlas` gives the phone's glyph atlases |
+| Music and effects | ours | The Steam build's Ogg files, decoded natively; loop points from the game's own `.dat` |
+| Input, window, saves' location | ours | Keyboard/mouse into the DS pad register; a desktop window; `%AppData%\FF3` |
+| Touch buttons (Map, Menu) | 1:1 | The phone's, drawn as the phone drew them; a desktop layout is on the list |
+
+**Final Fantasy IV (3D Remake)** - in progress; boots to Baron and plays on.
+
+| Piece | State | Note |
+| --- | --- | --- |
+| Maps: Baron castle and town, the overworld, dungeons | 1:1 | The shared engine reads FF4's files in place; the world map is FF4's chip layout (z mirrored relative to FF3's - measured, `--fieldmirror`) |
+| Field scripts | mostly 1:1 | 247 of FF4's 500 commands run FF3's handler (same command, or renamed, or extra operands); the rest are FF4-only - see below |
+| FF4-only field commands (exits `setInsideMapJump`, the name window, confirm boxes, locale waits, reward messages …) | ours | Reimplemented from the binary's disassembly; cosmetic ones (doors' dust, BGM ducking) skip quietly, and every skipped command is logged per map |
+| Cutscenes (the `ce_*` scene engine: the Red Wings opening, the flashbacks) | ours, most of it | Casts, motions, camera motions from `EVT_CAMERA.dat`, expressions, bind objects (a spear in a hand), shadows, the message bar, stage swaps run; open: the flight's sky geometry in some shots, scene casts' own shadow discs, lights and toon shading |
+| Battles on FF4's stages with FF4's HUD | ours over 1:1 | FF3's battle system drives FF4's stages, monsters, party positions, window art and glove; damage and hit formulas, magic and physical blows from the binary's tables |
+| Party data: characters, growth, magic, equipment, items | ours | FF4's tables read from the binary and its files onto the unified data layer (`Shared/Data`) |
+| Menu, shops, inns, saves, encounters | ours | The menu from FF4's own `.xbn` layouts over the unified data; shops and inns as its scripts call them; saves on the unified layer; encounters from the map parameters read from the binary |
+| Movement tuning | ours | The two tuning tables FF4 compiled into its executable are synthesised in code |
+| Not yet | - | Some scene lighting and materials, the rest of the FF4-only commands as they turn up (`--ff4table` lists them), the Steam shell's extras (achievements, its own launcher screens), every item in `Docs/FF4-Internals.md` ▸ *Not yet read* |
+
+**Crystal and mods** - what the editor and the API can do is in `Docs/Editor.md` and
+`Docs/Modding.md`; `Docs/Releases.md` sums up each release.
+
+Pull requests are welcome - an FF4 command implemented, a scene fixed, a format read, an
+editor that is missing a thing, a mod component. `Docs/Client-Plan.md` says how each piece was
+approached and `Docs/Testing.md` how to prove one; the log's `skipped` lines and
+`Docs/FF4-Internals.md` ▸ *Not yet read* are the open list. Keep the FF3 path green
+(`Docs/Drives/ff3-boot.drive` runs the opening unattended) and add a test case for what you
+change.
+
+## Licence and legal
+
+MIT - see `LICENSE`. Do what you like with the code; it comes with no warranty and its authors
+carry no liability. It is published for study, preservation and for playing the copies you own
+in new ways.
+
+The code in `OpenFF/GlobalScope` is the game's logic, recreated by reverse engineering the
+FF3 mobile release and ported; the FF4 parts are written from reading its binary. None of the
+games' assets, data or binaries are distributed here or in the releases, and the Steam
+releases are required to run anything. Final Fantasy is a trademark of Square Enix Co., Ltd.;
+this project is not affiliated with or endorsed by Square Enix.

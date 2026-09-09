@@ -17,6 +17,7 @@ if not exist dist\OpenFF\mods mkdir dist\OpenFF\mods
 copy /y README.md dist\OpenFF\README.md >nul
 copy /y Docs\Modding.md dist\OpenFF\Modding.md >nul
 copy /y Docs\Releases.md dist\OpenFF\Releases.md >nul
+copy /y LICENSE dist\OpenFF\LICENSE.txt >nul
 if exist dist\OpenFF-%VERSION%-win-x64.zip del dist\OpenFF-%VERSION%-win-x64.zip
 powershell -NoProfile -Command "Compress-Archive -Path dist\OpenFF -DestinationPath dist\OpenFF-%VERSION%-win-x64.zip -CompressionLevel Optimal" || goto fail
 echo.

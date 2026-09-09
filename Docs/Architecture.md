@@ -99,7 +99,7 @@ Saves go to `%APPDATA%\FF3` via `Compat/SaveFiles.cs`.
 
 ## Two games
 
-The game logic is FF3's, decompiled. FF4 shares the engine and the formats, not the
+The game logic is FF3's, recreated from the mobile build by reverse engineering. FF4 shares the engine and the formats, not the
 facts, so the client keeps one seam for everything the logic has to know about the game
 in front of it - `Compat/GameProfile.cs`, derived from the shape of the content - and a
 handful of adapters behind it, all game-agnostic in their guards:
@@ -194,5 +194,5 @@ Every run writes `bin/Debug/net8.0/logs/ff3.log`. `--log=all` or a channel list
 `--test=model` are isolated render harnesses; `--capture-model` grabs live geometry
 out of the game so it can be inspected on its own. `OpenFF.exe --help` lists everything.
 
-`firstchance` matters: large parts of the decompiled game swallow exceptions, so a
+`firstchance` matters: large parts of the game's own logic swallow exceptions, so a
 fault usually surfaces as "nothing happened" rather than an error.

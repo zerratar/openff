@@ -101,6 +101,13 @@ mods/
 
 ## Part 3 - an OpenFF mod: code
 
+Everything before this part needs nothing installed: the release zip, the Steam games, and
+Crystal. Code is the one thing that does - **the .NET 8 SDK** (the *SDK*, x64, from
+[dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/8.0); the runtime the
+zip carries is not enough to compile), because Crystal's *Build C# code* runs `dotnet build`
+on the mod's project. A mod of maps, models, sounds, text, definitions and the built-in
+components never compiles anything and never needs it.
+
 ### The project
 
 With Crystal: **Project ▸ Add C# code…** writes `code/<Name>.csproj` referencing the client's

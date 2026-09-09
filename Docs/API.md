@@ -254,7 +254,7 @@ The field camera.
 | --- | --- |
 | `Vector3 Position { get; }` | Where the camera is. |
 | `Vector3 Target { get; }` | What it looks at. |
-| `void Configure(Vector3 positionOffset, Vector3 targetOffset, float zoomRange = 60)` | Sets the follow camera's frame as a map's parameters would: where the camera stands relative to the hero (the game's maps use about (0, 110, -110): high and behind), where it looks relative to the hero ((0, 10, 0): a little above the feet), and how far the player may zoom in (0 for no zoom). What a map of the mod's own has instead of a parameter file; Reset puts the map's own back. |
+| `void Configure(Vector3 positionOffset, Vector3 targetOffset, float zoomRange = 60)` | Sets the follow camera's frame as a map's parameters would: where the camera stands relative to the hero (the game's maps use about (0, 110, 110): high and on the +z side, which the field controls are laid out for - a negative Z puts it opposite and turns right into left), where it looks relative to the hero ((0, 10, 0): a little above the feet), and how far the player may zoom in (0 for no zoom). What a map of the mod's own has instead of a parameter file; Reset puts the map's own back. |
 | `void Follow()` | Back to following the hero, the map's own way. |
 | `void LookAt(Vector3 target)` | Frees the camera from the hero and points it at a point (it keeps its place). |
 | `void MoveTo(Vector3 position)` | Frees the camera from the hero and puts it at a point (it keeps its target). |
@@ -625,7 +625,7 @@ What a map's parameter file says on a map of the game's, for a map of the mod's 
 | Member | What it does |
 | --- | --- |
 | `Color Background` | The colour behind everything: the sky. Black is the game's own. |
-| `Vector3 CameraOffset` | Where the camera stands, relative to the hero: X sideways, Y up, Z behind (the game's maps: about 0, 110, 110). |
+| `Vector3 CameraOffset` | Where the camera stands, relative to the hero: X sideways, Y up, Z towards the player (the game's maps: about 0, 110, 110; a negative Z turns the controls round). |
 | `Vector3 LookOffset` | Where the camera looks, relative to the hero (the game's maps: 0, 10, 0 - a little above the feet). |
 | `float ZoomRange` | How far in the player may zoom the camera, in world units; 0 for no zoom. |
 | `void Apply()` | Puts the settings on the game now (the editor's live changes call it too). |

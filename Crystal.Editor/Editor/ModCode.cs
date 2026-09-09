@@ -398,7 +398,7 @@ namespace Crystal.Editor
 			}
 			catch (Exception ex)
 			{
-				output = "dotnet could not be started (" + ex.Message + ") - is the .NET SDK installed?";
+				output = "dotnet could not be started (" + ex.Message + "). Building a mod's C# needs the .NET 8 SDK (the SDK, x64 - not just the runtime): https://dotnet.microsoft.com/download/dotnet/8.0 - then start Crystal again. A mod without C# never needs it.";
 				return false;
 			}
 		}

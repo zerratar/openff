@@ -34,9 +34,9 @@ front-ends - FF3's dialect, FF4's dialect, C# - not FF3's code stretched over FF
 | Layer | What it is | State |
 | --- | --- | --- |
 | Content | sources (archives, loose, mass files, memory), overrides, LZ, the chain | done, in `Shared/Content` |
-| Formats | one reader per format, both games' variants | done, in `Shared/` and the editor; the client still reads most through the decompiled loaders |
+| Formats | one reader per format, both games' variants | done, in `Shared/` and the editor; the client still reads most through the game's own loaders |
 | Unified assets | one object per kind - model, motion, map, cell bank, text, table, exit - built from either game's version, **each carrying its own provenance** (text encoding, motion numbering, exit source) | next |
-| Engine core | scene, actors, transforms, collision, cameras, motion playback, rendering, audio; **game state as plain data, separate from rendering and input** so it can be saved, simulated and one day replicated | to design; the decompiled FF3 runtime is the reference and the regression oracle |
+| Engine core | scene, actors, transforms, collision, cameras, motion playback, rendering, audio; **game state as plain data, separate from rendering and input** so it can be saved, simulated and one day replicated | to design; the recreated FF3 runtime is the reference and the regression oracle |
 | Engine API | the verbs: boot/move/turn a character, message windows, camera, flags, exits, effects, sound... | to define; the FF3 handlers and the FF4 command table are its specification |
 | Dialects | FF3's 298 and FF4's 500 commands lowered onto the API; C# behaviours calling it directly | dialects exist as tables in `Shared/Script`; lowering is the work |
 | Rules | progression (FF3 jobs, FF4 classes) as components on party members; battle and menus data-driven over them | the largest single piece; FF3's battle and menus are hand-wired to jobs today |
@@ -57,7 +57,7 @@ front-ends - FF3's dialect, FF4's dialect, C# - not FF3's code stretched over FF
   directly, with no signing or sandbox; whether a modder publishes source is up to them.
   Compiled assemblies (Crystal driving `dotnet build`) come first; runtime scripting and
   hot reload later.
-- **Rename before publishing.** The decompilation's Android-shaped names go when the frame
+- **Rename before publishing.** The recreated code's Android-shaped names go when the frame
   is reorganised for the engine core, not before there is something to rename into.
 
 ## Order of work
@@ -80,7 +80,7 @@ FF4 under OpenFF is not a reproduction of the FF4 client. It is our take on FF4'
 on our engine, which frees the menus and the rest of the presentation to be interpreted
 rather than copied. FF3 is the case where we hold the complete code and assets, so it can
 become a faithful rendition on the new object model: the same game, running on C#
-behaviours and game objects instead of the decompiled frame.
+behaviours and game objects instead of the recreated frame.
 
 Crystal, when a project targets OpenFF, gets the tools the Steam targets cannot have:
 scene editing, our own formats, and the converters that make them from the Steam data.
@@ -240,7 +240,7 @@ roguelite: waves, auto-aim with the casting motion, cards, chests, a trader).
 ### Order, refined
 
 The object model can arrive before the legacy engine is gone: a scene may contain a
-**legacy map object** (the decompiled field code as one component) beside new objects, so
+**legacy map object** (the game's own field code as one component) beside new objects, so
 FF3 keeps running as the oracle while behaviours, services, events and the save chunks
 are introduced around it. So step 4 above grows to: the mods folder (done); the engine
 core - objects, components, services, events, save chunks - hosting the legacy game as a

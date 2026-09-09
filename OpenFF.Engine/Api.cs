@@ -469,7 +469,8 @@ namespace OpenFF
 		void Reset();
 		/// <summary>
 		/// Sets the follow camera's frame as a map's parameters would: where the camera stands
-		/// relative to the hero (the game's maps use about (0, 110, -110): high and behind),
+		/// relative to the hero (the game's maps use about (0, 110, 110): high and on the +z side,
+		/// which the field controls are laid out for - a negative Z puts it opposite and turns right into left),
 		/// where it looks relative to the hero ((0, 10, 0): a little above the feet), and how
 		/// far the player may zoom in (0 for no zoom). What a map of the mod's own has instead
 		/// of a parameter file; Reset puts the map's own back.

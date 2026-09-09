@@ -1002,6 +1002,7 @@ namespace OpenFF
 		private Vector3 _at;
 		private float _yaw, _scale;
 		private bool _hidden;
+		private string _clip;
 
 		protected override void Start()
 		{
@@ -1021,7 +1022,7 @@ namespace OpenFF
 			Handle.Solid = Solid;
 			if (!string.IsNullOrWhiteSpace(Clip) && Handle.Problem == null && !Handle.Play(Clip, true, Speed))
 				Game.Warn("Mesh " + Path + ": no clip '" + Clip + "' (it has: " + string.Join(", ", Handle.Clips) + ")");
-			_at = Transform.WorldPosition; _yaw = Transform.WorldYaw; _scale = Transform.WorldScale;
+			_at = Transform.WorldPosition; _yaw = Transform.WorldYaw; _scale = Transform.WorldScale; _clip = Clip;
 			_hidden = !GameObject.ActiveInHierarchy;
 			Handle.Hidden = _hidden;
 		}
@@ -1043,6 +1044,16 @@ namespace OpenFF
 			bool hidden = !GameObject.ActiveInHierarchy;
 			if (hidden != _hidden) { Handle.Hidden = hidden; _hidden = hidden; }
 			if (Handle.Solid != Solid) Handle.Solid = Solid;
+			// The clip may be set after the spawn (fields laid onto the Mesh the model made, code changing it).
+			if (!string.Equals(Clip ?? "", _clip ?? "", StringComparison.Ordinal))
+			{
+				_clip = Clip;
+				if (Handle.Problem == null)
+				{
+					if (string.IsNullOrWhiteSpace(Clip)) Handle.Stop();
+					else if (!Handle.Play(Clip, true, Speed)) Game.Warn("Mesh " + Path + ": no clip '" + Clip + "' (it has: " + string.Join(", ", Handle.Clips) + ")");
+				}
+			}
 		}
 
 		protected override void OnDisable()
@@ -1132,9 +1143,9 @@ namespace OpenFF
 		[Tooltip("The colour behind everything - the sky. Black is the game's own")]
 		public Color Background = new Color(0, 0, 0);
 
-		/// <summary>Where the camera stands, relative to the hero: X sideways, Y up, Z behind (the game's maps: about 0, 110, 110).</summary>
+		/// <summary>Where the camera stands, relative to the hero: X sideways, Y up, Z towards the player (the game's maps: about 0, 110, 110; a negative Z turns the controls round).</summary>
 		[Header("Camera")]
-		[Tooltip("Where the camera stands, relative to the hero: X sideways, Y up, Z behind (the game's maps: about 0, 110, 110)")]
+		[Tooltip("Where the camera stands, relative to the hero: X sideways, Y up, Z towards the player (the game's maps: about 0, 110, 110; keep Z positive or the controls turn round)")]
 		public Vector3 CameraOffset = new Vector3(0, 110, 110);
 		/// <summary>Where the camera looks, relative to the hero (the game's maps: 0, 10, 0 - a little above the feet).</summary>
 		[Tooltip("Where the camera looks, relative to the hero (the game's maps: 0, 10, 0)")]
@@ -1834,6 +1845,19 @@ namespace OpenFF
 			{
 				Game.Warn("mod " + (mod?.Id ?? "?") + ": scenes/" + map + ".json names behaviour " + attachment.Behaviour + ", which neither the mod's code nor the engine has");
 				return null;
+			}
+			// A Mesh attached to an object whose model is that same glTF is the Mesh the object's
+			// model already made (SpawnModel adds one for a .glb/.gltf): its fields go onto that one,
+			// or the model would be drawn twice - once posed by the clip, once standing still.
+			if (type == typeof(Mesh))
+			{
+				Mesh existing = target.GetComponent<Mesh>();
+				string path = attachment.Fields != null && attachment.Fields.TryGetValue("Path", out JsonElement p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+				if (existing != null && (string.IsNullOrWhiteSpace(path) || string.Equals(path.Trim(), existing.Path, StringComparison.OrdinalIgnoreCase)))
+				{
+					SetFields(existing, attachment.Fields, mod?.Id ?? "scene");
+					return existing;
+				}
 			}
 			Behaviour behaviour = null;
 			Game.Guard("new " + type.Name, () => behaviour = (Behaviour)Activator.CreateInstance(type));

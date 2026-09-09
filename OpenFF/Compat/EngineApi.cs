@@ -2107,9 +2107,11 @@ namespace OpenFF.Client
 			if (cam == null) return;
 			Game.Guard("Camera.Configure", () =>
 			{
-				// As CBaseSystem.setupCamera lays a map's parameters in: the offsets (z towards the
-				// camera is negative there), the zoom's reach, and the camera snapped to the hero.
-				GlobalScope.VecFx32 pos = EngineApi.ToFx(new Vector3(positionOffset.X, positionOffset.Y, -positionOffset.Z));
+				// As CBaseSystem.setupCamera lays a map's parameters in - after its own sign flip: the
+				// game's maps end with the camera at +z of the hero, (0, 110, 110), looking towards -z,
+				// which is the frame the field controls are laid out for (a camera on the other side
+				// turns the world round: right walks left). The offset here is that final one.
+				GlobalScope.VecFx32 pos = EngineApi.ToFx(positionOffset);
 				GlobalScope.VecFx32 trg = EngineApi.ToFx(targetOffset);
 				cam.setPosOffset(pos);
 				cam.setTrgOffset(trg);
