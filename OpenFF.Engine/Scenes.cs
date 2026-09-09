@@ -1310,10 +1310,24 @@ namespace OpenFF
 				{
 					Arrive();   // the hero is in the way: stand here and pick another walk later
 				}
+				else if (Game.Field.Blocked(at, next, Math.Max(1f, Transform.WorldScale * 2f)))
+				{
+					Arrive();   // a wall - the map's or a Solid Mesh - in the way: stand here and pick another walk later
+				}
 				else
 				{
-					at = next;
-					Transform.WorldYaw = (float)(Math.Atan2(dir.X, dir.Z) * 180.0 / Math.PI);
+					// The ground the step lands on: none (the edge of the world), or a ledge more than a
+					// stride up or down, is a wall too.
+					float? there = OnGround ? Game.Field.GroundHeight(new Vector3(next.X, at.Y + 2f, next.Z)) : at.Y;
+					if (OnGround && (!there.HasValue || Math.Abs(there.Value - at.Y) > 3f))
+					{
+						Arrive();
+					}
+					else
+					{
+						at = next;
+						Transform.WorldYaw = (float)(Math.Atan2(dir.X, dir.Z) * 180.0 / Math.PI);
+					}
 				}
 			}
 			if (OnGround)

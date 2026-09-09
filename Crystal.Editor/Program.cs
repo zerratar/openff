@@ -129,6 +129,17 @@ namespace Crystal
 							return 1;
 						}
 						return MdlDump(args[1], args.Length > 2 ? args[2] : null);
+					case "sample-assets":
+					{
+						string dir = args.Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? Path.Combine("Samples", "Showcase", "assets");
+						try
+						{
+							foreach ((string file, int bytes, string note) in Crystal.Editor.SampleAssets.WriteAll(dir))
+								Console.WriteLine(file + " (" + bytes.ToString("N0") + " bytes): " + note);
+							return 0;
+						}
+						catch (Exception ex) { Console.Error.WriteLine("sample-assets: " + ex.Message); return 1; }
+					}
 					case "mdl-import":
 					{
 						string[] positional = args.Skip(1).Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
@@ -306,6 +317,7 @@ namespace Crystal
 			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
 			Console.Error.WriteLine("  mdl-import  <file.glb|.gltf> <name> [out-dir] [--scale=n]");
 			Console.Error.WriteLine("                                    glTF -> <name>.nmdp.lz and <name>.ntxp.lz, the game's own model (a w123 for a weapon)");
+			Console.Error.WriteLine("  sample-assets [out-dir]           write the sample glTFs (a sword, a shield, a chest, a shrine) - Samples/Showcase/assets by default");
 			Console.Error.WriteLine("  cells       <file | dir> [out]     cells/screens/anim -> JSON");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
 			Console.Error.WriteLine("  mcl         <file.mcl.lz | dir> [out] collision mesh -> JSON");

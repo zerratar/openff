@@ -22,7 +22,13 @@
 //     "fields": { "usedPower": 999 }   fields of the record by the game's own names
 //     "model": "assets/blade.glb",     a weapon's own look (OpenFF target): a glTF the client draws in the
 //     "modelScale": 1, "modelClip": ""  hand in place of the record's w### model, at a scale, with a clip looping
+//     "modelRotation": [0, 0, 0],      turned (degrees about x, y, z, applied in that order) and moved in
+//     "modelOffset": [0, 0, 0]         the hand joint's units, for a file that was not made in the game's frame
 //   }
+//
+// The hand joint's frame, from the game's own models: a sword's blade runs along +z (w021 spans
+// z -1.1..9.5, its guard across y); a shield's face is the xy plane with its boss toward -z,
+// tilted about 35 degrees toward +y, centred near (0, 0.3, -0.4) (w260, radius 1.6).
 //
 // Numbers: FF3's ids stop under 7000 (weapons 1000-2309, armour 3001-3331, magic and songs
 // 4001-6660, consumables 5001-5122, key items 5201-5241); a mod's start at 20001. Names take message ids
@@ -63,6 +69,12 @@ namespace OpenFF.Data
 		public float ModelScale = 1f;
 		/// <summary>An animation clip of the glTF to loop while it is held (a glowing rune, a spinning gem); empty for the bind pose.</summary>
 		public string ModelClip;
+		/// <summary>Degrees the glTF is turned about x, then y, then z, before it is placed in the hand; all zero for a file made in the hand joint's frame.</summary>
+		public float[] ModelRotation = new float[3];
+		/// <summary>Where the glTF's origin goes in the hand joint's units; zero for the joint itself.</summary>
+		public float[] ModelOffset = new float[3];
+		/// <summary>Whether the file needs turning or moving before it is placed.</summary>
+		public bool HasModelTransform => ModelRotation.Any(v => Math.Abs(v) > 0.0001f) || ModelOffset.Any(v => Math.Abs(v) > 0.0001f);
 		/// <summary>Where it was read from, for a message.</summary>
 		public string Source;
 
@@ -111,6 +123,8 @@ namespace OpenFF.Data
 				Source = source
 			};
 			if (node["modelScale"] is JsonValue scale && scale.TryGetValue(out double scaleValue) && scaleValue > 0) item.ModelScale = (float)scaleValue;
+			item.ModelRotation = Triple(node["modelRotation"]);
+			item.ModelOffset = Triple(node["modelOffset"]);
 			if (node["fields"] is JsonObject fields)
 			{
 				foreach (KeyValuePair<string, JsonNode> pair in fields)
@@ -120,6 +134,25 @@ namespace OpenFF.Data
 				}
 			}
 			return item;
+		}
+
+		/// <summary>Three numbers from a JSON array, zeros for anything else.</summary>
+		private static float[] Triple(JsonNode node)
+		{
+			float[] result = new float[3];
+			if (node is JsonArray array)
+			{
+				for (int i = 0; i < 3 && i < array.Count; i++)
+				{
+					if (array[i] is JsonValue v && v.TryGetValue(out double d)) result[i] = (float)d;
+				}
+			}
+			return result;
+		}
+
+		private static JsonArray TripleJson(float[] values)
+		{
+			return new JsonArray(Math.Round(values[0], 3), Math.Round(values[1], 3), Math.Round(values[2], 3));
 		}
 
 		public string ToJson()
@@ -139,6 +172,8 @@ namespace OpenFF.Data
 				node["model"] = Model;
 				if (Math.Abs(ModelScale - 1f) > 0.0001f) node["modelScale"] = Math.Round(ModelScale, 4);
 				if (!string.IsNullOrWhiteSpace(ModelClip)) node["modelClip"] = ModelClip;
+				if (ModelRotation.Any(v => Math.Abs(v) > 0.0001f)) node["modelRotation"] = TripleJson(ModelRotation);
+				if (ModelOffset.Any(v => Math.Abs(v) > 0.0001f)) node["modelOffset"] = TripleJson(ModelOffset);
 			}
 			if (Fields.Count > 0)
 			{

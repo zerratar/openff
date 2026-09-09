@@ -1,0 +1,13 @@
+{
+  "map": "t01_01",
+  "objects": [
+    { "name": "Shrine Path", "x": -2, "y": 0, "z": 160, "yaw": 0, "scale": 1 }
+  ],
+  "attachments": [
+    {
+      "target": "Shrine Path",
+      "behaviour": "Exit",
+      "fields": { "Map": "t91_00", "Arrive": { "x": 0, "y": 0, "z": 50 }, "Facing": 180, "Radius": 4 }
+    }
+  ]
+}

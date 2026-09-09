@@ -13,7 +13,9 @@
 // The hand's frame is the w###'s: the grip at the origin, the blade along +z, the guard across
 // y (a sword is about 7 units long, w005 runs z -0.9..6.2). "modelScale" scales the file into
 // it; "modelClip" loops one of the file's animations (a rune glowing, a gem turning) through
-// the same clip player the scene meshes use.
+// the same clip player the scene meshes use; "modelRotation" (degrees about x, y, z) and
+// "modelOffset" turn and move a file that was not modelled in that frame - a shield made facing
+// +z where the game's face -z, say - before it is placed.
 
 using System;
 using System.Collections.Generic;
@@ -33,6 +35,8 @@ namespace OpenFF.Client
 		{
 			public string Path;
 			public float Scale = 1f;
+			/// <summary>Scale, turn and offset into the hand's frame, before the pose.</summary>
+			public Matrix Fit = Matrix.Identity;
 			public string Clip;
 			public GltfModel Model;
 			public OpenFF.Graphics.GltfAnimation Playing;
@@ -52,9 +56,21 @@ namespace OpenFF.Client
 			{
 				string path = item.ModelPath;
 				if (path == null) continue;
-				_looks[item.Number] = new Look { Path = path, Scale = item.ModelScale <= 0 ? 1f : item.ModelScale, Clip = item.ModelClip };
+				_looks[item.Number] = new Look { Path = path, Scale = item.ModelScale <= 0 ? 1f : item.ModelScale, Clip = item.ModelClip, Fit = Fit(item) };
 				Log.Write(LogChannel.File, "weapons: item " + item.Number + " (" + (item.Name ?? item.Id) + ") looks like " + item.Model + (File.Exists(path) ? "" : " - no such file"));
 			}
+		}
+
+		/// <summary>The definition's scale, rotation (degrees about x, then y, then z) and offset as one matrix into the hand joint's frame.</summary>
+		private static Matrix Fit(ModItem item)
+		{
+			float scale = item.ModelScale <= 0 ? 1f : item.ModelScale;
+			float[] r = item.ModelRotation ?? new float[3], o = item.ModelOffset ?? new float[3];
+			return Matrix.CreateScale(scale)
+				* Matrix.CreateRotationX(MathHelper.ToRadians(r[0]))
+				* Matrix.CreateRotationY(MathHelper.ToRadians(r[1]))
+				* Matrix.CreateRotationZ(MathHelper.ToRadians(r[2]))
+				* Matrix.CreateTranslation(o[0], o[1], o[2]);
 		}
 
 		/// <summary>Whether an item has a look of its own.</summary>
@@ -122,22 +138,23 @@ namespace OpenFF.Client
 				ro.getPoseMtx(_pose);
 				Matrix pose = ToMatrix(_pose);
 				Matrix camera = ToMatrix(GlobalScope.NNS_G3dGlb.cameraMtx);
-				Matrix world = Matrix.CreateScale(look.Scale) * pose * camera;
+				Matrix world = look.Fit * pose * camera;
 				Matrix projection = effect.Projection;
 				if (look.Playing != null) Advance(look);
 				int alphaRate = Math.Max(0, Math.Min(100, ro.getAlphaRate()));
 				if (alphaRate == 0) return;
+				// The scene draws its objects twice - the opaque shapes, then the translucent ones
+				// (Scene.draw's draw masks 1 and 2) - so each part goes in its own pass, once.
+				uint pass = GlobalScope.NNS_G3dGetDrawMask();
 				Log.First(LogChannel.File, "weapons-drawn-" + look.Path, 1, () => "weapons: " + Path.GetFileName(look.Path) + " drawn in the hand at " + pose.Translation.X.ToString("0.#") + ", " + pose.Translation.Y.ToString("0.#") + ", " + pose.Translation.Z.ToString("0.#"));
 				for (int i = 0; i < look.Model.Primitives.Count; i++)
 				{
 					GltfPrimitive p = look.Model.Primitives[i];
 					VertexPositionColorTexture[] vertices = look.Posed != null && i < look.Posed.Length && look.Posed[i] != null ? look.Posed[i] : p.Vertices;
-					bool translucent = p.Translucent;
-					if (alphaRate < 100)
-					{
-						vertices = Faded(vertices, alphaRate / 100f);
-						translucent = true;
-					}
+					bool translucent = p.Translucent || alphaRate < 100;
+					if (pass == 1 && translucent) continue;    // the opaque pass
+					if (pass == 2 && !translucent) continue;   // the translucent pass
+					if (alphaRate < 100) vertices = Faded(vertices, alphaRate / 100f);
 					NativeRenderer.Draw(device, 4u, vertices, 0, vertices.Length, world, projection, p.Texture,
 						TextureFilter.Linear, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
 						alphaTest: !translucent, alphaReference: 0.5f, alphaFunction: CompareFunction.Greater,

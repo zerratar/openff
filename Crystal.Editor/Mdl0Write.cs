@@ -47,13 +47,16 @@ namespace Crystal
 		/// names are made from it) at `scale` times the file's units. Throws with the reason when
 		/// the file has nothing to write or does not fit the format.
 		/// </summary>
-		public static Result Build(GltfFile file, string name, float scale = 1f)
+		public static Result Build(GltfFile file, string name, float scale = 1f, float[] rotation = null, float[] offset = null)
 		{
 			if (file == null) throw new ArgumentNullException(nameof(file));
 			if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a model needs a name");
 			name = name.Trim();
 			if (name.Length > 12 || name.Any(c => c > 127 || c == '/' || c == '\\' || c == '.')) throw new ArgumentException("a model's name is at most 12 plain characters (w123)");
 			if (scale <= 0) scale = 1f;
+			// The definition's fit into the hand (modelRotation: degrees about x, then y, then z; modelOffset),
+			// baked into the vertices - the same placement the OpenFF client gives the glTF (WeaponMeshes.Fit).
+			float[] fit = FitMatrix(scale, rotation, offset);
 			Result result = new Result();
 
 			// The meshes with triangles, grouped by material; a mesh with no material takes a flat white.
@@ -88,7 +91,11 @@ namespace Crystal
 			// Geometry: the position scale that fits every vertex into VTX_16's +-8.
 			float extent = 0;
 			foreach (GltfMesh mesh in meshes)
-				for (int i = 0; i < mesh.Positions.Length; i++) extent = Math.Max(extent, Math.Abs(mesh.Positions[i] * scale));
+				for (int i = 0; i + 2 < mesh.Positions.Length; i += 3)
+				{
+					float[] p = Place(fit, mesh.Positions[i], mesh.Positions[i + 1], mesh.Positions[i + 2]);
+					extent = Math.Max(extent, Math.Max(Math.Abs(p[0]), Math.Max(Math.Abs(p[1]), Math.Abs(p[2]))));
+				}
 			int shift = 0;
 			while ((7.99f * (1 << shift)) < extent && shift < 12) shift++;
 			int posScale = 4096 << shift;
@@ -124,8 +131,10 @@ namespace Crystal
 							float nx, ny, nz;
 							if (flat != null) { nx = flat[0]; ny = flat[1]; nz = flat[2]; }
 							else { nx = mesh.Normals[v * 3]; ny = mesh.Normals[v * 3 + 1]; nz = mesh.Normals[v * 3 + 2]; }
-							dl.Command(0x21, Normal(nx, ny, nz));
-							float px = mesh.Positions[v * 3] * scale, py = mesh.Positions[v * 3 + 1] * scale, pz = mesh.Positions[v * 3 + 2] * scale;
+							float[] turned = Turn(fit, nx, ny, nz);
+							dl.Command(0x21, Normal(turned[0], turned[1], turned[2]));
+							float[] placed = Place(fit, mesh.Positions[v * 3], mesh.Positions[v * 3 + 1], mesh.Positions[v * 3 + 2]);
+							float px = placed[0], py = placed[1], pz = placed[2];
 							min[0] = Math.Min(min[0], px); min[1] = Math.Min(min[1], py); min[2] = Math.Min(min[2], pz);
 							max[0] = Math.Max(max[0], px); max[1] = Math.Max(max[1], py); max[2] = Math.Max(max[2], pz);
 							int fx = Fixed16(px * toFixed), fy = Fixed16(py * toFixed), fz = Fixed16(pz * toFixed);
@@ -328,6 +337,33 @@ namespace Crystal
 
 		private static float[] Sub(float[] p, int a, int b) => new[] { p[a * 3] - p[b * 3], p[a * 3 + 1] - p[b * 3 + 1], p[a * 3 + 2] - p[b * 3 + 2] };
 		private static float[] Cross(float[] a, float[] b) => new[] { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
+
+		/// <summary>
+		/// Scale, then turns about x, y and z (degrees, in that order), then an offset, as a row-major
+		/// 3x3 with the translation in [9..11] - the order WeaponMeshes.Fit uses on the OpenFF target,
+		/// so the same definition places the model the same way on both.
+		/// </summary>
+		private static float[] FitMatrix(float scale, float[] rotation, float[] offset)
+		{
+			float[] m = { scale, 0, 0, 0, scale, 0, 0, 0, scale, 0, 0, 0 };
+			float[] r = rotation != null && rotation.Length >= 3 ? rotation : new float[3];
+			for (int axis = 0; axis < 3; axis++)
+			{
+				if (Math.Abs(r[axis]) < 0.0001f) continue;
+				float a = r[axis] * MathF.PI / 180, c = MathF.Cos(a), s = MathF.Sin(a);
+				float[] rot = axis == 0 ? new[] { 1, 0, 0, 0, c, -s, 0, s, c } : axis == 1 ? new[] { c, 0, s, 0, 1, 0, -s, 0, c } : new[] { c, -s, 0, s, c, 0, 0, 0, 1 };
+				float[] next = new float[12];
+				for (int row = 0; row < 3; row++)
+					for (int col = 0; col < 3; col++)
+						next[row * 3 + col] = rot[row * 3] * m[col] + rot[row * 3 + 1] * m[3 + col] + rot[row * 3 + 2] * m[6 + col];
+				m = next;
+			}
+			if (offset != null && offset.Length >= 3) { m[9] = offset[0]; m[10] = offset[1]; m[11] = offset[2]; }
+			return m;
+		}
+
+		private static float[] Place(float[] m, float x, float y, float z) => new[] { m[0] * x + m[1] * y + m[2] * z + m[9], m[3] * x + m[4] * y + m[5] * z + m[10], m[6] * x + m[7] * y + m[8] * z + m[11] };
+		private static float[] Turn(float[] m, float x, float y, float z) => new[] { m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, m[6] * x + m[7] * y + m[8] * z };
 
 		/// <summary>A NORMAL parameter: three 10-bit 1.9 fixed components.</summary>
 		private static uint Normal(float x, float y, float z)

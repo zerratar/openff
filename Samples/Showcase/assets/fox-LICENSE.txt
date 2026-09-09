@@ -1,0 +1,9 @@
+fox.glb is the Khronos glTF sample "Fox" (github.com/KhronosGroup/glTF-Sample-Assets,
+Models/Fox), included here as the sample mod's creature.
+
+  Model: PixelMannen - CC0 (public domain)
+  Rigging and animation: @tomkranis - CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+  glTF conversion: @AsoboStudio and @scurest
+
+The other files in this folder are written by `crystal sample-assets` (Crystal.Editor/Editor/
+SampleAssets.cs) and are the project's own, under the repository's licence.

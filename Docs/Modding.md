@@ -536,8 +536,15 @@ turning gem). The file:
 ```
 
 Model the weapon in the hand's frame, the `w###` frame: the grip at the origin, the blade
-along +Z, the guard across Y (a sword is about 7 units long - `w005` runs z -0.9 to 6.2);
-`modelScale` scales the file into it. The record's *Model* (graphId) still names the model
+along +Z, the guard across Y (a sword is about 7 units long - `w005` runs z -0.9 to 6.2). A
+shield's face is the XY plane with its boss toward -Z, tilted about 35° toward +Y and centred
+near (0, 0.3, -0.4) - the forearm's angle; the game's `w260` is a round one of radius 1.6.
+`modelScale` scales the file into it, and a file made another way is turned and moved rather
+than re-exported: `"modelRotation": [x, y, z]` (degrees, applied about X, then Y, then Z) and
+`"modelOffset": [x, y, z]` (the hand's units) - the *Rotation* and *Offset* rows of the card.
+A shield exported facing +Z wants a rotation of `[35, 180, 0]`. The same fit goes into *Write
+as a w### model* below, baked into the vertices, so one definition places the model alike on
+both targets. The record's *Model* (graphId) still names the model
 the game loads and poses - the base's is fine - and *Kind* still picks the swing motions; the
 game's weapon character is hidden, shown, faded and shrunk exactly as before (its render
 object gets a stand-in, `CRenderObject.StandIn`, and only the draw is the glTF's:
@@ -809,3 +816,13 @@ and heroes beyond the four.
   spawn points, auto-aimed spells with the game's own effects and formulas, run levels with
   cards, chests with equipment, a trader who opens the game's shop. Everything it uses is in
   the API table above; it is the best single answer to "what can a mod do".
+- `Samples/Showcase` - a mod with no code at all: `mod.json`, two weapon definitions with
+  glTF looks (a *Rune Blade* whose ring of light turns and drifts along the blade through a
+  clip, an *Oak Shield*), a map of its own (the *Crystal Shrine*, `t91_00` - ground, kerb,
+  pillars, an arc of wall, trees, a shrine and its crystal, every one a glTF with `Solid`
+  collision, its own camera, sky colour and music) reached by a new exit from Ur
+  (`scenes/t01_01.json`), chests holding the two weapons, a crystal that talks, and the
+  Khronos fox wandering the shrine. Copy the folder into `mods/` to play it. Every model and
+  texture but the fox is made by `crystal sample-assets` (`Crystal.Editor/Editor/SampleAssets.cs`,
+  on `GltfBuilder`) - the place to see how a glTF is put together for the hand's frame, a
+  ground, or a clip.

@@ -68,7 +68,7 @@ internal static partial class GlobalScope
 
 			public bool rorEvaluateArrow2(VecFx32 pos, VecFx32 dir, int len, int[] matList, byte matNum, mcl.CollisionResult ret)
 			{
-				for (int i = 0; i < m_Collision.getNumberOfObject(); i++)
+				for (int i = 0; m_Collision != null && i < m_Collision.getNumberOfObject(); i++)
 				{
 					mcl.CObject cObject = const_cast<mcl.CObject>(m_Collision.getObject((uint)i));
 					if (cObject.evaluateArrow2(pos, dir, len, matList, matNum, ret))
@@ -81,7 +81,7 @@ internal static partial class GlobalScope
 
 			public bool rorEvaluateSphere(VecFx32 _center, VecFx32 _dir, int _radius, int mat, mcl.CollisionResult _result)
 			{
-				for (int i = 0; i < m_Collision.getNumberOfObject(); i++)
+				for (int i = 0; m_Collision != null && i < m_Collision.getNumberOfObject(); i++)
 				{
 					mcl.CObject cObject = const_cast<mcl.CObject>(m_Collision.getObject((uint)i));
 					if (cObject.evaluateSphere(_center, _dir, _radius, mat, _result))
@@ -95,7 +95,7 @@ internal static partial class GlobalScope
 
 			public bool rorEvaluateSphere2(VecFx32 center, VecFx32 prePos, VecFx32 dir, int radius, int[] matList, byte matNum, mcl.CollisionResult ret)
 			{
-				for (int i = 0; i < m_Collision.getNumberOfObject(); i++)
+				for (int i = 0; m_Collision != null && i < m_Collision.getNumberOfObject(); i++)
 				{
 					mcl.CObject cObject = const_cast<mcl.CObject>(m_Collision.getObject((uint)i));
 					if (cObject.evaluateSphere2(center, prePos, dir, radius, matList, matNum, ret))
@@ -112,7 +112,7 @@ internal static partial class GlobalScope
 				VEC_Subtract(nextPos, pos, vecFx);
 				VEC_Mag(vecFx);
 				VEC_Normalize(vecFx, vecFx);
-				for (int i = 0; i < m_Collision.getNumberOfObject(); i++)
+				for (int i = 0; m_Collision != null && i < m_Collision.getNumberOfObject(); i++)
 				{
 					mcl.CObject cObject = const_cast<mcl.CObject>(m_Collision.getObject((uint)i));
 					if (cObject.evaluateCapsule(pos, nextPos, rad, mat, ret))

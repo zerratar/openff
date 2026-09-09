@@ -69,6 +69,7 @@ function itemDefinitionPanel(def, onSaved) {
     id: def.id, number: def.number, base: def.base, name: def.name || '', caption: def.caption || '',
     buy: def.buy, sell: def.sell,
     model: def.model || null, modelScale: def.modelScale || 1, modelClip: def.modelClip || null,
+    modelRotation: (def.modelRotation || [0, 0, 0]).slice(0, 3), modelOffset: (def.modelOffset || [0, 0, 0]).slice(0, 3),
     fields: Object.fromEntries((def.fields || []).filter(f => f.value !== null && f.value !== undefined).map(f => [f.name, f.value]))
   };
   let timer = null;
@@ -161,7 +162,8 @@ function itemDefinitionPanel(def, onSaved) {
     lookNote.textContent = (openff
       ? 'On the OpenFF target the client draws the glTF in the hand as it is, in place of the game\'s w### model (the Model field below still names the model the game loads and poses). '
       : 'A Steam target plays only the game\'s own formats, so the look is the Model field below: a w### of the game\'s, or one written from the glTF here. ')
-      + 'Model the weapon in the hand\'s frame: grip at the origin, blade along +Z, guard across Y; a sword is about 7 units long.';
+      + 'Model the weapon in the hand\'s frame: grip at the origin, blade along +Z, guard across Y; a sword is about 7 units long. '
+      + 'A shield\'s face is the XY plane with its boss toward -Z, tilted about 35° toward +Y and centred near (0, 0.3, -0.4); the game\'s are radius 1.6. A file made another way is turned and moved here rather than re-exported.';
     look.append(lookNote);
     // The glTF: on the OpenFF target the definition's "model"; on a Steam-only project the source for the game-format model alone.
     let chosen = model.model || null;
@@ -204,6 +206,28 @@ function itemDefinitionPanel(def, onSaved) {
     scale.value = model.modelScale || 1;
     scale.oninput = () => { const v = parseFloat(scale.value); model.modelScale = v > 0 ? v : 1; if (openff) save(); };
     row(look, 'Scale', scale, 'The file\'s units into the hand\'s; 1 is as exported (a sword about 7 units long)');
+    // Rotation and offset: the fit into the hand's frame, the same on both targets (the OpenFF client
+    // applies them each frame; Write as a w### bakes them into the vertices).
+    const triple = (values, step, apply) => {
+      const wrap = document.createElement('span');
+      wrap.className = 'field-triple';
+      ['X', 'Y', 'Z'].forEach((axis, i) => {
+        const input = document.createElement('input');
+        input.type = 'number'; input.step = step; input.title = axis;
+        input.value = values[i] || 0;
+        input.oninput = () => { const v = parseFloat(input.value); values[i] = isNaN(v) ? 0 : v; apply(); };
+        wrap.append(input);
+      });
+      return wrap;
+    };
+    row(look, 'Rotation', triple(model.modelRotation, '5', () => { if (openff) save(); }), 'Degrees the file is turned about X, then Y, then Z before it goes in the hand; 0 0 0 for a file made in the hand\'s frame. A shield exported facing +Z wants 35 180 0.');
+    row(look, 'Offset', triple(model.modelOffset, '0.1', () => { if (openff) save(); }), 'Where the file\'s origin goes, in the hand\'s units; 0 0 0 for the joint itself');
+    if (!openff) {
+      const fitNote = document.createElement('p');
+      fitNote.className = 'none';
+      fitNote.textContent = 'Scale, rotation and offset are baked into the w### when it is written; write it again after a change.';
+      look.append(fitNote);
+    }
     if (openff) {
       const clip = document.createElement('input');
       clip.type = 'text';
@@ -221,7 +245,7 @@ function itemDefinitionPanel(def, onSaved) {
       if (!chosen) { say('pick a glTF first', 'bad'); return; }
       asGame.disabled = true;
       try {
-        const r = await api('/api/project/items/model-from-gltf', { id: model.id, asset: chosen, scale: model.modelScale || 1 });
+        const r = await api('/api/project/items/model-from-gltf', { id: model.id, asset: chosen, scale: model.modelScale || 1, rotation: model.modelRotation, offset: model.modelOffset });
         if (!r.ok) throw new Error(r.error);
         model.fields.graphId = r.number;
         state.models = null;

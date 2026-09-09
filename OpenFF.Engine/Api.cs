@@ -436,6 +436,8 @@ namespace OpenFF
 		Vector3 OnGround(Vector3 at);
 		/// <summary>Whether something could stand there: ground under it, no wall between here and the ground.</summary>
 		bool Walkable(Vector3 at);
+		/// <summary>Whether a wall (the map's, or a Solid Mesh) stands in the way of a step from one point to the next, for a body of that radius - the test the hero's own walk makes. False where there is no wall.</summary>
+		bool Blocked(Vector3 from, Vector3 to, float radius = 3f);
 	}
 
 	/// <summary>The game's own battles, started from a mod.</summary>

@@ -60,6 +60,7 @@ namespace Crystal.Editor
 				fields,
 				// A weapon's own look on the OpenFF target: a glTF in the project's assets, its scale and a clip.
 				model = item.Model, modelScale = item.ModelScale, modelClip = item.ModelClip,
+				modelRotation = item.ModelRotation, modelOffset = item.ModelOffset,
 				modelExists = item.ModelPath != null && File.Exists(item.ModelPath),
 				file = "defs/items/" + item.Id + ".json"
 			};

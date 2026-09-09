@@ -13733,6 +13733,12 @@ internal static partial class GlobalScope
 							return rs.currentNode;
 						}
 
+						/// <summary>PORT: the pass the scene is drawing (Scene.draw): 1 skips translucent shapes (the opaque pass), 2 skips opaque ones (the translucent pass), 0 draws all. A stand-in draw (CRenderObject.StandIn) keeps to the same passes.</summary>
+						internal static uint NNS_G3dGetDrawMask()
+						{
+							return drawMask;
+						}
+
 						internal static void NNS_G3dSetDrawMask(uint mask)
 						{
 							drawMask = mask;

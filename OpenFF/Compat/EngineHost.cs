@@ -115,11 +115,11 @@ namespace OpenFF.Client
 					.Where(f => !string.Equals(Path.GetFileName(f), "OpenFF.Engine.dll", StringComparison.OrdinalIgnoreCase))
 					.OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
 			}
-			if (assemblies.Count == 0)
-			{
-				return null;
-			}
 			string scenes = Path.Combine(mod.Directory, string.IsNullOrWhiteSpace(mod.Manifest.Scenes) ? "scenes" : mod.Manifest.Scenes);
+			if (assemblies.Count == 0 && !Directory.Exists(scenes))
+			{
+				return null;   // nothing for the engine: a files-only mod
+			}
 			return new ModDefinition
 			{
 				Id = mod.Id,

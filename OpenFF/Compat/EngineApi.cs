@@ -2411,6 +2411,44 @@ namespace OpenFF.Client
 			return GroundHit(at) != null;
 		}
 
+		/// <summary>The hero's own wall test (chr.CCharacterEureka.calculateWallCollision): a sphere at the step's end, pushed along the step, against the WALL_01 polygons of every active restrictor - the map's collision and the mods' Solids.</summary>
+		public bool Blocked(Vector3 from, Vector3 to, float radius = 3f)
+		{
+			if (!EngineApi.InWorld) return false;
+			try
+			{
+				GlobalScope.stg.CStageMng stage = GlobalScope.stageMng;
+				if (stage == null) return false;
+				GlobalScope.MtxFx43 inv = new GlobalScope.MtxFx43();
+				stage.getInvWldMtx(inv);
+				GlobalScope.VecFx32 a = EngineApi.ToFx(from), b = EngineApi.ToFx(to);
+				GlobalScope.MTX_MultVec43(a, inv, a);
+				GlobalScope.MTX_MultVec43(b, inv, b);
+				GlobalScope.VecFx32 dir = new GlobalScope.VecFx32();
+				GlobalScope.VEC_Subtract(b, a, dir);
+				if (dir.x == 0 && dir.y == 0 && dir.z == 0) return false;
+				GlobalScope.VEC_Normalize(dir, dir);
+				int r = (int)Math.Round(Math.Max(0.25f, radius) * 4096);
+				int wall = (int)GlobalScope.mcl.MCL_ATTRIBUTE.ATTRIBUTE_WALL_01;
+				GlobalScope.mcl.CollisionResult result = new GlobalScope.mcl.CollisionResult();
+				bool asked = false;
+				for (GlobalScope.dgs.CRestrictor rr = (GlobalScope.dgs.CRestrictor)GlobalScope.dgs.DGSLinkedList<GlobalScope.dgs.CRestrictor>.dgsllBase(); rr != null; rr = (GlobalScope.dgs.CRestrictor)rr.dgsllNext())
+				{
+					if (!rr.rorActivity()) continue;
+					asked = true;
+					result.clean();
+					if (rr.rorEvaluateSphere(b, dir, r, wall, result) && (result.normal.x != 0 || result.normal.y != 0 || result.normal.z != 0)) return true;
+				}
+				if (!asked && ModCollision.Count > 0)
+				{
+					result.clean();
+					if (ModCollision.Sphere(b, dir, r, wall, result) && (result.normal.x != 0 || result.normal.y != 0 || result.normal.z != 0)) return true;
+				}
+				return false;
+			}
+			catch (Exception ex) { EngineApi.Warn("blocked", "Field.Blocked: " + ex.Message); return false; }
+		}
+
 		private GlobalScope.VecFx32 GroundHit(Vector3 at)
 		{
 			try { return GroundHitFx(EngineApi.ToFx(at)); }

@@ -204,7 +204,13 @@ internal static partial class GlobalScope
 					}
 					if (StandIn != null)
 					{
-						StandIn(this);
+						// As NNS_G3dDraw: nothing is drawn on a catch-up frame (render() runs up to three game
+						// frames per screen frame when the client is behind, drawing only the last), or the
+						// stand-in leaves a copy of itself at each intermediate pose on the uncleared frame.
+						if (skipFrame == 0)
+						{
+							StandIn(this);
+						}
 						return;
 					}
 					if (m_LodLevel == 1)

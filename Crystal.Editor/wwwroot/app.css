@@ -1103,6 +1103,8 @@ ul.uses a:hover { text-decoration: underline; }
 .field-pick { display: flex; gap: 4px; align-items: center; min-width: 0; }
 .field-pick select { flex: 1; min-width: 0; }
 .field-pick button { flex: none; padding: 1px 6px; font-size: 11px; }
+.field-triple { display: flex; gap: 4px; min-width: 0; }
+.field-triple input { flex: 1; min-width: 0; width: 0; }
 .field-flags { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 2px 6px; align-items: start; font-size: 11px; }
 .field-flags label { display: flex; align-items: flex-start; gap: 3px; line-height: 1.25; }
 .field-flags label input { flex: none; margin: 1px 0 0; }

@@ -586,7 +586,9 @@ namespace Crystal.Editor
 						for (int n = 300; number < 0 && n < 1000; n++) if (!_workspace.Exists("files/w" + n.ToString("000") + ".nmdp.lz")) number = n;
 						if (number < 0) throw new InvalidOperationException("no free weapon model number");
 						string name = "w" + number.ToString("000");
-						Mdl0Write.Result made = Mdl0Write.Build(OpenFF.Graphics.GltfFile.Load(gltfPath), name, scale);
+						// The fit (rotation in degrees about x, y, z; offset) as the form has it, else the definition's.
+						float[] rotation = Triple(body?["rotation"]) ?? item?.ModelRotation, offset = Triple(body?["offset"]) ?? item?.ModelOffset;
+						Mdl0Write.Result made = Mdl0Write.Build(OpenFF.Graphics.GltfFile.Load(gltfPath), name, scale, rotation, offset);
 						_workspace.Write("files/" + name + ".nmdp.lz", Lz.Compress(made.Nmdp));
 						_workspace.Write("files/" + name + ".ntxp.lz", Lz.Compress(made.Ntxp));
 						if (item != null)
@@ -2713,6 +2715,15 @@ namespace Crystal.Editor
 		private static string Query(HttpListenerContext context, string key)
 		{
 			return context.Request.QueryString[key];
+		}
+
+		/// <summary>Three numbers from a JSON array (a rotation, an offset), or null when the body has none.</summary>
+		private static float[] Triple(JsonNode node)
+		{
+			if (node is not JsonArray array || array.Count < 3) return null;
+			float[] result = new float[3];
+			for (int i = 0; i < 3; i++) result[i] = array[i] is JsonValue v && v.TryGetValue(out double d) ? (float)d : 0f;
+			return result;
 		}
 
 		private static JsonNode ReadBody(HttpListenerContext context)

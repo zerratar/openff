@@ -1,0 +1,14 @@
+{
+  "id": "rune-blade",
+  "number": 20501,
+  "base": 1107,
+  "name": "Rune Blade",
+  "caption": "A blade with a light of its own.",
+  "buy": 4800,
+  "sell": 2400,
+  "model": "assets/rune-blade.glb",
+  "modelClip": "Glow",
+  "fields": {
+    "aggressivity": 34
+  }
+}

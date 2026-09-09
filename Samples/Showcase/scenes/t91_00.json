@@ -1,0 +1,64 @@
+{
+  "map": "t91_00",
+  "own": true,
+  "title": "Crystal Shrine",
+  "objects": [
+    { "name": "Ground", "x": 0, "y": 0, "z": 0, "yaw": 0, "scale": 1, "model": "assets/shrine-ground.glb" },
+    { "name": "Trees", "x": 0, "y": 0, "z": 0, "yaw": 0, "scale": 1, "model": "assets/shrine-trees.glb" },
+    { "name": "Crystal", "x": 0, "y": 3.4, "z": 0, "yaw": 0, "scale": 1, "model": "assets/shrine-crystal.glb" },
+    { "name": "Sword Chest", "x": -9, "y": 0.4, "z": -9, "yaw": 135, "scale": 1, "model": "assets/treasure-chest.glb" },
+    { "name": "Shield Chest", "x": 9, "y": 0.4, "z": -9, "yaw": 225, "scale": 1, "model": "assets/treasure-chest.glb" },
+    { "name": "Fox", "x": 14, "y": 0.4, "z": 8, "yaw": 0, "scale": 0.06, "model": "assets/fox.glb" },
+    { "name": "Music", "x": 0, "y": 0, "z": 0, "yaw": 0, "scale": 1 },
+    { "name": "Path Out", "x": 0, "y": 0, "z": 58, "yaw": 0, "scale": 1 }
+  ],
+  "attachments": [
+    {
+      "target": "map",
+      "behaviour": "MapSettings",
+      "fields": {
+        "Background": { "r": 118, "g": 160, "b": 212, "a": 255 },
+        "CameraOffset": { "x": 0, "y": 72, "z": 92 },
+        "LookOffset": { "x": 0, "y": 8, "z": 0 },
+        "ZoomRange": 50
+      }
+    },
+    { "target": "Ground", "behaviour": "Mesh", "fields": { "Path": "assets/shrine-ground.glb", "OnGround": false, "Solid": true } },
+    { "target": "Trees", "behaviour": "Mesh", "fields": { "Path": "assets/shrine-trees.glb", "OnGround": false, "Solid": false } },
+    { "target": "Crystal", "behaviour": "Mesh", "fields": { "Path": "assets/shrine-crystal.glb", "OnGround": true, "Clip": "Float", "Speed": 1 } },
+    {
+      "target": "Crystal",
+      "behaviour": "Talk",
+      "fields": {
+        "Speaker": "",
+        "Lines": [ "The crystal hums, turning slowly above the altar.", "Everything here - the stones, the trees, the chests, the fox - is the mod's own: glTF files the client draws." ],
+        "Radius": 6, "FaceHero": false
+      }
+    },
+    { "target": "Sword Chest", "behaviour": "Mesh", "fields": { "Path": "assets/treasure-chest.glb", "OnGround": true } },
+    {
+      "target": "Sword Chest",
+      "behaviour": "Chest",
+      "fields": { "Radius": 7, "Item": 20501, "Count": 1, "Once": true, "Message": "You find {what}.", "EmptyMessage": "The chest is empty.", "Animate": false }
+    },
+    { "target": "Shield Chest", "behaviour": "Mesh", "fields": { "Path": "assets/treasure-chest.glb", "OnGround": true } },
+    {
+      "target": "Shield Chest",
+      "behaviour": "Chest",
+      "fields": { "Radius": 7, "Item": 20502, "Count": 1, "Once": true, "Message": "You find {what}.", "EmptyMessage": "The chest is empty.", "Animate": false }
+    },
+    { "target": "Fox", "behaviour": "Mesh", "fields": { "Path": "assets/fox.glb" } },
+    { "target": "Fox", "behaviour": "Roam", "fields": { "Radius": 16, "Speed": 5, "Pause": 2, "WalkClip": "Walk", "IdleClip": "Survey" } },
+    {
+      "target": "Fox",
+      "behaviour": "Talk",
+      "fields": { "Speaker": "Fox", "Lines": [ "..." ], "Radius": 10 }
+    },
+    { "target": "Music", "behaviour": "Music", "fields": { "Bgm": 1 } },
+    {
+      "target": "Path Out",
+      "behaviour": "Exit",
+      "fields": { "Map": "t01_01", "Arrive": { "x": -2, "y": 0, "z": 152 }, "Facing": 180, "Radius": 5 }
+    }
+  ]
+}

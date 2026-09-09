@@ -1378,6 +1378,14 @@ internal static partial class GlobalScope
 						ColData.getAddr<mcl.CMapCollision>().initialize();
 						m_Collision.rorAppend(ColData.getAddr<mcl.CMapCollision>());
 					}
+					else
+					{
+						// PORT: a map with no collision file of its own (a mod's map, whose ground and walls are
+						// glTF Solids) still needs the restrictor active, or dgs.Restrict never asks anyone and
+						// everything walks through everything; the restrictor's queries fall through to
+						// OpenFF.Client.ModCollision with no map collision to consult first.
+						m_Collision.rorSetActivity(_b: true);
+					}
 					FS_ChangeDir("/");
 					m_Flag = 1u;
 					break;

@@ -1,0 +1,13 @@
+{
+  "id": "oak-shield",
+  "number": 20502,
+  "base": 3001,
+  "name": "Oak Shield",
+  "caption": "Oak planks, an iron rim, a boss.",
+  "buy": 300,
+  "sell": 150,
+  "model": "assets/oak-shield.glb",
+  "fields": {
+    "phylacticPower": 3
+  }
+}

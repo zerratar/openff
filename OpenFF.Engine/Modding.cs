@@ -143,11 +143,20 @@ namespace OpenFF.Modding
 
 		private static LoadedMod Load(ModDefinition definition, Dictionary<string, string> handedOver)
 		{
-			if (definition == null || definition.Assemblies == null || definition.Assemblies.Count == 0)
+			if (definition == null)
 			{
 				return null;
 			}
 			LoadedMod mod = new LoadedMod { Definition = definition, LoadedAt = DateTime.Now };
+			if (definition.Assemblies == null || definition.Assemblies.Count == 0)
+			{
+				// A mod of content alone - scenes with the built-in behaviours, definitions, assets - has
+				// no code to load; it is a loaded mod all the same, so its scenes apply to the maps they name.
+				if (string.IsNullOrEmpty(definition.Scenes)) return null;
+				_loaded.Add(mod);
+				Game.Log("mod " + definition.Id + " " + definition.Version + ": scenes only, no code");
+				return mod;
+			}
 			mod.Context = new ModLoadContext("mod:" + definition.Id, definition.Directory);
 			try
 			{

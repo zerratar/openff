@@ -208,9 +208,9 @@ namespace OpenFF.Content
 				{
 					mod.Skipped = "targets " + mod.Manifest.Target;
 				}
-				else if (!mod.FilesDirectories(null).Any() && !HasCode(mod))
+				else if (!mod.FilesDirectories(null).Any() && !HasCode(mod) && !HasContent(mod))
 				{
-					mod.Skipped = "no files folder and no code";
+					mod.Skipped = "no files folder, no scenes or definitions, and no code";
 				}
 				else
 				{
@@ -245,6 +245,16 @@ namespace OpenFF.Content
 		}
 
 		/// <summary>Whether a mod brings code: assemblies named in mod.json, or a .dll at its root.</summary>
+		/// <summary>Whether the mod carries scenes or definitions - a mod of maps, items, monsters, text, with no game files and no code (the Showcase sample is one).</summary>
+		public static bool HasContent(InstalledMod mod)
+		{
+			if (!Directory.Exists(mod.Directory)) return false;
+			string scenes = Path.Combine(mod.Directory, string.IsNullOrWhiteSpace(mod.Manifest.Scenes) ? "scenes" : mod.Manifest.Scenes);
+			if (Directory.Exists(scenes) && Directory.EnumerateFiles(scenes, "*.json", SearchOption.TopDirectoryOnly).Any()) return true;
+			string defs = Path.Combine(mod.Directory, "defs");
+			return Directory.Exists(defs) && Directory.EnumerateFiles(defs, "*.json", SearchOption.AllDirectories).Any();
+		}
+
 		public static bool HasCode(InstalledMod mod)
 		{
 			if (mod.Manifest.Assemblies != null && mod.Manifest.Assemblies.Count > 0)

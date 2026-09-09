@@ -312,7 +312,11 @@ internal static partial class GlobalScope
 				eff.CEffectMng.instance().draw();
 				m_Scene.draw(bVBlank: true);
 				// PORT: the mod's own models (glTF), with the scene's camera, before the curtains and the 2D.
-				OpenFF.Client.ModMeshes.DrawWorld();
+				// Not on a catch-up frame (render() draws only the last of the frames it runs), as the game's models.
+				if (skipFrame == 0)
+				{
+					OpenFF.Client.ModMeshes.DrawWorld();
+				}
 				dgs.CCurtain.Middle().draw();
 				getWorldSystem().ScrFlash().draw();
 				if (GX_GetPrioriry3D() == 0)

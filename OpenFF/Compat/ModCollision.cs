@@ -68,6 +68,10 @@ namespace OpenFF.Client
 				if (normal.LengthSquared() < 1e-9f) continue;
 				normal.Normalize();
 				if (normal.Y < -0.5f) continue;   // a ceiling: nothing to stand on or bump into
+				// A steep face under a unit tall - a kerb, a plank's edge, a step's riser - is not a wall
+				// to bump into: the walker steps over it onto the ground above (the ground arrow reaches
+				// seven units up). Only faces with some height stop anyone.
+				if (normal.Y <= 0.5f && Math.Max(tri[0].Y, Math.Max(tri[1].Y, tri[2].Y)) - Math.Min(tri[0].Y, Math.Min(tri[1].Y, tri[2].Y)) < 1f) continue;
 				Triangle t = new Triangle
 				{
 					A = Fx(tri[0]), B = Fx(tri[1]), C = Fx(tri[2]),
@@ -83,6 +87,9 @@ namespace OpenFF.Client
 				}
 			}
 			if (solid.Triangles.Count > 0) _solids.Add(solid);
+			int ground = 0, wall = 0;
+			foreach (Triangle t in solid.Triangles) { if (t.Material == _ground) ground++; else wall++; }
+			Log.Write(LogChannel.File, "collision: " + (owner is MeshHandle h ? System.IO.Path.GetFileName(h.Path) : owner?.GetType().Name) + ": " + ground + " ground and " + wall + " wall triangle(s), " + _solids.Count + " solid(s) in all");
 		}
 
 		public static void Remove(object owner)

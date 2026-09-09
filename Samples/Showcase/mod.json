@@ -1,0 +1,12 @@
+{
+  "id": "Showcase",
+  "name": "Showcase",
+  "version": "1.0",
+  "author": "OpenFF",
+  "description": "The mod's own models in play: a sword and a shield drawn from glTF in the hero's hands, a chest, a floating crystal, a fox, and a small shrine to walk in - reached from Ur's north gate.",
+  "target": "openff",
+  "files": "files",
+  "assemblies": [],
+  "scenes": "scenes",
+  "dependencies": []
+}

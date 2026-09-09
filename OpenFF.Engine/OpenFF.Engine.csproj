@@ -8,7 +8,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>OpenFF</RootNamespace>
     <AssemblyName>OpenFF.Engine</AssemblyName>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
