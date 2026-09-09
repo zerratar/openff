@@ -93,6 +93,12 @@ async function loadList() {
       for (const file of state.files) {
         if (marked.has(file.name.toLowerCase())) { file.scene = true; file.note = 'has a scene file: behaviours or points from this mod'; }
       }
+      // The mod's own maps stand among the game's: they are maps to play, not just files of the mod's.
+      for (const s of (scenes && scenes.ok ? scenes.maps || [] : []).filter(s => s.own)) {
+        if (!state.files.some(f => f.name.toLowerCase() === s.map.toLowerCase())) {
+          state.files.push({ name: s.map, overridden: false, scene: true, own: true, title: s.title, note: `${s.title || 'a map'} · the mod's own map` });
+        }
+      }
     }
   } else if (state.browse === 'audio') {
     // Sounds are not archive entries - they are XNBs beside the game - so the list
@@ -114,10 +120,12 @@ async function loadList() {
     const scenes = await api('/api/project/scene');
     state.scenes = scenes.ok ? (scenes.maps || []) : [];
     state.scenesError = scenes.ok ? '' : scenes.error;
+    // A map of the mod's own (no game map behind it) is listed by its title, marked so.
     state.files = state.scenes.map(s => ({
-      name: s.map, overridden: false, attachments: s.attachments, points: s.points,
-      note: [s.attachments && `${s.attachments} behaviour${s.attachments === 1 ? '' : 's'}`,
-        s.points && `${s.points} point${s.points === 1 ? '' : 's'}`].filter(Boolean).join(', ')
+      name: s.map, overridden: false, attachments: s.attachments, points: s.points, own: s.own, title: s.title,
+      note: [s.own && `${s.title || 'a map'} · the mod's own map`,
+        s.attachments && `${s.attachments} behaviour${s.attachments === 1 ? '' : 's'}`,
+        s.points && `${s.points} object${s.points === 1 ? '' : 's'}`].filter(Boolean).join(', ')
     }));
   } else if (state.browse === 'items') {
     // The mod's own items: defs/items/<id>.json each, listed by name with the number the
@@ -205,18 +213,26 @@ function drawList() {
     // already says what kind of thing it is.
     label.textContent = file.def
       ? (file.def.name || file.name)
+      : file.own && file.title
+        ? `${file.title} (${file.name})`
       : fileView === 'grid'
         ? shortName(file.name).replace(/\.(nmdp\.lz|lz|NCER|NSCR|hich|script|pak|msd|xbn)$/i, '')
         : file.name;
     item.append(label);
-    if (file.def && fileView !== 'grid') {
+    if (file.own) {
+      const mark = document.createElement('i');
+      mark.className = 'scene-mark';
+      mark.textContent = fileView === 'grid' ? '' : 'the mod\'s own';
+      mark.title = 'a map of the mod\'s own: a scene file, nothing of the game\'s behind it';
+      item.append(mark);
+    } else if (file.def && fileView !== 'grid') {
       // A definition's number and base beside its name: what the game calls it, what it starts from.
       const mark = document.createElement('i');
       mark.className = 'scene-mark';
       mark.textContent = file.note;
       item.append(mark);
     }
-    if (file.scene) {
+    if (file.scene && !file.own) {
       const mark = document.createElement('i');
       mark.className = 'scene-mark';
       mark.textContent = fileView === 'grid' ? '' : 'scene';

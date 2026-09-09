@@ -601,6 +601,34 @@ its bind-pose shape. Off (the default), the model is walked through, like scener
 the ground a new map for the OpenFF target stands on: one glTF for the look, the same glTF
 as the floor.
 
+### Maps of the mod's own (OpenFF targets)
+
+*New map…* (Scenes or Maps, in an OpenFF project) makes a map with nothing of the game's
+behind it: a name of yours, a kind (town or dungeon - the stage name's first letter, which
+the client reads the map's type off), a ground - one of the project's glTF files, or a
+flat slab the editor writes into `assets/` at the side you give - and a tune. The map gets
+a stage name the game leaves free (`t90_00`, `t90_01` …, `d90_00` … for dungeons) and a
+scene file `scenes/<name>.json` marked `"own": true` with a `"title"`; it opens in the map
+editor like any map, listed among the game's as *The Old Quarry (t90_00)*. The client
+loads such a stage as it loads any - finding no model, animation, collision or parameter
+file behind the name - and draws the scene alone: the *Ground* object's Solid `Mesh` is the
+floor, so the hero stands on it and drops off its edge; the field's camera follows as on
+any map; `--map=t90_00 --pos=…` and *Play here* land where they say.
+
+What a map needs, as components on its objects:
+
+- **Exit** - a way out: the hero within *Radius* of the object is taken to *Map* (a picker
+  of the game's maps and the mod's), arriving at *Arrive* facing *Facing* degrees, by the
+  game's own map jump. Put one on a map of the game's to lead into yours, and one on yours
+  to lead back; a two-way door is two Exits.
+- **Music** - the game's tune by number (*Bgm*, the Audio library's BGMnn) at *Volume*,
+  fading in over *Fade In* frames, started as the map is entered.
+- **Encounter**, **Chest**, **Talk**, **Trigger**, **Mesh** and the rest as on any map;
+  characters of the game's models as scene objects with a model (an `Npc` behind them).
+
+Not yet: the map's own camera settings, a background other than black, a name on the menu's
+map screen.
+
 ### New content from existing: Duplicate as…
 
 Any file in the libraries - a model, a texture package, a picture, a sound, a menu, a

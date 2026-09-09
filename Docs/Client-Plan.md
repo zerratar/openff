@@ -2003,11 +2003,9 @@ mods that must also install into the Steam games:
 
 - Models: glTF in - done for static meshes, animated ones, and as collision (`Solid`,
   below). Next: the `Motion` and `Wander` components on a glTF character.
-- Maps: a whole map from a glTF - the look (a big Mesh) and the ground and walls (the same
-  Mesh, Solid) are this path now; what is left is the map itself as a thing of the mod's:
-  an id the client accepts without a game map behind it (no model, no `.mcl`), its camera,
-  exits and encounter areas as scene objects. That is the "new map" for OpenFF: a scene
-  file with a Solid Mesh, a camera, exits.
+- Maps: a whole map of the mod's own - done (below): a free stage name, a scene file with
+  a Solid Mesh for the ground, `Exit` and `Music` components, *New map…* in Crystal. Next
+  on it: the map's own camera settings and a background colour, its name on the menu.
 - Images, fonts, sounds: PNG is read already for pictures; a TTF for text and an OGG/WAV
   for sound through `Game.Draw` and `Game.Audio` are the same shape of work as the meshes.
 - Steam targets keep to the game's formats: the duplication path, Replace with a PNG, the
@@ -2046,6 +2044,30 @@ from the bind pose through the pose matrix whenever the handle moves; the `Mesh`
 *Solid* field drives it. Tried: the hero stopped by a 6-wide box at 3 units (its radius),
 standing at y = 2 on a 20 × 2 slab and dropping to 0 off its edge (C-60). The restrictor
 also survives a map with no collision object now, which the whole-map-from-glTF line needs.
+
+### Maps of the mod's own (2026-09-09, morning)
+
+Tried first: `--map=t99_01`, a stage the game has no files for. The stage loader takes it
+(every file it asks for is size 0 and skipped), the world part runs, the hero stands in a
+black void with the field's camera on them - so a new map is a stage *name* with a scene
+file behind it, not a new loader. What was missing: the hero landed at 0,0,10 whatever
+`--pos` said (MapJump.setupMapJumpPosition's no-parameter-file branch; it now honours the
+jump part's position), and a way out and a tune. The engine: `Exit` (Map, Arrive, Facing,
+Radius - `Game.Field.Warp` when the hero walks in, the game's own map jump; re-armed on
+re-entry) and `Music` (Bgm, Volume, FadeIn - `Game.Audio.PlayBgm` at Start), with
+`[MapField]` and `[BgmField]` attributes the inspector turns into pickers (the game's maps
+and the mod's; the Audio library's BGM list). Crystal: `ProjectScenes.Create` picks a free
+stage name (`t90_00`… / `d90_00`… - the client reads the map's kind off the first letter;
+the game's own names are checked), writes the scene marked `own` with a `title`, a Ground
+object (a Solid Mesh of the glTF chosen, or a slab `GltfWriter.WriteBox` writes) and a
+Music object; `Write` keeps `own`/`title` and never deletes an own map's file; `MapModel.Load`
+answers a map with no .hich with no characters; the pages list own maps by title among the
+game's, the tab and inspector say so, the .hich-only toolbar is hidden. Tried: The Old
+Quarry (t90_00) made in the dialog, opened in the 3D view (the slab drawn, the Door a
+marker), played - standing on the slab at --pos, BGM03 playing, the Door's Exit into Ur at
+-2,0,155 facing 180 (C-61), and Ur's own Exit back onto the slab (both through the game's
+map jump, fade and all). Left for later: a map's camera settings and a background colour
+(the void is black), its name on the menu, the map screen.
 
 ## Working rules
 

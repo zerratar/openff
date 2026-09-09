@@ -28,6 +28,12 @@ internal static partial class GlobalScope
 				if (!map.CMapParameterManager.Instance().isLoaded() && !CCastCommandTransit.getInstance().castParam_MapJump().m_Flag)
 				{
 					VEC_Set(vecFx, 0, 0, 40960);
+					// PORT: a map with no parameter file (one of a mod's own) still lands where --pos said.
+					if (GlobalScope.sys.GGlobal.getPreviousPart() == GAMEPART.GAMEPART_DEBUG_MENU && OpenFF.Client.JumpPart.PositionGiven)
+					{
+						vecFx.copy(OpenFF.Client.JumpPart.StartPosition);
+						vecFx2.y = OpenFF.Client.JumpPart.StartRotation;
+					}
 					sys.PlayerMng().Player(0).setPosition(vecFx);
 					sys.PlayerMng().Player(0).setRotation(vecFx2);
 					sys.PlayerMng().Player(0).setTargetDirectionFromRotation();

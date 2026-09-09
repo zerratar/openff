@@ -58,6 +58,18 @@ namespace OpenFF
 	{
 	}
 
+	/// <summary>A string field that names a map (t01_01, or one of the mod's own): the editor offers the game's maps and the mod's to pick from.</summary>
+	[AttributeUsage(AttributeTargets.Field)]
+	public sealed class MapFieldAttribute : Attribute
+	{
+	}
+
+	/// <summary>An int field that holds a tune's number in the game's music table: the editor offers the Audio library's BGM list to pick from.</summary>
+	[AttributeUsage(AttributeTargets.Field)]
+	public sealed class BgmFieldAttribute : Attribute
+	{
+	}
+
 	/// <summary>A public field the inspector leaves out (still set from a scene file when named).</summary>
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
 	public sealed class HideInInspectorAttribute : Attribute

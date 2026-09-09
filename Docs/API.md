@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMeshes`](#imeshes), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`MapFieldAttribute`](#mapfieldattribute), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -344,6 +344,12 @@ The game's own script language, run by the engine: a cast's code as text - the l
 
 What the services hand out: a character on the map, a party member, an item, a spell, a monster, the input state, a texture to draw.
 
+### BgmFieldAttribute
+
+`class BgmFieldAttribute : Attribute`
+
+An int field that holds a tune's number in the game's music table: the editor offers the Audio library's BGM list to pick from.
+
 ### CastScript
 
 `class CastScript : Interactable`
@@ -456,6 +462,19 @@ A monster on the map: walk into it (or press A at it) and the game's battle begi
 | `bool Once` | Fought and won once: the object is gone, across saves. Off, it is there again every visit. |
 | `bool Beaten { get; }` | Whether this one has been beaten (this visit, or ever when Once). |
 | `void NpcReady(MapObject link)` |  |
+
+### Exit
+
+`class Exit : Behaviour`
+
+A way out of the map: the hero walking within Radius of the object is taken to another map, arriving at a point facing a way - the game's own map jump, fade and all. What a door or a map's edge is on a map of the mod's own, which has no exit table of the game's.
+
+| Member | What it does |
+| --- | --- |
+| `Vector3 Arrive` | Where the hero arrives there, in world units. |
+| `float Facing` | The way the hero faces on arriving, in degrees (0 = +Z, 90 = +X). |
+| `string Map` | The map to go to (t01_01, or a map of the mod's own). |
+| `float Radius` | How close the hero has to come, in world units (a doorway is about 3). |
 
 ### FlagFieldAttribute
 
@@ -589,6 +608,12 @@ An int that is an item id: the inspector offers the game's item list to pick fro
 | `int ItemId { get; set; }` |  |
 | `string ToString()` |  |
 
+### MapFieldAttribute
+
+`class MapFieldAttribute : Attribute`
+
+A string field that names a map (t01_01, or one of the mod's own): the editor offers the game's maps and the mod's to pick from.
+
 ### Mesh
 
 `class Mesh : Behaviour`
@@ -685,6 +710,18 @@ A motion set bound to the object's model and the motion it plays from the start 
 | `bool Loop` |  |
 | `string Set` | The motion set to bind (w_light_man, w_light_old, b_b01...); empty for none. |
 | `void NpcReady(MapObject link)` |  |
+
+### Music
+
+`class Music : Behaviour`
+
+The map's music: the game's background tune by number starts when the object comes to life (the map is entered) and, if Stop is on, stops when it goes (the map is left). A map of the game's has its own; a map of the mod's own has none until this says.
+
+| Member | What it does |
+| --- | --- |
+| `int Bgm` | The tune's number in the game's music table (FF3: 1 is the crystal theme; the Audio library lists them as BGMnn). |
+| `int FadeIn` | Frames the tune fades in over; 0 starts it at once. |
+| `int Volume` | Loudness, 0-127. |
 
 ### Npc
 
@@ -1932,4 +1969,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-121 types, 869 members; 401 without a summary yet.
+125 types, 876 members; 401 without a summary yet.

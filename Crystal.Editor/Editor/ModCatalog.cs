@@ -249,6 +249,12 @@ namespace Crystal.Editor
 					case "OpenFF.FormationFieldAttribute":
 						if (f.Type == "int") f.Type = "formation";
 						break;
+					case "OpenFF.MapFieldAttribute":
+						if (f.Type == "string") f.Type = "map";
+						break;
+					case "OpenFF.BgmFieldAttribute":
+						if (f.Type == "int") f.Type = "bgm";
+						break;
 				}
 			}
 			if (f.Tooltip == null) f.Tooltip = f.Summary;

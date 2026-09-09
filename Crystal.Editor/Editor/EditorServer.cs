@@ -474,6 +474,26 @@ namespace Crystal.Editor
 					ProjectScene(context);
 					return;
 
+				case "/api/project/maps/new":
+				{
+					// A map of the mod's own: { title, kind: town|dungeon, ground: assets/x.gltf or "", size, bgm }.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string map = ProjectScenes.Create(_project,
+							body?["title"]?.GetValue<string>(), body?["kind"]?.GetValue<string>(), body?["ground"]?.GetValue<string>(),
+							body?["size"]?.GetValue<int>() ?? 100, body?["bgm"]?.GetValue<int>() ?? 0,
+							candidate => _workspace.Exists("files/" + candidate + ".hich") || _workspace.Exists("files/" + candidate + ".pak"));
+						SendJson(context, new { ok = true, map });
+					}
+					catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException or JsonException or FormatException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
+
 				case "/api/project/scene/save":
 					SaveProjectScene(context);
 					return;
@@ -2114,13 +2134,14 @@ namespace Crystal.Editor
 				SendJson(context, new
 				{
 					ok = true,
-					maps = ProjectScenes.Maps(_project).Select(m => new { map = m.Map, attachments = m.Attachments, points = m.Points, bytes = m.Bytes, modified = m.Modified })
+					maps = ProjectScenes.Maps(_project).Select(m => new { map = m.Map, attachments = m.Attachments, points = m.Points, bytes = m.Bytes, modified = m.Modified, own = m.Own, title = m.Title })
 				});
 				return;
 			}
 			try
 			{
-				SendJson(context, new { ok = true, map, attachments = ProjectScenes.Read(_project, map), objects = ProjectScenes.Objects(_project, map) });
+				ProjectScenes.Summary summary = ProjectScenes.Maps(_project).FirstOrDefault(m => string.Equals(m.Map, map, StringComparison.OrdinalIgnoreCase));
+				SendJson(context, new { ok = true, map, own = summary?.Own ?? false, title = summary?.Title, attachments = ProjectScenes.Read(_project, map), objects = ProjectScenes.Objects(_project, map) });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
 			{

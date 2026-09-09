@@ -411,7 +411,8 @@ function makeTab(doc, group) {
 
   const kind = icon(doc.kind);
   const label = document.createElement('span');
-  label.textContent = shortName(doc.name);
+  // A map of the mod's own carries its title (set once its scene file is read).
+  label.textContent = doc.title || shortName(doc.name);
   // With two games open, a tab says which one it belongs to.
   const badge = document.createElement('b');
   badge.className = 'ws ' + (workspaceLabel(doc.ws) || '').toLowerCase();
@@ -1451,6 +1452,15 @@ function factsFor(doc) {
   if (!data) return facts;
 
   if (doc.kind === 'map' && data.scene) {
+    const own = typeof sceneState !== 'undefined' && sceneState.map === doc.name && sceneState.own;
+    if (own) {
+      // A map of the mod's own: a scene file and nothing of the game's - its facts are its objects'.
+      facts.push(['name', sceneState.title || doc.name]);
+      facts.push(['what', 'the mod\'s own map - a scene file, no game map behind it']);
+      facts.push(['objects', (sceneState.objects || []).length]);
+      facts.push(['ground', (sceneState.attachments || []).some(a => a.behaviour === 'Mesh' && a.fields && a.fields.Solid) ? 'a Solid Mesh' : 'none - a Mesh with Solid on is what the hero stands on']);
+      return facts;
+    }
     facts.push(['terrain', data.scene.terrain ? shortName(data.scene.terrain) : 'none']);
     facts.push(['characters', data.scene.objects.length]);
     facts.push(['logic casts', data.scene.logic.length]);
@@ -1771,6 +1781,9 @@ function drawCodeActions() {
     if (browseKind === 'items' && typeof newItemDialog === 'function') {
       button('New item…', 'An item of the mod\'s own: starts from one of the game\'s, with a name, a caption, prices and any field of the record changed', () => newItemDialog(), true);
     }
+    if (browseKind === 'scene' || browseKind === 'map') {
+      button('New map…', 'A map of the mod\'s own: a ground to walk (a glTF of yours, or a flat slab), then objects, exits and music placed in the map editor; the OpenFF client plays it', () => newMapDialog(), browseKind === 'scene');
+    }
     button('Export to OpenFF', 'Writes the mod - files per game, code, scenes, definitions - into the client\'s mods folder', () => exportToOpenFF());
     if (project.client) button('Run in OpenFF', 'Export and start the client; a running one hot-reloads the code and takes scene changes on the next map', () => runInOpenFF());
   }
@@ -2017,6 +2030,67 @@ function newTextFileDialog() {
   actions.append(go);
   body.append(actions);
   setTimeout(() => name.focus(), 0);
+}
+
+/// A map of the mod's own: a title, a kind (the stage name's first letter, which the client
+/// reads the map's type off), the ground - one of the project's glTF files or a flat slab
+/// the editor writes - and a tune. Made, it opens in the map editor like any map.
+async function newMapDialog() {
+  const body = dialog('New map');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'A map of the mod\'s own for the OpenFF client: nothing of the game\'s behind it. It starts as a Ground - a Solid glTF the hero stands on - to place objects, exits (an Exit component on an object) and music on in the map editor. Its stage name is picked from the ones the game leaves free (t90_00 …); one of the game\'s maps reaches it through an Exit of yours, or Play here goes straight there.';
+  body.append(note);
+  const title = field(body, 'Name', '', { placeholder: 'The Old Quarry' });
+  section(body, 'Kind');
+  const kind = document.createElement('select');
+  for (const [v, label] of [['town', 'Town - walkable, no random battles of the game\'s (Encounter objects start fights)'], ['dungeon', 'Dungeon - the game treats it as a dungeon (the map screen, the menu)']]) {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = label;
+    kind.append(o);
+  }
+  body.append(kind);
+  section(body, 'Ground');
+  const ground = document.createElement('select');
+  const slab = document.createElement('option');
+  slab.value = ''; slab.textContent = 'A flat slab the editor writes (assets/ground-<map>.gltf)';
+  ground.append(slab);
+  let assets = [];
+  try { assets = await api('/api/project/assets'); } catch (e) { assets = []; }
+  for (const a of assets || []) {
+    const o = document.createElement('option');
+    o.value = a.name || a.path || a; o.textContent = (a.name || a.path || a) + ' - a glTF of the project\'s, Solid';
+    ground.append(o);
+  }
+  body.append(ground);
+  const size = field(body, 'Slab side, in world units', '100', { placeholder: '100 - a town square; two characters side by side are about 8' });
+  const bgm = field(body, 'Music (a BGM number of the game\'s; empty for none)', '', { placeholder: 'e.g. 1 - the Audio library lists them as BGMnn' });
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Create';
+  go.onclick = async () => {
+    const t = title.value.trim();
+    if (!t) { problem.textContent = 'A map needs a name.'; return; }
+    try {
+      const r = await api('/api/project/maps/new', { title: t, kind: kind.value, ground: ground.value, size: parseInt(size.value, 10) || 100, bgm: parseInt(bgm.value, 10) || 0 });
+      if (!r.ok) throw new Error(r.error);
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      if (typeof projectState !== 'undefined' && projectState.project) projectState.project.scenes = (projectState.project.scenes || 0) + 1;
+      state.mapChoices = null;   // the Exit picker's list has a new map in it
+      await loadList();
+      drawProjectTree();
+      say(`"${t}" is ${r.map} - the mod's own map`, 'good');
+      openScene(r.map);
+    } catch (e) { problem.textContent = e.message; }
+  };
+  title.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+  actions.append(go);
+  body.append(actions);
+  setTimeout(() => title.focus(), 0);
 }
 
 /// Name and starter for a new C# file; opens it when made.

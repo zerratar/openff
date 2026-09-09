@@ -1044,6 +1044,67 @@ namespace OpenFF
 		}
 	}
 
+	/// <summary>
+	/// A way out of the map: the hero walking within Radius of the object is taken to another
+	/// map, arriving at a point facing a way - the game's own map jump, fade and all. What a
+	/// door or a map's edge is on a map of the mod's own, which has no exit table of the game's.
+	/// </summary>
+	public sealed class Exit : Behaviour
+	{
+		/// <summary>The map to go to (t01_01, or a map of the mod's own).</summary>
+		[MapField, Tooltip("The map to go to: one of the game's (t01_01) or one of the mod's own")]
+		public string Map = "";
+		/// <summary>Where the hero arrives there, in world units.</summary>
+		[Tooltip("Where the hero arrives on the other map, in world units")]
+		public Vector3 Arrive;
+		/// <summary>The way the hero faces on arriving, in degrees (0 = +Z, 90 = +X).</summary>
+		[Range(0f, 360f), Tooltip("The way the hero faces on arriving, in degrees (0 = +Z, 90 = +X)")]
+		public float Facing;
+		/// <summary>How close the hero has to come, in world units (a doorway is about 3).</summary>
+		[Range(1f, 40f), Tooltip("How close the hero has to come, in world units (a doorway is about 3)")]
+		public float Radius = 3f;
+
+		private bool _inside;
+
+		protected override void Update()
+		{
+			if (Transform == null || !Game.Hero.Present || string.IsNullOrWhiteSpace(Map)) return;
+			bool inside = Vector3.FlatDistance(Transform.WorldPosition, Game.Hero.Position) <= Radius;
+			if (inside == _inside) return;
+			_inside = inside;
+			if (!inside) return;
+			Game.Log("exit " + (GameObject?.Name ?? "?") + ": to " + Map + " at " + Arrive);
+			Game.Field.Warp(Map, Arrive, (int)Math.Round(Facing / 45f) & 7);
+			Enabled = false;   // the map is on its way out; a re-entry re-arms it
+		}
+
+		protected override void OnDisable() { _inside = false; }
+	}
+
+	/// <summary>
+	/// The map's music: the game's background tune by number starts when the object comes to
+	/// life (the map is entered) and, if Stop is on, stops when it goes (the map is left). A
+	/// map of the game's has its own; a map of the mod's own has none until this says.
+	/// </summary>
+	public sealed class Music : Behaviour
+	{
+		/// <summary>The tune's number in the game's music table (FF3: 1 is the crystal theme; the Audio library lists them as BGMnn).</summary>
+		[BgmField, Tooltip("The tune's number in the game's music table (the Audio library lists them as BGMnn)")]
+		public int Bgm = 1;
+		/// <summary>Loudness, 0-127.</summary>
+		[Range(0, 127), Tooltip("Loudness, 0-127")]
+		public int Volume = 127;
+		/// <summary>Frames the tune fades in over; 0 starts it at once.</summary>
+		[Range(0, 120), Tooltip("Frames the tune fades in over")]
+		public int FadeIn;
+
+		protected override void Start()
+		{
+			if (Game.Audio == null || Bgm <= 0) return;
+			Game.Guard("Music " + Bgm, () => Game.Audio.PlayBgm(Bgm, Volume, FadeIn));
+		}
+	}
+
 	internal sealed class ModelFollow : Behaviour
 	{
 		private Vector3 _at;

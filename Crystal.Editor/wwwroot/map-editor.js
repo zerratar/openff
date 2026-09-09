@@ -2591,6 +2591,9 @@ async function loadSceneState(map) {
     const scene = await api(`/api/project/scene?map=${encodeURIComponent(map)}`);
     if (!scene.ok) throw new Error(scene.error);
     sceneState.map = map;
+    // A map of the mod's own: nothing of the game's behind it, a title of its own.
+    sceneState.own = Boolean(scene.own);
+    sceneState.title = scene.title || null;
     sceneState.attachments = scene.attachments || [];
     // The older files' "point:<name>" targets read as the object's path.
     for (const a of sceneState.attachments) if (/^point:/i.test(a.target || '')) a.target = a.target.slice(6);
@@ -3026,6 +3029,61 @@ function behaviourCard(state, attachment, target) {
       if (state.formations) fill();
       else api('/api/formations').then(list => { state.formations = list; fill(); }).catch(() => {});
       input.onchange = () => changed(parseInt(input.value, 10) || 0);
+    } else if (f.type === 'map') {
+      // [MapField]: the game's maps and the mod's own to pick from (an Exit's destination).
+      input = document.createElement('select');
+      const none = document.createElement('option');
+      none.value = '';
+      none.textContent = '(none)';
+      input.append(none);
+      const fill = () => {
+        const mod = document.createElement('optgroup');
+        mod.label = 'the mod\'s own maps';
+        const game = document.createElement('optgroup');
+        game.label = 'the game\'s maps';
+        for (const entry of state.mapChoices || []) {
+          const option = document.createElement('option');
+          option.value = entry.map;
+          option.textContent = entry.title ? `${entry.title} (${entry.map})` : entry.map;
+          (entry.own ? mod : game).append(option);
+        }
+        if (mod.childElementCount) input.append(mod);
+        input.append(game);
+        if (value && !Array.from(input.options).some(o => o.value === value)) {
+          const stray = document.createElement('option');
+          stray.value = value; stray.textContent = value + ' (not a map of either)';
+          input.append(stray);
+        }
+        input.value = value || '';
+      };
+      if (state.mapChoices) fill();
+      else Promise.all([api('/api/maps'), api('/api/project/scene').catch(() => ({ maps: [] }))]).then(([maps, scenes]) => {
+        const own = (scenes && scenes.maps || []).filter(s => s.own);
+        state.mapChoices = [...own.map(s => ({ map: s.map, title: s.title, own: true })), ...maps.filter(m => !own.some(o => o.map.toLowerCase() === m.toLowerCase())).map(m => ({ map: m }))];
+        fill();
+      }).catch(() => {});
+      input.onchange = () => changed(input.value);
+    } else if (f.type === 'bgm') {
+      // [BgmField]: the Audio library's tunes by number.
+      input = document.createElement('select');
+      const none = document.createElement('option');
+      none.value = '0';
+      none.textContent = '(none)';
+      input.append(none);
+      const fill = () => {
+        for (const sound of (state.audio || []).filter(s => s.kind === 'bgm')) {
+          const n = parseInt(String(sound.name).replace(/^BGM/i, ''), 10);
+          if (isNaN(n)) continue;
+          const option = document.createElement('option');
+          option.value = String(n);
+          option.textContent = `${n} · ${sound.name}${sound.milliseconds ? ' · ' + Math.round(sound.milliseconds / 1000) + 's' : ''}`;
+          input.append(option);
+        }
+        input.value = String(value || 0);
+      };
+      if (state.audio) fill();
+      else api('/api/audio').then(list => { state.audio = list; fill(); }).catch(() => {});
+      input.onchange = () => changed(parseInt(input.value, 10) || 0);
     } else if (f.type === 'object') {
       // A reference to another of the mod's objects on this map, by path.
       input = document.createElement('select');
@@ -3128,7 +3186,8 @@ function behaviourCard(state, attachment, target) {
       slider.type = 'range';
       slider.min = f.min;
       slider.max = f.max;
-      slider.step = f.type === 'int' ? '1' : String((f.max - f.min) / 100);
+      // Round steps, so a whole-number value sits on a notch rather than the nearest hundredth of the range.
+      slider.step = f.type === 'int' ? '1' : (f.max - f.min) <= 10 ? '0.1' : (f.max - f.min) <= 100 ? '0.5' : '1';
       const number = document.createElement('input');
       number.type = 'number';
       number.min = f.min;
@@ -3336,6 +3395,17 @@ async function refreshScenePoints(doc) {
     await loadSceneState(mapState.name);
     syncSceneObjects(doc);
     drawHierarchy();
+    // A map of the mod's own says so in the inspector once the scene file is read - its facts
+    // are the scene's, not a game map's; and its tab carries its title.
+    if (sceneState.own && doc && doc.name === mapState.name && sceneState.map === mapState.name) {
+      if (sceneState.title && doc.title !== `${sceneState.title} (${mapState.name})`) {
+        doc.title = `${sceneState.title} (${mapState.name})`;
+        if (typeof drawDocTabs === 'function') drawDocTabs();
+      }
+      if (typeof drawInspector === 'function') drawInspector();
+      // The game's own placement has nothing to act on here: no .hich rows to add to, save or revert.
+      for (const b of (doc.pane || document).querySelectorAll('.toolbar .add, .toolbar .save, .toolbar .revert, button.add, button.save, button.revert')) b.hidden = true;
+    }
   } catch (error) {
     console.warn(error);
   }

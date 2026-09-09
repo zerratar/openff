@@ -13,6 +13,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -45,6 +46,10 @@ namespace Crystal.Editor
 			public int Points { get; set; }
 			public long Bytes { get; set; }
 			public DateTime Modified { get; set; }
+			/// <summary>A map of the mod's own (no game map behind it): its display name.</summary>
+			public string Title { get; set; }
+			/// <summary>Whether the map is the mod's own - a scene file and nothing of the game's.</summary>
+			public bool Own { get; set; }
 		}
 
 		/// <summary>The maps with a scene file, and how many attachments and objects each has.</summary>
@@ -64,6 +69,8 @@ namespace Crystal.Editor
 					JsonNode node = JsonNode.Parse(File.ReadAllText(file));
 					summary.Attachments = node?["attachments"] is JsonArray array ? array.Count : 0;
 					summary.Points = Count(node?["objects"] as JsonArray) + (node?["points"] is JsonArray points ? points.Count : 0);
+					summary.Own = node?["own"]?.GetValue<bool>() ?? false;
+					summary.Title = node?["title"]?.GetValue<string>();
 				}
 				catch (Exception) { }
 				maps.Add(summary);
@@ -238,17 +245,88 @@ namespace Crystal.Editor
 		public static void Write(Project project, string map, JsonArray attachments, JsonArray objects)
 		{
 			string path = PathFor(project, map);
+			// A map of the mod's own is the file: it stays, empty or not, with its title.
+			JsonObject before = File.Exists(path) ? JsonNode.Parse(File.ReadAllText(path)) as JsonObject : null;
+			bool own = before?["own"]?.GetValue<bool>() ?? false;
 			bool empty = (attachments == null || attachments.Count == 0) && (objects == null || objects.Count == 0);
-			if (empty)
+			if (empty && !own)
 			{
 				if (File.Exists(path)) File.Delete(path);
 				return;
 			}
 			System.IO.Directory.CreateDirectory(Directory(project));
 			JsonObject file = new JsonObject { ["map"] = map };
+			if (own)
+			{
+				file["own"] = true;
+				if (before["title"] != null) file["title"] = before["title"].GetValue<string>();
+			}
 			if (objects != null && objects.Count > 0) file["objects"] = JsonNode.Parse(objects.ToJsonString());
 			file["attachments"] = JsonNode.Parse((attachments ?? new JsonArray()).ToJsonString());
 			File.WriteAllText(path, file.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
+		}
+
+		/// <summary>Whether a map is one of the mod's own: a scene file marked so, nothing of the game's behind it.</summary>
+		public static bool IsOwn(Project project, string map)
+		{
+			if (project == null || string.IsNullOrWhiteSpace(map) || map.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return false;
+			string path = Path.Combine(Directory(project), map + ".json");
+			if (!File.Exists(path)) return false;
+			try { return (JsonNode.Parse(File.ReadAllText(path)) as JsonObject)?["own"]?.GetValue<bool>() ?? false; }
+			catch (JsonException) { return false; }
+		}
+
+		/// <summary>
+		/// A new map of the mod's own: a scene file under a stage name the game does not use,
+		/// with a title, a Ground object - a Solid Mesh of the glTF given, or of a flat slab the
+		/// editor writes into assets/ when none is - and, when asked, a Music object. The
+		/// stage name is shaped like the game's (t90_00, d90_00 ...) because the client's stage
+		/// loader reads the map's kind off the first letter; it finds no files behind the name
+		/// and draws the scene alone.
+		/// </summary>
+		public static string Create(Project project, string title, string kind, string ground, int size, int bgm, Func<string, bool> gameHas)
+		{
+			if (project == null) throw new InvalidOperationException("no project is open");
+			if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("a name for the map");
+			char prefix = string.Equals(kind, "dungeon", StringComparison.OrdinalIgnoreCase) ? 'd' : 't';
+			string map = null;
+			for (int area = 90; area <= 99 && map == null; area++)
+			{
+				for (int room = 0; room <= 99; room++)
+				{
+					string candidate = prefix + area.ToString("00", CultureInfo.InvariantCulture) + "_" + room.ToString("00", CultureInfo.InvariantCulture);
+					if (File.Exists(Path.Combine(Directory(project), candidate + ".json"))) continue;
+					if (gameHas != null && gameHas(candidate)) continue;
+					map = candidate;
+					break;
+				}
+			}
+			if (map == null) throw new InvalidOperationException("no free stage name left between " + prefix + "90_00 and " + prefix + "99_99");
+			if (string.IsNullOrWhiteSpace(ground))
+			{
+				// A slab to stand on, the size asked (a town's square is about 100 across), one unit thick, a dull green.
+				int side = Math.Clamp(size <= 0 ? 100 : size, 10, 2000);
+				string file = "ground-" + map + ".gltf";
+				GltfWriter.WriteBox(Path.Combine(project.Directory, GltfBundle.Folder, file), side, 1, side, 0.36f, 0.48f, 0.30f);
+				ground = GltfBundle.Folder + "/" + file;
+			}
+			JsonArray objects = new JsonArray
+			{
+				new JsonObject { ["name"] = "Ground", ["x"] = 0, ["y"] = -1, ["z"] = 0, ["yaw"] = 0, ["scale"] = 1, ["model"] = ground }
+			};
+			JsonArray attachments = new JsonArray
+			{
+				new JsonObject { ["target"] = "Ground", ["behaviour"] = "Mesh", ["fields"] = new JsonObject { ["Path"] = ground, ["Solid"] = true } }
+			};
+			if (bgm > 0)
+			{
+				objects.Add(new JsonObject { ["name"] = "Music", ["x"] = 0, ["y"] = 0, ["z"] = 0, ["yaw"] = 0, ["scale"] = 1 });
+				attachments.Add(new JsonObject { ["target"] = "Music", ["behaviour"] = "Music", ["fields"] = new JsonObject { ["Bgm"] = bgm } });
+			}
+			System.IO.Directory.CreateDirectory(Directory(project));
+			JsonObject fileNode = new JsonObject { ["map"] = map, ["own"] = true, ["title"] = title.Trim(), ["objects"] = objects, ["attachments"] = attachments };
+			File.WriteAllText(PathFor(project, map), fileNode.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
+			return map;
 		}
 	}
 }

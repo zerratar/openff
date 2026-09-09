@@ -124,10 +124,14 @@ namespace Crystal.Editor
 			Func<uint, string> lookupMessage)
 		{
 			string hichName = "files/" + map + ".hich";
-			List<HichEntry> entries = Hich.Read(workspace.Read(hichName));
+			// A map of the mod's own (OpenFF target: a scene file and nothing of the game's)
+			// has no .hich and no script: no characters of the game's, no exits of the game's.
+			bool own = !workspace.Exists(hichName);
+			List<HichEntry> entries = own ? new List<HichEntry>() : Hich.Read(workspace.Read(hichName));
 
-			Dictionary<int, (List<string> Lines, List<uint> Ids, int Count)> perCast =
-				ReadCasts(workspace, map, lookupMessage);
+			Dictionary<int, (List<string> Lines, List<uint> Ids, int Count)> perCast = own
+				? new Dictionary<int, (List<string> Lines, List<uint> Ids, int Count)>()
+				: ReadCasts(workspace, map, lookupMessage);
 
 			List<MapCharacter> characters = new List<MapCharacter>();
 			for (int i = 0; i < entries.Count; i++)
