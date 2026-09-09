@@ -6706,12 +6706,16 @@ internal static partial class GlobalScope
 							arg0 = arg0.Substring(arg0.LastIndexOf('/') + 1);
 							if (arg1.Equals("rb") || arg1.Equals("r+b"))
 							{
-								IsolatedStorageFile userStoreForApplication = IsolatedStorageFile.GetUserStoreForApplication();
-								if (!userStoreForApplication.FileExists(arg0))
+								// PORT: the save file lives where AppShell.createSaveFile puts it (%AppData%\FF3),
+								// not in IsolatedStorage. The phone shim read it from IsolatedStorage, whose store
+								// is keyed by the executable's path: a build in another folder found no file,
+								// the create wrote to %AppData%, and the two never met - every save was lost.
+								string path = OpenFF.Client.SaveFiles.PathFor(arg0);
+								if (!File.Exists(path))
 								{
 									return null;
 								}
-								fILE.m_Fs = userStoreForApplication.OpenFile(arg0, FileMode.Open);
+								fILE.m_Fs = new FileStream(path, FileMode.Open, arg1.Equals("rb") ? FileAccess.Read : FileAccess.ReadWrite, FileShare.Read);
 							}
 							else
 							{

@@ -34,6 +34,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   driver was never a real one; it is the setting's now, and 4× is on by default (the DS
   look - pixel textures, no filtering - is untouched; only polygon edges smooth).
 - **Alt+Enter** switches windowed and full screen while playing and remembers the choice.
+- **Saves were being lost - fixed.** The game read `save.bin` through .NET's IsolatedStorage,
+  a store keyed by the executable's path, but created the file under `%AppData%\FF3` - so a
+  build in any new folder never found a save file, its first write failed, and every save and
+  quick save after it was thrown away (0.1.0's zip included; running from Visual Studio too).
+  Both now use `%AppData%\FF3\save.bin`; a save left in an old isolated store is brought over
+  once, automatically; FF4's card data is kept apart as `ff4-save.bin`. Reported by Karl.
 - The release description carries only the version's notes (the procedure moved to
   `Docs/Releasing.md`). A settings screen in the game, or a launcher, is the plan for
   editing these without a text editor.
