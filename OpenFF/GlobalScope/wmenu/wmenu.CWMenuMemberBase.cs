@@ -141,6 +141,74 @@ internal static partial class GlobalScope
 								{
 									doFinalize = val;
 								}
+
+								/// <summary>DS X (the pad's square, C on the keyboard) turns to the previous tab.</summary>
+								public const int TAB_PREV_BUTTON = 0x400;
+
+								/// <summary>DS Y (the pad's triangle, V on the keyboard) turns to the next tab.</summary>
+								public const int TAB_NEXT_BUTTON = 0x800;
+
+								/// <summary>
+								/// PORT: a menu's tabs are the "mm_command" row the touch build tapped; a pad has no way
+								/// to reach them. This turns to the neighbouring tab on a button edge and presses it the
+								/// way a tap did - focus goes to the tab and the activate state is set - so the menu's own
+								/// tap handling runs: the tab cursor moves to it and the list is re-focused. The caller
+								/// says which tab is current (its tag under mm_command), which buttons turn back and
+								/// forward (bits of ds.g_Pad.edge()), and any tags to skip (a tab that is an action, not
+								/// a page). Returns true when a turn was made this frame.
+								/// </summary>
+								protected bool TurnTabs(int currentTag, int prevButtons, int nextButtons, params int[] skipTags)
+								{
+									int edge = ds.g_Pad.edge();
+									int dir = 0;
+									if ((edge & prevButtons) != 0)
+									{
+										dir = -1;
+									}
+									else if ((edge & nextButtons) != 0)
+									{
+										dir = 1;
+									}
+									if (dir == 0)
+									{
+										return false;
+									}
+									menu.MenuManager mgr = menu.MenuManager.getSingleton();
+									menu.Medget root = mgr.root();
+									menu.Medget row = root?.getNodeByID(TRANSCODE("mm_command"));
+									if (row == null)
+									{
+										return false;
+									}
+									var tabs = new System.Collections.Generic.List<menu.Medget>();
+									for (menu.Medget m = row.childNode(); m != null; m = m.nextSibling())
+									{
+										if (System.Array.IndexOf(skipTags, (int)m.myTag()) < 0)
+										{
+											tabs.Add(m);
+										}
+									}
+									if (tabs.Count < 2)
+									{
+										return false;
+									}
+									int at = tabs.FindIndex(m => m.myTag() == currentTag);
+									if (at < 0)
+									{
+										at = 0;
+									}
+									int to = at + dir;
+									if (to < 0 || to >= tabs.Count)
+									{
+										return false;
+									}
+									mgr.playSEDecide();
+									// By tag, as a tap does (MenuManager.execute): setFocuseMedget(Medget) hands the
+									// list index to initFocus, which reads a tag, and lands elsewhere.
+									mgr.initFocus(tabs[to].myTag());
+									mgr.SetActivateButtonState(0);
+									return true;
+								}
 							}
 	}
 }

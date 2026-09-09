@@ -229,6 +229,12 @@ internal static partial class GlobalScope
 										MagicChange();
 										break;
 									}
+									// PORT: X / Y turn the Use / Learn / Remove / Change tabs for a pad or a keyboard (L / R
+									// turn the character here, as on the DS), in the states where a tap on a tab is taken.
+									if (!m_state && (myProcess == 0 || myProcess == 2 || (myProcess == 1 && localState == 3) || (myProcess == 3 && localState == 2)))
+									{
+										TurnTabs(myProcess, TAB_PREV_BUTTON, TAB_NEXT_BUTTON);
+									}
 									if (myProcess == 1)
 									{
 										if (localState == 3 && (m_state || CheckTouchSlotSelect()))

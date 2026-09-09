@@ -116,7 +116,10 @@ internal static partial class GlobalScope
 											CWMenuManager.Instance().SetNextKind((WMENU_KIND)num2);
 											CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_TERMINATE);
 										}
-										else if (menu.MenuManager.getSingleton().GetCancelButtonState() == 0 || CWMenuManager.Instance().GetMenuButton().TouchButtonB() || ((ds.g_Pad.edge() != 0) & (num != 0)))
+										// PORT: the menu-zoom button (L or R, by the config) closes the menu; the recreated
+										// source had this as (edge() != 0) & (num != 0), which any button satisfied - a
+										// pad's Left or Right shut the menu.
+										else if (menu.MenuManager.getSingleton().GetCancelButtonState() == 0 || CWMenuManager.Instance().GetMenuButton().TouchButtonB() || (ds.g_Pad.edge() & num) != 0)
 										{
 											CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_END);
 										}

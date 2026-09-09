@@ -222,6 +222,9 @@ internal static partial class GlobalScope
 										ItemImportant();
 										break;
 									}
+									// PORT: L / R (no character to turn here) and X / Y turn the Items / Key Items tabs for a
+									// pad or a keyboard; Sort (tag 1) is an action, not a page, so it is not turned to.
+									TurnTabs(prev_focus_group, 0x200 | TAB_PREV_BUTTON, 0x100 | TAB_NEXT_BUTTON, 1);
 									if (menu.MenuManager.getSingleton().GetActivateButtonState() == 0 && menu.MenuManager.getSingleton().getFocuseMedget().parentNode()
 										._id(TRANSCODE("mm_command")))
 									{

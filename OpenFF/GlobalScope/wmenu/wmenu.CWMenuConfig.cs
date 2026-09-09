@@ -205,22 +205,12 @@ internal static partial class GlobalScope
 									}
 									if (page == 0 || page == 1)
 									{
-										// PORT: the two pages are tabs the touch build tapped; L and R (the shoulders, Q/E) turn them
-										// for a pad or a keyboard, as the DS turned pages elsewhere in the menu.
+										// PORT: the two pages are tabs the touch build tapped; L / R (no character to turn here)
+										// and X / Y turn them for a pad or a keyboard. The press goes through the tap handling
+										// below, so the tab cursor follows.
 										if (!(menu.MenuManager.getSingleton().getFocuseMedget()._id("YES") || menu.MenuManager.getSingleton().getFocuseMedget()._id("NO")))
 										{
-											if ((ds.g_Pad.edge() & 0x200) != 0 && page != 0)
-											{
-												menu.MenuManager.getSingleton().playSEDecide();
-												SetPage(0);
-												return;
-											}
-											if ((ds.g_Pad.edge() & 0x100) != 0 && page != 1)
-											{
-												menu.MenuManager.getSingleton().playSEDecide();
-												SetPage(1);
-												return;
-											}
+											TurnTabs((page == 0) ? 20 : 21, 0x200 | TAB_PREV_BUTTON, 0x100 | TAB_NEXT_BUTTON);
 										}
 										if ((ds.g_Pad.edge() & 2) != 0 || CWMenuManager.Instance().GetMenuButton().TouchButtonB())
 										{

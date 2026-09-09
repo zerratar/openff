@@ -55,9 +55,15 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   Run) is left out of the stick's decision - the push, or the run button, is the whole of it;
   the d-pad still follows the config as the DS did.
 - **The quick save notice** ("returning to the title") takes A or B as well as a tap.
-- **Config with a pad.** L and R turn Config 1 and Config 2 (the tabs were touch only), and
-  Up past the first option no longer crashes (an index off the explanation table). Reported
-  by testing.
+- **Menu tabs with a pad.** The tab rows the touch build tapped - Items / Key Items, Config 1
+  / Config 2, Magic's Use / Learn / Remove / Exchange - turn with X / Y (Square / Triangle,
+  C / V) in every menu, and with L / R where those are not the character switch (Items,
+  Config). The press goes through the menu's own tap handling, so the tab cursor moves to
+  the tab and the list is re-focused, as a tap does. Up past Config's first option no longer
+  crashes (an index off the explanation table). Found in testing.
+- **Left and Right no longer close the main menu.** The menu-zoom button (L or R, by the
+  config) closes it; the recreated condition had been `(edge != 0) & (button != 0)`, which
+  any button satisfied - a pad's d-pad shut the menu.
 - **Crystal's 3D view.** A click on nothing deselects; a pick in the view takes the
   inspector even when something from the project panel was in it (only the hierarchy did
   before); among the mod's objects the smallest under the cursor wins, so a crate on a

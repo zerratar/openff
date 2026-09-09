@@ -178,6 +178,7 @@ are otherwise as they were made.
 | Tab (hold) | Fast-forward |
 | Alt+Enter | Windowed and full screen in turn (remembered in `settings.json`) |
 | Name entry | Type, or with a pad: Up/Down between the name and OK, A opens the on-screen keys (d-pad picks, A types, B deletes, Start is Done) |
+| Menu tabs (FF3) | X / Y (C / V, Square / Triangle) turn a menu's tabs - Items / Key Items, Config 1 / 2, Magic's Use / Learn / Remove / Exchange; L / R do too where they are not the character switch (Items, Config) |
 | Game pad (XInput, DualShock, DualSense, Switch Pro …) | D-pad or left stick: directions - the stick pushed all the way runs, part way walks (`"run": "stick"` in `settings.json`; `"hold"` for the run button instead). Buttons as `settings.json` ▸ `pad` maps them, by default Cross/Circle/Square/Triangle = the DS's A/B/X/Y, L1/R1 = L/R, Options = Start, Share = Select, R2 = run, L2 = fast-forward; any DS button can be given any pad button by name. The first connected pad; plugged in at any time. A pad SDL does not know can be described in a `gamecontrollerdb.txt` beside the executable |
 | F1 | Debug overlay (F2 menu frames, F3 ids, F4 sprites, F5 world text, F6 stats) |
 | F12 | Screenshot |
