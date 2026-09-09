@@ -155,12 +155,21 @@ function itemDefinitionPanel(def, onSaved) {
   const fields = card('Record - the game\'s fields');
   const note = document.createElement('p');
   note.className = 'none';
-  note.textContent = 'Each field by the game\'s own name (itm.*Parameter), the base\'s value greyed in. Set one to change it; clear it to go back to the base\'s. usedPower is a consumable\'s effect strength, aggressivity a weapon\'s attack, phylacticPower armour\'s defence, equipJob the job bits.';
+  note.textContent = 'The base\'s values are greyed in; set a field to change it, clear it (the ↺) to go back to the base\'s. Flags and kinds are pickers; a plain number is a number.';
   fields.append(note);
   for (const f of def.fields || []) {
     if (f.name === 'buy' || f.name === 'price') continue;
-    const input = number(f.value, f.baseValue, v => { if (v === null) delete model.fields[f.name]; else model.fields[f.name] = v; save(); });
-    row(fields, f.name, input);
+    const meta = itemFieldMeta(f.name, def.chain);
+    const set = v => { if (v === null) delete model.fields[f.name]; else model.fields[f.name] = v; save(); };
+    let input;
+    if (meta.kind === 'flags') input = flagsPicker(f.value, f.baseValue, meta.options, set);
+    else if (meta.kind === 'enum') input = enumPicker(f.value, f.baseValue, meta.options, set);
+    else if (meta.kind === 'bool') input = enumPicker(f.value, f.baseValue, [[0, 'No'], [1, 'Yes']], set);
+    else if (meta.kind === 'model') input = weaponModelPicker(f.value, f.baseValue, set);
+    else if (meta.kind === 'item') input = itemRefPicker(f.value, f.baseValue, meta.category, set);
+    else input = number(f.value, f.baseValue, set);
+    const r = row(fields, meta.label || f.name, input, meta.tip);
+    if (meta.label && meta.label !== f.name) r.firstChild.title = f.name + (meta.tip ? ' - ' + meta.tip : '');
   }
 
   // ---- the file, and the end
@@ -408,4 +417,185 @@ function newCharacterDialog() {
   actions.append(go);
   body.append(actions);
   setTimeout(() => name.focus(), 0);
+}
+// ---------------------------------------------------- what the record's fields mean
+//
+// The game's own enums (OpenFF/GlobalScope/itm/*.cs), so a field that is a set of flags or a
+// kind is picked by name rather than typed as a number. A field not listed here is a plain
+// number with a tip; one whose meaning has not been read says so.
+
+const JOBS = [[1, 'Freelancer'], [2, 'Onion Knight'], [4, 'Warrior'], [8, 'Monk'], [16, 'White Mage'], [32, 'Black Mage'], [64, 'Red Mage'], [128, 'Ranger'], [256, 'Knight'], [512, 'Thief'], [1024, 'Scholar'], [2048, 'Geomancer'], [4096, 'Dragoon'], [8192, 'Viking'], [16384, 'Dark Knight'], [32768, 'Evoker'], [65536, 'Bard'], [131072, 'Black Belt'], [262144, 'Magus'], [524288, 'Devout'], [1048576, 'Summoner'], [2097152, 'Sage'], [4194304, 'Ninja']];
+const ELEMENTS = [[1, 'Recovery'], [2, 'Poison'], [4, 'Absorption'], [8, 'Lightning'], [16, 'Ice'], [32, 'Fire'], [64, 'Water'], [128, 'Earth'], [256, 'Holy'], [512, 'Wind'], [1024, 'Dark']];
+const CONDITIONS = [[1, 'Paralysis'], [2, 'Sleep'], [4, 'Confusion'], [8, 'Petrify'], [16, 'Toad'], [32, 'Silence'], [64, 'Mini'], [128, 'Blind'], [256, 'Poison'], [512, 'KO'], [1024, 'Near death']];
+const ARMS = [[1, 'Grapple'], [2, 'Slash'], [4, 'Blow'], [8, 'Charge']];
+const TARGET_SELECT = [[1, 'None'], [2, 'One enemy'], [4, 'Enemy group'], [8, 'All enemies'], [16, 'Random enemy'], [32, 'Random enemy group'], [64, 'Self'], [128, 'One ally'], [256, 'Ally group'], [512, 'All allies'], [1024, 'Random ally'], [2048, 'Random ally group'], [4096, 'Everyone']];
+const TARGET_POSITION = [[0, 'Enemies'], [1, 'Enemies (abnormal)'], [2, 'Self'], [3, 'Allies']];
+const WEAPON_KINDS = [[0, 'Unarmed'], [1, 'Knife'], [2, 'Sword'], [3, 'Club'], [4, 'Mace'], [5, 'Staff'], [6, 'Rod'], [7, 'Bow'], [8, 'Arrow'], [9, 'Book'], [10, 'Claw'], [11, 'Hammer'], [12, 'Axe'], [13, 'Spear'], [14, 'Throwing'], [15, 'Bell'], [16, 'Harp'], [17, 'Dark sword'], [18, 'Shuriken']];
+const ARMOUR_KINDS = [[0, 'Shield'], [1, 'Helmet'], [2, 'Armour'], [3, 'Gauntlet']];
+const MAGIC_KINDS = [[0, 'White'], [1, 'Black'], [2, 'Summon'], [3, 'Song'], [4, 'Terrain'], [5, 'Enemy']];
+const CONSUMABLE_KINDS = [[0, 'Normal'], [1, 'Battle']];
+const MAGIC_USE = [[0, 'Attack'], [1, 'Recovery'], [2, 'Assist'], [3, 'Special']];
+
+function itemFieldMeta(name, chain) {
+  const weapon = chain === 'weapon', armour = chain === 'armour', magic = chain === 'magic', consumable = chain === 'consumable';
+  switch (name) {
+    case 'system': return weapon ? { kind: 'enum', label: 'Kind', options: WEAPON_KINDS, tip: 'The weapon\'s kind: which motion set swings it, which jobs\' skills apply' }
+      : armour ? { kind: 'enum', label: 'Kind', options: ARMOUR_KINDS, tip: 'Which slot it goes in' }
+      : magic ? { kind: 'enum', label: 'School', options: MAGIC_KINDS }
+      : consumable ? { kind: 'enum', label: 'Kind', options: CONSUMABLE_KINDS, tip: 'Battle: usable only in battle' }
+      : { kind: 'number', label: 'system', tip: 'The record\'s kind byte' };
+    case 'graphId': return weapon ? { kind: 'model', label: 'Model', tip: 'The weapon\'s 3D model in battle: w + this number (w015 is model 15); the picker lists the game\'s weapon models' }
+      : { kind: 'number', label: 'Graphic', tip: 'The item\'s picture (icon) number in the menu' };
+    case 'strength': return { kind: 'number', label: 'Strength +', tip: 'Added to the wearer\'s strength while equipped (0-255)' };
+    case 'vitality': return { kind: 'number', label: 'Vitality +', tip: 'Added to the wearer\'s vitality while equipped' };
+    case 'dexterity': return { kind: 'number', label: 'Agility +', tip: 'Added to the wearer\'s agility while equipped' };
+    case 'intellect': return { kind: 'number', label: 'Intellect +', tip: 'Added to the wearer\'s intellect while equipped' };
+    case 'mind': return { kind: 'number', label: 'Mind +', tip: 'Added to the wearer\'s mind while equipped' };
+    case 'weight': return { kind: 'number', label: 'Weight', tip: 'Heavier equipment slows the turn (0-255)' };
+    case 'useBattle': return { kind: 'bool', label: 'Usable in battle' };
+    case 'useField': return { kind: 'bool', label: 'Usable on the field' };
+    case 'allTarget': return { kind: 'bool', label: 'Targets everyone', tip: 'Affects the whole side rather than one' };
+    case 'useItemId': return { kind: 'item', label: 'Casts', category: 'magic', tip: 'The spell an item casts when used (a consumable\'s effect, a weapon\'s Item use); none for nothing' };
+    case 'targetPossible': return { kind: 'flags', label: 'Targets', options: TARGET_SELECT, tip: 'Which targets the cursor may pick' };
+    case 'targetPosition': return { kind: 'enum', label: 'Default target', options: TARGET_POSITION, tip: 'Where the cursor starts' };
+    case 'equipJob': return { kind: 'flags', label: 'Jobs', options: JOBS, tip: 'Which jobs may equip it' };
+    case 'aggressivity': return { kind: 'number', label: magic ? 'Power' : 'Attack', tip: magic ? 'The spell\'s power' : 'The weapon\'s attack power' };
+    case 'hitProbability': return { kind: 'number', label: 'Accuracy %', tip: 'Chance to hit, 0-100' };
+    case 'optionProbability': return { kind: 'number', label: 'Status chance %', tip: 'Chance per hit to inflict the status below (0-100)' };
+    case 'optionMagicItemId': return { kind: 'item', label: 'Casts when used', category: 'magic', tip: 'The spell cast when the weapon is used as an item in battle; none for nothing' };
+    case 'armsAttribute': return { kind: 'flags', label: 'Damage type', options: ARMS, tip: 'How it hurts: some monsters are weak or hard against a type' };
+    case 'atckType': return { kind: 'number', label: 'atckType', tip: 'Attack type bits; bit 4 marks a weapon the game\'s battle setup treats apart (a bow\'s arrow). Meaning not fully read - a raw number' };
+    case 'atckOption': return { kind: 'flags', label: 'Inflicts', options: CONDITIONS, tip: 'The status a hit may inflict, at the chance above' };
+    case 'equipOption': return { kind: 'flags', label: 'Guards against', options: CONDITIONS, tip: 'Statuses the equipment prevents' };
+    case 'phylacticPower': return { kind: 'number', label: 'Defence' };
+    case 'magicPhylacticPower': return { kind: 'number', label: 'Magic defence' };
+    case 'avoidanceProbability': return { kind: 'number', label: 'Evasion %' };
+    case 'magicAvoidanceProbability': return { kind: 'number', label: 'Magic evasion %' };
+    case 'magicClass': return { kind: 'number', label: 'Level', tip: 'The spell\'s level, 1-8: which spell slot it takes' };
+    case 'successProbability': return { kind: 'number', label: 'Accuracy %' };
+    case 'magicUseKind': return { kind: 'enum', label: 'Use', options: MAGIC_USE };
+    case 'magicType': return { kind: 'flags', label: 'Element', options: ELEMENTS };
+    case 'changeCondition': return { kind: 'flags', label: 'Status', options: CONDITIONS, tip: 'The statuses it inflicts, or cures for a recovery item or spell' };
+    case 'calculate': return { kind: 'number', label: 'calculate', tip: 'Which damage formula; meaning not fully read - a raw number' };
+    case 'reflect': return { kind: 'bool', label: 'Reflectable' };
+    case 'usedPower': return { kind: 'number', label: 'Power', tip: 'The effect\'s strength: a potion\'s HP, a spell item\'s power' };
+    case 'itemType': return { kind: 'flags', label: 'Element', options: ELEMENTS, tip: 'The effect\'s element: Recovery heals' };
+    default: return { kind: 'number', label: name };
+  }
+}
+
+/// The base's value greyed in a select, the chosen one set; ↺ goes back to the base's.
+function enumPicker(value, baseValue, options, onChange) {
+  const wrap = document.createElement('span');
+  wrap.className = 'field-pick';
+  const select = document.createElement('select');
+  const base = document.createElement('option');
+  base.value = '';
+  const baseLabel = options.find(o => o[0] === baseValue);
+  base.textContent = `(base: ${baseLabel ? baseLabel[1] : baseValue})`;
+  select.append(base);
+  for (const [v, label] of options) {
+    const o = document.createElement('option');
+    o.value = String(v); o.textContent = label;
+    select.append(o);
+  }
+  if (value !== null && value !== undefined && !options.some(o => o[0] === value)) {
+    const o = document.createElement('option');
+    o.value = String(value); o.textContent = value + ' (not a named value)';
+    select.append(o);
+  }
+  select.value = value === null || value === undefined ? '' : String(value);
+  select.onchange = () => onChange(select.value === '' ? null : parseInt(select.value, 10));
+  wrap.append(select);
+  return wrap;
+}
+
+/// One checkbox per flag; the base's flags shown greyed until one is touched, then the set is the mod's.
+function flagsPicker(value, baseValue, options, onChange) {
+  const wrap = document.createElement('div');
+  wrap.className = 'field-flags';
+  let current = value === null || value === undefined ? null : value;
+  const boxes = [];
+  const redraw = () => {
+    const shown = current === null ? (baseValue || 0) : current;
+    for (const [bit, box] of boxes) box.checked = (shown & bit) !== 0;
+    wrap.classList.toggle('inherited', current === null);
+  };
+  for (const [bit, label] of options) {
+    const l = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.onchange = () => {
+      const shown = current === null ? (baseValue || 0) : current;
+      current = box.checked ? (shown | bit) : (shown & ~bit);
+      onChange(current);
+      redraw();
+    };
+    l.append(box, document.createTextNode(' ' + label));
+    wrap.append(l);
+    boxes.push([bit, box]);
+  }
+  const reset = document.createElement('button');
+  reset.textContent = '↺';
+  reset.title = 'Back to the base\'s';
+  reset.className = 'reset';
+  reset.onclick = () => { current = null; onChange(null); redraw(); };
+  wrap.append(reset);
+  redraw();
+  return wrap;
+}
+
+/// The game's weapon models (w###) for a weapon's graphId; the number is the model's.
+function weaponModelPicker(value, baseValue, onChange) {
+  const wrap = document.createElement('span');
+  wrap.className = 'field-pick';
+  const select = document.createElement('select');
+  const fill = (models) => {
+    select.textContent = '';
+    const base = document.createElement('option');
+    base.value = ''; base.textContent = `(base: w${String(baseValue).padStart(3, '0')})`;
+    select.append(base);
+    const weapons = (models || []).map(m => m.name).filter(n => /(^|\/)w\d{3}\.nmdp/i.test(n)).map(n => n.match(/w(\d{3})/i)[1]).sort();
+    for (const num of weapons) {
+      const o = document.createElement('option');
+      o.value = String(parseInt(num, 10)); o.textContent = 'w' + num;
+      select.append(o);
+    }
+    select.value = value === null || value === undefined ? '' : String(value);
+    if (select.value === '' && value !== null && value !== undefined) { const o = document.createElement('option'); o.value = String(value); o.textContent = 'w' + String(value).padStart(3, '0') + ' (no such model)'; select.append(o); select.value = String(value); }
+  };
+  if (state.models) fill(state.models);
+  else api('/api/models').then(list => { state.models = list; fill(list); }).catch(() => fill([]));
+  select.onchange = () => onChange(select.value === '' ? null : parseInt(select.value, 10));
+  const open = document.createElement('button');
+  open.textContent = 'View';
+  open.title = 'The model in the model viewer';
+  open.onclick = () => { const v = select.value === '' ? baseValue : parseInt(select.value, 10); const name = (state.models || []).map(m => m.name).find(n => new RegExp('w' + String(v).padStart(3, '0') + '\\.nmdp', 'i').test(n)); if (name) openDoc('model', name); };
+  wrap.append(select, open);
+  return wrap;
+}
+
+/// An item of a category (the spells for a weapon's spell-on-hit) from the game's list and the mod's.
+function itemRefPicker(value, baseValue, category, onChange) {
+  const wrap = document.createElement('span');
+  wrap.className = 'field-pick';
+  const select = document.createElement('select');
+  const fill = () => {
+    select.textContent = '';
+    const items = (state.items || []).filter(i => !category || (i.category || '').toLowerCase().startsWith(category));
+    const baseItem = (state.items || []).find(i => i.id === baseValue);
+    const base = document.createElement('option');
+    base.value = ''; base.textContent = `(base: ${baseItem ? baseItem.name : baseValue === 0 || baseValue === null ? 'none' : baseValue})`;
+    select.append(base);
+    const none = document.createElement('option');
+    none.value = '0'; none.textContent = 'none';
+    select.append(none);
+    for (const i of items) { const o = document.createElement('option'); o.value = String(i.id); o.textContent = i.name; select.append(o); }
+    select.value = value === null || value === undefined ? '' : String(value);
+  };
+  if (state.items) fill();
+  else api('/api/items').then(items => { state.items = items; fill(); }).catch(() => fill());
+  select.onchange = () => onChange(select.value === '' ? null : parseInt(select.value, 10));
+  wrap.append(select);
+  return wrap;
 }

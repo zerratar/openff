@@ -1097,6 +1097,19 @@ ul.uses a:hover { text-decoration: underline; }
   justify-content: center;
 }
 
+/* An item definition's pickers: a select with the base's value as its first choice; flags as a
+   grid of checkboxes, greyed while they are still the base's, with a ↺ back to the base. */
+#inspector .behaviour-field .field-pick, #inspector .behaviour-field .field-flags { flex: 1; width: auto; min-width: 0; color: inherit; font-size: 12px; }
+.field-pick { display: flex; gap: 4px; align-items: center; min-width: 0; }
+.field-pick select { flex: 1; min-width: 0; }
+.field-pick button { flex: none; padding: 1px 6px; font-size: 11px; }
+.field-flags { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 2px 6px; align-items: start; font-size: 11px; }
+.field-flags label { display: flex; align-items: flex-start; gap: 3px; line-height: 1.25; }
+.field-flags label input { flex: none; margin: 1px 0 0; }
+.field-flags.inherited label { color: var(--muted, #8a93a6); }
+.field-flags .reset { grid-column: 1 / -1; justify-self: start; padding: 0 6px; font-size: 11px; }
+.field-flags.inherited .reset { visibility: hidden; }
+
 /* A face of the mod's own: the game's lines at the sizes it draws them, over its window blue. */
 .font-wrap { flex: 1; overflow: auto; padding: 20px 28px; }
 .font-note { color: var(--muted, #8a93a6); margin: 0 0 16px; max-width: 70ch; }

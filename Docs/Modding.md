@@ -476,7 +476,17 @@ for a new sword - FF3's own ids: weapons 1000-2309, armour 3001-3331, magic 4001
 consumables 5001-5122, key items 5201-5241); the definition opens in the inspector - the name, the caption, the shop
 prices, and every field of the base's record by the game's own name (`usedPower`,
 `aggressivity`, `phylacticPower`, `equipJob`…) with the base's value greyed in. Set a field
-to change it, clear it to fall back to the base's. Every change saves itself. The file:
+to change it, clear it to fall back to the base's. Every change saves itself.
+
+The fields are shown for what they are, from the game's own enums (itm/*.cs): a weapon's
+*Kind* (knife, sword, bow… - which motion set swings it), its *Model* (the w### battle
+model - graphId is that number; *View* opens it in the model viewer), *Jobs* as checkboxes,
+*Damage type* (grapple, slash, blow, charge), *Inflicts* (the status a hit may give, at
+*Status chance %*), *Casts when used*; armour's *Kind*, *Guards against*; a spell's *School*,
+*Level*, *Element*, *Status*, *Targets*; a consumable's *Casts*, *Power*, *Element*. Plain
+numbers (Attack, Defence, Accuracy %, the five stat bonuses, Weight) are numbers with a tip.
+A field whose meaning has not been read yet (tckType, calculate) says so and takes a raw
+number. In the file everything is a number, as the game's record holds it. The file:
 
 ```json
 {
