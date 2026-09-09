@@ -25,7 +25,14 @@ None of the games' data is in this repository (see *Game data*).
 | ![FF4's menu drawn from its own layouts and data](Docs/Images/ff4-menu.png) | ![Crystal, the editor, with an FF3 map open in 3D](Docs/Images/crystal-map.png) |
 | *FF4's menu from its own layouts, over the unified party data* | *Crystal: a map in 3D, its characters and exits in the hierarchy, the inspector* |
 
-## What you need
+## Download
+
+The [Releases](https://github.com/zerratar/openff/releases) page has `OpenFF-<version>-win-x64.zip`:
+unzip anywhere, `OpenFF.exe` plays, `crystal.exe` edits and makes mods, `mods\` is where mods
+go. Nothing to install; it needs the Steam copies of the games on the machine. What each
+release carries is in `Docs/Releases.md`.
+
+## What you need (to build)
 
 - Windows, the .NET 8 SDK. MonoGame (DesktopGL), FontStashSharp and NVorbis come from NuGet.
 - Your own copy of **Final Fantasy III** and/or **Final Fantasy IV (3D Remake)** on Steam. The

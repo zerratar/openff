@@ -1,0 +1,30 @@
+# A release from a tag: the same publish.cmd a developer runs, on a Windows runner, its zip
+# attached to a draft release for the tag. Push `v0.1.0` and a draft appears under Releases
+# to read over and publish. Nothing of the games is needed to build.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish
+        shell: cmd
+        run: publish.cmd
+      - name: Draft the release with the zip
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: dist/OpenFF-*-win-x64.zip
+          body_path: Docs/Releases.md
