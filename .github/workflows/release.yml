@@ -22,9 +22,22 @@ jobs:
       - name: Publish
         shell: cmd
         run: publish.cmd
+      - name: The tagged version's notes
+        # Only this version's "## <version> - ..." section of Docs/Releases.md, without the file's
+        # preamble or other versions; a section the file lacks leaves the description empty.
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $lines = Get-Content Docs/Releases.md
+          $start = ($lines | Select-String -Pattern "^## $([regex]::Escape($version))\b" | Select-Object -First 1).LineNumber
+          if (-not $start) { "" | Set-Content dist/notes.md; exit 0 }
+          $rest = $lines[$start..($lines.Count - 1)]
+          $end = ($rest | Select-String -Pattern "^## " | Select-Object -First 1).LineNumber
+          $body = if ($end) { $rest[0..($end - 2)] } else { $rest }
+          $body -join "`n" | Set-Content dist/notes.md
       - name: Draft the release with the zip
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: dist/OpenFF-*-win-x64.zip
-          body_path: Docs/Releases.md
+          body_path: dist/notes.md

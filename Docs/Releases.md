@@ -4,7 +4,8 @@ What each release carries, and how one is made. The download is one zip,
 `OpenFF-<version>-win-x64.zip`: unzip anywhere, run `OpenFF.exe` to play, `crystal.exe` to
 edit and make mods. It needs the Steam copies of the games on the machine (Final Fantasy III
 and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in this
-repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install.
+repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
+is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
 ## 0.1.0 - the first release (2026-09-09)
 
@@ -41,17 +42,3 @@ the menu and no map screen. Mods that must also install into the Steam games (th
 target) keep to the game's own formats: glTF, Ogg and TTF are for the OpenFF target.
 Sound import for a Steam target (an XNB writer) is not there. There is no Linux or macOS
 build yet, though nothing in the client is Windows-only but the build.
-
-## Making a release
-
-1. Set the version in the three project files (`OpenFF\OpenFF.csproj`,
-   `Crystal.Editor\Crystal.Editor.csproj`, `OpenFF.Engine\OpenFF.Engine.csproj`) and the
-   `VERSION` line of `publish.cmd`; add the notes above.
-2. `publish.cmd` - builds `dist\OpenFF\` self-contained for win-x64 and zips it as
-   `dist\OpenFF-<version>-win-x64.zip` (about 35 MB).
-3. Try the zip on a clean machine or folder: `OpenFF.exe` finds the Steam install and boots
-   (`Docs\Drives\ff3-boot.drive` runs the opening unattended), `crystal.exe` opens the editor.
-4. Tag and push: `git tag v<version>` and `git push origin v<version>`. The workflow in
-   `.github/workflows/release.yml` builds the same zip on a Windows runner and attaches it to
-   a draft release for the tag; or upload the local zip by hand on GitHub's *Releases* page
-   and paste the notes.
