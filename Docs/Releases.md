@@ -51,7 +51,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - **The stick walks like the touch stick.** The left stick's direction is the hero's, at any
   angle, and its push the pace - the phone's touch stick's own path in the game, fed the
   stick's vector - where before it was read as eight keys and the hero snapped to one of
-  eight ways. The eight-way reading stays for the menus.
+  eight ways. The eight-way reading stays for the menus. The game's Config > Movement (Walk /
+  Run) is left out of the stick's decision - the push, or the run button, is the whole of it;
+  the d-pad still follows the config as the DS did.
 - **The quick save notice** ("returning to the title") takes A or B as well as a tap.
 - **Config with a pad.** L and R turn Config 1 and Config 2 (the tabs were touch only), and
   Up past the first option no longer crashes (an index off the explanation table). Reported

@@ -121,7 +121,11 @@ internal static partial class GlobalScope
 				CPlayerHuman cPlayerHuman = static_cast<CPlayerHuman>(Player());
 				int num = 151552;
 				int num2 = 147456;
-				if (opt.COptionManager.getSingleton().gameOption().worldMoveType() == opt.WORLD_MOVE_TYPE.WORLD_MOVE_TYPE_RUN)
+				bool stick = !dv.CDeviceManager.getInstance().Tp().isTouch();
+				// The game's Config > Movement "Run" makes any touch drag a run. A stick is not a touch:
+				// its push (or the run button, settings.json's "run") is the whole of the decision, so
+				// the config is left out of it - with it in, a full push walked and a nudge ran.
+				if (!stick && opt.COptionManager.getSingleton().gameOption().worldMoveType() == opt.WORLD_MOVE_TYPE.WORLD_MOVE_TYPE_RUN)
 				{
 					num = 0;
 					num2 = 0;
@@ -130,7 +134,7 @@ internal static partial class GlobalScope
 				int num4 = FX_Mul(num2, num2);
 				VecFx32 vecFx;
 				int num5;
-				if (!dv.CDeviceManager.getInstance().Tp().isTouch())
+				if (stick)
 				{
 					// PORT: a game pad's left stick walks as the phone's touch stick did - the drag vector
 					// is the stick's, so the hero faces the way it points and not the nearest of eight -
