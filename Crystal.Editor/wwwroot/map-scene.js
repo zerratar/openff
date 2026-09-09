@@ -316,7 +316,7 @@ function makeMapScene(canvas, status) {
     ]);
   }
 
-  function drawBundle(entry, matrix, tintWith) {
+  function drawBundle(entry, matrix, tintWith, fade) {
     gl.bindBuffer(gl.ARRAY_BUFFER, entry.vertexBuffer);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, entry.indexBuffer);
     const stride = 8 * 4;
@@ -353,11 +353,12 @@ function makeMapScene(canvas, status) {
         gl.uniform1i(uniform.picture, 0);
         gl.uniform1i(uniform.textured, texture ? 1 : 0);
         gl.uniform3fv(uniform.tint, tintWith || (texture ? [1, 1, 1] : rgb(group.colour)));
-        gl.uniform1f(uniform.alpha, group.alpha ?? 1);
+        gl.uniform1f(uniform.alpha, (group.alpha ?? 1) * (fade == null ? 1 : fade));
         gl.drawElements(gl.TRIANGLES, group.count, indexType, group.start * indexSize);
       }
     }
     gl.depthMask(true);
+    gl.uniform1f(uniform.alpha, 1);
 
     function bind(where, size, offset) {
       if (where < 0) return;
@@ -537,10 +538,12 @@ function makeMapScene(canvas, status) {
   function drawPoints() {
     if (!points.length) return;
     for (const point of points) {
+      if (point.hidden) continue;   // a timeline preview's "show: off"
       const entry = point.package && loaded.get(point.package);
       if (!entry) continue;
       const chosen = points.indexOf(point) === selectedPoint;
-      drawBundle(entry, placement(point), chosen ? [0.55, 0.75, 1.35] : null);
+      if (point.alpha != null && point.alpha < 1) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); }
+      drawBundle(entry, placement(point), chosen ? [0.55, 0.75, 1.35] : null, point.alpha);
     }
     if (!points.some(p => !(p.package && loaded.get(p.package)))) return;
     gl.bindBuffer(gl.ARRAY_BUFFER, boxBuffer);
@@ -980,6 +983,30 @@ function makeMapScene(canvas, status) {
 
     /// Called after every frame, so the page can put its tags where things are now.
     onFrame(callback) { onFrame = callback || (() => {}); },
+
+    /// The view from a point toward another - a camera clip's preview in the timeline. Returns
+    /// what the view was (centre, distance, yaw, pitch), for lookBack.
+    lookFrom(eye, target) {
+      const was = { centre: centre.slice(), distance, yaw, pitch };
+      const dx = eye[0] - target[0], dy = eye[1] - target[1], dz = eye[2] - target[2];
+      const flat = Math.hypot(dx, dz);
+      centre = target.slice();
+      distance = Math.max(1, Math.hypot(dx, dy, dz));
+      yaw = Math.atan2(dx, dz);
+      pitch = Math.max(-1.5, Math.min(1.5, Math.atan2(dy, flat)));
+      draw();
+      return was;
+    },
+
+    /// Where the view stands and what it looks at, for a camera clip taken from the view.
+    view() { return { eye: eyePosition(), target: centre.slice() }; },
+
+    /// The view as lookFrom found it.
+    lookBack(was) {
+      if (!was) return;
+      centre = was.centre.slice(); distance = was.distance; yaw = was.yaw; pitch = was.pitch;
+      draw();
+    },
 
     /// Where a world point is on the canvas, in CSS pixels, or null if it is behind.
     screenAt(x, y, z) {

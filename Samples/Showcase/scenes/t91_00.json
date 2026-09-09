@@ -28,6 +28,31 @@
     { "target": "Crystal", "behaviour": "Mesh", "fields": { "Path": "assets/shrine-crystal.glb", "OnGround": true, "Clip": "Float", "Speed": 1 } },
     {
       "target": "Crystal",
+      "behaviour": "Cutscene",
+      "fields": {
+        "Radius": 6, "Begins": "OnTalk", "Once": true, "Skippable": true,
+        "Timeline": { "tracks": [
+          { "name": "Camera", "kind": "camera", "clips": [
+            { "type": "camera", "start": 0, "length": 2.5, "args": { "position": { "x": 20, "y": 17, "z": -16 }, "target": { "x": 0, "y": 8, "z": 4 }, "ease": "smooth" } },
+            { "type": "camera", "start": 2.7, "length": 2.5, "args": { "position": { "x": -18, "y": 26, "z": -12 }, "target": { "x": 0, "y": 7, "z": 4 }, "ease": "smooth" } },
+            { "type": "follow", "start": 7.5, "length": 0, "args": {} } ] },
+          { "name": "Crystal", "kind": "object", "target": "", "clips": [
+            { "type": "clip", "start": 2.4, "length": 0, "args": { "name": "Float", "speed": 3 } },
+            { "type": "clip", "start": 7, "length": 0, "args": { "name": "Float", "speed": 1 } } ] },
+          { "name": "Screen", "kind": "screen", "clips": [
+            { "type": "flash", "start": 2.4, "length": 0.3, "args": { "white": true, "interval": 2 } } ] },
+          { "name": "Audio", "kind": "audio", "clips": [
+            { "type": "se", "start": 2.4, "length": 0, "args": { "archive": 1, "number": 36, "volume": 127 } } ] },
+          { "name": "Dialogue", "kind": "dialogue", "clips": [
+            { "type": "say", "start": 2.6, "length": 1.4, "args": { "text": "The crystal wakes at your touch,\nand the shrine holds its breath.", "speaker": "", "hold": true } },
+            { "type": "say", "start": 5.3, "length": 1.4, "args": { "text": "This is a cutscene: a timeline of tracks and clips,\nlaid out in Crystal's timeline dock. No code at all.", "speaker": "", "hold": true } } ] },
+          { "name": "Game", "kind": "game", "clips": [
+            { "type": "wait", "start": 7.5, "length": 0.5, "args": {} } ] }
+        ] }
+      }
+    },
+    {
+      "target": "Crystal",
       "behaviour": "Talk",
       "fields": {
         "Speaker": "",

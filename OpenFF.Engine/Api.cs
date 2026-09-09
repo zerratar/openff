@@ -109,6 +109,8 @@ namespace OpenFF
 		bool Balloon { get; set; }
 		/// <summary>Takes control from the player: no walking, no menu button, the way an event does.</summary>
 		void Freeze();
+		/// <summary>Freeze, but with keepInput the pad stays on: the hero stands still while the player can still advance a message - what a cutscene wants.</summary>
+		void Freeze(bool keepInput);
 		/// <summary>Lets the hero move again after Freeze.</summary>
 		void Unfreeze();
 		/// <summary>Whether the hero is held still (Freeze); the field does not move them.</summary>

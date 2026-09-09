@@ -2183,3 +2183,66 @@ header h1 .gem {
 .context-menu .dropdown-list li .icon { color: var(--dim); }
 .context-menu .menu-sep { height: 1px; background: #2c333d; margin: 3px 0; padding: 0; cursor: default; }
 .context-menu .menu-sep:hover { background: #2c333d; }
+
+/* ------------------------------------------------------------------ the timeline dock */
+
+.timeline-dock { flex: none; height: 280px; display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-top: 1px solid var(--line); position: relative; outline: none; }
+.timeline-dock[hidden] { display: none; }
+.tl-handle { position: absolute; top: -3px; left: 0; right: 0; height: 6px; cursor: ns-resize; z-index: 3; }
+.tl-bar { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--line); font-size: 12px; flex-wrap: wrap; row-gap: 2px; }
+.tl-bar button { white-space: nowrap; }
+.tl-bar .tl-title { font-weight: 600; margin-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-bar button { padding: 1px 8px; font-size: 12px; }
+.tl-bar .tl-close { padding: 0 8px; font-size: 15px; line-height: 1.2; }
+.tl-bar input[type=range] { width: 110px; }
+.tl-clock { font-variant-numeric: tabular-nums; color: var(--dim); min-width: 120px; }
+.tl-add-track { font-size: 12px; }
+.tl-body { flex: 1; display: flex; min-height: 0; }
+.tl-tracks { flex: none; width: 230px; border-right: 1px solid var(--line); overflow-y: auto; overflow-x: hidden; }
+.tl-track-head, .tl-props-head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); padding: 4px 8px; height: 26px; border-bottom: 1px solid var(--line); }
+.tl-tracks .none { margin: 8px; font-size: 12px; }
+.tl-track { height: 34px; display: flex; align-items: center; gap: 4px; padding: 0 6px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.tl-track.on { background: rgba(110, 168, 254, 0.08); }
+.tl-track-name { flex: 1; min-width: 0; background: none; border: 1px solid transparent; color: var(--ink); font-size: 12px; padding: 1px 4px; }
+.tl-track-name:hover, .tl-track-name:focus { border-color: var(--line); background: var(--bg); }
+.tl-kind { flex: none; font-size: 10px; padding: 0 5px; border-radius: 8px; background: var(--line); color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
+.tl-kind-object { color: #9dbdf0; } .tl-kind-hero { color: #b7a6f2; } .tl-kind-camera { color: #7fd1c4; } .tl-kind-dialogue { color: #f0b46a; } .tl-kind-screen { color: #c4c8d2; } .tl-kind-audio { color: #e08bc0; } .tl-kind-game { color: #98d07a; }
+.tl-target { flex: 1.2; min-width: 0; font-size: 11px; }
+.tl-track-tools { flex: none; display: flex; gap: 1px; }
+.tl-track-tools .icon-button { padding: 0 3px; font-size: 11px; line-height: 1.4; opacity: 0.7; }
+.tl-track-tools .icon-button:hover { opacity: 1; }
+.tl-track-tools .icon-button.off { opacity: 1; color: var(--mark); }
+.tl-lanes-wrap { flex: 1; min-width: 160px; overflow: auto; position: relative; background: var(--bg); }
+.tl-lanes { position: relative; min-width: 100%; min-height: 100%; }
+.tl-ruler { position: sticky; top: 0; z-index: 2; height: 26px; background: var(--panel); border-bottom: 1px solid var(--line); cursor: ew-resize; user-select: none; }
+.tl-tick { position: absolute; bottom: 0; width: 1px; height: 6px; background: var(--dim); opacity: 0.5; }
+.tl-tick.major { height: 12px; opacity: 0.9; }
+.tl-tick span { position: absolute; left: 3px; top: -16px; font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.tl-lane { position: relative; height: 34px; border-bottom: 1px solid var(--line); background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 100%; }
+.tl-lane.muted { opacity: 0.45; }
+.tl-clip { position: absolute; top: 4px; height: 26px; border-radius: 4px; color: #fff; font-size: 11px; line-height: 26px; padding: 0 6px; cursor: grab; user-select: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tl-clip.on { box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 1px rgba(0,0,0,0.35); z-index: 1; }
+.tl-clip.instant { border-radius: 4px 12px 12px 4px; padding: 0 4px; }
+.tl-clip.instant .tl-clip-label { display: none; }
+.tl-clip:active { cursor: grabbing; }
+.tl-clip-grip { position: absolute; right: 0; top: 0; width: 7px; height: 100%; cursor: ew-resize; background: rgba(255,255,255,0.18); }
+.tl-playhead { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--bad); pointer-events: none; z-index: 3; }
+.tl-playhead::before { content: ""; position: absolute; top: 14px; left: -6px; border: 5px solid transparent; border-top: 8px solid var(--bad); }
+.tl-end { position: absolute; top: 26px; bottom: 0; width: 0; border-left: 1px dashed var(--dim); pointer-events: none; opacity: 0.6; }
+.tl-props { flex: none; width: 240px; border-left: 1px solid var(--line); overflow-y: auto; font-size: 12px; }
+.tl-props .none { margin: 8px; font-size: 12px; }
+.tl-prop { display: grid; grid-template-columns: 96px 1fr; gap: 6px; align-items: start; padding: 3px 8px; }
+.tl-prop > span { color: var(--dim); padding-top: 3px; line-height: 1.3; }
+.tl-prop input[type=text], .tl-prop input[type=number], .tl-prop select, .tl-prop textarea { width: 100%; min-width: 0; font-size: 12px; }
+.tl-prop input[type=checkbox] { margin-top: 5px; }
+.tl-point-parts { display: flex; gap: 3px; }
+.tl-point-parts input { flex: 1; min-width: 0; width: 0; }
+.tl-point-parts.unset input { opacity: 0.5; }
+.tl-point-tools { display: flex; gap: 3px; margin-top: 3px; flex-wrap: wrap; }
+.tl-point-tools button { padding: 0 6px; font-size: 11px; }
+.tl-props-tools { display: flex; gap: 6px; padding: 8px; }
+.tl-caption { flex: none; padding: 3px 10px; font-size: 12px; color: var(--mark); border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-caption[hidden] { display: none; }
+.tl-field { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tl-field .tl-summary { color: var(--dim); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-field button { flex: none; padding: 1px 8px; font-size: 11px; }

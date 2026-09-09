@@ -41,6 +41,8 @@ namespace OpenFF.Client
 			_game.onCreate();
 			// The OpenFF engine and the mods' code, now that the content (and the mods folder) is open.
 			EngineHost.Attach();
+			// --cutscene=<object path>: the Cutscene on that object plays the moment its map is up (Crystal's Play in OpenFF).
+			OpenFF.Cutscene.AutoPlay = string.IsNullOrWhiteSpace(Options.Get("cutscene")) ? null : Options.Get("cutscene");
 			// A scripted key drive for headless tests (--drive=<file>).
 			Drive.Initialise();
 			Trace.Initialise();

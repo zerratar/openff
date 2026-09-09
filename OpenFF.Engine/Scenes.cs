@@ -225,6 +225,8 @@ namespace OpenFF
 		private bool IsTheOne()
 		{
 			if (!Enabled || GameObject == null || !GameObject.ActiveInHierarchy) return false;
+			// While a cutscene plays, A advances its lines and nothing else: no talking to a villager under it.
+			if (Cutscene.Active != null && Cutscene.Active != this) return false;
 			foreach (Interactable other in GameObject.GetComponents<Interactable>())
 			{
 				if (!other.Enabled) continue;

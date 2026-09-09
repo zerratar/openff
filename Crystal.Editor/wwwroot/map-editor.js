@@ -2964,6 +2964,7 @@ function behaviourCard(state, attachment, target) {
   remove.title = 'Remove this behaviour';
   remove.onclick = () => {
     state.attachments.splice(state.attachments.indexOf(attachment), 1);
+    if (typeof closeTimelineFor === 'function') closeTimelineFor(attachment);
     sceneChanged('remove ' + attachment.behaviour);
     drawBehaviours(card.parentElement, state, target, '');
   };
@@ -3189,6 +3190,23 @@ function behaviourCard(state, attachment, target) {
       edit.onclick = () => openCastCode(state, attachment, target);
       pre.onclick = edit.onclick;
       input.append(pre, edit);
+    } else if (f.type === 'timeline') {
+      // A Cutscene's Timeline: a summary here, the timeline dock under the 3D view to edit it.
+      input = document.createElement('div');
+      input.className = 'tl-field';
+      const summary = document.createElement('span');
+      summary.className = 'tl-summary';
+      summary.textContent = typeof timelineSummary === 'function' ? timelineSummary(value) : '';
+      const open = document.createElement('button');
+      open.className = 'primary';
+      open.textContent = 'Open timeline…';
+      open.title = 'Tracks and clips under the 3D view: walks, turns, camera moves, lines, fades, flags';
+      open.onclick = () => {
+        if (!Object.prototype.hasOwnProperty.call(attachment.fields, f.name)) attachment.fields[f.name] = { tracks: [] };
+        if (typeof openTimeline === 'function') openTimeline(state, attachment, target);
+      };
+      input.append(summary, open);
+      if (typeof timelinePanel !== 'undefined' && timelinePanel && timelinePanel.attachment() === attachment) setTimeout(() => timelinePanel.refresh(), 0);
     } else if (f.type === 'strings') {
       // A list of strings: one per line.
       input = document.createElement('textarea');

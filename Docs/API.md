@@ -8,13 +8,13 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMeshes`](#imeshes), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
 - [Saving](#saving): [`ISaveable`](#isaveable), [`SaveChunks`](#savechunks)
 - [Mods and loading](#mods-and-loading): [`LoadedMod`](#loadedmod), [`ModDefinition`](#moddefinition), [`ModLoader`](#modloader), [`ModWatcher`](#modwatcher)
-- [Constants](#constants): [`BattleResult`](#battleresult), [`Condition`](#condition), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting), [`WanderGait`](#wandergait)
+- [Constants](#constants): [`BattleResult`](#battleresult), [`Condition`](#condition), [`CutsceneStart`](#cutscenestart), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting), [`WanderGait`](#wandergait)
 
 ## The entry point
 
@@ -101,6 +101,7 @@ The character the player controls.
 | `void BindMotions(string set = "b_b01")` | Adds a motion set to the hero's model so PlayMotion can play its ids (HeroMotion has the ids). The battle's sets: "b_b01" idle, poise, damage, death, wins; "b_b02_040" the magic motions; "b_b02_" + a weapon's graph id (Item.Model without the w) that weapon's swings; the job's own set (see BindBattleMotions); "b_b04_002" the rest. Once per map. |
 | `void Face(float yaw)` | Turns to a yaw in degrees (0 = +Z, 90 = +X). |
 | `void Freeze()` | Takes control from the player: no walking, no menu button, the way an event does. |
+| `void Freeze(bool keepInput)` | Freeze, but with keepInput the pad stays on: the hero stands still while the player can still advance a message - what a cutscene wants. |
 | `void LookAt(Vector3 point)` | Turns to face a point on the ground. |
 | `void MoveTo(Vector3 position, int frames)` | Walks the hero to a point over frames (a scripted walk; freeze first so the player does not fight it). |
 | `void PlayMotion(int index, bool loop = false, int blendFrames = 5)` | Plays a motion by its index in the character's set (1001 is the talk pose). |
@@ -385,6 +386,27 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 | `bool Opened { get; }` | Whether it has been opened (this visit, or ever when Once). |
 | `void NpcReady(MapObject link)` |  |
 
+### Clip
+
+`class Clip`
+
+One thing that happens on a track: its type, when, for how long, and its arguments by name.
+
+| Member | What it does |
+| --- | --- |
+| `Dictionary<string, JsonElement> Args { get; set; }` |  |
+| `float End { get; }` |  |
+| `float Length { get; set; }` | Seconds; 0 for something that happens at once. |
+| `float Start { get; set; }` | Seconds from the timeline's start. |
+| `string Type { get; set; }` |  |
+| `bool Bool(string name, bool fallback = false)` |  |
+| `bool Has(string name)` |  |
+| `int Int(string name, int fallback = 0)` |  |
+| `float Num(string name, float fallback = 0)` |  |
+| `string Str(string name, string fallback = "")` |  |
+| `string ToString()` |  |
+| `Vector3? Vec(string name)` | A point as {x, y, z} or [x, y, z]; null when the clip has none. |
+
 ### Color
 
 `struct Color`
@@ -403,6 +425,43 @@ A treasure chest, placed from the editor: an item (with a count) and/or gil, giv
 | `static Color White` |  |
 | `static Color Yellow` |  |
 | `Color WithAlpha(byte a)` |  |
+
+### Cutscene
+
+`class Cutscene : Interactable`
+
+Plays a Timeline: characters walk and turn, the camera glides, lines are said, the screen fades, flags are set - laid out on tracks in Crystal's timeline panel. Starts on talking to the object, on entering the map, or from code (Play). The hero is frozen while it plays and the camera handed back at the end; a skippable one jumps to its end on B, every remaining clip run to its final state.
+
+| Member | What it does |
+| --- | --- |
+| `static string AutoPlay` | The object path of a Cutscene the host wants played the moment its map is up (Crystal's Play in OpenFF); null for none. |
+| `CutsceneStart Begins` | How it begins. |
+| `bool CameraBack` | The camera goes back to following the hero when it ends (after any camera clip). |
+| `bool FreezeHero` | The hero stands still and the pad is ignored while it plays. |
+| `string If` | Flags that must hold for it to play ("0:14 !0:11"); empty for always. |
+| `bool Once` | Plays once per save; remembered with the scene's other one-time events. |
+| `bool Skippable` | B skips to the end. |
+| `string Then` | Flags set when it ends ("0:14 !0:11"). |
+| `Timeline Timeline` | The tracks and clips. |
+| `static Cutscene Active { get; }` | The cutscene playing right now, or null: Interactables stand aside while one plays, so A on a line does not also talk to a villager. |
+| `bool Playing { get; }` | Whether it is playing right now. |
+| `float Time { get; }` | The playhead, in seconds. |
+| `event Action<Cutscene> Finished` | The clip playing (or last begun) on each track, for the debug overlay and code. |
+| `IEnumerable<string> DebugLines()` |  |
+| `void Play(bool force = false)` | Starts it from the top, if it is not playing (force: even when If or Once say not to). |
+| `void Skip()` | Jumps to the end: every clip not yet ended runs to its final state, in order. |
+| `void Stop()` | Ends it where it is: nothing more happens, the hero and camera are given back. |
+
+### CutsceneSignal
+
+`class CutsceneSignal`
+
+A game clip's "signal", for code: Game.Events.Subscribe<CutsceneSignal>.
+
+| Member | What it does |
+| --- | --- |
+| `Cutscene Cutscene { get; }` |  |
+| `string Name { get; }` |  |
 
 ### DrawCommand
 
@@ -1049,6 +1108,19 @@ A picture the host loaded for a mod; drawn with Game.Draw.Sprite.
 | `string Path { get; }` |  |
 | `int Width { get; }` |  |
 
+### Timeline
+
+`class Timeline`
+
+Tracks of clips on a time axis, in seconds: what a Cutscene plays. Edited in Crystal's timeline panel.
+
+| Member | What it does |
+| --- | --- |
+| `int ClipCount { get; }` | How many clips there are, over all tracks. |
+| `float Length { get; }` | When the last clip ends, in seconds; 0 for an empty timeline. |
+| `List<Track> Tracks { get; set; }` |  |
+| `string ToString()` |  |
+
 ### TooltipAttribute
 
 `class TooltipAttribute : Attribute`
@@ -1058,6 +1130,20 @@ What the inspector says when the pointer rests on the field (else the XML summar
 | Member | What it does |
 | --- | --- |
 | `string Text { get; }` |  |
+
+### Track
+
+`class Track`
+
+One row of a timeline: what it acts on, and its clips.
+
+| Member | What it does |
+| --- | --- |
+| `List<Clip> Clips { get; set; }` |  |
+| `string Kind { get; set; }` | object, hero, camera, dialogue, screen, audio, game. |
+| `bool Muted { get; set; }` | A muted track plays nothing. |
+| `string Name { get; set; }` | The row's label in the editor. |
+| `string Target { get; set; }` | For an object track: the object's path in the scene; empty for the Cutscene's own object. |
 
 ### Trigger
 
@@ -1741,6 +1827,18 @@ The lasting conditions a character can be in, as flags.
 | `Poison` = 64 |  |
 | `NearDeath` = 128 |  |
 
+### CutsceneStart
+
+`enum CutsceneStart`
+
+How a Cutscene begins.
+
+| Value | Meaning |
+| --- | --- |
+| `OnTalk` = 0 | On talking to the object (A facing its model; A within Radius, or walking in with OnWalkIn, without one). |
+| `OnEnterMap` = 1 | The moment the map is entered (with the flags in If holding). |
+| `Manual` = 2 | Only from code (Play()) or another cutscene's signal. |
+
 ### DrawKind
 
 `enum DrawKind`
@@ -2019,4 +2117,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-128 types, 899 members; 401 without a summary yet.
+134 types, 943 members; 416 without a summary yet.

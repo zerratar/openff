@@ -736,12 +736,16 @@ namespace OpenFF.Client
 			set { GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer; if (hero != null) hero.setBalloon(value); }
 		}
 
-		public void Freeze()
+		public void Freeze() => Freeze(keepInput: false);
+
+		public void Freeze(bool keepInput)
 		{
 			if (!EngineApi.InWorld) return;
 			int index = EngineApi.HeroIndex;
 			EngineApi.Players.setPlayerStop(index);
-			GlobalScope.dv.CDeviceManager.getInstance().Pad().setActivity(b: false);
+			// The hero on autopilot walks nowhere on its own; the pad stays on when the caller
+			// wants the player to advance messages (a cutscene's lines), off for a full stop.
+			if (!keepInput) GlobalScope.dv.CDeviceManager.getInstance().Pad().setActivity(b: false);
 			_frozen = true;
 		}
 
@@ -2056,17 +2060,47 @@ namespace OpenFF.Client
 		{
 			GlobalScope.cmr.CWorldCamera cam = Camera;
 			if (cam == null) return;
-			cam.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_FREE);
-			cam.Pos_set(EngineApi.ToFx(position));
-			GlobalScope.VEC_Set(cam.PosOffset(), 0, 0, 0);
+			Place(cam, position, EngineApi.ToUnits(cam.getTarget()));
 		}
 
 		public void LookAt(Vector3 target)
 		{
 			GlobalScope.cmr.CWorldCamera cam = Camera;
 			if (cam == null) return;
+			Place(cam, EngineApi.ToUnits(cam.getPosition()), target);
+		}
+
+		/// <summary>
+		/// The free camera at a position looking at a target. In MODE_FREE the game does not
+		/// read a set position: every frame CWorldCamera.calculate rebuilds it from the target,
+		/// the angle pair and the distance (target + RotY(angle.y) RotX(angle.x) (0, 0, -distance))
+		/// - a bare Pos_set is overwritten before it is seen, and the camera sat 16 units behind
+		/// whatever the target was. So the angles and the distance are what is set here, worked
+		/// out from the line target -> position; the position itself is written too for the
+		/// readers of Pos() this frame.
+		/// </summary>
+		private static void Place(GlobalScope.cmr.CWorldCamera cam, Vector3 position, Vector3 target)
+		{
 			cam.Mode_set(GlobalScope.cmr.CWorldCamera.MODE.MODE_FREE);
-			cam.setTrg(EngineApi.ToFx(target));
+			Vector3 d = position - target;
+			float distance = d.Length;
+			if (distance < 0.05f) { distance = 0.05f; d = new Vector3(0, 0, -distance); }
+			// (0, 0, -D) through RotX(a) then RotY(b), the DS matrices (row vectors): (-D cos a sin b, D sin a, -D cos a cos b).
+			double a = Math.Asin(Math.Max(-1.0, Math.Min(1.0, d.Y / distance)));
+			double b = Math.Atan2(-d.X, -d.Z);
+			GlobalScope.VecFx32 angle = cam.Angle();
+			angle.x = (int)Math.Round(a / (2 * Math.PI) * 65536.0);
+			angle.y = (int)Math.Round(b / (2 * Math.PI) * 65536.0);
+			angle.z = 0;
+			cam.setDistance((int)Math.Round(distance * 4096));
+			GlobalScope.VEC_Set(cam.TransVec(), 0, 0, 0);
+			GlobalScope.VEC_Set(cam.PosOffset(), 0, 0, 0);
+			GlobalScope.VEC_Set(cam.TrgOffset(), 0, 0, 0);
+			GlobalScope.VecFx32 trg = EngineApi.ToFx(target), pos = EngineApi.ToFx(position);
+			cam.setTarget(trg);
+			cam.setTrg(trg);
+			cam.setPosition(pos);
+			cam.Pos_set(pos);
 		}
 
 		public void Follow()

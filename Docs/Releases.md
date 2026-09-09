@@ -7,6 +7,28 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.1.3 - cutscenes (in progress)
+
+- **A timeline for cutscenes.** The `Cutscene` component plays a Timeline - tracks of clips
+  on a time axis, as Unity's Timeline lays one out - edited in a dock under Crystal's 3D
+  view: object tracks walk, glide, turn, pose, show, fade and scale the scene's objects (or
+  the hero), a camera track glides the camera and hands it back, dialogue lines hold the
+  playhead until dismissed, screen fades and flashes, sounds and music, flags, warps,
+  battles, items and signals to code. Clips are dragged and resized on the lanes, the ruler
+  scrubs with a live preview in the 3D view (objects move, the camera clip moves the view),
+  Space plays; every edit autosaves and undoes. It starts on talking to the object, on
+  entering the map, or from code, with *If* flags, *Once* and *Then* flags; B skips it; the
+  hero stands still while the player can still advance the lines. *Play in OpenFF* starts
+  the client on the map with the cutscene playing (`--cutscene=PATH`). The whole thing is
+  plain data in the scene file, so a cutscene can also be written by hand or generated.
+- **`Game.Camera.MoveTo` did nothing.** In the game's free camera mode a set position is
+  rebuilt every frame from the target, an angle pair and a distance, so the position the
+  API wrote was overwritten before it was seen and the camera parked 16 units behind its
+  target. MoveTo/LookAt now set the angles and the distance from the line target -> position,
+  so a camera glide lands where it is told.
+- **`Game.Hero.Freeze(keepInput: true)`** holds the hero still with the pad left on, for a
+  cutscene's lines; the plain Freeze() still takes the pad too.
+
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 
 - **A glTF in the hand (OpenFF target).** A weapon definition's `"model": "assets/blade.glb"`
@@ -17,7 +39,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   `OpenFF/Compat/WeaponMeshes.cs`), so the file sits exactly where a `w###` would: grip at
   the origin, blade along +Z. Crystal's item inspector has the *Look* card for weapons - the
   project's glTFs as pictures, *Import a model…*, *View*, the scale and the clip. Drives can
-  set a fight up: `item <id> [count]`, `equip <member> <id>`, `battle <formation> [map]`.
+  set a fight up: `item ID [count]`, `equip MEMBER ID`, `battle FORMATION [map]`.
 - **A glTF as the game's own model (Steam target too).** The *Look* card's *Write as a w###
   model* converts the picked glTF into `w###.nmdp.lz` and `w###.ntxp.lz` - BMD0/MDL0 and its
   textures, the format the Steam games read - into the target's files under the first free

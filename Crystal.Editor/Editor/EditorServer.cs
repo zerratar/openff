@@ -2349,6 +2349,9 @@ namespace Crystal.Editor
 					{
 						arguments.Add("--pos=" + string.Join(",", pos.Take(3).Select(p => Math.Round(p?.GetValue<double>() ?? 0).ToString(CultureInfo.InvariantCulture))));
 					}
+					// "Play the cutscene": the Cutscene on this object plays the moment the map is up.
+					string cutscene = body?["cutscene"]?.GetValue<string>();
+					if (!string.IsNullOrWhiteSpace(cutscene)) arguments.Add("--cutscene=" + cutscene.Trim());
 				}
 				if (!running)
 				{
