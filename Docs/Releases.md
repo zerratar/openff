@@ -42,8 +42,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   the file on the way out. Drawn like the mod list, with the game's font; the game goes on
   behind it. (Esc used to be a second B; X and Backspace still are.)
 - **The name entry with a pad.** Up/Down move between the name and OK and A acts on them
-  (touch only, before); with a pad connected the name field shows on-screen keys - the
-  d-pad picks, A types, B deletes, X is a space, Start is Done; the keyboard types as before.
+  (touch only, before); with a pad connected the name field shows on-screen keys laid out as
+  a console's - digits, qwerty, Shift / Space / Backspace / Done - the d-pad picks, A types,
+  B deletes, X is a space, Y is Shift, Start is Done; the keyboard types as before. The
+  client's own screens (this, the menu, the mod list) share one look now: the game's window
+  blue, crisp TrueType, rounded plates, and hints as the pad's own button glyphs (Cross /
+  Circle / Square / Triangle on a PlayStation pad, A / B / X / Y elsewhere).
 - **Config with a pad.** L and R turn Config 1 and Config 2 (the tabs were touch only), and
   Up past the first option no longer crashes (an index off the explanation table). Reported
   by testing.

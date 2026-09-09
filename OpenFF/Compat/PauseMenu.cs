@@ -316,20 +316,30 @@ namespace OpenFF.Client
 			GlobalScope.Graphics graphics = GlobalScope.m_Graphics;
 			if (graphics == null) return;
 			EnsureResources();
+			Ui.Ensure(GraphicsDevice);
 			Viewport view = GraphicsDevice.Viewport;
-			float sx = view.Width / W, sy = view.Height / H;
 			int count = Rows();
+			float rowH = RowHeight;
+			Rectangle panel = new Rectangle(150, 48, 500, 384);
+			int left = panel.X + 24, right = panel.Right - 24;
+			const int titleSize = 14, rowSize = 11, hintSize = 9;
+			float hintY = panel.Bottom - 22;
 
-			_batch.Begin();
-			_batch.Draw(_pixel, new Rectangle(0, 0, view.Width, view.Height), new Color(0, 0, 0, 170));
-			Rectangle panel = new Rectangle((int)(90 * sx), (int)(50 * sy), (int)(620 * sx), (int)(380 * sy));
-			_batch.Draw(_pixel, panel, new Color(24, 40, 96, 240));
-			Outline(panel, Color.White, 2);
+			_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
+			Ui.PanelPlate(_batch, panel, view);
 			for (int row = 0; row < count; row++)
 			{
-				if (row != _selected) continue;
-				Rectangle r = new Rectangle((int)(ListLeft * sx), (int)((ListTop + row * RowHeight) * sy), (int)(ListWidth * sx), (int)(RowHeight * sy));
-				_batch.Draw(_pixel, r, Color.White * 0.16f);
+				Rectangle r = new Rectangle(left, (int)(ListTop + row * rowH), right - left, (int)rowH - 3);
+				if (row == _selected) Ui.Key(_batch, r, true, view);
+			}
+			// A rule under the title.
+			Rectangle rule = Ui.Scale(new Rectangle(left, panel.Y + 44, right - left, 1), view);
+			Ui.Fill(_batch, rule, new Color(70, 96, 170, 255));
+			float hx = left;
+			foreach ((Ui.PadButton button, string word) in Hints())
+			{
+				Ui.HintShape(_batch, button, hx, hintY, 18, view);
+				hx += Ui.HintWidth(graphics, word, hintSize, 18) + 22;
 			}
 			_batch.End();
 
@@ -337,39 +347,39 @@ namespace OpenFF.Client
 			graphics.SetImageRotation(0f);
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
-			graphics.SetColor(255, 255, 255, 255);
 			string title = _page == Page.Main ? "OpenFF" : _page == Page.Settings ? "Settings" : _page == Page.Buttons ? "Pad buttons" : "Exit game?";
-			graphics.DrawString(title, 120f, 62f, TitleSize);
-			graphics.SetColor(190, 190, 190, 255);
-			graphics.DrawString(_page == Page.Main ? "Esc or Start opens this anywhere. The game goes on behind it."
-				: _page == Page.Settings ? "Left/Right change a value; written to " + DisplaySettings.Path
-				: _page == Page.Buttons ? "Pick a DS button and press the pad button that should be it."
-				: "Anything not saved is lost.", 120f, 86f, RowSize);
-
+			Ui.Left(graphics, title, left, panel.Y + 10, Ui.LineHeight(titleSize), titleSize, Ui.Text);
+			string sub = _page == Page.Main ? "The game goes on behind this."
+				: _page == Page.Settings ? "Kept in settings.json under %LocalAppData%\\OpenFF"
+				: _page == Page.Buttons ? "Pick a DS button, then press the pad button for it."
+				: "Anything not saved is lost.";
+			Ui.Left(graphics, sub, left + Ui.Width(graphics, title, titleSize) + 14, panel.Y + 10, Ui.LineHeight(titleSize), 9, Ui.Muted);
 			for (int row = 0; row < count; row++)
 			{
-				float y = ListTop + row * RowHeight + 5;
+				Rectangle r = new Rectangle(left, (int)(ListTop + row * rowH), right - left, (int)rowH - 3);
 				bool on = row == _selected;
-				graphics.SetColor(on ? (byte)255 : (byte)255, on ? (byte)255 : (byte)255, on ? (byte)160 : (byte)255, 255);
-				string label, value = null;
-				RowText(row, out label, out value);
-				graphics.DrawString(label, ListLeft + 10, y, RowSize);
+				RowText(row, out string label, out string value);
+				Ui.Left(graphics, label, r.X + 12, r.Y, r.Height, rowSize, on ? Ui.TextOnLit : Ui.Text);
 				if (value != null)
 				{
-					graphics.SetColor(on ? (byte)255 : (byte)210, on ? (byte)235 : (byte)210, on ? (byte)140 : (byte)210, 255);
-					graphics.DrawString((on && _page == Page.Settings && row < 5 ? "<  " : "") + value + (on && _page == Page.Settings && row < 5 ? "  >" : ""), ListLeft + 300, y, RowSize);
+					bool arrows = on && _page == Page.Settings && row < 5;
+					string shown = arrows ? "<  " + value + "  >" : value;
+					float w = Ui.Width(graphics, shown, rowSize);
+					Ui.Left(graphics, shown, r.Right - 12 - w, r.Y, r.Height, rowSize, on ? Ui.TextOnLit : Ui.Muted);
 				}
 			}
-			if (!string.IsNullOrEmpty(_note))
-			{
-				graphics.SetColor(255, 220, 120, 255);
-				graphics.DrawString(_note, 120f, 386f, RowSize);
-			}
-			graphics.SetColor(170, 170, 170, 255);
-			graphics.DrawString(_page == Page.Main ? "Up/Down   Enter or A   Esc or B back" : "Up/Down   Left/Right   Enter or A   Esc or B back", 120f, 406f, RowSize);
+			if (!string.IsNullOrEmpty(_note)) Ui.Left(graphics, _note, left, panel.Bottom - 52, Ui.LineHeight(9), 9, Ui.Accent);
+			hx = left;
+			foreach ((Ui.PadButton button, string word) in Hints()) hx = Ui.HintText(graphics, button, word, hx, hintY, 18, hintSize) - 4;
 			graphics.DrawStringEnd();
 		}
 
+		private (Ui.PadButton, string)[] Hints()
+		{
+			if (_page == Page.Settings) return new[] { (Ui.PadButton.A, "Next value"), (Ui.PadButton.B, "Back") };
+			if (_page == Page.Buttons) return new[] { (Ui.PadButton.A, _binding == null ? "Bind" : "Press a button"), (Ui.PadButton.B, "Back") };
+			return new[] { (Ui.PadButton.A, "Select"), (Ui.PadButton.B, "Back") };
+		}
 		private void RowText(int row, out string label, out string value)
 		{
 			DisplaySettings s = DisplaySettings.Current;

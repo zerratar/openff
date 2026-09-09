@@ -132,48 +132,78 @@ namespace OpenFF.Client
 			}
 		}
 
-		// ---- The on-screen keys, for a pad (and the mouse): rows of characters and a row of actions. ----
-		// A keyboard types as before; the grid is steered with the d-pad or stick, A picks a key,
-		// B rubs one out, X is a space, Start is Done. The mouse clicks a key.
+		// ---- The on-screen keys, for a pad (and the mouse), laid out as a console's: ----
+		// four rows of ten - digits, then qwerty - and a row of wide keys: Shift, Space,
+		// Backspace, Done. The d-pad or stick moves the lit key, A picks it, B rubs one out,
+		// X is a space, Y turns Shift, Start is Done. The mouse clicks a key. A keyboard types
+		// as before. Shown when a pad is connected (or --onscreen-keys).
 		private static readonly string[] KeyRows =
 		{
-			"ABCDEFGHIJKLM",
-			"NOPQRSTUVWXYZ",
-			"abcdefghijklm",
-			"nopqrstuvwxyz",
-			"0123456789-'.",
+			"1234567890",
+			"qwertyuiop",
+			"asdfghjkl'",
+			"zxcvbnm-.?",
 		};
-		private static readonly string[] Actions = { "Space", "Delete", "Done", "Cancel" };
-		private int _row, _col;          // the highlighted key; row == KeyRows.Length is the action row
+		private static readonly (string Label, int Width)[] WideKeys = { ("Shift", 88), ("Space", 176), ("Backspace", 88), ("Done", 88) };
+		private int _row, _col;          // the lit key; row == KeyRows.Length is the wide row
+		private bool _shift;
 		private int _previousPad;
 		private bool _mouseWasDown;
-		private const int GridX = 130, GridY = 232, CellW = 40, CellH = 30, ActionW = 130;
+		private bool _keysUsed;
+		private const int GridX = 180, GridY = 176, CellW = 44, CellH = 36, Gap = 4;
 
 		private bool ShowKeys => DesktopInput.PadConnected || _keysUsed || Options.Get("onscreen-keys") != null;
-		private bool _keysUsed;
 
 		private Rectangle CellRect(int row, int col)
 		{
-			if (row < KeyRows.Length) return new Rectangle(GridX + col * CellW, GridY + row * CellH, CellW, CellH);
-			return new Rectangle(GridX + col * ActionW, GridY + KeyRows.Length * CellH + 6, ActionW, CellH);
+			if (row < KeyRows.Length) return new Rectangle(GridX + col * CellW, GridY + row * CellH, CellW - Gap, CellH - Gap);
+			int x = GridX;
+			for (int i = 0; i < col; i++) x += WideKeys[i].Width;
+			return new Rectangle(x, GridY + KeyRows.Length * CellH + 4, WideKeys[col].Width - Gap, CellH - Gap);
 		}
 
-		private int ColumnsIn(int row) => row < KeyRows.Length ? KeyRows[row].Length : Actions.Length;
+		private int ColumnsIn(int row) => row < KeyRows.Length ? KeyRows[row].Length : WideKeys.Length;
+
+		private string KeyLabel(int row, int col)
+		{
+			if (row >= KeyRows.Length) return WideKeys[col].Label;
+			char c = KeyRows[row][col];
+			return (_shift ? char.ToUpperInvariant(c) : c).ToString();
+		}
 
 		private void Pick(int row, int col)
 		{
+			_keysUsed = true;
 			if (row < KeyRows.Length)
 			{
-				if (_text.Length < _maxLength) _text.Append(KeyRows[row][col]);
+				char c = KeyRows[row][col];
+				if (_shift) c = char.ToUpperInvariant(c);
+				if (_text.Length < _maxLength) _text.Append(c);
 				return;
 			}
 			switch (col)
 			{
-				case 0: if (_text.Length < _maxLength) _text.Append(' '); break;
-				case 1: if (_text.Length > 0) _text.Length--; break;
-				case 2: Complete(_text.ToString()); break;
-				case 3: Complete(null); break;
+				case 0: _shift = !_shift; break;
+				case 1: if (_text.Length < _maxLength) _text.Append(' '); break;
+				case 2: if (_text.Length > 0) _text.Length--; break;
+				case 3: Complete(_text.ToString()); break;
 			}
+		}
+
+		/// <summary>The lit key moved to the column under the same x in another row (a wide key takes the digit columns it spans).</summary>
+		private void MoveRow(int to)
+		{
+			Rectangle from = CellRect(_row, _col);
+			int cx = from.X + from.Width / 2;
+			_row = to;
+			int best = 0, bestD = int.MaxValue;
+			for (int c = 0; c < ColumnsIn(_row); c++)
+			{
+				Rectangle r = CellRect(_row, c);
+				int d = Math.Abs(r.X + r.Width / 2 - cx);
+				if (d < bestD) { bestD = d; best = c; }
+			}
+			_col = best;
 		}
 
 		public override void Update(GameTime gameTime)
@@ -203,13 +233,14 @@ namespace OpenFF.Client
 			int pad = DesktopInput.PadOnlyBits(), edge = pad & ~_previousPad;
 			_previousPad = pad;
 			if (edge != 0) _keysUsed = true;
-			if ((edge & 64) != 0) { _row = (_row + KeyRows.Length) % (KeyRows.Length + 1); _col = Math.Min(_col, ColumnsIn(_row) - 1); }
-			if ((edge & 128) != 0) { _row = (_row + 1) % (KeyRows.Length + 1); _col = Math.Min(_col, ColumnsIn(_row) - 1); }
+			if ((edge & 64) != 0) MoveRow((_row + KeyRows.Length) % (KeyRows.Length + 1));
+			if ((edge & 128) != 0) MoveRow((_row + 1) % (KeyRows.Length + 1));
 			if ((edge & 32) != 0) _col = (_col + ColumnsIn(_row) - 1) % ColumnsIn(_row);
 			if ((edge & 16) != 0) _col = (_col + 1) % ColumnsIn(_row);
 			if ((edge & 1) != 0) Pick(_row, _col);
 			else if ((edge & 2) != 0 && _text.Length > 0) _text.Length--;
 			else if ((edge & 1024) != 0 && _text.Length < _maxLength) _text.Append(' ');
+			else if ((edge & 2048) != 0) _shift = !_shift;
 			else if ((edge & 8) != 0) Complete(_text.ToString());
 			if (!IsActive) return;
 
@@ -219,7 +250,7 @@ namespace OpenFF.Client
 			{
 				for (int r = 0; r <= KeyRows.Length; r++)
 					for (int c = 0; c < ColumnsIn(r); c++)
-						if (CellRect(r, c).Contains(mx, my)) { _row = r; _col = c; _keysUsed = true; Pick(r, c); }
+						if (CellRect(r, c).Contains(mx, my)) { _row = r; _col = c; Pick(r, c); }
 			}
 			_mouseWasDown = down;
 		}
@@ -237,51 +268,38 @@ namespace OpenFF.Client
 			}
 
 			EnsureResources();
-
-			int backWidth = GraphicsDevice.PresentationParameters.BackBufferWidth;
-			int backHeight = GraphicsDevice.PresentationParameters.BackBufferHeight;
-			float scaleX = backWidth / (float)ViewWidth;
-			float scaleY = backHeight / (float)ViewHeight;
-
+			Ui.Ensure(GraphicsDevice);
+			Viewport view = GraphicsDevice.Viewport;
 			bool keysShown = ShowKeys;
-			// With the on-screen keys the panel reaches down to hold them; the field sits above.
-			Rectangle view = keysShown ? new Rectangle(110, 60, 580, 380) : new Rectangle(150, 150, 500, 180);
-			Rectangle panel = new Rectangle(
-				(int)(view.X * scaleX), (int)(view.Y * scaleY),
-				(int)(view.Width * scaleX), (int)(view.Height * scaleY));
-			int textY = keysShown ? 78 : 168;   // where the title starts, in view space
+			const int titleSize = 14, fieldSize = 16, keySize = 11, hintSize = 9;
 
-			// The scene keeps rendering behind this; dim it slightly so the field reads
-			// as focused without hiding where you are.
-			_batch.Begin();
-			_batch.Draw(_panel, new Rectangle(0, 0, backWidth, backHeight), new Color(0, 0, 0, 110));
-			_batch.Draw(_panel, panel, new Color(24, 40, 96, 235));
-			_batch.Draw(_panel, new Rectangle(panel.X, panel.Y, panel.Width, 2), Color.White);
-			_batch.Draw(_panel, new Rectangle(panel.X, panel.Bottom - 2, panel.Width, 2), Color.White);
-			_batch.Draw(_panel, new Rectangle(panel.X, panel.Y, 2, panel.Height), Color.White);
-			_batch.Draw(_panel, new Rectangle(panel.Right - 2, panel.Y, 2, panel.Height), Color.White);
+			// With the keys the panel reaches down to hold them; without, a small field.
+			Rectangle panel = keysShown ? new Rectangle(150, 56, 500, 372) : new Rectangle(150, 150, 500, 180);
+			int left = panel.X + 24;
+			int titleY = panel.Y + 14;
+			Rectangle field = new Rectangle(left, titleY + 34, panel.Width - 48, 40);
 
-			// Underline for the field itself, so it looks like somewhere you type.
-			_batch.Draw(_panel, new Rectangle(
-				(int)((view.X + 20) * scaleX), (int)((textY + 90) * scaleY),
-				(int)(200 * scaleX), (int)(2 * scaleY)), new Color(200, 200, 200, 255));
+			_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
+			Ui.PanelPlate(_batch, panel, view);
+			// The field: a darker well with a light rule under the text.
+			Rectangle well = Ui.Scale(field, view);
+			Ui.RoundPlate(_batch, well, new Color(8, 16, 44, 255), view);
+			Ui.Fill(_batch, new Rectangle(well.X + 8, well.Bottom - 2, well.Width - 16, 1), Ui.PanelEdge);
 			if (keysShown)
 			{
-				// The keys: a cell each, the highlighted one lit.
 				for (int r = 0; r <= KeyRows.Length; r++)
-				{
 					for (int c = 0; c < ColumnsIn(r); c++)
-					{
-						Rectangle cell = CellRect(r, c);
-						Rectangle at = new Rectangle((int)((cell.X + 2) * scaleX), (int)((cell.Y + 2) * scaleY), (int)((cell.Width - 4) * scaleX), (int)((cell.Height - 4) * scaleY));
-						bool lit = r == _row && c == _col;
-						_batch.Draw(_panel, at, lit ? new Color(230, 200, 90, 255) : new Color(40, 60, 130, 255));
-					}
+						Ui.Key(_batch, CellRect(r, c), r == _row && c == _col, view);
+				// The hints' discs along the bottom.
+				float hx = left, hy = panel.Bottom - 22;
+				foreach ((Ui.PadButton button, string word) in Hints())
+				{
+					Ui.HintShape(_batch, button, hx, hy, 18, view);
+					hx += HintAdvance(word, hintSize);
 				}
 			}
 			_batch.End();
 
-			// Draw the text with the game's own font so it matches everything else.
 			GlobalScope.Graphics graphics = GlobalScope.m_Graphics;
 			if (graphics == null)
 			{
@@ -291,30 +309,43 @@ namespace OpenFF.Client
 			graphics.SetImageRotation(0f);
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
-			graphics.SetColor(255, 255, 255, 255);
-			float tx = view.X + 20;
-			graphics.DrawString(_title, tx, textY, FontSize);
-			graphics.DrawString(_description, tx, textY + 28, FontSize);
-			graphics.DrawString(_text.ToString() + "_", tx, textY + 68, FontSize);
-			graphics.SetColor(190, 190, 190, 255);
-			graphics.DrawString(keysShown ? "Type, or pick a key: A picks, B deletes, Start is Done" : "Type a name, then press Enter", tx, textY + 116, FontSize);
+			Ui.Left(graphics, _title, left, titleY, Ui.LineHeight(titleSize), titleSize, Ui.Text);
+			if (!string.IsNullOrEmpty(_description)) Ui.Left(graphics, _description, left + Ui.Width(graphics, _title, titleSize) + 16, titleY, Ui.LineHeight(titleSize), 10, Ui.Muted);
+			// The name so far, and a caret; the count of letters left at the right.
+			Ui.Left(graphics, _text.ToString() + (Environment.TickCount / 500 % 2 == 0 ? "|" : " "), field.X + 12, field.Y, field.Height, fieldSize, Ui.Text);
+			string left_ = (_maxLength - _text.Length).ToString();
+			Ui.Left(graphics, left_, field.Right - 12 - Ui.Width(graphics, left_, 10), field.Y, field.Height, 10, Ui.Muted);
 			if (keysShown)
 			{
 				for (int r = 0; r <= KeyRows.Length; r++)
 				{
 					for (int c = 0; c < ColumnsIn(r); c++)
 					{
-						Rectangle cell = CellRect(r, c);
 						bool lit = r == _row && c == _col;
-						graphics.SetColor(lit ? (byte)20 : (byte)255, lit ? (byte)20 : (byte)255, lit ? (byte)20 : (byte)255, 255);
-						string label = r < KeyRows.Length ? KeyRows[r][c].ToString() : Actions[c];
-						float w = TrueTypeText.Enabled ? TrueTypeText.Width(label, FontSize) : label.Length * 9f;
-						graphics.DrawString(label, cell.X + (cell.Width - w) / 2f, cell.Y + 6f, FontSize);
+						bool wide = r >= KeyRows.Length;
+						Ui.Centred(graphics, KeyLabel(r, c), CellRect(r, c), wide ? 10 : keySize, lit ? Ui.TextOnLit : (wide && c == 0 && _shift ? Ui.Accent : Ui.Text));
 					}
 				}
+				float hx = left, hy = panel.Bottom - 22;
+				foreach ((Ui.PadButton button, string word) in Hints())
+				{
+					Ui.HintText(graphics, button, word, hx, hy, 18, hintSize);
+					hx += HintAdvance(word, hintSize);
+				}
+			}
+			else
+			{
+				Ui.Left(graphics, "Type a name, then press Enter", left, field.Bottom + 16, Ui.LineHeight(10), 10, Ui.Muted);
 			}
 			graphics.DrawStringEnd();
 		}
+
+		private static (Ui.PadButton, string)[] Hints() => new[]
+		{
+			(Ui.PadButton.A, "Select"), (Ui.PadButton.B, "Backspace"), (Ui.PadButton.X, "Space"), (Ui.PadButton.Y, "Shift"), (Ui.PadButton.Start, "Done")
+		};
+
+		private float HintAdvance(string word, int size) => Ui.HintWidth(GlobalScope.m_Graphics, word, size, 18) + 22;
 
 		private void EnsureResources()
 		{
