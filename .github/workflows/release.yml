@@ -1,12 +1,21 @@
 # A release from a tag: the same publish.cmd a developer runs, on a Windows runner, its zip
 # attached to a draft release for the tag. Push `v0.1.0` and a draft appears under Releases
 # to read over and publish. Nothing of the games is needed to build.
+#
+# Also by hand: Actions ▸ release ▸ Run workflow, with the tag to release (v0.1.0) - for a
+# tag that already exists, or to run again after a failed run.
 name: release
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The tag to release (v0.1.0); it must exist"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,8 +23,13 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      # The tag: the pushed one, or the one asked for by hand.
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
@@ -27,7 +41,7 @@ jobs:
         # preamble or other versions; a section the file lacks leaves the description empty.
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
+          $version = "$env:RELEASE_TAG".TrimStart("v")
           $lines = Get-Content Docs/Releases.md
           $start = ($lines | Select-String -Pattern "^## $([regex]::Escape($version))\b" | Select-Object -First 1).LineNumber
           if (-not $start) { "" | Set-Content dist/notes.md; exit 0 }
@@ -38,6 +52,7 @@ jobs:
       - name: Draft the release with the zip
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           draft: true
           files: dist/OpenFF-*-win-x64.zip
           body_path: dist/notes.md

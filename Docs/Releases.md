@@ -7,7 +7,7 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## 0.1.2 - weapons of the mod's own (in progress)
+## 0.1.2 - weapons of the mod's own (2026-09-09)
 
 - **A glTF in the hand (OpenFF target).** A weapon definition's `"model": "assets/blade.glb"`
   is drawn in the hero's hand in battle in place of the game's `w###` model, at
