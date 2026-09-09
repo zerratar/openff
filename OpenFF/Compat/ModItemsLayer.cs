@@ -154,8 +154,9 @@ namespace OpenFF.Client
 				kept.Add(item);
 			}
 			Items = kept;
+			WeaponMeshes.Register(kept);
 			if (kept.Count == 0) return;
-			Log.Write(LogChannel.General, "items: " + kept.Count + " of the mods' own: " + string.Join(", ", kept.Select(i => i.Number + " " + (i.Name ?? i.Id))));
+			Log.Write(LogChannel.General, "items: " + kept.Count + " of the mods' own: " + string.Join(", ", kept.Select(i => i.Number + " " + (i.Name ?? i.Id) + (i.Model != null ? " (" + i.Model + ")" : ""))));
 			chain.AddTransform((name, data) =>
 			{
 				if (ModItems.IsPak(name))

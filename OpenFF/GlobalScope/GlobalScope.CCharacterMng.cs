@@ -470,6 +470,20 @@ internal static partial class GlobalScope
 			}
 		}
 
+		/// <summary>
+		/// PORT: something drawn in a character's place (CRenderObject.StandIn) - a mod's glTF in
+		/// a weapon's hand. Null puts the model's own draw back. Survives the asynchronous load
+		/// (the render object is set up when the model arrives, the stand-in already on it) and
+		/// goes with the character when it is deleted.
+		/// </summary>
+		public void setStandIn(int ctrl, Action<ds.sys3d.CRenderObject> standIn)
+		{
+			if (isValidCharacter(ctrl))
+			{
+				Character[ctrl].RdrObject.StandIn = standIn;
+			}
+		}
+
 		public void initJntMtx(int ctrl)
 		{
 			if (isValidCharacter(ctrl))

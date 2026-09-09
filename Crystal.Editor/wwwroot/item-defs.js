@@ -68,6 +68,7 @@ function itemDefinitionPanel(def, onSaved) {
   const model = {
     id: def.id, number: def.number, base: def.base, name: def.name || '', caption: def.caption || '',
     buy: def.buy, sell: def.sell,
+    model: def.model || null, modelScale: def.modelScale || 1, modelClip: def.modelClip || null,
     fields: Object.fromEntries((def.fields || []).filter(f => f.value !== null && f.value !== undefined).map(f => [f.name, f.value]))
   };
   let timer = null;
@@ -149,6 +150,64 @@ function itemDefinitionPanel(def, onSaved) {
     const prices = card('Shop');
     row(prices, 'Buy', number(model.buy, def.baseBuy, v => { model.buy = v; save(); }), 'What a shop sells it for; blank keeps the base\'s');
     row(prices, 'Sell', number(model.sell, def.baseSell, v => { model.sell = v; save(); }), 'What a shop pays for it; blank keeps the base\'s');
+  }
+
+  // ---- a weapon's own look (OpenFF target): a glTF in the hand in place of the w### model
+  if (def.chain === 'weapon') {
+    const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
+    const look = card('Look - the model in the hand');
+    const lookNote = document.createElement('p');
+    lookNote.className = 'none';
+    lookNote.textContent = openff
+      ? 'On the OpenFF target the client can draw a glTF of the project\'s in the hand in place of the game\'s w### model (the Model field below still names the model the game loads and poses). Grip at the origin, blade along +Z, guard across Y; a sword is about 7 units long.'
+      : 'A Steam target plays only the game\'s own formats: the look is the Model field below (Duplicate as… a w### and replace its texture for a new colour). A glTF look needs the OpenFF target.';
+    look.append(lookNote);
+    if (openff) {
+      const pick = document.createElement('span');
+      pick.className = 'field-pick';
+      const shown = document.createElement('select');
+      const fill = () => {
+        shown.textContent = '';
+        const none = document.createElement('option');
+        none.value = ''; none.textContent = '(the game\'s model)';
+        shown.append(none);
+        for (const a of state.assets || []) {
+          const o = document.createElement('option');
+          o.value = a.name; o.textContent = a.name;
+          shown.append(o);
+        }
+        if (model.model && ![...shown.options].some(o => o.value === model.model)) {
+          const o = document.createElement('option');
+          o.value = model.model; o.textContent = model.model + (def.modelExists === false ? ' (no such file)' : '');
+          shown.append(o);
+        }
+        shown.value = model.model || '';
+      };
+      if (Array.isArray(state.assets)) fill();
+      else api('/api/project/assets').then(list => { state.assets = list || []; fill(); }).catch(() => { state.assets = []; fill(); });
+      shown.onchange = () => { model.model = shown.value || null; save(); };
+      const choose = document.createElement('button');
+      choose.textContent = 'Pick…';
+      choose.title = 'The project\'s model files as pictures; Import a model… takes a Blender export in';
+      choose.onclick = () => pickModel(model.model, (name) => { model.model = name || null; fill(); save(); }, { title: 'The weapon\'s look - a glTF of the project\'s', assetsOnly: true });
+      const view = document.createElement('button');
+      view.textContent = 'View';
+      view.title = 'The file in the model viewer';
+      view.onclick = () => { if (model.model) openDoc('model', model.model); };
+      pick.append(shown, choose, view);
+      row(look, 'glTF', pick, 'The file in the project\'s assets folder the client draws in the hand; blank for the game\'s w### model');
+      const scale = document.createElement('input');
+      scale.type = 'number'; scale.step = '0.05'; scale.min = '0.05';
+      scale.value = model.modelScale || 1;
+      scale.oninput = () => { const v = parseFloat(scale.value); model.modelScale = v > 0 ? v : 1; save(); };
+      row(look, 'Scale', scale, 'The file\'s units into the hand\'s; 1 is as exported (a sword about 7 units long)');
+      const clip = document.createElement('input');
+      clip.type = 'text';
+      clip.value = model.modelClip || '';
+      clip.placeholder = 'a clip of the file to loop, or none';
+      clip.oninput = () => { model.modelClip = clip.value.trim() || null; save(); };
+      row(look, 'Clip', clip, 'An animation of the glTF (a Blender action by name) looping while the weapon is held - a glowing rune, a turning gem');
+    }
   }
 
   // ---- the record's fields

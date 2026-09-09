@@ -110,6 +110,14 @@ internal static partial class GlobalScope
 
 				private int m_Priority;
 
+				/// <summary>
+				/// PORT: something drawn in this model's place - a mod's glTF in a weapon's hand
+				/// (OpenFF.Client.WeaponMeshes). The object goes on as the game's: it is posed, hidden,
+				/// faded and shadowed as before; only the draw is the stand-in's, given this object
+				/// for its pose matrix and alpha. Cleared when the model is (cleanup).
+				/// </summary>
+				public Action<CRenderObject> StandIn;
+
 				public CRenderObject()
 				{
 					m_pLodObj = null;
@@ -173,6 +181,7 @@ internal static partial class GlobalScope
 
 				public void cleanup()
 				{
+					StandIn = null;
 					m_Shadow = null;
 					m_MdlRes = null;
 					if (m_pOrgAlpha != null)
@@ -191,6 +200,11 @@ internal static partial class GlobalScope
 				{
 					if (m_MdlRes == null || isHidden())
 					{
+						return;
+					}
+					if (StandIn != null)
+					{
+						StandIn(this);
 						return;
 					}
 					if (m_LodLevel == 1)

@@ -20,6 +20,8 @@
 //     "caption": "Restores 999 HP.",
 //     "buy": 1500, "sell": 750,
 //     "fields": { "usedPower": 999 }   fields of the record by the game's own names
+//     "model": "assets/blade.glb",     a weapon's own look (OpenFF target): a glTF the client draws in the
+//     "modelScale": 1, "modelClip": ""  hand in place of the record's w### model, at a scale, with a clip looping
 //   }
 //
 // Numbers: FF3's ids stop under 7000 (weapons 1000-2309, armour 3001-3331, magic and songs
@@ -49,8 +51,43 @@ namespace OpenFF.Data
 		public int? Buy;
 		public int? Sell;
 		public Dictionary<string, int> Fields = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+		/// <summary>
+		/// A weapon's own look on the OpenFF target: a glTF file relative to the mod's folder
+		/// (assets/blade.glb). In battle the client draws it in the hand in place of the game's
+		/// w### model (the record's graphId, which still names the model the game loads and poses).
+		/// Null for the game's own look. The Steam target has no use for it - the game reads only
+		/// its own formats there.
+		/// </summary>
+		public string Model;
+		/// <summary>The glTF's scale in the hand; 1 is the file's own units as the game's.</summary>
+		public float ModelScale = 1f;
+		/// <summary>An animation clip of the glTF to loop while it is held (a glowing rune, a spinning gem); empty for the bind pose.</summary>
+		public string ModelClip;
 		/// <summary>Where it was read from, for a message.</summary>
 		public string Source;
+
+		/// <summary>The mod's (or project's) folder the definition belongs to - two above defs/items - or null when it was not read from a file.</summary>
+		public string Root
+		{
+			get
+			{
+				if (string.IsNullOrEmpty(Source)) return null;
+				try { return Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(Source)))); }
+				catch (Exception) { return null; }
+			}
+		}
+
+		/// <summary>The glTF's full path, when the definition names one and was read from a file.</summary>
+		public string ModelPath
+		{
+			get
+			{
+				if (string.IsNullOrWhiteSpace(Model)) return null;
+				if (Path.IsPathRooted(Model)) return Model;
+				string root = Root;
+				return root == null ? null : Path.Combine(root, Model.Replace('/', Path.DirectorySeparatorChar));
+			}
+		}
 
 		public const int FirstNumber = 20001;
 		public const int FirstNameId = 31001;
@@ -69,8 +106,11 @@ namespace OpenFF.Data
 				Caption = node["caption"]?.GetValue<string>(),
 				Buy = node["buy"]?.GetValue<int>(),
 				Sell = node["sell"]?.GetValue<int>(),
+				Model = node["model"]?.GetValue<string>(),
+				ModelClip = node["modelClip"]?.GetValue<string>(),
 				Source = source
 			};
+			if (node["modelScale"] is JsonValue scale && scale.TryGetValue(out double scaleValue) && scaleValue > 0) item.ModelScale = (float)scaleValue;
 			if (node["fields"] is JsonObject fields)
 			{
 				foreach (KeyValuePair<string, JsonNode> pair in fields)
@@ -94,6 +134,12 @@ namespace OpenFF.Data
 			};
 			if (Buy.HasValue) node["buy"] = Buy.Value;
 			if (Sell.HasValue) node["sell"] = Sell.Value;
+			if (!string.IsNullOrWhiteSpace(Model))
+			{
+				node["model"] = Model;
+				if (Math.Abs(ModelScale - 1f) > 0.0001f) node["modelScale"] = Math.Round(ModelScale, 4);
+				if (!string.IsNullOrWhiteSpace(ModelClip)) node["modelClip"] = ModelClip;
+			}
 			if (Fields.Count > 0)
 			{
 				JsonObject fields = new JsonObject();

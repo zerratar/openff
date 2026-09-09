@@ -513,6 +513,43 @@ Install and in the zip the two files are composed from the shipped ones and writ
 the target's `files/`, so the Steam game reads them as any replaced file. FF3 for now;
 FF4's tables get their own composer.
 
+#### A weapon's own look: `"model": "assets/blade.glb"`
+
+On the OpenFF target a weapon definition may name a glTF of the project's, and the client
+draws it in the hero's hand in battle in place of the game's `w###` model. The inspector's
+*Look* card (weapons only) picks it from the project's `assets/` - *Pick…* shows them as
+pictures with *Import a model…* for a Blender export, *View* opens the file - with a *Scale*
+and a *Clip* (an animation of the file to loop while the weapon is held: a glowing rune, a
+turning gem). The file:
+
+```json
+{
+  "id": "rune-blade",
+  "number": 20002,
+  "base": 1001,
+  "name": "Rune Blade",
+  "caption": "A blade with a light of its own.",
+  "model": "assets/rune-blade.glb",
+  "modelScale": 1,
+  "modelClip": "Glow"
+}
+```
+
+Model the weapon in the hand's frame, the `w###` frame: the grip at the origin, the blade
+along +Z, the guard across Y (a sword is about 7 units long - `w005` runs z -0.9 to 6.2);
+`modelScale` scales the file into it. The record's *Model* (graphId) still names the model
+the game loads and poses - the base's is fine - and *Kind* still picks the swing motions; the
+game's weapon character is hidden, shown, faded and shrunk exactly as before (its render
+object gets a stand-in, `CRenderObject.StandIn`, and only the draw is the glTF's:
+`OpenFF/Compat/WeaponMeshes.cs`). The log says `weapons: item 20002 drawn as rune-blade.glb`
+when a battle sets it up and `weapons: rune-blade.glb drawn in the hand at x, y, z` the
+first time it shows (the weapon shows in the swing, not while standing, as the game does).
+
+A Steam target plays only the game's own formats, so `model` is left out there: the look is
+the *Model* field - *Duplicate as…* an existing `w###` and *Replace with a PNG* on its
+texture for a new colour on the same shape - or a `w###` written from a glTF by
+`crystal mdl-import` (below), which the Steam game reads as its own.
+
 ### Monsters of the mod's own: `defs/monsters/<id>.json`
 
 A monster is a definition too. Under *OpenFF mod ▸ Monsters*, *New monster…* asks for a name

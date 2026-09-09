@@ -136,7 +136,7 @@ async function loadList() {
     state.itemDefsError = defs.ok ? '' : defs.error;
     state.files = state.itemDefs.map(d => ({
       name: d.id, overridden: false, def: d,
-      note: `${d.number} · ${d.chain || '?'} from ${d.baseName || d.base}`
+      note: `${d.number} · ${d.chain || '?'} from ${d.baseName || d.base}${d.model ? ' · looks like ' + d.model.replace(/^assets\//, '') : ''}`
     }));
   } else if (state.browse === 'characters') {
     // The heroes as a game begins: defs/characters/<id>.json each, one per hero slot.

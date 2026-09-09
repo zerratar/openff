@@ -7,6 +7,18 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.1.2 - weapons of the mod's own (in progress)
+
+- **A glTF in the hand (OpenFF target).** A weapon definition's `"model": "assets/blade.glb"`
+  is drawn in the hero's hand in battle in place of the game's `w###` model, at
+  `"modelScale"`, with `"modelClip"` looping an animation of the file while it is held. The
+  game's weapon character stays - loaded, posed from the hand joint, hidden, shown and faded
+  as before - and only its draw is the glTF's (`CRenderObject.StandIn`,
+  `OpenFF/Compat/WeaponMeshes.cs`), so the file sits exactly where a `w###` would: grip at
+  the origin, blade along +Z. Crystal's item inspector has the *Look* card for weapons - the
+  project's glTFs as pictures, *Import a model…*, *View*, the scale and the clip. Drives can
+  set a fight up: `item <id> [count]`, `equip <member> <id>`, `battle <formation> [map]`.
+
 ## 0.1.1 - game pads (2026-09-09)
 
 - **Game pad support.** The first connected pad drives the game as the keyboard does: the

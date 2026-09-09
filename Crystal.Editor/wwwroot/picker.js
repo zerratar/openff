@@ -47,15 +47,17 @@ function pickModel(current, onChosen, options = {}) {
 
   // The mod's own model files first (an OpenFF project's assets/*.glb - the client draws
   // them directly), then the game's models.
-  const own = !options.only && Array.isArray(state.assets)
+  // `options.assetsOnly` offers the mod's own files alone - a weapon's look on the OpenFF
+  // target is a glTF, never one of the game's models.
+  const own = (!options.only || options.assetsOnly) && Array.isArray(state.assets)
     ? state.assets.map(a => ({ model: a.name, characterId: 0, from: 'the mod\'s own model file', uses: 0, asset: true }))
     : [];
-  let models = own.concat((state.placeable || []).filter(
+  let models = own.concat(options.assetsOnly ? [] : (state.placeable || []).filter(
     entry => !options.only || options.only(entry.model)));
   let watcher = null;
 
   // A model file in: .glb (or a .gltf with its .bin and pictures, picked together) into assets/.
-  if (!options.only && Array.isArray(state.assets)) {
+  if ((!options.only || options.assetsOnly) && Array.isArray(state.assets)) {
     const imp = document.createElement('button');
     imp.type = 'button';
     imp.textContent = 'Import a model…';
@@ -80,7 +82,7 @@ function pickModel(current, onChosen, options = {}) {
         const r = await api('/api/project/assets/import', { files: payload });
         if (!r.ok) throw new Error(r.error);
         state.assets = r.models || [];
-        models = state.assets.map(a => ({ model: a.name, characterId: 0, from: 'the mod\'s own model file', uses: 0, asset: true })).concat(state.placeable || []);
+        models = state.assets.map(a => ({ model: a.name, characterId: 0, from: 'the mod\'s own model file', uses: 0, asset: true })).concat(options.assetsOnly ? [] : (state.placeable || []));
         say(`${r.files.join(', ')} imported`, 'good');
         draw();
       } catch (e) { say('import: ' + e.message, 'bad'); }

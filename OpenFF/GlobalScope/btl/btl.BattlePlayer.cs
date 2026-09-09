@@ -556,6 +556,7 @@ internal static partial class GlobalScope
 						sprintf(out arg, "w%03d", itm.ItemManager.instance().itemParameter(num).graphId());
 						itemInfo_[0].characterMngId_ = characterMng.setCharacter(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_SECOND);
 						characterMng.setHidden(itemInfo_[0].characterMngId_, b: true);
+						OpenFF.Client.WeaponMeshes.Attach(itemInfo_[0].characterMngId_, num);   // PORT: a mod weapon's own look
 						dataState_ = 8;
 					}
 					else
@@ -596,6 +597,7 @@ internal static partial class GlobalScope
 						sprintf(out arg, "w%03d", itm.ItemManager.instance().itemParameter(num3).graphId());
 						itemInfo_[1].characterMngId_ = characterMng.setCharacter(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_SECOND);
 						characterMng.setHidden(itemInfo_[1].characterMngId_, b: true);
+						OpenFF.Client.WeaponMeshes.Attach(itemInfo_[1].characterMngId_, num3);   // PORT: a mod weapon's own look
 						dataState_ = 12;
 					}
 					else
@@ -1776,6 +1778,7 @@ internal static partial class GlobalScope
 				sprintf(out arg, "w%03d", itm.ItemManager.instance().itemParameter(num).graphId());
 				OS_Printf("アイテムモデル名 %s\n", arg);
 				itemInfo_[(int)hand_type].characterMngId_ = characterMng.setCharacter(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_SECOND);
+				OpenFF.Client.WeaponMeshes.Attach(itemInfo_[(int)hand_type].characterMngId_, num);   // PORT: a mod weapon's own look
 				characterMng.releaseMdlTexRes(itemInfo_[(int)hand_type].characterMngId_);
 				sprintf(out arg, "w%03d_%04d", itm.ItemManager.instance().itemParameter(num).graphId(), num);
 				OS_Printf("アイテムパレット名 %s\n", arg);

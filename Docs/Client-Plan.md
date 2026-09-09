@@ -2002,12 +2002,15 @@ Steam converters (glTF → MDL0, PNG → XNB, TTF → SpriteFont) are a separate
 mods that must also install into the Steam games:
 
 - Models: glTF in - done for static meshes, animated ones, as collision (`Solid`) and
-  walking about (`Roam`, below); `Talk` on a glTF done. Next: **a glTF as a weapon** - an
-  item definition's `model: assets/blade.glb` drawn in the hero's hand in battle instead of
-  the `w###` model: the client hides the game's weapon model and poses the glTF from the
-  hand joint each frame (`pl.BindObject` is that mechanism for the game's own models; the
-  joint capture exists), the weapon's *Kind* still picking the swing motions. Then the same
-  for a character's field model (a glTF hero).
+  walking about (`Roam`, below); `Talk` on a glTF done. **A glTF as a weapon - done**: an
+  item definition's `model: assets/blade.glb` (with `modelScale`, `modelClip`) is drawn in
+  the hero's hand in battle in place of the `w###` model. The game's weapon character is
+  still loaded and posed from the hand joint (`BattlePlayer.haveWeapon`), hidden and faded
+  as before; its render object gets a stand-in (`CRenderObject.StandIn`,
+  `OpenFF/Compat/WeaponMeshes.cs`) that draws the glTF at the same pose matrix, so the
+  file sits exactly where a `w###` would (grip at the origin, blade along +z). The weapon's
+  *Kind* still picks the swing motions. Crystal's item inspector has the *Look* card with the
+  project's glTFs. Next: the same for a character's field model (a glTF hero).
 - Maps: a whole map of the mod's own - done (below): a free stage name, a scene file with
   a Solid Mesh for the ground, `Exit`, `Music`, `Sound` and `MapSettings` (sky, camera)
   components, *New map…* in Crystal. Next on it: its name on the menu, the map screen.

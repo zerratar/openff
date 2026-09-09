@@ -58,6 +58,9 @@ namespace Crystal.Editor
 				baseBuy = record != null && chain != 4 ? ModItems.Get(record, chain, "buy") : null,
 				baseSell = record != null && chain != 4 ? ModItems.Get(record, chain, "price") : null,
 				fields,
+				// A weapon's own look on the OpenFF target: a glTF in the project's assets, its scale and a clip.
+				model = item.Model, modelScale = item.ModelScale, modelClip = item.ModelClip,
+				modelExists = item.ModelPath != null && File.Exists(item.ModelPath),
 				file = "defs/items/" + item.Id + ".json"
 			};
 		}

@@ -8,6 +8,8 @@
 //   stick <x> <y> [holdMs]         the pad's left stick held at (x, y), each -1..1 with y up, 1000 ms unless said
 //   type <text>                    typed into the open text field (the name entry's); "type" alone clears it; submit / cancel are its Enter and Escape
 //   flag <group>:<index> [on|off]  a game flag set (or cleared) - a story state without playing there
+//   item <itemId> [count]          the item into the bag (Game.Party.AddItem); equip <member> <itemId> puts it on
+//   battle <formation> [map]       a fight with that formation (Game.Battle.Start)
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
@@ -210,6 +212,30 @@ namespace OpenFF.Client
 						Log.Write(LogChannel.File, "drive: flag " + group + ":" + index + (on ? " on" : " off"));
 					}
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: flag " + bits[0] + " failed: " + ex.Message); }
+					break;
+				}
+				case "item":
+				case "equip":
+				case "battle":
+				{
+					// Through the engine's own API, as a mod would: "item 1001 2" puts two of an item in the
+					// bag, "equip 0 1001" puts one on party member 0 (the item's own slot), "battle 1 [map]"
+					// starts the fight with that formation on that battle map.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					int a = bits.Length > 0 && int.TryParse(bits[0], out int a0) ? a0 : -1;
+					int b = bits.Length > 1 && int.TryParse(bits[1], out int b0) ? b0 : (step.Verb == "item" ? 1 : (step.Verb == "battle" ? 0 : -1));
+					if (a < 0 || b < 0)
+					{
+						Log.Write(LogChannel.General, "drive: " + step.Verb + " wants " + (step.Verb == "item" ? "<itemId> [count]" : step.Verb == "equip" ? "<member> <itemId>" : "<formation> [battleMap]"));
+						break;
+					}
+					try
+					{
+						if (step.Verb == "item") { OpenFF.Game.Party.AddItem(a, b); Log.Write(LogChannel.File, "drive: item " + a + " x" + b); }
+						else if (step.Verb == "equip") Log.Write(LogChannel.File, "drive: equip " + b + " on member " + a + (OpenFF.Game.Party.Equip(a, b) ? "" : " - refused"));
+						else { OpenFF.Game.Battle.Start(a, b); Log.Write(LogChannel.File, "drive: battle " + a + " on map " + b); }
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: " + step.Verb + " failed: " + ex.Message); }
 					break;
 				}
 				case "submit":
