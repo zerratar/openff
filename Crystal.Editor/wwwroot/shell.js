@@ -1730,10 +1730,12 @@ function drawCodeActions() {
   const project = (typeof projectState !== 'undefined' && projectState.project) || null;
   // The game's picture library takes new pictures in: a PNG under a name of the mod's own.
   const imports = (browseKind === 'image' || browseKind === 'texture') && project;
-  strip.hidden = !imports && !KINDS.some(k => k.mod && k.id === browseKind);
+  const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
+  // An OpenFF project adds to the game's libraries too: a map of its own among the maps, a tune among the sounds.
+  const adds = openff && (browseKind === 'map' || browseKind === 'audio');
+  strip.hidden = !imports && !adds && !KINDS.some(k => k.mod && k.id === browseKind);
   if (strip.hidden) return;
 
-  const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
   const button = (label, title, run, primary) => {
     const b = document.createElement('button');
     b.textContent = label;
@@ -1746,6 +1748,11 @@ function drawCodeActions() {
   if (imports) {
     if (browseKind === 'image') button('Import a PNG…', 'A picture of the mod\'s own, as a file of the project\'s: the menus reference it by name', () => importImageDialog(), true);
     else button('New texture package…', 'A .ntxp of the mod\'s own from a PNG: a texture in the format you pick, for a model of the mod\'s or a monster\'s skin', () => newTexturePackageDialog(), true);
+    return;
+  }
+  if (adds) {
+    if (browseKind === 'map') button('New map…', 'A map of the mod\'s own: a ground to walk (a glTF of yours, or a flat slab), then objects, exits and music placed in the map editor; the OpenFF client plays it', () => newMapDialog(), true);
+    else button('Import a tune…', 'Music of the mod\'s own: an Ogg Vorbis or WAV under a BGM number the game leaves free (59 and up); a Music component or playBGM plays it', () => importTuneDialog(), true);
     return;
   }
   if (!project) {
@@ -1781,8 +1788,8 @@ function drawCodeActions() {
     if (browseKind === 'items' && typeof newItemDialog === 'function') {
       button('New item…', 'An item of the mod\'s own: starts from one of the game\'s, with a name, a caption, prices and any field of the record changed', () => newItemDialog(), true);
     }
-    if (browseKind === 'scene' || browseKind === 'map') {
-      button('New map…', 'A map of the mod\'s own: a ground to walk (a glTF of yours, or a flat slab), then objects, exits and music placed in the map editor; the OpenFF client plays it', () => newMapDialog(), browseKind === 'scene');
+    if (browseKind === 'scene') {
+      button('New map…', 'A map of the mod\'s own: a ground to walk (a glTF of yours, or a flat slab), then objects, exits and music placed in the map editor; the OpenFF client plays it', () => newMapDialog(), true);
     }
     button('Export to OpenFF', 'Writes the mod - files per game, code, scenes, definitions - into the client\'s mods folder', () => exportToOpenFF());
     if (project.client) button('Run in OpenFF', 'Export and start the client; a running one hot-reloads the code and takes scene changes on the next map', () => runInOpenFF());
@@ -2091,6 +2098,70 @@ async function newMapDialog() {
   actions.append(go);
   body.append(actions);
   setTimeout(() => title.focus(), 0);
+}
+
+/// Music of the mod's own: a loop file (Ogg Vorbis or WAV) and, if the tune has one, an intro
+/// played once before it, under a BGM number the game leaves free. Written into the project's
+/// files as sound/BGMnn_1 (and _0) with the loop point in sound/BGMnn.dat; the client plays a
+/// number the game's table has no files for from whatever the mod put there.
+async function importTuneDialog() {
+  const body = dialog('Import a tune');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'Music of the mod\'s own, for the OpenFF client. The loop plays forever; an intro, if you give one, plays once before it (Ogg Vorbis or WAV, either). The tune gets a BGM number the game leaves free; a Music component on a map, playBGM in a script or Game.Audio.PlayBgm in C# plays it by that number. Under a number of the game\'s it replaces that tune instead.';
+  body.append(note);
+  let free = { bgm: 30, first: 30, last: 59 };
+  try { free = await api('/api/audio/free'); } catch (e) { /* the default stands */ }
+  const number = field(body, `BGM number (${free.first}-${free.last} are the game's free ones)`, String(free.bgm > 0 ? free.bgm : free.first), { placeholder: String(free.first) });
+  section(body, 'The loop');
+  const loop = document.createElement('input');
+  loop.type = 'file';
+  loop.accept = '.ogg,.wav,audio/ogg,audio/wav';
+  body.append(loop);
+  section(body, 'An intro (optional)');
+  const intro = document.createElement('input');
+  intro.type = 'file';
+  intro.accept = '.ogg,.wav,audio/ogg,audio/wav';
+  body.append(intro);
+  const loopAt = field(body, 'Where the loop begins, in milliseconds (optional; with an intro, its length)', '', { placeholder: 'empty: the loop file from its start' });
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Import';
+  const read = async file => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  };
+  go.onclick = async () => {
+    const n = parseInt(number.value, 10);
+    if (isNaN(n) || n < 0 || n > 199) { problem.textContent = 'A BGM number, 0-199.'; return; }
+    const loopFile = loop.files && loop.files[0];
+    if (!loopFile) { problem.textContent = 'Pick the loop file.'; return; }
+    const name = 'BGM' + String(n).padStart(2, '0');
+    const ms = loopAt.value.trim() === '' ? null : parseInt(loopAt.value, 10);
+    go.disabled = true;
+    try {
+      const r = await api('/api/audio/import', { name, part: 1, bytes: await read(loopFile), loopMs: isNaN(ms) ? null : ms });
+      if (!r.ok) throw new Error(r.error);
+      const introFile = intro.files && intro.files[0];
+      if (introFile) {
+        const r2 = await api('/api/audio/import', { name, part: 0, bytes: await read(introFile) });
+        if (!r2.ok) throw new Error(r2.error);
+      }
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      state.audio = null;
+      await loadList();
+      say(`${name} is the mod's tune${introFile ? ' (intro + loop)' : ''} - Music { Bgm: ${n} } plays it`, 'good');
+      inspectAsset('audio', name);
+    } catch (e) { problem.textContent = e.message; go.disabled = false; }
+  };
+  actions.append(go);
+  body.append(actions);
 }
 
 /// Name and starter for a new C# file; opens it when made.

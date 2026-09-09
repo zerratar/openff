@@ -67,12 +67,22 @@ namespace OpenFF.Client
 			try
 			{
 				byte[] data = GameArchive.Read(entry);
-				int start = OggStart(data);
-				if (start < 0)
+				SoundEffect sound;
+				if (data.Length > 12 && data[0] == 'R' && data[1] == 'I' && data[2] == 'F' && data[3] == 'F')
 				{
-					throw new InvalidDataException("no OggS page in " + entry);
+					// A WAV of a mod's own (PCM): MonoGame reads the RIFF itself.
+					using MemoryStream wav = new MemoryStream(data, false);
+					sound = SoundEffect.FromStream(wav);
 				}
-				SoundEffect sound = Decode(data, start);
+				else
+				{
+					int start = OggStart(data);
+					if (start < 0)
+					{
+						throw new InvalidDataException("no OggS page in " + entry);
+					}
+					sound = Decode(data, start);
+				}
 				lock (_cache) _cache[name] = sound;
 				Log.Write(LogChannel.File, "sound: " + entry + " -> " + sound.Duration.TotalSeconds.ToString("0.0") + "s");
 				return sound;
@@ -95,6 +105,7 @@ namespace OpenFF.Client
 			foreach (string candidate in new[]
 			{
 				"sound/" + name + ".ogg",
+				"sound/" + name + ".wav",
 				"files/SOUND/BGM/" + name + ".akb",
 				"files/SOUND/SE/" + name + ".akb",
 				"files/SOUND/VOICE/" + name + ".akb"

@@ -61,6 +61,18 @@ internal static partial class GlobalScope
 			{
 				SENo = 0;
 			}
+			if (SENo >= _pBGMInfo.Length || _pBGMInfo[SENo].getSeqNo() < 0)
+			{
+				// PORT: a tune of a mod's own under a number the table has no entry for (the
+				// game's run to 58): its parts are in the content chain as sound/BGMnn_0/_1,
+				// and the sequence number is the BGM number, as for every tune in the table.
+				string name = string.Format(System.Globalization.CultureInfo.InvariantCulture, "BGM{0:00}", SENo);
+				if (OpenFF.Client.OggSound.Has(name + "_1") || OpenFF.Client.OggSound.Has(name + "_0"))
+				{
+					return new BGMInfo(100 + SENo, SENo);
+				}
+				return SENo < _pBGMInfo.Length ? _pBGMInfo[SENo] : null;
+			}
 			return _pBGMInfo[SENo];
 		}
 

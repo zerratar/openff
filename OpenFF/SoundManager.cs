@@ -534,9 +534,18 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 		soundFilename[channel] = filename;
 		MediaPlayer[,] array = sound;
 		float num = soundVolume[channel];
+		// PORT: a sound the table does not know - a mod's own tune under a free number
+		// (BGM30..BGM59: the BGM table has the numbers, the game ships no files), or its
+		// own effect - has whatever parts the content chain holds: _0 the intro, _1 the loop.
+		int parts;
+		if (!SoundAssignTable.TryGetValue(filename, out parts))
+		{
+			parts = (OpenFF.Client.OggSound.Has(filename + "_0") ? 1 : 0) | (OpenFF.Client.OggSound.Has(filename + "_1") ? 2 : 0);
+			if (parts != 0) OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "sound: " + filename + " is the mods' own (parts " + parts + ")");
+		}
 		for (int i = 0; i < 2; i++)
 		{
-			if (SoundAssignTable.ContainsKey(filename) && (SoundAssignTable[filename] & (1 << i)) != 0)
+			if ((parts & (1 << i)) != 0)
 			{
 				array[channel, i] = new MediaPlayer();
 				try

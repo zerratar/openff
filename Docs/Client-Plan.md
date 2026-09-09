@@ -2006,8 +2006,9 @@ mods that must also install into the Steam games:
 - Maps: a whole map of the mod's own - done (below): a free stage name, a scene file with
   a Solid Mesh for the ground, `Exit` and `Music` components, *New map…* in Crystal. Next
   on it: the map's own camera settings and a background colour, its name on the menu.
-- Images, fonts, sounds: PNG is read already for pictures; a TTF for text and an OGG/WAV
-  for sound through `Game.Draw` and `Game.Audio` are the same shape of work as the meshes.
+- Images, fonts, sounds: PNG is read already for pictures; music of the mod's own as
+  OGG/WAV under a free BGM number - done (below); sound effects the same way, and a TTF
+  for text through `Game.Draw`, are next.
 - Steam targets keep to the game's formats: the duplication path, Replace with a PNG, the
   record forms, the table composers - and the DS converters when someone needs them.
 
@@ -2068,6 +2069,28 @@ marker), played - standing on the slab at --pos, BGM03 playing, the Door's Exit 
 -2,0,155 facing 180 (C-61), and Ur's own Exit back onto the slab (both through the game's
 map jump, fade and all). Left for later: a map's camera settings and a background colour
 (the void is black), its name on the menu, the map screen.
+
+### Music of the mod's own (2026-09-09, morning)
+
+The game's music path is `playBGM n` → `BGMInfoMng` (a 64-entry table, seq = n) →
+`NNS_SndMain` ("BGM%.2d") → `SoundManager.playSound`, which consults a hard-coded
+`SoundAssignTable` for which parts (_0 intro, _1 loop) a name has and asks `MediaPlayer`
+for each - and `MediaPlayer` already reads `OggSound` from the content chain before the
+XNB. Two PORT points open it to a mod's own tunes: `playSound` takes a name the table
+lacks with whatever parts the chain holds, and `getBGMInfo` answers a number past the
+table (or with no sequence) when the chain has `BGMnn_0/_1`. `OggSound` reads a WAV too
+(RIFF → `SoundEffect.FromStream`), looked for as `sound/<name>.wav`. The game ships
+BGM00..58, so a mod's numbers start at 59 (`Audio.FirstFreeBgm`; to 199 - the format
+takes three digits). Crystal: `Audio.AddOwn` lists the project's `files/sound/*` as own
+assets (length from the Ogg's last granule or the WAV's data chunk), `Audio.Import`
+writes a part and the `.dat`, `/api/audio/free` and `/api/audio/import`, *Import a tune…*
+on the Audio library (OpenFF projects), the row marked the mod's own, the Bgm picker
+lists it. Tried: BGM59 as an Ogg loop (the game's BGM03 loop, as a stand-in) with a
+generated 1.5 s WAV tone as intro, `Music { Bgm: 59 }` on The Old Quarry - the log's
+"BGM59 is the mods' own (parts 3)", both parts loaded, the tone then the loop (C-62).
+Next on this line: sound effects of the mod's own (`SEnnn_nn` has the same table shape;
+`g_SEInfoTable` is the number → category map to open the same way), and the same import
+for a Steam target as an XNB writer.
 
 ## Working rules
 

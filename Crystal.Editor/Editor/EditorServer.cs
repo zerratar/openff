@@ -1328,6 +1328,29 @@ namespace Crystal.Editor
 					SendJson(context, Audio.Uses(_workspace, Query(context, "name")));
 					return;
 
+				case "/api/audio/free":
+					// The first BGM number the game ships no tune for and the project has not taken.
+					SendJson(context, new { ok = true, bgm = Audio.FreeBgm(_workspace, Audio.List(_workspace.ContentDirectory, _workspace)), first = Audio.FirstFreeBgm, last = Audio.LastFreeBgm });
+					return;
+
+				case "/api/audio/import":
+				{
+					// A sound of the mod's own: { name: BGM30, part: 0|1, bytes: base64 (Ogg Vorbis or WAV), loopMs? }.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string written = Audio.Import(_workspace, body?["name"]?.GetValue<string>(), body?["part"]?.GetValue<int>() ?? 1,
+							System.Convert.FromBase64String(body?["bytes"]?.GetValue<string>() ?? ""), body?["loopMs"]?.GetValue<int>());
+						SendJson(context, new { ok = true, file = written });
+					}
+					catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException or InvalidOperationException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
+
 				case "/api/audio/wav":
 					GetAudioWav(context);
 					return;

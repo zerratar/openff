@@ -104,7 +104,8 @@ async function loadList() {
     // Sounds are not archive entries - they are XNBs beside the game - so the list
     // comes from somewhere else and carries more with it.
     state.audio = await api('/api/audio');
-    state.files = state.audio.map(sound => ({ name: sound.name, overridden: false }));
+    // A tune of the mod's own (sound/BGMnn_1.ogg in the project's files) is marked so.
+    state.files = state.audio.map(sound => ({ name: sound.name, overridden: false, own: Boolean(sound.own), note: sound.own ? 'the mod\'s own: sound/' + sound.name + '_n in the project\'s files' : '' }));
   } else if (state.browse === 'code') {
     // The mod's own files - the project's, not a game's - so the same whichever game
     // the page is looking at. A source file changed since the last build is marked

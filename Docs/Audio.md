@@ -46,12 +46,25 @@ A sound with nothing listed under **What plays it** is not unused - it means no 
 plays it *by number*. Menu sounds, battle sounds and anything the engine starts
 directly will not appear, because they never go through a script.
 
-## Replacing a sound
+## Replacing a sound, and sounds of the mod's own (OpenFF)
 
-Not yet. Sounds are XNBs loaded by MonoGame's content manager, not archive entries, so
-the override directory does not reach them - a replacement means writing an XNB, and
-the tool only reads them today. `crystal extract` already pulls all 475 of them out
-as WAV, so the missing half is a writer.
+For the Steam game: not yet. Its sounds are XNBs loaded by MonoGame's content manager,
+not archive entries, so the override directory does not reach them - a replacement
+means writing an XNB, and the tool only reads them today. `crystal extract` already
+pulls all 475 of them out as WAV, so the missing half is a writer.
 
-Nothing in the game's audio code has been rewritten. It works, and the only thing
-touched here is reading it.
+For the OpenFF client: the client reads a sound from the content chain first -
+`sound/<name>.ogg` (Ogg Vorbis) or `sound/<name>.wav` (PCM) - before the XNB, so a
+file of those names in the project's `files/sound/` replaces a part of a game's sound
+(`BGM03_1.ogg` the loop of tune 3), and a file under a name the game has no sound for
+is a sound of the mod's own. Music: the game's BGM table runs 0..58; a number from 59
+up is the mod's - the client plays whatever parts the chain holds (`_0` the intro,
+`_1` the loop; `sound/BGMnn.dat` the loop point in milliseconds). The Audio tab's
+**Import a tune…** (OpenFF projects) writes them: the loop file, an intro if there is
+one, the number picked from the free ones. `Music { Bgm: 59 }` on a map's object,
+`playBGM 59` in a script or `Game.Audio.PlayBgm(59)` in C# plays it. The list marks
+them *the mod's own* and plays them like the game's.
+
+Nothing else in the game's audio code has been rewritten; the two PORT points are
+`SoundManager.playSound` (the parts a name the table lacks has) and
+`BGMInfoMng.getBGMInfo` (a number past the table when the chain has its files).

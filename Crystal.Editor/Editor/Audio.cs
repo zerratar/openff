@@ -41,6 +41,9 @@ namespace Crystal.Editor
 
 		/// <summary>Loop point in milliseconds, from sound/&lt;name&gt;.dat, or -1.</summary>
 		public int LoopAt { get; set; } = -1;
+
+		/// <summary>The mod's own: sound/&lt;name&gt;_n.ogg (or .wav) in the project's files, nothing of the game's behind it.</summary>
+		public bool Own { get; set; }
 	}
 
 	internal sealed class AudioUse
@@ -120,6 +123,8 @@ namespace Crystal.Editor
 				}
 			}
 
+			AddOwn(workspace, assets);
+
 			foreach (AudioAsset asset in assets.Values)
 			{
 				asset.Parts.Sort();
@@ -128,6 +133,145 @@ namespace Crystal.Editor
 				.OrderBy(a => a.Kind, StringComparer.Ordinal)
 				.ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
 				.ToList();
+		}
+
+		/// <summary>The folder the mod's own sounds live in, under the project's files: sound/BGM30_1.ogg and the like.</summary>
+		public const string OwnFolder = "sound";
+
+		/// <summary>The BGM numbers the game ships no tune for: a mod's own go there. The game's run 0..58; the client takes any number whose parts the content chain holds, so a mod has 59..199.</summary>
+		public const int FirstFreeBgm = 59, LastFreeBgm = 199;
+
+		/// <summary>
+		/// The mod's own sounds - sound/&lt;name&gt;_&lt;part&gt;.ogg or .wav in the project's files - added
+		/// to (or laid over) the game's list. The client plays a name the game's table lacks
+		/// from whatever parts the content chain holds, so a file here under a free BGM number
+		/// is a tune of the mod's; under a game's name it replaces that part.
+		/// </summary>
+		private static void AddOwn(Workspace workspace, Dictionary<string, AudioAsset> assets)
+		{
+			string folder = workspace.OverrideDirectory == null ? null : Path.Combine(workspace.OverrideDirectory, OwnFolder);
+			if (folder == null || !Directory.Exists(folder)) return;
+			foreach (string file in Directory.EnumerateFiles(folder))
+			{
+				string extension = Path.GetExtension(file);
+				if (!string.Equals(extension, ".ogg", StringComparison.OrdinalIgnoreCase) && !string.Equals(extension, ".wav", StringComparison.OrdinalIgnoreCase)) continue;
+				Match match = Part.Match(Path.GetFileNameWithoutExtension(file));
+				if (!match.Success) continue;
+				string name = match.Groups["name"].Value;
+				int part = int.Parse(match.Groups["part"].Value, CultureInfo.InvariantCulture);
+				if (!assets.TryGetValue(name, out AudioAsset asset))
+				{
+					assets[name] = asset = new AudioAsset
+					{
+						Name = name,
+						Kind = name.StartsWith("BGM", StringComparison.OrdinalIgnoreCase) ? "bgm" : "se",
+						Call = CallFor(name),
+						LoopAt = LoopPoint(workspace, name),
+						Own = true
+					};
+				}
+				if (!asset.Parts.Contains(part)) asset.Parts.Add(part);
+				if (asset.Own && (asset.Milliseconds == 0 || part == 1))   // the loop is the tune's length; the intro only when there is nothing else
+				{
+					try
+					{
+						byte[] data = File.ReadAllBytes(file);
+						(int ms, int rate, int channels) = Describe(data);
+						asset.Milliseconds = ms; asset.SampleRate = rate; asset.Channels = channels;
+					}
+					catch (Exception) { }
+				}
+			}
+		}
+
+		/// <summary>Length, rate and channels of an Ogg Vorbis or a WAV, from its headers.</summary>
+		private static (int ms, int rate, int channels) Describe(byte[] data)
+		{
+			if (data.Length > 12 && data[0] == 'R' && data[1] == 'I' && data[2] == 'F' && data[3] == 'F')
+			{
+				// fmt chunk: channels at 22, rate at 24, byte rate at 28; data chunk's length gives the time.
+				int channels = data[22] | (data[23] << 8);
+				int rate = (int)ReadUInt32(data, 24);
+				int byteRate = (int)ReadUInt32(data, 28);
+				int at = 12, dataLength = 0;
+				while (at + 8 <= data.Length)
+				{
+					int size = (int)ReadUInt32(data, at + 4);
+					if (data[at] == 'd' && data[at + 1] == 'a' && data[at + 2] == 't' && data[at + 3] == 'a') { dataLength = size; break; }
+					at += 8 + size + (size & 1);
+				}
+				return (byteRate > 0 ? (int)((long)dataLength * 1000 / byteRate) : 0, rate, channels);
+			}
+			if (data.Length > 40 && data[0] == 'O' && data[1] == 'g' && data[2] == 'g' && data[3] == 'S')
+			{
+				// The identification header (the first packet): channels at +11, rate at +12 from "\x01vorbis";
+				// the last page's granule position is the sample count.
+				int id = IndexOf(data, new[] { (byte)1, (byte)'v', (byte)'o', (byte)'r', (byte)'b', (byte)'i', (byte)'s' }, 0);
+				if (id < 0) return (0, 0, 0);
+				int channels = data[id + 11];
+				int rate = (int)ReadUInt32(data, id + 12);
+				long granule = 0;
+				for (int at = data.Length - 27; at >= 0; at--)
+				{
+					if (data[at] == 'O' && data[at + 1] == 'g' && data[at + 2] == 'g' && data[at + 3] == 'S')
+					{
+						granule = (long)ReadUInt32(data, at + 6) | ((long)ReadUInt32(data, at + 10) << 32);
+						break;
+					}
+				}
+				return (rate > 0 ? (int)(granule * 1000 / rate) : 0, rate, channels);
+			}
+			return (0, 0, 0);
+		}
+
+		/// <summary>The first BGM number the game ships no tune for and the project has not taken.</summary>
+		public static int FreeBgm(Workspace workspace, List<AudioAsset> assets)
+		{
+			HashSet<string> taken = new HashSet<string>(assets.Select(a => a.Name), StringComparer.OrdinalIgnoreCase);
+			for (int n = FirstFreeBgm; n <= LastFreeBgm; n++)
+			{
+				if (!taken.Contains("BGM" + n.ToString("00", CultureInfo.InvariantCulture))) return n;
+			}
+			return -1;
+		}
+
+		/// <summary>
+		/// Writes a sound of the mod's own into the project's files: sound/&lt;name&gt;_&lt;part&gt;.ogg (or .wav
+		/// by the bytes), and sound/&lt;name&gt;.dat with the loop point when one is given. The name is
+		/// a BGMnn or an SEnnn_nn; a part is 0 (the intro) or 1 (the loop).
+		/// </summary>
+		public static string Import(Workspace workspace, string name, int part, byte[] bytes, int? loopMs)
+		{
+			if (string.IsNullOrWhiteSpace(name) || !Regex.IsMatch(name, @"^(BGM\d{2,3}|SE\d{3}_\d{2})$", RegexOptions.IgnoreCase)) throw new ArgumentException("a name like BGM30 or SE300_00");
+			if (part != 0 && part != 1) throw new ArgumentException("part 0 (the intro) or 1 (the loop)");
+			if (bytes == null || bytes.Length < 12) throw new ArgumentException("an Ogg Vorbis or WAV file");
+			bool ogg = bytes[0] == 'O' && bytes[1] == 'g' && bytes[2] == 'g' && bytes[3] == 'S';
+			bool wav = bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F';
+			if (!ogg && !wav) throw new ArgumentException("not an Ogg Vorbis (OggS) or a WAV (RIFF) file");
+			name = name.ToUpperInvariant();
+			string entry = OwnFolder + "/" + name + "_" + part + (ogg ? ".ogg" : ".wav");
+			// One format per part: a .wav going in takes an .ogg of the same part out, and the other way.
+			string other = Path.Combine(workspace.OverrideDirectory, OwnFolder, name + "_" + part + (ogg ? ".wav" : ".ogg"));
+			if (File.Exists(other)) File.Delete(other);
+			workspace.Write(entry, bytes);
+			if (loopMs.HasValue && loopMs.Value >= 0)
+			{
+				workspace.Write(OwnFolder + "/" + name + ".dat", BitConverter.GetBytes(loopMs.Value));
+			}
+			return entry;
+		}
+
+		/// <summary>The bytes of one part of a sound of the mod's own, with its content type; null when the part is not the mod's.</summary>
+		public static byte[] Own(Workspace workspace, string name, int part, out string contentType)
+		{
+			contentType = null;
+			if (workspace.OverrideDirectory == null) return null;
+			foreach ((string ext, string type) in new[] { (".ogg", "audio/ogg"), (".wav", "audio/wav") })
+			{
+				string path = Path.Combine(workspace.OverrideDirectory, OwnFolder, name + "_" + part + ext);
+				if (File.Exists(path)) { contentType = type; return File.ReadAllBytes(path); }
+			}
+			return null;
 		}
 
 		/// <summary>The script line that plays this sound, worked back from its name.</summary>
@@ -174,6 +318,8 @@ namespace Crystal.Editor
 		public static byte[] Playable(Workspace workspace, string name, int part,
 			out string contentType)
 		{
+			byte[] own = Own(workspace, name, part, out contentType);
+			if (own != null) return own;
 			if (workspace.Game == "ff4")
 			{
 				contentType = "audio/ogg";
