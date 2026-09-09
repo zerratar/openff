@@ -1378,6 +1378,16 @@ namespace Crystal.Editor
 						int.Parse(Query(context, "index") ?? "0", CultureInfo.InvariantCulture)));
 					return;
 
+				case "/api/model/joint":
+					// A joint's matrix per frame (R_te for the right hand...), for a weapon posed on a character in the viewer.
+					try
+					{
+						SendJson(context, Models.ReadJoint(_workspace, Query(context, "name"), Query(context, "pack"),
+							int.Parse(Query(context, "index") ?? "0", CultureInfo.InvariantCulture), Query(context, "node") ?? "R_te"));
+					}
+					catch (Exception ex) { SendJson(context, new { error = ex.Message }); }
+					return;
+
 				case "/api/textures":
 					SendJson(context, new
 					{

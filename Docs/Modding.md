@@ -598,7 +598,17 @@ than re-exported: `"modelRotation": [x, y, z]` (degrees, applied about X, then Y
 `"modelOffset": [x, y, z]` (the hand's units) - the *Rotation* and *Offset* rows of the card.
 A shield exported facing +Z wants a rotation of `[35, 180, 0]`. The same fit goes into *Write
 as a w### model* below, baked into the vertices, so one definition places the model alike on
-both targets. The record's *Model* (graphId) still names the model
+both targets. Rather than guess the numbers, the card's **On a character…** opens the model
+viewer with the file in a character's hand: the viewer's *on a character* toggle puts one of
+the game's party models (j101…) under the viewed weapon, the transport plays that
+character's battle motions (`b_b01`: the idle, the swings), and the weapon follows the hand
+joint each frame exactly as the game poses it (`R_te` / `L_te`; a shield the forearm,
+`R_ude` / `L_ude`; then the game's own grip turn and offset). The *fit* fields there - scale,
+rotation, offset - move the model live and save to the definition as you change them
+(arrow keys nudge a field, Shift for ten steps), so a Blender export is fitted to the attack
+animations by eye. The toggle works on any weapon model, the game's `w###` too, for
+comparison; off, the viewer shows the model on its own as before. The record's *Model*
+(graphId) still names the model
 the game loads and poses - the base's is fine - and *Kind* still picks the swing motions; the
 game's weapon character is hidden, shown, faded and shrunk exactly as before (its render
 object gets a stand-in, `CRenderObject.StandIn`, and only the draw is the glTF's:

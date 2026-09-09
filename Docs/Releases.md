@@ -21,6 +21,19 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   hero stands still while the player can still advance the lines. *Play in OpenFF* starts
   the client on the map with the cutscene playing (`--cutscene=PATH`). The whole thing is
   plain data in the scene file, so a cutscene can also be written by hand or generated.
+- **A weapon on a character, in the model viewer.** The viewer's *on a character* toggle
+  puts one of the party's models (j101…) under a viewed weapon or shield, plays its battle
+  motions (b_b01: the idle, the swings) through the transport, and poses the weapon from the
+  hand joint each frame as the game does - `R_te`/`L_te` for a weapon, the forearm for a
+  shield, then the game's grip turn and offset (`btl.BattlePlayer.haveWeapon`). For a glTF an
+  item definition names, the *fit* fields (scale, rotation, offset - what the client applies in
+  battle) move the model live and save to the definition, so an export is fitted to the attack
+  animations by eye; the Look card's *On a character…* opens the viewer that way. The game's
+  own `w###` models take the toggle too, for comparison. Off, the viewer shows the model alone
+  as before. Under it: `/api/model/joint` (a node's matrix per frame of a motion, from the same
+  SBC walk the viewer's poses come from), a second model and an attach matrix in the viewer,
+  and a transport that can be pointed at another model. The Look card now shows for a shield
+  (armour with a model of its own) as well as a weapon.
 - **`Game.Camera.MoveTo` did nothing.** In the game's free camera mode a set position is
   rebuilt every frame from the target, an angle pair and a distance, so the position the
   API wrote was overwritten before it was seen and the camera parked 16 units behind its

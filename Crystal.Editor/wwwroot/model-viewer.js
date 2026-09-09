@@ -98,6 +98,12 @@ function makeModelViewer(canvas, status, options = {}) {
   let textures = new Map();
   let showHidden = false;
 
+  // A second model under the first - a character the viewed weapon sits on - with its own
+  // buffers, textures and pose; and the matrix that puts the viewed model where it goes
+  // (the hand joint, the grip's turn and offset, the item's own fit). Null for neither.
+  let companion = null;
+  let attach = null;
+
   // Camera: an orbit, in radians and model units.
   let yaw = 0.6;
   let pitch = 0.5;
@@ -131,17 +137,27 @@ function makeModelViewer(canvas, status, options = {}) {
     gl.useProgram(program);
     gl.uniformMatrix4fv(uniform.camera, false, cameraMatrix());
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    // The character first, then the weapon on it: both go through the same depth buffer,
+    // so a blade behind the arm is hidden by the arm as in the game.
+    if (companion && companion.bundle && companion.bundle.groups) {
+      drawModel(companion.bundle, companion.vertexBuffer, companion.indexBuffer, companion.indexAttrBuffer, companion.textures,
+        companion.pose, companion.poseFrame, companion.poseOffsets, null);
+    }
+    drawModel(bundle, vertexBuffer, indexBuffer, indexAttrBuffer, textures, pose, poseFrame, poseOffsets, attach);
+  }
+
+  function drawModel(model, vertices, indices, mindices, pictures, thePose, theFrame, theOffsets, world) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertices);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices);
     const stride = 8 * 4;
     bind(attribute.position, 3, 0);
     bind(attribute.coord, 2, 3 * 4);
     bind(attribute.colour, 3, 5 * 4);
     if (attribute.mindex >= 0) {
-      gl.bindBuffer(gl.ARRAY_BUFFER, indexAttrBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, mindices);
       gl.enableVertexAttribArray(attribute.mindex);
       gl.vertexAttribPointer(attribute.mindex, 1, gl.FLOAT, false, 4, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertices);
     }
 
     // The game draws the model twice - everything opaque, then everything
@@ -150,12 +166,12 @@ function makeModelViewer(canvas, status, options = {}) {
     // where the holes in the terrain came from.
     for (let pass = 0; pass < 2; pass++) {
     gl.depthMask(pass === 0);
-    for (const group of bundle.groups) {
+    for (const group of model.groups) {
       if (!group.count) continue;
       if (group.hidden && !showHidden) continue;
       if (Boolean(group.translucent) !== (pass === 1)) continue;
 
-      const texture = group.texture ? textures.get(group.texture) : null;
+      const texture = group.texture ? pictures.get(group.texture) : null;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, texture || blank);
       if (texture) applyWrap(gl, group);
@@ -167,7 +183,7 @@ function makeModelViewer(canvas, status, options = {}) {
         : (texture ? [1, 1, 1] : rgb(group.colour));
       gl.uniform3fv(uniform.tint, tint);
       gl.uniform1f(uniform.alpha, group.hidden ? 0.5 : (group.alpha ?? 1));
-      gl.uniformMatrix4fv(uniform.palette, false, paletteFor(group));
+      gl.uniformMatrix4fv(uniform.palette, false, paletteFor(group, thePose, theFrame, theOffsets, world));
 
       gl.drawElements(gl.TRIANGLES, group.count, indexType, group.start * indexSize);
     }
@@ -215,15 +231,15 @@ function makeModelViewer(canvas, status, options = {}) {
   /// The group's matrices for this frame, each times the billboard turn, in the
   /// order the vertices index them. Entries the group does not use stay whatever
   /// they were; nothing reads them.
-  function paletteFor(group) {
+  function paletteFor(group, thePose, theFrame, theOffsets, world) {
     const board = billboardMatrix(group);
     const count = Math.min(PALETTE, (group.matrices && group.matrices.length) || 1);
     for (let i = 0; i < count; i++) {
       let m = board;
-      if (pose && group.piece !== undefined && poseOffsets[group.piece] !== undefined) {
-        const stride = poseOffsets[poseOffsets.length - 1];
-        const at = (poseFrame * stride + poseOffsets[group.piece] + i) * 12;
-        const d = pose.matrices;
+      if (thePose && group.piece !== undefined && theOffsets[group.piece] !== undefined) {
+        const stride = theOffsets[theOffsets.length - 1];
+        const at = (theFrame * stride + theOffsets[group.piece] + i) * 12;
+        const d = thePose.matrices;
         if (at + 12 <= d.length) {
           const delta = [
             d[at], d[at + 1], d[at + 2], 0,
@@ -234,9 +250,53 @@ function makeModelViewer(canvas, status, options = {}) {
           m = board === IDENTITY ? delta : multiply(board, delta);
         }
       }
+      // Into the hand: the attach matrix moves the whole model after its own pose.
+      if (world) m = multiply(world, m);
       paletteData.set(m, i * 16);
     }
     return paletteData;
+  }
+
+  /// Vertex, index and matrix-index buffers for a bundle, uploaded.
+  function uploadModel(model, vertices, indices, mindices) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertices);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(model.buffer), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
+      bigIndices ? new Uint32Array(model.indices) : new Uint16Array(model.indices),
+      gl.STATIC_DRAW);
+    const vertexCount = model.buffer.length / 8;
+    const slots = new Float32Array(vertexCount);
+    if (model.matrixIndex && model.matrixIndex.length === vertexCount) slots.set(model.matrixIndex);
+    gl.bindBuffer(gl.ARRAY_BUFFER, mindices);
+    gl.bufferData(gl.ARRAY_BUFFER, slots, gl.STATIC_DRAW);
+  }
+
+  /// The textures a bundle names, fetched one at a time with a redraw each.
+  async function loadTextures(model, packageName, into) {
+    const wanted = [...new Set(model.groups.map(g => g.texture).filter(Boolean))];
+    await Promise.all(wanted.map(name => new Promise(done => {
+      const image = new Image();
+      image.onload = () => {
+        into.set(name, upload(gl, image));
+        draw();
+        done();
+      };
+      image.onerror = () => done();
+      image.src = wsUrl(`/api/model/texture?name=${encodeURIComponent(packageName)}`
+        + `&texture=${encodeURIComponent(name)}`);
+    })));
+    draw();
+  }
+
+  function offsetsOf(next) {
+    const offsets = [];
+    if (next && next.counts) {
+      let sum = 0;
+      for (const count of next.counts) { offsets.push(sum); sum += count; }
+      offsets.push(sum);            // the total: one frame's stride in matrices
+    }
+    return offsets;
   }
 
   function cameraMatrix() {
@@ -273,17 +333,7 @@ function makeModelViewer(canvas, status, options = {}) {
         return;
       }
 
-      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(model.buffer), gl.STATIC_DRAW);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
-        bigIndices ? new Uint32Array(model.indices) : new Uint16Array(model.indices),
-        gl.STATIC_DRAW);
-      const vertexCount = model.buffer.length / 8;
-      const slots = new Float32Array(vertexCount);
-      if (model.matrixIndex && model.matrixIndex.length === vertexCount) slots.set(model.matrixIndex);
-      gl.bindBuffer(gl.ARRAY_BUFFER, indexAttrBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, slots, gl.STATIC_DRAW);
+      uploadModel(model, vertexBuffer, indexBuffer, indexAttrBuffer);
       pose = null;
       poseFrame = 0;
 
@@ -293,20 +343,49 @@ function makeModelViewer(canvas, status, options = {}) {
 
       // Textures arrive one at a time and each one redraws, so the model appears
       // straight away and fills in rather than waiting on the slowest decode.
-      const wanted = [...new Set(model.groups.map(g => g.texture).filter(Boolean))];
-      await Promise.all(wanted.map(name => new Promise(done => {
-        const image = new Image();
-        image.onload = () => {
-          textures.set(name, upload(gl, image));
-          draw();
-          done();
-        };
-        image.onerror = () => done();
-        image.src = wsUrl(`/api/model/texture?name=${encodeURIComponent(packageName)}`
-          + `&texture=${encodeURIComponent(name)}`);
-      })));
+      await loadTextures(model, packageName, textures);
+    },
+
+    /// A character under the viewed model (null takes it away): its bundle, drawn with its
+    /// own pose (setCompanionPose / setCompanionFrame). The view frames the character.
+    async setCompanion(model, packageName) {
+      if (!model) {
+        companion = null;
+        if (bundle) { centre = bundle.centre || [0, 0, 0]; distance = (bundle.radius || 1) * 3; }
+        draw();
+        return;
+      }
+      companion = {
+        bundle: model, textures: new Map(),
+        vertexBuffer: gl.createBuffer(), indexBuffer: gl.createBuffer(), indexAttrBuffer: gl.createBuffer(),
+        pose: null, poseFrame: 0, poseOffsets: []
+      };
+      uploadModel(model, companion.vertexBuffer, companion.indexBuffer, companion.indexAttrBuffer);
+      centre = model.centre || [0, 0, 0];
+      distance = (model.radius || 1) * 3;
+      draw();
+      await loadTextures(model, packageName, companion.textures);
+    },
+
+    setCompanionPose(next) {
+      if (!companion) return;
+      companion.pose = next;
+      companion.poseFrame = 0;
+      companion.poseOffsets = offsetsOf(next);
       draw();
     },
+
+    setCompanionFrame(frame) {
+      if (!companion || !companion.pose) return;
+      companion.poseFrame = Math.max(0, Math.min(companion.pose.frames - 1, Math.floor(frame)));
+      draw();
+    },
+
+    /// Where the viewed model goes, as a column-major 4x4 (null: where it is).
+    setAttach(matrix) { attach = matrix || null; draw(); },
+
+    hasCompanion() { return Boolean(companion); },
+    attach() { return attach; },
 
     orbit(dx, dy) {
       yaw -= dx * 0.01;
@@ -322,9 +401,10 @@ function makeModelViewer(canvas, status, options = {}) {
     reset() {
       yaw = 0.6;
       pitch = 0.5;
-      if (bundle) {
-        centre = bundle.centre || [0, 0, 0];
-        distance = (bundle.radius || 1) * 3;
+      const framed = companion ? companion.bundle : bundle;
+      if (framed) {
+        centre = framed.centre || [0, 0, 0];
+        distance = (framed.radius || 1) * 3;
       }
       draw();
     },
@@ -335,12 +415,7 @@ function makeModelViewer(canvas, status, options = {}) {
     setPose(next) {
       pose = next;
       poseFrame = 0;
-      poseOffsets = [];
-      if (next && next.counts) {
-        let sum = 0;
-        for (const count of next.counts) { poseOffsets.push(sum); sum += count; }
-        poseOffsets.push(sum);            // the total: one frame's stride in matrices
-      }
+      poseOffsets = offsetsOf(next);
       draw();
     },
 

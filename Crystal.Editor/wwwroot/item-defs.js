@@ -153,10 +153,13 @@ function itemDefinitionPanel(def, onSaved) {
     row(prices, 'Sell', number(model.sell, def.baseSell, v => { model.sell = v; save(); }), 'What a shop pays for it; blank keeps the base\'s');
   }
 
-  // ---- a weapon's own look (OpenFF target): a glTF in the hand in place of the w### model
-  if (def.chain === 'weapon') {
+  // ---- a weapon's (or shield's) own look (OpenFF target): a glTF in the hand in place of the w### model.
+  // A shield is armour with a model of its own (the record's graphId); other armour has no model.
+  const graphField = (def.fields || []).find(f => f.name === 'graphId');
+  const isShield = def.chain === 'armour' && graphField && ((graphField.value ?? graphField.baseValue) > 0);
+  if (def.chain === 'weapon' || isShield) {
     const openff = typeof isOpenFFProject === 'function' && isOpenFFProject();
-    const look = card('Look - the model in the hand');
+    const look = card(isShield ? 'Look - the model on the arm' : 'Look - the model in the hand');
     const lookNote = document.createElement('p');
     lookNote.className = 'none';
     lookNote.textContent = (openff
@@ -199,7 +202,12 @@ function itemDefinitionPanel(def, onSaved) {
     view.textContent = 'View';
     view.title = 'The file in the model viewer';
     view.onclick = () => { if (chosen) openDoc('model', chosen); };
-    pick.append(shown, choose, view);
+    const onCharacter = document.createElement('button');
+    onCharacter.textContent = 'On a character…';
+    onCharacter.title = 'The model viewer with the file in a character\'s hand, the battle motions playing, and the fit (scale, rotation, offset) to adjust by eye';
+    // reload: a viewer already open on the file is rebuilt, so it comes up with the character on.
+    onCharacter.onclick = () => { if (chosen) { window.handPreviewWanted = isShield ? 'leftShield' : 'right'; openDoc('model', chosen, { reload: true }); } };
+    pick.append(shown, choose, view, onCharacter);
     row(look, 'glTF', pick, openff ? 'The file in the project\'s assets folder the client draws in the hand; blank for the game\'s w### model' : 'A file in the project\'s assets folder to write the game\'s model from');
     const scale = document.createElement('input');
     scale.type = 'number'; scale.step = '0.05'; scale.min = '0.05';

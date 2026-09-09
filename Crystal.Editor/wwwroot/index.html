@@ -416,6 +416,27 @@
     </div>
     <div class="model-body">
       <div class="stage"><canvas class="scene"></canvas></div>
+      <!-- A weapon in a character's hand: the character, the hand, and the item's fit (hand-preview.js). -->
+      <div class="hand-bar" hidden>
+        <label class="toggle"><input type="checkbox" class="hand-on"> on a character</label>
+        <span class="hand-controls" hidden>
+          <select class="hand-body" title="the character model"></select>
+          <select class="hand-which" title="which hand - a weapon sits in the hand (R_te / L_te), a shield on the forearm (R_ude / L_ude)">
+            <option value="right">right hand (weapon)</option>
+            <option value="left">left hand (weapon)</option>
+            <option value="rightShield">right forearm (shield)</option>
+            <option value="leftShield">left forearm (shield)</option>
+          </select>
+          <span class="hand-fit" hidden>
+            <span class="hand-fit-label" title="The item definition's fit: modelScale, modelRotation (degrees about X, Y, Z) and modelOffset - saved to the definition as you change them">fit</span>
+            <label>scale <input type="number" class="hand-scale" step="0.05" min="0.05"></label>
+            <label>rot <input type="number" class="hand-rx" step="5" title="degrees about X"><input type="number" class="hand-ry" step="5" title="degrees about Y"><input type="number" class="hand-rz" step="5" title="degrees about Z"></label>
+            <label>offset <input type="number" class="hand-ox" step="0.1" title="X"><input type="number" class="hand-oy" step="0.1" title="Y"><input type="number" class="hand-oz" step="0.1" title="Z"></label>
+            <button class="hand-reset" title="back to no turn, no offset, scale 1">reset</button>
+          </span>
+          <span class="hand-note none"></span>
+        </span>
+      </div>
       <!-- Motion: which pack, which motion in it, and where in it we are. -->
       <div class="anim-bar" hidden>
         <select class="anim-pack" title="motion pack (.ncap)"></select>
@@ -484,6 +505,7 @@
 <script src="monster-defs.js"></script>
 <script src="record-editor.js"></script>
 <script src="model-viewer.js"></script>
+<script src="hand-preview.js"></script>
 <script src="thumbnails.js"></script>
 <script src="picker.js"></script>
 <script src="project.js"></script>

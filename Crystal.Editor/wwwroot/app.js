@@ -1821,6 +1821,7 @@ async function openModel(name) {
 
   const viewer = makeModelViewer(canvas, say);
   if (!viewer) return;
+  if (activeDoc) activeDoc.viewer = viewer;
 
   const triangles = model.indices.length / 3;
   facts.textContent = `${model.groups.length} part(s)  ·  `
@@ -1869,7 +1870,9 @@ async function openModel(name) {
   window.addEventListener('resize', () => viewer.redraw());
 
   await viewer.show(model, name);
-  wireAnimation(node, viewer, name).catch(error => say(error.message, 'bad'));
+  const transport = await wireAnimation(node, viewer, name).catch(error => { say(error.message, 'bad'); return null; });
+  // A weapon on a character, with the item's fit to adjust (hand-preview.js).
+  if (typeof wireHandPreview === 'function') wireHandPreview(node, viewer, name, model, transport).catch(error => say(error.message, 'bad'));
 
   // Export: the mesh with its textures, plus whichever motion the transport is on.
   const exportButton = $('.export-glb', node);
@@ -1900,12 +1903,21 @@ async function openModel(name) {
 /// The transport under a model: motion packs the game has, the motions in the picked
 /// one, play/pause, loop, speed, and a timeline to scrub. Frames are the game's own -
 /// 30 a second - and the pose for every frame arrives at once, so scrubbing is free.
-async function wireAnimation(node, viewer, packageName) {
+/// The transport can be pointed at another model - a character under a weapon (hand-preview.js):
+/// `target` takes the poses and frames (the viewer itself by default) and `onFrame` hears each
+/// frame shown, with the pack and motion it belongs to. Returns { retarget(name, target, onFrame) }.
+async function wireAnimation(node, viewer, packageName, options = {}) {
   const bar = $('.anim-bar', node);
-  if (!bar) return;
-  const packs = await api(`/api/model/motions?name=${encodeURIComponent(packageName)}`);
-  if (!packs.length) return;
-  bar.hidden = false;
+  if (!bar) return null;
+  let target = options.target || viewer;
+  let onFrame = options.onFrame || null;
+  // A model with no motions of its own (a glTF asset) has an empty transport, not a broken one.
+  const motionsOf = async (name) => {
+    if (/\.(glb|gltf)$/i.test(name || '')) return [];   // a glTF's clips are its own; the game's packs mean nothing to it
+    try { const list = await api(`/api/model/motions?name=${encodeURIComponent(name)}`); return Array.isArray(list) ? list : []; }
+    catch (error) { return []; }
+  };
+  let packs = await motionsOf(packageName);
 
   const packSelect = $('.anim-pack', bar);
   const motionSelect = $('.anim-motion', bar);
@@ -1916,26 +1928,31 @@ async function wireAnimation(node, viewer, packageName) {
   const timeline = $('.anim-timeline', bar);
 
   // Fitting packs first, marked; the rest after a rule, since a person may know better.
-  const none = document.createElement('option');
-  none.value = '';
-  none.textContent = 'bind pose (no motion)';
-  packSelect.append(none);
-  let ruled = false;
-  for (const pack of packs) {
-    if (!pack.fits && !ruled && packSelect.options.length > 1) {
-      const rule = document.createElement('option');
-      rule.disabled = true;
-      rule.textContent = '── other skeletons ──';
-      packSelect.append(rule);
-      ruled = true;
+  const fillPacks = () => {
+    packSelect.textContent = '';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'bind pose (no motion)';
+    packSelect.append(none);
+    let ruled = false;
+    for (const pack of packs) {
+      if (!pack.fits && !ruled && packSelect.options.length > 1) {
+        const rule = document.createElement('option');
+        rule.disabled = true;
+        rule.textContent = '── other skeletons ──';
+        packSelect.append(rule);
+        ruled = true;
+      }
+      const option = document.createElement('option');
+      option.value = pack.name;
+      option.textContent = (pack.likely ? '★ ' : '') + shortName(pack.name).replace(/\.ncap\.lz$/i, '')
+        + ` (${pack.motions.length})`;
+      option.title = pack.fits ? 'same node count as this model' : 'a different skeleton - may not fit';
+      packSelect.append(option);
     }
-    const option = document.createElement('option');
-    option.value = pack.name;
-    option.textContent = (pack.likely ? '★ ' : '') + shortName(pack.name).replace(/\.ncap\.lz$/i, '')
-      + ` (${pack.motions.length})`;
-    option.title = pack.fits ? 'same node count as this model' : 'a different skeleton - may not fit';
-    packSelect.append(option);
-  }
+  };
+  fillPacks();
+  bar.hidden = packs.length === 0;
 
   let pose = null;
   let frame = 0;
@@ -1989,9 +2006,10 @@ async function wireAnimation(node, viewer, packageName) {
 
   const showFrame = f => {
     frame = f;
-    viewer.setFrame(frame);
+    target.setFrame(frame);
     label.textContent = pose ? `${frame} / ${pose.frames - 1}` : '0 / 0';
     drawTimeline();
+    if (onFrame) onFrame(frame, pose, packSelect.value || null, Number(motionSelect.value) || 0);
   };
 
   const loadMotion = async () => {
@@ -1999,14 +2017,18 @@ async function wireAnimation(node, viewer, packageName) {
     play.textContent = '\u25B6';
     if (!packSelect.value) {
       pose = null;
-      viewer.setPose(null);
+      target.setPose(null);
       showFrame(0);
       return;
     }
     say('loading motion\u2026');
-    pose = await api(`/api/model/pose?name=${encodeURIComponent(packageName)}`
-      + `&pack=${encodeURIComponent(packSelect.value)}&index=${motionSelect.value || 0}`);
-    viewer.setPose(pose);
+    const wantedName = packageName, wantedPack = packSelect.value, wantedIndex = motionSelect.value || 0;
+    const loaded = await api(`/api/model/pose?name=${encodeURIComponent(wantedName)}`
+      + `&pack=${encodeURIComponent(wantedPack)}&index=${wantedIndex}`);
+    // A retarget while the fetch was out: this pose is for a model no longer shown.
+    if (wantedName !== packageName) return;
+    pose = loaded;
+    target.setPose(pose);
     showFrame(0);
     say('');
     playing = true;
@@ -2071,15 +2093,41 @@ async function wireAnimation(node, viewer, packageName) {
   node.tabIndex = 0;
 
   // Start on the likeliest pack, playing its first motion.
-  const first = packs.find(p => p.likely) || null;
-  if (first) {
-    packSelect.value = first.name;
-    fillMotions();
-    await loadMotion();
-  } else {
-    fillMotions();
-    drawTimeline();
-  }
+  const start = async () => {
+    // The likeliest pack by name; failing that, for a party member's model (j###) the battle
+    // set b_b01 every job shares; failing that, any pack with the model's node count.
+    const first = packs.find(p => p.likely)
+      || (/(^|\/)j\d{3}\./i.test(packageName) ? packs.find(p => p.fits && /(^|\/)b_b01\.ncap/i.test(p.name)) : null)
+      || null;
+    if (first) {
+      packSelect.value = first.name;
+      fillMotions();
+      await loadMotion();
+    } else {
+      fillMotions();
+      showFrame(0);
+    }
+  };
+  await start();
+
+  return {
+    /// The transport onto another model: its packs, poses to `nextTarget`, frames to `nextOnFrame`.
+    async retarget(name, nextTarget, nextOnFrame) {
+      playing = false;
+      play.textContent = '\u25B6';
+      if (timer) { clearTimeout(timer); timer = null; }
+      pose = null;
+      packageName = name;
+      target = nextTarget || viewer;
+      onFrame = nextOnFrame || null;
+      packs = await motionsOf(name);
+      fillPacks();
+      bar.hidden = packs.length === 0;
+      await start();
+    },
+    /// The motion showing: the pack, the index, the frame, the pose's frame count.
+    current() { return { pack: packSelect.value || null, index: Number(motionSelect.value) || 0, frame, frames: pose ? pose.frames : 0 }; }
+  };
 }
 
 // Shared with script-editor.js and map-editor.js, which both load after this file.

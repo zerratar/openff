@@ -144,6 +144,13 @@ namespace Crystal
 		public List<HashSet<int>> WantedSlots;
 
 		/// <summary>
+		/// When set, every node's built matrix by node index as the SBC walk reaches it
+		/// (the game's joint matrix - what getJntMtx hands a weapon's pose from): a hand
+		/// joint has no geometry of its own, so the pieces alone never carry it.
+		/// </summary>
+		public Dictionary<int, int[]> NodeMatrices;
+
+		/// <summary>
 		/// Anything the reader stepped over rather than understood. Each distinct
 		/// note once - a command skipped a thousand times is one fact, not a thousand.
 		/// </summary>
@@ -538,6 +545,10 @@ namespace Crystal
 						currentN = Concat(baseMatrix, currentN);
 						current = (store & 1) != 0 ? Copy(currentN) : Concat(baseMatrix, current);
 						ScaleApply(current, scaleBy[0], scaleBy[1], scaleBy[2]);
+						if (model.NodeMatrices != null)
+						{
+							model.NodeMatrices[node] = Copy(current);
+						}
 
 						if ((flags & 0x20) != 0)
 						{
@@ -743,6 +754,16 @@ namespace Crystal
 		public static List<Mdl0Piece> Posed(byte[] data, List<HashSet<int>> wantedSlots,
 			Func<int, int[], int[], (int[] Matrix, int[] Scale)> pose)
 		{
+			return Posed(data, wantedSlots, pose, null);
+		}
+
+		/// <summary>
+		/// Posed, also filling <paramref name="nodeMatrices"/> (node index -> the built 4x3,
+		/// fixed point) when it is given - the joints, geometry or not.
+		/// </summary>
+		public static List<Mdl0Piece> Posed(byte[] data, List<HashSet<int>> wantedSlots,
+			Func<int, int[], int[], (int[] Matrix, int[] Scale)> pose, Dictionary<int, int[]> nodeMatrices)
+		{
 			int at = Find(data);
 			if (at < 0)
 			{
@@ -750,7 +771,7 @@ namespace Crystal
 			}
 			foreach ((string name, byte[] entry) in Dict(data, at + 8))
 			{
-				Mdl0Model model = new Mdl0Model { Pose = pose, WantedSlots = wantedSlots };
+				Mdl0Model model = new Mdl0Model { Pose = pose, WantedSlots = wantedSlots, NodeMatrices = nodeMatrices };
 				ReadModel(data, at + (int)U32(entry, 0), name, model);
 				return model.Pieces;
 			}

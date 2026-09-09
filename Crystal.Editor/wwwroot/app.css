@@ -2035,6 +2035,16 @@ header h1 .gem {
 .anim-bar .anim-timeline { flex: 1 1 200px; min-width: 160px; height: 28px; cursor: pointer; display: block; }
 .model-body { display: flex; flex-direction: column; }
 .model-body .stage { flex: 1; min-height: 0; }
+/* The weapon-on-a-character bar, above the transport. */
+.hand-bar { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-top: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; font-size: 12px; }
+.hand-bar[hidden], .hand-bar .hand-controls[hidden], .hand-bar .hand-fit[hidden] { display: none; }
+.hand-bar .hand-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hand-bar select { max-width: 200px; }
+.hand-bar .hand-fit { display: flex; align-items: center; gap: 8px; padding-left: 10px; border-left: 1px solid var(--line); }
+.hand-bar .hand-fit label { display: flex; align-items: center; gap: 3px; color: var(--dim); }
+.hand-bar .hand-fit input[type=number] { width: 56px; font-size: 12px; padding: 1px 3px; }
+.hand-bar .hand-fit-label { color: var(--accent); font-weight: 600; }
+.hand-bar .hand-note { font-size: 11px; }
 
 /* The add-object form's action strip stays at the bottom of the inspector. */
 .sticky-actions { position: sticky; bottom: 0; padding: 10px 0 4px; background: var(--panel);

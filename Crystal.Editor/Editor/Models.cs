@@ -476,6 +476,71 @@ namespace Crystal.Editor
 			return pose;
 		}
 
+		/// <summary>One joint of a model over a motion: per frame the node's built 4x3 in model units, what the game hands a weapon's pose from (getJntMtx).</summary>
+		public sealed class Joint
+		{
+			public string Node { get; set; }
+			public int Frames { get; set; }
+			/// <summary>frames x 12 floats, row-vector 4x3 (rotation rows, then the translation).</summary>
+			public List<float> Matrices { get; set; } = new List<float>();
+			/// <summary>The model's node names, for a picker.</summary>
+			public List<string> Nodes { get; set; }
+		}
+
+		/// <summary>
+		/// The joint named <paramref name="nodeName"/> (R_te, L_te for the hands; R_ude, L_ude
+		/// the forearms) of a model, over a motion of a pack - or its bind pose alone when no
+		/// pack is named. The node's matrix is the SBC's, so it includes every parent's.
+		/// </summary>
+		public static Joint ReadJoint(Workspace workspace, string modelName, string packName, int index, string nodeName)
+		{
+			byte[] data = Lz.Decompress(workspace.Read(modelName));
+			List<Mdl0Model> models = Mdl0.Read(data);
+			Mdl0Model model = models[0];
+			int node = model.Nodes.FindIndex(n => string.Equals(n, nodeName, StringComparison.OrdinalIgnoreCase));
+			if (node < 0)
+			{
+				throw new ArgumentException("no joint '" + nodeName + "' in " + modelName + " (it has " + string.Join(", ", model.Nodes) + ")");
+			}
+			List<HashSet<int>> wanted = model.Pieces.Select(p => new HashSet<int>(p.SlotMatrices.Keys)).ToList();
+			Joint joint = new Joint { Node = model.Nodes[node], Nodes = model.Nodes.ToList() };
+
+			if (string.IsNullOrEmpty(packName))
+			{
+				Dictionary<int, int[]> built = new Dictionary<int, int[]>();
+				Mdl0.Posed(data, wanted, null, built);
+				joint.Frames = 1;
+				Append(joint.Matrices, built.TryGetValue(node, out int[] m) ? m : Identity12());
+				return joint;
+			}
+
+			(string, NcapFile) found = Packs(workspace).FirstOrDefault(p => string.Equals(p.Name, packName, StringComparison.OrdinalIgnoreCase));
+			byte[] packRaw = workspace.Read(packName);
+			byte[] packData = Lz.IsCompressed(packRaw) ? Lz.Decompress(packRaw) : packRaw;
+			NcapFile pack = found.Item2 ?? NcapFile.Read(packData);
+			if (index < 0 || index >= pack.Motions.Count)
+			{
+				throw new ArgumentOutOfRangeException(nameof(index), "no motion " + index + " in " + packName);
+			}
+			JointAnimation motion = pack.Motions[index];
+			joint.Frames = motion.NumFrame;
+			for (int frame = 0; frame < motion.NumFrame; frame++)
+			{
+				int f = frame;
+				Dictionary<int, int[]> built = new Dictionary<int, int[]>();
+				Mdl0.Posed(data, wanted, (n, baseMatrix, baseScale) => NcapFile.Evaluate(motion, n, f, baseMatrix, baseScale, packData), built);
+				Append(joint.Matrices, built.TryGetValue(node, out int[] m) ? m : Identity12());
+			}
+			return joint;
+		}
+
+		private static int[] Identity12() => new[] { 4096, 0, 0, 0, 4096, 0, 0, 0, 4096, 0, 0, 0 };
+
+		private static void Append(List<float> into, int[] fixedMatrix)
+		{
+			for (int i = 0; i < 12; i++) into.Add(fixedMatrix[i] / 4096f);
+		}
+
 		/// <summary>
 		/// Writes the model as .glb into <paramref name="directory"/> - with a motion when a
 		/// pack and index are given - and returns the path. The name carries the motion so
