@@ -111,6 +111,9 @@ namespace OpenFF.Client
 				// The mod list, on the title where the phone's network entry was.
 				ModListScreen.Attach(game);
 
+				// Esc / Start: the client's own menu - settings (the display, the pad), exit.
+				PauseMenu.Attach(game);
+
 				// What mods draw (Game.Draw) and what they read (Game.Input).
 				ModDraw.Attach(game);
 				EngineInput.Attach(game);

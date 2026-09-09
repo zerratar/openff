@@ -53,7 +53,7 @@ namespace OpenFF.Client
 			(Keys.Right, PadRight),    (Keys.D, PadRight),
 
 			(Keys.Z, PadA),            (Keys.Space, PadA),      (Keys.Enter, PadA),
-			(Keys.X, PadB),            (Keys.Back, PadB),       (Keys.Escape, PadB),
+			(Keys.X, PadB),            (Keys.Back, PadB),       // Esc is the client's own menu (PauseMenu)
 
 			(Keys.C, PadX),
 			(Keys.V, PadY),
@@ -184,6 +184,31 @@ namespace OpenFF.Client
 			return 0;
 		}
 
+		/// <summary>The pad's bits alone, no keyboard: for a screen that types with the keyboard and steers with the pad (the name entry's on-screen keys).</summary>
+		internal static int PadOnlyBits() => _game != null && _game.IsActive ? GamePadBits() : 0;
+
+		/// <summary>Whether any pad is connected: the on-screen keys show for one.</summary>
+		internal static bool PadConnected
+		{
+			get
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					try { if (GamePad.GetState((PlayerIndex)i).IsConnected) return true; } catch (Exception) { }
+				}
+				return false;
+			}
+		}
+
+		/// <summary>The mouse in the 800x480 view space, and whether its left button is down.</summary>
+		internal static bool MouseInView(out int x, out int y)
+		{
+			MouseState mouse = Mouse.GetState();
+			if (_game == null) { x = mouse.X; y = mouse.Y; return mouse.LeftButton == ButtonState.Pressed; }
+			MapToViewSpace(mouse.X, mouse.Y, out x, out y);
+			return mouse.LeftButton == ButtonState.Pressed;
+		}
+
 		/// <summary>Whether a connected pad holds the left trigger: fast-forward, like Tab.</summary>
 		private static bool GamePadFast()
 		{
@@ -262,7 +287,7 @@ namespace OpenFF.Client
 
 		/// <summary>True while something other than the game owns input: a text field, the mod list, or a mod that captured it (Game.Input.Capture).</summary>
 		private static bool IsTyping =>
-			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || EngineInput.Captured;
+			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || PauseMenu.IsOpen || EngineInput.Captured;
 
 		private static void UpdateMouse()
 		{

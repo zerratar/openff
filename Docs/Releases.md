@@ -34,6 +34,19 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   driver was never a real one; it is the setting's now, and 4× is on by default (the DS
   look - pixel textures, no filtering - is untouched; only polygon edges smooth).
 - **Alt+Enter** switches windowed and full screen while playing and remembers the choice.
+- **The client's own menu.** Esc, or Start (Options) on a pad, anywhere - the title too:
+  Resume, Settings, Exit game. Settings holds what `settings.json` holds and applies it as
+  it is changed: the window (windowed / borderless / full screen), its size, anti-aliasing
+  (at the next start), vsync, how the stick runs, and the pad's buttons - pick a DS button,
+  press the pad button that should be it; *Reset to the defaults* puts them back. Written to
+  the file on the way out. Drawn like the mod list, with the game's font; the game goes on
+  behind it. (Esc used to be a second B; X and Backspace still are.)
+- **The name entry with a pad.** Up/Down move between the name and OK and A acts on them
+  (touch only, before); with a pad connected the name field shows on-screen keys - the
+  d-pad picks, A types, B deletes, X is a space, Start is Done; the keyboard types as before.
+- **Config with a pad.** L and R turn Config 1 and Config 2 (the tabs were touch only), and
+  Up past the first option no longer crashes (an index off the explanation table). Reported
+  by Karl.
 - **Saves were being lost - fixed.** The game read `save.bin` through .NET's IsolatedStorage,
   a store keyed by the executable's path, but created the file under `%AppData%\FF3` - so a
   build in any new folder never found a save file, its first write failed, and every save and

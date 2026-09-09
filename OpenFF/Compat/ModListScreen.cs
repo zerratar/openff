@@ -370,6 +370,9 @@ namespace OpenFF.Client
 			graphics.DrawStringStart();
 			graphics.SetColor(40, 40, 40, 255);
 			graphics.DrawString("MODS", tx, ty - 2, TitleSize);
+			// The client's own menu, said once where a new player looks first.
+			graphics.SetColor(90, 90, 90, 255);
+			graphics.DrawString("Esc / Start: settings", 12f, TextSpaceHeight - 22f, RowSize);
 			graphics.DrawStringEnd();
 		}
 

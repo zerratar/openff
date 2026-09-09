@@ -39,6 +39,9 @@ internal static partial class GlobalScope
 
 							private int step_;
 
+							// PORT: what the pad or keyboard points at - 0 the name, 1 the OK button - where the touch build only tapped.
+							private int padSel_;
+
 							public NameEntry()
 							{
 								currentPlayerID_ = pl.PLAYER_ID.PLAYER_1;
@@ -151,7 +154,18 @@ internal static partial class GlobalScope
 								case 2:
 								{
 									ds.g_TouchPanel.getPoint(out var x, out var y);
-									if (!endFlag_ && ds.g_TouchPanel.isRelease() && x >= 12 && x < 180 && y >= 150 && y < 230)
+									// PORT: the pad and keyboard - Up/Down between the name and OK, the hand cursor following, A to act;
+									// the touch build only tapped. A tap still works as it did.
+									bool padName = false, padOk = false;
+									if (!endFlag_ && !OpenFF.Client.TextEntry.Instance.IsActive)
+									{
+										int padEdge = ds.g_Pad.edge();
+										if ((padEdge & 0x40) != 0 && padSel_ != 0) { padSel_ = 0; menu.MenuManager.getSingleton().playSEMoveCursor(); }
+										if ((padEdge & 0x80) != 0 && padSel_ != 1) { padSel_ = 1; menu.MenuManager.getSingleton().playSEMoveCursor(); }
+										menu.MenuManager.getSingleton().GetCursor2d().SetPositionI((short)(padSel_ == 0 ? 36 : 130), (short)(padSel_ == 0 ? 190 : 286));
+										if ((padEdge & 1) != 0) { if (padSel_ == 0) padName = true; else padOk = true; }
+									}
+									if (!endFlag_ && (padName || (ds.g_TouchPanel.isRelease() && x >= 12 && x < 180 && y >= 150 && y < 230)))
 									{
 										menu.MenuManager.getSingleton().playSEDecide();
 										AppShell.createEditText(name_);
@@ -176,7 +190,7 @@ internal static partial class GlobalScope
 									}
 									bool flag = x >= 150 && x < 249 && y >= 266 && y < 306;
 									ok_cell_.SetColor((ds.g_TouchPanel.isTouch() && flag) ? 12632256u : 16777215u);
-									if (!endFlag_ && ds.g_TouchPanel.isRelease() && flag)
+									if (!endFlag_ && (padOk || (ds.g_TouchPanel.isRelease() && flag)))
 									{
 										if (name_.Length != 0)
 										{

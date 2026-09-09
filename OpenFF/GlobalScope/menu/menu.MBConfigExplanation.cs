@@ -72,6 +72,13 @@ internal static partial class GlobalScope
 				dgs.DGSMessageManager dGSMessageManager = null;
 				dGSMessageManager = ((M.display() != 1) ? dgs.msg.CMessageSys.getInstance().Sub() : dgs.msg.CMessageSys.getInstance().Main());
 				int[] array = new int[9] { 50650, 50651, 50652, 50653, 50654, 50655, 52073, 0, 0 };
+				// PORT: the pad can put the focus on a row the touch build never reached (Up past the
+				// first option lands on the page tabs), whose work() is outside the table: no line then.
+				if ((sbyte)M.work() < 0 || (sbyte)M.work() >= array.Length || array[(sbyte)M.work()] == 0)
+				{
+					m_temp = (sbyte)M.work();
+					return;
+				}
 				m_pMsg = dGSMessageManager.createMessage((uint)array[(sbyte)M.work()], dgs.INVALID_MSDHANDLE, (int)font);
 				m_temp = (sbyte)M.work();
 				if (m_pMsg != null)

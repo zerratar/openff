@@ -132,6 +132,50 @@ namespace OpenFF.Client
 			}
 		}
 
+		// ---- The on-screen keys, for a pad (and the mouse): rows of characters and a row of actions. ----
+		// A keyboard types as before; the grid is steered with the d-pad or stick, A picks a key,
+		// B rubs one out, X is a space, Start is Done. The mouse clicks a key.
+		private static readonly string[] KeyRows =
+		{
+			"ABCDEFGHIJKLM",
+			"NOPQRSTUVWXYZ",
+			"abcdefghijklm",
+			"nopqrstuvwxyz",
+			"0123456789-'.",
+		};
+		private static readonly string[] Actions = { "Space", "Delete", "Done", "Cancel" };
+		private int _row, _col;          // the highlighted key; row == KeyRows.Length is the action row
+		private int _previousPad;
+		private bool _mouseWasDown;
+		private const int GridX = 130, GridY = 232, CellW = 40, CellH = 30, ActionW = 130;
+
+		private bool ShowKeys => DesktopInput.PadConnected || _keysUsed || Options.Get("onscreen-keys") != null;
+		private bool _keysUsed;
+
+		private Rectangle CellRect(int row, int col)
+		{
+			if (row < KeyRows.Length) return new Rectangle(GridX + col * CellW, GridY + row * CellH, CellW, CellH);
+			return new Rectangle(GridX + col * ActionW, GridY + KeyRows.Length * CellH + 6, ActionW, CellH);
+		}
+
+		private int ColumnsIn(int row) => row < KeyRows.Length ? KeyRows[row].Length : Actions.Length;
+
+		private void Pick(int row, int col)
+		{
+			if (row < KeyRows.Length)
+			{
+				if (_text.Length < _maxLength) _text.Append(KeyRows[row][col]);
+				return;
+			}
+			switch (col)
+			{
+				case 0: if (_text.Length < _maxLength) _text.Append(' '); break;
+				case 1: if (_text.Length > 0) _text.Length--; break;
+				case 2: Complete(_text.ToString()); break;
+				case 3: Complete(null); break;
+			}
+		}
+
 		public override void Update(GameTime gameTime)
 		{
 			if (!IsActive)
@@ -153,6 +197,31 @@ namespace OpenFF.Client
 				_text.Length--;
 			}
 			_previousKeys = keys;
+			if (!IsActive) return;
+
+			// The pad on the grid: edges of its bits (the keyboard is not read here - it types).
+			int pad = DesktopInput.PadOnlyBits(), edge = pad & ~_previousPad;
+			_previousPad = pad;
+			if (edge != 0) _keysUsed = true;
+			if ((edge & 64) != 0) { _row = (_row + KeyRows.Length) % (KeyRows.Length + 1); _col = Math.Min(_col, ColumnsIn(_row) - 1); }
+			if ((edge & 128) != 0) { _row = (_row + 1) % (KeyRows.Length + 1); _col = Math.Min(_col, ColumnsIn(_row) - 1); }
+			if ((edge & 32) != 0) _col = (_col + ColumnsIn(_row) - 1) % ColumnsIn(_row);
+			if ((edge & 16) != 0) _col = (_col + 1) % ColumnsIn(_row);
+			if ((edge & 1) != 0) Pick(_row, _col);
+			else if ((edge & 2) != 0 && _text.Length > 0) _text.Length--;
+			else if ((edge & 1024) != 0 && _text.Length < _maxLength) _text.Append(' ');
+			else if ((edge & 8) != 0) Complete(_text.ToString());
+			if (!IsActive) return;
+
+			// The mouse on the grid.
+			bool down = DesktopInput.MouseInView(out int mx, out int my);
+			if (down && !_mouseWasDown && ShowKeys)
+			{
+				for (int r = 0; r <= KeyRows.Length; r++)
+					for (int c = 0; c < ColumnsIn(r); c++)
+						if (CellRect(r, c).Contains(mx, my)) { _row = r; _col = c; _keysUsed = true; Pick(r, c); }
+			}
+			_mouseWasDown = down;
 		}
 
 		private bool WasPressed(KeyboardState now, Keys key)
@@ -174,9 +243,13 @@ namespace OpenFF.Client
 			float scaleX = backWidth / (float)ViewWidth;
 			float scaleY = backHeight / (float)ViewHeight;
 
+			bool keysShown = ShowKeys;
+			// With the on-screen keys the panel reaches down to hold them; the field sits above.
+			Rectangle view = keysShown ? new Rectangle(110, 60, 580, 380) : new Rectangle(150, 150, 500, 180);
 			Rectangle panel = new Rectangle(
-				(int)(150 * scaleX), (int)(150 * scaleY),
-				(int)(500 * scaleX), (int)(180 * scaleY));
+				(int)(view.X * scaleX), (int)(view.Y * scaleY),
+				(int)(view.Width * scaleX), (int)(view.Height * scaleY));
+			int textY = keysShown ? 78 : 168;   // where the title starts, in view space
 
 			// The scene keeps rendering behind this; dim it slightly so the field reads
 			// as focused without hiding where you are.
@@ -190,8 +263,22 @@ namespace OpenFF.Client
 
 			// Underline for the field itself, so it looks like somewhere you type.
 			_batch.Draw(_panel, new Rectangle(
-				(int)(168 * scaleX), (int)(258 * scaleY),
+				(int)((view.X + 20) * scaleX), (int)((textY + 90) * scaleY),
 				(int)(200 * scaleX), (int)(2 * scaleY)), new Color(200, 200, 200, 255));
+			if (keysShown)
+			{
+				// The keys: a cell each, the highlighted one lit.
+				for (int r = 0; r <= KeyRows.Length; r++)
+				{
+					for (int c = 0; c < ColumnsIn(r); c++)
+					{
+						Rectangle cell = CellRect(r, c);
+						Rectangle at = new Rectangle((int)((cell.X + 2) * scaleX), (int)((cell.Y + 2) * scaleY), (int)((cell.Width - 4) * scaleX), (int)((cell.Height - 4) * scaleY));
+						bool lit = r == _row && c == _col;
+						_batch.Draw(_panel, at, lit ? new Color(230, 200, 90, 255) : new Color(40, 60, 130, 255));
+					}
+				}
+			}
 			_batch.End();
 
 			// Draw the text with the game's own font so it matches everything else.
@@ -205,11 +292,27 @@ namespace OpenFF.Client
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
 			graphics.SetColor(255, 255, 255, 255);
-			graphics.DrawString(_title, 170f, 168f, FontSize);
-			graphics.DrawString(_description, 170f, 196f, FontSize);
-			graphics.DrawString(_text.ToString() + "_", 170f, 236f, FontSize);
+			float tx = view.X + 20;
+			graphics.DrawString(_title, tx, textY, FontSize);
+			graphics.DrawString(_description, tx, textY + 28, FontSize);
+			graphics.DrawString(_text.ToString() + "_", tx, textY + 68, FontSize);
 			graphics.SetColor(190, 190, 190, 255);
-			graphics.DrawString("Type a name, then press Enter", 170f, 284f, FontSize);
+			graphics.DrawString(keysShown ? "Type, or pick a key: A picks, B deletes, Start is Done" : "Type a name, then press Enter", tx, textY + 116, FontSize);
+			if (keysShown)
+			{
+				for (int r = 0; r <= KeyRows.Length; r++)
+				{
+					for (int c = 0; c < ColumnsIn(r); c++)
+					{
+						Rectangle cell = CellRect(r, c);
+						bool lit = r == _row && c == _col;
+						graphics.SetColor(lit ? (byte)20 : (byte)255, lit ? (byte)20 : (byte)255, lit ? (byte)20 : (byte)255, 255);
+						string label = r < KeyRows.Length ? KeyRows[r][c].ToString() : Actions[c];
+						float w = TrueTypeText.Enabled ? TrueTypeText.Width(label, FontSize) : label.Length * 9f;
+						graphics.DrawString(label, cell.X + (cell.Width - w) / 2f, cell.Y + 6f, FontSize);
+					}
+				}
+			}
 			graphics.DrawStringEnd();
 		}
 
