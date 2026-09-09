@@ -617,6 +617,12 @@ any map; `--map=t90_00 --pos=…` and *Play here* land where they say.
 
 What a map needs, as components on its objects:
 
+- **MapSettings** - on the map itself (the *map* row of the hierarchy; the New map dialog
+  puts one there): the *Background* colour behind the scene - the sky, where the game's
+  maps have black - and the follow camera as a parameter file would set it: *Camera
+  Offset* (where it stands relative to the hero; the game's maps use about 0, 110, 110 -
+  high and behind), *Look Offset* (0, 10, 0) and *Zoom Range*. The 3D view shows the sky
+  as it is picked; the client puts the game's black back on leaving the map.
 - **Exit** - a way out: the hero within *Radius* of the object is taken to *Map* (a picker
   of the game's maps and the mod's), arriving at *Arrive* facing *Facing* degrees, by the
   game's own map jump. Put one on a map of the game's to lead into yours, and one on yours
@@ -635,8 +641,12 @@ What a map needs, as components on its objects:
 - **Encounter**, **Chest**, **Talk**, **Trigger**, **Mesh** and the rest as on any map;
   characters of the game's models as scene objects with a model (an `Npc` behind them).
 
-Not yet: the map's own camera settings, a background other than black, a name on the menu's
-map screen.
+Not yet: a name on the menu's map screen, the map screen itself.
+
+A creature of yours on such a map is a glTF from Blender with its actions: the Khronos
+`Fox` sample (a skinned model with *Survey*, *Walk* and *Run* clips) roams with
+`Mesh { Path: assets/fox.glb }` and `Roam { WalkClip: "Walk", IdleClip: "Survey" }` at
+scale 0.08, textured and posed, as any export of yours will.
 
 ### Sounds of the mod's own (OpenFF targets)
 
@@ -656,6 +666,15 @@ The Audio library's *Import a sound…* (OpenFF projects) takes an Ogg Vorbis or
   so do `Game.Audio.PlaySe(300, 0)` in C# and `playSE 300, 0` in a script.
 
 A file under one of the game's names replaces that sound (or that part of a tune) instead.
+
+### A font of the mod's own (OpenFF targets)
+
+The Text library's *Import a font…* (OpenFF projects) takes a TrueType or OpenType face
+into the project's files as `fonts/<file>`; the client loads a mod's faces before the
+game's, so every line of text - windows, menus, names, the title's - is drawn from it,
+the game's faces filling in the glyphs it lacks (Japanese, symbols). The face opens in the
+editor as sample lines at the sizes the game draws; *Remove* takes it out again. Mind the
+licence of a face you ship.
 
 ### New content from existing: Duplicate as…
 

@@ -417,6 +417,8 @@ namespace OpenFF
 		void PopNumber(Vector3 at, int value, bool heal = false);
 		/// <summary>The battle's "Miss" over a world point.</summary>
 		void PopMiss(Vector3 at);
+		/// <summary>The colour behind everything the 3D scene does not cover - black on the game's maps. What a map of the mod's own has for a sky; set it back on leaving.</summary>
+		Color Background { get; set; }
 	}
 
 	/// <summary>The map and moving between maps.</summary>
@@ -465,6 +467,14 @@ namespace OpenFF
 		void Zoom(int degrees);
 		/// <summary>Restores the map's camera settings.</summary>
 		void Reset();
+		/// <summary>
+		/// Sets the follow camera's frame as a map's parameters would: where the camera stands
+		/// relative to the hero (the game's maps use about (0, 110, -110): high and behind),
+		/// where it looks relative to the hero ((0, 10, 0): a little above the feet), and how
+		/// far the player may zoom in (0 for no zoom). What a map of the mod's own has instead
+		/// of a parameter file; Reset puts the map's own back.
+		/// </summary>
+		void Configure(Vector3 positionOffset, Vector3 targetOffset, float zoomRange = 60f);
 		/// <summary>Where a world point falls on the screen, in the 800x480 units Game.Draw uses; null when it is behind the camera. For HUD markers, names over heads, health bars.</summary>
 		Vector2? WorldToScreen(Vector3 world);
 		/// <summary>Whether a world point is in front of the camera and inside the screen.</summary>

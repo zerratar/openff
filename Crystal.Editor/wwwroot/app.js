@@ -173,6 +173,12 @@ async function loadList() {
     }));
   } else {
     state.files = await api(`/api/list?kind=${state.browse}`);
+    // The text library carries the mod's own faces (fonts/*.ttf), marked so.
+    if (state.browse === 'text') {
+      for (const f of state.files) {
+        if (/\.(ttf|otf)$/i.test(f.name)) { f.own = true; f.note = 'a face of the mod\'s own: the client draws its text from it first'; }
+      }
+    }
   }
   state.filesWs = state.ws;
   drawList();
@@ -1099,7 +1105,54 @@ function fitToText(area) {
   area.style.height = `${Math.max(30, area.scrollHeight)}px`;
 }
 
+/// A face of the mod's own (fonts/<file>.ttf): the game's kind of lines drawn with it at
+/// the sizes the game uses, so what the client will show can be judged here. The face is
+/// loaded into the page with @font-face straight from the project's file.
+async function openFont(name) {
+  setDocData({ name, font: true });
+  const node = view('font', name, true);
+  const family = 'own-' + name.replace(/[^a-z0-9]/gi, '_');
+  const face = new FontFace(family, `url(/api/typeface?name=${encodeURIComponent(name)})`);
+  $('.font-note', node).textContent = 'The client draws its text from this face first, the game\'s own filling in the glyphs it lacks - every window, menu and line. Export carries it as fonts/ in the mod. Below: the game\'s kind of lines at the sizes it draws them.';
+  const samples = $('.font-samples', node);
+  const lines = [
+    [12, 'small - the menu\'s captions', 'Potion  Hi-Potion  Phoenix Down   250 G'],
+    [16, 'the message window', 'Luneth: The crystal spoke to me... Its light has been fading.'],
+    [16, 'digits and marks', '0123456789  HP 999/999  MP 42  Lv 7  Gil 1,500'],
+    [20, 'large - a title', 'The Old Quarry']
+  ];
+  for (const [size, what, text] of lines) {
+    const p = document.createElement('div');
+    p.className = 'font-sample';
+    p.style.fontFamily = `"${family}", sans-serif`;
+    p.style.fontSize = (size * 1.6) + 'px';
+    const label = document.createElement('small');
+    label.textContent = `${what} (${size})`;
+    p.append(label, document.createTextNode(text));
+    samples.append(p);
+  }
+  try {
+    await face.load();
+    document.fonts.add(face);
+  } catch (e) {
+    $('.font-note', node).textContent = 'The browser could not read this face: ' + (e.message || e) + '. The client may still.';
+  }
+  const remove = $('.revert', node);
+  if (remove) {
+    remove.textContent = 'Remove';
+    remove.onclick = async () => {
+      if (!confirm(`Remove ${name} from the project? The client goes back to the game's own face.`)) return;
+      await api('/api/revert', { name });
+      markOverridden(name, false);
+      await loadList();
+      closeDoc(docId('text', name));
+      say('removed', 'good');
+    };
+  }
+}
+
 async function openText(name) {
+  if (/\.(ttf|otf)$/i.test(name)) return openFont(name);
   const data = await api(`/api/text?name=${encodeURIComponent(name)}`);
   const node = view('text', name, data.overridden);
   const list = $('.messages', node);

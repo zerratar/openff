@@ -1097,6 +1097,13 @@ ul.uses a:hover { text-decoration: underline; }
   justify-content: center;
 }
 
+/* A face of the mod's own: the game's lines at the sizes it draws them, over its window blue. */
+.font-wrap { flex: 1; overflow: auto; padding: 20px 28px; }
+.font-note { color: var(--muted, #8a93a6); margin: 0 0 16px; max-width: 70ch; }
+.font-samples { display: flex; flex-direction: column; gap: 14px; }
+.font-sample { background: #10204a; border: 2px solid #c9d2e8; border-radius: 6px; padding: 10px 16px; color: #fff; text-shadow: 1px 1px 0 #000; }
+.font-sample small { display: block; font: 11px/1.4 system-ui, sans-serif; color: #8a93a6; text-shadow: none; margin-bottom: 4px; }
+
 /* A checkerboard, so transparent art is obviously transparent. */
 .image-wrap.checker {
   background-image:

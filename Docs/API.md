@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMeshes`](#imeshes), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`MapFieldAttribute`](#mapfieldattribute), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -254,6 +254,7 @@ The field camera.
 | --- | --- |
 | `Vector3 Position { get; }` | Where the camera is. |
 | `Vector3 Target { get; }` | What it looks at. |
+| `void Configure(Vector3 positionOffset, Vector3 targetOffset, float zoomRange = 60)` | Sets the follow camera's frame as a map's parameters would: where the camera stands relative to the hero (the game's maps use about (0, 110, -110): high and behind), where it looks relative to the hero ((0, 10, 0): a little above the feet), and how far the player may zoom in (0 for no zoom). What a map of the mod's own has instead of a parameter file; Reset puts the map's own back. |
 | `void Follow()` | Back to following the hero, the map's own way. |
 | `void LookAt(Vector3 target)` | Frees the camera from the hero and points it at a point (it keeps its place). |
 | `void MoveTo(Vector3 position)` | Frees the camera from the hero and puts it at a point (it keeps its target). |
@@ -298,6 +299,7 @@ Particle and sprite effects, by the game's own effect table.
 
 | Member | What it does |
 | --- | --- |
+| `Color Background { get; set; }` | The colour behind everything the 3D scene does not cover - black on the game's maps. What a map of the mod's own has for a sky; set it back on leaving. |
 | `bool Faded { get; }` |  |
 | `void FadeIn(int frames)` |  |
 | `void FadeOut(int frames, bool white = false)` |  |
@@ -613,6 +615,20 @@ An int that is an item id: the inspector offers the game's item list to pick fro
 `class MapFieldAttribute : Attribute`
 
 A string field that names a map (t01_01, or one of the mod's own): the editor offers the game's maps and the mod's to pick from.
+
+### MapSettings
+
+`class MapSettings : Behaviour`
+
+What a map's parameter file says on a map of the game's, for a map of the mod's own: the colour behind the scene (a sky, where the game's maps have black), and the follow camera - where it stands relative to the hero (high and behind), where it looks, how far the player may zoom in. One per map, on any object (the New map dialog puts it on "Map"); applied as the map is entered, and taken back as it is left.
+
+| Member | What it does |
+| --- | --- |
+| `Color Background` | The colour behind everything: the sky. Black is the game's own. |
+| `Vector3 CameraOffset` | Where the camera stands, relative to the hero: X sideways, Y up, Z behind (the game's maps: about 0, 110, 110). |
+| `Vector3 LookOffset` | Where the camera looks, relative to the hero (the game's maps: 0, 10, 0 - a little above the feet). |
+| `float ZoomRange` | How far in the player may zoom the camera, in world units; 0 for no zoom. |
+| `void Apply()` | Puts the settings on the game now (the editor's live changes call it too). |
 
 ### Mesh
 
@@ -2002,4 +2018,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-127 types, 891 members; 401 without a summary yet.
+128 types, 898 members; 401 without a summary yet.

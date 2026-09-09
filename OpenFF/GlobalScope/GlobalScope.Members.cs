@@ -21081,13 +21081,15 @@ internal static partial class GlobalScope
 							OpenFF.Client.Log.Sample(OpenFF.Client.LogChannel.Gl, "glClear", 120, () => $"mask={mask} color={m_ClearColor}"); /*FF3LOG*/
 							GraphicsDevice graphicsDevice = m_Graphics.GetGraphicsDeviceManager().GraphicsDevice;
 							ClearOptions _opts = (ClearOptions)((((mask & 0x4000) != 0) ? 1 : 0) | (((mask & 0x100) != 0) ? 2 : 0) | (((mask & 0x400) != 0) ? 4 : 0));
+							// PORT: a mod's own background (a map of its own with a sky colour) while one is set.
+							Color clearColor = OpenFF.Client.LegacyScreen.BackgroundOverride ?? m_ClearColor;
 							if (OpenFF.Client.NativeRenderer.Enabled)
 							{
-								OpenFF.Client.NativeRenderer.Clear(graphicsDevice, _opts, m_ClearColor, m_fClearDepth, 0);
+								OpenFF.Client.NativeRenderer.Clear(graphicsDevice, _opts, clearColor, m_fClearDepth, 0);
 							}
 							else
 							{
-								graphicsDevice.Clear(_opts, m_ClearColor, m_fClearDepth, 0);
+								graphicsDevice.Clear(_opts, clearColor, m_fClearDepth, 0);
 							}
 						}
 

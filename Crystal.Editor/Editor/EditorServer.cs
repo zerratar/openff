@@ -749,6 +749,42 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/typeface":
+				{
+					// A face of the mod's own, as bytes, for the preview's @font-face.
+					string name = Query(context, "name") ?? "";
+					if (!name.StartsWith("fonts/", StringComparison.OrdinalIgnoreCase) || !_workspace.Exists(name)) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such font")); return; }
+					Send(context, 200, name.EndsWith(".otf", StringComparison.OrdinalIgnoreCase) ? "font/otf" : "font/ttf", _workspace.Read(name));
+					return;
+				}
+
+				case "/api/typeface/import":
+				{
+					// A TrueType or OpenType face in, as fonts/<file> of the project's: the client draws its
+					// text from the first face it loads, and a mod's come first. { name, bytes: base64 }.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string fileName = Path.GetFileName(body?["name"]?.GetValue<string>() ?? "");
+						if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) throw new ArgumentException("a plain file name");
+						if (!fileName.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) && !fileName.EndsWith(".otf", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("a .ttf or .otf file");
+						byte[] bytes = System.Convert.FromBase64String(body?["bytes"]?.GetValue<string>() ?? "");
+						// TrueType begins 00 01 00 00 or "true"; OpenType with CFF outlines begins "OTTO"; a collection "ttcf".
+						bool face = bytes.Length > 12 && ((bytes[0] == 0 && bytes[1] == 1 && bytes[2] == 0 && bytes[3] == 0)
+							|| (bytes[0] == 'O' && bytes[1] == 'T' && bytes[2] == 'T' && bytes[3] == 'O') || (bytes[0] == 't' && bytes[1] == 'r' && bytes[2] == 'u' && bytes[3] == 'e'));
+						if (!face) throw new ArgumentException("not a TrueType or OpenType face (a collection, .ttc, is not taken)");
+						string entry = "fonts/" + fileName;
+						_workspace.Write(entry, bytes);
+						SendJson(context, new { ok = true, name = entry });
+					}
+					catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or FormatException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
+
 				case "/api/image/import":
 				{
 					// A picture in, as a file of the project's: a new one under a name of the mod's own,
@@ -2629,7 +2665,8 @@ namespace Crystal.Editor
 			switch (kind)
 			{
 				case "script": return new[] { ".script" };
-				case "text": return new[] { ".msd" };
+				// The text library also lists the mod's own faces (fonts/*.ttf), which the client draws its text from.
+				case "text": return new[] { ".msd", ".ttf", ".otf" };
 				case "menu": return new[] { ".xbn" };
 				// FF4 ships its three tables loose and LZ-compressed: item_parameter.pak.lz.
 				case "table": return new[] { ".pak", ".chaindata", ".pak.lz", ".chaindata.lz" };

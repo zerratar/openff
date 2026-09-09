@@ -316,6 +316,14 @@ namespace Crystal.Editor
 			};
 			JsonArray attachments = new JsonArray
 			{
+				// The map itself carries its settings: a sky behind the scene, the game's usual camera.
+				new JsonObject { ["target"] = "map", ["behaviour"] = "MapSettings", ["fields"] = new JsonObject
+				{
+					["Background"] = new JsonObject { ["r"] = 74, ["g"] = 112, ["b"] = 156, ["a"] = 255 },
+					["CameraOffset"] = new JsonObject { ["x"] = 0, ["y"] = 110, ["z"] = 110 },
+					["LookOffset"] = new JsonObject { ["x"] = 0, ["y"] = 10, ["z"] = 0 },
+					["ZoomRange"] = 60
+				} },
 				new JsonObject { ["target"] = "Ground", ["behaviour"] = "Mesh", ["fields"] = new JsonObject { ["Path"] = ground, ["Solid"] = true } }
 			};
 			if (bgm > 0)

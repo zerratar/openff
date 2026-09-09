@@ -2004,11 +2004,10 @@ mods that must also install into the Steam games:
 - Models: glTF in - done for static meshes, animated ones, as collision (`Solid`) and
   walking about (`Roam`, below). Next: `Talk` and the other Interactables on a glTF.
 - Maps: a whole map of the mod's own - done (below): a free stage name, a scene file with
-  a Solid Mesh for the ground, `Exit` and `Music` components, *New map…* in Crystal. Next
-  on it: the map's own camera settings and a background colour, its name on the menu.
-- Images, fonts, sounds: PNG is read already for pictures; music of the mod's own as
-  OGG/WAV under a free BGM number - done (below); sound effects the same way, and a TTF
-  for text through `Game.Draw`, are next.
+  a Solid Mesh for the ground, `Exit`, `Music`, `Sound` and `MapSettings` (sky, camera)
+  components, *New map…* in Crystal. Next on it: its name on the menu, the map screen.
+- Images, fonts, sounds: PNG is read already for pictures; music and effects of the mod's
+  own as OGG/WAV - done; a TTF/OTF face of the mod's own for all the game's text - done.
 - Steam targets keep to the game's formats: the duplication path, Replace with a PNG, the
   record forms, the table composers - and the DS converters when someone needs them.
 
@@ -2108,8 +2107,27 @@ Walk/Idle clips as it goes and stands. Tried: a red crate roaming a slab raised 
 on The Old Quarry, the hero standing at 4 beside it (C-63). `Talk` on a glTF needed
 nothing new to speak - an Interactable with no Npc already acts on A within Radius - and
 gained the villager's manners: the roamer `Halt`s, the object turns to the hero, and `Go`
-after the last line (C-64). Next on this line: a glTF character's clips from Blender end
-to end, and the same for `Chest` and `Encounter` figures of the mod's own.
+after the last line (C-64).
+
+### A map's sky and camera, a mod's font, a Blender fox (2026-09-09, morning)
+
+`MapSettings` (on the map target): Background, CameraOffset, LookOffset, ZoomRange. The
+clear colour: `G3X_SetClearColor` is a no-op and `glClearColor` is called once with black,
+so `glClear` reads `LegacyScreen.BackgroundOverride` (the `IScreen.Background` property)
+when set; the component clears it on OnDestroy so the next map is black again. The camera:
+`ICamera.Configure` lays the offsets and zoom in as `CBaseSystem.setupCamera` does from a
+parameter file (z negated on the way, the zoom's reach as a negative max) and snaps the
+camera to the hero; a map of the game's runs its own setupCamera on entry, so nothing
+leaks (checked: Ur framed the same with and without). The 3D view clears to the sky as it
+is picked. Fonts: `TrueTypeText.FindFaces` adds `fonts/*.ttf|otf` from every override
+directory first - FontStashSharp draws from the first face and falls through to the rest -
+so a mod's face is the game's text; Crystal's Text library lists `fonts/`, *Import a font…*
+writes one (`/api/typeface/import`), and the face opens as sample lines at the game's
+sizes via @font-face from `/api/typeface`. Tried: Comic Sans on the name entry screen
+(C-66). Blender end to end: the Khronos Fox sample (a skinned glB with a texture and
+three clips, an exporter's output rather than a hand-made file) roams with Walk and
+Survey (C-67). Next: `Chest` and `Encounter` figures as glTFs, the map screen for own maps,
+and a first release.
 
 ## Working rules
 

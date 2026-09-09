@@ -2554,7 +2554,12 @@ function uniqueSceneName(siblings, wanted) {
 
 /// Hands the 3D view the objects as they stand now.
 function syncSceneObjects(doc) {
-  if (doc && doc.scene3d) doc.scene3d.setPoints(flattenSceneObjects(sceneState));
+  if (!doc || !doc.scene3d) return;
+  doc.scene3d.setPoints(flattenSceneObjects(sceneState));
+  // The map's sky, when a MapSettings on the map says one, behind the 3D view as in play.
+  const settings = (sceneState.attachments || []).find(a => a.behaviour === 'MapSettings' && (a.target || '').toLowerCase() === 'map');
+  const bg = settings && settings.fields && settings.fields.Background;
+  if (doc.scene3d.setBackground) doc.scene3d.setBackground(bg && typeof bg === 'object' && (bg.r || bg.g || bg.b) ? [(bg.r || 0) / 255, (bg.g || 0) / 255, (bg.b || 0) / 255] : null);
 }
 
 /// Renames or moves an object in the tree: every attachment on it or under it follows.
@@ -2984,7 +2989,12 @@ function behaviourCard(state, attachment, target) {
     const has = Object.prototype.hasOwnProperty.call(attachment.fields, f.name);
     const value = has ? attachment.fields[f.name] : f.default;
     let input;
-    const changed = v => { attachment.fields[f.name] = v; sceneChanged(); };
+    const changed = v => {
+      attachment.fields[f.name] = v;
+      sceneChanged();
+      // The map's sky changes the view behind everything as it is picked.
+      if (attachment.behaviour === 'MapSettings' && f.name === 'Background') syncSceneObjects(activeDoc);
+    };
     if (f.type === 'item') {
       // An item id: the game's item list to pick from, fetched once for the session.
       input = document.createElement('select');

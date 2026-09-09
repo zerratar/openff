@@ -1119,6 +1119,50 @@ namespace OpenFF
 	}
 
 	/// <summary>
+	/// What a map's parameter file says on a map of the game's, for a map of the mod's own:
+	/// the colour behind the scene (a sky, where the game's maps have black), and the follow
+	/// camera - where it stands relative to the hero (high and behind), where it looks, how
+	/// far the player may zoom in. One per map, on any object (the New map dialog puts it
+	/// on "Map"); applied as the map is entered, and taken back as it is left.
+	/// </summary>
+	public sealed class MapSettings : Behaviour
+	{
+		/// <summary>The colour behind everything: the sky. Black is the game's own.</summary>
+		[Header("Look")]
+		[Tooltip("The colour behind everything - the sky. Black is the game's own")]
+		public Color Background = new Color(0, 0, 0);
+
+		/// <summary>Where the camera stands, relative to the hero: X sideways, Y up, Z behind (the game's maps: about 0, 110, 110).</summary>
+		[Header("Camera")]
+		[Tooltip("Where the camera stands, relative to the hero: X sideways, Y up, Z behind (the game's maps: about 0, 110, 110)")]
+		public Vector3 CameraOffset = new Vector3(0, 110, 110);
+		/// <summary>Where the camera looks, relative to the hero (the game's maps: 0, 10, 0 - a little above the feet).</summary>
+		[Tooltip("Where the camera looks, relative to the hero (the game's maps: 0, 10, 0)")]
+		public Vector3 LookOffset = new Vector3(0, 10, 0);
+		/// <summary>How far in the player may zoom the camera, in world units; 0 for no zoom.</summary>
+		[Range(0f, 200f), Tooltip("How far in the player may zoom, in world units; 0 for no zoom")]
+		public float ZoomRange = 60f;
+
+		protected override void Start()
+		{
+			Apply();
+		}
+
+		/// <summary>Puts the settings on the game now (the editor's live changes call it too).</summary>
+		public void Apply()
+		{
+			if (Game.Screen != null) Game.Guard("MapSettings background", () => Game.Screen.Background = Background);
+			if (Game.Camera != null) Game.Camera.Configure(CameraOffset, LookOffset, ZoomRange);
+		}
+
+		protected override void OnDestroy()
+		{
+			// The next map is the game's own again: black behind it, its own camera.
+			if (Game.Screen != null) Game.Guard("MapSettings background", () => Game.Screen.Background = Color.Black);
+		}
+	}
+
+	/// <summary>
 	/// A sound effect on the map: the game's (SE001_36 is the chest's) or the mod's own, by
 	/// archive and number, played when the hero comes within Radius of the object - or, with
 	/// Radius 0, as the object comes to life (the map is entered). Once plays it a single time.

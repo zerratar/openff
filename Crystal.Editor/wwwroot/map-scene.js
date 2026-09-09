@@ -1,4 +1,4 @@
-﻿// A map drawn as a scene: the terrain with everything standing on it.
+// A map drawn as a scene: the terrain with everything standing on it.
 //
 // The single-model viewer draws one bundle; this draws a terrain plus one instance per
 // .hich row, each with its own place and facing. The shader and the texture handling
@@ -200,6 +200,7 @@ function makeMapScene(canvas, status) {
 
   let gizmoOn = true;
   let gizmoScale = 1;            // how big the arrows are, as a multiplier
+  let background = null;         // [r, g, b] 0-1 from the map's MapSettings, or null for the editor's own
   let onFrame = () => {};
   let gizmoMode = 'move';        // 'move' or 'rotate'
   let gizmoAxis = null;          // the axis being dragged, if any
@@ -367,7 +368,8 @@ function makeMapScene(canvas, status) {
 
   function draw() {
     resize();
-    gl.clearColor(0.09, 0.10, 0.12, 1);
+    // The editor's own dusk, or the map's sky when a MapSettings says one (a map of the mod's own).
+    if (background) gl.clearColor(background[0], background[1], background[2], 1); else gl.clearColor(0.09, 0.10, 0.12, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
@@ -972,6 +974,9 @@ function makeMapScene(canvas, status) {
     part() { return selectedPart; },
 
     setGizmoScale(scale) { gizmoScale = scale; draw(); },
+
+    /// The colour behind the scene: [r, g, b] 0-1 from a MapSettings, or null for the editor's own.
+    setBackground(rgb) { background = rgb || null; draw(); },
 
     /// Called after every frame, so the page can put its tags where things are now.
     onFrame(callback) { onFrame = callback || (() => {}); },

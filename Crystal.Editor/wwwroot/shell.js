@@ -1451,6 +1451,9 @@ function factsFor(doc) {
 
   if (!data) return facts;
 
+  if (doc.kind === 'text' && data.font) {
+    return [['kind', 'a face of the mod\'s own'], ['file', doc.name], ['used', 'first by the client\'s text; the game\'s faces fill in the glyphs it lacks']];
+  }
   if (doc.kind === 'map' && data.scene) {
     const own = typeof sceneState !== 'undefined' && sceneState.map === doc.name && sceneState.own;
     if (own) {
@@ -1732,7 +1735,7 @@ function drawCodeActions() {
   const imports = (browseKind === 'image' || browseKind === 'texture') && project;
   const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
   // An OpenFF project adds to the game's libraries too: a map of its own among the maps, a tune among the sounds.
-  const adds = openff && (browseKind === 'map' || browseKind === 'audio');
+  const adds = openff && (browseKind === 'map' || browseKind === 'audio' || browseKind === 'text');
   strip.hidden = !imports && !adds && !KINDS.some(k => k.mod && k.id === browseKind);
   if (strip.hidden) return;
 
@@ -1752,6 +1755,7 @@ function drawCodeActions() {
   }
   if (adds) {
     if (browseKind === 'map') button('New map…', 'A map of the mod\'s own: a ground to walk (a glTF of yours, or a flat slab), then objects, exits and music placed in the map editor; the OpenFF client plays it', () => newMapDialog(), true);
+    else if (browseKind === 'text') button('Import a font…', 'A TrueType or OpenType face of the mod\'s own: the client draws every line of text from it, the game\'s faces filling in the glyphs it lacks', () => importFontDialog(), true);
     else button('Import a sound…', 'A sound of the mod\'s own: an Ogg Vorbis or WAV as a tune under a BGM number the game leaves free (59 and up), or as an effect under an archive number of its own (SE300_00); Music, Chest and Talk components, scripts and C# play it', () => importTuneDialog(), true);
     return;
   }
@@ -2176,6 +2180,45 @@ async function importTuneDialog() {
       await loadList();
       say(se ? `${name} is the mod's effect - Game.Audio.PlaySe(${n}, 0) plays it` : `${name} is the mod's tune${introFile ? ' (intro + loop)' : ''} - Music { Bgm: ${n} } plays it`, 'good');
       inspectAsset('audio', name);
+    } catch (e) { problem.textContent = e.message; go.disabled = false; }
+  };
+  actions.append(go);
+  body.append(actions);
+}
+
+/// A face of the mod's own: a .ttf or .otf into fonts/ of the project's files. The client
+/// loads a mod's faces before the game's, so this is what its text is drawn from.
+function importFontDialog() {
+  const body = dialog('Import a font');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'A TrueType (.ttf) or OpenType (.otf) face, for the OpenFF client: it draws every line of text - windows, menus, names - from the mod\'s face first, the game\'s own filling in the glyphs it lacks (Japanese, symbols). Lands in the project\'s files as fonts/<file>; Export carries it. Mind the licence of a face you ship.';
+  body.append(note);
+  const chooser = document.createElement('input');
+  chooser.type = 'file';
+  chooser.accept = '.ttf,.otf,font/ttf,font/otf';
+  body.append(chooser);
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Import';
+  go.onclick = async () => {
+    const file = chooser.files && chooser.files[0];
+    if (!file) { problem.textContent = 'Pick a .ttf or .otf.'; return; }
+    go.disabled = true;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      const r = await api('/api/typeface/import', { name: file.name, bytes: btoa(bin) });
+      if (!r.ok) throw new Error(r.error);
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      await loadList();
+      say(`${r.name} is the mod's face - the client's text is drawn from it`, 'good');
+      openDoc('text', r.name);
     } catch (e) { problem.textContent = e.message; go.disabled = false; }
   };
   actions.append(go);

@@ -187,6 +187,20 @@ namespace OpenFF.Client
 			}
 
 			string[] usual = { "arial.ttf", "arialuni.ttf", "TBUDRGoStd-Bold.otf", "unifont.ttf" };
+
+			// The mods' own faces first: fonts/*.ttf|*.otf in a mod's files. The first face loaded
+			// is the one text is drawn from; the game's follow as fallbacks for the glyphs it lacks.
+			foreach (string directory in GameArchive.Chain?.Overrides ?? Enumerable.Empty<string>())
+			{
+				string fonts = Path.Combine(directory, "fonts");
+				if (!Directory.Exists(fonts)) continue;
+				foreach (string file in Directory.EnumerateFiles(fonts).Where(f =>
+					f.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".otf", StringComparison.OrdinalIgnoreCase)).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+				{
+					Add(file);
+				}
+			}
+
 			string configured = Options.Get("font");
 			if (!string.IsNullOrEmpty(configured))
 			{

@@ -2008,6 +2008,23 @@ namespace OpenFF.Client
 			catch (Exception ex) { EngineApi.Warn("pop-miss", "Screen.PopMiss: " + ex.Message); }
 		}
 
+		/// <summary>The clear colour glClear uses instead of the game's black while set; null for the game's own. Read by GlobalScope.glClear.</summary>
+		internal static Microsoft.Xna.Framework.Color? BackgroundOverride;
+
+		public Color Background
+		{
+			get
+			{
+				Microsoft.Xna.Framework.Color c = BackgroundOverride ?? Microsoft.Xna.Framework.Color.Black;
+				return new Color(c.R, c.G, c.B, c.A);
+			}
+			set
+			{
+				bool black = value.R == 0 && value.G == 0 && value.B == 0;
+				BackgroundOverride = black ? (Microsoft.Xna.Framework.Color?)null : new Microsoft.Xna.Framework.Color(value.R, value.G, value.B, (byte)255);
+			}
+		}
+
 		internal void Tick()
 		{
 			if (_sheetLoaded && !EngineApi.InWorld)
@@ -2082,6 +2099,32 @@ namespace OpenFF.Client
 		{
 			if (!EngineApi.InWorld) return;
 			Game.Guard("Camera.Reset", () => GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().setupCamera());
+		}
+
+		public void Configure(Vector3 positionOffset, Vector3 targetOffset, float zoomRange = 60f)
+		{
+			GlobalScope.cmr.CWorldCamera cam = Camera;
+			if (cam == null) return;
+			Game.Guard("Camera.Configure", () =>
+			{
+				// As CBaseSystem.setupCamera lays a map's parameters in: the offsets (z towards the
+				// camera is negative there), the zoom's reach, and the camera snapped to the hero.
+				GlobalScope.VecFx32 pos = EngineApi.ToFx(new Vector3(positionOffset.X, positionOffset.Y, -positionOffset.Z));
+				GlobalScope.VecFx32 trg = EngineApi.ToFx(targetOffset);
+				cam.setPosOffset(pos);
+				cam.setTrgOffset(trg);
+				bool zoom = zoomRange > 0.01f;
+				cam.composit.setZoomEnable(zoom);
+				cam.composit.setZoomMax(zoom ? -(int)Math.Round(zoomRange * 4096) : 0);
+				cam.composit.setZoomMin(0);
+				cam.composit.setZoom(cam.composit.ZoomMin());
+				GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+				if (hero != null && cam.Mode() != GlobalScope.cmr.CWorldCamera.MODE.MODE_FREE)
+				{
+					cam.setPos(hero.getPosition());
+					cam.setTrg(hero.getPosition());
+				}
+			});
 		}
 
 		// The renderer's own matrices: the field camera writes the camera matrix (world -> eye)
