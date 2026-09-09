@@ -462,6 +462,7 @@ namespace OpenFF
 
 		private int _next = -1;
 		private long _saidAt;
+		private Roam _haltedRoam;
 
 		protected override bool Applies() => FlagsHold(When);
 
@@ -474,6 +475,17 @@ namespace OpenFF
 				// and walks on after (talkEnd).
 				if (GetComponent<Wander>() != null) { Npc.Stop(); Npc.EndWander(); }
 				if (FaceHero) Npc.LookAt(Game.Hero.Position);
+			}
+			else
+			{
+				// A glTF of the mod's own: a roamer halts for the talk, and the object turns to the hero.
+				Roam roam = GetComponent<Roam>();
+				if (roam != null) { roam.Halt(); _haltedRoam = roam; }
+				if (FaceHero && Transform != null && Game.Hero.Present)
+				{
+					Vector3 to = Game.Hero.Position - Transform.WorldPosition;
+					if (to.X != 0 || to.Z != 0) Transform.WorldYaw = (float)(Math.Atan2(to.X, to.Z) * 180.0 / Math.PI);
+				}
 			}
 			_next = 0;
 			SayNext();
@@ -495,6 +507,7 @@ namespace OpenFF
 				_next = -1;
 				SetFlags(Then);
 				GetComponent<Wander>()?.Resume(Npc);
+				if (_haltedRoam != null) { _haltedRoam.Go(); _haltedRoam = null; }
 				Game.Guard(Name + ".OnSaid", OnSaid);
 				return;
 			}
@@ -1189,7 +1202,7 @@ namespace OpenFF
 
 		private Vector3 _home;
 		private Vector3 _target;
-		private bool _walking;
+		private bool _walking, _halted;
 		private double _wait;
 		private readonly Random _random = new Random();
 
@@ -1200,9 +1213,19 @@ namespace OpenFF
 			Clip(IdleClip);
 		}
 
+		/// <summary>Stops where it is and stays (a Talk in progress); Go lets it walk on.</summary>
+		public void Halt()
+		{
+			_halted = true;
+			if (_walking) Arrive();
+		}
+
+		/// <summary>Walks on after a Halt.</summary>
+		public void Go() { _halted = false; }
+
 		protected override void Update()
 		{
-			if (Transform == null) return;
+			if (Transform == null || _halted) return;
 			float dt = (float)Game.Time.Delta;
 			if (!_walking)
 			{

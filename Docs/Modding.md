@@ -629,7 +629,9 @@ What a map needs, as components on its objects:
   *Pause* between walks), faces the way it goes, keeps to the ground (the map's or a Solid
   Mesh's), stops short of the hero, and plays the file's *Walk Clip* while moving and
   *Idle Clip* while standing when it has them. What `Wander` is for a game character,
-  this is for a glTF creature of yours.
+  this is for a glTF creature of yours. A `Talk` on the same object works as on a
+  villager: A within *Radius* (there is no game character to face, so the radius applies),
+  the roamer halts and turns to the hero for the lines and walks on after.
 - **Encounter**, **Chest**, **Talk**, **Trigger**, **Mesh** and the rest as on any map;
   characters of the game's models as scene objects with a model (an `Npc` behind them).
 

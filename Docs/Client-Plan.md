@@ -2105,9 +2105,11 @@ yaw from the step, the height from `Game.Field.GroundHeight` (which now also ask
 `ModCollision` outright - on a map with no collision object of the game's no restrictor is
 active, so the loop over them found nothing), a stop short of the hero, and the Mesh's
 Walk/Idle clips as it goes and stands. Tried: a red crate roaming a slab raised to y = 4
-on The Old Quarry, the hero standing at 4 beside it (C-63). Next on this line: `Talk` on a
-glTF (an Interactable without an Npc - the radius path exists), and a glTF character's
-clips from Blender end to end.
+on The Old Quarry, the hero standing at 4 beside it (C-63). `Talk` on a glTF needed
+nothing new to speak - an Interactable with no Npc already acts on A within Radius - and
+gained the villager's manners: the roamer `Halt`s, the object turns to the hero, and `Go`
+after the last line (C-64). Next on this line: a glTF character's clips from Blender end
+to end, and the same for `Chest` and `Encounter` figures of the mod's own.
 
 ## Working rules
 

@@ -843,6 +843,8 @@ Makes a model of the mod's own (a Mesh) roam about its spot: a walk to a point w
 | `float Radius` | How far from its starting spot it goes, in world units. |
 | `float Speed` | Its pace, in world units a second (a villager walks about 4). |
 | `string WalkClip` | The file's clip to play while walking; empty for none. |
+| `void Go()` | Walks on after a Halt. |
+| `void Halt()` | Stops where it is and stays (a Talk in progress); Go lets it walk on. |
 
 ### SavedBehaviour
 
@@ -2000,4 +2002,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-127 types, 889 members; 401 without a summary yet.
+127 types, 891 members; 401 without a summary yet.
