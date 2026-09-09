@@ -399,7 +399,15 @@ internal static partial class GlobalScope
 						pBindObjs_[b].reserveJntMtx();
 					}
 				}
+				// The stick's pace is this frame's or none: the act's update (touchPanelAction) sets it again
+				// when the stick steers, and the act's mass below reads it.
+				StickPace = -1f;
 				base.execute();
+				if (getNowAct() != 1 && getNowAct() != 2)
+				{
+					// The pace only shapes the walk and the run; any other act plays its motion at 1.0.
+					unpaceMotion();
+				}
 				if (getNextAct() == 4 || getNextAct() == 5 || getNextAct() == 6 || getNextAct() == 7 || getNextAct() == 8 || getNextAct() == 9 || getNextAct() == 10 || getNowAct() == 7 || getNowAct() == 8 || getNowAct() == 9 || getNowAct() == 10 || !isAutoPilot())
 				{
 					action[getNowAct()]();
@@ -646,24 +654,83 @@ internal static partial class GlobalScope
 				pBindObjs_[(int)locate] = null;
 			}
 
+			/// <summary>
+			/// PORT: the pad's left stick's pace while it steers the hero - 0 a walk, 1 a full run, in
+			/// between with the push - or -1 when it does not (the keyboard, the d-pad, a touch). Set by
+			/// CPlayerHumanAction.touchPanelAction; the walk and run acts' mass reads it so the speed
+			/// rises with the push instead of stepping at a threshold, and the motion's rate with the
+			/// speed so the feet keep up with the ground.
+			/// </summary>
+			public float StickPace = -1f;
+
+			/// <summary>Whether the motion's rate was set for the pace and is to be put back to 1.0 when the pace ends.</summary>
+			private bool pacedMotion_;
+
+			private int walkMoveAcc() => (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NMveAcc() * (60 / chr.CCharacterEureka.m_CharaFps));
+
+			private int walkMoveMax() => (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NMveMax() * (60 / chr.CCharacterEureka.m_CharaFps));
+
+			private int runMoveAcc() => FX_Mul(4736, (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).SMveAcc() * 1.6f));
+
+			private int runMoveMax() => FX_Mul(4736, (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).SMveMax() * 1.6f));
+
+			/// <summary>
+			/// The walk or run act's mass, blended by the stick's pace when the stick steers: the top speed
+			/// and the acceleration sit between the walk's and the run's by the pace, and the act's motion
+			/// plays at the speed's ratio to the motion's own pace (the walk's at up to the half-way speed,
+			/// the run's from it), so neither slides. Without the stick the act's own mass, as the game had it.
+			/// </summary>
+			private void pacedMass(bool running, int turnAcc, int turnMax)
+			{
+				int wAcc = walkMoveAcc(), wMax = walkMoveMax(), rAcc = runMoveAcc(), rMax = runMoveMax();
+				if (StickPace < 0f || wMax <= 0 || rMax <= 0)
+				{
+					unpaceMotion();
+					if (running)
+					{
+						setMass(rAcc, 0, rMax, turnAcc, 0, turnMax);
+					}
+					else
+					{
+						setMass(wAcc, 0, wMax, turnAcc, 0, turnMax);
+					}
+					return;
+				}
+				float pace = Math.Min(1f, Math.Max(0f, StickPace));
+				int acc = (int)Math.Round(wAcc + (rAcc - wAcc) * pace);
+				int max = (int)Math.Round(wMax + (rMax - wMax) * pace);
+				setMass(acc, 0, max, turnAcc, 0, turnMax);
+				// The motion at the speed's ratio to its own: 1.0 at the walk for the walk motion, 1.0 at the run for the run's.
+				float ratio = (float)max / (running ? rMax : wMax);
+				ratio = Math.Min(1.6f, Math.Max(0.6f, ratio));
+				setMotionSpeed((int)Math.Round(4096 * ratio));
+				pacedMotion_ = true;
+				OpenFF.Client.Log.Sample(OpenFF.Client.LogChannel.Input, "pace", 30, () => "stick pace " + pace.ToString("0.00") + ": " + (running ? "run" : "walk") + " max " + max + " (walk " + wMax + ", run " + rMax + ") motion x" + ratio.ToString("0.00"));
+			}
+
+			private void unpaceMotion()
+			{
+				if (pacedMotion_)
+				{
+					pacedMotion_ = false;
+					setMotionSpeed(4096);
+				}
+			}
+
 			public void actionHumanWait()
 			{
+				unpaceMotion();
 				setMass(0, (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).MoveSkg() * (60 / chr.CCharacterEureka.m_CharaFps)), (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NMveMax() * (60 / chr.CCharacterEureka.m_CharaFps)), (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NTrnAcc() * (60 / chr.CCharacterEureka.m_CharaFps)), (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).TurnSkg() * (60 / chr.CCharacterEureka.m_CharaFps)), (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NTrnMax() * (60 / chr.CCharacterEureka.m_CharaFps)));
 			}
 
 			public void actionHumanWalk()
 			{
-				setMass((int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NMveAcc() * (60 / chr.CCharacterEureka.m_CharaFps)), 0, (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NMveMax() * (60 / chr.CCharacterEureka.m_CharaFps)), (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NTrnAcc() * (60 / chr.CCharacterEureka.m_CharaFps)), 0, (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NTrnMax() * (60 / chr.CCharacterEureka.m_CharaFps)));
+				pacedMass(running: false, (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NTrnAcc() * (60 / chr.CCharacterEureka.m_CharaFps)), (int)((int)CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).NTrnMax() * (60 / chr.CCharacterEureka.m_CharaFps)));
 			}
 
 			public void actionHumanRun()
 			{
-				int v = (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).SMveAcc() * 1.6f);
-				int v2 = (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).SMveMax() * 1.6f);
-				int v3 = 4736;
-				v = FX_Mul(v3, v);
-				v2 = FX_Mul(v3, v2);
-				setMass(v, 0, v2, (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).STrnAcc() * 1.6f), 0, (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).STrnMax() * 1.6f));
+				pacedMass(running: true, (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).STrnAcc() * 1.6f), (int)(CPlayerWorldParameterManager.Instance().PlayerWorldMoveParameter((int)PlayerMoveType()).STrnMax() * 1.6f));
 			}
 
 			public void actionHumanLeaveWait()

@@ -5,6 +5,7 @@
 //   wait <seconds>                 pause
 //   press <key> [holdMs]           hold a key (XNA Keys names: K, Z, Down, Right, C, M...) - 120 ms unless said
 //   tap <x> <y> [holdMs]           a touch at a point of the 800x480 view (a click on the window), released after the hold
+//   stick <x> <y> [holdMs]         the pad's left stick held at (x, y), each -1..1 with y up, 1000 ms unless said
 //   type <text>                    typed into the open text field (the name entry's); "type" alone clears it; submit / cancel are its Enter and Escape
 //   flag <group>:<index> [on|off]  a game flag set (or cleared) - a story state without playing there
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
@@ -100,6 +101,7 @@ namespace OpenFF.Client
 				if (_framesLeft == 0)
 				{
 					DesktopInput.Injected.Clear();
+					DesktopInput.InjectedStick = null;
 					if (_tapHeld)
 					{
 						_tapHeld = false;
@@ -146,6 +148,22 @@ namespace OpenFF.Client
 					{
 						Log.Write(LogChannel.General, "drive: unknown key '" + bits[0] + "'");
 					}
+					break;
+				}
+				case "stick":
+				{
+					// The pad's left stick held at (x, y) - each -1..1, y up - for the hold, then let go:
+					// the field's analog path (DesktopInput.LeftStick) and the eight-way bits read it as a pad's.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 2 || !float.TryParse(bits[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float sx) || !float.TryParse(bits[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float sy))
+					{
+						Log.Write(LogChannel.General, "drive: stick wants <x> <y> [holdMs], each -1..1");
+						break;
+					}
+					int hold = bits.Length > 2 && int.TryParse(bits[2], out int ms) ? ms : 1000;
+					_framesLeft = Math.Max(2, hold * 60 / 1000);
+					DesktopInput.InjectedStick = new Microsoft.Xna.Framework.Vector2(sx, sy);
+					Log.Write(LogChannel.File, "drive: stick " + sx.ToString(CultureInfo.InvariantCulture) + "," + sy.ToString(CultureInfo.InvariantCulture) + " for " + _framesLeft + " frame(s)");
 					break;
 				}
 				case "tap":

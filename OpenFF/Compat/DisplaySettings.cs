@@ -35,14 +35,14 @@ namespace OpenFF.Client
 		/// <summary>Anti-aliasing samples: 0, 2, 4 or 8.</summary>
 		[JsonPropertyName("msaa")] public int Msaa { get; set; } = 4;
 		[JsonPropertyName("vsync")] public bool VSync { get; set; } = true;
-		/// <summary>How a game pad's left stick runs: "stick" - pushed all the way runs, part way walks (the touch stick's way); "hold" - the run button held runs, as with the keyboard's Shift.</summary>
+		/// <summary>How a game pad's left stick runs: "stick" - the push is the pace, a walk part way rising to the full run all the way (the touch stick's way); "hold" - the run button held runs, as with the keyboard's Shift.</summary>
 		[JsonPropertyName("run")] public string Run { get; set; } = "stick";
 		/// <summary>The game pad's buttons, DS button -> pad button. Names: cross/circle/square/triangle (or a/b/x/y), l1/r1/l2/r2 (or lb/rb/lt/rt), l3/r3, options/start, share/create/back, touchpad/guide. "none" unbinds.</summary>
 		[JsonPropertyName("pad")] public PadMap Pad { get; set; } = new PadMap();
 		/// <summary>Which glyphs the client's screens show for the pad's buttons: "auto" (by the pad's name), "ps" or "xbox".</summary>
 		[JsonPropertyName("padStyle")] public string PadStyle { get; set; } = "auto";
 		[JsonPropertyName("_help")] public string Help { get; } =
-			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. run: stick (the left stick pushed all the way runs, part way walks) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n) wins for one run.";
+			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. run: stick (the left stick's push is the pace - a walk part way, the full run all the way) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n) wins for one run.";
 
 		/// <summary>DS buttons as pad button names; the defaults are a PlayStation pad's natural layout, which SDL lays out the same as an Xbox pad's.</summary>
 		public sealed class PadMap

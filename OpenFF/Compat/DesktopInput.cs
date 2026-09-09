@@ -72,7 +72,7 @@ namespace OpenFF.Client
 		{
 			get
 			{
-				if (_game == null || (!_game.IsActive && Injected.Count == 0) || IsTyping)
+				if (_game == null || (!_game.IsActive && Injected.Count == 0 && !InjectedStick.HasValue) || IsTyping)
 				{
 					return 0;
 				}
@@ -87,7 +87,7 @@ namespace OpenFF.Client
 		public static int RawPadBits()
 		{
 			{
-				if (_game == null || (!_game.IsActive && Injected.Count == 0))
+				if (_game == null || (!_game.IsActive && Injected.Count == 0 && !InjectedStick.HasValue))
 				{
 					return 0;
 				}
@@ -101,7 +101,7 @@ namespace OpenFF.Client
 						bits |= bit;
 					}
 				}
-				if (real) bits |= GamePadBits();
+				if (real || InjectedStick.HasValue) bits |= GamePadBits();
 				// Run. The game has no dedicated run button: isRun() tests the B bit, and
 				// whether B means run or walk depends on Config > movement type. Shift is
 				// what a PC player expects, so alias it onto B - but only while a direction
@@ -134,6 +134,10 @@ namespace OpenFF.Client
 		private static int GamePadBits()
 		{
 			_padRun = false;
+			if (InjectedStick.HasValue)
+			{
+				return StickBits(InjectedStick.Value);
+			}
 			for (int i = 0; i < 4; i++)
 			{
 				GamePadState pad;
@@ -151,21 +155,7 @@ namespace OpenFF.Client
 				// The left stick is eight directions to the DS; how far it is pushed is the pace
 				// when "run" is "stick" (the touch stick's way): part way walks, all the way runs.
 				GamePadDPad d = pad.DPad;
-				Microsoft.Xna.Framework.Vector2 stick = pad.ThumbSticks.Left;
-				const float deadZone = 0.3f;
-				float push = stick.Length();
-				if (push < deadZone) stick = Microsoft.Xna.Framework.Vector2.Zero;
-				// A direction from the stick's angle: within 22.5 degrees of an axis is that axis alone, else a diagonal.
-				if (stick != Microsoft.Xna.Framework.Vector2.Zero)
-				{
-					double angle = Math.Atan2(stick.Y, stick.X) * 180.0 / Math.PI;   // 0 = right, 90 = up
-					bool right = angle > -67.5 && angle < 67.5, left = angle > 112.5 || angle < -112.5;
-					bool up = angle > 22.5 && angle < 157.5, down = angle < -22.5 && angle > -157.5;
-					if (up) bits |= PadUp;
-					if (down) bits |= PadDown;
-					if (left) bits |= PadLeft;
-					if (right) bits |= PadRight;
-				}
+				bits |= StickBits(pad.ThumbSticks.Left);
 				if (d.Up == ButtonState.Pressed) bits |= PadUp;
 				if (d.Down == ButtonState.Pressed) bits |= PadDown;
 				if (d.Left == ButtonState.Pressed) bits |= PadLeft;
@@ -186,16 +176,51 @@ namespace OpenFF.Client
 			return 0;
 		}
 
+		/// <summary>A left stick a drive script holds (Drive's "stick x y"): read in place of a pad's, so a test steers the hero with no pad.</summary>
+		public static Microsoft.Xna.Framework.Vector2? InjectedStick;
+
+		/// <summary>The stick as eight directions: within 22.5 degrees of an axis is that axis alone, else a diagonal; at rest, none.</summary>
+		private static int StickBits(Microsoft.Xna.Framework.Vector2 stick)
+		{
+			if (stick.Length() < StickDead) return 0;
+			int bits = 0;
+			double angle = Math.Atan2(stick.Y, stick.X) * 180.0 / Math.PI;   // 0 = right, 90 = up
+			bool right = angle > -67.5 && angle < 67.5, left = angle > 112.5 || angle < -112.5;
+			bool up = angle > 22.5 && angle < 157.5, down = angle < -22.5 && angle > -157.5;
+			if (up) bits |= PadUp;
+			if (down) bits |= PadDown;
+			if (left) bits |= PadLeft;
+			if (right) bits |= PadRight;
+			return bits;
+		}
+
+		/// <summary>The push below which the stick rests.</summary>
+		private const float StickDead = 0.3f;
+		/// <summary>With "run": "stick", the push up to which the hero walks at walking pace...</summary>
+		private const float StickWalkTo = 0.45f;
+		/// <summary>...and the push from which it runs at full running pace; between the two the pace rises with the push.</summary>
+		private const float StickRunFrom = 0.95f;
+
 		/// <summary>
 		/// The left stick as the field's analog stick: its direction (x right, y up, dead zone
-		/// taken out) and whether that push runs - past 80% with "run": "stick", or the run
-		/// button held. False when no pad is connected or the stick rests. The field walks the
-		/// hero by it the way the phone's touch stick did; the eight-way bits it also raises
-		/// are for the menus.
+		/// taken out) and its pace - 0 at a walk, 1 at a full run, and in between with the push
+		/// with "run": "stick" (the speed follows it, no step at a threshold); the run button held
+		/// is 1; with "run": "hold" the button is the whole of it. False when no pad is connected
+		/// or the stick rests. The field walks the hero by it the way the phone's touch stick did;
+		/// the eight-way bits it also raises are for the menus.
 		/// </summary>
-		internal static bool LeftStick(out float x, out float y, out bool run)
+		internal static bool LeftStick(out float x, out float y, out float pace)
 		{
-			x = y = 0; run = false;
+			x = y = 0; pace = 0;
+			if (InjectedStick.HasValue)
+			{
+				Microsoft.Xna.Framework.Vector2 held = InjectedStick.Value;
+				float heldPush = held.Length();
+				if (heldPush < StickDead) return false;
+				x = held.X; y = held.Y;
+				pace = DisplaySettings.Current.Run == "stick" ? Math.Clamp((heldPush - StickWalkTo) / (StickRunFrom - StickWalkTo), 0f, 1f) : 0f;
+				return true;
+			}
 			if (_game == null || !_game.IsActive || IsTyping) return false;
 			for (int i = 0; i < 4; i++)
 			{
@@ -205,10 +230,17 @@ namespace OpenFF.Client
 				if (!pad.IsConnected) continue;
 				Microsoft.Xna.Framework.Vector2 stick = pad.ThumbSticks.Left;
 				float push = stick.Length();
-				if (push < 0.3f) return false;
+				if (push < StickDead) return false;
 				x = stick.X; y = stick.Y;
 				DisplaySettings settings = DisplaySettings.Current;
-				run = DisplaySettings.Held(pad, (settings.Pad ?? new DisplaySettings.PadMap()).RunButton) || (settings.Run == "stick" && push >= 0.8f);
+				if (DisplaySettings.Held(pad, (settings.Pad ?? new DisplaySettings.PadMap()).RunButton))
+				{
+					pace = 1;
+				}
+				else if (settings.Run == "stick")
+				{
+					pace = Math.Clamp((push - StickWalkTo) / (StickRunFrom - StickWalkTo), 0f, 1f);
+				}
 				return true;
 			}
 			return false;

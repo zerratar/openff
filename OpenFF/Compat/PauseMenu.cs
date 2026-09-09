@@ -396,7 +396,7 @@ namespace OpenFF.Client
 						case 1: label = "Window size"; value = s.Width + " x " + s.Height; return;
 						case 2: label = "Anti-aliasing"; value = s.Msaa == 0 ? "Off" : s.Msaa + "x"; return;
 						case 3: label = "VSync"; value = s.VSync ? "On" : "Off"; return;
-						case 4: label = "Run"; value = s.Run == "stick" ? "Push the stick all the way" : "Hold the run button"; return;
+						case 4: label = "Run"; value = s.Run == "stick" ? "By the stick's push" : "Hold the run button"; return;
 						case 5: label = "Pad buttons..."; return;
 						default: label = "Back"; return;
 					}

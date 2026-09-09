@@ -54,6 +54,11 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   eight ways. The eight-way reading stays for the menus. The game's Config > Movement (Walk /
   Run) is left out of the stick's decision - the push, or the run button, is the whole of it;
   the d-pad still follows the config as the DS did.
+- **The pace follows the push.** With `"run": "stick"` the speed rises with the stick from a
+  walk (up to 45% push) to the full run (from 95%), and the walk or run motion plays at the
+  speed's ratio so the feet keep up - where before the hero stepped from walking to running
+  at 80% (found in testing). The run button still means a full run at any push; `"hold"` is
+  unchanged. Drives can hold the stick: `stick <x> <y> [ms]`.
 - **The quick save notice** ("returning to the title") takes A or B as well as a tap.
 - **Menu tabs with a pad.** The tab rows the touch build tapped - Items / Key Items, Config 1
   / Config 2, Magic's Use / Learn / Remove / Exchange - turn with X / Y (Square / Triangle,

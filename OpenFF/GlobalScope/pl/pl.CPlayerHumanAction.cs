@@ -138,15 +138,18 @@ internal static partial class GlobalScope
 				{
 					// PORT: a game pad's left stick walks as the phone's touch stick did - the drag vector
 					// is the stick's, so the hero faces the way it points and not the nearest of eight -
-					// and its push is the pace: a short drag walks, a long one runs, as the thresholds
-					// below read them (settings.json's "run" says whether the push or a button runs).
-					if (!OpenFF.Client.DesktopInput.LeftStick(out float stickX, out float stickY, out bool stickRun))
+					// and its push is the pace: 0 walks, 1 runs, and between the two the speed and the
+					// motion's rate rise with it (CPlayerHuman.StickPace, read by the act's mass), so
+					// there is no step from a walk to a run at a threshold. The act - the walk or the run
+					// motion - turns over at the half-way pace, where the two rates meet.
+					if (!OpenFF.Client.DesktopInput.LeftStick(out float stickX, out float stickY, out float pace))
 					{
 						return false;
 					}
+					cPlayerHuman.StickPace = pace;
 					// The touch drag is in screen pixels (the thresholds below: 37 walks, past it runs), so
 					// the stick's push is scaled to a drag of 25 to walk or 50 to run.
-					int reach = stickRun ? 50 : 25;
+					int reach = pace >= 0.5f ? 50 : 25;
 					vecFx = new VecFx32((int)Math.Round(stickX * reach), 0, (int)Math.Round(-stickY * reach));
 					num5 = (vecFx.x * vecFx.x + vecFx.z * vecFx.z) * 4096;
 					if (num5 < 65536)
