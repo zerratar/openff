@@ -1162,6 +1162,7 @@ function makeMapScene(canvas, status) {
       let best = null;
       let bestKind = null;
       let bestDepth = Infinity;
+      let bestReach = Infinity;
 
       for (const item of instances) {
         const bounds = boundsOf(item);
@@ -1191,8 +1192,12 @@ function makeMapScene(canvas, status) {
         const reach = Math.max(screenRadius(at, bounds.radius), 0.02);
         if (Math.hypot(middle.x - nx, middle.y - ny) > reach) return;
         const depth = Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]);
-        if (depth < bestDepth) {
+        // Among the mod's objects the smallest target under the cursor wins: a crate standing
+        // on a ground slab is what a click on the crate means, whatever their centres' depths.
+        const smaller = bestKind === 'point' && reach < bestReach;
+        if (smaller || (bestKind !== 'point' && depth < bestDepth)) {
           bestDepth = depth;
+          bestReach = reach;
           best = { index, name: point.name, x: point.x, y: point.y, z: point.z };
           bestKind = 'point';
         }
@@ -1220,6 +1225,11 @@ function makeMapScene(canvas, status) {
         selectedPoint = bestKind === 'point' ? best.index : null;
         draw();
         onPick(best, bestKind);
+      } else if (selected !== null || selectedExit !== null || selectedPoint !== null) {
+        // A click on nothing takes the selection off; the page hears it as a pick of nothing.
+        selected = selectedExit = selectedPoint = null;
+        draw();
+        onPick(null, null);
       }
       return best;
     },

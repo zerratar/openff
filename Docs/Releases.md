@@ -56,6 +56,15 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - **Config with a pad.** L and R turn Config 1 and Config 2 (the tabs were touch only), and
   Up past the first option no longer crashes (an index off the explanation table). Reported
   by testing.
+- **Crystal's 3D view.** A click on nothing deselects; a pick in the view takes the
+  inspector even when something from the project panel was in it (only the hierarchy did
+  before); among the mod's objects the smallest under the cursor wins, so a crate on a
+  ground slab is picked, not the slab; an item made in the project shows in the Chest's
+  item picker at once.
+- **Button glyphs as icons.** The client's screens draw the pad's buttons from geometry -
+  Cross, Circle, Square, Triangle, the menu lines, Shift, Backspace, the arrows - crisp at
+  any window size, no font glyph coverage involved; `settings.json` ▸ `"padStyle"`
+  (`auto`, `ps`, `xbox`) or `--padstyle=` picks the set when the pad's name misleads.
 - **Saves were being lost - fixed.** The game read `save.bin` through .NET's IsolatedStorage,
   a store keyed by the executable's path, but created the file under `%AppData%\FF3` - so a
   build in any new folder never found a save file, its first write failed, and every save and

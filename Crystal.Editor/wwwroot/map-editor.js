@@ -940,7 +940,11 @@ function wireModes(node, doc, scene) {
       });
 
       await doc.scene3d.load(scene, (item, kind) => {
-        if (kind === 'exit') {
+        if (!item) {
+          // A click on nothing - the void, the bare ground - deselects, as in any editor.
+          mapState.selected = null;
+          doc.selection = null;
+        } else if (kind === 'exit') {
           mapState.selected = null;
           doc.selection = `exit:${item.index}`;
         } else if (kind === 'point') {
@@ -951,6 +955,9 @@ function wireModes(node, doc, scene) {
           mapState.selected = mapState.data.characters.find(c => c.index === item.index);
           doc.selection = `object:${item.index}`;
         }
+        // A pick in the view is a selection like the hierarchy's: whatever the project panel
+        // had in the inspector gives way to it.
+        if (typeof clearInspected === 'function') clearInspected();
         drawHierarchy();
         drawInspector();
       });

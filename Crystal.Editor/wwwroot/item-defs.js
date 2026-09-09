@@ -10,6 +10,9 @@
 
 /// The tree's counts beside Items and Characters, after a definition came or went.
 async function itemsCountChanged() {
+  // The item pickers ([ItemField] on a Chest and the like) list the mod's items with the game's,
+  // fetched once; an item made, renamed or removed means fetching again.
+  state.items = null;
   try {
     const r = await api('/api/project/items');
     const c = await api('/api/project/characters');

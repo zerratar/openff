@@ -39,6 +39,8 @@ namespace OpenFF.Client
 		[JsonPropertyName("run")] public string Run { get; set; } = "stick";
 		/// <summary>The game pad's buttons, DS button -> pad button. Names: cross/circle/square/triangle (or a/b/x/y), l1/r1/l2/r2 (or lb/rb/lt/rt), l3/r3, options/start, share/create/back, touchpad/guide. "none" unbinds.</summary>
 		[JsonPropertyName("pad")] public PadMap Pad { get; set; } = new PadMap();
+		/// <summary>Which glyphs the client's screens show for the pad's buttons: "auto" (by the pad's name), "ps" or "xbox".</summary>
+		[JsonPropertyName("padStyle")] public string PadStyle { get; set; } = "auto";
 		[JsonPropertyName("_help")] public string Help { get; } =
 			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. run: stick (the left stick pushed all the way runs, part way walks) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n) wins for one run.";
 

@@ -165,15 +165,155 @@ namespace OpenFF.Client
 			g.DrawString(text, x, top + (height - LineHeight(size)) / 2f + size * 0.1f, size);
 		}
 
+		// ---- icons, drawn from geometry at the pixel size asked (crisp at any window size) ----
+		//
+		// What an SVG set would give, without a parser: each icon is a few anti-aliased strokes
+		// or a filled polygon, rasterised once per size and kept. Add one by adding a case.
+
+		public enum Icon { Cross, Circle, Square, Triangle, Menu, Up, Down, Left, Right, Shift, Backspace }
+
+		private static readonly System.Collections.Generic.Dictionary<(Icon, int), Texture2D> _icons = new System.Collections.Generic.Dictionary<(Icon, int), Texture2D>();
+
+		/// <summary>The icon as a white texture of the given pixel size (tint it when drawing).</summary>
+		public static Texture2D IconTexture(Icon icon, int px)
+		{
+			px = Math.Max(8, px);
+			if (_icons.TryGetValue((icon, px), out Texture2D have) && !have.IsDisposed) return have;
+			float[] a = new float[px * px];
+			float s = px, c = (px - 1) / 2f, t = Math.Max(1.2f, px * 0.11f);   // stroke width
+			switch (icon)
+			{
+				case Icon.Cross:
+					Stroke(a, px, c - s * 0.26f, c - s * 0.26f, c + s * 0.26f, c + s * 0.26f, t);
+					Stroke(a, px, c + s * 0.26f, c - s * 0.26f, c - s * 0.26f, c + s * 0.26f, t);
+					break;
+				case Icon.Circle:
+					Ring(a, px, c, c, s * 0.30f, t);
+					break;
+				case Icon.Square:
+					Stroke(a, px, c - s * 0.27f, c - s * 0.27f, c + s * 0.27f, c - s * 0.27f, t);
+					Stroke(a, px, c + s * 0.27f, c - s * 0.27f, c + s * 0.27f, c + s * 0.27f, t);
+					Stroke(a, px, c + s * 0.27f, c + s * 0.27f, c - s * 0.27f, c + s * 0.27f, t);
+					Stroke(a, px, c - s * 0.27f, c + s * 0.27f, c - s * 0.27f, c - s * 0.27f, t);
+					break;
+				case Icon.Triangle:
+					Stroke(a, px, c, c - s * 0.31f, c + s * 0.30f, c + s * 0.22f, t);
+					Stroke(a, px, c + s * 0.30f, c + s * 0.22f, c - s * 0.30f, c + s * 0.22f, t);
+					Stroke(a, px, c - s * 0.30f, c + s * 0.22f, c, c - s * 0.31f, t);
+					break;
+				case Icon.Menu:
+					for (int i = -1; i <= 1; i++) Stroke(a, px, c - s * 0.26f, c + i * s * 0.2f, c + s * 0.26f, c + i * s * 0.2f, t);
+					break;
+				case Icon.Up: Fill(a, px, (c, c - s * 0.28f), (c + s * 0.3f, c + s * 0.2f), (c - s * 0.3f, c + s * 0.2f)); break;
+				case Icon.Down: Fill(a, px, (c, c + s * 0.28f), (c - s * 0.3f, c - s * 0.2f), (c + s * 0.3f, c - s * 0.2f)); break;
+				case Icon.Left: Fill(a, px, (c - s * 0.28f, c), (c + s * 0.2f, c - s * 0.3f), (c + s * 0.2f, c + s * 0.3f)); break;
+				case Icon.Right: Fill(a, px, (c + s * 0.28f, c), (c - s * 0.2f, c + s * 0.3f), (c - s * 0.2f, c - s * 0.3f)); break;
+				case Icon.Shift:
+					// An arrow head over a short stem, outlined.
+					Fill(a, px, (c, c - s * 0.32f), (c + s * 0.3f, c + s * 0.02f), (c - s * 0.3f, c + s * 0.02f));
+					Stroke(a, px, c, c, c, c + s * 0.3f, t * 1.8f);
+					break;
+				case Icon.Backspace:
+					// A tag pointing left with a cross in it.
+					Stroke(a, px, c - s * 0.34f, c, c - s * 0.1f, c - s * 0.24f, t);
+					Stroke(a, px, c - s * 0.1f, c - s * 0.24f, c + s * 0.34f, c - s * 0.24f, t);
+					Stroke(a, px, c + s * 0.34f, c - s * 0.24f, c + s * 0.34f, c + s * 0.24f, t);
+					Stroke(a, px, c + s * 0.34f, c + s * 0.24f, c - s * 0.1f, c + s * 0.24f, t);
+					Stroke(a, px, c - s * 0.1f, c + s * 0.24f, c - s * 0.34f, c, t);
+					Stroke(a, px, c - s * 0.02f, c - s * 0.1f, c + s * 0.2f, c + s * 0.1f, t * 0.8f);
+					Stroke(a, px, c + s * 0.2f, c - s * 0.1f, c - s * 0.02f, c + s * 0.1f, t * 0.8f);
+					break;
+			}
+			Color[] pxs = new Color[px * px];
+			for (int i = 0; i < pxs.Length; i++) pxs[i] = Color.White * Math.Clamp(a[i], 0f, 1f);
+			Texture2D tex = new Texture2D(_device, px, px);
+			tex.SetData(pxs);
+			_icons[(icon, px)] = tex;
+			return tex;
+		}
+
+		/// <summary>An anti-aliased stroke from (x0,y0) to (x1,y1), width w, added into the coverage.</summary>
+		private static void Stroke(float[] a, int px, float x0, float y0, float x1, float y1, float w)
+		{
+			float dx = x1 - x0, dy = y1 - y0, len2 = dx * dx + dy * dy;
+			int minX = (int)Math.Floor(Math.Min(x0, x1) - w), maxX = (int)Math.Ceiling(Math.Max(x0, x1) + w);
+			int minY = (int)Math.Floor(Math.Min(y0, y1) - w), maxY = (int)Math.Ceiling(Math.Max(y0, y1) + w);
+			for (int y = Math.Max(0, minY); y <= Math.Min(px - 1, maxY); y++)
+				for (int x = Math.Max(0, minX); x <= Math.Min(px - 1, maxX); x++)
+				{
+					float u = len2 <= 0 ? 0 : Math.Clamp(((x - x0) * dx + (y - y0) * dy) / len2, 0f, 1f);
+					float qx = x0 + u * dx - x, qy = y0 + u * dy - y;
+					float d = (float)Math.Sqrt(qx * qx + qy * qy);
+					a[y * px + x] = Math.Max(a[y * px + x], Math.Clamp(w / 2 + 0.5f - d, 0f, 1f));
+				}
+		}
+
+		private static void Ring(float[] a, int px, float cx, float cy, float r, float w)
+		{
+			for (int y = 0; y < px; y++)
+				for (int x = 0; x < px; x++)
+				{
+					float d = Math.Abs((float)Math.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) - r);
+					a[y * px + x] = Math.Max(a[y * px + x], Math.Clamp(w / 2 + 0.5f - d, 0f, 1f));
+				}
+		}
+
+		/// <summary>A filled, anti-aliased triangle.</summary>
+		private static void Fill(float[] a, int px, (float x, float y) p0, (float x, float y) p1, (float x, float y) p2)
+		{
+			float Edge((float x, float y) u, (float x, float y) v, float x, float y)
+			{
+				float ex = v.x - u.x, ey = v.y - u.y, len = (float)Math.Sqrt(ex * ex + ey * ey);
+				return len <= 0 ? 0 : ((x - u.x) * ey - (y - u.y) * ex) / len;   // signed distance to the edge's line
+			}
+			// Orientation, so "inside" is positive for all three edges: the centroid is inside.
+			float mx = (p0.x + p1.x + p2.x) / 3f, my = (p0.y + p1.y + p2.y) / 3f;
+			float sign = Edge(p0, p1, mx, my) >= 0 ? 1 : -1;
+			for (int y = 0; y < px; y++)
+				for (int x = 0; x < px; x++)
+				{
+					float d0 = Edge(p0, p1, x, y) * sign, d1 = Edge(p1, p2, x, y) * sign, d2 = Edge(p2, p0, x, y) * sign;
+					float d = Math.Min(d0, Math.Min(d1, d2));   // positive inside; the distance to the nearest edge
+					a[y * px + x] = Math.Max(a[y * px + x], Math.Clamp(d + 0.5f, 0f, 1f));
+				}
+		}
+
+		/// <summary>Draws an icon centred on a text-space point at a text-space size, tinted.</summary>
+		public static void IconAt(SpriteBatch b, Icon icon, float cx, float cy, float size, Color tint, Viewport v)
+		{
+			float sx = v.Width / W, sy = v.Height / H;
+			int px = Math.Max(8, (int)Math.Round(size * sx));
+			Texture2D tex = IconTexture(icon, px);
+			b.Draw(tex, new Rectangle((int)Math.Round(cx * sx - px / 2f), (int)Math.Round(cy * sy - px / 2f), px, px), tint);
+		}
+
 		// ---- pad glyphs ----
 
 		public enum PadButton { A, B, X, Y, Start, L, R }
+
+		/// <summary>The icon a PlayStation pad's button carries, or null for a lettered one.</summary>
+		private static Icon? IconFor(PadButton button, bool ps)
+		{
+			switch (button)
+			{
+				case PadButton.A: return ps ? Icon.Cross : (Icon?)null;
+				case PadButton.B: return ps ? Icon.Circle : (Icon?)null;
+				case PadButton.X: return ps ? Icon.Square : (Icon?)null;
+				case PadButton.Y: return ps ? Icon.Triangle : (Icon?)null;
+				case PadButton.Start: return Icon.Menu;
+				default: return null;
+			}
+		}
 
 		/// <summary>Whether the connected pad speaks PlayStation (glyphs) rather than Xbox (letters).</summary>
 		public static bool PlayStationPad
 		{
 			get
 			{
+				// settings.json's "padStyle" (ps | xbox) or --padstyle= decides outright; else the pad's name.
+				string style = Options.Get("padstyle") ?? DisplaySettings.Current.PadStyle;
+				if (string.Equals(style, "ps", StringComparison.OrdinalIgnoreCase)) return true;
+				if (string.Equals(style, "xbox", StringComparison.OrdinalIgnoreCase)) return false;
 				for (int i = 0; i < 4; i++)
 				{
 					try
@@ -209,19 +349,24 @@ namespace OpenFF.Client
 		/// <summary>The width a hint takes in text space: the disc, a gap, the word.</summary>
 		public static float HintWidth(GlobalScope.Graphics g, string word, int size, float disc) => disc + 8 + Width(g, word, size);
 
-		/// <summary>Shape pass of a hint: the button's disc at (x, cy).</summary>
+		/// <summary>Shape pass of a hint: the button's disc at (x, cy), and its icon when it has one (the PlayStation marks, the menu lines).</summary>
 		public static void HintShape(SpriteBatch b, PadButton button, float x, float cy, float disc, Viewport v)
 		{
-			(string _, Color face, Color _) = Glyph(button);
+			(string _, Color face, Color ink) = Glyph(button);
 			GlyphDisc(b, x + disc / 2, cy, disc, face, v);
+			Icon? icon = IconFor(button, PlayStationPad);
+			if (icon.HasValue) IconAt(b, icon.Value, x + disc / 2, cy, disc * 0.92f, ink, v);
 		}
 
-		/// <summary>Text pass of a hint: the mark in the disc, the word beside it. Returns where the next hint may start.</summary>
+		/// <summary>Text pass of a hint: the letter in the disc when the button has one rather than an icon, the word beside it. Returns where the next hint may start.</summary>
 		public static float HintText(GlobalScope.Graphics g, PadButton button, string word, float x, float cy, float disc, int size)
 		{
 			(string mark, Color _, Color ink) = Glyph(button);
-			int markSize = mark.Length > 1 ? Math.Max(6, size - 3) : size;
-			Centred(g, mark, new Rectangle((int)x, (int)(cy - disc / 2), (int)disc, (int)disc), markSize, ink);
+			if (!IconFor(button, PlayStationPad).HasValue)
+			{
+				int markSize = mark.Length > 1 ? Math.Max(6, size - 3) : size;
+				Centred(g, mark, new Rectangle((int)x, (int)(cy - disc / 2), (int)disc, (int)disc), markSize, ink);
+			}
 			Left(g, word, x + disc + 8, cy - disc / 2, disc, size, Muted);
 			return x + HintWidth(g, word, size, disc) + 26;
 		}

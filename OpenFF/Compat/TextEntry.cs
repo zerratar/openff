@@ -290,6 +290,13 @@ namespace OpenFF.Client
 				for (int r = 0; r <= KeyRows.Length; r++)
 					for (int c = 0; c < ColumnsIn(r); c++)
 						Ui.Key(_batch, CellRect(r, c), r == _row && c == _col, view);
+				// The Shift and Backspace keys carry their icons.
+				foreach ((int col, Ui.Icon icon) in new[] { (0, Ui.Icon.Shift), (2, Ui.Icon.Backspace) })
+				{
+					Rectangle k = CellRect(KeyRows.Length, col);
+					bool lit = _row == KeyRows.Length && _col == col;
+					Ui.IconAt(_batch, icon, k.X + k.Width / 2f, k.Y + k.Height / 2f, 26, lit ? Ui.TextOnLit : (col == 0 && _shift ? Ui.Accent : Ui.Text), view);
+				}
 				// The hints' discs along the bottom.
 				float hx = left, hy = panel.Bottom - 22;
 				foreach ((Ui.PadButton button, string word) in Hints())
@@ -323,7 +330,8 @@ namespace OpenFF.Client
 					{
 						bool lit = r == _row && c == _col;
 						bool wide = r >= KeyRows.Length;
-						Ui.Centred(graphics, KeyLabel(r, c), CellRect(r, c), wide ? 10 : keySize, lit ? Ui.TextOnLit : (wide && c == 0 && _shift ? Ui.Accent : Ui.Text));
+						if (wide && (c == 0 || c == 2)) continue;   // the icon keys
+						Ui.Centred(graphics, KeyLabel(r, c), CellRect(r, c), wide ? 10 : keySize, lit ? Ui.TextOnLit : Ui.Text);
 					}
 				}
 				float hx = left, hy = panel.Bottom - 22;
