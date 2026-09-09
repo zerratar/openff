@@ -127,10 +127,9 @@ namespace OpenFF.Client
 
 		/// <summary>
 		/// The first connected game pad as DS pad bits: the d-pad and the left stick are the
-		/// directions, A/B/X/Y (Cross/Circle/Square/Triangle on a PlayStation pad, which SDL lays
-		/// out the same way) are the DS's A/B/X/Y, the shoulders L and R, Start and Back (Options
-		/// and Share/Create) Start and Select. The right trigger runs; the left trigger
-		/// fast-forwards like Tab.
+		/// directions; the buttons are whatever settings.json's "pad" map says (by default
+		/// Cross/Circle/Square/Triangle as the DS's A/B/X/Y, L1/R1, Options/Share, R2 to run, L2
+		/// to fast-forward). With "run": "stick" the stick pushed all the way runs by itself.
 		/// </summary>
 		private static int GamePadBits()
 		{
@@ -147,23 +146,39 @@ namespace OpenFF.Client
 					Log.Write(LogChannel.General, "input: game pad " + (i + 1) + " connected (" + (GamePad.GetCapabilities((PlayerIndex)i).DisplayName ?? "unnamed") + ")");
 				}
 				int bits = 0;
+				DisplaySettings settings = DisplaySettings.Current;
+				DisplaySettings.PadMap map = settings.Pad ?? new DisplaySettings.PadMap();
+				// The left stick is eight directions to the DS; how far it is pushed is the pace
+				// when "run" is "stick" (the touch stick's way): part way walks, all the way runs.
 				GamePadDPad d = pad.DPad;
 				Microsoft.Xna.Framework.Vector2 stick = pad.ThumbSticks.Left;
-				const float deadZone = 0.45f;
-				if (d.Up == ButtonState.Pressed || stick.Y > deadZone) bits |= PadUp;
-				if (d.Down == ButtonState.Pressed || stick.Y < -deadZone) bits |= PadDown;
-				if (d.Left == ButtonState.Pressed || stick.X < -deadZone) bits |= PadLeft;
-				if (d.Right == ButtonState.Pressed || stick.X > deadZone) bits |= PadRight;
-				GamePadButtons b = pad.Buttons;
-				if (b.A == ButtonState.Pressed) bits |= PadA;
-				if (b.B == ButtonState.Pressed) bits |= PadB;
-				if (b.X == ButtonState.Pressed) bits |= PadX;
-				if (b.Y == ButtonState.Pressed) bits |= PadY;
-				if (b.LeftShoulder == ButtonState.Pressed) bits |= PadL;
-				if (b.RightShoulder == ButtonState.Pressed) bits |= PadR;
-				if (b.Start == ButtonState.Pressed) bits |= PadStart;
-				if (b.Back == ButtonState.Pressed) bits |= PadSelect;
-				_padRun = pad.Triggers.Right > 0.5f;
+				const float deadZone = 0.3f, runZone = 0.8f;
+				float push = stick.Length();
+				if (push < deadZone) stick = Microsoft.Xna.Framework.Vector2.Zero;
+				// A direction from the stick's angle: within 22.5 degrees of an axis is that axis alone, else a diagonal.
+				if (stick != Microsoft.Xna.Framework.Vector2.Zero)
+				{
+					double angle = Math.Atan2(stick.Y, stick.X) * 180.0 / Math.PI;   // 0 = right, 90 = up
+					bool right = angle > -67.5 && angle < 67.5, left = angle > 112.5 || angle < -112.5;
+					bool up = angle > 22.5 && angle < 157.5, down = angle < -22.5 && angle > -157.5;
+					if (up) bits |= PadUp;
+					if (down) bits |= PadDown;
+					if (left) bits |= PadLeft;
+					if (right) bits |= PadRight;
+				}
+				if (d.Up == ButtonState.Pressed) bits |= PadUp;
+				if (d.Down == ButtonState.Pressed) bits |= PadDown;
+				if (d.Left == ButtonState.Pressed) bits |= PadLeft;
+				if (d.Right == ButtonState.Pressed) bits |= PadRight;
+				if (DisplaySettings.Held(pad, map.A)) bits |= PadA;
+				if (DisplaySettings.Held(pad, map.B)) bits |= PadB;
+				if (DisplaySettings.Held(pad, map.X)) bits |= PadX;
+				if (DisplaySettings.Held(pad, map.Y)) bits |= PadY;
+				if (DisplaySettings.Held(pad, map.L)) bits |= PadL;
+				if (DisplaySettings.Held(pad, map.R)) bits |= PadR;
+				if (DisplaySettings.Held(pad, map.Start)) bits |= PadStart;
+				if (DisplaySettings.Held(pad, map.Select)) bits |= PadSelect;
+				_padRun = DisplaySettings.Held(pad, map.RunButton) || (settings.Run == "stick" && push >= runZone);
 				return bits;
 			}
 			return 0;
@@ -177,7 +192,7 @@ namespace OpenFF.Client
 				try
 				{
 					GamePadState pad = GamePad.GetState((PlayerIndex)i);
-					if (pad.IsConnected) return pad.Triggers.Left > 0.5f;
+					if (pad.IsConnected) return DisplaySettings.Held(pad, (DisplaySettings.Current.Pad ?? new DisplaySettings.PadMap()).Fast);
 				}
 				catch (Exception) { }
 			}

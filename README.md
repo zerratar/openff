@@ -175,7 +175,7 @@ are otherwise as they were made.
 | Mouse | Touch (click, drag) |
 | Tab (hold) | Fast-forward |
 | Alt+Enter | Windowed and full screen in turn (remembered in `settings.json`) |
-| Game pad (XInput, DualShock, DualSense, Switch Pro …) | D-pad or left stick: directions; A/B/X/Y (Cross/Circle/Square/Triangle): the DS's A/B/X/Y; LB/RB: L/R; Start (Options): Start; Back (Share/Create): Select; right trigger held: run; left trigger held: fast-forward. The first connected pad; plugged in at any time. A pad SDL does not know can be described in a `gamecontrollerdb.txt` beside the executable |
+| Game pad (XInput, DualShock, DualSense, Switch Pro …) | D-pad or left stick: directions - the stick pushed all the way runs, part way walks (`"run": "stick"` in `settings.json`; `"hold"` for the run button instead). Buttons as `settings.json` ▸ `pad` maps them, by default Cross/Circle/Square/Triangle = the DS's A/B/X/Y, L1/R1 = L/R, Options = Start, Share = Select, R2 = run, L2 = fast-forward; any DS button can be given any pad button by name. The first connected pad; plugged in at any time. A pad SDL does not know can be described in a `gamecontrollerdb.txt` beside the executable |
 | F1 | Debug overlay (F2 menu frames, F3 ids, F4 sprites, F5 world text, F6 stats) |
 | F12 | Screenshot |
 

@@ -17,6 +17,13 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   read it through `Game.Input` with the keyboard. XInput pads, DualShock 4, DualSense and
   Switch Pro are known to SDL; an unknown one can be described in a `gamecontrollerdb.txt`
   beside the executable. Reported by Karl on a DualSense.
+- **Running from the stick, and your own buttons.** `settings.json` ▸ `"run"`: `"stick"` (the
+  default) runs when the left stick is pushed all the way and walks part way, as the phone's
+  touch stick did; `"hold"` runs only while the run button is held. `settings.json` ▸ `"pad"`
+  maps each DS button (`a`, `b`, `x`, `y`, `l`, `r`, `start`, `select`, plus `run` and `fast`)
+  to a pad button by name - `cross`/`circle`/`square`/`triangle` (or `a`/`b`/`x`/`y`),
+  `l1`/`r1`/`l2`/`r2` (or `lb`/`rb`/`lt`/`rt`), `l3`/`r3`, `options`, `share`, `touchpad`,
+  `none`.
 - **Display settings.** `%LocalAppData%\OpenFF\settings.json`, written with its defaults on
   the first start: `width`/`height` (1600×960 to begin with - the game's 800×480 space,
   doubled), `mode` (`windowed`, `borderless` - the desktop's size with no frame - or

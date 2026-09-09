@@ -35,8 +35,51 @@ namespace OpenFF.Client
 		/// <summary>Anti-aliasing samples: 0, 2, 4 or 8.</summary>
 		[JsonPropertyName("msaa")] public int Msaa { get; set; } = 4;
 		[JsonPropertyName("vsync")] public bool VSync { get; set; } = true;
-		[JsonPropertyName("_help")] public string Help { get; set; } =
-			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n) wins for one run.";
+		/// <summary>How a game pad's left stick runs: "stick" - pushed all the way runs, part way walks (the touch stick's way); "hold" - the run button held runs, as with the keyboard's Shift.</summary>
+		[JsonPropertyName("run")] public string Run { get; set; } = "stick";
+		/// <summary>The game pad's buttons, DS button -> pad button. Names: cross/circle/square/triangle (or a/b/x/y), l1/r1/l2/r2 (or lb/rb/lt/rt), l3/r3, options/start, share/create/back, touchpad/guide. "none" unbinds.</summary>
+		[JsonPropertyName("pad")] public PadMap Pad { get; set; } = new PadMap();
+		[JsonPropertyName("_help")] public string Help { get; } =
+			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. run: stick (the left stick pushed all the way runs, part way walks) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n) wins for one run.";
+
+		/// <summary>DS buttons as pad button names; the defaults are a PlayStation pad's natural layout, which SDL lays out the same as an Xbox pad's.</summary>
+		public sealed class PadMap
+		{
+			[JsonPropertyName("a")] public string A { get; set; } = "cross";
+			[JsonPropertyName("b")] public string B { get; set; } = "circle";
+			[JsonPropertyName("x")] public string X { get; set; } = "square";
+			[JsonPropertyName("y")] public string Y { get; set; } = "triangle";
+			[JsonPropertyName("l")] public string L { get; set; } = "l1";
+			[JsonPropertyName("r")] public string R { get; set; } = "r1";
+			[JsonPropertyName("start")] public string Start { get; set; } = "options";
+			[JsonPropertyName("select")] public string Select { get; set; } = "share";
+			/// <summary>Held to run (with "run": "hold"; with "stick" it runs too, on top of the stick).</summary>
+			[JsonPropertyName("run")] public string RunButton { get; set; } = "r2";
+			/// <summary>Held to fast-forward, like Tab.</summary>
+			[JsonPropertyName("fast")] public string Fast { get; set; } = "l2";
+		}
+
+		/// <summary>Whether a pad button, by its name in the map, is held in a pad state. Unknown names and "none" are never held.</summary>
+		public static bool Held(GamePadState pad, string button)
+		{
+			switch ((button ?? "").Trim().ToLowerInvariant())
+			{
+				case "cross": case "a": return pad.Buttons.A == ButtonState.Pressed;
+				case "circle": case "b": return pad.Buttons.B == ButtonState.Pressed;
+				case "square": case "x": return pad.Buttons.X == ButtonState.Pressed;
+				case "triangle": case "y": return pad.Buttons.Y == ButtonState.Pressed;
+				case "l1": case "lb": return pad.Buttons.LeftShoulder == ButtonState.Pressed;
+				case "r1": case "rb": return pad.Buttons.RightShoulder == ButtonState.Pressed;
+				case "l2": case "lt": return pad.Triggers.Left > 0.5f;
+				case "r2": case "rt": return pad.Triggers.Right > 0.5f;
+				case "l3": case "ls": return pad.Buttons.LeftStick == ButtonState.Pressed;
+				case "r3": case "rs": return pad.Buttons.RightStick == ButtonState.Pressed;
+				case "options": case "start": return pad.Buttons.Start == ButtonState.Pressed;
+				case "share": case "create": case "back": case "select": return pad.Buttons.Back == ButtonState.Pressed;
+				case "touchpad": case "guide": case "ps": return pad.Buttons.BigButton == ButtonState.Pressed;
+				default: return false;
+			}
+		}
 
 		public static string Path => System.IO.Path.Combine(
 			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenFF", "settings.json");
@@ -66,6 +109,10 @@ namespace OpenFF.Client
 			settings.Height = Math.Clamp(settings.Height, 200, 16384);
 			settings.Msaa = NormaliseMsaa(settings.Msaa);
 			settings.Mode = NormaliseMode(settings.Mode);
+			settings.Run = string.Equals(settings.Run, "hold", StringComparison.OrdinalIgnoreCase) ? "hold" : "stick";
+			settings.Pad ??= new PadMap();
+			// Written back as read, so a file from an older build gains the keys it lacks, with their defaults, to edit.
+			settings.Save();
 
 			// The command line, for this run only.
 			string size = Options.Get("size");
