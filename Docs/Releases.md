@@ -65,6 +65,11 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   Cross, Circle, Square, Triangle, the menu lines, Shift, Backspace, the arrows - crisp at
   any window size, no font glyph coverage involved; `settings.json` ▸ `"padStyle"`
   (`auto`, `ps`, `xbox`) or `--padstyle=` picks the set when the pad's name misleads.
+- **Item definitions with pickers.** A record's fields are shown for what they are: a
+  weapon's kind, its battle model (`w###`, with *View*), the jobs that may equip it, damage
+  type, the status a hit inflicts and its chance, the spell it casts; armour's kind and what
+  it guards against; a spell's school, level, element, status and targets - from the game's
+  own enums, the base's value greyed in, ↺ back to it. Plain numbers carry a tip.
 - **Saves were being lost - fixed.** The game read `save.bin` through .NET's IsolatedStorage,
   a store keyed by the executable's path, but created the file under `%AppData%\FF3` - so a
   build in any new folder never found a save file, its first write failed, and every save and

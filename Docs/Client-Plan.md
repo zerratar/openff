@@ -2002,7 +2002,12 @@ Steam converters (glTF → MDL0, PNG → XNB, TTF → SpriteFont) are a separate
 mods that must also install into the Steam games:
 
 - Models: glTF in - done for static meshes, animated ones, as collision (`Solid`) and
-  walking about (`Roam`, below). Next: `Talk` and the other Interactables on a glTF.
+  walking about (`Roam`, below); `Talk` on a glTF done. Next: **a glTF as a weapon** - an
+  item definition's `model: assets/blade.glb` drawn in the hero's hand in battle instead of
+  the `w###` model: the client hides the game's weapon model and poses the glTF from the
+  hand joint each frame (`pl.BindObject` is that mechanism for the game's own models; the
+  joint capture exists), the weapon's *Kind* still picking the swing motions. Then the same
+  for a character's field model (a glTF hero).
 - Maps: a whole map of the mod's own - done (below): a free stage name, a scene file with
   a Solid Mesh for the ground, `Exit`, `Music`, `Sound` and `MapSettings` (sky, camera)
   components, *New map…* in Crystal. Next on it: its name on the menu, the map screen.
