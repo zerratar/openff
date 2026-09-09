@@ -142,6 +142,7 @@ real games.
 | `Docs/OpenFF-Engine.md` | The engine we are building towards: goal, layers, object model, scripting, saving, the API at a glance |
 | `Docs/Client-Plan.md` | The client's stages and the journal of every piece as it landed (long; the running record) |
 | `Docs/Editor.md` | Crystal: projects and targets, both games, installing into Steam, every editor |
+| `Docs/FF4-Status.md` | How far each FF4 subsystem is from playing like the original, in detail |
 | `Docs/FF4-Internals.md` | What has been read out of FF4's binary: battle, field, camera, scenes, data files, menus |
 | `Docs/Testing.md` | The test cases, by hand and by drive, for the editor and the client |
 | `Docs/Drives/` | Scripted key drives for headless regression runs (`--drive=`) |
@@ -206,37 +207,40 @@ map on FF4 ends with one log line of the script commands it skipped.
 
 ## Status
 
-Three columns matter: what runs **1:1** - the game's own logic, recreated, doing what the
-original does; what is **ours** - written for this client where the original's code was not
-available or not usable (FF4's engine is a native binary; the phone build's touch shell); and
-what is **not there yet**. `Docs/Client-Plan.md` is the journal behind every row,
-`Docs/Testing.md` the cases that check them, `Docs/FF4-Internals.md` what has been read out of
-FF4's binary so far.
+How far each piece is from **playing like the original** - the whole game, looking and
+feeling as it did - as we judge it. 100% means it does; anything under means something is
+still missing, stands in, or is made up. `Docs/Client-Plan.md` is the journal behind every
+row and `Docs/Testing.md` the cases that check them.
 
-**Final Fantasy III** - complete: title to credits from the Steam install.
+**Final Fantasy III - complete.** The whole game plays from the Steam install, title to
+credits, and looks and feels as the original does: the game's own logic, recreated. What is
+ours around it - the native renderer, TrueType text, Ogg sound, the desktop window - shows the
+same game, crisper. The parts still in progress are the ones the original never had.
 
-| Piece | State | Note |
+| Piece | Done | Note |
 | --- | --- | --- |
-| Field, events, battles, jobs, magic, menus, shops, inns, saves, vehicles, the ending | 1:1 | The mobile build's own logic |
-| Rendering | ours | The DS-style GL state is drawn natively on MonoGame (depth, blending, texture formats as the DS had them); the phone's software path is kept as a fallback |
-| Text | ours | TrueType at the window's resolution from the Steam build's faces, as the Steam release draws it; `--text=atlas` gives the phone's glyph atlases |
-| Music and effects | ours | The Steam build's Ogg files, decoded natively; loop points from the game's own `.dat` |
-| Input, window, saves' location | ours | Keyboard/mouse into the DS pad register; a desktop window; `%AppData%\FF3` |
-| Touch buttons (Map, Menu) | 1:1 | The phone's, drawn as the phone drew them; a desktop layout is on the list |
+| The game: field, events, battles, jobs, magic, menus, shops, inns, saves, vehicles, the ending | 100% | The original's logic; plays and looks as it did |
+| Presentation on the desktop: rendering, text, music and effects, the window | 100% | Native and crisp; the Steam release's look |
+| Keyboard and mouse | 100% | The DS pad and the touch screen, both |
+| Game pad | 80% | Plays everything; the touch-only corners are being given pad paths as they are found (the name entry and Config were two) |
+| The client's own UI: the menu, settings, on-screen keys | 60% | New, not the game's; taking shape |
 
-**Final Fantasy IV (3D Remake)** - in progress; boots to Baron and plays on.
+**Final Fantasy IV (3D Remake) - in progress, about 40%.** The world renders - Baron, the
+overworld, the dungeons, the opening's scenes - and Cecil walks it, but much of what happens in
+it is not yet the game's: the battle and the menus are stand-ins on FF3's systems, a third of
+the field commands are unread, and many behaviours are approximations. `Docs/FF4-Status.md`
+has each subsystem in detail; `Docs/FF4-Internals.md` what has been read out of the binary.
 
-| Piece | State | Note |
+| Piece | Done | Note |
 | --- | --- | --- |
-| Maps: Baron castle and town, the overworld, dungeons | 1:1 | The shared engine reads FF4's files in place; the world map is FF4's chip layout (z mirrored relative to FF3's - measured, `--fieldmirror`) |
-| Field scripts | mostly 1:1 | 247 of FF4's 500 commands run FF3's handler (same command, or renamed, or extra operands); the rest are FF4-only - see below |
-| FF4-only field commands (exits `setInsideMapJump`, the name window, confirm boxes, locale waits, reward messages …) | ours | Reimplemented from the binary's disassembly; cosmetic ones (doors' dust, BGM ducking) skip quietly, and every skipped command is logged per map |
-| Cutscenes (the `ce_*` scene engine: the Red Wings opening, the flashbacks) | ours, most of it | Casts, motions, camera motions from `EVT_CAMERA.dat`, expressions, bind objects (a spear in a hand), shadows, the message bar, stage swaps run; open: the flight's sky geometry in some shots, scene casts' own shadow discs, lights and toon shading |
-| Battles on FF4's stages with FF4's HUD | ours over 1:1 | FF3's battle system drives FF4's stages, monsters, party positions, window art and glove; damage and hit formulas, magic and physical blows from the binary's tables |
-| Party data: characters, growth, magic, equipment, items | ours | FF4's tables read from the binary and its files onto the unified data layer (`Shared/Data`) |
-| Menu, shops, inns, saves, encounters | ours | The menu from FF4's own `.xbn` layouts over the unified data; shops and inns as its scripts call them; saves on the unified layer; encounters from the map parameters read from the binary |
-| Movement tuning | ours | The two tuning tables FF4 compiled into its executable are synthesised in code |
-| Not yet | - | Some scene lighting and materials, the rest of the FF4-only commands as they turn up (`--ff4table` lists them), the Steam shell's extras (achievements, its own launcher screens), every item in `Docs/FF4-Internals.md` ▸ *Not yet read* |
+| Maps, models, textures, the world map | 85% | Render as the game's from its files; some scene lighting and materials missing |
+| Field: walking, exits, talking, the script commands | 55% | 247 of 500 commands run; the FF4-only ones are being written from the binary as they turn up |
+| Cutscenes (the opening, the flashbacks) | 60% | Casts, motions, camera motions, expressions, bind objects, the message bar; sky and shadow details open |
+| Party data: characters, growth, magic, equipment, items | 60% | Read from the binary and the files onto the unified data layer |
+| Encounters, shops, inns, saves | 40% | Work as calls; the presentation is not FF4's |
+| Battle | 25% | A stand-in: FF3's battle system on FF4's stages with its monsters and HUD art - not FF4's rules, flow or look |
+| Menus | 15% | FF4's layouts over the unified data, largely made up; far from the original |
+| The Steam shell (achievements, launcher screens) | 0% | Not started |
 
 **Crystal and mods** - what the editor and the API can do is in `Docs/Editor.md` and
 `Docs/Modding.md`; `Docs/Releases.md` sums up each release.

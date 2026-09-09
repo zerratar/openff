@@ -102,7 +102,7 @@ namespace Crystal.Editor
 
 		/// <summary>
 		/// With no project open, every game on the machine is open: the editor behaves as a
-		/// project targeting all of them would (Karl, 2026-09-04). Each install found gets
+		/// project targeting all of them would (direction, 2026-09-04). Each install found gets
 		/// its own session beside the one the command line asked for, edits going to that
 		/// game's default mod directory; one that cannot be read is listed as missing.
 		/// </summary>

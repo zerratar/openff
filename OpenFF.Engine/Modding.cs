@@ -4,7 +4,7 @@
 // rather than from the file, so the file stays free for the next build to overwrite.
 // The engine assembly itself is shared: a mod's reference to OpenFF.Engine resolves to
 // the one the host runs, never to a copy in the mod folder. Isolation here is for
-// unloading and versioning, not a sandbox (Karl, 2026-09-04: C# mods are code, and that
+// unloading and versioning, not a sandbox (direction, 2026-09-04: C# mods are code, and that
 // is the player's and the modder's business).
 //
 // Loading a mod means: find its GameService subclasses, make one of each and register

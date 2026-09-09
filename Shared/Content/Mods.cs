@@ -13,7 +13,7 @@
 // so Crystal knows; the OpenFF client only loads mods targeting "openff".
 //
 // An OpenFF mod is not for one game. Under OpenFF the game that was booted is an asset
-// source, and mixed content is the point (Karl, 2026-09-04), so every enabled OpenFF mod
+// source, and mixed content is the point (direction, 2026-09-04), so every enabled OpenFF mod
 // applies whichever game's assets are in front. The two games name their files alike,
 // though - d01_05.script is a different map in each - so a mod keeps edits meant for one
 // game apart: ff3/files/ applies when FF3 was booted, ff4/files/ when FF4 was, and

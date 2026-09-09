@@ -711,7 +711,7 @@ The first slice of character definitions: what a hero slot is as a game begins. 
 game's `JOB_TYPE` order) and level.
 
 ```json
-{ "id": "karl", "slot": 0, "name": "Karl", "job": "knight", "level": 7, "fixedJob": true, "look": 2 }
+{ "id": "alto", "slot": 0, "name": "Alto", "job": "knight", "level": 7, "fixedJob": true, "look": 2 }
 ```
 
 `fixedJob` keeps the hero in its job - the job menu beeps at a change, as it does for a job

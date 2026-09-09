@@ -16,7 +16,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   fast-forward. It works in every menu and on the field, in the title's MODS list, and mods
   read it through `Game.Input` with the keyboard. XInput pads, DualShock 4, DualSense and
   Switch Pro are known to SDL; an unknown one can be described in a `gamecontrollerdb.txt`
-  beside the executable. Reported by Karl on a DualSense.
+  beside the executable. Found in testing with a DualSense.
 - **Running from the stick, and your own buttons.** `settings.json` ▸ `"run"`: `"stick"` (the
   default) runs when the left stick is pushed all the way and walks part way, as the phone's
   touch stick did; `"hold"` runs only while the run button is held. `settings.json` ▸ `"pad"`
@@ -46,13 +46,13 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   d-pad picks, A types, B deletes, X is a space, Start is Done; the keyboard types as before.
 - **Config with a pad.** L and R turn Config 1 and Config 2 (the tabs were touch only), and
   Up past the first option no longer crashes (an index off the explanation table). Reported
-  by Karl.
+  by testing.
 - **Saves were being lost - fixed.** The game read `save.bin` through .NET's IsolatedStorage,
   a store keyed by the executable's path, but created the file under `%AppData%\FF3` - so a
   build in any new folder never found a save file, its first write failed, and every save and
   quick save after it was thrown away (0.1.0's zip included; running from Visual Studio too).
   Both now use `%AppData%\FF3\save.bin`; a save left in an old isolated store is brought over
-  once, automatically; FF4's card data is kept apart as `ff4-save.bin`. Reported by Karl.
+  once, automatically; FF4's card data is kept apart as `ff4-save.bin`. Found in testing.
 - The release description carries only the version's notes (the procedure moved to
   `Docs/Releasing.md`). A settings screen in the game, or a launcher, is the plan for
   editing these without a text editor.

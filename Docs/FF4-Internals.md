@@ -400,14 +400,14 @@ binary. Client: `Ff4Ui` uses window.png and point.png when the content is a Stea
 
 ### The phone UI's space
 
-The Steam window (2000 x 1122 in Karl's shots) is the phone's 1136 x 640 UI space: the glove
+The Steam window (2000 x 1122 in the reference shots) is the phone's 1136 x 640 UI space: the glove
 is 85 px tall there (48 x 640/... ), text about 40 px. The client draws at 800 x 480 and scales
 every piece by 800/1136. Fonts: the phone build has `BABIL_SYMBOL.NFTR`; Steam draws text with
 `arial.ttf` through SDL2_ttf.
 
 ## The Steam shell (FF4.exe), from the Babil Decompilation Project
 
-Karl pointed at `D:\Git\Babil-Decompilation-Project` (GlitchedDeveloper on GitHub): an early
+A pointer to `D:\Git\Babil-Decompilation-Project` (GlitchedDeveloper on GitHub): an early
 Ghidra decompilation of the Steam `FF4.exe` - eight files so far, the Win32/SDL/Steam shell
 around the engine (ini, joystick, the pause screen with `menu.txt`'s texts, `TTF_RenderText`)
 - and, more useful now, `Structure/src`: the engine's original source tree, 228 file paths

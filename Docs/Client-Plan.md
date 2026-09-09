@@ -1,6 +1,6 @@
 # The client: OpenFF
 
-Where the game goes now that the editor is in good shape. The aim Karl set: one client
+Where the game goes now that the editor is in good shape. The aim testing set: one client
 that runs FF3, FF4 (3D) and mods that mix the two, from the content people already own,
 rendering natively at desktop quality - TrueType text like the Steam release, not the
 phone's 12- and 16-pixel atlases - and moddable all the way down, so that targeting
@@ -237,7 +237,7 @@ a 4x PNG next to the model), TrueType at any size, widescreen UI layouts, more c
 map, longer scripts, new opcodes exposed to the script language, and a mod manifest the
 editor's Export already writes. Each is small once A-D exist; none is possible before.
 
-## Starting the client (2026-09-04, from Karl's note)
+## Starting the client (2026-09-04, from a direction note)
 
 `OpenFF.exe` with no arguments starts FF3 from its Steam install: the client finds the
 installs the way the editor does and remembers them, with the last choice, in
@@ -261,7 +261,7 @@ Goblin Survivors uses spawn points when the map has them. Testing E-24, C-33.
 
 ## The fifth API slice: motions, items, shops; Goblin Survivors (2026-09-04, night)
 
-Karl's redesign of the arena into a survivors-style run needed three more pieces of the
+the project's redesign of the arena into a survivors-style run needed three more pieces of the
 game as API. **Motions:** the battle binds its motion sets onto the very models the field
 uses (`characterMng.addMotion(id, "b_b01")` for party members, `"b_f<family>"` for monsters)
 and plays them by id, so `Hero.BindBattleMotions` (common, magic, job and extra sets) / `Npc.BindMotions` + `PlayMotion(HeroMotion.MagicShot)`
@@ -281,7 +281,7 @@ so mods take keyboard letters (`Game.Input.KeyPressed("T")`); the samples moved 
 
 ## Crystal for OpenFF projects: behaviours on map objects, Run, the API reference (2026-09-04)
 
-Karl asked for Crystal to think Unity when a project targets OpenFF. Three pieces:
+testing asked for Crystal to think Unity when a project targets OpenFF. Three pieces:
 **Behaviours on map objects.** `Editor/ModCatalog.cs` reads the project's built assemblies
 in a collectible load context (the engine resolved from the client's copy) and lists every
 `Behaviour` and `GameService` with its public fields, their defaults (from an instance) and
@@ -303,7 +303,7 @@ hierarchy, gizmos for behaviour fields that are positions, and behaviours on spa
 
 ## The abilities slice: spells, monsters, the formulas (2026-09-04)
 
-Karl's bullet hell, real-time fights and "a mod adds its own skill" all need the game's
+the project's bullet hell, real-time fights and "a mod adds its own skill" all need the game's
 abilities as data, not as battle-menu behaviour. `Game.Magic` (`OpenFF.Engine/Abilities.cs`,
 host `Compat/EngineAbilities.cs`) reads the magic table (`itm.ItemManager`, item_parameter.pak
 chain 3) into `Spell` objects - school, level (charges), kind, power, accuracy, elements,
@@ -340,7 +340,7 @@ Lerp, MoveToward, FromYaw/Yaw) and `Vector2` exists for screen points. Testing C
 
 ## The engine API, third slice: the raw material for new kinds of play (2026-09-04)
 
-Karl's aim is mods that are not the game's game - real-time fights, a bullet hell over
+the project's aim is mods that are not the game's game - real-time fights, a bullet hell over
 the field, whatever the imagination allows - so this slice opens the frame itself.
 `Game.Input` (`OpenFF.Engine/Input.cs`, fed by `Compat/EngineInput.cs`): the pad as
 held/pressed/released flags and a direction, the pointer in screen units with press and
@@ -453,7 +453,7 @@ Steam mod is installed by replacing files (Crystal's install, with its backup) a
 order does not apply. Still to come here: the in-game mod list (enable, disable, reorder,
 conflicts shown) and C# mods as assemblies in the mod folder.
 
-## Debug overlay (2026-09-04, from Karl's note)
+## Debug overlay (2026-09-04, from a direction note)
 
 F1 draws a diagnostic layer over the finished frame (`Compat/DebugOverlay.cs`, a
 DrawableGameComponent placed after the game and before the screenshot component, so
@@ -480,7 +480,7 @@ line, puts the hand a gap before the text with the cell's drawn right edge in mi
 columns its strip actually paints (`SteamCells.CellVisibleSpan`, reading the sheet's
 alpha). Nothing there changes the layouts, which stay Steam's.
 
-## Direction set by Karl (2026-09-04)
+## Direction set (2026-09-04)
 
 The destination in full, with the layering and order of work: `Docs/OpenFF-Engine.md`.
 
@@ -513,7 +513,7 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
   with s8/s16/s32 delta) add their delta once per frame from zero, type 3 is a float per frame,
   type 4 one constant. `CameraHandle::calculatePosition` builds R x T, puts the camera at T,
   looks along (0,0,-1) x R with (0,1,0) x R up - **row vectors**, so up is the matrix's second
-  row and forward the negated third; the columns give a plausible but wrong scene (Karl saw
+  row and forward the negated third; the columns give a plausible but wrong scene (Testing showed
   "angles off in some transitions") - and calls setFOV(sin, cos) of the half angle. The frame
   shown first is frame 1. `CWorldCamera.ExternalDrive` is a hook the camera calls in place of
   its mode controllers (MODE_FREE recomputes position from distance and angle every frame, so
@@ -601,7 +601,7 @@ The `ce_*` scene engine now stages a scene the way FF4 does, read out of the bin
 
 ## FF4's player tables, read from the binary (2026-09-05)
 
-**Started 2026-09-05 (Karl: "do the unified approach"):** `Shared/Data` (namespace `OpenFF.Data`),
+**Started 2026-09-05 (direction: "do the unified approach"):** `Shared/Data` (namespace `OpenFF.Data`),
 compiled into the editor and the client like the other Shared code: `ChainPack` (the tables'
 container), `Tables.cs` (`GameTables`, `CharacterDefinition` with `LevelRow` growth,
 `ItemDefinition` with `EquipStats`, `SpellDefinition`, the five `Attribute`s), `Party.cs`
@@ -855,7 +855,7 @@ set 0 stands for every land form. `Ff4Encounters` and test C-41 updated.
 
 ## FF4 battles on their battle stage (2026-09-05)
 
-Karl's biggest difference against the Steam game: FF4 moves the party onto a battle stage,
+the project's biggest difference against the Steam game: FF4 moves the party onto a battle stage,
 ours fought where it stood. `battle_map.dat` holds b00..b30 (a `.nmdp` model with a `.namp`
 animation each; the b_soto/b_naka/b_uti backdrop entries are empty on Steam), and the map's
 land-form parameter names the stage per land form (the u16s at 0x18 of chain 0: b01 for the
@@ -870,7 +870,7 @@ on the left in the encounter table's own placements (x across, z depth), the par
 right, the event camera (`Ff4EventCamera`) driving the view. Scene battles
 (`ce_CallBattle`) stay where the scene is. Tests C-40 (K jumps to the map's stage) and C-50.
 
-The view, from the binary (Karl asked whether the angle was right - it is FF4's own now):
+The view, from the binary (testing asked whether the angle was right - it is FF4's own now):
 `btl::CBattleDisplay::initialize` sets the battle camera's field of view to 641/4046 (18
 degrees) and its clip to 10..2000; `readyOpeningCamera` starts it at (0, 32.7, 166) looking
 at (0, 0, -34) and `goOpeningCamera` eases it a fifth of the way per frame for five frames
@@ -895,7 +895,7 @@ field's pNN_01 has different joints and binding the set onto it crashed the join
 animation - so the field's hero waits unseen (transparency 100) at the leader's spot and
 the battle animates the spawned bodies (`Play(fighter, motion)`).
 
-The HUD, after FF4's screens (Karl's Steam screenshots): the command window bottom left
+The HUD, after FF4's screens (Steam screenshots taken for the port): the command window bottom left
 (Attack / Magic / Items / Run, 41-px rows, a wedge for the glove), the party's rows bottom
 right (name, HP / max, MP, the ATB gauge), "Z Confirm  X Back  M Run away" over them (M runs,
 as FF4's), the target pick listing the foes with "Accuracy: NN%" and a card of the picked
@@ -905,9 +905,9 @@ panels are drawn (translucent blue-violet, a light top edge, a pale frame); FF4'
 art and layouts come next, see below. Gauges start staggered down the line so the leader acts
 first (the drives rely on it).
 
-## FF4's menu data, found (2026-09-05, Karl: "use the menu format/data we already have")
+## FF4's menu data, found (2026-09-05, direction: "use the menu format/data we already have")
 
-Karl wants the FF4 screens 1:1 from FF4's own data, as FF3's are. The Steam install has it:
+the direction wants the FF4 screens 1:1 from FF4's own data, as FF3's are. The Steam install has it:
 `MENU_LAYOUT.dat` holds 34 `MenuLayout_*.xbn.lz` layouts (Root, Item, ItemWnd, Magic,
 Equipment, Status, Config, Save, Suspend, Title, Formation, Ability, ShopSpr, Name, the
 CS*/Chk* extras) in the same XBN binary-XML the FF3 client reads (`XbnFile`/`XbnNode`;
@@ -944,7 +944,7 @@ window at (58, 300, 188 x 180) with 45-px rows and centred names, the party wind
 target pick's foe list and card, the magic and item grid as one wide window of three
 columns by four rows (`BtlMagicMenu::BMTEXT_POS` has the three columns; Left/Right step,
 Up/Down move a row, `GridMove`), the last action in a small window at the top, the result
-window. Those positions are measured from Karl's Steam screenshots; FF4 lays its battle
+window. Those positions are measured from Steam screenshots taken for the port; FF4 lays its battle
 windows out in code (`btl::TouchWindow`, `BattleCommandWindow::create`, windows are
 `menu::BasicWindow`s from `ui::CWidgetMng::addWidget(id, x, y, w, h, type, ...)`), so the
 exact numbers are still to be read from the binary. The np00..np11 sheets turned out to be
@@ -965,7 +965,7 @@ and 4080.., a DS unit two pixels down the main window), the portraits face.NCER 
 player type). `Shared/Content/Xbn.cs` reads the layouts (`Xbn.ReadLayout`: frames with
 absolute DS positions as `layout::Frame::setup` computes them); `Compat/Ff4Layouts.cs`
 loads MenuLayout_<name> and the texts through the game's file system. The arrangement is
-the Steam game's, measured from Karl's screenshots (the phone code that places the DS-unit
+the Steam game's, measured from the test screenshots (the phone code that places the DS-unit
 layouts on a 16:9 screen is not read yet): Root = the party's five rows on the left
 (portrait, name, Lv, HP, MP) and the commands on the right, six visible with a bar, the
 place and gil below; every other screen = a title bar, a main window and a footer of key
@@ -979,13 +979,13 @@ the map's own plate last showed (`MapNameWindow.LastMessageNo`, a PORT hook), el
 id. Everything reads OpenFF.Data through Ff4Party - the unified path. Drive
 `Docs/Drives/ff4-menu.drive`, test C-51; C-39 and C-49 updated to the new navigation.
 
-## Battle digits and two fixes from Karl's screenshot (2026-09-05, late)
+## Battle digits and two fixes from a test screenshot (2026-09-05, late)
 
 Damage and healing now pop in FF4's own battle digits (battle2d.dat's battle_number: cells
 0..9 the 24 x 24 digits, 10 "Hit!!", 11 "CRITICAL!", 12 "MISS!", 30 "NO EFFECT!", 33 "DEATH", 34
 "WEAKNESS"; `Ff4Ui.Number` / `Ff4Ui.Word`), white for damage, green for a heal, rising with a
 small bounce and fading over 70 frames (`Ff4Battle.Pop`, `PopWord` for a miss) - the legacy
-`Screen.PopNumber` stays for FF3. Karl's screenshot showed two Cecils on the stage and every
+`Screen.PopNumber` stays for FF3. a test screenshot showed two Cecils on the stage and every
 animation freezing after the first kill: the field's hero was "hidden" by a transparency the
 renderer does not honour (now `setHidden`), and the one-shot motions (attack, hurt, cast) were
 never followed by the idle loop - `Idle()` restarts it for every fighter whose motion has
@@ -993,7 +993,7 @@ finished (`Fighter.Acted`).
 
 ## The scenes' message bar (2026-09-05, late)
 
-FF4's scenes speak over a dark, translucent bar across the bottom of the screen (Karl's deck
+FF4's scenes speak over a dark, translucent bar across the bottom of the screen (the project's deck
 screenshots); ours showed bare text. In the binary `babilCommand_CE_ShowMessageWindow` reads a
 byte and calls `evt::EventConteManager::enableMessageWindow(byte != 0)` - the scripts call
 `ce_ShowMessageWindow(0)` after a `deleteMessage` to take the bar down for a pause, and the
@@ -1009,9 +1009,9 @@ Cecil / Baigan / King of Baron name tags, the throne room. Still off: the flight
 blocky grey with black holes where FF4 shows clouds), the intro name plates (`np00..` sheets,
 `ce_3DSSetup`), the scene's fog and lights.
 
-## The intro scene, second look (2026-09-05, night; Karl's three reports)
+## The intro scene, second look (2026-09-05, night; three test reports)
 
-Karl saw the sky fixed but the soldiers gone from the wide shots, a shadow on the deck's centre
+Testing showed the sky fixed but the soldiers gone from the wide shots, a shadow on the deck's centre
 with nobody over it, and the name plates flickering instead of fading in, holding and fading out.
 Each traced to its cause, all three in `Ff4Cutscene` and its neighbours:
 
@@ -1022,7 +1022,7 @@ Each traced to its cause, all three in `Ff4Cutscene` and its neighbours:
 - **The plates**: sprite alpha is the DS's 0..31 and `DS2DManager` scales it to 0..255 itself
   (`G3_PolygonAttr`, `NNS_G3dSetRenderColor`); a 0..255 value handed to `SetAlpha` wrapped the byte
   about eight times over a fade - the flicker - and left the held plate at 49/255, the faint text in
-  Karl's screenshot. The plates pass 0..31 again, at half size (the phone's sheets are 2x its screen).
+  a test screenshot. The plates pass 0..31 again, at half size (the phone's sheets are 2x its screen).
 - **The shadow**: a scene cast has no shadow in FF4 until `ce_ShadowSetting` + `ce_ShadowVisiblity(slot, 1)`
   (e01_00 gives them to Cecil and the four soldiers only), and the shadow stands under the cast's
   `kosi` joint because the casts are moved by their motions' root - the object position stays at the
@@ -1035,7 +1035,7 @@ Each traced to its cause, all three in `Ff4Cutscene` and its neighbours:
   with collision - none of the event maps has one, as in FF4, which draws them at `height + 0x29`.
   A first cut selected FF3's shadow type 0 for FF4's type 0: that is the player's `shadow02`, a rounded
   body FF3 draws squashed to a quarter height, and at a cast's scale it stood on the deck as a
-  translucent block (Karl's second screenshot). The type is left alone now. Open: the discs under
+  translucent block (the second test screenshot). The type is left alone now. Open: the discs under
   Cecil and the soldiers are drawn at their hips' x/z but do not show yet - not visible enough to
   chase tonight; the field hero is hidden through a scene (its own shadow goes with it) and shown
   again at the end or on leaving the map.
@@ -1087,7 +1087,7 @@ casts' own discs (Cecil, the soldiers) follow their hips but do not show on the 
 
 ## Crystal: the mod's own things in the tree, and one mod for both games (2026-09-07)
 
-Karl's report: a project's C# code and scenes were reachable only from the File menu, so the
+a test report: a project's C# code and scenes were reachable only from the File menu, so the
 tree - the thing a user reads the project off - said nothing about them, and the OpenFF path
 felt like a separate tool for C# rather than the same editor with more in it. Three tabs
 labelled *FF3 our build / FF3 on Steam / FF4 on Steam* had drifted from what they were meant
@@ -1137,7 +1137,7 @@ scene file opened as JSON when it is a map.
 
 ### Later the same morning: Add Behaviour as Unity has it, and the cog
 
-Karl's second look: opening a scene by double click threw `Cannot set properties of null
+the project's second look: opening a scene by double click threw `Cannot set properties of null
 (setting 'problem')` - `inspectAsset` awaited the scene's details while the double click's
 open cleared `inspected`, and the catch wrote to null; the details land on a local now and
 draw only if it is still the one shown. The Behaviours section's `<select>` of "Name - summary"
@@ -1158,7 +1158,7 @@ lookup ran; the profiles are a plain start, FF4 first, no browser on 5077, and `
 
 ### The session, and a start page that says what is open
 
-Karl, on opening a project: the start page still showed the list of projects, so it read as
+testing, on opening a project: the start page still showed the list of projects, so it read as
 "which one did I open?" - and the work was behind it every time. Two changes. The page with a
 project open says **Open project** over the name and puts the other projects under a folded
 *Switch to another project…* (the open one left out); with no project it is the list as before.
@@ -1174,7 +1174,7 @@ project's empty session. The export does not carry the file.
 
 ### The mod's own objects: no script, a model or none, a tree
 
-Karl's point: an OpenFF mod should be able to add game objects that owe the game nothing -
+the project's point: an OpenFF mod should be able to add game objects that owe the game nothing -
 no `.hich` row, no cast, no `.ffs` - with a model or without one (a spot that only holds
 logic, for "the hero walked here"), renamed freely, nested under one another, every property
 a field in the JSON so a chest's item or its model can change any time. The scene file's
@@ -1218,7 +1218,7 @@ a field in the JSON so a chest's item or its model can change any time. The scen
 
 ### The inspector as Unity's, components built in, and no Save buttons
 
-Karl's next look: Transform belongs at the top, the "No model" button is a × on the picker,
+the project's next look: Transform belongs at the top, the "No model" button is a × on the picker,
 scripts should expose editor fields with headings and the like, a chest needs a way to say
 what it gives, saving should be automatic, common things should be components (built in but
 overridable), and the map's facts at the top of the panel are in the way.
@@ -1255,7 +1255,7 @@ overridable), and the map's facts at the top of the panel are in the way.
 
 ### The hierarchy's right click and drag
 
-Karl asked for the tree to be worked in the tree. `drawHierarchy` takes three more things
+testing asked for the tree to be worked in the tree. `drawHierarchy` takes three more things
 on an outline node: `menu()` (items for `showContextMenu`, a `.dropdown` at the pointer,
 closed by the next click or Escape; the right click selects the row first), `drag` (a key
 the row carries) and `drop(key)` (on rows and on group headers; `wireDrop` lights the target
@@ -1267,11 +1267,11 @@ group's menu has New object; dropping a row on another calls `reparentSceneObjec
 group with `null`, so the object keeps its world place either way. The inspector lost its
 "Add a child object" button; the children stay listed as links. Open: the game's own rows
 (characters, exits) have no menu yet - "Add Behaviour…" there would be the natural one.
-Also from Karl: *New object* on a row's menu makes a sibling right below it, at its spot.
+Also from direction: *New object* on a row's menu makes a sibling right below it, at its spot.
 
 ### One inspector shape for the game's things and the mod's
 
-Karl: the workflow must not change between a Steam mod's objects and an OpenFF mod's. Three
+direction: the workflow must not change between a Steam mod's objects and an OpenFF mod's. Three
 helpers now shape every map inspector - `inspectorHead` (icon and name, an input that is
 read-only for the game's things), `transformCard` (Position X Y Z, Rotation Y, Scale when
 there is one; `read`/`write` callbacks, focus/blur for an undo record), `componentCard` - and
@@ -1285,7 +1285,7 @@ applies `cardify` to all four.
 
 ### The game's chests edited and converted; the start page, dialogs and fields
 
-Karl's afternoon list. **Treasure**: a game chest is one line in the map's boot cast
+the project's afternoon list. **Treasure**: a game chest is one line in the map's boot cast
 (`setTreasureItem(cast, item, group, index, 0, 0)`, `setTreasureMoney` with gil), so the
 character's inspector gets a Treasure card when the script has one for its cast
 (`treasureOf` over `/api/script`'s source): item from the game's list or gil; *Save treasure*
@@ -1339,7 +1339,7 @@ Asked what else the editor and engine wanted, then told to do all of it:
 
 ### Converting a map's characters, stage one (2026-09-07, evening)
 
-Karl asked whether a whole map could be the mod's. Stage one of the plan laid out for it:
+testing asked whether a whole map could be the mod's. Stage one of the plan laid out for it:
 everything a cast does that the built-in components can stand in for. `MapConvert.Plan`
 reads the map's characters (`MapModel`) and its script's disassembly (as `References.
 MessagesOf` does) and decides per character: logic rows are skipped; `BootedBy` walks every
@@ -1365,7 +1365,7 @@ Stage two (flag-gated talk is in; shops, inns, item hand-ins remain) and stage t
 
 ### Exact conversion: the stand-in is the cast (2026-09-07, evening)
 
-Karl: if it is not 1:1 nobody will convert. The components approximated the game's handlers
+direction: if it is not 1:1 nobody will convert. The components approximated the game's handlers
 (idle motions missing, a wanderer talking on the move, a chest without the lid and sound,
 recolours lost); the way to 1:1 is not to approximate at all. `bootCharacterImp` is what
 makes a game character its cast: `LogicIndex_set(cast)` (talking runs `cast<N>_main`) and
@@ -1415,15 +1415,15 @@ left the rows nothing boots.
 
 ### The name screen, and drives that can touch (2026-09-07, night)
 
-Karl asked whether Luneth's name entry works - the new-game drive above had sat on it. It
+testing asked whether Luneth's name entry works - the new-game drive above had sat on it. It
 does: the screen is touch-only in the original (`NameEntry.execute` reads `g_TouchPanel`;
 A does nothing there), so a drive pressing Z could not leave it. Drives can touch now:
 `tap <x> <y> [ms]` sends a touch down/up at a point of the 800x480 view through
 `DesktopInput.InjectTouch`, the same `Send` a click goes through after `MapToViewSpace`;
 `type <text>` puts characters into the open `TextEntry` (bare `type` clears it), `submit` /
 `cancel` are its Enter and Escape (the field reads the real keyboard, so `press Enter` would
-not reach it). `Docs/Drives/ff3-name.drive` taps the name, types Karl, confirms, and the
-first battle's row reads "Karl 32 / 32" (C-51). The 2D plane's touch rectangles map to the
+not reach it). `Docs/Drives/ff3-name.drive` taps the name, types Alto, confirms, and the
+first battle's row reads "Alto 32 / 32" (C-51). The 2D plane's touch rectangles map to the
 view as x * 800/480, y * 480/320.
 
 Two things seen on the way, not fixed: `--pos` on a town (`t01_01`) is overridden by the
@@ -1436,7 +1436,7 @@ is what it is for.
 
 ### The wanderers' gait, what a GameCast says, approach then interact (2026-09-07, late)
 
-Karl's three questions. Do the converted wander as before? Not quite: `Wander` set the AI
+the project's three questions. Do the converted wander as before? Not quite: `Wander` set the AI
 kind only, where `moveCharacter_StartRandom` also clears autopilot and operator and sets the
 `NPC_RANDOM_MOVE_TYPE` from its second operand - the gait (man, woman, boy, girl, uncle,
 aunt, old man, old woman: the walk's pattern and pace). `Npc.StartWander(gait)` /
@@ -1453,7 +1453,7 @@ It defaults to off now - A within Radius - and walk-in is the option.
 
 ### Every boot command, replayed (2026-09-07, night)
 
-Karl: cover everything. The survey first: every FF3 map disassembled (`crystal script`),
+direction: cover everything. The survey first: every FF3 map disassembled (`crystal script`),
 every command in each boot cast whose first operand is one of the map's casts, counted -
 1023 bootCharacter, 400 setTreasureItem, 168 moveCharacter_StartRandom, 160
 changeColorCharacter, 120 setCharacterDetectionRadius, 120 setCharacter_CheckTurnType, 104
@@ -1476,8 +1476,8 @@ between what is left (`WhenFlags.Holds` reads `|` now). Ur's cast 30 reads "!0:1
 0:14 | !0:14 !0:439", which is what the script says. `WhenFlags.Live` off makes the flags
 count once, as the boot's test did. Every map's plan answers; the setup commands across all
 355 are exactly the survey's 31. In play: 37 lines replayed on Ur's 14 stand-ins, no
-warnings. The test dll: the editor was built to a temp folder while Karl's Crystal ran.
-Also, at Karl's ask: the replaced characters are hidden in the hierarchy - the Characters
+warnings. The test dll: the editor was built to a temp folder while the project's Crystal ran.
+Also, at the project's ask: the replaced characters are hidden in the hierarchy - the Characters
 group counts what is still the game's, a *replaced (N)* tick on the header lists them,
 off unless asked and remembered.
 
@@ -1513,7 +1513,7 @@ Editor: the dialog's *Undo this conversion*, *Restore the game's character* on a
 row (the Removed and the stand-in go), and `[FlagField]`: flag strings get a picker of the
 map's flags (`/api/map/flags`: who tests, who sets, whose chest) and a shape check.
 
-Karl's first Play from Ur after this: no colliders, no talk, everyone shrunk, walking over
+the project's first Play from Ur after this: no colliders, no talk, everyone shrunk, walking over
 the houses. All one thing - *Play here* with nothing selected sent the 3D view's camera
 target as the spot, and its Y drifts up as the camera flies; with `--pos` honoured on towns
 now, the hero stood 60 units in the air, closer to the camera than the village (so bigger),
@@ -1529,7 +1529,7 @@ renames or removes a tag across every object on the map.
 
 ### A chest of the mod's own, opened as the game opens one (2026-09-08)
 
-Karl's chest with a Chest component played no lid, made no sound, stayed shut, and said
+the project's chest with a Chest component played no lid, made no sound, stayed shut, and said
 "It's locked." Three things. The object was not ticked *character*, so the model went the
 plain-figure way (`SpawnModel`) and had no map-object motions to play: an o/w model is one
 of the game's map objects whichever way now (`SceneLoader.IsObjectModel`) - that is where a
@@ -1550,7 +1550,7 @@ find Potion.", gold 1000141, nothing 1000140 - and EmptyMessage is empty, as the
 opened chests say nothing. `@<id>` works in every string field (Talk's Lines too); the
 inspector shows what the id says under the field (`/api/messages`).
 
-Two more from Karl's chest. "It rotates towards the player": it did not turn - it stood
+Two more from the project's chest. "It rotates towards the player": it did not turn - it stood
 mirrored. `YawToRot` carried the scripts' negation (`4096 * FX_DEG_TO_IDX(deg) * -1`), so a
 scene object at yaw 90 faced -x in play while Crystal drew it (and `Direction(90)`,
 `Face(90)`, an exit's arrival facing) toward +x; `Yaw` and `Face(Yaw)` disagreed on the
@@ -1568,7 +1568,7 @@ frame, no blend (`setCurrentFrame(getMaxFrame())`); the Chest holds 1003 when it
 ### The mod's tags (2026-09-08)
 
 Tags had one home: the objects that carry them, with the picker offering whatever the
-project's scene files happened to use. Karl wants a vocabulary shared by every scene of the
+project's scene files happened to use. the direction wants a vocabulary shared by every scene of the
 mod, Unity's Tags & Layers. `project.json` has a `tags` list now; the picker shows *Mod
 tags* first (offered everywhere, carried or not) and *On the maps* after; New tag… asks
 whether the tag is mod-wide (default yes); Edit tags has the mod's list - add, rename, ×,
@@ -1579,7 +1579,7 @@ that map's file; nothing in the engine changes - `WithTag` is a string either wa
 
 ### The parity harness (2026-09-08)
 
-Karl's direction: the unified path - scripts and scenes of both games as the engine's own,
+the project's direction: the unified path - scripts and scenes of both games as the engine's own,
 assets mixed - with FF3 1:1 on the Steam assets as the standing condition, FF4 to follow,
 and Crystal always offering the native Steam games for modding as it does. Before any
 translator of the script vocabulary, the thing every step gets measured against:
@@ -1600,14 +1600,14 @@ three characters that stood still (`FreshSlot`: the DEFAULT AI, as `initialize` 
 slot at a map's start). And the scene: it deletes the villagers and boots its actors into
 their slots; `Npcs.Existing(slot)` handed back the villager's dead handle, whose position
 read 0,0,0 and whose Remove did nothing - the actors were taken over "at 0,0,0" and the
-game's own stood beside them, and the cutscene did not play (Karl saw it: "first one played
+game's own stood beside them, and the cutscene did not play (Testing showed it: "first one played
 a cutscene, second didn't"). A dead handle is dropped now, and the engine's own spawns pin
 the character id they were made for, so a slot reused under them is not theirs. All three
 drives agree - 58, 77 and 189 lines, the scene over 13 marks.
 
 ### Items as definitions (2026-09-08)
 
-The first of the data objects Karl asked for - "I have no idea how to create an item".
+The first of the data objects testing asked for - "I have no idea how to create an item".
 `defs/items/<id>.json` in a mod: a base item (whose record it starts from), a name, a
 caption, prices, and any field of the record by the game's own name; a `number` from 20001
 that Crystal gives once and the game then knows the item by. Composition happens where the
@@ -1628,7 +1628,7 @@ base", *New item…* (name + base picker over the game's 409), the inspector as 
 Item, Shop, Record cards, the base's values as placeholders, autosave - Open as JSON,
 Delete; `/api/items` lists the mod's after the game's, "(mod)", so a Chest's Item picks
 one; Export copies `defs/`. A Hi-Potion+ (usedPower 999) from a chest in Ur: "The chest
-contained Hi-Potion+.", `20001x2` in the bag. Karl: "it said hi-potion+ so it worked :)".
+contained Hi-Potion+.", `20001x2` in the bag. direction: "it said hi-potion+ so it worked :)".
 
 Left for the definitions line: characters (the job/class seam), and the Steam-mod path -
 the same composer writing the two files into a Steam project's `files/` at Install, so a
@@ -1653,7 +1653,7 @@ starting job (by `JOB_TYPE` word, English name or number) and level.
 to Freelancer (`GlobalScope.ttl`) - `setName`, `changeJob`, `setExp(level-1)` then
 `levelUp(0)` so the growth tables do the climbing, `updateParameter`. The field model
 follows the job (`j109` for a Knight in slot 0). A save carries its own; `--nomods` is the
-game's. Trace: the party line names the heroes with level and job now (`heroes Karl L7 job
+game's. Trace: the party line names the heroes with level and job now (`heroes Alto L7 job
 8`), so parity sees them too. Crystal: *Characters* under the mod folder, New character…,
 the inspector as the form (slot, job, level), delete, Open as JSON.
 
@@ -1686,7 +1686,7 @@ time, and `git diff` is read before `dotnet build`.
 The script translator, first form - and the form that may stay. The `.ffs` language is
 already a language with a compiler (`Crystal.Editor/Ffs`: lexer, parser, two-pass compiler
 that round-trips every shipped script byte for byte), so a cast's main function as *text*
-is the action list Karl asked for: one line per command, labels for the branches, the
+is the action list testing asked for: one line per command, labels for the branches, the
 disassembly's comments carrying the lines' words. The compiler moved to
 `Shared/Script/Ffs` (with `ScriptOpTable.Names`; `SourceWriter`, which reads the editor's
 decoded types, stayed), so the client has it too.
@@ -1710,7 +1710,7 @@ Parity, Ur converted this way: the boy, the elder both ways (`flag 0:11 on` for 
 menu; SE 0/2 on its cancel), the chest, the opening scene - all agree. So the whole town's
 talk is the mod's code now, read and changed in the inspector, and the game cannot tell.
 
-Karl watched the elder run: the item-use menu with nothing in the bag draws a crosshair -
+testing watched the elder run: the item-use menu with nothing in the bag draws a crosshair -
 a line across the screen and one down its middle - over the empty list, and the game's own
 run (`--nomods`) draws it the same. `menu.BasicWindow.SetBar` makes the `m015_bar` sprite
 (cell 1) and never positions it, so it sits at the sprite's default place; whether the
@@ -1745,7 +1745,7 @@ nothing, and a Steam target gets the composed `files/eureka_permanent.msd` at In
 Export beside the item tables (`ProjectItems.WriteTables`). The game's own "Text" kind kept
 its name; the mod's is "Strings" so the two rows read apart.
 
-Karl's look at it: the empty-list note was a grid tile - 84px wide, a column of words -
+the project's look at it: the empty-list note was a grid tile - 84px wide, a column of words -
 and a text file as raw JSON asks the modder to type ids by hand. Now `emptyNote()` in
 app.js wraps the words in a span, and the note is one li across the list, centred in the
 panel when it is alone (`#files:has(> li.note:only-child)`). And `strings-editor.js` is a
@@ -1873,7 +1873,7 @@ the right name under `ff3/files/files/` is used before the alias, and Modding.md
 
 ### The game's records as forms; the first texture written back (2026-09-08, evening)
 
-Karl asked for UI editors on the data definitions generally, and for asset import - models,
+testing asked for UI editors on the data definitions generally, and for asset import - models,
 fonts, images, in time whole maps - for both clients. Two pieces of that today.
 
 **Records as forms.** The Game data pages were read-only grids and the only way to change
@@ -1936,7 +1936,7 @@ OpenFF client and a Steam install through the same override files, as the tables
 
 ### New content from existing (2026-09-08, night)
 
-Karl's point sharpened: not replacing the game's assets but adding to them. The quickest
+the project's point sharpened: not replacing the game's assets but adding to them. The quickest
 true path there is a copy under a new name - the game loads models, textures and pictures
 by name and nothing else (`setUpWorldCharacter(model)` reads `<model>.nmdp.lz`, the battle
 `f<family>_<id>.ntxp.lz`, a menu its picture) - so `Workspace` now lists the project's own
@@ -1977,7 +1977,7 @@ This is the texture half of the model importer; what a new model still wants is 
 
 ### The OpenFF target's own formats: glTF drawn by the client (2026-09-08, night)
 
-Karl's point redrew the plan: a Steam target is held to the game's formats, an OpenFF target
+the project's point redrew the plan: a Steam target is held to the game's formats, an OpenFF target
 is not - so a model of the mod's own need not become a DS package at all when the client
 can read the modern one. It can now. `Shared/Graphics/GltfFile.cs` reads glTF 2.0 (.glb and
 .gltf; the node tree composed into each mesh's vertices; positions, normals, uvs, colours,

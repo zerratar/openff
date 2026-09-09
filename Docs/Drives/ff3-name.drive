@@ -32,7 +32,7 @@ wait 2
 tap 160 285
 wait 1.5
 type
-type Karl
+type Alto
 wait 1
 submit
 wait 1.5

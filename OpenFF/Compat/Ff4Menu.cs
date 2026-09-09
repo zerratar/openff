@@ -6,7 +6,7 @@
 //
 // FF4's own menu is world::WSMenu with a sub-state per screen (Docs/FF4-Internals.md); the
 // layouts are DS-unit rectangles and the phone stretches them over its 16:9 screen in code
-// not read yet, so the windows here stand where Karl's Steam screenshots show them: the
+// not read yet, so the windows here stand where Steam screenshots taken for the port show them: the
 // party's rows on the left and the commands on the right (Root), a title bar, a main window
 // and a footer of key hints (every other screen). The Status screen keeps the layout's
 // geometry: a DS unit is two of our pixels down the main window.

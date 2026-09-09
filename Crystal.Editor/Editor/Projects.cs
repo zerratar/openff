@@ -17,7 +17,7 @@
 // are largely byte identical between the releases - and worth being careful with for
 // art, which is authored against a different virtual screen in each. See Docs/Editor.md.
 //
-// A target is two things at once, and the editor shows them apart (Karl, 2026-09-07):
+// A target is two things at once, and the editor shows them apart (direction, 2026-09-07):
 // which game's content it opens (FF3 or FF4 - the tabs above the libraries), and what
 // kind of mod comes out (an OpenFF mod the client plays, which may draw on both games;
 // or a Steam mod, files copied into one Steam copy). "ours" is FF3 in OpenFF; "oursff4"

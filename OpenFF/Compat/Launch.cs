@@ -1,6 +1,6 @@
 // Which game, from where - decided without arguments.
 //
-// Karl's note (2026-09-04): starting the client should not need a --content path typed
+// A direction note (2026-09-04): starting the client should not need a --content path typed
 // in. Steam is where the games are, so it is the default: the client finds the installs
 // the way the editor does (registry, library folders, app manifests), remembers what it
 // found and what was chosen in a small file under local application data, and reads that

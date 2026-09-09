@@ -1,6 +1,6 @@
 # OpenFF: the engine we are building towards
 
-Karl's goal (2026-09-04), and the shape of the work to reach it. `Client-Plan.md` is the
+The project's goal (2026-09-04), and the shape of the work to reach it. `Client-Plan.md` is the
 day-to-day plan; this is the destination it serves.
 
 ## The goal
@@ -52,7 +52,7 @@ front-ends - FF3's dialect, FF4's dialect, C# - not FF3's code stretched over FF
 - **State is data.** No engine module keeps game state inside rendering or input code.
 - **The FF3 path is the oracle.** Every layer is introduced behind it, verified against it
   (`Docs/Testing.md`), before the old path is removed.
-- **C# mods are code, and that is the player's and the modder's business** (Karl, 2026-09-04):
+- **C# mods are code, and that is the player's and the modder's business** (direction, 2026-09-04):
   as with Skyrim's and Fallout's native plugins, OpenFF loads compiled mod assemblies
   directly, with no signing or sandbox; whether a modder publishes source is up to them.
   Compiled assemblies (Crystal driving `dotnet build`) come first; runtime scripting and
@@ -69,7 +69,7 @@ front-ends - FF3's dialect, FF4's dialect, C# - not FF3's code stretched over FF
 5. The scene format, and Crystal editing it.
 6. Progression components; battle and menus data-driven.
 
-## What "OpenFF" means as a target (Karl, 2026-09-04)
+## What "OpenFF" means as a target (direction, 2026-09-04)
 
 An OpenFF mod is not a mod *of FF3* or *of FF4*. Under OpenFF the game that was booted
 is an asset source and nothing more: the engine is ours, the content of either game (or
@@ -182,11 +182,11 @@ for it.
   an optional `dependencies` list of mod ids, with a minimum version each, in `mod.json`.
   The load order is checked against them - a dependency must be enabled and come first -
   and a mod whose dependency is missing is disabled with a message saying which, not a
-  crash (Karl, 2026-09-04).
+  crash (direction, 2026-09-04).
 - The engine API is a separate, versioned assembly; a mod says `minEngine`. Reflection
   finds the mod's behaviours (for the inspector and the scene loader) and its services.
 - Crystal builds a mod's C# (`dotnet build` driven from the editor, errors shown inline)
-  and exports it with the assets. **Hot reload is a goal, not an afterthought** (Karl,
+  and exports it with the assets. **Hot reload is a goal, not an afterthought** (testing,
   2026-09-04): the client watches a mod's assemblies, unloads the mod's load context and
   loads the new build, re-creating its behaviours and services from their serialised
   state. A change too large for the running state to survive (a removed field, a changed
