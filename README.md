@@ -174,11 +174,12 @@ are otherwise as they were made.
 | Left Shift / Right Shift | Start / Select |
 | Mouse | Touch (click, drag) |
 | Tab (hold) | Fast-forward |
+| Game pad (XInput, DualShock, DualSense, Switch Pro …) | D-pad or left stick: directions; A/B/X/Y (Cross/Circle/Square/Triangle): the DS's A/B/X/Y; LB/RB: L/R; Start (Options): Start; Back (Share/Create): Select; right trigger held: run; left trigger held: fast-forward. The first connected pad; plugged in at any time. A pad SDL does not know can be described in a `gamecontrollerdb.txt` beside the executable |
 | F1 | Debug overlay (F2 menu frames, F3 ids, F4 sprites, F5 world text, F6 stats) |
 | F12 | Screenshot |
 
-Keyboard input is fed into the game's own NDS-style pad register, so it drives every menu and
-field control the DS original supported. Mods read the keyboard through `Game.Input`.
+Keyboard and game pad input are fed into the game's own NDS-style pad register, so they drive
+every menu and field control the DS original supported. Mods read both through `Game.Input`.
 
 ## Diagnostics
 

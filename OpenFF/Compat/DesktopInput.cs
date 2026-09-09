@@ -101,12 +101,14 @@ namespace OpenFF.Client
 						bits |= bit;
 					}
 				}
+				if (real) bits |= GamePadBits();
 				// Run. The game has no dedicated run button: isRun() tests the B bit, and
 				// whether B means run or walk depends on Config > movement type. Shift is
 				// what a PC player expects, so alias it onto B - but only while a direction
-				// is held, because B is also cancel and menus read it as an edge.
+				// is held, because B is also cancel and menus read it as an edge. A pad's
+				// right trigger does the same.
 				const int directions = PadUp | PadDown | PadLeft | PadRight;
-				if ((bits & directions) != 0 && keys.IsKeyDown(Keys.LeftShift))
+				if ((bits & directions) != 0 && (keys.IsKeyDown(Keys.LeftShift) || _padRun))
 				{
 					bits |= PadB;
 				}
@@ -117,6 +119,69 @@ namespace OpenFF.Client
 				}
 				return bits;
 			}
+		}
+
+		/// <summary>Whether the pad's right trigger is held (run, like Shift), read with the pad bits.</summary>
+		private static bool _padRun;
+		private static bool _padSeen;
+
+		/// <summary>
+		/// The first connected game pad as DS pad bits: the d-pad and the left stick are the
+		/// directions, A/B/X/Y (Cross/Circle/Square/Triangle on a PlayStation pad, which SDL lays
+		/// out the same way) are the DS's A/B/X/Y, the shoulders L and R, Start and Back (Options
+		/// and Share/Create) Start and Select. The right trigger runs; the left trigger
+		/// fast-forwards like Tab.
+		/// </summary>
+		private static int GamePadBits()
+		{
+			_padRun = false;
+			for (int i = 0; i < 4; i++)
+			{
+				GamePadState pad;
+				try { pad = GamePad.GetState((PlayerIndex)i, GamePadDeadZone.Circular); }
+				catch (Exception) { continue; }
+				if (!pad.IsConnected) continue;
+				if (!_padSeen)
+				{
+					_padSeen = true;
+					Log.Write(LogChannel.General, "input: game pad " + (i + 1) + " connected (" + (GamePad.GetCapabilities((PlayerIndex)i).DisplayName ?? "unnamed") + ")");
+				}
+				int bits = 0;
+				GamePadDPad d = pad.DPad;
+				Microsoft.Xna.Framework.Vector2 stick = pad.ThumbSticks.Left;
+				const float deadZone = 0.45f;
+				if (d.Up == ButtonState.Pressed || stick.Y > deadZone) bits |= PadUp;
+				if (d.Down == ButtonState.Pressed || stick.Y < -deadZone) bits |= PadDown;
+				if (d.Left == ButtonState.Pressed || stick.X < -deadZone) bits |= PadLeft;
+				if (d.Right == ButtonState.Pressed || stick.X > deadZone) bits |= PadRight;
+				GamePadButtons b = pad.Buttons;
+				if (b.A == ButtonState.Pressed) bits |= PadA;
+				if (b.B == ButtonState.Pressed) bits |= PadB;
+				if (b.X == ButtonState.Pressed) bits |= PadX;
+				if (b.Y == ButtonState.Pressed) bits |= PadY;
+				if (b.LeftShoulder == ButtonState.Pressed) bits |= PadL;
+				if (b.RightShoulder == ButtonState.Pressed) bits |= PadR;
+				if (b.Start == ButtonState.Pressed) bits |= PadStart;
+				if (b.Back == ButtonState.Pressed) bits |= PadSelect;
+				_padRun = pad.Triggers.Right > 0.5f;
+				return bits;
+			}
+			return 0;
+		}
+
+		/// <summary>Whether a connected pad holds the left trigger: fast-forward, like Tab.</summary>
+		private static bool GamePadFast()
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				try
+				{
+					GamePadState pad = GamePad.GetState((PlayerIndex)i);
+					if (pad.IsConnected) return pad.Triggers.Left > 0.5f;
+				}
+				catch (Exception) { }
+			}
+			return false;
 		}
 
 		private static Game _game;
@@ -150,7 +215,7 @@ namespace OpenFF.Client
 		/// </summary>
 		public static int BeginFrame()
 		{
-			bool fast = _game != null && _game.IsActive && Keyboard.GetState().IsKeyDown(Keys.Tab);
+			bool fast = _game != null && _game.IsActive && (Keyboard.GetState().IsKeyDown(Keys.Tab) || GamePadFast());
 			GlobalScope.boost = fast ? 1 : 0;
 			return (fast && _fastForwardFactor > 1) ? _fastForwardFactor : 1;
 		}

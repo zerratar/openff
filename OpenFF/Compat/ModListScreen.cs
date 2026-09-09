@@ -56,6 +56,7 @@ namespace OpenFF.Client
 		private string _folder;
 		private int _conflicts;
 		private KeyboardState _previousKeys;
+		private int _previousPad;
 		private MouseState _previousMouse;
 		private SpriteBatch _batch;
 		private Texture2D _pixel;
@@ -144,30 +145,34 @@ namespace OpenFF.Client
 			KeyboardState keys = Keyboard.GetState();
 			MouseState mouse = Mouse.GetState();
 			bool shift = keys.IsKeyDown(Keys.LeftShift) || keys.IsKeyDown(Keys.RightShift);
+			// A game pad drives the list as the keys do: the d-pad or stick, A toggles, B closes, the shoulders move a mod.
+			int pad = DesktopInput.RawPadBits(), padEdge = pad & ~_previousPad;
+			_previousPad = pad;
+			bool padUp = (padEdge & 64) != 0, padDown = (padEdge & 128) != 0, padA = (padEdge & 1) != 0, padB = (padEdge & 2) != 0, padL = (padEdge & 512) != 0, padR = (padEdge & 256) != 0;
 
-			if (Pressed(keys, Keys.Escape) || Pressed(keys, Keys.Back) || Pressed(keys, Keys.X))
+			if (Pressed(keys, Keys.Escape) || Pressed(keys, Keys.Back) || Pressed(keys, Keys.X) || padB)
 			{
 				Close();
 			}
 			else if (_mods.Count > 0)
 			{
-				if (Pressed(keys, Keys.Up) || Pressed(keys, Keys.W))
+				if (Pressed(keys, Keys.Up) || Pressed(keys, Keys.W) || padUp)
 				{
 					if (shift) Move(-1); else _selected = (_selected + _mods.Count - 1) % _mods.Count;
 				}
-				else if (Pressed(keys, Keys.Down) || Pressed(keys, Keys.S))
+				else if (Pressed(keys, Keys.Down) || Pressed(keys, Keys.S) || padDown)
 				{
 					if (shift) Move(1); else _selected = (_selected + 1) % _mods.Count;
 				}
-				else if (Pressed(keys, Keys.Space) || Pressed(keys, Keys.Enter) || Pressed(keys, Keys.Z))
+				else if (Pressed(keys, Keys.Space) || Pressed(keys, Keys.Enter) || Pressed(keys, Keys.Z) || padA)
 				{
 					Toggle(_selected);
 				}
-				else if (Pressed(keys, Keys.PageUp))
+				else if (Pressed(keys, Keys.PageUp) || padL)
 				{
 					Move(-1);
 				}
-				else if (Pressed(keys, Keys.PageDown))
+				else if (Pressed(keys, Keys.PageDown) || padR)
 				{
 					Move(1);
 				}

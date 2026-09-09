@@ -7,6 +7,19 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.1.1 - game pads (2026-09-09)
+
+- **Game pad support.** The first connected pad drives the game as the keyboard does: the
+  d-pad or the left stick for the directions, A/B/X/Y (Cross/Circle/Square/Triangle on a
+  PlayStation pad) for the DS's A/B/X/Y, the shoulders for L and R, Start (Options) and Back
+  (Share/Create) for Start and Select, the right trigger held to run, the left trigger held to
+  fast-forward. It works in every menu and on the field, in the title's MODS list, and mods
+  read it through `Game.Input` with the keyboard. XInput pads, DualShock 4, DualSense and
+  Switch Pro are known to SDL; an unknown one can be described in a `gamecontrollerdb.txt`
+  beside the executable. Reported by Karl on a DualSense.
+- The release description carries only the version's notes (the procedure moved to
+  `Docs/Releasing.md`).
+
 ## 0.1.0 - the first release (2026-09-09)
 
 **The client.** Final Fantasy III from its Steam install, title to credits, as shipped -
