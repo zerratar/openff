@@ -246,6 +246,7 @@ function section(parent, text) {
   head.className = 'dialog-section';
   head.textContent = text;
   parent.append(head);
+  return head;
 }
 
 function errorLine(parent) {

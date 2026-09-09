@@ -1330,8 +1330,11 @@ namespace Crystal.Editor
 
 				case "/api/audio/free":
 					// The first BGM number the game ships no tune for and the project has not taken.
-					SendJson(context, new { ok = true, bgm = Audio.FreeBgm(_workspace, Audio.List(_workspace.ContentDirectory, _workspace)), first = Audio.FirstFreeBgm, last = Audio.LastFreeBgm });
+				{
+					List<AudioAsset> all = Audio.List(_workspace.ContentDirectory, _workspace);
+					SendJson(context, new { ok = true, bgm = Audio.FreeBgm(_workspace, all), first = Audio.FirstFreeBgm, last = Audio.LastFreeBgm, se = Audio.FreeSe(_workspace, all), firstSe = Audio.FirstFreeSe, lastSe = Audio.LastFreeSe });
 					return;
+				}
 
 				case "/api/audio/import":
 				{

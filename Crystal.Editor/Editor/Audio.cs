@@ -235,6 +235,25 @@ namespace Crystal.Editor
 			return -1;
 		}
 
+		/// <summary>The sound-effect archive numbers a mod's own effects go under: the game's run to 277; there is no table to add to, a name's file is the effect.</summary>
+		public const int FirstFreeSe = 300, LastFreeSe = 999;
+
+		/// <summary>The first effect archive number (SEnnn) with no effect of the game's or the project's under it.</summary>
+		public static int FreeSe(Workspace workspace, List<AudioAsset> assets)
+		{
+			HashSet<int> taken = new HashSet<int>();
+			foreach (AudioAsset a in assets)
+			{
+				Match m = Regex.Match(a.Name, @"^SE(\d+)_", RegexOptions.IgnoreCase);
+				if (m.Success) taken.Add(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture));
+			}
+			for (int n = FirstFreeSe; n <= LastFreeSe; n++)
+			{
+				if (!taken.Contains(n)) return n;
+			}
+			return -1;
+		}
+
 		/// <summary>
 		/// Writes a sound of the mod's own into the project's files: sound/&lt;name&gt;_&lt;part&gt;.ogg (or .wav
 		/// by the bytes), and sound/&lt;name&gt;.dat with the loop point when one is given. The name is

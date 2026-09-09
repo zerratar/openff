@@ -1105,6 +1105,57 @@ namespace OpenFF
 		}
 	}
 
+	/// <summary>
+	/// A sound effect on the map: the game's (SE001_36 is the chest's) or the mod's own, by
+	/// archive and number, played when the hero comes within Radius of the object - or, with
+	/// Radius 0, as the object comes to life (the map is entered). Once plays it a single time.
+	/// </summary>
+	public sealed class Sound : Behaviour
+	{
+		/// <summary>The effect's archive (the SEnnn of its name; the mod's own from 300).</summary>
+		[Tooltip("The effect's archive number: the nnn of SEnnn_mm (the mod's own start at 300)")]
+		public int Archive = 1;
+		/// <summary>The effect's number in the archive (the mm of SEnnn_mm).</summary>
+		[Tooltip("The effect's number in the archive: the mm of SEnnn_mm")]
+		public int Number;
+		/// <summary>Loudness, 0-255.</summary>
+		[Range(0, 255), Tooltip("Loudness, 0-255")]
+		public int Volume = 192;
+		/// <summary>How close the hero has to come; 0 plays it as the map is entered.</summary>
+		[Range(0f, 60f), Tooltip("How close the hero has to come, in world units; 0 plays it as the map is entered")]
+		public float Radius = 6f;
+		/// <summary>Play it once and then disable; off, it plays every time the hero comes back.</summary>
+		[Tooltip("Play it once and then disable; off, every time the hero comes back")]
+		public bool Once;
+
+		private bool _inside;
+
+		protected override void Start()
+		{
+			if (Radius <= 0f) { Play(); if (Once) Enabled = false; }
+		}
+
+		protected override void Update()
+		{
+			if (Radius <= 0f || Transform == null || !Game.Hero.Present) return;
+			bool inside = Vector3.FlatDistance(Transform.WorldPosition, Game.Hero.Position) <= Radius;
+			if (inside == _inside) return;
+			_inside = inside;
+			if (!inside) return;
+			Play();
+			if (Once) Enabled = false;
+		}
+
+		/// <summary>Plays the effect now.</summary>
+		public void Play()
+		{
+			if (Game.Audio == null) return;
+			Game.Guard("Sound SE" + Archive + "_" + Number, () => Game.Audio.PlaySe(Archive, Number, Volume, 127));
+		}
+
+		protected override void OnDisable() { _inside = false; }
+	}
+
 	internal sealed class ModelFollow : Behaviour
 	{
 		private Vector3 _at;

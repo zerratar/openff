@@ -59,11 +59,13 @@ file of those names in the project's `files/sound/` replaces a part of a game's 
 (`BGM03_1.ogg` the loop of tune 3), and a file under a name the game has no sound for
 is a sound of the mod's own. Music: the game's BGM table runs 0..58; a number from 59
 up is the mod's - the client plays whatever parts the chain holds (`_0` the intro,
-`_1` the loop; `sound/BGMnn.dat` the loop point in milliseconds). The Audio tab's
-**Import a tune…** (OpenFF projects) writes them: the loop file, an intro if there is
-one, the number picked from the free ones. `Music { Bgm: 59 }` on a map's object,
-`playBGM 59` in a script or `Game.Audio.PlayBgm(59)` in C# plays it. The list marks
-them *the mod's own* and plays them like the game's.
+`_1` the loop; `sound/BGMnn.dat` the loop point in milliseconds). Effects have no table
+at all: `sound/SE300_00_0.ogg` is effect 300/0, the game's run to 277. The Audio tab's
+**Import a sound…** (OpenFF projects) writes either: a tune's loop and intro under the
+first free number, or an effect's one file. `Music { Bgm: 59 }` or `Sound { Archive: 300 }`
+on a map's object, `playBGM 59` / `playSE 300, 0` in a script or `Game.Audio.PlayBgm(59)` /
+`PlaySe(300, 0)` in C# plays them. The list marks them *the mod's own* and plays them
+like the game's.
 
 Nothing else in the game's audio code has been rewritten; the two PORT points are
 `SoundManager.playSound` (the parts a name the table lacks has) and

@@ -1752,7 +1752,7 @@ function drawCodeActions() {
   }
   if (adds) {
     if (browseKind === 'map') button('New map…', 'A map of the mod\'s own: a ground to walk (a glTF of yours, or a flat slab), then objects, exits and music placed in the map editor; the OpenFF client plays it', () => newMapDialog(), true);
-    else button('Import a tune…', 'Music of the mod\'s own: an Ogg Vorbis or WAV under a BGM number the game leaves free (59 and up); a Music component or playBGM plays it', () => importTuneDialog(), true);
+    else button('Import a sound…', 'A sound of the mod\'s own: an Ogg Vorbis or WAV as a tune under a BGM number the game leaves free (59 and up), or as an effect under an archive number of its own (SE300_00); Music, Chest and Talk components, scripts and C# play it', () => importTuneDialog(), true);
     return;
   }
   if (!project) {
@@ -2105,25 +2105,41 @@ async function newMapDialog() {
 /// files as sound/BGMnn_1 (and _0) with the loop point in sound/BGMnn.dat; the client plays a
 /// number the game's table has no files for from whatever the mod put there.
 async function importTuneDialog() {
-  const body = dialog('Import a tune');
+  const body = dialog('Import a sound');
   const note = document.createElement('p');
   note.className = 'dialog-note';
-  note.textContent = 'Music of the mod\'s own, for the OpenFF client. The loop plays forever; an intro, if you give one, plays once before it (Ogg Vorbis or WAV, either). The tune gets a BGM number the game leaves free; a Music component on a map, playBGM in a script or Game.Audio.PlayBgm in C# plays it by that number. Under a number of the game\'s it replaces that tune instead.';
+  note.textContent = 'A sound of the mod\'s own, for the OpenFF client (Ogg Vorbis or WAV). A tune: the loop plays forever, an intro, if you give one, plays once before it; it gets a BGM number the game leaves free, and a Music component on a map, playBGM in a script or Game.Audio.PlayBgm in C# plays it by that number. An effect: one file under an archive number of its own (SE300_00); Game.Audio.PlaySe(300, 0), a Chest\'s or Talk\'s sound, or playSE in a script plays it. Under a name of the game\'s it replaces that sound instead.';
   body.append(note);
-  let free = { bgm: 30, first: 30, last: 59 };
+  let free = { bgm: 59, first: 59, last: 199, se: 300, firstSe: 300, lastSe: 999 };
   try { free = await api('/api/audio/free'); } catch (e) { /* the default stands */ }
+  section(body, 'Kind');
+  const kind = document.createElement('select');
+  for (const [v, label] of [['bgm', 'A tune - music that loops (BGM)'], ['se', 'An effect - played once (SE)']]) {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = label;
+    kind.append(o);
+  }
+  body.append(kind);
   const number = field(body, `BGM number (${free.first}-${free.last} are the game's free ones)`, String(free.bgm > 0 ? free.bgm : free.first), { placeholder: String(free.first) });
-  section(body, 'The loop');
+  const numberLabel = number.parentElement && number.parentElement.firstChild;   // the label's text node
+  const loopHead = section(body, 'The loop');
   const loop = document.createElement('input');
   loop.type = 'file';
   loop.accept = '.ogg,.wav,audio/ogg,audio/wav';
   body.append(loop);
-  section(body, 'An intro (optional)');
+  const introHead = section(body, 'An intro (optional)');
   const intro = document.createElement('input');
   intro.type = 'file';
   intro.accept = '.ogg,.wav,audio/ogg,audio/wav';
   body.append(intro);
   const loopAt = field(body, 'Where the loop begins, in milliseconds (optional; with an intro, its length)', '', { placeholder: 'empty: the loop file from its start' });
+  kind.onchange = () => {
+    const se = kind.value === 'se';
+    if (numberLabel) numberLabel.textContent = se ? `Archive number (${free.firstSe}-${free.lastSe} are free; the effect is its member 00)` : `BGM number (${free.first}-${free.last} are the game's free ones)`;
+    number.value = String(se ? (free.se > 0 ? free.se : free.firstSe) : (free.bgm > 0 ? free.bgm : free.first));
+    if (loopHead) loopHead.textContent = se ? 'The sound' : 'The loop';
+    for (const el of [introHead, intro, loopAt.parentElement]) if (el) el.hidden = se;
+  };
   const problem = errorLine(body);
   const actions = document.createElement('div');
   actions.className = 'dialog-actions';
@@ -2137,17 +2153,19 @@ async function importTuneDialog() {
     return btoa(bin);
   };
   go.onclick = async () => {
+    const se = kind.value === 'se';
     const n = parseInt(number.value, 10);
-    if (isNaN(n) || n < 0 || n > 199) { problem.textContent = 'A BGM number, 0-199.'; return; }
+    if (isNaN(n) || n < 0 || n > (se ? 999 : 199)) { problem.textContent = se ? 'An archive number, 0-999.' : 'A BGM number, 0-199.'; return; }
     const loopFile = loop.files && loop.files[0];
-    if (!loopFile) { problem.textContent = 'Pick the loop file.'; return; }
-    const name = 'BGM' + String(n).padStart(2, '0');
-    const ms = loopAt.value.trim() === '' ? null : parseInt(loopAt.value, 10);
+    if (!loopFile) { problem.textContent = se ? 'Pick the sound file.' : 'Pick the loop file.'; return; }
+    const name = se ? 'SE' + String(n).padStart(3, '0') + '_00' : 'BGM' + String(n).padStart(2, '0');
+    const ms = se || loopAt.value.trim() === '' ? null : parseInt(loopAt.value, 10);
     go.disabled = true;
     try {
-      const r = await api('/api/audio/import', { name, part: 1, bytes: await read(loopFile), loopMs: isNaN(ms) ? null : ms });
+      // An effect is one file, its part 0; a tune's loop is part 1 and its intro part 0.
+      const r = await api('/api/audio/import', { name, part: se ? 0 : 1, bytes: await read(loopFile), loopMs: ms === null || isNaN(ms) ? null : ms });
       if (!r.ok) throw new Error(r.error);
-      const introFile = intro.files && intro.files[0];
+      const introFile = !se && intro.files && intro.files[0];
       if (introFile) {
         const r2 = await api('/api/audio/import', { name, part: 0, bytes: await read(introFile) });
         if (!r2.ok) throw new Error(r2.error);
@@ -2156,7 +2174,7 @@ async function importTuneDialog() {
       if (shut) shut.click();
       state.audio = null;
       await loadList();
-      say(`${name} is the mod's tune${introFile ? ' (intro + loop)' : ''} - Music { Bgm: ${n} } plays it`, 'good');
+      say(se ? `${name} is the mod's effect - Game.Audio.PlaySe(${n}, 0) plays it` : `${name} is the mod's tune${introFile ? ' (intro + loop)' : ''} - Music { Bgm: ${n} } plays it`, 'good');
       inspectAsset('audio', name);
     } catch (e) { problem.textContent = e.message; go.disabled = false; }
   };

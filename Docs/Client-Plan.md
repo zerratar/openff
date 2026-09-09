@@ -2088,9 +2088,14 @@ on the Audio library (OpenFF projects), the row marked the mod's own, the Bgm pi
 lists it. Tried: BGM59 as an Ogg loop (the game's BGM03 loop, as a stand-in) with a
 generated 1.5 s WAV tone as intro, `Music { Bgm: 59 }` on The Old Quarry - the log's
 "BGM59 is the mods' own (parts 3)", both parts loaded, the tone then the loop (C-62).
-Next on this line: sound effects of the mod's own (`SEnnn_nn` has the same table shape;
-`g_SEInfoTable` is the number → category map to open the same way), and the same import
-for a Steam target as an XNB writer.
+Effects turned out to have no table gate at all - `playSE archive, n` → "SE%.3d_%.2d" →
+`playSound` - so the same `playSound` change plays a mod's `sound/SEnnn_mm_0` under any
+archive number; the game's run to 277, a mod's start at 300 (`Audio.FirstFreeSe`). The
+dialog became *Import a sound…* with a tune/effect switch; the engine gained `Sound`
+(Archive, Number, Volume, Radius - 0 for on entering - Once). Tried: a 0.4 s WAV chime as
+SE300_00, `Sound { Archive: 300, Radius: 0 }` on The Old Quarry - the trace's `se 300/0`
+as the map opens. Left: the same import for a Steam target as an XNB writer; an SE picker
+for `Sound`'s two numbers.
 
 ## Working rules
 

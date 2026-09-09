@@ -629,18 +629,24 @@ What a map needs, as components on its objects:
 Not yet: the map's own camera settings, a background other than black, a name on the menu's
 map screen.
 
-### Music of the mod's own (OpenFF targets)
+### Sounds of the mod's own (OpenFF targets)
 
-The Audio library's *Import a tune…* (OpenFF projects) takes an Ogg Vorbis or WAV as a
-tune's loop, an intro to play once before it if there is one, and where the loop begins
-in milliseconds, under a BGM number the game leaves free (59 and up; the first free one
-is filled in). It lands in the project's files as `sound/BGMnn_1.ogg` (or `.wav`),
-`sound/BGMnn_0…` for the intro and `sound/BGMnn.dat` for the loop point - the same shape
-the game keeps its own in - and Export carries it. `Music { Bgm: nn }` on a map's object
-(the picker lists it with the game's), `playBGM nn` in a script or `Game.Audio.PlayBgm(nn)`
-in C# plays it, through the game's own music player, fades and all. A file under one of
-the game's numbers replaces that part of its tune instead. Sound effects of the mod's own
-are next on this line.
+The Audio library's *Import a sound…* (OpenFF projects) takes an Ogg Vorbis or WAV:
+
+- **A tune**: the loop, an intro to play once before it if there is one, and where the
+  loop begins in milliseconds, under a BGM number the game leaves free (59 and up; the
+  first free one is filled in). It lands in the project's files as `sound/BGMnn_1.ogg`
+  (or `.wav`), `sound/BGMnn_0…` for the intro and `sound/BGMnn.dat` for the loop point -
+  the shape the game keeps its own in - and Export carries it. `Music { Bgm: nn }` on a
+  map's object (the picker lists it with the game's), `playBGM nn` in a script or
+  `Game.Audio.PlayBgm(nn)` in C# plays it, through the game's own music player, fades
+  and all.
+- **An effect**: one file under an archive number of its own (300 and up: `SE300_00`),
+  as `sound/SE300_00_0.ogg`. A `Sound` component on a map's object plays it - as the hero
+  comes within *Radius*, or as the map is entered with Radius 0, once or every time - and
+  so do `Game.Audio.PlaySe(300, 0)` in C# and `playSE 300, 0` in a script.
+
+A file under one of the game's names replaces that sound (or that part of a tune) instead.
 
 ### New content from existing: Duplicate as…
 

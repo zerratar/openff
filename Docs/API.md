@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMeshes`](#imeshes), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`MapFieldAttribute`](#mapfieldattribute), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Color`](#color), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`MapFieldAttribute`](#mapfieldattribute), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`TooltipAttribute`](#tooltipattribute), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -905,6 +905,21 @@ One of a shop table's shops.
 | `int Index { get; set; }` |  |
 | `List<int> ItemIds { get; }` |  |
 | `int Kind { get; set; }` | 0 weapons, 1 armour, 2 magic, 3 items. |
+
+### Sound
+
+`class Sound : Behaviour`
+
+A sound effect on the map: the game's (SE001_36 is the chest's) or the mod's own, by archive and number, played when the hero comes within Radius of the object - or, with Radius 0, as the object comes to life (the map is entered). Once plays it a single time.
+
+| Member | What it does |
+| --- | --- |
+| `int Archive` | The effect's archive (the SEnnn of its name; the mod's own from 300). |
+| `int Number` | The effect's number in the archive (the mm of SEnnn_mm). |
+| `bool Once` | Play it once and then disable; off, it plays every time the hero comes back. |
+| `float Radius` | How close the hero has to come; 0 plays it as the map is entered. |
+| `int Volume` | Loudness, 0-255. |
+| `void Play()` | Plays the effect now. |
 
 ### Spell
 
@@ -1969,4 +1984,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-125 types, 876 members; 401 without a summary yet.
+126 types, 882 members; 401 without a summary yet.
