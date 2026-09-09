@@ -69,4 +69,10 @@ td code { white-space: nowrap; }
 .hero { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); margin: 10px 0 22px; }
 .hero img { display: block; width: 100%; }
 .hero .over { position: absolute; left: 24px; bottom: 20px; background: rgba(12,14,18,0.78); padding: 10px 16px; border-radius: 8px; font-size: 14px; color: #fff; }
+/* The landing page's download row. */
+.get { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 8px; }
+.get .button { display: inline-block; background: var(--accent); color: #0b1220; font-weight: 600; padding: 8px 16px; border-radius: 8px; }
+.get .button:hover { text-decoration: none; filter: brightness(1.1); }
+.get .button.quiet { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+.get span { color: var(--dim); font-size: 13px; }
 footer { margin-top: 60px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; }

@@ -17,6 +17,10 @@
     { file: 'reference.html#timeline', label: 'Timeline clips' },
     { file: 'reference.html#settings', label: 'Settings and command line' },
     { file: 'reference.html#shortcuts', label: 'Shortcuts' },
+    { h: 'Project' },
+    { file: 'https://github.com/zerratar/openff/releases/latest', label: 'Download' },
+    { file: 'https://github.com/zerratar/openff', label: 'GitHub' },
+    { file: 'https://github.com/zerratar/openff/blob/main/Docs/Releases.md', label: 'What changed' },
   ];
   const here = location.pathname.split('/').pop() || 'index.html';
   const nav = document.createElement('nav');

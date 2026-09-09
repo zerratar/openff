@@ -30,6 +30,10 @@ The [Releases](https://github.com/zerratar/openff/releases) page has `OpenFF-<ve
 unzip anywhere, `OpenFF.exe` plays, `crystal.exe` edits and makes mods, `mods\` is where mods
 go. What each release carries is in `Docs/Releases.md`.
 
+**The modding guide** - short tutorials with pictures, and a reference - is the project site:
+[zerratar.github.io/openff](https://zerratar.github.io/openff/). The same pages are `Guide\` in
+the zip and *Help ▸ Guide* in Crystal.
+
 ## What you need
 
 | To | You need |

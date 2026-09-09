@@ -1,0 +1,56 @@
+# The project site: the modding guide (Docs/Guide - HTML, pictures, a reference) published
+# with GitHub Pages at https://zerratar.github.io/openff/ on every push that touches it, and
+# by hand from Actions ▸ pages ▸ Run workflow. The same files ship in the release zip as
+# Guide\ and open from Crystal's Help ▸ Guide, so one folder serves all three.
+#
+# Pages is switched on by the first run (configure-pages enablement) with the source set to
+# GitHub Actions; nothing to click in the repository's settings.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Docs/Guide/**"
+      - "Docs/Showcase/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: The site
+        # The guide as it is, plus the showcase pictures under showcase/ for linking from elsewhere.
+        run: |
+          mkdir -p site
+          cp -r Docs/Guide/. site/
+          mkdir -p site/showcase
+          cp Docs/Showcase/*.png site/showcase/ 2>/dev/null || true
+          touch site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
