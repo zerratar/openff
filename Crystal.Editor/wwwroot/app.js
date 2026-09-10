@@ -1840,17 +1840,35 @@ async function openModel(name) {
     facts.textContent += '  ·  one part is switched off by its node';
   }
 
-  // Drag to orbit, wheel to zoom.
+  // Drag to orbit, wheel to zoom. In weights mode the left button paints (Alt+click picks the
+  // bone under the cursor) and the right button orbits.
   let dragging = false;
+  let painting = false;
   let lastX = 0;
   let lastY = 0;
+  const paintOn = () => typeof viewer.paintOptions === 'function' && viewer.paintOptions().on;
+  canvas.oncontextmenu = (e) => { if (paintOn()) e.preventDefault(); };
   canvas.onpointerdown = (e) => {
+    if (paintOn() && e.button === 0) {
+      if (e.altKey) {
+        const bone = viewer.boneAt(e.clientX, e.clientY);
+        if (bone >= 0 && typeof pickPaintBone === 'function') pickPaintBone(bone);
+        return;
+      }
+      painting = true;
+      viewer.beginStroke();
+      viewer.paintAt(e.clientX, e.clientY);
+      canvas.setPointerCapture(e.pointerId);
+      if (typeof paintChanged === 'function') paintChanged();
+      return;
+    }
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
     canvas.setPointerCapture(e.pointerId);
   };
   canvas.onpointermove = (e) => {
+    if (painting) { viewer.paintAt(e.clientX, e.clientY); return; }
     if (!dragging) return;
     viewer.orbit(e.clientX - lastX, e.clientY - lastY);
     lastX = e.clientX;
@@ -1858,8 +1876,10 @@ async function openModel(name) {
   };
   canvas.onpointerup = (e) => {
     dragging = false;
+    painting = false;
     canvas.releasePointerCapture(e.pointerId);
   };
+  let pickPaintBone = null, paintChanged = null;
   canvas.onwheel = (e) => {
     e.preventDefault();
     viewer.zoom(Math.sign(e.deltaY));
@@ -1873,6 +1893,61 @@ async function openModel(name) {
   const transport = await wireAnimation(node, viewer, name).catch(error => { say(error.message, 'bad'); return null; });
   // A weapon on a character, with the item's fit to adjust (hand-preview.js).
   if (typeof wireHandPreview === 'function') wireHandPreview(node, viewer, name, model, transport).catch(error => say(error.message, 'bad'));
+
+  // Weight painting on a skinned glTF of the project's: the bone as a heat map, a brush, save.
+  const paintBar = $('.paint-bar', node);
+  if (paintBar && model.skin && /^assets\//i.test(name)) {
+    paintBar.hidden = false;
+    const on = $('.paint-on', paintBar), controls = $('.paint-controls', paintBar);
+    const boneSelect = $('.paint-bone', paintBar), modeSelect = $('.paint-mode', paintBar);
+    const radius = $('.paint-radius', paintBar), strength = $('.paint-strength', paintBar);
+    const mirror = $('.paint-mirror', paintBar), bones = $('.paint-bones', paintBar);
+    const undo = $('.paint-undo', paintBar), save = $('.paint-save', paintBar), hint = $('.paint-hint', paintBar);
+    const stage = $('.stage', node);
+    // The bones by name, the game's order (root first); the first limb-ish one chosen.
+    const joints = viewer.skinJoints();
+    boneSelect.textContent = '';
+    joints.forEach((j, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = j; boneSelect.append(o); });
+    let dirty = false;
+    const radiusScale = Math.max(0.05, (model.radius || 7) / 7);   // the sliders are in units of a character's size
+    const apply = () => viewer.setPaint({
+      on: on.checked, bone: Number(boneSelect.value), mode: modeSelect.value,
+      radius: Number(radius.value) * radiusScale, strength: Number(strength.value), mirror: mirror.checked, bones: bones.checked
+    });
+    const labels = () => { $('.paint-radius-value', paintBar).textContent = Number(radius.value).toFixed(1); $('.paint-strength-value', paintBar).textContent = Number(strength.value).toFixed(2); };
+    on.onchange = () => { controls.hidden = !on.checked; stage.classList.toggle('painting', on.checked); if (on.checked && boneSelect.value === '' && joints.length) boneSelect.value = String(Math.max(0, joints.indexOf('L_kata'))); apply(); };
+    boneSelect.onchange = apply; modeSelect.onchange = apply; mirror.onchange = apply; bones.onchange = apply;
+    radius.oninput = () => { labels(); apply(); }; strength.oninput = () => { labels(); apply(); };
+    labels();
+    pickPaintBone = (bone) => { boneSelect.value = String(bone); apply(); say(`bone: ${joints[bone]}`); };
+    paintChanged = () => { dirty = true; hint.textContent = 'unsaved changes - Save weights writes them into the .glb and remakes the game model'; hint.classList.add('paint-dirty'); };
+    undo.onclick = () => { if (!viewer.undoPaint()) say('nothing to undo'); };
+    node.addEventListener('keydown', e => { if (on.checked && e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo.onclick(); } });
+    save.onclick = async () => {
+      const data = viewer.weightsData();
+      if (!data) return;
+      save.disabled = true;
+      say('saving weights\u2026');
+      try {
+        const r = await api('/api/project/models/weights', { asset: name, jointIndex: data.jointIndex, weights: data.weights });
+        if (!r.ok) throw new Error(r.error);
+        // The game model remade from the repainted file: the viewer's game-format preview and
+        // the client's definition follow the paint.
+        const boundTo = viewer.skinModel();
+        if (boundTo && typeof projectState !== 'undefined' && projectState.project) {
+          const made = await api('/api/project/models/reskin', { model: boundTo, asset: name });
+          if (!made.ok) throw new Error(made.error);
+          say(`weights saved into ${shortName(name)} and ${made.model} remade from it`, 'good');
+        } else say(`weights saved into ${shortName(name)}`, 'good');
+        dirty = false;
+        hint.textContent = 'left drag paints · right drag orbits · Alt+click picks the bone · scrub or play to see it move';
+        hint.classList.remove('paint-dirty');
+      } catch (error) {
+        say(error.message, 'bad');
+      }
+      save.disabled = false;
+    };
+  }
 
   // Export: the mesh with its textures and skeleton, plus whichever motion the transport is
   // on - or every motion of its pack. With a project open it goes into the project's

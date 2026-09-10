@@ -124,7 +124,8 @@ namespace Crystal
 					}
 				}
 			}
-			// The reference as posed (or the bind pose), and its box.
+			// The reference as posed (or the bind pose), and its box; the bind pose kept beside it.
+			float[] bindX = (float[])refX.Clone(), bindY = (float[])refY.Clone(), bindZ = (float[])refZ.Clone();
 			float[] oMin = { float.MaxValue, float.MaxValue, float.MaxValue }, oMax = { float.MinValue, float.MinValue, float.MinValue };
 			if (delta != null)
 			{
@@ -231,20 +232,101 @@ namespace Crystal
 					if (a < originalCount && b < originalCount && c < originalCount) triangles.Add((a, b, c));
 				}
 			}
-			const int Nearest = 3;
 			float soft = (oMax[1] - oMin[1]) * 0.01f; soft *= soft;
+
+			// Neighbours by shared position, so a UV seam's twin vertices smooth as one.
+			Dictionary<(int, int, int), int> cells = new Dictionary<(int, int, int), int>();
+			int[] canonical = new int[count];
+			for (int v = 0; v < count; v++)
+			{
+				(int, int, int) key = ((int)Math.Round(bundle.Buffer[v * 8] * 2000), (int)Math.Round(bundle.Buffer[v * 8 + 1] * 2000), (int)Math.Round(bundle.Buffer[v * 8 + 2] * 2000));
+				if (!cells.TryGetValue(key, out int c)) { cells[key] = c = v; }
+				canonical[v] = c;
+			}
+			HashSet<int>[] neighbours = new HashSet<int>[count];
+			for (int i = 0; i + 2 < bundle.Indices.Count; i += 3)
+			{
+				int a = canonical[bundle.Indices[i]], b = canonical[bundle.Indices[i + 1]], c = canonical[bundle.Indices[i + 2]];
+				Link(neighbours, a, b); Link(neighbours, b, c); Link(neighbours, a, c);
+			}
+
+			// The file's vertices as fitted (the pose the author left them in), kept for the un-posing.
+			float[] fileX = new float[count], fileY = new float[count], fileZ = new float[count];
+			for (int v = 0; v < count; v++) { fileX[v] = bundle.Buffer[v * 8]; fileY[v] = bundle.Buffer[v * 8 + 1]; fileZ[v] = bundle.Buffer[v * 8 + 2]; }
+
+			// ---- pass one: against the original in the matched pose ----------------------------------------------
+			(int Node, float Weight)[][] final = Finish(Smooth(Transfer(fileX, fileY, fileZ, count, refX, refY, refZ, triangles, refWeights, soft), neighbours, canonical), neighbours, canonical);
+
+			// ---- into the bind pose, and pass two against the original's bind pose -----------------------------------
+			// In the matched pose the original's arms hang against its body, and a vertex on the side
+			// of the chest is as near the arm's surface as the chest's - which is where a spike out of
+			// the chest and a sleeve that stays behind come from. Carried into the T-pose bind with
+			// the first weights, the arms stand clear of the body, and a second transfer there, against
+			// the original's own bind pose, tells them apart. Twice, since the second carrying is truer.
+			float[] bx = fileX, by = fileY, bz = fileZ;
+			if (delta != null)
+			{
+				float[][] undo = delta.Select(d => Gltf.Invert(d)).ToArray();
+				for (int round = 0; round < 2; round++)
+				{
+					bx = new float[count]; by = new float[count]; bz = new float[count];
+					for (int v = 0; v < count; v++)
+					{
+						float[] p = Skinned(fileX[v], fileY[v], fileZ[v], final[v], undo);
+						bx[v] = p[0]; by[v] = p[1]; bz[v] = p[2];
+					}
+					final = Finish(Smooth(Transfer(bx, by, bz, count, bindX, bindY, bindZ, triangles, refWeights, soft), neighbours, canonical), neighbours, canonical);
+				}
+				// The final carrying, with the final weights; the normals go the same way.
+				bx = new float[count]; by = new float[count]; bz = new float[count];
+				for (int v = 0; v < count; v++)
+				{
+					float[] p = Skinned(fileX[v], fileY[v], fileZ[v], final[v], undo);
+					bx[v] = p[0]; by[v] = p[1]; bz[v] = p[2];
+					bundle.Buffer[v * 8] = p[0]; bundle.Buffer[v * 8 + 1] = p[1]; bundle.Buffer[v * 8 + 2] = p[2];
+					if (anyNormals)
+					{
+						float nx = 0, ny = 0, nz = 0;
+						foreach ((int node, float weight) in final[v])
+						{
+							float[] n = Turn(undo[node], normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]);
+							nx += n[0] * weight; ny += n[1] * weight; nz += n[2] * weight;
+						}
+						float len = MathF.Sqrt(nx * nx + ny * ny + nz * nz);
+						if (len > 1e-6f) { normals[v * 3] = nx / len; normals[v * 3 + 1] = ny / len; normals[v * 3 + 2] = nz / len; }
+					}
+				}
+			}
+			HashSet<int> bonesUsed = new HashSet<int>();
+			for (int v = 0; v < count; v++) foreach ((int node, float _) in final[v]) bonesUsed.Add(node);
+			result.Bones = bonesUsed.Count;
+			result.Notes.Add(result.Vertices.ToString("N0") + " vertices weighted from the original's " + originalCount.ToString("N0") + " to " + bonesUsed.Count + " bones: " + string.Join(", ", bonesUsed.OrderBy(b => b).Select(b => rig.Nodes[b])) + (delta != null ? " - a first pass in the matched pose, then two in the bind pose" : ""));
+
+			// ---- the skinned glTF -------------------------------------------------------------------------------
+			Models.Frame(bundle);
+			result.Glb = Gltf.Write(bundle, name => textureBytes.TryGetValue(name, out byte[] bytes) ? bytes : null, rig, v => final[v], anyNormals ? normals.ToArray() : null);
+			return result;
+		}
+
+		/// <summary>
+		/// Weights for every point from the nearest points of the reference surface: the three
+		/// nearest triangles, the nearest counting far more (inverse fourth power, softened), the
+		/// corners' weights blended by where the nearest point lies on each.
+		/// </summary>
+		private static Dictionary<int, float>[] Transfer(float[] px, float[] py, float[] pz, int count, float[] refX, float[] refY, float[] refZ, List<(int A, int B, int C)> triangles, (int Node, float Weight)[][] refWeights, float soft)
+		{
+			const int Nearest = 3;
 			Dictionary<int, float>[] weights = new Dictionary<int, float>[count];
 			float[] nearDist = new float[Nearest];
 			int[] nearTri = new int[Nearest];
 			float[] nearU = new float[Nearest], nearV = new float[Nearest];
 			for (int v = 0; v < count; v++)
 			{
-				float px = bundle.Buffer[v * 8], py = bundle.Buffer[v * 8 + 1], pz = bundle.Buffer[v * 8 + 2];
 				for (int k = 0; k < Nearest; k++) { nearDist[k] = float.MaxValue; nearTri[k] = -1; }
 				for (int t = 0; t < triangles.Count; t++)
 				{
 					(int a, int b, int c) = triangles[t];
-					float d = ClosestOnTriangle(px, py, pz, refX[a], refY[a], refZ[a], refX[b], refY[b], refZ[b], refX[c], refY[c], refZ[c], out float u, out float w);
+					float d = ClosestOnTriangle(px[v], py[v], pz[v], refX[a], refY[a], refZ[a], refX[b], refY[b], refZ[b], refX[c], refY[c], refZ[c], out float u, out float w);
 					if (d >= nearDist[Nearest - 1]) continue;
 					int at = Nearest - 1;
 					while (at > 0 && nearDist[at - 1] > d) { nearDist[at] = nearDist[at - 1]; nearTri[at] = nearTri[at - 1]; nearU[at] = nearU[at - 1]; nearV[at] = nearV[at - 1]; at--; }
@@ -263,90 +345,73 @@ namespace Crystal
 				}
 				weights[v] = blend;
 			}
+			return weights;
+		}
 
-			// ---- smoothed over the mesh --------------------------------------------------------------------------
-			// Neighbours by shared position, so a UV seam's twin vertices smooth as one.
-			Dictionary<(int, int, int), int> cells = new Dictionary<(int, int, int), int>();
-			int[] canonical = new int[count];
+		/// <summary>
+		/// One smoothing pass over the mesh (each vertex half its own weights, half its neighbours'
+		/// mean), after a vote that hands a vertex its neighbours' weights outright when its heaviest
+		/// bone is one that fewer than a third of them have at all - a lone vertex the transfer put on
+		/// the wrong bone, the spike in a pose.
+		/// </summary>
+		private static Dictionary<int, float>[] Smooth(Dictionary<int, float>[] weights, HashSet<int>[] neighbours, int[] canonical)
+		{
+			int count = weights.Length;
+			Dictionary<int, float>[] voted = new Dictionary<int, float>[count];
 			for (int v = 0; v < count; v++)
 			{
-				(int, int, int) key = ((int)Math.Round(bundle.Buffer[v * 8] * 2000), (int)Math.Round(bundle.Buffer[v * 8 + 1] * 2000), (int)Math.Round(bundle.Buffer[v * 8 + 2] * 2000));
-				if (!cells.TryGetValue(key, out int c)) { cells[key] = c = v; }
-				canonical[v] = c;
-			}
-			HashSet<int>[] neighbours = new HashSet<int>[count];
-			for (int i = 0; i + 2 < bundle.Indices.Count; i += 3)
-			{
-				int a = canonical[bundle.Indices[i]], b = canonical[bundle.Indices[i + 1]], c = canonical[bundle.Indices[i + 2]];
-				Link(neighbours, a, b); Link(neighbours, b, c); Link(neighbours, a, c);
-			}
-			for (int pass = 0; pass < 1; pass++)
-			{
-				Dictionary<int, float>[] next = new Dictionary<int, float>[count];
-				for (int v = 0; v < count; v++)
+				int c = canonical[v];
+				if (c != v) continue;
+				Dictionary<int, float> mine = Normalised(weights[c]);
+				voted[c] = mine;
+				if (neighbours[c] == null || neighbours[c].Count < 3 || mine.Count == 0) continue;
+				int heaviest = mine.OrderByDescending(p => p.Value).First().Key;
+				int agree = 0;
+				Dictionary<int, float> around = new Dictionary<int, float>();
+				foreach (int other in neighbours[c])
 				{
-					int c = canonical[v];
-					if (c != v) continue;
-					Dictionary<int, float> mine = Normalised(weights[c]);
-					Dictionary<int, float> sum = new Dictionary<int, float>(mine);
-					int n = 1;
-					if (neighbours[c] != null)
-						foreach (int other in neighbours[c])
-						{
-							foreach (KeyValuePair<int, float> pair in Normalised(weights[other])) sum[pair.Key] = (sum.TryGetValue(pair.Key, out float have) ? have : 0) + pair.Value;
-							n++;
-						}
-					Dictionary<int, float> blended = new Dictionary<int, float>();
-					foreach (KeyValuePair<int, float> pair in sum) blended[pair.Key] = 0.5f * (mine.TryGetValue(pair.Key, out float own) ? own : 0) + 0.5f * pair.Value / n;
-					next[c] = blended;
+					Dictionary<int, float> theirs = Normalised(weights[other]);
+					if (theirs.TryGetValue(heaviest, out float w) && w > 0.05f) agree++;
+					foreach (KeyValuePair<int, float> pair in theirs) around[pair.Key] = (around.TryGetValue(pair.Key, out float have) ? have : 0) + pair.Value / neighbours[c].Count;
 				}
-				for (int v = 0; v < count; v++) weights[v] = next[canonical[v]];
+				if (agree * 3 < neighbours[c].Count) voted[c] = around;
 			}
+			for (int v = 0; v < count; v++) voted[v] = voted[canonical[v]];
 
-			// Top four, summing to one; the bones in use counted.
-			(int Node, float Weight)[][] final = new (int, float)[count][];
-			HashSet<int> bonesUsed = new HashSet<int>();
+			Dictionary<int, float>[] next = new Dictionary<int, float>[count];
 			for (int v = 0; v < count; v++)
+			{
+				int c = canonical[v];
+				if (c != v) continue;
+				Dictionary<int, float> mine = voted[c];
+				Dictionary<int, float> sum = new Dictionary<int, float>(mine);
+				int n = 1;
+				if (neighbours[c] != null)
+					foreach (int other in neighbours[c])
+					{
+						foreach (KeyValuePair<int, float> pair in voted[other]) sum[pair.Key] = (sum.TryGetValue(pair.Key, out float have) ? have : 0) + pair.Value;
+						n++;
+					}
+				Dictionary<int, float> blended = new Dictionary<int, float>();
+				foreach (KeyValuePair<int, float> pair in sum) blended[pair.Key] = 0.5f * (mine.TryGetValue(pair.Key, out float own) ? own : 0) + 0.5f * pair.Value / n;
+				next[c] = blended;
+			}
+			for (int v = 0; v < count; v++) next[v] = next[canonical[v]];
+			return next;
+		}
+
+		/// <summary>Each vertex's four heaviest, summing to one.</summary>
+		private static (int Node, float Weight)[][] Finish(Dictionary<int, float>[] weights, HashSet<int>[] neighbours, int[] canonical)
+		{
+			(int Node, float Weight)[][] final = new (int, float)[weights.Length][];
+			for (int v = 0; v < weights.Length; v++)
 			{
 				final[v] = Normalised(weights[v]).OrderByDescending(p => p.Value).Take(4).Select(p => (p.Key, p.Value)).ToArray();
 				float total = final[v].Sum(p => p.Weight);
 				if (total > 0) final[v] = final[v].Select(p => (p.Node, p.Weight / total)).ToArray();
-				foreach ((int node, float _) in final[v]) bonesUsed.Add(node);
+				else final[v] = new[] { (0, 1f) };
 			}
-			result.Bones = bonesUsed.Count;
-			result.Notes.Add(result.Vertices.ToString("N0") + " vertices weighted from the original's " + originalCount.ToString("N0") + " to " + bonesUsed.Count + " bones: " + string.Join(", ", bonesUsed.OrderBy(b => b).Select(b => rig.Nodes[b])));
-
-			// ---- back into the bind pose ---------------------------------------------------------------------------
-			// The file was matched to the original posed; the skin's rest is the bind pose, so each
-			// vertex goes back through the inverse of its bones' changes, blended by its new weights
-			// (the inverse of a blend, taken bone by bone - exact where one bone rules, near enough at
-			// the joints where the pose itself is a blend).
-			if (delta != null)
-			{
-				float[][] undo = delta.Select(d => Gltf.Invert(d)).ToArray();
-				for (int v = 0; v < count; v++)
-				{
-					float x = bundle.Buffer[v * 8], y = bundle.Buffer[v * 8 + 1], z = bundle.Buffer[v * 8 + 2];
-					float[] p = Skinned(x, y, z, final[v], undo);
-					bundle.Buffer[v * 8] = p[0]; bundle.Buffer[v * 8 + 1] = p[1]; bundle.Buffer[v * 8 + 2] = p[2];
-					if (anyNormals)
-					{
-						float nx = 0, ny = 0, nz = 0;
-						foreach ((int node, float weight) in final[v])
-						{
-							float[] n = Turn(undo[node], normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]);
-							nx += n[0] * weight; ny += n[1] * weight; nz += n[2] * weight;
-						}
-						float len = MathF.Sqrt(nx * nx + ny * ny + nz * nz);
-						if (len > 1e-6f) { normals[v * 3] = nx / len; normals[v * 3 + 1] = ny / len; normals[v * 3 + 2] = nz / len; }
-					}
-				}
-			}
-
-			// ---- the skinned glTF -------------------------------------------------------------------------------
-			Models.Frame(bundle);
-			result.Glb = Gltf.Write(bundle, name => textureBytes.TryGetValue(name, out byte[] bytes) ? bytes : null, rig, v => final[v], anyNormals ? normals.ToArray() : null);
-			return result;
+			return final;
 		}
 
 		/// <summary>A point through a blend of the nodes' matrices, weighted.</summary>

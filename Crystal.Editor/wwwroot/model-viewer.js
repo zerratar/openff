@@ -104,6 +104,17 @@ function makeModelViewer(canvas, status, options = {}) {
   let skinRig = null;
   let skinJointNode = null;
   let skinBuffer = null;
+  let skinFrame = -1;
+
+  // Weight painting on a skinned glTF: the bone shown as a heat map and painted, the brush,
+  // the skeleton overlay, and the strokes to undo. The weights live in bundle.skin.jointIndex
+  // and bundle.skin.weights (four a vertex) and are what weightsData() hands back for saving.
+  const paint = { on: false, bone: -1, radius: 1, strength: 0.25, mode: 'add', mirror: true, bones: true };
+  const undoStack = [];
+  let adjacency = null;          // per vertex, the vertices sharing an edge (twins by position merged)
+  let canonical = null;          // per vertex, the first vertex at its position
+  const boneBuffer = gl.createBuffer();
+  const boneIndexAttr = gl.createBuffer();
 
   // A second model under the first - a character the viewed weapon sits on - with its own
   // buffers, textures and pose; and the matrix that puts the viewed model where it goes
@@ -151,6 +162,7 @@ function makeModelViewer(canvas, status, options = {}) {
         companion.pose, companion.poseFrame, companion.poseOffsets, null);
     }
     drawModel(bundle, vertexBuffer, indexBuffer, indexAttrBuffer, textures, pose, poseFrame, poseOffsets, attach);
+    drawSkeleton();
   }
 
   function drawModel(model, vertices, indices, mindices, pictures, thePose, theFrame, theOffsets, world) {
@@ -178,7 +190,9 @@ function makeModelViewer(canvas, status, options = {}) {
       if (group.hidden && !showHidden) continue;
       if (Boolean(group.translucent) !== (pass === 1)) continue;
 
-      const texture = group.texture ? pictures.get(group.texture) : null;
+      // In weights mode the heat map is the colour, plain: the texture would tint it.
+      const heated = model === bundle && paint.on && paint.bone >= 0 && model.skin;
+      const texture = !heated && group.texture ? pictures.get(group.texture) : null;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, texture || blank);
       if (texture) applyWrap(gl, group);
@@ -187,7 +201,7 @@ function makeModelViewer(canvas, status, options = {}) {
 
       const tint = group.hidden
         ? [1, 0.4, 0.4]
-        : (texture ? [1, 1, 1] : rgb(group.colour));
+        : (texture || heated ? [1, 1, 1] : rgb(group.colour));
       gl.uniform3fv(uniform.tint, tint);
       gl.uniform1f(uniform.alpha, group.hidden ? 0.5 : (group.alpha ?? 1));
       gl.uniformMatrix4fv(uniform.palette, false, paletteFor(group, thePose, theFrame, theOffsets, world));
@@ -299,49 +313,272 @@ function makeModelViewer(canvas, status, options = {}) {
   /// The skinned glTF at a frame of the rig's motion: every vertex through its four joints -
   /// the file's inverse bind, then the game node's matrix for the frame (the node the joint is
   /// named after) - written into the vertex buffer. Frame -1 puts the file back as it is.
-  function skinTo(frame) {
+  /// The joint matrices (file local -> model space) for a frame of the rig's motion, or null for the bind pose.
+  function jointMatrices(frame) {
     const skin = bundle && bundle.skin;
-    if (!skin) return;
-    if (frame < 0 || !skinRig) {
-      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bundle.buffer), gl.STATIC_DRAW);
-      return;
-    }
-    if (!skinBuffer) skinBuffer = new Float32Array(bundle.buffer);
+    if (!skin || !skinRig || frame < 0) return null;
     const nodeCount = skinRig.nodes.length;
-    const stride = nodeCount * 12;
-    const at = Math.max(0, Math.min(skinRig.frames - 1, frame)) * stride;
-    const joints = skin.joints.length;
-    const matrices = new Array(joints);
-    for (let j = 0; j < joints; j++) {
+    const at = Math.max(0, Math.min(skinRig.frames - 1, frame)) * nodeCount * 12;
+    const matrices = new Array(skin.joints.length);
+    for (let j = 0; j < skin.joints.length; j++) {
       const n = skinJointNode[j];
       if (n < 0) { matrices[j] = null; continue; }
       const w = skinRig.worlds;
       const o = at + n * 12;
       const world = [w[o], w[o + 1], w[o + 2], 0, w[o + 3], w[o + 4], w[o + 5], 0, w[o + 6], w[o + 7], w[o + 8], 0, w[o + 9], w[o + 10], w[o + 11], 1];
-      const ibm = skin.inverseBind.slice(j * 16, j * 16 + 16);
-      matrices[j] = multiply(world, ibm);
+      matrices[j] = multiply(world, skin.inverseBind.slice(j * 16, j * 16 + 16));
     }
+    return matrices;
+  }
+
+  /// The heat of a weight: blue for none through green to red for all of it.
+  function heat(w) {
+    if (w <= 0) return [0.16, 0.18, 0.55];
+    if (w < 0.5) { const t = w / 0.5; return [0.16 * (1 - t), 0.18 + 0.62 * t, 0.55 * (1 - t) + 0.2 * t]; }
+    const t = (w - 0.5) / 0.5;
+    return [t, 0.8 * (1 - t) + 0.15 * t, 0.2 * (1 - t)];
+  }
+
+  /// The skinned glTF's buffer for a frame (-1: the bind pose): positions through the joints, and
+  /// in weights mode the colours as a heat map of the painted bone; uploaded.
+  function skinTo(frame) {
+    const skin = bundle && bundle.skin;
+    if (!skin) return;
+    skinFrame = frame;
+    const matrices = jointMatrices(frame);
+    const heated = paint.on && paint.bone >= 0;
+    if (!matrices && !heated) {
+      skinBuffer = null;
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bundle.buffer), gl.STATIC_DRAW);
+      return;
+    }
+    if (!skinBuffer) skinBuffer = new Float32Array(bundle.buffer);
     const count = bundle.buffer.length / 8;
-    const local = skin.local, index = skin.jointIndex, weight = skin.weights;
+    const local = skin.local, index = skin.jointIndex, weight = skin.weights, base = bundle.buffer;
     for (let v = 0; v < count; v++) {
-      const x = local[v * 3], y = local[v * 3 + 1], z = local[v * 3 + 2];
-      let px = 0, py = 0, pz = 0, total = 0;
-      for (let k = 0; k < 4; k++) {
-        const wk = weight[v * 4 + k];
-        const j = index[v * 4 + k];
-        if (wk <= 0 || j < 0 || !matrices[j]) continue;
-        const m = matrices[j];
-        px += wk * (m[0] * x + m[4] * y + m[8] * z + m[12]);
-        py += wk * (m[1] * x + m[5] * y + m[9] * z + m[13]);
-        pz += wk * (m[2] * x + m[6] * y + m[10] * z + m[14]);
-        total += wk;
+      if (matrices) {
+        const x = local[v * 3], y = local[v * 3 + 1], z = local[v * 3 + 2];
+        let px = 0, py = 0, pz = 0, total = 0;
+        for (let k = 0; k < 4; k++) {
+          const wk = weight[v * 4 + k];
+          const j = index[v * 4 + k];
+          if (wk <= 0 || j < 0 || !matrices[j]) continue;
+          const m = matrices[j];
+          px += wk * (m[0] * x + m[4] * y + m[8] * z + m[12]);
+          py += wk * (m[1] * x + m[5] * y + m[9] * z + m[13]);
+          pz += wk * (m[2] * x + m[6] * y + m[10] * z + m[14]);
+          total += wk;
+        }
+        if (total <= 0) { skinBuffer[v * 8] = base[v * 8]; skinBuffer[v * 8 + 1] = base[v * 8 + 1]; skinBuffer[v * 8 + 2] = base[v * 8 + 2]; }
+        else { skinBuffer[v * 8] = px / total; skinBuffer[v * 8 + 1] = py / total; skinBuffer[v * 8 + 2] = pz / total; }
+      } else {
+        skinBuffer[v * 8] = base[v * 8]; skinBuffer[v * 8 + 1] = base[v * 8 + 1]; skinBuffer[v * 8 + 2] = base[v * 8 + 2];
       }
-      if (total <= 0) { skinBuffer[v * 8] = bundle.buffer[v * 8]; skinBuffer[v * 8 + 1] = bundle.buffer[v * 8 + 1]; skinBuffer[v * 8 + 2] = bundle.buffer[v * 8 + 2]; continue; }
-      skinBuffer[v * 8] = px / total; skinBuffer[v * 8 + 1] = py / total; skinBuffer[v * 8 + 2] = pz / total;
+      if (heated) {
+        let w = 0;
+        for (let k = 0; k < 4; k++) if (index[v * 4 + k] === paint.bone) w += weight[v * 4 + k];
+        const c = heat(w);
+        skinBuffer[v * 8 + 5] = c[0]; skinBuffer[v * 8 + 6] = c[1]; skinBuffer[v * 8 + 7] = c[2];
+      } else {
+        skinBuffer[v * 8 + 5] = base[v * 8 + 5]; skinBuffer[v * 8 + 6] = base[v * 8 + 6]; skinBuffer[v * 8 + 7] = base[v * 8 + 7];
+      }
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, skinBuffer, gl.DYNAMIC_DRAW);
+  }
+
+  /// The vertex positions as drawn now: the skinned copy, or the file's.
+  function currentPositions() { return skinBuffer || bundle.buffer; }
+
+  /// The skeleton this frame: each joint's position (the game node's, or the bind's from the inverse bind), lines to the parents.
+  function drawSkeleton() {
+    const skin = bundle && bundle.skin;
+    if (!skin || !paint.on || !paint.bones) return;
+    const joints = skin.joints.length;
+    const positions = new Array(joints);
+    if (skinRig && skinFrame >= 0) {
+      const nodeCount = skinRig.nodes.length;
+      const at = Math.max(0, Math.min(skinRig.frames - 1, skinFrame)) * nodeCount * 12;
+      for (let j = 0; j < joints; j++) {
+        const n = skinJointNode[j];
+        positions[j] = n < 0 ? null : [skinRig.worlds[at + n * 12 + 9], skinRig.worlds[at + n * 12 + 10], skinRig.worlds[at + n * 12 + 11]];
+      }
+    } else {
+      for (let j = 0; j < joints; j++) {
+        const inv = invert4(skin.inverseBind.slice(j * 16, j * 16 + 16));
+        positions[j] = inv ? [inv[12], inv[13], inv[14]] : null;
+      }
+    }
+    // Parents by the rig's tree when there is one (joint -> node -> parent node -> joint), else none.
+    const nodeToJoint = new Map();
+    if (skinRig) skinJointNode.forEach((n, j) => { if (n >= 0 && !nodeToJoint.has(n)) nodeToJoint.set(n, j); });
+    const lines = [];
+    const push = (p, c) => lines.push(p[0], p[1], p[2], 0, 0, c[0], c[1], c[2]);
+    const size = (bundle.radius || 1) * 0.03;
+    for (let j = 0; j < joints; j++) {
+      const p = positions[j];
+      if (!p) continue;
+      const colour = j === paint.bone ? [1, 0.9, 0.2] : [0.85, 0.85, 0.9];
+      // A small cross at the joint.
+      push([p[0] - size, p[1], p[2]], colour); push([p[0] + size, p[1], p[2]], colour);
+      push([p[0], p[1] - size, p[2]], colour); push([p[0], p[1] + size, p[2]], colour);
+      push([p[0], p[1], p[2] - size], colour); push([p[0], p[1], p[2] + size], colour);
+      if (skinRig && skinRig.parents) {
+        const n = skinJointNode[j];
+        const parentNode = n >= 0 ? skinRig.parents[n] : -1;
+        const pj = parentNode >= 0 && nodeToJoint.has(parentNode) ? nodeToJoint.get(parentNode) : -1;
+        if (pj >= 0 && positions[pj]) { push(p, colour); push(positions[pj], j === paint.bone ? colour : [0.55, 0.6, 0.7]); }
+      }
+    }
+    if (!lines.length) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, boneBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines), gl.DYNAMIC_DRAW);
+    const stride = 8 * 4;
+    gl.enableVertexAttribArray(attribute.position); gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(attribute.coord); gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 12);
+    gl.enableVertexAttribArray(attribute.colour); gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 20);
+    if (attribute.mindex >= 0) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, boneIndexAttr);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines.length / 8), gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(attribute.mindex); gl.vertexAttribPointer(attribute.mindex, 1, gl.FLOAT, false, 4, 0);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, blank);
+    gl.uniform1i(uniform.textured, 0);
+    gl.uniform3fv(uniform.tint, [1, 1, 1]);
+    gl.uniform1f(uniform.alpha, 1);
+    paletteData.set(IDENTITY, 0);
+    gl.uniformMatrix4fv(uniform.palette, false, paletteData);
+    gl.disable(gl.DEPTH_TEST);
+    gl.lineWidth(2);
+    gl.drawArrays(gl.LINES, 0, lines.length / 8);
+    gl.enable(gl.DEPTH_TEST);
+  }
+
+  /// The point on the mesh under a canvas position, in model space (as drawn now), or null.
+  function pick(clientX, clientY) {
+    if (!bundle || !bundle.buffer) return null;
+    const box = canvas.getBoundingClientRect();
+    const nx = ((clientX - box.left) / Math.max(1, box.width)) * 2 - 1;
+    const ny = 1 - ((clientY - box.top) / Math.max(1, box.height)) * 2;
+    const inverse = invert4(cameraMatrix());
+    if (!inverse) return null;
+    const unproject = (z) => {
+      const v = [nx, ny, z, 1];
+      const out = [0, 0, 0, 0];
+      for (let r = 0; r < 4; r++) out[r] = inverse[r] * v[0] + inverse[4 + r] * v[1] + inverse[8 + r] * v[2] + inverse[12 + r] * v[3];
+      return [out[0] / out[3], out[1] / out[3], out[2] / out[3]];
+    };
+    const origin = unproject(-1), far = unproject(1);
+    const dir = normalise([far[0] - origin[0], far[1] - origin[1], far[2] - origin[2]]);
+    const p = currentPositions();
+    const idx = bundle.indices;
+    let best = Infinity, hit = null;
+    for (const group of bundle.groups) {
+      if (group.hidden && !showHidden) continue;
+      for (let i = group.start; i + 2 < group.start + group.count; i += 3) {
+        const a = idx[i] * 8, b = idx[i + 1] * 8, c = idx[i + 2] * 8;
+        const t = rayTriangle(origin, dir, p[a], p[a + 1], p[a + 2], p[b], p[b + 1], p[b + 2], p[c], p[c + 1], p[c + 2]);
+        if (t !== null && t < best) { best = t; hit = [origin[0] + dir[0] * t, origin[1] + dir[1] * t, origin[2] + dir[2] * t]; }
+      }
+    }
+    return hit;
+  }
+
+  /// Neighbours by shared edge, twins by position merged, for the smooth brush.
+  function buildAdjacency() {
+    const count = bundle.buffer.length / 8;
+    const cells = new Map();
+    canonical = new Int32Array(count);
+    for (let v = 0; v < count; v++) {
+      const key = Math.round(bundle.buffer[v * 8] * 2000) + ',' + Math.round(bundle.buffer[v * 8 + 1] * 2000) + ',' + Math.round(bundle.buffer[v * 8 + 2] * 2000);
+      if (!cells.has(key)) cells.set(key, v);
+      canonical[v] = cells.get(key);
+    }
+    adjacency = new Array(count);
+    const link = (a, b) => { if (a === b) return; (adjacency[a] ||= new Set()).add(b); (adjacency[b] ||= new Set()).add(a); };
+    const idx = bundle.indices;
+    for (let i = 0; i + 2 < idx.length; i += 3) {
+      const a = canonical[idx[i]], b = canonical[idx[i + 1]], c = canonical[idx[i + 2]];
+      link(a, b); link(b, c); link(a, c);
+    }
+  }
+
+  /// A vertex's weights as a map joint -> weight, and back into the four slots (heaviest four, summing to one).
+  function weightsOf(v) {
+    const skin = bundle.skin;
+    const m = new Map();
+    for (let k = 0; k < 4; k++) {
+      const j = skin.jointIndex[v * 4 + k], w = skin.weights[v * 4 + k];
+      if (j >= 0 && w > 0) m.set(j, (m.get(j) || 0) + w);
+    }
+    return m;
+  }
+  function storeWeights(v, m) {
+    const skin = bundle.skin;
+    const top = [...m.entries()].filter(([, w]) => w > 0.0005).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const total = top.reduce((s, [, w]) => s + w, 0) || 1;
+    for (let k = 0; k < 4; k++) {
+      skin.jointIndex[v * 4 + k] = k < top.length ? top[k][0] : -1;
+      skin.weights[v * 4 + k] = k < top.length ? top[k][1] / total : 0;
+    }
+  }
+
+  /// The brush at a point on the mesh: every vertex within the radius (as drawn now) has the bone's
+  /// weight added, taken away or smoothed towards its neighbours, more at the centre; the other
+  /// bones give way so the vertex still sums to one. Mirror paints the x-mirrored point with the
+  /// mirrored bone (L_ <-> R_).
+  function brush(hit, bone, sign) {
+    const skin = bundle.skin;
+    const count = bundle.buffer.length / 8;
+    const p = currentPositions();
+    const r2 = paint.radius * paint.radius;
+    if (!adjacency) buildAdjacency();
+    const touched = [];
+    for (let v = 0; v < count; v++) {
+      const dx = p[v * 8] - hit[0], dy = p[v * 8 + 1] - hit[1], dz = p[v * 8 + 2] - hit[2];
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 > r2) continue;
+      touched.push([v, 1 - Math.sqrt(d2) / paint.radius]);
+    }
+    // Twins by position paint together, whichever the brush reached.
+    const seen = new Set();
+    for (const [v, falloff] of touched) {
+      const c = canonical ? canonical[v] : v;
+      if (seen.has(c)) continue;
+      seen.add(c);
+      const amount = paint.strength * (0.3 + 0.7 * falloff);
+      const m = weightsOf(c);
+      if (paint.mode === 'smooth') {
+        const around = new Map();
+        let n = 0;
+        for (const other of adjacency[c] || []) { for (const [j, w] of weightsOf(other)) around.set(j, (around.get(j) || 0) + w); n++; }
+        if (n === 0) continue;
+        const blended = new Map();
+        for (const j of new Set([...m.keys(), ...around.keys()])) blended.set(j, (1 - amount) * (m.get(j) || 0) + amount * (around.get(j) || 0) / n);
+        storeWeights(c, blended);
+      } else {
+        const had = m.get(bone) || 0;
+        const want = Math.max(0, Math.min(1, had + sign * amount));
+        const others = [...m.entries()].filter(([j]) => j !== bone);
+        const othersTotal = others.reduce((s, [, w]) => s + w, 0);
+        const next = new Map();
+        if (othersTotal > 0) for (const [j, w] of others) next.set(j, w / othersTotal * (1 - want));
+        next.set(bone, othersTotal > 0 ? want : 1);
+        storeWeights(c, next);
+      }
+      // Every vertex at this position takes the same weights.
+      if (canonical) for (let v2 = 0; v2 < count; v2++) if (canonical[v2] === c && v2 !== c) { for (let k = 0; k < 4; k++) { skin.jointIndex[v2 * 4 + k] = skin.jointIndex[c * 4 + k]; skin.weights[v2 * 4 + k] = skin.weights[c * 4 + k]; } }
+    }
+    return touched.length;
+  }
+
+  function mirroredBone(bone) {
+    const name = bundle.skin.joints[bone] || '';
+    const other = name.startsWith('L_') ? 'R_' + name.slice(2) : name.startsWith('R_') ? 'L_' + name.slice(2) : null;
+    if (other === null) return bone;
+    const j = bundle.skin.joints.indexOf(other);
+    return j >= 0 ? j : bone;
   }
 
   function offsetsOf(next) {
@@ -394,6 +631,11 @@ function makeModelViewer(canvas, status, options = {}) {
       skinRig = null;
       skinJointNode = null;
       skinBuffer = null;
+      skinFrame = -1;
+      adjacency = null;
+      canonical = null;
+      undoStack.length = 0;
+      paint.bone = -1;
 
       centre = model.centre || [0, 0, 0];
       distance = (model.radius || 1) * 3;
@@ -498,6 +740,68 @@ function makeModelViewer(canvas, status, options = {}) {
     /// Whether the shown model is a skinned glTF, and which game model drives it (or null).
     skinModel() { return bundle && bundle.skin ? (bundle.skin.model || null) : null; },
     hasSkin() { return Boolean(bundle && bundle.skin); },
+    skinJoints() { return bundle && bundle.skin ? bundle.skin.joints.slice() : []; },
+
+    // ---- weight painting
+    /// Weights mode and the brush: { on, bone, radius, strength, mode: add|erase|smooth, mirror, bones }.
+    setPaint(options) {
+      Object.assign(paint, options || {});
+      if (bundle && bundle.skin) skinTo(skinFrame);
+      draw();
+    },
+    paintOptions() { return { ...paint }; },
+
+    /// A stroke's start: the weights as they are, for undo.
+    beginStroke() {
+      if (!bundle || !bundle.skin) return;
+      undoStack.push({ joints: Int32Array.from(bundle.skin.jointIndex), weights: Float32Array.from(bundle.skin.weights) });
+      if (undoStack.length > 30) undoStack.shift();
+    },
+
+    /// The brush at a canvas position; true when it touched the mesh.
+    paintAt(clientX, clientY) {
+      if (!bundle || !bundle.skin || paint.bone < 0) return false;
+      const hit = pick(clientX, clientY);
+      if (!hit) return false;
+      const sign = paint.mode === 'erase' ? -1 : 1;
+      brush(hit, paint.bone, sign);
+      if (paint.mirror) brush([-hit[0], hit[1], hit[2]], mirroredBone(paint.bone), sign);
+      skinTo(skinFrame);
+      draw();
+      return true;
+    },
+
+    /// The heaviest bone under a canvas position, or -1.
+    boneAt(clientX, clientY) {
+      if (!bundle || !bundle.skin) return -1;
+      const hit = pick(clientX, clientY);
+      if (!hit) return -1;
+      const p = currentPositions();
+      let best = -1, bestD = Infinity;
+      for (let v = 0; v < bundle.buffer.length / 8; v++) {
+        const dx = p[v * 8] - hit[0], dy = p[v * 8 + 1] - hit[1], dz = p[v * 8 + 2] - hit[2];
+        const d = dx * dx + dy * dy + dz * dz;
+        if (d < bestD) { bestD = d; best = v; }
+      }
+      if (best < 0) return -1;
+      let bone = -1, w = 0;
+      for (let k = 0; k < 4; k++) if (bundle.skin.weights[best * 4 + k] > w) { w = bundle.skin.weights[best * 4 + k]; bone = bundle.skin.jointIndex[best * 4 + k]; }
+      return bone;
+    },
+
+    undoPaint() {
+      const last = undoStack.pop();
+      if (!last || !bundle || !bundle.skin) return false;
+      bundle.skin.jointIndex = Array.from(last.joints);
+      bundle.skin.weights = Array.from(last.weights);
+      skinTo(skinFrame);
+      draw();
+      return true;
+    },
+    canUndo() { return undoStack.length > 0; },
+
+    /// The weights as painted, for saving: { jointIndex, weights } four a vertex, joints as skinJoints().
+    weightsData() { return bundle && bundle.skin ? { jointIndex: Array.from(bundle.skin.jointIndex), weights: Array.from(bundle.skin.weights) } : null; },
 
     redraw: draw
   };
@@ -602,6 +906,49 @@ function multiply(a, b) {
     }
   }
   return out;
+}
+
+/// The inverse of a column-major 4x4, or null when singular.
+function invert4(m) {
+  const inv = new Array(16);
+  inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + m[9] * m[7] * m[14] + m[13] * m[6] * m[11] - m[13] * m[7] * m[10];
+  inv[4] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] - m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10];
+  inv[8] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] + m[8] * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
+  inv[12] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] - m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
+  inv[1] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] - m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
+  inv[5] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] + m[8] * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
+  inv[9] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] - m[8] * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
+  inv[13] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] + m[8] * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
+  inv[2] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] + m[5] * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
+  inv[6] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] - m[4] * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
+  inv[10] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] + m[4] * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
+  inv[14] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] - m[4] * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
+  inv[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] - m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
+  inv[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] + m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
+  inv[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] - m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
+  inv[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] + m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
+  const det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+  if (Math.abs(det) < 1e-12) return null;
+  for (let i = 0; i < 16; i++) inv[i] /= det;
+  return inv;
+}
+
+/// The distance along a ray to a triangle, or null (Moller-Trumbore, both faces).
+function rayTriangle(o, d, ax, ay, az, bx, by, bz, cx, cy, cz) {
+  const e1x = bx - ax, e1y = by - ay, e1z = bz - az;
+  const e2x = cx - ax, e2y = cy - ay, e2z = cz - az;
+  const px = d[1] * e2z - d[2] * e2y, py = d[2] * e2x - d[0] * e2z, pz = d[0] * e2y - d[1] * e2x;
+  const det = e1x * px + e1y * py + e1z * pz;
+  if (Math.abs(det) < 1e-9) return null;
+  const inv = 1 / det;
+  const tx = o[0] - ax, ty = o[1] - ay, tz = o[2] - az;
+  const u = (tx * px + ty * py + tz * pz) * inv;
+  if (u < 0 || u > 1) return null;
+  const qx = ty * e1z - tz * e1y, qy = tz * e1x - tx * e1z, qz = tx * e1y - ty * e1x;
+  const v = (d[0] * qx + d[1] * qy + d[2] * qz) * inv;
+  if (v < 0 || u + v > 1) return null;
+  const t = (e2x * qx + e2y * qy + e2z * qz) * inv;
+  return t > 1e-6 ? t : null;
 }
 
 function cross(a, b) {

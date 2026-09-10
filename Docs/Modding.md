@@ -732,6 +732,20 @@ model's packs - the model a `defs/models` definition binds it to, else j101 when
 are the character bones - skinning the file in the browser with the model's node matrices
 per frame (`/api/model/rig-pose`). Orbit, zoom, scrub: a wrong weight shows at once.
 
+**And paints the weights.** Tick *weights* under the viewer on a skinned file of the
+project's: the mesh becomes a heat map of one bone's weight (blue none, green half, red all),
+the skeleton is drawn over it (the painted bone in yellow), and the left button paints
+while the right button orbits. Pick the bone from the list or Alt+click the mesh to take the
+bone under the cursor; *add* puts weight on, *erase* takes it off, *smooth* blends with the
+neighbours; radius and strength are the brush, more at its centre; *mirror* paints the
+x-mirrored spot with the `L_`/`R_` counterpart. Every vertex keeps four bones summing to one
+- the others give way as one is painted - and twin vertices at a seam paint as one. Play or
+scrub while painting: the brush works on the mesh as posed, so a stretched sleeve is
+painted where it stretches. *Undo* (Ctrl+Z) takes a stroke back; *Save weights* writes the
+weights into the `.glb` in place (`/api/project/models/weights`) and remakes the game
+model from it, so the game-format preview, the Steam version and the client's definition
+follow the paint.
+
 The game-format remake is still written on an OpenFF project: it is what the model viewer
 previews when the file has no skin of its own and what a Steam target would get from the same file. On an OpenFF target the
 model-size limit is waived - the OpenFF client's `DrawModel` buffers grow to fit (they

@@ -624,6 +624,26 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/project/models/weights":
+				{
+					// Painted weights back into a skinned glTF of the project's: { asset, jointIndex: [4 a vertex],
+					// weights: [4 a vertex] } in the viewer's vertex order (GltfBundle's). The file is rewritten in place.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string asset = body?["asset"]?.GetValue<string>();
+						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
+						int[] joints = (body?["jointIndex"] as JsonArray ?? throw new ArgumentException("no weights")).Select(n => n?.GetValue<int>() ?? -1).ToArray();
+						float[] weights = (body?["weights"] as JsonArray ?? throw new ArgumentException("no weights")).Select(n => (float)(n?.GetValue<double>() ?? 0)).ToArray();
+						byte[] rewritten = Gltf.RewriteWeights(File.ReadAllBytes(gltfPath), joints, weights);
+						File.WriteAllBytes(gltfPath, rewritten);
+						SendJson(context, new { ok = true, asset, bytes = rewritten.Length, vertices = joints.Length / 4 });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/project/models/reskin":
 				{
 					// A model of the game's remade from the project's glTF (Mdl0Reskin): the skeleton and
@@ -1497,7 +1517,7 @@ namespace Crystal.Editor
 						Models.RigMotion motion = rig.Motions.Count > 0 ? rig.Motions[0] : null;
 						List<float> worlds = new List<float>();
 						if (motion != null) foreach (float[][] frame in motion.Worlds) foreach (float[] m in frame) worlds.AddRange(m ?? new float[12]);
-						SendJson(context, new { nodes = rig.Nodes, frames = motion?.Frames ?? 0, name = motion?.Name, worlds, bind = rig.Bind.SelectMany(b => b).ToList() });
+						SendJson(context, new { nodes = rig.Nodes, parents = rig.Parents, frames = motion?.Frames ?? 0, name = motion?.Name, worlds, bind = rig.Bind.SelectMany(b => b).ToList() });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;

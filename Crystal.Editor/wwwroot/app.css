@@ -2054,6 +2054,17 @@ header h1 .gem {
 .hand-bar .hand-fit-label { color: var(--accent); font-weight: 600; }
 .hand-bar .hand-note { font-size: 11px; }
 
+/* Weight painting on a skinned glTF (model-viewer.js): the bone, the brush, save. */
+.paint-bar { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-top: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; font-size: 12px; }
+.paint-bar[hidden], .paint-bar .paint-controls[hidden] { display: none; }
+.paint-bar .paint-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.paint-bar select { max-width: 160px; }
+.paint-bar label { display: flex; align-items: center; gap: 4px; color: var(--dim); }
+.paint-bar input[type=range] { width: 90px; }
+.paint-bar .paint-hint { color: var(--dim); font-size: 11px; }
+.paint-bar .paint-dirty { color: var(--accent); }
+.stage.painting canvas { cursor: crosshair; }
+
 /* The add-object form's action strip stays at the bottom of the inspector. */
 .sticky-actions { position: sticky; bottom: 0; padding: 10px 0 4px; background: var(--panel);
   border-top: 1px solid var(--line); margin-top: 8px; }

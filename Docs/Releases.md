@@ -105,6 +105,13 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   game model's bones (a remade export, an auto-rigged mesh) gets the model's transport:
   its packs and motions, skinned in the browser from the model's node matrices per frame
   (`/api/model/rig-pose`). Orbit and scrub to check the weights.
+- **Weight painting in the viewer.** *weights* on a skinned file of the project's: one
+  bone's weight as a heat map with the skeleton over it, a brush (add / erase / smooth,
+  radius, strength, mirror to the L_/R_ counterpart) on the mesh as posed, Alt+click to pick
+  the bone under the cursor, undo, and *Save weights* writing the four-bone weights into the
+  `.glb` in place and remaking the game model from it. The auto-rig's second pass (in the
+  bind pose, where the arms stand clear of the body) and its outlier vote take most of the
+  need away; the brush is for the rest.
 - **Another rig's model, retargeted by the client.** A definition may name a glTF rigged
   another way (Mixamo, Tripo, Rigify): bones matched by a table of the usual names and the
   definition's `"bones"`, the file scaled and stood on its feet with its up and facing found

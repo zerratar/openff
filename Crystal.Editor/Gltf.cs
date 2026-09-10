@@ -390,6 +390,72 @@ namespace Crystal
 			return glb.ToArray();
 		}
 
+		/// <summary>
+		/// A .glb's JOINTS_0 and WEIGHTS_0 rewritten in place from the viewer's painted weights -
+		/// four joint indices and four weights a vertex, vertices in the order the primitives come
+		/// (GltfBundle's), the joints as the skin lists them. The accessors keep their types (a
+		/// file of this writer's: ushort joints, float weights); anything else is refused.
+		/// </summary>
+		public static byte[] RewriteWeights(byte[] glb, int[] jointIndex, float[] weights)
+		{
+			if (glb.Length < 20 || BitConverter.ToUInt32(glb, 0) != 0x46546C67u) throw new InvalidDataException("not a .glb");
+			int jsonLength = BitConverter.ToInt32(glb, 12);
+			JsonNode root = JsonNode.Parse(Encoding.UTF8.GetString(glb, 20, jsonLength)) ?? throw new InvalidDataException("no JSON in the .glb");
+			int binAt = 20 + jsonLength + 8;
+			if (binAt > glb.Length || BitConverter.ToUInt32(glb, 20 + jsonLength + 4) != 0x004E4942u) throw new InvalidDataException("the .glb has no BIN chunk after its JSON");
+			byte[] result = (byte[])glb.Clone();
+			JsonArray accessors = root["accessors"] as JsonArray, views = root["bufferViews"] as JsonArray, meshes = root["meshes"] as JsonArray, nodes = root["nodes"] as JsonArray;
+			if (accessors == null || views == null || meshes == null) throw new InvalidDataException("the .glb has no meshes");
+			// Primitives in the order the reader visits them: the scene's nodes, depth first.
+			List<JsonObject> primitives = new List<JsonObject>();
+			HashSet<int> seenMesh = new HashSet<int>();
+			void Visit(int nodeIndex, int depth)
+			{
+				if (depth > 64 || nodes == null || nodeIndex < 0 || nodeIndex >= nodes.Count) return;
+				JsonObject node = nodes[nodeIndex] as JsonObject;
+				if (node?["mesh"] != null)
+				{
+					int mesh = node["mesh"].GetValue<int>();
+					if (mesh >= 0 && mesh < meshes.Count) foreach (JsonNode p in meshes[mesh]["primitives"] as JsonArray ?? new JsonArray()) primitives.Add(p as JsonObject);
+				}
+				foreach (JsonNode c in node?["children"] as JsonArray ?? new JsonArray()) Visit(c.GetValue<int>(), depth + 1);
+			}
+			JsonArray scenes = root["scenes"] as JsonArray;
+			int scene = root["scene"]?.GetValue<int>() ?? 0;
+			if (scenes != null && scene < scenes.Count) foreach (JsonNode n in scenes[scene]["nodes"] as JsonArray ?? new JsonArray()) Visit(n.GetValue<int>(), 0);
+			else if (nodes != null) for (int i = 0; i < nodes.Count; i++) Visit(i, 0);
+			int vertex = 0;
+			foreach (JsonObject primitive in primitives)
+			{
+				JsonObject attributes = primitive?["attributes"] as JsonObject;
+				if (attributes?["POSITION"] == null) continue;
+				int count = accessors[attributes["POSITION"].GetValue<int>()]["count"].GetValue<int>();
+				if (attributes["JOINTS_0"] == null || attributes["WEIGHTS_0"] == null) { vertex += count; continue; }
+				JsonObject jAcc = accessors[attributes["JOINTS_0"].GetValue<int>()] as JsonObject, wAcc = accessors[attributes["WEIGHTS_0"].GetValue<int>()] as JsonObject;
+				if (jAcc["componentType"].GetValue<int>() != 5123 || wAcc["componentType"].GetValue<int>() != 5126) throw new InvalidDataException("the file's joints are not 16-bit or its weights not floats - only a file written by Crystal can be repainted in place");
+				int jAt = binAt + Offset(views, jAcc), wAt = binAt + Offset(views, wAcc);
+				if (vertex + count > jointIndex.Length / 4) throw new InvalidDataException("the painted weights cover fewer vertices than the file has");
+				for (int v = 0; v < count; v++)
+				{
+					for (int k = 0; k < 4; k++)
+					{
+						int j = jointIndex[(vertex + v) * 4 + k];
+						float w = weights[(vertex + v) * 4 + k];
+						BitConverter.GetBytes((ushort)Math.Max(0, j)).CopyTo(result, jAt + (v * 4 + k) * 2);
+						BitConverter.GetBytes(j < 0 ? 0f : w).CopyTo(result, wAt + (v * 4 + k) * 4);
+					}
+				}
+				vertex += count;
+			}
+			return result;
+		}
+
+		private static int Offset(JsonArray views, JsonObject accessor)
+		{
+			JsonObject view = views[accessor["bufferView"].GetValue<int>()] as JsonObject;
+			return (view?["byteOffset"]?.GetValue<int>() ?? 0) + (accessor["byteOffset"]?.GetValue<int>() ?? 0);
+		}
+
 		/// <summary>a then b, both 4x3 row-vector (v' = v a b).</summary>
 		internal static float[] Mul(float[] a, float[] b)
 		{
