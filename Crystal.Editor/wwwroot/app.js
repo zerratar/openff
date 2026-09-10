@@ -82,6 +82,17 @@ async function loadList() {
   } else if (state.browse === 'model') {
     state.models = await api('/api/models');
     state.files = state.models.map(m => ({ name: m.name, overridden: false }));
+    // The project's own model files (assets/*.glb) first: an imported character, its auto-rigged
+    // copy, a weapon - the ones a person is working on.
+    if (typeof projectState !== 'undefined' && projectState.project) {
+      let assets = [];
+      try { assets = await api('/api/project/assets'); } catch (e) { assets = []; }
+      state.assets = assets;
+      state.files = [...(assets || []).map(a => ({
+        name: a.name, overridden: false, own: true,
+        note: /-rigged\.glb$/i.test(a.name) ? 'the project\u2019s own, bound to a game skeleton by the auto-rig' : 'the project\u2019s own glTF (assets/)'
+      })), ...state.files];
+    }
   } else if (state.browse === 'map') {
     const maps = await api('/api/maps');
     state.files = maps.map(name => ({ name, overridden: false }));
@@ -230,7 +241,7 @@ function drawList() {
       const mark = document.createElement('i');
       mark.className = 'scene-mark';
       mark.textContent = fileView === 'grid' ? '' : 'the mod\'s own';
-      mark.title = 'a map of the mod\'s own: a scene file, nothing of the game\'s behind it';
+      mark.title = file.note || 'a map of the mod\'s own: a scene file, nothing of the game\'s behind it';
       item.append(mark);
     } else if (file.def && fileView !== 'grid') {
       // A definition's number and base beside its name: what the game calls it, what it starts from.
