@@ -88,7 +88,7 @@ async function openMap(name) {
   };
 
   $('.add', node).onclick = () => showAdd(node);
-  wireDrop(node, doc);
+  wireModelDrop(node, doc);
 
   drawMap(node);
 }
@@ -120,7 +120,7 @@ function fillMapNames() {
 /// model and the position already filled in, rather than writing something straight
 /// away - what a dropped model should do is a question only the person dropping it can
 /// answer, and a chest and a villager are the same drag.
-function wireDrop(node, doc) {
+function wireModelDrop(node, doc) {
   const scene = $('.scene', node);
   const wrap = $('.scene-wrap', node);
   if (!scene || !wrap) return;
@@ -128,44 +128,56 @@ function wireDrop(node, doc) {
   const held = (event) => event.dataTransfer
     && [...event.dataTransfer.types].includes('text/ff3-model');
 
+  // While the drag is over the view the model itself rides the cursor, see-through, standing
+  // where the cursor's ray meets the scene (the terrain, a roof, another object - the floor
+  // where there is nothing). Leaving the view, or Esc (the browser ends the drag), takes it away.
+  const hideGhost = () => { if (doc.scene3d && doc.scene3d.hideGhost) doc.scene3d.hideGhost(); wrap.classList.remove('dropping'); };
   wrap.addEventListener('dragover', (event) => {
     if (!held(event)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
     wrap.classList.add('dropping');
+    const dragged = window.draggingModel;
+    if (dragged && doc.scene3d && doc.scene3d.showGhost) {
+      const at = doc.scene3d.showGhost(/\.(glb|gltf)$/i.test(dragged) ? dragged : `files/${dragged}.nmdp.lz`, event.clientX, event.clientY);
+      if (at) say(`${dragged} at ${at[0].toFixed(1)}, ${at[1].toFixed(1)}, ${at[2].toFixed(1)} - release to place, Esc to cancel`);
+    }
   });
 
   wrap.addEventListener('dragleave', (event) => {
-    if (event.target === wrap) wrap.classList.remove('dropping');
+    if (event.target === wrap || !wrap.contains(event.relatedTarget)) hideGhost();
   });
+  document.addEventListener('dragend', hideGhost);
 
   wrap.addEventListener('drop', (event) => {
     if (!held(event)) return;
     event.preventDefault();
-    wrap.classList.remove('dropping');
-
-    const model = event.dataTransfer.getData('text/ff3-model');
+    const model = event.dataTransfer.getData('text/ff3-model') || window.draggingModel;
+    // Where the ghost stood is where it goes; without one (an old drag), the ray now.
+    const at = (doc.scene3d && doc.scene3d.ghostAt && doc.scene3d.ghostAt())
+      || (doc.scene3d && doc.scene3d.surfaceAt ? doc.scene3d.surfaceAt(event.clientX, event.clientY) : null)
+      || (doc.scene3d && doc.scene3d.groundAt(event.clientX, event.clientY));
+    hideGhost();
     if (!model) return;
-
-    const at = doc.scene3d
-      && doc.scene3d.groundAt(event.clientX, event.clientY);
     if (!at) {
-      say('that is not somewhere on the ground', 'bad');
+      say('that is not somewhere in the scene', 'bad');
       return;
     }
+    const round = v => Math.round(v * 100) / 100;
 
     // On an OpenFF project a dropped model is an object of the mod's own, there and then
     // - the shortest way from the library to the map. Shift held asks the game's way
     // (a .hich row and a cast) through the Add dialog instead.
     if (openFFProject() && !event.shiftKey) {
       loadSceneState(mapState.name).then(() => {
-        const object = addSceneObject(doc, { model, name: model, at: [Math.round(at[0]), Math.round(at[1]), Math.round(at[2])] });
-        say(`${object.name} placed at ${Math.round(at[0])}, ${Math.round(at[2])} - an OpenFF object (drop with Shift for one of the game's)`, 'good');
+        const label = model.replace(/^assets\//i, '').replace(/\.(glb|gltf)$/i, '');
+        const object = addSceneObject(doc, { model, name: label, at: [round(at[0]), round(at[1]), round(at[2])] });
+        say(`${object.name} placed at ${round(at[0])}, ${round(at[1])}, ${round(at[2])} - an OpenFF object (drop with Shift for one of the game's)`, 'good');
       }).catch(error => say(error.message, 'bad'));
       return;
     }
     showAdd(node, { model, x: at[0], z: at[2] });
-    say(`${model} at ${at[0]}, ${at[2]} - choose what it does and add it`);
+    say(`${model} at ${Math.round(at[0])}, ${Math.round(at[2])} - choose what it does and add it`);
   });
 }
 
@@ -3477,9 +3489,10 @@ function addSceneObject(doc, options = {}) {
   }
   if (!parent && !after) {
     const spot = options.at || (doc && doc.scene3d ? (doc.scene3d.viewGround ? doc.scene3d.viewGround() : doc.scene3d.viewCentre()) : [0, 0, 0]);
-    object.x = Math.round(spot[0]);
-    object.y = Math.round(spot[1]);
-    object.z = Math.round(spot[2]);
+    // To the hundredth: a drop onto a surface stands on it, not a little above or below.
+    object.x = Math.round(spot[0] * 100) / 100;
+    object.y = Math.round(spot[1] * 100) / 100;
+    object.z = Math.round(spot[2] * 100) / 100;
   }
   sceneChanged('add ' + name);
   const path = scenePathOf(object);

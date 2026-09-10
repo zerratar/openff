@@ -279,9 +279,15 @@ function drawList() {
     if (state.browse === 'model') {
       item.draggable = true;
       item.ondragstart = (event) => {
-        event.dataTransfer.setData('text/ff3-model', modelNameOf(file.name));
+        // A model file of the mod's own keeps its path (assets/hut.glb); a game model is its bare name (b01).
+        const dragged = /^assets\//i.test(file.name) ? file.name : modelNameOf(file.name);
+        event.dataTransfer.setData('text/ff3-model', dragged);
         event.dataTransfer.effectAllowed = 'copy';
+        // Browsers hide the data while the drag is in flight (dragover cannot read it), so the
+        // scene view that shows the model under the cursor reads it from here.
+        window.draggingModel = dragged;
       };
+      item.ondragend = () => { window.draggingModel = null; };
     }
     list.append(item);
   }

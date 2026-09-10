@@ -405,8 +405,101 @@ function makeMapScene(canvas, status) {
 
     drawRegions();
     drawPoints();
+    drawGhost();
     drawGizmo();
     onFrame();
+  }
+
+  // A model being dragged in from the library, riding the cursor over the scene until it is
+  // dropped (or the drag is given up): { package, x, y, z }, drawn see-through and washed blue.
+  let ghost = null;
+
+  function drawGhost() {
+    const entry = ghost && loaded.get(ghost.package);
+    if (!entry) return;
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    drawBundle(entry, placement({ x: ghost.x, y: ghost.y, z: ghost.z, rotationY: 0, scale: 1 }), [0.7, 0.9, 1.4], 0.6);
+  }
+
+  /// Where a pixel's ray meets the scene's geometry - the terrain, the field's chips, the
+  /// map's characters and the mod's objects (not the ghost itself) - nearest first; failing
+  /// any, where it meets the plane y = 0, so a drop over nothing lands on the floor rather
+  /// than far away. Null when the ray never comes down.
+  function surfaceAt(px, py) {
+    const { eye, dir } = rayAt(px, py);
+    let best = Infinity;
+    const test = (entry, matrix) => {
+      if (!entry || !entry.buffer || !entry.indices) return;
+      // The ray in the model's own space (the matrices are affine), so the triangles stay as stored.
+      const inv = invertAffine(matrix);
+      if (!inv) return;
+      const o = transformPoint(inv, eye), d = transformDirection(inv, dir);
+      // A cheap first look: the model's sphere.
+      if (entry.centre && entry.radius) {
+        const cx = entry.centre[0] - o[0], cy = entry.centre[1] - o[1], cz = entry.centre[2] - o[2];
+        const along = cx * d[0] + cy * d[1] + cz * d[2];
+        const dd = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+        const off2 = cx * cx + cy * cy + cz * cz - along * along / dd;
+        if (off2 > entry.radius * entry.radius * 1.2) return;
+      }
+      const p = entry.buffer, idx = entry.indices;
+      for (const group of entry.groups) {
+        if (!group.count || group.hidden) continue;
+        for (let i = group.start; i + 2 < group.start + group.count; i += 3) {
+          const a = idx[i] * 8, b = idx[i + 1] * 8, c = idx[i + 2] * 8;
+          const t = rayTriangle(o, d, p[a], p[a + 1], p[a + 2], p[b], p[b + 1], p[b + 2], p[c], p[c + 1], p[c + 2]);
+          // t is in the model's space along d, which is dir transformed: the same parameter in the world.
+          if (t !== null && t > 1e-4 && t < best) best = t;
+        }
+      }
+    };
+    const terrain = scene && scene.terrain && loaded.get(scene.terrain);
+    if (terrain) test(terrain, IDENTITY);
+    if (scene && scene.field) for (const chip of scene.field.chips) test(loaded.get(chip.package), chipMatrix(chip));
+    for (const item of instances) test(loaded.get(item.package), placement(item));
+    for (const point of points) if (!point.hidden && point.package) test(loaded.get(point.package), placement(point));
+    if (best < Infinity) return [eye[0] + dir[0] * best, eye[1] + dir[1] * best, eye[2] + dir[2] * best];
+    if (dir[1] < -1e-4) { const along = -eye[1] / dir[1]; return [eye[0] + dir[0] * along, 0, eye[2] + dir[2] * along]; }
+    return null;
+  }
+
+  function transformPoint(m, v) {
+    return [m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12], m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13], m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14]];
+  }
+  function transformDirection(m, v) {
+    return [m[0] * v[0] + m[4] * v[1] + m[8] * v[2], m[1] * v[0] + m[5] * v[1] + m[9] * v[2], m[2] * v[0] + m[6] * v[1] + m[10] * v[2]];
+  }
+  /// The inverse of a column-major affine 4x4 (its last row 0 0 0 1), or null when it has none.
+  function invertAffine(m) {
+    const a = m[0], b = m[4], c = m[8], d = m[1], e = m[5], f = m[9], g = m[2], h = m[6], i = m[10];
+    const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    if (Math.abs(det) < 1e-12) return null;
+    const r = [
+      (e * i - f * h) / det, (c * h - b * i) / det, (b * f - c * e) / det,
+      (f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det,
+      (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det
+    ];
+    const tx = m[12], ty = m[13], tz = m[14];
+    return new Float32Array([
+      r[0], r[3], r[6], 0,
+      r[1], r[4], r[7], 0,
+      r[2], r[5], r[8], 0,
+      -(r[0] * tx + r[1] * ty + r[2] * tz), -(r[3] * tx + r[4] * ty + r[5] * tz), -(r[6] * tx + r[7] * ty + r[8] * tz), 1
+    ]);
+  }
+  function rayTriangle(o, d, ax, ay, az, bx, by, bz, cx, cy, cz) {
+    const e1x = bx - ax, e1y = by - ay, e1z = bz - az, e2x = cx - ax, e2y = cy - ay, e2z = cz - az;
+    const px = d[1] * e2z - d[2] * e2y, py = d[2] * e2x - d[0] * e2z, pz = d[0] * e2y - d[1] * e2x;
+    const det = e1x * px + e1y * py + e1z * pz;
+    if (Math.abs(det) < 1e-9) return null;
+    const inv = 1 / det;
+    const tx = o[0] - ax, ty = o[1] - ay, tz = o[2] - az;
+    const u = (tx * px + ty * py + tz * pz) * inv;
+    if (u < 0 || u > 1) return null;
+    const qx = ty * e1z - tz * e1y, qy = tz * e1x - tx * e1z, qz = tx * e1y - ty * e1x;
+    const v = (d[0] * qx + d[1] * qy + d[2] * qz) * inv;
+    if (v < 0 || u + v > 1) return null;
+    return (e2x * qx + e2y * qy + e2z * qz) * inv;
   }
 
   /// What the gizmo is acting on. Objects are their own row; an exit is either its
@@ -822,7 +915,9 @@ function makeMapScene(canvas, status) {
 
     const entry = {
       vertexBuffer, indexBuffer, groups: bundle.groups,
-      textures: new Map(), centre: bundle.centre, radius: bundle.radius
+      textures: new Map(), centre: bundle.centre, radius: bundle.radius,
+      // The geometry kept on this side too, for the ray that finds where a dragged model lands.
+      buffer: Float32Array.from(bundle.buffer), indices: bundle.indices
     };
     loaded.set(name, entry);
     draw();
@@ -1037,6 +1132,22 @@ function makeMapScene(canvas, status) {
         Math.round(eye[2] + dir[2] * along)
       ];
     },
+
+    /// Where a pixel's ray meets the scene - its geometry, else the floor (y = 0) - or null.
+    surfaceAt(px, py) { return surfaceAt(px, py); },
+
+    /// A model dragged in from the library, shown see-through where the cursor's ray meets the
+    /// scene; its geometry fetched the first time. Returns where it stands, or null off the scene.
+    showGhost(name, px, py) {
+      const at = surfaceAt(px, py);
+      if (!at) { if (ghost) { ghost = null; draw(); } return null; }
+      ghost = { package: name, x: at[0], y: at[1], z: at[2] };
+      if (!loaded.has(name)) ensure(name).then(() => { if (ghost && ghost.package === name) draw(); });
+      draw();
+      return at;
+    },
+    hideGhost() { if (ghost) { ghost = null; draw(); } },
+    ghostAt() { return ghost ? [ghost.x, ghost.y, ghost.z] : null; },
 
     /// The spot on the ground the view looks at: where the centre pixel lands on the
     /// height things stand at. For "play here" and a new object at the view's centre -
