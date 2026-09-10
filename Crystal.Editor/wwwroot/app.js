@@ -1874,24 +1874,52 @@ async function openModel(name) {
   // A weapon on a character, with the item's fit to adjust (hand-preview.js).
   if (typeof wireHandPreview === 'function') wireHandPreview(node, viewer, name, model, transport).catch(error => say(error.message, 'bad'));
 
-  // Export: the mesh with its textures, plus whichever motion the transport is on.
+  // Export: the mesh with its textures, plus whichever motion the transport is on - as a
+  // Save As in the browser (the File System Access picker where there is one, a download
+  // otherwise), so it goes where you want it, project or no project.
   const exportButton = $('.export-glb', node);
   if (exportButton) {
     exportButton.onclick = async () => {
       const packSelect = $('.anim-pack', node);
       const motionSelect = $('.anim-motion', node);
-      const body = { name };
+      let query = `/api/model/glb?name=${encodeURIComponent(name)}`;
       if (packSelect && packSelect.value) {
-        body.pack = packSelect.value;
-        body.index = Number(motionSelect && motionSelect.value) || 0;
+        query += `&pack=${encodeURIComponent(packSelect.value)}&index=${Number(motionSelect && motionSelect.value) || 0}`;
       }
       exportButton.disabled = true;
       say('writing .glb\u2026');
       try {
-        const result = await api('/api/model/export', body);
-        if (!result.ok) throw new Error(result.error);
-        say(`exported ${result.path} (${Math.max(1, Math.round(result.bytes / 1024))} KB)`, 'good');
-        if (typeof revealProject === 'function') revealProject(result.path);
+        const response = await fetch(wsUrl(query));
+        if (!response.ok) throw new Error(`the server answered ${response.status}`);
+        if ((response.headers.get('Content-Type') || '').includes('json')) {
+          const problem = await response.json();
+          throw new Error(problem.error || 'the export failed');
+        }
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const suggested = (disposition.match(/filename="([^"]+)"/) || [])[1] || (shortName(name).replace(/\..*$/, '') + '.glb');
+        const blob = await response.blob();
+        if (window.showSaveFilePicker) {
+          try {
+            const handle = await window.showSaveFilePicker({ suggestedName: suggested, types: [{ description: 'glTF binary', accept: { 'model/gltf-binary': ['.glb'] } }] });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            say(`saved ${handle.name} (${Math.max(1, Math.round(blob.size / 1024))} KB)`, 'good');
+          } catch (error) {
+            if (error.name !== 'AbortError') throw error;
+            say('');
+          }
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = suggested;
+          document.body.append(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          say(`${suggested} (${Math.max(1, Math.round(blob.size / 1024))} KB) - in your downloads`, 'good');
+        }
       } catch (error) {
         say(error.message, 'bad');
       }

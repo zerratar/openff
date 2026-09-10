@@ -240,8 +240,10 @@ matrices and no geometry (`Mdl0.Posed`), and the viewer gets, per frame and per 
 small matrix palette. Nothing is re-uploaded per frame. `/api/model/motions` lists the
 packs; `/api/model/pose` evaluates one motion for a model.
 
-**Export .glb** (in the model's bar) writes the model as glTF 2.0 into the project's
-`exports/` folder and opens Explorer on it: the mesh with its textures embedded and
+**Export .glb** (in the model's bar) offers the model as glTF 2.0 through the browser's
+Save As - no project needed, so a model of the game's can go straight to Blender (browsers
+without a save picker put it in Downloads instead; `/api/model/glb` serves it): the mesh
+with its textures embedded and
 vertex colours, a skin whose joints are the model's matrix instances (bind pose is the
 mesh as it is, so every inverse bind matrix is identity), and - if a motion is playing -
 that motion as an animation, one translation/rotation/scale key per frame at 30 fps.

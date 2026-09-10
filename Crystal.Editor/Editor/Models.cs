@@ -548,6 +548,16 @@ namespace Crystal.Editor
 		/// </summary>
 		public static string Export(Workspace workspace, string modelName, string packName, int index, string directory)
 		{
+			(byte[] glb, string stem) = ExportBytes(workspace, modelName, packName, index);
+			Directory.CreateDirectory(directory);
+			string path = Path.Combine(directory, stem + ".glb");
+			File.WriteAllBytes(path, glb);
+			return path;
+		}
+
+		/// <summary>The model as .glb in memory, with the file stem it would be saved under (the model's name, and the motion's when one is given) - for a Save As in the browser.</summary>
+		public static (byte[] Glb, string Stem) ExportBytes(Workspace workspace, string modelName, string packName, int index)
+		{
 			ModelBundle bundle = Read(workspace, modelName);
 			if (bundle.Problem != null)
 			{
@@ -576,10 +586,7 @@ namespace Crystal.Editor
 			{
 				stem += "." + new string((pose.Name ?? "motion").Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
 			}
-			Directory.CreateDirectory(directory);
-			string path = Path.Combine(directory, stem + ".glb");
-			File.WriteAllBytes(path, glb);
-			return path;
+			return (glb, stem);
 		}
 
 		/// <summary>animated x inverse(bind), in floats: what moves a bind-pose vertex to its animated place.</summary>

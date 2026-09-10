@@ -1394,6 +1394,26 @@ namespace Crystal.Editor
 					ExportModel(context);
 					return;
 
+				case "/api/model/glb":
+				{
+					// The model as a .glb download (with the motion named), for the browser's Save As -
+					// no project needed: a model of the game's, straight to Blender.
+					try
+					{
+						string name = Query(context, "name");
+						if (string.IsNullOrEmpty(name)) throw new ArgumentException("no model named");
+						(byte[] glb, string stem) = Models.ExportBytes(_workspace, name, Query(context, "pack"), int.Parse(Query(context, "index") ?? "0", CultureInfo.InvariantCulture));
+						context.Response.Headers["Content-Disposition"] = "attachment; filename=\"" + stem + ".glb\"";
+						context.Response.Headers["Cache-Control"] = "no-store";
+						Send(context, 200, "model/gltf-binary", glb);
+					}
+					catch (Exception ex)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
+
 				case "/api/model/pose":
 					SendJson(context, Models.ReadPose(_workspace, Query(context, "name"),
 						Query(context, "pack"),

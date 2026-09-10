@@ -56,6 +56,11 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   so a camera glide lands where it is told.
 - **`Game.Hero.Freeze(keepInput: true)`** holds the hero still with the pad left on, for a
   cutscene's lines; the plain Freeze() still takes the pad too.
+- **Export .glb without a project.** Exporting a model of the game's (j101 for Blender, say)
+  with no project open wrote the file to a folder nobody asked for and then complained that
+  no project was open. Export now goes through the browser's Save As (a download where the
+  browser has no picker), project or not - `/api/model/glb` serves the file, named after
+  the model and the motion.
 
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 
