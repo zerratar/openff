@@ -717,15 +717,28 @@ bone before the carry (arms up to 90°, legs up to 35°; feet and head are never
 foot points off its shin, a head's middle is where its hair is). And nearest surface cannot
 tell a chin from a chest: a big-headed file's lower face sits at the height of the original's
 chest and neck, its baggy sleeves beside its belly, and they would take those bones. So the
-file is cut by its own shape - the head above the neck (the narrowest horizontal slice
-between the head's widest and the shoulders'), the arms outside the torso's width in each
-slice (the torso being the cluster of a slice's vertices about the middle, an arm a cluster a
-gap away from it) - and each region takes weights only from the like part of the original,
-strictly: the head from `atama`'s triangles, a sleeve from its side's `sakotu`/`kata`/`ude`/`te`,
-the rest from the rest; what those triangles blend in from outside the region (the neck under
-the jaw) goes to the region's heaviest bone, and the smoothing after still softens the cuts.
-A file with no neck to find takes from the whole, as before; the notes say what was cut and
-what turned. The result is a skinned
+file is cut by its own shape into regions - the head above the *neck* cut (found: the
+narrowest horizontal slice between the head's widest and the shoulders'); the arms outside
+the *torso width* between the *arm floor* and the neck (found slice by slice: the torso is the
+cluster of a slice's vertices about the middle, an arm a cluster a gap away from it); below
+the *hips* cut (found: the model's hip joint) the legs where a slice has two clusters, one a
+side, and a *skirt* where it hangs as one piece across the middle; the rest the body - and
+each region takes weights only from the like part of the original, strictly: the head from
+`atama`'s triangles, a sleeve from its side's `sakotu`/`kata`/`ude`/`te`, a leg from its
+`momo`/`hiza`/`sune`/`asi` and `kosi`, a skirt from `kosi` and the body, the body from the
+body and hips (and, without a skirt, the legs - a tunic's hem flew out with the legs because
+the original blends its thighs into its waist). What those triangles blend in from outside
+the region (the neck under the jaw) goes to the region's heaviest bone, and the smoothing
+after still softens the cuts. **The cuts are yours to move.** Open the unrigged file under
+Models and tick *auto-rig cuts*: each cut is a slider with an *auto* box (auto: found from
+the shape, the found value shown), drawn on the model as a frame at its height (neck violet,
+hips orange, arm floor green) and two blue lines at the torso's width; *skirt* and *regions*
+are switches; *Find* re-reads the shape with your settings and counts each region's vertices
+without writing anything; *Auto-rig* binds the file with them. The cuts you set are saved
+beside the file as `assets/<name>.rig.json` and used again by *Remake from glTF…* and *Redo
+auto-rig*; the CLI takes them as `--neck=63 --hips=38 --arm-floor=27 --torso=28`,
+`--no-skirt`, `--no-regions` (percentages). Not every model is cut alike: a long coat wants
+the hips cut at the waist, a character in trousers wants *skirt* off. The result is a skinned
 glTF with the game's joint names at the game's bind pose: exact on OpenFF, the game format
 for Steam and the viewer. The closer the mesh's volume to the original's, the better the
 weights land; a mesh of quite other proportions (a realistic body on the chibi skeleton)
@@ -755,7 +768,11 @@ project's: the mesh becomes a heat map of one bone's weight (blue none, green ha
 and the left button paints while the right button orbits. Pick the bone from the list, from
 the hierarchy's *Bones* tree (the file's joints nested as the file has them, each row folding
 its children away; the inspector says what the bone moves), or Alt+click the mesh to take
-the bone under the cursor. *add* puts weight on and the vertex's other bones give way in
+the bone under the cursor. Under the cursor, the vertex's bones are read out with their
+weights (`hara 50% · mune 42% · kosi 8%`), each chip in its bone's colour; *all bones* colours
+the whole mesh by each vertex's heaviest bone, the hierarchy's bone rows carrying the same
+colours, so the whole assignment is visible at once. *assign* (the default) makes the ring
+the picked bone's outright - the tool for "this part belongs to that bone"; *add* puts weight on and the vertex's other bones give way in
 proportion; *erase* takes it off, and what comes off goes where the surface around the vertex
 is bound - its neighbours' bones - never in proportion to what the vertex itself happened to
 carry (a chest vertex with a stray hand weight would fly to the hand); a vertex whose

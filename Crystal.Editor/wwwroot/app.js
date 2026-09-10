@@ -2028,6 +2028,86 @@ async function openModel(name) {
     }
   }
 
+  // The auto-rig's cuts on an unrigged glTF of the project's: where the file is cut into head, arms,
+  // legs and skirt, drawn on the model, each found from the shape or set by hand, saved beside the
+  // file (assets/<name>.rig.json) and used by Auto-rig here and by Remake / Redo auto-rig later.
+  const rigBar = $('.rig-bar', node);
+  if (rigBar && !model.skin && /^assets\/.*\.gl(b|tf)$/i.test(name) && typeof projectState !== 'undefined' && projectState.project && typeof viewer.setCuts === 'function') {
+    rigBar.hidden = false;
+    const on = $('.rig-on', rigBar), controls = $('.rig-controls', rigBar);
+    const modelField = $('.rig-model', rigBar), skirt = $('.rig-skirt', rigBar), enabled = $('.rig-enabled', rigBar);
+    const find = $('.rig-find', rigBar), go = $('.rig-go', rigBar), readout = $('.rig-readout', rigBar);
+    const cutRows = [...rigBar.querySelectorAll('.rig-cut')];
+    const found = {};                               // the values the server found, per cut
+    const modelName = () => { const m = modelField.value.trim(); return /\.nmdp\.lz$/i.test(m) ? m : `files/${m.replace(/^files\//i, '')}.nmdp.lz`; };
+    // What is asked for: a cut on auto is null (found), else its slider's fraction.
+    const asked = () => {
+      const c = { skirt: skirt.checked, enabled: enabled.checked };
+      for (const row of cutRows) { const key = row.dataset.cut; c[key] = row.querySelector('.rig-auto').checked ? null : Number(row.querySelector('input[type=range]').value) / 100; }
+      return c;
+    };
+    // What is shown: asked, with the found values filling the blanks.
+    const shown = () => { const c = asked(); for (const key of Object.keys(found)) if (c[key] === null || c[key] === undefined) c[key] = found[key]; return c; };
+    const labels = () => {
+      const c = shown();
+      for (const row of cutRows) {
+        const key = row.dataset.cut, slider = row.querySelector('input[type=range]'), auto = row.querySelector('.rig-auto').checked;
+        slider.disabled = auto;
+        if (auto && found[key] !== undefined && found[key] !== null) slider.value = String(Math.round(found[key] * 200) / 2);
+        row.querySelector('b').textContent = c[key] === null || c[key] === undefined ? '-' : `${Math.round(c[key] * 100)}%`;
+      }
+    };
+    const show = () => { labels(); viewer.setCuts(on.checked && enabled.checked ? shown() : null); };
+    let finding = null;
+    const doFind = async () => {
+      find.disabled = true;
+      try {
+        const r = await api('/api/project/models/cuts', { asset: name, model: modelName(), cuts: asked() });
+        if (!r.ok) throw new Error(r.error);
+        for (const key of ['neck', 'hips', 'armFloor', 'torsoWidth']) found[key] = r.cuts[key];
+        const g = r.regions || {};
+        readout.textContent = `head ${(g.head || 0).toLocaleString()} · arms ${(g.leftArm || 0).toLocaleString()} / ${(g.rightArm || 0).toLocaleString()} · legs ${(g.leftLeg || 0).toLocaleString()} / ${(g.rightLeg || 0).toLocaleString()}${g.hips ? ` · skirt ${g.hips.toLocaleString()}` : ''} · body ${(g.body || 0).toLocaleString()}`;
+        show();
+      } catch (error) { say(error.message, 'bad'); }
+      find.disabled = false;
+    };
+    // The first time the bar opens, the saved cuts (if any) come back as the sliders' settings.
+    on.onchange = async () => {
+      controls.hidden = !on.checked;
+      if (on.checked && !finding) {
+        finding = (async () => {
+          try {
+            const r = await api('/api/project/models/cuts', { asset: name, model: modelName() });
+            if (r.ok && r.saved) {
+              for (const row of cutRows) { const key = row.dataset.cut; if (r.saved[key] !== null && r.saved[key] !== undefined) { row.querySelector('.rig-auto').checked = false; row.querySelector('input[type=range]').value = String(r.saved[key] * 100); } }
+              skirt.checked = r.saved.skirt !== false; enabled.checked = r.saved.enabled !== false;
+            }
+          } catch (e) { /* found below */ }
+          await doFind();
+        })();
+      }
+      show();
+    };
+    for (const row of cutRows) {
+      row.querySelector('.rig-auto').onchange = () => { show(); };
+      row.querySelector('input[type=range]').oninput = show;
+    }
+    skirt.onchange = show; enabled.onchange = show;
+    find.onclick = doFind;
+    go.onclick = async () => {
+      go.disabled = true;
+      say(`rigging ${shortName(name)} to ${modelName()}\u2026`);
+      try {
+        const made = await api('/api/project/models/reskin', { model: modelName(), asset: name, cuts: asked() });
+        if (!made.ok) throw new Error(made.error);
+        for (const note of made.notes || []) logLine('auto-rig: ' + note);
+        say(`${shortName(name)} bound to the skeleton as ${(made.rigged || '').replace(/^assets\//, '')} and ${made.model} remade - opening it`, 'good');
+        if (made.rigged) await openDoc('model', made.rigged);
+      } catch (error) { say(error.message, 'bad'); }
+      go.disabled = false;
+    };
+  }
+
   // Export: the mesh with its textures and skeleton, plus whichever motion the transport is
   // on - or every motion of its pack. With a project open it goes into the project's
   // exports folder (textures beside it) and Explorer opens there, as before; without one

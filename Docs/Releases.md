@@ -125,7 +125,13 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   file is cut by its own shape into head (above the narrowest slice under the head), arms
   (outside the torso's width in a slice) and the rest, each taking weights only from the
   like part of the original. On the chibi that took `mune` off the face, `kubi` off the eyes,
-  `hara` off the sleeves and `R_sakotu` off the hair in one go.
+  `hara` off the sleeves and `R_sakotu` off the hair in one go. Legs and a skirt are regions
+  too (a tunic follows the hips, never the legs), and the cuts - neck, hips, arm floor, torso
+  width, skirt - are sliders on the unrigged file with the found values shown and the frames
+  drawn on the model, saved beside the file and used by every rig of it after.
+- **Weights you can reason about.** *assign* paints a part onto a bone outright; the vertex
+  under the brush reads out its bones and weights; *all bones* colours the mesh by heaviest
+  bone with the hierarchy's rows in the same colours.
 - **Another rig's model, retargeted by the client.** A definition may name a glTF rigged
   another way (Mixamo, Tripo, Rigify): bones matched by a table of the usual names and the
   definition's `"bones"`, the file scaled and stood on its feet with its up and facing found

@@ -163,7 +163,14 @@ namespace Crystal
 						string target = args.FirstOrDefault(a => a.StartsWith("--target=", StringComparison.OrdinalIgnoreCase))?.Substring(9) ?? "steam";
 						float scale = float.TryParse(args.FirstOrDefault(a => a.StartsWith("--scale=", StringComparison.OrdinalIgnoreCase))?.Substring(8), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float sc) ? sc : 0;
 						float[] Triple(string option) { string v = args.FirstOrDefault(a => a.StartsWith("--" + option + "=", StringComparison.OrdinalIgnoreCase))?.Substring(option.Length + 3); if (v == null) return null; string[] parts = v.Split(','); return parts.Length == 3 ? parts.Select(p => float.Parse(p, System.Globalization.CultureInfo.InvariantCulture)).ToArray() : null; }
-						return MdlAutoRig(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, target, scale, Triple("rotation"), Triple("offset"));
+						// The cuts, each a percentage of the height (or width) or left to be found: --neck=63 --hips=38 --arm-floor=27 --torso=28; --no-skirt; --no-regions.
+						float? Cut(string option) { string v = args.FirstOrDefault(a => a.StartsWith("--" + option + "=", StringComparison.OrdinalIgnoreCase))?.Substring(option.Length + 3); return v != null && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float f) ? Math.Clamp(f / 100, 0, 1) : (float?)null; }
+						AutoRig.Cuts cuts = new AutoRig.Cuts
+						{
+							Neck = Cut("neck"), Hips = Cut("hips"), ArmFloor = Cut("arm-floor"), TorsoWidth = Cut("torso"),
+							Skirt = !args.Contains("--no-skirt", StringComparer.OrdinalIgnoreCase), Enabled = !args.Contains("--no-regions", StringComparer.OrdinalIgnoreCase)
+						};
+						return MdlAutoRig(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, target, scale, Triple("rotation"), Triple("offset"), cuts);
 					}
 					case "mdl-reskin":
 					{
@@ -341,7 +348,7 @@ namespace Crystal
 			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
 			Console.Error.WriteLine("  mdl-import  <file.glb|.gltf> <name> [out-dir] [--scale=n]");
 			Console.Error.WriteLine("                                    glTF -> <name>.nmdp.lz and <name>.ntxp.lz, the game's own model (a w123 for a weapon)");
-			Console.Error.WriteLine("  mdl-autorig <file.glb|.gltf> <model> [out.glb] [--target=steam] [--scale=n] [--rotation=x,y,z] [--offset=x,y,z]");
+			Console.Error.WriteLine("  mdl-autorig <file.glb|.gltf> <model> [out.glb] [--target=steam] [--scale=n] [--rotation=x,y,z] [--offset=x,y,z] [--neck=% --hips=% --arm-floor=% --torso=%] [--no-skirt] [--no-regions]");
 			Console.Error.WriteLine("                                    a mesh with no rig bound to a game model's skeleton (j101...) with the game's own weights: a skinned .glb");
 			Console.Error.WriteLine("  mdl-reskin  <file.glb|.gltf> <model> [out-dir] [--target=steam]");
 			Console.Error.WriteLine("                                    a skinned glTF over a model of the game's (j101, n441): its skeleton and motions kept, the mesh and textures yours");
@@ -886,7 +893,7 @@ namespace Crystal
 		}
 
 		/// <summary>A mesh with no rig bound to a game model's skeleton (AutoRig): a skinned .glb, ready for mdl-reskin or the OpenFF client.</summary>
-		private static int MdlAutoRig(string input, string modelName, string output, string target, float scale, float[] rotation, float[] offset)
+		private static int MdlAutoRig(string input, string modelName, string output, string target, float scale, float[] rotation, float[] offset, AutoRig.Cuts cuts = null)
 		{
 			if (!File.Exists(input))
 			{
@@ -901,7 +908,7 @@ namespace Crystal
 			{
 				string content = Crystal.Editor.Targets.Find(target) ?? throw new FileNotFoundException("no " + target + " install found (--target=steam|oursff4|ff4steam|ours)");
 				Crystal.Editor.Workspace workspace = new Crystal.Editor.Workspace(content, null);
-				AutoRig.Result made = AutoRig.Build(workspace, contentName, OpenFF.Graphics.GltfFile.Load(input), scale, rotation, offset);
+				AutoRig.Result made = AutoRig.Build(workspace, contentName, OpenFF.Graphics.GltfFile.Load(input), scale, rotation, offset, cuts: cuts);
 				File.WriteAllBytes(output, made.Glb);
 				Console.WriteLine(Path.GetFileName(input) + " on " + stem + ": " + made.Triangles.ToString("N0") + " triangles, " + made.Vertices.ToString("N0") + " vertices, " + made.Bones + " bones -> " + output + " (" + made.Glb.Length.ToString("N0") + " bytes)");
 				foreach (string note in made.Notes) Console.WriteLine("  " + note);

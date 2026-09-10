@@ -176,6 +176,7 @@ function makeModelViewer(canvas, status, options = {}) {
     drawModel(bundle, vertexBuffer, indexBuffer, indexAttrBuffer, textures, pose, poseFrame, poseOffsets, attach);
     if (paint.wire) drawWireframe();
     if (paint.bones) drawSkeleton();
+    drawCuts();
     drawBrush();
   }
 
@@ -597,6 +598,47 @@ function makeModelViewer(canvas, status, options = {}) {
   // The brush's seat under the cursor as it hovers: { point, normal } on the mesh, drawn as a ring.
   let brushSeat = null;
 
+  // The auto-rig's cuts drawn on the (unrigged) model: { neck, hips, armFloor, torsoWidth } as
+  // fractions of the model's height and width, or null for none.
+  let cuts = null;
+  let bounds = null;             // the viewed model's box: { min, max }
+
+  function boundsOf(model) {
+    const b = model.buffer;
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (let v = 0; v + 2 < b.length; v += 8) for (let k = 0; k < 3; k++) { if (b[v + k] < min[k]) min[k] = b[v + k]; if (b[v + k] > max[k]) max[k] = b[v + k]; }
+    return isFinite(min[0]) ? { min, max } : null;
+  }
+
+  /// The cuts as horizontal frames about the model at their heights (neck violet, hips orange, arm
+  /// floor green) and two vertical lines at the torso's width between the arm floor and the neck (blue).
+  function drawCuts() {
+    if (!cuts || !bounds) return;
+    const { min, max } = bounds;
+    const h = max[1] - min[1], w = max[0] - min[0];
+    const pad = Math.max(w, max[2] - min[2]) * 0.08;
+    const lines = [];
+    const push = (x, y, z, c) => lines.push(x, y, z, 0, 0, c[0], c[1], c[2]);
+    const frame = (fraction, colour) => {
+      if (fraction === null || fraction === undefined) return;
+      const y = min[1] + fraction * h;
+      const x0 = min[0] - pad, x1 = max[0] + pad, z0 = min[2] - pad, z1 = max[2] + pad;
+      push(x0, y, z0, colour); push(x1, y, z0, colour); push(x1, y, z0, colour); push(x1, y, z1, colour);
+      push(x1, y, z1, colour); push(x0, y, z1, colour); push(x0, y, z1, colour); push(x0, y, z0, colour);
+    };
+    frame(cuts.neck, [0.75, 0.45, 1]);
+    frame(cuts.hips, [1, 0.6, 0.2]);
+    frame(cuts.armFloor, [0.4, 0.9, 0.5]);
+    if (cuts.torsoWidth !== null && cuts.torsoWidth !== undefined) {
+      const cx = (min[0] + max[0]) / 2, half = cuts.torsoWidth * w / 2;
+      const y0 = min[1] + (cuts.armFloor ?? 0.3) * h, y1 = min[1] + (cuts.neck ?? 0.85) * h;
+      const c = [0.4, 0.7, 1];
+      for (const x of [cx - half, cx + half]) for (const z of [min[2] - pad, max[2] + pad]) { push(x, y0, z, c); push(x, y1, z, c); }
+      for (const x of [cx - half, cx + half]) for (const y of [y0, y1]) { push(x, y, min[2] - pad, c); push(x, y, max[2] + pad, c); }
+    }
+    if (lines.length) drawLines(lines, 1.5);
+  }
+
   /// The ring where the brush would land: the radius, in the surface's plane at the cursor, with a
   /// short line up the normal; over everything, so it shows through the mesh's own faces.
   function drawBrush() {
@@ -937,6 +979,8 @@ function makeModelViewer(canvas, status, options = {}) {
       undoStack.length = 0;
       paint.bone = -1;
       brushSeat = null;
+      cuts = null;
+      bounds = boundsOf(model);
 
       centre = model.centre || [0, 0, 0];
       distance = (model.radius || 1) * 3;
@@ -1111,6 +1155,9 @@ function makeModelViewer(canvas, status, options = {}) {
       }
       return out.sort((a, b) => b.weight - a.weight);
     },
+
+    /// The auto-rig's cuts to draw on the model ({ neck, hips, armFloor, torsoWidth } as fractions; null: none).
+    setCuts(next) { cuts = next || null; draw(); },
 
     /// A bone's colour in the all-bones view, as a CSS rgb() string.
     boneColour(j) { const c = boneColour(j); return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`; },

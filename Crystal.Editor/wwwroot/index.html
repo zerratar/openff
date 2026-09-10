@@ -447,6 +447,22 @@
           <span class="paint-hint">left drag paints · right drag orbits · Alt+click picks the bone · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind · to move a part to another bone, pick that bone and add · erase on a vertex's only bone hands the weight to the bone's parent</span>
         </span>
       </div>
+      <!-- An unrigged glTF of the project's: where the auto-rig cuts it into head, arms, legs and skirt, drawn on the model and adjustable (app.js). -->
+      <div class="rig-bar" hidden>
+        <label class="toggle"><input type="checkbox" class="rig-on"> auto-rig cuts</label>
+        <span class="rig-controls" hidden>
+          <label>to <input type="text" class="rig-model" value="j101" size="5" title="the game model whose skeleton the file is bound to (j101 is Luneth's)"></label>
+          <label class="rig-cut" data-cut="neck" title="the head begins here (found: the narrowest slice between the head's widest and the shoulders')"><input type="checkbox" class="rig-auto" checked> neck <input type="range" min="0" max="100" step="0.5" disabled><b>-</b></label>
+          <label class="rig-cut" data-cut="hips" title="the legs and a skirt begin below here (found: the model's hip joint)"><input type="checkbox" class="rig-auto" checked> hips <input type="range" min="0" max="100" step="0.5" disabled><b>-</b></label>
+          <label class="rig-cut" data-cut="armFloor" title="nothing below here is an arm (found: a little under the model's hands)"><input type="checkbox" class="rig-auto" checked> arm floor <input type="range" min="0" max="100" step="0.5" disabled><b>-</b></label>
+          <label class="rig-cut" data-cut="torsoWidth" title="the torso's width as a share of the file's width, about the middle; outside it, between the arm floor and the neck, is an arm (found: from the gap between arm and torso)"><input type="checkbox" class="rig-auto" checked> torso <input type="range" min="2" max="100" step="0.5" disabled><b>-</b></label>
+          <label class="toggle" title="below the hips, what hangs as one piece across the middle - a skirt, a tunic - follows the hips, not the legs; and nothing above the hips follows a leg"><input type="checkbox" class="rig-skirt" checked> skirt</label>
+          <label class="toggle" title="off: no regions - every vertex takes weights from the whole of the original, as the first auto-rig did"><input type="checkbox" class="rig-enabled" checked> regions</label>
+          <button class="rig-find" title="find the blanks from the file's shape and count each region's vertices - writes nothing">Find</button>
+          <button class="rig-go" title="bind the file to the model's skeleton with these cuts, as assets/&lt;name&gt;-rigged.glb, and remake the game model from it">Auto-rig</button>
+          <span class="rig-readout"></span>
+        </span>
+      </div>
       <!-- A weapon in a character's hand: the character, the hand, and the item's fit (hand-preview.js). -->
       <div class="hand-bar" hidden>
         <label class="toggle"><input type="checkbox" class="hand-on"> on a character</label>
