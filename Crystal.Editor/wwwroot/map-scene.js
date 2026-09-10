@@ -198,12 +198,24 @@ function makeMapScene(canvas, status) {
   gl.bufferData(gl.ARRAY_BUFFER, box, gl.STATIC_DRAW);
   const boxVertices = box.length / 8;
 
+  // The move gizmo's plane handle: a unit square in the ground plane (x 0..1, z 0..1), placed
+  // between the x and z arrows; dragging it moves the object freely across the ground.
+  const planeBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, planeBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    0, 0, 0, 0, 0, 1, 1, 1,  1, 0, 0, 0, 0, 1, 1, 1,  1, 0, 1, 0, 0, 1, 1, 1,
+    0, 0, 0, 0, 0, 1, 1, 1,  1, 0, 1, 0, 0, 1, 1, 1,  0, 0, 1, 0, 0, 1, 1, 1
+  ]), gl.STATIC_DRAW);
+  // Where the handle sits and how big, as fractions of the arrows' length.
+  const PLANE_FROM = 0.28, PLANE_SIZE = 0.3;
+
   let gizmoOn = true;
   let gizmoScale = 1;            // how big the arrows are, as a multiplier
   let background = null;         // [r, g, b] 0-1 from the map's MapSettings, or null for the editor's own
   let onFrame = () => {};
   let gizmoMode = 'move';        // 'move' or 'rotate'
-  let gizmoAxis = null;          // the axis being dragged, if any
+  let gizmoAxis = null;          // the axis being dragged, if any ('x', 'y', 'z', 'xz' the plane, 'turn')
+  let gizmoHover = null;         // the handle under the cursor, for lighting it
   let gizmoFrom = null;          // where the drag started
   let onMoved = () => {};
 
@@ -762,8 +774,40 @@ function makeMapScene(canvas, status) {
         gl.uniformMatrix4fv(uniform.model, false, axisMatrix(axis.name, at, gizmoSize(at)));
         gl.drawArrays(gl.TRIANGLES, 0, arrowVertices);
       }
+      // The plane handle between the x and z arrows: yellow, see-through, solid while dragged.
+      const size = gizmoSize(at);
+      gl.bindBuffer(gl.ARRAY_BUFFER, planeBuffer);
+      if (attribute.position >= 0) gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+      if (attribute.coord >= 0) gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 3 * 4);
+      if (attribute.colour >= 0) gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 5 * 4);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.uniform3fv(uniform.tint, [1, 0.9, 0.25]);
+      gl.uniform1f(uniform.alpha, gizmoAxis === 'xz' || gizmoHover === 'xz' ? 0.9 : 0.5);
+      const k = size * PLANE_SIZE, o = size * PLANE_FROM;
+      gl.uniformMatrix4fv(uniform.model, false, new Float32Array([k, 0, 0, 0, 0, k, 0, 0, 0, 0, k, 0, at[0] + o, at[1], at[2] + o, 1]));
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.uniform1f(uniform.alpha, 1);
     }
     gl.enable(gl.DEPTH_TEST);
+  }
+
+  /// The plane handle's four corners in the world, for picking.
+  function planeCorners(at) {
+    const size = gizmoSize(at), k = size * PLANE_SIZE, o = size * PLANE_FROM;
+    return [[at[0] + o, at[1], at[2] + o], [at[0] + o + k, at[1], at[2] + o], [at[0] + o + k, at[1], at[2] + o + k], [at[0] + o, at[1], at[2] + o + k]];
+  }
+
+  /// Whether a screen point lies inside a (convex) polygon of screen points.
+  function insidePolygon(p, corners) {
+    let sign = 0;
+    for (let i = 0; i < corners.length; i++) {
+      const a = corners[i], b = corners[(i + 1) % corners.length];
+      const cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]);
+      if (Math.abs(cross) < 1e-9) continue;
+      const s = Math.sign(cross);
+      if (sign === 0) sign = s; else if (s !== sign) return false;
+    }
+    return sign !== 0;
   }
 
   function eyePosition() {
@@ -828,7 +872,8 @@ function makeMapScene(canvas, status) {
       // stored facing goes through facingSign, since the two kinds store it opposite
       // ways round.
       angle: Math.atan2(x, z) * 180 / Math.PI,
-      away: Math.hypot(x, z)
+      away: Math.hypot(x, z),
+      x, z
     };
   }
 
@@ -863,6 +908,10 @@ function makeMapScene(canvas, status) {
     const at = [item.x, item.y, item.z];
     const origin = toScreen(at);
     if (!origin) return null;
+
+    // The plane handle first: it sits between the arrows, where a near-miss of either lands.
+    const corners = planeCorners(at).map(toScreen);
+    if (corners.every(Boolean) && insidePolygon(mouse, corners)) return { name: 'xz' };
 
     let best = null;
     let bestAway = 11;                    // pixels; a fat enough target to hit
@@ -1196,7 +1245,9 @@ function makeMapScene(canvas, status) {
         px, py, x: item.x, y: item.y, z: item.z, rotationY: item.rotationY || 0,
         angle: 0
       };
-      if (axis.name === 'turn') {
+      if (axis.name === 'turn' || axis.name === 'xz') {
+        // Where on the object's own ground plane the press landed: the turn keeps its bearing,
+        // the plane handle the offset from the object, so it moves without jumping under the cursor.
         const ground = onGround(px, py, [item.x, item.y, item.z]);
         if (!ground) {
           gizmoAxis = null;
@@ -1204,6 +1255,7 @@ function makeMapScene(canvas, status) {
           return false;
         }
         gizmoFrom.angle = ground.angle;
+        gizmoFrom.gx = ground.x; gizmoFrom.gz = ground.z;
       }
       draw();
       return true;
@@ -1223,6 +1275,18 @@ function makeMapScene(canvas, status) {
           + facingSign(item) * (ground.angle - gizmoFrom.angle));
         turned = ((turned % 360) + 360) % 360;
         item.rotationY = turned;
+        draw();
+        onMoved(item);
+        return item;
+      }
+
+      if (gizmoAxis === 'xz') {
+        // Freely across the ground: where the cursor's ray meets the plane the object stands
+        // on, less the offset the press had from the object.
+        const ground = onGround(px, py, [gizmoFrom.x, gizmoFrom.y, gizmoFrom.z]);
+        if (!ground) return null;
+        item.x = Math.round(gizmoFrom.x + ground.x - gizmoFrom.gx);
+        item.z = Math.round(gizmoFrom.z + ground.z - gizmoFrom.gz);
         draw();
         onMoved(item);
         return item;
@@ -1268,8 +1332,13 @@ function makeMapScene(canvas, status) {
     /// True while an arrow is being dragged, so the caller leaves the camera alone.
     dragging() { return Boolean(gizmoAxis); },
 
-    /// Whether an arrow is under the cursor, for the pointer shape.
-    hovering(px, py) { return Boolean(axisAt(px, py)); },
+    /// Whether a handle is under the cursor, for the pointer shape; the plane handle lights up.
+    hovering(px, py) {
+      const axis = axisAt(px, py);
+      const over = axis ? axis.name : null;
+      if ((over === 'xz') !== (gizmoHover === 'xz')) { gizmoHover = over; draw(); } else gizmoHover = over;
+      return Boolean(axis);
+    },
 
     onMove(callback) { onMoved = callback || (() => {}); },
 
