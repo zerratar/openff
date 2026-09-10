@@ -25,6 +25,19 @@
   </div>
   <div class="tip"><b>What carries over:</b> geometry, normals, texture coordinates, textures, vertex colours, node transforms, skins and animations. Lighting is the game's - a shade from the normal, as its own models have - so do not bake dramatic lighting into the textures.</div>
 
+  <h2>A character remade: a high-res Luneth</h2>
+  <p>The game's characters and monsters can be given a new mesh while their skeleton and every battle motion stay the game's. Works on the Steam game too - the result is the game's own format.</p>
+  <ol class="steps">
+    <li>Open the model (<b>FF3 ▸ Models ▸ j101</b> is the first character) and <b>Export .glb</b> - <b>+ all motions</b> to check your work against every swing in Blender.</li>
+    <li>In Blender, model over it. Keep the armature as it came; weight your mesh to its bones (the vertex groups already carry the game's names: <code>hara</code>, <code>mune</code>, <code>L_ude</code>, <code>R_te</code>…). Do not move or rename bones. Export a <b>.glb</b> with the skin.</li>
+    <li>Back in the viewer, with a project open: <b>Remake from glTF…</b>, pick your file (or <b>Import a model…</b> right there). The model reloads as yours; the transport plays the game's motions on it. <b>Undo remake</b> puts the game's back.</li>
+  </ol>
+  <div class="row2">
+    <figure><img src="img/model-remake.png" alt="The model viewer with j101 remade at 10,320 triangles, the Remake and Undo buttons in the bar"><figcaption>j101 remade at 24× the triangles (a Blender subdivision of the export, as a test): the game's motions play on it.</figcaption></figure>
+    <figure><img src="img/model-remake-battle.jpg" alt="Four frames of a battle with the remade Luneth attacking a goblin"><figcaption>The same model in a live battle - idle, the attack run, the hit.</figcaption></figure>
+  </div>
+  <div class="tip"><b>What the game can do with weights:</b> a vertex goes through <em>one</em> bone, or one of the blends the original had (a few at the knees, elbows and hips). Your smooth weights are snapped to the nearest of those; the status line says how many were. Limits: 10,922 triangles per model, textures 512 KB per model, and names must be the original's bones. A mesh with no weights is bound to the nearest bone.</div>
+
   <h2>A sound or a tune</h2>
   <ol class="steps">
     <li><b>FF3 ▸ Audio ▸ Import a sound…</b>. An <b>Ogg Vorbis</b> or <b>WAV</b> file.</li>

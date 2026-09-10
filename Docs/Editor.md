@@ -257,8 +257,14 @@ frame at 30 fps, local to the parent), and **+ all motions** - shown once a pack
 the transport - puts every motion of that pack in as its own animation (`j101.b_b01.glb`,
 31 actions for the party's first character, about 1.3 MB). Blender's glTF importer opens
 it with the armature, the weights and the actions, so a mesh of your own can be weighted
-to the same bones and checked against every animation. The way back in - a skinned mesh to
-NDS display lists driven by the original node tree - is not built yet; see Modding.md.
+to the same bones and checked against every animation.
+
+**Remake from glTF…** (beside it, with a project open, on a package of the game's) is the
+way back in: the project's glTF - a mesh weighted to the export's bones - written over the
+model in the game's format, its skeleton, envelopes and motions kept (`Mdl0Reskin`; the
+route is `/api/project/models/reskin`, `{ model, asset }` or `{ model, revert: true }`).
+The viewer reloads on the result and the transport plays the game's motions on it;
+**Undo remake** removes the two overrides. Modding.md has the mechanics and the limits.
 
 ### Models
 

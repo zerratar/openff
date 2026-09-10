@@ -637,23 +637,40 @@ stands in, with a note). The model viewer opens the result like any `w###`, and 
 plays it the game's way (a w### of the mod's is a file override, so `--nomods` shows the
 game's).
 
-#### A character remade: the round trip so far
+#### A character remade: a mesh of yours on the game's skeleton
 
 *Export .glb* on a character (`j101`…) or monster gives Blender the model with its real
 skeleton - the game's node tree, bones where the joints are, the game's weights including
 the blended ones at knees, elbows and hips - and, with *+ all motions*, every motion of its
-battle pack as an action (`j101.b_b01.glb`). That is the half that exists: a mesh of your
-own can be modelled over the original, weighted to the same bones (the vertex groups carry
-the game's names - `hara`, `mune`, `L_ude`, `R_te`…) and checked against every swing and
-stagger in Blender. The half that does not exist yet is writing that skinned mesh back as
-the game's model. `mdl-import` flattens a skin today. What it would take: the original's
-node tree and SBC kept as they are (so the game's `.ncap` motions still drive it), each
-vertex snapped to its heaviest bone (the DS draws a vertex through one matrix, or an
-envelope blend of a few - true smooth weights are not available) and stored in that bone's
-space, display lists that switch matrix stack slots as the original's do, and textures kept
-under the package's texel budget. On the OpenFF target there is a shorter road: the client
-could draw a glTF skin driven by the game's joint matrices, as it already draws a glTF
-weapon from the hand joint. Neither is built; both are on the list.
+battle pack as an action (`j101.b_b01.glb`). Model over it, weight to the same bones (the
+vertex groups carry the game's names - `hara`, `mune`, `L_ude`, `R_te`…), check the mesh
+against every swing in Blender, export a `.glb` with the skin. Then, in the model viewer
+with a project open, **Remake from glTF…** picks the file (the picker imports one too) and
+writes the model back in the game's format over the original - `files/j101.nmdp.lz` and its
+`.ntxp.lz` as the project's overrides - so it plays in the OpenFF client and the Steam game
+alike with every motion the game has. The viewer reloads on it; **Undo remake** takes the
+override out. The same from the command line: `crystal mdl-reskin hero.glb j101 [out-dir]
+[--target=steam]`.
+
+What the writer does (`Crystal.Editor/Mdl0Reskin.cs`): keeps the original's node
+dictionary, node data, envelope matrices and the node-building part of its SBC byte for
+byte - `NODEDESC` with parents and stack slots, the billboards, `NODEMIX` blends - so the
+`.ncap` motions, which name nodes by index, drive it as before and the battle's weapon hangs
+from the same `R_te`; replaces the shapes, materials and textures with the file's. The
+mesh's vertices at the file's rest pose are moved into the game's model space by the root
+joint (an armature moved in Blender still lands; a note says how far the rest pose is from
+the game's bind pose if it differs), and each vertex is sent through the matrix stack slot
+whose weights are nearest its own - a node's slot (one bone, weight 1) or one of the
+envelope slots the original had (its blends of several nodes) - stored in that slot's space
+and restored by the display list. A node the original drew without a slot (`j101`'s head)
+gets its own shape right after its `NODEDESC`, through the node's matrix, as the original
+does. Smooth weights the original never had are snapped to the nearest; the result reports
+how many. A mesh without weights is bound to the nearest bone. Limits the game imposes:
+one bone (or one of its blends) per vertex; 10,922 triangles per model (its vertex buffer,
+`GlobalScope.DrawModel`); 20,480 vertices per `BEGIN_VTXS` run, which the writer splits
+itself; 255 shapes; 512 KB of texels. The round trip is exact: the game's own `j101`
+exported and written back lands on the original to 1/4096 in the bind pose and through
+every frame of the idle and a swing, and a Blender re-export of it the same.
 
 ### Monsters of the mod's own: `defs/monsters/<id>.json`
 

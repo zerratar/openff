@@ -1912,6 +1912,52 @@ async function openModel(name) {
   };
   if (exportButton) exportButton.onclick = () => exportGlb(false);
   if (exportAllButton) exportAllButton.onclick = () => exportGlb(true);
+
+  // Remake: a glTF of the project's over this model of the game's - the way back in for a
+  // mesh modelled over the export (Mdl0Reskin). Only for a game package with a project open.
+  const remakeButton = $('.remake', node);
+  const revertButton = $('.remake-revert', node);
+  const gamePackage = /^files\/[^/]+\.nmdp\.lz$/i.test(name);
+  const hasProject = typeof projectState !== 'undefined' && !!projectState.project;
+  if (remakeButton && gamePackage && hasProject) {
+    remakeButton.hidden = false;
+    remakeButton.onclick = async () => {
+      if (typeof pickModel !== 'function') return;
+      if (!Array.isArray(state.assets)) {
+        try { state.assets = await api('/api/project/assets'); } catch (e) { state.assets = []; }
+      }
+      pickModel(null, async (asset) => {
+        remakeButton.disabled = true;
+        say(`writing ${shortName(name)} from ${asset.replace(/^assets\//, '')}\u2026`);
+        try {
+          const made = await api('/api/project/models/reskin', { model: name, asset });
+          if (!made.ok) throw new Error(made.error);
+          const parts = [`${made.model} remade: ${made.triangles.toLocaleString()} triangles, ${made.materials} material(s)`];
+          if (made.blended) parts.push(`${made.blended.toLocaleString()} vertices through the game's blends`);
+          if (made.snapped) parts.push(`${made.snapped.toLocaleString()} snapped to the nearest bone`);
+          say(parts.join(' \u00b7 '), 'good');
+          for (const note of made.notes || []) logLine('remake: ' + note);
+          await openDoc('model', name, { reload: true });
+        } catch (error) {
+          say(error.message, 'bad');
+        }
+        remakeButton.disabled = false;
+      }, { assetsOnly: true, title: `Remake ${shortName(name)} from a glTF of the project's` });
+    };
+  }
+  if (revertButton && gamePackage && hasProject && model.overridden) {
+    revertButton.hidden = false;
+    revertButton.onclick = async () => {
+      try {
+        const r = await api('/api/project/models/reskin', { model: name, revert: true });
+        if (!r.ok) throw new Error(r.error);
+        say(`${shortName(name)} is the game's own again`, 'good');
+        await openDoc('model', name, { reload: true });
+      } catch (error) {
+        say(error.message, 'bad');
+      }
+    };
+  }
 }
 
 /// The model as .glb through the browser's Save As: the File System Access picker where

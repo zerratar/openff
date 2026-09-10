@@ -152,6 +152,17 @@ namespace Crystal
 						float scale = scaleText != null && float.TryParse(scaleText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float s) ? s : 1f;
 						return MdlImport(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, scale);
 					}
+					case "mdl-reskin":
+					{
+						string[] positional = args.Skip(1).Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+						if (positional.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						string target = args.FirstOrDefault(a => a.StartsWith("--target=", StringComparison.OrdinalIgnoreCase))?.Substring(9) ?? "steam";
+						return MdlReskin(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, target);
+					}
 					case "cells":
 						if (args.Length < 2)
 						{
@@ -317,6 +328,8 @@ namespace Crystal
 			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
 			Console.Error.WriteLine("  mdl-import  <file.glb|.gltf> <name> [out-dir] [--scale=n]");
 			Console.Error.WriteLine("                                    glTF -> <name>.nmdp.lz and <name>.ntxp.lz, the game's own model (a w123 for a weapon)");
+			Console.Error.WriteLine("  mdl-reskin  <file.glb|.gltf> <model> [out-dir] [--target=steam]");
+			Console.Error.WriteLine("                                    a skinned glTF over a model of the game's (j101, n441): its skeleton and motions kept, the mesh and textures yours");
 			Console.Error.WriteLine("  sample-assets [out-dir]           write the sample glTFs (a sword, a shield, a chest, a shrine) - Samples/Showcase/assets by default");
 			Console.Error.WriteLine("  cells       <file | dir> [out]     cells/screens/anim -> JSON");
 			Console.Error.WriteLine("  hich        <file.hich | dir> [out] map placement -> JSON");
@@ -812,6 +825,47 @@ namespace Crystal
 			catch (Exception ex)
 			{
 				Console.Error.WriteLine(name + ": " + ex.Message);
+				return 1;
+			}
+		}
+
+		/// <summary>
+		/// A skinned glTF written over a model of the game's - its skeleton and motions kept
+		/// (Mdl0Reskin). The original comes from the target's content (steam, ours...); the two
+		/// packages go to out-dir, or beside the glTF.
+		/// </summary>
+		private static int MdlReskin(string input, string modelName, string outputDir, string target)
+		{
+			if (!File.Exists(input))
+			{
+				Console.Error.WriteLine("no such file: " + input);
+				return 1;
+			}
+			string stem = Path.GetFileName(modelName);
+			stem = stem.Substring(0, stem.IndexOf('.') < 0 ? stem.Length : stem.IndexOf('.'));
+			string contentName = modelName.Contains('/') || modelName.Contains('\\') ? modelName.Replace('\\', '/') : "files/" + stem + ".nmdp.lz";
+			outputDir ??= Path.GetDirectoryName(Path.GetFullPath(input));
+			try
+			{
+				string content = Crystal.Editor.Targets.Find(target) ?? throw new FileNotFoundException("no " + target + " install found (--target=steam|oursff4|ff4steam|ours)");
+				Crystal.Editor.Workspace workspace = new Crystal.Editor.Workspace(content, null);
+				byte[] original = Lz.Decompress(workspace.ReadShipped(contentName));
+				OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(input);
+				Mdl0Reskin.Result made = Mdl0Reskin.Build(original, file, stem);
+				Directory.CreateDirectory(outputDir);
+				string modelPath = Path.Combine(outputDir, stem + ".nmdp.lz"), texPath = Path.Combine(outputDir, stem + ".ntxp.lz");
+				File.WriteAllBytes(modelPath, Lz.Compress(made.Nmdp));
+				File.WriteAllBytes(texPath, Lz.Compress(made.Ntxp));
+				Console.WriteLine(stem + ": " + made.Triangles + " triangles, " + made.Vertices + " vertices, " + made.Materials + " material(s), " + made.Blended + " vertices through a blend, " + made.Snapped + " snapped to the nearest slot -> " + modelPath + " (" + made.Nmdp.Length + " bytes) and " + texPath + " (" + made.Ntxp.Length + " bytes)");
+				foreach (string note in file.Notes.Concat(made.Notes)) Console.WriteLine("  note: " + note);
+				List<Mdl0Model> models = Mdl0.Read(made.Nmdp);
+				foreach (Mdl0Model m in models)
+					Console.WriteLine("  read back: " + m.Name + " - " + m.Nodes.Count + " nodes, " + m.Vertices + " vertices, " + m.Triangles + " triangles, " + m.Materials.Count + " material(s), " + m.Pieces.Count + " piece(s), " + m.Slots.Count + " stack slot(s); box " + m.BoxW.ToString("0.##") + " x " + m.BoxH.ToString("0.##") + " x " + m.BoxD.ToString("0.##") + " at " + m.BoxX.ToString("0.##") + ", " + m.BoxY.ToString("0.##") + ", " + m.BoxZ.ToString("0.##") + (m.Notes.Count > 0 ? "; notes: " + string.Join("; ", m.Notes) : string.Empty));
+				return 0;
+			}
+			catch (Exception ex)
+			{
+				Console.Error.WriteLine(stem + ": " + ex.Message);
 				return 1;
 			}
 		}

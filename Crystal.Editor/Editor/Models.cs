@@ -96,6 +96,9 @@ namespace Crystal.Editor
 		public float Radius { get; set; }
 		public string Problem { get; set; }
 
+		/// <summary>True when the project's own copy of the package is what was read (a remake, a duplicate), not the game's.</summary>
+		public bool Overridden { get; set; }
+
 		/// <summary>What the reader stepped over, if anything - see Mdl0Model.Notes.</summary>
 		public List<string> Notes { get; set; }
 	}
@@ -199,6 +202,7 @@ namespace Crystal.Editor
 				Triangles = model.Triangles,
 				Quads = model.Quads,
 				Nodes = model.Nodes,
+				Overridden = workspace.IsOverridden(name),
 				Buffer = new List<float>(),
 				Indices = new List<int>(),
 				Groups = new List<ModelGroup>()

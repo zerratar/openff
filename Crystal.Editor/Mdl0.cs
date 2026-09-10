@@ -152,6 +152,12 @@ namespace Crystal
 		/// </summary>
 		public Dictionary<int, int> NodeParents = new Dictionary<int, int>();
 
+		/// <summary>
+		/// The matrix stack as the SBC leaves it: per slot, what was stored there last and
+		/// by whom. What a new mesh's vertices can be sent through (Mdl0Reskin).
+		/// </summary>
+		public Dictionary<int, Mdl0Slot> Slots = new Dictionary<int, Mdl0Slot>();
+
 		/// <summary>What was actually decoded, to set against the four above.</summary>
 		public int GotVertices, GotTriangles, GotQuads;
 
@@ -188,6 +194,19 @@ namespace Crystal
 				Notes.Add(what);
 			}
 		}
+	}
+
+	/// <summary>One matrix stack slot after the SBC walk.</summary>
+	internal sealed class Mdl0Slot
+	{
+		/// <summary>The 4x3 stored, fixed point (bind pose when the walk had no pose).</summary>
+		public int[] Matrix;
+		/// <summary>The node whose matrix it is, or -1 for an envelope blend.</summary>
+		public int Node = -1;
+		/// <summary>For a blend, the nodes and their weights out of 256.</summary>
+		public (int Node, int Weight)[] Blend;
+		/// <summary>Stored more than once during the walk: what a shape sees depends on where it is drawn, so a new shape at the end sees only the last.</summary>
+		public bool Reused;
 	}
 
 	internal static class Mdl0
@@ -596,6 +615,7 @@ namespace Crystal
 							stackBillboard[id] = 0;
 							stackNode[id] = node;
 							stackBlend[id] = null;
+							Store(model, id, current, node, null);
 						}
 						break;
 					}
@@ -619,6 +639,9 @@ namespace Crystal
 							stack[id] = Copy(current);
 							stackN[id] = Copy(current);
 							stackBillboard[id] = billboard;
+							stackNode[id] = currentNode;
+							stackBlend[id] = currentBlend;
+							Store(model, id, current, currentNode, currentBlend);
 						}
 						break;
 					}
@@ -669,6 +692,7 @@ namespace Crystal
 						currentN = Copy(sum);
 						currentNode = -1;
 						currentBlend = stackBlend[into];
+						Store(model, into, sum, -1, currentBlend);
 						break;
 					}
 
@@ -679,6 +703,62 @@ namespace Crystal
 						return;
 				}
 			}
+		}
+
+		/// <summary>A matrix stored to a stack slot, written down for Mdl0Model.Slots.</summary>
+		private static void Store(Mdl0Model model, int slot, int[] matrix, int node, (int Node, int Weight)[] blend)
+		{
+			if (slot < 0 || slot >= 64) return;
+			bool had = model.Slots.TryGetValue(slot, out Mdl0Slot have);
+			model.Slots[slot] = new Mdl0Slot { Matrix = Copy(matrix), Node = node, Blend = blend, Reused = had || (have?.Reused ?? false) };
+		}
+
+		/// <summary>Where the first model of the package starts (its 20 bytes of offsets), or -1.</summary>
+		public static int ModelOffset(byte[] data)
+		{
+			int at = Find(data);
+			if (at < 0) return -1;
+			foreach ((string _, byte[] entry) in Dict(data, at + 8))
+			{
+				return at + (int)U32(entry, 0);
+			}
+			return -1;
+		}
+
+		/// <summary>
+		/// The first model's sections as raw bytes, for a writer that keeps some and replaces
+		/// others (Mdl0Reskin): the 44-byte info, the node dictionary and data (from offset 64
+		/// to the SBC), the SBC, the first material's 44-byte record, and the envelope
+		/// matrices (null when the model has none).
+		/// </summary>
+		public static (byte[] Info, byte[] Nodes, byte[] Sbc, byte[] FirstMaterial, byte[] Envelopes) Sections(byte[] data)
+		{
+			int m = ModelOffset(data);
+			if (m < 0) throw new InvalidDataException("no MDL0 block in this package");
+			int size = (int)U32(data, m);
+			int ofsSbc = (int)U32(data, m + 4), ofsMat = (int)U32(data, m + 8), ofsShp = (int)U32(data, m + 12), ofsEvp = (int)U32(data, m + 16);
+			byte[] Slice(int from, int to)
+			{
+				if (from < 0 || to > data.Length || to < from) throw new InvalidDataException("a section of the model is out of the file");
+				byte[] s = new byte[to - from];
+				Array.Copy(data, from, s, 0, s.Length);
+				return s;
+			}
+			byte[] info = Slice(m + 20, m + 64);
+			byte[] nodes = Slice(m + 64, m + ofsSbc);
+			byte[] sbc = Slice(m + ofsSbc, m + (ofsMat != 0 ? ofsMat : ofsShp));
+			byte[] material = null;
+			if (ofsMat != 0)
+			{
+				foreach ((string _, byte[] entry) in Dict(data, m + ofsMat + 4))
+				{
+					int p = m + ofsMat + (int)U32(entry, 0);
+					if (p + 44 <= data.Length) material = Slice(p, p + 44);
+					break;
+				}
+			}
+			byte[] evp = ofsEvp != 0 && ofsEvp < size ? Slice(m + ofsEvp, m + size) : null;
+			return (info, nodes, sbc, material, evp);
 		}
 
 		/// <summary>

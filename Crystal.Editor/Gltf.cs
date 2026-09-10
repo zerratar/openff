@@ -369,7 +369,7 @@ namespace Crystal
 		}
 
 		/// <summary>a then b, both 4x3 row-vector (v' = v a b).</summary>
-		private static float[] Mul(float[] a, float[] b)
+		internal static float[] Mul(float[] a, float[] b)
 		{
 			float[] r = new float[12];
 			for (int i = 0; i < 4; i++)
@@ -384,7 +384,7 @@ namespace Crystal
 		}
 
 		/// <summary>The inverse of a 4x3 row-vector affine matrix (a general 3x3 part, then the translation).</summary>
-		private static float[] Invert(float[] m)
+		internal static float[] Invert(float[] m)
 		{
 			double a = m[0], b = m[1], c = m[2], d = m[3], e = m[4], f = m[5], g = m[6], h = m[7], i = m[8];
 			double det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);

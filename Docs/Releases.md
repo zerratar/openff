@@ -68,6 +68,18 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   as before, now with the textures as PNGs beside it; with no project - which used to
   write somewhere unasked and then say "no project is open" - the browser's Save As takes
   it where you like (`/api/model/glb`).
+- **A character remade from Blender.** The way back in for a mesh modelled over the export:
+  the model viewer's *Remake from glTF…* writes a skinned glTF over a model of the game's
+  (`j101`, a monster) in the game's own format, keeping its skeleton, envelope blends and
+  the SBC that builds them, so every `.ncap` motion plays on the new mesh - in the OpenFF
+  client and the Steam game alike. Vertices go through the game's matrix stack slots by
+  nearest weights (one bone, or one of the blends the original had); a node drawn without a
+  slot gets its shape inline as the original does; runs are split at the game's 20,480-vertex
+  buffer and a model over its 32,768 is refused with the number to aim for. *Undo remake*
+  reverts; `crystal mdl-reskin file.glb j101` does the same at the command line. Checked by
+  round trip: the game's `j101` exported, re-exported by Blender 5.1 and written back lands
+  on the original to 1/4096 through the idle and a swing; a 10,320-triangle subdivision of
+  it fights a goblin in the client. The static `mdl-import` observes the same limits now.
 
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 

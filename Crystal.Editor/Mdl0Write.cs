@@ -33,6 +33,14 @@ namespace Crystal
 {
 	internal static class Mdl0Write
 	{
+		/// <summary>
+		/// The game gathers one BEGIN_VTXS..END_VTXS run into a buffer of 20,480 vertices and a
+		/// whole model's into one of 32,768 (GlobalScope.DrawModel's `vertex` and `vtc`; the Steam
+		/// port's arrays, so the Steam game's limits too). A run is split before the first;
+		/// a model over the second is refused rather than written to crash.
+		/// </summary>
+		internal const int RunLimit = 20478, ModelLimit = 32768;
+
 		/// <summary>What the writer made: the two packages (uncompressed; the game's files are these under .lz) and a note of what went in.</summary>
 		public sealed class Result
 		{
@@ -109,11 +117,18 @@ namespace Crystal
 				int t = materialIds.IndexOf(materialId);
 				DisplayList dl = new DisplayList();
 				dl.Command(0x40, 0);   // BEGIN_VTXS triangles
+				int inRun = 0;
 				foreach (GltfMesh mesh in meshes.Where(m => m.Material == materialId))
 				{
 					int texW = textures[t].Width, texH = textures[t].Height;
 					for (int i = 0; i + 2 < mesh.Indices.Length; i += 3)
 					{
+						if (inRun + 3 > RunLimit)
+						{
+							dl.Command(0x41); dl.Command(0x40, 0);   // a new run before the game's buffer fills
+							inRun = 0;
+						}
+						inRun += 3;
 						// A flat normal for a mesh without its own.
 						float[] flat = null;
 						if (mesh.Normals == null)
@@ -149,6 +164,7 @@ namespace Crystal
 			}
 			result.Materials = materialIds.Count;
 			if (result.Vertices == 0) throw new InvalidDataException("the file has no triangles");
+			if (result.Vertices > ModelLimit) throw new InvalidDataException(result.Triangles.ToString("N0") + " triangles: the game draws at most " + (ModelLimit / 3).ToString("N0") + " per model (" + ModelLimit.ToString("N0") + " vertices) - decimate the mesh in Blender");
 
 			// ---- the model
 			// Node dictionary: one node, "root", the identity (flag 0xF807: no translation, no rotation, no scale, stack slot 31).
@@ -163,8 +179,57 @@ namespace Crystal
 			sbc.Add(0x01);
 			while (sbc.Count % 4 != 0) sbc.Add(0x00);
 
-			// Material block: [ofsDictTex u16][ofsDictPltt u16][mat dict][tex dict][pltt dict][lists][material data x44].
 			int n = lists.Count;
+			byte[] mat = MaterialBlock(textures, doubleSided, null);
+			byte[] shp = ShapeBlock(lists);
+
+			// The model: offsets, info, node dictionary + data, SBC, materials, shapes.
+			int ofsNodeInfo = 20 + 44;
+			int ofsSbc = ofsNodeInfo + nodeDict.Length + nodeData.Length;
+			int ofsMat = ofsSbc + sbc.Count;
+			int ofsShp = ofsMat + mat.Length;
+			int modelSize = ofsShp + shp.Length;
+			byte[] model = new byte[modelSize];
+			Put32(model, 0, (uint)modelSize); Put32(model, 4, (uint)ofsSbc); Put32(model, 8, (uint)ofsMat); Put32(model, 12, (uint)ofsShp); Put32(model, 16, (uint)modelSize);
+			int info = 20;
+			model[info] = 0; model[info + 1] = 0; model[info + 2] = 0;            // sbcType, scalingRule (standard), texMtxMode
+			model[info + 3] = 1; model[info + 4] = (byte)n; model[info + 5] = (byte)n; model[info + 6] = 0; model[info + 7] = 0;
+			Put32(model, info + 8, (uint)posScale); Put32(model, info + 12, (uint)(4096 * 4096 / posScale));
+			Put16(model, info + 16, (ushort)Math.Min(65535, result.Vertices)); Put16(model, info + 18, (ushort)Math.Min(65535, result.Triangles));
+			Put16(model, info + 20, (ushort)Math.Min(65535, result.Triangles)); Put16(model, info + 22, 0);
+			WriteBox(model, info, min, max);
+			Array.Copy(nodeDict, 0, model, ofsNodeInfo, nodeDict.Length);
+			Array.Copy(nodeData, 0, model, ofsNodeInfo + nodeDict.Length, nodeData.Length);
+			sbc.CopyTo(model, ofsSbc);
+			Array.Copy(mat, 0, model, ofsMat, mat.Length);
+			Array.Copy(shp, 0, model, ofsShp, shp.Length);
+
+			result.Nmdp = Package(model, name);
+			result.Ntxp = Tex0Write.Build(textures);
+			return result;
+		}
+
+		/// <summary>The info block's box (at info+24): its corner and its size in 1/4096ths under the box's own scale, a power of two that fits.</summary>
+		internal static void WriteBox(byte[] model, int info, float[] min, float[] max)
+		{
+			float boxExtent = Math.Max(Math.Max(Math.Abs(min[0]), Math.Abs(min[1])), Math.Max(Math.Abs(min[2]), Math.Max(Math.Max(max[0] - min[0], max[1] - min[1]), max[2] - min[2])));
+			int boxShift = 0;
+			while ((7.99f * (1 << boxShift)) < boxExtent && boxShift < 12) boxShift++;
+			float boxFixed = 4096f / (1 << boxShift);
+			Put16(model, info + 24, (ushort)(short)Math.Round(min[0] * boxFixed)); Put16(model, info + 26, (ushort)(short)Math.Round(min[1] * boxFixed)); Put16(model, info + 28, (ushort)(short)Math.Round(min[2] * boxFixed));
+			Put16(model, info + 30, (ushort)(short)Math.Round((max[0] - min[0]) * boxFixed)); Put16(model, info + 32, (ushort)(short)Math.Round((max[1] - min[1]) * boxFixed)); Put16(model, info + 34, (ushort)(short)Math.Round((max[2] - min[2]) * boxFixed));
+			Put32(model, info + 36, (uint)(4096 << boxShift)); Put32(model, info + 40, (uint)(4096 >> boxShift));
+		}
+
+		/// <summary>
+		/// The material block: [ofsDictTex u16][ofsDictPltt u16][mat dict][tex dict][pltt dict][lists][material data x44],
+		/// one material per texture, each using its own texture and palette. The material words are
+		/// w005's, or - given <paramref name="template"/>, a 44-byte record of the model being
+		/// remade - that record's lighting and polygon attributes, so the piece is lit as the original was.
+		/// </summary>
+		internal static byte[] MaterialBlock(List<Tex0Write.NewTexture> textures, List<bool> doubleSided, byte[] template)
+		{
+			int n = textures.Count;
 			byte[] matDict = Tex0Write.Dictionary(Enumerable.Range(0, n).Select(i => "m" + i).ToList(), 4, _ => new byte[4]);
 			byte[] texDict = Tex0Write.Dictionary(textures.Select(tx => tx.Name).ToList(), 4, _ => new byte[4]);
 			byte[] plttDict = Tex0Write.Dictionary(textures.Select(tx => tx.Name + "_pl").ToList(), 4, _ => new byte[4]);
@@ -191,12 +256,18 @@ namespace Crystal
 			{
 				int p = ofsMatData + i * 44;
 				Put16(mat, p, 0); Put16(mat, p + 2, 44);
-				Put32(mat, p + 4, 0x7FFFE739);          // diffuse (as vertex colour) and ambient, w005's
-				Put32(mat, p + 8, 0x7FFF0000);          // specular and emission, w005's
-				uint polyAttr = 0x3F1F208F;             // lights 0-3, modulation, front faces, alpha 31, polygon id 63
-				if (doubleSided[i]) polyAttr |= 0xC0;   // both faces
+				uint diffAmb = 0x7FFFE739, speEmi = 0x7FFF0000, polyAttr = 0x3F1F208F, polyAttrMask = 0x3F1FF8FF;
+				if (template != null && template.Length >= 44)
+				{
+					diffAmb = BitConverter.ToUInt32(template, 4); speEmi = BitConverter.ToUInt32(template, 8);
+					polyAttr = BitConverter.ToUInt32(template, 12) & ~0xC0u; polyAttrMask = BitConverter.ToUInt32(template, 16);
+				}
+				Put32(mat, p + 4, diffAmb);             // diffuse (as vertex colour) and ambient, w005's
+				Put32(mat, p + 8, speEmi);              // specular and emission, w005's
+				// polyAttr: lights 0-3, modulation, front faces, alpha 31, polygon id 63 (w005's); both faces for a double-sided material.
+				if (doubleSided[i]) polyAttr |= 0xC0; else polyAttr |= 0x80;
 				Put32(mat, p + 12, polyAttr);
-				Put32(mat, p + 16, 0x3F1FF8FF);
+				Put32(mat, p + 16, polyAttrMask);
 				Put32(mat, p + 20, 0x00030000);         // texImageParam: repeat S and T (the texture itself is bound by name)
 				Put32(mat, p + 24, 0xFFFFFFFF);
 				Put16(mat, p + 28, 0);                  // texPlttBase
@@ -204,8 +275,13 @@ namespace Crystal
 				Put16(mat, p + 32, (ushort)textures[i].Width); Put16(mat, p + 34, (ushort)textures[i].Height);
 				Put32(mat, p + 36, 4096); Put32(mat, p + 40, 4096);
 			}
+			return mat;
+		}
 
-			// Shape block: [dict][per shape: 16-byte header then its display list].
+		/// <summary>The shape block: [dict][per shape: 16-byte header then its display list], one shape per list, with normals and texture coordinates.</summary>
+		internal static byte[] ShapeBlock(List<byte[]> lists)
+		{
+			int n = lists.Count;
 			byte[] shpDict = Tex0Write.Dictionary(Enumerable.Range(0, n).Select(i => "polygon" + i).ToList(), 4, _ => new byte[4]);
 			int shpSize = shpDict.Length + lists.Sum(l => 16 + l.Length);
 			byte[] shp = new byte[shpSize];
@@ -221,36 +297,12 @@ namespace Crystal
 				Array.Copy(lists[i], 0, shp, at + 16, lists[i].Length);
 				at += 16 + lists[i].Length;
 			}
+			return shp;
+		}
 
-			// The model: offsets, info, node dictionary + data, SBC, materials, shapes.
-			int ofsNodeInfo = 20 + 44;
-			int ofsSbc = ofsNodeInfo + nodeDict.Length + nodeData.Length;
-			int ofsMat = ofsSbc + sbc.Count;
-			int ofsShp = ofsMat + mat.Length;
-			int modelSize = ofsShp + shp.Length;
-			byte[] model = new byte[modelSize];
-			Put32(model, 0, (uint)modelSize); Put32(model, 4, (uint)ofsSbc); Put32(model, 8, (uint)ofsMat); Put32(model, 12, (uint)ofsShp); Put32(model, 16, (uint)modelSize);
-			int info = 20;
-			model[info] = 0; model[info + 1] = 0; model[info + 2] = 0;            // sbcType, scalingRule (standard), texMtxMode
-			model[info + 3] = 1; model[info + 4] = (byte)n; model[info + 5] = (byte)n; model[info + 6] = 0; model[info + 7] = 0;
-			Put32(model, info + 8, (uint)posScale); Put32(model, info + 12, (uint)(4096 * 4096 / posScale));
-			Put16(model, info + 16, (ushort)Math.Min(65535, result.Vertices)); Put16(model, info + 18, (ushort)Math.Min(65535, result.Triangles));
-			Put16(model, info + 20, (ushort)Math.Min(65535, result.Triangles)); Put16(model, info + 22, 0);
-			// The box: its corner and its size in 1/4096ths under the box's own scale, a power of two that fits.
-			float boxExtent = Math.Max(Math.Max(Math.Abs(min[0]), Math.Abs(min[1])), Math.Max(Math.Abs(min[2]), Math.Max(Math.Max(max[0] - min[0], max[1] - min[1]), max[2] - min[2])));
-			int boxShift = 0;
-			while ((7.99f * (1 << boxShift)) < boxExtent && boxShift < 12) boxShift++;
-			float boxFixed = 4096f / (1 << boxShift);
-			Put16(model, info + 24, (ushort)(short)Math.Round(min[0] * boxFixed)); Put16(model, info + 26, (ushort)(short)Math.Round(min[1] * boxFixed)); Put16(model, info + 28, (ushort)(short)Math.Round(min[2] * boxFixed));
-			Put16(model, info + 30, (ushort)(short)Math.Round((max[0] - min[0]) * boxFixed)); Put16(model, info + 32, (ushort)(short)Math.Round((max[1] - min[1]) * boxFixed)); Put16(model, info + 34, (ushort)(short)Math.Round((max[2] - min[2]) * boxFixed));
-			Put32(model, info + 36, (uint)(4096 << boxShift)); Put32(model, info + 40, (uint)(4096 >> boxShift));
-			Array.Copy(nodeDict, 0, model, ofsNodeInfo, nodeDict.Length);
-			Array.Copy(nodeData, 0, model, ofsNodeInfo + nodeDict.Length, nodeData.Length);
-			sbc.CopyTo(model, ofsSbc);
-			Array.Copy(mat, 0, model, ofsMat, mat.Length);
-			Array.Copy(shp, 0, model, ofsShp, shp.Length);
-
-			// MDL0: head, the model dictionary, the model.
+		/// <summary>A model's bytes wrapped as the game ships them: MDL0 (head, a one-model dictionary, the model), BMD0 with that one block, the NMDP head (kind 2, a model).</summary>
+		internal static byte[] Package(byte[] model, string name)
+		{
 			byte[] mdlDict = Tex0Write.Dictionary(new List<string> { name }, 4, _ => new byte[4]);
 			int ofsModel = 8 + mdlDict.Length;
 			Put32(mdlDict, 8 + 2 * 4 + 4, (uint)ofsModel);
@@ -268,13 +320,11 @@ namespace Crystal
 			byte[] nmdp = new byte[48 + bmd0.Length];
 			Ascii(nmdp, 0, "NMDP"); Put32(nmdp, 4, 0x1000); Put32(nmdp, 16, 1); Put32(nmdp, 20, 2); Put32(nmdp, 24, (uint)bmd0.Length); Put32(nmdp, 28, 48);
 			Array.Copy(bmd0, 0, nmdp, 48, bmd0.Length);
-			result.Nmdp = nmdp;
-			result.Ntxp = Tex0Write.Build(textures);
-			return result;
+			return nmdp;
 		}
 
 		/// <summary>A material's texture: its picture times its base colour, or a plain 8x8 of the colour; a power-of-two side of 8..1024; pal256.</summary>
-		private static Tex0Write.NewTexture TextureOf(GltfFile file, GltfMaterial material, string texName, List<string> notes)
+		internal static Tex0Write.NewTexture TextureOf(GltfFile file, GltfMaterial material, string texName, List<string> notes)
 		{
 			byte[] rgba = null; int w = 0, h = 0;
 			if (material.Image >= 0 && material.Image < file.Images.Count && file.Images[material.Image].Bytes != null)
@@ -311,7 +361,7 @@ namespace Crystal
 		}
 
 		/// <summary>A box resample to the new size (nearest when growing, averaged when shrinking).</summary>
-		private static byte[] Resample(byte[] src, int w, int h, int nw, int nh)
+		internal static byte[] Resample(byte[] src, int w, int h, int nw, int nh)
 		{
 			byte[] dst = new byte[nw * nh * 4];
 			for (int y = 0; y < nh; y++)
@@ -366,7 +416,7 @@ namespace Crystal
 		private static float[] Turn(float[] m, float x, float y, float z) => new[] { m[0] * x + m[1] * y + m[2] * z, m[3] * x + m[4] * y + m[5] * z, m[6] * x + m[7] * y + m[8] * z };
 
 		/// <summary>A NORMAL parameter: three 10-bit 1.9 fixed components.</summary>
-		private static uint Normal(float x, float y, float z)
+		internal static uint Normal(float x, float y, float z)
 		{
 			float len = MathF.Sqrt(x * x + y * y + z * z);
 			if (len < 1e-6f) { x = 0; y = 1; z = 0; } else { x /= len; y /= len; z /= len; }
@@ -374,10 +424,10 @@ namespace Crystal
 			return (uint)((nx & 0x3FF) | ((ny & 0x3FF) << 10) | ((nz & 0x3FF) << 20));
 		}
 
-		private static int Fixed16(float v) => Math.Clamp((int)Math.Round(v), -32768, 32767);
+		internal static int Fixed16(float v) => Math.Clamp((int)Math.Round(v), -32768, 32767);
 
 		/// <summary>A DS display list: commands packed four to a word, each word's parameters after it, NOPs to fill the last word; a zero word after a trailing parameterless word, as the shipped lists end.</summary>
-		private sealed class DisplayList
+		internal sealed class DisplayList
 		{
 			private readonly List<(byte cmd, uint[] args)> _pending = new List<(byte, uint[])>();
 			private readonly List<byte> _bytes = new List<byte>();
@@ -408,9 +458,9 @@ namespace Crystal
 			}
 		}
 
-		private static int Align(int v, int to) => (v + to - 1) / to * to;
-		private static void Ascii(byte[] d, int at, string s) { for (int i = 0; i < s.Length; i++) d[at + i] = (byte)s[i]; }
-		private static void Put16(byte[] d, int at, ushort v) { d[at] = (byte)v; d[at + 1] = (byte)(v >> 8); }
-		private static void Put32(byte[] d, int at, uint v) { d[at] = (byte)v; d[at + 1] = (byte)(v >> 8); d[at + 2] = (byte)(v >> 16); d[at + 3] = (byte)(v >> 24); }
+		internal static int Align(int v, int to) => (v + to - 1) / to * to;
+		internal static void Ascii(byte[] d, int at, string s) { for (int i = 0; i < s.Length; i++) d[at + i] = (byte)s[i]; }
+		internal static void Put16(byte[] d, int at, ushort v) { d[at] = (byte)v; d[at + 1] = (byte)(v >> 8); }
+		internal static void Put32(byte[] d, int at, uint v) { d[at] = (byte)v; d[at + 1] = (byte)(v >> 8); d[at + 2] = (byte)(v >> 16); d[at + 3] = (byte)(v >> 24); }
 	}
 }

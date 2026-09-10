@@ -624,6 +624,40 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/project/models/reskin":
+				{
+					// A model of the game's remade from the project's glTF (Mdl0Reskin): the skeleton and
+					// motions the game's, the mesh and textures the file's. { model: files/j101.nmdp.lz,
+					// asset: assets/hero.glb } writes the model and its .ntxp as this target's overrides;
+					// { model, revert: true } takes them out again.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string modelName = body?["model"]?.GetValue<string>();
+						if (string.IsNullOrWhiteSpace(modelName) || !modelName.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("no model (files/j101.nmdp.lz) named");
+						string texturesName = modelName.Substring(0, modelName.Length - 8) + ".ntxp.lz";
+						if (body?["revert"]?.GetValue<bool>() == true)
+						{
+							bool had = _workspace.Revert(modelName) | _workspace.Revert(texturesName);
+							SendJson(context, new { ok = true, reverted = had });
+							return;
+						}
+						string asset = body?["asset"]?.GetValue<string>();
+						if (string.IsNullOrWhiteSpace(asset)) throw new ArgumentException("no glTF named");
+						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
+						byte[] shipped = _workspace.ReadShipped(modelName) ?? throw new ArgumentException("the game has no " + modelName + " to remake");
+						string stem = Path.GetFileName(modelName);
+						stem = stem.Substring(0, stem.IndexOf('.'));
+						Mdl0Reskin.Result made = Mdl0Reskin.Build(Lz.Decompress(shipped), OpenFF.Graphics.GltfFile.Load(gltfPath), stem);
+						_workspace.Write(modelName, Lz.Compress(made.Nmdp));
+						_workspace.Write(texturesName, Lz.Compress(made.Ntxp));
+						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/project/monsters":
 				{
 					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
