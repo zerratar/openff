@@ -726,27 +726,100 @@ function makeModelViewer(canvas, status, options = {}) {
         const blended = new Map();
         for (const j of new Set([...m.keys(), ...around.keys()])) blended.set(j, (1 - amount) * (m.get(j) || 0) + amount * (around.get(j) || 0) / n);
         storeWeights(c, blended);
-      } else {
+      } else if (sign > 0) {
+        // Add: the bone takes the amount and the others give way in proportion.
         const had = m.get(bone) || 0;
-        const want = Math.max(0, Math.min(1, had + sign * amount));
+        const want = Math.min(1, had + amount);
         const others = [...m.entries()].filter(([j]) => j !== bone);
         const othersTotal = others.reduce((s, [, w]) => s + w, 0);
         const next = new Map();
         if (othersTotal > 0) for (const [j, w] of others) next.set(j, w / othersTotal * (1 - want));
-        else if (want < 1) {
-          // The bone is all this vertex has: what is taken off it goes to the bone's parent
-          // (a hand's to the forearm), since a vertex must go somewhere.
-          const parent = parentJoint(bone);
-          if (parent >= 0 && parent !== bone) next.set(parent, 1 - want); else next.set(bone, 1);
-        }
-        next.set(bone, othersTotal > 0 || want < 1 ? want : 1);
-        if (!next.has(bone) || [...next.values()].reduce((s, w) => s + w, 0) <= 0) next.set(bone, 1);
+        next.set(bone, othersTotal > 0 ? want : 1);
         storeWeights(c, next);
+      } else {
+        storeWeights(c, takeOff(c, m, bone, amount));
       }
       // Every vertex at this position takes the same weights.
       if (canonical) for (let v2 = 0; v2 < count; v2++) if (canonical[v2] === c && v2 !== c) { for (let k = 0; k < 4; k++) { skin.jointIndex[v2 * 4 + k] = skin.jointIndex[c * 4 + k]; skin.weights[v2 * 4 + k] = skin.weights[c * 4 + k]; } }
     }
     return touched.length;
+  }
+
+  /// Erase: a vertex's weights with <paramref name="amount"/> taken off one bone, and what came off
+  /// handed to where the surface around the vertex is bound - its neighbours' bones, this one left
+  /// out - so a chest vertex losing its chest weight goes to the chest around it, not to a stray
+  /// hand weight it happened to carry (which would fling it to the hand). Without neighbours that
+  /// know better: its own other bones if they amount to something, else the bone's parent.
+  function takeOff(c, m, bone, amount) {
+    const had = m.get(bone) || 0;
+    const want = Math.max(0, had - amount);
+    const removed = had - want;
+    const next = new Map(m);
+    if (removed <= 0) return next;
+    const pool = new Map();
+    for (const other of adjacency[c] || []) for (const [j, w] of weightsOf(other)) if (j !== bone) pool.set(j, (pool.get(j) || 0) + w);
+    let poolTotal = [...pool.values()].reduce((s, w) => s + w, 0);
+    if (poolTotal <= 0) {
+      for (const [j, w] of m) if (j !== bone) pool.set(j, w);
+      poolTotal = [...pool.values()].reduce((s, w) => s + w, 0);
+      if (poolTotal < 0.2) {
+        pool.clear();
+        const parent = parentJoint(bone);
+        pool.set(parent >= 0 && parent !== bone ? parent : bone, 1);
+        poolTotal = 1;
+      }
+    }
+    for (const [j, w] of pool) next.set(j, (next.get(j) || 0) + removed * w / poolTotal);
+    next.set(bone, want);
+    return next;
+  }
+
+  /// Takes a bone off every vertex that carries it, the weight going where erase sends it. Returns how many.
+  function clearBone(bone) {
+    if (!adjacency) buildAdjacency();
+    const count = bundle.buffer.length / 8;
+    let cleared = 0;
+    // Twice: a vertex whose neighbours all had only this bone gets a real pool the second time.
+    for (let round = 0; round < 2; round++) {
+      for (let c = 0; c < count; c++) {
+        if (canonical && canonical[c] !== c) continue;
+        const m = weightsOf(c);
+        if (!(m.get(bone) > 0)) continue;
+        storeWeights(c, takeOff(c, m, bone, 1));
+        if (round === 0) cleared++;
+      }
+    }
+    copyTwins();
+    return cleared;
+  }
+
+  /// One smoothing pass over the whole mesh: each vertex half its own weights, half its neighbours' mean.
+  function smoothAll() {
+    if (!adjacency) buildAdjacency();
+    const count = bundle.buffer.length / 8;
+    const before = new Map();
+    for (let c = 0; c < count; c++) if (!canonical || canonical[c] === c) before.set(c, weightsOf(c));
+    for (const [c, mine] of before) {
+      const around = new Map();
+      let n = 0;
+      for (const other of adjacency[c] || []) { const theirs = before.get(other); if (!theirs) continue; for (const [j, w] of theirs) around.set(j, (around.get(j) || 0) + w); n++; }
+      if (n === 0) continue;
+      const blended = new Map();
+      for (const j of new Set([...mine.keys(), ...around.keys()])) blended.set(j, 0.5 * (mine.get(j) || 0) + 0.5 * (around.get(j) || 0) / n);
+      storeWeights(c, blended);
+    }
+    copyTwins();
+  }
+
+  /// Every vertex at a position takes its canonical twin's weights.
+  function copyTwins() {
+    if (!canonical) return;
+    const skin = bundle.skin, count = bundle.buffer.length / 8;
+    for (let v = 0; v < count; v++) {
+      const c = canonical[v];
+      if (c === v) continue;
+      for (let k = 0; k < 4; k++) { skin.jointIndex[v * 4 + k] = skin.jointIndex[c * 4 + k]; skin.weights[v * 4 + k] = skin.weights[c * 4 + k]; }
+    }
   }
 
   /// The joint above a joint in the game's tree (through the rig's parents), or -1 without a rig.
@@ -1001,6 +1074,25 @@ function makeModelViewer(canvas, status, options = {}) {
       let bone = -1, w = 0;
       for (let k = 0; k < 4; k++) if (bundle.skin.weights[best * 4 + k] > w) { w = bundle.skin.weights[best * 4 + k]; bone = bundle.skin.jointIndex[best * 4 + k]; }
       return bone;
+    },
+
+    /// Takes the painted bone off the whole mesh (an undo step of its own). Returns how many vertices carried it.
+    clearBone(bone) {
+      if (!bundle || !bundle.skin || bone < 0) return 0;
+      this.beginStroke();
+      const n = clearBone(bone);
+      skinTo(skinFrame);
+      draw();
+      return n;
+    },
+
+    /// One smoothing pass over every vertex (an undo step of its own).
+    smoothAll() {
+      if (!bundle || !bundle.skin) return;
+      this.beginStroke();
+      smoothAll();
+      skinTo(skinFrame);
+      draw();
     },
 
     undoPaint() {

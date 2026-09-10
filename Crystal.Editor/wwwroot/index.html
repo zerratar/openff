@@ -436,6 +436,10 @@
           <label>strength <input type="range" class="paint-strength" min="0.02" max="1" step="0.02" value="0.3"><span class="paint-strength-value">0.30</span></label>
           <label class="toggle" title="paint the x-mirrored spot too, with the L_/R_ counterpart bone"><input type="checkbox" class="paint-mirror" checked> mirror</label>
           <button class="paint-undo" title="Ctrl+Z">Undo</button>
+          <button class="paint-clear" title="take the picked bone off every vertex: its weight goes to the bones around each vertex (one undo step)">Clear bone</button>
+          <button class="paint-smooth-all" title="one smoothing pass over the whole mesh (one undo step)">Smooth all</button>
+          <button class="paint-discard" title="throw away every unsaved stroke: the weights as the file has them">Discard</button>
+          <button class="paint-rerig" title="run the auto-rig again from the original, unrigged file and start over (the saved weights are replaced)" hidden>Redo auto-rig</button>
           <button class="paint-save" title="write the weights into the .glb and remake the game model from it">Save weights</button>
           <span class="paint-hint">left drag paints · right drag orbits · Alt+click picks the bone · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind · to move a part to another bone, pick that bone and add · erase on a vertex's only bone hands the weight to the bone's parent</span>
         </span>

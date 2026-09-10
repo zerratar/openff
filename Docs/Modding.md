@@ -755,9 +755,15 @@ project's: the mesh becomes a heat map of one bone's weight (blue none, green ha
 and the left button paints while the right button orbits. Pick the bone from the list, from
 the hierarchy's *Bones* tree (the file's joints nested as the file has them, each row folding
 its children away; the inspector says what the bone moves), or Alt+click the mesh to take
-the bone under the cursor. *add* puts weight on, *erase* takes it off (on a vertex's only bone
-the weight goes to that bone's parent, a hand's to the forearm), *smooth* blends with the
-neighbours; radius and strength are the brush, more at its centre; *mirror* paints the
+the bone under the cursor. *add* puts weight on and the vertex's other bones give way in
+proportion; *erase* takes it off, and what comes off goes where the surface around the vertex
+is bound - its neighbours' bones - never in proportion to what the vertex itself happened to
+carry (a chest vertex with a stray hand weight would fly to the hand); a vertex whose
+neighbours know no better falls back to its own other bones, else the bone's parent. *smooth*
+blends with the neighbours. *Clear bone* takes the picked bone off the whole mesh the same
+way, *Smooth all* is one smoothing pass over everything (each an undo step), *Discard* throws
+the unsaved strokes away, and *Redo auto-rig* runs the auto-rig again from the original,
+unrigged file (`<name>.glb` beside `<name>-rigged.glb`) and starts over; radius and strength are the brush, more at its centre; *mirror* paints the
 x-mirrored spot with the `L_`/`R_` counterpart. The brush is a ring drawn on the surface under
 the cursor, in that surface's plane, yellow for add, red for erase, blue for smooth - and it
 paints the surface it sits on: out from the touched triangle along the mesh's own edges to the

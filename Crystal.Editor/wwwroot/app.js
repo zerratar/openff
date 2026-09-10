@@ -1944,6 +1944,42 @@ async function openModel(name) {
     paintChanged = () => { dirty = true; hint.textContent = 'unsaved changes - Save weights writes them into the .glb and remakes the game model'; hint.classList.add('paint-dirty'); };
     undo.onclick = () => { if (!viewer.undoPaint()) say('nothing to undo'); };
     node.addEventListener('keydown', e => { if (on.checked && e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo.onclick(); } });
+    // The bulk tools: a bone off the whole mesh, a smoothing pass, the file's weights back, the auto-rig again.
+    $('.paint-clear', paintBar).onclick = () => {
+      const bone = Number(boneSelect.value);
+      if (!(bone >= 0)) return;
+      const n = viewer.clearBone(bone);
+      say(n ? `${joints[bone]} taken off ${n.toLocaleString()} vertices - their weight went to the bones around them (Undo brings it back)` : `${joints[bone]} had no vertices`);
+      if (n) paintChanged();
+    };
+    $('.paint-smooth-all', paintBar).onclick = () => { viewer.smoothAll(); paintChanged(); say('one smoothing pass over the whole mesh (Undo brings it back)'); };
+    $('.paint-discard', paintBar).onclick = async () => {
+      if (!dirty) { say('nothing to discard - the weights are as the file has them'); return; }
+      await openDoc('model', name, { reload: true });
+      say('unsaved strokes thrown away - the weights are as the file has them');
+    };
+    // The rigged file's origin: <stem>-rigged.glb came from <stem>.glb, still in the assets.
+    const rerig = $('.paint-rerig', paintBar);
+    const origin = /-rigged\.glb$/i.test(name) ? name.replace(/-rigged\.glb$/i, '.glb') : null;
+    const boundTo = viewer.skinModel();
+    if (origin && boundTo && typeof projectState !== 'undefined' && projectState.project) {
+      rerig.hidden = false;
+      rerig.onclick = async () => {
+        if (!confirm(`Run the auto-rig again from ${origin.replace(/^assets\//, '')}? The weights saved in ${shortName(name)} are replaced.`)) return;
+        rerig.disabled = true;
+        say('rigging again\u2026');
+        try {
+          const made = await api('/api/project/models/reskin', { model: boundTo, asset: origin });
+          if (!made.ok) throw new Error(made.error);
+          for (const note of made.notes || []) logLine('auto-rig: ' + note);
+          say(`${shortName(name)} rigged again from ${origin.replace(/^assets\//, '')} and ${made.model} remade`, 'good');
+          await openDoc('model', name, { reload: true });
+        } catch (error) {
+          say(error.message, 'bad');
+          rerig.disabled = false;
+        }
+      };
+    }
     save.onclick = async () => {
       const data = viewer.weightsData();
       if (!data) return;
