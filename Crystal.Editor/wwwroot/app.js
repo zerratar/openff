@@ -1933,6 +1933,7 @@ async function openModel(name) {
           const made = await api('/api/project/models/reskin', { model: name, asset });
           if (!made.ok) throw new Error(made.error);
           const parts = [`${made.model} remade: ${made.triangles.toLocaleString()} triangles, ${made.materials} material(s)`];
+          if (made.rigged) parts.push(`the file had no rig - bound to the skeleton automatically as ${made.rigged.replace(/^assets\//, '')}`);
           if (made.blended) parts.push(`${made.blended.toLocaleString()} vertices through the game's blends`);
           if (made.snapped) parts.push(`${made.snapped.toLocaleString()} snapped to the nearest bone`);
           if (made.gltf) parts.push('in OpenFF the client draws the glTF itself, weights and textures as in Blender (defs/models)');
@@ -2012,10 +2013,14 @@ async function wireAnimation(node, viewer, packageName, options = {}) {
   if (!bar) return null;
   let target = options.target || viewer;
   let onFrame = options.onFrame || null;
-  // A model with no motions of its own (a glTF asset) has an empty transport, not a broken one.
+  // A skinned glTF whose joints are a game model's bones (a remade or auto-rigged character)
+  // plays that model's motions: the packs are the model's, the pose its node matrices per
+  // frame, and the viewer skins the file with them. Any other glTF has an empty transport.
+  const skinModel = () => (typeof target.skinModel === 'function' ? target.skinModel() : null);
   const motionsOf = async (name) => {
-    if (/\.(glb|gltf)$/i.test(name || '')) return [];   // a glTF's clips are its own; the game's packs mean nothing to it
-    try { const list = await api(`/api/model/motions?name=${encodeURIComponent(name)}`); return Array.isArray(list) ? list : []; }
+    let source = name;
+    if (/\.(glb|gltf)$/i.test(name || '')) { source = skinModel(); if (!source) return []; }
+    try { const list = await api(`/api/model/motions?name=${encodeURIComponent(source)}`); return Array.isArray(list) ? list : []; }
     catch (error) { return []; }
   };
   let packs = await motionsOf(packageName);
@@ -2116,20 +2121,23 @@ async function wireAnimation(node, viewer, packageName, options = {}) {
   const loadMotion = async () => {
     playing = false;
     play.textContent = '\u25B6';
+    const skinned = /\.(glb|gltf)$/i.test(packageName || '') && skinModel();
     if (!packSelect.value) {
       pose = null;
-      target.setPose(null);
+      if (skinned) target.setSkinPose(null); else target.setPose(null);
       showFrame(0);
       return;
     }
     say('loading motion\u2026');
     const wantedName = packageName, wantedPack = packSelect.value, wantedIndex = motionSelect.value || 0;
-    const loaded = await api(`/api/model/pose?name=${encodeURIComponent(wantedName)}`
-      + `&pack=${encodeURIComponent(wantedPack)}&index=${wantedIndex}`);
+    const loaded = skinned
+      ? await api(`/api/model/rig-pose?name=${encodeURIComponent(skinned)}&pack=${encodeURIComponent(wantedPack)}&index=${wantedIndex}`)
+      : await api(`/api/model/pose?name=${encodeURIComponent(wantedName)}&pack=${encodeURIComponent(wantedPack)}&index=${wantedIndex}`);
     // A retarget while the fetch was out: this pose is for a model no longer shown.
     if (wantedName !== packageName) return;
+    if (loaded && loaded.ok === false) { say(loaded.error, 'bad'); return; }
     pose = loaded;
-    target.setPose(pose);
+    if (skinned) target.setSkinPose(pose); else target.setPose(pose);
     showFrame(0);
     say('');
     playing = true;
@@ -2197,8 +2205,9 @@ async function wireAnimation(node, viewer, packageName, options = {}) {
   const start = async () => {
     // The likeliest pack by name; failing that, for a party member's model (j###) the battle
     // set b_b01 every job shares; failing that, any pack with the model's node count.
+    const drivenBy = skinModel() || packageName;
     const first = packs.find(p => p.likely)
-      || (/(^|\/)j\d{3}\./i.test(packageName) ? packs.find(p => p.fits && /(^|\/)b_b01\.ncap/i.test(p.name)) : null)
+      || (/(^|\/)j\d{3}\./i.test(drivenBy) ? packs.find(p => p.fits && /(^|\/)b_b01\.ncap/i.test(p.name)) : null)
       || null;
     if (first) {
       packSelect.value = first.name;

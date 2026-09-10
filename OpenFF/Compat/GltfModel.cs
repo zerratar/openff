@@ -57,7 +57,7 @@ namespace OpenFF.Client
 				try
 				{
 					if (file.Images[image].Bytes != null)
-						using (MemoryStream stream = new MemoryStream(file.Images[image].Bytes)) texture = Texture2D.FromStream(device, stream);
+						using (MemoryStream stream = new MemoryStream(file.Images[image].Bytes)) texture = Mipmapped(device, Texture2D.FromStream(device, stream));
 				}
 				catch (Exception ex) { model.Problem = "image " + image + ": " + ex.Message; }
 				textures[image] = texture;
@@ -71,6 +71,66 @@ namespace OpenFF.Client
 			}
 			if (file.Notes.Count > 0 && model.Problem == null) Log.Write(LogChannel.General, "meshes: " + System.IO.Path.GetFileName(path) + ": " + string.Join("; ", file.Notes));
 			return model;
+		}
+
+		/// <summary>
+		/// The picture with a mipmap chain: Texture2D.FromStream makes none, and a 2048-square
+		/// texture on a character a hundred pixels tall then shimmers with every frame's pick of
+		/// raw texels. Each level is the one above box-filtered; the sampler's linear filter
+		/// (NativeRenderer) is trilinear once the levels exist.
+		/// </summary>
+		private static Texture2D Mipmapped(GraphicsDevice device, Texture2D flat)
+		{
+			if (flat == null || flat.LevelCount > 1 || (flat.Width <= 1 && flat.Height <= 1)) return flat;
+			try
+			{
+				int w = flat.Width, h = flat.Height;
+				Color[] level = new Color[w * h];
+				flat.GetData(level);
+				// Texturing tools write 8192-square pictures; on a character a few hundred pixels tall
+				// nothing above 2048 can show, and the memory would be a quarter of a gigabyte each.
+				while (w > 2048 || h > 2048)
+				{
+					int nw = Math.Max(1, w / 2), nh = Math.Max(1, h / 2);
+					Color[] next = new Color[nw * nh];
+					for (int y = 0; y < nh; y++)
+						for (int x = 0; x < nw; x++)
+						{
+							Color a = level[Math.Min(h - 1, y * 2) * w + Math.Min(w - 1, x * 2)], b = level[Math.Min(h - 1, y * 2) * w + Math.Min(w - 1, x * 2 + 1)];
+							Color c = level[Math.Min(h - 1, y * 2 + 1) * w + Math.Min(w - 1, x * 2)], d = level[Math.Min(h - 1, y * 2 + 1) * w + Math.Min(w - 1, x * 2 + 1)];
+							next[y * nw + x] = new Color((a.R + b.R + c.R + d.R) / 4, (a.G + b.G + c.G + d.G) / 4, (a.B + b.B + c.B + d.B) / 4, (a.A + b.A + c.A + d.A) / 4);
+						}
+					level = next; w = nw; h = nh;
+				}
+				Texture2D mipped = new Texture2D(device, w, h, true, SurfaceFormat.Color);
+				mipped.SetData(0, null, level, 0, level.Length);
+				for (int i = 1; i < mipped.LevelCount; i++)
+				{
+					int nw = Math.Max(1, w / 2), nh = Math.Max(1, h / 2);
+					Color[] next = new Color[nw * nh];
+					for (int y = 0; y < nh; y++)
+						for (int x = 0; x < nw; x++)
+						{
+							int r = 0, g = 0, b = 0, a = 0, n = 0;
+							for (int dy = 0; dy < 2; dy++)
+								for (int dx = 0; dx < 2; dx++)
+								{
+									int sx = Math.Min(w - 1, x * 2 + dx), sy = Math.Min(h - 1, y * 2 + dy);
+									Color c = level[sy * w + sx];
+									r += c.R; g += c.G; b += c.B; a += c.A; n++;
+								}
+							next[y * nw + x] = new Color(r / n, g / n, b / n, a / n);
+						}
+					mipped.SetData(i, null, next, 0, next.Length);
+					level = next; w = nw; h = nh;
+				}
+				flat.Dispose();
+				return mipped;
+			}
+			catch (Exception)
+			{
+				return flat;
+			}
 		}
 
 		private static readonly Vector3 Light = Vector3.Normalize(new Vector3(0.4f, 1f, 0.6f));

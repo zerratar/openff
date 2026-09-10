@@ -94,6 +94,26 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   buffers, the Steam port's fixed 20,480 vertices a run / 32,768 a model / 256 shapes, now
   grow to fit, so a dense game-format model draws too; on an OpenFF target the writers note
   a model over the Steam limit rather than refuse it.
+- **A mesh with no rig, rigged to the character.** Remake with a plain glTF binds it to the
+  model's skeleton first (`AutoRig`, `crystal mdl-autorig`): fitted to the character's height
+  and feet, weighted from the nearest point of the original mesh's surface - the game's own
+  skinning, blends included - after the original is posed like the file (a modelled
+  character stands arms-down, the game's bind is a T; matched by proportions, the file
+  taken back into the bind pose through its new weights), then smoothed. The rigged copy
+  is written beside the file as `<name>-rigged.glb`.
+- **The viewer skins a glTF with the game's motions.** A skinned glTF whose joints are a
+  game model's bones (a remade export, an auto-rigged mesh) gets the model's transport:
+  its packs and motions, skinned in the browser from the model's node matrices per frame
+  (`/api/model/rig-pose`). Orbit and scrub to check the weights.
+- **Another rig's model, retargeted by the client.** A definition may name a glTF rigged
+  another way (Mixamo, Tripo, Rigify): bones matched by a table of the usual names and the
+  definition's `"bones"`, the file scaled and stood on its feet with its up and facing found
+  from the rig, limb bones turned into the game's bind directions, the game's motion applied
+  as world rotations down the file's own hierarchy. `scale`, `rotation`, `offset` override
+  the fit. Proportions still tell; the auto-rig is the better road for a chibi.
+- **glTF textures get mipmaps** in the client (they had none: a 2048-square texture on a
+  character a hundred pixels tall shimmered), capped at 2048 a side; JPEG textures decode
+  for the game-format remake too.
 
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 

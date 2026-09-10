@@ -152,6 +152,19 @@ namespace Crystal
 						float scale = scaleText != null && float.TryParse(scaleText, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float s) ? s : 1f;
 						return MdlImport(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, scale);
 					}
+					case "mdl-autorig":
+					{
+						string[] positional = args.Skip(1).Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+						if (positional.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						string target = args.FirstOrDefault(a => a.StartsWith("--target=", StringComparison.OrdinalIgnoreCase))?.Substring(9) ?? "steam";
+						float scale = float.TryParse(args.FirstOrDefault(a => a.StartsWith("--scale=", StringComparison.OrdinalIgnoreCase))?.Substring(8), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float sc) ? sc : 0;
+						float[] Triple(string option) { string v = args.FirstOrDefault(a => a.StartsWith("--" + option + "=", StringComparison.OrdinalIgnoreCase))?.Substring(option.Length + 3); if (v == null) return null; string[] parts = v.Split(','); return parts.Length == 3 ? parts.Select(p => float.Parse(p, System.Globalization.CultureInfo.InvariantCulture)).ToArray() : null; }
+						return MdlAutoRig(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, target, scale, Triple("rotation"), Triple("offset"));
+					}
 					case "mdl-reskin":
 					{
 						string[] positional = args.Skip(1).Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
@@ -328,6 +341,8 @@ namespace Crystal
 			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
 			Console.Error.WriteLine("  mdl-import  <file.glb|.gltf> <name> [out-dir] [--scale=n]");
 			Console.Error.WriteLine("                                    glTF -> <name>.nmdp.lz and <name>.ntxp.lz, the game's own model (a w123 for a weapon)");
+			Console.Error.WriteLine("  mdl-autorig <file.glb|.gltf> <model> [out.glb] [--target=steam] [--scale=n] [--rotation=x,y,z] [--offset=x,y,z]");
+			Console.Error.WriteLine("                                    a mesh with no rig bound to a game model's skeleton (j101...) with the game's own weights: a skinned .glb");
 			Console.Error.WriteLine("  mdl-reskin  <file.glb|.gltf> <model> [out-dir] [--target=steam]");
 			Console.Error.WriteLine("                                    a skinned glTF over a model of the game's (j101, n441): its skeleton and motions kept, the mesh and textures yours");
 			Console.Error.WriteLine("  sample-assets [out-dir]           write the sample glTFs (a sword, a shield, a chest, a shrine) - Samples/Showcase/assets by default");
@@ -861,6 +876,35 @@ namespace Crystal
 				List<Mdl0Model> models = Mdl0.Read(made.Nmdp);
 				foreach (Mdl0Model m in models)
 					Console.WriteLine("  read back: " + m.Name + " - " + m.Nodes.Count + " nodes, " + m.Vertices + " vertices, " + m.Triangles + " triangles, " + m.Materials.Count + " material(s), " + m.Pieces.Count + " piece(s), " + m.Slots.Count + " stack slot(s); box " + m.BoxW.ToString("0.##") + " x " + m.BoxH.ToString("0.##") + " x " + m.BoxD.ToString("0.##") + " at " + m.BoxX.ToString("0.##") + ", " + m.BoxY.ToString("0.##") + ", " + m.BoxZ.ToString("0.##") + (m.Notes.Count > 0 ? "; notes: " + string.Join("; ", m.Notes) : string.Empty));
+				return 0;
+			}
+			catch (Exception ex)
+			{
+				Console.Error.WriteLine(stem + ": " + ex.Message);
+				return 1;
+			}
+		}
+
+		/// <summary>A mesh with no rig bound to a game model's skeleton (AutoRig): a skinned .glb, ready for mdl-reskin or the OpenFF client.</summary>
+		private static int MdlAutoRig(string input, string modelName, string output, string target, float scale, float[] rotation, float[] offset)
+		{
+			if (!File.Exists(input))
+			{
+				Console.Error.WriteLine("no such file: " + input);
+				return 1;
+			}
+			string stem = Path.GetFileName(modelName);
+			stem = stem.Substring(0, stem.IndexOf('.') < 0 ? stem.Length : stem.IndexOf('.'));
+			string contentName = modelName.Contains('/') || modelName.Contains('\\') ? modelName.Replace('\\', '/') : "files/" + stem + ".nmdp.lz";
+			output ??= Path.Combine(Path.GetDirectoryName(Path.GetFullPath(input)), Path.GetFileNameWithoutExtension(input) + "-rigged.glb");
+			try
+			{
+				string content = Crystal.Editor.Targets.Find(target) ?? throw new FileNotFoundException("no " + target + " install found (--target=steam|oursff4|ff4steam|ours)");
+				Crystal.Editor.Workspace workspace = new Crystal.Editor.Workspace(content, null);
+				AutoRig.Result made = AutoRig.Build(workspace, contentName, OpenFF.Graphics.GltfFile.Load(input), scale, rotation, offset);
+				File.WriteAllBytes(output, made.Glb);
+				Console.WriteLine(Path.GetFileName(input) + " on " + stem + ": " + made.Triangles.ToString("N0") + " triangles, " + made.Vertices.ToString("N0") + " vertices, " + made.Bones + " bones -> " + output + " (" + made.Glb.Length.ToString("N0") + " bytes)");
+				foreach (string note in made.Notes) Console.WriteLine("  " + note);
 				return 0;
 			}
 			catch (Exception ex)

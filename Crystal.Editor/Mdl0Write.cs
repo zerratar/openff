@@ -342,7 +342,14 @@ namespace Crystal
 			byte[] rgba = null; int w = 0, h = 0;
 			if (material.Image >= 0 && material.Image < file.Images.Count && file.Images[material.Image].Bytes != null)
 			{
-				try { rgba = PngRead.Decode(file.Images[material.Image].Bytes, out w, out h); }
+				byte[] bytes = file.Images[material.Image].Bytes;
+				try
+				{
+					// A PNG through our own reader; anything else (a JPEG, as texturing tools like to write) through the platform's.
+					if (bytes.Length > 8 && bytes[0] == 0x89 && bytes[1] == (byte)'P') rgba = PngRead.Decode(bytes, out w, out h);
+					else if (OperatingSystem.IsWindows()) rgba = DecodeWithPlatform(bytes, out w, out h);
+					else throw new InvalidDataException("not a PNG, and only Windows decodes the rest");
+				}
 				catch (Exception ex) { notes.Add((material.Name ?? texName) + ": its picture is not read (" + ex.Message + ") - the base colour stands in"); rgba = null; }
 			}
 			if (rgba == null) { w = h = 8; rgba = new byte[8 * 8 * 4]; for (int i = 0; i < 64; i++) { rgba[i * 4] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = rgba[i * 4 + 3] = 255; } }
@@ -364,6 +371,32 @@ namespace Crystal
 			bool clear = false;
 			for (int i = 0; i < w * h && !clear; i++) clear = rgba[i * 4 + 3] < 128;
 			return new Tex0Write.NewTexture { Name = texName, Format = 4, Transparent0 = clear, Rgba = rgba, Width = w, Height = h };
+		}
+
+		/// <summary>A picture in any format Windows decodes (JPEG, BMP, GIF...) as RGBA, through System.Drawing.</summary>
+		[System.Runtime.Versioning.SupportedOSPlatform("windows")]
+		private static byte[] DecodeWithPlatform(byte[] bytes, out int width, out int height)
+		{
+			using System.IO.MemoryStream stream = new System.IO.MemoryStream(bytes);
+			using System.Drawing.Bitmap bitmap = new System.Drawing.Bitmap(stream);
+			width = bitmap.Width; height = bitmap.Height;
+			byte[] rgba = new byte[width * height * 4];
+			System.Drawing.Imaging.BitmapData data = bitmap.LockBits(new System.Drawing.Rectangle(0, 0, width, height), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+			try
+			{
+				byte[] row = new byte[width * 4];
+				for (int y = 0; y < height; y++)
+				{
+					System.Runtime.InteropServices.Marshal.Copy(data.Scan0 + y * data.Stride, row, 0, row.Length);
+					for (int x = 0; x < width; x++)
+					{
+						int o = (y * width + x) * 4;
+						rgba[o] = row[x * 4 + 2]; rgba[o + 1] = row[x * 4 + 1]; rgba[o + 2] = row[x * 4]; rgba[o + 3] = row[x * 4 + 3];
+					}
+				}
+			}
+			finally { bitmap.UnlockBits(data); }
+			return rgba;
 		}
 
 		private static int Pow2(int v)

@@ -98,6 +98,13 @@ function makeModelViewer(canvas, status, options = {}) {
   let textures = new Map();
   let showHidden = false;
 
+  // A skinned glTF driven by a game model's motion (/api/model/rig-pose): the rig's node
+  // matrices per frame, the joint -> node map by name, and a copy of the vertex buffer the
+  // skinned positions are written into each frame. Null: the file as it is.
+  let skinRig = null;
+  let skinJointNode = null;
+  let skinBuffer = null;
+
   // A second model under the first - a character the viewed weapon sits on - with its own
   // buffers, textures and pose; and the matrix that puts the viewed model where it goes
   // (the hand joint, the grip's turn and offset, the item's own fit). Null for neither.
@@ -289,6 +296,54 @@ function makeModelViewer(canvas, status, options = {}) {
     draw();
   }
 
+  /// The skinned glTF at a frame of the rig's motion: every vertex through its four joints -
+  /// the file's inverse bind, then the game node's matrix for the frame (the node the joint is
+  /// named after) - written into the vertex buffer. Frame -1 puts the file back as it is.
+  function skinTo(frame) {
+    const skin = bundle && bundle.skin;
+    if (!skin) return;
+    if (frame < 0 || !skinRig) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bundle.buffer), gl.STATIC_DRAW);
+      return;
+    }
+    if (!skinBuffer) skinBuffer = new Float32Array(bundle.buffer);
+    const nodeCount = skinRig.nodes.length;
+    const stride = nodeCount * 12;
+    const at = Math.max(0, Math.min(skinRig.frames - 1, frame)) * stride;
+    const joints = skin.joints.length;
+    const matrices = new Array(joints);
+    for (let j = 0; j < joints; j++) {
+      const n = skinJointNode[j];
+      if (n < 0) { matrices[j] = null; continue; }
+      const w = skinRig.worlds;
+      const o = at + n * 12;
+      const world = [w[o], w[o + 1], w[o + 2], 0, w[o + 3], w[o + 4], w[o + 5], 0, w[o + 6], w[o + 7], w[o + 8], 0, w[o + 9], w[o + 10], w[o + 11], 1];
+      const ibm = skin.inverseBind.slice(j * 16, j * 16 + 16);
+      matrices[j] = multiply(world, ibm);
+    }
+    const count = bundle.buffer.length / 8;
+    const local = skin.local, index = skin.jointIndex, weight = skin.weights;
+    for (let v = 0; v < count; v++) {
+      const x = local[v * 3], y = local[v * 3 + 1], z = local[v * 3 + 2];
+      let px = 0, py = 0, pz = 0, total = 0;
+      for (let k = 0; k < 4; k++) {
+        const wk = weight[v * 4 + k];
+        const j = index[v * 4 + k];
+        if (wk <= 0 || j < 0 || !matrices[j]) continue;
+        const m = matrices[j];
+        px += wk * (m[0] * x + m[4] * y + m[8] * z + m[12]);
+        py += wk * (m[1] * x + m[5] * y + m[9] * z + m[13]);
+        pz += wk * (m[2] * x + m[6] * y + m[10] * z + m[14]);
+        total += wk;
+      }
+      if (total <= 0) { skinBuffer[v * 8] = bundle.buffer[v * 8]; skinBuffer[v * 8 + 1] = bundle.buffer[v * 8 + 1]; skinBuffer[v * 8 + 2] = bundle.buffer[v * 8 + 2]; continue; }
+      skinBuffer[v * 8] = px / total; skinBuffer[v * 8 + 1] = py / total; skinBuffer[v * 8 + 2] = pz / total;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, skinBuffer, gl.DYNAMIC_DRAW);
+  }
+
   function offsetsOf(next) {
     const offsets = [];
     if (next && next.counts) {
@@ -336,6 +391,9 @@ function makeModelViewer(canvas, status, options = {}) {
       uploadModel(model, vertexBuffer, indexBuffer, indexAttrBuffer);
       pose = null;
       poseFrame = 0;
+      skinRig = null;
+      skinJointNode = null;
+      skinBuffer = null;
 
       centre = model.centre || [0, 0, 0];
       distance = (model.radius || 1) * 3;
@@ -420,10 +478,26 @@ function makeModelViewer(canvas, status, options = {}) {
     },
 
     setFrame(frame) {
+      if (skinRig) { skinTo(Math.floor(frame)); draw(); return; }
       if (!pose) return;
       poseFrame = Math.max(0, Math.min(pose.frames - 1, Math.floor(frame)));
       draw();
     },
+
+    /// A skinned glTF driven by a game model's motion: `rig` is the /api/model/rig-pose answer
+    /// (nodes, frames, worlds), or null for the file as it is. Joints find their node by name.
+    setSkinPose(rig) {
+      skinRig = rig && rig.frames > 0 && bundle && bundle.skin ? rig : null;
+      if (!skinRig) { skinTo(-1); draw(); return; }
+      const byName = new Map(rig.nodes.map((n, i) => [String(n).toLowerCase(), i]));
+      skinJointNode = bundle.skin.joints.map(j => byName.has(String(j).toLowerCase()) ? byName.get(String(j).toLowerCase()) : -1);
+      skinTo(0);
+      draw();
+    },
+
+    /// Whether the shown model is a skinned glTF, and which game model drives it (or null).
+    skinModel() { return bundle && bundle.skin ? (bundle.skin.model || null) : null; },
+    hasSkin() { return Boolean(bundle && bundle.skin); },
 
     redraw: draw
   };

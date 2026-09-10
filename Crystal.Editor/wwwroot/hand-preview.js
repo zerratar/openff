@@ -17,6 +17,8 @@ async function wireHandPreview(node, viewer, name, model, transport) {
   const isAsset = /\.(glb|gltf)$/i.test(name);
   const isWeaponModel = /(^|\/)w\d{3}\.nmdp\.lz$/i.test(name);
   if (!isAsset && !isWeaponModel) return;
+  // A skinned character file is a body of its own, not something to put in a hand.
+  if (model && model.skin) return;
 
   // The item definition whose look this model is, for the fit fields; none for the game's own w###.
   let item = null;

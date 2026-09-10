@@ -39,6 +39,17 @@ namespace Crystal
 		/// </summary>
 		public static byte[] Write(ModelBundle bundle, Func<string, byte[]> texturePng, Models.Rig rig)
 		{
+			return Write(bundle, texturePng, rig, null, null);
+		}
+
+		/// <summary>
+		/// As above, with <paramref name="vertexWeights"/> giving each vertex's joints and weights
+		/// outright (an auto-rigged mesh, whose bundle has no matrix instances) and
+		/// <paramref name="normals"/> three floats a vertex when the mesh has them. A texture's
+		/// bytes may be a JPEG; the image is marked by what the bytes are.
+		/// </summary>
+		public static byte[] Write(ModelBundle bundle, Func<string, byte[]> texturePng, Models.Rig rig, Func<int, (int Node, float Weight)[]> vertexWeights, float[] normals)
+		{
 			BinaryWriter bin = new BinaryWriter(new MemoryStream());
 			JsonArray bufferViews = new JsonArray();
 			JsonArray accessors = new JsonArray();
@@ -121,7 +132,8 @@ namespace Crystal
 				Put(coords, v * 8, bundle.Buffer[at + 3], bundle.Buffer[at + 4]);
 				Put(colours, v * 12, bundle.Buffer[at + 5], bundle.Buffer[at + 6], bundle.Buffer[at + 7]);
 				int local = bundle.MatrixIndex != null && v < bundle.MatrixIndex.Count ? bundle.MatrixIndex[v] : 0;
-				(int Node, float Weight)[] bones = WeightsFor(groupOfVertex[v], local);
+				(int Node, float Weight)[] bones = vertexWeights != null ? (vertexWeights(v) ?? new[] { (0, 1f) }) : WeightsFor(groupOfVertex[v], local);
+				if (bones.Length > 4) bones = bones.OrderByDescending(w => w.Weight).Take(4).ToArray();
 				float[] w4 = new float[4];
 				for (int k = 0; k < 4; k++)
 				{
@@ -142,6 +154,13 @@ namespace Crystal
 			int colourAccessor = Accessor(colourView, 5126, vertexCount, "VEC3");
 			int jointAccessor = Accessor(jointView, 5123, vertexCount, "VEC4");
 			int weightAccessor = Accessor(weightView, 5126, vertexCount, "VEC4");
+			int normalAccessor = -1;
+			if (normals != null && normals.Length >= vertexCount * 3)
+			{
+				byte[] normalBytes = new byte[vertexCount * 12];
+				for (int v = 0; v < vertexCount; v++) Put(normalBytes, v * 12, normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]);
+				normalAccessor = Accessor(View(normalBytes, 34962), 5126, vertexCount, "VEC3");
+			}
 
 			// ---- textures and materials ---------------------------------------------------------
 			JsonArray images = new JsonArray();
@@ -169,7 +188,8 @@ namespace Crystal
 						if (png != null)
 						{
 							int view = View(png);
-							images.Add(new JsonObject { ["bufferView"] = view, ["mimeType"] = "image/png", ["name"] = group.Texture });
+							bool jpeg = png.Length > 2 && png[0] == 0xFF && png[1] == 0xD8;
+							images.Add(new JsonObject { ["bufferView"] = view, ["mimeType"] = jpeg ? "image/jpeg" : "image/png", ["name"] = group.Texture });
 							textures.Add(new JsonObject { ["source"] = images.Count - 1, ["sampler"] = 0, ["name"] = group.Texture });
 							texture = textures.Count - 1;
 						}
@@ -212,13 +232,15 @@ namespace Crystal
 				}
 				int indexView = View(indices, 34963);
 				int indexAccessor = Accessor(indexView, 5125, group.Count, "SCALAR");
+				JsonObject attributes = new JsonObject
+				{
+					["POSITION"] = positionAccessor, ["TEXCOORD_0"] = coordAccessor, ["COLOR_0"] = colourAccessor,
+					["JOINTS_0"] = jointAccessor, ["WEIGHTS_0"] = weightAccessor
+				};
+				if (normalAccessor >= 0) attributes["NORMAL"] = normalAccessor;
 				primitives.Add(new JsonObject
 				{
-					["attributes"] = new JsonObject
-					{
-						["POSITION"] = positionAccessor, ["TEXCOORD_0"] = coordAccessor, ["COLOR_0"] = colourAccessor,
-						["JOINTS_0"] = jointAccessor, ["WEIGHTS_0"] = weightAccessor
-					},
+					["attributes"] = attributes,
 					["indices"] = indexAccessor,
 					["material"] = MaterialFor(group),
 					["mode"] = 4,

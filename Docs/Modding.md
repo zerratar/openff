@@ -696,8 +696,44 @@ The joints match the model's nodes by name; the inverse bind matrices are the fi
 the armature must stay where the export put it. A joint the model lacks is noted and left
 out of the blend; a mesh with no skin rides on the model's root node.
 
+**A mesh with no rig at all** is bound to the character's skeleton for you (`AutoRig`;
+`crystal mdl-autorig file.glb j101`): Remake with such a file writes `assets/<name>-rigged.glb`
+first and goes on with that. The mesh is scaled to the character's height and stood on its
+feet (or as `scale`/`rotation`/`offset` in the request say); then every vertex takes the
+game's own weights from the nearest point of the original mesh's surface (the three nearest
+triangles, the corners' weights blended by where the point lies, the nearest triangle
+counting far more), smoothed once over the mesh. Because a modelled character stands with
+its arms down while the game's bind pose is a T, the original is first put into a frame
+that looks like the file - the battle idle's first frame, chosen when the file's proportions
+are nearer it than the T - the weights are taken against that, and the file's vertices are
+then carried back into the bind pose through the weights they got. Without this the sleeves
+take the chest's weights and swing as a shirt while the arm stays. The result is a skinned
+glTF with the game's joint names at the game's bind pose: exact on OpenFF, the game format
+for Steam and the viewer. The closer the mesh's volume to the original's, the better the
+weights land; a mesh of quite other proportions (a realistic body on the chibi skeleton)
+is a case for the retarget below instead.
+
+**Another rig's model** (Mixamo, Tripo, Rigify, a hand-made one) is retargeted by the
+client at draw time: its bones matched to the game's by a table of the usual names
+(`Hips, Spine1, Head, LeftArm, R_Forearm, mixamorig:RightHand`...) plus the definition's
+`"bones"`, twist and helper bones following their nearest matched ancestor; the file scaled
+to the model's height and stood on its feet, its up and facing found from the rig (a file
+facing -z is turned round); each limb bone turned into the game bone's direction at bind;
+and the game's motion applied as each node's world rotation from its bind pose about the
+file's own joint, positions running down the file's own hierarchy so limbs of other lengths
+stay in one piece. `--retarget-force` sends the export's own rig through this path, which
+then renders the same as the direct one - the check of the maths. Proportions still tell:
+the game's motions are made for a chibi with legs four units long, and on a realistic body
+the same joint rotations read as odd. That is what the auto-rig above is for.
+
+**The viewer plays the game's motions on a skinned glTF**: open the rigged or remade file
+under Models (the project's assets are listed first) and the transport offers the game
+model's packs - the model a `defs/models` definition binds it to, else j101 when the joints
+are the character bones - skinning the file in the browser with the model's node matrices
+per frame (`/api/model/rig-pose`). Orbit, zoom, scrub: a wrong weight shows at once.
+
 The game-format remake is still written on an OpenFF project: it is what the model viewer
-previews and what a Steam target would get from the same file. On an OpenFF target the
+previews when the file has no skin of its own and what a Steam target would get from the same file. On an OpenFF target the
 model-size limit is waived - the OpenFF client's `DrawModel` buffers grow to fit (they
 were the Steam port's fixed 20,480 / 32,768 / 256; a 41,280-triangle `j101` draws) - with a
 note that a Steam target would refuse the file; `Undo remake` removes the definition and

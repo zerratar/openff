@@ -655,7 +655,25 @@ namespace Crystal.Editor
 						if (string.IsNullOrWhiteSpace(asset)) throw new ArgumentException("no glTF named");
 						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
 						byte[] shipped = _workspace.ReadShipped(modelName) ?? throw new ArgumentException("the game has no " + modelName + " to remake");
-						Mdl0Reskin.Result made = Mdl0Reskin.Build(Lz.Decompress(shipped), OpenFF.Graphics.GltfFile.Load(gltfPath), stem, generous: ours);
+						OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(gltfPath);
+						// A file with no rig is bound to the model's skeleton first (AutoRig), the rigged
+						// copy written beside it as assets/<name>-rigged.glb and used from here on.
+						List<string> rigNotes = new List<string>();
+						string rigged = null;
+						if (file.Skins.Count == 0 || !file.Meshes.Any(m => m.Skin >= 0 && m.Joints != null))
+						{
+							AutoRig.Result bound = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]));
+							string riggedName = Path.GetFileNameWithoutExtension(asset) + "-rigged.glb";
+							string riggedPath = Path.Combine(_project.Directory, GltfBundle.Folder, riggedName);
+							File.WriteAllBytes(riggedPath, bound.Glb);
+							rigged = GltfBundle.Folder + "/" + riggedName;
+							asset = rigged;
+							gltfPath = riggedPath;
+							file = OpenFF.Graphics.GltfFile.Load(gltfPath);
+							rigNotes.Add("no rig in the file: bound to " + stem + "'s skeleton as " + rigged + " - " + string.Join("; ", bound.Notes));
+						}
+						Mdl0Reskin.Result made = Mdl0Reskin.Build(Lz.Decompress(shipped), file, stem, generous: ours);
+						made.Notes.InsertRange(0, rigNotes);
 						_workspace.Write(modelName, Lz.Compress(made.Nmdp));
 						_workspace.Write(texturesName, Lz.Compress(made.Ntxp));
 						if (ours)
@@ -664,7 +682,7 @@ namespace Crystal.Editor
 							File.WriteAllText(definition, new OpenFF.Data.ModModel { Model = made.Model, Gltf = asset.Replace('\\', '/') }.ToJson());
 							made.Notes.Insert(0, "on OpenFF the client draws " + Path.GetFileName(asset) + " itself with its own weights and textures (defs/models/" + stem + ".json); the game-format remake is the viewer's preview and the Steam game's version");
 						}
-						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes, gltf = ours });
+						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes, gltf = ours, rigged });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
@@ -1467,6 +1485,23 @@ namespace Crystal.Editor
 						Query(context, "pack"),
 						int.Parse(Query(context, "index") ?? "0", CultureInfo.InvariantCulture)));
 					return;
+
+				case "/api/model/rig-pose":
+				{
+					// A game model's node matrices over one motion - frames x nodes x 12 floats, model
+					// space - for the viewer to skin a glTF with (a remade or auto-rigged character).
+					try
+					{
+						Models.Rig rig = Models.ReadRig(_workspace, Query(context, "name"), Query(context, "pack"),
+							int.Parse(Query(context, "index") ?? "0", CultureInfo.InvariantCulture), false);
+						Models.RigMotion motion = rig.Motions.Count > 0 ? rig.Motions[0] : null;
+						List<float> worlds = new List<float>();
+						if (motion != null) foreach (float[][] frame in motion.Worlds) foreach (float[] m in frame) worlds.AddRange(m ?? new float[12]);
+						SendJson(context, new { nodes = rig.Nodes, frames = motion?.Frames ?? 0, name = motion?.Name, worlds, bind = rig.Bind.SelectMany(b => b).ToList() });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
 
 				case "/api/model/joint":
 					// A joint's matrix per frame (R_te for the right hand...), for a weapon posed on a character in the viewer.

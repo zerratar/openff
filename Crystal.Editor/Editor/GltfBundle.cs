@@ -81,6 +81,7 @@ namespace Crystal.Editor
 			}
 			bundle.Vertices = vertexBase;
 			bundle.Triangles = file.Triangles;
+			bundle.Skin = SkinOf(project, name, file);
 			if (file.Meshes.Count > 0)
 			{
 				bundle.Centre = new[] { (file.Min[0] + file.Max[0]) / 2, (file.Min[1] + file.Max[1]) / 2, (file.Min[2] + file.Max[2]) / 2 };
@@ -88,6 +89,52 @@ namespace Crystal.Editor
 			}
 			else { bundle.Centre = new float[3]; bundle.Radius = 1; bundle.Problem = string.Join("; ", file.Notes); }
 			return bundle;
+		}
+
+		/// <summary>
+		/// The file's skin for the viewer, or null for a file without one: every skin's joints in
+		/// one list, each vertex's four joints and weights against it, the mesh-space positions,
+		/// and the game model to drive it - from a defs/models definition naming this file, else
+		/// j101 when the joints carry the game's character bone names (hara, atama).
+		/// </summary>
+		private static ModelSkin SkinOf(Project project, string name, GltfFile file)
+		{
+			if (file.Skins.Count == 0 || !file.Meshes.Any(m => m.Skin >= 0 && m.Joints != null && m.Weights != null)) return null;
+			ModelSkin skin = new ModelSkin();
+			int[] offset = new int[file.Skins.Count];
+			for (int s = 0; s < file.Skins.Count; s++)
+			{
+				offset[s] = skin.Joints.Count;
+				GltfSkin one = file.Skins[s];
+				for (int j = 0; j < one.Joints.Length; j++)
+				{
+					int node = one.Joints[j];
+					skin.Joints.Add(node >= 0 && node < file.Nodes.Count ? file.Nodes[node].Name : ("joint" + j));
+					skin.InverseBind.AddRange(one.InverseBind[j]);
+				}
+			}
+			foreach (GltfMesh mesh in file.Meshes)
+			{
+				bool skinned = mesh.Skin >= 0 && mesh.Skin < file.Skins.Count && mesh.Joints != null && mesh.Weights != null;
+				float[] local = skinned ? mesh.LocalPositions : mesh.Positions;
+				for (int v = 0; v < mesh.VertexCount; v++)
+				{
+					skin.Local.Add(local[v * 3]); skin.Local.Add(local[v * 3 + 1]); skin.Local.Add(local[v * 3 + 2]);
+					for (int k = 0; k < 4; k++)
+					{
+						float w = skinned ? mesh.Weights[v * 4 + k] : 0f;
+						int j = skinned && w > 0 ? offset[mesh.Skin] + (int)mesh.Joints[v * 4 + k] : -1;
+						skin.JointIndex.Add(j);
+						skin.Weights.Add(j >= 0 ? w : 0f);
+					}
+				}
+			}
+			foreach (OpenFF.Data.ModModel definition in OpenFF.Data.ModModels.Load(project != null ? new[] { project.Directory } : Array.Empty<string>()))
+			{
+				if (string.Equals(definition.Gltf?.Replace('\\', '/'), name.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)) { skin.Model = "files/" + definition.Model + ".nmdp.lz"; break; }
+			}
+			if (skin.Model == null && skin.Joints.Contains("hara") && skin.Joints.Contains("atama")) skin.Model = "files/j101.nmdp.lz";
+			return skin;
 		}
 
 		/// <summary>A picture of the model, by the group's texture name (image0…), as its bytes and mime type.</summary>

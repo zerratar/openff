@@ -101,6 +101,29 @@ namespace Crystal.Editor
 
 		/// <summary>What the reader stepped over, if anything - see Mdl0Model.Notes.</summary>
 		public List<string> Notes { get; set; }
+
+		/// <summary>A glTF's skin, when it has one: what the viewer skins with a game model's motions (model-viewer.js).</summary>
+		public ModelSkin Skin { get; set; }
+	}
+
+	/// <summary>
+	/// A skinned glTF's rig for the browser: its joints by name, each one's inverse bind matrix,
+	/// and per vertex the mesh-space position with four joints and weights. `Model` is the game
+	/// model whose motions drive it - the one a definition binds it to, else the party's j101
+	/// when the joints are the game's character bones.
+	/// </summary>
+	internal sealed class ModelSkin
+	{
+		public List<string> Joints { get; set; } = new List<string>();
+		/// <summary>16 floats a joint, column-major as glTF has them.</summary>
+		public List<float> InverseBind { get; set; } = new List<float>();
+		/// <summary>3 floats a vertex: the mesh-space position the skin applies to.</summary>
+		public List<float> Local { get; set; } = new List<float>();
+		/// <summary>4 a vertex: joint indices into Joints, -1 for none.</summary>
+		public List<int> JointIndex { get; set; } = new List<int>();
+		/// <summary>4 a vertex.</summary>
+		public List<float> Weights { get; set; } = new List<float>();
+		public string Model { get; set; }
 	}
 
 	internal static class Models
@@ -178,9 +201,12 @@ namespace Crystal.Editor
 			return data;
 		}
 
-		public static ModelBundle Read(Workspace workspace, string name)
+		public static ModelBundle Read(Workspace workspace, string name, bool shipped = false)
 		{
-			byte[] data = Unpack(Lz.Decompress(workspace.Read(name)));
+			// shipped: the game's own copy even when the project overrides the name (AutoRig
+			// weights a mesh against the game's model, not against an earlier remake of it).
+			byte[] raw = shipped ? (workspace.ReadShipped(name) ?? workspace.Read(name)) : workspace.Read(name);
+			byte[] data = Unpack(Lz.Decompress(raw));
 			if (Mdl0.Find(data) < 0)
 			{
 				return new ModelBundle { Name = name, Problem = "no geometry in this package" };
@@ -573,9 +599,9 @@ namespace Crystal.Editor
 		/// The rig of a model, with one motion of a pack (<paramref name="index"/>), every
 		/// motion of it (<paramref name="all"/>), or none when no pack is named.
 		/// </summary>
-		public static Rig ReadRig(Workspace workspace, string modelName, string packName, int index, bool all)
+		public static Rig ReadRig(Workspace workspace, string modelName, string packName, int index, bool all, bool shipped = false)
 		{
-			byte[] data = Lz.Decompress(workspace.Read(modelName));
+			byte[] data = Lz.Decompress(shipped ? (workspace.ReadShipped(modelName) ?? workspace.Read(modelName)) : workspace.Read(modelName));
 			List<Mdl0Model> models = Mdl0.Read(data);
 			if (models.Count == 0) throw new InvalidDataException("no models in " + modelName);
 			Mdl0Model model = models[0];
@@ -910,7 +936,7 @@ namespace Crystal.Editor
 		}
 
 		/// <summary>Where to point the camera, so a model shows up without hunting for it.</summary>
-		private static void Frame(ModelBundle bundle)
+		internal static void Frame(ModelBundle bundle)
 		{
 			if (bundle.Buffer.Count == 0)
 			{
