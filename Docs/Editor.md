@@ -240,17 +240,25 @@ matrices and no geometry (`Mdl0.Posed`), and the viewer gets, per frame and per 
 small matrix palette. Nothing is re-uploaded per frame. `/api/model/motions` lists the
 packs; `/api/model/pose` evaluates one motion for a model.
 
-**Export .glb** (in the model's bar) offers the model as glTF 2.0 through the browser's
-Save As - no project needed, so a model of the game's can go straight to Blender (browsers
-without a save picker put it in Downloads instead; `/api/model/glb` serves it): the mesh
-with its textures embedded and
-vertex colours, a skin whose joints are the model's matrix instances (bind pose is the
-mesh as it is, so every inverse bind matrix is identity), and - if a motion is playing -
-that motion as an animation, one translation/rotation/scale key per frame at 30 fps.
-Blender's glTF importer opens it with the armature and the action. This is the way out
-for anyone who wants to look at, measure or retexture an asset in a real modelling tool;
-the way back in - a mesh to NDS display lists, a motion to packed joint tables - is not
-built yet.
+**Export .glb** (in the model's bar) writes the model as glTF 2.0. With a project open it
+goes into the project's `exports/` folder with its textures as PNGs beside it and Explorer
+opens there; with no project the browser's Save As takes it wherever you like (browsers
+without a save picker put it in Downloads; `/api/model/glb` serves it), so a model of the
+game's can go straight to Blender. In the file: the mesh with its textures embedded and
+vertex colours, and the model's **skeleton** - one bone per node of the model, parented as
+the SBC's NODEDESC parents them, at rest where the game has them (hips, spine, shoulders,
+arms, the `R_te`/`L_te` hand joints a weapon hangs from), with inverse bind matrices from
+the same walk. Vertices are weighted as the game weights them: one bone at weight 1 for
+an ordinary joint, and for the DS's envelope matrices (SBC opcode 9 - a blend of several
+nodes, each through its inverse bind; a character has ten or so of these at the knees,
+elbows and hips) the nodes blended with their weights, up to glTF's four. The motion
+playing comes along as an animation (one translation/rotation/scale key per bone per
+frame at 30 fps, local to the parent), and **+ all motions** - shown once a pack is on
+the transport - puts every motion of that pack in as its own animation (`j101.b_b01.glb`,
+31 actions for the party's first character, about 1.3 MB). Blender's glTF importer opens
+it with the armature, the weights and the actions, so a mesh of your own can be weighted
+to the same bones and checked against every animation. The way back in - a skinned mesh to
+NDS display lists driven by the original node tree - is not built yet; see Modding.md.
 
 ### Models
 

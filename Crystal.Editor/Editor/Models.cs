@@ -534,6 +534,124 @@ namespace Crystal.Editor
 			return joint;
 		}
 
+		/// <summary>
+		/// The model's skeleton as the game has it: the node tree from the SBC, every node's
+		/// bind matrix, which node each of a group's matrices belongs to, and motions as the
+		/// nodes' matrices frame by frame. What a glTF skin with real bones is built from.
+		/// </summary>
+		public sealed class Rig
+		{
+			public List<string> Nodes { get; set; }
+			/// <summary>Per node, its parent's index, -1 for a root.</summary>
+			public int[] Parents { get; set; }
+			/// <summary>Per node, the built 4x3 (row-vector, model units) at bind pose.</summary>
+			public List<float[]> Bind { get; set; }
+			/// <summary>
+			/// (group, matrix index within the group) -> the nodes that matrix is, with weights
+			/// summing to 1: one node at weight 1 for an ordinary joint matrix, several for an
+			/// envelope (the DS's skinning: each node's matrix through its inverse bind, blended).
+			/// </summary>
+			public Dictionary<(int Group, int Local), (int Node, float Weight)[]> Weights { get; set; } = new Dictionary<(int, int), (int, float)[]>();
+			public List<RigMotion> Motions { get; set; } = new List<RigMotion>();
+			/// <summary>True when any vertex is weighted to more than one node.</summary>
+			public bool Blended { get; set; }
+		}
+
+		public sealed class RigMotion
+		{
+			public string Name { get; set; }
+			public int Frames { get; set; }
+			/// <summary>Per frame, per node, the built 4x3.</summary>
+			public List<float[][]> Worlds { get; set; } = new List<float[][]>();
+		}
+
+		/// <summary>
+		/// The rig of a model, with one motion of a pack (<paramref name="index"/>), every
+		/// motion of it (<paramref name="all"/>), or none when no pack is named.
+		/// </summary>
+		public static Rig ReadRig(Workspace workspace, string modelName, string packName, int index, bool all)
+		{
+			byte[] data = Lz.Decompress(workspace.Read(modelName));
+			List<Mdl0Model> models = Mdl0.Read(data);
+			if (models.Count == 0) throw new InvalidDataException("no models in " + modelName);
+			Mdl0Model model = models[0];
+			List<HashSet<int>> wanted = model.Pieces.Select(p => new HashSet<int>(p.SlotMatrices.Keys)).ToList();
+			int count = model.Nodes.Count;
+
+			Rig rig = new Rig { Nodes = model.Nodes.ToList(), Parents = new int[count], Bind = new List<float[]>() };
+			for (int i = 0; i < count; i++)
+			{
+				int parent = model.NodeParents.TryGetValue(i, out int p) ? p : -1;
+				rig.Parents[i] = parent >= 0 && parent < count && parent != i ? parent : -1;
+			}
+			Dictionary<int, int[]> built = new Dictionary<int, int[]>();
+			Mdl0.Posed(data, wanted, null, built);
+			for (int i = 0; i < count; i++)
+			{
+				rig.Bind.Add(ToFloat(built.TryGetValue(i, out int[] m) ? m : null));
+			}
+			(int, float)[] WeightsOf(int node, (int Node, int Weight)[] blend, int fallback)
+			{
+				if (node >= 0 && node < count) return new[] { (node, 1f) };
+				if (blend != null && blend.Length > 0)
+				{
+					// Grouped by node (a node can appear twice in a blend), weights made to sum to 1.
+					var grouped = blend.Where(b => b.Node >= 0 && b.Node < count).GroupBy(b => b.Node)
+						.Select(gr => (Node: gr.Key, Weight: (float)gr.Sum(b => b.Weight))).Where(b => b.Weight > 0).ToList();
+					float total = grouped.Sum(b => b.Weight);
+					if (grouped.Count > 0 && total > 0)
+					{
+						if (grouped.Count > 1) rig.Blended = true;
+						return grouped.OrderByDescending(b => b.Weight).Select(b => (b.Node, b.Weight / total)).ToArray();
+					}
+				}
+				return new[] { (Math.Max(0, Math.Min(count - 1, fallback)), 1f) };
+			}
+			for (int g = 0; g < model.Pieces.Count; g++)
+			{
+				Mdl0Piece piece = model.Pieces[g];
+				int own = piece.NodeIndex >= 0 ? piece.NodeIndex : model.Nodes.IndexOf(piece.Node);
+				rig.Weights[(g, 0)] = WeightsOf(piece.NodeIndex, piece.Blend, own);
+				int local = 1;
+				foreach (int slot in piece.SlotMatrices.Keys.OrderBy(s => s))
+				{
+					int node = piece.SlotNodes.TryGetValue(slot, out int n) ? n : -1;
+					piece.SlotBlends.TryGetValue(slot, out (int Node, int Weight)[] blend);
+					rig.Weights[(g, local++)] = WeightsOf(node, blend, own);
+				}
+			}
+
+			if (string.IsNullOrEmpty(packName)) return rig;
+			(string, NcapFile) found = Packs(workspace).FirstOrDefault(p => string.Equals(p.Name, packName, StringComparison.OrdinalIgnoreCase));
+			byte[] packRaw = workspace.Read(packName);
+			byte[] packData = Lz.IsCompressed(packRaw) ? Lz.Decompress(packRaw) : packRaw;
+			NcapFile pack = found.Item2 ?? NcapFile.Read(packData);
+			IEnumerable<int> which = all ? Enumerable.Range(0, pack.Motions.Count) : new[] { index };
+			foreach (int i in which)
+			{
+				if (i < 0 || i >= pack.Motions.Count)
+				{
+					throw new ArgumentOutOfRangeException(nameof(index), "no motion " + i + " in " + packName);
+				}
+				JointAnimation motion = pack.Motions[i];
+				RigMotion rm = new RigMotion { Name = motion.Name ?? ("motion" + i), Frames = motion.NumFrame };
+				for (int frame = 0; frame < motion.NumFrame; frame++)
+				{
+					int f = frame;
+					Dictionary<int, int[]> now = new Dictionary<int, int[]>();
+					Mdl0.Posed(data, wanted, (n, baseMatrix, baseScale) => NcapFile.Evaluate(motion, n, f, baseMatrix, baseScale, packData), now);
+					float[][] worlds = new float[count][];
+					for (int n = 0; n < count; n++)
+					{
+						worlds[n] = now.TryGetValue(n, out int[] m) ? ToFloat(m) : rig.Bind[n];
+					}
+					rm.Worlds.Add(worlds);
+				}
+				rig.Motions.Add(rm);
+			}
+			return rig;
+		}
+
 		private static int[] Identity12() => new[] { 4096, 0, 0, 0, 4096, 0, 0, 0, 4096, 0, 0, 0 };
 
 		private static void Append(List<float> into, int[] fixedMatrix)
@@ -546,28 +664,43 @@ namespace Crystal.Editor
 		/// pack and index are given - and returns the path. The name carries the motion so
 		/// several exports of one model can sit side by side.
 		/// </summary>
-		public static string Export(Workspace workspace, string modelName, string packName, int index, string directory)
+		public static string Export(Workspace workspace, string modelName, string packName, int index, string directory, bool all = false)
 		{
-			(byte[] glb, string stem) = ExportBytes(workspace, modelName, packName, index);
+			(byte[] glb, string stem) = ExportBytes(workspace, modelName, packName, index, all);
 			Directory.CreateDirectory(directory);
 			string path = Path.Combine(directory, stem + ".glb");
 			File.WriteAllBytes(path, glb);
+			// The textures beside it as well - they are inside the .glb, but a PNG on disk is
+			// what a paint program opens.
+			ModelBundle bundle = Read(workspace, modelName);
+			foreach (string texture in bundle.Groups.Select(g => g.Texture).Where(t => t != null).Distinct(StringComparer.Ordinal))
+			{
+				try
+				{
+					byte[] png = Texture(workspace, modelName, texture);
+					if (png != null) File.WriteAllBytes(Path.Combine(directory, texture + ".png"), png);
+				}
+				catch (Exception)
+				{
+					// A texture that will not decode is left out; the model is still there.
+				}
+			}
 			return path;
 		}
 
-		/// <summary>The model as .glb in memory, with the file stem it would be saved under (the model's name, and the motion's when one is given) - for a Save As in the browser.</summary>
-		public static (byte[] Glb, string Stem) ExportBytes(Workspace workspace, string modelName, string packName, int index)
+		/// <summary>
+		/// The model as .glb in memory, with the file stem it would be saved under (the model's
+		/// name, then the motion's when one is given, or the pack's for all of them) - for a
+		/// Save As in the browser. The skin is the model's node tree with real bones.
+		/// </summary>
+		public static (byte[] Glb, string Stem) ExportBytes(Workspace workspace, string modelName, string packName, int index, bool all = false)
 		{
 			ModelBundle bundle = Read(workspace, modelName);
 			if (bundle.Problem != null)
 			{
 				throw new InvalidDataException(bundle.Problem);
 			}
-			Pose pose = null;
-			if (!string.IsNullOrEmpty(packName))
-			{
-				pose = ReadPose(workspace, modelName, packName, index);
-			}
+			Rig rig = ReadRig(workspace, modelName, packName, index, all);
 			byte[] glb = Gltf.Write(bundle, texture =>
 			{
 				try
@@ -578,13 +711,19 @@ namespace Crystal.Editor
 				{
 					return null;
 				}
-			}, pose, pose?.Name);
+			}, rig);
 
 			string stem = Path.GetFileName(modelName);
 			stem = stem.Substring(0, stem.IndexOf('.') < 0 ? stem.Length : stem.IndexOf('.'));
-			if (pose != null)
+			string Clean(string s) => new string((s ?? "motion").Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
+			if (all && !string.IsNullOrEmpty(packName))
 			{
-				stem += "." + new string((pose.Name ?? "motion").Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
+				string pack = Path.GetFileName(packName);
+				stem += "." + Clean(pack.Substring(0, pack.IndexOf('.') < 0 ? pack.Length : pack.IndexOf('.')));
+			}
+			else if (rig.Motions.Count == 1)
+			{
+				stem += "." + Clean(rig.Motions[0].Name);
 			}
 			return (glb, stem);
 		}

@@ -56,11 +56,18 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   so a camera glide lands where it is told.
 - **`Game.Hero.Freeze(keepInput: true)`** holds the hero still with the pad left on, for a
   cutscene's lines; the plain Freeze() still takes the pad too.
-- **Export .glb without a project.** Exporting a model of the game's (j101 for Blender, say)
-  with no project open wrote the file to a folder nobody asked for and then complained that
-  no project was open. Export now goes through the browser's Save As (a download where the
-  browser has no picker), project or not - `/api/model/glb` serves the file, named after
-  the model and the motion.
+- **Export .glb: a real skeleton, all motions, and no project needed.** The export's skin
+  used to be one joint per matrix instance, all at the origin, animated with delta matrices:
+  playback was right, but in Blender the bones were dots scattered around the character and
+  no use for weighting a mesh. The skin is now the model's own node tree - bones parented
+  and placed as the game's SBC builds them, inverse binds from the same walk - and vertices
+  carry the game's weights, including the DS's envelope blends (several bones per vertex at
+  the knees, elbows and hips), checked against the viewer's matrices to 1e-2 over every
+  frame. *+ all motions* exports every motion of the pack on the transport as separate
+  animations of one file. With a project open the file goes into the project's `exports/`
+  as before, now with the textures as PNGs beside it; with no project - which used to
+  write somewhere unasked and then say "no project is open" - the browser's Save As takes
+  it where you like (`/api/model/glb`).
 
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 

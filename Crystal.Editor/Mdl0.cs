@@ -64,8 +64,27 @@ namespace Crystal
 		/// <summary>The node's matrix this piece was drawn with (bind pose, fixed point).</summary>
 		public int[] Matrix;
 
+		/// <summary>
+		/// Which node Matrix is: the piece's own node, or the one a restore before the shape
+		/// switched to. -1 when it is an envelope blend (opcode 9) and so no single node's.
+		/// </summary>
+		public int NodeIndex = -1;
+
+		/// <summary>When NodeIndex is -1: the envelope Matrix is - (node, weight out of 256) pairs.</summary>
+		public (int Node, int Weight)[] Blend;
+
 		/// <summary>The stack matrices its display list restored, by slot, as they were then.</summary>
 		public Dictionary<int, int[]> SlotMatrices = new Dictionary<int, int[]>();
+
+		/// <summary>Per restored slot, the node whose matrix was stored there (-1 for a blend).</summary>
+		public Dictionary<int, int> SlotNodes = new Dictionary<int, int>();
+
+		/// <summary>
+		/// Per restored slot that is an envelope (opcode 9), the nodes blended into it with
+		/// their weights out of 256: the DS's skinning, each node's matrix taken through its
+		/// inverse bind first, so a vertex through such a slot is stored in world space.
+		/// </summary>
+		public Dictionary<int, (int Node, int Weight)[]> SlotBlends = new Dictionary<int, (int Node, int Weight)[]>();
 
 		/// <summary>
 		/// Switched off by its node, so the game never draws it. Two shapes in the whole
@@ -126,6 +145,12 @@ namespace Crystal
 		public List<string> Nodes = new List<string>();
 		public List<Mdl0Material> Materials = new List<Mdl0Material>();
 		public List<Mdl0Piece> Pieces = new List<Mdl0Piece>();
+
+		/// <summary>
+		/// Each node's parent by index, from the SBC's NODEDESC (-1 for a root): the tree
+		/// the game's joints hang in, which a skeleton export needs and the drawing does not.
+		/// </summary>
+		public Dictionary<int, int> NodeParents = new Dictionary<int, int>();
 
 		/// <summary>What was actually decoded, to set against the four above.</summary>
 		public int GotVertices, GotTriangles, GotQuads;
@@ -468,6 +493,14 @@ namespace Crystal
 			int billboard = 0;
 			int[] stackBillboard = new int[64];
 
+			// Whose matrix is in hand, and whose sits in each slot: the node's index, or -1
+			// for an envelope blend. Only a skeleton export reads these.
+			int currentNode = -1;
+			int[] stackNode = new int[64];
+			for (int i = 0; i < 64; i++) stackNode[i] = -1;
+			(int Node, int Weight)[] currentBlend = null;
+			(int Node, int Weight)[][] stackBlend = new (int, int)[64][];
+
 			while (at < end && at < data.Length)
 			{
 				int op = data[at] & 0x1F;
@@ -492,6 +525,8 @@ namespace Crystal
 						current = Copy(stack[data[at + 1]]);
 						currentN = Copy(stackN[data[at + 1]]);
 						billboard = stackBillboard[data[at + 1]];
+						currentNode = stackNode[data[at + 1]];
+						currentBlend = stackBlend[data[at + 1]];
 						at += 2;
 						break;
 
@@ -507,7 +542,7 @@ namespace Crystal
 						if (shape < shapes.Count)
 						{
 							AddPiece(data, m + ofsShp, shapes, shape, material, node,
-								current, stack, scale, model, !visible, billboard);
+								current, stack, scale, model, !visible, billboard, currentNode, currentBlend, stackNode, stackBlend);
 						}
 						break;
 					}
@@ -515,6 +550,10 @@ namespace Crystal
 					case 6:                      // node descriptor: build its matrix
 					{
 						node = data[at + 1];
+						int parent = data[at + 2];
+						model.NodeParents[node] = parent == node ? -1 : parent;
+						currentNode = node;
+						currentBlend = null;
 						billboard = 0;         // an ordinary node clears it again
 						int store = data[at + 3];
 						int[] scaleBy = { 4096, 4096, 4096 };
@@ -555,6 +594,8 @@ namespace Crystal
 							stack[id] = Copy(current);
 							stackN[id] = Copy(currentN);
 							stackBillboard[id] = 0;
+							stackNode[id] = node;
+							stackBlend[id] = null;
 						}
 						break;
 					}
@@ -589,6 +630,7 @@ namespace Crystal
 						at += 3;
 
 						int[] sum = new int[12];
+						List<(int Node, int Weight)> blend = new List<(int, int)>();
 						for (int i = 0; i < count; i++)
 						{
 							int from = data[at];
@@ -603,6 +645,16 @@ namespace Crystal
 							{
 								sum[k] += one[k] * weight;
 							}
+							// Whose matrices went in: the slot's node, or - a blend of a
+							// blend - that one's nodes with the weights multiplied through.
+							if (stackNode[from] >= 0)
+							{
+								blend.Add((stackNode[from], weight));
+							}
+							else if (stackBlend[from] != null)
+							{
+								foreach ((int n, int w) in stackBlend[from]) blend.Add((n, w * weight / 256));
+							}
 						}
 
 						for (int k = 0; k < 12; k++)
@@ -611,8 +663,12 @@ namespace Crystal
 						}
 						stack[into] = sum;
 						stackN[into] = Copy(sum);
+						stackNode[into] = -1;
+						stackBlend[into] = blend.ToArray();
 						current = Copy(sum);
 						currentN = Copy(sum);
+						currentNode = -1;
+						currentBlend = stackBlend[into];
 						break;
 					}
 
@@ -705,7 +761,7 @@ namespace Crystal
 		private static void AddPiece(byte[] data, int shp,
 			List<(string Name, byte[] Entry)> shapes, int shape, int material, int node,
 			int[] matrix, int[][] stack, int scale, Mdl0Model model, bool hidden,
-			int billboard)
+			int billboard, int matrixNode, (int Node, int Weight)[] matrixBlend, int[] stackNode, (int Node, int Weight)[][] stackBlend)
 		{
 			int s = shp + (int)U32(shapes[shape].Entry, 0);
 			int list = s + (int)U32(data, s + 8);
@@ -719,6 +775,8 @@ namespace Crystal
 				Shape = shapes[shape].Name,
 				Material = used?.Name,
 				Node = node < model.Nodes.Count ? model.Nodes[node] : null,
+				NodeIndex = matrixNode,
+				Blend = matrixBlend,
 				Hidden = hidden,
 				Billboard = billboard,
 				PivotX = matrix[9] / 4096f,
@@ -736,13 +794,15 @@ namespace Crystal
 					foreach (int slot in model.WantedSlots[index])
 					{
 						piece.SlotMatrices[slot] = Copy(stack[slot]);
+						piece.SlotNodes[slot] = stackNode[slot];
+						if (stackBlend[slot] != null) piece.SlotBlends[slot] = stackBlend[slot];
 					}
 				}
 				model.Pieces.Add(piece);
 				return;
 			}
 
-			Walk(data, list, size, matrix, stack, scale, piece, model, used);
+			Walk(data, list, size, matrix, stack, scale, piece, model, used, stackNode, stackBlend);
 			model.Pieces.Add(piece);
 		}
 
@@ -787,7 +847,7 @@ namespace Crystal
 		/// were packed into, which is why there are two pointers here.
 		/// </summary>
 		private static void Walk(byte[] data, int list, int size, int[] matrix, int[][] stack,
-			int scale, Mdl0Piece piece, Mdl0Model model, Mdl0Material material)
+			int scale, Mdl0Piece piece, Mdl0Model model, Mdl0Material material, int[] stackNode, (int Node, int Weight)[][] stackBlend)
 		{
 			int words = size / 4;
 			if (words == 0 || list + size > data.Length)
@@ -829,6 +889,8 @@ namespace Crystal
 						if (!piece.SlotMatrices.ContainsKey(id))
 						{
 							piece.SlotMatrices[id] = Copy(stack[id]);
+							piece.SlotNodes[id] = stackNode[id];
+							if (stackBlend[id] != null) piece.SlotBlends[id] = stackBlend[id];
 						}
 						p++;
 						break;

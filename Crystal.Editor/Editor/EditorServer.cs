@@ -1396,13 +1396,15 @@ namespace Crystal.Editor
 
 				case "/api/model/glb":
 				{
-					// The model as a .glb download (with the motion named), for the browser's Save As -
-					// no project needed: a model of the game's, straight to Blender.
+					// The model as a .glb download (with the motion named, or every motion of the
+					// pack with all=1), for the browser's Save As - no project needed: a model of the
+					// game's, straight to Blender.
 					try
 					{
 						string name = Query(context, "name");
 						if (string.IsNullOrEmpty(name)) throw new ArgumentException("no model named");
-						(byte[] glb, string stem) = Models.ExportBytes(_workspace, name, Query(context, "pack"), int.Parse(Query(context, "index") ?? "0", CultureInfo.InvariantCulture));
+						(byte[] glb, string stem) = Models.ExportBytes(_workspace, name, Query(context, "pack"),
+							int.Parse(Query(context, "index") ?? "0", CultureInfo.InvariantCulture), Query(context, "all") == "1");
 						context.Response.Headers["Content-Disposition"] = "attachment; filename=\"" + stem + ".glb\"";
 						context.Response.Headers["Cache-Control"] = "no-store";
 						Send(context, 200, "model/gltf-binary", glb);
@@ -1900,16 +1902,22 @@ namespace Crystal.Editor
 			string name = (string)body?["name"];
 			string pack = (string)body?["pack"];
 			int index = body?["index"] != null ? (int)body["index"] : 0;
+			bool all = body?["all"] != null && (bool)body["all"];
 			if (string.IsNullOrEmpty(name))
 			{
 				SendJson(context, new { ok = false, error = "no model named" });
 				return;
 			}
+			if (_project == null)
+			{
+				// Without a project there is no exports folder to speak of; the browser's Save As
+				// (/api/model/glb) is the way then.
+				SendJson(context, new { ok = false, error = "no project is open - use the Save As export" });
+				return;
+			}
 			try
 			{
-				string root = _project != null ? _project.Directory
-					: Path.GetDirectoryName(_workspace.OverrideDirectory) ?? _workspace.OverrideDirectory;
-				string path = Models.Export(_workspace, name, pack, index, Path.Combine(root, "exports"));
+				string path = Models.Export(_workspace, name, pack, index, Path.Combine(_project.Directory, "exports"), all);
 				SendJson(context, new { ok = true, path, bytes = new FileInfo(path).Length });
 			}
 			catch (Exception ex)

@@ -637,6 +637,24 @@ stands in, with a note). The model viewer opens the result like any `w###`, and 
 plays it the game's way (a w### of the mod's is a file override, so `--nomods` shows the
 game's).
 
+#### A character remade: the round trip so far
+
+*Export .glb* on a character (`j101`…) or monster gives Blender the model with its real
+skeleton - the game's node tree, bones where the joints are, the game's weights including
+the blended ones at knees, elbows and hips - and, with *+ all motions*, every motion of its
+battle pack as an action (`j101.b_b01.glb`). That is the half that exists: a mesh of your
+own can be modelled over the original, weighted to the same bones (the vertex groups carry
+the game's names - `hara`, `mune`, `L_ude`, `R_te`…) and checked against every swing and
+stagger in Blender. The half that does not exist yet is writing that skinned mesh back as
+the game's model. `mdl-import` flattens a skin today. What it would take: the original's
+node tree and SBC kept as they are (so the game's `.ncap` motions still drive it), each
+vertex snapped to its heaviest bone (the DS draws a vertex through one matrix, or an
+envelope blend of a few - true smooth weights are not available) and stored in that bone's
+space, display lists that switch matrix stack slots as the original's do, and textures kept
+under the package's texel budget. On the OpenFF target there is a shorter road: the client
+could draw a glTF skin driven by the game's joint matrices, as it already draws a glTF
+weapon from the hand joint. Neither is built; both are on the list.
+
 ### Monsters of the mod's own: `defs/monsters/<id>.json`
 
 A monster is a definition too. Under *OpenFF mod ▸ Monsters*, *New monster…* asks for a name

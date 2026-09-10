@@ -1,16 +1,19 @@
-// glTF 2.0 (.glb) out of a model bundle, with its textures and, if asked, one motion.
+// glTF 2.0 (.glb) out of a model bundle, with its textures and, if asked, its motions.
 //
 // This is the door to Blender. The viewer's bundle is already what glTF wants - a
-// vertex buffer, triangle indices, groups with a material each - and the way the viewer
-// skins it (every vertex names the matrix that moved it) is exactly a glTF skin with one
-// joint per matrix and weights of 1. So the export is: one mesh, one primitive per group,
-// a skin whose joints are the model's matrix instances (bind = identity, since the
-// vertices are already in bind-pose world space), and an animation that keys each joint
-// with the per-frame delta the pose endpoint computes, decomposed into translation,
-// rotation and scale at 30 frames a second.
+// vertex buffer, triangle indices, groups with a material each - and the way the game
+// skins it (every vertex goes through exactly one node's matrix) is a glTF skin with a
+// weight of 1. The skin is the model's own skeleton: one joint per node of the model,
+// parented as the SBC parents them, each bone's rest transform its local bind matrix and
+// its inverse bind matrix the inverse of its world one (the vertices are stored in
+// bind-pose world space, as the file has them). So Blender shows the bones where the
+// joints are - hips, spine, arms, the hand joints a weapon hangs from - and a mesh of
+// your own can be weighted to them.
 //
-// Textures are the PNGs the editor already makes, embedded. Nothing here is lossy
-// beyond the decompose: the NDS matrices are rotation x scale x translation.
+// Each motion is an animation keying every joint's local translation, rotation and
+// scale per frame at 30 fps, from the node matrices the same SBC walk builds for the
+// game. Nothing here is lossy beyond the decompose: the NDS matrices are
+// rotation x scale x translation.
 //
 // Import is not here. Turning a mesh back into NDS display lists and a motion back into
 // packed joint tables is its own project; this gets the assets out so people can look,
@@ -32,11 +35,9 @@ namespace Crystal
 	{
 		/// <summary>
 		/// The .glb bytes. <paramref name="texturePng"/> gives a texture's PNG by name or
-		/// null; <paramref name="pose"/> is optional, and <paramref name="motionName"/>
-		/// names its animation.
+		/// null; <paramref name="rig"/> is the model's skeleton with whichever motions go along.
 		/// </summary>
-		public static byte[] Write(ModelBundle bundle, Func<string, byte[]> texturePng,
-			Models.Pose pose = null, string motionName = null)
+		public static byte[] Write(ModelBundle bundle, Func<string, byte[]> texturePng, Models.Rig rig)
 		{
 			BinaryWriter bin = new BinaryWriter(new MemoryStream());
 			JsonArray bufferViews = new JsonArray();
@@ -67,20 +68,25 @@ namespace Crystal
 				return accessors.Count - 1;
 			}
 
-			// ---- the matrix instances: one joint each ----------------------------------------
-			// A global index per (group, matrix) pair; the vertex's JOINTS_0 names it.
-			List<(int Group, int Local, string Name)> joints = new List<(int, int, string)>();
-			Dictionary<(int, int), int> jointOf = new Dictionary<(int, int), int>();
-			for (int g = 0; g < bundle.Groups.Count; g++)
+			// ---- the joints: one per node of the model ------------------------------------------
+			// A vertex's JOINTS_0/WEIGHTS_0 name the nodes whose matrix moved it: the group's
+			// own node or the node behind the stack slot its display list restored, at weight
+			// 1 - or, for an envelope slot, the nodes blended into it with their weights. glTF
+			// takes four per vertex; a blend of more keeps its four heaviest, made to sum to 1.
+			int jointCount = Math.Max(1, rig.Nodes.Count);
+			(int Node, float Weight)[] WeightsFor(int group, int local)
 			{
-				ModelGroup group = bundle.Groups[g];
-				int count = Math.Max(1, group.Matrices?.Count ?? 1);
-				for (int i = 0; i < count; i++)
+				if (!rig.Weights.TryGetValue((group, local), out (int Node, float Weight)[] weights) || weights.Length == 0)
 				{
-					string name = (group.Node ?? ("group" + g)) + (i == 0 ? string.Empty : ".slot" + (group.Slots != null && i - 1 < group.Slots.Count ? group.Slots[i - 1] : i));
-					jointOf[(g, i)] = joints.Count;
-					joints.Add((g, i, name));
+					if (!rig.Weights.TryGetValue((group, 0), out weights) || weights.Length == 0) weights = new[] { (0, 1f) };
 				}
+				if (weights.Length > 4)
+				{
+					weights = weights.OrderByDescending(w => w.Weight).Take(4).ToArray();
+					float total = weights.Sum(w => w.Weight);
+					weights = weights.Select(w => (w.Node, w.Weight / total)).ToArray();
+				}
+				return weights;
 			}
 
 			// ---- vertices -----------------------------------------------------------------------
@@ -115,9 +121,15 @@ namespace Crystal
 				Put(coords, v * 8, bundle.Buffer[at + 3], bundle.Buffer[at + 4]);
 				Put(colours, v * 12, bundle.Buffer[at + 5], bundle.Buffer[at + 6], bundle.Buffer[at + 7]);
 				int local = bundle.MatrixIndex != null && v < bundle.MatrixIndex.Count ? bundle.MatrixIndex[v] : 0;
-				int joint = jointOf.TryGetValue((groupOfVertex[v], local), out int j) ? j : jointOf[(groupOfVertex[v], 0)];
-				BitConverter.GetBytes((ushort)joint).CopyTo(jointIds, v * 8);
-				Put(weights, v * 16, 1f, 0f, 0f, 0f);
+				(int Node, float Weight)[] bones = WeightsFor(groupOfVertex[v], local);
+				float[] w4 = new float[4];
+				for (int k = 0; k < 4; k++)
+				{
+					int joint = k < bones.Length ? Math.Max(0, Math.Min(jointCount - 1, bones[k].Node)) : 0;
+					BitConverter.GetBytes((ushort)joint).CopyTo(jointIds, v * 8 + k * 2);
+					w4[k] = k < bones.Length ? bones[k].Weight : 0f;
+				}
+				Put(weights, v * 16, w4[0], w4[1], w4[2], w4[3]);
 			}
 
 			int positionView = View(positions, 34962);
@@ -214,64 +226,96 @@ namespace Crystal
 				});
 			}
 
-			// ---- nodes: the model, and a joint per matrix instance -----------------------------------
+			// ---- nodes: the model, and the skeleton --------------------------------------------------
+			// Joint j is node 1 + j. Its rest transform is its bind matrix made local to its
+			// parent's (world = local x parentWorld in the game's row-vector convention, so
+			// local = world x parentWorld^-1); roots hang off an armature node so Blender
+			// makes one armature of them.
 			JsonArray nodes = new JsonArray();
 			nodes.Add(new JsonObject { ["name"] = bundle.Name ?? "model", ["mesh"] = 0, ["skin"] = 0 });
 			JsonArray jointNodes = new JsonArray();
 			JsonArray rootChildren = new JsonArray();
-			foreach ((int group, int local, string name) in joints)
+			float[] Identity = { 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 };
+			float[] BindOf(int j) => j >= 0 && j < rig.Bind.Count && rig.Bind[j] != null ? rig.Bind[j] : Identity;
+			int ParentOf(int j) => j < rig.Parents.Length ? rig.Parents[j] : -1;
+			for (int j = 0; j < jointCount; j++)
 			{
-				nodes.Add(new JsonObject { ["name"] = name });
+				int parent = ParentOf(j);
+				float[] local = parent >= 0 ? Mul(BindOf(j), Invert(BindOf(parent))) : BindOf(j);
+				Decompose(local, 0, out float[] tr, out float[] q, out float[] sc);
+				JsonObject joint = new JsonObject
+				{
+					["name"] = j < rig.Nodes.Count ? rig.Nodes[j] : ("node" + j),
+					["translation"] = new JsonArray(tr[0], tr[1], tr[2]),
+					["rotation"] = new JsonArray(q[0], q[1], q[2], q[3]),
+					["scale"] = new JsonArray(sc[0], sc[1], sc[2])
+				};
+				nodes.Add(joint);
 				jointNodes.Add(nodes.Count - 1);
-				rootChildren.Add(nodes.Count - 1);
+				if (parent < 0) rootChildren.Add(nodes.Count - 1);
 			}
-			// The joints hang off an armature root so Blender groups them.
+			for (int j = 0; j < jointCount; j++)
+			{
+				int parent = ParentOf(j);
+				if (parent < 0) continue;
+				JsonObject parentNode = (JsonObject)nodes[1 + parent];
+				JsonArray children = parentNode["children"] as JsonArray;
+				if (children == null) parentNode["children"] = children = new JsonArray();
+				children.Add(1 + j);
+			}
 			nodes.Add(new JsonObject { ["name"] = "skeleton", ["children"] = rootChildren });
 			int skeletonNode = nodes.Count - 1;
 
-			// inverseBindMatrices: identity for every joint - vertices are already posed.
-			byte[] ibm = new byte[joints.Count * 64];
-			for (int j = 0; j < joints.Count; j++)
+			// inverseBindMatrices: each joint's world bind matrix inverted - the vertices are
+			// stored in bind-pose world space, so this takes them into the joint's own space.
+			byte[] ibm = new byte[jointCount * 64];
+			for (int j = 0; j < jointCount; j++)
 			{
-				Put(ibm, j * 64, 1, 0, 0, 0); Put(ibm, j * 64 + 16, 0, 1, 0, 0);
-				Put(ibm, j * 64 + 32, 0, 0, 1, 0); Put(ibm, j * 64 + 48, 0, 0, 0, 1);
+				PutMatrix(ibm, j * 64, Invert(BindOf(j)));
 			}
-			int ibmAccessor = Accessor(View(ibm), 5126, joints.Count, "MAT4");
+			int ibmAccessor = Accessor(View(ibm), 5126, jointCount, "MAT4");
 
-			// ---- the motion, if any -----------------------------------------------------------------
+			// ---- the motions --------------------------------------------------------------------------
+			// Per motion, every joint's local transform per frame - its animated world matrix
+			// made local to its parent's animated one, as for the rest pose.
 			JsonArray animations = new JsonArray();
-			if (pose != null && pose.Frames > 0 && pose.Counts != null)
+			foreach (Models.RigMotion motion in rig.Motions ?? new List<Models.RigMotion>())
 			{
-				int stride = pose.Counts.Sum();
-				byte[] times = new byte[pose.Frames * 4];
-				for (int f = 0; f < pose.Frames; f++) BitConverter.GetBytes(f / 30f).CopyTo(times, f * 4);
-				int timeAccessor = Accessor(View(times), 5126, pose.Frames, "SCALAR", new[] { 0f }, new[] { (pose.Frames - 1) / 30f });
+				int frames = Math.Min(motion.Frames, motion.Worlds.Count);
+				if (frames <= 0) continue;
+				byte[] times = new byte[frames * 4];
+				for (int f = 0; f < frames; f++) BitConverter.GetBytes(f / 30f).CopyTo(times, f * 4);
+				int timeAccessor = Accessor(View(times), 5126, frames, "SCALAR", new[] { 0f }, new[] { (frames - 1) / 30f });
 
 				JsonArray samplersA = new JsonArray();
 				JsonArray channels = new JsonArray();
-				List<int> offsets = new List<int>();
-				int running = 0;
-				foreach (int c in pose.Counts) { offsets.Add(running); running += c; }
-
-				for (int j = 0; j < joints.Count; j++)
+				for (int j = 0; j < jointCount; j++)
 				{
-					(int group, int local, string _) = joints[j];
-					if (group >= offsets.Count || local >= pose.Counts[group]) continue;
-					byte[] t = new byte[pose.Frames * 12];
-					byte[] r = new byte[pose.Frames * 16];
-					byte[] s = new byte[pose.Frames * 12];
-					for (int f = 0; f < pose.Frames; f++)
+					int parent = ParentOf(j);
+					byte[] t = new byte[frames * 12];
+					byte[] r = new byte[frames * 16];
+					byte[] s = new byte[frames * 12];
+					float[] previous = null;
+					for (int f = 0; f < frames; f++)
 					{
-						int at = (f * stride + offsets[group] + local) * 12;
-						if (at + 12 > pose.Matrices.Count) break;
-						Decompose(pose.Matrices, at, out float[] tr, out float[] q, out float[] sc);
+						float[][] worlds = motion.Worlds[f];
+						float[] world = j < worlds.Length && worlds[j] != null ? worlds[j] : BindOf(j);
+						float[] local = parent >= 0 && parent < worlds.Length && worlds[parent] != null ? Mul(world, Invert(worlds[parent])) : world;
+						Decompose(local, 0, out float[] tr, out float[] q, out float[] sc);
+						// q and -q are one rotation; keep the sign nearest the last frame's so a
+						// linear step between keys does not swing the long way round.
+						if (previous != null && q[0] * previous[0] + q[1] * previous[1] + q[2] * previous[2] + q[3] * previous[3] < 0)
+						{
+							for (int k = 0; k < 4; k++) q[k] = -q[k];
+						}
+						previous = q;
 						Put(t, f * 12, tr[0], tr[1], tr[2]);
 						Put(r, f * 16, q[0], q[1], q[2], q[3]);
 						Put(s, f * 12, sc[0], sc[1], sc[2]);
 					}
-					int tAcc = Accessor(View(t), 5126, pose.Frames, "VEC3");
-					int rAcc = Accessor(View(r), 5126, pose.Frames, "VEC4");
-					int sAcc = Accessor(View(s), 5126, pose.Frames, "VEC3");
+					int tAcc = Accessor(View(t), 5126, frames, "VEC3");
+					int rAcc = Accessor(View(r), 5126, frames, "VEC4");
+					int sAcc = Accessor(View(s), 5126, frames, "VEC3");
 					foreach ((int acc, string path) in new[] { (tAcc, "translation"), (rAcc, "rotation"), (sAcc, "scale") })
 					{
 						samplersA.Add(new JsonObject { ["input"] = timeAccessor, ["output"] = acc, ["interpolation"] = "LINEAR" });
@@ -282,7 +326,7 @@ namespace Crystal
 						});
 					}
 				}
-				animations.Add(new JsonObject { ["name"] = motionName ?? pose.Name ?? "motion", ["samplers"] = samplersA, ["channels"] = channels });
+				animations.Add(new JsonObject { ["name"] = motion.Name ?? "motion", ["samplers"] = samplersA, ["channels"] = channels });
 			}
 
 			// ---- the document -------------------------------------------------------------------------
@@ -324,8 +368,54 @@ namespace Crystal
 			return glb.ToArray();
 		}
 
+		/// <summary>a then b, both 4x3 row-vector (v' = v a b).</summary>
+		private static float[] Mul(float[] a, float[] b)
+		{
+			float[] r = new float[12];
+			for (int i = 0; i < 4; i++)
+			{
+				for (int k = 0; k < 3; k++)
+				{
+					r[i * 3 + k] = a[i * 3] * b[k] + a[i * 3 + 1] * b[3 + k] + a[i * 3 + 2] * b[6 + k];
+				}
+			}
+			for (int k = 0; k < 3; k++) r[9 + k] += b[9 + k];
+			return r;
+		}
+
+		/// <summary>The inverse of a 4x3 row-vector affine matrix (a general 3x3 part, then the translation).</summary>
+		private static float[] Invert(float[] m)
+		{
+			double a = m[0], b = m[1], c = m[2], d = m[3], e = m[4], f = m[5], g = m[6], h = m[7], i = m[8];
+			double det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+			if (Math.Abs(det) < 1e-12) det = det < 0 ? -1e-12 : 1e-12;
+			double[] inv =
+			{
+				(e * i - f * h) / det, (c * h - b * i) / det, (b * f - c * e) / det,
+				(f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det,
+				(d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det
+			};
+			float[] r = new float[12];
+			for (int k = 0; k < 9; k++) r[k] = (float)inv[k];
+			// t' = -t x R^-1
+			for (int k = 0; k < 3; k++)
+			{
+				r[9 + k] = (float)-(m[9] * inv[k] + m[10] * inv[3 + k] + m[11] * inv[6 + k]);
+			}
+			return r;
+		}
+
+		/// <summary>A 4x3 row-vector matrix as a glTF column-major 4x4 (the rows of the one are the columns of the other).</summary>
+		private static void PutMatrix(byte[] into, int at, float[] m)
+		{
+			Put(into, at, m[0], m[1], m[2], 0);
+			Put(into, at + 16, m[3], m[4], m[5], 0);
+			Put(into, at + 32, m[6], m[7], m[8], 0);
+			Put(into, at + 48, m[9], m[10], m[11], 1);
+		}
+
 		/// <summary>A 4x3 row-vector matrix (rows then translation) into T, unit quaternion, S.</summary>
-		private static void Decompose(List<float> m, int at, out float[] translation, out float[] quaternion, out float[] scale)
+		private static void Decompose(IReadOnlyList<float> m, int at, out float[] translation, out float[] quaternion, out float[] scale)
 		{
 			// Rows of the 3x3 are the images of the axes (v' = v * R), so the columns of
 			// the column-vector rotation are these rows.
