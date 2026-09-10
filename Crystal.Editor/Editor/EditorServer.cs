@@ -680,12 +680,18 @@ namespace Crystal.Editor
 						// copy written beside it as assets/<name>-rigged.glb and used from here on.
 						List<string> rigNotes = new List<string>();
 						string rigged = null;
+						AutoRig.Cuts cutsUsed = null;
 						if (file.Skins.Count == 0 || !file.Meshes.Any(m => m.Skin >= 0 && m.Joints != null))
 						{
-							AutoRig.Result bound = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]));
+							// The cuts: the request's, else the ones saved beside the file last time
+							// (assets/<name>.rig.json), else all found; saved back as used.
+							AutoRig.Cuts cuts = ReadCuts(body?["cuts"]) ?? ReadCuts(LoadCutsFile(gltfPath));
+							AutoRig.Result bound = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts);
 							string riggedName = Path.GetFileNameWithoutExtension(asset) + "-rigged.glb";
 							string riggedPath = Path.Combine(_project.Directory, GltfBundle.Folder, riggedName);
 							File.WriteAllBytes(riggedPath, bound.Glb);
+							if (body?["cuts"] != null) SaveCutsFile(gltfPath, body["cuts"]);
+							cutsUsed = bound.Cuts;
 							rigged = GltfBundle.Folder + "/" + riggedName;
 							asset = rigged;
 							gltfPath = riggedPath;
@@ -702,7 +708,29 @@ namespace Crystal.Editor
 							File.WriteAllText(definition, new OpenFF.Data.ModModel { Model = made.Model, Gltf = asset.Replace('\\', '/') }.ToJson());
 							made.Notes.Insert(0, "on OpenFF the client draws " + Path.GetFileName(asset) + " itself with its own weights and textures (defs/models/" + stem + ".json); the game-format remake is the viewer's preview and the Steam game's version");
 						}
-						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes, gltf = ours, rigged });
+						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes, gltf = ours, rigged, cuts = CutsJson(cutsUsed) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/models/cuts":
+				{
+					// The auto-rig's regions for an unrigged glTF against a model, without rigging: { asset,
+					// model, cuts? } -> the cuts as they would be used (blanks found from the shape), each
+					// region's vertex count, and the cuts saved beside the file. Writes nothing.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string asset = body?["asset"]?.GetValue<string>() ?? throw new ArgumentException("no glTF named");
+						string modelName = body?["model"]?.GetValue<string>() ?? "files/j101.nmdp.lz";
+						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
+						OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(gltfPath);
+						JsonNode saved = LoadCutsFile(gltfPath);
+						AutoRig.Cuts cuts = ReadCuts(body?["cuts"]) ?? ReadCuts(saved);
+						AutoRig.Result found = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts, analyseOnly: true);
+						SendJson(context, new { ok = true, cuts = CutsJson(found.Cuts), regions = found.RegionCounts, saved = saved != null ? CutsJson(ReadCuts(saved)) : null, notes = found.Notes });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
@@ -2882,6 +2910,33 @@ namespace Crystal.Editor
 		}
 
 		/// <summary>Three numbers from a JSON array (a rotation, an offset), or null when the body has none.</summary>
+		/// <summary>The auto-rig's cuts from JSON ({ neck, hips, armFloor, torsoWidth: fractions or null; skirt, enabled: bools }), null for none.</summary>
+		private static AutoRig.Cuts ReadCuts(JsonNode node)
+		{
+			if (node is not JsonObject o) return null;
+			float? Fraction(string key) => o[key] is JsonValue v && v.TryGetValue(out double d) ? (float)Math.Clamp(d, 0, 1) : (float?)null;
+			return new AutoRig.Cuts
+			{
+				Neck = Fraction("neck"), Hips = Fraction("hips"), ArmFloor = Fraction("armFloor"), TorsoWidth = Fraction("torsoWidth"),
+				Skirt = o["skirt"] is JsonValue s && s.TryGetValue(out bool skirt) ? skirt : true,
+				Enabled = o["enabled"] is JsonValue e && e.TryGetValue(out bool enabled) ? enabled : true
+			};
+		}
+
+		private static object CutsJson(AutoRig.Cuts c) => c == null ? null : new { neck = c.Neck, hips = c.Hips, armFloor = c.ArmFloor, torsoWidth = c.TorsoWidth, skirt = c.Skirt, enabled = c.Enabled };
+
+		/// <summary>The cuts saved beside a glTF (assets/<name>.rig.json), or null.</summary>
+		private static JsonNode LoadCutsFile(string gltfPath)
+		{
+			string path = Path.ChangeExtension(gltfPath, ".rig.json");
+			try { return File.Exists(path) ? JsonNode.Parse(File.ReadAllText(path)) : null; } catch { return null; }
+		}
+
+		private static void SaveCutsFile(string gltfPath, JsonNode cuts)
+		{
+			File.WriteAllText(Path.ChangeExtension(gltfPath, ".rig.json"), cuts.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+		}
+
 		private static float[] Triple(JsonNode node)
 		{
 			if (node is not JsonArray array || array.Count < 3) return null;

@@ -409,6 +409,23 @@ function makeModelViewer(canvas, status, options = {}) {
   }
 
   /// The heat of a weight: blue for none through green to red for all of it.
+  /// A bone's own colour for the all-bones view: hues spread by the golden angle so neighbours in
+  /// the list differ, mirrored bones (L_/R_) a shade apart. Bright and saturated, dimmed by weight.
+  function boneColour(j) {
+    const names = bundle && bundle.skin ? bundle.skin.joints : [];
+    const name = names[j] || '';
+    // The same hue for L_x and R_x, the right side a little lighter, so the two sides read as a pair.
+    const key = name.startsWith('L_') || name.startsWith('R_') ? names.findIndex(n => n === 'L_' + name.slice(2)) : j;
+    const hue = ((key < 0 ? j : key) * 137.508) % 360;
+    const light = name.startsWith('R_') ? 0.7 : 0.55;
+    return hsl(hue / 360, 0.85, light);
+  }
+  function hsl(h, s, l) {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const f = t => { t = (t + 1) % 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; };
+    return [f(h + 1 / 3), f(h), f(h - 1 / 3)];
+  }
+
   function heat(w) {
     if (w <= 0) return [0.16, 0.18, 0.55];
     if (w < 0.5) { const t = w / 0.5; return [0.16 * (1 - t), 0.18 + 0.62 * t, 0.55 * (1 - t) + 0.2 * t]; }
@@ -452,7 +469,14 @@ function makeModelViewer(canvas, status, options = {}) {
       } else {
         skinBuffer[v * 8] = base[v * 8]; skinBuffer[v * 8 + 1] = base[v * 8 + 1]; skinBuffer[v * 8 + 2] = base[v * 8 + 2];
       }
-      if (heated) {
+      if (heated && paint.heatAll) {
+        // Every bone at once: the vertex in its heaviest bone's colour, dimmer the less it has of it.
+        let best = -1, most = 0;
+        for (let k = 0; k < 4; k++) if (weight[v * 4 + k] > most) { most = weight[v * 4 + k]; best = index[v * 4 + k]; }
+        const c = best >= 0 ? boneColour(best) : [0.2, 0.2, 0.2];
+        const dim = 0.45 + 0.55 * most;
+        skinBuffer[v * 8 + 5] = c[0] * dim; skinBuffer[v * 8 + 6] = c[1] * dim; skinBuffer[v * 8 + 7] = c[2] * dim;
+      } else if (heated) {
         let w = 0;
         for (let k = 0; k < 4; k++) if (index[v * 4 + k] === paint.bone) w += weight[v * 4 + k];
         const c = heat(w);
@@ -726,6 +750,19 @@ function makeModelViewer(canvas, status, options = {}) {
         const blended = new Map();
         for (const j of new Set([...m.keys(), ...around.keys()])) blended.set(j, (1 - amount) * (m.get(j) || 0) + amount * (around.get(j) || 0) / n);
         storeWeights(c, blended);
+      } else if (paint.mode === 'assign') {
+        // Assign: the ring is this bone's, outright - a vertex inside it goes to the bone whole,
+        // the outer third of the ring easing in - whatever it had before. The tool for "this part
+        // belongs to that bone", which add's blending and erase's redistribution never quite say.
+        const had = m.get(bone) || 0;
+        const ease = Math.min(1, falloff / 0.3);
+        const want = Math.max(had, ease);
+        const others = [...m.entries()].filter(([j]) => j !== bone);
+        const othersTotal = others.reduce((s, [, w]) => s + w, 0);
+        const next = new Map();
+        if (othersTotal > 0 && want < 1) for (const [j, w] of others) next.set(j, w / othersTotal * (1 - want));
+        next.set(bone, want);
+        storeWeights(c, next);
       } else if (sign > 0) {
         // Add: the bone takes the amount and the others give way in proportion.
         const had = m.get(bone) || 0;
@@ -1050,13 +1087,33 @@ function makeModelViewer(canvas, status, options = {}) {
       return true;
     },
 
-    /// The brush's ring follows the cursor over the mesh (null, or off the mesh, hides it).
+    /// The brush's ring follows the cursor over the mesh (null, or off the mesh, hides it). Returns
+    /// the bones of the vertex under the cursor, heaviest first, as [{ bone, name, weight }], or null.
     hoverBrush(clientX, clientY) {
       const before = brushSeat;
       const hit = clientX === null || !bundle || !bundle.skin || !paint.on || paint.bone < 0 ? null : pick(clientX, clientY);
       brushSeat = hit ? { point: [hit[0], hit[1], hit[2]], normal: hit.normal } : null;
       if (before || brushSeat) draw();
+      if (!hit) return null;
+      // The nearest of the triangle's corners: its four bones.
+      const p = currentPositions();
+      let best = -1, bestD = Infinity;
+      for (const v of hit.corners || []) {
+        const dx = p[v * 8] - hit[0], dy = p[v * 8 + 1] - hit[1], dz = p[v * 8 + 2] - hit[2];
+        const d = dx * dx + dy * dy + dz * dz;
+        if (d < bestD) { bestD = d; best = v; }
+      }
+      if (best < 0) return null;
+      const out = [];
+      for (let k = 0; k < 4; k++) {
+        const j = bundle.skin.jointIndex[best * 4 + k], w = bundle.skin.weights[best * 4 + k];
+        if (j >= 0 && w > 0.005) out.push({ bone: j, name: bundle.skin.joints[j], weight: w });
+      }
+      return out.sort((a, b) => b.weight - a.weight);
     },
+
+    /// A bone's colour in the all-bones view, as a CSS rgb() string.
+    boneColour(j) { const c = boneColour(j); return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`; },
 
     /// The heaviest bone under a canvas position, or -1.
     boneAt(clientX, clientY) {

@@ -537,6 +537,13 @@ function drawHierarchy() {
         row.append(arrow);
       }
       row.append(icon(child.icon || 'file'));
+      // A colour swatch (a bone's colour in the weights view).
+      if (child.swatch) {
+        const swatch = document.createElement('u');
+        swatch.className = 'swatch';
+        swatch.style.background = child.swatch;
+        row.append(swatch);
+      }
       const text = document.createElement('span');
       text.textContent = child.label;
       row.append(text);
@@ -827,6 +834,7 @@ function outlineFor(doc) {
         const kids = childrenOf[j];
         rows.push({
           label: skin.joints[j], ref, icon: 'bone', depth,
+          swatch: typeof doc.boneColour === 'function' ? doc.boneColour(j) : null,
           fold: kids.length ? { folded: folded.has(ref), toggle: () => { if (folded.has(ref)) folded.delete(ref); else folded.add(ref); } } : null,
           reveal: () => { if (typeof doc.pickBone === 'function') doc.pickBone(j); }
         });

@@ -1870,24 +1870,30 @@ async function openModel(name) {
     lastY = e.clientY;
     canvas.setPointerCapture(e.pointerId);
   };
+  let paintReadout = null;
+  const hover = (x, y) => {
+    if (!paintOn() || typeof viewer.hoverBrush !== 'function') return;
+    const bones = viewer.hoverBrush(x, y);
+    if (paintReadout) paintReadout(bones);
+  };
   canvas.onpointermove = (e) => {
-    if (painting) { viewer.paintAt(e.clientX, e.clientY); return; }
+    if (painting) { viewer.paintAt(e.clientX, e.clientY); hover(e.clientX, e.clientY); return; }
     if (!dragging) {
-      // The brush's ring follows the cursor over the mesh in weights mode.
-      if (paintOn() && typeof viewer.hoverBrush === 'function') viewer.hoverBrush(e.clientX, e.clientY);
+      // The brush's ring follows the cursor over the mesh in weights mode, and the vertex's bones are read out.
+      hover(e.clientX, e.clientY);
       return;
     }
     viewer.orbit(e.clientX - lastX, e.clientY - lastY);
     lastX = e.clientX;
     lastY = e.clientY;
-    if (paintOn() && typeof viewer.hoverBrush === 'function') viewer.hoverBrush(e.clientX, e.clientY);
+    hover(e.clientX, e.clientY);
   };
   canvas.onpointerup = (e) => {
     dragging = false;
     painting = false;
     canvas.releasePointerCapture(e.pointerId);
   };
-  canvas.onpointerleave = () => { if (typeof viewer.hoverBrush === 'function') viewer.hoverBrush(null, null); };
+  canvas.onpointerleave = () => { if (typeof viewer.hoverBrush === 'function') viewer.hoverBrush(null, null); if (paintReadout) paintReadout(null); };
   let pickPaintBone = null, paintChanged = null;
   canvas.onwheel = (e) => {
     e.preventDefault();
@@ -1912,8 +1918,8 @@ async function openModel(name) {
     const on = $('.paint-on', paintBar), controls = $('.paint-controls', paintBar);
     const boneSelect = $('.paint-bone', paintBar), modeSelect = $('.paint-mode', paintBar);
     const radius = $('.paint-radius', paintBar), strength = $('.paint-strength', paintBar);
-    const mirror = $('.paint-mirror', paintBar), heat = $('.paint-heat', paintBar);
-    const bones = $('.paint-bones', paintBar), wire = $('.paint-wire', paintBar);
+    const mirror = $('.paint-mirror', paintBar), heat = $('.paint-heat', paintBar), heatAll = $('.paint-heat-all', paintBar);
+    const bones = $('.paint-bones', paintBar), wire = $('.paint-wire', paintBar), readout = $('.paint-readout', paintBar);
     const undo = $('.paint-undo', paintBar), save = $('.paint-save', paintBar), hint = $('.paint-hint', paintBar);
     const stage = $('.stage', node);
     // Without a skin to paint there is only the wireframe to switch.
@@ -1928,11 +1934,26 @@ async function openModel(name) {
     const apply = () => viewer.setPaint({
       on: on.checked, bone: boneSelect.value === '' ? -1 : Number(boneSelect.value), mode: modeSelect.value,
       radius: Number(radius.value) * radiusScale, strength: Number(strength.value), mirror: mirror.checked,
-      heat: heat.checked, bones: bones.checked, wire: wire.checked
+      heat: heat.checked, heatAll: heatAll.checked, bones: bones.checked, wire: wire.checked
     });
     const labels = () => { $('.paint-radius-value', paintBar).textContent = Number(radius.value).toFixed(1); $('.paint-strength-value', paintBar).textContent = Number(strength.value).toFixed(2); };
-    on.onchange = () => { controls.hidden = !on.checked; stage.classList.toggle('painting', on.checked); if (on.checked && boneSelect.value === '' && joints.length) boneSelect.value = String(Math.max(0, joints.indexOf('L_kata'))); apply(); };
+    const unweighted = new Set(['root', 'j101', 'trans', 'body']);   // the tree's top, never painted
+    on.onchange = () => { controls.hidden = !on.checked; stage.classList.toggle('painting', on.checked); if (on.checked && joints.length && (boneSelect.value === '' || unweighted.has(joints[Number(boneSelect.value)]))) boneSelect.value = String(Math.max(0, joints.indexOf('L_kata'))); apply(); if (typeof drawHierarchy === 'function') drawHierarchy(); };
     boneSelect.onchange = apply; modeSelect.onchange = apply; mirror.onchange = apply; heat.onchange = apply; bones.onchange = apply; wire.onchange = apply;
+    heatAll.onchange = () => { apply(); if (typeof drawHierarchy === 'function') drawHierarchy(); };
+    // The bones of the vertex under the cursor, heaviest first, each in its colour.
+    paintReadout = (list) => {
+      readout.textContent = '';
+      if (!list || !list.length) return;
+      for (const { bone, name: boneName, weight } of list) {
+        const chip = document.createElement('b');
+        chip.textContent = `${boneName} ${Math.round(weight * 100)}%`;
+        chip.style.borderColor = viewer.boneColour(bone);
+        readout.append(chip);
+      }
+    };
+    // The hierarchy's bone rows carry the all-bones colours while weights are on.
+    if (activeDoc && model.skin) activeDoc.boneColour = (bone) => on.checked ? viewer.boneColour(bone) : null;
     radius.oninput = () => { labels(); apply(); }; strength.oninput = () => { labels(); apply(); };
     labels();
     pickPaintBone = (bone) => { boneSelect.value = String(bone); apply(); say(`bone: ${joints[bone]}`); };

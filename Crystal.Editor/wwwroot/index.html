@@ -427,7 +427,9 @@
         <span class="paint-controls" hidden>
           <label class="toggle" title="colour the model by the picked bone's weight: blue none, green half, red all (off: the shaded model, still painted)"><input type="checkbox" class="paint-heat" checked> heat map</label>
           <select class="paint-bone" title="the bone shown as a heat map (blue none, green half, red all) and painted; Alt+click the mesh to pick the bone under the cursor"></select>
-          <select class="paint-mode" title="add puts the bone's weight on, erase takes it off, smooth blends with the neighbours">
+          <label class="toggle" title="every bone at once, each in its own colour (the hierarchy shows which); off: the picked bone alone, blue to red"><input type="checkbox" class="paint-heat-all"> all bones</label>
+          <select class="paint-mode" title="assign makes the ring the picked bone's outright (the tool for 'this part belongs to that bone'); add blends the bone's weight in; erase takes it off, the weight going to the bones around; smooth blends with the neighbours">
+            <option value="assign">assign</option>
             <option value="add">add</option>
             <option value="erase">erase</option>
             <option value="smooth">smooth</option>
@@ -441,6 +443,7 @@
           <button class="paint-discard" title="throw away every unsaved stroke: the weights as the file has them">Discard</button>
           <button class="paint-rerig" title="run the auto-rig again from the original, unrigged file and start over (the saved weights are replaced)" hidden>Redo auto-rig</button>
           <button class="paint-save" title="write the weights into the .glb and remake the game model from it">Save weights</button>
+          <span class="paint-readout" title="the bones of the vertex under the cursor"></span>
           <span class="paint-hint">left drag paints · right drag orbits · Alt+click picks the bone · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind · to move a part to another bone, pick that bone and add · erase on a vertex's only bone hands the weight to the bone's parent</span>
         </span>
       </div>

@@ -2208,6 +2208,10 @@ header h1 .gem {
 /* A row that folds its children (bones): the arrow before the icon. */
 .tree .row .fold { text-decoration: none; color: var(--dim); width: 10px; margin: 0 -4px 0 -12px; text-align: center; cursor: pointer; flex: 0 0 auto; }
 .tree .row .fold:hover { color: var(--ink); }
+.tree .row .swatch { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; text-decoration: none; margin-right: -3px; }
+/* The bones of the vertex under the brush, each in its bone's colour. */
+.paint-bar .paint-readout { display: inline-flex; gap: 4px; min-height: 16px; }
+.paint-bar .paint-readout b { font-weight: 500; font-size: 11px; padding: 0 5px; border: 1px solid #556; border-left-width: 4px; border-radius: 3px; color: var(--ink); }
 /* Dragging a hierarchy row onto another (or its group) reparents it. */
 .tree .row.dragging { opacity: .45; }
 .tree .row.drop, .tree .group.drop { outline: 1px solid var(--accent); outline-offset: -1px; background: #232c3a; }

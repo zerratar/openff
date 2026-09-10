@@ -32,14 +32,40 @@ namespace Crystal
 			public float Scale;
 			public float[] Offset;
 			public List<string> Notes = new List<string>();
+			/// <summary>The cuts as used - what was asked for, the rest as found from the file's shape.</summary>
+			public Cuts Cuts;
+			/// <summary>How many vertices each region got (body, head, left arm, right arm, left leg, right leg, hips).</summary>
+			public Dictionary<string, int> RegionCounts;
+		}
+
+		/// <summary>
+		/// Where the file is cut into regions - each a fraction of the file's height (0 the floor, 1 the
+		/// top) or of its width - and how; null leaves a cut to be found from the file's shape.
+		/// </summary>
+		public sealed class Cuts
+		{
+			/// <summary>Regions at all; false transfers from the whole of the original everywhere.</summary>
+			public bool Enabled = true;
+			/// <summary>The head begins here. Found: the narrowest slice between the head's widest and the shoulders'.</summary>
+			public float? Neck;
+			/// <summary>The legs (and a skirt) begin below here. Found: the height of the original's hip joint.</summary>
+			public float? Hips;
+			/// <summary>Nothing below here is an arm. Found: a tenth below the original's hands or hips, whichever is lower.</summary>
+			public float? ArmFloor;
+			/// <summary>The torso's width as a fraction of the file's width, about its middle; outside it, between the arm floor and the neck, is an arm. Found: slice by slice, from the gap between the arm and the torso.</summary>
+			public float? TorsoWidth;
+			/// <summary>Below the hips, what hangs as one piece across the middle (a skirt, a tunic) follows the hips, not the legs.</summary>
+			public bool Skirt = true;
 		}
 
 		/// <summary>
 		/// The file's meshes bound to <paramref name="modelName"/>'s skeleton. <paramref name="scale"/> 0
 		/// fits the model's height; <paramref name="offset"/> null stands it on the floor over the
 		/// model's middle; <paramref name="rotation"/> turns it (degrees about x, y, z) before either.
+		/// <paramref name="cuts"/> places the regions (null: all found); <paramref name="analyseOnly"/>
+		/// stops after the regions, the result carrying the cuts as found and each region's count.
 		/// </summary>
-		public static Result Build(Workspace workspace, string modelName, GltfFile file, float scale = 0, float[] rotation = null, float[] offset = null, string posePack = null, int poseIndex = 0, int poseFrame = 0)
+		public static Result Build(Workspace workspace, string modelName, GltfFile file, float scale = 0, float[] rotation = null, float[] offset = null, string posePack = null, int poseIndex = 0, int poseFrame = 0, Cuts cuts = null, bool analyseOnly = false)
 		{
 			if (file == null) throw new ArgumentNullException(nameof(file));
 			List<GltfMesh> meshes = file.Meshes.Where(m => m.Indices != null && m.Indices.Length >= 3 && m.Positions != null).ToList();
@@ -263,21 +289,39 @@ namespace Crystal
 			// from its head's triangles, a sleeve from its arm's. Regions the file has no cut for take
 			// from the whole.
 			bool leftIsPlusX = LeftIsPlusX(bindX, refWeights, rig);
-			float armFloor = float.MaxValue;
+			// The heights the game's own joints stand at in the matched pose, as fractions of its
+			// height: the hands (nothing below them is an arm) and the hips (below them the legs).
+			float modelH = Math.Max(1e-4f, oMax[1] - oMin[1]);
+			float handsAt = float.MaxValue, hipsAt = float.NaN;
 			for (int n = 0; n < rig.Nodes.Count; n++)
 			{
 				string name = rig.Nodes[n];
 				if (name != "L_te" && name != "R_te" && name != "kosi") continue;
 				float[] world = delta != null ? Gltf.Mul(rig.Bind[n], delta[n]) : rig.Bind[n];
-				armFloor = Math.Min(armFloor, world[10]);
+				float at = (world[10] - oMin[1]) / modelH;
+				if (name == "kosi") hipsAt = at; else handsAt = Math.Min(handsAt, at);
 			}
-			if (armFloor == float.MaxValue) armFloor = oMin[1] + (oMax[1] - oMin[1]) * 0.4f;
-			int[] vertexRegion = Regions(fileX, fileY, count, oMin[1], oMax[1], armFloor - (oMax[1] - oMin[1]) * 0.1f, leftIsPlusX, result.Notes);
+			if (handsAt == float.MaxValue) handsAt = 0.4f;
+			if (float.IsNaN(hipsAt)) hipsAt = 0.45f;
+			Cuts used = new Cuts
+			{
+				Enabled = cuts?.Enabled ?? true, Neck = cuts?.Neck, Hips = cuts?.Hips ?? hipsAt, ArmFloor = cuts?.ArmFloor ?? Math.Max(0, Math.Min(handsAt, hipsAt) - 0.1f),
+				TorsoWidth = cuts?.TorsoWidth, Skirt = cuts?.Skirt ?? true
+			};
+			int[] vertexRegion = Regions(fileX, fileY, fileZ, count, oMin[1], oMax[1], used, leftIsPlusX, result.Notes);
+			result.Cuts = used;
+			result.RegionCounts = RegionNames.ToDictionary(name => name, name => 0);
+			foreach (int reg in vertexRegion) result.RegionCounts[RegionNames[reg < 0 ? 0 : reg]]++;
+			if (analyseOnly) return result;
 			int[] triangleRegion = TriangleRegions(triangles, refWeights, rig);
 			int[] boneRegion = rig.Nodes.Select(RegionOfBone).ToArray();
+			// With a skirt, nothing of the body above the hips follows a leg: the original's own blend of
+			// its thighs into its waist is what makes a tunic's hem fly out with the legs.
+			int[] allowed = (int[])Allowed.Clone();
+			if (used.Enabled && used.Skirt) allowed[RegionBody] &= ~((1 << RegionLeftLeg) | (1 << RegionRightLeg));
 
 			// ---- pass one: against the original in the matched pose ----------------------------------------------
-			(int Node, float Weight)[][] final = Finish(Smooth(Transfer(fileX, fileY, fileZ, count, refX, refY, refZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion), neighbours, canonical), neighbours, canonical);
+			(int Node, float Weight)[][] final = Finish(Smooth(Transfer(fileX, fileY, fileZ, count, refX, refY, refZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion, allowed), neighbours, canonical), neighbours, canonical);
 
 			// ---- the limbs onto the bones --------------------------------------------------------------------------
 			// The matched pose is alike as a whole, not limb by limb: the file's forearm hangs straight
@@ -367,7 +411,7 @@ namespace Crystal
 						float[] p = Skinned(fileX[v], fileY[v], fileZ[v], final[v], undo);
 						bx[v] = p[0]; by[v] = p[1]; bz[v] = p[2];
 					}
-					final = Finish(Smooth(Transfer(bx, by, bz, count, bindX, bindY, bindZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion), neighbours, canonical), neighbours, canonical);
+					final = Finish(Smooth(Transfer(bx, by, bz, count, bindX, bindY, bindZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion, allowed), neighbours, canonical), neighbours, canonical);
 				}
 				// The final carrying, with the final weights; the normals go the same way.
 				bx = new float[count]; by = new float[count]; bz = new float[count];
@@ -405,12 +449,14 @@ namespace Crystal
 		/// nearest triangles, the nearest counting far more (inverse fourth power, softened), the
 		/// corners' weights blended by where the nearest point lies on each.
 		/// </summary>
-		private static Dictionary<int, float>[] Transfer(float[] px, float[] py, float[] pz, int count, float[] refX, float[] refY, float[] refZ, List<(int A, int B, int C)> triangles, (int Node, float Weight)[][] refWeights, float soft, int[] vertexRegion, int[] triangleRegion, int[] boneRegion)
+		private static Dictionary<int, float>[] Transfer(float[] px, float[] py, float[] pz, int count, float[] refX, float[] refY, float[] refZ, List<(int A, int B, int C)> triangles, (int Node, float Weight)[][] refWeights, float soft, int[] vertexRegion, int[] triangleRegion, int[] boneRegion, int[] allowed)
 		{
 			const int Nearest = 3;
 			// A vertex of a region takes only from that region's triangles, when the original has any.
-			bool[] regionHasTriangles = new bool[4];
-			foreach (int r in triangleRegion) if (r >= 0) regionHasTriangles[r] = true;
+			// A vertex of a region takes only from the triangles of the bone regions it may (Allowed),
+			// when the original has any such.
+			int triangleMask = 0;
+			foreach (int r in triangleRegion) if (r >= 0) triangleMask |= 1 << r;
 			Dictionary<int, float>[] weights = new Dictionary<int, float>[count];
 			float[] nearDist = new float[Nearest];
 			int[] nearTri = new int[Nearest];
@@ -418,10 +464,10 @@ namespace Crystal
 			for (int v = 0; v < count; v++)
 			{
 				for (int k = 0; k < Nearest; k++) { nearDist[k] = float.MaxValue; nearTri[k] = -1; }
-				int only = vertexRegion[v] >= 0 && regionHasTriangles[vertexRegion[v]] ? vertexRegion[v] : RegionAny;
+				int only = vertexRegion[v] >= 0 && (allowed[vertexRegion[v]] & triangleMask) != 0 ? allowed[vertexRegion[v]] : 0;
 				for (int t = 0; t < triangles.Count; t++)
 				{
-					if (only != RegionAny && triangleRegion[t] != only) continue;
+					if (only != 0 && (only & (1 << triangleRegion[t])) == 0) continue;
 					(int a, int b, int c) = triangles[t];
 					float d = ClosestOnTriangle(px[v], py[v], pz[v], refX[a], refY[a], refZ[a], refX[b], refY[b], refZ[b], refX[c], refY[c], refZ[c], out float u, out float w);
 					if (d >= nearDist[Nearest - 1]) continue;
@@ -443,17 +489,17 @@ namespace Crystal
 				// Strictly the region's bones: what the original's triangles blend in from outside it
 				// (the neck under its jaw, the chest under its shoulder) goes to the heaviest bone of
 				// the region. The smoothing after still blends across the cuts.
-				if (only != RegionAny)
+				if (only != 0)
 				{
 					int heaviest = -1; float most = 0, outside = 0;
 					foreach (KeyValuePair<int, float> pair in blend)
 					{
-						if (boneRegion[pair.Key] == only) { if (pair.Value > most) { most = pair.Value; heaviest = pair.Key; } }
+						if ((only & (1 << boneRegion[pair.Key])) != 0) { if (pair.Value > most) { most = pair.Value; heaviest = pair.Key; } }
 						else outside += pair.Value;
 					}
 					if (heaviest >= 0 && outside > 0)
 					{
-						foreach (int bone in blend.Keys.Where(k => boneRegion[k] != only).ToList()) blend.Remove(bone);
+						foreach (int bone in blend.Keys.Where(k => (only & (1 << boneRegion[k])) == 0).ToList()) blend.Remove(bone);
 						blend[heaviest] += outside;
 					}
 				}
@@ -529,15 +575,32 @@ namespace Crystal
 		}
 
 		// ---- regions ------------------------------------------------------------------------------------------
-		private const int RegionAny = -1, RegionBody = 0, RegionHead = 1, RegionLeftArm = 2, RegionRightArm = 3;
+		// The regions, of the file's vertices and of the original's bones alike. A vertex region may
+		// take from more than one bone region (Allowed, a mask): the body from the body, the hips and
+		// the legs (the original's own blends at the waist and the hips), a leg from its leg and the
+		// hips, a skirt from the hips and the body; the head and the arms only from their own.
+		private const int RegionAny = -1, RegionBody = 0, RegionHead = 1, RegionLeftArm = 2, RegionRightArm = 3, RegionLeftLeg = 4, RegionRightLeg = 5, RegionHips = 6;
+		private static readonly string[] RegionNames = { "body", "head", "leftArm", "rightArm", "leftLeg", "rightLeg", "hips" };
+		private static readonly int[] Allowed =
+		{
+			(1 << RegionBody) | (1 << RegionHips) | (1 << RegionLeftLeg) | (1 << RegionRightLeg),
+			1 << RegionHead,
+			1 << RegionLeftArm,
+			1 << RegionRightArm,
+			(1 << RegionLeftLeg) | (1 << RegionHips),
+			(1 << RegionRightLeg) | (1 << RegionHips),
+			(1 << RegionHips) | (1 << RegionBody)
+		};
 
-		/// <summary>The region a game bone belongs to: the head (atama), an arm (sakotu, kata, ude, te by side), else the body.</summary>
+		/// <summary>The region a game bone belongs to: the head (atama), an arm (sakotu, kata, ude, te by side), a leg (momo, hiza, sune, asi by side), the hips (kosi), else the body.</summary>
 		private static int RegionOfBone(string node)
 		{
 			if (node == "atama") return RegionHead;
+			if (node == "kosi") return RegionHips;
 			bool left = node.StartsWith("L_", StringComparison.Ordinal), right = node.StartsWith("R_", StringComparison.Ordinal);
 			string n = left || right ? node.Substring(2) : node;
 			if ((left || right) && (n == "sakotu" || n == "kata" || n == "ude" || n == "te")) return left ? RegionLeftArm : RegionRightArm;
+			if ((left || right) && (n == "momo" || n == "hiza" || n == "sune" || n == "asi")) return left ? RegionLeftLeg : RegionRightLeg;
 			return RegionBody;
 		}
 
@@ -577,99 +640,209 @@ namespace Crystal
 		}
 
 		/// <summary>
-		/// Each file vertex's region by the file's own shape (in the model's space, standing up y): the
-		/// head above the neck - the narrowest horizontal slice between the head's widest and the
-		/// shoulders' - and, between the neck and <paramref name="armFloor"/>, an arm where a vertex
-		/// lies outside the torso's width in its slice (the torso being the cluster of a slice's
-		/// vertices about the middle, the arms the clusters a gap away from it). No neck found: every
-		/// vertex takes from the whole original, as before.
+		/// Each file vertex's region by the file's own shape (in the model's space, standing up y) and
+		/// the <paramref name="cuts"/>, whose blanks are filled in from the shape as it goes: the head
+		/// above the neck (found: the narrowest horizontal slice between the head's widest and the
+		/// shoulders'); between the neck and the arm floor, an arm where a vertex lies outside the
+		/// torso's width (found slice by slice: the torso the cluster of a slice's vertices about the
+		/// middle, an arm a cluster a gap away from it); below the hips and within the torso's width, a
+		/// leg where a slice has two clusters (one a side), a skirt where it has one across the middle
+		/// (the hips region when Skirt, else the body); the rest the body. Cuts off: every vertex takes
+		/// from the whole original, as before.
 		/// </summary>
-		private static int[] Regions(float[] x, float[] y, int count, float yMin, float yMax, float armFloor, bool leftIsPlusX, List<string> notes)
+		private sealed class Cluster { public int Count; public float Min, Max, Middle; public List<int> Members = new List<int>(); }
+
+		private static int[] Regions(float[] x, float[] y, float[] z, int count, float yMin, float yMax, Cuts cuts, bool leftIsPlusX, List<string> notes)
 		{
 			int[] region = new int[count];
+			if (!cuts.Enabled)
+			{
+				for (int v = 0; v < count; v++) region[v] = RegionAny;
+				notes.Add("regions off: weights taken from the whole of the original everywhere");
+				return region;
+			}
 			float h = Math.Max(1e-4f, yMax - yMin);
 			const int Slices = 64;
 			int SliceOf(float at) => Math.Max(0, Math.Min(Slices - 1, (int)((at - yMin) / h * Slices)));
 			float[] sMin = Enumerable.Repeat(float.MaxValue, Slices).ToArray(), sMax = Enumerable.Repeat(float.MinValue, Slices).ToArray();
-			double centre = 0;
-			for (int v = 0; v < count; v++) { int s = SliceOf(y[v]); sMin[s] = Math.Min(sMin[s], x[v]); sMax[s] = Math.Max(sMax[s], x[v]); centre += x[v]; }
+			double centre = 0; float xMin = float.MaxValue, xMax = float.MinValue;
+			for (int v = 0; v < count; v++) { int s = SliceOf(y[v]); sMin[s] = Math.Min(sMin[s], x[v]); sMax[s] = Math.Max(sMax[s], x[v]); centre += x[v]; xMin = Math.Min(xMin, x[v]); xMax = Math.Max(xMax, x[v]); }
 			centre /= Math.Max(1, count);
+			float width = Math.Max(1e-4f, xMax - xMin);
 			float[] wide = new float[Slices];
 			for (int s = 0; s < Slices; s++) wide[s] = sMax[s] > sMin[s] ? sMax[s] - sMin[s] : -1;
+			List<string> found = new List<string>();
 
-			// The neck: the deepest valley in width across the top part, against the widest above and below it.
-			int neck = -1; float bestDepth = 0;
-			for (int s = (int)(Slices * 0.40); s < (int)(Slices * 0.96); s++)
+			// ---- the neck: asked for, or the deepest valley in width across the top part ----------------------
+			int neck = -1;
+			if (cuts.Neck.HasValue) neck = SliceOf(yMin + cuts.Neck.Value * h);
+			else
 			{
-				if (wide[s] < 0) continue;
-				float above = 0, below = 0;
-				for (int t = s + 1; t < Slices; t++) above = Math.Max(above, wide[t]);
-				for (int t = (int)(Slices * 0.30); t < s; t++) below = Math.Max(below, wide[t]);
-				float cap = Math.Min(above, below);
-				float depth = cap - wide[s];
-				if (depth > bestDepth && depth >= 0.2f * cap) { bestDepth = depth; neck = s; }
+				float bestDepth = 0;
+				for (int s = (int)(Slices * 0.40); s < (int)(Slices * 0.96); s++)
+				{
+					if (wide[s] < 0) continue;
+					float above = 0, below = 0;
+					for (int t = s + 1; t < Slices; t++) above = Math.Max(above, wide[t]);
+					for (int t = (int)(Slices * 0.30); t < s; t++) below = Math.Max(below, wide[t]);
+					float cap = Math.Min(above, below);
+					float depth = cap - wide[s];
+					if (depth > bestDepth && depth >= 0.2f * cap) { bestDepth = depth; neck = s; }
+				}
+				if (neck >= 0) { cuts.Neck = (neck + 0.5f) / Slices; found.Add("neck " + (cuts.Neck.Value * 100).ToString("0") + "%"); }
 			}
-			if (neck < 0)
-			{
-				for (int v = 0; v < count; v++) region[v] = RegionAny;
-				notes.Add("no neck found in the file's shape, so no head or arm regions: weights taken from the whole of the original");
-				return region;
-			}
-			float neckY = yMin + (neck + 0.5f) / Slices * h;
 			int heads = 0;
-			for (int v = 0; v < count; v++) if (y[v] > neckY) { region[v] = RegionHead; heads++; }
+			if (neck >= 0) { float neckY = yMin + cuts.Neck.Value * h; for (int v = 0; v < count; v++) if (y[v] > neckY) { region[v] = RegionHead; heads++; } }
+			else notes.Add("no neck found in the file's shape: no head region (set the neck cut to have one)");
 
-			// The arms: in each slice between the neck and the floor, the vertices clustered by gaps in
-			// x; the cluster about the middle is the torso, and a vertex beyond it either way an arm.
-			// A slice whose arms touch the torso (one cluster) borrows the torso's width from the others.
-			int floor = SliceOf(armFloor);
+			// ---- the clusters of each slice, by gaps in x -----------------------------------------------------------
+			// (a sleeve a gap away from the torso is its own cluster, as is each leg below the crotch; a
+			// shell's cross-section, however sparse, projects onto x as one solid run).
+			float gap = 0.02f * h;
+			List<Cluster>[] clusters = new List<Cluster>[Slices];
+			int[] clusterOf = new int[count];
+			{
+				List<int>[] members = new List<int>[Slices];
+				for (int v = 0; v < count; v++) { if (region[v] != RegionBody) continue; int s = SliceOf(y[v]); (members[s] ??= new List<int>()).Add(v); }
+				for (int s = 0; s < Slices; s++)
+				{
+					clusters[s] = new List<Cluster>();
+					if (members[s] == null || members[s].Count < 4) continue;
+					List<int> m = members[s].OrderBy(v => x[v]).ToList();
+					Cluster c = null;
+					float last = float.NaN;
+					foreach (int v in m)
+					{
+						if (c == null || x[v] - last > gap) { c = new Cluster { Min = x[v], Max = x[v] }; clusters[s].Add(c); }
+						c.Count++; c.Max = x[v]; c.Middle += x[v]; c.Members.Add(v);
+						clusterOf[v] = clusters[s].Count - 1;
+						last = x[v];
+					}
+					foreach (Cluster k in clusters[s]) k.Middle /= Math.Max(1, k.Count);
+				}
+			}
+
+			// ---- the arms: outside the torso's width, between the arm floor and the neck -----------------------
+			int top = neck >= 0 ? neck : Slices - 1;
+			int floor = SliceOf(yMin + (cuts.ArmFloor ?? 0.3f) * h);
 			float[] torsoMin = new float[Slices], torsoMax = new float[Slices];
 			bool[] known = new bool[Slices];
-			List<float>[] xs = new List<float>[Slices];
-			for (int v = 0; v < count; v++) { int s = SliceOf(y[v]); if (s >= floor && s <= neck) (xs[s] ??= new List<float>()).Add(x[v]); }
-			float gap = 0.02f * h;
-			for (int s = floor; s <= neck; s++)
+			if (cuts.TorsoWidth.HasValue)
 			{
-				if (xs[s] == null || xs[s].Count < 4) continue;
-				xs[s].Sort();
-				List<(float Min, float Max)> clusters = new List<(float, float)>();
-				float from = xs[s][0], last = xs[s][0];
-				for (int i = 1; i < xs[s].Count; i++)
+				float half = cuts.TorsoWidth.Value * width / 2;
+				for (int s = 0; s < Slices; s++) { torsoMin[s] = (float)centre - half; torsoMax[s] = (float)centre + half; known[s] = true; }
+			}
+			else
+			{
+				for (int s = floor; s <= top; s++)
 				{
-					if (xs[s][i] - last > gap) { clusters.Add((from, last)); from = xs[s][i]; }
-					last = xs[s][i];
+					if (clusters[s].Count < 2) continue;
+					Cluster torso = clusters[s].OrderBy(c => Math.Abs(c.Middle - centre)).First();
+					torsoMin[s] = torso.Min; torsoMax[s] = torso.Max; known[s] = true;
 				}
-				clusters.Add((from, last));
-				if (clusters.Count < 2) continue;
-				(float Min, float Max) torso = clusters.OrderBy(c => Math.Abs((c.Min + c.Max) / 2 - centre)).First();
-				torsoMin[s] = torso.Min; torsoMax[s] = torso.Max; known[s] = true;
+				int knownCount = known.Count(k => k);
+				if (knownCount > 0)
+				{
+					float[] mins = Enumerable.Range(0, Slices).Where(s => known[s]).Select(s => torsoMin[s]).OrderBy(f => f).ToArray();
+					float[] maxs = Enumerable.Range(0, Slices).Where(s => known[s]).Select(s => torsoMax[s]).OrderBy(f => f).ToArray();
+					float medianMin = mins[mins.Length / 2], medianMax = maxs[maxs.Length / 2];
+					// Reported as the chest's width (the wide end of what was found), the number a person
+					// would set by hand; the slices the arms touch borrow the median, nearer the truth there.
+					float[] widths = Enumerable.Range(0, Slices).Where(s => known[s]).Select(s => torsoMax[s] - torsoMin[s]).OrderBy(f => f).ToArray();
+					cuts.TorsoWidth = widths[Math.Min(widths.Length - 1, (int)(widths.Length * 0.8f))] / width;
+					found.Add("torso " + (cuts.TorsoWidth.Value * 100).ToString("0") + "% of the width (" + knownCount + " slices with the arms apart)");
+					for (int s = 0; s < Slices; s++) if (!known[s]) { torsoMin[s] = medianMin; torsoMax[s] = medianMax; known[s] = true; }
+				}
+				else notes.Add("the arms could not be told from the torso (no slice has them apart): no arm regions (set the torso width to have them)");
 			}
-			int knownCount = known.Count(k => k);
-			if (knownCount == 0)
-			{
-				notes.Add("regions: the head above the neck (" + heads.ToString("N0") + " vertices, cut " + ((neckY - yMin) / h * 100).ToString("0") + "% of the way up); the arms could not be told from the torso (no slice has them apart), so the rest takes from the whole of the original");
-				for (int v = 0; v < count; v++) if (region[v] == RegionBody) region[v] = RegionAny;
-				return region;
-			}
-			float[] knownMin = Enumerable.Range(0, Slices).Where(s => known[s]).Select(s => torsoMin[s]).OrderBy(f => f).ToArray();
-			float[] knownMax = Enumerable.Range(0, Slices).Where(s => known[s]).Select(s => torsoMax[s]).OrderBy(f => f).ToArray();
-			float medianMin = knownMin[knownMin.Length / 2], medianMax = knownMax[knownMax.Length / 2];
 			int lefts = 0, rights = 0;
-			for (int v = 0; v < count; v++)
+			if (known[0])
 			{
-				if (region[v] != RegionBody) continue;
-				int s = SliceOf(y[v]);
-				if (s < floor || s > neck) continue;
-				float lo = known[s] ? torsoMin[s] : medianMin, hi = known[s] ? torsoMax[s] : medianMax;
-				int side = x[v] < lo - 0.005f * h ? -1 : x[v] > hi + 0.005f * h ? 1 : 0;
-				if (side == 0) continue;
-				bool left = (side > 0) == leftIsPlusX;
-				region[v] = left ? RegionLeftArm : RegionRightArm;
-				if (left) lefts++; else rights++;
+				for (int v = 0; v < count; v++)
+				{
+					if (region[v] != RegionBody) continue;
+					int s = SliceOf(y[v]);
+					if (s < floor || s > top) continue;
+					int side = x[v] < torsoMin[s] - 0.005f * h ? -1 : x[v] > torsoMax[s] + 0.005f * h ? 1 : 0;
+					if (side == 0) continue;
+					bool left = (side > 0) == leftIsPlusX;
+					region[v] = left ? RegionLeftArm : RegionRightArm;
+					if (left) lefts++; else rights++;
+				}
 			}
-			notes.Add("regions by the file's shape: the head above the neck (" + heads.ToString("N0") + " vertices, cut " + ((neckY - yMin) / h * 100).ToString("0") + "% of the way up), the left arm " + lefts.ToString("N0") + ", the right arm " + rights.ToString("N0") + " (" + knownCount + " slices with the arms apart from the torso); each takes weights from the like part of the original");
+
+			// ---- the legs and a skirt: below the hips, within the torso's width -----------------------------------
+			int legsL = 0, legsR = 0, skirt = 0;
+			if (cuts.Hips.HasValue)
+			{
+				int hips = SliceOf(yMin + cuts.Hips.Value * h);
+				int[] kindOf = new int[64];
+				for (int s = 0; s < hips && s < Slices; s++)
+				{
+					// The slice's clusters within the torso (an arm's hand hanging low is not a leg): the
+					// biggest on each side of the middle are the legs; the rest - a hem hanging about them,
+					// a coat tail - is skirt. One cluster across the middle is all skirt.
+					List<Cluster> inside = clusters[s].Where(c => !known[0] || (c.Max > torsoMin[s] - 0.005f * h && c.Min < torsoMax[s] + 0.005f * h)).ToList();
+					if (inside.Count == 0) continue;
+					int fallback = cuts.Skirt ? RegionHips : RegionBody;
+					if (kindOf.Length < clusters[s].Count) kindOf = new int[clusters[s].Count];
+					for (int i = 0; i < clusters[s].Count; i++) kindOf[i] = inside.Contains(clusters[s][i]) ? fallback : RegionBody;
+					if (inside.Count >= 2)
+					{
+						Cluster plus = inside.Where(c => c.Middle > centre).OrderByDescending(c => c.Count).FirstOrDefault();
+						Cluster minus = inside.Where(c => c.Middle <= centre).OrderByDescending(c => c.Count).FirstOrDefault();
+						if (plus != null && minus != null)
+						{
+							kindOf[clusters[s].IndexOf(plus)] = leftIsPlusX ? RegionLeftLeg : RegionRightLeg;
+							kindOf[clusters[s].IndexOf(minus)] = leftIsPlusX ? RegionRightLeg : RegionLeftLeg;
+						}
+					}
+					for (int i = 0; i < clusters[s].Count; i++)
+					{
+						Cluster c = clusters[s][i];
+						int kind = kindOf[i];
+						// Within a leg's cluster, a hem hanging about the leg: the leg's cross-section is one
+						// layer about its middle, and a vertex with other geometry between it and the middle
+						// at much its own bearing is an outer layer - the skirt.
+						HashSet<int> beyond = null;
+						if ((kind == RegionLeftLeg || kind == RegionRightLeg) && c.Count >= 12)
+						{
+							float mx = 0, mz = 0;
+							foreach (int v in c.Members) { mx += x[v]; mz += z[v]; }
+							mx /= c.Count; mz /= c.Count;
+							int n = c.Members.Count;
+							float[] radius = new float[n], bearing = new float[n];
+							for (int k = 0; k < n; k++) { int v = c.Members[k]; radius[k] = MathF.Sqrt((x[v] - mx) * (x[v] - mx) + (z[v] - mz) * (z[v] - mz)); bearing[k] = MathF.Atan2(z[v] - mz, x[v] - mx); }
+							float layer = 0.015f * h;
+							const float Sector = 0.35f;   // ~20 degrees either way
+							for (int k = 0; k < n; k++)
+							{
+								bool inner = false;
+								for (int j = 0; j < n && !inner; j++)
+								{
+									if (j == k || radius[j] >= radius[k] - layer) continue;
+									float d = MathF.Abs(bearing[j] - bearing[k]); if (d > MathF.PI) d = 2 * MathF.PI - d;
+									inner = d < Sector;
+								}
+								if (inner) (beyond ??= new HashSet<int>()).Add(c.Members[k]);
+							}
+						}
+						foreach (int v in c.Members)
+						{
+							if (region[v] != RegionBody) continue;
+							int mine = beyond != null && beyond.Contains(v) ? fallback : kind;
+							region[v] = mine;
+							if (mine == RegionLeftLeg) legsL++; else if (mine == RegionRightLeg) legsR++; else if (mine == RegionHips) skirt++;
+						}
+					}
+				}
+			}
+
+			notes.Add("regions by the file's shape" + (found.Count > 0 ? " (found: " + string.Join(", ", found) + ")" : "") + ": head " + heads.ToString("N0") + ", arms " + lefts.ToString("N0") + " / " + rights.ToString("N0") + ", legs " + legsL.ToString("N0") + " / " + legsR.ToString("N0") + (skirt > 0 ? ", skirt " + skirt.ToString("N0") + " (follows the hips)" : "") + "; the cuts: neck " + Percent(cuts.Neck) + ", hips " + Percent(cuts.Hips) + ", arm floor " + Percent(cuts.ArmFloor) + ", torso " + Percent(cuts.TorsoWidth) + " of the width; each region takes weights from the like part of the original");
 			return region;
 		}
+
+		private static string Percent(float? f) => f.HasValue ? (f.Value * 100).ToString("0") + "%" : "-";
 
 		/// <summary>The game's limb bones a mesh limb can be turned onto: 1 an arm bone, 2 a leg bone, 0 neither.</summary>
 		private static int LimbKind(string node)
