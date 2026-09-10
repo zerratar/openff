@@ -29,7 +29,7 @@
   <h2>Open Crystal</h2>
   <ol class="steps">
     <li><b>Run <code>crystal.exe</code>.</b> It opens in your browser. The first page is the start page.
-      <figure><img src="img/start-page.png" alt="Crystal's start page with a project open"><figcaption>The start page: the open project, its games, and the projects to switch to.</figcaption></figure></li>
+      <figure><img src="img/start-page.png" alt="Crystal's start page with a project open"><figcaption>The start page: the open project and its games above, the game's libraries in the panel below. With nothing open yet it offers New project, Open project and Sample projects.</figcaption></figure></li>
     <li><b>Open a sample.</b> <b>File ▸ Sample projects…</b> lists the mods that come with the release. Pick <b>Showcase</b>, keep the name, <b>Open as a project</b>. You get a copy of your own - change anything; the sample stays as it is.
       <figure><img src="img/samples-dialog.png" alt="The Sample projects dialog listing Hello mod, Showcase and Goblin Survivors" class="medium"><figcaption>Three samples: a map with weapons and a cutscene (no code), the smallest mod with code, and a whole game mode.</figcaption></figure></li>
     <li><b>Play it.</b> <b>Project ▸ Run in OpenFF</b> (or the <b>Run in OpenFF</b> button in the project panel). Crystal exports the mod into the client's <code>mods</code> folder and starts the game. In Ur, the town you start in, walk out of the <b>north gate</b>: the Crystal Shrine is the Showcase's own map.</li>
@@ -43,6 +43,11 @@
     <figure><img src="img/project-panel-mod.png" alt="The project panel on the Mod side: Code, Scenes, Items..."><figcaption><b>Mod</b> - your project's own: code, scenes (the maps you changed or made), items, characters, monsters, formations, strings.</figcaption></figure>
   </div>
   <p>The <b>filter</b> box narrows any list. The buttons at the right of the filter are the actions for that library - <b>New map…</b>, <b>New item…</b>, <b>Import a model…</b>, <b>Run in OpenFF</b>.</p>
+  <p>Anything under FF3 / FF4 is the game's own and opens in an editor made for it: a map in 3D with its characters and exits, a message file as a table of lines, a model with its animations, an item table as a grid. Change it and the change is saved into your project - the game's files are never written.</p>
+  <div class="row2">
+    <figure><img src="img/map-ur.png" alt="Ur open in the map editor"><figcaption>A game map: Ur, with a villager selected - its model, its cast and what it says.</figcaption></figure>
+    <figure><img src="img/text-editor.png" alt="The game's text open in the editor"><figcaption>A game text file: every line, editable.</figcaption></figure>
+  </div>
 
   <h2>Two kinds of project</h2>
   <table>

@@ -16,8 +16,10 @@
 
   <h2>Open a map</h2>
   <ol class="steps">
-    <li><b>Mod ▸ Scenes</b> in the project panel lists the maps your project touches. Double-click <b>Crystal Shrine (t91_00)</b>.</li>
-    <li>Any of the game's maps opens the same way from <b>FF3 ▸ Maps</b> - <code>t01_01</code> is Ur. Changes to a game map go into a <b>scene file</b> of your project; the game's own file is never written.</li>
+    <li><b>FF3 ▸ Maps</b> in the project panel lists the game's maps - <code>t01_01</code> is Ur, the first town. Double-click it. The hierarchy shows its <b>terrain</b>, its <b>characters</b> (each with its cast - the script that runs when you talk to it), its <b>logic</b> and its <b>exits</b>; the 3D view tags the exits with where they lead.
+      <figure><img src="img/map-ur.png" alt="Ur open in the map editor, a villager selected"><figcaption>Ur. The villager <code>n081</code> is cast 21; the inspector shows its model, its cast and the first lines it says.</figcaption></figure></li>
+    <li><b>Mod ▸ Scenes</b> lists the maps your project has touched - and its own: double-click <b>Crystal Shrine (t91_00)</b> for the sample's.</li>
+    <li>Changes to a game map go into a <b>scene file</b> of your project; the game's own file is never written. <b>Save placement</b> (the disk icon above the view) writes moved characters as a Steam-installable edit instead.</li>
   </ol>
 
   <h2>Move around</h2>
@@ -63,8 +65,9 @@
 
   <div class="tip"><b>Play here.</b> The ▶ button above the 3D view starts the game on this map, at the selected object. The quickest loop there is: change, ▶, walk over, look.</div>
 
-  <h2>Converting a game's map</h2>
-  <p>On one of the game's own maps the hierarchy also lists its <b>characters</b>, <b>logic</b> and <b>exits</b>. You can move them and save the placement (a Steam mod), or <b>convert</b> a villager into an object of your mod's - the inspector offers it - which keeps the game's own dialogue and lets you add behaviours on top.</p>
+  <h2>The game's own characters</h2>
+  <p>Select one of Ur's villagers: the inspector shows its <b>model</b>, its <b>cast</b> and what it <b>says</b>. You can move it and rotate it like anything else, change its model, and read the script that runs when you talk to it. <b>Convert to OpenFF object</b> turns it into an object of your mod's standing in its place - the game's own dialogue kept 1:1 as a <b>GameCast</b>, or as editable lines in a <b>CastScript</b> - so you can add behaviours on top, or replace what it says.</p>
+  <figure><img src="img/inspector-game-character.png" alt="The inspector for one of the game's villagers: model, cast, what it says" class="small"><figcaption>A game character in the inspector.</figcaption></figure>
 
   <div class="note"><b>Next:</b> <a href="own-map.html">a map of your own</a>.</div>
 </main>
