@@ -15,7 +15,10 @@
 // stack slot its display list restored - and the palette holds those matrices for the
 // group being drawn, multiplied by the current pose. With no pose every entry is the
 // billboard matrix (or identity), which is exactly what it drew before.
-const PALETTE = 24;
+// The DS keeps 31 matrix stack slots and the current matrix: 32. A model's vertices name any of
+// them (j101 uses all 32), and a palette short of that reads past its end in the shader - the
+// vertices vanished or flew off, depending on what lay beyond.
+const PALETTE = 32;
 const MODEL_VERTEX = `
 attribute vec3 position;
 attribute vec2 coord;
