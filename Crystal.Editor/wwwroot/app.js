@@ -1872,16 +1872,22 @@ async function openModel(name) {
   };
   canvas.onpointermove = (e) => {
     if (painting) { viewer.paintAt(e.clientX, e.clientY); return; }
-    if (!dragging) return;
+    if (!dragging) {
+      // The brush's ring follows the cursor over the mesh in weights mode.
+      if (paintOn() && typeof viewer.hoverBrush === 'function') viewer.hoverBrush(e.clientX, e.clientY);
+      return;
+    }
     viewer.orbit(e.clientX - lastX, e.clientY - lastY);
     lastX = e.clientX;
     lastY = e.clientY;
+    if (paintOn() && typeof viewer.hoverBrush === 'function') viewer.hoverBrush(e.clientX, e.clientY);
   };
   canvas.onpointerup = (e) => {
     dragging = false;
     painting = false;
     canvas.releasePointerCapture(e.pointerId);
   };
+  canvas.onpointerleave = () => { if (typeof viewer.hoverBrush === 'function') viewer.hoverBrush(null, null); };
   let pickPaintBone = null, paintChanged = null;
   canvas.onwheel = (e) => {
     e.preventDefault();
@@ -1955,7 +1961,7 @@ async function openModel(name) {
           say(`weights saved into ${shortName(name)} and ${made.model} remade from it`, 'good');
         } else say(`weights saved into ${shortName(name)}`, 'good');
         dirty = false;
-        hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 Alt+click picks the bone \u00b7 to move a part to another bone, pick that bone and add \u00b7 erase on a vertex\u2019s only bone hands the weight to the bone\u2019s parent';
+        hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 Alt+click picks the bone \u00b7 the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind \u00b7 to move a part to another bone, pick that bone and add \u00b7 erase on a vertex\u2019s only bone hands the weight to the bone\u2019s parent';
         hint.classList.remove('paint-dirty');
       } catch (error) {
         say(error.message, 'bad');

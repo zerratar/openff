@@ -176,6 +176,7 @@ function makeModelViewer(canvas, status, options = {}) {
     drawModel(bundle, vertexBuffer, indexBuffer, indexAttrBuffer, textures, pose, poseFrame, poseOffsets, attach);
     if (paint.wire) drawWireframe();
     if (paint.bones) drawSkeleton();
+    drawBrush();
   }
 
   /// Whether the viewed model's colours are the heat map of the painted bone right now.
@@ -549,16 +550,82 @@ function makeModelViewer(canvas, status, options = {}) {
     const dir = normalise([far[0] - origin[0], far[1] - origin[1], far[2] - origin[2]]);
     const p = currentPositions();
     const idx = bundle.indices;
-    let best = Infinity, hit = null;
+    let best = Infinity, hit = null, tri = -1;
     for (const group of bundle.groups) {
       if (group.hidden && !showHidden) continue;
       for (let i = group.start; i + 2 < group.start + group.count; i += 3) {
         const a = idx[i] * 8, b = idx[i + 1] * 8, c = idx[i + 2] * 8;
         const t = rayTriangle(origin, dir, p[a], p[a + 1], p[a + 2], p[b], p[b + 1], p[b + 2], p[c], p[c + 1], p[c + 2]);
-        if (t !== null && t < best) { best = t; hit = [origin[0] + dir[0] * t, origin[1] + dir[1] * t, origin[2] + dir[2] * t]; }
+        if (t !== null && t < best) { best = t; hit = [origin[0] + dir[0] * t, origin[1] + dir[1] * t, origin[2] + dir[2] * t]; tri = i; }
       }
     }
+    if (!hit) return null;
+    // The triangle's normal, turned to face the viewer, and its corners: the brush's seat.
+    const a = idx[tri] * 8, b = idx[tri + 1] * 8, c = idx[tri + 2] * 8;
+    const e1 = [p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]], e2 = [p[c] - p[a], p[c + 1] - p[a + 1], p[c + 2] - p[a + 2]];
+    let normal = normalise([e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]]);
+    if (normal[0] * dir[0] + normal[1] * dir[1] + normal[2] * dir[2] > 0) normal = [-normal[0], -normal[1], -normal[2]];
+    hit.normal = normal;
+    hit.corners = [idx[tri], idx[tri + 1], idx[tri + 2]];
     return hit;
+  }
+
+  // The brush's seat under the cursor as it hovers: { point, normal } on the mesh, drawn as a ring.
+  let brushSeat = null;
+
+  /// The ring where the brush would land: the radius, in the surface's plane at the cursor, with a
+  /// short line up the normal; over everything, so it shows through the mesh's own faces.
+  function drawBrush() {
+    if (!brushSeat || !paint.on || paint.bone < 0) return;
+    const [n0, n1, n2] = brushSeat.normal;
+    // Two axes across the normal.
+    const ref = Math.abs(n1) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    const u = normalise([n1 * ref[2] - n2 * ref[1], n2 * ref[0] - n0 * ref[2], n0 * ref[1] - n1 * ref[0]]);
+    const w = [n1 * u[2] - n2 * u[1], n2 * u[0] - n0 * u[2], n0 * u[1] - n1 * u[0]];
+    const c = brushSeat.point, r = paint.radius;
+    const lift = r * 0.02;
+    const lines = [];
+    const colour = paint.mode === 'erase' ? [1, 0.45, 0.35] : paint.mode === 'smooth' ? [0.55, 0.85, 1] : [1, 0.95, 0.4];
+    const push = (x, y, z) => lines.push(x + n0 * lift, y + n1 * lift, z + n2 * lift, 0, 0, colour[0], colour[1], colour[2]);
+    const Segments = 48;
+    for (let i = 0; i < Segments; i++) {
+      const a0 = (i / Segments) * Math.PI * 2, a1 = ((i + 1) / Segments) * Math.PI * 2;
+      push(c[0] + (u[0] * Math.cos(a0) + w[0] * Math.sin(a0)) * r, c[1] + (u[1] * Math.cos(a0) + w[1] * Math.sin(a0)) * r, c[2] + (u[2] * Math.cos(a0) + w[2] * Math.sin(a0)) * r);
+      push(c[0] + (u[0] * Math.cos(a1) + w[0] * Math.sin(a1)) * r, c[1] + (u[1] * Math.cos(a1) + w[1] * Math.sin(a1)) * r, c[2] + (u[2] * Math.cos(a1) + w[2] * Math.sin(a1)) * r);
+    }
+    // The centre's normal, half a radius long, and a dot-sized inner ring where the brush is strongest.
+    push(c[0], c[1], c[2]); push(c[0] + n0 * r * 0.5, c[1] + n1 * r * 0.5, c[2] + n2 * r * 0.5);
+    for (let i = 0; i < 16; i++) {
+      const a0 = (i / 16) * Math.PI * 2, a1 = ((i + 1) / 16) * Math.PI * 2, q = r * 0.08;
+      push(c[0] + (u[0] * Math.cos(a0) + w[0] * Math.sin(a0)) * q, c[1] + (u[1] * Math.cos(a0) + w[1] * Math.sin(a0)) * q, c[2] + (u[2] * Math.cos(a0) + w[2] * Math.sin(a0)) * q);
+      push(c[0] + (u[0] * Math.cos(a1) + w[0] * Math.sin(a1)) * q, c[1] + (u[1] * Math.cos(a1) + w[1] * Math.sin(a1)) * q, c[2] + (u[2] * Math.cos(a1) + w[2] * Math.sin(a1)) * q);
+    }
+    drawLines(lines, 2);
+  }
+
+  /// Lines (8 floats a vertex, as the model's buffer) drawn plain and over everything.
+  function drawLines(lines, width) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, boneBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines), gl.DYNAMIC_DRAW);
+    const stride = 8 * 4;
+    gl.enableVertexAttribArray(attribute.position); gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(attribute.coord); gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 12);
+    gl.enableVertexAttribArray(attribute.colour); gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 20);
+    if (attribute.mindex >= 0) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, boneIndexAttr);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines.length / 8), gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(attribute.mindex); gl.vertexAttribPointer(attribute.mindex, 1, gl.FLOAT, false, 4, 0);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, blank);
+    gl.uniform1i(uniform.textured, 0);
+    gl.uniform3fv(uniform.tint, [1, 1, 1]);
+    gl.uniform1f(uniform.alpha, 1);
+    paletteData.set(IDENTITY, 0);
+    gl.uniformMatrix4fv(uniform.palette, false, paletteData);
+    gl.disable(gl.DEPTH_TEST);
+    gl.lineWidth(width);
+    gl.drawArrays(gl.LINES, 0, lines.length / 8);
+    gl.enable(gl.DEPTH_TEST);
   }
 
   /// Neighbours by shared edge, twins by position merged, for the smooth brush.
@@ -600,23 +667,49 @@ function makeModelViewer(canvas, status, options = {}) {
     }
   }
 
-  /// The brush at a point on the mesh: every vertex within the radius (as drawn now) has the bone's
-  /// weight added, taken away or smoothed towards its neighbours, more at the centre; the other
-  /// bones give way so the vertex still sums to one. Mirror paints the x-mirrored point with the
-  /// mirrored bone (L_ <-> R_).
+  /// The vertices the brush reaches from a seat on the mesh, with how far each is: not a ball about
+  /// the point, which would take the chest under a sleeve along with the sleeve, but the surface
+  /// itself - out from the seat's triangle along the mesh's edges (as drawn now), as far as the
+  /// radius. What is not joined to the seat within the radius is not touched. Returns
+  /// [canonical vertex, distance] pairs.
+  function reach(seeds, radius) {
+    const p = currentPositions();
+    const dist = new Map();
+    // A small binary heap of [distance, vertex].
+    const heap = [];
+    const up = (i) => { while (i > 0) { const j = (i - 1) >> 1; if (heap[j][0] <= heap[i][0]) break; [heap[i], heap[j]] = [heap[j], heap[i]]; i = j; } };
+    const down = (i) => { for (;;) { let m = i; const l = 2 * i + 1, r = l + 1; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[i], heap[m]] = [heap[m], heap[i]]; i = m; } };
+    const offer = (v, d) => { if (d > radius || (dist.has(v) && dist.get(v) <= d)) return; dist.set(v, d); heap.push([d, v]); up(heap.length - 1); };
+    for (const [v, d] of seeds) offer(canonical ? canonical[v] : v, d);
+    while (heap.length) {
+      const [d, v] = heap[0];
+      const last = heap.pop(); if (heap.length) { heap[0] = last; down(0); }
+      if (dist.get(v) < d) continue;
+      for (const other of adjacency[v] || []) {
+        const dx = p[other * 8] - p[v * 8], dy = p[other * 8 + 1] - p[v * 8 + 1], dz = p[other * 8 + 2] - p[v * 8 + 2];
+        offer(other, d + Math.sqrt(dx * dx + dy * dy + dz * dz));
+      }
+    }
+    return [...dist.entries()];
+  }
+
+  /// The brush at a seat on the mesh (a point with the corners of its triangle): every vertex the
+  /// surface joins to it within the radius has the bone's weight added, taken away or smoothed
+  /// towards its neighbours, more at the centre; the other bones give way so the vertex still
+  /// sums to one. Mirror paints the x-mirrored point with the mirrored bone (L_ <-> R_).
   function brush(hit, bone, sign) {
     const skin = bundle.skin;
     const count = bundle.buffer.length / 8;
     const p = currentPositions();
-    const r2 = paint.radius * paint.radius;
     if (!adjacency) buildAdjacency();
-    const touched = [];
-    for (let v = 0; v < count; v++) {
+    // The seat's corners, each as far as it is from the point, start the flood.
+    const seeds = [];
+    for (const v of hit.corners || []) {
       const dx = p[v * 8] - hit[0], dy = p[v * 8 + 1] - hit[1], dz = p[v * 8 + 2] - hit[2];
-      const d2 = dx * dx + dy * dy + dz * dz;
-      if (d2 > r2) continue;
-      touched.push([v, 1 - Math.sqrt(d2) / paint.radius]);
+      seeds.push([v, Math.sqrt(dx * dx + dy * dy + dz * dz)]);
     }
+    if (!seeds.length) return 0;
+    const touched = reach(seeds, paint.radius).map(([v, d]) => [v, 1 - d / paint.radius]);
     // Twins by position paint together, whichever the brush reached.
     const seen = new Set();
     for (const [v, falloff] of touched) {
@@ -733,6 +826,7 @@ function makeModelViewer(canvas, status, options = {}) {
       canonical = null;
       undoStack.length = 0;
       paint.bone = -1;
+      brushSeat = null;
 
       centre = model.centre || [0, 0, 0];
       distance = (model.radius || 1) * 3;
@@ -845,6 +939,7 @@ function makeModelViewer(canvas, status, options = {}) {
     /// and the wireframe over whatever is shown, weights mode or not.
     setPaint(options) {
       Object.assign(paint, options || {});
+      if (!paint.on) brushSeat = null;
       if (bundle && bundle.skin) skinTo(skinFrame);
       draw();
     },
@@ -864,10 +959,30 @@ function makeModelViewer(canvas, status, options = {}) {
       if (!hit) return false;
       const sign = paint.mode === 'erase' ? -1 : 1;
       brush(hit, paint.bone, sign);
-      if (paint.mirror) brush([-hit[0], hit[1], hit[2]], mirroredBone(paint.bone), sign);
+      if (paint.mirror) {
+        // The mirrored seat: the nearest vertex to the mirrored point, when the mesh has one there.
+        const m = [-hit[0], hit[1], hit[2]];
+        const p = currentPositions();
+        let best = -1, bestD = paint.radius * paint.radius;
+        for (let v = 0; v < bundle.buffer.length / 8; v++) {
+          const dx = p[v * 8] - m[0], dy = p[v * 8 + 1] - m[1], dz = p[v * 8 + 2] - m[2];
+          const d = dx * dx + dy * dy + dz * dz;
+          if (d < bestD) { bestD = d; best = v; }
+        }
+        if (best >= 0) { m.corners = [best]; brush(m, mirroredBone(paint.bone), sign); }
+      }
+      brushSeat = { point: [hit[0], hit[1], hit[2]], normal: hit.normal };
       skinTo(skinFrame);
       draw();
       return true;
+    },
+
+    /// The brush's ring follows the cursor over the mesh (null, or off the mesh, hides it).
+    hoverBrush(clientX, clientY) {
+      const before = brushSeat;
+      const hit = clientX === null || !bundle || !bundle.skin || !paint.on || paint.bone < 0 ? null : pick(clientX, clientY);
+      brushSeat = hit ? { point: [hit[0], hit[1], hit[2]], normal: hit.normal } : null;
+      if (before || brushSeat) draw();
     },
 
     /// The heaviest bone under a canvas position, or -1.

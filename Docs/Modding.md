@@ -707,7 +707,25 @@ its arms down while the game's bind pose is a T, the original is first put into 
 that looks like the file - the battle idle's first frame, chosen when the file's proportions
 are nearer it than the T - the weights are taken against that, and the file's vertices are
 then carried back into the bind pose through the weights they got. Without this the sleeves
-take the chest's weights and swing as a shirt while the arm stays. The result is a skinned
+take the chest's weights and swing as a shirt while the arm stays. Two more things stand
+between a nearest-surface transfer and a mesh of other proportions, and both are handled.
+The matched pose is alike as a whole, not limb by limb - the file's forearm hangs straight
+where the game's angles forward - and carried through the game's changes that difference
+would stay as a permanent turn of the forearm off its bone; so once the first pass says which
+vertices each arm bone owns, each arm limb is turned about its joint onto the game's posed
+bone before the carry (arms up to 90°, legs up to 35°; feet and head are never turned - a
+foot points off its shin, a head's middle is where its hair is). And nearest surface cannot
+tell a chin from a chest: a big-headed file's lower face sits at the height of the original's
+chest and neck, its baggy sleeves beside its belly, and they would take those bones. So the
+file is cut by its own shape - the head above the neck (the narrowest horizontal slice
+between the head's widest and the shoulders'), the arms outside the torso's width in each
+slice (the torso being the cluster of a slice's vertices about the middle, an arm a cluster a
+gap away from it) - and each region takes weights only from the like part of the original,
+strictly: the head from `atama`'s triangles, a sleeve from its side's `sakotu`/`kata`/`ude`/`te`,
+the rest from the rest; what those triangles blend in from outside the region (the neck under
+the jaw) goes to the region's heaviest bone, and the smoothing after still softens the cuts.
+A file with no neck to find takes from the whole, as before; the notes say what was cut and
+what turned. The result is a skinned
 glTF with the game's joint names at the game's bind pose: exact on OpenFF, the game format
 for Steam and the viewer. The closer the mesh's volume to the original's, the better the
 weights land; a mesh of quite other proportions (a realistic body on the chibi skeleton)
@@ -733,15 +751,24 @@ are the character bones - skinning the file in the browser with the model's node
 per frame (`/api/model/rig-pose`). Orbit, zoom, scrub: a wrong weight shows at once.
 
 **And paints the weights.** Tick *weights* under the viewer on a skinned file of the
-project's: the mesh becomes a heat map of one bone's weight (blue none, green half, red all),
-the skeleton is drawn over it (the painted bone in yellow), and the left button paints
-while the right button orbits. Pick the bone from the list or Alt+click the mesh to take the
-bone under the cursor; *add* puts weight on, *erase* takes it off, *smooth* blends with the
+project's: the mesh becomes a heat map of one bone's weight (blue none, green half, red all)
+and the left button paints while the right button orbits. Pick the bone from the list, from
+the hierarchy's *Bones* tree (the file's joints nested as the file has them, each row folding
+its children away; the inspector says what the bone moves), or Alt+click the mesh to take
+the bone under the cursor. *add* puts weight on, *erase* takes it off (on a vertex's only bone
+the weight goes to that bone's parent, a hand's to the forearm), *smooth* blends with the
 neighbours; radius and strength are the brush, more at its centre; *mirror* paints the
-x-mirrored spot with the `L_`/`R_` counterpart. Every vertex keeps four bones summing to one
+x-mirrored spot with the `L_`/`R_` counterpart. The brush is a ring drawn on the surface under
+the cursor, in that surface's plane, yellow for add, red for erase, blue for smooth - and it
+paints the surface it sits on: out from the touched triangle along the mesh's own edges to the
+ring's radius, not a ball about the point, so a sleeve is painted without the chest beneath
+it and the eye without the hair behind it. Every vertex keeps four bones summing to one
 - the others give way as one is painted - and twin vertices at a seam paint as one. Play or
 scrub while painting: the brush works on the mesh as posed, so a stretched sleeve is
-painted where it stretches. *Undo* (Ctrl+Z) takes a stroke back; *Save weights* writes the
+painted where it stretches. Three view switches sit beside *weights* and work with it off too:
+*bones* draws the skeleton over the shaded model (the picked bone yellow), *wireframe* the
+mesh's edges over whatever is shown (game models as well), and *heat map* (inside the weights
+controls) can be turned off to paint on the textured model. *Undo* (Ctrl+Z) takes a stroke back; *Save weights* writes the
 weights into the `.glb` in place (`/api/project/models/weights`) and remakes the game
 model from it, so the game-format preview, the Steam version and the client's definition
 follow the paint.

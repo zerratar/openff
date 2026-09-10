@@ -111,7 +111,21 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   the bone under the cursor, undo, and *Save weights* writing the four-bone weights into the
   `.glb` in place and remaking the game model from it. The auto-rig's second pass (in the
   bind pose, where the arms stand clear of the body) and its outlier vote take most of the
-  need away; the brush is for the rest.
+  need away; the brush is for the rest. The brush is a ring on the surface under the cursor
+  and paints that surface - out along the mesh's edges to the radius, not a ball about the
+  point - so a sleeve is painted without the chest beneath it; erase on a vertex's only bone
+  hands the weight to the bone's parent. The hierarchy lists a skinned file's bones as a
+  folding tree (click to pick the paint bone); *bones* and *wireframe* toggles draw the
+  skeleton and the mesh's edges over the shaded model, weights mode or not, and the heat
+  map can be turned off to paint on the textured model.
+- **The auto-rig knows a chin from a chest.** Two more steps for a mesh of other
+  proportions: each arm limb is turned about its joint onto the game's posed bone before the
+  carry into the bind pose (the matched pose is alike as a whole, not limb by limb, and the
+  difference would otherwise stay as a permanent bend of the forearm off its bone); and the
+  file is cut by its own shape into head (above the narrowest slice under the head), arms
+  (outside the torso's width in a slice) and the rest, each taking weights only from the
+  like part of the original. On the chibi that took `mune` off the face, `kubi` off the eyes,
+  `hara` off the sleeves and `R_sakotu` off the hair in one go.
 - **Another rig's model, retargeted by the client.** A definition may name a glTF rigged
   another way (Mixamo, Tripo, Rigify): bones matched by a table of the usual names and the
   definition's `"bones"`, the file scaled and stood on its feet with its up and facing found
