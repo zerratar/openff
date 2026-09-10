@@ -23,11 +23,15 @@ attribute vec3 colour;
 attribute float mindex;
 uniform mat4 camera;
 uniform mat4 palette[${PALETTE}];
+uniform float nearer;
 varying vec2 vCoord;
 varying vec3 vColour;
 void main() {
   mat4 model = palette[int(mindex + 0.5)];
   gl_Position = camera * model * vec4(position, 1.0);
+  // Lines drawn over the faces they belong to are pulled a little towards the eye, or
+  // they would lose the depth test to those faces half the time and stipple.
+  gl_Position.z -= nearer * gl_Position.w;
   vCoord = coord;
   vColour = colour;
 }`;
@@ -73,12 +77,17 @@ function makeModelViewer(canvas, status, options = {}) {
     picture: gl.getUniformLocation(program, 'picture'),
     textured: gl.getUniformLocation(program, 'textured'),
     tint: gl.getUniformLocation(program, 'tint'),
-    alpha: gl.getUniformLocation(program, 'alpha')
+    alpha: gl.getUniformLocation(program, 'alpha'),
+    nearer: gl.getUniformLocation(program, 'nearer')
   };
 
   const vertexBuffer = gl.createBuffer();
   const indexBuffer = gl.createBuffer();
   const indexAttrBuffer = gl.createBuffer();
+  // The viewed model's edges, each once, for the wireframe.
+  const edgeBuffer = gl.createBuffer();
+  let edgeCount = 0;
+  let edgeRanges = [];           // per group: { group, start, count } into edgeBuffer, in edges
 
   // The pose being shown: {counts, matrices, frames} from /api/model/pose, and the
   // frame of it. Null draws the bind pose.
@@ -107,9 +116,11 @@ function makeModelViewer(canvas, status, options = {}) {
   let skinFrame = -1;
 
   // Weight painting on a skinned glTF: the bone shown as a heat map and painted, the brush,
-  // the skeleton overlay, and the strokes to undo. The weights live in bundle.skin.jointIndex
-  // and bundle.skin.weights (four a vertex) and are what weightsData() hands back for saving.
-  const paint = { on: false, bone: -1, radius: 1, strength: 0.25, mode: 'add', mirror: true, bones: true };
+  // and the strokes to undo. The weights live in bundle.skin.jointIndex and bundle.skin.weights
+  // (four a vertex) and are what weightsData() hands back for saving. The heat map (heat), the
+  // skeleton (bones) and the wireframe (wire) are each their own switch: the skeleton and the
+  // wireframe show over the shaded model too, with weights mode off.
+  const paint = { on: false, bone: -1, radius: 1, strength: 0.25, mode: 'add', mirror: true, heat: true, bones: false, wire: false };
   const undoStack = [];
   let adjacency = null;          // per vertex, the vertices sharing an edge (twins by position merged)
   let canonical = null;          // per vertex, the first vertex at its position
@@ -154,6 +165,7 @@ function makeModelViewer(canvas, status, options = {}) {
 
     gl.useProgram(program);
     gl.uniformMatrix4fv(uniform.camera, false, cameraMatrix());
+    gl.uniform1f(uniform.nearer, 0);
 
     // The character first, then the weapon on it: both go through the same depth buffer,
     // so a blade behind the arm is hidden by the arm as in the game.
@@ -162,7 +174,71 @@ function makeModelViewer(canvas, status, options = {}) {
         companion.pose, companion.poseFrame, companion.poseOffsets, null);
     }
     drawModel(bundle, vertexBuffer, indexBuffer, indexAttrBuffer, textures, pose, poseFrame, poseOffsets, attach);
-    drawSkeleton();
+    if (paint.wire) drawWireframe();
+    if (paint.bones) drawSkeleton();
+  }
+
+  /// Whether the viewed model's colours are the heat map of the painted bone right now.
+  function heatShown() { return paint.on && paint.heat && paint.bone >= 0 && Boolean(bundle && bundle.skin); }
+
+  /// The viewed model's edges over its faces, dark, through the same palette as the faces.
+  function drawWireframe() {
+    if (!edgeCount) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeBuffer);
+    const stride = 8 * 4;
+    gl.enableVertexAttribArray(attribute.position); gl.vertexAttribPointer(attribute.position, 3, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(attribute.coord); gl.vertexAttribPointer(attribute.coord, 2, gl.FLOAT, false, stride, 12);
+    gl.enableVertexAttribArray(attribute.colour); gl.vertexAttribPointer(attribute.colour, 3, gl.FLOAT, false, stride, 20);
+    if (attribute.mindex >= 0) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, indexAttrBuffer);
+      gl.enableVertexAttribArray(attribute.mindex); gl.vertexAttribPointer(attribute.mindex, 1, gl.FLOAT, false, 4, 0);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, blank);
+    gl.uniform1i(uniform.textured, 0);
+    gl.uniform3fv(uniform.tint, [0, 0, 0]);
+    gl.uniform1f(uniform.alpha, 0.45);
+    gl.uniform1f(uniform.nearer, 0.0015);
+    // The faces' own vertex colours would tint the lines: the colour attribute is fixed at white for the pass.
+    gl.disableVertexAttribArray(attribute.colour);
+    gl.vertexAttrib3f(attribute.colour, 1, 1, 1);
+    gl.lineWidth(1);
+    // Group by group, through each group's own palette, so a posed game model's wireframe poses with it.
+    for (const range of edgeRanges) {
+      const group = bundle.groups[range.group];
+      if (group.hidden && !showHidden) continue;
+      gl.uniformMatrix4fv(uniform.palette, false, paletteFor(group, pose, poseFrame, poseOffsets, attach));
+      gl.drawElements(gl.LINES, range.count * 2, indexType, range.start * 2 * indexSize);
+    }
+    gl.uniform1f(uniform.nearer, 0);
+    gl.enableVertexAttribArray(attribute.colour);
+  }
+
+  /// Each edge of the viewed model once per group (both directions folded together), uploaded.
+  function uploadEdges(model) {
+    edgeCount = 0;
+    edgeRanges = [];
+    if (!model || !model.indices || !model.indices.length || !model.groups) return;
+    const edges = [];
+    const tri = model.indices;
+    model.groups.forEach((group, g) => {
+      const seen = new Set();
+      const from = edges.length / 2;
+      for (let t = group.start; t + 2 < group.start + group.count; t += 3) {
+        for (let k = 0; k < 3; k++) {
+          const a = tri[t + k], b = tri[t + (k + 1) % 3];
+          if (a === b) continue;
+          const key = a < b ? a * 4294967296 + b : b * 4294967296 + a;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          edges.push(a, b);
+        }
+      }
+      edgeRanges.push({ group: g, start: from, count: edges.length / 2 - from });
+    });
+    edgeCount = edges.length / 2;
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, bigIndices ? new Uint32Array(edges) : new Uint16Array(edges), gl.STATIC_DRAW);
   }
 
   function drawModel(model, vertices, indices, mindices, pictures, thePose, theFrame, theOffsets, world) {
@@ -191,7 +267,7 @@ function makeModelViewer(canvas, status, options = {}) {
       if (Boolean(group.translucent) !== (pass === 1)) continue;
 
       // In weights mode the heat map is the colour, plain: the texture would tint it.
-      const heated = model === bundle && paint.on && paint.bone >= 0 && model.skin;
+      const heated = model === bundle && heatShown();
       const texture = !heated && group.texture ? pictures.get(group.texture) : null;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, texture || blank);
@@ -346,7 +422,7 @@ function makeModelViewer(canvas, status, options = {}) {
     if (!skin) return;
     skinFrame = frame;
     const matrices = jointMatrices(frame);
-    const heated = paint.on && paint.bone >= 0;
+    const heated = heatShown();
     if (!matrices && !heated) {
       skinBuffer = null;
       gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
@@ -394,7 +470,7 @@ function makeModelViewer(canvas, status, options = {}) {
   /// The skeleton this frame: each joint's position (the game node's, or the bind's from the inverse bind), lines to the parents.
   function drawSkeleton() {
     const skin = bundle && bundle.skin;
-    if (!skin || !paint.on || !paint.bones) return;
+    if (!skin) return;
     const joints = skin.joints.length;
     const positions = new Array(joints);
     if (skinRig && skinFrame >= 0) {
@@ -564,13 +640,33 @@ function makeModelViewer(canvas, status, options = {}) {
         const othersTotal = others.reduce((s, [, w]) => s + w, 0);
         const next = new Map();
         if (othersTotal > 0) for (const [j, w] of others) next.set(j, w / othersTotal * (1 - want));
-        next.set(bone, othersTotal > 0 ? want : 1);
+        else if (want < 1) {
+          // The bone is all this vertex has: what is taken off it goes to the bone's parent
+          // (a hand's to the forearm), since a vertex must go somewhere.
+          const parent = parentJoint(bone);
+          if (parent >= 0 && parent !== bone) next.set(parent, 1 - want); else next.set(bone, 1);
+        }
+        next.set(bone, othersTotal > 0 || want < 1 ? want : 1);
+        if (!next.has(bone) || [...next.values()].reduce((s, w) => s + w, 0) <= 0) next.set(bone, 1);
         storeWeights(c, next);
       }
       // Every vertex at this position takes the same weights.
       if (canonical) for (let v2 = 0; v2 < count; v2++) if (canonical[v2] === c && v2 !== c) { for (let k = 0; k < 4; k++) { skin.jointIndex[v2 * 4 + k] = skin.jointIndex[c * 4 + k]; skin.weights[v2 * 4 + k] = skin.weights[c * 4 + k]; } }
     }
     return touched.length;
+  }
+
+  /// The joint above a joint in the game's tree (through the rig's parents), or -1 without a rig.
+  function parentJoint(bone) {
+    if (!skinRig || !skinRig.parents || !skinJointNode) return -1;
+    let node = skinJointNode[bone];
+    for (let hops = 0; hops < 64 && node >= 0; hops++) {
+      node = skinRig.parents[node];
+      if (node < 0) return -1;
+      const j = skinJointNode.indexOf(node);
+      if (j >= 0) return j;
+    }
+    return -1;
   }
 
   function mirroredBone(bone) {
@@ -626,6 +722,7 @@ function makeModelViewer(canvas, status, options = {}) {
       }
 
       uploadModel(model, vertexBuffer, indexBuffer, indexAttrBuffer);
+      uploadEdges(model);
       pose = null;
       poseFrame = 0;
       skinRig = null;
@@ -743,7 +840,9 @@ function makeModelViewer(canvas, status, options = {}) {
     skinJoints() { return bundle && bundle.skin ? bundle.skin.joints.slice() : []; },
 
     // ---- weight painting
-    /// Weights mode and the brush: { on, bone, radius, strength, mode: add|erase|smooth, mirror, bones }.
+    /// Weights mode and the brush: { on, bone, radius, strength, mode: add|erase|smooth, mirror, heat, bones, wire }.
+    /// heat colours the model by the bone's weight (in weights mode); bones and wire are the skeleton
+    /// and the wireframe over whatever is shown, weights mode or not.
     setPaint(options) {
       Object.assign(paint, options || {});
       if (bundle && bundle.skin) skinTo(skinFrame);

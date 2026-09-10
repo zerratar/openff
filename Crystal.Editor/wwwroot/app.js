@@ -1832,8 +1832,11 @@ async function openModel(name) {
 
   // The parts are listed in the hierarchy; picking one there shows it here.
   if (activeDoc) {
-    activeDoc.inspect = (ref) => ref && ref.startsWith('part:')
-      ? buildModelPart(model.groups[Number(ref.slice(5))], name) : null;
+    activeDoc.inspect = (ref) => {
+      if (ref && ref.startsWith('part:')) return buildModelPart(model.groups[Number(ref.slice(5))], name);
+      if (ref && ref.startsWith('bone:') && model.skin) return buildModelBone(model.skin, Number(ref.slice(5)));
+      return null;
+    };
   }
 
   if (model.groups.some(g => g.hidden)) {
@@ -1894,16 +1897,22 @@ async function openModel(name) {
   // A weapon on a character, with the item's fit to adjust (hand-preview.js).
   if (typeof wireHandPreview === 'function') wireHandPreview(node, viewer, name, model, transport).catch(error => say(error.message, 'bad'));
 
-  // Weight painting on a skinned glTF of the project's: the bone as a heat map, a brush, save.
+  // The view's overlays - the skeleton (skinned files) and the wireframe (any model) - and, on a
+  // skinned glTF of the project's, weight painting: the bone as a heat map, a brush, save.
   const paintBar = $('.paint-bar', node);
-  if (paintBar && model.skin && /^assets\//i.test(name)) {
+  const paintable = Boolean(model.skin && /^assets\//i.test(name));
+  if (paintBar && typeof viewer.setPaint === 'function') {
     paintBar.hidden = false;
     const on = $('.paint-on', paintBar), controls = $('.paint-controls', paintBar);
     const boneSelect = $('.paint-bone', paintBar), modeSelect = $('.paint-mode', paintBar);
     const radius = $('.paint-radius', paintBar), strength = $('.paint-strength', paintBar);
-    const mirror = $('.paint-mirror', paintBar), bones = $('.paint-bones', paintBar);
+    const mirror = $('.paint-mirror', paintBar), heat = $('.paint-heat', paintBar);
+    const bones = $('.paint-bones', paintBar), wire = $('.paint-wire', paintBar);
     const undo = $('.paint-undo', paintBar), save = $('.paint-save', paintBar), hint = $('.paint-hint', paintBar);
     const stage = $('.stage', node);
+    // Without a skin to paint there is only the wireframe to switch.
+    on.parentElement.hidden = !paintable;
+    bones.parentElement.hidden = !model.skin;
     // The bones by name, the game's order (root first); the first limb-ish one chosen.
     const joints = viewer.skinJoints();
     boneSelect.textContent = '';
@@ -1911,15 +1920,21 @@ async function openModel(name) {
     let dirty = false;
     const radiusScale = Math.max(0.05, (model.radius || 7) / 7);   // the sliders are in units of a character's size
     const apply = () => viewer.setPaint({
-      on: on.checked, bone: Number(boneSelect.value), mode: modeSelect.value,
-      radius: Number(radius.value) * radiusScale, strength: Number(strength.value), mirror: mirror.checked, bones: bones.checked
+      on: on.checked, bone: boneSelect.value === '' ? -1 : Number(boneSelect.value), mode: modeSelect.value,
+      radius: Number(radius.value) * radiusScale, strength: Number(strength.value), mirror: mirror.checked,
+      heat: heat.checked, bones: bones.checked, wire: wire.checked
     });
     const labels = () => { $('.paint-radius-value', paintBar).textContent = Number(radius.value).toFixed(1); $('.paint-strength-value', paintBar).textContent = Number(strength.value).toFixed(2); };
     on.onchange = () => { controls.hidden = !on.checked; stage.classList.toggle('painting', on.checked); if (on.checked && boneSelect.value === '' && joints.length) boneSelect.value = String(Math.max(0, joints.indexOf('L_kata'))); apply(); };
-    boneSelect.onchange = apply; modeSelect.onchange = apply; mirror.onchange = apply; bones.onchange = apply;
+    boneSelect.onchange = apply; modeSelect.onchange = apply; mirror.onchange = apply; heat.onchange = apply; bones.onchange = apply; wire.onchange = apply;
     radius.oninput = () => { labels(); apply(); }; strength.oninput = () => { labels(); apply(); };
     labels();
     pickPaintBone = (bone) => { boneSelect.value = String(bone); apply(); say(`bone: ${joints[bone]}`); };
+    // A bone picked in the hierarchy: the skeleton comes on with it lit; in weights mode it is the painted bone too.
+    if (activeDoc && model.skin) {
+      activeDoc.pickBone = (bone) => { if (!bones.checked) bones.checked = true; pickPaintBone(bone); };
+    }
+    if (paintable) {
     paintChanged = () => { dirty = true; hint.textContent = 'unsaved changes - Save weights writes them into the .glb and remakes the game model'; hint.classList.add('paint-dirty'); };
     undo.onclick = () => { if (!viewer.undoPaint()) say('nothing to undo'); };
     node.addEventListener('keydown', e => { if (on.checked && e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo.onclick(); } });
@@ -1940,13 +1955,14 @@ async function openModel(name) {
           say(`weights saved into ${shortName(name)} and ${made.model} remade from it`, 'good');
         } else say(`weights saved into ${shortName(name)}`, 'good');
         dirty = false;
-        hint.textContent = 'left drag paints · right drag orbits · Alt+click picks the bone · scrub or play to see it move';
+        hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 Alt+click picks the bone \u00b7 to move a part to another bone, pick that bone and add \u00b7 erase on a vertex\u2019s only bone hands the weight to the bone\u2019s parent';
         hint.classList.remove('paint-dirty');
       } catch (error) {
         say(error.message, 'bad');
       }
       save.disabled = false;
     };
+    }
   }
 
   // Export: the mesh with its textures and skeleton, plus whichever motion the transport is
@@ -2318,6 +2334,37 @@ async function wireAnimation(node, viewer, packageName, options = {}) {
 // Shared with script-editor.js and map-editor.js, which both load after this file.
 /// One part of a model, for the inspector. The same facts the parts table used to
 /// carry, for whichever part is picked in the hierarchy.
+/// A skinned file's bone in the inspector: its place in the tree and how much of the mesh it moves.
+function buildModelBone(skin, bone) {
+  const panel = document.createElement('div');
+  if (!skin || bone < 0 || bone >= skin.joints.length) return panel;
+  const title = document.createElement('h3');
+  title.textContent = skin.joints[bone];
+  panel.append(title);
+  const parent = skin.parents && skin.parents[bone] >= 0 ? skin.joints[skin.parents[bone]] : null;
+  const children = skin.parents ? skin.joints.filter((_, j) => skin.parents[j] === bone) : [];
+  // The vertices with any of this bone, and those it rules (its weight the largest).
+  let touched = 0, ruled = 0, total = 0;
+  const count = skin.jointIndex.length / 4;
+  for (let v = 0; v < count; v++) {
+    let mine = 0, best = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = skin.weights[v * 4 + k];
+      if (skin.jointIndex[v * 4 + k] === bone) mine += w;
+      if (w > best) best = w;
+    }
+    if (mine > 0) { touched++; total += mine; if (mine >= best) ruled++; }
+  }
+  const lines = [
+    parent ? `under ${parent}` : 'a root bone',
+    children.length ? `over ${children.join(', ')}` : 'no bones under it',
+    `${touched.toLocaleString()} vertices carry some of it, ${ruled.toLocaleString()} mostly (${total.toFixed(0)} vertices' worth in all)`,
+    'in weights mode this is the bone shown and painted; Alt+click the mesh picks the bone under the cursor'
+  ];
+  for (const line of lines) { const p = document.createElement('p'); p.className = 'note'; p.textContent = line; panel.append(p); }
+  return panel;
+}
+
 function buildModelPart(group, packageName) {
   const panel = document.createElement('div');
   if (!group) return panel;

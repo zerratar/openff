@@ -111,6 +111,14 @@ namespace Crystal.Editor
 					int node = one.Joints[j];
 					skin.Joints.Add(node >= 0 && node < file.Nodes.Count ? file.Nodes[node].Name : ("joint" + j));
 					skin.InverseBind.AddRange(one.InverseBind[j]);
+					// The parent joint, by the file's node tree: the nearest ancestor that is a joint of this skin.
+					int parent = -1;
+					for (int up = node >= 0 && node < file.Nodes.Count ? file.Nodes[node].Parent : -1; up >= 0 && parent < 0; up = file.Nodes[up].Parent)
+					{
+						int at = Array.IndexOf(one.Joints, up);
+						if (at >= 0) parent = offset[s] + at;
+					}
+					skin.Parents.Add(parent);
 				}
 			}
 			foreach (GltfMesh mesh in file.Meshes)

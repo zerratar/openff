@@ -527,6 +527,15 @@ function drawHierarchy() {
       row.className = 'row' + (activeDoc.selection === child.ref ? ' on' : '') + (child.dim ? ' dim' : '');
       // A tree inside the group: children indented under their parent (scene objects).
       if (child.depth) row.style.paddingLeft = (20 + child.depth * 14) + 'px';
+      // A row with children of its own folds them away and back (bones).
+      if (child.fold) {
+        const arrow = document.createElement('u');
+        arrow.className = 'fold';
+        arrow.textContent = child.fold.folded ? '\u25b8' : '\u25be';
+        arrow.title = child.fold.folded ? 'expand' : 'collapse';
+        arrow.onclick = event => { event.stopPropagation(); child.fold.toggle(); drawHierarchy(); };
+        row.append(arrow);
+      }
       row.append(icon(child.icon || 'file'));
       const text = document.createElement('span');
       text.textContent = child.label;
@@ -794,7 +803,7 @@ function outlineFor(doc) {
   }
 
   if (doc.kind === 'model' && data.groups) {
-    return [{
+    const groups = [{
       label: 'Parts',
       children: data.groups.map((g, i) => ({
         label: g.shape || `part ${i}`,
@@ -803,6 +812,30 @@ function outlineFor(doc) {
         icon: 'part'
       }))
     }];
+    // A skinned file's bones, as the tree the file has them in; each row folds its children
+    // away. Picking one makes it the bone the weights view shows and paints (doc.pickBone,
+    // set by the model view).
+    if (data.skin && data.skin.joints && data.skin.joints.length) {
+      const skin = data.skin;
+      const parents = skin.parents && skin.parents.length === skin.joints.length ? skin.parents : skin.joints.map(() => -1);
+      const childrenOf = skin.joints.map(() => []);
+      parents.forEach((p, j) => { if (p >= 0 && p !== j) childrenOf[p].push(j); });
+      const folded = doc.foldedBones || (doc.foldedBones = new Set());
+      const rows = [];
+      const walk = (j, depth) => {
+        const ref = `bone:${j}`;
+        const kids = childrenOf[j];
+        rows.push({
+          label: skin.joints[j], ref, icon: 'bone', depth,
+          fold: kids.length ? { folded: folded.has(ref), toggle: () => { if (folded.has(ref)) folded.delete(ref); else folded.add(ref); } } : null,
+          reveal: () => { if (typeof doc.pickBone === 'function') doc.pickBone(j); }
+        });
+        if (!folded.has(ref)) for (const k of kids) walk(k, depth + 1);
+      };
+      parents.forEach((p, j) => { if (p < 0 || p === j) walk(j, 0); });
+      groups.push({ label: 'Bones', children: rows });
+    }
+    return groups;
   }
 
   if (doc.kind === 'cell' && data.cells) {

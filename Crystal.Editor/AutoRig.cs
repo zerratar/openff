@@ -257,6 +257,76 @@ namespace Crystal
 			// ---- pass one: against the original in the matched pose ----------------------------------------------
 			(int Node, float Weight)[][] final = Finish(Smooth(Transfer(fileX, fileY, fileZ, count, refX, refY, refZ, triangles, refWeights, soft), neighbours, canonical), neighbours, canonical);
 
+			// ---- the limbs onto the bones --------------------------------------------------------------------------
+			// The matched pose is alike as a whole, not limb by limb: the file's forearm hangs straight
+			// where the game's angles forward, and carried through the game's changes that difference
+			// would stay as a constant turn of the forearm off its bone, in every motion. So each limb's
+			// vertices are first turned about their bone's joint (as posed) onto the bone's direction -
+			// the mesh limb's direction taken as joint -> the middle of the vertices the bone owns -
+			// blended by the vertex's weight for the bone. Hubs (hips, chest) are left as they are.
+			if (delta != null)
+			{
+				float[][] posedWorld = new float[rig.Nodes.Count][];
+				for (int n = 0; n < rig.Nodes.Count; n++) posedWorld[n] = Gltf.Mul(rig.Bind[n], delta[n]);
+				float[][] turnAbout = new float[rig.Nodes.Count][];
+				int turned = 0;
+				List<string> turnedNames = new List<string>();
+				float modelHeight = oMax[1] - oMin[1];
+				for (int n = 0; n < rig.Nodes.Count; n++)
+				{
+					// Arms differ most between rest poses (hanging, forward, out) and are long and thin, so
+					// their middle is a fair direction; legs stand much alike, so a big turn there is not
+					// the limb hanging differently but the mesh's proportions (a chibi's stub legs), and is
+					// left alone. Feet point forward off the shin, and a head's middle is where its hair is.
+					int limb = LimbKind(rig.Nodes[n]);
+					if (limb == 0) continue;
+					float cap = limb == 1 ? 90 : 35;
+					float[] joint = { posedWorld[n][9], posedWorld[n][10], posedWorld[n][11] };
+					// The game bone's direction, posed: to its first child, else from its parent.
+					float[] boneDir = null;
+					for (int c = 0; c < rig.Nodes.Count && boneDir == null; c++) if (rig.Parents[c] == n) boneDir = new[] { posedWorld[c][9] - joint[0], posedWorld[c][10] - joint[1], posedWorld[c][11] - joint[2] };
+					if (boneDir == null && rig.Parents[n] >= 0) boneDir = new[] { joint[0] - posedWorld[rig.Parents[n]][9], joint[1] - posedWorld[rig.Parents[n]][10], joint[2] - posedWorld[rig.Parents[n]][11] };
+					// Too short a bone has no direction worth the name (the game's knee sits on its shin).
+					if (boneDir == null || Length(boneDir) < 0.04f * modelHeight) continue;
+					// The mesh limb's: the joint to the middle of the vertices this bone rules.
+					float[] middle = new float[3]; int owned = 0;
+					for (int v = 0; v < count; v++)
+					{
+						(int Node, float Weight)[] w = final[v];
+						if (w.Length == 0 || w[0].Node != n || w[0].Weight < 0.5f) continue;
+						middle[0] += fileX[v]; middle[1] += fileY[v]; middle[2] += fileZ[v]; owned++;
+					}
+					if (owned < 8) continue;
+					float[] meshDir = { middle[0] / owned - joint[0], middle[1] / owned - joint[1], middle[2] / owned - joint[2] };
+					// The middle right by the joint says nothing about direction; a turn past a right angle
+					// is not a limb hanging differently but something else owning those vertices.
+					if (Length(meshDir) < 0.25f * Length(boneDir)) continue;
+					float[] a = Unit(meshDir), b = Unit(boneDir);
+					float degrees = MathF.Acos(Math.Max(-1f, Math.Min(1f, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180f / MathF.PI;
+					if (degrees > cap) { result.Notes.Add(rig.Nodes[n] + " left alone: its " + owned + " vertices lie " + degrees.ToString("0") + "\u00b0 off the bone"); continue; }
+					turnAbout[n] = RotationBetween(a, b, joint);
+					turnedNames.Add(rig.Nodes[n] + " " + degrees.ToString("0") + "\u00b0");
+					turned++;
+				}
+				if (turned > 0)
+				{
+					float[] ax = new float[count], ay = new float[count], az = new float[count];
+					for (int v = 0; v < count; v++)
+					{
+						float[] p = { fileX[v], fileY[v], fileZ[v] };
+						float[] sum = new float[3]; float total = 0;
+						foreach ((int node, float weight) in final[v])
+						{
+							float[] q = turnAbout[node] != null ? Apply(turnAbout[node], p[0], p[1], p[2]) : p;
+							sum[0] += q[0] * weight; sum[1] += q[1] * weight; sum[2] += q[2] * weight; total += weight;
+						}
+						if (total > 0) { ax[v] = sum[0] / total; ay[v] = sum[1] / total; az[v] = sum[2] / total; } else { ax[v] = p[0]; ay[v] = p[1]; az[v] = p[2]; }
+					}
+					fileX = ax; fileY = ay; fileZ = az;
+					result.Notes.Add(turned + " limb bones had the mesh turned onto them before the carry into the bind pose: " + string.Join(", ", turnedNames));
+				}
+			}
+
 			// ---- into the bind pose, and pass two against the original's bind pose -----------------------------------
 			// In the matched pose the original's arms hang against its body, and a vertex on the side
 			// of the chest is as near the arm's surface as the chest's - which is where a spike out of
@@ -412,6 +482,51 @@ namespace Crystal
 				else final[v] = new[] { (0, 1f) };
 			}
 			return final;
+		}
+
+		/// <summary>The game's limb bones a mesh limb can be turned onto: 1 an arm bone, 2 a leg bone, 0 neither.</summary>
+		private static int LimbKind(string node)
+		{
+			string n = node.StartsWith("L_", StringComparison.Ordinal) || node.StartsWith("R_", StringComparison.Ordinal) ? node.Substring(2) : node;
+			if (n == "kata" || n == "ude" || n == "te") return 1;
+			if (n == "momo" || n == "hiza" || n == "sune") return 2;
+			return 0;
+		}
+
+		private static float Length(float[] v) => MathF.Sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+		private static float[] Unit(float[] v) { float l = Length(v); return l > 1e-9f ? new[] { v[0] / l, v[1] / l, v[2] / l } : new[] { 0f, 1f, 0f }; }
+
+		/// <summary>The rotation taking unit vector a onto unit vector b, the short way, about <paramref name="pivot"/>: a row-vector 4x3.</summary>
+		private static float[] RotationBetween(float[] a, float[] b, float[] pivot)
+		{
+			float dot = Math.Max(-1f, Math.Min(1f, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+			float[] axis = { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
+			float sin = Length(axis);
+			float[] r = Identity();
+			if (sin > 1e-6f)
+			{
+				float[] k = { axis[0] / sin, axis[1] / sin, axis[2] / sin };
+				float c = dot, s = sin, t = 1 - c;
+				// Rodrigues, column-vector form, then transposed for v x R.
+				float[,] R =
+				{
+					{ t * k[0] * k[0] + c, t * k[0] * k[1] - s * k[2], t * k[0] * k[2] + s * k[1] },
+					{ t * k[0] * k[1] + s * k[2], t * k[1] * k[1] + c, t * k[1] * k[2] - s * k[0] },
+					{ t * k[0] * k[2] - s * k[1], t * k[1] * k[2] + s * k[0], t * k[2] * k[2] + c }
+				};
+				for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) r[row * 3 + col] = R[col, row];
+			}
+			else if (dot < 0)
+			{
+				// Opposite: half a turn about any axis perpendicular to a.
+				float[] any = Math.Abs(a[0]) < 0.9f ? new[] { 1f, 0, 0 } : new[] { 0f, 1f, 0 };
+				float[] k = Unit(new[] { a[1] * any[2] - a[2] * any[1], a[2] * any[0] - a[0] * any[2], a[0] * any[1] - a[1] * any[0] });
+				for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) r[row * 3 + col] = 2 * k[row] * k[col] - (row == col ? 1 : 0);
+			}
+			// About the pivot: t = pivot - pivot x R.
+			float[] moved = Apply(r, pivot[0], pivot[1], pivot[2]);
+			r[9] = pivot[0] - moved[0]; r[10] = pivot[1] - moved[1]; r[11] = pivot[2] - moved[2];
+			return r;
 		}
 
 		/// <summary>A point through a blend of the nodes' matrices, weighted.</summary>

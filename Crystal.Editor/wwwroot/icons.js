@@ -109,6 +109,8 @@ const ICONS = {
 };
 // The mod's text is text: the same bubble as the game's.
 ICONS.strings = ICONS.text;
+// A bone: a shaft with knobs at both ends.
+ICONS.bone = '<path d="M5 5 11 11"/><circle cx="4" cy="4" r="1.7"/><circle cx="12" cy="12" r="1.7"/>';
 // A monster: a horned head; a formation: three of them in a row.
 ICONS.monster = '<path d="M3.2 8.6a4.8 4.8 0 0 1 9.6 0v3.6a1.4 1.4 0 0 1-1.4 1.4H4.6a1.4 1.4 0 0 1-1.4-1.4z"/><path d="M4.4 4.6 3 1.8M11.6 4.6 13 1.8"/><circle cx="6.2" cy="8.6" r=".8"/><circle cx="9.8" cy="8.6" r=".8"/>';
 ICONS.formation = '<circle cx="3.4" cy="8" r="2"/><circle cx="8" cy="8" r="2"/><circle cx="12.6" cy="8" r="2"/><path d="M2 13.2h12"/>';

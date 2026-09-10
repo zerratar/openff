@@ -2205,6 +2205,9 @@ header h1 .gem {
 #inspector .scene-children .icon { width: 13px; height: 13px; opacity: .7; }
 #inspector .scene-children a { color: var(--accent); text-decoration: none; }
 .tree .row.dim { color: var(--dim); }
+/* A row that folds its children (bones): the arrow before the icon. */
+.tree .row .fold { text-decoration: none; color: var(--dim); width: 10px; margin: 0 -4px 0 -12px; text-align: center; cursor: pointer; flex: 0 0 auto; }
+.tree .row .fold:hover { color: var(--ink); }
 /* Dragging a hierarchy row onto another (or its group) reparents it. */
 .tree .row.dragging { opacity: .45; }
 .tree .row.drop, .tree .group.drop { outline: 1px solid var(--accent); outline-offset: -1px; background: #232c3a; }

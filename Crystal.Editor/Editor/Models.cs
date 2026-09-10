@@ -115,6 +115,8 @@ namespace Crystal.Editor
 	internal sealed class ModelSkin
 	{
 		public List<string> Joints { get; set; } = new List<string>();
+		/// <summary>Per joint, the parent joint's index by the file's node tree, -1 at a root.</summary>
+		public List<int> Parents { get; set; } = new List<int>();
 		/// <summary>16 floats a joint, column-major as glTF has them.</summary>
 		public List<float> InverseBind { get; set; } = new List<float>();
 		/// <summary>3 floats a vertex: the mesh-space position the skin applies to.</summary>

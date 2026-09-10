@@ -422,7 +422,10 @@
       <!-- Weight painting on a skinned glTF: the bone as a heat map, a brush, undo, save (model-viewer.js, app.js). -->
       <div class="paint-bar" hidden>
         <label class="toggle"><input type="checkbox" class="paint-on"> weights</label>
+        <label class="toggle" title="the skeleton over the model: crosses at the joints, lines to the parents; the picked bone in yellow"><input type="checkbox" class="paint-bones"> bones</label>
+        <label class="toggle" title="the mesh's edges over the model"><input type="checkbox" class="paint-wire"> wireframe</label>
         <span class="paint-controls" hidden>
+          <label class="toggle" title="colour the model by the picked bone's weight: blue none, green half, red all (off: the shaded model, still painted)"><input type="checkbox" class="paint-heat" checked> heat map</label>
           <select class="paint-bone" title="the bone shown as a heat map (blue none, green half, red all) and painted; Alt+click the mesh to pick the bone under the cursor"></select>
           <select class="paint-mode" title="add puts the bone's weight on, erase takes it off, smooth blends with the neighbours">
             <option value="add">add</option>
@@ -432,10 +435,9 @@
           <label>radius <input type="range" class="paint-radius" min="0.1" max="4" step="0.1" value="0.8"><span class="paint-radius-value">0.8</span></label>
           <label>strength <input type="range" class="paint-strength" min="0.02" max="1" step="0.02" value="0.3"><span class="paint-strength-value">0.30</span></label>
           <label class="toggle" title="paint the x-mirrored spot too, with the L_/R_ counterpart bone"><input type="checkbox" class="paint-mirror" checked> mirror</label>
-          <label class="toggle"><input type="checkbox" class="paint-bones" checked> bones</label>
           <button class="paint-undo" title="Ctrl+Z">Undo</button>
           <button class="paint-save" title="write the weights into the .glb and remake the game model from it">Save weights</button>
-          <span class="paint-hint">left drag paints · right drag orbits · Alt+click picks the bone · scrub or play to see it move</span>
+          <span class="paint-hint">left drag paints · right drag orbits · Alt+click picks the bone · to move a part to another bone, pick that bone and add · erase on a vertex's only bone hands the weight to the bone's parent</span>
         </span>
       </div>
       <!-- A weapon in a character's hand: the character, the hand, and the item's fit (hand-preview.js). -->
