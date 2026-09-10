@@ -666,8 +666,10 @@ namespace Crystal.Editor
 						string definition = Path.Combine(_project.Directory, OpenFF.Data.ModModels.Folder.Replace('/', Path.DirectorySeparatorChar), stem + ".json");
 						if (body?["revert"]?.GetValue<bool>() == true)
 						{
+							// The game-format override goes; the definition too, unless asked to keep it
+							// (the game's own model back in the viewer, the client still drawing the glTF).
 							bool had = _workspace.Revert(modelName) | _workspace.Revert(texturesName);
-							if (File.Exists(definition)) { File.Delete(definition); had = true; }
+							if (body?["keepDefinition"]?.GetValue<bool>() != true && File.Exists(definition)) { File.Delete(definition); had = true; }
 							SendJson(context, new { ok = true, reverted = had });
 							return;
 						}
@@ -698,17 +700,25 @@ namespace Crystal.Editor
 							file = OpenFF.Graphics.GltfFile.Load(gltfPath);
 							rigNotes.Add("no rig in the file: bound to " + stem + "'s skeleton as " + rigged + " - " + string.Join("; ", bound.Notes));
 						}
-						Mdl0Reskin.Result made = Mdl0Reskin.Build(Lz.Decompress(shipped), file, stem, generous: ours);
+						if (ours)
+						{
+							// On OpenFF the client draws the glTF itself, weights and textures as the file has
+							// them, so the game's model is left as it is - only the definition is written (and
+							// an older game-format override of this model, from before, is taken back out: the
+							// DS format snaps blends to one bone and shows spikes the glTF never has).
+							Directory.CreateDirectory(Path.GetDirectoryName(definition));
+							File.WriteAllText(definition, new OpenFF.Data.ModModel { Model = stem, Gltf = asset.Replace('\\', '/') }.ToJson());
+							_workspace.Revert(modelName); _workspace.Revert(texturesName);
+							List<string> notes = new List<string>(rigNotes) { "the OpenFF client draws " + Path.GetFileName(asset) + " in place of " + stem + " with the file's own weights and textures (defs/models/" + stem + ".json); the game's model itself is untouched" };
+							int triangles = file.Meshes.Sum(m => m.Indices != null ? m.Indices.Length / 3 : 0), vertices = file.Meshes.Sum(m => m.VertexCount);
+							SendJson(context, new { ok = true, model = stem, triangles, vertices, materials = file.Materials.Count, blended = 0, snapped = 0, notes, gltf = true, rigged, cuts = CutsJson(cutsUsed) });
+							return;
+						}
+						Mdl0Reskin.Result made = Mdl0Reskin.Build(Lz.Decompress(shipped), file, stem, generous: false);
 						made.Notes.InsertRange(0, rigNotes);
 						_workspace.Write(modelName, Lz.Compress(made.Nmdp));
 						_workspace.Write(texturesName, Lz.Compress(made.Ntxp));
-						if (ours)
-						{
-							Directory.CreateDirectory(Path.GetDirectoryName(definition));
-							File.WriteAllText(definition, new OpenFF.Data.ModModel { Model = made.Model, Gltf = asset.Replace('\\', '/') }.ToJson());
-							made.Notes.Insert(0, "on OpenFF the client draws " + Path.GetFileName(asset) + " itself with its own weights and textures (defs/models/" + stem + ".json); the game-format remake is the viewer's preview and the Steam game's version");
-						}
-						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes, gltf = ours, rigged, cuts = CutsJson(cutsUsed) });
+						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes, gltf = false, rigged, cuts = CutsJson(cutsUsed) });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
@@ -2011,7 +2021,16 @@ namespace Crystal.Editor
 			try
 			{
 				// A model of the project's own (assets/hut.glb): the shared glTF reader, laid out the same.
-				SendJson(context, GltfBundle.IsAsset(name) ? GltfBundle.Read(_project, name) : Models.Read(_workspace, name));
+				if (GltfBundle.IsAsset(name)) { SendJson(context, GltfBundle.Read(_project, name)); return; }
+				ModelBundle bundle = Models.Read(_workspace, name);
+				// A game model the project's definitions replace with a glTF in the OpenFF client (defs/models).
+				if (_project != null && name.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase))
+				{
+					string stem = Path.GetFileName(name); stem = stem.Substring(0, stem.IndexOf('.'));
+					OpenFF.Data.ModModel definition = OpenFF.Data.ModModels.Load(new[] { _project.Directory }).FirstOrDefault(d => string.Equals(d.Model, stem, StringComparison.OrdinalIgnoreCase));
+					if (definition != null) bundle.ReplacedBy = definition.Gltf?.Replace('\\', '/');
+				}
+				SendJson(context, bundle);
 			}
 			catch (Exception ex)
 			{

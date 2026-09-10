@@ -2015,7 +2015,7 @@ async function openModel(name) {
         if (boundTo && typeof projectState !== 'undefined' && projectState.project) {
           const made = await api('/api/project/models/reskin', { model: boundTo, asset: name });
           if (!made.ok) throw new Error(made.error);
-          say(`weights saved into ${shortName(name)} and ${made.model} remade from it`, 'good');
+          say(made.gltf ? `weights saved into ${shortName(name)} - the client draws it in place of ${made.model}` : `weights saved into ${shortName(name)} and ${made.model} remade from it`, 'good');
         } else say(`weights saved into ${shortName(name)}`, 'good');
         dirty = false;
         hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 Alt+click picks the bone \u00b7 the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind \u00b7 to move a part to another bone, pick that bone and add \u00b7 erase on a vertex\u2019s only bone hands the weight to the bone\u2019s parent';
@@ -2181,8 +2181,15 @@ async function openModel(name) {
       }, { assetsOnly: true, title: `Remake ${shortName(name)} from a glTF of the project's` });
     };
   }
-  if (revertButton && gamePackage && hasProject && model.overridden) {
+  if (revertButton && gamePackage && hasProject && (model.overridden || model.replacedBy)) {
     revertButton.hidden = false;
+    // On OpenFF the game's model is untouched and the client draws the glTF instead: say so, and
+    // let the definition be taken back.
+    if (model.replacedBy) {
+      facts.textContent += `  ·  in OpenFF the client draws ${model.replacedBy.replace(/^assets\//, '')} in place of this model (defs/models)`;
+      revertButton.textContent = model.overridden ? 'Undo remake' : 'Stop replacing';
+      revertButton.title = model.overridden ? 'take the remake out and the glTF definition with it' : `take out defs/models: the client draws ${shortName(name)} itself again`;
+    }
     revertButton.onclick = async () => {
       try {
         const r = await api('/api/project/models/reskin', { model: name, revert: true });

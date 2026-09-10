@@ -99,6 +99,9 @@ namespace Crystal.Editor
 		/// <summary>True when the project's own copy of the package is what was read (a remake, a duplicate), not the game's.</summary>
 		public bool Overridden { get; set; }
 
+		/// <summary>The project's glTF the OpenFF client draws in place of this game model (defs/models), or null.</summary>
+		public string ReplacedBy { get; set; }
+
 		/// <summary>What the reader stepped over, if anything - see Mdl0Model.Notes.</summary>
 		public List<string> Notes { get; set; }
 
