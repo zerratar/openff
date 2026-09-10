@@ -1869,6 +1869,8 @@ async function openModel(name) {
   const paintOn = () => typeof viewer.paintOptions === 'function' && viewer.paintOptions().on;
   canvas.oncontextmenu = (e) => { if (paintOn()) e.preventDefault(); };
   canvas.onpointerdown = (e) => {
+    // Placing a marker for the auto-rig: a left click goes to the marker, not the camera.
+    if (e.button === 0 && typeof placeMarkerAt === 'function' && placeMarkerAt(e.clientX, e.clientY)) return;
     if (paintOn() && e.button === 0) {
       if (e.altKey) {
         const bone = viewer.boneAt(e.clientX, e.clientY);
@@ -1895,6 +1897,7 @@ async function openModel(name) {
   };
   canvas.onpointermove = (e) => {
     if (painting) { viewer.paintAt(e.clientX, e.clientY); hover(e.clientX, e.clientY); return; }
+    if (!dragging && typeof hoverMarkerAt === 'function' && hoverMarkerAt(e.clientX, e.clientY)) return;
     if (!dragging) {
       // The brush's ring follows the cursor over the mesh in weights mode, and the vertex's bones are read out.
       hover(e.clientX, e.clientY);
@@ -1910,8 +1913,9 @@ async function openModel(name) {
     painting = false;
     canvas.releasePointerCapture(e.pointerId);
   };
-  canvas.onpointerleave = () => { if (typeof viewer.hoverBrush === 'function') viewer.hoverBrush(null, null); if (paintReadout) paintReadout(null); };
+  canvas.onpointerleave = () => { if (typeof viewer.hoverBrush === 'function') viewer.hoverBrush(null, null); if (paintReadout) paintReadout(null); if (typeof hoverMarkerAt === 'function') hoverMarkerAt(null, null); };
   let pickPaintBone = null, paintChanged = null;
+  let placeMarkerAt = null, hoverMarkerAt = null;   // the auto-rig's markers, placed by clicking (the rig bar sets these)
   canvas.onwheel = (e) => {
     e.preventDefault();
     viewer.zoom(Math.sign(e.deltaY));
@@ -2018,6 +2022,10 @@ async function openModel(name) {
     const boundTo = viewer.skinModel();
     if (origin && boundTo && typeof projectState !== 'undefined' && projectState.project) {
       rerig.hidden = false;
+      // The cuts and markers live on the original: a way there from here.
+      const toCuts = $('.paint-cuts', paintBar);
+      toCuts.hidden = false;
+      toCuts.onclick = async () => { await openDoc('model', origin); say(`${origin.replace(/^assets\//, '')}: tick "auto-rig cuts" under the viewer for the cuts and the markers`); };
       rerig.onclick = async () => {
         if (!confirm(`Run the auto-rig again from ${origin.replace(/^assets\//, '')}? The weights saved in ${shortName(name)} are replaced.`)) return;
         rerig.disabled = true;
@@ -2071,8 +2079,71 @@ async function openModel(name) {
     const modelField = $('.rig-model', rigBar), skirt = $('.rig-skirt', rigBar), enabled = $('.rig-enabled', rigBar);
     const find = $('.rig-find', rigBar), go = $('.rig-go', rigBar), readout = $('.rig-readout', rigBar);
     const cutRows = [...rigBar.querySelectorAll('.rig-cut')];
+    const stage = $('.stage', node);
     const found = {};                               // the values the server found, per cut
     const modelName = () => { const m = modelField.value.trim(); return /\.nmdp\.lz$/i.test(m) ? m : `files/${m.replace(/^files\//i, '')}.nmdp.lz`; };
+
+    // ---- markers: chin, groin, and a wrist, elbow, knee a side, placed by clicking the model.
+    // Kept in the file's own space (this bundle's), sent with the cuts, saved beside the file.
+    const MARKERS = [
+      { key: 'chin', label: 'chin', colour: [0.35, 0.9, 0.9] },
+      { key: 'leftWrist', label: 'wrist (L)', kind: 'wrist', side: 'left', pair: 'rightWrist', colour: [0.55, 0.9, 0.4] },
+      { key: 'rightWrist', label: 'wrist (R)', kind: 'wrist', side: 'right', pair: 'leftWrist', colour: [0.55, 0.9, 0.4] },
+      { key: 'leftElbow', label: 'elbow (L)', kind: 'elbow', side: 'left', pair: 'rightElbow', colour: [0.95, 0.85, 0.3] },
+      { key: 'rightElbow', label: 'elbow (R)', kind: 'elbow', side: 'right', pair: 'leftElbow', colour: [0.95, 0.85, 0.3] },
+      { key: 'leftKnee', label: 'knee (L)', kind: 'knee', side: 'left', pair: 'rightKnee', colour: [1, 0.6, 0.25] },
+      { key: 'rightKnee', label: 'knee (R)', kind: 'knee', side: 'right', pair: 'leftKnee', colour: [1, 0.6, 0.25] },
+      { key: 'groin', label: 'groin', colour: [1, 0.4, 0.6] }
+    ];
+    const markers = {};                             // key -> { point, normal }
+    let leftIsPlusX = true;                         // the character's left at +x (the server says; the game's convention)
+    let placing = null;                             // the marker key the next click places
+    const place = $('.rig-place', rigBar), symmetry = $('.rig-symmetry', rigBar), markerList = $('.rig-marker-list', rigBar);
+    const markersAsked = () => { const out = {}; for (const m of MARKERS) if (markers[m.key]) out[m.key] = markers[m.key].point.map(v => Math.round(v * 10000) / 10000); return Object.keys(out).length ? out : null; };
+    const drawMarkers = () => {
+      viewer.setMarkers(MARKERS.filter(m => markers[m.key]).map(m => ({ point: markers[m.key].point, normal: markers[m.key].normal, colour: m.colour })));
+      markerList.textContent = '';
+      for (const m of MARKERS) {
+        const chip = document.createElement('button');
+        chip.className = 'rig-marker' + (markers[m.key] ? ' set' : '') + (placing === m.key ? ' next' : '');
+        chip.textContent = m.label;
+        chip.style.borderColor = `rgb(${m.colour.map(c => Math.round(c * 255)).join(',')})`;
+        chip.title = markers[m.key] ? `placed at ${markers[m.key].point.map(v => v.toFixed(2)).join(', ')} - click to place it again, right-click to take it off` : 'not placed - click to make it the next one placed';
+        chip.onclick = () => { placing = m.key; place.checked = true; placeChanged(); };
+        chip.oncontextmenu = (e) => { e.preventDefault(); delete markers[m.key]; drawMarkers(); };
+        markerList.append(chip);
+      }
+    };
+    const nextUnplaced = () => (MARKERS.find(m => !markers[m.key]) || {}).key || null;
+    // Which side a point is on, by the character's convention.
+    const sideOf = (x) => (x > 0) === leftIsPlusX ? 'left' : 'right';
+    const placeChanged = () => { stage.classList.toggle('placing', place.checked); if (place.checked && !placing) placing = nextUnplaced(); if (!place.checked) { placing = null; viewer.setMarkerSeat(null); } drawMarkers(); };
+    place.onchange = placeChanged;
+    $('.rig-markers-clear', rigBar).onclick = () => { for (const k of Object.keys(markers)) delete markers[k]; placing = place.checked ? nextUnplaced() : null; drawMarkers(); };
+    // The model view hands clicks and hovers here while placing.
+    placeMarkerAt = (clientX, clientY) => {
+      if (!place.checked || !placing) return false;
+      const hit = viewer.pointAt(clientX, clientY);
+      if (!hit) return true;
+      let key = placing;
+      const def = MARKERS.find(m => m.key === key);
+      // A sided marker goes to the side it was clicked on, whatever the chip said.
+      if (def.side) key = MARKERS.find(m => m.kind === def.kind && m.side === sideOf(hit.point[0])).key;
+      markers[key] = { point: hit.point.slice(), normal: hit.normal };
+      const placed = MARKERS.find(m => m.key === key);
+      if (placed.pair && symmetry.checked) markers[placed.pair] = { point: [-hit.point[0], hit.point[1], hit.point[2]], normal: [-hit.normal[0], hit.normal[1], hit.normal[2]] };
+      placing = nextUnplaced();
+      if (!placing) { place.checked = false; stage.classList.remove('placing'); viewer.setMarkerSeat(null); say('every marker placed - Find shows what they give, Auto-rig uses them'); }
+      drawMarkers();
+      return true;
+    };
+    hoverMarkerAt = (clientX, clientY) => {
+      if (!place.checked || !placing) { return false; }
+      const hit = clientX === null ? null : viewer.pointAt(clientX, clientY);
+      const def = MARKERS.find(m => m.key === placing);
+      viewer.setMarkerSeat(hit ? { point: hit.point, normal: hit.normal, colour: def.colour } : null);
+      return true;
+    };
     // What is asked for: a cut on auto is null (found), else its slider's fraction.
     const asked = () => {
       const c = { skirt: skirt.checked, enabled: enabled.checked };
@@ -2095,8 +2166,9 @@ async function openModel(name) {
     const doFind = async () => {
       find.disabled = true;
       try {
-        const r = await api('/api/project/models/cuts', { asset: name, model: modelName(), cuts: asked() });
+        const r = await api('/api/project/models/cuts', { asset: name, model: modelName(), cuts: asked(), markers: markersAsked() });
         if (!r.ok) throw new Error(r.error);
+        if (typeof r.leftIsPlusX === 'boolean') leftIsPlusX = r.leftIsPlusX;
         for (const key of ['neck', 'hips', 'armFloor', 'torsoWidth']) found[key] = r.cuts[key];
         const g = r.regions || {};
         readout.textContent = `head ${(g.head || 0).toLocaleString()} · arms ${(g.leftArm || 0).toLocaleString()} / ${(g.rightArm || 0).toLocaleString()} · legs ${(g.leftLeg || 0).toLocaleString()} / ${(g.rightLeg || 0).toLocaleString()}${g.hips ? ` · skirt ${g.hips.toLocaleString()}` : ''} · body ${(g.body || 0).toLocaleString()}`;
@@ -2115,6 +2187,12 @@ async function openModel(name) {
               for (const row of cutRows) { const key = row.dataset.cut; if (r.saved[key] !== null && r.saved[key] !== undefined) { row.querySelector('.rig-auto').checked = false; row.querySelector('input[type=range]').value = String(r.saved[key] * 100); } }
               skirt.checked = r.saved.skirt !== false; enabled.checked = r.saved.enabled !== false;
             }
+            // The markers saved last time come back onto the model (their normals not kept: shown flat to the front).
+            if (r.ok && r.savedMarkers) {
+              for (const m of MARKERS) if (Array.isArray(r.savedMarkers[m.key]) && r.savedMarkers[m.key].length === 3) markers[m.key] = { point: r.savedMarkers[m.key].slice(), normal: [0, 0, 1] };
+              drawMarkers();
+            }
+            if (r.ok && typeof r.leftIsPlusX === 'boolean') leftIsPlusX = r.leftIsPlusX;
           } catch (e) { /* found below */ }
           await doFind();
         })();
@@ -2131,7 +2209,7 @@ async function openModel(name) {
       go.disabled = true;
       say(`rigging ${shortName(name)} to ${modelName()}\u2026`);
       try {
-        const made = await api('/api/project/models/reskin', { model: modelName(), asset: name, cuts: asked() });
+        const made = await api('/api/project/models/reskin', { model: modelName(), asset: name, cuts: asked(), markers: markersAsked() });
         if (!made.ok) throw new Error(made.error);
         for (const note of made.notes || []) logLine('auto-rig: ' + note);
         say(`${shortName(name)} bound to the skeleton as ${(made.rigged || '').replace(/^assets\//, '')} and ${made.model} remade - opening it`, 'good');

@@ -719,8 +719,10 @@ namespace Crystal.Editor
 						{
 							// The cuts: the request's, else the ones saved beside the file last time
 							// (assets/<name>.rig.json), else all found; saved back as used.
-							AutoRig.Cuts cuts = ReadCuts(body?["cuts"]) ?? ReadCuts(LoadCutsFile(gltfPath));
-							AutoRig.Result bound = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts);
+							JsonNode saved = LoadCutsFile(gltfPath);
+							AutoRig.Cuts cuts = ReadCuts(body?["cuts"]) ?? ReadCuts(saved);
+							AutoRig.Markers markers = body?["markers"] != null ? ReadMarkers(body["markers"]) : ReadMarkers(saved?["markers"]);
+							AutoRig.Result bound = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts, markers: markers);
 							string riggedName = Path.GetFileNameWithoutExtension(asset) + "-rigged.glb";
 							string riggedPath = Path.Combine(_project.Directory, GltfBundle.Folder, riggedName);
 							File.WriteAllBytes(riggedPath, bound.Glb);
@@ -731,6 +733,7 @@ namespace Crystal.Editor
 							// repainted weights (/api/model/carry, the weights route).
 							JsonObject record = (LoadCutsFile(gltfPath) as JsonObject) ?? new JsonObject();
 							if (body?["cuts"] is JsonObject asked) foreach (KeyValuePair<string, JsonNode> pair in asked) record[pair.Key] = pair.Value?.DeepClone();
+							if (body?["markers"] != null) record["markers"] = body["markers"].DeepClone();
 							record["rigged"] = new JsonObject
 							{
 								["file"] = rigged, ["origin"] = asset.Replace('\\', '/'), ["model"] = modelName,
@@ -782,8 +785,9 @@ namespace Crystal.Editor
 						OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(gltfPath);
 						JsonNode saved = LoadCutsFile(gltfPath);
 						AutoRig.Cuts cuts = ReadCuts(body?["cuts"]) ?? ReadCuts(saved);
-						AutoRig.Result found = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts, analyseOnly: true);
-						SendJson(context, new { ok = true, cuts = CutsJson(found.Cuts), regions = found.RegionCounts, saved = saved != null ? CutsJson(ReadCuts(saved)) : null, notes = found.Notes });
+						AutoRig.Markers markers = body?["markers"] != null ? ReadMarkers(body["markers"]) : ReadMarkers(saved?["markers"]);
+						AutoRig.Result found = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts, analyseOnly: true, markers: markers);
+						SendJson(context, new { ok = true, cuts = CutsJson(found.Cuts), regions = found.RegionCounts, saved = saved != null ? CutsJson(ReadCuts(saved)) : null, savedMarkers = saved?["markers"]?.DeepClone(), leftIsPlusX = found.LeftIsPlusX, notes = found.Notes });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
@@ -2986,6 +2990,18 @@ namespace Crystal.Editor
 		}
 
 		private static object CutsJson(AutoRig.Cuts c) => c == null ? null : new { neck = c.Neck, hips = c.Hips, armFloor = c.ArmFloor, torsoWidth = c.TorsoWidth, skirt = c.Skirt, enabled = c.Enabled };
+
+		/// <summary>The auto-rig's markers from JSON ({ chin: [x, y, z], groin, leftWrist, rightWrist, leftElbow, rightElbow, leftKnee, rightKnee }), null for none.</summary>
+		private static AutoRig.Markers ReadMarkers(JsonNode node)
+		{
+			if (node is not JsonObject o) return null;
+			AutoRig.Markers m = new AutoRig.Markers
+			{
+				Chin = Triple(o["chin"]), Groin = Triple(o["groin"]), LeftWrist = Triple(o["leftWrist"]), RightWrist = Triple(o["rightWrist"]),
+				LeftElbow = Triple(o["leftElbow"]), RightElbow = Triple(o["rightElbow"]), LeftKnee = Triple(o["leftKnee"]), RightKnee = Triple(o["rightKnee"])
+			};
+			return m.Any ? m : null;
+		}
 
 		/// <summary>The cuts saved beside a glTF (assets/<name>.rig.json), or null.</summary>
 		private static JsonNode LoadCutsFile(string gltfPath)

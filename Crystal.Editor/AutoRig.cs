@@ -39,6 +39,8 @@ namespace Crystal
 			public Cuts Cuts;
 			/// <summary>How many vertices each region got (body, head, left arm, right arm, left leg, right leg, hips).</summary>
 			public Dictionary<string, int> RegionCounts;
+			/// <summary>Whether the character's left is at +x (the game's convention, which the fitted file shares).</summary>
+			public bool LeftIsPlusX;
 		}
 
 		/// <summary>
@@ -64,13 +66,32 @@ namespace Crystal
 		}
 
 		/// <summary>
+		/// Points a person placed on the file (in the file's own space, before the fit), the way an
+		/// auto-rigger asks for them: the chin, the groin, and a wrist, elbow and knee a side. Each null
+		/// when not placed. They set the cuts (the neck at the chin, the hips at the groin, the arm
+		/// floor under the wrists) and give the arms their true direction and elbows for the turn onto
+		/// the bones, in place of what the shape alone suggests.
+		/// </summary>
+		public sealed class Markers
+		{
+			public float[] Chin, Groin, LeftWrist, RightWrist, LeftElbow, RightElbow, LeftKnee, RightKnee;
+			public bool Any => Chin != null || Groin != null || LeftWrist != null || RightWrist != null || LeftElbow != null || RightElbow != null || LeftKnee != null || RightKnee != null;
+			/// <summary>The same markers through a row-vector 4x3 (the fit).</summary>
+			public Markers Through(float[] fit)
+			{
+				float[] Go(float[] p) => p == null ? null : Apply(fit, p[0], p[1], p[2]);
+				return new Markers { Chin = Go(Chin), Groin = Go(Groin), LeftWrist = Go(LeftWrist), RightWrist = Go(RightWrist), LeftElbow = Go(LeftElbow), RightElbow = Go(RightElbow), LeftKnee = Go(LeftKnee), RightKnee = Go(RightKnee) };
+			}
+		}
+
+		/// <summary>
 		/// The file's meshes bound to <paramref name="modelName"/>'s skeleton. <paramref name="scale"/> 0
 		/// fits the model's height; <paramref name="offset"/> null stands it on the floor over the
 		/// model's middle; <paramref name="rotation"/> turns it (degrees about x, y, z) before either.
 		/// <paramref name="cuts"/> places the regions (null: all found); <paramref name="analyseOnly"/>
 		/// stops after the regions, the result carrying the cuts as found and each region's count.
 		/// </summary>
-		public static Result Build(Workspace workspace, string modelName, GltfFile file, float scale = 0, float[] rotation = null, float[] offset = null, string posePack = null, int poseIndex = 0, int poseFrame = 0, Cuts cuts = null, bool analyseOnly = false)
+		public static Result Build(Workspace workspace, string modelName, GltfFile file, float scale = 0, float[] rotation = null, float[] offset = null, string posePack = null, int poseIndex = 0, int poseFrame = 0, Cuts cuts = null, bool analyseOnly = false, Markers markers = null)
 		{
 			if (file == null) throw new ArgumentNullException(nameof(file));
 			List<GltfMesh> meshes = file.Meshes.Where(m => m.Indices != null && m.Indices.Length >= 3 && m.Positions != null).ToList();
@@ -296,6 +317,7 @@ namespace Crystal
 			// from its head's triangles, a sleeve from its arm's. Regions the file has no cut for take
 			// from the whole.
 			bool leftIsPlusX = LeftIsPlusX(bindX, refWeights, rig);
+			result.LeftIsPlusX = leftIsPlusX;
 			// The heights the game's own joints stand at in the matched pose, as fractions of its
 			// height: the hands (nothing below them is an arm) and the hips (below them the legs).
 			float modelH = Math.Max(1e-4f, oMax[1] - oMin[1]);
@@ -310,11 +332,21 @@ namespace Crystal
 			}
 			if (handsAt == float.MaxValue) handsAt = 0.4f;
 			if (float.IsNaN(hipsAt)) hipsAt = 0.45f;
+			// The markers, in the model's space; where placed they set the cuts a person did not.
+			Markers placed = markers != null && markers.Any ? markers.Through(fit) : null;
+			float? Fraction(float[] p) => p == null ? (float?)null : Math.Clamp((p[1] - oMin[1]) / modelH, 0, 1);
+			float? wristsAt = placed == null ? null : new[] { Fraction(placed.LeftWrist), Fraction(placed.RightWrist) }.Where(f => f.HasValue).Select(f => f.Value).DefaultIfEmpty(float.NaN).Min();
+			if (wristsAt.HasValue && float.IsNaN(wristsAt.Value)) wristsAt = null;
 			Cuts used = new Cuts
 			{
-				Enabled = cuts?.Enabled ?? true, Neck = cuts?.Neck, Hips = cuts?.Hips ?? hipsAt, HipsFound = cuts?.Hips == null, ArmFloor = cuts?.ArmFloor ?? Math.Max(0, Math.Min(handsAt, hipsAt) - 0.1f),
+				Enabled = cuts?.Enabled ?? true,
+				// The head begins a little under the chin.
+				Neck = cuts?.Neck ?? (placed?.Chin != null ? Math.Max(0, Fraction(placed.Chin).Value - 0.02f) : (float?)null),
+				Hips = cuts?.Hips ?? Fraction(placed?.Groin) ?? hipsAt, HipsFound = cuts?.Hips == null && placed?.Groin == null,
+				ArmFloor = cuts?.ArmFloor ?? (wristsAt.HasValue ? Math.Max(0, wristsAt.Value - 0.06f) : Math.Max(0, Math.Min(handsAt, hipsAt) - 0.1f)),
 				TorsoWidth = cuts?.TorsoWidth, Skirt = cuts?.Skirt ?? true
 			};
+			if (placed != null) result.Notes.Add("markers placed: " + string.Join(", ", new[] { ("chin", placed.Chin), ("groin", placed.Groin), ("left wrist", placed.LeftWrist), ("right wrist", placed.RightWrist), ("left elbow", placed.LeftElbow), ("right elbow", placed.RightElbow), ("left knee", placed.LeftKnee), ("right knee", placed.RightKnee) }.Where(m => m.Item2 != null).Select(m => m.Item1)) + " - the cuts and the arms' directions follow them");
 			int[] vertexRegion = Regions(fileX, fileY, fileZ, count, bundle.Indices, oMin[1], oMax[1], used, leftIsPlusX, result.Notes);
 			result.Cuts = used;
 			result.RegionCounts = RegionNames.ToDictionary(name => name, name => 0);
@@ -396,6 +428,17 @@ namespace Crystal
 								if (Length(along) >= 0.25f * Length(boneDir)) meshDir = along;
 							}
 						}
+					}
+					// Markers, where placed, know better than the shape: the elbow is the forearm's pivot and
+					// the wrist its direction; the upper arm points at the elbow; the knee is the shin's pivot.
+					if (placed != null)
+					{
+						bool leftSide = rig.Nodes[n].StartsWith("L_", StringComparison.Ordinal);
+						string bare = rig.Nodes[n].Substring(2);
+						float[] mElbow = leftSide ? placed.LeftElbow : placed.RightElbow, mWrist = leftSide ? placed.LeftWrist : placed.RightWrist, mKnee = leftSide ? placed.LeftKnee : placed.RightKnee;
+						if (bare == "ude" && mElbow != null) { pivot = mElbow; if (mWrist != null) meshDir = new[] { mWrist[0] - mElbow[0], mWrist[1] - mElbow[1], mWrist[2] - mElbow[2] }; }
+						else if (bare == "kata" && mElbow != null) meshDir = new[] { mElbow[0] - pivot[0], mElbow[1] - pivot[1], mElbow[2] - pivot[2] };
+						else if (bare == "hiza" && mKnee != null) pivot = mKnee;
 					}
 					meshDir ??= new[] { middle[0] / owned - pivot[0], middle[1] / owned - pivot[1], middle[2] / owned - pivot[2] };
 					// The middle right by the joint says nothing about direction; a turn past a right angle

@@ -442,6 +442,7 @@
           <button class="paint-smooth-all" title="one smoothing pass over the whole mesh (one undo step)">Smooth all</button>
           <button class="paint-discard" title="throw away every unsaved stroke: the weights as the file has them">Discard</button>
           <button class="paint-rerig" title="run the auto-rig again from the original, unrigged file and start over (the saved weights are replaced)" hidden>Redo auto-rig</button>
+          <button class="paint-cuts" title="open the original, unrigged file, where the auto-rig's cuts and markers are set" hidden>Cuts &amp; markers…</button>
           <button class="paint-save" title="write the weights into the .glb and remake the game model from it">Save weights</button>
           <span class="paint-readout" title="the bones of the vertex under the cursor"></span>
           <span class="paint-hint">left drag paints · right drag orbits · Alt+click picks the bone · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind · to move a part to another bone, pick that bone and add · erase on a vertex's only bone hands the weight to the bone's parent</span>
@@ -461,6 +462,13 @@
           <button class="rig-find" title="find the blanks from the file's shape and count each region's vertices - writes nothing">Find</button>
           <button class="rig-go" title="bind the file to the model's skeleton with these cuts, as assets/&lt;name&gt;-rigged.glb, and remake the game model from it">Auto-rig</button>
           <span class="rig-readout"></span>
+          <!-- Markers placed on the model, an auto-rigger's way: they set the cuts and give the arms their direction. -->
+          <span class="rig-markers">
+            <label class="toggle" title="place markers on the model by clicking it: the one lit below goes where you click, then the next; a placed one is clicked again to move it"><input type="checkbox" class="rig-place"> place markers</label>
+            <label class="toggle" title="a wrist, elbow or knee placed on one side is placed on the other too, mirrored"><input type="checkbox" class="rig-symmetry" checked> symmetry</label>
+            <span class="rig-marker-list"></span>
+            <button class="rig-markers-clear" title="take every marker off">Clear markers</button>
+          </span>
         </span>
       </div>
       <!-- A weapon in a character's hand: the character, the hand, and the item's fit (hand-preview.js). -->

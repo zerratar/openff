@@ -738,7 +738,17 @@ without writing anything; *Auto-rig* binds the file with them. The cuts you set 
 beside the file as `assets/<name>.rig.json` and used again by *Remake from glTF…* and *Redo
 auto-rig*; the CLI takes them as `--neck=63 --hips=38 --arm-floor=27 --torso=28`,
 `--no-skirt`, `--no-regions` (percentages). Not every model is cut alike: a long coat wants
-the hips cut at the waist, a character in trousers wants *skirt* off. The result is a skinned
+the hips cut at the waist, a character in trousers wants *skirt* off. **Or place markers**, the
+way an auto-rigger asks for them: tick *place markers* and click the model at the chin, a
+wrist, an elbow, a knee and the groin (*symmetry* places the other side's too); each shows as a
+ring in its colour, the chips below say which are placed and which comes next, a chip
+right-clicked takes its marker off. Placed markers set the cuts a slider leaves on auto - the
+neck just under the chin, the hips at the groin, the arm floor under the wrists - and, more
+usefully, tell the auto-rig where the arms really bend and point: the elbow is the forearm's
+pivot and the wrist its direction, the upper arm points at the elbow, the knee is the shin's
+pivot, in place of what the shape alone suggests (the boundary rings between one bone's
+vertices and the next). They are saved with the cuts beside the file and used by every rig of
+it after; *Cuts & markers…* on the rigged file opens the original where they are. The result is a skinned
 glTF with the game's joint names at the game's bind pose: exact on OpenFF, the game format
 for Steam and the viewer. The closer the mesh's volume to the original's, the better the
 weights land; a mesh of quite other proportions (a realistic body on the chibi skeleton)

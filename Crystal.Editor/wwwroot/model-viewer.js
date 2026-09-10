@@ -180,6 +180,7 @@ function makeModelViewer(canvas, status, options = {}) {
     if (paint.wire) drawWireframe();
     if (paint.bones) drawSkeleton();
     drawCuts();
+    drawMarkers();
     drawBrush();
   }
 
@@ -681,33 +682,48 @@ function makeModelViewer(canvas, status, options = {}) {
     if (lines.length) drawLines(lines, 1.5);
   }
 
+  /// A ring on a surface: at c, in the plane across the normal n, of radius r, into lines (8 floats
+  /// a vertex), lifted a little off the surface; with a dot-sized inner ring and, when asked, a line up the normal.
+  function ringInto(lines, c, n, r, colour, withNormal) {
+    const [n0, n1, n2] = n;
+    const ref = Math.abs(n1) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    const u = normalise([n1 * ref[2] - n2 * ref[1], n2 * ref[0] - n0 * ref[2], n0 * ref[1] - n1 * ref[0]]);
+    const w = [n1 * u[2] - n2 * u[1], n2 * u[0] - n0 * u[2], n0 * u[1] - n1 * u[0]];
+    const lift = r * 0.02;
+    const push = (x, y, z) => lines.push(x + n0 * lift, y + n1 * lift, z + n2 * lift, 0, 0, colour[0], colour[1], colour[2]);
+    const circle = (radius, segments) => {
+      for (let i = 0; i < segments; i++) {
+        const a0 = (i / segments) * Math.PI * 2, a1 = ((i + 1) / segments) * Math.PI * 2;
+        push(c[0] + (u[0] * Math.cos(a0) + w[0] * Math.sin(a0)) * radius, c[1] + (u[1] * Math.cos(a0) + w[1] * Math.sin(a0)) * radius, c[2] + (u[2] * Math.cos(a0) + w[2] * Math.sin(a0)) * radius);
+        push(c[0] + (u[0] * Math.cos(a1) + w[0] * Math.sin(a1)) * radius, c[1] + (u[1] * Math.cos(a1) + w[1] * Math.sin(a1)) * radius, c[2] + (u[2] * Math.cos(a1) + w[2] * Math.sin(a1)) * radius);
+      }
+    };
+    circle(r, 48);
+    circle(r * 0.08, 16);
+    if (withNormal) { push(c[0], c[1], c[2]); push(c[0] + n0 * r * 0.5, c[1] + n1 * r * 0.5, c[2] + n2 * r * 0.5); }
+  }
+
   /// The ring where the brush would land: the radius, in the surface's plane at the cursor, with a
   /// short line up the normal; over everything, so it shows through the mesh's own faces.
   function drawBrush() {
     if (!brushSeat || !paint.on || paint.bone < 0) return;
-    const [n0, n1, n2] = brushSeat.normal;
-    // Two axes across the normal.
-    const ref = Math.abs(n1) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-    const u = normalise([n1 * ref[2] - n2 * ref[1], n2 * ref[0] - n0 * ref[2], n0 * ref[1] - n1 * ref[0]]);
-    const w = [n1 * u[2] - n2 * u[1], n2 * u[0] - n0 * u[2], n0 * u[1] - n1 * u[0]];
-    const c = brushSeat.point, r = paint.radius;
-    const lift = r * 0.02;
-    const lines = [];
     const colour = paint.mode === 'erase' ? [1, 0.45, 0.35] : paint.mode === 'smooth' ? [0.55, 0.85, 1] : [1, 0.95, 0.4];
-    const push = (x, y, z) => lines.push(x + n0 * lift, y + n1 * lift, z + n2 * lift, 0, 0, colour[0], colour[1], colour[2]);
-    const Segments = 48;
-    for (let i = 0; i < Segments; i++) {
-      const a0 = (i / Segments) * Math.PI * 2, a1 = ((i + 1) / Segments) * Math.PI * 2;
-      push(c[0] + (u[0] * Math.cos(a0) + w[0] * Math.sin(a0)) * r, c[1] + (u[1] * Math.cos(a0) + w[1] * Math.sin(a0)) * r, c[2] + (u[2] * Math.cos(a0) + w[2] * Math.sin(a0)) * r);
-      push(c[0] + (u[0] * Math.cos(a1) + w[0] * Math.sin(a1)) * r, c[1] + (u[1] * Math.cos(a1) + w[1] * Math.sin(a1)) * r, c[2] + (u[2] * Math.cos(a1) + w[2] * Math.sin(a1)) * r);
-    }
-    // The centre's normal, half a radius long, and a dot-sized inner ring where the brush is strongest.
-    push(c[0], c[1], c[2]); push(c[0] + n0 * r * 0.5, c[1] + n1 * r * 0.5, c[2] + n2 * r * 0.5);
-    for (let i = 0; i < 16; i++) {
-      const a0 = (i / 16) * Math.PI * 2, a1 = ((i + 1) / 16) * Math.PI * 2, q = r * 0.08;
-      push(c[0] + (u[0] * Math.cos(a0) + w[0] * Math.sin(a0)) * q, c[1] + (u[1] * Math.cos(a0) + w[1] * Math.sin(a0)) * q, c[2] + (u[2] * Math.cos(a0) + w[2] * Math.sin(a0)) * q);
-      push(c[0] + (u[0] * Math.cos(a1) + w[0] * Math.sin(a1)) * q, c[1] + (u[1] * Math.cos(a1) + w[1] * Math.sin(a1)) * q, c[2] + (u[2] * Math.cos(a1) + w[2] * Math.sin(a1)) * q);
-    }
+    const lines = [];
+    ringInto(lines, brushSeat.point, brushSeat.normal, paint.radius, colour, true);
+    drawLines(lines, 2);
+  }
+
+  // Markers placed on the model (the auto-rig's chin, wrists, elbows, knees, groin): [{ point,
+  // normal, colour }], drawn as rings; and the one under the cursor as it hovers, waiting to be placed.
+  let markers = [];
+  let markerSeat = null;
+
+  function drawMarkers() {
+    if (!markers.length && !markerSeat) return;
+    const r = (bundle && bundle.radius || 1) * 0.045;
+    const lines = [];
+    for (const m of markers) ringInto(lines, m.point, m.normal || [0, 0, 1], r, m.colour || [1, 1, 1], false);
+    if (markerSeat) ringInto(lines, markerSeat.point, markerSeat.normal, r * 1.15, markerSeat.colour || [1, 1, 1], true);
     drawLines(lines, 2);
   }
 
@@ -1199,6 +1215,16 @@ function makeModelViewer(canvas, status, options = {}) {
 
     /// The auto-rig's cuts to draw on the model ({ neck, hips, armFloor, torsoWidth } as fractions; null: none).
     setCuts(next) { cuts = next || null; draw(); },
+
+    /// The point on the mesh under a canvas position, as drawn now: { point: [x, y, z], normal } or null.
+    pointAt(clientX, clientY) {
+      const hit = pick(clientX, clientY);
+      return hit ? { point: [hit[0], hit[1], hit[2]], normal: hit.normal } : null;
+    },
+    /// Markers to draw on the model: [{ point, normal, colour }] (empty for none).
+    setMarkers(list) { markers = Array.isArray(list) ? list : []; draw(); },
+    /// The marker waiting to be placed, following the cursor ({ point, normal, colour } or null).
+    setMarkerSeat(seat) { markerSeat = seat || null; draw(); },
 
     /// How the file's geometry was carried into the bind pose: the original's fitted positions (3 a
     /// vertex) and the rig pose (as /api/model/rig-pose gives it) with the frame they were carried out

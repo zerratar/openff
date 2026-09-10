@@ -2216,6 +2216,13 @@ header h1 .gem {
 .rig-bar .rig-cut input[type=range] { width: 80px; }
 .rig-bar .rig-cut b { font-weight: 500; min-width: 30px; color: var(--dim); }
 .rig-bar .rig-readout { color: var(--dim); font-size: 11px; }
+/* The markers: a chip each, its border in the marker's colour; set ones filled, the next one to be placed lit. */
+.rig-bar .rig-markers { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rig-bar .rig-marker-list { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.rig-bar .rig-marker { font-size: 11px; padding: 1px 6px; border: 1px solid #667; border-left-width: 4px; border-radius: 3px; background: transparent; color: var(--dim); cursor: pointer; }
+.rig-bar .rig-marker.set { color: var(--ink); background: #2a3040; }
+.rig-bar .rig-marker.next { color: var(--ink); outline: 1px solid var(--accent); }
+.stage.placing canvas { cursor: crosshair; }
 /* The bones of the vertex under the brush, each in its bone's colour. */
 .paint-bar .paint-readout { display: inline-flex; gap: 4px; min-height: 16px; }
 .paint-bar .paint-readout b { font-weight: 500; font-size: 11px; padding: 0 5px; border: 1px solid #556; border-left-width: 4px; border-radius: 3px; color: var(--ink); }
