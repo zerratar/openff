@@ -636,9 +636,41 @@ namespace Crystal.Editor
 						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
 						int[] joints = (body?["jointIndex"] as JsonArray ?? throw new ArgumentException("no weights")).Select(n => n?.GetValue<int>() ?? -1).ToArray();
 						float[] weights = (body?["weights"] as JsonArray ?? throw new ArgumentException("no weights")).Select(n => (float)(n?.GetValue<double>() ?? 0)).ToArray();
-						byte[] rewritten = Gltf.RewriteWeights(File.ReadAllBytes(gltfPath), joints, weights);
+						// With positions (3 a vertex): the bind pose carried again through the painted weights.
+						float[] positions = body?["positions"] is JsonArray p ? p.Select(n => (float)(n?.GetValue<double>() ?? 0)).ToArray() : null;
+						byte[] rewritten = Gltf.RewriteWeights(File.ReadAllBytes(gltfPath), joints, weights, positions);
 						File.WriteAllBytes(gltfPath, rewritten);
-						SendJson(context, new { ok = true, asset, bytes = rewritten.Length, vertices = joints.Length / 4 });
+						SendJson(context, new { ok = true, asset, bytes = rewritten.Length, vertices = joints.Length / 4, positions = positions != null });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/model/carry":
+				{
+					// How a rigged file's geometry is carried: for assets/<name>-rigged.glb, the original's
+					// vertices as the auto-rig fitted them (before the carry into the bind pose) and the pose
+					// they were carried out of, from the record beside the original (assets/<name>.rig.json).
+					// The viewer carries them again through repainted weights, so a part painted onto another
+					// bone moves to where that bone has it in the bind pose, and no weights at all shows the
+					// file's own pose.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					try
+					{
+						string name = Query(context, "name") ?? throw new ArgumentException("no file named");
+						string rigged = GltfBundle.Resolve(_project, name) ?? throw new ArgumentException("no file " + name + " in the project");
+						JsonObject record = null; string originPath = null;
+						foreach (string candidate in new[] { System.Text.RegularExpressions.Regex.Replace(rigged, @"-rigged\.glb$", ".glb", System.Text.RegularExpressions.RegexOptions.IgnoreCase) })
+						{
+							JsonObject r = LoadCutsFile(candidate) as JsonObject;
+							if (r?["rigged"] is JsonObject rig && string.Equals(rig["file"]?.GetValue<string>()?.Replace('\\', '/'), name.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase)) { record = rig; originPath = candidate; }
+						}
+						if (record == null) { SendJson(context, new { ok = false, error = "no record of how " + name + " was rigged (rigged before Crystal kept one, or not by the auto-rig)" }); return; }
+						if (!File.Exists(originPath)) { SendJson(context, new { ok = false, error = "the original " + Path.GetFileName(originPath) + " is gone" }); return; }
+						OpenFF.Graphics.GltfFile origin = OpenFF.Graphics.GltfFile.Load(originPath);
+						float[] positions = AutoRig.FittedPositions(origin, (float)record["scale"].GetValue<double>(), Triple(record["rotation"]), Triple(record["offset"]));
+						JsonObject pose = record["pose"] as JsonObject;
+						SendJson(context, new { ok = true, positions, pose = pose == null ? null : new { pack = pose["pack"]?.GetValue<string>(), index = pose["index"]?.GetValue<int>() ?? 0, frame = pose["frame"]?.GetValue<int>() ?? 0 }, model = record["model"]?.GetValue<string>() });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
@@ -692,9 +724,20 @@ namespace Crystal.Editor
 							string riggedName = Path.GetFileNameWithoutExtension(asset) + "-rigged.glb";
 							string riggedPath = Path.Combine(_project.Directory, GltfBundle.Folder, riggedName);
 							File.WriteAllBytes(riggedPath, bound.Glb);
-							if (body?["cuts"] != null) SaveCutsFile(gltfPath, body["cuts"]);
 							cutsUsed = bound.Cuts;
 							rigged = GltfBundle.Folder + "/" + riggedName;
+							// Beside the original: the cuts asked for, and how the file was rigged - its fit and
+							// the pose it was carried out of - so its geometry can be carried again through
+							// repainted weights (/api/model/carry, the weights route).
+							JsonObject record = (LoadCutsFile(gltfPath) as JsonObject) ?? new JsonObject();
+							if (body?["cuts"] is JsonObject asked) foreach (KeyValuePair<string, JsonNode> pair in asked) record[pair.Key] = pair.Value?.DeepClone();
+							record["rigged"] = new JsonObject
+							{
+								["file"] = rigged, ["origin"] = asset.Replace('\\', '/'), ["model"] = modelName,
+								["scale"] = bound.Scale, ["rotation"] = new JsonArray(bound.Rotation[0], bound.Rotation[1], bound.Rotation[2]), ["offset"] = new JsonArray(bound.Offset[0], bound.Offset[1], bound.Offset[2]),
+								["pose"] = bound.PosePack == null ? null : new JsonObject { ["pack"] = bound.PosePack, ["index"] = bound.PoseIndex, ["frame"] = bound.PoseFrame }
+							};
+							SaveCutsFile(gltfPath, record);
 							asset = rigged;
 							gltfPath = riggedPath;
 							file = OpenFF.Graphics.GltfFile.Load(gltfPath);

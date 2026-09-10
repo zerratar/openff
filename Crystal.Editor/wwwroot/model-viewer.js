@@ -1,4 +1,4 @@
-﻿// A viewer for the MDL0 models.
+// A viewer for the MDL0 models.
 //
 // Plain WebGL, no library. The server has already done the hard part - display lists
 // walked, strips expanded, node matrices applied - so what arrives is a vertex buffer,
@@ -598,6 +598,45 @@ function makeModelViewer(canvas, status, options = {}) {
   // The brush's seat under the cursor as it hovers: { point, normal } on the mesh, drawn as a ring.
   let brushSeat = null;
 
+  // How the rigged file's geometry was carried into the bind pose (/api/model/carry): the
+  // original's vertices as fitted, and the inverse of each joint's skinning matrix at the pose
+  // they were carried out of. With it, a change of weights carries the geometry again - a part
+  // painted onto another bone goes where that bone has it, and no weights at all shows the
+  // file's own pose - instead of leaving the auto-rig's carry baked in. Null: no record.
+  let carry = null;
+
+  /// The bind-pose positions carried again through the weights as they are now, into skin.local
+  /// and the drawn buffer.
+  function recarry() {
+    if (!carry || !bundle || !bundle.skin) return;
+    const skin = bundle.skin, count = bundle.buffer.length / 8;
+    const P = carry.positions, undo = carry.undo;
+    for (let v = 0; v < count; v++) {
+      const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+      let px = 0, py = 0, pz = 0, total = 0;
+      for (let k = 0; k < 4; k++) {
+        const w = skin.weights[v * 4 + k], j = skin.jointIndex[v * 4 + k];
+        if (w <= 0 || j < 0) continue;
+        const m = undo[j];
+        if (!m) { px += w * x; py += w * y; pz += w * z; total += w; continue; }
+        px += w * (m[0] * x + m[4] * y + m[8] * z + m[12]);
+        py += w * (m[1] * x + m[5] * y + m[9] * z + m[13]);
+        pz += w * (m[2] * x + m[6] * y + m[10] * z + m[14]);
+        total += w;
+      }
+      if (total <= 0) { px = x; py = y; pz = z; total = 1; }
+      skin.local[v * 3] = px / total; skin.local[v * 3 + 1] = py / total; skin.local[v * 3 + 2] = pz / total;
+      bundle.buffer[v * 8] = skin.local[v * 3]; bundle.buffer[v * 8 + 1] = skin.local[v * 3 + 1]; bundle.buffer[v * 8 + 2] = skin.local[v * 3 + 2];
+    }
+  }
+
+  /// After a change of weights: the geometry carried again (when there is a carry), skinned and drawn.
+  function weightsChanged() {
+    recarry();
+    skinTo(skinFrame);
+    draw();
+  }
+
   // The auto-rig's cuts drawn on the (unrigged) model: { neck, hips, armFloor, torsoWidth } as
   // fractions of the model's height and width, or null for none.
   let cuts = null;
@@ -1126,8 +1165,7 @@ function makeModelViewer(canvas, status, options = {}) {
         if (best >= 0) { m.corners = [best]; brush(m, mirroredBone(paint.bone), sign); }
       }
       brushSeat = { point: [hit[0], hit[1], hit[2]], normal: hit.normal };
-      skinTo(skinFrame);
-      draw();
+      weightsChanged();
       return true;
     },
 
@@ -1159,6 +1197,33 @@ function makeModelViewer(canvas, status, options = {}) {
     /// The auto-rig's cuts to draw on the model ({ neck, hips, armFloor, torsoWidth } as fractions; null: none).
     setCuts(next) { cuts = next || null; draw(); },
 
+    /// How the file's geometry was carried into the bind pose: the original's fitted positions (3 a
+    /// vertex) and the rig pose (as /api/model/rig-pose gives it) with the frame they were carried out
+    /// of; null for the bind pose itself (the file was fitted in it) or none. Repainting then carries
+    /// the geometry again. Returns whether a carry is in force.
+    setCarry(next) {
+      carry = null;
+      if (!next || !next.positions || !bundle || !bundle.skin || next.positions.length !== bundle.buffer.length / 8 * 3) { draw(); return false; }
+      const skin = bundle.skin;
+      const undo = new Array(skin.joints.length).fill(null);
+      if (next.rig && next.rig.frames > 0) {
+        const byName = new Map(next.rig.nodes.map((n, i) => [String(n).toLowerCase(), i]));
+        const nodeCount = next.rig.nodes.length;
+        const at = Math.max(0, Math.min(next.rig.frames - 1, next.frame || 0)) * nodeCount * 12;
+        for (let j = 0; j < skin.joints.length; j++) {
+          const n = byName.has(String(skin.joints[j]).toLowerCase()) ? byName.get(String(skin.joints[j]).toLowerCase()) : -1;
+          if (n < 0) continue;
+          const w = next.rig.worlds, o = at + n * 12;
+          const world = [w[o], w[o + 1], w[o + 2], 0, w[o + 3], w[o + 4], w[o + 5], 0, w[o + 6], w[o + 7], w[o + 8], 0, w[o + 9], w[o + 10], w[o + 11], 1];
+          undo[j] = invert4(multiply(world, skin.inverseBind.slice(j * 16, j * 16 + 16)));
+        }
+      }
+      carry = { positions: Float32Array.from(next.positions), undo };
+      weightsChanged();
+      return true;
+    },
+    hasCarry() { return Boolean(carry); },
+
     /// A bone's colour in the all-bones view, as a CSS rgb() string.
     boneColour(j) { const c = boneColour(j); return `rgb(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)})`; },
 
@@ -1185,8 +1250,7 @@ function makeModelViewer(canvas, status, options = {}) {
       if (!bundle || !bundle.skin || bone < 0) return 0;
       this.beginStroke();
       const n = clearBone(bone);
-      skinTo(skinFrame);
-      draw();
+      weightsChanged();
       return n;
     },
 
@@ -1195,8 +1259,7 @@ function makeModelViewer(canvas, status, options = {}) {
       if (!bundle || !bundle.skin) return;
       this.beginStroke();
       smoothAll();
-      skinTo(skinFrame);
-      draw();
+      weightsChanged();
     },
 
     undoPaint() {
@@ -1204,14 +1267,13 @@ function makeModelViewer(canvas, status, options = {}) {
       if (!last || !bundle || !bundle.skin) return false;
       bundle.skin.jointIndex = Array.from(last.joints);
       bundle.skin.weights = Array.from(last.weights);
-      skinTo(skinFrame);
-      draw();
+      weightsChanged();
       return true;
     },
     canUndo() { return undoStack.length > 0; },
 
     /// The weights as painted, for saving: { jointIndex, weights } four a vertex, joints as skinJoints().
-    weightsData() { return bundle && bundle.skin ? { jointIndex: Array.from(bundle.skin.jointIndex), weights: Array.from(bundle.skin.weights) } : null; },
+    weightsData() { return bundle && bundle.skin ? { jointIndex: Array.from(bundle.skin.jointIndex), weights: Array.from(bundle.skin.weights), positions: carry ? Array.from(bundle.skin.local) : null } : null; },
 
     redraw: draw
   };

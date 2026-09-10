@@ -772,7 +772,13 @@ the bone under the cursor. Under the cursor, the vertex's bones are read out wit
 weights (`hara 50% · mune 42% · kosi 8%`), each chip in its bone's colour; *all bones* colours
 the whole mesh by each vertex's heaviest bone, the hierarchy's bone rows carrying the same
 colours, so the whole assignment is visible at once. *assign* (the default) makes the ring
-the picked bone's outright - the tool for "this part belongs to that bone"; *add* puts weight on and the vertex's other bones give way in
+the picked bone's outright - the tool for "this part belongs to that bone"; and the geometry
+follows the paint: the auto-rig keeps a record beside the original (`assets/<name>.rig.json`:
+its fit, and the pose it carried the file out of), and with it the viewer carries the file's
+own vertices again through the weights as they are now, so a pouch painted from the arm to the
+hips moves back onto the hip in the bind pose rather than staying where the arm's carry left
+it, a bone cleared everywhere puts its part back in the file's own pose, and *Save weights*
+writes the re-carried positions with the weights. *add* puts weight on and the vertex's other bones give way in
 proportion; *erase* takes it off, and what comes off goes where the surface around the vertex
 is bound - its neighbours' bones - never in proportion to what the vertex itself happened to
 carry (a chest vertex with a stray hand weight would fly to the hand); a vertex whose

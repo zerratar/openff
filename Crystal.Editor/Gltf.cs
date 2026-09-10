@@ -396,7 +396,15 @@ namespace Crystal
 		/// (GltfBundle's), the joints as the skin lists them. The accessors keep their types (a
 		/// file of this writer's: ushort joints, float weights); anything else is refused.
 		/// </summary>
-		public static byte[] RewriteWeights(byte[] glb, int[] jointIndex, float[] weights)
+		public static byte[] RewriteWeights(byte[] glb, int[] jointIndex, float[] weights) => RewriteWeights(glb, jointIndex, weights, null);
+
+		/// <summary>
+		/// As above, and with <paramref name="positions"/> (3 floats a vertex, the same order) the
+		/// vertices' positions rewritten in place as well - the bind pose re-carried through repainted
+		/// weights - the accessors' min and max refreshed. The JSON grows or shrinks by the min/max
+		/// digits, so the file is rebuilt around it rather than patched.
+		/// </summary>
+		public static byte[] RewriteWeights(byte[] glb, int[] jointIndex, float[] weights, float[] positions)
 		{
 			if (glb.Length < 20 || BitConverter.ToUInt32(glb, 0) != 0x46546C67u) throw new InvalidDataException("not a .glb");
 			int jsonLength = BitConverter.ToInt32(glb, 12);
@@ -404,6 +412,7 @@ namespace Crystal
 			int binAt = 20 + jsonLength + 8;
 			if (binAt > glb.Length || BitConverter.ToUInt32(glb, 20 + jsonLength + 4) != 0x004E4942u) throw new InvalidDataException("the .glb has no BIN chunk after its JSON");
 			byte[] result = (byte[])glb.Clone();
+			bool jsonChanged = false;
 			JsonArray accessors = root["accessors"] as JsonArray, views = root["bufferViews"] as JsonArray, meshes = root["meshes"] as JsonArray, nodes = root["nodes"] as JsonArray;
 			if (accessors == null || views == null || meshes == null) throw new InvalidDataException("the .glb has no meshes");
 			// Primitives in the order the reader visits them: the scene's nodes, depth first.
@@ -429,7 +438,25 @@ namespace Crystal
 			{
 				JsonObject attributes = primitive?["attributes"] as JsonObject;
 				if (attributes?["POSITION"] == null) continue;
-				int count = accessors[attributes["POSITION"].GetValue<int>()]["count"].GetValue<int>();
+				JsonObject pAcc = accessors[attributes["POSITION"].GetValue<int>()] as JsonObject;
+				int count = pAcc["count"].GetValue<int>();
+				if (positions != null)
+				{
+					if (pAcc["componentType"].GetValue<int>() != 5126) throw new InvalidDataException("the file's positions are not floats");
+					if ((vertex + count) * 3 > positions.Length) throw new InvalidDataException("the positions cover fewer vertices than the file has");
+					int pAt = binAt + Offset(views, pAcc);
+					float[] min = { float.MaxValue, float.MaxValue, float.MaxValue }, max = { float.MinValue, float.MinValue, float.MinValue };
+					for (int v = 0; v < count; v++)
+						for (int k = 0; k < 3; k++)
+						{
+							float f = positions[(vertex + v) * 3 + k];
+							BitConverter.GetBytes(f).CopyTo(result, pAt + (v * 3 + k) * 4);
+							min[k] = Math.Min(min[k], f); max[k] = Math.Max(max[k], f);
+						}
+					pAcc["min"] = new JsonArray(min[0], min[1], min[2]);
+					pAcc["max"] = new JsonArray(max[0], max[1], max[2]);
+					jsonChanged = true;
+				}
 				if (attributes["JOINTS_0"] == null || attributes["WEIGHTS_0"] == null) { vertex += count; continue; }
 				JsonObject jAcc = accessors[attributes["JOINTS_0"].GetValue<int>()] as JsonObject, wAcc = accessors[attributes["WEIGHTS_0"].GetValue<int>()] as JsonObject;
 				if (jAcc["componentType"].GetValue<int>() != 5123 || wAcc["componentType"].GetValue<int>() != 5126) throw new InvalidDataException("the file's joints are not 16-bit or its weights not floats - only a file written by Crystal can be repainted in place");
@@ -447,7 +474,19 @@ namespace Crystal
 				}
 				vertex += count;
 			}
-			return result;
+			if (!jsonChanged) return result;
+			// The JSON chunk rewritten (padded to 4 with spaces, as the format asks), the BIN chunk carried over.
+			byte[] json = Encoding.UTF8.GetBytes(root.ToJsonString());
+			int padded = (json.Length + 3) & ~3;
+			byte[] bin = new byte[result.Length - binAt];
+			Array.Copy(result, binAt, bin, 0, bin.Length);
+			using MemoryStream stream = new MemoryStream();
+			using BinaryWriter writer = new BinaryWriter(stream);
+			writer.Write(0x46546C67u); writer.Write(2u); writer.Write((uint)(12 + 8 + padded + 8 + bin.Length));
+			writer.Write((uint)padded); writer.Write(0x4E4F534Au); writer.Write(json); for (int i = json.Length; i < padded; i++) writer.Write((byte)0x20);
+			writer.Write((uint)bin.Length); writer.Write(0x004E4942u); writer.Write(bin);
+			writer.Flush();
+			return stream.ToArray();
 		}
 
 		private static int Offset(JsonArray views, JsonObject accessor)

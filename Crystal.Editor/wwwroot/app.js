@@ -1962,6 +1962,22 @@ async function openModel(name) {
       activeDoc.pickBone = (bone) => { if (!bones.checked) bones.checked = true; pickPaintBone(bone); };
     }
     if (paintable) {
+    // How the auto-rig carried this file's geometry into the bind pose (the original's fitted
+    // vertices and the pose they were carried out of): with it the viewer carries the geometry
+    // again as the weights change, so painting moves parts to where their bones have them.
+    (async () => {
+      try {
+        const c = await api(`/api/model/carry?name=${encodeURIComponent(name)}`);
+        if (!c.ok) { logLine('weights: ' + c.error + ' - painting changes the bones, not the bind geometry'); return; }
+        let rig = null;
+        if (c.pose && c.pose.pack) {
+          const driven = viewer.skinModel() || c.model;
+          rig = await api(`/api/model/rig-pose?name=${encodeURIComponent(driven)}&pack=${encodeURIComponent(c.pose.pack)}&index=${c.pose.index || 0}`);
+          if (rig && rig.ok === false) throw new Error(rig.error);
+        }
+        if (viewer.setCarry({ positions: c.positions, rig, frame: c.pose ? c.pose.frame : 0 })) logLine(`weights: the geometry follows the paint (carried out of ${c.pose ? `${shortName(c.pose.pack)} motion ${c.pose.index} frame ${c.pose.frame}` : 'the bind pose'})`);
+      } catch (error) { logLine('weights: no carry - ' + error.message); }
+    })();
     paintChanged = () => { dirty = true; hint.textContent = 'unsaved changes - Save weights writes them into the .glb and remakes the game model'; hint.classList.add('paint-dirty'); };
     undo.onclick = () => { if (!viewer.undoPaint()) say('nothing to undo'); };
     node.addEventListener('keydown', e => { if (on.checked && e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo.onclick(); } });

@@ -31,6 +31,9 @@ namespace Crystal
 			public int Vertices, Triangles, Bones;
 			public float Scale;
 			public float[] Offset;
+			public float[] Rotation;
+			/// <summary>The pose the weights were taken against and the file carried out of (null: the bind pose itself).</summary>
+			public string PosePack; public int PoseIndex, PoseFrame;
 			public List<string> Notes = new List<string>();
 			/// <summary>The cuts as used - what was asked for, the rest as found from the file's shape.</summary>
 			public Cuts Cuts;
@@ -48,8 +51,10 @@ namespace Crystal
 			public bool Enabled = true;
 			/// <summary>The head begins here. Found: the narrowest slice between the head's widest and the shoulders'.</summary>
 			public float? Neck;
-			/// <summary>The legs (and a skirt) begin below here. Found: the height of the original's hip joint.</summary>
+			/// <summary>The legs (and a skirt) begin below here. Found: the crotch of the file's legs, no higher than the original's hip joint.</summary>
 			public float? Hips;
+			/// <summary>Whether Hips is a starting value of the finder's (the hip joint's height), not one asked for.</summary>
+			internal bool HipsFound;
 			/// <summary>Nothing below here is an arm. Found: a tenth below the original's hands or hips, whichever is lower.</summary>
 			public float? ArmFloor;
 			/// <summary>The torso's width as a fraction of the file's width, about its middle; outside it, between the arm floor and the neck, is an arm. Found: slice by slice, from the gap between the arm and the torso.</summary>
@@ -145,6 +150,7 @@ namespace Crystal
 						{
 							delta = candidate;
 							posedAs = Path.GetFileName(pack) + " " + (posed.Motions[0].Name ?? poseIndex.ToString()) + " frame " + poseFrame;
+							result.PosePack = pack; result.PoseIndex = poseIndex; result.PoseFrame = poseFrame;
 						}
 						result.Notes.Add("the file is " + fileAspect.ToString("0.00") + " wide for its height; the model's bind pose is " + bindAspect.ToString("0.00") + ", its " + Path.GetFileName(pack) + " " + (posed.Motions[0].Name ?? "") + " frame " + poseFrame + " is " + posedAspect.ToString("0.00") + " - weights taken against " + posedAs);
 					}
@@ -190,6 +196,7 @@ namespace Crystal
 			fit[9] = shift[0]; fit[10] = shift[1]; fit[11] = shift[2];
 			result.Scale = scale;
 			result.Offset = shift;
+			result.Rotation = r;
 			result.Notes.Add("fitted at scale " + scale.ToString("0.###") + (rotation != null ? ", turned " + string.Join("/", r) : "") + ", offset " + shift[0].ToString("0.##") + ", " + shift[1].ToString("0.##") + ", " + shift[2].ToString("0.##") + " (the file " + (tMax[0] - tMin[0]).ToString("0.##") + " x " + fileHeight.ToString("0.##") + " x " + (tMax[2] - tMin[2]).ToString("0.##") + ", the model " + (oMax[0] - oMin[0]).ToString("0.#") + " x " + (oMax[1] - oMin[1]).ToString("0.#") + " x " + (oMax[2] - oMin[2]).ToString("0.#") + ")");
 
 			// ---- the bundle: the file's meshes in the model's space -----------------------------------------------
@@ -305,10 +312,10 @@ namespace Crystal
 			if (float.IsNaN(hipsAt)) hipsAt = 0.45f;
 			Cuts used = new Cuts
 			{
-				Enabled = cuts?.Enabled ?? true, Neck = cuts?.Neck, Hips = cuts?.Hips ?? hipsAt, ArmFloor = cuts?.ArmFloor ?? Math.Max(0, Math.Min(handsAt, hipsAt) - 0.1f),
+				Enabled = cuts?.Enabled ?? true, Neck = cuts?.Neck, Hips = cuts?.Hips ?? hipsAt, HipsFound = cuts?.Hips == null, ArmFloor = cuts?.ArmFloor ?? Math.Max(0, Math.Min(handsAt, hipsAt) - 0.1f),
 				TorsoWidth = cuts?.TorsoWidth, Skirt = cuts?.Skirt ?? true
 			};
-			int[] vertexRegion = Regions(fileX, fileY, fileZ, count, oMin[1], oMax[1], used, leftIsPlusX, result.Notes);
+			int[] vertexRegion = Regions(fileX, fileY, fileZ, count, bundle.Indices, oMin[1], oMax[1], used, leftIsPlusX, result.Notes);
 			result.Cuts = used;
 			result.RegionCounts = RegionNames.ToDictionary(name => name, name => 0);
 			foreach (int reg in vertexRegion) result.RegionCounts[RegionNames[reg < 0 ? 0 : reg]]++;
@@ -354,23 +361,50 @@ namespace Crystal
 					if (boneDir == null && rig.Parents[n] >= 0) boneDir = new[] { joint[0] - posedWorld[rig.Parents[n]][9], joint[1] - posedWorld[rig.Parents[n]][10], joint[2] - posedWorld[rig.Parents[n]][11] };
 					// Too short a bone has no direction worth the name (the game's knee sits on its shin).
 					if (boneDir == null || Length(boneDir) < 0.04f * modelHeight) continue;
-					// The mesh limb's: the joint to the middle of the vertices this bone rules.
-					float[] middle = new float[3]; int owned = 0;
+					// The mesh limb's: from its own root - the ring of its vertices that border the parent
+					// bone's, the mesh's elbow, not the game's joint, so the limb turns where it is attached
+					// and stays attached - to the middle of the vertices this bone rules.
+					float[] middle = new float[3], root = new float[3]; int owned = 0, rooted = 0;
 					for (int v = 0; v < count; v++)
 					{
 						(int Node, float Weight)[] w = final[v];
 						if (w.Length == 0 || w[0].Node != n || w[0].Weight < 0.5f) continue;
 						middle[0] += fileX[v]; middle[1] += fileY[v]; middle[2] += fileZ[v]; owned++;
+						bool border = false;
+						if (neighbours[canonical[v]] != null)
+							foreach (int other in neighbours[canonical[v]]) { (int Node, float Weight)[] ow = final[other]; if (ow.Length > 0 && ow[0].Node != n && IsAbove(rig, ow[0].Node, n)) { border = true; break; } }
+						if (border) { root[0] += fileX[v]; root[1] += fileY[v]; root[2] += fileZ[v]; rooted++; }
 					}
 					if (owned < 8) continue;
-					float[] meshDir = { middle[0] / owned - joint[0], middle[1] / owned - joint[1], middle[2] / owned - joint[2] };
+					float[] pivot = rooted >= 3 ? new[] { root[0] / rooted, root[1] / rooted, root[2] / rooted } : joint;
+					// The mesh limb's direction. A modelled character's limbs are straight, so the forearm
+					// points the way the whole arm does: from where the arm leaves the torso to this bone's
+					// own root (the elbow). That is two rings of the mesh, both found surely; the middle of
+					// the bone's own vertices is the fallback, and it wanders with where the hand's weight
+					// ends and the sleeve's begins.
+					float[] meshDir = null;
+					if (rooted >= 3)
+					{
+						int top = n;
+						while (rig.Parents[top] >= 0 && (LimbKind(rig.Nodes[rig.Parents[top]]) == limb || (limb == 1 && rig.Nodes[rig.Parents[top]].EndsWith("sakotu", StringComparison.Ordinal)))) top = rig.Parents[top];
+						if (top != n)
+						{
+							float[] chainRoot = RingOf(top, final, neighbours, canonical, rig, fileX, fileY, fileZ, count);
+							if (chainRoot != null)
+							{
+								float[] along = { pivot[0] - chainRoot[0], pivot[1] - chainRoot[1], pivot[2] - chainRoot[2] };
+								if (Length(along) >= 0.25f * Length(boneDir)) meshDir = along;
+							}
+						}
+					}
+					meshDir ??= new[] { middle[0] / owned - pivot[0], middle[1] / owned - pivot[1], middle[2] / owned - pivot[2] };
 					// The middle right by the joint says nothing about direction; a turn past a right angle
 					// is not a limb hanging differently but something else owning those vertices.
 					if (Length(meshDir) < 0.25f * Length(boneDir)) continue;
 					float[] a = Unit(meshDir), b = Unit(boneDir);
 					float degrees = MathF.Acos(Math.Max(-1f, Math.Min(1f, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180f / MathF.PI;
 					if (degrees > cap) { result.Notes.Add(rig.Nodes[n] + " left alone: its " + owned + " vertices lie " + degrees.ToString("0") + "\u00b0 off the bone"); continue; }
-					turnAbout[n] = RotationBetween(a, b, joint);
+					turnAbout[n] = RotationBetween(a, b, pivot);
 					turnedNames.Add(rig.Nodes[n] + " " + degrees.ToString("0") + "\u00b0");
 					turned++;
 				}
@@ -652,7 +686,7 @@ namespace Crystal
 		/// </summary>
 		private sealed class Cluster { public int Count; public float Min, Max, Middle; public List<int> Members = new List<int>(); }
 
-		private static int[] Regions(float[] x, float[] y, float[] z, int count, float yMin, float yMax, Cuts cuts, bool leftIsPlusX, List<string> notes)
+		private static int[] Regions(float[] x, float[] y, float[] z, int count, List<int> indices, float yMin, float yMax, Cuts cuts, bool leftIsPlusX, List<string> notes)
 		{
 			int[] region = new int[count];
 			if (!cuts.Enabled)
@@ -695,31 +729,77 @@ namespace Crystal
 			if (neck >= 0) { float neckY = yMin + cuts.Neck.Value * h; for (int v = 0; v < count; v++) if (y[v] > neckY) { region[v] = RegionHead; heads++; } }
 			else notes.Add("no neck found in the file's shape: no head region (set the neck cut to have one)");
 
-			// ---- the clusters of each slice, by gaps in x -----------------------------------------------------------
-			// (a sleeve a gap away from the torso is its own cluster, as is each leg below the crotch; a
-			// shell's cross-section, however sparse, projects onto x as one solid run).
+			// ---- the clusters of each slice: the surface's runs across x ---------------------------------------------
+			// Not the vertices - a thin slice catches a handful, and a torso falls into pieces with gaps
+			// between - but the triangles: each one crossing the slice is clipped to it and marks the
+			// run of x it covers, so a shell's cross-section projects as one solid run however sparse
+			// its vertices, and a sleeve a gap away from the torso (or each leg below the crotch) is a
+			// run of its own. The slice's vertices then belong to the run they fall in.
 			float gap = 0.02f * h;
+			const int Bins = 512;
 			List<Cluster>[] clusters = new List<Cluster>[Slices];
 			int[] clusterOf = new int[count];
 			{
-				List<int>[] members = new List<int>[Slices];
-				for (int v = 0; v < count; v++) { if (region[v] != RegionBody) continue; int s = SliceOf(y[v]); (members[s] ??= new List<int>()).Add(v); }
+				bool[][] occupied = new bool[Slices][];
+				for (int s = 0; s < Slices; s++) occupied[s] = new bool[Bins];
+				int BinOf(float at) => Math.Max(0, Math.Min(Bins - 1, (int)((at - xMin) / width * Bins)));
+				float sliceH = h / Slices;
+				for (int i = 0; i + 2 < indices.Count; i += 3)
+				{
+					int a = indices[i], b = indices[i + 1], c = indices[i + 2];
+					if (region[a] != RegionBody && region[b] != RegionBody && region[c] != RegionBody) continue;
+					float yLo = Math.Min(y[a], Math.Min(y[b], y[c])), yHi = Math.Max(y[a], Math.Max(y[b], y[c]));
+					for (int s = SliceOf(yLo); s <= SliceOf(yHi); s++)
+					{
+						float y0 = yMin + s * sliceH, y1 = y0 + sliceH;
+						// The triangle clipped to the band: its corners within, and its edges' crossings.
+						float lo = float.MaxValue, hi = float.MinValue;
+						int[] tri = { a, b, c };
+						for (int k = 0; k < 3; k++)
+						{
+							int p = tri[k], q = tri[(k + 1) % 3];
+							if (y[p] >= y0 && y[p] <= y1) { lo = Math.Min(lo, x[p]); hi = Math.Max(hi, x[p]); }
+							foreach (float yy in new[] { y0, y1 })
+								if ((y[p] - yy) * (y[q] - yy) < 0) { float t = (yy - y[p]) / (y[q] - y[p]); float xx = x[p] + t * (x[q] - x[p]); lo = Math.Min(lo, xx); hi = Math.Max(hi, xx); }
+						}
+						if (lo > hi) continue;
+						for (int bin = BinOf(lo); bin <= BinOf(hi); bin++) occupied[s][bin] = true;
+					}
+				}
+				int gapBins = Math.Max(1, (int)(gap / width * Bins));
 				for (int s = 0; s < Slices; s++)
 				{
 					clusters[s] = new List<Cluster>();
-					if (members[s] == null || members[s].Count < 4) continue;
-					List<int> m = members[s].OrderBy(v => x[v]).ToList();
-					Cluster c = null;
-					float last = float.NaN;
-					foreach (int v in m)
+					// Runs of occupied bins, a gap shorter than the gap bridged.
+					int start = -1, lastOn = -1;
+					for (int bin = 0; bin <= Bins; bin++)
 					{
-						if (c == null || x[v] - last > gap) { c = new Cluster { Min = x[v], Max = x[v] }; clusters[s].Add(c); }
-						c.Count++; c.Max = x[v]; c.Middle += x[v]; c.Members.Add(v);
-						clusterOf[v] = clusters[s].Count - 1;
-						last = x[v];
+						bool on = bin < Bins && occupied[s][bin];
+						if (on) { if (start < 0) start = bin; lastOn = bin; }
+						else if (start >= 0 && (bin - lastOn > gapBins || bin == Bins))
+						{
+							clusters[s].Add(new Cluster { Min = xMin + start * width / Bins, Max = xMin + (lastOn + 1) * width / Bins });
+							start = -1;
+						}
 					}
-					foreach (Cluster k in clusters[s]) k.Middle /= Math.Max(1, k.Count);
 				}
+				for (int v = 0; v < count; v++)
+				{
+					if (region[v] != RegionBody) continue;
+					int s = SliceOf(y[v]);
+					if (clusters[s].Count == 0) { clusters[s].Add(new Cluster { Min = x[v], Max = x[v] }); }
+					int at = -1; float nearest = float.MaxValue;
+					for (int i = 0; i < clusters[s].Count; i++)
+					{
+						Cluster c = clusters[s][i];
+						float d = x[v] < c.Min ? c.Min - x[v] : x[v] > c.Max ? x[v] - c.Max : 0;
+						if (d < nearest) { nearest = d; at = i; }
+					}
+					Cluster mine = clusters[s][at];
+					mine.Count++; mine.Middle += x[v]; mine.Members.Add(v);
+					clusterOf[v] = at;
+				}
+				for (int s = 0; s < Slices; s++) foreach (Cluster k in clusters[s]) k.Middle = k.Count > 0 ? k.Middle / k.Count : (k.Min + k.Max) / 2;
 			}
 
 			// ---- the arms: outside the torso's width, between the arm floor and the neck -----------------------
@@ -727,6 +807,8 @@ namespace Crystal
 			int floor = SliceOf(yMin + (cuts.ArmFloor ?? 0.3f) * h);
 			float[] torsoMin = new float[Slices], torsoMax = new float[Slices];
 			bool[] known = new bool[Slices];
+			bool[] apart = new bool[Slices];          // the slices whose torso run was found with the arms apart
+			bool[] armless = new bool[Slices];        // the slices with no arm in them at all
 			if (cuts.TorsoWidth.HasValue)
 			{
 				float half = cuts.TorsoWidth.Value * width / 2;
@@ -741,6 +823,7 @@ namespace Crystal
 					torsoMin[s] = torso.Min; torsoMax[s] = torso.Max; known[s] = true;
 				}
 				int knownCount = known.Count(k => k);
+				apart = (bool[])known.Clone();
 				if (knownCount > 0)
 				{
 					float[] mins = Enumerable.Range(0, Slices).Where(s => known[s]).Select(s => torsoMin[s]).OrderBy(f => f).ToArray();
@@ -751,20 +834,39 @@ namespace Crystal
 					float[] widths = Enumerable.Range(0, Slices).Where(s => known[s]).Select(s => torsoMax[s] - torsoMin[s]).OrderBy(f => f).ToArray();
 					cuts.TorsoWidth = widths[Math.Min(widths.Length - 1, (int)(widths.Length * 0.8f))] / width;
 					found.Add("torso " + (cuts.TorsoWidth.Value * 100).ToString("0") + "% of the width (" + knownCount + " slices with the arms apart)");
-					for (int s = 0; s < Slices; s++) if (!known[s]) { torsoMin[s] = medianMin; torsoMax[s] = medianMax; known[s] = true; }
+					// The slices the arms touch (the chest, the shoulders) borrow the chest's width, about
+					// the middle of the slices that were found - the waist's would call the chest's sides arms.
+					float chestHalf = cuts.TorsoWidth.Value * width / 2, middle = (medianMin + medianMax) / 2;
+					for (int s = 0; s < Slices; s++)
+					{
+						if (known[s]) continue;
+						torsoMin[s] = middle - chestHalf; torsoMax[s] = middle + chestHalf; known[s] = true;
+						// One run not much wider than the chest is a slice with no arms in it at all (below
+						// the hands, above the shoulders): nothing there is an arm, whatever its x.
+						if (clusters[s].Count == 1 && clusters[s][0].Max - clusters[s][0].Min < 1.3f * 2 * chestHalf) armless[s] = true;
+					}
 				}
 				else notes.Add("the arms could not be told from the torso (no slice has them apart): no arm regions (set the torso width to have them)");
 			}
 			int lefts = 0, rights = 0;
 			if (known[0])
 			{
+				// In a slice with the arms apart, the arm is the outermost run on its side and nothing
+				// else: a pouch on the hip, a scabbard, a bag between the torso and the hand is body.
+				// In a slice the arms touch (the torso's width borrowed), what lies beyond that width is arm.
 				for (int v = 0; v < count; v++)
 				{
 					if (region[v] != RegionBody) continue;
 					int s = SliceOf(y[v]);
-					if (s < floor || s > top) continue;
+					if (s < floor || s > top || armless[s]) continue;
 					int side = x[v] < torsoMin[s] - 0.005f * h ? -1 : x[v] > torsoMax[s] + 0.005f * h ? 1 : 0;
 					if (side == 0) continue;
+					if (apart[s])
+					{
+						Cluster mine = clusters[s][clusterOf[v]];
+						Cluster outermost = side > 0 ? clusters[s].OrderByDescending(c => c.Max).First() : clusters[s].OrderBy(c => c.Min).First();
+						if (mine != outermost) continue;
+					}
 					bool left = (side > 0) == leftIsPlusX;
 					region[v] = left ? RegionLeftArm : RegionRightArm;
 					if (left) lefts++; else rights++;
@@ -772,7 +874,24 @@ namespace Crystal
 			}
 
 			// ---- the legs and a skirt: below the hips, within the torso's width -----------------------------------
+			// The hips cut, when not asked for: the crotch - up from the floor, the first slice where the
+			// legs are no longer two pieces within the torso's width - and no higher than the model's hip
+			// joint. A tunic's hem hangs where the legs are still two pieces; the cut at the crotch puts
+			// the hem above it, with the body, where no leg bone reaches.
 			int legsL = 0, legsR = 0, skirt = 0;
+			if (!cuts.Hips.HasValue || cuts.HipsFound)
+			{
+				float ceiling = cuts.Hips ?? 0.5f;
+				int crotch = -1;
+				for (int s = 0; s < Slices; s++)
+				{
+					List<Cluster> inside = clusters[s].Where(c => !known[0] || (c.Max > torsoMin[s] - 0.005f * h && c.Min < torsoMax[s] + 0.005f * h)).ToList();
+					if (inside.Count == 0) continue;
+					bool two = inside.Any(c => c.Middle > centre) && inside.Any(c => c.Middle <= centre) && inside.Count >= 2;
+					if (!two) { crotch = s; break; }
+				}
+				if (crotch > 0) { float at = (float)crotch / Slices; if (at < ceiling) { cuts.Hips = at; found.Add("hips " + (at * 100).ToString("0") + "% (the crotch)"); } }
+			}
 			if (cuts.Hips.HasValue)
 			{
 				int hips = SliceOf(yMin + cuts.Hips.Value * h);
@@ -852,6 +971,55 @@ namespace Crystal
 			if (n == "kata" || n == "ude") return 1;
 			if (n == "momo" || n == "hiza" || n == "sune") return 2;
 			return 0;
+		}
+
+		/// <summary>
+		/// The file's vertices as the auto-rig fitted them (3 floats a vertex, the meshes in the order
+		/// the rig took them): the positions the rigged file's vertices had before the carry into the
+		/// bind pose, for carrying them again through repainted weights.
+		/// </summary>
+		public static float[] FittedPositions(GltfFile file, float scale, float[] rotation, float[] offset)
+		{
+			List<GltfMesh> meshes = file.Meshes.Where(m => m.Indices != null && m.Indices.Length >= 3 && m.Positions != null).ToList();
+			float[] turn = Rotation(rotation ?? new float[3]);
+			float[] fit = new float[12];
+			for (int k = 0; k < 9; k++) fit[k] = turn[k] * scale;
+			fit[9] = offset[0]; fit[10] = offset[1]; fit[11] = offset[2];
+			List<float> result = new List<float>();
+			foreach (GltfMesh mesh in meshes)
+				for (int v = 0; v < mesh.VertexCount; v++)
+				{
+					float[] p = Apply(fit, mesh.Positions[v * 3], mesh.Positions[v * 3 + 1], mesh.Positions[v * 3 + 2]);
+					result.Add(p[0]); result.Add(p[1]); result.Add(p[2]);
+				}
+			return result.ToArray();
+		}
+
+		/// <summary>
+		/// The root ring of a bone's part of the mesh: the middle of the vertices it rules that border
+		/// vertices ruled by a bone above it (an arm's shoulder line, a forearm's elbow). Null for fewer
+		/// than three such vertices.
+		/// </summary>
+		private static float[] RingOf(int bone, (int Node, float Weight)[][] final, HashSet<int>[] neighbours, int[] canonical, Models.Rig rig, float[] x, float[] y, float[] z, int count)
+		{
+			float[] sum = new float[3]; int n = 0;
+			for (int v = 0; v < count; v++)
+			{
+				(int Node, float Weight)[] w = final[v];
+				if (w.Length == 0 || w[0].Node != bone || w[0].Weight < 0.5f || neighbours[canonical[v]] == null) continue;
+				bool border = false;
+				foreach (int other in neighbours[canonical[v]]) { (int Node, float Weight)[] ow = final[other]; if (ow.Length > 0 && ow[0].Node != bone && IsAbove(rig, ow[0].Node, bone)) { border = true; break; } }
+				if (!border) continue;
+				sum[0] += x[v]; sum[1] += y[v]; sum[2] += z[v]; n++;
+			}
+			return n >= 3 ? new[] { sum[0] / n, sum[1] / n, sum[2] / n } : null;
+		}
+
+		/// <summary>Whether <paramref name="ancestor"/> is above <paramref name="node"/> in the rig's tree (its parent, or further up).</summary>
+		private static bool IsAbove(Models.Rig rig, int ancestor, int node)
+		{
+			for (int up = rig.Parents[node], hops = 0; up >= 0 && hops < 64; up = rig.Parents[up], hops++) if (up == ancestor) return true;
+			return false;
 		}
 
 		private static float Length(float[] v) => MathF.Sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
