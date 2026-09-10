@@ -1935,6 +1935,7 @@ async function openModel(name) {
           const parts = [`${made.model} remade: ${made.triangles.toLocaleString()} triangles, ${made.materials} material(s)`];
           if (made.blended) parts.push(`${made.blended.toLocaleString()} vertices through the game's blends`);
           if (made.snapped) parts.push(`${made.snapped.toLocaleString()} snapped to the nearest bone`);
+          if (made.gltf) parts.push('in OpenFF the client draws the glTF itself, weights and textures as in Blender (defs/models)');
           say(parts.join(' \u00b7 '), 'good');
           for (const note of made.notes || []) logLine('remake: ' + note);
           await openDoc('model', name, { reload: true });

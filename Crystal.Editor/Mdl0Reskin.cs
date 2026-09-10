@@ -49,7 +49,7 @@ namespace Crystal
 		/// The glTF written over <paramref name="original"/> (the game's package, decompressed).
 		/// <paramref name="textureStem"/> names the textures (the model's own name, as the game does).
 		/// </summary>
-		public static Result Build(byte[] original, GltfFile file, string textureStem)
+		public static Result Build(byte[] original, GltfFile file, string textureStem, bool generous = false)
 		{
 			if (file == null) throw new ArgumentNullException(nameof(file));
 			original = Crystal.Editor.Models.Unpack(original);
@@ -333,7 +333,7 @@ namespace Crystal
 			}
 			result.Materials = materialIds.Count;
 			if (result.Vertices == 0) throw new InvalidDataException("the file has no triangles");
-			if (result.Vertices > Mdl0Write.ModelLimit) throw new InvalidDataException(result.Triangles.ToString("N0") + " triangles: the game draws at most " + (Mdl0Write.ModelLimit / 3).ToString("N0") + " per model (" + Mdl0Write.ModelLimit.ToString("N0") + " vertices) - decimate the mesh in Blender");
+			Mdl0Write.CheckSize(result.Vertices, result.Triangles, generous, result.Notes);
 			if (lists.Count > 255) throw new InvalidDataException(lists.Count + " shapes: the model holds at most 255 - fewer materials, or fewer bones drawn without a slot");
 			if (result.Vertices > 65535) result.Notes.Add(result.Vertices + " vertices: the model's own count is 16 bits and saturates; the geometry is all there");
 			if (inlineShapes.Count > 0) result.Notes.Add("drawn on the node itself (no stack slot): " + string.Join(", ", inlineShapes.Keys.OrderBy(k => k).Select(k => model.Nodes[k])));

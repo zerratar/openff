@@ -80,6 +80,20 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   round trip: the game's `j101` exported, re-exported by Blender 5.1 and written back lands
   on the original to 1/4096 through the idle and a swing; a 10,320-triangle subdivision of
   it fights a goblin in the client. The static `mdl-import` observes the same limits now.
+- **On OpenFF, the glTF itself - smooth weights and all.** A model definition
+  (`defs/models/j101.json`: `{ "model": "j101", "gltf": "assets/luneth-hd.glb" }`, which
+  Remake writes on an OpenFF project) has the client draw the file in the game model's place
+  wherever it is drawn - field, battle, menus. The game's model still loads and animates;
+  the stand-in walks its SBC for the frame's joint matrices (shapes masked off, a NODEDESC
+  callback, the battle's own hand-joint callback still called) and skins the glTF through
+  them on the CPU with the weights as Blender painted them, the file's inverse binds times
+  the game's node matrices. Vertex colours are the game's own for the part - the scene's
+  light times the original material's diffuse and ambient plus emission - so it is as bright
+  as the native model beside it (measured 131.4 against 131.8) and dims with the scene.
+  *Undo remake* removes the definition with the overrides. The OpenFF client's `DrawModel`
+  buffers, the Steam port's fixed 20,480 vertices a run / 32,768 a model / 256 shapes, now
+  grow to fit, so a dense game-format model draws too; on an OpenFF target the writers note
+  a model over the Steam limit rather than refuse it.
 
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 

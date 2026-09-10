@@ -851,7 +851,7 @@ namespace Crystal
 				Crystal.Editor.Workspace workspace = new Crystal.Editor.Workspace(content, null);
 				byte[] original = Lz.Decompress(workspace.ReadShipped(contentName));
 				OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(input);
-				Mdl0Reskin.Result made = Mdl0Reskin.Build(original, file, stem);
+				Mdl0Reskin.Result made = Mdl0Reskin.Build(original, file, stem, generous: Crystal.Editor.Targets.IsOurs(target));
 				Directory.CreateDirectory(outputDir);
 				string modelPath = Path.Combine(outputDir, stem + ".nmdp.lz"), texPath = Path.Combine(outputDir, stem + ".ntxp.lz");
 				File.WriteAllBytes(modelPath, Lz.Compress(made.Nmdp));

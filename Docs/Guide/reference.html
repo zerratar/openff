@@ -144,6 +144,9 @@
   <p>A monster's battle model is its family's; <code>look</code> is which family member's texture it wears.</p>
   <h3>Characters - <code>defs/characters/&lt;id&gt;.json</code></h3>
 <pre><code>{ "id": "luneth", "slot": 0, "name": "Luneth", "job": "knight", "level": 5, "fixedJob": true, "look": 2 }</code></pre>
+  <h3>Models - <code>defs/models/&lt;name&gt;.json</code></h3>
+<pre><code>{ "model": "j101", "gltf": "assets/luneth-hd.glb" }</code></pre>
+  <p>A model of the game's (a character, a monster's family model) drawn as the glTF on OpenFF, the game's skeleton and motions driving it; the joints match the model's nodes by name. Remake from glTF writes it. Steam gets the game-format remake instead.</p>
   <h3>Text - <code>defs/text/&lt;name&gt;.json</code></h3>
 <pre><code>{ "40000001": "Hello there, traveller!",
   "40000002": { "en": "Welcome!", "de": "Willkommen!" } }</code></pre>

@@ -5440,11 +5440,36 @@ internal static partial class GlobalScope
 
 						private static uint drawMask;
 
+						// PORT: the Steam port's fixed buffers - a run of 20,480 vertices, a model of 32,768,
+						// 256 shapes - are only starting sizes here: a mod's model may be as dense as it
+						// likes, so each grows when a model needs more (DrawModel calls the Ensure* below).
 						private static Vertex[] vertex = new Vertex[20480];
 
 						private static VertexPositionColorTexture[] vtc = new VertexPositionColorTexture[32768];
 
 						private static Shape[] shape = new Shape[256];
+
+						private static void EnsureVertexRoom(int needed)
+						{
+							if (needed <= vertex.Length) return;
+							int was = vertex.Length;
+							Array.Resize(ref vertex, Math.Max(needed, was * 2));
+							for (int i = was; i < vertex.Length; i++) vertex[i] = new Vertex();
+						}
+
+						private static void EnsureVtcRoom(int needed)
+						{
+							if (needed <= vtc.Length) return;
+							Array.Resize(ref vtc, Math.Max(needed, vtc.Length * 2));
+						}
+
+						private static void EnsureShapeRoom(int needed)
+						{
+							if (needed <= shape.Length) return;
+							int was = shape.Length;
+							Array.Resize(ref shape, Math.Max(needed, was * 2));
+							for (int i = was; i < shape.Length; i++) shape[i] = new Shape();
+						}
 
 						private static MtxFx43[] stackMtx = new MtxFx43[64]
 						{
@@ -13427,6 +13452,7 @@ internal static partial class GlobalScope
 											{
 												num48++;
 											}
+											if (num51 >= vertex.Length) EnsureVertexRoom(num51 + 1);
 											vertex[num51].pos0 = cmd_vertex_x[num55];
 											vertex[num51].pos1 = cmd_vertex_y[num55];
 											vertex[num51].pos2 = cmd_vertex_z[num55];
@@ -13470,6 +13496,8 @@ internal static partial class GlobalScope
 										{
 											int num57 = num51;
 											num51 = 0;
+											// A strip makes a triangle (three entries) per vertex past the first two.
+											EnsureVtcRoom(d + num57 * 3 + 6);
 											switch (num50)
 											{
 											case 0u:
@@ -13526,6 +13554,7 @@ internal static partial class GlobalScope
 											num48 = num46 + 1;
 										}
 									}
+									if (num2 >= GlobalScope.shape.Length) EnsureShapeRoom(num2 + 1);
 									GlobalScope.shape[num2].size = d - num52;
 									GlobalScope.shape[num2].iMat = j;
 									num2++;

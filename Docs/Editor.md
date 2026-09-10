@@ -264,7 +264,11 @@ way back in: the project's glTF - a mesh weighted to the export's bones - writte
 model in the game's format, its skeleton, envelopes and motions kept (`Mdl0Reskin`; the
 route is `/api/project/models/reskin`, `{ model, asset }` or `{ model, revert: true }`).
 The viewer reloads on the result and the transport plays the game's motions on it;
-**Undo remake** removes the two overrides. Modding.md has the mechanics and the limits.
+**Undo remake** removes the two overrides. On an OpenFF project Remake also writes
+`defs/models/<name>.json`, which has the client draw the glTF itself - smooth weights, any
+size - in the model's place (`CharacterMeshes`); the game-format remake stays as the
+viewer's preview and the Steam version, and the model-size limit is a note rather than a
+refusal there. Modding.md has the mechanics and the limits.
 
 ### Models
 

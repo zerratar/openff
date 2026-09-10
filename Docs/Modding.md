@@ -665,12 +665,44 @@ envelope slots the original had (its blends of several nodes) - stored in that s
 and restored by the display list. A node the original drew without a slot (`j101`'s head)
 gets its own shape right after its `NODEDESC`, through the node's matrix, as the original
 does. Smooth weights the original never had are snapped to the nearest; the result reports
-how many. A mesh without weights is bound to the nearest bone. Limits the game imposes:
-one bone (or one of its blends) per vertex; 10,922 triangles per model (its vertex buffer,
-`GlobalScope.DrawModel`); 20,480 vertices per `BEGIN_VTXS` run, which the writer splits
-itself; 255 shapes; 512 KB of texels. The round trip is exact: the game's own `j101`
+how many. A mesh without weights is bound to the nearest bone. Limits the Steam game
+imposes: one bone (or one of its blends) per vertex; 10,922 triangles per model (its vertex
+buffer, `GlobalScope.DrawModel`); 20,480 vertices per `BEGIN_VTXS` run, which the writer
+splits itself; 255 shapes; 512 KB of texels. The round trip is exact: the game's own `j101`
 exported and written back lands on the original to 1/4096 in the bind pose and through
 every frame of the idle and a swing, and a Blender re-export of it the same.
+
+**On the OpenFF target the client draws the glTF itself.** Remake on an OpenFF project
+writes, besides the game-format model, `defs/models/j101.json`:
+
+```json
+{ "model": "j101", "gltf": "assets/luneth-hd.glb" }
+```
+
+and the client (`OpenFF/Compat/CharacterMeshes.cs`, `Shared/Data/ModModels.cs`) takes the
+model's draw over wherever the game draws it - field, battle, menus. The game's `j101`
+still loads and animates - its node tree, its `.ncap` motions, the hand the weapon hangs
+from, its shadow, alpha and LOD are untouched - and at each draw the stand-in walks the
+model's SBC exactly as the game would, with the shapes masked off and the frame's node
+matrices written down, then skins the glTF through them on the CPU: every vertex through
+up to four joints with the weights as Blender painted them, the file's inverse bind
+matrices times the game's node matrices. So: real smooth weights, any triangle count, any
+texture size and count, materials with a base colour tint. The vertex colour is the one the
+game gives its own vertices at the same draw - the scene's light times the original
+model's diffuse and ambient plus its emission, per material by index (the export keeps
+`m0, m1, m2`) - so the character is exactly as bright as the game's beside it and dims with
+it in a dark place (checked: mean brightness 131.4 native, 131.8 glTF on the same frame).
+The joints match the model's nodes by name; the inverse bind matrices are the file's, so
+the armature must stay where the export put it. A joint the model lacks is noted and left
+out of the blend; a mesh with no skin rides on the model's root node.
+
+The game-format remake is still written on an OpenFF project: it is what the model viewer
+previews and what a Steam target would get from the same file. On an OpenFF target the
+model-size limit is waived - the OpenFF client's `DrawModel` buffers grow to fit (they
+were the Steam port's fixed 20,480 / 32,768 / 256; a 41,280-triangle `j101` draws) - with a
+note that a Steam target would refuse the file; `Undo remake` removes the definition and
+the two overrides together. `crystal mdl-reskin ... --target=ours` is the same at the
+command line (the definition is the editor's to write).
 
 ### Monsters of the mod's own: `defs/monsters/<id>.json`
 

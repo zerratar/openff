@@ -41,6 +41,19 @@ namespace Crystal
 		/// </summary>
 		internal const int RunLimit = 20478, ModelLimit = 32768;
 
+		/// <summary>
+		/// The model-size check: a Steam target's model over ModelLimit is refused (the game
+		/// would crash on it); an OpenFF target's (<paramref name="generous"/>) is written with a
+		/// note, since the OpenFF client grows its buffers to fit.
+		/// </summary>
+		internal static void CheckSize(int vertices, int triangles, bool generous, List<string> notes)
+		{
+			if (vertices <= ModelLimit) return;
+			string size = triangles.ToString("N0") + " triangles (" + vertices.ToString("N0") + " vertices)";
+			if (!generous) throw new InvalidDataException(size + ": the Steam game draws at most " + (ModelLimit / 3).ToString("N0") + " triangles per model - decimate the mesh in Blender, or target OpenFF, which has no such limit");
+			notes.Add(size + ": over the Steam game's " + (ModelLimit / 3).ToString("N0") + " per model - fine on OpenFF, which grows its buffers; a Steam target would refuse this file");
+		}
+
 		/// <summary>What the writer made: the two packages (uncompressed; the game's files are these under .lz) and a note of what went in.</summary>
 		public sealed class Result
 		{
@@ -55,7 +68,7 @@ namespace Crystal
 		/// names are made from it) at `scale` times the file's units. Throws with the reason when
 		/// the file has nothing to write or does not fit the format.
 		/// </summary>
-		public static Result Build(GltfFile file, string name, float scale = 1f, float[] rotation = null, float[] offset = null)
+		public static Result Build(GltfFile file, string name, float scale = 1f, float[] rotation = null, float[] offset = null, bool generous = false)
 		{
 			if (file == null) throw new ArgumentNullException(nameof(file));
 			if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a model needs a name");
@@ -164,7 +177,7 @@ namespace Crystal
 			}
 			result.Materials = materialIds.Count;
 			if (result.Vertices == 0) throw new InvalidDataException("the file has no triangles");
-			if (result.Vertices > ModelLimit) throw new InvalidDataException(result.Triangles.ToString("N0") + " triangles: the game draws at most " + (ModelLimit / 3).ToString("N0") + " per model (" + ModelLimit.ToString("N0") + " vertices) - decimate the mesh in Blender");
+			CheckSize(result.Vertices, result.Triangles, generous, result.Notes);
 
 			// ---- the model
 			// Node dictionary: one node, "root", the identity (flag 0xF807: no translation, no rotation, no scale, stack slot 31).

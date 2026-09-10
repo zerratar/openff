@@ -31,6 +31,9 @@ internal static partial class GlobalScope
 		// PORT: the model's geometry was mirrored along z after loading (OpenFF.Client.FieldMirror), so
 		// its triangles wind the other way and the drawer swaps the cull face for it.
 		public bool mirroredZ;
+		// PORT: the model's name from its set's dictionary (j101, f028) - what a mod's model
+		// definition (defs/models) names to replace its look (OpenFF.Client.CharacterMeshes).
+		public string name;
 
 		public NNSG3dResNodeInfo nodeInfo;
 

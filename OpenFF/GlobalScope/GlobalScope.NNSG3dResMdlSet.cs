@@ -34,6 +34,7 @@ internal static partial class GlobalScope
 			{
 				src.setPosition(position + nNSG3dResMdlSet.dict.entry.getU32(i));
 				nNSG3dResMdlSet.mdl[i] = (NNSG3dResMdl)src;
+				nNSG3dResMdlSet.mdl[i].name = nNSG3dResMdlSet.dict.entry.name != null && i < nNSG3dResMdlSet.dict.entry.name.Length ? nNSG3dResMdlSet.dict.entry.name[i]?.name?.TrimEnd('\0', ' ') : null;
 			}
 			return nNSG3dResMdlSet;
 		}

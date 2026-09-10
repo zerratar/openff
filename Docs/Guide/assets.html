@@ -36,7 +36,7 @@
     <figure><img src="img/model-remake.png" alt="The model viewer with j101 remade at 10,320 triangles, the Remake and Undo buttons in the bar"><figcaption>j101 remade at 24× the triangles (a Blender subdivision of the export, as a test): the game's motions play on it.</figcaption></figure>
     <figure><img src="img/model-remake-battle.jpg" alt="Four frames of a battle with the remade Luneth attacking a goblin"><figcaption>The same model in a live battle - idle, the attack run, the hit.</figcaption></figure>
   </div>
-  <div class="tip"><b>What the game can do with weights:</b> a vertex goes through <em>one</em> bone, or one of the blends the original had (a few at the knees, elbows and hips). Your smooth weights are snapped to the nearest of those; the status line says how many were. Limits: 10,922 triangles per model, textures 512 KB per model, and names must be the original's bones. A mesh with no weights is bound to the nearest bone.</div>
+  <div class="tip"><b>On OpenFF</b> the client draws your glTF directly - smooth weights as painted, any triangle count, any textures - through the game's skeleton and motions (Remake writes <code>defs/models/j101.json</code> for it). <b>On Steam</b> the game's own format has its rules: a vertex goes through <em>one</em> bone, or one of the blends the original had (a few at the knees, elbows and hips) - smooth weights snap to the nearest and the status line says how many; 10,922 triangles per model; textures 512 KB per model. Either way the bones must keep the original's names, and a mesh with no weights is bound to the nearest bone.</div>
 
   <h2>A sound or a tune</h2>
   <ol class="steps">

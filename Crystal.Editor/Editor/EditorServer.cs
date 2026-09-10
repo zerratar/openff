@@ -610,7 +610,7 @@ namespace Crystal.Editor
 						string name = "w" + number.ToString("000");
 						// The fit (rotation in degrees about x, y, z; offset) as the form has it, else the definition's.
 						float[] rotation = Triple(body?["rotation"]) ?? item?.ModelRotation, offset = Triple(body?["offset"]) ?? item?.ModelOffset;
-						Mdl0Write.Result made = Mdl0Write.Build(OpenFF.Graphics.GltfFile.Load(gltfPath), name, scale, rotation, offset);
+						Mdl0Write.Result made = Mdl0Write.Build(OpenFF.Graphics.GltfFile.Load(gltfPath), name, scale, rotation, offset, generous: Crystal.Editor.Targets.IsOurs(Current.Target));
 						_workspace.Write("files/" + name + ".nmdp.lz", Lz.Compress(made.Nmdp));
 						_workspace.Write("files/" + name + ".ntxp.lz", Lz.Compress(made.Ntxp));
 						if (item != null)
@@ -637,9 +637,17 @@ namespace Crystal.Editor
 						string modelName = body?["model"]?.GetValue<string>();
 						if (string.IsNullOrWhiteSpace(modelName) || !modelName.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("no model (files/j101.nmdp.lz) named");
 						string texturesName = modelName.Substring(0, modelName.Length - 8) + ".ntxp.lz";
+						string stem = Path.GetFileName(modelName);
+						stem = stem.Substring(0, stem.IndexOf('.'));
+						// On an OpenFF target the client draws the glTF itself, skinned with the file's
+						// weights (defs/models/<stem>.json, CharacterMeshes); the game-format remake is
+						// written as well - it is what the viewer shows and what a Steam target gets.
+						bool ours = Crystal.Editor.Targets.IsOurs(Current.Target);
+						string definition = Path.Combine(_project.Directory, OpenFF.Data.ModModels.Folder.Replace('/', Path.DirectorySeparatorChar), stem + ".json");
 						if (body?["revert"]?.GetValue<bool>() == true)
 						{
 							bool had = _workspace.Revert(modelName) | _workspace.Revert(texturesName);
+							if (File.Exists(definition)) { File.Delete(definition); had = true; }
 							SendJson(context, new { ok = true, reverted = had });
 							return;
 						}
@@ -647,12 +655,16 @@ namespace Crystal.Editor
 						if (string.IsNullOrWhiteSpace(asset)) throw new ArgumentException("no glTF named");
 						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
 						byte[] shipped = _workspace.ReadShipped(modelName) ?? throw new ArgumentException("the game has no " + modelName + " to remake");
-						string stem = Path.GetFileName(modelName);
-						stem = stem.Substring(0, stem.IndexOf('.'));
-						Mdl0Reskin.Result made = Mdl0Reskin.Build(Lz.Decompress(shipped), OpenFF.Graphics.GltfFile.Load(gltfPath), stem);
+						Mdl0Reskin.Result made = Mdl0Reskin.Build(Lz.Decompress(shipped), OpenFF.Graphics.GltfFile.Load(gltfPath), stem, generous: ours);
 						_workspace.Write(modelName, Lz.Compress(made.Nmdp));
 						_workspace.Write(texturesName, Lz.Compress(made.Ntxp));
-						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes });
+						if (ours)
+						{
+							Directory.CreateDirectory(Path.GetDirectoryName(definition));
+							File.WriteAllText(definition, new OpenFF.Data.ModModel { Model = made.Model, Gltf = asset.Replace('\\', '/') }.ToJson());
+							made.Notes.Insert(0, "on OpenFF the client draws " + Path.GetFileName(asset) + " itself with its own weights and textures (defs/models/" + stem + ".json); the game-format remake is the viewer's preview and the Steam game's version");
+						}
+						SendJson(context, new { ok = true, model = made.Model, triangles = made.Triangles, vertices = made.Vertices, materials = made.Materials, blended = made.Blended, snapped = made.Snapped, notes = made.Notes, gltf = ours });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;

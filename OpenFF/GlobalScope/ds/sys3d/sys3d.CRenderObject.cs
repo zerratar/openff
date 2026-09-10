@@ -118,6 +118,12 @@ internal static partial class GlobalScope
 				/// </summary>
 				public Action<CRenderObject> StandIn;
 
+				/// <summary>PORT: the NNS render object, for a stand-in that walks the model's SBC for its joint matrices (CharacterMeshes).</summary>
+				public NNSG3dRenderObj RenderObj => m_Object;
+
+				/// <summary>PORT: the model resource this draws, if any.</summary>
+				public NNSG3dResMdl ModelRes => m_MdlRes;
+
 				public CRenderObject()
 				{
 					m_pLodObj = null;
@@ -177,6 +183,9 @@ internal static partial class GlobalScope
 						m_pOrgAlpha[num] = (byte)NNS_G3dMdlGetMdlAlpha(m_MdlRes, num);
 					}
 					initJntMtx();
+					// PORT: a mod's glTF in this model's place (defs/models), wherever the model is drawn.
+					StandIn = null;
+					OpenFF.Client.CharacterMeshes.Attach(this, pMdlRes);
 				}
 
 				public void cleanup()
@@ -202,15 +211,11 @@ internal static partial class GlobalScope
 					{
 						return;
 					}
-					if (StandIn != null)
+					if (StandIn != null && skipFrame != 0)
 					{
 						// As NNS_G3dDraw: nothing is drawn on a catch-up frame (render() runs up to three game
 						// frames per screen frame when the client is behind, drawing only the last), or the
 						// stand-in leaves a copy of itself at each intermediate pose on the uncleared frame.
-						if (skipFrame == 0)
-						{
-							StandIn(this);
-						}
 						return;
 					}
 					if (m_LodLevel == 1)
@@ -254,7 +259,17 @@ internal static partial class GlobalScope
 						m_pLodObj.executeLod(this);
 					}
 					currentMtx2.copy(currentMtx);
-					NNS_G3dDraw(m_Object);
+					if (StandIn != null)
+					{
+						// The stand-in draws in the model's place, with the pose in the geometry matrix
+						// as NNS_G3dDraw would have it (a stand-in that needs the joints walks the SBC
+						// itself; see CharacterMeshes).
+						StandIn(this);
+					}
+					else
+					{
+						NNS_G3dDraw(m_Object);
+					}
 					VecFx32 sys3d_reuse_zero_vec = sys3d.sys3d_reuse_zero_vec;
 					VecFx32 sys3d_reuse_one_vec = sys3d.sys3d_reuse_one_vec;
 					MtxFx33 sys3d_reuse_unit_mat = sys3d.sys3d_reuse_unit_mat;

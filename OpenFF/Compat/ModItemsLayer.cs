@@ -130,6 +130,15 @@ namespace OpenFF.Client
 			if (kept.Count > 0) chain.AddAlias(name => ModMonsters.TextureAlias(name, kept));
 		}
 
+		/// <summary>The mods' model definitions (defs/models): a game model drawn as a glTF of the mod's (CharacterMeshes).</summary>
+		private static void RegisterModels(List<string> roots)
+		{
+			List<string> notes = new List<string>();
+			List<ModModel> models = ModModels.Load(roots, notes);
+			foreach (string note in notes) Log.Write(LogChannel.General, "models: " + note);
+			CharacterMeshes.Register(models);
+		}
+
 		/// <summary>The definitions in play, in load order (a --project's first, then the mods').</summary>
 		public static IReadOnlyList<ModItem> Items { get; private set; } = new List<ModItem>();
 
@@ -142,6 +151,7 @@ namespace OpenFF.Client
 			roots.AddRange(GameArchive.ActiveMods.Select(m => m.Directory).Where(d => !string.IsNullOrEmpty(d)));
 			RegisterText(chain, roots);
 			RegisterMonsters(chain, roots);
+			RegisterModels(roots);
 			List<string> notes = new List<string>();
 			List<ModItem> items = ModItems.Load(roots, notes);
 			foreach (string note in notes) Log.Write(LogChannel.General, "items: " + note);
