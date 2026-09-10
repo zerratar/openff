@@ -653,8 +653,37 @@ function makeModelViewer(canvas, status, options = {}) {
     return isFinite(min[0]) ? { min, max } : null;
   }
 
-  /// The cuts as horizontal frames about the model at their heights (neck violet, hips orange, arm
-  /// floor green) and two vertical lines at the torso's width between the arm floor and the neck (blue).
+  /// The ring the mesh makes where a plane cuts it: of the vertices within a thin slab about
+  /// <paramref name="point"/> across <paramref name="axis"/> (and within reach of it, for a limb rather
+  /// than the whole body), the middle and the mean distance from it. Null when nothing is there.
+  function limbRing(point, axis, reach) {
+    if (!bundle || !bundle.buffer || !bounds) return null;
+    const p = currentPositions();
+    const h = bounds.max[1] - bounds.min[1];
+    const n = normalise(axis), slab = h * 0.015, reach2 = reach ? reach * reach : Infinity;
+    const inside = [];
+    for (let v = 0; v + 2 < p.length; v += 8) {
+      const dx = p[v] - point[0], dy = p[v + 1] - point[1], dz = p[v + 2] - point[2];
+      if (Math.abs(dx * n[0] + dy * n[1] + dz * n[2]) > slab) continue;
+      if (dx * dx + dy * dy + dz * dz > reach2) continue;
+      inside.push(v);
+    }
+    if (inside.length < 4) return null;
+    const centre = [0, 0, 0];
+    for (const v of inside) { centre[0] += p[v]; centre[1] += p[v + 1]; centre[2] += p[v + 2]; }
+    centre[0] /= inside.length; centre[1] /= inside.length; centre[2] /= inside.length;
+    let radius = 0;
+    for (const v of inside) {
+      const dx = p[v] - centre[0], dy = p[v + 1] - centre[1], dz = p[v + 2] - centre[2];
+      const along = dx * n[0] + dy * n[1] + dz * n[2];
+      radius += Math.sqrt(Math.max(0, dx * dx + dy * dy + dz * dz - along * along));
+    }
+    return { centre, normal: n, radius: radius / inside.length * 1.12 };
+  }
+
+  /// The cuts as rings the model's own size at their heights - the way an IK rig draws its
+  /// joints (neck violet, hips orange, arm floor green) - and two vertical lines at the torso's
+  /// width between the arm floor and the neck (blue).
   function drawCuts() {
     if (!cuts || !bounds) return;
     const { min, max } = bounds;
@@ -662,16 +691,16 @@ function makeModelViewer(canvas, status, options = {}) {
     const pad = Math.max(w, max[2] - min[2]) * 0.08;
     const lines = [];
     const push = (x, y, z, c) => lines.push(x, y, z, 0, 0, c[0], c[1], c[2]);
-    const frame = (fraction, colour) => {
+    const ring = (fraction, colour) => {
       if (fraction === null || fraction === undefined) return;
       const y = min[1] + fraction * h;
-      const x0 = min[0] - pad, x1 = max[0] + pad, z0 = min[2] - pad, z1 = max[2] + pad;
-      push(x0, y, z0, colour); push(x1, y, z0, colour); push(x1, y, z0, colour); push(x1, y, z1, colour);
-      push(x1, y, z1, colour); push(x0, y, z1, colour); push(x0, y, z1, colour); push(x0, y, z0, colour);
+      const found = limbRing([(min[0] + max[0]) / 2, y, (min[2] + max[2]) / 2], [0, 1, 0], null);
+      if (found) ringInto(lines, found.centre, found.normal, found.radius, colour, false);
+      else { const x0 = min[0] - pad, x1 = max[0] + pad, z = (min[2] + max[2]) / 2; push(x0, y, z, colour); push(x1, y, z, colour); }
     };
-    frame(cuts.neck, [0.75, 0.45, 1]);
-    frame(cuts.hips, [1, 0.6, 0.2]);
-    frame(cuts.armFloor, [0.4, 0.9, 0.5]);
+    ring(cuts.neck, [0.75, 0.45, 1]);
+    ring(cuts.hips, [1, 0.6, 0.2]);
+    ring(cuts.armFloor, [0.4, 0.9, 0.5]);
     if (cuts.torsoWidth !== null && cuts.torsoWidth !== undefined) {
       const cx = (min[0] + max[0]) / 2, half = cuts.torsoWidth * w / 2;
       const y0 = min[1] + (cuts.armFloor ?? 0.3) * h, y1 = min[1] + (cuts.neck ?? 0.85) * h;
@@ -721,8 +750,15 @@ function makeModelViewer(canvas, status, options = {}) {
   function drawMarkers() {
     if (!markers.length && !markerSeat) return;
     const r = (bundle && bundle.radius || 1) * 0.045;
+    const h = bounds ? bounds.max[1] - bounds.min[1] : 1;
     const lines = [];
-    for (const m of markers) ringInto(lines, m.point, m.normal || [0, 0, 1], r, m.colour || [1, 1, 1], false);
+    for (const m of markers) {
+      // A ring around the limb through the marker (across the limb's axis), as an IK rig draws a
+      // joint; the marker itself a small ring on the surface where it was placed.
+      const around = m.axis ? limbRing(m.point, m.axis, h * 0.12) : null;
+      if (around) ringInto(lines, around.centre, around.normal, around.radius, m.colour || [1, 1, 1], false);
+      ringInto(lines, m.point, m.normal || [0, 0, 1], r * (around ? 0.4 : 1), m.colour || [1, 1, 1], false);
+    }
     if (markerSeat) ringInto(lines, markerSeat.point, markerSeat.normal, r * 1.15, markerSeat.colour || [1, 1, 1], true);
     drawLines(lines, 2);
   }
@@ -781,8 +817,33 @@ function makeModelViewer(canvas, status, options = {}) {
     }
     return m;
   }
+  /// How many steps apart two joints are in the skeleton's tree (through the rig's parents), or 99 without a rig.
+  function jointDistance(a, b) {
+    if (a === b) return 0;
+    if (!skinRig || !skinRig.parents || !skinJointNode) return 99;
+    const chain = (j) => { const out = new Map(); let node = skinJointNode[j], hops = 0; while (node >= 0 && hops < 64) { out.set(node, hops); node = skinRig.parents[node]; hops++; } return out; };
+    const ca = chain(a), cb = chain(b);
+    let best = 99;
+    for (const [node, ha] of ca) if (cb.has(node)) best = Math.min(best, ha + cb.get(node));
+    return best;
+  }
+
+  /// A vertex's bones kept to what can share a vertex: every bone within two steps of its
+  /// heaviest in the skeleton's tree. A hand and a head, a left knee and a right heel, a stomach
+  /// and a sleeve are never one vertex's; an elbow's upper arm, forearm and hand are. What is
+  /// dropped goes to the bones kept, in proportion.
+  function keepCompatible(m) {
+    if (m.size <= 1) return m;
+    const sorted = [...m.entries()].sort((a, b) => b[1] - a[1]);
+    const heaviest = sorted[0][0];
+    const kept = new Map();
+    for (const [j, w] of sorted) if (jointDistance(heaviest, j) <= 2) kept.set(j, w);
+    return kept;
+  }
+
   function storeWeights(v, m) {
     const skin = bundle.skin;
+    m = keepCompatible(m);
     const top = [...m.entries()].filter(([, w]) => w > 0.0005).sort((a, b) => b[1] - a[1]).slice(0, 4);
     const total = top.reduce((s, [, w]) => s + w, 0) || 1;
     for (let k = 0; k < 4; k++) {

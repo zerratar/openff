@@ -360,7 +360,7 @@ namespace Crystal
 			if (used.Enabled && used.Skirt) allowed[RegionBody] &= ~((1 << RegionLeftLeg) | (1 << RegionRightLeg));
 
 			// ---- pass one: against the original in the matched pose ----------------------------------------------
-			(int Node, float Weight)[][] final = Finish(Smooth(Transfer(fileX, fileY, fileZ, count, refX, refY, refZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion, allowed), neighbours, canonical), neighbours, canonical);
+			(int Node, float Weight)[][] final = Finish(Smooth(Transfer(fileX, fileY, fileZ, count, refX, refY, refZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion, allowed), neighbours, canonical), neighbours, canonical, rig);
 
 			// ---- the limbs onto the bones --------------------------------------------------------------------------
 			// The matched pose is alike as a whole, not limb by limb: the file's forearm hangs straight
@@ -488,7 +488,7 @@ namespace Crystal
 						float[] p = Skinned(fileX[v], fileY[v], fileZ[v], final[v], undo);
 						bx[v] = p[0]; by[v] = p[1]; bz[v] = p[2];
 					}
-					final = Finish(Smooth(Transfer(bx, by, bz, count, bindX, bindY, bindZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion, allowed), neighbours, canonical), neighbours, canonical);
+					final = Finish(Smooth(Transfer(bx, by, bz, count, bindX, bindY, bindZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion, allowed), neighbours, canonical), neighbours, canonical, rig);
 				}
 				// The final carrying, with the final weights; the normals go the same way.
 				bx = new float[count]; by = new float[count]; bz = new float[count];
@@ -637,13 +637,30 @@ namespace Crystal
 			return next;
 		}
 
-		/// <summary>Each vertex's four heaviest, summing to one.</summary>
-		private static (int Node, float Weight)[][] Finish(Dictionary<int, float>[] weights, HashSet<int>[] neighbours, int[] canonical)
+		/// <summary>How many steps apart two nodes are in the rig's tree.</summary>
+		private static int TreeDistance(Models.Rig rig, int a, int b)
+		{
+			if (a == b) return 0;
+			Dictionary<int, int> up = new Dictionary<int, int>();
+			for (int node = a, hops = 0; node >= 0 && hops < 64; node = rig.Parents[node], hops++) up[node] = hops;
+			for (int node = b, hops = 0; node >= 0 && hops < 64; node = rig.Parents[node], hops++) if (up.TryGetValue(node, out int ha)) return ha + hops;
+			return 99;
+		}
+
+		/// <summary>
+		/// Each vertex's four heaviest, summing to one - of the bones that can share a vertex: every
+		/// bone within two steps of the heaviest in the skeleton's tree. A hand and a head, a left knee
+		/// and a right heel, a stomach and a sleeve are never one vertex's, whatever the smoothing
+		/// blended in; an elbow's upper arm, forearm and hand are.
+		/// </summary>
+		private static (int Node, float Weight)[][] Finish(Dictionary<int, float>[] weights, HashSet<int>[] neighbours, int[] canonical, Models.Rig rig)
 		{
 			(int Node, float Weight)[][] final = new (int, float)[weights.Length][];
 			for (int v = 0; v < weights.Length; v++)
 			{
-				final[v] = Normalised(weights[v]).OrderByDescending(p => p.Value).Take(4).Select(p => (p.Key, p.Value)).ToArray();
+				List<KeyValuePair<int, float>> sorted = Normalised(weights[v]).OrderByDescending(p => p.Value).ToList();
+				if (sorted.Count > 1) { int heaviest = sorted[0].Key; sorted = sorted.Where(p => TreeDistance(rig, heaviest, p.Key) <= 2).ToList(); }
+				final[v] = sorted.Take(4).Select(p => (p.Key, p.Value)).ToArray();
 				float total = final[v].Sum(p => p.Weight);
 				if (total > 0) final[v] = final[v].Select(p => (p.Node, p.Weight / total)).ToArray();
 				else final[v] = new[] { (0, 1f) };

@@ -2100,8 +2100,19 @@ async function openModel(name) {
     let placing = null;                             // the marker key the next click places
     const place = $('.rig-place', rigBar), symmetry = $('.rig-symmetry', rigBar), markerList = $('.rig-marker-list', rigBar);
     const markersAsked = () => { const out = {}; for (const m of MARKERS) if (markers[m.key]) out[m.key] = markers[m.key].point.map(v => Math.round(v * 10000) / 10000); return Object.keys(out).length ? out : null; };
+    // The axis the ring at a marker goes around: a wrist's or elbow's along the forearm (elbow to
+    // wrist) when both are placed, else along the arm's reach from the middle; the rest vertical.
+    const axisOf = (m) => {
+      const at = markers[m.key].point;
+      if (m.kind === 'wrist' || m.kind === 'elbow') {
+        const other = markers[m.kind === 'wrist' ? m.key.replace('Wrist', 'Elbow') : m.key.replace('Elbow', 'Wrist')];
+        if (other) return [at[0] - other.point[0], at[1] - other.point[1], at[2] - other.point[2]];
+        return [at[0], 0, 0];
+      }
+      return [0, 1, 0];
+    };
     const drawMarkers = () => {
-      viewer.setMarkers(MARKERS.filter(m => markers[m.key]).map(m => ({ point: markers[m.key].point, normal: markers[m.key].normal, colour: m.colour })));
+      viewer.setMarkers(MARKERS.filter(m => markers[m.key]).map(m => ({ point: markers[m.key].point, normal: markers[m.key].normal, axis: axisOf(m), colour: m.colour })));
       markerList.textContent = '';
       for (const m of MARKERS) {
         const chip = document.createElement('button');
