@@ -618,7 +618,7 @@ async function runInOpenFF(where = {}) {
     const at = where.map ? ` on ${where.map}${where.pos ? ' at ' + where.pos.map(Math.round).join(', ') : ''}` : '';
     say(result.started
       ? `exported to ${result.path} - OpenFF is starting${at}`
-      : `exported to ${result.path} - OpenFF is already running and picks the code up; re-enter the map for scene changes${where.map ? ' (close it for a start on ' + where.map + ')' : ''}`, 'good');
+      : `exported to ${result.path} - OpenFF is already running: it picks the code up and re-reads the scene when the map is entered again, but models, textures and definitions are read as it starts - close the game and Play again to see those${where.map ? ' (and for a start on ' + where.map + ')' : ''}`, 'warn');
   } catch (error) {
     say(error.message, 'bad');
   }

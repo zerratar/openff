@@ -2378,7 +2378,7 @@ namespace Crystal.Editor
 			string name = Query(context, "name");
 			try
 			{
-				SendJson(context, Textures.Contents(_workspace, name));
+				SendJson(context, Textures.Contents(_workspace, name, _project));
 			}
 			catch (Exception ex)
 			{
@@ -2386,7 +2386,7 @@ namespace Crystal.Editor
 			}
 		}
 
-		/// <summary>One texture, decoded on the way out.</summary>
+		/// <summary>One texture, decoded on the way out; ?full=1 for the project's full-size PNG of it (textures/&lt;name&gt;.png), the one the OpenFF client draws.</summary>
 		private void GetTexturePng(HttpListenerContext context)
 		{
 			string name = Query(context, "name");
@@ -2398,6 +2398,16 @@ namespace Crystal.Editor
 
 			try
 			{
+				if (Query(context, "full") == "1")
+				{
+					string stem = Path.GetFileName(name ?? "");
+					stem = stem.Substring(0, stem.IndexOf('.') < 0 ? stem.Length : stem.IndexOf('.'));
+					List<TextureInfo> list = Textures.Contents(_workspace, name);
+					string textureName = index >= 0 && index < list.Count ? list[index].Name : null;
+					string full = Textures.FullSizePath(_project, stem, textureName) ?? throw new FileNotFoundException("no full-size picture for " + textureName);
+					Send(context, 200, "image/png", File.ReadAllBytes(full));
+					return;
+				}
 				Send(context, 200, "image/png", Textures.Png(_workspace, name, index));
 			}
 			catch (Exception ex)

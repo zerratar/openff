@@ -1546,27 +1546,46 @@ async function openTexture(name) {
 
   let chosen = null;
   for (const texture of textures) {
-    const cell = document.createElement('figure');
-    cell.className = 'cell';
-
-    const picture = document.createElement('img');
-    picture.loading = 'lazy';
-    picture.alt = texture.name;
-    picture.src = wsUrl(`/api/texture/png?name=${encodeURIComponent(name)}&index=${texture.index}`);
-    const caption = document.createElement('figcaption');
-    caption.textContent = texture.name;
-    cell.append(picture, caption);
-
-    cell.onclick = () => {
-      if (chosen) chosen.classList.remove('on');
-      chosen = cell;
-      cell.classList.add('on');
-      if (!activeDoc) return;
-      activeDoc.selection = `texture:${texture.index}`;
-      activeDoc.inspect = () => buildTexture(name, texture);
-      drawInspector();
+    // The package's copy - what the Steam game reads - and, when the project keeps a
+    // full-size picture for it (textures/<name>.png), that one beside it, tagged for the
+    // client that draws it: both are in play, one per target.
+    const cells = [];
+    const make = (src, tag, sizeText, cls) => {
+      const cell = document.createElement('figure');
+      cell.className = 'cell' + (cls ? ' ' + cls : '');
+      const picture = document.createElement('img');
+      picture.loading = 'lazy';
+      picture.alt = texture.name;
+      picture.src = src;
+      const caption = document.createElement('figcaption');
+      caption.textContent = texture.name;
+      if (tag) {
+        const mark = document.createElement('b');
+        mark.className = 'target-tag ' + tag.toLowerCase();
+        mark.textContent = `${tag} · ${sizeText}`;
+        caption.append(document.createElement('br'), mark);
+      }
+      cell.append(picture, caption);
+      cell.onclick = () => {
+        for (const c of cells) c.classList.remove('on');
+        if (chosen) chosen.classList.remove('on');
+        chosen = cell;
+        cell.classList.add('on');
+        if (!activeDoc) return;
+        activeDoc.selection = `texture:${texture.index}`;
+        activeDoc.inspect = () => buildTexture(name, texture);
+        drawInspector();
+      };
+      cells.push(cell);
+      gallery.append(cell);
+      return cell;
     };
-    gallery.append(cell);
+    const hasFull = Boolean(texture.fullSize);
+    make(wsUrl(`/api/texture/png?name=${encodeURIComponent(name)}&index=${texture.index}`), hasFull ? 'Steam' : null, `${texture.width} × ${texture.height}`, hasFull ? 'paired' : '');
+    if (hasFull) {
+      const full = make(wsUrl(`/api/texture/png?name=${encodeURIComponent(name)}&index=${texture.index}&full=1&t=${Date.now()}`), 'OpenFF', `${texture.fullWidth} × ${texture.fullHeight}`, 'paired full');
+      full.title = `${texture.fullSize} - the OpenFF client draws this one in the texture's place, at its own size; the Steam game reads the ${texture.width} × ${texture.height} copy in the package`;
+    }
   }
 
   gallery.firstElementChild.onclick();
@@ -1596,6 +1615,7 @@ function buildTexture(packageName, texture) {
   fact('what that means', (state.textureFormats || {})[texture.format]);
   fact('palette', texture.palette);
   fact('problem', texture.problem);
+  if (texture.fullSize) fact('in OpenFF', `${texture.fullSize} at ${texture.fullWidth} × ${texture.fullHeight}, drawn in place of the ${texture.width} × ${texture.height} copy the Steam game reads`);
   detail.append(facts);
 
   const save = document.createElement('a');
@@ -1647,6 +1667,11 @@ function buildTexture(packageName, texture) {
       markOverridden(packageName, true);
       big.src = wsUrl(`/api/texture/png?name=${encodeURIComponent(packageName)}&index=${texture.index}&t=${Date.now()}`);
       document.querySelectorAll(`img[alt="${texture.name}"]`).forEach(img => { img.src = big.src; });
+      // The gallery again: a full-size picture gets its own tile beside the package's.
+      if (r.fullSize && activeDoc && activeDoc.kind === 'texture' && activeDoc.name === packageName && typeof openDoc === 'function') {
+        texture.fullSize = r.fullSize; texture.fullWidth = r.fullWidth; texture.fullHeight = r.fullHeight;
+        openDoc('texture', packageName, { reload: true }).catch(() => {});
+      }
       const scaledNote = bitmap.width !== texture.width || bitmap.height !== texture.height ? ` (the package copy scaled to ${texture.width} × ${texture.height} from ${bitmap.width} × ${bitmap.height})` : '';
       say(r.fullSize
         ? `${texture.name} replaced - ${r.bytes} bytes into the package${scaledNote}; the full ${bitmap.width} × ${bitmap.height} picture is ${r.fullSize}, which OpenFF draws instead`

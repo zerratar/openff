@@ -1167,7 +1167,10 @@ place of the game's texels wherever the texture of that name is used (`n021.png`
 texture called `n021`; `<package>.<name>.png` to pin a package). One replace serves both
 targets: the Steam game gets the 64 × 64, OpenFF the 512 × 512 (or whatever was given). A
 palette rebind (the game recolouring a texture) leaves the PNG as it is, since a palette
-means nothing to a full picture. The viewer and the map editor still show the package copy.
+means nothing to a full picture. The Textures library shows both copies side by side, tagged
+*Steam · 64 × 64* and *OpenFF · 1254 × 1254*, and the inspector says which is drawn where;
+the viewer and the map editor still show the package copy. A game already running when you
+Play does not re-read textures or models - close it and Play again.
 
 ### The heroes: `defs/characters/<id>.json`
 

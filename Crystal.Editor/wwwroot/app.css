@@ -50,6 +50,7 @@ nav button.on { color: var(--ink); border-color: var(--line); background: #23283
 #status { margin-left: auto; color: var(--dim); font-size: 12px; }
 #status.good { color: var(--good); }
 #status.bad { color: var(--bad); }
+#status.warn { color: var(--accent); }
 
 /* ------------------------------------------------------------- the workbench
 
@@ -1183,6 +1184,13 @@ ul.uses a:hover { text-decoration: underline; }
   object-fit: contain;
   image-rendering: pixelated;
 }
+/* A texture with a full-size picture of the project's: the package's copy and the picture side by side,
+   each tagged for the target that reads it; the full one is shown smooth and larger, as the client draws it. */
+.gallery .cell.paired.full img { width: 256px; height: 256px; image-rendering: auto; }
+.gallery .cell.paired.full figcaption { max-width: 256px; }
+.gallery .cell figcaption .target-tag { display: inline-block; margin-top: 3px; padding: 0 5px; border-radius: 3px; font-size: 10px; font-weight: 600; color: var(--ink); }
+.gallery .cell figcaption .target-tag.steam { background: #3a4a66; }
+.gallery .cell figcaption .target-tag.openff { background: #2e5a3e; }
 
 .gallery .cell figcaption {
   margin-top: 6px;

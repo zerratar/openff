@@ -14,6 +14,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace Crystal.Editor
@@ -35,6 +36,11 @@ namespace Crystal.Editor
 		public string Format { get; set; }
 		public string Palette { get; set; }
 		public string Problem { get; set; }
+
+		/// <summary>The project's full-size picture for this texture (textures/&lt;name&gt;.png), which the OpenFF client draws in its place, or null.</summary>
+		public string FullSize { get; set; }
+		public int FullWidth { get; set; }
+		public int FullHeight { get; set; }
 	}
 
 	internal static class Textures
@@ -74,8 +80,8 @@ namespace Crystal.Editor
 				.ToList();
 		}
 
-		/// <summary>What is inside one package.</summary>
-		public static List<TextureInfo> Contents(Workspace workspace, string name)
+		/// <summary>What is inside one package; with a project, which textures have a full-size picture of the project's (textures/&lt;name&gt;.png) beside the package copy.</summary>
+		public static List<TextureInfo> Contents(Workspace workspace, string name, Project project = null)
 		{
 			byte[] data = Lz.Decompress(workspace.Read(name));
 			if (Tex0.Find(data) < 0)
@@ -85,10 +91,12 @@ namespace Crystal.Editor
 
 			Tex0File package = Tex0.Read(data);
 			List<TextureInfo> list = new List<TextureInfo>();
+			string stem = Path.GetFileName(name);
+			stem = stem.Substring(0, stem.IndexOf('.') < 0 ? stem.Length : stem.IndexOf('.'));   // "files/n011.ntxp.lz" -> "n011"
 			for (int i = 0; i < package.Textures.Count; i++)
 			{
 				Tex0Texture texture = package.Textures[i];
-				list.Add(new TextureInfo
+				TextureInfo info = new TextureInfo
 				{
 					Index = i,
 					Name = texture.Name,
@@ -97,9 +105,45 @@ namespace Crystal.Editor
 					Format = texture.FormatName,
 					Palette = texture.Palette,
 					Problem = texture.Problem
-				});
+				};
+				string full = FullSizePath(project, stem, texture.Name);
+				if (full != null)
+				{
+					info.FullSize = "textures/" + Path.GetFileName(full);
+					(info.FullWidth, info.FullHeight) = PngSize(full);
+				}
+				list.Add(info);
 			}
 			return list;
+		}
+
+		/// <summary>The project's full-size PNG for a texture - "&lt;package&gt;.&lt;name&gt;.png" first, then "&lt;name&gt;.png" - or null.</summary>
+		public static string FullSizePath(Project project, string packageStem, string textureName)
+		{
+			if (project == null || string.IsNullOrEmpty(textureName) || textureName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return null;
+			string folder = Path.Combine(project.Directory, "textures");
+			if (!Directory.Exists(folder)) return null;
+			foreach (string candidate in new[] { packageStem + "." + textureName + ".png", textureName + ".png" })
+			{
+				string path = Path.Combine(folder, candidate);
+				if (File.Exists(path)) return path;
+			}
+			return null;
+		}
+
+		/// <summary>A PNG's size from its IHDR, without decoding it.</summary>
+		private static (int, int) PngSize(string path)
+		{
+			try
+			{
+				using FileStream f = File.OpenRead(path);
+				byte[] head = new byte[24];
+				if (f.Read(head, 0, 24) < 24 || head[12] != (byte)'I' || head[13] != (byte)'H') return (0, 0);
+				int w = (head[16] << 24) | (head[17] << 16) | (head[18] << 8) | head[19];
+				int h = (head[20] << 24) | (head[21] << 16) | (head[22] << 8) | head[23];
+				return (w, h);
+			}
+			catch (Exception) { return (0, 0); }
 		}
 
 		/// <summary>One texture as a PNG.</summary>
