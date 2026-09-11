@@ -121,13 +121,69 @@ namespace OpenFF.Client
 		/// <summary>Whether a game model has a glTF look.</summary>
 		public static bool Has(string modelName) => modelName != null && _looks.ContainsKey(modelName);
 
+		/// <summary>Looks given to single characters (Npc.SetLook), by file and fit: one Look a file, shared by every character dressed in it.</summary>
+		private static readonly Dictionary<string, Look> _own = new Dictionary<string, Look>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>
+		/// One character's render object dressed in a glTF from here on - the same stand-in a
+		/// definition gives a model, for this object alone (a Look component on a scene object,
+		/// Npc.SetLook from code). Null or empty takes it off: the model's own definition, if any,
+		/// dresses it again, else the game's own draw. False when the file is not there.
+		/// </summary>
+		public static bool AttachOwn(GlobalScope.ds.sys3d.CRenderObject ro, string path, bool fitted)
+		{
+			if (ro == null) return false;
+			if (string.IsNullOrWhiteSpace(path))
+			{
+				_dressed.Remove(ro);
+				ro.StandIn = null;
+				if (ro.ModelRes != null) Attach(ro, ro.ModelRes);
+				return true;
+			}
+			string key = path + (fitted ? "|fitted" : "");
+			if (!_own.TryGetValue(key, out Look look))
+			{
+				ModModel definition = new ModModel { Model = "look", Gltf = path, Fitted = fitted, Source = null };
+				look = new Look { Definition = definition, Model = "look:" + Path.GetFileNameWithoutExtension(path), Path = path };
+				_own[key] = look;
+			}
+			if (look.Mesh == null && !look.Failed) Load(look);
+			if (look.Mesh == null) return false;
+			_dressed.AddOrUpdate(ro, look);
+			Dress(ro, look);
+			Log.Write(LogChannel.File, "models: a " + (ro.ModelRes?.name ?? "character still loading") + " dressed as " + Path.GetFileName(path) + (fitted ? " (fitted)" : ""));
+			return true;
+		}
+
+		/// <summary>The render objects dressed by AttachOwn, so a setup (the model arriving, a definition's Attach) puts the same look back.</summary>
+		private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<GlobalScope.ds.sys3d.CRenderObject, Look> _dressed = new System.Runtime.CompilerServices.ConditionalWeakTable<GlobalScope.ds.sys3d.CRenderObject, Look>();
+
+		/// <summary>The stand-in for an own look: bound to whatever model the object has when it first draws (it may still be loading when the look is given).</summary>
+		private static void Dress(GlobalScope.ds.sys3d.CRenderObject ro, Look look)
+		{
+			ro.StandIn = r =>
+			{
+				GlobalScope.NNSG3dResMdl mdl = r.ModelRes;
+				if (mdl == null) return;
+				if (!look.Bindings.TryGetValue(mdl, out Binding binding))
+				{
+					binding = Bind(look, mdl);
+					look.Bindings[mdl] = binding;
+				}
+				Draw(look, binding, r);
+			};
+		}
+
 		/// <summary>
 		/// A render object was set up with a model (CRenderObject.setup): if a definition names it,
 		/// the object draws the glTF from now on.
 		/// </summary>
 		public static void Attach(GlobalScope.ds.sys3d.CRenderObject ro, GlobalScope.NNSG3dResMdl mdl)
 		{
-			if (ro == null || mdl == null || mdl.name == null || !_looks.TryGetValue(mdl.name, out Look look)) return;
+			if (ro == null) return;
+			// A character dressed by hand (AttachOwn) keeps its own look through a setup.
+			if (_dressed.TryGetValue(ro, out Look own)) { Dress(ro, own); return; }
+			if (mdl == null || mdl.name == null || !_looks.TryGetValue(mdl.name, out Look look)) return;
 			if (look.Mesh == null && !look.Failed) Load(look);
 			if (look.Mesh == null) return;
 			if (!look.Bindings.TryGetValue(mdl, out Binding binding))

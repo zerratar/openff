@@ -906,6 +906,36 @@ namespace OpenFF
 	}
 
 	/// <summary>
+	/// Draws this one character as a glTF of the mod's, keeping everything else about it: its
+	/// game model still loads and animates, its motions play, its script talks - only the draw
+	/// is the file's, skinned by the game model's skeleton (Npc.SetLook; the same stand-in a
+	/// defs/models definition gives every instance of a model, here for one character on one
+	/// map - a villager in the hero's chibi, one guard in a uniform of his own). For a game
+	/// character (object:&lt;index&gt;) or one of the mod's with a character model.
+	/// </summary>
+	public sealed class Look : Behaviour, INeedsNpc
+	{
+		/// <summary>The glTF, relative to the mod (assets/luneth-chibi-rigged.glb): rigged to the game's bone names, as a Remake or the auto-rig leaves it.</summary>
+		[Tooltip("The glTF drawn in this character's place (assets/...), rigged to the game's bone names")]
+		public string Path = "";
+		/// <summary>True for a fitted skeleton (the auto-rig's fitted option): the game's motions are retargeted onto the file's own joints.</summary>
+		[Tooltip("A fitted skeleton (the auto-rig's fitted option): the motions retargeted onto the file's own joints")]
+		public bool Fitted = false;
+
+		protected override void Start()
+		{
+			MapObject link = GetComponent<MapObject>();
+			if (link?.Npc != null) NpcReady(link);
+		}
+
+		public void NpcReady(MapObject link)
+		{
+			if (link?.Npc == null || string.IsNullOrWhiteSpace(Path)) return;
+			Game.Guard("look " + link.Path, () => link.Npc.SetLook(Path.Trim(), Fitted, GameObject?.Owner ?? link.Npc.Owner));
+		}
+	}
+
+	/// <summary>
 	/// Makes the object's character wander about its spot (or stand, or follow the hero), as
 	/// the map scripts' moveCharacter_StartRandom does. The object needs a model marked as a
 	/// character; a plain model has no walker to drive.

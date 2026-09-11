@@ -854,6 +854,36 @@ function applyModel(doc, index, model) {
   drawInspector();
 }
 
+/// The glTF a game character is drawn as in OpenFF (its Look attachment's Path), or null.
+function lookOf(index) {
+  const a = ((typeof sceneState !== 'undefined' && sceneState.attachments) || [])
+    .find(x => (x.target || '').toLowerCase() === 'object:' + index && x.behaviour === 'Look');
+  return a && a.fields && a.fields.Path ? String(a.fields.Path) : null;
+}
+
+/// Dresses one game character in a glTF (a Look behaviour on object:<index>, its Path the
+/// file and Fitted from the file's rig record), or undresses it (null). The row's model is not
+/// touched - a .hich row can only name one of the game's models - so the game's character
+/// still loads, walks and talks; only the draw is the file's. The 3D view shows the file.
+async function applyLook(doc, character, file) {
+  if (typeof sceneState === 'undefined' || !sceneState.attachments) { say('open the map with a project for a Look', 'bad'); return; }
+  const target = 'object:' + character.index;
+  sceneState.attachments = sceneState.attachments.filter(a => !((a.target || '').toLowerCase() === target && a.behaviour === 'Look'));
+  if (file) {
+    let fitted = false;
+    try { const m = await api(`/api/model?name=${encodeURIComponent(file)}`); fitted = Boolean(m && (m.rigFitted || m.definitionFitted)); if (m && !m.skin) say(`${file.replace(/^assets\//, '')} has no skin - it will ride on the character's root, unposed`, 'bad'); } catch (e) { /* the flag stays off */ }
+    sceneState.attachments.push({ target, behaviour: 'Look', fields: { Path: file, Fitted: fitted } });
+  }
+  // The view: the file in the character's place, the row's model as it is.
+  const item = ((doc.data && doc.data.scene && doc.data.scene.objects) || []).find(o => o.index === character.index);
+  if (item) { item.look = file || null; item.package = file || `files/${item.model}.nmdp.lz`; }
+  if (doc.scene3d) doc.scene3d.reload();
+  sceneChanged(file ? `look of cast ${character.cast}` : `look off cast ${character.cast}`);
+  drawHierarchy();
+  drawInspector();
+  say(file ? `cast ${character.cast} is drawn as ${file.replace(/^assets\//, '')} in OpenFF - the game's ${character.model} animates underneath` : `cast ${character.cast} draws as the game's ${character.model} again`, 'good');
+}
+
 /// Records one move, unless nothing actually moved.
 function recordMove(doc, character, before) {
   if (!doc || !character) return;
@@ -1973,7 +2003,16 @@ function buildCharacter(character) {
   const chosenName = document.createElement('span');
   chosenName.textContent = character.model || '(none)';
   choose.append(icon('model'), chosenName);
-  choose.onclick = () => pickModel(character.model, (model) => {
+  const lookNow = lookOf(character.index);
+  choose.onclick = () => pickModel(lookNow || character.model, async (model) => {
+    // A glTF of the project's: not the row's model - a .hich row can only name one of the
+    // game's models - but a Look on this one character: the game model stays and animates,
+    // the client draws the file in its place (OpenFF only).
+    if (/\.(glb|gltf)$/i.test(model)) {
+      if (!openFFProject()) { say('a glTF on a game character is for the OpenFF client - this project targets the Steam game', 'bad'); return; }
+      await applyLook(doc, character, model);
+      return;
+    }
     if (model === character.model) return;
     const was = character.model;
     applyModel(doc, character.index, model);
@@ -1989,6 +2028,22 @@ function buildCharacter(character) {
   modelNote.textContent = 'A row names its model twice: as text, and as the number the '
     + 'game actually loads. Changing it here sets both.';
   panel.append(modelNote);
+
+  // The look: a glTF the client draws this character as (a Look behaviour on it), the game model kept.
+  if (openFFProject()) {
+    const lookRow = document.createElement('p');
+    lookRow.className = lookNow ? 'sub' : 'none';
+    lookRow.textContent = lookNow
+      ? `in OpenFF drawn as ${lookNow.replace(/^assets\//, '')} (a Look on this character; the game's ${character.model} still animates underneath)`
+      : 'Pick a glTF of the project\u2019s here to draw this one character as it in OpenFF (a Look), the game model kept. Every ' + (character.model || 'model') + ' everywhere: the file\u2019s In play card in the project panel.';
+    panel.append(lookRow);
+    if (lookNow) {
+      const clear = document.createElement('button');
+      clear.textContent = 'Draw the game\u2019s model again';
+      clear.onclick = () => applyLook(doc, character, null);
+      panel.append(clear);
+    }
+  }
 
   // ------------------------------------------------------------------- cast
 
@@ -2575,6 +2630,15 @@ function uniqueSceneName(siblings, wanted) {
 function syncSceneObjects(doc) {
   if (!doc || !doc.scene3d) return;
   doc.scene3d.setPoints(flattenSceneObjects(sceneState));
+  // The game's characters dressed by a Look draw as their file in the view too.
+  let dressed = false;
+  for (const item of ((doc.data && doc.data.scene && doc.data.scene.objects) || [])) {
+    if (item.index === undefined || item.index === null || !item.model) continue;
+    const look = lookOf(item.index);
+    const want = look || `files/${item.model}.nmdp.lz`;
+    if (item.package !== want) { item.package = want; item.look = look; dressed = true; }
+  }
+  if (dressed) doc.scene3d.reload();
   // The map's sky, when a MapSettings on the map says one, behind the 3D view as in play.
   const settings = (sceneState.attachments || []).find(a => a.behaviour === 'MapSettings' && (a.target || '').toLowerCase() === 'map');
   const bg = settings && settings.fields && settings.fields.Background;

@@ -273,6 +273,23 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>
+		/// One character (a characterMng slot) dressed in a glTF of a mod's (Npc.SetLook, IHero.SetLook,
+		/// the Look component): the file found under the mod, else under any mod root; null takes the
+		/// look off. CharacterMeshes.AttachOwn does the drawing.
+		/// </summary>
+		internal static bool Dress(int ctrl, string gltf, bool fitted, Modding.LoadedMod mod, string who)
+		{
+			GlobalScope.ds.sys3d.CRenderObject ro = GlobalScope.characterMng.getRenderObject(ctrl);
+			if (ro == null) { Warn("look-slot", who + ".SetLook: the character has no render object"); return false; }
+			if (string.IsNullOrWhiteSpace(gltf)) return CharacterMeshes.AttachOwn(ro, null, false);
+			string path = ModItemsLayer.ResolveAsset(gltf, mod?.Directory);
+			if (path == null) { Warn("look-" + gltf, who + ".SetLook: no file " + gltf + " under " + (mod?.Directory ?? "the mods")); return false; }
+			bool ok = CharacterMeshes.AttachOwn(ro, path, fitted);
+			if (!ok) Warn("look-" + gltf, who + ".SetLook: " + gltf + " could not be read as a glTF");
+			return ok;
+		}
+
 		internal static void BindMotions(GlobalScope.pl.CBasePlayer player, string set)
 		{
 			int id = player.getCharacterId();
@@ -736,6 +753,7 @@ namespace OpenFF.Client
 		public void StopClip() { if (HeroCtrl >= 0) CharacterMeshes.StopClip(HeroCtrl); }
 		public bool ClipPlaying => HeroCtrl >= 0 && CharacterMeshes.ClipPlaying(HeroCtrl);
 		public System.Collections.Generic.IReadOnlyList<string> Clips => HeroCtrl >= 0 ? CharacterMeshes.ClipsOf(HeroCtrl) : System.Array.Empty<string>();
+		public bool SetLook(string gltf, bool fitted = false, Modding.LoadedMod mod = null) => HeroCtrl >= 0 && EngineApi.Dress(HeroCtrl, gltf, fitted, mod, "Hero");
 
 		public bool Balloon
 		{
@@ -872,6 +890,15 @@ namespace OpenFF.Client
 				return;
 			}
 			Game.Guard("Npc.PlayMotion", () => _motion.Ask(p, index, loop, (uint)Math.Max(0, blendFrames), "Npc"));
+		}
+
+		public override bool SetLook(string gltf, bool fitted = false, Modding.LoadedMod mod = null)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null) return false;
+			// A map object (a chest) has no character slot of the walkers' kind: nothing to dress.
+			if (AsMapObject() != null) { EngineApi.Warn("look-object", "Npc.SetLook: " + (Model ?? "?") + " is a map object, not a character - a Mesh draws a glTF there"); return false; }
+			return EngineApi.Dress(p.getCharacterId(), gltf, fitted, mod, "Npc");
 		}
 
 		public override void HoldMotion(int index)

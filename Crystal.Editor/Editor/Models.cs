@@ -128,6 +128,9 @@ namespace Crystal.Editor
 
 		/// <summary>Whether that definition drives the file as a fitted skeleton (retargeted).</summary>
 		public bool DefinitionFitted { get; set; }
+
+		/// <summary>For an auto-rigged file (assets/x-rigged.glb): whether the rig record beside its original says it has a fitted skeleton.</summary>
+		public bool RigFitted { get; set; }
 	}
 
 	/// <summary>

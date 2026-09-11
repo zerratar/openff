@@ -118,6 +118,8 @@ namespace OpenFF
 		bool ClipPlaying { get; }
 		/// <summary>The clips the hero's look carries, by name; none without a glTF look, or with one that has no animations.</summary>
 		System.Collections.Generic.IReadOnlyList<string> Clips { get; }
+		/// <summary>Draws the hero as a glTF of the mod's from now on (null: the definition's look, or the game's own) - see Npc.SetLook.</summary>
+		bool SetLook(string gltf, bool fitted = false, Modding.LoadedMod mod = null);
 		/// <summary>The "!" over the head.</summary>
 		bool Balloon { get; set; }
 		/// <summary>Takes control from the player: no walking, no menu button, the way an event does.</summary>
@@ -202,6 +204,14 @@ namespace OpenFF
 		public virtual bool ClipPlaying => false;
 		/// <summary>The clips the character's look carries, by name.</summary>
 		public virtual System.Collections.Generic.IReadOnlyList<string> Clips => System.Array.Empty<string>();
+		/// <summary>
+		/// Draws this character as a glTF of the mod's from now on (null puts the game's own draw
+		/// back): the file, rigged to the game's bone names, skinned by this character's model and
+		/// motions - what a defs/models definition does for every instance of a model, for this one
+		/// character. The path is the mod's (assets/x.glb); fitted for a fitted skeleton. False when
+		/// there is no such file or no character to dress.
+		/// </summary>
+		public virtual bool SetLook(string gltf, bool fitted = false, Modding.LoadedMod mod = null) => false;
 		/// <summary>Opacity, 0 (gone) to 100.</summary>
 		public abstract int Alpha { get; set; }
 		/// <summary>Drawn or not; a hidden character is still there.</summary>

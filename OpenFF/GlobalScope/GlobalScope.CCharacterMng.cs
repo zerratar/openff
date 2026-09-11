@@ -484,6 +484,12 @@ internal static partial class GlobalScope
 			}
 		}
 
+		/// <summary>PORT: a character's render object (CharacterMeshes.AttachOwn dresses one character in a glTF), or null.</summary>
+		public ds.sys3d.CRenderObject getRenderObject(int ctrl)
+		{
+			return isValidCharacter(ctrl) ? Character[ctrl].RdrObject : null;
+		}
+
 		public void initJntMtx(int ctrl)
 		{
 			if (isValidCharacter(ctrl))

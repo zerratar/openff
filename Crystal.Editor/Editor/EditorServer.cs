@@ -2268,6 +2268,13 @@ namespace Crystal.Editor
 					{
 						OpenFF.Data.ModModel definition = OpenFF.Data.ModModels.Load(new[] { _project.Directory }).FirstOrDefault(d => string.Equals(d.Gltf?.Replace('\\', '/'), name.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
 						if (definition != null) { asset.StandsInFor = definition.Model; asset.Definition = "defs/models/" + definition.Model + ".json"; asset.DefinitionFitted = definition.Fitted; }
+						// An auto-rigged file: whether its record (beside the original) says fitted - what a Look on a character needs to know.
+						string riggedPath = GltfBundle.Resolve(_project, name);
+						if (riggedPath != null && System.Text.RegularExpressions.Regex.IsMatch(riggedPath, @"-rigged\.glb$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+						{
+							JsonObject record = LoadCutsFile(System.Text.RegularExpressions.Regex.Replace(riggedPath, @"-rigged\.glb$", ".glb", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) as JsonObject;
+							asset.RigFitted = record?["rigged"]?["fitted"] is JsonValue rf && rf.TryGetValue(out bool rfv) && rfv;
+						}
 					}
 					SendJson(context, asset);
 					return;

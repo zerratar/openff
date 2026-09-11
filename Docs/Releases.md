@@ -173,6 +173,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   inspector says which game model the client draws it in place of (the whole binding is one
   file, `defs/models/<model>.json`, a click away), and switches or clears it by hand; the
   Models list tags both tiles (`→ j101` on the file, `← luneth-chibi-rigged` on the model).
+- **One character in a glTF: the Look.** Picking a glTF as a game character's model in the
+  map editor no longer goes nowhere - a `.hich` row can only name a game model - but puts a
+  `Look` behaviour on that one character (`Path`, `Fitted`): the game's model still loads,
+  walks and talks, the client draws the file in its place, skinned by that character's own
+  motions. `Npc.SetLook` / `Game.Hero.SetLook` do the same from C#. A definition
+  (defs/models) stays the way to dress every instance of a model.
 - **Save weights writes the geometry too.** The bind pose re-carried through the painted
   weights - what the viewer showed all along - now goes into the file with them, so the
   preview and the game stop showing sleeves stretched to where the first auto-rig left them.

@@ -137,6 +137,29 @@ namespace OpenFF.Client
 			List<ModModel> models = ModModels.Load(roots, notes);
 			foreach (string note in notes) Log.Write(LogChannel.General, "models: " + note);
 			CharacterMeshes.Register(models);
+			Roots = roots.ToList();
+		}
+
+		/// <summary>The mod roots in play, in load order: where a mod-relative file (assets/x.glb) is looked for when no mod is named.</summary>
+		public static IReadOnlyList<string> Roots { get; private set; } = new List<string>();
+
+		/// <summary>A mod-relative path (assets/x.glb) as a file on disk: under the mod given, else the first root that has it; null when none does.</summary>
+		public static string ResolveAsset(string relative, string modDirectory)
+		{
+			if (string.IsNullOrWhiteSpace(relative)) return null;
+			if (System.IO.Path.IsPathRooted(relative)) return System.IO.File.Exists(relative) ? relative : null;
+			string tail = relative.Replace('/', System.IO.Path.DirectorySeparatorChar);
+			if (!string.IsNullOrEmpty(modDirectory))
+			{
+				string under = System.IO.Path.Combine(modDirectory, tail);
+				if (System.IO.File.Exists(under)) return under;
+			}
+			foreach (string root in Roots)
+			{
+				string under = System.IO.Path.Combine(root, tail);
+				if (System.IO.File.Exists(under)) return under;
+			}
+			return null;
 		}
 
 		/// <summary>The definitions in play, in load order (a --project's first, then the mods').</summary>

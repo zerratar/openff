@@ -704,6 +704,21 @@ The joints match the model's nodes by name; the inverse bind matrices are the fi
 the armature must stay where the export put it. A joint the model lacks is noted and left
 out of the blend; a mesh with no skin rides on the model's root node.
 
+**One character, not every one: a Look.** A definition dresses every instance of a model -
+every `n021` in every town. To dress *one* character on *one* map (a villager in Ur as the
+chibi, one guard in a uniform of his own), pick a glTF of the project's as that character's
+model in the map editor: a `.hich` row can only name one of the game's models, so the row's
+model stays as it is (the character still loads, walks, talks and animates as the game has
+it) and the editor puts a **Look** behaviour on the character instead (`object:<index>`,
+`Path` the file, `Fitted` from the file's rig record), shown in its Behaviours and in the 3D
+view; *Draw the game's model again* takes it off. The client draws the file in the
+character's place through the same stand-in as a definition, skinned by that character's own
+model and motions (`CharacterMeshes.AttachOwn`). From code the same is `Npc.SetLook(path,
+fitted)` and `Game.Hero.SetLook(...)` (null puts the game's draw back) - a disguise, a
+uniform handed out at run time. A Look wants a file rigged to the game's bone names (a
+Remake's export, the auto-rig's `-rigged.glb`); one rigged another way still goes through
+the client's retarget by name table. OpenFF only.
+
 **A mesh with no rig at all** is bound to the character's skeleton for you (`AutoRig`;
 `crystal mdl-autorig file.glb j101`): Remake with such a file writes `assets/<name>-rigged.glb`
 first and goes on with that. The mesh is scaled to the character's height and stood on its
