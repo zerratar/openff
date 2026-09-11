@@ -1620,6 +1620,81 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/model/clips":
+				{
+					// A glTF's own animation clips, by name, with their length in the game's frames.
+					try
+					{
+						string asset = Query(context, "name") ?? throw new ArgumentException("no file named");
+						string filePath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
+						OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(filePath);
+						SendJson(context, new { ok = true, clips = file.Animations.Select(a => new { name = a.Name, frames = Math.Max(1, (int)Math.Ceiling(a.Duration * 30) + 1), seconds = a.Duration }).ToList() });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/models/clips":
+				{
+					// The clips a model definition plays in the game's motions' place: { model: files/j101.nmdp.lz
+					// or j101, clips: { idle: "Idle", walk: { clip, sync, speed }, ... } } into defs/models/<stem>.json
+					// (the rest of the definition kept); an empty map takes them out. GET ?model= reads them.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					try
+					{
+						JsonNode body = context.Request.HttpMethod == "POST" ? ReadBody(context) : null;
+						string modelName = body?["model"]?.GetValue<string>() ?? Query(context, "model") ?? throw new ArgumentException("no model named");
+						string stem = Path.GetFileName(modelName); if (stem.IndexOf('.') > 0) stem = stem.Substring(0, stem.IndexOf('.'));
+						string definition = Path.Combine(_project.Directory, OpenFF.Data.ModModels.Folder.Replace('/', Path.DirectorySeparatorChar), stem + ".json");
+						OpenFF.Data.ModModel model = File.Exists(definition) ? OpenFF.Data.ModModel.Parse(File.ReadAllText(definition), definition) : null;
+						if (body?["clips"] is JsonObject clips)
+						{
+							if (model == null) throw new ArgumentException("no definition for " + stem + " yet - Remake the model from the glTF first");
+							model.Clips.Clear();
+							foreach (KeyValuePair<string, JsonNode> pair in clips)
+							{
+								OpenFF.Data.ModClip clip = pair.Value is JsonObject o
+									? new OpenFF.Data.ModClip { Clip = o["clip"]?.GetValue<string>(), Sync = o["sync"]?.GetValue<bool>() ?? true, Speed = (float)(o["speed"]?.GetValue<double>() ?? 1) }
+									: new OpenFF.Data.ModClip { Clip = pair.Value?.GetValue<string>() };
+								if (!string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(clip.Clip)) model.Clips[pair.Key] = clip;
+							}
+							File.WriteAllText(definition, model.ToJson());
+						}
+						SendJson(context, new { ok = true, model = stem, gltf = model?.Gltf, fitted = model?.Fitted ?? false, clips = model?.Clips.ToDictionary(p => p.Key, p => new { clip = p.Value.Clip, sync = p.Value.Sync, speed = p.Value.Speed }) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/model/clip-pose":
+				{
+					// One of a glTF's own animation clips, sampled at the game's 30 frames a second into the
+					// shape rig-pose has - nodes, parents, frames x nodes x 12 floats, bind - so the viewer
+					// plays it on the file's own skeleton as it plays a game motion. ?name=assets/x.glb&clip=Walk
+					try
+					{
+						string asset = Query(context, "name") ?? throw new ArgumentException("no file named");
+						string clipName = Query(context, "clip") ?? throw new ArgumentException("no clip named");
+						string filePath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
+						OpenFF.Graphics.GltfFile file = OpenFF.Graphics.GltfFile.Load(filePath);
+						OpenFF.Graphics.GltfAnimation clip = file.Animations.Find(a => string.Equals(a.Name, clipName, StringComparison.OrdinalIgnoreCase)) ?? throw new ArgumentException("no clip " + clipName + " in " + asset);
+						int frames = Math.Max(1, (int)Math.Ceiling(clip.Duration * 30) + 1);
+						List<float> worlds = new List<float>(frames * file.Nodes.Count * 12);
+						for (int f = 0; f < frames; f++)
+						{
+							float[][] w = file.WorldMatrices(clip, Math.Min(clip.Duration, f / 30f));
+							foreach (float[] m in w) worlds.AddRange(new[] { m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10], m[12], m[13], m[14] });
+						}
+						// The bind: the nodes' worlds with no clip applied (the file's rest).
+						float[][] rest = file.WorldMatrices(null, 0);
+						List<float> bind = new List<float>(file.Nodes.Count * 12);
+						foreach (float[] m in rest) bind.AddRange(new[] { m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10], m[12], m[13], m[14] });
+						SendJson(context, new { nodes = file.Nodes.Select((n, i) => n.Name ?? ("node" + i)).ToList(), parents = file.Nodes.Select(n => n.Parent).ToList(), frames, name = clip.Name, worlds, bind });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/model/joint":
 					// A joint's matrix per frame (R_te for the right hand...), for a weapon posed on a character in the viewer.
 					try

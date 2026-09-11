@@ -730,6 +730,13 @@ namespace OpenFF.Client
 
 		public bool MotionDone => _motion.Done(EngineApi.HeroPlayer);
 
+		// The hero's own model's clips (CharacterMeshes): over the game's motion, by the character id.
+		private static int HeroCtrl => EngineApi.HeroPlayer?.getCharacterId() ?? -1;
+		public bool PlayClip(string clip, bool loop = false, float speed = 1f) => HeroCtrl >= 0 && CharacterMeshes.PlayClip(HeroCtrl, clip, loop, speed);
+		public void StopClip() { if (HeroCtrl >= 0) CharacterMeshes.StopClip(HeroCtrl); }
+		public bool ClipPlaying => HeroCtrl >= 0 && CharacterMeshes.ClipPlaying(HeroCtrl);
+		public System.Collections.Generic.IReadOnlyList<string> Clips => HeroCtrl >= 0 ? CharacterMeshes.ClipsOf(HeroCtrl) : System.Array.Empty<string>();
+
 		public bool Balloon
 		{
 			get => EngineApi.HeroPlayer?.isBalloon() == true;
@@ -909,6 +916,13 @@ namespace OpenFF.Client
 				return _motion.Done(Player);
 			}
 		}
+
+		// The character's own model's clips (CharacterMeshes), by its character id.
+		private int Ctrl => Player?.getCharacterId() ?? -1;
+		public override bool PlayClip(string clip, bool loop = false, float speed = 1f) => Ctrl >= 0 && CharacterMeshes.PlayClip(Ctrl, clip, loop, speed);
+		public override void StopClip() { if (Ctrl >= 0) CharacterMeshes.StopClip(Ctrl); }
+		public override bool ClipPlaying => Ctrl >= 0 && CharacterMeshes.ClipPlaying(Ctrl);
+		public override System.Collections.Generic.IReadOnlyList<string> Clips => Ctrl >= 0 ? CharacterMeshes.ClipsOf(Ctrl) : System.Array.Empty<string>();
 
 		public override int Alpha
 		{

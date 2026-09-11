@@ -53,6 +53,14 @@ namespace OpenFF.Data
 		/// <summary>Bones of the file -> nodes of the model, for what the built-in table does not know ("Hip": "hara").</summary>
 		public Dictionary<string, string> Bones = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+		/// <summary>
+		/// The file's own animation clips played in place of the game's motions, when the file has
+		/// any: the key a role (idle, walk, run, attack, damage, death, magic, victory, guard, item,
+		/// poise, levelup...), a motion's id (1004) or its pack name (b01_002_01); the value the
+		/// clip's name, or { "clip", "sync", "speed" }. A motion with no entry plays as the game's.
+		/// </summary>
+		public Dictionary<string, ModClip> Clips = new Dictionary<string, ModClip>(StringComparer.OrdinalIgnoreCase);
+
 		/// <summary>The mod's root: the definition lives in <root>/defs/models.</summary>
 		public string Root
 		{
@@ -98,6 +106,17 @@ namespace OpenFF.Data
 					if (!string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(to)) model.Bones[pair.Key] = to;
 				}
 			}
+			if (node["clips"] is JsonObject clips)
+			{
+				foreach (KeyValuePair<string, JsonNode> pair in clips)
+				{
+					if (string.IsNullOrWhiteSpace(pair.Key)) continue;
+					ModClip clip = pair.Value is JsonObject o
+						? new ModClip { Clip = o["clip"]?.GetValue<string>(), Sync = o["sync"]?.GetValue<bool>() ?? true, Speed = (float)(o["speed"]?.GetValue<double>() ?? 1) }
+						: new ModClip { Clip = pair.Value?.GetValue<string>() };
+					if (!string.IsNullOrWhiteSpace(clip.Clip)) model.Clips[pair.Key] = clip;
+				}
+			}
 			return model;
 		}
 
@@ -122,8 +141,26 @@ namespace OpenFF.Data
 				foreach (KeyValuePair<string, string> pair in Bones) bones[pair.Key] = pair.Value;
 				node["bones"] = bones;
 			}
+			if (Clips.Count > 0)
+			{
+				JsonObject clips = new JsonObject();
+				foreach (KeyValuePair<string, ModClip> pair in Clips)
+					clips[pair.Key] = pair.Value.Sync && Math.Abs(pair.Value.Speed - 1f) < 1e-4f ? (JsonNode)pair.Value.Clip : new JsonObject { ["clip"] = pair.Value.Clip, ["sync"] = pair.Value.Sync, ["speed"] = pair.Value.Speed };
+				node["clips"] = clips;
+			}
 			return node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
 		}
+	}
+
+	/// <summary>One of a file's own clips standing in for a game motion.</summary>
+	public sealed class ModClip
+	{
+		/// <summary>The clip's name in the file.</summary>
+		public string Clip;
+		/// <summary>True: the clip runs with the game's motion, its whole length over the motion's frames (an attack lands when the game's does); false: at its own pace, looping.</summary>
+		public bool Sync = true;
+		/// <summary>The pace when not synced, 1 being the clip's own.</summary>
+		public float Speed = 1f;
 	}
 
 	public static class ModModels

@@ -135,6 +135,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   file carried into the T-pose about them; `"fitted": true` in the definition and the client
   retargets the game's motions onto it, every bone its own name. Limbs of the file's own
   lengths bend where the file bends. OpenFF only.
+- **A model's own animations.** A glTF look with animation clips plays them in the game's
+  motions' place, for the motions the definition names (`"clips"`: roles like idle, walk, run,
+  attack, damage, magic, victory, or a motion's id or pack name), in step with the game's
+  motion or at their own pace; the rest stay the game's. `Game.Hero.PlayClip` / `Npc.PlayClip`
+  play a clip from C#. Crystal's transport plays a file's own clips, and *own clips* under the
+  viewer edits the map.
 - **Weights you can reason about.** *assign* paints a part onto a bone outright; the vertex
   under the brush reads out its bones and weights; *all bones* colours the mesh by heaviest
   bone with the hierarchy's rows in the same colours.

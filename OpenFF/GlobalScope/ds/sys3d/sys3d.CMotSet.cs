@@ -308,6 +308,12 @@ internal static partial class GlobalScope
 					return 0u;
 				}
 
+				/// <summary>PORT: the playing motion's name in its pack (b01_001_01), or null.</summary>
+				public string getMotionName()
+				{
+					return m_PlayIndex >= 0 && m_PlayIndex < m_MotSet.Length && (1 & m_Flag[m_PlayIndex]) != 0 ? m_MotSet[m_PlayIndex].getName() : null;
+				}
+
 				public int getIndex()
 				{
 					if (-1 != m_PlayIndex)

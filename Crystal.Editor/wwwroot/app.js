@@ -2069,6 +2069,76 @@ async function openModel(name) {
     }
   }
 
+  // The file's own clips in the game's motions' place (defs/models "clips"): a glTF of the project's
+  // that carries animation clips and stands in for a game model. A row a role (idle, walk, attack...)
+  // and any motion added by id or pack name, each picking a clip or the game's own, in step with the
+  // game's motion or at its own pace. Saved into the model's definition; the client reads it.
+  const clipsBar = $('.clips-bar', node);
+  if (clipsBar && model.skin && /^assets\//i.test(name) && typeof projectState !== 'undefined' && projectState.project) {
+    (async () => {
+      let own = [];
+      try { const c = await api(`/api/model/clips?name=${encodeURIComponent(name)}`); own = c && c.ok ? (c.clips || []).map(k => k.name) : []; } catch (e) { own = []; }
+      if (!own.length) return;
+      clipsBar.hidden = false;
+      const on = $('.clips-on', clipsBar), controls = $('.clips-controls', clipsBar), note = $('.clips-note', clipsBar), rows = $('.clips-rows', clipsBar);
+      const key = $('.clips-key', clipsBar), add = $('.clips-add', clipsBar), save = $('.clips-save', clipsBar);
+      const ROLES = [
+        ['idle', 'standing (battle 101, field 1001)'], ['walk', 'walking (1004)'], ['run', 'running (1005)'], ['attack', 'a weapon swing (1101-2401)'],
+        ['damage', 'taking a hit (705)'], ['death', 'falling (706)'], ['magic', 'casting (4001-4003)'], ['victory', 'the win pose (4101-4104)'],
+        ['guard', 'guarding (703, 704)'], ['item', 'using an item (701)'], ['poise', 'the battle stance (201-501)'], ['levelup', 'levelling up (4201-4204)']
+      ];
+      const current = new Map();                       // key -> { clip, sync, speed }
+      const boundTo = () => viewer.skinModel();
+      const row = (k, title) => {
+        const line = document.createElement('label');
+        line.className = 'clips-row';
+        line.title = title || `the game's motion ${k}`;
+        const label = document.createElement('span'); label.textContent = k; line.append(label);
+        const pick = document.createElement('select');
+        const none = document.createElement('option'); none.value = ''; none.textContent = '\u2014 the game\u2019s own \u2014'; pick.append(none);
+        for (const c of own) { const o = document.createElement('option'); o.value = c; o.textContent = c; pick.append(o); }
+        const sync = document.createElement('input'); sync.type = 'checkbox'; sync.checked = true; sync.title = 'in step: the clip\u2019s whole length over the motion\u2019s frames (an attack lands when the game\u2019s does); off: at its own pace, looping';
+        const speed = document.createElement('input'); speed.type = 'number'; speed.step = '0.1'; speed.min = '0.1'; speed.value = '1'; speed.title = 'the pace when not in step'; speed.style.width = '48px';
+        const entry = current.get(k);
+        if (entry) { pick.value = own.includes(entry.clip) ? entry.clip : ''; sync.checked = entry.sync !== false; speed.value = String(entry.speed || 1); }
+        const changed = () => { if (pick.value) current.set(k, { clip: pick.value, sync: sync.checked, speed: Number(speed.value) || 1 }); else current.delete(k); speed.disabled = sync.checked; };
+        pick.onchange = changed; sync.onchange = changed; speed.onchange = changed;
+        speed.disabled = sync.checked;
+        line.append(pick, document.createTextNode(' in step '), sync, document.createTextNode(' pace '), speed);
+        if (!ROLES.some(r => r[0] === k)) { const x = document.createElement('button'); x.textContent = '\u00d7'; x.title = 'take this motion\u2019s row off'; x.onclick = (e) => { e.preventDefault(); current.delete(k); line.remove(); }; line.append(x); }
+        return line;
+      };
+      const draw = () => {
+        rows.textContent = '';
+        for (const [k, title] of ROLES) rows.append(row(k, title));
+        for (const k of [...current.keys()]) if (!ROLES.some(r => r[0] === k)) rows.append(row(k));
+      };
+      const load = async () => {
+        const model = boundTo();
+        if (!model) { note.textContent = 'this file stands in for no game model yet - Remake one from it first (Models \u203a j101 \u203a Remake from glTF\u2026)'; save.disabled = true; return; }
+        try {
+          const r = await api(`/api/project/models/clips?model=${encodeURIComponent(model)}`);
+          if (r.ok && r.clips) for (const k of Object.keys(r.clips)) current.set(k, r.clips[k]);
+          note.textContent = `in place of ${shortName(model)}\u2019s motions (a motion left as the game\u2019s plays as the game\u2019s)`;
+        } catch (e) { note.textContent = e.message; }
+        draw();
+      };
+      on.onchange = async () => { controls.hidden = !on.checked; if (on.checked && !rows.childElementCount) await load(); };
+      add.onclick = () => { const k = key.value.trim(); if (!k) return; if (!current.has(k)) current.set(k, { clip: own[0], sync: true, speed: 1 }); key.value = ''; draw(); };
+      save.onclick = async () => {
+        const model = boundTo(); if (!model) return;
+        save.disabled = true;
+        try {
+          const clips = {}; for (const [k, v] of current) clips[k] = v;
+          const r = await api('/api/project/models/clips', { model, clips });
+          if (!r.ok) throw new Error(r.error);
+          say(`${Object.keys(clips).length} clip(s) mapped for ${r.model} - the client plays them in the motions\u2019 place`, 'good');
+        } catch (e) { say(e.message, 'bad'); }
+        save.disabled = false;
+      };
+    })();
+  }
+
   // The auto-rig's cuts on an unrigged glTF of the project's: where the file is cut into head, arms,
   // legs and skirt, drawn on the model, each found from the shape or set by hand, saved beside the
   // file (assets/<name>.rig.json) and used by Auto-rig here and by Remake / Redo auto-rig later.
@@ -2383,9 +2453,20 @@ async function wireAnimation(node, viewer, packageName, options = {}) {
   const skinModel = () => (typeof target.skinModel === 'function' ? target.skinModel() : null);
   const motionsOf = async (name) => {
     let source = name;
-    if (/\.(glb|gltf)$/i.test(name || '')) { source = skinModel(); if (!source) return []; }
-    try { const list = await api(`/api/model/motions?name=${encodeURIComponent(source)}`); return Array.isArray(list) ? list : []; }
-    catch (error) { return []; }
+    // A glTF's own clips come first as a pack of their own; then the game model's packs, when it is bound to one.
+    const own = [];
+    if (/\.(glb|gltf)$/i.test(name || '')) {
+      try {
+        const c = await api(`/api/model/clips?name=${encodeURIComponent(name)}`);
+        if (c && c.ok && c.clips && c.clips.length && typeof target.hasSkin === 'function' && target.hasSkin()) {
+          own.push({ name: 'clips:' + name, own: true, fits: true, likely: false, motions: c.clips.map((k, i) => ({ index: i, name: k.name, frames: k.frames, id: -1, nodes: 0 })) });
+        }
+      } catch (error) { /* none */ }
+      source = skinModel();
+      if (!source) return own;
+    }
+    try { const list = await api(`/api/model/motions?name=${encodeURIComponent(source)}`); return [...own, ...(Array.isArray(list) ? list : [])]; }
+    catch (error) { return own; }
   };
   let packs = await motionsOf(packageName);
 
@@ -2415,9 +2496,10 @@ async function wireAnimation(node, viewer, packageName, options = {}) {
       }
       const option = document.createElement('option');
       option.value = pack.name;
-      option.textContent = (pack.likely ? '★ ' : '') + shortName(pack.name).replace(/\.ncap\.lz$/i, '')
-        + ` (${pack.motions.length})`;
-      option.title = pack.fits ? 'same node count as this model' : 'a different skeleton - may not fit';
+      option.textContent = pack.own
+        ? `the file\u2019s own clips (${pack.motions.length})`
+        : (pack.likely ? '★ ' : '') + shortName(pack.name).replace(/\.ncap\.lz$/i, '') + ` (${pack.motions.length})`;
+      option.title = pack.own ? 'the animation clips this glTF carries, played on its own skeleton' : pack.fits ? 'same node count as this model' : 'a different skeleton - may not fit';
       packSelect.append(option);
     }
   };
@@ -2494,14 +2576,18 @@ async function wireAnimation(node, viewer, packageName, options = {}) {
     }
     say('loading motion\u2026');
     const wantedName = packageName, wantedPack = packSelect.value, wantedIndex = motionSelect.value || 0;
-    const loaded = skinned
+    const ownPack = wantedPack.startsWith('clips:');
+    const ownClip = ownPack ? (packs.find(p => p.name === wantedPack)?.motions[Number(wantedIndex)] || {}).name : null;
+    const loaded = ownPack
+      ? await api(`/api/model/clip-pose?name=${encodeURIComponent(packageName)}&clip=${encodeURIComponent(ownClip || '')}`)
+      : skinned
       ? await api(`/api/model/rig-pose?name=${encodeURIComponent(skinned)}&pack=${encodeURIComponent(wantedPack)}&index=${wantedIndex}`)
       : await api(`/api/model/pose?name=${encodeURIComponent(wantedName)}&pack=${encodeURIComponent(wantedPack)}&index=${wantedIndex}`);
     // A retarget while the fetch was out: this pose is for a model no longer shown.
     if (wantedName !== packageName) return;
     if (loaded && loaded.ok === false) { say(loaded.error, 'bad'); return; }
     pose = loaded;
-    if (skinned) target.setSkinPose(pose); else target.setPose(pose);
+    if (skinned || ownPack) target.setSkinPose(pose); else target.setPose(pose);
     showFrame(0);
     say('');
     playing = true;

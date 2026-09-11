@@ -448,6 +448,16 @@
           <span class="paint-hint">left drag paints · right drag orbits · Alt+click picks the bone · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind · to move a part to another bone, pick that bone and add · erase on a vertex's only bone hands the weight to the bone's parent</span>
         </span>
       </div>
+      <!-- A glTF with animation clips of its own, standing in for a game model: which clip plays for which of the game's motions (defs/models "clips"; app.js). -->
+      <div class="clips-bar" hidden>
+        <label class="toggle"><input type="checkbox" class="clips-on"> own clips</label>
+        <span class="clips-controls" hidden>
+          <span class="clips-note"></span>
+          <span class="clips-rows"></span>
+          <span class="clips-custom"><input type="text" class="clips-key" placeholder="motion id or name (1004, b01_002_01)" size="26"><button class="clips-add" title="a row for one motion of the game's, by its id or its pack name (the transport lists them)">Add motion</button></span>
+          <button class="clips-save" title="write the map into defs/models/&lt;model&gt;.json - the client plays these clips in the motions' place">Save clips</button>
+        </span>
+      </div>
       <!-- An unrigged glTF of the project's: where the auto-rig cuts it into head, arms, legs and skirt, drawn on the model and adjustable (app.js). -->
       <div class="rig-bar" hidden>
         <label class="toggle"><input type="checkbox" class="rig-on"> auto-rig cuts</label>

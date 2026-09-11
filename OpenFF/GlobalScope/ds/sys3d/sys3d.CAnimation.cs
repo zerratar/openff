@@ -81,6 +81,23 @@ internal static partial class GlobalScope
 					}
 				}
 
+				/// <summary>
+				/// PORT: the animation's name in its resource's dictionary (b01_001_01 - what the .ncap
+				/// pack calls it, what Crystal shows), or null when none is set up. For a mod's glTF
+				/// that plays a clip of its own in the motion's place (CharacterMeshes).
+				/// </summary>
+				public string getName()
+				{
+					if ((m_Flag & 1) == 0 || m_AnmData == null || m_CurrAnmNo < 0) return null;
+					try
+					{
+						NNSG3dResAnmSet set = m_AnmData.m_Res[0] as NNSG3dResAnmSet;
+						NNSG3dResName entry = set?.dict?.entry?.name != null && m_CurrAnmNo < set.dict.entry.name.Length ? set.dict.entry.name[m_CurrAnmNo] : null;
+						return entry?.name?.TrimEnd('\0', ' ');
+					}
+					catch (Exception) { return null; }
+				}
+
 				public void cleanup()
 				{
 					if ((m_Flag & 1) != 0)

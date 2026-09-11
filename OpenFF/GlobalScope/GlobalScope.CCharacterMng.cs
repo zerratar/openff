@@ -664,6 +664,30 @@ internal static partial class GlobalScope
 			return Character[ctrl].motSet.getIndex();
 		}
 
+		/// <summary>PORT: the playing motion's name in its pack (b01_001_01), or null.</summary>
+		public string getMotionName(int ctrl)
+		{
+			return isValidCharacter(ctrl) ? Character[ctrl].motSet.getMotionName() : null;
+		}
+
+		/// <summary>PORT: the name of the model a character was set up with (j101), or null.</summary>
+		public string getModelName(int ctrl)
+		{
+			if (!isValidCharacter(ctrl)) return null;
+			try { return Character[ctrl].RdrObject.ModelRes?.name?.TrimEnd('\0', ' '); } catch (Exception) { return null; }
+		}
+
+		/// <summary>PORT: the character drawn through a render object, or -1 (a mod's glTF standing in for a character asks whose motion it plays).</summary>
+		public int findByRenderObject(ds.sys3d.CRenderObject ro)
+		{
+			if (ro == null) return -1;
+			for (int i = 0; i < Character.Length; i++)
+			{
+				if (Character[i] != null && ReferenceEquals(Character[i].RdrObject, ro) && isValidCharacter(i)) return i;
+			}
+			return -1;
+		}
+
 		public int getPreMotionIndex(int ctrl)
 		{
 			if (!isValidCharacter(ctrl))

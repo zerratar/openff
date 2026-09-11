@@ -2209,6 +2209,15 @@ header h1 .gem {
 .tree .row .fold { text-decoration: none; color: var(--dim); width: 10px; margin: 0 -4px 0 -12px; text-align: center; cursor: pointer; flex: 0 0 auto; }
 .tree .row .fold:hover { color: var(--ink); }
 .tree .row .swatch { width: 9px; height: 9px; border-radius: 2px; flex: 0 0 auto; text-decoration: none; margin-right: -3px; }
+/* The file's own clips in the game's motions' place: a row a motion. */
+.clips-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px 8px; border-top: 1px solid var(--line); font-size: 12px; }
+.clips-bar .clips-controls { display: contents; }
+.clips-bar .clips-note { color: var(--dim); font-size: 11px; flex: 1 0 100%; }
+.clips-bar .clips-rows { display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1 0 100%; }
+.clips-bar .clips-row { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.clips-bar .clips-row > span { min-width: 54px; color: var(--ink); }
+.clips-bar .clips-row select { max-width: 160px; }
+.clips-bar .clips-custom { display: inline-flex; gap: 4px; align-items: center; }
 /* The auto-rig's cuts bar under the viewer, laid out as the paint bar is. */
 .rig-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px 8px; border-top: 1px solid var(--line); font-size: 12px; }
 .rig-bar .rig-controls { display: contents; }

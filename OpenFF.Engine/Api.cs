@@ -105,6 +105,19 @@ namespace OpenFF
 		void BindBattleMotions();
 		/// <summary>Whether the motion PlayMotion started has finished (looping ones never do).</summary>
 		bool MotionDone { get; }
+		/// <summary>
+		/// Plays one of the clips the hero's own model carries (a glTF look with animations, defs/models)
+		/// over whatever motion the game plays, until it ends - or, looping, until StopClip. The game's
+		/// motion keeps running underneath (its timing, its walk); only the picture changes. False when
+		/// the hero's look has no clip of that name.
+		/// </summary>
+		bool PlayClip(string clip, bool loop = false, float speed = 1f);
+		/// <summary>Ends a PlayClip; the game's motion shows again (or the clip the definition maps to it).</summary>
+		void StopClip();
+		/// <summary>Whether a PlayClip is still showing.</summary>
+		bool ClipPlaying { get; }
+		/// <summary>The clips the hero's look carries, by name; none without a glTF look, or with one that has no animations.</summary>
+		System.Collections.Generic.IReadOnlyList<string> Clips { get; }
 		/// <summary>The "!" over the head.</summary>
 		bool Balloon { get; set; }
 		/// <summary>Takes control from the player: no walking, no menu button, the way an event does.</summary>
@@ -183,6 +196,12 @@ namespace OpenFF
 		/// <summary>Adds a motion set to the character's model: "b_b01" for a party member's model, a monster's Monster.MotionSet ("b_f" + family) for its attack and idle (MonsterMotion).</summary>
 		public abstract void BindMotions(string set);
 		public abstract bool MotionDone { get; }
+		/// <summary>Plays one of the clips the character's own model carries (a glTF look with animations) over the game's motion, until it ends or StopClip; false without such a clip. See IHero.PlayClip.</summary>
+		public virtual bool PlayClip(string clip, bool loop = false, float speed = 1f) => false;
+		public virtual void StopClip() { }
+		public virtual bool ClipPlaying => false;
+		/// <summary>The clips the character's look carries, by name.</summary>
+		public virtual System.Collections.Generic.IReadOnlyList<string> Clips => System.Array.Empty<string>();
 		/// <summary>Opacity, 0 (gone) to 100.</summary>
 		public abstract int Alpha { get; set; }
 		/// <summary>Drawn or not; a hidden character is still there.</summary>

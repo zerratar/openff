@@ -772,6 +772,34 @@ for Steam and the viewer. The closer the mesh's volume to the original's, the be
 weights land; a mesh of quite other proportions (a realistic body on the chibi skeleton)
 is a case for the retarget below instead.
 
+**A model's own animations.** A glTF that carries animation clips may play them in place of
+the game's motions - when it has them, for the motions you say; everything else stays the
+game's. In the definition:
+
+```json
+{ "model": "j101", "gltf": "assets/hero.glb",
+  "clips": { "idle": "Idle", "walk": "Walk", "run": { "clip": "Run", "sync": false, "speed": 1.2 },
+             "attack": "Slash", "damage": "Hit", "victory": "Cheer", "b01_003_01": "Surprise", "1004": "Walk" } }
+```
+
+A key is a role - `idle` (battle 101, field 1001), `walk` (1004), `run` (1005), `attack` (every
+weapon swing, 1101-2401; a monster's 201), `damage`, `death`, `magic` (4001-4003), `victory`
+(4101-4104), `guard`, `item`, `escape`, `poise`, `levelup`, `front`, `back`, `cover`, `steal`,
+`jump`, a monster's `special` - or a motion's id, or its name in the pack (`b01_003_01`, as the
+viewer's transport lists them). The value is the clip's name, or `{ "clip", "sync", "speed" }`:
+in step (the default) the clip's whole length runs over the game motion's frames, so a swing
+lands when the game's does and a loop keeps the game's pace; not in step, the clip runs at its
+own pace, looping. The game's motion keeps playing underneath - the walk still moves the
+character, the battle still times its turn - only the picture is the clip's, posed down the
+file's own skeleton (the game's export, a fitted one, or another rig's) and stood where the
+game has the character. In Crystal, open the file under Models: the transport offers *the
+file's own clips* as a pack to play them, and *own clips* under the viewer is the map - a row a
+role, *Add motion* for any motion by id or name, *Save clips* writing it into the definition.
+From C#: `Game.Hero.PlayClip("Wave")` (or on an `Npc`) plays one of the model's clips over
+whatever the game is doing, until it ends - `loop: true` until `StopClip()` - and
+`Game.Hero.Clips` lists what the model carries; `ClipPlaying` says whether one is on. A
+character with no glTF look, or a look with no clips, answers false and plays the game's.
+
 **Another rig's model** (Mixamo, Tripo, Rigify, a hand-made one) is retargeted by the
 client at draw time: its bones matched to the game's by a table of the usual names
 (`Hips, Spine1, Head, LeftArm, R_Forearm, mixamorig:RightHand`...) plus the definition's

@@ -33,7 +33,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -76,6 +78,9 @@ namespace OpenFF.Client
 			public VertexPositionColorTexture[][] Skinned;
 			public Vector3[][] Positions;
 			public int Draws;
+
+			/// <summary>The file's own clip drawn last, for the log.</summary>
+			public string ClipShown;
 
 			// ---- a rig of another convention, retargeted
 			public bool Retarget;
@@ -419,10 +424,16 @@ namespace OpenFF.Client
 				Matrix placement = ToMatrix(_pose) * ToMatrix(GlobalScope.NNS_G3dGlb.cameraMtx);
 				if (binding.Retarget && !binding.Prepared) Prepare(look, binding, ro.ModelRes, obj, placement);
 
-				CollectJoints(binding, obj, bindPose: false);
-				Matrix root = binding.NodeCount > 0 && binding.Seen[0] ? binding.Nodes[0] : placement;
-				if (binding.Draws++ == 0) Log.Write(LogChannel.File, "models: " + look.Model + " first drawn as " + Path.GetFileName(look.Path) + " - " + CountSeen(binding) + " of " + binding.NodeCount + " joints reached" + (binding.Retarget ? ", retargeted" : ""));
-				JointMatrices(binding, root, placement);
+				// The file's own clip in the motion's place, when the definition (or a script) says so;
+				// else the game's joints this frame.
+				Matrix root = placement;
+				if (!OwnClip(look, binding, ro, file, placement))
+				{
+					CollectJoints(binding, obj, bindPose: false);
+					root = binding.NodeCount > 0 && binding.Seen[0] ? binding.Nodes[0] : placement;
+					JointMatrices(binding, root, placement);
+				}
+				if (binding.Draws++ == 0) Log.Write(LogChannel.File, "models: " + look.Model + " first drawn as " + Path.GetFileName(look.Path) + " - " + CountSeen(binding) + " of " + binding.NodeCount + " joints reached" + (binding.Retarget ? ", retargeted" : "") + (file.Animations.Count > 0 ? ", " + file.Animations.Count + " clip(s) of its own" : ""));
 
 				GraphicsDevice device = GlobalScope.m_Graphics.GetGraphicsDeviceManager().GraphicsDevice;
 				Matrix projection = GlobalScope.m_Graphics.getBasicEffect().Projection;
@@ -448,6 +459,159 @@ namespace OpenFF.Client
 			{
 				Log.First(LogChannel.General, "models-draw-" + look.Model, 3, () => "models: " + look.Model + ": draw: " + ex.Message);
 			}
+		}
+
+		// ---- the file's own clips ----------------------------------------------------------------------------
+		// A look whose glTF carries animation clips may play them in place of the game's motions:
+		// the definition's "clips" maps a role (idle, walk, attack...), a motion id or a motion's
+		// pack name to a clip, and a script may ask for a clip outright (Hero.PlayClip). The clip
+		// poses the file's own skeleton down its own tree - whatever the rig, the game's or its
+		// own - and the character stands where the game has it. A motion with no clip plays as the
+		// game's, so a file may bring three clips and borrow the rest.
+
+		/// <summary>A clip a script asked for on a character, over the game's motion, until it ends or is stopped.</summary>
+		private sealed class ClipRequest { public GltfAnimation Clip; public bool Loop; public float Speed = 1f; public double StartedAt; }
+		private static readonly Dictionary<int, ClipRequest> _requests = new Dictionary<int, ClipRequest>();
+		private static readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
+
+		/// <summary>The roles a definition may name, each the game motion ids it covers (HeroMotion, the field's 1001/1004/1005; a monster's Idle/Attack/Special).</summary>
+		private static bool RoleHas(string role, int id, bool monster)
+		{
+			switch (role.ToLowerInvariant())
+			{
+				case "idle": return id == 101 || id == 1001;
+				case "walk": return id == 1004;
+				case "run": return id == 1005;
+				case "poise": return !monster && (id == 201 || id == 301 || id == 401 || id == 501);
+				case "attack": return monster ? id == 201 : id >= 1100 && id < 2500;
+				case "special": return monster && id == 202;
+				case "item": return id == 701;
+				case "escape": return id == 702;
+				case "guard": return id == 703 || id == 704;
+				case "damage": case "hit": return id == 705;
+				case "death": case "die": return id == 706;
+				case "comeback": return id == 707;
+				case "front": return id == 601;
+				case "back": return id == 604;
+				case "magic": case "cast": return id >= 4001 && id <= 4003;
+				case "victory": case "win": return id >= 4101 && id <= 4104;
+				case "levelup": return id >= 4201 && id <= 4204;
+				case "cover": return id == 6001;
+				case "steal": return id == 6101;
+				case "jump": return id == 6401 || id == 6403;
+				default: return false;
+			}
+		}
+
+		/// <summary>The definition's clip for a game motion: by the motion's id, its pack name, then a role that covers it; null for none.</summary>
+		private static ModClip ClipFor(Look look, int motionId, string motionName)
+		{
+			Dictionary<string, ModClip> clips = look.Definition?.Clips;
+			if (clips == null || clips.Count == 0) return null;
+			if (clips.TryGetValue(motionId.ToString(CultureInfo.InvariantCulture), out ModClip byId)) return byId;
+			if (motionName != null && clips.TryGetValue(motionName, out ModClip byName)) return byName;
+			bool monster = look.Model != null && look.Model.StartsWith("f", StringComparison.OrdinalIgnoreCase);
+			foreach (KeyValuePair<string, ModClip> pair in clips) if (RoleHas(pair.Key, motionId, monster)) return pair.Value;
+			return null;
+		}
+
+		private static GltfAnimation FindClip(GltfFile file, string name)
+		{
+			if (string.IsNullOrWhiteSpace(name)) return null;
+			return file.Animations.Find(a => string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase));
+		}
+
+		/// <summary>
+		/// The joints from one of the file's own clips, when one stands in for this frame's motion (a
+		/// script's request first, then the definition's map): the file's node worlds at the clip's
+		/// time, each joint through its inverse bind and into the character's place. False when the
+		/// game's motion is to be drawn as it is.
+		/// </summary>
+		private static bool OwnClip(Look look, Binding binding, GlobalScope.ds.sys3d.CRenderObject ro, GltfFile file, Matrix placement)
+		{
+			if (file.Animations.Count == 0) return false;
+			int ctrl = GlobalScope.characterMng.findByRenderObject(ro);
+			if (ctrl < 0) return false;
+			GltfAnimation clip = null;
+			float time = 0;
+			if (_requests.TryGetValue(ctrl, out ClipRequest request))
+			{
+				double elapsed = (_clock.Elapsed.TotalSeconds - request.StartedAt) * request.Speed;
+				if (!request.Loop && elapsed >= request.Clip.Duration) _requests.Remove(ctrl);
+				else { clip = request.Clip; time = request.Clip.Duration > 0 ? (float)(request.Loop ? elapsed % request.Clip.Duration : elapsed) : 0; }
+			}
+			if (clip == null)
+			{
+				int motion = GlobalScope.characterMng.getMotionIndex(ctrl);
+				string motionName = GlobalScope.characterMng.getMotionName(ctrl);
+				ModClip choice = ClipFor(look, motion, motionName);
+				if (choice == null) return false;
+				clip = FindClip(file, choice.Clip);
+				if (clip == null)
+				{
+					Log.First(LogChannel.General, "models-clip-" + look.Model + "-" + choice.Clip, 1, () => "models: " + Path.GetFileName(look.Path) + " has no clip named " + choice.Clip + " (it has " + string.Join(", ", file.Animations.Select(a => a.Name)) + ") - the game's motion plays");
+					return false;
+				}
+				if (choice.Sync)
+				{
+					// The clip's whole length over the motion's frames: an attack lands when the game's does.
+					uint frame = GlobalScope.characterMng.getCurrentFrame(ctrl), max = GlobalScope.characterMng.getMaxFrame(ctrl);
+					float progress = max > 0 ? Math.Min(1f, frame / (float)max) : 0;
+					time = progress * clip.Duration;
+				}
+				else time = clip.Duration > 0 ? (float)((_clock.Elapsed.TotalSeconds * Math.Max(0.01f, choice.Speed)) % clip.Duration) : 0;
+				if (binding.ClipShown != clip.Name) { binding.ClipShown = clip.Name; Log.Write(LogChannel.File, "models: " + look.Model + " plays its own clip " + clip.Name + " for motion " + motion + (motionName != null ? " (" + motionName + ")" : "") + (choice.Sync ? ", in step" : ", at its own pace")); }
+			}
+			// The file's node worlds, and each joint into the character's place: the fit for another rig, the game's placement for all.
+			float[][] worlds = file.WorldMatrices(clip, time);
+			Matrix rigid = binding.Retarget ? binding.Fit * placement : placement;
+			for (int s = 0; s < file.Skins.Count && s < binding.JointFrame.Length; s++)
+			{
+				GltfSkin skin = file.Skins[s];
+				for (int j = 0; j < skin.Joints.Length; j++)
+				{
+					int node = skin.Joints[j];
+					float[] w = node >= 0 && node < worlds.Length ? worlds[node] : null;
+					Matrix world = w == null ? Matrix.Identity : new Matrix(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15]);
+					binding.JointFrame[s][j] = binding.InverseBind[s][j] * world * rigid;
+				}
+			}
+			// The game's nodes, for the root an unskinned mesh rides on and the count in the log.
+			for (int n = 0; n < binding.NodeCount; n++) { binding.Seen[n] = true; binding.Nodes[n] = rigid; }
+			return true;
+		}
+
+		/// <summary>A script's request: one of the character's look's clips over the game's motion. False when the character has no look with that clip.</summary>
+		public static bool PlayClip(int ctrl, string clip, bool loop, float speed)
+		{
+			Look look = LookOf(ctrl);
+			GltfAnimation found = look?.Mesh?.File != null ? FindClip(look.Mesh.File, clip) : null;
+			if (found == null) return false;
+			_requests[ctrl] = new ClipRequest { Clip = found, Loop = loop, Speed = speed <= 0 ? 1f : speed, StartedAt = _clock.Elapsed.TotalSeconds };
+			return true;
+		}
+
+		public static void StopClip(int ctrl) => _requests.Remove(ctrl);
+
+		/// <summary>Whether a script's clip is still playing on a character.</summary>
+		public static bool ClipPlaying(int ctrl) => _requests.TryGetValue(ctrl, out ClipRequest r) && (r.Loop || (_clock.Elapsed.TotalSeconds - r.StartedAt) * r.Speed < r.Clip.Duration);
+
+		/// <summary>The names of the clips a character's look carries (none without a look, or a look without clips).</summary>
+		public static IReadOnlyList<string> ClipsOf(int ctrl)
+		{
+			Look look = LookOf(ctrl);
+			return look?.Mesh?.File != null ? look.Mesh.File.Animations.Select(a => a.Name).ToList() : new List<string>();
+		}
+
+		/// <summary>The look standing in for a character, by the model its render object was set up with.</summary>
+		private static Look LookOf(int ctrl)
+		{
+			try
+			{
+				string model = GlobalScope.characterMng.getModelName(ctrl);
+				return model != null && _looks.TryGetValue(model, out Look look) ? look : null;
+			}
+			catch (Exception) { return null; }
 		}
 
 		/// <summary>
