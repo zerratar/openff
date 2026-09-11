@@ -119,6 +119,15 @@ namespace Crystal.Editor
 
 		/// <summary>True when the kind was set by hand (asset.extras.kind), false when inferred from the file.</summary>
 		public bool KindFlagged { get; set; }
+
+		/// <summary>For a glTF asset: the game model (j101) whose definition names this file - what the OpenFF client draws it in place of - or null.</summary>
+		public string StandsInFor { get; set; }
+
+		/// <summary>The definition that says so (defs/models/j101.json), project-relative, or null.</summary>
+		public string Definition { get; set; }
+
+		/// <summary>Whether that definition drives the file as a fitted skeleton (retargeted).</summary>
+		public bool DefinitionFitted { get; set; }
 	}
 
 	/// <summary>

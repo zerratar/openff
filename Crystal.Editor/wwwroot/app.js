@@ -90,8 +90,17 @@ async function loadList() {
       state.assets = assets;
       state.files = [...(assets || []).map(a => ({
         name: a.name, overridden: false, own: true,
-        note: /-rigged\.glb$/i.test(a.name) ? 'the project\u2019s own, bound to a game skeleton by the auto-rig' : 'the project\u2019s own glTF (assets/)'
+        // What the OpenFF client draws the file in place of (defs/models), on the tile itself.
+        standsInFor: a.standsInFor || null,
+        note: (a.standsInFor ? `in play as ${a.standsInFor}: the OpenFF client draws this file in place of it (defs/models/${a.standsInFor}.json) \u00b7 ` : '')
+          + (/-rigged\.glb$/i.test(a.name) ? 'the project\u2019s own, bound to a game skeleton by the auto-rig' : 'the project\u2019s own glTF (assets/)')
       })), ...state.files];
+      // And the game model's tile says which file stands in for it.
+      const drawnAs = new Map((assets || []).filter(a => a.standsInFor).map(a => [a.standsInFor.toLowerCase(), a.name]));
+      for (const file of state.files) {
+        const m = /(^|\/)([jm]\d{3})\.nmdp\.lz$/i.exec(file.name || '');
+        if (m && drawnAs.has(m[2].toLowerCase())) { file.drawnAs = drawnAs.get(m[2].toLowerCase()); file.note = `in OpenFF the client draws ${shortName(file.drawnAs)} in place of this model (defs/models/${m[2]}.json)`; }
+      }
     }
   } else if (state.browse === 'map') {
     const maps = await api('/api/maps');
@@ -256,6 +265,14 @@ function drawList() {
       mark.textContent = fileView === 'grid' ? '' : 'scene';
       mark.title = 'this mod puts behaviours or points on it';
       item.append(mark);
+    }
+    // The binding between a game model and the file drawn in its place, on both tiles.
+    if (file.standsInFor || file.drawnAs) {
+      const tag = document.createElement('b');
+      tag.className = 'play-tag';
+      tag.textContent = file.standsInFor ? `\u2192 ${file.standsInFor}` : `\u2190 ${shortName(file.drawnAs).replace(/\.(glb|gltf)$/i, '')}`;
+      tag.title = file.note;
+      item.append(tag);
     }
     item.title = file.name + (file.note ? `  (${file.note})` : '');
     item.dataset.name = file.name;

@@ -35,6 +35,10 @@ namespace Crystal.Editor
 			if (project == null) return list;
 			string folder = Path.Combine(project.Directory, Folder);
 			if (!Directory.Exists(folder)) return list;
+			// Which game model each file stands in for (defs/models), so the list can say so.
+			Dictionary<string, string> standsIn = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			try { foreach (OpenFF.Data.ModModel d in OpenFF.Data.ModModels.Load(new[] { project.Directory })) if (!string.IsNullOrEmpty(d.Gltf) && !string.IsNullOrEmpty(d.Model)) standsIn[d.Gltf.Replace('\\', '/')] = d.Model; }
+			catch (Exception) { /* no definitions readable: the list says nothing */ }
 			foreach (string file in Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories).Where(IsAsset).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
 			{
 				// The kind (flagged in the file, else inferred): what the pickers offer it for - a
@@ -44,7 +48,8 @@ namespace Crystal.Editor
 				{
 					try { kind = Gltf.KindOf(File.ReadAllBytes(file)).Kind; } catch (Exception) { /* unreadable: a prop */ }
 				}
-				list.Add(new { name = Path.GetRelativePath(project.Directory, file).Replace(Path.DirectorySeparatorChar, '/'), bytes = new FileInfo(file).Length, kind });
+				string name = Path.GetRelativePath(project.Directory, file).Replace(Path.DirectorySeparatorChar, '/');
+				list.Add(new { name, bytes = new FileInfo(file).Length, kind, standsInFor = standsIn.TryGetValue(name, out string model) ? model : null });
 			}
 			return list;
 		}

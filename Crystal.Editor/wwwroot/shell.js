@@ -1208,7 +1208,9 @@ function drawInspectedAsset(box) {
   // A glTF asset's import settings, an importer's way: its normals as the file has them or
   // recalculated at an angle, applied into the file and revertable.
   if (kind === 'model' && data && /^assets\/.*\.glb$/i.test(name) && typeof projectState !== 'undefined' && projectState.project) {
-    box.append(kindCard(name, data), normalsCard(name, data));
+    box.append(kindCard(name, data));
+    if ((data.kind || (data.skin ? 'character' : 'prop')) === 'character' || data.standsInFor) box.append(standsInCard(name, data));
+    box.append(normalsCard(name, data));
   }
 
   // The scene file itself, for reading or a careful edit by hand.
@@ -1312,6 +1314,72 @@ function kindCard(name, data) {
   const note = document.createElement('p');
   note.className = 'caveat';
   note.textContent = 'Written into the .glb. A weapon or shield gets the "on a character" preview; a character is offered as the body under one.';
+  card.append(note);
+  return card;
+}
+
+/// The "In play" card for a character file of the project's: which game model the OpenFF client
+/// draws it in place of - the one thing that binds a file to a character, defs/models/<model>.json
+/// (Remake and Save weights write it; here it is read, switched or taken away by hand).
+function standsInCard(name, data) {
+  const card = document.createElement('div');
+  card.className = 'import-card';
+  const head = document.createElement('h3');
+  head.textContent = 'In play';
+  card.append(head);
+  const now = document.createElement('p');
+  now.className = 'sub';
+  now.textContent = data.standsInFor
+    ? `the OpenFF client draws this file in place of ${data.standsInFor}${data.definitionFitted ? ' (a fitted skeleton, retargeted)' : ''}`
+    : 'not in play: no game model is drawn as this file';
+  card.append(now);
+  const pick = document.createElement('select');
+  pick.title = 'the game model this file stands in for - wherever the game draws that model (field, battle, menus) the client draws this file instead; none puts the game\u2019s own model back';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = '\u2014 none: the game\u2019s own models draw \u2014';
+  pick.append(none);
+  const fill = async () => {
+    const list = ((await api('/api/models').catch(() => [])) || []).map(m => m.name).filter(n => /(^|\/)[jm]\d{3}\.nmdp\.lz$/i.test(n));
+    for (const n of list) {
+      const stem = shortName(n).replace(/\.nmdp\.lz$/i, '');
+      const o = document.createElement('option');
+      o.value = stem;
+      o.textContent = stem + (stem === 'j101' ? ' (Luneth, the field hero)' : /^j1/.test(stem) ? ' (a Luneth job)' : /^j2/.test(stem) ? ' (an Arc job)' : /^j3/.test(stem) ? ' (a Refia job)' : /^j4/.test(stem) ? ' (an Ingus job)' : '');
+      pick.append(o);
+    }
+    pick.value = data.standsInFor || '';
+  };
+  fill();
+  pick.onchange = async () => {
+    pick.disabled = true;
+    try {
+      const r = await api('/api/project/models/bind', { asset: name, model: pick.value || null });
+      if (!r.ok) throw new Error(r.error);
+      for (const line of r.notes || []) logLine('in play: ' + line);
+      say(r.model ? `${shortName(name)} is drawn in place of ${r.model} - Play in OpenFF (or start the game again) to see it` : `${shortName(name)} is out of play - the game\u2019s own model draws`, 'good');
+      await inspectAsset('model', name);
+      if (typeof loadList === 'function') loadList();
+    } catch (error) { say(error.message, 'bad'); pick.disabled = false; }
+  };
+  card.append(pick);
+  if (data.definition) {
+    const row = document.createElement('div');
+    row.className = 'button-row';
+    const open = document.createElement('button');
+    open.textContent = 'Open the definition';
+    open.title = data.definition + ' - the file that says so; clips, fit and bones live there too';
+    open.onclick = () => openDoc('code', data.definition);
+    const game = document.createElement('button');
+    game.textContent = `View ${data.standsInFor}`;
+    game.title = 'the game\u2019s own model, which says the same from its side';
+    game.onclick = () => openDoc('model', `files/${data.standsInFor}.nmdp.lz`);
+    row.append(open, game);
+    card.append(row);
+  }
+  const note = document.createElement('p');
+  note.className = 'caveat';
+  note.textContent = 'This is the whole binding - a JSON file naming the model and this glTF. Remake from glTF\u2026 and Save weights write it; the game reads it from the mod Play in OpenFF exports, so a running game shows the change after a restart.';
   card.append(note);
   return card;
 }

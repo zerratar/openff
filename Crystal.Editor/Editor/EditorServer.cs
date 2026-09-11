@@ -429,7 +429,7 @@ namespace Crystal.Editor
 					return;
 
 				case "/api/samples":
-					// The sample mods shipped beside Crystal (or the repository's), for Sample projects….
+					// The sample mods shipped beside Crystal (or the repository's), for Sample projectsâ€¦.
 					SendJson(context, new { ok = true, folder = Samples.Folder(), samples = Samples.All() });
 					return;
 
@@ -673,6 +673,56 @@ namespace Crystal.Editor
 						File.WriteAllBytes(gltfPath, rewritten);
 						(float? nowAngle, bool kept) = Gltf.NormalsOf(rewritten);
 						SendJson(context, new { ok = true, asset, bytes = rewritten.Length, angle = nowAngle, source = kept });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/models/bind":
+				{
+					// Which game model a glTF asset stands in for, set by hand: { asset, model } writes
+					// defs/models/<model>.json naming the file (moving an existing definition of this file,
+					// with its clips and fit, from another model; a definition already on that model is
+					// taken over); { asset, model: null } takes the file's definition away, so the game's
+					// own model draws again. Remake does the same with a rig; this is the plain switch.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string asset = body?["asset"]?.GetValue<string>() ?? throw new ArgumentException("no file named");
+						if (GltfBundle.Resolve(_project, asset) == null) throw new ArgumentException("no file " + asset + " in the project");
+						string target = body?["model"]?.GetValue<string>();
+						if (!string.IsNullOrWhiteSpace(target)) { target = Path.GetFileName(target); int dot = target.IndexOf('.'); if (dot > 0) target = target.Substring(0, dot); }
+						string folder = Path.Combine(_project.Directory, "defs", "models");
+						List<OpenFF.Data.ModModel> all = OpenFF.Data.ModModels.Load(new[] { _project.Directory });
+						OpenFF.Data.ModModel mine = all.FirstOrDefault(d => string.Equals(d.Gltf?.Replace('\\', '/'), asset.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+						List<string> notes = new List<string>();
+						// The file's old definition goes (it is moved, or taken away).
+						if (mine != null && (string.IsNullOrWhiteSpace(target) || !string.Equals(mine.Model, target, StringComparison.OrdinalIgnoreCase)))
+						{
+							if (File.Exists(mine.Source)) File.Delete(mine.Source);
+							notes.Add(mine.Model + " draws as the game's own again");
+						}
+						if (string.IsNullOrWhiteSpace(target)) { SendJson(context, new { ok = true, asset, model = (string)null, notes }); return; }
+						if (!System.Text.RegularExpressions.Regex.IsMatch(target, @"^[a-z]\d{3}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) throw new ArgumentException("not a game model: " + target + " (a character is j101â€¦j423, a monster m###)");
+						OpenFF.Data.ModModel definition = mine ?? new OpenFF.Data.ModModel();
+						definition.Model = target;
+						definition.Gltf = asset.Replace('\\', '/');
+						// A fitted skeleton, when the auto-rig's record beside the original says so.
+						if (mine == null && System.Text.RegularExpressions.Regex.IsMatch(asset, @"-rigged\.glb$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+						{
+							JsonObject record = LoadCutsFile(System.Text.RegularExpressions.Regex.Replace(GltfBundle.Resolve(_project, asset), @"-rigged\.glb$", ".glb", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) as JsonObject;
+							definition.Fitted = record?["rigged"]?["fitted"] is JsonValue rf && rf.TryGetValue(out bool rfv) && rfv;
+						}
+						OpenFF.Data.ModModel other = all.FirstOrDefault(d => d != mine && string.Equals(d.Model, target, StringComparison.OrdinalIgnoreCase));
+						if (other != null) notes.Add(target + " was drawn as " + Path.GetFileName(other.Gltf ?? "") + " - this file takes its place");
+						Directory.CreateDirectory(folder);
+						string definitionPath = Path.Combine(folder, target + ".json");
+						File.WriteAllText(definitionPath, definition.ToJson());
+						// The game-format override of that model, if one is left from a Steam-style remake, would fight the glTF.
+						_workspace.Revert("files/" + target + ".nmdp.lz"); _workspace.Revert("files/" + target + ".ntxp.lz");
+						notes.Add("the OpenFF client draws " + Path.GetFileName(asset) + " in place of " + target + " (defs/models/" + target + ".json)" + (definition.Fitted ? ", a fitted skeleton" : ""));
+						SendJson(context, new { ok = true, asset, model = target, definition = "defs/models/" + target + ".json", fitted = definition.Fitted, notes });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
@@ -2206,8 +2256,19 @@ namespace Crystal.Editor
 			string name = Query(context, "name");
 			try
 			{
-				// A model of the project's own (assets/hut.glb): the shared glTF reader, laid out the same.
-				if (GltfBundle.IsAsset(name)) { SendJson(context, GltfBundle.Read(_project, name)); return; }
+				// A model of the project's own (assets/hut.glb): the shared glTF reader, laid out the same;
+				// and which game model it stands in for, when a definition (defs/models) names it.
+				if (GltfBundle.IsAsset(name))
+				{
+					ModelBundle asset = GltfBundle.Read(_project, name);
+					if (_project != null && asset.Problem == null)
+					{
+						OpenFF.Data.ModModel definition = OpenFF.Data.ModModels.Load(new[] { _project.Directory }).FirstOrDefault(d => string.Equals(d.Gltf?.Replace('\\', '/'), name.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+						if (definition != null) { asset.StandsInFor = definition.Model; asset.Definition = "defs/models/" + definition.Model + ".json"; asset.DefinitionFitted = definition.Fitted; }
+					}
+					SendJson(context, asset);
+					return;
+				}
 				ModelBundle bundle = Models.Read(_workspace, name);
 				// A game model the project's definitions replace with a glTF in the OpenFF client (defs/models).
 				if (_project != null && name.EndsWith(".nmdp.lz", StringComparison.OrdinalIgnoreCase))
