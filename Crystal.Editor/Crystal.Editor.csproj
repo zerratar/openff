@@ -8,7 +8,7 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <Authors>OpenFF contributors</Authors>
     <Copyright>Final Fantasy III and IV are Square Enix's; this is a fan-made client and editor that read the copies you own</Copyright>
     <InvariantGlobalization>true</InvariantGlobalization>

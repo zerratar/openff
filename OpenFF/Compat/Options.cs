@@ -51,6 +51,7 @@ namespace OpenFF.Client
 			("borderless", "FF3_BORDERLESS", "", "This run full screen as a frameless window at the desktop's size"),
 			("windowed", "FF3_WINDOWED", "", "This run in a window whatever settings.json says"),
 			("msaa", "FF3_MSAA", "off|2|4|8", "Anti-aliasing samples for this run (settings.json: msaa)"),
+			("gltf-mips", "FF3_GLTF_MIPS", "off|auto|full|plain|raw", "A mod's glTF textures: off (default) draws level 0 alone, up to 2048 a side; auto a mip chain where the UVs leave room; full one regardless; raw the picture untouched"),
 			("novsync", "FF3_NOVSYNC", "", "Do not wait for the monitor this run"),
 			("load", "FF3_LOAD", "<slot>", "FF4: start from a save slot (1-3) instead of the new game"),
 			("party", "FF3_PARTY", "<type[:level],...>", "FF4: extra party members for a test start (4:10 is the child Rydia at level 10)"),

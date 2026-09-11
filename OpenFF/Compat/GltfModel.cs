@@ -139,8 +139,10 @@ namespace OpenFF.Client
 		private static Texture2D Mipmapped(GraphicsDevice device, Texture2D flat, Func<int, int, bool[]> coverage)
 		{
 			if (flat == null || flat.LevelCount > 1 || (flat.Width <= 1 && flat.Height <= 1)) return flat;
-			// --gltf-mips=off: the picture as it is, no chain (a look at whether a seam is the mips' doing).
-			if (Options.Get("gltf-mips") == "off") return flat;
+			// --gltf-mips: off (the default) is level 0 alone, capped at 2048 with the islands' rims cleaned;
+			// auto a chain when the UVs leave room for one; full a chain regardless, from the coverage;
+			// plain the box chain with no regard for the UVs; raw the picture exactly as it is, untouched.
+			if (Options.Get("gltf-mips") == "raw") return flat;
 			try
 			{
 				int w = flat.Width, h = flat.Height;
@@ -170,13 +172,15 @@ namespace OpenFF.Client
 					Erode(used, w, h, 3);
 					Pad(level, used, w, h, 5);
 				}
-				// An atlas of many small islands packed tight cannot be mipmapped cleanly: at the levels a
+				// No chain unless asked (--gltf-mips=full, or auto for one when the UVs have room): an
+				// atlas of many small islands packed tight cannot be mipmapped cleanly - at the levels a
 				// character a few hundred pixels tall is drawn from, one texel spans two islands whatever
-				// is done, and the seam between them shows as a line - gone up close, where level 0 is
-				// sampled. Such a picture gets its level 0 alone (Crystal's viewer draws it that way and
-				// shows no seam); a hand-laid UV set with room between its islands gets the chain.
-				bool chain = Options.Get("gltf-mips") == "full" || Options.Get("gltf-mips") == "plain" || islands <= 48;
-				if (!chain) Log.Write(LogChannel.General, "meshes: an atlas of " + islands + " UV islands packed close: drawn from its " + w + "x" + h + " level alone, no mip chain (the seams between islands would show from afar)");
+				// is done, and the seam between them shows as a line, gone up close where level 0 is
+				// sampled. Level 0 alone (at most 2048 a side, the rims cleaned) is what Crystal's viewer
+				// draws too, and shows no seam; what it costs is a little shimmer on a big texture far off.
+				string mips = Options.Get("gltf-mips") ?? "off";
+				bool chain = mips == "full" || mips == "plain" || (mips == "auto" && used != null && islands <= 48);
+				Log.Write(LogChannel.File, "meshes: " + (chain ? "a mip chain" : "level 0 alone, no mip chain") + " for the " + w + "x" + h + " picture" + (used != null ? " of " + islands + " UV island(s)" : "") + " (--gltf-mips=" + mips + ")");
 				Texture2D mipped = new Texture2D(device, w, h, chain, SurfaceFormat.Color);
 				mipped.SetData(0, null, level, 0, level.Length);
 				for (int i = 1; i < mipped.LevelCount; i++)
