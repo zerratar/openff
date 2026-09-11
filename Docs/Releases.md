@@ -113,8 +113,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   bind pose, where the arms stand clear of the body) and its outlier vote take most of the
   need away; the brush is for the rest. The brush is a ring on the surface under the cursor
   and paints that surface - out along the mesh's edges to the radius, not a ball about the
-  point - so a sleeve is painted without the chest beneath it; erase on a vertex's only bone
-  hands the weight to the bone's parent. The hierarchy lists a skinned file's bones as a
+  point - so a sleeve is painted without the chest beneath it. The hierarchy lists a skinned file's bones as a
   folding tree (click to pick the paint bone); *bones* and *wireframe* toggles draw the
   skeleton and the mesh's edges over the shaded model, weights mode or not, and the heat
   map can be turned off to paint on the textured model.
@@ -143,7 +142,16 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   viewer edits the map.
 - **Weights you can reason about.** *assign* paints a part onto a bone outright; the vertex
   under the brush reads out its bones and weights; *all bones* colours the mesh by heaviest
-  bone with the hierarchy's rows in the same colours.
+  bone with the hierarchy's rows in the same colours. Weights are kept as Blender keeps them
+  - each bone's its own, no sum held to one while painting - so *erase* takes only that
+  bone's weight off and nothing is handed to a parent or a stray bone; a vertex may carry
+  nothing (it stays as the file has it; the readout says so) and the sum is made one on save.
+- **The model view's toolbox.** The tools are icon buttons floating at the view's left -
+  look, bones, wireframe, heat map, all bones, the four brushes, the auto-rig's cuts and
+  markers, own clips - and the active tool's properties sit in the inspector as a card, so
+  the view never resizes as a tool comes and goes; the readout of the vertex under the cursor
+  floats over the view's bottom right. The middle button (or Shift with the right) drags the
+  view, in the model viewer as in the map editor.
 - **Another rig's model, retargeted by the client.** A definition may name a glTF rigged
   another way (Mixamo, Tripo, Rigify): bones matched by a table of the usual names and the
   definition's `"bones"`, the file scaled and stood on its feet with its up and facing found

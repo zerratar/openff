@@ -730,7 +730,8 @@ body and hips (and, without a skirt, the legs - a tunic's hem flew out with the 
 the original blends its thighs into its waist). What those triangles blend in from outside
 the region (the neck under the jaw) goes to the region's heaviest bone, and the smoothing
 after still softens the cuts. **The cuts are yours to move.** Open the unrigged file under
-Models and tick *auto-rig cuts*: each cut is a slider with an *auto* box (auto: found from
+Models and pick *auto-rig cuts* in the view's toolbox (the properties come up in the
+inspector): each cut is a slider with an *auto* box (auto: found from
 the shape, the found value shown), drawn on the model as a frame at its height (neck violet,
 hips orange, arm floor green) and two blue lines at the torso's width; *skirt* and *regions*
 are switches; *Find* re-reads the shape with your settings and counts each region's vertices
@@ -739,7 +740,7 @@ beside the file as `assets/<name>.rig.json` and used again by *Remake from glTFâ
 auto-rig*; the CLI takes them as `--neck=63 --hips=38 --arm-floor=27 --torso=28`,
 `--no-skirt`, `--no-regions` (percentages). Not every model is cut alike: a long coat wants
 the hips cut at the waist, a character in trousers wants *skirt* off. **Or place markers**, the
-way an auto-rigger asks for them: tick *place markers* and click the model at the chin, a
+way an auto-rigger asks for them: pick *markers* in the toolbox and click the model at the chin, a
 wrist, an elbow, a knee and the groin (*symmetry* places the other side's too); each shows as a
 ring in its colour, the chips below say which are placed and which comes next, a chip
 right-clicked takes its marker off. Placed markers set the cuts a slider leaves on auto - the
@@ -819,9 +820,20 @@ model's packs - the model a `defs/models` definition binds it to, else j101 when
 are the character bones - skinning the file in the browser with the model's node matrices
 per frame (`/api/model/rig-pose`). Orbit, zoom, scrub: a wrong weight shows at once.
 
-**And paints the weights.** Tick *weights* under the viewer on a skinned file of the
-project's: the mesh becomes a heat map of one bone's weight (blue none, green half, red all)
-and the left button paints while the right button orbits. Pick the bone from the list, from
+**The view's toolbox.** The model view's tools are icon buttons floating at the view's left,
+top to bottom: *look* (no tool on the mesh: the left button orbits, the middle button - or
+Shift with the right - drags the view, the wheel zooms, on every model), the view's switches
+(*bones*, *wireframe*, and with weights on *heat map* and *all bones*), the brushes (*assign*,
+*add*, *erase*, *smooth*), and on an unrigged file of the project's *auto-rig cuts* and
+*markers*, on a file with clips of its own *own clips*. The active tool's properties sit in
+the **inspector** as a card above the model's facts - the brush's bone, radius, strength,
+mirror and its buttons; the cuts' sliders and marker chips; the clip rows - so the view itself
+never resizes as a tool comes and goes, and the readout of the vertex under the cursor floats
+over the view's bottom right for the same reason.
+
+**And paints the weights.** Pick a brush on a skinned file of the project's: the mesh becomes
+a heat map of one bone's weight (blue none, green half, red all) and the left button paints
+while the right button orbits and the middle pans. Pick the bone from the card's list, from
 the hierarchy's *Bones* tree (the file's joints nested as the file has them, each row folding
 its children away; the inspector says what the bone moves), or Alt+click the mesh to take
 the bone under the cursor. Under the cursor, the vertex's bones are read out with their
@@ -852,10 +864,10 @@ ring's radius, not a ball about the point, so a sleeve is painted without the ch
 it and the eye without the hair behind it. Every vertex keeps four bones summing to one
 - the others give way as one is painted - and twin vertices at a seam paint as one. Play or
 scrub while painting: the brush works on the mesh as posed, so a stretched sleeve is
-painted where it stretches. Three view switches sit beside *weights* and work with it off too:
+painted where it stretches. The view's switches in the toolbox work with no brush on too:
 *bones* draws the skeleton over the shaded model (the picked bone yellow), *wireframe* the
-mesh's edges over whatever is shown (game models as well), and *heat map* (inside the weights
-controls) can be turned off to paint on the textured model. *Undo* (Ctrl+Z) takes a stroke back; *Save weights* writes the
+mesh's edges over whatever is shown (game models as well), and *heat map* (shown with a brush
+on) can be turned off to paint on the textured model. *Undo* (Ctrl+Z) takes a stroke back; *Save weights* writes the
 weights into the `.glb` in place (`/api/project/models/weights`) and remakes the game
 model from it, so the game-format preview, the Steam version and the client's definition
 follow the paint.

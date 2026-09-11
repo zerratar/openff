@@ -2235,6 +2235,67 @@ header h1 .gem {
 /* The bones of the vertex under the brush, each in its bone's colour. */
 .paint-bar .paint-readout { display: inline-flex; gap: 4px; min-height: 16px; }
 .paint-bar .paint-readout b { font-weight: 500; font-size: 11px; padding: 0 5px; border: 1px solid #556; border-left-width: 4px; border-radius: 3px; color: var(--ink); }
+
+/* ---- The model view's toolbox (app.js wireModelToolbox). The paint, rig and clips bars stay in
+   the DOM as the tools' homes but are not shown: the toolbox floats over the view's left, the
+   tools' controls sit in the inspector's tool card, the readout over the view's bottom right. */
+.model-body .toolbox-home { display: none !important; }
+.stage-tools {
+  position: absolute; left: 8px; top: 8px; z-index: 2;
+  display: flex; flex-direction: column; gap: 2px; padding: 4px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+}
+.stage-tools[hidden] { display: none; }
+.stage-tools .gap { height: 5px; margin: 1px 4px; border-bottom: 1px solid var(--line); }
+.stage-tools .tool {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0; line-height: 0;
+  background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--dim); cursor: pointer;
+}
+.stage-tools .tool .icon { width: 16px; height: 16px; opacity: 1; }
+.stage-tools .tool:hover { color: var(--ink); background: rgba(255, 255, 255, .06); }
+.stage-tools .tool.active { color: var(--ink); background: #2a3040; border-color: var(--accent); }
+.stage-readout {
+  position: absolute; right: 8px; bottom: 8px; z-index: 2; max-width: 60%;
+  display: flex; justify-content: flex-end; pointer-events: none;
+}
+.stage-readout[hidden] { display: none; }
+.stage-readout .paint-readout { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.stage-readout .paint-readout b {
+  font-weight: 500; font-size: 11px; padding: 1px 6px; border: 1px solid #556; border-left-width: 4px; border-radius: 3px;
+  color: var(--ink); background: color-mix(in srgb, var(--panel) 85%, transparent);
+}
+/* The tool card in the inspector: the lifted controls, stacked. */
+#inspector .tool-card { padding: 0 0 10px; margin-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 12px; }
+#inspector .tool-card h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink); text-transform: none; letter-spacing: .02em; }
+#inspector .tool-card h3:empty { display: none; }
+/* Rows wrap: a label, select or note takes a line of its own, the buttons share lines. */
+#inspector .tool-card .paint-controls, #inspector .tool-card .rig-controls, #inspector .tool-card .clips-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
+#inspector .tool-card [hidden] { display: none !important; }
+#inspector .tool-card label, #inspector .tool-card select, #inspector .tool-card .paint-hint, #inspector .tool-card .rig-readout,
+#inspector .tool-card .clips-note, #inspector .tool-card .rig-markers, #inspector .tool-card .clips-rows, #inspector .tool-card .clips-custom { flex: 1 0 100%; }
+#inspector .tool-card label { display: flex; align-items: center; gap: 6px; width: auto; margin: 0; color: var(--dim); white-space: nowrap; }
+#inspector .tool-card input { width: auto; margin: 0; padding: 2px 4px; }
+#inspector .tool-card input[type=checkbox] { width: auto; flex: 0 0 auto; margin: 0 2px 0 0; padding: 0; }
+#inspector .tool-card input[type=range] { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; }
+#inspector .tool-card input[type=text], #inspector .tool-card input[type=number] { flex: 1; min-width: 0; }
+#inspector .tool-card select { max-width: 100%; }
+#inspector .tool-card button { flex: 0 0 auto; }
+#inspector .tool-card .paint-hint, #inspector .tool-card .rig-readout, #inspector .tool-card .clips-note { color: var(--dim); font-size: 11px; white-space: normal; line-height: 1.4; }
+#inspector .tool-card .paint-dirty { color: var(--accent); }
+#inspector .tool-card .rig-cut b { font-weight: 500; min-width: 32px; text-align: right; color: var(--dim); }
+#inspector .tool-card .rig-markers { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+#inspector .tool-card .rig-marker-list { display: flex; gap: 4px; flex-wrap: wrap; }
+#inspector .tool-card .rig-marker { font-size: 11px; padding: 1px 6px; border: 1px solid #667; border-left-width: 4px; border-radius: 3px; background: transparent; color: var(--dim); cursor: pointer; }
+#inspector .tool-card .rig-marker.set { color: var(--ink); background: #2a3040; }
+#inspector .tool-card .rig-marker.next { color: var(--ink); outline: 1px solid var(--accent); }
+#inspector .tool-card .clips-rows { display: flex; flex-direction: column; gap: 4px; }
+#inspector .tool-card .clips-row { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+#inspector .tool-card .clips-row > span { min-width: 54px; color: var(--ink); }
+#inspector .tool-card .clips-row select { flex: 1; min-width: 0; }
+#inspector .tool-card .clips-custom { display: flex; gap: 4px; align-items: center; }
+#inspector .tool-card .clips-custom input { flex: 1; min-width: 0; }
 /* Dragging a hierarchy row onto another (or its group) reparents it. */
 .tree .row.dragging { opacity: .45; }
 .tree .row.drop, .tree .group.drop { outline: 1px solid var(--accent); outline-offset: -1px; background: #232c3a; }

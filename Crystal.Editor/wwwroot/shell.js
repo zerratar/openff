@@ -1380,6 +1380,10 @@ function drawInspector() {
   const doc = activeDoc;
   const facts = factsFor(doc);
   const materials = materialsFor(doc);
+  // The active tool's properties first (a model view's brush, cuts, clips: doc.toolPanel hands
+  // the card), then whatever is selected, then the document's own facts.
+  const tool = typeof doc.toolPanel === 'function' ? doc.toolPanel() : null;
+  if (tool) box.append(tool);
   const detail = doc.selection && doc.inspect ? doc.inspect(doc.selection) : null;
 
   // With something selected, the selection is the panel: the document's own facts fold

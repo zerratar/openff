@@ -418,8 +418,17 @@
       <button class="recentre">Recentre</button>
     </div>
     <div class="model-body">
-      <div class="stage"><canvas class="scene"></canvas></div>
-      <!-- Weight painting on a skinned glTF: the bone as a heat map, a brush, undo, save (model-viewer.js, app.js). -->
+      <div class="stage">
+        <canvas class="scene"></canvas>
+        <!-- The toolbox floats at the view's left (look, view toggles, brushes, cuts, markers, clips; app.js
+             builds it), the active tool's properties go into the inspector, and the readout of the vertex
+             under the cursor sits at the bottom right, over the view, so nothing below it reflows. -->
+        <div class="stage-tools" hidden></div>
+        <div class="stage-readout" hidden></div>
+      </div>
+      <!-- Weight painting on a skinned glTF: the bone as a heat map, a brush, undo, save (model-viewer.js, app.js).
+           The bars below are the tools' homes; the toolbox drives their checkboxes and their controls are
+           shown in the inspector's tool card. -->
       <div class="paint-bar" hidden>
         <label class="toggle"><input type="checkbox" class="paint-on"> weights</label>
         <label class="toggle" title="the skeleton over the model: crosses at the joints, lines to the parents; the picked bone in yellow"><input type="checkbox" class="paint-bones"> bones</label>
@@ -445,7 +454,7 @@
           <button class="paint-cuts" title="open the original, unrigged file, where the auto-rig's cuts and markers are set" hidden>Cuts &amp; markers…</button>
           <button class="paint-save" title="write the weights into the .glb and remake the game model from it">Save weights</button>
           <span class="paint-readout" title="the bones of the vertex under the cursor"></span>
-          <span class="paint-hint">left drag paints · right drag orbits · Alt+click picks the bone · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind · assign gives the ring to the bone outright · erase takes only that bone's weight off, nothing moves elsewhere; a vertex with no bone left stays as the file has it</span>
+          <span class="paint-hint">left drag paints · right drag orbits · middle drag pans · Alt+click picks the bone · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind · assign gives the ring to the bone outright · erase takes only that bone's weight off, nothing moves elsewhere; a vertex with no bone left stays as the file has it</span>
         </span>
       </div>
       <!-- A glTF with animation clips of its own, standing in for a game model: which clip plays for which of the game's motions (defs/models "clips"; app.js). -->

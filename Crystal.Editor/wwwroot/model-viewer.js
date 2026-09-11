@@ -1238,6 +1238,23 @@ function makeModelViewer(canvas, status, options = {}) {
       draw();
     },
 
+    /// Drags the view sideways and up in the picture's own plane, by pixels: what the cursor
+    /// grabbed stays under it (the middle button, or Shift with the right).
+    pan(dx, dy) {
+      const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+      // The eye's right and up, from the same orbit the camera is built from.
+      const right = [cy, 0, -sy];
+      const up = [-sy * sp, cp, -cy * sp];
+      // The visible height at the centre, over the canvas's height: pixels to model units.
+      const perPixel = 2 * distance * Math.tan(0.7 / 2) / Math.max(1, canvas.clientHeight);
+      centre = [
+        centre[0] - (right[0] * dx - up[0] * dy) * perPixel,
+        centre[1] - (right[1] * dx - up[1] * dy) * perPixel,
+        centre[2] - (right[2] * dx - up[2] * dy) * perPixel
+      ];
+      draw();
+    },
+
     reset() {
       yaw = 0.6;
       pitch = 0.5;

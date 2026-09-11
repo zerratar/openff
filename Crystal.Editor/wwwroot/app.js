@@ -1860,15 +1860,25 @@ async function openModel(name) {
     facts.textContent += '  ·  one part is switched off by its node';
   }
 
-  // Drag to orbit, wheel to zoom. In weights mode the left button paints (Alt+click picks the
-  // bone under the cursor) and the right button orbits.
+  // Drag to orbit, wheel to zoom, the middle button (or Shift with the right) drags the view
+  // itself. In weights mode the left button paints (Alt+click picks the bone under the cursor)
+  // and the right button orbits.
   let dragging = false;
+  let panning = false;
   let painting = false;
   let lastX = 0;
   let lastY = 0;
   const paintOn = () => typeof viewer.paintOptions === 'function' && viewer.paintOptions().on;
-  canvas.oncontextmenu = (e) => { if (paintOn()) e.preventDefault(); };
+  canvas.oncontextmenu = (e) => { e.preventDefault(); };
   canvas.onpointerdown = (e) => {
+    if (e.button === 1 || (e.button === 2 && e.shiftKey)) {
+      e.preventDefault();
+      panning = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      canvas.setPointerCapture(e.pointerId);
+      return;
+    }
     // Placing a marker for the auto-rig: a left click goes to the marker, not the camera.
     if (e.button === 0 && typeof placeMarkerAt === 'function' && placeMarkerAt(e.clientX, e.clientY)) return;
     if (paintOn() && e.button === 0) {
@@ -1896,6 +1906,12 @@ async function openModel(name) {
     if (paintReadout) paintReadout(bones);
   };
   canvas.onpointermove = (e) => {
+    if (panning) {
+      viewer.pan(e.clientX - lastX, e.clientY - lastY);
+      lastX = e.clientX;
+      lastY = e.clientY;
+      return;
+    }
     if (painting) { viewer.paintAt(e.clientX, e.clientY); hover(e.clientX, e.clientY); return; }
     if (!dragging && typeof hoverMarkerAt === 'function' && hoverMarkerAt(e.clientX, e.clientY)) return;
     if (!dragging) {
@@ -1910,9 +1926,12 @@ async function openModel(name) {
   };
   canvas.onpointerup = (e) => {
     dragging = false;
+    panning = false;
     painting = false;
     canvas.releasePointerCapture(e.pointerId);
   };
+  // The middle button's default (autoscroll on Windows) would fight the pan.
+  canvas.onauxclick = (e) => { if (e.button === 1) e.preventDefault(); };
   canvas.onpointerleave = () => { if (typeof viewer.hoverBrush === 'function') viewer.hoverBrush(null, null); if (paintReadout) paintReadout(null); if (typeof hoverMarkerAt === 'function') hoverMarkerAt(null, null); };
   let pickPaintBone = null, paintChanged = null;
   let placeMarkerAt = null, hoverMarkerAt = null;   // the auto-rig's markers, placed by clicking (the rig bar sets these)
@@ -1957,7 +1976,8 @@ async function openModel(name) {
       radius: Number(radius.value) * radiusScale, strength: Number(strength.value), mirror: mirror.checked,
       heat: heat.checked, heatAll: heatAll.checked, bones: bones.checked, wire: wire.checked
     });
-    const labels = () => { $('.paint-radius-value', paintBar).textContent = Number(radius.value).toFixed(1); $('.paint-strength-value', paintBar).textContent = Number(strength.value).toFixed(2); };
+    // (Looked up under the controls, not the bar: the toolbox lifts them into the inspector's card.)
+    const labels = () => { $('.paint-radius-value', controls).textContent = Number(radius.value).toFixed(1); $('.paint-strength-value', controls).textContent = Number(strength.value).toFixed(2); };
     const unweighted = new Set(['root', 'j101', 'trans', 'body']);   // the tree's top, never painted
     on.onchange = () => { controls.hidden = !on.checked; stage.classList.toggle('painting', on.checked); if (on.checked && joints.length && (boneSelect.value === '' || unweighted.has(joints[Number(boneSelect.value)]))) boneSelect.value = String(Math.max(0, joints.indexOf('L_kata'))); apply(); if (typeof drawHierarchy === 'function') drawHierarchy(); };
     boneSelect.onchange = apply; modeSelect.onchange = apply; mirror.onchange = apply; heat.onchange = apply; bones.onchange = apply; wire.onchange = apply;
@@ -2026,7 +2046,7 @@ async function openModel(name) {
       // The cuts and markers live on the original: a way there from here.
       const toCuts = $('.paint-cuts', paintBar);
       toCuts.hidden = false;
-      toCuts.onclick = async () => { await openDoc('model', origin); say(`${origin.replace(/^assets\//, '')}: tick "auto-rig cuts" under the viewer for the cuts and the markers`); };
+      toCuts.onclick = async () => { await openDoc('model', origin); say(`${origin.replace(/^assets\//, '')}: the cuts and markers tools are in the view's toolbox, their settings in the inspector`); };
       rerig.onclick = async () => {
         if (!confirm(`Run the auto-rig again from ${origin.replace(/^assets\//, '')}? The weights saved in ${shortName(name)} are replaced.`)) return;
         rerig.disabled = true;
@@ -2060,7 +2080,7 @@ async function openModel(name) {
           say(made.gltf ? `weights saved into ${shortName(name)} - the client draws it in place of ${made.model}` : `weights saved into ${shortName(name)} and ${made.model} remade from it`, 'good');
         } else say(`weights saved into ${shortName(name)}`, 'good');
         dirty = false;
-        hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 Alt+click picks the bone \u00b7 the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind \u00b7 assign gives the ring to the bone outright \u00b7 erase takes only that bone\u2019s weight off, nothing moves elsewhere; a vertex with no bone left stays as the file has it';
+        hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 middle drag pans \u00b7 Alt+click picks the bone \u00b7 the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind \u00b7 assign gives the ring to the bone outright \u00b7 erase takes only that bone\u2019s weight off, nothing moves elsewhere; a vertex with no bone left stays as the file has it';
         hint.classList.remove('paint-dirty');
       } catch (error) {
         say(error.message, 'bad');
@@ -2080,9 +2100,11 @@ async function openModel(name) {
       let own = [];
       try { const c = await api(`/api/model/clips?name=${encodeURIComponent(name)}`); own = c && c.ok ? (c.clips || []).map(k => k.name) : []; } catch (e) { own = []; }
       if (!own.length) return;
+      // (By now the toolbox has lifted .clips-controls into the inspector's card: the bar remembers them.)
+      const on = $('.clips-on', clipsBar), controls = clipsBar.lifted || $('.clips-controls', clipsBar);
+      const note = $('.clips-note', controls), rows = $('.clips-rows', controls);
+      const key = $('.clips-key', controls), add = $('.clips-add', controls), save = $('.clips-save', controls);
       clipsBar.hidden = false;
-      const on = $('.clips-on', clipsBar), controls = $('.clips-controls', clipsBar), note = $('.clips-note', clipsBar), rows = $('.clips-rows', clipsBar);
-      const key = $('.clips-key', clipsBar), add = $('.clips-add', clipsBar), save = $('.clips-save', clipsBar);
       const ROLES = [
         ['idle', 'standing (battle 101, field 1001)'], ['walk', 'walking (1004)'], ['run', 'running (1005)'], ['attack', 'a weapon swing (1101-2401)'],
         ['damage', 'taking a hit (705)'], ['death', 'falling (706)'], ['magic', 'casting (4001-4003)'], ['victory', 'the win pose (4101-4104)'],
@@ -2301,6 +2323,8 @@ async function openModel(name) {
       go.disabled = false;
     };
   }
+
+  wireModelToolbox(node, viewer, model);
 
   // Export: the mesh with its textures and skeleton, plus whichever motion the transport is
   // on - or every motion of its pack. With a project open it goes into the project's
@@ -2689,6 +2713,131 @@ async function wireAnimation(node, viewer, packageName, options = {}) {
     /// The motion showing: the pack, the index, the frame, the pose's frame count.
     current() { return { pack: packSelect.value || null, index: Number(motionSelect.value) || 0, frame, frames: pose ? pose.frames : 0 }; }
   };
+}
+
+/// The model view's toolbox: icon buttons floating at the view's left - look, the view's
+/// overlays (bones, wireframe, heat map, all bones), the brushes, the auto-rig's cuts and
+/// markers, the file's own clips. The bars under the viewer (paint, rig, clips) stay as the
+/// tools' homes, hidden: the toolbox drives their checkboxes and selects, and their controls
+/// are lifted into one card the inspector shows while a tool is active (doc.toolPanel), so
+/// the view itself never reflows. The readout of the vertex under the cursor floats at the
+/// view's bottom right for the same reason.
+function wireModelToolbox(node, viewer, model) {
+  const stage = $('.stage', node), tools = $('.stage-tools', node), readoutBox = $('.stage-readout', node);
+  if (!stage || !tools) return;
+  const paintBar = $('.paint-bar', node), rigBar = $('.rig-bar', node), clipsBar = $('.clips-bar', node);
+  const doc = activeDoc;
+  // The bars' switches, looked up before their controls are lifted out.
+  const paintOn = paintBar ? $('.paint-on', paintBar) : null, paintMode = paintBar ? $('.paint-mode', paintBar) : null;
+  const bones = paintBar ? $('.paint-bones', paintBar) : null, wire = paintBar ? $('.paint-wire', paintBar) : null;
+  const heat = paintBar ? $('.paint-heat', paintBar) : null, heatAll = paintBar ? $('.paint-heat-all', paintBar) : null;
+  const rigOn = rigBar ? $('.rig-on', rigBar) : null, place = rigBar ? $('.rig-place', rigBar) : null;
+  const clipsOn = clipsBar ? $('.clips-on', clipsBar) : null;
+  // The readout leaves the bar for the view.
+  const readout = paintBar ? $('.paint-readout', paintBar) : null;
+  if (readout && readoutBox) { readoutBox.append(readout); readoutBox.hidden = false; }
+
+  // The card the inspector shows: the tools' controls, each shown by its own bar's logic.
+  const card = document.createElement('div');
+  card.className = 'tool-card';
+  const cardHead = document.createElement('h3');
+  card.append(cardHead);
+  const lift = (bar, selector) => {
+    if (!bar) return null;
+    const el = $(selector, bar);
+    if (el) { card.append(el); bar.lifted = el; }   // the bar's later wiring (clips, async) finds them here
+    return el;
+  };
+  const paintControls = lift(paintBar, '.paint-controls');
+  const clipsControls = lift(clipsBar, '.clips-controls');
+  const rigControls = lift(rigBar, '.rig-controls');
+  // The toggles the toolbox stands in for are not shown twice.
+  const hideLabel = (el) => { if (el && el.closest('label')) el.closest('label').hidden = true; };
+  [heat, heatAll, place].forEach(hideLabel);
+  if (paintMode) paintMode.hidden = true;
+
+  const fire = (el) => { if (el && typeof el.onchange === 'function') return el.onchange(new Event('change')); };
+  const set = (el, checked) => { if (el && el.checked !== checked) { el.checked = checked; return fire(el); } };
+  const paintable = Boolean(paintOn && !paintOn.parentElement.hidden && model.skin);
+  const hasRig = () => Boolean(rigBar && !rigBar.hidden);
+  const hasClips = () => Boolean(clipsBar && !clipsBar.hidden);
+
+  const spec = [
+    { id: 'orbit', icon: 'orbit', title: 'look: left drag orbits \u00b7 middle drag (or Shift + right) pans \u00b7 wheel zooms \u00b7 no tool on the mesh',
+      shown: () => true, active: () => !(paintOn && paintOn.checked) && !(place && place.checked),
+      click: async () => { await set(paintOn, false); if (place && place.checked) await set(place, false); } },
+    { gap: true, shown: () => Boolean(model.skin) || Boolean(wire) },
+    { id: 'bones', icon: 'bone', title: 'the skeleton over the model: crosses at the joints, lines to the parents; the picked bone in yellow',
+      shown: () => Boolean(bones && model.skin), active: () => bones.checked, click: () => set(bones, !bones.checked) },
+    { id: 'wire', icon: 'wireframe', title: 'the mesh\u2019s edges over the model',
+      shown: () => Boolean(wire), active: () => wire.checked, click: () => set(wire, !wire.checked) },
+    { id: 'heat', icon: 'heat', title: 'heat map: colour the model by the picked bone\u2019s weight - blue none, green half, red all (off: the shaded model, still painted)',
+      shown: () => paintable && paintOn.checked, active: () => heat.checked, click: () => set(heat, !heat.checked) },
+    { id: 'heat-all', icon: 'palette', title: 'all bones: every bone at once, each in its own colour (the hierarchy shows which); off: the picked bone alone',
+      shown: () => paintable && paintOn.checked, active: () => heatAll.checked, click: () => set(heatAll, !heatAll.checked) },
+    { gap: true, shown: () => paintable },
+    ...['assign', 'add', 'erase', 'smooth'].map(mode => ({
+      id: 'paint-' + mode, icon: mode, mode,
+      title: { assign: 'assign: the ring becomes the picked bone\u2019s outright (\u201cthis part belongs to that bone\u201d)', add: 'add: the bone\u2019s weight blended in under the ring', erase: 'erase: the bone\u2019s weight taken off under the ring, nothing moves elsewhere', smooth: 'smooth: the weights under the ring blended with their neighbours\u2019' }[mode],
+      shown: () => paintable, active: () => paintOn.checked && paintMode.value === mode,
+      click: async () => { if (place && place.checked) await set(place, false); paintMode.value = mode; await set(paintOn, true); fire(paintMode); }
+    })),
+    { gap: true, shown: () => hasRig() || hasClips() },
+    { id: 'cuts', icon: 'cuts', title: 'auto-rig cuts: where the file is cut into head, arms, legs and skirt, drawn on the model; the properties adjust them, Find fills the blanks, Auto-rig binds the file',
+      shown: hasRig, active: () => rigOn.checked && !place.checked,
+      click: async () => { if (place.checked) { await set(place, false); return; } await set(rigOn, !rigOn.checked); } },
+    { id: 'markers', icon: 'markers', title: 'markers: click the model to place the chin, wrists, elbows, knees and groin (the one lit in the properties goes where you click, then the next; right-click a chip to take one off)',
+      shown: hasRig, active: () => rigOn.checked && place.checked,
+      click: async () => { if (place.checked) { await set(place, false); return; } await set(paintOn, false); await set(rigOn, true); await set(place, true); } },
+    { id: 'clips', icon: 'clips', title: 'own clips: which of this file\u2019s animation clips plays for which of the game\u2019s motions',
+      shown: hasClips, active: () => clipsOn.checked, click: () => set(clipsOn, !clipsOn.checked) }
+  ];
+
+  const buttons = new Map();
+  const build = () => {
+    tools.textContent = '';
+    buttons.clear();
+    let any = false;
+    for (const t of spec) {
+      if (!t.shown()) continue;
+      if (t.gap) { const g = document.createElement('span'); g.className = 'gap'; tools.append(g); continue; }
+      const b = document.createElement('button');
+      b.className = 'tool';
+      b.title = t.title;
+      b.append(icon(t.icon));
+      b.onclick = async () => { await t.click(); refresh(); };
+      tools.append(b);
+      buttons.set(t.id, { b, t });
+      any = true;
+    }
+    tools.hidden = !any;
+  };
+  const activeName = () => {
+    if (paintOn && paintOn.checked) return `weights \u00b7 ${paintMode.value}`;
+    if (place && place.checked) return 'markers';
+    if (rigOn && rigOn.checked) return 'auto-rig cuts';
+    if (clipsOn && clipsOn.checked) return 'own clips';
+    return null;
+  };
+  const refresh = () => {
+    // The set of tools can change (weights on shows the heat toggles): built again, cheaply.
+    build();
+    for (const { b, t } of buttons.values()) b.classList.toggle('active', Boolean(t.active()));
+    const which = activeName();
+    cardHead.textContent = which || '';
+    const shownCard = which && [paintControls, clipsControls, rigControls].some(c => c && !c.hidden);
+    if (doc) doc.toolPanel = () => (shownCard ? card : null);
+    if (typeof drawInspector === 'function' && activeDoc === doc) drawInspector();
+  };
+  // Whatever flips a bar's state - the hierarchy picking a bone, a marker's last placement,
+  // a checkbox in the card - shows in the toolbox.
+  for (const bar of [paintBar, rigBar, clipsBar, card]) if (bar) bar.addEventListener('change', () => refresh());
+  const seen = new MutationObserver(() => refresh());
+  for (const bar of [paintBar, rigBar, clipsBar]) if (bar) seen.observe(bar, { attributes: true, attributeFilter: ['hidden'] });
+  for (const c of [paintControls, rigControls, clipsControls]) if (c) seen.observe(c, { attributes: true, attributeFilter: ['hidden'] });
+  // The bars themselves stay out of the way: the toolbox is their face now.
+  for (const bar of [paintBar, rigBar, clipsBar]) if (bar) bar.classList.add('toolbox-home');
+  refresh();
 }
 
 // Shared with script-editor.js and map-editor.js, which both load after this file.
