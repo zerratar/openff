@@ -681,15 +681,16 @@ function makeModelViewer(canvas, status, options = {}) {
 
   /// The bind-pose positions carried again through the weights as they are now, into skin.local
   /// and the drawn buffer.
-  function recarry() {
-    if (!carry || !bundle || !bundle.skin) return;
-    const skin = bundle.skin, count = bundle.buffer.length / 8;
+  /// The bind-pose positions the file's vertices take when carried through given weights (3 floats a vertex).
+  function carryPositions(jointIndex, weights) {
+    const count = bundle.buffer.length / 8;
     const P = carry.positions, undo = carry.undo;
+    const out = new Float32Array(count * 3);
     for (let v = 0; v < count; v++) {
       const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
       let px = 0, py = 0, pz = 0, total = 0;
       for (let k = 0; k < 4; k++) {
-        const w = skin.weights[v * 4 + k], j = skin.jointIndex[v * 4 + k];
+        const w = weights[v * 4 + k], j = jointIndex[v * 4 + k];
         if (w <= 0 || j < 0) continue;
         const m = undo[j];
         if (!m) { px += w * x; py += w * y; pz += w * z; total += w; continue; }
@@ -699,8 +700,18 @@ function makeModelViewer(canvas, status, options = {}) {
         total += w;
       }
       if (total <= 0) { px = x; py = y; pz = z; total = 1; }
-      skin.local[v * 3] = px / total; skin.local[v * 3 + 1] = py / total; skin.local[v * 3 + 2] = pz / total;
-      bundle.buffer[v * 8] = skin.local[v * 3]; bundle.buffer[v * 8 + 1] = skin.local[v * 3 + 1]; bundle.buffer[v * 8 + 2] = skin.local[v * 3 + 2];
+      out[v * 3] = px / total; out[v * 3 + 1] = py / total; out[v * 3 + 2] = pz / total;
+    }
+    return out;
+  }
+
+  function recarry() {
+    if (!carry || !bundle || !bundle.skin) return;
+    const skin = bundle.skin, count = bundle.buffer.length / 8;
+    const p = carryPositions(skin.jointIndex, skin.weights);
+    for (let v = 0; v < count; v++) {
+      skin.local[v * 3] = p[v * 3]; skin.local[v * 3 + 1] = p[v * 3 + 1]; skin.local[v * 3 + 2] = p[v * 3 + 2];
+      bundle.buffer[v * 8] = p[v * 3]; bundle.buffer[v * 8 + 1] = p[v * 3 + 1]; bundle.buffer[v * 8 + 2] = p[v * 3 + 2];
     }
   }
 
@@ -911,14 +922,17 @@ function makeModelViewer(canvas, status, options = {}) {
     return kept;
   }
 
+  /// A vertex's weights stored as they are - each bone's its own, 0 to 1, no sum kept to one. A
+  /// vertex may carry less than one in all (the skinning divides by what it has) or nothing (it
+  /// stays where the file has it), as Blender keeps them; the sum is made one only when saving
+  /// (weightsData). So erasing a bone takes that bone's weight off and nothing else moves.
   function storeWeights(v, m) {
     const skin = bundle.skin;
     m = keepCompatible(m);
     const top = [...m.entries()].filter(([, w]) => w > 0.0005).sort((a, b) => b[1] - a[1]).slice(0, 4);
-    const total = top.reduce((s, [, w]) => s + w, 0) || 1;
     for (let k = 0; k < 4; k++) {
       skin.jointIndex[v * 4 + k] = k < top.length ? top[k][0] : -1;
-      skin.weights[v * 4 + k] = k < top.length ? top[k][1] / total : 0;
+      skin.weights[v * 4 + k] = k < top.length ? Math.min(1, top[k][1]) : 0;
     }
   }
 
@@ -982,30 +996,26 @@ function makeModelViewer(canvas, status, options = {}) {
         for (const j of new Set([...m.keys(), ...around.keys()])) blended.set(j, (1 - amount) * (m.get(j) || 0) + amount * (around.get(j) || 0) / n);
         storeWeights(c, blended);
       } else if (paint.mode === 'assign') {
-        // Assign: the ring is this bone's, outright - a vertex inside it goes to the bone whole,
-        // the outer third of the ring easing in - whatever it had before. The tool for "this part
-        // belongs to that bone", which add's blending and erase's redistribution never quite say.
-        const had = m.get(bone) || 0;
+        // Assign: the ring is this bone's, outright - the bone to one and every other bone off,
+        // the outer third of the ring easing (the others fading as the bone comes in). The tool
+        // for "this part belongs to that bone".
         const ease = Math.min(1, falloff / 0.3);
-        const want = Math.max(had, ease);
-        const others = [...m.entries()].filter(([j]) => j !== bone);
-        const othersTotal = others.reduce((s, [, w]) => s + w, 0);
         const next = new Map();
-        if (othersTotal > 0 && want < 1) for (const [j, w] of others) next.set(j, w / othersTotal * (1 - want));
-        next.set(bone, want);
+        for (const [j, w] of m) if (j !== bone) next.set(j, w * (1 - ease));
+        next.set(bone, Math.max(m.get(bone) || 0, ease));
         storeWeights(c, next);
       } else if (sign > 0) {
-        // Add: the bone takes the amount and the others give way in proportion.
-        const had = m.get(bone) || 0;
-        const want = Math.min(1, had + amount);
-        const others = [...m.entries()].filter(([j]) => j !== bone);
-        const othersTotal = others.reduce((s, [, w]) => s + w, 0);
-        const next = new Map();
-        if (othersTotal > 0) for (const [j, w] of others) next.set(j, w / othersTotal * (1 - want));
-        next.set(bone, othersTotal > 0 ? want : 1);
+        // Add: this bone's weight up by the amount, to one at most; no other bone changes.
+        const next = new Map(m);
+        next.set(bone, Math.min(1, (m.get(bone) || 0) + amount));
         storeWeights(c, next);
       } else {
-        storeWeights(c, takeOff(c, m, bone, amount));
+        // Erase: this bone's weight down by the amount, to nothing; no other bone changes. A vertex
+        // left with no bone at all stays where the file has it, which is what says "not this bone".
+        const next = new Map(m);
+        const left = (m.get(bone) || 0) - amount;
+        if (left > 0.0005) next.set(bone, left); else next.delete(bone);
+        storeWeights(c, next);
       }
       // Every vertex at this position takes the same weights.
       if (canonical) for (let v2 = 0; v2 < count; v2++) if (canonical[v2] === c && v2 !== c) { for (let k = 0; k < 4; k++) { skin.jointIndex[v2 * 4 + k] = skin.jointIndex[c * 4 + k]; skin.weights[v2 * 4 + k] = skin.weights[c * 4 + k]; } }
@@ -1013,52 +1023,47 @@ function makeModelViewer(canvas, status, options = {}) {
     return touched.length;
   }
 
-  /// Erase: a vertex's weights with <paramref name="amount"/> taken off one bone, and what came off
-  /// handed to where the surface around the vertex is bound - its neighbours' bones, this one left
-  /// out - so a chest vertex losing its chest weight goes to the chest around it, not to a stray
-  /// hand weight it happened to carry (which would fling it to the hand). Without neighbours that
-  /// know better: its own other bones if they amount to something, else the bone's parent.
-  function takeOff(c, m, bone, amount) {
-    const had = m.get(bone) || 0;
-    const want = Math.max(0, had - amount);
-    const removed = had - want;
-    const next = new Map(m);
-    if (removed <= 0) return next;
-    const pool = new Map();
-    for (const other of adjacency[c] || []) for (const [j, w] of weightsOf(other)) if (j !== bone) pool.set(j, (pool.get(j) || 0) + w);
-    let poolTotal = [...pool.values()].reduce((s, w) => s + w, 0);
-    if (poolTotal <= 0) {
-      for (const [j, w] of m) if (j !== bone) pool.set(j, w);
-      poolTotal = [...pool.values()].reduce((s, w) => s + w, 0);
-      if (poolTotal < 0.2) {
-        pool.clear();
-        const parent = parentJoint(bone);
-        pool.set(parent >= 0 && parent !== bone ? parent : bone, 1);
-        poolTotal = 1;
-      }
-    }
-    for (const [j, w] of pool) next.set(j, (next.get(j) || 0) + removed * w / poolTotal);
-    next.set(bone, want);
-    return next;
-  }
-
-  /// Takes a bone off every vertex that carries it, the weight going where erase sends it. Returns how many.
+  /// Takes a bone off every vertex that carries it - to nothing, nothing else changed. Returns how many.
   function clearBone(bone) {
     if (!adjacency) buildAdjacency();
     const count = bundle.buffer.length / 8;
     let cleared = 0;
-    // Twice: a vertex whose neighbours all had only this bone gets a real pool the second time.
-    for (let round = 0; round < 2; round++) {
-      for (let c = 0; c < count; c++) {
-        if (canonical && canonical[c] !== c) continue;
-        const m = weightsOf(c);
-        if (!(m.get(bone) > 0)) continue;
-        storeWeights(c, takeOff(c, m, bone, 1));
-        if (round === 0) cleared++;
-      }
+    for (let c = 0; c < count; c++) {
+      if (canonical && canonical[c] !== c) continue;
+      const m = weightsOf(c);
+      if (!(m.get(bone) > 0)) continue;
+      m.delete(bone);
+      storeWeights(c, m);
+      cleared++;
     }
     copyTwins();
     return cleared;
+  }
+
+  /// The weights made to sum to one, for the file (glTF wants that): a vertex with nothing gets
+  /// its neighbours' heaviest bone, failing that the skin's first joint - it must go somewhere in
+  /// a file, and beside its neighbours is the least surprise. Returns { jointIndex, weights }.
+  function normalisedWeights() {
+    const skin = bundle.skin, count = bundle.buffer.length / 8;
+    if (!adjacency) buildAdjacency();
+    const jointIndex = Array.from(skin.jointIndex), weights = Array.from(skin.weights);
+    const fallback = new Map();
+    for (let v = 0; v < count; v++) {
+      let total = 0;
+      for (let k = 0; k < 4; k++) if (jointIndex[v * 4 + k] >= 0) total += weights[v * 4 + k];
+      if (total > 0) { for (let k = 0; k < 4; k++) weights[v * 4 + k] = jointIndex[v * 4 + k] >= 0 ? weights[v * 4 + k] / total : 0; continue; }
+      const c = canonical ? canonical[v] : v;
+      let bone = fallback.get(c);
+      if (bone === undefined) {
+        const around = new Map();
+        for (const other of adjacency[c] || []) for (const [j, w] of weightsOf(other)) around.set(j, (around.get(j) || 0) + w);
+        bone = [...around.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+        fallback.set(c, bone);
+      }
+      jointIndex[v * 4] = bone; weights[v * 4] = 1;
+      for (let k = 1; k < 4; k++) { jointIndex[v * 4 + k] = -1; weights[v * 4 + k] = 0; }
+    }
+    return { jointIndex, weights };
   }
 
   /// One smoothing pass over the whole mesh: each vertex half its own weights, half its neighbours' mean.
@@ -1342,11 +1347,15 @@ function makeModelViewer(canvas, status, options = {}) {
       }
       if (best < 0) return null;
       const out = [];
+      let total = 0;
       for (let k = 0; k < 4; k++) {
         const j = bundle.skin.jointIndex[best * 4 + k], w = bundle.skin.weights[best * 4 + k];
-        if (j >= 0 && w > 0.005) out.push({ bone: j, name: bundle.skin.joints[j], weight: w });
+        if (j >= 0 && w > 0.005) { out.push({ bone: j, name: bundle.skin.joints[j], weight: w }); total += w; }
       }
-      return out.sort((a, b) => b.weight - a.weight);
+      out.sort((a, b) => b.weight - a.weight);
+      // What the vertex does not carry: it moves by what it has, or not at all with nothing.
+      if (total < 0.99) out.push({ bone: -1, name: total <= 0.005 ? 'no bone - stays as the file has it' : 'unweighted', weight: 1 - total });
+      return out;
     },
 
     /// The auto-rig's cuts to draw on the model ({ neck, hips, armFloor, torsoWidth } as fractions; null: none).
@@ -1437,7 +1446,12 @@ function makeModelViewer(canvas, status, options = {}) {
     canUndo() { return undoStack.length > 0; },
 
     /// The weights as painted, for saving: { jointIndex, weights } four a vertex, joints as skinJoints().
-    weightsData() { return bundle && bundle.skin ? { jointIndex: Array.from(bundle.skin.jointIndex), weights: Array.from(bundle.skin.weights), positions: carry ? Array.from(bundle.skin.local) : null } : null; },
+    weightsData() {
+      if (!bundle || !bundle.skin) return null;
+      // For the file: summing to one, and the bind positions carried through those very weights.
+      const made = normalisedWeights();
+      return { jointIndex: made.jointIndex, weights: made.weights, positions: carry ? Array.from(carryPositions(made.jointIndex, made.weights)) : null };
+    },
 
     redraw: draw
   };

@@ -834,13 +834,15 @@ its fit, and the pose it carried the file out of), and with it the viewer carrie
 own vertices again through the weights as they are now, so a pouch painted from the arm to the
 hips moves back onto the hip in the bind pose rather than staying where the arm's carry left
 it, a bone cleared everywhere puts its part back in the file's own pose, and *Save weights*
-writes the re-carried positions with the weights. *add* puts weight on and the vertex's other bones give way in
-proportion; *erase* takes it off, and what comes off goes where the surface around the vertex
-is bound - its neighbours' bones - never in proportion to what the vertex itself happened to
-carry (a chest vertex with a stray hand weight would fly to the hand); a vertex whose
-neighbours know no better falls back to its own other bones, else the bone's parent. *smooth*
-blends with the neighbours. *Clear bone* takes the picked bone off the whole mesh the same
-way, *Smooth all* is one smoothing pass over everything (each an undo step), *Discard* throws
+writes the re-carried positions with the weights. Weights are kept as Blender keeps them: each
+bone's its own, 0 to 1, with no sum held to one while you paint - so *erase* takes only that
+bone's weight off and nothing moves elsewhere, *add* puts only that bone's on, and *smooth*
+blends with the neighbours. A vertex may end up carrying less than one in all (it moves by
+what it has) or nothing (it stays as the file has it - the plain sign that no bone owns it
+yet; the readout says *unweighted* or *no bone*). The sum is made one only when saving, a
+vertex with nothing given its neighbours' heaviest bone. Nothing is ever handed to a parent
+or a stray bone: erasing `L_kata` from a sleeve cannot put it on `trans`. *Clear bone* takes
+the picked bone off the whole mesh the same way, *Smooth all* is one smoothing pass over everything (each an undo step), *Discard* throws
 the unsaved strokes away, and *Redo auto-rig* runs the auto-rig again from the original,
 unrigged file (`<name>.glb` beside `<name>-rigged.glb`) and starts over; radius and strength are the brush, more at its centre; *mirror* paints the
 x-mirrored spot with the `L_`/`R_` counterpart. The brush is a ring drawn on the surface under

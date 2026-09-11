@@ -1969,7 +1969,8 @@ async function openModel(name) {
       for (const { bone, name: boneName, weight } of list) {
         const chip = document.createElement('b');
         chip.textContent = `${boneName} ${Math.round(weight * 100)}%`;
-        chip.style.borderColor = viewer.boneColour(bone);
+        chip.style.borderColor = bone >= 0 ? viewer.boneColour(bone) : '#666';
+        if (bone < 0) chip.style.color = 'var(--dim)';
         readout.append(chip);
       }
     };
@@ -2007,7 +2008,7 @@ async function openModel(name) {
       const bone = Number(boneSelect.value);
       if (!(bone >= 0)) return;
       const n = viewer.clearBone(bone);
-      say(n ? `${joints[bone]} taken off ${n.toLocaleString()} vertices - their weight went to the bones around them (Undo brings it back)` : `${joints[bone]} had no vertices`);
+      say(n ? `${joints[bone]} taken off ${n.toLocaleString()} vertices, nothing else changed (Undo brings it back)` : `${joints[bone]} had no vertices`);
       if (n) paintChanged();
     };
     $('.paint-smooth-all', paintBar).onclick = () => { viewer.smoothAll(); paintChanged(); say('one smoothing pass over the whole mesh (Undo brings it back)'); };
@@ -2059,7 +2060,7 @@ async function openModel(name) {
           say(made.gltf ? `weights saved into ${shortName(name)} - the client draws it in place of ${made.model}` : `weights saved into ${shortName(name)} and ${made.model} remade from it`, 'good');
         } else say(`weights saved into ${shortName(name)}`, 'good');
         dirty = false;
-        hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 Alt+click picks the bone \u00b7 the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind \u00b7 to move a part to another bone, pick that bone and add \u00b7 erase on a vertex\u2019s only bone hands the weight to the bone\u2019s parent';
+        hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 Alt+click picks the bone \u00b7 the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind \u00b7 assign gives the ring to the bone outright \u00b7 erase takes only that bone\u2019s weight off, nothing moves elsewhere; a vertex with no bone left stays as the file has it';
         hint.classList.remove('paint-dirty');
       } catch (error) {
         say(error.message, 'bad');
