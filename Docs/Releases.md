@@ -169,6 +169,13 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   offers the project's own characters as the body - a rigged export, an auto-rigged file -
   skinned by the viewer and the weapon hung from its own hand joint, so equipment is fitted
   on the character it will be worn by.
+- **Which model a file plays as, in plain sight.** A character file's *In play* card in the
+  inspector says which game model the client draws it in place of (the whole binding is one
+  file, `defs/models/<model>.json`, a click away), and switches or clears it by hand; the
+  Models list tags both tiles (`→ j101` on the file, `← luneth-chibi-rigged` on the model).
+- **Save weights writes the geometry too.** The bind pose re-carried through the painted
+  weights - what the viewer showed all along - now goes into the file with them, so the
+  preview and the game stop showing sleeves stretched to where the first auto-rig left them.
 - **The retarget carries a node's move.** The game's motions move nodes as well as turn them
   (`trans` in a hop, a knockback, the fall); a retargeted glTF now follows those moves as the
   viewer always did - a felled character lies on the ground rather than at standing height,

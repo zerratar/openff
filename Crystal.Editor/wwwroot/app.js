@@ -2150,7 +2150,11 @@ async function openModel(name) {
       save.disabled = true;
       say('saving weights\u2026');
       try {
-        const r = await api('/api/project/models/weights', { asset: name, jointIndex: data.jointIndex, weights: data.weights });
+        // The positions go with the weights: the bind pose carried again through them, so the
+        // file's own geometry is what the viewer shows (a sleeve painted onto the arm moves to the
+        // arm in the file too, not only here) - the game and the preview read the file, not the carry.
+        const r = await api('/api/project/models/weights', { asset: name, jointIndex: data.jointIndex, weights: data.weights, positions: data.positions || undefined });
+        if (!data.positions) logLine('weights: no carry record for this file - the weights are saved, the bind geometry stays as the file had it');
         if (!r.ok) throw new Error(r.error);
         // The game model remade from the repainted file: the viewer's game-format preview and
         // the client's definition follow the paint.

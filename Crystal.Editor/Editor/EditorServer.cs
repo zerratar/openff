@@ -639,8 +639,11 @@ namespace Crystal.Editor
 						// With positions (3 a vertex): the bind pose carried again through the painted weights.
 						float[] positions = body?["positions"] is JsonArray p ? p.Select(n => (float)(n?.GetValue<double>() ?? 0)).ToArray() : null;
 						byte[] rewritten = Gltf.RewriteWeights(File.ReadAllBytes(gltfPath), joints, weights, positions);
+						// Moved geometry with recalculated normals: the normals again, at the same angle.
+						float? normalsAngle = positions != null ? Gltf.NormalsOf(rewritten).Angle : null;
+						if (normalsAngle != null) rewritten = Gltf.RecalculateNormals(rewritten, normalsAngle.Value);
 						File.WriteAllBytes(gltfPath, rewritten);
-						SendJson(context, new { ok = true, asset, bytes = rewritten.Length, vertices = joints.Length / 4, positions = positions != null });
+						SendJson(context, new { ok = true, asset, bytes = rewritten.Length, vertices = joints.Length / 4, positions = positions != null, normals = normalsAngle });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
