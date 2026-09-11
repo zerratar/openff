@@ -204,7 +204,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   the fit. Proportions still tell; the auto-rig is the better road for a chibi.
 - **glTF textures get mipmaps** in the client (they had none: a 2048-square texture on a
   character a hundred pixels tall shimmered), capped at 2048 a side; JPEG textures decode
-  for the game-format remake too.
+  for the game-format remake too. The chain is built knowing which texels the UVs cover: the
+  space between islands never averages into them, each island's rim is repainted from its
+  inside, and an atlas of many small islands packed tight (a generated model's - 1189 on the
+  chibi) keeps its 2048 level alone, since no mip of such a picture can help mixing two
+  islands into one texel: those were the grey lines along the hair and face from afar, gone
+  up close. `--gltf-mips=off|plain|full` for a look at the difference.
 
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 
