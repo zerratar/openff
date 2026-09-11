@@ -113,6 +113,12 @@ namespace Crystal.Editor
 
 		/// <summary>True when the file's own normals are still kept beside recalculated ones, for a revert.</summary>
 		public bool NormalsSource { get; set; }
+
+		/// <summary>What a glTF asset is for - character, prop, weapon, shield, map, battle-map (Gltf.Kinds): flagged in the file, else inferred.</summary>
+		public string Kind { get; set; }
+
+		/// <summary>True when the kind was set by hand (asset.extras.kind), false when inferred from the file.</summary>
+		public bool KindFlagged { get; set; }
 	}
 
 	/// <summary>

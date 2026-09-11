@@ -163,6 +163,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   the inspector: from the file, or calculated from the triangles at a smoothing angle (across
   the seams where the file split a vertex), applied into the file with the file's own kept
   inside it for an exact Revert. For a model exported faceted.
+- **A file's kind, and a weapon in your character's hand.** A `.glb` asset's Kind card in
+  the inspector flags it as a character, prop, weapon, shield, map or battle map when its name
+  and shape do not say (written into the file). A weapon's *on a character* preview now
+  offers the project's own characters as the body - a rigged export, an auto-rigged file -
+  skinned by the viewer and the weapon hung from its own hand joint, so equipment is fitted
+  on the character it will be worn by.
 - **The retarget carries a node's move.** The game's motions move nodes as well as turn them
   (`trans` in a hop, a knockback, the fall); a retargeted glTF now follows those moves as the
   viewer always did - a felled character lies on the ground rather than at standing height,

@@ -859,6 +859,21 @@ the cursor; **Alt + drag** orbits and **Alt + click**, not moved, picks the bone
 cursor; the middle button pans, the wheel zooms. With no brush on, the left and right buttons
 both orbit.
 
+**What a file is for: the Kind card.** A `.glb` asset picked in the project panel has a *Kind*
+card in the inspector, above *Normals*: *character*, *prop / scene object*, *weapon*, *shield*,
+*map / terrain*, *battle map* - or *as the file says*, which is what an unflagged file counts
+as: a skinned file is a character, a plain one a prop. The flag is for a file whose name and
+shape do not say (a sword exported as plain geometry, a rigged fox that is no character) and
+is written into the file (`asset.extras.kind`; `/api/project/models/kind`). What reads it: a
+weapon or shield gets the *on a character* preview under the viewer (a flagged shield sits on
+the forearm from the start), a prop or a map does not; and every character of the project's
+is offered as the body under a weapon, ahead of the game's `j###` - so a weapon is seen in
+*your* character's hand. A glTF body is skinned by the viewer through the game model its skin
+is bound to (a rigged export, an auto-rig's `-rigged.glb`; one bound to no model has no motions
+to play and is refused with a word) and the weapon hangs from *its* hand joint - a fitted
+skeleton's own wrist, where the retarget puts it this frame - through the same grip and item
+fit as on the game's model.
+
 **Normals, an importer's way.** A `.glb` asset picked in the project panel has a *Normals*
 card in the inspector, as Unity's model importer has: *from the file* (as exported) or
 *calculate*, with a smoothing angle - faces meeting at less than it share a normal, an edge

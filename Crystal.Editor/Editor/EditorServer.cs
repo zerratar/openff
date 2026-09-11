@@ -678,6 +678,26 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/project/models/kind":
+				{
+					// What a glTF asset is for - { asset, kind } with kind one of Gltf.Kinds, or "" for the
+					// inferred kind again. Written into the .glb (asset.extras.kind); the pickers read it.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string asset = body?["asset"]?.GetValue<string>();
+						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
+						if (!gltfPath.EndsWith(".glb", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("only a .glb carries a kind - export the model as .glb first");
+						byte[] rewritten = Gltf.SetKind(File.ReadAllBytes(gltfPath), body?["kind"]?.GetValue<string>());
+						File.WriteAllBytes(gltfPath, rewritten);
+						(string kind, bool flagged) = Gltf.KindOf(rewritten);
+						SendJson(context, new { ok = true, asset, kind, flagged, kinds = Gltf.Kinds });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/model/carry":
 				{
 					// How a rigged file's geometry is carried: for assets/<name>-rigged.glb, the original's

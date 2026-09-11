@@ -414,10 +414,8 @@ function makeModelViewer(canvas, status, options = {}) {
 
   /// Whether the file's joints sit where the game's bind pose has them (within a hundredth of
   /// the height). When they do not, the file has a fitted skeleton and is driven by retargeting.
-  function jointsFitted(rig, jointNode) {
-    const skin = bundle && bundle.skin;
+  function jointsFitted(rig, jointNode, skin = bundle && bundle.skin, h = bounds ? bounds.max[1] - bounds.min[1] : 1) {
     if (!skin || !rig || !rig.bind) return false;
-    const h = bounds ? bounds.max[1] - bounds.min[1] : 1;
     for (let j = 0; j < skin.joints.length; j++) {
       const n = jointNode[j];
       if (n < 0) continue;
@@ -434,13 +432,12 @@ function makeModelViewer(canvas, status, options = {}) {
   /// retargeted - each joint's local rotation is the game's, changed from its bind as the game's
   /// is at this frame, about the file's own offsets, composed down the tree; a root moves as the
   /// game's does. The game's rotations, the file's proportions.
-  function matricesFor(rig, jointNode, frame) {
-    const skin = bundle.skin;
+  function matricesFor(rig, jointNode, frame, skin = bundle.skin, fitted = skinFitted) {
     const nodeCount = rig.nodes.length;
     const at = Math.max(0, Math.min(rig.frames - 1, frame)) * nodeCount * 12;
     const joints = skin.joints.length;
     const matrices = new Array(joints);
-    if (!skinFitted) {
+    if (!fitted) {
       for (let j = 0; j < joints; j++) {
         const n = jointNode[j];
         matrices[j] = n < 0 ? null : multiply(mat4At(rig.worlds, at + n * 12), skin.inverseBind.slice(j * 16, j * 16 + 16));
@@ -564,6 +561,30 @@ function makeModelViewer(canvas, status, options = {}) {
 
   /// The vertex positions as drawn now: the skinned copy, or the file's.
   function currentPositions() { return skinBuffer || bundle.buffer; }
+
+  /// Any skinned bundle's vertices through joint matrices (matricesFor's): a copy of its buffer
+  /// with the positions posed - the companion body's skinning, the colours as the file has them.
+  function skinInto(b, skin, matrices) {
+    const out = new Float32Array(b.buffer);
+    if (!matrices) return out;
+    const count = b.buffer.length / 8;
+    const local = skin.local, index = skin.jointIndex, weight = skin.weights;
+    for (let v = 0; v < count; v++) {
+      const x = local[v * 3], y = local[v * 3 + 1], z = local[v * 3 + 2];
+      let px = 0, py = 0, pz = 0, total = 0;
+      for (let k = 0; k < 4; k++) {
+        const wk = weight[v * 4 + k], j = index[v * 4 + k];
+        if (wk <= 0 || j < 0 || !matrices[j]) continue;
+        const m = matrices[j];
+        px += wk * (m[0] * x + m[4] * y + m[8] * z + m[12]);
+        py += wk * (m[1] * x + m[5] * y + m[9] * z + m[13]);
+        pz += wk * (m[2] * x + m[6] * y + m[10] * z + m[14]);
+        total += wk;
+      }
+      if (total > 0) { out[v * 8] = px / total; out[v * 8 + 1] = py / total; out[v * 8 + 2] = pz / total; }
+    }
+    return out;
+  }
 
   /// The skeleton this frame: each joint's position (the game node's, or the bind's from the inverse bind), lines to the parents.
   function drawSkeleton() {
@@ -1208,7 +1229,10 @@ function makeModelViewer(canvas, status, options = {}) {
       companion = {
         bundle: model, textures: new Map(),
         vertexBuffer: gl.createBuffer(), indexBuffer: gl.createBuffer(), indexAttrBuffer: gl.createBuffer(),
-        pose: null, poseFrame: 0, poseOffsets: []
+        pose: null, poseFrame: 0, poseOffsets: [],
+        // A skinned glTF as the body (a character of the project's): its rig pose, joint-node map,
+        // whether fitted, and the joint matrices of the frame showing (for the hand a weapon hangs from).
+        skin: null, skinFrame: -1, skinMatrices: null
       };
       uploadModel(model, companion.vertexBuffer, companion.indexBuffer, companion.indexAttrBuffer);
       centre = model.centre || [0, 0, 0];
@@ -1225,11 +1249,54 @@ function makeModelViewer(canvas, status, options = {}) {
       draw();
     },
 
+    /// A skinned glTF body driven by a game model's motion (the /api/model/rig-pose answer, or null for its bind pose).
+    setCompanionSkinPose(rig) {
+      if (!companion || !companion.bundle.skin) return;
+      const skin = companion.bundle.skin;
+      if (!rig || !(rig.frames > 0)) {
+        companion.skin = null; companion.skinFrame = -1; companion.skinMatrices = null;
+        uploadModel(companion.bundle, companion.vertexBuffer, companion.indexBuffer, companion.indexAttrBuffer);
+        draw();
+        return;
+      }
+      const byName = new Map(rig.nodes.map((n, i) => [String(n).toLowerCase(), i]));
+      const jointNode = skin.joints.map(j => byName.has(String(j).toLowerCase()) ? byName.get(String(j).toLowerCase()) : -1);
+      const b = companion.bundle;
+      const h = b.radius ? b.radius * 2 : 1;
+      companion.skin = { rig, jointNode, fitted: jointsFitted(rig, jointNode, skin, h) };
+      this.setCompanionFrame(0);
+    },
+
     setCompanionFrame(frame) {
-      if (!companion || !companion.pose) return;
+      if (!companion) return;
+      if (companion.skin) {
+        const skin = companion.bundle.skin, s = companion.skin;
+        const f = Math.max(0, Math.min(s.rig.frames - 1, Math.floor(frame)));
+        companion.skinFrame = f;
+        companion.skinMatrices = matricesFor(s.rig, s.jointNode, f, skin, s.fitted);
+        const posed = skinInto(companion.bundle, skin, companion.skinMatrices);
+        gl.bindBuffer(gl.ARRAY_BUFFER, companion.vertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, posed, gl.DYNAMIC_DRAW);
+        draw();
+        return;
+      }
+      if (!companion.pose) return;
       companion.poseFrame = Math.max(0, Math.min(companion.pose.frames - 1, Math.floor(frame)));
       draw();
     },
+
+    /// The world matrix (column-major 4x4, the body's model space) of a skinned body's joint by
+    /// name at the frame showing - where a weapon hangs from a fitted skeleton's own hand - or null.
+    companionJoint(name) {
+      if (!companion || !companion.bundle.skin || !companion.skinMatrices) return null;
+      const skin = companion.bundle.skin;
+      const j = skin.joints.findIndex(n => String(n).toLowerCase() === String(name).toLowerCase());
+      if (j < 0 || !companion.skinMatrices[j]) return null;
+      const own = invert4(skin.inverseBind.slice(j * 16, j * 16 + 16));
+      return own ? multiply(companion.skinMatrices[j], own) : null;
+    },
+    companionHasSkin() { return Boolean(companion && companion.bundle.skin); },
+    companionSkinModel() { return companion && companion.bundle.skin ? (companion.bundle.skin.model || null) : null; },
 
     /// Where the viewed model goes, as a column-major 4x4 (null: where it is).
     setAttach(matrix) { attach = matrix || null; draw(); },

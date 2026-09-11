@@ -505,6 +505,40 @@ namespace Crystal
 			return (angle, source);
 		}
 
+		/// <summary>The kinds a project's model file may be flagged as (asset.extras.kind); the first is what an unflagged skinned file counts as, the second an unflagged plain one.</summary>
+		public static readonly string[] Kinds = { "character", "prop", "weapon", "shield", "map", "battle-map" };
+
+		/// <summary>
+		/// What a .glb is for: the kind it is flagged as (asset.extras.kind), else inferred - a
+		/// skinned file is a character, a plain one a prop. Flagged says whether it was set by hand.
+		/// </summary>
+		public static (string Kind, bool Flagged) KindOf(byte[] glb)
+		{
+			if (glb.Length < 20 || BitConverter.ToUInt32(glb, 0) != 0x46546C67u) return ("prop", false);
+			JsonNode root;
+			try { root = JsonNode.Parse(Encoding.UTF8.GetString(glb, 20, BitConverter.ToInt32(glb, 12))); } catch (Exception) { return ("prop", false); }
+			string flagged = root?["asset"]?["extras"]?["kind"]?.GetValue<string>();
+			if (!string.IsNullOrEmpty(flagged) && Array.IndexOf(Kinds, flagged) >= 0) return (flagged, true);
+			bool skinned = (root?["skins"] as JsonArray)?.Count > 0;
+			return (skinned ? "character" : "prop", false);
+		}
+
+		/// <summary>The kind written into asset.extras.kind (null or empty takes the flag off, back to the inferred kind).</summary>
+		public static byte[] SetKind(byte[] glb, string kind)
+		{
+			Open(glb, out JsonNode root, out int binAt);
+			byte[] bin = new byte[glb.Length - binAt];
+			Array.Copy(glb, binAt, bin, 0, bin.Length);
+			JsonObject asset = root["asset"] as JsonObject ?? new JsonObject();
+			root["asset"] = asset;
+			JsonObject extras = asset["extras"] as JsonObject ?? new JsonObject();
+			asset["extras"] = extras;
+			if (string.IsNullOrEmpty(kind)) extras.Remove("kind");
+			else if (Array.IndexOf(Kinds, kind) < 0) throw new ArgumentException("not a kind: " + kind + " (one of " + string.Join(", ", Kinds) + ")");
+			else extras["kind"] = kind;
+			return Close(root, bin);
+		}
+
 		/// <summary>
 		/// A .glb's normals recalculated from its triangles, the way an importer's "calculate normals"
 		/// does: a vertex's normal is the area-weighted sum of the normals of the faces around its

@@ -1204,7 +1204,7 @@ function drawInspectedAsset(box) {
   // A glTF asset's import settings, an importer's way: its normals as the file has them or
   // recalculated at an angle, applied into the file and revertable.
   if (kind === 'model' && data && /^assets\/.*\.glb$/i.test(name) && typeof projectState !== 'undefined' && projectState.project) {
-    box.append(normalsCard(name, data));
+    box.append(kindCard(name, data), normalsCard(name, data));
   }
 
   // The scene file itself, for reading or a careful edit by hand.
@@ -1259,6 +1259,57 @@ function drawInspectedAsset(box) {
   hint.className = 'caveat';
   hint.textContent = 'Double clicking it in the project opens it too.';
   box.append(hint);
+}
+
+/// The kinds a model file may be, and what each is offered for.
+const MODEL_KINDS = [
+  ['character', 'character', 'a body: a skinned figure the game\u2019s motions drive; offered as the character under a weapon'],
+  ['prop', 'prop / scene object', 'a thing on a map: a chest, a crystal, a tree'],
+  ['weapon', 'weapon', 'held in a hand: the viewer puts it on a character (the "on a character" preview)'],
+  ['shield', 'shield', 'worn on a forearm: the viewer puts it on a character'],
+  ['map', 'map / terrain', 'a field map\u2019s ground and walls'],
+  ['battle-map', 'battle map', 'an encounter\u2019s backdrop']
+];
+
+/// The Kind card for a .glb of the project's: what the file is for, an importer's way - inferred
+/// from the file (skinned: a character; else a prop) unless flagged, the flag written into the file
+/// (asset.extras.kind) and read by the pickers: the character list under a weapon, the hand preview.
+function kindCard(name, data) {
+  const card = document.createElement('div');
+  card.className = 'import-card';
+  const head = document.createElement('h3');
+  head.textContent = 'Kind';
+  card.append(head);
+  const now = document.createElement('p');
+  now.className = 'sub';
+  const label = (k) => (MODEL_KINDS.find(m => m[0] === k) || [k, k])[1];
+  now.textContent = data.kindFlagged ? `${label(data.kind)} (flagged)` : `${label(data.kind || 'prop')} (from the file${data.skin ? ': it has a skin' : ''})`;
+  card.append(now);
+  const pick = document.createElement('select');
+  const auto = document.createElement('option');
+  auto.value = '';
+  auto.textContent = `as the file says (${label(data.skin ? 'character' : 'prop')})`;
+  pick.append(auto);
+  for (const [value, text, title] of MODEL_KINDS) { const o = document.createElement('option'); o.value = value; o.textContent = text; o.title = title; pick.append(o); }
+  pick.value = data.kindFlagged ? data.kind : '';
+  pick.title = 'what the file is for, when its name and shape do not say: a weapon exported as plain geometry, a character rigged another way';
+  pick.onchange = async () => {
+    pick.disabled = true;
+    try {
+      const r = await api('/api/project/models/kind', { asset: name, kind: pick.value });
+      if (!r.ok) throw new Error(r.error);
+      say(`${shortName(name)}: ${r.flagged ? 'flagged as ' + label(r.kind) : 'the kind the file says, ' + label(r.kind)}`, 'good');
+      if (activeDoc && activeDoc.kind === 'model' && activeDoc.name === name && typeof openDoc === 'function') await openDoc('model', name, { reload: true });
+      await inspectAsset('model', name);
+      if (typeof loadList === 'function') loadList();
+    } catch (error) { say(error.message, 'bad'); pick.disabled = false; }
+  };
+  card.append(pick);
+  const note = document.createElement('p');
+  note.className = 'caveat';
+  note.textContent = 'Written into the .glb. A weapon or shield gets the "on a character" preview; a character is offered as the body under one.';
+  card.append(note);
+  return card;
 }
 
 /// The Normals card for a .glb of the project's: what the normals are now (the file's own, or

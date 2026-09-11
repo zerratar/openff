@@ -17,8 +17,13 @@ async function wireHandPreview(node, viewer, name, model, transport) {
   const isAsset = /\.(glb|gltf)$/i.test(name);
   const isWeaponModel = /(^|\/)w\d{3}\.nmdp\.lz$/i.test(name);
   if (!isAsset && !isWeaponModel) return;
-  // A skinned character file is a body of its own, not something to put in a hand.
-  if (model && model.skin) return;
+  // A skinned character file is a body of its own, not something to put in a hand; and a file
+  // flagged as something else (a prop, a map) is not either. A flag of weapon or shield says so
+  // outright; an unflagged plain file may be one, so it gets the toggle.
+  const kind = model && model.kind ? model.kind : null;
+  const flagged = Boolean(model && model.kindFlagged);
+  if (model && model.skin && kind !== 'weapon' && kind !== 'shield') return;
+  if (flagged && kind !== 'weapon' && kind !== 'shield') return;
 
   // The item definition whose look this model is, for the fit fields; none for the game's own w###.
   let item = null;
@@ -57,6 +62,10 @@ async function wireHandPreview(node, viewer, name, model, transport) {
     // A shield sits on the forearm.
     const graph = (item.fields || []).find(f => f.name === 'graphId');
     if (item.chain === 'armour' && graph && ((graph.value ?? graph.baseValue) > 0)) which.value = 'leftShield';
+    else if (kind === 'shield') which.value = 'leftShield';
+  } else if (kind === 'shield') {
+    which.value = 'leftShield';
+    note.textContent = 'flagged as a shield - no item definition names this file yet, so its fit is the identity';
   } else if (isWeaponModel) {
     which.value = /w26\d|w27\d|w28\d/i.test(name) ? 'leftShield' : 'right';
     note.textContent = 'the game\'s own model, as the game holds it';
@@ -64,15 +73,28 @@ async function wireHandPreview(node, viewer, name, model, transport) {
     note.textContent = 'no item definition names this file yet - its fit is the identity';
   }
 
-  // The character models: the j### the game has.
-  const bodies = ((await api('/api/models').catch(() => [])) || [])
+  // The character models: the project's own characters first (files flagged, or skinned - a
+  // rigged export, the auto-rig's; each driven by the game model its skin is bound to), then
+  // the j### the game has.
+  const own = typeof projectState !== 'undefined' && projectState && projectState.project
+    ? ((await api('/api/project/assets').catch(() => [])) || []).filter(a => a.kind === 'character' && a.name.toLowerCase() !== name.toLowerCase()).map(a => a.name)
+    : [];
+  const game = ((await api('/api/models').catch(() => [])) || [])
     .map(p => p.name).filter(n => /(^|\/)j\d{3}\.nmdp\.lz$/i.test(n));
-  for (const body of bodies) {
+  const bodies = [...own, ...game];
+  const addBody = (body, label) => {
     const option = document.createElement('option');
     option.value = body;
-    option.textContent = shortName(body).replace(/\.nmdp\.lz$/i, '');
+    option.textContent = label;
     bodySelect.append(option);
+  };
+  if (own.length) {
+    const group = document.createElement('optgroup');
+    group.label = 'the project\u2019s characters';
+    for (const body of own) { const o = document.createElement('option'); o.value = body; o.textContent = shortName(body); group.append(o); }
+    bodySelect.append(group);
   }
+  for (const body of game) addBody(body, shortName(body).replace(/\.nmdp\.lz$/i, ''));
   const remembered = (() => { try { return localStorage.getItem('ff3-editor-hand-body'); } catch (error) { return null; } })();
   if (remembered && bodies.includes(remembered)) bodySelect.value = remembered;
   else if (bodies.includes('files/j101.nmdp.lz')) bodySelect.value = 'files/j101.nmdp.lz';
@@ -80,6 +102,7 @@ async function wireHandPreview(node, viewer, name, model, transport) {
   let joint = null;        // /api/model/joint for the body, pack, motion and hand showing
   let jointFor = '';       // its key, to skip a refetch
   let bodyName = null;
+  let bodyIsFile = false;  // the body is a glTF of the project's: skinned by the viewer, its hand joint asked of it
 
   const jointName = () => ({ right: 'R_te', left: 'L_te', rightShield: 'R_ude', leftShield: 'L_ude' })[which.value] || 'R_te';
 
@@ -104,7 +127,9 @@ async function wireHandPreview(node, viewer, name, model, transport) {
   };
 
   /// The joint's 4x3 for a frame as a column-major 4x4 (the DS row-vector layout is its transpose, which is this layout).
+  /// A glTF body's joint comes from the viewer instead: where its own skeleton - fitted, retargeted - has the hand this frame.
   const jointMatrix = (frame) => {
+    if (bodyIsFile) return (typeof viewer.companionJoint === 'function' && viewer.companionJoint(jointName())) || IDENTITY;
     if (!joint || !joint.matrices || !joint.frames) return IDENTITY;
     const f = Math.max(0, Math.min(joint.frames - 1, frame || 0));
     const d = joint.matrices, at = f * 12;
@@ -125,6 +150,7 @@ async function wireHandPreview(node, viewer, name, model, transport) {
   /// The joint track for what the transport shows, fetched when it changes.
   const trackJoint = async (frame, pose, pack, index) => {
     if (!on.checked || !bodyName) return;
+    if (bodyIsFile) { place(frame); return; }   // the viewer has the joint already
     const key = `${bodyName}|${pack || ''}|${index}|${jointName()}`;
     if (key !== jointFor) {
       jointFor = key;
@@ -138,7 +164,14 @@ async function wireHandPreview(node, viewer, name, model, transport) {
     place(frame);
   };
 
-  const companionTarget = { setPose: p => viewer.setCompanionPose(p), setFrame: f => viewer.setCompanionFrame(f) };
+  // The transport drives the body: a game model by its pose, a glTF body by its skin (the rig
+  // pose of the game model the skin is bound to, as the viewer's own skinned files are driven).
+  const companionTarget = {
+    setPose: p => viewer.setCompanionPose(p), setFrame: f => viewer.setCompanionFrame(f),
+    setSkinPose: p => viewer.setCompanionSkinPose(p),
+    hasSkin: () => typeof viewer.companionHasSkin === 'function' && viewer.companionHasSkin(),
+    skinModel: () => (typeof viewer.companionSkinModel === 'function' ? viewer.companionSkinModel() : null)
+  };
 
   const turnOn = async () => {
     bodyName = bodySelect.value;
@@ -147,6 +180,9 @@ async function wireHandPreview(node, viewer, name, model, transport) {
     say('loading the character\u2026');
     const body = await api(`/api/model?name=${encodeURIComponent(bodyName)}`);
     if (body.error || body.problem) { say(body.error || body.problem, 'bad'); on.checked = false; return; }
+    bodyIsFile = /\.(glb|gltf)$/i.test(bodyName) && Boolean(body.skin);
+    if (/\.(glb|gltf)$/i.test(bodyName) && !body.skin) { say(`${shortName(bodyName)} has no skin - nothing to hang a weapon from`, 'bad'); on.checked = false; return; }
+    if (bodyIsFile && !body.skin.model) { say(`${shortName(bodyName)} is bound to no game model - Remake one from it first, so it has motions to play`, 'bad'); on.checked = false; return; }
     await viewer.setCompanion(body, bodyName);
     jointFor = '';
     if (transport) await transport.retarget(bodyName, companionTarget, trackJoint);
@@ -156,6 +192,7 @@ async function wireHandPreview(node, viewer, name, model, transport) {
 
   const turnOff = async () => {
     bodyName = null;
+    bodyIsFile = false;
     joint = null;
     jointFor = '';
     viewer.setAttach(null);

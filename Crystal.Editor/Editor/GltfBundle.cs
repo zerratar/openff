@@ -36,7 +36,16 @@ namespace Crystal.Editor
 			string folder = Path.Combine(project.Directory, Folder);
 			if (!Directory.Exists(folder)) return list;
 			foreach (string file in Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories).Where(IsAsset).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
-				list.Add(new { name = Path.GetRelativePath(project.Directory, file).Replace(Path.DirectorySeparatorChar, '/'), bytes = new FileInfo(file).Length });
+			{
+				// The kind (flagged in the file, else inferred): what the pickers offer it for - a
+				// character under a weapon, a weapon in a hand. The JSON header only; a .gltf counts as a prop.
+				string kind = "prop";
+				if (file.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))
+				{
+					try { kind = Gltf.KindOf(File.ReadAllBytes(file)).Kind; } catch (Exception) { /* unreadable: a prop */ }
+				}
+				list.Add(new { name = Path.GetRelativePath(project.Directory, file).Replace(Path.DirectorySeparatorChar, '/'), bytes = new FileInfo(file).Length, kind });
+			}
 			return list;
 		}
 
@@ -85,9 +94,15 @@ namespace Crystal.Editor
 			// Whether the normals are the file's own or recalculated (the inspector's Normals card).
 			if (path.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))
 			{
-				try { (float? angle, bool source) = Gltf.NormalsOf(File.ReadAllBytes(path)); bundle.NormalsAngle = angle; bundle.NormalsSource = source; }
+				try
+				{
+					byte[] glb = File.ReadAllBytes(path);
+					(float? angle, bool source) = Gltf.NormalsOf(glb); bundle.NormalsAngle = angle; bundle.NormalsSource = source;
+					(string kind, bool flagged) = Gltf.KindOf(glb); bundle.Kind = kind; bundle.KindFlagged = flagged;
+				}
 				catch (Exception) { /* a file the writer cannot read stays as it is */ }
 			}
+			else { bundle.Kind = bundle.Skin != null ? "character" : "prop"; }
 			if (file.Meshes.Count > 0)
 			{
 				bundle.Centre = new[] { (file.Min[0] + file.Max[0]) / 2, (file.Min[1] + file.Max[1]) / 2, (file.Min[2] + file.Max[2]) / 2 };
