@@ -1860,12 +1860,18 @@ async function openModel(name) {
     facts.textContent += '  ·  one part is switched off by its node';
   }
 
-  // Drag to orbit, wheel to zoom, the middle button (or Shift with the right) drags the view
-  // itself. In weights mode the left button paints (Alt+click picks the bone under the cursor)
-  // and the right button orbits.
+  // The mouse. Looking: the left button orbits, the middle (or Shift + right) drags the view,
+  // the wheel zooms, the right button orbits too. With a brush on, the left button paints -
+  // Ctrl held makes the stroke an erase and Shift a smooth, whatever brush is picked - the
+  // right button dragged sets the brush (sideways the radius, up and down the strength, the
+  // ring showing both), Alt + left drag orbits, and Alt + click, not moved, picks the bone
+  // under the cursor. Markers are placed with a left click while placing.
   let dragging = false;
   let panning = false;
   let painting = false;
+  let adjusting = null;            // the right-button brush drag: { x, y, radius, strength }
+  let altPick = null;              // Alt + left down, not yet moved: a pick unless it drags
+  let strokeMode = null;           // the brush the held key gave the stroke, to be put back
   let lastX = 0;
   let lastY = 0;
   const paintOn = () => typeof viewer.paintOptions === 'function' && viewer.paintOptions().on;
@@ -1881,19 +1887,25 @@ async function openModel(name) {
     }
     // Placing a marker for the auto-rig: a left click goes to the marker, not the camera.
     if (e.button === 0 && typeof placeMarkerAt === 'function' && placeMarkerAt(e.clientX, e.clientY)) return;
-    if (paintOn() && e.button === 0) {
-      if (e.altKey) {
-        const bone = viewer.boneAt(e.clientX, e.clientY);
-        if (bone >= 0 && typeof pickPaintBone === 'function') pickPaintBone(bone);
-        return;
-      }
+    if (paintOn() && e.button === 2 && typeof brushAdjust === 'function') {
+      const b = brushAdjust(0, 0);
+      adjusting = { x: e.clientX, y: e.clientY, radius: b.radius, strength: b.strength };
+      canvas.setPointerCapture(e.pointerId);
+      hover(e.clientX, e.clientY);
+      showBrushHud(e.clientX, e.clientY, b, true);
+      return;
+    }
+    if (paintOn() && e.button === 0 && !e.altKey) {
       painting = true;
+      strokeMode = e.ctrlKey ? 'erase' : e.shiftKey ? 'smooth' : null;
+      if (strokeMode) { const was = viewer.paintOptions().mode; viewer.setPaint({ mode: strokeMode }); strokeMode = was; }
       viewer.beginStroke();
       viewer.paintAt(e.clientX, e.clientY);
       canvas.setPointerCapture(e.pointerId);
       if (typeof paintChanged === 'function') paintChanged();
       return;
     }
+    if (paintOn() && e.button === 0 && e.altKey) altPick = { x: e.clientX, y: e.clientY };
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
@@ -1912,6 +1924,13 @@ async function openModel(name) {
       lastY = e.clientY;
       return;
     }
+    if (adjusting) {
+      // 120 px a unit of radius sideways, 200 px the whole strength up.
+      const b = brushAdjust((e.clientX - adjusting.x) / 120, -(e.clientY - adjusting.y) / 200, adjusting);
+      hover(adjusting.x, adjusting.y);
+      showBrushHud(adjusting.x, adjusting.y, b, true);
+      return;
+    }
     if (painting) { viewer.paintAt(e.clientX, e.clientY); hover(e.clientX, e.clientY); return; }
     if (!dragging && typeof hoverMarkerAt === 'function' && hoverMarkerAt(e.clientX, e.clientY)) return;
     if (!dragging) {
@@ -1919,16 +1938,51 @@ async function openModel(name) {
       hover(e.clientX, e.clientY);
       return;
     }
+    if (altPick && Math.hypot(e.clientX - altPick.x, e.clientY - altPick.y) > 3) altPick = null;   // it drags: an orbit
     viewer.orbit(e.clientX - lastX, e.clientY - lastY);
     lastX = e.clientX;
     lastY = e.clientY;
     hover(e.clientX, e.clientY);
   };
   canvas.onpointerup = (e) => {
+    if (altPick) {
+      const bone = viewer.boneAt(altPick.x, altPick.y);
+      if (bone >= 0 && typeof pickPaintBone === 'function') pickPaintBone(bone);
+      altPick = null;
+    }
+    if (painting && strokeMode) { viewer.setPaint({ mode: strokeMode }); strokeMode = null; }
+    if (adjusting) { adjusting = null; showBrushHud(e.clientX, e.clientY, brushAdjust(0, 0), false); }
     dragging = false;
     panning = false;
     painting = false;
     canvas.releasePointerCapture(e.pointerId);
+  };
+  // The brush's numbers by the cursor while it is set (the right drag, the [ ] { } keys), gone a moment after.
+  const brushHud = $('.stage-brush-hud', node);
+  let hudTimer = null;
+  const showBrushHud = (x, y, b, hold) => {
+    if (!brushHud || !b) return;
+    const box = $('.stage', node).getBoundingClientRect();
+    brushHud.textContent = `radius ${b.radius.toFixed(1)} \u00b7 strength ${Math.round(b.strength * 100)}%`;
+    brushHud.style.setProperty('--strength', String(b.strength));
+    brushHud.style.left = Math.max(4, Math.min(box.width - 160, x - box.left + 18)) + 'px';
+    brushHud.style.top = Math.max(4, Math.min(box.height - 30, y - box.top + 18)) + 'px';
+    brushHud.hidden = false;
+    clearTimeout(hudTimer);
+    if (!hold) hudTimer = setTimeout(() => { brushHud.hidden = true; }, 900);
+  };
+  let brushAdjust = null;          // (dRadius, dStrength, from?) -> { radius, strength }: the paint bar sets it
+  let lastHoverX = null, lastHoverY = null;
+  canvas.addEventListener('pointermove', (e) => { lastHoverX = e.clientX; lastHoverY = e.clientY; });
+  // The keys' way in: the brush stepped, shown where the cursor last was.
+  node.brushStep = (dr, ds) => {
+    if (!paintOn() || typeof brushAdjust !== 'function') return false;
+    const b = brushAdjust(dr, ds);
+    const box = canvas.getBoundingClientRect();
+    const x = lastHoverX === null ? box.left + box.width / 2 : lastHoverX, y = lastHoverY === null ? box.top + box.height / 2 : lastHoverY;
+    hover(x, y);
+    showBrushHud(x, y, b, false);
+    return true;
   };
   // The middle button's default (autoscroll on Windows) would fight the pan.
   canvas.onauxclick = (e) => { if (e.button === 1) e.preventDefault(); };
@@ -1998,6 +2052,16 @@ async function openModel(name) {
     if (activeDoc && model.skin) activeDoc.boneColour = (bone) => on.checked ? viewer.boneColour(bone) : null;
     radius.oninput = () => { labels(); apply(); }; strength.oninput = () => { labels(); apply(); };
     labels();
+    // The brush set from the mouse or the keys: by so much, or from a starting point (a drag).
+    brushAdjust = (dr, ds, from) => {
+      if (dr || ds) {
+        const r0 = from ? from.radius : Number(radius.value), s0 = from ? from.strength : Number(strength.value);
+        radius.value = String(Math.max(Number(radius.min), Math.min(Number(radius.max), Math.round((r0 + dr) * 10) / 10)));
+        strength.value = String(Math.max(Number(strength.min), Math.min(Number(strength.max), Math.round((s0 + ds) * 50) / 50)));
+        labels(); apply();
+      }
+      return { radius: Number(radius.value), strength: Number(strength.value) };
+    };
     pickPaintBone = (bone) => { boneSelect.value = String(bone); apply(); say(`bone: ${joints[bone]}`); };
     // A bone picked in the hierarchy: the skeleton comes on with it lit; in weights mode it is the painted bone too.
     if (activeDoc && model.skin) {
@@ -2020,9 +2084,9 @@ async function openModel(name) {
         if (viewer.setCarry({ positions: c.positions, rig, frame: c.pose ? c.pose.frame : 0 })) logLine(`weights: the geometry follows the paint (carried out of ${c.pose ? `${shortName(c.pose.pack)} motion ${c.pose.index} frame ${c.pose.frame}` : 'the bind pose'})`);
       } catch (error) { logLine('weights: no carry - ' + error.message); }
     })();
+    const hintText = hint.textContent;   // the controls, put back after a save
     paintChanged = () => { dirty = true; hint.textContent = 'unsaved changes - Save weights writes them into the .glb and remakes the game model'; hint.classList.add('paint-dirty'); };
-    undo.onclick = () => { if (!viewer.undoPaint()) say('nothing to undo'); };
-    node.addEventListener('keydown', e => { if (on.checked && e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo.onclick(); } });
+    undo.onclick = () => { if (!viewer.undoPaint()) say('nothing to undo'); };   // Ctrl+Z: the toolbox's keys
     // The bulk tools: a bone off the whole mesh, a smoothing pass, the file's weights back, the auto-rig again.
     $('.paint-clear', paintBar).onclick = () => {
       const bone = Number(boneSelect.value);
@@ -2080,7 +2144,7 @@ async function openModel(name) {
           say(made.gltf ? `weights saved into ${shortName(name)} - the client draws it in place of ${made.model}` : `weights saved into ${shortName(name)} and ${made.model} remade from it`, 'good');
         } else say(`weights saved into ${shortName(name)}`, 'good');
         dirty = false;
-        hint.textContent = 'left drag paints \u00b7 right drag orbits \u00b7 middle drag pans \u00b7 Alt+click picks the bone \u00b7 the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind \u00b7 assign gives the ring to the bone outright \u00b7 erase takes only that bone\u2019s weight off, nothing moves elsewhere; a vertex with no bone left stays as the file has it';
+        hint.textContent = hintText;
         hint.classList.remove('paint-dirty');
       } catch (error) {
         say(error.message, 'bad');
@@ -2762,34 +2826,39 @@ function wireModelToolbox(node, viewer, model) {
   const hasRig = () => Boolean(rigBar && !rigBar.hidden);
   const hasClips = () => Boolean(clipsBar && !clipsBar.hidden);
 
+  // Each tool has a key (shown on its button): Q look, B bones, W wireframe, H heat map, C all
+  // bones' colours, 1-4 the brushes, X cuts, M markers, L clips. Esc is look too. With a brush
+  // on: [ ] the radius, { } the strength, Ctrl+Z undo, Ctrl+S save; Up/Down step the bone
+  // (the hierarchy's keys); Ctrl and Shift held while painting erase and smooth for the stroke.
   const spec = [
-    { id: 'orbit', icon: 'orbit', title: 'look: left drag orbits \u00b7 middle drag (or Shift + right) pans \u00b7 wheel zooms \u00b7 no tool on the mesh',
+    { id: 'orbit', icon: 'orbit', key: 'q', title: 'look: left drag orbits \u00b7 middle drag (or Shift + right) pans \u00b7 wheel zooms \u00b7 no tool on the mesh',
       shown: () => true, active: () => !(paintOn && paintOn.checked) && !(place && place.checked),
       click: async () => { await set(paintOn, false); if (place && place.checked) await set(place, false); } },
     { gap: true, shown: () => Boolean(model.skin) || Boolean(wire) },
-    { id: 'bones', icon: 'bone', title: 'the skeleton over the model: crosses at the joints, lines to the parents; the picked bone in yellow',
+    { id: 'bones', icon: 'bone', key: 'b', title: 'the skeleton over the model: crosses at the joints, lines to the parents; the picked bone in yellow',
       shown: () => Boolean(bones && model.skin), active: () => bones.checked, click: () => set(bones, !bones.checked) },
-    { id: 'wire', icon: 'wireframe', title: 'the mesh\u2019s edges over the model',
+    { id: 'wire', icon: 'wireframe', key: 'w', title: 'the mesh\u2019s edges over the model',
       shown: () => Boolean(wire), active: () => wire.checked, click: () => set(wire, !wire.checked) },
-    { id: 'heat', icon: 'heat', title: 'heat map: colour the model by the picked bone\u2019s weight - blue none, green half, red all (off: the shaded model, still painted)',
+    { id: 'heat', icon: 'heat', key: 'h', title: 'heat map: colour the model by the picked bone\u2019s weight - blue none, green half, red all (off: the shaded model, still painted)',
       shown: () => paintable && paintOn.checked, active: () => heat.checked, click: () => set(heat, !heat.checked) },
-    { id: 'heat-all', icon: 'palette', title: 'all bones: every bone at once, each in its own colour (the hierarchy shows which); off: the picked bone alone',
+    { id: 'heat-all', icon: 'palette', key: 'c', title: 'all bones: every bone at once, each in its own colour (the hierarchy shows which); off: the picked bone alone',
       shown: () => paintable && paintOn.checked, active: () => heatAll.checked, click: () => set(heatAll, !heatAll.checked) },
     { gap: true, shown: () => paintable },
-    ...['assign', 'add', 'erase', 'smooth'].map(mode => ({
-      id: 'paint-' + mode, icon: mode, mode,
-      title: { assign: 'assign: the ring becomes the picked bone\u2019s outright (\u201cthis part belongs to that bone\u201d)', add: 'add: the bone\u2019s weight blended in under the ring', erase: 'erase: the bone\u2019s weight taken off under the ring, nothing moves elsewhere', smooth: 'smooth: the weights under the ring blended with their neighbours\u2019' }[mode],
+    ...['assign', 'add', 'erase', 'smooth'].map((mode, i) => ({
+      id: 'paint-' + mode, icon: mode, mode, key: String(i + 1),
+      title: { assign: 'assign: the ring becomes the picked bone\u2019s outright (\u201cthis part belongs to that bone\u201d)', add: 'add: the bone\u2019s weight blended in under the ring', erase: 'erase: the bone\u2019s weight taken off under the ring, nothing moves elsewhere (Ctrl held while painting erases with any brush)', smooth: 'smooth: the weights under the ring blended with their neighbours\u2019 (Shift held while painting smooths with any brush)' }[mode]
+        + ' \u00b7 left drag paints \u00b7 right drag sets the brush: sideways the radius, up the strength \u00b7 Alt + drag orbits, Alt + click picks the bone \u00b7 middle drag pans',
       shown: () => paintable, active: () => paintOn.checked && paintMode.value === mode,
       click: async () => { if (place && place.checked) await set(place, false); paintMode.value = mode; await set(paintOn, true); fire(paintMode); }
     })),
     { gap: true, shown: () => hasRig() || hasClips() },
-    { id: 'cuts', icon: 'cuts', title: 'auto-rig cuts: where the file is cut into head, arms, legs and skirt, drawn on the model; the properties adjust them, Find fills the blanks, Auto-rig binds the file',
+    { id: 'cuts', icon: 'cuts', key: 'x', title: 'auto-rig cuts: where the file is cut into head, arms, legs and skirt, drawn on the model; the properties adjust them, Find fills the blanks, Auto-rig binds the file',
       shown: hasRig, active: () => rigOn.checked && !place.checked,
       click: async () => { if (place.checked) { await set(place, false); return; } await set(rigOn, !rigOn.checked); } },
-    { id: 'markers', icon: 'markers', title: 'markers: click the model to place the chin, wrists, elbows, knees and groin (the one lit in the properties goes where you click, then the next; right-click a chip to take one off)',
+    { id: 'markers', icon: 'markers', key: 'm', title: 'markers: click the model to place the chin, wrists, elbows, knees and groin (the one lit in the properties goes where you click, then the next; right-click a chip to take one off)',
       shown: hasRig, active: () => rigOn.checked && place.checked,
       click: async () => { if (place.checked) { await set(place, false); return; } await set(paintOn, false); await set(rigOn, true); await set(place, true); } },
-    { id: 'clips', icon: 'clips', title: 'own clips: which of this file\u2019s animation clips plays for which of the game\u2019s motions',
+    { id: 'clips', icon: 'clips', key: 'l', title: 'own clips: which of this file\u2019s animation clips plays for which of the game\u2019s motions',
       shown: hasClips, active: () => clipsOn.checked, click: () => set(clipsOn, !clipsOn.checked) }
   ];
 
@@ -2803,8 +2872,9 @@ function wireModelToolbox(node, viewer, model) {
       if (t.gap) { const g = document.createElement('span'); g.className = 'gap'; tools.append(g); continue; }
       const b = document.createElement('button');
       b.className = 'tool';
-      b.title = t.title;
+      b.title = t.title + (t.key ? `  [${t.key.toUpperCase()}]` : '');
       b.append(icon(t.icon));
+      if (t.key) { const k = document.createElement('kbd'); k.textContent = t.key.toUpperCase(); b.append(k); }
       b.onclick = async () => { await t.click(); refresh(); };
       tools.append(b);
       buttons.set(t.id, { b, t });
@@ -2812,6 +2882,46 @@ function wireModelToolbox(node, viewer, model) {
     }
     tools.hidden = !any;
   };
+
+  // The keys, while this view is the one open and the focus is not somewhere with keys of its
+  // own (the project panel's list, a field, the timeline). Ahead of the shell's own Ctrl+Z, which
+  // would undo the map instead.
+  const brushOn = () => Boolean(paintOn && paintOn.checked);
+  const onKey = async (event) => {
+    if (!node.isConnected) { document.removeEventListener('keydown', onKey, true); return; }   // the view closed
+    if (activeDoc !== doc || node.offsetParent === null) return;
+    const target = event.target;
+    if (target && target.closest && target.closest('#project, input, select, textarea, [contenteditable=""], [contenteditable="true"], .timeline-dock')) return;
+    const key = event.key;
+    if (event.ctrlKey || event.metaKey) {
+      if (event.altKey || !brushOn()) return;
+      const k = key.toLowerCase();
+      if (k === 'z' && !event.shiftKey) { event.preventDefault(); event.stopImmediatePropagation(); paintControls.querySelector('.paint-undo').click(); return; }
+      if (k === 's') { event.preventDefault(); event.stopImmediatePropagation(); paintControls.querySelector('.paint-save').click(); return; }
+      return;
+    }
+    if (event.altKey) return;
+    // The brush's radius and strength.
+    if (key === '[' || key === ']' || key === '{' || key === '}') {
+      if (!brushOn() || typeof node.brushStep !== 'function') return;
+      event.preventDefault();
+      if (key === '[') node.brushStep(-0.1, 0); else if (key === ']') node.brushStep(0.1, 0);
+      else if (key === '{') node.brushStep(0, -0.05); else node.brushStep(0, 0.05);
+      return;
+    }
+    if (key === 'Escape') {
+      const look = buttons.get('orbit');
+      if (look && !look.t.active()) { event.preventDefault(); await look.t.click(); refresh(); }
+      return;
+    }
+    if (event.shiftKey) return;
+    const hit = [...buttons.values()].find(({ t }) => t.key === key.toLowerCase());
+    if (!hit) return;
+    event.preventDefault();
+    await hit.t.click();
+    refresh();
+  };
+  document.addEventListener('keydown', onKey, true);
   const activeName = () => {
     if (paintOn && paintOn.checked) return `weights \u00b7 ${paintMode.value}`;
     if (place && place.checked) return 'markers';

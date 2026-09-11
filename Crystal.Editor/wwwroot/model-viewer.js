@@ -820,6 +820,10 @@ function makeModelViewer(canvas, status, options = {}) {
     const colour = paint.mode === 'erase' ? [1, 0.45, 0.35] : paint.mode === 'smooth' ? [0.55, 0.85, 1] : [1, 0.95, 0.4];
     const lines = [];
     ringInto(lines, brushSeat.point, brushSeat.normal, paint.radius, colour, true);
+    // The strength as an inner ring: at the radius' share the strength is (a full brush fills
+    // the ring, a light one a dot at its middle), dimmer than the ring itself.
+    const inner = paint.radius * Math.max(0.04, Math.min(1, paint.strength || 0));
+    if (inner < paint.radius * 0.98) ringInto(lines, brushSeat.point, brushSeat.normal, inner, colour.map(c => c * 0.6), false);
     drawLines(lines, 2);
   }
 

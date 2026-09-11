@@ -2256,6 +2256,21 @@ header h1 .gem {
 .stage-tools .tool .icon { width: 16px; height: 16px; opacity: 1; }
 .stage-tools .tool:hover { color: var(--ink); background: rgba(255, 255, 255, .06); }
 .stage-tools .tool.active { color: var(--ink); background: #2a3040; border-color: var(--accent); }
+/* The tool's key, small in the button's corner. */
+.stage-tools .tool { position: relative; }
+.stage-tools .tool kbd { position: absolute; right: 2px; bottom: 1px; font: 600 7px/1 system-ui, sans-serif; color: var(--dim); opacity: .8; letter-spacing: 0; }
+.stage-tools .tool.active kbd { color: var(--accent); opacity: 1; }
+/* The brush's radius and strength by the cursor while they are set: the numbers and a bar. */
+.stage-brush-hud {
+  position: absolute; z-index: 3; pointer-events: none; white-space: nowrap;
+  padding: 3px 7px 6px; font-size: 11px; color: var(--ink); border-radius: 4px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+}
+.stage-brush-hud[hidden] { display: none; }
+.stage-brush-hud::after {
+  content: ''; position: absolute; left: 7px; right: 7px; bottom: 2px; height: 2px; border-radius: 1px;
+  background: linear-gradient(to right, var(--accent) calc(var(--strength, 0) * 100%), #3a4050 calc(var(--strength, 0) * 100%));
+}
 .stage-readout {
   position: absolute; right: 8px; bottom: 8px; z-index: 2; max-width: 60%;
   display: flex; justify-content: flex-end; pointer-events: none;

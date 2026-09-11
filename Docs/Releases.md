@@ -153,7 +153,11 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   floats over the view's bottom right. The middle button (or Shift with the right) drags the
   view, in the model viewer as in the map editor. With a bone picked in the hierarchy, Up and
   Down step to the next bone - from the 3D view too, so the bone under the brush is swapped
-  without leaving it.
+  without leaving it. Every tool has a key on its button (Q look, B, W, H, C, 1-4 the
+  brushes, X, M, L), [ ] and { } step the brush, Ctrl+Z and Ctrl+S undo and save; painting,
+  Ctrl held erases and Shift smooths for the stroke, the right button dragged sets radius
+  (sideways) and strength (up) with the ring and the numbers following, Alt + drag orbits
+  and Alt + click picks the bone.
 - **Another rig's model, retargeted by the client.** A definition may name a glTF rigged
   another way (Mixamo, Tripo, Rigify): bones matched by a table of the usual names and the
   definition's `"bones"`, the file scaled and stood on its feet with its up and facing found

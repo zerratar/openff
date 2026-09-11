@@ -425,6 +425,7 @@
              under the cursor sits at the bottom right, over the view, so nothing below it reflows. -->
         <div class="stage-tools" hidden></div>
         <div class="stage-readout" hidden></div>
+        <div class="stage-brush-hud" hidden></div>
       </div>
       <!-- Weight painting on a skinned glTF: the bone as a heat map, a brush, undo, save (model-viewer.js, app.js).
            The bars below are the tools' homes; the toolbox drives their checkboxes and their controls are
@@ -454,7 +455,7 @@
           <button class="paint-cuts" title="open the original, unrigged file, where the auto-rig's cuts and markers are set" hidden>Cuts &amp; markers…</button>
           <button class="paint-save" title="write the weights into the .glb and remake the game model from it">Save weights</button>
           <span class="paint-readout" title="the bones of the vertex under the cursor"></span>
-          <span class="paint-hint">left drag paints · right drag orbits · middle drag pans · Alt+click picks the bone · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind · assign gives the ring to the bone outright · erase takes only that bone's weight off, nothing moves elsewhere; a vertex with no bone left stays as the file has it</span>
+          <span class="paint-hint">left drag paints · Ctrl held erases, Shift held smooths · right drag sets the brush (sideways radius, up strength; [ ] and { } too) · Alt+drag orbits, Alt+click picks the bone · middle drag pans · 1-4 the brushes, B bones, W wireframe, H heat, C colours, Up/Down the bone, Ctrl+Z undo, Ctrl+S save · the ring is the brush: it paints the surface it sits on, out to the ring along the mesh, not what lies behind; the inner ring is the strength · assign gives the ring to the bone outright · erase takes only that bone's weight off, nothing moves elsewhere; a vertex with no bone left stays as the file has it</span>
         </span>
       </div>
       <!-- A glTF with animation clips of its own, standing in for a game model: which clip plays for which of the game's motions (defs/models "clips"; app.js). -->

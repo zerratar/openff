@@ -829,11 +829,25 @@ Shift with the right - drags the view, the wheel zooms, on every model), the vie
 the **inspector** as a card above the model's facts - the brush's bone, radius, strength,
 mirror and its buttons; the cuts' sliders and marker chips; the clip rows - so the view itself
 never resizes as a tool comes and goes, and the readout of the vertex under the cursor floats
-over the view's bottom right for the same reason.
+over the view's bottom right for the same reason. Every tool has a key, printed on its button:
+**Q** look (Esc too), **B** bones, **W** wireframe, **H** heat map, **C** all bones' colours,
+**1 2 3 4** assign / add / erase / smooth, **X** cuts, **M** markers, **L** clips; with a brush
+on, **[ ]** step the radius and **{ }** the strength, **Ctrl+Z** undoes a stroke, **Ctrl+S**
+saves the weights, and **Up / Down** step the bone once one is picked in the hierarchy. The
+keys work wherever the focus is except in the project panel (its own list) and in a field.
+
+The mouse, with a brush on: the left button paints; **Ctrl** held makes the stroke an erase
+and **Shift** a smooth, whichever brush is picked (as Blender has them), so a wrong bit is
+taken back or blended without changing tools; the **right button dragged** sets the brush -
+sideways the radius, up and down the strength - with the ring following (the inner ring is the
+strength: a full brush fills the ring, a light one is a dot at its middle) and the numbers by
+the cursor; **Alt + drag** orbits and **Alt + click**, not moved, picks the bone under the
+cursor; the middle button pans, the wheel zooms. With no brush on, the left and right buttons
+both orbit.
 
 **And paints the weights.** Pick a brush on a skinned file of the project's: the mesh becomes
 a heat map of one bone's weight (blue none, green half, red all) and the left button paints
-while the right button orbits and the middle pans. Pick the bone from the card's list, from
+while Alt + drag orbits and the middle pans. Pick the bone from the card's list, from
 the hierarchy's *Bones* tree (the file's joints nested as the file has them, each row folding
 its children away; the inspector says what the bone moves; with a bone picked there, Up and
 Down step to the one above or below as the tree shows them, from the 3D view too - not from
