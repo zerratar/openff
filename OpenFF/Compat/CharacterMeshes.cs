@@ -878,8 +878,12 @@ namespace OpenFF.Client
 			}
 			// Another rig: each joint's turn is the game node's change from its bind pose (a world
 			// rotation, in model space); its position is the file's own rest offset from its parent
-			// joint turned by the parent's turn - so limbs of other lengths stay in one piece - and
-			// a root's the game node's displacement, which carries the hop and the knockback.
+			// joint turned by the parent's turn - so limbs of other lengths stay in one piece - plus
+			// the game node's own move within its parent since the bind (the game's motions move
+			// nodes as well as turn them: `trans` carries the hop, the knockback and the fall to the
+			// ground, a shoulder slides in a swing; without it a felled character lay in the air and
+			// a sleeve stretched to where its node had been), and a root's the game node's displacement.
+			// The same as the viewer's matricesFor, so what Crystal shows is what the game draws.
 			Matrix unplace = Matrix.Invert(placement);
 			for (int s = 0; s < binding.JointNode.Length; s++)
 			{
@@ -894,6 +898,7 @@ namespace OpenFF.Client
 					// of its own keeps its parent's world turn.
 					Matrix turn, world;
 					Vector3 shift = Vector3.Zero;
+					Vector3 slide = Vector3.Zero;   // the node's move within its parent since the bind, in model space at the bind
 					if (seen)
 					{
 						Matrix now = binding.Nodes[node] * unplace;
@@ -901,6 +906,16 @@ namespace OpenFF.Client
 						shift = now.Translation - binding.GameBind[node].Translation;
 						turn.Translation = Vector3.Zero;
 						world = binding.JointAlign[s][j] * turn;
+						int gameParent = binding.NodeParents != null && node < binding.NodeParents.Length ? binding.NodeParents[node] : -1;
+						if (parent >= 0 && gameParent >= 0 && binding.Seen[gameParent])
+						{
+							Matrix parentNow = binding.Nodes[gameParent] * unplace;
+							Vector3 localNow = (now * Matrix.Invert(parentNow)).Translation;
+							Vector3 localBind = (binding.GameBind[node] * binding.GameBindInverse[gameParent]).Translation;
+							Matrix parentBindTurn = binding.GameBind[gameParent];
+							parentBindTurn.Translation = Vector3.Zero;
+							slide = Vector3.TransformNormal(localNow - localBind, parentBindTurn);
+						}
 					}
 					else
 					{
@@ -911,7 +926,7 @@ namespace OpenFF.Client
 					Vector3 position;
 					if (parent >= 0)
 					{
-						Vector3 offset = pj - binding.JointPos[s][parent];
+						Vector3 offset = pj - binding.JointPos[s][parent] + slide;
 						position = binding.JointNow[s][parent] + Vector3.TransformNormal(offset, binding.JointTurn[s][parent]);
 					}
 					else position = pj + shift;

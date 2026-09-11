@@ -1201,6 +1201,12 @@ function drawInspectedAsset(box) {
   open.onclick = () => openDoc(kind, name);
   box.append(open);
 
+  // A glTF asset's import settings, an importer's way: its normals as the file has them or
+  // recalculated at an angle, applied into the file and revertable.
+  if (kind === 'model' && data && /^assets\/.*\.glb$/i.test(name) && typeof projectState !== 'undefined' && projectState.project) {
+    box.append(normalsCard(name, data));
+  }
+
   // The scene file itself, for reading or a careful edit by hand.
   if (kind === 'scene') {
     const json = document.createElement('button');
@@ -1253,6 +1259,77 @@ function drawInspectedAsset(box) {
   hint.className = 'caveat';
   hint.textContent = 'Double clicking it in the project opens it too.';
   box.append(hint);
+}
+
+/// The Normals card for a .glb of the project's: what the normals are now (the file's own, or
+/// recalculated at an angle), a choice, the angle, Apply and Revert. Apply rewrites the file
+/// (/api/project/models/normals) - the file's own normals are kept inside it, so Revert is exact;
+/// the preview and an open tab of the file are reloaded.
+function normalsCard(name, data) {
+  const card = document.createElement('div');
+  card.className = 'import-card';
+  const head = document.createElement('h3');
+  head.textContent = 'Normals';
+  card.append(head);
+  const now = document.createElement('p');
+  now.className = 'sub';
+  const calculated = data.normalsAngle !== null && data.normalsAngle !== undefined;
+  now.textContent = calculated ? `recalculated at ${Math.round(data.normalsAngle)}\u00b0` : 'the file\u2019s own';
+  card.append(now);
+  const mode = document.createElement('select');
+  mode.title = 'the file\u2019s own: as the model was exported; calculate: from the triangles, smooth across vertices within the angle, a crease sharper than it kept';
+  for (const [v, label] of [['file', 'from the file'], ['calculate', 'calculate']]) { const o = document.createElement('option'); o.value = v; o.textContent = label; mode.append(o); }
+  mode.value = calculated ? 'calculate' : 'file';
+  const angleRow = document.createElement('label');
+  angleRow.className = 'import-angle';
+  angleRow.title = 'smoothing angle: faces meeting at less than this share a normal (smooth); at more, the edge stays hard. 180 smooths everything; 60 is the usual';
+  const angle = document.createElement('input');
+  angle.type = 'range'; angle.min = '0'; angle.max = '180'; angle.step = '1';
+  angle.value = String(calculated ? Math.round(data.normalsAngle) : 60);
+  const angleValue = document.createElement('b');
+  angleValue.textContent = angle.value + '\u00b0';
+  angle.oninput = () => { angleValue.textContent = angle.value + '\u00b0'; };
+  angleRow.append(document.createTextNode('angle '), angle, angleValue);
+  const row = document.createElement('div');
+  row.className = 'button-row';
+  const apply = document.createElement('button');
+  apply.className = 'primary';
+  apply.textContent = 'Apply';
+  const revert = document.createElement('button');
+  revert.textContent = 'Revert';
+  revert.title = 'the file\u2019s own normals back';
+  revert.hidden = !calculated;
+  const showAngle = () => { angleRow.hidden = mode.value !== 'calculate'; };
+  mode.onchange = showAngle;
+  showAngle();
+  const done = async (r) => {
+    if (!r.ok) throw new Error(r.error);
+    say(r.angle === null || r.angle === undefined ? `${shortName(name)}: the file\u2019s own normals` : `${shortName(name)}: normals recalculated at ${Math.round(r.angle)}\u00b0`, 'good');
+    // The open tab first (opening clears the inspector), then the card again with the new state.
+    if (activeDoc && activeDoc.kind === 'model' && activeDoc.name === name && typeof openDoc === 'function') await openDoc('model', name, { reload: true });
+    await inspectAsset('model', name);
+  };
+  apply.onclick = async () => {
+    apply.disabled = true;
+    try {
+      if (mode.value === 'file') {
+        if (!calculated) { say('the normals are the file\u2019s own already'); apply.disabled = false; return; }
+        await done(await api('/api/project/models/normals', { asset: name, revert: true }));
+      } else await done(await api('/api/project/models/normals', { asset: name, angle: Number(angle.value) }));
+    } catch (error) { say(error.message, 'bad'); apply.disabled = false; }
+  };
+  revert.onclick = async () => {
+    revert.disabled = true;
+    try { await done(await api('/api/project/models/normals', { asset: name, revert: true })); }
+    catch (error) { say(error.message, 'bad'); revert.disabled = false; }
+  };
+  row.append(apply, revert);
+  card.append(mode, angleRow, row);
+  const note = document.createElement('p');
+  note.className = 'caveat';
+  note.textContent = 'Written into the .glb; the viewer, exports and the map editor shade by them. The client draws a character unlit, in the game\u2019s own colours, so a character\u2019s normals show here, not in play. The file\u2019s own normals are kept inside the file for Revert.';
+  card.append(note);
+  return card;
 }
 
 /// A live viewer for a model, a picture for anything that is one, nothing otherwise.
@@ -1340,6 +1417,9 @@ function inspectedFacts(kind, data) {
     facts.push(['nodes', (data.nodes || []).length]);
     const textures = [...new Set(data.groups.map(g => g.texture).filter(Boolean))];
     facts.push(['textures', textures.join(', ') || 'none']);
+    // A game model a definition replaces: what the client really draws, and where that is said.
+    if (data.replacedBy) facts.push(['in OpenFF', `drawn as ${data.replacedBy} (defs/models/${shortName(data.name || '').replace(/\.nmdp\.lz$/i, '')}.json)`]);
+    if (data.normalsAngle !== null && data.normalsAngle !== undefined) facts.push(['normals', `recalculated at ${Math.round(data.normalsAngle)}\u00b0`]);
   } else if (kind === 'map' && data.objects) {
     facts.push(['terrain', data.terrain ? shortName(data.terrain) : 'none']);
     facts.push(['characters', data.objects.length]);

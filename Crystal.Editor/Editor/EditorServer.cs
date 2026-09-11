@@ -646,6 +646,38 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/project/models/normals":
+				{
+					// A glTF's normals recalculated from its triangles at an angle - { asset, angle } - or the
+					// file's own put back - { asset, revert: true }. The .glb is rewritten in place; the file's
+					// own normals are kept inside it (_SOURCE_NORMAL) the first time, so a revert is exact.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string asset = body?["asset"]?.GetValue<string>();
+						string gltfPath = GltfBundle.Resolve(_project, asset) ?? throw new ArgumentException("no file " + asset + " in the project");
+						if (!gltfPath.EndsWith(".glb", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("only a .glb is rewritten in place - export the model as .glb first");
+						byte[] file = File.ReadAllBytes(gltfPath);
+						bool revert = body?["revert"]?.GetValue<bool>() ?? false;
+						byte[] rewritten;
+						if (revert)
+						{
+							rewritten = Gltf.RevertNormals(file) ?? throw new ArgumentException("the file has no normals of its own kept to go back to");
+						}
+						else
+						{
+							float angle = (float)(body?["angle"]?.GetValue<double>() ?? 60);
+							rewritten = Gltf.RecalculateNormals(file, angle);
+						}
+						File.WriteAllBytes(gltfPath, rewritten);
+						(float? nowAngle, bool kept) = Gltf.NormalsOf(rewritten);
+						SendJson(context, new { ok = true, asset, bytes = rewritten.Length, angle = nowAngle, source = kept });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/model/carry":
 				{
 					// How a rigged file's geometry is carried: for assets/<name>-rigged.glb, the original's

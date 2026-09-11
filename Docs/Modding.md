@@ -680,7 +680,15 @@ writes, besides the game-format model, `defs/models/j101.json`:
 ```
 
 and the client (`OpenFF/Compat/CharacterMeshes.cs`, `Shared/Data/ModModels.cs`) takes the
-model's draw over wherever the game draws it - field, battle, menus. The game's `j101`
+model's draw over wherever the game draws it - field, battle, menus. That one file is the
+whole of the binding: there is no character definition to it. To see what a running game
+draws, the log says `models: j101 looks like assets/luneth-chibi-rigged.glb` at start and
+`models: j101 first drawn as luneth-chibi-rigged.glb - 25 of 25 joints reached, retargeted`
+at the first draw; in Crystal, the game model (`j101` under Models, in the project panel or
+open) says *in OpenFF: drawn as assets/… (defs/models/j101.json)*. The client reads the
+definition from the mod folder it plays from - *Play in OpenFF* exports the project into the
+client's `mods/<project>` first, so a save in Crystal reaches a game started after it, not
+one already running (start the game again). The game's `j101`
 still loads and animates - its node tree, its `.ncap` motions, the hand the weapon hangs
 from, its shadow, alpha and LOD are untouched - and at each draw the stand-in walks the
 model's SBC exactly as the game would, with the shapes masked off and the frame's node
@@ -763,7 +771,12 @@ regions; the file is carried into the T-pose about the fitted joints. The defini
 `"fitted": true`, and the client drives the file by retargeting - the game's rotations about
 the file's own joints, positions down the file's own tree (the other-rig path, with every bone
 matched by its own name and no fit of its own) - as the viewer does, which tells a fitted
-skeleton from the game's by where its joints sit. Limbs of the file's own lengths bend where
+skeleton from the game's by where its joints sit. The game's motions move nodes as well as
+turn them - `trans` carries the hop, the knockback and the fall to the ground, a shoulder
+slides in a swing - and the retarget carries each node's move within its parent along with
+its turn (it once carried only the root's: a felled character lay in the air with a sleeve
+stretched to where its node had been, while Crystal, which always carried them, showed it
+right). Limbs of the file's own lengths bend where
 the file bends: no pivot a hand's breadth from the elbow, no forearm that turns about a point
 beyond it. What the game's proportions still decide are contacts: a hand that reaches the hip
 on the game's Luneth reaches wherever a shorter arm reaches. The DS format has one skeleton per
@@ -830,7 +843,8 @@ the **inspector** as a card above the model's facts - the brush's bone, radius, 
 mirror and its buttons; the cuts' sliders and marker chips; the clip rows - so the view itself
 never resizes as a tool comes and goes, and the readout of the vertex under the cursor floats
 over the view's bottom right for the same reason. Every tool has a key, printed on its button:
-**Q** look (Esc too), **B** bones, **W** wireframe, **H** heat map, **C** all bones' colours,
+**Q** look (Esc too), **B** bones, **W** wireframe, **G** the backdrop (dark, grey, light, sand -
+a stretched sleeve shows against a light one), **H** heat map, **C** all bones' colours,
 **1 2 3 4** assign / add / erase / smooth, **X** cuts, **M** markers, **L** clips; with a brush
 on, **[ ]** step the radius and **{ }** the strength, **Ctrl+Z** undoes a stroke, **Ctrl+S**
 saves the weights, and **Up / Down** step the bone once one is picked in the hierarchy. The
@@ -844,6 +858,19 @@ strength: a full brush fills the ring, a light one is a dot at its middle) and t
 the cursor; **Alt + drag** orbits and **Alt + click**, not moved, picks the bone under the
 cursor; the middle button pans, the wheel zooms. With no brush on, the left and right buttons
 both orbit.
+
+**Normals, an importer's way.** A `.glb` asset picked in the project panel has a *Normals*
+card in the inspector, as Unity's model importer has: *from the file* (as exported) or
+*calculate*, with a smoothing angle - faces meeting at less than it share a normal, an edge
+sharper than it stays hard; 60° is the usual, 180° smooths everything - and *Apply*. The
+normals are recalculated from the triangles across the seams where the file split a vertex
+(a UV island's edge, a primitive's edge), so those smooth over too, and written into the
+`.glb` (`/api/project/models/normals`, `Gltf.RecalculateNormals`); the file's own are kept
+inside it (`_SOURCE_NORMAL`, `asset.extras.normals` records the angle) so *Revert* is exact,
+and the card and the facts say which the file has. The viewer, the map editor and exports
+shade by them. The client draws a character unlit, in the game's own material colours, as
+the DS does, so a character's normals show in Crystal and in Blender, not in play. A file
+faceted on export - every vertex its face's normal, the chibi's look - is the case for it.
 
 **And paints the weights.** Pick a brush on a skinned file of the project's: the mesh becomes
 a heat map of one bone's weight (blue none, green half, red all) and the left button paints
@@ -872,8 +899,9 @@ vertex with nothing given its neighbours' heaviest bone. Nothing is ever handed 
 or a stray bone: erasing `L_kata` from a sleeve cannot put it on `trans`. *Clear bone* takes
 the picked bone off the whole mesh the same way, *Smooth all* is one smoothing pass over everything (each an undo step), *Discard* throws
 the unsaved strokes away, and *Redo auto-rig* runs the auto-rig again from the original,
-unrigged file (`<name>.glb` beside `<name>-rigged.glb`) and starts over; radius and strength are the brush, more at its centre; *mirror* paints the
-x-mirrored spot with the `L_`/`R_` counterpart. The brush is a ring drawn on the surface under
+unrigged file (`<name>.glb` beside `<name>-rigged.glb`) and starts over; radius and strength are the brush, more at its centre; *mirror* (off
+unless ticked: few models are symmetric to the vertex, and a mirrored stroke lands where the
+other side's mesh is not) paints the x-mirrored spot with the `L_`/`R_` counterpart. The brush is a ring drawn on the surface under
 the cursor, in that surface's plane, yellow for add, red for erase, blue for smooth - and it
 paints the surface it sits on: out from the touched triangle along the mesh's own edges to the
 ring's radius, not a ball about the point, so a sleeve is painted without the chest beneath

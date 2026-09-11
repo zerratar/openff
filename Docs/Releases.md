@@ -157,7 +157,17 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   brushes, X, M, L), [ ] and { } step the brush, Ctrl+Z and Ctrl+S undo and save; painting,
   Ctrl held erases and Shift smooths for the stroke, the right button dragged sets radius
   (sideways) and strength (up) with the ring and the numbers following, Alt + drag orbits
-  and Alt + click picks the bone.
+  and Alt + click picks the bone. *Mirror* is off unless ticked; G cycles the backdrop
+  (dark, grey, light, sand).
+- **Normals, an importer's way.** A `.glb` asset in the project panel has a Normals card in
+  the inspector: from the file, or calculated from the triangles at a smoothing angle (across
+  the seams where the file split a vertex), applied into the file with the file's own kept
+  inside it for an exact Revert. For a model exported faceted.
+- **The retarget carries a node's move.** The game's motions move nodes as well as turn them
+  (`trans` in a hop, a knockback, the fall); a retargeted glTF now follows those moves as the
+  viewer always did - a felled character lies on the ground rather than at standing height,
+  a sleeve is not stretched to where its shoulder had been. Drive verbs `motion <id> [loop]
+  [all] [end]` and `hp <member> <hp>` for looking at a pose in play.
 - **Another rig's model, retargeted by the client.** A definition may name a glTF rigged
   another way (Mixamo, Tripo, Rigify): bones matched by a table of the usual names and the
   definition's `"bones"`, the file scaled and stood on its feet with its up and facing found

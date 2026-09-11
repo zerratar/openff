@@ -107,6 +107,12 @@ namespace Crystal.Editor
 
 		/// <summary>A glTF's skin, when it has one: what the viewer skins with a game model's motions (model-viewer.js).</summary>
 		public ModelSkin Skin { get; set; }
+
+		/// <summary>A glTF's normals: recalculated at this angle (Gltf.RecalculateNormals), or null for the file's own.</summary>
+		public float? NormalsAngle { get; set; }
+
+		/// <summary>True when the file's own normals are still kept beside recalculated ones, for a revert.</summary>
+		public bool NormalsSource { get; set; }
 	}
 
 	/// <summary>

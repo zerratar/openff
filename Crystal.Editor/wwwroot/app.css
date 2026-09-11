@@ -2281,6 +2281,17 @@ header h1 .gem {
   font-weight: 500; font-size: 11px; padding: 1px 6px; border: 1px solid #556; border-left-width: 4px; border-radius: 3px;
   color: var(--ink); background: color-mix(in srgb, var(--panel) 85%, transparent);
 }
+/* A glTF asset's import settings in the project inspector (Normals). */
+#inspector .import-card { margin: 10px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: #171b21; font-size: 12px; }
+#inspector .import-card h3 { margin: 0 0 4px; }
+#inspector .import-card .sub { margin: 0 0 8px; }
+#inspector .import-card select { width: 100%; margin-bottom: 8px; }
+#inspector .import-card .import-angle { display: flex; align-items: center; gap: 6px; width: auto; margin: 0 0 8px; color: var(--dim); }
+#inspector .import-card .import-angle input[type=range] { flex: 1; min-width: 0; width: auto; margin: 0; padding: 0; border: 0; background: transparent; }
+#inspector .import-card .import-angle b { font-weight: 500; min-width: 34px; text-align: right; color: var(--ink); }
+#inspector .import-card .import-angle[hidden] { display: none; }
+#inspector .import-card .button-row { display: flex; gap: 6px; }
+#inspector .import-card .caveat { margin: 8px 0 0; }
 /* The tool card in the inspector: the lifted controls, stacked. */
 #inspector .tool-card { padding: 0 0 10px; margin-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 12px; }
 #inspector .tool-card h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink); text-transform: none; letter-spacing: .02em; }

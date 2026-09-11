@@ -2839,6 +2839,8 @@ function wireModelToolbox(node, viewer, model) {
       shown: () => Boolean(bones && model.skin), active: () => bones.checked, click: () => set(bones, !bones.checked) },
     { id: 'wire', icon: 'wireframe', key: 'w', title: 'the mesh\u2019s edges over the model',
       shown: () => Boolean(wire), active: () => wire.checked, click: () => set(wire, !wire.checked) },
+    { id: 'backdrop', icon: 'backdrop', key: 'g', title: 'the backdrop: dark, grey, light, sand (the game\u2019s desert) - a stretched sleeve shows against a light one',
+      shown: () => typeof viewer.cycleBackdrop === 'function', active: () => false, click: () => { viewer.cycleBackdrop(); } },
     { id: 'heat', icon: 'heat', key: 'h', title: 'heat map: colour the model by the picked bone\u2019s weight - blue none, green half, red all (off: the shaded model, still painted)',
       shown: () => paintable && paintOn.checked, active: () => heat.checked, click: () => set(heat, !heat.checked) },
     { id: 'heat-all', icon: 'palette', key: 'c', title: 'all bones: every bone at once, each in its own colour (the hierarchy shows which); off: the picked bone alone',

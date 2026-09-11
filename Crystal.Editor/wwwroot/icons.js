@@ -123,6 +123,7 @@ ICONS.smooth = '<path d="M2 10c2-4 4-4 6 0s4 4 6 0"/><path d="M2 6.5c2-3 4-3 6 0
 ICONS.cuts = '<path d="M8 2v12"/><ellipse cx="8" cy="5" rx="4.5" ry="1.6"/><ellipse cx="8" cy="9.2" rx="5.2" ry="1.7"/><ellipse cx="8" cy="12.6" rx="3.6" ry="1.3"/>';
 ICONS.markers = '<circle cx="8" cy="7" r="3"/><path d="M8 10v4M5.5 14h5"/><circle cx="8" cy="7" r=".9"/>';
 ICONS.clips = '<path d="M3 3h10v10H3z"/><path d="M6.5 5.5v5l4-2.5z"/>';
+ICONS.backdrop = '<path d="M2.5 2.5h11v11h-11z"/><path d="M2.5 13.5 13.5 2.5" /><path d="M8 13.5 13.5 8" opacity=".5"/>';
 ICONS.undo = '<path d="M5 6H2.5V3.5"/><path d="M2.8 6.2A5.5 5.5 0 1 1 3 10.5"/>';
 ICONS.save = '<path d="M3 3h8l2 2v8H3z"/><path d="M5 3v3.5h5V3M5 13V9.5h6V13"/>';
 // A monster: a horned head; a formation: three of them in a row.

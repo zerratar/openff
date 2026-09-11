@@ -82,6 +82,12 @@ namespace Crystal.Editor
 			bundle.Vertices = vertexBase;
 			bundle.Triangles = file.Triangles;
 			bundle.Skin = SkinOf(project, name, file);
+			// Whether the normals are the file's own or recalculated (the inspector's Normals card).
+			if (path.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))
+			{
+				try { (float? angle, bool source) = Gltf.NormalsOf(File.ReadAllBytes(path)); bundle.NormalsAngle = angle; bundle.NormalsSource = source; }
+				catch (Exception) { /* a file the writer cannot read stays as it is */ }
+			}
 			if (file.Meshes.Count > 0)
 			{
 				bundle.Centre = new[] { (file.Min[0] + file.Max[0]) / 2, (file.Min[1] + file.Max[1]) / 2, (file.Min[2] + file.Max[2]) / 2 };

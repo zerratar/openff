@@ -10,6 +10,9 @@
 //   flag <group>:<index> [on|off]  a game flag set (or cleared) - a story state without playing there
 //   item <itemId> [count]          the item into the bag (Game.Party.AddItem); equip <member> <itemId> puts it on
 //   battle <formation> [map]       a fight with that formation (Game.Battle.Start)
+//   motion <index> [loop] [all] [end]  the hero plays a motion by id, b_b01 bound first (706 the fall, 4101 the win pose): a pose on a map, in daylight;
+//                                  "all" every character that has it (a battle's hero), "end" held at its last frame
+//   hp <member> <hp>               a party member's HP (Game.Party.SetHp); 0 fells them - in a battle the fall is played and held
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
@@ -236,6 +239,53 @@ namespace OpenFF.Client
 						else { OpenFF.Game.Battle.Start(a, b); Log.Write(LogChannel.File, "drive: battle " + a + " on map " + b); }
 					}
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: " + step.Verb + " failed: " + ex.Message); }
+					break;
+				}
+				case "motion":
+				{
+					// The hero plays a motion by its id, through the API as a mod would: "motion 706" (the
+					// fall), "motion 4101 loop" (the win pose, looping). The battle set (b_b01) is bound
+					// first, so a battle motion plays on the field too - the way to look at a model's
+					// pose on a map, in daylight, without fighting for it.
+					// "motion 706 all end": every character on the scene that has the motion (a battle's
+					// hero, whom Game.Hero does not reach) plays it, held at its last frame.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 1 || !int.TryParse(bits[0], out int index)) { Log.Write(LogChannel.General, "drive: motion wants <index> [loop] [all] [end]"); break; }
+					bool loop = Array.Exists(bits, b => string.Equals(b, "loop", StringComparison.OrdinalIgnoreCase));
+					bool all = Array.Exists(bits, b => string.Equals(b, "all", StringComparison.OrdinalIgnoreCase));
+					bool end = Array.Exists(bits, b => string.Equals(b, "end", StringComparison.OrdinalIgnoreCase));
+					try
+					{
+						if (all)
+						{
+							int played = 0;
+							for (int ctrl = 0; ctrl < 22; ctrl++)
+							{
+								if (!GlobalScope.characterMng.isValidCharacter(ctrl) || !GlobalScope.characterMng.isMotion(ctrl, index)) continue;
+								GlobalScope.characterMng.startMotion(ctrl, index, loop, 0u);
+								if (end) GlobalScope.characterMng.setCurrentFrame(ctrl, GlobalScope.characterMng.getMaxFrame(ctrl));
+								played++;
+							}
+							Log.Write(LogChannel.File, "drive: motion " + index + " on " + played + " character(s)" + (end ? " at the end" : ""));
+						}
+						else
+						{
+							OpenFF.Game.Hero.BindMotions("b_b01");
+							OpenFF.Game.Hero.PlayMotion(index, loop);
+							Log.Write(LogChannel.File, "drive: motion " + index + (loop ? " loop" : ""));
+						}
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: motion failed: " + ex.Message); }
+					break;
+				}
+				case "hp":
+				{
+					// A party member's HP set (Game.Party.SetHp): "hp 0 0" fells member 0 - in a battle the
+					// death state plays the fall (706) and holds its last frame, the way to look at it.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 2 || !int.TryParse(bits[0], out int member) || !int.TryParse(bits[1], out int hp)) { Log.Write(LogChannel.General, "drive: hp wants <member> <hp>"); break; }
+					try { OpenFF.Game.Party.SetHp(member, hp); Log.Write(LogChannel.File, "drive: hp " + hp + " on member " + member); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: hp failed: " + ex.Message); }
 					break;
 				}
 				case "submit":

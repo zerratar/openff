@@ -154,9 +154,15 @@ function makeModelViewer(canvas, status, options = {}) {
     gl.viewport(0, 0, canvas.width, canvas.height);
   }
 
+  // The backdrop: the editor's dark by default; a grey, a light and a sand (the game's desert,
+  // for a look at a model as the game shows it) to switch through.
+  const BACKDROPS = [[0.09, 0.10, 0.12], [0.42, 0.44, 0.47], [0.86, 0.87, 0.88], [0.82, 0.74, 0.50]];
+  let backdrop = 0;
+
   function draw() {
     resize();
-    gl.clearColor(0.09, 0.10, 0.12, 1);
+    const bg = BACKDROPS[backdrop];
+    gl.clearColor(bg[0], bg[1], bg[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
@@ -1240,6 +1246,13 @@ function makeModelViewer(canvas, status, options = {}) {
     zoom(amount) {
       distance = Math.max(0.05, distance * Math.pow(1.1, amount));
       draw();
+    },
+
+    /// The next backdrop (dark, grey, light, sand), or the one asked for; returns the index.
+    cycleBackdrop(index) {
+      backdrop = index === undefined ? (backdrop + 1) % BACKDROPS.length : Math.max(0, Math.min(BACKDROPS.length - 1, index));
+      draw();
+      return backdrop;
     },
 
     /// Drags the view sideways and up in the picture's own plane, by pixels: what the cursor

@@ -446,7 +446,7 @@
           </select>
           <label>radius <input type="range" class="paint-radius" min="0.1" max="4" step="0.1" value="0.8"><span class="paint-radius-value">0.8</span></label>
           <label>strength <input type="range" class="paint-strength" min="0.02" max="1" step="0.02" value="0.3"><span class="paint-strength-value">0.30</span></label>
-          <label class="toggle" title="paint the x-mirrored spot too, with the L_/R_ counterpart bone"><input type="checkbox" class="paint-mirror" checked> mirror</label>
+          <label class="toggle" title="paint the x-mirrored spot too, with the L_/R_ counterpart bone (off by default: few models are symmetric to the vertex, and the mirrored stroke lands where the other side's mesh is not)"><input type="checkbox" class="paint-mirror"> mirror</label>
           <button class="paint-undo" title="Ctrl+Z">Undo</button>
           <button class="paint-clear" title="take the picked bone off every vertex, nothing else changed (one undo step)">Clear bone</button>
           <button class="paint-smooth-all" title="one smoothing pass over the whole mesh (one undo step)">Smooth all</button>
