@@ -54,7 +54,8 @@ namespace OpenFF.Client
 
         private const float TextSpaceWidth = 800f;
         private const float TextSpaceHeight = 480f;
-        private const int FontSize = 12;
+        // In the game's 800 x 480 text space, so it scales with the window: 8 reads as 12 px at 1200 wide and keeps the long lines inside the view.
+        private const int FontSize = 8;
 
         /// <summary>Draw calls and vertices the native renderer has issued so far this frame; the overlay resets them when it draws.</summary>
         public static int DrawCalls;
@@ -134,13 +135,10 @@ namespace OpenFF.Client
                 Toggle(now, Keys.F4, Layer.Sprites);
                 Toggle(now, Keys.F5, Layer.World);
                 Toggle(now, Keys.F6, Layer.Stats);
-                // F7: the free camera - fly about the scene with the mouse and WASD, the player's input held off (FreeCamera).
-                if (Pressed(now, Keys.F7)) FreeCamera.Toggle(Game);
             }
-            else if (FreeCamera.Active && Pressed(now, Keys.F7))
-            {
-                FreeCamera.Toggle(Game);   // the overlay went off with the camera still flying: F7 still lands
-            }
+            // F7: the free camera - fly about the scene with the mouse and WASD, the player's input
+            // held off (FreeCamera) - overlay or no overlay; its line shows while the overlay is up.
+            if (Pressed(now, Keys.F7)) FreeCamera.Toggle(Game);
             _previous = now;
         }
 

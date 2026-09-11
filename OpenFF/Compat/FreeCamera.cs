@@ -1,5 +1,5 @@
 // A free-flying camera for looking closely at what the game draws - a seam in a mod's
-// texture, a sleeve's weights - toggled from the debug overlay (F1, then F7).
+// texture, a sleeve's weights - toggled with F7 (the debug overlay, F1, shows its line).
 //
 // The game's camera code keeps running and keeps calling NNS_G3dGlbLookAt with where it
 // wants the eye; while the free camera is on, that call takes this camera's eye, target and
@@ -128,9 +128,11 @@ namespace OpenFF.Client
 			}
 
 			// The keys move along the view.
+			// The game's LookAt builds its x axis as up x (eye - target): the screen's right is
+			// forward x up in this world's handedness, not up x forward.
 			Vector3 forward = Forward();
-			Vector3 right = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, forward));
-			if (right.LengthSquared() < 1e-6f) right = Vector3.UnitX;
+			Vector3 right = Vector3.Cross(forward, Vector3.UnitY);
+			if (right.LengthSquared() < 1e-6f) right = -Vector3.UnitX; else right.Normalize();
 			Vector3 move = Vector3.Zero;
 			if (keys.IsKeyDown(Keys.W) || keys.IsKeyDown(Keys.Up)) move += forward;
 			if (keys.IsKeyDown(Keys.S) || keys.IsKeyDown(Keys.Down)) move -= forward;
