@@ -151,7 +151,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   markers, own clips - and the active tool's properties sit in the inspector as a card, so
   the view never resizes as a tool comes and goes; the readout of the vertex under the cursor
   floats over the view's bottom right. The middle button (or Shift with the right) drags the
-  view, in the model viewer as in the map editor.
+  view, in the model viewer as in the map editor. With a bone picked in the hierarchy, Up and
+  Down step to the next bone - from the 3D view too, so the bone under the brush is swapped
+  without leaving it.
 - **Another rig's model, retargeted by the client.** A definition may name a glTF rigged
   another way (Mixamo, Tripo, Rigify): bones matched by a table of the usual names and the
   definition's `"bones"`, the file scaled and stood on its feet with its up and facing found

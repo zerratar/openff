@@ -525,6 +525,7 @@ function drawHierarchy() {
       shown++;
       const row = document.createElement('li');
       row.className = 'row' + (activeDoc.selection === child.ref ? ' on' : '') + (child.dim ? ' dim' : '');
+      if (child.ref) row.dataset.ref = child.ref;   // the arrow keys step through the rows by it
       // A tree inside the group: children indented under their parent (scene objects).
       if (child.depth) row.style.paddingLeft = (20 + child.depth * 14) + 'px';
       // A row with children of its own folds them away and back (bones).
@@ -1084,6 +1085,27 @@ document.addEventListener('keydown', (event) => {
     }
   }
   moveInList(event.key);
+});
+
+// With a bone picked in the hierarchy, Up and Down step to the bone above or below it as the
+// tree shows them (folded children skipped), wherever the focus has gone since - the 3D view,
+// the inspector's card - so the bone under the brush is swapped without a trip back to the
+// tree. Not from the project panel (its arrows walk the assets) nor from a field.
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+  if (event.ctrlKey || event.altKey || event.metaKey) return;
+  if (!activeDoc || typeof activeDoc.selection !== 'string' || !activeDoc.selection.startsWith('bone:')) return;
+  const target = event.target;
+  if (target && target.closest && target.closest('#project, input, select, textarea, [contenteditable=""], [contenteditable="true"]')) return;
+  const rows = Array.from(document.querySelectorAll('#hierarchy .row[data-ref^="bone:"]'));
+  const at = rows.findIndex(row => row.dataset.ref === activeDoc.selection);
+  if (at < 0) return;
+  event.preventDefault();
+  const next = rows[at + (event.key === 'ArrowDown' ? 1 : -1)];
+  if (!next) return;
+  next.click();   // the row's own click: selection, the view's pickBone, the redraws
+  const shown = document.querySelector('#hierarchy .row.on');
+  if (shown) shown.scrollIntoView({ block: 'nearest' });
 });
 
 /// The preview and facts for whatever was clicked in the project.

@@ -835,7 +835,9 @@ over the view's bottom right for the same reason.
 a heat map of one bone's weight (blue none, green half, red all) and the left button paints
 while the right button orbits and the middle pans. Pick the bone from the card's list, from
 the hierarchy's *Bones* tree (the file's joints nested as the file has them, each row folding
-its children away; the inspector says what the bone moves), or Alt+click the mesh to take
+its children away; the inspector says what the bone moves; with a bone picked there, Up and
+Down step to the one above or below as the tree shows them, from the 3D view too - not from
+the project panel, whose arrows walk the assets), or Alt+click the mesh to take
 the bone under the cursor. Under the cursor, the vertex's bones are read out with their
 weights (`hara 50% · mune 42% · kosi 8%`), each chip in its bone's colour; *all bones* colours
 the whole mesh by each vertex's heaviest bone, the hierarchy's bone rows carrying the same
