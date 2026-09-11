@@ -1204,7 +1204,12 @@ and heroes beyond the four.
   service(s), 2 behaviour type(s)`, your own `Game.Log` lines, and `engine: WARNING ...` for
   an exception a script threw - the game goes on; the mod's call did not.
 - **F1** in the client: the debug overlay lists the engine, the mods, each service's
-  `DebugLines()`, the objects and their behaviours.
+  `DebugLines()`, the objects and their behaviours. **F7** while it is up is the **free
+  camera**: the mouse looks, W A S D fly along the view, E / Space up, Q / C down, Shift four
+  times the pace and Ctrl a quarter, the wheel sets the pace, R goes back to the game's eye,
+  F7 or Esc puts the game's camera back. The game runs on underneath with the player's input
+  held off, so a seam in a texture or a sleeve's weights can be looked at from a hand's
+  breadth away. A drive places it too: `camera x y z [yaw] [pitch]`, `camera off`.
 - `--nomods` starts the client without mod code (the mods' files still apply).
 - `Docs/Drives/` and `--drive=<file>` play a scripted run without touching the keyboard, for
   a test that repeats.

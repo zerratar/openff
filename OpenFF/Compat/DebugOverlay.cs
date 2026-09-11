@@ -11,6 +11,8 @@
 //   F5  world    which part of the game is running, the loaded stage and its type,
 //                the hero's position and chip spot, whether the field is mirrored
 //   F6  stats    frame time, draw calls and vertices this frame, memory, viewport
+//   F7  free camera   fly about the scene with the mouse and WASD, the player's input held
+//                off meanwhile (FreeCamera.cs) - for a close look at what is drawn
 //
 // It is a DrawableGameComponent drawn after the game and before the screenshot
 // component, so screenshots taken with --screenshot-every include it: a headless run
@@ -110,7 +112,7 @@ namespace OpenFF.Client
                 }
             }
             game.Components.Add(overlay);
-            Log.Write(LogChannel.General, "debug overlay: F1 toggles; F2 boxes, F3 labels, F4 sprites, F5 world, F6 stats" + (Active ? (" (on: " + overlay._layers + ")") : ""));
+            Log.Write(LogChannel.General, "debug overlay: F1 toggles; F2 boxes, F3 labels, F4 sprites, F5 world, F6 stats, F7 free camera" + (Active ? (" (on: " + overlay._layers + ")") : ""));
         }
 
         public override void Update(GameTime gameTime)
@@ -132,6 +134,12 @@ namespace OpenFF.Client
                 Toggle(now, Keys.F4, Layer.Sprites);
                 Toggle(now, Keys.F5, Layer.World);
                 Toggle(now, Keys.F6, Layer.Stats);
+                // F7: the free camera - fly about the scene with the mouse and WASD, the player's input held off (FreeCamera).
+                if (Pressed(now, Keys.F7)) FreeCamera.Toggle(Game);
+            }
+            else if (FreeCamera.Active && Pressed(now, Keys.F7))
+            {
+                FreeCamera.Toggle(Game);   // the overlay went off with the camera still flying: F7 still lands
             }
             _previous = now;
         }
@@ -437,7 +445,9 @@ namespace OpenFF.Client
                 .Append("   F3 labels ").Append(State(Layer.Labels))
                 .Append("   F4 sprites ").Append(State(Layer.Sprites))
                 .Append("   F5 world ").Append(State(Layer.World))
-                .Append("   F6 stats ").Append(State(Layer.Stats)).Append('\n');
+                .Append("   F6 stats ").Append(State(Layer.Stats))
+                .Append("   F7 free camera ").Append(FreeCamera.Active ? "[on]" : "[off]").Append('\n');
+            if (FreeCamera.Active) _text.Append(FreeCamera.Describe()).Append('\n');
         }
 
         private string State(Layer layer) => (_layers & layer) != 0 ? "[on]" : "[off]";

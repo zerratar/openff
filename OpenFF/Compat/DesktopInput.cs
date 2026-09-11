@@ -91,6 +91,8 @@ namespace OpenFF.Client
 				{
 					return 0;
 				}
+				// The free camera has the keys (WASD, Q, E, Space...): nothing reads as the pad meanwhile, mods included.
+				if (FreeCamera.Active) return 0;
 				KeyboardState keys = Keyboard.GetState();
 				bool real = _game.IsActive;
 				int bits = 0;
@@ -338,6 +340,16 @@ namespace OpenFF.Client
 				return;
 			}
 
+			// The free camera flies on the keys and the mouse while it is on (it gates IsTyping too).
+			if (FreeCamera.Active)
+			{
+				double now = _frameClock.Elapsed.TotalSeconds;
+				FreeCamera.Update(_game, (float)(now - _lastFrameSeconds));
+				_lastFrameSeconds = now;
+				return;
+			}
+			_lastFrameSeconds = _frameClock.Elapsed.TotalSeconds;
+
 			// A text field owns the keyboard and mouse while it is up.
 			if (IsTyping)
 			{
@@ -347,9 +359,12 @@ namespace OpenFF.Client
 			UpdateMouse();
 		}
 
-		/// <summary>True while something other than the game owns input: a text field, the mod list, or a mod that captured it (Game.Input.Capture).</summary>
+		private static readonly System.Diagnostics.Stopwatch _frameClock = System.Diagnostics.Stopwatch.StartNew();
+		private static double _lastFrameSeconds;
+
+		/// <summary>True while something other than the game owns input: a text field, the mod list, a mod that captured it (Game.Input.Capture), or the debug overlay's free camera flying.</summary>
 		private static bool IsTyping =>
-			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || PauseMenu.IsOpen || EngineInput.Captured;
+			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || PauseMenu.IsOpen || EngineInput.Captured || FreeCamera.Active;
 
 		private static void UpdateMouse()
 		{

@@ -173,6 +173,10 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   inspector says which game model the client draws it in place of (the whole binding is one
   file, `defs/models/<model>.json`, a click away), and switches or clears it by hand; the
   Models list tags both tiles (`→ j101` on the file, `← luneth-chibi-rigged` on the model).
+- **A free camera in the client.** F7 on the debug overlay (F1): the mouse looks, WASD fly,
+  E/Q up and down, Shift and Ctrl the pace, the wheel too, R back to the game's eye, F7 or
+  Esc off. The game runs on with the player's input held off - a close look at what is drawn.
+  A drive's `camera x y z yaw pitch` places it for a screenshot.
 - **Textures at any size in OpenFF.** The DS format's 64 × 64 (or 8 to 1024) is the Steam
   game's ceiling, not the client's: on an OpenFF project *Replace with a PNG…* keeps a larger
   picture at its own size as `textures/<name>.png`, exported with the mod, and the client

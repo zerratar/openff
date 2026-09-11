@@ -13,6 +13,7 @@
 //   motion <index> [loop] [all] [end]  the hero plays a motion by id, b_b01 bound first (706 the fall, 4101 the win pose): a pose on a map, in daylight;
 //                                  "all" every character that has it (a battle's hero), "end" held at its last frame
 //   hp <member> <hp>               a party member's HP (Game.Party.SetHp); 0 fells them - in a battle the fall is played and held
+//   camera <x> <y> <z> [yaw] [pitch]  the free camera (F7) placed there, in world units and degrees, for a screenshot from a chosen eye; "camera off" gives the game its eye back
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
@@ -276,6 +277,20 @@ namespace OpenFF.Client
 						}
 					}
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: motion failed: " + ex.Message); }
+					break;
+				}
+				case "camera":
+				{
+					// The free camera (the debug overlay's F7) placed for a screenshot: "camera x y z [yaw] [pitch]"
+					// in world units and degrees (yaw 0 looks down +Z, pitch positive up); "camera off" gives the
+					// game its eye back. Player input is held off while it is on, as with F7.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length == 1 && string.Equals(bits[0], "off", StringComparison.OrdinalIgnoreCase)) { FreeCamera.Off(GlobalScope.m_Graphics?.getGame()); break; }
+					float[] v = new float[5];
+					bool ok = bits.Length >= 3;
+					for (int i = 0; ok && i < Math.Min(5, bits.Length); i++) ok = float.TryParse(bits[i], NumberStyles.Float, CultureInfo.InvariantCulture, out v[i]);
+					if (!ok) { Log.Write(LogChannel.General, "drive: camera wants <x> <y> <z> [yaw] [pitch], or off"); break; }
+					FreeCamera.Place(new Microsoft.Xna.Framework.Vector3(v[0], v[1], v[2]), v[3], bits.Length > 4 ? v[4] : 0f, GlobalScope.m_Graphics?.getGame());
 					break;
 				}
 				case "hp":

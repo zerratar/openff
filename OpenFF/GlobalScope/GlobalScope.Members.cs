@@ -11673,6 +11673,9 @@ internal static partial class GlobalScope
 
 						internal static void NNS_G3dGlbLookAt(VecFx32 camPos, VecFx32 camUp, VecFx32 target)
 						{
+							// PORT: the debug overlay's free camera (F1, F7) takes the eye while it is on; the
+							// game's own values are left as they are, to be back the moment it is off.
+							OpenFF.Client.FreeCamera.Take(ref camPos, ref camUp, ref target);
 							VecFx32 vecFx = nitro_reuse_x;
 							VecFx32 vecFx2 = nitro_reuse_y;
 							VecFx32 vecFx3 = nitro_reuse_z;
