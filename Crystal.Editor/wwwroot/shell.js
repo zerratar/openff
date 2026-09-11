@@ -349,6 +349,7 @@ function activate(id) {
   drawInspector();
   syncHash();
   if (doc.onShow) doc.onShow();
+  noteSession();   // the focused tab is part of the session (debounced; held while restoring)
 }
 
 function closeDoc(id) {
@@ -369,6 +370,9 @@ function closeDoc(id) {
     removeGroup(group);
   }
 
+  // The session follows: a tab closed stays closed on the next load (activate notes it too,
+  // but a tab closed behind the active one, or the last one, went unnoted).
+  noteSession();
   if (activeDoc === doc) {
     activeDoc = null;
     const next = (activeGroup && activeGroup.active)
@@ -2671,6 +2675,18 @@ function noteSession() {
     api('/api/project/session', sessionSnapshot()).catch(() => {});
   }, 600);
 }
+
+// A save still pending when the page goes (a refresh right after closing a tab) is sent on
+// the way out, with keepalive so the browser lets it finish; else the tab just closed would
+// be back on the next load.
+window.addEventListener('pagehide', () => {
+  if (!sessionTimer || sessionHold || typeof projectState === 'undefined' || !projectState.project) return;
+  clearTimeout(sessionTimer);
+  sessionTimer = null;
+  try {
+    fetch(wsUrl('/api/project/session'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(sessionSnapshot()), keepalive: true }).catch(() => {});
+  } catch (error) { /* on the way out */ }
+});
 
 /// Opens what the project's session.json says was open. True when it opened anything
 /// or set the panel; false when there was nothing to go on, so the caller falls back.
