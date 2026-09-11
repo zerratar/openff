@@ -11968,6 +11968,27 @@ internal static partial class GlobalScope
 							pRenderObj.flag &= (uint)(~flag);
 						}
 
+						/// <summary>
+						/// PORT: LoadTexture for a texture with a name (a package's dictionary entry): a mod's
+						/// PNG of that name (textures/&lt;name&gt;.png, OpenFF.Client.TextureOverrides) is
+						/// uploaded in its place at the PNG's own size - the texture coordinates are
+						/// normalised by the material's declared size, not the picture's, so it maps the same -
+						/// with linear filtering; else the package's texels as ever.
+						/// </summary>
+						internal static uint LoadTextureNamed(string texName, uint fmt, uint sizeS, uint sizeT, uint color0, ushort[] texData, int iTexDataOffset, uint[] tex4x4Data, int iTex4x4DataOffset, ushort[] tex4x4IdxData, int iTex4x4IdxDataOffset, ushort[] plttData, int iPlttDataOffset, uint wrap)
+						{
+							if (OpenFF.Client.TextureOverrides.Any && OpenFF.Client.TextureOverrides.TryGet(texName, null, out int ow, out int oh, out byte[] rgba))
+							{
+								uint own = GenTexture(ow, oh, rgba, wrap, 9729u, 5121u);
+								if (own != 0)
+								{
+									texCount++;
+									return own;
+								}
+							}
+							return LoadTexture(fmt, sizeS, sizeT, color0, texData, iTexDataOffset, tex4x4Data, iTex4x4DataOffset, tex4x4IdxData, iTex4x4IdxDataOffset, plttData, iPlttDataOffset, wrap);
+						}
+
 						internal static uint LoadTexture(uint fmt, uint sizeS, uint sizeT, uint color0, ushort[] texData, int iTexDataOffset, uint[] tex4x4Data, int iTex4x4DataOffset, ushort[] tex4x4IdxData, int iTex4x4IdxDataOffset, ushort[] plttData, int iPlttDataOffset, uint wrap)
 						{
 							int num = 8 << (int)sizeS;
@@ -12249,7 +12270,8 @@ internal static partial class GlobalScope
 								vramKey.list[0].pTex = pTex;
 								vramKey.list[0].dictTexData = array;
 								vramKey.list[0].fmt = (array[0] >> 26) & 7;
-								vramKey.list[0].tex = LoadTexture((array[0] >> 26) & 7, (array[0] >> 20) & 7, (array[0] >> 23) & 7, (array[0] >> 29) & 1, pTex.texInfo.tex, (num << 3) / 2, pTex.tex4x4Info.tex, (num << 3) / 4, pTex.tex4x4Info.pal, (num << 2) / 2, pTex.plttInfo.pal, (array2[0] << 3) / 2, 10497u);
+								vramKey.list[0].texName = entry.name != null && entry.name.Length > 0 ? entry.name[0].name : null;
+								vramKey.list[0].tex = LoadTextureNamed(vramKey.list[0].texName, (array[0] >> 26) & 7, (array[0] >> 20) & 7, (array[0] >> 23) & 7, (array[0] >> 29) & 1, pTex.texInfo.tex, (num << 3) / 2, pTex.tex4x4Info.tex, (num << 3) / 4, pTex.tex4x4Info.pal, (num << 2) / 2, pTex.plttInfo.pal, (array2[0] << 3) / 2, 10497u);
 							}
 						}
 
@@ -12373,7 +12395,8 @@ internal static partial class GlobalScope
 											vramKey.list[j].pTex = pTex;
 											vramKey.list[j].dictTexData = array3;
 											vramKey.list[j].fmt = (array3[0] >> 26) & 7;
-											vramKey.list[j].tex = LoadTexture((array3[0] >> 26) & 7, (array3[0] >> 20) & 7, (array3[0] >> 23) & 7, (array3[0] >> 29) & 1, pTex.texInfo.tex, (num5 << 3) / 2, pTex.tex4x4Info.tex, (num5 << 3) / 4, pTex.tex4x4Info.pal, (num5 << 2) / 2, pTex.plttInfo.pal, ((array4 != null) ? (array4[0] << 3) : 0) / 2, 10497u);
+											vramKey.list[j].texName = name[j]?.name;
+											vramKey.list[j].tex = LoadTextureNamed(vramKey.list[j].texName, (array3[0] >> 26) & 7, (array3[0] >> 20) & 7, (array3[0] >> 23) & 7, (array3[0] >> 29) & 1, pTex.texInfo.tex, (num5 << 3) / 2, pTex.tex4x4Info.tex, (num5 << 3) / 4, pTex.tex4x4Info.pal, (num5 << 2) / 2, pTex.plttInfo.pal, ((array4 != null) ? (array4[0] << 3) : 0) / 2, 10497u);
 										}
 									}
 									if (nNSG3dResMatData.texImageParam != null && nNSG3dResMatData.texImageParamMask == 0)
@@ -12469,7 +12492,8 @@ internal static partial class GlobalScope
 											texCount--;
 										}
 										texImageParam.tex = 0u;
-										texImageParam.tex = LoadTexture((dictTexData[0] >> 26) & 7, (dictTexData[0] >> 20) & 7, (dictTexData[0] >> 23) & 7, (dictTexData[0] >> 29) & 1, pTex2.texInfo.tex, (num2 << 3) / 2, pTex2.tex4x4Info.tex, (num2 << 3) / 4, pTex2.tex4x4Info.pal, (num2 << 2) / 2, pTex.plttInfo.pal, (array3[0] << 3) / 2, 10497u);
+										// PORT: a mod's PNG for this texture stays through a palette rebind (it is a full picture; a palette means nothing to it).
+										texImageParam.tex = LoadTextureNamed(texImageParam.texName, (dictTexData[0] >> 26) & 7, (dictTexData[0] >> 20) & 7, (dictTexData[0] >> 23) & 7, (dictTexData[0] >> 29) & 1, pTex2.texInfo.tex, (num2 << 3) / 2, pTex2.tex4x4Info.tex, (num2 << 3) / 4, pTex2.tex4x4Info.pal, (num2 << 2) / 2, pTex.plttInfo.pal, (array3[0] << 3) / 2, 10497u);
 									}
 								}
 							}

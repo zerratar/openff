@@ -176,6 +176,22 @@ namespace Crystal.Editor
 					File.Copy(file, target, overwrite: true);
 				}
 			}
+			// The mod's own textures at full size (textures/<name>.png), which the client draws in
+			// place of the game's - the package copies alongside are the Steam game's downsized ones.
+			string texturesOut = Path.Combine(directory, "textures");
+			if (Directory.Exists(texturesOut)) Directory.Delete(texturesOut, recursive: true);
+			string texturesIn = Path.Combine(project.Directory, "textures");
+			int pictures = 0;
+			if (Directory.Exists(texturesIn))
+			{
+				Directory.CreateDirectory(texturesOut);
+				foreach (string file in Directory.EnumerateFiles(texturesIn, "*.png", SearchOption.TopDirectoryOnly))
+				{
+					File.Copy(file, Path.Combine(texturesOut, Path.GetFileName(file)), overwrite: true);
+					pictures++;
+				}
+			}
+			if (pictures > 0) contents.Add(string.Format(CultureInfo.InvariantCulture, "- textures: {0} PNG(s) drawn in place of the game's, at their own size, under textures/", pictures));
 			OpenFF.Content.ModsFolder.WriteManifest(manifestPath, new OpenFF.Content.ModManifest
 			{
 				Id = key,

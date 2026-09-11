@@ -1198,7 +1198,24 @@ namespace Crystal.Editor
 						int width = body?["width"]?.GetValue<int>() ?? 0, height = body?["height"]?.GetValue<int>() ?? 0;
 						byte[] rgba = System.Convert.FromBase64String(body?["rgba"]?.GetValue<string>() ?? "");
 						int bytes = Textures.Replace(_workspace, name, index, rgba, width, height);
-						SendJson(context, new { ok = true, bytes, overridden = true });
+						// On an OpenFF project the picture at its own size as well (textures/<texture>.png): the
+						// client draws that in the texture's place; the package copy above is what the Steam game
+						// (and the viewer, for now) reads. Sent as the PNG's bytes when it is larger than the slot.
+						string fullSize = null; int fullWidth = 0, fullHeight = 0;
+						string png = body?["png"]?.GetValue<string>();
+						if (!string.IsNullOrEmpty(png) && _project != null && _project.File.Active != null && Targets.IsOurs(_project.File.Active))
+						{
+							string textureName = body?["texture"]?.GetValue<string>();
+							if (string.IsNullOrWhiteSpace(textureName)) throw new ArgumentException("no texture name for the full-size picture");
+							if (textureName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) throw new ArgumentException("the texture's name is not a file name: " + textureName);
+							string folder = Path.Combine(_project.Directory, "textures");
+							Directory.CreateDirectory(folder);
+							fullSize = Path.Combine(folder, textureName + ".png");
+							File.WriteAllBytes(fullSize, System.Convert.FromBase64String(png));
+							fullWidth = body?["pngWidth"]?.GetValue<int>() ?? 0; fullHeight = body?["pngHeight"]?.GetValue<int>() ?? 0;
+							fullSize = "textures/" + textureName + ".png";
+						}
+						SendJson(context, new { ok = true, bytes, overridden = true, fullSize, fullWidth, fullHeight });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;

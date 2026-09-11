@@ -138,6 +138,8 @@ namespace OpenFF.Client
 			foreach (string note in notes) Log.Write(LogChannel.General, "models: " + note);
 			CharacterMeshes.Register(models);
 			Roots = roots.ToList();
+			// The mods' PNGs in place of the game's textures, at any size (textures/<name>.png).
+			TextureOverrides.Register(roots);
 		}
 
 		/// <summary>The mod roots in play, in load order: where a mod-relative file (assets/x.glb) is looked for when no mod is named.</summary>

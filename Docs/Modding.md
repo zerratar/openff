@@ -1154,6 +1154,21 @@ battle monsters, rgb555 for true colour), whether entry 0 is see-through, and th
 (powers of two, 8 to 1024; the picture is scaled to it). The file is written and read back
 through Crystal's own reader before it is kept, and the game loads it like any of its own.
 
+**How big a texture may be.** The DS formats are the Steam game's ceiling: sides of 8 to
+1024 texels, a package's texels within 512 KB, a palette or 4x4 blocks for colour - and a
+character's texture is 64 × 64 because that is the slot its package has. *Replace with a
+PNG…* on one of the game's textures writes into that slot, so a larger picture is scaled down
+to it: that copy is what the Steam game reads. **The OpenFF client has no such ceiling.** Its
+texture coordinates are normalised by the size the material declares, not by the picture's,
+so a picture of any size drawn in a texture's place maps the same; on an OpenFF project a
+picture larger than the slot is kept at its own size as `textures/<name>.png` beside the
+package copy, exported with the mod, and the client draws that one - filtered smooth - in
+place of the game's texels wherever the texture of that name is used (`n021.png` for the
+texture called `n021`; `<package>.<name>.png` to pin a package). One replace serves both
+targets: the Steam game gets the 64 × 64, OpenFF the 512 × 512 (or whatever was given). A
+palette rebind (the game recolouring a texture) leaves the PNG as it is, since a palette
+means nothing to a full picture. The viewer and the map editor still show the package copy.
+
 ### The heroes: `defs/characters/<id>.json`
 
 The first slice of character definitions: what a hero slot is as a game begins. Under

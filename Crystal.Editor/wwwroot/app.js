@@ -1610,7 +1610,7 @@ function buildTexture(packageName, texture) {
   // writes the package into the project. The 4x4 format stays read-only.
   const replace = document.createElement('button');
   replace.textContent = 'Replace with a PNG…';
-  replace.title = `A picture of ${texture.width} × ${texture.height} (a larger or smaller one is scaled to fit); its colours are reduced to the texture's ${texture.format} ${texture.format === '4x4' ? 'blocks' : 'palette'}`;
+  replace.title = `A picture of ${texture.width} × ${texture.height} (a larger or smaller one is scaled to fit the package's slot); its colours are reduced to the texture's ${texture.format} ${texture.format === '4x4' ? 'blocks' : 'palette'}. On an OpenFF project a larger picture is kept at its own size too (textures/${texture.name}.png), and the client draws that one.`;
   const chooser = document.createElement('input');
   chooser.type = 'file';
   chooser.accept = 'image/png,image/*';
@@ -1631,12 +1631,26 @@ function buildTexture(packageName, texture) {
       let binary = '';
       for (let i = 0; i < pixels.length; i += 0x8000) binary += String.fromCharCode.apply(null, pixels.subarray(i, i + 0x8000));
       say('writing the texture…');
-      const r = await api('/api/texture/replace', { name: packageName, index: texture.index, width: texture.width, height: texture.height, rgba: btoa(binary) });
+      // On an OpenFF project a picture larger than the slot goes along at its own size too
+      // (textures/<name>.png): the client draws that, the package keeps the downsized copy for Steam.
+      const larger = bitmap.width > texture.width || bitmap.height > texture.height;
+      const ours = typeof isOpenFFProject === 'function' && typeof projectState !== 'undefined' && projectState.project && isOpenFFProject(projectState.project);
+      let png = null;
+      if (larger && ours) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let s = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        png = btoa(s);
+      }
+      const r = await api('/api/texture/replace', { name: packageName, index: texture.index, width: texture.width, height: texture.height, rgba: btoa(binary), png, texture: texture.name, pngWidth: bitmap.width, pngHeight: bitmap.height });
       if (!r.ok) throw new Error(r.error);
       markOverridden(packageName, true);
       big.src = wsUrl(`/api/texture/png?name=${encodeURIComponent(packageName)}&index=${texture.index}&t=${Date.now()}`);
       document.querySelectorAll(`img[alt="${texture.name}"]`).forEach(img => { img.src = big.src; });
-      say(`${texture.name} replaced${bitmap.width !== texture.width || bitmap.height !== texture.height ? ` (scaled from ${bitmap.width} × ${bitmap.height})` : ''} - ${r.bytes} bytes written`, 'good');
+      const scaledNote = bitmap.width !== texture.width || bitmap.height !== texture.height ? ` (the package copy scaled to ${texture.width} × ${texture.height} from ${bitmap.width} × ${bitmap.height})` : '';
+      say(r.fullSize
+        ? `${texture.name} replaced - ${r.bytes} bytes into the package${scaledNote}; the full ${bitmap.width} × ${bitmap.height} picture is ${r.fullSize}, which OpenFF draws instead`
+        : `${texture.name} replaced${scaledNote} - ${r.bytes} bytes written${larger && !ours ? '; a Steam target keeps the slot\u2019s size' : ''}`, 'good');
     } catch (e) {
       say('texture: ' + e.message, 'bad');
     } finally {
@@ -1651,6 +1665,9 @@ function buildTexture(packageName, texture) {
   note.textContent = texture.format === '4x4'
     ? 'Replacing keeps the size and the 4x4 block format: each block of the picture is fitted with two blended colours or four, sharing the palette room this texture has. Revert puts the shipped package back.'
     : `Replacing keeps the size and the ${texture.format} format: the picture's colours are reduced to the palette this texture has room for${texture.format === 'rgb555' ? ' (none here - 15-bit colour straight in)' : ''}. Revert puts the shipped package back.`;
+  if (typeof isOpenFFProject === 'function' && typeof projectState !== 'undefined' && projectState.project && isOpenFFProject(projectState.project)) {
+    note.textContent += ` The DS format is the Steam game's ceiling (sides of 8 to 1024, this slot ${texture.width} × ${texture.height}); the OpenFF client has none - a larger PNG is kept as textures/${texture.name}.png and drawn at its own size, filtered smooth.`;
+  }
   detail.append(note);
   return detail;
 }

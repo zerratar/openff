@@ -27,6 +27,9 @@ internal static partial class GlobalScope
 
 		public uint[] dictTexData;
 
+		/// <summary>PORT: the texture's name in its package's dictionary, so a palette rebind (NNS_G3dBindMdlPltt) can find a mod's PNG for it again.</summary>
+		public string texName;
+
 		public TexVramList()
 		{
 			tex = 0u;
