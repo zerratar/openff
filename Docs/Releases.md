@@ -129,6 +129,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   too (a tunic follows the hips, never the legs), and the cuts - neck, hips, arm floor, torso
   width, skirt - are sliders on the unrigged file with the found values shown and the frames
   drawn on the model, saved beside the file and used by every rig of it after.
+- **A fitted skeleton.** The game's skeleton with its joints moved to where the file has them
+  (markers first - chin, wrists, elbows, knees, groin, placed by clicking the model - the
+  mesh's own rings for the rest), weights by distance to those bones within the regions, the
+  file carried into the T-pose about them; `"fitted": true` in the definition and the client
+  retargets the game's motions onto it, every bone its own name. Limbs of the file's own
+  lengths bend where the file bends. OpenFF only.
 - **Weights you can reason about.** *assign* paints a part onto a bone outright; the vertex
   under the brush reads out its bones and weights; *all bones* colours the mesh by heaviest
   bone with the hierarchy's rows in the same colours.

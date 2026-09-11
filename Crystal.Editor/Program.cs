@@ -170,7 +170,7 @@ namespace Crystal
 							Neck = Cut("neck"), Hips = Cut("hips"), ArmFloor = Cut("arm-floor"), TorsoWidth = Cut("torso"),
 							Skirt = !args.Contains("--no-skirt", StringComparer.OrdinalIgnoreCase), Enabled = !args.Contains("--no-regions", StringComparer.OrdinalIgnoreCase)
 						};
-						return MdlAutoRig(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, target, scale, Triple("rotation"), Triple("offset"), cuts);
+						return MdlAutoRig(positional[0], positional[1], positional.Length > 2 ? positional[2] : null, target, scale, Triple("rotation"), Triple("offset"), cuts, args.Contains("--fitted", StringComparer.OrdinalIgnoreCase), MarkersFile(args.FirstOrDefault(a => a.StartsWith("--markers=", StringComparison.OrdinalIgnoreCase))?.Substring(10)));
 					}
 					case "mdl-reskin":
 					{
@@ -348,7 +348,7 @@ namespace Crystal
 			Console.Error.WriteLine("  mdl         <file.lz | dir> [out]  models -> OBJ");
 			Console.Error.WriteLine("  mdl-import  <file.glb|.gltf> <name> [out-dir] [--scale=n]");
 			Console.Error.WriteLine("                                    glTF -> <name>.nmdp.lz and <name>.ntxp.lz, the game's own model (a w123 for a weapon)");
-			Console.Error.WriteLine("  mdl-autorig <file.glb|.gltf> <model> [out.glb] [--target=steam] [--scale=n] [--rotation=x,y,z] [--offset=x,y,z] [--neck=% --hips=% --arm-floor=% --torso=%] [--no-skirt] [--no-regions]");
+			Console.Error.WriteLine("  mdl-autorig <file.glb|.gltf> <model> [out.glb] [--target=steam] [--scale=n] [--rotation=x,y,z] [--offset=x,y,z] [--neck=% --hips=% --arm-floor=% --torso=%] [--no-skirt] [--no-regions] [--fitted] [--markers=file.rig.json]");
 			Console.Error.WriteLine("                                    a mesh with no rig bound to a game model's skeleton (j101...) with the game's own weights: a skinned .glb");
 			Console.Error.WriteLine("  mdl-reskin  <file.glb|.gltf> <model> [out-dir] [--target=steam]");
 			Console.Error.WriteLine("                                    a skinned glTF over a model of the game's (j101, n441): its skeleton and motions kept, the mesh and textures yours");
@@ -892,8 +892,18 @@ namespace Crystal
 			}
 		}
 
+		/// <summary>The markers of a Crystal rig record (assets/name.rig.json), or null.</summary>
+		private static AutoRig.Markers MarkersFile(string path)
+		{
+			if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+			System.Text.Json.Nodes.JsonObject m = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))?["markers"] as System.Text.Json.Nodes.JsonObject;
+			if (m == null) return null;
+			float[] T(string k) { if (m[k] is not System.Text.Json.Nodes.JsonArray a || a.Count < 3) return null; return new[] { (float)a[0].GetValue<double>(), (float)a[1].GetValue<double>(), (float)a[2].GetValue<double>() }; }
+			return new AutoRig.Markers { Chin = T("chin"), Groin = T("groin"), LeftWrist = T("leftWrist"), RightWrist = T("rightWrist"), LeftElbow = T("leftElbow"), RightElbow = T("rightElbow"), LeftKnee = T("leftKnee"), RightKnee = T("rightKnee") };
+		}
+
 		/// <summary>A mesh with no rig bound to a game model's skeleton (AutoRig): a skinned .glb, ready for mdl-reskin or the OpenFF client.</summary>
-		private static int MdlAutoRig(string input, string modelName, string output, string target, float scale, float[] rotation, float[] offset, AutoRig.Cuts cuts = null)
+		private static int MdlAutoRig(string input, string modelName, string output, string target, float scale, float[] rotation, float[] offset, AutoRig.Cuts cuts = null, bool fitted = false, AutoRig.Markers markers = null)
 		{
 			if (!File.Exists(input))
 			{
@@ -908,7 +918,7 @@ namespace Crystal
 			{
 				string content = Crystal.Editor.Targets.Find(target) ?? throw new FileNotFoundException("no " + target + " install found (--target=steam|oursff4|ff4steam|ours)");
 				Crystal.Editor.Workspace workspace = new Crystal.Editor.Workspace(content, null);
-				AutoRig.Result made = AutoRig.Build(workspace, contentName, OpenFF.Graphics.GltfFile.Load(input), scale, rotation, offset, cuts: cuts);
+				AutoRig.Result made = AutoRig.Build(workspace, contentName, OpenFF.Graphics.GltfFile.Load(input), scale, rotation, offset, cuts: cuts, markers: markers, fitted: fitted);
 				File.WriteAllBytes(output, made.Glb);
 				Console.WriteLine(Path.GetFileName(input) + " on " + stem + ": " + made.Triangles.ToString("N0") + " triangles, " + made.Vertices.ToString("N0") + " vertices, " + made.Bones + " bones -> " + output + " (" + made.Glb.Length.ToString("N0") + " bytes)");
 				foreach (string note in made.Notes) Console.WriteLine("  " + note);

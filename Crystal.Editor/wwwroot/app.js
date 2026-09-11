@@ -2076,7 +2076,7 @@ async function openModel(name) {
   if (rigBar && !model.skin && /^assets\/.*\.gl(b|tf)$/i.test(name) && typeof projectState !== 'undefined' && projectState.project && typeof viewer.setCuts === 'function') {
     rigBar.hidden = false;
     const on = $('.rig-on', rigBar), controls = $('.rig-controls', rigBar);
-    const modelField = $('.rig-model', rigBar), skirt = $('.rig-skirt', rigBar), enabled = $('.rig-enabled', rigBar);
+    const modelField = $('.rig-model', rigBar), skirt = $('.rig-skirt', rigBar), enabled = $('.rig-enabled', rigBar), fittedBox = $('.rig-fitted', rigBar);
     const find = $('.rig-find', rigBar), go = $('.rig-go', rigBar), readout = $('.rig-readout', rigBar);
     const cutRows = [...rigBar.querySelectorAll('.rig-cut')];
     const stage = $('.stage', node);
@@ -2177,7 +2177,7 @@ async function openModel(name) {
     const doFind = async () => {
       find.disabled = true;
       try {
-        const r = await api('/api/project/models/cuts', { asset: name, model: modelName(), cuts: asked(), markers: markersAsked() });
+        const r = await api('/api/project/models/cuts', { asset: name, model: modelName(), cuts: asked(), markers: markersAsked(), fitted: fittedBox.checked });
         if (!r.ok) throw new Error(r.error);
         if (typeof r.leftIsPlusX === 'boolean') leftIsPlusX = r.leftIsPlusX;
         for (const key of ['neck', 'hips', 'armFloor', 'torsoWidth']) found[key] = r.cuts[key];
@@ -2198,6 +2198,7 @@ async function openModel(name) {
               for (const row of cutRows) { const key = row.dataset.cut; if (r.saved[key] !== null && r.saved[key] !== undefined) { row.querySelector('.rig-auto').checked = false; row.querySelector('input[type=range]').value = String(r.saved[key] * 100); } }
               skirt.checked = r.saved.skirt !== false; enabled.checked = r.saved.enabled !== false;
             }
+            if (r.ok && r.savedFitted) fittedBox.checked = true;
             // The markers saved last time come back onto the model (their normals not kept: shown flat to the front).
             if (r.ok && r.savedMarkers) {
               for (const m of MARKERS) if (Array.isArray(r.savedMarkers[m.key]) && r.savedMarkers[m.key].length === 3) markers[m.key] = { point: r.savedMarkers[m.key].slice(), normal: [0, 0, 1] };
@@ -2220,7 +2221,7 @@ async function openModel(name) {
       go.disabled = true;
       say(`rigging ${shortName(name)} to ${modelName()}\u2026`);
       try {
-        const made = await api('/api/project/models/reskin', { model: modelName(), asset: name, cuts: asked(), markers: markersAsked() });
+        const made = await api('/api/project/models/reskin', { model: modelName(), asset: name, cuts: asked(), markers: markersAsked(), fitted: fittedBox.checked });
         if (!made.ok) throw new Error(made.error);
         for (const note of made.notes || []) logLine('auto-rig: ' + note);
         say(`${shortName(name)} bound to the skeleton as ${(made.rigged || '').replace(/^assets\//, '')} and ${made.model} remade - opening it`, 'good');

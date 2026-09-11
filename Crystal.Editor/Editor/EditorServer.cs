@@ -670,7 +670,7 @@ namespace Crystal.Editor
 						OpenFF.Graphics.GltfFile origin = OpenFF.Graphics.GltfFile.Load(originPath);
 						float[] positions = AutoRig.FittedPositions(origin, (float)record["scale"].GetValue<double>(), Triple(record["rotation"]), Triple(record["offset"]));
 						JsonObject pose = record["pose"] as JsonObject;
-						SendJson(context, new { ok = true, positions, pose = pose == null ? null : new { pack = pose["pack"]?.GetValue<string>(), index = pose["index"]?.GetValue<int>() ?? 0, frame = pose["frame"]?.GetValue<int>() ?? 0 }, model = record["model"]?.GetValue<string>() });
+						SendJson(context, new { ok = true, positions, pose = pose == null ? null : new { pack = pose["pack"]?.GetValue<string>(), index = pose["index"]?.GetValue<int>() ?? 0, frame = pose["frame"]?.GetValue<int>() ?? 0 }, model = record["model"]?.GetValue<string>(), fitted = record["fitted"] is JsonValue fv && fv.TryGetValue(out bool f) && f });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
@@ -715,6 +715,9 @@ namespace Crystal.Editor
 						List<string> rigNotes = new List<string>();
 						string rigged = null;
 						AutoRig.Cuts cutsUsed = null;
+						// A fitted skeleton (joints moved to the file's own) is driven by retargeting: the
+						// definition says so, and a rigged file's record remembers it.
+						bool fittedRig = false;
 						if (file.Skins.Count == 0 || !file.Meshes.Any(m => m.Skin >= 0 && m.Joints != null))
 						{
 							// The cuts: the request's, else the ones saved beside the file last time
@@ -722,7 +725,9 @@ namespace Crystal.Editor
 							JsonNode saved = LoadCutsFile(gltfPath);
 							AutoRig.Cuts cuts = ReadCuts(body?["cuts"]) ?? ReadCuts(saved);
 							AutoRig.Markers markers = body?["markers"] != null ? ReadMarkers(body["markers"]) : ReadMarkers(saved?["markers"]);
-							AutoRig.Result bound = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts, markers: markers);
+							bool fittedAsked = (body?["fitted"] ?? saved?["fitted"]) is JsonValue fv && fv.TryGetValue(out bool f) && f;
+							AutoRig.Result bound = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts, markers: markers, fitted: fittedAsked);
+							fittedRig = bound.Fitted;
 							string riggedName = Path.GetFileNameWithoutExtension(asset) + "-rigged.glb";
 							string riggedPath = Path.Combine(_project.Directory, GltfBundle.Folder, riggedName);
 							File.WriteAllBytes(riggedPath, bound.Glb);
@@ -734,9 +739,10 @@ namespace Crystal.Editor
 							JsonObject record = (LoadCutsFile(gltfPath) as JsonObject) ?? new JsonObject();
 							if (body?["cuts"] is JsonObject asked) foreach (KeyValuePair<string, JsonNode> pair in asked) record[pair.Key] = pair.Value?.DeepClone();
 							if (body?["markers"] != null) record["markers"] = body["markers"].DeepClone();
+							if (body?["fitted"] != null) record["fitted"] = body["fitted"].DeepClone();
 							record["rigged"] = new JsonObject
 							{
-								["file"] = rigged, ["origin"] = asset.Replace('\\', '/'), ["model"] = modelName,
+								["file"] = rigged, ["origin"] = asset.Replace('\\', '/'), ["model"] = modelName, ["fitted"] = bound.Fitted,
 								["scale"] = bound.Scale, ["rotation"] = new JsonArray(bound.Rotation[0], bound.Rotation[1], bound.Rotation[2]), ["offset"] = new JsonArray(bound.Offset[0], bound.Offset[1], bound.Offset[2]),
 								["pose"] = bound.PosePack == null ? null : new JsonObject { ["pack"] = bound.PosePack, ["index"] = bound.PoseIndex, ["frame"] = bound.PoseFrame }
 							};
@@ -752,8 +758,14 @@ namespace Crystal.Editor
 							// them, so the game's model is left as it is - only the definition is written (and
 							// an older game-format override of this model, from before, is taken back out: the
 							// DS format snaps blends to one bone and shows spikes the glTF never has).
+							// A rigged file saved again (repainted weights): its record beside the original says whether it is fitted.
+							if (!fittedRig && System.Text.RegularExpressions.Regex.IsMatch(gltfPath, @"-rigged\.glb$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+							{
+								JsonObject record = LoadCutsFile(System.Text.RegularExpressions.Regex.Replace(gltfPath, @"-rigged\.glb$", ".glb", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) as JsonObject;
+								fittedRig = record?["rigged"]?["fitted"] is JsonValue rf && rf.TryGetValue(out bool rfv) && rfv;
+							}
 							Directory.CreateDirectory(Path.GetDirectoryName(definition));
-							File.WriteAllText(definition, new OpenFF.Data.ModModel { Model = stem, Gltf = asset.Replace('\\', '/') }.ToJson());
+							File.WriteAllText(definition, new OpenFF.Data.ModModel { Model = stem, Gltf = asset.Replace('\\', '/'), Fitted = fittedRig }.ToJson());
 							_workspace.Revert(modelName); _workspace.Revert(texturesName);
 							List<string> notes = new List<string>(rigNotes) { "the OpenFF client draws " + Path.GetFileName(asset) + " in place of " + stem + " with the file's own weights and textures (defs/models/" + stem + ".json); the game's model itself is untouched" };
 							int triangles = file.Meshes.Sum(m => m.Indices != null ? m.Indices.Length / 3 : 0), vertices = file.Meshes.Sum(m => m.VertexCount);
@@ -787,7 +799,7 @@ namespace Crystal.Editor
 						AutoRig.Cuts cuts = ReadCuts(body?["cuts"]) ?? ReadCuts(saved);
 						AutoRig.Markers markers = body?["markers"] != null ? ReadMarkers(body["markers"]) : ReadMarkers(saved?["markers"]);
 						AutoRig.Result found = AutoRig.Build(_workspace, modelName, file, (float)(body?["scale"]?.GetValue<double>() ?? 0), Triple(body?["rotation"]), Triple(body?["offset"]), cuts: cuts, analyseOnly: true, markers: markers);
-						SendJson(context, new { ok = true, cuts = CutsJson(found.Cuts), regions = found.RegionCounts, saved = saved != null ? CutsJson(ReadCuts(saved)) : null, savedMarkers = saved?["markers"]?.DeepClone(), leftIsPlusX = found.LeftIsPlusX, notes = found.Notes });
+						SendJson(context, new { ok = true, cuts = CutsJson(found.Cuts), regions = found.RegionCounts, saved = saved != null ? CutsJson(ReadCuts(saved)) : null, savedMarkers = saved?["markers"]?.DeepClone(), savedFitted = saved?["fitted"] is JsonValue sf && sf.TryGetValue(out bool sfv) && sfv, leftIsPlusX = found.LeftIsPlusX, notes = found.Notes });
 					}
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;

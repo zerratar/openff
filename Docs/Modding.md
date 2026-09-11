@@ -748,7 +748,25 @@ usefully, tell the auto-rig where the arms really bend and point: the elbow is t
 pivot and the wrist its direction, the upper arm points at the elbow, the knee is the shin's
 pivot, in place of what the shape alone suggests (the boundary rings between one bone's
 vertices and the next). They are saved with the cuts beside the file and used by every rig of
-it after; *Cuts & markers…* on the rigged file opens the original where they are. The result is a skinned
+it after; *Cuts & markers…* on the rigged file opens the original where they are.
+
+**A fitted skeleton** (*fitted skeleton* in the same bar; OpenFF only) is the other road, and
+the better one for a character whose proportions are not the game's. Instead of binding the
+file to the game's joints where they are, the auto-rig writes the game's skeleton - its names,
+tree and bone orientations - with every joint moved to where *the file* has it: the shoulder
+where the sleeve leaves the torso, the elbow and wrist at the markers (else at the rings between
+one bone's vertices and the next), the hips over the knees at the groin's height, the ankle over
+the knee a little above the foot's lowest, the spine up the torso's middle with the head's base
+at the chin. Weights go by distance to those bones, which now lie inside the mesh, within the
+regions; the file is carried into the T-pose about the fitted joints. The definition gets
+`"fitted": true`, and the client drives the file by retargeting - the game's rotations about
+the file's own joints, positions down the file's own tree (the other-rig path, with every bone
+matched by its own name and no fit of its own) - as the viewer does, which tells a fitted
+skeleton from the game's by where its joints sit. Limbs of the file's own lengths bend where
+the file bends: no pivot a hand's breadth from the elbow, no forearm that turns about a point
+beyond it. What the game's proportions still decide are contacts: a hand that reaches the hip
+on the game's Luneth reaches wherever a shorter arm reaches. The DS format has one skeleton per
+model, so a Steam target keeps the bound rig. The result is a skinned
 glTF with the game's joint names at the game's bind pose: exact on OpenFF, the game format
 for Steam and the viewer. The closer the mesh's volume to the original's, the better the
 weights land; a mesh of quite other proportions (a realistic body on the chibi skeleton)

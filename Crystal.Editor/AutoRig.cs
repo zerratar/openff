@@ -41,6 +41,8 @@ namespace Crystal
 			public Dictionary<string, int> RegionCounts;
 			/// <summary>Whether the character's left is at +x (the game's convention, which the fitted file shares).</summary>
 			public bool LeftIsPlusX;
+			/// <summary>True when the skeleton written is fitted to the file (joints moved to its own elbows, knees...), to be driven by retargeting.</summary>
+			public bool Fitted;
 		}
 
 		/// <summary>
@@ -91,7 +93,7 @@ namespace Crystal
 		/// <paramref name="cuts"/> places the regions (null: all found); <paramref name="analyseOnly"/>
 		/// stops after the regions, the result carrying the cuts as found and each region's count.
 		/// </summary>
-		public static Result Build(Workspace workspace, string modelName, GltfFile file, float scale = 0, float[] rotation = null, float[] offset = null, string posePack = null, int poseIndex = 0, int poseFrame = 0, Cuts cuts = null, bool analyseOnly = false, Markers markers = null)
+		public static Result Build(Workspace workspace, string modelName, GltfFile file, float scale = 0, float[] rotation = null, float[] offset = null, string posePack = null, int poseIndex = 0, int poseFrame = 0, Cuts cuts = null, bool analyseOnly = false, Markers markers = null, bool fitted = false)
 		{
 			if (file == null) throw new ArgumentNullException(nameof(file));
 			List<GltfMesh> meshes = file.Meshes.Where(m => m.Indices != null && m.Indices.Length >= 3 && m.Positions != null).ToList();
@@ -362,6 +364,198 @@ namespace Crystal
 			// ---- pass one: against the original in the matched pose ----------------------------------------------
 			(int Node, float Weight)[][] final = Finish(Smooth(Transfer(fileX, fileY, fileZ, count, refX, refY, refZ, triangles, refWeights, soft, vertexRegion, triangleRegion, boneRegion, allowed), neighbours, canonical), neighbours, canonical, rig);
 
+			// ---- a fitted skeleton -----------------------------------------------------------------------------------
+			// The other road: not the file bound to the game's joints where they are, but the game's
+			// skeleton - its names, tree and bone orientations - with each joint moved to where the
+			// file has that joint: the shoulder where the sleeve leaves the torso, the elbow and wrist
+			// at the markers (or the rings between one bone's vertices and the next), the hips over
+			// the knees, the spine up the torso's middle. Weights go by distance to those bones, which
+			// now lie inside the mesh, within the regions; the file is then carried into the T-pose
+			// about the fitted joints. Playing it back is retargeting: the game's rotations about the
+			// fitted joints (the client's other-rig path; the viewer's the same sums). Limbs of the
+			// file's own lengths bend where the file bends - no pivot a hand's breadth from the elbow.
+			Models.Rig writeRig = rig;
+			bool fittedDone = false;
+			if (fitted && delta != null)
+			{
+				float[][] posedWorld = new float[rig.Nodes.Count][];
+				for (int n = 0; n < rig.Nodes.Count; n++) posedWorld[n] = Gltf.Mul(rig.Bind[n], delta[n]);
+				float[][] P = posedWorld.Select(m => new[] { m[9], m[10], m[11] }).ToArray();
+				int Node(string nm) => rig.Nodes.IndexOf(nm);
+				float yMin = oMin[1], modelHeight = modelH;
+				// The torso's middle at a height: the body-region vertices within a slab there.
+				float[] SpineAt(float atY)
+				{
+					float sx = 0, sz = 0; int k = 0;
+					for (int v = 0; v < count; v++) { if (vertexRegion[v] != RegionBody && vertexRegion[v] != RegionHips) continue; if (Math.Abs(fileY[v] - atY) > 0.03f * modelHeight) continue; sx += fileX[v]; sz += fileZ[v]; k++; }
+					return k > 0 ? new[] { sx / k, atY, sz / k } : new[] { (oMin[0] + oMax[0]) / 2, atY, (oMin[2] + oMax[2]) / 2 };
+				}
+				// Where a region meets the rest of the mesh: the middle of its vertices with a neighbour outside it.
+				float[] BorderOf(int region)
+				{
+					float[] sum = new float[3]; int k = 0;
+					for (int v = 0; v < count; v++)
+					{
+						if (vertexRegion[v] != region || neighbours[canonical[v]] == null) continue;
+						bool border = false;
+						foreach (int other in neighbours[canonical[v]]) if (vertexRegion[other] != region) { border = true; break; }
+						if (!border) continue;
+						sum[0] += fileX[v]; sum[1] += fileY[v]; sum[2] += fileZ[v]; k++;
+					}
+					return k >= 3 ? new[] { sum[0] / k, sum[1] / k, sum[2] / k } : null;
+				}
+				// The shoulder: the top of the arm - the middle of the arm region's highest vertices (the top
+				// tenth of its height), brought in to the torso's edge; the sleeve's crown is above the joint.
+				float[] ShoulderOf(int region)
+				{
+					float top = float.MinValue, bottom = float.MaxValue; int k = 0;
+					for (int v = 0; v < count; v++) if (vertexRegion[v] == region) { top = Math.Max(top, fileY[v]); bottom = Math.Min(bottom, fileY[v]); k++; }
+					if (k < 8) return null;
+					float band = top - (top - bottom) * 0.1f;
+					float sx = 0, sy = 0, sz = 0; int m = 0;
+					for (int v = 0; v < count; v++) if (vertexRegion[v] == region && fileY[v] >= band) { sx += fileX[v]; sy += fileY[v]; sz += fileZ[v]; m++; }
+					if (m == 0) return null;
+					float[] crown = { sx / m, sy / m, sz / m };
+					// The joint sits a little below the crown and towards the body.
+					float[] spine = SpineAt(crown[1]);
+					return new[] { crown[0] + (spine[0] - crown[0]) * 0.25f, crown[1] - 0.03f * modelHeight, crown[2] + (spine[2] - crown[2]) * 0.25f };
+				}
+				float[] LowestOf(int region)
+				{
+					float best = float.MaxValue; float[] at = null;
+					for (int v = 0; v < count; v++) if (vertexRegion[v] == region && fileY[v] < best) { best = fileY[v]; at = new[] { fileX[v], fileY[v], fileZ[v] }; }
+					return at;
+				}
+				float[] Lerp(float[] a, float[] b, float t) => new[] { a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t };
+				List<string> fittedNotes = new List<string>();
+
+				// The arms: shoulder (kata) where the sleeve leaves the torso, elbow (ude) and wrist (te) at
+				// the markers or the rings, the collar (sakotu) half way from the spine to the shoulder.
+				foreach (bool leftSide in new[] { true, false })
+				{
+					string s = leftSide ? "L_" : "R_";
+					int kata = Node(s + "kata"), ude = Node(s + "ude"), te = Node(s + "te"), sakotu = Node(s + "sakotu");
+					if (kata < 0 || ude < 0 || te < 0) continue;
+					int armRegion = leftSide ? RegionLeftArm : RegionRightArm;
+					float[] S = ShoulderOf(armRegion) ?? BorderOf(armRegion) ?? P[kata];
+					float[] E = (leftSide ? placed?.LeftElbow : placed?.RightElbow) ?? RingOf(ude, final, neighbours, canonical, rig, fileX, fileY, fileZ, count) ?? P[ude];
+					float[] W = (leftSide ? placed?.LeftWrist : placed?.RightWrist) ?? RingOf(te, final, neighbours, canonical, rig, fileX, fileY, fileZ, count) ?? P[te];
+					P[kata] = S; P[ude] = E; P[te] = W;
+					if (sakotu >= 0) P[sakotu] = Lerp(SpineAt(S[1]), S, 0.49f);
+					fittedNotes.Add(s + "arm: shoulder " + Fmt(S) + ", elbow " + Fmt(E) + ", wrist " + Fmt(W));
+				}
+				// The legs: knee (hiza) at the marker or the ring, hip (momo) over it at the groin's height,
+				// ankle (asi) over it a little above the foot's lowest, the shin (sune) a quarter down from the knee.
+				float[] groin = placed?.Groin ?? SpineAt(yMin + (used.Hips ?? 0.3f) * modelHeight);
+				foreach (bool leftSide in new[] { true, false })
+				{
+					string s = leftSide ? "L_" : "R_";
+					int momo = Node(s + "momo"), hiza = Node(s + "hiza"), sune = Node(s + "sune"), asi = Node(s + "asi");
+					if (momo < 0 || hiza < 0 || asi < 0) continue;
+					int legRegion = leftSide ? RegionLeftLeg : RegionRightLeg;
+					float[] K = (leftSide ? placed?.LeftKnee : placed?.RightKnee) ?? RingOf(hiza, final, neighbours, canonical, rig, fileX, fileY, fileZ, count) ?? P[hiza];
+					float[] low = LowestOf(legRegion);
+					float[] A = { K[0], (low != null ? low[1] : yMin) + 0.049f * modelHeight, K[2] };
+					P[momo] = new[] { K[0], Math.Max(groin[1], K[1] + 0.05f * modelHeight), K[2] };
+					P[hiza] = K; P[asi] = A;
+					if (sune >= 0) P[sune] = Lerp(K, A, 0.243f);
+					fittedNotes.Add(s + "leg: hip " + Fmt(P[momo]) + ", knee " + Fmt(K) + ", ankle " + Fmt(A));
+				}
+				// The spine: the hips (kosi, hara, body, trans) the game's height above the hip joints, the
+				// head's base (atama) at the chin, the chest and neck between them as the game has them.
+				{
+					int lm = Node("L_momo"), rm = Node("R_momo"), kosi = Node("kosi"), hara = Node("hara"), mune = Node("mune"), kubi = Node("kubi"), atama = Node("atama");
+					float hipsY = (lm >= 0 && rm >= 0 ? (P[lm][1] + P[rm][1]) / 2 : groin[1]) + (kosi >= 0 && lm >= 0 ? posedWorld[kosi][10] - posedWorld[lm][10] : 0.1f * modelHeight);
+					float[] hips = SpineAt(hipsY);
+					float[] chin = placed?.Chin ?? SpineAt(yMin + ((used.Neck ?? 0.7f) + 0.02f) * modelHeight);
+					float[] head = SpineAt(chin[1]);
+					foreach (string nm in new[] { "kosi", "hara", "body", "trans" }) { int n = Node(nm); if (n >= 0) P[n] = hips; }
+					if (atama >= 0) P[atama] = head;
+					if (mune >= 0) P[mune] = SpineAt(hips[1] + (head[1] - hips[1]) * 0.35f);
+					if (kubi >= 0) P[kubi] = SpineAt(hips[1] + (head[1] - hips[1]) * 0.86f);
+					fittedNotes.Add("spine: hips " + Fmt(hips) + ", head " + Fmt(head));
+				}
+
+				// The fitted skeleton in the file's pose: the game's posed orientations, the fitted places.
+				float[][] F = new float[rig.Nodes.Count][];
+				for (int n = 0; n < rig.Nodes.Count; n++) { F[n] = (float[])posedWorld[n].Clone(); F[n][9] = P[n][0]; F[n][10] = P[n][1]; F[n][11] = P[n][2]; }
+				// And in the T-pose: each node's local rotation the game's bind local, its offset the fitted
+				// one, composed down the tree; a root moves as the game's root does between the two.
+				float[][] FT = new float[rig.Nodes.Count][];
+				float[] RotOnly(float[] m) { float[] r = (float[])m.Clone(); r[9] = r[10] = r[11] = 0; return r; }
+				float[] BuildFT(int n)
+				{
+					if (FT[n] != null) return FT[n];
+					int parent = rig.Parents[n];
+					if (parent < 0)
+					{
+						float[] m = RotOnly(rig.Bind[n]);
+						m[9] = P[n][0] + rig.Bind[n][9] - posedWorld[n][9]; m[10] = P[n][1] + rig.Bind[n][10] - posedWorld[n][10]; m[11] = P[n][2] + rig.Bind[n][11] - posedWorld[n][11];
+						return FT[n] = m;
+					}
+					float[] parentT = BuildFT(parent);
+					float[] localBind = Gltf.Mul(rig.Bind[n], Gltf.Invert(rig.Bind[parent]));
+					float[] localFitted = Gltf.Mul(F[n], Gltf.Invert(F[parent]));
+					float[] local = RotOnly(localBind);
+					local[9] = localFitted[9]; local[10] = localFitted[10]; local[11] = localFitted[11];
+					return FT[n] = Gltf.Mul(local, parentT);
+				}
+				for (int n = 0; n < rig.Nodes.Count; n++) BuildFT(n);
+
+				// Weights by distance to the fitted bones, within the regions: the two nearest of the bones a
+				// vertex may take, the nearer counting far more; a leaf bone reaches on past its joint.
+				HashSet<int> weighted = new HashSet<int>(rig.Weights.Values.SelectMany(w => w.Select(p => p.Node)));
+				int[] firstChild = new int[rig.Nodes.Count];
+				for (int n = 0; n < rig.Nodes.Count; n++) { firstChild[n] = -1; for (int c = 0; c < rig.Nodes.Count; c++) if (rig.Parents[c] == n && weighted.Contains(c)) { firstChild[n] = c; break; } }
+				float[][] segEnd = new float[rig.Nodes.Count][];
+				for (int n = 0; n < rig.Nodes.Count; n++)
+				{
+					if (firstChild[n] >= 0) segEnd[n] = P[firstChild[n]];
+					else if (rig.Parents[n] >= 0) { float[] d = { P[n][0] - P[rig.Parents[n]][0], P[n][1] - P[rig.Parents[n]][1], P[n][2] - P[rig.Parents[n]][2] }; segEnd[n] = new[] { P[n][0] + d[0] * 0.6f, P[n][1] + d[1] * 0.6f, P[n][2] + d[2] * 0.6f }; }
+					else segEnd[n] = P[n];
+				}
+				float softD = 0.01f * modelHeight;
+				Dictionary<int, float>[] byDistance = new Dictionary<int, float>[count];
+				for (int v = 0; v < count; v++)
+				{
+					int mask = vertexRegion[v] >= 0 ? allowed[vertexRegion[v]] : ~0;
+					int best = -1, second = -1; float bestD = float.MaxValue, secondD = float.MaxValue;
+					foreach (int n in weighted)
+					{
+						if ((mask & (1 << boneRegion[n])) == 0) continue;
+						float d = PointToSegment(fileX[v], fileY[v], fileZ[v], P[n], segEnd[n]);
+						if (d < bestD) { second = best; secondD = bestD; best = n; bestD = d; }
+						else if (d < secondD) { second = n; secondD = d; }
+					}
+					Dictionary<int, float> w = new Dictionary<int, float>();
+					if (best >= 0) w[best] = 1f / MathF.Pow(bestD + softD, 4);
+					if (second >= 0) w[second] = 1f / MathF.Pow(secondD + softD, 4);
+					if (best < 0) w[0] = 1;
+					byDistance[v] = w;
+				}
+				final = Finish(Smooth(byDistance, neighbours, canonical), neighbours, canonical, rig);
+
+				// Into the T-pose about the fitted joints; the normals the same way.
+				float[][] carryFitted = new float[rig.Nodes.Count][];
+				for (int n = 0; n < rig.Nodes.Count; n++) carryFitted[n] = Gltf.Mul(Gltf.Invert(F[n]), FT[n]);
+				for (int v = 0; v < count; v++)
+				{
+					float[] p = Skinned(fileX[v], fileY[v], fileZ[v], final[v], carryFitted);
+					bundle.Buffer[v * 8] = p[0]; bundle.Buffer[v * 8 + 1] = p[1]; bundle.Buffer[v * 8 + 2] = p[2];
+					if (anyNormals)
+					{
+						float nx = 0, ny = 0, nz = 0;
+						foreach ((int node, float weight) in final[v]) { float[] t = Turn(carryFitted[node], normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]); nx += t[0] * weight; ny += t[1] * weight; nz += t[2] * weight; }
+						float len = MathF.Sqrt(nx * nx + ny * ny + nz * nz);
+						if (len > 1e-6f) { normals[v * 3] = nx / len; normals[v * 3 + 1] = ny / len; normals[v * 3 + 2] = nz / len; }
+					}
+				}
+				writeRig = new Models.Rig { Nodes = rig.Nodes, Parents = rig.Parents, Bind = FT.ToList(), Weights = rig.Weights, Motions = rig.Motions, Blended = rig.Blended };
+				result.Fitted = true;
+				fittedDone = true;
+				result.Notes.Add("a fitted skeleton: the game's bones moved to where the file has them (" + string.Join("; ", fittedNotes) + "); weights by distance to those bones within the regions; carried into the T-pose about them - played back by retargeting the game's rotations onto it");
+			}
+
 			// ---- the limbs onto the bones --------------------------------------------------------------------------
 			// The matched pose is alike as a whole, not limb by limb: the file's forearm hangs straight
 			// where the game's angles forward, and carried through the game's changes that difference
@@ -369,7 +563,7 @@ namespace Crystal
 			// vertices are first turned about their bone's joint (as posed) onto the bone's direction -
 			// the mesh limb's direction taken as joint -> the middle of the vertices the bone owns -
 			// blended by the vertex's weight for the bone. Hubs (hips, chest) are left as they are.
-			if (delta != null)
+			if (!fittedDone && delta != null)
 			{
 				float[][] posedWorld = new float[rig.Nodes.Count][];
 				for (int n = 0; n < rig.Nodes.Count; n++) posedWorld[n] = Gltf.Mul(rig.Bind[n], delta[n]);
@@ -477,7 +671,7 @@ namespace Crystal
 			// the first weights, the arms stand clear of the body, and a second transfer there, against
 			// the original's own bind pose, tells them apart. Twice, since the second carrying is truer.
 			float[] bx = fileX, by = fileY, bz = fileZ;
-			if (delta != null)
+			if (!fittedDone && delta != null)
 			{
 				float[][] undo = delta.Select(d => Gltf.Invert(d)).ToArray();
 				for (int round = 0; round < 2; round++)
@@ -517,7 +711,7 @@ namespace Crystal
 
 			// ---- the skinned glTF -------------------------------------------------------------------------------
 			Models.Frame(bundle);
-			result.Glb = Gltf.Write(bundle, name => textureBytes.TryGetValue(name, out byte[] bytes) ? bytes : null, rig, v => final[v], anyNormals ? normals.ToArray() : null);
+			result.Glb = Gltf.Write(bundle, name => textureBytes.TryGetValue(name, out byte[] bytes) ? bytes : null, writeRig, v => final[v], anyNormals ? normals.ToArray() : null);
 			return result;
 		}
 
@@ -1073,6 +1267,18 @@ namespace Crystal
 				sum[0] += x[v]; sum[1] += y[v]; sum[2] += z[v]; n++;
 			}
 			return n >= 3 ? new[] { sum[0] / n, sum[1] / n, sum[2] / n } : null;
+		}
+
+		private static string Fmt(float[] p) => p[0].ToString("0.0") + "," + p[1].ToString("0.0") + "," + p[2].ToString("0.0");
+
+		/// <summary>The distance from a point to the segment a-b.</summary>
+		private static float PointToSegment(float x, float y, float z, float[] a, float[] b)
+		{
+			float dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+			float len = dx * dx + dy * dy + dz * dz;
+			float t = len < 1e-8f ? 0 : Math.Clamp(((x - a[0]) * dx + (y - a[1]) * dy + (z - a[2]) * dz) / len, 0, 1);
+			float px = a[0] + dx * t - x, py = a[1] + dy * t - y, pz = a[2] + dz * t - z;
+			return MathF.Sqrt(px * px + py * py + pz * pz);
 		}
 
 		/// <summary>Whether <paramref name="ancestor"/> is above <paramref name="node"/> in the rig's tree (its parent, or further up).</summary>

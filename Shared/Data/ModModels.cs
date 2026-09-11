@@ -47,6 +47,9 @@ namespace OpenFF.Data
 		public float[] Rotation;
 		public float[] Offset;
 
+		/// <summary>A skeleton of the game's names fitted to the file (its joints moved to the file's own elbows, knees...; Crystal's fitted auto-rig): driven by retargeting, though every bone is the game's by name.</summary>
+		public bool Fitted;
+
 		/// <summary>Bones of the file -> nodes of the model, for what the built-in table does not know ("Hip": "hara").</summary>
 		public Dictionary<string, string> Bones = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -84,6 +87,7 @@ namespace OpenFF.Data
 				Scale = (float)(node["scale"]?.GetValue<double>() ?? 0),
 				Rotation = Triple(node["rotation"]),
 				Offset = Triple(node["offset"]),
+				Fitted = node["fitted"]?.GetValue<bool>() ?? false,
 				Source = source
 			};
 			if (node["bones"] is JsonObject bones)
@@ -111,6 +115,7 @@ namespace OpenFF.Data
 			if (Scale > 0) node["scale"] = Scale;
 			if (Rotation != null) node["rotation"] = new JsonArray(Rotation[0], Rotation[1], Rotation[2]);
 			if (Offset != null) node["offset"] = new JsonArray(Offset[0], Offset[1], Offset[2]);
+			if (Fitted) node["fitted"] = true;
 			if (Bones.Count > 0)
 			{
 				JsonObject bones = new JsonObject();

@@ -117,6 +117,7 @@ function makeModelViewer(canvas, status, options = {}) {
   let skinJointNode = null;
   let skinBuffer = null;
   let skinFrame = -1;
+  let skinFitted = false;        // the file's joints sit where its own elbows and knees are, not the game's: retargeted
 
   // Weight painting on a skinned glTF: the bone shown as a heat map and painted, the brush,
   // and the strokes to undo. The weights live in bundle.skin.jointIndex and bundle.skin.weights
@@ -399,17 +400,78 @@ function makeModelViewer(canvas, status, options = {}) {
   function jointMatrices(frame) {
     const skin = bundle && bundle.skin;
     if (!skin || !skinRig || frame < 0) return null;
-    const nodeCount = skinRig.nodes.length;
-    const at = Math.max(0, Math.min(skinRig.frames - 1, frame)) * nodeCount * 12;
-    const matrices = new Array(skin.joints.length);
+    return matricesFor(skinRig, skinJointNode, frame);
+  }
+
+  /// A 4x4 column-major matrix from 12 floats of a rig's row-vector 4x3 at an offset.
+  function mat4At(w, o) { return [w[o], w[o + 1], w[o + 2], 0, w[o + 3], w[o + 4], w[o + 5], 0, w[o + 6], w[o + 7], w[o + 8], 0, w[o + 9], w[o + 10], w[o + 11], 1]; }
+
+  /// Whether the file's joints sit where the game's bind pose has them (within a hundredth of
+  /// the height). When they do not, the file has a fitted skeleton and is driven by retargeting.
+  function jointsFitted(rig, jointNode) {
+    const skin = bundle && bundle.skin;
+    if (!skin || !rig || !rig.bind) return false;
+    const h = bounds ? bounds.max[1] - bounds.min[1] : 1;
     for (let j = 0; j < skin.joints.length; j++) {
-      const n = skinJointNode[j];
-      if (n < 0) { matrices[j] = null; continue; }
-      const w = skinRig.worlds;
-      const o = at + n * 12;
-      const world = [w[o], w[o + 1], w[o + 2], 0, w[o + 3], w[o + 4], w[o + 5], 0, w[o + 6], w[o + 7], w[o + 8], 0, w[o + 9], w[o + 10], w[o + 11], 1];
-      matrices[j] = multiply(world, skin.inverseBind.slice(j * 16, j * 16 + 16));
+      const n = jointNode[j];
+      if (n < 0) continue;
+      const own = invert4(skin.inverseBind.slice(j * 16, j * 16 + 16));
+      if (!own) continue;
+      const g = rig.bind, o = n * 12;
+      if (Math.hypot(own[12] - g[o + 9], own[13] - g[o + 10], own[14] - g[o + 11]) > 0.01 * h) return true;
     }
+    return false;
+  }
+
+  /// The skinning matrix per joint at a frame of a rig. Joints where the game's are: the game's
+  /// world matrix through the inverse bind. A fitted skeleton (joints moved to the file's own):
+  /// retargeted - each joint's local rotation is the game's, changed from its bind as the game's
+  /// is at this frame, about the file's own offsets, composed down the tree; a root moves as the
+  /// game's does. The game's rotations, the file's proportions.
+  function matricesFor(rig, jointNode, frame) {
+    const skin = bundle.skin;
+    const nodeCount = rig.nodes.length;
+    const at = Math.max(0, Math.min(rig.frames - 1, frame)) * nodeCount * 12;
+    const joints = skin.joints.length;
+    const matrices = new Array(joints);
+    if (!skinFitted) {
+      for (let j = 0; j < joints; j++) {
+        const n = jointNode[j];
+        matrices[j] = n < 0 ? null : multiply(mat4At(rig.worlds, at + n * 12), skin.inverseBind.slice(j * 16, j * 16 + 16));
+      }
+      return matrices;
+    }
+    // Joint by node, the tree from the rig, the file's bind worlds from its inverse binds.
+    const jointOfNode = new Map();
+    jointNode.forEach((n, j) => { if (n >= 0 && !jointOfNode.has(n)) jointOfNode.set(n, j); });
+    const ownBind = new Array(joints);
+    for (let j = 0; j < joints; j++) ownBind[j] = invert4(skin.inverseBind.slice(j * 16, j * 16 + 16));
+    const rot = (m) => [m[0], m[1], m[2], 0, m[4], m[5], m[6], 0, m[8], m[9], m[10], 0, 0, 0, 0, 1];
+    const world = new Array(joints).fill(null);
+    const build = (j) => {
+      if (world[j]) return world[j];
+      const n = jointNode[j];
+      if (n < 0 || !ownBind[j]) return null;
+      const gameNow = mat4At(rig.worlds, at + n * 12), gameBind = mat4At(rig.bind, n * 12);
+      const parentNode = rig.parents[n];
+      const pj = parentNode >= 0 && jointOfNode.has(parentNode) ? jointOfNode.get(parentNode) : -1;
+      if (pj < 0) {
+        // A root: the game's turn since its bind, and its move, about the file's own root.
+        const m = multiply(multiply(rot(gameNow), invert4(rot(gameBind))), rot(ownBind[j]));
+        m[12] = ownBind[j][12] + gameNow[12] - gameBind[12]; m[13] = ownBind[j][13] + gameNow[13] - gameBind[13]; m[14] = ownBind[j][14] + gameNow[14] - gameBind[14];
+        return world[j] = m;
+      }
+      const parentWorld = build(pj);
+      if (!parentWorld) return null;
+      const gameParentNow = mat4At(rig.worlds, at + parentNode * 12), gameParentBind = mat4At(rig.bind, parentNode * 12);
+      const localNow = multiply(invert4(gameParentNow), gameNow), localBind = multiply(invert4(gameParentBind), gameBind);
+      const delta = multiply(rot(localNow), invert4(rot(localBind)));
+      const ownLocal = multiply(invert4(ownBind[pj]), ownBind[j]);
+      const local = multiply(delta, rot(ownLocal));
+      local[12] = ownLocal[12] + localNow[12] - localBind[12]; local[13] = ownLocal[13] + localNow[13] - localBind[13]; local[14] = ownLocal[14] + localNow[14] - localBind[14];
+      return world[j] = multiply(parentWorld, local);
+    };
+    for (let j = 0; j < joints; j++) { const w = build(j); matrices[j] = w ? multiply(w, skin.inverseBind.slice(j * 16, j * 16 + 16)) : null; }
     return matrices;
   }
 
@@ -503,7 +565,15 @@ function makeModelViewer(canvas, status, options = {}) {
     if (!skin) return;
     const joints = skin.joints.length;
     const positions = new Array(joints);
-    if (skinRig && skinFrame >= 0) {
+    if (skinRig && skinFrame >= 0 && skinFitted) {
+      // The fitted skeleton as posed: each joint's world is its skinning matrix through its own bind.
+      const matrices = jointMatrices(skinFrame);
+      for (let j = 0; j < joints; j++) {
+        const own = invert4(skin.inverseBind.slice(j * 16, j * 16 + 16));
+        const w = matrices && matrices[j] && own ? multiply(matrices[j], own) : null;
+        positions[j] = w ? [w[12], w[13], w[14]] : null;
+      }
+    } else if (skinRig && skinFrame >= 0) {
       const nodeCount = skinRig.nodes.length;
       const at = Math.max(0, Math.min(skinRig.frames - 1, skinFrame)) * nodeCount * 12;
       for (let j = 0; j < joints; j++) {
@@ -1093,6 +1163,7 @@ function makeModelViewer(canvas, status, options = {}) {
       skinJointNode = null;
       skinBuffer = null;
       skinFrame = -1;
+      skinFitted = false;
       adjacency = null;
       canonical = null;
       undoStack.length = 0;
@@ -1197,9 +1268,13 @@ function makeModelViewer(canvas, status, options = {}) {
       if (!skinRig) { skinTo(-1); draw(); return; }
       const byName = new Map(rig.nodes.map((n, i) => [String(n).toLowerCase(), i]));
       skinJointNode = bundle.skin.joints.map(j => byName.has(String(j).toLowerCase()) ? byName.get(String(j).toLowerCase()) : -1);
+      skinFitted = jointsFitted(rig, skinJointNode);
       skinTo(0);
       draw();
     },
+
+    /// Whether the shown file has a fitted skeleton (driven by retargeting the game's motions).
+    skinIsFitted() { return skinFitted; },
 
     /// Whether the shown model is a skinned glTF, and which game model drives it (or null).
     skinModel() { return bundle && bundle.skin ? (bundle.skin.model || null) : null; },
@@ -1297,16 +1372,15 @@ function makeModelViewer(canvas, status, options = {}) {
       const skin = bundle.skin;
       const undo = new Array(skin.joints.length).fill(null);
       if (next.rig && next.rig.frames > 0) {
+        // The skinning matrices at the pose the file was carried out of - through the same sums
+        // the playback uses, fitted or not - and their inverses to carry with.
         const byName = new Map(next.rig.nodes.map((n, i) => [String(n).toLowerCase(), i]));
-        const nodeCount = next.rig.nodes.length;
-        const at = Math.max(0, Math.min(next.rig.frames - 1, next.frame || 0)) * nodeCount * 12;
-        for (let j = 0; j < skin.joints.length; j++) {
-          const n = byName.has(String(skin.joints[j]).toLowerCase()) ? byName.get(String(skin.joints[j]).toLowerCase()) : -1;
-          if (n < 0) continue;
-          const w = next.rig.worlds, o = at + n * 12;
-          const world = [w[o], w[o + 1], w[o + 2], 0, w[o + 3], w[o + 4], w[o + 5], 0, w[o + 6], w[o + 7], w[o + 8], 0, w[o + 9], w[o + 10], w[o + 11], 1];
-          undo[j] = invert4(multiply(world, skin.inverseBind.slice(j * 16, j * 16 + 16)));
-        }
+        const map = skin.joints.map(j => byName.has(String(j).toLowerCase()) ? byName.get(String(j).toLowerCase()) : -1);
+        const was = skinFitted;
+        skinFitted = jointsFitted(next.rig, map);
+        const matrices = matricesFor(next.rig, map, next.frame || 0);
+        skinFitted = was;
+        for (let j = 0; j < skin.joints.length; j++) undo[j] = matrices[j] ? invert4(matrices[j]) : null;
       }
       carry = { positions: Float32Array.from(next.positions), undo };
       weightsChanged();

@@ -210,7 +210,9 @@ namespace OpenFF.Client
 			}
 			// --retarget-force: the export's own rig through the retarget path, which must then come
 			// out as the direct one (a check of the retarget's maths; Testing.md).
-			binding.Retarget = joints > 0 && (exact * 2 < joints || Options.Get("retarget-force") != null);
+			// A fitted skeleton (Crystal's fitted auto-rig) has every bone the game's by name, but its
+			// joints sit where the file has them, so it too is driven by retargeting.
+			binding.Retarget = joints > 0 && (exact * 2 < joints || (look.Definition != null && look.Definition.Fitted) || Options.Get("retarget-force") != null);
 			if (!binding.Retarget)
 			{
 				List<string> unknown = new List<string>();
@@ -232,7 +234,10 @@ namespace OpenFF.Client
 					int node = -1;
 					// The definition's own map first, then the table (so a "Root" goes to trans, the
 					// node the game moves for a hop, not to the model's fixed root), then the name itself.
+					// A fitted skeleton has the game's own names throughout: those are taken as they are.
+					bool fitted = look.Definition != null && look.Definition.Fitted;
 					if (jointName != null && look.Definition.Bones.TryGetValue(jointName, out string to) && nodeIndex.TryGetValue(to, out int chosen)) node = chosen;
+					else if (fitted && jointName != null && nodeIndex.TryGetValue(jointName, out int exactNode)) node = exactNode;
 					else
 					{
 						string game = Alias(jointName);
@@ -556,6 +561,12 @@ namespace OpenFF.Client
 						s = file.Skins.Count; break;
 					}
 				}
+			}
+			// A fitted skeleton (Crystal's) is already in the model's space, its floor and middle the
+			// model's: no fit of its own, or the auto-rig's would be undone by a hair.
+			if (definition.Fitted && definition.Scale <= 0 && definition.Offset == null && definition.Rotation == null)
+			{
+				scale = 1f; r = new float[3]; turn = Matrix.Identity; offset = Vector3.Zero; facing = "a fitted skeleton, in the model's space as it is";
 			}
 			binding.Fit = turn * Matrix.CreateTranslation(offset);
 
