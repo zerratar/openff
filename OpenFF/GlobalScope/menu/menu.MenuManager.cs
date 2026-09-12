@@ -1499,6 +1499,8 @@ internal static partial class GlobalScope
 				}
 				touchedFlag = true;
 				prevTouchedFlag_ = true;
+				// PORT: the mods' behaviours on this screen, if any reach it (OpenFF.Client.ModMenus).
+				OpenFF.Client.ModMenus.GameScreenBuilt(menu_name);
 				return true;
 			}
 
@@ -1590,6 +1592,8 @@ internal static partial class GlobalScope
 
 			public void release()
 			{
+				// PORT: the mods' behaviours on the screen going away hear of it.
+				OpenFF.Client.ModMenus.GameScreenReleased();
 				while (stkMenuLevel.empty() == 0)
 				{
 					Pop();
@@ -1793,6 +1797,8 @@ internal static partial class GlobalScope
 				}
 				MedgetsBehave(baseMedget);
 				terminateBehave_ = false;
+				// PORT: the mods' behaviours on one of the game's screens hear the frame's focus, presses and keys.
+				OpenFF.Client.ModMenus.GameScreenTick();
 			}
 
 			public bool MoveCursor(Medget M, bool PlaySe)

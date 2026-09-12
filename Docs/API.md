@@ -822,8 +822,9 @@ A job as it stands for one character, for menus (IParty.JobInfo).
 | --- | --- |
 | `int Abp { get; set; }` |  |
 | `int AbpToNext { get; set; }` | ABP the next step costs; 0 at the top or without a ladder. |
-| `bool HasLadder { get; set; }` | Whether it has a ladder (mastery progression). |
+| `bool HasLadder { get; set; }` | Whether it has a ladder with steps to climb. FF5's Freelancer and Mime-like jobs (Inherits) have none: they gain no ABP and show no level. |
 | `bool Held { get; set; }` | Whether the character holds it. |
+| `bool Inherits { get; set; }` | A Freelancer-like job: it carries the innate passives and best stat modifiers of every job the character has mastered. |
 | `int Level { get; set; }` |  |
 | `bool Mastered { get; set; }` |  |
 | `AbilityInfo Next { get; set; }` | The next ability the ladder teaches, or null. |
@@ -922,11 +923,13 @@ A screen of a mod's own: menus/<id>.json.
 | `int Background { get; set; }` | The game's menu backdrop to draw behind: 10 the plain one (the default), 0 Item's, 1 Magic's, 2 Equipment's, 3 Status's, 5 Job's, 6 Config's, 7 Quicksave's, 8 Save's, 9 the main menu's, 13 and 14 the tips pages'. |
 | `bool CharacterSelect { get; set; }` | Ask which hero first, as Status and Equip do; Menu.Hero says who. |
 | `string Directory { get; set; }` | The folder the definition came from; set by the loader. |
+| `string File { get; set; }` | The game's layout file the screen lives in: MenuDefine.xbn (the default), ShopDefine.xbn, BattleDefine.xbn, WorldDefine.xbn, SpecialDefine.xbn, MogNet.xbn, ChocoboBank.xbn, NameEntry.xbn. |
 | `string Id { get; set; }` |  |
-| `string Layout { get; set; }` | The layout file beside the definition (menus/<file>.xml), one <menu> in the game's XML form. |
+| `string Layout { get; set; }` | The layout file beside the definition (menus/<file>.xml), one <menu> in the game's XML form. For one of the game's own screens it may be left out: the definition then only attaches behaviours to the screen as it is. |
 | `string LayoutPath { get; }` |  |
 | `MenuEntry MainMenu { get; set; }` | An entry in the game's main menu that opens this screen; null for none. |
 | `string ModId { get; set; }` | The mod that defined it; set by the loader. |
+| `bool Patch { get; set; }` | For one of the game's screens with a layout of the mod's: merge - a frame with an id the game's screen has takes that frame's place, a new id is added - rather than replacing the whole screen. |
 | `string Screen { get; set; }` | The <name> of the menu in the layout; the id when unsaid. Mods' names should not collide with the game's (main_menu, status, job...). |
 | `string Title { get; set; }` |  |
 
@@ -2456,4 +2459,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-154 types, 1104 members; 475 without a summary yet.
+154 types, 1107 members; 475 without a summary yet.

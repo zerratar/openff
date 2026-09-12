@@ -42,7 +42,9 @@ namespace Crystal.Editor
 			def["background"] ??= 10;
 			def["characterSelect"] ??= false;
 			def["attachments"] ??= new JsonArray();
-			def["file"] = "menus/" + id + ".json";
+			def["file"] ??= "MenuDefine.xbn";   // the game's layout file the screen lives in (a screen of the game's own is reached by name)
+			def["patch"] ??= false;
+			def["definitionFile"] = "menus/" + id + ".json";
 			def["layoutFile"] = "menus/" + def["layout"].GetValue<string>();
 			def["layoutExists"] = File.Exists(Path.Combine(Directory(project), def["layout"].GetValue<string>()));
 			return def;
@@ -83,6 +85,7 @@ namespace Crystal.Editor
 					mainMenu = def["mainMenu"] is JsonObject mm ? mm["label"]?.GetValue<string>() : null,
 					characterSelect = def["characterSelect"]?.GetValue<bool>() ?? false,
 					attachments = (def["attachments"] as JsonArray)?.Count ?? 0,
+					gameFile = def["file"]?.GetValue<string>(), patch = def["patch"]?.GetValue<bool>() ?? false,
 					frames, focusable, file = "menus/" + id + ".json", layoutFile = def["layoutFile"]?.GetValue<string>()
 				});
 			}
@@ -101,7 +104,7 @@ namespace Crystal.Editor
 			string path = DefinitionPath(project, id) ?? throw new ArgumentException("a screen's id is a plain word");
 			System.IO.Directory.CreateDirectory(Directory(project));
 			JsonObject clean = (JsonObject)JsonNode.Parse(def.ToJsonString());
-			clean.Remove("file"); clean.Remove("layoutFile"); clean.Remove("layoutExists");
+			clean.Remove("definitionFile"); clean.Remove("layoutFile"); clean.Remove("layoutExists");
 			clean["id"] = id;
 			if (clean["mainMenu"] is JsonObject mm && string.IsNullOrWhiteSpace(mm["label"]?.GetValue<string>())) clean.Remove("mainMenu");
 			File.WriteAllText(path, clean.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }), new UTF8Encoding(false));
@@ -164,6 +167,33 @@ namespace Crystal.Editor
 			if (mainMenu) def["mainMenu"] = new JsonObject { ["label"] = name.Trim(), ["after"] = "com_job" };
 			SaveDefinition(project, unique, def);
 			return unique;
+		}
+
+		/// <summary>
+		/// One of the game's screens taken into the mod: its &lt;menu&gt; copied from the layout file (as the workspace has it,
+		/// overrides and all) to menus/&lt;screen&gt;.xml, with a definition naming the screen and file; the client then plays
+		/// the mod's copy in the game's place. Returns the id.
+		/// </summary>
+		public static string Adopt(Project project, string file, string screen, byte[] xbn)
+		{
+			if (project == null) throw new InvalidOperationException("no project is open");
+			if (string.IsNullOrWhiteSpace(screen)) throw new ArgumentException("which screen?");
+			XDocument doc = OpenFF.Content.MenuXbn.ToXml(xbn);
+			XElement menu = doc.Root?.Elements().FirstOrDefault(m => (m.Name.LocalName == "menu" || m.Name.LocalName == "unit") && (string)m.Element("name") == screen)
+				?? throw new ArgumentException("no screen called '" + screen + "' in " + file);
+			string id = ProjectItems.Slug(screen);
+			System.IO.Directory.CreateDirectory(Directory(project));
+			if (File.Exists(Path.Combine(Directory(project), id + ".json"))) return id;   // taken already: open that
+			XDocument layout = new XDocument(new XDeclaration("1.0", "utf-8", null),
+				new XComment(" The game's " + screen + " (" + file + ") as the mod's own: edit it here and the client plays this copy in the game's place. The game's screen code still drives it, so keep the ids it reads; frames may move, grow, gain <window/>, <font>, <align>, <colour>, and behaviours in menus/" + id + ".json. "),
+				new XElement("menulist", new XElement(menu)));
+			File.WriteAllText(Path.Combine(Directory(project), id + ".xml"), layout.Declaration + "\n" + layout.ToString(), new UTF8Encoding(false));
+			SaveDefinition(project, id, new JsonObject
+			{
+				["id"] = id, ["layout"] = id + ".xml", ["screen"] = screen, ["file"] = Path.GetFileName(file), ["title"] = screen + " (the game's)",
+				["patch"] = false, ["background"] = 10, ["characterSelect"] = false, ["attachments"] = new JsonArray()
+			});
+			return id;
 		}
 
 		public static bool Delete(Project project, string id)

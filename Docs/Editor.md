@@ -986,7 +986,15 @@ the **screen's card**: Title, the Main menu entry and where it goes (after Item 
 Save), Ask for a hero (the game's character pick first), the Backdrop, and the behaviours on
 the screen itself - one there hears every frame's events. Every change to the definition
 saves itself; *Open the definition as JSON* and *Delete this screen* are at the bottom.
-`Docs/Modding.md` ▸ *Menu screens of the mod's own* has the run-time side.
+
+Any of the game's own screens can be taken into the mod: open its file (`MenuDefine` for the
+menus, `ShopDefine`, `BattleDefine`...), pick the screen and press **Take into the mod**. Its
+`<menu>` is copied to `menus/<screen>.xml` with a definition that names the screen and file, and
+it opens as a screen of the mod's: move and restyle frames, add windows and behaviours; the
+client plays the copy in the game's place (the screen card's *Patch, not replace* merges the
+mod's frames into the game's by id instead). A definition can also reach a game screen with no
+layout at all - behaviours only - by naming it in *Screen*. `Docs/Modding.md` ▸ *Menu screens
+of the mod's own* has the run-time side.
 
 ### Preview
 

@@ -7,6 +7,20 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## Unreleased (0.1.5)
+
+- **The mods reach the game's own screens.** A `menus/<id>.json` whose `screen` is one of the
+  game's (`status`, `main_menu`, a shop list, the battle command window - in whichever of the
+  eight layout files `file` names) attaches its MenuBehaviours to that screen as the game
+  builds it: OnOpen, OnFocus, OnPress (a handled press is kept from the game's screen), OnCancel,
+  OnKey, OnTick. With a layout it replaces the game's screen, or with `patch: true` merges into it
+  frame by id - a frame the game's screen has takes its place, a new one is added. Crystal's
+  Menus tab has *Take into the mod* on any of the game's screens: the `<menu>` is copied into
+  `menus/` and edited like a screen of the mod's own.
+- **FF5's way with the Freelancer.** A job with no ladder to climb gains no ABP and shows no
+  level (FF5's Freelancer and Mime-likes); `JobInfo.HasLadder` is false for it, `Inherits` says
+  why. Jobs start at Lv. 0 with ABP counted toward the next level, as FF5 has it.
+
 ## 0.1.4 - how a hero grows, and menus of your own (2026-09-12)
 
 A hero's progression chosen per character - FF3's jobs, FF4's fixed class, or FF5's job

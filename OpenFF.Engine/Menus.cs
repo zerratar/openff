@@ -20,7 +20,10 @@
 // place of one, "replaces": "com_job");
 // the client merges the layout into MenuDefine.xbn as it loads, so the screen is built by
 // name like the game's own, drawn with the game's windows, font and cursor, and moved
-// through with the game's focus rules. characterSelect asks the player which hero first
+// through with the game's focus rules. A definition whose screen is one of the game's own
+// ("screen": "status") reaches that screen instead: its behaviours hear the game's screen,
+// its layout (if any) replaces the game's - or, with "patch": true, merges into it frame by
+// id - in whichever of the eight layout files "file" names. characterSelect asks the player which hero first
 // (as Status and Equip do); Menu.Hero says who. background is one of the game's menu
 // backdrops (10 the plain one, the default; 3 Status's, 5 Job's, 9 the main menu's...).
 //
@@ -43,8 +46,12 @@ namespace OpenFF
 	public sealed class MenuDefinition
 	{
 		public string Id { get; set; }
-		/// <summary>The layout file beside the definition (menus/&lt;file&gt;.xml), one &lt;menu&gt; in the game's XML form.</summary>
+		/// <summary>The layout file beside the definition (menus/&lt;file&gt;.xml), one &lt;menu&gt; in the game's XML form. For one of the game's own screens it may be left out: the definition then only attaches behaviours to the screen as it is.</summary>
 		public string Layout { get; set; }
+		/// <summary>The game's layout file the screen lives in: MenuDefine.xbn (the default), ShopDefine.xbn, BattleDefine.xbn, WorldDefine.xbn, SpecialDefine.xbn, MogNet.xbn, ChocoboBank.xbn, NameEntry.xbn.</summary>
+		public string File { get; set; } = "MenuDefine.xbn";
+		/// <summary>For one of the game's screens with a layout of the mod's: merge - a frame with an id the game's screen has takes that frame's place, a new id is added - rather than replacing the whole screen.</summary>
+		public bool Patch { get; set; }
 		/// <summary>The &lt;name&gt; of the menu in the layout; the id when unsaid. Mods' names should not collide with the game's (main_menu, status, job...).</summary>
 		public string Screen { get; set; }
 		public string Title { get; set; }
@@ -232,11 +239,12 @@ namespace OpenFF
 					MenuDefinition def = JsonSerializer.Deserialize<MenuDefinition>(File.ReadAllText(file), new JsonSerializerOptions { PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
 					if (def == null) continue;
 					if (string.IsNullOrWhiteSpace(def.Id)) def.Id = Path.GetFileNameWithoutExtension(file);
-					if (string.IsNullOrWhiteSpace(def.Layout)) def.Layout = def.Id + ".xml";
+					if (string.IsNullOrWhiteSpace(def.Layout) && File.Exists(Path.Combine(directory, def.Id + ".xml"))) def.Layout = def.Id + ".xml";
 					if (string.IsNullOrWhiteSpace(def.Screen)) def.Screen = def.Id;
 					def.ModId = modId;
 					def.Directory = directory;
-					if (!File.Exists(def.LayoutPath)) { Game.Warn("mod " + modId + ": menus/" + Path.GetFileName(file) + " names layout " + def.Layout + ", which is not there"); continue; }
+					if (def.Layout != null && !File.Exists(def.LayoutPath)) { Game.Warn("mod " + modId + ": menus/" + Path.GetFileName(file) + " names layout " + def.Layout + ", which is not there"); continue; }
+					if (string.IsNullOrWhiteSpace(def.File)) def.File = "MenuDefine.xbn";
 					def.Attachments ??= new List<MenuAttachment>();
 					list.Add(def);
 				}

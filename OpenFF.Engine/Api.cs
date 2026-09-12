@@ -509,8 +509,10 @@ namespace OpenFF
 		public bool Open { get; set; }
 		/// <summary>Whether the character holds it.</summary>
 		public bool Held { get; set; }
-		/// <summary>Whether it has a ladder (mastery progression).</summary>
+		/// <summary>Whether it has a ladder with steps to climb. FF5's Freelancer and Mime-like jobs (Inherits) have none: they gain no ABP and show no level.</summary>
 		public bool HasLadder { get; set; }
+		/// <summary>A Freelancer-like job: it carries the innate passives and best stat modifiers of every job the character has mastered.</summary>
+		public bool Inherits { get; set; }
 		public int Level { get; set; }
 		public int Abp { get; set; }
 		/// <summary>ABP the next step costs; 0 at the top or without a ladder.</summary>

@@ -206,7 +206,7 @@ async function loadList() {
       const own = await api('/api/project/menus').catch(() => null);
       const screens = (own && own.ok ? own.menus || [] : []).map(m => ({
         name: 'menus/' + m.id, overridden: false, own: true, menuDef: m,
-        note: `${m.title || m.id} · the mod's own screen · ${m.frames} frame${m.frames === 1 ? '' : 's'}, ${m.focusable} to choose from${m.mainMenu ? ` · in the main menu as “${m.mainMenu}”` : ''}${m.attachments ? ` · ${m.attachments} behaviour${m.attachments === 1 ? '' : 's'}` : ''}`
+        note: `${m.title || m.id} · ${gameScreenNames.has((m.screen || '').toLowerCase()) ? (m.patch ? 'patches' : m.frames ? 'stands in for' : 'reaches') + ` the game's ${m.screen} (${m.gameFile || 'MenuDefine.xbn'})` : 'the mod\'s own screen'} · ${m.frames} frame${m.frames === 1 ? '' : 's'}, ${m.focusable} to choose from${m.mainMenu ? ` · in the main menu as “${m.mainMenu}”` : ''}${m.attachments ? ` · ${m.attachments} behaviour${m.attachments === 1 ? '' : 's'}` : ''}`
       }));
       state.files = [...screens, ...state.files];
     }
@@ -569,6 +569,11 @@ function goToLine(text, line, column) {
 
 // ------------------------------------------------------------------------ menus
 
+// The names of the game's own screens across its eight layout files, so a definition naming one
+// is told apart from a screen of the mod's own in the library. Filled the first time a file opens
+// and from the eight files' known screens.
+const gameScreenNames = new Set(['main_menu', 'menu_item', 'magic', 'magic_item_list', 'job_question2', 'job', 'equip', 'equip_under_list', 'status', 'load_save', 'save_confirm', 'save_finished', 'now_saving', 'config', 'config2', 'tips_list', 'tips_text', 'config_confirm', 'quit_confirm', 'suspend_', 'now_suspending', 'suspend_end', 'suspend_failed', 'suspend_write_failed', 'useitemcommand', 'useitemcommand_left', 'useitemcommand_right', 'useitemcommand_right2', 'confirm', 'link', 'shop_buy_list', 'item_use_list', 'inn_question']);
+
 const menu = {
   doc: null, screens: [], screen: null, selected: null, name: null,
   zoom: 2, preview: false, messages: {},
@@ -603,6 +608,7 @@ async function openMenu(name) {
   // Same frames inside either way.
   const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu' || e.tagName === 'unit');
   menu.screens = found.length ? found : [menu.doc.documentElement];
+  if (!own) for (const s of menu.screens) { const n = childText(s, 'name'); if (n) gameScreenNames.add(n.toLowerCase()); }
 
   const picker = $('.screens', node);
   picker.textContent = '';
@@ -688,6 +694,21 @@ async function openMenu(name) {
       say(result.error, 'bad');
     }
   };
+
+  // One of the game's screens taken into the mod: a copy under menus/ the client plays in the game's place.
+  const adopt = $('.adopt', node);
+  if (adopt) {
+    adopt.hidden = own || !(typeof isOpenFFProject === 'function' && isOpenFFProject());
+    adopt.onclick = async () => {
+      const screen = childText(menu.screens[$('.screens', node).value || 0], 'name');
+      if (!screen) return say('this file has no named screens', 'bad');
+      const r = await api('/api/project/menus/adopt', { file: name, screen });
+      if (!r.ok) return say(r.error, 'bad');
+      say(`${screen} taken into the mod as menus/${r.id}`, 'good');
+      await loadList();
+      openDoc('menu', 'menus/' + r.id);
+    };
+  }
 
   $('.duplicate', node).onclick = () => {
     if (!menu.selected) return say('select a widget first', 'bad');
@@ -1294,6 +1315,21 @@ function buildMenuScreen(node) {
   };
   const text = (value, onInput, placeholder) => { const i = document.createElement('input'); i.type = 'text'; i.value = value ?? ''; i.placeholder = placeholder || ''; i.oninput = () => { onInput(i.value); saveMenuDefinition(); }; return i; };
   row('Title', text(def.title, v => { def.title = v; }, def.id), 'The screen\'s name, for the editor');
+  // Which screen this is: one of the mod's own (a new name), or one of the game's (its name in its file) - then
+  // the behaviours hear the game's screen and the layout replaces it, or patches it frame by id.
+  const file = document.createElement('select');
+  for (const f of ['MenuDefine.xbn', 'ShopDefine.xbn', 'BattleDefine.xbn', 'WorldDefine.xbn', 'SpecialDefine.xbn', 'MogNet.xbn', 'ChocoboBank.xbn', 'NameEntry.xbn']) {
+    const o = document.createElement('option'); o.value = f; o.textContent = f; file.append(o);
+  }
+  file.value = def.file || 'MenuDefine.xbn';
+  file.onchange = () => { def.file = file.value; saveMenuDefinition(); };
+  row('Screen', text(def.screen, v => { def.screen = v; }, def.id), 'The <menu> name: a new one for a screen of the mod\'s own, or one of the game\'s (main_menu, status, job, equip...) to reach that screen');
+  row('In file', file, 'The game\'s layout file the screen lives in (matters for one of the game\'s screens)');
+  const patch = document.createElement('input');
+  patch.type = 'checkbox';
+  patch.checked = !!def.patch;
+  patch.onchange = () => { def.patch = patch.checked; saveMenuDefinition(); };
+  row('Patch, not replace', patch, 'For one of the game\'s screens with a layout here: merge this layout\'s frames into the game\'s by id (a frame the game has takes its place; a new one is added) instead of replacing the whole screen');
   def.mainMenu = def.mainMenu || { label: '', after: 'com_job' };
   row('Main menu entry', text(def.mainMenu.label, v => { def.mainMenu.label = v; }, 'none - opened from code (Game.Menus.Open) or another screen'), 'An entry in the game\'s main menu that opens this screen; empty for none');
   const after = document.createElement('select');

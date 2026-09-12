@@ -1407,6 +1407,22 @@ Magic's, 2 Equipment's, 3 Status's, 5 Job's, 6 Config's, 9 the main menu's). Wit
 entry the screen is opened from code - `Game.Menus.Open("abilities")` from anywhere on the
 field - or from another screen (`Menu.Open`).
 
+**Reaching the game's own screens.** A definition whose `screen` is one of the game's -
+`main_menu`, `status`, `job`, `equip`, the shop's `shop_buy_list`, the battle's, in whichever of
+the eight layout files `"file"` names (`MenuDefine.xbn` unless said) - works on that screen
+instead of adding one. Its behaviours hear the game's screen as the game builds and runs it:
+`OnOpen`, `OnFocus`, `OnPress` (return true and the game's screen never sees the press),
+`OnCancel` (likewise), `OnKey`, `OnTick`; `Menu.Widget(id)` reaches every frame of the game's
+layout by its id (`com_item`, `mbs_name`...), `Menu.Hero` is the hero the screen is about,
+`Menu.Close()` is the game's own cancel. Without a layout that is all it does - a mod can relabel
+the main menu's *Item* with a `Label` on `com_item` and nothing else. With a layout, the mod's
+`<menu>` **replaces** the game's (the game's screen code still drives it, so keep the ids it
+reads - frames may move, grow, gain windows, styles and behaviours), or with `"patch": true`
+**merges** into it: a frame whose id the game's screen has takes that frame's place, a new one
+is added. In Crystal, open any of the game's files, pick a screen and press **Take into the mod**:
+the screen's XML is copied to `menus/<screen>.xml` with a definition naming it, and edits from
+there on are the mod's; the screen card has *Screen*, *In file* and *Patch, not replace*.
+
 How it runs: as the client loads `MenuDefine.xbn` it decodes the file to XML (the codec
 Crystal uses, now in `Shared/Text/MenuXbn.cs`), appends every mod screen's `<menu>`, adds
 the main menu entries, numbers the focus list, and encodes it back; the game then builds the

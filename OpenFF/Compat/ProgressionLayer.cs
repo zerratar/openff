@@ -741,6 +741,8 @@ namespace OpenFF.Client
 					if (player == null || !player.isEnable() || player.condition().isNotBattleCondition()) continue;
 					if (!IsMastery(player.playerId())) continue;
 					int job = HeldJob(player);
+					// FF5: a job with no ladder to climb (the Freelancer, a Mime) gains no ABP.
+					if ((LadderOf(job)?.Abilities.Count ?? 0) == 0) { Log.Write(LogChannel.File, "progression: " + player.name() + " gains no ABP as " + JobName(job) + " (no ladder)"); continue; }
 					List<string> news = GiveAbp(player.playerId(), job, abp);
 					Log.Write(LogChannel.File, "progression: " + player.name() + " +" + abp + " ABP in " + JobName(job) + " (" + Abp(player.playerId(), job) + "/" + AbpToNext(player.playerId(), job) + ", level " + JobLevel(player.playerId(), job) + ")");
 					Notices.Post(player.name() + ": +" + abp + " ABP");

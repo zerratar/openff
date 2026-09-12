@@ -32,9 +32,10 @@ namespace Mastery
 			if (m == null) { menu.SetText("hero", "No hero"); return; }
 			JobInfo job = Game.Party.JobInfo(Hero, m.JobWord);
 			menu.SetText("hero", m.Name + "   Lv. " + m.Level);
+			// FF5's way: a job starts at Lv. 0 with its ABP counting toward the next level; the Freelancer (and any job that inherits) has no levels and gains no ABP, so it shows its name alone.
 			menu.SetText("job", m.JobTitle + (job != null && job.HasLadder ? "   Lv. " + job.Level + (job.Mastered ? "   Mastered!" : "") : ""));
 			// The header's right side: the ladder's ABP, and the gear the hero may wear (the job held, and what set abilities grant).
-			menu.SetText("abp_label", m.Progression != "mastery" ? "Grows by " + m.Progression : job == null || !job.HasLadder ? "ABP  -" : job.Mastered ? "ABP  mastered" : "ABP  " + job.Abp + " / " + job.AbpToNext);
+			menu.SetText("abp_label", m.Progression != "mastery" ? "Grows by " + m.Progression : job == null || !job.HasLadder ? (job != null && job.Inherits ? "Grows by mastering other jobs" : "") : job.Mastered ? "ABP  Mastered!" : "ABP  " + job.Abp + " / " + job.AbpToNext);
 			List<string> gear = m.Grants.Select(w => Game.Party.JobInfo(Hero, w)?.Title ?? w).ToList();
 			menu.SetText("abp", "Equippable: " + (gear.Count > 0 ? string.Join(", ", gear) : "-"));
 		}
@@ -269,7 +270,7 @@ namespace Mastery
 		{
 			JobInfo job = Focused();
 			if (job == null) { Screens.Describe(Menu, "", ""); return; }
-			string standing = !job.HasLadder ? "no ladder" : job.Mastered ? "Mastered!" : "Lv. " + job.Level + "   " + job.Abp + " / " + job.AbpToNext + " ABP" + (job.Next != null ? "   next: " + Screens.Shown(job.Next) : "");
+			string standing = !job.HasLadder ? (job.Inherits ? "gains no ABP - it inherits what the mastered jobs have" : "no abilities to learn") : job.Mastered ? "Mastered!" : "Lv. " + job.Level + "   " + job.Abp + " / " + job.AbpToNext + " ABP" + (job.Next != null ? "   next: " + Screens.Shown(job.Next) : "");
 			Screens.Describe(Menu, job.Title + (job.Own ? "  (a job of this mod's)" : "") + "   " + standing,
 				job.Held ? "The job held now." : job.Open ? "A: change to this job. No penalty; the ladder's standing is kept." : "Not open yet - the crystals have not granted it.");
 		}
@@ -315,7 +316,7 @@ namespace Mastery
 			Screens.Header(Menu);
 			JobInfo job = Pending != null ? Game.Party.JobInfo(Screens.Hero, Pending) : null;
 			Menu.SetText("ask_job", job?.Title ?? "?");
-			Screens.Describe(Menu, job == null ? "" : job.Title + (job.HasLadder ? "   Lv. " + job.Level : ""), job == null ? "" : job.Mastered ? "Mastered!" : job.HasLadder ? job.Abp + " / " + job.AbpToNext + " ABP" : "");
+			Screens.Describe(Menu, job == null ? "" : job.Title + (job.HasLadder ? "   Lv. " + job.Level : ""), job == null ? "" : job.Mastered ? "Mastered!" : job.HasLadder ? job.Abp + " / " + job.AbpToNext + " ABP" : job.Inherits ? "Gains no ABP; inherits what the mastered jobs have." : "");
 			Menu.Focus("no");
 		}
 

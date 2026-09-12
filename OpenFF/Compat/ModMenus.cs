@@ -35,6 +35,10 @@ namespace OpenFF.Client
 		private static GlobalScope.wmenu.CWMenuMod _host;
 		private static string _requested;
 		private static string _lastSummary;
+		// One of the game's own screens the mods reach, while it is up.
+		private static ModMenuScreen _gameScreen;
+		private static List<MenuBehaviour> _gameBehaviours = new List<MenuBehaviour>();
+		private static string _gameFocused;
 
 		public IReadOnlyList<MenuDefinition> All => _all;
 		public MenuDefinition Find(string id) => _all.FirstOrDefault(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase));
@@ -66,42 +70,85 @@ namespace OpenFF.Client
 
 		// ---- the layouts ----
 
-		/// <summary>MenuDefine.xbn with the mods' screens in it; other files, or no screens, as they were.</summary>
+		/// <summary>The screens of the game's own that mods reach (behaviours, a layout of the mod's, a patch), by screen name, filled as the files load.</summary>
+		private static readonly Dictionary<string, List<MenuDefinition>> _gameScreenDefs = new Dictionary<string, List<MenuDefinition>>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>
+		/// One of the game's layout files with the mods' work in it: their own screens appended (MenuDefine.xbn,
+		/// with the main menu entries), and the game's screens they reach replaced or patched frame by id. A file
+		/// no definition names, or with nothing to do, goes through as it was.
+		/// </summary>
 		public static Array Patch(string fileName, Array bytes)
 		{
-			if (bytes == null || !string.Equals(Path.GetFileName(fileName), "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase)) return bytes;
-			// The definitions are read again each time: a menus/<id>.json edited while the client runs (an attachment, the main menu entry) is on the next opening of the menu, as the layouts are.
-			if (_screen == null) Gather(OpenFF.Game.Mods);
-			if (_all.Count == 0) return bytes;
+			string file = Path.GetFileName(fileName ?? "");
+			if (bytes == null) return bytes;
+			// The definitions are read again each time: a menus/<id>.json edited while the client runs is on the next opening, as the layouts are.
+			if (_screen == null && _gameScreen == null) Gather(OpenFF.Game.Mods);
+			List<MenuDefinition> defs = _all.Where(d => string.Equals(d.File, file, StringComparison.OrdinalIgnoreCase)).ToList();
+			if (defs.Count == 0) return bytes;
 			try
 			{
 				XDocument doc = MenuXbn.ToXml((byte[])bytes);
 				XElement list = doc.Root;
 				if (list == null) return bytes;
-				int added = 0;
-				foreach (MenuDefinition def in _all)
+				int added = 0, reached = 0;
+				foreach (string key in _gameScreenDefs.Keys.ToList()) if (_gameScreenDefs[key].Any(d => string.Equals(d.File, file, StringComparison.OrdinalIgnoreCase))) _gameScreenDefs.Remove(key);
+				foreach (MenuDefinition def in defs)
 				{
-					XElement menu = LoadLayoutMenu(def);
+					XElement existing = list.Elements("menu").FirstOrDefault(m => (string)m.Element("name") == def.Screen);
+					if (existing != null)
+					{
+						// One of the game's own: its behaviours hear the game's screen; a layout replaces or patches it.
+						if (!_gameScreenDefs.TryGetValue(def.Screen, out List<MenuDefinition> onScreen)) _gameScreenDefs[def.Screen] = onScreen = new List<MenuDefinition>();
+						onScreen.Add(def);
+						reached++;
+					}
+					if (def.Layout == null) continue;
+					XElement menu = LoadLayoutMenu(def, renumber: existing == null || !def.Patch);
 					if (menu == null) continue;
-					list.Elements("menu").Where(m => (string)m.Element("name") == def.Screen).ToList().ForEach(m => m.Remove());
-					list.Add(menu);
-					added++;
+					if (existing != null && def.Patch) MergeInto(existing, menu, def);
+					else { existing?.Remove(); list.Add(menu); if (existing == null) added++; }
 				}
-				AddMainMenuEntries(list);
-				if (Options.Get("dump-menus") != null) { string at = Path.Combine(Path.GetTempPath(), "MenuDefine.patched.xml"); doc.Save(at); Log.Write(LogChannel.General, "menus: patched layout written to " + at); }
+				if (string.Equals(file, "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase)) AddMainMenuEntries(list);
+				if (Options.Get("dump-menus") != null) { string at = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(file) + ".patched.xml"); doc.Save(at); Log.Write(LogChannel.General, "menus: patched layout written to " + at); }
 				byte[] patched = MenuXbn.FromXml(doc);
-				Log.Write(LogChannel.General, "menus: MenuDefine.xbn carries " + added + " screen(s) of the mods' own" + (_all.Any(d => d.MainMenu != null) ? ", " + _all.Count(d => d.MainMenu != null) + " main menu entr" + (_all.Count(d => d.MainMenu != null) == 1 ? "y" : "ies") : ""));
+				int entries = string.Equals(file, "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase) ? Entries().Count : 0;
+				Log.Write(LogChannel.General, "menus: " + file + " carries " + added + " screen(s) of the mods' own" + (reached > 0 ? ", " + reached + " of the game's reached" : "") + (entries > 0 ? ", " + entries + " main menu entr" + (entries == 1 ? "y" : "ies") : ""));
 				return patched;
 			}
 			catch (Exception ex)
 			{
-				Log.Write(LogChannel.General, "menus: MenuDefine.xbn not patched: " + ex.Message);
+				Log.Write(LogChannel.General, "menus: " + file + " not patched: " + ex.Message);
 				return bytes;
 			}
 		}
 
+		/// <summary>A mod's frames into one of the game's screens: a frame whose id the screen has takes that frame's place (keeping the game's myTag when the mod's says none); a new one is added at the top level, numbered after the screen's focus list.</summary>
+		private static void MergeInto(XElement existing, XElement patch, MenuDefinition def)
+		{
+			int replaced = 0, appended = 0;
+			foreach (XElement frame in patch.Elements("frame").ToList())
+			{
+				string id = (string)frame.Element("id");
+				XElement old = id == null ? null : existing.Descendants("frame").FirstOrDefault(f => (string)f.Element("id") == id);
+				if (old != null)
+				{
+					if (frame.Element("myTag") == null && old.Element("myTag") != null) frame.Add(new XElement("myTag", old.Element("myTag").Value));
+					old.ReplaceWith(new XElement(frame));
+					replaced++;
+				}
+				else
+				{
+					XElement added = new XElement(frame);
+					if (added.Element("focus") != null) added.SetElementValue("myTag", existing.Descendants("frame").Count(f => f.Element("focus") != null));
+					existing.Add(added);
+					appended++;
+				}
+			}
+			Log.Write(LogChannel.File, "menus: " + def.Id + " patches " + def.Screen + ": " + replaced + " frame(s) replaced, " + appended + " added");
+		}
 		/// <summary>The definition's layout file's &lt;menu&gt; whose name is the screen's (or the file's only one), renamed to the screen's name.</summary>
-		private static XElement LoadLayoutMenu(MenuDefinition def)
+		private static XElement LoadLayoutMenu(MenuDefinition def, bool renumber = true)
 		{
 			try
 			{
@@ -122,7 +169,7 @@ namespace OpenFF.Client
 					if (data != null && string.IsNullOrEmpty(data.Value)) data.Value = " ";
 					ApplyStyle(frame);
 					if (frame.Element("focus") == null) continue;
-					frame.SetElementValue("myTag", tag++);
+					if (renumber) frame.SetElementValue("myTag", tag++);
 					foreach (string side in new[] { "up", "down", "left", "right" }) if (frame.Element(side) == null) frame.Add(new XElement(side, "dummy"));
 				}
 				return menu;
@@ -370,6 +417,94 @@ namespace OpenFF.Client
 			}
 		}
 
+		// ---- the game's own screens the mods reach (MenuManager tells us as they are built, run and released) ----
+
+		/// <summary>buildMenu(name) has built one of the game's screens: the definitions reaching it get their behaviours over it.</summary>
+		public static void GameScreenBuilt(string name)
+		{
+			try
+			{
+				GameScreenReleased();
+				if (name == null || !_gameScreenDefs.TryGetValue(name, out List<MenuDefinition> defs) || defs.Count == 0) return;
+				if (_current != null && string.Equals(_current.Screen, name, StringComparison.OrdinalIgnoreCase) && _host != null) return;   // a mod screen of that name: CWMenuMod plays it
+				_gameScreen = new ModMenuScreen(defs[0], null, false);
+				OpenWindows(_gameScreen);
+				foreach (IMenuWidget w in _gameScreen.Widgets) (w as ModMenuWidget)?.ApplyStyle();
+				_gameBehaviours = new List<MenuBehaviour>();
+				foreach (MenuDefinition def in defs)
+				{
+					_mods.TryGetValue(def.Id, out LoadedMod mod);
+					_gameBehaviours.AddRange(MenuLoader.Make(def, _gameScreen, mod));
+				}
+				_gameFocused = null;
+				Log.Write(LogChannel.General, "menus: the game's " + name + " built - " + _gameScreen.Widgets.Count + " frame(s), " + _gameBehaviours.Count + " behaviour(s) of the mods'");
+				foreach (MenuBehaviour b in _gameBehaviours) OpenFF.Game.Guard(b.Name + ".OnOpen", b.OnOpen);
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + name + ": " + ex.Message); }
+		}
+
+		/// <summary>MenuManager.execute() has run on one of the game's screens: focus, presses, cancel and keys go to the behaviours; one that takes a press or a cancel keeps it from the game's screen.</summary>
+		public static void GameScreenTick()
+		{
+			if (_gameScreen == null || _gameBehaviours.Count == 0) return;
+			try
+			{
+				GlobalScope.menu.MenuManager mgr = GlobalScope.menu.MenuManager.getSingleton();
+				string now = mgr.getFocuseMedget()?._id();
+				if (now != _gameFocused)
+				{
+					Dispatch(_gameBehaviours, b => _gameFocused != null && (b.Target == _gameFocused || b.Target == ""), b => { b.OnBlur(); return false; }, "OnBlur");
+					Dispatch(_gameBehaviours, b => now != null && (b.Target == now || b.Target == ""), b => { b.OnFocus(); return false; }, "OnFocus");
+					_gameFocused = now;
+				}
+				if (mgr.GetActivateButtonState() != 0)
+				{
+					if (mgr.GetDecideButtonState() == 0)
+					{
+						bool handled = Dispatch(_gameBehaviours.Where(b => now != null && b.Target == now).Concat(_gameBehaviours.Where(b => b.Target == "")).ToList(), b => true, b => b.OnPress(), "OnPress");
+						if (handled) mgr.SetDecideButtonState(1);   // taken: the game's screen sees no press
+					}
+					else if (mgr.GetCancelButtonState() == 0)
+					{
+						bool handled = Dispatch(_gameBehaviours, b => true, b => b.OnCancel(), "OnCancel");
+						if (handled) mgr.SetCancelButtonState(1);
+					}
+				}
+				int edge = GlobalScope.ds.g_Pad.edge();
+				if ((edge & 0x200) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.L), "OnKey");
+				if ((edge & 0x100) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.R), "OnKey");
+				if ((edge & 0x400) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.X), "OnKey");
+				if ((edge & 0x800) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.Y), "OnKey");
+				foreach (MenuBehaviour b in _gameBehaviours) OpenFF.Game.Guard(b.Name + ".OnTick", b.OnTick);
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + ex.Message); }
+		}
+
+		/// <summary>The game's screen is being released (another built, or the menus left): its behaviours hear OnClose, its windows go.</summary>
+		public static void GameScreenReleased()
+		{
+			if (_gameScreen == null) return;
+			foreach (MenuBehaviour b in _gameBehaviours) OpenFF.Game.Guard(b.Name + ".OnClose", b.OnClose);
+			_gameBehaviours = new List<MenuBehaviour>();
+			string name = _gameScreen.Definition.Screen;
+			_gameScreen = null;
+			CloseWindows();
+			Log.Write(LogChannel.File, "menus: the game's " + name + " released");
+		}
+
+		/// <summary>Behaviours in order until one answers true (when the event asks); each guarded.</summary>
+		private static bool Dispatch(IEnumerable<MenuBehaviour> behaviours, Func<MenuBehaviour, bool> to, Func<MenuBehaviour, bool> call, string what)
+		{
+			bool handled = false;
+			foreach (MenuBehaviour b in behaviours)
+			{
+				if (handled) break;
+				if (!to(b)) continue;
+				OpenFF.Game.Guard(b.Name + "." + what, () => handled = call(b));
+			}
+			return handled;
+		}
+
 		// ---- the windows: a frame with <window/> is drawn with the game's window art (BasicWindow), behind its texts ----
 
 		private static readonly List<GlobalScope.menu.BasicWindow> _windows = new List<GlobalScope.menu.BasicWindow>();
@@ -414,7 +549,8 @@ namespace OpenFF.Client
 				_fromField = fromField;
 				GlobalScope.menu.Medget root = GlobalScope.menu.MenuManager.getSingleton().GetBaseMedget();
 				for (GlobalScope.menu.Medget m = root?.childNode(); m != null; m = m.nextSibling()) Add(m, null);
-				try { Hero = def.CharacterSelect ? GlobalScope.pl.PlayerParty.instance().player((byte)GlobalScope.menu.MenuManager.getSingleton().GetTargetCharNo()).playerId() : -1; }
+				// The hero picked (a mod screen that asked; the game's per-hero screens - Status, Equipment - have one too).
+				try { Hero = def.CharacterSelect || host == null ? GlobalScope.pl.PlayerParty.instance().player((byte)GlobalScope.menu.MenuManager.getSingleton().GetTargetCharNo()).playerId() : -1; }
 				catch (Exception) { Hero = -1; }
 			}
 
@@ -440,8 +576,29 @@ namespace OpenFF.Client
 			}
 
 			public void SetText(string id, string text) { if (Widget(id) is ModMenuWidget w) w.Text = text; }
-			public void Close() => _host.Leave(toMainMenu: !_fromField);
-			public void Open(string menuId) => ((ModMenus)OpenFF.Game.Menus).Open(menuId);
+			/// <summary>Leaves: a mod screen to the main menu (or the field); one of the game's by the game's own cancel.</summary>
+			public void Close()
+			{
+				if (_host != null) { _host.Leave(toMainMenu: !_fromField); return; }
+				GlobalScope.menu.MenuManager.getSingleton().SetCancelButtonState(0);
+			}
+
+			/// <summary>Another screen of the mods': from a mod screen at once; from one of the game's, within the game's menu part.</summary>
+			public void Open(string menuId)
+			{
+				if (_host != null) { ((ModMenus)OpenFF.Game.Menus).Open(menuId); return; }
+				MenuDefinition def = ((ModMenus)OpenFF.Game.Menus).Find(menuId);
+				if (def == null) { Log.Write(LogChannel.General, "menus: no screen called '" + menuId + "'"); return; }
+				try
+				{
+					ModMenus._current = def;
+					ModMenus._fromField = false;
+					ModMenus._skipSelect = true;
+					GlobalScope.wmenu.CWMenuManager.Instance().SetNextKind((GlobalScope.wmenu.CWMenuMemberBase.WMENU_KIND)GlobalScope.wmenu.CWMenuMod.KIND);
+					GlobalScope.wmenu.CWMenuManager.Instance().SetProcState(GlobalScope.wmenu.CWMenuMemberBase.WMENU_PROCESS.WMENU_PROCESS_TERMINATE);
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "menus: open " + menuId + " from the game's screen: " + ex.Message); }
+			}
 			public void SoundDecide() => GlobalScope.menu.MenuManager.getSingleton().playSEDecide();
 			public void SoundBeep() => GlobalScope.menu.MenuManager.getSingleton().playSEBeep();
 			public void SoundCancel() => GlobalScope.menu.MenuManager.getSingleton().playSECancel();

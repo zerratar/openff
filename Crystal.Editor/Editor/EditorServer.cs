@@ -1466,6 +1466,21 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/project/menus/adopt":
+				{
+					// One of the game's screens taken into the mod (file, screen).
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string file = body?["file"]?.GetValue<string>();
+						string id = ProjectMenus.Adopt(_project, file, body?["screen"]?.GetValue<string>(), _workspace.Read(file));
+						SendJson(context, new { ok = true, id });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/project/menus/delete":
 				{
 					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
