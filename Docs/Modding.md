@@ -211,10 +211,10 @@ replaces one for everybody. The whole list is `Docs/API.md`; the shape of it:
 | `Game.Title` | `AddEntry` (a row of the title's own under New Game / Continue), `NewGame(hero, map, position, saveProfile)`, `Continue(saveProfile)`, `HasSave`; `TitleShown` when the title is up |
 | `Game.Items`, `Game.Magic`, `Game.Monsters`, `Game.Shops` | the tables as data; `Magic.Cast`/`CastOn` play the game's own effects, `Damage`/`Healing` are the game's formulas, `Magic.Add` a spell of your own; `Shops.Open(row)` the game's shop screen |
 | `Game.Battle` | `Start(monsterParty, battleMap)` the game's own battle; `BattleStarting` says the formation and ground, `BattleEnded` Won, Lost or Escaped; `Shared` - a battle two clients compute together |
-| `Game.Field` | `Map`, `Warp`, `Busy` (a menu, shop, dialogue, event or map change owns the field - wait before a `Warp`), `Autosave` (the suspend save at the next quiet moment), `GroundHeight`/`OnGround`/`Walkable`, `Encounters` on and off |
+| `Game.Field` | `Map`, `Place` (the name the game showed on arrival - Ur, Altar Cave), `Warp`, `Busy` (a menu, shop, dialogue, event or map change owns the field - wait before a `Warp`), `Autosave` (the suspend save at the next quiet moment), `GroundHeight`/`OnGround`/`Walkable`, `Encounters` on and off |
 | `Game.Camera` | `MoveTo`, `LookAt`, `Follow`, `Shake`, `Zoom`, `Reset`, `WorldToScreen` |
 | `Game.Effects`, `Game.Audio`, `Game.Screen` | the game's effects by id; BGM and SE by name; fades, flashes, floating numbers |
-| `Game.Draw` | immediate-mode text, rectangles, lines and sprites (PNGs the mod ships, `LoadTexture`) over the frame, in 800x480 units |
+| `Game.Draw` | immediate-mode text, rectangles, lines and sprites (PNGs the mod ships, `LoadTexture`) over the frame, in 800x480 units; `Banner(text)` - the game's own place-name window, the frame a map's name arrives in, with your words in it for as long as you keep asking |
 | `Game.Input` | the pad (`Held`/`Pressed`/`Released`), the pointer, the keyboard by key name; `Capture = true` takes all input away from the game while the mod uses it |
 | `Game.Flags` | the scripts' flag space |
 | `Game.Events` | `Subscribe<T>`: `MapEntered`, `MapLeaving`, `FlagChanged`, `MessageShown`, `CutsceneStarted`/`Ended`, `BattleStarting`/`Ended`, `ItemGained`, `WarpRequested`, `SaveWritten`/`SaveRead`, `ModReloaded` |
@@ -1645,7 +1645,9 @@ release zip carries them in `Samples\`.
   with counts, left / right for how many, or a sum of gil - go over the wire numbered and
   acknowledged, sent again until they are, back to the giver after five tries. Four screens in
   the game's menu (`menus/fellowship`, `-actions`, `-gift`, `-gil`; `FellowshipScreen.cs`) after
-  the game's own proportions, and `Fellowship.cs` for the wire, the figures and the corner HUD.
+  the game's own proportions, and `Fellowship.cs` for the wire, the figures and the corner - which
+  names only the travellers out of sight (another map, or far off on this one) and where they are
+  and what they are at; whoever walks beside you has a tag over their head instead.
   `install.cmd` builds it into the mods folder; start two clients and open the main menu's
   *Fellowship* on either. And **Journey together** on the title (`Journey.cs`): a new game
   onto the Crystal's Choosing - one of the game's battle backgrounds (`b16`) with the mod's

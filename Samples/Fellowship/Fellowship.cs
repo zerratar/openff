@@ -65,7 +65,9 @@ namespace Fellowship
 		/// <summary>The last line they said and when, for the bubble over the head.</summary>
 		public string Said;
 		public DateTime SaidAt;
-		public string Where => Map ?? "nowhere";
+		/// <summary>The place as their game names it (Ur, Altar Cave), from the wire; the map's id until it has come.</summary>
+		public string Place;
+		public string Where => Place ?? Map ?? "nowhere";
 		public string Standing => State == 1 ? "in battle" : State == 2 ? "in a menu" : "walking";
 	}
 
@@ -195,7 +197,7 @@ namespace Fellowship
 			if (lead != null && !_nameFixed && !string.IsNullOrWhiteSpace(lead.Name)) _name = lead.Name;   // the leading hero's name unless fellowship.json or FELLOWSHIP_NAME chose one
 			Vector3 p = Game.Hero.Present ? Game.Hero.Position : default;
 			Send(string.Join("|", "S", _name, Game.Field.Map ?? "", F(p.X), F(p.Y), F(p.Z), F(Game.Hero.Present ? Game.Hero.Yaw : 0), Game.Hero.Present ? Game.Hero.Model ?? "j101" : "j101",
-				lead?.Hp ?? 0, lead?.MaxHp ?? 0, lead?.Level ?? 0, lead?.JobTitle ?? "", state, HeroOnWire));
+				lead?.Hp ?? 0, lead?.MaxHp ?? 0, lead?.Level ?? 0, lead?.JobTitle ?? "", state, HeroOnWire, (Game.Field.Place ?? "").Replace('|', ' ')));
 		}
 
 		private bool _nameFixed;
@@ -252,6 +254,7 @@ namespace Fellowship
 					t.Position = new Vector3(P(f[6]), P(f[7]), P(f[8])); t.Yaw = P(f[9]); t.Model = f[10];
 					t.Hp = I(f[11]); t.MaxHp = I(f[12]); t.Level = I(f[13]); t.Job = f[14]; t.State = I(f[15]);
 					t.Hero = f.Length > 16 ? I(f[16]) : -1;
+					t.Place = f.Length > 17 && f[17].Length > 0 ? f[17] : null;
 					Journey.Heard(t);
 					if (arrived) { Game.Log("fellowship: " + t.Name + " is here (" + t.Where + ")"); Game.Screen.Notice(t.Name + " joined the fellowship"); }
 					else if (wasMap != t.Map && t.Map != null && t.Map == Game.Field.Map) Game.Screen.Notice(t.Name + " arrives");
@@ -512,28 +515,38 @@ namespace Fellowship
 					}
 				}
 			}
-			// The corner, under the map's name and clear of the Map / Menu buttons: everyone, nearest first,
-			// on a dark panel; 16 px a line for the 12 px text, the hint a little apart in the smaller size.
-			List<Traveller> shown = Travellers.ToList();
-			const float x = 10, line = 16, pad = 6;
-			float widest = Math.Max(Game.Draw.MeasureText("Fellowship"), shown.Max(t => Game.Draw.MeasureText(Line(t))));
-			float height = pad + line * (1 + shown.Count) + 4 + 12 + pad;
-			Game.Draw.Rect(x - pad, 44 - pad, widest + pad * 2, height, new Color(10, 16, 40, 170));
-			float y = 44;
-			Game.Draw.Text("Fellowship", x, y, name, 12); y += line;
-			foreach (Traveller t in shown)
+			// The corner, under the map's name and clear of the Map button: only the travellers out of sight -
+			// another map, or far off on this one - and where they are and what they are at, a line each in the
+			// small size on a soft plate. Whoever walks beside you has a tag over their head; the Fellowship
+			// screen has the rest.
+			List<Traveller> away = Travellers.Where(t => !InSight(t)).ToList();
+			if (away.Count == 0) return;
+			const float x = 12, line = 15, pad = 7;
+			float widest = away.Max(t => Game.Draw.MeasureText(Line(t), 11));
+			Game.Draw.Rect(x - pad, 58 - pad, widest + pad * 2, line * away.Count + pad * 2 - 3, new Color(10, 16, 40, 150));   // under the place-name window's row
+			float y = 58;
+			foreach (Traveller t in away)
 			{
-				bool here = t.Map == Game.Field.Map;
-				Game.Draw.Text(Line(t), x, y, t.State == 1 ? red : here ? bubble : dim, 12);
+				string label = t.Name;
+				Game.Draw.Text(label, x, y, t.State == 1 ? red : name, 11);
+				Game.Draw.Text(Line(t).Substring(label.Length), x + Game.Draw.MeasureText(label, 11), y, dim, 11);
 				y += line;
 			}
-			Game.Draw.Text("F5-F8 speak   F9 hide", x, y + 4, dim, 10);
 		}
 
-		/// <summary>A traveller's line in the corner: who, where, how they stand, their HP.</summary>
+		/// <summary>Whether a traveller's figure is where you can see it: this map, within a screen's walk.</summary>
+		private bool InSight(Traveller t)
+		{
+			if (t.Map == null || t.Map != Game.Field.Map || !Game.Hero.Present) return false;
+			Vector3 me = Game.Hero.Position;
+			return Vector3.Distance(new Vector3(t.Position.X, 0, t.Position.Z), new Vector3(me.X, 0, me.Z)) < 70f;
+		}
+
+		/// <summary>A traveller's line in the corner: who, where, and what they are at when it is not just walking.</summary>
 		private string Line(Traveller t)
 		{
-			return t.Name + "   " + (t.Map == Game.Field.Map ? "here" : t.Where) + "   " + t.Standing + "   " + t.Hp + "/" + t.MaxHp;
+			string at = t.State == 1 ? ", in battle" : t.State == 2 ? ", in a menu" : "";
+			return t.Name + "  -  " + t.Where + at;
 		}
 	}
 }

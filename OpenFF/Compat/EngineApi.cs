@@ -2713,6 +2713,25 @@ namespace OpenFF.Client
 	internal sealed class LegacyField : GameService, IField
 	{
 		/// <summary>The stage's name; on the overworld, whose stage has none, the chip's stage (f00 from f00_48).</summary>
+		/// <summary>The name the place-name window last showed (MapNameWindow.LastMessageNo, cleared at a map change), else the map's id.</summary>
+		public string Place
+		{
+			get
+			{
+				try
+				{
+					int no = GlobalScope.menu.MapNameWindow.LastMessageNo;
+					if (no >= 0)
+					{
+						string text = GlobalScope.dgs.msg.CMessageSys.getInstance().Main().getMessage((uint)no);
+						if (!string.IsNullOrEmpty(text)) return text.Replace("\n", " ").Trim();
+					}
+				}
+				catch (Exception) { }
+				return Map;
+			}
+		}
+
 		public string Map
 		{
 			get

@@ -166,15 +166,16 @@ namespace Fellowship
 			_battleId = null;
 		}
 
-		/// <summary>"Waiting for Arc..." over the battle while a remote hero's player decides.</summary>
+		/// <summary>"Waiting for Arc..." in the place-name window - the frame a map's name arrives in - while a remote hero's player decides.</summary>
 		public void Draw()
 		{
 			SharedBattle shared = Game.Battle.Shared;
 			if (!_in || shared == null || !Game.Battle.InBattle || shared.WaitingFor < 0) return;
-			string text = "Waiting for " + Journey.HeroNames[shared.WaitingFor] + (Game.Time.Frame / 20 % 3 == 0 ? "." : Game.Time.Frame / 20 % 3 == 1 ? ".." : "...");
-			float w = Game.Draw.MeasureText(text, 14);
-			Game.Draw.Rect(400 - w / 2 - 12, 40, w + 24, 28, new Color(0, 0, 0, 170));
-			Game.Draw.Text(text, 400 - w / 2, 46, new Color(255, 240, 160), 14);
+			int hero = shared.WaitingFor;
+			Traveller player = _service.Travellers.FirstOrDefault(t => t.Hero == hero);
+			string who = player != null && player.Name != Journey.HeroNames[hero] ? player.Name + " (" + Journey.HeroNames[hero] + ")" : Journey.HeroNames[hero];
+			int dots = (int)(Game.Time.Frame / 24 % 4);
+			Game.Draw.Banner("Waiting for " + who + new string('.', dots) + new string(' ', 3 - dots));
 		}
 	}
 }

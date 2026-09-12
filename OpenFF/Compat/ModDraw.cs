@@ -90,6 +90,7 @@ namespace OpenFF.Client
 				{
 					DrawAll(list);
 				}
+				Banner.Tick();   // the place-name window a mod asked for this frame stays; one not asked for goes
 			}
 			catch (Exception ex)
 			{
@@ -153,6 +154,10 @@ namespace OpenFF.Client
 					case OpenFF.DrawKind.Text:
 						anyText = true;
 						break;
+					case OpenFF.DrawKind.Banner:
+						Banner.Keep(c.Text);
+						anyText = true;
+						break;
 				}
 			}
 			_batch.End();
@@ -175,6 +180,17 @@ namespace OpenFF.Client
 				if (c.Kind != OpenFF.DrawKind.Text) continue;
 				graphics.SetColor(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
 				graphics.DrawString(c.Text, c.X, c.Y, c.Size);
+			}
+			// The banner's words, centred in its window with the place name's shadow (the window itself is the game's 2D, drawn under).
+			if (Banner.Shown is (float bx, float by, float bw, float bh, string text))
+			{
+				const int size = 13;
+				float w = Ui.Width(graphics, text, size), h = Ui.LineHeight(size);
+				float x = bx + (bw - w) / 2f, y = by + (bh - h) / 2f + size * 0.1f;
+				graphics.SetColor(0, 0, 0, 200);
+				graphics.DrawString(text, x + 1.5f, y + 1.5f, size);
+				graphics.SetColor(255, 255, 255, 255);
+				graphics.DrawString(text, x, y, size);
 			}
 			graphics.DrawStringEnd();
 		}

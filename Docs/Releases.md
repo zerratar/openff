@@ -86,6 +86,13 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   `Game.Party.Arrange` (the same places on both sides). A story command that reset a hero's
   parameters by party place rather than by hero (`SetPartyMember_AllParameter`) now finds the
   hero - the opening's fight is the hero picked, not Luneth's record under another's name.
+- **`Game.Draw.Banner(text)`**: the game's own place-name window - the frame a map's name arrives
+  in, half-clear over a battle as the battle's windows are - with a mod's words in it for as long
+  as it keeps asking; the Fellowship's "Waiting for Karl (Arc)..." sits in it. `Game.Field.Place`
+  is the name the game showed on arrival (Ur, Altar Cave), held through a town's houses and a
+  dungeon's floors. The Fellowship's corner now names only the travellers out of sight - another
+  map, or far off on this one - and where they are and what they are at; the header, the key
+  hint and the HP are gone (the tags over the heads and the Fellowship screen have those).
 - **The battle's rules roll on a generator of their own** (`ds.RandomNumber.logic32`), seeded
   alike on two clients by `BattleSync` at the battle's start and each round's, with a digest of
   everyone's HP in the log per round; `--battle-seed=<n>` for testing. Proven identical across

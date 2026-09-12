@@ -37,7 +37,7 @@ namespace OpenFF
 		public string Path { get; protected set; }
 	}
 
-	public enum DrawKind { Text, Rect, Line, Sprite }
+	public enum DrawKind { Text, Rect, Line, Sprite, Banner }
 
 	public struct DrawCommand
 	{
@@ -104,6 +104,17 @@ namespace OpenFF
 				Kind = DrawKind.Sprite, Texture = texture, X = x, Y = y, W = w, H = h, Color = tint ?? Color.White, Rotation = rotation,
 				SrcX = srcX, SrcY = srcY, SrcW = srcW <= 0 ? texture.Width : srcW, SrcH = srcH <= 0 ? texture.Height : srcH,
 			});
+		}
+
+		/// <summary>
+		/// The game's own place-name window - the frame a map's name arrives in at the top of the screen - with this
+		/// text in it, for this frame: call it every frame the banner should stay (as Text), and it goes when you stop.
+		/// Over the field or a battle (FF3); one at a time, the last call's text.
+		/// </summary>
+		public void Banner(string text)
+		{
+			if (string.IsNullOrEmpty(text)) return;
+			_commands.Add(new DrawCommand { Kind = DrawKind.Banner, Text = text, Color = Color.White });
 		}
 
 		/// <summary>Loads a picture from a file; null (and a warning) when it cannot.</summary>

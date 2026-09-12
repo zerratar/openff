@@ -610,6 +610,8 @@ namespace OpenFF
 	{
 		/// <summary>The current map's name (d01_05, f00...), or null.</summary>
 		string Map { get; }
+		/// <summary>The place as the game names it on arrival (Ur, Altar Cave) - the map's id when it has no name or none has been shown yet.</summary>
+		string Place { get; }
 		/// <summary>Goes to another map, as a script's MapWarp does: name, position, facing 0-7 (eighths of a turn).</summary>
 		void Warp(string map, Vector3 position, int facing = 0);
 		/// <summary>True while something else owns the field - the game's menu, a shop, a dialogue, an event, a battle or a map change under way. Warp and the party's movement are ignored then; a mod that wants to act on the field waits for this to clear.</summary>

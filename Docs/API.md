@@ -268,6 +268,7 @@ The map and moving between maps.
 | `bool Busy { get; }` | True while something else owns the field - the game's menu, a shop, a dialogue, an event, a battle or a map change under way. Warp and the party's movement are ignored then; a mod that wants to act on the field waits for this to clear. |
 | `bool Encounters { get; set; }` | Whether walking can start the game's random battles. Off for a mod that runs its own fights. |
 | `string Map { get; }` | The current map's name (d01_05, f00...), or null. |
+| `string Place { get; }` | The place as the game names it on arrival (Ur, Altar Cave) - the map's id when it has no name or none has been shown yet. |
 | `void Autosave()` | Writes the game's suspend save - the one the title's Continue resumes - at the next quiet moment on the field, as arriving on a map does. For a moment worth keeping that no map change follows. |
 | `bool Blocked(Vector3 from, Vector3 to, float radius = 3)` | Whether a wall (the map's, or a Solid Mesh) stands in the way of a step from one point to the next, for a body of that radius - the test the hero's own walk makes. False where there is no wall. |
 | `float? GroundHeight(Vector3 at)` | The height of the walkable ground under a point (looking down from a little above it), or null where there is none - off the map, over a pit. |
@@ -673,6 +674,7 @@ A game clip's "signal", for code: Game.Events.Subscribe<CutsceneSignal>.
 | `Func<string, int, float> TextMeasure { get; set; }` | The host's text measure, in screen units at a size; set by the host. |
 | `Func<string, byte[], Texture> TextureBytesLoader { get; set; }` | The host's texture loader for picture bytes already in hand (a PNG out of an archive), cached under a key; set by the host. |
 | `Func<string, Texture> TextureLoader { get; set; }` | The host's texture loader (a PNG, JPG or BMP file); set by the host. |
+| `void Banner(string text)` | The game's own place-name window - the frame a map's name arrives in at the top of the screen - with this text in it, for this frame: call it every frame the banner should stay (as Text), and it goes when you stop. Over the field or a battle (FF3); one at a time, the last call's text. |
 | `void Clear()` | Host entry: the frame's commands were drawn. |
 | `void Line(float x1, float y1, float x2, float y2, Color color, float thickness = 1)` |  |
 | `Texture LoadTexture(string path)` | Loads a picture from a file; null (and a warning) when it cannot. |
@@ -2293,6 +2295,7 @@ How a Cutscene begins.
 | `Rect` = 1 |  |
 | `Line` = 2 |  |
 | `Sprite` = 3 |  |
+| `Banner` = 4 |  |
 
 ### Element
 
@@ -2599,4 +2602,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-163 types, 1166 members; 491 without a summary yet.
+163 types, 1169 members; 492 without a summary yet.

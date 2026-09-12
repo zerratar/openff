@@ -182,6 +182,7 @@ namespace OpenFF.Client
 			string part = CurrentPart();
 			if (part != _lastPart)
 			{
+				Banner.PartChanged();   // a mod's banner is made of the part's window pieces
 				OpenFF.Game.Events.Publish(new OpenFF.Events.PartChanged { From = _lastPart, To = part });
 				if (_lastPart == "BATTLE")
 				{
@@ -223,6 +224,8 @@ namespace OpenFF.Client
 				}
 				_lastStage = stage;
 				_entered = false;
+				// The place's name (IField.Place) holds through a town's houses and a dungeon's floors, which show none of their own; the world map (f..) has none, and a game left behind takes its name with it.
+				if (stage == null || stage.StartsWith("f", StringComparison.OrdinalIgnoreCase)) GlobalScope.menu.MapNameWindow.LastMessageNo = -1;
 			}
 			// Entered only once the field is up and moving: before that the hero is not placed
 			// and characters put on the map are swept away by the field's own setup.
