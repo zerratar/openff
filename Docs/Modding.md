@@ -1408,10 +1408,18 @@ Magic's, 2 Equipment's, 3 Status's, 5 Job's, 6 Config's, 9 the main menu's). Wit
 entry the screen is opened from code - `Game.Menus.Open("abilities")` from anywhere on the
 field - or from another screen (`Menu.Open`).
 
-**Reaching the game's own screens.** A definition whose `screen` is one of the game's -
-`main_menu`, `status`, `job`, `equip`, the shop's `shop_buy_list`, the battle's, in whichever of
-the eight layout files `"file"` names (`MenuDefine.xbn` unless said) - works on that screen
-instead of adding one. Its behaviours hear the game's screen as the game builds and runs it:
+**Reaching the game's own screens.** A definition whose `screen` is one of the game's works on
+that screen instead of adding one. The screens the game builds from its layouts, by file: in
+`MenuDefine.xbn` - `main_menu`, `menu_item`, `magic`, `job`, `equip`, `status`, `config`,
+`tips_list`, `load_save`, `suspend_`, `UseItemCommand`, `link` (the title's); in `ShopDefine.xbn`
+- `shop_sub`, `shop_buy_list`; in `BattleDefine.xbn` - `battle_item`, `battle_equip`,
+`battle_use_weapon`; in `WorldDefine.xbn` - `inn_question`, `fb_question`, `item_use_list`; in
+`SpecialDefine.xbn` - `monster_book`, `monster_status_enable`, `thorough`; `NameEntry.xbn` -
+`name_entry`; `ChocoboBank.xbn` - `chocobo_bank`; `MogNet.xbn` - `select_person`, `maillist`.
+(`"file"` names the file, `MenuDefine.xbn` unless said.) Not layouts, and so not reachable this
+way yet: the battle's command and target windows and HP bars, the field's dialogue window and
+the map-name HUD - those are code, with their art in the PNG sheets and their fonts in the
+face, and `MenuOpened`/`BattleStarting`/`MessageShown` events to draw over them. Its behaviours hear the game's screen as the game builds and runs it:
 `OnOpen`, `OnFocus`, `OnPress` (return true and the game's screen never sees the press),
 `OnCancel` (likewise), `OnKey`, `OnTick`; `Menu.Widget(id)` reaches every frame of the game's
 layout by its id (`com_item`, `mbs_name`...), `Menu.Hero` is the hero the screen is about,
