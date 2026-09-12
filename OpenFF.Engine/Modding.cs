@@ -44,6 +44,8 @@ namespace OpenFF.Modding
 		public List<string> Assemblies { get; set; } = new List<string>();
 		/// <summary>The folder with the mod's scene files (scenes/&lt;map&gt;.json), or null.</summary>
 		public string Scenes { get; set; }
+		/// <summary>The folder with the mod's menu screens (menus/&lt;id&gt;.json and .xml), or null.</summary>
+		public string Menus { get; set; }
 	}
 
 	public sealed class LoadedMod
@@ -61,6 +63,8 @@ namespace OpenFF.Modding
 		public List<GameService> Services { get; } = new List<GameService>();
 		/// <summary>The mod's Behaviour types, by simple name, for scenes to instantiate.</summary>
 		public Dictionary<string, Type> BehaviourTypes { get; } = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
+		/// <summary>The mod's MenuBehaviour types, by simple name, for its menu screens.</summary>
+		public Dictionary<string, Type> MenuBehaviourTypes { get; } = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
 		/// <summary>How many times its code has been hot-reloaded this run.</summary>
 		public int Reloads { get; internal set; }
 		/// <summary>When its code was last loaded.</summary>
@@ -152,9 +156,9 @@ namespace OpenFF.Modding
 			{
 				// A mod of content alone - scenes with the built-in behaviours, definitions, assets - has
 				// no code to load; it is a loaded mod all the same, so its scenes apply to the maps they name.
-				if (string.IsNullOrEmpty(definition.Scenes)) return null;
+				if (string.IsNullOrEmpty(definition.Scenes) && string.IsNullOrEmpty(definition.Menus)) return null;
 				_loaded.Add(mod);
-				Game.Log("mod " + definition.Id + " " + definition.Version + ": scenes only, no code");
+				Game.Log("mod " + definition.Id + " " + definition.Version + ": " + (definition.Scenes != null ? "scenes" : "") + (definition.Scenes != null && definition.Menus != null ? " and " : "") + (definition.Menus != null ? "menus" : "") + " only, no code");
 				return mod;
 			}
 			mod.Context = new ModLoadContext("mod:" + definition.Id, definition.Directory);
@@ -217,6 +221,10 @@ namespace OpenFF.Modding
 				if (typeof(Behaviour).IsAssignableFrom(type))
 				{
 					mod.BehaviourTypes[type.Name] = type;
+				}
+				if (typeof(MenuBehaviour).IsAssignableFrom(type))
+				{
+					mod.MenuBehaviourTypes[type.Name] = type;
 				}
 				if (typeof(GameService).IsAssignableFrom(type) && type.GetConstructor(Type.EmptyTypes) != null)
 				{

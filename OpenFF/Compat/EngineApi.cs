@@ -62,6 +62,8 @@ namespace OpenFF.Client
 			if (!GameProfile.IsFf4) OpenFF.Game.Services.Register(new LegacyScripts());
 			// The mod's own models (glTF), drawn by the client with the field's camera.
 			OpenFF.Game.Services.Register(new ModMeshes());
+			// The mods' menu screens in FF3's menu system (menus/<id>.json); FF4's menus are the engine's own.
+			if (!GameProfile.IsFf4) OpenFF.Game.Services.Register(new ModMenus());
 		}
 
 		public static readonly LegacyScreen Screen = new LegacyScreen();
@@ -1664,6 +1666,7 @@ namespace OpenFF.Client
 					m.Slots = new int[free];
 					ProgressionLayer.HeroState s = ProgressionLayer.StateOf(id);
 					for (int i = 0; i < free && i < s.Set.Length; i++) m.Slots[i] = s.Set[i];
+					foreach (int c in ProgressionLayer.CommandLayout(job)) m.Commands.Add(c < 0 ? new AbilityInfo { Id = -1, Word = "*", Name = "free slot" } : AbilityOf(c));
 				}
 			}
 			catch (Exception) { }
@@ -1727,6 +1730,8 @@ namespace OpenFF.Client
 			return done;
 		}
 
+		internal static string JobWordOf(int j) => j < OpenFF.Data.ModCharacters.Jobs.Length ? OpenFF.Data.ModCharacters.Jobs[j].Enum : OpenFF.Data.ModCharacters.Slug(ProgressionLayer.LadderOf(j)?.Id ?? j.ToString());
+
 		public IReadOnlyList<string> OpenJobs(int id)
 		{
 			List<string> words = new List<string>();
@@ -1735,11 +1740,49 @@ namespace OpenFF.Client
 				foreach (int j in ProgressionLayer.AllJobs)
 				{
 					if (!ProgressionLayer.JobOpen(j)) continue;
-					words.Add(j < OpenFF.Data.ModCharacters.Jobs.Length ? OpenFF.Data.ModCharacters.Jobs[j].Enum : OpenFF.Data.ModCharacters.Slug(ProgressionLayer.LadderOf(j)?.Id ?? j.ToString()));
+					words.Add(JobWordOf(j));
 				}
 			}
 			catch (Exception) { }
 			return words;
+		}
+
+		public IReadOnlyList<string> AllJobs
+		{
+			get
+			{
+				List<string> words = new List<string>();
+				try { foreach (int j in ProgressionLayer.AllJobs) words.Add(JobWordOf(j)); } catch (Exception) { }
+				return words;
+			}
+		}
+
+		public JobInfo JobInfo(int id, string job)
+		{
+			int number = JobNumberOf(job);
+			if (number < 0) return null;
+			try
+			{
+				GlobalScope.pl.Player player = PlayerOf(id);
+				OpenFF.Data.ModJob ladder = ProgressionLayer.LadderOf(number);
+				int level = ProgressionLayer.JobLevel(id, number);
+				return new JobInfo
+				{
+					Word = JobWordOf(number),
+					Title = ProgressionLayer.JobName(number),
+					Own = ladder != null && ladder.IsOwn,
+					Open = ProgressionLayer.JobOpen(number),
+					Held = player != null && ProgressionLayer.HeldJob(player) == number,
+					HasLadder = ladder != null,
+					Level = level,
+					Abp = ProgressionLayer.Abp(id, number),
+					AbpToNext = ProgressionLayer.AbpToNext(id, number),
+					Steps = ladder?.Abilities.Count ?? 0,
+					Mastered = ProgressionLayer.IsMastered(id, number),
+					Next = ladder != null && level < ladder.Abilities.Count ? AbilityOf(ladder.Abilities[level].Id) : null
+				};
+			}
+			catch (Exception) { return null; }
 		}
 
 		private static GlobalScope.pl.Player PlayerOf(int id)

@@ -1,0 +1,10 @@
+{
+  "id": "ability-pick",
+  "layout": "ability-pick.xml",
+  "screen": "ability-pick",
+  "title": "Set into a free slot",
+  "background": 10,
+  "attachments": [
+    { "target": "", "behaviour": "AbilityPick" }
+  ]
+}

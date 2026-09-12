@@ -110,9 +110,12 @@ internal static partial class GlobalScope
 
 								private int LoadCampGroup_;
 
-								private CWMenuMemberBase[] m_pCurrent = new CWMenuMemberBase[15];
+								private CWMenuMemberBase[] m_pCurrent = new CWMenuMemberBase[16];   // PORT: one more for the mods' screens (CWMenuMod.KIND)
 
 								private CWMenuMain m_MenuMain = new CWMenuMain();
+
+								// PORT: the mods' menu screens (OpenFF.Client.ModMenus), one kind for all of them.
+								private CWMenuMod m_MenuMod = new CWMenuMod();
 
 								private CWMenuJob m_MenuJob = new CWMenuJob();
 
@@ -264,7 +267,8 @@ internal static partial class GlobalScope
 										m_Kind = m_Next;
 										m_ProcState = CWMenuMemberBase.WMENU_PROCESS.WMENU_PROCESS_CSELECTINITIALIZE;
 										bool flag = pCurrent().cSelectInitialize();
-										if (m_Prev == CWMenuMemberBase.WMENU_KIND.WMENU_KIND_MAIN_MENU && Instance().GetMainMenuMemoryCursor() == 3 && menu.MenuManager.getSingleton().getFocuseMedget().myTag() >= 9 && pl.PlayerParty.instance().player((byte)menu.MenuManager.getSingleton().getFocuseMedget().work()).isEnable())
+										// PORT: Status chosen while a character panel is focused - by the panel's parent rather than a tag index the mods' entries would move.
+										if (m_Prev == CWMenuMemberBase.WMENU_KIND.WMENU_KIND_MAIN_MENU && m_Kind == CWMenuMemberBase.WMENU_KIND.WMENU_KIND_STATUS && strcmp(menu.MenuManager.getSingleton().getFocuseMedget().parentNode()._id(), TRANSCODE("char_select")) == 0 && pl.PlayerParty.instance().player((byte)menu.MenuManager.getSingleton().getFocuseMedget().work()).isEnable())
 										{
 											flag = false;
 										}
@@ -346,18 +350,25 @@ internal static partial class GlobalScope
 									m_pCurrent[8] = m_MenuSave;
 									m_pCurrent[3] = m_MenuStatus;
 									m_pCurrent[9] = m_MenuMain;
+									m_pCurrent[CWMenuMod.KIND] = m_MenuMod;
 								}
 
 								public void CSelectInitialize()
 								{
+									// PORT: the character panels follow the command list in the focus list - nine commands
+									// in the game's own layout, more when mods added entries (OpenFF.Client.ModMenus).
 									int focusedCursor = 9;
 									menu.MenuManager.getSingleton().initFocus(0);
 									menu.Medget medget = null;
 									GetWMenuFormation().SetFormationState(0);
+									int commands = 0;
+									for (medget = menu.MenuManager.getSingleton().getFocuseMedget().parentNode().childNode(); medget != null; medget = medget.nextSibling()) commands++;
+									if (commands > 0) focusedCursor = commands;
+									int place = 0;
 									for (medget = menu.MenuManager.getSingleton().getFocuseMedget().parentNode()
-										.childNode(); medget != null; medget = medget.nextSibling())
+										.childNode(); medget != null; medget = medget.nextSibling(), place++)
 									{
-										if ((sbyte)medget.work() == Instance().GetMainMenuMemoryCursor())
+										if (place == Instance().GetMainMenuMemoryCursor())
 										{
 											dummyCursor.SetShow(show: true);
 											dummyCursor.SetPositionI(medget.cursorX(), medget.cursorY() + 2);
@@ -426,7 +437,8 @@ internal static partial class GlobalScope
 											}
 										}
 										Instance().GetDummyCursor().SetShow(show: false);
-										Instance().SetMainMenuMemoryCursor((sbyte)menu.MenuManager.getSingleton().getFocuseMedget().work());
+										// PORT: remembered by its place in the list (the mods' entries move the game's own down).
+										Instance().SetMainMenuMemoryCursor(OpenFF.Client.ModMenus.MainMenuCursor(menu.MenuManager.getSingleton().getFocuseMedget()));
 										Instance().SetNextKind(Instance().GetPrevKind());
 										Instance().SetPrevKind(Instance().GetKind());
 										Instance().SetKind(Instance().GetNextKind());

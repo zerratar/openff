@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The Mastery sample: FF3 with FF5's job system - definitions (defs/) and an Abilities
+       screen in the game's own menu system (menus/ + AbilitiesScreen.cs). Build it into the
+       client's mods folder and start the client:
+
+         dotnet build Samples/Mastery -o "<client>/mods/Mastery"
+
+       (mod.json, defs and menus are copied along.) Rebuild while the client runs and it hot-reloads. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Mastery</AssemblyName>
+    <RootNamespace>Mastery</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <DebugType>portable</DebugType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Private=false: the engine assembly is the client's; it is never copied into a mod. -->
+    <ProjectReference Include="..\..\OpenFF.Engine\OpenFF.Engine.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="defs/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="menus/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="DropEngineCopies" AfterTargets="Build">
+    <ItemGroup>
+      <EngineCopies Include="$(OutDir)OpenFF.Engine.*" />
+    </ItemGroup>
+    <Delete Files="@(EngineCopies)" />
+  </Target>
+
+</Project>

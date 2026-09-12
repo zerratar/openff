@@ -210,7 +210,7 @@ namespace OpenFF.Content
 				}
 				else if (!mod.FilesDirectories(null).Any() && !HasCode(mod) && !HasContent(mod))
 				{
-					mod.Skipped = "no files folder, no scenes or definitions, and no code";
+					mod.Skipped = "no files folder, no scenes, definitions or menus, and no code";
 				}
 				else
 				{
@@ -252,7 +252,9 @@ namespace OpenFF.Content
 			string scenes = Path.Combine(mod.Directory, string.IsNullOrWhiteSpace(mod.Manifest.Scenes) ? "scenes" : mod.Manifest.Scenes);
 			if (Directory.Exists(scenes) && Directory.EnumerateFiles(scenes, "*.json", SearchOption.TopDirectoryOnly).Any()) return true;
 			string defs = Path.Combine(mod.Directory, "defs");
-			return Directory.Exists(defs) && Directory.EnumerateFiles(defs, "*.json", SearchOption.AllDirectories).Any();
+			if (Directory.Exists(defs) && Directory.EnumerateFiles(defs, "*.json", SearchOption.AllDirectories).Any()) return true;
+			string menus = Path.Combine(mod.Directory, "menus");
+			return Directory.Exists(menus) && Directory.EnumerateFiles(menus, "*.json", SearchOption.TopDirectoryOnly).Any();
 		}
 
 		public static bool HasCode(InstalledMod mod)

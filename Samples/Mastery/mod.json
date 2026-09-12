@@ -3,8 +3,8 @@
   "name": "Mastery",
   "version": "1.0",
   "author": "OpenFF",
-  "description": "FF3 as it is, but the four heroes grow FF5's way: every job climbs a ladder of abilities on ABP won in battle, and anything learned goes into a free command slot of whatever job is held. No code; character definitions and 23 job ladders.",
+  "description": "FF3 as it is, but the four heroes grow FF5's way: every job climbs a ladder of abilities on ABP won in battle, anything learned goes into a free command slot of whatever job is held, and FF5's own jobs stand on FF3's. An Abilities screen in the game's own menu, made of a layout and two MenuBehaviours - the shape of a menu of your own.",
   "target": "openff",
-  "assemblies": [],
+  "assemblies": [ "Mastery.dll" ],
   "dependencies": []
 }

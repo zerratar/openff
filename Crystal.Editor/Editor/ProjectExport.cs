@@ -192,6 +192,22 @@ namespace Crystal.Editor
 				}
 			}
 			if (pictures > 0) contents.Add(string.Format(CultureInfo.InvariantCulture, "- textures: {0} PNG(s) drawn in place of the game's, at their own size, under textures/", pictures));
+			// The mod's menu screens (menus/<id>.json + .xml), for the game's own menu system.
+			string menusOut = Path.Combine(directory, "menus");
+			if (Directory.Exists(menusOut)) Directory.Delete(menusOut, recursive: true);
+			string menusIn = Path.Combine(project.Directory, "menus");
+			int screens = 0;
+			if (Directory.Exists(menusIn))
+			{
+				Directory.CreateDirectory(menusOut);
+				foreach (string file in Directory.EnumerateFiles(menusIn, "*.*", SearchOption.TopDirectoryOnly))
+				{
+					if (!file.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !file.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)) continue;
+					File.Copy(file, Path.Combine(menusOut, Path.GetFileName(file)), overwrite: true);
+					if (file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) screens++;
+				}
+			}
+			if (screens > 0) contents.Add(string.Format(CultureInfo.InvariantCulture, "- menus: {0} screen(s) of the mod's own in the game's menu, under menus/", screens));
 			OpenFF.Content.ModsFolder.WriteManifest(manifestPath, new OpenFF.Content.ModManifest
 			{
 				Id = key,

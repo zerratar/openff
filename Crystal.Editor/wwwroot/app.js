@@ -201,6 +201,15 @@ async function loadList() {
     }));
   } else {
     state.files = await api(`/api/list?kind=${state.browse}`);
+    // The Menus library carries the mod's own screens (menus/<id>.json + .xml) first, marked so.
+    if (state.browse === 'menu' && typeof isOpenFFProject === 'function' && isOpenFFProject()) {
+      const own = await api('/api/project/menus').catch(() => null);
+      const screens = (own && own.ok ? own.menus || [] : []).map(m => ({
+        name: 'menus/' + m.id, overridden: false, own: true, menuDef: m,
+        note: `${m.title || m.id} · the mod's own screen · ${m.frames} frame${m.frames === 1 ? '' : 's'}, ${m.focusable} to choose from${m.mainMenu ? ` · in the main menu as “${m.mainMenu}”` : ''}${m.attachments ? ` · ${m.attachments} behaviour${m.attachments === 1 ? '' : 's'}` : ''}`
+      }));
+      state.files = [...screens, ...state.files];
+    }
     // The text library carries the mod's own faces (fonts/*.ttf), marked so.
     if (state.browse === 'text') {
       for (const f of state.files) {
@@ -567,7 +576,20 @@ const menu = {
 };
 
 async function openMenu(name) {
-  const data = await api(`/api/menu?name=${encodeURIComponent(name)}`);
+  // A screen of the mod's own (menus/<id>.json + .xml) opens on the same canvas as the game's
+  // menus; its layout is saved back as XML and its definition (behaviours, how it opens) is
+  // edited in the inspector.
+  const own = /^menus\//.test(name);
+  let data;
+  if (own) {
+    const r = await api(`/api/project/menu?id=${encodeURIComponent(name.slice(6))}`);
+    if (!r.ok) throw new Error(r.error);
+    data = { xml: r.xml, overridden: false };
+    menu.project = { id: name.slice(6), definition: r.definition };
+  } else {
+    data = await api(`/api/menu?name=${encodeURIComponent(name)}`);
+    menu.project = null;
+  }
   const node = view('menu', name, data.overridden);
 
   menu.name = name;
@@ -653,6 +675,11 @@ async function openMenu(name) {
 
   $('.save', node).onclick = async () => {
     const xml = new XMLSerializer().serializeToString(menu.doc);
+    if (menu.project) {
+      const result = await api('/api/project/menu/save', { id: menu.project.id, xml });
+      say(result.ok ? `saved menus/${menu.project.id}.xml` : result.error, result.ok ? 'good' : 'bad');
+      return;
+    }
     const result = await api('/api/menu/save', { name, xml });
     if (result.ok) {
       markOverridden(name, true);
@@ -972,7 +999,9 @@ function drawScreen(node, screen, select) {
     label.className = 'label';
     if (menu.preview) {
       const id = textMessageId(frame.element);
-      const text = id === null ? null : menu.messages[id];
+      // A literal (<data>, message -1) shows as itself - the way a mod's screen writes its labels.
+      const literal = id !== null && id < 0 ? childText(frame.element, 'data') : null;
+      const text = literal != null ? literal : id === null ? null : menu.messages[id];
       if (text != null) {
         label.textContent = text;
         // In the game's own font, once it arrives. The text stays as a fallback, so a
@@ -1017,7 +1046,8 @@ function drawScreen(node, screen, select) {
         label.classList.add('dynamic');
       }
     } else {
-      label.textContent = frame.id || frame.behavior || '';
+      const literal = textMessageId(frame.element) !== null && textMessageId(frame.element) < 0 ? childText(frame.element, 'data') : null;
+      label.textContent = literal ? `${frame.id || ''}  “${literal}”` : (frame.id || frame.behavior || '');
     }
     box.append(label);
 
@@ -1073,8 +1103,10 @@ function showProperties(node, frame, screen) {
   if (!activeDoc) return;
 
   if (!frame) {
-    activeDoc.selection = null;
-    activeDoc.inspect = null;
+    // A screen of the mod's own has a card of its own when nothing is selected: how it opens,
+    // and the behaviours on the screen itself.
+    activeDoc.selection = menu.project ? 'screen' : null;
+    activeDoc.inspect = menu.project ? () => buildMenuScreen(node) : null;
     drawInspector();
     refreshXmlPanel(node);
     return;
@@ -1123,8 +1155,204 @@ function buildWidget(held) {
   field('left', 'left');
   field('right', 'right');
 
+  // A screen of the mod's own: the frame's text, whether the cursor may land on it, and the
+  // MenuBehaviours on it - what a press or the focus does, in C# or the engine's own.
+  if (menu.project) {
+    const isText = textMessageId(frame.element) !== null && textMessageId(frame.element) < 0;
+    if (isText) {
+      const wrap = document.createElement('label');
+      wrap.textContent = 'text (what the layout shows; a behaviour may write over it)';
+      const input = document.createElement('input');
+      input.value = childText(frame.element, 'data') ?? '';
+      input.oninput = () => { setChildText(frame.element, 'data', input.value); drawScreen(node, screen, frame.element); };
+      wrap.append(input);
+      panel.append(wrap);
+    }
+    const focus = document.createElement('label');
+    focus.className = 'check';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = [...frame.element.children].some(e => e.tagName === 'focus');
+    box.onchange = () => {
+      const has = [...frame.element.children].find(e => e.tagName === 'focus');
+      if (box.checked && !has) frame.element.prepend(frame.element.ownerDocument.createElement('focus'));
+      else if (!box.checked && has) has.remove();
+      drawScreen(node, screen, frame.element);
+    };
+    focus.append(box, document.createTextNode(' the cursor can land on it (focus); up/down/left/right say where it moves'));
+    panel.append(focus);
+    const behaviours = document.createElement('div');
+    behaviours.className = 'component';
+    const h = document.createElement('div');
+    h.className = 'behaviour-header';
+    h.textContent = 'Behaviours (OpenFF)';
+    behaviours.append(h);
+    const box2 = document.createElement('div');
+    behaviours.append(box2);
+    panel.append(behaviours);
+    menuBehaviourState().then(state => { if (typeof drawBehaviours === 'function') drawBehaviours(box2, state, frame.id || '', 'frame'); }).catch(e => { box2.textContent = e.message; });
+  }
+
   // The XML itself is in the panel under the canvas, where it has room to be read.
   return panel;
+}
+
+/// The behaviours' state for the open screen of the mod's own, in the shape the map editor's
+/// behaviour cards take (attachments, catalog), saving the definition when one changes.
+let menuBehaviourStateCache = null;
+async function menuBehaviourState() {
+  if (!menu.project) throw new Error('not a screen of the mod\'s own');
+  if (menuBehaviourStateCache && menuBehaviourStateCache.id === menu.project.id) return menuBehaviourStateCache;
+  const catalog = await api('/api/project/code/catalog');
+  const def = menu.project.definition;
+  def.attachments = def.attachments || [];
+  const state = {
+    id: menu.project.id, attachments: def.attachments, behaviourKind: 'menu', map: null,
+    catalog: { ...catalog, behaviours: (catalog.behaviours || []).filter(b => b.kind === 'menu'), sources: (catalog.sources || []).filter(s => s.kind === 'menu').map(s => ({ ...s, kind: 'behaviour' })) },
+    onChanged: () => saveMenuDefinition(),
+    newScriptTemplate: 'menu'
+  };
+  menuBehaviourStateCache = state;
+  return state;
+}
+
+let menuDefinitionTimer = null;
+function saveMenuDefinition() {
+  if (!menu.project) return;
+  clearTimeout(menuDefinitionTimer);
+  menuDefinitionTimer = setTimeout(async () => {
+    const r = await api('/api/project/menu/save', { id: menu.project.id, definition: menu.project.definition });
+    say(r.ok ? `saved menus/${menu.project.id}.json` : r.error, r.ok ? 'good' : 'bad');
+  }, 400);
+}
+
+/// The screen's own card: how it opens (the main menu entry, a character pick, the backdrop) and the behaviours on the screen itself.
+function buildMenuScreen(node) {
+  const panel = document.createElement('div');
+  const def = menu.project.definition;
+  const title = document.createElement('h2');
+  title.textContent = def.title || def.id;
+  panel.append(title);
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = `menus/${def.id}.json · layout ${def.layout} · a screen of the mod's own in the game's menu`;
+  panel.append(sub);
+  const card = document.createElement('div');
+  card.className = 'component';
+  const h = document.createElement('div');
+  h.className = 'behaviour-header';
+  h.textContent = 'How it opens';
+  card.append(h);
+  const row = (label, input, tip) => {
+    const r = document.createElement('div');
+    r.className = 'behaviour-field';
+    const l = document.createElement('span');
+    l.textContent = label;
+    if (tip) r.title = tip;
+    r.append(l, input);
+    card.append(r);
+  };
+  const text = (value, onInput, placeholder) => { const i = document.createElement('input'); i.type = 'text'; i.value = value ?? ''; i.placeholder = placeholder || ''; i.oninput = () => { onInput(i.value); saveMenuDefinition(); }; return i; };
+  row('Title', text(def.title, v => { def.title = v; }, def.id), 'The screen\'s name, for the editor');
+  def.mainMenu = def.mainMenu || { label: '', after: 'com_job' };
+  row('Main menu entry', text(def.mainMenu.label, v => { def.mainMenu.label = v; }, 'none - opened from code (Game.Menus.Open) or another screen'), 'An entry in the game\'s main menu that opens this screen; empty for none');
+  const after = document.createElement('select');
+  for (const [id, label] of [['com_item', 'after Item'], ['com_magic', 'after Magic'], ['com_equip', 'after Equipment'], ['com_status', 'after Status'], ['com_tairetu', 'after Formation'], ['com_job', 'after Job'], ['com_config', 'after Config'], ['com_half', 'after Quicksave'], ['com_save', 'after Save (last)']]) {
+    const o = document.createElement('option'); o.value = id; o.textContent = label; after.append(o);
+  }
+  after.value = def.mainMenu.after || 'com_job';
+  after.onchange = () => { def.mainMenu.after = after.value; saveMenuDefinition(); };
+  row('Where', after, 'Which of the game\'s entries it follows');
+  const pick = document.createElement('input');
+  pick.type = 'checkbox';
+  pick.checked = !!def.characterSelect;
+  pick.onchange = () => { def.characterSelect = pick.checked; saveMenuDefinition(); };
+  row('Ask for a hero', pick, 'The player picks a party member first, as Status and Equipment do; Menu.Hero says who');
+  const bg = document.createElement('select');
+  for (const [v, label] of [[10, 'plain'], [0, 'Item\'s'], [1, 'Magic\'s'], [2, 'Equipment\'s'], [3, 'Status\'s'], [5, 'Job\'s'], [6, 'Config\'s'], [7, 'Quicksave\'s'], [8, 'Save\'s'], [9, 'the main menu\'s'], [13, 'tips, first page'], [14, 'tips, text page']]) {
+    const o = document.createElement('option'); o.value = String(v); o.textContent = label; bg.append(o);
+  }
+  bg.value = String(def.background ?? 10);
+  bg.onchange = () => { def.background = parseInt(bg.value, 10); saveMenuDefinition(); };
+  row('Backdrop', bg, 'One of the game\'s menu backdrops, drawn behind the frames');
+  panel.append(card);
+
+  const behaviours = document.createElement('div');
+  behaviours.className = 'component';
+  const bh = document.createElement('div');
+  bh.className = 'behaviour-header';
+  bh.textContent = 'Behaviours on the screen (OpenFF)';
+  behaviours.append(bh);
+  const note = document.createElement('p');
+  note.className = 'sub';
+  note.textContent = 'A behaviour on the screen hears every frame\'s events - Menu.Focused says which; one on a frame (select it) hears that frame\'s. The engine\'s own: Back (a press leaves), OpenMenu (a press opens another screen), Label (a text).';
+  behaviours.append(note);
+  const box = document.createElement('div');
+  behaviours.append(box);
+  panel.append(behaviours);
+  menuBehaviourState().then(state => { if (typeof drawBehaviours === 'function') drawBehaviours(box, state, '', 'screen'); }).catch(e => { box.textContent = e.message; });
+
+  const actions = document.createElement('div');
+  actions.className = 'component';
+  const json = document.createElement('button');
+  json.className = 'wide-button';
+  json.textContent = 'Open the definition as JSON';
+  json.onclick = () => openDoc('code', `menus/${def.id}.json`);
+  actions.append(json);
+  const remove = document.createElement('button');
+  remove.className = 'wide-button';
+  remove.textContent = 'Delete this screen';
+  remove.onclick = async () => {
+    if (!confirm(`Delete the screen "${def.title || def.id}" (menus/${def.id}.json and its layout)?`)) return;
+    const r = await api('/api/project/menus/delete', { id: def.id });
+    if (!r.ok) { say('screen: not deleted', 'bad'); return; }
+    if (typeof closeDoc === 'function' && activeDoc) closeDoc(activeDoc.id);
+    loadList();
+  };
+  actions.append(remove);
+  panel.append(actions);
+  return panel;
+}
+
+/// New screen… for the Menus library of an OpenFF project.
+function newMenuDialog() {
+  if (typeof dialog !== 'function') return;
+  const body = dialog('New menu screen');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'A screen of the mod\'s own in the game\'s menu: a layout (menus/<id>.xml) to draw here, and a definition (menus/<id>.json) with the behaviours on its frames. It starts with a title, three rows and a Back.';
+  body.append(note);
+  const name = field(body, 'Name', '', { placeholder: 'Abilities' });
+  const entry = document.createElement('label');
+  entry.className = 'check';
+  const entryBox = document.createElement('input');
+  entryBox.type = 'checkbox';
+  entryBox.checked = true;
+  entry.append(entryBox, document.createTextNode(' an entry in the game\'s main menu (after Job)'));
+  body.append(entry);
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Create';
+  go.onclick = async () => {
+    const n = name.value.trim();
+    if (!n) { problem.textContent = 'A screen needs a name.'; return; }
+    try {
+      const r = await api('/api/project/menus/new', { name: n, mainMenu: entryBox.checked });
+      if (!r.ok) throw new Error(r.error);
+      const shut = document.querySelector('.picker.dialog .shut');
+      if (shut) shut.click();
+      await loadList();
+      if (typeof openDoc === 'function') openDoc('menu', 'menus/' + r.id);
+      say(`menus/${r.id}.xml and .json written`, 'good');
+    } catch (e) { problem.textContent = e.message; }
+  };
+  name.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+  actions.append(go);
+  body.append(actions);
+  setTimeout(() => name.focus(), 0);
 }
 
 document.addEventListener('keydown', event => {

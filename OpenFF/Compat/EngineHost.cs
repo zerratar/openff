@@ -78,6 +78,8 @@ namespace OpenFF.Client
 			{
 				Log.Write(LogChannel.General, "engine: --nomods, no mod code loaded");
 			}
+			// The mods' menu screens (menus/<id>.json), for the game's menu system.
+			ModMenus.Gather(OpenFF.Game.Mods);
 			OpenFF.Game.Start();
 			// --load=<slot>: an FF4 game starts from a save; the jump part lands the party there.
 			Ff4Saves.LoadAtBoot();
@@ -116,7 +118,8 @@ namespace OpenFF.Client
 					.OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
 			}
 			string scenes = Path.Combine(mod.Directory, string.IsNullOrWhiteSpace(mod.Manifest.Scenes) ? "scenes" : mod.Manifest.Scenes);
-			if (assemblies.Count == 0 && !Directory.Exists(scenes))
+			string menus = Path.Combine(mod.Directory, "menus");
+			if (assemblies.Count == 0 && !Directory.Exists(scenes) && !Directory.Exists(menus))
 			{
 				return null;   // nothing for the engine: a files-only mod
 			}
@@ -128,6 +131,7 @@ namespace OpenFF.Client
 				Directory = mod.Directory,
 				Assemblies = assemblies,
 				Scenes = Directory.Exists(scenes) ? scenes : null,
+				Menus = Directory.Exists(menus) ? menus : null,
 			};
 		}
 

@@ -188,7 +188,8 @@ namespace Crystal.Editor
 				{
 					// The base list up to the brace: "Behaviour", "OpenFF.GameService, ISaveable"...
 					string bases = match.Groups[2].Value;
-					string kind = Regex.IsMatch(bases, @"(^|[\s,.])Behaviour\b") ? "behaviour"
+					string kind = Regex.IsMatch(bases, @"(^|[\s,.])MenuBehaviour\b") ? "menu"
+						: Regex.IsMatch(bases, @"(^|[\s,.])Behaviour\b") ? "behaviour"
 						: Regex.IsMatch(bases, @"(^|[\s,.])GameService\b") ? "service" : null;
 					if (kind == null)
 					{
@@ -607,6 +608,29 @@ namespace Crystal.Editor
 						"}\n";
 				case "empty":
 					return head + "}\n";
+				case "menu":
+					return head +
+						"\t/// <summary>" + className + ": a script on a menu screen of the mod's own (menus/<id>.json). Attach it in Crystal (the Menus tab, a frame's or the screen's Behaviours).</summary>\n" +
+						"\tpublic class " + className + " : MenuBehaviour\n" +
+						"\t{\n" +
+						"\t\t/// <summary>Public fields show up in Crystal as editable.</summary>\n" +
+						"\t\tpublic string Greeting = \"Hello\";\n" +
+						"\n" +
+						"\t\t/// <summary>The screen has been built: write its texts (Menu.SetText, Menu.Widget(id)).</summary>\n" +
+						"\t\tpublic override void OnOpen()\n" +
+						"\t\t{\n" +
+						"\t\t\tif (Widget != null) Widget.Text = Greeting;\n" +
+						"\t\t}\n" +
+						"\n" +
+						"\t\t/// <summary>Confirm on the frame this is on (or, on the screen, on any frame - Menu.Focused says which). Return true when handled.</summary>\n" +
+						"\t\tpublic override bool OnPress()\n" +
+						"\t\t{\n" +
+						"\t\t\tGame.Log(\"" + className + ": pressed \" + Menu.Focused);\n" +
+						"\t\t\tMenu.SoundDecide();\n" +
+						"\t\t\treturn true;\n" +
+						"\t\t}\n" +
+						"\t}\n" +
+						"}\n";
 				default:
 					return head +
 						"\t/// <summary>" + className + ": a script for one object. Attach it in Crystal (a map's inspector, Behaviours) or with AddComponent.</summary>\n" +

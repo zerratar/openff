@@ -247,6 +247,20 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   jobs FF3 has not (Samurai, Berserker, Time Mage, Blue Mage, Mystic Knight, Beastmaster,
   Chemist, Dancer, Mime) as jobs of the mod's own. Definitions only; copy it into `mods/` to
   play.
+- **Menu screens of the mod's own, in the game's own menu.** `menus/<id>.xml` is a layout in
+  the game's XBN form - Crystal's Menus tab draws and edits it as it does the game's, *New
+  screen…* starts one - and `menus/<id>.json` says how it opens (an entry in the main menu
+  after any of the game's, a character pick first, which backdrop) and which
+  **MenuBehaviours** sit on its frames. The client merges the layouts into `MenuDefine.xbn`
+  as it loads, so a mod screen gets the game's windows, font, cursor, focus rules and
+  character pick; one screen class plays them all and hands presses, focus, cancel and L/R/X/Y
+  to the behaviours. `MenuBehaviour` is to a screen what `Behaviour` is to an object: a C#
+  class with fields Crystal edits, `OnOpen / OnPress / OnFocus / OnKey / OnCancel`, `Menu`
+  for the frames (texts, colours, focus) and the way out; the engine's own Back, OpenMenu
+  and Label need no code. `Game.Menus.Open("id")` opens one from the field. Crystal's frame
+  inspector has *Behaviours (OpenFF)* as an object's does, and a screen card for how it
+  opens; the XBN codec moved to Shared so the client can use it. The Mastery sample's
+  Abilities screen is one - two layouts, two behaviours, 200 lines.
 - **Jobs of the mod's own.** A ladder that says `base` instead of `job` is a new job standing
   on one of FF3's: the game's party holds the base (growth, charges, equipment, motions), the
   layer remembers the job, and the player sees the mod's - the name in every menu, the

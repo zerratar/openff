@@ -1328,6 +1328,80 @@ own fights with FF3's commands), and the effects of its support abilities beyond
 Alchemy, Counter and the HP boosts - a mod's passive is a flag; `Game.Party.HasAbility`
 from a `Behaviour` is where its effect lives.
 
+### Menu screens of the mod's own: `menus/<id>.json` + `.xml` (OpenFF targets)
+
+The game's menus are **layouts** - the XBN files Crystal's Menus tab draws: frames with a
+position and a size, `<focus/>` where the cursor may land, `up/down/left/right` the ids it
+moves to, and a widget behaviour such as `Text` - driven by a screen class each. A mod adds a
+screen of its own the same way, and nothing in the engine has to change for it:
+
+- `menus/<id>.xml` - the layout, one `<menu>` in the game's own XML form. *Menus ▸ New
+  screen…* writes one with a title, three rows and a Back; it opens on the same canvas as the
+  game's menus - drag frames, nudge with the arrows, edit the XML, *Save*. A frame with a
+  `Text` behaviour and message `-1` shows its `<data>` literal (the inspector's *text*); a
+  behaviour writes over it at run time. The inspector also toggles *focus* on a frame.
+- `menus/<id>.json` - the screen: which layout menu (`screen`), a `title`, how it opens,
+  and the **MenuBehaviours** on its frames:
+
+```json
+{ "id": "abilities", "layout": "abilities.xml", "screen": "abilities", "title": "Abilities",
+  "mainMenu": { "label": "Abilities", "after": "com_job" },
+  "background": 10, "characterSelect": true,
+  "attachments": [ { "target": "", "behaviour": "AbilitiesScreen" },
+                   { "target": "back", "behaviour": "Back" } ] }
+```
+
+`mainMenu` puts an entry into the game's main menu after the one named (`com_item`,
+`com_magic`, `com_equip`, `com_status`, `com_tairetu` (Formation), `com_job`, `com_config`,
+`com_half` (Quicksave), `com_save`); the list is re-spaced to fit and its focus ring closed.
+`characterSelect` asks the player which hero first, as Status and Equipment do (`Menu.Hero`
+says who); `background` is one of the game's menu backdrops (10 the plain one; 0 Item's, 1
+Magic's, 2 Equipment's, 3 Status's, 5 Job's, 6 Config's, 9 the main menu's). Without an
+entry the screen is opened from code - `Game.Menus.Open("abilities")` from anywhere on the
+field - or from another screen (`Menu.Open`).
+
+How it runs: as the client loads `MenuDefine.xbn` it decodes the file to XML (the codec
+Crystal uses, now in `Shared/Text/MenuXbn.cs`), appends every mod screen's `<menu>`, adds
+the main menu entries, numbers the focus list, and encodes it back; the game then builds the
+screen by name as it builds its own - the game's windows, font, cursor, focus rules and
+character pick, for free. One screen class (`wmenu.CWMenuMod`, one `WMENU_KIND` past the
+game's) plays whichever mod screen is current and hands its events to the behaviours.
+
+**MenuBehaviour** is the unit of script on a screen, as `Behaviour` is on an object: a
+class in the mod's code with public fields Crystal edits, attached to a frame (the
+attachment's `target`) to hear that frame's events, or to the screen itself (`target ""`)
+to hear them all, `Menu.Focused` saying which frame:
+
+```csharp
+public sealed class AbilitiesScreen : MenuBehaviour
+{
+    public override void OnOpen()  { Menu.SetText("hero", Game.Party.Member(Menu.Hero).Name); }
+    public override bool OnPress() { if (Menu.Focused == "back") { Menu.Close(); return true; } return false; }
+    public override bool OnKey(MenuKey key) { /* L / R: pages */ return false; }
+}
+```
+
+`OnOpen`, `OnClose`, `OnTick`, `OnFocus`, `OnBlur`, `OnPress` (true when handled), `OnCancel`
+(true to stay; otherwise the screen closes), `OnKey` (L, R, X, Y). `Menu` is the open screen:
+`Widget(id)` (its `Text`, `Colour` from the game's set - `MenuColour.Disabled` is the grey of
+a command that cannot be taken - `Visible`, `X/Y/Width/Height`, `Work`), `Widgets`, `Focused`,
+`Focus(id)`, `SetText`, `Hero`, `Close()` (back to the main menu, or out of the menus when
+opened from the field), `Open(id)` (another screen of the mod's), `SoundDecide / SoundBeep /
+SoundCancel`. The engine's own MenuBehaviours need no code: **Back** (a press leaves),
+**OpenMenu** (a press opens `Screen`), **Label** (`Text` written onto the frame). In Crystal
+the frame's inspector has *Behaviours (OpenFF)* as an object's does (Add Behaviour lists the
+engine's and the mod's `MenuBehaviour` classes; a new name writes a starter class), and the
+screen's card - selected by clicking the canvas away from any frame - has the screen's own
+behaviours and how it opens.
+
+Lists longer than a screen are pages: `Samples/Mastery` shows the shape - `AbilitiesScreen`
+fills eight `job<n>` rows from `Game.Party.AllJobs` and turns pages on L / R, and
+`AbilityPick` (a second screen) lists what the hero has learned, sets the pick with
+`Game.Party.SetAbility` and comes back with `Menu.Open("abilities")`. What is not here yet:
+frames drawn by the game's other widget behaviours (`ItemList`, `PramMagic`) on a mod screen,
+and windows of the mod's own (`<window/>` frames animated open) - the plain backdrop and the
+game's frame art stand in.
+
 ### Seeing what happens
 
 - The log (`logs/ff3.log` beside the client, `--log=general,file`): `engine: mod my-mod 1.0: 1
@@ -1381,4 +1455,7 @@ release zip carries them in `Samples\`.
   every other job frees Guard. Copy the folder into `mods/` to play it; the ABP come at one
   per monster, so a ladder of 60-130 ABP is a stretch of the game. Bear the charges in mind:
   a set magic command casts with the charges of the job held, so a Thief with white magic
-  has none to spend, a Knight his level-1 ones.
+  has none to spend, a Knight his level-1 ones. And an **Abilities screen in the game's own
+  menu** - `menus/abilities.xml` + `.json`, `menus/ability-pick`, and `AbilitiesScreen.cs` with
+  the two MenuBehaviours that fill and drive them - the shape of a menu of your own;
+  `install.cmd` builds it into the mods folder.

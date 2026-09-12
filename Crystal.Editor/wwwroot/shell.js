@@ -2027,7 +2027,7 @@ function drawCodeActions() {
   const imports = (browseKind === 'image' || browseKind === 'texture') && project;
   const openff = project && typeof isOpenFFProject === 'function' && isOpenFFProject(project);
   // An OpenFF project adds to the game's libraries too: a map of its own among the maps, a tune among the sounds.
-  const adds = openff && (browseKind === 'map' || browseKind === 'audio' || browseKind === 'text');
+  const adds = openff && (browseKind === 'map' || browseKind === 'audio' || browseKind === 'text' || browseKind === 'menu');
   strip.hidden = !imports && !adds && !KINDS.some(k => k.mod && k.id === browseKind);
   if (strip.hidden) return;
 
@@ -2047,6 +2047,7 @@ function drawCodeActions() {
   }
   if (adds) {
     if (browseKind === 'map') button('New map…', 'A map of the mod\'s own: a ground to walk (a glTF of yours, or a flat slab), then objects, exits and music placed in the map editor; the OpenFF client plays it', () => newMapDialog(), true);
+    else if (browseKind === 'menu') button('New screen…', 'A menu screen of the mod\'s own in the game\'s menu: a layout drawn here, behaviours on its frames in C# or the engine\'s own, an entry in the main menu', () => newMenuDialog(), true);
     else if (browseKind === 'text') button('Import a font…', 'A TrueType or OpenType face of the mod\'s own: the client draws every line of text from it, the game\'s faces filling in the glyphs it lacks', () => importFontDialog(), true);
     else button('Import a sound…', 'A sound of the mod\'s own: an Ogg Vorbis or WAV as a tune under a BGM number the game leaves free (59 and up), or as an effect under an archive number of its own (SE300_00); Music, Chest and Talk components, scripts and C# play it', () => importTuneDialog(), true);
     return;

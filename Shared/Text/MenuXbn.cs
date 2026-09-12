@@ -32,7 +32,7 @@ using System.IO;
 using System.Xml;
 using System.Xml.Linq;
 
-namespace Crystal
+namespace OpenFF.Content
 {
 	internal static class MenuXbn
 	{

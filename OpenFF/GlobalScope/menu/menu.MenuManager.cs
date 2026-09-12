@@ -399,6 +399,8 @@ internal static partial class GlobalScope
 					if (array != null)
 					{
 						ds.g_File.load(array, fileName);
+						// PORT: the mods' menu screens ride in MenuDefine.xbn (OpenFF.Client.ModMenus).
+						array = OpenFF.Client.ModMenus.Patch(fileName, array);
 					}
 					xbnFile = (XbnFile)array;
 				}
@@ -994,6 +996,8 @@ internal static partial class GlobalScope
 
 			public void initFocus(int _focusedCursor)
 			{
+				// PORT: --trace-menu logs every focus move with its caller, for following a layout's focus ring.
+				if (OpenFF.Client.Options.Get("trace-menu") != null) OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "menu: initFocus " + _focusedCursor + " (was " + focusedCursor + ", " + focusMedgets.size() + " in the list) from " + new System.Diagnostics.StackTrace().GetFrame(1)?.GetMethod()?.Name + "<" + new System.Diagnostics.StackTrace().GetFrame(2)?.GetMethod()?.Name);
 				if (focusedMedget != null)
 				{
 					if (focusedMedget.behavior() != null)

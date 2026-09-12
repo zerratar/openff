@@ -2858,11 +2858,19 @@ function behaviourSource(catalog, name) {
   return (catalog.sources || []).find(s => s.kind === 'behaviour' && s.name === name) || null;
 }
 
+/// A change to a state's attachments: the scene's save, or - for a state that brought its own
+/// (a menu screen's definition) - what it asked for.
+
+function stateChanged(state, label) {
+  if (state && typeof state.onChanged === 'function') state.onChanged(label);
+  else sceneChanged(label);
+}
+
 function attachBehaviour(state, target, choice) {
   const fields = {};
   for (const f of choice.fields) if (f.default !== null && f.default !== undefined) fields[f.name] = f.default;
   state.attachments.push({ target, behaviour: choice.name, fields });
-  sceneChanged('add ' + choice.name);
+  stateChanged(state, 'add ' + choice.name);
 }
 
 /// Unity's Add Component list, for behaviours: a search box, one row per class with its
@@ -2999,13 +3007,20 @@ function behaviourPicker(anchor, state, target, box, what) {
 /// straight away (its fields come with the next build), and opened in the code view.
 async function createBehaviourScript(state, target, name, box, what) {
   try {
-    const made = await api('/api/project/file/new', { name, template: 'behaviour' });
+    const made = await api('/api/project/file/new', { name, template: state.newScriptTemplate || 'behaviour' });
     if (!made.ok) throw new Error(made.error);
     attachBehaviour(state, target, { name, fields: [] });
-    state.catalog = null;
-    await loadSceneState(state.map);
+    if (state.map) {
+      state.catalog = null;
+      await loadSceneState(state.map);
+      state = sceneState;
+    } else if (typeof menuBehaviourState === 'function') {
+      // A menu screen's state: read the catalog again so the new script is listed.
+      menuBehaviourStateCache = null;
+      state = await menuBehaviourState();
+    }
     say(`${made.name} written and attached to this ${what} - Build to give it fields`, 'good');
-    drawBehaviours(box, sceneState, target, what);
+    drawBehaviours(box, state, target, what);
     if (typeof projectChanged === 'function') projectChanged();
     if (typeof openDoc === 'function') await openDoc('code', made.name);
   } catch (error) {
@@ -3045,7 +3060,7 @@ function behaviourCard(state, attachment, target) {
   remove.onclick = () => {
     state.attachments.splice(state.attachments.indexOf(attachment), 1);
     if (typeof closeTimelineFor === 'function') closeTimelineFor(attachment);
-    sceneChanged('remove ' + attachment.behaviour);
+    stateChanged(state, 'remove ' + attachment.behaviour);
     drawBehaviours(card.parentElement, state, target, '');
   };
   head.append(remove);
@@ -3079,7 +3094,7 @@ function behaviourCard(state, attachment, target) {
     let input;
     const changed = v => {
       attachment.fields[f.name] = v;
-      sceneChanged();
+      stateChanged(state);
       // The map's sky changes the view behind everything as it is picked.
       if (attachment.behaviour === 'MapSettings' && f.name === 'Background') syncSceneObjects(activeDoc);
     };

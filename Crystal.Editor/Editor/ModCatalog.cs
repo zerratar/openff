@@ -84,9 +84,9 @@ namespace Crystal.Editor
 						Dictionary<string, string> engineDocs = ReadDocs(Path.ChangeExtension(engine, ".xml"));
 						foreach (Type type in engineAssembly.GetTypes())
 						{
-							if (type.IsAbstract || type.IsGenericTypeDefinition || !type.IsPublic) continue;
-							if (!Derives(type, "OpenFF.Behaviour") || type.GetConstructor(Type.EmptyTypes) == null) continue;
-							result.Behaviours.Add(Describe(type, "behaviour", "OpenFF.Engine.dll", engineDocs, result.Problems));
+							if (type.IsAbstract || type.IsGenericTypeDefinition || !type.IsPublic || type.GetConstructor(Type.EmptyTypes) == null) continue;
+							if (Derives(type, "OpenFF.Behaviour")) result.Behaviours.Add(Describe(type, "behaviour", "OpenFF.Engine.dll", engineDocs, result.Problems));
+							else if (Derives(type, "OpenFF.MenuBehaviour")) result.Behaviours.Add(Describe(type, "menu", "OpenFF.Engine.dll", engineDocs, result.Problems));   // the menus' own: Back, OpenMenu, Label
 						}
 					}
 					catch (Exception ex)
@@ -125,10 +125,10 @@ namespace Crystal.Editor
 					foreach (Type type in types)
 					{
 						if (type.IsAbstract || type.IsGenericTypeDefinition || !type.IsPublic && !type.IsNestedPublic) continue;
-						string kind = Derives(type, "OpenFF.Behaviour") ? "behaviour" : Derives(type, "OpenFF.GameService") ? "service" : null;
+						string kind = Derives(type, "OpenFF.Behaviour") ? "behaviour" : Derives(type, "OpenFF.MenuBehaviour") ? "menu" : Derives(type, "OpenFF.GameService") ? "service" : null;
 						if (kind == null) continue;
 						CatalogType entry = Describe(type, kind, Path.GetFileName(path), docs, result.Problems);
-						(kind == "behaviour" ? result.Behaviours : result.Services).Add(entry);
+						(kind == "service" ? result.Services : result.Behaviours).Add(entry);
 					}
 				}
 			}

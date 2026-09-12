@@ -1420,6 +1420,60 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/project/menus":
+					// The project's menu screens (menus/<id>.json + .xml), for the Menus library.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					SendJson(context, new { ok = true, menus = ProjectMenus.Describe(_project) });
+					return;
+
+				case "/api/project/menu":
+				{
+					// One screen: its definition and its layout XML (?id=).
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					string id = Query(context, "id");
+					JsonObject def = ProjectMenus.Definition(_project, id);
+					if (def == null) { SendJson(context, new { ok = false, error = "no screen called '" + id + "'" }); return; }
+					SendJson(context, new { ok = true, definition = def, xml = ProjectMenus.Layout(_project, id) ?? "" });
+					return;
+				}
+
+				case "/api/project/menu/save":
+				{
+					// The layout (xml) and/or the definition, whichever came.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string id = body?["id"]?.GetValue<string>();
+						if (body?["xml"] is JsonValue xml) ProjectMenus.SaveLayout(_project, id, xml.GetValue<string>());
+						if (body?["definition"] is JsonObject def) ProjectMenus.SaveDefinition(_project, id, def);
+						SendJson(context, new { ok = true, definition = ProjectMenus.Definition(_project, id) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/menus/new":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						string id = ProjectMenus.New(_project, body?["name"]?.GetValue<string>(), body?["mainMenu"]?.GetValue<bool>() ?? true);
+						SendJson(context, new { ok = true, id, definition = ProjectMenus.Definition(_project, id) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/menus/delete":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					SendJson(context, new { ok = ProjectMenus.Delete(_project, body?["id"]?.GetValue<string>()) });
+					return;
+				}
+
 				case "/api/project/tags/global":
 				{
 					// The mod's own tag list (project.json): what every scene's picker offers.

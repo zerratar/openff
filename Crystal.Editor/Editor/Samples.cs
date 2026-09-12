@@ -78,7 +78,7 @@ namespace Crystal.Editor
 				catch (Exception) { /* a manifest that does not parse still lists by its folder */ }
 				sample.Code = System.IO.Directory.EnumerateFiles(dir, "*.csproj", SearchOption.TopDirectoryOnly).Any() || System.IO.Directory.Exists(Path.Combine(dir, "code"));
 				sample.Scenes = CountFiles(Path.Combine(dir, "scenes"), "*.json");
-				sample.Definitions = CountFiles(Path.Combine(dir, "defs"), "*.json");
+				sample.Definitions = CountFiles(Path.Combine(dir, "defs"), "*.json") + CountFiles(Path.Combine(dir, "menus"), "*.json");
 				sample.Assets = CountFiles(Path.Combine(dir, "assets"), "*.*");
 				list.Add(sample);
 			}
@@ -110,7 +110,7 @@ namespace Crystal.Editor
 				project.File.Description = string.IsNullOrEmpty(sample.Description) ? "From the " + sample.Name + " sample." : sample.Description;
 				project.Save();
 				// The content folders the two layouts share by name.
-				foreach (string folder in new[] { "scenes", "defs", "assets" })
+				foreach (string folder in new[] { "scenes", "defs", "assets", "menus" })
 				{
 					CopyTree(Path.Combine(sample.Directory, folder), Path.Combine(project.Directory, folder));
 				}

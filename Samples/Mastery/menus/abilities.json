@@ -1,0 +1,12 @@
+{
+  "id": "abilities",
+  "layout": "abilities.xml",
+  "screen": "abilities",
+  "title": "Abilities",
+  "mainMenu": { "label": "Abilities", "after": "com_job" },
+  "background": 10,
+  "characterSelect": true,
+  "attachments": [
+    { "target": "", "behaviour": "AbilitiesScreen" }
+  ]
+}

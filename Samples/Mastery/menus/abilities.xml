@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Abilities screen of the Mastery sample: a layout in the game's own menu form, drawn and edited by Crystal's Menus tab.
+     The texts here are placeholders; AbilitiesScreen (code/AbilitiesScreen.cs) writes the real ones as the screen opens. -->
+<menulist>
+  <menu>
+    <name>abilities</name>
+    <frame>
+      <id>hero</id><x>100</x><y>14</y><width>300</width><height>24</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Hero - Job</data>
+    </frame>
+    <frame>
+      <id>commands_title</id><x>24</x><y>48</y><width>220</width><height>24</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Commands</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>cmd0</id><x>32</x><y>76</y><width>220</width><height>24</height>
+      <up>cmd3</up><down>cmd1</down><left>job0</left><right>job0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Command 1</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>cmd1</id><x>32</x><y>102</y><width>220</width><height>24</height>
+      <up>cmd0</up><down>cmd2</down><left>job1</left><right>job1</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Command 2</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>cmd2</id><x>32</x><y>128</y><width>220</width><height>24</height>
+      <up>cmd1</up><down>cmd3</down><left>job2</left><right>job2</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Command 3</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>cmd3</id><x>32</x><y>154</y><width>220</width><height>24</height>
+      <up>cmd2</up><down>cmd0</down><left>job3</left><right>job3</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Command 4</data>
+    </frame>
+    <frame>
+      <id>innate</id><x>24</x><y>190</y><width>236</width><height>24</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Innate:</data>
+    </frame>
+    <frame>
+      <id>stats</id><x>24</x><y>214</y><width>236</width><height>24</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Stats:</data>
+    </frame>
+    <frame>
+      <id>jobs_title</id><x>272</x><y>48</y><width>220</width><height>24</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Jobs</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job0</id><x>280</x><y>76</y><width>220</width><height>24</height>
+      <up>job7</up><down>job1</down><left>cmd0</left><right>cmd0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Job 1</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job1</id><x>280</x><y>102</y><width>220</width><height>24</height>
+      <up>job0</up><down>job2</down><left>cmd1</left><right>cmd1</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Job 2</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job2</id><x>280</x><y>128</y><width>220</width><height>24</height>
+      <up>job1</up><down>job3</down><left>cmd2</left><right>cmd2</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Job 3</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job3</id><x>280</x><y>154</y><width>220</width><height>24</height>
+      <up>job2</up><down>job4</down><left>cmd3</left><right>cmd3</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Job 4</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job4</id><x>280</x><y>180</y><width>220</width><height>24</height>
+      <up>job3</up><down>job5</down><left>cmd3</left><right>cmd3</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Job 5</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job5</id><x>280</x><y>206</y><width>220</width><height>24</height>
+      <up>job4</up><down>job6</down><left>cmd3</left><right>cmd3</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Job 6</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job6</id><x>280</x><y>232</y><width>220</width><height>24</height>
+      <up>job5</up><down>job7</down><left>cmd3</left><right>cmd3</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Job 7</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job7</id><x>280</x><y>258</y><width>220</width><height>24</height>
+      <up>job6</up><down>job0</down><left>cmd3</left><right>cmd3</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Job 8</data>
+    </frame>
+    <frame>
+      <id>page</id><x>272</x><y>286</y><width>220</width><height>24</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>L / R: more jobs</data>
+    </frame>
+    <frame>
+      <id>hint</id><x>24</x><y>308</y><width>460</width><height>20</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>A: set a free slot, take a job   B: back</data>
+    </frame>
+  </menu>
+</menulist>

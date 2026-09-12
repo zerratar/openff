@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The pick for a free slot: every ability the hero has learned, ten a page. AbilityPick (code/AbilitiesScreen.cs) fills it. -->
+<menulist>
+  <menu>
+    <name>ability-pick</name>
+    <frame>
+      <id>title</id><x>24</x><y>14</y><width>400</width><height>24</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Set into a free slot</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt0</id><x>32</x><y>52</y><width>440</width><height>24</height>
+      <up>opt9</up><down>opt1</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 1</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt1</id><x>32</x><y>78</y><width>440</width><height>24</height>
+      <up>opt0</up><down>opt2</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 2</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt2</id><x>32</x><y>104</y><width>440</width><height>24</height>
+      <up>opt1</up><down>opt3</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 3</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt3</id><x>32</x><y>130</y><width>440</width><height>24</height>
+      <up>opt2</up><down>opt4</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 4</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt4</id><x>32</x><y>156</y><width>440</width><height>24</height>
+      <up>opt3</up><down>opt5</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 5</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt5</id><x>32</x><y>182</y><width>440</width><height>24</height>
+      <up>opt4</up><down>opt6</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 6</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt6</id><x>32</x><y>208</y><width>440</width><height>24</height>
+      <up>opt5</up><down>opt7</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 7</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt7</id><x>32</x><y>234</y><width>440</width><height>24</height>
+      <up>opt6</up><down>opt8</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 8</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt8</id><x>32</x><y>260</y><width>440</width><height>24</height>
+      <up>opt7</up><down>opt9</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 9</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt9</id><x>32</x><y>286</y><width>440</width><height>24</height>
+      <up>opt8</up><down>opt0</down><left>dummy</left><right>dummy</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Option 10</data>
+    </frame>
+    <frame>
+      <id>page</id><x>24</x><y>308</y><width>400</width><height>20</height>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>L / R: more</data>
+    </frame>
+  </menu>
+</menulist>

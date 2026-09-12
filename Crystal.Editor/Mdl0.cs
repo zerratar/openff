@@ -20,6 +20,7 @@
 // in 1/16ths of a texel, colours in 5 bits per channel.
 
 using System;
+using OpenFF.Content;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;

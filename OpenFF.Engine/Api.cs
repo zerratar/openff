@@ -380,6 +380,8 @@ namespace OpenFF
 		public List<AbilityInfo> Learned { get; } = new List<AbilityInfo>();
 		/// <summary>Mastery: the ability set into each free slot of the held job (0 for none) - as many entries as the job leaves free.</summary>
 		public int[] Slots { get; set; } = System.Array.Empty<int>();
+		/// <summary>Mastery: the held job's four battle commands as laid out - the job's own by ability, a free slot as an entry with Id -1 (what is set in it is in Slots).</summary>
+		public List<AbilityInfo> Commands { get; } = new List<AbilityInfo>();
 		/// <summary>The job really held, by word: FF3's ("knight") or a mod's own from defs/jobs ("samurai", standing on the FF3 job in Job).</summary>
 		public string JobWord { get; set; }
 		/// <summary>The held job's name as the menus print it.</summary>
@@ -482,6 +484,36 @@ namespace OpenFF
 		bool ChangeJob(int id, string job);
 		/// <summary>The jobs a character may take now, by word: FF3's the crystals have opened and the mod's own whose base is open.</summary>
 		IReadOnlyList<string> OpenJobs(int id);
+		/// <summary>Every job in play, by word: FF3's 23 then the mods' own, open or not.</summary>
+		IReadOnlyList<string> AllJobs { get; }
+		/// <summary>A job as it stands for a character: its ladder's level and ABP, whether open, held, mastered; null for no such job.</summary>
+		JobInfo JobInfo(int id, string job);
+	}
+
+	/// <summary>A job as it stands for one character, for menus (IParty.JobInfo).</summary>
+	public sealed class JobInfo
+	{
+		/// <summary>The word ("knight", "samurai").</summary>
+		public string Word { get; set; }
+		/// <summary>The name the menus print.</summary>
+		public string Title { get; set; }
+		/// <summary>A job of a mod's own (standing on an FF3 base) rather than one of FF3's.</summary>
+		public bool Own { get; set; }
+		/// <summary>Whether the character may take it now.</summary>
+		public bool Open { get; set; }
+		/// <summary>Whether the character holds it.</summary>
+		public bool Held { get; set; }
+		/// <summary>Whether it has a ladder (mastery progression).</summary>
+		public bool HasLadder { get; set; }
+		public int Level { get; set; }
+		public int Abp { get; set; }
+		/// <summary>ABP the next step costs; 0 at the top or without a ladder.</summary>
+		public int AbpToNext { get; set; }
+		public int Steps { get; set; }
+		public bool Mastered { get; set; }
+		/// <summary>The next ability the ladder teaches, or null.</summary>
+		public AbilityInfo Next { get; set; }
+		public override string ToString() => Title + (HasLadder ? " Lv " + Level : "");
 	}
 
 	public interface IAudio

@@ -111,8 +111,23 @@ internal static partial class GlobalScope
 												menu.MenuManager.getSingleton().playSEBeep();
 												return;
 											}
+											// PORT: an entry of the mods' own (work = CWMenuMod.KIND + index) opens that mod screen.
+											if (num2 >= CWMenuMod.KIND)
+											{
+												if (!OpenFF.Client.ModMenus.Select(num2))
+												{
+													menu.MenuManager.getSingleton().playSEBeep();
+													return;
+												}
+												menu.MenuManager.getSingleton().playSEDecide();
+												CWMenuManager.Instance().SetMainMenuMemoryCursor(OpenFF.Client.ModMenus.MainMenuCursor(menu.MenuManager.getSingleton().getFocuseMedget()));
+												CWMenuManager.Instance().SetNextKind((WMENU_KIND)CWMenuMod.KIND);
+												CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_TERMINATE);
+												return;
+											}
 											menu.MenuManager.getSingleton().playSEDecide();
-											CWMenuManager.Instance().SetMainMenuMemoryCursor(num2);
+											// PORT: the cursor is remembered by its place in the list (the mods' entries move the game's own down).
+											CWMenuManager.Instance().SetMainMenuMemoryCursor(OpenFF.Client.ModMenus.MainMenuCursor(menu.MenuManager.getSingleton().getFocuseMedget()));
 											CWMenuManager.Instance().SetNextKind((WMENU_KIND)num2);
 											CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_TERMINATE);
 										}
