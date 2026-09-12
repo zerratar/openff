@@ -85,12 +85,15 @@ namespace OpenFF.Client
 			// The definitions are read again each time: a menus/<id>.json edited while the client runs is on the next opening, as the layouts are.
 			if (_screen == null && _gameScreen == null) Gather(OpenFF.Game.Mods);
 			List<MenuDefinition> defs = _all.Where(d => string.Equals(d.File, file, StringComparison.OrdinalIgnoreCase)).ToList();
-			if (defs.Count == 0) return bytes;
+			bool battle = string.Equals(file, BattleHudLayout.File, StringComparison.OrdinalIgnoreCase);
+			if (defs.Count == 0 && !battle) return bytes;
 			try
 			{
 				XDocument doc = MenuXbn.ToXml((byte[])bytes);
 				XElement list = doc.Root;
 				if (list == null) return bytes;
+				// The battle's HUD as a screen (BattleHudLayout): the game's numbers unless a mod's copy takes its place below.
+				if (battle) BattleHudLayout.Ensure(doc, GlobalScope.BATTLE_COMMAND_X(), GlobalScope.BATTLE_COMMAND_Y(), GlobalScope.BATTLE_PLAYER_Y());
 				int added = 0, reached = 0;
 				foreach (string key in _gameScreenDefs.Keys.ToList()) if (_gameScreenDefs[key].Any(d => string.Equals(d.File, file, StringComparison.OrdinalIgnoreCase))) _gameScreenDefs.Remove(key);
 				foreach (MenuDefinition def in defs)

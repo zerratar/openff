@@ -82,21 +82,13 @@ internal static partial class GlobalScope
 
 			public cwDATA commandWindowData(int i)
 			{
+				// PORT: the rows and the Run Away window come from the battle_hud screen of BattleDefine.xbn (OpenFF.Client.BattleHud) - the game's own numbers unless a mod moved them.
 				cwDATA cwDATA2 = new cwDATA();
-				if (i < 3)
-				{
-					cwDATA2.Position.vx = (short)BATTLE_COMMAND_X();
-					cwDATA2.Position.vy = (short)(BATTLE_COMMAND_Y() + (i + 1) * 40);
-					cwDATA2.Size.vx = 128;
-					cwDATA2.Size.vy = 40;
-				}
-				else
-				{
-					cwDATA2.Position.vx = 400;
-					cwDATA2.Position.vy = 0;
-					cwDATA2.Size.vx = 80;
-					cwDATA2.Size.vy = 40;
-				}
+				OpenFF.Client.BattleHud.Rect row = OpenFF.Client.BattleHud.CommandRow(i);
+				cwDATA2.Position.vx = (short)row.X;
+				cwDATA2.Position.vy = (short)row.Y;
+				cwDATA2.Size.vx = (short)row.Width;
+				cwDATA2.Size.vy = (short)row.Height;
 				return cwDATA2;
 			}
 
@@ -170,11 +162,11 @@ internal static partial class GlobalScope
 				// PORT: a command of the mods' own (an id past the game's table) is named by its ladder step.
 				if (OpenFF.Data.ModJobs.IsOwnCommand((int)_id))
 				{
-					messageId_[i] = dgs.msg.CMessageSys.getInstance().Main().createMessage(OpenFF.Client.BattleCommands.NameOf((int)_id), (ushort)(commandWindowData(i).Position.vx + 8), (ushort)(commandWindowData(i).Position.vy + 14), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+					messageId_[i] = dgs.msg.CMessageSys.getInstance().Main().createMessage(OpenFF.Client.BattleCommands.NameOf((int)_id), (ushort)(commandWindowData(i).Position.vx + OpenFF.Client.BattleHud.CommandTextOffset(i).X), (ushort)(commandWindowData(i).Position.vy + OpenFF.Client.BattleHud.CommandTextOffset(i).Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
 				}
 				else
 				{
-					messageId_[i] = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)pl.PlayerParty.instance().abilityList((int)_id).nameId_, (ushort)(commandWindowData(i).Position.vx + 8), (ushort)(commandWindowData(i).Position.vy + 14), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+					messageId_[i] = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)pl.PlayerParty.instance().abilityList((int)_id).nameId_, (ushort)(commandWindowData(i).Position.vx + OpenFF.Client.BattleHud.CommandTextOffset(i).X), (ushort)(commandWindowData(i).Position.vy + OpenFF.Client.BattleHud.CommandTextOffset(i).Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
 				}
 				dgs.DGSMessage dGSMessage = dgs.msg.CMessageSys.getInstance().Main().Message(messageId_[i]);
 				dGSMessage.setDisplaySpeed(byte.MaxValue);

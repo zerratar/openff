@@ -1253,43 +1253,42 @@ internal static partial class GlobalScope
 
 		internal static NNSG2dFVec2 CommandCursorPosition(int i)
 		{
+			// PORT: from the battle_hud layout (OpenFF.Client.BattleHud); the game's numbers unless a mod moved them.
 			NNSG2dFVec2 nNSG2dFVec = new NNSG2dFVec2();
-			if (i < 3)
-			{
-				nNSG2dFVec.x = 4096 * (BATTLE_COMMAND_X() + 8);
-				nNSG2dFVec.y = 4096 * (BATTLE_COMMAND_Y() + 20 + (i + 1) * 40);
-			}
-			else
-			{
-				nNSG2dFVec.x = 1671168;
-				nNSG2dFVec.y = 81920;
-			}
+			(int cx, int cy) = OpenFF.Client.BattleHud.CommandCursor(i);
+			nNSG2dFVec.x = 4096 * cx;
+			nNSG2dFVec.y = 4096 * cy;
 			return nNSG2dFVec;
 		}
 
 		internal static NNSG2dFVec2 TrianglePosition(int i)
 		{
-			return new NNSG2dFVec2(4096 * (BATTLE_COMMAND_X() + 128), 4096 * (BATTLE_COMMAND_Y() + ((i == 0) ? 38 : 98)));
+			(int ax, int ay) = OpenFF.Client.BattleHud.Arrow(i);   // PORT: from the battle_hud layout
+			return new NNSG2dFVec2(4096 * ax, 4096 * ay);
 		}
 
 		internal static ds.Vector2<short> PlayerNamePosition(int i)
 		{
-			return new ds.Vector2<short>(284, (short)(BATTLE_PLAYER_Y() + i * 16));
+			(int nx, int ny) = OpenFF.Client.BattleHud.PlayerName(i);   // PORT: from the battle_hud layout
+			return new ds.Vector2<short>((short)nx, (short)ny);
 		}
 
 		internal static ds.Vector2<short> PlayerHpPosition(int i)
 		{
-			return new ds.Vector2<short>(424, (short)(BATTLE_PLAYER_Y() + i * 16));
+			(int hx, int hy) = OpenFF.Client.BattleHud.PlayerHp(i);   // PORT: from the battle_hud layout
+			return new ds.Vector2<short>((short)hx, (short)hy);
 		}
 
 		internal static ds.Vector2<short> PlayerMaxHpPosition(int i)
 		{
-			return new ds.Vector2<short>(424, (short)(BATTLE_PLAYER_Y() + i * 16));
+			(int hx, int hy) = OpenFF.Client.BattleHud.PlayerHp(i);   // PORT: from the battle_hud layout
+			return new ds.Vector2<short>((short)hx, (short)hy);
 		}
 
 		internal static ds.Vector2<short> CoasterPosition(int i, int j)
 		{
-			return new ds.Vector2<short>((short)(284 + ((j == 0) ? (-2) : 192)), (short)(BATTLE_PLAYER_Y() - 2 + (i + j) * 16));
+			(int gx, int gy) = OpenFF.Client.BattleHud.PlayerGauge(i, j);   // PORT: from the battle_hud layout
+			return new ds.Vector2<short>((short)gx, (short)gy);
 		}
 
 	}

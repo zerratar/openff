@@ -1416,10 +1416,17 @@ that screen instead of adding one. The screens the game builds from its layouts,
 `battle_use_weapon`; in `WorldDefine.xbn` - `inn_question`, `fb_question`, `item_use_list`; in
 `SpecialDefine.xbn` - `monster_book`, `monster_status_enable`, `thorough`; `NameEntry.xbn` -
 `name_entry`; `ChocoboBank.xbn` - `chocobo_bank`; `MogNet.xbn` - `select_person`, `maillist`.
-(`"file"` names the file, `MenuDefine.xbn` unless said.) Not layouts, and so not reachable this
-way yet: the battle's command and target windows and HP bars, the field's dialogue window and
-the map-name HUD - those are code, with their art in the PNG sheets and their fonts in the
-face, and `MenuOpened`/`BattleStarting`/`MessageShown` events to draw over them. Its behaviours hear the game's screen as the game builds and runs it:
+(`"file"` names the file, `MenuDefine.xbn` unless said.) The **battle's HUD** is a screen the client
+adds to `BattleDefine.xbn` itself, `battle_hud`: the three command rows (`cmd0..cmd2`, each with a
+`text` and a `cursor` child saying where the name and the hand sit), the `run_away` window, the
+scroll `arrow_up` / `arrow_down`, and the party lines `player0..3` (children `name`, `hp` - the
+number is right-aligned to its right edge - and `gauge`, the bar). The battle's code reads its
+geometry from there, so a mod that takes `battle_hud` into its `menus/` (Crystal: BattleDefine ?
+battle_hud ? *Take into the mod*) moves and resizes the battle's windows like any screen; the
+target list uses the same rows. Not layouts, and so not reachable this way yet: the field's
+dialogue window, the battle's damage numbers and help window, and the map-name HUD - code,
+with their art in the PNG sheets and their fonts in the face, and `MenuOpened` /
+`BattleStarting` / `MessageShown` events to draw over them. Its behaviours hear the game's screen as the game builds and runs it:
 `OnOpen`, `OnFocus`, `OnPress` (return true and the game's screen never sees the press),
 `OnCancel` (likewise), `OnKey`, `OnTick`; `Menu.Widget(id)` reaches every frame of the game's
 layout by its id (`com_item`, `mbs_name`...), `Menu.Hero` is the hero the screen is about,

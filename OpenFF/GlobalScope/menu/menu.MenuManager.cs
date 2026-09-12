@@ -399,8 +399,9 @@ internal static partial class GlobalScope
 					if (array != null)
 					{
 						ds.g_File.load(array, fileName);
-						// PORT: the mods' menu screens ride in MenuDefine.xbn (OpenFF.Client.ModMenus).
+						// PORT: the mods' menu screens ride in the layout files (OpenFF.Client.ModMenus); the battle's HUD geometry is read afresh.
 						array = OpenFF.Client.ModMenus.Patch(fileName, array);
+						OpenFF.Client.BattleHud.Invalidate();
 					}
 					xbnFile = (XbnFile)array;
 				}
