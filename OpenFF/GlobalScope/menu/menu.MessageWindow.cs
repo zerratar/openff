@@ -255,8 +255,10 @@ internal static partial class GlobalScope
 				{
 					return false;
 				}
-				ds.Vector2<short> vector = new ds.Vector2<short>(5, 233);
-				ds.Vector2<short> vector2 = new ds.Vector2<short>(470, 84);
+				// PORT: the window from the field_hud layout of WorldDefine.xbn (OpenFF.Client.BattleHud) - the game's numbers unless a mod moved it.
+				OpenFF.Client.BattleHud.Rect dlg = OpenFF.Client.BattleHud.Dialogue();
+				ds.Vector2<short> vector = new ds.Vector2<short>((short)dlg.X, (short)dlg.Y);
+				ds.Vector2<short> vector2 = new ds.Vector2<short>((short)dlg.Width, (short)dlg.Height);
 				int flameCount = 5;
 				m_Window.SetMaxWindowPos(vector);
 				m_Window.SetMaxWindowSize(vector2);
@@ -265,7 +267,8 @@ internal static partial class GlobalScope
 				m_ProgressIcon.copy(MenuManager.getSingleton().GetMenuButtonIcon3d());
 				m_ProgressIcon.SetCell(24);
 				m_ProgressIcon.SetShow(show: false);
-				m_ProgressIcon.SetPositionI(vector.vx + vector2.vx - 24 - 4, vector.vy + vector2.vy - 24 - 4);
+				(int nextX, int nextY) = OpenFF.Client.BattleHud.DialogueNext();
+				m_ProgressIcon.SetPositionI(nextX, nextY);
 				m_ProgressIcon.SetAnimation(anm: true);
 				sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(m_ProgressIcon);
 				vector2.vx = (vector2.vy = 0);

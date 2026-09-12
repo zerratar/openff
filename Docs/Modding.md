@@ -1423,10 +1423,11 @@ scroll `arrow_up` / `arrow_down`, and the party lines `player0..3` (children `na
 number is right-aligned to its right edge - and `gauge`, the bar). The battle's code reads its
 geometry from there, so a mod that takes `battle_hud` into its `menus/` (Crystal: BattleDefine ?
 battle_hud ? *Take into the mod*) moves and resizes the battle's windows like any screen; the
-target list uses the same rows. Not layouts, and so not reachable this way yet: the field's
-dialogue window, the battle's damage numbers and help window, and the map-name HUD - code,
-with their art in the PNG sheets and their fonts in the face, and `MenuOpened` /
-`BattleStarting` / `MessageShown` events to draw over them. Its behaviours hear the game's screen as the game builds and runs it:
+target list uses the same rows; `help` and `help_small` are the help line across the top. The
+**field's windows** are `field_hud` in `WorldDefine.xbn` the same way: `dialogue` (children `text`,
+`name` for the speaker, `next` for the page-turn icon) and `map_name` (the text centred in it).
+Still code: the battle's damage numbers (they follow the character struck) and the client's own
+overlays; `MenuOpened` / `BattleStarting` / `MessageShown` events are there to draw over them. Its behaviours hear the game's screen as the game builds and runs it:
 `OnOpen`, `OnFocus`, `OnPress` (return true and the game's screen never sees the press),
 `OnCancel` (likewise), `OnKey`, `OnTick`; `Menu.Widget(id)` reaches every frame of the game's
 layout by its id (`com_item`, `mbs_name`...), `Menu.Hero` is the hero the screen is about,

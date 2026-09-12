@@ -29,7 +29,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - **The battle's HUD is a screen.** `battle_hud` in `BattleDefine.xbn` - the command rows, the Run
   Away window, the scroll arrows, the cursor's seat, the party lines with name, HP and bar - is where
   the battle's code now reads its geometry; the client puts the game's own numbers there, and a
-  mod's copy (Crystal: *Take into the mod*) moves the battle's windows anywhere.
+  mod's copy (Crystal: *Take into the mod*) moves the battle's windows anywhere; the help line too.
+  The field's dialogue window (its text, the speaker's name, the page-turn icon) and the map-name
+  window are `field_hud` in `WorldDefine.xbn` the same way.
 - **Events for every screen:** `MenuOpened` / `MenuClosed` for the game's screens and the mods',
   shops and battle included, to draw over any of them from `Game.Draw`. Crystal's Images tab has
   *Save as PNG* beside *Replace…*, the round trip for painting the game's window art, cursor and

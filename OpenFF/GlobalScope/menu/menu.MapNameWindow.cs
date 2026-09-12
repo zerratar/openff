@@ -77,8 +77,10 @@ internal static partial class GlobalScope
 				ds.Vector2<short> vector2 = new ds.Vector2<short>();
 				if (0 <= nMessageNo && !bVisiblity_)
 				{
-					vector.set((short)MAP_NAME_WND_X, (short)MAP_NAME_WND_Y);
-					vector2.set((short)MAP_NAME_WND_W, (short)MAP_NAME_WND_H);
+					// PORT: from the field_hud layout of WorldDefine.xbn (the frame's centre and size; the game centres the text there).
+					OpenFF.Client.BattleHud.Rect mn = OpenFF.Client.BattleHud.MapName();
+					vector.set((short)(mn.X + mn.Width / 2), (short)(mn.Y + mn.Height / 2));
+					vector2.set((short)mn.Width, (short)mn.Height);
 					Window_.bwCreateCC(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, vector, vector2, 3);
 					Window_.SetPriority(3);
 					Window_.SetShow(show: true, user: true);

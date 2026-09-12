@@ -75,7 +75,7 @@ internal static partial class GlobalScope
 				if (!isCreate_ && helpWindow_.GetState() == sys2d.Window.WINDOW_STATE.wsCLOSED)
 				{
 					messageId_ = _id;
-					helpWindow_.bwCreateCC(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, (small != 0) ? HelpWindowCenterPositionS : HelpWindowCenterPosition, (small != 0) ? HelpWindowSizeS : HelpWindowSize, 3);
+					{ (int hcx, int hcy, int hw, int hh) = OpenFF.Client.BattleHud.Help(small != 0); helpWindow_.bwCreateCC(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new ds.Vector2<short>((short)hcx, (short)hcy), new ds.Vector2<short>((short)hw, (short)hh), 3); }   // PORT: from the battle_hud layout
 					if (page != 0)
 					{
 						pageIcon_.SetShow(show: true);
@@ -92,7 +92,7 @@ internal static partial class GlobalScope
 				if (!isCreate_ && helpWindow_.GetState() == sys2d.Window.WINDOW_STATE.wsCLOSED)
 				{
 					strcpy(out message_, str);
-					helpWindow_.bwCreateCC(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, (small != 0) ? HelpWindowCenterPositionS : HelpWindowCenterPosition, (small != 0) ? HelpWindowSizeS : HelpWindowSize, 3);
+					{ (int hcx, int hcy, int hw, int hh) = OpenFF.Client.BattleHud.Help(small != 0); helpWindow_.bwCreateCC(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new ds.Vector2<short>((short)hcx, (short)hcy), new ds.Vector2<short>((short)hw, (short)hh), 3); }   // PORT: from the battle_hud layout
 					if (page != 0)
 					{
 						pageIcon_.SetShow(show: true);

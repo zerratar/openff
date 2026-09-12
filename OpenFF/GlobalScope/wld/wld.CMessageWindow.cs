@@ -30,7 +30,7 @@ internal static partial class GlobalScope
 									menu.MessageWindow.mwInitializeSystem();
 									m_MesWindow.Initialize();
 									m_MesDeleteFrame = -1;
-									m_MessagePosition.set((short)BASIC_MSG_POS_X, (short)BASIC_MSG_POS_Y);
+									m_MessagePosition.set((short)OpenFF.Client.BattleHud.DialogueText().X, (short)OpenFF.Client.BattleHud.DialogueText().Y);   // PORT: from the field_hud layout
 								}
 
 								public void cleanup()
@@ -50,7 +50,7 @@ internal static partial class GlobalScope
 										_Pos = 1;
 									}
 									_Who = _MesNum + 1000000;
-									ds.Vector2<short> name_message_pos = new ds.Vector2<short>(24, 139);
+									ds.Vector2<short> name_message_pos = new ds.Vector2<short>((short)OpenFF.Client.BattleHud.DialogueName().X, (short)OpenFF.Client.BattleHud.DialogueName().Y);   // PORT: from the field_hud layout
 									ds.Vector2<short> message_pos = new ds.Vector2<short>(m_MessagePosition);
 									return m_MesWindow.mwCreate(static_cast<menu.MessageWindow.MESSAGE_WINDOW_POSITION>(_Pos), message_pos, _MesNum, name_message_pos, _Who);
 								}
@@ -58,7 +58,7 @@ internal static partial class GlobalScope
 								/// <summary>PORT: the speaker's name by its own text id (FF4 names it in the script).</summary>
 								public void setName(int who)
 								{
-									m_MesWindow.mwSetNameMessage(new ds.Vector2<short>(24, 139), who);
+									m_MesWindow.mwSetNameMessage(new ds.Vector2<short>((short)OpenFF.Client.BattleHud.DialogueName().X, (short)OpenFF.Client.BattleHud.DialogueName().Y), who);
 								}
 
 								/// <summary>PORT: no speaker's name.</summary>
@@ -123,7 +123,7 @@ internal static partial class GlobalScope
 								{
 									m_MesWindow.MessageRelease();
 									m_MesWindow.NameMessageRelease();
-									m_MessagePosition.set((short)BASIC_MSG_POS_X, (short)BASIC_MSG_POS_Y);
+									m_MessagePosition.set((short)OpenFF.Client.BattleHud.DialogueText().X, (short)OpenFF.Client.BattleHud.DialogueText().Y);
 								}
 
 								public void release()

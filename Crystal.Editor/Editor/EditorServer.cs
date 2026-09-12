@@ -2140,7 +2140,7 @@ namespace Crystal.Editor
 			string name = Query(context, "name");
 			XDocument document = MenuXbn.ToXml(_workspace.Read(name));
 			// The battle's HUD is a screen the client adds to BattleDefine (BattleHudLayout); shown here so it can be taken into a mod.
-			if (name != null && name.EndsWith(BattleHudLayout.File, StringComparison.OrdinalIgnoreCase)) BattleHudLayout.Ensure(document);
+			if (name != null) BattleHudLayout.Ensure(Path.GetFileName(name), document);
 			SendJson(context, new
 			{
 				name,

@@ -21,28 +21,33 @@ namespace OpenFF.Client
 			public bool Found;
 		}
 
-		private static Dictionary<string, Rect> _frames;
+		private static Dictionary<string, Rect> _frames;   // "screen/path" -> rectangle, from the layout file the game holds
 		private static bool _noted;
 
 		/// <summary>The file was loaded again: read the geometry afresh next time.</summary>
 		public static void Invalidate() { _frames = null; }
 
 		/// <summary>A frame of battle_hud by id ("cmd1", or "player2/hp" for a child), absolute; Found false when the layout lacks it.</summary>
-		public static Rect Frame(string path)
+		public static Rect Frame(string path) => Frame(BattleHudLayout.Screen, path);
+
+		/// <summary>A frame of any screen in the layout file the game holds now, by screen and id path.</summary>
+		public static Rect Frame(string screen, string path)
 		{
 			try
 			{
 				if (_frames == null) Read();
-				if (_frames != null && _frames.TryGetValue(path, out Rect r)) return r;
+				if (_frames != null && _frames.TryGetValue(screen + "/" + path, out Rect r)) return r;
 			}
 			catch (Exception ex) { if (!_noted) { _noted = true; Log.Write(LogChannel.General, "battle hud: " + ex.Message); } }
 			return default;
 		}
 
 		/// <summary>A frame, or the fallback rectangle when the layout has none (the game's own numbers).</summary>
-		public static Rect Frame(string path, int x, int y, int w, int h)
+		public static Rect Frame(string path, int x, int y, int w, int h) => Frame(BattleHudLayout.Screen, path, x, y, w, h);
+
+		public static Rect Frame(string screen, string path, int x, int y, int w, int h)
 		{
-			Rect r = Frame(path);
+			Rect r = Frame(screen, path);
 			return r.Found ? r : new Rect { X = x, Y = y, Width = w, Height = h, Found = false };
 		}
 
@@ -51,16 +56,16 @@ namespace OpenFF.Client
 			_frames = new Dictionary<string, Rect>(StringComparer.OrdinalIgnoreCase);
 			GlobalScope.XbnNode root = GlobalScope.menu.MenuManager.getSingleton()?.xbnRoot();
 			if (root == null) { _frames = null; return; }
+			// Every screen of the file: the ones the code reads (battle_hud, field_hud) are few, and the walk is cheap.
 			for (GlobalScope.XbnNode menu = root.firstChild(); menu != null; menu = menu.nextSibling())
 			{
 				if (menu.nodeName() != "menu") continue;
-				GlobalScope.XbnNode name = menu.getFirstNodeByTagNameFromChildren("name");
-				if (name == null || name.nodeValueString() != BattleHudLayout.Screen) continue;
+				string screen = menu.getFirstNodeByTagNameFromChildren("name")?.nodeValueString();
+				if (string.IsNullOrEmpty(screen)) continue;
 				for (GlobalScope.XbnNode frame = menu.firstChild(); frame != null; frame = frame.nextSibling())
 				{
-					if (frame.nodeName() == "frame") Walk(frame, null, 0, 0);
+					if (frame.nodeName() == "frame") Walk(frame, screen, 0, 0);
 				}
-				return;
 			}
 		}
 
@@ -128,6 +133,26 @@ namespace OpenFF.Client
 			Rect r = Frame("player" + i + "/hp", 424, GlobalScope.BATTLE_PLAYER_Y() + i * 16, 52, 16);
 			return (r.X, r.Y);
 		}
+
+		/// <summary>The help line's window: centre and size, the wide or the small one.</summary>
+		public static (int CX, int CY, int W, int H) Help(bool small)
+		{
+			Rect r = small ? Frame("help_small", 84, 4, 392, 24) : Frame("help", 4, 4, 472, 24);
+			return (r.X + r.Width / 2, r.Y + r.Height / 2, r.Width, r.Height);
+		}
+
+		// ---- the field's windows (field_hud in WorldDefine.xbn) ----
+
+		/// <summary>The dialogue window's rectangle.</summary>
+		public static Rect Dialogue() => Frame(BattleHudLayout.FieldScreen, "dialogue", 5, 233, 470, 84);
+		/// <summary>Where the dialogue's first line starts.</summary>
+		public static (int X, int Y) DialogueText() { Rect r = Frame(BattleHudLayout.FieldScreen, "dialogue/text", 16, 246, 448, 60); return (r.X, r.Y); }
+		/// <summary>Where the speaker's name sits.</summary>
+		public static (int X, int Y) DialogueName() { Rect r = Frame(BattleHudLayout.FieldScreen, "dialogue/name", 24, 139, 200, 20); return (r.X, r.Y); }
+		/// <summary>Where the page-turn icon sits.</summary>
+		public static (int X, int Y) DialogueNext() { Rect w = Dialogue(); Rect r = Frame(BattleHudLayout.FieldScreen, "dialogue/next", w.X + w.Width - 28, w.Y + w.Height - 28, 24, 24); return (r.X, r.Y); }
+		/// <summary>The map-name window's rectangle (the game centres its text in it).</summary>
+		public static Rect MapName() => Frame(BattleHudLayout.FieldScreen, "map_name", 4, 4, 472, 28);
 
 		/// <summary>A party line's bar: corner 0 the top-left, 1 the bottom-right.</summary>
 		public static (int X, int Y) PlayerGauge(int i, int corner)

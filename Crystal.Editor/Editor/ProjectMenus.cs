@@ -179,7 +179,7 @@ namespace Crystal.Editor
 			if (project == null) throw new InvalidOperationException("no project is open");
 			if (string.IsNullOrWhiteSpace(screen)) throw new ArgumentException("which screen?");
 			XDocument doc = OpenFF.Content.MenuXbn.ToXml(xbn);
-			if (file != null && file.EndsWith(OpenFF.Content.BattleHudLayout.File, StringComparison.OrdinalIgnoreCase)) OpenFF.Content.BattleHudLayout.Ensure(doc);   // the client's battle_hud screen
+			if (file != null) OpenFF.Content.BattleHudLayout.Ensure(Path.GetFileName(file), doc);   // the client's battle_hud / field_hud screens
 			XElement menu = doc.Root?.Elements().FirstOrDefault(m => (m.Name.LocalName == "menu" || m.Name.LocalName == "unit") && (string)m.Element("name") == screen)
 				?? throw new ArgumentException("no screen called '" + screen + "' in " + file);
 			string id = ProjectItems.Slug(screen);
