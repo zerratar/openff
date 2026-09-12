@@ -8,13 +8,13 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMenuScreen`](#imenuscreen), [`IMenuWidget`](#imenuwidget), [`IMenus`](#imenus), [`IMeshes`](#imeshes), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`AbilityInfo`](#abilityinfo), [`Back`](#back), [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`JobInfo`](#jobinfo), [`Label`](#label), [`Look`](#look), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`MenuAttachment`](#menuattachment), [`MenuBehaviour`](#menubehaviour), [`MenuDefinition`](#menudefinition), [`MenuEntry`](#menuentry), [`MenuLoader`](#menuloader), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`OpenMenu`](#openmenu), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`AbilityInfo`](#abilityinfo), [`Back`](#back), [`BattleActor`](#battleactor), [`BattleCommand`](#battlecommand), [`BattleCommandLoader`](#battlecommandloader), [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`JobInfo`](#jobinfo), [`Label`](#label), [`Look`](#look), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`MenuAttachment`](#menuattachment), [`MenuBehaviour`](#menubehaviour), [`MenuDefinition`](#menudefinition), [`MenuEntry`](#menuentry), [`MenuLoader`](#menuloader), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`OpenMenu`](#openmenu), [`PartyMember`](#partymember), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
 - [Saving](#saving): [`ISaveable`](#isaveable), [`SaveChunks`](#savechunks)
 - [Mods and loading](#mods-and-loading): [`LoadedMod`](#loadedmod), [`ModDefinition`](#moddefinition), [`ModLoader`](#modloader), [`ModWatcher`](#modwatcher)
-- [Constants](#constants): [`BattleResult`](#battleresult), [`Condition`](#condition), [`CutsceneStart`](#cutscenestart), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MenuColour`](#menucolour), [`MenuKey`](#menukey), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting), [`WanderGait`](#wandergait)
+- [Constants](#constants): [`BattleResult`](#battleresult), [`CommandTarget`](#commandtarget), [`Condition`](#condition), [`CutsceneStart`](#cutscenestart), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MenuColour`](#menucolour), [`MenuKey`](#menukey), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting), [`WanderGait`](#wandergait)
 
 ## The entry point
 
@@ -444,6 +444,49 @@ Confirm on the frame leaves the screen.
 | Member | What it does |
 | --- | --- |
 | `bool OnPress()` |  |
+
+### BattleActor
+
+`class BattleActor`
+
+Someone in the battle, as a command sees them: a hero (Member set) or a monster.
+
+| Member | What it does |
+| --- | --- |
+| `int Hp { get; set; }` |  |
+| `int Id { get; set; }` | The battle's id for them. |
+| `bool IsMonster { get; set; }` |  |
+| `int Level { get; set; }` |  |
+| `int MaxHp { get; set; }` |  |
+| `PartyMember Member { get; set; }` | The party member, for a hero; null for a monster. |
+| `string Name { get; set; }` |  |
+| `Stats Stats { get; set; }` | Stats as the formulas read them (a monster's from its record). |
+| `string ToString()` |  |
+
+### BattleCommand
+
+`abstract class BattleCommand`
+
+A battle command of a mod's own; see the file's header. One instance serves every use.
+
+| Member | What it does |
+| --- | --- |
+| `string Name { get; }` | What the battle's window shows. |
+| `CommandTarget Target { get; }` |  |
+| `string Word { get; }` | The word a ladder names it by: the class name in lower-kebab (ZenInage -> zen-inage) unless overridden. |
+| `string Announce(BattleActor actor)` | A line for the notices as the command is used, or null. |
+| `int Damage(BattleActor actor, BattleActor target, int attackDamage)` | The damage to a target, from what the hero's plain attack would have done (0 for a miss); negative heals. Called once per target as the swing lands. |
+| `static string Slug(string s)` |  |
+
+### BattleCommandLoader
+
+`static class BattleCommandLoader`
+
+The mods' battle commands, found in their code.
+
+| Member | What it does |
+| --- | --- |
+| `static BattleCommand Find(string word)` | A command by word across the loaded mods, or null. |
 
 ### BgmFieldAttribute
 
@@ -1981,6 +2024,7 @@ How the client finds, loads and hot-reloads mod assemblies; `mod.json` is `ModDe
 | Member | What it does |
 | --- | --- |
 | `Assembly Assembly { get; }` | The main assembly. |
+| `List<BattleCommand> BattleCommands { get; }` | The mod's battle commands (BattleCommand subclasses), one instance each. |
 | `Dictionary<string, Type> BehaviourTypes { get; }` | The mod's Behaviour types, by simple name, for scenes to instantiate. |
 | `ModDefinition Definition { get; }` | What mod.json said. |
 | `string Directory { get; }` |  |
@@ -2049,6 +2093,18 @@ Enumerations and named ids.
 | `Won` = 1 |  |
 | `Lost` = 2 |  |
 | `Escaped` = 3 |  |
+
+### CommandTarget
+
+`enum CommandTarget`
+
+Who a battle command of a mod's own strikes.
+
+| Value | Meaning |
+| --- | --- |
+| `Enemy` = 0 | One enemy, picked by the player. |
+| `Enemies` = 1 | Every enemy standing. |
+| `Self` = 2 | The hero themselves (a negative Damage heals). |
 
 ### Condition
 
@@ -2396,4 +2452,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-150 types, 1080 members; 467 without a summary yet.
+154 types, 1100 members; 475 without a summary yet.

@@ -228,6 +228,8 @@ internal static partial class GlobalScope
 						mp(j).addNow(0);
 					}
 				}
+				// PORT: the limits are the tables' again; a mastery hero's MP boost (FF5's MP +n) goes back on.
+				OpenFF.Client.ProgressionLayer.OnMpReset(this);
 			}
 
 			public void growParameter(byte level)

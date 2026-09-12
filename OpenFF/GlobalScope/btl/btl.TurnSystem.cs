@@ -2040,6 +2040,11 @@ internal static partial class GlobalScope
 						int value7 = calc_.damage(baseBattleCharacterFromBreed.battleCharacterId()) * 2;
 						calc_.setDamage(baseBattleCharacterFromBreed.battleCharacterId(), value7);
 					}
+					// PORT: FF5's Two-Handed (a mastery passive): one weapon and a free other hand strike twice as hard.
+					if (attacker.breed() == 0 && OpenFF.Client.ProgressionLayer.TwoHandedStrike(static_cast<BattlePlayer>(attacker)))
+					{
+						calc_.setDamage(baseBattleCharacterFromBreed.battleCharacterId(), calc_.damage(baseBattleCharacterFromBreed.battleCharacterId()) * 2);
+					}
 					if (baseBattleCharacterFromBreed.breed() == 0)
 					{
 						BattlePlayer battlePlayer2 = static_cast<BattlePlayer>(baseBattleCharacterFromBreed);

@@ -87,7 +87,8 @@ internal static partial class GlobalScope
 				{
 					BattlePlayer battlePlayer = static_cast<BattlePlayer>(user);
 					pl.JOB_TYPE jOB_TYPE = static_cast<pl.JOB_TYPE>(battlePlayer.player().jobManager().nowJob());
-					if (jOB_TYPE != pl.JOB_TYPE.MONK && jOB_TYPE != pl.JOB_TYPE.KARATE_MASTER)
+					// PORT: FF5's Barehanded (a mastery passive) lets any job strike unarmed as a Monk does.
+					if (jOB_TYPE != pl.JOB_TYPE.MONK && jOB_TYPE != pl.JOB_TYPE.KARATE_MASTER && !OpenFF.Client.ProgressionLayer.HasInBattle(battlePlayer, OpenFF.Data.Ff3Abilities.Barehanded))
 					{
 						num = 1;
 					}

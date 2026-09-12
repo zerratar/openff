@@ -5,6 +5,7 @@
   "stats": { "strength": 5, "vitality": 5, "magic": -5 },
   "abilities": [
     { "abp": 15, "ability": "equip-claws", "name": "Equip Claws", "passive": true, "grants": ["monk"], "carries": true },
+    { "abp": 25, "ability": "barehanded" },
     { "abp": 35, "ability": "counterattack" },
     { "abp": 60, "ability": "retaliate" },
     { "abp": 90, "ability": "hp-10" },

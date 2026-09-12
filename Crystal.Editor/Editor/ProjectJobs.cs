@@ -40,9 +40,9 @@ namespace Crystal.Editor
 				totalAbp = j.TotalAbp,
 				abilities = j.Abilities.Select(a => new
 				{
-					abp = a.Abp, ability = a.Ability, name = a.Name, passive = a.Passive, grants = a.Grants, carries = a.Carries,
+					abp = a.Abp, ability = a.Ability, name = a.Name, passive = a.Passive, command = a.Command, grants = a.Grants, carries = a.Carries,
 					id = a.Id, shownName = a.ShownName, isPassive = a.IsPassive,
-					works = a.Id >= Ff3Abilities.FirstOwnId || (Ff3Abilities.ById(a.Id)?.Works ?? false)
+					works = a.Id >= Ff3Abilities.FirstOwnId || Ff3Abilities.IsOwnCommand(a.Id) || (Ff3Abilities.ById(a.Id)?.Works ?? false)
 				}).ToList(),
 				file = "defs/jobs/" + j.Id + ".json"
 			};
@@ -61,8 +61,8 @@ namespace Crystal.Editor
 			{
 				foreach (ModJobAbility step in j.Abilities)
 				{
-					if (step.Id < Ff3Abilities.FirstOwnId || !seen.Add(ModCharacters.Slug(step.Ability))) continue;
-					list.Add(new { id = step.Id, word = ModCharacters.Slug(step.Ability), name = step.ShownName, passive = true, works = true, own = true });
+					if ((step.Id < Ff3Abilities.FirstOwnId && !Ff3Abilities.IsOwnCommand(step.Id)) || !seen.Add(ModCharacters.Slug(step.Ability))) continue;
+					list.Add(new { id = step.Id, word = ModCharacters.Slug(step.Ability), name = step.ShownName, passive = !step.Command, command = step.Command, works = true, own = true });
 				}
 			}
 			return list;

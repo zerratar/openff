@@ -167,7 +167,15 @@ internal static partial class GlobalScope
 			public void createCommandMessage(pl.ABILITY_ID _id, int i)
 			{
 				releaseCommandMessage(i);
-				messageId_[i] = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)pl.PlayerParty.instance().abilityList((int)_id).nameId_, (ushort)(commandWindowData(i).Position.vx + 8), (ushort)(commandWindowData(i).Position.vy + 14), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+				// PORT: a command of the mods' own (an id past the game's table) is named by its ladder step.
+				if (OpenFF.Data.ModJobs.IsOwnCommand((int)_id))
+				{
+					messageId_[i] = dgs.msg.CMessageSys.getInstance().Main().createMessage(OpenFF.Client.BattleCommands.NameOf((int)_id), (ushort)(commandWindowData(i).Position.vx + 8), (ushort)(commandWindowData(i).Position.vy + 14), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+				}
+				else
+				{
+					messageId_[i] = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)pl.PlayerParty.instance().abilityList((int)_id).nameId_, (ushort)(commandWindowData(i).Position.vx + 8), (ushort)(commandWindowData(i).Position.vy + 14), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+				}
 				dgs.DGSMessage dGSMessage = dgs.msg.CMessageSys.getInstance().Main().Message(messageId_[i]);
 				dGSMessage.setDisplaySpeed(byte.MaxValue);
 				dGSMessage.setDisplayWait(0);

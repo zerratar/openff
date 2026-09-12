@@ -575,6 +575,8 @@ internal static partial class GlobalScope
 				}
 				T.calcNormalAttackDamage(T.nowCharacter());
 				T.setOverissueDamage(nowPlayer());
+				// PORT: a command of the mods' own played as this attack has its say on each target's damage.
+				OpenFF.Client.BattleCommands.Adjust(T, nowPlayer());
 				T.setNormalAttackDamage(T.nowCharacter());
 				if (!nowPlayer().condition().isFrog())
 				{

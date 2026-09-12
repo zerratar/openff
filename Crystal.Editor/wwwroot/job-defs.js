@@ -17,16 +17,16 @@ async function jobsCountChanged() {
 
 /// A select of the abilities a step or command can name. kind: 'command' (FF3's commands),
 /// 'passive' (FF3's passives and the project's own), or 'any'. extra: an entry to put first.
-function abilityPick(abilities, current, kind, onPick, extra) {
+function abilityPick(abilities, current, kind, onPick, ...extras) {
   const pick = document.createElement('select');
   pick.className = 'item-base-pick';
-  if (extra) {
+  for (const extra of extras.filter(Boolean)) {
     const o = document.createElement('option');
     o.value = extra.value;
     o.textContent = extra.label;
     pick.append(o);
   }
-  const groups = [['Commands', a => !a.passive], ['Passives', a => a.passive && !a.own], ['This mod\u2019s passives', a => a.own]];
+  const groups = [['Commands', a => !a.passive && !a.own], ['Passives', a => a.passive && !a.own], ['This mod\u2019s passives', a => a.own && a.passive], ['This mod\u2019s commands', a => a.own && !a.passive]];
   for (const [label, test] of groups) {
     const list = abilities.filter(a => test(a) && (kind === 'any' || (kind === 'command' ? !a.passive : a.passive)));
     if (!list.length) continue;
@@ -64,7 +64,7 @@ function jobLadderPanel(data, onSaved) {
     own: !!def.own, base: def.base === null || def.base === undefined ? '' : String(def.base), look: def.look === null || def.look === undefined ? '' : String(def.look),
     commands: (def.commands || []).slice(), innate: (def.innate || []).slice(), inherits: !!def.inherits,
     stats: Object.fromEntries((def.stats || []).map(s => [s.word, s.value | 0])),
-    abilities: (def.abilities || []).map(a => ({ abp: a.abp, ability: a.ability || '', name: a.name || '', passive: !!a.passive, grants: (a.grants || []).slice(), carries: !!a.carries }))
+    abilities: (def.abilities || []).map(a => ({ abp: a.abp, ability: a.ability || '', name: a.name || '', passive: !!a.passive, command: !!a.command, grants: (a.grants || []).slice(), carries: !!a.carries }))
   };
   let timer = null;
   const save = (then) => {
@@ -83,6 +83,7 @@ function jobLadderPanel(data, onSaved) {
           const o = { abp: a.abp, ability: a.ability };
           if (a.name) o.name = a.name;
           if (a.passive) o.passive = true;
+          if (a.command) o.command = true;
           if (a.grants.length) o.grants = a.grants;
           if (a.carries) o.carries = true;
           return o;
@@ -280,19 +281,20 @@ function jobLadderPanel(data, onSaved) {
       const known = abilities.find(k => k.word === (a.ability || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || (k.name || '').toLowerCase() === (a.ability || '').toLowerCase());
       const own = !known || known.own;
       const pick = abilityPick(abilities, known ? known.word : a.ability, 'any', v => {
-        if (v === '__own') { a.ability = a.ability && own ? a.ability : 'my-passive'; a.passive = true; if (!a.name) a.name = 'My passive'; }
-        else { a.ability = v; a.passive = false; a.name = ''; }
+        if (v === '__own') { a.ability = a.ability && own ? a.ability : 'my-passive'; a.passive = true; a.command = false; if (!a.name) a.name = 'My passive'; }
+        else if (v === '__command') { a.ability = a.ability && own ? a.ability : 'my-command'; a.passive = false; a.command = true; if (!a.name) a.name = 'My command'; }
+        else { a.ability = v; a.passive = false; a.command = false; a.name = ''; }
         save(() => drawSteps());
-      }, { value: '__own', label: 'a passive of the mod\u2019s own\u2026' });
-      if (own) pick.value = '__own';
-      row(box, 'Ability', pick, 'One of FF3\'s abilities, or a passive of the mod\'s own');
+      }, { value: '__own', label: 'a passive of the mod\u2019s own\u2026' }, { value: '__command', label: 'a battle command of the mod\u2019s own (C#)\u2026' });
+      if (own) pick.value = a.command ? '__command' : '__own';
+      row(box, 'Ability', pick, 'One of FF3\'s abilities, a passive of the mod\'s own, or a battle command of the mod\'s own - a BattleCommand class in its code, by the same word');
       if (own) {
         const word = document.createElement('input');
         word.type = 'text';
         word.value = a.ability;
         word.placeholder = 'equip-swords';
-        word.title = 'The word definitions and scripts know it by; the same word across ladders is the same passive';
-        word.oninput = () => { a.ability = word.value; a.passive = true; save(); };
+        word.title = a.command ? 'The word: the BattleCommand class in the code with this Word (its class name in lower-kebab unless it says otherwise)' : 'The word definitions and scripts know it by; the same word across ladders is the same passive';
+        word.oninput = () => { a.ability = word.value; a.passive = !a.command; save(); };
         row(box, 'Word', word);
         const name = document.createElement('input');
         name.type = 'text';
@@ -301,6 +303,12 @@ function jobLadderPanel(data, onSaved) {
         name.title = 'What the Abilities menu shows';
         name.oninput = () => { a.name = name.value; save(); };
         row(box, 'Name', name);
+        if (a.command) {
+          const note = document.createElement('p');
+          note.className = 'sub';
+          note.textContent = 'A command of the mod\'s own: learned and set into a free slot it shows in the battle\'s window under its name and is played as the hero\'s plain attack whose damage a BattleCommand class in the code decides (Name, Target, Damage). Without the class it strikes as a plain attack.';
+          box.append(note);
+        }
       }
       if (known && !known.works && !known.own) {
         const warn = document.createElement('p');

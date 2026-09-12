@@ -1253,11 +1253,16 @@ own commands, the third made a free slot; the inspector edits the rest:
   berserk black-magic white-magic summon magic run-away line cancel equipment` and the
   passives `cover alchemy counterattack` (Counterattack is FF5's *Counter*: a plain attack back
   at every physical blow, the client's addition to a name the table only carried), the
-  client's own `hp-10 hp-20 hp-30` (FF5's HP boosts, adding up on the HP limit), plus the
-  table's leftovers the battle has no code for (`bash chakra dual-wield hide aim ...` -
-  Crystal marks them *idle*). Any other word is a **passive of the mod's own**: give it a
-  `name` for the menu; it has no effect of the engine's beyond `grants` and what scripts make
-  of it, and the same word across ladders is the same passive.
+  client's own FF5 passives - `hp-10 hp-20 hp-30` (HP boosts, adding up on the HP limit),
+  `mp-10 mp-20 mp-30` (+1/+2/+3 spell charges on every level the held job has any - FF3 keeps
+  MP as charges a level), `first-strike` (one plain opening in four becomes the party's),
+  `vigilance` (no back attacks), `two-handed` (one weapon and a free other hand: twice the
+  damage), `barehanded` (unarmed, any job strikes as a Monk does) - plus the table's leftovers
+  the battle has no code for (`bash chakra dual-wield hide aim ...` - Crystal marks them
+  *idle*). Any other word is a **passive of the mod's own**: give it a `name` for the menu; it
+  has no effect of the engine's beyond `grants` and what scripts make of it, and the same word
+  across ladders is the same passive. A step with `"command": true` is a **battle command of
+  the mod's own**: the word names a `BattleCommand` class in the mod's code (below).
 - `grants` - jobs whose equipment and magic permissions the hero borrows while the ability
   is set or innate: FF5's *Equip Swords* is a passive granting `knight`; a magic command
   grants its own ladder's job unless told otherwise, so a Knight with `white-magic` set can
@@ -1322,11 +1327,39 @@ level rather than FF3's job skill. From C#: `Game.Party.SetAbility(id, slot, abi
 `PartyMember.Progression`, `.Abilities` (in play), `.Learned`, `.Slots`.
 `Game.Screen.Notice(text)` posts a line the same way.
 
-What FF5 has that is not here: MP as a pool (charges are FF3's, by the job held), the
-battle code behind its own commands (`!Mimic`, `!Blue`, `!Mix`, `!Dance` - a job of the mod's
-own fights with FF3's commands), and the effects of its support abilities beyond Cover,
-Alchemy, Counter and the HP boosts - a mod's passive is a flag; `Game.Party.HasAbility`
-from a `Behaviour` is where its effect lives.
+**Battle commands of the mod's own.** A ladder step with `"command": true` names a class in
+the mod's code:
+
+```json
+{ "abp": 50, "ability": "zeninage", "command": true, "name": "Zeninage" }
+```
+
+```csharp
+public sealed class Zeninage : BattleCommand
+{
+    public override string Name => "Zeninage";
+    public override CommandTarget Target => CommandTarget.Enemies;   // Enemy (a pick), Enemies, Self
+    public override string Announce(BattleActor actor) { gil = Math.Min(Game.Party.Gil, actor.Level * 50); Game.Party.Gil -= gil; return actor.Name + " throws " + gil + " gil!"; }
+    public override int Damage(BattleActor actor, BattleActor target, int attackDamage) => attackDamage / 2 + gil / 4;
+}
+```
+
+Learned and set into a free slot it shows in the battle's window under its `Name` and is
+played as the hero's plain attack - the swing, the hit, the number - whose damage the class
+decides target by target from what the plain attack would have done (0 for a miss; a
+negative number heals, green): a formula of the mod's own, an element, a cost taken from the
+party. `Target` says who is struck: one enemy the player picks, every enemy, or the hero.
+`BattleActor` is who is there - name, HP, level, `Stats`, `Member` for a hero. The word is
+the class name in lower-kebab unless `Word` says otherwise; the class is found in any loaded
+mod's code, and without one the command strikes as a plain attack (the log says so once).
+`Samples/Mastery/Commands.cs` has Zeninage on the Samurai's ladder. `--set-ability=0:0:zeninage`
+puts a word into a hero's free slot at the start, learned or not, for trying one.
+
+What FF5 has that is not here: MP as a pool (charges are FF3's, by the job held), and
+commands with an animation, a spell list or a status of their own (`!Blue`, `!Mix`, `!Dance` -
+a command of the mod's own is attack-shaped; the game's own casting and stealing commands a
+ladder can teach as they are). A passive beyond the ones named above is a flag;
+`Game.Party.HasAbility` from a `Behaviour` or a `BattleCommand` is where its effect lives.
 
 ### Menu screens of the mod's own: `menus/<id>.json` + `.xml` (OpenFF targets)
 

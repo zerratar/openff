@@ -7,6 +7,7 @@
   "abilities": [
     { "abp": 10, "ability": "cover" },
     { "abp": 30, "ability": "defend" },
-    { "abp": 60, "ability": "equip-shields", "name": "Equip Shields", "passive": true, "grants": ["knight"], "carries": true }
+    { "abp": 60, "ability": "equip-shields", "name": "Equip Shields", "passive": true, "grants": ["knight"], "carries": true },
+    { "abp": 100, "ability": "two-handed" }
   ]
 }

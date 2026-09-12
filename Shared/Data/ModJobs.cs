@@ -100,18 +100,28 @@ namespace OpenFF.Data
 			A(37, "meditate", "Meditate"), A(38, "trance", "Trance"), A(39, "charm", "Charm"), A(40, "throw", "Throw", works: true),
 			P(41, "dual-wield", "Dual Wield"), A(42, "utsusemi", "Utsusemi"), A(43, "cancel", "Cancel", works: true), A(44, "line", "Line", works: true),
 			A(45, "provoke", "Provoke", works: true), A(46, "magic", "Magic", works: true), A(47, "equipment", "Equipment", works: true), A(48, "front", "Front"), A(49, "rear", "Rear"),
-			// The client's own passives (not in the game's table; ids 90..99): FF5's HP boosts, honoured by ProgressionLayer.
-			P(90, "hp-10", "HP +10%", works: true), P(91, "hp-20", "HP +20%", works: true), P(92, "hp-30", "HP +30%", works: true),
+			// The client's own passives (not in the game's table; ids 50..63): FF5's, honoured by ProgressionLayer
+			// and the battle hooks - the HP boosts, the MP (spell charge) boosts, and four of the fighters' own.
+			P(50, "hp-10", "HP +10%", works: true), P(51, "hp-20", "HP +20%", works: true), P(52, "hp-30", "HP +30%", works: true),
+			P(53, "first-strike", "First Strike", works: true), P(54, "vigilance", "Vigilance", works: true),
+			P(55, "two-handed", "Two-Handed", works: true), P(56, "barehanded", "Barehanded", works: true),
+			P(57, "mp-10", "MP +1", works: true), P(58, "mp-20", "MP +2", works: true), P(59, "mp-30", "MP +3", works: true),
 		};
 
 		/// <summary>The HP boost a passive id carries, in percent; 0 for none. Several in play add up, as FF5's do.</summary>
-		public static int HpBoost(int id) => id == 90 ? 10 : id == 91 ? 20 : id == 92 ? 30 : 0;
+		public static int HpBoost(int id) => id == 50 ? 10 : id == 51 ? 20 : id == 52 ? 30 : 0;
+		/// <summary>The spell charges a passive id adds to every level's limit (FF3 keeps MP as charges a level); 0 for none.</summary>
+		public static int MpBoost(int id) => id == 57 ? 1 : id == 58 ? 2 : id == 59 ? 3 : 0;
+		public const int FirstStrike = 53, Vigilance = 54, TwoHanded = 55, Barehanded = 56;
 
 		private static Ff3Ability A(int id, string word, string name, bool works = false) => new Ff3Ability { Id = id, Word = word, Name = name, Works = works };
 		private static Ff3Ability P(int id, string word, string name, bool works = false) => new Ff3Ability { Id = id, Word = word, Name = name, Passive = true, Works = works };
 
 		/// <summary>The first free id for a mod's own passives: FF3's end at 49.</summary>
 		public const int FirstOwnId = 100;
+		/// <summary>The first id for a mod's own battle commands (a BattleCommand class in its code): 64..99 - the game keeps a command id in a signed byte, and 100 up are the mods' passives.</summary>
+		public const int FirstOwnCommandId = 64;
+		public static bool IsOwnCommand(int id) => id >= FirstOwnCommandId && id < FirstOwnId;
 
 		/// <summary>The game's magic commands: 5 black, 6 white, 13 summon, 46 both kinds.</summary>
 		public static bool IsMagic(int id) => id == 5 || id == 6 || id == 13 || id == 46;
@@ -150,6 +160,8 @@ namespace OpenFF.Data
 		public string Name;
 		/// <summary>A passive of the mod's own (FF3's carry their kind themselves).</summary>
 		public bool Passive;
+		/// <summary>A battle command of the mod's own: a BattleCommand class in its code, by the same word; shown in a free slot and played as an attack whose damage the class decides.</summary>
+		public bool Command;
 		/// <summary>Jobs whose equipment and magic permissions the character borrows while the ability is set or innate.</summary>
 		public List<string> Grants = new List<string>();
 		/// <summary>FF5's rule for Equip abilities and spell lists: while set, the ability passes along its ladder job's positive stat modifiers where they beat the held job's.</summary>
@@ -158,7 +170,7 @@ namespace OpenFF.Data
 		/// <summary>The id in play: FF3's, or one given to a passive of the mod's own by the loader (Ff3Abilities.FirstOwnId up).</summary>
 		public int Id;
 		/// <summary>Whether it is a passive in play (FF3's kind, or the mod's own).</summary>
-		public bool IsPassive => Passive || (Ff3Abilities.ById(Id)?.Passive ?? false);
+		public bool IsPassive => !Command && (Passive || (Ff3Abilities.ById(Id)?.Passive ?? false));
 		/// <summary>The name in play.</summary>
 		public string ShownName => !string.IsNullOrWhiteSpace(Name) ? Name : Ff3Abilities.ById(Id)?.Name ?? Ability;
 	}
@@ -270,6 +282,7 @@ namespace OpenFF.Data
 						Ability = a["ability"] is JsonValue av ? (av.TryGetValue(out int an) ? an.ToString() : av.GetValue<string>()) : null,
 						Name = a["name"]?.GetValue<string>(),
 						Passive = a["passive"]?.GetValue<bool>() ?? false,
+						Command = a["command"]?.GetValue<bool>() ?? false,
 						Carries = a["carries"]?.GetValue<bool>() ?? false
 					};
 					if (a["grants"] is JsonArray grants) foreach (JsonNode g in grants) if (g != null) step.Grants.Add(g.GetValue<string>());
@@ -300,6 +313,7 @@ namespace OpenFF.Data
 				JsonObject o = new JsonObject { ["abp"] = a.Abp, ["ability"] = a.Ability ?? "" };
 				if (!string.IsNullOrWhiteSpace(a.Name)) o["name"] = a.Name;
 				if (a.Passive) o["passive"] = true;
+				if (a.Command) o["command"] = true;
 				if (a.Grants.Count > 0) o["grants"] = new JsonArray(a.Grants.Select(g => (JsonNode)JsonValue.Create(g)).ToArray());
 				if (a.Carries) o["carries"] = true;
 				abilities.Add(o);
@@ -312,6 +326,8 @@ namespace OpenFF.Data
 	internal static class ModJobs
 	{
 		public const string Folder = "defs/jobs";
+		/// <summary>Whether an ability id is a battle command of a mod's own (64..99).</summary>
+		public static bool IsOwnCommand(int id) => Ff3Abilities.IsOwnCommand(id);
 
 		/// <summary>
 		/// Every ladder under the roots, checked: a known job, one ladder per job (the first loaded
@@ -323,6 +339,7 @@ namespace OpenFF.Data
 		{
 			List<ModJob> all = new List<ModJob>();
 			Dictionary<string, int> own = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+			Dictionary<string, int> ownCommands = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 			HashSet<int> jobs = new HashSet<int>();
 			foreach (string root in roots ?? Enumerable.Empty<string>())
 			{
@@ -373,12 +390,21 @@ namespace OpenFF.Data
 								if (a.Passive && !known.Passive) { notes?.Add(file + ": " + known.Name + " is one of FF3's commands, not a passive"); a.Passive = false; }
 								if (known.Id == 1 || known.Id == 4 || known.Id == 2 || known.Id == 47 || known.Id == 44 || known.Id == 48 || known.Id == 49) notes?.Add(file + ": " + known.Name + " is a command every job has; learning it is idle");
 							}
+							else if (a.Command)
+							{
+								// A battle command of the mod's own: the word names a BattleCommand class in its code.
+								string word = ModCharacters.Slug(a.Ability);
+								if (!ownCommands.TryGetValue(word, out int id)) ownCommands[word] = id = Ff3Abilities.FirstOwnCommandId + ownCommands.Count;
+								a.Id = id;
+								a.Passive = false;
+								if (string.IsNullOrWhiteSpace(a.Name)) a.Name = a.Ability;
+							}
 							else
 							{
 								string word = ModCharacters.Slug(a.Ability);
 								if (!own.TryGetValue(word, out int id)) own[word] = id = Ff3Abilities.FirstOwnId + own.Count;
 								a.Id = id;
-								a.Passive = true;   // a word of the mod's own can only be a passive: the battle has no code for it
+								a.Passive = true;   // a word of the mod's own without "command" is a passive: the battle has no code for it
 								if (string.IsNullOrWhiteSpace(a.Name)) a.Name = a.Ability;
 							}
 							if (a.Abp < 0) a.Abp = 0;
@@ -405,7 +431,7 @@ namespace OpenFF.Data
 			Ff3Ability a = Ff3Abilities.ByWord(word);
 			if (a != null) return a.Id;
 			string slug = ModCharacters.Slug(word);
-			foreach (ModJob j in ladders) foreach (ModJobAbility step in j.Abilities) if (step.Id >= Ff3Abilities.FirstOwnId && ModCharacters.Slug(step.Ability) == slug) return step.Id;
+			foreach (ModJob j in ladders) foreach (ModJobAbility step in j.Abilities) if ((step.Id >= Ff3Abilities.FirstOwnId || Ff3Abilities.IsOwnCommand(step.Id)) && ModCharacters.Slug(step.Ability) == slug) return step.Id;   // a passive or a command of the mod's own
 			return -1;
 		}
 

@@ -261,6 +261,16 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   inspector has *Behaviours (OpenFF)* as an object's does, and a screen card for how it
   opens; the XBN codec moved to Shared so the client can use it. The Mastery sample's
   Abilities screen is one - two layouts, two behaviours, 200 lines.
+- **Battle commands of the mod's own.** A ladder step with `"command": true` names a
+  `BattleCommand` class in the mod's code: `Name`, `Target` (one enemy picked, every enemy,
+  the hero), `Damage(actor, target, attackDamage)` and an `Announce` line. Learned and set, it
+  shows in the battle's window and is played as the hero's plain attack with the mod's damage
+  (a negative heals). The Mastery sample's Samurai throws gil (`Zeninage`). `--set-ability`
+  fills a free slot at the start for trying one.
+- **More of FF5's passives on FF3's battle:** `first-strike` (one plain opening in four is
+  the party's), `vigilance` (no back attacks), `two-handed` (one weapon, a free other hand:
+  double damage), `barehanded` (unarmed as a Monk), `mp-10/20/30` (+1/+2/+3 spell charges a
+  level). The client's own passive ids moved to 50..63; 64..99 are the mods' commands.
 - **Jobs of the mod's own.** A ladder that says `base` instead of `job` is a new job standing
   on one of FF3's: the game's party holds the base (growth, charges, equipment, motions), the
   layer remembers the job, and the player sees the mod's - the name in every menu, the

@@ -2745,6 +2745,17 @@ internal static partial class GlobalScope
 					commandEquip(battlePlayer);
 					result = false;
 					break;
+				default:
+				{
+					// PORT: a command of the mods' own (OpenFF.Client.BattleCommands): the plain attack's
+					// action, aimed as the command's Target says; its damage is the mod's at the swing.
+					bool? own = OpenFF.Client.BattleCommands.Select(this, battlePlayer, B, command.commandId(command.nowCommand()));
+					if (own.HasValue)
+					{
+						result = own.Value;
+					}
+					break;
+				}
 				}
 				return result;
 			}

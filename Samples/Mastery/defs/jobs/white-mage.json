@@ -5,6 +5,7 @@
   "stats": { "strength": -1, "magic": 5 },
   "abilities": [
     { "abp": 20, "ability": "white-magic", "carries": true },
-    { "abp": 50, "ability": "equip-staves", "name": "Equip Staves", "passive": true, "grants": ["white-mage"], "carries": true }
+    { "abp": 50, "ability": "equip-staves", "name": "Equip Staves", "passive": true, "grants": ["white-mage"], "carries": true },
+    { "abp": 90, "ability": "mp-10" }
   ]
 }

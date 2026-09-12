@@ -44,6 +44,8 @@ namespace OpenFF.Client
 			public int Job = -1;
 			/// <summary>The HP the boost passives currently add to the hero's limit, so a recompute takes the old boost off before adding the new.</summary>
 			public int HpBoostApplied;
+			/// <summary>The spell charges the MP boost passives have added to every open level's limit.</summary>
+			public int MpBoostApplied;
 			public int AbpOf(int job) => Abp.TryGetValue(job, out int v) ? v : 0;
 			public int LevelOf(int job) => Level.TryGetValue(job, out int v) ? v : 0;
 		}
@@ -223,6 +225,22 @@ namespace OpenFF.Client
 			{
 				Refresh(player);
 				_learnPending = true;
+				// --set-ability=<hero>:<slot>:<word>[,...]: a free slot filled at the start, learned or not - for
+				// trying a command or passive without climbing to it (test drives).
+				string given = Options.Get("set-ability");
+				if (!string.IsNullOrEmpty(given))
+				{
+					foreach (string part in given.Split(','))
+					{
+						string[] p = part.Split(':');
+						if (p.Length != 3 || !int.TryParse(p[0], out int hero) || hero != player.playerId() || !int.TryParse(p[1], out int slot)) continue;
+						int id = ModJobs.AbilityId(Ladders, p[2]);
+						if (id <= 0 || !IsMastery(hero) || slot < 0 || slot >= FreeSlotMax) { Log.Write(LogChannel.General, "progression: --set-ability " + part + ": no such ability, or not a mastery hero"); continue; }
+						StateOf(hero).Set[slot] = id;
+						ApplyCommands(player);
+						Log.Write(LogChannel.General, "progression: --set-ability: " + player.name() + " slot " + (slot + 1) + " = " + AbilityName(id) + " (" + id + ")");
+					}
+				}
 			}
 			catch (Exception ex) { Log.Write(LogChannel.General, "progression: " + ex.Message); }
 		}
@@ -431,6 +449,14 @@ namespace OpenFF.Client
 		/// <summary>What an empty free slot shows in battle: Guard (the ability table has no blank row - id 0 is nobody's, and the command window needs a name).</summary>
 		private const int EmptySlotCommand = 3;
 
+		/// <summary>Whether an ability id is a passive: FF3's by its table, a mod's own by its ladder step (a command when the step says so).</summary>
+		public static bool IsPassive(int id)
+		{
+			Ff3Ability a = Ff3Abilities.ById(id);
+			if (a != null) return a.Passive;
+			return !ModJobs.IsOwnCommand(id);
+		}
+
 		/// <summary>The four commands from the layout, free slots from what is set (Guard where nothing is); the job's passive slots from the passives in play the engine acts on.</summary>
 		public static void ApplyCommands(GlobalScope.pl.Player player)
 		{
@@ -449,7 +475,7 @@ namespace OpenFF.Client
 					int set = free < FreeSlotMax ? s.Set[free] : 0;
 					free++;
 					Ff3Ability a = Ff3Abilities.ById(set);
-					id = a != null && !a.Passive ? set : EmptySlotCommand;
+					id = (a != null && !a.Passive) || ModJobs.IsOwnCommand(set) ? set : EmptySlotCommand;   // a mod's own command (64..99) goes in as it is: BattleCommands names and plays it
 				}
 				command.setCommandId(i, (sbyte)id);
 			}
@@ -513,6 +539,7 @@ namespace OpenFF.Client
 				int playerId = player.playerId();
 				if (!IsMastery(playerId)) return;
 				ApplyHpBoost(player);
+				ApplyMpBoost(player);
 				int[] mods = StatModifiers(playerId, HeldJob(player));
 				if (mods.All(m => m == 0)) return;
 				GlobalScope.ys.BodyParameter b = player.bodyAndBonus();
@@ -530,6 +557,79 @@ namespace OpenFF.Client
 		/// grows the limit by accumulation (levelUp adds to it), so the boost is kept as an amount: the old
 		/// one comes off, the new one goes on, current HP follows a rise and is clamped on a fall.
 		/// </summary>
+		/// <summary>
+		/// FF5's MP boosts on FF3's spell charges: +n charges to every level's limit that has any. Kept as
+		/// an amount like the HP boost; setMp (a job change, a level) resets the limits and tells us so.
+		/// </summary>
+		private static void ApplyMpBoost(GlobalScope.pl.Player player)
+		{
+			HeroState s = StateOf(player.playerId());
+			int boost = Active(player.playerId(), HeldJob(player)).Sum(Ff3Abilities.MpBoost);
+			if (boost == s.MpBoostApplied) return;
+			for (int i = 0; i < 8; i++)
+			{
+				GlobalScope.ys.MPoint<int> mp = player.mp(i);
+				int baseLimit = mp.getLimit() - s.MpBoostApplied;
+				if (baseLimit <= 0) continue;   // a level the job has no charges at stays closed
+				mp.setLimit(baseLimit + boost);
+				if (boost > s.MpBoostApplied) mp.setNow(Math.Min(baseLimit + boost, mp.getNow() + (boost - s.MpBoostApplied)));
+				else if (mp.getNow() > baseLimit + boost) mp.setNow(baseLimit + boost);
+			}
+			s.MpBoostApplied = boost;
+		}
+
+		/// <summary>setMp put the tables' limits back: nothing of the boost is on them now.</summary>
+		public static void OnMpReset(GlobalScope.pl.Player player)
+		{
+			try
+			{
+				if (!GameProfile.Ff3Party || player == null || !IsMastery(player.playerId())) return;
+				StateOf(player.playerId()).MpBoostApplied = 0;
+				ApplyMpBoost(player);
+			}
+			catch (Exception) { }
+		}
+
+		/// <summary>FF5's First Strike and Vigilance on the battle's opening: a hero with Vigilance bars a back attack; one with First Strike turns a plain opening into the party's, one time in four.</summary>
+		public static GlobalScope.btl.BATTLE_OPENING_TYPE AdjustOpening(GlobalScope.btl.BATTLE_OPENING_TYPE type)
+		{
+			try
+			{
+				if (!GameProfile.Ff3Party || !AnyMastery) return type;
+				bool vigilance = false, first = false;
+				for (byte i = 0; i < 4; i++)
+				{
+					GlobalScope.pl.Player p = GlobalScope.pl.PlayerParty.instance().player(i);
+					if (p == null || !p.isEnable() || !IsMastery(p.playerId())) continue;
+					vigilance |= Has(p, Ff3Abilities.Vigilance);
+					first |= Has(p, Ff3Abilities.FirstStrike);
+				}
+				if (vigilance && type == GlobalScope.btl.BATTLE_OPENING_TYPE.BACK_ATTACK) { type = GlobalScope.btl.BATTLE_OPENING_TYPE.NORMAL_ATTACK; Log.Write(LogChannel.File, "progression: Vigilance - no back attack"); }
+				if (first && type == GlobalScope.btl.BATTLE_OPENING_TYPE.NORMAL_ATTACK && GlobalScope.ds.RandomNumber.rand32(100u) < 25) { type = GlobalScope.btl.BATTLE_OPENING_TYPE.INITIATLVE_ATTACK; Log.Write(LogChannel.File, "progression: First Strike - the party opens"); }
+			}
+			catch (Exception) { }
+			return type;
+		}
+
+		/// <summary>FF5's Two-Handed: the hero has the passive, one weapon in hand and nothing in the other (no shield, no second weapon).</summary>
+		public static bool TwoHandedStrike(GlobalScope.btl.BattlePlayer attacker)
+		{
+			try
+			{
+				if (attacker == null || !GameProfile.Ff3Party) return false;
+				GlobalScope.pl.Player p = attacker.player();
+				if (p == null || !IsMastery(p.playerId()) || !Has(p, Ff3Abilities.TwoHanded)) return false;
+				GlobalScope.pl.PlayerEquipParameter e = p.equipParameter();
+				if (e.isEquipWeapon() != 1 || e.isBareHands()) return false;
+				GlobalScope.pl.HAND_TYPE hand = e.checkEquipWeaponHand();
+				GlobalScope.pl.HAND_TYPE other = hand == GlobalScope.pl.HAND_TYPE.RIGHT_HAND ? GlobalScope.pl.HAND_TYPE.LEFT_HAND : GlobalScope.pl.HAND_TYPE.RIGHT_HAND;
+				bool free = e.equipHand(other).itemId() <= 0 || e.equipHand(other).equipNumber().get() <= 0;
+				if (free) Log.Write(LogChannel.File, "progression: Two-Handed - " + p.name() + " strikes twice as hard");
+				return free;
+			}
+			catch (Exception) { return false; }
+		}
+
 		private static void ApplyHpBoost(GlobalScope.pl.Player player)
 		{
 			HeroState s = StateOf(player.playerId());

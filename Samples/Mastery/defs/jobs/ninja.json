@@ -5,6 +5,7 @@
   "stats": { "strength": 3, "agility": 3, "vitality": 1, "magic": -2 },
   "abilities": [
     { "abp": 30, "ability": "throw" },
-    { "abp": 80, "ability": "equip-ninja-gear", "name": "Equip Ninja's Gear", "passive": true, "grants": ["ninja"], "carries": true }
+    { "abp": 80, "ability": "equip-ninja-gear", "name": "Equip Ninja's Gear", "passive": true, "grants": ["ninja"], "carries": true },
+    { "abp": 150, "ability": "first-strike" }
   ]
 }

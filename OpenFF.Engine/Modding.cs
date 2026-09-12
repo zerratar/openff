@@ -65,6 +65,8 @@ namespace OpenFF.Modding
 		public Dictionary<string, Type> BehaviourTypes { get; } = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
 		/// <summary>The mod's MenuBehaviour types, by simple name, for its menu screens.</summary>
 		public Dictionary<string, Type> MenuBehaviourTypes { get; } = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
+		/// <summary>The mod's battle commands (BattleCommand subclasses), one instance each.</summary>
+		public List<BattleCommand> BattleCommands { get; } = new List<BattleCommand>();
 		/// <summary>How many times its code has been hot-reloaded this run.</summary>
 		public int Reloads { get; internal set; }
 		/// <summary>When its code was last loaded.</summary>
@@ -225,6 +227,12 @@ namespace OpenFF.Modding
 				if (typeof(MenuBehaviour).IsAssignableFrom(type))
 				{
 					mod.MenuBehaviourTypes[type.Name] = type;
+				}
+				if (typeof(BattleCommand).IsAssignableFrom(type) && type.GetConstructor(Type.EmptyTypes) != null)
+				{
+					BattleCommand command = null;
+					Game.Guard("mod " + mod.Id + ": new " + type.Name, () => command = (BattleCommand)Activator.CreateInstance(type));
+					if (command != null) mod.BattleCommands.Add(command);
 				}
 				if (typeof(GameService).IsAssignableFrom(type) && type.GetConstructor(Type.EmptyTypes) != null)
 				{

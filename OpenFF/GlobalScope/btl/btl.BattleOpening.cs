@@ -133,6 +133,11 @@ internal static partial class GlobalScope
 				{
 					type_ = OutsideToBattle.getInstance().battleOpeningType();
 				}
+				// PORT: FF5's First Strike and Vigilance (mastery passives) have their say on the opening.
+				if (OutsideToBattle.getInstance().battleType() == BATTLE_TYPE.NORMAL_BATTLE)
+				{
+					type_ = OpenFF.Client.ProgressionLayer.AdjustOpening(type_);
+				}
 				OutsideToBattle.getInstance().setBattleOpeningType(type_);
 			}
 

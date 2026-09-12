@@ -109,8 +109,7 @@ namespace OpenFF.Client
 		/// <summary>An ability's name as FF5 writes them: commands with a leading "!", passives plain.</summary>
 		private static string Shown(int id)
 		{
-			Ff3Ability a = Ff3Abilities.ById(id);
-			return (a != null && !a.Passive ? "!" : "") + ProgressionLayer.AbilityName(id);
+			return (ProgressionLayer.IsPassive(id) ? "" : "!") + ProgressionLayer.AbilityName(id);
 		}
 
 		/// <summary>Which ladders teach an ability, for the pick page's right column.</summary>
@@ -200,7 +199,7 @@ namespace OpenFF.Client
 					// FF5's two kinds apart: the commands (marked !) first, then the passives.
 					foreach (bool passives in new[] { false, true })
 					{
-						List<int> ids = learned.Where(id => (Ff3Abilities.ById(id)?.Passive ?? true) == passives).ToList();
+						List<int> ids = learned.Where(id => ProgressionLayer.IsPassive(id) == passives).ToList();
 						if (ids.Count == 0) continue;
 						_rows.Add(new Row { Label = passives ? "Passives - work while set" : "Commands - shown in the slot's place in battle", Heading = true, Pick = false });
 						foreach (int id in ids)

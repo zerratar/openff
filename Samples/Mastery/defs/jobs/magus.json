@@ -5,6 +5,7 @@
   "stats": { "strength": -2, "vitality": -1, "magic": 7 },
   "abilities": [
     { "abp": 40, "ability": "black-magic", "carries": true },
-    { "abp": 90, "ability": "equip-magus-gear", "name": "Equip Magus's Gear", "passive": true, "grants": ["magus"], "carries": true }
+    { "abp": 90, "ability": "equip-magus-gear", "name": "Equip Magus's Gear", "passive": true, "grants": ["magus"], "carries": true },
+    { "abp": 150, "ability": "mp-30" }
   ]
 }
