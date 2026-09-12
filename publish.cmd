@@ -26,6 +26,7 @@ rem The guide: the HTML tutorials Crystal opens with Help, readable on their own
 if exist Docs\Guide robocopy Docs\Guide dist\OpenFF\Guide /e /njh /njs /ndl /nfl /nc /ns >nul
 if exist dist\OpenFF-%VERSION%-win-x64.zip del dist\OpenFF-%VERSION%-win-x64.zip
 powershell -NoProfile -Command "Compress-Archive -Path dist\OpenFF -DestinationPath dist\OpenFF-%VERSION%-win-x64.zip -CompressionLevel Optimal" || goto fail
+if not exist dist\OpenFF-%VERSION%-win-x64.zip goto fail
 echo.
 echo dist\OpenFF: OpenFF.exe plays, crystal.exe edits, mods\ is where mods go.
 echo dist\OpenFF-%VERSION%-win-x64.zip: the release.
