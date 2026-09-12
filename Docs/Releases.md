@@ -7,7 +7,8 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## Unreleased (0.1.5)
+## 0.1.5 - journey together (2026-09-12)
+ story by several people, one hero each: a hero chosen at the Crystal's Choosing, the opening as them, saves of their own, and a battle two travellers near each other fight as one - commanding their own hero while both clients compute the same rounds. Under it, the mods the game's own screens and the title, and the battle's rules roll on a seeded generator.
 
 - **The mods reach the game's own screens.** A `menus/<id>.json` whose `screen` is one of the
   game's (`status`, `main_menu`, a shop list, the battle command window - in whichever of the
