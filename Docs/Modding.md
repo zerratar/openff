@@ -1369,10 +1369,17 @@ moves to, and a widget behaviour such as `Text` - driven by a screen class each.
 screen of its own the same way, and nothing in the engine has to change for it:
 
 - `menus/<id>.xml` - the layout, one `<menu>` in the game's own XML form. *Menus ▸ New
-  screen…* writes one with a title, three rows and a Back; it opens on the same canvas as the
-  game's menus - drag frames, nudge with the arrows, edit the XML, *Save*. A frame with a
-  `Text` behaviour and message `-1` shows its `<data>` literal (the inspector's *text*); a
-  behaviour writes over it at run time. The inspector also toggles *focus* on a frame.
+  screen…* writes one with a title window, a body, three rows, a Back and a description
+  window; it opens on the same canvas as the game's menus - drag frames, nudge with the
+  arrows, edit the XML, *Save*. A frame with a `Text` behaviour and message `-1` shows its
+  `<data>` literal (the inspector's *text*); a behaviour writes over it at run time. A frame
+  with `<window/>` (the inspector's *window*) is drawn with the game's window art - the
+  panels FF5's screens are made of - and frames nested inside it sit relative to it. The
+  rules the game's own layouts follow: the visible height is 288 (the bottom bar is under it);
+  a frame holds at most 32 child frames, so panels hold their texts; and a frame the cursor
+  lands on (*focus*) reaches its `up/down/left/right` within its parent's subtree, so keep
+  the focusable frames at the top level when they cross panels. `Samples/Mastery/menus` are
+  three such layouts after FF5's Abilities and Jobs screens.
 - `menus/<id>.json` - the screen: which layout menu (`screen`), a `title`, how it opens,
   and the **MenuBehaviours** on its frames:
 
@@ -1428,12 +1435,13 @@ screen's card - selected by clicking the canvas away from any frame - has the sc
 behaviours and how it opens.
 
 Lists longer than a screen are pages: `Samples/Mastery` shows the shape - `AbilitiesScreen`
-fills eight `job<n>` rows from `Game.Party.AllJobs` and turns pages on L / R, and
-`AbilityPick` (a second screen) lists what the hero has learned, sets the pick with
-`Game.Party.SetAbility` and comes back with `Menu.Open("abilities")`. What is not here yet:
-frames drawn by the game's other widget behaviours (`ItemList`, `PramMagic`) on a mod screen,
-and windows of the mod's own (`<window/>` frames animated open) - the plain backdrop and the
-game's frame art stand in.
+fills the hero's header, the job's own commands, the free slots and a two-column list of
+everything learned (pick a slot, then an ability or Remove; L / R turn pages; a description
+window follows the cursor), `JobsScreen` a grid of every job with its ladder's standing, and
+`JobConfirm` the "Are you sure you want to change jobs?" - three layouts, three
+MenuBehaviours, after FF5's screens. What is not here yet: frames drawn by the game's other
+widget behaviours (`ItemList`, `PramMagic`) on a mod screen, and the game's animated
+window-open (a mod's windows appear at once).
 
 ### Seeing what happens
 

@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Jobs screen of the Mastery sample, after FF5's: every job in play in a grid, its ladder's standing under each; a press asks to change (job-confirm). JobsScreen (AbilitiesScreen.cs) fills it. -->
+<menulist>
+  <menu>
+    <name>jobs</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>504</width><height>52</height>
+      <frame>
+        <id>hero</id><x>48</x><y>6</y><width>220</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Hero  Lv. 1</data>
+      </frame>
+      <frame>
+        <id>job</id><x>48</x><y>26</y><width>224</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Job  Lv. 0</data>
+      </frame>
+      <frame>
+        <id>abp_label</id><x>296</x><y>6</y><width>200</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>ABP</data>
+      </frame>
+      <frame>
+        <id>abp</id><x>296</x><y>26</y><width>200</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>0 / 0</data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_grid</id><x>4</x><y>60</y><width>504</width><height>166</height>
+      <frame>
+        <id>lv0</id><x>20</x><y>26</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv1</id><x>142</x><y>26</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv2</id><x>264</x><y>26</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv3</id><x>386</x><y>26</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv4</id><x>20</x><y>60</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv5</id><x>142</x><y>60</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv6</id><x>264</x><y>60</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv7</id><x>386</x><y>60</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv8</id><x>20</x><y>94</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv9</id><x>142</x><y>94</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv10</id><x>264</x><y>94</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv11</id><x>386</x><y>94</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv12</id><x>20</x><y>128</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv13</id><x>142</x><y>128</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv14</id><x>264</x><y>128</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv15</id><x>386</x><y>128</y><width>112</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>page</id><x>20</x><y>146</y><width>300</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_desc</id><x>4</x><y>230</y><width>504</width><height>54</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>8</y><width>480</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>28</y><width>480</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <focus />
+      <id>job0</id><x>24</x><y>70</y><width>112</width><height>20</height>
+      <up>job12</up><down>job4</down><left>job3</left><right>job1</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job1</id><x>146</x><y>70</y><width>112</width><height>20</height>
+      <up>job13</up><down>job5</down><left>job0</left><right>job2</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job2</id><x>268</x><y>70</y><width>112</width><height>20</height>
+      <up>job14</up><down>job6</down><left>job1</left><right>job3</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job3</id><x>390</x><y>70</y><width>112</width><height>20</height>
+      <up>job15</up><down>job7</down><left>job2</left><right>job0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job4</id><x>24</x><y>104</y><width>112</width><height>20</height>
+      <up>job0</up><down>job8</down><left>job7</left><right>job5</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job5</id><x>146</x><y>104</y><width>112</width><height>20</height>
+      <up>job1</up><down>job9</down><left>job4</left><right>job6</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job6</id><x>268</x><y>104</y><width>112</width><height>20</height>
+      <up>job2</up><down>job10</down><left>job5</left><right>job7</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job7</id><x>390</x><y>104</y><width>112</width><height>20</height>
+      <up>job3</up><down>job11</down><left>job6</left><right>job4</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job8</id><x>24</x><y>138</y><width>112</width><height>20</height>
+      <up>job4</up><down>job12</down><left>job11</left><right>job9</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job9</id><x>146</x><y>138</y><width>112</width><height>20</height>
+      <up>job5</up><down>job13</down><left>job8</left><right>job10</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job10</id><x>268</x><y>138</y><width>112</width><height>20</height>
+      <up>job6</up><down>job14</down><left>job9</left><right>job11</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job11</id><x>390</x><y>138</y><width>112</width><height>20</height>
+      <up>job7</up><down>job15</down><left>job10</left><right>job8</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job12</id><x>24</x><y>172</y><width>112</width><height>20</height>
+      <up>job8</up><down>job0</down><left>job15</left><right>job13</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job13</id><x>146</x><y>172</y><width>112</width><height>20</height>
+      <up>job9</up><down>job1</down><left>job12</left><right>job14</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job14</id><x>268</x><y>172</y><width>112</width><height>20</height>
+      <up>job10</up><down>job2</down><left>job13</left><right>job15</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>job15</id><x>390</x><y>172</y><width>112</width><height>20</height>
+      <up>job11</up><down>job3</down><left>job14</left><right>job12</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+  </menu>
+</menulist>

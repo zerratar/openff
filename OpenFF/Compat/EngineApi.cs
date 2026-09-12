@@ -1677,13 +1677,22 @@ namespace OpenFF.Client
 		{
 			OpenFF.Data.Ff3Ability known = OpenFF.Data.Ff3Abilities.ById(id);
 			OpenFF.Data.ModJobAbility step = OpenFF.Data.ModJobs.Step(ProgressionLayer.Ladders, id);
-			return new AbilityInfo
+			AbilityInfo info = new AbilityInfo
 			{
 				Id = id,
 				Word = known?.Word ?? (step != null ? OpenFF.Data.ModCharacters.Slug(step.Ability) : id.ToString()),
 				Name = ProgressionLayer.AbilityName(id),
 				Passive = known?.Passive ?? step?.IsPassive ?? true
 			};
+			try
+			{
+				foreach (OpenFF.Data.ModJob ladder in ProgressionLayer.Ladders)
+				{
+					for (int i = 0; i < ladder.Abilities.Count; i++) if (ladder.Abilities[i].Id == id) info.TaughtBy.Add(ProgressionLayer.JobName(ladder.JobNumber) + ": Lv. " + (i + 1));
+				}
+			}
+			catch (Exception) { }
+			return info;
 		}
 
 		public bool SetAbility(int id, int slot, int abilityId) => ProgressionLayer.SetAbility(id, slot, abilityId);
@@ -2545,7 +2554,14 @@ namespace OpenFF.Client
 			Game.Guard("Battle.Start", () =>
 			{
 				GlobalScope.btl.OutsideToBattle.getInstance().initializeMonster().setMonsterPartyId((short)monsterParty);
-				GlobalScope.btl.OutsideToBattle.getInstance().initializeBattleMap().setBattleMapId((byte)battleMap);
+				// 0: the battlefield this map's own encounters use (the game's 1..43; 0 itself is a black void).
+				if (battleMap <= 0)
+				{
+					try { battleMap = GlobalScope.wld.WorldPart.getInstance().getWorldSystem().PlayerMng().PlayerHuman(GlobalScope.chr.CBaseCharacter.getLookIndex()).getBattleMapNo(); } catch (Exception) { battleMap = 1; }
+					if (battleMap <= 0) battleMap = 1;
+				}
+				GlobalScope.btl.OutsideToBattle.getInstance().setBattleType(GlobalScope.btl.BATTLE_TYPE.NORMAL_BATTLE);
+				GlobalScope.btl.OutsideToBattle.getInstance().initializeBattleMap().setBattleMapId((byte)Math.Min(43, battleMap));
 				GlobalScope.wld.CBaseSystem.setBattle(b: true);
 			});
 		}

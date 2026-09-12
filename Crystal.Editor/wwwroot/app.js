@@ -984,6 +984,12 @@ function drawScreen(node, screen, select) {
     box.style.height = `${Math.max(frame.height, 8)}px`;
     box.title = `${frame.id || '(no id)'}  ${frame.width}x${frame.height}`
       + (frame.behavior ? `  ${frame.behavior}` : '');
+    // A <window/> frame is drawn with the game's window art at run time (a mod screen's panels;
+    // the game's own popups): the canvas shows it as a framed panel, and Preview draws the art.
+    if ([...frame.element.children].some(e => e.tagName === 'window')) {
+      box.classList.add('window');
+      if (menu.preview) drawButtonWindow(frame.width, frame.height, false).then(w => { if (w && box.isConnected) box.prepend(w); }).catch(() => {});
+    }
 
     // Alignment 4 is the one kind of box that belongs to the widget rather than to
     // the background art, so it is the one that follows a resize. Drawing it is the
@@ -1181,6 +1187,19 @@ function buildWidget(held) {
     };
     focus.append(box, document.createTextNode(' the cursor can land on it (focus); up/down/left/right say where it moves'));
     panel.append(focus);
+    const win = document.createElement('label');
+    win.className = 'check';
+    const winBox = document.createElement('input');
+    winBox.type = 'checkbox';
+    winBox.checked = [...frame.element.children].some(e => e.tagName === 'window');
+    winBox.onchange = () => {
+      const has = [...frame.element.children].find(e => e.tagName === 'window');
+      if (winBox.checked && !has) frame.element.prepend(frame.element.ownerDocument.createElement('window'));
+      else if (!winBox.checked && has) has.remove();
+      drawScreen(node, screen, frame.element);
+    };
+    win.append(winBox, document.createTextNode(' a window: drawn with the game\'s window art; frames nested inside sit relative to it'));
+    panel.append(win);
     const behaviours = document.createElement('div');
     behaviours.className = 'component';
     const h = document.createElement('div');

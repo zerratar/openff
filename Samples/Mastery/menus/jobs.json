@@ -1,0 +1,12 @@
+{
+  "id": "jobs",
+  "layout": "jobs.xml",
+  "screen": "jobs",
+  "title": "Jobs",
+  "mainMenu": { "label": "Jobs", "after": "com_job" },
+  "background": 10,
+  "characterSelect": true,
+  "attachments": [
+    { "target": "", "behaviour": "JobsScreen" }
+  ]
+}

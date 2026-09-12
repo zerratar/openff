@@ -398,6 +398,8 @@ namespace OpenFF
 		public string Word { get; set; }
 		public string Name { get; set; }
 		public bool Passive { get; set; }
+		/// <summary>Mastery: the ladders that teach it, as "Knight: Lv. 2" - each job's title and the step's level.</summary>
+		public List<string> TaughtBy { get; } = new List<string>();
 		public override string ToString() => Name + (Passive ? " (passive)" : "");
 	}
 
@@ -563,7 +565,7 @@ namespace OpenFF
 	/// <summary>The game's own battles, started from a mod.</summary>
 	public interface IBattle
 	{
-		/// <summary>Starts the game's battle with a monster party (the game's table) on a battle background; BattleEnded follows.</summary>
+		/// <summary>Starts the game's battle with a monster party (the game's table) on a battlefield (FF3's 1..43; 0, the default, is the one the current map's own encounters use); BattleEnded follows.</summary>
 		void Start(int monsterParty, int battleMap = 0);
 		/// <summary>Whether the party may run from battles.</summary>
 		bool EscapeAllowed { get; set; }

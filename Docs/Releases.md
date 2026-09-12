@@ -57,8 +57,11 @@ FF3 played FF5's way. The notes:
   for the frames (texts, colours, focus) and the way out; the engine's own Back, OpenMenu
   and Label need no code. `Game.Menus.Open("id")` opens one from the field. Crystal's frame
   inspector has *Behaviours (OpenFF)* as an object's does, and a screen card for how it
-  opens; the XBN codec moved to Shared so the client can use it. The Mastery sample's
-  Abilities screen is one - two layouts, two behaviours, 200 lines.
+  opens; the XBN codec moved to Shared so the client can use it. A frame with `<window/>`
+  is drawn with the game's window art, so a mod screen is made of panels as the game's are.
+  The Mastery sample's Abilities and Jobs screens are three such layouts and three
+  behaviours after FF5's - the header, Job Commands and free slots, the learned list, a
+  description window, a grid of jobs and the change-jobs question.
 - **Battle commands of the mod's own.** A ladder step with `"command": true` names a
   `BattleCommand` class in the mod's code: `Name`, `Target` (one enemy picked, every enemy,
   the hero), `Damage(actor, target, attackDamage)` and an `Announce` line. Learned and set, it

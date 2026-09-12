@@ -1,0 +1,10 @@
+{
+  "id": "job-confirm",
+  "layout": "job-confirm.xml",
+  "screen": "job-confirm",
+  "title": "Change jobs?",
+  "background": 10,
+  "attachments": [
+    { "target": "", "behaviour": "JobConfirm" }
+  ]
+}

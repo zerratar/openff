@@ -117,6 +117,9 @@ namespace OpenFF.Client
 				int tag = 0;
 				foreach (XElement frame in menu.Descendants("frame"))
 				{
+					// An empty <data/> would be a null string to the game's text widget; a space is a blank it can draw.
+					XElement data = frame.Element("data");
+					if (data != null && string.IsNullOrEmpty(data.Value)) data.Value = " ";
 					if (frame.Element("focus") == null) continue;
 					frame.SetElementValue("myTag", tag++);
 					foreach (string side in new[] { "up", "down", "left", "right" }) if (frame.Element(side) == null) frame.Add(new XElement(side, "dummy"));
@@ -257,6 +260,7 @@ namespace OpenFF.Client
 			try
 			{
 				_screen = new ModMenuScreen(_current, host, _fromField);
+				OpenWindows(_screen);
 				_mods.TryGetValue(_current.Id, out LoadedMod mod);
 				_behaviours = MenuLoader.Make(_current, _screen, mod);
 				Log.Write(LogChannel.General, "menus: " + _current.Id + " opened - " + _screen.Widgets.Count + " frame(s), " + _behaviours.Count + " behaviour(s)" + (_screen.Hero >= 0 ? ", hero " + _screen.Hero : ""));
@@ -268,6 +272,7 @@ namespace OpenFF.Client
 		public static void ScreenClosed()
 		{
 			string closing = _screen?.Id ?? _current?.Id ?? "?";
+			CloseWindows();
 			foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnClose", b.OnClose);
 			_behaviours = new List<MenuBehaviour>();
 			_screen = null;
@@ -324,6 +329,34 @@ namespace OpenFF.Client
 				if (handled) break;
 				OpenFF.Game.Guard(b.Name + ".OnKey", () => handled = b.OnKey(key));
 			}
+		}
+
+		// ---- the windows: a frame with <window/> is drawn with the game's window art (BasicWindow), behind its texts ----
+
+		private static readonly List<GlobalScope.menu.BasicWindow> _windows = new List<GlobalScope.menu.BasicWindow>();
+
+		private static void OpenWindows(ModMenuScreen screen)
+		{
+			CloseWindows();
+			foreach (IMenuWidget w in screen.Widgets)
+			{
+				if (!(w is ModMenuWidget m) || m.Medget.node()?.getFirstNodeByTagNameFromChildren("window") == null || w.Width <= 0 || w.Height <= 0) continue;
+				try
+				{
+					GlobalScope.menu.BasicWindow window = new GlobalScope.menu.BasicWindow();
+					window.bwCreateUL(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new GlobalScope.ds.Vector2<short>((short)w.X, (short)w.Y), new GlobalScope.ds.Vector2<short>((short)w.Width, (short)w.Height), 3);
+					window.SetPriority(3);
+					window.SetShow(show: true, user: true);
+					_windows.Add(window);
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "menus: window " + w.Id + ": " + ex.Message); }
+			}
+		}
+
+		private static void CloseWindows()
+		{
+			foreach (GlobalScope.menu.BasicWindow w in _windows) { try { w.Release(); } catch (Exception) { } }
+			_windows.Clear();
 		}
 
 		// ---- the screen over the Medget tree ----
@@ -398,7 +431,7 @@ namespace OpenFF.Client
 			public string Text
 			{
 				get => _text ?? Medget.node()?.getFirstNodeByTagName("data")?.nodeValueString() ?? "";
-				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text, decWidth: false); }
+				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); }
 			}
 
 			public MenuColour Colour { set { try { Text_?.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)value); } catch (Exception) { } } }

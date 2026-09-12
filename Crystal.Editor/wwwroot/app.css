@@ -703,6 +703,9 @@ select {
 }
 .widget:hover { border-color: var(--accent); }
 .widget.on { border-color: var(--accent); background: rgba(110, 168, 254, .2); }
+/* A <window/> frame: the game draws its window art here; a doubled edge stands for it. */
+.widget.window { border: 2px double #8fa3c8; background: rgba(40, 56, 96, .25); }
+.canvas.preview .widget.window { border-color: transparent; background: transparent; }
 .widget.dragging { cursor: grabbing; }
 .widget .label {
   pointer-events: none;

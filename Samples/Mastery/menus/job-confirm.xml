@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The change-jobs question of the Mastery sample: Yes takes the job picked on the Jobs screen. JobConfirm (AbilitiesScreen.cs) drives it. -->
+<menulist>
+  <menu>
+    <name>job-confirm</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>504</width><height>52</height>
+      <frame>
+        <id>hero</id><x>48</x><y>6</y><width>220</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Hero  Lv. 1</data>
+      </frame>
+      <frame>
+        <id>job</id><x>48</x><y>26</y><width>224</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Job  Lv. 0</data>
+      </frame>
+      <frame>
+        <id>abp_label</id><x>296</x><y>6</y><width>200</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>ABP</data>
+      </frame>
+      <frame>
+        <id>abp</id><x>296</x><y>26</y><width>200</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>0 / 0</data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_ask</id><x>104</x><y>76</y><width>304</width><height>144</height>
+      <frame>
+        <id>ask_job</id><x>16</x><y>16</y><width>272</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>ask</id><x>16</x><y>52</y><width>272</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Are you sure you want to change jobs?</data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_desc</id><x>4</x><y>230</y><width>504</width><height>54</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>8</y><width>480</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>28</y><width>480</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <focus />
+      <id>yes</id><x>176</x><y>180</y><width>60</width><height>20</height>
+      <up>yes</up><down>yes</down><left>no</left><right>no</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Yes</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>no</id><x>296</x><y>180</y><width>60</width><height>20</height>
+      <up>no</up><down>no</down><left>yes</left><right>yes</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>No</data>
+    </frame>
+  </menu>
+</menulist>

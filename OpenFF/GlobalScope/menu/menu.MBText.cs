@@ -419,7 +419,8 @@ internal static partial class GlobalScope
 					XbnNode firstNodeByTagName = ownerMedget.node().getFirstNodeByTagName(TRANSCODE("data"));
 					if (firstNodeByTagName != null)
 					{
-						message = dGSMessageManager.createMessage(firstNodeByTagName.nodeValueString(), (!flagCheck(4)) ? 1 : 0);
+						// PORT: an empty <data/> (a mod screen's frame a behaviour fills later) is a blank, not a null.
+						message = dGSMessageManager.createMessage(firstNodeByTagName.nodeValueString() ?? " ", (!flagCheck(4)) ? 1 : 0);
 					}
 				}
 				if (message != null)

@@ -11380,6 +11380,20 @@ internal static partial class GlobalScope
 							return 0;
 						}
 
+						/// <summary>PORT: how many of the text slots are in use, and a sample of the oldest, for the log (--trace-menu).</summary>
+						internal static string TextSlotsReport()
+						{
+							int used = 0;
+							System.Text.StringBuilder b = new System.Text.StringBuilder();
+							for (int i = 0; i < LENGTH(textData); i++)
+							{
+								if (textData[i].text == null) continue;
+								used++;
+								if (b.Length < 400) b.Append(" [").Append(textData[i].x).Append(',').Append(textData[i].y).Append(' ').Append(textData[i].lcd).Append(':').Append(textData[i].text.Length > 12 ? textData[i].text.Substring(0, 12) : textData[i].text).Append(']');
+							}
+							return used + " of " + LENGTH(textData) + " text slots in use:" + b;
+						}
+
 						internal static void NNS_G2dCharCanvasClear(NNSG2dCharCanvas pCC, int cl)
 						{
 							for (int i = 0; i < LENGTH(textData); i++)

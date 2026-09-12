@@ -1,127 +1,202 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Abilities screen of the Mastery sample: a layout in the game's own menu form, drawn and edited by Crystal's Menus tab.
-     The texts here are placeholders; AbilitiesScreen (code/AbilitiesScreen.cs) writes the real ones as the screen opens. -->
+<!-- The Abilities screen of the Mastery sample, after FF5's: the hero's header, the job's own commands and the free slots on the left, what the hero has learned on the right, a description below. Frames with <window/> are drawn with the game's window art and hold their texts (positions relative to the window); the frames the cursor lands on stay at the top level, so their up/down/left/right reach each other. AbilitiesScreen (AbilitiesScreen.cs) writes every text as the screen opens. -->
 <menulist>
   <menu>
     <name>abilities</name>
     <frame>
-      <id>hero</id><x>100</x><y>14</y><width>300</width><height>24</height>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Hero - Job</data>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>504</width><height>52</height>
+      <frame>
+        <id>hero</id><x>48</x><y>6</y><width>220</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Hero  Lv. 1</data>
+      </frame>
+      <frame>
+        <id>job</id><x>48</x><y>26</y><width>224</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Job  Lv. 0</data>
+      </frame>
+      <frame>
+        <id>abp_label</id><x>296</x><y>6</y><width>200</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>ABP</data>
+      </frame>
+      <frame>
+        <id>abp</id><x>296</x><y>26</y><width>200</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>0 / 0</data>
+      </frame>
     </frame>
     <frame>
-      <id>commands_title</id><x>24</x><y>48</y><width>220</width><height>24</height>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Commands</data>
+      <window />
+      <id>w_left</id><x>4</x><y>60</y><width>196</width><height>166</height>
+      <frame>
+        <id>cmd_title</id><x>12</x><y>8</y><width>170</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Job Commands</data>
+      </frame>
+      <frame>
+        <id>cmd0</id><x>24</x><y>26</y><width>160</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cmd1</id><x>24</x><y>46</y><width>160</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cmd2</id><x>24</x><y>66</y><width>160</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>slot_title</id><x>12</x><y>90</y><width>170</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Abilities</data>
+      </frame>
     </frame>
     <frame>
-      <focus />
-      <id>cmd0</id><x>32</x><y>76</y><width>220</width><height>24</height>
-      <up>cmd3</up><down>cmd1</down><left>job0</left><right>job0</right>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Command 1</data>
+      <window />
+      <id>w_list</id><x>204</x><y>60</y><width>304</width><height>166</height>
+      <frame>
+        <id>page</id><x>18</x><y>148</y><width>270</width><height>16</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
     </frame>
     <frame>
-      <focus />
-      <id>cmd1</id><x>32</x><y>102</y><width>220</width><height>24</height>
-      <up>cmd0</up><down>cmd2</down><left>job1</left><right>job1</right>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Command 2</data>
-    </frame>
-    <frame>
-      <focus />
-      <id>cmd2</id><x>32</x><y>128</y><width>220</width><height>24</height>
-      <up>cmd1</up><down>cmd3</down><left>job2</left><right>job2</right>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Command 3</data>
-    </frame>
-    <frame>
-      <focus />
-      <id>cmd3</id><x>32</x><y>154</y><width>220</width><height>24</height>
-      <up>cmd2</up><down>cmd0</down><left>job3</left><right>job3</right>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Command 4</data>
-    </frame>
-    <frame>
-      <id>innate</id><x>24</x><y>190</y><width>236</width><height>24</height>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Innate:</data>
-    </frame>
-    <frame>
-      <id>stats</id><x>24</x><y>214</y><width>236</width><height>24</height>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Stats:</data>
-    </frame>
-    <frame>
-      <id>jobs_title</id><x>272</x><y>48</y><width>220</width><height>24</height>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Jobs</data>
-    </frame>
-    <frame>
-      <focus />
-      <id>job0</id><x>280</x><y>76</y><width>220</width><height>24</height>
-      <up>job7</up><down>job1</down><left>cmd0</left><right>cmd0</right>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Job 1</data>
-    </frame>
-    <frame>
-      <focus />
-      <id>job1</id><x>280</x><y>102</y><width>220</width><height>24</height>
-      <up>job0</up><down>job2</down><left>cmd1</left><right>cmd1</right>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Job 2</data>
-    </frame>
-    <frame>
-      <focus />
-      <id>job2</id><x>280</x><y>128</y><width>220</width><height>24</height>
-      <up>job1</up><down>job3</down><left>cmd2</left><right>cmd2</right>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Job 3</data>
-    </frame>
-    <frame>
-      <focus />
-      <id>job3</id><x>280</x><y>154</y><width>220</width><height>24</height>
-      <up>job2</up><down>job4</down><left>cmd3</left><right>cmd3</right>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Job 4</data>
+      <window />
+      <id>w_desc</id><x>4</x><y>230</y><width>504</width><height>54</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>8</y><width>480</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>28</y><width>480</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
     </frame>
     <frame>
       <focus />
-      <id>job4</id><x>280</x><y>180</y><width>220</width><height>24</height>
-      <up>job3</up><down>job5</down><left>cmd3</left><right>cmd3</right>
+      <id>slot0</id><x>28</x><y>168</y><width>160</width><height>20</height>
+      <up>slot2</up><down>slot1</down><left>opt1</left><right>opt0</right>
       <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Job 5</data>
+      <data>None</data>
     </frame>
     <frame>
       <focus />
-      <id>job5</id><x>280</x><y>206</y><width>220</width><height>24</height>
-      <up>job4</up><down>job6</down><left>cmd3</left><right>cmd3</right>
+      <id>slot1</id><x>28</x><y>188</y><width>160</width><height>20</height>
+      <up>slot0</up><down>slot2</down><left>opt1</left><right>opt0</right>
       <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Job 6</data>
+      <data>None</data>
     </frame>
     <frame>
       <focus />
-      <id>job6</id><x>280</x><y>232</y><width>220</width><height>24</height>
-      <up>job5</up><down>job7</down><left>cmd3</left><right>cmd3</right>
+      <id>slot2</id><x>28</x><y>208</y><width>160</width><height>20</height>
+      <up>slot1</up><down>slot0</down><left>opt1</left><right>opt0</right>
       <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Job 7</data>
+      <data>None</data>
     </frame>
     <frame>
       <focus />
-      <id>job7</id><x>280</x><y>258</y><width>220</width><height>24</height>
-      <up>job6</up><down>job0</down><left>cmd3</left><right>cmd3</right>
+      <id>opt0</id><x>222</x><y>68</y><width>136</width><height>20</height>
+      <up>opt12</up><down>opt2</down><left>slot0</left><right>opt1</right>
       <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Job 8</data>
+      <data></data>
     </frame>
     <frame>
-      <id>page</id><x>272</x><y>286</y><width>220</width><height>24</height>
+      <focus />
+      <id>opt1</id><x>368</x><y>68</y><width>136</width><height>20</height>
+      <up>opt13</up><down>opt3</down><left>opt0</left><right>slot0</right>
       <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>L / R: more jobs</data>
+      <data></data>
     </frame>
     <frame>
-      <id>hint</id><x>24</x><y>286</y><width>240</width><height>20</height>
+      <focus />
+      <id>opt2</id><x>222</x><y>88</y><width>136</width><height>20</height>
+      <up>opt0</up><down>opt4</down><left>slot0</left><right>opt3</right>
       <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>A: set a free slot, take a job   B: back</data>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt3</id><x>368</x><y>88</y><width>136</width><height>20</height>
+      <up>opt1</up><down>opt5</down><left>opt2</left><right>slot0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt4</id><x>222</x><y>108</y><width>136</width><height>20</height>
+      <up>opt2</up><down>opt6</down><left>slot0</left><right>opt5</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt5</id><x>368</x><y>108</y><width>136</width><height>20</height>
+      <up>opt3</up><down>opt7</down><left>opt4</left><right>slot0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt6</id><x>222</x><y>128</y><width>136</width><height>20</height>
+      <up>opt4</up><down>opt8</down><left>slot0</left><right>opt7</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt7</id><x>368</x><y>128</y><width>136</width><height>20</height>
+      <up>opt5</up><down>opt9</down><left>opt6</left><right>slot0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt8</id><x>222</x><y>148</y><width>136</width><height>20</height>
+      <up>opt6</up><down>opt10</down><left>slot0</left><right>opt9</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt9</id><x>368</x><y>148</y><width>136</width><height>20</height>
+      <up>opt7</up><down>opt11</down><left>opt8</left><right>slot0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt10</id><x>222</x><y>168</y><width>136</width><height>20</height>
+      <up>opt8</up><down>opt12</down><left>slot0</left><right>opt11</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt11</id><x>368</x><y>168</y><width>136</width><height>20</height>
+      <up>opt9</up><down>opt13</down><left>opt10</left><right>slot0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt12</id><x>222</x><y>188</y><width>136</width><height>20</height>
+      <up>opt10</up><down>opt0</down><left>slot0</left><right>opt13</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt13</id><x>368</x><y>188</y><width>136</width><height>20</height>
+      <up>opt11</up><down>opt1</down><left>opt12</left><right>slot0</right>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
     </frame>
   </menu>
 </menulist>

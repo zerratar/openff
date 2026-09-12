@@ -56,7 +56,7 @@ namespace OpenFF.Client
 			("load", "FF3_LOAD", "<slot>", "FF4: start from a save slot (1-3) instead of the new game"),
 			("party", "FF3_PARTY", "<type[:level],...>", "FF4: extra party members for a test start (4:10 is the child Rydia at level 10)"),
 			("drive", "FF3_DRIVE", "<file>", "Play a scripted key drive from a file - wait/press/until/quit lines (headless tests; Docs/Drives)"),
-			("gil", "FF3_GIL", "<n>", "FF4: gil for a test start"),
+			("gil", "FF3_GIL", "<n>", "Gil for a test start (FF3 and FF4)"),
 			("set-ability", "FF3_SET_ABILITY", "<hero>:<slot>:<word>[,...]", "FF3: a mastery hero's free slot filled at the start, learned or not (0:0:zeninage) - for test drives"),
 			("equip", "FF3_EQUIP", "<hero>:<itemId>[,...]", "FF3: an item put in the bag and on the hero at the start (0:1001 is a Knife on the first hero) - for test drives"),
 			("trace-menu", "FF3_TRACE_MENU", "", "Log every menu focus move with its caller (following a layout's focus ring)"),

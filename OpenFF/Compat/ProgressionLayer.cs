@@ -241,6 +241,11 @@ namespace OpenFF.Client
 						Log.Write(LogChannel.General, "progression: --set-ability: " + player.name() + " slot " + (slot + 1) + " = " + AbilityName(id) + " (" + id + ")");
 					}
 				}
+				// --gil=<n>: the purse at a test start (FF4 has the same option; here it is FF3's).
+				if (player.playerId() == 0 && int.TryParse(Options.Get("gil"), out int gil) && gil > 0 && OpenFF.Game.Party != null)
+				{
+					try { OpenFF.Game.Party.Gil = gil; Log.Write(LogChannel.General, "progression: --gil: " + gil); } catch (Exception) { }
+				}
 				// --equip=<hero>:<itemId>[,...]: an item put in the bag and on the hero at the start (1001 is a Knife), for test drives.
 				string equip = Options.Get("equip");
 				if (!string.IsNullOrEmpty(equip))

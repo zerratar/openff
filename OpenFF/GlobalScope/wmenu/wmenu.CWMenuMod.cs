@@ -17,6 +17,7 @@ internal static partial class GlobalScope
 			public const int KIND = (int)WMENU_KIND.WMENU_KIND_MAX;
 
 			private string _focused;
+			private int _traceFrames;
 
 			public override bool cSelectInitialize()
 			{
@@ -46,7 +47,9 @@ internal static partial class GlobalScope
 				menu.MenuManager.getSingleton().initFocus(0);
 				menu.MenuManager.getSingleton().GetCursor2d().SetShow(show: true);
 				_focused = null;
+				_traceFrames = 0;
 				OpenFF.Client.ModMenus.ScreenOpened(this);
+				if (OpenFF.Client.Options.Get("trace-menu") != null) OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "menus: " + TextSlotsReport());
 				CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_RUN);
 			}
 
@@ -78,6 +81,7 @@ internal static partial class GlobalScope
 				if ((edge & TAB_PREV_BUTTON) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.X);
 				if ((edge & TAB_NEXT_BUTTON) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.Y);
 				OpenFF.Client.ModMenus.Tick();
+				if (OpenFF.Client.Options.Get("trace-menu") != null && ++_traceFrames == 120) OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "menus: after two seconds " + TextSlotsReport());
 				mgr.ClearBehaviorButton();
 			}
 

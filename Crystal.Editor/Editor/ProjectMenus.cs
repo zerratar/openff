@@ -136,15 +136,24 @@ namespace Crystal.Editor
 				f.Add(new XElement("data", text));
 				return f;
 			}
+			XElement Window(string wid, int x, int y, int w, int h, params XElement[] children)
+			{
+				XElement f = new XElement("frame", new XElement("window"), new XElement("id", wid), new XElement("x", x), new XElement("y", y), new XElement("width", w), new XElement("height", h));
+				f.Add(children);
+				return f;
+			}
+			// The visible height is 288 (the game's bottom bar sits under); a window's children sit relative
+			// to it; the frames the cursor lands on stay at the top level so up/down/left/right reach each other.
 			XDocument layout = new XDocument(new XDeclaration("1.0", "utf-8", null),
-				new XComment(" A menu screen of the mod's own, in the game's own layout form: frames with a position and size, <focus/> where the cursor may land, up/down/left/right the ids it moves to, a Text behaviour showing <data>. Crystal's Menus tab draws and edits it; a MenuBehaviour (menus/" + unique + ".json) writes the real texts and acts on presses. "),
+				new XComment(" A menu screen of the mod's own, in the game's own layout form: frames with a position and size, <focus/> where the cursor may land, up/down/left/right the ids it moves to, a Text behaviour showing <data>; a frame with <window/> is drawn with the game's window art and its nested frames sit relative to it. Crystal's Menus tab draws and edits it; a MenuBehaviour (menus/" + unique + ".json) writes the real texts and acts on presses. "),
 				new XElement("menulist", new XElement("menu", new XElement("name", unique),
-					Frame("title", 24, 14, 400, 24, false, name.Trim()),
-					Frame("row1", 32, 60, 300, 24, true, "First row", "back", "row2"),
-					Frame("row2", 32, 88, 300, 24, true, "Second row", "row1", "row3"),
-					Frame("row3", 32, 116, 300, 24, true, "Third row", "row2", "back"),
-					Frame("back", 32, 160, 300, 24, true, "Back", "row3", "row1"),
-					Frame("hint", 24, 308, 460, 20, false, "A: choose   B: back"))));
+					Window("w_top", 4, 4, 504, 40, Frame("title", 12, 10, 400, 20, false, name.Trim())),
+					Window("w_body", 4, 48, 504, 178),
+					Window("w_desc", 4, 230, 504, 54, Frame("desc", 12, 16, 480, 20, false, "A: choose   B: back")),
+					Frame("row1", 24, 60, 300, 20, true, "First row", "back", "row2"),
+					Frame("row2", 24, 84, 300, 20, true, "Second row", "row1", "row3"),
+					Frame("row3", 24, 108, 300, 20, true, "Third row", "row2", "back"),
+					Frame("back", 24, 156, 300, 20, true, "Back", "row3", "row1"))));
 			File.WriteAllText(Path.Combine(Directory(project), unique + ".xml"), layout.Declaration + "\n" + layout.ToString(), new UTF8Encoding(false));
 			JsonObject def = new JsonObject
 			{
