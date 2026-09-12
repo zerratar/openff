@@ -64,6 +64,8 @@ namespace OpenFF.Client
 			OpenFF.Game.Services.Register(new ModMeshes());
 			// The mods' menu screens in FF3's menu system (menus/<id>.json); FF4's menus are the engine's own.
 			if (!GameProfile.IsFf4) OpenFF.Game.Services.Register(new ModMenus());
+			// The game's files by name, for a Picture on a mod screen (the Steam build's 2D sheets are PNGs).
+			OpenFF.MenuLoader.GameFile = name => { try { return GameArchive.Read(name) ?? GameArchive.Read("files/" + name); } catch (Exception) { return null; } };
 		}
 
 		public static readonly LegacyScreen Screen = new LegacyScreen();

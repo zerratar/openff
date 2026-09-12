@@ -111,6 +111,8 @@ namespace OpenFF
 		bool Focusable { get; }
 		/// <summary>The layout's work value of the frame - a number of the mod's own to tell rows apart.</summary>
 		int Work { get; }
+		/// <summary>The frame's rectangle in Game.Draw's screen units (800 x 480), for drawing pictures and shapes on it.</summary>
+		(float X, float Y, float Width, float Height) ScreenRect { get; }
 		IReadOnlyList<IMenuWidget> Children { get; }
 	}
 
@@ -156,6 +158,8 @@ namespace OpenFF
 		public IMenuWidget Widget { get; internal set; }
 		/// <summary>The frame's id, or "" on the screen.</summary>
 		public string Target => Widget?.Id ?? "";
+		/// <summary>The folder of the mod that defined the screen (for files of the mod's own); null for a screen with no mod folder.</summary>
+		public string ModDirectory { get; internal set; }
 
 		/// <summary>The screen has been built and is about to show: fill its texts.</summary>
 		public virtual void OnOpen() { }
@@ -205,6 +209,27 @@ namespace OpenFF
 		public override void OnOpen() { if (Widget != null) Widget.Text = Text; }
 	}
 
+	/// <summary>A picture drawn over the frame's rectangle: a PNG of the mod's own (a path under the mod's folder) or one of the game's 2D sheets by name (m000_window.NCBR, a .NCGR - the Steam build's are PNGs).</summary>
+	public sealed class Picture : MenuBehaviour
+	{
+		[Tooltip("A PNG under the mod's folder (pictures/banner.png), or one of the game's sheets by its name (menu_bg_01.NCGR)")]
+		public string Path = "";
+		[Tooltip("Stretch to the frame; otherwise drawn at the picture's own size from the frame's corner")]
+		public bool Stretch = true;
+		private Texture _texture;
+		private string _loaded;
+
+		public override void OnTick()
+		{
+			if (Widget == null || string.IsNullOrWhiteSpace(Path)) return;
+			if (_loaded != Path) { _loaded = Path; _texture = MenuLoader.LoadPicture(Path, ModDirectory); }
+			if (_texture == null) return;
+			var r = Widget.ScreenRect;
+			if (Stretch) Game.Draw.Sprite(_texture, r.X, r.Y, r.Width, r.Height);
+			else Game.Draw.Sprite(_texture, r.X, r.Y, _texture.Width * r.Width / Math.Max(1, Widget.Width), _texture.Height * r.Height / Math.Max(1, Widget.Height));   // the picture's own size, in the frame's scale
+		}
+	}
+
 	/// <summary>The mods' menu screens: opening one, what is open.</summary>
 	public interface IMenus
 	{
@@ -227,6 +252,22 @@ namespace OpenFF
 	/// <summary>Reads the mods' menu definitions and makes their behaviours; the host drives the screens.</summary>
 	public static class MenuLoader
 	{
+		/// <summary>Host entry: one of the game's files by name (a 2D sheet for Picture), or null.</summary>
+		public static Func<string, byte[]> GameFile { get; set; }
+
+		/// <summary>A picture for a Picture behaviour: a file under the mod's folder, an absolute path, or one of the game's sheets by name.</summary>
+		public static Texture LoadPicture(string path, string modDirectory)
+		{
+			if (string.IsNullOrWhiteSpace(path)) return null;
+			string p = path.Trim();
+			string full = System.IO.Path.IsPathRooted(p) ? p : modDirectory != null ? System.IO.Path.Combine(modDirectory, p) : null;
+			if (full != null && File.Exists(full)) return Game.Draw.LoadTexture(full);
+			byte[] bytes = null;
+			try { bytes = GameFile?.Invoke(p); } catch (Exception) { }
+			if (bytes != null && bytes.Length > 8 && bytes[1] == (byte)'P' && bytes[2] == (byte)'N' && bytes[3] == (byte)'G') return Game.Draw.LoadTexture("game:" + p, bytes);
+			Game.Warn("Picture: " + p + " is not a picture the mod has or the game has as a PNG");
+			return null;
+		}
 		/// <summary>The definitions under a mod's menus folder, in file order; faults are warned and skipped.</summary>
 		public static List<MenuDefinition> Read(string modId, string directory)
 		{
@@ -278,6 +319,7 @@ namespace OpenFF
 				if (behaviour == null) continue;
 				behaviour.Menu = screen;
 				behaviour.Widget = widget;
+				behaviour.ModDirectory = mod?.Directory ?? (def.Directory != null ? System.IO.Path.GetDirectoryName(def.Directory) : null);
 				SceneLoader.SetFields(behaviour, a.Fields, def.ModId);
 				made.Add(behaviour);
 			}

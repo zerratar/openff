@@ -630,6 +630,15 @@ namespace OpenFF.Client
 			public int Width => Medget.width();
 			public int Height => Medget.height();
 			public int Work => Medget.work() is IConvertible w ? Convert.ToInt32(w) : 0;
+			/// <summary>The frame in Game.Draw's 800 x 480 units: the layout's units scaled as the game scales its text (Font.drawString).</summary>
+			public (float X, float Y, float Width, float Height) ScreenRect
+			{
+				get
+				{
+					float sx = 800f / Math.Max(1, GlobalScope.LCD_WIDTH), sy = 480f / Math.Max(1, GlobalScope.LCD_HEIGHT);
+					return (X * sx, Y * sy, Width * sx, Height * sy);
+				}
+			}
 			public bool Focusable => Medget.node()?.getFirstNodeByTagNameFromChildren("focus") != null;
 			public IReadOnlyList<IMenuWidget> Children => ChildList;
 

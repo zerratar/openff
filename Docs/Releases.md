@@ -17,6 +17,11 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   frame by id - a frame the game's screen has takes its place, a new one is added. Crystal's
   Menus tab has *Take into the mod* on any of the game's screens: the `<menu>` is copied into
   `menus/` and edited like a screen of the mod's own.
+- **Pictures on a screen.** The engine's `Picture` behaviour draws a PNG over any frame - a file of
+  the mod's own or one of the game's 2D sheets by name (the Steam build's `.NCGR`/`.NCBR` are
+  PNGs, which is also how a mod restyles the window art, cursor and faces: `files/` under the
+  game's names, Crystal's *Replace the picture*). `IMenuWidget.ScreenRect` gives a frame in
+  `Game.Draw` units for drawing of your own.
 - **FF5's way with the Freelancer.** A job with no ladder to climb gains no ABP and shows no
   level (FF5's Freelancer and Mime-likes); `JobInfo.HasLadder` is false for it, `Inherits` says
   why. Jobs start at Lv. 0 with ABP counted toward the next level, as FF5 has it.

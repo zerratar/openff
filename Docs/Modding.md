@@ -1450,12 +1450,19 @@ public sealed class AbilitiesScreen : MenuBehaviour
 a command that cannot be taken - `Visible`, `X/Y/Width/Height`, `Work`), `Widgets`, `Focused`,
 `Focus(id)`, `SetText`, `Hero`, `Close()` (back to the main menu, or out of the menus when
 opened from the field), `Open(id)` (another screen of the mod's), `SoundDecide / SoundBeep /
-SoundCancel`. What a screen shows comes from the party API: `PartyMember.Commands` (the held
+SoundCancel`. `Widget.ScreenRect` is the frame in `Game.Draw`'s 800 x 480 units, for drawing
+on it from `OnTick`. What a screen shows comes from the party API: `PartyMember.Commands` (the held
 job's four, free slots as Id -1), `.Slots`, `.Learned` (each `AbilityInfo.TaughtBy` naming the
 ladders and levels), `.Grants` (the jobs whose gear the hero may wear now),
 `Game.Party.AllJobs` and `JobInfo(id, word)` (level, ABP, open, held, mastered, the next
 ability), `CanEquip(id, itemId)`. The engine's own MenuBehaviours need no code: **Back** (a press leaves),
-**OpenMenu** (a press opens `Screen`), **Label** (`Text` written onto the frame). In Crystal
+**OpenMenu** (a press opens `Screen`), **Label** (`Text` written onto the frame), **Picture** (a
+PNG drawn over the frame: `Path` a file under the mod's folder - `pictures/banner.png` - or one
+of the game's 2D sheets by name, `icon_yubi.NCGR`, since the Steam build's `.NCGR`/`.NCBR`
+sheets are PNGs; `Stretch` to the frame or at its own size). Those same sheets are how the
+look itself is changed: a mod's `files/m000_window.NCBR` (the window art), `icon_yubi.NCGR`
+(the cursor), a face sheet, replaces the game's - Crystal's Images tab has *Replace the picture*
+on any of them and *Import a PNG…* for pictures of the mod's own. In Crystal
 the frame's inspector has *Behaviours (OpenFF)* as an object's does (Add Behaviour lists the
 engine's and the mod's `MenuBehaviour` classes; a new name writes a starter class), and the
 screen's card - selected by clicking the canvas away from any frame - has the screen's own
