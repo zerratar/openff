@@ -8,11 +8,15 @@ repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. 
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
 ## 0.1.5 - journey together (2026-09-12)
- story by several people, one hero each: a hero chosen at the Crystal's Choosing, the opening as them, saves of their own, and a battle two travellers near each other fight as one - commanding their own hero while both clients compute the same rounds. Under it, the mods the game's own screens and the title, and the battle's rules roll on a seeded generator.
+
 The story by several people, one hero each: a hero chosen at the Crystal's Choosing, the opening
 played as them, saves of their own, and a battle two travellers near each other fight as one -
 each commanding their own hero while both clients compute the same rounds. Under it, the mods
 reach the game's own screens and the title, and the battle's rules roll on a seeded generator.
+
+- **The mods reach the game's own screens.** A `menus/<id>.json` whose `screen` is one of the
+  game's (`status`, `main_menu`, a shop list, the battle command window - in whichever of the
+  eight layout files `file` names) attaches its MenuBehaviours to that screen as the game
   builds it: OnOpen, OnFocus, OnPress (a handled press is kept from the game's screen), OnCancel,
   OnKey, OnTick. With a layout it replaces the game's screen, or with `patch: true` merges into it
   frame by id - a frame the game's screen has takes its place, a new one is added. Crystal's
