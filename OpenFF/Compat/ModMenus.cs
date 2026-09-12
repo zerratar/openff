@@ -182,8 +182,9 @@ namespace OpenFF.Client
 
 		/// <summary>
 		/// A frame's style words, written into the Text behaviour's parameters the game reads: <font>large|normal</font>
-		/// (the second parameter, 16 or 8), <align>left|right|center|button</align> (the third: 0, 1, 2, 4 - button draws
-		/// the game's button frame behind the text). <colour> is kept on the frame and put on as the screen opens.
+		/// (the second parameter, 16 or 8), <align>left|right|center|button|menu</align> (the third: 0, 1, 2, 4, 6 - button draws
+		/// the game's button frame behind the text; menu is the game's own list alignment, text at the left with the hand cursor
+		/// standing clear of it, the one to use on the rows of a list). <colour> is kept on the frame and put on as the screen opens.
 		/// </summary>
 		private static void ApplyStyle(XElement frame)
 		{
@@ -195,7 +196,7 @@ namespace OpenFF.Client
 			List<XElement> parameters = behaviour.Elements("parameter").ToList();
 			while (parameters.Count < 3) { XElement p = new XElement("parameter", parameters.Count == 0 ? "-1" : parameters.Count == 1 ? "8" : "0"); behaviour.Add(p); parameters.Add(p); }
 			if (font != null) parameters[1].Value = font == "large" || font == "big" || (int.TryParse(font, out int n) && n > 12) ? "16" : "8";   // a number: the nearer of the game's two here; the exact size goes on as the screen opens
-			if (align != null) parameters[2].Value = align == "right" ? "1" : align == "center" || align == "centre" ? "2" : align == "button" ? "4" : "0";
+			if (align != null) parameters[2].Value = align == "right" ? "1" : align == "center" || align == "centre" ? "2" : align == "button" ? "4" : align == "menu" || align == "list" ? SteamLayout.STEAM_ALIGN_MENU.ToString() : "0";
 		}
 
 		/// <summary>A colour word from a layout's <colour>, as the game's colour; White when unknown.</summary>
@@ -480,6 +481,10 @@ namespace OpenFF.Client
 					}
 				}
 				int edge = GlobalScope.ds.g_Pad.edge();
+				if ((edge & 0x40) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.Up), "OnKey");
+				if ((edge & 0x80) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.Down), "OnKey");
+				if ((edge & 0x20) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.Left), "OnKey");
+				if ((edge & 0x10) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.Right), "OnKey");
 				if ((edge & 0x200) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.L), "OnKey");
 				if ((edge & 0x100) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.R), "OnKey");
 				if ((edge & 0x400) != 0) Dispatch(_gameBehaviours, b => true, b => b.OnKey(MenuKey.X), "OnKey");
@@ -637,9 +642,14 @@ namespace OpenFF.Client
 				Medget = m;
 				string word = m.node()?.getFirstNodeByTagNameFromChildren("colour")?.nodeValueString() ?? m.node()?.getFirstNodeByTagNameFromChildren("color")?.nodeValueString();
 				if (!string.IsNullOrWhiteSpace(word)) _colour = ColourWord(word);
-				// <font>N</font>: a size of the text's own (6..31), drawn by the TrueType face at that size.
-				string font = m.node()?.getFirstNodeByTagNameFromChildren("font")?.nodeValueString();
-				if (int.TryParse(font?.Trim(), out int size) && size >= 6 && size <= 31) _fontSize = size;
+				// <font>N</font>: a size of the text's own (6..31), drawn by the TrueType face at that size. The layout
+				// writer stores a number as an int node (MenuXbn), a word as a string: read whichever it is.
+				GlobalScope.XbnNode font = m.node()?.getFirstNodeByTagNameFromChildren("font");
+				if (font != null)
+				{
+					int size = font.nodeValueString() != null ? (int.TryParse(font.nodeValueString().Trim(), out int n) ? n : 0) : font.nodeValueInt();
+					if (size >= 6 && size <= 31) _fontSize = size;
+				}
 			}
 
 			/// <summary>The layout's colour, put on as the screen opens (a text drawn afresh comes up white).</summary>
@@ -656,16 +666,27 @@ namespace OpenFF.Client
 				set
 				{
 					_fontSize = Math.Clamp(value, 6, 31);
-					GlobalScope.dgs.DGSMessage message = Text_?.getMessage();
-					if (message?.m_TextCanvas == null) return;
-					try
-					{
-						message.m_TextCanvas.pFont = new GlobalScope.NNSG2dFont { size = _fontSize };
-						Text_.mbSetBufferMsg(_text ?? Text, decWidth: false);   // laid out and drawn again at the new size
-						if (_colour.HasValue) Colour = _colour.Value;
-					}
-					catch (Exception) { }
+					PutFont();
 				}
+			}
+
+			/// <summary>
+			/// The size onto the text's canvas. The message is drawn afresh every frame from its canvas's font
+			/// (NNS_G2dTextCanvasDrawText), so the font goes on after the message is made - mbSetBufferMsg makes
+			/// a new message with the game's own font each time the text changes, so Text puts it on again.
+			/// </summary>
+			private void PutFont()
+			{
+				if (_fontSize <= 0) return;
+				GlobalScope.dgs.DGSMessage message = Text_?.getMessage();
+				if (message?.m_TextCanvas == null) return;
+				try
+				{
+					if (message.m_TextCanvas.pFont?.size == _fontSize) return;
+					message.m_TextCanvas.pFont = new GlobalScope.NNSG2dFont { size = _fontSize };
+					Text_.mbtSetAlignment();   // measured again at the new size: right and centre alignments, and the middle of a taller frame
+				}
+				catch (Exception) { }
 			}
 
 			private GlobalScope.menu.MBText Text_ => Medget.behavior()?.queryInterface(GlobalScope.menu.MBText.classIdentifier()) as GlobalScope.menu.MBText;
@@ -691,7 +712,7 @@ namespace OpenFF.Client
 			public string Text
 			{
 				get => _text ?? Medget.node()?.getFirstNodeByTagName("data")?.nodeValueString() ?? "";
-				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); if (_colour.HasValue) Colour = _colour.Value; }
+				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); PutFont(); if (_colour.HasValue) Colour = _colour.Value; }
 			}
 
 			public MenuColour Colour { set { _colour = value; try { Text_?.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)value); } catch (Exception) { } } }

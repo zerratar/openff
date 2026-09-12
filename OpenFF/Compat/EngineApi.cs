@@ -2618,6 +2618,26 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>The field takes orders only in its move state with nothing queued (CStateWorldMove reads m_Next each frame; the menu, shop, talk and save states own it otherwise, and their exit resets m_Next - so a Warp asked for during the menu is lost).</summary>
+		public bool Busy
+		{
+			get
+			{
+				if (!EngineApi.InWorld) return true;
+				try
+				{
+					if (((GlobalScope.GAMEPART)GlobalScope.sys.FF3PartSys.getCurrentPart()) != GlobalScope.GAMEPART.GAMEPART_WORLD) return true;
+					GlobalScope.wld.CBaseSystem sys = GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem();
+					if (sys.Mode() != GlobalScope.wld.CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD && sys.Mode() != GlobalScope.wld.CBaseSystem.WORLD_MODE.WORLD_MODE_TOWN) return true;
+					if (GlobalScope.wld.CBaseSystem.m_Next != GlobalScope.wld.CBaseSystem.NEXT_MODE.NEXT_ERROR) return true;
+					if (GlobalScope.evt.CEventManager.getInstance().isEvent()) return true;
+					if (sys.World2DMng().MessageWindow().isMadeWindow()) return true;
+					return false;
+				}
+				catch (Exception) { return true; }
+			}
+		}
+
 		public bool Encounters
 		{
 			get

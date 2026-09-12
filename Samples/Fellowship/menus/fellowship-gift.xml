@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A gift for a traveller: the bag's items with their counts, seven a page (L / R); left and right pick how many, a press sends them. GiftScreen (FellowshipScreen.cs) drives it. -->
+<menulist>
+  <menu>
+    <name>fellowship-gift</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>36</height>
+      <frame>
+        <id>title</id><x>12</x><y>4</y><width>300</width><height>28</height>
+        <colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>page</id><x>300</x><y>4</y><width>160</width><height>28</height>
+        <align>right</align><font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_list</id><x>4</x><y>44</y><width>472</width><height>192</height>
+      <frame>
+        <id>none</id><x>12</x><y>8</y><width>448</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cnt0</id><x>270</x><y>4</y><width>100</width><height>24</height>
+        <align>right</align>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cnt1</id><x>270</x><y>30</y><width>100</width><height>24</height>
+        <align>right</align>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cnt2</id><x>270</x><y>56</y><width>100</width><height>24</height>
+        <align>right</align>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cnt3</id><x>270</x><y>82</y><width>100</width><height>24</height>
+        <align>right</align>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cnt4</id><x>270</x><y>108</y><width>100</width><height>24</height>
+        <align>right</align>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cnt5</id><x>270</x><y>134</y><width>100</width><height>24</height>
+        <align>right</align>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>cnt6</id><x>270</x><y>160</y><width>100</width><height>24</height>
+        <align>right</align>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <focus />
+      <id>item0</id><x>50</x><y>48</y><width>270</width><height>24</height>
+      <up>item6</up><down>item1</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>item1</id><x>50</x><y>74</y><width>270</width><height>24</height>
+      <up>item0</up><down>item2</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>item2</id><x>50</x><y>100</y><width>270</width><height>24</height>
+      <up>item1</up><down>item3</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>item3</id><x>50</x><y>126</y><width>270</width><height>24</height>
+      <up>item2</up><down>item4</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>item4</id><x>50</x><y>152</y><width>270</width><height>24</height>
+      <up>item3</up><down>item5</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>item5</id><x>50</x><y>178</y><width>270</width><height>24</height>
+      <up>item4</up><down>item6</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>item6</id><x>50</x><y>204</y><width>270</width><height>24</height>
+      <up>item5</up><down>item0</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+  </menu>
+</menulist>

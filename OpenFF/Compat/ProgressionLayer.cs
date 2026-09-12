@@ -246,6 +246,28 @@ namespace OpenFF.Client
 				{
 					try { OpenFF.Game.Party.Gil = gil; Log.Write(LogChannel.General, "progression: --gil: " + gil); } catch (Exception) { }
 				}
+				// --jobs=all: every job's crystal flag set at the start, for test drives of the job screens.
+				if (player.playerId() == 0 && Options.Get("jobs") == "all")
+				{
+					try
+					{
+						for (int b = 1; b < JobCount; b++) GlobalScope.evt.CEventManager.getInstance().FlagMng().set(0u, (uint)GlobalScope.evt.EVENT_JOB_FLAG[b]);
+						Log.Write(LogChannel.General, "progression: --jobs=all: every job open");
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "progression: --jobs=all: " + ex.Message); }
+				}
+				// --items=<itemId>:<count>[,...]: items put in the bag at the start (5001 is a Potion), for test drives.
+				string items = Options.Get("items");
+				if (player.playerId() == 0 && !string.IsNullOrEmpty(items))
+				{
+					foreach (string part in items.Split(','))
+					{
+						string[] p = part.Split(':');
+						if (p.Length < 1 || !int.TryParse(p[0], out int item)) continue;
+						int count = p.Length > 1 && int.TryParse(p[1], out int n) ? n : 1;
+						try { GlobalScope.pl.PlayerParty.instance().addItem(item, count); Log.Write(LogChannel.General, "progression: --items: " + item + " x" + count); } catch (Exception ex) { Log.Write(LogChannel.General, "progression: --items " + part + ": " + ex.Message); }
+					}
+				}
 				// --equip=<hero>:<itemId>[,...]: an item put in the bag and on the hero at the start (1001 is a Knife), for test drives.
 				string equip = Options.Get("equip");
 				if (!string.IsNullOrEmpty(equip))

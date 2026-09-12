@@ -76,6 +76,11 @@ internal static partial class GlobalScope
 					}
 				}
 				int edge = ds.g_Pad.edge();
+				// The directions too, after the cursor has taken them: a row with a dummy neighbour hears left / right as an adjustment.
+				if ((edge & 0x40) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.Up);
+				if ((edge & 0x80) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.Down);
+				if ((edge & 0x20) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.Left);
+				if ((edge & 0x10) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.Right);
 				if ((edge & 0x200) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.L);
 				if ((edge & 0x100) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.R);
 				if ((edge & TAB_PREV_BUTTON) != 0) OpenFF.Client.ModMenus.Key(OpenFF.MenuKey.X);

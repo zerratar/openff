@@ -34,11 +34,30 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   window are `field_hud` in `WorldDefine.xbn` the same way.
 - **Events for every screen:** `MenuOpened` / `MenuClosed` for the game's screens and the mods',
   shops and battle included, to draw over any of them from `Game.Draw`. Crystal's Images tab has
-  *Save as PNG* beside *Replace…*, the round trip for painting the game's window art, cursor and
+  *Save as PNG* beside *Replaceâ€¦*, the round trip for painting the game's window art, cursor and
   faces.
 - **FF5's way with the Freelancer.** A job with no ladder to climb gains no ABP and shows no
   level (FF5's Freelancer and Mime-likes); `JobInfo.HasLadder` is false for it, `Inherits` says
   why. Jobs start at Lv. 0 with ABP counted toward the next level, as FF5 has it.
+- **Samples/Fellowship - walk the world together.** A network mod, the second sample: every
+  OpenFF with it on the same LAN is a traveller in one world (UDP broadcast, no server; two
+  clients on one machine work). The others walk your map as figures in their hero's model with a
+  name over the head; on other maps they are a line in the corner. F5..F8 speak; a traveller in
+  battle can be sent aid; you can travel to anyone's side; and you can give - items out of the
+  bag (pick one, left / right for how many) or gil, each gift acknowledged over the wire and
+  returned if the other side cannot be reached. Four screens in the game's menu, built from
+  `menus/` layouts and MenuBehaviours; the whole thing is the engine's API and `System.Net`.
+- **Screens that look like the game's.** The mod layouts and Crystal's *New screen* template
+  keep to the game's own canvas - 480 x 288 above the bottom bar, windows 4 px in, rows 24 px
+  apart with the text centred in them, 36 where a smaller second line sits under, prose 20
+  apart - so nothing runs off the right edge any more. `<align>menu</align>` is the game's own
+  list alignment: the hand cursor stands clear of the word instead of on its first letter; the
+  template's rows use it. `<font>N</font>` now takes effect (it was read as a word and a number
+  is stored as one), and `MenuBehaviour.OnKey` hears the directions too, after the cursor has
+  taken them - a row with `dummy` to its left and right can adjust a count.
+- **`Game.Field.Busy`** - true while the game's menu, a shop, a dialogue, an event or a map
+  change owns the field; a `Warp` asked for then is lost, so a mod waits for it to clear (the
+  Fellowship's travel does). Test aids `--items=<id>:<count>` and `--jobs=all`.
 
 ## 0.1.4 - how a hero grows, and menus of your own (2026-09-12)
 

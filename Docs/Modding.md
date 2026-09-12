@@ -210,7 +210,7 @@ replaces one for everybody. The whole list is `Docs/API.md`; the shape of it:
 | `Game.Party` | `Members` with their sheets, `Gil`, `Items`/`AddItem`/`RemoveItem`, `Equip`, `Hurt`/`Heal`, `GiveExperience`, `SetJob`, `LearnSpell`, `Inflict`/`Cure` |
 | `Game.Items`, `Game.Magic`, `Game.Monsters`, `Game.Shops` | the tables as data; `Magic.Cast`/`CastOn` play the game's own effects, `Damage`/`Healing` are the game's formulas, `Magic.Add` a spell of your own; `Shops.Open(row)` the game's shop screen |
 | `Game.Battle` | `Start(monsterParty)` the game's own battle; `BattleEnded` says Won, Lost or Escaped |
-| `Game.Field` | `Map`, `Warp`, `GroundHeight`/`OnGround`/`Walkable`, `Encounters` on and off |
+| `Game.Field` | `Map`, `Warp`, `Busy` (a menu, shop, dialogue, event or map change owns the field - wait before a `Warp`), `GroundHeight`/`OnGround`/`Walkable`, `Encounters` on and off |
 | `Game.Camera` | `MoveTo`, `LookAt`, `Follow`, `Shake`, `Zoom`, `Reset`, `WorldToScreen` |
 | `Game.Effects`, `Game.Audio`, `Game.Screen` | the game's effects by id; BGM and SE by name; fades, flashes, floating numbers |
 | `Game.Draw` | immediate-mode text, rectangles, lines and sprites (PNGs the mod ships, `LoadTexture`) over the frame, in 800x480 units |
@@ -1375,16 +1375,26 @@ screen of its own the same way, and nothing in the engine has to change for it:
   `<data>` literal (the inspector's *text*); a behaviour writes over it at run time. A frame
   with `<window/>` (the inspector's *window*) is drawn with the game's window art - the
   panels FF5's screens are made of - and frames nested inside it sit relative to it. The
-  rules the game's own layouts follow: the visible height is 288 (the bottom bar is under it);
-  a frame holds at most 32 child frames, so panels hold their texts; and a frame the cursor
-  lands on (*focus*) reaches its `up/down/left/right` within its parent's subtree, so keep
-  the focusable frames at the top level when they cross panels. A frame's **style** is three
-  words the inspector offers: `<font>large</font>` (the game's larger face; normal otherwise) or
+  rules the game's own layouts follow: **the canvas is 480 x 288** - the game's LCD is 480
+  wide, and the bottom bar takes the last 32 of its 320 rows - so a window at `x` 4 is
+  472 wide at most (the game's own screens run 0..480; a window past 480 is cut off at the
+  right while its left margin shows); a frame holds at most 32 child frames, so panels hold
+  their texts; and a frame the cursor lands on (*focus*) reaches its `up/down/left/right`
+  within its parent's subtree, so keep the focusable frames at the top level when they cross
+  panels. **Spacing** as the game has it: a line of the normal face is 12 px tall (the large
+  one 16) and is centred in a frame taller than that, so a list is frames 24 px apart and
+  24 tall (the game's item and job lists use 32), prose 20 apart, and a row with a smaller
+  second line under it (`<font>10</font>`) 36 apart. A frame's **style** is three words the
+  inspector offers: `<font>large</font>` (the game's larger face; normal otherwise) or
   `<font>20</font>` (any size 6..31, drawn by the TrueType face - `Widget.FontSize` from code),
-  `<align>center|right|button</align>` (`button` draws the game's button frame behind the
-  text) and `<colour>pale-blue|yellow|disabled|red|green|blue|cyan|magenta|pale-yellow|pale-red</colour>`
+  `<align>center|right|button|menu</align>` (`button` draws the game's button frame behind the
+  text; `menu` is the game's own list alignment - text at the left with the hand cursor
+  standing clear of it, some 42 px to the left, so a row's `x` wants to be 46 or more inside
+  its window - and is what a focusable row should use) and
+  `<colour>pale-blue|yellow|disabled|red|green|blue|cyan|magenta|pale-yellow|pale-red</colour>`
   - the colour stays through every text a behaviour writes, until the behaviour sets another.
-  `Samples/Mastery/menus` are three such layouts after FF5's Abilities and Jobs screens.
+  `Samples/Mastery/menus` are three such layouts after FF5's Abilities and Jobs screens;
+  `Samples/Fellowship/menus` four more (lists with a second line, an item picker with counts).
 - `menus/<id>.json` - the screen: which layout menu (`screen`), a `title`, how it opens,
   and the **MenuBehaviours** on its frames:
 
@@ -1462,7 +1472,9 @@ public sealed class AbilitiesScreen : MenuBehaviour
 ```
 
 `OnOpen`, `OnClose`, `OnTick`, `OnFocus`, `OnBlur`, `OnPress` (true when handled), `OnCancel`
-(true to stay; otherwise the screen closes), `OnKey` (L, R, X, Y). `Menu` is the open screen:
+(true to stay; otherwise the screen closes), `OnKey` (L, R, X, Y, and the directions after the
+cursor has taken them - a row whose neighbour that way is `dummy` can use left / right to adjust
+a count, as the Fellowship sample's gift screen does). `Menu` is the open screen:
 `Widget(id)` (its `Text`, `Colour` from the game's set - `MenuColour.Disabled` is the grey of
 a command that cannot be taken - `Visible`, `X/Y/Width/Height`, `Work`), `Widgets`, `Focused`,
 `Focus(id)`, `SetText`, `Hero`, `Close()` (back to the main menu, or out of the menus when
@@ -1490,7 +1502,7 @@ for every screen the game builds - shops and battle included - so a service can 
 of them from `Game.Draw` without a definition. Those same sheets are how the
 look itself is changed: a mod's `files/m000_window.NCBR` (the window art), `icon_yubi.NCGR`
 (the cursor), a face sheet, replaces the game's - Crystal's Images tab has *Save as PNG* to take
-any of them out, *Replace…* to bring the painted one back, and *Import a PNG…* for pictures of
+any of them out, *Replaceâ€¦* to bring the painted one back, and *Import a PNGâ€¦* for pictures of
 the mod's own. In Crystal
 the frame's inspector has *Behaviours (OpenFF)* as an object's does (Add Behaviour lists the
 engine's and the mod's `MenuBehaviour` classes; a new name writes a starter class), and the
@@ -1560,6 +1572,22 @@ release zip carries them in `Samples\`.
   per monster, so a ladder of 60-130 ABP is a stretch of the game. Bear the charges in mind:
   a set magic command casts with the charges of the job held, so a Thief with white magic
   has none to spend, a Knight his level-1 ones. And an **Abilities screen in the game's own
-  menu** - `menus/abilities.xml` + `.json`, `menus/ability-pick`, and `AbilitiesScreen.cs` with
-  the two MenuBehaviours that fill and drive them - the shape of a menu of your own;
-  `install.cmd` builds it into the mods folder.
+  menu** - `menus/abilities.xml` + `.json`, `menus/jobs`, `menus/job-confirm`, and
+  `AbilitiesScreen.cs` with the three MenuBehaviours that fill and drive them - the shape of a
+  menu of your own; `install.cmd` builds it into the mods folder.
+- `Samples/Fellowship` - walk the world together: a network mod. Every OpenFF with it on the
+  same LAN is a traveller in one world - UDP broadcast on port 47474 (`fellowship.json` sets the
+  port and your name; `FELLOWSHIP_NAME` in the environment overrides it, so two clients on one
+  machine can be two people), no server, each client a few short lines a second. The others walk
+  your map as figures in their hero's model (`Game.Npcs.Spawn`, `MoveTo`) with a name over the
+  head and a mark when they are in battle or a menu (`Game.Camera.WorldToScreen` + `Game.Draw`);
+  on other maps they are a line in the corner. F5..F8 speak a line (a bubble over the head for
+  those who can see you, a notice for the rest); a traveller in battle can be sent aid (their
+  party heals a quarter, once every thirty seconds); *Travel to* warps to anyone's side once the
+  menus have closed (`Game.Field.Busy`); and gifts - items out of the bag, picked on a screen
+  with counts, left / right for how many, or a sum of gil - go over the wire numbered and
+  acknowledged, sent again until they are, back to the giver after five tries. Four screens in
+  the game's menu (`menus/fellowship`, `-actions`, `-gift`, `-gil`; `FellowshipScreen.cs`) after
+  the game's own proportions, and `Fellowship.cs` for the wire, the figures and the corner HUD.
+  `install.cmd` builds it into the mods folder; start two clients and open the main menu's
+  *Fellowship* on either.

@@ -556,6 +556,8 @@ namespace OpenFF
 		string Map { get; }
 		/// <summary>Goes to another map, as a script's MapWarp does: name, position, facing 0-7 (eighths of a turn).</summary>
 		void Warp(string map, Vector3 position, int facing = 0);
+		/// <summary>True while something else owns the field - the game's menu, a shop, a dialogue, an event, a battle or a map change under way. Warp and the party's movement are ignored then; a mod that wants to act on the field waits for this to clear.</summary>
+		bool Busy { get; }
 		/// <summary>Whether walking can start the game's random battles. Off for a mod that runs its own fights.</summary>
 		bool Encounters { get; set; }
 		/// <summary>The height of the walkable ground under a point (looking down from a little above it), or null where there is none - off the map, over a pit.</summary>

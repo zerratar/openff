@@ -1,0 +1,8 @@
+{
+  "id": "fellowship-gift",
+  "layout": "fellowship-gift.xml",
+  "screen": "fellowship-gift",
+  "title": "A gift",
+  "background": 10,
+  "attachments": [ { "target": "", "behaviour": "GiftScreen" } ]
+}

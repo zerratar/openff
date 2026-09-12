@@ -899,6 +899,9 @@ function textFontSize(element) {
 /// 0 left, 1 right, 2 centre, 3 flexible, 4 button, 5 menu - and button and menu
 /// centre the same way centre does.
 function textAlignment(element) {
+  // A mod layout's <align> word stands in for the parameter (the client writes it there as it loads).
+  const word = (childText(element, 'align') || '').trim().toLowerCase();
+  if (word) return word === 'right' ? 1 : word === 'center' || word === 'centre' ? 2 : word === 'button' ? 4 : word === 'menu' || word === 'list' ? 6 : 0;
   const behavior = [...element.children].find(e => e.tagName === 'behavior');
   if (!behavior) return 0;
   const parameters = [...behavior.children].filter(e => e.tagName === 'parameter');
@@ -1053,7 +1056,7 @@ function drawScreen(node, screen, select) {
             const align = textAlignment(frame.element);
             const room = frame.width - canvas.width;
             if (align === 1) canvas.style.marginLeft = `${Math.round(room)}px`;
-            else if (align !== 0) canvas.style.marginLeft = `${Math.round(room / 2)}px`;
+            else if (align !== 0 && align !== 6) canvas.style.marginLeft = `${Math.round(room / 2)}px`;   // 6, Steam's list alignment, is left with the hand outside
 
             // StringHeight returns the size itself, so that is the game's own
             // answer for how tall a line is.
@@ -1216,7 +1219,7 @@ function buildWidget(held) {
         panel.append(w);
       };
       styleRow('font', 'font', [['', 'normal (12)'], ['large', 'large (16)'], ['8', '8'], ['10', '10'], ['14', '14'], ['18', '18'], ['20', '20'], ['24', '24'], ['28', '28']], 'The game\'s own two sizes, or a size of the text\'s own (6..31) drawn by the TrueType face');
-      styleRow('align', 'align', [['', 'left'], ['center', 'centre'], ['right', 'right'], ['button', 'button (the game\'s button frame behind the text)']], 'Where the text sits in the frame');
+      styleRow('align', 'align', [['', 'left'], ['menu', 'menu (left; the hand cursor stands clear - for the rows of a list)'], ['center', 'centre'], ['right', 'right'], ['button', 'button (the game\'s button frame behind the text)']], 'Where the text sits in the frame');
       styleRow('colour', 'colour', [['', 'white'], ['pale-blue', 'pale blue (headings)'], ['yellow', 'yellow (the chosen one)'], ['disabled', 'grey (cannot be taken)'], ['red', 'red'], ['green', 'green'], ['blue', 'blue'], ['cyan', 'cyan'], ['magenta', 'magenta'], ['pale-yellow', 'pale yellow'], ['pale-red', 'pale red']], 'The game\'s text colours; a behaviour may change it at run time');
     }
     const focus = document.createElement('label');

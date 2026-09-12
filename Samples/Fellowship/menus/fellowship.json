@@ -1,0 +1,9 @@
+{
+  "id": "fellowship",
+  "layout": "fellowship.xml",
+  "screen": "fellowship",
+  "title": "Fellowship",
+  "mainMenu": { "label": "Fellowship", "after": "com_config" },
+  "background": 10,
+  "attachments": [ { "target": "", "behaviour": "FellowshipScreen" } ]
+}

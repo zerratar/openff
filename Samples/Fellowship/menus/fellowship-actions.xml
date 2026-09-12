@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One traveller: travel to them, send aid, give an item or gil. TravellerActions (FellowshipScreen.cs) drives it. -->
+<menulist>
+  <menu>
+    <name>fellowship-actions</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>36</height>
+      <frame>
+        <id>title</id><x>12</x><y>4</y><width>448</width><height>28</height>
+        <colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_body</id><x>4</x><y>44</y><width>472</width><height>192</height>
+      <frame>
+        <id>about</id><x>12</x><y>6</y><width>448</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>about2</id><x>12</x><y>26</y><width>448</width><height>20</height>
+        <colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <focus />
+      <id>travel</id><x>50</x><y>96</y><width>400</width><height>24</height>
+      <up>back</up><down>aid</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Travel to them</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>aid</id><x>50</x><y>122</y><width>400</width><height>24</height>
+      <up>travel</up><down>give</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Send aid</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>give</id><x>50</x><y>148</y><width>400</width><height>24</height>
+      <up>aid</up><down>gil</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Give an item</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>gil</id><x>50</x><y>174</y><width>400</width><height>24</height>
+      <up>give</up><down>back</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Give gil</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>back</id><x>50</x><y>200</y><width>400</width><height>24</height>
+      <up>gil</up><down>travel</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Back</data>
+    </frame>
+  </menu>
+</menulist>

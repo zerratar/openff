@@ -134,7 +134,7 @@ namespace Crystal.Editor
 				XElement f = new XElement("frame");
 				if (focus) f.Add(new XElement("focus"));
 				f.Add(new XElement("id", fid), new XElement("x", x), new XElement("y", y), new XElement("width", w), new XElement("height", h));
-				if (focus) f.Add(new XElement("up", up ?? "dummy"), new XElement("down", down ?? "dummy"), new XElement("left", "dummy"), new XElement("right", "dummy"));
+				if (focus) f.Add(new XElement("up", up ?? "dummy"), new XElement("down", down ?? "dummy"), new XElement("left", "dummy"), new XElement("right", "dummy"), new XElement("align", "menu"));   // the hand cursor stands clear of the word
 				f.Add(new XElement("behavior", new XAttribute("value", "Text"), new XElement("parameter", -1), new XElement("parameter", 8), new XElement("parameter", 0)));
 				f.Add(new XElement("data", text));
 				return f;
@@ -145,18 +145,19 @@ namespace Crystal.Editor
 				f.Add(children);
 				return f;
 			}
-			// The visible height is 288 (the game's bottom bar sits under); a window's children sit relative
-			// to it; the frames the cursor lands on stay at the top level so up/down/left/right reach each other.
+			// The canvas is the game's 480 x 288 (the bottom bar sits under); windows keep 4 px from the edges, rows
+			// are 24 px apart with the text centred in them, as the game's own screens have it; a window's children
+			// sit relative to it; the frames the cursor lands on stay at the top level so up/down/left/right reach each other.
 			XDocument layout = new XDocument(new XDeclaration("1.0", "utf-8", null),
 				new XComment(" A menu screen of the mod's own, in the game's own layout form: frames with a position and size, <focus/> where the cursor may land, up/down/left/right the ids it moves to, a Text behaviour showing <data>; a frame with <window/> is drawn with the game's window art and its nested frames sit relative to it. Crystal's Menus tab draws and edits it; a MenuBehaviour (menus/" + unique + ".json) writes the real texts and acts on presses. "),
 				new XElement("menulist", new XElement("menu", new XElement("name", unique),
-					Window("w_top", 4, 4, 504, 40, Frame("title", 12, 10, 400, 20, false, name.Trim())),
-					Window("w_body", 4, 48, 504, 178),
-					Window("w_desc", 4, 230, 504, 54, Frame("desc", 12, 16, 480, 20, false, "A: choose   B: back")),
-					Frame("row1", 24, 60, 300, 20, true, "First row", "back", "row2"),
-					Frame("row2", 24, 84, 300, 20, true, "Second row", "row1", "row3"),
-					Frame("row3", 24, 108, 300, 20, true, "Third row", "row2", "back"),
-					Frame("back", 24, 156, 300, 20, true, "Back", "row3", "row1"))));
+					Window("w_top", 4, 4, 472, 36, Frame("title", 12, 4, 448, 28, false, name.Trim())),
+					Window("w_body", 4, 44, 472, 196),
+					Window("w_desc", 4, 244, 472, 40, Frame("desc", 12, 2, 448, 18, false, "A: choose   B: back")),
+					Frame("row1", 50, 56, 400, 24, true, "First row", "back", "row2"),
+					Frame("row2", 50, 80, 400, 24, true, "Second row", "row1", "row3"),
+					Frame("row3", 50, 104, 400, 24, true, "Third row", "row2", "back"),
+					Frame("back", 50, 152, 400, 24, true, "Back", "row3", "row1"))));
 			File.WriteAllText(Path.Combine(Directory(project), unique + ".xml"), layout.Declaration + "\n" + layout.ToString(), new UTF8Encoding(false));
 			JsonObject def = new JsonObject
 			{

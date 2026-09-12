@@ -256,6 +256,7 @@ The map and moving between maps.
 
 | Member | What it does |
 | --- | --- |
+| `bool Busy { get; }` | True while something else owns the field - the game's menu, a shop, a dialogue, an event, a battle or a map change under way. Warp and the party's movement are ignored then; a mod that wants to act on the field waits for this to clear. |
 | `bool Encounters { get; set; }` | Whether walking can start the game's random battles. Off for a mod that runs its own fights. |
 | `string Map { get; }` | The current map's name (d01_05, f00...), or null. |
 | `bool Blocked(Vector3 from, Vector3 to, float radius = 3)` | Whether a wall (the map's, or a Solid Mesh) stands in the way of a step from one point to the next, for a body of that radius - the test the hero's own walk makes. False where there is no wall. |
@@ -925,7 +926,7 @@ The unit of script on a mod's menu screen. Attached to a frame (an attachment's 
 | `bool OnCancel()` | Cancel anywhere on the screen. Return true when handled; otherwise the screen closes. |
 | `void OnClose()` | The screen is going away. |
 | `void OnFocus()` | The cursor landed on the frame (on the screen: on any frame; Menu.Focused says which). |
-| `bool OnKey(MenuKey key)` | A key beyond confirm and cancel. Return true when handled. |
+| `bool OnKey(MenuKey key)` | A key beyond confirm and cancel: L / R (pages), X / Y, and the directions - those after the cursor has taken them, so a row whose neighbour that way is "dummy" can use left / right to adjust a count. Return true when handled. |
 | `void OnOpen()` | The screen has been built and is about to show: fill its texts. |
 | `bool OnPress()` | Confirm on the frame. Return true when handled, so the screen's own behaviours are not asked too. |
 | `void OnTick()` | Every frame while the screen is up. |
@@ -2537,4 +2538,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-159 types, 1140 members; 489 without a summary yet.
+159 types, 1141 members; 489 without a summary yet.

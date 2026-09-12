@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Fellowship: a network mod - every OpenFF client with it on the same LAN is a traveller
+       in the same world (UDP broadcast, no server). Build it into the client's mods folder:
+
+         dotnet build Samples/Fellowship -o "<client>/mods/Fellowship"
+
+       (mod.json, fellowship.json and menus/ are copied along.) Two clients on one machine:
+       set FELLOWSHIP_NAME differently for each. -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>Fellowship</AssemblyName>
+    <RootNamespace>Fellowship</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <DebugType>portable</DebugType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\OpenFF.Engine\OpenFF.Engine.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="fellowship.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="menus/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <Target Name="DropEngineCopies" AfterTargets="Build">
+    <ItemGroup>
+      <EngineCopies Include="$(OutDir)OpenFF.Engine.*" />
+    </ItemGroup>
+    <Delete Files="@(EngineCopies)" />
+  </Target>
+
+</Project>

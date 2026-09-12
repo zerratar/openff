@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gil for a traveller: a sum from your purse into theirs. GilScreen (FellowshipScreen.cs) drives it. -->
+<menulist>
+  <menu>
+    <name>fellowship-gil</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>36</height>
+      <frame>
+        <id>title</id><x>12</x><y>4</y><width>448</width><height>28</height>
+        <colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_body</id><x>4</x><y>44</y><width>472</width><height>192</height>
+      <frame>
+        <id>about</id><x>12</x><y>6</y><width>448</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <focus />
+      <id>gil100</id><x>50</x><y>84</y><width>400</width><height>24</height>
+      <up>back</up><down>gil500</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>100 gil</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>gil500</id><x>50</x><y>110</y><width>400</width><height>24</height>
+      <up>gil100</up><down>gil1000</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>500 gil</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>gil1000</id><x>50</x><y>136</y><width>400</width><height>24</height>
+      <up>gil500</up><down>gil5000</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>1000 gil</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>gil5000</id><x>50</x><y>162</y><width>400</width><height>24</height>
+      <up>gil1000</up><down>back</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>5000 gil</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>back</id><x>50</x><y>188</y><width>400</width><height>24</height>
+      <up>gil5000</up><down>gil100</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Back</data>
+    </frame>
+  </menu>
+</menulist>

@@ -1,0 +1,8 @@
+{
+  "id": "fellowship-actions",
+  "layout": "fellowship-actions.xml",
+  "screen": "fellowship-actions",
+  "title": "A traveller",
+  "background": 10,
+  "attachments": [ { "target": "", "behaviour": "TravellerActions" }, { "target": "back", "behaviour": "Back" } ]
+}

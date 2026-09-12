@@ -181,7 +181,7 @@ namespace OpenFF
 		public virtual bool OnPress() => false;
 		/// <summary>Cancel anywhere on the screen. Return true when handled; otherwise the screen closes.</summary>
 		public virtual bool OnCancel() => false;
-		/// <summary>A key beyond confirm and cancel. Return true when handled.</summary>
+		/// <summary>A key beyond confirm and cancel: L / R (pages), X / Y, and the directions - those after the cursor has taken them, so a row whose neighbour that way is "dummy" can use left / right to adjust a count. Return true when handled.</summary>
 		public virtual bool OnKey(MenuKey key) => false;
 
 		/// <summary>The type's name and the frame it is on, for the log.</summary>

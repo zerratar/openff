@@ -1,0 +1,8 @@
+{
+  "id": "fellowship-gil",
+  "layout": "fellowship-gil.xml",
+  "screen": "fellowship-gil",
+  "title": "Gil",
+  "background": 10,
+  "attachments": [ { "target": "", "behaviour": "GilScreen" }, { "target": "back", "behaviour": "Back" } ]
+}

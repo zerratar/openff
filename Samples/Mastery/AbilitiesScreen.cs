@@ -5,7 +5,7 @@
 // and their logic here: MenuBehaviours attached to the screens.
 //
 //   Abilities  the hero's header; Job Commands (the job's own) and the free slots on the
-//              left; everything learned on the right, two columns, a page at a time (L / R);
+//              left; everything learned on the right, six a page (L / R);
 //              a description window. Pick a slot, then an ability (or Remove); B steps back.
 //   Jobs       every job in play in a grid with its ladder's standing; a press asks.
 //   Change?    Yes takes the job, No returns.
@@ -61,7 +61,7 @@ namespace Mastery
 	/// <summary>The Abilities screen.</summary>
 	public sealed class AbilitiesScreen : MenuBehaviour
 	{
-		private const int PerPage = 14;                  // opt0..opt13: two columns of seven
+		private const int PerPage = 6;                   // opt0..opt5: one column, 24 px a row, L / R for the pages
 		private int _picking = -1;                       // the free slot being filled, or -1
 		private List<AbilityInfo> _options = new List<AbilityInfo>();
 		private MenuList _list;                          // the learned list over the opt rows: scrolls, pages, the cursor kept on items
@@ -211,7 +211,7 @@ namespace Mastery
 	/// <summary>The Jobs screen: a grid of every job in play; a press asks to change.</summary>
 	public sealed class JobsScreen : MenuBehaviour
 	{
-		private const int PerPage = 16;                  // job0..job15 with lv0..lv15 under them: four columns of four
+		private const int PerPage = 12;                  // job0..job11 with lv0..lv11 under them: three columns of four, L / R for more
 		private List<string> _jobs = new List<string>();
 		private MenuList _grid;
 

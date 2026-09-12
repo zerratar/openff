@@ -385,6 +385,8 @@ internal static partial class GlobalScope
 
 			public void LoadXbnFile(string fileName)
 			{
+				// PORT: another layout file means the screens of the last one are gone (the mods hear MenuClosed).
+				OpenFF.Client.ModMenus.GameScreenReleased();
 				XbnFile xbnFile = xbnDocument.xbnFinalize();
 				if (xbnFile != null)
 				{
