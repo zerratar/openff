@@ -409,7 +409,7 @@ internal static partial class GlobalScope
 				{
 					return null;
 				}
-				int num2 = (int)ds.RandomNumber.rand32((uint)num);
+				int num2 = (int)ds.RandomNumber.logic32((uint)num);
 				return this.battlePlayer(btl_reuse_player_id[num2]);
 			}
 

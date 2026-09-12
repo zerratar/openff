@@ -513,7 +513,7 @@ internal static partial class GlobalScope
 
 			public void startAbilityCamera(TurnSystem T, PLAYER_ACTION_STATE nextState)
 			{
-				if (!nowPlayer().condition().isFrog() && !nowPlayer().condition().isLilliput() && ds.RandomNumber.rand32(101u) < 30)
+				if (!nowPlayer().condition().isFrog() && !nowPlayer().condition().isLilliput() && ds.RandomNumber.logic32(101u) < 30)
 				{
 					battleDisplay.setAbilityCamera(nowPlayer().player());
 					stageMng.setHidden(flag: true);
@@ -2940,7 +2940,7 @@ internal static partial class GlobalScope
 
 			public bool calcProvacation()
 			{
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				CommonFormula commonFormula = new CommonFormula();
 				int num2 = commonFormula.calcJobSkill(nowPlayer());
 				bool result = false;
@@ -3476,7 +3476,7 @@ internal static partial class GlobalScope
 						vector.push_back(geographyData.geographyInfo(i));
 					}
 				}
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				int num2 = 0;
 				for (int j = 0; j < vector.size(); j++)
 				{

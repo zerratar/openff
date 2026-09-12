@@ -124,7 +124,7 @@ internal static partial class GlobalScope
 
 			public int calcStealItem(int jobSkill, int itemLevel)
 			{
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				OS_Printf("盗み出す確率は %d です\n", num);
 				for (int num2 = itemLevel; num2 > -1; num2--)
 				{

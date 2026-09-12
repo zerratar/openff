@@ -115,7 +115,7 @@ internal static partial class GlobalScope
 				}
 				else if (OutsideToBattle.getInstance().battleOpeningType() == BATTLE_OPENING_TYPE.CALC_BATTLE_OPENING_TYPE)
 				{
-					int num = (int)ds.RandomNumber.rand32(101u);
+					int num = (int)ds.RandomNumber.logic32(101u);
 					if (num < 5)
 					{
 						type_ = BATTLE_OPENING_TYPE.BACK_ATTACK;

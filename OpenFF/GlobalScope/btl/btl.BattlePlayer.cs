@@ -1345,7 +1345,7 @@ internal static partial class GlobalScope
 				{
 					return 2;
 				}
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				if (num <= 50)
 				{
 					return 1;

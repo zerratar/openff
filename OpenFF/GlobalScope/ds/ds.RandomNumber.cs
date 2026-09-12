@@ -38,6 +38,23 @@ internal static partial class GlobalScope
 			{
 				return MATH_Rand32(_s_ctxt32, max);
 			}
+
+			// PORT: the battle's rules - hit rolls, damage spread, turn order, the monsters' choices - roll
+			// on a generator of their own, apart from the effects', the camera's and the field's rolls on the
+			// shared one. Two clients that seed it alike and feed it the same commands then compute the same
+			// battle whatever their animations and frame counts do (OpenFF.Client.BattleSync). Unseeded, it is
+			// as random as before.
+			private static Random _logic = new Random();
+
+			public static void seedLogic(int seed)
+			{
+				_logic = new Random(seed);
+			}
+
+			public static uint logic32(uint max)
+			{
+				return max == 0 ? 0u : (uint)(_logic.Next() % max);
+			}
 		}
 	}
 }

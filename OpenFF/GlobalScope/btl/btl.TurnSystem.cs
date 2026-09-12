@@ -1157,7 +1157,7 @@ internal static partial class GlobalScope
 					attacker.setTargetId(0, -1);
 					return;
 				}
-				int pos = (int)ds.RandomNumber.rand32((uint)vector.size());
+				int pos = (int)ds.RandomNumber.logic32((uint)vector.size());
 				attacker.setTargetId(0, (short)vector.at(pos));
 			}
 
@@ -1181,7 +1181,7 @@ internal static partial class GlobalScope
 					attacker.setTargetId(0, -1);
 					return;
 				}
-				int pos = (int)ds.RandomNumber.rand32((uint)vector.size());
+				int pos = (int)ds.RandomNumber.logic32((uint)vector.size());
 				attacker.setTargetId(0, (short)vector.at(pos));
 			}
 
@@ -1792,12 +1792,12 @@ internal static partial class GlobalScope
 				OS_Printf("// アイテム落とす？\n");
 				int num = monster.monster().droppingParameter().droppingItemProbability() * 100;
 				OS_Printf("アイテム落とす確率 %d\n", num);
-				int num2 = (int)(ds.RandomNumber.rand32(101u) * 100);
+				int num2 = (int)(ds.RandomNumber.logic32(101u) * 100);
 				OS_Printf("ランダム確率 %d\n", num2);
 				if (num2 <= num)
 				{
 					OS_Printf("何かしら拾えそう\n");
-					num2 = (int)(ds.RandomNumber.rand32(101u) * 100);
+					num2 = (int)(ds.RandomNumber.logic32(101u) * 100);
 					int num3 = 0;
 					for (int i = 0; i < 8; i++)
 					{
@@ -2546,9 +2546,9 @@ internal static partial class GlobalScope
 					}
 					if (randamFlag == 1)
 					{
-						vecFx.x += (int)((ds.RandomNumber.rand32(8u) - 4) * 4096);
-						vecFx.y += (int)(ds.RandomNumber.rand32(4u) * 4096);
-						vecFx.z += (int)((ds.RandomNumber.rand32(8u) - 4) * 4096);
+						vecFx.x += (int)((ds.RandomNumber.logic32(8u) - 4) * 4096);
+						vecFx.y += (int)(ds.RandomNumber.logic32(4u) * 4096);
+						vecFx.z += (int)((ds.RandomNumber.logic32(8u) - 4) * 4096);
 					}
 					vecFx2.x -= vecFx.x;
 					vecFx2.y -= vecFx.y;

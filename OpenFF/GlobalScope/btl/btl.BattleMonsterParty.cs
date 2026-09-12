@@ -115,7 +115,7 @@ internal static partial class GlobalScope
 					}
 					ushort num3 = monsters.min();
 					ushort num4 = monsters.max();
-					int t = (int)ds.RandomNumber.rand32(num4);
+					int t = (int)ds.RandomNumber.logic32(num4);
 					if (OutsideToBattle.getInstance().initializeMonster().monsterCountType() == 1)
 					{
 						t = num3;

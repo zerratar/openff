@@ -73,6 +73,7 @@ internal static partial class GlobalScope
 
 			public void initialize()
 			{
+				OpenFF.Client.BattleSync.BattleStarts();   // PORT: a seeded battle rolls alike on two clients (BattleSync)
 				menu.MenuManager.getSingleton().setBattleMode(flag: true);
 				mon.MonsterManager.instance().load();
 				mon.MonsterPartyManager.instance().load();
@@ -117,6 +118,7 @@ internal static partial class GlobalScope
 
 			public void terminate()
 			{
+				OpenFF.Client.BattleSync.BattleEnds();
 				dgs.CCtrlCodeInterface.instance().clear();
 				characterManager().terminate();
 				pl.PlayerParty.instance().clearBattleCondition();

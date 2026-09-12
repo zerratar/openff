@@ -507,7 +507,7 @@ internal static partial class GlobalScope
 				condition().onNearDeath();
 				int t = hp().getNow() / 10;
 				t = ds.clamp(t, 1, 9);
-				t = (int)(ds.RandomNumber.rand32((uint)t) + 1);
+				t = (int)(ds.RandomNumber.logic32((uint)t) + 1);
 				hp().setNow(t);
 			}
 

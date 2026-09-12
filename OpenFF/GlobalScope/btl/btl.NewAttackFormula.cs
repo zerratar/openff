@@ -275,7 +275,7 @@ internal static partial class GlobalScope
 					OS_Printf("GET! クリティカル! \n");
 				}
 				int num8 = num + num2;
-				float num9 = (float)(ds.RandomNumber.rand32(3u) + 5) / 10f;
+				float num9 = (float)(ds.RandomNumber.logic32(3u) + 5) / 10f;
 				int num10 = (int)((float)num8 * num9 * (float)num7);
 				if (user.flag(PLAYER_FLAG.PF_CRITICAL))
 				{
@@ -483,7 +483,7 @@ internal static partial class GlobalScope
 				int num = 0;
 				for (int i = 0; i < rollNumber; i++)
 				{
-					int num2 = (int)ds.RandomNumber.rand32(101u);
+					int num2 = (int)ds.RandomNumber.logic32(101u);
 					OS_Printf("攻撃命中率は %2d\u3000\u3000ランダム値は %2d\u3000です\n", hitOdds, num2);
 					if (num2 < hitOdds)
 					{
@@ -601,7 +601,7 @@ internal static partial class GlobalScope
 					OS_Printf("GET! クリティカル! \n");
 				}
 				int num8 = num + num2;
-				float num9 = (float)(ds.RandomNumber.rand32(3u) + 5) / 10f;
+				float num9 = (float)(ds.RandomNumber.logic32(3u) + 5) / 10f;
 				int num10 = (int)((float)num8 * num9 * (float)num7);
 				if (character.flag(PLAYER_FLAG.PF_CRITICAL))
 				{
@@ -759,7 +759,7 @@ internal static partial class GlobalScope
 				int num = 0;
 				for (int i = 0; i < rollNumber; i++)
 				{
-					int num2 = (int)ds.RandomNumber.rand32(101u);
+					int num2 = (int)ds.RandomNumber.logic32(101u);
 					OS_Printf("攻撃命中率は %2d\u3000\u3000ランダム値は %2d\u3000です\n", hitOdds, num2);
 					if (num2 < hitOdds)
 					{
@@ -830,7 +830,7 @@ internal static partial class GlobalScope
 					attacker.setFlag(PLAYER_FLAG.PF_CRITICAL);
 					OS_Printf("GET! クリティカル! \n");
 				}
-				float num8 = (float)(ds.RandomNumber.rand32(3u) + 5) / 10f;
+				float num8 = (float)(ds.RandomNumber.logic32(3u) + 5) / 10f;
 				int num9 = (int)((float)num * num8 * (float)t);
 				if (attacker.flag(PLAYER_FLAG.PF_CRITICAL))
 				{
@@ -937,7 +937,7 @@ internal static partial class GlobalScope
 				int num = 0;
 				for (int i = 0; i < number; i++)
 				{
-					int num2 = (int)ds.RandomNumber.rand32(101u);
+					int num2 = (int)ds.RandomNumber.logic32(101u);
 					OS_Printf("攻撃命中率は %2d\u3000\u3000ランダム値は %2d\u3000です\n", hit, num2);
 					if (num2 < hit)
 					{
@@ -996,7 +996,7 @@ internal static partial class GlobalScope
 				addCondition(attacker, target, pl.HAND_TYPE.LEFT_HAND);
 				attacker.setAttackSuccess(0, flag: true);
 				attacker.setAttackSuccess(1, flag: false);
-				float num3 = (float)(ds.RandomNumber.rand32(3u) + 5) / 10f;
+				float num3 = (float)(ds.RandomNumber.logic32(3u) + 5) / 10f;
 				int t2 = (int)((float)num * num3 * (float)t);
 				if (attacker.breed() == 0)
 				{
@@ -1133,7 +1133,7 @@ internal static partial class GlobalScope
 			{
 				int t = character.bodyAndBonus().dexterity().get() - target.bodyAndBonus().dexterity().get() + 5;
 				t = ds.clamp(t, 0, 10);
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				if (t <= num)
 				{
 					return false;
@@ -1143,7 +1143,7 @@ internal static partial class GlobalScope
 
 			public bool addCondition(BaseBattleCharacter attacker, BaseBattleCharacter target, pl.HAND_TYPE handType)
 			{
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				short num2 = attacker.handAttack(handType).attackOption();
 				if (num2 == 0)
 				{

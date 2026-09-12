@@ -101,7 +101,7 @@ internal static partial class GlobalScope
 				num = ((type == pl.HAND_TYPE.RIGHT_HAND) ? 1 : 3);
 				if (weaponSystem != itm.WEAPON_SYSTEM.WEAPON_THROW && weaponSystem != itm.WEAPON_SYSTEM.WEAPON_BOW && weaponSystem != itm.WEAPON_SYSTEM.WEAPON_ARROW && weaponSystem != itm.WEAPON_SYSTEM.WEAPON_HARP)
 				{
-					num += (int)ds.RandomNumber.rand32(2u);
+					num += (int)ds.RandomNumber.logic32(2u);
 				}
 				else
 				{

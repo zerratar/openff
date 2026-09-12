@@ -240,7 +240,7 @@ internal static partial class GlobalScope
 				{
 					return;
 				}
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				short num2 = 0;
 				int i;
 				for (i = 0; i < NPC_ATTACK_MAX; i++)
@@ -375,7 +375,7 @@ internal static partial class GlobalScope
 				}
 				if (B.turnCount_ % 2 == 0 && pl.PlayerParty.instance().npc().isEnable() && B.npcDataManager().npcData(pl.PlayerParty.instance().npc().npcId()) != null)
 				{
-					int num = (int)ds.RandomNumber.rand32(101u);
+					int num = (int)ds.RandomNumber.logic32(101u);
 					if (num <= NPC_APPEAR_PROBABILITY)
 					{
 						flag = true;
@@ -512,7 +512,7 @@ internal static partial class GlobalScope
 						num++;
 					}
 				}
-				num = (int)ds.RandomNumber.rand32((uint)num);
+				num = (int)ds.RandomNumber.logic32((uint)num);
 				int id = B.npcDataManager().npcData(nowNpcId()).messageId(num);
 				Battle2DManager.instance().helpWindow().setMsdHandle(0);
 				Battle2DManager.instance().helpWindow().createHelpWindow(id, 0, 0);

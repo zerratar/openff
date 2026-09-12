@@ -546,7 +546,7 @@ internal static partial class GlobalScope
 				{
 					return true;
 				}
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				NewMagicFormula newMagicFormula = new NewMagicFormula();
 				int num2 = newMagicFormula.calcCommonConditionOdds(user, 7, target, 30, 1);
 				if (num2 <= num)
@@ -578,7 +578,7 @@ internal static partial class GlobalScope
 				{
 					return true;
 				}
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				NewMagicFormula newMagicFormula = new NewMagicFormula();
 				int num2 = newMagicFormula.calcCommonConditionOdds(user, 7, target, 30, 1);
 				if (num2 <= num)

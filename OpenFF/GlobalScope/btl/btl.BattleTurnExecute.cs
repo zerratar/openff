@@ -155,7 +155,7 @@ internal static partial class GlobalScope
 					orderParameter.breed = battleParty.battlePlayer(i).breed();
 					orderParameter._id = i;
 					orderParameter.dex = moveOrderFormula.moveDexterityPlayer(battleParty.battlePlayer(i));
-					orderParameter.dex += (int)ds.RandomNumber.rand32((uint)(orderParameter.dex + 1));
+					orderParameter.dex += (int)ds.RandomNumber.logic32((uint)(orderParameter.dex + 1));
 					if (battleParty.battlePlayer(i).actionId() == 3 || battleParty.battlePlayer(i).actionId() == 13 || battleParty.battlePlayer(i).actionId() == 12 || battleParty.battlePlayer(i).actionId() == 23 || battleParty.battlePlayer(i).actionId() == 20)
 					{
 						orderParameter.dex += 10000;
@@ -194,7 +194,7 @@ internal static partial class GlobalScope
 					orderParameter2.breed = battleMonsterParty.battleMonster(i).breed();
 					orderParameter2._id = i;
 					orderParameter2.dex = moveOrderFormula.moveDexterityMonster(battleMonsterParty.battleMonster(i));
-					orderParameter2.dex += (int)ds.RandomNumber.rand32((uint)(orderParameter2.dex + 1));
+					orderParameter2.dex += (int)ds.RandomNumber.logic32((uint)(orderParameter2.dex + 1));
 					if (vector.empty())
 					{
 						vector.insert(0, orderParameter2);

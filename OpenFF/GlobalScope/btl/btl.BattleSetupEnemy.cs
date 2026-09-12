@@ -21,6 +21,8 @@ internal static partial class GlobalScope
 		{
 			public override void initialize(BattleSystem B)
 			{
+				// PORT: the round's rolls begin here - every hero's command is in, the monsters choose next - so a seeded battle seeds afresh from the seed and the round (BattleSync).
+				OpenFF.Client.BattleSync.RoundStarts(B);
 				BattleMonsterParty battleMonsterParty = B.characterManager().monsterParty();
 				for (int i = 0; i < 6; i++)
 				{
@@ -99,7 +101,7 @@ internal static partial class GlobalScope
 				}
 				for (int i = 0; i < mon.MONSTER_SPECIAL_ACTION_MAX; i++)
 				{
-					int num = (int)ds.RandomNumber.rand32(101u);
+					int num = (int)ds.RandomNumber.logic32(101u);
 					if (num > monster.monster().specialAction(i).specialActionProbability())
 					{
 						continue;
@@ -154,7 +156,7 @@ internal static partial class GlobalScope
 				{
 				}
 				int num2 = 100 / num + 1;
-				int num3 = (int)ds.RandomNumber.rand32(101u);
+				int num3 = (int)ds.RandomNumber.logic32(101u);
 				int num4 = num2;
 				for (int i = 0; i < num; i++)
 				{

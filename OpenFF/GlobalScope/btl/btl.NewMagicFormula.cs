@@ -25,7 +25,7 @@ internal static partial class GlobalScope
 				{
 					short condition = itm.ItemManager.instance().magicParameter(magicId).changeCondition();
 					short num = target.physicsDefense().antiOption();
-					int num2 = (int)ds.RandomNumber.rand32(101u);
+					int num2 = (int)ds.RandomNumber.logic32(101u);
 					if (calcAntiOption(condition, num))
 					{
 						target.setFlag(PLAYER_FLAG.PF_MISS);
@@ -49,7 +49,7 @@ internal static partial class GlobalScope
 				{
 					short condition2 = itm.ItemManager.instance().magicParameter(magicId).changeCondition();
 					short antiOption = target.physicsDefense().antiOption();
-					int num4 = (int)ds.RandomNumber.rand32(101u);
+					int num4 = (int)ds.RandomNumber.logic32(101u);
 					if (calcAntiOption(condition2, antiOption))
 					{
 						target.setFlag(PLAYER_FLAG.PF_MISS);
@@ -130,7 +130,7 @@ internal static partial class GlobalScope
 				int num3 = calcTargetNumberValue(targetNumber, 90, magicId);
 				OS_Printf("複数体効果 %d\n", num3);
 				int num4 = num / 4096;
-				num4 = (int)(num4 * (100 - ds.RandomNumber.rand32(10u)) / 100);
+				num4 = (int)(num4 * (100 - ds.RandomNumber.logic32(10u)) / 100);
 				OS_Printf("実際の回復量算出 %d\n", num4 * num2 / 4096 * num3 / 4096);
 				return num4 * num2 / 4096 * num3 / 4096;
 			}
@@ -163,7 +163,7 @@ internal static partial class GlobalScope
 				{
 					num /= 2;
 				}
-				if (num < ds.RandomNumber.rand32(101u))
+				if (num < ds.RandomNumber.logic32(101u))
 				{
 					return false;
 				}
@@ -191,7 +191,7 @@ internal static partial class GlobalScope
 
 			public int calcConditionOdds(short magicId, BaseBattleCharacter character, BaseBattleCharacter target)
 			{
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				OS_Printf("ランダム値は\u3000%d\u3000です\n", num);
 				int num2 = 0;
 				bool flag = false;
@@ -611,7 +611,7 @@ internal static partial class GlobalScope
 			public int calcMagicSuccessValue(bool success)
 			{
 				int num = 0;
-				num = (int)((!success) ? (4096 * (ds.RandomNumber.rand32(11u) + 50) / 100) : (4096 * (ds.RandomNumber.rand32(21u) + 90) / 100));
+				num = (int)((!success) ? (4096 * (ds.RandomNumber.logic32(11u) + 50) / 100) : (4096 * (ds.RandomNumber.logic32(21u) + 90) / 100));
 				OS_Printf("魔法の成否による補正値 %f \n", FX_FX32_TO_F32(num));
 				return num;
 			}

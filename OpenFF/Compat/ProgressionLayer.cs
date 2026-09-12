@@ -653,7 +653,7 @@ namespace OpenFF.Client
 					first |= Has(p, Ff3Abilities.FirstStrike);
 				}
 				if (vigilance && type == GlobalScope.btl.BATTLE_OPENING_TYPE.BACK_ATTACK) { type = GlobalScope.btl.BATTLE_OPENING_TYPE.NORMAL_ATTACK; Log.Write(LogChannel.File, "progression: Vigilance - no back attack"); }
-				if (first && type == GlobalScope.btl.BATTLE_OPENING_TYPE.NORMAL_ATTACK && GlobalScope.ds.RandomNumber.rand32(100u) < 25) { type = GlobalScope.btl.BATTLE_OPENING_TYPE.INITIATLVE_ATTACK; Log.Write(LogChannel.File, "progression: First Strike - the party opens"); }
+				if (first && type == GlobalScope.btl.BATTLE_OPENING_TYPE.NORMAL_ATTACK && GlobalScope.ds.RandomNumber.logic32(100u) < 25) { type = GlobalScope.btl.BATTLE_OPENING_TYPE.INITIATLVE_ATTACK; Log.Write(LogChannel.File, "progression: First Strike - the party opens"); }
 			}
 			catch (Exception) { }
 			return type;

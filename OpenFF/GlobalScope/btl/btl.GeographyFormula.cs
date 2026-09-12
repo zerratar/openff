@@ -37,7 +37,7 @@ internal static partial class GlobalScope
 					num4 = magicParameter.magicAggressivity();
 				}
 				int num5 = (num + num2) / 3 * (num3 * 2 + num4);
-				num5 = (int)(num5 * (ds.RandomNumber.rand32(21u) + 80) / 100);
+				num5 = (int)(num5 * (ds.RandomNumber.logic32(21u) + 80) / 100);
 				OS_Printf("ダメージは\u3000%d\u3000です\n", num5);
 				return num5;
 			}
@@ -60,7 +60,7 @@ internal static partial class GlobalScope
 					num4 = magicParameter.magicAggressivity();
 				}
 				int num5 = (num + num2) / 4 * (num3 * 2 + num4);
-				num5 = (int)(num5 * (ds.RandomNumber.rand32(21u) + 80) / 100);
+				num5 = (int)(num5 * (ds.RandomNumber.logic32(21u) + 80) / 100);
 				OS_Printf("ダメージは\u3000%d\u3000です\n", num5);
 				return num5;
 			}
@@ -83,14 +83,14 @@ internal static partial class GlobalScope
 					num4 = magicParameter.magicAggressivity();
 				}
 				int num5 = (num + num2) * (num3 * 2 + num4);
-				num5 = (int)(num5 * (ds.RandomNumber.rand32(21u) + 80) / 100);
+				num5 = (int)(num5 * (ds.RandomNumber.logic32(21u) + 80) / 100);
 				OS_Printf("ダメージは\u3000%d\u3000です\n", num5);
 				return num5;
 			}
 
 			public bool calcGeographyDeath1(BattlePlayer player)
 			{
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				if (num > 30)
 				{
 					return false;
@@ -100,7 +100,7 @@ internal static partial class GlobalScope
 
 			public bool calcGeographyDeath2(BattlePlayer player)
 			{
-				int num = (int)ds.RandomNumber.rand32(101u);
+				int num = (int)ds.RandomNumber.logic32(101u);
 				if (num > 80)
 				{
 					return false;

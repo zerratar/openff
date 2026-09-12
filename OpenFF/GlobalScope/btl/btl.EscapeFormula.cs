@@ -29,7 +29,7 @@ internal static partial class GlobalScope
 				{
 					return true;
 				}
-				byte b = (byte)ds.RandomNumber.rand32(101u);
+				byte b = (byte)ds.RandomNumber.logic32(101u);
 				if (b < party.escapeActionNumber() * 30)
 				{
 					return true;
@@ -53,14 +53,14 @@ internal static partial class GlobalScope
 					.skill()
 					.skillLevel()
 					.get() / 16;
-				num *= (int)((ds.RandomNumber.rand32(41u) + 80) / 100);
+				num *= (int)((ds.RandomNumber.logic32(41u) + 80) / 100);
 				int maxLevel = monsterParty.getMaxLevel();
-				maxLevel *= (int)((ds.RandomNumber.rand32(41u) + 80) / 100);
+				maxLevel *= (int)((ds.RandomNumber.logic32(41u) + 80) / 100);
 				if (num - maxLevel > 0)
 				{
 					return true;
 				}
-				byte b = (byte)ds.RandomNumber.rand32(101u);
+				byte b = (byte)ds.RandomNumber.logic32(101u);
 				if (b < party.escapeActionNumber() * 60)
 				{
 					return true;

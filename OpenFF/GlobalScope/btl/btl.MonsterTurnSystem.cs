@@ -748,7 +748,7 @@ internal static partial class GlobalScope
 					{
 						T.setTargetRandam(nowMonster(), T.characterManager().playerParty(), reflect: false);
 					}
-					else if (ds.RandomNumber.rand32(2u) != 0)
+					else if (ds.RandomNumber.logic32(2u) != 0)
 					{
 						T.characterManager().setPlayerAllTarget(nowMonster(), 0);
 					}
@@ -767,7 +767,7 @@ internal static partial class GlobalScope
 					{
 						T.setTargetRandam(nowMonster(), T.characterManager().monsterParty(), reflect: false);
 					}
-					else if (ds.RandomNumber.rand32(2u) != 0)
+					else if (ds.RandomNumber.logic32(2u) != 0)
 					{
 						T.characterManager().setMonsterAllTarget(nowMonster());
 					}
@@ -827,7 +827,7 @@ internal static partial class GlobalScope
 				for (i = 0; i < 6 && monsterSpecialAttackParameter.param(i) >= 0; i++)
 				{
 				}
-				int i2 = (int)ds.RandomNumber.rand32((uint)i);
+				int i2 = (int)ds.RandomNumber.logic32((uint)i);
 				short num = monsterSpecialAttackParameter.param(i2);
 				nowMonster().magicDefense().weakType_set(num);
 				int num2 = 2047 - num;

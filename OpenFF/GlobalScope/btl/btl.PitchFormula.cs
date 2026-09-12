@@ -24,7 +24,7 @@ internal static partial class GlobalScope
 				CommonFormula commonFormula = new CommonFormula();
 				int num = commonFormula.calcJobSkill(attacker);
 				int num2 = 95 + num / 20;
-				if (num2 <= ds.RandomNumber.rand32(101u))
+				if (num2 <= ds.RandomNumber.logic32(101u))
 				{
 					return false;
 				}
@@ -42,7 +42,7 @@ internal static partial class GlobalScope
 				CommonFormula commonFormula = new CommonFormula();
 				int num2 = commonFormula.calcJobSkill(attacker);
 				int num3 = 10 * (100 + num * 25 / 10) * ((100 + num2) * 10 * 10 / 99) / 10 / 10;
-				return (int)(num3 * (ds.RandomNumber.rand32(81u) + 100) / 100);
+				return (int)(num3 * (ds.RandomNumber.logic32(81u) + 100) / 100);
 			}
 		}
 	}
