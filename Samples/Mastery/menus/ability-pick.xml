@@ -79,7 +79,7 @@
       <data>Option 10</data>
     </frame>
     <frame>
-      <id>page</id><x>24</x><y>308</y><width>400</width><height>20</height>
+      <id>page</id><x>24</x><y>286</y><width>400</width><height>20</height>
       <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
       <data>L / R: more</data>
     </frame>

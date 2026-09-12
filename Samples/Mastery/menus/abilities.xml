@@ -119,7 +119,7 @@
       <data>L / R: more jobs</data>
     </frame>
     <frame>
-      <id>hint</id><x>24</x><y>308</y><width>460</width><height>20</height>
+      <id>hint</id><x>24</x><y>286</y><width>240</width><height>20</height>
       <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
       <data>A: set a free slot, take a job   B: back</data>
     </frame>

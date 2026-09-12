@@ -87,8 +87,8 @@ namespace Mastery
 				Menu.SetText("job" + i, (job.Held ? "> " : "  ") + job.Title + standing + (job.Open ? "" : "  (closed)"));
 				if (w != null) w.Colour = job.Held ? MenuColour.Yellow : job.Open ? MenuColour.White : MenuColour.Disabled;
 			}
-			Menu.SetText("page", pages > 1 ? "L / R: more jobs" : "");
-			Menu.SetText("hint", "A: set a free slot, take a job     B: back");
+			Menu.SetText("page", pages > 1 ? "L / R (Q / E): more jobs" : "");
+			Menu.SetText("hint", "A: set a slot, take a job");
 		}
 
 		private static string Shown(AbilityInfo a) => (a.Passive ? "" : "!") + a.Name;
@@ -163,7 +163,7 @@ namespace Mastery
 				bool set = m != null && a.Id > 0 && m.Slots.Contains(a.Id);
 				Menu.SetText("opt" + i, a.Id == 0 ? a.Name : (a.Passive ? "" : "!") + a.Name + (a.Passive ? "   passive" : "   command") + (set ? "   (set)" : ""));
 			}
-			Menu.SetText("page", pages > 1 ? "L / R: more   " + (_page + 1) + " / " + pages : "");
+			Menu.SetText("page", pages > 1 ? "L / R (Q / E): more   " + (_page + 1) + " / " + pages : "");
 		}
 
 		public override bool OnPress()
