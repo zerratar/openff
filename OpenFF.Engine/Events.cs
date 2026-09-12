@@ -175,6 +175,20 @@ namespace OpenFF
 			public int Number { get; set; }
 		}
 
+		/// <summary>One of the game's menu screens (or a mod's) was built: its layout name (main_menu, status, shop_buy_list, a mod screen's), and the file it lives in when known. Draw over it from Game.Draw, or reach its frames through Game.Menus.Current when it is a mod's.</summary>
+		public sealed class MenuOpened
+		{
+			public string Screen { get; set; }
+			/// <summary>True for a screen of a mod's own (Game.Menus.Current is it).</summary>
+			public bool Mod { get; set; }
+		}
+
+		/// <summary>A menu screen was released.</summary>
+		public sealed class MenuClosed
+		{
+			public string Screen { get; set; }
+		}
+
 		/// <summary>A script took control for a scene (EventStart); Ended when it gave it back.</summary>
 		public sealed class CutsceneStarted { }
 		public sealed class CutsceneEnded { }

@@ -1469,10 +1469,13 @@ frames: `_list = new MenuList(Menu, "row", 7, "page")`, set `Items` (and `SubIte
 `SubPrefix` for a second line), `Show()`, hand it `OnFocus()` (the cursor moving off the last
 row scrolls; an empty row sends it back) and `OnKey(key)` (L / R pages), and `IndexAt(id)` or
 `Selected` say which item a pressed row is - the Mastery sample's two lists are ten lines each.
-Those same sheets are how the
+`Game.Events` publishes `MenuOpened` (the screen's name, `Mod` for a mod's own) and `MenuClosed`
+for every screen the game builds - shops and battle included - so a service can draw over any
+of them from `Game.Draw` without a definition. Those same sheets are how the
 look itself is changed: a mod's `files/m000_window.NCBR` (the window art), `icon_yubi.NCGR`
-(the cursor), a face sheet, replaces the game's - Crystal's Images tab has *Replace the picture*
-on any of them and *Import a PNG…* for pictures of the mod's own. In Crystal
+(the cursor), a face sheet, replaces the game's - Crystal's Images tab has *Save as PNG* to take
+any of them out, *Replace…* to bring the painted one back, and *Import a PNG…* for pictures of
+the mod's own. In Crystal
 the frame's inspector has *Behaviours (OpenFF)* as an object's does (Add Behaviour lists the
 engine's and the mod's `MenuBehaviour` classes; a new name writes a starter class), and the
 screen's card - selected by clicking the canvas away from any frame - has the screen's own

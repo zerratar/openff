@@ -421,11 +421,15 @@ namespace OpenFF.Client
 		// ---- the game's own screens the mods reach (MenuManager tells us as they are built, run and released) ----
 
 		/// <summary>buildMenu(name) has built one of the game's screens: the definitions reaching it get their behaviours over it.</summary>
+		private static string _lastBuilt;
+
 		public static void GameScreenBuilt(string name)
 		{
 			try
 			{
 				GameScreenReleased();
+				_lastBuilt = name;
+				if (name != null) OpenFF.Game.Guard("MenuOpened", () => OpenFF.Game.Events.Publish(new OpenFF.Events.MenuOpened { Screen = name, Mod = _current != null && string.Equals(_current.Screen, name, StringComparison.OrdinalIgnoreCase) }));
 				if (name == null || !_gameScreenDefs.TryGetValue(name, out List<MenuDefinition> defs) || defs.Count == 0) return;
 				if (_current != null && string.Equals(_current.Screen, name, StringComparison.OrdinalIgnoreCase) && _host != null) return;   // a mod screen of that name: CWMenuMod plays it
 				_gameScreen = new ModMenuScreen(defs[0], null, false);
@@ -485,6 +489,12 @@ namespace OpenFF.Client
 		/// <summary>The game's screen is being released (another built, or the menus left): its behaviours hear OnClose, its windows go.</summary>
 		public static void GameScreenReleased()
 		{
+			if (_lastBuilt != null)
+			{
+				string was = _lastBuilt;
+				_lastBuilt = null;
+				OpenFF.Game.Guard("MenuClosed", () => OpenFF.Game.Events.Publish(new OpenFF.Events.MenuClosed { Screen = was }));
+			}
 			if (_gameScreen == null) return;
 			foreach (MenuBehaviour b in _gameBehaviours) OpenFF.Game.Guard(b.Name + ".OnClose", b.OnClose);
 			_gameBehaviours = new List<MenuBehaviour>();

@@ -26,6 +26,10 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   `Gauge` (a bar); `MenuList` for lists longer than the screen (scrolling, pages, a second
   line per item); `IMenuScreen.Behaviours` / `Behaviour<T>(target)` to reach the engine's
   behaviours from a mod's; the game's `Icon` widget documented.
+- **Events for every screen:** `MenuOpened` / `MenuClosed` for the game's screens and the mods',
+  shops and battle included, to draw over any of them from `Game.Draw`. Crystal's Images tab has
+  *Save as PNG* beside *Replace…*, the round trip for painting the game's window art, cursor and
+  faces.
 - **FF5's way with the Freelancer.** A job with no ladder to climb gains no ABP and shows no
   level (FF5's Freelancer and Mime-likes); `JobInfo.HasLadder` is false for it, `Inherits` says
   why. Jobs start at Lv. 0 with ABP counted toward the next level, as FF5 has it.

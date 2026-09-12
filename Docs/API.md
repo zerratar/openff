@@ -11,7 +11,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 - [Handles and data](#handles-and-data): [`AbilityInfo`](#abilityinfo), [`Back`](#back), [`BattleActor`](#battleactor), [`BattleCommand`](#battlecommand), [`BattleCommandLoader`](#battlecommandloader), [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`Gauge`](#gauge), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`JobInfo`](#jobinfo), [`Label`](#label), [`Look`](#look), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`MenuAttachment`](#menuattachment), [`MenuBehaviour`](#menubehaviour), [`MenuDefinition`](#menudefinition), [`MenuEntry`](#menuentry), [`MenuList`](#menulist), [`MenuLoader`](#menuloader), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`OpenMenu`](#openmenu), [`PartyMember`](#partymember), [`Picture`](#picture), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
-- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
+- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MenuClosed`](#menuclosed), [`MenuOpened`](#menuopened), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
 - [Saving](#saving): [`ISaveable`](#isaveable), [`SaveChunks`](#savechunks)
 - [Mods and loading](#mods-and-loading): [`LoadedMod`](#loadedmod), [`ModDefinition`](#moddefinition), [`ModLoader`](#modloader), [`ModWatcher`](#modwatcher)
 - [Constants](#constants): [`BattleResult`](#battleresult), [`CommandTarget`](#commandtarget), [`Condition`](#condition), [`CutsceneStart`](#cutscenestart), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MenuColour`](#menucolour), [`MenuKey`](#menukey), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting), [`WanderGait`](#wandergait)
@@ -1956,6 +1956,27 @@ The current map is being left.
 | --- | --- |
 | `SceneInfo Scene { get; set; }` |  |
 
+### MenuClosed
+
+`class MenuClosed` - `OpenFF.Events`
+
+A menu screen was released.
+
+| Member | What it does |
+| --- | --- |
+| `string Screen { get; set; }` |  |
+
+### MenuOpened
+
+`class MenuOpened` - `OpenFF.Events`
+
+One of the game's menu screens (or a mod's) was built: its layout name (main_menu, status, shop_buy_list, a mod screen's), and the file it lives in when known. Draw over it from Game.Draw, or reach its frames through Game.Menus.Current when it is a mod's.
+
+| Member | What it does |
+| --- | --- |
+| `bool Mod { get; set; }` | True for a screen of a mod's own (Game.Menus.Current is it). |
+| `string Screen { get; set; }` |  |
+
 ### MessageShown
 
 `class MessageShown` - `OpenFF.Events`
@@ -2516,4 +2537,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-157 types, 1137 members; 487 without a summary yet.
+159 types, 1140 members; 489 without a summary yet.

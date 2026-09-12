@@ -496,6 +496,9 @@ button {
 }
 button:hover { border-color: #3c4552; }
 button.primary { background: #2b4a7a; border-color: #37619c; }
+/* A link dressed as a button (a download). */
+a.button-like { background: #262c35; border: 1px solid var(--line); color: var(--ink); padding: 4px 10px; border-radius: 5px; cursor: pointer; text-decoration: none; font: inherit; display: inline-block; }
+a.button-like:hover { border-color: #3c4552; }
 /* A box with a button beside it rather than under it - the button belongs to the box. */
 .with-button { display: flex; gap: 5px; align-items: stretch; margin-top: 3px; }
 .with-button input { margin-top: 0; }

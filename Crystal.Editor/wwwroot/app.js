@@ -1804,6 +1804,15 @@ async function openImage(name) {
   checker.onchange = paint;
   paint();
 
+  // The picture out as a file: the game's 2D sheets are PNGs, so this is the way to a window
+  // frame or a cursor of one's own - paint over it, Replace… brings it back under the game's name.
+  const savePng = $('.save-png', node);
+  if (savePng) {
+    savePng.href = wsUrl(`/api/image?name=${encodeURIComponent(name)}`);
+    savePng.download = shortName(name).replace(/\.(ncgr|ncbr|png)$/i, '') + '.png';
+    savePng.className = 'save-png button-like';
+  }
+
   const picker = $('.picker', node);
   $('.replace', node).onclick = () => picker.click();
   picker.onchange = async () => {
