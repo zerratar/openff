@@ -1,0 +1,11 @@
+{
+  "id": "time-mage",
+  "base": "magus",
+  "look": "black-mage",
+  "name": "Time Mage",
+  "stats": { "strength": -1, "vitality": -1, "magic": 5 },
+  "abilities": [
+    { "abp": 25, "ability": "black-magic", "carries": true },
+    { "abp": 60, "ability": "equip-time-rods", "name": "Equip Time Mage's Rods", "passive": true, "grants": ["magus"], "carries": true }
+  ]
+}

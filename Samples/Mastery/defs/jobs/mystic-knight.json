@@ -1,0 +1,12 @@
+{
+  "id": "mystic-knight",
+  "base": "red-mage",
+  "look": "knight",
+  "name": "Mystic Knight",
+  "commands": ["attack", "magic", "*", "item"],
+  "stats": { "strength": 3, "agility": 3, "vitality": 3 },
+  "abilities": [
+    { "abp": 30, "ability": "magic", "carries": true },
+    { "abp": 70, "ability": "equip-mystic-swords", "name": "Equip Mystic Knight's Swords", "passive": true, "grants": ["red-mage"], "carries": true }
+  ]
+}

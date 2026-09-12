@@ -215,6 +215,45 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   islands' rims repainted from their insides, as Crystal's viewer does); `--gltf-mips=auto`
   builds a chain from the UVs' coverage where they leave room, `full` regardless.
 
+## Unreleased
+
+- **A hero's progression: FF3's jobs, FF4's class, or FF5's mastery.** A character
+  definition's `"progression"` picks which game's system the hero grows by, and a party can
+  mix them. `"jobs"` is the game as it is. `"class"` fixes the starting job for good and
+  learns spells by level from a `"learn"` list (Cure at 1, Sight at 8...). `"mastery"` is
+  FF5's: jobs changed freely with no penalty time, each job climbing a **ladder** of
+  abilities (`defs/jobs/<id>.json`, *Mod ▸ Jobs* in Crystal) on **ABP** won in battle - the
+  formation's `abp` or one per monster - and any learned ability set into a **free command
+  slot** of whatever job the hero holds: a Knight casting white magic, a White Mage stealing.
+  Passives (Cover, Alchemy, FF5's Counter - a plain attack back at every blow - and HP
+  +10/20/30%, or a passive of the mod's own) work while set or innate; a
+  Freelancer-like job that `inherits` carries the innate passives of every mastered job;
+  `grants` lend a job's equipment and magic permissions (FF5's *Equip Swords*). Ladders' state
+  rides beside the save (`save.progression.json`). The client's Esc menu gains **Abilities**
+  with such a hero in the party: the hero, the slot, anything learned, and every ladder's level
+  and ABP; notices at the top right announce ABP, levels and abilities won. From C#:
+  `Game.Party.SetAbility / GiveAbp / JobLevel / Abp / Mastered / Ability / HasAbility`,
+  `PartyMember.Progression / Abilities / Learned / Slots`, `Game.Screen.Notice`. Crystal's
+  Characters panel has the Progression card (system, learn list); the Jobs panel edits a
+  ladder's commands, innate passives, stat modifiers and steps, and `crystal tables` prints
+  each job's commands and the ability table. FF5's stat modifiers are in - a ladder's `stats`
+  on FF3's five, a job that inherits taking the best positive of every mastered job, an Equip
+  ability or spell list that `carries` its job's - and the game's Job and Status screens show
+  a mastery hero's ladder level. Not FF5's: MP as a pool, `!Mimic`, Blue Magic, the effects
+  of its support abilities beyond Cover, Alchemy, Counter and the HP boosts.
+- **Samples/Mastery.** FF3 with FF5's job system and nothing else changed: the four heroes on
+  the mastery progression and a ladder for each of the 23 jobs - its command, an *Equip …*
+  passive, the Freelancer and Onion Knight inheriting with two free slots - and FF5's nine
+  jobs FF3 has not (Samurai, Berserker, Time Mage, Blue Mage, Mystic Knight, Beastmaster,
+  Chemist, Dancer, Mime) as jobs of the mod's own. Definitions only; copy it into `mods/` to
+  play.
+- **Jobs of the mod's own.** A ladder that says `base` instead of `job` is a new job standing
+  on one of FF3's: the game's party holds the base (growth, charges, equipment, motions), the
+  layer remembers the job, and the player sees the mod's - the name in every menu, the
+  commands, the ladder, the stats, and an FF3 job's figures (`look`) until someone models new
+  ones. Taken from the Abilities menu's *Change job* page (every open job, no penalty) or
+  `Game.Party.ChangeJob(id, "samurai")`; Crystal's *New ladder…* makes one. The save keeps it.
+
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 
 - **A glTF in the hand (OpenFF target).** A weapon definition's `"model": "assets/blade.glb"`

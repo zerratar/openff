@@ -1,0 +1,10 @@
+{
+  "id": "viking",
+  "job": "viking",
+  "name": "Viking",
+  "stats": { "strength": 4, "agility": -2, "vitality": 5, "magic": -5 },
+  "abilities": [
+    { "abp": 20, "ability": "provoke" },
+    { "abp": 50, "ability": "equip-hammers", "name": "Equip Hammers", "passive": true, "grants": ["viking"], "carries": true }
+  ]
+}

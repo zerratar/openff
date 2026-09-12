@@ -1,0 +1,10 @@
+{
+  "id": "black-belt",
+  "job": "black-belt",
+  "name": "Black Belt",
+  "stats": { "strength": 5, "agility": 3, "vitality": 1, "magic": -3 },
+  "abilities": [
+    { "abp": 20, "ability": "boost" },
+    { "abp": 50, "ability": "equip-nunchaku", "name": "Equip Nunchaku", "passive": true, "grants": ["black-belt"], "carries": true }
+  ]
+}

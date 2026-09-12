@@ -368,7 +368,35 @@ namespace OpenFF
 		/// <summary>The spells equipped, by id, in the order of their levels.</summary>
 		public List<int> Spells { get; } = new List<int>();
 		public bool Alive { get; set; }
+		/// <summary>
+		/// How the character grows, from the mod's character definition: "jobs" (FF3's system, the
+		/// default), "class" (FF4's: one class for good, learning by level) or "mastery" (FF5's: job
+		/// ladders climbed on ABP, learned abilities set into free command slots).
+		/// </summary>
+		public string Progression { get; set; } = "jobs";
+		/// <summary>Mastery: the abilities in play in the held job - innate passives and what is set into the free slots.</summary>
+		public List<AbilityInfo> Abilities { get; } = new List<AbilityInfo>();
+		/// <summary>Mastery: everything learned from the job ladders so far.</summary>
+		public List<AbilityInfo> Learned { get; } = new List<AbilityInfo>();
+		/// <summary>Mastery: the ability set into each free slot of the held job (0 for none) - as many entries as the job leaves free.</summary>
+		public int[] Slots { get; set; } = System.Array.Empty<int>();
+		/// <summary>The job really held, by word: FF3's ("knight") or a mod's own from defs/jobs ("samurai", standing on the FF3 job in Job).</summary>
+		public string JobWord { get; set; }
+		/// <summary>The held job's name as the menus print it.</summary>
+		public string JobTitle { get; set; }
 		public override string ToString() => Name + " L" + Level + " (" + Hp + "/" + MaxHp + " hp, " + JobName + ")";
+	}
+
+	/// <summary>An ability on the mastery progression: one of the game's battle commands or passives, or a passive of the mod's own.</summary>
+	public sealed class AbilityInfo
+	{
+		/// <summary>The game's ability id (1 Attack, 3 Guard, 7 Steal, 10 Cover...) or 100 up for a mod's own passive.</summary>
+		public int Id { get; set; }
+		/// <summary>The word a definition uses: "cover", "white-magic", or the mod passive's own.</summary>
+		public string Word { get; set; }
+		public string Name { get; set; }
+		public bool Passive { get; set; }
+		public override string ToString() => Name + (Passive ? " (passive)" : "");
 	}
 
 	/// <summary>A stat by name, for IParty.SetStat.</summary>
@@ -427,6 +455,33 @@ namespace OpenFF
 		void Unequip(int id, EquipSlot slot);
 		/// <summary>The item in a slot, or 0.</summary>
 		int Equipped(int id, EquipSlot slot);
+
+		// ---- the mastery progression (FF5's way; defs/characters "progression": "mastery", defs/jobs ladders) ----
+
+		/// <summary>Sets a learned ability into a free command slot of the character's held job (0 clears it); false when not on the progression, not learned, or no such slot. The battle commands follow at once.</summary>
+		bool SetAbility(int id, int slot, int abilityId);
+		/// <summary>Gives ABP toward a job's ladder, climbing it as battles do; returns how many steps were reached (abilities learned). Nothing without a ladder for the job.</summary>
+		int GiveAbp(int id, Job job, int amount);
+		/// <summary>The level a character has reached on a job's ladder (0 at the bottom or without a ladder).</summary>
+		int JobLevel(int id, Job job);
+		/// <summary>ABP gathered toward the next step of a job's ladder.</summary>
+		int Abp(int id, Job job);
+		/// <summary>Whether a job's ladder is climbed to the top.</summary>
+		bool Mastered(int id, Job job);
+		/// <summary>An ability by its word ("cover", "white-magic", a mod passive's own word) or the game's name; null for none.</summary>
+		AbilityInfo Ability(string word);
+		/// <summary>Whether an ability is in play for the character now: innate in the held job or set into a free slot.</summary>
+		bool HasAbility(int id, int abilityId);
+		/// <summary>
+		/// A mastery hero takes a job by word - one of FF3's ("knight") or a job of the mod's own from
+		/// defs/jobs ("samurai") - with no penalty, the field figure following; false when the hero is not
+		/// on the progression, the job is unknown, not yet opened by the crystals (a mod's job needs its
+		/// base open), or fixed. A mod's job stands on an FF3 base the game's party holds (PartyMember.Job
+		/// is the base; JobWord and JobTitle say the job really held).
+		/// </summary>
+		bool ChangeJob(int id, string job);
+		/// <summary>The jobs a character may take now, by word: FF3's the crystals have opened and the mod's own whose base is open.</summary>
+		IReadOnlyList<string> OpenJobs(int id);
 	}
 
 	public interface IAudio
@@ -450,6 +505,8 @@ namespace OpenFF
 		void PopMiss(Vector3 at);
 		/// <summary>The colour behind everything the 3D scene does not cover - black on the game's maps. What a map of the mod's own has for a sky; set it back on leaving.</summary>
 		Color Background { get; set; }
+		/// <summary>A short line over the game, top right, for a few seconds - the way ABP and learned abilities are announced. Never blocks a scene.</summary>
+		void Notice(string text);
 	}
 
 	/// <summary>The map and moving between maps.</summary>

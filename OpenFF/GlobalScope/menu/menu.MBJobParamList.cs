@@ -162,6 +162,8 @@ internal static partial class GlobalScope
 								.skill()
 								.skillLevel()
 								.get();
+							// PORT: a hero on the mods' mastery progression shows the job's ladder level here (FF5's job menu).
+							num = OpenFF.Client.ProgressionLayer.JobMenuLevel(pl.PlayerParty.instance().player((byte)targetCharNo).playerId(), GET_JOB_NUMBER(medget), num);
 							dgs.msg.CMessageSys.getInstance().changeValueFont(num, out after);
 							dGSMessage = dGSMessageManager.createMessage(after, (int)font);
 							if (dGSMessage != null)

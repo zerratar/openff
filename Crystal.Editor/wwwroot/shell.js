@@ -34,6 +34,7 @@ const KINDS = [
   { id: 'scene', label: 'Scenes', mod: true },
   { id: 'items', label: 'Items', mod: true },
   { id: 'characters', label: 'Characters', mod: true },
+  { id: 'jobs', label: 'Jobs', mod: true },
   { id: 'monsters', label: 'Monsters', mod: true },
   { id: 'formations', label: 'Formations', mod: true },
   { id: 'strings', label: 'Strings', mod: true }
@@ -178,6 +179,7 @@ async function openDoc(kind, name, options = {}) {
   // An item definition is edited in the inspector; opening it opens its file as text.
   if (kind === 'items') return openDoc('code', 'defs/items/' + name + '.json', options);
   if (kind === 'characters') return openDoc('code', 'defs/characters/' + name + '.json', options);
+  if (kind === 'jobs') return openDoc('code', 'defs/jobs/' + name + '.json', options);
   if (kind === 'monsters') return openDoc('code', 'defs/monsters/' + name + '.json', options);
   if (kind === 'formations') return openDoc('code', 'defs/formations/' + name + '.json', options);
   const settings = options === true ? { reload: true } : options;
@@ -962,6 +964,10 @@ async function inspectAsset(kind, name, options = {}) {
       const c = await api(`/api/project/characters?id=${encodeURIComponent(name)}`);
       if (c.ok === false) throw new Error(c.error);
       me.data = { character: c.character, jobs: c.jobs, heroes: c.heroes };
+    } else if (kind === 'jobs') {
+      const j = await api(`/api/project/jobs?id=${encodeURIComponent(name)}`);
+      if (j.ok === false) throw new Error(j.error);
+      me.data = { ladder: j.ladder, jobs: j.jobs, abilities: j.abilities, gameCommands: j.gameCommands };
     } else if (kind === 'monsters') {
       const m = await api(`/api/project/monsters?id=${encodeURIComponent(name)}`);
       if (m.ok === false) throw new Error(m.error);
@@ -1131,6 +1137,10 @@ function drawInspectedAsset(box) {
   }
   if (kind === 'formations' && data && typeof formationPanel === 'function') {
     box.append(formationPanel(data, () => { loadList(); }));
+    return;
+  }
+  if (kind === 'jobs' && data && typeof jobLadderPanel === 'function') {
+    box.append(jobLadderPanel(data, () => { loadList(); }));
     return;
   }
   // A text file: its lines by id, and the way to use one. The file itself is edited as JSON.
@@ -1948,7 +1958,7 @@ function drawProjectTree() {
       const label = document.createElement('b');
       label.textContent = 'Mod';
       tab.append(label);
-      const count = (project.scenes || 0) + (project.items || 0) + (project.characters || 0) + (project.monsters || 0) + (project.formations || 0) + (project.text || 0);
+      const count = (project.scenes || 0) + (project.items || 0) + (project.characters || 0) + (project.jobs || 0) + (project.monsters || 0) + (project.formations || 0) + (project.text || 0);
       if (openff && count) { const n = document.createElement('span'); n.textContent = String(count); tab.append(n); }
       tab.title = !openff
         ? `${project.name} is a Steam mod: files replaced in the game, no code. Tick FF3 or FF4 under OpenFF in Project settings to make it an OpenFF mod as well.`
@@ -1971,13 +1981,13 @@ function drawProjectTree() {
     if (kind.mod && !project) continue;
     const row = document.createElement('div');
     row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod && !openff ? ' dim' : '');
-    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'characters' ? 'character' : kind.id === 'strings' ? 'text' : kind.id === 'monsters' ? 'monster' : kind.id === 'formations' ? 'formation' : 'code') : kind.id));
+    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'characters' ? 'character' : kind.id === 'strings' ? 'text' : kind.id === 'monsters' ? 'monster' : kind.id === 'formations' ? 'formation' : kind.id === 'jobs' ? 'ladder' : 'code') : kind.id));
     const label = document.createElement('span');
     label.textContent = kind.label;
     row.append(label);
     if (kind.mod && project && openff) {
       const count = document.createElement('i');
-      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : kind.id === 'characters' ? (project.characters || '') : kind.id === 'strings' ? (project.text || '') : kind.id === 'monsters' ? (project.monsters || '') : kind.id === 'formations' ? (project.formations || '') : '';
+      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : kind.id === 'characters' ? (project.characters || '') : kind.id === 'strings' ? (project.text || '') : kind.id === 'monsters' ? (project.monsters || '') : kind.id === 'formations' ? (project.formations || '') : kind.id === 'jobs' ? (project.jobs || '') : '';
       if (count.textContent) row.append(count);
       row.title = kind.id === 'scene'
         ? 'Maps this mod has put behaviours or objects on (scenes/<map>.json). Each opens in the map editor.'
@@ -1989,6 +1999,8 @@ function drawProjectTree() {
               ? 'The mod\'s own monsters (defs/monsters/<id>.json): each starts from one of the game\'s - its family is the battle model - with a name, a look and any field of the record changed; the client adds them to the game\'s tables.'
             : kind.id === 'formations'
               ? 'The mod\'s formations (defs/formations/<id>.json): up to four slots of a monster with a count - what an Encounter on a map fights.'
+            : kind.id === 'jobs'
+              ? 'Job ladders (defs/jobs/<id>.json) for heroes on the mastery progression, FF5\'s way: a job\'s battle commands with free slots, and the abilities it teaches for ABP won in battle.'
             : kind.id === 'strings'
               ? 'The mod\'s own lines of text (defs/text/<name>.json): message id -> line. "@<id>" in a Chest or Talk, startMessage2(0, <id>, 0, 0) in a CastScript; the client adds them to the game\'s text.'
               : 'The C# code under code/, and project.json. Opens here, or in your IDE.';
@@ -2062,6 +2074,9 @@ function drawCodeActions() {
     }
     if (browseKind === 'monsters' && typeof newMonsterDialog === 'function') {
       button('New monster…', 'A monster of the mod\'s own: starts from one of the game\'s, with a name, a look and any field of the record changed', () => newMonsterDialog(), true);
+    }
+    if (browseKind === 'jobs' && typeof newJobDialog === 'function') {
+      button('New ladder\u2026', 'A job ladder for the mastery progression: which job, its commands, the abilities it teaches for ABP', () => newJobDialog(), true);
     }
     if (browseKind === 'formations' && typeof newFormationDialog === 'function') {
       button('New formation…', 'A monster party of the mod\'s own: up to four slots of a monster with a count', () => newFormationDialog(), true);

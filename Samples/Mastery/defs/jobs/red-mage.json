@@ -1,0 +1,10 @@
+{
+  "id": "red-mage",
+  "job": "red-mage",
+  "name": "Red Mage",
+  "stats": { "strength": 2, "agility": 1, "vitality": -1, "magic": 2 },
+  "abilities": [
+    { "abp": 30, "ability": "magic", "carries": true },
+    { "abp": 70, "ability": "equip-rapiers", "name": "Equip Rapiers", "passive": true, "grants": ["red-mage"], "carries": true }
+  ]
+}

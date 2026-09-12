@@ -1,0 +1,9 @@
+{
+  "id": "onion-knight",
+  "job": "onion-knight",
+  "name": "Onion Knight",
+  "commands": ["attack", "*", "*", "item"],
+  "inherits": true,
+  "abilities": [
+  ]
+}

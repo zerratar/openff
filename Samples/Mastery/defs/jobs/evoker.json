@@ -1,0 +1,10 @@
+{
+  "id": "evoker",
+  "job": "evoker",
+  "name": "Evoker",
+  "stats": { "strength": -2, "magic": 5 },
+  "abilities": [
+    { "abp": 25, "ability": "summon", "carries": true },
+    { "abp": 60, "ability": "equip-evoker-gear", "name": "Equip Evoker's Gear", "passive": true, "grants": ["evoker"], "carries": true }
+  ]
+}

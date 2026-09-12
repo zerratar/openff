@@ -1,0 +1,10 @@
+{
+  "id": "devout",
+  "job": "devout",
+  "name": "Devout",
+  "stats": { "strength": -2, "vitality": -1, "magic": 7 },
+  "abilities": [
+    { "abp": 40, "ability": "white-magic", "carries": true },
+    { "abp": 90, "ability": "equip-devout-gear", "name": "Equip Devout's Gear", "passive": true, "grants": ["devout"], "carries": true }
+  ]
+}

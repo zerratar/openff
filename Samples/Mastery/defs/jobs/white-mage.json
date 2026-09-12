@@ -1,0 +1,10 @@
+{
+  "id": "white-mage",
+  "job": "white-mage",
+  "name": "White Mage",
+  "stats": { "strength": -1, "magic": 5 },
+  "abilities": [
+    { "abp": 20, "ability": "white-magic", "carries": true },
+    { "abp": 50, "ability": "equip-staves", "name": "Equip Staves", "passive": true, "grants": ["white-mage"], "carries": true }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "chemist",
+  "base": "scholar",
+  "name": "Chemist",
+  "commands": ["attack", "study", "*", "item"],
+  "stats": { "agility": 1, "vitality": 1, "magic": -1 },
+  "abilities": [
+    { "abp": 15, "ability": "alchemy" },
+    { "abp": 50, "ability": "equip-chemist-gear", "name": "Equip Chemist's Gear", "passive": true, "grants": ["scholar"], "carries": true }
+  ]
+}

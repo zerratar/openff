@@ -89,7 +89,7 @@ OpenFF/          the client
 OpenFF.Engine/     the mod API and object model: what a mod references (no MonoGame, no game code)
 Crystal.Editor/   Crystal, the editor, and the command-line converters
 Shared/            every file format once - Content, Data (the unified tables), Script, Text - compiled into both programs
-Samples/           HelloMod (a service, a behaviour, a save chunk), Survivors (a survivors-style run on the field) and Showcase (a map, weapons and models of a mod's own - no code)
+Samples/           HelloMod (a service, a behaviour, a save chunk), Survivors (a survivors-style run on the field), Showcase (a map, weapons and models of a mod's own - no code) and Mastery (FF3 with FF5's job system - definitions only)
 Tools/             Python: the FF4 binary dumps, table generators, format tests
 Docs/              reference, plans and the journal (below)
 Reference/libff4/  what we wrote about the FF4 binary; the dumps themselves are regenerated, not committed

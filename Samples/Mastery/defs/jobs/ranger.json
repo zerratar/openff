@@ -1,0 +1,10 @@
+{
+  "id": "ranger",
+  "job": "ranger",
+  "name": "Ranger",
+  "stats": { "strength": 3, "agility": 2, "magic": -1 },
+  "abilities": [
+    { "abp": 15, "ability": "equip-bows", "name": "Equip Bows", "passive": true, "grants": ["ranger"], "carries": true },
+    { "abp": 45, "ability": "barrage" }
+  ]
+}

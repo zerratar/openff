@@ -1,0 +1,11 @@
+{
+  "id": "berserker",
+  "base": "viking",
+  "name": "Berserker",
+  "commands": ["attack", "provoke", "*", "item"],
+  "stats": { "strength": 4, "agility": -2, "vitality": 5, "magic": -5 },
+  "abilities": [
+    { "abp": 15, "ability": "berserker-rage", "name": "Berserk", "passive": true },
+    { "abp": 45, "ability": "equip-axes", "name": "Equip Axes", "passive": true, "grants": ["viking"], "carries": true }
+  ]
+}

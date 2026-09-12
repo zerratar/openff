@@ -1,0 +1,12 @@
+{
+  "id": "knight",
+  "job": "knight",
+  "name": "Knight",
+  "commands": ["attack", "defend", "*", "item"],
+  "stats": { "strength": 5, "vitality": 4, "magic": -3 },
+  "abilities": [
+    { "abp": 10, "ability": "cover" },
+    { "abp": 30, "ability": "defend" },
+    { "abp": 60, "ability": "equip-shields", "name": "Equip Shields", "passive": true, "grants": ["knight"], "carries": true }
+  ]
+}

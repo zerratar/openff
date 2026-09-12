@@ -1,0 +1,11 @@
+{
+  "id": "dancer",
+  "base": "bard",
+  "name": "Dancer",
+  "commands": ["attack", "sing", "*", "item"],
+  "stats": { "strength": 1, "agility": 1, "vitality": -2, "magic": -1 },
+  "abilities": [
+    { "abp": 20, "ability": "equip-ribbons", "name": "Equip Ribbons", "passive": true, "grants": ["bard"], "carries": true },
+    { "abp": 50, "ability": "sing" }
+  ]
+}

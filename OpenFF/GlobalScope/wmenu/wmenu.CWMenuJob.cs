@@ -301,6 +301,8 @@ internal static partial class GlobalScope
 										.skill()
 										.skillLevel()
 										.get();
+									// PORT: a mastery hero's job shows its ladder level (FF5's job menu).
+									value = OpenFF.Client.ProgressionLayer.JobMenuLevel(no, type, value);
 									string after = "";
 									dgs.msg.CMessageSys.getInstance().changeValueFont(value, out after);
 									dgs.DGSMessageManager dGSMessageManager = dgs.msg.CMessageSys.getInstance().Sub();
@@ -336,7 +338,9 @@ internal static partial class GlobalScope
 									int msg_number = 50105 + pl.PlayerParty.instance().playerForId((byte)CharNo).jobManager()
 										.nowJob();
 									dgs.DGSMessageManager dGSMessageManager = dgs.msg.CMessageSys.getInstance().Sub();
-									pMsgJName = dGSMessageManager.createMessage((uint)msg_number, dgs.INVALID_MSDHANDLE, 1);
+									// PORT: a job of the mods' own has a name of its own (ProgressionLayer).
+									string ownJob = OpenFF.Client.ProgressionLayer.JobNameOverride(CharNo, msg_number - 50105);
+									pMsgJName = ownJob != null ? dGSMessageManager.createMessage(ownJob, 1) : dGSMessageManager.createMessage((uint)msg_number, dgs.INVALID_MSDHANDLE, 1);
 									if (pMsgJName != null)
 									{
 										menu.Medget nodeByID = menu.MenuManager.getSingleton().GetBaseMedget().getNodeByID("job_name");
@@ -586,8 +590,8 @@ internal static partial class GlobalScope
 												VecFx32 vecFx3 = new VecFx32(0, 61532, 0);
 												VecFx32 scale = new VecFx32(4096, 4096, 4096);
 												rot_.copy(vecFx3);
-												sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().player((byte)playerIndex).playerId()) + 1, pl.PlayerParty.instance().player((byte)playerIndex).jobManager()
-													.nowJob() + 1);
+												sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().player((byte)playerIndex).playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(pl.PlayerParty.instance().player((byte)playerIndex).playerId(), pl.PlayerParty.instance().player((byte)playerIndex).jobManager()
+													.nowJob()) + 1);
 												jobModelID_ = cPlayerManager.setUpPlayerHuman(arg, _AutoPilot: false, _Operater: false);
 												wld.WorldPart.getInstance().getWorldSystem().PlayerMng()
 													.PlayerHuman(jobModelID_)
@@ -665,8 +669,8 @@ internal static partial class GlobalScope
 											wld.WorldPart.getInstance().getWorldSystem().PlayerMng()
 												.Player(jobModelID_)
 												.terminate();
-											sprintf(out arg2, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().player((byte)playerIndex).playerId()) + 1, pl.PlayerParty.instance().player((byte)playerIndex).jobManager()
-												.nowJob() + 1);
+											sprintf(out arg2, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().player((byte)playerIndex).playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(pl.PlayerParty.instance().player((byte)playerIndex).playerId(), pl.PlayerParty.instance().player((byte)playerIndex).jobManager()
+												.nowJob()) + 1);
 											jobModelID_ = wld.WorldPart.getInstance().getWorldSystem().PlayerMng()
 												.setUpPlayerHuman(arg2, _AutoPilot: false, _Operater: false);
 											wld.WorldPart.getInstance().getWorldSystem().PlayerMng()

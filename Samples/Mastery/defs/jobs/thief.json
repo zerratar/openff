@@ -1,0 +1,12 @@
+{
+  "id": "thief",
+  "job": "thief",
+  "name": "Thief",
+  "commands": ["attack", "steal", "*", "item"],
+  "stats": { "agility": 3, "magic": -1 },
+  "abilities": [
+    { "abp": 10, "ability": "flee" },
+    { "abp": 30, "ability": "steal" },
+    { "abp": 60, "ability": "equip-knives", "name": "Equip Knives", "passive": true, "grants": ["thief"], "carries": true }
+  ]
+}

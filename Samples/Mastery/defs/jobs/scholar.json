@@ -1,0 +1,12 @@
+{
+  "id": "scholar",
+  "job": "scholar",
+  "name": "Scholar",
+  "commands": ["attack", "study", "*", "item"],
+  "stats": { "agility": 1, "vitality": 1, "magic": -1 },
+  "abilities": [
+    { "abp": 15, "ability": "study" },
+    { "abp": 40, "ability": "alchemy" },
+    { "abp": 70, "ability": "equip-books", "name": "Equip Books", "passive": true, "grants": ["scholar"], "carries": true }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "mime",
+  "base": "onion-knight",
+  "look": "sage",
+  "name": "Mime",
+  "commands": ["*", "*", "*", "item"],
+  "inherits": true,
+  "abilities": [
+  ]
+}

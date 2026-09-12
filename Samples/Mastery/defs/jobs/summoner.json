@@ -1,0 +1,10 @@
+{
+  "id": "summoner",
+  "job": "summoner",
+  "name": "Summoner",
+  "stats": { "strength": -2, "magic": 7 },
+  "abilities": [
+    { "abp": 40, "ability": "summon", "carries": true },
+    { "abp": 90, "ability": "equip-summoner-gear", "name": "Equip Summoner's Gear", "passive": true, "grants": ["summoner"], "carries": true }
+  ]
+}

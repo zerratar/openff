@@ -114,6 +114,11 @@ namespace OpenFF.Client
 				// Esc / Start: the client's own menu - settings (the display, the pad), exit.
 				PauseMenu.Attach(game);
 
+				// Notices over the game (ABP won, an ability learned, what a mod posts) and the
+				// Abilities menu for heroes on the mastery progression.
+				Notices.Attach(game);
+				AbilitiesMenu.Attach(game);
+
 				// What mods draw (Game.Draw) and what they read (Game.Input).
 				ModDraw.Attach(game);
 				EngineInput.Attach(game);

@@ -1,0 +1,10 @@
+{
+  "id": "dark-knight",
+  "job": "dark-knight",
+  "name": "Dark Knight",
+  "stats": { "strength": 4, "vitality": 4, "magic": -2 },
+  "abilities": [
+    { "abp": 20, "ability": "souleater" },
+    { "abp": 50, "ability": "equip-dark-swords", "name": "Equip Dark Swords", "passive": true, "grants": ["dark-knight"], "carries": true }
+  ]
+}

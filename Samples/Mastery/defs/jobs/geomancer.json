@@ -1,0 +1,10 @@
+{
+  "id": "geomancer",
+  "job": "geomancer",
+  "name": "Geomancer",
+  "stats": { "strength": 1, "vitality": 1, "magic": 5 },
+  "abilities": [
+    { "abp": 20, "ability": "terrain" },
+    { "abp": 50, "ability": "equip-bells", "name": "Equip Bells", "passive": true, "grants": ["geomancer"], "carries": true }
+  ]
+}

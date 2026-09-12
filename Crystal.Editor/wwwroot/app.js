@@ -165,7 +165,15 @@ async function loadList() {
     state.characterDefsError = defs.ok ? '' : defs.error;
     state.files = state.characterDefs.map(d => ({
       name: d.id, overridden: false, def: d,
-      note: `slot ${d.slot} (${d.hero})${d.jobName ? ' · ' + d.jobName : ''}${d.level > 1 ? ' · L' + d.level : ''}`
+      note: `slot ${d.slot} (${d.hero})${d.jobName ? ' · ' + d.jobName : ''}${d.level > 1 ? ' · L' + d.level : ''}${d.progression && d.progression !== 'jobs' ? ' · ' + d.progression + ' (' + d.progressionGame + ')' : ''}`
+    }));
+  } else if (state.browse === 'jobs') {
+    // The mod's job ladders: defs/jobs/<id>.json each, with their steps.
+    const defs = await api('/api/project/jobs');
+    state.jobDefsError = defs.ok ? '' : defs.error;
+    state.files = (defs.ok ? (defs.ladders || []) : []).map(d => ({
+      name: d.id, overridden: false, def: d,
+      note: `${d.own ? 'the mod\u2019s own, on the ' + (d.baseName || '?') : (d.jobName || '?')} \u00b7 ${(d.abilities || []).length} step${(d.abilities || []).length === 1 ? '' : 's'}, ${d.totalAbp || 0} ABP${d.freeSlots ? ' \u00b7 ' + d.freeSlots + ' free slot' + (d.freeSlots === 1 ? '' : 's') : ''}${d.inherits ? ' \u00b7 inherits' : ''}`
     }));
   } else if (state.browse === 'monsters') {
     // The mod's monsters: defs/monsters/<id>.json each, with the base they start from.
@@ -355,6 +363,14 @@ function drawList() {
         : 'No monsters of the mod\'s own yet. New monster… (the button above) starts one from a monster of the game\'s - its family is the battle model - with a name, a look and any field of the record changed. A Formation puts it in a fight; an Encounter on a map starts one.');
     list.append(note);
   }
+  if (state.browse === 'jobs' && !list.childElementCount && !filter) {
+    const note = emptyNote();
+    const project = typeof projectState !== 'undefined' && projectState.project;
+    note.say(state.jobDefsError && !project
+      ? 'No project open. File \u25b8 New project\u2026 makes one; the job ladders its mod defines show here.'
+      : 'No job ladders yet. New ladder\u2026 (the button above) gives one of FF3\'s jobs a ladder of abilities, climbed on ABP won in battle by a hero whose progression is "mastery" (FF5\'s way; set it on the character under Characters). A learned ability goes into a free command slot of any job.');
+    list.append(note);
+  }
   if (state.browse === 'formations' && !list.childElementCount && !filter) {
     const note = emptyNote();
     const project = typeof projectState !== 'undefined' && projectState.project;
@@ -394,6 +410,7 @@ function fileIcon(file) {
   if (state.browse === 'strings') return 'text';
   if (state.browse === 'monsters') return 'monster';
   if (state.browse === 'formations') return 'formation';
+  if (state.browse === 'jobs') return 'ladder';
   if (state.browse !== 'code') return state.browse;
   if (file.kind === 'cs' || file.kind === 'csproj') return 'code';
   if (file.kind === 'json') return 'logic';

@@ -353,6 +353,17 @@ namespace OpenFF.Client
 		/// <summary>FF4's characters have fixed classes; a job change means nothing here.</summary>
 		public void SetJob(int id, Job job) { }
 
+		// The mastery progression is the FF3 party's (job ladders over FF3's jobs); FF4's characters are their classes.
+		public bool SetAbility(int id, int slot, int abilityId) => false;
+		public int GiveAbp(int id, Job job, int amount) => 0;
+		public int JobLevel(int id, Job job) => 0;
+		public int Abp(int id, Job job) => 0;
+		public bool Mastered(int id, Job job) => false;
+		public AbilityInfo Ability(string word) => null;
+		public bool HasAbility(int id, int abilityId) => false;
+		public bool ChangeJob(int id, string job) => false;
+		public IReadOnlyList<string> OpenJobs(int id) => new List<string>();
+
 		public void SetStat(int id, Stat stat, int value)
 		{
 			Character c = P.Get(id);

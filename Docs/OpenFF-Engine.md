@@ -143,7 +143,10 @@ The question of "where does a script live" is answered by what its state must ou
    replace one by registering its own under the same interface, in load order.
 4. **Rules as components on the party** - progression (FF3 jobs, FF4 classes) as
    components on party members, so a character can be on either system, and a mod can add
-   a third. Battle and menus read the components; that is the data-driven rebuild.
+   a third. Battle and menus read the components; that is the data-driven rebuild. The first
+   form of it is in: a character definition's `"progression"` (jobs / class / mastery - FF3,
+   FF4, FF5) layered over the game's party by `ProgressionLayer` (Docs/Modding.md, "How a
+   hero grows").
 5. **Event bus** - typed events (`Events.Publish(new MapEntered(...))`,
    `Events.Subscribe<MapEntered>(...)`) for mods that must react without owning the object:
    map entered, battle started, item gained, flag set, dialogue line shown, save about to

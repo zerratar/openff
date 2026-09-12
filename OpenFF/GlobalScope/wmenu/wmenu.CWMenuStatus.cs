@@ -177,9 +177,10 @@ internal static partial class GlobalScope
 									if (mBText != null)
 									{
 										int type = player.jobManager().nowJob();
-										dgs.msg.CMessageSys.getInstance().changeValueFont(player.jobManager().job((pl.JOB_TYPE)type).skill()
+										// PORT: a mastery hero's job level is its ladder's (FF5's status screen).
+										dgs.msg.CMessageSys.getInstance().changeValueFont(OpenFF.Client.ProgressionLayer.JobMenuLevel(player.playerId(), type, player.jobManager().job((pl.JOB_TYPE)type).skill()
 											.skillLevel()
-											.get(), out after);
+											.get()), out after);
 										mBText.mbSetBufferMsg(after, decWidth: false);
 									}
 									nodeByIDFromChildren = M.getNodeByID(TRANSCODE("HP"));

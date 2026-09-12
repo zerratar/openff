@@ -1002,7 +1002,9 @@ it…* on a monster) makes one; the inspector sets the slots.
 
 The client appends it to `monster_party_table.bbd`; `number` is the party id. The battle
 draws each slot's count between min and max, as it does for the game's own parties (six
-fighters at most, three of the medium size).
+fighters at most, three of the medium size). An optional `"abp": 4` is what the formation
+pays a hero on the mastery progression when won (see "How a hero grows"); left out, one per
+monster.
 
 To put it in the game: the **Encounter** component. On any object with a figure (an n021
 villager, an o000 spot, nothing at all), it starts the game's battle with its *Formation*
@@ -1184,10 +1186,9 @@ game's `JOB_TYPE` order) and level.
 ```
 
 `fixedJob` keeps the hero in its job - the job menu beeps at a change, as it does for a job
-not yet won - which is a class of its own in place of the job system, the first step toward
-FF4-style characters. `look` is which hero's model set the character wears (0 Luneth, 1 Arc,
-2 Refia, 3 Ingus: `j<look+1><job+1>` on the field, in battle, in the menus and shops); every
-job has a figure in every set, so nothing is missing anywhere.
+not yet won. `look` is which hero's model set the character wears (0 Luneth, 1 Arc, 2 Refia,
+3 Ingus: `j<look+1><job+1>` on the field, in battle, in the menus and shops); every job has a
+figure in every set, so nothing is missing anywhere.
 
 The client applies it where the game sets the party up - a `--map` start and the title's
 New Game (`ModCharactersLayer.ApplyToNewParty`): the name through `setName` (the name entry
@@ -1197,6 +1198,135 @@ model follows (a Knight in slot 0 is `j109`). A save loaded afterwards carries i
 heroes. One definition per slot; a `--nomods` run is the game's. Not yet: a model of the
 character's own (an NPC model has no job figures and no battle motions to stand in with),
 and heroes beyond the four.
+
+### How a hero grows: `"progression"`
+
+Each hero picks which game's system it plays by - the *Progression* card of the character
+in the inspector, `"progression"` in the file. A party can mix them: a Knight who never
+changes, a Freelancer on FF3's crystals, a fourth on FF5's ladders.
+
+| `progression` | Game | What it means |
+|---|---|---|
+| `"jobs"` (default) | FF3 | Any won job at any time, the job's own four commands and growth; a change costs a few battles of penalty time. The game as it is. |
+| `"class"` | FF4 | The starting job is the hero's class for good (the job menu refuses a change), and a `"learn"` list says what arrives by level. |
+| `"mastery"` | FF5 | Jobs changed freely with no penalty; each job climbs its own **ladder** of abilities on **ABP** won in battle; a learned ability is set into a **free command slot** of whatever job the hero holds. |
+
+The games' names work too (`"ff3"`, `"ff4"`, `"ff5"`). Stats, equipment, models and magic
+charges stay FF3's, by the job held - the systems layer over the game's party rather than
+replace it.
+
+**Class (FF4).** `"learn"` lists spells by the game's name or item id with the level each
+arrives at; the client equips them into the hero's spell slots when the level is reached
+(after a battle's experience, and for a new party once the world is up), and says so in a
+notice. A spell the class's job cannot hold is skipped.
+
+```json
+{ "id": "arc", "slot": 1, "name": "Arc", "job": "white-mage", "level": 5, "progression": "class",
+  "learn": [ { "level": 1, "spell": "Cure" }, { "level": 8, "spell": "Sight" }, { "level": 24, "spell": "Cura" } ] }
+```
+
+**Mastery (FF5).** Set `"progression": "mastery"` on the hero, then give jobs ladders under
+*Mod ▸ Jobs* (`defs/jobs/<id>.json`, one per job). *New ladder…* starts one with the game's
+own commands, the third made a free slot; the inspector edits the rest:
+
+```json
+{ "id": "knight", "job": "knight", "name": "Knight",
+  "commands": ["attack", "defend", "*", "item"],
+  "innate": [],
+  "abilities": [
+    { "abp": 10,  "ability": "cover" },
+    { "abp": 30,  "ability": "defend" },
+    { "abp": 60,  "ability": "equip-shields", "name": "Equip Shields", "passive": true, "grants": ["knight"] },
+    { "abp": 100, "ability": "white-magic", "grants": ["white-mage"] }
+  ] }
+```
+
+- `job` - which of FF3's 23 jobs the ladder is for (the words the character's `job` takes).
+- `commands` - the four battle commands of a hero holding the job, each one of FF3's
+  abilities by word or `"*"` for a free slot. FF5's shape is Attack, the job's command, a
+  free slot, Item; a Freelancer-like job frees two (`["attack", "*", "*", "item"]`), a Mime
+  three. A free slot with nothing set behaves as Guard. Left out, the game's own set with
+  the third command freed.
+- `abilities` - the ladder, in order. Each step costs `abp` from the one before and teaches
+  `ability` for good. FF3's abilities by word: the commands `attack guard defend item steal
+  flee jump throw advance retaliate boost barrage study gauge terrain sing provoke souleater
+  berserk black-magic white-magic summon magic run-away line cancel equipment` and the
+  passives `cover alchemy counterattack` (Counterattack is FF5's *Counter*: a plain attack back
+  at every physical blow, the client's addition to a name the table only carried), the
+  client's own `hp-10 hp-20 hp-30` (FF5's HP boosts, adding up on the HP limit), plus the
+  table's leftovers the battle has no code for (`bash chakra dual-wield hide aim ...` -
+  Crystal marks them *idle*). Any other word is a **passive of the mod's own**: give it a
+  `name` for the menu; it has no effect of the engine's beyond `grants` and what scripts make
+  of it, and the same word across ladders is the same passive.
+- `grants` - jobs whose equipment and magic permissions the hero borrows while the ability
+  is set or innate: FF5's *Equip Swords* is a passive granting `knight`; a magic command
+  grants its own ladder's job unless told otherwise, so a Knight with `white-magic` set can
+  equip and cast what a White Mage could (with the charges of the job held - a Knight has
+  level-1 charges only).
+- `innate` - passives the job has from the start, on top of the game's own (Knight's Cover,
+  Scholar's Alchemy). `inherits: true` marks a Freelancer-like job that carries the innate
+  passives of every job the hero has **mastered** (climbed to the top of), and the best
+  positive stat modifier of each of them.
+- `stats` - FF5's job modifiers, added to the hero's stats while they hold the job, on top of
+  FF3's growth: `{ "strength": 5, "agility": 1, "vitality": 4, "magic": -3 }` (FF5's *stamina*
+  reads as vitality, *magic* as intellect and mind both; `intellect` and `mind` can be set
+  apart). FF5's numbers run to ±30 on a base near 25; FF3's stats run 5 to about 30 by level
+  30, so a fifth of FF5's is about right. A job that `inherits` takes the best positive
+  modifier of every mastered job (penalties never pass on) - FF5's Freelancer rule. A step
+  with `"carries": true` is FF5's rule for *Equip* abilities and spell lists: while it is
+  set, the hero has its ladder job's positive modifiers where they beat the held job's (a
+  Knight with the White Mage's `white-magic` set gets the White Mage's magic).
+
+**Jobs of the mod's own.** FF5 has jobs FF3 has not - Samurai, Berserker, Time Mage, Mime.
+A ladder that says `"base"` instead of `"job"` *is* such a job: a new job standing on one of
+FF3's 23. The game's party holds the base (its growth tables, magic charges, equipment
+permissions and battle motions) while the layer remembers the job the hero really has, and
+everything the player sees is the mod's - the name in the menus (main, status, job, magic,
+formation), the commands, the ladder, the stat modifiers, and the figures: `"look"` names an
+FF3 job whose `j<hero><job>` models it wears (the base's when unsaid) - the game's own until
+someone models new ones. Several jobs may stand on one base. They are numbered from 23 up in
+load order; the save keeps which one a hero holds.
+
+```json
+{ "id": "samurai", "base": "dark-knight", "look": "knight", "name": "Samurai",
+  "commands": ["attack", "defend", "*", "item"], "stats": { "strength": 4, "vitality": 4, "magic": -2 },
+  "abilities": [ { "abp": 20, "ability": "equip-katana", "name": "Equip Katana", "passive": true, "grants": ["dark-knight"], "carries": true },
+                 { "abp": 50, "ability": "souleater" } ] }
+```
+
+In Crystal, *New ladder…* offers *A job of the mod's own* (name, the base, the figures);
+the inspector edits the rest as for any ladder. A hero takes it from the Abilities menu's
+**Change job** page (every job open to them - FF3's the crystals have opened, the mod's whose
+base is open - with no penalty; the Freelancer is open from the start) or from C#:
+`Game.Party.ChangeJob(id, "samurai")`, `Game.Party.OpenJobs(id)`; `PartyMember.JobWord` and
+`.JobTitle` say the job really held, `.Job` the FF3 base. The game's own Job menu still
+lists FF3's 23 - picking one there leaves the mod's job.
+
+ABP come with every battle won: the formation's `"abp"` (a field of `defs/formations`), or
+one per monster when it says nothing. Each mastery hero's held job gets them; the notices at
+the top right say `Luneth: +2 ABP` and `Luneth: Knight level 1 - learned Cover`. A job
+without a ladder earns nothing (the log says so once). The ladders' state - ABP and level per
+job, what is set - is not in the game's save format, so it rides beside the save
+(`%AppData%\FF3\save.progression.json`, by slot, the quick save as slot -1), written when the
+game saves and read when it loads.
+
+**The Abilities menu.** Esc (or Start) opens the client's menu; with a mastery hero in the
+party it has an *Abilities* row: pick the hero, then a free slot, then anything learned from
+any ladder - commands (marked `!`, as FF5 writes them) and passives apart, each saying which
+ladders teach it; a passive works while set, a command shows in the battle's window in the
+slot's place. The hero's page also shows the innate passives and stat modifiers in play and
+every ladder's level and ABP toward the next step. In the game's own menus a mastery hero's
+job level - the Job screen's number beside each job, the Status screen's - is the ladder's
+level rather than FF3's job skill. From C#: `Game.Party.SetAbility(id, slot, abilityId)`,
+`GiveAbp`, `JobLevel`, `Abp`, `Mastered`, `Ability("cover")`, `HasAbility`;
+`PartyMember.Progression`, `.Abilities` (in play), `.Learned`, `.Slots`.
+`Game.Screen.Notice(text)` posts a line the same way.
+
+What FF5 has that is not here: MP as a pool (charges are FF3's, by the job held), the
+battle code behind its own commands (`!Mimic`, `!Blue`, `!Mix`, `!Dance` - a job of the mod's
+own fights with FF3's commands), and the effects of its support abilities beyond Cover,
+Alchemy, Counter and the HP boosts - a mod's passive is a flag; `Game.Party.HasAbility`
+from a `Behaviour` is where its effect lives.
 
 ### Seeing what happens
 
@@ -1237,3 +1367,18 @@ release zip carries them in `Samples\`.
   texture but the fox is made by `crystal sample-assets` (`Crystal.Editor/Editor/SampleAssets.cs`,
   on `GltfBuilder`) - the place to see how a glTF is put together for the hand's frame, a
   ground, or a clip.
+- `Samples/Mastery` - FF3 as it is, except that the four heroes grow FF5's way: four
+  character definitions saying `"progression": "mastery"` and nothing else, a ladder for
+  each of the 23 jobs (`defs/jobs/`), and FF5's nine jobs FF3 has not - Samurai, Berserker,
+  Time Mage, Blue Mage, Mystic Knight, Beastmaster, Chemist, Dancer, Mime - as jobs of the
+  mod's own, each on an FF3 base and wearing an FF3 job's figures. Each ladder teaches the job's own command so another
+  job can slot it (a Knight casting white magic, a Black Mage stealing), an *Equip …* passive
+  granting the job's gear, and here and there a passive (Knight's Cover, Scholar's Alchemy);
+  every job carries FF5's stat modifiers scaled to FF3's range (a Knight +5 strength, +4
+  vitality, -3 magic; a Summoner -2 strength, +7 magic), and the *Equip* passives and spell
+  lists carry them; the Freelancer and the Onion Knight have two free slots and inherit the
+  passives and best modifiers of every mastered job. Knight, Thief and Scholar keep their own second command and free the third;
+  every other job frees Guard. Copy the folder into `mods/` to play it; the ABP come at one
+  per monster, so a ladder of 60-130 ABP is a stretch of the game. Bear the charges in mind:
+  a set magic command casts with the charges of the job held, so a Thief with white magic
+  has none to spend, a Knight his level-1 ones.

@@ -1,0 +1,10 @@
+{
+  "id": "black-mage",
+  "job": "black-mage",
+  "name": "Black Mage",
+  "stats": { "strength": -2, "magic": 6 },
+  "abilities": [
+    { "abp": 20, "ability": "black-magic", "carries": true },
+    { "abp": 50, "ability": "equip-rods", "name": "Equip Rods", "passive": true, "grants": ["black-mage"], "carries": true }
+  ]
+}

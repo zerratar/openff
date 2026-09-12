@@ -1,0 +1,10 @@
+{
+  "id": "bard",
+  "job": "bard",
+  "name": "Bard",
+  "stats": { "strength": -2, "agility": 2, "vitality": -2, "magic": 2 },
+  "abilities": [
+    { "abp": 15, "ability": "equip-harps", "name": "Equip Harps", "passive": true, "grants": ["bard"], "carries": true },
+    { "abp": 45, "ability": "sing" }
+  ]
+}

@@ -30,6 +30,8 @@ namespace Crystal.Editor
 				id = c.Id, slot = c.Slot, hero = c.Slot >= 0 && c.Slot < Heroes.Length ? Heroes[c.Slot] : null,
 				name = c.Name, job = job >= 0 ? (int?)job : null, jobName = job >= 0 ? ModCharacters.Jobs[job].Name : null,
 				level = c.Level, fixedJob = c.FixedJob, look = c.Look,
+				progression = Progressions.Word(c.Progression), progressionGame = Progressions.Game(c.Progression),
+				learn = c.Learn.Select(l => new { level = l.Level, spell = l.Spell }).ToList(),
 				file = "defs/characters/" + c.Id + ".json"
 			};
 		}

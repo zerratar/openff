@@ -1,0 +1,10 @@
+{
+  "id": "sage",
+  "job": "sage",
+  "name": "Sage",
+  "stats": { "strength": -1, "vitality": -1, "magic": 5 },
+  "abilities": [
+    { "abp": 50, "ability": "magic", "carries": true },
+    { "abp": 120, "ability": "equip-sage-gear", "name": "Equip Sage's Gear", "passive": true, "grants": ["sage"], "carries": true }
+  ]
+}

@@ -109,6 +109,8 @@ namespace OpenFF.Data
 		public string Id;
 		public int Number;
 		public string Name;
+		/// <summary>ABP the formation pays a hero on the mastery progression when won; 0 for the default (one per monster).</summary>
+		public int Abp;
 		public List<ModFormationSlot> Slots = new List<ModFormationSlot>();
 		public string Source;
 
@@ -124,6 +126,7 @@ namespace OpenFF.Data
 				Id = node["id"]?.GetValue<string>(),
 				Number = node["number"]?.GetValue<int>() ?? 0,
 				Name = node["name"]?.GetValue<string>(),
+				Abp = node["abp"]?.GetValue<int>() ?? 0,
 				Source = source
 			};
 			if (node["slots"] is JsonArray slots)
@@ -148,6 +151,7 @@ namespace OpenFF.Data
 			JsonArray slots = new JsonArray();
 			foreach (ModFormationSlot slot in Slots) slots.Add(new JsonObject { ["monster"] = slot.Monster, ["min"] = slot.Min, ["max"] = slot.Max });
 			node["slots"] = slots;
+			if (Abp > 0) node["abp"] = Abp;
 			return node.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 		}
 	}

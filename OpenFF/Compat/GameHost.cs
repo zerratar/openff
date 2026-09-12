@@ -80,6 +80,7 @@ namespace OpenFF.Client
 			_game?.onDrawFrame();
 			FrameProbe.Tick();
 			DevSay.Tick();
+			ProgressionLayer.Tick();
 			Trace.Tick();
 			// The engine's frame, after the legacy one.
 			EngineHost.Tick();

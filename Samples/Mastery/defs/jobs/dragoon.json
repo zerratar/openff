@@ -1,0 +1,10 @@
+{
+  "id": "dragoon",
+  "job": "dragoon",
+  "name": "Dragoon",
+  "stats": { "strength": 4, "agility": 1, "vitality": 3, "magic": -2 },
+  "abilities": [
+    { "abp": 20, "ability": "jump" },
+    { "abp": 50, "ability": "equip-spears", "name": "Equip Spears", "passive": true, "grants": ["dragoon"], "carries": true }
+  ]
+}

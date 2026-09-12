@@ -35,7 +35,7 @@ namespace OpenFF.Client
 					if (!slots.Add(c.Slot)) { Log.Write(LogChannel.General, "characters: " + c.Id + " (" + c.Source + ") - slot " + c.Slot + " is already defined; skipped"); continue; }
 					_characters.Add(c);
 				}
-				if (_characters.Count > 0) Log.Write(LogChannel.General, "characters: " + _characters.Count + " of the mods' own: " + string.Join(", ", _characters.Select(c => "slot " + c.Slot + " " + (c.Name ?? c.Id) + (c.Job != null ? " (" + c.Job + ")" : "") + (c.Level > 0 ? " L" + c.Level : ""))));
+				if (_characters.Count > 0) Log.Write(LogChannel.General, "characters: " + _characters.Count + " of the mods' own: " + string.Join(", ", _characters.Select(c => "slot " + c.Slot + " " + (c.Name ?? c.Id) + (c.Job != null ? " (" + c.Job + ")" : "") + (c.Level > 0 ? " L" + c.Level : "") + (c.Progression != Progression.Jobs ? ", " + Progressions.Word(c.Progression) + " (" + Progressions.Game(c.Progression) + ")" : ""))));
 				return _characters;
 			}
 		}
@@ -51,15 +51,43 @@ namespace OpenFF.Client
 			return playerId;
 		}
 
-		/// <summary>Whether a slot's hero keeps its job (the job menu refuses a change).</summary>
+		/// <summary>Which job's figures a hero wears for the job the game holds: a job of the mod's own (ProgressionLayer) says whose; the game's own otherwise. Every j-model site asks, beside ModelSet.</summary>
+		public static int ModelJob(int playerId, int nowJob)
+		{
+			try { return ProgressionLayer.LookJob(playerId, nowJob); }
+			catch (Exception) { return nowJob; }
+		}
+
+		/// <summary>Whether a slot's hero keeps its job (the job menu refuses a change): said outright, or a class (FF4's way).</summary>
 		public static bool JobFixed(int playerId)
 		{
 			try
 			{
-				foreach (ModCharacter c in Characters) if (c.Slot == playerId && c.FixedJob) return true;
+				foreach (ModCharacter c in Characters) if (c.Slot == playerId && c.JobIsFixed) return true;
 			}
 			catch (Exception) { }
 			return false;
+		}
+
+		/// <summary>A slot's definition, or null where the mods say nothing.</summary>
+		public static ModCharacter Definition(int playerId)
+		{
+			try
+			{
+				foreach (ModCharacter c in Characters) if (c.Slot == playerId) return c;
+			}
+			catch (Exception) { }
+			return null;
+		}
+
+		/// <summary>The folders definitions come from: the project's, then the mods' in order.</summary>
+		public static List<string> Roots()
+		{
+			List<string> roots = new List<string>();
+			if (Options.Get("nomods") != null) return roots;
+			if (!string.IsNullOrEmpty(GameArchive.ProjectDirectory)) roots.Add(GameArchive.ProjectDirectory);
+			roots.AddRange(GameArchive.ActiveMods.Select(m => m.Directory).Where(d => !string.IsNullOrEmpty(d)));
+			return roots;
 		}
 
 		/// <summary>The party as a game begins: each defined slot's hero renamed, re-jobbed, levelled.</summary>
@@ -67,6 +95,7 @@ namespace OpenFF.Client
 		{
 			List<ModCharacter> characters;
 			try { characters = Characters; } catch (Exception) { return; }
+			ProgressionLayer.Reset();
 			if (characters.Count == 0) return;
 			foreach (ModCharacter c in characters)
 			{
@@ -85,6 +114,7 @@ namespace OpenFF.Client
 						player.levelUp(0);
 					}
 					player.updateParameter();
+					ProgressionLayer.OnPartyReady(player);
 					Log.Write(LogChannel.File, "characters: slot " + c.Slot + " is " + player.name() + (job >= 0 ? ", " + ModCharacters.Jobs[job].Name : "") + (c.Level > 1 ? ", level " + player.level().get() : ""));
 				}
 				catch (Exception ex)

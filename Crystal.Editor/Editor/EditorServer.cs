@@ -407,7 +407,8 @@ namespace Crystal.Editor
 							characters = ProjectCharacters.All(_project).Count,
 							text = ProjectText.Lines(_project).Count,
 							monsters = ProjectMonsters.All(_project).Count,
-							formations = ProjectMonsters.AllFormations(_project).Count
+							formations = ProjectMonsters.AllFormations(_project).Count,
+							jobs = ProjectJobs.All(_project).Count
 						}
 					});
 					return;
@@ -1354,6 +1355,68 @@ namespace Crystal.Editor
 					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
 					JsonNode body = ReadBody(context);
 					SendJson(context, new { ok = ProjectCharacters.Delete(_project, body?["id"]?.GetValue<string>()) });
+					return;
+				}
+
+				case "/api/project/jobs":
+				{
+					// The job ladders (defs/jobs/<id>.json) of the mastery progression: all, or ?id= one, with
+					// the ability catalogue and the jobs for the form's pickers.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					List<string> notes = new List<string>();
+					List<ModJob> all = ProjectJobs.All(_project, notes);
+					string one = Query(context, "id");
+					if (!string.IsNullOrEmpty(one))
+					{
+						ModJob j = all.FirstOrDefault(x => string.Equals(x.Id, one, StringComparison.OrdinalIgnoreCase));
+						if (j == null) { SendJson(context, new { ok = false, error = "no job ladder '" + one + "'" }); return; }
+						SendJson(context, new { ok = true, ladder = ProjectJobs.Describe(j, all), jobs = ProjectCharacters.Jobs(), abilities = ProjectJobs.Catalogue(all), gameCommands = ProjectJobs.GameCommands(), notes });
+						return;
+					}
+					SendJson(context, new { ok = true, ladders = all.Select(j => ProjectJobs.Describe(j, all)).ToList(), jobs = ProjectCharacters.Jobs(), abilities = ProjectJobs.Catalogue(all), gameCommands = ProjectJobs.GameCommands(), notes });
+					return;
+				}
+
+				case "/api/project/jobs/save":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						ModJob j = ModJob.Parse(body?.ToJsonString() ?? "{}");
+						if (j == null) throw new ArgumentException("no ladder");
+						if (j.Id != null && j.Id.IndexOfAny(new[] { '/', '\\', '.' }) >= 0) throw new ArgumentException("a ladder's id is a plain word");
+						ProjectJobs.Save(_project, j);
+						List<ModJob> all = ProjectJobs.All(_project);
+						ModJob saved = all.FirstOrDefault(x => string.Equals(x.Id, j.Id, StringComparison.OrdinalIgnoreCase)) ?? j;
+						SendJson(context, new { ok = true, ladder = ProjectJobs.Describe(saved, all), abilities = ProjectJobs.Catalogue(all) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/jobs/new":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						// One of FF3's jobs by number, or a job of the mod's own: a name and the FF3 base it stands on (and whose figures it wears).
+						ModJob j = body?["base"] != null
+							? ProjectJobs.NewOwn(_project, body["name"]?.GetValue<string>(), body["base"]?.GetValue<int>() ?? -1, body["look"]?.GetValue<int>() ?? -1)
+							: ProjectJobs.New(_project, body?["job"]?.GetValue<int>() ?? -1);
+						List<ModJob> all = ProjectJobs.All(_project);
+						SendJson(context, new { ok = true, ladder = ProjectJobs.Describe(all.FirstOrDefault(x => x.Id == j.Id) ?? j, all) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/jobs/delete":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					SendJson(context, new { ok = ProjectJobs.Delete(_project, body?["id"]?.GetValue<string>()) });
 					return;
 				}
 

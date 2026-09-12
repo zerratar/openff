@@ -1,0 +1,12 @@
+{
+  "id": "beastmaster",
+  "base": "geomancer",
+  "look": "ranger",
+  "name": "Beastmaster",
+  "commands": ["attack", "terrain", "*", "item"],
+  "stats": { "strength": 3, "vitality": 2, "magic": -1 },
+  "abilities": [
+    { "abp": 25, "ability": "terrain" },
+    { "abp": 60, "ability": "equip-whips", "name": "Equip Whips", "passive": true, "grants": ["geomancer"], "carries": true }
+  ]
+}

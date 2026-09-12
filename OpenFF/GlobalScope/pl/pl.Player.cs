@@ -398,6 +398,8 @@ internal static partial class GlobalScope
 				calcMagicDefense();
 				calcBonus();
 				setPenaltyBonus();
+				// PORT: the mods' mastery progression (FF5's way) adds its job ladder's stat modifiers.
+				OpenFF.Client.ProgressionLayer.ApplyStats(this);
 				bodyAndBonus();
 				updateCondition();
 			}
@@ -555,6 +557,15 @@ internal static partial class GlobalScope
 				setJobChangeMP();
 				updateParameter();
 				setJobChangeMPtoMP();
+				// PORT: a hero on the mods' mastery progression (FF5's way) takes its commands from
+				// its job ladder and pays no penalty time; the others are as the game made them.
+				OpenFF.Client.ProgressionLayer.OnJobChanged(this);
+			}
+
+			/// <summary>PORT: the penalty time set outright (the mastery progression clears it).</summary>
+			public void jobPenaltyTime_set(int value)
+			{
+				jobPenaltyTime_ = value;
 			}
 
 			public bool doEquip(int points, short item_id, bool sort)
@@ -882,6 +893,9 @@ internal static partial class GlobalScope
 			{
 				int num = jobManager().nowJob();
 				num = 1 << num;
+				// PORT: the mastery progression's grants - the jobs a set or innate ability lends
+				// the hero the permissions of (FF5's "Equip Swords"; a set white magic casting).
+				num |= OpenFF.Client.ProgressionLayer.GrantBits(this);
 				if ((jobFlag & num) == 0)
 				{
 					return false;

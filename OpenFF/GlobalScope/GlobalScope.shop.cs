@@ -1362,8 +1362,8 @@ internal static partial class GlobalScope
                     {
                         VEC_Set(vecFx, 4096, 4096, 4096);
                         VEC_Set(vecFx2, 4915, 4096, 4915);
-                        sprintf(out var arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().player((byte)i).playerId()) + 1, pl.PlayerParty.instance().player((byte)i).jobManager()
-                            .nowJob() + 1);
+                        sprintf(out var arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().player((byte)i).playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(pl.PlayerParty.instance().player((byte)i).playerId(), pl.PlayerParty.instance().player((byte)i).jobManager()
+                            .nowJob()) + 1);
                         strcpy(out var arg2, "w_act_man");
                         m_ChrIndex[i] = characterMng.setCharacter(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
                         characterMng.addMotion(m_ChrIndex[i], arg2);

@@ -359,7 +359,11 @@ function characterDefinitionPanel(data, onSaved) {
   const def = data.character;
   const panel = document.createElement('div');
   panel.className = 'scene-object item-def';
-  const model = { id: def.id, slot: def.slot, name: def.name || '', job: def.job === null || def.job === undefined ? null : String(def.job), level: def.level || 0, fixedJob: !!def.fixedJob, look: def.look === null || def.look === undefined ? -1 : def.look };
+  const model = {
+    id: def.id, slot: def.slot, name: def.name || '', job: def.job === null || def.job === undefined ? null : String(def.job), level: def.level || 0,
+    fixedJob: !!def.fixedJob, look: def.look === null || def.look === undefined ? -1 : def.look,
+    progression: def.progression || 'jobs', learn: (def.learn || []).map(l => ({ level: l.level || 1, spell: l.spell || '' }))
+  };
   let timer = null;
   const save = () => {
     clearTimeout(timer);
@@ -368,8 +372,10 @@ function characterDefinitionPanel(data, onSaved) {
         const body = { id: model.id, slot: model.slot, name: model.name };
         if (model.job !== null) body.job = model.job;
         if (model.level > 1) body.level = model.level;
-        if (model.fixedJob) body.fixedJob = true;
+        if (model.progression !== 'jobs') body.progression = model.progression;
+        if (model.fixedJob && model.progression !== 'class') body.fixedJob = true;
         if (model.look >= 0) body.look = model.look;
+        if (model.progression === 'class' && model.learn.length) body.learn = model.learn.filter(l => l.spell.trim()).map(l => ({ level: l.level, spell: /^\d+$/.test(l.spell.trim()) ? parseInt(l.spell, 10) : l.spell.trim() }));
         const r = await api('/api/project/characters/save', body);
         if (!r.ok) throw new Error(r.error);
         if (onSaved) onSaved(r.character);
@@ -440,11 +446,6 @@ function characterDefinitionPanel(data, onSaved) {
   level.placeholder = '1';
   level.oninput = () => { model.level = parseInt(level.value, 10) || 0; save(); };
   row('Starting level', level, 'Levelled the game\'s own way, one level at a time along the job\'s growth');
-  const fixed = document.createElement('input');
-  fixed.type = 'checkbox';
-  fixed.checked = !!def.fixedJob;
-  fixed.onchange = () => { model.fixedJob = fixed.checked; save(); };
-  row('Fixed job', fixed, 'The hero keeps its job: the job menu refuses a change, as it does for a job not yet won - a class of its own rather than the job system');
   const look = document.createElement('select');
   const own = document.createElement('option');
   own.value = '';
@@ -461,9 +462,123 @@ function characterDefinitionPanel(data, onSaved) {
   row('Look', look, 'Which hero\'s model set it wears - on the field, in battle, in the menus; every job has a figure in every set');
   panel.append(card);
 
+  // How the hero grows: which game's system. The class shows its learn list, the mastery its ladders' whereabouts.
+  const grow = document.createElement('div');
+  grow.className = 'component';
+  const gh = document.createElement('div');
+  gh.className = 'behaviour-header';
+  gh.textContent = 'Progression';
+  grow.append(gh);
+  const growRow = (label, input, tip) => {
+    const r = document.createElement('div');
+    r.className = 'behaviour-field';
+    const l = document.createElement('span');
+    l.textContent = label;
+    if (tip) r.title = tip;
+    r.append(l, input);
+    grow.append(r);
+    return r;
+  };
+  const systems = [
+    ['jobs', 'Jobs  (FF3)', 'FF3\'s job system: any won job at any time, the job\'s own commands and growth; a change costs a few battles of penalty. The game as it is.'],
+    ['class', 'Class  (FF4)', 'FF4\'s way: the starting job is the hero\'s class for good - the job menu refuses a change - and the spells listed below arrive by level.'],
+    ['mastery', 'Mastery  (FF5)', 'FF5\'s way: jobs changed freely with no penalty, each climbing its own ladder of abilities on ABP won in battle (Mod \u25b8 Jobs); a learned ability goes into a free command slot of any job. The Abilities menu (Esc) sets them in play.']
+  ];
+  const sys = document.createElement('select');
+  for (const [value, label] of systems) {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = label;
+    sys.append(o);
+  }
+  sys.value = model.progression;
+  const about = document.createElement('p');
+  about.className = 'sub';
+  const fixedRow = document.createElement('div');
+  fixedRow.className = 'behaviour-field';
+  fixedRow.title = 'The hero keeps its job even on the job system: the job menu refuses a change, as it does for a job not yet won';
+  const fixedLabel = document.createElement('span');
+  fixedLabel.textContent = 'Fixed job';
+  const fixed = document.createElement('input');
+  fixed.type = 'checkbox';
+  fixed.checked = !!def.fixedJob;
+  fixed.onchange = () => { model.fixedJob = fixed.checked; save(); };
+  fixedRow.append(fixedLabel, fixed);
+  const learnBox = document.createElement('div');
+  learnBox.className = 'learn-list';
+  const ladderNote = document.createElement('p');
+  ladderNote.className = 'sub';
+  const refresh = () => {
+    about.textContent = systems.find(s => s[0] === model.progression)[2];
+    fixedRow.hidden = model.progression !== 'jobs';
+    learnBox.hidden = model.progression !== 'class';
+    ladderNote.hidden = model.progression !== 'mastery';
+    if (model.progression === 'class') drawLearn();
+    if (model.progression === 'mastery') {
+      ladderNote.textContent = 'Ladders: ' + (typeof projectState !== 'undefined' && projectState.project && projectState.project.jobs ? projectState.project.jobs + ' under Mod \u25b8 Jobs' : 'none yet - Mod \u25b8 Jobs \u25b8 New ladder\u2026 gives a job one; a job without a ladder earns nothing') + '. ABP per battle: the formation\'s abp, or one per monster.';
+    }
+  };
+  sys.onchange = () => { model.progression = sys.value; save(); refresh(); };
+  growRow('System', sys, 'Which game\'s growth the hero plays by');
+  grow.append(about, fixedRow, learnBox, ladderNote);
+  const drawLearn = () => {
+    learnBox.textContent = '';
+    const lh = document.createElement('div');
+    lh.className = 'behaviour-header';
+    lh.textContent = 'Learns by level';
+    learnBox.append(lh);
+    const hint = document.createElement('p');
+    hint.className = 'sub';
+    hint.textContent = 'A spell by the game\'s name (Cure, Fire, Blizzard\u2026) or its item id, equipped when the level is reached; a spell the class\'s job cannot hold is skipped.';
+    learnBox.append(hint);
+    model.learn.forEach((l, i) => {
+      const r = document.createElement('div');
+      r.className = 'behaviour-field learn-row';
+      const lv = document.createElement('input');
+      lv.type = 'number';
+      lv.min = 1;
+      lv.max = 99;
+      lv.value = l.level;
+      lv.title = 'The level it arrives at';
+      lv.oninput = () => { l.level = parseInt(lv.value, 10) || 1; save(); };
+      const sp = document.createElement('input');
+      sp.type = 'text';
+      sp.value = l.spell;
+      sp.placeholder = 'Cure';
+      sp.setAttribute('list', 'spell-names');
+      sp.oninput = () => { l.spell = sp.value; save(); };
+      const x = document.createElement('button');
+      x.className = 'mini';
+      x.textContent = '\u00d7';
+      x.title = 'Take this line out';
+      x.onclick = () => { model.learn.splice(i, 1); save(); drawLearn(); };
+      r.append(lv, sp, x);
+      learnBox.append(r);
+    });
+    const add = document.createElement('button');
+    add.className = 'wide-button';
+    add.textContent = '+ spell';
+    add.onclick = () => { model.learn.push({ level: model.learn.length ? Math.min(99, model.learn[model.learn.length - 1].level + 5) : 1, spell: '' }); drawLearn(); };
+    learnBox.append(add);
+    if (!document.getElementById('spell-names')) {
+      const list = document.createElement('datalist');
+      list.id = 'spell-names';
+      document.body.append(list);
+      gameItemsForPicker().then(items => {
+        for (const it of items.filter(i => /spell|magic/i.test(i.category || ''))) {
+          const o = document.createElement('option');
+          o.value = it.name || String(it.id);
+          list.append(o);
+        }
+      }).catch(() => {});
+    }
+  };
+  refresh();
+  panel.append(grow);
+
   const note = document.createElement('p');
   note.className = 'none';
-  note.textContent = 'Applied when the client sets a party up (a --map start, the title\'s New Game); a save carries its own heroes. A character\'s own model, a fixed class instead of jobs, and heroes beyond the four are the next slice.';
+  note.textContent = 'Applied when the client sets a party up (a --map start, the title\'s New Game); a save carries its own heroes. A character\'s own model and heroes beyond the four are the next slice.';
   panel.append(note);
 
   const actions = document.createElement('div');

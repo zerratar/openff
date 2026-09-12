@@ -1648,7 +1648,98 @@ namespace OpenFF.Client
 			}
 			catch (Exception) { }
 			m.Alive = m.Hp > 0 && (m.Conditions & Condition.Death) == 0;
+			try
+			{
+				int id = player.playerId();
+				m.Progression = OpenFF.Data.Progressions.Word(ProgressionLayer.ModeOf(id));
+				int held = ProgressionLayer.HeldJob(player);
+				m.JobWord = held < OpenFF.Data.ModCharacters.Jobs.Length ? OpenFF.Data.ModCharacters.Jobs[held].Enum : OpenFF.Data.ModCharacters.Slug(ProgressionLayer.LadderOf(held)?.Id ?? held.ToString());
+				m.JobTitle = ProgressionLayer.JobName(held);
+				if (ProgressionLayer.IsMastery(id))
+				{
+					int job = held;
+					foreach (int a in ProgressionLayer.Active(id, job)) m.Abilities.Add(AbilityOf(a));
+					foreach (int a in ProgressionLayer.Learned(id)) m.Learned.Add(AbilityOf(a));
+					int free = ProgressionLayer.FreeSlots(job);
+					m.Slots = new int[free];
+					ProgressionLayer.HeroState s = ProgressionLayer.StateOf(id);
+					for (int i = 0; i < free && i < s.Set.Length; i++) m.Slots[i] = s.Set[i];
+				}
+			}
+			catch (Exception) { }
 			return m;
+		}
+
+		internal static AbilityInfo AbilityOf(int id)
+		{
+			OpenFF.Data.Ff3Ability known = OpenFF.Data.Ff3Abilities.ById(id);
+			OpenFF.Data.ModJobAbility step = OpenFF.Data.ModJobs.Step(ProgressionLayer.Ladders, id);
+			return new AbilityInfo
+			{
+				Id = id,
+				Word = known?.Word ?? (step != null ? OpenFF.Data.ModCharacters.Slug(step.Ability) : id.ToString()),
+				Name = ProgressionLayer.AbilityName(id),
+				Passive = known?.Passive ?? step?.IsPassive ?? true
+			};
+		}
+
+		public bool SetAbility(int id, int slot, int abilityId) => ProgressionLayer.SetAbility(id, slot, abilityId);
+
+		public int GiveAbp(int id, Job job, int amount)
+		{
+			List<string> news = ProgressionLayer.GiveAbp(id, (int)job, amount);
+			foreach (string n in news) { Notices.Post(n); Log.Write(LogChannel.General, "progression: " + n); }
+			return news.Count;
+		}
+
+		public int JobLevel(int id, Job job) => ProgressionLayer.JobLevel(id, (int)job);
+		public int Abp(int id, Job job) => ProgressionLayer.Abp(id, (int)job);
+		public bool Mastered(int id, Job job) => ProgressionLayer.IsMastered(id, (int)job);
+
+		public AbilityInfo Ability(string word)
+		{
+			int id = OpenFF.Data.ModJobs.AbilityId(ProgressionLayer.Ladders, word);
+			return id > 0 ? AbilityOf(id) : null;
+		}
+
+		public bool HasAbility(int id, int abilityId)
+		{
+			GlobalScope.pl.Player player = PlayerOf(id);
+			return player != null && ProgressionLayer.Has(player, abilityId);
+		}
+
+		/// <summary>A job number from a word: FF3's, or a mod's own ladder's id; -1 for none.</summary>
+		internal static int JobNumberOf(string word)
+		{
+			int ff3 = OpenFF.Data.ModCharacters.JobNumber(word);
+			if (ff3 >= 0) return ff3;
+			string slug = OpenFF.Data.ModCharacters.Slug(word);
+			foreach (OpenFF.Data.ModJob l in ProgressionLayer.Ladders) if (l.IsOwn && (OpenFF.Data.ModCharacters.Slug(l.Id) == slug || OpenFF.Data.ModCharacters.Slug(l.Name) == slug)) return l.JobNumber;
+			return -1;
+		}
+
+		public bool ChangeJob(int id, string job)
+		{
+			int number = JobNumberOf(job);
+			if (number < 0) { EngineApi.Warn("party-changejob", "ChangeJob: no job called '" + job + "'"); return false; }
+			bool done = ProgressionLayer.ChangeJob(id, number);
+			if (done) RefreshDisplay();
+			return done;
+		}
+
+		public IReadOnlyList<string> OpenJobs(int id)
+		{
+			List<string> words = new List<string>();
+			try
+			{
+				foreach (int j in ProgressionLayer.AllJobs)
+				{
+					if (!ProgressionLayer.JobOpen(j)) continue;
+					words.Add(j < OpenFF.Data.ModCharacters.Jobs.Length ? OpenFF.Data.ModCharacters.Jobs[j].Enum : OpenFF.Data.ModCharacters.Slug(ProgressionLayer.LadderOf(j)?.Id ?? j.ToString()));
+				}
+			}
+			catch (Exception) { }
+			return words;
 		}
 
 		private static GlobalScope.pl.Player PlayerOf(int id)
@@ -2055,6 +2146,8 @@ namespace OpenFF.Client
 
 		/// <summary>The clear colour glClear uses instead of the game's black while set; null for the game's own. Read by GlobalScope.glClear.</summary>
 		internal static Microsoft.Xna.Framework.Color? BackgroundOverride;
+
+		public void Notice(string text) => Notices.Post(text);
 
 		public Color Background
 		{

@@ -1,0 +1,9 @@
+{
+  "id": "freelancer",
+  "job": "freelancer",
+  "name": "Freelancer",
+  "commands": ["attack", "*", "*", "item"],
+  "inherits": true,
+  "abilities": [
+  ]
+}

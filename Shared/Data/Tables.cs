@@ -78,6 +78,9 @@ namespace OpenFF.Data
 		/// <summary>FF3: the six growth types - strength, vitality, agility, intellect, mind curves (0..7) and the charge table (0 none, 1..7).</summary>
 		public int[] GrowthTypes = Array.Empty<int>();
 		public LevelRow[] Levels = Array.Empty<LevelRow>();
+		/// <summary>FF3: the job's four battle commands (pl.ABILITY_ID: 1 attack, 3 guard, 4 item, 5 black magic...) and its two passive abilities (0 none), from player.chaindata chain 14.</summary>
+		public int[] Commands = Array.Empty<int>();
+		public int[] Passives = Array.Empty<int>();
 
 		public Stats StatsAt(int level)
 		{
@@ -437,6 +440,8 @@ namespace OpenFF.Data
 
 		/// <summary>Names of abilities, summons and spells by the game's id (FF4: babil_ability.msd, whose message ids are the ability ids).</summary>
 		public Dictionary<int, string> AbilityNames = new Dictionary<int, string>();
+		/// <summary>FF3: each ability's kind by id - 0 a battle command, 1 a passive (pl.ABILITY_TYPE), from player.chaindata chain 13.</summary>
+		public Dictionary<int, int> AbilityKinds = new Dictionary<int, int>();
 		/// <summary>What the reader could not do (a missing file, a name table it did not find), for the log.</summary>
 		public List<string> Notes = new List<string>();
 

@@ -25,8 +25,18 @@
 // evil-sworder, evoker/phantomer, bard, black-belt/karate-master, devout/imam, magus/
 // devil-man, summoner/devildom-phantomer, sage, ninja) or the number.
 //
-// What comes next on this line, and is not here yet: a progression per character (jobs, or
-// a fixed class as FF4's), a model of the character's own, new slots beyond the four.
+// progression says how the hero grows - which game's system it plays by:
+//
+//   "jobs"     FF3's: any won job, changed freely, the job's own commands; the default.
+//   "class"    FF4's: one class for good (the job is fixed) and a list of what arrives by
+//              level - "learn": [{ "level": 5, "spell": "Cure" }, ...] equips the spell when
+//              the level is reached (a spell by name or item id).
+//   "mastery"  FF5's: jobs changed freely, each job climbing its own ladder of abilities on
+//              ABP won in battle (defs/jobs/<id>.json, ModJobs.cs); a learned ability goes into
+//              a free command slot of any job; no penalty time on a change.
+//
+// The games' names are taken too (ff3, ff4, ff5). What is not here yet: a model of the
+// character's own, new slots beyond the four.
 
 using System;
 using System.Collections.Generic;
@@ -51,13 +61,20 @@ namespace OpenFF.Data
 		public bool FixedJob;
 		/// <summary>Which hero's model set it wears, 0..3; -1 its own slot's.</summary>
 		public int Look = -1;
+		/// <summary>How the hero grows: Jobs (FF3), Class (FF4), Mastery (FF5).</summary>
+		public Progression Progression = Progression.Jobs;
+		/// <summary>Class: what arrives by level (spells by name or item id).</summary>
+		public List<ModLearned> Learn = new List<ModLearned>();
 		public string Source;
+
+		/// <summary>Whether the job cannot be changed: said outright, or implied by a class.</summary>
+		public bool JobIsFixed => FixedJob || Progression == Progression.Class;
 
 		public static ModCharacter Parse(string json, string source = null)
 		{
 			JsonNode node = JsonNode.Parse(json);
 			if (node == null) return null;
-			return new ModCharacter
+			ModCharacter c = new ModCharacter
 			{
 				Id = node["id"]?.GetValue<string>(),
 				Slot = node["slot"]?.GetValue<int>() ?? 0,
@@ -66,8 +83,23 @@ namespace OpenFF.Data
 				Level = node["level"]?.GetValue<int>() ?? 0,
 				FixedJob = node["fixedJob"]?.GetValue<bool>() ?? false,
 				Look = node["look"]?.GetValue<int>() ?? -1,
+				Progression = Progressions.Parse(node["progression"]?.GetValue<string>()),
 				Source = source
 			};
+			if (node["learn"] is JsonArray learn)
+			{
+				foreach (JsonNode l in learn)
+				{
+					if (l == null) continue;
+					JsonNode spell = l["spell"];
+					c.Learn.Add(new ModLearned
+					{
+						Level = l["level"]?.GetValue<int>() ?? 1,
+						Spell = spell is JsonValue sv ? (sv.TryGetValue(out int sid) ? sid.ToString() : sv.GetValue<string>()) : null
+					});
+				}
+			}
+			return c;
 		}
 
 		public string ToJson()
@@ -75,10 +107,60 @@ namespace OpenFF.Data
 			JsonObject node = new JsonObject { ["id"] = Id, ["slot"] = Slot, ["name"] = Name ?? "" };
 			if (!string.IsNullOrEmpty(Job)) node["job"] = Job;
 			if (Level > 0) node["level"] = Level;
-			if (FixedJob) node["fixedJob"] = true;
+			if (Progression != Progression.Jobs) node["progression"] = Progressions.Word(Progression);
+			if (FixedJob && Progression != Progression.Class) node["fixedJob"] = true;
 			if (Look >= 0) node["look"] = Look;
+			if (Learn.Count > 0)
+			{
+				JsonArray learn = new JsonArray();
+				foreach (ModLearned l in Learn)
+				{
+					if (string.IsNullOrWhiteSpace(l.Spell)) continue;
+					JsonObject o = new JsonObject { ["level"] = l.Level };
+					o["spell"] = int.TryParse(l.Spell, out int id) ? JsonValue.Create(id) : JsonValue.Create(l.Spell);
+					learn.Add(o);
+				}
+				node["learn"] = learn;
+			}
 			return node.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 		}
+	}
+
+	/// <summary>Which game's growth a hero plays by.</summary>
+	internal enum Progression
+	{
+		/// <summary>FF3: the job system, any won job at any time, the job's own commands.</summary>
+		Jobs,
+		/// <summary>FF4: one class for good, learning by level.</summary>
+		Class,
+		/// <summary>FF5: jobs with ability ladders climbed on ABP; learned abilities slotted into any job.</summary>
+		Mastery
+	}
+
+	/// <summary>Something a class learns at a level: a spell (by name or item id).</summary>
+	internal sealed class ModLearned
+	{
+		public int Level = 1;
+		public string Spell;
+	}
+
+	internal static class Progressions
+	{
+		/// <summary>A definition's word for a progression: the system's name or the game's (jobs/ff3, class/ff4, mastery/ff5); Jobs when it says nothing.</summary>
+		public static Progression Parse(string word)
+		{
+			switch (ModCharacters.Slug(word))
+			{
+				case "class": case "ff4": case "fixed": return Progression.Class;
+				case "mastery": case "ff5": case "abilities": return Progression.Mastery;
+				default: return Progression.Jobs;
+			}
+		}
+
+		public static string Word(Progression p) => p == Progression.Class ? "class" : p == Progression.Mastery ? "mastery" : "jobs";
+
+		/// <summary>The game the system comes from, for the editor and the log.</summary>
+		public static string Game(Progression p) => p == Progression.Class ? "FF4" : p == Progression.Mastery ? "FF5" : "FF3";
 	}
 
 	internal static class ModCharacters
@@ -132,6 +214,9 @@ namespace OpenFF.Data
 						if (!string.IsNullOrEmpty(c.Job) && JobNumber(c.Job) < 0) { notes?.Add(file + ": no job called '" + c.Job + "'"); c.Job = null; }
 						if (c.Level < 0 || c.Level > 99) { notes?.Add(file + ": level " + c.Level + " - 1..99"); c.Level = 0; }
 						if (c.Look > 3) { notes?.Add(file + ": look " + c.Look + " - a hero's model set is 0..3"); c.Look = -1; }
+						if (c.Learn.Count > 0 && c.Progression != Progression.Class) notes?.Add(file + ": learn is for a class (progression \"class\"); a " + Progressions.Word(c.Progression) + " hero learns nothing by level");
+						c.Learn.RemoveAll(l => string.IsNullOrWhiteSpace(l.Spell));
+						foreach (ModLearned l in c.Learn) l.Level = Math.Clamp(l.Level, 1, 99);
 						all.Add(c);
 					}
 					catch (Exception ex) { notes?.Add(file + ": " + ex.Message); }

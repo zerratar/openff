@@ -307,7 +307,12 @@ namespace Crystal
 			{
 				OpenFF.Data.LevelRow l1 = job.Levels.Length > 0 ? job.Levels[0] : null, l30 = job.Levels.Length >= 30 ? job.Levels[29] : null;
 				Console.WriteLine("  job " + job.Id + " " + job.Name + (job.NameIsTentative ? "*" : "") + ": curves " + string.Join(",", job.GrowthTypes)
-					+ (l1 != null ? "; L1 " + l1.Stats : "") + (l30 != null ? "; L30 " + l30.Stats + " hp ~" + job.MaxHpAt(30) + " charges " + string.Join("/", l30.Charges ?? Array.Empty<int>()) : ""));
+					+ (l1 != null ? "; L1 " + l1.Stats : "") + (l30 != null ? "; L30 " + l30.Stats + " hp ~" + job.MaxHpAt(30) + " charges " + string.Join("/", l30.Charges ?? Array.Empty<int>()) : "")
+					+ (job.Commands.Length > 0 ? "; commands " + string.Join(", ", job.Commands.Select(c => tables.AbilityName(c) ?? c.ToString())) + "; passives " + string.Join(", ", job.Passives.Where(p => p > 0).Select(p => tables.AbilityName(p) ?? p.ToString())) : ""));
+			}
+			if (tables.AbilityKinds.Count > 0)
+			{
+				Console.WriteLine("  abilities: " + string.Join(", ", tables.AbilityKinds.OrderBy(k => k.Key).Select(k => k.Key + " " + (tables.AbilityName(k.Key) ?? "?") + (k.Value == 1 ? " (passive)" : ""))));
 			}
 			if (items > 12)
 			{

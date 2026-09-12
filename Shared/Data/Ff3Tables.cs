@@ -204,6 +204,37 @@ namespace OpenFF.Data
 				}
 				tables.Jobs.Add(def);
 			}
+			ReadAbilities(chain, tables, pack);
+		}
+
+		/// <summary>
+		/// The abilities (chain 13: id, name message, type 0 command / 1 passive, substance; eight bytes each) and each
+		/// job's starting set (chain 14: four command ids then two passive ids, twelve bytes each). Names are the
+		/// battle messages (eureka_battle.msd, the battle's "common" handle), where the battle's command window reads them.
+		/// </summary>
+		private static void ReadAbilities(ContentChain chain, GameTables tables, ChainPack pack)
+		{
+			if (pack.Count < 15) return;
+			Dictionary<uint, string> names = TableFiles.ReadNames(chain, "eureka_battle.msd", tables);
+			int abilities = pack.Offset(13), count = pack.Size(13) / 8;
+			for (int i = 0; i < count; i++)
+			{
+				int at = abilities + 8 * i;
+				int id = ChainPack.S16(pack.Data, at), nameId = ChainPack.S16(pack.Data, at + 2), type = ChainPack.S16(pack.Data, at + 4);
+				if (id <= 0) continue;
+				tables.AbilityKinds[id] = type;
+				if (names != null && names.TryGetValue((uint)nameId, out string name)) tables.AbilityNames[id] = name;
+			}
+			int init = pack.Offset(14), jobs = Math.Min(tables.Jobs.Count, pack.Size(14) / 12);
+			for (int job = 0; job < jobs; job++)
+			{
+				int at = init + 12 * job;
+				JobDefinition def = tables.Jobs[job];
+				def.Commands = new int[4];
+				def.Passives = new int[2];
+				for (int k = 0; k < 4; k++) def.Commands[k] = ChainPack.S16(pack.Data, at + 2 * k);
+				for (int k = 0; k < 2; k++) def.Passives[k] = ChainPack.S16(pack.Data, at + 8 + 2 * k);
+			}
 		}
 
 		private static void ReadItems(ContentChain chain, GameTables tables)

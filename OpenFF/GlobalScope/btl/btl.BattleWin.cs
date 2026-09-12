@@ -206,6 +206,8 @@ internal static partial class GlobalScope
 				dgs.CCtrlCodeInterface.instance().setGold(num);
 				Battle2DManager.instance().helpWindow().createHelpWindow(106, 1, 0);
 				pl.PlayerParty.instance().gold().add(num);
+				// PORT: ABP for heroes on the mods' mastery progression (FF5's way), as the spoils open.
+				OpenFF.Client.ProgressionLayer.OnBattleWon(B);
 				if (pl.PlayerParty.instance().gold().get() >= 50000)
 				{
 					UserInfo.AwardAchievement(6);
@@ -262,6 +264,8 @@ internal static partial class GlobalScope
 						}
 						nowPlayerId_++;
 					}
+					// PORT: every hero has their experience; a class hero (FF4's way) learns what the level brings.
+					OpenFF.Client.ProgressionLayer.OnExperienceGiven();
 					BattleMonsterParty battleMonsterParty = B.characterManager().monsterParty();
 					if (itm.ItemManager.instance().itemParameter(battleMonsterParty.dropItemId()) != null)
 					{

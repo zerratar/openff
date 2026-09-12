@@ -1,0 +1,10 @@
+{
+  "id": "Mastery",
+  "name": "Mastery",
+  "version": "1.0",
+  "author": "OpenFF",
+  "description": "FF3 as it is, but the four heroes grow FF5's way: every job climbs a ladder of abilities on ABP won in battle, and anything learned goes into a free command slot of whatever job is held. No code; character definitions and 23 job ladders.",
+  "target": "openff",
+  "assemblies": [],
+  "dependencies": []
+}

@@ -473,7 +473,7 @@ internal static partial class GlobalScope
 			public bool registerHuman(bool flag)
 			{
 				string arg = "";
-				sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(playerId()) + 1, player().jobManager().nowJob() + 1);
+				sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(playerId(), player().jobManager().nowJob()) + 1);
 				if (!condition().isFrog())
 				{
 					characterMngId_set(characterMng.setCharacter(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST));
@@ -506,13 +506,13 @@ internal static partial class GlobalScope
 				{
 				case 0:
 					dataState_ = 1;
-					sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(playerId()) + 1, player().jobManager().nowJob() + 1);
+					sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(playerId(), player().jobManager().nowJob()) + 1);
 					setCharacterMngId(characterMng.setCharacterAsync(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST));
 					characterMng.setHidden(characterMngId(), b: true);
 					dataState_ = 2;
 					break;
 				case 1:
-					sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(playerId()) + 1, player().jobManager().nowJob() + 1);
+					sprintf(out arg, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(playerId(), player().jobManager().nowJob()) + 1);
 					setCharacterMngId(characterMng.setCharacterAsync(arg, CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST));
 					characterMng.setHidden(characterMngId(), b: true);
 					dataState_ = 2;
@@ -1545,7 +1545,7 @@ internal static partial class GlobalScope
 						}
 						else
 						{
-							sprintf(out arg, "j%d%02d_stone", OpenFF.Client.ModCharactersLayer.ModelSet(playerId()) + 1, player().jobManager().nowJob() + 1);
+							sprintf(out arg, "j%d%02d_stone", OpenFF.Client.ModCharactersLayer.ModelSet(playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(playerId(), player().jobManager().nowJob()) + 1);
 						}
 						characterMng.bindReplacePltt(characterMngId(), arg);
 						if (stoneInfo_.motionIndex_ == 0)

@@ -1,0 +1,13 @@
+{
+  "id": "blue-mage",
+  "base": "scholar",
+  "look": "red-mage",
+  "name": "Blue Mage",
+  "commands": ["attack", "study", "*", "item"],
+  "stats": { "strength": -2, "vitality": 1, "magic": 5 },
+  "abilities": [
+    { "abp": 20, "ability": "learning", "name": "Learning", "passive": true },
+    { "abp": 50, "ability": "study" },
+    { "abp": 80, "ability": "equip-blue-gear", "name": "Equip Blue Mage's Gear", "passive": true, "grants": ["scholar"], "carries": true }
+  ]
+}

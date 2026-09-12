@@ -259,7 +259,9 @@ internal static partial class GlobalScope
 				{
 					int msg_number = 50105 + pl.PlayerParty.instance().player((byte)cNo).jobManager()
 						.nowJob();
-					pMsg[num] = pm.createMessage((uint)msg_number, dgs.INVALID_MSDHANDLE, (int)font_size);
+					// PORT: a job of the mods' own has a name of its own (ProgressionLayer).
+					string ownJob = OpenFF.Client.ProgressionLayer.JobNameOverride(pl.PlayerParty.instance().player((byte)cNo).playerId(), pl.PlayerParty.instance().player((byte)cNo).jobManager().nowJob());
+					pMsg[num] = ownJob != null ? pm.createMessage(ownJob, (int)font_size) : pm.createMessage((uint)msg_number, dgs.INVALID_MSDHANDLE, (int)font_size);
 					if (pMsg[num] != null)
 					{
 						pMsg[num].setPosition((short)tx, (short)ty, erase: true);

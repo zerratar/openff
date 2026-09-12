@@ -102,7 +102,7 @@ namespace OpenFF.Client
 		{
 			if (!Game.IsActive) return;
 			// Nothing else may own the keyboard: the text entry, the mod list, a mod's capture.
-			bool othersOwn = (TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || EngineInput.Captured;
+			bool othersOwn = (TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || AbilitiesMenu.IsOpen || EngineInput.Captured;
 			if (_page == Page.Closed)
 			{
 				if (othersOwn || RenderTest.Active) { _openEdge = OpenKeyDown(); return; }
@@ -155,8 +155,12 @@ namespace OpenFF.Client
 					if (cancel) { Close(); return; }
 					if (confirm)
 					{
-						if (_selected == 0) Close();
-						else if (_selected == 1) { _page = Page.Settings; _selected = 0; _note = ""; }
+						// Resume, [Abilities,] Settings, Exit game - the Abilities row only with a mastery hero in the party.
+						int row = _selected;
+						if (AbilitiesRow && row == 1) { Close(); AbilitiesMenu.Open(); return; }
+						if (AbilitiesRow && row > 1) row--;
+						if (row == 0) Close();
+						else if (row == 1) { _page = Page.Settings; _selected = 0; _note = ""; }
 						else { _page = Page.Quit; _selected = 1; }
 					}
 					break;
@@ -184,11 +188,17 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>Whether the main page has the Abilities row: a hero on the mastery progression (FF5's way) in the party.</summary>
+		private static bool AbilitiesRow
+		{
+			get { try { return ProgressionLayer.AnyMastery; } catch (Exception) { return false; } }
+		}
+
 		private int Rows()
 		{
 			switch (_page)
 			{
-				case Page.Main: return 3;
+				case Page.Main: return AbilitiesRow ? 4 : 3;
 				case Page.Settings: return 7;
 				case Page.Buttons: return DsButtons.Length + 2;
 				case Page.Quit: return 2;
@@ -387,6 +397,8 @@ namespace OpenFF.Client
 			switch (_page)
 			{
 				case Page.Main:
+					if (AbilitiesRow && row == 1) { label = "Abilities"; value = "job ladders, free slots"; return; }
+					if (AbilitiesRow && row > 1) row--;
 					label = row == 0 ? "Resume" : row == 1 ? "Settings" : "Exit game";
 					return;
 				case Page.Settings:

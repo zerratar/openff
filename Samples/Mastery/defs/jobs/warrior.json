@@ -1,0 +1,10 @@
+{
+  "id": "warrior",
+  "job": "warrior",
+  "name": "Warrior",
+  "stats": { "strength": 4, "agility": 1, "vitality": 3, "magic": -2 },
+  "abilities": [
+    { "abp": 15, "ability": "equip-swords", "name": "Equip Swords", "passive": true, "grants": ["warrior"], "carries": true },
+    { "abp": 40, "ability": "advance" }
+  ]
+}

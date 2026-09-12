@@ -1214,6 +1214,8 @@ internal static partial class GlobalScope
 			public bool sdReflect()
 			{
 				composit.sdoReflect();
+				// PORT: the loaded party is in place; mastery heroes' commands follow their ladders.
+				OpenFF.Client.ProgressionLayer.OnLoaded();
 				return true;
 			}
 
@@ -1221,6 +1223,8 @@ internal static partial class GlobalScope
 			{
 				IncrementNumberOfTimes();
 				Manager.GetInstance().StartSave((sbyte[])GetDataStartHeader(), GetDataSize(), num, -1);
+				// PORT: the mods' progression state (job ladders) rides beside the slot.
+				OpenFF.Client.ProgressionLayer.OnSave(num);
 			}
 
 			public void sdLoad(int num, bool sub)
@@ -1228,6 +1232,8 @@ internal static partial class GlobalScope
 				int buf = ((!sub) ? (-1) : ((Manager.GetInstance().GetCurrentBuffer() == 0) ? 1 : 0));
 				Manager.GetInstance().StartLoad((sbyte[])GetDataStartHeader(), GetDataSize(), num, buf);
 				fromRaw();
+				// PORT: the mods' progression state from beside the slot.
+				OpenFF.Client.ProgressionLayer.OnLoad(num);
 			}
 
 			public bool sdExecute()
@@ -1446,6 +1452,8 @@ internal static partial class GlobalScope
 				mognet.MNMemento.getSingleton().mnmSetDateTimeNPC(composit._npcMailSendTime);
 				mognet.MNMemento.getSingleton().mnmSetMails(composit._Mails);
 				mognet.MNNPCMailData.getSingleton().loadNPCMailData(composit._npcMailData_);
+				// PORT: the quick-saved party is in place; mastery heroes' commands follow their ladders.
+				OpenFF.Client.ProgressionLayer.OnLoaded();
 				return true;
 			}
 
@@ -1453,6 +1461,8 @@ internal static partial class GlobalScope
 			{
 				Manager.GetInstance().StartLoadAddress((sbyte[])GetDataStartHeader(), GetDataSize(), rom_addr);
 				fromRaw();
+				// PORT: the mods' progression state from beside the quick save (slot -1).
+				OpenFF.Client.ProgressionLayer.OnLoad(-1);
 			}
 
 			public void sdaSave(uint rom_addr)
@@ -1460,6 +1470,8 @@ internal static partial class GlobalScope
 				IncrementNumberOfTimes();
 				SetDiscriminationUserCode(sdDISCRIMINATION_USER_CODE);
 				Manager.GetInstance().StartSaveAddress((sbyte[])GetDataStartHeader(), GetDataSize(), rom_addr);
+				// PORT: the mods' progression state beside the quick save (slot -1).
+				OpenFF.Client.ProgressionLayer.OnSave(-1);
 			}
 
 			public bool sdExecute()

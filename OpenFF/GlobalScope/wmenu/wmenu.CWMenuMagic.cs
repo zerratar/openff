@@ -1243,7 +1243,11 @@ internal static partial class GlobalScope
 										mBText.mbSetBufferMsg(arg, decWidth: false);
 									}
 									medget = medget.nextSibling();
-									((menu.MBText)medget.behavior().queryInterface(menu.MBText.classIdentifier()))?.mbSetTextMsgNo(50105 + pl.PlayerParty.instance().player((byte)ncNo).jobManager()
+									// PORT: a job of the mods' own has a name of its own (ProgressionLayer).
+									string ownJob = OpenFF.Client.ProgressionLayer.JobNameOverride(pl.PlayerParty.instance().player((byte)ncNo).playerId(), pl.PlayerParty.instance().player((byte)ncNo).jobManager().nowJob());
+									menu.MBText jobText = (menu.MBText)medget.behavior().queryInterface(menu.MBText.classIdentifier());
+									if (ownJob != null) jobText?.mbSetBufferMsg(ownJob, decWidth: false);
+									else jobText?.mbSetTextMsgNo(50105 + pl.PlayerParty.instance().player((byte)ncNo).jobManager()
 										.nowJob());
 								}
 

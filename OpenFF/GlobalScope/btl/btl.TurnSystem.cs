@@ -844,7 +844,11 @@ internal static partial class GlobalScope
 
 			public void setCounterMan(BaseBattleCharacter attacker, BaseBattleCharacter target)
 			{
-				if (target != null && target.isBattle() && target.condition().isCounter() && target.flag(PLAYER_FLAG.PF_COUNTER))
+				// PORT: a hero with the Counterattack passive in play (the mods' mastery progression, FF5's
+				// Counter) strikes back at every physical attack, as the Retaliate stance does for a turn -
+				// a plain attack, without the stance's doubled damage (that follows PF_COUNTER).
+				bool passive = target != null && target.isBattle() && target.breed() == 0 && OpenFF.Client.ProgressionLayer.HasInBattle(target, 15);
+				if (target != null && target.isBattle() && ((target.condition().isCounter() && target.flag(PLAYER_FLAG.PF_COUNTER)) || passive))
 				{
 					counterCharacter_ = target;
 					counterCharacter_.setActionNumber(1);
