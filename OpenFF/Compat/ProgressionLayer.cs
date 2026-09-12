@@ -241,6 +241,23 @@ namespace OpenFF.Client
 						Log.Write(LogChannel.General, "progression: --set-ability: " + player.name() + " slot " + (slot + 1) + " = " + AbilityName(id) + " (" + id + ")");
 					}
 				}
+				// --equip=<hero>:<itemId>[,...]: an item put in the bag and on the hero at the start (1001 is a Knife), for test drives.
+				string equip = Options.Get("equip");
+				if (!string.IsNullOrEmpty(equip))
+				{
+					foreach (string part in equip.Split(','))
+					{
+						string[] p = part.Split(':');
+						if (p.Length != 2 || !int.TryParse(p[0], out int hero) || hero != player.playerId() || !int.TryParse(p[1], out int item)) continue;
+						try
+						{
+							GlobalScope.pl.PlayerParty.instance().addItem(item, 1);
+							bool ok = OpenFF.Game.Party != null && OpenFF.Game.Party.Equip(hero, item);
+							Log.Write(LogChannel.General, "progression: --equip: " + player.name() + (ok ? " wears item " : " could not equip item ") + item);
+						}
+						catch (Exception ex) { Log.Write(LogChannel.General, "progression: --equip " + part + ": " + ex.Message); }
+					}
+				}
 			}
 			catch (Exception ex) { Log.Write(LogChannel.General, "progression: " + ex.Message); }
 		}
@@ -576,7 +593,11 @@ namespace OpenFF.Client
 				else if (mp.getNow() > baseLimit + boost) mp.setNow(baseLimit + boost);
 			}
 			s.MpBoostApplied = boost;
+			Log.Write(LogChannel.File, "progression: MP boost " + boost + " on " + player.name() + ": charges " + string.Join("/", Enumerable.Range(0, 8).Select(i => player.mp(i).getNow() + ":" + player.mp(i).getLimit())));
 		}
+
+		/// <summary>An ability id from a sidecar written before 0.1.4, when the client's HP boosts sat at 90..92 (64..99 are the mods' commands now).</summary>
+		private static int MigrateId(int id) => id >= 90 && id <= 92 ? id - 40 : id;
 
 		/// <summary>setMp put the tables' limits back: nothing of the boost is on them now.</summary>
 		public static void OnMpReset(GlobalScope.pl.Player player)
@@ -620,7 +641,7 @@ namespace OpenFF.Client
 				GlobalScope.pl.Player p = attacker.player();
 				if (p == null || !IsMastery(p.playerId()) || !Has(p, Ff3Abilities.TwoHanded)) return false;
 				GlobalScope.pl.PlayerEquipParameter e = p.equipParameter();
-				if (e.isEquipWeapon() != 1 || e.isBareHands()) return false;
+				if (e.isEquipWeapon() != 1 || e.isBareHands()) { Log.Write(LogChannel.File, "progression: Two-Handed - " + p.name() + " has " + e.isEquipWeapon() + " weapon(s)" + (e.isBareHands() ? ", bare hands" : "") + "; no double"); return false; }
 				GlobalScope.pl.HAND_TYPE hand = e.checkEquipWeaponHand();
 				GlobalScope.pl.HAND_TYPE other = hand == GlobalScope.pl.HAND_TYPE.RIGHT_HAND ? GlobalScope.pl.HAND_TYPE.LEFT_HAND : GlobalScope.pl.HAND_TYPE.RIGHT_HAND;
 				bool free = e.equipHand(other).itemId() <= 0 || e.equipHand(other).equipNumber().get() <= 0;
@@ -856,7 +877,7 @@ namespace OpenFF.Client
 					if (h["level"] is JsonObject level) foreach (KeyValuePair<string, JsonNode> kv in level) if (int.TryParse(kv.Key, out int j) && j >= 0) s.Level[j] = kv.Value?.GetValue<int>() ?? 0;
 					s.Job = h["job"]?.GetValue<int>() ?? -1;
 					s.HpBoostApplied = h["hpBoost"]?.GetValue<int>() ?? 0;
-					if (h["set"] is JsonArray set) for (int k = 0; k < FreeSlotMax && k < set.Count; k++) s.Set[k] = set[k]?.GetValue<int>() ?? 0;
+					if (h["set"] is JsonArray set) for (int k = 0; k < FreeSlotMax && k < set.Count; k++) s.Set[k] = MigrateId(set[k]?.GetValue<int>() ?? 0);
 				}
 				Log.Write(LogChannel.File, "progression: state read from beside slot " + slot);
 			}

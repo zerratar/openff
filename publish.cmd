@@ -8,7 +8,7 @@ rem
 rem The version is the <Version> in OpenFF\OpenFF.csproj, Crystal.Editor\Crystal.Editor.csproj
 rem and OpenFF.Engine\OpenFF.Engine.csproj; keep the three the same and this line with them.
 setlocal
-set VERSION=0.1.3
+set VERSION=0.1.4
 cd /d "%~dp0"
 if exist dist\OpenFF rmdir /s /q dist\OpenFF
 dotnet publish OpenFF\OpenFF.csproj -c Release -r win-x64 --self-contained true -o dist\OpenFF -nologo -v q || goto fail

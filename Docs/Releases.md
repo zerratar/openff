@@ -7,6 +7,75 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.1.4 - how a hero grows, and menus of your own (2026-09-12)
+
+A hero's progression chosen per character - FF3's jobs, FF4's fixed class, or FF5's job
+mastery with ladders, ABP and free command slots, mixed in one party; jobs of the mod's own
+on FF3's; menu screens of the mod's own inside the game's menu, drawn in Crystal's Menus tab
+with behaviours on their frames; battle commands from C#; and a sample - Mastery - that is
+FF3 played FF5's way. The notes:
+
+- **A hero's progression: FF3's jobs, FF4's class, or FF5's mastery.** A character
+  definition's `"progression"` picks which game's system the hero grows by, and a party can
+  mix them. `"jobs"` is the game as it is. `"class"` fixes the starting job for good and
+  learns spells by level from a `"learn"` list (Cure at 1, Sight at 8...). `"mastery"` is
+  FF5's: jobs changed freely with no penalty time, each job climbing a **ladder** of
+  abilities (`defs/jobs/<id>.json`, *Mod ▸ Jobs* in Crystal) on **ABP** won in battle - the
+  formation's `abp` or one per monster - and any learned ability set into a **free command
+  slot** of whatever job the hero holds: a Knight casting white magic, a White Mage stealing.
+  Passives (Cover, Alchemy, FF5's Counter - a plain attack back at every blow - and HP
+  +10/20/30%, or a passive of the mod's own) work while set or innate; a
+  Freelancer-like job that `inherits` carries the innate passives of every mastered job;
+  `grants` lend a job's equipment and magic permissions (FF5's *Equip Swords*). Ladders' state
+  rides beside the save (`save.progression.json`). The client's Esc menu gains **Abilities**
+  with such a hero in the party: the hero, the slot, anything learned, and every ladder's level
+  and ABP; notices at the top right announce ABP, levels and abilities won. From C#:
+  `Game.Party.SetAbility / GiveAbp / JobLevel / Abp / Mastered / Ability / HasAbility`,
+  `PartyMember.Progression / Abilities / Learned / Slots`, `Game.Screen.Notice`. Crystal's
+  Characters panel has the Progression card (system, learn list); the Jobs panel edits a
+  ladder's commands, innate passives, stat modifiers and steps, and `crystal tables` prints
+  each job's commands and the ability table. FF5's stat modifiers are in - a ladder's `stats`
+  on FF3's five, a job that inherits taking the best positive of every mastered job, an Equip
+  ability or spell list that `carries` its job's - and the game's Job and Status screens show
+  a mastery hero's ladder level. Not FF5's: MP as a pool, `!Mimic`, Blue Magic, the effects
+  of its support abilities beyond Cover, Alchemy, Counter and the HP boosts.
+- **Samples/Mastery.** FF3 with FF5's job system and nothing else changed: the four heroes on
+  the mastery progression and a ladder for each of the 23 jobs - its command, an *Equip …*
+  passive, the Freelancer and Onion Knight inheriting with two free slots - and FF5's nine
+  jobs FF3 has not (Samurai, Berserker, Time Mage, Blue Mage, Mystic Knight, Beastmaster,
+  Chemist, Dancer, Mime) as jobs of the mod's own. Definitions only; copy it into `mods/` to
+  play.
+- **Menu screens of the mod's own, in the game's own menu.** `menus/<id>.xml` is a layout in
+  the game's XBN form - Crystal's Menus tab draws and edits it as it does the game's, *New
+  screen…* starts one - and `menus/<id>.json` says how it opens (an entry in the main menu
+  after any of the game's, a character pick first, which backdrop) and which
+  **MenuBehaviours** sit on its frames. The client merges the layouts into `MenuDefine.xbn`
+  as it loads, so a mod screen gets the game's windows, font, cursor, focus rules and
+  character pick; one screen class plays them all and hands presses, focus, cancel and L/R/X/Y
+  to the behaviours. `MenuBehaviour` is to a screen what `Behaviour` is to an object: a C#
+  class with fields Crystal edits, `OnOpen / OnPress / OnFocus / OnKey / OnCancel`, `Menu`
+  for the frames (texts, colours, focus) and the way out; the engine's own Back, OpenMenu
+  and Label need no code. `Game.Menus.Open("id")` opens one from the field. Crystal's frame
+  inspector has *Behaviours (OpenFF)* as an object's does, and a screen card for how it
+  opens; the XBN codec moved to Shared so the client can use it. The Mastery sample's
+  Abilities screen is one - two layouts, two behaviours, 200 lines.
+- **Battle commands of the mod's own.** A ladder step with `"command": true` names a
+  `BattleCommand` class in the mod's code: `Name`, `Target` (one enemy picked, every enemy,
+  the hero), `Damage(actor, target, attackDamage)` and an `Announce` line. Learned and set, it
+  shows in the battle's window and is played as the hero's plain attack with the mod's damage
+  (a negative heals). The Mastery sample's Samurai throws gil (`Zeninage`). `--set-ability`
+  fills a free slot at the start for trying one.
+- **More of FF5's passives on FF3's battle:** `first-strike` (one plain opening in four is
+  the party's), `vigilance` (no back attacks), `two-handed` (one weapon, a free other hand:
+  double damage), `barehanded` (unarmed as a Monk), `mp-10/20/30` (+1/+2/+3 spell charges a
+  level). The client's own passive ids moved to 50..63; 64..99 are the mods' commands.
+- **Jobs of the mod's own.** A ladder that says `base` instead of `job` is a new job standing
+  on one of FF3's: the game's party holds the base (growth, charges, equipment, motions), the
+  layer remembers the job, and the player sees the mod's - the name in every menu, the
+  commands, the ladder, the stats, and an FF3 job's figures (`look`) until someone models new
+  ones. Taken from the Abilities menu's *Change job* page (every open job, no penalty) or
+  `Game.Party.ChangeJob(id, "samurai")`; Crystal's *New ladder…* makes one. The save keeps it.
+
 ## 0.1.3 - cutscenes and characters of your own (2026-09-11)
 
 A timeline for cutscenes; a glTF character of your own in the hero's place - auto-rigged,
@@ -214,69 +283,6 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   from afar, gone up close. The client now draws level 0 alone (at most 2048 a side, the
   islands' rims repainted from their insides, as Crystal's viewer does); `--gltf-mips=auto`
   builds a chain from the UVs' coverage where they leave room, `full` regardless.
-
-## Unreleased
-
-- **A hero's progression: FF3's jobs, FF4's class, or FF5's mastery.** A character
-  definition's `"progression"` picks which game's system the hero grows by, and a party can
-  mix them. `"jobs"` is the game as it is. `"class"` fixes the starting job for good and
-  learns spells by level from a `"learn"` list (Cure at 1, Sight at 8...). `"mastery"` is
-  FF5's: jobs changed freely with no penalty time, each job climbing a **ladder** of
-  abilities (`defs/jobs/<id>.json`, *Mod ▸ Jobs* in Crystal) on **ABP** won in battle - the
-  formation's `abp` or one per monster - and any learned ability set into a **free command
-  slot** of whatever job the hero holds: a Knight casting white magic, a White Mage stealing.
-  Passives (Cover, Alchemy, FF5's Counter - a plain attack back at every blow - and HP
-  +10/20/30%, or a passive of the mod's own) work while set or innate; a
-  Freelancer-like job that `inherits` carries the innate passives of every mastered job;
-  `grants` lend a job's equipment and magic permissions (FF5's *Equip Swords*). Ladders' state
-  rides beside the save (`save.progression.json`). The client's Esc menu gains **Abilities**
-  with such a hero in the party: the hero, the slot, anything learned, and every ladder's level
-  and ABP; notices at the top right announce ABP, levels and abilities won. From C#:
-  `Game.Party.SetAbility / GiveAbp / JobLevel / Abp / Mastered / Ability / HasAbility`,
-  `PartyMember.Progression / Abilities / Learned / Slots`, `Game.Screen.Notice`. Crystal's
-  Characters panel has the Progression card (system, learn list); the Jobs panel edits a
-  ladder's commands, innate passives, stat modifiers and steps, and `crystal tables` prints
-  each job's commands and the ability table. FF5's stat modifiers are in - a ladder's `stats`
-  on FF3's five, a job that inherits taking the best positive of every mastered job, an Equip
-  ability or spell list that `carries` its job's - and the game's Job and Status screens show
-  a mastery hero's ladder level. Not FF5's: MP as a pool, `!Mimic`, Blue Magic, the effects
-  of its support abilities beyond Cover, Alchemy, Counter and the HP boosts.
-- **Samples/Mastery.** FF3 with FF5's job system and nothing else changed: the four heroes on
-  the mastery progression and a ladder for each of the 23 jobs - its command, an *Equip …*
-  passive, the Freelancer and Onion Knight inheriting with two free slots - and FF5's nine
-  jobs FF3 has not (Samurai, Berserker, Time Mage, Blue Mage, Mystic Knight, Beastmaster,
-  Chemist, Dancer, Mime) as jobs of the mod's own. Definitions only; copy it into `mods/` to
-  play.
-- **Menu screens of the mod's own, in the game's own menu.** `menus/<id>.xml` is a layout in
-  the game's XBN form - Crystal's Menus tab draws and edits it as it does the game's, *New
-  screen…* starts one - and `menus/<id>.json` says how it opens (an entry in the main menu
-  after any of the game's, a character pick first, which backdrop) and which
-  **MenuBehaviours** sit on its frames. The client merges the layouts into `MenuDefine.xbn`
-  as it loads, so a mod screen gets the game's windows, font, cursor, focus rules and
-  character pick; one screen class plays them all and hands presses, focus, cancel and L/R/X/Y
-  to the behaviours. `MenuBehaviour` is to a screen what `Behaviour` is to an object: a C#
-  class with fields Crystal edits, `OnOpen / OnPress / OnFocus / OnKey / OnCancel`, `Menu`
-  for the frames (texts, colours, focus) and the way out; the engine's own Back, OpenMenu
-  and Label need no code. `Game.Menus.Open("id")` opens one from the field. Crystal's frame
-  inspector has *Behaviours (OpenFF)* as an object's does, and a screen card for how it
-  opens; the XBN codec moved to Shared so the client can use it. The Mastery sample's
-  Abilities screen is one - two layouts, two behaviours, 200 lines.
-- **Battle commands of the mod's own.** A ladder step with `"command": true` names a
-  `BattleCommand` class in the mod's code: `Name`, `Target` (one enemy picked, every enemy,
-  the hero), `Damage(actor, target, attackDamage)` and an `Announce` line. Learned and set, it
-  shows in the battle's window and is played as the hero's plain attack with the mod's damage
-  (a negative heals). The Mastery sample's Samurai throws gil (`Zeninage`). `--set-ability`
-  fills a free slot at the start for trying one.
-- **More of FF5's passives on FF3's battle:** `first-strike` (one plain opening in four is
-  the party's), `vigilance` (no back attacks), `two-handed` (one weapon, a free other hand:
-  double damage), `barehanded` (unarmed as a Monk), `mp-10/20/30` (+1/+2/+3 spell charges a
-  level). The client's own passive ids moved to 50..63; 64..99 are the mods' commands.
-- **Jobs of the mod's own.** A ladder that says `base` instead of `job` is a new job standing
-  on one of FF3's: the game's party holds the base (growth, charges, equipment, motions), the
-  layer remembers the job, and the player sees the mod's - the name in every menu, the
-  commands, the ladder, the stats, and an FF3 job's figures (`look`) until someone models new
-  ones. Taken from the Abilities menu's *Change job* page (every open job, no penalty) or
-  `Game.Party.ChangeJob(id, "samurai")`; Crystal's *New ladder…* makes one. The save keeps it.
 
 ## 0.1.2 - weapons of the mod's own (2026-09-09)
 

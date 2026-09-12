@@ -58,6 +58,7 @@ namespace OpenFF.Client
 			("drive", "FF3_DRIVE", "<file>", "Play a scripted key drive from a file - wait/press/until/quit lines (headless tests; Docs/Drives)"),
 			("gil", "FF3_GIL", "<n>", "FF4: gil for a test start"),
 			("set-ability", "FF3_SET_ABILITY", "<hero>:<slot>:<word>[,...]", "FF3: a mastery hero's free slot filled at the start, learned or not (0:0:zeninage) - for test drives"),
+			("equip", "FF3_EQUIP", "<hero>:<itemId>[,...]", "FF3: an item put in the bag and on the hero at the start (0:1001 is a Knife on the first hero) - for test drives"),
 			("trace-menu", "FF3_TRACE_MENU", "", "Log every menu focus move with its caller (following a layout's focus ring)"),
 			("dump-menus", "FF3_DUMP_MENUS", "", "Write MenuDefine.xbn as patched with the mods' screens to %TEMP%\\MenuDefine.patched.xml"),
 			("trace", "FF3_TRACE", "<file>", "Write a parity trace - flags, messages, sounds, maps, and everyone on the map at each drive say (Tools/parity.ps1 diffs two)")

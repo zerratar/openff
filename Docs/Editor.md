@@ -966,6 +966,28 @@ positions come from the same `.xbn` data, with the nesting resolved the way
 The screen picker lists every menu in the file - `MenuDefine.xbn` alone holds 29 of
 them: the main menu, the item list, equipment, status and the rest.
 
+### Screens of the mod's own (OpenFF projects)
+
+An OpenFF project's Menus library lists the mod's own screens first, marked so
+(`menus/<id>.xml` + `menus/<id>.json`; "5 frames, 4 to choose from · in the main menu as
+“Trophies”"). **New screen…** writes one - a title, three rows, a Back frame with the
+engine's `Back` behaviour, and a definition with an entry in the game's main menu after Job
+when the box is ticked. It opens on the same canvas as the game's menus, each frame labelled
+`id “text”` with the literal it shows (Preview draws the text in the game's font); *Save*
+writes the layout XML back to the project.
+
+A frame's inspector has the game's fields and then, for a screen of the mod's own: **text**
+(the `<data>` literal a `Text` frame shows until a behaviour writes over it), **focus** (whether
+the cursor can land on it; `up/down/left/right` say where it moves) and **Behaviours
+(OpenFF)** - the `MenuBehaviour`s on that frame, with *Add Behaviour* listing the engine's
+(Back, Label, OpenMenu) and the mod's own classes, a new name writing a starter script, each
+card's public fields editable. Click the canvas away from any frame and the inspector shows
+the **screen's card**: Title, the Main menu entry and where it goes (after Item … after
+Save), Ask for a hero (the game's character pick first), the Backdrop, and the behaviours on
+the screen itself - one there hears every frame's events. Every change to the definition
+saves itself; *Open the definition as JSON* and *Delete this screen* are at the bottom.
+`Docs/Modding.md` ▸ *Menu screens of the mod's own* has the run-time side.
+
 ### Preview
 
 **Preview** replaces each widget's id with the text the game would draw there. A

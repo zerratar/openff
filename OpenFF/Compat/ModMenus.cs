@@ -34,10 +34,14 @@ namespace OpenFF.Client
 		private static List<MenuBehaviour> _behaviours = new List<MenuBehaviour>();
 		private static GlobalScope.wmenu.CWMenuMod _host;
 		private static string _requested;
+		private static string _lastSummary;
 
 		public IReadOnlyList<MenuDefinition> All => _all;
 		public MenuDefinition Find(string id) => _all.FirstOrDefault(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase));
 		public IMenuScreen Current => _screen;
+
+		/// <summary>Whether a loaded mod defines a screen of that id.</summary>
+		public static bool HasScreen(string id) => _all.Any(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase));
 
 		/// <summary>The definitions of every loaded mod, read once the engine has its mods (EngineHost calls after the load).</summary>
 		public static void Gather(IEnumerable<LoadedMod> mods)
@@ -55,7 +59,9 @@ namespace OpenFF.Client
 					_mods[def.Id] = mod;
 				}
 			}
-			if (_all.Count > 0) Log.Write(LogChannel.General, "menus: " + _all.Count + " screen(s) of the mods' own: " + string.Join(", ", _all.Select(d => d.Id + (d.MainMenu != null ? " (main menu: " + d.MainMenu.Label + ")" : ""))));
+			string summary = _all.Count == 0 ? null : "menus: " + _all.Count + " screen(s) of the mods' own: " + string.Join(", ", _all.Select(d => d.Id + (d.MainMenu != null ? " (main menu: " + d.MainMenu.Label + ")" : "")));
+			if (summary != null && summary != _lastSummary) Log.Write(LogChannel.General, summary);
+			_lastSummary = summary;
 		}
 
 		// ---- the layouts ----
@@ -63,7 +69,10 @@ namespace OpenFF.Client
 		/// <summary>MenuDefine.xbn with the mods' screens in it; other files, or no screens, as they were.</summary>
 		public static Array Patch(string fileName, Array bytes)
 		{
-			if (bytes == null || _all.Count == 0 || !string.Equals(Path.GetFileName(fileName), "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase)) return bytes;
+			if (bytes == null || !string.Equals(Path.GetFileName(fileName), "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase)) return bytes;
+			// The definitions are read again each time: a menus/<id>.json edited while the client runs (an attachment, the main menu entry) is on the next opening of the menu, as the layouts are.
+			if (_screen == null) Gather(OpenFF.Game.Mods);
+			if (_all.Count == 0) return bytes;
 			try
 			{
 				XDocument doc = MenuXbn.ToXml((byte[])bytes);

@@ -67,6 +67,29 @@ Two conventions come from the binary format rather than from the game:
   with leading or trailing blanks is written as `value="..."` for the same reason. One
   widget's label is 32 ideographic spaces, and trimming it would corrupt the file.
 
+## Screens of a mod's own
+
+The same XML, a `<menu>` at a time, is how an OpenFF mod adds a screen: `menus/<id>.xml`
+beside a `menus/<id>.json` naming it and the `MenuBehaviour`s on its frames. As the client
+loads `MenuDefine.xbn`, `OpenFF.Client.ModMenus` decodes the file with `MenuXbn.ToXml`
+(the codec is `Shared/Text/MenuXbn.cs`), appends every mod screen's `<menu>` (renamed to
+the definition's `screen`), gives each `<focus/>` frame a `myTag` equal to its place in the
+focus list - `MoveCursor` lands on `initFocus(target.myTag())`, so a layout with the tags
+wrong moves nowhere - fills in `dummy` for a missing `up/down/left/right`, puts an entry per
+screen that asks for one into `main_menu`'s `main_command` (cloned from `com_job`, `work` =
+`CWMenuMod.KIND + index`, the rows re-spaced, the ring re-linked, the character panels'
+tags moved down as many places as entries went in), and encodes it back with
+`MenuXbn.FromXml`. `CWMenuManager.CSelectInitialize` and the Status check that read the
+panels as "tag 9 and up" now count the command list instead.
+
+`wmenu.CWMenuMod` is one `WMENU_KIND` (15, `WMENU_KIND_MAX`) for all of them: `initialize`
+sets the backdrop, hides the faces (or shows the picked hero's), `buildMenu(screen)`;
+`run` is `execute()` plus the decide/cancel states and L/R/X/Y edges handed to `ModMenus`,
+which dispatches to the definition's behaviours over an `IMenuScreen` adapter (widgets by id,
+text through `MBText.mbSetBufferMsg`, colour through `changeTextColor`, focus through
+`setFocuseMedget`). `--trace-menu` logs every `initFocus` with its caller; `--dump-menus`
+writes the patched file as XML to `%TEMP%`.
+
 ## Behaviours
 
 `<behavior>` names a class, resolved at load time by `MenuBehaviorFactory.

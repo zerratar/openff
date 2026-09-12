@@ -191,7 +191,8 @@ namespace OpenFF.Client
 		/// <summary>Whether the main page has the Abilities row: a hero on the mastery progression (FF5's way) in the party.</summary>
 		private static bool AbilitiesRow
 		{
-			get { try { return ProgressionLayer.AnyMastery; } catch (Exception) { return false; } }
+			// Gone when a mod brings an Abilities screen of its own into the game's menu (Samples/Mastery does).
+			get { try { return ProgressionLayer.AnyMastery && !ModMenus.HasScreen("abilities"); } catch (Exception) { return false; } }
 		}
 
 		private int Rows()
