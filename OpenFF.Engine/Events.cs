@@ -189,12 +189,27 @@ namespace OpenFF
 			public string Screen { get; set; }
 		}
 
+		/// <summary>The story would have put a hero into the party, but the party is held to others (IParty.Restrict) - the hero is another player's.</summary>
+		public sealed class PartyJoinRefused
+		{
+			public int HeroId { get; set; }
+		}
+
+		/// <summary>The title screen is up and its entries can be chosen (after the logo).</summary>
+		public sealed class TitleShown { }
+
 		/// <summary>A script took control for a scene (EventStart); Ended when it gave it back.</summary>
 		public sealed class CutsceneStarted { }
 		public sealed class CutsceneEnded { }
 
 		/// <summary>A battle is about to begin (a script's, or an encounter).</summary>
-		public sealed class BattleStarting { }
+		public sealed class BattleStarting
+		{
+			/// <summary>The monster party (the game's table), or -1 when not known.</summary>
+			public int Formation { get; set; } = -1;
+			/// <summary>The battlefield (FF3's 1..43), or 0 when not known.</summary>
+			public int BattleMap { get; set; }
+		}
 
 		/// <summary>A battle is over and the field is back.</summary>
 		public sealed class BattleEnded

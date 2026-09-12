@@ -32,6 +32,7 @@ namespace OpenFF.Client
 		private const float TextSpaceWidth = 800f;
 		private const float TextSpaceHeight = 480f;
 		private const int TitleSize = 14;
+		private const int EntrySize = 11;
 		private const int RowSize = 10;
 		private const float RowHeight = 20f;
 		private const float ListTop = 92f;
@@ -262,7 +263,7 @@ namespace OpenFF.Client
 			}
 			if (!_open)
 			{
-				if (_labelShown && !TextEntry.Instance?.IsActive == true)
+				if ((_labelShown || TitleEntries.Showing) && !TextEntry.Instance?.IsActive == true)
 				{
 					DrawTitleLabel(graphics);
 				}
@@ -369,7 +370,17 @@ namespace OpenFF.Client
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
 			graphics.SetColor(40, 40, 40, 255);
-			graphics.DrawString("MODS", tx, ty - 2, TitleSize);
+			if (_labelShown) graphics.DrawString("MODS", tx, ty - 2, TitleSize);
+			// The mods' own entries (Game.Title.AddEntry), in the rows under, in the title's own dark lettering.
+			if (TitleEntries.Showing)
+			{
+				for (int i = 0; i < TitleEntries.Entries.Count && i < TitleEntries.MaxShown; i++)
+				{
+					float ex = (TitleEntries.ColumnX(i) + GlobalScope.ttl.position_setting_x[(int)GlobalScope.languageCode()] - ox) / GlobalScope.LCD_WIDTH * TextSpaceWidth;
+					float ey = (TitleEntries.RowY(i) - oy) / GlobalScope.LCD_HEIGHT * TextSpaceHeight;
+					graphics.DrawString(TitleEntries.Entries[i].Label.ToUpperInvariant(), ex, ey, EntrySize);   // a size that keeps a long label within its column
+				}
+			}
 			// The client's own menu, said once where a new player looks first.
 			graphics.SetColor(90, 90, 90, 255);
 			graphics.DrawString("Esc / Start: settings", 12f, TextSpaceHeight - 22f, RowSize);

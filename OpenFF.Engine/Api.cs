@@ -41,6 +41,7 @@ namespace OpenFF
 		public static IEffects Effects => Services.Get<IEffects>();
 		/// <summary>The game's own battle: start one against a monster party and hear how it ended.</summary>
 		public static IBattle Battle => Services.Get<IBattle>();
+		public static ITitle Title => Services.Get<ITitle>();
 	}
 
 	public enum BattleResult { Unknown, Won, Lost, Escaped }
@@ -494,6 +495,61 @@ namespace OpenFF
 		JobInfo JobInfo(int id, string job);
 		/// <summary>Whether the character may wear or wield an item as they stand - the job held and what their abilities grant; false for a thing that is not equipment.</summary>
 		bool CanEquip(int id, int itemId);
+
+		/// <summary>
+		/// Only these characters (ids 0..3) may be in the party from now on: a story event that would add another is
+		/// refused (Events.PartyJoinRefused says which), so that hero can belong to another player. Null lifts it.
+		/// The party is not changed by this call - Reset, AddMember and RemoveMember do that.
+		/// </summary>
+		void Restrict(IEnumerable<int> ids);
+		/// <summary>The characters the party is held to (Restrict), or null for no restriction.</summary>
+		IReadOnlyList<int> Restriction { get; }
+		/// <summary>
+		/// A new game's party of this one hero (0..3), as the title's New Game makes it - fresh levels, the starting job,
+		/// the mods' character definitions applied. For a game that began with one hero and picks another before the
+		/// story starts; the field figure follows at the next map change.
+		/// </summary>
+		void Reset(int hero);
+		/// <summary>
+		/// The hero the story treats as its lead. FF3's scripts are written for hero 0 - Luneth falls into the cave, his
+		/// figure is booted for the scene, his name is spoken, he joins the party first. Set to another hero (1..3), the
+		/// scripts' hero 0 is that hero and their hero that one is Luneth - a swap, so every hero keeps one story role -
+		/// and the opening plays for whoever was picked. -1 is the game as written. Set it before the story starts, and
+		/// again when a save comes back (it is not in the game's save).
+		/// </summary>
+		int Protagonist { get; set; }
+		/// <summary>
+		/// A character's whole record as text - name, level, HP and MP, stats, job and job levels, equipment, spells,
+		/// the mastery ladders - to send over a wire or keep in a save chunk; Import puts it back on that character
+		/// (whether they are in the party is not part of it: AddMember / RemoveMember say). Null for no such character.
+		/// </summary>
+		string Export(int id);
+		/// <summary>A record from Export onto a character (0..3); false when the text is not one.</summary>
+		bool Import(int id, string record);
+		/// <summary>The party's order: these characters in these places (the rest after, as they were). Two clients fighting one battle need the same order, since the monsters aim by place.</summary>
+		void Arrange(IEnumerable<int> ids);
+	}
+
+	/// <summary>The title screen: what a mod can put on it, and how it starts a game.</summary>
+	public interface ITitle
+	{
+		/// <summary>An entry under New Game / Continue, in the order added; a press runs the action while the title is up.</summary>
+		void AddEntry(string label, Action onPress);
+		/// <summary>
+		/// Starts a new game as New Game does - a fresh party of this one hero (0..3), the story's flags cleared - on this
+		/// map (the game's own opening when null) at this position. Only from the title (an entry's press). SaveProfile
+		/// keeps its saves apart: "fellowship" writes fellowship-save.bin and its own mod chunks, so a game played alone is
+		/// untouched; null is the game's own save.
+		/// </summary>
+		void NewGame(int hero = 0, string map = null, Vector3? position = null, string saveProfile = null);
+		/// <summary>The title's Continue for a save profile (NewGame): the load screen over that profile's saves.</summary>
+		void Continue(string saveProfile);
+		/// <summary>Whether a save exists under a profile (null for the game's own).</summary>
+		bool HasSave(string saveProfile);
+		/// <summary>The save profile in use (NewGame / Continue), null for the game's own.</summary>
+		string SaveProfile { get; }
+		/// <summary>Whether the title screen is up.</summary>
+		bool IsShowing { get; }
 	}
 
 	/// <summary>A job as it stands for one character, for menus (IParty.JobInfo).</summary>
@@ -558,6 +614,8 @@ namespace OpenFF
 		void Warp(string map, Vector3 position, int facing = 0);
 		/// <summary>True while something else owns the field - the game's menu, a shop, a dialogue, an event, a battle or a map change under way. Warp and the party's movement are ignored then; a mod that wants to act on the field waits for this to clear.</summary>
 		bool Busy { get; }
+		/// <summary>Writes the game's suspend save - the one the title's Continue resumes - at the next quiet moment on the field, as arriving on a map does. For a moment worth keeping that no map change follows.</summary>
+		void Autosave();
 		/// <summary>Whether walking can start the game's random battles. Off for a mod that runs its own fights.</summary>
 		bool Encounters { get; set; }
 		/// <summary>The height of the walkable ground under a point (looking down from a little above it), or null where there is none - off the map, over a pit.</summary>
@@ -578,6 +636,35 @@ namespace OpenFF
 		/// <summary>Whether the party may run from battles.</summary>
 		bool EscapeAllowed { get; set; }
 		bool InBattle { get; }
+		/// <summary>
+		/// A battle two clients compute together (FF3): set before it starts - on BattleStarting for the encounter's
+		/// own, or before Start - and the battle rolls from the seed, asks the mod for the remote heroes' commands
+		/// each round instead of showing them a window, and hands the mod the local heroes' as they are decided.
+		/// Cleared when the battle ends. Null is a battle of this client's own.
+		/// </summary>
+		SharedBattle Shared { get; set; }
+	}
+
+	/// <summary>
+	/// How two clients fight one battle (IBattle.Shared). FF3's rounds - everyone picks, then the round plays - roll
+	/// on a generator seeded alike, so both clients compute the same fight from the same commands: each chooses for
+	/// its own heroes, the choices cross the wire (the mod's), and the round runs on both. The party must hold the
+	/// same heroes with the same records on both sides when the battle starts (IParty.Import / AddMember).
+	/// </summary>
+	public sealed class SharedBattle
+	{
+		/// <summary>The seed both clients roll from; the same on both.</summary>
+		public int Seed;
+		/// <summary>The heroes another client commands: no window for them here, their commands come through RemoteCommand.</summary>
+		public HashSet<int> RemoteHeroes = new HashSet<int>();
+		/// <summary>Asked each frame for a remote hero's command in a round (1 the first): the text LocalCommand gave on the other side, or null while it has not come - the battle waits, animations playing.</summary>
+		public Func<int, int, string> RemoteCommand;
+		/// <summary>A hero of this client's decided (round, hero, the command's text): send it over.</summary>
+		public Action<int, int, string> LocalCommand;
+		/// <summary>A hero's name for "Waiting for ..." while a remote command is awaited; the record's name when null.</summary>
+		public Func<int, string> HeroName;
+		/// <summary>The hero a remote command is awaited from right now, or -1 (for the mod's own drawing).</summary>
+		public int WaitingFor = -1;
 	}
 
 	/// <summary>The field camera.</summary>

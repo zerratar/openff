@@ -1329,7 +1329,6 @@ internal static partial class GlobalScope
 				if (b)
 				{
 					OpenFF.Client.EngineHooks.BattleStarting();
-					OpenFF.Client.EngineHooks.BattleStarting();
 					m_Next = NEXT_MODE.NEXT_BATTLE;
 				}
 			}

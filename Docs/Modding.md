@@ -207,10 +207,11 @@ replaces one for everybody. The whole list is `Docs/API.md`; the shape of it:
 | `Game.Dialogue` | `Say(text)` in the field's window, `Ask(question, yes => ...)` with the game's yes/no box, `IsOpen`. A text of the form `@1000142` is one of the game's own lines by its .msd id, in the player's language; `@1000142 item=5001 gold=250 color=9` fills its item and gold codes and sets the text colour |
 | `Game.Hero` | `Position`, `Yaw`, `Teleport`, `Face`, `LookAt`, `MoveTo`, `Freeze`/`Unfreeze`, `PlayMotion`, `BindBattleMotions` |
 | `Game.Npcs` | `Spawn(model, position, yaw)` a character, `SpawnPlain` the scripts' bootPlainCharacter kind, `SpawnModel` any model (a monster, an object), `Existing(slot)` / `ByRow(row)` the map's own; an `Npc` moves, turns, talks (`Interacted`), fades, scales |
-| `Game.Party` | `Members` with their sheets, `Gil`, `Items`/`AddItem`/`RemoveItem`, `Equip`, `Hurt`/`Heal`, `GiveExperience`, `SetJob`, `LearnSpell`, `Inflict`/`Cure` |
+| `Game.Party` | `Members` with their sheets, `Gil`, `Items`/`AddItem`/`RemoveItem`, `Equip`, `Hurt`/`Heal`, `GiveExperience`, `SetJob`, `LearnSpell`, `Inflict`/`Cure`; `Restrict` (only these heroes may join), `Reset` (a new game's party of one hero), `Protagonist` (the hero the story's scripts treat as their lead), `Export`/`Import` (a character's whole record as text, for a wire or a chunk) |
+| `Game.Title` | `AddEntry` (a row of the title's own under New Game / Continue), `NewGame(hero, map, position, saveProfile)`, `Continue(saveProfile)`, `HasSave`; `TitleShown` when the title is up |
 | `Game.Items`, `Game.Magic`, `Game.Monsters`, `Game.Shops` | the tables as data; `Magic.Cast`/`CastOn` play the game's own effects, `Damage`/`Healing` are the game's formulas, `Magic.Add` a spell of your own; `Shops.Open(row)` the game's shop screen |
-| `Game.Battle` | `Start(monsterParty)` the game's own battle; `BattleEnded` says Won, Lost or Escaped |
-| `Game.Field` | `Map`, `Warp`, `Busy` (a menu, shop, dialogue, event or map change owns the field - wait before a `Warp`), `GroundHeight`/`OnGround`/`Walkable`, `Encounters` on and off |
+| `Game.Battle` | `Start(monsterParty, battleMap)` the game's own battle; `BattleStarting` says the formation and ground, `BattleEnded` Won, Lost or Escaped; `Shared` - a battle two clients compute together |
+| `Game.Field` | `Map`, `Warp`, `Busy` (a menu, shop, dialogue, event or map change owns the field - wait before a `Warp`), `Autosave` (the suspend save at the next quiet moment), `GroundHeight`/`OnGround`/`Walkable`, `Encounters` on and off |
 | `Game.Camera` | `MoveTo`, `LookAt`, `Follow`, `Shake`, `Zoom`, `Reset`, `WorldToScreen` |
 | `Game.Effects`, `Game.Audio`, `Game.Screen` | the game's effects by id; BGM and SE by name; fades, flashes, floating numbers |
 | `Game.Draw` | immediate-mode text, rectangles, lines and sprites (PNGs the mod ships, `LoadTexture`) over the frame, in 800x480 units |
@@ -1518,6 +1519,62 @@ MenuBehaviours, after FF5's screens. What is not here yet: frames drawn by the g
 widget behaviours (`ItemList`, `PramMagic`) on a mod screen, and the game's animated
 window-open (a mod's windows appear at once).
 
+### A game of the mod's own from the title: `Game.Title`, one hero each
+
+A mod can start the game its own way. `Game.Title.AddEntry("Journey together", () => ...)`
+puts a row under the title's New Game / Continue (two entries fit; the title's own rows move
+up to make room), drawn in the title's lettering; a press runs the action while the title is
+up. From it, `Game.Title.NewGame(hero, map, position, saveProfile)` starts a new game as New
+Game does - flags cleared, a fresh party - but of the hero given (0..3) on the map given (the
+game's own opening when null), and under a **save profile**: `"fellowship"` writes
+`fellowship-save.bin`, its progression side-car and its own mod-chunk store, so a game played
+alone is never touched. `Game.Title.Continue(profile)` is the title's Continue over that
+profile's saves (its suspend save when it has one, the load screen otherwise); `HasSave` says
+whether there is one to offer. The title itself always opens on the game's own saves.
+
+The party can be held to certain heroes: `Game.Party.Restrict(new[] { 2 })` keeps everyone
+but Refia out from then on - a story event that would add Arc is refused and
+`Events.PartyJoinRefused` says so (the Fellowship tells Arc's player). `Reset(hero)` makes a
+new game's party of that one hero, for a game that began on a map of the mod's own and picks
+its hero there. And `Protagonist`: FF3's scripts are written for hero 0 - Luneth falls into
+the cave, his figure is booted for the scene (PC cast 5), `%shuyaku1` speaks his name, he
+joins first. Set it to another hero and the scripts' hero 0 is that hero and their hero that
+one is Luneth (a swap, so every hero keeps one story role): the opening plays, unchanged, for
+whoever was picked. It is not in the game's save - set it again when a save comes back (a
+save chunk is the place). `Export(id)` is a character's whole record as text - name, level,
+HP and MP, stats, job and job levels, equipment, spells, the mastery ladders - and
+`Import(id, text)` puts it back on that character; whether they are in the party is the
+party's business (`AddMember` / `RemoveMember`). That is how a hero changes hands between
+players, or rides in a chunk. And a battle background is a map like any other:
+`Game.Title.NewGame(0, "b16", ...)` or `Game.Field.Warp("b16", ...)` puts the party on one of
+the game's battle stages (b00..b25 - grass, sand, stone floors, a ship's deck) with a scene
+file's objects on it, a plain stage for a scene of your own. `Game.Field.Autosave()` writes the
+suspend save - what the title's Continue resumes - at the next quiet moment, for a moment
+worth keeping that no map change follows.
+
+### Two clients, one battle: the rules roll alike
+
+FF3's battle is rounds - everyone picks, then the round plays out - and its rules roll on a
+generator of their own (`ds.RandomNumber.logic32`: hit rolls, damage spread, turn order, the
+monsters' choices and set-up), apart from the effects', the camera's and the field's. Seeded
+alike and given the same commands, two clients compute the same battle whatever their
+animations and frame counts do: `--battle-seed=<n>` seeds every battle for a test, and
+`battle-sync: round N Luneth 32/32 | m0 7` in the log is the digest to compare (`BattleSync`
+seeds afresh at every round's start, so nothing between rounds can drift them apart).
+
+On that ground, `Game.Battle.Shared` is a battle fought together over the wire: set a
+`SharedBattle` before the battle starts - on `BattleStarting` (it says the `Formation` and
+`BattleMap`) for an encounter of this client's own, or before `Game.Battle.Start(formation,
+map)` on the client joining it - with the `Seed` both roll from, the `RemoteHeroes` the other
+client commands, `RemoteCommand(round, hero)` (the command's text once it has come over your
+wire, null while it has not - the battle waits, animations playing, `WaitingFor` says whom
+for your own "Waiting for...") and `LocalCommand(round, hero, text)` (a hero of this client's
+decided: send it). The party must be the same on both sides when the battle starts - the same
+heroes with the same records (`Import` + `AddMember`), in the same places (`Arrange`: the
+monsters aim by place) - and the battle takes it from there: no window opens for a remote hero,
+there is no stepping back to the hero before once a command has gone out, and the rounds come
+out alike. `Shared` clears itself when the battle ends; the mod puts the parties back.
+
 ### Seeing what happens
 
 - The log (`logs/ff3.log` beside the client, `--log=general,file`): `engine: mod my-mod 1.0: 1
@@ -1590,4 +1647,21 @@ release zip carries them in `Samples\`.
   the game's menu (`menus/fellowship`, `-actions`, `-gift`, `-gil`; `FellowshipScreen.cs`) after
   the game's own proportions, and `Fellowship.cs` for the wire, the figures and the corner HUD.
   `install.cmd` builds it into the mods folder; start two clients and open the main menu's
-  *Fellowship* on either.
+  *Fellowship* on either. And **Journey together** on the title (`Journey.cs`): a new game
+  onto the Crystal's Choosing - one of the game's battle backgrounds (`b16`) with the mod's
+  crystal on it (`scenes/b16.json`), the four heroes in a row before it - left / right and a
+  press to claim one; a hero another traveller holds is said so; two claims at once, the lower
+  client id keeps it. Then `Game.Party.Reset` + `Restrict` + `Protagonist`, and the opening -
+  the fall, the lines, the naming - plays for that hero. Saves go under the `fellowship`
+  profile (`fellowship-<name>` with `FELLOWSHIP_NAME` set, so two clients on one machine keep
+  apart). *Continue the journey* comes back through the choosing: each hero with the level and
+  job last seen (your own from the save, the others as the wire last said - every client sends
+  its hero's `Export` now and then), your own takes you back where you stopped, another free
+  hero puts their record on (`Import`) so a hero can change hands between sessions. And
+  **fighting together** (`SharedFight.cs`): a battle begun with another journeying traveller on
+  the same map within reach is everyone's - the host takes their heroes in from the records
+  last heard, tells the wire the battle (`BR` records, `B` the battle, `BC` each command), the
+  guests start the same one on their own client, and each player commands their own hero while
+  the other's turn shows "Waiting for Arc..."; afterwards each party is its own again.
+  `FELLOWSHIP_HERO=<0..3>` with a `--map` start journeys as that hero without the shrine, for a
+  test drive of two clients together.

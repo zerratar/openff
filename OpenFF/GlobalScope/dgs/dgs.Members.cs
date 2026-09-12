@@ -137,7 +137,7 @@ internal static partial class GlobalScope
 		internal static void ccpPlayerName(string code, char[] dest, int iDestOffset)
 		{
 			int num = atoi(code.Substring(7, 1));
-			num--;
+			num = OpenFF.Client.StoryCast.Hero((byte)(num - 1));   // OpenFF: %shuyaku1 is the story's lead - the hero the story treats as hero 1
 			if (0 <= num && num <= 3)
 			{
 				strcpy(dest, iDestOffset, pl.PlayerParty.instance().playerForId((byte)num).name());

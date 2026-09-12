@@ -292,6 +292,12 @@ internal static partial class GlobalScope
 
 			public bool addPlayer(byte playerId)
 			{
+				// OpenFF: a party held to certain heroes (Game.Party.Restrict) refuses the others - a story
+				// event's join lands with the player who owns that hero instead (Events.PartyJoinRefused).
+				if (OpenFF.Client.PartyRestriction.Refuses(playerId))
+				{
+					return false;
+				}
 				if (isPartyFull())
 				{
 					return false;

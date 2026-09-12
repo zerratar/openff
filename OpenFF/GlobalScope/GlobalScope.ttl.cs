@@ -84,6 +84,7 @@ internal static partial class GlobalScope
                 G2S_SetBG3ControlText(0, 0, GXBGScrBase.GX_BG_SCRBASE_0x2800, GXBGCharBase.GX_BG_CHARBASE_0x20000);
                 sys2d.DS2DManager.d2dGetInstance().d2dInitialize();
                 dgs.msg.CMessageSys.getInstance().initialize();
+                OpenFF.Client.SaveFiles.Profile = null;   // OpenFF: the title opens on the game's own saves; a mod's entry may switch to a profile of its own
                 SuspendSaveDataGlobal.getSingleton().setup();
                 tSystem = new CTitleSystem();
                 tSystem.Initialize();
@@ -182,15 +183,21 @@ internal static partial class GlobalScope
                                 pl.PlayerParty.instance().initialize();
                                 evt.CEventManager.getInstance().initialize();
                                 mon.MonsterManager.instance().monsterManiaManager().clearMonsterMania();
-                                pl.PlayerParty.instance().addPlayer(0);
-                                pl.PlayerParty.instance().playerForId(0).changeJob(pl.JOB_TYPE.SUPPINN);
-                                pl.PlayerParty.instance().playerForId(0).updateParameter();
+                                // OpenFF: a mod's entry may have ordered the new game with a hero and map of its own (Game.Title.NewGame).
+                                OpenFF.Client.TitleEntries.Order order = OpenFF.Client.TitleEntries.Pending;
+                                OpenFF.Client.TitleEntries.Pending = null;
+                                byte hero = (byte)(order != null && order.Hero >= 0 && order.Hero < 4 ? order.Hero : 0);
+                                string map = order?.Map ?? "d01_05";
+                                pl.PlayerParty.instance().addPlayer(hero);
+                                pl.PlayerParty.instance().playerForId(hero).changeJob(pl.JOB_TYPE.SUPPINN);
+                                pl.PlayerParty.instance().playerForId(hero).updateParameter();
                                 // OpenFF: a mod's character definitions on the new game's party (defs/characters).
                                 OpenFF.Client.ModCharactersLayer.ApplyToNewParty();
-                                VecFx32 pos = new VecFx32(0, 0, 0);
+                                VecFx32 pos = order?.Position != null ? OpenFF.Client.EngineApi.ToFx(order.Position.Value) : new VecFx32(0, 0, 0);
                                 VecFx32 rot = new VecFx32(0, 0, 0);
-                                CCastCommandTransit.getInstance().castParam_MapJump().setUp("d01_05", 0, pos, rot, _Flag: true);
-                                sceneMng.gotoStage("d01_05");
+                                CCastCommandTransit.getInstance().castParam_MapJump().setUp(map, 0, pos, rot, _Flag: true);
+                                sceneMng.gotoStage(map);
+                                if (order != null) OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "title: a mod's new game - hero " + hero + " on " + map + (order.SaveProfile != null ? ", saves '" + order.SaveProfile + "'" : ""));
                                 mognet.MNMemento.getSingleton().mnmClearMail();
                                 mognet.MNNPCMailData.getSingleton().clearNPCMailData();
                                 ds.GlobalPlayTimeCounter.getSingleton().set(0u);
@@ -649,7 +656,7 @@ internal static partial class GlobalScope
 
             private sys2d.Cell about = new sys2d.Cell();
 
-            private ds.Vector<TITLE_COMMAND, ds.FastErasePolicy<TITLE_COMMAND>> titleCommands = new ds.Vector<TITLE_COMMAND, ds.FastErasePolicy<TITLE_COMMAND>>(4);
+            private ds.Vector<TITLE_COMMAND, ds.FastErasePolicy<TITLE_COMMAND>> titleCommands = new ds.Vector<TITLE_COMMAND, ds.FastErasePolicy<TITLE_COMMAND>>(8);   // OpenFF: room for the mods' entries (TitleEntries)
 
             private sys2d.Sprite3d[] logoSprite = new sys2d.Sprite3d[2]
             {
@@ -678,6 +685,11 @@ internal static partial class GlobalScope
                 logoAlpha = 0;
                 cIndexNo = 0;
                 titleCommands.clear();
+                // OpenFF: with a mod's entries to show, the title's two rows move up to make a third under them
+                // (the copyright line sits at the bottom); without, the rows stay where the game put them.
+                bool modRow = OpenFF.Client.TitleEntries.Entries.Count > 0;
+                NEW_GAME_POS_Y = CONTINUE_POS_Y = modRow ? 204 : 220;
+                LOAD_GAME_POS_Y = WIFI_POS_Y = modRow ? 236 : 260;
                 changeCompanyDirectory();
                 about.Load(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_SUB2D, "about.NCER", null, "about.NCGR", "about.NCLR");
                 about.SetCell(0);
@@ -781,6 +793,22 @@ internal static partial class GlobalScope
                 titleCommands.push_back(tITLE_COMMAND);
                 sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(titleCommands[titleCommands.size() - 1].cell);
                 }
+                // OpenFF: the mods' entries (Game.Title.AddEntry) in rows under the title's own, as text -
+                // a command with an empty cell (the bank's cell 4 paints nothing) and next_part 100 + index.
+                for (int e = 0; e < OpenFF.Client.TitleEntries.Entries.Count && e < OpenFF.Client.TitleEntries.MaxShown; e++)
+                {
+                    tITLE_COMMAND = new TITLE_COMMAND();
+                    tITLE_COMMAND.next_part = 100 + e;
+                    tITLE_COMMAND.pos.vx = (short)OpenFF.Client.TitleEntries.ColumnX(e);
+                    tITLE_COMMAND.pos.vy = (short)OpenFF.Client.TitleEntries.RowY(e);
+                    tITLE_COMMAND.cell.copy(touch);
+                    tITLE_COMMAND.cell.SetCell(4);
+                    tITLE_COMMAND.cell.SetShow(show: false);
+                    tITLE_COMMAND.cell.SetPriority(0);
+                    tITLE_COMMAND.cell.SetPositionI(tITLE_COMMAND.pos.vx + position_setting_x[(int)lANGUAGE_CODE], tITLE_COMMAND.pos.vy);
+                    titleCommands.push_back(tITLE_COMMAND);
+                    sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(titleCommands[titleCommands.size() - 1].cell);
+                }
                 touch.SetCell(0);
                 touch.SetShow(show: false);
                 touch.SetPriority(0);
@@ -826,6 +854,7 @@ internal static partial class GlobalScope
                 sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(logoSprite[1]);
                 tPrologue.tpTerminate();
                 OpenFF.Client.ModListScreen.HideTitleLabel();
+                OpenFF.Client.TitleEntries.Left();
                 cursor.Release();
                 sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(cursor);
                 touch.Release();
@@ -884,6 +913,12 @@ internal static partial class GlobalScope
                     }
                     if ((ds.g_Pad.edge() & 9) != 0)
                     {
+                        if (titleCommands[cIndexNo].next_part >= 100)
+                        {
+                            // OpenFF: a mod's entry - its action runs; a new game it orders follows the New Game path.
+                            MatrixSound.MtxSENDS_Play(0, 1, 192, 127);
+                            return RunModEntry(titleCommands[cIndexNo].next_part - 100);
+                        }
                         if (OpenFF.Client.ModListScreen.Available && titleCommands[cIndexNo].next_part >= 4)
                         {
                             // PORT: the fourth entry is the mod list on this client, not the network part.
@@ -891,6 +926,7 @@ internal static partial class GlobalScope
                             OpenFF.Client.ModListScreen.Open();
                             return false;
                         }
+                        OpenFF.Client.SaveFiles.Profile = null;   // OpenFF: the game's own saves for its own entries
                         cIndexNo = titleCommands[cIndexNo].next_part;
                         return true;
                     }
@@ -991,6 +1027,7 @@ internal static partial class GlobalScope
                 {
                     OpenFF.Client.ModListScreen.ShowTitleLabel(WIFI_POS_X + position_setting_x[(int)languageCode()], WIFI_POS_Y);
                 }
+                OpenFF.Client.TitleEntries.Shown();   // OpenFF: the mods hear TitleShown; their entries' labels are drawn from here
             }
 
             public bool TouchSelectCommand()
@@ -1023,6 +1060,12 @@ internal static partial class GlobalScope
                             return false;
                         }
                         cursor.SetPositionI(titleCommands[i].pos.vx - 16 + position_setting_x[(int)lANGUAGE_CODE], titleCommands[i].pos.vy + title_command_height / 2);
+                        if (titleCommands[i].next_part >= 100)
+                        {
+                            MatrixSound.MtxSENDS_Play(0, 1, 192, 127);
+                            cIndexNo = i;
+                            return RunModEntry(titleCommands[i].next_part - 100);
+                        }
                         if (OpenFF.Client.ModListScreen.Available && titleCommands[i].next_part >= 4)
                         {
                             // PORT: the fourth entry is the mod list on this client, not the network part.
@@ -1030,11 +1073,35 @@ internal static partial class GlobalScope
                             OpenFF.Client.ModListScreen.Open();
                             return false;
                         }
+                        OpenFF.Client.SaveFiles.Profile = null;
                         cIndexNo = titleCommands[i].next_part;
                         return true;
                     }
                 }
                 return false;
+            }
+
+            /// <summary>
+            /// OpenFF: a mod's title entry pressed. Its action runs; when it ordered a game (Game.Title.NewGame or
+            /// Continue), the title leaves by the New Game or Continue path with the order - true, and cIndexNo set to
+            /// the part the caller reads (0 new game, 1 load).
+            /// </summary>
+            private bool RunModEntry(int index)
+            {
+                OpenFF.Client.TitleEntries.Pending = null;
+                OpenFF.Client.TitleEntries.Run(index);
+                OpenFF.Client.TitleEntries.Order order = OpenFF.Client.TitleEntries.Pending;
+                if (order == null)
+                {
+                    return false;
+                }
+                OpenFF.Client.SaveFiles.Profile = order.SaveProfile;
+                // The profile's own files: the suspend save and the slots are read again under it.
+                SuspendSaveDataGlobal.getSingleton().setup();
+                card.Manager.GetInstance().CheckNewestData();
+                // A continue takes the suspend save when the profile has one (the game's own Continue), the load screen otherwise.
+                cIndexNo = order.Continue ? (SuspendSaveDataGlobal.getSingleton().isProper() ? 2 : 1) : 0;
+                return true;
             }
 
             public bool HitArea(int x, int y)
@@ -1323,7 +1390,7 @@ internal static partial class GlobalScope
 
         public static int WIFI_POS_Y = 260;
 
-        private static int[] position_setting_x = new int[5] { 0, -20, -20, -20, -20 };
+        internal static int[] position_setting_x = new int[5] { 0, -20, -20, -20, -20 };
 
         public static int msg_one_speed = 1;
 

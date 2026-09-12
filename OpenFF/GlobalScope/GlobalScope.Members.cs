@@ -15569,7 +15569,7 @@ internal static partial class GlobalScope
 								int num = 0;
 								array[0] = pChrName[1];
 								array[1] = '\0';
-								num = atoi(new string(array)) - 1;
+								num = OpenFF.Client.StoryCast.Hero((byte)(atoi(new string(array)) - 1));   // OpenFF: as above
 								sprintf(out pChrName, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().playerForId((byte)num).playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(pl.PlayerParty.instance().playerForId((byte)num).playerId(), pl.PlayerParty.instance().playerForId((byte)num).jobManager()
 									.nowJob()) + 1);
 							}
@@ -17131,7 +17131,7 @@ internal static partial class GlobalScope
 							uint word = engine.getWord();
 							engine.getByte();
 							byte b = (byte)word;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							pl.PlayerParty.instance().addPlayer(b);
 							pl.PlayerParty.instance().clearMemory();
 							CCastCommandTransit.getInstance().cast_BaseSystem().changePlayerCharDisplay();
@@ -17142,7 +17142,7 @@ internal static partial class GlobalScope
 							uint word = engine.getWord();
 							engine.getByte();
 							byte b = (byte)word;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							for (int i = 0; i < 4; i++)
 							{
 								if (pl.PlayerParty.instance().player((byte)i).isEnable())
@@ -17838,7 +17838,7 @@ internal static partial class GlobalScope
 								break;
 							}
 							default:
-								word -= 5;
+								word = OpenFF.Client.StoryCast.Hero((byte)(word - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one
 								if ((pl.PlayerParty.instance().playerForId((byte)word).condition()
 									.normalCondition() & num) != 0)
 								{
@@ -17855,7 +17855,7 @@ internal static partial class GlobalScope
 							uint word = engine.getWord();
 							uint dword = engine.getDword();
 							byte b = static_cast<byte>(word);
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							if (pl.PlayerParty.instance().playerForId(b).isEnable())
 							{
 								engine.jump(dword);
@@ -17867,7 +17867,7 @@ internal static partial class GlobalScope
 							uint word = engine.getWord();
 							uint dword = engine.getDword();
 							byte b = static_cast<byte>(word);
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							if (!pl.PlayerParty.instance().playerForId(b).isEnable())
 							{
 								engine.jump(dword);
@@ -17949,7 +17949,7 @@ internal static partial class GlobalScope
 						internal static void ff3Command_BootNameEntry(ScriptEngine engine)
 						{
 							uint word = engine.getWord();
-							NameEntry.getSingleton().setTargetPlayer((pl.PLAYER_ID)word);
+							NameEntry.getSingleton().setTargetPlayer((pl.PLAYER_ID)OpenFF.Client.StoryCast.Hero(word));   // OpenFF: the name asked is the story's lead's - the hero picked (Game.Party.Protagonist)
 							wld.WorldPart.getInstance().getWorldSystem().appendPWS(NameEntry.getSingleton());
 						}
 
@@ -17991,7 +17991,7 @@ internal static partial class GlobalScope
 							case 4u:
 								return;
 							}
-							word -= 5;
+							word = OpenFF.Client.StoryCast.Hero((byte)(word - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one
 							if ((pl.PlayerParty.instance().playerForId((byte)word).condition()
 								.normalCondition() & num) == num)
 							{
@@ -18473,7 +18473,7 @@ internal static partial class GlobalScope
 							uint word5 = engine.getWord();
 							uint word6 = engine.getWord();
 							byte b = (byte)word;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							if (pl.PlayerParty.instance().playerForId(b).isEnable())
 							{
 								pl.EquipItemInfo equipItemInfo = new pl.EquipItemInfo();
@@ -18759,16 +18759,18 @@ internal static partial class GlobalScope
 						{
 							uint word = engine.getWord();
 							byte b = (byte)word;
-							b -= 5;
-							bool flag = pl.PlayerParty.instance().player(b).isEnable();
-							pl.PlayerParty.instance().player(b).initialize(b);
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
+							// OpenFF: the hero's own record (playerForId), not the party slot of that number - the two are one only while the party is in its first order.
+							pl.Player member = pl.PlayerParty.instance().playerForId(b);
+							bool flag = member.isEnable();
+							member.initialize(b);
 							if (flag)
 							{
-								pl.PlayerParty.instance().player(b).onIsEnable();
+								member.onIsEnable();
 							}
 							else
 							{
-								pl.PlayerParty.instance().player(b).offIsEnable();
+								member.offIsEnable();
 							}
 						}
 
@@ -18780,7 +18782,7 @@ internal static partial class GlobalScope
 							uint word2 = engine.getWord();
 							byte b = static_cast<byte>(word);
 							int num = 0;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							switch (dword2)
 							{
 							case 0u:
@@ -18861,7 +18863,7 @@ internal static partial class GlobalScope
 							uint word2 = engine.getWord();
 							byte b = static_cast<byte>(word);
 							int num = 0;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							switch (dword2)
 							{
 							case 0u:
@@ -18923,7 +18925,7 @@ internal static partial class GlobalScope
 							uint word2 = engine.getWord();
 							byte b = static_cast<byte>(word);
 							int num = 0;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							switch (dword2)
 							{
 							case 0u:
@@ -18974,7 +18976,7 @@ internal static partial class GlobalScope
 							uint word2 = engine.getWord();
 							byte b = static_cast<byte>(word);
 							int num = 0;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							switch (dword2)
 							{
 							case 0u:
@@ -19008,7 +19010,7 @@ internal static partial class GlobalScope
 							uint word2 = engine.getWord();
 							byte b = static_cast<byte>(word);
 							int num = 0;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							switch (dword2)
 							{
 							case 0u:
@@ -19046,7 +19048,7 @@ internal static partial class GlobalScope
 
 						internal static void ff3Command_SetPartyMember_JobLevel(ScriptEngine engine)
 						{
-							uint word = engine.getWord();
+							uint word = (uint)OpenFF.Client.StoryCast.Hero((int)engine.getWord());   // OpenFF: the hero the story means
 							byte type = (byte)engine.getDword();
 							byte value = engine.getByte();
 							if (pl.PlayerParty.instance().playerForId((byte)word).isEnable())
@@ -19939,7 +19941,7 @@ internal static partial class GlobalScope
 							uint word2 = engine.getWord();
 							byte b = (byte)word;
 							byte level = (byte)word2;
-							b -= 5;
+							b = OpenFF.Client.StoryCast.Hero((byte)(b - 5));   // OpenFF: the script's PC cast, as the hero the story treats as that one (Game.Party.Protagonist)
 							pl.PlayerParty.instance().playerForId(b).growParameter(level);
 						}
 
@@ -20040,7 +20042,7 @@ internal static partial class GlobalScope
 								int num = 0;
 								array[0] = text2[1];
 								array[1] = '\0';
-								num = atoi(new string(array)) - 1;
+								num = OpenFF.Client.StoryCast.Hero((byte)(atoi(new string(array)) - 1));   // OpenFF: the story's hero figure, as the hero the story treats as that one
 								sprintf(out text2, "j%d%02d", OpenFF.Client.ModCharactersLayer.ModelSet(pl.PlayerParty.instance().playerForId((byte)num).playerId()) + 1, OpenFF.Client.ModCharactersLayer.ModelJob(pl.PlayerParty.instance().playerForId((byte)num).playerId(), pl.PlayerParty.instance().playerForId((byte)num).jobManager()
 									.nowJob()) + 1);
 							}

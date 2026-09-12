@@ -7,11 +7,11 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 ## Contents
 
 - [The entry point](#the-entry-point): [`Game`](#game)
-- [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMenuScreen`](#imenuscreen), [`IMenuWidget`](#imenuwidget), [`IMenus`](#imenus), [`IMeshes`](#imeshes), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`AbilityInfo`](#abilityinfo), [`Back`](#back), [`BattleActor`](#battleactor), [`BattleCommand`](#battlecommand), [`BattleCommandLoader`](#battlecommandloader), [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`Gauge`](#gauge), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`JobInfo`](#jobinfo), [`Label`](#label), [`Look`](#look), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`MenuAttachment`](#menuattachment), [`MenuBehaviour`](#menubehaviour), [`MenuDefinition`](#menudefinition), [`MenuEntry`](#menuentry), [`MenuList`](#menulist), [`MenuLoader`](#menuloader), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`OpenMenu`](#openmenu), [`PartyMember`](#partymember), [`Picture`](#picture), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMenuScreen`](#imenuscreen), [`IMenuWidget`](#imenuwidget), [`IMenus`](#imenus), [`IMeshes`](#imeshes), [`IScripts`](#iscripts), [`ITitle`](#ititle)
+- [Handles and data](#handles-and-data): [`AbilityInfo`](#abilityinfo), [`Back`](#back), [`BattleActor`](#battleactor), [`BattleCommand`](#battlecommand), [`BattleCommandLoader`](#battlecommandloader), [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`Gauge`](#gauge), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`JobInfo`](#jobinfo), [`Label`](#label), [`Look`](#look), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`MenuAttachment`](#menuattachment), [`MenuBehaviour`](#menubehaviour), [`MenuDefinition`](#menudefinition), [`MenuEntry`](#menuentry), [`MenuList`](#menulist), [`MenuLoader`](#menuloader), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`OpenMenu`](#openmenu), [`PartyMember`](#partymember), [`Picture`](#picture), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`SharedBattle`](#sharedbattle), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
-- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MenuClosed`](#menuclosed), [`MenuOpened`](#menuopened), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
+- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MenuClosed`](#menuclosed), [`MenuOpened`](#menuopened), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`PartyJoinRefused`](#partyjoinrefused), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TitleShown`](#titleshown), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
 - [Saving](#saving): [`ISaveable`](#isaveable), [`SaveChunks`](#savechunks)
 - [Mods and loading](#mods-and-loading): [`LoadedMod`](#loadedmod), [`ModDefinition`](#moddefinition), [`ModLoader`](#modloader), [`ModWatcher`](#modwatcher)
 - [Constants](#constants): [`BattleResult`](#battleresult), [`CommandTarget`](#commandtarget), [`Condition`](#condition), [`CutsceneStart`](#cutscenestart), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MenuColour`](#menucolour), [`MenuKey`](#menukey), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting), [`WanderGait`](#wandergait)
@@ -55,6 +55,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 | `static IShops Shops { get; }` | The game's shop screen, opened on any map with any shop table; what a shop sells. |
 | `static bool Started { get; }` | True once Start has run. |
 | `static GameTime Time { get; }` | The engine clock: frame count, delta and total seconds. |
+| `static ITitle Title { get; }` |  |
 | `static Action<string> Warn { get; set; }` | Where warnings and caught exceptions go; the host points this at its log. |
 | `static World World { get; }` | The object model: scenes and their game objects; the running game is the scene called "legacy". |
 | `static void Guard(string what, Action action)` | Runs a piece of script code, keeping a script's exception from taking the game down. |
@@ -142,15 +143,19 @@ The party: money, items, members.
 | `int Gil { get; set; }` | The party's money; set it to give or take. |
 | `IReadOnlyList<ItemStack> Items { get; }` | The bag: every item the party carries and how many. |
 | `IReadOnlyList<PartyMember> Members { get; }` | The characters in the party, in slot order. |
+| `int Protagonist { get; set; }` | The hero the story treats as its lead. FF3's scripts are written for hero 0 - Luneth falls into the cave, his figure is booted for the scene, his name is spoken, he joins the party first. Set to another hero (1..3), the scripts' hero 0 is that hero and their hero that one is Luneth - a swap, so every hero keeps one story role - and the opening plays for whoever was picked. -1 is the game as written. Set it before the story starts, and again when a save comes back (it is not in the game's save). |
+| `IReadOnlyList<int> Restriction { get; }` | The characters the party is held to (Restrict), or null for no restriction. |
 | `AbilityInfo Ability(string word)` | An ability by its word ("cover", "white-magic", a mod passive's own word) or the game's name; null for none. |
 | `int Abp(int id, Job job)` | ABP gathered toward the next step of a job's ladder. |
 | `void AddItem(int itemId, int count)` | Puts items in the bag (Game.Items.Find for the id). |
 | `bool AddMember(int id)` | Puts a character into the party (the game's id); false when the party is full or the id unknown. |
+| `void Arrange(IEnumerable<int> ids)` | The party's order: these characters in these places (the rest after, as they were). Two clients fighting one battle need the same order, since the monsters aim by place. |
 | `bool CanEquip(int id, int itemId)` | Whether the character may wear or wield an item as they stand - the job held and what their abilities grant; false for a thing that is not equipment. |
 | `bool ChangeJob(int id, string job)` | A mastery hero takes a job by word - one of FF3's ("knight") or a job of the mod's own from defs/jobs ("samurai") - with no penalty, the field figure following; false when the hero is not on the progression, the job is unknown, not yet opened by the crystals (a mod's job needs its base open), or fixed. A mod's job stands on an FF3 base the game's party holds (PartyMember.Job is the base; JobWord and JobTitle say the job really held). |
 | `void Cure(int id, Condition conditions)` | Takes conditions off. |
 | `bool Equip(int id, int itemId, EquipSlot slot = Auto)` | Equips an item from the bag on a character (the item's own slot when Auto); false when they cannot wear it or the bag has none. |
 | `int Equipped(int id, EquipSlot slot)` | The item in a slot, or 0. |
+| `string Export(int id)` | A character's whole record as text - name, level, HP and MP, stats, job and job levels, equipment, spells, the mastery ladders - to send over a wire or keep in a save chunk; Import puts it back on that character (whether they are in the party is not part of it: AddMember / RemoveMember say). Null for no such character. |
 | `bool ForgetSpell(int id, int spellId)` | Takes a spell out of the character's slots; false when they did not have it. |
 | `int GiveAbp(int id, Job job, int amount)` | Gives ABP toward a job's ladder, climbing it as battles do; returns how many steps were reached (abilities learned). Nothing without a ladder for the job. |
 | `bool GiveExperience(int id, int amount)` | Adds experience, levelling up as the game does; true when a level was gained. |
@@ -158,6 +163,7 @@ The party: money, items, members.
 | `int Heal(int id, int amount, bool revive = false)` | Gives hit points back, up to the maximum (a dead character stays dead unless revive is true). Returns the new HP. |
 | `void HealAll()` | Heals everyone to full. |
 | `int Hurt(int id, int amount, bool canKill = false)` | Takes hit points off a character; with canKill false it stops at 1 (as the game's floors do), otherwise 0 kills. Returns the new HP. |
+| `bool Import(int id, string record)` | A record from Export onto a character (0..3); false when the text is not one. |
 | `void Inflict(int id, Condition conditions)` | Puts a character into conditions (Poison, Blind...). |
 | `int ItemCount(int itemId)` | How many of an item the party carries. |
 | `JobInfo JobInfo(int id, string job)` | A job as it stands for a character: its ladder's level and ABP, whether open, held, mastered; null for no such job. |
@@ -168,6 +174,8 @@ The party: money, items, members.
 | `IReadOnlyList<string> OpenJobs(int id)` | The jobs a character may take now, by word: FF3's the crystals have opened and the mod's own whose base is open. |
 | `bool RemoveItem(int itemId, int count)` | Takes items out of the bag; false when there are not that many. |
 | `bool RemoveMember(int id)` | Takes a character out of the party; false when not in it. |
+| `void Reset(int hero)` | A new game's party of this one hero (0..3), as the title's New Game makes it - fresh levels, the starting job, the mods' character definitions applied. For a game that began with one hero and picks another before the story starts; the field figure follows at the next map change. |
+| `void Restrict(IEnumerable<int> ids)` | Only these characters (ids 0..3) may be in the party from now on: a story event that would add another is refused (Events.PartyJoinRefused says which), so that hero can belong to another player. Null lifts it. The party is not changed by this call - Reset, AddMember and RemoveMember do that. |
 | `bool SetAbility(int id, int slot, int abilityId)` | Sets a learned ability into a free command slot of the character's held job (0 clears it); false when not on the progression, not learned, or no such slot. The battle commands follow at once. |
 | `void SetCharges(int id, int level, int now, int max = -1)` | Sets the charges of one magic level (1-8) now and, when max is given, the maximum too. |
 | `void SetHp(int id, int now, int max = -1)` | Sets HP now and, when max is given, the maximum too. |
@@ -246,6 +254,7 @@ The game's own battles, started from a mod.
 | --- | --- |
 | `bool EscapeAllowed { get; set; }` | Whether the party may run from battles. |
 | `bool InBattle { get; }` |  |
+| `SharedBattle Shared { get; set; }` | A battle two clients compute together (FF3): set before it starts - on BattleStarting for the encounter's own, or before Start - and the battle rolls from the seed, asks the mod for the remote heroes' commands each round instead of showing them a window, and hands the mod the local heroes' as they are decided. Cleared when the battle ends. Null is a battle of this client's own. |
 | `void Start(int monsterParty, int battleMap = 0)` | Starts the game's battle with a monster party (the game's table) on a battlefield (FF3's 1..43; 0, the default, is the one the current map's own encounters use); BattleEnded follows. |
 
 ### IField
@@ -259,6 +268,7 @@ The map and moving between maps.
 | `bool Busy { get; }` | True while something else owns the field - the game's menu, a shop, a dialogue, an event, a battle or a map change under way. Warp and the party's movement are ignored then; a mod that wants to act on the field waits for this to clear. |
 | `bool Encounters { get; set; }` | Whether walking can start the game's random battles. Off for a mod that runs its own fights. |
 | `string Map { get; }` | The current map's name (d01_05, f00...), or null. |
+| `void Autosave()` | Writes the game's suspend save - the one the title's Continue resumes - at the next quiet moment on the field, as arriving on a map does. For a moment worth keeping that no map change follows. |
 | `bool Blocked(Vector3 from, Vector3 to, float radius = 3)` | Whether a wall (the map's, or a Solid Mesh) stands in the way of a step from one point to the next, for a body of that radius - the test the hero's own walk makes. False where there is no wall. |
 | `float? GroundHeight(Vector3 at)` | The height of the walkable ground under a point (looking down from a little above it), or null where there is none - off the map, over a pit. |
 | `Vector3 OnGround(Vector3 at)` | The point moved down (or up) onto the ground; the point itself where there is no ground. |
@@ -422,6 +432,21 @@ The game's own script language, run by the engine: a cast's code as text - the l
 | `bool Define(int cast, IReadOnlyList<string> lines)` | Defines (or replaces) the code a cast number runs on this map: a label per function is not needed, the lines are one function's body. False, with the problems logged, when it does not compile. |
 | `bool IsRunning(int cast)` | Whether the cast's code is running. |
 | `bool Start(int cast)` | Starts the cast's code, as the game's talk starts a cast's main. False when nothing is defined for it or it is running already. |
+
+### ITitle
+
+`interface ITitle`
+
+The title screen: what a mod can put on it, and how it starts a game.
+
+| Member | What it does |
+| --- | --- |
+| `bool IsShowing { get; }` | Whether the title screen is up. |
+| `string SaveProfile { get; }` | The save profile in use (NewGame / Continue), null for the game's own. |
+| `void AddEntry(string label, Action onPress)` | An entry under New Game / Continue, in the order added; a press runs the action while the title is up. |
+| `void Continue(string saveProfile)` | The title's Continue for a save profile (NewGame): the load screen over that profile's saves. |
+| `bool HasSave(string saveProfile)` | Whether a save exists under a profile (null for the game's own). |
+| `void NewGame(int hero = 0, string map = null, Vector3? position = null, string saveProfile = null)` | Starts a new game as New Game does - a fresh party of this one hero (0..3), the story's flags cleared - on this map (the game's own opening when null) at this position. Only from the title (an entry's press). SaveProfile keeps its saves apart: "fellowship" writes fellowship-save.bin and its own mod chunks, so a game played alone is untouched; null is the game's own save. |
 
 ## Handles and data
 
@@ -1335,6 +1360,21 @@ The mod's scene objects on the current map, by path, and copies of them: what a 
 | `static GameObject Find(string path)` | A scene object on the current map by its path ("chest", "gate/left"); null when there is none. |
 | `static GameObject Spawn(string path, Vector3 at, float yaw = 0, GameObject parent = null)` | A new object from the scene file's definition at a path - the same model, tags and behaviours (with the file's field values) - at a spot, facing a yaw, at the top level of the scene. Named <map>/<path>#N. Null when the path is not defined. |
 
+### SharedBattle
+
+`class SharedBattle`
+
+How two clients fight one battle (IBattle.Shared). FF3's rounds - everyone picks, then the round plays - roll on a generator seeded alike, so both clients compute the same fight from the same commands: each chooses for its own heroes, the choices cross the wire (the mod's), and the round runs on both. The party must hold the same heroes with the same records on both sides when the battle starts (IParty.Import / AddMember).
+
+| Member | What it does |
+| --- | --- |
+| `Func<int, string> HeroName` | A hero's name for "Waiting for ..." while a remote command is awaited; the record's name when null. |
+| `Action<int, int, string> LocalCommand` | A hero of this client's decided (round, hero, the command's text): send it over. |
+| `Func<int, int, string> RemoteCommand` | Asked each frame for a remote hero's command in a round (1 the first): the text LocalCommand gave on the other side, or null while it has not come - the battle waits, animations playing. |
+| `HashSet<int> RemoteHeroes` | The heroes another client commands: no window for them here, their commands come through RemoteCommand. |
+| `int Seed` | The seed both clients roll from; the same on both. |
+| `int WaitingFor` | The hero a remote command is awaited from right now, or -1 (for the mod's own drawing). |
+
 ### ShopInfo
 
 `class ShopInfo`
@@ -1886,6 +1926,11 @@ A battle is over and the field is back.
 
 A battle is about to begin (a script's, or an encounter).
 
+| Member | What it does |
+| --- | --- |
+| `int BattleMap { get; set; }` | The battlefield (FF3's 1..43), or 0 when not known. |
+| `int Formation { get; set; }` | The monster party (the game's table), or -1 when not known. |
+
 ### CastBooted
 
 `class CastBooted` - `OpenFF.Events`
@@ -2009,6 +2054,16 @@ The legacy game moved to another part: TITLE, WORLD, BATTLE, ...
 | `string From { get; set; }` |  |
 | `string To { get; set; }` |  |
 
+### PartyJoinRefused
+
+`class PartyJoinRefused` - `OpenFF.Events`
+
+The story would have put a hero into the party, but the party is held to others (IParty.Restrict) - the hero is another player's.
+
+| Member | What it does |
+| --- | --- |
+| `int HeroId { get; set; }` |  |
+
 ### SaveRead
 
 `class SaveRead` - `OpenFF.Events`
@@ -2030,6 +2085,12 @@ The legacy game wrote a save (a slot or the quicksave) to its save file.
 | --- | --- |
 | `int Length { get; set; }` |  |
 | `int Offset { get; set; }` | The slot: the offset written in the 64 KB save file. |
+
+### TitleShown
+
+`class TitleShown` - `OpenFF.Events`
+
+The title screen is up and its entries can be chosen (after the logo).
 
 ### TriggerEntered
 
@@ -2090,7 +2151,7 @@ Something with state worth saving: a service or a behaviour.
 | --- | --- |
 | `IReadOnlyList<ISaveable> Registered { get; }` |  |
 | `IReadOnlyList<int> Slots { get; }` | The slots the store knows, by offset, in the order they were first written. |
-| `string StorePath { get; set; }` | The JSON file the chunks live in; set by the host before the first save. |
+| `string StorePath { get; set; }` | The JSON file the chunks live in; set by the host before the first save (and again for a save profile - the chunks read so far are let go). |
 | `IReadOnlyList<ValueTuple<string, string>> ModsOf(int offset)` | The mods a slot was written under, or null when the slot is unknown. |
 | `JsonElement? Peek(int offset, string chunkId)` | A chunk's data as it sits in a slot, without handing it to its owner; null when the slot or the chunk is absent. |
 | `bool ReadSlot(int offset, int length)` | The legacy game read a slot it once wrote: hand every owner its chunk back. False when the slot is unknown. |
@@ -2538,4 +2599,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-159 types, 1141 members; 489 without a summary yet.
+163 types, 1166 members; 491 without a summary yet.

@@ -1,0 +1,20 @@
+﻿{
+  "map": "b16",
+  "title": "The Crystal's Choosing",
+  "objects": [
+    { "name": "Crystal", "x": 0, "y": 3.4, "z": -6, "yaw": 0, "scale": 1.6, "model": "assets/shrine-crystal.glb" }
+  ],
+  "attachments": [
+    {
+      "target": "map",
+      "behaviour": "MapSettings",
+      "fields": {
+        "Background": { "r": 10, "g": 12, "b": 30, "a": 255 },
+        "CameraOffset": { "x": 0, "y": 72, "z": 92 },
+        "LookOffset": { "x": 0, "y": 8, "z": 0 },
+        "ZoomRange": 0
+      }
+    },
+    { "target": "Crystal", "behaviour": "Mesh", "fields": { "Path": "assets/shrine-crystal.glb", "OnGround": false, "Clip": "Float", "Speed": 1 } }
+  ]
+}

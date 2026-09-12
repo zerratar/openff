@@ -31,6 +31,16 @@ namespace OpenFF.Client
 		/// <summary>Whether the engine exists yet (the hooks stay quiet before that).</summary>
 		public static bool Attached => _attached;
 
+		/// <summary>
+		/// Where the mods' save chunks live: FF3's ride beside its legacy save file (mods.json), FF4's whole game lives
+		/// in the store (ff4.json); a save profile (SaveFiles.Profile) gets a store of its own, fellowship-mods.json.
+		/// </summary>
+		public static void SaveProfileChanged()
+		{
+			string prefix = SaveFiles.Profile != null ? SaveFiles.Profile + "-" : "";
+			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", prefix + (GameProfile.IsFf4 ? "ff4.json" : "mods.json"));
+		}
+
 		/// <summary>Creates the engine and loads the enabled mods' code. Called once the content is open.</summary>
 		public static void Attach()
 		{
@@ -43,7 +53,7 @@ namespace OpenFF.Client
 			OpenFF.Game.Warn = message => Log.Write(LogChannel.General, "engine: WARNING " + message);
 			// FF3's chunks ride beside its legacy save file; FF4 has no legacy save here, so its
 			// whole game lives in the store (Ff4Saves) - a file of its own.
-			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", GameProfile.IsFf4 ? "ff4.json" : "mods.json");
+			SaveProfileChanged();
 			// The API on the legacy game, before any mod so a mod's OnGameStart can reach it.
 			EngineApi.Register();
 			// A scene file's object:<n> is the map's .hich row, as Crystal lists them; the row's

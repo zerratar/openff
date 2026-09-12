@@ -54,6 +54,8 @@ namespace Fellowship
 		public float Yaw;
 		public int Hp, MaxHp, Level;
 		public string Job = "";
+		/// <summary>The hero they journey as (Journey), or -1.</summary>
+		public int Hero = -1;
 		/// <summary>0 on the field, 1 in battle, 2 in a menu.</summary>
 		public int State;
 		public DateTime LastHeard;
@@ -67,7 +69,7 @@ namespace Fellowship
 		public string Standing => State == 1 ? "in battle" : State == 2 ? "in a menu" : "walking";
 	}
 
-	public sealed class FellowshipService : GameService
+	public sealed class FellowshipService : GameService, ISaveable
 	{
 		public const string Version = "1";
 		private const int DefaultPort = 47474;
@@ -92,11 +94,27 @@ namespace Fellowship
 		/// <summary>Everyone heard from lately, nearest map first.</summary>
 		public IReadOnlyList<Traveller> Travellers => _travellers.Values.OrderBy(t => t.Map == Game.Field.Map ? 0 : 1).ThenBy(t => t.Name).ToList();
 		public string MyName => _name;
+		public string Id => _id;
 		public bool AidReady => (DateTime.UtcNow - _lastAid).TotalSeconds >= 30;
+		/// <summary>The journey together: one hero each (Journey.cs).</summary>
+		public Journey Journey { get; private set; }
+		/// <summary>Fighting together: a battle two travellers near each other compute as one (SharedFight.cs).</summary>
+		public SharedFight Fight { get; private set; }
+		private int _claim = -1;
+		/// <summary>The hero this client holds on the wire: the journey's, or the one being claimed at the shrine.</summary>
+		private int HeroOnWire => Journey != null && Journey.MyHero >= 0 ? Journey.MyHero : _claim;
+		/// <summary>The shrine's claim (-1 to let go): everyone hears at once.</summary>
+		public void Claim(int hero) { _claim = hero; SendState(_lastState); }
+		/// <summary>The story reached another player's hero here: R|hero|map to everyone.</summary>
+		public void SendStoryReached(int hero, string map) => Send("R|" + hero + "|" + (map ?? ""));
 
 		public override void OnGameStart()
 		{
 			Instance = this;
+			Journey = new Journey(this);
+			Journey.OnGameStart();
+			Fight = new SharedFight(this);
+			Fight.OnGameStart();
 			ReadSettings();
 			try
 			{
@@ -151,6 +169,9 @@ namespace Fellowship
 
 		public override void OnUpdate()
 		{
+			Journey.OnUpdate();
+			Journey.Draw();
+			Fight.Draw();
 			if (_socket == null) return;
 			_frames++;
 			Receive();
@@ -159,6 +180,9 @@ namespace Fellowship
 			if (_frames % 6 == 0 || state != _lastState) { SendState(state); _lastState = state; }
 			Expire();
 			Resend();
+			// Our hero's whole record every ten seconds - every three with company on the map, since a battle begun near us takes them as last heard - so the others could journey on as them, or fight beside them (Journey.Known, SharedFight).
+			bool company = _travellers.Values.Any(t => t.Map != null && t.Map == Game.Field.Map);
+			if (_frames % (company ? 180 : 600) == 120) { string record = Journey.MyRecord(); if (record != null) Send("E|" + Journey.MyHero + "|" + record); }
 			Keys();
 			Travel();
 			Figures();
@@ -171,7 +195,7 @@ namespace Fellowship
 			if (lead != null && !_nameFixed && !string.IsNullOrWhiteSpace(lead.Name)) _name = lead.Name;   // the leading hero's name unless fellowship.json or FELLOWSHIP_NAME chose one
 			Vector3 p = Game.Hero.Present ? Game.Hero.Position : default;
 			Send(string.Join("|", "S", _name, Game.Field.Map ?? "", F(p.X), F(p.Y), F(p.Z), F(Game.Hero.Present ? Game.Hero.Yaw : 0), Game.Hero.Present ? Game.Hero.Model ?? "j101" : "j101",
-				lead?.Hp ?? 0, lead?.MaxHp ?? 0, lead?.Level ?? 0, lead?.JobTitle ?? "", state));
+				lead?.Hp ?? 0, lead?.MaxHp ?? 0, lead?.Level ?? 0, lead?.JobTitle ?? "", state, HeroOnWire));
 		}
 
 		private bool _nameFixed;
@@ -179,7 +203,7 @@ namespace Fellowship
 		private static float P(string s) => float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : 0;
 		private static int I(string s) => int.TryParse(s, out int v) ? v : 0;
 
-		private void Send(string body)
+		public void Send(string body)
 		{
 			if (_socket == null) return;
 			try
@@ -227,8 +251,10 @@ namespace Fellowship
 					t.Name = f[4]; t.Map = f[5] == "" ? null : f[5];
 					t.Position = new Vector3(P(f[6]), P(f[7]), P(f[8])); t.Yaw = P(f[9]); t.Model = f[10];
 					t.Hp = I(f[11]); t.MaxHp = I(f[12]); t.Level = I(f[13]); t.Job = f[14]; t.State = I(f[15]);
+					t.Hero = f.Length > 16 ? I(f[16]) : -1;
+					Journey.Heard(t);
 					if (arrived) { Game.Log("fellowship: " + t.Name + " is here (" + t.Where + ")"); Game.Screen.Notice(t.Name + " joined the fellowship"); }
-					else if (wasMap != t.Map && t.Map == Game.Field.Map) Game.Screen.Notice(t.Name + " arrives");
+					else if (wasMap != t.Map && t.Map != null && t.Map == Game.Field.Map) Game.Screen.Notice(t.Name + " arrives");
 					break;
 				case "C":
 					t.Said = f.Length > 4 ? f[4] : ""; t.SaidAt = DateTime.UtcNow;
@@ -268,11 +294,27 @@ namespace Fellowship
 				case "K":   // a gift of ours arrived
 					if (f.Length > 5 && f[4] == _id) _gifts.Remove(f[5]);
 					break;
+				case "E":   // a hero's whole record: E|hero|<Game.Party.Export> (the record is JSON and may hold '|': the rest of the line is it)
+					if (f.Length > 5) Journey.RecordHeard(I(f[4]), string.Join("|", f.Skip(5)), t.Name);
+					break;
+				case "BR":  // a record for a battle to come: BR|battle|hero|<record>
+					if (f.Length > 6) Fight.RecordFor(f[4], I(f[5]), string.Join("|", f.Skip(6)));
+					break;
+				case "B":   // a battle begins with us in it
+					Fight.Join(t, f);
+					break;
+				case "BC":  // a hero's command in the shared battle
+					Fight.Command(f);
+					break;
 				case "W":
 					if (t.Map == Game.Field.Map) Game.Screen.Notice(t.Name + " won a battle!");
 					break;
 				case "L":
 					Game.Screen.Notice(t.Name + " has fallen...");
+					break;
+				case "R":   // the story reached a hero over there: R|hero|map
+					if (f.Length > 5 && Journey.MyHero >= 0 && I(f[4]) == Journey.MyHero)
+						Game.Screen.Notice("The story has reached " + Journey.HeroNames[Journey.MyHero] + " where " + t.Name + " is (" + f[5] + ") - travel to them to take it up.");
 					break;
 				case "Q":
 					Game.Screen.Notice(t.Name + " left the fellowship");
@@ -291,6 +333,13 @@ namespace Fellowship
 				_travellers.Remove(t.Id);
 			}
 		}
+
+		// ---- the save chunk: the journey's hero rides with the save (ISaveable) ----
+
+		public string ChunkId => "Fellowship/Journey";
+		public int ChunkVersion => 1;
+		public object Save() => Journey?.Save();
+		public void Load(int version, JsonElement data) => Journey?.Load(version, data);
 
 		// ---- the keys ----
 
@@ -407,7 +456,7 @@ namespace Fellowship
 
 		private void Figures()
 		{
-			if (!Game.Hero.Present || Game.Battle.InBattle) return;
+			if (!Game.Hero.Present || Game.Battle.InBattle || Journey.Choosing) return;   // at the shrine the figures are the four heroes
 			foreach (Traveller t in _travellers.Values)
 			{
 				bool here = t.Map != null && t.Map == Game.Field.Map;
@@ -442,8 +491,8 @@ namespace Fellowship
 
 		private void Hud()
 		{
-			// The field's own moments only: not over the game's menus, a shop, a dialogue or an event (Field.Busy) - the screens have the list then. Battle keeps it.
-			if (!_hudOn || _travellers.Count == 0 || Game.Menus.Current != null || Game.Dialogue.IsOpen || (Game.Field.Busy && !Game.Battle.InBattle)) return;
+			// The field's own moments only: not over the game's menus, a shop, a dialogue, an event (Field.Busy) or a battle - the screens have the list then, and the battle's Back button sits where the corner is.
+			if (!_hudOn || _travellers.Count == 0 || Game.Menus.Current != null || Game.Dialogue.IsOpen || Journey.Choosing || Game.Field.Busy || Game.Battle.InBattle) return;
 			Color name = new Color(255, 240, 160), dim = new Color(200, 200, 210), red = new Color(255, 120, 110), bubble = new Color(255, 255, 255);
 			foreach (Traveller t in _travellers.Values)
 			{

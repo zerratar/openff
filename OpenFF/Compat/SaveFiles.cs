@@ -30,8 +30,35 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>The file's path; FF4's card data is kept apart from FF3's (ff4-save.bin), so one game's saves never show as the other's.</summary>
-		public static string PathFor(string name) => Path.Combine(Directory_, GameProfile.IsFf4 ? "ff4-" + name : name);
+		/// <summary>
+		/// A save profile keeps a game's saves apart from the game's own: "fellowship" writes fellowship-save.bin,
+		/// fellowship-save.progression.json and its own mod chunks (Game.Title.NewGame / Continue set it), so a game
+		/// played together never touches a game played alone. Null is the game's own.
+		/// </summary>
+		public static string Profile
+		{
+			get => _profile;
+			set
+			{
+				string p = string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
+				if (p == _profile) return;
+				_profile = p;
+				Log.Write(LogChannel.General, "save profile: " + (_profile ?? "the game's own"));
+				EngineHost.SaveProfileChanged();
+			}
+		}
+		private static string _profile;
+
+		/// <summary>The file's path; FF4's card data is kept apart from FF3's (ff4-save.bin), so one game's saves never show as the other's; a save profile puts its own name in front.</summary>
+		public static string PathFor(string name) => Path.Combine(Directory_, (GameProfile.IsFf4 ? "ff4-" : "") + (_profile != null ? _profile + "-" : "") + name);
+
+		/// <summary>Whether a save file exists under a profile (null for the game's own).</summary>
+		public static bool HasSave(string profile)
+		{
+			string p = string.IsNullOrWhiteSpace(profile) ? null : profile.Trim().ToLowerInvariant();
+			string path = Path.Combine(Directory_, (GameProfile.IsFf4 ? "ff4-" : "") + (p != null ? p + "-" : "") + "save.bin");
+			try { return File.Exists(path) && new FileInfo(path).Length > 0; } catch (Exception) { return false; }
+		}
 
 		/// <summary>
 		/// Builds before 0.1.1 read the save through IsolatedStorage - a store keyed by the

@@ -39,7 +39,9 @@ namespace OpenFF.Client
 		{
 			Trace.Battle();
 			if (!On) return;
-			Publish(new BattleStarting());
+			int formation = -1, map = 0;
+			try { formation = GlobalScope.btl.OutsideToBattle.getInstance().initializeMonster().monsterPartyId(); map = GlobalScope.btl.OutsideToBattle.getInstance().initializeBattleMap().battleMapId(); } catch (Exception) { }
+			Publish(new BattleStarting { Formation = formation, BattleMap = map });
 		}
 
 		public static void ItemGained(int itemId, int count)

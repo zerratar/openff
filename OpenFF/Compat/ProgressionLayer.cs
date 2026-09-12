@@ -861,6 +861,30 @@ namespace OpenFF.Client
 
 		private static string SidecarPath => SaveFiles.PathFor("save.progression.json");
 
+		/// <summary>One hero's ladders, slots and held job as JSON - the side-car's form, and what IParty.Export carries.</summary>
+		public static JsonObject HeroJson(int i)
+		{
+			HeroState s = _heroes[i];
+			JsonObject abp = new JsonObject(), level = new JsonObject();
+			foreach (KeyValuePair<int, int> kv in s.Abp.OrderBy(k => k.Key)) if (kv.Value > 0) abp[kv.Key.ToString()] = kv.Value;
+			foreach (KeyValuePair<int, int> kv in s.Level.OrderBy(k => k.Key)) if (kv.Value > 0) level[kv.Key.ToString()] = kv.Value;
+			JsonObject hero = new JsonObject { ["abp"] = abp, ["level"] = level, ["set"] = new JsonArray(s.Set.Select(v => (JsonNode)JsonValue.Create(v)).ToArray()) };
+			if (s.Job >= 0) hero["job"] = s.Job;
+			if (s.HpBoostApplied != 0) hero["hpBoost"] = s.HpBoostApplied;
+			return hero;
+		}
+
+		/// <summary>HeroJson read back onto a hero, over a cleared state.</summary>
+		public static void ApplyHeroJson(int i, JsonObject h)
+		{
+			HeroState s = _heroes[i] = new HeroState();
+			if (h["abp"] is JsonObject abp) foreach (KeyValuePair<string, JsonNode> kv in abp) if (int.TryParse(kv.Key, out int j) && j >= 0) s.Abp[j] = kv.Value?.GetValue<int>() ?? 0;
+			if (h["level"] is JsonObject level) foreach (KeyValuePair<string, JsonNode> kv in level) if (int.TryParse(kv.Key, out int j) && j >= 0) s.Level[j] = kv.Value?.GetValue<int>() ?? 0;
+			s.Job = h["job"]?.GetValue<int>() ?? -1;
+			s.HpBoostApplied = h["hpBoost"]?.GetValue<int>() ?? 0;
+			if (h["set"] is JsonArray set) for (int k = 0; k < FreeSlotMax && k < set.Count; k++) s.Set[k] = MigrateId(set[k]?.GetValue<int>() ?? 0);
+		}
+
 		/// <summary>The game is saving a slot: the ladders' state beside it.</summary>
 		public static void OnSave(int slot)
 		{
@@ -871,17 +895,7 @@ namespace OpenFF.Client
 				JsonObject slots = root["slots"] as JsonObject ?? new JsonObject();
 				root["slots"] = slots;
 				JsonArray heroes = new JsonArray();
-				for (int i = 0; i < 4; i++)
-				{
-					HeroState s = _heroes[i];
-					JsonObject abp = new JsonObject(), level = new JsonObject();
-					foreach (KeyValuePair<int, int> kv in s.Abp.OrderBy(k => k.Key)) if (kv.Value > 0) abp[kv.Key.ToString()] = kv.Value;
-					foreach (KeyValuePair<int, int> kv in s.Level.OrderBy(k => k.Key)) if (kv.Value > 0) level[kv.Key.ToString()] = kv.Value;
-					JsonObject hero = new JsonObject { ["abp"] = abp, ["level"] = level, ["set"] = new JsonArray(s.Set.Select(v => (JsonNode)JsonValue.Create(v)).ToArray()) };
-					if (s.Job >= 0) hero["job"] = s.Job;
-					if (s.HpBoostApplied != 0) hero["hpBoost"] = s.HpBoostApplied;
-					heroes.Add(hero);
-				}
+				for (int i = 0; i < 4; i++) heroes.Add(HeroJson(i));
 				slots[slot.ToString()] = new JsonObject { ["heroes"] = heroes, ["saved"] = DateTime.UtcNow.ToString("o") };
 				File.WriteAllText(SidecarPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 				Log.Write(LogChannel.File, "progression: state saved beside slot " + slot);
@@ -898,16 +912,7 @@ namespace OpenFF.Client
 				Reset();
 				JsonObject root = ReadSidecar();
 				if (!((root["slots"] as JsonObject)?[slot.ToString()] is JsonObject saved) || !(saved["heroes"] is JsonArray heroes)) return;
-				for (int i = 0; i < 4 && i < heroes.Count; i++)
-				{
-					if (!(heroes[i] is JsonObject h)) continue;
-					HeroState s = _heroes[i];
-					if (h["abp"] is JsonObject abp) foreach (KeyValuePair<string, JsonNode> kv in abp) if (int.TryParse(kv.Key, out int j) && j >= 0) s.Abp[j] = kv.Value?.GetValue<int>() ?? 0;
-					if (h["level"] is JsonObject level) foreach (KeyValuePair<string, JsonNode> kv in level) if (int.TryParse(kv.Key, out int j) && j >= 0) s.Level[j] = kv.Value?.GetValue<int>() ?? 0;
-					s.Job = h["job"]?.GetValue<int>() ?? -1;
-					s.HpBoostApplied = h["hpBoost"]?.GetValue<int>() ?? 0;
-					if (h["set"] is JsonArray set) for (int k = 0; k < FreeSlotMax && k < set.Count; k++) s.Set[k] = MigrateId(set[k]?.GetValue<int>() ?? 0);
-				}
+				for (int i = 0; i < 4 && i < heroes.Count; i++) if (heroes[i] is JsonObject h) ApplyHeroJson(i, h);
 				Log.Write(LogChannel.File, "progression: state read from beside slot " + slot);
 			}
 			catch (Exception ex) { Log.Write(LogChannel.General, "progression: load: " + ex.Message); }

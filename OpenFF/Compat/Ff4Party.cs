@@ -366,6 +366,13 @@ namespace OpenFF.Client
 		public IReadOnlyList<string> AllJobs => new List<string>();
 		public JobInfo JobInfo(int id, string job) => null;
 		public bool CanEquip(int id, int itemId) => false;
+		public void Restrict(IEnumerable<int> ids) { }
+		public IReadOnlyList<int> Restriction => null;
+		public void Reset(int hero) { }
+		public int Protagonist { get => -1; set { } }
+		public string Export(int id) => null;
+		public bool Import(int id, string record) => false;
+		public void Arrange(IEnumerable<int> ids) { }
 
 		public void SetStat(int id, Stat stat, int value)
 		{

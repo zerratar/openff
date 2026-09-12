@@ -34,7 +34,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   window are `field_hud` in `WorldDefine.xbn` the same way.
 - **Events for every screen:** `MenuOpened` / `MenuClosed` for the game's screens and the mods',
   shops and battle included, to draw over any of them from `Game.Draw`. Crystal's Images tab has
-  *Save as PNG* beside *Replace…*, the round trip for painting the game's window art, cursor and
+  *Save as PNG* beside *Replace?*, the round trip for painting the game's window art, cursor and
   faces.
 - **FF5's way with the Freelancer.** A job with no ladder to climb gains no ABP and shows no
   level (FF5's Freelancer and Mime-likes); `JobInfo.HasLadder` is false for it, `Inherits` says
@@ -58,6 +58,39 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - **`Game.Field.Busy`** - true while the game's menu, a shop, a dialogue, an event or a map
   change owns the field; a `Warp` asked for then is lost, so a mod waits for it to clear (the
   Fellowship's travel does). Test aids `--items=<id>:<count>` and `--jobs=all`.
+- **Journey together: the story by several people, one hero each.** The Fellowship's new title
+  entry starts a game onto the Crystal's Choosing - a battle background with the mod's crystal
+  on it, the four heroes in a row - and each player claims one (a hero another player holds is
+  said so; two claims at once, the lower client id keeps it); the opening - the fall into the
+  Altar Cave, its lines, the naming - then plays for the hero picked, and the story's joins of
+  the other heroes are refused on this client, since they are other players'. Saves live under
+  a profile of their own, so a game played alone is never touched. *Continue the journey* comes
+  back through the choosing with every hero's level and job as last seen: your own takes you
+  back where you stopped, another free hero puts their record on, so a hero can change hands
+  between sessions (every client sends its hero's record over the wire now and then).
+- **For it, the engine grew:** `Game.Title` (`AddEntry` puts a row on the title screen, `NewGame`
+  with a hero, a map and a save profile, `Continue`, `HasSave`; the `TitleShown` event);
+  `Game.Party.Restrict` (only these heroes may join; `PartyJoinRefused` when the story tries
+  another), `Reset` (a new game's party of one hero), `Protagonist` (the hero the story's
+  scripts treat as hero 0 - a swap with Luneth, so the scripted opening, its figure, its lines
+  and its naming are whoever was picked), `Export` / `Import` (a character's whole record as
+  text); `Game.Field.Autosave`; **save profiles** (`<profile>-save.bin`, side-car and mod-chunk
+  store alike); and a battle background loads as a map (`Warp("b16", ...)`), a plain stage for
+  a scene of a mod's own.
+- **Fighting together.** Two journeying travellers on the same map within reach fight one battle:
+  the one whose battle begins hosts it, the other's hero joins from the record last heard, and
+  each player commands their own hero - the other's turn shows "Waiting for Arc..." with the
+  battle's animations going on - while both clients compute the same rounds (the digests
+  match, round for round). For it, `Game.Battle.Shared` (`SharedBattle`: the seed, the remote
+  heroes, the commands' way in and out), `BattleStarting` with the formation and ground,
+  `Game.Party.Arrange` (the same places on both sides). A story command that reset a hero's
+  parameters by party place rather than by hero (`SetPartyMember_AllParameter`) now finds the
+  hero - the opening's fight is the hero picked, not Luneth's record under another's name.
+- **The battle's rules roll on a generator of their own** (`ds.RandomNumber.logic32`), seeded
+  alike on two clients by `BattleSync` at the battle's start and each round's, with a digest of
+  everyone's HP in the log per round; `--battle-seed=<n>` for testing. Proven identical across
+  two clients with different window sizes and menu timing: the ground for fighting one battle
+  together.
 
 ## 0.1.4 - how a hero grows, and menus of your own (2026-09-12)
 
@@ -72,7 +105,7 @@ FF3 played FF5's way. The notes:
   mix them. `"jobs"` is the game as it is. `"class"` fixes the starting job for good and
   learns spells by level from a `"learn"` list (Cure at 1, Sight at 8...). `"mastery"` is
   FF5's: jobs changed freely with no penalty time, each job climbing a **ladder** of
-  abilities (`defs/jobs/<id>.json`, *Mod ▸ Jobs* in Crystal) on **ABP** won in battle - the
+  abilities (`defs/jobs/<id>.json`, *Mod ? Jobs* in Crystal) on **ABP** won in battle - the
   formation's `abp` or one per monster - and any learned ability set into a **free command
   slot** of whatever job the hero holds: a Knight casting white magic, a White Mage stealing.
   Passives (Cover, Alchemy, FF5's Counter - a plain attack back at every blow - and HP
@@ -92,14 +125,14 @@ FF3 played FF5's way. The notes:
   a mastery hero's ladder level. Not FF5's: MP as a pool, `!Mimic`, Blue Magic, the effects
   of its support abilities beyond Cover, Alchemy, Counter and the HP boosts.
 - **Samples/Mastery.** FF3 with FF5's job system and nothing else changed: the four heroes on
-  the mastery progression and a ladder for each of the 23 jobs - its command, an *Equip …*
+  the mastery progression and a ladder for each of the 23 jobs - its command, an *Equip ?*
   passive, the Freelancer and Onion Knight inheriting with two free slots - and FF5's nine
   jobs FF3 has not (Samurai, Berserker, Time Mage, Blue Mage, Mystic Knight, Beastmaster,
   Chemist, Dancer, Mime) as jobs of the mod's own. Definitions only; copy it into `mods/` to
   play.
 - **Menu screens of the mod's own, in the game's own menu.** `menus/<id>.xml` is a layout in
   the game's XBN form - Crystal's Menus tab draws and edits it as it does the game's, *New
-  screen…* starts one - and `menus/<id>.json` says how it opens (an entry in the main menu
+  screen?* starts one - and `menus/<id>.json` says how it opens (an entry in the main menu
   after any of the game's, a character pick first, which backdrop) and which
   **MenuBehaviours** sit on its frames. The client merges the layouts into `MenuDefine.xbn`
   as it loads, so a mod screen gets the game's windows, font, cursor, focus rules and
@@ -134,7 +167,7 @@ FF3 played FF5's way. The notes:
   layer remembers the job, and the player sees the mod's - the name in every menu, the
   commands, the ladder, the stats, and an FF3 job's figures (`look`) until someone models new
   ones. Taken from the Abilities menu's *Change job* page (every open job, no penalty) or
-  `Game.Party.ChangeJob(id, "samurai")`; Crystal's *New ladder…* makes one. The save keeps it.
+  `Game.Party.ChangeJob(id, "samurai")`; Crystal's *New ladder?* makes one. The save keeps it.
 
 ## 0.1.3 - cutscenes and characters of your own (2026-09-11)
 
@@ -155,13 +188,13 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   the client on the map with the cutscene playing (`--cutscene=PATH`). The whole thing is
   plain data in the scene file, so a cutscene can also be written by hand or generated.
 - **A weapon on a character, in the model viewer.** The viewer's *on a character* toggle
-  puts one of the party's models (j101…) under a viewed weapon or shield, plays its battle
+  puts one of the party's models (j101?) under a viewed weapon or shield, plays its battle
   motions (b_b01: the idle, the swings) through the transport, and poses the weapon from the
   hand joint each frame as the game does - `R_te`/`L_te` for a weapon, the forearm for a
   shield, then the game's grip turn and offset (`btl.BattlePlayer.haveWeapon`). For a glTF an
   item definition names, the *fit* fields (scale, rotation, offset - what the client applies in
   battle) move the model live and save to the definition, so an export is fitted to the attack
-  animations by eye; the Look card's *On a character…* opens the viewer that way. The game's
+  animations by eye; the Look card's *On a character?* opens the viewer that way. The game's
   own `w###` models take the toggle too, for comparison. Off, the viewer shows the model alone
   as before. Under it: `/api/model/joint` (a node's matrix per frame of a motion, from the same
   SBC walk the viewer's poses come from), a second model and an attach matrix in the viewer,
@@ -171,9 +204,9 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   short HTML tutorials with pictures - getting started, the map editor, a map of your own,
   items and weapons, cutscenes, models/sounds/fonts, C# code, Steam mods - and a reference
   of every component, timeline clip, file, setting and shortcut. Crystal opens it with
-  *Help ▸ Guide* (a Help menu is new: the guide's pages, the API reference, the samples).
+  *Help ? Guide* (a Help menu is new: the guide's pages, the API reference, the samples).
 - **Sample projects.** The three sample mods ship in the release (`Samples\`; the Showcase
-  also as a ready mod in `mods\`), and *File ▸ Sample projects…* copies one into a project
+  also as a ready mod in `mods\`), and *File ? Sample projects?* copies one into a project
   of your own - laid out as any project, the C# under `code/` with a csproj against the
   client's engine - to read, change and Run in OpenFF.
 - **The project panel's two sides.** The game's libraries and the mod's own folders were one
@@ -202,7 +235,7 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   write somewhere unasked and then say "no project is open" - the browser's Save As takes
   it where you like (`/api/model/glb`).
 - **A character remade from Blender.** The way back in for a mesh modelled over the export:
-  the model viewer's *Remake from glTF…* writes a skinned glTF over a model of the game's
+  the model viewer's *Remake from glTF?* writes a skinned glTF over a model of the game's
   (`j101`, a monster) in the game's own format, keeping its skeleton, envelope blends and
   the SBC that builds them, so every `.ncap` motion plays on the new mesh - in the OpenFF
   client and the Steam game alike. Vertices go through the game's matrix stack slots by
@@ -305,13 +338,13 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
 - **Which model a file plays as, in plain sight.** A character file's *In play* card in the
   inspector says which game model the client draws it in place of (the whole binding is one
   file, `defs/models/<model>.json`, a click away), and switches or clears it by hand; the
-  Models list tags both tiles (`→ j101` on the file, `← luneth-chibi-rigged` on the model).
+  Models list tags both tiles (`? j101` on the file, `? luneth-chibi-rigged` on the model).
 - **A free camera in the client.** F7 on the debug overlay (F1): the mouse looks, WASD fly,
   E/Q up and down, Shift and Ctrl the pace, the wheel too, R back to the game's eye, F7 or
   Esc off. The game runs on with the player's input held off - a close look at what is drawn.
   A drive's `camera x y z yaw pitch` places it for a screenshot.
-- **Textures at any size in OpenFF.** The DS format's 64 × 64 (or 8 to 1024) is the Steam
-  game's ceiling, not the client's: on an OpenFF project *Replace with a PNG…* keeps a larger
+- **Textures at any size in OpenFF.** The DS format's 64 ? 64 (or 8 to 1024) is the Steam
+  game's ceiling, not the client's: on an OpenFF project *Replace with a PNG?* keeps a larger
   picture at its own size as `textures/<name>.png`, exported with the mod, and the client
   draws that in the texture's place - filtered smooth, mapped as before - while the package
   keeps the downsized copy for Steam.
@@ -353,7 +386,7 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   as before - and only its draw is the glTF's (`CRenderObject.StandIn`,
   `OpenFF/Compat/WeaponMeshes.cs`), so the file sits exactly where a `w###` would: grip at
   the origin, blade along +Z. Crystal's item inspector has the *Look* card for weapons - the
-  project's glTFs as pictures, *Import a model…*, *View*, the scale and the clip. Drives can
+  project's glTFs as pictures, *Import a model?*, *View*, the scale and the clip. Drives can
   set a fight up: `item ID [count]`, `equip MEMBER ID`, `battle FORMATION [map]`.
 - **A glTF as the game's own model (Steam target too).** The *Look* card's *Write as a w###
   model* converts the picked glTF into `w###.nmdp.lz` and `w###.ntxp.lz` - BMD0/MDL0 and its
@@ -363,14 +396,14 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   triangles with normals and texture coordinates; skins and animations are not carried (the
   bind pose is). Read back by the reader, drawn by the model viewer, played by the client. On
   the way: the dictionary writer numbered its tree nodes in insertion order, which the game's
-  lookup misreads for three or more names - fixed, which also mends *New texture package…*
+  lookup misreads for three or more names - fixed, which also mends *New texture package?*
   with three or more textures.
 - **The fit into the hand.** `"modelRotation": [x, y, z]` (degrees, applied in that order) and
   `"modelOffset": [x, y, z]` turn and move a file that was not modelled in the hand joint's
   frame, on both targets alike: the client applies them each frame, *Write as a w###* bakes
   them into the vertices. The frame, read off the game's own models and written into the
   *Look* card: a sword's blade along +Z with its guard across Y; a shield's face in the XY
-  plane with the boss toward -Z, tilted about 35° toward +Y, centred near (0, 0.3, -0.4),
+  plane with the boss toward -Z, tilted about 35? toward +Y, centred near (0, 0.3, -0.4),
   radius 1.6. Found in testing: the sample shield was made facing the other way and twice the
   size, so it hung off the arm rather than on it.
 - **Ghost weapons.** A glTF weapon left one or two black copies of itself a step behind the
@@ -408,21 +441,21 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   read it through `Game.Input` with the keyboard. XInput pads, DualShock 4, DualSense and
   Switch Pro are known to SDL; an unknown one can be described in a `gamecontrollerdb.txt`
   beside the executable. Found in testing with a DualSense.
-- **Running from the stick, and your own buttons.** `settings.json` ▸ `"run"`: `"stick"` (the
+- **Running from the stick, and your own buttons.** `settings.json` ? `"run"`: `"stick"` (the
   default) runs when the left stick is pushed all the way and walks part way, as the phone's
-  touch stick did; `"hold"` runs only while the run button is held. `settings.json` ▸ `"pad"`
+  touch stick did; `"hold"` runs only while the run button is held. `settings.json` ? `"pad"`
   maps each DS button (`a`, `b`, `x`, `y`, `l`, `r`, `start`, `select`, plus `run` and `fast`)
   to a pad button by name - `cross`/`circle`/`square`/`triangle` (or `a`/`b`/`x`/`y`),
   `l1`/`r1`/`l2`/`r2` (or `lb`/`rb`/`lt`/`rt`), `l3`/`r3`, `options`, `share`, `touchpad`,
   `none`.
 - **Display settings.** `%LocalAppData%\OpenFF\settings.json`, written with its defaults on
-  the first start: `width`/`height` (1600×960 to begin with - the game's 800×480 space,
+  the first start: `width`/`height` (1600?960 to begin with - the game's 800?480 space,
   doubled), `mode` (`windowed`, `borderless` - the desktop's size with no frame - or
   `fullscreen`), `msaa` (0, 2, 4 or 8; 4 to begin with) and `vsync`. A resized window is the
   size next time. The command line still takes a run: `--size=WxH`, `--fullscreen`,
   `--borderless`, `--windowed`, `--msaa=off|2|4|8`, `--novsync`.
 - **Anti-aliasing.** The edges were stair-stepped because the sample count asked of the
-  driver was never a real one; it is the setting's now, and 4× is on by default (the DS
+  driver was never a real one; it is the setting's now, and 4? is on by default (the DS
   look - pixel textures, no filtering - is untouched; only polygon edges smooth).
 - **Alt+Enter** switches windowed and full screen while playing and remembers the choice.
 - **The client's own menu.** Esc, or Start (Options) on a pad, anywhere - the title too:
@@ -467,13 +500,13 @@ animations; a weapon fitted in its hand; a free camera and a modding guide. The 
   item picker at once.
 - **Button glyphs as icons.** The client's screens draw the pad's buttons from geometry -
   Cross, Circle, Square, Triangle, the menu lines, Shift, Backspace, the arrows - crisp at
-  any window size, no font glyph coverage involved; `settings.json` ▸ `"padStyle"`
+  any window size, no font glyph coverage involved; `settings.json` ? `"padStyle"`
   (`auto`, `ps`, `xbox`) or `--padstyle=` picks the set when the pad's name misleads.
 - **Item definitions with pickers.** A record's fields are shown for what they are: a
   weapon's kind, its battle model (`w###`, with *View*), the jobs that may equip it, damage
   type, the status a hit inflicts and its chance, the spell it casts; armour's kind and what
   it guards against; a spell's school, level, element, status and targets - from the game's
-  own enums, the base's value greyed in, ↺ back to it. Plain numbers carry a tip.
+  own enums, the base's value greyed in, ? back to it. Plain numbers carry a tip.
 - **Saves were being lost - fixed.** The game read `save.bin` through .NET's IsolatedStorage,
   a store keyed by the executable's path, but created the file under `%AppData%\FF3` - so a
   build in any new folder never found a save file, its first write failed, and every save and
@@ -497,7 +530,7 @@ missing is in `Docs/Client-Plan.md`.
 Crystal (the editor, in your browser):
 
 - *Replace anything of the game's*: maps and their characters, exits, encounters; scripts
-  in a readable language; text in every language; menus; tables (items, monsters, jobs …);
+  in a readable language; text in every language; menus; tables (items, monsters, jobs ?);
   models, textures, pictures, sounds - each in its own editor, saved into the project, never
   into the game, exported as a mod.
 - *Add what the game never had*: items, monsters, formations, characters and text of the

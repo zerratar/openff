@@ -27,6 +27,8 @@
     <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="fellowship.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="menus/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="scenes/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="DropEngineCopies" AfterTargets="Build">

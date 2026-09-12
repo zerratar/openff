@@ -47,8 +47,13 @@ namespace OpenFF
 		private readonly List<ISaveable> _saveables = new List<ISaveable>();
 		private JsonObject _store;
 
-		/// <summary>The JSON file the chunks live in; set by the host before the first save.</summary>
-		public string StorePath { get; set; }
+		/// <summary>The JSON file the chunks live in; set by the host before the first save (and again for a save profile - the chunks read so far are let go).</summary>
+		public string StorePath
+		{
+			get => _storePath;
+			set { if (value != _storePath) _store = null; _storePath = value; }
+		}
+		private string _storePath;
 
 		public IReadOnlyList<ISaveable> Registered => _saveables;
 

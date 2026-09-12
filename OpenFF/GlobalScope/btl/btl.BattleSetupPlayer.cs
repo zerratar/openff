@@ -380,6 +380,18 @@ internal static partial class GlobalScope
 					player = battleParty.battlePlayer(nowPlayer_);
 					if (isCommand(player))
 					{
+						// PORT: in a battle two clients compute together, a hero the other client commands gets no
+						// window here - their command comes over the wire and goes on as chosen there (BattleSync);
+						// until it has, this frame passes with the battle's animations going on.
+						if (OpenFF.Client.BattleSync.IsRemote(player.playerId()))
+						{
+							if (!OpenFF.Client.BattleSync.ApplyRemote(player))
+							{
+								return;
+							}
+							nowPlayer_++;
+							continue;
+						}
 						break;
 					}
 					nowPlayer_++;
@@ -500,6 +512,10 @@ internal static partial class GlobalScope
 			{
 				if (decideCommand(B))
 				{
+					if (!isCancel_)
+					{
+						OpenFF.Client.BattleSync.LocalDecided(player);   // PORT: a shared battle's other side hears what this hero will do
+					}
 					player.setNextPlayerActionId(BATTLE_ACTION_TYPE.DBA_BACK);
 					state(PLAYER_STATE.MOVE_BACK);
 				}
@@ -881,7 +897,8 @@ internal static partial class GlobalScope
 			public bool selectCommandCancel(BattleSystem B)
 			{
 				menu.MenuManager.getSingleton().playSECancel();
-				if (nowPlayer_ != B.characterManager().playerParty().getMinBattlePlayerId())
+				// PORT: in a shared battle a command once decided has gone over the wire; there is no stepping back to the hero before.
+				if (nowPlayer_ != B.characterManager().playerParty().getMinBattlePlayerId() && OpenFF.Client.BattleSync.Shared == null)
 				{
 					Battle2DManager.instance().cursor().nondisplayAll();
 					isCancel_ = true;

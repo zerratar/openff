@@ -46,6 +46,7 @@ namespace OpenFF.Client
 			OpenFF.Game.Services.Register(new LegacyCamera());
 			OpenFF.Game.Services.Register(Effects);
 			OpenFF.Game.Services.Register(new LegacyBattle());
+			OpenFF.Game.Services.Register(new LegacyTitle());
 			OpenFF.Game.Services.Register(Magic);
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Monsters());
 			else OpenFF.Game.Services.Register(new LegacyMonsters());
@@ -1772,6 +1773,91 @@ namespace OpenFF.Client
 			catch (Exception) { return false; }
 		}
 
+		public void Restrict(IEnumerable<int> ids) => PartyRestriction.Set(ids);
+		public IReadOnlyList<int> Restriction => PartyRestriction.Owned;
+		public int Protagonist { get => StoryCast.Protagonist; set => StoryCast.Protagonist = value; }
+
+		/// <summary>The record as the save writes it (pl.Player.store) in base64, with the mastery ladders' JSON beside it.</summary>
+		public string Export(int id)
+		{
+			try
+			{
+				GlobalScope.pl.Player player = PlayerOf(id);
+				if (player == null) return null;
+				GlobalScope.ArrayWriter writer = new GlobalScope.ArrayWriter();
+				player.store(writer);
+				System.Text.Json.Nodes.JsonObject record = new System.Text.Json.Nodes.JsonObject
+				{
+					["v"] = 1, ["hero"] = id, ["name"] = player.name(), ["level"] = player.level().get(),
+					["player"] = Convert.ToBase64String(writer.getBytes()),
+					["progression"] = ProgressionLayer.HeroJson(id),
+				};
+				return record.ToJsonString();
+			}
+			catch (Exception ex) { EngineApi.Warn("party-export", "Export: " + ex.Message); return null; }
+		}
+
+		/// <summary>Slot by slot from the front: the character wanted there swaps places with whoever holds it (PlayerParty.changePlayer).</summary>
+		public void Arrange(IEnumerable<int> ids)
+		{
+			if (ids == null) return;
+			try
+			{
+				GlobalScope.pl.PlayerParty party = GlobalScope.pl.PlayerParty.instance();
+				int slot = 0;
+				foreach (int id in ids)
+				{
+					if (id < 0 || id > 3 || slot > 3) continue;
+					byte there = party.player((byte)slot).playerId();
+					if (there != id) party.changePlayer((byte)id, there);
+					slot++;
+				}
+				party.clearMemory();
+				RefreshDisplay();
+				Log.Write(LogChannel.File, "party: arranged " + string.Join(",", ids));
+			}
+			catch (Exception ex) { EngineApi.Warn("party-arrange", "Arrange: " + ex.Message); }
+		}
+
+		public bool Import(int id, string text)
+		{
+			if (id < 0 || id > 3 || string.IsNullOrWhiteSpace(text)) return false;
+			try
+			{
+				if (!(System.Text.Json.Nodes.JsonNode.Parse(text) is System.Text.Json.Nodes.JsonObject record) || !(record["player"] is System.Text.Json.Nodes.JsonNode blob)) return false;
+				GlobalScope.pl.Player player = GlobalScope.pl.PlayerParty.instance().playerForId((byte)id);
+				bool wasIn = player.isEnable();
+				player.parse(new GlobalScope.ArrayReader(Convert.FromBase64String(blob.GetValue<string>())));
+				// Membership is the party's business, not the record's; the id is the character's own.
+				if (wasIn) player.onIsEnable(); else player.offIsEnable();
+				if (record["progression"] is System.Text.Json.Nodes.JsonObject progression) ProgressionLayer.ApplyHeroJson(id, progression);
+				player.updateParameter();
+				RefreshDisplay();
+				Log.Write(LogChannel.General, "party: hero " + id + " imported - " + player.name() + " Lv. " + player.level().get());
+				return true;
+			}
+			catch (Exception ex) { EngineApi.Warn("party-import", "Import: " + ex.Message); return false; }
+		}
+
+		/// <summary>The title's New Game party-making (ttl, case 0) for another hero: everyone fresh, this one in, the starting job, the mods' definitions.</summary>
+		public void Reset(int hero)
+		{
+			if (hero < 0 || hero > 3) { EngineApi.Warn("party-reset", "Reset: hero " + hero + " is not 0..3"); return; }
+			try
+			{
+				GlobalScope.pl.PlayerParty party = GlobalScope.pl.PlayerParty.instance();
+				party.initialize();
+				party.addPlayer((byte)hero);
+				party.playerForId((byte)hero).changeJob(GlobalScope.pl.JOB_TYPE.SUPPINN);
+				party.playerForId((byte)hero).updateParameter();
+				ModCharactersLayer.ApplyToNewParty();
+				party.clearMemory();
+				RefreshDisplay();
+				Log.Write(LogChannel.General, "party: reset to a new game's party of hero " + hero);
+			}
+			catch (Exception ex) { EngineApi.Warn("party-reset", "Reset: " + ex.Message); }
+		}
+
 		public IReadOnlyList<string> AllJobs
 		{
 			get
@@ -2585,6 +2671,8 @@ namespace OpenFF.Client
 
 		private bool _escape = true;
 
+		public SharedBattle Shared { get => BattleSync.Shared; set => BattleSync.Shared = value; }
+
 		public bool EscapeAllowed
 		{
 			get => _escape;
@@ -2598,6 +2686,28 @@ namespace OpenFF.Client
 				});
 			}
 		}
+	}
+
+	/// <summary>The title screen for the mods: entries under its own (TitleEntries), and a new game or continue ordered from one.</summary>
+	internal sealed class LegacyTitle : GameService, ITitle
+	{
+		public void AddEntry(string label, Action onPress) => TitleEntries.Add(label, onPress);
+
+		public void NewGame(int hero = 0, string map = null, Vector3? position = null, string saveProfile = null)
+		{
+			if (!IsShowing) { EngineApi.Warn("title", "NewGame: only from the title screen"); return; }
+			TitleEntries.Pending = new TitleEntries.Order { Hero = Math.Clamp(hero, 0, 3), Map = string.IsNullOrWhiteSpace(map) ? null : map.Trim(), Position = position, SaveProfile = saveProfile };
+		}
+
+		public void Continue(string saveProfile)
+		{
+			if (!IsShowing) { EngineApi.Warn("title", "Continue: only from the title screen"); return; }
+			TitleEntries.Pending = new TitleEntries.Order { Continue = true, SaveProfile = saveProfile };
+		}
+
+		public bool HasSave(string saveProfile) => SaveFiles.HasSave(saveProfile);
+		public string SaveProfile => SaveFiles.Profile;
+		public bool IsShowing => TitleEntries.Showing;
 	}
 
 	internal sealed class LegacyField : GameService, IField
@@ -2616,6 +2726,13 @@ namespace OpenFF.Client
 				}
 				catch (Exception) { return name; }
 			}
+		}
+
+		/// <summary>The flag a map's arrival sets: CStateWorldMove writes the suspend save (card.SaveSuspend) and clears it on its next quiet frame.</summary>
+		public void Autosave()
+		{
+			if (!EngineApi.InWorld) { EngineApi.Warn("autosave", "Autosave: not on a map"); return; }
+			try { GlobalScope.setAutoSave(true); Log.Write(LogChannel.File, "field: autosave asked"); } catch (Exception ex) { EngineApi.Warn("autosave", "Autosave: " + ex.Message); }
 		}
 
 		/// <summary>The field takes orders only in its move state with nothing queued (CStateWorldMove reads m_Next each frame; the menu, shop, talk and save states own it otherwise, and their exit resets m_Next - so a Warp asked for during the menu is lost).</summary>

@@ -3,8 +3,9 @@
   "name": "Fellowship",
   "version": "1.0",
   "author": "OpenFF",
-  "description": "Walk the world together: every OpenFF client with this mod on the same network is a traveller in the same world. See the others walk about your map in their hero's model, speak with F5-F8, send aid to a friend in battle, give a Potion, travel to their side - a network mod with no server, made of the engine's API.",
+  "description": "Walk the world together: every OpenFF client with this mod on the same network is a traveller in the same world. See the others walk about your map in their hero's model, speak with F5-F8, send aid to a friend in battle, give items and gil, travel to their side - and Journey together from the title: each player picks one of the four heroes at the crystal shrine and plays the story as them, with saves of their own. A network mod with no server, made of the engine's API.",
   "target": "openff",
   "assemblies": [ "Fellowship.dll" ],
+  "scenes": "scenes",
   "dependencies": []
 }
