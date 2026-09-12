@@ -33,9 +33,10 @@ namespace Mastery
 			JobInfo job = Game.Party.JobInfo(Hero, m.JobWord);
 			menu.SetText("hero", m.Name + "   Lv. " + m.Level);
 			menu.SetText("job", m.JobTitle + (job != null && job.HasLadder ? "   Lv. " + job.Level + (job.Mastered ? "   Mastered!" : "") : ""));
-			menu.SetText("abp_label", m.Progression == "mastery" ? "ABP" : "");
-			Colour(menu, "abp_label", MenuColour.PaleBlue);   // a colour goes on after the text: setting the text draws it afresh
-			menu.SetText("abp", m.Progression != "mastery" ? m.Name + " grows by " + m.Progression : job == null || !job.HasLadder ? "-" : job.Mastered ? "mastered" : job.Abp + " / " + job.AbpToNext);
+			// The header's right side: the ladder's ABP, and the gear the hero may wear (the job held, and what set abilities grant).
+			menu.SetText("abp_label", m.Progression != "mastery" ? "Grows by " + m.Progression : job == null || !job.HasLadder ? "ABP  -" : job.Mastered ? "ABP  mastered" : "ABP  " + job.Abp + " / " + job.AbpToNext);
+			List<string> gear = m.Grants.Select(w => Game.Party.JobInfo(Hero, w)?.Title ?? w).ToList();
+			menu.SetText("abp", "Equippable: " + (gear.Count > 0 ? string.Join(", ", gear) : "-"));
 		}
 
 		public static void Describe(IMenuScreen menu, string line1, string line2)
@@ -88,10 +89,8 @@ namespace Mastery
 			}
 			else
 			{
-				Menu.SetText("cmd_title", "Job Commands");
+				Menu.SetText("cmd_title", "Job Commands");   // the headings' colour is the layout's (<colour>pale-blue</colour>)
 				Menu.SetText("slot_title", "Abilities");
-				Screens.Colour(Menu, "cmd_title", MenuColour.PaleBlue);
-				Screens.Colour(Menu, "slot_title", MenuColour.PaleBlue);
 				int row = 0, free = 0;
 				foreach (AbilityInfo c in m.Commands)
 				{
@@ -316,7 +315,6 @@ namespace Mastery
 			Screens.Header(Menu);
 			JobInfo job = Pending != null ? Game.Party.JobInfo(Screens.Hero, Pending) : null;
 			Menu.SetText("ask_job", job?.Title ?? "?");
-			Screens.Colour(Menu, "ask_job", MenuColour.Yellow);
 			Screens.Describe(Menu, job == null ? "" : job.Title + (job.HasLadder ? "   Lv. " + job.Level : ""), job == null ? "" : job.Mastered ? "Mastered!" : job.HasLadder ? job.Abp + " / " + job.AbpToNext + " ABP" : "");
 			Menu.Focus("no");
 		}

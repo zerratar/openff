@@ -1173,6 +1173,27 @@ function buildWidget(held) {
       input.oninput = () => { setChildText(frame.element, 'data', input.value); drawScreen(node, screen, frame.element); };
       wrap.append(input);
       panel.append(wrap);
+      // The frame's style words: the client writes font and align into the Text behaviour's parameters
+      // as it loads the layout, and puts the colour on as the screen opens.
+      const styleRow = (label, tag, options, tip) => {
+        const w = document.createElement('label');
+        w.textContent = label;
+        w.title = tip;
+        const sel = document.createElement('select');
+        for (const [v, text] of options) { const o = document.createElement('option'); o.value = v; o.textContent = text; sel.append(o); }
+        sel.value = (childText(frame.element, tag) || '').trim().toLowerCase() || '';
+        sel.onchange = () => {
+          const has = [...frame.element.children].find(e => e.tagName === tag);
+          if (!sel.value) { if (has) has.remove(); }
+          else setChildText(frame.element, tag, sel.value);
+          drawScreen(node, screen, frame.element);
+        };
+        w.append(sel);
+        panel.append(w);
+      };
+      styleRow('font', 'font', [['', 'normal'], ['large', 'large']], 'The game has two: normal (12) and large (16)');
+      styleRow('align', 'align', [['', 'left'], ['center', 'centre'], ['right', 'right'], ['button', 'button (the game\'s button frame behind the text)']], 'Where the text sits in the frame');
+      styleRow('colour', 'colour', [['', 'white'], ['pale-blue', 'pale blue (headings)'], ['yellow', 'yellow (the chosen one)'], ['disabled', 'grey (cannot be taken)'], ['red', 'red'], ['green', 'green'], ['blue', 'blue'], ['cyan', 'cyan'], ['magenta', 'magenta'], ['pale-yellow', 'pale yellow'], ['pale-red', 'pale red']], 'The game\'s text colours; a behaviour may change it at run time');
     }
     const focus = document.createElement('label');
     focus.className = 'check';
@@ -1281,7 +1302,14 @@ function buildMenuScreen(node) {
   }
   after.value = def.mainMenu.after || 'com_job';
   after.onchange = () => { def.mainMenu.after = after.value; saveMenuDefinition(); };
-  row('Where', after, 'Which of the game\'s entries it follows');
+  row('Where', after, 'Which of the game\'s entries it follows (in the JSON, "after" may also name another screen of the mod\'s by its id)');
+  const replaces = document.createElement('select');
+  for (const [id, label] of [['', 'none - added to the list'], ['com_item', 'Item'], ['com_magic', 'Magic'], ['com_equip', 'Equipment'], ['com_status', 'Status'], ['com_tairetu', 'Formation'], ['com_job', 'Job'], ['com_config', 'Config'], ['com_half', 'Quicksave'], ['com_save', 'Save']]) {
+    const o = document.createElement('option'); o.value = id; o.textContent = label; replaces.append(o);
+  }
+  replaces.value = def.mainMenu.replaces || '';
+  replaces.onchange = () => { if (replaces.value) def.mainMenu.replaces = replaces.value; else delete def.mainMenu.replaces; saveMenuDefinition(); };
+  row('In place of', replaces, 'The game\'s entry this one stands in for - the game\'s row goes (a mod whose heroes all grow FF5\'s way has no use for the Job screen)');
   const pick = document.createElement('input');
   pick.type = 'checkbox';
   pick.checked = !!def.characterSelect;

@@ -18,6 +18,7 @@
       </frame>
       <frame>
         <id>abp_label</id><x>296</x><y>6</y><width>200</width><height>20</height>
+        <colour>pale-blue</colour>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
         <data>ABP</data>
       </frame>

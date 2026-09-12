@@ -365,6 +365,7 @@ namespace OpenFF.Client
 		public IReadOnlyList<string> OpenJobs(int id) => new List<string>();
 		public IReadOnlyList<string> AllJobs => new List<string>();
 		public JobInfo JobInfo(int id, string job) => null;
+		public bool CanEquip(int id, int itemId) => false;
 
 		public void SetStat(int id, Stat stat, int value)
 		{

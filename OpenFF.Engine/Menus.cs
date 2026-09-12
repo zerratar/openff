@@ -16,7 +16,8 @@
 //       { "target": "", "behaviour": "AbilitiesScreen" },
 //       { "target": "back", "behaviour": "Back" } ] }
 //
-// mainMenu puts an entry into the game's main menu (after the entry named, or last);
+// mainMenu puts an entry into the game's main menu (after the entry named, or last; or in
+// place of one, "replaces": "com_job");
 // the client merges the layout into MenuDefine.xbn as it loads, so the screen is built by
 // name like the game's own, drawn with the game's windows, font and cursor, and moved
 // through with the game's focus rules. characterSelect asks the player which hero first
@@ -65,8 +66,10 @@ namespace OpenFF
 	{
 		/// <summary>The text of the entry.</summary>
 		public string Label { get; set; }
-		/// <summary>The id of the game's entry to follow: com_item, com_magic, com_equip, com_status, com_tairetu (Formation), com_job, com_config, com_half (Quicksave), com_save; last when unsaid.</summary>
+		/// <summary>The id of the game's entry to follow: com_item, com_magic, com_equip, com_status, com_tairetu (Formation), com_job, com_config, com_half (Quicksave), com_save - or another mod screen's id; last when unsaid.</summary>
 		public string After { get; set; }
+		/// <summary>The id of the game's entry this one stands in place of (com_job for a mod whose heroes all grow FF5's way and have no use for the game's Job screen); the game's row goes, this one takes its place.</summary>
+		public string Replaces { get; set; }
 	}
 
 	/// <summary>A MenuBehaviour on a frame of the screen ("" or null: the screen itself), with its fields.</summary>

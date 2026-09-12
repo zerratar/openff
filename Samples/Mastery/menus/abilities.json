@@ -3,7 +3,7 @@
   "layout": "abilities.xml",
   "screen": "abilities",
   "title": "Abilities",
-  "mainMenu": { "label": "Abilities", "after": "com_job" },
+  "mainMenu": { "label": "Abilities", "after": "jobs" },
   "background": 10,
   "characterSelect": true,
   "attachments": [

@@ -58,7 +58,9 @@ FF3 played FF5's way. The notes:
   and Label need no code. `Game.Menus.Open("id")` opens one from the field. Crystal's frame
   inspector has *Behaviours (OpenFF)* as an object's does, and a screen card for how it
   opens; the XBN codec moved to Shared so the client can use it. A frame with `<window/>`
-  is drawn with the game's window art, so a mod screen is made of panels as the game's are.
+  is drawn with the game's window art, so a mod screen is made of panels as the game's are;
+  `<font>`, `<align>` and `<colour>` style a text from the layout; an entry can stand in
+  place of one of the game's (`replaces`) rather than beside it.
   The Mastery sample's Abilities and Jobs screens are three such layouts and three
   behaviours after FF5's - the header, Job Commands and free slots, the learned list, a
   description window, a grid of jobs and the change-jobs question.
@@ -68,6 +70,9 @@ FF3 played FF5's way. The notes:
   shows in the battle's window and is played as the hero's plain attack with the mod's damage
   (a negative heals). The Mastery sample's Samurai throws gil (`Zeninage`). `--set-ability`
   fills a free slot at the start for trying one.
+- **The party API grew for menus:** `PartyMember.Commands`, `.Grants`, `AbilityInfo.TaughtBy`,
+  `Game.Party.AllJobs`, `JobInfo`, `CanEquip`; `Battle.Start` picks the map's own battlefield
+  by default; `--gil` works for FF3.
 - **More of FF5's passives on FF3's battle:** `first-strike` (one plain opening in four is
   the party's), `vigilance` (no back attacks), `two-handed` (one weapon, a free other hand:
   double damage), `barehanded` (unarmed as a Monk), `mp-10/20/30` (+1/+2/+3 spell charges a

@@ -1668,6 +1668,8 @@ namespace OpenFF.Client
 					for (int i = 0; i < free && i < s.Set.Length; i++) m.Slots[i] = s.Set[i];
 					foreach (int c in ProgressionLayer.CommandLayout(job)) m.Commands.Add(c < 0 ? new AbilityInfo { Id = -1, Word = "*", Name = "free slot" } : AbilityOf(c));
 				}
+				int bits = (1 << player.jobManager().nowJob()) | ProgressionLayer.GrantBits(player);
+				for (int j = 0; j < OpenFF.Data.ModCharacters.Jobs.Length; j++) if ((bits & (1 << j)) != 0) m.Grants.Add(OpenFF.Data.ModCharacters.Jobs[j].Enum);
 			}
 			catch (Exception) { }
 			return m;
@@ -1754,6 +1756,18 @@ namespace OpenFF.Client
 			}
 			catch (Exception) { }
 			return words;
+		}
+
+		public bool CanEquip(int id, int itemId)
+		{
+			try
+			{
+				GlobalScope.pl.Player player = PlayerOf(id);
+				if (player == null) return false;
+				GlobalScope.itm.EquipParameter e = (GlobalScope.itm.EquipParameter)GlobalScope.itm.ItemManager.instance().weaponParameter((short)itemId) ?? GlobalScope.itm.ItemManager.instance().protectionParameter((short)itemId);
+				return e != null && player.isEquipItem(e.equipJob());
+			}
+			catch (Exception) { return false; }
 		}
 
 		public IReadOnlyList<string> AllJobs

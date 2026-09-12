@@ -18,6 +18,7 @@
       </frame>
       <frame>
         <id>abp_label</id><x>296</x><y>6</y><width>200</width><height>20</height>
+        <colour>pale-blue</colour>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
         <data>ABP</data>
       </frame>
@@ -32,11 +33,13 @@
       <id>w_ask</id><x>104</x><y>76</y><width>304</width><height>144</height>
       <frame>
         <id>ask_job</id><x>16</x><y>16</y><width>272</width><height>20</height>
+        <align>center</align><colour>yellow</colour>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
         <data></data>
       </frame>
       <frame>
         <id>ask</id><x>16</x><y>52</y><width>272</width><height>20</height>
+        <align>center</align>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
         <data>Are you sure you want to change jobs?</data>
       </frame>

@@ -382,6 +382,8 @@ namespace OpenFF
 		public int[] Slots { get; set; } = System.Array.Empty<int>();
 		/// <summary>Mastery: the held job's four battle commands as laid out - the job's own by ability, a free slot as an entry with Id -1 (what is set in it is in Slots).</summary>
 		public List<AbilityInfo> Commands { get; } = new List<AbilityInfo>();
+		/// <summary>The jobs whose equipment and magic the character may use now, by word: the job held and the ones a set or innate ability grants (FF5's Equip Swords).</summary>
+		public List<string> Grants { get; } = new List<string>();
 		/// <summary>The job really held, by word: FF3's ("knight") or a mod's own from defs/jobs ("samurai", standing on the FF3 job in Job).</summary>
 		public string JobWord { get; set; }
 		/// <summary>The held job's name as the menus print it.</summary>
@@ -490,6 +492,8 @@ namespace OpenFF
 		IReadOnlyList<string> AllJobs { get; }
 		/// <summary>A job as it stands for a character: its ladder's level and ABP, whether open, held, mastered; null for no such job.</summary>
 		JobInfo JobInfo(int id, string job);
+		/// <summary>Whether the character may wear or wield an item as they stand - the job held and what their abilities grant; false for a thing that is not equipment.</summary>
+		bool CanEquip(int id, int itemId);
 	}
 
 	/// <summary>A job as it stands for one character, for menus (IParty.JobInfo).</summary>

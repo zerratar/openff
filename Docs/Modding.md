@@ -1378,8 +1378,12 @@ screen of its own the same way, and nothing in the engine has to change for it:
   rules the game's own layouts follow: the visible height is 288 (the bottom bar is under it);
   a frame holds at most 32 child frames, so panels hold their texts; and a frame the cursor
   lands on (*focus*) reaches its `up/down/left/right` within its parent's subtree, so keep
-  the focusable frames at the top level when they cross panels. `Samples/Mastery/menus` are
-  three such layouts after FF5's Abilities and Jobs screens.
+  the focusable frames at the top level when they cross panels. A frame's **style** is three
+  words the inspector offers: `<font>large</font>` (the game's larger face; normal otherwise),
+  `<align>center|right|button</align>` (`button` draws the game's button frame behind the
+  text) and `<colour>pale-blue|yellow|disabled|red|green|blue|cyan|magenta|pale-yellow|pale-red</colour>`
+  - the colour stays through every text a behaviour writes, until the behaviour sets another.
+  `Samples/Mastery/menus` are three such layouts after FF5's Abilities and Jobs screens.
 - `menus/<id>.json` - the screen: which layout menu (`screen`), a `title`, how it opens,
   and the **MenuBehaviours** on its frames:
 
@@ -1393,7 +1397,10 @@ screen of its own the same way, and nothing in the engine has to change for it:
 
 `mainMenu` puts an entry into the game's main menu after the one named (`com_item`,
 `com_magic`, `com_equip`, `com_status`, `com_tairetu` (Formation), `com_job`, `com_config`,
-`com_half` (Quicksave), `com_save`); the list is re-spaced to fit and its focus ring closed.
+`com_half` (Quicksave), `com_save`, or another mod screen's id); the list is re-spaced to fit
+and its focus ring closed. `"replaces": "com_job"` puts it in place of one of the game's rows
+instead - the Mastery sample's *Jobs* stands where *Job* was, since heroes who grow FF5's way
+have no use for the game's Job screen, and *Abilities* follows it (`"after": "jobs"`).
 `characterSelect` asks the player which hero first, as Status and Equipment do (`Menu.Hero`
 says who); `background` is one of the game's menu backdrops (10 the plain one; 0 Item's, 1
 Magic's, 2 Equipment's, 3 Status's, 5 Job's, 6 Config's, 9 the main menu's). Without an
@@ -1427,7 +1434,11 @@ public sealed class AbilitiesScreen : MenuBehaviour
 a command that cannot be taken - `Visible`, `X/Y/Width/Height`, `Work`), `Widgets`, `Focused`,
 `Focus(id)`, `SetText`, `Hero`, `Close()` (back to the main menu, or out of the menus when
 opened from the field), `Open(id)` (another screen of the mod's), `SoundDecide / SoundBeep /
-SoundCancel`. The engine's own MenuBehaviours need no code: **Back** (a press leaves),
+SoundCancel`. What a screen shows comes from the party API: `PartyMember.Commands` (the held
+job's four, free slots as Id -1), `.Slots`, `.Learned` (each `AbilityInfo.TaughtBy` naming the
+ladders and levels), `.Grants` (the jobs whose gear the hero may wear now),
+`Game.Party.AllJobs` and `JobInfo(id, word)` (level, ABP, open, held, mastered, the next
+ability), `CanEquip(id, itemId)`. The engine's own MenuBehaviours need no code: **Back** (a press leaves),
 **OpenMenu** (a press opens `Screen`), **Label** (`Text` written onto the frame). In Crystal
 the frame's inspector has *Behaviours (OpenFF)* as an object's does (Add Behaviour lists the
 engine's and the mod's `MenuBehaviour` classes; a new name writes a starter class), and the

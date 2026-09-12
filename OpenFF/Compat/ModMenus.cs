@@ -120,6 +120,7 @@ namespace OpenFF.Client
 					// An empty <data/> would be a null string to the game's text widget; a space is a blank it can draw.
 					XElement data = frame.Element("data");
 					if (data != null && string.IsNullOrEmpty(data.Value)) data.Value = " ";
+					ApplyStyle(frame);
 					if (frame.Element("focus") == null) continue;
 					frame.SetElementValue("myTag", tag++);
 					foreach (string side in new[] { "up", "down", "left", "right" }) if (frame.Element(side) == null) frame.Add(new XElement(side, "dummy"));
@@ -129,10 +130,34 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + def.Id + ": " + def.Layout + ": " + ex.Message); return null; }
 		}
 
+		/// <summary>
+		/// A frame's style words, written into the Text behaviour's parameters the game reads: <font>large|normal</font>
+		/// (the second parameter, 16 or 8), <align>left|right|center|button</align> (the third: 0, 1, 2, 4 - button draws
+		/// the game's button frame behind the text). <colour> is kept on the frame and put on as the screen opens.
+		/// </summary>
+		private static void ApplyStyle(XElement frame)
+		{
+			XElement behaviour = frame.Element("behavior");
+			if (behaviour == null || (string)behaviour.Attribute("value") != "Text") return;
+			string font = frame.Element("font")?.Value?.Trim().ToLowerInvariant();
+			string align = frame.Element("align")?.Value?.Trim().ToLowerInvariant();
+			if (font == null && align == null) return;
+			List<XElement> parameters = behaviour.Elements("parameter").ToList();
+			while (parameters.Count < 3) { XElement p = new XElement("parameter", parameters.Count == 0 ? "-1" : parameters.Count == 1 ? "8" : "0"); behaviour.Add(p); parameters.Add(p); }
+			if (font != null) parameters[1].Value = font == "large" || font == "big" ? "16" : "8";
+			if (align != null) parameters[2].Value = align == "right" ? "1" : align == "center" || align == "centre" ? "2" : align == "button" ? "4" : "0";
+		}
+
+		/// <summary>A colour word from a layout's <colour>, as the game's colour; White when unknown.</summary>
+		public static MenuColour ColourWord(string word)
+		{
+			return Enum.TryParse(word?.Trim().Replace("-", "").Replace(" ", ""), true, out MenuColour c) ? c : word?.Trim().ToLowerInvariant() switch { "grey" or "gray" or "disabled" => MenuColour.Disabled, "pale-blue" or "paleblue" or "blue2" => MenuColour.PaleBlue, _ => MenuColour.White };
+		}
+
 		/// <summary>An entry per screen that asks for one in main_menu's command list, after the entry it names; the list re-spaced to fit, the focus ring closed.</summary>
 		private static void AddMainMenuEntries(XElement list)
 		{
-			List<MenuDefinition> entries = _all.Where(d => d.MainMenu != null && !string.IsNullOrWhiteSpace(d.MainMenu.Label)).ToList();
+			List<MenuDefinition> entries = Entries();
 			if (entries.Count == 0) return;
 			XElement main = list.Elements("menu").FirstOrDefault(m => (string)m.Element("name") == "main_menu");
 			XElement commands = main?.Elements("frame").FirstOrDefault(f => (string)f.Element("id") == "main_command");
@@ -140,7 +165,7 @@ namespace OpenFF.Client
 			List<XElement> rows = commands.Elements("frame").ToList();
 			if (rows.Count == 0) return;
 			XElement template = rows.FirstOrDefault(r => (string)r.Element("id") == "com_job") ?? rows[0];
-			int index = 0;
+			int index = 0, added = 0;
 			foreach (MenuDefinition def in entries)
 			{
 				XElement row = new XElement(template);
@@ -153,19 +178,25 @@ namespace OpenFF.Client
 					row.Elements("data").ToList().ForEach(d => d.Remove());
 					row.Add(new XElement("data", def.MainMenu.Label));
 				}
-				XElement after = rows.FirstOrDefault(r => (string)r.Element("id") == def.MainMenu.After);
-				if (after != null) after.AddAfterSelf(row); else rows[rows.Count - 1].AddAfterSelf(row);
+				// In place of one of the game's rows, or after one (the game's, or another mod screen's by its id), or last.
+				XElement replaced = string.IsNullOrWhiteSpace(def.MainMenu.Replaces) ? null : rows.FirstOrDefault(r => (string)r.Element("id") == def.MainMenu.Replaces.Trim());
+				string afterId = def.MainMenu.After;
+				if (afterId != null && !afterId.StartsWith("com_") && entries.Any(e => string.Equals(e.Id, afterId, StringComparison.OrdinalIgnoreCase))) afterId = "com_mod_" + entries.First(e => string.Equals(e.Id, afterId, StringComparison.OrdinalIgnoreCase)).Id;
+				XElement after = rows.FirstOrDefault(r => (string)r.Element("id") == afterId);
+				if (replaced != null) { replaced.AddAfterSelf(row); replaced.Remove(); }
+				else if (after != null) { after.AddAfterSelf(row); added++; }
+				else { rows[rows.Count - 1].AddAfterSelf(row); added++; }
 				rows = commands.Elements("frame").ToList();
 				index++;
 			}
 			// The character panels (p1..p4) and anything else numbered after the commands move down the
 			// focus list by as many entries as went in: myTag is a focus index the game moves by.
-			int original = rows.Count - index;
+			int original = rows.Count - added;
 			foreach (XElement frame in main.Descendants("frame"))
 			{
 				if (frame.Parent == commands) continue;
 				XElement tag = frame.Element("myTag");
-				if (tag != null && int.TryParse(tag.Value, out int t) && t >= original) tag.Value = (t + index).ToString();
+				if (tag != null && int.TryParse(tag.Value, out int t) && t >= original) tag.Value = (t + added).ToString();
 			}
 			// Re-space: the list's rows sat 28 apart from y 2; the same run shared among the rows now there.
 			int top = rows.Min(r => Int(r.Element("y"), 2));
@@ -185,11 +216,18 @@ namespace OpenFF.Client
 
 		// ---- opening ----
 
+		/// <summary>The screens with a main menu entry, in the order the entries go in (the ones that follow another mod screen after it) - the order work = KIND + index counts by.</summary>
+		private static List<MenuDefinition> Entries()
+		{
+			List<MenuDefinition> entries = _all.Where(d => d.MainMenu != null && !string.IsNullOrWhiteSpace(d.MainMenu.Label)).ToList();
+			return entries.Where(e => e.MainMenu.After == null || e.MainMenu.After.StartsWith("com_")).Concat(entries.Where(e => e.MainMenu.After != null && !e.MainMenu.After.StartsWith("com_"))).ToList();
+		}
+
 		/// <summary>The main menu's entry with work = KIND + index was chosen: that screen is current.</summary>
 		public static bool Select(int work)
 		{
 			int index = work - GlobalScope.wmenu.CWMenuMod.KIND;
-			List<MenuDefinition> entries = _all.Where(d => d.MainMenu != null && !string.IsNullOrWhiteSpace(d.MainMenu.Label)).ToList();
+			List<MenuDefinition> entries = Entries();
 			if (index < 0 || index >= entries.Count) return false;
 			_current = entries[index];
 			_fromField = false;
@@ -261,6 +299,7 @@ namespace OpenFF.Client
 			{
 				_screen = new ModMenuScreen(_current, host, _fromField);
 				OpenWindows(_screen);
+				foreach (IMenuWidget w in _screen.Widgets) (w as ModMenuWidget)?.ApplyStyle();
 				_mods.TryGetValue(_current.Id, out LoadedMod mod);
 				_behaviours = MenuLoader.Make(_current, _screen, mod);
 				Log.Write(LogChannel.General, "menus: " + _current.Id + " opened - " + _screen.Widgets.Count + " frame(s), " + _behaviours.Count + " behaviour(s)" + (_screen.Hero >= 0 ? ", hero " + _screen.Hero : ""));
@@ -414,8 +453,17 @@ namespace OpenFF.Client
 			public readonly List<ModMenuWidget> ChildList = new List<ModMenuWidget>();
 			private string _text;
 			private bool _visible = true;
+			private MenuColour? _colour;
 
-			public ModMenuWidget(GlobalScope.menu.Medget m) { Medget = m; }
+			public ModMenuWidget(GlobalScope.menu.Medget m)
+			{
+				Medget = m;
+				string word = m.node()?.getFirstNodeByTagNameFromChildren("colour")?.nodeValueString() ?? m.node()?.getFirstNodeByTagNameFromChildren("color")?.nodeValueString();
+				if (!string.IsNullOrWhiteSpace(word)) _colour = ColourWord(word);
+			}
+
+			/// <summary>The layout's colour, put on as the screen opens (a text drawn afresh comes up white).</summary>
+			public void ApplyStyle() { if (_colour.HasValue) Colour = _colour.Value; }
 
 			private GlobalScope.menu.MBText Text_ => Medget.behavior()?.queryInterface(GlobalScope.menu.MBText.classIdentifier()) as GlobalScope.menu.MBText;
 
@@ -431,10 +479,10 @@ namespace OpenFF.Client
 			public string Text
 			{
 				get => _text ?? Medget.node()?.getFirstNodeByTagName("data")?.nodeValueString() ?? "";
-				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); }
+				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); if (_colour.HasValue) Colour = _colour.Value; }
 			}
 
-			public MenuColour Colour { set { try { Text_?.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)value); } catch (Exception) { } } }
+			public MenuColour Colour { set { _colour = value; try { Text_?.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)value); } catch (Exception) { } } }
 
 			public bool Visible
 			{

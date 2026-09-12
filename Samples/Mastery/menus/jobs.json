@@ -3,7 +3,7 @@
   "layout": "jobs.xml",
   "screen": "jobs",
   "title": "Jobs",
-  "mainMenu": { "label": "Jobs", "after": "com_job" },
+  "mainMenu": { "label": "Jobs", "replaces": "com_job" },
   "background": 10,
   "characterSelect": true,
   "attachments": [
