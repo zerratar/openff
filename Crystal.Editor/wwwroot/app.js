@@ -886,6 +886,9 @@ function textFontSize(element) {
   const behavior = [...element.children].find(e => e.tagName === 'behavior');
   if (!behavior) return 12;
   const parameters = [...behavior.children].filter(e => e.tagName === 'parameter');
+  // A mod frame's <font>N</font> is drawn at N; the game's own two sizes otherwise.
+  const own = parseInt(childText(element, 'font') || '', 10);
+  if (!Number.isNaN(own) && own >= 6 && own <= 31) return own;
   if (parameters.length < 2) return 12;
   const value = parseInt(
     parameters[1].getAttribute('value') ?? parameters[1].textContent, 10);
@@ -1212,7 +1215,7 @@ function buildWidget(held) {
         w.append(sel);
         panel.append(w);
       };
-      styleRow('font', 'font', [['', 'normal'], ['large', 'large']], 'The game has two: normal (12) and large (16)');
+      styleRow('font', 'font', [['', 'normal (12)'], ['large', 'large (16)'], ['8', '8'], ['10', '10'], ['14', '14'], ['18', '18'], ['20', '20'], ['24', '24'], ['28', '28']], 'The game\'s own two sizes, or a size of the text\'s own (6..31) drawn by the TrueType face');
       styleRow('align', 'align', [['', 'left'], ['center', 'centre'], ['right', 'right'], ['button', 'button (the game\'s button frame behind the text)']], 'Where the text sits in the frame');
       styleRow('colour', 'colour', [['', 'white'], ['pale-blue', 'pale blue (headings)'], ['yellow', 'yellow (the chosen one)'], ['disabled', 'grey (cannot be taken)'], ['red', 'red'], ['green', 'green'], ['blue', 'blue'], ['cyan', 'cyan'], ['magenta', 'magenta'], ['pale-yellow', 'pale yellow'], ['pale-red', 'pale red']], 'The game\'s text colours; a behaviour may change it at run time');
     }

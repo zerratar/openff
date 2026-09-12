@@ -113,6 +113,8 @@ namespace OpenFF
 		int Work { get; }
 		/// <summary>The frame's rectangle in Game.Draw's screen units (800 x 480), for drawing pictures and shapes on it.</summary>
 		(float X, float Y, float Width, float Height) ScreenRect { get; }
+		/// <summary>The text's size, 6..31 (the game's own two are 12 and 16); setting it draws the text afresh at that size.</summary>
+		int FontSize { get; set; }
 		IReadOnlyList<IMenuWidget> Children { get; }
 	}
 
@@ -143,6 +145,10 @@ namespace OpenFF
 		void SoundBeep();
 		/// <summary>The game's cancel sound.</summary>
 		void SoundCancel();
+		/// <summary>The behaviours on the screen, the definition's attachments made - to reach the engine's own (a Gauge's Value) from a mod's.</summary>
+		IReadOnlyList<MenuBehaviour> Behaviours { get; }
+		/// <summary>The first behaviour of a type on a frame (""/null: the screen), or null.</summary>
+		T Behaviour<T>(string target = null) where T : MenuBehaviour;
 	}
 
 	/// <summary>
@@ -227,6 +233,135 @@ namespace OpenFF
 			var r = Widget.ScreenRect;
 			if (Stretch) Game.Draw.Sprite(_texture, r.X, r.Y, r.Width, r.Height);
 			else Game.Draw.Sprite(_texture, r.X, r.Y, _texture.Width * r.Width / Math.Max(1, Widget.Width), _texture.Height * r.Height / Math.Max(1, Widget.Height));   // the picture's own size, in the frame's scale
+		}
+	}
+
+	/// <summary>
+	/// A bar over the frame: Value of the way along, in Colour, over Background. A mod's behaviour sets Value
+	/// through Menu.Behaviour&lt;Gauge&gt;("hp_bar").Value.
+	/// </summary>
+	public sealed class Gauge : MenuBehaviour
+	{
+		[Range(0, 1)] public float Value = 1f;
+		public Color Colour = new Color(96, 200, 96);
+		public Color Background = new Color(24, 32, 56);
+		[Tooltip("A one-unit rim in the bar's colour around the trough")]
+		public bool Rim = true;
+
+		public override void OnTick()
+		{
+			if (Widget == null) return;
+			var r = Widget.ScreenRect;
+			if (Rim) Game.Draw.Rect(r.X - 1, r.Y - 1, r.Width + 2, r.Height + 2, Colour, false);
+			Game.Draw.Rect(r.X, r.Y, r.Width, r.Height, Background);
+			float v = Math.Clamp(Value, 0f, 1f);
+			if (v > 0) Game.Draw.Rect(r.X, r.Y, r.Width * v, r.Height, Colour);
+		}
+	}
+
+	/// <summary>
+	/// A list over a run of row frames (row0, row1... - focusable, in the layout), longer than the rows: the rows
+	/// show a window of the items, the cursor moving off the last row scrolls it, L / R turn pages. A behaviour
+	/// keeps one, sets Items, calls Show, and hands it OnFocus and OnKey; IndexAt says which item a pressed row is.
+	/// </summary>
+	public sealed class MenuList
+	{
+		private readonly IMenuScreen _menu;
+		private readonly string _prefix;
+		private readonly int _rows;
+		private readonly string _pageFrame;
+		private int _lastRow = -1;
+
+		public MenuList(IMenuScreen menu, string rowPrefix, int rows, string pageFrame = null)
+		{
+			_menu = menu; _prefix = rowPrefix; _rows = Math.Max(1, rows); _pageFrame = pageFrame;
+		}
+
+		/// <summary>The items shown, in order.</summary>
+		public List<string> Items { get; set; } = new List<string>();
+		/// <summary>The item on the first row.</summary>
+		public int Top { get; set; }
+		/// <summary>The colour of an item, by index; null for the layout's.</summary>
+		public Func<int, MenuColour?> ColourOf { get; set; }
+		/// <summary>A second line per item (a standing under a name), written to frames named SubPrefix + row when set.</summary>
+		public List<string> SubItems { get; set; }
+		public string SubPrefix { get; set; }
+		/// <summary>The colour of an item's second line, by index; null for the layout's.</summary>
+		public Func<int, MenuColour?> SubColourOf { get; set; }
+		public int Rows => _rows;
+		public int Pages => Math.Max(1, (Items.Count + _rows - 1) / _rows);
+		public string RowId(int row) => _prefix + row;
+
+		/// <summary>Writes the rows from Top; blanks the rows past the end; the page frame reads "2 / 5".</summary>
+		public void Show()
+		{
+			Top = Math.Clamp(Top, 0, Math.Max(0, Items.Count - 1));
+			for (int r = 0; r < _rows; r++)
+			{
+				int i = Top + r;
+				IMenuWidget w = _menu.Widget(RowId(r));
+				if (w == null) continue;
+				w.Text = i < Items.Count ? Items[i] : "";
+				MenuColour? c = i < Items.Count ? ColourOf?.Invoke(i) : null;
+				if (c.HasValue) w.Colour = c.Value;
+				if (SubPrefix != null)
+				{
+					IMenuWidget s = _menu.Widget(SubPrefix + r);
+					if (s == null) continue;
+					s.Text = i < Items.Count && SubItems != null && i < SubItems.Count ? SubItems[i] : "";
+					MenuColour? sc = i < Items.Count ? SubColourOf?.Invoke(i) : null;
+					if (sc.HasValue) s.Colour = sc.Value;
+				}
+			}
+			if (_pageFrame != null) _menu.SetText(_pageFrame, Pages > 1 ? (Top / _rows + 1) + " / " + Pages : "");
+		}
+
+		/// <summary>The row of a frame id (0..Rows-1), or -1 for a frame that is not one of the rows.</summary>
+		public int RowOf(string frameId)
+		{
+			if (frameId == null || !frameId.StartsWith(_prefix) || !int.TryParse(frameId.Substring(_prefix.Length), out int r) || r < 0 || r >= _rows) return -1;
+			return r;
+		}
+
+		/// <summary>The item index a frame stands for, or -1.</summary>
+		public int IndexAt(string frameId)
+		{
+			int r = RowOf(frameId);
+			int i = r < 0 ? -1 : Top + r;
+			return i >= 0 && i < Items.Count ? i : -1;
+		}
+
+		/// <summary>The item under the cursor, or -1.</summary>
+		public int Selected => IndexAt(_menu.Focused);
+
+		/// <summary>
+		/// Call from OnFocus. The cursor moving from the last row to the first (the ring wrapping) scrolls a window
+		/// down, from the first to the last up; a row past the end sends the cursor back to the last item. Returns
+		/// true when the focus is on one of the rows.
+		/// </summary>
+		public bool OnFocus()
+		{
+			int r = RowOf(_menu.Focused);
+			if (r < 0) { _lastRow = -1; return false; }
+			int last = Math.Min(_rows, Items.Count - Top) - 1;
+			if (_lastRow == _rows - 1 && r == 0 && Top + _rows < Items.Count) { Top += _rows; Show(); _lastRow = 0; return true; }
+			if (_lastRow == 0 && r == _rows - 1 && Top > 0) { Top = Math.Max(0, Top - _rows); Show(); _lastRow = Math.Min(_rows, Items.Count - Top) - 1; _menu.Focus(RowId(_lastRow)); return true; }
+			if (r > last && last >= 0) { _menu.Focus(RowId(last)); _lastRow = last; return true; }
+			_lastRow = r;
+			return true;
+		}
+
+		/// <summary>Call from OnKey: L and R turn pages. Returns true when it did.</summary>
+		public bool OnKey(MenuKey key)
+		{
+			if ((key != MenuKey.L && key != MenuKey.R) || Pages < 2) return false;
+			int page = (Top / _rows + (key == MenuKey.R ? 1 : Pages - 1)) % Pages;
+			Top = page * _rows;
+			Show();
+			int r = RowOf(_menu.Focused);
+			int last = Math.Min(_rows, Items.Count - Top) - 1;
+			if (r > last && last >= 0) _menu.Focus(RowId(last));
+			return true;
 		}
 	}
 

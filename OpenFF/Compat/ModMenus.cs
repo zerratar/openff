@@ -191,7 +191,7 @@ namespace OpenFF.Client
 			if (font == null && align == null) return;
 			List<XElement> parameters = behaviour.Elements("parameter").ToList();
 			while (parameters.Count < 3) { XElement p = new XElement("parameter", parameters.Count == 0 ? "-1" : parameters.Count == 1 ? "8" : "0"); behaviour.Add(p); parameters.Add(p); }
-			if (font != null) parameters[1].Value = font == "large" || font == "big" ? "16" : "8";
+			if (font != null) parameters[1].Value = font == "large" || font == "big" || (int.TryParse(font, out int n) && n > 12) ? "16" : "8";   // a number: the nearer of the game's two here; the exact size goes on as the screen opens
 			if (align != null) parameters[2].Value = align == "right" ? "1" : align == "center" || align == "centre" ? "2" : align == "button" ? "4" : "0";
 		}
 
@@ -349,6 +349,7 @@ namespace OpenFF.Client
 				foreach (IMenuWidget w in _screen.Widgets) (w as ModMenuWidget)?.ApplyStyle();
 				_mods.TryGetValue(_current.Id, out LoadedMod mod);
 				_behaviours = MenuLoader.Make(_current, _screen, mod);
+				_screen.BehaviourList = _behaviours;
 				Log.Write(LogChannel.General, "menus: " + _current.Id + " opened - " + _screen.Widgets.Count + " frame(s), " + _behaviours.Count + " behaviour(s)" + (_screen.Hero >= 0 ? ", hero " + _screen.Hero : ""));
 				foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnOpen", b.OnOpen);
 			}
@@ -436,6 +437,7 @@ namespace OpenFF.Client
 					_mods.TryGetValue(def.Id, out LoadedMod mod);
 					_gameBehaviours.AddRange(MenuLoader.Make(def, _gameScreen, mod));
 				}
+				_gameScreen.BehaviourList = _gameBehaviours;
 				_gameFocused = null;
 				Log.Write(LogChannel.General, "menus: the game's " + name + " built - " + _gameScreen.Widgets.Count + " frame(s), " + _gameBehaviours.Count + " behaviour(s) of the mods'");
 				foreach (MenuBehaviour b in _gameBehaviours) OpenFF.Game.Guard(b.Name + ".OnOpen", b.OnOpen);
@@ -602,6 +604,10 @@ namespace OpenFF.Client
 			public void SoundDecide() => GlobalScope.menu.MenuManager.getSingleton().playSEDecide();
 			public void SoundBeep() => GlobalScope.menu.MenuManager.getSingleton().playSEBeep();
 			public void SoundCancel() => GlobalScope.menu.MenuManager.getSingleton().playSECancel();
+			/// <summary>The behaviours made for this screen (set once they are).</summary>
+			public List<MenuBehaviour> BehaviourList = new List<MenuBehaviour>();
+			public IReadOnlyList<MenuBehaviour> Behaviours => BehaviourList;
+			public T Behaviour<T>(string target = null) where T : MenuBehaviour => BehaviourList.OfType<T>().FirstOrDefault(b => b.Target == (target ?? ""));
 		}
 
 		private sealed class ModMenuWidget : IMenuWidget
@@ -611,16 +617,43 @@ namespace OpenFF.Client
 			private string _text;
 			private bool _visible = true;
 			private MenuColour? _colour;
+			private int _fontSize;
 
 			public ModMenuWidget(GlobalScope.menu.Medget m)
 			{
 				Medget = m;
 				string word = m.node()?.getFirstNodeByTagNameFromChildren("colour")?.nodeValueString() ?? m.node()?.getFirstNodeByTagNameFromChildren("color")?.nodeValueString();
 				if (!string.IsNullOrWhiteSpace(word)) _colour = ColourWord(word);
+				// <font>N</font>: a size of the text's own (6..31), drawn by the TrueType face at that size.
+				string font = m.node()?.getFirstNodeByTagNameFromChildren("font")?.nodeValueString();
+				if (int.TryParse(font?.Trim(), out int size) && size >= 6 && size <= 31) _fontSize = size;
 			}
 
 			/// <summary>The layout's colour, put on as the screen opens (a text drawn afresh comes up white).</summary>
-			public void ApplyStyle() { if (_colour.HasValue) Colour = _colour.Value; }
+			public void ApplyStyle()
+			{
+				if (_fontSize > 0) FontSize = _fontSize;
+				if (_colour.HasValue) Colour = _colour.Value;
+			}
+
+			/// <summary>The text's size in the game's units (12 and 16 are the game's two); the message is drawn afresh at it.</summary>
+			public int FontSize
+			{
+				get => _fontSize > 0 ? _fontSize : (Text_?.getMessage()?.m_TextCanvas?.pFont?.size ?? 12);
+				set
+				{
+					_fontSize = Math.Clamp(value, 6, 31);
+					GlobalScope.dgs.DGSMessage message = Text_?.getMessage();
+					if (message?.m_TextCanvas == null) return;
+					try
+					{
+						message.m_TextCanvas.pFont = new GlobalScope.NNSG2dFont { size = _fontSize };
+						Text_.mbSetBufferMsg(_text ?? Text, decWidth: false);   // laid out and drawn again at the new size
+						if (_colour.HasValue) Colour = _colour.Value;
+					}
+					catch (Exception) { }
+				}
+			}
 
 			private GlobalScope.menu.MBText Text_ => Medget.behavior()?.queryInterface(GlobalScope.menu.MBText.classIdentifier()) as GlobalScope.menu.MBText;
 

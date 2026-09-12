@@ -1379,7 +1379,8 @@ screen of its own the same way, and nothing in the engine has to change for it:
   a frame holds at most 32 child frames, so panels hold their texts; and a frame the cursor
   lands on (*focus*) reaches its `up/down/left/right` within its parent's subtree, so keep
   the focusable frames at the top level when they cross panels. A frame's **style** is three
-  words the inspector offers: `<font>large</font>` (the game's larger face; normal otherwise),
+  words the inspector offers: `<font>large</font>` (the game's larger face; normal otherwise) or
+  `<font>20</font>` (any size 6..31, drawn by the TrueType face - `Widget.FontSize` from code),
   `<align>center|right|button</align>` (`button` draws the game's button frame behind the
   text) and `<colour>pale-blue|yellow|disabled|red|green|blue|cyan|magenta|pale-yellow|pale-red</colour>`
   - the colour stays through every text a behaviour writes, until the behaviour sets another.
@@ -1459,7 +1460,16 @@ ability), `CanEquip(id, itemId)`. The engine's own MenuBehaviours need no code: 
 **OpenMenu** (a press opens `Screen`), **Label** (`Text` written onto the frame), **Picture** (a
 PNG drawn over the frame: `Path` a file under the mod's folder - `pictures/banner.png` - or one
 of the game's 2D sheets by name, `icon_yubi.NCGR`, since the Steam build's `.NCGR`/`.NCBR`
-sheets are PNGs; `Stretch` to the frame or at its own size). Those same sheets are how the
+sheets are PNGs; `Stretch` to the frame or at its own size), **Gauge** (a bar over the frame:
+`Value` 0..1, `Colour`, `Background` - a mod's code reaches it with
+`Menu.Behaviour<Gauge>("hp_bar").Value = hp / (float)max`). The game's own **Icon** widget works
+too: `<behavior value="Icon"><parameter>n</parameter></behavior>` draws cell *n* of its small
+icon sheet. For lists longer than the screen, `MenuList` (engine) runs over a run of row
+frames: `_list = new MenuList(Menu, "row", 7, "page")`, set `Items` (and `SubItems` with a
+`SubPrefix` for a second line), `Show()`, hand it `OnFocus()` (the cursor moving off the last
+row scrolls; an empty row sends it back) and `OnKey(key)` (L / R pages), and `IndexAt(id)` or
+`Selected` say which item a pressed row is - the Mastery sample's two lists are ten lines each.
+Those same sheets are how the
 look itself is changed: a mod's `files/m000_window.NCBR` (the window art), `icon_yubi.NCGR`
 (the cursor), a face sheet, replaces the game's - Crystal's Images tab has *Replace the picture*
 on any of them and *Import a PNG…* for pictures of the mod's own. In Crystal

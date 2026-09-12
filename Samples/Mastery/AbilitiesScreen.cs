@@ -61,10 +61,10 @@ namespace Mastery
 	/// <summary>The Abilities screen.</summary>
 	public sealed class AbilitiesScreen : MenuBehaviour
 	{
-		private const int Rows = 7, Columns = 2, PerPage = Rows * Columns;
-		private static int _page;
+		private const int PerPage = 14;                  // opt0..opt13: two columns of seven
 		private int _picking = -1;                       // the free slot being filled, or -1
 		private List<AbilityInfo> _options = new List<AbilityInfo>();
+		private MenuList _list;                          // the learned list over the opt rows: scrolls, pages, the cursor kept on items
 		private List<int> _slotIndex = new List<int>();  // slot row -> index into PartyMember.Slots
 		private int _slots;                              // slot rows in use
 
@@ -72,6 +72,7 @@ namespace Mastery
 		{
 			if (Menu.Hero >= 0) Screens.Hero = Menu.Hero;
 			_picking = -1;
+			_list = new MenuList(Menu, "opt", PerPage, "page");
 			Fill();
 			Menu.Focus("slot0");
 		}
@@ -113,17 +114,9 @@ namespace Mastery
 			// The learned list: Remove first, then commands, then passives.
 			_options = new List<AbilityInfo> { new AbilityInfo { Id = 0, Name = "Remove" } };
 			if (m != null) { _options.AddRange(m.Learned.Where(a => !a.Passive)); _options.AddRange(m.Learned.Where(a => a.Passive)); }
-			int pages = Math.Max(1, (_options.Count + PerPage - 1) / PerPage);
-			_page = Math.Clamp(_page, 0, pages - 1);
-			for (int i = 0; i < PerPage; i++)
-			{
-				int index = _page * PerPage + i;
-				AbilityInfo a = index < _options.Count ? _options[index] : null;
-				Menu.SetText("opt" + i, a == null ? "" : a.Id == 0 ? "  " + a.Name : Screens.Shown(a));
-				IMenuWidget w = Menu.Widget("opt" + i);
-				if (w != null) w.Colour = a != null && a.Id > 0 && m != null && m.Slots.Contains(a.Id) ? MenuColour.Yellow : MenuColour.White;
-			}
-			Menu.SetText("page", pages > 1 ? "Page " + (_page + 1) + " / " + pages + "   L / R (Q / E)" : "");
+			_list.Items = _options.Select(a => a.Id == 0 ? "  " + a.Name : Screens.Shown(a)).ToList();
+			_list.ColourOf = i => _options[i].Id > 0 && m != null && m.Slots.Contains(_options[i].Id) ? MenuColour.Yellow : MenuColour.White;   // the ones set are yellow
+			_list.Show();
 			DescribeFocused();
 		}
 
@@ -142,8 +135,8 @@ namespace Mastery
 			}
 			else if (id.StartsWith("opt"))
 			{
-				int index = _page * PerPage + int.Parse(id.Substring(3));
-				AbilityInfo a = index < _options.Count ? _options[index] : null;
+				int index = _list.IndexAt(id);
+				AbilityInfo a = index >= 0 ? _options[index] : null;
 				if (a == null) Screens.Describe(Menu, "", "");
 				else if (a.Id == 0) Screens.Describe(Menu, "Remove", "Empties the slot; it behaves as Guard.");
 				else Describe(a);
@@ -162,11 +155,7 @@ namespace Mastery
 		{
 			string id = Menu.Focused ?? "";
 			if (id.StartsWith("slot") && id[4] - '0' >= _slots) { Menu.Focus("slot" + Math.Max(0, _slots - 1)); return; }
-			if (id.StartsWith("opt"))
-			{
-				int last = Math.Min(PerPage, _options.Count - _page * PerPage) - 1;
-				if (int.Parse(id.Substring(3)) > last) { Menu.Focus("opt" + Math.Max(0, last)); return; }
-			}
+			_list.OnFocus();   // scrolls at the ends, keeps the cursor on an item
 			DescribeFocused();
 		}
 
@@ -187,8 +176,8 @@ namespace Mastery
 			}
 			if (id.StartsWith("opt"))
 			{
-				int index = _page * PerPage + int.Parse(id.Substring(3));
-				if (_picking < 0 || index >= _options.Count) { Menu.SoundBeep(); return true; }
+				int index = _list.IndexAt(id);
+				if (_picking < 0 || index < 0) { Menu.SoundBeep(); return true; }
 				if (!Game.Party.SetAbility(Screens.Hero, _slotIndex[_picking], _options[index].Id)) { Menu.SoundBeep(); return true; }
 				Menu.SoundDecide();
 				string back = "slot" + _picking;
@@ -213,11 +202,8 @@ namespace Mastery
 
 		public override bool OnKey(MenuKey key)
 		{
-			if (key != MenuKey.L && key != MenuKey.R) return false;
-			int pages = Math.Max(1, (_options.Count + PerPage - 1) / PerPage);
-			if (pages < 2) return true;
-			_page = (_page + (key == MenuKey.R ? 1 : pages - 1)) % pages;
-			Fill();
+			if (!_list.OnKey(key)) return false;   // L / R: pages
+			DescribeFocused();
 			return true;
 		}
 	}
@@ -225,13 +211,14 @@ namespace Mastery
 	/// <summary>The Jobs screen: a grid of every job in play; a press asks to change.</summary>
 	public sealed class JobsScreen : MenuBehaviour
 	{
-		private const int Columns = 4, Rows = 5, PerPage = Columns * Rows;
-		private static int _page;
+		private const int PerPage = 16;                  // job0..job15 with lv0..lv15 under them: four columns of four
 		private List<string> _jobs = new List<string>();
+		private MenuList _grid;
 
 		public override void OnOpen()
 		{
 			if (Menu.Hero >= 0) Screens.Hero = Menu.Hero;
+			_grid = new MenuList(Menu, "job", PerPage, "page") { SubPrefix = "lv" };
 			Fill();
 			Menu.Focus("job0");
 			DescribeFocused();
@@ -241,29 +228,18 @@ namespace Mastery
 		{
 			Screens.Header(Menu);
 			_jobs = Game.Party.AllJobs.ToList();
-			int pages = Math.Max(1, (_jobs.Count + PerPage - 1) / PerPage);
-			_page = Math.Clamp(_page, 0, pages - 1);
-			for (int i = 0; i < PerPage; i++)
-			{
-				int index = _page * PerPage + i;
-				JobInfo job = index < _jobs.Count ? Game.Party.JobInfo(Screens.Hero, _jobs[index]) : null;
-				Menu.SetText("job" + i, job == null ? "" : job.Title);
-				Menu.SetText("lv" + i, job == null ? "" : !job.HasLadder ? "" : job.Mastered ? "Mastered!" : "Lv. " + job.Level + "  " + job.Abp + " / " + job.AbpToNext);
-				IMenuWidget w = Menu.Widget("job" + i);
-				if (w != null) w.Colour = job == null ? MenuColour.White : job.Held ? MenuColour.Yellow : job.Open ? MenuColour.White : MenuColour.Disabled;
-				IMenuWidget l = Menu.Widget("lv" + i);
-				if (l != null) l.Colour = job != null && job.Open ? MenuColour.PaleBlue : MenuColour.Disabled;
-				if (w != null && job != null && job.Held) w.Colour = MenuColour.Yellow;
-			}
-			Menu.SetText("page", pages > 1 ? "Page " + (_page + 1) + " / " + pages + "   L / R (Q / E)" : "");
+			List<JobInfo> infos = _jobs.Select(w => Game.Party.JobInfo(Screens.Hero, w)).ToList();
+			_grid.Items = infos.Select(j => j?.Title ?? "?").ToList();
+			_grid.SubItems = infos.Select(j => j == null || !j.HasLadder ? "" : j.Mastered ? "Mastered!" : "Lv. " + j.Level + "  " + j.Abp + " / " + j.AbpToNext).ToList();
+			_grid.ColourOf = i => infos[i] == null ? MenuColour.White : infos[i].Held ? MenuColour.Yellow : infos[i].Open ? MenuColour.White : MenuColour.Disabled;
+			_grid.SubColourOf = i => infos[i] != null && infos[i].Open ? MenuColour.PaleBlue : MenuColour.Disabled;
+			_grid.Show();
 		}
 
 		private JobInfo Focused()
 		{
-			string id = Menu.Focused ?? "";
-			if (!id.StartsWith("job")) return null;
-			int index = _page * PerPage + int.Parse(id.Substring(3));
-			return index < _jobs.Count ? Game.Party.JobInfo(Screens.Hero, _jobs[index]) : null;
+			int index = _grid.IndexAt(Menu.Focused);
+			return index >= 0 ? Game.Party.JobInfo(Screens.Hero, _jobs[index]) : null;
 		}
 
 		private void DescribeFocused()
@@ -277,9 +253,7 @@ namespace Mastery
 
 		public override void OnFocus()
 		{
-			string id = Menu.Focused ?? "";
-			int last = Math.Min(PerPage, _jobs.Count - _page * PerPage) - 1;
-			if (id.StartsWith("job") && int.Parse(id.Substring(3)) > last) { Menu.Focus("job" + Math.Max(0, last)); return; }
+			_grid.OnFocus();
 			DescribeFocused();
 		}
 
@@ -296,11 +270,7 @@ namespace Mastery
 
 		public override bool OnKey(MenuKey key)
 		{
-			if (key != MenuKey.L && key != MenuKey.R) return false;
-			int pages = Math.Max(1, (_jobs.Count + PerPage - 1) / PerPage);
-			if (pages < 2) return true;
-			_page = (_page + (key == MenuKey.R ? 1 : pages - 1)) % pages;
-			Fill();
+			if (!_grid.OnKey(key)) return false;
 			DescribeFocused();
 			return true;
 		}

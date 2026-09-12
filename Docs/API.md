@@ -8,7 +8,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 
 - [The entry point](#the-entry-point): [`Game`](#game)
 - [Services](#services): [`IDialogue`](#idialogue), [`IHero`](#ihero), [`INpcs`](#inpcs), [`IParty`](#iparty), [`IItems`](#iitems), [`IMagic`](#imagic), [`IMonsters`](#imonsters), [`IShops`](#ishops), [`IBattle`](#ibattle), [`IField`](#ifield), [`ICamera`](#icamera), [`IEffects`](#ieffects), [`IAudio`](#iaudio), [`IScreen`](#iscreen), [`IFlags`](#iflags), [`IMenuScreen`](#imenuscreen), [`IMenuWidget`](#imenuwidget), [`IMenus`](#imenus), [`IMeshes`](#imeshes), [`IScripts`](#iscripts)
-- [Handles and data](#handles-and-data): [`AbilityInfo`](#abilityinfo), [`Back`](#back), [`BattleActor`](#battleactor), [`BattleCommand`](#battlecommand), [`BattleCommandLoader`](#battlecommandloader), [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`JobInfo`](#jobinfo), [`Label`](#label), [`Look`](#look), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`MenuAttachment`](#menuattachment), [`MenuBehaviour`](#menubehaviour), [`MenuDefinition`](#menudefinition), [`MenuEntry`](#menuentry), [`MenuLoader`](#menuloader), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`OpenMenu`](#openmenu), [`PartyMember`](#partymember), [`Picture`](#picture), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
+- [Handles and data](#handles-and-data): [`AbilityInfo`](#abilityinfo), [`Back`](#back), [`BattleActor`](#battleactor), [`BattleCommand`](#battlecommand), [`BattleCommandLoader`](#battlecommandloader), [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`Gauge`](#gauge), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`JobInfo`](#jobinfo), [`Label`](#label), [`Look`](#look), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`MenuAttachment`](#menuattachment), [`MenuBehaviour`](#menubehaviour), [`MenuDefinition`](#menudefinition), [`MenuEntry`](#menuentry), [`MenuList`](#menulist), [`MenuLoader`](#menuloader), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`OpenMenu`](#openmenu), [`PartyMember`](#partymember), [`Picture`](#picture), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
 - [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
@@ -347,11 +347,13 @@ An open screen: its frames, focus, and the way out.
 
 | Member | What it does |
 | --- | --- |
+| `IReadOnlyList<MenuBehaviour> Behaviours { get; }` | The behaviours on the screen, the definition's attachments made - to reach the engine's own (a Gauge's Value) from a mod's. |
 | `MenuDefinition Definition { get; }` |  |
 | `string Focused { get; }` | The id of the frame the cursor is on, or null. |
 | `int Hero { get; }` | The hero picked when the screen asked for one (Definition.CharacterSelect), by the game's id; -1 otherwise. |
 | `string Id { get; }` |  |
 | `IReadOnlyList<IMenuWidget> Widgets { get; }` | Every frame of the layout, in layout order. |
+| `T Behaviour<T>(string target = null)` | The first behaviour of a type on a frame (""/null: the screen), or null. |
 | `void Close()` | Leaves the screen: back to the main menu when it was opened from there, else out of the menus. |
 | `void Focus(string id)` | Puts the cursor on a frame (one that has <focus/>). |
 | `void Open(string menuId)` | Leaves for another screen of a mod's own. |
@@ -372,6 +374,7 @@ A frame of an open screen.
 | `IReadOnlyList<IMenuWidget> Children { get; }` |  |
 | `MenuColour Colour { set; }` | The text's colour, from the game's own set. |
 | `bool Focusable { get; }` | Whether the frame is in the focus list (the cursor can land on it). |
+| `int FontSize { get; set; }` | The text's size, 6..31 (the game's own two are 12 and 16); setting it draws the text afresh at that size. |
 | `int Height { get; }` |  |
 | `string Id { get; }` |  |
 | `ValueTuple<float, float, float, float> ScreenRect { get; }` | The frame's rectangle in Game.Draw's screen units (800 x 480), for drawing pictures and shapes on it. |
@@ -711,6 +714,20 @@ The game's own cast on one of the mod's objects: talking to the object runs the 
 | `bool Treasure` | A chest: the boot's setTreasureItem/setTreasureMoney for this cast. |
 | `void NpcReady(MapObject link)` |  |
 
+### Gauge
+
+`class Gauge : MenuBehaviour`
+
+A bar over the frame: Value of the way along, in Colour, over Background. A mod's behaviour sets Value through Menu.Behaviour<Gauge>("hp_bar").Value.
+
+| Member | What it does |
+| --- | --- |
+| `Color Background` |  |
+| `Color Colour` |  |
+| `bool Rim` |  |
+| `float Value` |  |
+| `void OnTick()` |  |
+
 ### HeaderAttribute
 
 `class HeaderAttribute : Attribute`
@@ -944,6 +961,30 @@ A screen of a mod's own: menus/<id>.json.
 | `string After { get; set; }` | The id of the game's entry to follow: com_item, com_magic, com_equip, com_status, com_tairetu (Formation), com_job, com_config, com_half (Quicksave), com_save - or another mod screen's id; last when unsaid. |
 | `string Label { get; set; }` | The text of the entry. |
 | `string Replaces { get; set; }` | The id of the game's entry this one stands in place of (com_job for a mod whose heroes all grow FF5's way and have no use for the game's Job screen); the game's row goes, this one takes its place. |
+
+### MenuList
+
+`class MenuList`
+
+A list over a run of row frames (row0, row1... - focusable, in the layout), longer than the rows: the rows show a window of the items, the cursor moving off the last row scrolls it, L / R turn pages. A behaviour keeps one, sets Items, calls Show, and hands it OnFocus and OnKey; IndexAt says which item a pressed row is.
+
+| Member | What it does |
+| --- | --- |
+| `Func<int, MenuColour?> ColourOf { get; set; }` | The colour of an item, by index; null for the layout's. |
+| `List<string> Items { get; set; }` | The items shown, in order. |
+| `int Pages { get; }` |  |
+| `int Rows { get; }` |  |
+| `int Selected { get; }` | The item under the cursor, or -1. |
+| `Func<int, MenuColour?> SubColourOf { get; set; }` | The colour of an item's second line, by index; null for the layout's. |
+| `List<string> SubItems { get; set; }` | A second line per item (a standing under a name), written to frames named SubPrefix + row when set. |
+| `string SubPrefix { get; set; }` |  |
+| `int Top { get; set; }` | The item on the first row. |
+| `int IndexAt(string frameId)` | The item index a frame stands for, or -1. |
+| `bool OnFocus()` | Call from OnFocus. The cursor moving from the last row to the first (the ring wrapping) scrolls a window down, from the first to the last up; a row past the end sends the cursor back to the last item. Returns true when the focus is on one of the rows. |
+| `bool OnKey(MenuKey key)` | Call from OnKey: L and R turn pages. Returns true when it did. |
+| `string RowId(int row)` |  |
+| `int RowOf(string frameId)` | The row of a frame id (0..Rows-1), or -1 for a frame that is not one of the rows. |
+| `void Show()` | Writes the rows from Top; blanks the rows past the end; the page frame reads "2 / 5". |
 
 ### MenuLoader
 
@@ -2475,4 +2516,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-155 types, 1114 members; 478 without a summary yet.
+157 types, 1137 members; 487 without a summary yet.

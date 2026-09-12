@@ -22,6 +22,10 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   PNGs, which is also how a mod restyles the window art, cursor and faces: `files/` under the
   game's names, Crystal's *Replace the picture*). `IMenuWidget.ScreenRect` gives a frame in
   `Game.Draw` units for drawing of your own.
+- **More for screens:** `<font>N</font>` and `Widget.FontSize` for any text size 6..31; the engine's
+  `Gauge` (a bar); `MenuList` for lists longer than the screen (scrolling, pages, a second
+  line per item); `IMenuScreen.Behaviours` / `Behaviour<T>(target)` to reach the engine's
+  behaviours from a mod's; the game's `Icon` widget documented.
 - **FF5's way with the Freelancer.** A job with no ladder to climb gains no ABP and shows no
   level (FF5's Freelancer and Mime-likes); `JobInfo.HasLadder` is false for it, `Inherits` says
   why. Jobs start at Lv. 0 with ABP counted toward the next level, as FF5 has it.
