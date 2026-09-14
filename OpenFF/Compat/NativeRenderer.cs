@@ -85,6 +85,12 @@ namespace OpenFF.Client
 		public static void Clear(GraphicsDevice device, ClearOptions options, Color colour,
 			float depth, int stencil)
 		{
+			if (FrameCapture.Recording)
+			{
+				// A step of the game is running: written down, drawn by FrameCapture.Replay.
+				FrameCapture.Clear(device, options, colour, depth, stencil);
+				return;
+			}
 			// A depth clear is masked out when depth writes are disabled, and the game's
 			// clear depth is float.MaxValue, which is outside the valid [0, 1] range.
 			device.DepthStencilState = DepthStencilState.Default;
@@ -112,6 +118,13 @@ namespace OpenFF.Client
 		{
 			if (count <= 0)
 			{
+				return;
+			}
+			if (FrameCapture.Recording)
+			{
+				// A step of the game is running: written down, drawn (interpolated, between steps) by FrameCapture.Replay.
+				FrameCapture.Draw(device, mode, vertices, first, count, world, projection, texture, filter, addressU, addressV,
+					alphaTest, alphaReference, alphaFunction, depthTest, depthWrite, depthFunction, cull, cullMode, destinationBlend);
 				return;
 			}
 			DebugOverlay.DrawCalls++;

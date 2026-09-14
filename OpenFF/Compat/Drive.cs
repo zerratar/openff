@@ -21,8 +21,9 @@
 //   # comment
 //
 // Keys are injected at the same point the keyboard is read (DesktopInput.Injected), so pad
-// bits, the engine's Game.Input and the mods see them as real presses. Timing is by frames
-// at 60 per second, from the first frame after the world part is up. Tests in
+// bits, the engine's Game.Input and the mods see them as real presses. Timing is by the game's
+// steps, thirty a second (GameHost.Step runs the drive once a step, whatever the display's
+// rate), from the first step after the world part is up. Tests in
 // Docs/Testing.md name their drive files under Docs/Drives.
 
 using System;
@@ -48,6 +49,9 @@ namespace OpenFF.Client
 
 		private static readonly List<Step> _steps = new List<Step>();
 		private static int _at = -1;
+		/// <summary>The game's steps a second: the drive's clock.</summary>
+		private const int StepsPerSecond = 30;
+
 		private static int _framesLeft;
 		private static Regex _waitFor;
 		private static bool _matched;
@@ -137,7 +141,7 @@ namespace OpenFF.Client
 			switch (step.Verb)
 			{
 				case "wait":
-					_framesLeft = Math.Max(1, (int)Math.Round(Seconds(step.Arg, 1) * 60));
+					_framesLeft = Math.Max(1, (int)Math.Round(Seconds(step.Arg, 1) * StepsPerSecond));
 					break;
 				case "press":
 				{
@@ -147,7 +151,7 @@ namespace OpenFF.Client
 					{
 						DesktopInput.Injected.Add(key);
 						int hold = bits.Length > 1 && int.TryParse(bits[1], out int ms) ? ms : 120;
-						_framesLeft = Math.Max(2, hold * 60 / 1000);
+						_framesLeft = Math.Max(2, hold * StepsPerSecond / 1000);
 						Log.Write(LogChannel.File, "drive: press " + key + " for " + _framesLeft + " frame(s)");
 					}
 					else
@@ -167,7 +171,7 @@ namespace OpenFF.Client
 						break;
 					}
 					int hold = bits.Length > 2 && int.TryParse(bits[2], out int ms) ? ms : 1000;
-					_framesLeft = Math.Max(2, hold * 60 / 1000);
+					_framesLeft = Math.Max(2, hold * StepsPerSecond / 1000);
 					DesktopInput.InjectedStick = new Microsoft.Xna.Framework.Vector2(sx, sy);
 					Log.Write(LogChannel.File, "drive: stick " + sx.ToString(CultureInfo.InvariantCulture) + "," + sy.ToString(CultureInfo.InvariantCulture) + " for " + _framesLeft + " frame(s)");
 					break;
@@ -183,7 +187,7 @@ namespace OpenFF.Client
 						break;
 					}
 					int hold = bits.Length > 2 && int.TryParse(bits[2], out int ms) ? ms : 120;
-					_framesLeft = Math.Max(2, hold * 60 / 1000);
+					_framesLeft = Math.Max(2, hold * StepsPerSecond / 1000);
 					_tapHeld = true;
 					DesktopInput.InjectTouch(0, _tapX, _tapY);
 					Log.Write(LogChannel.File, "drive: tap " + _tapX + "," + _tapY + " for " + _framesLeft + " frame(s)");
@@ -325,7 +329,7 @@ namespace OpenFF.Client
 					}
 					try { _waitFor = new Regex(pattern, RegexOptions.IgnoreCase); }
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: bad pattern " + pattern + ": " + ex.Message); break; }
-					_timeoutFrames = (int)(timeout * 60);
+					_timeoutFrames = (int)(timeout * StepsPerSecond);
 					lock (_lock)
 					{
 						_matched = false;

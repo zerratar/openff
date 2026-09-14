@@ -169,12 +169,12 @@ namespace OpenFF.Client
 					if (left || right || confirm) ChangeSetting(_selected, left ? -1 : 1, confirm);
 					break;
 				case Page.Buttons:
-					if (cancel) { _page = Page.Settings; _selected = 5; return; }
+					if (cancel) { _page = Page.Settings; _selected = 6; return; }
 					if (confirm)
 					{
 						if (_selected < DsButtons.Length) { _binding = DsButtons[_selected].Key; _note = "press the pad button for " + DsButtons[_selected].Label + "  (Esc gives up)"; }
 						else if (_selected == DsButtons.Length) { DisplaySettings.Current.Pad = new DisplaySettings.PadMap(); _note = "the defaults are back"; }
-						else { _page = Page.Settings; _selected = 5; }
+						else { _page = Page.Settings; _selected = 6; }
 					}
 					break;
 				case Page.Quit:
@@ -200,7 +200,7 @@ namespace OpenFF.Client
 			switch (_page)
 			{
 				case Page.Main: return AbilitiesRow ? 4 : 3;
-				case Page.Settings: return 7;
+				case Page.Settings: return 8;
 				case Page.Buttons: return DsButtons.Length + 2;
 				case Page.Quit: return 2;
 				default: return 1;
@@ -243,12 +243,20 @@ namespace OpenFF.Client
 					if (gdm != null) { gdm.SynchronizeWithVerticalRetrace = s.VSync; try { gdm.ApplyChanges(); } catch (Exception) { } }
 					break;
 				case 4:
+				{
+					string[] rates = { "30", "60", "max" };
+					int i = Array.IndexOf(rates, s.Fps); if (i < 0) i = 1;
+					s.Fps = rates[(i + by + rates.Length) % rates.Length];
+					_note = s.Fps == "30" ? "the game's frames as they are, thirty a second" : "a frame drawn between each two of the game's - motion and the camera smoothed; the game itself runs as it always has";
+					break;
+				}
+				case 5:
 					s.Run = s.Run == "stick" ? "hold" : "stick";
 					break;
-				case 5:
+				case 6:
 					if (confirm) { _page = Page.Buttons; _selected = 0; _note = ""; }
 					break;
-				case 6:
+				case 7:
 					if (confirm) { _page = Page.Main; _selected = 1; s.Save(); }
 					break;
 			}
@@ -409,8 +417,9 @@ namespace OpenFF.Client
 						case 1: label = "Window size"; value = s.Width + " x " + s.Height; return;
 						case 2: label = "Anti-aliasing"; value = s.Msaa == 0 ? "Off" : s.Msaa + "x"; return;
 						case 3: label = "VSync"; value = s.VSync ? "On" : "Off"; return;
-						case 4: label = "Run"; value = s.Run == "stick" ? "By the stick's push" : "Hold the run button"; return;
-						case 5: label = "Pad buttons..."; return;
+						case 4: label = "Frame rate"; value = s.Fps == "30" ? "30 - as the game draws" : s.Fps == "60" ? "60 - smoothed" : "Display's rate - smoothed"; return;
+						case 5: label = "Run"; value = s.Run == "stick" ? "By the stick's push" : "Hold the run button"; return;
+						case 6: label = "Pad buttons..."; return;
 						default: label = "Back"; return;
 					}
 				case Page.Buttons:

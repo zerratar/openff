@@ -158,6 +158,8 @@ namespace OpenFF.Client
 				EngineInput.Update();
 				EngineApi.Tick();
 				ModWatcher.Drain();
+				// The mods' drawing of the step before goes; this step's comes in Game.Update (ModDraw draws the list every display frame until then).
+				OpenFF.Game.Draw.Clear();
 				DateTime now = DateTime.Now;
 				double delta = Math.Min(0.25, (now - _lastTick).TotalSeconds);
 				_lastTick = now;
@@ -183,6 +185,7 @@ namespace OpenFF.Client
 			if (part != _lastPart)
 			{
 				Banner.PartChanged();   // a mod's banner is made of the part's window pieces
+				FrameCapture.Cut();     // the field to a battle, a battle to the field: nothing of the frame before to blend toward
 				OpenFF.Game.Events.Publish(new OpenFF.Events.PartChanged { From = _lastPart, To = part });
 				if (_lastPart == "BATTLE")
 				{

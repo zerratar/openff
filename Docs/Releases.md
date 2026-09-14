@@ -9,6 +9,26 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 ## Unreleased
 
+- **60 frames a second - smoothed.** The game is a DS-era engine counted in frames: every walk,
+  camera move, script wait, text speed and battle timer is thirty steps a second, and that rate
+  is left exactly as it is. What is new is the display between the steps: every draw of a step -
+  the 3D world, the sprites, the windows, the text - is recorded (`FrameCapture`, at the two
+  places everything passes through, `NativeRenderer.Draw` and `Graphics.DrawString`), and on the
+  display frames between two steps the recorded frame is drawn part of the way back toward the
+  one before, each draw matched to its counterpart and its matrices and vertices interpolated; a
+  camera cut or a figure appearing is drawn where it is. Nothing the game computes changes - the
+  saves, the scripts, the battle's rolls and the Fellowship's lockstep are as they were - so the
+  choice is only what the screen shows. `--fps=30|60|max`, `fps` in `settings.json`, and a
+  *Frame rate* row in the pause menu's settings: `30` the game's frames as they are, `60` (the
+  default) smoothed at up to 60, `max` smoothed at the display's rate.
+- **The 30 is smooth too.** The phone build paced itself by a millisecond counter (`millis * 3 /
+  100`), sleeping a millisecond at a time - 33 and 34 ms frames that drifted against the display
+  and showed as judder. A Stopwatch accumulator (`FramePacer`) steps the game exactly thirty times a
+  second, takes a refresh that divides the period (60, 120, 90 Hz) as exactly that fraction so the
+  phase never slips, and catches up by at most three steps after a stall as the original did.
+- A drive's times (`wait`, `press`) are the game's steps, thirty a second, whatever the display's
+  rate; the drive used to count display frames it assumed came sixty a second while they came thirty,
+  so every wait took twice its time.
 - **GOG copies of the games are found** beside Steam's: the registry's `GOG.com\Games` entries and
   Galaxy's usual folders, a folder taken as the game when it holds `FF3_Win32.exe` / `FF4.exe` and
   its files. The client boots from one with no `--content`, Crystal's targets that install into the

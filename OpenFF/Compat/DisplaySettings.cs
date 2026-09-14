@@ -35,6 +35,8 @@ namespace OpenFF.Client
 		/// <summary>Anti-aliasing samples: 0, 2, 4 or 8.</summary>
 		[JsonPropertyName("msaa")] public int Msaa { get; set; } = 4;
 		[JsonPropertyName("vsync")] public bool VSync { get; set; } = true;
+		/// <summary>What the display shows: "30" - the game's frames as they are; "60" - smoothed, a frame drawn between each two of the game's (motion and the camera interpolated), presented up to 60 a second; "max" - smoothed, at the display's rate. The game's own logic runs 30 steps a second in every mode.</summary>
+		[JsonPropertyName("fps")] public string Fps { get; set; } = "60";
 		/// <summary>How a game pad's left stick runs: "stick" - the push is the pace, a walk part way rising to the full run all the way (the touch stick's way); "hold" - the run button held runs, as with the keyboard's Shift.</summary>
 		[JsonPropertyName("run")] public string Run { get; set; } = "stick";
 		/// <summary>The game pad's buttons, DS button -> pad button. Names: cross/circle/square/triangle (or a/b/x/y), l1/r1/l2/r2 (or lb/rb/lt/rt), l3/r3, options/start, share/create/back, touchpad/guide. "none" unbinds.</summary>
@@ -42,7 +44,7 @@ namespace OpenFF.Client
 		/// <summary>Which glyphs the client's screens show for the pad's buttons: "auto" (by the pad's name), "ps" or "xbox".</summary>
 		[JsonPropertyName("padStyle")] public string PadStyle { get; set; } = "auto";
 		[JsonPropertyName("_help")] public string Help { get; } =
-			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. run: stick (the left stick's push is the pace - a walk part way, the full run all the way) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n) wins for one run.";
+			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. fps: 30 (the game's frames as they are) | 60 (smoothed - a frame interpolated between each two of the game's) | max (smoothed, at the display's rate); the game's logic runs 30 steps a second whatever is chosen. run: stick (the left stick's push is the pace - a walk part way, the full run all the way) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n, --fps=30|60|max) wins for one run.";
 
 		/// <summary>DS buttons as pad button names; the defaults are a PlayStation pad's natural layout, which SDL lays out the same as an Xbox pad's.</summary>
 		public sealed class PadMap
@@ -112,6 +114,7 @@ namespace OpenFF.Client
 			settings.Msaa = NormaliseMsaa(settings.Msaa);
 			settings.Mode = NormaliseMode(settings.Mode);
 			settings.Run = string.Equals(settings.Run, "hold", StringComparison.OrdinalIgnoreCase) ? "hold" : "stick";
+			settings.Fps = NormaliseFps(settings.Fps);
 			settings.Pad ??= new PadMap();
 			// Written back as read, so a file from an older build gains the keys it lacks, with their defaults, to edit.
 			settings.Save();
@@ -130,11 +133,22 @@ namespace OpenFF.Client
 			string msaa = Options.Get("msaa");
 			if (!string.IsNullOrEmpty(msaa)) settings.Msaa = string.Equals(msaa, "off", StringComparison.OrdinalIgnoreCase) ? 0 : int.TryParse(msaa, out int n) ? NormaliseMsaa(n) : settings.Msaa;
 			if (Options.Get("novsync") != null) settings.VSync = false;
+			if (!string.IsNullOrEmpty(Options.Get("fps"))) settings.Fps = NormaliseFps(Options.Get("fps"));
 			Current = settings;
 			return settings;
 		}
 
 		private static int NormaliseMsaa(int n) => n >= 8 ? 8 : n >= 4 ? 4 : n >= 2 ? 2 : 0;
+
+		/// <summary>"30", "60" or "max": a number under 60 is "30", one over it (or unlimited/uncapped/0/off) is "max"; anything else is the default, "60".</summary>
+		public static string NormaliseFps(string fps)
+		{
+			if (string.IsNullOrWhiteSpace(fps)) return "60";
+			fps = fps.Trim().ToLowerInvariant();
+			if (fps == "30" || fps == "60" || fps == "max") return fps;
+			if (fps == "unlimited" || fps == "uncapped" || fps == "0" || fps == "off") return "max";
+			return int.TryParse(fps, out int n) ? (n < 60 ? "30" : n == 60 ? "60" : "max") : "60";
+		}
 
 		private static string NormaliseMode(string mode)
 		{
@@ -176,7 +190,7 @@ namespace OpenFF.Client
 			{
 				e.GraphicsDeviceInformation.PresentationParameters.MultiSampleCount = Msaa;
 			};
-			Log.Write(LogChannel.General, "settings: " + Width + "x" + Height + " " + Mode + " msaa=" + Msaa + " vsync=" + VSync + " (" + Path + ")");
+			Log.Write(LogChannel.General, "settings: " + Width + "x" + Height + " " + Mode + " msaa=" + Msaa + " vsync=" + VSync + " fps=" + Fps + " (" + Path + ")");
 		}
 
 		// ---- Alt+Enter while playing ----

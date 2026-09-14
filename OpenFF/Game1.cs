@@ -136,12 +136,14 @@ public class Game1 : Game
 		}
 		if (!GlobalScope.m_Graphics.isPause())
 		{
-			OpenFF.Client.GameHost.Tick();
+			OpenFF.Client.GameHost.Frame(GraphicsDevice);
 		}
 		else
 		{
 			GlobalScope.m_Graphics.clear();
 		}
 		base.Draw(gameTime);
+		// With VSync off, the presentation is held to the Fps setting's rate here, before the present.
+		OpenFF.Client.FramePacer.Hold();
 	}
 }

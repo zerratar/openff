@@ -83,6 +83,8 @@ namespace OpenFF.Client
 
 		public override void Draw(GameTime gameTime)
 		{
+			// The list stands until the engine's next step refills it (EngineHost.Tick clears it first), so a
+			// display frame drawn between two of the game's steps shows the same overlay as the one before.
 			OpenFF.DrawList list = OpenFF.Game.Draw;
 			try
 			{
@@ -90,15 +92,10 @@ namespace OpenFF.Client
 				{
 					DrawAll(list);
 				}
-				Banner.Tick();   // the place-name window a mod asked for this frame stays; one not asked for goes
 			}
 			catch (Exception ex)
 			{
 				Log.First(LogChannel.General, "mod-draw", 3, () => "engine: draw failed: " + ex.GetType().Name + ": " + ex.Message);
-			}
-			finally
-			{
-				list.Clear();
 			}
 		}
 

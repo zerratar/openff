@@ -7252,7 +7252,9 @@ internal static partial class GlobalScope
 						internal static void render(HostEnv _env, object thiz)
 						{
 							env = _env;
-							ulong currentFrame = (ulong)AppShell.getCurrentFrame((long)prevFrame);
+							// PORT: paced by FramePacer now - the steps due were decided before this call - where the
+							// phone build slept here until its millisecond clock moved on (AppShell.getCurrentFrame).
+							ulong currentFrame = prevFrame + (ulong)MATH_CLAMP(OpenFF.Client.FramePacer.PendingSteps, 1, 3);
 							int num = MATH_CLAMP((int)(currentFrame - prevFrame), 1, 3) * ((boost == 0) ? 1 : 3);
 							cont |= AppShell.getKeyEvent();
 							int num2 = backButton;

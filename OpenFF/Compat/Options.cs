@@ -48,6 +48,7 @@ namespace OpenFF.Client
 			("text", "FF3_TEXT", "atlas", "Text from the phone build's glyph atlases instead of TrueType"),
 			("font", "FF3_FONT", "<file|dir>", "TrueType/OpenType face to use first (default: the Steam install's, then Content\\Fonts, then Windows)"),
 			("size", "FF3_SIZE", "<WxH>", "Window size for this run, e.g. 1600x960 (the lasting one is in %LocalAppData%\\OpenFF\\settings.json)"),
+			("fps", "FF3_FPS", "30|60|max", "What the display shows this run: 30 - the game's frames as they are; 60 - smoothed, a frame interpolated between each two of the game's; max - smoothed at the display's rate. The game's logic runs 30 steps a second in every mode (lasting: fps in settings.json)"),
 			("fullscreen", "FF3_FULLSCREEN", "", "This run full screen (a display mode switch); Alt+Enter toggles in play"),
 			("borderless", "FF3_BORDERLESS", "", "This run full screen as a frameless window at the desktop's size"),
 			("windowed", "FF3_WINDOWED", "", "This run in a window whatever settings.json says"),

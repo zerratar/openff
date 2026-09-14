@@ -65,6 +65,9 @@ namespace OpenFF.Client
 
         private Layer _layers = Layer.Boxes | Layer.World | Layer.Stats;
         private readonly bool _logStalls = Options.Get("log-stalls") != null;
+        private double _stepsPerSecond;
+        private long _stepsAtLastFps;
+        private double _pacingLoggedAt;
         private KeyboardState _previous;
         private SpriteBatch _batch;
         private Texture2D _pixel;
@@ -165,8 +168,16 @@ namespace OpenFF.Client
             if (_fpsAccumulated >= 500)
             {
                 _fps = _fpsFrames * 1000.0 / _fpsAccumulated;
+                _stepsPerSecond = (GameHost.StepsTaken - _stepsAtLastFps) * 1000.0 / _fpsAccumulated;
+                _stepsAtLastFps = GameHost.StepsTaken;
                 _fpsAccumulated = 0;
                 _fpsFrames = 0;
+                // --log-stalls: the pacing every five seconds as well - display frames and the game's steps a second, how many draws blended.
+                if (_logStalls && now - _pacingLoggedAt >= 5000)
+                {
+                    _pacingLoggedAt = now;
+                    Log.Write(LogChannel.General, "pacing: " + _fps.ToString("0.0") + " fps, " + _stepsPerSecond.ToString("0.0") + " steps/s, blend " + FrameCapture.Blended + "/" + (FrameCapture.Blended + FrameCapture.Snapped) + " draws, " + _frameMs.ToString("0.0") + " ms");
+                }
             }
             // --log-stalls: a frame that took over 50 ms is written to the log with what was going on, to find where a hitch comes from.
             if (_logStalls && _frameMs > 50 && _lastFrameAt > 5000)
@@ -188,6 +199,8 @@ namespace OpenFF.Client
             }
             catch (Exception ex)
             {
+                // A throw between the text's Begin and End would leave the batch open and every draw after it failing.
+                try { GlobalScope.m_Graphics?.DrawStringEnd(); } catch (Exception) { }
                 Log.First(LogChannel.General, "debug-overlay-error", 3, () => "debug overlay: " + ex.GetType().Name + ": " + ex.Message);
             }
         }
@@ -458,8 +471,9 @@ namespace OpenFF.Client
 
         private void AppendStats(Viewport view)
         {
-            _text.Append(_fps.ToString("0")).Append(" fps  ").Append(_frameMs.ToString("0.0")).Append(" ms   draws ").Append(_lastDrawCalls)
-                .Append("  verts ").Append(_lastVertices).Append("  polys ").Append(GlobalScope.polyCount).Append('\n');
+            _text.Append(_fps.ToString("0")).Append(" fps  ").Append(_stepsPerSecond.ToString("0.0")).Append(" steps/s  ").Append(_frameMs.ToString("0.0")).Append(" ms   draws ").Append(_lastDrawCalls)
+                .Append("  verts ").Append(_lastVertices).Append("  polys ").Append(GlobalScope.polyCount)
+                .Append("  blend ").Append(FrameCapture.Blended).Append('/').Append(FrameCapture.Blended + FrameCapture.Snapped).Append('\n');
             _text.Append("view ").Append(view.Width).Append('x').Append(view.Height).Append("  lcd ").Append(GlobalScope.LCD_WIDTH).Append('x').Append(GlobalScope.LCD_HEIGHT)
                 .Append("  mem ").Append((GC.GetTotalMemory(false) / (1024 * 1024)).ToString()).Append(" MB\n");
         }

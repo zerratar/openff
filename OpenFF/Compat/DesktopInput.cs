@@ -328,7 +328,6 @@ namespace OpenFF.Client
 		/// <summary>Translates this frame's mouse and keyboard state into game callbacks.</summary>
 		public static void Update()
 		{
-			Drive.Update();
 			if (_game == null || !_game.IsActive)
 			{
 				// Release a held button rather than stranding the game mid-drag.

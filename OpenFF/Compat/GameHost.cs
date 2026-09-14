@@ -77,7 +77,54 @@ namespace OpenFF.Client
 		/// </summary>
 		public static void Tick()
 		{
-			_game?.onDrawFrame();
+			Step(1);
+		}
+
+		/// <summary>
+		/// One frame of the display. The game steps when FramePacer says a step is due (thirty a
+		/// second; two or three at once after a stall), its draws recorded by FrameCapture; then
+		/// the recorded frame is drawn - as it is, or, between steps with smoothing on, part of the
+		/// way back toward the frame before, so the display moves at its own rate while the game
+		/// keeps its own. Without the native renderer there is no recording: the frame waits for
+		/// the step and the step draws, as the phone build did.
+		/// </summary>
+		public static void Frame(Microsoft.Xna.Framework.Graphics.GraphicsDevice device)
+		{
+			int steps = FramePacer.Steps();
+			if (!FrameCapture.Supported)
+			{
+				if (steps == 0) { FramePacer.WaitForStep(); steps = 1; }
+				Step(steps);
+				return;
+			}
+			if (steps > 0 || !FrameCapture.HasFrame)
+			{
+				Step(Math.Max(1, steps));
+			}
+			FrameCapture.Replay(device, GlobalScope.m_Graphics, FramePacer.Blend());
+		}
+
+		/// <summary>So many steps of the game (1..3), drawn into FrameCapture when the native renderer is on; then the client's own per-step work and the engine's frame.</summary>
+		/// <summary>Steps of the game taken so far (the overlay's steps-a-second).</summary>
+		public static long StepsTaken;
+
+		private static void Step(int steps)
+		{
+			StepsTaken += steps;
+			FramePacer.PendingSteps = steps;
+			Drive.Update();
+			bool record = FrameCapture.Supported;
+			if (record) FrameCapture.Begin();
+			try
+			{
+				_game?.onDrawFrame();
+			}
+			finally
+			{
+				if (record) FrameCapture.End();
+				FramePacer.PendingSteps = 1;
+			}
+			Banner.Tick();   // the place-name window a mod asked for this step stays; one not asked for goes
 			FrameProbe.Tick();
 			DevSay.Tick();
 			ProgressionLayer.Tick();

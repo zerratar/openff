@@ -145,6 +145,8 @@ namespace OpenFF.Client
 			{
 				return 0f;
 			}
+			// Before a face is loaded (the overlay's first frames come before the game's first text) the atlas glyphs' width stands in.
+			if (_system == null) return GlobalScope.m_Graphics != null ? GlobalScope.m_Graphics.StringWidth(text, size) : text.Length * size * 0.5f;
 			return FontFor(size).MeasureString(Clean(text)).X / _viewportScale;
 		}
 
@@ -152,7 +154,7 @@ namespace OpenFF.Client
 		public static void Draw(SpriteBatch batch, string text, float x, float y, Color color,
 			float rotation, Vector2 origin, Vector2 scale, SpriteEffects flip, float depth, int size)
 		{
-			if (string.IsNullOrEmpty(text))
+			if (string.IsNullOrEmpty(text) || _system == null)
 			{
 				return;
 			}

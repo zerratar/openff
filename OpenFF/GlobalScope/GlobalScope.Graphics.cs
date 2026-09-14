@@ -272,6 +272,15 @@ internal static partial class GlobalScope
 
         public void DrawStringStart()
         {
+            if (OpenFF.Client.FrameCapture.Recording)
+            {
+                // A step of the game is running: the text is written down and drawn by FrameCapture.Replay.
+                // The face is readied all the same - the text's measuring (and the overlay's own text) wants it before the replay.
+                OpenFF.Client.TrueTypeText.Initialise(gdm.GraphicsDevice);
+                OpenFF.Client.TrueTypeText.SetViewportScale(gdm.GraphicsDevice.Viewport.Height / TextSpaceHeight);
+                OpenFF.Client.FrameCapture.TextBegin(gdm.GraphicsDevice);
+                return;
+            }
             // Text is the only thing that goes through SpriteBatch. Everything else -
             // sprites, portraits, the cursor - is drawn by NativeRenderer with a
             // projection matrix, so it fills whatever viewport the window has and scales
@@ -297,14 +306,33 @@ internal static partial class GlobalScope
 
         public void DrawStringEnd()
         {
+            if (OpenFF.Client.FrameCapture.Recording)
+            {
+                OpenFF.Client.FrameCapture.TextEnd();
+                return;
+            }
             spBatch.End();
             depth = 0f;
+        }
+
+        /// <summary>A recorded text drawn again with the state it was recorded under (FrameCapture.Replay).</summary>
+        public void DrawStringAs(string text, float x, float y, int iSize, Color colour, float rotation, Vector2 origin, Vector2 scale, SpriteEffects flip)
+        {
+            Color c = color; float r = this.rotation; Vector2 o = this.origin; Vector2 s = this.scale; SpriteEffects f = this.flip;
+            color = colour; this.rotation = rotation; this.origin = origin; this.scale = scale; this.flip = flip;
+            DrawString(text, x, y, iSize);
+            color = c; this.rotation = r; this.origin = o; this.scale = s; this.flip = f;
         }
 
         public void DrawString(string text, float x, float y, int iSize)
         {
             if (text == null)
             {
+                return;
+            }
+            if (OpenFF.Client.FrameCapture.Recording)
+            {
+                OpenFF.Client.FrameCapture.Text(text, x, y, iSize, color, rotation, origin, scale, flip);
                 return;
             }
             if (OpenFF.Client.TrueTypeText.Enabled)

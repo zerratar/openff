@@ -58,7 +58,8 @@ With no arguments `OpenFF.exe` finds the Steam or GOG installs, boots FF3 and re
 | `--content=<dir>` | A specific install, when it is not where Steam or GOG usually puts it |
 | `--map=<id> --pos=x,y,z --rot=<deg>` | Any map of either game, no title (`d01_05`, `t01_00`, `f00`, `e01_00`) |
 | `--party=4:10 --gil=500 --load=<slot>` | FF4 test starts: members by type and level, gil, a saved slot |
-| `--size=1600x960`, `--fullscreen`, `--borderless`, `--windowed`, `--msaa=off|2|4|8`, `--novsync` | Display for this run; the lasting settings are in `%LocalAppData%\OpenFF\settings.json` (size, windowed / borderless / fullscreen, anti-aliasing, vsync), written with its defaults on the first start |
+| `--size=1600x960`, `--fullscreen`, `--borderless`, `--windowed`, `--msaa=off|2|4|8`, `--novsync` | Display for this run; the lasting settings are in `%LocalAppData%\OpenFF\settings.json` (size, windowed / borderless / fullscreen, anti-aliasing, vsync, frame rate), written with its defaults on the first start |
+| `--fps=30|60|max` | What the display shows: `30` the game's frames as they are; `60` (the default) smoothed - a frame drawn between each two of the game's, with motion and the camera interpolated; `max` smoothed at the display's rate. The game's own logic runs 30 steps a second in every mode, so nothing it computes changes. Also in the pause menu's settings (Esc) |
 | `--drive=<file>` | Play a scripted key drive from inside the game (see `Docs/Drives/`) |
 | `--nomods` | Load no mod code |
 
