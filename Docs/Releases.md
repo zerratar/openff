@@ -7,7 +7,10 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## Unreleased
+## 0.1.7 - sixty frames, and GOG (2026-09-14)
+
+The display at sixty frames a second with the game's thirty steps untouched, and the games found
+in their GOG copies.
 
 - **60 frames a second - smoothed.** The game is a DS-era engine counted in frames: every walk,
   camera move, script wait, text speed and battle timer is thirty steps a second, and that rate
