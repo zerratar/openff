@@ -387,6 +387,7 @@ internal static partial class GlobalScope
 						{
 							if (!OpenFF.Client.BattleSync.ApplyRemote(player))
 							{
+								cancelWindow_.setShowTarget(show: false);   // no Back while another player decides
 								return;
 							}
 							nowPlayer_++;

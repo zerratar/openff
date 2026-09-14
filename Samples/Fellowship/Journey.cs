@@ -106,6 +106,8 @@ namespace Fellowship
 				if (_resume && MyHero >= 0) { _resume = false; _toShrineIn = 8; Game.Screen.FadeOut(1); }
 			});
 			Game.Events.Subscribe<MapLeaving>(e => End());
+			// Back at the title, the journey is over until one is chosen or continued: the party may hold anyone, the story is as written.
+			Game.Events.Subscribe<TitleShown>(e => Forget());
 			// The story would have put another player's hero into this party: they are told, and can come to where the story is.
 			Game.Events.Subscribe<PartyJoinRefused>(e =>
 			{
@@ -145,6 +147,18 @@ namespace Fellowship
 		/// <summary>The hero's record to send now and then (E on the wire), or null.</summary>
 		public string MyRecord() => MyHero >= 0 ? Game.Party.Export(MyHero) : null;
 
+		/// <summary>No journey under way: the hero let go, the party and the story as the game has them.</summary>
+		private void Forget()
+		{
+			if (MyHero < 0 && _savedMap == null) return;
+			MyHero = -1;
+			_savedMap = null;
+			_fieldMap = null;
+			_resume = false;
+			Game.Party.Restrict(null);
+			Game.Party.Protagonist = -1;
+		}
+
 		/// <summary>The journey's hero is theirs alone from a save on (the chunk loaded).</summary>
 		private void Hold(int hero)
 		{
@@ -166,6 +180,8 @@ namespace Fellowship
 		private void Begin()
 		{
 			_choosing = true;
+			_chosen = false;
+			_continuing = MyHero >= 0;
 			_cursor = MyHero >= 0 ? MyHero : 0;
 			_claiming = -1;
 			_leaveIn = -1;
@@ -273,6 +289,7 @@ namespace Fellowship
 				Hold(hero);
 			}
 			else Hold(hero);
+			_chosen = true;
 			Game.Screen.Notice("You journey as " + HeroNames[hero] + ".");
 			Game.Log("fellowship: journeying as " + HeroNames[hero]);
 			_figures[hero]?.PlayMotion(1001);
@@ -280,6 +297,10 @@ namespace Fellowship
 		}
 
 		private int _warpIn = -1;
+		/// <summary>A save came back: the choosing is a continue, with the levels in view.</summary>
+		private bool _continuing;
+		/// <summary>The choice was made this time at the shrine.</summary>
+		private bool _chosen;
 		private int _toShrineIn = -1;
 
 		/// <summary>Under black to the story: the fade first, the map change once it is dark, so the walker is never seen standing where the scene begins.</summary>
@@ -303,7 +324,7 @@ namespace Fellowship
 		{
 			if (!_choosing) return;
 			Color white = new Color(255, 255, 255), yellow = new Color(255, 230, 120), dim = new Color(150, 150, 165), red = new Color(255, 120, 110), green = new Color(150, 230, 150), shade = new Color(0, 0, 0, 160);
-			string title = _claiming >= 0 ? "Claiming " + HeroNames[_claiming] + "..." : MyHero >= 0 ? "Who will you journey on as?" : "Who will you journey as?";
+			string title = _claiming >= 0 ? "Claiming " + HeroNames[_claiming] + "..." : _continuing ? "Who will you journey on as?" : "Who will you journey as?";
 			float tw = Game.Draw.MeasureText(title, 16);
 			Game.Draw.Rect(400 - tw / 2 - 12, 22, tw + 24, 30, shade);
 			Game.Draw.Text(title, 400 - tw / 2, 28, white, 16);
@@ -314,8 +335,8 @@ namespace Fellowship
 				bool taken = Taken(i, out Traveller by);
 				KnownHero k = Known[i];
 				string name = HeroNames[i];
-				string standing = k.Level > 0 ? "Lv. " + k.Level + (k.Job.Length > 0 ? "  " + k.Job : "") : MyHero >= 0 ? "not yet met" : "";
-				string whose = taken ? (by.Id == _service.Id ? "you" : by.Name) : i == MyHero ? "you, last time" : k.Level > 0 && k.Owner.Length > 0 ? "with " + k.Owner : "";
+				string standing = k.Level > 0 ? "Lv. " + k.Level + (k.Job.Length > 0 ? "  " + k.Job : "") : _continuing ? "not yet met" : "";
+				string whose = taken ? by.Name : i == MyHero ? (_chosen ? "you" : "you, last time") : k.Level > 0 && k.Owner.Length > 0 ? "with " + k.Owner : "";
 				float w = Math.Max(Game.Draw.MeasureText(name, 14), Math.Max(Game.Draw.MeasureText(standing, 10), Game.Draw.MeasureText(whose, 10)));
 				Game.Draw.Rect(at.Value.X - w / 2 - 8, at.Value.Y - 4, w + 16, standing.Length > 0 || whose.Length > 0 ? 56 : 24, shade);
 				Game.Draw.Text(name, at.Value.X - Game.Draw.MeasureText(name, 14) / 2, at.Value.Y, taken ? dim : i == _cursor ? yellow : white, 14);
@@ -351,7 +372,7 @@ namespace Fellowship
 			NoteField();
 			return new
 			{
-				Hero = MyHero,
+				Hero = Game.Title.SaveProfile == Profile ? MyHero : -1,   // a game played alone carries no journey, whatever this client did before
 				Map = _fieldMap ?? _savedMap,
 				X = _fieldPos.X, Y = _fieldPos.Y, Z = _fieldPos.Z,
 				Known = Known.Select(k => new { k.Level, k.Job, k.Owner, k.Record }).ToArray(),
@@ -360,6 +381,8 @@ namespace Fellowship
 
 		public void Load(int version, JsonElement data)
 		{
+			// A chunk of ours in a save that is not a journey's (the game's own, a game played alone) says nothing: the journey is the profile's.
+			if (Game.Title.SaveProfile != Profile) { Forget(); return; }
 			int hero = data.TryGetProperty("Hero", out JsonElement h) && h.ValueKind == JsonValueKind.Number ? h.GetInt32() : -1;
 			_savedMap = data.TryGetProperty("Map", out JsonElement m) && m.ValueKind == JsonValueKind.String ? m.GetString() : null;
 			float X(string n) => data.TryGetProperty(n, out JsonElement v) && v.ValueKind == JsonValueKind.Number ? (float)v.GetDouble() : 0f;

@@ -85,6 +85,8 @@ internal static partial class GlobalScope
                 sys2d.DS2DManager.d2dGetInstance().d2dInitialize();
                 dgs.msg.CMessageSys.getInstance().initialize();
                 OpenFF.Client.SaveFiles.Profile = null;   // OpenFF: the title opens on the game's own saves; a mod's entry may switch to a profile of its own
+                OpenFF.Client.PartyRestriction.Set(null);   // OpenFF: and on a party any hero may join, the story's lead as written - a game left behind takes its holds with it
+                OpenFF.Client.StoryCast.Protagonist = -1;
                 SuspendSaveDataGlobal.getSingleton().setup();
                 tSystem = new CTitleSystem();
                 tSystem.Initialize();
@@ -188,6 +190,7 @@ internal static partial class GlobalScope
                                 OpenFF.Client.TitleEntries.Pending = null;
                                 byte hero = (byte)(order != null && order.Hero >= 0 && order.Hero < 4 ? order.Hero : 0);
                                 string map = order?.Map ?? "d01_05";
+                                OpenFF.Client.PartyRestriction.Set(null);   // OpenFF: a new game's party is the story's own; a mod holds it again once it has chosen
                                 pl.PlayerParty.instance().addPlayer(hero);
                                 pl.PlayerParty.instance().playerForId(hero).changeJob(pl.JOB_TYPE.SUPPINN);
                                 pl.PlayerParty.instance().playerForId(hero).updateParameter();
