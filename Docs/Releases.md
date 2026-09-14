@@ -7,6 +7,14 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## Unreleased
+
+- **GOG copies of the games are found** beside Steam's: the registry's `GOG.com\Games` entries and
+  Galaxy's usual folders, a folder taken as the game when it holds `FF3_Win32.exe` / `FF4.exe` and
+  its files. The client boots from one with no `--content`, Crystal's targets that install into the
+  game's own files open it, and `crystal installs` lists it with its store. `--content=<dir>` still
+  says where a copy is that neither store recorded.
+
 ## 0.1.6 - the battle's first frame (2026-09-14)
 
 A fix for every battle's start, and a few for the journey.

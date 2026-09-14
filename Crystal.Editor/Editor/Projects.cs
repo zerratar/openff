@@ -354,7 +354,7 @@ namespace Crystal.Editor
 					"cannot find the content for {0}. {1}",
 					Targets.Describe(target),
 					!string.Equals(target, Targets.Ours, StringComparison.OrdinalIgnoreCase)
-						? "No Steam copy of the game was found on this machine - pass "
+						? "No Steam or GOG copy of the game was found on this machine - pass "
 							+ "--content=<install> to say where it is."
 						: "No Content directory with a data000.bin was found - pass "
 							+ "--content=<dir> to say where it is."));

@@ -88,7 +88,7 @@ namespace OpenFF.Client
 				root = SteamRoot(settings, game);
 				if (root == null)
 				{
-					Log.Write(LogChannel.General, "launch: no Steam install of " + game.ToUpperInvariant() + " found; looking for the Content directory instead");
+					Log.Write(LogChannel.General, "launch: no Steam or GOG install of " + game.ToUpperInvariant() + " found; looking for the Content directory instead");
 					source = "content";
 				}
 			}

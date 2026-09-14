@@ -1519,14 +1519,14 @@ namespace Crystal
 				OpenFF.Content.SteamInstalls.Ff4AppId));
 			if (found.Count == 0)
 			{
-				Console.WriteLine("no Steam copy of either game found on this machine");
-				Console.WriteLine("(looked for appmanifest_{0}.acf and appmanifest_{1}.acf in every Steam library)",
+				Console.WriteLine("no Steam or GOG copy of either game found on this machine");
+				Console.WriteLine("(looked for appmanifest_{0}.acf and appmanifest_{1}.acf in every Steam library, and under GOG.com\\Games in the registry)",
 					OpenFF.Content.SteamInstalls.AppId, OpenFF.Content.SteamInstalls.Ff4AppId);
 				return 1;
 			}
 			foreach (OpenFF.Content.SteamInstall install in found)
 			{
-				Console.WriteLine("  {0}", install.Name ?? "Final Fantasy III");
+				Console.WriteLine("  {0}  [{1}]", install.Name ?? "Final Fantasy III", install.Store);
 				Console.WriteLine("  {0}", install.Path);
 				Console.WriteLine();
 			}

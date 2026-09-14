@@ -38,7 +38,7 @@ the zip and *Help ▸ Guide* in Crystal.
 
 | To | You need |
 | --- | --- |
-| **Play**, and **make mods** in Crystal - for the Steam games (files the game itself plays) or for OpenFF (maps, objects, models, sounds, text, definitions, scenes with the built-in components) - and **test them in the client** | Windows 10/11 x64, the release zip (the .NET runtime is inside; nothing to install), and your own copy of **Final Fantasy III** and/or **Final Fantasy IV (3D Remake)** on Steam. The client reads the installs in place; nothing is extracted or copied. |
+| **Play**, and **make mods** in Crystal - for the Steam games (files the game itself plays) or for OpenFF (maps, objects, models, sounds, text, definitions, scenes with the built-in components) - and **test them in the client** | Windows 10/11 x64, the release zip (the .NET runtime is inside; nothing to install), and your own copy of **Final Fantasy III** and/or **Final Fantasy IV (3D Remake)** on Steam or GOG. The client reads the installs in place; nothing is extracted or copied. |
 | **Write C# for a mod** (behaviours, services - Crystal's *Add C# code* and *Build*) | The above, plus the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (the *SDK*, not just the runtime; x64). Crystal builds the mod's project with it. A mod without C# never needs it. |
 | **Build OpenFF itself** | The .NET 8 SDK; `dotnet build` fetches MonoGame (DesktopGL), FontStashSharp and NVorbis from NuGet. Python 3 for the scripts in `Tools/` (optional). |
 
@@ -49,13 +49,13 @@ dotnet build
 OpenFF\bin\Debug\net8.0\OpenFF.exe
 ```
 
-With no arguments `OpenFF.exe` finds the Steam installs, boots FF3 and remembers the choice in
+With no arguments `OpenFF.exe` finds the Steam or GOG installs, boots FF3 and remembers the choice in
 `%LocalAppData%\OpenFF\launch.json`. The switches that matter:
 
 | Switch | Effect |
 | --- | --- |
 | `--game=ff4` | Boot FF4 (Baron town) instead; remembered for the next start |
-| `--content=<dir>` | A specific Steam install, when it is not where Steam usually puts it |
+| `--content=<dir>` | A specific install, when it is not where Steam or GOG usually puts it |
 | `--map=<id> --pos=x,y,z --rot=<deg>` | Any map of either game, no title (`d01_05`, `t01_00`, `f00`, `e01_00`) |
 | `--party=4:10 --gil=500 --load=<slot>` | FF4 test starts: members by type and level, gil, a saved slot |
 | `--size=1600x960`, `--fullscreen`, `--borderless`, `--windowed`, `--msaa=off|2|4|8`, `--novsync` | Display for this run; the lasting settings are in `%LocalAppData%\OpenFF\settings.json` (size, windowed / borderless / fullscreen, anti-aliasing, vsync), written with its defaults on the first start |
