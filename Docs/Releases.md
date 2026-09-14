@@ -7,6 +7,25 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.1.6 - the battle's first frame (2026-09-14)
+
+A fix for every battle's start, and a few for the journey.
+
+- **Battles froze for 46 seconds as the party's names came up** (since 0.1.5, where the battle's HUD
+  became a layout). The reader of the layout's geometry walked each frame's children by
+  `nextSibling()` until a null that never comes - the nodes lie in one flat array, and the last
+  child's next sibling is simply the rest of the file - so every frame of the file walked the whole
+  file again, nested. It now walks children by their count, as the game does. The stall was the
+  "lag" seen while fighting together: it was every battle's, alone or with company.
+- **`--log-stalls`** writes every frame over 50 ms to the log ("stall: 240 ms", and whether a
+  screenshot was being written at the time), to find where a hitch comes from.
+- **Fighting together**: no Back button while waiting for the other player's command - the step
+  back over a command already given was refused, but the button stayed.
+- **The journey lets go at the title**: the party's holds and the protagonist are released when the
+  title comes up, and the journey forgets itself when a save outside its own profile is loaded; a
+  New Game after a journey no longer crashes at the first hero. The choosing's words after a fresh
+  claim ("Who will you journey as?" rather than "journey on as").
+
 ## 0.1.5 - journey together (2026-09-12)
 
 The story by several people, one hero each: a hero chosen at the Crystal's Choosing, the opening

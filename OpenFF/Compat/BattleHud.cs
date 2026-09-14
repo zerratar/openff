@@ -57,12 +57,16 @@ namespace OpenFF.Client
 			GlobalScope.XbnNode root = GlobalScope.menu.MenuManager.getSingleton()?.xbnRoot();
 			if (root == null) { _frames = null; return; }
 			// Every screen of the file: the ones the code reads (battle_hud, field_hud) are few, and the walk is cheap.
-			for (GlobalScope.XbnNode menu = root.firstChild(); menu != null; menu = menu.nextSibling())
+			// The nodes lie in one flat array, so a node's nextSibling past its parent's last child is simply the
+			// next node of the file - the children are walked by their count, as the game does, never to a null.
+			GlobalScope.XbnNode menu = root.firstChild();
+			for (int i = 0, n = root.numberOfChildren(); i < n && menu != null; i++, menu = menu.nextSibling())
 			{
 				if (menu.nodeName() != "menu") continue;
 				string screen = menu.getFirstNodeByTagNameFromChildren("name")?.nodeValueString();
 				if (string.IsNullOrEmpty(screen)) continue;
-				for (GlobalScope.XbnNode frame = menu.firstChild(); frame != null; frame = frame.nextSibling())
+				GlobalScope.XbnNode frame = menu.firstChild();
+				for (int j = 0, m = menu.numberOfChildren(); j < m && frame != null; j++, frame = frame.nextSibling())
 				{
 					if (frame.nodeName() == "frame") Walk(frame, screen, 0, 0);
 				}
@@ -76,7 +80,8 @@ namespace OpenFF.Client
 			int x = px + Int(frame, "x"), y = py + Int(frame, "y");
 			string path = parentPath == null ? id : parentPath + "/" + id;
 			_frames[path] = new Rect { X = x, Y = y, Width = Int(frame, "width"), Height = Int(frame, "height"), Found = true };
-			for (GlobalScope.XbnNode child = frame.firstChild(); child != null; child = child.nextSibling())
+			GlobalScope.XbnNode child = frame.firstChild();
+			for (int i = 0, n = frame.numberOfChildren(); i < n && child != null; i++, child = child.nextSibling())
 			{
 				if (child.nodeName() == "frame") Walk(child, path, x, y);
 			}

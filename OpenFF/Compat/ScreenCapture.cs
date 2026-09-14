@@ -94,6 +94,9 @@ namespace OpenFF.Client
 			_burstWasDown = burstKey;
 		}
 
+		/// <summary>When the last screenshot was written (Environment.TickCount64), for the stall log: the PNG is encoded on the game's thread.</summary>
+		public static long LastCaptureTick = long.MinValue / 2;
+
 		/// <summary>Writes the current backbuffer to a PNG. Returns the path, or null on failure.</summary>
 		public string Capture()
 		{
@@ -121,6 +124,7 @@ namespace OpenFF.Client
 					texture.SaveAsPng(file, width, height);
 				}
 
+				LastCaptureTick = Environment.TickCount64;
 				Log.Write(LogChannel.General, "screenshot: " + path);
 				return path;
 			}

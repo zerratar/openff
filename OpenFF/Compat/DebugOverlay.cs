@@ -64,6 +64,7 @@ namespace OpenFF.Client
         public static bool Active { get; private set; }
 
         private Layer _layers = Layer.Boxes | Layer.World | Layer.Stats;
+        private readonly bool _logStalls = Options.Get("log-stalls") != null;
         private KeyboardState _previous;
         private SpriteBatch _batch;
         private Texture2D _pixel;
@@ -166,6 +167,11 @@ namespace OpenFF.Client
                 _fps = _fpsFrames * 1000.0 / _fpsAccumulated;
                 _fpsAccumulated = 0;
                 _fpsFrames = 0;
+            }
+            // --log-stalls: a frame that took over 50 ms is written to the log with what was going on, to find where a hitch comes from.
+            if (_logStalls && _frameMs > 50 && _lastFrameAt > 5000)
+            {
+                Log.Write(LogChannel.General, "stall: " + _frameMs.ToString("0") + " ms" + (Environment.TickCount64 - ScreenCapture.LastCaptureTick < 300 ? " - a screenshot was written" : ""));
             }
             _lastDrawCalls = DrawCalls;
             _lastVertices = Vertices;

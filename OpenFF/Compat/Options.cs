@@ -41,6 +41,7 @@ namespace OpenFF.Client
 			("screenshot-dir", "FF3_SCREENSHOT_DIR", "<dir>", "Where F12 screenshots are written"),
 			("screenshot-every", "FF3_SCREENSHOT_EVERY", "<seconds>", "Capture a screenshot automatically every N seconds"),
 			("speed", "FF3_SPEED", "<n>", "Extra update passes per frame while fast-forwarding"),
+			("log-stalls", "FF3_LOG_STALLS", "", "Write every frame over 50 ms to the log, to find where a hitch comes from"),
 			("mod", "FF3_MOD", "<dir>[;dir]", "Mod folder(s) mirroring the game's file names; first wins"),
 			("project", "FF3_PROJECT", "<name|dir>", "An editor project whose edits are the mods"),
 			("steam-cells-off", "FF3_STEAM_CELLS_OFF", "", "Draw a Steam install's cell banks as they are, without the phone layout table"),
