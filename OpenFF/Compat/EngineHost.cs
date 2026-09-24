@@ -23,7 +23,8 @@ namespace OpenFF.Client
 		private static string _lastPart;
 		private static string _lastStage;
 		private static bool _entered;
-		private static DateTime _lastTick;
+		/// <summary>The game's time (GameClock) at the engine's last frame.</summary>
+		private static double _lastTick;
 
 		/// <summary>Whether mods' code is loaded at all (--nomods turns it off; assets still apply).</summary>
 		public static bool CodeEnabled => Options.Get("nomods") == null;
@@ -93,7 +94,7 @@ namespace OpenFF.Client
 			OpenFF.Game.Start();
 			// --load=<slot>: an FF4 game starts from a save; the jump part lands the party there.
 			Ff4Saves.LoadAtBoot();
-			_lastTick = DateTime.Now;
+			_lastTick = GameClock.Seconds;
 			Log.Write(LogChannel.General, "engine: OpenFF " + OpenFF.Game.ApiVersion + " started - " + withCode + " mod(s) with code, "
 				+ OpenFF.Game.Services.All.Count + " service(s), saves in " + OpenFF.Game.Saves.StorePath
 				+ (ModWatcher.Enabled ? ", watching for rebuilt assemblies" : ""));
@@ -148,25 +149,40 @@ namespace OpenFF.Client
 		/// <summary>Once per game tick, after the legacy frame: tell the engine what changed, reload rebuilt mods, run the engine's frame.</summary>
 		public static void Tick()
 		{
+			// The game's time, this step counted - read every step whatever else happens, so that the clock
+			// counts each step at the speed it ran (GameClock).
+			double now = GameClock.Seconds;
 			if (!_attached)
 			{
 				return;
 			}
+			bool kept = false;
 			try
 			{
 				WatchLegacy();
 				EngineInput.Update();
 				EngineApi.Tick();
 				ModWatcher.Drain();
-				// The mods' drawing of the step before goes; this step's comes in Game.Update (ModDraw draws the list every display frame until then).
+				// The mods' drawing of the step before goes, kept for the display frames until the next step to
+				// draw this one's part of the way from (ModDrawBlend); this step's comes in Game.Update, and
+				// ModDraw draws it every display frame until then.
+				ModDrawBlend.Keep(OpenFF.Game.Draw.Commands);
+				kept = true;
 				OpenFF.Game.Draw.Clear();
-				DateTime now = DateTime.Now;
-				double delta = Math.Min(0.25, (now - _lastTick).TotalSeconds);
+				// The engine's time is the game's: the steps this frame stands for - one, up to three after a
+				// stall, each times --speed's multiple and three times over under fast-forward - a thirtieth of a
+				// second apiece, all of it (GameClock.MaxAdvance follows the step); not the wall clock's time since
+				// the last frame, which wanders with the display's cadence and the step's work.
+				double delta = Math.Min(GameClock.MaxAdvance, now - _lastTick);
 				_lastTick = now;
 				OpenFF.Game.Update(delta);
 			}
 			catch (Exception ex)
 			{
+				// Failed before the mods' list was kept: it is not refilled this step and stands as the last step
+				// left it, drawn still - nothing kept to blend it from, and the next step's drawn as it comes, since
+				// a list is only ever blended from the step just before its own.
+				if (!kept) ModDrawBlend.Cut();
 				Log.First(LogChannel.General, "engine-tick", 5, () => "engine: tick failed: " + ex.GetType().Name + ": " + ex.Message + " at " + FirstFrames(ex));
 			}
 		}
@@ -186,6 +202,7 @@ namespace OpenFF.Client
 			{
 				Banner.PartChanged();   // a mod's banner is made of the part's window pieces
 				FrameCapture.Cut();     // the field to a battle, a battle to the field: nothing of the frame before to blend toward
+				ModDrawBlend.Cut();     // nor of the mods' drawing over it
 				OpenFF.Game.Events.Publish(new OpenFF.Events.PartChanged { From = _lastPart, To = part });
 				if (_lastPart == "BATTLE")
 				{

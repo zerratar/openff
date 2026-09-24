@@ -5,6 +5,11 @@
 // text space); rectangles, lines and sprites through a SpriteBatch scaled to the same
 // space. Textures a mod loads are Texture2Ds wrapped for the engine; they live until the
 // device goes.
+//
+// The list is the engine's step's, and stands until the next; between two steps, with
+// smoothing on, what is drawn is ModDrawBlend's - each command part of the way from where
+// the step before had it, as the game's frame under it is drawn. Places are drawn as they
+// come, in fractions of a pixel, so a slide is not rounded into a shake.
 
 using System;
 using System.Collections.Generic;
@@ -83,12 +88,13 @@ namespace OpenFF.Client
 
 		public override void Draw(GameTime gameTime)
 		{
-			// The list stands until the engine's next step refills it (EngineHost.Tick clears it first), so a
-			// display frame drawn between two of the game's steps shows the same overlay as the one before.
+			// The list stands until the engine's next step refills it (EngineHost.Tick keeps it for ModDrawBlend,
+			// then clears it), so every display frame between two of the game's steps draws it - with smoothing on,
+			// part of the way from the step before's, which is still drawn early on when this step's is empty.
 			OpenFF.DrawList list = OpenFF.Game.Draw;
 			try
 			{
-				if (list.Commands.Count > 0 && !RenderTest.Active)
+				if ((list.Commands.Count > 0 || ModDrawBlend.HasBefore) && !RenderTest.Active)
 				{
 					DrawAll(list);
 				}
@@ -105,27 +111,42 @@ namespace OpenFF.Client
 			Viewport view = GraphicsDevice.Viewport;
 			float sx = view.Width / TextSpaceWidth;
 			float sy = view.Height / TextSpaceHeight;
+
+			// The place-name window is asked for by the step's own list, whichever step's list is drawn: Banner.Tick
+			// decides once a step whether it stays.
 			bool anyText = false;
+			IReadOnlyList<OpenFF.DrawCommand> asked = list.Commands;
+			for (int i = 0; i < asked.Count; i++)
+			{
+				if (asked[i].Kind != OpenFF.DrawKind.Banner) continue;
+				Banner.Keep(asked[i].Text);
+				anyText = true;
+			}
+			// Where the display stands between the step before and this one, as the game's frame under it is drawn; without
+			// the native renderer nothing is drawn in between (every display frame is a step's own), and neither is this.
+			IReadOnlyList<OpenFF.DrawCommand> commands = ModDrawBlend.At(asked, FrameCapture.Supported ? FramePacer.Blend() : 1f);
 
 			_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
-			foreach (OpenFF.DrawCommand c in list.Commands)
+			for (int i = 0; i < commands.Count; i++)
 			{
+				OpenFF.DrawCommand c = commands[i];
 				Microsoft.Xna.Framework.Color colour = new Microsoft.Xna.Framework.Color(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
 				switch (c.Kind)
 				{
 					case OpenFF.DrawKind.Rect:
 					{
-						Rectangle r = new Rectangle((int)Math.Round(c.X * sx), (int)Math.Round(c.Y * sy), (int)Math.Round(c.W * sx), (int)Math.Round(c.H * sy));
+						float x = c.X * sx, y = c.Y * sy, w = c.W * sx, h = c.H * sy;
 						if (c.Filled)
 						{
-							_batch.Draw(_pixel, r, colour);
+							Fill(x, y, w, h, colour);
 						}
 						else
 						{
-							_batch.Draw(_pixel, new Rectangle(r.X, r.Y, r.Width, 1), colour);
-							_batch.Draw(_pixel, new Rectangle(r.X, r.Bottom - 1, r.Width, 1), colour);
-							_batch.Draw(_pixel, new Rectangle(r.X, r.Y, 1, r.Height), colour);
-							_batch.Draw(_pixel, new Rectangle(r.Right - 1, r.Y, 1, r.Height), colour);
+							// Four strips a pixel wide, just inside the rectangle's edges.
+							Fill(x, y, w, 1f, colour);
+							Fill(x, y + h - 1f, w, 1f, colour);
+							Fill(x, y, 1f, h, colour);
+							Fill(x + w - 1f, y, 1f, h, colour);
 						}
 						break;
 					}
@@ -143,16 +164,15 @@ namespace OpenFF.Client
 					case OpenFF.DrawKind.Sprite:
 					{
 						if (!(c.Texture is ModTexture texture) || texture.Texture2D == null || texture.Texture2D.IsDisposed) break;
-						Rectangle src = new Rectangle((int)c.SrcX, (int)c.SrcY, (int)c.SrcW, (int)c.SrcH);
-						Rectangle dst = new Rectangle((int)Math.Round((c.X + c.W / 2f) * sx), (int)Math.Round((c.Y + c.H / 2f) * sy), (int)Math.Round(c.W * sx), (int)Math.Round(c.H * sy));
-						_batch.Draw(texture.Texture2D, dst, src, colour, c.Rotation, new Vector2(src.Width / 2f, src.Height / 2f), SpriteEffects.None, 0f);
+						// The part of the picture (a texel at least: a gauge's fill cut to a sliver), stretched over the
+						// rectangle and turned about its middle.
+						Rectangle src = new Rectangle((int)c.SrcX, (int)c.SrcY, Math.Max(1, (int)c.SrcW), Math.Max(1, (int)c.SrcH));
+						Vector2 middle = new Vector2((c.X + c.W / 2f) * sx, (c.Y + c.H / 2f) * sy);
+						Vector2 stretch = new Vector2(c.W * sx / src.Width, c.H * sy / src.Height);
+						_batch.Draw(texture.Texture2D, middle, src, colour, c.Rotation, new Vector2(src.Width / 2f, src.Height / 2f), stretch, SpriteEffects.None, 0f);
 						break;
 					}
 					case OpenFF.DrawKind.Text:
-						anyText = true;
-						break;
-					case OpenFF.DrawKind.Banner:
-						Banner.Keep(c.Text);
 						anyText = true;
 						break;
 				}
@@ -172,8 +192,9 @@ namespace OpenFF.Client
 			graphics.SetImageRotation(0f);
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
-			foreach (OpenFF.DrawCommand c in list.Commands)
+			for (int i = 0; i < commands.Count; i++)
 			{
+				OpenFF.DrawCommand c = commands[i];
 				if (c.Kind != OpenFF.DrawKind.Text) continue;
 				graphics.SetColor(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
 				graphics.DrawString(c.Text, c.X, c.Y, c.Size);
@@ -190,6 +211,12 @@ namespace OpenFF.Client
 				graphics.DrawString(text, x, y, size);
 			}
 			graphics.DrawStringEnd();
+		}
+
+		/// <summary>A rectangle of flat colour, in pixels, where it falls (not rounded to the pixel: a slide would shake).</summary>
+		private void Fill(float x, float y, float w, float h, Microsoft.Xna.Framework.Color colour)
+		{
+			_batch.Draw(_pixel, new Vector2(x, y), null, colour, 0f, Vector2.Zero, new Vector2(w, h), SpriteEffects.None, 0f);
 		}
 
 		private void EnsureResources()

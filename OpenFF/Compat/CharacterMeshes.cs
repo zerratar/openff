@@ -525,10 +525,14 @@ namespace OpenFF.Client
 		// own - and the character stands where the game has it. A motion with no clip plays as the
 		// game's, so a file may bring three clips and borrow the rest.
 
-		/// <summary>A clip a script asked for on a character, over the game's motion, until it ends or is stopped.</summary>
+		// The clips' time is the game's (GameClock), read as the character draws inside a step: a step on from the last
+		// draw exactly, however long the step took to come round, so the gait keeps pace with the feet the game moves
+		// a step at a time and FrameCapture's blend fills the frames in between - through a catch-up, a fast-forward and
+		// a refresh rate that does not divide thirty alike.
+
+		/// <summary>A clip a script asked for on a character, over the game's motion, until it ends or is stopped; StartedAt is the game's time.</summary>
 		private sealed class ClipRequest { public GltfAnimation Clip; public bool Loop; public float Speed = 1f; public double StartedAt; }
 		private static readonly Dictionary<int, ClipRequest> _requests = new Dictionary<int, ClipRequest>();
-		private static readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
 		/// <summary>The roles a definition may name, each the game motion ids it covers (HeroMotion, the field's 1001/1004/1005; a monster's Idle/Attack/Special).</summary>
 		private static bool RoleHas(string role, int id, bool monster)
@@ -592,7 +596,7 @@ namespace OpenFF.Client
 			float time = 0;
 			if (_requests.TryGetValue(ctrl, out ClipRequest request))
 			{
-				double elapsed = (_clock.Elapsed.TotalSeconds - request.StartedAt) * request.Speed;
+				double elapsed = (GameClock.Seconds - request.StartedAt) * request.Speed;
 				if (!request.Loop && elapsed >= request.Clip.Duration) _requests.Remove(ctrl);
 				else { clip = request.Clip; time = request.Clip.Duration > 0 ? (float)(request.Loop ? elapsed % request.Clip.Duration : elapsed) : 0; }
 			}
@@ -615,7 +619,7 @@ namespace OpenFF.Client
 					float progress = max > 0 ? Math.Min(1f, frame / (float)max) : 0;
 					time = progress * clip.Duration;
 				}
-				else time = clip.Duration > 0 ? (float)((_clock.Elapsed.TotalSeconds * Math.Max(0.01f, choice.Speed)) % clip.Duration) : 0;
+				else time = clip.Duration > 0 ? (float)((GameClock.Seconds * Math.Max(0.01f, choice.Speed)) % clip.Duration) : 0;
 				if (binding.ClipShown != clip.Name) { binding.ClipShown = clip.Name; Log.Write(LogChannel.File, "models: " + look.Model + " plays its own clip " + clip.Name + " for motion " + motion + (motionName != null ? " (" + motionName + ")" : "") + (choice.Sync ? ", in step" : ", at its own pace")); }
 			}
 			// The file's node worlds, and each joint into the character's place: the fit for another rig, the game's placement for all.
@@ -643,14 +647,14 @@ namespace OpenFF.Client
 			Look look = LookOf(ctrl);
 			GltfAnimation found = look?.Mesh?.File != null ? FindClip(look.Mesh.File, clip) : null;
 			if (found == null) return false;
-			_requests[ctrl] = new ClipRequest { Clip = found, Loop = loop, Speed = speed <= 0 ? 1f : speed, StartedAt = _clock.Elapsed.TotalSeconds };
+			_requests[ctrl] = new ClipRequest { Clip = found, Loop = loop, Speed = speed <= 0 ? 1f : speed, StartedAt = GameClock.Seconds };
 			return true;
 		}
 
 		public static void StopClip(int ctrl) => _requests.Remove(ctrl);
 
 		/// <summary>Whether a script's clip is still playing on a character.</summary>
-		public static bool ClipPlaying(int ctrl) => _requests.TryGetValue(ctrl, out ClipRequest r) && (r.Loop || (_clock.Elapsed.TotalSeconds - r.StartedAt) * r.Speed < r.Clip.Duration);
+		public static bool ClipPlaying(int ctrl) => _requests.TryGetValue(ctrl, out ClipRequest r) && (r.Loop || (GameClock.Seconds - r.StartedAt) * r.Speed < r.Clip.Duration);
 
 		/// <summary>The names of the clips a character's look carries (none without a look, or a look without clips).</summary>
 		public static IReadOnlyList<string> ClipsOf(int ctrl)

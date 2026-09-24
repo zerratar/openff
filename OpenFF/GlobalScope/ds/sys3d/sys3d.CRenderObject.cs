@@ -259,16 +259,21 @@ internal static partial class GlobalScope
 						m_pLodObj.executeLod(this);
 					}
 					currentMtx2.copy(currentMtx);
-					if (StandIn != null)
+					// PORT: the model's draws are its own (FrameCapture pairs them with its draws of the step
+					// before, whatever else in the scene came or went in between).
+					using (OpenFF.Client.FrameCapture.Own(this))
 					{
-						// The stand-in draws in the model's place, with the pose in the geometry matrix
-						// as NNS_G3dDraw would have it (a stand-in that needs the joints walks the SBC
-						// itself; see CharacterMeshes).
-						StandIn(this);
-					}
-					else
-					{
-						NNS_G3dDraw(m_Object);
+						if (StandIn != null)
+						{
+							// The stand-in draws in the model's place, with the pose in the geometry matrix
+							// as NNS_G3dDraw would have it (a stand-in that needs the joints walks the SBC
+							// itself; see CharacterMeshes).
+							StandIn(this);
+						}
+						else
+						{
+							NNS_G3dDraw(m_Object);
+						}
 					}
 					VecFx32 sys3d_reuse_zero_vec = sys3d.sys3d_reuse_zero_vec;
 					VecFx32 sys3d_reuse_one_vec = sys3d.sys3d_reuse_one_vec;

@@ -7,6 +7,57 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## Unreleased
+
+- **The sixty frames are even now.** 0.1.7's pacer drew the frame between two steps at `0.5 +
+  owed / step`, clamped at 1, and snapped any refresh within 8% of a whole fraction of the step to
+  it. At 60 Hz the picture was only even when what was owed after a step happened to sit near
+  nought, and nothing brought it back there: on a 59.94 Hz display three frames in four moved
+  more than a quarter off their share, one in four jumped double, while the overlay said 60 fps.
+  Above 60 Hz the clamp repeated a fifth to two fifths of the frames, and 144 Hz, read as 150,
+  corrected itself in one lump about twice a second. The game now steps once half a step is owed,
+  so the display stands at `0.5 + owed / step` with nothing to clamp and moves by exactly each
+  frame's own time at any refresh (`FrameClock`, the arithmetic with the time handed in). The
+  clock snaps to the display's real refresh (`DisplayTiming`: the window's display from SDL, its
+  exact rate from Windows' display configuration - 59.997 Hz here) and bleeds wake-up jitter and
+  a missed refresh back a little at a time; the game keeps exactly thirty steps a second. Measured
+  on a 59.997 Hz display over a walk and a battle: frames more than a quarter off their share
+  74.6% -> 0.4%, doubled 24% -> 0.1%; `max` with VSync off repeated 39% -> 0.
+- **Frames held by the display.** With VSync on, each frame is held the most whole refreshes that
+  still give the Fps setting's rate, by the swap interval (`PresentPlan`): `60` is every refresh
+  at 60 Hz, every second at 120, every fourth at 240; where sixty does not divide the refresh it
+  takes the nearest even rate above it (72 at 144 Hz, 82.5 at 165), and the pause menu says so.
+  `30` is every second refresh at 60 Hz. Hold is only a ceiling then; a plan whose swap interval
+  does not hold gives way (logged) to every refresh and then to the clock. A refresh reported
+  outside 20-1000 Hz is taken as unknown and paced by the clock, and nothing is paced below 30.
+  Hold's own wait is exact (a high-resolution timer, then spinning).
+- **Every draw pairs with its own.** A draw is paired with the same thing's draw of the step
+  before - models, shadows, sprites and particles say who drew them - so a spawn, a death or a
+  reorder no longer blends one monster, digit or shadow toward its neighbour. Colours interpolate
+  when they change gently (fades, not flashes), scrolling textures slide, a big turn in one step
+  is drawn as it is instead of shrinking, and a camera cut - declared by the battle, field and
+  FF4 cameras, seen in the camera itself, or a quarter of the scene jumping - takes the whole
+  scene with it instead of tearing. The battle's camera shake keeps its hard cadence. What cannot
+  be interpolated is taken from the nearer step. Resizing the window, Alt+Enter or a size change
+  in the pause menu no longer leaves the picture at the old size.
+- **The mods' drawing between steps.** `Game.Draw`'s list is interpolated like the scene under it,
+  commands of one moving thing paired by `Game.Draw.Group(thing)` (or by the nearest alike), and
+  it follows the scene's cuts. `Game.Time` is the game's time now - its steps, three times faster
+  under Tab - so `Wait.Seconds`, Timeline glides and mod glTF clips keep pace with the game and
+  stop when it stops; the glTF clips' periodic tick (a 15.6 ms timer) is gone.
+- **Music no longer holds the step it starts in.** A tune was decoded in the step it began,
+  50-110 ms the first time. The battle's theme, victory fanfare and defeat theme are decoded on a
+  worker from the moment the world fades into the battle, a map's music as its parameters are
+  read, the title's during a defeat's fade. The battle's start went from two hitches of 215 and
+  204 ms to one of 93. Decoded music nobody is playing is kept up to 128 MB.
+- **`--speed=N` is N times the game's speed at any refresh** (it was 7x at 60 fps, 15x at 144 Hz).
+- **The pacing line tells the truth.** `--log-stalls`' `pacing:` line and the F6 overlay report a
+  window of frames - fps, steps a second, frame spacing, how evenly the picture moved, pictures
+  repeated or doubled, refreshes missed, the refresh measured, the capture's blended / snapped /
+  unmatched draws and cuts - where 0.1.7 sampled one arbitrary frame. `Tools/FramePacerSim` runs
+  the client's own `FrameClock` and `PresentPlan` against simulated 59.94-240 Hz displays beside
+  0.1.7's pacer.
+
 ## 0.1.7 - sixty frames, and GOG (2026-09-14)
 
 The display at sixty frames a second with the game's thirty steps untouched, and the games found

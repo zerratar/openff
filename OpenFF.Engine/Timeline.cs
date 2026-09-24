@@ -208,6 +208,9 @@ namespace OpenFF
 		/// <summary>The clip playing (or last begun) on each track, for the debug overlay and code.</summary>
 		public event Action<Cutscene> Finished;
 
+		/// <summary>The most one engine frame can stand for, in seconds: the host's longest step - three of the game's caught up at once, times --speed's most (64), three passes apiece under fast-forward.</summary>
+		private const double MostDelta = 3 * 64 * 3 / 30.0;
+
 		private readonly HashSet<Clip> _begun = new HashSet<Clip>();
 		private readonly HashSet<Clip> _ended = new HashSet<Clip>();
 		private readonly Dictionary<Clip, object> _state = new Dictionary<Clip, object>();
@@ -307,7 +310,11 @@ namespace OpenFF
 				if (!_hold()) return;
 				_hold = null;
 			}
-			float dt = (float)Math.Min(0.1, Math.Max(0.0, Game.Time.Delta));
+			// The engine's frame is the game's step, a thirtieth of a second of its time - up to three at once after a
+			// stall, each times --speed's multiple and three times over while it fast-forwards - and the playhead keeps
+			// up with all of it (a clip passed over whole still lands its final state). The host bounds the frame's time
+			// by what its step stood for; MostDelta only keeps a wilder figure from throwing the playhead further.
+			float dt = (float)Math.Min(MostDelta, Math.Max(0.0, Game.Time.Delta));
 			if (dt <= 0f) dt = 1f / 30f;
 			Time += dt;
 			foreach (Track track in Timeline.Tracks)

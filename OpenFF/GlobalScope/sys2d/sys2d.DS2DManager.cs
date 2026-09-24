@@ -276,13 +276,18 @@ internal static partial class GlobalScope
 				G3_PolygonAttr(0, GXPolygonMode.GX_POLYGONMODE_MODULATE, GXCull.GX_CULL_NONE, sp.GetPolygonID(), sp.GetAlpha(), 0);
 				uint color = sp.GetColor();
 				NNS_G3dSetRenderColor(renderer, (int)(color & 0xFF), (int)((color >> 8) & 0xFF), (int)((color >> 16) & 0xFF), sp.GetAlpha() * 255 / 31);
-				if (sp.GetCellAnimation() == null)
+				// PORT: the sprite's cell is its own draw (FrameCapture): sprites of one atlas - a number's
+				// digits, a menu's icons - stay paired with themselves when one is added in front of them.
+				using (OpenFF.Client.FrameCapture.Own(sp, sp.m_iRegistration))
 				{
-					NNS_G2dDrawCell(sp.GetCellData());
-				}
-				else
-				{
-					NNS_G2dDrawCellAnimation(sp.GetCellAnimation());
+					if (sp.GetCellAnimation() == null)
+					{
+						NNS_G2dDrawCell(sp.GetCellData());
+					}
+					else
+					{
+						NNS_G2dDrawCellAnimation(sp.GetCellAnimation());
+					}
 				}
 				NNS_G2dPopMtx();
 				NNS_G2dEndRendering();
@@ -310,6 +315,7 @@ internal static partial class GlobalScope
 				}
 				ds.SLNode<Sprite> sLNode = _SpriteNode[i];
 				sLNode.setData(sp);
+				if (sp != null) sp.m_iRegistration++;   // PORT: see Sprite.m_iRegistration
 				_SpriteList.insertFront(new ds.SLNode<Sprite>[1] { sLNode }, 1u);
 				return true;
 			}
@@ -326,6 +332,7 @@ internal static partial class GlobalScope
 				}
 				ds.SLNode<Sprite> sLNode = _SpriteNode[i];
 				sLNode.setData(sp);
+				if (sp != null) sp.m_iRegistration++;   // PORT: see Sprite.m_iRegistration
 				for (ds.SLNode<Sprite> sLNode2 = _SpriteList.front(); sLNode2 != null; sLNode2 = sLNode2.next())
 				{
 					if (sLNode2.data() == target)

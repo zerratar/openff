@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The frame pacer against simulated displays: compiles the client's own FrameClock.cs and
+       PresentPlan.cs, so what it measures is the code that ships, not a port of it.
+       Run from the repository: dotnet run -c Release (project Tools/FramePacerSim); Program.cs
+       has the arguments. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>OpenFF.Client</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\OpenFF\Compat\FrameClock.cs" Link="FrameClock.cs" />
+    <Compile Include="..\..\OpenFF\Compat\PresentPlan.cs" Link="PresentPlan.cs" />
+  </ItemGroup>
+
+</Project>

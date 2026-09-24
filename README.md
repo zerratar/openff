@@ -59,7 +59,7 @@ With no arguments `OpenFF.exe` finds the Steam or GOG installs, boots FF3 and re
 | `--map=<id> --pos=x,y,z --rot=<deg>` | Any map of either game, no title (`d01_05`, `t01_00`, `f00`, `e01_00`) |
 | `--party=4:10 --gil=500 --load=<slot>` | FF4 test starts: members by type and level, gil, a saved slot |
 | `--size=1600x960`, `--fullscreen`, `--borderless`, `--windowed`, `--msaa=off|2|4|8`, `--novsync` | Display for this run; the lasting settings are in `%LocalAppData%\OpenFF\settings.json` (size, windowed / borderless / fullscreen, anti-aliasing, vsync, frame rate), written with its defaults on the first start |
-| `--fps=30|60|max` | What the display shows: `30` the game's frames as they are; `60` (the default) smoothed - a frame drawn between each two of the game's, with motion and the camera interpolated; `max` smoothed at the display's rate. The game's own logic runs 30 steps a second in every mode, so nothing it computes changes. Also in the pause menu's settings (Esc) |
+| `--fps=30|60|max` | What the display shows: `30` the game's frames as they are; `60` (the default) smoothed - a frame drawn between each two of the game's, with motion and the camera interpolated; `max` smoothed at the display's rate. On a display sixty does not divide, `60` takes the nearest even rate above sixty (72 a second at 144 Hz); the pause menu says what it does on yours. The game's own logic runs 30 steps a second in every mode, so nothing it computes changes. Also in the pause menu's settings (Esc) |
 | `--drive=<file>` | Play a scripted key drive from inside the game (see `Docs/Drives/`) |
 | `--nomods` | Load no mod code |
 
@@ -91,7 +91,7 @@ OpenFF.Engine/     the mod API and object model: what a mod references (no MonoG
 Crystal.Editor/   Crystal, the editor, and the command-line converters
 Shared/            every file format once - Content, Data (the unified tables), Script, Text - compiled into both programs
 Samples/           HelloMod (a service, a behaviour, a save chunk), Survivors (a survivors-style run on the field), Showcase (a map, weapons and models of a mod's own - no code) Mastery (FF3 with FF5's job system and an Abilities screen in the game's own menu) and Fellowship (a network mod: travellers on the LAN walk one world, speak, send aid, give items and gil)
-Tools/             Python: the FF4 binary dumps, table generators, format tests
+Tools/             Python: the FF4 binary dumps, table generators, format tests; FramePacerSim, the frame pacer against simulated displays
 Docs/              reference, plans and the journal (below)
 Reference/libff4/  what we wrote about the FF4 binary; the dumps themselves are regenerated, not committed
 Content/           the pipeline file and the override notes; the data goes beside them, ignored
@@ -209,7 +209,7 @@ Every run writes `logs/ff3.log` beside the executable (the previous run kept as 
 | `--probe` | A per-frame heartbeat in the log (vertices, bounds, camera, world state) |
 | `--ff4table` | List every FF4 script command that is only skipped |
 | `FF3_DUMP=<dir>`, `FF3_DUMP_FONTS=<dir>` | Dump decoded source blobs and font atlases as they load |
-| `FF3_SPEED=<n>` | Extra update passes while fast-forwarding |
+| `FF3_SPEED=<n>` | While fast-forwarding, each of the game's steps runs n times over - the same speed at any refresh rate |
 
 `firstchance` is worth knowing about: large parts of the game's own logic swallow exceptions,
 so a porting bug usually shows up as "nothing rendered" rather than a crash. Every scene and

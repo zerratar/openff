@@ -7254,8 +7254,10 @@ internal static partial class GlobalScope
 							env = _env;
 							// PORT: paced by FramePacer now - the steps due were decided before this call - where the
 							// phone build slept here until its millisecond clock moved on (AppShell.getCurrentFrame).
-							ulong currentFrame = prevFrame + (ulong)MATH_CLAMP(OpenFF.Client.FramePacer.PendingSteps, 1, 3);
-							int num = MATH_CLAMP((int)(currentFrame - prevFrame), 1, 3) * ((boost == 0) ? 1 : 3);
+							// Its catch-up ran three frames at most; --speed's multiple rides on the same loop now
+							// (FramePacer.MostPending), each extra frame skipping its drawing as the catch-up's do.
+							ulong currentFrame = prevFrame + (ulong)MATH_CLAMP(OpenFF.Client.FramePacer.PendingSteps, 1, OpenFF.Client.FramePacer.MostPending);
+							int num = MATH_CLAMP((int)(currentFrame - prevFrame), 1, OpenFF.Client.FramePacer.MostPending) * ((boost == 0) ? 1 : 3);
 							cont |= AppShell.getKeyEvent();
 							int num2 = backButton;
 							glClearColor(0f, 0f, 0f, 1f);
@@ -11732,6 +11734,8 @@ internal static partial class GlobalScope
 							mtxFx2.a[10] = camPos.y;
 							mtxFx2.a[11] = camPos.z;
 							NNS_G3dGlb.invCameraMtx.copy(mtxFx2);
+							// PORT: the frame capture keeps the camera with the draws made under it, to tell a cut from motion.
+							OpenFF.Client.FrameCapture.LookAt(camPos, camUp, target);
 						}
 
 						internal static void NNS_G3dGlbPerspective(int fovySin, int fovyCos, int aspect, int n, int f)

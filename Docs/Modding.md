@@ -214,11 +214,11 @@ replaces one for everybody. The whole list is `Docs/API.md`; the shape of it:
 | `Game.Field` | `Map`, `Place` (the name the game showed on arrival - Ur, Altar Cave), `Warp`, `Busy` (a menu, shop, dialogue, event or map change owns the field - wait before a `Warp`), `Autosave` (the suspend save at the next quiet moment), `GroundHeight`/`OnGround`/`Walkable`, `Encounters` on and off |
 | `Game.Camera` | `MoveTo`, `LookAt`, `Follow`, `Shake`, `Zoom`, `Reset`, `WorldToScreen` |
 | `Game.Effects`, `Game.Audio`, `Game.Screen` | the game's effects by id; BGM and SE by name; fades, flashes, floating numbers |
-| `Game.Draw` | immediate-mode text, rectangles, lines and sprites (PNGs the mod ships, `LoadTexture`) over the frame, in 800x480 units; `Banner(text)` - the game's own place-name window, the frame a map's name arrives in, with your words in it for as long as you keep asking |
+| `Game.Draw` | immediate-mode text, rectangles, lines and sprites (PNGs the mod ships, `LoadTexture`) over the frame, in 800x480 units, interpolated between the game's steps like the scene under them - `Group(thing)` marks the commands of one moving thing, so two that draw alike (digits of two numbers, same-width tags) never trade places; `Banner(text)` - the game's own place-name window, the frame a map's name arrives in, with your words in it for as long as you keep asking |
 | `Game.Input` | the pad (`Held`/`Pressed`/`Released`), the pointer, the keyboard by key name; `Capture = true` takes all input away from the game while the mod uses it |
 | `Game.Flags` | the scripts' flag space |
 | `Game.Events` | `Subscribe<T>`: `MapEntered`, `MapLeaving`, `FlagChanged`, `MessageShown`, `CutsceneStarted`/`Ended`, `BattleStarting`/`Ended`, `ItemGained`, `WarpRequested`, `SaveWritten`/`SaveRead`, `ModReloaded` |
-| `Game.Run(IEnumerator)` | a coroutine, one step per frame; yield `Wait.Frames`, `Wait.Seconds`, `Wait.Until`, `Wait.Dialogue`, `Wait.Walk(npc)`, `Wait.HeroWalk`, or another routine |
+| `Game.Run(IEnumerator)` | a coroutine, one step per frame; yield `Wait.Frames`, `Wait.Seconds`, `Wait.Until`, `Wait.Dialogue`, `Wait.Walk(npc)`, `Wait.HeroWalk`, or another routine. `Game.Time` and `Wait.Seconds` are the game's time - its steps, three times faster under Tab, stopped when the game stops - not the wall clock |
 
 A scene as one coroutine, from the sample:
 

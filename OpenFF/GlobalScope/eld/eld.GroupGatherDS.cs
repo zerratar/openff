@@ -58,6 +58,7 @@ internal static partial class GlobalScope
 					primitive.Size.vx = (primitive.Size.vy = (short)(particleGatherDS._enSize = sizeController.getSize()));
 					primitive.Disp = 2;
 					primitive.PolygonID = parent.getNextID();
+					primitive.Generation++;   // PORT: born again, a new particle to FrameCapture (ds.pt.Particle.Generation)
 					num++;
 					int num2 = 0;
 					while (num2 < setupParam.suAfter.usNbAfters)
@@ -65,6 +66,7 @@ internal static partial class GlobalScope
 						ds.pt.Particle primitive2 = getParticle((uint)num).getPrimitive();
 						primitive2.Disp = 0;
 						primitive2.PolygonID = parent.getNextID();
+						primitive2.Generation++;
 						num2++;
 						num++;
 					}

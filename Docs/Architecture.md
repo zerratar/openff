@@ -13,17 +13,23 @@ Program.Main
 Game1.LoadContent   -> GameHost.Create()   -> GameArchive.Load()   (6962 files, 52 volumes)
                                             -> new AppShell().onCreate()
 Game1.Update        -> DesktopInput.Update()  -> AppShell.onTouchEvent
-                    -> DesktopInput.BeginFrame()  (sets GlobalScope.boost)
-Game1.Draw          -> GameHost.Tick()        -> AppShell.onDrawFrame()
+                    -> DesktopInput.BeginFrame()  (sets GlobalScope.boost, GameHost.Speed)
+Game1.Draw          -> GameHost.Frame()       -> FramePacer.Steps()   (0..3 steps due)
+                                              -> Step(steps * Speed)  -> AppShell.onDrawFrame()
                                                    touch(...)   feeds the touch state in
-                                                   render()     runs the whole game frame
+                                                   render()     runs the steps (drawing the last)
                                                    updateSound()
+                                              -> FrameCapture.Replay(FramePacer.Blend())
+                    -> FramePacer.Hold()      (swap interval, the presentation's ceiling)
 ```
 
 `onDrawFrame` runs the entire tick — input, logic and drawing. That is the original
 NDS-derived design, not an artefact of the port: `Android.onUpdate()` was an empty
-method, so nothing ever ran in the update half. `--speed` therefore has to run extra
-`Tick()` calls, which is why it is documented as the crude option next to `boost`.
+method, so nothing ever ran in the update half. The game's steps are thirty a second
+whatever the display does; while a step runs, its draws are recorded (`FrameCapture`) and
+every display frame draws them again, between two steps interpolated. `--speed` multiplies
+the paced steps, which `render()` runs in its own catch-up loop (all but the last without
+drawing), so it is the same speed at any refresh.
 
 Before, this path went `Game1 -> Android (activity list) -> Activity -> View ->
 GLSurfaceView -> Renderer -> AppShell`, with the list never holding more than one

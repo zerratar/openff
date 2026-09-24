@@ -66,11 +66,12 @@ namespace OpenFF.Client
 			public override string Problem => Model?.Problem;
 			public override void Remove() { Removed = true; ModCollision.Remove(this); _instance?._handles.Remove(this); }
 
-			// The clip playing: its index in the file, the time along it, the frame's vertices.
+			// The clip playing: its index in the file, the time along it, the game's time (GameClock) it was
+			// last advanced at, the frame's vertices.
 			public OpenFF.Graphics.GltfAnimation Playing;
 			public bool Loop;
 			public float Speed = 1f, Time;
-			public long LastTick;
+			public double LastAt;
 			public VertexPositionColorTexture[][] Posed;
 			public override IReadOnlyList<string> Clips => Model?.File == null ? Array.Empty<string>() : Model.File.Animations.ConvertAll(a => a.Name);
 			public override string Clip => Playing?.Name;
@@ -79,18 +80,24 @@ namespace OpenFF.Client
 				if (Model?.File == null) return false;
 				OpenFF.Graphics.GltfAnimation found = Model.File.Animations.Find(a => string.Equals(a.Name, clip, StringComparison.OrdinalIgnoreCase));
 				if (found == null) return false;
-				Playing = found; Loop = loop; Speed = speed <= 0 ? 1f : speed; Time = 0; LastTick = Environment.TickCount64; Posed = null;
+				Playing = found; Loop = loop; Speed = speed <= 0 ? 1f : speed; Time = 0; LastAt = GameClock.Seconds; Posed = null;
 				return true;
 			}
 			public override void Stop() { Playing = null; Posed = null; }
 
-			/// <summary>The clip a step further and the vertices for it; the file's meshes are posed in place, so one handle at a time.</summary>
+			/// <summary>
+			/// The clip a step further and the vertices for it; the file's meshes are posed in place, so one handle at a time.
+			/// A step is the game's (GameClock): a thirtieth of a second, three under fast-forward, whatever the wall clock
+			/// did - so the pose moves on evenly, step by step, and FrameCapture draws the frames in between. A mesh hidden
+			/// a while picks up near where it was, a few steps on at most, not where the time went.
+			/// </summary>
 			public void Advance()
 			{
 				if (Playing == null || Model?.File == null) return;
-				long now = Environment.TickCount64;
-				float dt = LastTick == 0 ? 0 : Math.Min(0.25f, (now - LastTick) / 1000f);
-				LastTick = now;
+				double now = GameClock.Seconds;
+				float dt = (float)Math.Clamp(now - LastAt, 0, GameClock.MaxAdvance);
+				LastAt = now;
+				if (dt <= 0 && Posed != null) return;   // posed for this step already
 				Time += dt * Speed;
 				if (Playing.Duration > 0)
 				{

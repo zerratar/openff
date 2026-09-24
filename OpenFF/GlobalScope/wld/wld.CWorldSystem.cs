@@ -342,6 +342,12 @@ internal static partial class GlobalScope
 											PlayerMng().Player(chr.CBaseCharacter.getLookIndex()).setPosition(wld_reuse_v);
 											WorldCamera().setPos(wld_reuse_v2);
 											WorldCamera().setTrg(wld_reuse_v3);
+											if (wld_reuse_v4.x != 0 || wld_reuse_v4.z != 0)
+											{
+												// PORT: the map moves under the party (the chips in setFootPos), the camera with it: the frame
+												// capture is told, so the camera's leap of a whole map is not taken for a cut.
+												OpenFF.Client.FrameCapture.CameraShift(wld_reuse_v4);
+											}
 										}
 										if (stg.STAGE_TYPE.STAGE_TYPE_FIELD01 == stageMng.getStageType() || stg.STAGE_TYPE.STAGE_TYPE_FIELD02 == stageMng.getStageType() || stg.STAGE_TYPE.STAGE_TYPE_FIELD03 == stageMng.getStageType() || stg.STAGE_TYPE.STAGE_TYPE_FIELD04 == stageMng.getStageType())
 										{

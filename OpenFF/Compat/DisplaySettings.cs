@@ -35,7 +35,7 @@ namespace OpenFF.Client
 		/// <summary>Anti-aliasing samples: 0, 2, 4 or 8.</summary>
 		[JsonPropertyName("msaa")] public int Msaa { get; set; } = 4;
 		[JsonPropertyName("vsync")] public bool VSync { get; set; } = true;
-		/// <summary>What the display shows: "30" - the game's frames as they are; "60" - smoothed, a frame drawn between each two of the game's (motion and the camera interpolated), presented up to 60 a second; "max" - smoothed, at the display's rate. The game's own logic runs 30 steps a second in every mode.</summary>
+		/// <summary>What the display shows: "30" - the game's frames as they are; "60" - smoothed, a frame drawn between each two of the game's (motion and the camera interpolated), presented 60 a second, each frame held the same number of refreshes (every second one at 120 Hz), or on a display sixty does not divide the nearest even rate above it (72 at 144 Hz); "max" - smoothed, at the display's rate. The game's own logic runs 30 steps a second in every mode.</summary>
 		[JsonPropertyName("fps")] public string Fps { get; set; } = "60";
 		/// <summary>How a game pad's left stick runs: "stick" - the push is the pace, a walk part way rising to the full run all the way (the touch stick's way); "hold" - the run button held runs, as with the keyboard's Shift.</summary>
 		[JsonPropertyName("run")] public string Run { get; set; } = "stick";
@@ -44,7 +44,7 @@ namespace OpenFF.Client
 		/// <summary>Which glyphs the client's screens show for the pad's buttons: "auto" (by the pad's name), "ps" or "xbox".</summary>
 		[JsonPropertyName("padStyle")] public string PadStyle { get; set; } = "auto";
 		[JsonPropertyName("_help")] public string Help { get; } =
-			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. fps: 30 (the game's frames as they are) | 60 (smoothed - a frame interpolated between each two of the game's) | max (smoothed, at the display's rate); the game's logic runs 30 steps a second whatever is chosen. run: stick (the left stick's push is the pace - a walk part way, the full run all the way) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n, --fps=30|60|max) wins for one run.";
+			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. fps: 30 (the game's frames as they are) | 60 (smoothed - a frame interpolated between each two of the game's; where the display's refresh is no multiple of sixty, the nearest even rate above it, 72 at 144 Hz) | max (smoothed, at the display's rate); the game's logic runs 30 steps a second whatever is chosen. run: stick (the left stick's push is the pace - a walk part way, the full run all the way) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n, --fps=30|60|max) wins for one run.";
 
 		/// <summary>DS buttons as pad button names; the defaults are a PlayStation pad's natural layout, which SDL lays out the same as an Xbox pad's.</summary>
 		public sealed class PadMap
@@ -190,6 +190,11 @@ namespace OpenFF.Client
 			{
 				e.GraphicsDeviceInformation.PresentationParameters.MultiSampleCount = Msaa;
 			};
+			// MonoGame sets the swap interval to 1 or 0 itself when the device is made and at every
+			// reset (a VSync change, Alt+Enter); the pacer then sets the one its plan wants again
+			// (every second refresh for 60 a second on 120 Hz) and asks afresh whether VSync holds.
+			gdm.DeviceCreated += (_, _) => FramePacer.DeviceChanged();
+			gdm.DeviceReset += (_, _) => FramePacer.DeviceChanged();
 			Log.Write(LogChannel.General, "settings: " + Width + "x" + Height + " " + Mode + " msaa=" + Msaa + " vsync=" + VSync + " fps=" + Fps + " (" + Path + ")");
 		}
 

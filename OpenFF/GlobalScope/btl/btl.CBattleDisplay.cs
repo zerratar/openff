@@ -131,6 +131,12 @@ internal static partial class GlobalScope
 					goEndingCamera();
 				}
 				doShakeCamera();
+				if (shakeFrame_ > 0)
+				{
+					// PORT: where the camera stands without the shake, so the frame capture draws the shake at
+					// its own cadence over a steady camera's interpolated path, not smoothed into a wobble.
+					OpenFF.Client.FrameCapture.Shake(rootPosition_, btlCamera.getPosition());
+				}
 				btlCamera.execute();
 			}
 
@@ -166,6 +172,7 @@ internal static partial class GlobalScope
 				}
 				else if (cameraState_ == 2)
 				{
+					OpenFF.Client.FrameCapture.CameraCut();   // PORT: the command camera, put there at once (a cut unless it was there already)
 					btlCamera.setPosition(CameraOpeningPosition);
 					btlCamera.setTarget(CameraOpeningTarget);
 					btlCamera.setAngle(CameraOpeningAngle.x, CameraOpeningAngle.y, CameraOpeningAngle.z);
@@ -173,6 +180,7 @@ internal static partial class GlobalScope
 				}
 				else if (cameraState_ == 3)
 				{
+					OpenFF.Client.FrameCapture.CameraCut();   // PORT: the main camera, put there at once (an ability's close-up ending)
 					btlCamera.setPosition(CameraBattlePosition);
 					btlCamera.setTarget(CameraBattleTarget);
 					btlCamera.setAngle(CameraBattleAngle.x, CameraBattleAngle.y, CameraBattleAngle.z);
@@ -208,6 +216,7 @@ internal static partial class GlobalScope
 				VecFx32 target = AbilityCameraTarget[b][b2];
 				VecFx32 vecFx = AbilityCameraAngle[b][b2];
 				int distance = AbilityCameraDistance[b][b2];
+				OpenFF.Client.FrameCapture.CameraCut();   // PORT: the ability's close-up is a cut, not a camera move
 				btlCamera.setPosition(position);
 				btlCamera.setTarget(target);
 				btlCamera.setAngle(vecFx.x, vecFx.y, vecFx.z);
@@ -240,6 +249,7 @@ internal static partial class GlobalScope
 
 			public void setBattleCameraPositionAndTarget()
 			{
+				OpenFF.Client.FrameCapture.CameraCut();   // PORT: put there at once (a summon's last shot back to the battle)
 				btlCamera.setPosition(CameraBattlePosition);
 				btlCamera.setTarget(CameraBattleTarget);
 				btlCamera.setAngle(CameraBattleAngle.x, CameraBattleAngle.y, CameraBattleAngle.z);
@@ -256,6 +266,7 @@ internal static partial class GlobalScope
 				fnd_reuse_pos2.x = CameraOpeningTarget.x;
 				fnd_reuse_pos2.y = CameraOpeningTarget.y;
 				fnd_reuse_pos2.z = CameraOpeningTarget.z;
+				OpenFF.Client.FrameCapture.CameraCut();   // PORT: put there at once, under the opening's fade
 				btlCamera.setPosition(fnd_reuse_pos);
 				btlCamera.setTarget(fnd_reuse_pos2);
 				btlCamera.setAngle(CameraOpeningAngle.x, CameraOpeningAngle.y, CameraOpeningAngle.z);
@@ -292,6 +303,7 @@ internal static partial class GlobalScope
 					position = mon.MonsterManager.instance().offset(monsterOffsetId_).startCameraPosition();
 					target = mon.MonsterManager.instance().offset(monsterOffsetId_).startCameraTarget();
 				}
+				OpenFF.Client.FrameCapture.CameraCut();   // PORT: the opening's first shot
 				btlCamera.setPosition(position);
 				btlCamera.setTarget(target);
 				moveFrame_ = OpeningStartCameraFrame[openingCameraType_][openingCameraStep_];
@@ -364,6 +376,7 @@ internal static partial class GlobalScope
 			public void readyEndingCamera()
 			{
 				OutsideToBattle.getInstance().setBattleCamera(BATTLE_CAMERA.ENDING_CAMERA);
+				OpenFF.Client.FrameCapture.CameraCut();   // PORT: the victory pose's camera, a cut
 				btlCamera.setPosition(EndingStartCameraPosition);
 				btlCamera.setTarget(EndingStartCameraTarget);
 				btlCamera.setAngle(EndingStartCameraAngle.x, EndingStartCameraAngle.y, EndingStartCameraAngle.z);

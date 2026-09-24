@@ -41,7 +41,8 @@ namespace OpenFF.Client
 			public GltfModel Model;
 			public OpenFF.Graphics.GltfAnimation Playing;
 			public float Time;
-			public long LastTick;
+			/// <summary>The game's time (GameClock) the clip was last advanced at; NaN before its first pose.</summary>
+			public double LastAt = double.NaN;
 			public VertexPositionColorTexture[][] Posed;
 		}
 
@@ -180,14 +181,19 @@ namespace OpenFF.Client
 			return faded;
 		}
 
-		/// <summary>The clip a step further, looping, and the frame's vertices - as ModMeshes.Handle.Advance.</summary>
+		/// <summary>
+		/// The clip a step further, looping, and the frame's vertices - as ModMeshes.Handle.Advance, by the game's time. The
+		/// scene draws a wielder twice a step (its opaque and translucent passes) and two wielders of one item share its look,
+		/// so every call after a step's first finds the clip already where the step has it, and leaves it.
+		/// </summary>
 		private static void Advance(Look look)
 		{
 			OpenFF.Graphics.GltfFile file = look.Model.File;
 			if (file == null || look.Playing == null) return;
-			long now = Environment.TickCount64;
-			float dt = look.LastTick == 0 ? 0 : Math.Min(0.25f, (now - look.LastTick) / 1000f);
-			look.LastTick = now;
+			double now = GameClock.Seconds;
+			float dt = double.IsNaN(look.LastAt) ? 0 : (float)Math.Clamp(now - look.LastAt, 0, GameClock.MaxAdvance);
+			look.LastAt = now;
+			if (dt <= 0 && look.Posed != null) return;
 			look.Time += dt;
 			if (look.Playing.Duration > 0) look.Time %= look.Playing.Duration;
 			file.Pose(file.WorldMatrices(look.Playing, look.Time));

@@ -29,35 +29,8 @@ internal static partial class GlobalScope
 								{
 									setUpMapSoundDummy();
 								}
-								short num = map.CMapParameterManager.Instance().MapSoundParameter(0).BGMIndex();
+								short num = mapBGMIndex(_sys);
 								short num2 = CWorldOutSideData.getInstance().MapData().PreBGMIndex();
-								if (map.CMapParameterManager.Instance().MapSoundParameter(0).CheckFlag() != -1 && evt.CEventManager.getInstance().FlagMng().get(0u, (uint)map.CMapParameterManager.Instance().MapSoundParameter(0).CheckFlag()) == 1)
-								{
-									num = map.CMapParameterManager.Instance().MapSoundParameter(0).ChangeBGMIndex();
-								}
-								pl.PLAYER_VEHICLE_TYPE preRidingOnVehicleNo = CWorldOutSideData.getInstance().VehicleData().getPreRidingOnVehicleNo();
-								if (sceneMng.getFieldNo() != 2 && sceneMng.getFieldNo() != 4 && _sys.Mode() == CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD)
-								{
-									switch (preRidingOnVehicleNo)
-									{
-									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_ENTERP:
-									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_ENTERP_CTM:
-										num = (short)((!CWorldOutSideData.getInstance().VehicleData().getEnterpOnAir()) ? 20 : 9);
-										break;
-									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_INVINSIBLE:
-										num = 10;
-										break;
-									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_CHOKOBO:
-										num = 7;
-										break;
-									default:
-										num = 9;
-										break;
-									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_ERR:
-									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_CANOE:
-										break;
-									}
-								}
 								if (sys.GGlobal.getPreviousPart() == GAMEPART.GAMEPART_WORLD && (num != num2 || num2 == -1))
 								{
 									MatrixSound.MtxSENDS_Unload();
@@ -104,6 +77,74 @@ internal static partial class GlobalScope
 									int soundFlag = CWorldOutSideData.getInstance().SoundData().getSoundFlag();
 									soundFlag &= -2;
 									CWorldOutSideData.getInstance().SoundData().setSoundFlag(soundFlag);
+								}
+							}
+
+							/// <summary>
+							/// PORT: the map's BGM index as setup chooses it - the map's own, the one it
+							/// changes to once the flag it names is set, a vehicle's on the field - drawn
+							/// out of setup so that prefetch asks the same question before the map loads.
+							/// </summary>
+							private static short mapBGMIndex(CBaseSystem _sys)
+							{
+								short num = map.CMapParameterManager.Instance().MapSoundParameter(0).BGMIndex();
+								if (map.CMapParameterManager.Instance().MapSoundParameter(0).CheckFlag() != -1 && evt.CEventManager.getInstance().FlagMng().get(0u, (uint)map.CMapParameterManager.Instance().MapSoundParameter(0).CheckFlag()) == 1)
+								{
+									num = map.CMapParameterManager.Instance().MapSoundParameter(0).ChangeBGMIndex();
+								}
+								pl.PLAYER_VEHICLE_TYPE preRidingOnVehicleNo = CWorldOutSideData.getInstance().VehicleData().getPreRidingOnVehicleNo();
+								if (sceneMng.getFieldNo() != 2 && sceneMng.getFieldNo() != 4 && _sys.Mode() == CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD)
+								{
+									switch (preRidingOnVehicleNo)
+									{
+									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_ENTERP:
+									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_ENTERP_CTM:
+										num = (short)((!CWorldOutSideData.getInstance().VehicleData().getEnterpOnAir()) ? 20 : 9);
+										break;
+									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_INVINSIBLE:
+										num = 10;
+										break;
+									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_CHOKOBO:
+										num = 7;
+										break;
+									default:
+										num = 9;
+										break;
+									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_ERR:
+									case pl.PLAYER_VEHICLE_TYPE.PLAYER_VEHICLE_TYPE_CANOE:
+										break;
+									}
+								}
+								return num;
+							}
+
+							/// <summary>
+							/// PORT: the tune setup is going to start, decoded ahead on OggSound's worker.
+							/// CBaseSystem.setup calls this once the map's parameters are read, so the decode
+							/// runs while the stage, its casts and its textures load and setup finds it done;
+							/// decoded in setup's step, a map's music held it 50-100 ms the first time. What
+							/// setup would not start - the tune playing on, the one a battle paused,
+							/// d01_02_e01's, a map whose script sees to its own - is left alone.
+							/// </summary>
+							public static void prefetch(CBaseSystem _sys)
+							{
+								if (!map.CMapParameterManager.Instance().isLoaded() || !_sys.getMapSoundSetting() || sys.GGlobal.getPreviousPart() == GAMEPART.GAMEPART_BATTLE || strcmp(sceneMng.getStage(), "d01_02_e01") == 0)
+								{
+									return;
+								}
+								try
+								{
+									short num = mapBGMIndex(_sys);
+									short num2 = CWorldOutSideData.getInstance().MapData().PreBGMIndex();
+									if ((num != num2 || num2 == -1) && num >= 0 && num < BGM_TABEL_INDEX.Length)
+									{
+										SoundManager.prefetchBGM(BGM_TABEL_INDEX[num]);
+									}
+								}
+								catch (Exception ex)
+								{
+									// Only ever a head start: setup asks the same again, and plays what it finds.
+									OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "sound: the map's music not decoded ahead: " + ex.Message);
 								}
 							}
 

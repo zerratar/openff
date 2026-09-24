@@ -449,6 +449,13 @@ internal static partial class GlobalScope
 								// (FF4 scene camera motions). It sets position, target, up and field of view itself.
 								public static Action<CWorldCamera> ExternalDrive;
 
+								// PORT: the drive the camera had last update. A camera given back to its own controller may be
+								// put anywhere at once, so the frame capture is told it may be a cut. A drive says its own cuts
+								// (a scene's every new shot, which is the same drive as the shot before's; the event camera put
+								// somewhere at once), and taking the camera over is none of itself: the event camera starts
+								// where the camera stands, and the first step of an eased pan is motion.
+								private static Action<CWorldCamera> _drivenBy;
+
 								public enum MODE
 								{
 									MODE_ERR = -1,
@@ -589,6 +596,7 @@ internal static partial class GlobalScope
 								public new void initialize()
 								{
 									base.initialize();
+									OpenFF.Client.FrameCapture.CameraCut();   // PORT: a map's camera, put where it starts
 									setMoveMode(0);
 									setMCLCollision(_flag: true);
 									composit.initialize();
@@ -649,6 +657,14 @@ internal static partial class GlobalScope
 									PrePos_set(Pos());
 									PreTrg_set(Trg());
 									m_SavePos.copy(getPosition());
+									if (ExternalDrive != _drivenBy)
+									{
+										if (ExternalDrive == null)
+										{
+											OpenFF.Client.FrameCapture.CameraCut();
+										}
+										_drivenBy = ExternalDrive;
+									}
 									if (ExternalDrive != null)
 									{
 										ExternalDrive(this);

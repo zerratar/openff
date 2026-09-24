@@ -10,7 +10,9 @@
 // every scripted shot ended up at the target with the party's legs filling the screen.
 // This drives the camera directly through CWorldCamera.ExternalDrive, as the scene camera
 // motions do, and lets go when the script hands the camera back (changeCamera_Mode,
-// setCamera_BeforeEvent, cancelCameraControl, a LookPlayer, a map change).
+// setCamera_BeforeEvent, cancelCameraControl, a LookPlayer, a map change). It takes the camera
+// where it stands, so taking it over is no cut; putting it somewhere at once is, and the frame
+// capture is told so (a move over frames is motion, blended as ever).
 
 using System;
 
@@ -28,6 +30,7 @@ namespace OpenFF.Client
 		private static int _trgFrames, _trgTick;
 
 		private static bool _follow;
+		private static bool _followStarts;   // the follow has not put the camera at the leader yet: a cut when it does
 		private static GlobalScope.VecFx32 _followPos = new GlobalScope.VecFx32(0, 0, 0), _followTrg = new GlobalScope.VecFx32(0, 0, 0);
 
 		// The field of view: the camera keeps sin and cos of half the vertical angle (fx32); the
@@ -57,7 +60,7 @@ namespace OpenFF.Client
 			_pos = Copy(camera.getPosition());
 			_trg = Copy(camera.getTarget());
 			_posFrames = _trgFrames = 0;
-			_follow = false;
+			_follow = _followStarts = false;
 			_fovSet = false;
 			try { camera.getFOV(out _fovSavedSin, out _fovSavedCos); } catch (Exception) { _fovSavedSin = 0; }
 			_active = true;
@@ -70,7 +73,7 @@ namespace OpenFF.Client
 		{
 			if (!_active) return;
 			_active = false;
-			_follow = false;
+			_follow = _followStarts = false;
 			_posFrames = _trgFrames = 0;
 			if (_fovSet && _fovSavedSin > 0)
 			{
@@ -149,6 +152,7 @@ namespace OpenFF.Client
 		{
 			if (!Take()) return;
 			_follow = true;
+			_followStarts = true;
 			_followPos = Copy(posOffset);
 			_followTrg = Copy(trgOffset);
 			_posFrames = _trgFrames = 0;
@@ -158,6 +162,7 @@ namespace OpenFF.Client
 		{
 			if (frames <= 0)
 			{
+				FrameCapture.CameraCut();   // put there at once: a cut, unless it was there already
 				_pos = to;
 				_posFrames = 0;
 				return;
@@ -172,6 +177,7 @@ namespace OpenFF.Client
 		{
 			if (frames <= 0)
 			{
+				FrameCapture.CameraCut();   // turned there at once: a cut, unless it looked there already
 				_trg = to;
 				_trgFrames = 0;
 				return;
@@ -214,6 +220,12 @@ namespace OpenFF.Client
 					GlobalScope.VecFx32 at = hero.getPosition();
 					_pos = new GlobalScope.VecFx32(at.x + _followPos.x, at.y + _followPos.y, at.z + _followPos.z);
 					_trg = new GlobalScope.VecFx32(_pos.x + _followTrg.x, _pos.y + _followTrg.y, _pos.z + _followTrg.z);
+					if (_followStarts)
+					{
+						// The camera goes to the leader at once (it is set there at the next update): a cut, unless it was there already.
+						_followStarts = false;
+						FrameCapture.CameraCut();
+					}
 				}
 			}
 		}

@@ -86,7 +86,14 @@ namespace OpenFF
 		}
 	}
 
-	/// <summary>The engine clock: frames since start, seconds since start, the last frame's length.</summary>
+	/// <summary>
+	/// The engine clock: frames since start, seconds since start, the last frame's length - in the game's time, not the
+	/// wall's. A frame of the engine is a step of the game (thirty a second), and the host gives it the time that step
+	/// stands for: a thirtieth of a second, more for steps caught up after a stall or run fast-forwarded. So a wait of a
+	/// second is thirty steps of the game, a glide keeps pace with the characters under it, and the clock stands still
+	/// while the game does (a stall it forgives, the window in the background). Time that must be the wall's - a
+	/// network timeout - is DateTime.UtcNow's.
+	/// </summary>
 	public sealed class GameTime
 	{
 		public long Frame { get; private set; }

@@ -9,6 +9,16 @@
 //
 // This is enough for a HUD, a menu, a dialogue of the mod's own, or a whole 2D game
 // drawn over the field. Drawing into the 3D scene is a later layer.
+//
+// The engine's frame is one of the game's steps, thirty a second, and the list stands until
+// the next; a display that draws more often than that is shown the list part of the way from
+// the step before's, each thing sliding from where it was to where it is, as the game's own
+// frame is (the host's ModDrawBlend). A thing is followed from one list to the next by what it
+// draws - its kind, its picture and the part of it, its words, size and colour - and among
+// things that draw alike (the bar over every foe) by where it is, the nearest taken. Where
+// alike things stand close enough to be taken for one another (the digits of two damage
+// numbers, two tags the same width side by side), Group says which is which: the commands
+// after it belong to that one thing, followed in the order drawn.
 
 using System;
 using System.Collections.Generic;
@@ -52,6 +62,8 @@ namespace OpenFF
 		public float Rotation;
 		public float SrcX, SrcY, SrcW, SrcH;
 		public float OriginX, OriginY;
+		/// <summary>The thing on the screen the command is part of (DrawList.Group); null for none.</summary>
+		public object Group;
 	}
 
 	public sealed class DrawList
@@ -60,6 +72,7 @@ namespace OpenFF
 		public const float ScreenHeight = 480f;
 
 		private readonly List<DrawCommand> _commands = new List<DrawCommand>();
+		private object _group;
 
 		/// <summary>The host's texture loader (a PNG, JPG or BMP file); set by the host.</summary>
 		public Func<string, Texture> TextureLoader { get; set; }
@@ -72,11 +85,19 @@ namespace OpenFF
 
 		public IReadOnlyList<DrawCommand> Commands => _commands;
 
+		/// <summary>
+		/// The commands after this call, until the next call or the end of the frame, are one thing on the screen -
+		/// a damage number, a tag over a character: whatever stands for it while it lasts (the object itself, or a
+		/// number the mod keeps for it; Equals decides). Between two of the game's steps a thing slides from where
+		/// it was to where it is, and things that draw alike are then never taken for one another. Null ends the group.
+		/// </summary>
+		public void Group(object thing) => _group = thing;
+
 		/// <summary>Text at a position, in the game's own font. Sizes as the game's: 12 small, 16 normal.</summary>
 		public void Text(string text, float x, float y, Color color, int size = 12)
 		{
 			if (string.IsNullOrEmpty(text)) return;
-			_commands.Add(new DrawCommand { Kind = DrawKind.Text, X = x, Y = y, Text = text, Color = color, Size = size });
+			_commands.Add(new DrawCommand { Kind = DrawKind.Text, X = x, Y = y, Text = text, Color = color, Size = size, Group = _group });
 		}
 
 		public float MeasureText(string text, int size = 12)
@@ -86,12 +107,12 @@ namespace OpenFF
 
 		public void Rect(float x, float y, float w, float h, Color color, bool filled = true)
 		{
-			_commands.Add(new DrawCommand { Kind = DrawKind.Rect, X = x, Y = y, W = w, H = h, Color = color, Filled = filled });
+			_commands.Add(new DrawCommand { Kind = DrawKind.Rect, X = x, Y = y, W = w, H = h, Color = color, Filled = filled, Group = _group });
 		}
 
 		public void Line(float x1, float y1, float x2, float y2, Color color, float thickness = 1f)
 		{
-			_commands.Add(new DrawCommand { Kind = DrawKind.Line, X = x1, Y = y1, X2 = x2, Y2 = y2, Color = color, W = thickness });
+			_commands.Add(new DrawCommand { Kind = DrawKind.Line, X = x1, Y = y1, X2 = x2, Y2 = y2, Color = color, W = thickness, Group = _group });
 		}
 
 		/// <summary>A texture (or part of it) drawn into a rectangle, tinted, turned about its centre.</summary>
@@ -103,6 +124,7 @@ namespace OpenFF
 			{
 				Kind = DrawKind.Sprite, Texture = texture, X = x, Y = y, W = w, H = h, Color = tint ?? Color.White, Rotation = rotation,
 				SrcX = srcX, SrcY = srcY, SrcW = srcW <= 0 ? texture.Width : srcW, SrcH = srcH <= 0 ? texture.Height : srcH,
+				Group = _group,
 			});
 		}
 
@@ -114,7 +136,7 @@ namespace OpenFF
 		public void Banner(string text)
 		{
 			if (string.IsNullOrEmpty(text)) return;
-			_commands.Add(new DrawCommand { Kind = DrawKind.Banner, Text = text, Color = Color.White });
+			_commands.Add(new DrawCommand { Kind = DrawKind.Banner, Text = text, Color = Color.White, Group = _group });
 		}
 
 		/// <summary>Loads a picture from a file; null (and a warning) when it cannot.</summary>
@@ -142,8 +164,12 @@ namespace OpenFF
 			catch (Exception ex) { Game.Warn("Draw.LoadTexture " + key + ": " + ex.Message); return null; }
 		}
 
-		/// <summary>Host entry: the frame's commands were drawn.</summary>
-		public void Clear() => _commands.Clear();
+		/// <summary>Host entry: the engine's next frame is about to draw; the last one's commands go, and any group with them.</summary>
+		public void Clear()
+		{
+			_commands.Clear();
+			_group = null;
+		}
 	}
 
 	public static partial class Game

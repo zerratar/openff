@@ -56,9 +56,14 @@ internal static partial class GlobalScope
 							pt_reuse_vTrans.vz = centerPosition.vz + particle[i].Center.vz;
 							MTX_MultVec43(pt_reuse_vTrans, pt_reuse_mCamera, pt_reuse_vTrans);
 							G3_Translate(pt_reuse_vTrans.vx, pt_reuse_vTrans.vy, pt_reuse_vTrans.vz);
-							G3_Begin(GXBegin.GX_BEGIN_QUADS);
-							particle[i].packCommand();
-							G3_End();
+							// PORT: each particle's quad is its own (FrameCapture), this life of it: the effect's
+							// particles all look alike, and drop out and are born again in their slots.
+							using (OpenFF.Client.FrameCapture.Own(particle[i], particle[i].Generation))
+							{
+								G3_Begin(GXBegin.GX_BEGIN_QUADS);
+								particle[i].packCommand();
+								G3_End();
+							}
 							G3_Translate(-pt_reuse_vTrans.vx, -pt_reuse_vTrans.vy, -pt_reuse_vTrans.vz);
 						}
 					}
@@ -88,9 +93,12 @@ internal static partial class GlobalScope
 							MTX_MultVec43(pt_reuse_vTrans, pt_reuse_mCamera, pt_reuse_vTrans);
 							G3_Translate(pt_reuse_vTrans.vx, pt_reuse_vTrans.vy, pt_reuse_vTrans.vz);
 							G3_Scale(particle[i].Size.vx, particle[i].Size.vy, 0);
-							G3_Begin(GXBegin.GX_BEGIN_QUADS);
-							particle[i].packCommand();
-							G3_End();
+							using (OpenFF.Client.FrameCapture.Own(particle[i], particle[i].Generation))   // PORT: as drawParticles
+							{
+								G3_Begin(GXBegin.GX_BEGIN_QUADS);
+								particle[i].packCommand();
+								G3_End();
+							}
 							G3_RestoreMtx(1);
 						}
 					}
@@ -117,9 +125,12 @@ internal static partial class GlobalScope
 							pt_reuse_vTrans.set(centerPosition.vx + polygon[i].Center.vx, centerPosition.vy + polygon[i].Center.vy, centerPosition.vz + polygon[i].Center.vz);
 							MTX_MultVec43(pt_reuse_vTrans, pt_reuse_mCamera, pt_reuse_vTrans);
 							G3_Translate(pt_reuse_vTrans.vx, pt_reuse_vTrans.vy, pt_reuse_vTrans.vz);
-							G3_Begin(GXBegin.GX_BEGIN_QUADS);
-							polygon[i].packCommand();
-							G3_End();
+							using (OpenFF.Client.FrameCapture.Own(polygon[i]))   // PORT: as drawParticles
+							{
+								G3_Begin(GXBegin.GX_BEGIN_QUADS);
+								polygon[i].packCommand();
+								G3_End();
+							}
 							G3_RestoreMtx(1);
 						}
 					}
@@ -228,6 +239,9 @@ internal static partial class GlobalScope
 
 				public ushort PolygonID;
 
+				/// <summary>PORT: which life of the particle this is, a new one each time its group is created again (FrameCapture: a particle born again is not the old one moving).</summary>
+				public int Generation;
+
 				public void destruct()
 				{
 				}
@@ -263,6 +277,9 @@ internal static partial class GlobalScope
 				public short Disp;
 
 				public ushort PolygonID;
+
+				/// <summary>PORT: as Particle.Generation.</summary>
+				public int Generation;
 
 				public void destruct()
 				{

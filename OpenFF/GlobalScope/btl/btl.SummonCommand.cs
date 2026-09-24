@@ -292,6 +292,7 @@ internal static partial class GlobalScope
 
 			public bool chengeCamera(CommandParameter param)
 			{
+				OpenFF.Client.FrameCapture.CameraCut();   // PORT: the summon script's CHANGE_CAMERA puts the camera there at once
 				battleDisplay.getBattleCamera().setPosition(param.param1_, param.param2_, param.param3_);
 				battleDisplay.getBattleCamera().setTarget(param.param4_, param.param5_, param.param6_);
 				return true;

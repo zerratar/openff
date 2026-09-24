@@ -73,6 +73,9 @@ internal static partial class GlobalScope
 
 			protected override void doInitialize()
 			{
+				// PORT: the battle's music, asked for again here for a battle the world did not
+				// fade into (prefetchMusic): one it did was asked for as its fade began.
+				prefetchMusic();
 				ovl.overlayRegister.ChangeOverlay(ovl.OVERLAYINDEX.PART_BATTLE);
 				battleSystem_ = new BattleSystem();
 				GX_SetDispSelect(GXDispSelect.GX_DISP_SELECT_SUB_MAIN);
@@ -220,6 +223,12 @@ internal static partial class GlobalScope
 					{
 						dgs.CFade.Main().fadeOut(15, dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 						dgs.CFade.Sub().fadeOut(15, dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+						// PORT: a defeat that ends at the title (the choice below, once the fade is
+						// done): the title's music decoded ahead during the fade.
+						if (BattleToOutside.getInstance().battleResult() == BATTLE_RESULT.LOSE && sys.GGlobal.getPreviousPart() != GAMEPART.GAMEPART_DEBUG_MENU && !OutsideToBattle.getInstance().restart())
+						{
+							SoundManager.prefetchBGM(TITLE_BGM);
+						}
 						phase_ = EndPhase.NextPart;
 					}
 					else if (phase_ == EndPhase.NextPart && dgs.CFade.Main().isFaded() && dgs.CFade.Sub().isFaded())
@@ -285,6 +294,48 @@ internal static partial class GlobalScope
 			private BattleSystem getBattleSystem()
 			{
 				return battleSystem_;
+			}
+
+			// PORT: the tunes BattleLose (loadAndPlay(2, 0)) and the title part (play(0, ...)) start.
+			private const int BATTLE_LOSE_BGM = 2;
+
+			private const int TITLE_BGM = 0;
+
+			/// <summary>
+			/// PORT: the battle's music decoded ahead on OggSound's worker - its theme first, which
+			/// BattleSystem.initialize starts in doInitialize's own step, then the victory fanfare
+			/// and the defeat's theme for its end. Decoded as they started, the first of each held
+			/// its step 50-100 ms. The world asks as its fade into the battle begins (CStateFieldEnd,
+			/// CStateTownEnd), once the battle's type is set: the fade and the encounter's effect
+			/// give the worker a second and more, mostly waiting on the display. Asked in
+			/// doInitialize alone, it had only the rest of the battle's load, and sharing the
+			/// machine with that load it often had not finished the theme at 60 frames a second -
+			/// the step decoded the intro itself and waited for the loop. doInitialize still asks,
+			/// for a battle nothing faded into; what is already decoded or on its way is left as it is.
+			/// </summary>
+			public static void prefetchMusic()
+			{
+				SoundManager.prefetchBGM(battleTheme());
+				SoundManager.prefetchBGM(BattleBGM.FANFARE);
+				SoundManager.prefetchBGM(BATTLE_LOSE_BGM);
+			}
+
+			/// <summary>PORT: the theme BattleBGM.startBattleBGM will start for this battle, or -1.</summary>
+			private static int battleTheme()
+			{
+				switch (OutsideToBattle.getInstance().battleType())
+				{
+				case BATTLE_TYPE.NORMAL_BATTLE:
+					return BattleBGM.NORMAL_BATTLE_BGM;
+				case BATTLE_TYPE.EVENT_BATTLE:
+					return BattleBGM.EVENT_BATTLE_BGM;
+				case BATTLE_TYPE.BOSS_BATTLE:
+					return BattleBGM.BOSS_BATTLE_BGM;
+				case BATTLE_TYPE.LAST_BOSS_BATTLE:
+					return BattleBGM.LAST_BOSS_BATTLE_BGM;
+				default:
+					return -1;
+				}
 			}
 		}
 	}

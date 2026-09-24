@@ -44,7 +44,12 @@ public class MediaPlayer
 		}
 		if (m_Sound != null)
 		{
-			if (!m_Shared)
+			if (m_Shared)
+			{
+				// Handed back, the instance above disposed: the cache keeps it while there is room.
+				OpenFF.Client.OggSound.Release(m_Name, m_Sound);
+			}
+			else
 			{
 				m_Sound.Dispose();
 			}
@@ -61,18 +66,22 @@ public class MediaPlayer
 	{
 		// PORT: the content chain first - a Steam install's sound/<name>.ogg, FF4's
 		// .akb - and the XNB the phone build shipped only when there is none.
-		m_Sound = OpenFF.Client.OggSound.Load(path);
+		m_Sound = OpenFF.Client.OggSound.Acquire(path);
 		if (m_Sound != null)
 		{
 			m_Shared = true;
+			m_Name = path;
 			return;
 		}
 		m_Content = GlobalScope.m_Graphics.CreateContentManager();
 		m_Sound = m_Content.Load<SoundEffect>(path);
 	}
 
-	// A decoded Ogg is cached and shared between players, so release() must not dispose it.
+	// A decoded Ogg is cached and shared between players, so release() must not dispose it:
+	// it gives it back to the cache (OggSound.Release) under the name it was asked for by.
 	private bool m_Shared;
+
+	private string m_Name;
 
 	public void setLooping(bool looping)
 	{

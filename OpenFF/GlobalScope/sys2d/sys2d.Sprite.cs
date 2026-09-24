@@ -71,6 +71,9 @@ internal static partial class GlobalScope
 
 			public int m_iIndex;
 
+			/// <summary>PORT: how many times the sprite has been registered with the 2D manager: a sprite taken out and put back (a damage number's digits, reused) is a new thing to FrameCapture, not the old one moved.</summary>
+			public int m_iRegistration;
+
 			public Sprite()
 			{
 				m_Flag = 0u;

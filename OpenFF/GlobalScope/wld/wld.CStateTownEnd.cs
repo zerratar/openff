@@ -123,6 +123,8 @@ internal static partial class GlobalScope
 				else if (_sys.IsBattle())
 				{
 					MapSound.setBGMVolume(0, 15);
+					// PORT: the battle's music decoded ahead during the fade and the encounter (BattlePart.prefetchMusic).
+					btl.BattlePart.prefetchMusic();
 				}
 				g_encountWorkFrame = 0;
 				g_encountState = 0;

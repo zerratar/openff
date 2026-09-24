@@ -638,6 +638,9 @@ namespace OpenFF.Client
 				byte alpha = (byte)(t > 55 ? Math.Max(0, 255 - (t - 55) * 17) : 255);
 				Color tint = p.Heal ? new Color(Ff4Ui.HealTint.R, Ff4Ui.HealTint.G, Ff4Ui.HealTint.B, alpha) : new Color(255, 255, 255, alpha);
 				float x = screen.Value.X, y = screen.Value.Y + rise;
+				// Each number its own thing on the screen: two numbers share their digits' pictures, and a new one is
+				// drawn ahead of the rest, so between two steps each rises from its own last place, not another's.
+				d.Group(p);
 				bool drawn = p.Word >= 0 ? Ff4Ui.Word(d, x, y, p.Word, tint) : Ff4Ui.Number(d, x, y, p.Value, tint);
 				if (!drawn)
 				{
@@ -646,6 +649,7 @@ namespace OpenFF.Client
 					d.Text(text, x - d.MeasureText(text, 22) / 2, y - 11, tint, 22);
 				}
 			}
+			d.Group(null);
 		}
 
 		/// <summary>Plays a battle motion on a member: the leader is the hero, the others their spawned models.</summary>

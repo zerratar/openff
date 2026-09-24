@@ -982,6 +982,8 @@ internal static partial class GlobalScope
 			public void setup()
 			{
 				setUpMapParameter();
+				// PORT: the map's music, known from here on, decoded ahead while the map loads (MapSound.prefetch).
+				MapSound.prefetch(this);
 				OpenFF.Client.Ff4Exits.Load(sceneMng.getStage());
 				setUpPcParameter();
 				setUpNpcParameter();

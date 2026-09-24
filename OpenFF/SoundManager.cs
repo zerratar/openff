@@ -4,7 +4,8 @@ using OpenFF.Platform;
 
 internal class SoundManager : MediaPlayer.OnCompletionListener
 {
-	private readonly Dictionary<string, int> SoundAssignTable = new Dictionary<string, int>
+	// PORT: static, so that prefetchSound can ask which parts a sound has without a player.
+	private static readonly Dictionary<string, int> SoundAssignTable = new Dictionary<string, int>
 	{
 		{ "BGM00", 2 },
 		{ "BGM01", 3 },
@@ -534,14 +535,15 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 		soundFilename[channel] = filename;
 		MediaPlayer[,] array = sound;
 		float num = soundVolume[channel];
-		// PORT: a sound the table does not know - a mod's own tune under a free number
-		// (BGM30..BGM59: the BGM table has the numbers, the game ships no files), or its
-		// own effect - has whatever parts the content chain holds: _0 the intro, _1 the loop.
-		int parts;
-		if (!SoundAssignTable.TryGetValue(filename, out parts))
+		int parts = partsOf(filename, out bool own);
+		if (own && parts != 0) OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "sound: " + filename + " is the mods' own (parts " + parts + ")");
+		// PORT: the two parts start together, so a tune nothing decoded ahead held the step
+		// for both decodes, one after the other. The loop goes to OggSound's worker, first in
+		// its queue, while the intro decodes here: the step waits for the longer of the two.
+		// Already decoded or decoding, it is left as it is.
+		if (parts == 3)
 		{
-			parts = (OpenFF.Client.OggSound.Has(filename + "_0") ? 1 : 0) | (OpenFF.Client.OggSound.Has(filename + "_1") ? 2 : 0);
-			if (parts != 0) OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "sound: " + filename + " is the mods' own (parts " + parts + ")");
+			OpenFF.Client.OggSound.Prefetch(filename + "_1", soon: true);
 		}
 		for (int i = 0; i < 2; i++)
 		{
@@ -584,6 +586,76 @@ internal class SoundManager : MediaPlayer.OnCompletionListener
 		{
 			soundState[channel] = 1;
 			array[channel, 1].start();
+		}
+	}
+
+	// PORT: a sound the table does not know - a mod's own tune under a free number
+	// (BGM30..BGM59: the BGM table has the numbers, the game ships no files), or its
+	// own effect - has whatever parts the content chain holds: _0 the intro, _1 the loop.
+	private static int partsOf(string filename, out bool own)
+	{
+		own = false;
+		if (SoundAssignTable.TryGetValue(filename, out int parts))
+		{
+			return parts;
+		}
+		own = true;
+		return (OpenFF.Client.OggSound.Has(filename + "_0") ? 1 : 0) | (OpenFF.Client.OggSound.Has(filename + "_1") ? 2 : 0);
+	}
+
+	/// <summary>
+	/// PORT: a sound the game will soon play, its parts decoded ahead on OggSound's worker
+	/// so that playSound finds them done instead of decoding them in its step (50-100 ms
+	/// for a tune, the first time it plays). On the game thread; what is already decoded,
+	/// or not in the chain, is left alone. The loop is asked for first: it is the longer,
+	/// and should the tune be wanted before the worker reaches the intro, the game thread
+	/// decodes the intro itself while the worker finishes the loop. Never throws: it is
+	/// only ever a head start, and playSound decodes whatever it does not find.
+	/// </summary>
+	public static void prefetchSound(string filename)
+	{
+		if (string.IsNullOrEmpty(filename))
+		{
+			return;
+		}
+		try
+		{
+			int parts = partsOf(filename, out _);
+			for (int i = 1; i >= 0; i--)
+			{
+				if ((parts & (1 << i)) != 0)
+				{
+					OpenFF.Client.OggSound.Prefetch(filename + "_" + i);
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "sound: " + filename + " not decoded ahead: " + ex.Message);
+		}
+	}
+
+	/// <summary>
+	/// PORT: prefetchSound for a tune by the game's BGM number, as MtxSoundBGM.play takes it:
+	/// its sequence number is the file's, BGMnn (NNS_SndUpdate names it the same way).
+	/// </summary>
+	public static void prefetchBGM(int bgmNo)
+	{
+		if (bgmNo < 0 || !GlobalScope.ds.BGMHandle.m_BGMEnabler)
+		{
+			return;
+		}
+		try
+		{
+			GlobalScope.BGMInfo info = GlobalScope.BGMInfoMng.getSingleton().getBGMInfo(bgmNo);
+			if (info != null && info.getSeqNo() >= 0)
+			{
+				prefetchSound(string.Format(System.Globalization.CultureInfo.InvariantCulture, "BGM{0:00}", info.getSeqNo()));
+			}
+		}
+		catch (Exception ex)
+		{
+			OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "sound: BGM " + bgmNo + " not decoded ahead: " + ex.Message);
 		}
 	}
 

@@ -10,7 +10,8 @@
 //                OAMs are drawn at (green on the sub plane, magenta on the 3D plane)
 //   F5  world    which part of the game is running, the loaded stage and its type,
 //                the hero's position and chip spot, whether the field is mirrored
-//   F6  stats    frame time, draw calls and vertices this frame, memory, viewport
+//   F6  stats    frame time, draw calls and vertices this frame, memory, viewport, and the
+//                pacer's last half second - how evenly the frames went out and moved
 //   F7  free camera   fly about the scene with the mouse and WASD, the player's input held
 //                off meanwhile (FreeCamera.cs) - for a close look at what is drawn
 //
@@ -26,6 +27,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -68,6 +70,11 @@ namespace OpenFF.Client
         private double _stepsPerSecond;
         private long _stepsAtLastFps;
         private double _pacingLoggedAt;
+        // The pacer's window of frames: the last half second's for the overlay, and everything since
+        // the last pacing line for the log, so neither is one arbitrary frame's sample.
+        private PacingWindow _pacing, _pacingLogged;
+        // The capture's counts over the same windows: what the replays paired, blended, snapped and cut.
+        private FrameCapture.WindowStats _capture, _captureLogged;
         private KeyboardState _previous;
         private SpriteBatch _batch;
         private Texture2D _pixel;
@@ -172,11 +179,17 @@ namespace OpenFF.Client
                 _stepsAtLastFps = GameHost.StepsTaken;
                 _fpsAccumulated = 0;
                 _fpsFrames = 0;
-                // --log-stalls: the pacing every five seconds as well - display frames and the game's steps a second, how many draws blended.
+                _pacing = FramePacer.TakeWindow();
+                _pacingLogged.Add(_pacing);
+                _capture = FrameCapture.TakeWindowStats();
+                _captureLogged = Sum(_captureLogged, _capture);
+                // --log-stalls: the pacing every five seconds as well, over the whole five seconds.
                 if (_logStalls && now - _pacingLoggedAt >= 5000)
                 {
                     _pacingLoggedAt = now;
-                    Log.Write(LogChannel.General, "pacing: " + _fps.ToString("0.0") + " fps, " + _stepsPerSecond.ToString("0.0") + " steps/s, blend " + FrameCapture.Blended + "/" + (FrameCapture.Blended + FrameCapture.Snapped) + " draws, " + _frameMs.ToString("0.0") + " ms");
+                    Log.Write(LogChannel.General, "pacing: " + PacingRates(_pacingLogged) + ", " + PacingFaults(_pacingLogged) + "; " + CaptureCounts(_captureLogged) + "; " + FramePacer.Plan.Describe());
+                    _pacingLogged = default;
+                    _captureLogged = default;
                 }
             }
             // --log-stalls: a frame that took over 50 ms is written to the log with what was going on, to find where a hitch comes from.
@@ -476,6 +489,42 @@ namespace OpenFF.Client
                 .Append("  blend ").Append(FrameCapture.Blended).Append('/').Append(FrameCapture.Blended + FrameCapture.Snapped).Append('\n');
             _text.Append("view ").Append(view.Width).Append('x').Append(view.Height).Append("  lcd ").Append(GlobalScope.LCD_WIDTH).Append('x').Append(GlobalScope.LCD_HEIGHT)
                 .Append("  mem ").Append((GC.GetTotalMemory(false) / (1024 * 1024)).ToString()).Append(" MB\n");
+            // The pacer over the last half second, and how the frames go out.
+            _text.Append("pacing ").Append(PacingRates(_pacing)).Append('\n');
+            _text.Append("  ").Append(PacingFaults(_pacing)).Append('\n');
+            _text.Append("  ").Append(CaptureCounts(_capture)).Append('\n');
+            _text.Append("  ").Append(FramePacer.Plan.Describe()).Append('\n');
+        }
+
+        /// <summary>A window of the pacer's frames: the rate, the steps, and how evenly the frames went out and the picture moved (frame to frame, and against the time each frame stood for).</summary>
+        private static string PacingRates(PacingWindow w)
+        {
+            CultureInfo c = CultureInfo.InvariantCulture;
+            return w.Fps.ToString("0.0", c) + " fps, " + w.StepsPerSecond.ToString("0.00", c) + " steps/s, frames " + w.IntervalMs.ToString("0.00", c) + " ms +-" + w.IntervalSdMs.ToString("0.00", c)
+                + ", motion +-" + (w.AdvanceSd * 100).ToString("0.0", c) + "% (+-" + (w.MotionSd * 100).ToString("0.0", c) + "% against the time)";
+        }
+
+        /// <summary>What went wrong in a window of the pacer's frames: pictures that stood or jumped, refreshes missed, intervals the clock could not snap, hitches and stalls; the drift, and the refresh the snapped intervals measure.</summary>
+        private static string PacingFaults(PacingWindow w)
+        {
+            CultureInfo c = CultureInfo.InvariantCulture;
+            return w.Repeated + " repeated, " + w.Doubled + " doubled, " + w.Missed + " refreshes missed, " + w.Unsnapped + " unsnapped, " + w.Stalls + " hitches, drift " + w.DriftMs.ToString("0.0", c) + " ms"
+                + (w.MeasuredHz > 0 ? ", refresh measured " + w.MeasuredHz.ToString("0.00", c) + " Hz" : "");
+        }
+
+        /// <summary>A window of the capture's replays: of the draws on frames between two steps, how many were interpolated, paired but drawn as they were, or had nothing to pair with; and the frames a cut of the scene stood in.</summary>
+        private static string CaptureCounts(FrameCapture.WindowStats w)
+        {
+            return "blend " + w.Blended + "/" + (w.Blended + w.Snapped) + " of " + w.Draws + " draws, " + w.Unmatched + " unmatched, " + w.Cuts + " cuts over " + w.Frames + " frames";
+        }
+
+        private static FrameCapture.WindowStats Sum(FrameCapture.WindowStats a, FrameCapture.WindowStats b)
+        {
+            return new FrameCapture.WindowStats
+            {
+                Frames = a.Frames + b.Frames, Draws = a.Draws + b.Draws, Blended = a.Blended + b.Blended,
+                Snapped = a.Snapped + b.Snapped, Unmatched = a.Unmatched + b.Unmatched, Cuts = a.Cuts + b.Cuts
+            };
         }
 
         // ---- coordinate spaces ----

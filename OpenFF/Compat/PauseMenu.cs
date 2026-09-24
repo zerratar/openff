@@ -241,13 +241,14 @@ namespace OpenFF.Client
 				case 3:
 					s.VSync = !s.VSync;
 					if (gdm != null) { gdm.SynchronizeWithVerticalRetrace = s.VSync; try { gdm.ApplyChanges(); } catch (Exception) { } }
+					_note = FpsNote(s.Fps);   // VSync changes what the frame rate does
 					break;
 				case 4:
 				{
 					string[] rates = { "30", "60", "max" };
 					int i = Array.IndexOf(rates, s.Fps); if (i < 0) i = 1;
 					s.Fps = rates[(i + by + rates.Length) % rates.Length];
-					_note = s.Fps == "30" ? "the game's frames as they are, thirty a second" : "a frame drawn between each two of the game's - motion and the camera smoothed; the game itself runs as it always has";
+					_note = FpsNote(s.Fps);
 					break;
 				}
 				case 5:
@@ -399,6 +400,73 @@ namespace OpenFF.Client
 			if (_page == Page.Buttons) return new[] { (Ui.PadButton.A, _binding == null ? "Bind" : "Press a button"), (Ui.PadButton.B, "Back") };
 			return new[] { (Ui.PadButton.A, "Select"), (Ui.PadButton.B, "Back") };
 		}
+
+		/// <summary>The Frame rate row's value: what the setting does on this display (FramePacer's plan for it).</summary>
+		private static string FpsValue(string fps)
+		{
+			PresentPlan p = FramePacer.PlanFor(fps);
+			string hz = p.RefreshHz > 0 ? Math.Round(p.RefreshHz).ToString("0") + " Hz" : null;
+			if (fps == "30") return "30 - as the game draws";
+			if (fps == "60")
+			{
+				// Any rate but sixty said so: the nearest even rate above it on a display sixty does not
+				// divide or a swap interval cannot hold, the clock's even rate when VSync gave way.
+				if (hz != null && Math.Abs(p.Rate - 60) > 60 * PresentPlan.Tolerance) return "60 - smoothed, " + p.Rate.ToString("0.#") + " a second at " + hz;
+				return "60 - smoothed";
+			}
+			// VSync off, "max" is the clock's rate, not the display's.
+			if (p.Swap == 0) return "Display's rate - smoothed, " + p.Rate.ToString("0") + " a second (VSync off)";
+			return hz == null ? "Display's rate - smoothed" : "Display's rate - smoothed (" + hz + ")";
+		}
+
+		/// <summary>The note under the settings when the Frame rate or VSync changes: what the plan does, and why when it is not what the setting asks.</summary>
+		private static string FpsNote(string fps)
+		{
+			PresentPlan p = FramePacer.PlanFor(fps);
+			string hz = p.RefreshHz > 0 ? Math.Round(p.RefreshHz).ToString("0") + " Hz" : null;
+			string rate = p.Rate.ToString("0.#");
+			const string Runs = "; the game itself runs as it always has";
+			if (fps == "30")
+			{
+				if (p.Swap == 0) return "the game's frames as they are, thirty a second by the clock (VSync off)";
+				if (p.Held || hz == null) return "the game's frames as they are, thirty a second";
+				// Paced by the clock on a known refresh: one slower than thirty, one thirty does not divide,
+				// or a whole multiple no swap interval here holds.
+				double per = p.RefreshHz / 30;
+				if (per < 1 - PresentPlan.Tolerance) return "the game's frames as they are - " + hz + " is slower than thirty, so some are never shown";
+				int wants = PresentPlan.RefreshesFor(p.RefreshHz, 30);
+				if (Math.Abs(per / wants - 1) > PresentPlan.Tolerance)
+					return "the game's frames as they are - " + hz + " is no multiple of thirty, so each is held " + Math.Floor(per).ToString("0") + " or " + Math.Ceiling(per).ToString("0") + " refreshes";
+				return "the game's frames, thirty a second by the clock - " + NotHeld(wants, "thirty");
+			}
+			if (fps == "60")
+			{
+				if (p.Swap == 0) return "sixty a second by the clock (VSync off), a frame drawn between each two of the game's - motion smoothed";
+				if (hz == null || Math.Abs(p.Rate - 60) <= 60 * PresentPlan.Tolerance && p.Held) return "a frame drawn between each two of the game's - motion and the camera smoothed" + Runs;
+				if (!p.Held) return "VSync is not holding the loop: " + rate + " a second by the clock, each drawn between two of the game's";
+				int wants = PresentPlan.RefreshesFor(p.RefreshHz, 60);
+				string every = p.Swap == 1 ? "every refresh" : p.Swap == 2 ? "every second refresh" : p.Swap == 3 ? "every third refresh" : "every " + p.Swap + "th refresh";
+				string why = p.Swap < wants ? " - " + NotHeld(wants, "sixty") : ", so each is held evenly";
+				if (Math.Abs(p.RefreshHz / wants - 60) > 60 * PresentPlan.Tolerance) return hz + " is no multiple of sixty: a frame " + every + ", " + rate + " a second" + why;
+				return "at " + hz + " a frame " + every + ", " + rate + " a second" + why;
+			}
+			if (p.Swap == 0) return "a frame drawn " + p.Rate.ToString("0") + " times a second by the clock (VSync off), smoothed" + Runs;
+			if (hz == null) return "a frame drawn at the display's rate, " + rate + " a second at most, smoothed" + Runs;
+			if (!p.Held) return "VSync is not holding the loop: " + rate + " a second by the clock, smoothed" + Runs;
+			return "a frame drawn every refresh at " + hz + ", smoothed" + Runs;
+		}
+
+		// Why a frame is held fewer refreshes than its rate wants (wants): no swap interval that long can
+		// be set here, or the one set did not hold, and the plan gave way.
+		private static string NotHeld(int wants, string rate)
+		{
+			int most = FramePacer.MostSwap;
+			if (wants <= 1) return "VSync is not holding the loop";
+			if (most <= 1) return "a swap interval cannot be set here";
+			if (wants > most) return "a swap interval holds " + most + " refreshes at most, and " + rate + " wants " + wants;
+			return "a swap interval of " + wants + " is not holding";
+		}
+
 		private void RowText(int row, out string label, out string value)
 		{
 			DisplaySettings s = DisplaySettings.Current;
@@ -417,7 +485,7 @@ namespace OpenFF.Client
 						case 1: label = "Window size"; value = s.Width + " x " + s.Height; return;
 						case 2: label = "Anti-aliasing"; value = s.Msaa == 0 ? "Off" : s.Msaa + "x"; return;
 						case 3: label = "VSync"; value = s.VSync ? "On" : "Off"; return;
-						case 4: label = "Frame rate"; value = s.Fps == "30" ? "30 - as the game draws" : s.Fps == "60" ? "60 - smoothed" : "Display's rate - smoothed"; return;
+						case 4: label = "Frame rate"; value = FpsValue(s.Fps); return;
 						case 5: label = "Run"; value = s.Run == "stick" ? "By the stick's push" : "Hold the run button"; return;
 						case 6: label = "Pad buttons..."; return;
 						default: label = "Back"; return;

@@ -278,6 +278,10 @@ namespace OpenFF.Client
 			_playing = motion;
 			_frame = 1;
 			_loop = loop;
+			// A new shot, from its first frame: a cut from wherever the camera stood (the slide between two shots
+			// is not built), which the frame capture is told - the camera's own update sees the same drive as the
+			// shot before's.
+			FrameCapture.CameraCut();
 			GlobalScope.cmr.CWorldCamera.ExternalDrive = Drive;
 			Log.Write(LogChannel.File, "script: FF4 camera motion " + id + " from " + set.Name + ", " + motion.Frames + " frames" + (loop ? ", looping" : ""));
 			return true;
@@ -318,6 +322,7 @@ namespace OpenFF.Client
 			else if (_loop)
 			{
 				_frame = 1;
+				FrameCapture.CameraCut();   // back to its first frame: a cut, unless the motion ends where it starts
 			}
 		}
 

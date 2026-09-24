@@ -128,13 +128,19 @@ internal static partial class GlobalScope
 				{
 					if (_alpha > 0 && _bEnable && _pResMdl != null && _pRenderObject != null && SHADOW_TYPE.SHADOW_TYPE_ERROR != _type)
 					{
-						if (_type == SHADOW_TYPE.SHADOW_TYPE_VOLUME)
+						// PORT: every character's shadow is the one shared shadow model, so its draws look
+						// alike; whose shadow it is keeps each paired with its own (FrameCapture) when one
+						// fades out or the layer is reordered.
+						using (OpenFF.Client.FrameCapture.Own(this))
 						{
-							drawShadowVolume();
-						}
-						if (SHADOW_TYPE.SHADOW_TYPE_POLYGON == _type)
-						{
-							drawShadowPolygon();
+							if (_type == SHADOW_TYPE.SHADOW_TYPE_VOLUME)
+							{
+								drawShadowVolume();
+							}
+							if (SHADOW_TYPE.SHADOW_TYPE_POLYGON == _type)
+							{
+								drawShadowPolygon();
+							}
 						}
 					}
 				}

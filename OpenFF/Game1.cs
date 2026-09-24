@@ -60,6 +60,8 @@ public class Game1 : Game
 	protected override void LoadContent()
 	{
 		GlobalScope.m_Graphics.LoadContent();
+		// The window whose display's refresh paces the frames, and whose focus the VSync check heeds.
+		OpenFF.Client.FramePacer.Attach(this);
 		OpenFF.Client.GameHost.Create();
 		base.LoadContent();
 	}
@@ -93,16 +95,12 @@ public class Game1 : Game
 			OpenFF.Client.DesktopInput.Update();
 		}
 
-		// Fast-forward (hold Tab). Normally this just flips the game's own boost flag
-		// and runs a single update, exactly as the original did.
-		// Fast-forward. Android.onUpdate() was empty, so the game's whole tick ran
-		// from the draw callback; --speed therefore has to run extra ticks here, on
-		// top of the one Draw performs.
-		int repeats = OpenFF.Client.DesktopInput.BeginFrame();
-		for (int i = 1; i < repeats; i++)
-		{
-			OpenFF.Client.GameHost.Tick();
-		}
+		// Fast-forward (hold Tab). This flips the game's own boost flag, which render()
+		// reads to run three of its frames a step, exactly as the original did. --speed's
+		// multiple on top is run by the next paced frame (GameHost.Speed): Android.onUpdate()
+		// was empty and the game's whole tick runs from the draw callback, and running extra
+		// ticks here, once per display frame, would tie the speed to the display's rate.
+		OpenFF.Client.GameHost.Speed = OpenFF.Client.DesktopInput.BeginFrame();
 
 		try
 		{
@@ -143,7 +141,9 @@ public class Game1 : Game
 			GlobalScope.m_Graphics.clear();
 		}
 		base.Draw(gameTime);
-		// With VSync off, the presentation is held to the Fps setting's rate here, before the present.
+		// Before the present: the swap interval the display's refresh calls for, and Hold's wait -
+		// the Fps setting's rate by the clock with VSync off (or not holding), only a ceiling above
+		// it where VSync holds the loop.
 		OpenFF.Client.FramePacer.Hold();
 	}
 }

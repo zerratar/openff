@@ -293,7 +293,7 @@ namespace OpenFF.Client
 		private static int _lastX;
 		private static int _lastY;
 
-		/// <summary>Extra update passes per frame, on top of boost. Opt in with FF3_SPEED.</summary>
+		/// <summary>Steps run for each paced step while fast-forwarding, on top of boost. Opt in with --speed (FF3_SPEED).</summary>
 		private static int _fastForwardFactor = 1;
 
 		public static void Attach(Game game)
@@ -302,20 +302,22 @@ namespace OpenFF.Client
 			int speed = Options.GetInt("speed", 1);
 			if (speed >= 1)
 			{
-				_fastForwardFactor = Math.Min(speed, 64);
+				_fastForwardFactor = Math.Min(speed, FramePacer.MostSpeed);
 			}
 		}
 
 		/// <summary>
-		/// Fast-forward, called once per frame before the game updates.
+		/// Fast-forward, called once per frame before the game updates; returns --speed's multiple
+		/// for the frame (GameHost.Speed), 1 when not fast-forwarding.
 		///
 		/// GlobalScope.boost is the game's own speed switch: the frame-catch-up loop in
 		/// render() multiplies its iteration count by 3 when it is set. It is declared
 		/// and read but never assigned anywhere in the decompiled code - the Android
 		/// build drove it over JNI - so setting it here is free and safe.
 		///
-		/// FF3_SPEED asks for more than boost gives by running extra update passes. That
-		/// is cruder (it re-runs the whole render path), so it stays opt-in.
+		/// --speed (FF3_SPEED) asks for more than boost gives: each step the pacer gives runs
+		/// that many of the game's, in render()'s catch-up loop, the drawing of all but the last
+		/// skipped. It stays opt-in.
 		/// </summary>
 		public static int BeginFrame()
 		{
