@@ -84,7 +84,9 @@ internal static partial class GlobalScope
 				turn_.setSummonDataManager(B.summonDataManager());
 				turn_.setState(0);
 				turn_.setCharacterManager(B.characterManager());
-				if (!OutsideToBattle.getInstance().isFreeMode())
+				// PORT: the glide from the command view to the fight's; auto battle kept the camera on the fight already
+				// (the glide moves by steps from the command view, and from elsewhere it would overshoot).
+				if (!OutsideToBattle.getInstance().isFreeMode() && OutsideToBattle.getInstance().battleCamera() != BATTLE_CAMERA.MAIN_CAMERA)
 				{
 					OutsideToBattle.getInstance().setBattleCamera(BATTLE_CAMERA.MOVE_CAMERA);
 					battleDisplay.setMoveFrame(18);

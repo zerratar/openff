@@ -234,6 +234,7 @@ internal static partial class GlobalScope
 			public override void initialize(BattleSystem B)
 			{
 				nowPlayer_ = 0;
+				OpenFF.Client.AutoBattle.Ending = false;   // PORT: a round begins: the hint may show again
 				state(PLAYER_STATE.MOVE_FRONT_READY);
 				commandState_ = COMMAND_STATE.SELECT_COMMAND;
 				prevCommandState_ = commandState_;
@@ -286,7 +287,10 @@ internal static partial class GlobalScope
 						}
 					}
 				}
-				if (!OutsideToBattle.getInstance().isFreeMode() && OutsideToBattle.getInstance().battleCamera() != BATTLE_CAMERA.COMMAND_CAMERA)
+				// PORT: under auto battle the camera stays on the fight (OpenFF.Client.AutoBattle.HoldsCamera): no cut back to
+				// the command view between rounds, nobody choosing there.
+				if (!OutsideToBattle.getInstance().isFreeMode() && OutsideToBattle.getInstance().battleCamera() != BATTLE_CAMERA.COMMAND_CAMERA
+					&& !OpenFF.Client.AutoBattle.HoldsCamera)
 				{
 					OutsideToBattle.getInstance().setBattleCamera(BATTLE_CAMERA.COMMAND_CAMERA);
 				}
@@ -338,7 +342,8 @@ internal static partial class GlobalScope
 
 			public override void execute(BattleSystem B)
 			{
-				if (OutsideToBattle.getInstance().battleCamera() != BATTLE_CAMERA.COMMAND_CAMERA && !OutsideToBattle.getInstance().isFreeMode())
+				if (OutsideToBattle.getInstance().battleCamera() != BATTLE_CAMERA.COMMAND_CAMERA && !OutsideToBattle.getInstance().isFreeMode()
+					&& !OpenFF.Client.AutoBattle.HoldsCamera)
 				{
 					return;
 				}
@@ -366,6 +371,7 @@ internal static partial class GlobalScope
 					}
 					if (nowPlayer_ >= 4)
 					{
+						OpenFF.Client.AutoBattle.CommandTurn = false;
 						cancelWindow_.setShowTarget(show: false);
 						B.playerWindow().nowPlayer_set(-1);
 						setPhase(Phase.Terminate);
@@ -380,6 +386,16 @@ internal static partial class GlobalScope
 					player = battleParty.battlePlayer(nowPlayer_);
 					if (isCommand(player))
 					{
+						// PORT: auto battle (OpenFF.Client.AutoBattle): a hero whose turn is only beginning gets
+						// no window - their rules choose, and the command goes on as the windows would put it.
+						OpenFF.Client.AutoBattle.CommandTurn = true;
+						if (OpenFF.Client.AutoBattle.Takes(player, state_ == PLAYER_STATE.MOVE_FRONT_READY))
+						{
+							OpenFF.Client.AutoBattle.Decide(this, player, B);
+							OpenFF.Client.BattleSync.LocalDecided(player);
+							nowPlayer_++;
+							continue;
+						}
 						// PORT: in a battle two clients compute together, a hero the other client commands gets no
 						// window here - their command comes over the wire and goes on as chosen there (BattleSync);
 						// until it has, this frame passes with the battle's animations going on.
@@ -511,6 +527,21 @@ internal static partial class GlobalScope
 
 			public void playerStateSelectCommand(BattlePlayer player, BattleSystem B)
 			{
+				// PORT: auto battle turned on while this hero is at the command list (no spell or item list open):
+				// their rules finish the choice, the windows close, and the turn goes on as a decided one does.
+				if (OpenFF.Client.AutoBattle.On && commandState_ == COMMAND_STATE.SELECT_COMMAND && battleWindow_.commandWindow().pushState() == 0
+					&& !OpenFF.Client.BattleSync.IsRemote(player.playerId()))
+				{
+					battleWindow_.nondisplay();
+					Battle2DManager.instance().cursor().nondisplayAll();
+					cancelWindow_.setShowTarget(show: false);
+					isCancel_ = false;
+					OpenFF.Client.AutoBattle.Decide(this, player, B);
+					OpenFF.Client.BattleSync.LocalDecided(player);
+					player.setNextPlayerActionId(BATTLE_ACTION_TYPE.DBA_BACK);
+					state(PLAYER_STATE.MOVE_BACK);
+					return;
+				}
 				if (decideCommand(B))
 				{
 					if (!isCancel_)

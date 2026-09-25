@@ -39,7 +39,12 @@ namespace OpenFF.Client
 				OpenFF.Game.Saves.Register(ff4Party);
 				OpenFF.Game.Saves.Register(new Ff4FieldState());
 			}
-			else OpenFF.Game.Services.Register(new LegacyParty());
+			else
+			{
+				OpenFF.Game.Services.Register(new LegacyParty());
+				// The heroes' auto-battle rules keep in the save (Gambits).
+				OpenFF.Game.Saves.Register(new Gambits.Chunk());
+			}
 			OpenFF.Game.Services.Register(new LegacyAudio());
 			OpenFF.Game.Services.Register(Screen);
 			OpenFF.Game.Services.Register(new LegacyField());

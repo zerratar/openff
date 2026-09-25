@@ -35,6 +35,7 @@ internal static partial class GlobalScope
 
 			public override void initialize(BattleSystem B)
 			{
+				OpenFF.Client.AutoBattle.Ending = true;   // PORT: nor the defeat
 				BattleSE.instance().free();
 				pl.PlayerParty.instance().fineAll();
 				Battle2DManager.instance().helpWindow().setMsdHandle(0);

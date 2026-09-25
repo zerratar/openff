@@ -58,6 +58,7 @@ namespace OpenFF.Client
 		public static void Shown()
 		{
 			Showing = true;
+			Gambits.Reset();   // a new game from here starts with the default auto-battle rules; a save brings its own
 			try { OpenFF.Game.Events.Publish(new OpenFF.Events.TitleShown()); } catch (Exception ex) { Log.Write(LogChannel.General, "title: " + ex.Message); }
 		}
 

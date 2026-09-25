@@ -61,6 +61,8 @@ namespace OpenFF.Client
 			[JsonPropertyName("run")] public string RunButton { get; set; } = "r2";
 			/// <summary>Held to fast-forward, like Tab.</summary>
 			[JsonPropertyName("fast")] public string Fast { get; set; } = "l2";
+			/// <summary>Turns auto battle on and off, like F.</summary>
+			[JsonPropertyName("auto")] public string Auto { get; set; } = "r3";
 		}
 
 		/// <summary>Whether a pad button, by its name in the map, is held in a pad state. Unknown names and "none" are never held.</summary>

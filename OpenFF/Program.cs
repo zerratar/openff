@@ -119,6 +119,9 @@ namespace OpenFF.Client
 				Notices.Attach(game);
 				AbilitiesMenu.Attach(game);
 
+				// Auto battle's hint in the command turn (the key and "Auto battle", as Steam shows it).
+				AutoBattleHint.Attach(game);
+
 				// What mods draw (Game.Draw) and what they read (Game.Input).
 				ModDraw.Attach(game);
 				EngineInput.Attach(game);

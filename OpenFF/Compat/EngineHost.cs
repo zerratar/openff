@@ -336,6 +336,8 @@ namespace OpenFF.Client
 			{
 				return;
 			}
+			// The auto-battle rules start from the defaults; the save's own, if it has them, come in with its chunks.
+			Gambits.Reset();
 			if (OpenFF.Game.Saves.ReadSlot(offset, length))
 			{
 				OpenFF.Game.Events.Publish(new OpenFF.Events.SaveRead { Offset = offset, Length = length });

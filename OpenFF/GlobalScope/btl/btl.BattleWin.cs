@@ -88,6 +88,7 @@ internal static partial class GlobalScope
 
 			public override void initialize(BattleSystem B)
 			{
+				OpenFF.Client.AutoBattle.Ending = true;   // PORT: the celebration has no auto-battle hint over it
 				BattleSE.instance().free();
 				MatrixSound.MtxSoundBGM.getSingleton().stop(CHANGE_BGM_COUNT_MAX, MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0);
 				Battle2DManager.instance().helpWindow().setMsdHandle(0);

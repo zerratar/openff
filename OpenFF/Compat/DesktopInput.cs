@@ -291,6 +291,24 @@ namespace OpenFF.Client
 			return mouse.LeftButton == ButtonState.Pressed;
 		}
 
+		/// <summary>Whether the game has the keyboard and pad this frame: its window is active and no overlay owns input.</summary>
+		internal static bool GameHasKeyboard => _game != null && _game.IsActive && !IsTyping;
+
+		/// <summary>Whether a connected pad holds its auto-battle button (settings.json's pad "auto", R3 by default).</summary>
+		internal static bool PadAutoHeld()
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				try
+				{
+					GamePadState pad = GamePad.GetState((PlayerIndex)i);
+					if (pad.IsConnected) return DisplaySettings.Held(pad, (DisplaySettings.Current.Pad ?? new DisplaySettings.PadMap()).Auto);
+				}
+				catch (Exception) { }
+			}
+			return false;
+		}
+
 		/// <summary>Whether a connected pad holds the left trigger: fast-forward, like Tab.</summary>
 		private static bool GamePadFast()
 		{

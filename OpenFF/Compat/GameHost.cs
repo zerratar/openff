@@ -114,6 +114,7 @@ namespace OpenFF.Client
 			StepsTaken += steps;
 			FramePacer.PendingSteps = steps;
 			Drive.Update();
+			AutoBattle.Update();   // F / the pad's auto button: auto battle on or off
 			bool record = FrameCapture.Supported;
 			if (record) FrameCapture.Begin();
 			try
