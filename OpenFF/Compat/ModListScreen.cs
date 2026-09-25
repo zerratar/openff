@@ -5,8 +5,8 @@
 // it brings (files, code), and why it is skipped when it is. Up/Down select, Space or
 // Enter toggle, Shift+Up/Down move a mod in the order, Esc (or the Back button) closes
 // and writes mods/loadorder.json. The mouse does the same: a row toggles, the arrows
-// beside it move it. The content chain is built once at start, so the list says that
-// changes apply at the next start.
+// beside it move it. What a mod brings is taken in as the client starts, so closing the
+// list with a different set of mods restarts the client on the title (Restart).
 //
 // Drawn with the game's own font and a SpriteBatch panel, like the text entry, because
 // there is no picture for any of this in either game's banks. The title's text labels
@@ -107,11 +107,21 @@ namespace OpenFF.Client
 				try
 				{
 					ModsFolder.SaveOrder(_folder, _mods);
-					Log.Write(LogChannel.General, "mod list: loadorder.json written - " + string.Join(", ", _mods.Select(m => m.Key + (m.Enabled ? "" : " (off)"))) + "; applies at the next start");
+					Log.Write(LogChannel.General, "mod list: loadorder.json written - " + string.Join(", ", _mods.Select(m => m.Key + (m.Enabled ? "" : " (off)"))));
 				}
 				catch (Exception ex)
 				{
 					Log.Write(LogChannel.General, "mod list: loadorder.json not written: " + ex.Message);
+					return;
+				}
+				// What a mod brings is taken in as the client starts, so a different set of mods (or order)
+				// than this run's is applied by starting again, on the title (Restart).
+				IEnumerable<string> running = GameArchive.ActiveMods.Select(m => m.Key);
+				IEnumerable<string> wanted = ModsFolder.Active(_mods).Select(m => m.Key);
+				if (!running.SequenceEqual(wanted, StringComparer.OrdinalIgnoreCase) && Restart.ToTitle("the mod list changed"))
+				{
+					DisplaySettings.Current.Save();
+					Game.Exit();
 				}
 			}
 			else
@@ -208,6 +218,8 @@ namespace OpenFF.Client
 			if (ty >= BackTop && ty <= BackTop + 26 && tx >= TextSpaceWidth / 2 - 60 && tx <= TextSpaceWidth / 2 + 60)
 			{
 				Close();
+				// The title's MODS row lies under Back; the press's release must not reach it.
+				DesktopInput.SwallowMouseUntilRelease();
 				return;
 			}
 			for (int row = 0; row < RowsPerPage; row++)
@@ -314,7 +326,7 @@ namespace OpenFF.Client
 			}
 			graphics.SetColor(190, 190, 190, 255);
 			graphics.DrawString("Up/Down select   Space toggle   Shift+Up/Down move   Esc back", 60f, FooterTop - 18, RowSize);
-			graphics.DrawString("Changes apply at the next start.", 60f, FooterTop, RowSize);
+			graphics.DrawString(Restart.Possible ? "Closing the list restarts the game with your changes." : "Changes apply at the next start.", 60f, FooterTop, RowSize);
 			graphics.SetColor(255, 255, 255, 255);
 			graphics.DrawString("Back", TextSpaceWidth / 2 - 14, BackTop + 5, RowSize);
 			graphics.DrawStringEnd();

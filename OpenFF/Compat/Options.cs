@@ -79,7 +79,8 @@ namespace OpenFF.Client
 			"log-file", "content", "content-override", "dump", "dump-fonts", "screenshot-dir", "mod", "project", "font", "drive", "trace",
 		};
 
-		private static readonly string LaunchDirectory = System.IO.Directory.GetCurrentDirectory();
+		/// <summary>Where this run was started from: relative paths on its command line are relative to it (Restart starts the next run there too).</summary>
+		public static readonly string LaunchDirectory = System.IO.Directory.GetCurrentDirectory();
 
 		private static string Resolve(string name, string value)
 		{

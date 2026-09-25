@@ -292,6 +292,14 @@ namespace OpenFF.Client
 		private static bool _wasDown;
 		private static int _lastX;
 		private static int _lastY;
+		private static bool _swallowMouse;
+
+		/// <summary>
+		/// An overlay closed on a press (the mod list's Back): the button is still down, and its release
+		/// is not the game's - else the title reads it as a tap on whatever lies under the button.
+		/// The game hears nothing of the mouse until the button is up again.
+		/// </summary>
+		public static void SwallowMouseUntilRelease() => _swallowMouse = true;
 
 		/// <summary>Steps run for each paced step while fast-forwarding, on top of boost. Opt in with --speed (FF3_SPEED).</summary>
 		private static int _fastForwardFactor = 1;
@@ -372,6 +380,19 @@ namespace OpenFF.Client
 			MouseState mouse = Mouse.GetState();
 			MapToViewSpace(mouse.X, mouse.Y, out int x, out int y);
 			bool down = mouse.LeftButton == ButtonState.Pressed;
+
+			if (_swallowMouse)
+			{
+				if (down)
+				{
+					return;
+				}
+				_swallowMouse = false;
+				_wasDown = false;
+				_lastX = x;
+				_lastY = y;
+				return;
+			}
 
 			if (down && !_wasDown)
 			{

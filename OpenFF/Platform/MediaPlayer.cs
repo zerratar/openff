@@ -112,7 +112,9 @@ public class MediaPlayer
 		}
 		if (m_CompletionListener != null)
 		{
-			m_Thread = new Thread(run);
+			// PORT: a background thread. It waits for the sound to end, and a foreground one kept the
+			// process alive after the window closed until a track with no loop part played out.
+			m_Thread = new Thread(run) { IsBackground = true, Name = "MediaPlayer completion" };
 			m_Thread.Start();
 		}
 	}

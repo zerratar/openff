@@ -150,6 +150,13 @@ namespace OpenFF.Client
 
 				game.Run();
 			}
+
+			// The window is closed and the game disposed: nothing more is the player's. A thread
+			// still running (a sound waiting to end, one a mod started) must not keep the process
+			// alive behind a closed window, so it ends here. ProcessExit handlers (the log's
+			// summary) still run.
+			Log.Write(LogChannel.General, "exit");
+			Environment.Exit(0);
 		}
 
 		private static void EnableFirstChanceTracing()

@@ -91,7 +91,8 @@ mods/
 - Files: the first mod in the load order wins a file two mods both carry; the log's `mods:`
   lines say what applied and which conflicts fell which way.
 - `loadorder.json` is written for you the first time a folder appears; the title screen's
-  **MODS** entry lets you enable, disable and reorder in play (it applies at the next start).
+  **MODS** entry lets you enable, disable and reorder in play; closing it with changes restarts
+  the client on the title with them.
 - Crystal makes this folder for you: a project with a game ticked under **OpenFF mod** (New
   project, or Project settings) has **Project ▸ Export to OpenFF**, which writes `mod.json`,
   `ff3/files/` and `ff4/files/` (one per game ticked - tick both and the mod may take from
