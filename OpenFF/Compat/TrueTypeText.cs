@@ -58,8 +58,19 @@ namespace OpenFF.Client
 		/// <summary>The faces in use, for the log and the about text.</summary>
 		public static IReadOnlyList<string> Faces => _loaded;
 
-		/// <summary>Whether the title's face was found: the title's commands are drawn as text in it.</summary>
-		public static bool HasTitleFace => Enabled && _titleSystem != null;
+		/// <summary>
+		/// Whether the title's face was found: the title's commands are drawn as text in it. Asking loads
+		/// the faces if no text has been drawn yet - a run started on the title (--start=title, as a
+		/// restart is) builds its commands before the first text pass would have.
+		/// </summary>
+		public static bool HasTitleFace
+		{
+			get
+			{
+				Initialise(null);
+				return Enabled && _titleSystem != null;
+			}
+		}
 
 		/// <summary>While true, text is drawn and measured in the title's face (ModListScreen sets it around the title's labels).</summary>
 		public static bool TitleFace;
