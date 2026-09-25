@@ -63,6 +63,37 @@ namespace OpenFF.Content
 			return menu;
 		}
 
+		/// <summary>
+		/// The battle's geometry as Steam's build draws it (its command list and party lines are placed in its own
+		/// code; measured from its first battle, in the same 480 x 320 units): four command windows of 106 x 28 at x 52,
+		/// the fourth a row like the others (run_away: Steam scrolls Run Away into the list), small arrows right of
+		/// the rows, and narrower party lines.
+		/// </summary>
+		public static XElement SteamDefault(int playerY = 256)
+		{
+			XElement menu = new XElement("menu", new XElement("name", Screen));
+			// A window draws a unit and a bit inside its frame on each side, so the frames are 2 larger than the
+			// windows Steam shows (106 x 28 at x 52, from y 199); an even 30 apart, Steam's gap between them.
+			for (int i = 0; i < 4; i++)
+			{
+				menu.Add(Frame(i < 3 ? "cmd" + i : "run_away", 51, 198 + i * 30, 108, 30,
+					Frame("text", 7, 9, 97, 16),
+					Frame("cursor", -3, 15, 0, 0)));
+			}
+			menu.Add(Frame("help", 4, 4, 472, 24));
+			menu.Add(Frame("help_small", 84, 4, 392, 24));
+			menu.Add(Frame("arrow_up", 160, 201, 16, 16));      // where the arrow's cell goes; its picture sits a few units in
+			menu.Add(Frame("arrow_down", 160, 297, 16, 16));
+			for (int i = 0; i < 4; i++)
+			{
+				menu.Add(Frame("player" + i, 278, playerY + i * 16, 164, 16,
+					Frame("name", 0, 0, 110, 16),
+					Frame("hp", 119, 0, 45, 16),
+					Frame("gauge", -2, -2, 166, 16)));
+			}
+			return menu;
+		}
+
 		/// <summary>The field's dialogue and map-name windows as a layout, the game's own numbers.</summary>
 		public static XElement FieldDefault()
 		{
@@ -83,7 +114,7 @@ namespace OpenFF.Content
 		}
 
 		/// <summary>Adds the file's default screen to a document that has none yet. Returns true when it did.</summary>
-		public static bool Ensure(string file, XDocument document, int commandX = 16, int commandY = 157, int playerY = 254)
+		public static bool Ensure(string file, XDocument document, int commandX = 16, int commandY = 157, int playerY = 254, bool steam = false)
 		{
 			XElement list = document?.Root;
 			if (list == null) return false;
@@ -95,7 +126,7 @@ namespace OpenFF.Content
 			{
 				if ((string)m.Element("name") == screen) return false;
 			}
-			list.Add(battle ? Default(commandX, commandY, playerY) : FieldDefault());
+			list.Add(battle ? (steam ? SteamDefault() : Default(commandX, commandY, playerY)) : FieldDefault());
 			return true;
 		}
 

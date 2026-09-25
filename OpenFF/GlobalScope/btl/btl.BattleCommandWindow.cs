@@ -25,6 +25,16 @@ internal static partial class GlobalScope
 
 			private bool isCreated_;
 
+			/// <summary>
+			/// PORT: the command a window shows. The phone keeps its fourth window for Run Away (command 6) and
+			/// scrolls the other three; Steam's list is four rows scrolling through all seven, Run Away the last -
+			/// which is what the pad's cursor counts on either (nowCommand is the row plus the scroll).
+			/// </summary>
+			private static int CommandIndex(int window, int start)
+			{
+				return (window == pl.BATTLE_COMMAND_MAX - 1 && !OpenFF.Client.SteamLayout.Active) ? 6 : window + start;
+			}
+
 			public bool create(BattlePlayer player)
 			{
 				pl.Command command = player.player().jobManager().command();
@@ -36,7 +46,7 @@ internal static partial class GlobalScope
 					commandWindow_.createCommandWindow();
 					for (int i = 0; i < pl.BATTLE_COMMAND_MAX; i++)
 					{
-						int i2 = ((i == pl.BATTLE_COMMAND_MAX - 1) ? 6 : i);
+						int i2 = CommandIndex(i, 0);
 						commandWindow_.createCommandMessage(abilityID(player, command.commandId(i2)), i);
 						if (player.condition().isFrog())
 						{
@@ -63,7 +73,7 @@ internal static partial class GlobalScope
 					commandWindow_.setShowCommand(show: true);
 					for (int j = 0; j < pl.BATTLE_COMMAND_MAX; j++)
 					{
-						int i3 = ((j == pl.BATTLE_COMMAND_MAX - 1) ? 6 : j);
+						int i3 = CommandIndex(j, 0);
 						commandWindow_.createCommandMessage(abilityID(player, command.commandId(i3)), j);
 						if (player.condition().isFrog())
 						{
@@ -191,7 +201,7 @@ internal static partial class GlobalScope
 				int num = pl.PlayerParty.instance().saveStartCommand(player.playerId());
 				for (int i = 0; i < pl.BATTLE_COMMAND_MAX; i++)
 				{
-					int i2 = ((i == pl.BATTLE_COMMAND_MAX - 1) ? 6 : (i + num));
+					int i2 = CommandIndex(i, num);
 					commandWindow_.createCommandMessage(abilityID(player, command.commandId(i2)), i);
 					if (player.condition().isFrog())
 					{
@@ -234,7 +244,7 @@ internal static partial class GlobalScope
 				int num = pl.PlayerParty.instance().saveStartCommand(player.playerId());
 				for (int i = 0; i < pl.BATTLE_COMMAND_MAX; i++)
 				{
-					int x2 = ((i == pl.BATTLE_COMMAND_MAX - 1) ? 6 : (i + num));
+					int x2 = CommandIndex(i, num);
 					ds.Vector2<short> position = commandWindow_.commandWindowData(i).Position;
 					ds.Vector2<short> size = commandWindow_.commandWindowData(i).Size;
 					if (position.vx <= x && position.vx + size.vx >= x && position.vy <= y && position.vy + size.vy >= y)

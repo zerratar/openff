@@ -39,7 +39,9 @@ namespace OpenFF.Client
 		public static void SaveProfileChanged()
 		{
 			string prefix = SaveFiles.Profile != null ? SaveFiles.Profile + "-" : "";
-			OpenFF.Game.Saves.StorePath = Path.Combine(Path.GetDirectoryName(Launch.SettingsPath), "saves", prefix + (GameProfile.IsFf4 ? "ff4.json" : "mods.json"));
+			// --save-dir keeps these beside the run's own saves, with the rest of what a test must not touch.
+			string root = SaveFiles.Override ?? Path.GetDirectoryName(Launch.SettingsPath);
+			OpenFF.Game.Saves.StorePath = Path.Combine(root, "saves", prefix + (GameProfile.IsFf4 ? "ff4.json" : "mods.json"));
 		}
 
 		/// <summary>Creates the engine and loads the enabled mods' code. Called once the content is open.</summary>

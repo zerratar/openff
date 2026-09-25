@@ -578,7 +578,11 @@ namespace OpenFF.Client
 				if (k < 0) continue;
 				_curToPrev[i] = k;
 				_prevToCur[k] = i;
-				if (r.Kind == Kind.Text) JudgeText(prev.Records[k], r, ref _pairs[i]);
+				if (r.Kind == Kind.Text)
+				{
+					JudgeText(prev.Records[k], r, ref _pairs[i]);
+					if (Relabelled(prev, prev.Records[k], r)) _pairs[i].How = How.Snap;
+				}
 				else JudgeDraw(prev, k, cur, i, ref _pairs[i]);
 			}
 			// A quarter of the 3D scene (by its vertices) jumping at once is the camera cutting, not a
@@ -655,6 +659,23 @@ namespace OpenFF.Client
 		}
 
 		private static bool SameText(in Record p, in Record r) => p.Kind == Kind.Text && p.Size == r.Size && string.Equals(p.Text, r.Text);
+
+		/// <summary>
+		/// Words that moved into a place other words held the step before: a list scrolled (the battle's
+		/// commands, a menu's rows) and its slots were relabelled, not text travelling - drawn between the two
+		/// places it flies through the rows. Text that slides (a window opening) moves into a place nothing held.
+		/// </summary>
+		private static bool Relabelled(Frame prev, in Record p, in Record r)
+		{
+			if (Math.Abs(p.X - r.X) <= 2f && Math.Abs(p.Y - r.Y) <= 2f) return false;
+			for (int at = 0; at < prev.Count; at++)
+			{
+				ref Record q = ref prev.Records[at];
+				if (q.Kind != Kind.Text || q.Size != r.Size || string.Equals(q.Text, r.Text)) continue;
+				if (Math.Abs(q.X - r.X) <= 2f && Math.Abs(q.Y - r.Y) <= 2f) return true;
+			}
+			return false;
+		}
 
 		private static void JudgeText(in Record p, in Record r, ref Pair pair)
 		{

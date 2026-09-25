@@ -93,7 +93,8 @@ namespace OpenFF.Client
 				XElement list = doc.Root;
 				if (list == null) return bytes;
 				// The code-drawn windows as screens (BattleHudLayout): the game's numbers unless a mod's copy takes their place below.
-				if (hud) BattleHudLayout.Ensure(file, doc, GlobalScope.BATTLE_COMMAND_X(), GlobalScope.BATTLE_COMMAND_Y(), GlobalScope.BATTLE_PLAYER_Y());
+				// On a Steam install, Steam's own battle geometry (its build draws the HUD from code of its own).
+				if (hud) BattleHudLayout.Ensure(file, doc, GlobalScope.BATTLE_COMMAND_X(), GlobalScope.BATTLE_COMMAND_Y(), GlobalScope.BATTLE_PLAYER_Y(), SteamLayout.Active);
 				int added = 0, reached = 0;
 				foreach (string key in _gameScreenDefs.Keys.ToList()) if (_gameScreenDefs[key].Any(d => string.Equals(d.File, file, StringComparison.OrdinalIgnoreCase))) _gameScreenDefs.Remove(key);
 				foreach (MenuDefinition def in defs)

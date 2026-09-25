@@ -29,15 +29,37 @@ internal static partial class GlobalScope
 
 			private int[] anim_ = new int[2];
 
+			/// <summary>
+			/// PORT: Steam's list has small arrows, icon_16dot's up and down (cells 9 and 13), white when the list
+			/// scrolls that way and grey when it does not; the phone's are icon_left / icon_right, tall wedges
+			/// with an animation each.
+			/// </summary>
+			private static bool SteamArrows => OpenFF.Client.SteamLayout.Active;
+
+			private static readonly ushort[] SteamArrowCell = { 9, 13 };
+
 			public void setup()
 			{
 				changeGlobalDirectory();
-				triangle_[0].Load2(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "icon_left");
-				triangle_[1].Load2(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "icon_right");
+				if (SteamArrows)
+				{
+					triangle_[0].Load2(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "icon_16dot");
+					triangle_[1].Load2(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "icon_16dot");
+				}
+				else
+				{
+					triangle_[0].Load2(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "icon_left");
+					triangle_[1].Load2(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "icon_right");
+				}
 				for (int i = 0; i < 2; i++)
 				{
 					sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(triangle_[i]);
-					triangle_[i].SetCell(0);
+					triangle_[i].SetCell(SteamArrows ? SteamArrowCell[i] : (ushort)0);
+					if (SteamArrows)
+					{
+						// icon_16dot's cells are the menus' 16-dot icons; Steam's list arrows are two thirds of one.
+						triangle_[i].SetScaleF(FX32_CONST(0.68f), FX32_CONST(0.68f));
+					}
 					show(i, flag: false);
 					anim_[i] = -1;
 				}
@@ -76,6 +98,12 @@ internal static partial class GlobalScope
 				if (num != anim_[i])
 				{
 					anim_[i] = num;
+					if (SteamArrows)
+					{
+						// The same arrow, greyed when there is nothing that way.
+						triangle_[i].SetColor(flag ? 0xFFFFFFu : 0x7F7F7Fu);
+						return;
+					}
 					triangle_[i].SetCell((ushort)num);
 					triangle_[i].PlayAnimation((ushort)num, NNSG2dAnimationPlayMode.NNS_G2D_ANIMATIONPLAYMODE_FORWARD);
 				}

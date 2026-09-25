@@ -72,13 +72,31 @@ namespace OpenFF.Client
 		{
 			get
 			{
-				if (_game == null || (!_game.IsActive && Injected.Count == 0 && !InjectedStick.HasValue) || IsTyping)
+				if (IsTyping)
+				{
+					_padOverlay = true;
+					return 0;
+				}
+				if (_game == null || (!_game.IsActive && Injected.Count == 0 && !InjectedStick.HasValue))
 				{
 					return 0;
 				}
-				return RawPadBits();
+				int bits = RawPadBits();
+				if (_padOverlay)
+				{
+					// An overlay just handed input back: what is held now closed it (Enter on the name
+					// field, Esc on the mod list), and the game would read it as a fresh press.
+					_padOverlay = false;
+					_heldFromOverlay = bits;
+				}
+				_heldFromOverlay &= bits;
+				return bits & ~_heldFromOverlay;
 			}
 		}
+
+		// The pad bits held when an overlay (IsTyping) last handed input back; each comes back to the game once released.
+		private static bool _padOverlay;
+		private static int _heldFromOverlay;
 
 		/// <summary>Keys a scripted drive (--drive, Compat/Drive.cs) holds this frame; read beside the keyboard, with or without focus.</summary>
 		public static readonly HashSet<Keys> Injected = new HashSet<Keys>();
@@ -292,14 +310,11 @@ namespace OpenFF.Client
 		private static bool _wasDown;
 		private static int _lastX;
 		private static int _lastY;
+		// An overlay closed on a press (the mod list's Back): the button is still down, and its release is
+		// not the game's - else the title reads it as a tap on whatever lies under the button. The game
+		// hears nothing of the mouse until the button is up again.
+		private static bool _mouseOverlay;
 		private static bool _swallowMouse;
-
-		/// <summary>
-		/// An overlay closed on a press (the mod list's Back): the button is still down, and its release
-		/// is not the game's - else the title reads it as a tap on whatever lies under the button.
-		/// The game hears nothing of the mouse until the button is up again.
-		/// </summary>
-		public static void SwallowMouseUntilRelease() => _swallowMouse = true;
 
 		/// <summary>Steps run for each paced step while fast-forwarding, on top of boost. Opt in with --speed (FF3_SPEED).</summary>
 		private static int _fastForwardFactor = 1;
@@ -362,7 +377,13 @@ namespace OpenFF.Client
 			// A text field owns the keyboard and mouse while it is up.
 			if (IsTyping)
 			{
+				_mouseOverlay = true;
 				return;
+			}
+			if (_mouseOverlay)
+			{
+				_mouseOverlay = false;
+				_swallowMouse = Mouse.GetState().LeftButton == ButtonState.Pressed;
 			}
 
 			UpdateMouse();

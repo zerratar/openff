@@ -218,8 +218,6 @@ namespace OpenFF.Client
 			if (ty >= BackTop && ty <= BackTop + 26 && tx >= TextSpaceWidth / 2 - 60 && tx <= TextSpaceWidth / 2 + 60)
 			{
 				Close();
-				// The title's MODS row lies under Back; the press's release must not reach it.
-				DesktopInput.SwallowMouseUntilRelease();
 				return;
 			}
 			for (int row = 0; row < RowsPerPage; row++)
