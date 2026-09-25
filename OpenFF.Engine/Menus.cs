@@ -429,6 +429,9 @@ namespace OpenFF
 			return list;
 		}
 
+		/// <summary>The host's own MenuBehaviours by name, for the screens it ships itself (the client's Gambits); null when it has none.</summary>
+		public static Func<string, Type> HostBehaviour { get; set; }
+
 		/// <summary>The engine's own MenuBehaviours by name (Back, OpenMenu, Label).</summary>
 		public static Type EngineBehaviour(string name)
 		{
@@ -445,6 +448,7 @@ namespace OpenFF
 				if (a == null || string.IsNullOrWhiteSpace(a.Behaviour)) continue;
 				Type type = null;
 				if (mod != null) mod.MenuBehaviourTypes.TryGetValue(a.Behaviour, out type);
+				if (mod == null && HostBehaviour != null) type ??= HostBehaviour(a.Behaviour);
 				type ??= EngineBehaviour(a.Behaviour);
 				if (type == null) { Game.Warn("mod " + def.ModId + ": menus/" + def.Id + ".json names " + a.Behaviour + ", which neither the mod's code nor the engine has"); continue; }
 				IMenuWidget widget = string.IsNullOrEmpty(a.Target) ? null : screen.Widget(a.Target);

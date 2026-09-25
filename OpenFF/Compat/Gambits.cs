@@ -34,6 +34,12 @@ namespace OpenFF.Client
 
 		public Gambit Copy() => (Gambit)MemberwiseClone();
 
+		/// <summary>An unused slot: no condition and no action (a screen shows "-"; the battle passes over it).</summary>
+		public bool IsEmpty => string.IsNullOrEmpty(Condition) && string.IsNullOrEmpty(Action);
+
+		/// <summary>An unused slot's rule.</summary>
+		public static Gambit Empty() => new Gambit { On = false, Condition = "", Action = "" };
+
 		/// <summary>How a screen or the log shows it: "Ally: HP < 50% -> Cure".</summary>
 		public override string ToString()
 		{
@@ -165,10 +171,20 @@ namespace OpenFF.Client
 			return rules;
 		}
 
+		/// <summary>A hero's rules as the twelve slots a screen shows: theirs, then unused slots.</summary>
+		public static List<Gambit> Slotted(int hero)
+		{
+			List<Gambit> slots = For(hero).Take(Slots).Select(r => r.Copy()).ToList();
+			while (slots.Count < Slots) slots.Add(Gambit.Empty());
+			return slots;
+		}
+
 		/// <summary>Replaces a hero's rules (a configuration screen's save; kept to the slots there are).</summary>
 		public static void Set(int hero, IEnumerable<Gambit> rules)
 		{
-			_heroes[hero] = rules.Where(r => r != null).Take(Slots).Select(r => r.Copy()).ToList();
+			List<Gambit> list = rules.Where(r => r != null).Take(Slots).Select(r => r.Copy()).ToList();
+			while (list.Count > 0 && list[list.Count - 1].IsEmpty) list.RemoveAt(list.Count - 1);   // unused slots at the end are not kept
+			_heroes[hero] = list;
 		}
 
 		/// <summary>Everyone back to the defaults: the title (a new game follows), or a save about to be read (its own rules, if any, come next).</summary>

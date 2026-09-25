@@ -63,6 +63,16 @@ namespace OpenFF.Client
 					_mods[def.Id] = mod;
 				}
 			}
+			// The client's own screens (Data/menus beside the executable: the Gambits), after the mods' - a mod's screen of the
+			// same id takes the place of the client's.
+			if (!GameProfile.IsFf4)
+			{
+				foreach (MenuDefinition def in MenuLoader.Read("openff", Path.Combine(AppContext.BaseDirectory, "Data", "menus")))
+				{
+					if (_all.Any(d => string.Equals(d.Id, def.Id, StringComparison.OrdinalIgnoreCase))) continue;
+					_all.Add(def);
+				}
+			}
 			string summary = _all.Count == 0 ? null : "menus: " + _all.Count + " screen(s) of the mods' own: " + string.Join(", ", _all.Select(d => d.Id + (d.MainMenu != null ? " (main menu: " + d.MainMenu.Label + ")" : "")));
 			if (summary != null && summary != _lastSummary) Log.Write(LogChannel.General, summary);
 			_lastSummary = summary;

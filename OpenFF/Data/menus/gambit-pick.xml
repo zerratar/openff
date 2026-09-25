@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Gambits screen's picker (OpenFF.Client.GambitPickScreen): the conditions or the actions to choose from on the left (L / R: pages), the hero's rules on the right, the one being set in yellow. Generated. -->
+<menulist>
+  <menu>
+    <name>gambit-pick</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>56</height>
+      <frame>
+        <id>help</id><x>62</x><y>4</y><width>400</width><height>24</height>
+        <display>1</display>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>title</id><x>62</x><y>28</y><width>180</width><height>24</height>
+        <display>1</display>
+        <colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>page</id><x>230</x><y>28</y><width>230</width><height>24</height>
+        <display>1</display>
+        <align>right</align><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_list</id><x>4</x><y>64</y><width>228</width><height>220</height>
+    </frame>
+    <frame>
+      <window />
+      <id>w_rules</id><x>236</x><y>64</y><width>240</width><height>220</height>
+      <frame>
+        <id>rules_title</id><x>10</x><y>3</y><width>216</width><height>18</height>
+        <colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule0</id><x>10</x><y>22</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule1</id><x>10</x><y>38</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule2</id><x>10</x><y>54</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule3</id><x>10</x><y>70</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule4</id><x>10</x><y>86</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule5</id><x>10</x><y>102</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule6</id><x>10</x><y>118</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule7</id><x>10</x><y>134</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule8</id><x>10</x><y>150</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule9</id><x>10</x><y>166</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule10</id><x>10</x><y>182</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>rule11</id><x>10</x><y>198</y><width>216</width><height>16</height>
+        <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt0</id><x>40</x><y>70</y><width>186</width><height>21</height>
+      <up>opt9</up><down>opt1</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt1</id><x>40</x><y>91</y><width>186</width><height>21</height>
+      <up>opt0</up><down>opt2</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt2</id><x>40</x><y>112</y><width>186</width><height>21</height>
+      <up>opt1</up><down>opt3</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt3</id><x>40</x><y>133</y><width>186</width><height>21</height>
+      <up>opt2</up><down>opt4</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt4</id><x>40</x><y>154</y><width>186</width><height>21</height>
+      <up>opt3</up><down>opt5</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt5</id><x>40</x><y>175</y><width>186</width><height>21</height>
+      <up>opt4</up><down>opt6</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt6</id><x>40</x><y>196</y><width>186</width><height>21</height>
+      <up>opt5</up><down>opt7</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt7</id><x>40</x><y>217</y><width>186</width><height>21</height>
+      <up>opt6</up><down>opt8</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt8</id><x>40</x><y>238</y><width>186</width><height>21</height>
+      <up>opt7</up><down>opt9</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>opt9</id><x>40</x><y>259</y><width>186</width><height>21</height>
+      <up>opt8</up><down>opt0</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+  </menu>
+</menulist>

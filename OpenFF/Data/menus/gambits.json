@@ -1,0 +1,18 @@
+{
+  "id": "gambits",
+  "layout": "gambits.xml",
+  "screen": "gambits",
+  "title": "Gambits",
+  "mainMenu": {
+    "label": "Gambits",
+    "after": "com_job"
+  },
+  "background": 10,
+  "characterSelect": true,
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "GambitsScreen"
+    }
+  ]
+}

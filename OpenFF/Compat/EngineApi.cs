@@ -72,6 +72,9 @@ namespace OpenFF.Client
 			if (!GameProfile.IsFf4) OpenFF.Game.Services.Register(new ModMenus());
 			// The game's files by name, for a Picture on a mod screen (the Steam build's 2D sheets are PNGs).
 			OpenFF.MenuLoader.GameFile = name => { try { return GameArchive.Read(name) ?? GameArchive.Read("files/" + name); } catch (Exception) { return null; } };
+			// The client's own screens (Data/menus: the Gambits) find their behaviours in the client.
+			OpenFF.MenuLoader.HostBehaviour = name => typeof(EngineApi).Assembly.GetTypes().FirstOrDefault(t =>
+				typeof(OpenFF.MenuBehaviour).IsAssignableFrom(t) && !t.IsAbstract && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
 		}
 
 		public static readonly LegacyScreen Screen = new LegacyScreen();

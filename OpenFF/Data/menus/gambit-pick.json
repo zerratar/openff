@@ -1,0 +1,13 @@
+{
+  "id": "gambit-pick",
+  "layout": "gambit-pick.xml",
+  "screen": "gambit-pick",
+  "title": "Gambits",
+  "background": 10,
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "GambitPickScreen"
+    }
+  ]
+}
