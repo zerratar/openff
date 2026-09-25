@@ -14,12 +14,19 @@
 //
 //   --text=atlas         the old path, for A/B
 //   --font=<file|dir>    a face to use first; a directory means look for the usual names
+//   --title-font=<file>  the title screen's face (default: Windows' Times New Roman)
 //
 // Faces are looked for in the Steam install the content came from (it ships Arial,
 // Arial Unicode, TBUDRGothic, Eye glass Condensed, unifont), then beside our Content in
 // a Fonts folder, then Windows' own. Several are loaded; FontStashSharp falls back from
 // one to the next per glyph, which is what covers the Japanese and Korean text with a
 // Latin face first.
+//
+// The title screen's commands are a second face: Steam draws them as pictures in a serif,
+// and here they are text, in Times New Roman - Windows' own copy, read where it is, since
+// the face is not ours to ship. TitleFace switches to it for what the title draws; the
+// game's faces stand behind it for any glyph it lacks, Steam's Japanese face (TBUDRGothic)
+// first, so Japanese in the title's face is drawn in the game's own Japanese lettering.
 
 using System;
 using System.Collections.Generic;
@@ -41,6 +48,8 @@ namespace OpenFF.Client
 		private static FontSystem _system;
 		private static float _viewportScale = 1f;
 		private static readonly Dictionary<int, DynamicSpriteFont> _fonts = new Dictionary<int, DynamicSpriteFont>();
+		private static FontSystem _titleSystem;
+		private static readonly Dictionary<int, DynamicSpriteFont> _titleFonts = new Dictionary<int, DynamicSpriteFont>();
 		private static readonly List<string> _loaded = new List<string>();
 
 		/// <summary>Whether text is drawn from TrueType. False until Initialise finds a face, or when --text=atlas.</summary>
@@ -48,6 +57,12 @@ namespace OpenFF.Client
 
 		/// <summary>The faces in use, for the log and the about text.</summary>
 		public static IReadOnlyList<string> Faces => _loaded;
+
+		/// <summary>Whether the title's face was found: the title's commands are drawn as text in it.</summary>
+		public static bool HasTitleFace => Enabled && _titleSystem != null;
+
+		/// <summary>While true, text is drawn and measured in the title's face (ModListScreen sets it around the title's labels).</summary>
+		public static bool TitleFace;
 
 		/// <summary>
 		/// Glyph size relative to the atlases. The atlas glyphs were drawn a little
@@ -82,16 +97,7 @@ namespace OpenFF.Client
 			}
 			try
 			{
-				_system = new FontSystem(new FontSystemSettings
-				{
-					// Rasterised at up to 4x the nominal size, so a 16px glyph in a
-					// fullscreen window has real pixels behind it.
-					TextureWidth = 2048,
-					TextureHeight = 2048,
-					PremultiplyAlpha = true,
-					KernelWidth = 0,
-					KernelHeight = 0
-				});
+				_system = NewSystem();
 				foreach (string file in files)
 				{
 					try
@@ -108,11 +114,60 @@ namespace OpenFF.Client
 				Log.Write(LogChannel.General, Enabled
 					? "text: TrueType - " + string.Join(", ", _loaded.Select(Path.GetFileName))
 					: "text: no face loaded; atlas fonts");
+				if (Enabled)
+				{
+					LoadTitleFace();
+				}
 			}
 			catch (Exception ex)
 			{
 				Log.Write(LogChannel.General, "text: TrueType unavailable (" + ex.Message + "); atlas fonts");
 				Enabled = false;
+			}
+		}
+
+		private static FontSystem NewSystem()
+		{
+			return new FontSystem(new FontSystemSettings
+			{
+				// Rasterised at up to 4x the nominal size, so a 16px glyph in a
+				// fullscreen window has real pixels behind it.
+				TextureWidth = 2048,
+				TextureHeight = 2048,
+				PremultiplyAlpha = true,
+				KernelWidth = 0,
+				KernelHeight = 0
+			});
+		}
+
+		/// <summary>The title's face, then the game's behind it; none found, the title keeps its pictures.</summary>
+		private static void LoadTitleFace()
+		{
+			string file = Options.Get("title-font");
+			if (string.IsNullOrEmpty(file))
+			{
+				string windows = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+				file = string.IsNullOrEmpty(windows) ? null : Path.Combine(windows, "times.ttf");
+			}
+			if (string.IsNullOrEmpty(file) || !File.Exists(file))
+			{
+				Log.Write(LogChannel.General, "text: no title face (" + (file ?? "no fonts folder") + "); the title keeps its pictures");
+				return;
+			}
+			try
+			{
+				FontSystem system = NewSystem();
+				system.AddFont(File.ReadAllBytes(file));
+				foreach (string fallback in _loaded.OrderBy(f => Path.GetFileName(f).StartsWith("TBUDRGo", StringComparison.OrdinalIgnoreCase) ? 0 : 1))
+				{
+					system.AddFont(File.ReadAllBytes(fallback));
+				}
+				_titleSystem = system;
+				Log.Write(LogChannel.General, "text: title face " + Path.GetFileName(file));
+			}
+			catch (Exception ex)
+			{
+				Log.Write(LogChannel.General, "text: title face " + file + " could not be loaded: " + ex.Message);
 			}
 		}
 
@@ -124,16 +179,19 @@ namespace OpenFF.Client
 			{
 				_viewportScale = wanted;
 				_fonts.Clear();
+				_titleFonts.Clear();
 			}
 		}
 
 		private static DynamicSpriteFont FontFor(int size)
 		{
 			int key = size;
-			if (!_fonts.TryGetValue(key, out DynamicSpriteFont font))
+			bool title = TitleFace && _titleSystem != null;
+			Dictionary<int, DynamicSpriteFont> fonts = title ? _titleFonts : _fonts;
+			if (!fonts.TryGetValue(key, out DynamicSpriteFont font))
 			{
-				font = _system.GetFont(size * SizeFactor * _viewportScale);
-				_fonts[key] = font;
+				font = (title ? _titleSystem : _system).GetFont(size * SizeFactor * _viewportScale);
+				fonts[key] = font;
 			}
 			return font;
 		}

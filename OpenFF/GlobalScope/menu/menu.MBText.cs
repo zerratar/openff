@@ -460,10 +460,10 @@ internal static partial class GlobalScope
 					// PORT: the phone's offsets put the hand inside Steam's frames, over the word
 					// (and Steam's own alignment, 6, fell through to 0: the hand on the word's
 					// first letter). Here the hand ends before the text begins - for a centred
-					// line, before where that line actually starts; for a command in a panel,
-					// outside the panel's margin. ALIGN_MENU keeps the phone's +14: those frames
-					// (the character selector, at x 12) sit at the screen's edge, and the hand
-					// belongs inside them.
+					// line, before where that line actually starts; for a command in a panel, a
+					// short gap before the word, as Steam's is. ALIGN_MENU (the character selector,
+					// at x 12, at the screen's edge) keeps the hand inside its frames, at Steam's
+					// SELECTOR_X.
 					int textStart = 0;
 					int gap = OpenFF.Client.SteamLayout.MENU_GAP;
 					if (alignment == ALIGNMENT.ALIGN_CENTER && message != null && M != null)
@@ -481,7 +481,7 @@ internal static partial class GlobalScope
 				}
 				if (alignment == ALIGNMENT.ALIGN_MENU)
 				{
-					return 14;
+					return OpenFF.Client.SteamLayout.Active ? OpenFF.Client.SteamLayout.SELECTOR_X : 14;
 				}
 				if (alignment == ALIGNMENT.ALIGN_BUTTON)
 				{

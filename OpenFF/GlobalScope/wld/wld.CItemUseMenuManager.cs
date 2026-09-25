@@ -79,7 +79,13 @@ internal static partial class GlobalScope
 											m_State = ITEM_USE_STATE.ITEM_USE_STATE_EXECUTE;
 											menu.MenuManager.getSingleton().buildMenu(TRANSCODE("item_use_list"));
 											menu.MenuManager.getSingleton().GetCursor3d().SetShow(show: true);
-											menu.MenuManager.getSingleton().GetMenuWindowObj()[m_WindowID].GetWindowHandle().SetBar(1);
+											// PORT: the phone's item list filled the screen, and m015_bar's dividers are drawn about
+											// its middle. Steam's is a panel along the bottom with no dividers, so on Steam's
+											// layouts there are none (drawn, they cross the field above the panel).
+											if (!OpenFF.Client.SteamLayout.Active)
+											{
+												menu.MenuManager.getSingleton().GetMenuWindowObj()[m_WindowID].GetWindowHandle().SetBar(1);
+											}
 										}
 										break;
 									case ITEM_USE_STATE.ITEM_USE_STATE_EXECUTE:

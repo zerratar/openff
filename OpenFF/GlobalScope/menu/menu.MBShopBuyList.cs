@@ -694,6 +694,9 @@ internal static partial class GlobalScope
 				MenuManager.getSingleton().clearFocusList();
 				int num3 = 0;
 				Medget medget = ownerMedget.childNode();
+				int itemIconOffsetX = 0;//-24;
+				int itemIconOffsetY = -16;
+				int itemNameOffsetX = 24;
 				while (medget != null && _ItemList[num3 + num2]._ItemId != -1)
 				{
 					MenuManager.getSingleton().joinFocusList(medget);
@@ -702,11 +705,14 @@ internal static partial class GlobalScope
 					string message = dGSMessageManager.getMessage((uint)itemBaseParameter.nameId());
 					GET_TXT_NAME(medget).mbSetBufferMsg(const_cast<string>(message), decWidth: true);
 					GET_TXT_NAME(medget).bmTextVisibility(v: true);
-					Medget medget2 = medget.childNode();
-					_ItemList[num3 + num2]._Icon.copy(MenuManager.getSingleton().GetSmallIcon2d());
+
+                    Medget medget2 = medget.childNode();
+                    GET_TXT_NAME(medget).mbSetPosition((short)(medget2.x() + itemNameOffsetX), (short)(medget2.y() + (medget2.height() - 16) / 2));
+
+                    _ItemList[num3 + num2]._Icon.copy(MenuManager.getSingleton().GetSmallIcon2d());
 					_ItemList[num3 + num2]._Icon.SetCell((ushort)_ItemList[num3 + num2]._ItemCellAnim);
 					sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(_ItemList[num3 + num2]._Icon);
-					_ItemList[num3 + num2]._Icon.SetPositionI(medget2.x() - 16, medget2.y() + (medget2.height() - 16) / 2);
+					_ItemList[num3 + num2]._Icon.SetPositionI(medget2.x() + itemIconOffsetX, medget2.y() + (medget2.height() + itemIconOffsetY) / 2);
 					_ItemList[num3 + num2]._Icon.SetShow(show: true);
 					GET_TXT_NAME(medget).getMessage().setPriority(3);
 					_ItemList[num3 + num2]._Icon.SetPriority(3);

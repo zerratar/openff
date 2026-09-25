@@ -48,9 +48,16 @@ namespace OpenFF.Client
 		/// </summary>
 		public const int STEAM_ALIGN_MENU = 6;
 
-		/// <summary>The gap between the hand's cell and the text it points at, for a command in a panel (the hand stands outside the panel's margin) and for a centred line.</summary>
-		public const int MENU_GAP = 18;
+		/// <summary>
+		/// The gap between the hand's cell and the text it points at, for a command in a panel and
+		/// for a centred line. A panel's is Steam's, measured from its main menu: the hand close to
+		/// the word, over the panel's edge.
+		/// </summary>
+		public const int MENU_GAP = 5;
 		public const int CENTER_GAP = 12;
+
+		/// <summary>Where the hand goes in the character selector's frames (ALIGN_MENU), right of the frame's left: Steam's, measured from its main menu (the phone's was 14).</summary>
+		public const int SELECTOR_X = 7;
 
 		/// <summary>
 		/// Where the hand cursor's position goes, relative to a frame's left edge, so that
@@ -64,11 +71,11 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>
-		/// How far the hand's position moves up from the middle of its frame so that the
-		/// hand, not its shadow, is level with the text: Steam's icon_yubi picture sits low
-		/// in its cell (measured: the hand's middle is 7 px below the position).
+		/// How far the hand's position moves from the middle of its frame: Steam's, measured from
+		/// its main menu against the hand at Steam's size (SteamCells.HandAtSteamSize) - the hand a
+		/// little below the word's middle, its shadow under the line.
 		/// </summary>
-		public static int CursorLift => Active ? -7 : 0;
+		public static int CursorLift => Active ? 1 : 0;
 
 		/// <summary>Diagnostic: one log line per cursor placement, with the frame and the hand's first OAM.</summary>
 		public static void Trace(GlobalScope.menu.Medget m, GlobalScope.sys2d.Cell hand)

@@ -1,6 +1,6 @@
 // The title screen's entries from the mods (Game.Title), and the new game a mod starts from one.
 //
-// The title lists New Game / Load / Continue and the mod list in two columns; a mod's entries go
+// The title lists Continue / New Game / Load and the mod list in one column; a mod's entries go
 // in rows under them, drawn as text where the title's own pictures would be (ttl.CTitle reads
 // Entries as it builds its commands, ModListScreen draws the labels with its own). A press runs
 // the entry's action while the title is up; an action that starts a game (Game.Title.NewGame)
@@ -37,12 +37,8 @@ namespace OpenFF.Client
 		/// <summary>Whether the title's command list is up (between SetUpMainSelect and leaving).</summary>
 		public static bool Showing;
 
-		/// <summary>The entries' row: two side by side under the title's own two rows (moved up to 204 and 236 for it); one row fits above the copyright line, so two entries show.</summary>
-		public const int FirstRowY = 268;
-		public const int RowStep = 32;
+		/// <summary>How many entries the title shows: in its one column, under its own commands, two fit above the copyright line.</summary>
 		public const int MaxShown = 2;
-		public static int ColumnX(int index) => index % 2 == 0 ? GlobalScope.ttl.NEW_GAME_POS_X : GlobalScope.ttl.CONTINUE_POS_X;
-		public static int RowY(int index) => FirstRowY + (index / 2) * RowStep;
 
 		public static void Add(string label, Action onPress)
 		{

@@ -197,6 +197,28 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>
+		/// The hand cursor at the size Steam draws it. The phone's placement makes it 29x32; Steam's own
+		/// bank draws its 48x48 picture at half size, 24x24, from 6 above the position. It keeps the
+		/// phone's right edge (9 right of the position), which the cursor offsets were written against,
+		/// and Steam's own top.
+		/// </summary>
+		private static void HandAtSteamSize()
+		{
+			if (!_banks.TryGetValue("icon_yubi.NCER", out List<List<short[]>> cells))
+			{
+				return;
+			}
+			foreach (List<short[]> oams in cells)
+			{
+				for (int i = 0; i < oams.Count; i++)
+				{
+					// Drawn at 0.6 x 2/3 (flag 8): x -15..9, y -6..18.
+					oams[i] = new short[] { -25, -9, 40, 36, 8 };
+				}
+			}
+		}
+
 		private static void Load()
 		{
 			if (_loaded)
@@ -230,6 +252,7 @@ namespace OpenFF.Client
 					}
 					_banks[bank.Key] = cells;
 				}
+				HandAtSteamSize();
 				Log.Write(LogChannel.File, "steam cells: " + _banks.Count + " cell banks in the table");
 			}
 			catch (Exception ex)

@@ -85,13 +85,29 @@ internal static partial class GlobalScope
 							continue;
 						}
 						CreateCharName(dGSMessageManager, mSF_HANDLE_KIND, num, num2, text);
-						CreateCharLV(dGSMessageManager, mSF_HANDLE_KIND, num + 160, num2, j);
-						CreateJobName(dGSMessageManager, mSF_HANDLE_KIND, num + 74, num2, j);
-						CreateHpMpString(dGSMessageManager, mSF_HANDLE_KIND, num + 64, num2 + 16);
-						CreateCharHp(dGSMessageManager, mSF_HANDLE_KIND, num + 128, num2 + 16, j);
-						CreateCharMHp(dGSMessageManager, mSF_HANDLE_KIND, num + 128, num2 + 16, j);
-						CreateStatusIcon(num, num2 + 16, j);
-						CreateCharMp(dGSMessageManager, mSF_HANDLE_KIND, num + 90, num2 + 32, j);
+						if (OpenFF.Client.SteamLayout.Active)
+						{
+							// PORT: Steam's status block (FF3_Win32.exe places it in code; measured from its
+							// main menu): the job further right, the level under the name, and HP/MP 56 right.
+							// The status icons go under the level, where the phone had them under the name.
+							CreateCharLV(dGSMessageManager, mSF_HANDLE_KIND, num + 16, num2 + 16, j);
+							CreateJobName(dGSMessageManager, mSF_HANDLE_KIND, num + 144, num2, j);
+							CreateHpMpString(dGSMessageManager, mSF_HANDLE_KIND, num + 120, num2 + 16);
+							CreateCharHp(dGSMessageManager, mSF_HANDLE_KIND, num + 184, num2 + 16, j);
+							CreateCharMHp(dGSMessageManager, mSF_HANDLE_KIND, num + 184, num2 + 16, j);
+							CreateStatusIcon(num, num2 + 32, j);
+							CreateCharMp(dGSMessageManager, mSF_HANDLE_KIND, num + 146, num2 + 32, j);
+						}
+						else
+						{
+							CreateCharLV(dGSMessageManager, mSF_HANDLE_KIND, num + 160, num2, j);
+							CreateJobName(dGSMessageManager, mSF_HANDLE_KIND, num + 74, num2, j);
+							CreateHpMpString(dGSMessageManager, mSF_HANDLE_KIND, num + 64, num2 + 16);
+							CreateCharHp(dGSMessageManager, mSF_HANDLE_KIND, num + 128, num2 + 16, j);
+							CreateCharMHp(dGSMessageManager, mSF_HANDLE_KIND, num + 128, num2 + 16, j);
+							CreateStatusIcon(num, num2 + 16, j);
+							CreateCharMp(dGSMessageManager, mSF_HANDLE_KIND, num + 90, num2 + 32, j);
+						}
 					}
 					num2 += 72;
 				}

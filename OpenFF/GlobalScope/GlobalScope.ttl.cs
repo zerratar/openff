@@ -603,6 +603,13 @@ internal static partial class GlobalScope
                 public ds.Vector2<short> pos = new ds.Vector2<short>();
 
                 public sys2d.Cell cell = new sys2d.Cell();
+
+                // OpenFF: the words drawn as text in place of the picture (null: the picture), and how far a press reaches.
+                public string label;
+
+                public bool dim;
+
+                public int width = title_commnad_width;
             }
 
             public const int TITLE_2D_PUSH_START = 0;
@@ -688,11 +695,7 @@ internal static partial class GlobalScope
                 logoAlpha = 0;
                 cIndexNo = 0;
                 titleCommands.clear();
-                // OpenFF: with a mod's entries to show, the title's two rows move up to make a third under them
-                // (the copyright line sits at the bottom); without, the rows stay where the game put them.
-                bool modRow = OpenFF.Client.TitleEntries.Entries.Count > 0;
-                NEW_GAME_POS_Y = CONTINUE_POS_Y = modRow ? 204 : 220;
-                LOAD_GAME_POS_Y = WIFI_POS_Y = modRow ? 236 : 260;
+                // OpenFF: the commands are laid out in Steam's one column once they are all made (LayOutColumn).
                 changeCompanyDirectory();
                 about.Load(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_SUB2D, "about.NCER", null, "about.NCGR", "about.NCLR");
                 about.SetCell(0);
@@ -802,16 +805,14 @@ internal static partial class GlobalScope
                 {
                     tITLE_COMMAND = new TITLE_COMMAND();
                     tITLE_COMMAND.next_part = 100 + e;
-                    tITLE_COMMAND.pos.vx = (short)OpenFF.Client.TitleEntries.ColumnX(e);
-                    tITLE_COMMAND.pos.vy = (short)OpenFF.Client.TitleEntries.RowY(e);
                     tITLE_COMMAND.cell.copy(touch);
                     tITLE_COMMAND.cell.SetCell(4);
                     tITLE_COMMAND.cell.SetShow(show: false);
                     tITLE_COMMAND.cell.SetPriority(0);
-                    tITLE_COMMAND.cell.SetPositionI(tITLE_COMMAND.pos.vx + position_setting_x[(int)lANGUAGE_CODE], tITLE_COMMAND.pos.vy);
                     titleCommands.push_back(tITLE_COMMAND);
                     sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(titleCommands[titleCommands.size() - 1].cell);
                 }
+                LayOutColumn(lANGUAGE_CODE);
                 touch.SetCell(0);
                 touch.SetShow(show: false);
                 touch.SetPriority(0);
@@ -837,12 +838,12 @@ internal static partial class GlobalScope
                 // are centred, by what the cell actually paints.
                 if (OpenFF.Client.SteamCells.CellVisibleSpan(touch, 0, out int visibleLeft, out int visibleRight))
                 {
-                    touch.SetPositionI((480 - (visibleRight - visibleLeft)) / 2 - visibleLeft, NEW_GAME_POS_Y);
+                    touch.SetPositionI((480 - (visibleRight - visibleLeft)) / 2 - visibleLeft, TITLE_PROMPT_Y);
                     OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.General, "title: start prompt paints " + visibleLeft + ".." + visibleRight + " of its cell, placed at " + ((480 - (visibleRight - visibleLeft)) / 2 - visibleLeft));
                 }
                 else
                 {
-                    touch.SetPositionI((480 - num) / 2, NEW_GAME_POS_Y);
+                    touch.SetPositionI((480 - num) / 2, TITLE_PROMPT_Y);
                 }
                 touch.ceReleaseCgCl();
                 sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(touch);
@@ -856,7 +857,6 @@ internal static partial class GlobalScope
                 logoSprite[1].Release();
                 sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(logoSprite[1]);
                 tPrologue.tpTerminate();
-                OpenFF.Client.ModListScreen.HideTitleLabel();
                 OpenFF.Client.TitleEntries.Left();
                 cursor.Release();
                 sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(cursor);
@@ -934,7 +934,7 @@ internal static partial class GlobalScope
                         return true;
                     }
                 }
-                cursor.SetPositionI(titleCommands[cIndexNo].pos.vx - 16 + position_setting_x[(int)lANGUAGE_CODE], titleCommands[cIndexNo].pos.vy + title_command_height / 2);
+                PlaceCursor(cIndexNo);
                 return false;
             }
 
@@ -1006,31 +1006,27 @@ internal static partial class GlobalScope
                 touch.SetShow(show: false);
                 for (int num = titleCommands.size() - 1; num >= 0; num--)
                 {
-                    titleCommands[num].cell.SetShow(show: true);
+                    titleCommands[num].cell.SetShow(titleCommands[num].label == null);
                 }
                 if (SuspendSaveDataGlobal.getSingleton().isProper())
                 {
-                    cursor.SetPositionI(titleCommands[0].pos.vx - 16, titleCommands[0].pos.vy + title_command_height / 2);
+                    PlaceCursor(0);
                     cIndexNo = 0;
                 }
                 else if (0 < card.Manager.GetInstance().GetAlreadyExistDataNum())
                 {
-                    cursor.SetPositionI(titleCommands[2].pos.vx - 16, titleCommands[2].pos.vy + title_command_height / 2);
+                    PlaceCursor(2);
                     cIndexNo = 2;
                 }
                 else
                 {
-                    cursor.SetPositionI(titleCommands[1].pos.vx - 16, titleCommands[1].pos.vy + title_command_height / 2);
+                    PlaceCursor(1);
                     cIndexNo = 1;
                 }
                 cursor.SetShow(show: true);
                 setting.SetShow(show: true);
                 about.SetShow(show: false);
-                if (OpenFF.Client.ModListScreen.Available && !OpenFF.Client.SteamCells.CellHasPicture(touch, (UserInfo.confirm_state != 2) ? 4 : 5))
-                {
-                    OpenFF.Client.ModListScreen.ShowTitleLabel(WIFI_POS_X + position_setting_x[(int)languageCode()], WIFI_POS_Y);
-                }
-                OpenFF.Client.TitleEntries.Shown();   // OpenFF: the mods hear TitleShown; their entries' labels are drawn from here
+                OpenFF.Client.TitleEntries.Shown();   // OpenFF: the mods hear TitleShown; the text labels (TitleLabels) are drawn from here
             }
 
             public bool TouchSelectCommand()
@@ -1054,15 +1050,15 @@ internal static partial class GlobalScope
                 }
                 for (int i = 0; i < titleCommands.size(); i++)
                 {
-                    if (HitArea(titleCommands[i].pos.vx, titleCommands[i].pos.vy))
+                    if (HitArea(titleCommands[i]))
                     {
                         if (titleCommands[i].next_part < 0)
                         {
                             cIndexNo = i;
-                            cursor.SetPositionI(titleCommands[i].pos.vx - 16 + position_setting_x[(int)lANGUAGE_CODE], titleCommands[i].pos.vy + title_command_height / 2);
+                            PlaceCursor(i);
                             return false;
                         }
-                        cursor.SetPositionI(titleCommands[i].pos.vx - 16 + position_setting_x[(int)lANGUAGE_CODE], titleCommands[i].pos.vy + title_command_height / 2);
+                        PlaceCursor(i);
                         if (titleCommands[i].next_part >= 100)
                         {
                             MatrixSound.MtxSENDS_Play(0, 1, 192, 127);
@@ -1107,10 +1103,80 @@ internal static partial class GlobalScope
                 return true;
             }
 
-            public bool HitArea(int x, int y)
+            /// <summary>
+            /// OpenFF: the commands in one column, as Steam's title has them (its layout is FF3_Win32.exe's own,
+            /// measured from its title screen): Continue, New Game, Load Game, then the mod list and the mods'
+            /// entries. More than Steam's four rows close up so the last stays above the copyright line.
+            /// </summary>
+            private void LayOutColumn(LANGUAGE_CODE lANGUAGE_CODE)
+            {
+                titleRows = titleCommands.size();
+                // The pictures' words start a few px inside their cells; the text labels start where New Game's words do.
+                titleLabelInset = OpenFF.Client.SteamCells.CellVisibleSpan(touch, 1, out int visibleLeft, out _) ? visibleLeft : 0;
+                // The game's own commands are text too when the title's face is there, in the game's language
+                // (OpenFF.Client.Localization); without the face they keep the pictures.
+                bool gameText = OpenFF.Client.TrueTypeText.HasTitleFace;
+                TitleLabels.Clear();
+                for (int i = 0; i < titleCommands.size(); i++)
+                {
+                    TITLE_COMMAND command = titleCommands[i];
+                    command.pos.vx = (short)TITLE_COLUMN_X;
+                    command.pos.vy = (short)TitleRowY(i);
+                    command.cell.SetPositionI(TITLE_COLUMN_X + position_setting_x[(int)lANGUAGE_CODE], command.pos.vy);
+                    command.label = LabelOf(command, gameText);
+                    command.dim = command.next_part == -1;
+                    if (command.label != null)
+                    {
+                        TitleLabels.Add(new TitleLabel { Text = command.label, X = TitleLabelX() + position_setting_x[(int)lANGUAGE_CODE], Y = command.pos.vy, Dim = command.dim });
+                        command.width = Math.Max(title_commnad_width, titleLabelInset + (int)Math.Ceiling(TitleLabelWidth(command.label)));
+                    }
+                }
+            }
+
+            /// <summary>OpenFF: the words a command is drawn with as text, or null for its picture.</summary>
+            private static string LabelOf(TITLE_COMMAND command, bool gameText)
+            {
+                if (command.next_part >= 100)
+                {
+                    return OpenFF.Client.TitleEntries.Entries[command.next_part - 100].Label.ToUpperInvariant();
+                }
+                if (command.next_part >= 4)
+                {
+                    // The fourth entry is the mod list on this client; Steam's title bank has no picture for it.
+                    return (OpenFF.Client.ModListScreen.Available && !OpenFF.Client.SteamCells.CellHasPicture(command.cell, command.next_part)) ? OpenFF.Client.Localization.Get(OpenFF.Client.Localization.Keys.TitleMods) : null;
+                }
+                if (!gameText)
+                {
+                    return null;
+                }
+                switch (command.next_part)
+                {
+                    case 2:
+                    case -1:
+                        return OpenFF.Client.Localization.Get(OpenFF.Client.Localization.Keys.TitleContinue);
+                    case 0:
+                        return OpenFF.Client.Localization.Get(OpenFF.Client.Localization.Keys.TitleNewGame);
+                    case 1:
+                        return OpenFF.Client.Localization.Get(OpenFF.Client.Localization.Keys.TitleLoadGame);
+                }
+                return null;
+            }
+
+            /// <summary>OpenFF: the hand a gap to the left of a command, level with it.</summary>
+            private void PlaceCursor(int index)
+            {
+                cursor.SetPositionI(titleCommands[index].pos.vx - TITLE_CURSOR_OFFSET + position_setting_x[(int)languageCode()], titleCommands[index].pos.vy + title_command_height / 2 + TITLE_CURSOR_LIFT);
+            }
+
+            public bool HitArea(TITLE_COMMAND command)
             {
                 ds.g_TouchPanel.getLastPoint(out var x2, out var y2);
-                if (x2 > x && x2 < x + title_commnad_width && y2 > y - 20 && y2 < y + title_command_height + 20)
+                int x = command.pos.vx;
+                int y = command.pos.vy;
+                // OpenFF: the rows are close in a column; a press reaches halfway to the next one, not the phone's 20 px,
+                // and across a text label however long it is.
+                int margin = Math.Max(0, (TitleRowStep() - title_command_height) / 2);
+                if (x2 > x && x2 < x + command.width && y2 > y - margin && y2 < y + title_command_height + margin)
                 {
                     return true;
                 }
@@ -1400,6 +1466,93 @@ internal static partial class GlobalScope
         public static int title_commnad_width = 96;
 
         public static int title_command_height = 16;
+
+        // OpenFF: Steam's title layout, in the title's 480-wide units (measured from Steam's title screen).
+        public static int TITLE_COLUMN_X = 200;          // before position_setting_x (0 for English, -20 for the others)
+
+        public static int TITLE_FIRST_ROW_Y = 200;
+
+        public static int TITLE_ROW_STEP = 22;
+
+        public static int TITLE_LAST_ROW_Y = 276;        // the lowest a row goes, above the copyright line
+
+        public static int TITLE_PROMPT_Y = 222;          // "Press ANY BUTTON to START"
+
+        public static int TITLE_CURSOR_OFFSET = 25;      // the hand's position left of a command's
+
+        public static int TITLE_CURSOR_LIFT = -3;        // the hand level with the words, as Steam's is
+
+        private static int titleLabelInset;
+
+        // The text labels in Times New Roman against Steam's pictures of the same words (measured over them):
+        // the same cap height at 12, set 3.5% narrower, and moved in to where the pictures' words start.
+        public static int TITLE_LABEL_SIZE = 12;         // the text labels' size, in the text path's units
+
+        public static float TITLE_LABEL_SCALE_X = 0.965f;
+
+        public static float TITLE_LABEL_NUDGE_X = 1.5f;  // right, in the 800x480 text space
+
+        public static float TITLE_LABEL_DROP = 0f;       // down, in the 800x480 text space
+
+        /// <summary>OpenFF: a command drawn as text - the words, where they start (the title's units), and whether greyed.</summary>
+        public sealed class TitleLabel
+        {
+            public string Text;
+
+            public int X;
+
+            public int Y;
+
+            public bool Dim;
+        }
+
+        /// <summary>The title's text labels while its commands are up (ModListScreen draws them in the title's face).</summary>
+        public static readonly List<TitleLabel> TitleLabels = new List<TitleLabel>();
+
+        /// <summary>A label's width in the title's units, measured in the face it is drawn in.</summary>
+        public static float TitleLabelWidth(string text)
+        {
+            bool was = OpenFF.Client.TrueTypeText.TitleFace;
+            OpenFF.Client.TrueTypeText.TitleFace = true;
+            try
+            {
+                return OpenFF.Client.TrueTypeText.Width(text, TITLE_LABEL_SIZE) * TITLE_LABEL_SCALE_X / 800f * LCD_WIDTH;
+            }
+            finally
+            {
+                OpenFF.Client.TrueTypeText.TitleFace = was;
+            }
+        }
+
+        /// <summary>Where a text label's words start in the column: where the pictures' words do.</summary>
+        public static int TitleLabelX()
+        {
+            return TITLE_COLUMN_X + titleLabelInset;
+        }
+
+        private static int titleRows = 4;
+
+        /// <summary>The step between rows: Steam's, or less when more rows than Steam's four have to fit.</summary>
+        public static int TitleRowStep()
+        {
+            if (titleRows <= 1)
+            {
+                return TITLE_ROW_STEP;
+            }
+            return Math.Min(TITLE_ROW_STEP, (TITLE_LAST_ROW_Y - TitleFirstRowY()) / (titleRows - 1));
+        }
+
+        private static int TitleFirstRowY()
+        {
+            // Past Steam's four rows the column starts higher as well as closing up (five: 195, six: 190).
+            return (titleRows <= 4) ? TITLE_FIRST_ROW_Y : TITLE_FIRST_ROW_Y - (titleRows - 4) * 5;
+        }
+
+        /// <summary>The y of the title's row-th command.</summary>
+        public static int TitleRowY(int row)
+        {
+            return TitleFirstRowY() + row * TitleRowStep();
+        }
 
         private static int relate_max = 300;
     }

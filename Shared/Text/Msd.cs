@@ -41,6 +41,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Unicode;
 
 namespace OpenFF.Content
 {
@@ -284,21 +285,30 @@ namespace OpenFF.Content
 			return -1;
 		}
 
-		/// <summary>Whether a span decodes as UTF-8 without substitutions.</summary>
-		private static bool IsUtf8(byte[] data, int at, int length)
-		{
-			try
-			{
-				Strict.GetString(data, at, length);
-				return true;
-			}
-			catch (DecoderFallbackException)
-			{
-				return false;
-			}
-		}
+        /// <summary>Whether a span decodes as UTF-8 without substitutions.</summary>
+        //private static bool IsUtf8(byte[] data, int at, int length)
+        //{
+        //	try
+        //	{
+        //		Strict.GetString(data, at, length);
+        //		return true;
+        //	}
+        //	catch (DecoderFallbackException)
+        //	{
+        //		return false;
+        //	}
+        //}
 
-		private static readonly UTF8Encoding Strict = new UTF8Encoding(false, true);
+        private static bool IsUtf8(byte[] data, int at, int length)
+        {
+            return Utf8.IsValid(data.AsSpan(at, length));
+        }
+
+        private static bool IsUtf8(ReadOnlySpan<byte> data)
+        {
+            return Utf8.IsValid(data);
+        }
+        private static readonly UTF8Encoding Strict = new UTF8Encoding(false, true);
 
 		/// <summary>Message count and page count, for the one-line summary.</summary>
 		public static string Describe(MsdFile file)

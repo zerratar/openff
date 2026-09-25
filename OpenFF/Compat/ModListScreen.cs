@@ -9,9 +9,10 @@
 // changes apply at the next start.
 //
 // Drawn with the game's own font and a SpriteBatch panel, like the text entry, because
-// there is no picture for any of this in either game's banks. The "Mods" label on the
-// title is drawn here too, at the position the title gives (ShowTitleLabel), since
-// Steam's title bank has no picture in that cell.
+// there is no picture for any of this in either game's banks. The title's text labels
+// are drawn here too, at the positions the title gives (ttl.TitleLabels), in the title's
+// face: "Mods" (Steam's title bank has no picture in that cell), the mods' entries, and
+// the game's own commands when they are text.
 
 using System;
 using System.Collections.Generic;
@@ -32,7 +33,6 @@ namespace OpenFF.Client
 		private const float TextSpaceWidth = 800f;
 		private const float TextSpaceHeight = 480f;
 		private const int TitleSize = 14;
-		private const int EntrySize = 11;
 		private const int RowSize = 10;
 		private const float RowHeight = 20f;
 		private const float ListTop = 92f;
@@ -61,9 +61,6 @@ namespace OpenFF.Client
 		private MouseState _previousMouse;
 		private SpriteBatch _batch;
 		private Texture2D _pixel;
-		private bool _labelShown;
-		private int _labelX;
-		private int _labelY;
 
 		private ModListScreen(Game game)
 			: base(game)
@@ -77,20 +74,6 @@ namespace OpenFF.Client
 		{
 			Instance = new ModListScreen(game);
 			game.Components.Add(Instance);
-		}
-
-		/// <summary>The title shows its commands: draw "Mods" at this LCD position until HideTitleLabel.</summary>
-		public static void ShowTitleLabel(int x, int y)
-		{
-			if (Instance == null) return;
-			Instance._labelShown = true;
-			Instance._labelX = x;
-			Instance._labelY = y;
-		}
-
-		public static void HideTitleLabel()
-		{
-			if (Instance != null) Instance._labelShown = false;
 		}
 
 		/// <summary>Opens the list, reading the mods folder afresh.</summary>
@@ -263,7 +246,7 @@ namespace OpenFF.Client
 			}
 			if (!_open)
 			{
-				if ((_labelShown || TitleEntries.Showing) && !TextEntry.Instance?.IsActive == true)
+				if (TitleEntries.Showing && !TextEntry.Instance?.IsActive == true)
 				{
 					DrawTitleLabel(graphics);
 				}
@@ -357,29 +340,34 @@ namespace OpenFF.Client
 			return text;
 		}
 
-		/// <summary>"Mods" where the title's fourth command sits, in the title's own LCD units.</summary>
+		/// <summary>The title's text labels where its commands sit, in the title's own LCD units and its face.</summary>
 		private void DrawTitleLabel(GlobalScope.Graphics graphics)
 		{
 			// LCD units to the game's 800x480 text space, the way the ortho projection maps them.
 			float ox = (480 - GlobalScope.LCD_WIDTH) / 2f;
 			float oy = (320 - GlobalScope.LCD_HEIGHT) / 2f;
-			float tx = (_labelX - ox) / GlobalScope.LCD_WIDTH * TextSpaceWidth;
-			float ty = (_labelY - oy) / GlobalScope.LCD_HEIGHT * TextSpaceHeight;
 			graphics.SetImageOrigin(0f, 0f);
 			graphics.SetImageRotation(0f);
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
-			graphics.SetColor(40, 40, 40, 255);
-			if (_labelShown) graphics.DrawString("MODS", tx, ty - 2, TitleSize);
-			// The mods' own entries (Game.Title.AddEntry), in the rows under, in the title's own dark lettering.
-			if (TitleEntries.Showing)
+			TrueTypeText.TitleFace = true;
+			graphics.SetImageScale(GlobalScope.ttl.TITLE_LABEL_SCALE_X, 1f);
+			try
 			{
-				for (int i = 0; i < TitleEntries.Entries.Count && i < TitleEntries.MaxShown; i++)
+				foreach (GlobalScope.ttl.TitleLabel label in GlobalScope.ttl.TitleLabels)
 				{
-					float ex = (TitleEntries.ColumnX(i) + GlobalScope.ttl.position_setting_x[(int)GlobalScope.languageCode()] - ox) / GlobalScope.LCD_WIDTH * TextSpaceWidth;
-					float ey = (TitleEntries.RowY(i) - oy) / GlobalScope.LCD_HEIGHT * TextSpaceHeight;
-					graphics.DrawString(TitleEntries.Entries[i].Label.ToUpperInvariant(), ex, ey, EntrySize);   // a size that keeps a long label within its column
+					float tx = (label.X - ox) / GlobalScope.LCD_WIDTH * TextSpaceWidth + GlobalScope.ttl.TITLE_LABEL_NUDGE_X;
+					float ty = (label.Y - oy) / GlobalScope.LCD_HEIGHT * TextSpaceHeight + GlobalScope.ttl.TITLE_LABEL_DROP;
+					// The title's own dark lettering; a Continue with nothing to continue greyed, as its picture is.
+					if (label.Dim) graphics.SetColor(160, 160, 160, 255);
+					else graphics.SetColor(40, 40, 40, 255);
+					graphics.DrawString(label.Text, tx, ty, GlobalScope.ttl.TITLE_LABEL_SIZE);
 				}
+			}
+			finally
+			{
+				TrueTypeText.TitleFace = false;
+				graphics.SetImageScale(1f, 1f);
 			}
 			// The client's own menu, said once where a new player looks first.
 			graphics.SetColor(90, 90, 90, 255);
