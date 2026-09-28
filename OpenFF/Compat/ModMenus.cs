@@ -83,6 +83,9 @@ namespace OpenFF.Client
 		/// <summary>The screens of the game's own that mods reach (behaviours, a layout of the mod's, a patch), by screen name, filled as the files load.</summary>
 		private static readonly Dictionary<string, List<MenuDefinition>> _gameScreenDefs = new Dictionary<string, List<MenuDefinition>>(StringComparer.OrdinalIgnoreCase);
 
+		/// <summary>Each screen's layout as written - classes, bindings, the frames' own styles - and its stylesheets, by the definition's id: what the screen restyles and binds from as it runs (the game's copy has them baked and gone).</summary>
+		private static readonly Dictionary<string, (XElement Menu, List<string> Sheets)> _styleSources = new Dictionary<string, (XElement, List<string>)>(StringComparer.OrdinalIgnoreCase);
+
 		/// <summary>
 		/// One of the game's layout files with the mods' work in it: their own screens appended (MenuDefine.xbn,
 		/// with the main menu entries), and the game's screens they reach replaced or patched frame by id. A file
@@ -171,6 +174,14 @@ namespace OpenFF.Client
 				XElement menu = menus.FirstOrDefault(m => (string)m.Element("name") == def.Screen) ?? menus.FirstOrDefault();
 				if (menu == null) { Log.Write(LogChannel.General, "menus: " + def.Id + ": " + def.Layout + " has no <menu>"); return null; }
 				menu = new XElement(menu);
+				// Crystal Style Sheets: styles/*.css beside the layout and its own <style>s, cascaded onto the
+				// frames (MenuStyles) - the layout rules into their style for MenuXbn.FromXml to bake, the look
+				// (colour, opacity, panel, tint, hidden) into the elements the widgets and windows read here.
+				List<string> sheets = MenuStyles.SheetsBeside(def.LayoutPath).Concat(layout.Root.Elements("style").Select(s => s.Value)).ToList();
+				XElement written = new XElement(menu);
+				foreach (XElement own in written.Descendants("style").ToList()) { sheets.Add(own.Value); own.Remove(); }
+				_styleSources[def.Id] = (written, sheets);
+				MenuStyles.Apply(menu, sheets);
 				XElement name = menu.Element("name");
 				if (name == null) menu.AddFirst(new XElement("name", def.Screen)); else name.Value = def.Screen;
 				// The game moves focus by a frame's myTag, which must be its place in the focus list (the
@@ -367,6 +378,7 @@ namespace OpenFF.Client
 				_screen.BehaviourList = _behaviours;
 				Log.Write(LogChannel.General, "menus: " + _current.Id + " opened - " + _screen.Widgets.Count + " frame(s), " + _behaviours.Count + " behaviour(s)" + (_screen.Hero >= 0 ? ", hero " + _screen.Hero : ""));
 				foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnOpen", b.OnOpen);
+				_screen.UpdateBindings();   // after OnOpen, which may have put the screen's Data in
 			}
 			catch (Exception ex) { Log.Write(LogChannel.General, "menus: open: " + ex.Message); }
 		}
@@ -385,6 +397,7 @@ namespace OpenFF.Client
 		public static void Tick()
 		{
 			foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnTick", b.OnTick);
+			_screen?.UpdateBindings();
 		}
 
 		public static void FocusChanged(string from, string to)
@@ -460,13 +473,15 @@ namespace OpenFF.Client
 				_gameFocused = null;
 				Log.Write(LogChannel.General, "menus: the game's " + name + " built - " + _gameScreen.Widgets.Count + " frame(s), " + _gameBehaviours.Count + " behaviour(s) of the mods'");
 				foreach (MenuBehaviour b in _gameBehaviours) OpenFF.Game.Guard(b.Name + ".OnOpen", b.OnOpen);
+				_gameScreen.UpdateBindings();
 			}
-			catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + name + ": " + ex.Message); }
+				catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + name + ": " + ex.Message); }
 		}
 
 		/// <summary>MenuManager.execute() has run on one of the game's screens: focus, presses, cancel and keys go to the behaviours; one that takes a press or a cancel keeps it from the game's screen.</summary>
 		public static void GameScreenTick()
 		{
+			_gameScreen?.UpdateBindings();
 			if (_gameScreen == null || _gameBehaviours.Count == 0) return;
 			try
 			{
@@ -543,19 +558,49 @@ namespace OpenFF.Client
 		private static void OpenWindows(ModMenuScreen screen)
 		{
 			CloseWindows();
-			foreach (IMenuWidget w in screen.Widgets)
+			// The frames' looks as they are now (baked, then restyled as the screen runs): a panel, bar, opacity, tint, hidden.
+			List<IMenuWidget> panels = screen.Widgets.Where(w => w is ModMenuWidget m && m.Look.Window && w.Width > 0 && w.Height > 0).ToList();
+			int place = 0;
+			foreach (IMenuWidget w in panels)
 			{
-				if (!(w is ModMenuWidget m) || m.Medget.node()?.getFirstNodeByTagNameFromChildren("window") == null || w.Width <= 0 || w.Height <= 0) continue;
+				ModMenuWidget m = (ModMenuWidget)w;
+				// Stacked in the layout's order, as CSS stacks them: each earlier window a step further back (a step
+				// is two of the fill's 16-unit offsets behind its frame), the last where every window stood before.
+				int back = (panels.Count - 1 - place++) * GlobalScope.ds.S32toFX32(32);
 				try
 				{
+					MenuStyles.Look look = m.Look;
+					if (look.Hidden) continue;
 					GlobalScope.menu.BasicWindow window = new GlobalScope.menu.BasicWindow();
 					window.bwCreateUL(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new GlobalScope.ds.Vector2<short>((short)w.X, (short)w.Y), new GlobalScope.ds.Vector2<short>((short)w.Width, (short)w.Height), 3);
 					window.SetPriority(3);
+					if (back > 0) window.SetStackDepth(window.GetDepth() + back);
+					// The frame's style (MenuStyles bakes it into these): the game's translucent bar in place of the
+					// window, the whole of it at an opacity, its art tinted.
+					if (look.Bar) window.SetBarStyle();
+					float opacity = (float)look.Opacity;
+					uint? tint = StyleRgb(look.Tint) is uint rgb ? (rgb >> 16 & 0xFF) | (rgb & 0xFF00) | ((rgb & 0xFF) << 16) : (uint?)null;
+					if (opacity < 1f || tint.HasValue) window.SetLook(opacity, tint);
 					window.SetShow(show: true, user: true);
 					_windows.Add(window);
 				}
 				catch (Exception ex) { Log.Write(LogChannel.General, "menus: window " + w.Id + ": " + ex.Message); }
 			}
+		}
+
+		/// <summary>A frame's &lt;opacity&gt; (0..1, MenuStyles's product of its and its parents'), 1 for none.</summary>
+		private static float StyleOpacity(GlobalScope.XbnNode node)
+		{
+			string text = node?.getFirstNodeByTagNameFromChildren("opacity")?.nodeValueString();
+			return float.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float o) ? Math.Clamp(o, 0f, 1f) : 1f;
+		}
+
+		/// <summary>#rrggbb as 0xRRGGBB; null when it is not one.</summary>
+		private static uint? StyleRgb(string text)
+		{
+			string v = text?.Trim();
+			if (v == null || v.Length != 7 || v[0] != '#') return null;
+			return uint.TryParse(v.Substring(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out uint rgb) ? rgb : (uint?)null;
 		}
 
 		private static void CloseWindows()
@@ -572,26 +617,43 @@ namespace OpenFF.Client
 			private readonly bool _fromField;
 			private readonly List<ModMenuWidget> _widgets = new List<ModMenuWidget>();
 			private readonly Dictionary<string, ModMenuWidget> _byId = new Dictionary<string, ModMenuWidget>(StringComparer.OrdinalIgnoreCase);
+			// The layout as written (classes, bindings, the frames' own styles) and its sheets, for the screen's
+			// restyling and binding as it runs; a copy of its own each time the screen opens. Null for one of the
+			// game's screens that no layout of a mod's reaches.
+			private readonly XElement _source;
+			private readonly MenuStyles.Sheet _sheet;
+			private readonly string _dataSource;
+			private bool _bindingsFailed;
 
 			public ModMenuScreen(MenuDefinition def, GlobalScope.wmenu.CWMenuMod host, bool fromField)
 			{
 				Definition = def;
 				_host = host;
 				_fromField = fromField;
+				if (def?.Id != null && _styleSources.TryGetValue(def.Id, out (XElement Menu, List<string> Sheets) style))
+				{
+					_source = new XElement(style.Menu);
+					_sheet = MenuStyles.Compile(style.Sheets);
+					_dataSource = (string)_source.Attribute("data-source");
+				}
+				Dictionary<string, XElement> sources = _source?.Descendants("frame").Where(f => !string.IsNullOrEmpty((string)f.Element("id")))
+					.GroupBy(f => ((string)f.Element("id")).Trim(), StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 				GlobalScope.menu.Medget root = GlobalScope.menu.MenuManager.getSingleton().GetBaseMedget();
-				for (GlobalScope.menu.Medget m = root?.childNode(); m != null; m = m.nextSibling()) Add(m, null);
+				for (GlobalScope.menu.Medget m = root?.childNode(); m != null; m = m.nextSibling()) Add(m, null, sources);
 				// The hero picked (a mod screen that asked; the game's per-hero screens - Status, Equipment - have one too).
 				try { Hero = def.CharacterSelect || host == null ? GlobalScope.pl.PlayerParty.instance().player((byte)GlobalScope.menu.MenuManager.getSingleton().GetTargetCharNo()).playerId() : -1; }
 				catch (Exception) { Hero = -1; }
 			}
 
-			private void Add(GlobalScope.menu.Medget m, ModMenuWidget parent)
+			private void Add(GlobalScope.menu.Medget m, ModMenuWidget parent, Dictionary<string, XElement> sources)
 			{
-				ModMenuWidget w = new ModMenuWidget(m);
+				string id = m._id();
+				XElement source = id != null && sources != null && sources.TryGetValue(id.Trim(), out XElement s) ? s : null;
+				ModMenuWidget w = new ModMenuWidget(m, this, parent, source);
 				_widgets.Add(w);
 				parent?.ChildList.Add(w);
 				if (!string.IsNullOrEmpty(w.Id) && !_byId.ContainsKey(w.Id)) _byId[w.Id] = w;
-				for (GlobalScope.menu.Medget c = m.childNode(); c != null; c = c.nextSibling()) Add(c, w);
+				for (GlobalScope.menu.Medget c = m.childNode(); c != null; c = c.nextSibling()) Add(c, w, sources);
 			}
 
 			public MenuDefinition Definition { get; }
@@ -600,6 +662,7 @@ namespace OpenFF.Client
 			public IReadOnlyList<IMenuWidget> Widgets => _widgets;
 			public string Focused => GlobalScope.menu.MenuManager.getSingleton().getFocuseMedget()?._id();
 			public int Hero { get; }
+			public IDictionary<string, object> Data { get; } = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
 			public void Focus(string id)
 			{
@@ -637,37 +700,202 @@ namespace OpenFF.Client
 			public List<MenuBehaviour> BehaviourList = new List<MenuBehaviour>();
 			public IReadOnlyList<MenuBehaviour> Behaviours => BehaviourList;
 			public T Behaviour<T>(string target = null) where T : MenuBehaviour => BehaviourList.OfType<T>().FirstOrDefault(b => b.Target == (target ?? ""));
+
+			// ---- selectors: the frames as the sheets see them, their classes as they are now ----
+
+			public IMenuWidget Q(string selector) => Query(selector).FirstOrDefault();
+
+			public IReadOnlyList<IMenuWidget> Query(string selector)
+			{
+				List<IMenuWidget> found = new List<IMenuWidget>();
+				if (string.IsNullOrWhiteSpace(selector)) return found;
+				XElement menu = new XElement("menu", new XElement("name", Definition?.Screen ?? Id));
+				Dictionary<XElement, ModMenuWidget> mirror = new Dictionary<XElement, ModMenuWidget>();
+				void Mirror(XElement into, IEnumerable<ModMenuWidget> widgets)
+				{
+					foreach (ModMenuWidget w in widgets)
+					{
+						XElement e = new XElement("frame", new XElement("id", w.Id ?? ""));
+						if (w.Classes.Count > 0) e.SetAttributeValue("class", string.Join(" ", w.Classes));
+						if (w.Look.Window) e.Add(new XElement("window"));
+						if (w.IsText) e.Add(new XElement("behavior", new XAttribute("value", "Text")));
+						into.Add(e);
+						mirror[e] = w;
+						Mirror(e, w.ChildList);
+					}
+				}
+				Mirror(menu, _widgets.Where(w => w.ParentWidget == null));
+				foreach (XElement e in menu.Descendants("frame")) if (MenuStyles.Matches(e, selector)) found.Add(mirror[e]);
+				return found;
+			}
+
+			// ---- the look, cascaded again as classes and the frames' own styles change ----
+
+			public bool Styled => _source != null;
+
+			/// <summary>The sheets cascaded over the layout as it is now; each frame whose look changed gets it, and the windows are made again if a panel did.</summary>
+			public void Restyle()
+			{
+				if (_source == null) return;
+				Dictionary<XElement, MenuStyles.Look> looks = MenuStyles.Looks(_source, _sheet);
+				bool panels = false;
+				foreach (ModMenuWidget w in _widgets)
+				{
+					if (w.Source == null || !looks.TryGetValue(w.Source, out MenuStyles.Look look) || look.SameAs(w.Look)) continue;
+					if (!look.SamePanel(w.Look) && (look.Window || w.Look.Window)) panels = true;
+					w.PutLook(look);
+				}
+				if (panels && (ReferenceEquals(this, _screen) || ReferenceEquals(this, _gameScreen))) OpenWindows(this);
+			}
+
+			// ---- bindings ----
+
+			public void Refresh() => UpdateBindings();
+
+			/// <summary>Every frame's bindings worked out, with its data source's (and its parents'); what changed is put on.</summary>
+			public void UpdateBindings()
+			{
+				MenuBindingScope top = new MenuBindingScope { Root = Root };
+				try
+				{
+					if (_dataSource != null) top = top.With(MenuBindings.Resolve(_dataSource, top));
+					bool restyle = false;
+					foreach (ModMenuWidget w in _widgets.Where(w => w.ParentWidget == null)) restyle |= w.UpdateBindings(top);
+					if (restyle) Restyle();
+				}
+				catch (Exception ex)
+				{
+					if (!_bindingsFailed) Log.Write(LogChannel.General, "menus: " + Id + " bindings: " + ex.Message);
+					_bindingsFailed = true;
+				}
+			}
+
+			/// <summary>The roots a binding's path may start with: the screen's own Data, then the game's.</summary>
+			private (bool, object) Root(string name)
+			{
+				if (Data.TryGetValue(name, out object mine)) return (true, mine);
+				switch (name.ToLowerInvariant())
+				{
+					case "hero": return (true, Hero >= 0 ? OpenFF.Game.Party?.Member(Hero) : null);
+					case "party": return (true, OpenFF.Game.Party?.Members);
+					case "gil": return (true, OpenFF.Game.Party?.Gil ?? 0);
+					case "items": return (true, OpenFF.Game.Party?.Items);
+					case "menu": return (true, this);
+					default: return (false, null);
+				}
+			}
 		}
 
 		private sealed class ModMenuWidget : IMenuWidget
 		{
 			public readonly GlobalScope.menu.Medget Medget;
 			public readonly List<ModMenuWidget> ChildList = new List<ModMenuWidget>();
+			public readonly ModMenuScreen Screen;
+			public readonly ModMenuWidget ParentWidget;
+			/// <summary>The frame in the screen's layout as written (its classes, style and bindings), or null.</summary>
+			public readonly XElement Source;
 			private string _text;
 			private bool _visible = true;
 			private MenuColour? _colour;
 			private int _fontSize;
+			// The style's look (MenuStyles): a colour of its own (#rrggbb, as 0xRRGGBBAA), its opacity, hidden.
+			private uint? _rgba;
+			private byte _alpha = 255;
+			private bool _hidden;
+			private readonly HashSet<string> _classes = new HashSet<string>(StringComparer.Ordinal);
+			// A frame of one of the game's screens has no layout of a mod's to keep its own style in.
+			private readonly Dictionary<string, string> _ownStyle = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			private readonly Dictionary<string, string> _binds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			private string _dataSource;
+			private string _boundText;
+			private bool? _boundVisible;
 
-			public ModMenuWidget(GlobalScope.menu.Medget m)
+			/// <summary>The look the frame has now: as the layout's bake left it, then as the screen restyles it.</summary>
+			public MenuStyles.Look Look { get; private set; }
+
+			public ModMenuWidget(GlobalScope.menu.Medget m, ModMenuScreen screen, ModMenuWidget parent, XElement source)
 			{
 				Medget = m;
-				string word = m.node()?.getFirstNodeByTagNameFromChildren("colour")?.nodeValueString() ?? m.node()?.getFirstNodeByTagNameFromChildren("color")?.nodeValueString();
-				if (!string.IsNullOrWhiteSpace(word)) _colour = ColourWord(word);
+				Screen = screen;
+				ParentWidget = parent;
+				Source = source;
+				GlobalScope.XbnNode node = m.node();
+				string word = node?.getFirstNodeByTagNameFromChildren("colour")?.nodeValueString() ?? node?.getFirstNodeByTagNameFromChildren("color")?.nodeValueString();
+				if (StyleRgb(word) is uint rgb) _rgba = rgb << 8 | 0xFF;
+				else if (!string.IsNullOrWhiteSpace(word)) _colour = ColourWord(word);
+				_alpha = (byte)Math.Round(StyleOpacity(node) * 255);
+				_hidden = node?.getFirstNodeByTagNameFromChildren("hidden") != null;
 				// <font>N</font>: a size of the text's own (6..31), drawn by the TrueType face at that size. The layout
 				// writer stores a number as an int node (MenuXbn), a word as a string: read whichever it is.
-				GlobalScope.XbnNode font = m.node()?.getFirstNodeByTagNameFromChildren("font");
+				GlobalScope.XbnNode font = node?.getFirstNodeByTagNameFromChildren("font");
 				if (font != null)
 				{
 					int size = font.nodeValueString() != null ? (int.TryParse(font.nodeValueString().Trim(), out int n) ? n : 0) : font.nodeValueInt();
 					if (size >= 6 && size <= 31) _fontSize = size;
 				}
+				Look = new MenuStyles.Look
+				{
+					Colour = word?.Trim(),
+					Font = font == null ? null : (font.nodeValueString()?.Trim() ?? font.nodeValueInt().ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					Opacity = StyleOpacity(node),
+					Hidden = _hidden,
+					Window = node?.getFirstNodeByTagNameFromChildren("window") != null,
+					Bar = string.Equals(node?.getFirstNodeByTagNameFromChildren("panel")?.nodeValueString()?.Trim(), "bar", StringComparison.OrdinalIgnoreCase),
+					Tint = node?.getFirstNodeByTagNameFromChildren("tint")?.nodeValueString()?.Trim()
+				};
+				// The layout's classes and bindings (attributes the game's own file never carried).
+				foreach (string c in ((string)source?.Attribute("class") ?? "").Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)) _classes.Add(c);
+				_dataSource = (string)source?.Attribute("data-source");
+				if (source?.Attribute("bind-text") is XAttribute text) _binds["text"] = text.Value;
+				if (source?.Attribute("bind-visible") is XAttribute visible) _binds["visible"] = visible.Value;
+				foreach (KeyValuePair<string, string> c in MenuStyles.Declarations((string)source?.Attribute("bind-class"))) _binds["class." + c.Key] = c.Value;
 			}
+
+			public bool IsText => Text_ != null;
 
 			/// <summary>The layout's colour, put on as the screen opens (a text drawn afresh comes up white).</summary>
 			public void ApplyStyle()
 			{
 				if (_fontSize > 0) FontSize = _fontSize;
 				if (_colour.HasValue) Colour = _colour.Value;
+				PutLook();
+				PutVisible();
+			}
+
+			/// <summary>A look the screen's restyling came to: its colour, size, opacity and hidden onto the text (the panel is the windows').</summary>
+			public void PutLook(MenuStyles.Look look)
+			{
+				MenuStyles.Look was = Look;
+				Look = look;
+				if (look.Colour != was?.Colour)
+				{
+					if (StyleRgb(look.Colour) is uint rgb) { _rgba = rgb << 8 | 0xFF; _colour = null; }
+					else if (!string.IsNullOrWhiteSpace(look.Colour)) { _colour = ColourWord(look.Colour); _rgba = null; }
+					else { _colour = MenuColour.White; _rgba = null; }
+					try { GlobalScope.NNSG2dTextCanvas canvas = Text_?.getMessage()?.m_TextCanvas; if (canvas != null) canvas.rgba = _rgba; if (_colour.HasValue) Text_?.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)_colour.Value); } catch (Exception) { }
+				}
+				if (look.Font != was?.Font && int.TryParse(look.Font, out int size) && size >= 6 && size <= 31) FontSize = size;
+				_alpha = (byte)Math.Round(Math.Clamp(look.Opacity, 0, 1) * 255);
+				_hidden = look.Hidden;
+				GlobalScope.NNSG2dTextCanvas c2 = Text_?.getMessage()?.m_TextCanvas;
+				if (c2 != null) c2.alpha = _alpha;
+				PutVisible();
+			}
+
+			/// <summary>The style's own colour and opacity onto the text's canvas - again whenever the message is made afresh (Text).</summary>
+			private void PutLook()
+			{
+				if (!_rgba.HasValue && _alpha == 255) return;
+				GlobalScope.NNSG2dTextCanvas canvas = Text_?.getMessage()?.m_TextCanvas;
+				if (canvas == null) return;
+				canvas.rgba = _rgba;
+				canvas.alpha = _alpha;
+			}
+
+			/// <summary>Shown when the code (Visible), the style (hidden) and a binding (bind-visible) all let it be.</summary>
+			private void PutVisible()
+			{
+				try { Text_?.bmTextVisibility(_visible && !_hidden && _boundVisible != false); } catch (Exception) { }
 			}
 
 			/// <summary>The text's size in the game's units (12 and 16 are the game's two); the message is drawn afresh at it.</summary>
@@ -719,19 +947,138 @@ namespace OpenFF.Client
 			}
 			public bool Focusable => Medget.node()?.getFirstNodeByTagNameFromChildren("focus") != null;
 			public IReadOnlyList<IMenuWidget> Children => ChildList;
+			public IMenuWidget Parent => ParentWidget;
 
 			public string Text
 			{
 				get => _text ?? Medget.node()?.getFirstNodeByTagName("data")?.nodeValueString() ?? "";
-				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); PutFont(); if (_colour.HasValue) Colour = _colour.Value; }
+				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); PutFont(); if (_colour.HasValue) Colour = _colour.Value; PutLook(); PutVisible(); }   // a message made afresh comes up shown
 			}
 
-			public MenuColour Colour { set { _colour = value; try { Text_?.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)value); } catch (Exception) { } } }
+			// A palette colour set from code takes the place of a style's #hex one.
+			public MenuColour Colour { set { _colour = value; _rgba = null; try { Text_?.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)value); GlobalScope.NNSG2dTextCanvas canvas = Text_?.getMessage()?.m_TextCanvas; if (canvas != null) canvas.rgba = null; } catch (Exception) { } } }
 
 			public bool Visible
 			{
 				get => _visible;
-				set { _visible = value; Text_?.bmTextVisibility(value); }
+				set { _visible = value; PutVisible(); }
+			}
+
+			// ---- classes and the frame's own style ----
+
+			public IReadOnlyCollection<string> Classes => _classes;
+			public bool HasClass(string name) => name != null && _classes.Contains(name.Trim());
+			public void AddClass(string name) => ToggleClass(name, true);
+			public void RemoveClass(string name) => ToggleClass(name, false);
+
+			public void ToggleClass(string name, bool? on = null)
+			{
+				if (!SetClass(name, on ?? !HasClass(name))) return;
+				Screen.Restyle();
+			}
+
+			/// <summary>The class on or off, without restyling yet; true when that changed anything.</summary>
+			public bool SetClass(string name, bool on)
+			{
+				name = name?.Trim();
+				if (string.IsNullOrEmpty(name) || name.Contains(' ')) return false;
+				if (!(on ? _classes.Add(name) : _classes.Remove(name))) return false;
+				if (Source != null)
+				{
+					if (_classes.Count > 0) Source.SetAttributeValue("class", string.Join(" ", _classes));
+					else Source.Attribute("class")?.Remove();
+				}
+				return true;
+			}
+
+			public string GetStyle(string property)
+			{
+				if (string.IsNullOrWhiteSpace(property)) return null;
+				if (Source == null) return _ownStyle.TryGetValue(property.Trim(), out string v) ? v : null;
+				foreach (KeyValuePair<string, string> d in MenuStyles.Declarations((string)Source.Attribute("style")))
+				{
+					if (string.Equals(d.Key, property.Trim(), StringComparison.OrdinalIgnoreCase)) return d.Value;
+				}
+				return null;
+			}
+
+			public void SetStyle(string property, string value)
+			{
+				property = property?.Trim().ToLowerInvariant();
+				if (string.IsNullOrEmpty(property)) return;
+				if (Source != null)
+				{
+					List<KeyValuePair<string, string>> own = MenuStyles.Declarations((string)Source.Attribute("style")).Where(d => d.Key != property).ToList();
+					if (!string.IsNullOrWhiteSpace(value)) own.Add(new KeyValuePair<string, string>(property, value.Trim()));
+					if (own.Count > 0) Source.SetAttributeValue("style", string.Join("; ", own.Select(d => d.Key + ": " + d.Value)));
+					else Source.Attribute("style")?.Remove();
+					Screen.Restyle();
+					return;
+				}
+				// One of the game's screens: no sheets to cascade - the look properties put on directly.
+				if (string.IsNullOrWhiteSpace(value)) _ownStyle.Remove(property); else _ownStyle[property] = value.Trim();
+				MenuStyles.Look look = new MenuStyles.Look { Colour = Look.Colour, Font = Look.Font, Align = Look.Align, Opacity = Look.Opacity, Hidden = Look.Hidden, Window = Look.Window, Bar = Look.Bar, Tint = Look.Tint };
+				string v = value?.Trim();
+				switch (property)
+				{
+					case "color": look.Colour = MenuStyles.Colour(v); break;
+					case "font-size": look.Font = v?.Replace("px", "").Trim(); break;
+					case "opacity": look.Opacity = v == null ? 1 : v.EndsWith("%") && double.TryParse(v.TrimEnd('%'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double p) ? p / 100 : double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double o) ? o : 1; break;
+					case "visibility": look.Hidden = string.Equals(v, "hidden", StringComparison.OrdinalIgnoreCase); break;
+					default: return;
+				}
+				PutLook(look);
+			}
+
+			public float Opacity
+			{
+				get => (float)Look.Opacity;
+				set => SetStyle("opacity", Math.Clamp(value, 0f, 1f).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
+			}
+
+			// ---- bindings ----
+
+			public string DataSource { get => _dataSource; set => _dataSource = string.IsNullOrWhiteSpace(value) ? null : value.Trim(); }
+
+			public void Bind(string property, string expression)
+			{
+				property = property?.Trim();
+				if (string.IsNullOrEmpty(property)) return;
+				if (string.IsNullOrWhiteSpace(expression))
+				{
+					_binds.Remove(property);
+					if (property.Equals("visible", StringComparison.OrdinalIgnoreCase)) { _boundVisible = null; PutVisible(); }
+					if (property.Equals("text", StringComparison.OrdinalIgnoreCase)) _boundText = null;
+				}
+				else _binds[property] = expression;
+			}
+
+			public string Binding(string property) => property != null && _binds.TryGetValue(property.Trim(), out string e) ? e : null;
+
+			/// <summary>This frame's bindings under its data source, then its frames'; true when a class changed (the screen restyles once for all of them).</summary>
+			public bool UpdateBindings(MenuBindingScope scope)
+			{
+				if (_dataSource != null) scope = scope.With(MenuBindings.Resolve(_dataSource, scope));
+				bool classes = false;
+				foreach (KeyValuePair<string, string> b in _binds)
+				{
+					if (b.Key.Equals("text", StringComparison.OrdinalIgnoreCase))
+					{
+						string text = MenuBindings.Format(b.Value, scope);
+						if (text != _boundText) { _boundText = text; Text = text; }
+					}
+					else if (b.Key.Equals("visible", StringComparison.OrdinalIgnoreCase))
+					{
+						bool on = MenuBindings.Test(b.Value, scope);
+						if (on != _boundVisible) { _boundVisible = on; PutVisible(); }
+					}
+					else if (b.Key.StartsWith("class.", StringComparison.OrdinalIgnoreCase))
+					{
+						classes |= SetClass(b.Key.Substring(6), MenuBindings.Test(b.Value, scope));
+					}
+				}
+				foreach (ModMenuWidget c in ChildList) classes |= c.UpdateBindings(scope);
+				return classes;
 			}
 		}
 	}

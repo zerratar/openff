@@ -167,6 +167,17 @@ namespace OpenFF.Content
 
 		public static byte[] FromXml(XDocument document)
 		{
+			// OpenFF's styles (MenuStyles: <style> sheets, classes, a frame's style) cascaded and its layout
+			// rules (MenuLayout) baked into the numbers and the elements the game and the client read, then
+			// taken out - on a copy, so the caller's document keeps them. What the game gets is plain.
+			if (MenuStyles.Has(document.Root))
+			{
+				document = new XDocument(document);
+				MenuStyles.Apply(document.Root);
+				MenuLayout.Bake(document.Root);
+				MenuLayout.Strip(document.Root);
+			}
+
 			List<Node> nodes = new List<Node>();
 			Flatten(document.Root, nodes);
 

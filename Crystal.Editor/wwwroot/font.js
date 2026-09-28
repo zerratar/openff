@@ -47,7 +47,8 @@ async function fontLayout(size, text) {
 /// width is often 0 - the game measures the string and the box grows to it.
 async function drawFontText(text, size, colour) {
   const layout = await fontLayout(size, text);
-  if (layout.error || !layout.glyphs.length) return null;
+  // No atlases (a Steam install: the game's text is TrueType there) - the install's faces, as the client draws them.
+  if (layout.error || !layout.glyphs.length) return drawTrueTypeText(text, size, colour);
 
   // The layout arrives in menu units, which is what the preview is laid out in. Only
   // the source rectangles are still atlas pixels, so only those get scaled.
@@ -84,5 +85,68 @@ async function drawFontText(text, size, colour) {
     gc.fillRect(0, 0, canvas.width, canvas.height);
   }
 
+  return canvas;
+}
+
+
+// ---- TrueType: the game's text on a Steam install ----
+//
+// The Steam build (and the client on it) draws text from TrueType, not the phone's atlases: the install's
+// faces, arial.ttf first with arialuni, TBUDRGothic and unifont behind it for what it lacks
+// (OpenFF/Compat/TrueTypeText.cs). The client lays text out in an 800 x 480 space - a size-12 line is a
+// 24 px face there (SizeFactor 2), raised a tenth of the size - and that space sits over the menu's 480 x
+// 320 at 0.6 across and 2/3 down; a shadowed text is first drawn black one unit down and right
+// (NNS_G3dGlbFlushP's text pass). This does the same, drawn at `scale` pixels a menu unit.
+
+const GAME_FACES = [['OpenFF Arial', 'arial.ttf'], ['OpenFF Arial Unicode', 'arialuni.ttf'], ['OpenFF TBUDRGothic', 'TBUDRGoStd-Bold.otf'], ['OpenFF Unifont', 'unifont.ttf']];
+let gameFaces = null;
+
+function loadGameFaces() {
+  if (!gameFaces) {
+    gameFaces = Promise.all(GAME_FACES.map(async ([family, file]) => {
+      try {
+        const face = new FontFace(family, `url(${wsUrl(`/api/typeface?name=${encodeURIComponent(file)}`)})`);
+        await face.load();
+        document.fonts.add(face);
+        return family;
+      } catch (error) {
+        return null;
+      }
+    })).then(list => list.filter(Boolean));
+  }
+  return gameFaces;
+}
+
+async function drawTrueTypeText(text, size, colour, scale = 4, shadow = true) {
+  const families = await loadGameFaces();
+  if (!families.length) return null;
+  const px = size * 2;
+  const font = `${px}px ${families.map(f => `"${f}"`).join(', ')}, sans-serif`;
+  const probe = document.createElement('canvas').getContext('2d');
+  probe.font = font;
+  const metrics = probe.measureText(text);
+  const ascent = metrics.fontBoundingBoxAscent || px * 0.9;
+  const descent = metrics.fontBoundingBoxDescent || px * 0.25;
+  // In menu units: the text space's 0.6 across and 2/3 down.
+  const width = (metrics.width + 2) * 0.6;
+  const height = (ascent + descent + 2) * (2 / 3);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(width * scale));
+  canvas.height = Math.max(1, Math.ceil(height * scale));
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.className = 'font-text tt';
+  canvas.menuWidth = metrics.width * 0.6;
+  const gc = canvas.getContext('2d');
+  gc.scale(scale * 0.6, scale * (2 / 3));
+  gc.font = font;
+  gc.textBaseline = 'alphabetic';
+  const y = ascent - size * 0.1;
+  if (shadow) {
+    gc.fillStyle = '#000';
+    gc.fillText(text, 1, y + 1);
+  }
+  gc.fillStyle = colour || '#fff';
+  gc.fillText(text, 0, y);
   return canvas;
 }

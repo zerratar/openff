@@ -175,6 +175,19 @@ namespace OpenFF.Content
 				&& data[2] == (byte)'A' && data[3] == (byte)'M';
 		}
 
+		/// <summary>
+		/// Whether a mass file is its directory and nothing more. Steam's FF4 ships four so -
+		/// battle_map.dat, NAVIMAP.dat, STAGEMNG_D.dat, STAGEMNG_T.dat - their entries loose in
+		/// files/ beside them (b00.namp.lz and the rest), so there is nothing in them to read;
+		/// they are passed over rather than read as broken.
+		/// </summary>
+		public static bool IsDirectoryOnly(byte[] data)
+		{
+			if (!Looks(data)) return false;
+			long count = BitConverter.ToUInt32(data, 4);
+			return count > 0 && HeaderSize + RecordSize * count == data.Length;
+		}
+
 		/// <summary>The directory, with offsets made absolute.</summary>
 		public static List<SsamEntry> Read(byte[] data)
 		{
@@ -243,6 +256,10 @@ namespace OpenFF.Content
 				}
 
 				byte[] data = File.ReadAllBytes(path);
+				if (Ssam.IsDirectoryOnly(data))
+				{
+					continue;   // its entries are loose beside it, and read as loose files
+				}
 				List<SsamEntry> entries;
 				try
 				{

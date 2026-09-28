@@ -206,6 +206,13 @@ namespace Crystal.Editor
 					File.Copy(file, Path.Combine(menusOut, Path.GetFileName(file)), overwrite: true);
 					if (file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) screens++;
 				}
+				// Their Crystal Style Sheets (menus/styles/*.css), which the client cascades onto them as they load.
+				string stylesIn = Path.Combine(menusIn, "styles");
+				if (Directory.Exists(stylesIn))
+				{
+					Directory.CreateDirectory(Path.Combine(menusOut, "styles"));
+					foreach (string file in Directory.EnumerateFiles(stylesIn, "*.css", SearchOption.TopDirectoryOnly)) File.Copy(file, Path.Combine(menusOut, "styles", Path.GetFileName(file)), overwrite: true);
+				}
 			}
 			if (screens > 0) contents.Add(string.Format(CultureInfo.InvariantCulture, "- menus: {0} screen(s) of the mod's own in the game's menu, under menus/", screens));
 			OpenFF.Content.ModsFolder.WriteManifest(manifestPath, new OpenFF.Content.ModManifest

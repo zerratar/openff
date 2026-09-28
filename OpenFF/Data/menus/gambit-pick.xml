@@ -5,22 +5,26 @@
     <name>gambit-pick</name>
     <frame>
       <window />
-      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>56</height>
+      <id>w_back</id><x>0</x><y>0</y><width>480</width><height>288</height>
+    </frame>
+    <frame>
+      <window />
+      <id>w_top</id><x>0</x><y>0</y><width>480</width><height>60</height>
       <frame>
-        <id>help</id><x>62</x><y>4</y><width>400</width><height>24</height>
+        <id>help</id><x>66</x><y>6</y><width>400</width><height>24</height>
         <display>1</display>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
         <data></data>
       </frame>
       <frame>
-        <id>title</id><x>62</x><y>28</y><width>180</width><height>24</height>
+        <id>title</id><x>66</x><y>30</y><width>180</width><height>24</height>
         <display>1</display>
         <colour>pale-blue</colour>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
         <data></data>
       </frame>
       <frame>
-        <id>page</id><x>230</x><y>28</y><width>230</width><height>24</height>
+        <id>page</id><x>234</x><y>30</y><width>234</width><height>24</height>
         <display>1</display>
         <align>right</align><colour>pale-blue</colour>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
@@ -29,11 +33,11 @@
     </frame>
     <frame>
       <window />
-      <id>w_list</id><x>4</x><y>64</y><width>228</width><height>220</height>
+      <id>w_list</id><x>0</x><y>64</y><width>234</width><height>224</height>
     </frame>
     <frame>
       <window />
-      <id>w_rules</id><x>236</x><y>64</y><width>240</width><height>220</height>
+      <id>w_rules</id><x>238</x><y>64</y><width>242</width><height>224</height>
       <frame>
         <id>rules_title</id><x>10</x><y>3</y><width>216</width><height>18</height>
         <colour>pale-blue</colour>

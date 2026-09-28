@@ -44,6 +44,7 @@ namespace Crystal.Editor
 		/// <summary>The built assemblies (and their .pdb) the mod carries: every .dll in build/ but the engine's.</summary>
 		public static List<string> Assemblies(Project project)
 		{
+			if (project == null) return new List<string>();   // no project: none of a mod's own (the engine's are read apart)
 			string build = BuildDirectory(project);
 			if (!Directory.Exists(build))
 			{

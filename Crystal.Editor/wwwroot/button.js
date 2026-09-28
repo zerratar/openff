@@ -100,3 +100,94 @@ async function drawButtonWindow(width, height, pressed) {
 
   return canvas;
 }
+
+
+// ---- The game's window: what a <window/> frame is drawn with ----
+//
+// menu.BasicWindow, off state, over m000_window: the fill (cell 0, 256 square at half size) stretched
+// to w-4 by h-4 two units in; the four 16x16 corners (cells 1, 7, 4, 9); along the top a fixed 64-wide
+// piece (cell 6) ending at the top-right corner and a run (cell 5) stretched over what is left; the
+// bottom (cell 10) and the right (cell 8) runs stretched corner to corner; down the left a 16-tall piece
+// (cell 3) above the bottom-left corner and a run (cell 2) over the rest. Every part is centred on its
+// position (the cells' OAMs are), so the rectangles below are where the game's own positions and scales
+// put them (BasicWindow.bwSetSize / SetPositionCC; BW_FRAME_ANIM_NO, BW_FRAME_SIZE).
+
+const WINDOW_BANK = 'files/m000_window.NCER';
+let gameWindow = null;
+
+async function loadGameWindow() {
+  if (gameWindow) return gameWindow;
+  try {
+    const bank = await api(`/api/cell?name=${encodeURIComponent(WINDOW_BANK)}`);
+    const sheet = new Image();
+    await new Promise((resolve) => {
+      sheet.onload = resolve;
+      sheet.onerror = resolve;
+      sheet.src = wsUrl(`/api/image?name=${encodeURIComponent(bank.sheet)}`);
+    });
+    gameWindow = sheet.width && bank.cells && bank.cells.length > 10 ? { bank, sheet } : null;
+  } catch (error) {
+    gameWindow = null;
+  }
+  return gameWindow;
+}
+
+/// A window the size of a frame, as the game draws it; drawn at `scale` pixels a unit so it stays crisp when zoomed.
+async function drawGameWindow(width, height, scale = 4, tint = null) {
+  if (width <= 0 || height <= 0) return null;
+  const loaded = await loadGameWindow();
+  if (!loaded) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(width * scale);
+  canvas.height = Math.ceil(height * scale);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.className = 'game-window';
+  const gc = canvas.getContext('2d');
+  gc.imageSmoothingEnabled = true;
+  gc.scale(scale, scale);
+  const w = width, h = height;
+  const part = (cell, dx, dy, dw, dh) => {
+    if (dw <= 0 || dh <= 0) return;
+    const c = loaded.bank.cells[cell];
+    if (!c || !c.parts.length) return;
+    const p = c.parts[0];
+    gc.drawImage(loaded.sheet, p.sourceX, p.sourceY, p.width, p.height, dx, dy, dw, dh);
+  };
+  part(0, 2, 2, w - 4, h - 4);
+  part(1, 0, 0, 16, 16);
+  part(7, w - 16, 0, 16, 16);
+  part(4, 0, h - 16, 16, 16);
+  part(9, w - 16, h - 16, 16, 16);
+  if (w > 32) {
+    const run = w - 32;
+    const s = run > 64 ? 1 : run / 64;
+    const x = run > 64 ? w - 48 : w / 2;
+    part(6, x - 32 * s, 0, 64 * s, 16);
+    if (run - 64 > 0) part(5, 16, 0, run - 64, 16);
+    part(10, 16, h - 16, w - 32, 16);
+  }
+  if (h > 32) {
+    const run = h - 32;
+    const s = run > 16 ? 1 : run / 16;
+    const y = run > 16 ? h - 24 : h / 2;
+    part(3, 0, y - 8 * s, 16, 16 * s);
+    if (run - 16 > 0) part(2, 0, 16, 16, run - 16);
+    part(8, w - 16, 16, 16, h - 32);
+  }
+  // -ff-tint: the art multiplied by the colour, as the client's sprites modulate it; the art's own alpha kept.
+  if (tint) {
+    const mask = document.createElement('canvas');
+    mask.width = canvas.width;
+    mask.height = canvas.height;
+    mask.getContext('2d').drawImage(canvas, 0, 0);
+    gc.setTransform(1, 0, 0, 1, 0, 0);
+    gc.globalCompositeOperation = 'multiply';
+    gc.fillStyle = tint;
+    gc.fillRect(0, 0, canvas.width, canvas.height);
+    gc.globalCompositeOperation = 'destination-in';
+    gc.drawImage(mask, 0, 0);
+    gc.globalCompositeOperation = 'source-over';
+  }
+  return canvas;
+}

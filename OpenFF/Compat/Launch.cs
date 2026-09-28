@@ -159,8 +159,14 @@ namespace OpenFF.Client
 			try
 			{
 				settings.Updated = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-				settings.Exe = Environment.ProcessPath;
-				settings.Mods = ModsFolder.Beside(AppContext.BaseDirectory);
+				// A test run (a drive, or saves in a folder of its own) is not the client Crystal should start, nor whose
+				// mods folder it should show: it leaves the recorded one as it was.
+				bool test = !string.IsNullOrEmpty(Options.Get("drive")) || !string.IsNullOrEmpty(Options.Get("save-dir"));
+				if (!test || string.IsNullOrEmpty(settings.Exe))
+				{
+					settings.Exe = Environment.ProcessPath;
+					settings.Mods = ModsFolder.Beside(AppContext.BaseDirectory);
+				}
 				Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath));
 				File.WriteAllText(SettingsPath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
 			}

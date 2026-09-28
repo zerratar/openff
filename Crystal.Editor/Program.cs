@@ -6,6 +6,7 @@
 //   dotnet run --project Crystal.Editor -- extract-archives <content-dir> <out-dir> [pattern ...]
 //   dotnet run --project Crystal.Editor -- xbn        <file.xbn> [out.xml]
 //   dotnet run --project Crystal.Editor -- xbn-build  <file.xml> [out.xbn]
+//   dotnet run --project Crystal.Editor -- xbn-bake   <file.xml> [out.xml]   layout rules -> plain frames
 //   dotnet run --project Crystal.Editor -- msd        <file.msd | dir> [out]
 //   dotnet run --project Crystal.Editor -- msd-build  <file.json> [out.msd]
 //   dotnet run --project Crystal.Editor -- script       <file.script | dir> [out] [--text=<dir>]
@@ -94,6 +95,13 @@ namespace Crystal
 							return 1;
 						}
 						return XbnBuild(args[1], args.Length > 2 ? args[2] : null);
+					case "xbn-bake":
+						if (args.Length < 2)
+						{
+							Usage();
+							return 1;
+						}
+						return XbnBake(args[1], args.Length > 2 ? args[2] : null);
 					case "msd":
 						if (args.Length < 2)
 						{
@@ -339,6 +347,7 @@ namespace Crystal
 			Console.Error.WriteLine();
 			Console.Error.WriteLine("  xbn        <file.xbn> [out.xml]   menu definition -> XML");
 			Console.Error.WriteLine("  xbn-build  <file.xml> [out.xbn]   XML -> menu definition");
+			Console.Error.WriteLine("  xbn-bake   <file.xml> [out.xml]   the layout rules (style) baked into plain frames, as xbn-build writes them");
 			Console.Error.WriteLine("  msd        <file.msd | dir> [out] game text -> JSON");
 			Console.Error.WriteLine("  msd-build  <file.json> [out.msd]  JSON -> game text");
 			Console.Error.WriteLine("  pak        <file.pak | dir> [out] [--text=<dir>]");
@@ -470,6 +479,20 @@ namespace Crystal
 				Path.GetFileName(input), output,
 				document.Descendants().Count(), verdict);
 			return rebuilt.SequenceEqual(original) ? 0 : 1;
+		}
+
+		/// <summary>What the game gets from a layout with OpenFF's rules in it: every frame's rect in its numbers, the rules gone.</summary>
+		private static int XbnBake(string input, string output)
+		{
+			XDocument document = XDocument.Load(input, LoadOptions.None);
+			// The styles first (styles/*.css beside the file, its <style>s), as the client cascades them.
+			MenuStyles.Apply(document.Root, MenuStyles.SheetsBeside(input));
+			MenuLayout.Bake(document.Root);
+			MenuLayout.Strip(document.Root);
+			output = output ?? Path.ChangeExtension(input, ".baked.xml");
+			document.Save(output);
+			Console.WriteLine("{0} -> {1}", Path.GetFileName(input), output);
+			return 0;
 		}
 
 		private static int XbnBuild(string input, string output)

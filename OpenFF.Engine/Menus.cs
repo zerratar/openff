@@ -116,6 +116,34 @@ namespace OpenFF
 		/// <summary>The text's size, 6..31 (the game's own two are 12 and 16); setting it draws the text afresh at that size.</summary>
 		int FontSize { get; set; }
 		IReadOnlyList<IMenuWidget> Children { get; }
+		/// <summary>The frame this one is in; null for one at the top level.</summary>
+		IMenuWidget Parent { get; }
+
+		// ---- Crystal Style Sheets from code: the frame's classes and its own style, as element.classList and element.style ----
+
+		/// <summary>The frame's classes (the layout's class attribute, and those added since).</summary>
+		IReadOnlyCollection<string> Classes { get; }
+		bool HasClass(string name);
+		/// <summary>Adds a class: the screen's sheets are cascaded again and whatever the class changes (colour, size, opacity, panel, hidden) is put on at once.</summary>
+		void AddClass(string name);
+		void RemoveClass(string name);
+		/// <summary>Adds the class when on (or when it is missing, with no on given), takes it off otherwise.</summary>
+		void ToggleClass(string name, bool? on = null);
+		/// <summary>A property of the frame's own style ("opacity", "color", "-ff-panel"...), or null.</summary>
+		string GetStyle(string property);
+		/// <summary>Sets (or with null, removes) a property of the frame's own style, over every sheet, and puts on what it changes. The look only: a layout property (left, width...) is the layout's, fixed as the screen was built.</summary>
+		void SetStyle(string property, string value);
+		/// <summary>The frame's opacity, 0..1, its panel and its text (SetStyle("opacity")); its parents' multiply it.</summary>
+		float Opacity { get; set; }
+
+		// ---- data bindings (MenuBindings), as the layout's data-source and bind-* attributes ----
+
+		/// <summary>The frame's data source: a path (data-source), for its bindings and its frames'; null for its parent's.</summary>
+		string DataSource { get; set; }
+		/// <summary>Binds a property to the data as the screen runs: "text" (a template, "Lv {level}"), "visible" (an expression, "alive"), "class.&lt;name&gt;" (an expression: the class is on while it is true). Null unbinds it.</summary>
+		void Bind(string property, string expression);
+		/// <summary>The binding of a property, or null.</summary>
+		string Binding(string property);
 	}
 
 	/// <summary>An open screen: its frames, focus, and the way out.</summary>
@@ -125,6 +153,14 @@ namespace OpenFF
 		string Id { get; }
 		/// <summary>A frame by id, anywhere in the layout; null for none.</summary>
 		IMenuWidget Widget(string id);
+		/// <summary>The first frame a selector picks out, as the stylesheets pick them ("#hero", ".row", "#w_rules > text", "window.picked"); null for none - UI Toolkit's Q.</summary>
+		IMenuWidget Q(string selector);
+		/// <summary>Every frame a selector picks out, in layout order - UI Toolkit's Query.</summary>
+		IReadOnlyList<IMenuWidget> Query(string selector);
+		/// <summary>The screen's own data for its bindings: each entry a root by its name ({rules[0].name} for Data["rules"]).</summary>
+		IDictionary<string, object> Data { get; }
+		/// <summary>Works the bindings out now (they are every frame anyway) - after changing Data, so a text shows it at once.</summary>
+		void Refresh();
 		/// <summary>Every frame of the layout, in layout order.</summary>
 		IReadOnlyList<IMenuWidget> Widgets { get; }
 		/// <summary>The id of the frame the cursor is on, or null.</summary>

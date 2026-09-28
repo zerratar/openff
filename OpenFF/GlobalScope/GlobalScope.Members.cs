@@ -11450,7 +11450,8 @@ internal static partial class GlobalScope
 
 						internal static void NNS_G2dTextCanvasDrawText(NNSG2dTextCanvas pTxn, int x, int y, int cl, uint flags, int priority, string txt)
 						{
-							cl = textColor[cl];
+							// PORT: a menu style's own colour over the palette's (ModMenus, MenuStyles).
+							cl = pTxn.rgba.HasValue ? (int)pTxn.rgba.Value : textColor[cl];
 							NNSG2dTextRect nNSG2dTextRect = NNS_G2dFontGetTextRect(pTxn.pFont, pTxn.hSpace, pTxn.vSpace, txt);
 							if ((flags & 0x10) != 0)
 							{
@@ -11507,6 +11508,7 @@ internal static partial class GlobalScope
 									tEXT_DATA2.size = (short)pTxn.pFont.size;
 									tEXT_DATA2.priority = (sbyte)priority;
 									tEXT_DATA2.flags = flags;
+									tEXT_DATA2.alpha = pTxn.alpha;
 								}
 								if (text2 == null)
 								{
@@ -11606,7 +11608,15 @@ internal static partial class GlobalScope
 										num11 >>= 4;
 										num11 = (uint)((((num11 & 0xFF0) * num14 + 4080 * num13) & 0xFF00) | (((num11 & 0xFF000) * num14 + 1044480 * num13) & 0xFF0000) | (((num11 & 0xFF00000) * num14 + 267386880 * num13) & 0xFF000000u));
 									}
-									num11 = (uint)((uint)((int)num11 & -256) | (textAlpha[tEXT_DATA.lcd] * 255 / 16));
+									// PORT: the text's own opacity (a menu style's) on the screen's text alpha; its shadow fades with it.
+									int alphaOf = textAlpha[tEXT_DATA.lcd] * 255 / 16 * tEXT_DATA.alpha / 255;
+									num11 = (uint)((uint)((int)num11 & -256) | alphaOf);
+									// The text batch blends premultiplied (BlendState.AlphaBlend): a style's see-through text has its colour scaled by its alpha too, or it stays as bright.
+									if (tEXT_DATA.alpha != 255)
+									{
+										uint pa = (uint)alphaOf;
+										num11 = ((num11 >> 24) * pa / 255) << 24 | (((num11 >> 16) & 0xFF) * pa / 255) << 16 | (((num11 >> 8) & 0xFF) * pa / 255) << 8 | pa;
+									}
 									int num15 = tEXT_DATA.x - screenOffset[0];
 									int num16 = tEXT_DATA.y - screenOffset[1];
 									if ((tEXT_DATA.flags & 0x1000) != 0 && tPData.drag != 0)
@@ -11616,7 +11626,7 @@ internal static partial class GlobalScope
 									}
 									if ((tEXT_DATA.flags & 0x4000) != 0)
 									{
-										drawString(tEXT_DATA.text, num15 + 1, num16 + 1, 255, tEXT_DATA.size);
+										drawString(tEXT_DATA.text, num15 + 1, num16 + 1, tEXT_DATA.alpha == 255 ? 255 : alphaOf, tEXT_DATA.size);
 									}
 									drawString(tEXT_DATA.text, num15, num16, (int)num11, tEXT_DATA.size);
 								}

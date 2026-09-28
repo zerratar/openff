@@ -498,9 +498,41 @@ internal static partial class GlobalScope
 				{
 					if (m_pWindow1dArray[i] != null)
 					{
-						m_pWindow1dArray[i].SetAlpha(alpha);
+						// PORT: a menu style's opacity and tint (SetLook) on the fill as well.
+						m_pWindow1dArray[i].SetAlpha(m_Opacity >= 1f ? alpha : (byte)Math.Round(alpha * m_Opacity));
+						if (m_Tint.HasValue) m_pWindow1dArray[i].SetColor(m_Tint.Value);   // a bar's fill (black) takes the tint's colour
 					}
 				}
+				// PORT: and on the frame's pieces (the bar style keeps them hidden).
+				if ((m_Opacity < 1f || m_Tint.HasValue) && !m_BarStyle)
+				{
+					for (int k = 0; k < 18; k++)
+					{
+						if (m_pFrame[k] == null) continue;
+						m_pFrame[k].SetAlpha((byte)Math.Round(31 * m_Opacity));
+						if (m_Tint.HasValue) m_pFrame[k].SetColor(m_Tint.Value);
+					}
+				}
+			}
+
+			// PORT: a menu style's look (Crystal Style Sheets: opacity, -ff-tint) - the whole window drawn at
+			// that opacity (0..1) and its art multiplied by the tint (0xBBGGRR, as Sprite.SetColor takes it).
+			private float m_Opacity = 1f;
+
+			private uint? m_Tint;
+
+			/// <summary>PORT: the window's place in the stack (the sprites sort by depth, the larger drawn first): a menu's
+			/// windows in their layout's order, a later one - its fill as well as its frame - over an earlier one.</summary>
+			public void SetStackDepth(int depth)
+			{
+				SetDepth(depth);
+			}
+
+			public void SetLook(float opacity, uint? tint)
+			{
+				m_Opacity = Math.Clamp(opacity, 0f, 1f);
+				m_Tint = tint;
+				SetAlpha((byte)m_Alpha);
 			}
 
 			public void SetBar(int type)

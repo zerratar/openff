@@ -19,18 +19,56 @@ namespace Crystal.Editor
 	{
 		public static string Directory(Project project) => Path.Combine(project.Directory, "menus");
 
-		/// <summary>The ids of the project's screens: every menus/*.json.</summary>
-		public static List<string> Ids(Project project)
+		/// <summary>The Crystal Style Sheets of a folder of screens (styles/*.css), by name, as the client cascades them (MenuStyles.SheetsBeside).</summary>
+		public static List<object> Sheets(string folder)
 		{
-			string dir = project == null ? null : Directory(project);
+			List<object> sheets = new List<object>();
+			string styles = folder == null ? null : Path.Combine(folder, "styles");
+			if (styles == null || !System.IO.Directory.Exists(styles)) return sheets;
+			foreach (string file in System.IO.Directory.EnumerateFiles(styles, "*.css").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+			{
+				sheets.Add(new { name = Path.GetFileName(file), css = File.ReadAllText(file) });
+			}
+			return sheets;
+		}
+
+		/// <summary>Writes styles/&lt;name&gt;.css (a plain name of letters, digits, - and _); an empty sheet is removed.</summary>
+		public static void SaveSheet(string folder, string name, string css)
+		{
+			string stem = Path.GetFileNameWithoutExtension(name ?? "");
+			if (string.IsNullOrEmpty(stem) || !System.Text.RegularExpressions.Regex.IsMatch(stem, "^[A-Za-z0-9_-]+$")) throw new InvalidOperationException("a stylesheet's name is letters, digits, - and _ (" + name + ")");
+			string styles = Path.Combine(folder, "styles");
+			string path = Path.Combine(styles, stem + ".css");
+			if (string.IsNullOrWhiteSpace(css))
+			{
+				if (File.Exists(path)) File.Delete(path);
+				return;
+			}
+			System.IO.Directory.CreateDirectory(styles);
+			File.WriteAllText(path, css);
+		}
+
+		// The project's screens are its menus/ folder's; every call below also takes a folder of screens of its own -
+		// the OpenFF client's Data/menus (OpenFFClient.MenusFolder), which the Menus tab lists beside the project's.
+
+		public static List<string> Ids(Project project) => Ids(project == null ? null : Directory(project));
+		public static JsonObject Definition(Project project, string id) => project == null ? null : Definition(Directory(project), id);
+		public static string Layout(Project project, string id) => project == null ? null : Layout(Directory(project), id);
+		public static List<object> Describe(Project project) => Describe(project == null ? null : Directory(project));
+		public static void SaveDefinition(Project project, string id, JsonObject def) => SaveDefinition(Directory(project), id, def);
+		public static void SaveLayout(Project project, string id, string xml) => SaveLayout(Directory(project), id, xml);
+
+		/// <summary>The ids of a folder's screens: every *.json in it.</summary>
+		public static List<string> Ids(string dir)
+		{
 			if (dir == null || !System.IO.Directory.Exists(dir)) return new List<string>();
 			return System.IO.Directory.EnumerateFiles(dir, "*.json").Select(Path.GetFileNameWithoutExtension).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
 		}
 
-		/// <summary>A screen's definition as JSON (menus/&lt;id&gt;.json), with defaults filled in; null for none.</summary>
-		public static JsonObject Definition(Project project, string id)
+		/// <summary>A screen's definition as JSON (&lt;id&gt;.json), with defaults filled in; null for none.</summary>
+		public static JsonObject Definition(string dir, string id)
 		{
-			string path = DefinitionPath(project, id);
+			string path = DefinitionPath(dir, id);
 			if (path == null || !File.Exists(path)) return null;
 			JsonObject def;
 			try { def = JsonNode.Parse(File.ReadAllText(path), null, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject; }
@@ -46,31 +84,31 @@ namespace Crystal.Editor
 			def["patch"] ??= false;
 			def["definitionFile"] = "menus/" + id + ".json";
 			def["layoutFile"] = "menus/" + def["layout"].GetValue<string>();
-			def["layoutExists"] = File.Exists(Path.Combine(Directory(project), def["layout"].GetValue<string>()));
+			def["layoutExists"] = File.Exists(Path.Combine(dir, def["layout"].GetValue<string>()));
 			return def;
 		}
 
 		/// <summary>A screen's layout XML, or null.</summary>
-		public static string Layout(Project project, string id)
+		public static string Layout(string dir, string id)
 		{
-			JsonObject def = Definition(project, id);
+			JsonObject def = Definition(dir, id);
 			if (def == null) return null;
-			string path = Path.Combine(Directory(project), def["layout"].GetValue<string>());
+			string path = Path.Combine(dir, def["layout"].GetValue<string>());
 			return File.Exists(path) ? File.ReadAllText(path) : null;
 		}
 
 		/// <summary>The list for the library: id, title, the main menu entry, counts.</summary>
-		public static List<object> Describe(Project project)
+		public static List<object> Describe(string dir)
 		{
 			List<object> list = new List<object>();
-			foreach (string id in Ids(project))
+			foreach (string id in Ids(dir))
 			{
-				JsonObject def = Definition(project, id);
+				JsonObject def = Definition(dir, id);
 				if (def == null) continue;
 				int frames = 0, focusable = 0;
 				try
 				{
-					string xml = Layout(project, id);
+					string xml = Layout(dir, id);
 					if (xml != null)
 					{
 						XDocument doc = XDocument.Parse(xml);
@@ -92,17 +130,17 @@ namespace Crystal.Editor
 			return list;
 		}
 
-		private static string DefinitionPath(Project project, string id)
+		private static string DefinitionPath(string dir, string id)
 		{
-			if (project == null || string.IsNullOrWhiteSpace(id) || id.IndexOfAny(new[] { '/', '\\', '.' }) >= 0) return null;
-			return Path.Combine(Directory(project), id + ".json");
+			if (dir == null || string.IsNullOrWhiteSpace(id) || id.IndexOfAny(new[] { '/', '\\', '.' }) >= 0) return null;
+			return Path.Combine(dir, id + ".json");
 		}
 
 		/// <summary>Writes the definition (its editor-only fields dropped).</summary>
-		public static void SaveDefinition(Project project, string id, JsonObject def)
+		public static void SaveDefinition(string dir, string id, JsonObject def)
 		{
-			string path = DefinitionPath(project, id) ?? throw new ArgumentException("a screen's id is a plain word");
-			System.IO.Directory.CreateDirectory(Directory(project));
+			string path = DefinitionPath(dir, id) ?? throw new ArgumentException("a screen's id is a plain word");
+			System.IO.Directory.CreateDirectory(dir);
 			JsonObject clean = (JsonObject)JsonNode.Parse(def.ToJsonString());
 			clean.Remove("definitionFile"); clean.Remove("layoutFile"); clean.Remove("layoutExists");
 			clean["id"] = id;
@@ -111,11 +149,11 @@ namespace Crystal.Editor
 		}
 
 		/// <summary>Writes the layout, checked as XML.</summary>
-		public static void SaveLayout(Project project, string id, string xml)
+		public static void SaveLayout(string dir, string id, string xml)
 		{
-			JsonObject def = Definition(project, id) ?? throw new ArgumentException("no screen called '" + id + "'");
+			JsonObject def = Definition(dir, id) ?? throw new ArgumentException("no screen called '" + id + "'");
 			XDocument doc = XDocument.Parse(xml);
-			string path = Path.Combine(Directory(project), def["layout"].GetValue<string>());
+			string path = Path.Combine(dir, def["layout"].GetValue<string>());
 			File.WriteAllText(path, doc.Declaration != null ? doc.Declaration + "\n" + doc.ToString() : doc.ToString(), new UTF8Encoding(false));
 		}
 
@@ -200,7 +238,7 @@ namespace Crystal.Editor
 
 		public static bool Delete(Project project, string id)
 		{
-			string path = DefinitionPath(project, id);
+			string path = DefinitionPath(Directory(project), id);
 			if (path == null || !File.Exists(path)) return false;
 			JsonObject def = Definition(project, id);
 			File.Delete(path);

@@ -321,6 +321,15 @@ function activate(id) {
   inspected = null;
   inspectedViewer = null;
 
+  // The Menus editor keeps one screen's state (menu: the file, its screens, the selection) for whichever tab
+  // loaded last; each menu tab keeps its own copy, left with it as another is shown and taken back on return,
+  // so a redraw on one tab - Preview, a zoom - draws that tab's screen and not the other's.
+  if (typeof menu !== 'undefined' && menu.name) {
+    const leaving = [...docs.values()].find(d => d.kind === 'menu' && d.name === menu.name);
+    if (leaving && leaving !== doc) leaving.menuState = { ...menu };
+    if (doc.kind === 'menu' && doc.menuState && menu.name !== doc.name) Object.assign(menu, doc.menuState);
+  }
+
   activeDoc = doc;
   activeGroup = doc.group;
   doc.group.active = doc;
@@ -502,11 +511,19 @@ function drawHierarchy() {
     const replaced = group.children.filter(c => c.replaced);
     const showReplaced = replaced.length > 0 && hierarchyShowReplaced;
     const visible = group.children.filter(c => !c.replaced || showReplaced || activeDoc.selection === c.ref);
-    if (group.children.length) {
+    if (group.children.length && !group.note) {
       const count = document.createElement('b');
       count.textContent = visible.length;
       if (replaced.length && !showReplaced) count.title = `${replaced.length} replaced by the mod's objects, hidden`;
       head.append(count);
+    }
+    // A note at the end of the header (a menu's budget), red when it is over.
+    if (group.note) {
+      const note = document.createElement('i');
+      note.className = 'group-note' + (group.warn ? ' warn' : '');
+      note.textContent = group.note;
+      if (group.noteTitle) note.title = group.noteTitle;
+      head.append(note);
     }
     if (replaced.length) {
       const toggle = document.createElement('label');
@@ -604,21 +621,33 @@ function drawHierarchy() {
   }
 }
 
-/// Makes a hierarchy row a drop target for another row: the handler gets the dragged key.
+/// Makes a hierarchy row a drop target for another row: the handler gets the dragged key. A
+/// handler with `zones` also hears where on the row it landed: 'before' (the top quarter),
+/// 'after' (the bottom quarter) or 'inside' - a menu's frames go between rows as well as into them.
 function wireDrop(row, handler) {
+  const zone = event => {
+    if (!handler.zones) return 'inside';
+    const box = row.getBoundingClientRect();
+    const at = (event.clientY - box.top) / Math.max(1, box.height);
+    return at < 0.25 ? 'before' : at > 0.75 ? 'after' : 'inside';
+  };
+  const clear = () => row.classList.remove('drop', 'drop-before', 'drop-after');
   row.ondragover = event => {
     if (![...event.dataTransfer.types].includes('text/x-hierarchy')) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-    row.classList.add('drop');
+    const where = zone(event);
+    clear();
+    row.classList.add(where === 'inside' ? 'drop' : 'drop-' + where);
   };
-  row.ondragleave = () => row.classList.remove('drop');
+  row.ondragleave = clear;
   row.ondrop = event => {
-    row.classList.remove('drop');
+    const where = zone(event);
+    clear();
     const key = event.dataTransfer.getData('text/x-hierarchy');
     if (!key) return;
     event.preventDefault();
-    handler(key);
+    handler(key, where);
   };
 }
 
@@ -672,6 +701,8 @@ function showContextMenu(event, items) {
 
 /// The outline of a document, which is whatever that kind of asset is made of.
 function outlineFor(doc) {
+  // A menu's frames (menu-editor.js); its state is app.js's menu, not doc.data.
+  if (doc.kind === 'menu') return typeof menuOutline === 'function' ? menuOutline(doc) : [];
   const data = doc.data;
   if (!data) return [];
 

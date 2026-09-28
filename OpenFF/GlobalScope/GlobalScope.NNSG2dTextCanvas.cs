@@ -24,5 +24,11 @@ internal static partial class GlobalScope
 		public int hSpace;
 
 		public int vSpace;
+
+		/// <summary>PORT: a colour of the text's own (0xRRGGBBAA, a menu style's #hex) over the palette entry it is drawn in.</summary>
+		public uint? rgba;
+
+		/// <summary>PORT: the text's opacity, 0..255 (a menu style's opacity).</summary>
+		public byte alpha = 255;
 	}
 }

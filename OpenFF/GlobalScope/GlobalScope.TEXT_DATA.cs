@@ -32,5 +32,8 @@ internal static partial class GlobalScope
 		public uint flags;
 
 		public string text;
+
+		/// <summary>PORT: the text's own opacity, 0..255 (a menu style's opacity), over the screen's text alpha.</summary>
+		public byte alpha = 255;
 	}
 }

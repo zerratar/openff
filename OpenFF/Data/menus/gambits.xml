@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The client's Gambits screen (OpenFF.Client.GambitsScreen): a hero's twelve auto-battle rules, FFXII's gambits in the game's own windows, seven rows on screen (the cursor off the top or the bottom row scrolls). Each rule is a window of its own; the frames the cursor lands on - the number with on/off, the condition, the action - stay at the top level so their neighbours reach each other. The canvas is the game's 480 x 288 above the bottom bar; the header leaves the hero's portrait its corner. Generated; the behaviour writes every text as the screen opens. -->
+<!-- The client's Gambits screen (OpenFF.Client.GambitsScreen): a hero's twelve auto-battle rules, FFXII's gambits in the game's own windows, seven rows on screen (the cursor off the top or the bottom row scrolls). Each rule is a window of its own; the frames the cursor lands on - the number with on/off, the condition, the action - stay at the top level so their neighbours reach each other. The canvas is the game's 480 x 288 above the bottom bar, the windows edge to edge as the game's own menus over the Item screen's backdrop; the header leaves the hero's portrait its corner. Generated; the behaviour writes every text as the screen opens. -->
 <menulist>
   <menu>
     <name>gambits</name>
     <frame>
       <window />
-      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>56</height>
+      <id>w_back</id><x>0</x><y>0</y><width>480</width><height>288</height>
+    </frame>
+    <frame>
+      <window />
+      <id>w_top</id><x>0</x><y>0</y><width>480</width><height>60</height>
       <frame>
-        <id>help</id><x>62</x><y>4</y><width>400</width><height>24</height>
+        <id>help</id><x>66</x><y>6</y><width>400</width><height>24</height>
         <display>1</display>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
         <data></data>
       </frame>
       <frame>
-        <id>hero</id><x>62</x><y>28</y><width>398</width><height>24</height>
+        <id>hero</id><x>66</x><y>30</y><width>402</width><height>24</height>
         <display>1</display>
         <colour>pale-blue</colour>
         <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
@@ -22,31 +26,31 @@
     </frame>
     <frame>
       <window />
-      <id>w_row0</id><x>4</x><y>64</y><width>472</width><height>29</height>
+      <id>w_row0</id><x>0</x><y>64</y><width>480</width><height>29</height>
     </frame>
     <frame>
       <window />
-      <id>w_row1</id><x>4</x><y>95</y><width>472</width><height>29</height>
+      <id>w_row1</id><x>0</x><y>95</y><width>480</width><height>29</height>
     </frame>
     <frame>
       <window />
-      <id>w_row2</id><x>4</x><y>126</y><width>472</width><height>29</height>
+      <id>w_row2</id><x>0</x><y>126</y><width>480</width><height>29</height>
     </frame>
     <frame>
       <window />
-      <id>w_row3</id><x>4</x><y>157</y><width>472</width><height>29</height>
+      <id>w_row3</id><x>0</x><y>157</y><width>480</width><height>29</height>
     </frame>
     <frame>
       <window />
-      <id>w_row4</id><x>4</x><y>188</y><width>472</width><height>29</height>
+      <id>w_row4</id><x>0</x><y>188</y><width>480</width><height>29</height>
     </frame>
     <frame>
       <window />
-      <id>w_row5</id><x>4</x><y>219</y><width>472</width><height>29</height>
+      <id>w_row5</id><x>0</x><y>219</y><width>480</width><height>29</height>
     </frame>
     <frame>
       <window />
-      <id>w_row6</id><x>4</x><y>250</y><width>472</width><height>29</height>
+      <id>w_row6</id><x>0</x><y>250</y><width>480</width><height>29</height>
     </frame>
     <frame>
       <focus />

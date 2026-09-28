@@ -210,6 +210,15 @@ async function loadList() {
       }));
       state.files = [...screens, ...state.files];
     }
+    // ...and the OpenFF client's own screens (its Data/menus: the Gambits), whether a project is open or not.
+    if (state.browse === 'menu') {
+      const client = await api('/api/client/menus').catch(() => null);
+      const screens = (client && client.ok ? client.menus || [] : []).map(m => ({
+        name: 'openff/menus/' + m.id, overridden: false, own: true, client: true, menuDef: m,
+        note: `${m.title || m.id} · the OpenFF client's own screen (${client.source ? 'its source' : 'the built client'}: ${client.folder}) · ${m.frames} frame${m.frames === 1 ? '' : 's'}, ${m.focusable} to choose from${m.mainMenu ? ` · in the main menu as “${m.mainMenu}”` : ''}`
+      }));
+      state.files = [...screens, ...state.files];
+    }
     // The text library carries the mod's own faces (fonts/*.ttf), marked so.
     if (state.browse === 'text') {
       for (const f of state.files) {
@@ -266,7 +275,7 @@ function drawList() {
     if (file.own) {
       const mark = document.createElement('i');
       mark.className = 'scene-mark';
-      mark.textContent = fileView === 'grid' ? '' : 'the mod\'s own';
+      mark.textContent = fileView === 'grid' ? '' : file.client ? 'the OpenFF client\'s own' : 'the mod\'s own';
       mark.title = file.note || 'a map of the mod\'s own: a scene file, nothing of the game\'s behind it';
       item.append(mark);
     } else if (file.def && fileView !== 'grid') {
@@ -584,9 +593,17 @@ async function openMenu(name) {
   // A screen of the mod's own (menus/<id>.json + .xml) opens on the same canvas as the game's
   // menus; its layout is saved back as XML and its definition (behaviours, how it opens) is
   // edited in the inspector.
-  const own = /^menus\//.test(name);
+  // The OpenFF client's own screens (openff/menus/<id>, its Data/menus) open the same way, saved back where they came from.
+  const client = /^openff\/menus\//.test(name);
+  const own = client || /^menus\//.test(name);
   let data;
-  if (own) {
+  if (client) {
+    const id = name.slice('openff/menus/'.length);
+    const r = await api(`/api/client/menu?id=${encodeURIComponent(id)}`);
+    if (!r.ok) throw new Error(r.error);
+    data = { xml: r.xml, overridden: false };
+    menu.project = { id, definition: r.definition, client: true, folder: r.folder, source: r.source };
+  } else if (own) {
     const r = await api(`/api/project/menu?id=${encodeURIComponent(name.slice(6))}`);
     if (!r.ok) throw new Error(r.error);
     data = { xml: r.xml, overridden: false };
@@ -608,6 +625,23 @@ async function openMenu(name) {
   // Same frames inside either way.
   const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu' || e.tagName === 'unit');
   menu.screens = found.length ? found : [menu.doc.documentElement];
+  menu.node = node;
+  menu.folded = new Set();
+  // Crystal Style Sheets: the folder's styles/*.css, for a screen of the mod's or the client's (the game's own
+  // screens take <style> elements in their XML); edited in the panel under the canvas.
+  menu.sheets = [];
+  menu.sheetsVersion = (menu.sheetsVersion || 0) + 1;
+  menu.xmlMode = 'xml';
+  if (own) {
+    try {
+      const r = await api(client ? '/api/client/menu/styles' : '/api/project/menu/styles');
+      if (r.ok) menu.sheets = (r.sheets || []).map(x => ({ name: x.name, css: x.css, dirty: false }));
+      menu.sheetsFolder = r.folder || null;
+    } catch (error) { /* no sheets */ }
+  }
+  // This tab's own copy of the state (shell.js activate swaps them as tabs change).
+  const thisDoc = typeof docs !== 'undefined' ? [...docs.values()].find(d => d.kind === 'menu' && d.name === name) : null;
+  if (thisDoc) thisDoc.menuState = { ...menu };
   if (!own) for (const s of menu.screens) { const n = childText(s, 'name'); if (n) gameScreenNames.add(n.toLowerCase()); }
 
   const picker = $('.screens', node);
@@ -667,6 +701,7 @@ async function openMenu(name) {
   };
 
   $('.apply', node).onclick = () => applyXml(node);
+  wireStylesPanel(node, own);
 
   // Anywhere in the canvas area that is not a widget. Selecting nothing is a real
   // choice here rather than just the absence of one - it is what puts the whole file
@@ -680,7 +715,19 @@ async function openMenu(name) {
   };
 
   $('.save', node).onclick = async () => {
+    // The stylesheets changed here first, into the folder's styles/.
+    for (const sheet of (menu.sheets || []).filter(x => x.dirty)) {
+      const r = await api(menu.project && menu.project.client ? '/api/client/menu/styles/save' : '/api/project/menu/styles/save', { name: sheet.name, css: sheet.css });
+      if (!r.ok) { say(r.error, 'bad'); return; }
+      sheet.dirty = false;
+      say(`saved styles/${sheet.name}`, 'good');
+    }
     const xml = new XMLSerializer().serializeToString(menu.doc);
+    if (menu.project && menu.project.client) {
+      const result = await api('/api/client/menu/save', { id: menu.project.id, xml });
+      say(result.ok ? `saved ${menu.project.id}.xml in ${(result.savedTo || []).join(' and ')}` : result.error, result.ok ? 'good' : 'bad');
+      return;
+    }
     if (menu.project) {
       const result = await api('/api/project/menu/save', { id: menu.project.id, xml });
       say(result.ok ? `saved menus/${menu.project.id}.xml` : result.error, result.ok ? 'good' : 'bad');
@@ -712,21 +759,12 @@ async function openMenu(name) {
 
   $('.duplicate', node).onclick = () => {
     if (!menu.selected) return say('select a widget first', 'bad');
-    const copy = menu.selected.cloneNode(true);
-    setChildText(copy, 'id', (childText(copy, 'id') || 'widget') + '_copy');
-    setChildText(copy, 'y', String(number(childText(copy, 'y')) + 8));
-    menu.selected.after(copy);
-    menu.selected = copy;
-    redraw(node);
-    say('duplicated - it needs a unique id', 'good');
+    duplicateMenuFrame(menu.selected);
   };
 
   $('.remove', node).onclick = () => {
     if (!menu.selected) return say('select a widget first', 'bad');
-    if (!confirm('Delete this widget and everything nested in it?')) return;
-    menu.selected.remove();
-    menu.selected = null;
-    redraw(node);
+    deleteMenuFrame(menu.selected);
   };
 
   if (menu.preview) await loadMessages(node);
@@ -744,22 +782,26 @@ const menuBackgrounds = new Map();
 /// same name found nothing. Its parts are laid out around an origin at the centre of an
 /// 800 by 480 screen, and a .xbn lays out in 480 by 320 from the top left, so the whole
 /// thing is moved and scaled by the same numbers the font uses.
-async function drawMenuBackground(node, screenName) {
+async function drawMenuBackground(node, screenName, index) {
   const canvas = $('.canvas', node);
   const existing = $('.menu-bg', canvas);
   if (existing) existing.remove();
-  if (!menu.preview || !screenName) return;
+  // A mod's or the client's screen names its backdrop by number (its definition's "background"); the game's by the screen.
+  const byNumber = index !== undefined && index !== null && index !== '';
+  const key = byNumber ? `index:${index}` : screenName;
+  if (!menu.preview || !key) return;
 
-  let entry = menuBackgrounds.get(screenName);
+  let entry = menuBackgrounds.get(key);
   if (entry === undefined) {
     try {
-      const found = await api(
-        `/api/menu/background?screen=${encodeURIComponent(screenName)}`);
+      const found = await api(byNumber
+        ? `/api/menu/background?index=${encodeURIComponent(index)}`
+        : `/api/menu/background?screen=${encodeURIComponent(screenName)}`);
       entry = found.bank || null;
     } catch (error) {
       entry = null;
     }
-    menuBackgrounds.set(screenName, entry);
+    menuBackgrounds.set(key, entry);
   }
   if (!entry) return;
 
@@ -774,12 +816,16 @@ async function drawMenuBackground(node, screenName) {
   }
   if (!bank.cells || !bank.cells.length) return;
 
-  const sheet = new Image();
-  await new Promise((resolve) => {
-    sheet.onload = resolve;
-    sheet.onerror = resolve;
-    sheet.src = wsUrl(`/api/image?name=${encodeURIComponent(bank.sheet)}`);
-  });
+  let sheet = menuBackgrounds.get('sheet:' + bank.sheet);
+  if (!sheet) {
+    sheet = new Image();
+    await new Promise((resolve) => {
+      sheet.onload = resolve;
+      sheet.onerror = resolve;
+      sheet.src = wsUrl(`/api/image?name=${encodeURIComponent(bank.sheet)}`);
+    });
+    if (sheet.width) menuBackgrounds.set('sheet:' + bank.sheet, sheet);
+  }
   if (!sheet.width) return;
 
   const drawn = drawCell(bank.cells[0], sheet, true, false);
@@ -794,7 +840,12 @@ async function drawMenuBackground(node, screenName) {
   drawn.style.top = `${box.y + 160}px`;
   drawn.style.width = `${box.width}px`;
   drawn.style.height = `${box.height}px`;
-  canvas.prepend(drawn);
+  // The canvas as it is now: a redraw may have come while this loaded, and the one it left is what shows.
+  const now = $('.canvas', node);
+  if (!now || !menu.preview) return;
+  const stale = $('.menu-bg', now);
+  if (stale) stale.remove();
+  now.prepend(drawn);
 }
 
 /// Puts the split at the height it is set to, or shuts it down to its own bar.
@@ -816,6 +867,7 @@ function applyXmlHeight(node) {
 function refreshXmlPanel(node) {
   const area = $('.xml', node);
   if (!area || !menu.xmlOpen || document.activeElement === area) return;
+  if (menu.xmlMode && menu.xmlMode !== 'xml') return;   // a stylesheet is in the panel
   const target = menu.selected || menu.doc;
   $('.xml-what', node).textContent = menu.selected
     ? (childText(menu.selected, 'id') || 'this widget')
@@ -848,9 +900,10 @@ function applyXml(node) {
   }
 }
 
-function redraw(node) {
+/// `quiet`: the inspector is left as it is (an edit made in it), only its numbers brought up to date.
+function redraw(node, quiet) {
   const picker = $('.screens', node);
-  drawScreen(node, menu.screens[picker.value || 0], menu.selected);
+  drawScreen(node, menu.screens[picker.value || 0], menu.selected, quiet);
 }
 
 /// The message behind every Text widget in the file, for the preview.
@@ -882,6 +935,20 @@ async function loadMessages(node) {
 ///
 /// so over 8 picks font 0 and anything else font 1 - the large and small faces, 16
 /// and 12. Every command in the main menu passes 8, which is why they are small.
+/// The text's colour as the game draws it: the layout's <colour> (the names ModMenus reads) on the game's palette
+/// (the client's textColor, NNS_G2dTextCanvasDrawText); white when it says none.
+const GAME_TEXT_COLOURS = {
+  white: '#ffffff', black: '#000000', red: '#ff0000', green: '#00ff00', blue: '#0000ff', cyan: '#00ffff', magenta: '#ff00ff',
+  yellow: '#ffff00', paleyellow: '#ffff80', paleblue: '#8080ff', blue2: '#8080ff', palered: '#ff8080', disabled: '#808080', grey: '#808080', gray: '#808080'
+};
+function textColour(element) {
+  const raw = (childText(element, 'colour') || childText(element, 'color') || '').trim().toLowerCase();
+  // A style's own colour (Crystal Style Sheets: color: #rrggbb) as it is.
+  if (/^#[0-9a-f]{6}$/.test(raw)) return raw;
+  const word = raw.replace(/[-\s]/g, '');
+  return GAME_TEXT_COLOURS[word] || '#ffffff';
+}
+
 function textFontSize(element) {
   const behavior = [...element.children].find(e => e.tagName === 'behavior');
   if (!behavior) return 12;
@@ -958,19 +1025,26 @@ const number = value => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
-/// Every frame in a screen, with the absolute position the game would draw it at.
+/// Every frame in a screen, with the absolute position the game would draw it at - its layout
+/// rules worked out (menu-layout.js) as the client and a baked .xbn work them out.
 function collectFrames(screen) {
   const frames = [];
+  const rects = typeof menuLayoutRects === 'function' ? menuLayoutRects(screen) : new Map();
+  const styled = typeof menuStyled === 'function' && screen && screen.ownerDocument.documentElement.contains(screen) ? menuStyled(screen) : null;
   const walk = (element, parentX, parentY) => {
     for (const child of element.children) {
       if (child.tagName !== 'frame') continue;
-      const x = parentX + number(childText(child, 'x'));
-      const y = parentY + number(childText(child, 'y'));
+      const r = rects.get(child);
+      const x = parentX + (r ? r.x : number(childText(child, 'x')));
+      const y = parentY + (r ? r.y : number(childText(child, 'y')));
       frames.push({
         element: child,
+        look: styled ? styled.look.get(child) || child : child,
         x, y,
-        width: number(childText(child, 'width')),
-        height: number(childText(child, 'height')),
+        width: r ? r.w : number(childText(child, 'width')),
+        height: r ? r.h : number(childText(child, 'height')),
+        driven: !!(r && r.driven),
+        flow: !!(r && r.flow),
         id: childText(child, 'id'),
         behavior: childText(child, 'behavior')
       });
@@ -981,7 +1055,7 @@ function collectFrames(screen) {
   return frames;
 }
 
-function drawScreen(node, screen, select) {
+function drawScreen(node, screen, select, quiet) {
   const canvas = $('.canvas', node);
   canvas.textContent = '';
   if (!screen) return;
@@ -1000,7 +1074,7 @@ function drawScreen(node, screen, select) {
   scale.style.width = `${width * menu.zoom}px`;
   scale.style.height = `${height * menu.zoom}px`;
 
-  drawMenuBackground(node, childText(screen, 'name'));
+  drawMenuBackground(node, childText(screen, 'name'), menu.project && menu.project.definition ? menu.project.definition.background : undefined);
 
   for (const frame of frames) {
     const box = document.createElement('div');
@@ -1010,19 +1084,34 @@ function drawScreen(node, screen, select) {
     box.style.width = `${Math.max(frame.width, 8)}px`;
     box.style.height = `${Math.max(frame.height, 8)}px`;
     box.title = `${frame.id || '(no id)'}  ${frame.width}x${frame.height}`
-      + (frame.behavior ? `  ${frame.behavior}` : '');
+      + (frame.behavior ? `  ${frame.behavior}` : '')
+      + (frame.driven ? `\n${frame.flow ? 'placed by its parent\'s column or row' : 'placed by its layout rules'}: ${frame.element.getAttribute('style') || ''}` : '');
+    if (frame.driven) box.classList.add('laid-out');
+    // The frame as its styles leave it (menu-styles.js): what the client reads - its panel, colour, size, opacity.
+    const look = frame.look || frame.element;
+    const opacity = parseFloat(childText(look, 'opacity'));
+    if (Number.isFinite(opacity) && opacity < 1) box.style.setProperty('--look-opacity', String(opacity));
+    if ([...look.children].some(e => e.tagName === 'hidden')) box.classList.add('look-hidden');
     // A <window/> frame is drawn with the game's window art at run time (a mod screen's panels;
-    // the game's own popups): the canvas shows it as a framed panel, and Preview draws the art.
-    if ([...frame.element.children].some(e => e.tagName === 'window')) {
+    // the game's own popups): the canvas shows it as a framed panel, and Preview draws the art -
+    // or the game's translucent bar, for -ff-panel: bar; tinted by -ff-tint.
+    if ([...look.children].some(e => e.tagName === 'window')) {
       box.classList.add('window');
-      if (menu.preview) drawButtonWindow(frame.width, frame.height, false).then(w => { if (w && box.isConnected) box.prepend(w); }).catch(() => {});
+      const bar = (childText(look, 'panel') || '').trim() === 'bar';
+      const tint = childText(look, 'tint');
+      if (menu.preview && bar) {
+        const art = document.createElement('div');
+        art.className = 'game-bar';
+        if (tint) art.style.setProperty('--tint', tint);
+        box.prepend(art);
+      } else if (menu.preview) drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint).then(w => { if (w && box.isConnected) box.prepend(w); }).catch(() => {});
     }
 
     // Alignment 4 is the one kind of box that belongs to the widget rather than to
     // the background art, so it is the one that follows a resize. Drawing it is the
     // only way to see that without running the game.
     if (menu.preview && textMessageId(frame.element) !== null
-        && textAlignment(frame.element) === 4) {
+        && textAlignment(look) === 4) {
       drawButtonWindow(frame.width, frame.height, false)
         .then(window => { if (window && box.isConnected) box.prepend(window); })
         .catch(() => {});
@@ -1032,14 +1121,17 @@ function drawScreen(node, screen, select) {
     label.className = 'label';
     if (menu.preview) {
       const id = textMessageId(frame.element);
-      // A literal (<data>, message -1) shows as itself - the way a mod's screen writes its labels.
-      const literal = id !== null && id < 0 ? childText(frame.element, 'data') : null;
+      // A literal (<data>, message -1) shows as itself - the way a mod's screen writes its labels; a bound
+      // text (bind-text) as the sample data fills it, as the client fills it from the game's.
+      const bound = frame.element.getAttribute('bind-text');
+      const literal = id !== null && id < 0 ? (bound && typeof bindingFormat === 'function' ? bindingFormat(bound, bindingScopeOf(frame.element)) : childText(frame.element, 'data')) : null;
+      if (typeof bindingTest === 'function' && frame.element.hasAttribute('bind-visible') && !bindingTest(frame.element.getAttribute('bind-visible'), bindingScopeOf(frame.element))) box.classList.add('look-hidden');
       const text = literal != null ? literal : id === null ? null : menu.messages[id];
       if (text != null) {
         label.textContent = text;
         // In the game's own font, once it arrives. The text stays as a fallback, so a
         // font that will not load leaves a readable preview rather than an empty one.
-        drawFontText(text, textFontSize(frame.element), '#f4f4f4')
+        drawFontText(text, textFontSize(look), textColour(look))
           .then(canvas => {
             if (!canvas || !label.isConnected) return;
             label.textContent = '';
@@ -1053,14 +1145,14 @@ function drawScreen(node, screen, select) {
             // which is why the commands looked pinned to the top of their buttons.
             // The menu's commands are 56 tall and the text is 12, so they belong
             // 22 units down.
-            const align = textAlignment(frame.element);
-            const room = frame.width - canvas.width;
+            const align = textAlignment(look);
+            const room = frame.width - (canvas.menuWidth ?? canvas.width);
             if (align === 1) canvas.style.marginLeft = `${Math.round(room)}px`;
             else if (align !== 0 && align !== 6) canvas.style.marginLeft = `${Math.round(room / 2)}px`;   // 6, Steam's list alignment, is left with the hand outside
 
             // StringHeight returns the size itself, so that is the game's own
             // answer for how tall a line is.
-            const size = textFontSize(frame.element);
+            const size = textFontSize(look);
             if (frame.height > 0) {
               canvas.style.marginTop = `${Math.round((frame.height - size) / 2)}px`;
             }
@@ -1087,7 +1179,7 @@ function drawScreen(node, screen, select) {
     box.onpointerdown = event => startDrag(event, node, screen, frame, box);
     canvas.append(box);
 
-    if (select && frame.element === select) selectFrame(node, screen, frame, box);
+    if (select && frame.element === select) selectFrame(node, screen, frame, box, quiet);
   }
 
   if (!select) showProperties(node, null);
@@ -1100,168 +1192,109 @@ function startDrag(event, node, screen, frame, box) {
 
   const startX = event.clientX;
   const startY = event.clientY;
-  const originX = number(childText(frame.element, 'x'));
-  const originY = number(childText(frame.element, 'y'));
+  const originX = childText(frame.element, 'x');
+  const originY = childText(frame.element, 'y');
+  const originStyle = frame.element.getAttribute('style');
   box.classList.add('dragging');
+  let moved = false;
+  let warned = false;
 
   const move = moveEvent => {
     const dx = Math.round((moveEvent.clientX - startX) / menu.zoom);
     const dy = Math.round((moveEvent.clientY - startY) / menu.zoom);
-    setChildText(frame.element, 'x', String(originX + dx));
-    setChildText(frame.element, 'y', String(originY + dy));
+    if (!moved && !dx && !dy) return;
+    // A frame in a column or a row is where its parent's layout puts it.
+    if (frameInFlow(frame.element)) {
+      if (!warned) say('placed by its parent\'s column or row - change that (Children layout), or make it Position: absolute', 'bad');
+      warned = true;
+      return;
+    }
+    // The undo step once the drag has really moved something, not for a click.
+    if (!moved) menuRemember('move ' + (frame.id || 'widget'));
+    moved = true;
+    // From where it started, through whatever holds it there: its edges, or its x and y.
+    if (originStyle === null) frame.element.removeAttribute('style'); else frame.element.setAttribute('style', originStyle);
+    if (originX !== null) setChildText(frame.element, 'x', originX);
+    if (originY !== null) setChildText(frame.element, 'y', originY);
+    moveFrameBy(frame.element, dx, dy, menuLayoutRects(screen));
     box.style.left = `${frame.x + dx}px`;
     box.style.top = `${frame.y + dy}px`;
-    showProperties(node, frame, screen);
+    showProperties(node, frame, screen, true);
   };
 
   const up = () => {
     box.classList.remove('dragging');
     box.removeEventListener('pointermove', move);
     box.removeEventListener('pointerup', up);
-    drawScreen(node, screen, frame.element);
+    if (moved) drawScreen(node, screen, frame.element, true);
   };
 
   box.addEventListener('pointermove', move);
   box.addEventListener('pointerup', up);
 }
 
-function selectFrame(node, screen, frame, box) {
+function selectFrame(node, screen, frame, box, quiet) {
   $$('.widget', node).forEach(w => w.classList.remove('on'));
   box.classList.add('on');
   menu.selected = frame.element;
-  showProperties(node, frame, screen);
+  showProperties(node, frame, screen, quiet);
 }
 
-function showProperties(node, frame, screen) {
+/// `quiet`: the frame is the one the inspector already shows and it changed under it (a drag,
+/// a field of the inspector's own) - its numbers are brought up to date and the panel stays,
+/// so a field being typed in or scrubbed keeps the pointer and the focus.
+function showProperties(node, frame, screen, quiet) {
   if (!activeDoc) return;
 
   if (!frame) {
-    // A screen of the mod's own has a card of its own when nothing is selected: how it opens,
-    // and the behaviours on the screen itself.
-    activeDoc.selection = menu.project ? 'screen' : null;
-    activeDoc.inspect = menu.project ? () => buildMenuScreen(node) : null;
+    // The screen's own card when nothing is selected: its budget, and for a screen of the
+    // mod's own how it opens and the behaviours on the screen itself.
+    activeDoc.selection = 'screen';
+    activeDoc.menuFrame = null;
+    activeDoc.inspect = () => {
+      const current = menu.screens && menu.screens[$('.screens', node).value || 0];
+      const panel = menu.project ? buildMenuScreen(node) : buildGameScreen(current);
+      if (current) {
+        const title = panel.querySelector('.sub') || panel.firstChild;
+        if (title) title.after(menuBudgetCard(current)); else panel.append(menuBudgetCard(current));
+      }
+      return panel;
+    };
     drawInspector();
     refreshXmlPanel(node);
+    if (typeof drawHierarchy === 'function') drawHierarchy();
     return;
   }
 
   // Held on the document so the inspector can rebuild it whenever it redraws -
   // the panel is shared now, and it is redrawn for reasons this view knows nothing
   // about.
-  activeDoc.menuFrame = { frame, screen, node };
-  activeDoc.selection = 'widget:' + (frame.id || '?');
+  const was = activeDoc.menuFrame;
+  const same = was && was.frame.element === frame.element && was.sync;
+  activeDoc.menuFrame = { frame, screen, node, sync: same ? was.sync : null };
+  activeDoc.selection = menuFrameKey(frame.element);
   activeDoc.inspect = () => buildWidget(activeDoc.menuFrame);
-  drawInspector();
+  if (quiet && same) activeDoc.menuFrame.sync();
+  else drawInspector();
   refreshXmlPanel(node);
+  if (typeof drawHierarchy === 'function') drawHierarchy();
 }
 
-/// One widget's properties, for the inspector.
-function buildWidget(held) {
+/// One of the game's screens, with nothing selected: its name and file.
+function buildGameScreen(screen) {
   const panel = document.createElement('div');
-  if (!held) return panel;
-  const { frame, screen, node } = held;
-
   const title = document.createElement('h2');
-  title.textContent = frame.id || '(no id)';
-  panel.append(title);
-
-  const field = (label, tag) => {
-    const wrap = document.createElement('label');
-    wrap.textContent = label;
-    const input = document.createElement('input');
-    input.value = childText(frame.element, tag) ?? '';
-    input.oninput = () => {
-      setChildText(frame.element, tag, input.value);
-      drawScreen(node, screen, frame.element);
-    };
-    wrap.append(input);
-    panel.append(wrap);
-  };
-
-  field('id', 'id');
-  field('x (relative to its parent)', 'x');
-  field('y', 'y');
-  field('width', 'width');
-  field('height', 'height');
-  field('up', 'up');
-  field('down', 'down');
-  field('left', 'left');
-  field('right', 'right');
-
-  // A screen of the mod's own: the frame's text, whether the cursor may land on it, and the
-  // MenuBehaviours on it - what a press or the focus does, in C# or the engine's own.
-  if (menu.project) {
-    const isText = textMessageId(frame.element) !== null && textMessageId(frame.element) < 0;
-    if (isText) {
-      const wrap = document.createElement('label');
-      wrap.textContent = 'text (what the layout shows; a behaviour may write over it)';
-      const input = document.createElement('input');
-      input.value = childText(frame.element, 'data') ?? '';
-      input.oninput = () => { setChildText(frame.element, 'data', input.value); drawScreen(node, screen, frame.element); };
-      wrap.append(input);
-      panel.append(wrap);
-      // The frame's style words: the client writes font and align into the Text behaviour's parameters
-      // as it loads the layout, and puts the colour on as the screen opens.
-      const styleRow = (label, tag, options, tip) => {
-        const w = document.createElement('label');
-        w.textContent = label;
-        w.title = tip;
-        const sel = document.createElement('select');
-        for (const [v, text] of options) { const o = document.createElement('option'); o.value = v; o.textContent = text; sel.append(o); }
-        sel.value = (childText(frame.element, tag) || '').trim().toLowerCase() || '';
-        sel.onchange = () => {
-          const has = [...frame.element.children].find(e => e.tagName === tag);
-          if (!sel.value) { if (has) has.remove(); }
-          else setChildText(frame.element, tag, sel.value);
-          drawScreen(node, screen, frame.element);
-        };
-        w.append(sel);
-        panel.append(w);
-      };
-      styleRow('font', 'font', [['', 'normal (12)'], ['large', 'large (16)'], ['8', '8'], ['10', '10'], ['14', '14'], ['18', '18'], ['20', '20'], ['24', '24'], ['28', '28']], 'The game\'s own two sizes, or a size of the text\'s own (6..31) drawn by the TrueType face');
-      styleRow('align', 'align', [['', 'left'], ['menu', 'menu (left; the hand cursor stands clear - for the rows of a list)'], ['center', 'centre'], ['right', 'right'], ['button', 'button (the game\'s button frame behind the text)']], 'Where the text sits in the frame');
-      styleRow('colour', 'colour', [['', 'white'], ['pale-blue', 'pale blue (headings)'], ['yellow', 'yellow (the chosen one)'], ['disabled', 'grey (cannot be taken)'], ['red', 'red'], ['green', 'green'], ['blue', 'blue'], ['cyan', 'cyan'], ['magenta', 'magenta'], ['pale-yellow', 'pale yellow'], ['pale-red', 'pale red']], 'The game\'s text colours; a behaviour may change it at run time');
-    }
-    const focus = document.createElement('label');
-    focus.className = 'check';
-    const box = document.createElement('input');
-    box.type = 'checkbox';
-    box.checked = [...frame.element.children].some(e => e.tagName === 'focus');
-    box.onchange = () => {
-      const has = [...frame.element.children].find(e => e.tagName === 'focus');
-      if (box.checked && !has) frame.element.prepend(frame.element.ownerDocument.createElement('focus'));
-      else if (!box.checked && has) has.remove();
-      drawScreen(node, screen, frame.element);
-    };
-    focus.append(box, document.createTextNode(' the cursor can land on it (focus); up/down/left/right say where it moves'));
-    panel.append(focus);
-    const win = document.createElement('label');
-    win.className = 'check';
-    const winBox = document.createElement('input');
-    winBox.type = 'checkbox';
-    winBox.checked = [...frame.element.children].some(e => e.tagName === 'window');
-    winBox.onchange = () => {
-      const has = [...frame.element.children].find(e => e.tagName === 'window');
-      if (winBox.checked && !has) frame.element.prepend(frame.element.ownerDocument.createElement('window'));
-      else if (!winBox.checked && has) has.remove();
-      drawScreen(node, screen, frame.element);
-    };
-    win.append(winBox, document.createTextNode(' a window: drawn with the game\'s window art; frames nested inside sit relative to it'));
-    panel.append(win);
-    const behaviours = document.createElement('div');
-    behaviours.className = 'component';
-    const h = document.createElement('div');
-    h.className = 'behaviour-header';
-    h.textContent = 'Behaviours (OpenFF)';
-    behaviours.append(h);
-    const box2 = document.createElement('div');
-    behaviours.append(box2);
-    panel.append(behaviours);
-    menuBehaviourState().then(state => { if (typeof drawBehaviours === 'function') drawBehaviours(box2, state, frame.id || '', 'frame'); }).catch(e => { box2.textContent = e.message; });
-  }
-
-  // The XML itself is in the panel under the canvas, where it has room to be read.
+  title.textContent = (screen && childText(screen, 'name')) || shortName(menu.name);
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = `${menu.name} · one of the game's screens · ${screen ? collectFrames(screen).length : 0} frames`;
+  panel.append(title, sub);
   return panel;
+}
+
+/// One widget's properties, for the inspector (menu-editor.js: in sections, the numbers scrubbing).
+function buildWidget(held) {
+  return buildWidgetInspector(held);
 }
 
 /// The behaviours' state for the open screen of the mod's own, in the shape the map editor's
@@ -1270,7 +1303,7 @@ let menuBehaviourStateCache = null;
 async function menuBehaviourState() {
   if (!menu.project) throw new Error('not a screen of the mod\'s own');
   if (menuBehaviourStateCache && menuBehaviourStateCache.id === menu.project.id) return menuBehaviourStateCache;
-  const catalog = await api('/api/project/code/catalog');
+  const catalog = await api(menu.project.client ? '/api/client/catalog' : '/api/project/code/catalog');
   const def = menu.project.definition;
   def.attachments = def.attachments || [];
   const state = {
@@ -1288,8 +1321,9 @@ function saveMenuDefinition() {
   if (!menu.project) return;
   clearTimeout(menuDefinitionTimer);
   menuDefinitionTimer = setTimeout(async () => {
-    const r = await api('/api/project/menu/save', { id: menu.project.id, definition: menu.project.definition });
-    say(r.ok ? `saved menus/${menu.project.id}.json` : r.error, r.ok ? 'good' : 'bad');
+    const client = menu.project.client;
+    const r = await api(client ? '/api/client/menu/save' : '/api/project/menu/save', { id: menu.project.id, definition: menu.project.definition });
+    say(r.ok ? (client ? `saved ${menu.project.id}.json in ${(r.savedTo || []).join(' and ')}` : `saved menus/${menu.project.id}.json`) : r.error, r.ok ? 'good' : 'bad');
   }, 400);
 }
 
@@ -1302,7 +1336,9 @@ function buildMenuScreen(node) {
   panel.append(title);
   const sub = document.createElement('p');
   sub.className = 'sub';
-  sub.textContent = `menus/${def.id}.json · layout ${def.layout} · a screen of the mod's own in the game's menu`;
+  sub.textContent = menu.project.client
+    ? `${def.id}.json · layout ${def.layout} · the OpenFF client's own screen, in ${menu.project.folder}${menu.project.source ? ' (the source; saves also go to the built client)' : ''}`
+    : `menus/${def.id}.json · layout ${def.layout} · a screen of the mod's own in the game's menu`;
   panel.append(sub);
   const card = document.createElement('div');
   card.className = 'component';
@@ -1386,10 +1422,12 @@ function buildMenuScreen(node) {
   const json = document.createElement('button');
   json.className = 'wide-button';
   json.textContent = 'Open the definition as JSON';
+  json.hidden = !!menu.project.client;   // a project's file; the client's definition is edited on this card
   json.onclick = () => openDoc('code', `menus/${def.id}.json`);
   actions.append(json);
   const remove = document.createElement('button');
   remove.className = 'wide-button';
+  remove.hidden = !!menu.project.client;   // the client's screens are the client's: edited here, not deleted
   remove.textContent = 'Delete this screen';
   remove.onclick = async () => {
     if (!confirm(`Delete the screen "${def.title || def.id}" (menus/${def.id}.json and its layout)?`)) return;
@@ -1455,9 +1493,11 @@ document.addEventListener('keydown', event => {
   const move = moves[event.key];
   if (!move) return;
   event.preventDefault();
-  setChildText(menu.selected, 'x', String(number(childText(menu.selected, 'x')) + move[0]));
-  setChildText(menu.selected, 'y', String(number(childText(menu.selected, 'y')) + move[1]));
-  redraw($('.view'));
+  if (frameInFlow(menu.selected)) return say('placed by its parent\'s column or row', 'bad');
+  menuRemember('nudge', 'nudge');
+  // Through whatever holds it: the edge its style keeps it to, or its x and y.
+  moveFrameBy(menu.selected, move[0], move[1], menuLayoutRects(frameScreen(menu.selected)));
+  redraw(menu.node || $('.view'), true);
 });
 
 // ------------------------------------------------------------------------- text

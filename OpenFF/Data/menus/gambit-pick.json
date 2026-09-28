@@ -3,7 +3,7 @@
   "layout": "gambit-pick.xml",
   "screen": "gambit-pick",
   "title": "Gambits",
-  "background": 10,
+  "background": 0,
   "attachments": [
     {
       "target": "",

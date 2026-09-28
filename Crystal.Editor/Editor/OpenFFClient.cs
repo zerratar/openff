@@ -136,6 +136,40 @@ namespace Crystal.Editor
 		}
 
 		/// <summary>OpenFF/bin/{Debug,Release}/net8.0/OpenFF.exe, looked for upward from where Crystal runs.</summary>
+		/// <summary>
+		/// The folder of the client's own menu screens (the Gambits), and whether it is the source's: a checkout's
+		/// OpenFF/Data/menus when Crystal runs from one (walking up, as for the development build - ahead of what
+		/// launch.json says, which may be any build), else Data/menus beside the recorded client. Null when neither is found.
+		/// The source is what to edit (what git keeps; the build copies it to the client); the build's is what a client reads.
+		/// </summary>
+		public static (string Folder, bool Source)? MenusFolder()
+		{
+			foreach (string start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+			{
+				DirectoryInfo directory = new DirectoryInfo(start);
+				for (int up = 0; up < 7 && directory != null; up++, directory = directory.Parent)
+				{
+					string project = Path.Combine(directory.FullName, "OpenFF", "OpenFF.csproj");
+					string menus = Path.Combine(directory.FullName, "OpenFF", "Data", "menus");
+					if (File.Exists(project) && Directory.Exists(menus))
+					{
+						return (menus, true);
+					}
+				}
+			}
+			string built = BuiltMenusFolder();
+			return built != null ? (built, false) : null;
+		}
+
+		/// <summary>Data/menus beside the client that last ran (or the development build): where a client reads its own screens.</summary>
+		public static string BuiltMenusFolder()
+		{
+			string executable = Executable();
+			if (executable == null) return null;
+			string menus = Path.Combine(Path.GetDirectoryName(executable), "Data", "menus");
+			return Directory.Exists(menus) ? menus : null;
+		}
+
 		private static string DevelopmentBuild()
 		{
 			foreach (string start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })

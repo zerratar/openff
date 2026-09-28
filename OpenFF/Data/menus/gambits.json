@@ -7,7 +7,7 @@
     "label": "Gambits",
     "after": "com_job"
   },
-  "background": 10,
+  "background": 0,
   "characterSelect": true,
   "attachments": [
     {

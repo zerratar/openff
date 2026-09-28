@@ -1098,10 +1098,29 @@ namespace Crystal.Editor
 
 				case "/api/typeface":
 				{
-					// A face of the mod's own, as bytes, for the preview's @font-face.
+					// A face, as bytes, for the preview's @font-face: a mod's own (fonts/...), or one of the faces the client draws
+					// the game's text in - the install's (arial.ttf, arialuni.ttf, TBUDRGoStd-Bold.otf, unifont.ttf, beside the
+					// game) and the title's, Windows' Times New Roman (read where it is; not the client's to ship).
 					string name = Query(context, "name") ?? "";
-					if (!name.StartsWith("fonts/", StringComparison.OrdinalIgnoreCase) || !_workspace.Exists(name)) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such font")); return; }
-					Send(context, 200, name.EndsWith(".otf", StringComparison.OrdinalIgnoreCase) ? "font/otf" : "font/ttf", _workspace.Read(name));
+					string type = name.EndsWith(".otf", StringComparison.OrdinalIgnoreCase) ? "font/otf" : "font/ttf";
+					if (name.StartsWith("fonts/", StringComparison.OrdinalIgnoreCase) && _workspace.Exists(name)) { Send(context, 200, type, _workspace.Read(name)); return; }
+					string[] gameFaces = { "arial.ttf", "arialuni.ttf", "TBUDRGoStd-Bold.otf", "unifont.ttf", "times.ttf" };
+					string face = gameFaces.FirstOrDefault(f => string.Equals(f, name, StringComparison.OrdinalIgnoreCase));
+					if (face != null)
+					{
+						List<string> places = new List<string>();
+						foreach (string root in new[] { _workspace.LooseRoot, _workspace.ContentDirectory })
+						{
+							if (string.IsNullOrEmpty(root)) continue;
+							places.Add(Path.Combine(root, face));
+							string up = Path.GetDirectoryName(root.TrimEnd('\\', '/'));
+							if (up != null) places.Add(Path.Combine(up, face));
+						}
+						places.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), face));
+						string found = places.FirstOrDefault(File.Exists);
+						if (found != null) { Send(context, 200, type, File.ReadAllBytes(found)); return; }
+					}
+					Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such font"));
 					return;
 				}
 
@@ -1420,6 +1439,123 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/client/menus":
+				{
+					// The OpenFF client's own screens (its Data/menus: the Gambits) - listed with or without a project open.
+					(string Folder, bool Source)? where = OpenFFClient.MenusFolder();
+					if (where == null) { SendJson(context, new { ok = true, menus = new List<object>(), folder = (string)null }); return; }
+					SendJson(context, new { ok = true, menus = ProjectMenus.Describe(where.Value.Folder), folder = where.Value.Folder, source = where.Value.Source });
+					return;
+				}
+
+				case "/api/client/menu":
+				{
+					(string Folder, bool Source)? where = OpenFFClient.MenusFolder();
+					string id = Query(context, "id");
+					JsonObject def = where == null ? null : ProjectMenus.Definition(where.Value.Folder, id);
+					if (def == null) { SendJson(context, new { ok = false, error = "the client has no screen called '" + id + "'" }); return; }
+					SendJson(context, new { ok = true, definition = def, xml = ProjectMenus.Layout(where.Value.Folder, id) ?? "", folder = where.Value.Folder, source = where.Value.Source });
+					return;
+				}
+
+				case "/api/client/catalog":
+				{
+					// The behaviours a client screen may carry, with or without a project: the engine's menu behaviours
+					// (Back, OpenMenu, Label, Picture, Gauge), and the client's own that its screens name (GambitsScreen...),
+					// which live in the client's code - listed by name, with no settings to show.
+					try
+					{
+						ModCatalogResult catalog = ModCatalog.Read(_project);
+						List<CatalogType> behaviours = catalog.Behaviours.ToList();
+						(string Folder, bool Source)? where = OpenFFClient.MenusFolder();
+						if (where != null)
+						{
+							foreach (string id in ProjectMenus.Ids(where.Value.Folder))
+							{
+								if (!(ProjectMenus.Definition(where.Value.Folder, id)?["attachments"] is JsonArray list)) continue;
+								foreach (JsonNode a in list)
+								{
+									string name = a?["behaviour"]?.GetValue<string>();
+									if (string.IsNullOrWhiteSpace(name) || behaviours.Any(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase))) continue;
+									behaviours.Add(new CatalogType { Name = name, FullName = "OpenFF.Client." + name, Kind = "menu", Assembly = "OpenFF.dll", Summary = "The OpenFF client's own: its code is in the client (OpenFF/Compat), nothing to set here." });
+								}
+							}
+						}
+						SendJson(context, new { ok = true, code = false, built = true, behaviours, catalog.Services, catalog.Assemblies, catalog.Problems, sources = new List<object>() });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/client/menu/save":
+				{
+					// Into the folder the screen came from; from the source, a copy into the built client's Data/menus too,
+					// so a client that is running shows it the next time the screen opens (it reads its screens as they open).
+					JsonNode body = ReadBody(context);
+					try
+					{
+						(string Folder, bool Source)? where = OpenFFClient.MenusFolder();
+						if (where == null) throw new InvalidOperationException("no OpenFF client found");
+						string id = body?["id"]?.GetValue<string>();
+						List<string> folders = new List<string> { where.Value.Folder };
+						string built = OpenFFClient.BuiltMenusFolder();
+						if (where.Value.Source && built != null && !string.Equals(Path.GetFullPath(built), Path.GetFullPath(where.Value.Folder), StringComparison.OrdinalIgnoreCase)) folders.Add(built);
+						foreach (string folder in folders)
+						{
+							if (ProjectMenus.Definition(folder, id) == null && folder != where.Value.Folder) continue;
+							if (body?["xml"] is JsonValue xml) ProjectMenus.SaveLayout(folder, id, xml.GetValue<string>());
+							if (body?["definition"] is JsonObject def) ProjectMenus.SaveDefinition(folder, id, (JsonObject)JsonNode.Parse(def.ToJsonString()));
+						}
+						SendJson(context, new { ok = true, definition = ProjectMenus.Definition(where.Value.Folder, id), savedTo = folders });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/client/menu/styles":
+				{
+					// The client's screens' stylesheets (Data/menus/styles/*.css).
+					(string Folder, bool Source)? where = OpenFFClient.MenusFolder();
+					SendJson(context, new { ok = true, sheets = ProjectMenus.Sheets(where?.Folder), folder = where == null ? null : Path.Combine(where.Value.Folder, "styles") });
+					return;
+				}
+
+				case "/api/client/menu/styles/save":
+				{
+					// Into the source's styles/, and the built client's too (as a screen's save goes to both).
+					JsonNode body = ReadBody(context);
+					try
+					{
+						(string Folder, bool Source)? where = OpenFFClient.MenusFolder();
+						if (where == null) throw new InvalidOperationException("no OpenFF client found");
+						List<string> folders = new List<string> { where.Value.Folder };
+						string built = OpenFFClient.BuiltMenusFolder();
+						if (where.Value.Source && built != null && !string.Equals(Path.GetFullPath(built), Path.GetFullPath(where.Value.Folder), StringComparison.OrdinalIgnoreCase)) folders.Add(built);
+						foreach (string folder in folders) ProjectMenus.SaveSheet(folder, body?["name"]?.GetValue<string>(), body?["css"]?.GetValue<string>() ?? "");
+						SendJson(context, new { ok = true, savedTo = folders.Select(f => Path.Combine(f, "styles")).ToList() });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/menu/styles":
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					SendJson(context, new { ok = true, sheets = ProjectMenus.Sheets(ProjectMenus.Directory(_project)), folder = Path.Combine(ProjectMenus.Directory(_project), "styles") });
+					return;
+
+				case "/api/project/menu/styles/save":
+				{
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						ProjectMenus.SaveSheet(ProjectMenus.Directory(_project), body?["name"]?.GetValue<string>(), body?["css"]?.GetValue<string>() ?? "");
+						SendJson(context, new { ok = true, savedTo = new[] { Path.Combine(ProjectMenus.Directory(_project), "styles") } });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/project/menus":
 					// The project's menu screens (menus/<id>.json + .xml), for the Menus library.
 					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
@@ -1717,12 +1853,17 @@ namespace Crystal.Editor
 				case "/api/menu/background":
 					{
 						string screen = Query(context, "screen") ?? string.Empty;
-						SendJson(context, new
+						// A mod's or the client's screen names its backdrop by number (the definition's "background": the
+						// game's main_bg_nscr, wmenu.CWMenuManager); one of the game's by the screen it is.
+						string[] byNumber = { "menu_001_item.NSCR", "menu_002_magic.NSCR", "menu_003_soubi_01.NSCR", "menu_004_status.NSCR", null, "menu_006_job.NSCR", "menu_010_config.NSCR", "menu_008_tyudan.NSCR", "menu_009_save.NSCR", "menu_000_main.NSCR", "menu_012_plane.NSCR", "menu_002_magic_02.NSCR", "menu_010_config_2.NSCR", "tips_00.NSCR", "tips_01.NSCR" };
+						string bank = null;
+						if (int.TryParse(Query(context, "index"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int index))
 						{
-							screen,
-							bank = MenuBackgrounds.ForScreen.TryGetValue(screen,
-								out string bank) ? bank : null
-						});
+							index = index == 4 ? 10 : Math.Clamp(index, 0, byNumber.Length - 1);   // 4 is nobody's; the plain one instead (as ModMenus)
+							bank = byNumber[index] != null ? "files/" + byNumber[index] : null;
+						}
+						else if (MenuBackgrounds.ForScreen.TryGetValue(screen, out string forScreen)) bank = forScreen;
+						SendJson(context, new { screen, bank });
 					}
 					return;
 
@@ -2138,6 +2279,14 @@ namespace Crystal.Editor
 		private void GetMenu(HttpListenerContext context)
 		{
 			string name = Query(context, "name");
+			// An edit with layout rules in it is kept as written beside the baked .xbn (LayoutSource): that is what
+			// opens, rules and all, as long as the .xbn is still the edit it was baked into.
+			string source = LayoutSource(name);
+			if (_workspace.IsOverridden(name) && File.Exists(source))
+			{
+				SendJson(context, new { name, overridden = true, layoutSource = true, xml = File.ReadAllText(source) });
+				return;
+			}
 			XDocument document = MenuXbn.ToXml(_workspace.Read(name));
 			// The battle's HUD is a screen the client adds to BattleDefine (BattleHudLayout); shown here so it can be taken into a mod.
 			if (name != null) BattleHudLayout.Ensure(Path.GetFileName(name), document);
@@ -2157,14 +2306,35 @@ namespace Crystal.Editor
 
 			try
 			{
-				byte[] data = MenuXbn.FromXml(XDocument.Parse(xml));
+				XDocument document = XDocument.Parse(xml);
+				// The game gets plain frames: FromXml bakes the layout rules into the numbers and leaves them out.
+				byte[] data = MenuXbn.FromXml(document);
 				_workspace.Write(name, data);
-				SendJson(context, new { ok = true, bytes = data.Length, overridden = true });
+				// The rules themselves are kept outside the files the game reads (and a Steam zip carries), for the next edit.
+				string source = LayoutSource(name);
+				bool rules = MenuLayout.Has(document.Root);
+				if (rules)
+				{
+					Directory.CreateDirectory(Path.GetDirectoryName(source));
+					File.WriteAllText(source, xml);
+				}
+				else if (File.Exists(source)) File.Delete(source);
+				SendJson(context, new { ok = true, bytes = data.Length, overridden = true, baked = rules });
 			}
 			catch (Exception ex)
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}
+		}
+
+		/// <summary>
+		/// Where a game menu edited with OpenFF's layout rules keeps them: beside the override folder, not in it
+		/// (layout-sources/&lt;name&gt;.xml) - the game and a Steam or GOG build only ever see the baked .xbn.
+		/// </summary>
+		private string LayoutSource(string name)
+		{
+			string root = Path.GetDirectoryName(_workspace.OverrideDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? _workspace.OverrideDirectory;
+			return Path.Combine(root, "layout-sources", (name ?? "").Replace('/', Path.DirectorySeparatorChar) + ".xml");
 		}
 
 		private void AddToMap(HttpListenerContext context)
@@ -3290,6 +3460,8 @@ namespace Crystal.Editor
 			// been installed, deleting it here alone would leave the game still holding
 			// it, and the file would look reverted everywhere except where it matters.
 			ModResult result = ModInstall.Revert(_workspace, new[] { name }, Current.Installable);
+			// A menu's kept layout rules go with the edit they were baked into.
+			try { string source = LayoutSource(name); if (!_workspace.IsOverridden(name) && File.Exists(source)) File.Delete(source); } catch (IOException) { }
 			_messages.Invalidate();
 			_flags.Invalidate();
 			_characterIds.Invalidate();

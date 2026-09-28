@@ -67,6 +67,189 @@ Two conventions come from the binary format rather than from the game:
   with leading or trailing blanks is written as `value="..."` for the same reason. One
   widget's label is 32 ideographic spaces, and trimming it would corrupt the file.
 
+## Layout rules
+
+A frame can be placed by rules instead of numbers, the way Unity's UI Toolkit places a
+`VisualElement`: the layout part of Crystal Style Sheets (below), in a `style` attribute. OpenFF understands it; the game never
+sees it. `MenuXbn.FromXml` bakes every frame's rules into the plain `x`, `y`, `width` and
+`height` the game reads, then strips the rules (`Shared/Text/MenuLayout.cs`). So the client
+(which builds its patched `.xbn` through `FromXml`), `crystal xbn-build` and Crystal's Save
+all hand the game ordinary frames, and a Steam or GOG build never meets the extension.
+`crystal xbn-bake <file.xml>` writes the baked XML, so you can see what the game will get.
+
+```xml
+<frame style="left: 0; right: 0; top: 0; height: 60px">                   <!-- held to both sides -->
+<frame style="right: 8px; top: 50%; translate: 0 -50%; width: 100px">      <!-- right edge, centred down -->
+<frame style="flex-direction: column; gap: 2px; padding: 6px; height: auto">
+  <frame style="height: 21px"> ... </frame>                               <!-- rows, one after another -->
+```
+
+A number is menu units (`px` optional); a percent is of the parent's size, or of the
+frame's own for `translate`. Whatever the style does not set falls back on the frame's own
+elements, so a style can take over part of the rect, and a frame without one stays exactly
+as it was. A top-level frame's parent is the screen: 480 × 288, the menu area above the
+bottom bar, unless the `<menu>`'s own style gives a `width` and `height`.
+
+| Property | What it does |
+|---|---|
+| `left` `right` `top` `bottom` | Hold the frame this far from the parent's edge. Both sides set, with no size, stretches it between them. |
+| `width` `height` | Size in units or %. `auto` on a column or row: what its frames take, plus its padding. |
+| `min-/max-width` `min-/max-height` | Clamp the size. |
+| `translate` | `x [y]`, applied after placing. `left: 50%; translate: -50% 0` centres the frame. |
+| `margin(-side)` | Space kept clear around the frame (from its held edge, or in a column/row). |
+| `flex-direction` | `column` or `row`: the frames inside follow one another, `gap` apart, inside the `padding`. |
+| `gap` `padding(-side)` | Spacing inside a column or row. |
+| `justify-content` | Where the run sits along the direction when there is room left: `flex-start`, `center`, `flex-end`, `space-between`. |
+| `align-items` `align-self` | Across the direction: `stretch` (default: the full width of a column, unless the frame gives its own), `flex-start`, `center`, `flex-end`. |
+| `flex-grow` | A frame's share of the space left over. |
+| `position: absolute` | Takes a frame in a column or row out of the flow, placed by its own edges. |
+
+For one of the game's own screens edited in Crystal, Save writes the baked `.xbn` and keeps
+the rules beside the override folder, in `layout-sources/<name>.xml`, outside what the game
+reads and what a Steam zip carries. That copy is what reopens while the `.xbn` is still that
+edit, and Revert removes it. Screens of a mod's own and the client's (`menus/*.xml`) keep
+their rules in the file; the client bakes them as it loads.
+
+Crystal's menu canvas draws the rules through a port of the resolver (`menu-layout.js`), kept
+to the same rules. The inspector writes them as you work:
+- **Rect**'s X/Y/W/H edit whatever places the frame.
+- The anchor presets write the edges (a centre is `50%` and a `translate`).
+- **Layout** switches each rule on or off without moving the frame.
+- **Children layout** makes the frame a column or a row.
+
+A frame placed by rules has a dashed outline on the canvas.
+
+## Crystal Style Sheets
+
+The look goes in stylesheets: Crystal Style Sheets, a small subset of CSS in `.css` files, so
+any editor highlights them. A screen's sheets are the `styles/*.css` files beside its layout
+(`menus/styles/` in a mod, `Data/menus/styles/` in the client), read in name order, then any
+`<style>` elements in the layout itself. A frame's own `style` attribute beats every sheet.
+The layout's older words (`<colour>`, `<font>`, `<align>`, `<window/>`) sit under all of them,
+the way HTML's attributes do.
+
+```css
+#gambits window   { opacity: 90%; }                 /* every panel of the screen */
+#w_top            { -ff-panel: bar; -ff-tint: #402020; }
+.row > text       { color: pale-blue; font-size: 14px; }
+text.picked       { color: #ffd080; }
+#help             { visibility: hidden; }
+```
+
+**Selectors:**
+- a type: `menu`; `frame`; `text` (a frame with the Text behaviour); `window` (a frame with a panel);
+- `#id` (a frame's `<id>`, or a screen's `<name>`), `.class` (the `class` attribute), and `*`;
+- combined with a space (anywhere inside) or `>` (directly inside), and listed with commas.
+
+Specificity and source order decide, as in CSS. A rule whose selector uses anything else, such as `:hover` or `[attr]`, is skipped, and so is any `@` block.
+
+| Property | What it does |
+|---|---|
+| the layout properties | As in [Layout rules](#layout-rules). A sheet can place frames too. |
+| `display: none` | Not drawn, and left out of its column or row. |
+| `color` | A palette word (`white`, `yellow`, `pale-blue`, `pale-yellow`, `pale-red`, `disabled`…) or `#rgb` / `#rrggbb`. Inherited. |
+| `font-size` | 6–31 (px optional), or `large` / `normal`. Inherited. |
+| `text-align` | `left`, `right`, `center`, `menu` (the hand cursor stands clear), `button`. Inherited. |
+| `opacity` | 0–1 or a percent, for the panel and the text. Multiplies down to the frames inside. |
+| `visibility: hidden` | Text and panel not drawn. The frame still takes its place and the cursor. Inherited. |
+| `-ff-panel` | `window` (the game's window art), `bar` (its dark translucent bar), `none` (no panel). |
+| `-ff-tint` | `#rrggbb`: the window's art multiplied by it. For a bar, the bar's colour. |
+
+Properties CSS already has keep their CSS names. The ones only OpenFF has carry a `-ff-`
+prefix, the way browsers mark their own. Anything else is skipped; Crystal's inspector lists
+it as "not Crystal Style Sheets".
+
+The cascade is worked out once, as the layout loads (`Shared/Text/MenuStyles.cs`). The layout
+properties go into each frame's `style` for the layout bake; the look is written into elements
+the client reads as the screen opens: `<colour>`, `<font>`, `<align>`, `<opacity>`, `<hidden/>`,
+`<window/>`, `<panel>`, `<tint>`.
+- **At runtime:** `ModMenus` draws a text in its own colour and opacity through its text canvas (`NNSG2dTextCanvas.rgba`/`alpha`), and a window through `BasicWindow.SetLook` and `SetBarStyle`.
+- **Stacking:** windows stack in the layout's order, so a later one, bar or see-through, sits over an earlier one.
+- **For the game:** `MenuXbn.FromXml` cascades the `<style>` elements it finds, then bakes and strips everything like the layout rules.
+
+In Crystal:
+- **Styles panel:** the picker on the panel under the canvas switches it between the XML and the screen's sheets (**+ New stylesheet** makes `styles/<screen>.css`). A sheet applies as you type, and Save writes it.
+- **Canvas:** draws the cascade through `menu-styles.js`, a port kept to the same rules.
+- **Style section in the inspector:**
+  - the frame's classes;
+  - its own panel, opacity, tint, text colour and hidden;
+  - every sheet rule that reaches it, in cascade order. Anything overridden is struck through, the way a browser's devtools show it.
+
+## Data bindings
+
+A frame can take its text, visibility and classes from the game's data while the screen runs,
+the way Unity's UI Toolkit binds an element to a data source by a path. It's written as
+attributes, so the game's own file never carries them:
+
+```xml
+<menu data-source="hero">                                   <!-- the screen's data: the picked hero -->
+  <frame bind-text="{name}   Lv {level}"> ...               <!-- a template: {path} or {path:format} -->
+  <frame bind-text="HP {hp}/{maxHp}" bind-class="low: hp &lt; maxHp / 4; ko: !alive"> ...
+  <frame data-source="party[1]" bind-text="{name}"> ...     <!-- a frame's own data, for it and its frames -->
+  <frame bind-visible="gil &gt;= 1000" bind-text="{gil:N0} G"> ...
+```
+
+**Paths:**
+- **Syntax:** names joined by dots, with `[index]` for a list or a dictionary (`party[0]`, `rules[menu.hero]`). Public properties and fields, any case; `count` works on lists.
+- **Where the first name is looked up:** first on the data source, then among the roots:
+  - what the screen's code put in `Menu.Data`;
+  - `hero` (the party member the screen asked for);
+  - `party` (the members), `gil`, `items` (the bag);
+  - `menu` (the screen: `hero`, `focused`, `id`);
+  - `this` (the data source itself).
+
+**Expressions** (`bind-visible`, and a class's condition in `bind-class`):
+- a path or a literal (a number, `'text'`, `true`, `false`, `null`), with simple sums (`maxHp / 4`, `level + 1`);
+- compared with `== != < <= > >=`, turned round by `!`, and joined by `&&` and `||`.
+
+A plain value counts as true when it's true, a non-zero number, a non-empty text or list, or anything else that isn't null.
+
+A class a binding switches on brings its stylesheet rules with it. That's the way to colour a hero red when low, or to grey out a row.
+
+Bindings are worked out every frame (`OpenFF.Engine/MenuBindings.cs`), and only what changed is put on. A text is written only when its value changes, so code that writes a bound frame's text keeps it until the bound value moves.
+
+Steam and GOG builds show the layout's own `<data>` text: bindings are OpenFF's.
+
+In Crystal, the inspector's **Bindings** section edits a frame's data source, text template (**+ path** puts a path in at the cursor), visibility and bound classes. It shows what they come to with a sample of the game's data (Luneth, Lv 12, 12,345 G), and Preview draws bound frames that way too (`menu-bindings.js`, a port kept to the same rules).
+
+## From code
+
+A `MenuBehaviour` reaches the screen through `Menu`, and each frame through its `IMenuWidget`, much as a UI Toolkit script reaches its `VisualElement`s:
+
+```csharp
+public sealed class PartyScreen : MenuBehaviour
+{
+    public override void OnOpen()
+    {
+        Menu.Data["quests"] = MyQuests.Open();                 // a root for the layout's bindings: {quests[0].title}
+        IMenuWidget title = Menu.Q("#title");                  // by id, as the sheets pick frames out
+        title.Text = "Party";
+        foreach (IMenuWidget row in Menu.Query("#list > .row"))
+            row.ToggleClass("empty", row.Work >= Game.Party.Members.Count);
+        Menu.Q("#gil").Bind("text", "{gil:N0} G");             // a binding from code, as bind-text
+        Menu.Q("#hint").SetStyle("opacity", "60%");            // the frame's own style, over the sheets
+    }
+
+    public override void OnFocus() => Menu.Q("#help").Text = "On " + Menu.Focused;
+}
+```
+
+**`IMenuScreen`:**
+- **Finding frames:** `Q(selector)` gives the first match and `Query(selector)` every match, using the stylesheets' selectors (`#id`, `.class`, `text`, `window`, `>`, and so on). `Widget(id)` and `Widgets` also work.
+- **Data for bindings:** `Data` holds the binding roots, and `Refresh()` works the bindings out at once.
+- **Moving about:** `Focus`, `Focused`, `Hero`, `Open`, `Close`, and the sounds.
+
+**`IMenuWidget`:**
+- **Text:** `Text`, `Colour` (a palette colour), `FontSize`, `Visible`.
+- **Classes:** `Classes`, `HasClass`, `AddClass`, `RemoveClass`, `ToggleClass`. A change cascades the sheets again and puts on what it changes: colour, size, opacity, panel, hidden. The windows are made again if a panel changed.
+- **Style:** `GetStyle`/`SetStyle` for the frame's own look properties, over every sheet; `Opacity` as a shortcut.
+- **Bindings:** `DataSource`, `Bind(property, expression)` (`"text"`, `"visible"` or `"class.<name>"`; null unbinds), `Binding(property)`.
+- **Structure:** `Parent`, `Children`, `Id`, `Work`, the rect, and `ScreenRect` for drawing over the frame.
+
+Layout properties (`left`, `width`, `flex-direction`…) are fixed when the screen is built; change them in the layout, not from code. Frames need an id for their classes and style to reach the stylesheets. On one of the game's own screens with no mod layout, `SetStyle` puts colour, font size, opacity and visibility on directly.
+
+`MenuBindings.Format`, `Test` and `Resolve` are public, for code of your own that wants the same paths and templates.
+
 ## Screens of a mod's own
 
 The same XML, a `<menu>` at a time, is how an OpenFF mod adds a screen: `menus/<id>.xml`
