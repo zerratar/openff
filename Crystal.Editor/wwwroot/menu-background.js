@@ -49,7 +49,7 @@ function bgImage(value) {
 function parseBackground(declarations) {
   if (!declarations || !declarations.trim()) return null;
   const b = { image: null, colour: null, tint: [255, 255, 255, 255], rect: null, scaleMode: null, size: null, position: null, repeat: null,
-    left: 0, top: 0, right: 0, bottom: 0, sliceScale: 1, tiled: false, linear: true };
+    left: 0, top: 0, right: 0, bottom: 0, sliceScale: 1, tiled: false, linear: true, sprite: null, sliceGiven: false };
   for (const [k, raw] of styleDeclarations(declarations)) {
     const v = raw.trim();
     switch (k) {
@@ -65,7 +65,9 @@ function parseBackground(declarations) {
       case 'background-size': b.size = v.toLowerCase(); break;
       case 'background-position': b.position = v.toLowerCase(); break;
       case 'background-repeat': b.repeat = v.toLowerCase(); break;
+      case '-ff-sprite': b.sprite = v.replace(/^["']|["']$/g, '').trim() || null; if (b.sprite === 'none') b.sprite = null; break;
       case '-ff-slice': {
+        b.sliceGiven = true;
         const s = v.split(/\s+/).filter(Boolean).map(bgNumber);
         if (s.length === 1) b.top = b.right = b.bottom = b.left = s[0];
         else if (s.length === 2) { b.top = b.bottom = s[0]; b.right = b.left = s[1]; }
@@ -73,13 +75,21 @@ function parseBackground(declarations) {
         else if (s.length >= 4) [b.top, b.right, b.bottom, b.left] = s;
         break;
       }
-      case '-ff-slice-left': b.left = bgNumber(v); break;
-      case '-ff-slice-top': b.top = bgNumber(v); break;
-      case '-ff-slice-right': b.right = bgNumber(v); break;
-      case '-ff-slice-bottom': b.bottom = bgNumber(v); break;
+      case '-ff-slice-left': b.left = bgNumber(v); b.sliceGiven = true; break;
+      case '-ff-slice-top': b.top = bgNumber(v); b.sliceGiven = true; break;
+      case '-ff-slice-right': b.right = bgNumber(v); b.sliceGiven = true; break;
+      case '-ff-slice-bottom': b.bottom = bgNumber(v); b.sliceGiven = true; break;
       case '-ff-slice-scale': { const f = bgNumber(v); b.sliceScale = f > 0 ? Math.max(0.01, f) : 1; break; }
       case '-ff-slice-type': b.tiled = v.toLowerCase() === 'tiled'; break;
       case '-ff-background-filter': b.linear = v.toLowerCase() !== 'point'; break;
+    }
+  }
+  // A named sprite of the sheet (sprites.json): its part and its borders, where the frame gave none of its own.
+  if (b.sprite && b.image && typeof findSprite === 'function') {
+    const sp = findSprite(b.image, b.sprite);
+    if (sp) {
+      if (!b.rect && sp.w > 0 && sp.h > 0) b.rect = [sp.x, sp.y, sp.w, sp.h];
+      if (!b.sliceGiven) { b.left = sp.left || 0; b.top = sp.top || 0; b.right = sp.right || 0; b.bottom = sp.bottom || 0; }
     }
   }
   const empty = !b.image && (!b.colour || b.colour[3] === 0);
@@ -344,9 +354,54 @@ async function pickBackgroundPicture(current, onChosen) {
       const size = document.createElement('i');
       size.textContent = p.size;
       cell.append(img, label, size);
-      cell.onclick = () => { close(); onChosen(p.value); };
+      cell.onclick = () => sprites(p);
       grid.append(cell);
     }
+  };
+  // A sheet chosen: its sprites (sprites.json), the whole picture, or the Sprite editor to make some.
+  const sprites = async p => {
+    const image = bgImage(p.value);
+    const list = spritesOf(image);
+    const game = image.kind === 'resource' ? await spritesFromCells(image) : [];
+    if (!list.length && !game.length) { close(); onChosen(p.value, null); return; }
+    const img = await loadBackgroundPicture(image);
+    grid.textContent = '';
+    tabs.hidden = true;
+    filter.hidden = true;
+    title.textContent = `${p.name.split('/').pop()} - which part?`;
+    const back = document.createElement('button');
+    back.className = 'picker-cell bg-none';
+    back.textContent = '\u2190 Back';
+    back.onclick = () => { tabs.hidden = false; filter.hidden = false; title.textContent = 'Choose a picture'; draw(); };
+    const whole = document.createElement('button');
+    whole.className = 'picker-cell';
+    whole.title = 'All of the picture';
+    if (img) whole.append(spriteThumbnail(img, { x: 0, y: 0, w: img.width, h: img.height }, 96));
+    const wl = document.createElement('span');
+    wl.textContent = 'The whole picture';
+    whole.append(wl);
+    whole.onclick = () => { close(); onChosen(p.value, null); };
+    const editor = document.createElement('button');
+    editor.className = 'picker-cell bg-none';
+    editor.textContent = list.length ? 'Edit sprites\u2026' : 'Make sprites\u2026';
+    editor.title = list.length ? 'The Sprite editor for this sheet' : `The Sprite editor - ${game.length} piece${game.length === 1 ? '' : 's'} of the game's own cells to start from`;
+    editor.disabled = !menu.project;
+    editor.onclick = () => { close(); editSprites(image, null, n => onChosen(p.value, n)); };
+    grid.append(back, whole, editor);
+    for (const sp of list) {
+      const cell = document.createElement('button');
+      cell.className = 'picker-cell';
+      cell.title = `${sp.name}  ${sp.x} ${sp.y} ${sp.w}\u00d7${sp.h}${sp.left || sp.top || sp.right || sp.bottom ? `  borders ${sp.left} ${sp.top} ${sp.right} ${sp.bottom}` : ''}`;
+      if (img) cell.append(spriteThumbnail(img, sp, 96));
+      const n = document.createElement('span');
+      n.textContent = sp.name;
+      const d = document.createElement('i');
+      d.textContent = `${sp.w} \u00d7 ${sp.h}${sp.left || sp.top || sp.right || sp.bottom ? ' \u00b7 sliced' : ''}`;
+      cell.append(n, d);
+      cell.onclick = () => { close(); onChosen(p.value, sp.name); };
+      grid.append(cell);
+    }
+    note.textContent = list.length ? `${list.length} sprite${list.length === 1 ? '' : 's'} of this sheet (sprites.json) - each with its own borders.` : `No sprites of this sheet yet - Make sprites starts from the game's own ${game.length} pieces.`;
   };
   filter.oninput = draw;
   importButton.onclick = () => file.click();
@@ -547,75 +602,204 @@ async function editSlices(image, rect, slices, onDone) {
 
 // ------------------------------------------------------------------ the inspector's Background
 
-/// The inspector's Background section, as UI Toolkit's: colour, picture, tint, scale mode, size, position, repeat, and the slices.
-function buildBackgroundSection(panel, element, screen, edit, rebuild, sync) {
-  const computed = () => (menuStyled(frameScreen(element)).computed.get(element)) || new Map();
+/// Where a property of a frame's (or the screen's) style comes from: its own style, a sheet's rule, or nowhere.
+function propertySource(element, prop) {
+  if (frameStyle(element).has(prop)) return { own: true, text: element.tagName === 'frame' ? 'this frame\'s own style' : 'the screen\'s own style' };
+  const rules = element.tagName === 'frame' ? frameRules(element) : screenRules(element);
+  for (let i = rules.length - 1; i >= 0; i--) {
+    if (rules[i].declarations.some(([k]) => k === prop)) return { own: false, text: `${rules[i].sheet} ${rules[i].selector}` };
+  }
+  return null;
+}
+
+/// The sheet rules that reach a screen (menu, #name), in cascade order.
+function screenRules(screen) {
+  const styled = menuStyled(screen);
+  return matchingRules(styled.rules, styled.copy).map(({ rule, specificity }) => ({
+    selector: rule.selectors.filter(s => selectorMatches(s, styled.copy)).map(s => s.text).join(', '),
+    sheet: rule.sheet, declarations: rule.declarations, specificity
+  }));
+}
+
+/// The inspector's Background section, as UI Toolkit's: colour, picture (and its sprite), tint, part, scale
+/// mode, size, position, repeat, the slices and the filter - each showing where it comes from, and what is
+/// drawn when no picture is: the game's window or bar, built in.
+function buildBackgroundSection(panel, element, screen, edit, rebuild, sync, options = {}) {
+  const isScreen = element.tagName !== 'frame';
+  const styledNow = () => menuStyled(isScreen ? element : frameScreen(element));
+  const computed = () => (isScreen ? styledNow().screenValues : styledNow().computed.get(element)) || new Map();
   const value = prop => { const own = frameStyle(element); return own.has(prop) ? own.get(prop) : computed().get(prop); };
   const has = BACKGROUND_PROPS.some(p => value(p) !== undefined);
-  const body = propSection(panel, 'Background', 'image', 'What is drawn behind the frame: a colour and a picture - stretched, cropped, fitted, repeated or 9-sliced (Crystal Style Sheets, the frame\'s own style)', has);
+  const body = propSection(panel, options.title || 'Background', 'image', 'What is drawn behind the frame: a colour and a picture - stretched, cropped, fitted, repeated or 9-sliced - or a sprite of a sheet (Crystal Style Sheets, the frame\'s own style)', has || options.open);
   const set = (what, changes) => edit(what, () => setFrameStyle(element, changes));
   const setNow = (what, changes) => rebuild(what, () => setFrameStyle(element, changes));
+  const rectValue = () => { const r = String(value('-ff-background-rect') || '').split(/[\s,]+/).filter(Boolean).map(n => parseInt(n, 10)); return r.length === 4 ? r : null; };
 
-  // Colour, with its alpha.
+  // A row's label says where its value comes from; set on the frame, a click on it takes it back off.
+  const row = (label, control, tip, props) => {
+    const r = propRow(body, label, control, tip);
+    if (!props) return r;
+    const name = r.querySelector('.prop-label');
+    const show = () => {
+      const from = props.map(p => propertySource(element, p)).find(Boolean);
+      const own = props.some(p => frameStyle(element).has(p));
+      name.classList.toggle('own', own);
+      name.classList.toggle('sheet', !own && !!from);
+      name.title = own ? `Set on ${isScreen ? 'the screen' : 'this frame'} - click to take it off (back to ${props.map(p => computedFromSheets(p)).find(Boolean) || 'nothing'})` : from ? `From ${from.text}` : 'Not set';
+    };
+    name.onclick = () => {
+      if (!props.some(p => frameStyle(element).has(p))) return;
+      setNow('revert ' + label.toLowerCase(), Object.fromEntries(props.map(p => [p, null])));
+    };
+    show();
+    sync.push(show);
+    return r;
+  };
+  const computedFromSheets = prop => {
+    const rules = isScreen ? screenRules(element) : frameRules(element);
+    for (let i = rules.length - 1; i >= 0; i--) {
+      const d = rules[i].declarations.find(([k]) => k === prop);
+      if (d) return `${d[1]} (${rules[i].sheet})`;
+    }
+    return null;
+  };
+
+  // ---- colour, with its alpha
   const colourRow = document.createElement('div');
   colourRow.className = 'bg-colour';
   const colour = document.createElement('input');
   colour.type = 'color';
-  const alpha = scrubNumber('α', 100, v => writeColour(v), { min: 0, max: 100, title: 'The colour\'s opacity, %' });
-  const writeColour = a => {
-    const hex = colour.value;
-    const aa = Math.round(Math.max(0, Math.min(100, a ?? alphaOf())) * 2.55).toString(16).padStart(2, '0');
-    set('change background colour', { 'background-color': hex + (aa === 'ff' ? '' : aa) });
-  };
   const alphaOf = () => { const c = bgColour(value('background-color')); return c ? Math.round(c[3] / 2.55) : 100; };
+  const writeColour = a => {
+    const aa = Math.round(Math.max(0, Math.min(100, a ?? alphaOf())) * 2.55).toString(16).padStart(2, '0');
+    set('change background colour', { 'background-color': colour.value + (aa === 'ff' ? '' : aa) });
+  };
+  const alpha = scrubNumber('α', 100, v => writeColour(v), { min: 0, max: 100, title: 'The colour\'s opacity, %' });
   colour.oninput = () => writeColour();
   const noColour = document.createElement('button');
   noColour.className = 'mini';
   noColour.textContent = '×';
-  noColour.title = 'No colour';
-  noColour.onclick = () => setNow('clear background colour', { 'background-color': null });
   colourRow.append(colour, alpha, noColour);
-  propRow(body, 'Color', colourRow, 'background-color: under the picture (and alone, a plain panel)');
+  row('Color', colourRow, 'background-color: under the picture (and alone, a plain panel)', ['background-color']);
   const showColour = () => {
     const c = bgColour(value('background-color'));
     colour.value = c ? '#' + c.slice(0, 3).map(n => n.toString(16).padStart(2, '0')).join('') : '#000000';
     alpha.set(c ? Math.round(c[3] / 2.55) : 100);
     colourRow.classList.toggle('unset', !c);
+    const own = frameStyle(element).has('background-color'), sheet = !own && c;
+    noColour.hidden = !c;
+    noColour.title = own ? 'Take the colour off this frame' : sheet ? 'No colour here (over the sheet\'s)' : '';
   };
+  noColour.onclick = () => setNow('clear background colour', { 'background-color': frameStyle(element).has('background-color') ? null : 'transparent' });
   showColour();
   sync.push(showColour);
 
-  // The picture: a thumbnail to pick with, the kind, and none.
+  // ---- the picture: what is drawn, and from where - a picture, a sprite of one, or the game's window built in
   const imageRow = document.createElement('div');
   imageRow.className = 'bg-image';
   const thumb = document.createElement('button');
   thumb.className = 'bg-thumb';
   const name = document.createElement('span');
   name.className = 'bg-image-name';
-  const noImage = document.createElement('button');
-  noImage.className = 'mini';
-  noImage.textContent = '×';
-  noImage.title = 'No picture';
-  noImage.onclick = () => setNow('clear background picture', { 'background-image': null });
-  thumb.onclick = () => pickBackgroundPicture(value('background-image') || '', chosen => setNow('change background picture', { 'background-image': chosen }));
-  imageRow.append(thumb, name, noImage);
-  propRow(body, 'Image', imageRow, 'background-image: url(...) a picture beside the screen, resource(...) one of the game\'s');
+  const clearImage = document.createElement('button');
+  clearImage.className = 'mini';
+  clearImage.textContent = '×';
+  imageRow.append(thumb, name, clearImage);
+  row('Image', imageRow, 'background-image: url(...) a picture beside the screen, resource(...) one of the game\'s', ['background-image', '-ff-sprite']);
+  const chooser = () => pickBackgroundPicture(value('background-image') || '', (chosen, sprite) => setNow('change background picture', {
+    'background-image': chosen, '-ff-sprite': sprite || null,
+    // A picture of its own in place of the game's window: the window goes.
+    ...(chosen && !isScreen && hasTag(frameLook(element), 'window') && !frameStyle(element).has('-ff-panel') ? { '-ff-panel': 'none' } : {})
+  }));
+  thumb.onclick = chooser;
+  name.onclick = chooser;
+  const builtIn = document.createElement('p');
+  builtIn.className = 'none bg-builtin';
+  body.append(builtIn);
   const showImage = () => {
     const image = bgImage(value('background-image'));
+    const sprite = value('-ff-sprite');
+    const from = propertySource(element, 'background-image');
     thumb.textContent = '';
+    builtIn.textContent = '';
+    builtIn.hidden = true;
     if (image) {
-      const img = document.createElement('img');
-      img.src = backgroundPictureUrl(image);
-      thumb.append(img);
-      name.textContent = `${image.path.split('/').pop()}  · ${image.kind === 'resource' ? 'the game\'s' : 'beside the screen'}`;
-      name.title = image.path;
+      const sp = sprite ? findSprite(image, sprite) : null;
+      loadBackgroundPicture(image).then(img => {
+        thumb.textContent = '';
+        if (!img) { thumb.textContent = '?'; return; }
+        const part = sp || (() => { const r = rectValue(); return r ? { x: r[0], y: r[1], w: r[2], h: r[3] } : { x: 0, y: 0, w: img.width, h: img.height }; })();
+        thumb.append(spriteThumbnail(img, part, 30));
+      });
+      name.textContent = `${image.path.split('/').pop()}${sprite ? ' › ' + sprite + (sp ? '' : ' (missing)') : ''}  · ${image.kind === 'resource' ? 'the game\'s' : 'beside the screen'}`;
+      name.title = `${image.kind}("${image.path}")${sprite ? `, sprite ${sprite}` : ''}\nfrom ${from ? from.text : '?'}`;
+      clearImage.hidden = false;
+      clearImage.title = from && from.own ? 'Take the picture off this frame' + (computedFromSheets('background-image') ? ' (back to the sheet\'s)' : '') : 'No picture here (over the sheet\'s)';
     } else {
       thumb.textContent = 'None';
       name.textContent = 'Choose…';
+      name.title = 'Choose a picture, or a sprite of a sheet';
+      clearImage.hidden = !frameStyle(element).has('background-image');
+      clearImage.title = 'Take "none" off this frame';
+      // Not a picture - the game's own window, or its bar, drawn instead.
+      if (!isScreen) {
+        const look = frameLook(element);
+        if (hasTag(look, 'window')) {
+          const bar = (childText(look, 'panel') || '').trim() === 'bar';
+          const panelFrom = propertySource(element, '-ff-panel');
+          const layout = [...element.children].some(e => e.tagName === 'window');
+          builtIn.hidden = false;
+          builtIn.textContent = '';
+          builtIn.append(`Drawn: the game's ${bar ? 'translucent bar' : 'window'} (built in - m000_window), from ${panelFrom ? panelFrom.text : layout ? 'the layout\'s <window/>' : 'the layout'}. `);
+          const off = document.createElement('button');
+          off.className = 'link';
+          off.textContent = 'No window';
+          off.title = 'Nothing drawn behind the frame (-ff-panel: none)';
+          off.onclick = () => setNow('no window', { '-ff-panel': 'none' });
+          const instead = document.createElement('button');
+          instead.className = 'link';
+          instead.textContent = 'A picture instead…';
+          instead.onclick = chooser;
+          builtIn.append(off, ' · ', instead);
+        }
+      }
     }
+  };
+  clearImage.onclick = () => {
+    const own = frameStyle(element).has('background-image');
+    setNow('clear background picture', own ? { 'background-image': null, '-ff-sprite': null } : { 'background-image': 'none', '-ff-sprite': null });
   };
   showImage();
   sync.push(showImage);
+
+  // ---- the sprite of the sheet
+  const spriteRow = document.createElement('div');
+  spriteRow.className = 'bg-slice-row';
+  const spritePick = document.createElement('select');
+  const editSpritesButton = document.createElement('button');
+  editSpritesButton.textContent = 'Sprites…';
+  editSpritesButton.title = 'The Sprite editor: the sheet\'s named sprites and their borders (sprites.json)';
+  spriteRow.append(spritePick, editSpritesButton);
+  row('Sprite', spriteRow, '-ff-sprite: a named sprite of the sheet - its part and its borders (a Part or Slice set here wins over them)', ['-ff-sprite']);
+  const showSprites = () => {
+    const image = bgImage(value('background-image'));
+    spritePick.textContent = '';
+    const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; spritePick.append(o); };
+    add('', image ? 'the whole picture' : '(no picture)');
+    for (const sp of spritesOf(image)) add(sp.name, `${sp.name}  ${sp.w}×${sp.h}${sp.left || sp.top || sp.right || sp.bottom ? ' sliced' : ''}`);
+    const cur = value('-ff-sprite') || '';
+    if (cur && !findSprite(image, cur)) add(cur, `${cur} (not on the sheet)`);
+    spritePick.value = cur;
+    spritePick.disabled = !image;
+    editSpritesButton.disabled = !image || !menu.project;
+  };
+  spritePick.onchange = () => setNow('change sprite', { '-ff-sprite': spritePick.value || null });
+  editSpritesButton.onclick = () => {
+    const image = bgImage(value('background-image'));
+    if (image) editSprites(image, value('-ff-sprite'), n => setNow('use sprite', { '-ff-sprite': n }));
+  };
+  showSprites();
+  sync.push(showSprites);
 
   const tint = document.createElement('input');
   tint.type = 'color';
@@ -623,29 +807,26 @@ function buildBackgroundSection(panel, element, screen, edit, rebuild, sync) {
   const showTint = () => { const c = bgColour(value('-ff-background-tint')); tint.value = c ? '#' + c.slice(0, 3).map(n => n.toString(16).padStart(2, '0')).join('') : '#ffffff'; };
   showTint();
   sync.push(showTint);
-  propRow(body, 'Image Tint', tint, '-ff-background-tint: the picture multiplied by it');
+  row('Image Tint', tint, '-ff-background-tint: the picture multiplied by it', ['-ff-background-tint']);
 
-  // A part of the picture (a sprite on a sheet).
   const rectGrid = document.createElement('div');
   rectGrid.className = 'prop-grid four';
-  const rectValue = () => { const r = String(value('-ff-background-rect') || '').split(/[\s,]+/).filter(Boolean).map(n => parseInt(n, 10)); return r.length === 4 ? r : null; };
   ['X', 'Y', 'W', 'H'].forEach((label, i) => {
     const f = scrubNumber(label, 0, v => {
       const r = rectValue() || [0, 0, 0, 0];
       r[i] = Math.max(0, v);
       set('change picture part', { '-ff-background-rect': r[2] > 0 && r[3] > 0 ? r.join(' ') : null });
-    }, { min: 0, title: '-ff-background-rect: the part of the picture used, in its pixels (0 width: all of it)' });
+    }, { min: 0, title: '-ff-background-rect: the part of the picture used, in its pixels (0 width: the sprite\'s, or all of it)' });
     sync.push(() => f.set((rectValue() || [0, 0, 0, 0])[i]));
     f.set((rectValue() || [0, 0, 0, 0])[i]);
     rectGrid.append(f);
   });
-  propRow(body, 'Part', rectGrid, 'A part of the picture - one sprite of a sheet; all of it when W or H is 0');
+  row('Part', rectGrid, 'A part of the picture of this frame\'s own - over the sprite\'s; the sprite, or all of it, when W or H is 0', ['-ff-background-rect']);
 
-  // Scale mode, as UI Toolkit's three buttons.
-  const segmented = (options, current, onPick) => {
+  const segmented = (options2, current, onPick) => {
     const wrap = document.createElement('div');
     wrap.className = 'segmented';
-    const buttons = options.map(([v, label, tip]) => {
+    const buttons = options2.map(([v, label, tip]) => {
       const b = document.createElement('button');
       b.textContent = label;
       b.title = tip;
@@ -659,60 +840,64 @@ function buildBackgroundSection(panel, element, screen, edit, rebuild, sync) {
   };
   const scale = segmented([['stretch-to-fill', 'Stretch', 'stretch-to-fill: the picture pulled to the frame'], ['scale-and-crop', 'Crop', 'scale-and-crop: as big as it must be to cover, the rest cut'], ['scale-to-fit', 'Fit', 'scale-to-fit: as big as fits, the aspect kept']],
     value('-ff-background-scale-mode') || 'stretch-to-fill', v => setNow('change scale mode', { '-ff-background-scale-mode': v === 'stretch-to-fill' ? null : v }));
-  propRow(body, 'Scale Mode', scale, '-ff-background-scale-mode (with no size or repeat, and no slices)');
+  row('Scale Mode', scale, '-ff-background-scale-mode (with no size or repeat, and no slices)', ['-ff-background-scale-mode']);
   sync.push(() => scale.mark(value('-ff-background-scale-mode') || 'stretch-to-fill'));
 
   const note = document.createElement('p');
   note.className = 'none bg-note';
   const showNote = () => {
-    const b = parseBackground(BACKGROUND_PROPS.filter(p => value(p) !== undefined).map(p => `${p}: ${value(p)}`).join('; ') || 'background-color: transparent');
+    const b = parseBackground(BACKGROUND_PROPS.filter(p => value(p) !== undefined).map(p => `${p}: ${value(p)}`).join('; ') + '; background-color: #000');
     const isSliced = b && (b.left > 0 || b.top > 0 || b.right > 0 || b.bottom > 0);
-    note.textContent = isSliced ? 'Sliced: the slices decide it - scale mode, size and repeat are not used.' : (value('background-size') || (value('background-repeat') && value('background-repeat') !== 'no-repeat')) ? 'Size and repeat decide it - the scale mode is not used.' : '';
+    note.textContent = isSliced ? `Sliced${b.sprite && !b.sliceGiven ? ' by the sprite\'s borders' : ''}: the slices decide it - scale mode, size and repeat are not used.` : (value('background-size') || (value('background-repeat') && value('background-repeat') !== 'no-repeat')) ? 'Size and repeat decide it - the scale mode is not used.' : '';
   };
   showNote();
   sync.push(showNote);
   body.append(note);
 
-  propRow(body, 'Size', propText(value('background-size') || '', v => set('change background size', { 'background-size': v.trim() || null }), 'auto, cover, contain, 24px 24px, 50% auto'), 'background-size: a tile\'s size, for repeat and position');
-  propRow(body, 'Position', propText(value('background-position') || '', v => set('change background position', { 'background-position': v.trim() || null }), 'left top, center, right 8px, 50% 100%'), 'background-position: where the picture (or the first tile) sits');
-  propRow(body, 'Repeat', propSelect([['', 'no-repeat'], ['repeat', 'repeat'], ['repeat-x', 'repeat-x'], ['repeat-y', 'repeat-y']], (value('background-repeat') || '').replace('no-repeat', ''), v => setNow('change repeat', { 'background-repeat': v || null })), 'background-repeat: the picture repeated across and down');
+  row('Size', propText(value('background-size') || '', v => set('change background size', { 'background-size': v.trim() || null }), 'auto, cover, contain, 24px 24px, 50% auto'), 'background-size: a tile\'s size, for repeat and position', ['background-size']);
+  row('Position', propText(value('background-position') || '', v => set('change background position', { 'background-position': v.trim() || null }), 'left top, center, right 8px, 50% 100%'), 'background-position: where the picture (or the first tile) sits', ['background-position']);
+  row('Repeat', propSelect([['', 'no-repeat'], ['repeat', 'repeat'], ['repeat-x', 'repeat-x'], ['repeat-y', 'repeat-y']], (value('background-repeat') || '').replace('no-repeat', ''), v => setNow('change repeat', { 'background-repeat': v || null })), 'background-repeat: the picture repeated across and down', ['background-repeat']);
 
-  // The slices, as UI Toolkit's Slice fold: four borders, a scale and a type - and the editor that drags them.
-  const sliceOf = () => {
+  // The slices: the frame's own (over a sprite's borders), four borders, a scale and a type.
+  const slicesNow = () => {
     const b = parseBackground(BACKGROUND_PROPS.filter(p => value(p) !== undefined).map(p => `${p}: ${value(p)}`).join('; ') + '; background-color: #000');
     return b ? [b.left, b.top, b.right, b.bottom] : [0, 0, 0, 0];
   };
   const writeSlices = s => {
     const [l, t, r, b] = s.map(v => Math.max(0, Math.round(v)));
     const all = l === t && t === r && r === b;
-    return { '-ff-slice': l + t + r + b === 0 ? null : all ? String(l) : `${t} ${r} ${b} ${l}`, '-ff-slice-left': null, '-ff-slice-top': null, '-ff-slice-right': null, '-ff-slice-bottom': null };
+    return { '-ff-slice': l + t + r + b === 0 && !value('-ff-sprite') ? null : all ? String(l) : `${t} ${r} ${b} ${l}`, '-ff-slice-left': null, '-ff-slice-top': null, '-ff-slice-right': null, '-ff-slice-bottom': null };
   };
   const sliceGrid = document.createElement('div');
   sliceGrid.className = 'prop-grid four';
   ['L', 'T', 'R', 'B'].forEach((label, i) => {
-    const f = scrubNumber(label, sliceOf()[i], v => { const s = sliceOf(); s[i] = v; set('change slices', writeSlices(s)); }, { min: 0, title: ['left', 'top', 'right', 'bottom'][i] + ': the border kept at its size, in the picture\'s pixels' });
-    sync.push(() => f.set(sliceOf()[i]));
+    const f = scrubNumber(label, slicesNow()[i], v => { const s = slicesNow(); s[i] = v; set('change slices', writeSlices(s)); }, { min: 0, title: ['left', 'top', 'right', 'bottom'][i] + ': the border kept at its size, in the picture\'s pixels' });
+    sync.push(() => f.set(slicesNow()[i]));
     sliceGrid.append(f);
   });
-  propRow(body, 'Slice', sliceGrid, '-ff-slice: the borders that keep their size as the frame grows (9-slice)');
+  row('Slice', sliceGrid, '-ff-slice: the borders that keep their size as the frame grows (9-slice) - the frame\'s own, over its sprite\'s', ['-ff-slice', '-ff-slice-left', '-ff-slice-top', '-ff-slice-right', '-ff-slice-bottom']);
   const editButton = document.createElement('button');
   editButton.textContent = 'Edit slices…';
-  editButton.title = 'The picture large, its borders as lines to drag';
+  editButton.title = 'The picture large, its borders as lines to drag (a sprite: its own borders, in the Sprite editor)';
   editButton.onclick = () => {
     const image = bgImage(value('background-image'));
     if (!image) return say('choose a picture first', 'bad');
-    editSlices(image, rectValue(), sliceOf(), (s, part) => setNow('change slices', { ...writeSlices(s), '-ff-background-rect': part ? part.join(' ') : null }));
+    if (value('-ff-sprite') && findSprite(image, value('-ff-sprite')) && !frameStyle(element).has('-ff-slice')) {
+      editSprites(image, value('-ff-sprite'), n => setNow('use sprite', { '-ff-sprite': n }));
+      return;
+    }
+    editSlices(image, rectValue(), slicesNow(), (s, part) => setNow('change slices', { ...writeSlices(s), '-ff-background-rect': part ? part.join(' ') : null }));
   };
   const sliceScale = scrubNumber('×', bgNumber(value('-ff-slice-scale') || '1') || 1, v => set('change slice scale', { '-ff-slice-scale': v === 1 ? null : String(v) }), { min: 0.1, step: 0.1, title: '-ff-slice-scale: menu units per picture pixel for the borders' });
   sync.push(() => sliceScale.set(bgNumber(value('-ff-slice-scale') || '1') || 1));
   const sliceRow = document.createElement('div');
   sliceRow.className = 'bg-slice-row';
   sliceRow.append(editButton, sliceScale);
-  propRow(body, 'Slice Scale', sliceRow, '-ff-slice-scale, and the slice editor');
+  row('Slice Scale', sliceRow, '-ff-slice-scale, and the slice editor', ['-ff-slice-scale']);
   const type = segmented([['sliced', 'Sliced', 'The edges and the middle stretched'], ['tiled', 'Tiled', 'The edges and the middle repeated']], (value('-ff-slice-type') || 'sliced').toLowerCase(), v => setNow('change slice type', { '-ff-slice-type': v === 'sliced' ? null : v }));
   sync.push(() => type.mark((value('-ff-slice-type') || 'sliced').toLowerCase()));
-  propRow(body, 'Slice Type', type, '-ff-slice-type');
+  row('Slice Type', type, '-ff-slice-type', ['-ff-slice-type']);
   const filter = segmented([['linear', 'Smooth', 'linear: smooth when scaled'], ['point', 'Pixels', 'point: the pixels kept sharp']], (value('-ff-background-filter') || 'linear').toLowerCase(), v => setNow('change filter', { '-ff-background-filter': v === 'linear' ? null : v }));
   sync.push(() => filter.mark((value('-ff-background-filter') || 'linear').toLowerCase()));
-  propRow(body, 'Filter', filter, '-ff-background-filter');
+  row('Filter', filter, '-ff-background-filter', ['-ff-background-filter']);
 }

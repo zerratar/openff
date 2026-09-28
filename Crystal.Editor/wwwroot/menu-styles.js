@@ -21,7 +21,7 @@ const STYLE_LAYOUT = ['position', 'left', 'top', 'right', 'bottom', 'width', 'he
 /// A frame's background (menu-background.js; Shared/Text/MenuBackground.cs), in the order the bake writes them.
 const BACKGROUND_PROPS = ['background-color', 'background-image', '-ff-background-rect', '-ff-background-tint', '-ff-background-scale-mode',
   'background-size', 'background-position', 'background-repeat',
-  '-ff-slice', '-ff-slice-left', '-ff-slice-top', '-ff-slice-right', '-ff-slice-bottom', '-ff-slice-scale', '-ff-slice-type', '-ff-background-filter'];
+  '-ff-slice', '-ff-slice-left', '-ff-slice-top', '-ff-slice-right', '-ff-slice-bottom', '-ff-slice-scale', '-ff-slice-type', '-ff-background-filter', '-ff-sprite'];
 /// The properties the language knows (a style or a sheet naming anything else is told so in the inspector).
 const STYLE_KNOWN = new Set([...STYLE_LAYOUT, 'display', 'color', 'font-size', 'text-align', 'opacity', 'visibility', '-ff-panel', '-ff-tint', ...BACKGROUND_PROPS]);
 
@@ -260,7 +260,7 @@ function menuStyled(screen) {
     });
   };
   walk(screen, copy, screenValues, styleOpacity(screenValues, 1));
-  styledCache = { screen, version: menuSheets.version, preview, copy, look, computed, rules };
+  styledCache = { screen, version: menuSheets.version, preview, copy, look, computed, rules, screenValues };
   return styledCache;
 }
 

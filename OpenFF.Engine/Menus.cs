@@ -444,7 +444,8 @@ namespace OpenFF
 		{
 			List<MenuDefinition> list = new List<MenuDefinition>();
 			if (string.IsNullOrEmpty(directory) || !System.IO.Directory.Exists(directory)) return list;
-			foreach (string file in System.IO.Directory.EnumerateFiles(directory, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+			// Every *.json is a screen but sprites.json - the named sprites of the screens' sheets (MenuSprites).
+			foreach (string file in System.IO.Directory.EnumerateFiles(directory, "*.json").Where(f => !string.Equals(Path.GetFileName(f), "sprites.json", StringComparison.OrdinalIgnoreCase)).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
 			{
 				try
 				{

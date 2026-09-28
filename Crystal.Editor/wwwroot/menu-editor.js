@@ -527,6 +527,30 @@ function menuOutline(doc) {
     menu: () => addMenuItems(screen),
     drop: dropOn(screen)
   }];
+  // The screen's backdrop: one of the game's pictures (or none) under every frame, with an eye of its own.
+  const def = menu.project && menu.project.definition;
+  const backdropName = def ? backdropLabel(def.background ?? 10) : 'the game\'s own';
+  const screenBg = menuStyled(screen).screenValues;
+  rows.push({
+    label: 'backdrop',
+    ref: 'backdrop',
+    icon: 'image',
+    depth: 1,
+    note: backdropName + (BACKGROUND_PROPS.some(k => screenBg.has(k)) ? ' \u00b7 + a background' : ''),
+    eye: {
+      hidden: !!menu.hideBackdrop,
+      inherited: false,
+      title: menu.hideBackdrop ? 'the backdrop is hidden in the view - click to show it' : 'click to hide the backdrop in the view (the editor\'s only)',
+      toggle: () => { menu.hideBackdrop = !menu.hideBackdrop; menu.hideScreenBackground = menu.hideBackdrop; if (menu.node) redraw(menu.node, true); }
+    },
+    reveal: () => {
+      menu.selected = null;
+      if (menu.node) { $$('.widget', menu.node).forEach(w => w.classList.remove('on')); refreshXmlPanel(menu.node); }
+      activeDoc.selection = 'backdrop';
+      activeDoc.inspect = () => buildBackdropCard(menu.node);
+    },
+    menu: () => backdropMenuItems(screen)
+  });
   const walk = (parent, depth) => {
     for (const element of frameChildren(parent)) {
       const key = menuFrameKey(element);
@@ -1281,6 +1305,98 @@ function buildStyleSection(panel, element, screen, edit, rebuild, sync) {
   showRules();
   sync.push(showRules);
   body.append(rules, unknown);
+}
+
+// ------------------------------------------------------------------ the backdrop
+
+/// The backdrop row's right-click menu: seen or not in the view, which of the game's (or none), a picture of the screen's own, new frames.
+function backdropMenuItems(screen) {
+  const def = menu.project && menu.project.definition;
+  const setBackdrop = n => { def.background = n; saveMenuDefinition(); if (menu.node) redraw(menu.node, true); drawHierarchy(); drawInspector(); };
+  const items = [
+    { label: menu.hideBackdrop ? 'Show in the view' : 'Hide in the view', icon: menu.hideBackdrop ? 'eye' : 'eye-off', run: () => { menu.hideBackdrop = !menu.hideBackdrop; menu.hideScreenBackground = menu.hideBackdrop; if (menu.node) redraw(menu.node, true); drawHierarchy(); } },
+    { sep: true }
+  ];
+  if (def) {
+    const now = def.background ?? 10;
+    for (const [v, label] of BACKDROPS) {
+      items.push({ label: (v === Number(now) ? '✓ ' : ' ') + (v < 0 ? 'No backdrop' : label + ' backdrop'), disabled: v === Number(now), run: () => setBackdrop(v) });
+    }
+    items.push({ sep: true });
+    items.push({ label: 'Screen background picture…', icon: 'image', run: () => pickBackgroundPicture(frameStyle(screen).get('background-image') || '', (chosen, sprite) => {
+      menuRemember('screen background');
+      setFrameStyle(screen, { 'background-image': chosen, '-ff-sprite': sprite || null, '-ff-background-scale-mode': chosen && !frameStyle(screen).has('-ff-background-scale-mode') ? 'scale-and-crop' : frameStyle(screen).get('-ff-background-scale-mode') || null });
+      if (menu.node) redraw(menu.node, true);
+      drawHierarchy();
+      drawInspector();
+    }) });
+    if (BACKGROUND_PROPS.some(k => frameStyle(screen).has(k))) items.push({ label: 'No screen background', run: () => {
+      menuRemember('no screen background');
+      setFrameStyle(screen, Object.fromEntries(BACKGROUND_PROPS.map(k => [k, null])));
+      if (menu.node) redraw(menu.node, true);
+      drawHierarchy();
+      drawInspector();
+    } });
+    items.push({ sep: true });
+  } else {
+    items.push({ label: 'The game\'s own backdrop (take the screen into a mod to choose one)', disabled: true, run: () => {} }, { sep: true });
+  }
+  return items.concat(addMenuItems(screen).map(item => ({ ...item, label: item.label + ' (top level)' })));
+}
+
+const BACKDROPS = [[10, 'plain'], [0, 'Item\'s'], [1, 'Magic\'s'], [2, 'Equipment\'s'], [3, 'Status\'s'], [5, 'Job\'s'], [6, 'Config\'s'], [7, 'Quicksave\'s'], [8, 'Save\'s'], [9, 'the main menu\'s'], [13, 'tips, first page'], [14, 'tips, text page'], [-1, 'none']];
+
+function backdropLabel(n) {
+  const found = BACKDROPS.find(([v]) => v === Number(n));
+  return found ? (found[0] < 0 ? 'no backdrop' : `${found[1]} backdrop`) : `backdrop ${n}`;
+}
+
+/// The backdrop's card: which of the game's (or none), and a background of the screen's own over it.
+function buildBackdropCard(node) {
+  const panel = document.createElement('div');
+  const screen = menuScreen();
+  const title = document.createElement('h2');
+  title.textContent = 'Backdrop';
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  panel.append(title, sub);
+  if (!menu.project) {
+    sub.textContent = 'One of the game\'s screens: its backdrop is the game\'s own (the screen picks it in code). Take the screen into a mod to set one.';
+    return panel;
+  }
+  const def = menu.project.definition;
+  sub.textContent = 'Under every frame: one of the game\'s menu backdrops, or none - and over it, if you like, a background of the screen\'s own (a picture, a colour, a sprite).';
+  const card = document.createElement('div');
+  card.className = 'component';
+  const h = document.createElement('div');
+  h.className = 'behaviour-header';
+  h.textContent = 'The game\'s backdrop';
+  card.append(h);
+  const pick = propSelect(BACKDROPS.map(([v, label]) => [String(v), v < 0 ? 'none (black, or the screen\'s own background)' : label]), String(def.background ?? 10), v => {
+    def.background = parseInt(v, 10);
+    saveMenuDefinition();
+    redraw(node, true);
+    drawHierarchy();
+  });
+  const r = document.createElement('div');
+  r.className = 'prop-row';
+  const l = document.createElement('span');
+  l.className = 'prop-label';
+  l.textContent = 'Backdrop';
+  r.append(l, pick);
+  r.title = 'The screen\'s definition: "background" - saved with it';
+  card.append(r);
+  const hint = document.createElement('p');
+  hint.className = 'none';
+  hint.textContent = 'These are the game\'s own backdrops, made of pieces of files/menu_bg_01.NCGR (a cell bank), so they are not whole pictures in the picker; its pieces are, as sprites of that sheet (Make sprites\u2026 from the game\'s cells).';
+  card.append(hint);
+  panel.append(card);
+  // The screen's own background: the <menu>'s style.
+  const sync = [];
+  const edit = (what, change) => { menuRemember(what, what + 'screen'); change(); redraw(node, true); sync.forEach(f => f()); };
+  const rebuild = (what, change) => { menuRemember(what); change(); redraw(node, true); drawInspector(); };
+  buildBackgroundSection(panel, screen, screen, edit, rebuild, sync, { title: 'Screen background', open: true });
+  return panel;
 }
 
 // ------------------------------------------------------------------ keys

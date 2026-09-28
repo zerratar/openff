@@ -502,6 +502,14 @@ function drawHierarchy() {
     return;
   }
 
+  // A right click on the tree's empty part (under the last row): the last group's menu (a menu's: new frames at the top level).
+  const lastMenu = [...nodes].reverse().find(g => g.menu);
+  tree.oncontextmenu = event => {
+    if (event.target.closest('li.row, li.group') || !lastMenu) return;
+    event.preventDefault();
+    showContextMenu(event, lastMenu.menu());
+  };
+
   for (const group of nodes) {
     const head = document.createElement('li');
     head.className = 'group';
@@ -538,7 +546,7 @@ function drawHierarchy() {
       head.append(toggle);
     }
     // A group can take a right click (New object…) and a drop (to the top level).
-    if (group.menu) head.oncontextmenu = event => { event.preventDefault(); showContextMenu(event, group.menu()); };
+    if (group.menu) head.oncontextmenu = event => { event.preventDefault(); event.stopPropagation(); showContextMenu(event, group.menu()); };
     if (group.drop) wireDrop(head, group.drop);
     tree.append(head);
 
@@ -594,6 +602,8 @@ function drawHierarchy() {
         if (child.eye.hidden || child.eye.inherited) row.classList.add('unseen');
       }
       row.onclick = () => {
+        // The keys follow the row clicked (Delete, Ctrl+D, the arrows), not whatever had them before - the Project panel.
+        tree.focus({ preventScroll: true });
         clearInspected();
         activeDoc.selection = child.ref;
         if (child.reveal) child.reveal();
@@ -604,6 +614,8 @@ function drawHierarchy() {
       if (child.menu) {
         row.oncontextmenu = event => {
           event.preventDefault();
+          event.stopPropagation();
+          tree.focus({ preventScroll: true });
           if (activeDoc.selection !== child.ref) {
             clearInspected();
             activeDoc.selection = child.ref;

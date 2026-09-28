@@ -102,7 +102,9 @@ namespace Crystal.Editor
 		public static List<string> Ids(string dir)
 		{
 			if (dir == null || !System.IO.Directory.Exists(dir)) return new List<string>();
-			return System.IO.Directory.EnumerateFiles(dir, "*.json").Select(Path.GetFileNameWithoutExtension).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+			return System.IO.Directory.EnumerateFiles(dir, "*.json").Select(Path.GetFileNameWithoutExtension)
+				.Where(n => !string.Equals(n + ".json", OpenFF.Content.MenuSprites.FileName, StringComparison.OrdinalIgnoreCase))   // the sheets' sprites, not a screen
+				.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
 		}
 
 		/// <summary>A screen's definition as JSON (&lt;id&gt;.json), with defaults filled in; null for none.</summary>

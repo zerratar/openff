@@ -2587,3 +2587,41 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .slice-fields .scrub-input { flex: 1; min-width: 0; width: 60px; background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-radius: 0 4px 4px 0; padding: 3px 6px; }
 .slice-buttons { display: flex; align-items: center; gap: 8px; padding: 8px 12px 12px; }
 .slice-buttons .none { flex: 1; margin: 0; font-size: 11px; }
+
+/* Where a Background value comes from: set on the frame (click to take it off), or from a sheet. */
+#inspector .prop-label.own { color: var(--ink); font-weight: 600; cursor: pointer; }
+#inspector .prop-label.own::after { content: ' \2022'; color: #60a5fa; }
+#inspector .prop-label.sheet { color: #b8c3d1; }
+#inspector .prop-label.sheet::after { content: ' \2219'; color: #d6b25e; }
+#inspector .bg-builtin { margin: 0 0 2px; font-size: 11px; line-height: 1.45; }
+#inspector button.link { background: none; border: 0; padding: 0; color: #8ab4f8; cursor: pointer; font-size: 11px; text-decoration: underline; }
+#inspector .bg-thumb canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+#inspector .bg-image-name { cursor: pointer; }
+#inspector .bg-slice-row select { flex: 1; min-width: 0; }
+.canvas > .screen-background { position: absolute; left: 0; top: 0; pointer-events: none; }
+.bg-picker-grid .picker-cell canvas { width: 96px; height: 72px; object-fit: contain; image-rendering: pixelated; background: repeating-conic-gradient(#2a2f37 0 25%, #343a44 0 50%) 50% / 10px 10px; }
+
+/* The Sprite editor. */
+.sprite-editor { width: min(1060px, 96vw); }
+.sprite-tools { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.sprite-tools button { padding: 2px 8px; font-size: 12px; }
+.sprite-tools input { width: 48px; font-size: 12px; }
+.sprite-body { display: flex; gap: 10px; padding: 10px; align-items: flex-start; max-height: 70vh; }
+.sprite-sheet { flex: 1; min-width: 0; overflow: auto; max-height: 68vh; background: #15181d; padding: 6px; }
+.sprite-sheet canvas { image-rendering: pixelated; cursor: crosshair; display: block; }
+.sprite-side { flex: 0 0 290px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sprite-list { max-height: 190px; overflow: auto; display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 4px; padding: 3px; }
+.sprite-row { display: flex; align-items: center; gap: 6px; padding: 2px 4px; background: none; border: 0; text-align: left; color: var(--dim); cursor: pointer; border-radius: 3px; }
+.sprite-row canvas { flex: 0 0 auto; max-width: 28px; max-height: 28px; image-rendering: pixelated; background: #2a2f37; }
+.sprite-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12px; }
+.sprite-row i { font-style: normal; font-size: 10px; }
+.sprite-row.on { background: #22324a; }
+.sprite-fields { display: flex; flex-direction: column; gap: 4px; }
+.sprite-fields.off { opacity: .4; pointer-events: none; }
+.sprite-fields input[type=text] { background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-radius: 4px; padding: 3px 6px; }
+.sprite-label { font-size: 11px; color: var(--dim); }
+.sprite-grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.sprite-grid4 .scrub, .sprite-fields .scrub { display: flex; align-items: stretch; }
+.sprite-grid4 .scrub-grip { padding: 0 5px; display: flex; align-items: center; color: var(--dim); font-size: 11px; cursor: ew-resize; border: 1px solid var(--line); border-right: 0; border-radius: 4px 0 0 4px; background: #1b2027; user-select: none; }
+.sprite-grid4 .scrub-input { flex: 1; min-width: 0; width: 40px; background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-radius: 0 4px 4px 0; padding: 3px 4px; }
+.sprite-detail { align-self: center; image-rendering: pixelated; box-shadow: 0 0 0 1px #3a424e; max-width: 290px; }

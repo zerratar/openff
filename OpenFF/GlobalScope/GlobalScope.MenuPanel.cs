@@ -89,9 +89,11 @@ internal static partial class GlobalScope
 
 	private static void DrawMenuPanelQuads(uint texture, int tw, int th, List<OpenFF.Content.MenuBackground.Quad> quads, byte[] colour)
 	{
-		// drawImage takes the picture's part in whole pixels scaled by texScaleU/V (and keeps half of one in
-		// from each edge): in quarters here, so a tiled edge's cut part lands near enough where it should.
-		const int Sub = 4;
+		// drawImage takes the picture's part in whole units scaled by texScaleU/V and keeps half a unit in from
+		// each edge. In halves of a pixel here (a tiled edge's cut part lands within one), with a quarter more
+		// kept in on each side, so the half pixel the game keeps for its cells is kept: a smooth picture does
+		// not take in the pixels beside its part (the seams between one slice or tile and the next).
+		const int Sub = 2;
 		texScaleU = 1f / (tw * Sub);
 		texScaleV = 1f / (th * Sub);
 		glPushMatrix();
@@ -103,7 +105,7 @@ internal static partial class GlobalScope
 		{
 			OpenFF.Content.MenuBackground.Quad q = quads[i];
 			drawImage(vtc, i * 6, q.X - screenOffset[0], q.Y - screenOffset[1], q.W, q.H,
-				(int)Math.Round(q.U * Sub), (int)Math.Round(q.V * Sub), (int)Math.Round(q.UW * Sub), (int)Math.Round(q.VH * Sub), colour);
+				(int)Math.Round((q.U + 0.25f) * Sub), (int)Math.Round((q.V + 0.25f) * Sub), Math.Max(1, (int)Math.Round((q.UW - 0.5f) * Sub)), Math.Max(1, (int)Math.Round((q.VH - 0.5f) * Sub)), colour);
 		}
 		glEnable(3553u);
 		glBindTexture(3553u, texture);

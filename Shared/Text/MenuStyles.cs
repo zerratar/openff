@@ -187,6 +187,15 @@ namespace OpenFF.Content
 			return look;
 		}
 
+		/// <summary>A screen's own background: the background properties its &lt;menu&gt;'s style and the sheets' rules for it (menu, #name) say; null for none.</summary>
+		public static string ScreenBackground(XElement screen, Sheet sheet)
+		{
+			if (screen == null) return null;
+			Dictionary<string, string> computed = Cascade(screen, sheet?.Rules ?? new List<Rule>(), null);
+			List<string> background = MenuBackground.Properties.Where(computed.ContainsKey).Select(k => k + ": " + computed[k]).ToList();
+			return background.Count > 0 && MenuBackground.Parse(string.Join("; ", background)) != null ? string.Join("; ", background) : null;
+		}
+
 		/// <summary>Whether an element is picked out by a selector (a list, as a sheet's: "#hero, .row > text").</summary>
 		public static bool Matches(XElement element, string selector)
 		{

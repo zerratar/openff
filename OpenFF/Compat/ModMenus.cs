@@ -354,7 +354,8 @@ namespace OpenFF.Client
 		}
 
 		public static string CurrentScreenName() => _current?.Screen;
-		public static int CurrentBackground() { int b = Math.Clamp(_current?.Background ?? 10, 0, 14); return b == 4 ? 10 : b; }   // 4 is nobody's; the plain backdrop instead
+		/// <summary>The backdrop for the screen: one of the game's (0..14; 4 is nobody's, the plain one instead), or -1 for none (black, or the screen's own background).</summary>
+		public static int CurrentBackground() { int b = _current?.Background ?? 10; if (b < 0) return -1; b = Math.Clamp(b, 0, 14); return b == 4 ? 10 : b; }
 		private static bool _skipSelect;
 		public static bool CurrentWantsCharacterSelect()
 		{
@@ -387,6 +388,8 @@ namespace OpenFF.Client
 		{
 			string closing = _screen?.Id ?? _current?.Id ?? "?";
 			CloseWindows();
+			// A screen with no backdrop put it out of sight; the game's own screens expect it back.
+			try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(true); } catch (Exception) { }
 			foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnClose", b.OnClose);
 			_behaviours = new List<MenuBehaviour>();
 			_screen = null;
@@ -561,6 +564,9 @@ namespace OpenFF.Client
 			// The frames' looks as they are now (baked, then restyled as the screen runs): a panel, bar, opacity, tint, hidden.
 			List<IMenuWidget> panels = screen.Widgets.Where(w => w is ModMenuWidget m && m.Look.HasPanel && w.Width > 0 && w.Height > 0).ToList();
 			int place = 0;
+			// The screen's own background (its <menu>'s style, or a sheet's menu rule): over the backdrop, behind every window.
+			string whole = screen.ScreenBackground();
+			if (whole != null) AddPanel(screen, screen.Id, 0, 0, GlobalScope.LCD_WIDTH, GlobalScope.LCD_HEIGHT, whole, 1, panels.Count * GlobalScope.ds.S32toFX32(32) + GlobalScope.ds.S32toFX32(8));
 			foreach (IMenuWidget w in panels)
 			{
 				ModMenuWidget m = (ModMenuWidget)w;
@@ -623,10 +629,23 @@ namespace OpenFF.Client
 
 		private static void AddPanel(ModMenuScreen screen, IMenuWidget w, MenuStyles.Look look, int back)
 		{
-			MenuBackground bg = MenuBackground.Parse(look.Background);
+			AddPanel(screen, w.Id, w.X, w.Y, w.Width, w.Height, look.Background, look.Opacity, back + GlobalScope.ds.S32toFX32(8));
+		}
+
+		/// <summary>A background over a rectangle of the screen (a frame's, or the whole screen's), at a depth in the windows' stack.</summary>
+		private static void AddPanel(ModMenuScreen screen, string what, int x, int y, int width, int height, string declarations, double alpha, int depth)
+		{
+			MenuBackground bg = MenuBackground.Parse(declarations);
 			if (bg == null) return;
-			GlobalScope.MenuPanelSprite sprite = new GlobalScope.MenuPanelSprite { Width = w.Width, Height = w.Height };
-			float opacity = (float)Math.Clamp(look.Opacity, 0, 1);
+			// A named sprite of the sheet (sprites.json beside the layouts): its part and its borders.
+			if (bg.Sprite != null)
+			{
+				MenuSprites.Sprite named = MenuSprites.Find(screen.Definition?.Directory, bg.ImageKind, bg.ImagePath, bg.Sprite);
+				if (named != null) bg.Use(named);
+				else Log.Write(LogChannel.General, "menus: " + what + ": no sprite '" + bg.Sprite + "' on " + bg.ImagePath + " in " + MenuSprites.FileName);
+			}
+			GlobalScope.MenuPanelSprite sprite = new GlobalScope.MenuPanelSprite { Width = width, Height = height };
+			float opacity = (float)Math.Clamp(alpha, 0, 1);
 			byte[] Bytes(uint rgba) => new[] { (byte)(rgba >> 24), (byte)(rgba >> 16), (byte)(rgba >> 8), (byte)Math.Round((rgba & 0xFF) * opacity) };
 			if (bg.Colour.HasValue) sprite.Fill = Bytes(bg.Colour.Value);
 			sprite.Tint = Bytes(bg.Tint);
@@ -647,9 +666,9 @@ namespace OpenFF.Client
 						int tw = 0, th = 0;
 						uint id = data == null ? 0 : GlobalScope.MenuPanelTexture(data, bg.Linear, out tw, out th);
 						texture = id == 0 ? (0u, 0, 0) : (id, tw, th);
-						if (id == 0 && data == null) Log.Write(LogChannel.General, "menus: " + w.Id + ": no picture " + bg.ImageKind + "(\"" + bg.ImagePath + "\")");
+						if (id == 0 && data == null) Log.Write(LogChannel.General, "menus: " + what + ": no picture " + bg.ImageKind + "(\"" + bg.ImagePath + "\")");
 					}
-					catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + w.Id + ": picture " + bg.ImagePath + ": " + ex.Message); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + what + ": picture " + bg.ImagePath + ": " + ex.Message); }
 					_panelTextures[key] = texture;
 				}
 				if (texture.Id != 0)
@@ -657,14 +676,14 @@ namespace OpenFF.Client
 					sprite.Texture = texture.Id;
 					sprite.TextureWidth = texture.W;
 					sprite.TextureHeight = texture.H;
-					sprite.Quads = bg.Layout(w.Width, w.Height, texture.W, texture.H);
+					sprite.Quads = bg.Layout(width, height, texture.W, texture.H);
 				}
 			}
 			sprite.SetPlane(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D);
 			sprite.SetPriority(3);
-			// Between a window's fill (its depth and 16 more) and its frame (its depth): the frame's place in the stack and 8.
-			sprite.SetDepth(back + GlobalScope.ds.S32toFX32(8));
-			sprite.SetPositionI(w.X, w.Y);
+			// A frame's: between a window's fill (its depth and 16 more) and its frame (its depth) - its place in the stack and 8.
+			sprite.SetDepth(depth);
+			sprite.SetPositionI(x, y);
 			sprite.SetShow(show: true);
 			GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(sprite);
 			_panels.Add(sprite);
@@ -793,6 +812,9 @@ namespace OpenFF.Client
 			// ---- the look, cascaded again as classes and the frames' own styles change ----
 
 			public bool Styled => _source != null;
+
+			/// <summary>The screen's own background (the &lt;menu&gt;'s style and the sheets' rules for it), or null.</summary>
+			public string ScreenBackground() => _source == null ? null : MenuStyles.ScreenBackground(_source, _sheet);
 
 			/// <summary>The sheets cascaded over the layout as it is now; each frame whose look changed gets it, and the windows are made again if a panel did.</summary>
 			public void Restyle()

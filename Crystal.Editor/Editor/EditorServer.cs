@@ -1556,6 +1556,38 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/client/menu/sprites":
+				case "/api/project/menu/sprites":
+				{
+					// The named sprites of the sheets the screens use (sprites.json beside them), for the Sprite editor and the backgrounds.
+					string folder = MenuFolderFor(context.Request.Url.AbsolutePath.StartsWith("/api/client"));
+					string file = folder == null ? null : Path.Combine(folder, OpenFF.Content.MenuSprites.FileName);
+					SendJson(context, new { ok = folder != null, json = file != null && File.Exists(file) ? File.ReadAllText(file) : null, file });
+					return;
+				}
+
+				case "/api/client/menu/sprites/save":
+				case "/api/project/menu/sprites/save":
+				{
+					JsonNode body = ReadBody(context);
+					try
+					{
+						bool client = context.Request.Url.AbsolutePath.StartsWith("/api/client");
+						string folder = MenuFolderFor(client);
+						if (folder == null) throw new InvalidOperationException(client ? "no OpenFF client found" : "no project is open");
+						string json = body?["json"]?.GetValue<string>() ?? "";
+						JsonNode.Parse(json);   // not written if it is not JSON
+						List<string> folders = new List<string> { folder };
+						string built = client ? OpenFFClient.BuiltMenusFolder() : null;
+						(string Folder, bool Source)? where = client ? OpenFFClient.MenusFolder() : null;
+						if (where != null && where.Value.Source && built != null && !string.Equals(Path.GetFullPath(built), Path.GetFullPath(folder), StringComparison.OrdinalIgnoreCase)) folders.Add(built);
+						foreach (string f in folders) File.WriteAllText(Path.Combine(f, OpenFF.Content.MenuSprites.FileName), json);
+						SendJson(context, new { ok = true, savedTo = folders });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/client/menu/styles":
 				{
 					// The client's screens' stylesheets (Data/menus/styles/*.css).

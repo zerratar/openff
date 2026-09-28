@@ -204,7 +204,18 @@ namespace Crystal.Editor
 				{
 					if (!file.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !file.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)) continue;
 					File.Copy(file, Path.Combine(menusOut, Path.GetFileName(file)), overwrite: true);
-					if (file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) screens++;
+					if (file.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !string.Equals(Path.GetFileName(file), OpenFF.Content.MenuSprites.FileName, StringComparison.OrdinalIgnoreCase)) screens++;
+				}
+				// Their pictures (menus/images/, for url() backgrounds), as they are.
+				string imagesIn = Path.Combine(menusIn, "images");
+				if (Directory.Exists(imagesIn))
+				{
+					foreach (string file in Directory.EnumerateFiles(imagesIn, "*.*", SearchOption.AllDirectories))
+					{
+						string to = Path.Combine(menusOut, "images", Path.GetRelativePath(imagesIn, file));
+						Directory.CreateDirectory(Path.GetDirectoryName(to));
+						File.Copy(file, to, overwrite: true);
+					}
 				}
 				// Their Crystal Style Sheets (menus/styles/*.css), which the client cascades onto them as they load.
 				string stylesIn = Path.Combine(menusIn, "styles");

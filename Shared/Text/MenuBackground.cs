@@ -24,6 +24,7 @@
 //   -ff-slice-scale             the borders' size on the screen per picture pixel (1)
 //   -ff-slice-type              sliced (stretched) or tiled (the edges and the middle repeated)
 //   -ff-background-filter       linear (smooth when scaled, the default) or point (the pixels kept)
+//   -ff-sprite                  a named sprite of the sheet (sprites.json, MenuSprites): its part and its borders
 //
 // A slice over 0 decides it: the frame is drawn 9-sliced and the scale mode, size and repeat are
 // not used. Otherwise background-size or -repeat lay the picture out as CSS does; with neither, the
@@ -45,7 +46,7 @@ namespace OpenFF.Content
 			"background-color", "background-image", "-ff-background-rect", "-ff-background-tint", "-ff-background-scale-mode",
 			"background-size", "background-position", "background-repeat",
 			"-ff-slice", "-ff-slice-left", "-ff-slice-top", "-ff-slice-right", "-ff-slice-bottom", "-ff-slice-scale", "-ff-slice-type",
-			"-ff-background-filter"
+			"-ff-background-filter", "-ff-sprite"
 		};
 
 		/// <summary>"url" (a file beside the layout) or "resource" (one of the game's), and its path; null for no picture.</summary>
@@ -63,6 +64,10 @@ namespace OpenFF.Content
 		public float SliceScale = 1;
 		public bool Tiled;
 		public bool Linear = true;
+		/// <summary>A named sprite of the sheet (MenuSprites: sprites.json beside the layouts) - its part and its borders; null for none.</summary>
+		public string Sprite;
+		/// <summary>Whether the frame gave slices of its own (then a sprite's borders do not replace them).</summary>
+		public bool SliceGiven;
 
 		public bool Sliced => SliceLeft > 0 || SliceTop > 0 || SliceRight > 0 || SliceBottom > 0;
 		public bool Empty => ImagePath == null && (Colour == null || (Colour.Value & 0xFF) == 0);
@@ -96,23 +101,33 @@ namespace OpenFF.Content
 					case "background-size": b.Size = v.ToLowerInvariant(); break;
 					case "background-position": b.Position = v.ToLowerInvariant(); break;
 					case "background-repeat": b.Repeat = v.ToLowerInvariant(); break;
+					case "-ff-sprite": b.Sprite = v.Trim().Trim('"', '\''); if (b.Sprite.Length == 0 || b.Sprite == "none") b.Sprite = null; break;
 					case "-ff-slice":
+						b.SliceGiven = true;
 						float[] s = v.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(Number).ToArray();
 						if (s.Length == 1) b.SliceTop = b.SliceRight = b.SliceBottom = b.SliceLeft = s[0];
 						else if (s.Length == 2) { b.SliceTop = b.SliceBottom = s[0]; b.SliceRight = b.SliceLeft = s[1]; }
 						else if (s.Length == 3) { b.SliceTop = s[0]; b.SliceRight = b.SliceLeft = s[1]; b.SliceBottom = s[2]; }
 						else if (s.Length >= 4) { b.SliceTop = s[0]; b.SliceRight = s[1]; b.SliceBottom = s[2]; b.SliceLeft = s[3]; }
 						break;
-					case "-ff-slice-left": b.SliceLeft = Number(v); break;
-					case "-ff-slice-top": b.SliceTop = Number(v); break;
-					case "-ff-slice-right": b.SliceRight = Number(v); break;
-					case "-ff-slice-bottom": b.SliceBottom = Number(v); break;
+					case "-ff-slice-left": b.SliceLeft = Number(v); b.SliceGiven = true; break;
+					case "-ff-slice-top": b.SliceTop = Number(v); b.SliceGiven = true; break;
+					case "-ff-slice-right": b.SliceRight = Number(v); b.SliceGiven = true; break;
+					case "-ff-slice-bottom": b.SliceBottom = Number(v); b.SliceGiven = true; break;
 					case "-ff-slice-scale": b.SliceScale = Math.Max(0.01f, Number(v) is float f && f > 0 ? f : 1); break;
 					case "-ff-slice-type": b.Tiled = v.Equals("tiled", StringComparison.OrdinalIgnoreCase); break;
 					case "-ff-background-filter": b.Linear = !v.Equals("point", StringComparison.OrdinalIgnoreCase); break;
 				}
 			}
 			return b.Empty ? null : b;
+		}
+
+		/// <summary>A named sprite's part and borders put on, where the frame did not give its own.</summary>
+		public void Use(MenuSprites.Sprite sprite)
+		{
+			if (sprite == null) return;
+			if (Rect == null && sprite.W > 0 && sprite.H > 0) Rect = new[] { sprite.X, sprite.Y, sprite.W, sprite.H };
+			if (!SliceGiven) { SliceLeft = sprite.Left; SliceTop = sprite.Top; SliceRight = sprite.Right; SliceBottom = sprite.Bottom; }
 		}
 
 		/// <summary>The picture laid out over a frame w by h (menu units), for a picture iw by ih pixels.</summary>

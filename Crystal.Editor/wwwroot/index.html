@@ -42,7 +42,7 @@
         <span class="panel-note" id="hierarchy-note"></span>
       </div>
       <input id="hierarchy-filter" type="search" placeholder="filter" autocomplete="off">
-      <ul id="hierarchy" class="tree"></ul>
+      <ul id="hierarchy" class="tree" tabindex="-1"></ul>
     </aside>
 
     <div class="splitter vertical" data-split="left" role="separator" aria-orientation="vertical" aria-label="resize the hierarchy"></div>
@@ -231,13 +231,14 @@
       <label class="toggle"><input type="checkbox" class="preview"> Preview</label>
       <span class="grow"></span>
       <button class="adopt" hidden title="Copy this screen of the game's into the mod (menus/): the client plays the mod's copy in the game's place, with your frames, styles and behaviours">Take into the mod</button>
+      <button class="new-frame" title="A new window, text or frame - inside the selected frame, or at the screen's top level (right-click in the Hierarchy for the same)">New &#9662;</button>
       <button class="duplicate">Duplicate</button>
       <button class="remove">Delete</button>
       <button class="save primary">Save</button>
       <button class="revert">Revert</button>
     </div>
     <div class="menu-body">
-      <div class="canvas-wrap">
+      <div class="canvas-wrap" tabindex="-1">
         <div class="canvas-scale"><div class="canvas"></div></div>
         <p class="hint">Drag a widget to move it. Arrow keys nudge, shift+arrow moves by 8.
           Click an empty spot to select nothing.</p>
@@ -578,6 +579,7 @@
 <script src="menu-layout.js"></script>
 <script src="menu-bindings.js"></script>
 <script src="menu-background.js"></script>
+<script src="menu-sprites.js"></script>
 <script src="menu-editor.js"></script>
 <script src="script-editor.js"></script>
 <script src="code-editor.js"></script>

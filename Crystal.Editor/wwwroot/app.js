@@ -632,6 +632,7 @@ async function openMenu(name) {
   // screens take <style> elements in their XML); edited in the panel under the canvas.
   menu.sheets = [];
   menu.sheetsVersion = (menu.sheetsVersion || 0) + 1;
+  menu.hideBackdrop = false;
   menu.xmlMode = 'xml';
   if (own) {
     try {
@@ -639,6 +640,9 @@ async function openMenu(name) {
       if (r.ok) menu.sheets = (r.sheets || []).map(x => ({ name: x.name, css: x.css, dirty: false }));
       menu.sheetsFolder = r.folder || null;
     } catch (error) { /* no sheets */ }
+    await loadMenuSprites();
+  } else {
+    menu.sprites = { sheets: {} };
   }
   // This tab's own copy of the state (shell.js activate swaps them as tabs change).
   const thisDoc = typeof docs !== 'undefined' ? [...docs.values()].find(d => d.kind === 'menu' && d.name === name) : null;
@@ -708,6 +712,8 @@ async function openMenu(name) {
   // choice here rather than just the absence of one - it is what puts the whole file
   // in the panel, and it is the only way to stop the arrow keys nudging something.
   canvasWrap.onpointerdown = event => {
+    // The keys follow the canvas clicked (Delete, Ctrl+D, the arrows nudging), not the panel that had them.
+    canvasWrap.focus({ preventScroll: true });
     if (event.target.closest('.widget')) return;
     if (!menu.selected) return;
     menu.selected = null;
@@ -716,7 +722,8 @@ async function openMenu(name) {
   };
 
   $('.save', node).onclick = async () => {
-    // The stylesheets changed here first, into the folder's styles/.
+    // The sprites and the stylesheets changed here first (sprites.json, styles/).
+    if (typeof saveMenuSprites === 'function' && !(await saveMenuSprites())) return;
     for (const sheet of (menu.sheets || []).filter(x => x.dirty)) {
       const r = await api(menu.project && menu.project.client ? '/api/client/menu/styles/save' : '/api/project/menu/styles/save', { name: sheet.name, css: sheet.css });
       if (!r.ok) { say(r.error, 'bad'); return; }
@@ -758,6 +765,13 @@ async function openMenu(name) {
     };
   }
 
+  // New: a window, text or frame inside the selected frame, or at the top level.
+  $('.new-frame', node).onclick = event => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const parent = menu.selected || menuScreen();
+    showContextMenu({ clientX: box.left, clientY: box.bottom + 2 }, addMenuItems(parent).map(item => ({ ...item, label: menu.selected ? `${item.label} ${childText(menu.selected, 'id') || 'it'}` : `${item.label} (top level)` })));
+  };
+
   $('.duplicate', node).onclick = () => {
     if (!menu.selected) return say('select a widget first', 'bad');
     duplicateMenuFrame(menu.selected);
@@ -790,7 +804,8 @@ async function drawMenuBackground(node, screenName, index) {
   // A mod's or the client's screen names its backdrop by number (its definition's "background"); the game's by the screen.
   const byNumber = index !== undefined && index !== null && index !== '';
   const key = byNumber ? `index:${index}` : screenName;
-  if (!menu.preview || !key) return;
+  // The Hierarchy's eye on the backdrop, or none at all (-1): only the screen's own background, over black.
+  if (!menu.preview || !key || menu.hideBackdrop || (byNumber && Number(index) < 0)) return;
 
   let entry = menuBackgrounds.get(key);
   if (entry === undefined) {
@@ -1076,6 +1091,17 @@ function drawScreen(node, screen, select, quiet) {
   scale.style.height = `${height * menu.zoom}px`;
 
   drawMenuBackground(node, childText(screen, 'name'), menu.project && menu.project.definition ? menu.project.definition.background : undefined);
+  // The screen's own background (its <menu>'s style, a sheet's menu rule): over the backdrop, under every frame.
+  if (menu.preview && typeof menuStyled === 'function' && !menu.hideScreenBackground) {
+    const values = menuStyled(screen).screenValues;
+    const declarations = BACKGROUND_PROPS.filter(k => values.has(k)).map(k => `${k}: ${values.get(k)}`).join('; ');
+    if (declarations) drawFrameBackground(declarations, 480, 320, 2 * menu.zoom).then(c => {
+      if (!c || !canvas.isConnected) return;
+      c.classList.add('screen-background');
+      const backdrop = $('.menu-bg', canvas);
+      if (backdrop) backdrop.after(c); else canvas.prepend(c);
+    }).catch(() => {});
+  }
 
   for (const frame of frames) {
     // Left out of the view by the Hierarchy's eye (the editor's only).
@@ -1197,7 +1223,10 @@ function drawScreen(node, screen, select, quiet) {
     if (select && frame.element === select) selectFrame(node, screen, frame, box, quiet);
   }
 
-  if (!select) showProperties(node, null);
+  // Nothing selected on the canvas: the screen's card - unless the inspector is on the backdrop's, which a
+  // redraw (a backdrop or a screen background changed there) must leave where it is.
+  if (!select && !(activeDoc && activeDoc.selection === 'backdrop')) showProperties(node, null);
+  else if (!select && typeof drawHierarchy === 'function') drawHierarchy();
 }
 
 function startDrag(event, node, screen, frame, box) {

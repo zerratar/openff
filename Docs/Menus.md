@@ -206,7 +206,36 @@ A frame can have a colour and a picture behind it, in place of the game's window
 
 **How it draws in the client:** `Shared/Text/MenuBackground.cs` lays the picture out as quads. `GlobalScope.MenuPanel.cs` draws them as a sprite of the game's own, in the same depth-sorted pass as the windows. That puts a background above the backdrop, between a window's fill and its frame, and under the cursor, the portrait and the texts. A picture takes one GL texture slot while the screen is open.
 
-**In Crystal:** the inspector's **Background** section has the colour (with its alpha), the picture, tint, part, scale mode, size, position, repeat, slices, slice scale and type, and the filter.
+#### Sprites of a sheet
+
+A sheet holds named sprites, each with its own 9-slice borders, like Unity's Sprite Editor in *Multiple* mode. The sheet can be one of yours or one of the game's. A folder of screens keeps them in `sprites.json` beside its layouts (`Shared/Text/MenuSprites.cs`). A frame names one with `-ff-sprite`, with the sheet as its picture:
+
+```css
+#w_rules { -ff-panel: none; background-image: url("images/ui.png"); -ff-sprite: panel_blue; }
+```
+
+```json
+{ "sheets": { "url:images/ui.png": { "sprites": [
+  { "name": "panel_blue", "x": 0, "y": 0, "w": 48, "h": 48, "left": 12, "top": 12, "right": 12, "bottom": 12 } ] } } }
+```
+
+The sprite gives the part of the picture and its borders. A frame's own `-ff-background-rect` or `-ff-slice` still wins over them. Sheets are keyed `url:<path>` or `resource:<name>`.
+
+#### The backdrop
+
+Under every frame is the screen's **backdrop**: one of the game's menu backdrops (the definition's `"background"`), or `-1` for none. Over it, the screen can have a background of its own: the `<menu>`'s style, or a sheet's `menu` / `#name` rule, with the same properties as a frame. It's drawn behind every window.
+
+The game's backdrops are made of pieces of `files/menu_bg_01.NCGR` (a cell bank), so they aren't whole pictures in the picker. Their pieces can be used as sprites of that sheet.
+
+**In Crystal:** the inspector's **Background** section has the colour (with its alpha), the picture and its **Sprite**, tint, part, scale mode, size, position, repeat, slices, slice scale and type, and the filter.
+- **Where values come from:** each label says it. A bold label with `•` is set on the frame (click it to take it off); a `∙` label comes from a stylesheet (hover for which rule). **×** takes a value off the frame, or blocks a sheet's value for this frame alone.
+- **No picture:** the section says what's drawn instead. For example, "the game's window (built in, m000_window) from the layout's `<window/>`", with **No window** and **A picture instead…**.
+- **Hierarchy:** the **backdrop** has its own row and eye. Its card picks the game's backdrop (or none) and edits the screen's own background.
+- **Sprite editor** (**Sprites…**, or after choosing a sheet in the picker): the sheet with its sprites outlined.
+  - Drag to make or move a sprite.
+  - Edit the selected sprite's name, rect and borders (its borders are lines to drag on its own large view).
+  - Tools: **From the game's cells** (the pieces the game cuts one of its sheets into, from its `.NCER`), **Auto** (islands of pixels that aren't see-through), **Grid**, and **Delete**.
+  - **Save** writes `sprites.json`; **Use this sprite** puts it on the frame.
 - **Picture picker:** chooses between *Beside the screen* (with **Import PNG…** to copy one into `images/`) and *The game's*.
 - **Slice editor** (**Edit slices…**): shows the picture large with its borders as green lines to drag. **Pick part…** drags out the sprite of a sheet first.
 - **Canvas:** draws backgrounds with a port of the same layout (`menu-background.js`), in the game's order.
