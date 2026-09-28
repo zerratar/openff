@@ -237,7 +237,7 @@ function setBindAttribute(element, name, value) {
 
 /// The inspector's Bindings section: the frame's data source and what it binds, each with the paths the game's data has, and what Preview's sample makes of it.
 function buildBindingsSection(panel, element, screen, edit, rebuild, sync) {
-  const has = ['data-source', 'bind-text', 'bind-visible', 'bind-class', 'bind-style'].some(a => element.hasAttribute(a));
+  const has = ['data-source', 'bind-text', 'bind-visible', 'bind-display', 'bind-class', 'bind-style'].some(a => element.hasAttribute(a));
   const body = propSection(panel, 'Bindings', 'logic', 'Data bindings: the frame\'s text, visibility and classes from the game\'s data as the screen runs - UI Toolkit\'s data source and binding paths', has);
   const listId = 'menu-binding-paths';
   let list = document.getElementById(listId);
@@ -273,6 +273,7 @@ function buildBindingsSection(panel, element, screen, edit, rebuild, sync) {
   };
   text.parentElement.append(insert);
   field('Visible', 'bind-visible', 'alive, hp > 0, gil >= 100', 'bind-visible: shown while the expression is true', true);
+  field('In the layout', 'bind-display', 'dialogue.avatar', 'bind-display: in its row or column while the expression is true - out of it (display: none) otherwise, the others closing up over its place', true);
   field('Bind classes', 'bind-class', 'ko: !alive; low: hp < maxHp / 4', 'bind-class: each class on while its expression is true - the sheets\' rules for it follow', false);
   field('Bind style', 'bind-style', 'background-image: {dialogue.avatar}', 'bind-style: declarations with {paths} in them, over the frame\'s own style as the data says (a speaker\'s picture, a colour from the data)', false);
 
@@ -285,6 +286,8 @@ function buildBindingsSection(panel, element, screen, edit, rebuild, sync) {
     if (template) lines.push(`Text: “${bindingFormat(template, scope)}”`);
     const visible = element.getAttribute('bind-visible');
     if (visible) lines.push(`Visible: ${bindingTest(visible, scope) ? 'yes' : 'no'}`);
+    const display = element.getAttribute('bind-display');
+    if (display) lines.push(`In the layout: ${bindingTest(display, scope) ? 'yes' : 'no'}`);
     const classes = boundClasses(element);
     if (classes.length) lines.push('Classes: ' + classes.map(([k, v]) => `${k} ${bindingTest(v, scope) ? 'on' : 'off'}`).join(', '));
     const style = element.getAttribute('bind-style');

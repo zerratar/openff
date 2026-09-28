@@ -18,6 +18,7 @@
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
+//   shots <count>                  a screenshot of each of the next displayed frames (--screenshot-dir), for what lasts a frame
 //   dialogue <text> [| speaker]    the field's message window with the text (Game.Dialogue.Say: "@1000142" a line of the game's)
 //   ask <question>                 the question with the Yes / No box (Game.Dialogue.Ask); the answer in the log ("drive: answered yes")
 //   quit                           close the game
@@ -361,6 +362,10 @@ namespace OpenFF.Client
 				case "ask":
 					OpenFF.Game.Dialogue.Ask(step.Arg, yes => Log.Write(LogChannel.General, "drive: answered " + (yes ? "yes" : "no")));
 					Log.Write(LogChannel.File, "drive: ask " + step.Arg);
+					break;
+				case "shots":
+					ScreenCapture.Burst = Math.Max(1, int.TryParse(step.Arg, out int shots) ? shots : 1);
+					Log.Write(LogChannel.General, "drive: shots " + ScreenCapture.Burst);
 					break;
 				case "say":
 					Log.Write(LogChannel.General, "drive: " + step.Arg);

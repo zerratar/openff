@@ -62,6 +62,8 @@ internal static partial class GlobalScope
 								private OpenFF.Client.BattleHud.Rect box_;
 								private (int X, int Y) yes_, no_, question_;
 								private int lift_;
+								// PORT: where the hand stands on each answer (its frame's cursor), from the box's corner.
+								private (int X, int Y) yesCursor_, noCursor_;
 
 								public CConfirmWindow()
 								{
@@ -90,6 +92,10 @@ internal static partial class GlobalScope
 									yes_.Y -= lift_;
 									no_.Y -= lift_;
 									box_.Height -= lift_;
+									yesCursor_ = OpenFF.Client.BattleHud.ConfirmPart("yes/cursor", yes_.X - 12, yes_.Y + lift_ + 6);
+									noCursor_ = OpenFF.Client.BattleHud.ConfirmPart("no/cursor", no_.X - 12, no_.Y + lift_ + 6);
+									yesCursor_.Y -= lift_;
+									noCursor_.Y -= lift_;
 									ds.Vector2<short> vector = new ds.Vector2<short>(0, 0);
 									vector.set((short)box_.X, (short)box_.Y);
 									ds.Vector2<short> vector2 = new ds.Vector2<short>(0, 0);
@@ -133,7 +139,7 @@ internal static partial class GlobalScope
 									cellCursor3d_.SetShow(show: true);
 									cellCursor3d_.SetCell(0);
 									cellCursor3d_.SetDepth(0);
-									cellCursor3d_.SetPositionI(box_.X + yes_.X, box_.Y + yes_.Y);
+									cellCursor3d_.SetPositionI(box_.X + yesCursor_.X, box_.Y + yesCursor_.Y);
 									sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(cellCursor3d_);
 									visiblity_ = true;
 									dgs.msg.CMessageMng main = dgs.msg.CMessageSys.getInstance().Main();
@@ -193,11 +199,11 @@ internal static partial class GlobalScope
 								{
 									if (b)
 									{
-										cellCursor3d_.SetPositionI(box_.X + yes_.X, box_.Y + yes_.Y);
+										cellCursor3d_.SetPositionI(box_.X + yesCursor_.X, box_.Y + yesCursor_.Y);
 									}
 									else
 									{
-										cellCursor3d_.SetPositionI(box_.X + no_.X, box_.Y + no_.Y);
+										cellCursor3d_.SetPositionI(box_.X + noCursor_.X, box_.Y + noCursor_.Y);
 									}
 									OpenFF.Client.FieldHud.ConfirmFocus(b);   // PORT: the answer the hand is on in :focus for the layout's sheets
 								}

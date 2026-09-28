@@ -7,7 +7,11 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## Unreleased
+## 0.2.0 - the UI yours to style (2026-09-28)
+
+Most of the CSS a web page has, for the menus and for what the game draws from code: the field's
+dialogue with speakers and their faces, the Yes / No box, the field's and the menus' buttons, the
+title's commands - moved, restyled, animated, or drawn with none of the game's own art.
 
 - **Crystal Style Sheets, much more of CSS.** States - `:focus` follows the cursor, `:disabled`
   a frame code greys (`IMenuWidget.Enabled`), with `:focus-within`, `:first-child`,
@@ -35,12 +39,22 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   the answer or the command the hand is on. Crystal's preview draws them, and the page arrow.
 - **`translate` moves.** A transition or an animation of a frame's translate moves what it draws,
   its children with it - on menu screens and in the field's HUD, and in Crystal's Play.
+- **A row that closes up.** `bind-display` takes a frame out of its row or column while its
+  expression is false, and the field's HUD lays itself out again as the data changes: a speaker
+  with no picture, and the dialogue's text moves over into the avatar's room and is broken into
+  lines at the wider width.
+- **A mod's dialogue types out.** `Game.Dialogue.Say`'s text comes a letter at a time at the
+  message speed, as the game's lines do; a press finishes it, the next closes it. A question's
+  Yes / No box comes up once it is all there, with no page-turn arrow, and the hero stays put while
+  a window of the engine API's is up (Down was the box's and a step both).
 - **A game screen's backdrop, the mod's.** A definition reaching one of the game's screens can say
   its backdrop (`"background"`, `-1` for none); Crystal's backdrop card for game screens picks it.
 - **Fixes.** The dialogue's speaker name stands where its frame is; a script's text position moves
   with a moved text frame; a text shown after the window opened at the Fast message speed no longer
   hangs without its page-turn arrow; a panel that fades (a transition, an animation) is faded in
-  place, and one made again every frame is seen.
+  place, and one made again every frame is seen; a styled window that closes goes with its texts
+  (its panels stood a frame less than what was in them); the Yes / No box's hand is a gap left of
+  the answers and level with them, the answers a row apart it fits in.
 - **An empty gambit list is a manual hero.** With auto battle on, a hero whose every gambit is
   empty or off gets their command window, while the others go on by their rules; a hero with
   rules that don't hold this turn still attacks the first foe.

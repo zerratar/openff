@@ -79,7 +79,21 @@ namespace OpenFF.Client
 				_nextAutoCapture = gameTime.TotalGameTime.TotalSeconds + _intervalSeconds;
 			}
 
-			if (pressed || auto)
+			if (Burst > 0)
+			{
+				// A burst: each frame's back buffer kept as it is, written once it is over - a PNG takes longer than a frame.
+				Burst--;
+				try
+				{
+					int w = GraphicsDevice.PresentationParameters.BackBufferWidth, h = GraphicsDevice.PresentationParameters.BackBufferHeight;
+					Color[] frame = new Color[w * h];
+					GraphicsDevice.GetBackBufferData(frame);
+					_burst.Add((frame, w, h));
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "screenshot failed: " + ex.Message); }
+				if (Burst == 0) WriteBurst();
+			}
+			else if (pressed || auto)
 			{
 				Capture();
 			}
@@ -92,6 +106,17 @@ namespace OpenFF.Client
 				GlDiag.ArmBurst(400);
 			}
 			_burstWasDown = burstKey;
+		}
+
+		/// <summary>So many of the next displayed frames captured, one each (the drive's shots).</summary>
+		public static int Burst;
+
+		private readonly System.Collections.Generic.List<(Color[] Frame, int Width, int Height)> _burst = new System.Collections.Generic.List<(Color[], int, int)>();
+
+		private void WriteBurst()
+		{
+			foreach ((Color[] frame, int w, int h) in _burst) Write(frame, w, h);
+			_burst.Clear();
 		}
 
 		/// <summary>When the last screenshot was written (Environment.TickCount64), for the stall log: the PNG is encoded on the game's thread.</summary>
@@ -111,15 +136,27 @@ namespace OpenFF.Client
 					_buffer = new Color[count];
 				}
 				device.GetBackBufferData(_buffer);
+				return Write(_buffer, width, height);
+			}
+			catch (Exception ex)
+			{
+				Log.Write(LogChannel.General, "screenshot failed: " + ex);
+				return null;
+			}
+		}
 
+		private string Write(Color[] pixels, int width, int height)
+		{
+			try
+			{
 				Directory.CreateDirectory(_directory);
 				string path = Path.Combine(_directory,
 					string.Format(CultureInfo.InvariantCulture, "shot{0:D4}.png", ++_index));
 
 				// Round-trip through a texture so MonoGame's PNG writer does the encoding.
-				using (Texture2D texture = new Texture2D(device, width, height))
+				using (Texture2D texture = new Texture2D(GraphicsDevice, width, height))
 				{
-					texture.SetData(_buffer);
+					texture.SetData(pixels);
 					using FileStream file = File.Create(path);
 					texture.SaveAsPng(file, width, height);
 				}

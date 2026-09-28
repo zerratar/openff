@@ -203,7 +203,10 @@ internal static partial class GlobalScope
 				return dGSMessage;
 			}
 
-			public DGSMessage createMessage(string str, int font)
+			public DGSMessage createMessage(string str, int font) => createMessage(str, font, typed: false);
+
+			/// <summary>PORT: typed - given out a letter at a time (DGSMessage.assignTypedText), not all at once.</summary>
+			public DGSMessage createMessage(string str, int font, bool typed)
 			{
 				DGSMessage dGSMessage = new DGSMessage();
 				if (dGSMessage != null)
@@ -211,7 +214,8 @@ internal static partial class GlobalScope
 					NNS_G2dTextCanvasInit(dGSMessage.m_TextCanvas, dgsmCanvasVector[0], dgsmFontVector[font], 0, 0);
 					dGSMessage.m_Manager = this;
 					dGSMessage.reset(doErase: false);
-					dGSMessage.assignText(str);
+					if (typed) dGSMessage.assignTypedText(str);
+					else dGSMessage.assignText(str);
 				}
 				return dGSMessage;
 			}

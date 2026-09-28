@@ -366,7 +366,9 @@ attributes, so the game's own file never carries them:
 
 **A bound style** (`bind-style`): declarations with `{paths}` in them, put over the frame's own style as the data says - `bind-style="background-image: {dialogue.avatar}"`, `bind-style="-ff-tint: {tint}"`. What it binds cascades like the frame's own style, over every sheet.
 
-**Expressions** (`bind-visible`, and a class's condition in `bind-class`):
+**Out of the layout** (`bind-display`): while its expression is false the frame is `display: none` - out of its parent's row or column, the others closing up over its place, as a horizontal layout group leaves out an inactive child. `bind-visible` hides a frame and keeps its place, as CSS's `visibility` does. The field's HUD lays its rows and columns out again as the data changes (a speaker with no picture: `bind-display="dialogue.avatar"` on the avatar, and the text takes its room); a menu screen's layout is laid out once, as it opens.
+
+**Expressions** (`bind-visible`, `bind-display`, and a class's condition in `bind-class`):
 - a path or a literal (a number, `'text'`, `true`, `false`, `null`), with simple sums (`maxHp / 4`, `level + 1`);
 - compared with `== != < <= > >=`, turned round by `!`, and joined by `&&` and `||`.
 
@@ -431,23 +433,26 @@ The field's dialogue window and the map-name banner are laid out by `field_hud`,
 | `dialogue/next` | The page-turn arrow: `visibility: hidden` hides it, `-ff-tint` and `opacity` colour it. A background of its own (a picture, a painted box, with an `animation` if you like) takes its place, up exactly when the game's would be. |
 | `dialogue/<yours>` | A frame of the mod's, shown with the window: a window, a background, a text (`<data>`, or `bind-text`). |
 | `map_name` | The banner a map's name comes up in; its text takes the frame's look. |
-| `confirm` | The Yes / No box (an inn's question, a script's `Game.Dialogue.Ask`): the game's window, or `-ff-panel: none` and a look of the mod's. `confirm/question`, `confirm/yes` and `confirm/no` place its lines and give them their look; the one the hand is on is in `:focus`. Asked with its question in the message window (`Ask`), the box closes up over the question's line. |
+| `confirm` | The Yes / No box (an inn's question, a script's `Game.Dialogue.Ask`): the game's window, or `-ff-panel: none` and a look of the mod's. `confirm/question`, `confirm/yes` and `confirm/no` place its lines and give them their look; the one the hand is on is in `:focus`, and `confirm/yes/cursor` and `confirm/no/cursor` are where the hand stands on each. Asked with its question in the message window (`Ask`), the box closes up over the question's line. |
 | `menu_button`, `map_button`, `talk_button` | The field's buttons, where the options put them (they swap the menu's and the map's). `-ff-tint` and `opacity` colour the game's picture; a background (or `-ff-panel: none`) takes its place, with frames of the mod's in it (a label). |
 | `title`, `title/row` | The title's column of commands: the first row at the frame's top, the last no lower than its bottom, a row's height the step between them. `title/row` is the commands' lettering (colour, size, face, shadows, opacity) where they're drawn as text; the one the hand is on is in `:focus`, a Continue with nothing to continue `:disabled`. |
 | `a_button`, `b_button`, `l_button`, `r_button` | A menu's touch buttons (OK, Back, the previous and next hero): where they are and a press reaches. `a_button/text` and `b_button/text` are their labels' look; a background takes the place of L's and R's pictures. |
 
-Their bindings (`bind-text`, `bind-visible`, `bind-class`, `bind-style`) reach `dialogue` (`number`, `text`, `speaker`, `avatar`, `map`), `banner` (`number`, `text`), `hero`, `party` and `gil`. With nothing styled, the game's windows are drawn as they always were.
+Their bindings (`bind-text`, `bind-visible`, `bind-display`, `bind-class`, `bind-style`) reach `dialogue` (`number`, `text`, `speaker`, `avatar`, `map`), `banner` (`number`, `text`), `hero`, `party` and `gil`. With nothing styled, the game's windows are drawn as they always were.
 
 ```xml
 <frame><id>dialogue</id> ...
   <frame><id>text</id><x>86</x><y>13</y><width>376</width><height>60</height></frame>
-  <frame bind-visible="dialogue.avatar" bind-style="background-image: {dialogue.avatar}"><id>avatar</id><x>10</x><y>9</y><width>66</width><height>66</height></frame>
+  <frame bind-display="dialogue.avatar" bind-style="background-image: {dialogue.avatar}"><id>avatar</id><x>10</x><y>9</y><width>66</width><height>66</height></frame>
   <frame bind-visible="dialogue.speaker" bind-text="{dialogue.speaker}"><id>speaker</id><x>14</x><y>-20</y><width>120</width><height>22</height></frame>
 </frame>
 ```
 
 ```css
-#dialogue { -ff-panel: none; background-image: linear-gradient(#203468f0, #0a1228f0); border: 2px solid #c8d8ff; border-radius: 10px; box-shadow: 0 4px 12px #000000c0; }
+#dialogue { -ff-panel: none; background-image: linear-gradient(#203468f0, #0a1228f0); border: 2px solid #c8d8ff; border-radius: 10px; box-shadow: 0 4px 12px #000000c0;
+            flex-direction: row; gap: 10px; padding: 9px 10px; align-items: flex-start; }   /* the avatar, then the text in the room left */
+#dialogue > #text { flex-grow: 1; margin-top: 4px; }
+#dialogue > #name, #dialogue > #next, #dialogue > #speaker { position: absolute; }
 #avatar   { -ff-background-scale-mode: scale-to-fit; border: 1px solid #8090c0; border-radius: 6px; }
 #speaker  { background-image: linear-gradient(#3a5cb0, #1a2c5c); border-radius: 6px; color: pale-yellow; text-align: center; }
 ```

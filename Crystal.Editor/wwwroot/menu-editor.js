@@ -243,7 +243,7 @@ function frameSummary(element) {
     if (behaviour) words.push(behaviour);
   }
   if (hasTag(element, 'focus')) words.push('focus');
-  if (['data-source', 'bind-text', 'bind-visible', 'bind-class'].some(a => element.hasAttribute(a))) words.push('bound');
+  if (['data-source', 'bind-text', 'bind-visible', 'bind-display', 'bind-class', 'bind-style'].some(a => element.hasAttribute(a))) words.push('bound');
   const direction = LayoutStyle.of(element).word('flex-direction');
   if (direction === 'row' || direction === 'column') words.push(direction);
   return words.join(' · ');

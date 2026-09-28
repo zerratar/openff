@@ -294,6 +294,25 @@ internal static partial class GlobalScope
 				progress();
 			}
 
+			/// <summary>
+			/// PORT: a text that is not in any message file, given out a letter at a time as the game's lines are (progress, at the
+			/// message's speed and wait) - the engine API's Say, a typewriter like the game's own. A % stands for itself.
+			/// </summary>
+			public void assignTypedText(string str)
+			{
+				str = (str ?? "").Replace("%", "%%");
+				assignText(str);   // the buffer sized and the old text's area erased, as a whole text's
+				m_CurrentStr = str;
+				m_CurrentChar = m_CurrentStr;
+				m_CurrentCharArray_offset = 0;
+				m_Buffer = (m_BufferHead = "");
+				m_BufferHeadArray_offset = 0;
+				m_Counter = m_Wait;
+				m_Flag &= 253;
+				m_Flag |= 4;
+				progress();
+			}
+
 			public byte numberOfChars()
 			{
 				if (m_CurrentStr == null)

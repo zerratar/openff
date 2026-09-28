@@ -1229,12 +1229,13 @@ function hudGameCell(path, look) {
     case 'talk_button': return own ? null : { bank: 'files/m009_menubutton_i.NCER', cell: 14, fit: true };
     case 'l_button': return own ? null : { bank: 'files/icon_16dot.NCER', cell: 5, centre: true };
     case 'r_button': return own ? null : { bank: 'files/icon_16dot.NCER', cell: 6, centre: true };
-    case 'confirm/yes':
-    case 'confirm/no': {
-      // The hand on the answer in :focus (Yes when Preview says neither), a step to its left.
+    case 'confirm/yes/cursor':
+    case 'confirm/no/cursor': {
+      // The hand on the answer in :focus (Yes when Preview says neither), where that answer's cursor frame puts it.
       const state = typeof menuPreviewState === 'function' ? menuPreviewState() : null;
       const focused = state && state.focus && childText(state.focus, 'id');
-      const on = focused === 'yes' || focused === 'no' ? path.endsWith(focused) : path === 'confirm/yes';
+      const answer = path.split('/')[1];
+      const on = focused === 'yes' || focused === 'no' ? answer === focused : answer === 'yes';
       return on ? { bank: 'files/icon_yubi.NCER', cell: 0, hand: true } : null;
     }
   }
@@ -1260,6 +1261,8 @@ async function drawHudCell(bank, index, tint, scale) {
   if (!cell || !cell.parts.length) return null;
   const canvas = drawCell(cell, loaded.sheet, false, false, scale);
   canvas.cellBox = cellBounds(cell, false);
+  // A half-size cell's parts stand half as far from its point too, as the game draws them.
+  if (cell.parts.every(p => p.half)) { canvas.cellBox.x /= 2; canvas.cellBox.y /= 2; }
   if (tint && /^#[0-9a-fA-F]{6}/.test(tint)) {
     // -ff-tint: the sprite's colour times the tint's, its alpha kept (the DS's own sprite colour).
     const g = canvas.getContext('2d');

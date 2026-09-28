@@ -334,6 +334,24 @@ namespace OpenFF.Client
 
 		public bool IsOpen => _shown || _pending != null;
 		public bool IsAsking => _answer != null;
+
+		// The hero held still while a window of ours is up, as the game's own messages hold it - the pad's up and down
+		// are the Yes / No box's then, not a step. Not while a mod has frozen the hero or walks it (a cutscene's lines).
+		private bool _holding;
+
+		private void Hold()
+		{
+			if (_holding || !EngineApi.InWorld || EngineApi.Hero.Frozen || EngineApi.Hero.Moving) return;
+			try { EngineApi.Players.setPlayerStop(EngineApi.HeroIndex); _holding = true; } catch (Exception) { }
+		}
+
+		private void Unhold()
+		{
+			if (!_holding) return;
+			_holding = false;
+			if (!EngineApi.InWorld || EngineApi.Hero.Frozen || EngineApi.Hero.Moving) return;
+			try { EngineApi.Players.setPlayerStart(EngineApi.HeroIndex); } catch (Exception) { }
+		}
 		public event Action Closed;
 
 		private GlobalScope.wld.CMessageWindow Window
@@ -373,6 +391,7 @@ namespace OpenFF.Client
 				EngineApi.Warn("say", "Say: no message window (not on a map)");
 				return;
 			}
+			Hold();
 			if (!window.isMadeWindow())
 			{
 				// A fresh window: the text waits for it to finish opening (Tick shows it). The
@@ -463,6 +482,7 @@ namespace OpenFF.Client
 			TraceLine("Show done", window);
 			// A question keeps its text up until answered: no tap mark, no dismissal.
 			window.setProgressIconActivity(_SendMessage: _answer == null);
+			_pageWasFinished = false;
 			_pending = null;
 			_shown = true;
 		}
@@ -485,6 +505,7 @@ namespace OpenFF.Client
 				_answer = null;
 				Game.Guard("Dialogue.Ask", () => answer(false));
 			}
+			Unhold();
 			if (wasOpen)
 			{
 				_shown = false;
@@ -530,12 +551,18 @@ namespace OpenFF.Client
 				TickQuestion();
 				return;
 			}
-			if (window.isNextPageButton())
+			// A press while the text is still being given out finishes it (the window's own); one once it is all there closes it.
+			bool finished = _pageWasFinished;
+			_pageWasFinished = window.isPageFinished();
+			if (finished && window.isNextPageButton())
 			{
 				Close();
 				ClosedFrame = OpenFF.Game.Time.Frame;
 			}
 		}
+
+		// Whether the text was all there by the step before (a press this step finishes a text still coming, not closes it).
+		private bool _pageWasFinished;
 
 		// The box: the game's own Yes / No window (CConfirmWindow - the field_hud layout's confirm frame, its styles and its
 		// hand), opened with the question; the engine's draw layer's in screen units (800x480) when that will not open.
@@ -564,6 +591,9 @@ namespace OpenFF.Client
 			OpenFF.InputState input = OpenFF.Game.Input;
 			if (!_boxTried)
 			{
+				// The box comes up once the question is all there, as the game's does after its line.
+				GlobalScope.wld.CMessageWindow asking = Window;
+				if (asking != null && !asking.isMessageProgressEnded()) return;
 				_boxTried = true;
 				_box = Box;
 				try { _box?.open(withQuestion: false); if (_box != null && _box.isOpen()) _box.swCurPos(_yes); else _box = null; } catch (Exception) { _box = null; }
@@ -607,6 +637,7 @@ namespace OpenFF.Client
 				window.release();
 			}
 			_shown = false;
+			Unhold();
 			ClosedFrame = OpenFF.Game.Time.Frame;
 			OpenFF.Game.Events.Publish(new OpenFF.Events.Answered { Yes = yes });
 			Game.Guard("Dialogue.Ask", () => answer(yes));

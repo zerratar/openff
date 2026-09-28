@@ -74,10 +74,29 @@ internal static partial class GlobalScope
 		return MenuPanelSlot(texture, true, out _, out _);
 	}
 
+	// Released panels' textures, let go two steps later: a panel taken away after its step drew it (a box closed by the
+	// engine's frame, after the legacy one's draws) is still in that step's kept frame, which FrameCapture replays until the
+	// next step and blends toward the one after. Let go at once, its draws there would be skipped while the texts and
+	// sprites taken away with it are drawn - the box gone a frame before what was in it.
+	private static readonly List<(uint Id, int Steps)> _menuPanelsReleasing = new List<(uint, int)>();
+
 	internal static void MenuPanelRelease(uint id)
 	{
 		if (id == 0 || id == _menuPanelWhite) return;
-		glDeleteTextures(1, new[] { id });
+		if (!OpenFF.Client.FrameCapture.Supported) { glDeleteTextures(1, new[] { id }); return; }
+		_menuPanelsReleasing.Add((id, 2));
+	}
+
+	/// <summary>A step begins (GameHost.Step): the released panels' textures no kept frame draws any more let go.</summary>
+	internal static void MenuPanelStep()
+	{
+		for (int i = _menuPanelsReleasing.Count - 1; i >= 0; i--)
+		{
+			(uint id, int steps) = _menuPanelsReleasing[i];
+			if (--steps > 0) { _menuPanelsReleasing[i] = (id, steps); continue; }
+			_menuPanelsReleasing.RemoveAt(i);
+			glDeleteTextures(1, new[] { id });
+		}
 	}
 
 	/// <summary>A white texel, for the background's colour.</summary>

@@ -368,6 +368,7 @@ internal static partial class GlobalScope
 					m_MessageAlign = 0u;
 				}
 				mwResetMessageWait_();
+				if (m_NextWanted) mwShowNext(false);   // PORT: a new text: its arrow once it is all there, not the last one's
 				m_MessageNo = msg_no;
 				m_StartCount = 0u;
 				m_EndCount = 0u;
@@ -388,7 +389,7 @@ internal static partial class GlobalScope
 				{
 					mm[display].releaseMessage(m_MessageId);
 				}
-				m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize);
+				m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize, typed: true);
 				if (m_MessageId < 0)
 				{
 					return false;
@@ -399,7 +400,7 @@ internal static partial class GlobalScope
 				{
 					mm[display].releaseMessage(m_MessageId);
 					text = wrapped;
-					m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize);
+					m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize, typed: true);
 					if (m_MessageId < 0)
 					{
 						return false;
@@ -424,6 +425,7 @@ internal static partial class GlobalScope
 					m_MessageAlign = 0u;
 				}
 				mwResetMessageWait_();
+				if (m_NextWanted) mwShowNext(false);   // PORT: a new text: its arrow once it is all there, not the last one's
 				m_MessageNo = -2;
 				m_StartCount = 0u;
 				m_EndCount = 0u;
@@ -618,6 +620,7 @@ internal static partial class GlobalScope
 			public void mwSetProgressIconActivity(bool _ProgressIconActivity)
 			{
 				m_ProgressIconActivity = _ProgressIconActivity;
+				if (!_ProgressIconActivity && m_NextWanted) mwShowNext(false);   // PORT: no page-turn arrow wanted: none up (a question's)
 			}
 
 			public bool mwGetSendMessage()

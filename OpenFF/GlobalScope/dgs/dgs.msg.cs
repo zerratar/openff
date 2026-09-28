@@ -199,7 +199,10 @@ internal static partial class GlobalScope
 					return i;
 				}
 
-				public int createMessage(string str, ushort x, ushort y, MSD_HANDLE_KIND _MsdHandleKind, MSF_HANDLE_KIND _MsfHandleKind)
+				public int createMessage(string str, ushort x, ushort y, MSD_HANDLE_KIND _MsdHandleKind, MSF_HANDLE_KIND _MsfHandleKind) => createMessage(str, x, y, _MsdHandleKind, _MsfHandleKind, typed: false);
+
+				/// <summary>PORT: typed - the text given out a letter at a time, as the game's lines are.</summary>
+				public int createMessage(string str, ushort x, ushort y, MSD_HANDLE_KIND _MsdHandleKind, MSF_HANDLE_KIND _MsfHandleKind, bool typed)
 				{
 					int i;
 					for (i = 0; i < MESSAGE_CONTROLL_MAX && m_Message[i] != null; i++)
@@ -209,7 +212,7 @@ internal static partial class GlobalScope
 					{
 						return -1;
 					}
-					m_Message[i] = createMessage(str, m_MsfHandle[(int)_MsfHandleKind]);
+					m_Message[i] = createMessage(str, m_MsfHandle[(int)_MsfHandleKind], typed);
 					if (m_Message[i] == null)
 					{
 						return -1;

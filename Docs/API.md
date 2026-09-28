@@ -11,7 +11,7 @@ Everything here is reached from a mod through `using OpenFF;` (events under `Ope
 - [Handles and data](#handles-and-data): [`AbilityInfo`](#abilityinfo), [`Back`](#back), [`BattleActor`](#battleactor), [`BattleCommand`](#battlecommand), [`BattleCommandLoader`](#battlecommandloader), [`BgmFieldAttribute`](#bgmfieldattribute), [`CastScript`](#castscript), [`Chest`](#chest), [`Clip`](#clip), [`Color`](#color), [`Cutscene`](#cutscene), [`CutsceneSignal`](#cutscenesignal), [`DrawCommand`](#drawcommand), [`DrawList`](#drawlist), [`Encounter`](#encounter), [`Exit`](#exit), [`FlagFieldAttribute`](#flagfieldattribute), [`FormationFieldAttribute`](#formationfieldattribute), [`GameCast`](#gamecast), [`Gauge`](#gauge), [`HeaderAttribute`](#headerattribute), [`HideInInspectorAttribute`](#hideininspectorattribute), [`InputState`](#inputstate), [`Interactable`](#interactable), [`Item`](#item), [`ItemFieldAttribute`](#itemfieldattribute), [`ItemStack`](#itemstack), [`JobInfo`](#jobinfo), [`Label`](#label), [`Look`](#look), [`MapFieldAttribute`](#mapfieldattribute), [`MapSettings`](#mapsettings), [`MenuAttachment`](#menuattachment), [`MenuBehaviour`](#menubehaviour), [`MenuBindingScope`](#menubindingscope), [`MenuBindings`](#menubindings), [`MenuDefinition`](#menudefinition), [`MenuEntry`](#menuentry), [`MenuList`](#menulist), [`MenuLoader`](#menuloader), [`Mesh`](#mesh), [`MeshHandle`](#meshhandle), [`Monster`](#monster), [`MonsterCount`](#monstercount), [`MonsterGroup`](#monstergroup), [`Motion`](#motion), [`Music`](#music), [`Npc`](#npc), [`ObjectRef`](#objectref), [`OpenMenu`](#openmenu), [`PartyMember`](#partymember), [`Picture`](#picture), [`RangeAttribute`](#rangeattribute), [`Removed`](#removed), [`Roam`](#roam), [`SavedBehaviour`](#savedbehaviour), [`SceneMemory`](#scenememory), [`SceneObject`](#sceneobject), [`SceneObjects`](#sceneobjects), [`SharedBattle`](#sharedbattle), [`ShopInfo`](#shopinfo), [`Sound`](#sound), [`Spell`](#spell), [`SpellCast`](#spellcast), [`Stats`](#stats), [`Talk`](#talk), [`Texture`](#texture), [`Timeline`](#timeline), [`TooltipAttribute`](#tooltipattribute), [`Track`](#track), [`Trigger`](#trigger), [`Vector2`](#vector2), [`Vector3`](#vector3), [`Wander`](#wander), [`WhenFlags`](#whenflags)
 - [Services you write, objects and scenes](#services-you-write-objects-and-scenes): [`Behaviour`](#behaviour), [`Component`](#component), [`GameObject`](#gameobject), [`GameService`](#gameservice), [`MapObject`](#mapobject), [`Scene`](#scene), [`SceneAttachment`](#sceneattachment), [`SceneFile`](#scenefile), [`SceneInfo`](#sceneinfo), [`SceneLoader`](#sceneloader), [`ScenePoint`](#scenepoint), [`ServiceRegistry`](#serviceregistry), [`Transform`](#transform), [`World`](#world)
 - [Coroutines and time](#coroutines-and-time): [`Coroutine`](#coroutine), [`CoroutineRunner`](#coroutinerunner), [`GameTime`](#gametime), [`Wait`](#wait)
-- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MenuClosed`](#menuclosed), [`MenuOpened`](#menuopened), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`PartyJoinRefused`](#partyjoinrefused), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TitleShown`](#titleshown), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
+- [Events](#events): [`EventBus`](#eventbus), [`Answered`](#answered), [`BattleEnded`](#battleended), [`BattleStarting`](#battlestarting), [`CastBooted`](#castbooted), [`CutsceneEnded`](#cutsceneended), [`CutsceneStarted`](#cutscenestarted), [`DialogueShown`](#dialogueshown), [`FlagChanged`](#flagchanged), [`GameStarted`](#gamestarted), [`ItemGained`](#itemgained), [`MapEntered`](#mapentered), [`MapLeaving`](#mapleaving), [`MenuClosed`](#menuclosed), [`MenuOpened`](#menuopened), [`MessageShown`](#messageshown), [`ModReloaded`](#modreloaded), [`PartChanged`](#partchanged), [`PartyJoinRefused`](#partyjoinrefused), [`SaveRead`](#saveread), [`SaveWritten`](#savewritten), [`TitleShown`](#titleshown), [`TriggerEntered`](#triggerentered), [`TriggerLeft`](#triggerleft), [`WarpRequested`](#warprequested)
 - [Saving](#saving): [`ISaveable`](#isaveable), [`SaveChunks`](#savechunks)
 - [Mods and loading](#mods-and-loading): [`LoadedMod`](#loadedmod), [`ModDefinition`](#moddefinition), [`ModLoader`](#modloader), [`ModWatcher`](#modwatcher)
 - [Constants](#constants): [`BattleResult`](#battleresult), [`CommandTarget`](#commandtarget), [`Condition`](#condition), [`CutsceneStart`](#cutscenestart), [`DrawKind`](#drawkind), [`Element`](#element), [`EquipSlot`](#equipslot), [`HeroMotion`](#heromotion), [`ItemCategory`](#itemcategory), [`Job`](#job), [`MagicKind`](#magickind), [`MagicSchool`](#magicschool), [`MenuColour`](#menucolour), [`MenuKey`](#menukey), [`MonsterMotion`](#monstermotion), [`NpcAi`](#npcai), [`Pad`](#pad), [`Stat`](#stat), [`Targeting`](#targeting), [`WanderGait`](#wandergait)
@@ -81,7 +81,7 @@ The message window at the bottom of the field.
 | `event Action Closed` | Fired when a message the script showed has been dismissed. |
 | `void Ask(string question, Action<bool> answered)` | A yes/no question: the text in the message window and the game's own Yes/No box. The answer comes back once, then both close. While IsAsking, Say waits its turn. |
 | `void Close()` | Closes the window now. |
-| `void Say(string text, string speaker = null)` | Shows a text in the message window, with the "tap to continue" mark; the window closes when the player taps (or presses A). One at a time: while IsOpen, a new Say replaces the text. Optionally a speaker's name. A text of the form "@1000142" is one of the game's own lines by its id in the .msd, in the player's language; "@1000142 item=5001 gold=250 color=9" fills the line's item and gold codes and sets the window's text colour (dgs.TXT_COLOR; 9 is the chests' gold). |
+| `void Say(string text, string speaker = null)` | Shows a text in the message window, with the "tap to continue" mark; the window closes when the player taps (or presses A). One at a time: while IsOpen, a new Say replaces the text. Optionally a speaker's name - {dialogue.speaker} for a field_hud layout that shows it (the DialogueShown event hears it, and may say otherwise). A text of the form "@1000142" is one of the game's own lines by its id in the .msd, in the player's language; "@1000142 item=5001 gold=250 color=9" fills the line's item and gold codes and sets the window's text colour (dgs.TXT_COLOR; 9 is the chests' gold). |
 
 ### IHero
 
@@ -393,6 +393,7 @@ A frame of an open screen.
 | `IReadOnlyCollection<string> Classes { get; }` | The frame's classes (the layout's class attribute, and those added since). |
 | `MenuColour Colour { set; }` | The text's colour, from the game's own set. |
 | `string DataSource { get; set; }` | The frame's data source: a path (data-source), for its bindings and its frames'; null for its parent's. |
+| `bool Enabled { get; set; }` | Whether the frame is enabled: false puts it in the :disabled state of the screen's style sheets (a rule like ".row:disabled { color: disabled; }" greys it), true (the default) in :enabled. It is only a look - the cursor can still land on it, and a behaviour says what pressing it does. |
 | `bool Focusable { get; }` | Whether the frame is in the focus list (the cursor can land on it). |
 | `int FontSize { get; set; }` | The text's size, 6..31 (the game's own two are 12 and 16); setting it draws the text afresh at that size. |
 | `int Height { get; }` |  |
@@ -407,7 +408,7 @@ A frame of an open screen.
 | `int X { get; }` |  |
 | `int Y { get; }` |  |
 | `void AddClass(string name)` | Adds a class: the screen's sheets are cascaded again and whatever the class changes (colour, size, opacity, panel, hidden) is put on at once. |
-| `void Bind(string property, string expression)` | Binds a property to the data as the screen runs: "text" (a template, "Lv {level}"), "visible" (an expression, "alive"), "class.<name>" (an expression: the class is on while it is true). Null unbinds it. |
+| `void Bind(string property, string expression)` | Binds a property to the data as the screen runs: "text" (a template, "Lv {level}"), "visible" (an expression, "alive"), "class.<name>" (an expression: the class is on while it is true), "style" (declarations with {paths} in them - "background-image: {dialogue.avatar}" - over the frame's own style). Null unbinds it. |
 | `string Binding(string property)` | The binding of a property, or null. |
 | `string GetStyle(string property)` | A property of the frame's own style ("opacity", "color", "-ff-panel"...), or null. |
 | `bool HasClass(string name)` |  |
@@ -1014,7 +1015,8 @@ A screen of a mod's own: menus/<id>.json.
 | --- | --- |
 | `List<MenuAttachment> Attachments { get; set; }` |  |
 | `string BackdropLines { get; set; }` | The backdrop's row lines (every backdrop draws its rows' separating lines at the heights of the game's own layout): "game" as the game draws them, "none", or "fit" - laid again at the list's rows as they are (the main menu's commands with the mods' entries in them; its default). For one of the game's screens a definition reaching it (no layout needed) sets it for that screen; null for the screen's default. |
-| `int Background { get; set; }` | The game's menu backdrop to draw behind: 10 the plain one (the default), 0 Item's, 1 Magic's, 2 Equipment's, 3 Status's, 5 Job's, 6 Config's, 7 Quicksave's, 8 Save's, 9 the main menu's, 13 and 14 the tips pages'. |
+| `int Background { get; set; }` | The game's menu backdrop to draw behind: 10 the plain one (the default), 0 Item's, 1 Magic's, 2 Equipment's, 3 Status's, 5 Job's, 6 Config's, 7 Quicksave's, 8 Save's, 9 the main menu's, 13 and 14 the tips pages'; -1 none. For one of the game's screens a definition reaching it that says it puts that backdrop in place of the one the screen picks. |
+| `bool BackgroundSaid { get; }` | Whether the definition says its background (a game's screen keeps its own when it does not). |
 | `bool CharacterSelect { get; set; }` | Ask which hero first, as Status and Equip do; Menu.Hero says who. |
 | `string Directory { get; set; }` | The folder the definition came from; set by the loader. |
 | `string File { get; set; }` | The game's layout file the screen lives in: MenuDefine.xbn (the default), ShopDefine.xbn, BattleDefine.xbn, WorldDefine.xbn, SpecialDefine.xbn, MogNet.xbn, ChocoboBank.xbn, NameEntry.xbn. |
@@ -2004,6 +2006,21 @@ The map's script booted one of its casts (bootCharacter): the character it made,
 
 A script took control for a scene (EventStart); Ended when it gave it back.
 
+### DialogueShown
+
+`class DialogueShown` - `OpenFF.Events`
+
+A message is going into the field's dialogue window - a script's, a treasure's, a mod's Say - with its number (-1 for a text of no message file's), its text and the map. A handler may say who speaks: Speaker and Avatar, which the field_hud layout's bindings show ({dialogue.speaker}, {dialogue.avatar}). The mods' speakers.json tables have filled them in first where they know the message; a handler's say is over theirs.
+
+| Member | What it does |
+| --- | --- |
+| `string Avatar { get; set; }` | The speaker's picture as a background image says it: url("...") a file, resource("...") one of the game's pictures (a hero's face: files/pc1_01.NCGR); null for none. |
+| `string Map { get; set; }` |  |
+| `int Number { get; set; }` |  |
+| `string Speaker { get; set; }` |  |
+| `string Text { get; set; }` |  |
+| `void AvatarFile(string path)` | A picture file for the avatar (a mod's own: its full path, or one under the working folder). |
+
 ### FlagChanged
 
 `class FlagChanged` - `OpenFF.Events`
@@ -2651,4 +2668,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-165 types, 1200 members; 495 without a summary yet.
+166 types, 1208 members; 499 without a summary yet.

@@ -107,11 +107,13 @@ namespace OpenFF.Content
 				Frame("name", 19, -94, 200, 20),
 				Frame("next", 442, 56, 24, 24)));
 			menu.Add(Frame("map_name", 4, 4, 472, 28));
-			// The Yes / No box (the engine API's Ask), and the field's buttons in the places the options put them.
-			menu.Add(Frame("confirm", 86, 120, 84, 64,
+			// The Yes / No box (an inn's question, the engine API's Ask): the answers a row apart the hand fits in, each with
+			// the hand's place when it is on it (a gap left of the words, level with them); and the field's buttons in the
+			// places the options put them.
+			menu.Add(Frame("confirm", 86, 116, 84, 76,
 				Frame("question", 8, 8, 72, 16),
-				Frame("yes", 24, 28, 56, 16),
-				Frame("no", 24, 44, 56, 16)));
+				Frame("yes", 28, 30, 52, 16, Frame("cursor", -12, 6, 0, 0)),
+				Frame("no", 28, 52, 52, 16, Frame("cursor", -12, 6, 0, 0))));
 			menu.Add(Frame("menu_button", 412, 4, 64, 40));
 			menu.Add(Frame("map_button", 344, 4, 64, 40));
 			menu.Add(Frame("talk_button", 412, 48, 64, 40));

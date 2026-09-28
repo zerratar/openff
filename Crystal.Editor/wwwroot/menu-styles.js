@@ -453,6 +453,10 @@ function menuStyled(screen) {
         const bound = bindingFormat(frame.getAttribute('bind-style'), bindingScopeOf(frame));
         t.setAttribute('style', [t.getAttribute('style'), bound].filter(s => s && s.trim()).join('; '));
       }
+      // And out of the layout while its bind-display is false (its row or column closes up), as the client lays it out again.
+      if (preview && typeof bindingTest === 'function' && frame.hasAttribute('bind-display') && !bindingTest(frame.getAttribute('bind-display'), bindingScopeOf(frame))) {
+        t.setAttribute('style', [t.getAttribute('style'), 'display: none'].filter(s => s && s.trim()).join('; '));
+      }
       const values = cascadeOf(t, rules, inherited);
       const own = styleOpacity(values, opacity);
       look.set(frame, t);
