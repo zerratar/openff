@@ -227,7 +227,8 @@ namespace OpenFF.Client
 			switch (rule.Action)
 			{
 				case "attack":
-					if (target == null || !target.Alive || target.Character == player) return false;
+					// Foes only: a rule of an ally condition with Attack (the picker does not offer it, an older save may have one) never hits the party.
+					if (target == null || !target.Alive || target.Side != GambitSide.Foe) return false;
 					player.setActionId(1);
 					Aim(player, target);
 					return true;
@@ -274,7 +275,7 @@ namespace OpenFF.Client
 			if (spell == null || !HasSpell(player, id) || !setup.isUseMagic(id, player)) return false;
 			short oldMagic = player.useMagicId();
 			player.setUseMagicId((short)id);
-			if (!Fits(player, spell.targetPosition(), target))
+			if (!Fits(player, spell.targetPosition(), spell.targetPossible(), target))
 			{
 				player.setUseMagicId(oldMagic);
 				return false;
@@ -303,7 +304,7 @@ namespace OpenFF.Client
 			if (item == null || held == null || held.itemNumber() <= 0 || !setup.isUseItem(id, player)) return false;
 			int oldItem = player.useItemId();
 			player.setUseItemId(id);
-			if (!Fits(player, item.targetPosition(), target))
+			if (!Fits(player, item.targetPosition(), item.targetPossible(), target))
 			{
 				player.setUseItemId(oldItem);
 				return false;
@@ -318,10 +319,12 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>
-		/// Whether a spell's or item's side (its targetPosition: 0/1 foes, 2 the user, 3/4 allies) is the
-		/// target's, and the target can take it: alive, or KO'd / stone for a use that raises or cures them.
+		/// Whether a spell's or item's side (its targetPosition, where the game's target cursor starts: 0/1 on the
+		/// foes, 2 on the user, 3/4 on an ally) is the target's, and the target can take it: alive, or KO'd / stone
+		/// for a use that raises or cures them. The user's is the allies' side - Potion, Cure, Protect start there and
+		/// take any ally (targetPossible 0x80 / 0x100 / 0x200) - unless it can take no ally but the user.
 		/// </summary>
-		private static bool Fits(btl.BattlePlayer player, short position, GambitTarget target)
+		private static bool Fits(btl.BattlePlayer player, short position, short possible, GambitTarget target)
 		{
 			if (target == null) return false;
 			switch (position)
@@ -330,7 +333,8 @@ namespace OpenFF.Client
 				case 1:
 					return target.Side == GambitSide.Foe && target.Alive;
 				case 2:
-					return target.Character == player && target.Alive;
+					if ((possible & 0x380) == 0) return target.Character == player && target.Alive;
+					goto case 3;
 				case 3:
 				case 4:
 					if (target.Side == GambitSide.Foe) return false;
@@ -355,8 +359,9 @@ namespace OpenFF.Client
 				manager.setPlayerAllTarget(player, 0);
 				player.setFlag(btl.PLAYER_FLAG.PF_TARGET_PLAYER);
 			}
-			else if (position == 2)
+			else if (position == 2 && (possible & 0x380) == 0)
 			{
+				// The user only. Where an ally can take it too (Potion, Cure: the cursor only starts on the user) it is the target's, below.
 				player.setTargetIdMyself();
 				player.setFlag(btl.PLAYER_FLAG.PF_TARGET_PLAYER);
 			}

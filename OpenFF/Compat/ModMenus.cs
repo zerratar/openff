@@ -434,6 +434,7 @@ namespace OpenFF.Client
 			// A screen with no backdrop put it out of sight; the game's own screens expect it back - and its faces where they stood.
 			try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(true); } catch (Exception) { }
 			RestoreFaces();
+			_arrowsWanted = null;
 			foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnClose", b.OnClose);
 			_behaviours = new List<MenuBehaviour>();
 			_screen = null;
@@ -590,6 +591,7 @@ namespace OpenFF.Client
 			string name = _gameScreen.Definition.Screen;
 			_gameScreen = null;
 			CloseWindows();
+			_arrowsWanted = null;
 			Log.Write(LogChannel.File, "menus: the game's " + name + " released");
 		}
 
@@ -651,6 +653,8 @@ namespace OpenFF.Client
 				catch (Exception ex) { Log.Write(LogChannel.General, "menus: window " + w.Id + ": " + ex.Message); }
 			}
 			HideGameFaces(screen);
+			// A list's arrows went with the windows: back as the screen last had them.
+			if (_arrowsWanted is var (s, first, last, shown, up, down) && ReferenceEquals(s, screen)) PutArrows(screen, first, last, shown, up, down);
 		}
 
 		/// <summary>A frame's &lt;opacity&gt; (0..1, MenuStyles's product of its and its parents'), 1 for none.</summary>
@@ -697,6 +701,7 @@ namespace OpenFF.Client
 			_panels.Clear();
 			foreach ((uint Id, int W, int H) t in _panelTextures.Values) { try { GlobalScope.MenuPanelRelease(t.Id); } catch (Exception) { } }
 			_panelTextures.Clear();
+			ReleaseArrows();
 		}
 
 		// ---- backgrounds: a frame's colour and picture (MenuBackground), drawn as a sprite with the windows ----
@@ -764,6 +769,73 @@ namespace OpenFF.Client
 			sprite.SetShow(show: true);
 			GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(sprite);
 			_panels.Add(sprite);
+		}
+
+		// ---- scroll arrows: a list's, as the battle's command list has them (btl.Triangle) ----
+
+		private static readonly GlobalScope.sys2d.Sprite3d[] _arrows = new GlobalScope.sys2d.Sprite3d[2];
+		// What the screen asked for last, so the arrows come back when its windows are made again (a restyle).
+		private static (ModMenuScreen Screen, string First, string Last, bool Shown, bool Up, bool Down)? _arrowsWanted;
+
+		/// <summary>
+		/// A list's arrows up, placed and lit: Steam's icon_16dot cells 9 and 13 at two thirds of a 16-dot icon, white
+		/// when the list goes on that way and grey when it does not; the phone's icon_left / icon_right with their
+		/// animations. Where frames "arrow_up" / "arrow_down" of the layout are, else at the right of the rows' window
+		/// (their nearest window), level with the first row and the last.
+		/// </summary>
+		private static void PutArrows(ModMenuScreen screen, string firstRow, string lastRow, bool shown, bool up, bool down)
+		{
+			if (!ReferenceEquals(screen, _screen) && !ReferenceEquals(screen, _gameScreen)) return;
+			_arrowsWanted = (screen, firstRow, lastRow, shown, up, down);
+			IMenuWidget first = screen.Widget(firstRow), last = screen.Widget(lastRow) ?? first;
+			if (!shown || first == null) { ReleaseArrows(); return; }
+			bool steam = SteamLayout.Active;
+			try
+			{
+				IMenuWidget box = first;
+				while (box is ModMenuWidget m && !m.Look.Window && m.ParentWidget != null) box = m.ParentWidget;
+				int right = box.X + box.Width;
+				for (int i = 0; i < 2; i++)
+				{
+					if (_arrows[i] == null)
+					{
+						GlobalScope.sys2d.Sprite3d s = new GlobalScope.sys2d.Sprite3d();
+						s.Load2(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, steam ? "icon_16dot" : i == 0 ? "icon_left" : "icon_right");
+						GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(s);
+						s.SetCell(steam ? (ushort)(i == 0 ? 9 : 13) : (ushort)0);
+						if (steam) s.SetScaleF(GlobalScope.FX32_CONST(0.68f), GlobalScope.FX32_CONST(0.68f));
+						s.SetPriority(3);   // with the windows, in front of them (the hand's depth)
+						s.SetDepth(0);
+						_arrows[i] = s;
+					}
+					GlobalScope.sys2d.Sprite3d a = _arrows[i];
+					IMenuWidget placed = screen.Widget(i == 0 ? "arrow_up" : "arrow_down");
+					IMenuWidget row = i == 0 ? first : last;
+					int x = placed?.X ?? right - ArrowRightInset;
+					int y = placed?.Y ?? row.Y + row.Height / 2 - ArrowHalf;
+					a.SetPositionI(x, y);
+					bool lit = i == 0 ? up : down;
+					if (steam) a.SetColor(lit ? 0xFFFFFFu : 0x7F7F7Fu);
+					else { a.SetCell((ushort)(lit ? 0 : 1)); a.PlayAnimation((ushort)(lit ? 0 : 1), GlobalScope.NNSG2dAnimationPlayMode.NNS_G2D_ANIMATIONPLAYMODE_FORWARD); }
+					a.SetShow(show: true);
+				}
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "menus: scroll arrows: " + ex.Message); ReleaseArrows(); }
+		}
+
+		// The arrow's place against the rows' window (its right edge in, its middle on the row's): the battle's triangle
+		// stands 16 in from its list's right, a cell of about 11 on Steam.
+		private const int ArrowRightInset = 16;
+		private const int ArrowHalf = 6;
+
+		private static void ReleaseArrows()
+		{
+			for (int i = 0; i < 2; i++)
+			{
+				if (_arrows[i] == null) continue;
+				try { GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(_arrows[i]); _arrows[i].Release(); } catch (Exception) { }
+				_arrows[i] = null;
+			}
 		}
 
 		// ---- the screen over the Medget tree ----
@@ -968,6 +1040,8 @@ namespace OpenFF.Client
 			// ---- bindings ----
 
 			public void Refresh() => UpdateBindings();
+
+			public void ScrollArrows(string firstRow, string lastRow, bool shown, bool up, bool down) => PutArrows(this, firstRow, lastRow, shown, up, down);
 
 			/// <summary>Every frame's bindings worked out, with its data source's (and its parents'); what changed is put on.</summary>
 			public void UpdateBindings()

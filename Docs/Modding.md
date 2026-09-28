@@ -1499,6 +1499,10 @@ frames: `_list = new MenuList(Menu, "row", 7, "page")`, set `Items` (and `SubIte
 `SubPrefix` for a second line), `Show()`, hand it `OnFocus()` (the cursor moving off the last
 row scrolls; an empty row sends it back) and `OnKey(key)` (L / R pages), and `IndexAt(id)` or
 `Selected` say which item a pressed row is - the Mastery sample's two lists are ten lines each.
+While the items are more than the rows it puts up the battle command list's scroll arrows at the
+right of the rows' window - white the ways the list goes on, grey the ways it does not (`Arrows =
+false` for none; frames `arrow_up` / `arrow_down` in the layout place them). A screen that scrolls
+rows of its own calls `Menu.ScrollArrows(firstRow, lastRow, shown, up, down)` as it scrolls.
 `Game.Events` publishes `MenuOpened` (the screen's name, `Mod` for a mod's own) and `MenuClosed`
 for every screen the game builds - shops and battle included - so a service can draw over any
 of them from `Game.Draw` without a definition. Those same sheets are how the

@@ -168,6 +168,13 @@ namespace OpenFF
 		IDictionary<string, object> Data { get; }
 		/// <summary>Works the bindings out now (they are every frame anyway) - after changing Data, so a text shows it at once.</summary>
 		void Refresh();
+		/// <summary>
+		/// A list's scroll arrows - the battle command list's little triangles - beside its rows (the first row's and the
+		/// last's frames): white when the list goes on that way, grey when it does not; shown false takes them away (a list
+		/// that fits). They stand at the right of the rows' window, or where frames "arrow_up" / "arrow_down" of the
+		/// layout are. MenuList puts them up itself; a screen scrolling rows of its own calls this as it scrolls.
+		/// </summary>
+		void ScrollArrows(string firstRow, string lastRow, bool shown, bool up, bool down);
 		/// <summary>Every frame of the layout, in layout order.</summary>
 		IReadOnlyList<IMenuWidget> Widgets { get; }
 		/// <summary>The id of the frame the cursor is on, or null.</summary>
@@ -330,6 +337,8 @@ namespace OpenFF
 		public List<string> Items { get; set; } = new List<string>();
 		/// <summary>The item on the first row.</summary>
 		public int Top { get; set; }
+		/// <summary>The scroll arrows beside the rows while the items are more than the rows (IMenuScreen.ScrollArrows); false for none.</summary>
+		public bool Arrows { get; set; } = true;
 		/// <summary>The colour of an item, by index; null for the layout's.</summary>
 		public Func<int, MenuColour?> ColourOf { get; set; }
 		/// <summary>A second line per item (a standing under a name), written to frames named SubPrefix + row when set.</summary>
@@ -363,6 +372,7 @@ namespace OpenFF
 				}
 			}
 			if (_pageFrame != null) _menu.SetText(_pageFrame, Pages > 1 ? (Top / _rows + 1) + " / " + Pages : "");
+			_menu.ScrollArrows(RowId(0), RowId(_rows - 1), Arrows && Items.Count > _rows, Top > 0, Top + _rows < Items.Count);
 		}
 
 		/// <summary>The row of a frame id (0..Rows-1), or -1 for a frame that is not one of the rows.</summary>
