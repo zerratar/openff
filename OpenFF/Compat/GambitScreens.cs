@@ -179,6 +179,7 @@ namespace OpenFF.Client
 		{
 			if (Menu.Hero >= 0) GambitEditor.Hero = Menu.Hero;
 			if (GambitEditor.Hero < 0) GambitEditor.Hero = GambitEditor.Heroes().FirstOrDefault()?.Id ?? 0;
+			Menu.Portrait = GambitEditor.Hero;
 			string column = GambitEditor.ReturnColumn ?? "cond";
 			int slot = GambitEditor.ReturnSlot >= 0 ? GambitEditor.ReturnSlot : 0;
 			if (GambitEditor.ReturnSlot < 0) GambitEditor.Top = 0;
@@ -296,6 +297,7 @@ namespace OpenFF.Client
 					int at = Math.Max(0, heroes.FindIndex(m => m.Id == GambitEditor.Hero));
 					at = (at + (key == MenuKey.R ? 1 : heroes.Count - 1)) % heroes.Count;
 					GambitEditor.Hero = heroes[at].Id;
+					Menu.Portrait = GambitEditor.Hero;   // the face follows: a portrait frame of the layout's, or the game's own
 					Menu.SoundDecide();
 					Fill();
 					Describe();

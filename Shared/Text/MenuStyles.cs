@@ -8,7 +8,7 @@
 //   .picked              { color: #ffd080; }
 //
 // Selectors: a type (menu, frame, text - a frame with the Text behaviour -, window - a frame with
-// a panel), #id (a frame's <id>, a screen's <name>), .class (the class attribute), *, and those
+// a panel -, portrait - the hero's face), #id (a frame's <id>, a screen's <name>), .class (the class attribute), *, and those
 // joined by a space (inside) or > (directly inside), in lists by commas. Specificity and order
 // decide as in CSS; a frame's own style attribute is over every sheet; a layout's old style
 // words (<colour>, <font>, <align>, <window/>) are under them all, as HTML's attributes are.
@@ -135,14 +135,16 @@ namespace OpenFF.Content
 			public string Tint;
 			/// <summary>The background's declarations (MenuBackground.Parse), or null.</summary>
 			public string Background;
+			/// <summary>A portrait frame (&lt;portrait/&gt;): the hero's face drawn in it in place of the game's own - "" the screen's hero, a number a party slot; null for none.</summary>
+			public string Portrait;
 
 			public bool SameAs(Look o) => o != null && Colour == o.Colour && Font == o.Font && Align == o.Align && Math.Abs(Opacity - o.Opacity) < 0.001
-				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Background == o.Background;
+				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Background == o.Background && Portrait == o.Portrait;
 
-			public bool SamePanel(Look o) => o != null && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Math.Abs(Opacity - o.Opacity) < 0.001 && Hidden == o.Hidden && Background == o.Background;
+			public bool SamePanel(Look o) => o != null && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Math.Abs(Opacity - o.Opacity) < 0.001 && Hidden == o.Hidden && Background == o.Background && Portrait == o.Portrait;
 
 			/// <summary>Whether anything is drawn behind the frame: the game's window, or a background.</summary>
-			public bool HasPanel => Window || Background != null;
+			public bool HasPanel => Window || Background != null || Portrait != null;
 		}
 
 		/// <summary>
@@ -181,7 +183,8 @@ namespace OpenFF.Content
 				Window = frame.Element("window") != null,
 				Bar = string.Equals(Text("panel"), "bar", StringComparison.OrdinalIgnoreCase),
 				Tint = Hex(Text("tint")),
-				Background = Text("background")
+				Background = Text("background"),
+				Portrait = frame.Element("portrait") == null ? null : (Text("portrait") ?? "")
 			};
 			if (double.TryParse(Text("opacity"), NumberStyles.Float, CultureInfo.InvariantCulture, out double o)) look.Opacity = Math.Clamp(o, 0, 1);
 			return look;
@@ -373,6 +376,7 @@ namespace OpenFF.Content
 						"frame" => name == "frame",
 						"text" => name == "frame" && (string)e.Element("behavior")?.Attribute("value") == "Text",
 						"window" => name == "frame" && e.Element("window") != null,
+						"portrait" => name == "frame" && e.Element("portrait") != null,
 						_ => false
 					};
 					if (!ok) return false;

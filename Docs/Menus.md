@@ -221,6 +221,15 @@ A sheet holds named sprites, each with its own 9-slice borders, like Unity's Spr
 
 The sprite gives the part of the picture and its borders. A frame's own `-ff-background-rect` or `-ff-slice` still wins over them. Sheets are keyed `url:<path>` or `resource:<name>`.
 
+#### The portrait
+
+A screen that asks for a hero (`"characterSelect": true`) shows the game's own portrait of that hero. That's the face picture drawn where the game puts it (8, 8, 56 × 56), fixed and at its own size.
+
+A **portrait frame** in the layout takes its place, like a template: `<frame><portrait/>…</frame>`. The client puts the game's face away and draws the hero's face (`files/pc<hero>_<job>.NCGR`) fitted into that frame's rect, over the frame's own window or background, with its styling (opacity, the `portrait` selector in a sheet). Without one, the game draws its own as it always has.
+- **Which hero:** `<portrait>1</portrait>` shows a party slot's hero instead of the screen's.
+- **From code:** `Menu.Portrait = heroId` sets whose face it is. A screen that moves between heroes with L / R sets it; Gambits does. With no portrait frame, the game's own face swaps to that hero in the same place, and the faces go back where they were when the screen closes.
+- **In Crystal:** a screen with the game's portrait has a *portrait* row in the Hierarchy (with an eye) and a ghost of it in the view. **Make it a frame** (on the row's right-click, or its card) creates a portrait frame at the game's spot, to move, size and style. **New ▾ > New portrait** and the Frame section's **Portrait** switch do the same for any frame. Preview draws a sample face in it.
+
 #### The backdrop
 
 Under every frame is the screen's **backdrop**: one of the game's menu backdrops (the definition's `"background"`), or `-1` for none. Over it, the screen can have a background of its own: the `<menu>`'s style, or a sheet's `menu` / `#name` rule, with the same properties as a frame. It's drawn behind every window.

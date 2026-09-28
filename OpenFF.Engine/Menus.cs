@@ -171,6 +171,12 @@ namespace OpenFF
 		void SetText(string id, string text);
 		/// <summary>The hero picked when the screen asked for one (Definition.CharacterSelect), by the game's id; -1 otherwise.</summary>
 		int Hero { get; }
+		/// <summary>
+		/// The hero whose face the screen shows, by the game's id (-1: Hero's). A screen that moves between heroes (L / R)
+		/// sets it: a portrait frame of the layout's (&lt;portrait/&gt;) draws that face in its place and style, and a screen
+		/// with none has the game's own face swapped to that hero.
+		/// </summary>
+		int Portrait { get; set; }
 		/// <summary>Leaves the screen: back to the main menu when it was opened from there, else out of the menus.</summary>
 		void Close();
 		/// <summary>Leaves for another screen of a mod's own.</summary>

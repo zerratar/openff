@@ -1091,6 +1091,18 @@ function drawScreen(node, screen, select, quiet) {
   scale.style.height = `${height * menu.zoom}px`;
 
   drawMenuBackground(node, childText(screen, 'name'), menu.project && menu.project.definition ? menu.project.definition.background : undefined);
+  // The game's own portrait, where the game puts it, while the layout has no portrait frame of its own.
+  if (typeof gamePortraitShown === 'function' && gamePortraitShown(screen) && !menu.hideGamePortrait) {
+    const ghost = document.createElement('div');
+    ghost.className = 'game-portrait';
+    ghost.title = 'The game\'s own portrait of the picked hero (fixed here, its size its own). Right-click "portrait" in the Hierarchy: Make it a frame - to move, size and style it.';
+    Object.assign(ghost.style, { left: `${GAME_PORTRAIT.x}px`, top: `${GAME_PORTRAIT.y}px`, width: `${GAME_PORTRAIT.w}px`, height: `${GAME_PORTRAIT.h}px` });
+    const tag = document.createElement('span');
+    tag.textContent = 'the game\'s portrait';
+    ghost.append(tag);
+    canvas.append(ghost);
+    if (menu.preview) drawFrameBackground(`background-image: resource("${samplePortraitFace('')}")`, GAME_PORTRAIT.w, GAME_PORTRAIT.h, 2 * menu.zoom).then(c => { if (c && ghost.isConnected) ghost.prepend(c); }).catch(() => {});
+  }
   // The screen's own background (its <menu>'s style, a sheet's menu rule): over the backdrop, under every frame.
   if (menu.preview && typeof menuStyled === 'function' && !menu.hideScreenBackground) {
     const values = menuStyled(screen).screenValues;
@@ -1146,6 +1158,16 @@ function drawScreen(node, screen, select, quiet) {
         drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'frame').then(w => { if (w && box.isConnected) slots[2].append(w); }).catch(() => {});
       }
       drawFrameBackground(background, frame.width, frame.height, 2 * menu.zoom).then(c => { if (c && box.isConnected) slots[1].append(c); }).catch(() => {});
+    }
+    // A portrait frame: the hero's face, fitted, over its window and background - a sample one here (Luneth's, or the slot's hero).
+    if ([...look.children].some(e => e.tagName === 'portrait')) {
+      box.classList.add('portrait');
+      if (menu.preview && typeof drawFrameBackground === 'function') {
+        const slot = document.createElement('div');
+        slot.className = 'art-slot portrait-face';
+        box.append(slot);
+        drawFrameBackground(`background-image: resource("${samplePortraitFace(childText(look, 'portrait'))}"); -ff-background-scale-mode: scale-to-fit`, frame.width, frame.height, 2 * menu.zoom).then(c => { if (c && box.isConnected) slot.append(c); }).catch(() => {});
+      }
     }
 
     // Alignment 4 is the one kind of box that belongs to the widget rather than to
@@ -1225,7 +1247,7 @@ function drawScreen(node, screen, select, quiet) {
 
   // Nothing selected on the canvas: the screen's card - unless the inspector is on the backdrop's, which a
   // redraw (a backdrop or a screen background changed there) must leave where it is.
-  if (!select && !(activeDoc && activeDoc.selection === 'backdrop')) showProperties(node, null);
+  if (!select && !(activeDoc && (activeDoc.selection === 'backdrop' || activeDoc.selection === 'game-portrait'))) showProperties(node, null);
   else if (!select && typeof drawHierarchy === 'function') drawHierarchy();
 }
 

@@ -9,6 +9,7 @@
 //   type <text>                    typed into the open text field (the name entry's); "type" alone clears it; submit / cancel are its Enter and Escape
 //   flag <group>:<index> [on|off]  a game flag set (or cleared) - a story state without playing there
 //   item <itemId> [count]          the item into the bag (Game.Party.AddItem); equip <member> <itemId> puts it on
+//   member <id>                    a character into the party by the game's id (Game.Party.AddMember: FF3 1 Arc, 2 Refia, 3 Ingus)
 //   battle <formation> [map]       a fight with that formation (Game.Battle.Start)
 //   motion <index> [loop] [all] [end]  the hero plays a motion by id, b_b01 bound first (706 the fall, 4101 the win pose): a pose on a map, in daylight;
 //                                  "all" every character that has it (a battle's hero), "end" held at its last frame
@@ -220,6 +221,14 @@ namespace OpenFF.Client
 						Log.Write(LogChannel.File, "drive: flag " + group + ":" + index + (on ? " on" : " off"));
 					}
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: flag " + bits[0] + " failed: " + ex.Message); }
+					break;
+				}
+				case "member":
+				{
+					// A character into the party, as a mod would (Game.Party.AddMember) - a screen that moves between heroes, tested with more than one.
+					if (!int.TryParse(step.Arg.Trim(), out int id)) { Log.Write(LogChannel.General, "drive: member wants <id>"); break; }
+					try { Log.Write(LogChannel.File, "drive: member " + id + (OpenFF.Game.Party.AddMember(id) ? " joins" : " - refused (the party full, or no such)")); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: member failed: " + ex.Message); }
 					break;
 				}
 				case "item":

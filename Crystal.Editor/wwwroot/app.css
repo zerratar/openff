@@ -2625,3 +2625,10 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .sprite-grid4 .scrub-grip { padding: 0 5px; display: flex; align-items: center; color: var(--dim); font-size: 11px; cursor: ew-resize; border: 1px solid var(--line); border-right: 0; border-radius: 4px 0 0 4px; background: #1b2027; user-select: none; }
 .sprite-grid4 .scrub-input { flex: 1; min-width: 0; width: 40px; background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-radius: 0 4px 4px 0; padding: 3px 4px; }
 .sprite-detail { align-self: center; image-rendering: pixelated; box-shadow: 0 0 0 1px #3a424e; max-width: 290px; }
+
+/* The portrait: a frame of the layout's with the hero's face, and the game's own while there is none. */
+.canvas .widget.portrait { border-style: solid; border-color: #b58ce0; }
+.canvas .widget > .art-slot.portrait-face { z-index: 0; }
+.canvas .game-portrait { position: absolute; z-index: 5; pointer-events: none; outline: 1px dashed #b58ce0; outline-offset: -1px; opacity: .8; }
+.canvas .game-portrait > canvas { position: absolute; left: 0; top: 0; }
+.canvas .game-portrait > span { position: absolute; left: 1px; bottom: 1px; font-size: 5px; line-height: 1; color: #e3d0f7; background: rgba(30, 20, 50, .7); padding: 0 2px; white-space: nowrap; }

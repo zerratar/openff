@@ -218,6 +218,7 @@ function frameIsText(element) {
 }
 
 function frameIcon(element) {
+  if (hasTag(element, 'portrait')) return 'character';
   if (hasTag(frameLook(element), 'window')) return 'menu';
   if (frameIsText(element)) return 'text';
   if (frameBehaviourName(element)) return 'behaviour';
@@ -230,6 +231,7 @@ function frameSummary(element) {
   const look = frameLook(element);
   if (hasTag(look, 'window')) words.push((childText(look, 'panel') || '').trim() === 'bar' ? 'bar' : 'window');
   if (hasTag(look, 'hidden')) words.push('hidden');
+  if (hasTag(element, 'portrait')) words.push('portrait');
   const id = textMessageId(element);
   if (id !== null) {
     const literal = id < 0 ? (childText(element, 'data') || '') : null;
@@ -392,11 +394,14 @@ function addMenuFrame(parent, kind) {
     return child;
   };
   if (kind === 'window') add('window');
-  add('id', uniqueFrameId(screen, kind === 'text' ? 'text1' : kind === 'window' ? 'w_panel1' : 'frame1'));
-  add('x', '8');
-  add('y', '8');
-  add('width', kind === 'text' ? '120' : '160');
-  add('height', kind === 'text' ? '24' : '64');
+  if (kind === 'portrait') add('portrait');
+  add('id', uniqueFrameId(screen, kind === 'text' ? 'text1' : kind === 'window' ? 'w_panel1' : kind === 'portrait' ? 'portrait' : 'frame1'));
+  // A portrait where the game puts its own, at its size; the rest a little in from the parent's corner.
+  const place = kind === 'portrait' && !isFrame(parent) ? GAME_PORTRAIT : { x: 8, y: 8, w: kind === 'text' ? 120 : kind === 'portrait' ? 56 : 160, h: kind === 'text' ? 24 : kind === 'portrait' ? 56 : 64 };
+  add('x', String(place.x));
+  add('y', String(place.y));
+  add('width', String(place.w));
+  add('height', String(place.h));
   if (kind === 'text') {
     const behavior = add('behavior');
     behavior.setAttribute('value', 'Text');
@@ -479,6 +484,7 @@ function addMenuItems(parent) {
     { label: 'New window' + where, icon: 'menu', run: () => addMenuFrame(parent, 'window') },
     { label: 'New text' + where, icon: 'text', run: () => addMenuFrame(parent, 'text') },
     { label: 'New frame' + where, icon: 'part', run: () => addMenuFrame(parent, 'frame') },
+    { label: 'New portrait' + where, icon: 'character', run: () => addMenuFrame(parent, 'portrait') },
   ];
 }
 
@@ -551,6 +557,29 @@ function menuOutline(doc) {
     },
     menu: () => backdropMenuItems(screen)
   });
+  if (gamePortraitShown(screen)) {
+    rows.push({
+      label: 'portrait',
+      ref: 'game-portrait',
+      icon: 'character',
+      depth: 1,
+      dim: true,
+      note: 'the game\'s own, fixed',
+      eye: {
+        hidden: !!menu.hideGamePortrait,
+        inherited: false,
+        title: menu.hideGamePortrait ? 'hidden in the view - click to show it' : 'click to hide the game\'s portrait in the view (the editor\'s only)',
+        toggle: () => { menu.hideGamePortrait = !menu.hideGamePortrait; if (menu.node) redraw(menu.node, true); }
+      },
+      reveal: () => {
+        menu.selected = null;
+        if (menu.node) $$('.widget', menu.node).forEach(w => w.classList.remove('on'));
+        activeDoc.selection = 'game-portrait';
+        activeDoc.inspect = () => buildGamePortraitCard();
+      },
+      menu: () => [{ label: 'Make it a frame (move, size and style it)', icon: 'character', run: () => addMenuFrame(screen, 'portrait') }]
+    });
+  }
   const walk = (parent, depth) => {
     for (const element of frameChildren(parent)) {
       const key = menuFrameKey(element);
@@ -785,6 +814,10 @@ function buildWidgetInspector(held) {
     if (on) element.prepend(element.ownerDocument.createElement('window'));
     else removeTag(element, 'window');
   }), 'the game\'s window art (Background: a picture of your own)');
+  propToggle(frameBody, 'Portrait', hasTag(element, 'portrait'), on => rebuild(on ? 'make a portrait' : 'not a portrait', () => {
+    if (on) element.prepend(element.ownerDocument.createElement('portrait'));
+    else removeTag(element, 'portrait');
+  }), 'the hero\'s face, in place of the game\'s own');
   propToggle(frameBody, 'Focus', hasTag(element, 'focus'), on => rebuild(on ? 'focus on' : 'focus off', () => {
     if (on) element.prepend(element.ownerDocument.createElement('focus'));
     else removeTag(element, 'focus');
@@ -1305,6 +1338,39 @@ function buildStyleSection(panel, element, screen, edit, rebuild, sync) {
   showRules();
   sync.push(showRules);
   body.append(rules, unknown);
+}
+
+// ------------------------------------------------------------------ the portrait
+
+/// Where the game draws a screen's portrait of the picked hero (its face, on a tile layer - fixed, its size its own).
+const GAME_PORTRAIT = { x: 8, y: 8, w: 56, h: 56 };
+
+/// Whether the game's own portrait shows on the screen: it asks for a hero and has no portrait frame of its own.
+function gamePortraitShown(screen) {
+  const def = menu.project && menu.project.definition;
+  return !!(def && def.characterSelect && screen && !screen.querySelector('frame > portrait'));
+}
+
+/// The face Preview shows: the sample hero's (Luneth, the first job), or a party slot's.
+function samplePortraitFace(portrait) {
+  const slot = parseInt(portrait, 10);
+  const hero = Number.isFinite(slot) && slot >= 0 && slot <= 3 ? slot : (BINDING_SAMPLE.hero.id || 0);
+  return `files/pc${hero + 1}_01.NCGR`;
+}
+
+function buildGamePortraitCard() {
+  const panel = document.createElement('div');
+  const title = document.createElement('h2');
+  title.textContent = 'Portrait';
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = 'The game\'s own portrait of the picked hero ("Ask for a hero"): its face, drawn where the game puts it (8, 8, 56 \u00d7 56) and at its own size. A portrait frame of the layout\'s takes its place - wherever you put it, as big as you make it, styled like any frame (opacity, a window or a background behind it).';
+  const make = document.createElement('button');
+  make.className = 'primary';
+  make.textContent = 'Make it a frame';
+  make.onclick = () => addMenuFrame(menuScreen(), 'portrait');
+  panel.append(title, sub, make);
+  return panel;
 }
 
 // ------------------------------------------------------------------ the backdrop

@@ -98,6 +98,7 @@ function compoundMatches(c, e) {
       : c.type === 'frame' ? name === 'frame'
       : c.type === 'text' ? name === 'frame' && !!behaviour && behaviour.getAttribute('value') === 'Text'
       : c.type === 'window' ? name === 'frame' && [...e.children].some(x => x.tagName === 'window')
+      : c.type === 'portrait' ? name === 'frame' && [...e.children].some(x => x.tagName === 'portrait')
       : false;
     if (!ok) return false;
   }

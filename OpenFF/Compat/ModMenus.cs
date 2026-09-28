@@ -388,8 +388,9 @@ namespace OpenFF.Client
 		{
 			string closing = _screen?.Id ?? _current?.Id ?? "?";
 			CloseWindows();
-			// A screen with no backdrop put it out of sight; the game's own screens expect it back.
+			// A screen with no backdrop put it out of sight; the game's own screens expect it back - and its faces where they stood.
 			try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(true); } catch (Exception) { }
+			RestoreFaces();
 			foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnClose", b.OnClose);
 			_behaviours = new List<MenuBehaviour>();
 			_screen = null;
@@ -579,6 +580,9 @@ namespace OpenFF.Client
 					if (look.Hidden) continue;
 					// A background (a colour, a picture - sliced, tiled, fitted...) between the window's fill and its frame.
 					if (look.Background != null) AddPanel(screen, w, look, back);
+					// A portrait frame: the hero's face in its place, fitted, over its own window and background.
+					if (look.Portrait != null && screen.FaceOf(look.Portrait) is string face)
+						AddPanel(screen, w.Id, w.X, w.Y, w.Width, w.Height, "background-image: resource(\"" + face + "\"); -ff-background-scale-mode: scale-to-fit", look.Opacity, back - GlobalScope.ds.S32toFX32(4));
 					if (!look.Window) continue;
 					GlobalScope.menu.BasicWindow window = new GlobalScope.menu.BasicWindow();
 					window.bwCreateUL(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new GlobalScope.ds.Vector2<short>((short)w.X, (short)w.Y), new GlobalScope.ds.Vector2<short>((short)w.Width, (short)w.Height), 3);
@@ -595,6 +599,7 @@ namespace OpenFF.Client
 				}
 				catch (Exception ex) { Log.Write(LogChannel.General, "menus: window " + w.Id + ": " + ex.Message); }
 			}
+			HideGameFaces(screen);
 		}
 
 		/// <summary>A frame's &lt;opacity&gt; (0..1, MenuStyles's product of its and its parents'), 1 for none.</summary>
@@ -610,6 +615,27 @@ namespace OpenFF.Client
 			string v = text?.Trim();
 			if (v == null || v.Length != 7 || v[0] != '#') return null;
 			return uint.TryParse(v.Substring(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out uint rgb) ? rgb : (uint?)null;
+		}
+
+		/// <summary>The game's faces a screen moved (Portrait on a screen with no portrait frame) and where each stood, to put back as it closes.</summary>
+		private static readonly List<(int Pc, short X, short Y)> _movedFaces = new List<(int, short, short)>();
+
+		private static void RestoreFaces()
+		{
+			try
+			{
+				GlobalScope.wmenu.CWMenuPCFaceManager faces = GlobalScope.wmenu.CWMenuManager.Instance().GetPcFace();
+				foreach ((int pc, short x, short y) in _movedFaces) faces.pcfmSetPosition((uint)pc, x, y, clear: false);
+			}
+			catch (Exception) { }
+			_movedFaces.Clear();
+		}
+
+		/// <summary>The game's own faces put away while a layout has a portrait frame of its own (the frame draws the face instead).</summary>
+		private static void HideGameFaces(ModMenuScreen screen)
+		{
+			if (!screen.HasPortraitFrame) return;
+			try { for (int i = 0; i < 4; i++) GlobalScope.wmenu.CWMenuManager.Instance().SetShowPcFace(i, show: false); } catch (Exception) { }
 		}
 
 		private static void CloseWindows()
@@ -831,6 +857,63 @@ namespace OpenFF.Client
 				if (panels && (ReferenceEquals(this, _screen) || ReferenceEquals(this, _gameScreen))) OpenWindows(this);
 			}
 
+			// ---- the portrait ----
+
+			private int _portrait = -1;
+
+			public bool HasPortraitFrame => _widgets.Any(w => w.Look.Portrait != null);
+
+			/// <summary>The hero whose face is shown: the one set (Portrait), else the one picked, else the party's first.</summary>
+			public int FaceHero()
+			{
+				if (_portrait >= 0) return _portrait;
+				if (Hero >= 0) return Hero;
+				IReadOnlyList<PartyMember> members = OpenFF.Game.Party?.Members;
+				return members != null && members.Count > 0 ? members[0].Id : 0;
+			}
+
+			public int Portrait
+			{
+				get => _portrait;
+				set
+				{
+					int was = FaceHero();
+					_portrait = value;
+					int now = FaceHero();
+					if (now == was) return;
+					if (HasPortraitFrame)
+					{
+						if (ReferenceEquals(this, _screen) || ReferenceEquals(this, _gameScreen)) OpenWindows(this);
+						return;
+					}
+					// No frame of the layout's for it: the game's own face, swapped to that hero - in the place the first one
+					// had (each hero's face stands at its party slot's own place), put back as the screen closes.
+					try
+					{
+						GlobalScope.wmenu.CWMenuManager menus = GlobalScope.wmenu.CWMenuManager.Instance();
+						GlobalScope.wmenu.CWMenuPCFaceManager faces = menus.GetPcFace();
+						GlobalScope.NNSG2dSVec2 at = faces.pcfmGetPosition((uint)was);
+						GlobalScope.NNSG2dSVec2 own = faces.pcfmGetPosition((uint)now);
+						if (!_movedFaces.Any(m => m.Pc == now)) _movedFaces.Add((now, own.x, own.y));
+						menus.SetShowPcFace(was, show: false);
+						faces.pcfmSetPosition((uint)now, at.x, at.y, clear: true);
+						menus.SetShowPcFace(now, show: true);
+					}
+					catch (Exception) { }
+				}
+			}
+
+			/// <summary>The face picture for a portrait frame: its party slot ("0".."3"), or the screen's hero - files/pc&lt;hero&gt;_&lt;job&gt;.NCGR, as the game's own faces are.</summary>
+			public string FaceOf(string portrait)
+			{
+				int id = FaceHero();
+				IReadOnlyList<PartyMember> members = OpenFF.Game.Party?.Members;
+				if (int.TryParse(portrait, out int slot) && members != null && slot >= 0 && slot < members.Count) id = members[slot].Id;
+				PartyMember member = OpenFF.Game.Party?.Member(id);
+				if (id < 0 || id > 3) return null;
+				return "files/pc" + (id + 1) + "_" + ((member?.Job ?? 0) + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture) + ".NCGR";
+			}
+
 			// ---- bindings ----
 
 			public void Refresh() => UpdateBindings();
@@ -925,7 +1008,8 @@ namespace OpenFF.Client
 					Window = node?.getFirstNodeByTagNameFromChildren("window") != null,
 					Bar = string.Equals(node?.getFirstNodeByTagNameFromChildren("panel")?.nodeValueString()?.Trim(), "bar", StringComparison.OrdinalIgnoreCase),
 					Tint = node?.getFirstNodeByTagNameFromChildren("tint")?.nodeValueString()?.Trim(),
-					Background = string.IsNullOrWhiteSpace(node?.getFirstNodeByTagNameFromChildren("background")?.nodeValueString()) ? null : node.getFirstNodeByTagNameFromChildren("background").nodeValueString().Trim()
+					Background = string.IsNullOrWhiteSpace(node?.getFirstNodeByTagNameFromChildren("background")?.nodeValueString()) ? null : node.getFirstNodeByTagNameFromChildren("background").nodeValueString().Trim(),
+					Portrait = node?.getFirstNodeByTagNameFromChildren("portrait") == null ? null : (node.getFirstNodeByTagNameFromChildren("portrait").nodeValueString()?.Trim() ?? "")
 				};
 				// The layout's classes and bindings (attributes the game's own file never carried).
 				foreach (string c in ((string)source?.Attribute("class") ?? "").Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)) _classes.Add(c);
