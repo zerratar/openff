@@ -1,7 +1,9 @@
 // A menu frame's background in the editor: the colour and picture behind it (background-color,
 // background-image, the 9-slice...), laid out as the client lays it out - a port of
-// Shared/Text/MenuBackground.cs, the same quads - and drawn on the canvas; the inspector's Background
-// section, the picture picker, and the slice editor that sets a picture's borders by dragging them.
+// Shared/Text/MenuBackground.cs, the same quads - and drawn on the canvas, with the box round it (a
+// gradient, a border, round corners, shadows) painted as Shared/Text/MenuPaint.cs paints it; the
+// inspector's Background and Box sections, the picture picker, and the slice editor that sets a
+// picture's borders by dragging them.
 
 // BACKGROUND_PROPS: menu-styles.js's, which bakes them.
 
@@ -14,7 +16,18 @@ function bgNumber(text) {
   return Number.isFinite(v) ? v : 0;
 }
 
-/// #rgb, #rgba, #rrggbb, #rrggbbaa, rgb()/rgba(), transparent - as [r, g, b, a] 0..255, or null.
+/// CSS's colour names, the common ones - MenuBackground's list.
+const BG_NAMED = {
+  black: '000000', white: 'ffffff', red: 'ff0000', lime: '00ff00', green: '008000', blue: '0000ff', yellow: 'ffff00', cyan: '00ffff', aqua: '00ffff',
+  magenta: 'ff00ff', fuchsia: 'ff00ff', gray: '808080', grey: '808080', silver: 'c0c0c0', maroon: '800000', olive: '808000', navy: '000080',
+  purple: '800080', teal: '008080', orange: 'ffa500', gold: 'ffd700', pink: 'ffc0cb', brown: 'a52a2a', crimson: 'dc143c', coral: 'ff7f50',
+  salmon: 'fa8072', tomato: 'ff6347', orchid: 'da70d6', violet: 'ee82ee', indigo: '4b0082', plum: 'dda0dd', khaki: 'f0e68c', beige: 'f5f5dc',
+  ivory: 'fffff0', tan: 'd2b48c', chocolate: 'd2691e', skyblue: '87ceeb', steelblue: '4682b4', royalblue: '4169e1', midnightblue: '191970',
+  darkblue: '00008b', darkred: '8b0000', darkgreen: '006400', darkgray: 'a9a9a9', darkgrey: 'a9a9a9', lightgray: 'd3d3d3', lightgrey: 'd3d3d3',
+  lightblue: 'add8e6', slategray: '708090', dimgray: '696969', whitesmoke: 'f5f5f5', goldenrod: 'daa520', firebrick: 'b22222'
+};
+
+/// #rgb, #rgba, #rrggbb, #rrggbbaa, rgb()/rgba(), hsl()/hsla(), transparent, a CSS name - as [r, g, b, a] 0..255, or null.
 function bgColour(value) {
   const v = String(value || '').trim().toLowerCase();
   if (!v) return null;
@@ -26,35 +39,245 @@ function bgColour(value) {
     if (!/^[0-9a-f]{8}$/.test(hex)) return null;
     return [0, 2, 4, 6].map(i => parseInt(hex.slice(i, i + 2), 16));
   }
-  const m = /^rgba?\(([^)]*)\)$/.exec(v);
-  if (!m) return null;
-  const parts = m[1].split(',').map(p => p.trim());
-  if (parts.length < 3) return null;
-  const c = p => Math.max(0, Math.min(255, Math.round(bgNumber(p))));
-  const a = parts.length > 3 ? Math.max(0, Math.min(255, Math.round((parts[3].endsWith('%') ? bgNumber(parts[3]) / 100 : bgNumber(parts[3])) * 255))) : 255;
-  return [c(parts[0]), c(parts[1]), c(parts[2]), a];
+  const alphaOf = p => { const t = p.trim(); return Math.max(0, Math.min(255, Math.round((t.endsWith('%') ? bgNumber(t.slice(0, -1)) / 100 : bgNumber(t)) * 255))); };
+  if (v.startsWith('rgb')) {
+    const open = v.indexOf('('), close = v.lastIndexOf(')');
+    if (open < 0 || close < open) return null;
+    const parts = v.slice(open + 1, close).split(',');
+    if (parts.length < 3) return null;
+    const c = p => Math.max(0, Math.min(255, Math.round(bgNumber(p))));
+    return [c(parts[0]), c(parts[1]), c(parts[2]), parts.length > 3 ? alphaOf(parts[3]) : 255];
+  }
+  if (v.startsWith('hsl')) {
+    const open = v.indexOf('('), close = v.lastIndexOf(')');
+    if (open < 0 || close < open) return null;
+    const parts = v.slice(open + 1, close).replace(/\//g, ',').split(/[,\s]+/).filter(Boolean);
+    if (parts.length < 3) return null;
+    const hue = (((bgNumber(parts[0].replace('deg', '')) % 360) + 360) % 360) / 360;
+    const sat = Math.min(1, Math.max(0, bgNumber(parts[1].replace(/%$/, '')) / 100)), light = Math.min(1, Math.max(0, bgNumber(parts[2].replace(/%$/, '')) / 100));
+    const q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat, pp = 2 * light - q;
+    const h = t => { t = (t + 1) % 1; return t < 1 / 6 ? pp + (q - pp) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? pp + (q - pp) * (2 / 3 - t) * 6 : pp; };
+    const ch = x => Math.max(0, Math.min(255, Math.round(x * 255)));
+    return [ch(h(hue + 1 / 3)), ch(h(hue)), ch(h(hue - 1 / 3)), parts.length > 3 ? alphaOf(parts[3]) : 255];
+  }
+  const named = BG_NAMED[v];
+  return named ? [...[0, 2, 4].map(i => parseInt(named.slice(i, i + 2), 16)), 255] : null;
+}
+
+/// A colour as a text's or a box's is read (MenuText.Colour): a CSS colour, else one of the game's palette words.
+function bgTextColour(value) {
+  return bgColour(value) || (typeof menuPalette === 'function' ? menuPalette(String(value || '').trim().toLowerCase()) : null);
+}
+
+function bgCss(c) {
+  return `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${c[3] / 255})`;
+}
+
+/// 12px / 12 / .5em (of 12) as menu units; null for a word that is not a length (MenuText.Length).
+function bgLength(text) {
+  let t = String(text ?? '').trim().toLowerCase();
+  if (!t) return null;
+  let scale = 1;
+  if (t.endsWith('px')) t = t.slice(0, -2);
+  else if (t.endsWith('em')) { t = t.slice(0, -2); scale = 12; }
+  const v = Number(t);
+  return t.trim() !== '' && Number.isFinite(v) ? v * scale : null;
 }
 
 function bgImage(value) {
   const v = String(value || '').trim();
   for (const kind of ['url', 'resource']) {
     if (!v.toLowerCase().startsWith(kind + '(') || !v.endsWith(')')) continue;
-    const inner = v.slice(kind.length + 1, -1).trim().replace(/^["']|["']$/g, '');
+    const inner = v.slice(kind.length + 1, -1).trim().replace(/^["']+|["']+$/g, '');
     return inner ? { kind, path: inner.replace(/\\/g, '/') } : null;
   }
   return null;
+}
+
+/// An angle in CSS degrees (deg, grad, rad, turn); null for none.
+function bgDegrees(word) {
+  const w = String(word).trim().toLowerCase();
+  const num = t => (t.trim() !== '' && Number.isFinite(Number(t)) ? Number(t) : NaN);
+  let v = NaN;
+  if (w.endsWith('deg')) v = num(w.slice(0, -3));
+  else if (w.endsWith('grad')) v = num(w.slice(0, -4)) * 0.9;
+  else if (w.endsWith('rad')) v = num(w.slice(0, -3)) * 180 / Math.PI;
+  else if (w.endsWith('turn')) v = num(w.slice(0, -4)) * 360;
+  return Number.isNaN(v) ? null : v;
+}
+
+/// A gradient from background-image's value (MenuGradient.Parse); null for one that is not.
+function parseGradient(value) {
+  const v = String(value ?? '').trim();
+  const m = /^(repeating-)?(linear|radial|conic)-gradient\(([\s\S]*)\)$/i.exec(v);
+  if (!m) return null;
+  const g = { kind: m[2].toLowerCase(), repeating: !!m[1], angle: 180, cornerX: 0, cornerY: 0, circle: false, sizeWord: 'farthest-corner', sizeX: null, sizeY: null, atX: '50%', atY: '50%', from: 0, stops: [] };
+  const args = cssCommaList(m[3]);
+  if (!args.length) return null;
+  let first = 0;
+  // The first argument says the direction or the shape when it holds no colour.
+  if (!bgTextColour(cssWords(args[0])[0] || '')) {
+    first = 1;
+    const words = cssWords(args[0].toLowerCase());
+    if (g.kind === 'linear') {
+      if (words[0] === 'to') {
+        for (const w of words.slice(1)) {
+          if (w === 'left') g.cornerX = -1; else if (w === 'right') g.cornerX = 1;
+          else if (w === 'top') g.cornerY = -1; else if (w === 'bottom') g.cornerY = 1;
+        }
+        if (g.cornerX === 0 || g.cornerY === 0) {
+          g.angle = g.cornerX === 1 ? 90 : g.cornerX === -1 ? 270 : g.cornerY === -1 ? 0 : 180;
+          g.cornerX = g.cornerY = 0;
+        }
+      } else if (words.length && bgDegrees(words[0]) !== null) g.angle = bgDegrees(words[0]);
+    } else {
+      const at = words.indexOf('at');
+      const shape = at >= 0 ? words.slice(0, at) : words;
+      if (at >= 0) {
+        const pos = words.slice(at + 1);
+        let x = '50%', y = '50%';
+        for (const w of pos) {
+          if (w === 'left') x = '0%'; else if (w === 'right') x = '100%';
+          else if (w === 'top') y = '0%'; else if (w === 'bottom') y = '100%';
+          else if (w === 'center') { /* the middle */ }
+          else if (x === '50%' && pos.indexOf(w) === 0) x = w;
+          else y = w;
+        }
+        g.atX = x; g.atY = y;
+      }
+      if (g.kind === 'conic') {
+        const from = shape.indexOf('from');
+        if (from >= 0 && from + 1 < shape.length && bgDegrees(shape[from + 1]) !== null) g.from = bgDegrees(shape[from + 1]);
+      } else {
+        const lengths = [];
+        for (const w of shape) {
+          if (w === 'circle') g.circle = true;
+          else if (w === 'ellipse') g.circle = false;
+          else if (['closest-side', 'farthest-side', 'closest-corner', 'farthest-corner'].includes(w)) g.sizeWord = w;
+          else lengths.push(w);
+        }
+        if (lengths.length) { g.sizeWord = null; g.sizeX = lengths[0]; g.sizeY = lengths.length > 1 ? lengths[1] : lengths[0]; if (lengths.length === 1) g.circle = true; }
+      }
+    }
+  }
+  for (let i = first; i < args.length; i++) {
+    let colour = null;
+    const positions = [];
+    for (const w of cssWords(args[i])) {
+      const c = colour === null ? bgTextColour(w) : null;
+      if (c) colour = c; else positions.push(w);
+    }
+    if (!colour) continue;   // a colour hint alone: passed over
+    if (!positions.length) g.stops.push({ colour, position: null });
+    for (const p of positions.slice(0, 2)) g.stops.push({ colour, position: p });
+  }
+  return g.stops.length >= 1 ? g : null;
+}
+
+/// One to four values (as margin: top, right, bottom, left) into four.
+function bgFour(value, read, into) {
+  const v = cssWords(value).map(read);
+  if (!v.length) return;
+  if (v.length === 1) into.fill(v[0]);
+  else if (v.length === 2) { into[0] = into[2] = v[0]; into[1] = into[3] = v[1]; }
+  else if (v.length === 3) { into[0] = v[0]; into[1] = into[3] = v[1]; into[2] = v[2]; }
+  else { into[0] = v[0]; into[1] = v[1]; into[2] = v[2]; into[3] = v[3]; }
+}
+
+function bgBorderWidth(word) {
+  const w = String(word).trim().toLowerCase();
+  if (w === 'thin') return 1;
+  if (w === 'medium') return 3;
+  if (w === 'thick') return 5;
+  return Math.max(0, bgLength(w) ?? 0);
+}
+
+/// "2px solid #fff" onto one side (0 top, 1 right, 2 bottom, 3 left); a style of none takes it away.
+function bgBorderSide(b, side, value) {
+  let width = 3;   // CSS's medium
+  let none = false;
+  for (const word of cssWords(value)) {
+    const w = word.toLowerCase();
+    if (w === 'none' || w === 'hidden') none = true;
+    else if (w === 'thin' || w === 'medium' || w === 'thick' || bgLength(w) !== null) width = bgBorderWidth(w);
+    else { const c = bgTextColour(w); if (c) b.borderColour[side] = c; }
+  }
+  b.borderWidth[side] = none ? 0 : width;
+}
+
+function bgCorner(b, i, word) {
+  const w = String(word).trim();
+  b.radiusPercent[i] = w.endsWith('%');
+  b.radius[i] = Math.max(0, b.radiusPercent[i] ? (Number.isFinite(parseFloat(w)) ? parseFloat(w) : 0) : bgLength(w) ?? 0);
+}
+
+/// The box-shadow list: [{ x, y, blur, spread, colour, inset }], the first on top.
+function parseBoxShadows(value) {
+  const shadows = [];
+  if (String(value).trim().toLowerCase() === 'none') return shadows;
+  for (const item of cssCommaList(value)) {
+    const numbers = [];
+    const s = { x: 0, y: 0, blur: 0, spread: 0, colour: [0, 0, 0, 128], inset: false };
+    for (const word of cssWords(item)) {
+      if (word.toLowerCase() === 'inset') s.inset = true;
+      else if (bgLength(word) !== null) numbers.push(bgLength(word));
+      else { const c = bgTextColour(word); if (c) s.colour = c; }
+    }
+    if (numbers.length < 2) continue;
+    s.x = numbers[0];
+    s.y = numbers[1];
+    s.blur = numbers.length > 2 ? Math.max(0, numbers[2]) : 0;
+    s.spread = numbers.length > 3 ? numbers[3] : 0;
+    shadows.push(s);
+  }
+  return shadows;
 }
 
 /// A background from its declarations, or null when it draws nothing.
 function parseBackground(declarations) {
   if (!declarations || !declarations.trim()) return null;
   const b = { image: null, colour: null, tint: [255, 255, 255, 255], rect: null, scaleMode: null, size: null, position: null, repeat: null,
-    left: 0, top: 0, right: 0, bottom: 0, sliceScale: 1, tiled: false, linear: true, sprite: null, sliceGiven: false };
+    left: 0, top: 0, right: 0, bottom: 0, sliceScale: 1, tiled: false, linear: true, sprite: null, sliceGiven: false,
+    gradient: null, borderWidth: [0, 0, 0, 0], borderColour: [[255, 255, 255, 255], [255, 255, 255, 255], [255, 255, 255, 255], [255, 255, 255, 255]],
+    radius: [0, 0, 0, 0], radiusPercent: [false, false, false, false], shadows: [] };
+  let borderNone = false;
   for (const [k, raw] of styleDeclarations(declarations)) {
     const v = raw.trim();
     switch (k) {
       case 'background-color': b.colour = bgColour(v); break;
-      case 'background-image': b.image = bgImage(v); break;
+      case 'background-image':
+        b.gradient = parseGradient(v);
+        b.image = b.gradient ? null : bgImage(v);
+        break;
+      case 'border': for (let i = 0; i < 4; i++) bgBorderSide(b, i, v); break;
+      case 'border-top': bgBorderSide(b, 0, v); break;
+      case 'border-right': bgBorderSide(b, 1, v); break;
+      case 'border-bottom': bgBorderSide(b, 2, v); break;
+      case 'border-left': bgBorderSide(b, 3, v); break;
+      case 'border-width': bgFour(v, bgBorderWidth, b.borderWidth); break;
+      case 'border-top-width': b.borderWidth[0] = bgBorderWidth(v); break;
+      case 'border-right-width': b.borderWidth[1] = bgBorderWidth(v); break;
+      case 'border-bottom-width': b.borderWidth[2] = bgBorderWidth(v); break;
+      case 'border-left-width': b.borderWidth[3] = bgBorderWidth(v); break;
+      case 'border-color': bgFour(v, w => bgTextColour(w) || [255, 255, 255, 255], b.borderColour); break;
+      case 'border-top-color': b.borderColour[0] = bgTextColour(v) || b.borderColour[0]; break;
+      case 'border-right-color': b.borderColour[1] = bgTextColour(v) || b.borderColour[1]; break;
+      case 'border-bottom-color': b.borderColour[2] = bgTextColour(v) || b.borderColour[2]; break;
+      case 'border-left-color': b.borderColour[3] = bgTextColour(v) || b.borderColour[3]; break;
+      case 'border-style': borderNone = ['none', 'hidden'].includes(v.toLowerCase()); break;
+      case 'border-radius': {
+        const parts = v.split('/')[0].split(' ').filter(Boolean);   // elliptical corners: their horizontal radii
+        if (!parts.length) break;
+        const four = parts.length === 1 ? [parts[0], parts[0], parts[0], parts[0]] : parts.length === 2 ? [parts[0], parts[1], parts[0], parts[1]]
+          : parts.length === 3 ? [parts[0], parts[1], parts[2], parts[1]] : parts.slice(0, 4);
+        four.forEach((w, i) => bgCorner(b, i, w));
+        break;
+      }
+      case 'border-top-left-radius': bgCorner(b, 0, v.split(' ')[0]); break;
+      case 'border-top-right-radius': bgCorner(b, 1, v.split(' ')[0]); break;
+      case 'border-bottom-right-radius': bgCorner(b, 2, v.split(' ')[0]); break;
+      case 'border-bottom-left-radius': bgCorner(b, 3, v.split(' ')[0]); break;
+      case 'box-shadow': b.shadows = parseBoxShadows(v); break;
       case '-ff-background-rect': {
         const r = v.split(/[\s,]+/).filter(Boolean).map(p => parseInt(p.replace('px', ''), 10));
         b.rect = r.length === 4 && r.every(n => n >= 0) && r[2] > 0 && r[3] > 0 ? r : null;
@@ -84,6 +307,7 @@ function parseBackground(declarations) {
       case '-ff-background-filter': b.linear = v.toLowerCase() !== 'point'; break;
     }
   }
+  if (borderNone) b.borderWidth = [0, 0, 0, 0];
   // A named sprite of the sheet (sprites.json): its part and its borders, where the frame gave none of its own.
   if (b.sprite && b.image && typeof findSprite === 'function') {
     const sp = findSprite(b.image, b.sprite);
@@ -92,7 +316,11 @@ function parseBackground(declarations) {
       if (!b.sliceGiven) { b.left = sp.left || 0; b.top = sp.top || 0; b.right = sp.right || 0; b.bottom = sp.bottom || 0; }
     }
   }
-  const empty = !b.image && (!b.colour || b.colour[3] === 0);
+  b.hasBorder = b.borderWidth.some(w => w > 0);
+  b.hasRadius = b.radius.some(r => r > 0);
+  // Painted (bgPaint) rather than a colour and a picture's quads: a gradient, a border, round corners or a shadow.
+  b.decorated = !!b.gradient || b.hasBorder || b.hasRadius || b.shadows.length > 0;
+  const empty = !b.image && !b.gradient && !b.hasBorder && !b.shadows.length && (!b.colour || b.colour[3] === 0);
   return empty ? null : b;
 }
 
@@ -217,10 +445,324 @@ function loadBackgroundPicture(image) {
   return bgPictures.get(url);
 }
 
-/// The frame's background drawn at `scale` pixels a unit: its colour, then the picture's quads, tinted.
+// ------------------------------------------------------------------ the box painted (MenuPaint)
+//
+// The gradient, the border, the round corners and the shadows, painted with the canvas as
+// Shared/Text/MenuPaint.cs paints them into pictures of their own: the outer shadows (the first on
+// top, blurred with a Gaussian of sigma blur / 2, cut away under the box itself) apart, to go behind
+// the game's window; the colour and the gradient clipped to the round box, under the picture; the
+// inset shadows and the border ring over it.
+
+/// The corners' radii on a frame w by h, shrunk together where two would overlap (MenuBackground.Radii) - a percent is of the shorter side.
+function bgRadii(b, w, h) {
+  const shorter = Math.min(w, h);
+  const r = b.radius.map((v, i) => Math.max(0, b.radiusPercent[i] ? shorter * v / 100 : v));
+  let f = 1;
+  if (r[0] + r[1] > w) f = Math.min(f, w / (r[0] + r[1]));
+  if (r[3] + r[2] > w) f = Math.min(f, w / (r[3] + r[2]));
+  if (r[0] + r[3] > h) f = Math.min(f, h / (r[0] + r[3]));
+  if (r[1] + r[2] > h) f = Math.min(f, h / (r[1] + r[2]));
+  return f < 1 ? r.map(x => x * f) : r;
+}
+
+/// A box with round corners (top-left, top-right, bottom-right, bottom-left), and one grown or moved - as MenuPaint.Box.
+const bgBox = (x0, y0, x1, y1, r) => ({ x0, y0, x1: Math.max(x0, x1), y1: Math.max(y0, y1), r });
+const bgBoxOffset = (b, dx, dy) => bgBox(b.x0 + dx, b.y0 + dy, b.x1 + dx, b.y1 + dy, b.r);
+const bgBoxGrown = (b, by) => bgBox(b.x0 - by, b.y0 - by, b.x1 + by, b.y1 + by, b.r.map(x => x > 0 ? Math.max(0, x + by) : 0));
+
+/// The box's outline onto the path (a corner no bigger than half the shorter side, as the distance MenuPaint measures has it).
+function bgBoxPath(gc, b, reverse) {
+  const hw = (b.x1 - b.x0) / 2, hh = (b.y1 - b.y0) / 2;
+  if (hw <= 0 || hh <= 0) return;
+  const [r0, r1, r2, r3] = b.r.map(r => Math.min(r, hw, hh));
+  const P = Math.PI;
+  if (!reverse) {
+    gc.moveTo(b.x0 + r0, b.y0);
+    gc.lineTo(b.x1 - r1, b.y0);
+    if (r1 > 0) gc.arc(b.x1 - r1, b.y0 + r1, r1, -P / 2, 0);
+    gc.lineTo(b.x1, b.y1 - r2);
+    if (r2 > 0) gc.arc(b.x1 - r2, b.y1 - r2, r2, 0, P / 2);
+    gc.lineTo(b.x0 + r3, b.y1);
+    if (r3 > 0) gc.arc(b.x0 + r3, b.y1 - r3, r3, P / 2, P);
+    gc.lineTo(b.x0, b.y0 + r0);
+    if (r0 > 0) gc.arc(b.x0 + r0, b.y0 + r0, r0, P, P * 1.5);
+  } else {
+    gc.moveTo(b.x0 + r0, b.y0);
+    if (r0 > 0) gc.arc(b.x0 + r0, b.y0 + r0, r0, P * 1.5, P, true);
+    gc.lineTo(b.x0, b.y1 - r3);
+    if (r3 > 0) gc.arc(b.x0 + r3, b.y1 - r3, r3, P, P / 2, true);
+    gc.lineTo(b.x1 - r2, b.y1);
+    if (r2 > 0) gc.arc(b.x1 - r2, b.y1 - r2, r2, P / 2, 0, true);
+    gc.lineTo(b.x1, b.y0 + r1);
+    if (r1 > 0) gc.arc(b.x1 - r1, b.y0 + r1, r1, 0, -P / 2, true);
+  }
+  gc.closePath();
+}
+
+/// How far past the frame the outer shadows reach (menu units): the shadow picture's margin.
+function bgShadowReach(b) {
+  let m = 0;
+  for (const s of b.shadows) if (!s.inset) m = Math.max(m, s.blur + Math.max(0, s.spread) + Math.max(Math.abs(s.x), Math.abs(s.y)));
+  return Math.ceil(m);
+}
+
+function bgGradientLength(text, whole) {
+  const t = String(text ?? '50%').trim().toLowerCase();
+  if (t.endsWith('%') && Number.isFinite(parseFloat(t))) return whole * parseFloat(t) / 100;
+  return bgLength(t) ?? whole / 2;
+}
+
+/// A radial gradient's radii: its lengths, or its size keyword from the centre to the frame's sides or corners.
+function bgRadialSize(g, w, h, cx, cy) {
+  if (g.sizeWord === null) {
+    const sx = bgGradientLength(g.sizeX, w), sy = g.circle ? sx : bgGradientLength(g.sizeY, h);
+    return [Math.max(0.01, sx), Math.max(0.01, sy)];
+  }
+  const nearX = Math.min(Math.abs(cx), Math.abs(w - cx)), farX = Math.max(Math.abs(cx), Math.abs(w - cx));
+  const nearY = Math.min(Math.abs(cy), Math.abs(h - cy)), farY = Math.max(Math.abs(cy), Math.abs(h - cy));
+  let rx, ry;
+  switch (g.sizeWord) {
+    case 'closest-side': rx = nearX; ry = nearY; if (g.circle) rx = ry = Math.min(nearX, nearY); break;
+    case 'farthest-side': rx = farX; ry = farY; if (g.circle) rx = ry = Math.max(farX, farY); break;
+    case 'closest-corner':
+      if (g.circle) rx = ry = Math.hypot(nearX, nearY); else { rx = nearX * Math.SQRT2; ry = nearY * Math.SQRT2; }
+      break;
+    default:
+      if (g.circle) rx = ry = Math.hypot(farX, farY); else { rx = farX * Math.SQRT2; ry = farY * Math.SQRT2; }
+  }
+  return [Math.max(0.01, rx), Math.max(0.01, ry)];
+}
+
+function bgLinearDirection(g, w, h) {
+  let dx, dy;
+  if (g.cornerX !== 0 && g.cornerY !== 0) {
+    // To a corner: at right angles to the line between the two corners beside it.
+    dx = h * g.cornerX; dy = w * g.cornerY;
+    const n = Math.hypot(dx, dy); dx /= n; dy /= n;
+  } else { const a = g.angle * Math.PI / 180; dx = Math.sin(a); dy = -Math.cos(a); }
+  return [dx, dy, Math.abs(w * dx) + Math.abs(h * dy)];
+}
+
+/// The stops at their places (0..1 of the gradient's line, its radius or the turn), as MenuPaint.Stops places them: [{ at, c: [r, g, b, a] 0..1 }].
+function bgGradientStops(g, w, h) {
+  const length = g.kind === 'linear' ? bgLinearDirection(g, w, h)[2] : g.kind === 'radial' ? bgRadialSize(g, w, h, bgGradientLength(g.atX, w), bgGradientLength(g.atY, h))[0] : 360;
+  const place = position => {
+    if (position === null) return null;
+    const p = String(position).trim().toLowerCase();
+    if (p.endsWith('%') && Number.isFinite(parseFloat(p))) return parseFloat(p) / 100;
+    if (g.kind === 'conic' && bgDegrees(p) !== null) return bgDegrees(p) / 360;
+    const px = bgLength(p);
+    if (px !== null) return length > 0 ? px / length : 0;
+    return null;
+  };
+  const at = g.stops.map(s => place(s.position));
+  if (at.length && at[0] === null) at[0] = 0;
+  if (at.length > 1 && at[at.length - 1] === null) at[at.length - 1] = 1;
+  for (let i = 0; i < at.length; i++) {
+    if (at[i] !== null) continue;
+    let next = i;
+    while (next < at.length && at[next] === null) next++;
+    const a = at[i - 1], b = at[next];
+    for (let k = i; k < next; k++) at[k] = a + (b - a) * (k - i + 1) / (next - i + 1);
+  }
+  let max = -Infinity;
+  const stops = at.map((p, i) => {
+    max = Math.max(max, p ?? 0);
+    return { at: max, c: g.stops[i].colour.map(n => n / 255) };
+  });
+  if (stops.length === 1) stops.push({ at: 1, c: stops[0].c });
+  return stops;
+}
+
+/// The colour at a place along the stops (straight RGBA 0..1), mixed premultiplied between the two around it.
+function bgGradientAt(stops, t) {
+  if (t <= stops[0].at) return stops[0].c;
+  for (let i = 1; i < stops.length; i++) {
+    if (t > stops[i].at) continue;
+    const a = stops[i - 1], b = stops[i];
+    const f = b.at - a.at <= 0 ? 1 : (t - a.at) / (b.at - a.at);
+    const alpha = a.c[3] + (b.c[3] - a.c[3]) * f;
+    if (alpha <= 0) return [0, 0, 0, 0];
+    const ch = k => (a.c[k] * a.c[3] + (b.c[k] * b.c[3] - a.c[k] * a.c[3]) * f) / alpha;
+    return [ch(0), ch(1), ch(2), alpha];
+  }
+  return stops[stops.length - 1].c;
+}
+
+/// A canvas gradient standing for a CSS one over [t0, t1] of its line: the colours sampled from the stops as MenuPaint
+/// mixes them (the canvas mixes straight, not premultiplied, so a stop going see-through is sampled finer), repeated when it repeats.
+function bgCanvasStops(canvasGradient, g, stops, t0, t1) {
+  const first = stops[0].at, last = stops[stops.length - 1].at, span = last - first;
+  const repeating = g.repeating && span > 0.0001;
+  const value = t => bgGradientAt(stops, repeating ? first + (((t - first) % span) + span) % span : t);
+  const marks = new Set([t0, t1]);
+  if (repeating) {
+    for (let n = Math.floor((t0 - first) / span) - 1; first + n * span <= t1 + span && marks.size < 4000; n++) {
+      for (const s of stops) { const p = s.at + n * span; if (p > t0 && p < t1) marks.add(p); }
+    }
+  } else for (const s of stops) if (s.at > t0 && s.at < t1) marks.add(s.at);
+  const points = [...marks].sort((a, b) => a - b);
+  const room = t1 - t0 || 1;
+  const put = (t, c) => canvasGradient.addColorStop(Math.min(1, Math.max(0, (t - t0) / room)), `rgba(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)}, ${c[3]})`);
+  for (let i = 0; i + 1 < points.length; i++) {
+    const u = points[i], v = points[i + 1], e = (v - u) * 1e-4;
+    const a = value(u + e), b = value(v - e);
+    put(u, a);
+    if (Math.abs(a[3] - b[3]) > 0.01) for (let k = 1; k < 8; k++) { const t = u + (v - u) * k / 8; put(t, value(t)); }
+    put(v, b);
+  }
+}
+
+/// The gradient over the frame (w by h), into the path the caller has clipped to.
+function bgPaintGradient(gc, g, w, h) {
+  const stops = bgGradientStops(g, w, h);
+  if (!stops.length) return;
+  const cx = bgGradientLength(g.atX, w), cy = bgGradientLength(g.atY, h);
+  gc.save();
+  let fill;
+  if (g.kind === 'linear') {
+    // The gradient line through the middle, as long as the frame's corners need.
+    const [dx, dy, length] = bgLinearDirection(g, w, h);
+    fill = gc.createLinearGradient(w / 2 - dx * length / 2, h / 2 - dy * length / 2, w / 2 + dx * length / 2, h / 2 + dy * length / 2);
+    bgCanvasStops(fill, g, stops, 0, 1);
+    gc.fillStyle = fill;
+    gc.fillRect(0, 0, w, h);
+  } else if (g.kind === 'radial') {
+    const [rx, ry] = bgRadialSize(g, w, h, cx, cy);
+    // As far out as the farthest corner, so the stops past the radius are the canvas's too.
+    const reach = Math.max(1, ...[[0, 0], [w, 0], [0, h], [w, h]].map(([x, y]) => Math.hypot((x - cx) / rx, (y - cy) / ry)));
+    gc.translate(cx, cy);
+    gc.scale(1, ry / rx);
+    fill = gc.createRadialGradient(0, 0, 0, 0, 0, rx * reach);
+    bgCanvasStops(fill, g, stops, 0, reach);
+    gc.fillStyle = fill;
+    gc.fillRect(-cx, -cy * rx / ry, w, h * rx / ry);
+  } else {
+    // CSS's 0deg is up and goes round clockwise; the canvas's starts at the right.
+    fill = gc.createConicGradient((g.from - 90) * Math.PI / 180, cx, cy);
+    bgCanvasStops(fill, g, stops, 0, 1);
+    gc.fillStyle = fill;
+    gc.fillRect(0, 0, w, h);
+  }
+  gc.restore();
+}
+
+/// The part of the rectangle w by h nearest a side (in that side's widths), as MenuPaint.Sides colours the ring: a polygon.
+function bgSidePolygon(side, widths, w, h) {
+  // Each side's measure a x + b y + c: y / top, (w - x) / right, (h - y) / bottom, x / left.
+  const d = [[0, 1 / widths[0], 0], [-1 / widths[1], 0, w / widths[1]], [0, -1 / widths[2], h / widths[2]], [1 / widths[3], 0, 0]];
+  let poly = [[0, 0], [w, 0], [w, h], [0, h]];
+  for (let j = 0; j < 4 && poly.length; j++) {
+    if (j === side || !(widths[j] > 0)) continue;
+    // Keep where this side's measure is no more than the other's.
+    const a = d[j][0] - d[side][0], b = d[j][1] - d[side][1], c = d[j][2] - d[side][2];
+    const out = [];
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i], q = poly[(i + 1) % poly.length];
+      const fp = a * p[0] + b * p[1] + c, fq = a * q[0] + b * q[1] + c;
+      if (fp >= 0) out.push(p);
+      if ((fp >= 0) !== (fq >= 0)) { const t = fp / (fp - fq); out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); }
+    }
+    poly = out;
+  }
+  return poly;
+}
+
+/// One layer of the box ('shadow', 'fill' or 'over') onto a context set to menu units (the frame's top left at 0, 0),
+/// `scale` pixels a unit and `origin` its device offset: shadowBlur and shadowOffset are the canvas's own pixels.
+function bgPaint(gc, b, w, h, scale, origin, layer) {
+  const radii = bgRadii(b, w, h);
+  const border = bgBox(0, 0, w, h, radii);
+  const [bt, br, bb, bl] = b.borderWidth;
+  const padding = bgBox(bl, bt, w - br, h - bb, [Math.max(0, radii[0] - Math.max(bl, bt)), Math.max(0, radii[1] - Math.max(br, bt)), Math.max(0, radii[2] - Math.max(br, bb)), Math.max(0, radii[3] - Math.max(bl, bb))]);
+  // A shape drawn this far off the canvas throws only its shadow onto it.
+  const far = 20000;
+  const shadowed = (colour, blur, draw) => {
+    gc.save();
+    gc.setTransform(scale, 0, 0, scale, origin[0] - far, origin[1]);
+    gc.shadowColor = bgCss(colour);
+    gc.shadowBlur = blur * scale;
+    gc.shadowOffsetX = far;
+    gc.fillStyle = '#000';
+    draw();
+    gc.restore();
+  };
+  if (layer === 'shadow') {
+    // The outer shadows, the last underneath; cut away where the frame is (CSS draws none under a see-through box).
+    for (const s of [...b.shadows].reverse()) {
+      if (s.inset || s.colour[3] === 0) continue;
+      const shape = bgBoxGrown(bgBoxOffset(border, s.x, s.y), s.spread);
+      shadowed(s.colour, s.blur, () => { gc.beginPath(); bgBoxPath(gc, shape); gc.fill(); });
+    }
+    gc.save();
+    gc.globalCompositeOperation = 'destination-out';
+    gc.beginPath();
+    bgBoxPath(gc, border);
+    gc.fill();
+    gc.restore();
+    return;
+  }
+  if (layer === 'fill') {
+    gc.save();
+    gc.beginPath();
+    bgBoxPath(gc, border);
+    gc.clip();
+    if (b.colour && b.colour[3] > 0) { gc.fillStyle = bgCss(b.colour); gc.fillRect(0, 0, w, h); }
+    if (b.gradient) bgPaintGradient(gc, b.gradient, w, h);
+    gc.restore();
+    return;
+  }
+  // Over: the inset shadows inside the padding box, then the border.
+  const insets = [...b.shadows].reverse().filter(s => s.inset && s.colour[3] > 0);
+  if (insets.length) {
+    gc.save();
+    gc.beginPath();
+    bgBoxPath(gc, padding);
+    gc.clip();
+    for (const s of insets) {
+      const hole = bgBoxGrown(bgBoxOffset(padding, s.x, s.y), -s.spread);
+      const big = w + h + s.blur * 3 + Math.abs(s.x) + Math.abs(s.y) + 64;
+      shadowed(s.colour, s.blur, () => {
+        gc.beginPath();
+        gc.rect(-big, -big, w + big * 2, h + big * 2);
+        bgBoxPath(gc, hole, true);
+        gc.fill('evenodd');
+      });
+    }
+    gc.restore();
+  }
+  if (b.hasBorder) {
+    gc.save();
+    gc.beginPath();
+    bgBoxPath(gc, border);
+    bgBoxPath(gc, padding, true);
+    const same = b.borderColour.every(c => c.join() === b.borderColour[0].join());
+    if (same) { gc.fillStyle = bgCss(b.borderColour[0]); gc.fill('evenodd'); }
+    else {
+      gc.clip('evenodd');
+      for (let side = 0; side < 4; side++) {
+        if (!(b.borderWidth[side] > 0)) continue;
+        const poly = bgSidePolygon(side, b.borderWidth, w, h);
+        if (poly.length < 3) continue;
+        gc.beginPath();
+        poly.forEach(([x, y], i) => i ? gc.lineTo(x, y) : gc.moveTo(x, y));
+        gc.closePath();
+        gc.fillStyle = bgCss(b.borderColour[side]);
+        gc.fill();
+      }
+    }
+    gc.restore();
+  }
+}
+
+/// The frame's background drawn at `scale` pixels a unit: its colour (or, painted, the colour and gradient in the
+/// round box), the picture's quads tinted, then the inset shadows and the border. Its outer shadows, when it has
+/// any, are a canvas of their own (the result's .shadow), reaching past the frame, for behind the game's window.
 async function drawFrameBackground(declarations, width, height, scale, opacity = 1) {
   const b = parseBackground(declarations);
   if (!b || width <= 0 || height <= 0) return null;
+  // A big frame is painted at less, as MenuPaint paints one at no more than about a million pixels (four here).
+  scale = Math.max(0.5, Math.min(scale, Math.sqrt(4000000 / Math.max(1, width * height))));
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.ceil(width * scale));
   canvas.height = Math.max(1, Math.ceil(height * scale));
@@ -229,8 +771,9 @@ async function drawFrameBackground(declarations, width, height, scale, opacity =
   canvas.className = 'frame-background';
   const gc = canvas.getContext('2d');
   gc.scale(scale, scale);
-  if (b.colour && b.colour[3] > 0) {
-    gc.fillStyle = `rgba(${b.colour[0]}, ${b.colour[1]}, ${b.colour[2]}, ${b.colour[3] / 255})`;
+  if (b.decorated) bgPaint(gc, b, width, height, scale, [0, 0], 'fill');
+  else if (b.colour && b.colour[3] > 0) {
+    gc.fillStyle = bgCss(b.colour);
     gc.fillRect(0, 0, width, height);
   }
   const img = b.image ? await loadBackgroundPicture(b.image) : null;
@@ -251,13 +794,32 @@ async function drawFrameBackground(declarations, width, height, scale, opacity =
       tc.drawImage(img, 0, 0);
       source = t;
     }
+    gc.save();
     gc.globalAlpha = ta / 255;
     gc.imageSmoothingEnabled = b.linear;
     for (const quad of layoutBackground(b, width, height, img.width, img.height)) {
       gc.drawImage(source, quad.u, quad.v, quad.uw, quad.vh, quad.x, quad.y, quad.w, quad.h);
     }
+    gc.restore();
   }
+  if (b.decorated) bgPaint(gc, b, width, height, scale, [0, 0], 'over');
   canvas.style.opacity = String(opacity);
+  if (b.shadows.some(s => !s.inset)) {
+    const margin = bgShadowReach(b);
+    const shadow = document.createElement('canvas');
+    shadow.width = Math.max(1, Math.ceil((width + margin * 2) * scale));
+    shadow.height = Math.max(1, Math.ceil((height + margin * 2) * scale));
+    shadow.style.width = `${width + margin * 2}px`;
+    shadow.style.height = `${height + margin * 2}px`;
+    shadow.style.left = `${-margin}px`;
+    shadow.style.top = `${-margin}px`;
+    shadow.className = 'frame-shadow';
+    const sc = shadow.getContext('2d');
+    sc.setTransform(scale, 0, 0, scale, margin * scale, margin * scale);
+    bgPaint(sc, b, width, height, scale, [margin * scale, margin * scale], 'shadow');
+    shadow.style.opacity = String(opacity);
+    canvas.shadow = shadow;
+  }
   return canvas;
 }
 
@@ -621,6 +1183,401 @@ function screenRules(screen) {
   }));
 }
 
+// ------------------------------------------------------------------ the inspector's style fields, shared
+
+/// A property's value on a frame (or the screen): its own style's, else what the cascade gives it.
+function styledValue(element, prop) {
+  const own = frameStyle(element);
+  if (own.has(prop)) return own.get(prop);
+  const isScreen = element.tagName !== 'frame';
+  const styled = menuStyled(isScreen ? element : frameScreen(element));
+  const computed = isScreen ? styled.screenValues : styled.computed.get(element);
+  return computed ? computed.get(prop) : undefined;
+}
+
+/// What a sheet's rule gives a property of a frame (or the screen), for "back to ..."; null for none.
+function sheetValueText(element, prop) {
+  const rules = element.tagName === 'frame' ? frameRules(element) : screenRules(element);
+  for (let i = rules.length - 1; i >= 0; i--) {
+    const d = rules[i].declarations.find(([k]) => k === prop);
+    if (d) return `${d[1]} (${rules[i].sheet})`;
+  }
+  return null;
+}
+
+/// Rows whose label says where the value comes from - the frame's own style, a sheet's rule, or nowhere;
+/// set on the frame, a click on the label takes it back off. row(label, control, tip, props) as propRow.
+function sourcedRows(body, element, setNow, sync) {
+  const isScreen = element.tagName !== 'frame';
+  return (label, control, tip, props) => {
+    const r = propRow(body, label, control, tip);
+    if (!props) return r;
+    const name = r.querySelector('.prop-label');
+    const show = () => {
+      const from = props.map(p => propertySource(element, p)).find(Boolean);
+      const own = props.some(p => frameStyle(element).has(p));
+      name.classList.toggle('own', own);
+      name.classList.toggle('sheet', !own && !!from);
+      name.title = own ? `Set on ${isScreen ? 'the screen' : 'this frame'} - click to take it off (back to ${props.map(p => sheetValueText(element, p)).find(Boolean) || 'nothing'})` : from ? `From ${from.text}` : 'Not set';
+    };
+    name.onclick = () => {
+      if (!props.some(p => frameStyle(element).has(p))) return;
+      setNow('revert ' + label.toLowerCase(), Object.fromEntries(props.map(p => [p, null])));
+    };
+    show();
+    sync.push(show);
+    return r;
+  };
+}
+
+function hexOf(c) {
+  return '#' + c.slice(0, 3).map(n => n.toString(16).padStart(2, '0')).join('');
+}
+
+/// A colour with its alpha: a colour well and an α scrub (%). onChange hears '#rrggbb' or '#rrggbbaa'; field.set(text) shows one.
+function colourAlphaField(onChange, tip) {
+  const wrap = document.createElement('div');
+  wrap.className = 'bg-colour colour-field';
+  const input = document.createElement('input');
+  input.type = 'color';
+  if (tip) input.title = tip;
+  let alphaNow = 100;
+  const write = () => {
+    const aa = Math.round(Math.max(0, Math.min(100, alphaNow)) * 2.55).toString(16).padStart(2, '0');
+    onChange(input.value + (aa === 'ff' ? '' : aa));
+  };
+  const alpha = scrubNumber('α', 100, v => { alphaNow = v; write(); }, { min: 0, max: 100, title: 'The colour\'s opacity, %' });
+  input.oninput = write;
+  wrap.append(input, alpha);
+  wrap.set = text => {
+    const c = bgTextColour(text);
+    input.value = c ? hexOf(c) : '#000000';
+    alphaNow = c ? Math.round(c[3] / 2.55) : 100;
+    alpha.set(alphaNow);
+  };
+  wrap.disable = off => { input.disabled = !!off; alpha.disable(off); };
+  return wrap;
+}
+
+/// A list edited in place (shadows, stops, transitions): a card an item, its fields and a ×, and + Add.
+///   read()          -> { text, items }: the value now, and its items
+///   write(items)    -> the text it wrote
+///   fresh(items)    -> a new item
+///   fields          -> [(item, put, i) => control]: put(key, value) changes the item and writes the list
+/// list.sync() shows the value anew when it changed other than by the list itself.
+function styleListEditor({ read, write, fresh, fields, addLabel, empty }) {
+  const wrap = document.createElement('div');
+  wrap.className = 'style-list';
+  let now = read();
+  let items = now.items;
+  let written = now.text;
+  const put = () => { written = write(items); };
+  const render = () => {
+    wrap.textContent = '';
+    items.forEach((item, i) => {
+      const card = document.createElement('div');
+      card.className = 'style-list-item';
+      for (const make of fields) card.append(make(item, (key, value) => { item[key] = value; put(); }, i));
+      const remove = document.createElement('button');
+      remove.className = 'mini';
+      remove.textContent = '×';
+      remove.title = 'Take this one out';
+      remove.onclick = () => { items.splice(i, 1); put(); render(); };
+      card.append(remove);
+      wrap.append(card);
+    });
+    if (!items.length && empty) {
+      const none = document.createElement('p');
+      none.className = 'none';
+      none.textContent = empty;
+      wrap.append(none);
+    }
+    const add = document.createElement('button');
+    add.className = 'link style-list-add';
+    add.textContent = addLabel || '+ Add';
+    add.onclick = () => { items.push(fresh(items)); put(); render(); };
+    wrap.append(add);
+  };
+  wrap.sync = () => {
+    now = read();
+    if (now.text === written) return;
+    written = now.text;
+    items = now.items;
+    render();
+  };
+  render();
+  return wrap;
+}
+
+// Field makers for a list's cards.
+const listScrub = (label, key, options) => (item, put) => { const f = scrubNumber(label, item[key], v => put(key, v), options); f.classList.add('list-field'); return f; };
+const listColour = (key, tip) => (item, put) => { const f = colourAlphaField(v => put(key, v), tip); f.set(item[key]); f.classList.add('list-field', 'wide'); return f; };
+const listSelect = (key, options, tip) => (item, put) => { const s = propSelect(options, item[key], v => put(key, v)); s.title = tip || ''; s.classList.add('list-field'); return s; };
+const listText = (key, placeholder, tip, datalist) => (item, put) => {
+  const t = propText(item[key], v => put(key, v.trim()), placeholder);
+  t.title = tip || '';
+  t.classList.add('list-field');
+  if (datalist) t.setAttribute('list', datalist);
+  return t;
+};
+const listCheck = (label, key, tip) => (item, put) => {
+  const l = document.createElement('label');
+  l.className = 'list-field list-check';
+  l.title = tip || '';
+  const c = document.createElement('input');
+  c.type = 'checkbox';
+  c.checked = !!item[key];
+  c.onchange = () => put(key, c.checked);
+  l.append(c, label);
+  return l;
+};
+
+/// A datalist of the page's, filled anew (for a text field's suggestions).
+function styleDatalist(id, values) {
+  let list = document.getElementById(id);
+  if (!list) { list = document.createElement('datalist'); list.id = id; document.body.append(list); }
+  list.textContent = '';
+  for (const v of values) { const o = document.createElement('option'); o.value = v; list.append(o); }
+  return id;
+}
+
+const cssNumber = n => String(Math.round(n * 1000) / 1000);
+const cssPx = n => n === 0 ? '0' : `${cssNumber(n)}px`;
+const colourText = c => animColourText(c);
+
+// ------------------------------------------------------------------ the gradient's editor
+
+/// A gradient as the editor keeps it, from background-image's value: the kind, its direction or shape and centre, its stops as written.
+function gradientModel(value) {
+  const g = parseGradient(value) || parseGradient('linear-gradient(to bottom, #2a4a8a, #0e1a36)');
+  const angle = g.cornerX && g.cornerY ? `to ${g.cornerY < 0 ? 'top' : 'bottom'} ${g.cornerX < 0 ? 'left' : 'right'}`
+    : { 0: 'to top', 90: 'to right', 180: 'to bottom', 270: 'to left' }[g.angle] || `${cssNumber(g.angle)}deg`;
+  return {
+    kind: g.kind, repeating: g.repeating, direction: angle,
+    shape: g.circle ? 'circle' : 'ellipse', size: g.sizeWord || [g.sizeX, g.circle ? null : g.sizeY].filter(Boolean).join(' '),
+    at: `${g.atX} ${g.atY}`, from: g.from,
+    stops: g.stops.map(s => ({ colour: colourText(s.colour), position: s.position || '' }))
+  };
+}
+
+function gradientText(m) {
+  const head = [];
+  if (m.kind === 'linear') { if (m.direction && m.direction !== 'to bottom') head.push(m.direction); }
+  else {
+    if (m.kind === 'radial') {
+      if (m.shape === 'circle') head.push('circle');
+      if (m.size && m.size !== 'farthest-corner') head.push(m.size);
+    } else if (m.from) head.push(`from ${cssNumber(m.from)}deg`);
+    const at = (m.at || '').trim();
+    if (at && at !== '50% 50%' && at !== 'center') head.push(`at ${at}`);
+  }
+  const stops = m.stops.map(s => `${s.colour}${s.position ? ' ' + s.position : ''}`);
+  return `${m.repeating ? 'repeating-' : ''}${m.kind}-gradient(${[head.join(' '), ...stops].filter(Boolean).join(', ')})`;
+}
+
+/// The Background's gradient: its kind, repeating, direction (linear), shape, size and centre (radial), start
+/// and centre (conic), and its stops - a colour and a place each - with a strip showing it on the frame's shape.
+function gradientEditor(element, set, sync, size) {
+  const wrap = document.createElement('div');
+  wrap.className = 'gradient-editor';
+  const value = () => styledValue(element, 'background-image') || '';
+  let model = gradientModel(value());
+  let written = gradientText(model);
+  const write = what => { written = gradientText(model); set(what || 'change gradient', { 'background-image': written }); paintStrip(); };
+  const body = document.createElement('div');
+  body.className = 'prop-body';
+  wrap.append(body);
+  const strip = document.createElement('canvas');
+  strip.className = 'gradient-strip';
+  const paintStrip = () => {
+    const [w, h] = size();
+    const sw = 220, sh = Math.max(16, Math.min(80, Math.round(sw * h / Math.max(1, w))));
+    strip.width = sw * 2;
+    strip.height = sh * 2;
+    strip.style.height = `${sh}px`;
+    const gc = strip.getContext('2d');
+    gc.clearRect(0, 0, strip.width, strip.height);
+    const g = parseGradient(written);
+    if (!g) return;
+    // The frame's own shape, scaled down: a gradient's lengths are the frame's.
+    gc.setTransform(strip.width / w, 0, 0, strip.height / h, 0, 0);
+    bgPaintGradient(gc, g, w, h);
+  };
+  const build = () => {
+    body.textContent = '';
+    const kind = propSelect([['linear', 'linear'], ['radial', 'radial'], ['conic', 'conic']], model.kind, v => { model.kind = v; write('change gradient kind'); build(); });
+    const repeat = document.createElement('label');
+    repeat.className = 'list-check';
+    const r = document.createElement('input');
+    r.type = 'checkbox';
+    r.checked = model.repeating;
+    r.onchange = () => { model.repeating = r.checked; write('change gradient repeat'); };
+    repeat.append(r, 'repeating');
+    const head = document.createElement('div');
+    head.className = 'style-pair';
+    head.append(kind, repeat);
+    propRow(body, 'Gradient', head, 'linear-gradient(), radial-gradient() or conic-gradient(), and repeating-: the stops over and over');
+    if (model.kind === 'linear') {
+      const words = ['to top', 'to right', 'to bottom', 'to left', 'to top right', 'to bottom right', 'to bottom left', 'to top left'];
+      const isAngle = !words.includes(model.direction);
+      const dir = propSelect([...words.map(w => [w, w]), ['angle', 'an angle…']], isAngle ? 'angle' : model.direction, v => {
+        model.direction = v === 'angle' ? '135deg' : v;
+        write('change gradient direction');
+        build();
+      });
+      const row = document.createElement('div');
+      row.className = 'style-pair';
+      row.append(dir);
+      if (isAngle) row.append(scrubNumber('°', bgDegrees(model.direction) ?? 180, v => { model.direction = `${v}deg`; write('change gradient angle'); }, { title: 'The direction: 0deg up, 90deg right (CSS\'s)' }));
+      propRow(body, 'Direction', row, 'Where it goes: to a side or a corner (at right angles to the diagonal), or at an angle');
+    } else {
+      if (model.kind === 'radial') {
+        const shape = propSelect([['ellipse', 'ellipse'], ['circle', 'circle']], model.shape, v => { model.shape = v; write('change gradient shape'); });
+        const sized = propText(model.size === 'farthest-corner' ? '' : model.size, v => { model.size = v.trim() || 'farthest-corner'; write('change gradient size'); }, 'farthest-corner');
+        sized.setAttribute('list', styleDatalist('gradient-sizes', ['closest-side', 'farthest-side', 'closest-corner', 'farthest-corner', '40px', '60% 40%']));
+        sized.title = 'closest-side, farthest-side, closest-corner, farthest-corner, or a radius (40px) - two for an ellipse (60% 40%)';
+        const row = document.createElement('div');
+        row.className = 'style-pair';
+        row.append(shape, sized);
+        propRow(body, 'Shape', row, 'Its shape and how far it reaches');
+      } else {
+        propRow(body, 'From', scrubNumber('°', model.from, v => { model.from = v; write('change gradient start'); }, { title: 'The angle it starts from: 0deg up, round clockwise' }), 'from: where the turn starts');
+      }
+      const at = propText(model.at === '50% 50%' ? '' : model.at, v => { model.at = v.trim() || '50% 50%'; write('change gradient centre'); }, 'center (50% 50%)');
+      at.title = 'at x y: left, center, right, top, bottom, px or %';
+      propRow(body, 'At', at, 'Its centre on the frame');
+    }
+    const stops = styleListEditor({
+      read: () => ({ text: written, items: model.stops }),
+      write: items => { model.stops = items; write('change gradient stops'); return written; },
+      fresh: items => ({ colour: items.length ? items[items.length - 1].colour : '#ffffff', position: '' }),
+      fields: [listColour('colour', 'The stop\'s colour'), listText('position', 'auto', 'Where it is: 30%, 6px (or 90deg round a conic); empty, spread between its neighbours - two (0 6px) for a band')],
+      addLabel: '+ Stop'
+    });
+    propRow(body, 'Stops', stops, 'The colours along it, in order');
+    body.append(strip);
+    paintStrip();
+  };
+  build();
+  wrap.sync = () => {
+    if ((styledValue(element, 'background-image') || '') === written) return;
+    if (!parseGradient(value())) return;
+    model = gradientModel(value());
+    written = gradientText(model);
+    build();
+  };
+  sync.push(wrap.sync);
+  return wrap;
+}
+
+// ------------------------------------------------------------------ the inspector's Box
+
+/// The box round a frame (MenuBackground, MenuPaint): its border - widths, colour, style -, its round corners, and its shadows.
+function buildBoxSection(panel, element, screen, edit, rebuild, sync) {
+  const value = prop => styledValue(element, prop);
+  const box = () => parseBackground(BACKGROUND_PROPS.filter(p => value(p) !== undefined).map(p => `${p}: ${value(p)}`).join('; ') + '; background-color: #000');
+  const has = ['border', 'border-width', 'border-color', 'border-style', 'border-radius', 'box-shadow', 'border-top', 'border-right', 'border-bottom', 'border-left'].some(p => value(p) !== undefined);
+  const body = propSection(panel, 'Box', 'part', 'The box round the frame, as CSS draws one: a border, round corners and shadows - painted over and under its panel (Crystal Style Sheets)', has);
+  const set = (what, changes) => edit(what, () => setFrameStyle(element, changes));
+  const setNow = (what, changes) => rebuild(what, () => setFrameStyle(element, changes));
+  const row = sourcedRows(body, element, setNow, sync);
+  const sides = ['border-top', 'border-right', 'border-bottom', 'border-left'];
+  const sideLonghands = ['width', 'color'].flatMap(k => sides.map(s => `${s}-${k}`));
+
+  // ---- the border: written as border-width, -color and -style, the shorthands of its own taken off
+  const writeBorder = (what, change) => {
+    const b = box();
+    const widths = b.borderWidth.slice(), colours = b.borderColour.map(c => colourText(c));
+    let style = (value('border-style') || 'solid').trim().toLowerCase();
+    if (b.hasBorder === false && style === 'none') style = 'solid';
+    const next = change({ widths, colours, style });
+    const four = a => a.every(x => x === a[0]) ? String(a[0]) : a.join(' ');
+    set(what, {
+      border: null, ...Object.fromEntries([...sides, ...sideLonghands].map(p => [p, null])),
+      'border-width': next.widths.every(w => w === 0) ? null : four(next.widths.map(cssPx)),
+      'border-color': four(next.colours),
+      'border-style': next.style === 'solid' ? null : next.style
+    });
+  };
+  const widthGrid = document.createElement('div');
+  widthGrid.className = 'prop-grid four';
+  ['T', 'R', 'B', 'L'].forEach((label, i) => {
+    const f = scrubNumber(label, box().borderWidth[i], v => writeBorder('change border width', s => { s.widths[i] = Math.max(0, v); if (s.style === 'none') s.style = 'solid'; return s; }), { min: 0, step: 0.5, title: ['top', 'right', 'bottom', 'left'][i] + ': the border\'s width, menu units' });
+    sync.push(() => f.set(box().borderWidth[i]));
+    widthGrid.append(f);
+  });
+  const allWidth = scrubNumber('All', Math.max(...box().borderWidth), v => { writeBorder('change border width', s => { s.widths = [v, v, v, v].map(x => Math.max(0, x)); if (s.style === 'none') s.style = 'solid'; return s; }); }, { min: 0, step: 0.5, title: 'Every side at once' });
+  sync.push(() => allWidth.set(Math.max(...box().borderWidth)));
+  const widthRow = document.createElement('div');
+  widthRow.className = 'box-width-row';
+  widthRow.append(allWidth, widthGrid);
+  row('Border', widthRow, 'border-width: one to four (top, right, bottom, left)', ['border', 'border-width', ...sides, ...sides.map(s => s + '-width')]);
+  const colour = colourAlphaField(v => writeBorder('change border colour', s => { s.colours = [v, v, v, v]; return s; }), 'border-color');
+  const showColour = () => colour.set(colourText(box().borderColour[0]));
+  showColour();
+  sync.push(showColour);
+  row('Border Colour', colour, 'border-color (per side in a sheet: border-color with four, or border-top-color and the rest)', ['border-color', ...sides.map(s => s + '-color')]);
+  const style = propSelect([['solid', 'solid'], ['none', 'none (no border)']], (value('border-style') || 'solid').trim().toLowerCase() === 'none' || (value('border-style') || '').trim().toLowerCase() === 'hidden' ? 'none' : 'solid',
+    v => { writeBorder('change border style', s => { s.style = v; return s; }); });
+  row('Border Style', style, 'border-style: solid is drawn (dashes and the rest are drawn solid); none takes the border away', ['border-style']);
+
+  // ---- the corners: all, or one by one; px or a percent of the shorter side
+  const corners = ['border-top-left-radius', 'border-top-right-radius', 'border-bottom-right-radius', 'border-bottom-left-radius'];
+  const percent = () => box().radiusPercent.some(Boolean);
+  const writeRadius = (what, radii, asPercent) => {
+    const words = radii.map(r => asPercent ? `${cssNumber(r)}%` : cssPx(r));
+    set(what, { ...Object.fromEntries(corners.map(c => [c, null])), 'border-radius': radii.every(r => r === 0) ? null : words.every(w => w === words[0]) ? words[0] : words.join(' ') });
+  };
+  const cornerGrid = document.createElement('div');
+  cornerGrid.className = 'prop-grid four';
+  const cornerFields = ['TL', 'TR', 'BR', 'BL'].map((label, i) => {
+    const f = scrubNumber(label, box().radius[i], v => { const r = box().radius.slice(); r[i] = Math.max(0, v); writeRadius('change corner', r, percent()); }, { min: 0, title: ['top left', 'top right', 'bottom right', 'bottom left'][i] + ' corner\'s radius' });
+    cornerGrid.append(f);
+    return f;
+  });
+  const allRadius = scrubNumber('All', Math.max(...box().radius), v => writeRadius('change corners', [v, v, v, v].map(x => Math.max(0, x)), percent()), { min: 0, title: 'Every corner at once' });
+  const unit = propSelect([['px', 'px'], ['%', '%']], percent() ? '%' : 'px', u => {
+    // As big as they are now, in the other unit (a percent is of the shorter side, as the client takes it).
+    const [w, h] = frameSizeOf(element);
+    const shorter = Math.max(1, Math.min(w, h));
+    const b = box();
+    const now = b.radius.map((r, i) => b.radiusPercent[i] ? shorter * r / 100 : r);
+    writeRadius('change corner unit', u === '%' ? now.map(r => Math.round(r / shorter * 1000) / 10) : now.map(Math.round), u === '%');
+  });
+  unit.className = 'rule-unit';
+  sync.push(() => { const b = box(); cornerFields.forEach((f, i) => f.set(b.radius[i])); allRadius.set(Math.max(...b.radius)); unit.value = percent() ? '%' : 'px'; });
+  const radiusRow = document.createElement('div');
+  radiusRow.className = 'box-width-row';
+  radiusRow.append(allRadius, unit, cornerGrid);
+  row('Corners', radiusRow, 'border-radius: one for all, or top-left, top-right, bottom-right, bottom-left - px, or % of the shorter side', ['border-radius', ...corners]);
+
+  // ---- the shadows: outer ones behind the frame (behind the game's window too), inset ones inside it
+  const shadowList = styleListEditor({
+    read: () => {
+      const text = value('box-shadow') || '';
+      return { text, items: parseBoxShadows(text).map(s => ({ inset: s.inset, x: s.x, y: s.y, blur: s.blur, spread: s.spread, colour: colourText(s.colour) })) };
+    },
+    write: items => {
+      const text = items.map(s => `${s.inset ? 'inset ' : ''}${cssPx(s.x)} ${cssPx(s.y)} ${cssPx(s.blur)}${s.spread ? ' ' + cssPx(s.spread) : ''} ${s.colour}`).join(', ');
+      set('change box shadow', { 'box-shadow': text || (sheetValueText(element, 'box-shadow') ? 'none' : null) });
+      return text || (sheetValueText(element, 'box-shadow') ? 'none' : '');
+    },
+    fresh: () => ({ inset: false, x: 0, y: 4, blur: 10, spread: 0, colour: '#000000c0' }),
+    fields: [listCheck('inset', 'inset', 'Inside the frame rather than behind it'), listScrub('X', 'x', { step: 1 }), listScrub('Y', 'y', { step: 1 }), listScrub('Blur', 'blur', { min: 0 }), listScrub('Spread', 'spread', {}), listColour('colour', 'The shadow\'s colour')],
+    addLabel: '+ Shadow',
+    empty: 'No shadow.'
+  });
+  sync.push(shadowList.sync);
+  row('Shadows', shadowList, 'box-shadow: the first on top; an outer one behind the frame and its window, an inset one inside it', ['box-shadow']);
+}
+
+/// A frame's size as its layout rules make it now (the screen's for the screen).
+function frameSizeOf(element) {
+  if (element.tagName !== 'frame') return [480, 320];
+  const found = collectFrames(frameScreen(element)).find(f => f.element === element);
+  return found ? [Math.max(1, found.width), Math.max(1, found.height)] : [100, 40];
+}
+
 /// The inspector's Background section, as UI Toolkit's: colour, picture (and its sprite), tint, part, scale
 /// mode, size, position, repeat, the slices and the filter - each showing where it comes from, and what is
 /// drawn when no picture is: the game's window or bar, built in.
@@ -636,33 +1593,8 @@ function buildBackgroundSection(panel, element, screen, edit, rebuild, sync, opt
   const rectValue = () => { const r = String(value('-ff-background-rect') || '').split(/[\s,]+/).filter(Boolean).map(n => parseInt(n, 10)); return r.length === 4 ? r : null; };
 
   // A row's label says where its value comes from; set on the frame, a click on it takes it back off.
-  const row = (label, control, tip, props) => {
-    const r = propRow(body, label, control, tip);
-    if (!props) return r;
-    const name = r.querySelector('.prop-label');
-    const show = () => {
-      const from = props.map(p => propertySource(element, p)).find(Boolean);
-      const own = props.some(p => frameStyle(element).has(p));
-      name.classList.toggle('own', own);
-      name.classList.toggle('sheet', !own && !!from);
-      name.title = own ? `Set on ${isScreen ? 'the screen' : 'this frame'} - click to take it off (back to ${props.map(p => computedFromSheets(p)).find(Boolean) || 'nothing'})` : from ? `From ${from.text}` : 'Not set';
-    };
-    name.onclick = () => {
-      if (!props.some(p => frameStyle(element).has(p))) return;
-      setNow('revert ' + label.toLowerCase(), Object.fromEntries(props.map(p => [p, null])));
-    };
-    show();
-    sync.push(show);
-    return r;
-  };
-  const computedFromSheets = prop => {
-    const rules = isScreen ? screenRules(element) : frameRules(element);
-    for (let i = rules.length - 1; i >= 0; i--) {
-      const d = rules[i].declarations.find(([k]) => k === prop);
-      if (d) return `${d[1]} (${rules[i].sheet})`;
-    }
-    return null;
-  };
+  const row = sourcedRows(body, element, setNow, sync);
+  const computedFromSheets = prop => sheetValueText(element, prop);
 
   // ---- colour, with its alpha
   const colourRow = document.createElement('div');
@@ -693,6 +1625,29 @@ function buildBackgroundSection(panel, element, screen, edit, rebuild, sync, opt
   noColour.onclick = () => setNow('clear background colour', { 'background-color': frameStyle(element).has('background-color') ? null : 'transparent' });
   showColour();
   sync.push(showColour);
+
+  // ---- a picture or a gradient: what background-image is (MenuGradient) - the picture's rows, or the gradient's editor
+  const isGradient = () => !!parseGradient(value('background-image') || '');
+  const fillMode = document.createElement('div');
+  fillMode.className = 'segmented';
+  const modeButtons = [['picture', 'Picture', 'background-image: url(...) a picture beside the screen, resource(...) one of the game\'s'], ['gradient', 'Gradient', 'background-image: a linear, radial or conic gradient']].map(([v, label, tip]) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.title = tip;
+    b.onclick = () => {
+      if (v === 'gradient' && !isGradient()) setNow('make a gradient', {
+        'background-image': 'linear-gradient(to bottom, #2a4a8a, #0e1a36)', '-ff-sprite': null,
+        // A gradient of its own in place of the game's window: the window goes, as for a picture.
+        ...(!isScreen && hasTag(frameLook(element), 'window') && !frameStyle(element).has('-ff-panel') ? { '-ff-panel': 'none' } : {})
+      });
+      else if (v === 'picture' && isGradient()) setNow('no gradient', { 'background-image': frameStyle(element).has('background-image') && !computedFromSheets('background-image') ? null : 'none' });
+    };
+    fillMode.append(b);
+    return [v, b];
+  });
+  row('Fill', fillMode, 'What background-image is: a picture, or a gradient', ['background-image']);
+  const gradientBox = gradientEditor(element, set, sync, () => isScreen ? [480, 320] : frameSizeOf(element));
+  body.append(gradientBox);
 
   // ---- the picture: what is drawn, and from where - a picture, a sprite of one, or the game's window built in
   const imageRow = document.createElement('div');
@@ -900,4 +1855,15 @@ function buildBackgroundSection(panel, element, screen, edit, rebuild, sync, opt
   const filter = segmented([['linear', 'Smooth', 'linear: smooth when scaled'], ['point', 'Pixels', 'point: the pixels kept sharp']], (value('-ff-background-filter') || 'linear').toLowerCase(), v => setNow('change filter', { '-ff-background-filter': v === 'linear' ? null : v }));
   sync.push(() => filter.mark((value('-ff-background-filter') || 'linear').toLowerCase()));
   row('Filter', filter, '-ff-background-filter', ['-ff-background-filter']);
+
+  // A gradient in place of a picture: the picture's rows go, the gradient's editor comes.
+  const pictureRows = [...body.children].slice([...body.children].indexOf(gradientBox) + 1);
+  const showMode = () => {
+    const g = isGradient();
+    modeButtons.forEach(([v, b]) => b.classList.toggle('on', (v === 'gradient') === g));
+    gradientBox.hidden = !g;
+    for (const r of pictureRows) r.hidden = g || (r === builtIn && !builtIn.textContent);
+  };
+  showMode();
+  sync.push(showMode);
 }

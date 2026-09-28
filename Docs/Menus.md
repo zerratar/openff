@@ -229,6 +229,11 @@ A frame's look can follow its state and move, as a web page's does (`Shared/Text
 
 A screen with nothing moving costs nothing: the client works the look out again every frame only while a transition or an animation is under way.
 
+**In Crystal:** the preview cascades the same states and draws the same boxes and lettering (`menu-styles.js`, `menu-background.js`, `font.js`).
+- **Preview state** (the Style section): the selected frame as `:focus` or `:disabled` - the editor's alone, never written to the file.
+- **▶ Play** (the canvas's toolbar): runs the transitions and animations as the client does (`menu-animation.js`); a state changed while it plays transitions.
+- **The inspector:** a **Lettering** section (shadows, face, weight, slant, spacing, line height, decoration, case, outline), a **Box** section (borders, corners, box shadows), a gradient editor in **Background** (Picture or Gradient: kind, direction, shape, stops), and a **Motion** section (transitions; animations, their names offered from the sheets' `@keyframes`).
+
 ### Backgrounds
 
 A frame can have a colour and a picture behind it, in place of the game's window or on top of its fill. It works like UI Toolkit's Background panel:

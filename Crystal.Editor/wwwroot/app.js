@@ -634,6 +634,8 @@ async function openMenu(name) {
   menu.sheetsVersion = (menu.sheetsVersion || 0) + 1;
   menu.hideBackdrop = false;
   menu.xmlMode = 'xml';
+  // The pseudo-classes' previewed states (the Style section's) are this file's frames', and start with none.
+  menu.previewState = null;
   if (own) {
     try {
       const r = await api(client ? '/api/client/menu/styles' : '/api/project/menu/styles');
@@ -673,6 +675,13 @@ async function openMenu(name) {
     if (menu.preview) await loadMessages(node);
     redraw(node);
   };
+
+  // Play: the screen's transitions and animations run (menu-animation.js), as the client runs them.
+  const motion = $('.motion', node);
+  if (motion) {
+    motion.onclick = () => { if (menuMotion.on && menuMotion.node === node) stopMenuMotion(); else startMenuMotion(node); };
+    showMotionButton(node);
+  }
 
   // The XML panel under the canvas. It shows whichever thing is selected - one widget
   // if there is one, the whole file if there is not - so there is no XML mode to enter
@@ -1163,116 +1172,16 @@ function drawScreen(node, screen, select, quiet) {
       + (frame.behavior ? `  ${frame.behavior}` : '')
       + (frame.driven ? `\n${frame.flow ? 'placed by its parent\'s column or row' : 'placed by its layout rules'}: ${frame.element.getAttribute('style') || ''}` : '');
     if (frame.driven) box.classList.add('laid-out');
-    // The frame as its styles leave it (menu-styles.js): what the client reads - its panel, colour, size, opacity.
-    const look = frame.look || frame.element;
-    const background = typeof drawFrameBackground === 'function' ? childText(look, 'background') : null;
-    const tint = childText(look, 'tint');
-    const opacity = parseFloat(childText(look, 'opacity'));
-    if (Number.isFinite(opacity) && opacity < 1) box.style.setProperty('--look-opacity', String(opacity));
-    if ([...look.children].some(e => e.tagName === 'hidden')) box.classList.add('look-hidden');
-    // A <window/> frame is drawn with the game's window art at run time (a mod screen's panels;
-    // the game's own popups): the canvas shows it as a framed panel, and Preview draws the art -
-    // or the game's translucent bar, for -ff-panel: bar; tinted by -ff-tint.
-    if ([...look.children].some(e => e.tagName === 'window')) {
-      box.classList.add('window');
-      const bar = (childText(look, 'panel') || '').trim() === 'bar';
-      if (menu.preview && bar) {
-        const art = document.createElement('div');
-        art.className = 'game-bar';
-        if (tint) art.style.setProperty('--tint', tint);
-        box.prepend(art);
-      } else if (menu.preview && !background) drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint).then(w => { if (w && box.isConnected) box.prepend(w); }).catch(() => {});
-    }
-    // A background (a colour, a picture - sliced, tiled, fitted...), between the window's fill and its frame as the client draws it.
-    if (menu.preview && background) {
-      const slots = ['fill', 'background', 'frame'].map(k => { const d = document.createElement('div'); d.className = 'art-slot ' + k; return d; });
-      box.prepend(...slots);
-      const windowed = [...look.children].some(e => e.tagName === 'window') && (childText(look, 'panel') || '').trim() !== 'bar';
-      if (windowed) {
-        drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'fill').then(w => { if (w && box.isConnected) slots[0].append(w); }).catch(() => {});
-        drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'frame').then(w => { if (w && box.isConnected) slots[2].append(w); }).catch(() => {});
-      }
-      drawFrameBackground(background, frame.width, frame.height, 2 * menu.zoom).then(c => { if (c && box.isConnected) slots[1].append(c); }).catch(() => {});
-    }
-    // A portrait frame: the hero's face, fitted, over its window and background - a sample one here (Luneth's, or the slot's hero).
-    if ([...look.children].some(e => e.tagName === 'portrait')) {
-      box.classList.add('portrait');
-      if (menu.preview && typeof drawFrameBackground === 'function') {
-        const slot = document.createElement('div');
-        slot.className = 'art-slot portrait-face';
-        box.append(slot);
-        drawFrameBackground(`background-image: resource("${samplePortraitFace(childText(look, 'portrait'))}"); -ff-background-scale-mode: scale-to-fit`, frame.width, frame.height, 2 * menu.zoom).then(c => { if (c && box.isConnected) slot.append(c); }).catch(() => {});
-      }
-    }
-
-    // Alignment 4 is the one kind of box that belongs to the widget rather than to
-    // the background art, so it is the one that follows a resize. Drawing it is the
-    // only way to see that without running the game.
-    if (menu.preview && textMessageId(frame.element) !== null
-        && textAlignment(look) === 4) {
-      drawButtonWindow(frame.width, frame.height, false)
-        .then(window => { if (window && box.isConnected) box.prepend(window); })
-        .catch(() => {});
-    }
-
-    const label = document.createElement('span');
-    label.className = 'label';
-    if (menu.preview) {
-      const id = textMessageId(frame.element);
-      // A literal (<data>, message -1) shows as itself - the way a mod's screen writes its labels; a bound
-      // text (bind-text) as the sample data fills it, as the client fills it from the game's.
-      const bound = frame.element.getAttribute('bind-text');
-      const literal = id !== null && id < 0 ? (bound && typeof bindingFormat === 'function' ? bindingFormat(bound, bindingScopeOf(frame.element)) : childText(frame.element, 'data')) : null;
-      if (typeof bindingTest === 'function' && frame.element.hasAttribute('bind-visible') && !bindingTest(frame.element.getAttribute('bind-visible'), bindingScopeOf(frame.element))) box.classList.add('look-hidden');
-      const text = literal != null ? literal : id === null ? null : menu.messages[id];
-      if (text != null) {
-        label.textContent = text;
-        // In the game's own font, once it arrives. The text stays as a fallback, so a
-        // font that will not load leaves a readable preview rather than an empty one.
-        drawFontText(text, textFontSize(look), textColour(look))
-          .then(canvas => {
-            if (!canvas || !label.isConnected) return;
-            label.textContent = '';
-            // Where MBText would put it. Across, that is the alignment: left,
-            // right, or centred in the declared width. Down, it is the same for
-            // every alignment - mbtSetAlignment centres the text in the widget's
-            // height whenever that height is set at all:
-            //
-            //   if (height > 0) num1 = (height - textHeight) / 2;
-            //
-            // which is why the commands looked pinned to the top of their buttons.
-            // The menu's commands are 56 tall and the text is 12, so they belong
-            // 22 units down.
-            const align = textAlignment(look);
-            const room = frame.width - (canvas.menuWidth ?? canvas.width);
-            if (align === 1) canvas.style.marginLeft = `${Math.round(room)}px`;
-            else if (align !== 0 && align !== 6) canvas.style.marginLeft = `${Math.round(room / 2)}px`;   // 6, Steam's list alignment, is left with the hand outside
-
-            // StringHeight returns the size itself, so that is the game's own
-            // answer for how tall a line is.
-            const size = textFontSize(look);
-            if (frame.height > 0) {
-              canvas.style.marginTop = `${Math.round((frame.height - size) / 2)}px`;
-            }
-            label.append(canvas);
-          })
-          .catch(() => {});
-      } else if (id !== null && id >= 0) {
-        // A message this file's language does not have - naming the id is more
-        // use than naming the behaviour, because the id is what to go and look up.
-        label.textContent = `«msg ${id}»`;
-        label.classList.add('dynamic');
-      } else if (frame.behavior) {
-        // Drawn from the game's own state - a gold total, an item list - so
-        // there is nothing to show but what will fill it.
-        label.textContent = `«${frame.behavior}»`;
-        label.classList.add('dynamic');
-      }
-    } else {
-      const literal = textMessageId(frame.element) !== null && textMessageId(frame.element) < 0 ? childText(frame.element, 'data') : null;
-      label.textContent = literal ? `${frame.id || ''}  “${literal}”` : (frame.id || frame.behavior || '');
-    }
-    box.append(label);
+    box.frameElement = frame.element;
+    box.frame = frame;
+    // The states the preview gives it (:focus, :disabled - the Style section's), named on the canvas.
+    const state = typeof menuPreviewState === 'function' ? menuPreviewState() : null;
+    const states = state ? [state.focus === frame.element ? ':focus' : '', state.disabled.has(frame.element) ? ':disabled' : ''].filter(Boolean).join(' ') : '';
+    if (states) box.dataset.state = states;
+    // The frame as its styles leave it (menu-styles.js): what the client reads - its panel, colour, size, opacity;
+    // while Play is on, as the motion shows it now (menu-animation.js), so a redraw does not jump back.
+    const look = (typeof menuMotionLook === 'function' && menuMotionLook(frame.element)) || frame.look || frame.element;
+    dressFrameBox(box, frame, look);
 
     box.onpointerdown = event => startDrag(event, node, screen, frame, box);
     canvas.append(box);
@@ -1284,6 +1193,159 @@ function drawScreen(node, screen, select, quiet) {
   // redraw (a backdrop or a screen background changed there) must leave where it is.
   if (!select && !(activeDoc && (activeDoc.selection === 'backdrop' || activeDoc.selection === 'game-portrait'))) showProperties(node, null);
   else if (!select && typeof drawHierarchy === 'function') drawHierarchy();
+}
+
+/// A frame's box dressed as its look says: the panel (the game's window or bar, a background and the box's shadow,
+/// a portrait's face, a button's window) and the text. What is drawn later (the pictures, the text in the game's
+/// font) goes in as it comes; the promise is kept until all of it has - for a box dressed off the canvas and swapped in.
+function dressFrameBox(box, frame, look) {
+  const pending = [];
+  const later = promise => { pending.push(promise.catch(() => {})); };
+  const live = () => box.isConnected || !!box.offstage;
+  if (typeof lookSignature === 'function') box.lookSignature = lookSignature(look);
+  const background = typeof drawFrameBackground === 'function' ? childText(look, 'background') : null;
+  const tint = childText(look, 'tint');
+  const opacity = parseFloat(childText(look, 'opacity'));
+  if (Number.isFinite(opacity) && opacity < 1) box.style.setProperty('--look-opacity', String(opacity));
+  if ([...look.children].some(e => e.tagName === 'hidden')) box.classList.add('look-hidden');
+  // A <window/> frame is drawn with the game's window art at run time (a mod screen's panels;
+  // the game's own popups): the canvas shows it as a framed panel, and Preview draws the art -
+  // or the game's translucent bar, for -ff-panel: bar; tinted by -ff-tint.
+  if ([...look.children].some(e => e.tagName === 'window')) {
+    box.classList.add('window');
+    const bar = (childText(look, 'panel') || '').trim() === 'bar';
+    if (menu.preview && bar) {
+      const art = document.createElement('div');
+      art.className = 'game-bar';
+      if (tint) art.style.setProperty('--tint', tint);
+      box.prepend(art);
+    } else if (menu.preview && !background) later(drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint).then(w => { if (w && live()) box.prepend(w); }));
+  }
+  // A background (a colour, a picture - sliced, tiled, fitted..., a gradient, a border), between the window's fill and its
+  // frame as the client draws it; its outer shadows behind them all, the window's fill too.
+  if (menu.preview && background) {
+    const slots = ['shadow', 'fill', 'background', 'frame'].map(k => { const d = document.createElement('div'); d.className = 'art-slot ' + k; return d; });
+    box.prepend(...slots);
+    const windowed = [...look.children].some(e => e.tagName === 'window') && (childText(look, 'panel') || '').trim() !== 'bar';
+    if (windowed) {
+      later(drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'fill').then(w => { if (w && live()) slots[1].append(w); }));
+      later(drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'frame').then(w => { if (w && live()) slots[3].append(w); }));
+    }
+    later(drawFrameBackground(background, frame.width, frame.height, 2 * menu.zoom).then(c => {
+      if (!c || !live()) return;
+      slots[2].append(c);
+      if (c.shadow) slots[0].append(c.shadow);
+    }));
+  }
+  // A portrait frame: the hero's face, fitted, over its window and background - a sample one here (Luneth's, or the slot's hero).
+  if ([...look.children].some(e => e.tagName === 'portrait')) {
+    box.classList.add('portrait');
+    if (menu.preview && typeof drawFrameBackground === 'function') {
+      const slot = document.createElement('div');
+      slot.className = 'art-slot portrait-face';
+      box.append(slot);
+      later(drawFrameBackground(`background-image: resource("${samplePortraitFace(childText(look, 'portrait'))}"); -ff-background-scale-mode: scale-to-fit`, frame.width, frame.height, 2 * menu.zoom).then(c => { if (c && live()) slot.append(c); }));
+    }
+  }
+
+  // Alignment 4 is the one kind of box that belongs to the widget rather than to
+  // the background art, so it is the one that follows a resize. Drawing it is the
+  // only way to see that without running the game.
+  if (menu.preview && textMessageId(frame.element) !== null
+      && textAlignment(look) === 4) {
+    later(drawButtonWindow(frame.width, frame.height, false)
+      .then(window => { if (window && live()) box.prepend(window); }));
+  }
+
+  const label = document.createElement('span');
+  label.className = 'label';
+  if (menu.preview) {
+    const id = textMessageId(frame.element);
+    // A literal (<data>, message -1) shows as itself - the way a mod's screen writes its labels; a bound
+    // text (bind-text) as the sample data fills it, as the client fills it from the game's.
+    const bound = frame.element.getAttribute('bind-text');
+    const literal = id !== null && id < 0 ? (bound && typeof bindingFormat === 'function' ? bindingFormat(bound, bindingScopeOf(frame.element)) : childText(frame.element, 'data')) : null;
+    if (typeof bindingTest === 'function' && frame.element.hasAttribute('bind-visible') && !bindingTest(frame.element.getAttribute('bind-visible'), bindingScopeOf(frame.element))) box.classList.add('look-hidden');
+    const text = literal != null ? literal : id === null ? null : menu.messages[id];
+    if (text != null) {
+      label.textContent = text;
+      // In the game's own font, once it arrives - in the text's own lettering (<textstyle>) when a style gives it one.
+      // The text stays as a fallback, so a font that will not load leaves a readable preview rather than an empty one.
+      later(drawFontText(text, textFontSize(look), textColour(look), childText(look, 'textstyle'))
+        .then(canvas => {
+          if (!canvas || !live()) return;
+          label.textContent = '';
+          // Where MBText would put it. Across, that is the alignment: left,
+          // right, or centred in the declared width. Down, it is the same for
+          // every alignment - mbtSetAlignment centres the text in the widget's
+          // height whenever that height is set at all:
+          //
+          //   if (height > 0) num1 = (height - textHeight) / 2;
+          //
+          // which is why the commands looked pinned to the top of their buttons.
+          // The menu's commands are 56 tall and the text is 12, so they belong
+          // 22 units down.
+          const align = textAlignment(look);
+          const room = frame.width - (canvas.menuWidth ?? canvas.width);
+          if (align === 1) canvas.style.marginLeft = `${Math.round(room)}px`;
+          else if (align !== 0 && align !== 6) canvas.style.marginLeft = `${Math.round(room / 2)}px`;   // 6, Steam's list alignment, is left with the hand outside
+
+          // StringHeight returns the size itself, so that is the game's own
+          // answer for how tall a line is (a styled text of several lines: its lines' too).
+          const size = canvas.menuHeight ?? textFontSize(look);
+          if (frame.height > 0) {
+            canvas.style.marginTop = `${Math.round((frame.height - size) / 2)}px`;
+          }
+          label.append(canvas);
+        }));
+    } else if (id !== null && id >= 0) {
+      // A message this file's language does not have - naming the id is more
+      // use than naming the behaviour, because the id is what to go and look up.
+      label.textContent = `«msg ${id}»`;
+      label.classList.add('dynamic');
+    } else if (frame.behavior) {
+      // Drawn from the game's own state - a gold total, an item list - so
+      // there is nothing to show but what will fill it.
+      label.textContent = `«${frame.behavior}»`;
+      label.classList.add('dynamic');
+    }
+  } else {
+    const literal = textMessageId(frame.element) !== null && textMessageId(frame.element) < 0 ? childText(frame.element, 'data') : null;
+    label.textContent = literal ? `${frame.id || ''}  “${literal}”` : (frame.id || frame.behavior || '');
+  }
+  box.append(label);
+  return Promise.all(pending);
+}
+
+/// A box on the canvas given a new look as the motion plays (menu-animation.js): its opacity alone put straight on;
+/// anything else dressed off the canvas and swapped in once it is all drawn, so it does not flicker - one at a time,
+/// the latest look waiting while one is being drawn.
+function restyleFrameBox(box, look, signature) {
+  if (box.restyling) { box.pendingLook = look; box.pendingSignature = signature; return; }
+  const was = box.lookSignature;
+  if (was && was.key === signature.key) {
+    if (was.opacity !== signature.opacity) {
+      if (signature.opacity === '1') box.style.removeProperty('--look-opacity'); else box.style.setProperty('--look-opacity', signature.opacity);
+      box.lookSignature = signature;
+    }
+    return;
+  }
+  const fresh = document.createElement('div');
+  fresh.className = 'widget';
+  fresh.offstage = true;
+  box.restyling = dressFrameBox(fresh, box.frame, look).then(() => {
+    box.restyling = null;
+    box.lookSignature = fresh.lookSignature;
+    if (box.isConnected) {
+      for (const name of ['window', 'look-hidden', 'portrait']) box.classList.toggle(name, fresh.classList.contains(name));
+      const o = fresh.style.getPropertyValue('--look-opacity');
+      if (o) box.style.setProperty('--look-opacity', o); else box.style.removeProperty('--look-opacity');
+      box.replaceChildren(...fresh.childNodes);
+    }
+    const next = box.pendingLook, nextSignature = box.pendingSignature;
+    box.pendingLook = box.pendingSignature = null;
+    if (next) restyleFrameBox(box, next, nextSignature);
+  });
 }
 
 function startDrag(event, node, screen, frame, box) {

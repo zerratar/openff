@@ -4,8 +4,12 @@
 //
 // The cascade is worked out on a copy of the screen (menuStyled), never on the file: the copy's
 // frames carry the look as the client reads it (<colour>, <font>, <align>, <opacity>, <hidden/>,
-// <window/>, <panel>, <tint>) and their layout rules in their style, and each is paired with its
-// frame in the file, which is what is edited.
+// <window/>, <panel>, <tint>, <background>, <textstyle>, <transition>, <animation>) and their layout
+// rules in their style, and each is paired with its frame in the file, which is what is edited.
+//
+// The pseudo-classes' states (:focus, :disabled) are the preview's (menu.previewState), put on the
+// copy as data-ff-state before it is cascaded - as the client puts them on the screen it restyles.
+// The file never has them, so a save never writes them.
 
 /// The sheets of the open screen's folder ({ name, css, dirty }): menu.sheets, loaded with the screen (and swapped
 /// with it as the tabs change); menu.sheetsVersion climbs whenever one is edited, so the cascade is worked out again.
@@ -14,16 +18,32 @@ const menuSheets = {
   get version() { return (typeof menu !== 'undefined' && menu.sheetsVersion) || 0; }
 };
 
-const STYLE_INHERITED = new Set(['color', 'font-size', 'text-align', 'visibility']);
+/// The lettering (Shared/Text/MenuText.cs): inherited, and baked into <textstyle>.
+const TEXT_STYLE_PROPS = ['text-shadow', 'font-family', 'font-weight', 'font-style', 'letter-spacing', 'line-height',
+  'text-decoration', 'text-decoration-line', 'text-transform', '-ff-text-stroke', '-webkit-text-stroke'];
+/// How the look moves (Shared/Text/MenuAnimation.cs): baked into <transition> and <animation>.
+const TRANSITION_PROPS = ['transition', 'transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay'];
+const ANIMATION_PROPS = ['animation', 'animation-name', 'animation-duration', 'animation-timing-function', 'animation-delay',
+  'animation-iteration-count', 'animation-direction', 'animation-fill-mode', 'animation-play-state'];
+const STYLE_INHERITED = new Set(['color', 'font-size', 'text-align', 'visibility', ...TEXT_STYLE_PROPS]);
 const STYLE_LAYOUT = ['position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height', 'translate',
   'margin', 'margin-left', 'margin-top', 'margin-right', 'margin-bottom', 'padding', 'padding-left', 'padding-top', 'padding-right', 'padding-bottom',
   'flex-direction', 'gap', 'justify-content', 'align-items', 'align-self', 'flex-grow'];
-/// A frame's background (menu-background.js; Shared/Text/MenuBackground.cs), in the order the bake writes them.
+/// A frame's background and the box round it (menu-background.js; Shared/Text/MenuBackground.cs), in the order the bake writes them.
 const BACKGROUND_PROPS = ['background-color', 'background-image', '-ff-background-rect', '-ff-background-tint', '-ff-background-scale-mode',
   'background-size', 'background-position', 'background-repeat',
-  '-ff-slice', '-ff-slice-left', '-ff-slice-top', '-ff-slice-right', '-ff-slice-bottom', '-ff-slice-scale', '-ff-slice-type', '-ff-background-filter', '-ff-sprite'];
+  '-ff-slice', '-ff-slice-left', '-ff-slice-top', '-ff-slice-right', '-ff-slice-bottom', '-ff-slice-scale', '-ff-slice-type', '-ff-background-filter', '-ff-sprite',
+  'border', 'border-width', 'border-color', 'border-style',
+  'border-top', 'border-right', 'border-bottom', 'border-left',
+  'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+  'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+  'border-radius', 'border-top-left-radius', 'border-top-right-radius', 'border-bottom-right-radius', 'border-bottom-left-radius',
+  'box-shadow'];
 /// The properties the language knows (a style or a sheet naming anything else is told so in the inspector).
-const STYLE_KNOWN = new Set([...STYLE_LAYOUT, 'display', 'color', 'font-size', 'text-align', 'opacity', 'visibility', '-ff-panel', '-ff-tint', ...BACKGROUND_PROPS]);
+const STYLE_KNOWN = new Set([...STYLE_LAYOUT, 'display', 'color', 'font-size', 'text-align', 'opacity', 'visibility', '-ff-panel', '-ff-tint',
+  ...BACKGROUND_PROPS, ...TEXT_STYLE_PROPS, ...TRANSITION_PROPS, ...ANIMATION_PROPS]);
+/// The attribute that carries a frame's states for the pseudo-classes ("focus disabled"), on the copy the cascade runs on.
+const STYLE_STATE = 'data-ff-state';
 
 function styleDeclarations(text) {
   const out = [];
@@ -37,47 +57,135 @@ function styleDeclarations(text) {
   return out;
 }
 
+/// A comma list split at its top level (not inside brackets: cubic-bezier(a, b, c, d) stays one) - MenuAnimation.CommaList.
+function cssCommaList(text) {
+  const items = [];
+  const t = String(text || '');
+  if (!t.trim()) return items;
+  let depth = 0, start = 0;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (c === '(') depth++;
+    else if (c === ')') depth = Math.max(0, depth - 1);
+    else if (c === ',' && depth === 0) { items.push(t.slice(start, i).trim()); start = i + 1; }
+  }
+  items.push(t.slice(start).trim());
+  return items.filter(s => s.length > 0);
+}
+
+/// Words split at spaces at the top level (not inside brackets) - MenuAnimation.Words.
+function cssWords(text) {
+  const words = [];
+  const t = String(text || '');
+  let depth = 0, w = '';
+  for (const c of t) {
+    if (c === '(') depth++;
+    else if (c === ')') depth = Math.max(0, depth - 1);
+    if (/\s/.test(c) && depth === 0) { if (w) { words.push(w); w = ''; } continue; }
+    w += c;
+  }
+  if (w) words.push(w);
+  return words;
+}
+
+const STYLE_PSEUDOS = new Set(['focus', 'focus-within', 'disabled', 'enabled', 'first-child', 'last-child', 'only-child', 'nth-child', 'nth-last-child', 'not']);
+
+/// As CSS counts it: an id, then classes and pseudo-classes (a :not() by what it holds), then a type.
+function compoundSpecificity(c) {
+  return (c.id ? 10000 : 0) + c.classes.length * 100 + c.pseudos.reduce((s, p) => s + (p.name === 'not' ? (p.not ? compoundSpecificity(p.not) : 0) : 100), 0) + (c.type && c.type !== '*' ? 1 : 0);
+}
+
 function parseCompound(token) {
-  const m = /^(\*|[A-Za-z][\w-]*)?((?:[#.][\w-]+)*)$/.exec(token);
+  const m = /^(\*|[A-Za-z][\w-]*)?((?:[#.][\w-]+|:[\w-]+(?:\([^)]*\))?)*)$/.exec(token);
   if (!m) return null;
-  const c = { type: m[1] ? m[1].toLowerCase() : null, id: null, classes: [] };
-  for (const part of m[2].match(/[#.][\w-]+/g) || []) {
-    if (part[0] === '#') c.id = part.slice(1);
-    else c.classes.push(part.slice(1));
+  const c = { type: m[1] ? m[1].toLowerCase() : null, id: null, classes: [], pseudos: [] };
+  for (const part of m[2].matchAll(/[#.][\w-]+|:([\w-]+)(?:\(([^)]*)\))?/g)) {
+    if (part[0][0] === '#') c.id = part[0].slice(1);
+    else if (part[0][0] === '.') c.classes.push(part[0].slice(1));
+    else {
+      const name = part[1].toLowerCase();
+      if (!STYLE_PSEUDOS.has(name)) return null;   // :hover and the rest: the rule is passed over
+      const argument = part[2] !== undefined ? part[2] : null;
+      let not = null;
+      if (name === 'not') {
+        not = argument === null ? null : parseCompound(argument);
+        if (!not) return null;
+      } else if ((name === 'nth-child' || name === 'nth-last-child') && !(argument || '').trim()) return null;
+      c.pseudos.push({ name, argument, not });
+    }
   }
   return c;
 }
 
+/// A selector, or null for one this does not read (an attribute, a pseudo-element, a pseudo-class not known) - its rule is passed over.
 function parseSelector(text) {
-  if (!text || /[:\[+~]/.test(text)) return null;
+  // A + inside brackets (:nth-child(2n+1)) is no combinator.
+  if (!text || /[\[+~]/.test(text.replace(/\([^)]*\)/g, '()')) || text.includes('::')) return null;
+  // Spaces inside brackets (":nth-child(2n + 1)", ":not(.a)") are no combinators.
+  const tight = text.replace(/\([^)]*\)/g, m => m.replace(/ /g, ''));
   const selector = { parts: [], joins: [], specificity: 0, text };
   let join = ' ';
-  for (const token of text.replace(/>/g, ' > ').split(/\s+/).filter(Boolean)) {
+  for (const token of tight.replace(/>/g, ' > ').split(/\s+/).filter(Boolean)) {
     if (token === '>') { join = '>'; continue; }
     const c = parseCompound(token);
     if (!c) return null;
     if (selector.parts.length) selector.joins.push(join);
     selector.parts.push(c);
     join = ' ';
-    selector.specificity += (c.id ? 10000 : 0) + c.classes.length * 100 + (c.type && c.type !== '*' ? 1 : 0);
+    selector.specificity += compoundSpecificity(c);
   }
   return selector.parts.length ? selector : null;
 }
 
-/// A sheet's rules: { selectors, declarations, order, sheet, selectorText }; rules this does not read are passed over.
-function parseSheet(css, sheet, into, counter) {
-  const text = String(css || '').replace(/\/\*[\s\S]*?\*\//g, ' ');
+/// The top-level blocks of a sheet: each one's head and what is between its braces (a nested block kept whole, as @keyframes has them).
+function styleBlocks(text) {
+  const blocks = [];
   let at = 0;
   while (at < text.length) {
     const open = text.indexOf('{', at);
     if (open < 0) break;
-    const close = text.indexOf('}', open);
-    if (close < 0) break;
-    const head = text.slice(at, open).trim();
-    const body = text.slice(open + 1, close);
-    at = close + 1;
-    if (head.startsWith('@')) continue;
-    const selectors = head.split(',').map(s => parseSelector(s.trim())).filter(Boolean);
+    let depth = 1, close = open + 1;
+    for (; close < text.length && depth > 0; close++) {
+      if (text[close] === '{') depth++;
+      else if (text[close] === '}') depth--;
+    }
+    if (depth > 0) break;
+    let head = text.slice(at, open).trim();
+    // A declaration left before a block ("a: b; x { }") is no part of its head.
+    const semi = head.lastIndexOf(';');
+    if (semi >= 0) head = head.slice(semi + 1).trim();
+    blocks.push([head, text.slice(open + 1, close - 1)]);
+    at = close;
+  }
+  return blocks;
+}
+
+/// A sheet's rules: { selectors, declarations, order, sheet, selectorText }; rules this does not read are passed over.
+/// Its @keyframes go into `keyframes` (name -> [{ offset, values: Map }], the last of a name winning).
+function parseSheet(css, sheet, into, counter, keyframes) {
+  const text = String(css || '').replace(/\/\*[\s\S]*?\*\//g, ' ');
+  for (const [head, body] of styleBlocks(text)) {
+    const low = head.toLowerCase();
+    if (low.startsWith('@keyframes') || low.startsWith('@-webkit-keyframes')) {
+      const name = head.slice(low.indexOf('keyframes') + 9).trim().replace(/^["']+|["']+$/g, '');
+      if (!name || !keyframes) continue;
+      const stops = [];
+      for (const [at, declarations] of styleBlocks(body)) {
+        for (const one of at.split(',')) {
+          const o = one.trim().toLowerCase();
+          const p = parseFloat(o);
+          const offset = o === 'from' ? 0 : o === 'to' ? 1 : o.endsWith('%') && Number.isFinite(p) ? Math.min(1, Math.max(0, p / 100)) : null;
+          if (offset === null) continue;
+          const values = new Map();
+          for (const [k, v] of styleDeclarations(declarations)) values.set(k, v);
+          stops.push({ offset, values });
+        }
+      }
+      keyframes.set(name, stops.sort((a, b) => a.offset - b.offset));
+      continue;
+    }
+    if (head.startsWith('@')) continue;   // @media and the rest: not for a menu
+    const selectors = cssCommaList(head).map(s => parseSelector(s.trim())).filter(Boolean);
     if (!selectors.length) continue;
     into.push({ selectors, declarations: styleDeclarations(body), order: counter.n++, sheet, selectorText: head });
   }
@@ -89,9 +197,50 @@ function styleIdOf(e) {
   return child ? (child.getAttribute('value') ?? child.textContent).trim() : null;
 }
 
+function styleHasState(e, state) {
+  return (e.getAttribute(STYLE_STATE) || '').split(' ').includes(state);
+}
+
+/// Whether the n-th (from 1) is picked by An+B, odd or even.
+function styleNth(formula, n) {
+  let f = String(formula || '').replace(/ /g, '').toLowerCase();
+  if (f === 'odd') f = '2n+1';
+  else if (f === 'even') f = '2n';
+  const m = /^(?:([+-]?\d*)n)?([+-]?\d+)?$/.exec(f);
+  if (!m || !f.length) return false;
+  const hasN = f.includes('n');
+  const g1 = m[1] || '';
+  const a = !hasN ? 0 : g1 === '' || g1 === '+' ? 1 : g1 === '-' ? -1 : parseInt(g1, 10);
+  const b = m[2] ? parseInt(m[2], 10) : 0;
+  if (a === 0) return n === b;
+  const k = n - b;
+  return k % a === 0 && k / a >= 0;
+}
+
+function stylePseudo(e, p) {
+  switch (p.name) {
+    case 'focus': return styleHasState(e, 'focus');
+    case 'focus-within': return styleHasState(e, 'focus') || [...e.getElementsByTagName('frame')].some(d => styleHasState(d, 'focus'));
+    case 'disabled': return styleHasState(e, 'disabled');
+    case 'enabled': return !styleHasState(e, 'disabled');
+    case 'not': return !!p.not && !compoundMatches(p.not, e);
+  }
+  const siblings = e.parentElement ? [...e.parentElement.children].filter(x => x.tagName === e.tagName) : [e];
+  const index = siblings.indexOf(e);
+  switch (p.name) {
+    case 'first-child': return index === 0;
+    case 'last-child': return index === siblings.length - 1;
+    case 'only-child': return siblings.length === 1;
+    case 'nth-child': return styleNth(p.argument, index + 1);
+    case 'nth-last-child': return styleNth(p.argument, siblings.length - index);
+  }
+  return false;
+}
+
 function compoundMatches(c, e) {
   const name = e.tagName;
   if (name !== 'frame' && name !== 'menu' && name !== 'unit') return false;
+  for (const p of c.pseudos || []) if (!stylePseudo(e, p)) return false;
   if (c.type && c.type !== '*') {
     const behaviour = [...e.children].find(x => x.tagName === 'behavior');
     const ok = c.type === 'menu' ? (name === 'menu' || name === 'unit')
@@ -163,6 +312,14 @@ function setLook(frame, tag, value) {
   child.textContent = value;
 }
 
+/// Declarations of a group of properties as one element (<textstyle>, <transition>, <animation>), as MenuStyles.Element writes them.
+function bakeGroup(frame, tag, props, values, draws) {
+  const said = props.filter(k => values.has(k)).map(k => `${k}: ${values.get(k)}`);
+  if (!said.length) return;
+  const declarations = said.join('; ');
+  setLook(frame, tag, draws(declarations) ? declarations : null);
+}
+
 function bakeLook(frame, values, opacity) {
   const layout = STYLE_LAYOUT.filter(k => values.has(k)).map(k => [k, values.get(k)]);
   const display = (values.get('display') || '').trim().toLowerCase();
@@ -200,16 +357,36 @@ function bakeLook(frame, values, opacity) {
   // The background: its declarations as one element, as MenuStyles bakes them.
   const background = BACKGROUND_PROPS.filter(k => values.has(k)).map(k => `${k}: ${values.get(k)}`);
   if (background.length) setLook(frame, 'background', typeof parseBackground !== 'function' || parseBackground(background.join('; ')) ? background.join('; ') : null);
+  // The lettering, and how the look moves: their declarations as one element each.
+  bakeGroup(frame, 'textstyle', TEXT_STYLE_PROPS, values, d => typeof parseTextStyle !== 'function' || !!parseTextStyle(d));
+  bakeGroup(frame, 'transition', TRANSITION_PROPS, values, () => true);
+  bakeGroup(frame, 'animation', ANIMATION_PROPS, values, () => true);
 }
 
-/// The rules of the open screen: its folder's sheets, then the file's own <style>s.
-function menuRules(screen) {
+/// One frame's look from its properties (the cascade's, or what the animator made of them): baked onto a copy of
+/// it (its frames left out) and handed back, as MenuStyles.LookOf does.
+function frameLookOf(frame, values, opacity) {
+  const copy = frame.cloneNode(false);
+  for (const child of frame.children) if (child.tagName !== 'frame') copy.append(child.cloneNode(true));
+  bakeLook(copy, values, opacity);
+  return copy;
+}
+
+/// The rules of the open screen: its folder's sheets, then the file's own <style>s; and their @keyframes.
+function menuRules(screen, keyframes) {
   const rules = [];
   const counter = { n: 0 };
-  for (const sheet of menuSheets.list) parseSheet(sheet.css, sheet.name, rules, counter);
+  for (const sheet of menuSheets.list) parseSheet(sheet.css, sheet.name, rules, counter, keyframes);
   const doc = screen.ownerDocument;
-  for (const style of doc.getElementsByTagName('style')) parseSheet(style.textContent, '<style>', rules, counter);
+  for (const style of doc.getElementsByTagName('style')) parseSheet(style.textContent, '<style>', rules, counter, keyframes);
   return rules;
+}
+
+/// The preview's states (menu.previewState): the frame the cursor is on, the frames taken as disabled. The editor's alone - never in the file.
+function menuPreviewState() {
+  if (typeof menu === 'undefined') return null;
+  if (!menu.previewState) menu.previewState = { focus: null, disabled: new Set(), version: 0 };
+  return menu.previewState;
 }
 
 // The last cascade, kept until the file or the sheets change: a MutationObserver's pending records
@@ -218,7 +395,7 @@ let styledCache = null;
 let styledObserver = null;
 let styledDoc = null;
 
-/// The screen with its styles cascaded: { copy, look (a Map of each frame in the file to its styled copy), computed (each frame's properties), rules }.
+/// The screen with its styles cascaded: { copy, look (a Map of each frame in the file to its styled copy), computed (each frame's properties), rules, keyframes }.
 function menuStyled(screen) {
   const doc = screen.ownerDocument;
   if (styledDoc !== doc) {
@@ -230,11 +407,29 @@ function menuStyled(screen) {
   }
   if (styledObserver.takeRecords().length) styledCache = null;
   const preview = typeof menu !== 'undefined' && !!menu.preview;
-  if (styledCache && styledCache.screen === screen && styledCache.version === menuSheets.version && styledCache.preview === preview) return styledCache;
+  const state = menuPreviewState();
+  const stateVersion = state ? state.version : 0;
+  if (styledCache && styledCache.screen === screen && styledCache.version === menuSheets.version && styledCache.preview === preview && styledCache.stateVersion === stateVersion) return styledCache;
 
-  const rules = menuRules(screen);
+  const keyframes = new Map();
+  const rules = menuRules(screen, keyframes);
   const copy = screen.cloneNode(true);
   [...copy.getElementsByTagName('style')].forEach(s => s.remove());
+  // The previewed states onto the copy first: :focus-within on a frame asks after the frames inside it.
+  if (state && (state.focus || state.disabled.size)) {
+    const mark = (source, target) => {
+      const sources = [...source.children].filter(e => e.tagName === 'frame');
+      const targets = [...target.children].filter(e => e.tagName === 'frame');
+      sources.forEach((frame, i) => {
+        const words = [];
+        if (state.focus === frame) words.push('focus');
+        if (state.disabled.has(frame)) words.push('disabled');
+        if (words.length) targets[i].setAttribute(STYLE_STATE, words.join(' '));
+        mark(frame, targets[i]);
+      });
+    };
+    mark(screen, copy);
+  }
   const look = new Map();
   const computed = new Map();
   // Matched on the copy as it is baked, parent before child, as MenuStyles matches: a frame a sheet
@@ -261,7 +456,7 @@ function menuStyled(screen) {
     });
   };
   walk(screen, copy, screenValues, styleOpacity(screenValues, 1));
-  styledCache = { screen, version: menuSheets.version, preview, copy, look, computed, rules, screenValues };
+  styledCache = { screen, version: menuSheets.version, preview, stateVersion, copy, look, computed, rules, keyframes, screenValues };
   return styledCache;
 }
 

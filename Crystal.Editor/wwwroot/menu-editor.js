@@ -339,9 +339,19 @@ function menuSnapshot() {
 }
 
 function menuRestore(snapshot) {
+  // The previewed states (:focus, :disabled) are on frames of the file about to be parsed afresh: kept by where the frames are.
+  const pathOf = el => { const p = []; for (let e = el; isFrame(e); e = e.parentElement) p.unshift(frameChildren(e.parentElement).indexOf(e)); return { screen: menu.screens.indexOf(frameScreen(el)), p }; };
+  const state = menu.previewState;
+  const kept = state && { focus: state.focus && state.focus.isConnected ? pathOf(state.focus) : null, disabled: [...state.disabled].filter(e => e.isConnected).map(pathOf) };
   menu.doc = new DOMParser().parseFromString(snapshot.xml, 'application/xml');
   const found = [...menu.doc.documentElement.children].filter(e => e.tagName === 'menu' || e.tagName === 'unit');
   menu.screens = found.length ? found : [menu.doc.documentElement];
+  if (kept) {
+    const atPath = ({ screen, p }) => { let at = menu.screens[screen] || null; for (const i of p) at = at ? frameChildren(at)[i] || null : null; return isFrame(at) ? at : null; };
+    state.focus = kept.focus ? atPath(kept.focus) : null;
+    state.disabled = new Set(kept.disabled.map(atPath).filter(Boolean));
+    state.version++;
+  }
   const picker = $('.screens', menu.node);
   if (picker) picker.value = snapshot.screen;
   let at = menu.screens[snapshot.screen || 0] || null;
@@ -806,6 +816,13 @@ function buildWidgetInspector(held) {
   buildRectSections(panel, element, screen, edit, rebuild, sync);
   buildStyleSection(panel, element, screen, edit, rebuild, sync);
   buildBackgroundSection(panel, element, screen, edit, rebuild, sync);
+  buildBoxSection(panel, element, screen, edit, rebuild, sync);
+  // A frame that is no text: its lettering is for the texts inside it, which inherit it.
+  if (textMessageId(element) === null) {
+    const has = TEXT_STYLE_PROPS.some(p => frameStyle(element).has(p));
+    buildLetteringRows(propSection(panel, 'Lettering', 'text', 'The lettering of the texts inside it (they inherit it, as CSS inherits it): shadows, face, weight, spacing, case, outline', has), element, edit, rebuild, sync);
+  }
+  buildMotionSection(panel, element, screen, edit, rebuild, sync);
   buildBindingsSection(panel, element, screen, edit, rebuild, sync);
 
   // ---- Frame
@@ -910,6 +927,12 @@ function buildWidgetInspector(held) {
       propRow(text, 'Align', propSelect([['0', 'left'], ['1', 'right'], ['2', 'centre'], ['3', 'flexible'], ['4', 'button'], ['5', 'menu']], String(number(param(2))), v => edit('change alignment', () => setParam(2, v))), 'MBText\'s third parameter');
     }
     propRow(text, 'Layer', propSelect([['', 'sub (the usual)'], ['1', 'main (display 1)']], (tag('display') || '').trim() === '1' ? '1' : '', v => edit('change layer', () => setTag('display', v))), 'Which of the two text layers it is drawn on - 30 texts each (see the budget)');
+    // Its lettering (Crystal Style Sheets, the frame's own style): drawn by the TrueType faces, as the client draws it.
+    const heading = document.createElement('p');
+    heading.className = 'prop-subhead';
+    heading.textContent = 'Lettering';
+    text.append(heading);
+    buildLetteringRows(text, element, edit, rebuild, sync);
   }
 
   // ---- Game behaviour: a <behavior> other than Text, with its parameters
@@ -1296,6 +1319,33 @@ function buildStyleSection(panel, element, screen, edit, rebuild, sync) {
 
   propToggle(body, 'Hidden', (inline().get('visibility') || '').trim() === 'hidden', on => rebuild(on ? 'hide' : 'show', () => setFrameStyle(element, { visibility: on ? 'hidden' : null })), 'visibility: hidden - its text and panel not drawn');
 
+  // The states a sheet's :focus, :focus-within and :disabled ask after - previewed, never saved (the copy the cascade runs on has them).
+  const state = menuPreviewState();
+  const stateRow = document.createElement('div');
+  stateRow.className = 'style-pair preview-state';
+  const toggle = (label, on, flip, tip) => {
+    const l = document.createElement('label');
+    l.className = 'list-check';
+    l.title = tip;
+    const c = document.createElement('input');
+    c.type = 'checkbox';
+    c.checked = on;
+    c.onchange = () => { flip(c.checked); state.version++; redraw(menu.node, true); };
+    l.append(c, label);
+    stateRow.append(l);
+    return c;
+  };
+  const focusBox = toggle(':focus', state.focus === element, on => { state.focus = on ? element : state.focus === element ? null : state.focus; }, 'Preview the cursor on this frame: :focus here, :focus-within on the frames round it (the editor\'s only - not saved)');
+  const disabledBox = toggle(':disabled', state.disabled.has(element), on => { if (on) state.disabled.add(element); else state.disabled.delete(element); }, 'Preview this frame as one that cannot be taken: :disabled, not :enabled (the editor\'s only - not saved)');
+  const clear = document.createElement('button');
+  clear.className = 'link';
+  clear.textContent = 'none';
+  clear.title = 'No previewed states on the screen';
+  clear.onclick = () => { state.focus = null; state.disabled.clear(); state.version++; redraw(menu.node, true); };
+  stateRow.append(clear);
+  sync.push(() => { focusBox.checked = state.focus === element; disabledBox.checked = state.disabled.has(element); });
+  propRow(body, 'Preview State', stateRow, 'The pseudo-classes previewed on the canvas; with Play on, a change runs the transitions');
+
   // The rules that reach it: the sheets' in cascade order, then its own style; what a later one says over is struck through.
   const rules = document.createElement('div');
   rules.className = 'style-rules';
@@ -1338,6 +1388,178 @@ function buildStyleSection(panel, element, screen, edit, rebuild, sync) {
   showRules();
   sync.push(showRules);
   body.append(rules, unknown);
+}
+
+// ------------------------------------------------------------------ Lettering and Motion
+
+/// Faces to offer for font-family: the game's own, CSS's kinds the client knows, and Windows' common ones.
+const LETTERING_FACES = [['', 'as its parents say'], ['game', 'the game\'s face'], ['serif', 'serif (Times New Roman)'], ['monospace', 'monospace (Consolas)'],
+  ['"Georgia"', 'Georgia'], ['"Arial"', 'Arial'], ['"Verdana"', 'Verdana'], ['"Tahoma"', 'Tahoma'], ['"Segoe UI"', 'Segoe UI'], ['"Trebuchet MS"', 'Trebuchet MS'],
+  ['"Palatino Linotype"', 'Palatino Linotype'], ['"Courier New"', 'Courier New'], ['"Comic Sans MS"', 'Comic Sans MS'], ['"Impact"', 'Impact']];
+
+/// A text's lettering (MenuText): its shadows, face, weight, slant, spacing, line height, lines, case and outline -
+/// each the frame's own style, inherited by the texts inside it as CSS inherits them.
+function buildLetteringRows(body, element, edit, rebuild, sync) {
+  const value = prop => styledValue(element, prop);
+  const set = (what, changes) => edit(what, () => setFrameStyle(element, changes));
+  const setNow = (what, changes) => rebuild(what, () => setFrameStyle(element, changes));
+  const row = sourcedRows(body, element, setNow, sync);
+  const word = prop => (value(prop) || '').trim().toLowerCase();
+
+  // ---- the shadows: the game's own drop shadow (nothing said), none at all, or a list of one's own
+  const shadowKind = () => value('text-shadow') === undefined ? 'game' : word('text-shadow') === 'none' ? 'none' : 'own';
+  const kind = document.createElement('div');
+  kind.className = 'segmented';
+  const kinds = [['game', 'Game\'s', 'Nothing said: the game\'s own drop shadow, one unit down and right'], ['none', 'None', 'text-shadow: none - not even the game\'s'], ['own', 'Own', 'text-shadow: shadows of its own, the first on top']].map(([v, label, tip]) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.title = tip;
+    b.onclick = () => setNow('change text shadow', { 'text-shadow': v === 'game' ? null : v === 'none' ? 'none' : (shadowKind() === 'own' ? value('text-shadow') : '2px 2px 3px #000000') });
+    kind.append(b);
+    return [v, b];
+  });
+  const shadows = styleListEditor({
+    read: () => {
+      const text = value('text-shadow') || '';
+      const style = parseTextStyle('text-shadow: ' + (text || 'none'));
+      return { text, items: ((style && style.shadows) || []).map(s => ({ x: s.x, y: s.y, blur: s.blur, colour: colourText(s.colour) })) };
+    },
+    write: items => {
+      const text = items.map(s => `${cssPx(s.x)} ${cssPx(s.y)} ${cssPx(s.blur)} ${s.colour}`).join(', ') || 'none';
+      set('change text shadow', { 'text-shadow': text });
+      return text;
+    },
+    fresh: () => ({ x: 1, y: 1, blur: 0, colour: '#000000' }),
+    fields: [listScrub('X', 'x', { step: 0.5 }), listScrub('Y', 'y', { step: 0.5 }), listScrub('Blur', 'blur', { min: 0, step: 0.5 }), listColour('colour', 'The shadow\'s colour')],
+    addLabel: '+ Shadow'
+  });
+  const shadowBox = document.createElement('div');
+  shadowBox.className = 'lettering-shadows';
+  shadowBox.append(kind, shadows);
+  const showShadows = () => {
+    const k = shadowKind();
+    kinds.forEach(([v, b]) => b.classList.toggle('on', v === k));
+    shadows.hidden = k !== 'own';
+    shadows.sync();
+  };
+  showShadows();
+  sync.push(showShadows);
+  row('Shadow', shadowBox, 'text-shadow: x y blur colour (menu units), the first on top', ['text-shadow']);
+
+  // ---- the face: a kind, one of Windows', or a face beside the layout (url("fonts/x.ttf"))
+  const faceRow = document.createElement('div');
+  faceRow.className = 'style-pair';
+  const faceNow = () => (value('font-family') || '').trim();
+  const face = propSelect(LETTERING_FACES, LETTERING_FACES.some(([v]) => v && v.toLowerCase() === faceNow().toLowerCase()) ? faceNow() : '', v => setNow('change face', { 'font-family': v || null }));
+  const faceText = propText(faceNow(), v => set('change face', { 'font-family': v.trim() || null }), 'url("fonts/x.ttf"), "Georgia", serif');
+  faceText.title = 'font-family: the faces in order, the first found drawing - url("...") a file beside the screen, serif, monospace, sans-serif or game, or a Windows face by name';
+  faceRow.append(face, faceText);
+  sync.push(() => { if (document.activeElement !== faceText) faceText.value = faceNow(); });
+  row('Face', faceRow, 'font-family', ['font-family']);
+
+  const weight = propSelect([['', 'normal'], ['bold', 'bold'], ['300', '300'], ['500', '500'], ['600', '600 (bold)'], ['700', '700 (bold)'], ['800', '800 (bold)'], ['900', '900 (bold)']], word('font-weight') === 'normal' ? '' : word('font-weight'),
+    v => set('change weight', { 'font-weight': v || (sheetValueText(element, 'font-weight') ? 'normal' : null) }));
+  row('Weight', weight, 'font-weight: bold, or 600 and over - the face\'s bold if Windows has one, else drawn heavier', ['font-weight']);
+  const slant = propSelect([['', 'normal'], ['italic', 'italic'], ['oblique', 'oblique']], word('font-style') === 'normal' ? '' : word('font-style'),
+    v => set('change slant', { 'font-style': v || (sheetValueText(element, 'font-style') ? 'normal' : null) }));
+  row('Slant', slant, 'font-style: the face\'s italic if Windows has one, else slanted', ['font-style']);
+
+  const spacing = scrubNumber('', bgLength(value('letter-spacing') || '0') ?? 0, v => set('change letter spacing', { 'letter-spacing': v ? cssPx(v) : (sheetValueText(element, 'letter-spacing') ? 'normal' : null) }), { step: 0.25, title: 'letter-spacing: menu units between the letters' });
+  sync.push(() => spacing.set(bgLength(value('letter-spacing') || '0') ?? 0));
+  row('Spacing', spacing, 'letter-spacing (menu units)', ['letter-spacing']);
+  const lineHeight = propText(value('line-height') || '', v => set('change line height', { 'line-height': v.trim() || null }), 'normal, 1.2, 14px');
+  lineHeight.title = 'line-height: a text of several lines, its lines this far apart - menu units (14px), or a number times the size (1.2)';
+  row('Line Height', lineHeight, 'line-height', ['line-height']);
+  const decoration = propSelect([['', 'none'], ['underline', 'underline'], ['line-through', 'line-through'], ['underline line-through', 'both']], word('text-decoration') === 'none' ? '' : word('text-decoration'),
+    v => set('change decoration', { 'text-decoration': v || (sheetValueText(element, 'text-decoration') ? 'none' : null), 'text-decoration-line': null }));
+  row('Lines', decoration, 'text-decoration: a line under it, or through it', ['text-decoration', 'text-decoration-line']);
+  const casing = propSelect([['', 'as written'], ['uppercase', 'UPPERCASE'], ['lowercase', 'lowercase'], ['capitalize', 'Capitalize']], word('text-transform') === 'none' ? '' : word('text-transform'),
+    v => set('change case', { 'text-transform': v || (sheetValueText(element, 'text-transform') ? 'none' : null) }));
+  row('Case', casing, 'text-transform', ['text-transform']);
+
+  // ---- the outline: width and colour
+  const stroke = () => { const s = parseTextStyle('-ff-text-stroke: ' + (value('-ff-text-stroke') || value('-webkit-text-stroke') || '0')); return s ? [s.strokeWidth, colourText(s.strokeColour)] : [0, '#000000']; };
+  const writeStroke = (w, c) => set('change outline', { '-ff-text-stroke': w > 0 ? `${cssPx(w)} ${c}` : (sheetValueText(element, '-ff-text-stroke') ? '0' : null), '-webkit-text-stroke': null });
+  const strokeRow = document.createElement('div');
+  strokeRow.className = 'style-pair';
+  const strokeWidth = scrubNumber('W', stroke()[0], v => writeStroke(Math.max(0, v), stroke()[1]), { min: 0, step: 0.5, title: 'The outline\'s width, menu units (0: none)' });
+  const strokeColour = colourAlphaField(c => writeStroke(stroke()[0] || 1, c), 'The outline\'s colour');
+  strokeRow.append(strokeWidth, strokeColour);
+  const showStroke = () => { const [w, c] = stroke(); strokeWidth.set(w); strokeColour.set(c); };
+  showStroke();
+  sync.push(showStroke);
+  row('Outline', strokeRow, '-ff-text-stroke: width colour - the letters outlined (drawn round about, under the text)', ['-ff-text-stroke', '-webkit-text-stroke']);
+}
+
+/// The Motion section (MenuAnimation): the frame's transitions - what moves when a value changes, and how - and its
+/// animations, each a sheet's @keyframes run over and over or once. Play on the canvas's bar shows them.
+function buildMotionSection(panel, element, screen, edit, rebuild, sync) {
+  const value = prop => styledValue(element, prop);
+  const has = [...TRANSITION_PROPS, ...ANIMATION_PROPS].some(p => value(p) !== undefined);
+  const body = propSection(panel, 'Motion', 'logic', 'How the look moves (Crystal Style Sheets): transitions as a value changes - a state previewed in the Style section - and @keyframes animations. Play on the canvas\'s bar runs them.', has);
+  const set = (what, changes) => edit(what, () => setFrameStyle(element, changes));
+  const setNow = (what, changes) => rebuild(what, () => setFrameStyle(element, changes));
+  const row = sourcedRows(body, element, setNow, sync);
+  const timings = [['ease', 'ease'], ['linear', 'linear'], ['ease-in', 'ease-in'], ['ease-out', 'ease-out'], ['ease-in-out', 'ease-in-out'], ['step-start', 'step-start'], ['step-end', 'step-end'], ['steps(4, end)', 'steps(4)']];
+  const seconds = n => `${cssNumber(n)}s`;
+  const props = styleDatalist('motion-properties', ['all', 'opacity', 'color', '-ff-tint', 'background-color', 'background-image', 'border-color', 'border-radius', 'box-shadow', 'text-shadow', 'letter-spacing', '-ff-text-stroke']);
+
+  const transitions = styleListEditor({
+    read: () => {
+      const map = new Map([...TRANSITION_PROPS].filter(p => value(p) !== undefined).map(p => [p, value(p)]));
+      return { text: [...map].map(([k, v]) => `${k}: ${v}`).join('; '), items: animTransitions(map).map(t => ({ property: t.property, duration: t.duration, timing: t.timing, delay: t.delay })) };
+    },
+    write: items => {
+      const text = items.map(t => `${t.property || 'all'} ${seconds(t.duration)}${t.timing && t.timing !== 'ease' ? ' ' + t.timing : ''}${t.delay ? ' ' + seconds(t.delay) : ''}`).join(', ');
+      const changes = Object.fromEntries(TRANSITION_PROPS.map(p => [p, null]));
+      changes.transition = text || (sheetValueText(element, 'transition') ? 'none' : null);
+      set('change transition', changes);
+      return [...new Map(Object.entries(changes).filter(([, v]) => v))].map(([k, v]) => `${k}: ${v}`).join('; ');
+    },
+    fresh: () => ({ property: 'all', duration: 0.3, timing: 'ease', delay: 0 }),
+    fields: [listText('property', 'all', 'The property that moves (all: every one; border: its longhands too)', props), listScrub('s', 'duration', { min: 0, step: 0.05, title: 'How long it takes, seconds' }), listSelect('timing', timings, 'How it eases'), listScrub('delay', 'delay', { step: 0.05, title: 'How long it waits first, seconds' })],
+    addLabel: '+ Transition',
+    empty: 'None: a change shows at once.'
+  });
+  sync.push(transitions.sync);
+  row('Transitions', transitions, 'transition: property duration timing delay, ... - what moves as a value changes (:focus, :disabled) and how', TRANSITION_PROPS);
+
+  // The @keyframes the sheets have, to pick an animation's name from.
+  const names = [...menuStyled(frameScreen(element)).keyframes.keys()];
+  const nameList = styleDatalist('motion-keyframes', names);
+  const animations = styleListEditor({
+    read: () => {
+      const map = new Map([...ANIMATION_PROPS].filter(p => value(p) !== undefined).map(p => [p, value(p)]));
+      return { text: [...map].map(([k, v]) => `${k}: ${v}`).join('; '), items: animAnimations(map).map(a => ({ name: a.name, duration: a.duration, timing: a.timing, delay: a.delay, count: Number.isFinite(a.count) ? String(a.count) : 'infinite', direction: a.direction, fill: a.fill })) };
+    },
+    write: items => {
+      const text = items.filter(a => a.name).map(a => [a.name, seconds(a.duration), a.timing !== 'ease' ? a.timing : '', a.delay ? seconds(a.delay) : '', a.count && a.count !== '1' ? a.count : '', a.direction !== 'normal' ? a.direction : '', a.fill !== 'none' ? a.fill : ''].filter(Boolean).join(' ')).join(', ');
+      const changes = Object.fromEntries(ANIMATION_PROPS.map(p => [p, null]));
+      changes.animation = text || (sheetValueText(element, 'animation') ? 'none' : null);
+      set('change animation', changes);
+      return [...new Map(Object.entries(changes).filter(([, v]) => v))].map(([k, v]) => `${k}: ${v}`).join('; ');
+    },
+    fresh: () => ({ name: names[0] || '', duration: 1, timing: 'ease', delay: 0, count: 'infinite', direction: 'normal', fill: 'none' }),
+    fields: [
+      listText('name', names.length ? names[0] : '@keyframes name', 'The @keyframes it runs (a sheet\'s)', nameList),
+      listScrub('s', 'duration', { min: 0, step: 0.05, title: 'One run, seconds' }),
+      listSelect('timing', timings, 'How each run eases'),
+      listScrub('delay', 'delay', { step: 0.05, title: 'How long it waits first, seconds' }),
+      listText('count', '1', 'How many runs: a number, or infinite', styleDatalist('motion-counts', ['1', '2', '3', 'infinite'])),
+      listSelect('direction', [['normal', 'normal'], ['reverse', 'reverse'], ['alternate', 'alternate'], ['alternate-reverse', 'alternate-reverse']], 'Which way each run goes'),
+      listSelect('fill', [['none', 'fill: none'], ['forwards', 'forwards'], ['backwards', 'backwards'], ['both', 'both']], 'What it shows before it starts and after it ends')
+    ],
+    addLabel: '+ Animation',
+    empty: names.length ? 'None.' : 'None - and no @keyframes in the sheets yet.'
+  });
+  sync.push(animations.sync);
+  row('Animations', animations, 'animation: name duration timing delay count direction fill-mode, ... - a sheet\'s @keyframes', ANIMATION_PROPS);
+  if (names.length) {
+    const known = document.createElement('p');
+    known.className = 'none';
+    known.textContent = `@keyframes in the sheets: ${names.join(', ')}`;
+    body.append(known);
+  }
 }
 
 // ------------------------------------------------------------------ the portrait

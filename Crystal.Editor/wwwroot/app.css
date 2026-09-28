@@ -2635,3 +2635,37 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 
 /* A client screen in an install (not a source checkout): an update replaces it. */
 .view .client-note { padding: 6px 12px; font-size: 12px; background: #3a2f16; color: #f1d9a0; border-bottom: 1px solid #5a4a20; }
+
+/* Crystal Style Sheets' box, lettering and motion: the outer shadows behind a frame's panel (reaching past it), the
+   states previewed on the canvas, Play on the bar; the inspector's lists (shadows, stops, transitions) a card an item. */
+.canvas .widget > .art-slot.shadow { z-index: auto; }
+.canvas .widget > .art-slot > canvas.frame-shadow { position: absolute; }
+.canvas .widget[data-state]::after { content: attr(data-state); position: absolute; right: 0; top: -11px; font: 9px ui-monospace, Consolas, monospace; color: #ffd080; background: rgba(20, 22, 28, .85); padding: 0 3px; border-radius: 2px; pointer-events: none; z-index: 5; }
+.bar button.motion.on { background: #2b4a7a; border-color: #37619c; color: var(--ink); }
+#inspector .style-list { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+#inspector .style-list-item { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px; background: #171b21; border: 1px solid var(--line); border-radius: 4px; }
+#inspector .style-list-item > .list-field { flex: 1 1 64px; min-width: 56px; margin: 0; }
+#inspector .style-list-item > .list-field.wide { flex: 2 1 120px; }
+#inspector .style-list-item > select.list-field, #inspector .style-list-item > input.list-field { width: auto; font-size: 11px; }
+#inspector .style-list-item > button.mini { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; line-height: 20px; margin-left: auto; }
+#inspector .style-list .none { margin: 0; font-size: 11px; }
+#inspector .style-list-add { align-self: flex-start; }
+#inspector .list-check { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--dim); white-space: nowrap; }
+#inspector .list-check input { margin: 0; }
+#inspector .colour-field .scrub { flex: 1; min-width: 44px; }
+#inspector .box-width-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+#inspector .box-width-row > .scrub { flex: 0 0 64px; }
+#inspector .box-width-row > .prop-grid { flex: 1; min-width: 0; }
+#inspector .box-width-row > select.rule-unit { flex: 0 0 46px; width: 46px; }
+#inspector .lettering-shadows { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+#inspector .lettering-shadows > .segmented { margin: 0; }
+#inspector .prop-row > .segmented { flex: 1; margin: 0; }
+#inspector .gradient-editor > .prop-body { padding: 0; }
+#inspector .gradient-strip { display: block; width: 220px; margin: 2px 0 6px auto; border: 1px solid var(--line); border-radius: 3px; background: repeating-conic-gradient(#2a2f37 0 25%, #343a44 0 50%) 50% / 8px 8px; }
+#inspector .prop-subhead { margin: 6px 0 2px; font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
+#inspector .preview-state { flex-wrap: wrap; }
+#inspector .style-pair { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+#inspector .style-pair > select { flex: 0 0 44%; min-width: 0; width: auto; margin: 0; }
+#inspector .style-pair > input[type=text] { flex: 1; min-width: 0; width: auto; margin: 0; }
+#inspector .style-pair > .scrub { flex: 1; min-width: 0; }
+#inspector .style-pair > .colour-field { flex: 2; }

@@ -585,7 +585,9 @@ namespace OpenFF.Content
 		/// <summary>A selector, or null for one this does not read (a pseudo-class, an attribute) - its rule is passed over, as a browser passes over what it cannot parse.</summary>
 		private static Selector ParseSelector(string text)
 		{
-			if (text.Length == 0 || text.IndexOfAny(new[] { '[', '+', '~' }) >= 0 || text.Contains("::")) return null;
+			// Sibling combinators and attributes are not read - but a + inside brackets (:nth-child(2n+1)) is no combinator.
+			string outside = Regex.Replace(text, @"\([^)]*\)", "()");
+			if (text.Length == 0 || outside.IndexOfAny(new[] { '[', '+', '~' }) >= 0 || text.Contains("::")) return null;
 			// Spaces inside brackets (":nth-child(2n + 1)", ":not(.a)") are no combinators.
 			text = Regex.Replace(text, @"\([^)]*\)", m => m.Value.Replace(" ", ""));
 			Selector selector = new Selector();
