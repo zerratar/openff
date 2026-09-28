@@ -1417,7 +1417,56 @@ function backdropLabel(n) {
   return found ? (found[0] < 0 ? 'no backdrop' : `${found[1]} backdrop`) : `backdrop ${n}`;
 }
 
-/// The backdrop's card: which of the game's (or none), and a background of the screen's own over it.
+// The backdrop's row lines (every backdrop draws its rows' separating lines at the heights of the game's own layout):
+// "game", "none", or "fit" - laid again at the list's rows as they are (the main menu's commands, with the mods'
+// entries). A screen of the mod's or the client's says so in its definition; one of the game's screens in a definition
+// of the open project's that reaches it (the game's own file is not the mod's to change).
+
+/// The lines' mode for a screen, as the preview draws them; null for the screen's default.
+function backdropLinesFor(screenName) {
+  if (menu.project) return (menu.project.definition.backdropLines || '').trim().toLowerCase() || null;
+  if (!screenName || !(typeof isOpenFFProject === 'function' && isOpenFFProject())) return null;
+  menu.gameLines = menu.gameLines || {};
+  if (!(screenName in menu.gameLines)) {
+    menu.gameLines[screenName] = null;
+    api(`/api/project/menus/game-setting?file=${encodeURIComponent(shortName(menu.name))}&screen=${encodeURIComponent(screenName)}&key=backdropLines`)
+      .then(r => { if (r.ok && r.value) { menu.gameLines[screenName] = r.value; if (menu.node) redraw(menu.node, true); } }).catch(() => {});
+  }
+  return menu.gameLines[screenName];
+}
+
+/// The row lines' switch, on the backdrop's card.
+function backdropLinesRow(card, node, screenName) {
+  const main = screenName === 'main_menu';
+  const options = [['', main ? 'fitted to its rows (the client\'s: the mods\' entries in)' : 'as the game draws them'], ...(main ? [['game', 'as the game draws them']] : []), ['none', 'none']];
+  const own = !!menu.project;
+  const project = typeof isOpenFFProject === 'function' && isOpenFFProject();
+  const pick = propSelect(options, backdropLinesFor(screenName) || '', async v => {
+    if (own) {
+      if (v) menu.project.definition.backdropLines = v; else delete menu.project.definition.backdropLines;
+      saveMenuDefinition();
+    } else {
+      const r = await api('/api/project/menus/game-setting', { file: shortName(menu.name), screen: screenName, key: 'backdropLines', value: v || null });
+      if (!r.ok) return say(r.error, 'bad');
+      menu.gameLines[screenName] = v || null;
+      say(v ? `the mod's ${screenName}: row lines ${v} (menus/${r.file})` : `the mod's ${screenName}: row lines as the screen's own`, 'good');
+    }
+    redraw(node, true);
+  });
+  pick.disabled = !own && !project;
+  const r = document.createElement('div');
+  r.className = 'prop-row';
+  const l = document.createElement('span');
+  l.className = 'prop-label';
+  l.textContent = 'Row lines';
+  r.append(l, pick);
+  r.title = own ? 'The backdrop\'s lines between its rows ("backdropLines" in the screen\'s definition)'
+    : project ? `The backdrop's lines between its rows - a setting of the mod's for the game's ${screenName} (a definition in menus/ that reaches it)`
+    : 'Open an OpenFF project: the setting is the mod\'s, kept in its menus/ (the game\'s own file is not the mod\'s to change)';
+  card.append(r);
+}
+
+/// The backdrop's card: which of the game's (or none), its row lines, and a background of the screen's own over it.
 function buildBackdropCard(node) {
   const panel = document.createElement('div');
   const screen = menuScreen();
@@ -1427,7 +1476,15 @@ function buildBackdropCard(node) {
   sub.className = 'sub';
   panel.append(title, sub);
   if (!menu.project) {
-    sub.textContent = 'One of the game\'s screens: its backdrop is the game\'s own (the screen picks it in code). Take the screen into a mod to set one.';
+    sub.textContent = 'One of the game\'s screens: its backdrop is the game\'s own (the screen picks it in code). Its row lines are the mod\'s to say, below; take the screen into a mod for the rest.';
+    const card = document.createElement('div');
+    card.className = 'component';
+    const h = document.createElement('div');
+    h.className = 'behaviour-header';
+    h.textContent = 'The game\'s backdrop';
+    card.append(h);
+    backdropLinesRow(card, node, childText(screen, 'name'));
+    panel.append(card);
     return panel;
   }
   const def = menu.project.definition;
@@ -1452,6 +1509,7 @@ function buildBackdropCard(node) {
   r.append(l, pick);
   r.title = 'The screen\'s definition: "background" - saved with it';
   card.append(r);
+  backdropLinesRow(card, node, childText(screen, 'name'));
   const hint = document.createElement('p');
   hint.className = 'none';
   hint.textContent = 'These are the game\'s own backdrops, made of pieces of files/menu_bg_01.NCGR (a cell bank), so they are not whole pictures in the picker; its pieces are, as sprites of that sheet (Make sprites\u2026 from the game\'s cells).';

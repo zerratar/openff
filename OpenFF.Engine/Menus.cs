@@ -61,6 +61,13 @@ namespace OpenFF
 		public int Background { get; set; } = 10;
 		/// <summary>Ask which hero first, as Status and Equip do; Menu.Hero says who.</summary>
 		public bool CharacterSelect { get; set; }
+		/// <summary>
+		/// The backdrop's row lines (every backdrop draws its rows' separating lines at the heights of the game's own
+		/// layout): "game" as the game draws them, "none", or "fit" - laid again at the list's rows as they are (the
+		/// main menu's commands with the mods' entries in them; its default). For one of the game's screens a
+		/// definition reaching it (no layout needed) sets it for that screen; null for the screen's default.
+		/// </summary>
+		public string BackdropLines { get; set; }
 		public List<MenuAttachment> Attachments { get; set; } = new List<MenuAttachment>();
 		/// <summary>The mod that defined it; set by the loader.</summary>
 		public string ModId { get; set; }
@@ -491,7 +498,8 @@ namespace OpenFF
 				if (a == null || string.IsNullOrWhiteSpace(a.Behaviour)) continue;
 				Type type = null;
 				if (mod != null) mod.MenuBehaviourTypes.TryGetValue(a.Behaviour, out type);
-				if (mod == null && HostBehaviour != null) type ??= HostBehaviour(a.Behaviour);
+				// The host's own after the mod's: the client's screens use them, and so may a mod's copy of one (its Gambits, restyled).
+				if (HostBehaviour != null) type ??= HostBehaviour(a.Behaviour);
 				type ??= EngineBehaviour(a.Behaviour);
 				if (type == null) { Game.Warn("mod " + def.ModId + ": menus/" + def.Id + ".json names " + a.Behaviour + ", which neither the mod's code nor the engine has"); continue; }
 				IMenuWidget widget = string.IsNullOrEmpty(a.Target) ? null : screen.Widget(a.Target);

@@ -37,7 +37,9 @@ internal static partial class GlobalScope
 				}
 				// PORT: a backdrop of the game's, or none (-1): the plain one set up and put out of sight, for the screen's own background.
 				int backdrop = OpenFF.Client.ModMenus.CurrentBackground();
-				CWMenuManager.Instance().SetPrimaryBG(backdrop < 0 ? 10 : backdrop);
+				OpenFF.Client.ModMenus.SettingModBackdrop = true;
+				try { CWMenuManager.Instance().SetPrimaryBG(backdrop < 0 ? 10 : backdrop); }
+				finally { OpenFF.Client.ModMenus.SettingModBackdrop = false; }
 				CWMenuManager.Instance().SetPrimaryBGVisibility(backdrop >= 0);
 				// The party's faces off (the main menu's panel), unless a hero was picked - then that one's, as Status shows it.
 				for (int i = 0; i < 4; i++) CWMenuManager.Instance().SetShowPcFace(i, show: false);

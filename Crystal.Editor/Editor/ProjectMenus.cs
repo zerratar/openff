@@ -72,6 +72,118 @@ namespace Crystal.Editor
 			return "images/" + stem + ext;
 		}
 
+		/// <summary>
+		/// One of the OpenFF client's own screens copied into the project: its definition and layout, and what they draw
+		/// with - the client's stylesheets, pictures and sprites.json - where the project has none of the same name (the
+		/// project's own are kept). The mod's screen then takes the client's place (a mod's screen of the same id wins), so
+		/// the player's changes are theirs and an update of the client does not take them away. Returns what was copied
+		/// and what was left because the project already had it.
+		/// </summary>
+		public static (List<string> Copied, List<string> Kept) AdoptClient(Project project, string clientFolder, string id)
+		{
+			if (Definition(clientFolder, id) is not JsonObject def) throw new InvalidOperationException("the client has no screen called '" + id + "'");
+			string into = Directory(project);
+			if (File.Exists(Path.Combine(into, id + ".json"))) throw new InvalidOperationException("the project already has menus/" + id + ".json - open that one");
+			System.IO.Directory.CreateDirectory(into);
+			List<string> copied = new List<string>(), kept = new List<string>();
+			void Copy(string relative)
+			{
+				string from = Path.Combine(clientFolder, relative), to = Path.Combine(into, relative);
+				if (!File.Exists(from)) return;
+				if (File.Exists(to)) { kept.Add(relative.Replace('\\', '/')); return; }
+				System.IO.Directory.CreateDirectory(Path.GetDirectoryName(to));
+				File.Copy(from, to);
+				copied.Add(relative.Replace('\\', '/'));
+			}
+			Copy(id + ".json");
+			string layout = def["layout"]?.GetValue<string>();
+			if (!string.IsNullOrWhiteSpace(layout)) Copy(layout);
+			foreach (string folder in new[] { "styles", "images" })
+			{
+				string from = Path.Combine(clientFolder, folder);
+				if (!System.IO.Directory.Exists(from)) continue;
+				foreach (string file in System.IO.Directory.EnumerateFiles(from, "*.*", SearchOption.AllDirectories)) Copy(Path.GetRelativePath(clientFolder, file));
+			}
+			// The client's sprites merged under the project's: a sheet the project has sprites for keeps its own.
+			string clientSprites = Path.Combine(clientFolder, OpenFF.Content.MenuSprites.FileName), ownSprites = Path.Combine(into, OpenFF.Content.MenuSprites.FileName);
+			if (File.Exists(clientSprites))
+			{
+				JsonObject theirs = JsonNode.Parse(File.ReadAllText(clientSprites)) as JsonObject;
+				JsonObject mine = File.Exists(ownSprites) ? JsonNode.Parse(File.ReadAllText(ownSprites)) as JsonObject : null;
+				mine ??= new JsonObject();
+				if (mine["sheets"] is not JsonObject sheets) { sheets = new JsonObject(); mine["sheets"] = sheets; }
+				bool any = false;
+				if (theirs?["sheets"] is JsonObject clientSheets)
+				{
+					foreach (KeyValuePair<string, JsonNode> sheet in clientSheets)
+					{
+						if (sheets.ContainsKey(sheet.Key)) { kept.Add("sprites of " + sheet.Key); continue; }
+						sheets[sheet.Key] = sheet.Value?.DeepClone();
+						any = true;
+					}
+				}
+				if (any)
+				{
+					File.WriteAllText(ownSprites, mine.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+					copied.Add(OpenFF.Content.MenuSprites.FileName);
+				}
+			}
+			return (copied, kept);
+		}
+
+		/// <summary>
+		/// A setting of the mod's for one of the game's screens (its backdrop's lines): kept in the definition of the
+		/// project's that reaches that screen - menus/&lt;id&gt;.json with "screen" and "file" - made for it when there is
+		/// none (no layout: it only reaches the screen). Null takes the setting away. Read and written as the file is,
+		/// so a definition of the project's own keeps everything else it says.
+		/// </summary>
+		public static string GameScreenSetting(Project project, string file, string screen, string key)
+		{
+			string path = ReachingPath(project, file, screen);
+			if (path == null || !File.Exists(path)) return null;
+			return (JsonNode.Parse(File.ReadAllText(path)) as JsonObject)?[key]?.GetValue<string>();
+		}
+
+		public static string SetGameScreenSetting(Project project, string file, string screen, string key, string value)
+		{
+			string dir = Directory(project);
+			string path = ReachingPath(project, file, screen);
+			JsonObject def;
+			if (path != null && File.Exists(path)) def = JsonNode.Parse(File.ReadAllText(path)) as JsonObject ?? new JsonObject();
+			else
+			{
+				if (value == null) return null;
+				string id = System.Text.RegularExpressions.Regex.Replace(screen ?? "screen", "[^A-Za-z0-9_-]", "_");
+				path = Path.Combine(dir, id + ".json");
+				def = new JsonObject { ["id"] = id, ["screen"] = screen, ["file"] = file ?? "MenuDefine.xbn", ["title"] = screen + " (the mod's settings for the game's screen)" };
+			}
+			if (value == null) def.Remove(key); else def[key] = value;
+			System.IO.Directory.CreateDirectory(dir);
+			File.WriteAllText(path, def.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
+			return Path.GetFileName(path);
+		}
+
+		/// <summary>The project's definition that reaches one of the game's screens (its "screen", in the file said or MenuDefine.xbn).</summary>
+		private static string ReachingPath(Project project, string file, string screen)
+		{
+			string dir = Directory(project);
+			if (!System.IO.Directory.Exists(dir) || string.IsNullOrWhiteSpace(screen)) return null;
+			string wanted = Path.GetFileName(file ?? "MenuDefine.xbn");
+			foreach (string path in System.IO.Directory.EnumerateFiles(dir, "*.json"))
+			{
+				if (string.Equals(Path.GetFileName(path), OpenFF.Content.MenuSprites.FileName, StringComparison.OrdinalIgnoreCase)) continue;
+				try
+				{
+					if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject def) continue;
+					string s = def["screen"]?.GetValue<string>() ?? Path.GetFileNameWithoutExtension(path);
+					string f = def["file"]?.GetValue<string>() ?? "MenuDefine.xbn";
+					if (string.Equals(s, screen, StringComparison.OrdinalIgnoreCase) && string.Equals(Path.GetFileName(f), wanted, StringComparison.OrdinalIgnoreCase)) return path;
+				}
+				catch (Exception) { }
+			}
+			return null;
+		}
+
 		/// <summary>Writes styles/&lt;name&gt;.css (a plain name of letters, digits, - and _); an empty sheet is removed.</summary>
 		public static void SaveSheet(string folder, string name, string css)
 		{

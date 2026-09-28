@@ -236,6 +236,13 @@ Under every frame is the screen's **backdrop**: one of the game's menu backdrops
 
 The game's backdrops are made of pieces of `files/menu_bg_01.NCGR` (a cell bank), so they aren't whole pictures in the picker. Their pieces can be used as sprites of that sheet.
 
+**Row lines.** Every backdrop draws the lines between its rows with one piece: a 16-pixel strip from row 96 of `menu_bg_01`, at half size. The lines sit at the heights of the game's own layout. A definition's `"backdropLines"` says what happens to them:
+- `"game"`: as the game draws them.
+- `"none"`: taken away. A line that fills the gap between two panels, with nothing under it (the main menu's party panels), is their edge and stays.
+- `"fit"`: laid again at the list's rows as they are now. This is the main menu's default: when the client adds entries (Gambits), the command column's lines follow the new rows, and the columns beside it stay as they were.
+
+One of the game's screens takes the setting from a definition in a mod that reaches it, `{ "id": "main_menu_lines", "screen": "main_menu", "file": "MenuDefine.xbn", "backdropLines": "none" }`, with no layout needed. The game's own file isn't the mod's to change. Crystal's backdrop card has the **Row lines** switch, and for a game screen it writes that definition into the open project. The preview draws the backdrop at the zoom's resolution, so the lines show there as in the game (`GlobalScope.BackdropLines.cs`).
+
 **In Crystal:** the inspector's **Background** section has the colour (with its alpha), the picture and its **Sprite**, tint, part, scale mode, size, position, repeat, slices, slice scale and type, and the filter.
 - **Where values come from:** each label says it. A bold label with `•` is set on the frame (click it to take it off); a `∙` label comes from a stylesheet (hover for which rule). **×** takes a value off the frame, or blocks a sheet's value for this frame alone.
 - **No picture:** the section says what's drawn instead. For example, "the game's window (built in, m000_window) from the layout's `<window/>`", with **No window** and **A picture instead…**.
@@ -325,6 +332,10 @@ Layout properties (`left`, `width`, `flex-direction`…) are fixed when the scre
 `MenuBindings.Format`, `Test` and `Resolve` are public, for code of your own that wants the same paths and templates.
 
 ## Screens of a mod's own
+
+The client ships screens of its own, such as the Gambits, in `Data/menus`. A mod's screen with the same id takes the place of the client's. That's how a player keeps their own version: in Crystal, **Copy into my mod** on a client screen copies it into the open project. The copy includes its layout and the client's stylesheets, pictures and `sprites.json`; anything the project already has is kept. The mod's copy survives an update of the client, which replaces the install's own `Data/menus`. It can still name the client's behaviours (`GambitsScreen`): a mod's screen finds the host's behaviours after its own code and the engine's.
+
+Editing the client screens themselves is for the client's own sources. On a source checkout Crystal saves them to `OpenFF/Data/menus` and mirrors them into the built client. On an install it warns that an update will replace them.
 
 The same XML, a `<menu>` at a time, is how an OpenFF mod adds a screen: `menus/<id>.xml`
 beside a `menus/<id>.json` naming it and the `MenuBehaviour`s on its frames. As the client

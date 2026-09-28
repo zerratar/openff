@@ -146,7 +146,19 @@ internal static partial class GlobalScope
 									if (nNSG2dCellDataBank != null)
 									{
 										NNS_G2dBGSetupCell((int)primaryBgSelect, nNSG2dCellDataBank, primaryBgSelect);
+										// PORT: the backdrop's row lines as the screen wants them - the game's, none, or fitted to its list's rows.
+										string lines = OpenFF.Client.ModMenus.BackdropLinesMode(no, out BackdropRows rows);
+										AdjustBackdropLines((int)primaryBgSelect, lines, rows);
 									}
+									_lastPrimaryBG = no;
+								}
+
+								// PORT: the backdrop last set up, to set it up again with other lines (a mod's definition for one of the game's screens).
+								private int _lastPrimaryBG = -1;
+
+								public void ReapplyPrimaryBG()
+								{
+									if (_lastPrimaryBG >= 0) SetPrimaryBG(_lastPrimaryBG);
 								}
 
 								public void SetSecondlyBG(int no)

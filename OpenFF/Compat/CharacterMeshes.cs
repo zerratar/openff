@@ -195,6 +195,9 @@ namespace OpenFF.Client
 			Log.First(LogChannel.File, "models-attached-" + look.Model, 3, () => "models: " + look.Model + " drawn as " + Path.GetFileName(look.Path));
 		}
 
+		/// <summary>The files loaded, by full path, with their time as loaded: a file changed on disk is loaded again.</summary>
+		private static readonly Dictionary<string, (DateTime Stamp, GltfModel Mesh)> _meshes = new Dictionary<string, (DateTime, GltfModel)>(StringComparer.OrdinalIgnoreCase);
+
 		private static void Load(Look look)
 		{
 			try
@@ -205,10 +208,22 @@ namespace OpenFF.Client
 					Log.Write(LogChannel.General, "models: " + look.Path + ": no such file - " + look.Model + " stays the game's");
 					return;
 				}
+				// One load a file, whoever wears it: a definition's look (a game model dressed in it) and a single
+				// character's (a scene object's Look, Npc.SetLook) share the meshes and textures - the rig's binding is
+				// the look's own. Loading the same file again (an 8192 picture's mips) froze the map after its fade-in.
+				string full = Path.GetFullPath(look.Path);
+				DateTime stamp = File.GetLastWriteTimeUtc(full);
+				if (_meshes.TryGetValue(full, out (DateTime Stamp, GltfModel Mesh) have) && have.Stamp == stamp)
+				{
+					look.Mesh = have.Mesh;
+					Log.Write(LogChannel.File, "models: " + Path.GetFileName(look.Path) + " for " + look.Model + ": the one already loaded");
+					return;
+				}
 				GraphicsDevice device = GlobalScope.m_Graphics.GetGraphicsDeviceManager().GraphicsDevice;
 				look.Mesh = GltfModel.Load(look.Path, device);
 				// GltfModel keeps the file only when it has animations; the skin is wanted regardless.
 				if (look.Mesh.File == null) look.Mesh.File = GltfFile.Load(look.Path);
+				_meshes[full] = (stamp, look.Mesh);
 				if (look.Mesh.Problem != null) Log.Write(LogChannel.General, "models: " + Path.GetFileName(look.Path) + ": " + look.Mesh.Problem);
 				GltfFile file = look.Mesh.File;
 				int skinned = 0;

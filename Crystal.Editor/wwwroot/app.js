@@ -733,7 +733,7 @@ async function openMenu(name) {
     const xml = new XMLSerializer().serializeToString(menu.doc);
     if (menu.project && menu.project.client) {
       const result = await api('/api/client/menu/save', { id: menu.project.id, xml });
-      say(result.ok ? `saved ${menu.project.id}.xml in ${(result.savedTo || []).join(' and ')}` : result.error, result.ok ? 'good' : 'bad');
+      say(result.ok ? `saved ${menu.project.id}.xml in ${(result.savedTo || []).join(' and ')}${menu.project.source ? '' : ' - the install\'s own: an update replaces it (Copy into my mod keeps yours)'}` : result.error, result.ok ? 'good' : 'bad');
       return;
     }
     if (menu.project) {
@@ -752,7 +752,31 @@ async function openMenu(name) {
 
   // One of the game's screens taken into the mod: a copy under menus/ the client plays in the game's place.
   const adopt = $('.adopt', node);
-  if (adopt) {
+  if (adopt && client) {
+    // One of the client's own screens: a copy of it in the mod is the player's to change - an update of the
+    // client replaces the install's own files (Data/menus), and a mod's screen of the same id takes the client's place.
+    const project = typeof isOpenFFProject === 'function' && isOpenFFProject();
+    adopt.hidden = false;
+    adopt.textContent = 'Copy into my mod';
+    adopt.disabled = !project;
+    adopt.title = project
+      ? 'Copy this screen (its layout, and the client\'s stylesheets, pictures and sprites) into the open project: the mod\'s copy is yours to change and takes the client\'s place in the game'
+      : 'Open or make an OpenFF project first: its copy of this screen is yours to change';
+    adopt.onclick = async () => {
+      const r = await api('/api/project/menus/adopt-client', { id: menu.project.id });
+      if (!r.ok) return say(r.error, 'bad');
+      say(`${menu.project.id} copied into the mod (${r.copied.join(', ')})${r.kept.length ? ' - the project\'s own kept: ' + r.kept.join(', ') : ''}`, 'good');
+      await loadList();
+      openDoc('menu', 'menus/' + r.id);
+    };
+    // Not a source checkout: these are the install's own files, which the next update of the client replaces.
+    if (!menu.project.source) {
+      const note = document.createElement('div');
+      note.className = 'client-note';
+      note.textContent = 'This is the OpenFF client\'s own screen, in your install (' + (menu.project.folder || 'Data/menus') + '). Saving changes it there, but the next update of the client replaces it - ' + (project ? 'Copy into my mod keeps a copy of your own that takes its place.' : 'open or make an OpenFF project and Copy into my mod to keep a copy of your own.');
+      $('.bar', node).after(note);
+    }
+  } else if (adopt) {
     adopt.hidden = own || !(typeof isOpenFFProject === 'function' && isOpenFFProject());
     adopt.onclick = async () => {
       const screen = childText(menu.screens[$('.screens', node).value || 0], 'name');
@@ -807,6 +831,7 @@ async function drawMenuBackground(node, screenName, index) {
   // The Hierarchy's eye on the backdrop, or none at all (-1): only the screen's own background, over black.
   if (!menu.preview || !key || menu.hideBackdrop || (byNumber && Number(index) < 0)) return;
 
+  // The key with the lines' mode, so a change of it draws again.
   let entry = menuBackgrounds.get(key);
   if (entry === undefined) {
     try {
@@ -844,7 +869,17 @@ async function drawMenuBackground(node, screenName, index) {
   }
   if (!sheet.width) return;
 
-  const drawn = drawCell(bank.cells[0], sheet, true, false);
+  // The row lines (a strip from row 96 of menu_bg_01, 16 tall) left out when the screen says none.
+  const lines = backdropLinesFor(screenName);
+  // (as the client does: a line that fills a gap between two panels, with nothing under it, is their edge and stays)
+  const isLine = p => p.sourceY === 96 && p.height === 16;
+  const size = (p, n) => p[n] * (p.half ? 0.5 : 1);
+  const others = bank.cells[0].parts.filter(p => !isLine(p));
+  const covered = l => { const cx = l.x + size(l, 'width') / 2, cy = l.y + size(l, 'height') / 2; return others.some(o => cx >= o.x && cx < o.x + size(o, 'width') && cy >= o.y && cy < o.y + size(o, 'height')); };
+  // A row with a piece over a gap between panels is their edge, and stays whole (as the client keeps it).
+  const edges = new Set(bank.cells[0].parts.filter(p => isLine(p) && !covered(p)).map(p => p.y));
+  const cell = lines === 'none' ? { ...bank.cells[0], parts: bank.cells[0].parts.filter(p => !isLine(p) || edges.has(p.y)) } : bank.cells[0];
+  const drawn = drawCell(cell, sheet, true, false, Math.max(2, 2 * menu.zoom));
   const box = cellBounds(bank.cells[0], true);
   drawn.className = 'menu-bg';
   // The parts are laid out for an 800x480 screen and carry the squash flag, which is
@@ -2213,13 +2248,15 @@ async function openCell(name) {
 // The game multiplies by 0.6 across and 2/3 down when flag 8 is set, and halves the
 // whole part when flag 4 is. Both apply to the destination only - the source rectangle
 // is always the stored one.
-function drawCell(cell, sheet, applySquash, showOutlines) {
+/// `scale`: pixels a unit (a menu backdrop's row lines are half a unit - at one pixel a unit they are lost).
+function drawCell(cell, sheet, applySquash, showOutlines, scale = 1) {
   const box = cellBounds(cell, applySquash);
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.ceil(box.width));
-  canvas.height = Math.max(1, Math.ceil(box.height));
+  canvas.width = Math.max(1, Math.ceil(box.width * scale));
+  canvas.height = Math.max(1, Math.ceil(box.height * scale));
   const g = canvas.getContext('2d');
   g.imageSmoothingEnabled = false;
+  if (scale !== 1) g.scale(scale, scale);
 
   for (const part of cell.parts) {
     const [dx, dy, dw, dh] = partRect(part, applySquash);

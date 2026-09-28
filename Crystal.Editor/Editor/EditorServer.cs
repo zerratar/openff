@@ -1678,6 +1678,41 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/project/menus/game-setting":
+				{
+					// A setting of the mod's for one of the game's screens: GET ?file&screen&key, POST { file, screen, key, value }.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					try
+					{
+						if (context.Request.HttpMethod == "POST")
+						{
+							JsonNode body = ReadBody(context);
+							string saved = ProjectMenus.SetGameScreenSetting(_project, body?["file"]?.GetValue<string>(), body?["screen"]?.GetValue<string>(), body?["key"]?.GetValue<string>(), body?["value"]?.GetValue<string>());
+							SendJson(context, new { ok = true, file = saved });
+						}
+						else SendJson(context, new { ok = true, value = ProjectMenus.GameScreenSetting(_project, Query(context, "file"), Query(context, "screen"), Query(context, "key")) });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/project/menus/adopt-client":
+				{
+					// One of the OpenFF client's own screens copied into the mod, so the player's changes survive an update of the client.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					JsonNode body = ReadBody(context);
+					try
+					{
+						(string Folder, bool Source)? where = OpenFFClient.MenusFolder();
+						if (where == null) throw new InvalidOperationException("no OpenFF client found");
+						string id = body?["id"]?.GetValue<string>();
+						(List<string> copied, List<string> kept) = ProjectMenus.AdoptClient(_project, where.Value.Folder, id);
+						SendJson(context, new { ok = true, id, copied, kept });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/project/menus/adopt":
 				{
 					// One of the game's screens taken into the mod (file, screen).

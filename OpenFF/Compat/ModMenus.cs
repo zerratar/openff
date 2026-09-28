@@ -237,6 +237,10 @@ namespace OpenFF.Client
 			if (commands == null) { Log.Write(LogChannel.General, "menus: main_menu has no main_command list; the mods' entries are not added"); return; }
 			List<XElement> rows = commands.Elements("frame").ToList();
 			if (rows.Count == 0) return;
+			// The rows as the game laid them out, for the backdrop's row lines (fitted to the rows there are once the entries are in).
+			int commandsX = Int(commands.Element("x"), 0), commandsY = Int(commands.Element("y"), 0);
+			int oldCount = rows.Count, oldTop = rows.Min(r => Int(r.Element("y"), 2)), oldBottom = rows.Max(r => Int(r.Element("y"), 2) + Int(r.Element("height"), 28));
+			int left = commandsX + rows.Min(r => Int(r.Element("x"), 0)), right = commandsX + rows.Max(r => Int(r.Element("x"), 0) + Int(r.Element("width"), 96));
 			XElement template = rows.FirstOrDefault(r => (string)r.Element("id") == "com_job") ?? rows[0];
 			int index = 0, added = 0;
 			foreach (MenuDefinition def in entries)
@@ -283,9 +287,48 @@ namespace OpenFF.Client
 				rows[i].SetElementValue("down", (string)rows[(i + 1) % rows.Count].Element("id"));
 				rows[i].SetElementValue("myTag", i);   // the focus list's index, which MoveCursor lands on
 			}
+			_mainMenuRows = new GlobalScope.BackdropRows
+			{
+				Top = commandsY + oldTop, OldPitch = (oldBottom - oldTop) / (float)oldCount, OldCount = oldCount,
+				NewPitch = pitch, NewCount = rows.Count, Left = left, Right = right
+			};
 		}
 
 		private static int Int(XElement e, int fallback) => e != null && int.TryParse(e.Value, out int v) ? v : fallback;
+
+		// ---- the backdrop's row lines ----
+
+		/// <summary>The main menu's commands as the game had them and as they are with the mods' entries; null when none went in.</summary>
+		private static GlobalScope.BackdropRows _mainMenuRows;
+
+		/// <summary>Set by CWMenuMod while it sets its screen's backdrop up: the lines are the mod screen's to say.</summary>
+		public static bool SettingModBackdrop;
+
+		/// <summary>The lines' mode for one of the game's screens, set by a definition reaching it as the screen is built.</summary>
+		private static string _gameScreenLines;
+
+		/// <summary>How the backdrop just set up draws its row lines: a mod screen's own say; the main menu's fitted to its commands unless a mod says otherwise; one of the game's screens as a definition reaching it says.</summary>
+		public static string BackdropLinesMode(int backdrop, out GlobalScope.BackdropRows rows)
+		{
+			rows = null;
+			if (SettingModBackdrop) return Mode(_current?.BackdropLines) ?? "game";
+			if (_gameScreenLines != null) return _gameScreenLines;
+			if (backdrop == 9)
+			{
+				rows = _mainMenuRows;
+				return Reaching("main_menu") ?? "fit";
+			}
+			return "game";
+		}
+
+		private static string Mode(string word)
+		{
+			string w = word?.Trim().ToLowerInvariant();
+			return w == "none" || w == "fit" || w == "game" ? w : null;
+		}
+
+		private static string Reaching(string screen) =>
+			_gameScreenDefs.TryGetValue(screen, out List<MenuDefinition> defs) ? defs.Select(d => Mode(d.BackdropLines)).LastOrDefault(m => m != null) : null;
 
 		// ---- opening ----
 
@@ -461,6 +504,14 @@ namespace OpenFF.Client
 			{
 				GameScreenReleased();
 				_lastBuilt = name;
+				// A definition reaching the screen with a say on its backdrop's lines: the backdrop set up again with them.
+				string lines = name == null || string.Equals(name, "main_menu", StringComparison.OrdinalIgnoreCase) ? null : Reaching(name);
+				if (lines != null)
+				{
+					_gameScreenLines = lines;
+					try { GlobalScope.wmenu.CWMenuManager.Instance().ReapplyPrimaryBG(); } catch (Exception) { }
+					finally { _gameScreenLines = null; }
+				}
 				if (name != null) OpenFF.Game.Guard("MenuOpened", () => OpenFF.Game.Events.Publish(new OpenFF.Events.MenuOpened { Screen = name, Mod = _current != null && string.Equals(_current.Screen, name, StringComparison.OrdinalIgnoreCase) }));
 				if (name == null || !_gameScreenDefs.TryGetValue(name, out List<MenuDefinition> defs) || defs.Count == 0) return;
 				if (_current != null && string.Equals(_current.Screen, name, StringComparison.OrdinalIgnoreCase) && _host != null) return;   // a mod screen of that name: CWMenuMod plays it
