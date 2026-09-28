@@ -7,6 +7,25 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.1.9 - use magic, use item (2026-09-28)
+
+A hotfix for 0.1.8's Gambits: spells and items to choose from, healing that reaches the ally,
+the keyboard's keys, and scroll arrows on the menus' lists.
+
+- **Gambits: Use Magic and Use Item.** An action is Attack, Guard, Run Away, or *Use Magic* /
+  *Use Item*, each opening a list of its own: every battle spell or battle item of the game's that
+  suits the condition's side (healing and support for an ally, no Attack on one), what the hero
+  cannot use now greyed with the reason in the help line - a rule can be set before the spell is
+  learnt or the item bought, and the battle passes over it until then. Y (V on the keyboard)
+  shows only what is usable.
+- **Healing lands on the ally.** A Potion, Cure or Protect of an ally rule was used on the hero
+  themself: their target cursor starts on the user, and that was taken for "the user only". They
+  go to the ally the rule found now; and an Attack rule never hits a party member.
+- **The keys the Gambits screen names are the ones to press.** On the keyboard its help said
+  "X: remove" - the keyboard's X is Back; it says C, V and Q / E there now (the pad's X, Y, L / R).
+- **Scroll arrows.** The menus' lists that scroll (the Gambits rules, the pickers, a mod's
+  `MenuList`) show the battle command list's arrows at their right, lit the ways there is more.
+
 ## 0.1.8 - gambits, and menus of your own making (2026-09-28)
 
 Auto battle by each hero's own rules, the Gambits screen to write them, the Steam layouts, a UI
