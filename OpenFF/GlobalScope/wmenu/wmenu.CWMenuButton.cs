@@ -44,24 +44,42 @@ internal static partial class GlobalScope
 
 								private int currentButton;
 
+								// PORT: where each button is and a press reaches - the field_hud layout's a_button, b_button, l_button,
+								// r_button (the game's numbers unless a mod moved them) -, and whether the game shows it (its sprite
+								// may be taken away under a picture of the layout's, so its showing is kept here).
+								private OpenFF.Client.BattleHud.Rect[] hit_ = new OpenFF.Client.BattleHud.Rect[4];
+
+								private bool[] shown_ = new bool[4];
+
+								private void Shown(int i, bool b)
+								{
+									shown_[i] = b;
+									OpenFF.Client.FieldHud.MenuButtonShown(i, b);
+								}
+
 								public void initialize()
 								{
+									OpenFF.Client.ModMenus.PrepareFieldHud();
 									for (int i = 0; i < 4; i++)
 									{
-										button[i].pos.vx = (short)(Cell_Pos[i][0] - 24);
-										button[i].pos.vy = (short)Cell_Pos[i][1];
+										hit_[i] = OpenFF.Client.BattleHud.MenuButton(i, Cell_Pos[i][0] - Cell_Pos[i][2], Hit_Y, Cell_Pos[i][2] * 2, Hit_Height);
+										button[i].pos.vx = (short)(hit_[i].X + hit_[i].Width / 2 - 24);
+										button[i].pos.vy = (short)(hit_[i].Y + Cell_Pos[i][1] - Hit_Y);
 										button[i].cell.copy(menu.MenuManager.getSingleton().GetMenuButtonIcon2d());
 										button[i].cell.SetCell((ushort)cellType[i]);
 										button[i].cell.SetPriority(1);
 										button[i].cell.SetShow(show: false);
 										button[i].cell.SetPositionI(button[i].pos.vx, button[i].pos.vy);
 										sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(button[i].cell);
+										OpenFF.Client.FieldHud.MenuButtonMade(i, button[i].cell);
 									}
 									button[0].cell.SetShow(show: false);
 									button[1].cell.SetShow(show: true);
 									button[0].cell.SetAnimation(anm: false);
 									button[1].cell.SetAnimation(anm: false);
 									createXAndBMessage();
+									Shown(0, false);
+									Shown(1, true);
 									currentButton = 4;
 								}
 
@@ -69,6 +87,7 @@ internal static partial class GlobalScope
 								{
 									for (int i = 0; i < 4; i++)
 									{
+										OpenFF.Client.FieldHud.MenuButtonGone(i);
 										sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(button[i].cell);
 										button[i].cell.Release();
 									}
@@ -86,7 +105,7 @@ internal static partial class GlobalScope
 
 								public bool TouchButtonA()
 								{
-									if (!button[0].cell.IsShow())
+									if (!shown_[0])
 									{
 										return false;
 									}
@@ -102,13 +121,13 @@ internal static partial class GlobalScope
 										{
 											currentButton = 4;
 										}
-										else if (HitArea(x, y, Cell_Pos[0][0] - Cell_Pos[0][2], Hit_Y, Cell_Pos[0][2] * 2, Hit_Height))
+										else if (HitArea(x, y, hit_[0].X, hit_[0].Y, hit_[0].Width, hit_[0].Height))
 										{
 											menu.MenuManager.getSingleton().playSEDecide();
 											return true;
 										}
 									}
-									else if (ds.g_TouchPanel.isEdge() && HitArea(x, y, Cell_Pos[0][0] - Cell_Pos[0][2], Hit_Y, Cell_Pos[0][2] * 2, Hit_Height))
+									else if (ds.g_TouchPanel.isEdge() && HitArea(x, y, hit_[0].X, hit_[0].Y, hit_[0].Width, hit_[0].Height))
 									{
 										if (pAString != null)
 										{
@@ -121,7 +140,7 @@ internal static partial class GlobalScope
 
 								public bool TouchButtonB()
 								{
-									if (!button[1].cell.IsShow())
+									if (!shown_[1])
 									{
 										return false;
 									}
@@ -137,13 +156,13 @@ internal static partial class GlobalScope
 										{
 											currentButton = 4;
 										}
-										else if (HitArea(x, y, Cell_Pos[1][0] - Cell_Pos[1][2], Hit_Y, Cell_Pos[1][2] * 2, Hit_Height))
+										else if (HitArea(x, y, hit_[1].X, hit_[1].Y, hit_[1].Width, hit_[1].Height))
 										{
 											menu.MenuManager.getSingleton().playSECancel();
 											return true;
 										}
 									}
-									else if (ds.g_TouchPanel.isEdge() && HitArea(x, y, Cell_Pos[1][0] - Cell_Pos[1][2], Hit_Y, Cell_Pos[1][2] * 2, Hit_Height))
+									else if (ds.g_TouchPanel.isEdge() && HitArea(x, y, hit_[1].X, hit_[1].Y, hit_[1].Width, hit_[1].Height))
 									{
 										if (pBString != null)
 										{
@@ -156,7 +175,7 @@ internal static partial class GlobalScope
 
 								public bool TouchButtonL()
 								{
-									if (!button[2].cell.IsShow())
+									if (!shown_[2])
 									{
 										return false;
 									}
@@ -169,12 +188,12 @@ internal static partial class GlobalScope
 										{
 											currentButton = 4;
 										}
-										else if (HitArea(x, y, Cell_Pos[2][0] - Cell_Pos[2][2], Hit_Y, Cell_Pos[2][2] * 2, Hit_Height))
+										else if (HitArea(x, y, hit_[2].X, hit_[2].Y, hit_[2].Width, hit_[2].Height))
 										{
 											return true;
 										}
 									}
-									else if (ds.g_TouchPanel.isEdge() && HitArea(x, y, Cell_Pos[2][0] - Cell_Pos[2][2], Hit_Y, Cell_Pos[2][2] * 2, Hit_Height))
+									else if (ds.g_TouchPanel.isEdge() && HitArea(x, y, hit_[2].X, hit_[2].Y, hit_[2].Width, hit_[2].Height))
 									{
 										button[2].cell.SetPositionI(pos.vx + 1, pos.vy + 1);
 										currentButton = 2;
@@ -188,7 +207,7 @@ internal static partial class GlobalScope
 
 								public bool TouchButtonR()
 								{
-									if (!button[3].cell.IsShow())
+									if (!shown_[3])
 									{
 										return false;
 									}
@@ -201,12 +220,12 @@ internal static partial class GlobalScope
 										{
 											currentButton = 4;
 										}
-										else if (HitArea(x, y, Cell_Pos[3][0] - Cell_Pos[3][2], Hit_Y, Cell_Pos[3][2] * 2, Hit_Height))
+										else if (HitArea(x, y, hit_[3].X, hit_[3].Y, hit_[3].Width, hit_[3].Height))
 										{
 											return true;
 										}
 									}
-									else if (ds.g_TouchPanel.isEdge() && HitArea(x, y, Cell_Pos[3][0] - Cell_Pos[3][2], Hit_Y, Cell_Pos[3][2] * 2, Hit_Height))
+									else if (ds.g_TouchPanel.isEdge() && HitArea(x, y, hit_[3].X, hit_[3].Y, hit_[3].Width, hit_[3].Height))
 									{
 										button[3].cell.SetPositionI(pos.vx + 1, pos.vy + 1);
 										currentButton = 3;
@@ -231,9 +250,10 @@ internal static partial class GlobalScope
 										pAString.get().setVisibility(b: false);
 										ds.Vector2<short> vector = new ds.Vector2<short>();
 										pAString.get().getTextSize(vector);
-										button[0].pos.vx = (short)(Cell_Pos[0][0] - vector.vx / 2);
-										button[0].pos.vy = (short)(Cell_Pos[0][1] + 10);
+										button[0].pos.vx = (short)(hit_[0].X + hit_[0].Width / 2 - vector.vx / 2);
+										button[0].pos.vy = (short)(hit_[0].Y + Cell_Pos[0][1] - Hit_Y + 10);
 										pAString.get().setPosition(button[0].pos.vx, button[0].pos.vy, erase: true);
+										OpenFF.Client.FieldHud.MenuButtonText(0, pAString.get());
 									}
 									pBString = new dgs.SmartPtr<dgs.DGSMessage>(dGSMessageManager.createMessage(50021u, dgs.INVALID_MSDHANDLE, 1));
 									if (pBString != null)
@@ -242,9 +262,10 @@ internal static partial class GlobalScope
 										pBString.get().setDisplayWait(0);
 										ds.Vector2<short> vector2 = new ds.Vector2<short>();
 										pBString.get().getTextSize(vector2);
-										button[1].pos.vx = (short)(Cell_Pos[1][0] - vector2.vx / 2);
-										button[1].pos.vy = (short)(Cell_Pos[1][1] + 10);
+										button[1].pos.vx = (short)(hit_[1].X + hit_[1].Width / 2 - vector2.vx / 2);
+										button[1].pos.vy = (short)(hit_[1].Y + Cell_Pos[1][1] - Hit_Y + 10);
 										pBString.get().setPosition(button[1].pos.vx, button[1].pos.vy, erase: true);
+										OpenFF.Client.FieldHud.MenuButtonText(1, pBString.get());
 									}
 								}
 
@@ -262,6 +283,7 @@ internal static partial class GlobalScope
 										pAString.get().setPosition(button[0].pos.vx, button[0].pos.vy, erase: true);
 										pAString.get().setVisibility(b);
 									}
+									Shown(0, b);
 								}
 
 								public void SetButtonBActivity(bool b)
@@ -272,16 +294,19 @@ internal static partial class GlobalScope
 										pBString.get().setPosition(button[1].pos.vx, button[1].pos.vy, erase: true);
 										pBString.get().setVisibility(b);
 									}
+									Shown(1, b);
 								}
 
 								public void SetButtonLActivity(bool b)
 								{
 									button[2].cell.SetShow(b);
+									Shown(2, b);
 								}
 
 								public void SetButtonRActivity(bool b)
 								{
 									button[3].cell.SetShow(b);
+									Shown(3, b);
 								}
 
 								public void SetUpNormalVer()
@@ -290,6 +315,8 @@ internal static partial class GlobalScope
 									button[3].cell.SetAnimation(anm: false);
 									button[2].cell.SetShow(show: true);
 									button[2].cell.SetAnimation(anm: false);
+									Shown(3, true);
+									Shown(2, true);
 								}
 
 								public void SetUpSpecialVer()
@@ -298,6 +325,8 @@ internal static partial class GlobalScope
 									button[3].cell.SetAnimation(anm: false);
 									button[2].cell.SetShow(show: false);
 									button[2].cell.SetAnimation(anm: false);
+									Shown(3, false);
+									Shown(2, false);
 								}
 
 								public CWMenuButton()

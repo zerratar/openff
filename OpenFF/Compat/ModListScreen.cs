@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using OpenFF.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
@@ -368,10 +369,42 @@ namespace OpenFF.Client
 				{
 					float tx = (label.X - ox) / GlobalScope.LCD_WIDTH * TextSpaceWidth + GlobalScope.ttl.TITLE_LABEL_NUDGE_X;
 					float ty = (label.Y - oy) / GlobalScope.LCD_HEIGHT * TextSpaceHeight + GlobalScope.ttl.TITLE_LABEL_DROP;
+					// The field_hud layout's look for the title's rows (title/row; :focus the hand's, :disabled a Continue with nothing to continue).
+					MenuStyles.Look look = FieldHud.TitleLook(label.Row == GlobalScope.ttl.TitleFocus, label.Dim);
+					if (look != null && look.Hidden) continue;
 					// The title's own dark lettering; a Continue with nothing to continue greyed, as its picture is.
-					if (label.Dim) graphics.SetColor(160, 160, 160, 255);
-					else graphics.SetColor(40, 40, 40, 255);
-					graphics.DrawString(label.Text, tx, ty, GlobalScope.ttl.TITLE_LABEL_SIZE);
+					uint rgba = label.Dim ? 0xA0A0A0FFu : 0x282828FFu;
+					if (look != null && ModMenus.StyleRgb(look.Colour) is uint rgb) rgba = rgb << 8 | 0xFF;
+					else if (look != null && !string.IsNullOrWhiteSpace(look.Colour) && GlobalScope.TextPaletteColour((int)ModMenus.ColourWord(look.Colour)) is uint word) rgba = word;
+					float opacity = look == null ? 1f : (float)Math.Clamp(look.Opacity, 0, 1);
+					int size = look != null && int.TryParse(look.Font, out int n) && n >= 6 && n <= 31 ? n : GlobalScope.ttl.TITLE_LABEL_SIZE;
+					MenuText lettering = FieldHud.TitleLettering(look);
+					// A face of the layout's in place of the title's; its shadows under the words, in the text space's units.
+					TrueTypeText.TitleFace = lettering == null || lettering.Families.Count == 0;
+					TrueTypeText.Style = lettering;
+					string text = lettering != null ? lettering.Cased(label.Text) : label.Text;
+					float unit = TextSpaceWidth / GlobalScope.LCD_WIDTH;
+					try
+					{
+						if (lettering?.Shadows != null)
+						{
+							for (int k = lettering.Shadows.Count - 1; k >= 0; k--)
+							{
+								MenuText.Shadow shadow = lettering.Shadows[k];
+								SetColour(graphics, shadow.Colour, opacity);
+								TrueTypeText.Blur = shadow.Blur;
+								graphics.DrawString(text, tx + shadow.X * unit, ty + shadow.Y * unit, size);
+								TrueTypeText.Blur = 0;
+							}
+						}
+						SetColour(graphics, rgba, opacity);
+						graphics.DrawString(text, tx, ty, size);
+					}
+					finally
+					{
+						TrueTypeText.Style = null;
+						TrueTypeText.Blur = 0;
+					}
 				}
 			}
 			finally
@@ -383,6 +416,12 @@ namespace OpenFF.Client
 			graphics.SetColor(90, 90, 90, 255);
 			graphics.DrawString("Esc / Start: settings", 12f, TextSpaceHeight - 22f, RowSize);
 			graphics.DrawStringEnd();
+		}
+
+		/// <summary>A colour (0xRRGGBBAA) at an opacity for the next strings.</summary>
+		private static void SetColour(GlobalScope.Graphics graphics, uint rgba, float opacity)
+		{
+			graphics.SetColor((int)(rgba >> 24 & 0xFF), (int)(rgba >> 16 & 0xFF), (int)(rgba >> 8 & 0xFF), (int)Math.Round((rgba & 0xFF) * opacity));
 		}
 
 		private void Outline(Rectangle r, Color colour, int thickness)

@@ -13,8 +13,9 @@
 //   direction                   normal, reverse, alternate, alternate-reverse; fill-mode none, forwards, backwards, both
 //
 // What moves is the look - opacity, color, -ff-tint, the background's colours, gradients, borders,
-// corners and shadows, the text's shadow, outline and spacing - never the layout, which the game
-// is given as plain numbers. A value moves from one to the other when the two have the same shape
+// corners and shadows, the text's shadow, outline and spacing - and translate, which moves what the
+// frame draws (and its frames') from where the layout put it; never the rest of the layout, which
+// the game is given as plain numbers. A value moves from one to the other when the two have the same shape
 // (the same words, with numbers and colours in the same places: "0 2px 8px #000" to "0 4px 16px
 // #f00"); otherwise it changes half way, as CSS changes what it cannot interpolate.
 //
@@ -46,6 +47,8 @@ namespace OpenFF.Content
 		public static bool Animatable(string property)
 		{
 			if (string.IsNullOrEmpty(property)) return false;
+			// translate moves what is drawn, not the layout (the frame's place stays): the one layout property that moves.
+			if (property.Equals("translate", StringComparison.OrdinalIgnoreCase)) return true;
 			if (MenuLayout.Properties.Contains(property, StringComparer.OrdinalIgnoreCase)) return false;
 			if (TransitionProperties.Contains(property, StringComparer.OrdinalIgnoreCase) || AnimationProperties.Contains(property, StringComparer.OrdinalIgnoreCase)) return false;
 			// A panel of its own (the game's window made or taken away) and display (the layout's) do not move.

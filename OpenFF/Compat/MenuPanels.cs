@@ -123,6 +123,8 @@ namespace OpenFF.Client
 			sprite.SetPriority(3);
 			sprite.SetDepth(depth);
 			sprite.SetPositionI(x, y);
+			sprite.BaseX = x;
+			sprite.BaseY = y;
 			sprite.SetShow(show: true);
 			GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(sprite);
 			_sprites.Add(sprite);
@@ -148,6 +150,16 @@ namespace OpenFF.Client
 			_doomedSprites.Clear();
 			foreach (uint t in _doomedTextures) { try { GlobalScope.MenuPanelRelease(t); } catch (Exception) { } }
 			_doomedTextures.Clear();
+		}
+
+		/// <summary>A frame's sprites moved from their places (a translate), shown or not, in place.</summary>
+		public static void Move(IEnumerable<GlobalScope.MenuPanelSprite> sprites, int dx, int dy, bool show = true)
+		{
+			foreach (GlobalScope.MenuPanelSprite sp in sprites)
+			{
+				sp.SetPositionI(sp.BaseX + dx, sp.BaseY + dy);
+				sp.SetShow(show);
+			}
 		}
 
 		/// <summary>A frame's sprites at an opacity, in place.</summary>

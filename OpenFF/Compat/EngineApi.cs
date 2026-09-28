@@ -469,6 +469,7 @@ namespace OpenFF.Client
 
 		public void Close()
 		{
+			CloseBox();
 			GlobalScope.wld.CMessageWindow window = Window;
 			bool wasOpen = _shown || _pending != null;
 			TraceLine("Close (wasOpen " + wasOpen + ")", window);
@@ -536,24 +537,55 @@ namespace OpenFF.Client
 			}
 		}
 
-		// The box: drawn each frame by the engine's own draw layer, over the message window's
-		// right end, in screen units (800x480).
+		// The box: the game's own Yes / No window (CConfirmWindow - the field_hud layout's confirm frame, its styles and its
+		// hand), opened with the question; the engine's draw layer's in screen units (800x480) when that will not open.
 		private const float BoxX = 610f, BoxY = 262f, BoxW = 150f, BoxH = 74f, RowH = 30f;
+		private GlobalScope.wld.CConfirmWindow _box;
+		private bool _boxTried;
+
+		private GlobalScope.wld.CConfirmWindow Box
+		{
+			get
+			{
+				try { return GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem() == null ? null : GlobalScope.CCastCommandTransit.getInstance().cast_Field2D()?.refConfirmWindow(); }
+				catch (Exception) { return null; }
+			}
+		}
+
+		private void CloseBox()
+		{
+			try { if (_box != null && _box.isOpen()) _box.close(); } catch (Exception) { }
+			_box = null;
+			_boxTried = false;
+		}
 
 		private void TickQuestion()
 		{
 			OpenFF.InputState input = OpenFF.Game.Input;
+			if (!_boxTried)
+			{
+				_boxTried = true;
+				_box = Box;
+				try { _box?.open(withQuestion: false); if (_box != null && _box.isOpen()) _box.swCurPos(_yes); else _box = null; } catch (Exception) { _box = null; }
+			}
 			int decided = -1;
 			if (input.Pressed(OpenFF.Pad.Up) || input.Pressed(OpenFF.Pad.Down))
 			{
 				_yes = !_yes;
+				try { _box?.swCurPos(_yes); } catch (Exception) { }
 			}
 			if (input.Pressed(OpenFF.Pad.A)) decided = _yes ? 1 : 0;
 			if (input.Pressed(OpenFF.Pad.B)) decided = 0;
 			if (decided < 0 && input.PointerReleased)
 			{
 				float x = input.PointerX, y = input.PointerY;
-				if (x >= BoxX && x <= BoxX + BoxW)
+				if (_box != null)
+				{
+					// The game's box is laid out in the LCD's units.
+					int hit = _box.hitTest((int)(x * GlobalScope.LCD_WIDTH / 800f), (int)(y * GlobalScope.LCD_HEIGHT / 480f));
+					if (hit >= 0) decided = hit;
+				}
+				else if (x >= BoxX && x <= BoxX + BoxW)
 				{
 					if (y >= BoxY + 6 && y < BoxY + 6 + RowH) decided = 1;
 					else if (y >= BoxY + 6 + RowH && y < BoxY + BoxH) decided = 0;
@@ -561,9 +593,10 @@ namespace OpenFF.Client
 			}
 			if (decided < 0)
 			{
-				DrawBox();
+				if (_box == null) DrawBox();
 				return;
 			}
+			CloseBox();
 			bool yes = decided == 1;
 			Log.Write(LogChannel.General, "engine api: Ask answered " + (yes ? "yes" : "no"));
 			Action<bool> answer = _answer;

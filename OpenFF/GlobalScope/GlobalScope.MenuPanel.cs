@@ -26,6 +26,8 @@ internal static partial class GlobalScope
 		public byte[] Paint = { 255, 255, 255, 255 };
 		/// <summary>The frame's opacity over all of it, at the draw - changed in place as the frame fades (a transition, an animation) without the panel made again.</summary>
 		public float Opacity = 1f;
+		/// <summary>Where the set put it (a translate moves it from here).</summary>
+		public int BaseX, BaseY;
 	}
 
 	/// <summary>A colour with a panel's opacity over its alpha (the colour itself when that is whole).</summary>

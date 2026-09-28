@@ -94,7 +94,11 @@ namespace OpenFF.Content
 			return menu;
 		}
 
-		/// <summary>The field's dialogue and map-name windows as a layout, the game's own numbers.</summary>
+		/// <summary>
+		/// The field's dialogue and map-name windows, the Yes / No box and the field's buttons as a layout, the game's own numbers;
+		/// with them what else the client draws from code outside battle - the title's column of commands (its row's height the
+		/// step between them) and the menus' A / B / L / R buttons (their frames where a press reaches).
+		/// </summary>
 		public static XElement FieldDefault()
 		{
 			XElement menu = new XElement("menu", new XElement("name", FieldScreen));
@@ -103,6 +107,20 @@ namespace OpenFF.Content
 				Frame("name", 19, -94, 200, 20),
 				Frame("next", 442, 56, 24, 24)));
 			menu.Add(Frame("map_name", 4, 4, 472, 28));
+			// The Yes / No box (the engine API's Ask), and the field's buttons in the places the options put them.
+			menu.Add(Frame("confirm", 86, 120, 84, 64,
+				Frame("question", 8, 8, 72, 16),
+				Frame("yes", 24, 28, 56, 16),
+				Frame("no", 24, 44, 56, 16)));
+			menu.Add(Frame("menu_button", 412, 4, 64, 40));
+			menu.Add(Frame("map_button", 344, 4, 64, 40));
+			menu.Add(Frame("talk_button", 412, 48, 64, 40));
+			menu.Add(Frame("title", 200, 200, 120, 92,
+				Frame("row", 0, 0, 120, 22)));
+			menu.Add(Frame("a_button", 128, 288, 224, 32, Frame("text", 0, 10, 224, 16)));
+			menu.Add(Frame("b_button", 128, 288, 224, 32, Frame("text", 0, 10, 224, 16)));
+			menu.Add(Frame("l_button", 0, 288, 128, 32));
+			menu.Add(Frame("r_button", 352, 288, 128, 32));
 			return menu;
 		}
 

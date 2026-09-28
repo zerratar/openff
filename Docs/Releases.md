@@ -28,6 +28,13 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   `bind-style` binds a style from the data. A mod's whole text is broken into lines at the text
   frame's width. The HUD's layout holds while another file is loaded (it fell back to the game's
   numbers in battles and menus).
+- **The rest of the code-drawn UI in `field_hud`.** The Yes / No box (a script's `Ask` is now the
+  game's own box, with its hand), the field's Menu / Map / Talk buttons, the title's column of
+  commands and the menus' OK / Back / L / R buttons have frames of their own: moved, resized and
+  restyled - a tint, a picture or a painted box of the mod's in place of the game's, `:focus` on
+  the answer or the command the hand is on. Crystal's preview draws them, and the page arrow.
+- **`translate` moves.** A transition or an animation of a frame's translate moves what it draws,
+  its children with it - on menu screens and in the field's HUD, and in Crystal's Play.
 - **A game screen's backdrop, the mod's.** A definition reaching one of the game's screens can say
   its backdrop (`"background"`, `-1` for none); Crystal's backdrop card for game screens picks it.
 - **Fixes.** The dialogue's speaker name stands where its frame is; a script's text position moves

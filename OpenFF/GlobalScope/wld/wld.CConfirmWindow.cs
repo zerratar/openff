@@ -58,6 +58,10 @@ internal static partial class GlobalScope
 								private menu.BasicWindow window_ = new menu.BasicWindow();
 
 								private sys2d.Sprite3d cellCursor3d_ = new sys2d.Sprite3d();
+								// PORT: the box and its parts where the field_hud layout's confirm frame puts them (the game's numbers unless a mod moved them).
+								private OpenFF.Client.BattleHud.Rect box_;
+								private (int X, int Y) yes_, no_, question_;
+								private int lift_;
 
 								public CConfirmWindow()
 								{
@@ -73,12 +77,23 @@ internal static partial class GlobalScope
 									visiblity_ = false;
 								}
 
-								public void open()
+								/// <summary>PORT: withQuestion false leaves the game's question line out (the engine API's Ask puts its own in the message window).</summary>
+								public void open(bool withQuestion = true)
 								{
+									box_ = OpenFF.Client.BattleHud.Confirm();
+									yes_ = OpenFF.Client.BattleHud.ConfirmPart("yes", CONFIRMWND_OFFSET_YES_X, CONFIRMWND_OFFSET_YES_Y);
+									no_ = OpenFF.Client.BattleHud.ConfirmPart("no", CONFIRMWND_OFFSET_NO_X, CONFIRMWND_OFFSET_NO_Y);
+									question_ = OpenFF.Client.BattleHud.ConfirmPart("question", CONFIRMWND_OFFSET_MSG_X, CONFIRMWND_OFFSET_MSG_Y);
+									// PORT: without its question line (a script's Ask, its question in the message window) the answers
+									// move up into its place and the box is that much shorter.
+									lift_ = withQuestion ? 0 : System.Math.Max(0, System.Math.Min(yes_.Y, no_.Y) - question_.Y);
+									yes_.Y -= lift_;
+									no_.Y -= lift_;
+									box_.Height -= lift_;
 									ds.Vector2<short> vector = new ds.Vector2<short>(0, 0);
-									vector.set((short)CONFIRMWND_POS_X, (short)CONFIRMWND_POS_Y);
+									vector.set((short)box_.X, (short)box_.Y);
 									ds.Vector2<short> vector2 = new ds.Vector2<short>(0, 0);
-									vector2.set((short)CONFIRMWND_WIDTH, (short)CONFIRMWND_HEIGHT);
+									vector2.set((short)box_.Width, (short)box_.Height);
 									changeGlobalDirectory();
 									window_.bwCreateUL(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, vector, vector2, 3);
 									window_.SetPriority(3);
@@ -89,14 +104,17 @@ internal static partial class GlobalScope
 									// PORT: Yes and No must exist; the "Confirm?" line above them is optional (Steam's
 									// text has no entry for it, and the engine API puts its question in the message
 									// window instead). The phone build never made this window at all.
-									messageIDYes_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_YES, (ushort)(vector.vx + CONFIRMWND_OFFSET_YES_X), (ushort)(vector.vy + CONFIRMWND_OFFSET_YES_Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
-									messageIDNo_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_NO, (ushort)(vector.vx + CONFIRMWND_OFFSET_NO_X), (ushort)(vector.vy + CONFIRMWND_OFFSET_NO_Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+									messageIDYes_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_YES, (ushort)(vector.vx + yes_.X), (ushort)(vector.vy + yes_.Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+									messageIDNo_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_NO, (ushort)(vector.vx + no_.X), (ushort)(vector.vy + no_.Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+									// PORT: the words themselves where the field has not the game's lines for them (Steam's text part here has none).
+									if (-1 == messageIDYes_) messageIDYes_ = dgs.msg.CMessageSys.getInstance().Main().createMessage("Yes", (ushort)(vector.vx + yes_.X), (ushort)(vector.vy + yes_.Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+									if (-1 == messageIDNo_) messageIDNo_ = dgs.msg.CMessageSys.getInstance().Main().createMessage("No", (ushort)(vector.vx + no_.X), (ushort)(vector.vy + no_.Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
 									if (-1 == messageIDYes_ || -1 == messageIDNo_)
 									{
 										close();
 										return;
 									}
-									messageIDConfirm_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_CONFIRM, (ushort)(vector.vx + CONFIRMWND_OFFSET_MSG_X), (ushort)(vector.vy + CONFIRMWND_OFFSET_MSG_Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+									if (withQuestion) messageIDConfirm_ = dgs.msg.CMessageSys.getInstance().Main().createMessage((uint)CONFIRMWND_MSG_CONFIRM, (ushort)(vector.vx + question_.X), (ushort)(vector.vy + question_.Y), dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_GAME_PART2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
 									foreach (int id in new[] { messageIDYes_, messageIDNo_, messageIDConfirm_ })
 									{
 										if (id == -1)
@@ -115,12 +133,15 @@ internal static partial class GlobalScope
 									cellCursor3d_.SetShow(show: true);
 									cellCursor3d_.SetCell(0);
 									cellCursor3d_.SetDepth(0);
-									cellCursor3d_.SetPositionI(CONFIRMWND_POS_X + CONFIRMWND_OFFSET_YES_X, CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_YES_Y);
+									cellCursor3d_.SetPositionI(box_.X + yes_.X, box_.Y + yes_.Y);
 									sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(cellCursor3d_);
 									visiblity_ = true;
+									dgs.msg.CMessageMng main = dgs.msg.CMessageSys.getInstance().Main();
+									OpenFF.Client.FieldHud.ConfirmMade(window_, main.Message(messageIDYes_), main.Message(messageIDNo_), messageIDConfirm_ >= 0 && withQuestion ? main.Message(messageIDConfirm_) : null, cellCursor3d_, lift_);
 								}
 								public void close()
 								{
+									OpenFF.Client.FieldHud.ConfirmClosed();
 									cellCursor3d_.Release();
 									sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(cellCursor3d_);
 									releaseMessage(ref messageIDYes_);
@@ -149,19 +170,19 @@ internal static partial class GlobalScope
 								/// <summary>PORT: which answer a tap at an LCD point lands on: 1 yes, 0 no, -1 neither.</summary>
 								public int hitTest(int x, int y)
 								{
-									int left = CONFIRMWND_POS_X;
-									int right = CONFIRMWND_POS_X + CONFIRMWND_WIDTH;
+									int left = box_.X;
+									int right = box_.X + box_.Width;
 									if (x < left || x > right)
 									{
 										return -1;
 									}
-									int yesTop = CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_YES_Y - 6;
-									int noTop = CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_NO_Y - 6;
+									int yesTop = box_.Y + yes_.Y - 6;
+									int noTop = box_.Y + no_.Y - 6;
 									if (y >= yesTop && y < noTop)
 									{
 										return 1;
 									}
-									if (y >= noTop && y < CONFIRMWND_POS_Y + CONFIRMWND_HEIGHT + 4)
+									if (y >= noTop && y < box_.Y + box_.Height + 4)
 									{
 										return 0;
 									}
@@ -172,12 +193,13 @@ internal static partial class GlobalScope
 								{
 									if (b)
 									{
-										cellCursor3d_.SetPositionI(CONFIRMWND_POS_X + CONFIRMWND_OFFSET_YES_X, CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_YES_Y);
+										cellCursor3d_.SetPositionI(box_.X + yes_.X, box_.Y + yes_.Y);
 									}
 									else
 									{
-										cellCursor3d_.SetPositionI(CONFIRMWND_POS_X + CONFIRMWND_OFFSET_NO_X, CONFIRMWND_POS_Y + CONFIRMWND_OFFSET_NO_Y);
+										cellCursor3d_.SetPositionI(box_.X + no_.X, box_.Y + no_.Y);
 									}
+									OpenFF.Client.FieldHud.ConfirmFocus(b);   // PORT: the answer the hand is on in :focus for the layout's sheets
 								}
 							}
 	}

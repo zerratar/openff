@@ -160,6 +160,27 @@ namespace OpenFF.Client
 		public static (int X, int Y) DialogueNext() { Rect w = Dialogue(); Rect r = Frame(BattleHudLayout.FieldScreen, "dialogue/next", w.X + w.Width - 28, w.Y + w.Height - 28, 24, 24); return (r.X, r.Y); }
 		/// <summary>The map-name window's rectangle (the game centres its text in it).</summary>
 		public static Rect MapName() => Frame(BattleHudLayout.FieldScreen, "map_name", 4, 4, 472, 28);
+		/// <summary>The Yes / No box's rectangle, and a part of it (question, yes, no) as its offset from the box's corner.</summary>
+		public static Rect Confirm() => Frame(BattleHudLayout.FieldScreen, "confirm", 86, 120, 84, 64);
+		public static (int X, int Y) ConfirmPart(string part, int x, int y)
+		{
+			Rect box = Confirm();
+			Rect r = Frame(BattleHudLayout.FieldScreen, "confirm/" + part);
+			return r.Found ? (r.X - box.X, r.Y - box.Y) : (x, y);
+		}
+		/// <summary>A field button's place (MENU_POSITION: 0 right up - the menu's -, 2 left up - the map's -, 1 right down - talk's), or not found for the game's own.</summary>
+		/// <summary>A menu's touch button (CWMenuButton: 0 A, 1 B, 2 L, 3 R) - where a press reaches -, the game's numbers unless a mod moved it.</summary>
+		public static Rect MenuButton(int i, int x, int y, int w, int h)
+		{
+			string id = i == 0 ? "a_button" : i == 1 ? "b_button" : i == 2 ? "l_button" : "r_button";
+			return FieldHud.TryRect(id, out Rect r) ? r : new Rect { X = x, Y = y, Width = w, Height = h };
+		}
+
+		public static Rect ButtonPlace(int position)
+		{
+			string id = position == 0 ? "menu_button" : position == 2 ? "map_button" : position == 1 ? "talk_button" : null;
+			return id == null ? default : Frame(BattleHudLayout.FieldScreen, id);
+		}
 
 		/// <summary>A party line's bar: corner 0 the top-left, 1 the bottom-right.</summary>
 		public static (int X, int Y) PlayerGauge(int i, int corner)

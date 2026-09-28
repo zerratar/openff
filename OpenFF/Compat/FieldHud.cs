@@ -8,9 +8,17 @@
 //     name              the speaker's name (FF4's)
 //     next              the page-turn arrow: hidden hides it, -ff-tint and opacity colour it; a background of its
 //                       own (a picture, a painted box) takes its place, up when the game's would be
+//   map_name            the banner a map's name comes up in; its text takes its look
+//   confirm             the Yes / No box (the engine API's Ask): question, yes, no - the one the hand is on
+//                       in :focus
+//   menu_button, map_button, talk_button   the field's buttons, in the places the options put them (the
+//                       menu's and the map's swap): hidden, -ff-tint, opacity; a background of its own in
+//                       place of the game's art; frames of the mod's in them, shown and faded with them
+//
+// translate moves what a frame draws - its panel, its window, its texts, and its frames' with it - from
+// where its layout put it (a transition's, an animation's: an arrow that bobs, a box that slides in).
 //     <any other>       a frame of the mod's: a window, a background, a text (<data>, bind-text) - shown
 //                       with the window, as its data says: {dialogue.speaker}, {dialogue.avatar}, ...
-//   map_name            the banner a map's name comes up in; its text takes its look
 //
 // Bindings (bind-text, bind-visible, bind-class, bind-style) read dialogue (Number, Text, Speaker,
 // Avatar, Map), banner (Number, Text), hero, party and gil. Who speaks comes from the mods'
@@ -52,6 +60,8 @@ namespace OpenFF.Client
 		private static readonly Dictionary<string, BattleHud.Rect> _rects = new Dictionary<string, BattleHud.Rect>(StringComparer.OrdinalIgnoreCase);
 		private static readonly Dictionary<XElement, string> _pathOf = new Dictionary<XElement, string>();
 		private static readonly Dictionary<XElement, string> _ownStyle = new Dictionary<XElement, string>();
+		// Each frame's translate as the layout was built with it: a translate moves what it draws by the difference.
+		private static readonly Dictionary<XElement, string> _baseTranslate = new Dictionary<XElement, string>();
 		private static MenuAnimation.Animator _animator = new MenuAnimation.Animator();
 		private static readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
@@ -74,6 +84,18 @@ namespace OpenFF.Client
 				_ownStyle.Clear();
 				foreach (XElement frame in _source.Elements("frame")) Walk(frame, null, 0, 0, (f, path, rect) => { _pathOf[f] = path; _ownStyle[f] = (string)f.Attribute("style"); });
 				_animator = new MenuAnimation.Animator();
+				_baseTranslate.Clear();
+				foreach ((XElement f, Dictionary<string, string> c) in MenuStyles.Computed(_source, _sheet)) _baseTranslate[f] = c.TryGetValue("translate", out string t) ? t : null;
+				// What was up under the last layout goes; the buttons are made again over this one.
+				Close(ref _dialogue);
+				Close(ref _banner);
+				Close(ref _confirm);
+				foreach (int cell in _buttons.Keys.ToList()) { Shown b = _buttons[cell]; Close(ref b); }
+				_buttons.Clear();
+				foreach (int cell in _buttonSprites.Keys.ToList()) MakeButton(cell);
+				_version++;
+				_titleLooks.Clear();
+				Captured = true;
 				LoadSpeakers();
 			}
 			catch (Exception ex) { Log.Write(LogChannel.General, "field hud: " + ex.Message); }
@@ -90,6 +112,9 @@ namespace OpenFF.Client
 		}
 
 		private static int Int(XElement frame, string tag) => int.TryParse(((string)frame.Element(tag))?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int v) ? v : 0;
+
+		/// <summary>Whether field_hud has been read (WorldDefine.xbn loaded, or read ahead: ModMenus.PrepareFieldHud).</summary>
+		public static bool Captured { get; private set; }
 
 		/// <summary>A frame of field_hud by its path ("dialogue/text"), absolute, as the layout last built had it.</summary>
 		public static bool TryRect(string path, out BattleHud.Rect rect) => _rects.TryGetValue(path ?? "", out rect);
@@ -179,38 +204,62 @@ namespace OpenFF.Client
 			return "url(\"" + Path.GetFullPath(Path.Combine(folder, v)).Replace('\\', '/') + "\")";
 		}
 
-		// ---- what is up: the dialogue, the banner ----
+		// ---- what is up: the dialogue, the banner, the Yes / No box, the field's buttons ----
 
-		/// <summary>A window of the HUD's up: its frame, the game's window and text, and what the layout adds.</summary>
+		/// <summary>One of the HUD's things up: its frame, the game's own window, sprite and texts in it, and what the layout adds.</summary>
 		private sealed class Shown
 		{
 			public string Root;
+			/// <summary>The frames that are the game's (its window and texts); the rest are the layout's own.</summary>
+			public readonly HashSet<string> Game = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			public GlobalScope.menu.BasicWindow Window;
-			public Func<bool> Open;
+			public (int X, int Y) WindowPlace;
+			public (int X, int Y) WindowOffset;
+			/// <summary>A button's sprite, and where the game put it.</summary>
+			public GlobalScope.sys2d.Sprite Sprite;
+			public (int X, int Y) SpritePlace;
+			public Func<bool> Open = () => true;
 			public bool Built;
-			public GlobalScope.dgs.DGSMessage Text;    // the game's text in it
-			public string TextFrame;                    // the frame whose look the text takes
-			public GlobalScope.dgs.DGSMessage Name;
+			/// <summary>A button's own showing and fade (its alpha of 31), and where the game put it against the layout's place (the options swap the menu's and the map's).</summary>
+			public bool Visible = true;
+			public float Fade = 1f;
+			public (int X, int Y) Shift;
+			/// <summary>How far what is under the question moved up (a box opened without its question line: the confirm's), the box that much shorter.</summary>
+			public int Lift;
+			/// <summary>The game's texts, by the frame whose look each takes, and where the game put each.</summary>
+			public readonly Dictionary<string, GlobalScope.dgs.DGSMessage> Texts = new Dictionary<string, GlobalScope.dgs.DGSMessage>(StringComparer.OrdinalIgnoreCase);
+			public readonly Dictionary<GlobalScope.dgs.DGSMessage, (short X, short Y)> TextPlace = new Dictionary<GlobalScope.dgs.DGSMessage, (short, short)>();
 			public readonly MenuPanels Panels = new MenuPanels();
 			public readonly Dictionary<XElement, Built> Frames = new Dictionary<XElement, Built>();
 			public readonly List<Extra> Extras = new List<Extra>();
 			public Dictionary<XElement, MenuStyles.Look> Looks = new Dictionary<XElement, MenuStyles.Look>();
+
+			public void Text(string path, GlobalScope.dgs.DGSMessage message)
+			{
+				if (message == null) return;
+				Texts[path] = message;
+				TextPlace[message] = (message.positionX(), message.positionY());
+			}
 		}
 
-		/// <summary>What a frame's panel was made of, and the look it was made for: a fade put on in place, anything else made again.</summary>
+		/// <summary>What a frame's panel was made of, and the look, fade, place and showing it was put on with: a fade or a move put on in place, anything else made again.</summary>
 		private sealed class Built
 		{
 			public MenuStyles.Look Look;
+			public float Fade = 1f;
+			public (int X, int Y) Offset;
+			public bool Visible = true;
 			public GlobalScope.menu.BasicWindow Window;
+			public (int X, int Y) WindowPlace;
 			public readonly List<GlobalScope.MenuPanelSprite> Sprites = new List<GlobalScope.MenuPanelSprite>();
 			public readonly List<uint> Textures = new List<uint>();
 		}
 
-		/// <summary>Whether two looks make the same box but for its opacity (a fade needs nothing made again).</summary>
+		/// <summary>Whether two looks make the same box but for its opacity and translate (a fade, a move needs nothing made again).</summary>
 		private static bool SameBox(MenuStyles.Look a, MenuStyles.Look b) => a != null && b != null && a.Window == b.Window && a.Bar == b.Bar && a.NoPanel == b.NoPanel
 			&& a.Tint == b.Tint && a.Background == b.Background && a.Hidden == b.Hidden;
 
-		/// <summary>A frame of the layout's own in a window of the HUD's: its text as a message of its own.</summary>
+		/// <summary>A frame of the layout's own in a thing of the HUD's: its text as a message of its own.</summary>
 		private sealed class Extra
 		{
 			public XElement Frame;
@@ -219,10 +268,28 @@ namespace OpenFF.Client
 			public string Text;
 		}
 
-		private static Shown _dialogue, _banner;
+		private static Shown _dialogue, _banner, _confirm;
+		// The field's buttons by their cell (MENU_PANEL_ANIM: 0 the menu's, 13 the map's, 14 talk's), their sprites kept for a layout loaded again.
+		private static readonly Dictionary<int, Shown> _buttons = new Dictionary<int, Shown>();
+		private static readonly Dictionary<int, (GlobalScope.sys2d.Sprite Sprite, int X, int Y)> _buttonSprites = new Dictionary<int, (GlobalScope.sys2d.Sprite, int, int)>();
+		private static readonly Dictionary<int, byte> _buttonAlpha = new Dictionary<int, byte>();
+		// The menus' buttons (CWMenuButton) among them as 100 + A 0, B 1, L 2, R 3: shown as the game says (their sprites are taken
+		// away under a picture of the layout's), their labels.
+		private const int MenuButtonKey = 100;
+		private static readonly Dictionary<int, bool> _buttonShown = new Dictionary<int, bool>();
+		private static readonly Dictionary<int, GlobalScope.dgs.DGSMessage> _buttonTexts = new Dictionary<int, GlobalScope.dgs.DGSMessage>();
 
-		/// <summary>Whether field_hud's layout says anything about a window's look (else the game's window is left to itself).</summary>
-		private static bool Styled => _source != null && (MenuStyles.Has(_source) || _sheet.Rules.Count > 0 || _source.Descendants().Any(e => e.Name.LocalName is "background" or "textstyle" or "panel" or "tint" or "opacity" or "animation" or "colour"));
+		/// <summary>Whether field_hud's layout says anything about a look (else the game's things are left to themselves).</summary>
+		private static bool Styled => _source != null && (MenuStyles.Has(_source) || _sheet.Rules.Count > 0 || _source.Descendants().Any(e => e.Name.LocalName is "background" or "textstyle" or "panel" or "tint" or "opacity" or "animation" or "colour" or "hidden"));
+
+		private static Shown New(string root, GlobalScope.menu.BasicWindow window, Func<bool> open, params string[] game)
+		{
+			Shown s = new Shown { Root = root, Window = window, Open = open ?? (() => true) };
+			s.Game.Add(root);
+			foreach (string g in game) s.Game.Add(g);
+			if (_rects.TryGetValue(root, out BattleHud.Rect r)) s.WindowPlace = (r.X, r.Y);
+			return s;
+		}
 
 		/// <summary>The dialogue window was made (MessageWindow.mwSetWindow): the game's art taken away if the layout says none, the rest once it is open.</summary>
 		public static void DialogueMade(GlobalScope.menu.BasicWindow window, Func<bool> open, GlobalScope.sys2d.Sprite3d next = null)
@@ -231,7 +298,7 @@ namespace OpenFF.Client
 			_nextIcon = next;
 			_nextWanted = false;
 			if (!Styled) return;
-			_dialogue = new Shown { Root = "dialogue", Window = window, Open = open, TextFrame = "dialogue/text" };
+			_dialogue = New("dialogue", window, open, "dialogue/text", "dialogue/name", "dialogue/next");
 			PutWindowLook(_dialogue);
 		}
 
@@ -252,8 +319,9 @@ namespace OpenFF.Client
 			OpenFF.Game.Guard("DialogueShown", () => OpenFF.Game.Events.Publish(shown));
 			Dialogue.Speaker = string.IsNullOrWhiteSpace(shown.Speaker) ? null : shown.Speaker;
 			Dialogue.Avatar = string.IsNullOrWhiteSpace(shown.Avatar) ? null : shown.Avatar;
+			_version++;
 			if (_dialogue == null) return;
-			_dialogue.Text = message;
+			_dialogue.Text("dialogue/text", message);
 			Refresh(_dialogue);
 		}
 
@@ -295,7 +363,7 @@ namespace OpenFF.Client
 		public static void DialogueName(GlobalScope.dgs.DGSMessage message)
 		{
 			if (_dialogue == null) return;
-			_dialogue.Name = message;
+			_dialogue.Text("dialogue/name", message);
 			Refresh(_dialogue);
 		}
 
@@ -304,8 +372,10 @@ namespace OpenFF.Client
 		private static GlobalScope.sys2d.Sprite3d _nextIcon;
 		private static bool _nextWanted;
 		private static readonly MenuPanels _nextPanels = new MenuPanels();
-		// In front of every panel the layout's frames draw (Refresh says where that is).
+		// In front of every panel the layout's frames draw (Refresh says where that is), and where the arrow is moved to.
 		private static int _frontDepth;
+		private static (int X, int Y) _nextOffset;
+		private static Built _next;
 
 		private static MenuStyles.Look NextLook => _dialogue?.Looks.FirstOrDefault(kv => PathOf(kv.Key) == "dialogue/next").Value;
 
@@ -319,9 +389,7 @@ namespace OpenFF.Client
 			PutNext();
 		}
 
-		/// <summary>The arrow in front of the layout's panels, in its tint and opacity; or the next frame's own picture while the game's would be up.</summary>
-		private static Built _next;
-
+		/// <summary>The arrow in front of the layout's panels, in its tint, opacity and place; or the next frame's own picture while the game's would be up.</summary>
 		private static void PutNext()
 		{
 			MenuStyles.Look look = NextLook;
@@ -336,12 +404,20 @@ namespace OpenFF.Client
 					uint tint = ModMenus.StyleRgb(look.Tint) is uint rgb ? (rgb >> 16 & 0xFF) | (rgb & 0xFF00) | ((rgb & 0xFF) << 16) : 0xFFFFFFu;
 					_nextIcon.SetColor(tint);
 					_nextIcon.SetAlpha((byte)Math.Round(Math.Clamp(look.Opacity, 0, 1) * 31));   // the DS's 0..31
+					(int nx, int ny) = BattleHud.DialogueNext();
+					_nextIcon.SetPositionI(nx + _nextOffset.X, ny + _nextOffset.Y);
 				}
-				if (_next != null) { MenuPanels.Fade(_next.Sprites, look.Opacity); _next.Look = look; }
+				if (_next != null)
+				{
+					MenuPanels.Fade(_next.Sprites, look.Opacity);
+					MenuPanels.Move(_next.Sprites, _nextOffset.X, _nextOffset.Y);
+					_next.Look = look;
+				}
 				else if (picture && _rects.TryGetValue("dialogue/next", out BattleHud.Rect r))
 				{
 					_next = new Built { Look = look };
 					_nextPanels.Add(_directory, "dialogue/next", r.X, r.Y, r.Width, r.Height, look.Background, look.Opacity, _frontDepth, _next.Sprites, _next.Textures);
+					if (_nextOffset != (0, 0)) MenuPanels.Move(_next.Sprites, _nextOffset.X, _nextOffset.Y);
 				}
 			}
 			catch (Exception) { }
@@ -349,25 +425,224 @@ namespace OpenFF.Client
 
 		public static void DialogueClosed() => Close(ref _dialogue);
 
+		// ---- the banner ----
+
 		/// <summary>The map-name banner came up (MapNameWindow.open), its text in it.</summary>
 		public static void BannerMade(GlobalScope.menu.BasicWindow window, GlobalScope.dgs.DGSMessage text, int number)
 		{
 			Close(ref _banner);
 			Banner.Number = number;
 			try { Banner.Text = number >= 0 ? GlobalScope.dgs.msg.CMessageSys.getInstance().Main().getMessage((uint)number) : null; } catch (Exception) { Banner.Text = null; }
+			_version++;
 			if (!Styled) return;
-			_banner = new Shown { Root = "map_name", Window = window, Open = () => true, Text = text, TextFrame = "map_name" };
+			_banner = New("map_name", window, null);
+			_banner.Text("map_name", text);
 			PutWindowLook(_banner);
 			Refresh(_banner);
 		}
 
 		public static void BannerClosed() => Close(ref _banner);
 
-		/// <summary>Every frame while a window of the HUD's is up: its panels once it is open, and what moves (transitions, animations).</summary>
+		// ---- the Yes / No box ----
+
+		private static GlobalScope.sys2d.Sprite3d _confirmCursor;
+		private static (int X, int Y) _cursorPlace;
+
+		/// <summary>The Yes / No box came up (CConfirmWindow.open): its window, its texts and its hand.</summary>
+		public static void ConfirmMade(GlobalScope.menu.BasicWindow window, GlobalScope.dgs.DGSMessage yes, GlobalScope.dgs.DGSMessage no, GlobalScope.dgs.DGSMessage question, GlobalScope.sys2d.Sprite3d cursor, int lift = 0)
+		{
+			Close(ref _confirm);
+			_confirmCursor = cursor;
+			if (!Styled) return;
+			_confirm = New("confirm", window, null, "confirm/question", "confirm/yes", "confirm/no");
+			_confirm.Lift = lift;
+			_confirm.Text("confirm/yes", yes);
+			_confirm.Text("confirm/no", no);
+			_confirm.Text("confirm/question", question);
+			PutWindowLook(_confirm);
+			ConfirmFocus(true);
+		}
+
+		/// <summary>The hand moved to Yes or No (swCurPos): that one in :focus for the sheets, and the hand moved with the box.</summary>
+		public static void ConfirmFocus(bool yes)
+		{
+			if (_confirm == null) return;
+			try { _cursorPlace = (_confirmCursor.GetPositionI().x, _confirmCursor.GetPositionI().y); } catch (Exception) { }
+			SetState("confirm/yes", "focus", yes);
+			SetState("confirm/no", "focus", !yes);
+			Refresh(_confirm);
+		}
+
+		public static void ConfirmClosed() => Close(ref _confirm);
+
+		// ---- the field's buttons ----
+
+		private static string ButtonFrame(int cell) => cell switch
+		{
+			0 => "menu_button", 13 => "map_button", 14 => "talk_button",
+			MenuButtonKey => "a_button", MenuButtonKey + 1 => "b_button", MenuButtonKey + 2 => "l_button", MenuButtonKey + 3 => "r_button",
+			_ => null,
+		};
+
+		/// <summary>A field button was set up (CMenuButton.setup): its frame's look over its sprite, while the layout has one.</summary>
+		public static void ButtonMade(int cell, GlobalScope.sys2d.Sprite sprite)
+		{
+			if (_buttons.TryGetValue(cell, out Shown old)) { Close(ref old); _buttons.Remove(cell); }
+			_buttonSprites[cell] = (sprite, 0, 0);
+			_buttonAlpha.Remove(cell);
+			MakeButton(cell);
+		}
+
+		private static void MakeButton(int cell)
+		{
+			string root = ButtonFrame(cell);
+			if (root == null || !Styled || !_buttonSprites.TryGetValue(cell, out var made) || Subtree(root).FirstOrDefault() == null) return;
+			Shown s = New(root, null, null, root + "/text");
+			s.Sprite = made.Sprite;
+			s.SpritePlace = (made.X, made.Y);
+			s.Visible = false;
+			// A field button stands where the options put it, its frames moved there with it; a menu's is where its frame is.
+			if (cell < MenuButtonKey && _rects.TryGetValue(root, out BattleHud.Rect r)) s.Shift = (made.X - r.X, made.Y - r.Y);
+			if (_buttonTexts.TryGetValue(cell, out GlobalScope.dgs.DGSMessage text)) s.Text(root + "/text", text);
+			_buttons[cell] = s;
+		}
+
+		/// <summary>A button was put in a place (setPosition): where it stands against its own frame's place.</summary>
+		public static void ButtonPlaced(int cell, int x, int y)
+		{
+			if (_buttonSprites.TryGetValue(cell, out var made)) _buttonSprites[cell] = (made.Sprite, x, y);
+			if (!_buttons.TryGetValue(cell, out Shown s)) return;
+			s.SpritePlace = (x, y);
+			if (cell < MenuButtonKey && _rects.TryGetValue(s.Root, out BattleHud.Rect r)) s.Shift = (x - r.X, y - r.Y);
+			if (s.Built) Refresh(s);
+		}
+
+		/// <summary>Before the button's own frame (CMenuButton.execute): its alpha as it left it, the layout's opacity taken off again.</summary>
+		public static void ButtonBefore(int cell)
+		{
+			if (_buttons.TryGetValue(cell, out Shown s) && _buttonAlpha.TryGetValue(cell, out byte alpha)) { try { s.Sprite.SetAlpha(alpha); } catch (Exception) { } }
+		}
+
+		/// <summary>After it: the layout's frames shown and faded with it, its sprite in the layout's tint, opacity and place - or taken away for a picture of the layout's.</summary>
+		public static void ButtonAfter(int cell)
+		{
+			if (!_buttons.TryGetValue(cell, out Shown s)) return;
+			try
+			{
+				byte alpha = s.Sprite.GetAlpha();
+				_buttonAlpha[cell] = alpha;
+				bool menu = _buttonShown.TryGetValue(cell, out bool wanted);
+				bool visible = menu ? wanted : s.Sprite.IsShow();
+				float fade = alpha / 31f;
+				if (visible != s.Visible || Math.Abs(fade - s.Fade) > 0.01f || !s.Built || _animator.Active)
+				{
+					s.Visible = visible;
+					s.Fade = fade;
+					Refresh(s);
+				}
+				XElement top = Subtree(s.Root).FirstOrDefault();
+				if (top == null || !s.Looks.TryGetValue(top, out MenuStyles.Look look)) return;
+				if (look.Background != null || look.Hidden || look.NoPanel) { s.Sprite.SetShow(false); return; }
+				if (menu) s.Sprite.SetShow(visible);   // the game shows a menu's button once, not each frame: shown again under a look that keeps it
+				uint tint = ModMenus.StyleRgb(look.Tint) is uint rgb ? (rgb >> 16 & 0xFF) | (rgb & 0xFF00) | ((rgb & 0xFF) << 16) : 0xFFFFFFu;
+				s.Sprite.SetColor(tint);
+				s.Sprite.SetAlpha((byte)Math.Round(alpha * Math.Clamp(look.Opacity, 0, 1)));
+				(int dx, int dy) = Offset(s, top, s.Looks);
+				s.Sprite.SetPositionI(s.SpritePlace.X + dx - s.Shift.X, s.SpritePlace.Y + dy - s.Shift.Y);
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "field hud: " + s.Root + ": " + ex.Message); }
+		}
+
+		/// <summary>The button is gone (CMenuButton.cleanup).</summary>
+		public static void ButtonGone(int cell)
+		{
+			if (_buttons.TryGetValue(cell, out Shown s)) { Close(ref s); _buttons.Remove(cell); }
+			_buttonSprites.Remove(cell);
+			_buttonAlpha.Remove(cell);
+			_buttonShown.Remove(cell);
+			_buttonTexts.Remove(cell);
+		}
+
+		// ---- the menus' buttons (CWMenuButton: A, B, L, R) ----
+
+		/// <summary>A menu's button was made (CWMenuButton.initialize): its frame's look over its sprite, hidden until the game shows it.</summary>
+		public static void MenuButtonMade(int i, GlobalScope.sys2d.Sprite sprite)
+		{
+			int cell = MenuButtonKey + i;
+			_buttonShown[cell] = false;
+			_buttonTexts.Remove(cell);
+			ButtonMade(cell, sprite);
+			try { ButtonPlaced(cell, sprite.GetPositionI().x, sprite.GetPositionI().y); } catch (Exception) { }
+		}
+
+		/// <summary>A menu button's label (A's, B's), in its text frame's look.</summary>
+		public static void MenuButtonText(int i, GlobalScope.dgs.DGSMessage message)
+		{
+			int cell = MenuButtonKey + i;
+			if (message == null) return;
+			_buttonTexts[cell] = message;
+			if (_buttons.TryGetValue(cell, out Shown s)) s.Text(s.Root + "/text", message);
+		}
+
+		/// <summary>The game showed or hid a menu's button (SetButton?Activity, SetUpNormalVer...).</summary>
+		public static void MenuButtonShown(int i, bool shown)
+		{
+			int cell = MenuButtonKey + i;
+			_buttonShown[cell] = shown;
+			ButtonAfter(cell);
+		}
+
+		public static void MenuButtonGone(int i) => ButtonGone(MenuButtonKey + i);
+
+		/// <summary>Each frame of a menu: its buttons' panels, and what moves on them.</summary>
+		public static void MenuButtonsTick()
+		{
+			foreach (int cell in _buttons.Keys.Where(k => k >= MenuButtonKey).ToList())
+			{
+				Shown s = _buttons[cell];
+				s.Panels.Flush();
+				if (!s.Built || _animator.Active) { ButtonBefore(cell); ButtonAfter(cell); }
+			}
+		}
+
+		// ---- the title's commands (ttl.CTitle2D: the column where title puts it, its labels drawn in ModListScreen) ----
+
+		private static readonly Dictionary<(bool, bool), MenuStyles.Look> _titleLooks = new Dictionary<(bool, bool), MenuStyles.Look>();
+
+		/// <summary>
+		/// A title command's look - title/row's, the one the hand is on in :focus, a Continue with nothing to continue :disabled -, or
+		/// null while the layout says nothing about looks. Worked out from the sheets as they stand (the title's rows do not move).
+		/// </summary>
+		public static MenuStyles.Look TitleLook(bool focus, bool disabled)
+		{
+			if (!Styled) return null;
+			if (_titleLooks.TryGetValue((focus, disabled), out MenuStyles.Look cached)) return cached;
+			XElement row = _source.Descendants("frame").FirstOrDefault(f => PathOf(f) == "title/row");
+			MenuStyles.Look look = null;
+			if (row != null)
+			{
+				XAttribute was = row.Attribute(MenuStyles.StateAttribute);
+				string states = string.Join(" ", new[] { focus ? "focus" : null, disabled ? "disabled" : null }.Where(x => x != null));
+				row.SetAttributeValue(MenuStyles.StateAttribute, states.Length == 0 ? null : states);
+				try
+				{
+					List<(XElement Frame, Dictionary<string, string> Computed)> computed = MenuStyles.Computed(_source, _sheet);
+					MenuStyles.Looks(_source, computed, computed.ToDictionary(c => c.Frame, c => c.Computed)).TryGetValue(row, out look);
+				}
+				finally { row.SetAttributeValue(MenuStyles.StateAttribute, was?.Value); }
+			}
+			_titleLooks[(focus, disabled)] = look;
+			return look;
+		}
+
+		/// <summary>A look's lettering with its faces' files found (url() beside the layout).</summary>
+		public static MenuText TitleLettering(MenuStyles.Look look) => look == null ? null : Lettering(look.TextStyle);
+
+		/// <summary>Every frame while a thing of the HUD's is up: its panels once it is open, and what moves (transitions, animations).</summary>
 		public static void Tick()
 		{
 			_nextPanels.Flush();
-			foreach (Shown s in new[] { _dialogue, _banner })
+			foreach (Shown s in new[] { _dialogue, _banner, _confirm })
 			{
 				if (s == null) continue;
 				s.Panels.Flush();
@@ -378,6 +653,7 @@ namespace OpenFF.Client
 				}
 				catch (Exception ex) { Log.Write(LogChannel.General, "field hud: " + ex.Message); }
 			}
+			foreach (Shown s in _buttons.Values) s.Panels.Flush();
 		}
 
 		// ---- the looks put on ----
@@ -390,10 +666,23 @@ namespace OpenFF.Client
 			return top == null ? Enumerable.Empty<XElement>() : top.DescendantsAndSelf("frame");
 		}
 
+		/// <summary>A frame's state (focus) on or off, for the sheets' pseudo-classes.</summary>
+		private static void SetState(string path, string state, bool on)
+		{
+			XElement frame = _source?.Descendants("frame").FirstOrDefault(f => PathOf(f) == path);
+			if (frame == null) return;
+			List<string> states = ((string)frame.Attribute(MenuStyles.StateAttribute) ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+			if (states.Contains(state) == on) return;
+			if (on) states.Add(state); else states.Remove(state);
+			frame.SetAttributeValue(MenuStyles.StateAttribute, states.Count > 0 ? string.Join(" ", states) : null);
+			_version++;
+		}
+
 		/// <summary>The game's window as the root frame's look has it: taken away (-ff-panel: none), the bar, opacity and tint.</summary>
 		private static void PutWindowLook(Shown s)
 		{
-			Dictionary<XElement, MenuStyles.Look> looks = Looks(s);
+			if (s.Window == null) return;
+			Dictionary<XElement, MenuStyles.Look> looks = CurrentLooks();
 			XElement root = Subtree(s.Root).FirstOrDefault();
 			if (root == null || !looks.TryGetValue(root, out MenuStyles.Look look)) return;
 			try
@@ -409,42 +698,100 @@ namespace OpenFF.Client
 			catch (Exception) { }
 		}
 
-		/// <summary>The window's frames' looks and data put on: its game text's look, its frames' texts, and - once it is open - its panels (made again where they changed).</summary>
+		/// <summary>A frame's box in a thing opened without its question line (Shown.Lift): the root that much shorter, what is under the question moved up.</summary>
+		private static BattleHud.Rect Lifted(Shown s, string path, BattleHud.Rect r)
+		{
+			if (s.Lift == 0) return r;
+			if (path == s.Root) { r.Height -= s.Lift; return r; }
+			if (_rects.TryGetValue(s.Root + "/question", out BattleHud.Rect q) && r.Y > q.Y) r.Y -= s.Lift;
+			return r;
+		}
+
+		/// <summary>How far a frame's drawing is moved: its translate's difference from the one its layout was built with, its parents' with it (as CSS moves a box's children with it); a thing's shift from its frame's place at its root.</summary>
+		private static (int X, int Y) Offset(Shown s, XElement frame, Dictionary<XElement, MenuStyles.Look> looks)
+		{
+			float x = 0, y = 0;
+			for (XElement f = frame; f != null && f.Name.LocalName == "frame"; f = f.Parent)
+			{
+				string path = PathOf(f);
+				if (path == null || !_rects.TryGetValue(path, out BattleHud.Rect r)) continue;
+				looks.TryGetValue(f, out MenuStyles.Look look);
+				(float nx, float ny) = MenuStyles.TranslateOf(look?.Translate, r.Width, r.Height);
+				(float bx, float by) = MenuStyles.TranslateOf(_baseTranslate.TryGetValue(f, out string b) ? b : null, r.Width, r.Height);
+				x += nx - bx;
+				y += ny - by;
+				if (path == s.Root) break;
+			}
+			return ((int)Math.Round(x) + s.Shift.X, (int)Math.Round(y) + s.Shift.Y);
+		}
+
+		/// <summary>A thing's frames' looks and data put on: its game texts' looks and places, its frames' texts, and - once it is open - its panels (a fade or a move in place, made again where the box changed).</summary>
 		private static void Refresh(Shown s)
 		{
 			if (_source == null) return;
 			Bind(s);
-			Dictionary<XElement, MenuStyles.Look> looks = Looks(s);
+			Dictionary<XElement, MenuStyles.Look> looks = CurrentLooks();
 			bool open = s.Built || s.Open();
 			XElement top = Subtree(s.Root).FirstOrDefault();
 			bool rootMoved = top == null || !s.Looks.TryGetValue(top, out MenuStyles.Look rootWas) || !looks.TryGetValue(top, out MenuStyles.Look rootNow) || !rootWas.SameAs(rootNow);
 			s.Looks = looks;
 			if (rootMoved) PutWindowLook(s);
-			XElement textFrame = Subtree(s.Root).FirstOrDefault(f => PathOf(f) == s.TextFrame);
-			if (s.Text != null && textFrame != null && looks.TryGetValue(textFrame, out MenuStyles.Look textLook)) PutText(s.Text, textLook);
-			XElement nameFrame = Subtree(s.Root).FirstOrDefault(f => PathOf(f) == "dialogue/name");
-			if (s.Name != null && nameFrame != null && looks.TryGetValue(nameFrame, out MenuStyles.Look nameLook)) PutText(s.Name, nameLook);
+			// The game's texts: each in its frame's look, moved with it.
+			foreach (KeyValuePair<string, GlobalScope.dgs.DGSMessage> t in s.Texts)
+			{
+				XElement frame = Subtree(s.Root).FirstOrDefault(f => PathOf(f) == t.Key);
+				if (frame == null || !looks.TryGetValue(frame, out MenuStyles.Look look)) continue;
+				PutText(t.Value, look, s.Fade, s.Visible);
+				(int dx, int dy) = Offset(s, frame, looks);
+				if (s.TextPlace.TryGetValue(t.Value, out (short X, short Y) at) && (dx != 0 || dy != 0 || rootMoved)) { try { t.Value.setPosition((short)(at.X + dx - s.Shift.X), (short)(at.Y + dy - s.Shift.Y), erase: true); } catch (Exception) { } }
+			}
 			if (!open) return;
+			// The game's window moved with its frame.
+			if (s.Window != null && top != null)
+			{
+				(int wx, int wy) = Offset(s, top, looks);
+				wx -= s.Shift.X; wy -= s.Shift.Y;
+				if ((wx, wy) != s.WindowOffset)
+				{
+					try { s.Window.SetPositionUL(new GlobalScope.ds.Vector2<short>((short)(s.WindowPlace.X + wx), (short)(s.WindowPlace.Y + wy))); } catch (Exception) { }
+					s.WindowOffset = (wx, wy);
+				}
+			}
 			int depth = 0, step = GlobalScope.ds.S32toFX32(32);
-			try { depth = s.Window.GetDepth(); } catch (Exception) { }
+			try { if (s.Window != null) depth = s.Window.GetDepth(); } catch (Exception) { }
 			int place = 0;
 			foreach (XElement frame in Subtree(s.Root))
 			{
 				string path = PathOf(frame);
 				if (path == "dialogue/next") continue;   // the arrow's (PutNext)
-				bool game = path == s.Root || path == "dialogue/text" || path == "dialogue/name";
+				bool game = s.Game.Contains(path);
 				// Each frame of the mod's a step in front of the one before, the game's window at the back.
 				int back = game && path == s.Root ? depth : depth - step * ++place;
 				looks.TryGetValue(frame, out MenuStyles.Look look);
 				bool shown = look != null && !look.Hidden && _rects.ContainsKey(path);
+				float fade = look == null ? 1f : (float)look.Opacity * s.Fade;
+				(int dx, int dy) = Offset(s, frame, looks);
 				s.Frames.TryGetValue(frame, out Built built);
 				if (built != null && shown && SameBox(built.Look, look))
 				{
-					// The same box: a fade is put on in place.
-					if (Math.Abs(built.Look.Opacity - look.Opacity) > 0.001)
+					// The same box: a fade and a move are put on in place.
+					if (Math.Abs(built.Fade - fade) > 0.001f)
 					{
-						MenuPanels.Fade(built.Sprites, look.Opacity);
-						try { built.Window?.SetLook((float)look.Opacity, null); } catch (Exception) { }
+						MenuPanels.Fade(built.Sprites, fade);
+						try { built.Window?.SetLook(fade, null); } catch (Exception) { }
+						built.Fade = fade;
+					}
+					if (built.Offset != (dx, dy) || built.Visible != s.Visible)
+					{
+						MenuPanels.Move(built.Sprites, dx, dy, s.Visible);
+						try
+						{
+							built.Window?.SetPositionUL(new GlobalScope.ds.Vector2<short>((short)(built.WindowPlace.X + dx), (short)(built.WindowPlace.Y + dy)));
+							built.Window?.SetShow(s.Visible, user: true);
+						}
+						catch (Exception) { }
+						built.Offset = (dx, dy);
+						built.Visible = s.Visible;
 					}
 					built.Look = look;
 					continue;
@@ -455,53 +802,61 @@ namespace OpenFF.Client
 					s.Panels.Remove(built.Sprites, built.Textures);
 					try { built.Window?.Release(); } catch (Exception) { }
 				}
-				built = new Built { Look = look };
+				built = new Built { Look = look, Fade = fade, Offset = (dx, dy), Visible = s.Visible };
 				s.Frames[frame] = built;
 				if (!shown) continue;
-				BattleHud.Rect r = _rects[path];
+				BattleHud.Rect r = Lifted(s, path, _rects[path]);
 				if (!game && look.Window)
 				{
 					GlobalScope.menu.BasicWindow window = new GlobalScope.menu.BasicWindow();
-					window.bwCreateUL(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new GlobalScope.ds.Vector2<short>((short)r.X, (short)r.Y), new GlobalScope.ds.Vector2<short>((short)r.Width, (short)r.Height), 3);
+					window.bwCreateUL(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new GlobalScope.ds.Vector2<short>((short)(r.X + dx), (short)(r.Y + dy)), new GlobalScope.ds.Vector2<short>((short)r.Width, (short)r.Height), 3);
 					window.SetPriority(3);
 					window.SetStackDepth(back);
 					if (look.Bar) window.SetBarStyle();
-					if (look.Opacity < 1) window.SetLook((float)look.Opacity, null);
-					window.SetShow(show: true, user: true);
+					if (fade < 1) window.SetLook(fade, null);
+					window.SetShow(s.Visible, user: true);
 					built.Window = window;
+					built.WindowPlace = (r.X, r.Y);
 				}
-				if (look.Background != null) s.Panels.Add(_directory, path, r.X, r.Y, r.Width, r.Height, look.Background, look.Opacity, back + GlobalScope.ds.S32toFX32(8), built.Sprites, built.Textures);
+				if (look.Background != null)
+				{
+					s.Panels.Add(_directory, path, r.X, r.Y, r.Width, r.Height, look.Background, fade, back + GlobalScope.ds.S32toFX32(8), built.Sprites, built.Textures);
+					if (dx != 0 || dy != 0 || !s.Visible) MenuPanels.Move(built.Sprites, dx, dy, s.Visible);
+				}
 			}
-			foreach (Extra e in s.Extras) PutExtra(e, looks);
+			foreach (Extra e in s.Extras) PutExtra(s, e, looks);
 			if (s == _dialogue)
 			{
-				int front = 0;
-				try { front = s.Window.GetDepth() - GlobalScope.ds.S32toFX32(32) * (Subtree(s.Root).Count() + 1); } catch (Exception) { }
-				_frontDepth = front;
+				_frontDepth = depth - step * (place + 2);
+				XElement next = Subtree(s.Root).FirstOrDefault(f => PathOf(f) == "dialogue/next");
+				_nextOffset = next != null ? Offset(s, next, looks) : (0, 0);
 				PutNext();
+			}
+			if (s == _confirm && _confirmCursor != null && top != null)
+			{
+				(int cx, int cy) = Offset(s, top, looks);
+				try { _confirmCursor.SetPositionI(_cursorPlace.X + cx, _cursorPlace.Y + cy); } catch (Exception) { }
 			}
 			s.Built = true;
 		}
 
-		/// <summary>The frames' bindings under the HUD's data: their texts (for the extras), shown or not, classes and bound styles. True when a class or a style changed (the looks are worked out again).</summary>
-		private static bool Bind(Shown s)
+		/// <summary>The frames' bindings under the HUD's data: their texts (for the extras), shown or not, classes and bound styles.</summary>
+		private static void Bind(Shown s)
 		{
 			MenuBindingScope scope = new MenuBindingScope { Root = Root };
-			bool moved = false;
 			foreach (XElement frame in Subtree(s.Root))
 			{
 				string path = PathOf(frame);
-				bool game = path == s.Root || path == "dialogue/text" || path == "dialogue/name" || path == "dialogue/next";
-				if (!game && IsText(frame) && !s.Extras.Any(e => e.Frame == frame)) s.Extras.Add(new Extra { Frame = frame, Path = path });
+				if (!s.Game.Contains(path) && IsText(frame) && !s.Extras.Any(e => e.Frame == frame)) s.Extras.Add(new Extra { Frame = frame, Path = path });
 				try
 				{
 					foreach (KeyValuePair<string, string> c in MenuStyles.Declarations((string)frame.Attribute("bind-class")))
-						moved |= SetClass(frame, c.Key, MenuBindings.Test(c.Value, scope));
+						if (SetClass(frame, c.Key, MenuBindings.Test(c.Value, scope))) _version++;
 					string own = _ownStyle.TryGetValue(frame, out string o) ? o : null;
 					string bound = frame.Attribute("bind-style") is XAttribute bs ? MenuBindings.Format(bs.Value, scope) : null;
 					string visible = frame.Attribute("bind-visible") is XAttribute bv ? (MenuBindings.Test(bv.Value, scope) ? null : "visibility: hidden") : null;
 					string style = string.Join("; ", new[] { own, bound, visible }.Where(x => !string.IsNullOrWhiteSpace(x)));
-					if (style != ((string)frame.Attribute("style") ?? "")) { frame.SetAttributeValue("style", style.Length == 0 ? null : style); moved = true; }
+					if (style != ((string)frame.Attribute("style") ?? "")) { frame.SetAttributeValue("style", style.Length == 0 ? null : style); _version++; }
 				}
 				catch (Exception ex) { Log.Write(LogChannel.General, "field hud: " + path + ": " + ex.Message); }
 			}
@@ -510,7 +865,6 @@ namespace OpenFF.Client
 				string text = e.Frame.Attribute("bind-text") is XAttribute bt ? MenuBindings.Format(bt.Value, scope) : ((string)e.Frame.Element("data"))?.Trim();
 				if (text != e.Text) { e.Text = text; ReleaseExtra(e); }
 			}
-			return moved;
 		}
 
 		private static bool IsText(XElement frame) => frame.Attribute("bind-text") != null || (string)frame.Element("behavior")?.Attribute("value") == "Text" || !string.IsNullOrWhiteSpace((string)frame.Element("data"));
@@ -537,16 +891,26 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>The layout's looks now: the cascade (its sheets, its frames' bound classes and styles) and what is moving.</summary>
-		private static Dictionary<XElement, MenuStyles.Look> Looks(Shown s)
+		// The looks once a frame of the game's (the animator steps once a frame for every thing of the HUD's), again when a binding or a state changed them.
+		private static int _version;
+		private static (long Frame, int Version) _looksAt = (-1, -1);
+		private static Dictionary<XElement, MenuStyles.Look> _looks = new Dictionary<XElement, MenuStyles.Look>();
+
+		/// <summary>The layout's looks now: the cascade (its sheets, its frames' bound classes, styles and states) and what is moving.</summary>
+		private static Dictionary<XElement, MenuStyles.Look> CurrentLooks()
 		{
+			long frame = -1;
+			try { frame = OpenFF.Game.Time.Frame; } catch (Exception) { }
+			if (_looksAt == (frame, _version) && frame >= 0) return _looks;
 			List<(XElement Frame, Dictionary<string, string> Computed)> computed = MenuStyles.Computed(_source, _sheet);
 			Dictionary<XElement, Dictionary<string, string>> shown = _animator.Step(computed, _sheet, _clock.Elapsed.TotalSeconds);
-			return MenuStyles.Looks(_source, computed, shown);
+			_looks = MenuStyles.Looks(_source, computed, shown);
+			_looksAt = (frame, _version);
+			return _looks;
 		}
 
-		/// <summary>A text of the game's (the dialogue's, the banner's) with a frame's look: its colour, opacity, size and lettering.</summary>
-		private static void PutText(GlobalScope.dgs.DGSMessage message, MenuStyles.Look look)
+		/// <summary>A text of the game's (the dialogue's, the banner's, the box's) with a frame's look: its colour, opacity, size and lettering; faded and shown with its thing.</summary>
+		private static void PutText(GlobalScope.dgs.DGSMessage message, MenuStyles.Look look, float fade = 1f, bool visible = true)
 		{
 			try
 			{
@@ -554,29 +918,33 @@ namespace OpenFF.Client
 				if (canvas == null) return;
 				if (ModMenus.StyleRgb(look.Colour) is uint rgb) canvas.rgba = rgb << 8 | 0xFF;
 				else if (!string.IsNullOrWhiteSpace(look.Colour)) { canvas.rgba = null; message.setMessageColor((GlobalScope.dgs.TXT_COLOR)(int)ModMenus.ColourWord(look.Colour)); }
-				canvas.alpha = (byte)Math.Round(Math.Clamp(look.Opacity, 0, 1) * 255);
+				canvas.alpha = (byte)Math.Round(Math.Clamp(look.Opacity * fade, 0, 1) * 255);
 				MenuText lettering = Lettering(look.TextStyle);
 				int size = int.TryParse(look.Font, out int n) && n >= 6 && n <= 31 ? n : look.Font == "large" ? 16 : 0;
 				if (size > 0 || lettering != null || canvas.style != null)
 				{
-					canvas.style = lettering;
-					canvas.pFont = new GlobalScope.NNSG2dFont { size = size > 0 ? size : canvas.pFont?.size ?? 12, style = lettering };
+					if (!(canvas.pFont != null && canvas.pFont.size == (size > 0 ? size : canvas.pFont.size) && canvas.style?.Key == lettering?.Key))
+					{
+						canvas.style = lettering;
+						canvas.pFont = new GlobalScope.NNSG2dFont { size = size > 0 ? size : canvas.pFont?.size ?? 12, style = lettering };
+					}
 				}
-				message.setVisibility(!look.Hidden);
+				message.setVisibility(visible && !look.Hidden);
 				message.Redraw();
 			}
 			catch (Exception) { }
 		}
 
-		/// <summary>A frame of the mod's with text: a message of its own at the frame's place (its alignment across, centred down), in its look.</summary>
-		private static void PutExtra(Extra e, Dictionary<XElement, MenuStyles.Look> looks)
+		/// <summary>A frame of the mod's with text: a message of its own at the frame's place (its alignment across, centred down), in its look, moved, faded and shown with its thing.</summary>
+		private static void PutExtra(Shown s, Extra e, Dictionary<XElement, MenuStyles.Look> looks)
 		{
 			if (!looks.TryGetValue(e.Frame, out MenuStyles.Look look) || !_rects.TryGetValue(e.Path, out BattleHud.Rect r)) return;
+			r = Lifted(s, e.Path, r);
 			GlobalScope.dgs.msg.CMessageMng mm = GlobalScope.dgs.msg.CMessageSys.getInstance().Main();
 			if (e.Message < 0)
 			{
 				if (string.IsNullOrEmpty(e.Text)) return;
-				e.Message = mm.createMessage(e.Text, (ushort)r.X, (ushort)r.Y, GlobalScope.dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, GlobalScope.dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
+				e.Message = mm.createMessage(e.Text, (ushort)Math.Max(0, r.X), (ushort)Math.Max(0, r.Y), GlobalScope.dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, GlobalScope.dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
 				if (e.Message < 0) return;
 				GlobalScope.dgs.DGSMessage made = mm.Message(e.Message);
 				made?.setDisplaySpeed(byte.MaxValue);
@@ -584,13 +952,14 @@ namespace OpenFF.Client
 			}
 			GlobalScope.dgs.DGSMessage message = mm.Message(e.Message);
 			if (message == null) return;
-			PutText(message, look);
+			PutText(message, look, s.Fade, s.Visible);
 			GlobalScope.ds.Vector2<short> size = new GlobalScope.ds.Vector2<short>();
 			message.getCompleteTextSize(size);
 			string align = (look.Align ?? "").Trim();
-			int x = align == "right" ? r.X + r.Width - size.vx : align == "center" ? r.X + (r.Width - size.vx) / 2 : r.X;
-			int y = r.Height > 0 ? r.Y + (r.Height - size.vy) / 2 : r.Y;
-			message.setPosition((short)x, (short)y, erase: true);
+			(int dx, int dy) = Offset(s, e.Frame, looks);
+			int x = (align == "right" ? r.X + r.Width - size.vx : align == "center" ? r.X + (r.Width - size.vx) / 2 : r.X) + dx;
+			int y = (r.Height > 0 ? r.Y + (r.Height - size.vy) / 2 : r.Y) + dy;
+			if (message.positionX() != x || message.positionY() != y) message.setPosition((short)x, (short)y, erase: true);
 		}
 
 		private static void ReleaseExtra(Extra e)
@@ -617,6 +986,11 @@ namespace OpenFF.Client
 		{
 			if (s == null) return;
 			if (s == _dialogue) { _nextPanels.Clear(); _next = null; _nextWanted = false; }
+			if (s == _confirm)
+			{
+				SetState("confirm/yes", "focus", false);
+				SetState("confirm/no", "focus", false);
+			}
 			s.Panels.Clear();
 			foreach (Built b in s.Frames.Values) { try { b.Window?.Release(); } catch (Exception) { } }
 			foreach (Extra e in s.Extras) ReleaseExtra(e);

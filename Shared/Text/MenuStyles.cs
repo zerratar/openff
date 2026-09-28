@@ -161,10 +161,12 @@ namespace OpenFF.Content
 			/// <summary>How the look moves: the transition's and the animation's declarations (MenuAnimation), or null.</summary>
 			public string Transition;
 			public string Animation;
+			/// <summary>The frame's translate as it is now (a transition's, an animation's): what it draws moved by the difference from the one its layout was built with.</summary>
+			public string Translate;
 
 			public bool SameAs(Look o) => o != null && Colour == o.Colour && Font == o.Font && Align == o.Align && Math.Abs(Opacity - o.Opacity) < 0.001
 				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && NoPanel == o.NoPanel && Tint == o.Tint && Background == o.Background && Portrait == o.Portrait
-				&& TextStyle == o.TextStyle && Transition == o.Transition && Animation == o.Animation;
+				&& TextStyle == o.TextStyle && Transition == o.Transition && Animation == o.Animation && Translate == o.Translate;
 
 			public bool SamePanel(Look o) => o != null && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Math.Abs(Opacity - o.Opacity) < 0.001 && Hidden == o.Hidden && Background == o.Background && Portrait == o.Portrait;
 
@@ -228,7 +230,24 @@ namespace OpenFF.Content
 		{
 			XElement copy = new XElement(frame.Name, frame.Attributes(), frame.Elements().Where(e => e.Name.LocalName != "frame"));
 			Bake(copy, computed, opacity);
-			return ReadLook(copy);
+			Look look = ReadLook(copy);
+			look.Translate = computed.TryGetValue("translate", out string t) ? t.Trim() : null;
+			return look;
+		}
+
+		/// <summary>A translate ("x [y]", px or % of the frame's own size) in menu units; nothing for none.</summary>
+		public static (float X, float Y) TranslateOf(string value, float width, float height)
+		{
+			if (string.IsNullOrWhiteSpace(value) || value.Trim().Equals("none", StringComparison.OrdinalIgnoreCase)) return (0, 0);
+			string[] parts = value.Trim().Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries);
+			float One(string p, float whole)
+			{
+				string t = p.Trim().ToLowerInvariant();
+				if (t.EndsWith("%") && float.TryParse(t.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) return whole * pc / 100;
+				if (t.EndsWith("px")) t = t.Substring(0, t.Length - 2);
+				return float.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : 0;
+			}
+			return (parts.Length > 0 ? One(parts[0], width) : 0, parts.Length > 1 ? One(parts[1], height) : 0);
 		}
 
 		/// <summary>A frame's look as its elements say it (what the bake wrote, or a layout's own words).</summary>

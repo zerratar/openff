@@ -1204,8 +1204,77 @@ function drawScreen(node, screen, select, quiet) {
 function hudGameWindow(frame, look) {
   const parent = frame.element.parentElement;
   if (!parent || parent.tagName !== 'menu' || childText(parent, 'name') !== 'field_hud') return false;
-  if (frame.id !== 'dialogue' && frame.id !== 'map_name') return false;
+  if (frame.id !== 'dialogue' && frame.id !== 'map_name' && frame.id !== 'confirm') return false;
   return (childText(look, 'panel') || '').trim() !== 'none';
+}
+
+/// A frame's path in field_hud ("dialogue/next"), or null for a frame of another screen.
+function hudPath(frame) {
+  const parts = [];
+  let e = frame.element;
+  while (e && e.tagName === 'frame') { parts.unshift(childText(e, 'id') || ''); e = e.parentElement; }
+  if (!e || e.tagName !== 'menu' || childText(e, 'name') !== 'field_hud') return null;
+  return parts.join('/');
+}
+
+/// What the game draws in field_hud's frames from its own sprites, for Preview: the dialogue's page arrow, the field's
+/// buttons, the menus' L / R, the Yes / No box's hand - the cell, where it goes in the frame, and whether it is fitted to it.
+function hudGameCell(path, look) {
+  if (!path) return null;
+  const own = !!childText(look, 'background') || (childText(look, 'panel') || '').trim() === 'none';
+  switch (path) {
+    case 'dialogue/next': return own ? null : { bank: 'files/icon_16dot.NCER', cell: 24 };
+    case 'menu_button': return own ? null : { bank: 'files/m009_menubutton_i.NCER', cell: 0, fit: true };
+    case 'map_button': return own ? null : { bank: 'files/m009_menubutton_i.NCER', cell: 13, fit: true };
+    case 'talk_button': return own ? null : { bank: 'files/m009_menubutton_i.NCER', cell: 14, fit: true };
+    case 'l_button': return own ? null : { bank: 'files/icon_16dot.NCER', cell: 5, centre: true };
+    case 'r_button': return own ? null : { bank: 'files/icon_16dot.NCER', cell: 6, centre: true };
+    case 'confirm/yes':
+    case 'confirm/no': {
+      // The hand on the answer in :focus (Yes when Preview says neither), a step to its left.
+      const state = typeof menuPreviewState === 'function' ? menuPreviewState() : null;
+      const focused = state && state.focus && childText(state.focus, 'id');
+      const on = focused === 'yes' || focused === 'no' ? path.endsWith(focused) : path === 'confirm/yes';
+      return on ? { bank: 'files/icon_yubi.NCER', cell: 0, hand: true } : null;
+    }
+  }
+  return null;
+}
+
+const hudCells = new Map();
+
+/// A cell of one of the game's banks drawn (its bank and sheet loaded once), tinted, or null.
+async function drawHudCell(bank, index, tint, scale) {
+  let entry = hudCells.get(bank);
+  if (!entry) {
+    entry = (async () => {
+      const cells = await api(`/api/cell?name=${encodeURIComponent(bank)}`);
+      const sheet = new Image();
+      await new Promise(resolve => { sheet.onload = resolve; sheet.onerror = resolve; sheet.src = wsUrl(`/api/image?name=${encodeURIComponent(cells.sheet)}`); });
+      return sheet.width ? { cells, sheet } : null;
+    })().catch(() => null);
+    hudCells.set(bank, entry);
+  }
+  const loaded = await entry;
+  const cell = loaded && loaded.cells.cells && loaded.cells.cells[index];
+  if (!cell || !cell.parts.length) return null;
+  const canvas = drawCell(cell, loaded.sheet, false, false, scale);
+  canvas.cellBox = cellBounds(cell, false);
+  if (tint && /^#[0-9a-fA-F]{6}/.test(tint)) {
+    // -ff-tint: the sprite's colour times the tint's, its alpha kept (the DS's own sprite colour).
+    const g = canvas.getContext('2d');
+    const copy = document.createElement('canvas');
+    copy.width = canvas.width; copy.height = canvas.height;
+    copy.getContext('2d').drawImage(canvas, 0, 0);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = tint.slice(0, 7);
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(copy, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+  }
+  return canvas;
 }
 
 /// What the game fills field_hud's frames with, for Preview: the dialogue's text, the banner's map name (the bindings' sample).
@@ -1216,6 +1285,12 @@ function hudSampleText(frame) {
   const path = parent.tagName === 'menu' ? frame.id : `${childText(parent, 'id')}/${frame.id}`;
   if (path === 'dialogue/text') return BINDING_SAMPLE.dialogue.text;
   if (path === 'map_name') return BINDING_SAMPLE.banner.text;
+  // The Yes / No box's lines, the title's command (its column's first row), the menus' B label (A's shares its place, shown when B's is not).
+  if (path === 'confirm/question') return 'Rest here?';
+  if (path === 'confirm/yes') return 'Yes';
+  if (path === 'confirm/no') return 'No';
+  if (path === 'title/row') return 'NEW GAME';
+  if (path === 'b_button/text') return (menu.messages && menu.messages[50021]) || 'Back';
   return null;
 }
 
@@ -1257,6 +1332,22 @@ function dressFrameBox(box, frame, look) {
       if (!c || !live()) return;
       slots[2].append(c);
       if (c.shadow) slots[0].append(c.shadow);
+    }));
+  }
+  // What the game draws there from its own sprites (field_hud: the page arrow, the buttons, the hand), in the frame's tint.
+  const gameCell = menu.preview && !box.classList.contains('look-hidden') ? hudGameCell(hudPath(frame), look) : null;
+  if (gameCell) {
+    later(drawHudCell(gameCell.bank, gameCell.cell, tint, 2 * menu.zoom).then(c => {
+      if (!c || !live()) return;
+      c.className = 'game-cell';
+      const b = c.cellBox;
+      if (gameCell.fit) { c.style.left = '0px'; c.style.top = '0px'; c.style.width = `${frame.width}px`; c.style.height = `${frame.height}px`; }
+      else {
+        // Where the game puts the sprite: at the frame's corner (L and R: centred across it), the cell's parts from there.
+        const x = (gameCell.centre ? frame.width / 2 - 24 : 0) + b.x, y = b.y;
+        c.style.left = `${x}px`; c.style.top = `${y}px`; c.style.width = `${b.width}px`; c.style.height = `${b.height}px`;
+      }
+      box.prepend(c);
     }));
   }
   // A portrait frame: the hero's face, fitted, over its window and background - a sample one here (Luneth's, or the slot's hero).

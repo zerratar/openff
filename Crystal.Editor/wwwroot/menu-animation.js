@@ -4,7 +4,8 @@
 // screen does, and puts on the canvas what it shows.
 //
 // What moves is the look (opacity, colours, tints, the background's colours, gradients, borders,
-// corners and shadows, the text's lettering), never the layout. A value moves from one to another
+// corners and shadows, the text's lettering), never the layout - but for translate, which moves what a
+// frame draws (and its children with it) from where its layout put it. A value moves from one to another
 // when the two have the same shape (the same words, numbers and colours in the same places);
 // otherwise it changes half way, as CSS changes what it cannot interpolate.
 
@@ -13,6 +14,7 @@
 /// The properties that move: the look, not the layout nor what says how things move.
 function animatable(property) {
   if (!property) return false;
+  if (property === 'translate') return true;
   if (STYLE_LAYOUT.includes(property)) return false;
   if (TRANSITION_PROPS.includes(property) || ANIMATION_PROPS.includes(property)) return false;
   // A panel of its own (the game's window made or taken away) and display (the layout's) do not move.
@@ -483,4 +485,31 @@ function stepMenuMotion(node) {
     const box = boxes.get(frame);
     if (box && typeof restyleFrameBox === 'function') restyleFrameBox(box, entry.look, entry.signature);
   }
+
+  // A translate as it moves: each box moved by its translate's difference from the one the layout was drawn with, its parents' with it.
+  const moved = new Map([[screen, [0, 0]]]);
+  for (const frame of order) {
+    const box = boxes.get(frame);
+    const w = box && box.frame ? box.frame.width : 0, h = box && box.frame ? box.frame.height : 0;
+    const [nx, ny] = animTranslate(shown.get(frame).get('translate'), w, h);
+    const [bx, by] = animTranslate(styled.computed.get(frame).get('translate'), w, h);
+    const [px, py] = moved.get(frame.parentElement) || [0, 0];
+    const dx = px + nx - bx, dy = py + ny - by;
+    moved.set(frame, [dx, dy]);
+    if (!box) continue;
+    const t = dx || dy ? `${Math.round(dx)}px ${Math.round(dy)}px` : '';
+    if (box.style.translate !== t) box.style.translate = t;
+  }
+}
+
+/// A translate ("x [y]", px or % of the frame's own size) in menu units; nothing for none.
+function animTranslate(value, width, height) {
+  if (!value || value.trim() === 'none') return [0, 0];
+  const parts = value.trim().split(/\s+/);
+  const one = (text, size) => {
+    const n = parseFloat(text);
+    if (!Number.isFinite(n)) return 0;
+    return text.endsWith('%') ? n * size / 100 : n;
+  };
+  return [one(parts[0], width), parts.length > 1 ? one(parts[1], height) : 0];
 }

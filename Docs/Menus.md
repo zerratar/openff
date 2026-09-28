@@ -225,11 +225,12 @@ A frame's look can follow its state and move, as a web page's does (`Shared/Text
 - **`animation`:** `<name> <duration> [<timing>] [<delay>] [<count> | infinite] [<direction>] [<fill-mode>] [<play-state>]`, a list; or its longhands (`animation-name`, `-duration`, `-timing-function`, `-delay`, `-iteration-count`, `-direction`, `-fill-mode`, `-play-state`). `@keyframes name { from {…} 50% {…} to {…} }` says what it goes through; a stop that leaves a property out takes the frame's own value.
 - **Timing:** `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`, `cubic-bezier(a, b, c, d)`, `steps(n[, start | end])`, `step-start`, `step-end`. Direction: `normal`, `reverse`, `alternate`, `alternate-reverse`. Fill mode: `none`, `forwards`, `backwards`, `both`.
 - **What moves:** the look - opacity, `color`, `-ff-tint`, the background's colours, gradients, borders, corners and shadows, the text's shadows, outline and spacing. Two values move from one to the other when they have the same shape (`0 2px 8px #000` to `0 4px 16px #f00`: the same words, with numbers and colours in the same places); otherwise the value changes half way through, as CSS changes what it can't interpolate. A palette word (`yellow`) moves to and from `#hex` through its colour in the game's palette.
-- **What doesn't:** the layout (`left`, `width`, `translate`…) - the game is given it as plain numbers - and `display` or `-ff-panel`.
+- **`translate` moves too:** what the frame draws (its window, its panel, its texts) and its children with it, by the difference from the translate its layout was placed with. The layout itself doesn't move, as in CSS: a press still reaches the frame where the layout put it. `#next { animation: bob 0.5s ease-in-out infinite alternate } @keyframes bob { from { translate: 0 -3px } to { translate: 0 3px } }` bobs the dialogue's arrow.
+- **What doesn't:** the rest of the layout (`left`, `width`…) - the game is given it as plain numbers - and `display` or `-ff-panel`.
 
 A screen with nothing moving costs nothing: the client works the look out again every frame only while a transition or an animation is under way.
 
-**In Crystal:** the preview cascades the same states and draws the same boxes and lettering (`menu-styles.js`, `menu-background.js`, `font.js`).
+**In Crystal:** the preview cascades the same states and draws the same boxes and lettering (`menu-styles.js`, `menu-background.js`, `font.js`); **Play** runs the motion, a translate's included.
 - **Preview state** (the Style section): the selected frame as `:focus` or `:disabled` - the editor's alone, never written to the file.
 - **▶ Play** (the canvas's toolbar): runs the transitions and animations as the client does (`menu-animation.js`); a state changed while it plays transitions.
 - **The inspector:** a **Lettering** section (shadows, face, weight, slant, spacing, line height, decoration, case, outline), a **Box** section (borders, corners, box shadows), a gradient editor in **Background** (Picture or Gradient: kind, direction, shape, stops), and a **Motion** section (transitions; animations, their names offered from the sheets' `@keyframes`).
@@ -420,7 +421,7 @@ Layout properties (`left`, `width`, `flex-direction`…) are fixed when the scre
 
 ## The field's HUD
 
-The field's dialogue window and the map-name banner are laid out by `field_hud`, a screen of the client's in `WorldDefine.xbn` (it's in Crystal's list of that file's screens). It's styled like any screen, and a layout of it can add frames of its own:
+The field's dialogue window and the map-name banner are laid out by `field_hud`, a screen of the client's in `WorldDefine.xbn` (it's in Crystal's list of that file's screens), with the rest of what the client draws from code outside battle: the Yes / No box, the field's buttons, the title's commands and the menus' touch buttons. It's styled like any screen, and a layout of it can add frames of its own:
 
 | Frame | What it is |
 |---|---|
@@ -430,6 +431,10 @@ The field's dialogue window and the map-name banner are laid out by `field_hud`,
 | `dialogue/next` | The page-turn arrow: `visibility: hidden` hides it, `-ff-tint` and `opacity` colour it. A background of its own (a picture, a painted box, with an `animation` if you like) takes its place, up exactly when the game's would be. |
 | `dialogue/<yours>` | A frame of the mod's, shown with the window: a window, a background, a text (`<data>`, or `bind-text`). |
 | `map_name` | The banner a map's name comes up in; its text takes the frame's look. |
+| `confirm` | The Yes / No box (an inn's question, a script's `Game.Dialogue.Ask`): the game's window, or `-ff-panel: none` and a look of the mod's. `confirm/question`, `confirm/yes` and `confirm/no` place its lines and give them their look; the one the hand is on is in `:focus`. Asked with its question in the message window (`Ask`), the box closes up over the question's line. |
+| `menu_button`, `map_button`, `talk_button` | The field's buttons, where the options put them (they swap the menu's and the map's). `-ff-tint` and `opacity` colour the game's picture; a background (or `-ff-panel: none`) takes its place, with frames of the mod's in it (a label). |
+| `title`, `title/row` | The title's column of commands: the first row at the frame's top, the last no lower than its bottom, a row's height the step between them. `title/row` is the commands' lettering (colour, size, face, shadows, opacity) where they're drawn as text; the one the hand is on is in `:focus`, a Continue with nothing to continue `:disabled`. |
+| `a_button`, `b_button`, `l_button`, `r_button` | A menu's touch buttons (OK, Back, the previous and next hero): where they are and a press reaches. `a_button/text` and `b_button/text` are their labels' look; a background takes the place of L's and R's pictures. |
 
 Their bindings (`bind-text`, `bind-visible`, `bind-class`, `bind-style`) reach `dialogue` (`number`, `text`, `speaker`, `avatar`, `map`), `banner` (`number`, `text`), `hero`, `party` and `gil`. With nothing styled, the game's windows are drawn as they always were.
 
@@ -460,7 +465,7 @@ Their bindings (`bind-text`, `bind-visible`, `bind-class`, `bind-style`) reach `
 - **`Game.Dialogue.Say(text, speaker)`:** the speaker by a table's id or name (with its picture), or just the name.
 - **Code:** `Game.Events` publishes `DialogueShown` (`Number`, `Text`, `Map`) before the window shows it; a handler can set `Speaker` and `Avatar` (`AvatarFile(path)` for a file), over the tables.
 
-The client keeps `field_hud` as it last built it (`OpenFF/Compat/FieldHud.cs`), so its frames hold while another file is loaded too (a battle's, the menus').
+The client keeps `field_hud` as it last built it (`OpenFF/Compat/FieldHud.cs`), so its frames hold while another file is loaded too (a battle's, the menus'); at the title, before the field has loaded it, the client reads it ahead (`ModMenus.PrepareFieldHud`). Crystal's preview draws the game's pieces in it: the window, the page arrow, the buttons, the hand, sample lines.
 
 ## Screens of a mod's own
 

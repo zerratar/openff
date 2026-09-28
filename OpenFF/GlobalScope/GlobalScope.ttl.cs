@@ -1110,6 +1110,16 @@ internal static partial class GlobalScope
             /// </summary>
             private void LayOutColumn(LANGUAGE_CODE lANGUAGE_CODE)
             {
+                // PORT: the column where the field_hud layout's title frame puts it (the game's numbers unless a mod moved it):
+                // its first row at the frame's top, the last no lower than its bottom, its row's height the step between them.
+                OpenFF.Client.ModMenus.PrepareFieldHud();
+                if (OpenFF.Client.FieldHud.TryRect("title", out OpenFF.Client.BattleHud.Rect column))
+                {
+                    TITLE_COLUMN_X = column.X;
+                    TITLE_FIRST_ROW_Y = column.Y;
+                    TITLE_LAST_ROW_Y = column.Y + Math.Max(0, column.Height - title_command_height);
+                    if (OpenFF.Client.FieldHud.TryRect("title/row", out OpenFF.Client.BattleHud.Rect row) && row.Height > 0) TITLE_ROW_STEP = row.Height;
+                }
                 titleRows = titleCommands.size();
                 // The pictures' words start a few px inside their cells; the text labels start where New Game's words do.
                 titleLabelInset = OpenFF.Client.SteamCells.CellVisibleSpan(touch, 1, out int visibleLeft, out _) ? visibleLeft : 0;
@@ -1127,7 +1137,7 @@ internal static partial class GlobalScope
                     command.dim = command.next_part == -1;
                     if (command.label != null)
                     {
-                        TitleLabels.Add(new TitleLabel { Text = command.label, X = TitleLabelX() + position_setting_x[(int)lANGUAGE_CODE], Y = command.pos.vy, Dim = command.dim });
+                        TitleLabels.Add(new TitleLabel { Text = command.label, X = TitleLabelX() + position_setting_x[(int)lANGUAGE_CODE], Y = command.pos.vy, Dim = command.dim, Row = i });
                         command.width = Math.Max(title_commnad_width, titleLabelInset + (int)Math.Ceiling(TitleLabelWidth(command.label)));
                     }
                 }
@@ -1165,6 +1175,7 @@ internal static partial class GlobalScope
             /// <summary>OpenFF: the hand a gap to the left of a command, level with it.</summary>
             private void PlaceCursor(int index)
             {
+                TitleFocus = index;
                 cursor.SetPositionI(titleCommands[index].pos.vx - TITLE_CURSOR_OFFSET + position_setting_x[(int)languageCode()], titleCommands[index].pos.vy + title_command_height / 2 + TITLE_CURSOR_LIFT);
             }
 
@@ -1504,7 +1515,12 @@ internal static partial class GlobalScope
             public int Y;
 
             public bool Dim;
+
+            public int Row;
         }
+
+        /// <summary>The row the hand is on (the field_hud layout's title/row in :focus for it).</summary>
+        public static int TitleFocus = -1;
 
         /// <summary>The title's text labels while its commands are up (ModListScreen draws them in the title's face).</summary>
         public static readonly List<TitleLabel> TitleLabels = new List<TitleLabel>();

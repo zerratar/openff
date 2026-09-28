@@ -439,6 +439,10 @@ internal static partial class GlobalScope
 				m_Flag |= 4;
 			}
 
+			/// <summary>PORT: where it is drawn (a layout's translate moves it from here).</summary>
+			public short positionX() => m_PositionX;
+			public short positionY() => m_PositionY;
+
 			/// <summary>PORT: drawn again on the next frame - its canvas's look changed (a menu style's colour, opacity or lettering), as setMessageColor has it drawn again.</summary>
 			public void Redraw()
 			{

@@ -1802,6 +1802,7 @@ internal static partial class GlobalScope
 				terminateBehave_ = false;
 				// PORT: the mods' behaviours on one of the game's screens hear the frame's focus, presses and keys.
 				OpenFF.Client.ModMenus.GameScreenTick();
+				OpenFF.Client.FieldHud.MenuButtonsTick();   // PORT: the menus' buttons in the field_hud layout's looks
 			}
 
 			public bool MoveCursor(Medget M, bool PlaySe)

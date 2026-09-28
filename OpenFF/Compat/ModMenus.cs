@@ -154,6 +154,30 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>
+		/// The field's HUD captured before WorldDefine.xbn first loads - the title's commands, the buttons of a menu opened from
+		/// the title: the file read and patched as its load would, what the loaded file's patch leaves (the file, its backdrop) as it was.
+		/// </summary>
+		public static void PrepareFieldHud()
+		{
+			if (FieldHud.Captured) return;
+			try
+			{
+				string file = BattleHudLayout.FieldFile;
+				uint size = GlobalScope.ds.g_File.getSize(file);
+				if (size == 0) return;
+				Array array = GlobalScope.ds.CHeap.alloc_app(size);
+				if (array == null) return;
+				GlobalScope.ds.g_File.load(array, file);
+				string loaded = _loadedFile;
+				int? backdrop = _gameBackdrop;
+				Patch(file, array);
+				_loadedFile = loaded;
+				_gameBackdrop = backdrop;
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "field hud: not read ahead: " + ex.Message); }
+		}
+
 		/// <summary>A mod's frames into one of the game's screens: a frame whose id the screen has takes that frame's place (keeping the game's myTag when the mod's says none); a new one is added at the top level, numbered after the screen's focus list.</summary>
 		private static void MergeInto(XElement existing, XElement patch, MenuDefinition def)
 		{
@@ -703,6 +727,7 @@ namespace OpenFF.Client
 		{
 			public int Back;
 			public MenuStyles.Look Look;
+			public (int X, int Y) Offset;
 			public GlobalScope.menu.BasicWindow Window;
 			public List<GlobalScope.MenuPanelSprite> Sprites = new List<GlobalScope.MenuPanelSprite>();
 			public List<uint> Textures = new List<uint>();
@@ -729,9 +754,19 @@ namespace OpenFF.Client
 				fp.Sprites.Clear();
 				fp.Textures.Clear();
 				if (look.Background != null && !look.Hidden) AddPanel(screen, m.Id, m.X, m.Y, m.Width, m.Height, look.Background, look.Opacity, fp.Back + GlobalScope.ds.S32toFX32(8), fp);
+				if (fp.Offset != (0, 0)) MenuPanels.Move(fp.Sprites, fp.Offset.X, fp.Offset.Y);
 			}
 			fp.Look = look;
 			return true;
+		}
+
+		/// <summary>A frame's panel moved from its place (its translate as it moves: ModMenuScreen.Restyle) - its sprites and its window.</summary>
+		private static void MovePanel(ModMenuWidget m, int dx, int dy)
+		{
+			if (!_framePanels.TryGetValue(m, out FramePanels fp) || fp.Offset == (dx, dy)) return;
+			fp.Offset = (dx, dy);
+			MenuPanels.Move(fp.Sprites, dx, dy);
+			try { fp.Window?.SetPositionUL(new GlobalScope.ds.Vector2<short>((short)(m.X + dx), (short)(m.Y + dy))); } catch (Exception) { }
 		}
 
 		private static void OpenWindows(ModMenuScreen screen)
@@ -928,6 +963,8 @@ namespace OpenFF.Client
 			private readonly Dictionary<string, XElement> _sourceById;
 			private readonly MenuAnimation.Animator _animator = new MenuAnimation.Animator();
 			private string _focusState;
+			// Each frame's translate as its layout was built with it: a translate as it moves moves what the frame draws by the difference.
+			private Dictionary<XElement, string> _baseTranslate;
 			private static readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
 			/// <summary>Whether a transition or an animation is under way: the look is worked out again every frame while it is.</summary>
@@ -937,6 +974,8 @@ namespace OpenFF.Client
 			public void StartStyles()
 			{
 				if (_source == null) return;
+				_baseTranslate = new Dictionary<XElement, string>();
+				foreach ((XElement f, Dictionary<string, string> c) in MenuStyles.Computed(_source, _sheet)) _baseTranslate[f] = c.TryGetValue("translate", out string t) ? t : null;
 				try { SetFocusState(GlobalScope.menu.MenuManager.getSingleton().getFocuseMedget()?._id()); } catch (Exception) { }
 				Restyle();
 			}
@@ -1119,7 +1158,35 @@ namespace OpenFF.Client
 					if (panel && current && !rebuild && !UpdatePanel(this, w, look)) rebuild = true;
 				}
 				if (rebuild && current) OpenWindows(this);
+				// What moves (a translate's transition or animation): each frame's drawing by its translate's difference from the
+				// one its layout was built with, its parents' with it - its text, its window and its panel.
+				if (_baseTranslate != null && looks.Values.Any(l => l.Translate != null) || _moved)
+				{
+					_moved = false;
+					Dictionary<XElement, ModMenuWidget> bySource = _widgets.Where(w => w.Source != null).GroupBy(w => w.Source).ToDictionary(g => g.Key, g => g.First());
+					foreach (ModMenuWidget w in _widgets)
+					{
+						if (w.Source == null) continue;
+						float x = 0, y = 0;
+						for (XElement f = w.Source; f != null && f.Name.LocalName == "frame"; f = f.Parent)
+						{
+							if (!bySource.TryGetValue(f, out ModMenuWidget owner)) continue;
+							looks.TryGetValue(f, out MenuStyles.Look look);
+							(float nx, float ny) = MenuStyles.TranslateOf(look?.Translate, owner.Width, owner.Height);
+							(float bx, float by) = MenuStyles.TranslateOf(_baseTranslate != null && _baseTranslate.TryGetValue(f, out string b) ? b : null, owner.Width, owner.Height);
+							x += nx - bx;
+							y += ny - by;
+						}
+						int dx = (int)Math.Round(x), dy = (int)Math.Round(y);
+						if (dx != 0 || dy != 0) _moved = true;
+						w.PutOffset(dx, dy);
+						if (current) MovePanel(w, dx, dy);
+					}
+				}
 			}
+
+			// Whether a frame stood moved last time (so a move back to its place is put on too).
+			private bool _moved;
 
 			// ---- the portrait ----
 
@@ -1305,6 +1372,28 @@ namespace OpenFF.Client
 
 			public bool IsText => Text_ != null;
 
+			// The text's move (a translate): from the place its message was put, taken again for a message made afresh.
+			private (int X, int Y) _offset;
+			private GlobalScope.dgs.DGSMessage _placed;
+			private (short X, short Y) _place;
+
+			public void PutOffset(int dx, int dy)
+			{
+				GlobalScope.dgs.DGSMessage message = Text_?.getMessage();
+				if (message == null) { _offset = (dx, dy); return; }
+				if (!ReferenceEquals(message, _placed)) { _placed = message; _place = (message.positionX(), message.positionY()); }
+				else if (_offset == (dx, dy)) return;
+				_offset = (dx, dy);
+				try { message.setPosition((short)(_place.X + dx), (short)(_place.Y + dy), erase: true); } catch (Exception) { }
+			}
+
+			/// <summary>The text laid out afresh (a new message, its size measured again): its place taken again, and the move put on it.</summary>
+			private void PutOffsetAgain()
+			{
+				_placed = null;
+				if (_offset != (0, 0)) PutOffset(_offset.X, _offset.Y);
+			}
+
 			// The text's own lettering (MenuText, its faces' files found): onto its canvas and its font.
 			private MenuText _lettering;
 			private bool _enabled = true;
@@ -1397,6 +1486,7 @@ namespace OpenFF.Client
 					// A font of its own (the game's is shared by every text): its size, and its lettering for the measuring.
 					message.m_TextCanvas.pFont = new GlobalScope.NNSG2dFont { size = size, style = _lettering };
 					Text_.mbtSetAlignment();   // measured again at the new size: right and centre alignments, and the middle of a taller frame
+					PutOffsetAgain();
 				}
 				catch (Exception) { }
 			}
@@ -1425,7 +1515,7 @@ namespace OpenFF.Client
 			public string Text
 			{
 				get => _text ?? Medget.node()?.getFirstNodeByTagName("data")?.nodeValueString() ?? "";
-				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); PutFont(); if (_colour.HasValue) Colour = _colour.Value; PutLook(); PutVisible(); }   // a message made afresh comes up shown
+				set { _text = value ?? ""; Text_?.mbSetBufferMsg(_text.Length == 0 ? " " : _text, decWidth: false); PutFont(); if (_colour.HasValue) Colour = _colour.Value; PutLook(); PutVisible(); PutOffsetAgain(); }   // a message made afresh comes up shown
 			}
 
 			// A palette colour set from code takes the place of a style's #hex one.

@@ -2515,6 +2515,8 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 /* Crystal Style Sheets on the canvas: a frame's opacity on its art and its text, a hidden frame
    faint, the game's translucent bar. */
 .canvas .widget > .game-window, .canvas .widget > .label, .canvas .widget > .game-bar, .canvas .widget > canvas { opacity: var(--look-opacity, 1); }
+/* One of the game's sprites in a field_hud frame (the page arrow, a button, the hand): where the game puts it. */
+.canvas .widget > canvas.game-cell { position: absolute; pointer-events: none; image-rendering: pixelated; }
 .canvas .widget.look-hidden > .game-window, .canvas .widget.look-hidden > .label, .canvas .widget.look-hidden > .game-bar { opacity: .18; }
 .canvas .widget.look-hidden { border-style: dotted; }
 .canvas .game-bar { position: absolute; inset: 0; pointer-events: none; background: var(--tint, #000); opacity: .85; }

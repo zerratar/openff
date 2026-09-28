@@ -158,6 +158,7 @@ internal static partial class GlobalScope
 									getCell().Load2((_Menu2d3d == MENU_2D3D.MENU_2D) ? sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_SUB2D : sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "m009_menubutton_i");
 									sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(getCell());
 									getCell().SetCell((ushort)_MenuPanelAnim);
+									OpenFF.Client.FieldHud.ButtonMade((int)_MenuPanelAnim, getCell());   // PORT: the field_hud layout's look over it
 									setPosition(MenuPosition);
 									getCell().SetShow(show: false);
 									_show = false;
@@ -173,7 +174,16 @@ internal static partial class GlobalScope
 									state_ = STATE.STATE_HIDE;
 								}
 
+								// PORT: the field_hud layout's look over the button's own frame (FieldHud): its alpha put back before, its tint,
+								// opacity, place - or a picture of the layout's in its place - after.
 								public void execute(CWorld2DManager manager)
+								{
+									OpenFF.Client.FieldHud.ButtonBefore((int)_MenuPanelAnim);
+									executeGame(manager);
+									OpenFF.Client.FieldHud.ButtonAfter((int)_MenuPanelAnim);
+								}
+
+								private void executeGame(CWorld2DManager manager)
 								{
 									bool flag = false;
 									int x = -1;
@@ -252,6 +262,7 @@ internal static partial class GlobalScope
 
 								public void cleanup()
 								{
+									OpenFF.Client.FieldHud.ButtonGone((int)_MenuPanelAnim);
 									getCell().Release();
 									sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(getCell());
 								}
@@ -319,8 +330,17 @@ internal static partial class GlobalScope
 											break;
 										}
 									}
+									// PORT: the place of the field_hud layout's frame for it (menu_button, map_button, talk_button: the options
+									// swap the first two), its size the touch's.
+									OpenFF.Client.BattleHud.Rect place = OpenFF.Client.BattleHud.ButtonPlace((int)menuPos);
+									if (place.Found)
+									{
+										getCell().SetPositionI(place.X, place.Y);
+										_size.set((short)place.Width, (short)place.Height);
+									}
 									_touchXY.set(getCell().GetPositionI().x, getCell().GetPositionI().y);
 									_touchHW.set(_size.vx, _size.vy);
+									OpenFF.Client.FieldHud.ButtonPlaced((int)_MenuPanelAnim, getCell().GetPositionI().x, getCell().GetPositionI().y);
 								}
 
 								public void setShow(bool show)
