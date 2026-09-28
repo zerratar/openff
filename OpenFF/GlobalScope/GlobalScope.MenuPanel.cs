@@ -24,6 +24,15 @@ internal static partial class GlobalScope
 		public List<(uint Texture, int Width, int Height, OpenFF.Content.MenuBackground.Quad Place)> Before = new List<(uint, int, int, OpenFF.Content.MenuBackground.Quad)>();
 		public List<(uint Texture, int Width, int Height, OpenFF.Content.MenuBackground.Quad Place)> After = new List<(uint, int, int, OpenFF.Content.MenuBackground.Quad)>();
 		public byte[] Paint = { 255, 255, 255, 255 };
+		/// <summary>The frame's opacity over all of it, at the draw - changed in place as the frame fades (a transition, an animation) without the panel made again.</summary>
+		public float Opacity = 1f;
+	}
+
+	/// <summary>A colour with a panel's opacity over its alpha (the colour itself when that is whole).</summary>
+	private static byte[] Faded(byte[] colour, float opacity)
+	{
+		if (colour == null || opacity >= 0.999f) return colour;
+		return new[] { colour[0], colour[1], colour[2], (byte)Math.Round(colour[3] * Math.Clamp(opacity, 0f, 1f)) };
 	}
 
 	private static uint _menuPanelWhite;
@@ -92,11 +101,11 @@ internal static partial class GlobalScope
 			if (sp.Fill != null && sp.Fill[3] > 0)
 			{
 				uint white = MenuPanelWhite();
-				if (white != 0) DrawMenuPanelQuads(white, 1, 1, new List<OpenFF.Content.MenuBackground.Quad> { new OpenFF.Content.MenuBackground.Quad(0, 0, sp.Width, sp.Height, 0, 0, 1, 1) }, sp.Fill);
+				if (white != 0) DrawMenuPanelQuads(white, 1, 1, new List<OpenFF.Content.MenuBackground.Quad> { new OpenFF.Content.MenuBackground.Quad(0, 0, sp.Width, sp.Height, 0, 0, 1, 1) }, Faded(sp.Fill, sp.Opacity));
 			}
-			foreach ((uint texture, int w, int h, OpenFF.Content.MenuBackground.Quad place) in sp.Before) DrawMenuPanelQuads(texture, w, h, new List<OpenFF.Content.MenuBackground.Quad> { place }, sp.Paint);
-			if (sp.Texture != 0 && sp.Quads.Count > 0) DrawMenuPanelQuads(sp.Texture, sp.TextureWidth, sp.TextureHeight, sp.Quads, sp.Tint);
-			foreach ((uint texture, int w, int h, OpenFF.Content.MenuBackground.Quad place) in sp.After) DrawMenuPanelQuads(texture, w, h, new List<OpenFF.Content.MenuBackground.Quad> { place }, sp.Paint);
+			foreach ((uint texture, int w, int h, OpenFF.Content.MenuBackground.Quad place) in sp.Before) DrawMenuPanelQuads(texture, w, h, new List<OpenFF.Content.MenuBackground.Quad> { place }, Faded(sp.Paint, sp.Opacity));
+			if (sp.Texture != 0 && sp.Quads.Count > 0) DrawMenuPanelQuads(sp.Texture, sp.TextureWidth, sp.TextureHeight, sp.Quads, Faded(sp.Tint, sp.Opacity));
+			foreach ((uint texture, int w, int h, OpenFF.Content.MenuBackground.Quad place) in sp.After) DrawMenuPanelQuads(texture, w, h, new List<OpenFF.Content.MenuBackground.Quad> { place }, Faded(sp.Paint, sp.Opacity));
 		}
 		G3_PopMtx(1);
 		return true;

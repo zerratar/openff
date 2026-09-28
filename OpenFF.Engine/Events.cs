@@ -175,6 +175,24 @@ namespace OpenFF
 			public int Number { get; set; }
 		}
 
+		/// <summary>
+		/// A message is going into the field's dialogue window - a script's, a treasure's, a mod's Say - with its number (-1 for a
+		/// text of no message file's), its text and the map. A handler may say who speaks: Speaker and Avatar, which the field_hud
+		/// layout's bindings show ({dialogue.speaker}, {dialogue.avatar}). The mods' speakers.json tables have filled them in first
+		/// where they know the message; a handler's say is over theirs.
+		/// </summary>
+		public sealed class DialogueShown
+		{
+			public int Number { get; set; }
+			public string Text { get; set; }
+			public string Map { get; set; }
+			public string Speaker { get; set; }
+			/// <summary>The speaker's picture as a background image says it: url("...") a file, resource("...") one of the game's pictures (a hero's face: files/pc1_01.NCGR); null for none.</summary>
+			public string Avatar { get; set; }
+			/// <summary>A picture file for the avatar (a mod's own: its full path, or one under the working folder).</summary>
+			public void AvatarFile(string path) => Avatar = string.IsNullOrEmpty(path) ? null : "url(\"" + System.IO.Path.GetFullPath(path).Replace('\\', '/') + "\")";
+		}
+
 		/// <summary>One of the game's menu screens (or a mod's) was built: its layout name (main_menu, status, shop_buy_list, a mod screen's), and the file it lives in when known. Draw over it from Game.Draw, or reach its frames through Game.Menus.Current when it is a mod's.</summary>
 		public sealed class MenuOpened
 		{

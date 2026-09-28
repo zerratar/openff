@@ -316,6 +316,8 @@ A **portrait frame** in the layout takes its place, like a template: `<frame><po
 
 Under every frame is the screen's **backdrop**: one of the game's menu backdrops (the definition's `"background"`), or `-1` for none. Over it, the screen can have a background of its own: the `<menu>`'s style, or a sheet's `menu` / `#name` rule, with the same properties as a frame. It's drawn behind every window.
 
+One of the game's screens picks its backdrop in code (the main menu 9, Item 0, Magic 1…). A definition of the mod's that reaches it can put another in its place, with no layout needed: `{ "id": "main_menu_bg", "screen": "main_menu", "file": "MenuDefine.xbn", "background": 5 }` (`-1` for none). It holds while that screen is up, whenever the screen asks for its backdrop again, and the next screen gets its own back. Crystal's backdrop card for a game screen has the **Backdrop** picker; it writes that definition into the open project.
+
 The game's backdrops are made of pieces of `files/menu_bg_01.NCGR` (a cell bank), so they aren't whole pictures in the picker. Their pieces can be used as sprites of that sheet.
 
 **Row lines.** Every backdrop draws the lines between its rows with one piece: a 16-pixel strip from row 96 of `menu_bg_01`, at half size. The lines sit at the heights of the game's own layout. A definition's `"backdropLines"` says what happens to them:
@@ -361,6 +363,8 @@ attributes, so the game's own file never carries them:
   - `menu` (the screen: `hero`, `focused`, `id`);
   - `this` (the data source itself).
 
+**A bound style** (`bind-style`): declarations with `{paths}` in them, put over the frame's own style as the data says - `bind-style="background-image: {dialogue.avatar}"`, `bind-style="-ff-tint: {tint}"`. What it binds cascades like the frame's own style, over every sheet.
+
 **Expressions** (`bind-visible`, and a class's condition in `bind-class`):
 - a path or a literal (a number, `'text'`, `true`, `false`, `null`), with simple sums (`maxHp / 4`, `level + 1`);
 - compared with `== != < <= > >=`, turned round by `!`, and joined by `&&` and `||`.
@@ -373,7 +377,7 @@ Bindings are worked out every frame (`OpenFF.Engine/MenuBindings.cs`), and only 
 
 Steam and GOG builds show the layout's own `<data>` text: bindings are OpenFF's.
 
-In Crystal, the inspector's **Bindings** section edits a frame's data source, text template (**+ path** puts a path in at the cursor), visibility and bound classes. It shows what they come to with a sample of the game's data (Luneth, Lv 12, 12,345 G), and Preview draws bound frames that way too (`menu-bindings.js`, a port kept to the same rules).
+In Crystal, the inspector's **Bindings** section edits a frame's data source, text template (**+ path** puts a path in at the cursor), visibility, bound classes and bound style. It shows what they come to with a sample of the game's data (Luneth, Lv 12, 12,345 G), and Preview draws bound frames that way too (`menu-bindings.js`, a port kept to the same rules).
 
 ## From code
 
@@ -413,6 +417,50 @@ public sealed class PartyScreen : MenuBehaviour
 Layout properties (`left`, `width`, `flex-direction`…) are fixed when the screen is built; change them in the layout, not from code. Frames need an id for their classes and style to reach the stylesheets. On one of the game's own screens with no mod layout, `SetStyle` puts colour, font size, opacity and visibility on directly.
 
 `MenuBindings.Format`, `Test` and `Resolve` are public, for code of your own that wants the same paths and templates.
+
+## The field's HUD
+
+The field's dialogue window and the map-name banner are laid out by `field_hud`, a screen of the client's in `WorldDefine.xbn` (it's in Crystal's list of that file's screens). It's styled like any screen, and a layout of it can add frames of its own:
+
+| Frame | What it is |
+|---|---|
+| `dialogue` | The message window. Its look: `-ff-panel: none` takes the game's window art away, so a background, painted box or picture can take its place; also `opacity` and `-ff-tint`. |
+| `dialogue/text` | Where the text starts, and its colour, size, lettering and opacity. A whole text (a mod's `Game.Dialogue.Say`) is broken into lines at the frame's width; the game's own lines keep the breaks they were written with, so leave them the game's width or give them a smaller size. |
+| `dialogue/name` | FF4's speaker name. |
+| `dialogue/next` | The page-turn arrow: `visibility: hidden` hides it, `-ff-tint` and `opacity` colour it. A background of its own (a picture, a painted box, with an `animation` if you like) takes its place, up exactly when the game's would be. |
+| `dialogue/<yours>` | A frame of the mod's, shown with the window: a window, a background, a text (`<data>`, or `bind-text`). |
+| `map_name` | The banner a map's name comes up in; its text takes the frame's look. |
+
+Their bindings (`bind-text`, `bind-visible`, `bind-class`, `bind-style`) reach `dialogue` (`number`, `text`, `speaker`, `avatar`, `map`), `banner` (`number`, `text`), `hero`, `party` and `gil`. With nothing styled, the game's windows are drawn as they always were.
+
+```xml
+<frame><id>dialogue</id> ...
+  <frame><id>text</id><x>86</x><y>13</y><width>376</width><height>60</height></frame>
+  <frame bind-visible="dialogue.avatar" bind-style="background-image: {dialogue.avatar}"><id>avatar</id><x>10</x><y>9</y><width>66</width><height>66</height></frame>
+  <frame bind-visible="dialogue.speaker" bind-text="{dialogue.speaker}"><id>speaker</id><x>14</x><y>-20</y><width>120</width><height>22</height></frame>
+</frame>
+```
+
+```css
+#dialogue { -ff-panel: none; background-image: linear-gradient(#203468f0, #0a1228f0); border: 2px solid #c8d8ff; border-radius: 10px; box-shadow: 0 4px 12px #000000c0; }
+#avatar   { -ff-background-scale-mode: scale-to-fit; border: 1px solid #8090c0; border-radius: 6px; }
+#speaker  { background-image: linear-gradient(#3a5cb0, #1a2c5c); border-radius: 6px; color: pale-yellow; text-align: center; }
+```
+
+**Who speaks.** FF3 never names its speakers, so a mod says who does:
+- **`menus/speakers.json`:** speakers with a name and a picture, and the game's message numbers they say (a number, or a range):
+
+  ```json
+  { "speakers": { "elder": { "name": "Elder", "avatar": "images/elder.png" },
+                  "luneth": { "name": "Luneth", "avatar": "resource:files/pc1_01.NCGR" } },
+    "messages": { "1000142": "elder", "1000150-1000160": "elder" } }
+  ```
+
+  A picture is a file beside the table, or `resource:` one of the game's (a hero's face: `files/pc1_01.NCGR`). `{dialogue.avatar}` gives it as a background image says it (`url("…")`, `resource("…")`).
+- **`Game.Dialogue.Say(text, speaker)`:** the speaker by a table's id or name (with its picture), or just the name.
+- **Code:** `Game.Events` publishes `DialogueShown` (`Number`, `Text`, `Map`) before the window shows it; a handler can set `Speaker` and `Avatar` (`AvatarFile(path)` for a file), over the tables.
+
+The client keeps `field_hud` as it last built it (`OpenFF/Compat/FieldHud.cs`), so its frames hold while another file is loaded too (a battle's, the menus').
 
 ## Screens of a mod's own
 

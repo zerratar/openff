@@ -19420,13 +19420,16 @@ internal static partial class GlobalScope
 							uint word2 = engine.getWord();
 							ds.Vector2<short> messagePosition = CCastCommandTransit.getInstance().cast_Field2D().MessageWindow()
 								.getMessagePosition();
+							// PORT: the script's place is the game's; a layout that moved the dialogue's text (field_hud's dialogue/text,
+							// 16, 246 the game's own) moves it with it.
+							(int textX, int textY) = OpenFF.Client.BattleHud.DialogueText();
 							if (dword != 0)
 							{
-								messagePosition.vx = (short)(word + 112);
+								messagePosition.vx = (short)(word + 112 + textX - 16);
 							}
 							if (dword2 != 0)
 							{
-								messagePosition.vy = (short)(word2 + 64);
+								messagePosition.vy = (short)(word2 + 64 + textY - 246);
 							}
 							CCastCommandTransit.getInstance().cast_Field2D().MessageWindow()
 								.setMessagePosition(messagePosition);

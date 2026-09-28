@@ -18,6 +18,7 @@
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
+//   dialogue <text> [| speaker]    the field's message window with the text (Game.Dialogue.Say: "@1000142" a line of the game's)
 //   quit                           close the game
 //   # comment
 //
@@ -347,6 +348,13 @@ namespace OpenFF.Client
 							if (_waitFor.IsMatch(line)) { _matched = true; break; }
 						}
 					}
+					break;
+				}
+				case "dialogue":
+				{
+					string[] parts = step.Arg.Split('|');
+					OpenFF.Game.Dialogue.Say(parts[0].Trim(), parts.Length > 1 ? parts[1].Trim() : null);
+					Log.Write(LogChannel.File, "drive: dialogue " + step.Arg);
 					break;
 				}
 				case "say":

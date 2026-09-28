@@ -347,7 +347,8 @@ function bakeLook(frame, values, opacity) {
   if (hidden && ![...frame.children].some(c => c.tagName === 'hidden')) frame.append(frame.ownerDocument.createElement('hidden'));
   if (values.has('-ff-panel')) {
     const word = values.get('-ff-panel').trim().toLowerCase();
-    if (word === 'none') { [...frame.children].filter(c => c.tagName === 'window' || c.tagName === 'panel').forEach(c => c.remove()); }
+    // No window - and said so, for a frame whose window the game makes whatever the layout says (field_hud's dialogue and map name).
+    if (word === 'none') { [...frame.children].filter(c => c.tagName === 'window').forEach(c => c.remove()); setLook(frame, 'panel', 'none'); }
     else if (word === 'window' || word === 'bar') {
       if (![...frame.children].some(c => c.tagName === 'window')) frame.prepend(frame.ownerDocument.createElement('window'));
       setLook(frame, 'panel', word === 'bar' ? 'bar' : null);
@@ -446,6 +447,11 @@ function menuStyled(screen) {
         const classes = new Set((t.getAttribute('class') || '').split(/\s+/).filter(Boolean));
         for (const [name, expression] of boundClasses(frame)) { if (bindingTest(expression, scope)) classes.add(name); else classes.delete(name); }
         if (classes.size) t.setAttribute('class', [...classes].join(' ')); else t.removeAttribute('class');
+      }
+      // And a style it binds (bind-style), over its own, as the sample fills it.
+      if (preview && typeof bindingFormat === 'function' && frame.hasAttribute('bind-style')) {
+        const bound = bindingFormat(frame.getAttribute('bind-style'), bindingScopeOf(frame));
+        t.setAttribute('style', [t.getAttribute('style'), bound].filter(s => s && s.trim()).join('; '));
       }
       const values = cascadeOf(t, rules, inherited);
       const own = styleOpacity(values, opacity);

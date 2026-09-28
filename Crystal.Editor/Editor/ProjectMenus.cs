@@ -141,7 +141,8 @@ namespace Crystal.Editor
 		{
 			string path = ReachingPath(project, file, screen);
 			if (path == null || !File.Exists(path)) return null;
-			return (JsonNode.Parse(File.ReadAllText(path)) as JsonObject)?[key]?.GetValue<string>();
+			JsonNode value = (JsonNode.Parse(File.ReadAllText(path)) as JsonObject)?[key];
+			return value == null ? null : value.GetValueKind() == System.Text.Json.JsonValueKind.String ? value.GetValue<string>() : value.ToJsonString();
 		}
 
 		public static string SetGameScreenSetting(Project project, string file, string screen, string key, string value)
@@ -157,7 +158,10 @@ namespace Crystal.Editor
 				path = Path.Combine(dir, id + ".json");
 				def = new JsonObject { ["id"] = id, ["screen"] = screen, ["file"] = file ?? "MenuDefine.xbn", ["title"] = screen + " (the mod's settings for the game's screen)" };
 			}
-			if (value == null) def.Remove(key); else def[key] = value;
+			// A number as a number ("background": 3), as the client's definitions read it.
+			if (value == null) def.Remove(key);
+			else if (int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int number)) def[key] = number;
+			else def[key] = value;
 			System.IO.Directory.CreateDirectory(dir);
 			File.WriteAllText(path, def.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
 			return Path.GetFileName(path);

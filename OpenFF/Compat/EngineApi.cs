@@ -365,6 +365,7 @@ namespace OpenFF.Client
 
 		public void Say(string text, string speaker = null)
 		{
+			FieldHud.SaidSpeaker = string.IsNullOrWhiteSpace(speaker) ? null : speaker;   // {dialogue.speaker} for the texts it shows
 			GlobalScope.wld.CMessageWindow window = Window;
 			TraceLine("Say \"" + (text ?? "").Substring(0, Math.Min(20, (text ?? "").Length)) + "\"", window);
 			if (window == null)

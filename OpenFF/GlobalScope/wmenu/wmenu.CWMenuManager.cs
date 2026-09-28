@@ -137,6 +137,14 @@ internal static partial class GlobalScope
 
 								public void SetPrimaryBG(int no)
 								{
+									// PORT: the backdrop the screen asks for, kept (to set it up again), and a mod's in its place - a definition
+									// reaching one of the game's screens that says its background (ModMenus.GameBackdrop); -1 none.
+									_lastPrimaryBG = no;
+									if (OpenFF.Client.ModMenus.GameBackdrop is int mod)
+									{
+										SetPrimaryBGVisibility(mod >= 0);
+										if (mod >= 0) no = mod;
+									}
 									if (ds.g_File.load(scrDataPtr, main_bg_nscr[no]))
 									{
 										OS_Printf("File[%s] loaded.\n", main_bg_nscr[no]);
@@ -150,10 +158,9 @@ internal static partial class GlobalScope
 										string lines = OpenFF.Client.ModMenus.BackdropLinesMode(no, out BackdropRows rows);
 										AdjustBackdropLines((int)primaryBgSelect, lines, rows);
 									}
-									_lastPrimaryBG = no;
 								}
 
-								// PORT: the backdrop last set up, to set it up again with other lines (a mod's definition for one of the game's screens).
+								// PORT: the backdrop the screen last asked for, to set it up again with other lines or in a mod's backdrop (a mod's definition for one of the game's screens).
 								private int _lastPrimaryBG = -1;
 
 								public void ReapplyPrimaryBG()

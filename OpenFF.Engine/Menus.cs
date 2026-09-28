@@ -57,8 +57,16 @@ namespace OpenFF
 		public string Title { get; set; }
 		/// <summary>An entry in the game's main menu that opens this screen; null for none.</summary>
 		public MenuEntry MainMenu { get; set; }
-		/// <summary>The game's menu backdrop to draw behind: 10 the plain one (the default), 0 Item's, 1 Magic's, 2 Equipment's, 3 Status's, 5 Job's, 6 Config's, 7 Quicksave's, 8 Save's, 9 the main menu's, 13 and 14 the tips pages'.</summary>
-		public int Background { get; set; } = 10;
+		/// <summary>
+		/// The game's menu backdrop to draw behind: 10 the plain one (the default), 0 Item's, 1 Magic's, 2 Equipment's, 3 Status's,
+		/// 5 Job's, 6 Config's, 7 Quicksave's, 8 Save's, 9 the main menu's, 13 and 14 the tips pages'; -1 none. For one of the
+		/// game's screens a definition reaching it that says it puts that backdrop in place of the one the screen picks.
+		/// </summary>
+		public int Background { get => _background; set { _background = value; BackgroundSaid = true; } }
+		private int _background = 10;
+		/// <summary>Whether the definition says its background (a game's screen keeps its own when it does not).</summary>
+		[System.Text.Json.Serialization.JsonIgnore]
+		public bool BackgroundSaid { get; private set; }
 		/// <summary>Ask which hero first, as Status and Equip do; Menu.Hero says who.</summary>
 		public bool CharacterSelect { get; set; }
 		/// <summary>
@@ -153,7 +161,7 @@ namespace OpenFF
 
 		/// <summary>The frame's data source: a path (data-source), for its bindings and its frames'; null for its parent's.</summary>
 		string DataSource { get; set; }
-		/// <summary>Binds a property to the data as the screen runs: "text" (a template, "Lv {level}"), "visible" (an expression, "alive"), "class.&lt;name&gt;" (an expression: the class is on while it is true). Null unbinds it.</summary>
+		/// <summary>Binds a property to the data as the screen runs: "text" (a template, "Lv {level}"), "visible" (an expression, "alive"), "class.&lt;name&gt;" (an expression: the class is on while it is true), "style" (declarations with {paths} in them - "background-image: {dialogue.avatar}" - over the frame's own style). Null unbinds it.</summary>
 		void Bind(string property, string expression);
 		/// <summary>The binding of a property, or null.</summary>
 		string Binding(string property);
@@ -473,8 +481,10 @@ namespace OpenFF
 		{
 			List<MenuDefinition> list = new List<MenuDefinition>();
 			if (string.IsNullOrEmpty(directory) || !System.IO.Directory.Exists(directory)) return list;
-			// Every *.json is a screen but sprites.json - the named sprites of the screens' sheets (MenuSprites).
-			foreach (string file in System.IO.Directory.EnumerateFiles(directory, "*.json").Where(f => !string.Equals(Path.GetFileName(f), "sprites.json", StringComparison.OrdinalIgnoreCase)).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+			// Every *.json is a screen but sprites.json - the named sprites of the screens' sheets (MenuSprites) - and speakers.json,
+			// who speaks the field's dialogue (the client's FieldHud).
+			foreach (string file in System.IO.Directory.EnumerateFiles(directory, "*.json").Where(f => !string.Equals(Path.GetFileName(f), "sprites.json", StringComparison.OrdinalIgnoreCase)
+				&& !string.Equals(Path.GetFileName(f), "speakers.json", StringComparison.OrdinalIgnoreCase)).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
 			{
 				try
 				{

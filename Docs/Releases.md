@@ -19,6 +19,21 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
   `font-weight`, `font-style`, `letter-spacing`, `line-height`, `text-decoration`,
   `text-transform` and an outline (`-ff-text-stroke`). CSS's colour names and `hsl()` too. The
   game, and Steam or GOG when a layout is exported, get the base look; `Docs/Menus.md` has it all.
+- **The field's dialogue and name banner, styled.** `field_hud`'s dialogue window and map-name
+  banner take the style sheets like any screen: the game's window art taken away for a painted
+  box or a picture, the text's lettering, the page-turn arrow coloured, hidden or a picture of the
+  mod's own - and frames of the mod's in them. Speakers and their faces, which FF3 never had:
+  `speakers.json` (a message's number to a name and a picture), `Game.Dialogue.Say`'s speaker, and
+  the `DialogueShown` event; `{dialogue.speaker}` and `{dialogue.avatar}` bind them, and
+  `bind-style` binds a style from the data. A mod's whole text is broken into lines at the text
+  frame's width. The HUD's layout holds while another file is loaded (it fell back to the game's
+  numbers in battles and menus).
+- **A game screen's backdrop, the mod's.** A definition reaching one of the game's screens can say
+  its backdrop (`"background"`, `-1` for none); Crystal's backdrop card for game screens picks it.
+- **Fixes.** The dialogue's speaker name stands where its frame is; a script's text position moves
+  with a moved text frame; a text shown after the window opened at the Fast message speed no longer
+  hangs without its page-turn arrow; a panel that fades (a transition, an animation) is faded in
+  place, and one made again every frame is seen.
 - **An empty gambit list is a manual hero.** With auto battle on, a hero whose every gambit is
   empty or off gets their command window, while the others go on by their rules; a hero with
   rules that don't hold this turn still attacks the first foe.

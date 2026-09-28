@@ -1647,14 +1647,27 @@ function backdropLabel(n) {
 /// The lines' mode for a screen, as the preview draws them; null for the screen's default.
 function backdropLinesFor(screenName) {
   if (menu.project) return (menu.project.definition.backdropLines || '').trim().toLowerCase() || null;
+  return gameScreenSetting(screenName, 'backdropLines');
+}
+
+/// A setting of the open project's for one of the game's screens (in a definition that reaches it), fetched once and kept; null for none.
+function gameScreenSetting(screenName, key) {
   if (!screenName || !(typeof isOpenFFProject === 'function' && isOpenFFProject())) return null;
-  menu.gameLines = menu.gameLines || {};
-  if (!(screenName in menu.gameLines)) {
-    menu.gameLines[screenName] = null;
-    api(`/api/project/menus/game-setting?file=${encodeURIComponent(shortName(menu.name))}&screen=${encodeURIComponent(screenName)}&key=backdropLines`)
-      .then(r => { if (r.ok && r.value) { menu.gameLines[screenName] = r.value; if (menu.node) redraw(menu.node, true); } }).catch(() => {});
+  menu.gameSettings = menu.gameSettings || {};
+  const id = `${key}:${screenName}`;
+  if (!(id in menu.gameSettings)) {
+    menu.gameSettings[id] = null;
+    api(`/api/project/menus/game-setting?file=${encodeURIComponent(shortName(menu.name))}&screen=${encodeURIComponent(screenName)}&key=${encodeURIComponent(key)}`)
+      .then(r => { if (r.ok && r.value != null) { menu.gameSettings[id] = r.value; if (menu.node) redraw(menu.node, true); } }).catch(() => {});
   }
-  return menu.gameLines[screenName];
+  return menu.gameSettings[id];
+}
+
+/// A setting of the mod's for one of the game's screens written (null takes it away), kept for the preview.
+async function setGameScreenSetting(screenName, key, value) {
+  const r = await api('/api/project/menus/game-setting', { file: shortName(menu.name), screen: screenName, key, value: value == null ? null : String(value) });
+  if (r.ok) { menu.gameSettings = menu.gameSettings || {}; menu.gameSettings[`${key}:${screenName}`] = value == null ? null : String(value); }
+  return r;
 }
 
 /// The row lines' switch, on the backdrop's card.
@@ -1668,9 +1681,8 @@ function backdropLinesRow(card, node, screenName) {
       if (v) menu.project.definition.backdropLines = v; else delete menu.project.definition.backdropLines;
       saveMenuDefinition();
     } else {
-      const r = await api('/api/project/menus/game-setting', { file: shortName(menu.name), screen: screenName, key: 'backdropLines', value: v || null });
+      const r = await setGameScreenSetting(screenName, 'backdropLines', v || null);
       if (!r.ok) return say(r.error, 'bad');
-      menu.gameLines[screenName] = v || null;
       say(v ? `the mod's ${screenName}: row lines ${v} (menus/${r.file})` : `the mod's ${screenName}: row lines as the screen's own`, 'good');
     }
     redraw(node, true);
@@ -1698,14 +1710,35 @@ function buildBackdropCard(node) {
   sub.className = 'sub';
   panel.append(title, sub);
   if (!menu.project) {
-    sub.textContent = 'One of the game\'s screens: its backdrop is the game\'s own (the screen picks it in code). Its row lines are the mod\'s to say, below; take the screen into a mod for the rest.';
+    const screenName = childText(screen, 'name');
+    const project = typeof isOpenFFProject === 'function' && isOpenFFProject();
+    sub.textContent = 'One of the game\'s screens: it picks its backdrop in code. The mod can put another in its place, and say its row lines - both kept in a definition of the mod\'s that reaches the screen (the game\'s own file is not the mod\'s to change).';
     const card = document.createElement('div');
     card.className = 'component';
     const h = document.createElement('div');
     h.className = 'behaviour-header';
     h.textContent = 'The game\'s backdrop';
     card.append(h);
-    backdropLinesRow(card, node, childText(screen, 'name'));
+    const said = gameScreenSetting(screenName, 'background');
+    const options = [['', 'the screen\'s own'], ...BACKDROPS.map(([v, label]) => [String(v), v < 0 ? 'none (black, or the screen\'s own background)' : label])];
+    const pick = propSelect(options, said != null ? String(said) : '', async v => {
+      const r = await setGameScreenSetting(screenName, 'background', v === '' ? null : parseInt(v, 10));
+      if (!r.ok) return say(r.error, 'bad');
+      say(v === '' ? `the mod's ${screenName}: the screen's own backdrop` : `the mod's ${screenName}: backdrop ${v} (menus/${r.file})`, 'good');
+      redraw(node, true);
+      drawHierarchy();
+    });
+    pick.disabled = !project;
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const label = document.createElement('span');
+    label.className = 'prop-label';
+    label.textContent = 'Backdrop';
+    row.append(label, pick);
+    row.title = project ? `"background" in the mod's definition for the game's ${screenName}: the backdrop drawn in place of the one the screen picks`
+      : 'Open an OpenFF project: the setting is the mod\'s, kept in its menus/';
+    card.append(row);
+    backdropLinesRow(card, node, screenName);
     panel.append(card);
     return panel;
   }

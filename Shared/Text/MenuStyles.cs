@@ -148,6 +148,8 @@ namespace OpenFF.Content
 			/// <summary>A panel behind it: the game's window, or with Bar its translucent bar.</summary>
 			public bool Window;
 			public bool Bar;
+			/// <summary>No panel said outright (-ff-panel: none): the game's own window taken away where the game makes one regardless.</summary>
+			public bool NoPanel;
 			/// <summary>#rrggbb, or null.</summary>
 			public string Tint;
 			/// <summary>The background's declarations (MenuBackground.Parse), or null.</summary>
@@ -161,7 +163,7 @@ namespace OpenFF.Content
 			public string Animation;
 
 			public bool SameAs(Look o) => o != null && Colour == o.Colour && Font == o.Font && Align == o.Align && Math.Abs(Opacity - o.Opacity) < 0.001
-				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Background == o.Background && Portrait == o.Portrait
+				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && NoPanel == o.NoPanel && Tint == o.Tint && Background == o.Background && Portrait == o.Portrait
 				&& TextStyle == o.TextStyle && Transition == o.Transition && Animation == o.Animation;
 
 			public bool SamePanel(Look o) => o != null && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Math.Abs(Opacity - o.Opacity) < 0.001 && Hidden == o.Hidden && Background == o.Background && Portrait == o.Portrait;
@@ -241,6 +243,7 @@ namespace OpenFF.Content
 				Hidden = frame.Element("hidden") != null,
 				Window = frame.Element("window") != null,
 				Bar = string.Equals(Text("panel"), "bar", StringComparison.OrdinalIgnoreCase),
+				NoPanel = string.Equals(Text("panel"), "none", StringComparison.OrdinalIgnoreCase),
 				Tint = Hex(Text("tint")),
 				Background = Text("background"),
 				Portrait = frame.Element("portrait") == null ? null : (Text("portrait") ?? ""),
@@ -333,8 +336,10 @@ namespace OpenFF.Content
 				string word = panel.Trim().ToLowerInvariant();
 				if (word == "none")
 				{
+					// No window - and said so (<panel>none</panel>), for a frame whose window the game makes whatever the layout
+					// says (field_hud's dialogue and map name: FieldHud takes it away). The game passes over the word.
 					frame.Elements("window").Remove();
-					frame.Elements("panel").Remove();
+					frame.SetElementValue("panel", "none");
 				}
 				else if (word == "window" || word == "bar")
 				{

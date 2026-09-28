@@ -158,12 +158,24 @@ internal static partial class GlobalScope
 					return false;
 				}
 				m_State = 0;
-				m_ProgressIcon.SetShow(show: false);
+				mwShowNext(false);
 				return true;
+			}
+
+			// PORT: whether the game wants its page-turn arrow up - the field_hud layout may hide it or show a picture of its
+			// own in its place (OpenFF.Client.FieldHud), so the arrow's own IsShow no longer says.
+			private bool m_NextWanted;
+
+			private void mwShowNext(bool show)
+			{
+				m_NextWanted = show;
+				m_ProgressIcon.SetShow(show && OpenFF.Client.FieldHud.NextGame);
+				OpenFF.Client.FieldHud.NextShown(show);
 			}
 
 			public void mwExecute()
 			{
+				OpenFF.Client.FieldHud.Tick();   // PORT: the layout's panels once the window is open, and what moves in it
 				dgs.DGSMessage dGSMessage = mm[m_Display].Message(m_MessageId);
 				if (m_State == 0)
 				{
@@ -176,7 +188,9 @@ internal static partial class GlobalScope
 								dGSMessage.setDisplayWait(255);
 							}
 						}
-						else if (dGSMessage != null && m_MessageId >= 0 && dGSMessage.displayWait() > 0)
+						// PORT: the window open, its text goes on - also one set after it opened at the Fast message speed (a wait
+						// of 0, where the phone build waited for more than 0 for ever: a mod's Say got no page-turn arrow).
+						else if (dGSMessage != null && m_MessageId >= 0)
 						{
 							mwResetMessageWait_();
 							m_State = 1;
@@ -193,13 +207,13 @@ internal static partial class GlobalScope
 					{
 						return;
 					}
-					if (!m_ProgressIcon.IsShow() && m_ProgressIconActivity && mwIsPageFinished())
+					if (!m_NextWanted && m_ProgressIconActivity && mwIsPageFinished())
 					{
-						m_ProgressIcon.SetShow(show: true);
+						mwShowNext(true);
 					}
 					if (mwIsNextPageButton())
 					{
-						m_ProgressIcon.SetShow(show: false);
+						mwShowNext(false);
 						if (m_StartCount >= mwVALID_BUTTON_START_FRAME && !mwIsFinished())
 						{
 							if (!mwIsPageFinished())
@@ -267,6 +281,7 @@ internal static partial class GlobalScope
 				m_ProgressIcon.copy(MenuManager.getSingleton().GetMenuButtonIcon3d());
 				m_ProgressIcon.SetCell(24);
 				m_ProgressIcon.SetShow(show: false);
+				m_NextWanted = false;
 				(int nextX, int nextY) = OpenFF.Client.BattleHud.DialogueNext();
 				m_ProgressIcon.SetPositionI(nextX, nextY);
 				m_ProgressIcon.SetAnimation(anm: true);
@@ -279,6 +294,8 @@ internal static partial class GlobalScope
 				m_Loaded_1 = true;
 				m_Made_1 = true;
 				m_State = 0;
+				// PORT: the field_hud layout's look on the window (OpenFF.Client.FieldHud): its panel, its frames of the mod's.
+				OpenFF.Client.FieldHud.DialogueMade(m_Window.GetWindowHandle(), mwIsWindowOpen, m_ProgressIcon);
 				return true;
 			}
 
@@ -354,6 +371,7 @@ internal static partial class GlobalScope
 				m_MessageNo = msg_no;
 				m_StartCount = 0u;
 				m_EndCount = 0u;
+				OpenFF.Client.FieldHud.DialogueText(dGSMessage, msg_no, null);   // PORT: who says it, and the layout's look on it
 				return true;
 			}
 
@@ -374,6 +392,18 @@ internal static partial class GlobalScope
 				if (m_MessageId < 0)
 				{
 					return false;
+				}
+				// PORT: a whole text broken at its words to the field_hud layout's text frame, measured at its font's size (made again when it was).
+				string wrapped = OpenFF.Client.FieldHud.Wrap(text, mm[display].Message(m_MessageId)?.m_TextCanvas?.pFont?.size ?? 12);
+				if (wrapped != text)
+				{
+					mm[display].releaseMessage(m_MessageId);
+					text = wrapped;
+					m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize);
+					if (m_MessageId < 0)
+					{
+						return false;
+					}
 				}
 				mm[display].Message(m_MessageId).setMessageColor(m_MessageColor);
 				dgs.DGSMessage dGSMessage = mm[display].Message(m_MessageId);
@@ -397,6 +427,7 @@ internal static partial class GlobalScope
 				m_MessageNo = -2;
 				m_StartCount = 0u;
 				m_EndCount = 0u;
+				OpenFF.Client.FieldHud.DialogueText(dGSMessage, -1, text);   // PORT: who says it, and the layout's look on it
 				return true;
 			}
 
@@ -414,11 +445,13 @@ internal static partial class GlobalScope
 				}
 				if (mm[m_Display].searchMessageIndexFromID((uint)who) >= 0)
 				{
-					m_NameId = mm[m_Display].createMessage((uint)who, 24, 139, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+					// PORT: where it is asked for (the field_hud layout's dialogue/name), not the phone build's 24, 139.
+					m_NameId = mm[m_Display].createMessage((uint)who, (ushort)name_message_pos.vx, (ushort)name_message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
 				}
 				dGSMessage = mm[m_Display].Message(m_NameId);
 				dGSMessage.setDisplaySpeed(byte.MaxValue);
 				dGSMessage.setDisplayWait(0);
+				OpenFF.Client.FieldHud.DialogueName(dGSMessage);   // PORT: the layout's dialogue/name look
 				m_Who = who;
 				return true;
 			}
@@ -504,6 +537,7 @@ internal static partial class GlobalScope
 				}
 				if (m_Made_1)
 				{
+					OpenFF.Client.FieldHud.DialogueClosed();
 					m_Window.GetWindowHandle().Release();
 					m_Window.SetEnable(-1);
 					m_Made_1 = false;

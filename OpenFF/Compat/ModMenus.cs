@@ -94,6 +94,13 @@ namespace OpenFF.Client
 		public static Array Patch(string fileName, Array bytes)
 		{
 			string file = Path.GetFileName(fileName ?? "");
+			_loadedFile = file;
+			// Out of the menus' file, no backdrop of a mod's stays put in place of a screen's.
+			if (!string.Equals(file, "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase) && _gameBackdrop != null)
+			{
+				if (_gameBackdrop < 0) { try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(true); } catch (Exception) { } }
+				_gameBackdrop = null;
+			}
 			if (bytes == null) return bytes;
 			// The definitions are read again each time: a menus/<id>.json edited while the client runs is on the next opening, as the layouts are.
 			if (_screen == null && _gameScreen == null) Gather(OpenFF.Game.Mods);
@@ -129,6 +136,13 @@ namespace OpenFF.Client
 				if (string.Equals(file, "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase)) AddMainMenuEntries(list);
 				if (Options.Get("dump-menus") != null) { string at = Path.Combine(Path.GetTempPath(), Path.GetFileNameWithoutExtension(file) + ".patched.xml"); doc.Save(at); Log.Write(LogChannel.General, "menus: patched layout written to " + at); }
 				byte[] patched = MenuXbn.FromXml(doc);
+				// The field's HUD kept as built, with a mod's layout of it as written (its looks), past this file's time.
+				if (string.Equals(file, BattleHudLayout.FieldFile, StringComparison.OrdinalIgnoreCase))
+				{
+					MenuDefinition hudDef = defs.LastOrDefault(d => d.Layout != null && string.Equals(d.Screen, BattleHudLayout.FieldScreen, StringComparison.OrdinalIgnoreCase));
+					if (hudDef != null && _styleSources.TryGetValue(hudDef.Id, out (XElement Menu, List<string> Sheets) hudStyle)) FieldHud.Capture(patched, hudStyle.Menu, hudStyle.Sheets, hudDef.Directory);
+					else FieldHud.Capture(patched, null, null, null);
+				}
 				int entries = string.Equals(file, "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase) ? Entries().Count : 0;
 				Log.Write(LogChannel.General, "menus: " + file + " carries " + added + " screen(s) of the mods' own" + (reached > 0 ? ", " + reached + " of the game's reached" : "") + (entries > 0 ? ", " + entries + " main menu entr" + (entries == 1 ? "y" : "ies") : ""));
 				return patched;
@@ -344,6 +358,27 @@ namespace OpenFF.Client
 			return w == "none" || w == "fit" || w == "game" ? w : null;
 		}
 
+		/// <summary>
+		/// The backdrop a mod's definition puts in place of the one the game's screen on now picks (0..14, 4 the plain one
+		/// instead; -1 none); null for the screen's own. Kept from the screen's building until the next's (the game's screen
+		/// asks for its backdrop before it is built, and may again as it runs - Magic's pages).
+		/// </summary>
+		public static int? GameBackdrop => SettingModBackdrop ? null : _gameBackdrop;
+		private static int? _gameBackdrop;
+		// The layout file the game holds now (Patch hears each load).
+		private static string _loadedFile;
+
+		private static int? ReachingBackdrop(string screen)
+		{
+			if (!_gameScreenDefs.TryGetValue(screen, out List<MenuDefinition> defs)) return null;
+			MenuDefinition said = defs.LastOrDefault(d => d.BackgroundSaid);
+			if (said == null) return null;
+			int b = said.Background;
+			if (b < 0) return -1;
+			b = Math.Clamp(b, 0, 14);
+			return b == 4 ? 10 : b;
+		}
+
 		private static string Reaching(string screen) =>
 			_gameScreenDefs.TryGetValue(screen, out List<MenuDefinition> defs) ? defs.Select(d => Mode(d.BackdropLines)).LastOrDefault(m => m != null) : null;
 
@@ -462,6 +497,7 @@ namespace OpenFF.Client
 
 		public static void Tick()
 		{
+			_screenPanels.Flush();
 			foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnTick", b.OnTick);
 			_screen?.UpdateBindings();
 			// A transition or an animation under way: the look worked out again for this frame.
@@ -528,6 +564,21 @@ namespace OpenFF.Client
 			{
 				GameScreenReleased();
 				_lastBuilt = name;
+				// A definition reaching the screen that says its backdrop: that one in place of the screen's (set up again now -
+				// the screen asked for its own before it was built); one that says none gives the screen's own back.
+				// Only the menus' screens (MenuDefine.xbn's) have backdrops: a screen of another file (an inn's question in the field) leaves them be.
+				int? backdrop = name == null ? null : ReachingBackdrop(name);
+				if (string.Equals(_loadedFile, "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase) && backdrop != _gameBackdrop)
+				{
+					_gameBackdrop = backdrop;
+					try
+					{
+						GlobalScope.wmenu.CWMenuManager menus = GlobalScope.wmenu.CWMenuManager.Instance();
+						menus.SetPrimaryBGVisibility(backdrop == null || backdrop >= 0);
+						menus.ReapplyPrimaryBG();
+					}
+					catch (Exception) { }
+				}
 				// A definition reaching the screen with a say on its backdrop's lines: the backdrop set up again with them.
 				string lines = name == null || string.Equals(name, "main_menu", StringComparison.OrdinalIgnoreCase) ? null : Reaching(name);
 				if (lines != null)
@@ -564,6 +615,7 @@ namespace OpenFF.Client
 		{
 			_gameScreen?.UpdateBindings();
 			if (_gameScreen == null) return;
+			_screenPanels.Flush();
 			// The sheets' states and their animations, behaviours or none.
 			try
 			{
@@ -657,7 +709,6 @@ namespace OpenFF.Client
 		}
 
 		private static readonly Dictionary<IMenuWidget, FramePanels> _framePanels = new Dictionary<IMenuWidget, FramePanels>();
-		private static readonly List<uint> _paintedTextures = new List<uint>();
 
 		/// <summary>A frame's panel made again with a new look where only what can be put on in place changed (its background, opacity, tint); false when it needs the windows made again.</summary>
 		private static bool UpdatePanel(ModMenuScreen screen, ModMenuWidget m, MenuStyles.Look look)
@@ -671,10 +722,10 @@ namespace OpenFF.Client
 				uint? tint = StyleRgb(look.Tint) is uint rgb ? (rgb >> 16 & 0xFF) | (rgb & 0xFF00) | ((rgb & 0xFF) << 16) : (uint?)null;
 				fp.Window.SetLook((float)look.Opacity, tint);
 			}
-			if (was.Background != look.Background || Math.Abs(was.Opacity - look.Opacity) > 0.001)
+			if (was.Background == look.Background && Math.Abs(was.Opacity - look.Opacity) > 0.001) MenuPanels.Fade(fp.Sprites, look.Opacity);   // a fade: in place
+			else if (was.Background != look.Background)
 			{
-				foreach (GlobalScope.MenuPanelSprite sp in fp.Sprites) { try { GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(sp); } catch (Exception) { } _panels.Remove(sp); }
-				foreach (uint t in fp.Textures) { try { GlobalScope.MenuPanelRelease(t); } catch (Exception) { } _paintedTextures.Remove(t); }
+				_screenPanels.Remove(fp.Sprites, fp.Textures);
 				fp.Sprites.Clear();
 				fp.Textures.Clear();
 				if (look.Background != null && !look.Hidden) AddPanel(screen, m.Id, m.X, m.Y, m.Width, m.Height, look.Background, look.Opacity, fp.Back + GlobalScope.ds.S32toFX32(8), fp);
@@ -739,7 +790,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>#rrggbb (or #rrggbbaa, its alpha passed over) as 0xRRGGBB; null when it is not one.</summary>
-		private static uint? StyleRgb(string text)
+		internal static uint? StyleRgb(string text)
 		{
 			string v = text?.Trim();
 			if (v != null && v.Length == 9 && v[0] == '#') v = v.Substring(0, 7);
@@ -772,126 +823,24 @@ namespace OpenFF.Client
 		{
 			foreach (GlobalScope.menu.BasicWindow w in _windows) { try { w.Release(); } catch (Exception) { } }
 			_windows.Clear();
-			foreach (GlobalScope.MenuPanelSprite p in _panels) { try { GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(p); } catch (Exception) { } }
-			_panels.Clear();
-			foreach ((uint Id, int W, int H) t in _panelTextures.Values) { try { GlobalScope.MenuPanelRelease(t.Id); } catch (Exception) { } }
-			_panelTextures.Clear();
-			foreach (uint t in _paintedTextures) { try { GlobalScope.MenuPanelRelease(t); } catch (Exception) { } }
-			_paintedTextures.Clear();
+			_screenPanels.Clear();
 			_framePanels.Clear();
 			ReleaseArrows();
 		}
 
-		// ---- backgrounds: a frame's colour and picture (MenuBackground), drawn as a sprite with the windows ----
+		// ---- backgrounds: a frame's colour and picture (MenuBackground), its painted box (MenuPaint): sprites with the windows ----
 
-		private static readonly List<GlobalScope.MenuPanelSprite> _panels = new List<GlobalScope.MenuPanelSprite>();
-		private static readonly Dictionary<string, (uint Id, int W, int H)> _panelTextures = new Dictionary<string, (uint, int, int)>(StringComparer.OrdinalIgnoreCase);
+		private static readonly MenuPanels _screenPanels = new MenuPanels();
 
 		private static void AddPanel(ModMenuScreen screen, IMenuWidget w, MenuStyles.Look look, int back, FramePanels into)
 		{
 			AddPanel(screen, w.Id, w.X, w.Y, w.Width, w.Height, look.Background, look.Opacity, back + GlobalScope.ds.S32toFX32(8), into);
 		}
 
-		/// <summary>Pixels a menu unit for a painted box: the window's, so its edges are as sharp as the text's.</summary>
-		private static float PaintScale()
-		{
-			try { return Math.Clamp((float)Math.Ceiling(GlobalScope.m_Graphics.GetGraphicsDeviceManager().GraphicsDevice.Viewport.Height / (float)Math.Max(1, GlobalScope.LCD_HEIGHT)), 1f, 4f); }
-			catch (Exception) { return 2f; }
-		}
-
-		/// <summary>A painted layer (MenuPaint) as a texture and its place over the frame; null for nothing.</summary>
-		private static (uint, int, int, MenuBackground.Quad)? Painted(MenuPaint.Raster r, FramePanels into)
-		{
-			if (r == null) return null;
-			uint id = GlobalScope.MenuPanelRaster(r.Pixels, r.Width, r.Height);
-			if (id == 0) return null;
-			_paintedTextures.Add(id);
-			into?.Textures.Add(id);
-			return (id, r.Width, r.Height, new MenuBackground.Quad(r.X, r.Y, r.W, r.H, 0, 0, r.Width, r.Height));
-		}
-
 		/// <summary>A background over a rectangle of the screen (a frame's, or the whole screen's), at a depth in the windows' stack; its sprites (and painted textures) noted in 'into' when given.</summary>
 		private static void AddPanel(ModMenuScreen screen, string what, int x, int y, int width, int height, string declarations, double alpha, int depth, FramePanels into = null)
 		{
-			MenuBackground bg = MenuBackground.Parse(declarations);
-			if (bg == null) return;
-			// A named sprite of the sheet (sprites.json beside the layouts): its part and its borders.
-			if (bg.Sprite != null)
-			{
-				MenuSprites.Sprite named = MenuSprites.Find(screen.Definition?.Directory, bg.ImageKind, bg.ImagePath, bg.Sprite);
-				if (named != null) bg.Use(named);
-				else Log.Write(LogChannel.General, "menus: " + what + ": no sprite '" + bg.Sprite + "' on " + bg.ImagePath + " in " + MenuSprites.FileName);
-			}
-			GlobalScope.MenuPanelSprite sprite = new GlobalScope.MenuPanelSprite { Width = width, Height = height };
-			float opacity = (float)Math.Clamp(alpha, 0, 1);
-			byte[] Bytes(uint rgba) => new[] { (byte)(rgba >> 24), (byte)(rgba >> 16), (byte)(rgba >> 8), (byte)Math.Round((rgba & 0xFF) * opacity) };
-			if (bg.Colour.HasValue) sprite.Fill = Bytes(bg.Colour.Value);
-			sprite.Tint = Bytes(bg.Tint);
-			if (bg.ImagePath != null)
-			{
-				string key = bg.ImageKind + ":" + bg.ImagePath + (bg.Linear ? "" : "#point");
-				if (!_panelTextures.TryGetValue(key, out (uint Id, int W, int H) texture))
-				{
-					byte[] data = null;
-					try
-					{
-						if (bg.ImageKind == "resource") data = GameArchive.Read(bg.ImagePath);
-						else if (screen.Definition?.Directory != null)
-						{
-							string path = Path.GetFullPath(Path.Combine(screen.Definition.Directory, bg.ImagePath));
-							if (File.Exists(path)) data = File.ReadAllBytes(path);
-						}
-						int tw = 0, th = 0;
-						uint id = data == null ? 0 : GlobalScope.MenuPanelTexture(data, bg.Linear, out tw, out th);
-						texture = id == 0 ? (0u, 0, 0) : (id, tw, th);
-						if (id == 0 && data == null) Log.Write(LogChannel.General, "menus: " + what + ": no picture " + bg.ImageKind + "(\"" + bg.ImagePath + "\")");
-					}
-					catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + what + ": picture " + bg.ImagePath + ": " + ex.Message); }
-					_panelTextures[key] = texture;
-				}
-				if (texture.Id != 0)
-				{
-					sprite.Texture = texture.Id;
-					sprite.TextureWidth = texture.W;
-					sprite.TextureHeight = texture.H;
-					sprite.Quads = bg.Layout(width, height, texture.W, texture.H);
-				}
-			}
-			// The box painted (a gradient, a border, round corners, shadows): the colour and the gradient under the picture, the
-			// inset shadows and the border over it, the outer shadows a sprite of their own behind the frame's window.
-			if (bg.Decorated)
-			{
-				sprite.Fill = null;
-				sprite.Paint = new byte[] { 255, 255, 255, (byte)Math.Round(255 * opacity) };
-				float scale = PaintScale();
-				try
-				{
-					if (Painted(MenuPaint.Paint(bg, width, height, scale, MenuPaint.Layer.Fill), into) is (uint, int, int, MenuBackground.Quad) fill) sprite.Before.Add(fill);
-					if (Painted(MenuPaint.Paint(bg, width, height, scale, MenuPaint.Layer.Over), into) is (uint, int, int, MenuBackground.Quad) over) sprite.After.Add(over);
-					if (Painted(MenuPaint.Paint(bg, width, height, scale, MenuPaint.Layer.Shadow), into) is (uint, int, int, MenuBackground.Quad) shade)
-					{
-						GlobalScope.MenuPanelSprite shadow = new GlobalScope.MenuPanelSprite { Width = width, Height = height, Paint = sprite.Paint };
-						shadow.Before.Add(shade);
-						// Behind the window's fill (the frame's depth and 16): the panel's depth and 16 more.
-						Show(shadow, x, y, depth + GlobalScope.ds.S32toFX32(16), into);
-					}
-				}
-				catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + what + ": the box could not be painted: " + ex.Message); }
-			}
-			// A frame's: between a window's fill (its depth and 16 more) and its frame (its depth) - its place in the stack and 8.
-			Show(sprite, x, y, depth, into);
-		}
-
-		private static void Show(GlobalScope.MenuPanelSprite sprite, int x, int y, int depth, FramePanels into)
-		{
-			sprite.SetPlane(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D);
-			sprite.SetPriority(3);
-			sprite.SetDepth(depth);
-			sprite.SetPositionI(x, y);
-			sprite.SetShow(show: true);
-			GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(sprite);
-			_panels.Add(sprite);
-			into?.Sprites.Add(sprite);
+			_screenPanels.Add(screen.Definition?.Directory, what, x, y, width, height, declarations, alpha, depth, into?.Sprites, into?.Textures);
 		}
 
 		// ---- scroll arrows: a list's, as the battle's command list has them (btl.Triangle) ----
@@ -1295,6 +1244,9 @@ namespace OpenFF.Client
 			private string _dataSource;
 			private string _boundText;
 			private bool? _boundVisible;
+			// A bound style (bind-style) as it is put on the frame's own style, and the properties it put there.
+			private string _boundStyle;
+			private readonly List<string> _boundStyleKeys = new List<string>();
 
 			/// <summary>The look the frame has now: as the layout's bake left it, then as the screen restyles it.</summary>
 			public MenuStyles.Look Look { get; private set; }
@@ -1341,6 +1293,7 @@ namespace OpenFF.Client
 				_dataSource = (string)source?.Attribute("data-source");
 				if (source?.Attribute("bind-text") is XAttribute text) _binds["text"] = text.Value;
 				if (source?.Attribute("bind-visible") is XAttribute visible) _binds["visible"] = visible.Value;
+				if (source?.Attribute("bind-style") is XAttribute boundStyle) _binds["style"] = boundStyle.Value;
 				foreach (KeyValuePair<string, string> c in MenuStyles.Declarations((string)source?.Attribute("bind-class"))) _binds["class." + c.Key] = c.Value;
 			}
 
@@ -1575,6 +1528,17 @@ namespace OpenFF.Client
 
 			public string Binding(string property) => property != null && _binds.TryGetValue(property.Trim(), out string e) ? e : null;
 
+			/// <summary>A bound style's declarations onto the frame's own style (the last bound's taken off first); true when the screen restyles for it.</summary>
+			private bool PutBoundStyle(string style)
+			{
+				if (Source == null) return false;
+				List<KeyValuePair<string, string>> own = MenuStyles.Declarations((string)Source.Attribute("style")).Where(d => !_boundStyleKeys.Contains(d.Key)).ToList();
+				_boundStyleKeys.Clear();
+				foreach (KeyValuePair<string, string> d in MenuStyles.Declarations(style)) { own.RemoveAll(o => o.Key == d.Key); own.Add(d); _boundStyleKeys.Add(d.Key); }
+				Source.SetAttributeValue("style", own.Count > 0 ? string.Join("; ", own.Select(d => d.Key + ": " + d.Value)) : null);
+				return true;
+			}
+
 			/// <summary>This frame's bindings under its data source, then its frames'; true when a class changed (the screen restyles once for all of them).</summary>
 			public bool UpdateBindings(MenuBindingScope scope)
 			{
@@ -1591,6 +1555,11 @@ namespace OpenFF.Client
 					{
 						bool on = MenuBindings.Test(b.Value, scope);
 						if (on != _boundVisible) { _boundVisible = on; PutVisible(); }
+					}
+					else if (b.Key.Equals("style", StringComparison.OrdinalIgnoreCase))
+					{
+						string style = MenuBindings.Format(b.Value, scope);
+						if (style != _boundStyle) { _boundStyle = style; classes |= PutBoundStyle(style); }
 					}
 					else if (b.Key.StartsWith("class.", StringComparison.OrdinalIgnoreCase))
 					{

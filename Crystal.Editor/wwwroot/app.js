@@ -1134,7 +1134,9 @@ function drawScreen(node, screen, select, quiet) {
   scale.style.width = `${width * menu.zoom}px`;
   scale.style.height = `${height * menu.zoom}px`;
 
-  drawMenuBackground(node, childText(screen, 'name'), menu.project && menu.project.definition ? menu.project.definition.background : undefined);
+  // A mod's or the client's screen names its backdrop in its definition; one of the game's by the screen - unless the open project's definition reaching it says one.
+  const gameBackdrop = !menu.project && typeof gameScreenSetting === 'function' ? gameScreenSetting(childText(screen, 'name'), 'background') : null;
+  drawMenuBackground(node, childText(screen, 'name'), menu.project && menu.project.definition ? menu.project.definition.background : gameBackdrop != null && gameBackdrop !== '' ? gameBackdrop : undefined);
   // The game's own portrait, where the game puts it, while the layout has no portrait frame of its own.
   if (typeof gamePortraitShown === 'function' && gamePortraitShown(screen) && !menu.hideGamePortrait) {
     const ghost = document.createElement('div');
@@ -1198,6 +1200,25 @@ function drawScreen(node, screen, select, quiet) {
 /// A frame's box dressed as its look says: the panel (the game's window or bar, a background and the box's shadow,
 /// a portrait's face, a button's window) and the text. What is drawn later (the pictures, the text in the game's
 /// font) goes in as it comes; the promise is kept until all of it has - for a box dressed off the canvas and swapped in.
+/// field_hud's dialogue and map_name: the game makes its window there whatever the layout says - unless it says -ff-panel: none.
+function hudGameWindow(frame, look) {
+  const parent = frame.element.parentElement;
+  if (!parent || parent.tagName !== 'menu' || childText(parent, 'name') !== 'field_hud') return false;
+  if (frame.id !== 'dialogue' && frame.id !== 'map_name') return false;
+  return (childText(look, 'panel') || '').trim() !== 'none';
+}
+
+/// What the game fills field_hud's frames with, for Preview: the dialogue's text, the banner's map name (the bindings' sample).
+function hudSampleText(frame) {
+  const parent = frame.element.parentElement;
+  const screen = parent && (parent.tagName === 'menu' ? parent : parent.parentElement);
+  if (!screen || screen.tagName !== 'menu' || childText(screen, 'name') !== 'field_hud' || typeof BINDING_SAMPLE === 'undefined') return null;
+  const path = parent.tagName === 'menu' ? frame.id : `${childText(parent, 'id')}/${frame.id}`;
+  if (path === 'dialogue/text') return BINDING_SAMPLE.dialogue.text;
+  if (path === 'map_name') return BINDING_SAMPLE.banner.text;
+  return null;
+}
+
 function dressFrameBox(box, frame, look) {
   const pending = [];
   const later = promise => { pending.push(promise.catch(() => {})); };
@@ -1211,7 +1232,8 @@ function dressFrameBox(box, frame, look) {
   // A <window/> frame is drawn with the game's window art at run time (a mod screen's panels;
   // the game's own popups): the canvas shows it as a framed panel, and Preview draws the art -
   // or the game's translucent bar, for -ff-panel: bar; tinted by -ff-tint.
-  if ([...look.children].some(e => e.tagName === 'window')) {
+  const gameWindow = [...look.children].some(e => e.tagName === 'window') || hudGameWindow(frame, look);
+  if (gameWindow) {
     box.classList.add('window');
     const bar = (childText(look, 'panel') || '').trim() === 'bar';
     if (menu.preview && bar) {
@@ -1226,7 +1248,7 @@ function dressFrameBox(box, frame, look) {
   if (menu.preview && background) {
     const slots = ['shadow', 'fill', 'background', 'frame'].map(k => { const d = document.createElement('div'); d.className = 'art-slot ' + k; return d; });
     box.prepend(...slots);
-    const windowed = [...look.children].some(e => e.tagName === 'window') && (childText(look, 'panel') || '').trim() !== 'bar';
+    const windowed = gameWindow && (childText(look, 'panel') || '').trim() !== 'bar';
     if (windowed) {
       later(drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'fill').then(w => { if (w && live()) slots[1].append(w); }));
       later(drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'frame').then(w => { if (w && live()) slots[3].append(w); }));
@@ -1264,7 +1286,8 @@ function dressFrameBox(box, frame, look) {
     // A literal (<data>, message -1) shows as itself - the way a mod's screen writes its labels; a bound
     // text (bind-text) as the sample data fills it, as the client fills it from the game's.
     const bound = frame.element.getAttribute('bind-text');
-    const literal = id !== null && id < 0 ? (bound && typeof bindingFormat === 'function' ? bindingFormat(bound, bindingScopeOf(frame.element)) : childText(frame.element, 'data')) : null;
+    // A frame with only a bind-text (the field HUD's speaker) is a text to the client too.
+    const literal = (id !== null && id < 0) || (id === null && bound) ? (bound && typeof bindingFormat === 'function' ? bindingFormat(bound, bindingScopeOf(frame.element)) : childText(frame.element, 'data')) : hudSampleText(frame);
     if (typeof bindingTest === 'function' && frame.element.hasAttribute('bind-visible') && !bindingTest(frame.element.getAttribute('bind-visible'), bindingScopeOf(frame.element))) box.classList.add('look-hidden');
     const text = literal != null ? literal : id === null ? null : menu.messages[id];
     if (text != null) {

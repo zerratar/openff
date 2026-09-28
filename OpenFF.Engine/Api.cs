@@ -55,7 +55,8 @@ namespace OpenFF
 		/// <summary>
 		/// Shows a text in the message window, with the "tap to continue" mark; the window
 		/// closes when the player taps (or presses A). One at a time: while IsOpen, a new
-		/// Say replaces the text. Optionally a speaker's name. A text of the form "@1000142"
+		/// Say replaces the text. Optionally a speaker's name - {dialogue.speaker} for a field_hud layout that shows it
+		/// (the DialogueShown event hears it, and may say otherwise). A text of the form "@1000142"
 		/// is one of the game's own lines by its id in the .msd, in the player's language;
 		/// "@1000142 item=5001 gold=250 color=9" fills the line's item and gold codes and sets
 		/// the window's text colour (dgs.TXT_COLOR; 9 is the chests' gold).

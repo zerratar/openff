@@ -101,6 +101,7 @@ internal static partial class GlobalScope
 							dGSMessage.setDisplaySpeed(byte.MaxValue);
 							dGSMessage.setShadow(b: true);
 							bVisiblity_ = true;
+							OpenFF.Client.FieldHud.BannerMade(Window_, dGSMessage, nMessageNo);   // PORT: the field_hud layout's map_name look
 							return 0;
 						}
 					}
@@ -112,6 +113,7 @@ internal static partial class GlobalScope
 			{
 				if (bVisiblity_)
 				{
+					OpenFF.Client.FieldHud.BannerClosed();
 					dgs.msg.CMessageSys.getInstance().Main().releaseMessage(nMessageID_);
 					nMessageID_ = -1;
 					Window_.SetShow(show: false, user: true);
@@ -130,6 +132,7 @@ internal static partial class GlobalScope
 
 			public void countdownToClose()
 			{
+				OpenFF.Client.FieldHud.Tick();   // PORT: what moves in the banner (the layout's animations)
 				if (bVisiblity_ && -1 != nCloseCounter_ && 0 >= --nCloseCounter_)
 				{
 					close();

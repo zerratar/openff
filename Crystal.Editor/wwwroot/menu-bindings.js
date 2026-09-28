@@ -15,7 +15,10 @@ const BINDING_SAMPLE = {
   party: [SAMPLE_MEMBER(0, 'Luneth', 'Warrior', 12, 230, 260), SAMPLE_MEMBER(1, 'Arc', 'White Mage', 11, 150, 180), SAMPLE_MEMBER(2, 'Refia', 'Red Mage', 11, 0, 190), SAMPLE_MEMBER(3, 'Ingus', 'Monk', 12, 280, 300)],
   gil: 12345,
   items: [{ id: 1, name: 'Potion', count: 5 }, { id: 2, name: 'Phoenix Down', count: 2 }],
-  menu: { id: 'menu', hero: 0, focused: null }
+  menu: { id: 'menu', hero: 0, focused: null },
+  // The field's HUD (field_hud): who speaks in the dialogue window, and the map-name banner's text.
+  dialogue: { number: 1000142, text: 'The wind crystal\'s light has faded... We should see the elder.', speaker: 'Luneth', avatar: 'resource("files/pc1_01.NCGR")', map: 't01_01' },
+  banner: { number: -1, text: 'Ur' }
 };
 
 /// The paths the pickers offer: the roots and what the game's data has under them.
@@ -26,7 +29,8 @@ const BINDING_PATHS = (() => {
     ...member.map(m => 'hero.' + m),
     'party', 'party.count', ...['name', 'level', 'hp', 'maxHp', 'jobTitle', 'alive'].map(m => 'party[0].' + m),
     'gil', 'items', 'items.count', 'items[0].name', 'items[0].count',
-    'menu.hero', 'menu.focused', 'menu.id', 'this'
+    'menu.hero', 'menu.focused', 'menu.id', 'this',
+    'dialogue.speaker', 'dialogue.avatar', 'dialogue.text', 'dialogue.number', 'dialogue.map', 'banner.text', 'banner.number'
   ];
 })();
 
@@ -233,7 +237,7 @@ function setBindAttribute(element, name, value) {
 
 /// The inspector's Bindings section: the frame's data source and what it binds, each with the paths the game's data has, and what Preview's sample makes of it.
 function buildBindingsSection(panel, element, screen, edit, rebuild, sync) {
-  const has = ['data-source', 'bind-text', 'bind-visible', 'bind-class'].some(a => element.hasAttribute(a));
+  const has = ['data-source', 'bind-text', 'bind-visible', 'bind-class', 'bind-style'].some(a => element.hasAttribute(a));
   const body = propSection(panel, 'Bindings', 'logic', 'Data bindings: the frame\'s text, visibility and classes from the game\'s data as the screen runs - UI Toolkit\'s data source and binding paths', has);
   const listId = 'menu-binding-paths';
   let list = document.getElementById(listId);
@@ -270,6 +274,7 @@ function buildBindingsSection(panel, element, screen, edit, rebuild, sync) {
   text.parentElement.append(insert);
   field('Visible', 'bind-visible', 'alive, hp > 0, gil >= 100', 'bind-visible: shown while the expression is true', true);
   field('Bind classes', 'bind-class', 'ko: !alive; low: hp < maxHp / 4', 'bind-class: each class on while its expression is true - the sheets\' rules for it follow', false);
+  field('Bind style', 'bind-style', 'background-image: {dialogue.avatar}', 'bind-style: declarations with {paths} in them, over the frame\'s own style as the data says (a speaker\'s picture, a colour from the data)', false);
 
   const sample = document.createElement('p');
   sample.className = 'none binding-sample';
@@ -282,6 +287,8 @@ function buildBindingsSection(panel, element, screen, edit, rebuild, sync) {
     if (visible) lines.push(`Visible: ${bindingTest(visible, scope) ? 'yes' : 'no'}`);
     const classes = boundClasses(element);
     if (classes.length) lines.push('Classes: ' + classes.map(([k, v]) => `${k} ${bindingTest(v, scope) ? 'on' : 'off'}`).join(', '));
+    const style = element.getAttribute('bind-style');
+    if (style) lines.push(`Style: ${bindingFormat(style, scope)}`);
     sample.textContent = lines.length ? `With the sample (Luneth, Lv 12, 12,345 G): ${lines.join(' · ')}` : 'Nothing bound. Code can bind too: widget.Bind("text", "Lv {level}").';
   };
   showSample();

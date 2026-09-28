@@ -33,6 +33,8 @@ namespace OpenFF.Client
 		/// <summary>A frame of any screen in the layout file the game holds now, by screen and id path.</summary>
 		public static Rect Frame(string screen, string path)
 		{
+			// The field's HUD as the client last built it (FieldHud): its frames there while another file is loaded too.
+			if (string.Equals(screen, BattleHudLayout.FieldScreen, StringComparison.OrdinalIgnoreCase) && FieldHud.TryRect(path, out Rect kept)) return kept;
 			try
 			{
 				if (_frames == null) Read();
