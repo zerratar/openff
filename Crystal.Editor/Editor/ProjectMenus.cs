@@ -32,6 +32,46 @@ namespace Crystal.Editor
 			return sheets;
 		}
 
+		private static readonly string[] PictureExtensions = { ".png", ".jpg", ".jpeg", ".bmp" };
+
+		/// <summary>The pictures of a folder of screens (images/, and any folder under it), for their backgrounds: url("images/...").</summary>
+		public static List<object> Pictures(string folder)
+		{
+			List<object> pictures = new List<object>();
+			string images = folder == null ? null : Path.Combine(folder, "images");
+			if (images == null || !System.IO.Directory.Exists(images)) return pictures;
+			foreach (string file in System.IO.Directory.EnumerateFiles(images, "*.*", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+			{
+				if (!PictureExtensions.Contains(Path.GetExtension(file).ToLowerInvariant())) continue;
+				int width = 0, height = 0;
+				try { using System.Drawing.Image image = System.Drawing.Image.FromFile(file); width = image.Width; height = image.Height; } catch (Exception) { }
+				pictures.Add(new { path = Path.GetRelativePath(folder, file).Replace(Path.DirectorySeparatorChar, '/'), width, height, bytes = new FileInfo(file).Length });
+			}
+			return pictures;
+		}
+
+		/// <summary>A file of the folder by its path in it (images/x.png), or null - never one outside it.</summary>
+		public static string FileIn(string folder, string path)
+		{
+			if (folder == null || string.IsNullOrWhiteSpace(path)) return null;
+			string root = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+			string full = Path.GetFullPath(Path.Combine(folder, path.Replace('/', Path.DirectorySeparatorChar)));
+			return full.StartsWith(root, StringComparison.OrdinalIgnoreCase) ? full : null;
+		}
+
+		/// <summary>A picture into images/ (a plain file name); returns its path in the folder.</summary>
+		public static string SavePicture(string folder, string name, byte[] data)
+		{
+			string file = Path.GetFileName(name ?? "");
+			string stem = Path.GetFileNameWithoutExtension(file), ext = Path.GetExtension(file).ToLowerInvariant();
+			if (string.IsNullOrEmpty(stem) || !PictureExtensions.Contains(ext) || !System.Text.RegularExpressions.Regex.IsMatch(stem, "^[A-Za-z0-9_. -]+$")) throw new InvalidOperationException("a picture's name is letters, digits, space, . - and _, ending .png, .jpg or .bmp (" + name + ")");
+			if (data == null || data.Length < 8) throw new InvalidOperationException("that is not a picture");
+			string images = Path.Combine(folder, "images");
+			System.IO.Directory.CreateDirectory(images);
+			File.WriteAllBytes(Path.Combine(images, stem + ext), data);
+			return "images/" + stem + ext;
+		}
+
 		/// <summary>Writes styles/&lt;name&gt;.css (a plain name of letters, digits, - and _); an empty sheet is removed.</summary>
 		public static void SaveSheet(string folder, string name, string css)
 		{

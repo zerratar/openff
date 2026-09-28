@@ -18,8 +18,12 @@ const STYLE_INHERITED = new Set(['color', 'font-size', 'text-align', 'visibility
 const STYLE_LAYOUT = ['position', 'left', 'top', 'right', 'bottom', 'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height', 'translate',
   'margin', 'margin-left', 'margin-top', 'margin-right', 'margin-bottom', 'padding', 'padding-left', 'padding-top', 'padding-right', 'padding-bottom',
   'flex-direction', 'gap', 'justify-content', 'align-items', 'align-self', 'flex-grow'];
+/// A frame's background (menu-background.js; Shared/Text/MenuBackground.cs), in the order the bake writes them.
+const BACKGROUND_PROPS = ['background-color', 'background-image', '-ff-background-rect', '-ff-background-tint', '-ff-background-scale-mode',
+  'background-size', 'background-position', 'background-repeat',
+  '-ff-slice', '-ff-slice-left', '-ff-slice-top', '-ff-slice-right', '-ff-slice-bottom', '-ff-slice-scale', '-ff-slice-type', '-ff-background-filter'];
 /// The properties the language knows (a style or a sheet naming anything else is told so in the inspector).
-const STYLE_KNOWN = new Set([...STYLE_LAYOUT, 'display', 'color', 'font-size', 'text-align', 'opacity', 'visibility', '-ff-panel', '-ff-tint']);
+const STYLE_KNOWN = new Set([...STYLE_LAYOUT, 'display', 'color', 'font-size', 'text-align', 'opacity', 'visibility', '-ff-panel', '-ff-tint', ...BACKGROUND_PROPS]);
 
 function styleDeclarations(text) {
   const out = [];
@@ -192,6 +196,9 @@ function bakeLook(frame, values, opacity) {
     }
   }
   if (values.has('-ff-tint') && styleHex(values.get('-ff-tint'))) setLook(frame, 'tint', styleHex(values.get('-ff-tint')));
+  // The background: its declarations as one element, as MenuStyles bakes them.
+  const background = BACKGROUND_PROPS.filter(k => values.has(k)).map(k => `${k}: ${values.get(k)}`);
+  if (background.length) setLook(frame, 'background', typeof parseBackground !== 'function' || parseBackground(background.join('; ')) ? background.join('; ') : null);
 }
 
 /// The rules of the open screen: its folder's sheets, then the file's own <style>s.

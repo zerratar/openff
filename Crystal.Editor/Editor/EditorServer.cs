@@ -1512,6 +1512,50 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/client/menu/images":
+				case "/api/project/menu/images":
+				{
+					// The pictures beside the screens (images/), for a frame's background-image: url("images/...").
+					string folder = MenuFolderFor(context.Request.Url.AbsolutePath.StartsWith("/api/client"));
+					SendJson(context, new { ok = folder != null, pictures = ProjectMenus.Pictures(folder), folder });
+					return;
+				}
+
+				case "/api/client/menu/file":
+				case "/api/project/menu/file":
+				{
+					string picture = ProjectMenus.FileIn(MenuFolderFor(context.Request.Url.AbsolutePath.StartsWith("/api/client")), Query(context, "path"));
+					if (picture == null || !File.Exists(picture)) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such file")); return; }
+					string ext = Path.GetExtension(picture).ToLowerInvariant();
+					Send(context, 200, ext == ".png" ? "image/png" : ext == ".bmp" ? "image/bmp" : "image/jpeg", File.ReadAllBytes(picture));
+					return;
+				}
+
+				case "/api/client/menu/image/import":
+				case "/api/project/menu/image/import":
+				{
+					// A picture into images/ (the body is the file itself); for the client's screens, the built client's too.
+					try
+					{
+						bool client = context.Request.Url.AbsolutePath.StartsWith("/api/client");
+						string folder = MenuFolderFor(client);
+						if (folder == null) throw new InvalidOperationException(client ? "no OpenFF client found" : "no project is open");
+						using MemoryStream body = new MemoryStream();
+						context.Request.InputStream.CopyTo(body);
+						byte[] data = body.ToArray();
+						string saved = ProjectMenus.SavePicture(folder, Query(context, "name"), data);
+						if (client)
+						{
+							(string Folder, bool Source)? where = OpenFFClient.MenusFolder();
+							string built = OpenFFClient.BuiltMenusFolder();
+							if (where != null && where.Value.Source && built != null && !string.Equals(Path.GetFullPath(built), Path.GetFullPath(folder), StringComparison.OrdinalIgnoreCase)) ProjectMenus.SavePicture(built, Query(context, "name"), data);
+						}
+						SendJson(context, new { ok = true, path = saved });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
 				case "/api/client/menu/styles":
 				{
 					// The client's screens' stylesheets (Data/menus/styles/*.css).
@@ -2331,6 +2375,9 @@ namespace Crystal.Editor
 		/// Where a game menu edited with OpenFF's layout rules keeps them: beside the override folder, not in it
 		/// (layout-sources/&lt;name&gt;.xml) - the game and a Steam or GOG build only ever see the baked .xbn.
 		/// </summary>
+		/// <summary>The folder of screens a request is about: the OpenFF client's own (its source when there is one), or the open project's menus/.</summary>
+		private string MenuFolderFor(bool client) => client ? OpenFFClient.MenusFolder()?.Folder : _project == null ? null : ProjectMenus.Directory(_project);
+
 		private string LayoutSource(string name)
 		{
 			string root = Path.GetDirectoryName(_workspace.OverrideDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? _workspace.OverrideDirectory;

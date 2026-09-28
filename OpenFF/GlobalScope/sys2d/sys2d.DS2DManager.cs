@@ -234,6 +234,11 @@ internal static partial class GlobalScope
 				{
 					return false;
 				}
+				// PORT: a menu frame's background, drawn by its own quads in the windows' order (GlobalScope.MenuPanel.cs).
+				if (sp is MenuPanelSprite panel)
+				{
+					return DrawMenuPanel(panel);
+				}
 				ushort rotation = sp.GetRotation();
 				DS2DObj dS2DObj = _Obj[(int)sp.GetPlane()];
 				NNSG2dRendererInstance renderer = dS2DObj.GetRenderer();

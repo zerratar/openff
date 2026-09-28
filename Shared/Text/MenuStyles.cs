@@ -25,6 +25,7 @@
 //   visibility       hidden (the frame's text and panel not drawn); display: none the same     <hidden/>
 //   -ff-panel        window (the game's window art), bar (its translucent bar), none           <window/>, <panel>
 //   -ff-tint         #rgb / #rrggbb, the window's art multiplied by it; a bar's colour         <tint>
+//   background-*, -ff-background-*, -ff-slice-*   a colour and a picture behind the frame (MenuBackground)   <background>
 //
 // color, font-size, text-align and visibility are inherited, as in CSS. Crystal previews the
 // same cascade from a port of this (menu-styles.js).
@@ -46,7 +47,7 @@ namespace OpenFF.Content
 		private static readonly HashSet<string> Inherited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "color", "font-size", "text-align", "visibility" };
 
 		/// <summary>The look: what the cascade bakes into elements rather than into the style attribute.</summary>
-		public static readonly string[] LookProperties = { "color", "font-size", "text-align", "opacity", "visibility", "display", "-ff-panel", "-ff-tint" };
+		public static readonly string[] LookProperties = new[] { "color", "font-size", "text-align", "opacity", "visibility", "display", "-ff-panel", "-ff-tint" }.Concat(MenuBackground.Properties).ToArray();
 
 		/// <summary>The stylesheets of a folder of layouts: styles/*.css beside them, in name order.</summary>
 		public static List<string> SheetsBeside(string layoutPath)
@@ -132,11 +133,16 @@ namespace OpenFF.Content
 			public bool Bar;
 			/// <summary>#rrggbb, or null.</summary>
 			public string Tint;
+			/// <summary>The background's declarations (MenuBackground.Parse), or null.</summary>
+			public string Background;
 
 			public bool SameAs(Look o) => o != null && Colour == o.Colour && Font == o.Font && Align == o.Align && Math.Abs(Opacity - o.Opacity) < 0.001
-				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && Tint == o.Tint;
+				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Background == o.Background;
 
-			public bool SamePanel(Look o) => o != null && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Math.Abs(Opacity - o.Opacity) < 0.001 && Hidden == o.Hidden;
+			public bool SamePanel(Look o) => o != null && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Math.Abs(Opacity - o.Opacity) < 0.001 && Hidden == o.Hidden && Background == o.Background;
+
+			/// <summary>Whether anything is drawn behind the frame: the game's window, or a background.</summary>
+			public bool HasPanel => Window || Background != null;
 		}
 
 		/// <summary>
@@ -174,7 +180,8 @@ namespace OpenFF.Content
 				Hidden = frame.Element("hidden") != null,
 				Window = frame.Element("window") != null,
 				Bar = string.Equals(Text("panel"), "bar", StringComparison.OrdinalIgnoreCase),
-				Tint = Hex(Text("tint"))
+				Tint = Hex(Text("tint")),
+				Background = Text("background")
 			};
 			if (double.TryParse(Text("opacity"), NumberStyles.Float, CultureInfo.InvariantCulture, out double o)) look.Opacity = Math.Clamp(o, 0, 1);
 			return look;
@@ -263,6 +270,10 @@ namespace OpenFF.Content
 				}
 			}
 			if (computed.TryGetValue("-ff-tint", out string tint) && Hex(tint) != null) frame.SetElementValue("tint", Hex(tint));
+			// The background (MenuBackground): its declarations as one element, for the client to draw as the frame's panel.
+			List<string> background = MenuBackground.Properties.Where(computed.ContainsKey).Select(k => k + ": " + computed[k]).ToList();
+			if (background.Count > 0 && MenuBackground.Parse(string.Join("; ", background)) != null) frame.SetElementValue("background", string.Join("; ", background));
+			else if (background.Count > 0) frame.Element("background")?.Remove();
 		}
 
 		private static double Opacity(Dictionary<string, string> computed, double parent)

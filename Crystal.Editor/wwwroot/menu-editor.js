@@ -536,6 +536,7 @@ function menuOutline(doc) {
         label: childText(element, 'id') || '(no id)',
         ref: key,
         icon: frameIcon(element),
+        eye: frameEye(element),
         depth,
         note: frameSummary(element),
         badge: frameHasOwnBehaviours(element),
@@ -552,6 +553,60 @@ function menuOutline(doc) {
 
   const budget = menuBudgetNote(screen);
   return [{ label: 'Frames', note: budget.text, noteTitle: budget.title, warn: budget.warn, children: rows, menu: () => addMenuItems(screen), drop: dropOn(screen) }];
+}
+
+// ------------------------------------------------------------------ seen and not seen
+//
+// The Hierarchy's eyes: frames left out of the canvas for a while (to look at w_back alone), the
+// editor's only - nothing in the file changes and the game shows them as ever. A frame hidden hides
+// what is in it; Alt+click on one hides every frame but it (and its parents and what is in it), and
+// Alt+click again brings them all back. Kept per menu tab for as long as it is open.
+
+function menuUnseen() {
+  menu.unseen = menu.unseen || new Set();
+  return menu.unseen;
+}
+
+/// Whether the canvas leaves a frame out: it, or a frame it is in, has its eye shut.
+function frameUnseen(element) {
+  const unseen = menu.unseen;
+  if (!unseen || !unseen.size) return false;
+  for (let e = element; isFrame(e); e = e.parentElement) if (unseen.has(menuFrameKey(e))) return true;
+  return false;
+}
+
+function frameEye(element) {
+  const key = menuFrameKey(element);
+  const unseen = menuUnseen();
+  let inherited = false;
+  for (let e = element.parentElement; isFrame(e); e = e.parentElement) if (unseen.has(menuFrameKey(e))) inherited = true;
+  return {
+    hidden: unseen.has(key),
+    inherited,
+    title: inherited && !unseen.has(key) ? 'hidden with the frame it is in' : null,
+    toggle: alone => {
+      if (alone) {
+        const screen = menuScreen();
+        const keep = new Set();
+        for (let e = element; isFrame(e); e = e.parentElement) keep.add(menuFrameKey(e));
+        for (const f of element.querySelectorAll('frame')) keep.add(menuFrameKey(f));
+        const all = collectFrames(screen).map(f => f.element);
+        // Already alone: everything back.
+        const already = all.every(e => keep.has(menuFrameKey(e)) || frameUnseen(e)) && !unseen.has(key);
+        unseen.clear();
+        if (!already) {
+          // The frames outside its line, at the highest level each can be shut at.
+          for (const e of all) {
+            if (keep.has(menuFrameKey(e))) continue;
+            if (isFrame(e.parentElement) && !keep.has(menuFrameKey(e.parentElement))) continue;
+            unseen.add(menuFrameKey(e));
+          }
+        }
+      } else if (unseen.has(key)) unseen.delete(key);
+      else unseen.add(key);
+      if (menu.node) redraw(menu.node, true);
+    }
+  };
 }
 
 // ------------------------------------------------------------------ the inspector
@@ -697,6 +752,7 @@ function buildWidgetInspector(held) {
 
   buildRectSections(panel, element, screen, edit, rebuild, sync);
   buildStyleSection(panel, element, screen, edit, rebuild, sync);
+  buildBackgroundSection(panel, element, screen, edit, rebuild, sync);
   buildBindingsSection(panel, element, screen, edit, rebuild, sync);
 
   // ---- Frame
@@ -704,7 +760,7 @@ function buildWidgetInspector(held) {
   propToggle(frameBody, 'Window', hasTag(element, 'window'), on => rebuild(on ? 'make a window' : 'not a window', () => {
     if (on) element.prepend(element.ownerDocument.createElement('window'));
     else removeTag(element, 'window');
-  }), 'the game\'s window art');
+  }), 'the game\'s window art (Background: a picture of your own)');
   propToggle(frameBody, 'Focus', hasTag(element, 'focus'), on => rebuild(on ? 'focus on' : 'focus off', () => {
     if (on) element.prepend(element.ownerDocument.createElement('focus'));
     else removeTag(element, 'focus');

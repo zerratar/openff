@@ -1,0 +1,116 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Microsoft.Xna.Framework.Graphics;
+
+// PORT: a menu frame's background (Crystal Style Sheets: background-color, background-image, the
+// 9-slice and the rest - OpenFF.Content.MenuBackground) drawn as a sprite of the game's own: added to
+// the DS2D list with the windows, sorted by depth with them, and drawn the way NNS_G2dDrawCell draws a
+// cell - quads through drawImage and glDrawArrays - from a picture of its own in one of the GL texture
+// slots. So it sits under the cursor and the portrait and over the backdrop, as a window does.
+internal static partial class GlobalScope
+{
+	internal sealed class MenuPanelSprite : sys2d.Sprite
+	{
+		/// <summary>The picture's quads (the frame's units, the picture's pixels), and the colour's under them.</summary>
+		public List<OpenFF.Content.MenuBackground.Quad> Quads = new List<OpenFF.Content.MenuBackground.Quad>();
+		public float Width, Height;
+		public uint Texture;
+		public int TextureWidth, TextureHeight;
+		/// <summary>RGBA 0..255: the picture's tint and the colour under it, the frame's opacity in their alpha.</summary>
+		public byte[] Tint = { 255, 255, 255, 255 };
+		public byte[] Fill;
+	}
+
+	private static uint _menuPanelWhite;
+
+	/// <summary>A picture (PNG, JPG, BMP bytes) into a GL texture slot of its own; 0 when it will not load.</summary>
+	internal static uint MenuPanelTexture(byte[] data, bool linear, out int width, out int height)
+	{
+		width = height = 0;
+		if (data == null || data.Length == 0) return 0;
+		GraphicsDevice device = m_Graphics.GetGraphicsDeviceManager().GraphicsDevice;
+		Texture2D texture;
+		using (MemoryStream stream = new MemoryStream(data)) texture = Texture2D.FromStream(device, stream);
+		return MenuPanelSlot(texture, linear, out width, out height);
+	}
+
+	private static uint MenuPanelSlot(Texture2D texture, bool linear, out int width, out int height)
+	{
+		width = texture.Width;
+		height = texture.Height;
+		uint[] id = new uint[1];
+		glGenTextures(1, id);
+		if (id[0] == 0 || m_aGlTexture[id[0]] == null) { texture.Dispose(); return 0; }
+		GlTexture slot = m_aGlTexture[id[0]];
+		slot.m_Texture2D = texture;
+		slot.m_TextureFilter = linear ? TextureFilter.Linear : TextureFilter.Point;
+		slot.m_TextureAddressModeS = TextureAddressMode.Clamp;
+		slot.m_TextureAddressModeT = TextureAddressMode.Clamp;
+		return id[0];
+	}
+
+	internal static void MenuPanelRelease(uint id)
+	{
+		if (id == 0 || id == _menuPanelWhite) return;
+		glDeleteTextures(1, new[] { id });
+	}
+
+	/// <summary>A white texel, for the background's colour.</summary>
+	private static uint MenuPanelWhite()
+	{
+		if (_menuPanelWhite != 0 && m_aGlTexture[_menuPanelWhite] != null) return _menuPanelWhite;
+		Texture2D white = new Texture2D(m_Graphics.GetGraphicsDeviceManager().GraphicsDevice, 1, 1);
+		white.SetData(new[] { 0xFFFFFFFFu });
+		_menuPanelWhite = MenuPanelSlot(white, false, out _, out _);
+		return _menuPanelWhite;
+	}
+
+	/// <summary>DS2DManager.d2dRegisterSprite's for a panel: the sprite's place, then its colour and its picture's quads.</summary>
+	internal static bool DrawMenuPanel(MenuPanelSprite sp)
+	{
+		if (skipFrame != 0 || !sp.IsShow()) return false;
+		MTX_Identity43(currentMtx);
+		G3_PushMtx();
+		G3_Translate(sp.GetPosition().x, sp.GetPosition().y, 0);
+		G3_PolygonAttr(0, GXPolygonMode.GX_POLYGONMODE_MODULATE, GXCull.GX_CULL_NONE, sp.GetPolygonID(), 31, 0);
+		using (OpenFF.Client.FrameCapture.Own(sp, sp.m_iRegistration))
+		{
+			if (sp.Fill != null && sp.Fill[3] > 0)
+			{
+				uint white = MenuPanelWhite();
+				if (white != 0) DrawMenuPanelQuads(white, 1, 1, new List<OpenFF.Content.MenuBackground.Quad> { new OpenFF.Content.MenuBackground.Quad(0, 0, sp.Width, sp.Height, 0, 0, 1, 1) }, sp.Fill);
+			}
+			if (sp.Texture != 0 && sp.Quads.Count > 0) DrawMenuPanelQuads(sp.Texture, sp.TextureWidth, sp.TextureHeight, sp.Quads, sp.Tint);
+		}
+		G3_PopMtx(1);
+		return true;
+	}
+
+	private static void DrawMenuPanelQuads(uint texture, int tw, int th, List<OpenFF.Content.MenuBackground.Quad> quads, byte[] colour)
+	{
+		// drawImage takes the picture's part in whole pixels scaled by texScaleU/V (and keeps half of one in
+		// from each edge): in quarters here, so a tiled edge's cut part lands near enough where it should.
+		const int Sub = 4;
+		texScaleU = 1f / (tw * Sub);
+		texScaleV = 1f / (th * Sub);
+		glPushMatrix();
+		float[] array = fnd_reuse_f;
+		MTX_Copy43ToGLfloat(currentMtx, array);
+		glMultMatrixf(array);
+		int max = Math.Min(quads.Count, vtc.Length / 6);
+		for (int i = 0; i < max; i++)
+		{
+			OpenFF.Content.MenuBackground.Quad q = quads[i];
+			drawImage(vtc, i * 6, q.X - screenOffset[0], q.Y - screenOffset[1], q.W, q.H,
+				(int)Math.Round(q.U * Sub), (int)Math.Round(q.V * Sub), (int)Math.Round(q.UW * Sub), (int)Math.Round(q.VH * Sub), colour);
+		}
+		glEnable(3553u);
+		glBindTexture(3553u, texture);
+		glDrawArrays(4u, 0, max * 6, vtc);
+		polyCount += max * 6;
+		glDisableClientState(32888u);
+		glDisable(3553u);
+		glPopMatrix();
+	}
+}

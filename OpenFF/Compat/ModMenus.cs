@@ -559,7 +559,7 @@ namespace OpenFF.Client
 		{
 			CloseWindows();
 			// The frames' looks as they are now (baked, then restyled as the screen runs): a panel, bar, opacity, tint, hidden.
-			List<IMenuWidget> panels = screen.Widgets.Where(w => w is ModMenuWidget m && m.Look.Window && w.Width > 0 && w.Height > 0).ToList();
+			List<IMenuWidget> panels = screen.Widgets.Where(w => w is ModMenuWidget m && m.Look.HasPanel && w.Width > 0 && w.Height > 0).ToList();
 			int place = 0;
 			foreach (IMenuWidget w in panels)
 			{
@@ -571,6 +571,9 @@ namespace OpenFF.Client
 				{
 					MenuStyles.Look look = m.Look;
 					if (look.Hidden) continue;
+					// A background (a colour, a picture - sliced, tiled, fitted...) between the window's fill and its frame.
+					if (look.Background != null) AddPanel(screen, w, look, back);
+					if (!look.Window) continue;
 					GlobalScope.menu.BasicWindow window = new GlobalScope.menu.BasicWindow();
 					window.bwCreateUL(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new GlobalScope.ds.Vector2<short>((short)w.X, (short)w.Y), new GlobalScope.ds.Vector2<short>((short)w.Width, (short)w.Height), 3);
 					window.SetPriority(3);
@@ -607,6 +610,64 @@ namespace OpenFF.Client
 		{
 			foreach (GlobalScope.menu.BasicWindow w in _windows) { try { w.Release(); } catch (Exception) { } }
 			_windows.Clear();
+			foreach (GlobalScope.MenuPanelSprite p in _panels) { try { GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(p); } catch (Exception) { } }
+			_panels.Clear();
+			foreach ((uint Id, int W, int H) t in _panelTextures.Values) { try { GlobalScope.MenuPanelRelease(t.Id); } catch (Exception) { } }
+			_panelTextures.Clear();
+		}
+
+		// ---- backgrounds: a frame's colour and picture (MenuBackground), drawn as a sprite with the windows ----
+
+		private static readonly List<GlobalScope.MenuPanelSprite> _panels = new List<GlobalScope.MenuPanelSprite>();
+		private static readonly Dictionary<string, (uint Id, int W, int H)> _panelTextures = new Dictionary<string, (uint, int, int)>(StringComparer.OrdinalIgnoreCase);
+
+		private static void AddPanel(ModMenuScreen screen, IMenuWidget w, MenuStyles.Look look, int back)
+		{
+			MenuBackground bg = MenuBackground.Parse(look.Background);
+			if (bg == null) return;
+			GlobalScope.MenuPanelSprite sprite = new GlobalScope.MenuPanelSprite { Width = w.Width, Height = w.Height };
+			float opacity = (float)Math.Clamp(look.Opacity, 0, 1);
+			byte[] Bytes(uint rgba) => new[] { (byte)(rgba >> 24), (byte)(rgba >> 16), (byte)(rgba >> 8), (byte)Math.Round((rgba & 0xFF) * opacity) };
+			if (bg.Colour.HasValue) sprite.Fill = Bytes(bg.Colour.Value);
+			sprite.Tint = Bytes(bg.Tint);
+			if (bg.ImagePath != null)
+			{
+				string key = bg.ImageKind + ":" + bg.ImagePath + (bg.Linear ? "" : "#point");
+				if (!_panelTextures.TryGetValue(key, out (uint Id, int W, int H) texture))
+				{
+					byte[] data = null;
+					try
+					{
+						if (bg.ImageKind == "resource") data = GameArchive.Read(bg.ImagePath);
+						else if (screen.Definition?.Directory != null)
+						{
+							string path = Path.GetFullPath(Path.Combine(screen.Definition.Directory, bg.ImagePath));
+							if (File.Exists(path)) data = File.ReadAllBytes(path);
+						}
+						int tw = 0, th = 0;
+						uint id = data == null ? 0 : GlobalScope.MenuPanelTexture(data, bg.Linear, out tw, out th);
+						texture = id == 0 ? (0u, 0, 0) : (id, tw, th);
+						if (id == 0 && data == null) Log.Write(LogChannel.General, "menus: " + w.Id + ": no picture " + bg.ImageKind + "(\"" + bg.ImagePath + "\")");
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + w.Id + ": picture " + bg.ImagePath + ": " + ex.Message); }
+					_panelTextures[key] = texture;
+				}
+				if (texture.Id != 0)
+				{
+					sprite.Texture = texture.Id;
+					sprite.TextureWidth = texture.W;
+					sprite.TextureHeight = texture.H;
+					sprite.Quads = bg.Layout(w.Width, w.Height, texture.W, texture.H);
+				}
+			}
+			sprite.SetPlane(GlobalScope.sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D);
+			sprite.SetPriority(3);
+			// Between a window's fill (its depth and 16 more) and its frame (its depth): the frame's place in the stack and 8.
+			sprite.SetDepth(back + GlobalScope.ds.S32toFX32(8));
+			sprite.SetPositionI(w.X, w.Y);
+			sprite.SetShow(show: true);
+			GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(sprite);
+			_panels.Add(sprite);
 		}
 
 		// ---- the screen over the Medget tree ----
@@ -841,7 +902,8 @@ namespace OpenFF.Client
 					Hidden = _hidden,
 					Window = node?.getFirstNodeByTagNameFromChildren("window") != null,
 					Bar = string.Equals(node?.getFirstNodeByTagNameFromChildren("panel")?.nodeValueString()?.Trim(), "bar", StringComparison.OrdinalIgnoreCase),
-					Tint = node?.getFirstNodeByTagNameFromChildren("tint")?.nodeValueString()?.Trim()
+					Tint = node?.getFirstNodeByTagNameFromChildren("tint")?.nodeValueString()?.Trim(),
+					Background = string.IsNullOrWhiteSpace(node?.getFirstNodeByTagNameFromChildren("background")?.nodeValueString()) ? null : node.getFirstNodeByTagNameFromChildren("background").nodeValueString().Trim()
 				};
 				// The layout's classes and bindings (attributes the game's own file never carried).
 				foreach (string c in ((string)source?.Attribute("class") ?? "").Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries)) _classes.Add(c);

@@ -583,6 +583,16 @@ function drawHierarchy() {
         tag.textContent = child.note;
         row.append(tag);
       }
+      // Seen in the view or not (a menu's frames): the eye at the row's end, shown on hover and while shut.
+      if (child.eye) {
+        const eye = document.createElement('u');
+        eye.className = 'eye' + (child.eye.hidden ? ' shut' : '') + (child.eye.inherited ? ' inherited' : '');
+        eye.title = child.eye.title || (child.eye.hidden ? 'hidden in the view - click to show' : 'click to hide it and what is in it; Alt+click to see only this one');
+        eye.append(icon(child.eye.hidden || child.eye.inherited ? 'eye-off' : 'eye'));
+        eye.onclick = event => { event.stopPropagation(); child.eye.toggle(event.altKey); drawHierarchy(); };
+        row.append(eye);
+        if (child.eye.hidden || child.eye.inherited) row.classList.add('unseen');
+      }
       row.onclick = () => {
         clearInspected();
         activeDoc.selection = child.ref;

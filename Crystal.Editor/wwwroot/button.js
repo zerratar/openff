@@ -133,7 +133,7 @@ async function loadGameWindow() {
 }
 
 /// A window the size of a frame, as the game draws it; drawn at `scale` pixels a unit so it stays crisp when zoomed.
-async function drawGameWindow(width, height, scale = 4, tint = null) {
+async function drawGameWindow(width, height, scale = 4, tint = null, parts = 'all') {
   if (width <= 0 || height <= 0) return null;
   const loaded = await loadGameWindow();
   if (!loaded) return null;
@@ -154,7 +154,9 @@ async function drawGameWindow(width, height, scale = 4, tint = null) {
     const p = c.parts[0];
     gc.drawImage(loaded.sheet, p.sourceX, p.sourceY, p.width, p.height, dx, dy, dw, dh);
   };
-  part(0, 2, 2, w - 4, h - 4);
+  const fill = parts !== 'frame', frame = parts !== 'fill';
+  if (fill) part(0, 2, 2, w - 4, h - 4);
+  if (!frame) return finishTint(canvas, gc, tint);
   part(1, 0, 0, 16, 16);
   part(7, w - 16, 0, 16, 16);
   part(4, 0, h - 16, 16, 16);
@@ -175,7 +177,11 @@ async function drawGameWindow(width, height, scale = 4, tint = null) {
     if (run - 16 > 0) part(2, 0, 16, 16, run - 16);
     part(8, w - 16, 16, 16, h - 32);
   }
-  // -ff-tint: the art multiplied by the colour, as the client's sprites modulate it; the art's own alpha kept.
+  return finishTint(canvas, gc, tint);
+}
+
+// -ff-tint: the art multiplied by the colour, as the client's sprites modulate it; the art's own alpha kept.
+function finishTint(canvas, gc, tint) {
   if (tint) {
     const mask = document.createElement('canvas');
     mask.width = canvas.width;

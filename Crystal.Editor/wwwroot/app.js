@@ -627,6 +627,7 @@ async function openMenu(name) {
   menu.screens = found.length ? found : [menu.doc.documentElement];
   menu.node = node;
   menu.folded = new Set();
+  menu.unseen = new Set();   // frames the Hierarchy's eye leaves out of the view
   // Crystal Style Sheets: the folder's styles/*.css, for a screen of the mod's or the client's (the game's own
   // screens take <style> elements in their XML); edited in the panel under the canvas.
   menu.sheets = [];
@@ -1077,6 +1078,8 @@ function drawScreen(node, screen, select, quiet) {
   drawMenuBackground(node, childText(screen, 'name'), menu.project && menu.project.definition ? menu.project.definition.background : undefined);
 
   for (const frame of frames) {
+    // Left out of the view by the Hierarchy's eye (the editor's only).
+    if (typeof frameUnseen === 'function' && frameUnseen(frame.element)) continue;
     const box = document.createElement('div');
     box.className = 'widget';
     box.style.left = `${frame.x}px`;
@@ -1089,6 +1092,8 @@ function drawScreen(node, screen, select, quiet) {
     if (frame.driven) box.classList.add('laid-out');
     // The frame as its styles leave it (menu-styles.js): what the client reads - its panel, colour, size, opacity.
     const look = frame.look || frame.element;
+    const background = typeof drawFrameBackground === 'function' ? childText(look, 'background') : null;
+    const tint = childText(look, 'tint');
     const opacity = parseFloat(childText(look, 'opacity'));
     if (Number.isFinite(opacity) && opacity < 1) box.style.setProperty('--look-opacity', String(opacity));
     if ([...look.children].some(e => e.tagName === 'hidden')) box.classList.add('look-hidden');
@@ -1098,13 +1103,23 @@ function drawScreen(node, screen, select, quiet) {
     if ([...look.children].some(e => e.tagName === 'window')) {
       box.classList.add('window');
       const bar = (childText(look, 'panel') || '').trim() === 'bar';
-      const tint = childText(look, 'tint');
       if (menu.preview && bar) {
         const art = document.createElement('div');
         art.className = 'game-bar';
         if (tint) art.style.setProperty('--tint', tint);
         box.prepend(art);
-      } else if (menu.preview) drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint).then(w => { if (w && box.isConnected) box.prepend(w); }).catch(() => {});
+      } else if (menu.preview && !background) drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint).then(w => { if (w && box.isConnected) box.prepend(w); }).catch(() => {});
+    }
+    // A background (a colour, a picture - sliced, tiled, fitted...), between the window's fill and its frame as the client draws it.
+    if (menu.preview && background) {
+      const slots = ['fill', 'background', 'frame'].map(k => { const d = document.createElement('div'); d.className = 'art-slot ' + k; return d; });
+      box.prepend(...slots);
+      const windowed = [...look.children].some(e => e.tagName === 'window') && (childText(look, 'panel') || '').trim() !== 'bar';
+      if (windowed) {
+        drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'fill').then(w => { if (w && box.isConnected) slots[0].append(w); }).catch(() => {});
+        drawGameWindow(frame.width, frame.height, 2 * menu.zoom, tint, 'frame').then(w => { if (w && box.isConnected) slots[2].append(w); }).catch(() => {});
+      }
+      drawFrameBackground(background, frame.width, frame.height, 2 * menu.zoom).then(c => { if (c && box.isConnected) slots[1].append(c); }).catch(() => {});
     }
 
     // Alignment 4 is the one kind of box that belongs to the widget rather than to

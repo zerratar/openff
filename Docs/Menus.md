@@ -174,6 +174,42 @@ In Crystal:
   - the frame's classes;
   - its own panel, opacity, tint, text colour and hidden;
   - every sheet rule that reaches it, in cascade order. Anything overridden is struck through, the way a browser's devtools show it.
+- **Hierarchy eye:** hides a frame and what's inside it from the canvas, for the editor only; the file doesn't change. Alt+click shows only that frame (with its parents and its frames); Alt+click again brings the rest back.
+
+### Backgrounds
+
+A frame can have a colour and a picture behind it, in place of the game's window or on top of its fill. It works like UI Toolkit's Background panel:
+
+```css
+#w_rules {
+  -ff-panel: none;                                 /* no game window: the picture is the panel */
+  background-image: url("images/panel.png");       /* a file in images/ beside the layout */
+  -ff-slice: 12;                                   /* 9-slice: 12 px borders keep their size */
+}
+#w_title   { background-image: resource("files/m000_window.NCGR"); -ff-background-rect: 0 0 64 64; -ff-slice: 16; }
+#portrait  { background-image: url("images/face.png"); -ff-background-scale-mode: scale-to-fit; }
+#stars     { background-color: #10204080; background-image: url("images/stars.png"); background-repeat: repeat; }
+```
+
+| Property | What it does |
+|---|---|
+| `background-color` | `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`/`rgba()`, `transparent`. Drawn under the picture. |
+| `background-image` | `url("…")`: a file beside the layout (`images/` in a mod's `menus/` or the client's `Data/menus/`); it ships with the mod. `resource("…")`: one of the game's pictures by name (`files/m000_window.NCGR`), read from the player's install, so nothing of the game's is copied into the mod. `none`. |
+| `-ff-background-rect` | `x y w h`: the part of the picture to use (one sprite of a sheet), in its pixels. |
+| `-ff-background-tint` | The picture multiplied by this colour. |
+| `-ff-background-scale-mode` | `stretch-to-fill` (the default), `scale-and-crop`, `scale-to-fit`. |
+| `background-size`, `background-position`, `background-repeat` | As in CSS, for tiles: `repeat`, `repeat-x`, `repeat-y`; `cover` / `contain`; `left top`, `center`, `50% 100%`. When given, these decide the layout rather than the scale mode. |
+| `-ff-slice`, `-ff-slice-left` … `-bottom` | 9-slice borders in the picture's pixels (one to four values, as `margin`). The borders keep their size; the middle and edges stretch. Any slice over 0 overrides the scale mode, size and repeat. |
+| `-ff-slice-scale` | Menu units per picture pixel for the borders (1). |
+| `-ff-slice-type` | `sliced` (stretched) or `tiled` (the edges and the middle repeated). |
+| `-ff-background-filter` | `linear` (smooth when scaled, the default) or `point` (sharp pixels). |
+
+**How it draws in the client:** `Shared/Text/MenuBackground.cs` lays the picture out as quads. `GlobalScope.MenuPanel.cs` draws them as a sprite of the game's own, in the same depth-sorted pass as the windows. That puts a background above the backdrop, between a window's fill and its frame, and under the cursor, the portrait and the texts. A picture takes one GL texture slot while the screen is open.
+
+**In Crystal:** the inspector's **Background** section has the colour (with its alpha), the picture, tint, part, scale mode, size, position, repeat, slices, slice scale and type, and the filter.
+- **Picture picker:** chooses between *Beside the screen* (with **Import PNG…** to copy one into `images/`) and *The game's*.
+- **Slice editor** (**Edit slices…**): shows the picture large with its borders as green lines to drag. **Pick part…** drags out the sprite of a sheet first.
+- **Canvas:** draws backgrounds with a port of the same layout (`menu-background.js`), in the game's order.
 
 ## Data bindings
 

@@ -2536,3 +2536,54 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 /* The inspector's Bindings: a path picked into the template, and what the sample makes of it. */
 #inspector .prop-row > select.binding-insert { flex: 0 0 74px; width: 74px; }
 #inspector .binding-sample { font-size: 11px; margin: 2px 0 0; line-height: 1.4; }
+
+/* The Hierarchy's eye: at the row's end, on hover or while shut. */
+.tree .row .eye { flex: 0 0 auto; margin-left: 4px; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; opacity: 0; cursor: pointer; color: var(--dim); text-decoration: none; }
+.tree .row:hover .eye, .tree .row .eye.shut { opacity: .85; }
+.tree .row .eye:hover { color: var(--ink); opacity: 1; }
+.tree .row .eye.inherited:not(.shut) { opacity: .35; }
+.tree .row .eye .icon { width: 13px; height: 13px; }
+.tree .row.unseen > span, .tree .row.unseen > .icon:first-of-type { opacity: .45; }
+
+/* A frame's background on the canvas: the window's fill, the background, the window's frame - in the game's order. */
+.canvas .widget > .art-slot { position: absolute; inset: 0; pointer-events: none; opacity: var(--look-opacity, 1); }
+.canvas .widget > .art-slot > canvas { position: absolute; left: 0; top: 0; }
+.canvas .widget.look-hidden > .art-slot { opacity: .18; }
+
+/* The inspector's Background. */
+#inspector .bg-colour, #inspector .bg-image, #inspector .bg-slice-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+#inspector .bg-colour input[type=color] { flex: 0 0 34px; width: 34px; height: 24px; padding: 0 2px; margin: 0; }
+#inspector .bg-colour .scrub { flex: 1; }
+#inspector .bg-colour.unset input[type=color] { opacity: .45; }
+#inspector .bg-thumb { flex: 0 0 34px; width: 34px; height: 26px; padding: 0; overflow: hidden; font-size: 10px; color: var(--dim); background: repeating-conic-gradient(#2a2f37 0 25%, #343a44 0 50%) 50% / 8px 8px; border: 1px solid var(--line); border-radius: 3px; cursor: pointer; }
+#inspector .bg-thumb img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+#inspector .bg-image-name { flex: 1; min-width: 0; font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#inspector .bg-slice-row button { flex: 0 0 auto; }
+#inspector .bg-slice-row .scrub { flex: 1; }
+#inspector .bg-note { margin: 0; font-size: 11px; color: #d6b25e; }
+#inspector .segmented { display: flex; flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+#inspector .segmented button { flex: 1; min-width: 0; border: 0; border-radius: 0; padding: 3px 4px; font-size: 11px; background: #1b2027; color: var(--dim); cursor: pointer; }
+#inspector .segmented button + button { border-left: 1px solid var(--line); }
+#inspector .segmented button.on { background: #2b4a73; color: var(--ink); }
+
+/* The picture picker and the slice editor. */
+.bg-picker { width: min(900px, 92vw); }
+.bg-picker-tabs { display: flex; gap: 2px; }
+.bg-picker-tabs button { padding: 2px 10px; font-size: 12px; }
+.bg-picker-tabs button.on { background: #2b4a73; color: var(--ink); }
+.bg-picker-grid .picker-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; }
+.bg-picker-grid .picker-cell img { width: 96px; height: 72px; object-fit: contain; image-rendering: pixelated; background: repeating-conic-gradient(#2a2f37 0 25%, #343a44 0 50%) 50% / 10px 10px; }
+.bg-picker-grid .picker-cell span { font-size: 11px; max-width: 104px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bg-picker-grid .picker-cell i { font-size: 10px; color: var(--dim); font-style: normal; }
+.bg-picker-grid .picker-cell.on { outline: 2px solid var(--accent); }
+.bg-picker-grid .bg-none { justify-content: center; min-height: 96px; min-width: 104px; color: var(--dim); }
+.bg-picker-note { margin: 6px 10px; font-size: 11px; }
+.slice-editor { width: auto; max-width: 94vw; }
+.slice-stage { padding: 12px; display: flex; justify-content: center; background: #15181d; }
+.slice-stage canvas { image-rendering: pixelated; box-shadow: 0 0 0 1px #3a424e; }
+.slice-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 8px 12px; }
+.slice-fields .scrub { display: flex; align-items: stretch; }
+.slice-fields .scrub-grip { padding: 0 6px; display: flex; align-items: center; color: var(--dim); font-size: 11px; cursor: ew-resize; border: 1px solid var(--line); border-right: 0; border-radius: 4px 0 0 4px; background: #1b2027; user-select: none; }
+.slice-fields .scrub-input { flex: 1; min-width: 0; width: 60px; background: var(--bg); border: 1px solid var(--line); color: var(--ink); border-radius: 0 4px 4px 0; padding: 3px 6px; }
+.slice-buttons { display: flex; align-items: center; gap: 8px; padding: 8px 12px 12px; }
+.slice-buttons .none { flex: 1; margin: 0; font-size: 11px; }
