@@ -30,5 +30,8 @@ internal static partial class GlobalScope
 
 		/// <summary>PORT: the text's opacity, 0..255 (a menu style's opacity).</summary>
 		public byte alpha = 255;
+
+		/// <summary>PORT: the text's own lettering (a menu style's text-shadow, font-family and the rest: MenuText); null for the game's.</summary>
+		public OpenFF.Content.MenuText style;
 	}
 }

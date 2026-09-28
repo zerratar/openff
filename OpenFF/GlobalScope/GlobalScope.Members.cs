@@ -11332,6 +11332,16 @@ internal static partial class GlobalScope
 
 						internal static NNSG2dTextRect NNS_G2dFontGetTextRect(NNSG2dFont pFont, int hSpace, int vSpace, string txt)
 						{
+							// PORT: a menu text's own lettering measured as it is drawn: its case, face and spacing (MenuText).
+							OpenFF.Content.MenuText style = pFont.style;
+							OpenFF.Content.MenuText styleWas = OpenFF.Client.TrueTypeText.Style;
+							if (style != null) { txt = style.Cased(txt); OpenFF.Client.TrueTypeText.Style = style; }
+							try { return FontTextRect(pFont, vSpace, txt, style); }
+							finally { OpenFF.Client.TrueTypeText.Style = styleWas; }
+						}
+
+						private static NNSG2dTextRect FontTextRect(NNSG2dFont pFont, int vSpace, string txt, OpenFF.Content.MenuText style)
+						{
 							NNSG2dTextRect nNSG2dTextRect = new NNSG2dTextRect(0, pFont.size);
 							string text = txt;
 							while (true)
@@ -11359,7 +11369,7 @@ internal static partial class GlobalScope
 									break;
 								}
 								text = text2.Substring(1);
-								nNSG2dTextRect.height += pFont.size + vSpace;
+								nNSG2dTextRect.height += style == null ? pFont.size + vSpace : (int)Math.Round(style.LineStep(pFont.size, pFont.size + vSpace));
 							}
 							return nNSG2dTextRect;
 						}
@@ -11452,6 +11462,9 @@ internal static partial class GlobalScope
 						{
 							// PORT: a menu style's own colour over the palette's (ModMenus, MenuStyles).
 							cl = pTxn.rgba.HasValue ? (int)pTxn.rgba.Value : textColor[cl];
+							// PORT: and its own lettering (MenuText): its case here, the rest as the slot is drawn.
+							OpenFF.Content.MenuText lettering = pTxn.style ?? pTxn.pFont?.style;
+							if (lettering != null) txt = lettering.Cased(txt);
 							NNSG2dTextRect nNSG2dTextRect = NNS_G2dFontGetTextRect(pTxn.pFont, pTxn.hSpace, pTxn.vSpace, txt);
 							if ((flags & 0x10) != 0)
 							{
@@ -11509,13 +11522,14 @@ internal static partial class GlobalScope
 									tEXT_DATA2.priority = (sbyte)priority;
 									tEXT_DATA2.flags = flags;
 									tEXT_DATA2.alpha = pTxn.alpha;
+									tEXT_DATA2.style = lettering;
 								}
 								if (text2 == null)
 								{
 									break;
 								}
 								text = text2.Substring(1);
-								y += pTxn.pFont.size + pTxn.vSpace;
+								y += lettering == null ? pTxn.pFont.size + pTxn.vSpace : (int)Math.Round(lettering.LineStep(pTxn.pFont.size, pTxn.pFont.size + pTxn.vSpace));
 							}
 						}
 
@@ -11623,6 +11637,12 @@ internal static partial class GlobalScope
 									{
 										num15 += tPData.x - tPData.dragX;
 										num16 += tPData.y - tPData.dragY;
+									}
+									if (tEXT_DATA.style != null)
+									{
+										// PORT: a menu text's own lettering (MenuText): its shadows and outline, then the text in its face.
+										DrawStyledText(tEXT_DATA, num15, num16, num11, alphaOf);
+										continue;
 									}
 									if ((tEXT_DATA.flags & 0x4000) != 0)
 									{

@@ -157,6 +157,8 @@ namespace OpenFF.Client
 			public int Size;
 			public Vector2 Origin, Scale;
 			public SpriteEffects Flip;
+			public OpenFF.Content.MenuText Style;   // a menu text's own lettering (TrueTypeText.Style), and a shadow's blur
+			public float Blur;
 		}
 
 		/// <summary>The game's 3D camera as a step's draws saw it (NNS_G3dGlbLookAt).</summary>
@@ -337,6 +339,8 @@ namespace OpenFF.Client
 			r.Origin = origin;
 			r.Scale = scale;
 			r.Flip = flip;
+			r.Style = TrueTypeText.Style;   // a menu text's own lettering, drawn again with it
+			r.Blur = TrueTypeText.Blur;
 		}
 
 		public static void TextEnd()
@@ -978,7 +982,11 @@ namespace OpenFF.Client
 							y = MathHelper.Lerp(p.Y, q.Y, t);
 							if ((_pairs[fromPrev ? f : n].How & How.Tint) != 0) colour = Color.Lerp(p.Colour, q.Colour, t);
 						}
+						TrueTypeText.Style = r.Style;
+						TrueTypeText.Blur = r.Blur;
 						graphics.DrawStringAs(r.Text, x, y, r.Size, colour, r.Rotation, r.Origin, r.Scale, r.Flip);
+						TrueTypeText.Style = null;
+						TrueTypeText.Blur = 0;
 						break;
 					}
 

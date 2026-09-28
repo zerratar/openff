@@ -114,6 +114,12 @@ namespace OpenFF
 		MenuColour Colour { set; }
 		/// <summary>Whether the text is drawn.</summary>
 		bool Visible { get; set; }
+		/// <summary>
+		/// Whether the frame is enabled: false puts it in the :disabled state of the screen's style sheets (a rule like
+		/// ".row:disabled { color: disabled; }" greys it), true (the default) in :enabled. It is only a look - the cursor
+		/// can still land on it, and a behaviour says what pressing it does.
+		/// </summary>
+		bool Enabled { get; set; }
 		/// <summary>Whether the frame is in the focus list (the cursor can land on it).</summary>
 		bool Focusable { get; }
 		/// <summary>The layout's work value of the frame - a number of the mod's own to tell rows apart.</summary>

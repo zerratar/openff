@@ -18,5 +18,8 @@ internal static partial class GlobalScope
 	public class NNSG2dFont
 	{
 		public int size;
+
+		/// <summary>PORT: a menu text's own lettering (Crystal Style Sheets: MenuText) - measured with it, so right and centred texts stand where they are drawn; null for the game's.</summary>
+		public OpenFF.Content.MenuText style;
 	}
 }

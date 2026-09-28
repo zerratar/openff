@@ -7,6 +7,22 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## Unreleased
+
+- **Crystal Style Sheets, much more of CSS.** States - `:focus` follows the cursor, `:disabled`
+  a frame code greys (`IMenuWidget.Enabled`), with `:focus-within`, `:first-child`,
+  `:last-child`, `:nth-child()` and `:not()`. Motion - `transition` and `@keyframes` /
+  `animation` for opacity, colours, tints, backgrounds, borders and shadows. The box - gradients
+  (linear, radial, conic, repeating), `border`, `border-radius`, `box-shadow` (outer and inset),
+  painted at the window's resolution. The lettering - `text-shadow` (with blur, or `none` for no
+  shadow at all), `font-family` (a face of the mod's own, serif, monospace or one of Windows'),
+  `font-weight`, `font-style`, `letter-spacing`, `line-height`, `text-decoration`,
+  `text-transform` and an outline (`-ff-text-stroke`). CSS's colour names and `hsl()` too. The
+  game, and Steam or GOG when a layout is exported, get the base look; `Docs/Menus.md` has it all.
+- **An empty gambit list is a manual hero.** With auto battle on, a hero whose every gambit is
+  empty or off gets their command window, while the others go on by their rules; a hero with
+  rules that don't hold this turn still attacks the first foe.
+
 ## 0.1.9 - use magic, use item (2026-09-28)
 
 A hotfix for 0.1.8's Gambits: spells and items to choose from, healing that reaches the ally,

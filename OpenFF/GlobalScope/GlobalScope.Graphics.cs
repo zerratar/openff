@@ -300,8 +300,27 @@ internal static partial class GlobalScope
                 view.Height / TextSpaceHeight,
                 1f);
 
+            _fit = fit;
             spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, fit);
             depth = 0f;
+        }
+
+        // The text pass's matrix, for a slanted text's batch of its own.
+        private Matrix _fit = Matrix.Identity;
+
+        /// <summary>
+        /// A menu text in italic with no italic face (TrueTypeText.Slanted): drawn in a batch of its own, skewed about
+        /// its baseline - the text pass's batch ended, and begun again after it.
+        /// </summary>
+        private void DrawSlanted(string text, float x, float y, int iSize, float slant)
+        {
+            spBatch.End();
+            float baseline = y + iSize * 0.8f;
+            Matrix skew = new Matrix(1, 0, 0, 0, -slant, 1, 0, 0, 0, 0, 1, 0, slant * baseline, 0, 0, 1);
+            spBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, skew * _fit);
+            OpenFF.Client.TrueTypeText.Draw(spBatch, text, x, y, color, rotation, origin, scale, flip, depth, iSize);
+            spBatch.End();
+            spBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullCounterClockwise, null, _fit);
         }
 
         public void DrawStringEnd()
@@ -337,7 +356,8 @@ internal static partial class GlobalScope
             }
             if (OpenFF.Client.TrueTypeText.Enabled)
             {
-                OpenFF.Client.TrueTypeText.Draw(spBatch, text, x, y, color, rotation, origin, scale, flip, depth, iSize);
+                if (OpenFF.Client.TrueTypeText.Slanted(out float slant)) DrawSlanted(text, x, y, iSize, slant);
+                else OpenFF.Client.TrueTypeText.Draw(spBatch, text, x, y, color, rotation, origin, scale, flip, depth, iSize);
                 depth += 0.001f;
                 return;
             }

@@ -439,6 +439,12 @@ internal static partial class GlobalScope
 				m_Flag |= 4;
 			}
 
+			/// <summary>PORT: drawn again on the next frame - its canvas's look changed (a menu style's colour, opacity or lettering), as setMessageColor has it drawn again.</summary>
+			public void Redraw()
+			{
+				m_Flag |= 4;
+			}
+
 			public void erase(short x, short y, short w, short h)
 			{
 				if (m_Buffer != null && (m_Flag & 1) == 0)

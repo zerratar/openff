@@ -528,8 +528,9 @@ internal static partial class GlobalScope
 			public void playerStateSelectCommand(BattlePlayer player, BattleSystem B)
 			{
 				// PORT: auto battle turned on while this hero is at the command list (no spell or item list open):
-				// their rules finish the choice, the windows close, and the turn goes on as a decided one does.
-				if (OpenFF.Client.AutoBattle.On && commandState_ == COMMAND_STATE.SELECT_COMMAND && battleWindow_.commandWindow().pushState() == 0
+				// their rules finish the choice, the windows close, and the turn goes on as a decided one does. A hero
+				// with no rules (every gambit empty or off) stays the player's.
+				if (OpenFF.Client.AutoBattle.On && OpenFF.Client.AutoBattle.HasRules(player) && commandState_ == COMMAND_STATE.SELECT_COMMAND && battleWindow_.commandWindow().pushState() == 0
 					&& !OpenFF.Client.BattleSync.IsRemote(player.playerId()))
 				{
 					battleWindow_.nondisplay();

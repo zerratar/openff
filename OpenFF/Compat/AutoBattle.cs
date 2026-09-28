@@ -5,7 +5,8 @@
 // against the battle as it stands, and the command goes onto the hero as the game's own windows put
 // it (BattleSetupPlayer's paths for Attack, Guard, a spell, an item, Run Away) - the target, the
 // target type, and the spell's charge or the item taken off at once, as selecting it does, so the
-// next hero sees what is left. A hero already choosing when it is turned on finishes by hand.
+// next hero sees what is left. A hero already choosing when it is turned on finishes by hand. A hero
+// with no rules at all (every gambit slot empty or off) is left to the player: their window opens.
 //
 // Steam's build shows the key and "Auto battle" above the party's lines during the command turn;
 // the hint here is its key cap (icon_keyboard_64) with the key's name on it, the words gold while
@@ -99,10 +100,20 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>Whether auto battle takes this hero's turn: it is on, and the turn is only beginning (no window open yet).</summary>
+		/// <summary>
+		/// Whether auto battle takes this hero's turn: it is on, the turn is only beginning (no window open yet), and the
+		/// hero has rules. A hero whose every gambit is empty or off is the player's to command - their window opens as
+		/// with auto battle off, while the others go on by their rules.
+		/// </summary>
 		public static bool Takes(btl.BattlePlayer player, bool turnBeginning)
 		{
-			return On && turnBeginning && player != null && !BattleSync.IsRemote(player.playerId());
+			return On && turnBeginning && player != null && !BattleSync.IsRemote(player.playerId()) && HasRules(player);
+		}
+
+		/// <summary>Whether the hero has a rule to go by: one that is on and not empty.</summary>
+		public static bool HasRules(btl.BattlePlayer player)
+		{
+			try { return Gambits.For(player.playerId()).Any(r => r.On && !r.IsEmpty); } catch (Exception) { return true; }
 		}
 
 		// ---- the choice ----

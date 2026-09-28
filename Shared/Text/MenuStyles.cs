@@ -12,7 +12,12 @@
 // joined by a space (inside) or > (directly inside), in lists by commas. Specificity and order
 // decide as in CSS; a frame's own style attribute is over every sheet; a layout's old style
 // words (<colour>, <font>, <align>, <window/>) are under them all, as HTML's attributes are.
-// Anything else - pseudo-classes, attribute selectors, @rules - is passed over.
+// Pseudo-classes: :focus (the cursor is on the frame), :focus-within (on it or a frame inside it),
+// :disabled / :enabled (IMenuWidget.Enabled), :first-child, :last-child, :only-child, :nth-child(),
+// :nth-last-child() (An+B, odd, even) and :not() of one of these or a type, #id, .class. The states
+// are the running screen's (the client restyles as they change); what the game is given is baked
+// with none of them. @keyframes are read for the animations (MenuAnimation); any other @rule, an
+// attribute selector, a pseudo-element or a pseudo-class not here is passed over.
 //
 // What the cascade comes to is baked, as the layout rules are (MenuLayout): the layout
 // properties into the frame's style attribute, for MenuLayout.Bake; the look into the elements
@@ -26,9 +31,13 @@
 //   -ff-panel        window (the game's window art), bar (its translucent bar), none           <window/>, <panel>
 //   -ff-tint         #rgb / #rrggbb, the window's art multiplied by it; a bar's colour         <tint>
 //   background-*, -ff-background-*, -ff-slice-*   a colour and a picture behind the frame (MenuBackground)   <background>
+//   border-*, box-shadow, gradients              the box round it (MenuBackground, MenuPaint)                  <background>
+//   text-shadow, font-family, font-weight, font-style, letter-spacing, line-height,
+//   text-decoration, text-transform, -ff-text-stroke   the lettering (MenuText)                                 <textstyle>
+//   transition-*, animation-*                    how the look moves (MenuAnimation)                            <transition>, <animation>
 //
-// color, font-size, text-align and visibility are inherited, as in CSS. Crystal previews the
-// same cascade from a port of this (menu-styles.js).
+// color, font-size, text-align, visibility and the lettering are inherited, as in CSS. Crystal
+// previews the same cascade from a port of this (menu-styles.js).
 
 using System;
 using System.Collections.Generic;
@@ -44,10 +53,14 @@ namespace OpenFF.Content
 	internal static class MenuStyles
 	{
 		/// <summary>The properties a frame's children take from it unless they say otherwise.</summary>
-		private static readonly HashSet<string> Inherited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "color", "font-size", "text-align", "visibility" };
+		private static readonly HashSet<string> Inherited = new HashSet<string>(new[] { "color", "font-size", "text-align", "visibility" }.Concat(MenuText.Properties), StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>The look: what the cascade bakes into elements rather than into the style attribute.</summary>
-		public static readonly string[] LookProperties = new[] { "color", "font-size", "text-align", "opacity", "visibility", "display", "-ff-panel", "-ff-tint" }.Concat(MenuBackground.Properties).ToArray();
+		public static readonly string[] LookProperties = new[] { "color", "font-size", "text-align", "opacity", "visibility", "display", "-ff-panel", "-ff-tint" }
+			.Concat(MenuBackground.Properties).Concat(MenuText.Properties).Concat(MenuAnimation.TransitionProperties).Concat(MenuAnimation.AnimationProperties).ToArray();
+
+		/// <summary>The attribute that carries a frame's states for the pseudo-classes ("focus disabled"), on the layout the running screen cascades.</summary>
+		public const string StateAttribute = "data-ff-state";
 
 		/// <summary>The stylesheets of a folder of layouts: styles/*.css beside them, in name order.</summary>
 		public static List<string> SheetsBeside(string layoutPath)
@@ -108,13 +121,17 @@ namespace OpenFF.Content
 		public sealed class Sheet
 		{
 			internal List<Rule> Rules = new List<Rule>();
+			/// <summary>The @keyframes by name (the last of a name wins, as in CSS).</summary>
+			public Dictionary<string, List<MenuAnimation.Keyframe>> Keyframes = new Dictionary<string, List<MenuAnimation.Keyframe>>(StringComparer.Ordinal);
+			/// <summary>Whether a rule asks for a state (:focus, :disabled...): the running screen restyles as those change.</summary>
+			public bool UsesStates => Rules.Any(r => r.Selectors.Any(s => s.UsesStates));
 		}
 
 		public static Sheet Compile(IEnumerable<string> sheets)
 		{
 			Sheet sheet = new Sheet();
 			int order = 0;
-			foreach (string css in sheets ?? Enumerable.Empty<string>()) Parse(css, sheet.Rules, ref order);
+			foreach (string css in sheets ?? Enumerable.Empty<string>()) Parse(css, sheet, ref order);
 			return sheet;
 		}
 
@@ -137,9 +154,15 @@ namespace OpenFF.Content
 			public string Background;
 			/// <summary>A portrait frame (&lt;portrait/&gt;): the hero's face drawn in it in place of the game's own - "" the screen's hero, a number a party slot; null for none.</summary>
 			public string Portrait;
+			/// <summary>The lettering's declarations (MenuText.Parse), or null.</summary>
+			public string TextStyle;
+			/// <summary>How the look moves: the transition's and the animation's declarations (MenuAnimation), or null.</summary>
+			public string Transition;
+			public string Animation;
 
 			public bool SameAs(Look o) => o != null && Colour == o.Colour && Font == o.Font && Align == o.Align && Math.Abs(Opacity - o.Opacity) < 0.001
-				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Background == o.Background && Portrait == o.Portrait;
+				&& Hidden == o.Hidden && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Background == o.Background && Portrait == o.Portrait
+				&& TextStyle == o.TextStyle && Transition == o.Transition && Animation == o.Animation;
 
 			public bool SamePanel(Look o) => o != null && Window == o.Window && Bar == o.Bar && Tint == o.Tint && Math.Abs(Opacity - o.Opacity) < 0.001 && Hidden == o.Hidden && Background == o.Background && Portrait == o.Portrait;
 
@@ -153,21 +176,57 @@ namespace OpenFF.Content
 		/// </summary>
 		public static Dictionary<XElement, Look> Looks(XElement screen, Sheet sheet)
 		{
+			return Looks(screen, Computed(screen, sheet));
+		}
+
+		/// <summary>Every frame's look from its properties (the cascade's, or what an animator made of them): each frame's opacity its parents' times its own.</summary>
+		public static Dictionary<XElement, Look> Looks(XElement screen, IEnumerable<(XElement Frame, Dictionary<string, string> Computed)> computed, IReadOnlyDictionary<XElement, Dictionary<string, string>> shown = null)
+		{
 			Dictionary<XElement, Look> looks = new Dictionary<XElement, Look>();
 			if (screen == null) return looks;
-			XElement copy = new XElement(screen);
-			Apply(copy, sheet);
-			void Pair(XElement from, XElement to)
+			Dictionary<XElement, double> opacity = new Dictionary<XElement, double>();
+			foreach ((XElement frame, Dictionary<string, string> own) in computed)
 			{
-				List<XElement> a = from.Elements("frame").ToList(), b = to.Elements("frame").ToList();
-				for (int i = 0; i < a.Count && i < b.Count; i++)
+				Dictionary<string, string> values = shown != null && shown.TryGetValue(frame, out Dictionary<string, string> s) ? s : own;
+				if (frame == screen) { opacity[frame] = Opacity(values, 1); continue; }
+				double parent = frame.Parent != null && opacity.TryGetValue(frame.Parent, out double po) ? po : 1;
+				double mine = Opacity(values, parent);
+				opacity[frame] = mine;
+				looks[frame] = LookOf(frame, values, mine);
+			}
+			return looks;
+		}
+
+		/// <summary>
+		/// The screen and every frame of it, in the layout's order, with its properties cascaded (the inherited ones from its
+		/// parent's) - the screen first. What Apply bakes, before it is baked: an animator works on these.
+		/// </summary>
+		public static List<(XElement Frame, Dictionary<string, string> Computed)> Computed(XElement screen, Sheet sheet)
+		{
+			List<(XElement, Dictionary<string, string>)> list = new List<(XElement, Dictionary<string, string>)>();
+			if (screen == null) return list;
+			List<Rule> rules = sheet?.Rules ?? new List<Rule>();
+			Dictionary<string, string> top = Cascade(screen, rules, null);
+			list.Add((screen, top));
+			void Walk(XElement parent, Dictionary<string, string> inherited)
+			{
+				foreach (XElement frame in parent.Elements("frame"))
 				{
-					looks[a[i]] = ReadLook(b[i]);
-					Pair(a[i], b[i]);
+					Dictionary<string, string> c = Cascade(frame, rules, inherited);
+					list.Add((frame, c));
+					Walk(frame, c);
 				}
 			}
-			Pair(screen, copy);
-			return looks;
+			Walk(screen, top);
+			return list;
+		}
+
+		/// <summary>One frame's look from its properties: baked onto a copy of it (its children left out) and read back, by the very code the bake uses.</summary>
+		public static Look LookOf(XElement frame, Dictionary<string, string> computed, double opacity)
+		{
+			XElement copy = new XElement(frame.Name, frame.Attributes(), frame.Elements().Where(e => e.Name.LocalName != "frame"));
+			Bake(copy, computed, opacity);
+			return ReadLook(copy);
 		}
 
 		/// <summary>A frame's look as its elements say it (what the bake wrote, or a layout's own words).</summary>
@@ -184,7 +243,10 @@ namespace OpenFF.Content
 				Bar = string.Equals(Text("panel"), "bar", StringComparison.OrdinalIgnoreCase),
 				Tint = Hex(Text("tint")),
 				Background = Text("background"),
-				Portrait = frame.Element("portrait") == null ? null : (Text("portrait") ?? "")
+				Portrait = frame.Element("portrait") == null ? null : (Text("portrait") ?? ""),
+				TextStyle = Text("textstyle"),
+				Transition = Text("transition"),
+				Animation = Text("animation")
 			};
 			if (double.TryParse(Text("opacity"), NumberStyles.Float, CultureInfo.InvariantCulture, out double o)) look.Opacity = Math.Clamp(o, 0, 1);
 			return look;
@@ -286,6 +348,18 @@ namespace OpenFF.Content
 			List<string> background = MenuBackground.Properties.Where(computed.ContainsKey).Select(k => k + ": " + computed[k]).ToList();
 			if (background.Count > 0 && MenuBackground.Parse(string.Join("; ", background)) != null) frame.SetElementValue("background", string.Join("; ", background));
 			else if (background.Count > 0) frame.Element("background")?.Remove();
+			// The lettering, and how the look moves: their declarations as one element each, for the client (the game passes over them).
+			Element(frame, "textstyle", MenuText.Properties, computed, d => MenuText.Parse(d) != null);
+			Element(frame, "transition", MenuAnimation.TransitionProperties, computed, d => true);
+			Element(frame, "animation", MenuAnimation.AnimationProperties, computed, d => true);
+		}
+
+		private static void Element(XElement frame, string name, string[] properties, Dictionary<string, string> computed, Func<string, bool> draws)
+		{
+			List<string> said = properties.Where(computed.ContainsKey).Select(k => k + ": " + computed[k]).ToList();
+			string declarations = string.Join("; ", said);
+			if (said.Count > 0 && draws(declarations)) frame.SetElementValue(name, declarations);
+			else if (said.Count > 0) frame.Element(name)?.Remove();
 		}
 
 		private static double Opacity(Dictionary<string, string> computed, double parent)
@@ -342,6 +416,8 @@ namespace OpenFF.Content
 			public List<char> Joins = new List<char>();   // ' ' or '>' before each part after the first
 			public int Specificity;
 
+			public bool UsesStates => Parts.Any(p => p.UsesStates);
+
 			public bool Matches(XElement element) => MatchFrom(Parts.Count - 1, element);
 
 			private bool MatchFrom(int index, XElement element)
@@ -363,11 +439,21 @@ namespace OpenFF.Content
 			public string Type;             // null or * for any
 			public string Id;
 			public List<string> Classes = new List<string>();
+			public List<(string Name, string Argument, Compound Not)> Pseudos = new List<(string, string, Compound)>();
+
+			/// <summary>As CSS counts it: an id, then classes and pseudo-classes (a :not() by what it holds), then a type.</summary>
+			public int Specificity => (Id != null ? 10000 : 0) + Classes.Count * 100 + Pseudos.Sum(p => p.Name == "not" ? p.Not?.Specificity ?? 0 : 100) + (Type != null && Type != "*" ? 1 : 0);
+
+			public bool UsesStates => Pseudos.Any(p => p.Name == "focus" || p.Name == "focus-within" || p.Name == "disabled" || p.Name == "enabled" || (p.Not?.UsesStates ?? false));
 
 			public bool Matches(XElement e)
 			{
 				string name = e.Name.LocalName;
 				if (name != "frame" && name != "menu" && name != "unit") return false;
+				foreach ((string pseudo, string argument, Compound not) in Pseudos)
+				{
+					if (!Pseudo(e, pseudo, argument, not)) return false;
+				}
 				if (Type != null && Type != "*")
 				{
 					bool ok = Type switch
@@ -393,33 +479,115 @@ namespace OpenFF.Content
 				}
 				return true;
 			}
+
+			private static bool HasState(XElement e, string state) => ((string)e.Attribute(StateAttribute) ?? "").Split(' ').Contains(state);
+
+			private static bool Pseudo(XElement e, string name, string argument, Compound not)
+			{
+				switch (name)
+				{
+					case "focus": return HasState(e, "focus");
+					case "focus-within": return HasState(e, "focus") || e.Descendants("frame").Any(d => HasState(d, "focus"));
+					case "disabled": return HasState(e, "disabled");
+					case "enabled": return !HasState(e, "disabled");
+					case "not": return not != null && !not.Matches(e);
+				}
+				List<XElement> siblings = e.Parent?.Elements(e.Name).ToList() ?? new List<XElement> { e };
+				int index = siblings.IndexOf(e);
+				switch (name)
+				{
+					case "first-child": return index == 0;
+					case "last-child": return index == siblings.Count - 1;
+					case "only-child": return siblings.Count == 1;
+					case "nth-child": return Nth(argument, index + 1);
+					case "nth-last-child": return Nth(argument, siblings.Count - index);
+				}
+				return false;
+			}
+
+			/// <summary>Whether the n-th (from 1) is picked by An+B, odd or even.</summary>
+			private static bool Nth(string formula, int n)
+			{
+				string f = (formula ?? "").Replace(" ", "").ToLowerInvariant();
+				if (f == "odd") f = "2n+1";
+				else if (f == "even") f = "2n";
+				Match m = Regex.Match(f, @"^(?:([+-]?\d*)n)?([+-]?\d+)?$");
+				if (!m.Success || f.Length == 0) return false;
+				bool hasN = f.Contains('n');
+				int a = !hasN ? 0 : m.Groups[1].Value == "" || m.Groups[1].Value == "+" ? 1 : m.Groups[1].Value == "-" ? -1 : int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+				int b = m.Groups[2].Success && m.Groups[2].Value.Length > 0 ? int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) : 0;
+				if (a == 0) return n == b;
+				int k = n - b;
+				return k % a == 0 && k / a >= 0;
+			}
 		}
 
-		private static void Parse(string css, List<Rule> into, ref int order)
+		private static void Parse(string css, Sheet into, ref int order)
 		{
 			if (string.IsNullOrWhiteSpace(css)) return;
 			string text = Regex.Replace(css, @"/\*.*?\*/", " ", RegexOptions.Singleline);
+			foreach ((string head, string body) in Blocks(text))
+			{
+				if (head.StartsWith("@keyframes", StringComparison.OrdinalIgnoreCase) || head.StartsWith("@-webkit-keyframes", StringComparison.OrdinalIgnoreCase))
+				{
+					string name = head.Substring(head.IndexOf("keyframes", StringComparison.OrdinalIgnoreCase) + 9).Trim().Trim('"', '\'');
+					if (name.Length == 0) continue;
+					List<MenuAnimation.Keyframe> stops = new List<MenuAnimation.Keyframe>();
+					foreach ((string at, string declarations) in Blocks(body))
+					{
+						foreach (string one in at.Split(','))
+						{
+							string o = one.Trim().ToLowerInvariant();
+							double? offset = o == "from" ? 0 : o == "to" ? 1 : o.EndsWith("%") && double.TryParse(o.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out double p) ? Math.Clamp(p / 100, 0, 1) : (double?)null;
+							if (offset == null) continue;
+							MenuAnimation.Keyframe stop = new MenuAnimation.Keyframe { Offset = offset.Value };
+							foreach (KeyValuePair<string, string> d in Declarations(declarations)) stop.Values[d.Key] = d.Value;
+							stops.Add(stop);
+						}
+					}
+					into.Keyframes[name] = stops.OrderBy(k => k.Offset).ToList();
+					continue;
+				}
+				if (head.StartsWith("@")) continue;   // @media and the rest: not for a menu
+				List<Selector> selectors = SplitSelectors(head).Select(s => ParseSelector(s.Trim())).Where(s => s != null).ToList();
+				if (selectors.Count == 0) continue;
+				into.Rules.Add(new Rule { Selectors = selectors, Declarations = Declarations(body).ToList(), Order = order++ });
+			}
+		}
+
+		/// <summary>The top-level blocks of a sheet: each one's head and what is between its braces (a nested block kept whole, as @keyframes has them).</summary>
+		private static IEnumerable<(string Head, string Body)> Blocks(string text)
+		{
 			int at = 0;
 			while (at < text.Length)
 			{
 				int open = text.IndexOf('{', at);
-				if (open < 0) break;
-				int close = text.IndexOf('}', open);
-				if (close < 0) break;
+				if (open < 0) yield break;
+				int depth = 1, close = open + 1;
+				for (; close < text.Length && depth > 0; close++)
+				{
+					if (text[close] == '{') depth++;
+					else if (text[close] == '}') depth--;
+				}
+				if (depth > 0) yield break;
 				string head = text.Substring(at, open - at).Trim();
-				string body = text.Substring(open + 1, close - open - 1);
-				at = close + 1;
-				if (head.StartsWith("@")) continue;   // @media and the rest: not for a menu
-				List<Selector> selectors = head.Split(',').Select(s => ParseSelector(s.Trim())).Where(s => s != null).ToList();
-				if (selectors.Count == 0) continue;
-				into.Add(new Rule { Selectors = selectors, Declarations = Declarations(body).ToList(), Order = order++ });
+				// A declaration left before a block ("a: b; x { }") is no part of its head.
+				int semi = head.LastIndexOf(';');
+				if (semi >= 0) head = head.Substring(semi + 1).Trim();
+				yield return (head, text.Substring(open + 1, close - open - 2));
+				at = close;
 			}
 		}
+
+		/// <summary>A selector list split at its commas - not the ones inside :not() or :nth-child().</summary>
+		private static List<string> SplitSelectors(string head) => MenuAnimation.CommaList(head);
 
 		/// <summary>A selector, or null for one this does not read (a pseudo-class, an attribute) - its rule is passed over, as a browser passes over what it cannot parse.</summary>
 		private static Selector ParseSelector(string text)
 		{
-			if (text.Length == 0 || text.IndexOfAny(new[] { ':', '[', '+', '~' }) >= 0) return null;
+			if (text.Length == 0 || text.IndexOfAny(new[] { '[', '+', '~' }) >= 0 || text.Contains("::")) return null;
+			// Spaces inside brackets (":nth-child(2n + 1)", ":not(.a)") are no combinators.
+			text = Regex.Replace(text, @"\([^)]*\)", m => m.Value.Replace(" ", ""));
 			Selector selector = new Selector();
 			string spaced = text.Replace(">", " > ");
 			char join = ' ';
@@ -431,20 +599,39 @@ namespace OpenFF.Content
 				if (selector.Parts.Count > 0) selector.Joins.Add(join);
 				selector.Parts.Add(c);
 				join = ' ';
-				selector.Specificity += (c.Id != null ? 10000 : 0) + c.Classes.Count * 100 + (c.Type != null && c.Type != "*" ? 1 : 0);
+				selector.Specificity += c.Specificity;
 			}
 			return selector.Parts.Count > 0 ? selector : null;
 		}
 
+		private static readonly HashSet<string> KnownPseudos = new HashSet<string>(StringComparer.Ordinal)
+		{
+			"focus", "focus-within", "disabled", "enabled", "first-child", "last-child", "only-child", "nth-child", "nth-last-child", "not"
+		};
+
 		private static Compound ParseCompound(string token)
 		{
-			Match m = Regex.Match(token, @"^(\*|[A-Za-z][\w-]*)?((?:[#.][\w-]+)*)$");
+			Match m = Regex.Match(token, @"^(\*|[A-Za-z][\w-]*)?((?:[#.][\w-]+|:[\w-]+(?:\([^)]*\))?)*)$");
 			if (!m.Success) return null;
 			Compound c = new Compound { Type = m.Groups[1].Success && m.Groups[1].Value.Length > 0 ? m.Groups[1].Value.ToLowerInvariant() : null };
-			foreach (Match part in Regex.Matches(m.Groups[2].Value, @"[#.][\w-]+"))
+			foreach (Match part in Regex.Matches(m.Groups[2].Value, @"[#.][\w-]+|:([\w-]+)(?:\(([^)]*)\))?"))
 			{
 				if (part.Value[0] == '#') c.Id = part.Value.Substring(1);
-				else c.Classes.Add(part.Value.Substring(1));
+				else if (part.Value[0] == '.') c.Classes.Add(part.Value.Substring(1));
+				else
+				{
+					string name = part.Groups[1].Value.ToLowerInvariant();
+					if (!KnownPseudos.Contains(name)) return null;   // :hover and the rest: the rule is passed over
+					string argument = part.Groups[2].Success ? part.Groups[2].Value : null;
+					Compound not = null;
+					if (name == "not")
+					{
+						not = argument == null ? null : ParseCompound(argument);
+						if (not == null) return null;
+					}
+					else if ((name == "nth-child" || name == "nth-last-child") && string.IsNullOrWhiteSpace(argument)) return null;
+					c.Pseudos.Add((name, argument, not));
+				}
 			}
 			return c;
 		}

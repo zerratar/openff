@@ -139,9 +139,13 @@ text.picked       { color: #ffd080; }
 **Selectors:**
 - a type: `menu`; `frame`; `text` (a frame with the Text behaviour); `window` (a frame with a panel);
 - `#id` (a frame's `<id>`, or a screen's `<name>`), `.class` (the `class` attribute), and `*`;
-- combined with a space (anywhere inside) or `>` (directly inside), and listed with commas.
+- combined with a space (anywhere inside) or `>` (directly inside), and listed with commas;
+- pseudo-classes:
+  - states: `:focus` (the cursor is on the frame), `:focus-within` (on it or a frame inside it), `:disabled` / `:enabled` (`IMenuWidget.Enabled` from code);
+  - structure: `:first-child`, `:last-child`, `:only-child`, `:nth-child()` and `:nth-last-child()` (`An+B`, `odd`, `even`);
+  - `:not()` of one simple selector (`.row:not(:first-child)`).
 
-Specificity and source order decide, as in CSS. A rule whose selector uses anything else, such as `:hover` or `[attr]`, is skipped, and so is any `@` block.
+Specificity and source order decide, as in CSS; a pseudo-class counts as a class. A rule whose selector uses anything else, such as `:hover`, `::before` or `[attr]`, is skipped, and so is any `@` block but `@keyframes`.
 
 | Property | What it does |
 |---|---|
@@ -159,10 +163,13 @@ Properties CSS already has keep their CSS names. The ones only OpenFF has carry 
 prefix, the way browsers mark their own. Anything else is skipped; Crystal's inspector lists
 it as "not Crystal Style Sheets".
 
-The cascade is worked out once, as the layout loads (`Shared/Text/MenuStyles.cs`). The layout
+The cascade is worked out as the layout loads (`Shared/Text/MenuStyles.cs`). The layout
 properties go into each frame's `style` for the layout bake; the look is written into elements
 the client reads as the screen opens: `<colour>`, `<font>`, `<align>`, `<opacity>`, `<hidden/>`,
-`<window/>`, `<panel>`, `<tint>`.
+`<window/>`, `<panel>`, `<tint>`, `<background>`, `<textstyle>`, `<transition>`, `<animation>`.
+While the screen runs, the client cascades again when a class, a state or an animation changes
+something (see [States and motion](#states-and-motion)). The game - and Steam or GOG, when a
+layout is exported - gets the base look: no state, nothing moving.
 - **At runtime:** `ModMenus` draws a text in its own colour and opacity through its text canvas (`NNSG2dTextCanvas.rgba`/`alpha`), and a window through `BasicWindow.SetLook` and `SetBarStyle`.
 - **Stacking:** windows stack in the layout's order, so a later one, bar or see-through, sits over an earlier one.
 - **For the game:** `MenuXbn.FromXml` cascades the `<style>` elements it finds, then bakes and strips everything like the layout rules.
@@ -175,6 +182,52 @@ In Crystal:
   - its own panel, opacity, tint, text colour and hidden;
   - every sheet rule that reaches it, in cascade order. Anything overridden is struck through, the way a browser's devtools show it.
 - **Hierarchy eye:** hides a frame and what's inside it from the canvas, for the editor only; the file doesn't change. Alt+click shows only that frame (with its parents and its frames); Alt+click again brings the rest back.
+
+### Lettering
+
+A text's own shadow, outline, face, weight, slant, spacing and case, as CSS has them
+(`Shared/Text/MenuText.cs`). All of them are inherited.
+
+```css
+#title { text-shadow: 2px 2px 3px #000000c0; font-family: serif; font-weight: bold; letter-spacing: 1px; }
+.hint  { font-style: italic; text-transform: uppercase; }
+.badge { -ff-text-stroke: 1px #203060; text-shadow: none; }
+```
+
+| Property | What it does |
+|---|---|
+| `text-shadow` | `x y [blur] colour`, a list, the first on top (menu units). `none` takes even the game's own drop shadow away; left unsaid, the game's shadow stays. |
+| `font-family` | A list; the first found is used. `url("fonts/x.ttf")` is a face beside the layout (it ships with the mod). `serif` is Times New Roman, `monospace` Consolas, `sans-serif` / `game` the game's own face. A name (`"Georgia"`, `"Segoe UI"`) is one of Windows' faces, read from the player's Windows as the title's Times New Roman is - nothing of it is shipped. The game's faces stand behind any face for the glyphs it lacks (Japanese, Korean). |
+| `font-weight` | `bold` (or 600 and over): the face's bold where Windows has one, else drawn heavier. |
+| `font-style` | `italic` / `oblique`: the face's italic where Windows has one, else slanted. |
+| `letter-spacing` | Menu units between the letters. Measured too, so right-aligned and centred texts stay where they belong. |
+| `line-height` | For a text of several lines: menu units from one line to the next, or a number times the size. |
+| `text-decoration` | `underline`, `line-through`, `none`. |
+| `text-transform` | `uppercase`, `lowercase`, `capitalize`, `none`. |
+| `-ff-text-stroke` | `width colour`: an outline round the letters (`-webkit-text-stroke` is read too). |
+
+In the client the shadows and the outline are draws of their own under the text (`GlobalScope.MenuText.cs`), a shadow's blur the face's blurry effect; the face, weight, slant and spacing are the text's (`TrueTypeText`).
+
+### States and motion
+
+A frame's look can follow its state and move, as a web page's does (`Shared/Text/MenuAnimation.cs`):
+
+```css
+.row           { transition: color 0.2s ease-out, opacity 0.2s; }
+.row:focus     { color: #ffd080; -ff-text-stroke: 1px #402000; }
+.row:disabled  { color: disabled; opacity: 60%; }
+@keyframes pulse { from { opacity: 1; } 50% { opacity: 0.4; } to { opacity: 1; } }
+#new           { animation: pulse 1.2s ease-in-out infinite; }
+```
+
+- **States:** `:focus` follows the hand cursor, `:disabled` a frame whose `Enabled` code set to false. The client cascades again as they change.
+- **`transition`:** `<property | all> <duration> [<timing>] [<delay>]`, a list; or `transition-property`, `-duration`, `-timing-function` and `-delay`. A shorthand's name moves its longhands (`border` moves `border-color`).
+- **`animation`:** `<name> <duration> [<timing>] [<delay>] [<count> | infinite] [<direction>] [<fill-mode>] [<play-state>]`, a list; or its longhands (`animation-name`, `-duration`, `-timing-function`, `-delay`, `-iteration-count`, `-direction`, `-fill-mode`, `-play-state`). `@keyframes name { from {…} 50% {…} to {…} }` says what it goes through; a stop that leaves a property out takes the frame's own value.
+- **Timing:** `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`, `cubic-bezier(a, b, c, d)`, `steps(n[, start | end])`, `step-start`, `step-end`. Direction: `normal`, `reverse`, `alternate`, `alternate-reverse`. Fill mode: `none`, `forwards`, `backwards`, `both`.
+- **What moves:** the look - opacity, `color`, `-ff-tint`, the background's colours, gradients, borders, corners and shadows, the text's shadows, outline and spacing. Two values move from one to the other when they have the same shape (`0 2px 8px #000` to `0 4px 16px #f00`: the same words, with numbers and colours in the same places); otherwise the value changes half way through, as CSS changes what it can't interpolate. A palette word (`yellow`) moves to and from `#hex` through its colour in the game's palette.
+- **What doesn't:** the layout (`left`, `width`, `translate`…) - the game is given it as plain numbers - and `display` or `-ff-panel`.
+
+A screen with nothing moving costs nothing: the client works the look out again every frame only while a transition or an animation is under way.
 
 ### Backgrounds
 
@@ -203,6 +256,30 @@ A frame can have a colour and a picture behind it, in place of the game's window
 | `-ff-slice-scale` | Menu units per picture pixel for the borders (1). |
 | `-ff-slice-type` | `sliced` (stretched) or `tiled` (the edges and the middle repeated). |
 | `-ff-background-filter` | `linear` (smooth when scaled, the default) or `point` (sharp pixels). |
+
+#### The box: gradients, borders, corners, shadows
+
+Round a frame's background, as CSS draws a box. A frame with any of these is painted into
+pictures of its own (`Shared/Text/MenuPaint.cs`), at the window's resolution, since the game
+draws only textured quads.
+
+```css
+#w_top  { -ff-panel: none; background-image: linear-gradient(to bottom, #2a4a8a, #0e1a36); border: 2px solid #c8d8ff; border-radius: 10px; box-shadow: 0 4px 10px #000000c0; }
+#badge  { -ff-panel: none; background-image: radial-gradient(circle at 30% 40%, #ffe080, #c04000 60%, #200000); border-radius: 50%; }
+#w_row  { box-shadow: inset 0 0 10px #000; }                                  /* over the game's window too */
+#stripe { background-image: repeating-linear-gradient(45deg, #203050 0 6px, #283a60 6px 12px); }
+```
+
+| Property | What it does |
+|---|---|
+| `background-image` | Also `linear-gradient()`, `radial-gradient()`, `conic-gradient()` and their `repeating-` kinds, in place of a picture: `[angle \| to side]` / `[circle \| ellipse] [size] [at x y]` / `[from angle] [at x y]`, then colour stops (`colour [position]` in %, px or deg; missing positions are spread out). |
+| `border` | `width [style] colour`; also `border-width` and `border-color` (one to four values, as `margin`), `border-style` (`solid`; `none` takes it away), and `border-top` / `-right` / `-bottom` / `-left` with their `-width` and `-color`. |
+| `border-radius` | One to four corners (top-left, top-right, bottom-right, bottom-left), px or % of the shorter side; `border-top-left-radius` and the rest. Corners that would overlap shrink together. |
+| `box-shadow` | `[inset] x y [blur [spread]] colour`, a list, the first on top; `none`. An outer shadow is drawn behind the frame - behind the game's window, if it has one - and not under it; an inset one inside the border. |
+
+Colours anywhere here are `#hex`, `rgb()`/`rgba()`, `hsl()`/`hsla()`, CSS's common names (`gold`, `navy`…), or the game's palette words.
+- **Layers:** the outer shadows are a sprite of their own behind the window's fill; the colour and the gradient go under the frame's picture, the inset shadows and the border over it. A round corner doesn't clip a picture (`background-image: url(…)`) or the game's window art.
+- **Cost:** a painted box takes a texture per layer while the screen is open; a big frame is painted at less resolution so that one stays near a million pixels.
 
 **How it draws in the client:** `Shared/Text/MenuBackground.cs` lays the picture out as quads. `GlobalScope.MenuPanel.cs` draws them as a sprite of the game's own, in the same depth-sorted pass as the windows. That puts a background above the backdrop, between a window's fill and its frame, and under the cursor, the portrait and the texts. A picture takes one GL texture slot while the screen is open.
 
@@ -321,8 +398,9 @@ public sealed class PartyScreen : MenuBehaviour
 - **Moving about:** `Focus`, `Focused`, `Hero`, `Open`, `Close`, and the sounds.
 
 **`IMenuWidget`:**
-- **Text:** `Text`, `Colour` (a palette colour), `FontSize`, `Visible`.
-- **Classes:** `Classes`, `HasClass`, `AddClass`, `RemoveClass`, `ToggleClass`. A change cascades the sheets again and puts on what it changes: colour, size, opacity, panel, hidden. The windows are made again if a panel changed.
+- **Text:** `Text`, `Colour` (a palette colour - the text's own, which a sheet's `:focus` colour is shown over while it holds), `FontSize`, `Visible`.
+- **State:** `Enabled`: false puts the frame in `:disabled` for the sheets. It is only a look; the cursor can still land on it.
+- **Classes:** `Classes`, `HasClass`, `AddClass`, `RemoveClass`, `ToggleClass`. A change cascades the sheets again and puts on what it changes: colour, size, opacity, lettering, panel, hidden - a transition moving it if the sheet has one. A panel's background, opacity and tint are put on in place; the windows are made again only if a panel comes or goes.
 - **Style:** `GetStyle`/`SetStyle` for the frame's own look properties, over every sheet; `Opacity` as a shortcut.
 - **Bindings:** `DataSource`, `Bind(property, expression)` (`"text"`, `"visible"` or `"class.<name>"`; null unbinds), `Binding(property)`.
 - **Structure:** `Parent`, `Children`, `Id`, `Work`, the rect, and `ScreenRect` for drawing over the frame.

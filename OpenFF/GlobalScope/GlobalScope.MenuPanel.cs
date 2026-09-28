@@ -20,6 +20,10 @@ internal static partial class GlobalScope
 		/// <summary>RGBA 0..255: the picture's tint and the colour under it, the frame's opacity in their alpha.</summary>
 		public byte[] Tint = { 255, 255, 255, 255 };
 		public byte[] Fill;
+		/// <summary>Painted layers (MenuPaint: a gradient, a border, round corners, shadows), each a picture of its own over the frame - those Before under the picture, those After over it - drawn in Paint (white, the frame's opacity in its alpha).</summary>
+		public List<(uint Texture, int Width, int Height, OpenFF.Content.MenuBackground.Quad Place)> Before = new List<(uint, int, int, OpenFF.Content.MenuBackground.Quad)>();
+		public List<(uint Texture, int Width, int Height, OpenFF.Content.MenuBackground.Quad Place)> After = new List<(uint, int, int, OpenFF.Content.MenuBackground.Quad)>();
+		public byte[] Paint = { 255, 255, 255, 255 };
 	}
 
 	private static uint _menuPanelWhite;
@@ -48,6 +52,15 @@ internal static partial class GlobalScope
 		slot.m_TextureAddressModeS = TextureAddressMode.Clamp;
 		slot.m_TextureAddressModeT = TextureAddressMode.Clamp;
 		return id[0];
+	}
+
+	/// <summary>A painted picture (RGBA, not premultiplied, as a PNG comes) into a GL texture slot of its own; 0 when it will not go.</summary>
+	internal static uint MenuPanelRaster(byte[] rgba, int width, int height)
+	{
+		if (rgba == null || width <= 0 || height <= 0 || rgba.Length < width * height * 4) return 0;
+		Texture2D texture = new Texture2D(m_Graphics.GetGraphicsDeviceManager().GraphicsDevice, width, height);
+		texture.SetData(rgba);
+		return MenuPanelSlot(texture, true, out _, out _);
 	}
 
 	internal static void MenuPanelRelease(uint id)
@@ -81,7 +94,9 @@ internal static partial class GlobalScope
 				uint white = MenuPanelWhite();
 				if (white != 0) DrawMenuPanelQuads(white, 1, 1, new List<OpenFF.Content.MenuBackground.Quad> { new OpenFF.Content.MenuBackground.Quad(0, 0, sp.Width, sp.Height, 0, 0, 1, 1) }, sp.Fill);
 			}
+			foreach ((uint texture, int w, int h, OpenFF.Content.MenuBackground.Quad place) in sp.Before) DrawMenuPanelQuads(texture, w, h, new List<OpenFF.Content.MenuBackground.Quad> { place }, sp.Paint);
 			if (sp.Texture != 0 && sp.Quads.Count > 0) DrawMenuPanelQuads(sp.Texture, sp.TextureWidth, sp.TextureHeight, sp.Quads, sp.Tint);
+			foreach ((uint texture, int w, int h, OpenFF.Content.MenuBackground.Quad place) in sp.After) DrawMenuPanelQuads(texture, w, h, new List<OpenFF.Content.MenuBackground.Quad> { place }, sp.Paint);
 		}
 		G3_PopMtx(1);
 		return true;

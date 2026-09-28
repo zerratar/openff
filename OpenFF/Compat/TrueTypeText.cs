@@ -27,6 +27,13 @@
 // the face is not ours to ship. TitleFace switches to it for what the title draws; the
 // game's faces stand behind it for any glyph it lacks, Steam's Japanese face (TBUDRGothic)
 // first, so Japanese in the title's face is drawn in the game's own Japanese lettering.
+//
+// A menu text's own lettering (Crystal Style Sheets' font-family, font-weight, font-style,
+// letter-spacing, text-decoration: OpenFF.Content.MenuText) is Style while it is measured and
+// drawn: a face of the mod's own (a file beside its layout), serif (Times New Roman), monospace
+// (Consolas), a face of Windows' by name - each read where it is, with the game's faces behind it
+// for the glyphs it lacks - and its bold and italic where Windows has them, else drawn heavier
+// (twice, a little apart) or slanted (Graphics.DrawString skews the batch).
 
 using System;
 using System.Collections.Generic;
@@ -74,6 +81,18 @@ namespace OpenFF.Client
 
 		/// <summary>While true, text is drawn and measured in the title's face (ModListScreen sets it around the title's labels).</summary>
 		public static bool TitleFace;
+
+		/// <summary>The lettering of what is measured and drawn now - a menu text's style - or null for the game's own (the menu's text pass sets it around each styled text).</summary>
+		public static OpenFF.Content.MenuText Style;
+
+		/// <summary>A shadow's blur being drawn (menu units): the face's blurry effect.</summary>
+		public static float Blur;
+
+		// Faces by key ("game", "title", a file's path) and their fonts by key and size.
+		private static readonly Dictionary<string, FontSystem> _faces = new Dictionary<string, FontSystem>(StringComparer.OrdinalIgnoreCase);
+		private static readonly HashSet<string> _missing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		private static readonly Dictionary<(string, int), DynamicSpriteFont> _styled = new Dictionary<(string, int), DynamicSpriteFont>();
+		private static readonly Dictionary<string, (string Key, bool Bold, bool Italic)> _resolved = new Dictionary<string, (string, bool, bool)>(StringComparer.Ordinal);
 
 		/// <summary>
 		/// Glyph size relative to the atlases. The atlas glyphs were drawn a little
@@ -191,6 +210,7 @@ namespace OpenFF.Client
 				_viewportScale = wanted;
 				_fonts.Clear();
 				_titleFonts.Clear();
+				_styled.Clear();
 			}
 		}
 
@@ -216,7 +236,155 @@ namespace OpenFF.Client
 			}
 			// Before a face is loaded (the overlay's first frames come before the game's first text) the atlas glyphs' width stands in.
 			if (_system == null) return GlobalScope.m_Graphics != null ? GlobalScope.m_Graphics.StringWidth(text, size) : text.Length * size * 0.5f;
+			if (Style != null)
+			{
+				(DynamicSpriteFont font, bool bold, bool _) = Styled(size);
+				float spacing = Spacing(1f);
+				float width = font.MeasureString(Clean(text), null, spacing).X / _viewportScale;
+				return width + (bold ? BoldOffset(size) : 0f);
+			}
 			return FontFor(size).MeasureString(Clean(text)).X / _viewportScale;
+		}
+
+		// ---- a menu text's own lettering ----
+
+		/// <summary>The styled font for a size: the face the style's families come to, and whether bold and italic are to be made up.</summary>
+		private static (DynamicSpriteFont Font, bool FakeBold, bool FakeItalic) Styled(int size)
+		{
+			(string key, bool bold, bool italic) = Resolve(Style);
+			FontSystem system = Face(key) ?? _system;
+			if (!_styled.TryGetValue((key, size), out DynamicSpriteFont font))
+			{
+				font = system.GetFont(size * SizeFactor * _viewportScale);
+				_styled[(key, size)] = font;
+			}
+			return (font, Style.Bold && !bold, Style.Italic && !italic);
+		}
+
+		/// <summary>Whether the text drawn now is to be slanted by its batch (italic with no italic face), and by how much (x per y).</summary>
+		public static bool Slanted(out float slant)
+		{
+			slant = 0.2f;
+			return Style != null && Style.Italic && _system != null && !Resolve(Style).Italic;
+		}
+
+		/// <summary>The letter spacing in the font's own pixels (the style's is in menu units), for a draw at a scale.</summary>
+		private static float Spacing(float scaleX)
+		{
+			if (Style == null || Style.LetterSpacing == 0) return 0f;
+			float textSpace = Style.LetterSpacing * 800f / Math.Max(1, GlobalScope.LCD_WIDTH);
+			return textSpace * _viewportScale / Math.Max(0.01f, scaleX);
+		}
+
+		/// <summary>How far apart a made-up bold's two draws are, in text-space units.</summary>
+		private static float BoldOffset(int size) => Math.Max(0.5f, size * 0.045f);
+
+		/// <summary>The face a style's families come to: the first that is found (the game's when none is), and whether it is bold / italic itself.</summary>
+		private static (string Key, bool Bold, bool Italic) Resolve(OpenFF.Content.MenuText style)
+		{
+			string id = string.Join("|", style.Families) + (style.Bold ? "|b" : "") + (style.Italic ? "|i" : "");
+			if (_resolved.TryGetValue(id, out (string, bool, bool) known)) return known;
+			(string, bool, bool) found = ("game", false, false);
+			foreach (string family in style.Families)
+			{
+				if (family.StartsWith("file:", StringComparison.Ordinal))
+				{
+					string path = family.Substring(5);
+					if (Face(path) != null) { found = (path, false, false); break; }
+					continue;
+				}
+				if (family == "game" || family == "sans-serif" || family == "system-ui") { found = ("game", false, false); break; }
+				string file = WindowsFace(family == "serif" ? "times new roman" : family == "monospace" ? "consolas" : family, style.Bold, style.Italic, out bool b, out bool it);
+				if (file != null && Face(file) != null) { found = (file, b, it); break; }
+			}
+			_resolved[id] = found;
+			return found;
+		}
+
+		/// <summary>A face by key: the game's, the title's, or a file (loaded once, the game's faces behind it); null when it will not load.</summary>
+		private static FontSystem Face(string key)
+		{
+			if (key == "game") return _system;
+			if (key == "title") return _titleSystem ?? _system;
+			if (_faces.TryGetValue(key, out FontSystem system)) return system;
+			if (_missing.Contains(key)) return null;
+			try
+			{
+				if (!File.Exists(key)) { _missing.Add(key); Log.Write(LogChannel.General, "text: no face " + key); return null; }
+				system = NewSystem();
+				system.AddFont(File.ReadAllBytes(key));
+				foreach (string fallback in _loaded) system.AddFont(File.ReadAllBytes(fallback));
+				_faces[key] = system;
+				Log.Write(LogChannel.General, "text: face " + Path.GetFileName(key) + " for a menu's style");
+				return system;
+			}
+			catch (Exception ex)
+			{
+				_missing.Add(key);
+				Log.Write(LogChannel.General, "text: face " + key + " could not be loaded: " + ex.Message);
+				return null;
+			}
+		}
+
+		// Windows' faces by family name: the file and its bold, italic and bold italic.
+		private static readonly Dictionary<string, string[]> WindowsFamilies = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+		{
+			["arial"] = new[] { "arial", "arialbd", "ariali", "arialbi" },
+			["times new roman"] = new[] { "times", "timesbd", "timesi", "timesbi" },
+			["times"] = new[] { "times", "timesbd", "timesi", "timesbi" },
+			["georgia"] = new[] { "georgia", "georgiab", "georgiai", "georgiaz" },
+			["verdana"] = new[] { "verdana", "verdanab", "verdanai", "verdanaz" },
+			["tahoma"] = new[] { "tahoma", "tahomabd", null, null },
+			["trebuchet ms"] = new[] { "trebuc", "trebucbd", "trebucit", "trebucbi" },
+			["segoe ui"] = new[] { "segoeui", "segoeuib", "segoeuii", "segoeuiz" },
+			["calibri"] = new[] { "calibri", "calibrib", "calibrii", "calibriz" },
+			["cambria"] = new[] { "cambria", "cambriab", "cambriai", "cambriaz" },
+			["candara"] = new[] { "candara", "candarab", "candarai", "candaraz" },
+			["constantia"] = new[] { "constan", "constanb", "constani", "constanz" },
+			["corbel"] = new[] { "corbel", "corbelb", "corbeli", "corbelz" },
+			["consolas"] = new[] { "consola", "consolab", "consolai", "consolaz" },
+			["courier new"] = new[] { "cour", "courbd", "couri", "courbi" },
+			["courier"] = new[] { "cour", "courbd", "couri", "courbi" },
+			["lucida console"] = new[] { "lucon", null, null, null },
+			["comic sans ms"] = new[] { "comic", "comicbd", "comici", "comicz" },
+			["impact"] = new[] { "impact", null, null, null },
+			["palatino linotype"] = new[] { "pala", "palab", "palai", "palabi" },
+			["book antiqua"] = new[] { "bkant", "antquab", "antquai", "antquabi" },
+			["garamond"] = new[] { "gara", "garabd", "garait", null },
+			["century gothic"] = new[] { "gothic", "gothicb", "gothici", "gothicbi" },
+			["franklin gothic medium"] = new[] { "framd", null, "framdit", null },
+			["arial black"] = new[] { "ariblk", null, null, null },
+			["sylfaen"] = new[] { "sylfaen", null, null, null },
+		};
+
+		/// <summary>
+		/// A face of Windows' for a family name: its bold and italic where the family has them (b, it say which it is), else
+		/// the plain one; a name not in the list is looked for as a file of that name. Null when there is none.
+		/// </summary>
+		private static string WindowsFace(string family, bool bold, bool italic, out bool b, out bool it)
+		{
+			b = it = false;
+			string fonts = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+			if (string.IsNullOrEmpty(fonts)) return null;
+			string File_(string name)
+			{
+				if (name == null) return null;
+				foreach (string ext in new[] { ".ttf", ".otf", ".ttc" })
+				{
+					string path = Path.Combine(fonts, name + ext);
+					if (File.Exists(path)) return path;
+				}
+				return null;
+			}
+			if (WindowsFamilies.TryGetValue(family.Trim(), out string[] files))
+			{
+				int want = (bold ? 1 : 0) + (italic ? 2 : 0);
+				if (want == 3 && File_(files[3]) is string bi) { b = it = true; return bi; }
+				if (italic && File_(files[2]) is string i) { it = true; return i; }
+				if (bold && File_(files[1]) is string bd) { b = true; return bd; }
+				return File_(files[0]);
+			}
+			return File_(family.Trim()) ?? File_(family.Replace(" ", ""));
 		}
 
 		/// <summary>Draws a string the way the atlas path did: top-left at (x, y), the caller's scale, rotation, origin and depth.</summary>
@@ -227,10 +395,22 @@ namespace OpenFF.Client
 			{
 				return;
 			}
-			DynamicSpriteFont font = FontFor(size);
 			Vector2 drawScale = new Vector2(scale.X / _viewportScale, scale.Y / _viewportScale);
 			// The atlas glyphs sat a little below the line's top; keep text where it was.
 			Vector2 position = new Vector2(x, y - size * 0.1f);
+			if (Style != null)
+			{
+				(DynamicSpriteFont styled, bool bold, bool _) = Styled(size);
+				TextStyle decoration = Style.Underline ? TextStyle.Underline : Style.LineThrough ? TextStyle.Strikethrough : TextStyle.None;
+				FontSystemEffect effect = Blur > 0 ? FontSystemEffect.Blurry : FontSystemEffect.None;
+				int amount = Blur > 0 ? Math.Max(1, (int)Math.Round(Blur * 800f / Math.Max(1, GlobalScope.LCD_WIDTH) * _viewportScale / 2)) : 0;
+				float spacing = Spacing(scale.X);
+				string clean = Clean(text);
+				styled.DrawText(batch, clean, position, color, rotation, origin * _viewportScale, drawScale, depth, spacing, 0f, decoration, effect, amount);
+				if (bold) styled.DrawText(batch, clean, position + new Vector2(BoldOffset(size) * scale.X, 0), color, rotation, origin * _viewportScale, drawScale, depth, spacing, 0f, decoration, effect, amount);
+				return;
+			}
+			DynamicSpriteFont font = FontFor(size);
 			font.DrawText(batch, Clean(text), position, color, rotation, origin * _viewportScale, drawScale, depth);
 		}
 

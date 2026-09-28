@@ -26,6 +26,19 @@
 //   -ff-background-filter       linear (smooth when scaled, the default) or point (the pixels kept)
 //   -ff-sprite                  a named sprite of the sheet (sprites.json, MenuSprites): its part and its borders
 //
+// And the box round it, as CSS draws a box (MenuPaint paints these into pictures of their own):
+//
+//   background-image            linear-gradient(), radial-gradient(), conic-gradient() and their repeating-
+//                               kinds, in place of a picture: [angle | to side] / [shape size at x y] / [from
+//                               angle at x y], then colour stops (colour [position]: %, px, deg)
+//   border                      width [style] colour - and border-width (one to four), border-color (one to
+//                               four), border-style (solid; none takes it away), border-top / -right / -bottom /
+//                               -left and their -width / -color
+//   border-radius               one to four corners (top-left, top-right, bottom-right, bottom-left), px or %
+//                               (of the shorter side); border-top-left-radius and the rest
+//   box-shadow                  none, or [inset] x y [blur [spread]] colour, ... - the first on top; an outer
+//                               one is drawn behind the frame (behind the game's window too), an inset one inside it
+//
 // A slice over 0 decides it: the frame is drawn 9-sliced and the scale mode, size and repeat are
 // not used. Otherwise background-size or -repeat lay the picture out as CSS does; with neither, the
 // scale mode does. MenuStyles bakes the declarations into the frame's <background>; the client draws
@@ -46,7 +59,13 @@ namespace OpenFF.Content
 			"background-color", "background-image", "-ff-background-rect", "-ff-background-tint", "-ff-background-scale-mode",
 			"background-size", "background-position", "background-repeat",
 			"-ff-slice", "-ff-slice-left", "-ff-slice-top", "-ff-slice-right", "-ff-slice-bottom", "-ff-slice-scale", "-ff-slice-type",
-			"-ff-background-filter", "-ff-sprite"
+			"-ff-background-filter", "-ff-sprite",
+			"border", "border-width", "border-color", "border-style",
+			"border-top", "border-right", "border-bottom", "border-left",
+			"border-top-width", "border-right-width", "border-bottom-width", "border-left-width",
+			"border-top-color", "border-right-color", "border-bottom-color", "border-left-color",
+			"border-radius", "border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius",
+			"box-shadow"
 		};
 
 		/// <summary>"url" (a file beside the layout) or "resource" (one of the game's), and its path; null for no picture.</summary>
@@ -69,8 +88,44 @@ namespace OpenFF.Content
 		/// <summary>Whether the frame gave slices of its own (then a sprite's borders do not replace them).</summary>
 		public bool SliceGiven;
 
+		/// <summary>A gradient in place of a picture; null for none.</summary>
+		public MenuGradient Gradient;
+		/// <summary>The border's widths and colours, top, right, bottom, left (menu units, 0xRRGGBBAA).</summary>
+		public float[] BorderWidth = new float[4];
+		public uint[] BorderColour = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
+		/// <summary>The corners' radii, top-left, top-right, bottom-right, bottom-left, and whether each is a percent (of the shorter side).</summary>
+		public float[] Radius = new float[4];
+		public bool[] RadiusPercent = new bool[4];
+		public List<BoxShadow> Shadows = new List<BoxShadow>();
+
+		public struct BoxShadow
+		{
+			public float X, Y, Blur, Spread;
+			public uint Colour;
+			public bool Inset;
+		}
+
 		public bool Sliced => SliceLeft > 0 || SliceTop > 0 || SliceRight > 0 || SliceBottom > 0;
-		public bool Empty => ImagePath == null && (Colour == null || (Colour.Value & 0xFF) == 0);
+		public bool HasBorder => BorderWidth.Any(w => w > 0);
+		public bool HasRadius => Radius.Any(r => r > 0);
+		/// <summary>Whether the box is painted (MenuPaint) rather than drawn as a colour and a picture's quads: a gradient, a border, round corners or a shadow.</summary>
+		public bool Decorated => Gradient != null || HasBorder || HasRadius || Shadows.Count > 0;
+		public bool Empty => ImagePath == null && Gradient == null && !HasBorder && Shadows.Count == 0 && (Colour == null || (Colour.Value & 0xFF) == 0);
+
+		/// <summary>The corners' radii on a frame w by h (menu units), shrunk together where two would overlap, as CSS shrinks them.</summary>
+		public float[] Radii(float w, float h)
+		{
+			float[] r = new float[4];
+			float shorter = Math.Min(w, h);
+			for (int i = 0; i < 4; i++) r[i] = Math.Max(0, RadiusPercent[i] ? shorter * Radius[i] / 100 : Radius[i]);
+			float f = 1;
+			if (r[0] + r[1] > w) f = Math.Min(f, w / (r[0] + r[1]));
+			if (r[3] + r[2] > w) f = Math.Min(f, w / (r[3] + r[2]));
+			if (r[0] + r[3] > h) f = Math.Min(f, h / (r[0] + r[3]));
+			if (r[1] + r[2] > h) f = Math.Min(f, h / (r[1] + r[2]));
+			if (f < 1) for (int i = 0; i < 4; i++) r[i] *= f;
+			return r;
+		}
 
 		/// <summary>One rectangle to draw: where in the frame (menu units), and which part of the picture (its pixels).</summary>
 		public struct Quad
@@ -91,7 +146,64 @@ namespace OpenFF.Content
 				switch (d.Key)
 				{
 					case "background-color": b.Colour = ParseColour(v); break;
-					case "background-image": (b.ImageKind, b.ImagePath) = ParseImage(v); break;
+					case "background-image":
+						b.Gradient = MenuGradient.Parse(v);
+						(b.ImageKind, b.ImagePath) = b.Gradient != null ? (null, null) : ParseImage(v);
+						break;
+					case "border": b.BorderSide(0, v); b.BorderSide(1, v); b.BorderSide(2, v); b.BorderSide(3, v); break;
+					case "border-top": b.BorderSide(0, v); break;
+					case "border-right": b.BorderSide(1, v); break;
+					case "border-bottom": b.BorderSide(2, v); break;
+					case "border-left": b.BorderSide(3, v); break;
+					case "border-width": Four(v, BorderWidthOf, b.BorderWidth); break;
+					case "border-top-width": b.BorderWidth[0] = BorderWidthOf(v); break;
+					case "border-right-width": b.BorderWidth[1] = BorderWidthOf(v); break;
+					case "border-bottom-width": b.BorderWidth[2] = BorderWidthOf(v); break;
+					case "border-left-width": b.BorderWidth[3] = BorderWidthOf(v); break;
+					case "border-color": Four(v, w => MenuText.Colour(w) ?? 0xFFFFFFFF, b.BorderColour); break;
+					case "border-top-color": b.BorderColour[0] = MenuText.Colour(v) ?? b.BorderColour[0]; break;
+					case "border-right-color": b.BorderColour[1] = MenuText.Colour(v) ?? b.BorderColour[1]; break;
+					case "border-bottom-color": b.BorderColour[2] = MenuText.Colour(v) ?? b.BorderColour[2]; break;
+					case "border-left-color": b.BorderColour[3] = MenuText.Colour(v) ?? b.BorderColour[3]; break;
+					case "border-style":
+						b._borderNone = v.Equals("none", StringComparison.OrdinalIgnoreCase) || v.Equals("hidden", StringComparison.OrdinalIgnoreCase);
+						break;
+					case "border-radius":
+					{
+						string corners = v.Split('/')[0];   // elliptical corners: their horizontal radii
+						string[] parts = corners.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+						if (parts.Length == 0) break;
+						string[] four = parts.Length == 1 ? new[] { parts[0], parts[0], parts[0], parts[0] }
+							: parts.Length == 2 ? new[] { parts[0], parts[1], parts[0], parts[1] }
+							: parts.Length == 3 ? new[] { parts[0], parts[1], parts[2], parts[1] } : parts.Take(4).ToArray();
+						for (int i = 0; i < 4; i++) b.Corner(i, four[i]);
+						break;
+					}
+					case "border-top-left-radius": b.Corner(0, v.Split(' ')[0]); break;
+					case "border-top-right-radius": b.Corner(1, v.Split(' ')[0]); break;
+					case "border-bottom-right-radius": b.Corner(2, v.Split(' ')[0]); break;
+					case "border-bottom-left-radius": b.Corner(3, v.Split(' ')[0]); break;
+					case "box-shadow":
+						b.Shadows.Clear();
+						if (v.Equals("none", StringComparison.OrdinalIgnoreCase)) break;
+						foreach (string item in MenuAnimation.CommaList(v))
+						{
+							List<float> numbers = new List<float>();
+							BoxShadow shadow = new BoxShadow { Colour = 0x00000080 };
+							foreach (string word in MenuAnimation.Words(item))
+							{
+								if (word.Equals("inset", StringComparison.OrdinalIgnoreCase)) shadow.Inset = true;
+								else if (MenuText.Length(word) is float n) numbers.Add(n);
+								else if (MenuText.Colour(word) is uint c) shadow.Colour = c;
+							}
+							if (numbers.Count < 2) continue;
+							shadow.X = numbers[0];
+							shadow.Y = numbers[1];
+							shadow.Blur = numbers.Count > 2 ? Math.Max(0, numbers[2]) : 0;
+							shadow.Spread = numbers.Count > 3 ? numbers[3] : 0;
+							b.Shadows.Add(shadow);
+						}
+						break;
 					case "-ff-background-rect":
 						int[] r = v.Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries).Select(p => int.TryParse(p.Replace("px", ""), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? n : -1).ToArray();
 						b.Rect = r.Length == 4 && r.All(n => n >= 0) && r[2] > 0 && r[3] > 0 ? r : null;
@@ -119,7 +231,52 @@ namespace OpenFF.Content
 					case "-ff-background-filter": b.Linear = !v.Equals("point", StringComparison.OrdinalIgnoreCase); break;
 				}
 			}
+			if (b._borderNone) b.BorderWidth = new float[4];
 			return b.Empty ? null : b;
+		}
+
+		private bool _borderNone;
+
+		/// <summary>"2px solid #fff" onto one side (0 top, 1 right, 2 bottom, 3 left): its width and colour; a style of none takes it away.</summary>
+		private void BorderSide(int side, string value)
+		{
+			float width = 3;   // CSS's medium
+			bool none = false;
+			foreach (string word in MenuAnimation.Words(value))
+			{
+				string w = word.ToLowerInvariant();
+				if (w == "none" || w == "hidden") none = true;
+				else if (w == "thin" || w == "medium" || w == "thick" || MenuText.Length(w) != null) width = BorderWidthOf(w);
+				else if (MenuText.Colour(w) is uint c) BorderColour[side] = c;
+			}
+			BorderWidth[side] = none ? 0 : width;
+		}
+
+		private static float BorderWidthOf(string word)
+		{
+			string w = word.Trim().ToLowerInvariant();
+			if (w == "thin") return 1;
+			if (w == "medium") return 3;
+			if (w == "thick") return 5;
+			return Math.Max(0, MenuText.Length(w) ?? 0);
+		}
+
+		private void Corner(int i, string word)
+		{
+			string w = word.Trim();
+			RadiusPercent[i] = w.EndsWith("%");
+			Radius[i] = Math.Max(0, RadiusPercent[i] ? (float.TryParse(w.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float p) ? p : 0) : MenuText.Length(w) ?? 0);
+		}
+
+		/// <summary>One to four values (as margin: top, right, bottom, left) into four.</summary>
+		private static void Four<T>(string value, Func<string, T> read, T[] into)
+		{
+			T[] v = MenuAnimation.Words(value).Select(read).ToArray();
+			if (v.Length == 0) return;
+			if (v.Length == 1) { into[0] = into[1] = into[2] = into[3] = v[0]; }
+			else if (v.Length == 2) { into[0] = into[2] = v[0]; into[1] = into[3] = v[1]; }
+			else if (v.Length == 3) { into[0] = v[0]; into[1] = into[3] = v[1]; into[2] = v[2]; }
+			else { into[0] = v[0]; into[1] = v[1]; into[2] = v[2]; into[3] = v[3]; }
 		}
 
 		/// <summary>A named sprite's part and borders put on, where the frame did not give its own.</summary>
@@ -316,7 +473,37 @@ namespace OpenFF.Content
 				uint a = parts.Length > 3 ? (uint)Math.Clamp((int)Math.Round((parts[3].Trim().EndsWith("%") ? Number(parts[3].Trim().TrimEnd('%')) / 100 : Number(parts[3])) * 255), 0, 255) : 255;
 				return C(parts[0]) << 24 | C(parts[1]) << 16 | C(parts[2]) << 8 | a;
 			}
-			return null;
+			if (v.StartsWith("hsl"))
+			{
+				int open = v.IndexOf('('), close = v.LastIndexOf(')');
+				if (open < 0 || close < open) return null;
+				string[] parts = v.Substring(open + 1, close - open - 1).Replace("/", ",").Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+				if (parts.Length < 3) return null;
+				double hue = ((Number(parts[0].Replace("deg", "")) % 360) + 360) % 360 / 360;
+				double sat = Math.Clamp(Number(parts[1].TrimEnd('%')) / 100, 0, 1), light = Math.Clamp(Number(parts[2].TrimEnd('%')) / 100, 0, 1);
+				double q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat, pp = 2 * light - q;
+				double Hue(double t) { t = (t + 1) % 1; return t < 1.0 / 6 ? pp + (q - pp) * 6 * t : t < 0.5 ? q : t < 2.0 / 3 ? pp + (q - pp) * (2.0 / 3 - t) * 6 : pp; }
+				uint Ch(double x) => (uint)Math.Clamp((int)Math.Round(x * 255), 0, 255);
+				uint a = parts.Length > 3 ? (uint)Math.Clamp((int)Math.Round((parts[3].EndsWith("%") ? Number(parts[3].TrimEnd('%')) / 100 : Number(parts[3])) * 255), 0, 255) : 255;
+				return Ch(Hue(hue + 1.0 / 3)) << 24 | Ch(Hue(hue)) << 16 | Ch(Hue(hue - 1.0 / 3)) << 8 | a;
+			}
+			return Named.TryGetValue(v, out uint named) ? named : (uint?)null;
 		}
+
+		/// <summary>CSS's colour names, the common ones (0xRRGGBBAA).</summary>
+		private static readonly Dictionary<string, uint> Named = new Dictionary<string, uint>(StringComparer.Ordinal)
+		{
+			["black"] = 0x000000FF, ["white"] = 0xFFFFFFFF, ["red"] = 0xFF0000FF, ["lime"] = 0x00FF00FF, ["green"] = 0x008000FF, ["blue"] = 0x0000FFFF,
+			["yellow"] = 0xFFFF00FF, ["cyan"] = 0x00FFFFFF, ["aqua"] = 0x00FFFFFF, ["magenta"] = 0xFF00FFFF, ["fuchsia"] = 0xFF00FFFF,
+			["gray"] = 0x808080FF, ["grey"] = 0x808080FF, ["silver"] = 0xC0C0C0FF, ["maroon"] = 0x800000FF, ["olive"] = 0x808000FF,
+			["navy"] = 0x000080FF, ["purple"] = 0x800080FF, ["teal"] = 0x008080FF, ["orange"] = 0xFFA500FF, ["gold"] = 0xFFD700FF,
+			["pink"] = 0xFFC0CBFF, ["brown"] = 0xA52A2AFF, ["crimson"] = 0xDC143CFF, ["coral"] = 0xFF7F50FF, ["salmon"] = 0xFA8072FF,
+			["tomato"] = 0xFF6347FF, ["orchid"] = 0xDA70D6FF, ["violet"] = 0xEE82EEFF, ["indigo"] = 0x4B0082FF, ["plum"] = 0xDDA0DDFF,
+			["khaki"] = 0xF0E68CFF, ["beige"] = 0xF5F5DCFF, ["ivory"] = 0xFFFFF0FF, ["tan"] = 0xD2B48CFF, ["chocolate"] = 0xD2691EFF,
+			["skyblue"] = 0x87CEEBFF, ["steelblue"] = 0x4682B4FF, ["royalblue"] = 0x4169E1FF, ["midnightblue"] = 0x191970FF,
+			["darkblue"] = 0x00008BFF, ["darkred"] = 0x8B0000FF, ["darkgreen"] = 0x006400FF, ["darkgray"] = 0xA9A9A9FF, ["darkgrey"] = 0xA9A9A9FF,
+			["lightgray"] = 0xD3D3D3FF, ["lightgrey"] = 0xD3D3D3FF, ["lightblue"] = 0xADD8E6FF, ["slategray"] = 0x708090FF,
+			["dimgray"] = 0x696969FF, ["whitesmoke"] = 0xF5F5F5FF, ["goldenrod"] = 0xDAA520FF, ["firebrick"] = 0xB22222FF,
+		};
 	}
 }
