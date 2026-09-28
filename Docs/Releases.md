@@ -7,8 +7,43 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## Unreleased
+## 0.1.8 - gambits, and menus of your own making (2026-09-28)
 
+Auto battle by each hero's own rules, the Gambits screen to write them, the Steam layouts, a UI
+system for the menus - Crystal's tools to build a screen, and the code to drive one - and the
+sixty frames made even.
+
+- **Auto battle.** F, or the pad's R3 (settings.json `"auto"`): the heroes choose by their rules -
+  Gambits, per hero, in order, condition -> action, kept in the save (the default "Foe: any ->
+  Attack") - and commit as the game's own windows commit a choice. The command list stays shut
+  and the camera on the fight while it is on; Steam's "Auto battle" hint sits on its key cap.
+- **The Gambits screen** (the main menu, after Job): a hero's twelve rules in the game's own
+  windows, FFXII-style - on/off, the condition (red for foes, blue for allies), the action; pickers
+  for conditions (thresholds and statuses) and actions (Attack, Guard, the hero's spells, battle
+  items, Run Away); X clears, Y moves up, L/R change hero. The main menu's row lines are laid
+  again to fit its rows with the new entry in.
+- **Steam's layouts.** The title in one column like Steam's, its labels drawn in Times New Roman
+  (Windows' own copy, read at runtime - not shipped); the hand cursor at Steam's size; the main
+  menu's status block and the battle menu matched to Steam's, Run Away last.
+- **Menus: a UI system.** Crystal previews a screen as the game draws it and edits it with a
+  Hierarchy (tree, drag, right-click, an eye to hide frames) and an inspector in sections. Layout
+  rules (anchors, sizes, columns and rows with gap, padding and grow), Crystal Style Sheets
+  (`styles/*.css`, cascaded CSS-fashion), backgrounds (colour, picture, 9-slice, tiling, scale
+  modes), sprite sheets with named, sliced sprites and a Sprite editor, portrait frames that put
+  the hero's face where the layout says, data bindings over the game's data (`{hero.name}`,
+  `{gil:N0}`), and a code API (`Menu.Q`, classes, `SetStyle`, `Bind`, `Menu.Data`, `Menu.Portrait`).
+  All of it is baked into ordinary frames for the game, so Steam and GOG copies read the files as
+  their own. `Docs/Menus.md` has it all.
+- **The client's own screens in a mod.** *Copy into my mod* takes one of the client's screens
+  (Gambits) into the open project, so its edits survive an update of the client.
+- **Row lines.** A backdrop's lines between its rows are drawn in Crystal, and a screen says how it
+  wants them: as the game draws them, none, or fitted to its rows (`"backdropLines"`; for one of
+  the game's screens a setting of the mod's).
+- **No hitch after Continue with a model mod.** A mod dressing two things in the same glTF model
+  loaded it twice, the second time on the game's step after the fade-in (about 2.8 s with a large
+  one); a model is loaded once and shared now.
+- **The mod list.** Back no longer falls through to the title's MODS row; closing the list with a
+  changed set of mods restarts the client on the title, and the process ends when the window does.
 - **The sixty frames are even now.** 0.1.7's pacer drew the frame between two steps at `0.5 +
   owed / step`, clamped at 1, and snapped any refresh within 8% of a whole fraction of the step to
   it. At 60 Hz the picture was only even when what was owed after a step happened to sit near
