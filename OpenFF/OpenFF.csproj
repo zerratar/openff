@@ -50,6 +50,7 @@
     <Compile Include="..\Shared\Text\*.cs" Link="Compat\Text\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Data\*.cs" Link="Compat\Data\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Graphics\*.cs" Link="Compat\Graphics\%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\Effects\*.cs" Link="Compat\Effects\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

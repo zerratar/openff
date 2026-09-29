@@ -1,4 +1,4 @@
-// FF3 content tool.
+﻿// FF3 content tool.
 //
 //   dotnet run --project Crystal.Editor -- info    <file-or-dir>
 //   dotnet run --project Crystal.Editor -- extract <xnb-dir> <out-dir>
@@ -258,6 +258,13 @@ namespace Crystal
 							return 1;
 						}
 						return PakDecode(args.Skip(1).ToArray());
+					case "effect":
+						if (args.Length < 3)
+						{
+							Usage();
+							return 1;
+						}
+						return EffectDump(args.Skip(1).ToArray());
 					case "tables":
 						if (args.Length < 2)
 						{
@@ -279,9 +286,47 @@ namespace Crystal
 			}
 			catch (Exception ex)
 			{
-				Console.Error.WriteLine("error: " + ex.Message);
+				Console.Error.WriteLine("error: " + (Environment.GetEnvironmentVariable("CRYSTAL_TRACE") != null ? ex.ToString() : ex.Message));
 				return 2;
 			}
+		}
+
+		/// <summary>effect &lt;install root&gt; &lt;category&gt; [member]: one of the game's effects imported into the new format (Shared/Effects), as JSON.</summary>
+		private static int EffectDump(string[] args)
+		{
+			ContentChain chain = ContentChain.Open(args[0]);
+			int category = int.Parse(args[1], CultureInfo.InvariantCulture);
+			int member = args.Length > 2 ? int.Parse(args[2], CultureInfo.InvariantCulture) : 1;
+			byte[] Read(string name) => chain.Read(name) ?? chain.Read("files/" + name);
+			OpenFF.Effects.EfiIndex index = OpenFF.Effects.EfiIndex.Read(Read("effect.efi") ?? throw new FileNotFoundException("no effect.efi"));
+			Dictionary<string, OpenFF.Effects.EfpPack> packs = new Dictionary<string, OpenFF.Effects.EfpPack>();
+			OpenFF.Effects.EfpPack Pack(string name)
+			{
+				if (!packs.TryGetValue(name, out OpenFF.Effects.EfpPack p))
+				{
+					try { byte[] d = Read(name); p = d != null ? OpenFF.Effects.EfpPack.Read(d, name) : null; } catch (Exception) { p = null; }
+					packs[name] = p;
+				}
+				return p;
+			}
+			(OpenFF.Effects.EffectTemplate, OpenFF.Effects.EfpPack)? Resolve(int c, int m)
+			{
+				uint id = index.TemplateId(c, m);
+				if (id == 0) return null;
+				OpenFF.Effects.EfpPack own = Pack("e" + c.ToString("000", CultureInfo.InvariantCulture) + ".efp");
+				if (own?.Template(id) is OpenFF.Effects.EffectTemplate t) return (t, own);
+				for (int n = 0; n < 1000; n++)
+				{
+					OpenFF.Effects.EfpPack p = Pack("e" + n.ToString("000", CultureInfo.InvariantCulture) + ".efp");
+					if (p?.Template(id) is OpenFF.Effects.EffectTemplate found) return (found, p);
+				}
+				return null;
+			}
+			List<string> notes = new List<string>();
+			System.Text.Json.Nodes.JsonObject effect = OpenFF.Effects.EffectImport.Import(category, member, Resolve, notes);
+			Console.WriteLine(effect.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+			foreach (string note in notes) Console.Error.WriteLine("note: " + note);
+			return 0;
 		}
 
 		/// <summary>tables &lt;install root&gt; [--items=N]: the game's tables in the unified shape (OpenFF.Data), for checking a reader.</summary>
@@ -345,6 +390,7 @@ namespace Crystal
 			Console.Error.WriteLine("  (no command)                      open the editor");
 			Console.Error.WriteLine("  info    <file.xnb | directory>");
 			Console.Error.WriteLine("  tables  <install root> [--items=N] [--spells] [--game=ff3|ff4]    the game's tables in the unified shape (FF3 or FF4)");
+			Console.Error.WriteLine("  effect  <install root> <category> [member]    one of the game's effects in the new format, as JSON (FF3)");
 			Console.Error.WriteLine("  api-docs [out.md] [--engine=<dll>]  the modding API reference from OpenFF.Engine (default Docs/API.md)");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");

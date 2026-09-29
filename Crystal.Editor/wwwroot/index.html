@@ -553,6 +553,19 @@
   </div>
 </template>
 
+<!-- Effects: one pack, a member of it on the Stage. effects.js fills it. -->
+<template id="view-effect">
+  <div class="view">
+    <div class="bar">
+      <strong class="name"></strong>
+      <select class="effect-member" title="the member of the pack to play (effect.efi numbers them; 1 is the one a spell names)"></select>
+      <span class="facts"></span>
+      <span class="grow"></span>
+    </div>
+    <div class="effect-body"></div>
+  </div>
+</template>
+
 <!-- Audio -->
 <template id="view-audio">
   <div class="view">
@@ -595,6 +608,7 @@
 <script src="record-editor.js"></script>
 <script src="model-viewer.js"></script>
 <script src="hand-preview.js"></script>
+<script src="effects.js"></script>
 <script src="thumbnails.js"></script>
 <script src="picker.js"></script>
 <script src="project.js"></script>

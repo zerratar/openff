@@ -2,7 +2,7 @@
 
 Visual effects of the mods' own - spells, summons, hits, the field's sparkles - made in Crystal
 the way a menu or a cutscene is: an editor with a live preview, and the game's own effects to
-start from. This is the plan; nothing of it is built yet.
+start from. This is the plan; stages 1 and 2 are built (below).
 
 ## What the game has
 
@@ -184,10 +184,14 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    spell records of their own (4205 ... 4221). A school's cast is `"cast"` (black, white, summon,
    none or a pack), answered where the battle picks it (`TurnSystem.magicStartEffect`).
    `Samples/SummonMagic`.
-2. **The reader and a viewer** (medium). `Shared/Effects/Efp.cs` reads packs and the index;
-   Crystal's Effects tab lists them and plays them on the Stage - through the importer into a
-   first cut of the new runtime's JS port, the emitter and texture modules only. *Done when*
-   Fire, Blizzard and Cure play recognisably in Crystal.
+2. **The reader and a viewer** (medium) - *done*. `Shared/Effects/Efp.cs` reads packs and the
+   index (every template kind, the sprite animations, the textures decoded);
+   `Shared/Effects/EffectImport.cs` makes a member a definition of format 1 (below); Crystal's
+   Effects library plays it on the Stage (`wwwroot/effects.js`, the runtime's first port).
+   Sequences came in with it - member 1 of a spell is a sequence booting the particles along
+   paths, and nothing looks like Fire without it. Fire, Blizzard and Cure, and the schools'
+   casts, play as the game plays them; models are named, not drawn. The game's side - every
+   layout, the step-by-step runtime, its quirks - is `Docs/Effects-Eld.md`.
 3. **The runtime in the client** (large). The format, every track and module, the scene
    passes, `FrameCapture`, anchors and paths, spells pointing at a mod effect, `IEffects` by id,
    the cutscene track, hot reload. The shared test cases start here. *Done when* an imported
@@ -199,12 +203,36 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
 5. **Later.** GPU particles if a real effect needs more than the CPU gives; lights from
    effects; decals on the ground; a node graph only if the module stack is found wanting.
 
+## Format 1, as the importer writes it
+
+The first cut of the format above, what the Stage plays today: an effect is `format`,
+`from` (the game's category/member it came from), `length` (the frame its sequence ends on),
+`loop`, and `tracks`. A track is `type` (`emitter`; `mesh` is named, not played yet), `name`,
+`start` (its frame), `id` (the sequence's, for a loop not to be booted twice), `anchor`
+(`target`), `offset`, `path` (`point`, or `segments` of four points - P0, P1 and the two
+tangents - with `curve`, `times`, `length` and `end`: hold, pingpong, repeat) and `stop`. An
+emitter adds:
+
+- `emission`: `duration`, `interval`, `count`, `bursts`, `loop` - groups of `count` particles,
+  one every `interval` frames (0 and 1 alike), `bursts` of them in the `duration`, as eld has it;
+- `life` (frames), `space` (`local` follows the emitter), `shape.box` (half extents),
+  `size` (the full width, a range);
+- `speed`: `direction`, `value` (a range), `spread` (degrees either way about X, Y, Z);
+  `gravity`: `direction`, `value` (per frame, a range); `orbit`: `radius`, `grow`, `turn`
+  (degrees a frame); `gather`: `speed`, `accel`, `swirl`; `trail`: `count`, `colour`;
+- `colour` (keys `[age, r, g, b, a]`, 0-255), `scale` (keys `[age, x, y]`) - straight lines
+  between keys, whole frames of age;
+- `texture`: `image` (`game:<pack>:<name>`, the game's own read from the install), `width`,
+  `height`, `cell` (the first cell's rectangle), `columns`, `frames` (keys `[age, cell]`);
+- `render`: `blend` (`alpha`), `facing` (`camera`).
+
 ## Open questions
 
-- **Summons.** How much of a summon is script and how much is effect - whether a definition
-  can replace a summon's look step by step, or should replace the script.
-- **The DS textures.** Which formats the packs use, and whether their 4x4 compression decodes
-  cleanly enough to edit over.
+- **Summons.** Partly answered by stage 1: a summon is its script (`summon_script_command.pack`)
+  loading packs and drawing members, its outcomes spell records of their own. Whether a
+  definition replaces a summon step by step or its script whole is still open.
+- **The DS textures** - answered: A3I5 (774) and 256-colour (24), 32-colour palettes, none
+  compressed; they decode exactly.
 - **Sequences.** How faithfully `SequenceDS`'s paths and boots map to tracks - the largest
   spells are the test.
 - **Performance.** Where a battle full of mod effects lands on a slow machine; the cap per

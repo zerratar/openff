@@ -76,6 +76,10 @@ async function loadList() {
     const textures = await api('/api/textures');
     state.textureFormats = textures.formats;
     state.files = textures.packages.map(p => ({ name: p.name, overridden: false, kind: p.kind }));
+  } else if (state.browse === 'effect') {
+    // The effect packs, each with what plays it (the spells that point at it, a school's cast).
+    state.effects = await api('/api/effects');
+    state.files = (state.effects || []).map(e => ({ name: e.name, overridden: false, caption: e.note || '', note: e.note || '' }));
   } else if (state.browse === 'cell') {
     state.cells = await api('/api/cells');
     state.files = state.cells.map(c => ({ name: c.name, overridden: false }));
@@ -257,7 +261,7 @@ function drawList() {
   state.thumbWatcher = fileView === 'grid' ? watchThumbnails(list, state.browse) : null;
 
   for (const file of state.files) {
-    if (filter && !file.name.toLowerCase().includes(filter)) continue;
+    if (filter && !(file.name + ' ' + (file.caption || '')).toLowerCase().includes(filter)) continue;
     const item = document.createElement('li');
     item.append(icon(fileIcon(file)));
     const label = document.createElement('span');
@@ -268,6 +272,8 @@ function drawList() {
       ? (file.def.name || file.name)
       : file.own && file.title
         ? `${file.title} (${file.name})`
+      : file.caption
+        ? `${shortName(file.name)}  ${file.caption}`
       : fileView === 'grid'
         ? shortName(file.name).replace(/\.(nmdp\.lz|lz|NCER|NSCR|hich|script|pak|msd|xbn)$/i, '')
         : file.name;
@@ -475,6 +481,7 @@ async function dispatchOpen(kind, name) {
   else if (kind === 'texture') await openTexture(name);
   else if (kind === 'model') await openModel(name);
   else if (kind === 'cell') await openCell(name);
+  else if (kind === 'effect') await openEffect(name);
   else if (kind === 'code') await openCodeFile(name);
   else if (kind === 'strings') await openStrings(name);
   else if (kind === 'castcode') await openCastCodeView(name);

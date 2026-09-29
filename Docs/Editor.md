@@ -1087,6 +1087,20 @@ game's own draw call does; turning it off shows the parts at their stored size.
 A part that asks for more than its sheet has is marked in red. Fifteen do, all because
 the art was replaced at a smaller size and the table left alone. `Docs/Graphics.md`.
 
+## Effects
+
+The game's effect packs (FF3's `e###.efp` and the field's), each named after what plays it -
+the spells whose effect record points at it, a school's cast. A pack opens on the **Stage**:
+one of its members (as `effect.efi` numbers them; 1 is the one a spell names) played the way
+the battle plays it, at the target's hit point over a ground, the target standing where the
+battle puts it. Drag to turn the camera, the wheel to come closer; **Play**, **Step** (one game
+step, a thirtieth of a second), **Restart**, the scrubber, **loop**, 30 or 60 fps (at 60 a
+particle is drawn between its two steps, as the client does), and the count of particles.
+
+What plays is the member imported into the new effect format (`Docs/Effects-Plan.md`) -
+*definition* under the Stage shows it, with what the import left out (a model, for now). The
+same import from the command line: `crystal effect <install> <category> [member]`.
+
 ## Audio
 
 445 sounds - 30 music tracks and the rest effects - with their length, format, parts
@@ -1149,6 +1163,8 @@ switch files.
 - **Writing textures back** - reading a TEX0 is done; writing one means re-quantising
   to a 256 colour palette or to 4x4 blocks.
 - **Audio** - deliberately untouched.
+- **Effects' models** - an effect's model (Blizzard's ice block) is named on the Stage but
+  not drawn; its particles are.
 - **New menus** - adding a widget means duplicating one.
 - **New maps** - cloning one is plausible; authoring geometry is not, because models
   and collision are still opaque.

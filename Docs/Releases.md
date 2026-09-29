@@ -14,6 +14,8 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Summon Magic sample: Fire, Blizzard and Thunder with the summoner's glow and the summons' finales.
 - Drives: learn <member> <spell> teaches a spell.
 - Crystal: tables --spells lists the spells.
+- Crystal: an Effects library plays the game's effects on a Stage, imported into the new effect format.
+- Crystal: effect <install> <category> [member] prints one of the game's effects in the new format.
 - Items: a mod's own magic item gets a copy of its base's effect record.
 
 **Fixes**

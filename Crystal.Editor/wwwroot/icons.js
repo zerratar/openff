@@ -48,6 +48,10 @@ const ICONS = {
   cell: '<path d="M1.9 5V2.9h2.2M11.9 2.9h2.2V5M14.1 11v2.1h-2.2M4.1 13.1H1.9V11"/>'
       + '<rect x="5.1" y="5.1" width="5.8" height="5.8" rx=".8"/>',
 
+  // A spark: a four-pointed star and a small one beside it.
+  effect: '<path d="M6.4 2.2 7.5 5.6l3.4 1.1-3.4 1.1-1.1 3.4-1.1-3.4-3.4-1.1 3.4-1.1z"/>'
+        + '<path d="M12 9.2l.6 1.7 1.7.6-1.7.6-.6 1.7-.6-1.7-1.7-.6 1.7-.6z"/>',
+
   // A speaker and one wave.
   audio: '<path d="M2.4 6.1h2.5l3.3-2.8v9.4L4.9 9.9H2.4z"/>'
        + '<path d="M10.9 6.2a3.2 3.2 0 0 1 0 3.6M12.9 4.4a5.8 5.8 0 0 1 0 7.2"/>',

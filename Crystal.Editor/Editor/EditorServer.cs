@@ -2061,6 +2061,25 @@ namespace Crystal.Editor
 					GetCellBank(context);
 					return;
 
+				case "/api/effects":
+					SendJson(context, Effects.List(_workspace));
+					return;
+
+				case "/api/effect":
+					try { SendJson(context, Effects.Read(_workspace, Query(context, "name"))); }
+					catch (Exception ex) { SendJson(context, new { error = ex.Message }); }
+					return;
+
+				case "/api/effect/import":
+					try { SendJson(context, Effects.Import(_workspace, int.Parse(Query(context, "category") ?? "-1"), int.Parse(Query(context, "member") ?? "1"))); }
+					catch (Exception ex) { SendJson(context, new { error = ex.Message }); }
+					return;
+
+				case "/api/effect/texture":
+					try { Send(context, 200, "image/png", Effects.TexturePng(_workspace, Query(context, "pack"), Query(context, "name"))); }
+					catch (Exception) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such texture")); }
+					return;
+
 				case "/api/models":
 					SendJson(context, Models.List(_workspace));
 					return;

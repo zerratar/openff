@@ -24,6 +24,7 @@
     <Compile Include="..\Shared\Text\*.cs" Link="Formats\Text\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Data\*.cs" Link="Formats\Data\%(Filename)%(Extension)" />
     <Compile Include="..\Shared\Graphics\*.cs" Link="Formats\Graphics\%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\Effects\*.cs" Link="Formats\Effects\%(Filename)%(Extension)" />
     <!-- The game's own Shift-JIS tables, so text written by the tool decodes
          back through the game's decoder unchanged. -->
     <Compile Include="..\OpenFF\Sjis.cs" Link="Formats\Sjis.cs" />
