@@ -208,7 +208,7 @@ internal static partial class GlobalScope
 					}
 					int num5 = pl.PlayerParty.instance().player((byte)targetCharNo).equipParameter()
 						.equipMagic((pl.MAGIC_LEVEL)(int)medget.work())
-						.magicId((sbyte)medget.work1());
+						.magicId(medget.work1<sbyte>());
 					itm.ItemBaseParameter itemBaseParameter = itm.ItemManager.instance().itemParameter((short)num5);
 					if (itemBaseParameter == null)
 					{
@@ -285,7 +285,7 @@ internal static partial class GlobalScope
 				int targetCharNo = MenuManager.getSingleton().GetTargetCharNo();
 				int num = pl.PlayerParty.instance().player((byte)targetCharNo).equipParameter()
 					.equipMagic((pl.MAGIC_LEVEL)focuseMedget.work())
-					.magicId((sbyte)focuseMedget.work1());
+					.magicId(focuseMedget.work1<sbyte>());
 				if (num < 0 || evt.CEventRestriction.getSingleton().check(num))
 				{
 					if (num >= 0 && MenuManager.getSingleton().GetMagicMenuType() == 2)
@@ -413,7 +413,7 @@ internal static partial class GlobalScope
 				{
 					if (type == 0)
 					{
-						if ((sbyte)medget.work1() == 0 && GET_MSG_IDX(medget) >= 0)
+						if (medget.work1<sbyte>() == 0 && GET_MSG_IDX(medget) >= 0)
 						{
 							if (pMsg[GET_MSG_IDX(medget)] != null)
 							{
@@ -425,7 +425,7 @@ internal static partial class GlobalScope
 							}
 						}
 					}
-					else if ((sbyte)medget.work1() != 0 && GET_MSG_IDX(medget) >= 0)
+					else if (medget.work1<sbyte>() != 0 && GET_MSG_IDX(medget) >= 0)
 					{
 						if (pMsg[GET_MSG_IDX(medget)] != null)
 						{
@@ -501,7 +501,7 @@ internal static partial class GlobalScope
 				{
 					if (type == 0)
 					{
-						if ((sbyte)medget.work1() == 0 && GET_MSG_IDX(medget) >= 0)
+						if (medget.work1<sbyte>() == 0 && GET_MSG_IDX(medget) >= 0)
 						{
 							if (pMsg[GET_MSG_IDX(medget)] != null)
 							{
@@ -513,7 +513,7 @@ internal static partial class GlobalScope
 							}
 						}
 					}
-					else if ((sbyte)medget.work1() != 0 && GET_MSG_IDX(medget) >= 0)
+					else if (medget.work1<sbyte>() != 0 && GET_MSG_IDX(medget) >= 0)
 					{
 						if (pMsg[GET_MSG_IDX(medget)] != null)
 						{
@@ -595,7 +595,7 @@ internal static partial class GlobalScope
 					{
 						int num3 = pl.PlayerParty.instance().player((byte)no).equipParameter()
 							.equipMagic((pl.MAGIC_LEVEL)num)
-							.magicId((sbyte)medget.work1());
+							.magicId(medget.work1<sbyte>());
 						SET_LEVEL(medget, num);
 						int num4 = (medget.height() - 12) / 2;
 						num2++;
@@ -639,7 +639,7 @@ internal static partial class GlobalScope
 				{
 					int num3 = pl.PlayerParty.instance().player((byte)no).equipParameter()
 						.equipMagic((pl.MAGIC_LEVEL)num)
-						.magicId((sbyte)medget.work1());
+						.magicId(medget.work1<sbyte>());
 					itm.ItemBaseParameter itemBaseParameter = itm.ItemManager.instance().itemParameter((short)num3);
 					SET_LEVEL(medget, num);
 					int num4 = (medget.height() - 12) / 2;
@@ -1002,7 +1002,7 @@ internal static partial class GlobalScope
 				{
 					int num = pl.PlayerParty.instance().player((byte)target).equipParameter()
 						.equipMagic((pl.MAGIC_LEVEL)medget.work())
-						.magicId((sbyte)medget.work1());
+						.magicId(medget.work1<sbyte>());
 					itm.ItemBaseParameter itemBaseParameter = itm.ItemManager.instance().itemParameter((short)num);
 					int num2 = (medget.height() - 12) / 2;
 					if (itemBaseParameter == null)

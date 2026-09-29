@@ -21,7 +21,10 @@ internal static partial class GlobalScope
 		{
 			public class WORK_SPACE
 			{
-				public object work_;
+				// PORT: work is only ever a number (a layout's <work>, or set by code), so it is kept as one: the readers' casts to
+				// sbyte, byte, short or an enum are conversions, where unboxing an object threw unless it held exactly that type
+				// (Config's volume slider cast a layout's sbyte to int - issue #1). work1..3 hold a number or a widget: work1<T>().
+				public int work_;
 
 				public object work1_;
 
@@ -116,7 +119,8 @@ internal static partial class GlobalScope
 				y_ = 0;
 				width_ = 0;
 				height_ = 0;
-				space.work_ = (space.work1_ = (space.work2_ = 0));
+				space.work_ = 0;
+				space.work1_ = (space.work2_ = 0);
 				display_ = 0;
 				myTag_ = 0;
 				up_ = (down_ = (left_ = (right_ = default_id)));
@@ -306,7 +310,7 @@ internal static partial class GlobalScope
 				return behavior_;
 			}
 
-			public object work()
+			public int work()
 			{
 				return space.work_;
 			}
@@ -324,6 +328,40 @@ internal static partial class GlobalScope
 			public object work3()
 			{
 				return space.work3_;
+			}
+
+			/// <summary>PORT: work1 as a number of type T (int, sbyte, an enum...), converted whatever it was boxed as.</summary>
+			public T work1<T>() where T : struct => WorkAs<T>(space.work1_);
+
+			public T work2<T>() where T : struct => WorkAs<T>(space.work2_);
+
+			public T work3<T>() where T : struct => WorkAs<T>(space.work3_);
+
+			/// <summary>
+			/// PORT: a work slot's number as T. A layout's &lt;work1&gt; comes in as an sbyte and code sets ints, so the number is
+			/// converted as the C++ cast did (unchecked: 255 to an sbyte is -1), not unboxed, which throws on any other type.
+			/// </summary>
+			private static T WorkAs<T>(object value) where T : struct
+			{
+				if (value is T same) return same;
+				if (value is not IConvertible number) return default;
+				long n = Convert.ToInt64(number, System.Globalization.CultureInfo.InvariantCulture);
+				Type type = typeof(T);
+				if (type.IsEnum) return (T)Enum.ToObject(type, n);
+				object converted = Type.GetTypeCode(type) switch
+				{
+					TypeCode.SByte => unchecked((sbyte)n),
+					TypeCode.Byte => unchecked((byte)n),
+					TypeCode.Int16 => unchecked((short)n),
+					TypeCode.UInt16 => unchecked((ushort)n),
+					TypeCode.Int32 => unchecked((int)n),
+					TypeCode.UInt32 => unchecked((uint)n),
+					TypeCode.Int64 => n,
+					TypeCode.UInt64 => unchecked((ulong)n),
+					TypeCode.Boolean => n != 0,
+					_ => null,
+				};
+				return converted is T t ? t : default;
 			}
 
 			public sbyte myTag()
@@ -356,7 +394,7 @@ internal static partial class GlobalScope
 				myTag_ = (sbyte)t;
 			}
 
-			public void setWork(object w)
+			public void setWork(int w)
 			{
 				space.work_ = w;
 			}

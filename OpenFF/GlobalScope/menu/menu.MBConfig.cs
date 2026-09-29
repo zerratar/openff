@@ -144,7 +144,7 @@ internal static partial class GlobalScope
 
 			public void ColorUpdate(Medget M)
 			{
-				if ((sbyte)M.work1() != 0)
+				if (M.work1<sbyte>() != 0)
 				{
 					if ((sbyte)M.work() == m_MBCCommon.GetNowMenu((OPTION_LINE)(sbyte)M.parentNode().work()))
 					{

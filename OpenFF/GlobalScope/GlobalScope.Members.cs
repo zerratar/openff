@@ -6241,7 +6241,7 @@ internal static partial class GlobalScope
 
 						internal static int GET_MSG_IDX(menu.Medget MEDGETPTR)
 						{
-							return (int)MEDGETPTR.work2();
+							return MEDGETPTR.work2<int>();
 						}
 
 						internal static void SET_ITEM_PTR(menu.Medget MEDGETPTR, object PTR)
@@ -6271,7 +6271,7 @@ internal static partial class GlobalScope
 
 						internal static int GET_ACTIVITY(menu.Medget MEDGETPTR)
 						{
-							return (int)MEDGETPTR.work1();
+							return MEDGETPTR.work1<int>();
 						}
 
 						internal static void SET_MSG_JOB(menu.Medget MEDGETPTR, object PTR)
@@ -6311,7 +6311,7 @@ internal static partial class GlobalScope
 
 						internal static int GET_ITEM_USABILITY(menu.Medget MEDGETPTR)
 						{
-							return (int)MEDGETPTR.work3();
+							return MEDGETPTR.work3<int>();
 						}
 
 						internal static void SET_TXT_NAME(menu.Medget MEDGETPTR, menu.MBText PTR)

@@ -867,7 +867,7 @@ internal static partial class GlobalScope
 												break;
 											}
 											int level = (int)menu.MenuManager.getSingleton().getFocuseMedget().work();
-											int i = (sbyte)menu.MenuManager.getSingleton().getFocuseMedget().work1();
+											int i = menu.MenuManager.getSingleton().getFocuseMedget().work1<sbyte>();
 											pl.PlayerParty.instance().player((byte)playerIndex).equipParameter()
 												.equipMagic((pl.MAGIC_LEVEL)level)
 												.release(i);
@@ -1063,7 +1063,7 @@ internal static partial class GlobalScope
 									{
 										num = pl.PlayerParty.instance().player((byte)menu.MenuManager.getSingleton().GetTargetCharNo()).equipParameter()
 											.equipMagic((pl.MAGIC_LEVEL)focuseMedget.work())
-											.magicId((sbyte)focuseMedget.work1());
+											.magicId(focuseMedget.work1<sbyte>());
 									}
 									itm.ItemBaseParameter itemBaseParameter = itm.ItemManager.instance().itemParameter((short)num);
 									if (num <= 0 || itemBaseParameter == null)

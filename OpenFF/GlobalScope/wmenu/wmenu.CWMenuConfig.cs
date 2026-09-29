@@ -324,7 +324,7 @@ internal static partial class GlobalScope
                 {
                     for (menu.Medget medget2 = medget.childNode(); medget2 != null; medget2 = medget2.nextSibling())
                     {
-                        if ((int)medget2.work2() != 0)
+                        if (medget2.work2<int>() != 0)
                         {
                             menu.MenuManager.getSingleton().leaveFocusList(medget2);
                         }
