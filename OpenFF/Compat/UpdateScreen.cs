@@ -1,11 +1,12 @@
 // The updates' screen over the title (Updates): "Checking for updates..." in its corner while the
 // client asks GitHub; a new version offered in a panel of the menus' look - its version, the first
-// lines of its notes, Update now / Later / Skip this version; the download's progress bar with its
+// notes (scrolled with the wheel, Page Up / Down, Q / E or L / R when longer than their room), Update now / Later / Skip this version; the download's progress bar with its
 // size, rate and time left; the check and the unpacking; a failure said plainly with OK. Once the
 // updater is running the game closes, and the updater starts it again.
 //
-// Only on the title, so nothing unsaved is lost to the restart; a version found while playing waits
-// for it. With settings.json's "updates": "auto" the download starts without asking.
+// Only before a game is started or loaded - over the logos, the prologue or the title - so nothing
+// unsaved is lost to the restart; the game holds still under it there (GameHost), and a version found
+// once playing waits for the next start. With settings.json's "updates": "auto" the download starts without asking.
 
 using System;
 using System.Collections.Generic;
@@ -31,9 +32,11 @@ namespace OpenFF.Client
 		private int _previousPad;
 		private readonly HashSet<Keys> _wasDown = new HashSet<Keys>();
 		private bool _mouseWasDown;
-		private static readonly Keys[] Watched = { Keys.Up, Keys.Down, Keys.W, Keys.S, Keys.Enter, Keys.Space, Keys.Z, Keys.X, Keys.Back, Keys.Escape };
+		private int _scroll, _wheel, _noteCount, _noteFit;
+		private static readonly Keys[] Watched = { Keys.Up, Keys.Down, Keys.W, Keys.S, Keys.Enter, Keys.Space, Keys.Z, Keys.X, Keys.Back, Keys.Escape, Keys.PageUp, Keys.PageDown, Keys.Q, Keys.E };
+		private const int NoteTop = 92, NoteStep = 17;
 
-		private static readonly Rectangle PanelRect = new Rectangle(160, 70, 480, 340);
+		private static readonly Rectangle PanelRect = new Rectangle(160, 40, 480, 400);
 
 		private UpdateScreen(Game game) : base(game)
 		{
@@ -47,8 +50,27 @@ namespace OpenFF.Client
 			game.Components.Add(Instance);
 		}
 
-		/// <summary>The title is up and nothing else of the client's is over it.</summary>
-		private static bool AtTitle => TitleEntries.Showing && !ModListScreen.IsOpen && !PauseMenu.IsOpen && !(TextEntry.Instance != null && TextEntry.Instance.IsActive);
+		/// <summary>No game started or loaded yet (the logos, the prologue, the title), and nothing else of the client's over the screen.</summary>
+		private static bool AtStart => BeforeGame && !ModListScreen.IsOpen && !PauseMenu.IsOpen && !(TextEntry.Instance != null && TextEntry.Instance.IsActive);
+
+		// A game started (a new one, a load, a --map test start): from then on, no offer this run.
+		private static bool _started = GameProfile.StartStage != null;
+
+		private static bool BeforeGame
+		{
+			get
+			{
+				if (_started) return false;
+				GlobalScope.GAMEPART part;
+				try { part = (GlobalScope.GAMEPART)GlobalScope.sys.FF3PartSys.getCurrentPart(); } catch (Exception) { return false; }
+				if (part == GlobalScope.GAMEPART.GAMEPART_WORLD || part == GlobalScope.GAMEPART.GAMEPART_BATTLE || part == GlobalScope.GAMEPART.GAMEPART_LOAD
+					|| part == GlobalScope.GAMEPART.GAMEPART_SUSPEND_LOAD || part == GlobalScope.GAMEPART.GAMEPART_SPECIAL) _started = true;
+				return !_started;
+			}
+		}
+
+		/// <summary>The panel is up before any game: the game holds still under it (GameHost takes no steps), the logos and the prologue waiting.</summary>
+		public static bool HoldsGame => IsOpen && !_started;
 
 		private string[] Rows()
 		{
@@ -61,7 +83,7 @@ namespace OpenFF.Client
 			}
 		}
 
-		private Rectangle RowRect(int row, int count)
+		private static Rectangle RowRect(int row, int count)
 		{
 			const int h = 28, step = 34;
 			int top = PanelRect.Bottom - 46 - count * step;
@@ -83,9 +105,11 @@ namespace OpenFF.Client
 			if (!_open)
 			{
 				bool offer = stage == Updates.Stage.Available || (stage == Updates.Stage.Failed && Updates.Found != null);
-				if (!AtTitle || !(offer || busy)) return;
+				if (!AtStart || !(offer || busy)) return;
 				_open = true;
 				_selected = 0;
+				_scroll = 0;
+				_wheel = Mouse.GetState().ScrollWheelValue;
 				_wasDown.Clear();
 				KeyboardState now = Keyboard.GetState();
 				foreach (Keys k in Watched) if (Down(now, k)) _wasDown.Add(k);
@@ -104,6 +128,14 @@ namespace OpenFF.Client
 			bool down = Pressed(keys, Keys.Down) || Pressed(keys, Keys.S) || (edge & 128) != 0;
 			bool confirm = Pressed(keys, Keys.Enter) || Pressed(keys, Keys.Space) || Pressed(keys, Keys.Z) || (edge & 1) != 0;
 			bool cancel = Pressed(keys, Keys.Escape) || Pressed(keys, Keys.X) || Pressed(keys, Keys.Back) || (edge & 2) != 0;
+			// The notes scrolled: the wheel a line a notch; Page Up / Down, Q / E and L / R a page.
+			int wheel = Mouse.GetState().ScrollWheelValue, notch = (wheel - _wheel) / 120;
+			if (notch != 0) _wheel = wheel;
+			int page = Math.Max(1, NoteRows(Rows().Length) - 1);
+			int by = -notch
+				+ ((Pressed(keys, Keys.PageDown) || Pressed(keys, Keys.E) || (edge & 0x100) != 0) ? page : 0)
+				- ((Pressed(keys, Keys.PageUp) || Pressed(keys, Keys.Q) || (edge & 0x200) != 0) ? page : 0);
+			if (by != 0) _scroll = Math.Clamp(_scroll + by, 0, Math.Max(0, _noteCount - _noteFit));
 			_wasDown.Clear();
 			foreach (Keys k in Watched) if (Down(keys, k)) _wasDown.Add(k);
 
@@ -151,7 +183,7 @@ namespace OpenFF.Client
 			GlobalScope.Graphics graphics = GlobalScope.m_Graphics;
 			if (graphics == null) return;
 			Updates.Stage stage = Updates.Now;
-			bool checking = stage == Updates.Stage.Checking && AtTitle && !Updates.Asked;
+			bool checking = stage == Updates.Stage.Checking && AtStart && !Updates.Asked;
 			if (!_open && !checking) return;
 			if (_batch == null) _batch = new SpriteBatch(GraphicsDevice);
 			UiTheme.Ensure(GraphicsDevice);
@@ -187,6 +219,16 @@ namespace OpenFF.Client
 			UiTheme.Divider(_batch, panel.Center.X, panel.Y + 78, panel.Width - 60, view);
 			if (progress) UiTheme.Progress(_batch, bar, stage == Updates.Stage.Downloading ? fraction : 1f, view);
 			for (int i = 0; i < rows.Length; i++) UiTheme.Row(_batch, RowRect(i, rows.Length), i == _selected, view, diamonds: i == _selected);
+			// The notes' scrollbar while they are longer than their room: the track, and the part in view.
+			if (stage == Updates.Stage.Available && _noteCount > _noteFit && _noteFit > 0)
+			{
+				int top = panel.Y + NoteTop + 2, height = _noteFit * NoteStep - 4;
+				Rectangle track = new Rectangle(panel.Right - 42, top, 4, height);
+				int thumbH = Math.Max(14, height * _noteFit / _noteCount);
+				int thumbY = top + (height - thumbH) * _scroll / Math.Max(1, _noteCount - _noteFit);
+				UiTheme.Box(_batch, track, new Color(0, 0, 0, 0), new Color(0, 0, 0, 120), view, 2f);
+				UiTheme.Box(_batch, new Rectangle(track.X - 1, thumbY, 6, thumbH), UiTheme.Gold, UiTheme.Gold, view, 3f);
+			}
 			_batch.End();
 
 			graphics.SetImageOrigin(0f, 0f);
@@ -201,7 +243,12 @@ namespace OpenFF.Client
 				float y = panel.Y + 92;
 				if (stage == Updates.Stage.Available)
 				{
-					foreach (string line in Wrap(graphics, Updates.NoteLines(8), 8, panel.Width - 100, 7)) { Ui.Left(graphics, line, panel.X + 50, y, 18, 8, UiTheme.Ink); y += 17; }
+					// As many lines as fit above the buttons, from where the notes are scrolled to.
+					List<string> notes = Wrap(graphics, Updates.NoteLines(400), 8, panel.Width - 110, int.MaxValue);
+					_noteCount = notes.Count;
+					_noteFit = NoteRows(rows.Length);
+					_scroll = Math.Clamp(_scroll, 0, Math.Max(0, _noteCount - _noteFit));
+					for (int i = _scroll; i < notes.Count && i < _scroll + _noteFit; i++) { Ui.Left(graphics, notes[i], panel.X + 50, y, 18, 8, UiTheme.Ink); y += NoteStep; }
 				}
 				else if (stage == Updates.Stage.Failed)
 				{
@@ -259,5 +306,9 @@ namespace OpenFF.Client
 			if (result.Count > most) { result = result.GetRange(0, most); result[most - 1] += " ..."; }
 			return result;
 		}
+
+		/// <summary>How many lines of notes fit between the divider and the first button.</summary>
+		private static int NoteRows(int rows) =>
+			Math.Max(1, (RowRect(0, Math.Max(1, rows)).Y - 10 - (PanelRect.Y + NoteTop)) / NoteStep);
 	}
 }

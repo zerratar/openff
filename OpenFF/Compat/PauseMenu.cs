@@ -302,7 +302,7 @@ namespace OpenFF.Client
 					string[] modes = { "ask", "auto", "off" };
 					int i = Array.IndexOf(modes, Updates.Mode); if (i < 0) i = 0;
 					s.Updates = modes[(i + by + modes.Length) % modes.Length];
-					_note = s.Updates == "ask" ? "a new version is offered on the title" : s.Updates == "auto" ? "a new version is downloaded and installed on the title" : "never looks for updates";
+					_note = s.Updates == "ask" ? "a new version is offered at the next start" : s.Updates == "auto" ? "a new version is downloaded and installed at the next start" : "never looks for updates";
 					break;
 				}
 				case 7:
@@ -327,7 +327,7 @@ namespace OpenFF.Client
 			{
 				case Updates.Stage.Checking: _note = "checking for updates..."; break;
 				case Updates.Stage.UpToDate: _note = "you have the newest - OpenFF " + Updates.Current.ToString(3); _checking = false; break;
-				case Updates.Stage.Available: _note = "OpenFF " + Updates.Found.Version.ToString(3) + " is out - it is offered on the title"; _checking = false; break;
+				case Updates.Stage.Available: _note = "OpenFF " + Updates.Found.Version.ToString(3) + " is out - it is offered at the next start"; _checking = false; break;
 				case Updates.Stage.Failed: _note = Updates.Error ?? "the check did not go through"; _checking = false; break;
 			}
 		}

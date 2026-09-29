@@ -32,6 +32,8 @@ A sample mod that redraws the game's whole menu with no code, and what the menus
 - Menus: the config screens' texts and art follow a layout's look.
 - Menus: a patch's new frames keep their place; a replacing layout keeps its focus tags.
 - Gambits: the layout can place the rule numbers, ON / OFF and the L / R hint apart.
+- Updates: an update is offered at the start, before the logos, the game waiting under it.
+- Updates: an offered update's notes scroll (the wheel, Page Up / Down, Q / E, L / R) instead of running into the buttons.
 
 **Fixes**
 - Menus: the game's faces no longer flash under a layout's portraits.

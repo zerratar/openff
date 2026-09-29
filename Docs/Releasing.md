@@ -16,7 +16,7 @@ The notes a release carries live in `Docs/Releases.md`, one `## <version>` secti
    a draft release for the tag; or upload the local zip by hand on GitHub's *Releases* page
    and paste the notes. Upload the `.sha256` with it either way.
 5. Publish the draft. Installed clients see it at their next start (GitHub's `releases/latest`
-   is the newest published, non-prerelease release): they offer it on the title, download the
+   is the newest published, non-prerelease release): they offer it at the start (before the logos), download the
    zip, check it against the `.sha256` - a release without one is never installed - and hand
    over to the updater. To try a release on a test install first, point it at a copy of the
    release's description: `OpenFF.exe --update-feed=latest.json` (its asset URLs may be files),

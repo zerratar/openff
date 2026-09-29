@@ -117,7 +117,7 @@ namespace OpenFF.Client
 				// Quality of life (the Esc menu's page): F8 the speed, F11 random encounters, and the corner's indicator.
 				QolIndicator.Attach(game);
 
-				// Updates from GitHub's releases: asked in the background now, offered on the title.
+				// Updates from GitHub's releases: asked in the background now, offered before any game (UpdateScreen).
 				UpdateScreen.Attach(game);
 				Updates.CheckAtStart();
 
