@@ -1092,13 +1092,17 @@ the art was replaced at a smaller size and the table left alone. `Docs/Graphics.
 The game's effect packs (FF3's `e###.efp` and the field's), each named after what plays it -
 the spells whose effect record points at it, a school's cast. A pack opens on the **Stage**:
 one of its members (as `effect.efi` numbers them; 1 is the one a spell names) played the way
-the battle plays it, at the target's hit point over a ground, the target standing where the
-battle puts it. Drag to turn the camera, the wheel to come closer; **Play**, **Step** (one game
+the battle plays it, at the target's hit point: a monster (the Goblin to start with, any of the
+game's from the list) or Luneth for a spell on the party, standing in its battle wait where the
+battle stands it - so far back from the hit point and so far below it as the monster's own
+offsets say. An effect's own models (Blizzard's ice block) play their motion too. Drag to turn
+the camera, the wheel to come closer; **Play**, **Step** (one game
 step, a thirtieth of a second), **Restart**, the scrubber, **loop**, 30 or 60 fps (at 60 a
 particle is drawn between its two steps, as the client does), and the count of particles.
 
 What plays is the member imported into the new effect format (`Docs/Effects-Plan.md`) -
-*definition* under the Stage shows it, with what the import left out (a model, for now). The
+*definition* under the Stage shows it, with what the import left out (a model's material
+animation, for now). The
 same import from the command line: `crystal effect <install> <category> [member]`.
 
 ## Audio
@@ -1163,8 +1167,8 @@ switch files.
 - **Writing textures back** - reading a TEX0 is done; writing one means re-quantising
   to a 256 colour palette or to 4x4 blocks.
 - **Audio** - deliberately untouched.
-- **Effects' models** - an effect's model (Blizzard's ice block) is named on the Stage but
-  not drawn; its particles are.
+- **Effects' material animations** - an effect's model plays its motion on the Stage, not its
+  material's animation (a texture's scroll or fade).
 - **New menus** - adding a widget means duplicating one.
 - **New maps** - cloning one is plausible; authoring geometry is not, because models
   and collision are still opaque.

@@ -61,6 +61,8 @@ namespace OpenFF.Effects
 	{
 		public string Name;
 		public uint Version;
+		/// <summary>The pack's bytes, for what is read on demand (a model's containers).</summary>
+		public byte[] Data;
 		public readonly List<EffectTemplate> Templates = new List<EffectTemplate>();
 		/// <summary>The pack's textures by offset (templates share them).</summary>
 		public readonly Dictionary<int, NtpkTexture> Textures = new Dictionary<int, NtpkTexture>();
@@ -83,7 +85,7 @@ namespace OpenFF.Effects
 			int count = r.U16();
 			r.U16();
 			int textures = (int)r.U32();
-			EfpPack pack = new EfpPack { Name = name, Version = r.U32() };
+			EfpPack pack = new EfpPack { Name = name, Version = r.U32(), Data = data };
 			int[] index = new int[count];
 			for (int i = 0; i < count; i++) index[i] = (int)r.U32();
 			for (int i = 0; i < count; i++)
@@ -135,7 +137,7 @@ namespace OpenFF.Effects
 					t = new EffectTemplate();
 					break;
 			}
-			t.Kind = kind; t.Offset = at; t.Size = end - at; t.Id = id; t.TemplateVersion = version;
+			t.Kind = kind; t.Offset = at; t.Size = end - at; t.Id = id; t.TemplateVersion = version; t.AnimAt = anim; t.TextureAt = texture;
 			return t;
 		}
 	}
@@ -145,6 +147,8 @@ namespace OpenFF.Effects
 		public EffectKind Kind;
 		public int Offset, Size;
 		public uint Id, TemplateVersion;
+		/// <summary>Where the template's animation and texture (a model's: its NCAP and NMDP headers) are in the pack.</summary>
+		public int AnimAt, TextureAt;
 	}
 
 	/// <summary>The DS flags of a particle template (enFLAG_PDS).</summary>
@@ -318,6 +322,27 @@ namespace OpenFF.Effects
 			r.At += 48;
 			m.Material = r.Text(48); m.TextureSrt = r.Text(48); m.TexturePattern = r.Text(48); m.Visibility = r.Text(48);
 			return m;
+		}
+
+		/// <summary>The model's geometry container (NMDP, its MDL0 inside) out of the pack; null when it has none.</summary>
+		public byte[] ModelBytes(EfpPack pack) => Slice(pack, TextureAt, 0, 4);
+		/// <summary>The model's texture container (NMDP, its TEX0 inside).</summary>
+		public byte[] TextureBytes(EfpPack pack) => Slice(pack, TextureAt, 4, -1);
+		/// <summary>The model's motion (NCAP); null when it has none.</summary>
+		public byte[] MotionBytes(EfpPack pack) => Slice(pack, AnimAt, 0, 4);
+
+		/// <summary>From the header's offset at <paramref name="from"/> to the one at <paramref name="to"/> (or the pack's end).</summary>
+		private static byte[] Slice(EfpPack pack, int header, int from, int to)
+		{
+			byte[] d = pack?.Data;
+			if (d == null || header <= 0 || header + 16 > d.Length) return null;
+			int start = header + (int)EfiIndex.U32(d, header + from);
+			int stop = to < 0 ? d.Length : header + (int)EfiIndex.U32(d, header + to);
+			if (to >= 0 && EfiIndex.U32(d, header + to) == 0) stop = d.Length;
+			if (start <= header || start >= d.Length || stop <= start || stop > d.Length) return null;
+			byte[] o = new byte[stop - start];
+			Array.Copy(d, start, o, 0, o.Length);
+			return o;
 		}
 	}
 

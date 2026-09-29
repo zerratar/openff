@@ -235,7 +235,14 @@ namespace Crystal.Editor
 			// shipped: the game's own copy even when the project overrides the name (AutoRig
 			// weights a mesh against the game's model, not against an earlier remake of it).
 			byte[] raw = shipped ? (workspace.ReadShipped(name) ?? workspace.Read(name)) : workspace.Read(name);
-			byte[] data = Unpack(Lz.Decompress(raw));
+			ModelBundle read = ReadData(Unpack(Lz.Decompress(raw)), name, TextureFormats(workspace, name));
+			if (read.Problem == null) read.Overridden = workspace.IsOverridden(name);
+			return read;
+		}
+
+		/// <summary>A model package's bytes (the MDL0 inside is found) as the viewer's buffers; formats names each texture's format, for the translucent pass.</summary>
+		public static ModelBundle ReadData(byte[] data, string name, Dictionary<string, int> formats)
+		{
 			if (Mdl0.Find(data) < 0)
 			{
 				return new ModelBundle { Name = name, Problem = "no geometry in this package" };
@@ -248,7 +255,6 @@ namespace Crystal.Editor
 			}
 
 			Mdl0Model model = models[0];
-			Dictionary<string, int> formats = TextureFormats(workspace, name);
 			ModelBundle bundle = new ModelBundle
 			{
 				Name = model.Name,
@@ -257,7 +263,6 @@ namespace Crystal.Editor
 				Triangles = model.Triangles,
 				Quads = model.Quads,
 				Nodes = model.Nodes,
-				Overridden = workspace.IsOverridden(name),
 				Buffer = new List<float>(),
 				Indices = new List<int>(),
 				Groups = new List<ModelGroup>()
@@ -497,6 +502,12 @@ namespace Crystal.Editor
 			byte[] packRaw = workspace.Read(packName);
 			byte[] packData = Lz.IsCompressed(packRaw) ? Lz.Decompress(packRaw) : packRaw;
 			NcapFile pack = found.Item2 ?? NcapFile.Read(packData);
+			return PoseFrom(data, pack, packData, index, packName);
+		}
+
+		/// <summary>A model package's bytes posed by one motion of a pack, frame by frame (see Pose).</summary>
+		public static Pose PoseFrom(byte[] data, NcapFile pack, byte[] packData, int index, string packName = "the pack")
+		{
 			if (index < 0 || index >= pack.Motions.Count)
 			{
 				throw new ArgumentOutOfRangeException(nameof(index), "no motion " + index + " in " + packName);
@@ -864,6 +875,31 @@ namespace Crystal.Editor
 			return material.Texture != null
 				&& formats.TryGetValue(material.Texture, out int format)
 				&& (format == 1 || format == 6);
+		}
+
+		/// <summary>Texture name -> its format, from a texture package's bytes (the TEX0 inside is found).</summary>
+		public static Dictionary<string, int> FormatsOf(byte[] data)
+		{
+			Dictionary<string, int> formats = new Dictionary<string, int>(StringComparer.Ordinal);
+			try
+			{
+				if (data != null && Tex0.Find(data) >= 0)
+					foreach (Tex0Texture texture in Tex0.Read(data).Textures)
+						if (!formats.ContainsKey(texture.Name)) formats[texture.Name] = texture.Format;
+			}
+			catch (Exception) { }
+			return formats;
+		}
+
+		/// <summary>One texture of a texture package's bytes as PNG; null when it has none of that name.</summary>
+		public static byte[] TexturePng(byte[] data, string texture)
+		{
+			if (data == null || Tex0.Find(data) < 0) return null;
+			Tex0File package = Tex0.Read(data);
+			foreach (Tex0Texture found in package.Textures)
+				if (string.Equals(found.Name, texture, StringComparison.Ordinal) && found.Problem == null)
+					return Png.Encode(found.Width, found.Height, Tex0.Decode(package, found));
+			return null;
 		}
 
 		/// <summary>Texture name -> its format, for the pass split.</summary>

@@ -190,7 +190,8 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    Effects library plays it on the Stage (`wwwroot/effects.js`, the runtime's first port).
    Sequences came in with it - member 1 of a spell is a sequence booting the particles along
    paths, and nothing looks like Fire without it. Fire, Blizzard and Cure, and the schools'
-   casts, play as the game plays them; models are named, not drawn. The game's side - every
+   casts, play as the game plays them, models and their motions too (not yet their material
+   animations), on the target the battle would play them on. The game's side - every
    layout, the step-by-step runtime, its quirks - is `Docs/Effects-Eld.md`.
 3. **The runtime in the client** (large). The format, every track and module, the scene
    passes, `FrameCapture`, anchors and paths, spells pointing at a mod effect, `IEffects` by id,
@@ -207,7 +208,8 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
 
 The first cut of the format above, what the Stage plays today: an effect is `format`,
 `from` (the game's category/member it came from), `length` (the frame its sequence ends on),
-`loop`, and `tracks`. A track is `type` (`emitter`; `mesh` is named, not played yet), `name`,
+`loop`, and `tracks`. A track is `type` (`emitter`, or `mesh`: `model` - `game:<pack>:0x<id>`, the
+game's own -, `scale`, `loop`; it plays its motion and ends with it), `name`,
 `start` (its frame), `id` (the sequence's, for a loop not to be booted twice), `anchor`
 (`target`), `offset`, `path` (`point`, or `segments` of four points - P0, P1 and the two
 tangents - with `curve`, `times`, `length` and `end`: hold, pingpong, repeat) and `stop`. An
@@ -217,7 +219,8 @@ emitter adds:
   one every `interval` frames (0 and 1 alike), `bursts` of them in the `duration`, as eld has it;
 - `life` (frames), `space` (`local` follows the emitter), `shape.box` (half extents),
   `size` (the full width, a range);
-- `speed`: `direction`, `value` (a range), `spread` (degrees either way about X, Y, Z);
+- `speed`: `direction`, `value` (a range), `spread` (degrees either way about X, Y, Z - an import
+  writes 180, a whole turn, where the game has any: that is how the port turns them in play);
   `gravity`: `direction`, `value` (per frame, a range); `orbit`: `radius`, `grow`, `turn`
   (degrees a frame); `gather`: `speed`, `accel`, `swirl`; `trail`: `count`, `colour`;
 - `colour` (keys `[age, r, g, b, a]`, 0-255), `scale` (keys `[age, x, y]`) - straight lines

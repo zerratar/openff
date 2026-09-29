@@ -11,8 +11,10 @@
 //
 // Units: frames of the game's 30 a second; world units (4096 of the game's fx32); sizes the full
 // width of a particle (the game keeps half); colours 0-255; angles in degrees, as the game turned
-// them (its emit angles are written as radians x 4096 but turned as 65536 a turn - the preview does
-// what the game did). What a track leaves out is its default.
+// them. An emit angle is written as radians x 4096 but turned as 65536 a turn - and the port turns
+// any axis that has one a whole random turn (its two spread vectors are one object,
+// eld.EmmitController), which is how the game's effects look in play; so that is what the import
+// writes, 180 either way, and a modder can narrow it. What a track leaves out is its default.
 
 using System;
 using System.Collections.Generic;
@@ -87,7 +89,7 @@ namespace OpenFF.Effects
 								if (depth > 4) { notes?.Add("boot " + c.Category + "/" + c.Member + ": sequences nested too deep"); break; }
 								// A sequence booted by a sequence: its tracks on this one's timeline, at its path's start.
 								double[] at = path != null && path.Points.Count > 0 ? Add(offset, Units(path.Points[0])) : offset;
-								int end = Flatten(inner, c.Category, start + frame, at, resolve, tracks, notes, depth + 1);
+								Flatten(inner, c.Category, start + frame, at, resolve, tracks, notes, depth + 1);
 								if (inner.Loop) notes?.Add(c.Category + "/" + c.Member + ": a looping sequence inside a sequence plays once");
 								break;
 							}
@@ -124,13 +126,15 @@ namespace OpenFF.Effects
 				track = new JsonObject
 				{
 					["type"] = "mesh",
-					["model"] = "game:" + pack?.Name + ":" + (string.IsNullOrEmpty(m.Material) ? "0x" + m.Id.ToString("x") : System.IO.Path.GetFileNameWithoutExtension(m.Material)),
+					["model"] = "game:" + pack?.Name + ":0x" + m.Id.ToString("x"),
 					["scale"] = Vector(m.Scale.Select(v => v / 4096.0).ToArray()),
 				};
-				notes?.Add(what + ": a model (" + (m.Material ?? "") + ") - not drawn yet");
+				if (m.Loop) track["loop"] = true;
+				if (!string.IsNullOrEmpty(m.Material)) notes?.Add(what + ": a model (" + System.IO.Path.GetFileNameWithoutExtension(m.Material) + ") - its material animation is not played yet");
 			}
 			else return null;
-			JsonObject head = new JsonObject { ["type"] = track["type"]!.GetValue<string>(), ["name"] = what + (template is ParticleTemplate pt && pt.Texture != null ? " " + Stem(pt.Texture.Name) : ""), ["start"] = start };
+			string label = template is ParticleTemplate pt && pt.Texture != null ? " " + Stem(pt.Texture.Name) : template is ModelTemplate mt && !string.IsNullOrEmpty(mt.Material) ? " " + Stem(mt.Material) : "";
+			JsonObject head = new JsonObject { ["type"] = track["type"]!.GetValue<string>(), ["name"] = what + label, ["start"] = start };
 			if (bootId >= 0) head["id"] = bootId;
 			head["anchor"] = "target";
 			if (offset.Any(v => v != 0)) head["offset"] = Vector(offset);
@@ -167,7 +171,7 @@ namespace OpenFF.Effects
 						["direction"] = Vector(p.SpeedDir.Select(v => v / 4096.0).ToArray()),
 						["value"] = Range(p.SpeedPow / 4096.0, (p.SpeedPow + Math.Max(0, p.SpeedRand)) / 4096.0),
 					};
-					if (p.EmitAngle.Any(v => v != 0)) speed["spread"] = Vector(p.EmitAngle.Select(Degrees).ToArray());
+					if (p.EmitAngle.Any(v => v != 0)) speed["spread"] = Vector(p.EmitAngle.Select(v => v != 0 ? 180.0 : 0.0).ToArray());
 					e["speed"] = speed;
 				}
 				if (p.GravityPow != 0 || p.GravityRand != 0)
@@ -206,7 +210,6 @@ namespace OpenFF.Effects
 			}
 			else e.Remove("frames");
 			e["render"] = new JsonObject { ["blend"] = "alpha", ["facing"] = "camera" };
-			if ((p.Flags & ParticleFlags.Fade) == 0 && (p.FadeTime != 0 || p.FadeColour.Any(c => c != 0))) { }   // carried without the flag: the game ignores it too
 			return e;
 		}
 
@@ -297,8 +300,8 @@ namespace OpenFF.Effects
 					if (fade)
 					{
 						int endFade = p.FadeStart + p.FadeTime;
-						double k = age < p.FadeStart ? 0 : age >= endFade ? 1 : (p.FadeTime == 0 ? 1 : (age - p.FadeStart) / (double)p.FadeTime);
-						if (age >= p.FadeStart && p.FadeTime == 0) k = age >= endFade ? 1 : 0;
+						// A fade carried without its flag is ignored, as the game ignores it.
+						double k = age < p.FadeStart ? 0 : age >= endFade ? 1 : (age - p.FadeStart) / (double)p.FadeTime;
 						fr = p.FadeColour[0] * k; fg = p.FadeColour[1] * k; fb = p.FadeColour[2] * k; fa = p.FadeColour[3] * k;
 					}
 					colours.Add(new[] { age, Clamp(r + fr), Clamp(g + fg), Clamp(b + fb), Clamp(al + fa) });

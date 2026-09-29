@@ -95,14 +95,15 @@ function effectPathAt(path, steps) {
 
 /// A player of one definition. step() is one game step; particles() what to draw after it.
 function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = true } = {}) {
-  const tracks = (def.tracks || []).filter(t => t.type === 'emitter');
-  let rand, frame, cycle, live, stopping;
+  const tracks = (def.tracks || []).filter(t => t.type === 'emitter' || t.type === 'mesh');
+  let rand, frame, cycle, live, meshes, stopping;
 
   function reset() {
     rand = effectRandom(seed);
     frame = -1;            // the step just taken; 0 is the effect's first
     cycle = 0;             // the frame the timeline's current pass began on (a looping effect's)
     live = [];             // the emitters started, in the order they were
+    meshes = [];           // the models started: where they are, how many steps they have played
     stopping = false;
   }
 
@@ -237,8 +238,11 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
       if ((t.start || 0) !== at) continue;
       // A pass after the first leaves a looping emitter that is still going alone (the sequence's `first`).
       if (cycle > 0 && t.id !== undefined && live.some(e => e.track === t && !e.done && (t.emission || {}).loop)) continue;
+      if (t.type === 'mesh') { if (cycle === 0 || def.loop) meshes.push({ track: t, steps: 0, at: [0, 0, 0], prev: null }); continue; }
       if (cycle === 0 || def.loop) start(t);
     }
+    // A model plays its motion a frame a step, riding its path as an emitter does; the Stage ends it with its motion.
+    for (const m of meshes) { m.steps++; m.prev = m.at; m.at = where(m); if (m.steps === 1) m.prev = m.at; }
     for (const e of live) {
       if (e.done) continue;
       if (!def.loop && at >= length && cycle === 0) e.stopped = true;
@@ -278,9 +282,15 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
     return out;
   }
 
+  /// The models to draw now: each with its track, where it is (and was), and the frame of its motion (0 its first).
+  function models() {
+    if (frame >= (def.length || 0) && !def.loop && live.every(e => e.done)) return [];
+    return meshes.map(m => ({ track: m.track, pos: m.at, prev: m.prev || m.at, frame: m.steps - 1 }));
+  }
+
   reset();
   return {
-    reset, step, particles,
+    reset, step, particles, models,
     get frame() { return frame; },
     /// Whether everything it started has finished (and it does not loop).
     get finished() { return !def.loop && frame >= (def.length || 0) && live.every(e => e.done); }
@@ -333,6 +343,42 @@ precision mediump float;
 varying vec4 vColour;
 void main() { gl_FragColor = vColour; }`;
 
+const EFFECT_MODEL_VERTEX = `
+attribute vec3 position;
+attribute vec2 coord;
+attribute vec3 colour;
+attribute float mindex;
+uniform mat4 view;
+uniform mat4 projection;
+uniform mat4 world;
+uniform mat4 palette[32];
+varying vec2 vCoord;
+varying vec3 vColour;
+void main() {
+  gl_Position = projection * view * world * palette[int(mindex + 0.5)] * vec4(position, 1.0);
+  vCoord = coord;
+  vColour = colour;
+}`;
+
+const EFFECT_MODEL_FRAGMENT = `
+precision mediump float;
+uniform sampler2D picture;
+uniform bool textured;
+uniform vec3 tint;
+uniform float alpha;
+varying vec2 vCoord;
+varying vec3 vColour;
+void main() {
+  vec4 c = textured ? texture2D(picture, vCoord) : vec4(1.0);
+  if (c.a < 0.05) discard;
+  gl_FragColor = vec4(c.rgb * vColour * tint, c.a * alpha);
+}`;
+
+/// A 4x3 of the server's (rotation rows, then the translation - row vectors) as a column-major mat4.
+function effectMat43(m, at = 0) {
+  return [m[at], m[at + 1], m[at + 2], 0, m[at + 3], m[at + 4], m[at + 5], 0, m[at + 6], m[at + 7], m[at + 8], 0, m[at + 9], m[at + 10], m[at + 11], 1];
+}
+
 function effectCompile(gl, vs, fs) {
   const make = (kind, text) => {
     const s = gl.createShader(kind);
@@ -375,26 +421,132 @@ function makeEffectStage(canvas, textureUrl) {
   const lineAttr = { position: gl.getAttribLocation(lines, 'position'), colour: gl.getAttribLocation(lines, 'colour') };
   const lineUnif = { view: gl.getUniformLocation(lines, 'view'), projection: gl.getUniformLocation(lines, 'projection') };
   const quadBuffer = gl.createBuffer(), lineBuffer = gl.createBuffer();
+  const modelProgram = effectCompile(gl, EFFECT_MODEL_VERTEX, EFFECT_MODEL_FRAGMENT);
+  const ma = n => gl.getAttribLocation(modelProgram, n), mu = n => gl.getUniformLocation(modelProgram, n);
+  const modelAttr = { position: ma('position'), coord: ma('coord'), colour: ma('colour'), mindex: ma('mindex') };
+  const modelUnif = { view: mu('view'), projection: mu('projection'), world: mu('world'), palette: mu('palette'), picture: mu('picture'), textured: mu('textured'), tint: mu('tint'), alpha: mu('alpha') };
 
-  // The ground the target stands on: the hit point is 5 up from it and 9 toward the camera (TurnSystem.setHitEffectPosition).
-  const GROUND = -5, TARGET_Z = -9;
-  const ground = [];
-  const put = (x1, y1, z1, x2, y2, z2, c) => ground.push(x1, y1, z1, ...c, x2, y2, z2, ...c);
-  for (let i = -30; i <= 30; i += 5) {
-    const c = i === 0 ? [0.35, 0.4, 0.48, 1] : [0.2, 0.23, 0.28, 1];
-    put(i, GROUND, -30, i, GROUND, 30, c);
-    put(-30, GROUND, i, 30, GROUND, i, c);
+  // The ground the target stands on, and the target where the battle has it: the hit point (the origin, where
+  // the effect plays) is so far up from its feet and so far toward the camera (TurnSystem.setHitEffectPosition) -
+  // 5 and 9 for the party, the monster's own offsets for a monster.
+  let target = { toward: 9, up: 5, scale: 1, turn: 0, model: null }, lineCount = 0;
+  function layGround() {
+    const ground = [], GROUND = -target.up, Z = -target.toward;
+    const put = (x1, y1, z1, x2, y2, z2, c) => ground.push(x1, y1, z1, ...c, x2, y2, z2, ...c);
+    for (let i = -30; i <= 30; i += 5) {
+      const c = i === 0 ? [0.35, 0.4, 0.48, 1] : [0.2, 0.23, 0.28, 1];
+      put(i, GROUND, Z - 30, i, GROUND, Z + 30, c);
+      put(-30, GROUND, Z + i, 30, GROUND, Z + i, c);
+    }
+    if (!target.model) {
+      // No model: a post of its height.
+      const post = [0.55, 0.45, 0.3, 1], H = GROUND + 10;
+      for (const [dx, dz] of [[-2, -1], [2, -1], [2, 1], [-2, 1]]) put(dx, GROUND, Z + dz, dx, H, Z + dz, post);
+      put(-2, H, Z - 1, 2, H, Z - 1, post); put(-2, H, Z + 1, 2, H, Z + 1, post);
+      put(-2, H, Z - 1, -2, H, Z + 1, post); put(2, H, Z - 1, 2, H, Z + 1, post);
+    }
+    const mark = [0.43, 0.66, 1, 1];
+    put(-0.8, 0, 0, 0.8, 0, 0, mark); put(0, -0.8, 0, 0, 0.8, 0, mark); put(0, 0, -0.8, 0, 0, 0.8, mark);
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ground), gl.STATIC_DRAW);
+    lineCount = ground.length / 7;
   }
-  // The target: a post of its height, and the hit point the effect plays at marked with a small cross.
-  const post = [0.55, 0.45, 0.3, 1];
-  for (const [dx, dz] of [[-2, -1], [2, -1], [2, 1], [-2, 1]]) put(dx, GROUND, TARGET_Z + dz, dx, GROUND + 10, TARGET_Z + dz, post);
-  put(-2, GROUND + 10, TARGET_Z - 1, 2, GROUND + 10, TARGET_Z - 1, post); put(-2, GROUND + 10, TARGET_Z + 1, 2, GROUND + 10, TARGET_Z + 1, post);
-  put(-2, GROUND + 10, TARGET_Z - 1, -2, GROUND + 10, TARGET_Z + 1, post); put(2, GROUND + 10, TARGET_Z - 1, 2, GROUND + 10, TARGET_Z + 1, post);
-  const mark = [0.43, 0.66, 1, 1];
-  put(-0.8, 0, 0, 0.8, 0, 0, mark); put(0, -0.8, 0, 0, 0.8, 0, mark); put(0, 0, -0.8, 0, 0, 0.8, mark);
-  gl.bindBuffer(gl.ARRAY_BUFFER, lineBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ground), gl.STATIC_DRAW);
-  const lineCount = ground.length / 7;
+  layGround();
+
+  // Models: the target's and the effects' own, their buffers and textures loaded once.
+  const models = new Map();
+  function loadModel(key, url, textureOf) {
+    let m = models.get(key);
+    if (m) return m;
+    m = { ready: false, groups: [], pose: null };
+    models.set(key, m);
+    api(url).then(r => {
+      const bundle = r.model || r;
+      if (!bundle || bundle.error || bundle.problem || !bundle.buffer) { m.problem = (bundle && (bundle.error || bundle.problem)) || 'no model'; return; }
+      m.vertex = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.vertex);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bundle.buffer), gl.STATIC_DRAW);
+      m.mindex = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.mindex);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bundle.matrixIndex && bundle.matrixIndex.length ? bundle.matrixIndex : new Array(bundle.buffer.length / 8).fill(0)), gl.STATIC_DRAW);
+      m.index = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.index);
+      const big = bundle.buffer.length / 8 > 65535;
+      if (big) gl.getExtension('OES_element_index_uint');
+      m.indexType = big ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+      m.indexSize = big ? 4 : 2;
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, big ? new Uint32Array(bundle.indices) : new Uint16Array(bundle.indices), gl.STATIC_DRAW);
+      m.groups = (bundle.groups || []).map(g => ({ ...g, picture: g.texture ? modelTexture(textureOf(g.texture), g.wrapS, g.wrapT) : null }));
+      m.pose = r.pose || null;
+      m.loop = Boolean(r.loop);
+      m.ready = true;
+    }).catch(e => { m.problem = e.message; });
+    return m;
+  }
+  function modelTexture(url, wrapS, wrapT) {
+    const t = { gl: gl.createTexture(), ready: false };
+    const image = new Image();
+    image.onload = () => {
+      gl.bindTexture(gl.TEXTURE_2D, t.gl);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      const wrap = w => w === 'mirror' ? gl.MIRRORED_REPEAT : w === 'clamp' ? gl.CLAMP_TO_EDGE : gl.REPEAT;
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap(wrapS));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap(wrapT));
+      t.ready = true;
+    };
+    image.src = url;
+    return t;
+  }
+
+  const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  /// One model's groups of a pass: the opaque ones (translucent false) or the translucent.
+  function drawModel(m, world, frame, translucent, view, projection) {
+    if (!m || !m.ready) return;
+    gl.useProgram(modelProgram);
+    gl.uniformMatrix4fv(modelUnif.view, false, view);
+    gl.uniformMatrix4fv(modelUnif.projection, false, projection);
+    gl.uniformMatrix4fv(modelUnif.world, false, world);
+    gl.uniform1i(modelUnif.picture, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, m.vertex);
+    gl.enableVertexAttribArray(modelAttr.position); gl.vertexAttribPointer(modelAttr.position, 3, gl.FLOAT, false, 32, 0);
+    gl.enableVertexAttribArray(modelAttr.coord); gl.vertexAttribPointer(modelAttr.coord, 2, gl.FLOAT, false, 32, 12);
+    gl.enableVertexAttribArray(modelAttr.colour); gl.vertexAttribPointer(modelAttr.colour, 3, gl.FLOAT, false, 32, 20);
+    gl.bindBuffer(gl.ARRAY_BUFFER, m.mindex);
+    gl.enableVertexAttribArray(modelAttr.mindex); gl.vertexAttribPointer(modelAttr.mindex, 1, gl.FLOAT, false, 4, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.index);
+    // Where a frame's matrices start: the groups' counts laid end to end, frame after frame.
+    const pose = m.pose, per = pose ? pose.counts.reduce((a, b) => a + b, 0) : 0;
+    const f = pose ? Math.max(0, Math.min(pose.frames - 1, m.loop ? frame % pose.frames : frame)) : 0;
+    let slot = 0;
+    for (let gi = 0; gi < m.groups.length; gi++) {
+      const g = m.groups[gi], count = pose ? (pose.counts[gi] || 1) : 1;
+      const first = slot;
+      slot += count;
+      if (g.hidden || Boolean(g.translucent) !== translucent) continue;
+      const palette = new Float32Array(32 * 16);
+      for (let k = 0; k < 32; k++) palette.set(IDENTITY, k * 16);
+      if (pose) for (let k = 0; k < count && k < 32; k++) palette.set(effectMat43(pose.matrices, (f * per + first + k) * 12), k * 16);
+      gl.uniformMatrix4fv(modelUnif.palette, false, palette);
+      const textured = Boolean(g.picture && g.picture.ready);
+      gl.uniform1i(modelUnif.textured, textured ? 1 : 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, textured ? g.picture.gl : blank);
+      const c = g.colour === undefined ? 0xFFFFFF : g.colour;
+      gl.uniform3f(modelUnif.tint, ((c >> 16) & 255) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255);
+      gl.uniform1f(modelUnif.alpha, g.alpha === undefined ? 1 : g.alpha);
+      gl.drawElements(gl.TRIANGLES, g.count, m.indexType, g.start * m.indexSize);
+    }
+    for (const loc of Object.values(modelAttr)) gl.disableVertexAttribArray(loc);
+  }
+
+  /// The world matrix of a model at a place, scaled, turned about Y by degrees.
+  function placed(pos, scale, turn = 0) {
+    const s = Array.isArray(scale) ? scale : [scale, scale, scale];
+    const c = Math.cos(turn * EFFECT_DEG), n = Math.sin(turn * EFFECT_DEG);
+    return new Float32Array([c * s[0], 0, -n * s[0], 0, 0, s[1], 0, 0, n * s[2], 0, c * s[2], 0, pos[0], pos[1], pos[2], 1]);
+  }
 
   const textures = new Map();
   const blank = gl.createTexture();
@@ -442,7 +594,14 @@ function makeEffectStage(canvas, textureUrl) {
   canvas.addEventListener('pointerup', () => { dragging = null; });
   canvas.addEventListener('wheel', e => { e.preventDefault(); camera.distance = Math.max(8, Math.min(200, camera.distance * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
 
-  function draw(quads, between) {
+  /// What stands at the hit point: { model (a game model's name, or none), scale, toward, up, turn }.
+  function setTarget(t) {
+    target = { toward: t.toward || 0, up: t.up || 0, scale: t.scale || 1, turn: t.turn || 0, model: t.model || null };
+    camera.target = [0, 1, -target.toward / 3];
+    layGround();
+  }
+
+  function draw(quads, between, meshes = []) {
     const { view, projection } = matrices();
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.078, 0.086, 0.102, 1);
@@ -463,6 +622,41 @@ function makeEffectStage(canvas, textureUrl) {
     gl.drawArrays(gl.LINES, 0, lineCount);
     gl.disableVertexAttribArray(lineAttr.position);
     gl.disableVertexAttribArray(lineAttr.colour);
+
+    // The scene's models - the target, the effect's own - opaque first, then the translucent over them.
+    const scene = [];
+    if (target.model) {
+      const m = loadModel('target:' + target.model, `/api/model?name=${encodeURIComponent(target.model)}`,
+        tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(target.model)}&texture=${encodeURIComponent(tex)}`));
+      if (!m.idle) {
+        // Standing as it stands in battle: the first motion (101, the wait) of the pack that fits the model best, looping.
+        m.idle = true;
+        api(`/api/model/motions?name=${encodeURIComponent(target.model)}`).then(packs => {
+          const pack = (packs || []).find(p => p.motions && p.motions.length);
+          if (!pack) return null;
+          const motion = pack.motions.find(x => x.id === 101) || pack.motions[0];
+          return api(`/api/model/pose?name=${encodeURIComponent(target.model)}&pack=${encodeURIComponent(pack.name)}&index=${motion.index}`);
+        }).then(pose => { if (pose && pose.matrices) { m.pose = pose; m.loop = true; } }).catch(() => {});
+      }
+      scene.push({ m, world: placed([0, -target.up, -target.toward], target.scale, target.turn), frame: Math.floor(performance.now() / 1000 * 30) });
+    }
+    for (const e of meshes) {
+      const k = /^game:([^:]+):(.+)$/.exec(e.track.model || '');
+      if (!k) continue;
+      const m = loadModel(e.track.model, `/api/effect/model?pack=${encodeURIComponent(k[1])}&id=${encodeURIComponent(k[2])}`,
+        tex => wsUrl(`/api/effect/model/texture?pack=${encodeURIComponent(k[1])}&id=${encodeURIComponent(k[2])}&name=${encodeURIComponent(tex)}`));
+      // A model without a loop ends with its motion (eld.ImpModelDS: StopToDead at the motion's end).
+      if (m.ready && m.pose && !m.loop && e.frame >= m.pose.frames) continue;
+      const pos = [0, 1, 2].map(i => e.prev[i] + (e.pos[i] - e.prev[i]) * between);
+      scene.push({ m, world: placed(pos, e.track.scale || 1), frame: e.frame });
+    }
+    for (const it of scene) drawModel(it.m, it.world, it.frame, false, view, projection);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    for (const it of scene) drawModel(it.m, it.world, it.frame, true, view, projection);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
 
     if (!quads.length) return;
     // Particles as the game draws them: after the scene, alpha-blended, tested against its depth and never writing it.
@@ -507,7 +701,7 @@ function makeEffectStage(canvas, textureUrl) {
     gl.depthMask(true);
   }
 
-  return { draw, camera };
+  return { draw, camera, setTarget };
 }
 
 // ------------------------------------------------------------------ the view
@@ -518,6 +712,9 @@ function effectTextureUrl(key) {
   if (!m) return '';
   return wsUrl(`/api/effect/texture?pack=${encodeURIComponent(m[1])}&name=${encodeURIComponent(m[2])}`);
 }
+
+/// What the Stage stood at the hit point last, for the next effect opened: the Goblin to start with.
+let effectTarget = '1';
 
 async function openEffect(name) {
   const node = view('effect', name, false);
@@ -565,7 +762,10 @@ async function openEffect(name) {
   fpsPick.value = '60';
   const count = document.createElement('span');
   count.className = 'effect-count';
-  controls.append(loopBox, fpsPick, count);
+  const targetPick = document.createElement('select');
+  targetPick.title = 'what stands at the hit point: the effect plays where the battle plays it on this one';
+  for (const [value, text] of [['post', 'a post'], ['-1', 'Luneth (the party)']]) { const o = document.createElement('option'); o.value = value; o.textContent = text; targetPick.append(o); }
+  controls.append(loopBox, fpsPick, targetPick, count);
   const notes = document.createElement('details');
   notes.className = 'effect-notes';
   const summary = document.createElement('summary');
@@ -576,6 +776,27 @@ async function openEffect(name) {
 
   const stage = makeEffectStage(canvas, effectTextureUrl);
   if (!stage) { facts.textContent = 'this browser has no WebGL, so effects cannot be drawn'; return; }
+
+  // The monsters to stand at the hit point; the Goblin to start with.
+  async function setTarget(value) {
+    effectTarget = value;
+    if (value === 'post') { stage.setTarget({ toward: 9, up: 5 }); return; }
+    const t = await api(`/api/effect/target?monster=${encodeURIComponent(value)}`);
+    if (t.error) { say(t.error, 'bad'); return; }
+    stage.setTarget(t);
+  }
+  targetPick.onchange = () => setTarget(targetPick.value);
+  if (typeof monstersForPicker === 'function') {
+    monstersForPicker().then(list => {
+      const group = document.createElement('optgroup');
+      group.label = 'monsters';
+      for (const m of list.filter(x => !x.mod)) { const o = document.createElement('option'); o.value = String(m.id); o.textContent = m.name; group.append(o); }
+      targetPick.append(group);
+      targetPick.value = effectTarget;
+      if (targetPick.value !== effectTarget) targetPick.value = 'post';
+      setTarget(targetPick.value);
+    }).catch(() => {});
+  }
 
   let player = null, def = null, playing = true, last = performance.now(), owed = 0, length = 60;
 
@@ -627,7 +848,7 @@ async function openEffect(name) {
     }
     const quads = player ? player.particles() : [];
     // A step drawn between where it was and where it is: `between` 0 is the step before.
-    stage.draw(quads, fpsPick.value === '60' && playing ? between : 1);
+    stage.draw(quads, fpsPick.value === '60' && playing ? between : 1, player ? player.models() : []);
     if (player) {
       label.textContent = `frame ${Math.max(0, player.frame)} / ${length}`;
       if (playing) scrub.value = String(Math.max(0, player.frame));

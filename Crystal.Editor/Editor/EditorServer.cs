@@ -2075,6 +2075,21 @@ namespace Crystal.Editor
 					catch (Exception ex) { SendJson(context, new { error = ex.Message }); }
 					return;
 
+				case "/api/effect/target":
+					try { SendJson(context, Effects.Target(_workspace, int.Parse(Query(context, "monster") ?? "1"))); }
+					catch (Exception ex) { SendJson(context, new { error = ex.Message }); }
+					return;
+
+				case "/api/effect/model":
+					try { SendJson(context, Effects.Model(_workspace, Query(context, "pack"), Query(context, "id"))); }
+					catch (Exception ex) { SendJson(context, new { error = ex.Message }); }
+					return;
+
+				case "/api/effect/model/texture":
+					try { Send(context, 200, "image/png", Effects.ModelTexturePng(_workspace, Query(context, "pack"), Query(context, "id"), Query(context, "name"))); }
+					catch (Exception) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such texture")); }
+					return;
+
 				case "/api/effect/texture":
 					try { Send(context, 200, "image/png", Effects.TexturePng(_workspace, Query(context, "pack"), Query(context, "name"))); }
 					catch (Exception) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such texture")); }

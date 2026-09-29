@@ -4,7 +4,8 @@
 // new format for the Stage to play (Shared/Effects/EffectImport.cs), and the pack's textures as PNG.
 //
 // Server: /api/effects (list), /api/effect?name= (a pack), /api/effect/import?category=&member=,
-// /api/effect/texture?pack=&name=.
+// /api/effect/texture?pack=&name=, and an effect's model: /api/effect/model?pack=&id= (its buffers,
+// as the model viewer has them, and its motion posed frame by frame), /api/effect/model/texture.
 
 using System;
 using System.Collections.Generic;
@@ -44,7 +45,7 @@ namespace Crystal.Editor
 			{
 				if (_caches.TryGetValue(workspace, out Cache c) && c.Version == workspace.Version) return c;
 				c = new Cache { Version = workspace.Version, Names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) };
-				foreach (WorkspaceEntry entry in workspace.List(".efp", ".efi", ".chaindata"))
+				foreach (WorkspaceEntry entry in workspace.List(".efp", ".efi", ".chaindata", ".lz"))
 				{
 					string file = System.IO.Path.GetFileName(entry.Name);
 					if (!c.Names.ContainsKey(file)) c.Names[file] = entry.Name;
@@ -138,6 +139,75 @@ namespace Crystal.Editor
 			NtpkTexture t = p.Textures.Values.FirstOrDefault(x => x != null && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))
 				?? throw new InvalidOperationException("no texture " + name + " in " + pack);
 			return Png.Encode(t.Width, t.Height, t.DecodeRgba());
+		}
+
+		/// <summary>
+		/// What the Stage stands at the hit point: a monster's battle model (its family's), its scale, and
+		/// where the battle plays an effect on it (monster.chaindata chain 4's hit offset: so far toward the
+		/// camera, so far up - btl.TurnSystem.setHitEffectPosition) - or, for -1, the party's first, whose
+		/// hit point is 9 toward the camera and 5 up.
+		/// </summary>
+		public static object Target(Workspace workspace, int monster)
+		{
+			Cache c = For(workspace);
+			if (monster < 0) return new { name = "Luneth", model = Named(c, "j101.nmdp.lz"), scale = 1.0, toward = 9.0, up = 5.0, turn = 0 };
+			GameTables tables = GameData.Tables(workspace);
+			MonsterDefinition m = tables.Monsters.FirstOrDefault(x => x.Id == monster) ?? throw new InvalidOperationException("no monster " + monster);
+			double scale = 1, toward = 9, up = 5;
+			int turn = 0;
+			try
+			{
+				ChainPack chain = ChainPack.Read(workspace.Read(Named(c, "monster.chaindata")));
+				int records = chain.Size(4) / 160;
+				for (int i = 0; i < records; i++)
+				{
+					byte[] r = chain.Record(4, 160, i);
+					if (BitConverter.ToInt32(r, 0) != monster) continue;
+					toward = BitConverter.ToInt32(r, 4);
+					up = BitConverter.ToInt32(r, 8);
+					turn = BitConverter.ToInt32(r, 96);
+					scale = BitConverter.ToInt32(r, 100) / 4096.0;
+					break;
+				}
+			}
+			catch (Exception) { }
+			string model = new[] { m.ModelId, m.Family }.Select(n => Named(c, "f" + n.ToString("000", CultureInfo.InvariantCulture) + ".nmdp.lz")).FirstOrDefault(workspace.Exists);
+			return new { name = m.Name, model, scale = scale > 0 ? scale : 1, toward, up, turn };
+		}
+
+		/// <summary>A model an effect shows (ModelDS): its geometry as the viewers draw it, and its motion as a pose a frame.</summary>
+		public static object Model(Workspace workspace, string pack, string id)
+		{
+			(ModelTemplate m, EfpPack p) = ModelOf(workspace, pack, id);
+			byte[] geometry = m.ModelBytes(p), textures = m.TextureBytes(p), motion = m.MotionBytes(p);
+			if (geometry == null) throw new InvalidOperationException("no geometry for model " + id + " in " + pack);
+			ModelBundle bundle = Models.ReadData(geometry, m.Material, Models.FormatsOf(textures));
+			Models.Pose pose = null;
+			string problem = null;
+			if (motion != null)
+			{
+				try
+				{
+					NcapFile ncap = NcapFile.Read(motion);
+					if (ncap.Motions.Count > 0) pose = Models.PoseFrom(geometry, ncap, motion, 0, pack);
+				}
+				catch (Exception ex) { problem = "its motion: " + ex.Message; }
+			}
+			return new { model = bundle, pose, loop = m.Loop, scale = m.Scale.Select(v => v / 4096.0).ToArray(), problem };
+		}
+
+		public static byte[] ModelTexturePng(Workspace workspace, string pack, string id, string texture)
+		{
+			(ModelTemplate m, EfpPack p) = ModelOf(workspace, pack, id);
+			return Models.TexturePng(m.TextureBytes(p), texture) ?? throw new InvalidOperationException("no texture " + texture + " for model " + id);
+		}
+
+		private static (ModelTemplate, EfpPack) ModelOf(Workspace workspace, string pack, string id)
+		{
+			Cache c = For(workspace);
+			EfpPack p = Pack(workspace, c, pack) ?? throw new InvalidOperationException("not an effect pack: " + pack);
+			uint n = uint.Parse((id ?? "").Replace("0x", ""), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+			return (p.Template(n) as ModelTemplate ?? throw new InvalidOperationException("no model " + id + " in " + pack), p);
 		}
 
 		/// <summary>A category's member as the game finds it: the id effect.efi gives, in the category's own pack, else in whichever pack has it.</summary>
