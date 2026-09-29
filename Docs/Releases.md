@@ -16,6 +16,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 **Improvements**
 - Esc menu: a new look - gold framed panel, icons, steppers and switches.
+- Mod list: the same new look, with checkboxes and move buttons.
 - Menus: button hints show keyboard keys (Enter, Esc) when no controller is connected.
 
 ## 0.2.1 - party panels and quest logs (2026-09-29)

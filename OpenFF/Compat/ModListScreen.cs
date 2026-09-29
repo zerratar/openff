@@ -33,15 +33,7 @@ namespace OpenFF.Client
 	{
 		private const float TextSpaceWidth = 800f;
 		private const float TextSpaceHeight = 480f;
-		private const int TitleSize = 14;
-		private const int RowSize = 10;
-		private const float RowHeight = 20f;
-		private const float ListTop = 92f;
-		private const float ListLeft = 60f;
-		private const float ListWidth = 680f;
-		private const int RowsPerPage = 13;
-		private const float FooterTop = 386f;
-		private const float BackTop = 406f;
+		private const int RowSize = 10;   // the title's own labels' note
 
 		public static ModListScreen Instance { get; private set; }
 
@@ -210,13 +202,23 @@ namespace OpenFF.Client
 			Refresh();
 		}
 
+		// The look (UiTheme, as the Esc menu's): the panel and its rows in the 800x480 text space.
+		private static readonly Rectangle PanelRect = new Rectangle(130, 44, 540, 398);
+		private const float ListTop = 134f, RowStep = 35f, RowH = 30f;
+		private const int RowsPerPage = 6;
+		private static Rectangle RowRect(int row) => new Rectangle(PanelRect.X + 22, (int)(ListTop + row * RowStep), PanelRect.Width - 44, (int)RowH);
+		private static Rectangle UpButton(Rectangle r) => new Rectangle(r.Right - 70, r.Y + 4, 28, (int)RowH - 8);
+		private static Rectangle DownButton(Rectangle r) => new Rectangle(r.Right - 36, r.Y + 4, 28, (int)RowH - 8);
+		private static Rectangle FooterRect => new Rectangle(PanelRect.X + 20, (int)(ListTop + RowsPerPage * RowStep + 2), PanelRect.Width - 40, 84);
+		private static Rectangle BackButton => new Rectangle(400 - 76, FooterRect.Bottom - 29, 152, 23);
+
 		/// <summary>A click in viewport pixels: on a row toggles it, on its arrows moves it, on Back closes.</summary>
 		private void Click(int px, int py)
 		{
 			Viewport view = GraphicsDevice.Viewport;
-			float tx = px / (float)view.Width * TextSpaceWidth;
-			float ty = py / (float)view.Height * TextSpaceHeight;
-			if (ty >= BackTop && ty <= BackTop + 26 && tx >= TextSpaceWidth / 2 - 60 && tx <= TextSpaceWidth / 2 + 60)
+			int tx = (int)(px / (float)view.Width * Ui.W);
+			int ty = (int)(py / (float)view.Height * Ui.H);
+			if (BackButton.Contains(tx, ty))
 			{
 				Close();
 				return;
@@ -225,21 +227,12 @@ namespace OpenFF.Client
 			{
 				int index = _scroll + row;
 				if (index >= _mods.Count) break;
-				float top = ListTop + row * RowHeight;
-				if (ty < top || ty >= top + RowHeight || tx < ListLeft || tx > ListLeft + ListWidth) continue;
+				Rectangle r = RowRect(row);
+				if (!r.Contains(tx, ty)) continue;
 				_selected = index;
-				if (tx >= ListLeft + ListWidth - 60 && tx < ListLeft + ListWidth - 30)
-				{
-					Move(-1);
-				}
-				else if (tx >= ListLeft + ListWidth - 30)
-				{
-					Move(1);
-				}
-				else
-				{
-					Toggle(index);
-				}
+				if (UpButton(r).Contains(tx, ty)) Move(-1);
+				else if (DownButton(r).Contains(tx, ty)) Move(1);
+				else Toggle(index);
 				return;
 			}
 		}
@@ -264,70 +257,110 @@ namespace OpenFF.Client
 				return;
 			}
 			EnsureResources();
+			UiTheme.Ensure(GraphicsDevice);
 			Viewport view = GraphicsDevice.Viewport;
-			float sx = view.Width / TextSpaceWidth;
-			float sy = view.Height / TextSpaceHeight;
+			Rectangle panel = PanelRect, footer = FooterRect, back = BackButton;
+			bool pad = Ui.PadConnected;
+			const int titleSize = 16, subSize = 8, rowSize = 11, descSize = 10, footSize = 9;
 
-			_batch.Begin();
-			_batch.Draw(_pixel, new Rectangle(0, 0, view.Width, view.Height), new Color(0, 0, 0, 200));
-			Rectangle panel = new Rectangle((int)(40 * sx), (int)(40 * sy), (int)(720 * sx), (int)(400 * sy));
-			_batch.Draw(_pixel, panel, new Color(24, 40, 96, 240));
-			Outline(panel, Color.White, 2);
+			_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
+			UiTheme.Panel(_batch, panel, view);
+			UiTheme.IconAt(_batch, UiTheme.Icon.Settings, panel.X + 48, panel.Y + 32, 40, view);
+			UiTheme.Divider(_batch, panel.Center.X, panel.Y + 80, panel.Width - 60, view);
 			for (int row = 0; row < RowsPerPage; row++)
 			{
 				int index = _scroll + row;
 				if (index >= _mods.Count) break;
-				Rectangle r = new Rectangle((int)(ListLeft * sx), (int)((ListTop + row * RowHeight) * sy), (int)(ListWidth * sx), (int)(RowHeight * sy));
-				if (index == _selected)
+				Rectangle r = RowRect(row);
+				bool lit = index == _selected, on = _mods[index].Enabled;
+				UiTheme.Row(_batch, r, lit, view);
+				// The checkbox: a gold tick on the lit row, a blue one on an enabled mod, empty when it is off.
+				Rectangle box = new Rectangle(r.X + 10, r.Y + 5, (int)RowH - 10, (int)RowH - 10);
+				Color edge = lit ? UiTheme.GoldBright : on ? new Color(110, 160, 240, 255) : new Color(110, 118, 140, 255);
+				UiTheme.Box(_batch, box, edge, new Color(6, 14, 36, 240), view);
+				if (on) Ui.IconAt(_batch, Ui.Icon.Check, box.Center.X, box.Center.Y, box.Height * 1.05f, lit ? UiTheme.GoldBright : new Color(120, 180, 255, 255), view);
+				// The order's arrows.
+				foreach ((Rectangle b, Ui.Icon icon, bool can) in new[] { (UpButton(r), Ui.Icon.Up, index > 0), (DownButton(r), Ui.Icon.Down, index < _mods.Count - 1) })
 				{
-					// SpriteBatch wants premultiplied colours; a plain alpha here reads as solid white.
-					_batch.Draw(_pixel, r, Color.White * 0.16f);
+					UiTheme.Box(_batch, b, new Color(120, 132, 168, 230), new Color(8, 16, 40, 240), view);
+					Ui.IconAt(_batch, icon, b.Center.X, b.Center.Y, b.Height * 0.8f, can ? UiTheme.Ink : new Color(110, 118, 140, 255), view);
 				}
 			}
-			// The Back button's plate.
-			Rectangle back = new Rectangle((int)((TextSpaceWidth / 2 - 60) * sx), (int)(BackTop * sy), (int)(120 * sx), (int)(26 * sy));
-			_batch.Draw(_pixel, back, Color.White * 0.12f);
-			Outline(back, new Color(200, 200, 200), 1);
+			// The footer: its hints and note, a rule, the Back button with a diamond at each end.
+			UiTheme.NoteBox(_batch, footer, view);
+			UiTheme.Divider(_batch, footer.Center.X, footer.Bottom - 35, footer.Width - 120, view, 8f);
+			UiTheme.Box(_batch, back, UiTheme.Gold, new Color(14, 30, 78, 245), view, 8f);
+			UiTheme.Diamond(_batch, back.X, back.Center.Y, 10, UiTheme.GoldBright, view);
+			UiTheme.Diamond(_batch, back.Right, back.Center.Y, 10, UiTheme.GoldBright, view);
+			(Ui.PadButton, string)[] padHints = { (Ui.PadButton.A, "Toggle"), (Ui.PadButton.L, "Up"), (Ui.PadButton.R, "Down"), (Ui.PadButton.B, "Back") };
+			float[] padX = new float[padHints.Length];
+			if (pad)
+			{
+				float total = 0;
+				TrueTypeText.TitleFace = true;
+				try
+				{
+					foreach ((Ui.PadButton b, string w) in padHints) total += Ui.HintWidth(graphics, w, footSize, 18, b) + 22;
+					float x = footer.Center.X - (total - 22) / 2;
+					for (int i = 0; i < padHints.Length; i++) { padX[i] = x; x += Ui.HintWidth(graphics, padHints[i].Item2, footSize, 18, padHints[i].Item1) + 22; }
+				}
+				finally { TrueTypeText.TitleFace = false; }
+				for (int i = 0; i < padHints.Length; i++) Ui.HintShape(_batch, padHints[i].Item1, padX[i], footer.Y + 12, 18, view);
+			}
 			_batch.End();
 
 			graphics.SetImageOrigin(0f, 0f);
 			graphics.SetImageRotation(0f);
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
-			graphics.SetColor(255, 255, 255, 255);
-			graphics.DrawString("Mods", 60f, 48f, TitleSize);
-			graphics.SetColor(190, 190, 190, 255);
-			graphics.DrawString(_mods.Count == 0
-				? "No mods yet. A mod is a folder in the mods folder beside the game."
-				: _mods.Count + " mod(s) in the mods folder beside the game" + (_conflicts > 0 ? "   " + _conflicts + " shared file(s), the earlier wins" : ""), 60f, 72f, RowSize);
-			for (int row = 0; row < RowsPerPage; row++)
+			TrueTypeText.TitleFace = true;
+			try
 			{
-				int index = _scroll + row;
-				if (index >= _mods.Count) break;
-				InstalledMod mod = _mods[index];
-				float y = ListTop + row * RowHeight + 3;
-				bool on = mod.Enabled;
-				if (index == _selected) graphics.SetColor(255, 255, 160, 255);
-				else if (!on) graphics.SetColor(140, 140, 140, 255);
-				else graphics.SetColor(255, 255, 255, 255);
-				graphics.DrawString((on ? "[x] " : "[ ] ") + (index + 1) + ". " + Fit(mod.DisplayName, 32) + (string.IsNullOrWhiteSpace(mod.Manifest.Version) ? "" : "  " + mod.Manifest.Version), ListLeft + 6, y, RowSize);
-				string what = Fit(Describe(mod), 44);
-				graphics.SetColor(170, 170, 170, 255);
-				graphics.DrawString(what, ListLeft + 330, y, RowSize);
-				graphics.SetColor(200, 200, 200, 255);
-				graphics.DrawString("^", ListLeft + ListWidth - 52, y, RowSize);
-				graphics.DrawString("v", ListLeft + ListWidth - 22, y, RowSize);
+				Ui.Left(graphics, "Mods", panel.X + 78, panel.Y + 12, 34, titleSize, UiTheme.Ink);
+				string sub = _mods.Count == 0
+					? "No mods yet. A mod is a folder in the mods folder beside the game."
+					: _mods.Count + " mod(s) in the mods folder beside the game" + (_conflicts > 0 ? "     " + _conflicts + " shared file(s), the earlier wins" : "");
+				Ui.Left(graphics, sub, panel.X + 80, panel.Y + 46, 20, subSize, UiTheme.Sub);
+				if (_mods.Count > RowsPerPage)
+				{
+					string page = (_scroll + 1) + "-" + Math.Min(_mods.Count, _scroll + RowsPerPage) + " of " + _mods.Count;
+					Ui.Left(graphics, page, panel.Right - 30 - Ui.Width(graphics, page, subSize), panel.Y + 46, 20, subSize, UiTheme.Sub);
+				}
+				for (int row = 0; row < RowsPerPage; row++)
+				{
+					int index = _scroll + row;
+					if (index >= _mods.Count) break;
+					InstalledMod mod = _mods[index];
+					Rectangle r = RowRect(row);
+					bool lit = index == _selected, on = mod.Enabled;
+					string name = (index + 1) + ".  " + Fit(mod.DisplayName, 26) + (string.IsNullOrWhiteSpace(mod.Manifest.Version) ? "" : "   " + mod.Manifest.Version);
+					Ui.Left(graphics, name, r.X + 40, r.Y, r.Height, rowSize, lit ? Color.White : on ? UiTheme.Ink : UiTheme.Hint);
+					Ui.Left(graphics, Fit(Describe(mod), 34), r.X + (int)(r.Width * 0.54f), r.Y, r.Height, descSize, lit ? new Color(255, 236, 190, 255) : UiTheme.Hint);
+				}
+				// The hints: the keyboard's keys in gold with what they do, or the pad's buttons.
+				if (pad)
+				{
+					for (int i = 0; i < padHints.Length; i++) Ui.HintText(graphics, padHints[i].Item1, padHints[i].Item2, padX[i], footer.Y + 12, 18, footSize);
+				}
+				else
+				{
+					(string Key, string What)[] keys = { ("Up/Down", "select"), ("Space", "toggle"), ("Shift+Up/Down", "move"), ("Esc", "back") };
+					float total = 0;
+					foreach ((string k, string w) in keys) total += Ui.Width(graphics, k, footSize) + 6 + Ui.Width(graphics, w, footSize) + 22;
+					float x = footer.Center.X - (total - 22) / 2;
+					foreach ((string k, string w) in keys)
+					{
+						Ui.Left(graphics, k, x, footer.Y + 4, 18, footSize, UiTheme.GoldBright);
+						x += Ui.Width(graphics, k, footSize) + 6;
+						Ui.Left(graphics, w, x, footer.Y + 4, 18, footSize, UiTheme.Ink);
+						x += Ui.Width(graphics, w, footSize) + 22;
+					}
+				}
+				string note = Restart.Possible ? "Closing the list restarts the game with your changes." : "Changes apply at the next start.";
+				Ui.Centred(graphics, note, new Rectangle(footer.X, footer.Y + 23, footer.Width, 18), footSize - 1, UiTheme.Sub);
+				Ui.Centred(graphics, "Back", back, 11, UiTheme.Ink);
 			}
-			if (_mods.Count > RowsPerPage)
-			{
-				graphics.SetColor(170, 170, 170, 255);
-				graphics.DrawString((_scroll + 1) + "-" + Math.Min(_mods.Count, _scroll + RowsPerPage) + " of " + _mods.Count, ListLeft + ListWidth - 120, ListTop - 18, RowSize);
-			}
-			graphics.SetColor(190, 190, 190, 255);
-			graphics.DrawString("Up/Down select   Space toggle   Shift+Up/Down move   Esc back", 60f, FooterTop - 18, RowSize);
-			graphics.DrawString(Restart.Possible ? "Closing the list restarts the game with your changes." : "Changes apply at the next start.", 60f, FooterTop, RowSize);
-			graphics.SetColor(255, 255, 255, 255);
-			graphics.DrawString("Back", TextSpaceWidth / 2 - 14, BackTop + 5, RowSize);
+			finally { TrueTypeText.TitleFace = false; }
 			graphics.DrawStringEnd();
 		}
 

@@ -335,6 +335,17 @@ namespace OpenFF.Client
 			Ui.RoundPlate(b, Inset(p, 1), new Color(6, 14, 38, 235), v);
 		}
 
+		/// <summary>A small box: an edge and a fill, rounded - a checkbox, an arrow button, a pill.</summary>
+		public static void Box(SpriteBatch b, Rectangle r, Color edge, Color fill, Viewport v, float radius = 3f)
+		{
+			Rectangle p = Px(r.X, r.Y, r.Width, r.Height, v);
+			Ui.RoundPlate(b, p, edge, v, radius);
+			Ui.RoundPlate(b, Inset(p, Math.Max(1, (int)Math.Round(Sx(v) * 0.8f))), fill, v, radius);
+		}
+
+		/// <summary>A gold diamond centred on a text-space point.</summary>
+		public static void Diamond(SpriteBatch b, float cx, float cy, float size, Color colour, Viewport v) => b.Draw(_diamond, Px(cx - size / 2, cy - size / 2, size, size, v), colour);
+
 		/// <summary>One of icons.png's, centred on a text-space point at a text-space size.</summary>
 		public static void IconAt(SpriteBatch b, Icon icon, float cx, float cy, float size, Viewport v, float alpha = 1f)
 		{

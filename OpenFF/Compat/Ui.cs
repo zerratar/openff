@@ -102,9 +102,9 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A plate with rounded corners: the middle and the four edges as plain fills, the corners from the round texture.</summary>
-		public static void RoundPlate(SpriteBatch b, Rectangle r, Color colour, Viewport v)
+		public static void RoundPlate(SpriteBatch b, Rectangle r, Color colour, Viewport v, float radius = 8f)
 		{
-			int cr = Math.Max(2, (int)Math.Round(8 * v.Width / W));
+			int cr = Math.Max(2, (int)Math.Round(radius * v.Width / W));
 			cr = Math.Min(cr, Math.Min(r.Width, r.Height) / 2);
 			int s = _round.Width, q = 8;   // the texture's corner is 8 of its 32
 			// Corners.
@@ -170,7 +170,7 @@ namespace OpenFF.Client
 		// What an SVG set would give, without a parser: each icon is a few anti-aliased strokes
 		// or a filled polygon, rasterised once per size and kept. Add one by adding a case.
 
-		public enum Icon { Cross, Circle, Square, Triangle, Menu, Up, Down, Left, Right, Shift, Backspace }
+		public enum Icon { Cross, Circle, Square, Triangle, Menu, Up, Down, Left, Right, Shift, Backspace, Check }
 
 		private static readonly System.Collections.Generic.Dictionary<(Icon, int), Texture2D> _icons = new System.Collections.Generic.Dictionary<(Icon, int), Texture2D>();
 
@@ -212,6 +212,10 @@ namespace OpenFF.Client
 					// An arrow head over a short stem, outlined.
 					Fill(a, px, (c, c - s * 0.32f), (c + s * 0.3f, c + s * 0.02f), (c - s * 0.3f, c + s * 0.02f));
 					Stroke(a, px, c, c, c, c + s * 0.3f, t * 1.8f);
+					break;
+				case Icon.Check:
+					Stroke(a, px, c - s * 0.28f, c + s * 0.02f, c - s * 0.08f, c + s * 0.24f, t * 1.3f);
+					Stroke(a, px, c - s * 0.08f, c + s * 0.24f, c + s * 0.30f, c - s * 0.26f, t * 1.3f);
 					break;
 				case Icon.Backspace:
 					// A tag pointing left with a cross in it.
