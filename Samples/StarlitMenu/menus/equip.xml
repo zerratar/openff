@@ -1,0 +1,890 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Equipment screen (equip) and the list it appends under itself (equip_under_list), patched: the game's frames as its file has them (CWMenuEquip reads them by id), moved and styled, with the hero's picture and bars, the panels and the slots' icons of the mod's. Generated. -->
+<menulist>
+  <menu>
+    <name>equip</name>
+    <frame class="panel">
+      <id>hero</id>
+      <x>8</x>
+      <y>39</y>
+      <width>184</width>
+      <height>136</height>
+      <frame class="goldframe">
+        <id>hero_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>194</width>
+        <height>146</height>
+      </frame>
+    </frame>
+    <frame class="panel">
+      <id>slotpanel</id>
+      <x>198</x>
+      <y>39</y>
+      <width>274</width>
+      <height>136</height>
+      <frame class="goldframe">
+        <id>slotpanel_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>284</width>
+        <height>146</height>
+      </frame>
+    </frame>
+    <frame class="panel">
+      <id>listpanel</id>
+      <x>8</x>
+      <y>183</y>
+      <width>464</width>
+      <height>98</height>
+      <frame class="goldframe">
+        <id>listpanel_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>108</height>
+      </frame>
+    </frame>
+    <frame class="panel bottom">
+      <id>bottom</id>
+      <x>8</x>
+      <y>290</y>
+      <width>464</width>
+      <height>24</height>
+      <frame class="goldframe">
+        <id>bottom_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>34</height>
+      </frame>
+    </frame>
+    <frame class="title">
+      <id>command</id>
+      <x>40</x>
+      <y>7</y>
+      <width>110</width>
+      <height>20</height>
+      <behavior value="Text">
+        <parameter>50005</parameter>
+        <parameter>8</parameter>
+        <parameter>2</parameter>
+      </behavior>
+    </frame>
+    <frame>
+      <id>command_select</id>
+      <x>0</x>
+      <y>0</y>
+      <width>256</width>
+      <height>192</height>
+      <behavior>CWMenuEquip</behavior>
+      <frame>
+        <id>select_equip_command</id>
+        <x>0</x>
+        <y>0</y>
+        <width>0</width>
+        <height>32</height>
+        <frame class="tab2label">
+          <focus/>
+          <id>m_equip</id>
+          <x>206</x>
+          <y>5</y>
+          <width>78</width>
+          <height>24</height>
+          <myTag>0</myTag>
+          <up>dummy</up>
+          <down>dummy</down>
+          <left>m_removeall</left>
+          <right>m_nouse</right>
+          <behavior value="Text">
+            <parameter>50005</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_equip</id>
+            <x>-14</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="tab2label">
+          <focus/>
+          <id>m_nouse</id>
+          <x>305</x>
+          <y>5</y>
+          <width>68</width>
+          <height>24</height>
+          <myTag>1</myTag>
+          <up>dummy</up>
+          <down>dummy</down>
+          <left>m_equip</left>
+          <right>m_removeall</right>
+          <behavior value="Text">
+            <parameter>50204</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_nouse</id>
+            <x>-14</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="tab2label">
+          <focus/>
+          <id>m_removeall</id>
+          <x>394</x>
+          <y>5</y>
+          <width>78</width>
+          <height>24</height>
+          <myTag>3</myTag>
+          <up>dummy</up>
+          <down>dummy</down>
+          <left>m_nouse</left>
+          <right>m_equip</right>
+          <behavior value="Text">
+            <parameter>50205</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_removeall</id>
+            <x>-14</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+      <frame class="name">
+        <id>char_name</id>
+        <x>78</x>
+        <y>46</y>
+        <width>110</width>
+        <height>18</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <data value="　　　"/>
+      </frame>
+      <frame class="statname">
+        <id>attack_name</id>
+        <x>18</x>
+        <y>142</y>
+        <width>60</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>50504</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="statvalue">
+          <id>attack_now</id>
+          <x>84</x>
+          <y>0</y>
+          <width>30</width>
+          <height>14</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+          <data value="　　　"/>
+        </frame>
+        <frame class="statvalue2">
+          <id>attack_max</id>
+          <x>132</x>
+          <y>0</y>
+          <width>34</width>
+          <height>14</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+          <data value="　　　"/>
+        </frame>
+      </frame>
+      <frame class="statname">
+        <id>difence_name</id>
+        <x>18</x>
+        <y>157</y>
+        <width>60</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>50506</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="statvalue">
+          <id>difence_now</id>
+          <x>84</x>
+          <y>0</y>
+          <width>30</width>
+          <height>14</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+          <data value="　　　"/>
+        </frame>
+        <frame class="statvalue2">
+          <id>difence_max</id>
+          <x>132</x>
+          <y>0</y>
+          <width>34</width>
+          <height>14</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+          <data value="　　　"/>
+        </frame>
+      </frame>
+      <frame>
+        <id>equip_slot_all</id>
+        <x>0</x>
+        <y>0</y>
+        <width>32</width>
+        <height>0</height>
+        <frame class="slotname">
+          <id>migite</id>
+          <x>228</x>
+          <y>46</y>
+          <width>80</width>
+          <height>23</height>
+          <behavior value="Text">
+            <parameter>50402</parameter>
+            <parameter>8</parameter>
+          </behavior>
+        </frame>
+        <frame class="slotname">
+          <id>hidarite</id>
+          <x>228</x>
+          <y>71</y>
+          <width>80</width>
+          <height>23</height>
+          <behavior value="Text">
+            <parameter>50403</parameter>
+            <parameter>8</parameter>
+          </behavior>
+        </frame>
+        <frame class="slotname">
+          <id>atama</id>
+          <x>228</x>
+          <y>96</y>
+          <width>80</width>
+          <height>23</height>
+          <behavior value="Text">
+            <parameter>50404</parameter>
+            <parameter>8</parameter>
+          </behavior>
+        </frame>
+        <frame class="slotname">
+          <id>karada</id>
+          <x>228</x>
+          <y>121</y>
+          <width>80</width>
+          <height>23</height>
+          <behavior value="Text">
+            <parameter>50405</parameter>
+            <parameter>8</parameter>
+          </behavior>
+        </frame>
+        <frame class="slotname">
+          <id>ude</id>
+          <x>228</x>
+          <y>146</y>
+          <width>80</width>
+          <height>23</height>
+          <behavior value="Text">
+            <parameter>50406</parameter>
+            <parameter>8</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame>
+        <id>slots</id>
+        <x>0</x>
+        <y>0</y>
+        <width>0</width>
+        <height>0</height>
+        <frame class="slotitem">
+          <id>right</id>
+          <x>320</x>
+          <y>46</y>
+          <width>146</width>
+          <height>23</height>
+          <myTag>4</myTag>
+          <up>arm</up>
+          <down>left</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior value="Item">
+            <parameter>-1</parameter>
+          </behavior>
+          <frame class="hl">
+            <id>hl_right</id>
+            <x>-118</x>
+            <y>0</y>
+            <width>264</width>
+            <height>23</height>
+          </frame>
+          <frame>
+            <id>cursor_right</id>
+            <x>-106</x>
+            <y>11</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="slotitem">
+          <id>left</id>
+          <x>320</x>
+          <y>71</y>
+          <width>146</width>
+          <height>23</height>
+          <myTag>5</myTag>
+          <up>right</up>
+          <down>head</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior value="Item">
+            <parameter>-1</parameter>
+          </behavior>
+          <frame class="hl">
+            <id>hl_left</id>
+            <x>-118</x>
+            <y>0</y>
+            <width>264</width>
+            <height>23</height>
+          </frame>
+          <frame>
+            <id>cursor_left</id>
+            <x>-106</x>
+            <y>11</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="slotitem">
+          <id>head</id>
+          <x>320</x>
+          <y>96</y>
+          <width>146</width>
+          <height>23</height>
+          <myTag>6</myTag>
+          <up>left</up>
+          <down>body</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior value="Item">
+            <parameter>-1</parameter>
+          </behavior>
+          <frame class="hl">
+            <id>hl_head</id>
+            <x>-118</x>
+            <y>0</y>
+            <width>264</width>
+            <height>23</height>
+          </frame>
+          <frame>
+            <id>cursor_head</id>
+            <x>-106</x>
+            <y>11</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="slotitem">
+          <id>body</id>
+          <x>320</x>
+          <y>121</y>
+          <width>146</width>
+          <height>23</height>
+          <myTag>7</myTag>
+          <up>head</up>
+          <down>arm</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior value="Item">
+            <parameter>-1</parameter>
+          </behavior>
+          <frame class="hl">
+            <id>hl_body</id>
+            <x>-118</x>
+            <y>0</y>
+            <width>264</width>
+            <height>23</height>
+          </frame>
+          <frame>
+            <id>cursor_body</id>
+            <x>-106</x>
+            <y>11</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="slotitem">
+          <id>arm</id>
+          <x>320</x>
+          <y>146</y>
+          <width>146</width>
+          <height>23</height>
+          <myTag>8</myTag>
+          <up>body</up>
+          <down>right</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior value="Item">
+            <parameter>-1</parameter>
+          </behavior>
+          <frame class="hl">
+            <id>hl_arm</id>
+            <x>-118</x>
+            <y>0</y>
+            <width>264</width>
+            <height>23</height>
+          </frame>
+          <frame>
+            <id>cursor_arm</id>
+            <x>-106</x>
+            <y>11</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+    </frame>
+    <frame class="captiontext">
+      <id>caption</id>
+      <x>108</x>
+      <y>293</y>
+      <width>358</width>
+      <height>18</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+      </behavior>
+      <data value="　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　"/>
+    </frame>
+    <frame class="crystal">
+      <id>crystal</id>
+      <x>9</x>
+      <y>4</y>
+      <width>26</width>
+      <height>26</height>
+    </frame>
+    <frame class="hline">
+      <id>hline</id>
+      <x>8</x>
+      <y>31</y>
+      <width>464</width>
+      <height>1</height>
+    </frame>
+    <frame class="tab2" bind-class="lit: menu.focused == 'm_equip'">
+      <id>m_equip_tab</id>
+      <x>188</x>
+      <y>5</y>
+      <width>96</width>
+      <height>24</height>
+    </frame>
+    <frame class="sicon s_sword">
+      <id>m_equip_icon</id>
+      <x>193</x>
+      <y>9</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="tab2" bind-class="lit: menu.focused == 'm_nouse'">
+      <id>m_nouse_tab</id>
+      <x>287</x>
+      <y>5</y>
+      <width>86</width>
+      <height>24</height>
+    </frame>
+    <frame class="sicon s_briefcase">
+      <id>m_nouse_icon</id>
+      <x>292</x>
+      <y>9</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="tab2" bind-class="lit: menu.focused == 'm_removeall'">
+      <id>m_removeall_tab</id>
+      <x>376</x>
+      <y>5</y>
+      <width>96</width>
+      <height>24</height>
+    </frame>
+    <frame class="sicon s_trash">
+      <id>m_removeall_icon</id>
+      <x>381</x>
+      <y>9</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame data-source="hero">
+      <id>own</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="face">
+        <id>face</id>
+        <x>16</x>
+        <y>46</y>
+        <width>54</width>
+        <height>54</height>
+        <portrait/>
+      </frame>
+      <frame class="job" bind-text="{jobTitle}">
+        <id>jobword</id>
+        <x>78</x>
+        <y>64</y>
+        <width>110</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="lv" bind-text="Lv. {level}">
+        <id>lvword</id>
+        <x>78</x>
+        <y>80</y>
+        <width>40</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="bar exp">
+        <id>expbar</id>
+        <x>116</x>
+        <y>88</y>
+        <width>70</width>
+        <height>3</height>
+        <frame class="fill" bind-style="width: {expPercent}%">
+          <id>expbar_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>70</width>
+          <height>3</height>
+        </frame>
+      </frame>
+      <frame class="line">
+        <id>line1</id>
+        <x>14</x>
+        <y>104</y>
+        <width>172</width>
+        <height>1</height>
+      </frame>
+      <frame class="label">
+        <id>hpword</id>
+        <x>18</x>
+        <y>108</y>
+        <width>22</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>HP</data>
+      </frame>
+      <frame class="hp" bind-text="{hp}/{maxHp}">
+        <id>hpvalue</id>
+        <x>40</x>
+        <y>108</y>
+        <width>50</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="bar hpbar">
+        <id>hpbar</id>
+        <x>94</x>
+        <y>113</y>
+        <width>90</width>
+        <height>4</height>
+        <frame class="fill" bind-style="width: {hpPercent}%">
+          <id>hpbar_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>90</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="label">
+        <id>mpword</id>
+        <x>18</x>
+        <y>123</y>
+        <width>22</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>MP</data>
+      </frame>
+      <frame class="hp" bind-text="{charges[0]}/{maxCharges[0]}">
+        <id>mpvalue</id>
+        <x>40</x>
+        <y>123</y>
+        <width>50</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="bar exp">
+        <id>mpbar</id>
+        <x>94</x>
+        <y>128</y>
+        <width>90</width>
+        <height>4</height>
+        <frame class="fill" bind-style="width: {mpPercent}%">
+          <id>mpbar_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>90</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="line">
+        <id>line2</id>
+        <x>14</x>
+        <y>138</y>
+        <width>172</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="sicon s_sword">
+      <id>right_icon</id>
+      <x>206</x>
+      <y>49</y>
+      <width>18</width>
+      <height>18</height>
+    </frame>
+    <frame class="vsep">
+      <id>right_sep</id>
+      <x>312</x>
+      <y>49</y>
+      <width>1</width>
+      <height>17</height>
+    </frame>
+    <frame class="rowline">
+      <id>right_line</id>
+      <x>204</x>
+      <y>70</y>
+      <width>262</width>
+      <height>1</height>
+    </frame>
+    <frame class="sicon s_shield">
+      <id>left_icon</id>
+      <x>206</x>
+      <y>74</y>
+      <width>18</width>
+      <height>18</height>
+    </frame>
+    <frame class="vsep">
+      <id>left_sep</id>
+      <x>312</x>
+      <y>74</y>
+      <width>1</width>
+      <height>17</height>
+    </frame>
+    <frame class="rowline">
+      <id>left_line</id>
+      <x>204</x>
+      <y>95</y>
+      <width>262</width>
+      <height>1</height>
+    </frame>
+    <frame class="sicon s_helmet">
+      <id>head_icon</id>
+      <x>206</x>
+      <y>99</y>
+      <width>18</width>
+      <height>18</height>
+    </frame>
+    <frame class="vsep">
+      <id>head_sep</id>
+      <x>312</x>
+      <y>99</y>
+      <width>1</width>
+      <height>17</height>
+    </frame>
+    <frame class="rowline">
+      <id>head_line</id>
+      <x>204</x>
+      <y>120</y>
+      <width>262</width>
+      <height>1</height>
+    </frame>
+    <frame class="sicon s_armour">
+      <id>body_icon</id>
+      <x>206</x>
+      <y>124</y>
+      <width>18</width>
+      <height>18</height>
+    </frame>
+    <frame class="vsep">
+      <id>body_sep</id>
+      <x>312</x>
+      <y>124</y>
+      <width>1</width>
+      <height>17</height>
+    </frame>
+    <frame class="rowline">
+      <id>body_line</id>
+      <x>204</x>
+      <y>145</y>
+      <width>262</width>
+      <height>1</height>
+    </frame>
+    <frame class="sicon s_gauntlet">
+      <id>arm_icon</id>
+      <x>206</x>
+      <y>149</y>
+      <width>18</width>
+      <height>18</height>
+    </frame>
+    <frame class="vsep">
+      <id>arm_sep</id>
+      <x>312</x>
+      <y>149</y>
+      <width>1</width>
+      <height>17</height>
+    </frame>
+    <frame class="vsep">
+      <id>listsep</id>
+      <x>240</x>
+      <y>190</y>
+      <width>1</width>
+      <height>86</height>
+    </frame>
+  </menu>
+  <menu>
+    <name>equip_under_list</name>
+    <frame>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame>
+        <id>item_list</id>
+        <x>8</x>
+        <y>186</y>
+        <width>464</width>
+        <height>96</height>
+        <behavior value="ItemList">
+          <parameter>1</parameter>
+          <parameter>3</parameter>
+          <parameter>2</parameter>
+        </behavior>
+        <frame class="listrow">
+          <focus/>
+          <id>0-0</id>
+          <x>24</x>
+          <y>0</y>
+          <width>208</width>
+          <height>30</height>
+          <myTag>9</myTag>
+          <up>dummy</up>
+          <down>1-0</down>
+          <left>0-1</left>
+          <right>0-1</right>
+        </frame>
+        <frame class="listrow">
+          <focus/>
+          <id>0-1</id>
+          <x>250</x>
+          <y>0</y>
+          <width>208</width>
+          <height>30</height>
+          <myTag>10</myTag>
+          <up>dummy</up>
+          <down>1-1</down>
+          <left>0-0</left>
+          <right>0-0</right>
+        </frame>
+        <frame class="listrow">
+          <focus/>
+          <id>1-0</id>
+          <x>24</x>
+          <y>31</y>
+          <width>208</width>
+          <height>30</height>
+          <myTag>11</myTag>
+          <up>0-0</up>
+          <down>2-0</down>
+          <left>1-1</left>
+          <right>1-1</right>
+        </frame>
+        <frame class="listrow">
+          <focus/>
+          <id>1-1</id>
+          <x>250</x>
+          <y>31</y>
+          <width>208</width>
+          <height>30</height>
+          <myTag>12</myTag>
+          <up>0-1</up>
+          <down>2-1</down>
+          <left>1-0</left>
+          <right>1-0</right>
+        </frame>
+        <frame class="listrow">
+          <focus/>
+          <id>2-0</id>
+          <x>24</x>
+          <y>62</y>
+          <width>208</width>
+          <height>30</height>
+          <myTag>13</myTag>
+          <up>1-0</up>
+          <down>3-0</down>
+          <left>2-1</left>
+          <right>2-1</right>
+        </frame>
+        <frame class="listrow">
+          <focus/>
+          <id>2-1</id>
+          <x>250</x>
+          <y>62</y>
+          <width>208</width>
+          <height>30</height>
+          <myTag>14</myTag>
+          <up>1-1</up>
+          <down>3-1</down>
+          <left>2-0</left>
+          <right>2-0</right>
+        </frame>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

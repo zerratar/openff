@@ -16,6 +16,8 @@ const SAMPLE_MEMBER = (id, name, job, level, hp, maxHp) => ({
 const BINDING_SAMPLE = {
   hero: SAMPLE_MEMBER(0, 'Luneth', 'Warrior', 12, 230, 260),
   party: [SAMPLE_MEMBER(0, 'Luneth', 'Warrior', 12, 230, 260), SAMPLE_MEMBER(1, 'Arc', 'White Mage', 11, 150, 180), SAMPLE_MEMBER(2, 'Refia', 'Red Mage', 11, 0, 190), SAMPLE_MEMBER(3, 'Ingus', 'Monk', 12, 280, 300)],
+  // The formation's four places in order (null where no one stands): the sample party in them.
+  get places() { return this.party; },
   gil: 12345,
   items: [{ id: 1, name: 'Potion', count: 5 }, { id: 2, name: 'Phoenix Down', count: 2 }],
   menu: { id: 'menu', hero: 0, focused: null },
@@ -35,7 +37,7 @@ const BINDING_PATHS = (() => {
     'stats.strength', 'stats.vitality', 'stats.agility', 'stats.intellect', 'stats.mind', 'charges[0]', 'maxCharges[0]'];
   return [
     ...member.map(m => 'hero.' + m),
-    'party', 'party.count', ...['name', 'level', 'hp', 'maxHp', 'hpPercent', 'expPercent', 'face', 'jobTitle', 'alive'].map(m => 'party[0].' + m),
+    'party', 'party.count', 'places[0].name', 'places[0].face', ...['name', 'level', 'hp', 'maxHp', 'hpPercent', 'expPercent', 'face', 'jobTitle', 'alive'].map(m => 'party[0].' + m),
     'gil', 'items', 'items.count', 'items[0].name', 'items[0].count',
     'menu.hero', 'menu.focused', 'menu.id', 'this',
     'dialogue.speaker', 'dialogue.avatar', 'dialogue.text', 'dialogue.number', 'dialogue.map', 'banner.text', 'banner.number',

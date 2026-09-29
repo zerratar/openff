@@ -291,6 +291,15 @@ namespace OpenFF.Content
 			return background.Count > 0 && MenuBackground.Parse(string.Join("; ", background)) != null ? string.Join("; ", background) : null;
 		}
 
+		/// <summary>The screen's own lettering (its menu rule's, or a sheet's #name rule's font-family, text-shadow...), as MenuText declarations; null for none.</summary>
+		public static string ScreenLettering(XElement screen, Sheet sheet)
+		{
+			if (screen == null) return null;
+			Dictionary<string, string> computed = Cascade(screen, sheet?.Rules ?? new List<Rule>(), null);
+			List<string> text = MenuText.Properties.Where(computed.ContainsKey).Select(k => k + ": " + computed[k]).ToList();
+			return text.Count > 0 && MenuText.Parse(string.Join("; ", text)) != null ? string.Join("; ", text) : null;
+		}
+
 		/// <summary>Whether an element is picked out by a selector (a list, as a sheet's: "#hero, .row > text").</summary>
 		public static bool Matches(XElement element, string selector)
 		{

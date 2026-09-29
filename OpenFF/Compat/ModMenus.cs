@@ -128,7 +128,9 @@ namespace OpenFF.Client
 						reached++;
 					}
 					if (def.Layout == null) continue;
-					XElement menu = LoadLayoutMenu(def, renumber: existing == null || !def.Patch);
+					// A mod's own screen is numbered afresh; a layout of one of the game's keeps the tags its frames have (the game's
+					// code moves by them: an appended list's first row, a config's tabs), numbering only those without one.
+					XElement menu = LoadLayoutMenu(def, renumber: existing == null);
 					if (menu == null) continue;
 					if (existing != null && def.Patch) MergeInto(existing, menu, def);
 					else { existing?.Remove(); list.Add(menu); if (existing == null) added++; }
@@ -232,8 +234,10 @@ namespace OpenFF.Client
 				XElement name = menu.Element("name");
 				if (name == null) menu.AddFirst(new XElement("name", def.Screen)); else name.Value = def.Screen;
 				// The game moves focus by a frame's myTag, which must be its place in the focus list (the
-				// <focus/> frames in document order); the layout need not know - it is numbered here.
+				// <focus/> frames in document order); a mod's own layout need not know - it is numbered here. One of the
+				// game's keeps its own, and a frame of it without one is numbered after them.
 				int tag = 0;
+				int next = renumber ? 0 : menu.Descendants("frame").Select(f => int.TryParse((string)f.Element("myTag"), out int t) ? t + 1 : 0).DefaultIfEmpty(0).Max();
 				foreach (XElement frame in menu.Descendants("frame"))
 				{
 					// An empty <data/> would be a null string to the game's text widget; a space is a blank it can draw.
@@ -242,6 +246,7 @@ namespace OpenFF.Client
 					ApplyStyle(frame);
 					if (frame.Element("focus") == null) continue;
 					if (renumber) frame.SetElementValue("myTag", tag++);
+					else if (frame.Element("myTag") == null) frame.SetElementValue("myTag", next++);
 					foreach (string side in new[] { "up", "down", "left", "right" }) if (frame.Element(side) == null) frame.Add(new XElement(side, "dummy"));
 				}
 				return menu;
@@ -576,6 +581,7 @@ namespace OpenFF.Client
 			foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnTick", b.OnTick);
 			_screen?.UpdateBindings();
 			// A transition or an animation under way: the look worked out again for this frame.
+			if (_screen != null) foreach (IMenuWidget w in _screen.Widgets) (w as ModMenuWidget)?.Tick();
 			if (_screen != null && _screen.Animating) OpenFF.Game.Guard("menus.animate", _screen.Restyle);
 		}
 
@@ -632,15 +638,40 @@ namespace OpenFF.Client
 
 		/// <summary>buildMenu(name) has built one of the game's screens: the definitions reaching it get their behaviours over it.</summary>
 		private static string _lastBuilt;
+		private static string _gamePlaces;
 
 		/// <summary>Whether one of the game's menu screens is up (the main menu and what it opens, a shop, a battle's item list...): Esc is their Back. The title's own list is not one.</summary>
 		public static bool GameMenuUp => _lastBuilt != null && !string.Equals(_lastBuilt, "link", StringComparison.OrdinalIgnoreCase);
+
+		/// <summary>buildMenu(name) is about to build one of the game's screens: the lettering a mod's layout gives the whole screen (its menu rule's) on every text of it with none of its own - the game's own widgets' (a list's rows) too - measured in it as they are made.</summary>
+		public static void GameScreenBuilding(string name)
+		{
+			string lettering = null;
+			MenuDefinition def = name != null && _gameScreenDefs.TryGetValue(name, out List<MenuDefinition> defs) ? defs.FirstOrDefault(d => _styleSources.ContainsKey(d.Id)) : null;
+			try
+			{
+				if (def != null && _styleSources.TryGetValue(def.Id, out (XElement Menu, List<string> Sheets) style))
+					lettering = MenuStyles.ScreenLettering(style.Menu, MenuStyles.Compile(style.Sheets));
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + name + " lettering: " + ex.Message); }
+			MenuText text = lettering == null ? null : MenuText.Parse(lettering);
+			if (text != null && def?.Directory != null)
+			{
+				for (int i = 0; i < text.Families.Count; i++)
+					if (text.Families[i].StartsWith("url:", StringComparison.Ordinal)) text.Families[i] = "file:" + Path.GetFullPath(Path.Combine(def.Directory, text.Families[i].Substring(4)));
+			}
+			GlobalScope.MenuTextDefault = text;
+			ScreenStyled = def != null;
+		}
+
+		/// <summary>Whether the game's screen being built or up is one a mod's layout styles (the game's lists give its wider face more room).</summary>
+		public static bool ScreenStyled { get; private set; }
 
 		public static void GameScreenBuilt(string name)
 		{
 			try
 			{
-				GameScreenReleased();
+				ReleaseScreen();
 				_lastBuilt = name;
 				// A definition reaching the screen that says its backdrop: that one in place of the screen's (set up again now -
 				// the screen asked for its own before it was built); one that says none gives the screen's own back.
@@ -673,6 +704,7 @@ namespace OpenFF.Client
 				if (_current != null && string.Equals(_current.Screen, name, StringComparison.OrdinalIgnoreCase) && _host != null) return;   // a mod screen of that name: CWMenuMod plays it
 				System.Diagnostics.Stopwatch built = System.Diagnostics.Stopwatch.StartNew();
 				_gameScreen = new ModMenuScreen(defs[0], null, false);
+				_gamePlaces = null;
 				long made = built.ElapsedMilliseconds;
 				OpenWindows(_gameScreen);
 				foreach (IMenuWidget w in _gameScreen.Widgets) (w as ModMenuWidget)?.ApplyStyle();
@@ -705,6 +737,14 @@ namespace OpenFF.Client
 				string focused = GlobalScope.menu.MenuManager.getSingleton().getFocuseMedget()?._id();
 				if (focused != _gameStyleFocus) { _gameStyleFocus = focused; _gameScreen.FocusMoved(focused); }
 				foreach (IMenuWidget w in _gameScreen.Widgets) (w as ModMenuWidget)?.Tick();
+				// The heroes moved between the places (Formation): the portrait frames painted again with the faces where they now stand.
+				string places = string.Join(",", Places().Select(p => p?.Id.ToString() ?? "-"));
+				if (places != _gamePlaces)
+				{
+					bool moved = _gamePlaces != null;
+					_gamePlaces = places;
+					if (moved && _gameScreen.HasPortraitFrame) OpenWindows(_gameScreen);
+				}
 				if (_gameScreen.Animating) _gameScreen.Restyle();
 			}
 			catch (Exception) { }
@@ -746,8 +786,16 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + ex.Message); }
 		}
 
-		/// <summary>The game's screen is being released (another built, or the menus left): its behaviours hear OnClose, its windows go.</summary>
+		/// <summary>The game's screen is being released (the menus left): its behaviours hear OnClose, its windows go, its lettering with them.</summary>
 		public static void GameScreenReleased()
+		{
+			GlobalScope.MenuTextDefault = null;
+			ScreenStyled = false;
+			ReleaseScreen();
+		}
+
+		/// <summary>The screen up let go (another is being built, or the menus left).</summary>
+		private static void ReleaseScreen()
 		{
 			if (_lastBuilt != null)
 			{
@@ -925,6 +973,18 @@ namespace OpenFF.Client
 			}
 			catch (Exception) { }
 			_movedFaces.Clear();
+		}
+
+		/// <summary>
+		/// The formation's four places in order, null where no one stands - the "places" binding root: a layout with a panel a place
+		/// binds places[0]..places[3], and a hero moved by Formation moves with them ("party" is the heroes alone, no gaps).
+		/// </summary>
+		public static IReadOnlyList<PartyMember> Places()
+		{
+			PartyMember[] places = new PartyMember[4];
+			IReadOnlyList<PartyMember> members = OpenFF.Game.Party?.Members;
+			if (members != null) foreach (PartyMember m in members) if (m.Slot >= 0 && m.Slot < 4) places[m.Slot] = m;
+			return places;
 		}
 
 		/// <summary>Whether a frame of the screen up has a look of its layout's in place of the game's art (a background, or no panel): its behaviour's own button window stays away (MBConfig).</summary>
@@ -1363,8 +1423,13 @@ namespace OpenFF.Client
 			public string FaceOf(string portrait)
 			{
 				int id = FaceHero();
-				IReadOnlyList<PartyMember> members = OpenFF.Game.Party?.Members;
-				if (int.TryParse(portrait, out int slot) && members != null && slot >= 0 && slot < members.Count) id = members[slot].Id;
+				if (int.TryParse(portrait, out int slot))
+				{
+					// A place in the formation's: its hero's face, none where no one stands.
+					IReadOnlyList<PartyMember> places = Places();
+					if (slot < 0 || slot >= places.Count || places[slot] == null) return null;
+					id = places[slot].Id;
+				}
 				PartyMember member = OpenFF.Game.Party?.Member(id);
 				if (id < 0 || id > 3) return null;
 				return "files/pc" + (id + 1) + "_" + ((member?.Job ?? 0) + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture) + ".NCGR";
@@ -1402,6 +1467,7 @@ namespace OpenFF.Client
 				{
 					case "hero": return (true, Hero >= 0 ? OpenFF.Game.Party?.Member(Hero) : null);
 					case "party": return (true, OpenFF.Game.Party?.Members);
+					case "places": return (true, Places());
 					case "gil": return (true, OpenFF.Game.Party?.Gil ?? 0);
 					case "items": return (true, OpenFF.Game.Party?.Items);
 					case "menu": return (true, this);
@@ -1528,7 +1594,7 @@ namespace OpenFF.Client
 			public bool Enabled
 			{
 				get => _enabled;
-				set { if (_enabled == value) return; _enabled = value; Screen.SetState(Id, "disabled", !value); }
+				set { if (_enabled == value) return; _enabled = value; Screen.SetState(Id, "disabled", !value || _greyed == true); }
 			}
 
 			/// <summary>The layout's colour, put on as the screen opens (a text drawn afresh comes up white).</summary>
@@ -1628,11 +1694,10 @@ namespace OpenFF.Client
 			/// <summary>The frame's message, whichever draws it.</summary>
 			private GlobalScope.dgs.DGSMessage Message => Text_?.getMessage() ?? Styled_?.StyledMessage;
 
-			private void PutColour(MenuColour c)
-			{
-				if (Text_ != null) Text_.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)c);
-				else Styled_?.StyledMessage?.setMessageColor((GlobalScope.dgs.TXT_COLOR)(int)c);
-			}
+			/// <summary>A style's colour onto the message itself - not through the text's own setter, which is the screen's code's (MBText.GameColour).</summary>
+			private void PutColour(MenuColour c) => Message?.setMessageColor((GlobalScope.dgs.TXT_COLOR)(int)c);
+
+			private bool? _greyed;
 
 			private GlobalScope.dgs.DGSMessage _styledMessage;
 			private bool? _checked;
@@ -1640,6 +1705,13 @@ namespace OpenFF.Client
 			/// <summary>Once a frame: the text in front of the layout's panels; a styled text made afresh by its behaviour gets the look again; a choice the game shows as on is :checked.</summary>
 			public void Tick()
 			{
+				// A text the screen's code greys out (the main menu's Job before the crystal, Save away from the field) is :disabled,
+				// for the sheets to draw it so - their own colour would hide the game's grey.
+				if (Text_ is GlobalScope.menu.MBText mbt)
+				{
+					bool greyed = mbt.GameColour == GlobalScope.dgs.TXT_COLOR.TXT_COLOR_DISABLE;
+					if (greyed != _greyed) { _greyed = greyed; Screen.SetState(Id, "disabled", greyed || !_enabled); }
+				}
 				// A text the game put at the windows' priority (a config slider's number, at 3) in front of the layout's panels, as every text is.
 				GlobalScope.dgs.DGSMessage text = Message;
 				if (text != null && text.getPriority() != 0)

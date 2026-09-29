@@ -1,0 +1,7 @@
+{
+  "id": "job",
+  "layout": "job.xml",
+  "screen": "job",
+  "background": -1,
+  "backdropLines": "none"
+}

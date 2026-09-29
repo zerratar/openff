@@ -1,7 +1,7 @@
 /* Starlit Menu: the look. The layouts (main_menu.xml, field_hud.xml) place the frames; this says how they look. */
 
 /* The screen: a castle under the moon behind everything (the game's backdrop is off: "background": -1). */
-#main_menu, #status, #config, #config2 {
+#main_menu, #status, #config, #config2, #equip, #magic, #menu_item, #job, #gambits {
   background-image: url("images/backdrop.jpg");
   -ff-background-scale-mode: scale-and-crop;
 }
@@ -124,6 +124,7 @@
 .line       { background-image: linear-gradient(to right, #c8a24a00, #c8a24ac0 15%, #c8a24a80 85%, #c8a24a00); }
 .rowline    { background-image: linear-gradient(to right, #c8a24a00, #c8a24a50 20%, #c8a24a30 80%, #c8a24a00); }
 .bigname    { font-size: 18px; }
+.smallname  { font-size: 13px; }
 .label2, .value2, .statname, .statvalue, .mpv {
   font-family: "Palatino Linotype", "Book Antiqua", serif; text-shadow: 0.6px 0.6px 1px #000000c0;
 }
@@ -140,6 +141,7 @@
 .s_sword    { background-image: url("images/commands.png"); -ff-sprite: equipment; }
 .s_book     { background-image: url("images/commands.png"); -ff-sprite: save; }
 .s_sparkle  { background-image: url("images/commands.png"); -ff-sprite: magic; }
+.s_crystal  { background-image: url("images/commands.png"); -ff-sprite: job; }
 .s_shield   { -ff-sprite: shield; }
 .s_helmet   { -ff-sprite: helmet; }
 .s_armour   { -ff-sprite: armour; }
@@ -183,3 +185,48 @@
 .track      { background-color: #000000a0; border: 1px solid #c8a24a70; border-radius: 3px; }
 .trackfill  { background-image: linear-gradient(#7ad0ff, #1c7ce0); border-radius: 3px; }
 .knob       { background-image: url("images/commands.png"); -ff-sprite: job; -ff-background-scale-mode: scale-to-fit; }
+
+/* ---- Equipment ---- */
+
+/* The screen's own lettering: every text of it without one of its own - the game's list of items too. */
+#equip, #magic, #menu_item, #job, #gambits { font-family: "Palatino Linotype", "Book Antiqua", serif; text-shadow: 0.6px 0.6px 1px #000000c0; }
+.tab2       { -ff-panel: none; background-image: linear-gradient(#1a2c58, #0b1634); border: 1px solid #c8a24ab0; border-radius: 3px;
+              font-size: 12px; color: #d8deec; }
+.tab2:focus, .tab2.lit { background-image: linear-gradient(#3a86f0, #1c4cb0); border-color: #a0ccff; box-shadow: 0 0 5px #4aa0ffa0; }
+.tab2label  { -ff-panel: none; font-size: 12px; color: #d8deec; }
+.tab2label:focus { color: #ffffff; }
+.slotname   { font-size: 13px; color: #f6f1e4; }
+.slotitem   { font-size: 12px; }
+.slotitem > .hl { opacity: 0; transition: opacity 0.15s;
+                  background-image: linear-gradient(to right, #1c4cb0, #4b9cff 40%, #3378ea 75%, #1c4cb000);
+                  border: 1px solid #a0ccff; border-radius: 3px; box-shadow: 0 0 3px #4aa0ffa0; }
+.slotitem:focus > .hl { opacity: 1; }
+.statvalue2 { font-size: 12px; color: #9fd0ff; }
+.captiontext { font-size: 11px; color: #e8ecf6; }
+.listrow    { font-size: 12px; }
+
+/* ---- Magic ---- */
+
+.spell      { font-size: 12px; }
+
+/* ---- Job; the menus' L / R buttons (another hero) ---- */
+
+.jobrow     { font-size: 12px; }
+.lrpill     { -ff-panel: none; background-image: linear-gradient(#1c2e5c, #0b1634); border: 1px solid #d8b460; border-radius: 11px; }
+.lrpill > .sicon { opacity: 0.95; }
+
+/* ---- Gambits: a panel a rule, lit while the hand is in it; ON a pill, lit when the rule is on ---- */
+
+.rowpanel     { -ff-panel: none; background-image: linear-gradient(#14224a, #0a1330); border: 1px solid #c8a24a90; border-radius: 4px; }
+.rowpanel.lit { background-image: linear-gradient(to right, #1c4cb0, #3f8fff 45%, #2a6ee0 80%, #1c4cb0); border-color: #a0ccff; box-shadow: 0 0 4px #4aa0ffa0; }
+.marker     { background-image: url("images/commands.png"); -ff-sprite: badge; -ff-background-scale-mode: scale-to-fit; }
+.num        { font-size: 13px; color: #f0e2b0; }
+.onpill     { -ff-panel: none; background-image: linear-gradient(#16264e, #0a1330); border: 1px solid #8090b0; border-radius: 4px;
+              font-size: 12px; color: #c0c8dc; text-align: center; }
+.onpill.rule-on { background-image: linear-gradient(#3a86f0, #1c4cb0); border-color: #a0ccff; color: #ffffff; }
+.cond, .act { font-size: 12px; }
+.hint       { font-size: 11px; color: #c9d3ea; text-align: right; }
+
+/* A command the game greys out (Job before the first crystal, Save away from the field): :disabled. */
+.cmd:disabled          { color: #7f8aa6; }
+.cmd:disabled > .icon  { opacity: 0.4; }

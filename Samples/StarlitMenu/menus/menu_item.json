@@ -1,0 +1,7 @@
+{
+  "id": "menu_item",
+  "layout": "item.xml",
+  "screen": "menu_item",
+  "background": -1,
+  "backdropLines": "none"
+}

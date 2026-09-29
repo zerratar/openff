@@ -1448,7 +1448,11 @@ the main menu's *Item* with a `Label` on `com_item` and nothing else. With a lay
 `<menu>` **replaces** the game's (the game's screen code still drives it, so keep the ids it
 reads - frames may move, grow, gain windows, styles and behaviours), or with `"patch": true`
 **merges** into it: a frame whose id the game's screen has takes that frame's place, a new one
-is added. In Crystal, open any of the game's files, pick a screen and press **Take into the mod**:
+is added where the patch has it among the game's (after the frame before it - so a panel put first stays behind the
+game's frames, as windows stack in the screen's order). A replacing layout keeps the focus tags its frames have (the
+game's code moves by them - an appended list's first row); only a frame with none is numbered. A frame of the game's
+that draws its own art (a config row's button, the volume slider's track and knob) leaves it away when the layout gives
+the frame a look of its own (a background, or `-ff-panel: none`), and its text takes the sheets' face and colour. In Crystal, open any of the game's files, pick a screen and press **Take into the mod**:
 the screen's XML is copied to `menus/<screen>.xml` with a definition naming it, and edits from
 there on are the mod's; the screen card has *Screen*, *In file* and *Patch, not replace*.
 
@@ -1637,6 +1641,19 @@ release zip carries them in `Samples\`.
   menu** - `menus/abilities.xml` + `.json`, `menus/jobs`, `menus/job-confirm`, and
   `AbilitiesScreen.cs` with the three MenuBehaviours that fill and drive them - the shape of a
   menu of your own; `install.cmd` builds it into the mods folder.
+- `Samples/StarlitMenu` - the game's whole menu redrawn with no code: layouts, one stylesheet
+  (`menus/styles/starlit.css`) and a few pictures. The main menu (a panel a place from `places[]` -
+  face, name, job, level, HP and MP bars - and a gold framed column of commands with icons and a
+  lit row that follows the hand), Status, Equipment and the list under it, Magic, Item, Job,
+  Config (tabs, the choice set lit through `:checked`, the volume sliders drawn from the `config`
+  root), the client's own Gambits taken into the mod by its id, and the OK / Back / L / R buttons of
+  `field_hud`, the key to press shown the player's way (`input`). Each of the game's screens keeps
+  the frames its code reads - ids, tags, the order some are walked in - and moves and styles them;
+  the frames around them are the mod's. The layouts are written by the scripts in `tools/`
+  (`layouts.py`; a script a screen for the others, reading the game's decoded `MenuDefine.xml`),
+  the two icon sheets cut from the painted originals by `tools/art.py` and named in
+  `menus/sprites.json`. Copy the folder into `mods/` (`install.cmd`); `--jobs=all` opens every job
+  at a test start, to see the Job screen.
 - `Samples/Fellowship` - walk the world together: a network mod. Every OpenFF with it on the
   same LAN is a traveller in one world - UDP broadcast on port 47474 (`fellowship.json` sets the
   port and your name; `FELLOWSHIP_NAME` in the environment overrides it, so two clients on one

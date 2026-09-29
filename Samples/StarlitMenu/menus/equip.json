@@ -1,0 +1,8 @@
+{
+  "id": "equip",
+  "layout": "equip.xml",
+  "screen": "equip",
+  "patch": true,
+  "background": -1,
+  "backdropLines": "none"
+}

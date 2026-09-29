@@ -11331,10 +11331,13 @@ internal static partial class GlobalScope
 						{
 						}
 
+						/// <summary>PORT: the lettering of a text with none of its own while a mod's layout of the screen says one (its menu rule's: ModMenus).</summary>
+						internal static OpenFF.Content.MenuText MenuTextDefault;
+
 						internal static NNSG2dTextRect NNS_G2dFontGetTextRect(NNSG2dFont pFont, int hSpace, int vSpace, string txt)
 						{
 							// PORT: a menu text's own lettering measured as it is drawn: its case, face and spacing (MenuText).
-							OpenFF.Content.MenuText style = pFont.style;
+							OpenFF.Content.MenuText style = pFont.style ?? MenuTextDefault;
 							OpenFF.Content.MenuText styleWas = OpenFF.Client.TrueTypeText.Style;
 							if (style != null) { txt = style.Cased(txt); OpenFF.Client.TrueTypeText.Style = style; }
 							try { return FontTextRect(pFont, vSpace, txt, style); }
@@ -11464,7 +11467,7 @@ internal static partial class GlobalScope
 							// PORT: a menu style's own colour over the palette's (ModMenus, MenuStyles).
 							cl = pTxn.rgba.HasValue ? (int)pTxn.rgba.Value : textColor[cl];
 							// PORT: and its own lettering (MenuText): its case here, the rest as the slot is drawn.
-							OpenFF.Content.MenuText lettering = pTxn.style ?? pTxn.pFont?.style;
+							OpenFF.Content.MenuText lettering = pTxn.style ?? pTxn.pFont?.style ?? MenuTextDefault;
 							if (lettering != null) txt = lettering.Cased(txt);
 							NNSG2dTextRect nNSG2dTextRect = NNS_G2dFontGetTextRect(pTxn.pFont, pTxn.hSpace, pTxn.vSpace, txt);
 							if ((flags & 0x10) != 0)

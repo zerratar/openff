@@ -59,6 +59,14 @@ asks for names that are in the archives, so it is ignored.
 Frames nest, and a child's `x`/`y` are added to its parent's, so moving a container
 moves everything inside it. A `<table>` on a frame repeats it into a grid.
 
+- **At most 32 frames in a frame**, the screen's top level too: the rest are dropped. The frames the cursor lands on reach
+  their `up/down/left/right` within their parent, so keep those at the top level and put the rest in holder frames
+  (a frame at 0, 0 with no size is only a holder).
+- **Ids match without case**: a frame of yours called `exp` is the game's `EXP` to the screen's code and to the sheets.
+- **Where the hand stands** (OpenFF's): a frame marked `<cursor/>` inside a frame the cursor lands on is the hand's point
+  on it (the fingertip a few units right of it), in place of what the behaviour works out - to put the hand at a row's
+  left, clear of an icon, or at a portrait. A press on any frame inside a focusable one (its icon, its lit box) reaches it.
+
 Two conventions come from the binary format rather than from the game:
 
 - A value on an element that also has children moves into a `value` attribute, since
@@ -141,7 +149,7 @@ text.picked       { color: #ffd080; }
 - `#id` (a frame's `<id>`, or a screen's `<name>`), `.class` (the `class` attribute), and `*`;
 - combined with a space (anywhere inside) or `>` (directly inside), and listed with commas;
 - pseudo-classes:
-  - states: `:focus` (the cursor is on the frame), `:focus-within` (on it or a frame inside it), `:disabled` / `:enabled` (`IMenuWidget.Enabled` from code);
+  - states: `:focus` (the cursor is on the frame), `:focus-within` (on it or a frame inside it), `:disabled` / `:enabled` (`IMenuWidget.Enabled` from code, or a text the game's code greys out - the main menu's Job before the first crystal, Save away from the field), `:checked` (the choice a config row has set);
   - structure: `:first-child`, `:last-child`, `:only-child`, `:nth-child()` and `:nth-last-child()` (`An+B`, `odd`, `even`);
   - `:not()` of one simple selector (`.row:not(:first-child)`).
 
@@ -205,6 +213,8 @@ A text's own shadow, outline, face, weight, slant, spacing and case, as CSS has 
 | `text-decoration` | `underline`, `line-through`, `none`. |
 | `text-transform` | `uppercase`, `lowercase`, `capitalize`, `none`. |
 | `-ff-text-stroke` | `width colour`: an outline round the letters (`-webkit-text-stroke` is read too). |
+
+**The whole screen's lettering:** a face, shadow or outline on the screen itself (the `<menu>`'s style, or a sheet's `#name` rule) is every text's of it that has none of its own - the texts the game's own widgets make too (a list's items and counts), which no frame of the layout reaches. On such a screen the game's item lists also give a name a little more room after its icon.
 
 In the client the shadows and the outline are draws of their own under the text (`GlobalScope.MenuText.cs`), a shadow's blur the face's blurry effect; the face, weight, slant and spacing are the text's (`TrueTypeText`).
 
@@ -360,14 +370,16 @@ attributes, so the game's own file never carries them:
 - **Where the first name is looked up:** first on the data source, then among the roots:
   - what the screen's code put in `Menu.Data`;
   - `hero` (the party member the screen asked for);
-  - `party` (the members), `gil`, `items` (the bag);
+  - `party` (the members, no gaps), `places` (the formation's four places in order, null where no one stands - a panel a place binds `places[0]`..`places[3]`, and a hero Formation moves moves with them), `gil`, `items` (the bag);
+  - `input`: the pad in hand or the keyboard, for button hints - `device` (`keyboard`, `playstation`, `xbox`), `pad`, a label for each of the game's buttons (`ok`, `back`, `x`, `y`, `l`, `r`, `menu`: "Esc", "B", the circle) and the button each is on (`okButton`, `backButton`...: the pad map's `cross`, `circle`, `square`, `triangle`, `l1`... or the key), read again within half a second of a pad coming or going;
+  - `config`: the game's settings - `music` and `sound` (0..10 as the Config screen shows them, `musicLevel` 0..127, `musicPercent`), `textSpeed`, `cursor`, `move`, `battleMenu` (the choice set);
   - `menu` (the screen: `hero`, `focused`, `id`);
   - what a mod's code put in `Game.Hud` (`Game.Hud.Set("quest", ...)`: see The field's HUD);
   - `this` (the data source itself).
-- **A party member's** (`hero`, `party[1]`): `name`, `level`, `experience`, `hp`, `maxHp`, `mp`, `jobTitle`, `alive`, `stats.strength`... and for bars and pictures `hpPercent`, `mpPercent`, `expPercent` (0..100), `expToNext`, and `face` (the hero's picture in their job, as a background image says it: `bind-style="background-image: {face}"`).
+- **A party member's** (`hero`, `party[1]`): `name`, `level`, `experience`, `hp`, `maxHp`, `mp`, `jobTitle`, `alive`, `stats.strength`... `stats.attack` and `stats.defense` (as the Status screen works them out) and for bars and pictures `hpPercent`, `mpPercent`, `expPercent` (0..100), `expToNext`, and `face` (the hero's picture in their job, as a background image says it: `bind-style="background-image: {face}"`).
 - **Sums** work inside a template's braces too: `{hp * 100 / maxHp}`, `{level + 1}`.
 
-**A bound style** (`bind-style`): declarations with `{paths}` in them, put over the frame's own style as the data says - `bind-style="background-image: {dialogue.avatar}"`, `bind-style="-ff-tint: {tint}"`. What it binds cascades like the frame's own style, over every sheet.
+**A bound style** (`bind-style`): declarations with `{paths}` in them, put over the frame's own style as the data says - `bind-style="background-image: {dialogue.avatar}"`, `bind-style="-ff-tint: {tint}"`. What it binds cascades like the frame's own style, over every sheet. A bound `width` or `height` (units, or a percent of the parent's) sizes the frame's panel as it changes - a bar's fill: `bind-style="width: {hpPercent}%"`; a bound `translate` moves it - a slider's knob: `bind-style="translate: {config.musicPercent * 150 / 100}px 0"`.
 
 **Out of the layout** (`bind-display`): while its expression is false the frame is `display: none` - out of its parent's row or column, the others closing up over its place, as a horizontal layout group leaves out an inactive child. `bind-visible` hides a frame and keeps its place, as CSS's `visibility` does. The field's HUD lays its rows and columns out again as the data changes (a speaker with no picture: `bind-display="dialogue.avatar"` on the avatar, and the text takes its room); a menu screen's layout is laid out once, as it opens.
 
@@ -439,9 +451,9 @@ The field's dialogue window and the map-name banner are laid out by `field_hud`,
 | `confirm` | The Yes / No box (an inn's question, a script's `Game.Dialogue.Ask`): the game's window, or `-ff-panel: none` and a look of the mod's. `confirm/question`, `confirm/yes` and `confirm/no` place its lines and give them their look; the one the hand is on is in `:focus`, and `confirm/yes/cursor` and `confirm/no/cursor` are where the hand stands on each. Asked with its question in the message window (`Ask`), the box closes up over the question's line. |
 | `menu_button`, `map_button`, `talk_button` | The field's buttons, where the options put them (they swap the menu's and the map's). `-ff-tint` and `opacity` colour the game's picture; a background (or `-ff-panel: none`) takes its place, with frames of the mod's in it (a label). |
 | `title`, `title/row` | The title's column of commands: the first row at the frame's top, the last no lower than its bottom, a row's height the step between them. `title/row` is the commands' lettering (colour, size, face, shadows, opacity) where they're drawn as text; the one the hand is on is in `:focus`, a Continue with nothing to continue `:disabled`. |
-| `a_button`, `b_button`, `l_button`, `r_button` | A menu's touch buttons (OK, Back, the previous and next hero): where they are and a press reaches. `a_button/text` and `b_button/text` are their labels' look; a background takes the place of L's and R's pictures. |
+| `a_button`, `b_button`, `l_button`, `r_button` | A menu's touch buttons (OK, Back, the previous and next hero): where they are and a press reaches. `a_button/text` and `b_button/text` are their labels' look - with a `text-align`, placed in their frame as it is laid out (a pill's row of the key and the label) rather than centred in the button; a background takes the place of L's and R's pictures. Frames of the mod's in them take the `input` root: `bind-text="{input.back}"` is Esc on the keyboard, B on an Xbox pad, the circle on a PlayStation's. |
 
-Their bindings (`bind-text`, `bind-visible`, `bind-display`, `bind-class`, `bind-style`) reach `dialogue` (`number`, `text`, `speaker`, `avatar`, `map`), `banner` (`number`, `text`), `hero`, `party` and `gil`. With nothing styled, the game's windows are drawn as they always were.
+Their bindings (`bind-text`, `bind-visible`, `bind-display`, `bind-class`, `bind-style`) reach `dialogue` (`number`, `text`, `speaker`, `avatar`, `map`), `banner` (`number`, `text`), `hero`, `party`, `places`, `gil` and `input`. With nothing styled, the game's windows are drawn as they always were.
 
 ```xml
 <frame><id>dialogue</id> ...

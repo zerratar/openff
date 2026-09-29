@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The menus' OK and Back buttons (CWMenuButton), merged into the game's field_hud ("patch": true): a gold framed pill at the bottom left in place of the game's bar across the bottom, the button to press shown the player's way - input.ok / input.back and the button each is on. Everything else of the field's HUD is the game's. -->
+<!-- The menus' OK and Back buttons (CWMenuButton), and L / R (another hero) as two small pills at the right, merged into the game's field_hud ("patch": true): a gold framed pill at the bottom left in place of the game's bar across the bottom, the button to press shown the player's way - input.ok / input.back and the button each is on. Everything else of the field's HUD is the game's. -->
 <menulist>
   <menu>
     <name>field_hud</name>
@@ -117,6 +117,34 @@
           <parameter>0</parameter>
         </behavior>
         <data/>
+      </frame>
+    </frame>
+    <frame class="lrpill">
+      <id>l_button</id>
+      <x>392</x>
+      <y>291</y>
+      <width>38</width>
+      <height>22</height>
+      <frame class="sicon s_left">
+        <id>l_button_icon</id>
+        <x>11</x>
+        <y>4</y>
+        <width>14</width>
+        <height>14</height>
+      </frame>
+    </frame>
+    <frame class="lrpill">
+      <id>r_button</id>
+      <x>434</x>
+      <y>291</y>
+      <width>38</width>
+      <height>22</height>
+      <frame class="sicon s_right">
+        <id>r_button_icon</id>
+        <x>13</x>
+        <y>4</y>
+        <width>14</width>
+        <height>14</height>
       </frame>
     </frame>
   </menu>

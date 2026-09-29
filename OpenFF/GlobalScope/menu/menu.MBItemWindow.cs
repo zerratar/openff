@@ -238,7 +238,7 @@ internal static partial class GlobalScope
 							}
 							else
 							{
-								pMsg[num4].setPosition((short)(medget.x() + 16), (short)(medget.y() + num5), erase: true);
+								pMsg[num4].setPosition((short)(medget.x() + NameInset), (short)(medget.y() + num5), erase: true);
 							}
 							pMsg[num4].setDisplaySpeed(byte.MaxValue);
 							pMsg[num4].setDisplayWait(0);
@@ -613,6 +613,10 @@ internal static partial class GlobalScope
 				BuildMsg();
 			}
 
+			/// <summary>PORT: where an item's name starts right of its icon - 16 as the game has it; on a screen a mod's layout styles
+			/// (its face wider than the game's), a little more room.</summary>
+			private static int NameInset => OpenFF.Client.ModMenus.ScreenStyled ? 22 : 16;
+
 			public void CreateItemTypeIcon(dgs.DGSMessageManager pm, dgs.msg.CMessageMng.MSF_HANDLE_KIND _msfHandle, int x, int y, int tItemNo, int indexNo)
 			{
 				short num = itm.ItemManager.instance().itemParameter((short)tItemNo).system();
@@ -813,7 +817,7 @@ internal static partial class GlobalScope
 								}
 								else
 								{
-									pMsg[num3].setPosition((short)(medget.x() + 16), (short)(medget.y() + num4), erase: true);
+									pMsg[num3].setPosition((short)(medget.x() + NameInset), (short)(medget.y() + num4), erase: true);
 								}
 								pMsg[num3].setDisplaySpeed(byte.MaxValue);
 								pMsg[num3].setDisplayWait(0);
@@ -1129,7 +1133,7 @@ internal static partial class GlobalScope
 								}
 								else
 								{
-									pMsg[num3].setPosition((short)(medget.x() + 16), (short)(medget.y() + num4), erase: true);
+									pMsg[num3].setPosition((short)(medget.x() + NameInset), (short)(medget.y() + num4), erase: true);
 								}
 								pMsg[num3].setDisplaySpeed(byte.MaxValue);
 								pMsg[num3].setDisplayWait(0);
@@ -1280,7 +1284,7 @@ internal static partial class GlobalScope
 							}
 							else
 							{
-								pMsg[num2].setPosition((short)(medget2.x() + 16), (short)(medget2.y() + num3), erase: true);
+								pMsg[num2].setPosition((short)(medget2.x() + NameInset), (short)(medget2.y() + num3), erase: true);
 							}
 							pMsg[num2].setDisplaySpeed(byte.MaxValue);
 							pMsg[num2].setDisplayWait(0);

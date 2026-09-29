@@ -1,0 +1,7 @@
+{
+  "id": "magic",
+  "layout": "magic.xml",
+  "screen": "magic",
+  "background": -1,
+  "backdropLines": "none"
+}

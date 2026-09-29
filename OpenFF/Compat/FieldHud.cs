@@ -1071,6 +1071,7 @@ namespace OpenFF.Client
 				case "banner": return (true, Banner);
 				case "hero": { IReadOnlyList<PartyMember> m = OpenFF.Game.Party?.Members; return (true, m != null && m.Count > 0 ? m[0] : null); }
 				case "party": return (true, OpenFF.Game.Party?.Members);
+				case "places": return (true, ModMenus.Places());
 				case "gil": return (true, OpenFF.Game.Party?.Gil ?? 0);
 				case "items": return (true, OpenFF.Game.Party?.Items);
 				case "input": return (true, InputHints.Current);

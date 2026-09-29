@@ -1450,6 +1450,8 @@ internal static partial class GlobalScope
 
 			public bool buildMenu(string menu_name)
 			{
+				// PORT: the screen's own lettering (a mod's layout of it) in place before its texts are made and measured.
+				OpenFF.Client.ModMenus.GameScreenBuilding(menu_name);
 				focusMedgets.clear();
 				focusedMedget = null;
 				XbnNode xbnNode = xbnDocument.root();

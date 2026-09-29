@@ -383,6 +383,11 @@ internal static partial class GlobalScope
 									int commands = 0;
 									for (medget = menu.MenuManager.getSingleton().getFocuseMedget().parentNode().childNode(); medget != null; medget = medget.nextSibling()) commands++;
 									if (commands > 0) focusedCursor = commands;
+									// PORT: the hand on the first place with a hero in it (one moved by Formation leaves the first empty).
+									for (int first = 0; first < 4; first++)
+									{
+										if (pl.PlayerParty.instance().player((byte)first).isEnable()) { focusedCursor += first; break; }
+									}
 									int place = 0;
 									for (medget = menu.MenuManager.getSingleton().getFocuseMedget().parentNode()
 										.childNode(); medget != null; medget = medget.nextSibling(), place++)

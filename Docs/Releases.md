@@ -7,6 +7,38 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## 0.2.4 - the Starlit Menu (2026-09-29)
+
+A sample mod that redraws the game's whole menu with no code, and what the menus needed for it.
+
+**Added**
+- Starlit Menu sample: the main menu, Status, Equipment, Magic, Item, Job, Config and Gambits redrawn - a layout, a stylesheet and a few pictures.
+- Menus: <cursor/> says where the hand stands on a frame.
+- Menus: the input binding root - button hints follow the keyboard, a PlayStation pad or an Xbox pad.
+- Menus: the places binding root - the formation's four places in order.
+- Menus: the config binding root - the game's settings and volumes.
+- Menus: :checked for the choice a config row has set.
+- Menus: a screen's own lettering reaches every text of it, the game's lists too.
+- Menus: a bound width, height or translate sizes and moves a frame's panel (bars, sliders).
+- Engine API: Stats.Attack and Stats.Defense.
+- Options: --jobs=all opens every job and the menu's Job at a test start.
+
+**Improvements**
+- Menus: a restyled menu opens much faster: painted boxes are cached and pictures shared between screens.
+- Menus: Esc goes back in the game's menus.
+- Menus: a press on a frame inside a row reaches the row.
+- Menus: the hero pick starts on the first place with a hero.
+- Menus: a text the game greys out is :disabled for the sheets.
+- Menus: the config screens' texts and art follow a layout's look.
+- Menus: a patch's new frames keep their place; a replacing layout keeps its focus tags.
+- Gambits: the layout can place the rule numbers, ON / OFF and the L / R hint apart.
+
+**Fixes**
+- Menus: the game's faces no longer flash under a layout's portraits.
+- Menus: no field models on black between two screens.
+- Menus: a mod's own models are no longer drawn while the game hides the field.
+- Menus: a menu with many painted boxes no longer runs out of texture slots.
+
 ## 0.2.3 - automatic updates (2026-09-29)
 
 The game now updates itself: install this version by hand once, and later releases are offered on the title and put in place for you.

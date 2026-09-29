@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Item screen (menu_item): the game's frames as its file has them (its tabs, ItemList's list, the caption), moved and styled, with the panels, the list's lines and the icons of the mod's. Generated. -->
+<menulist>
+  <menu>
+    <name>menu_item</name>
+    <frame class="panel">
+      <id>listpanel</id>
+      <x>8</x>
+      <y>39</y>
+      <width>464</width>
+      <height>208</height>
+      <frame class="goldframe">
+        <id>listpanel_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>218</height>
+      </frame>
+    </frame>
+    <frame class="panel">
+      <id>captionpanel</id>
+      <x>8</x>
+      <y>255</y>
+      <width>464</width>
+      <height>28</height>
+      <frame class="goldframe">
+        <id>captionpanel_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>38</height>
+      </frame>
+    </frame>
+    <frame class="panel bottom">
+      <id>bottom</id>
+      <x>8</x>
+      <y>290</y>
+      <width>464</width>
+      <height>24</height>
+      <frame class="goldframe">
+        <id>bottom_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>34</height>
+      </frame>
+    </frame>
+    <frame class="title">
+      <id>menu_target_name</id>
+      <x>40</x>
+      <y>7</y>
+      <width>60</width>
+      <height>20</height>
+      <behavior value="Text">
+        <parameter>50003</parameter>
+        <parameter>8</parameter>
+        <parameter>2</parameter>
+        <parameter>1</parameter>
+      </behavior>
+    </frame>
+    <frame>
+      <id>mm_command</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>32</height>
+      <frame class="tab2">
+        <focus/>
+        <id>m_use</id>
+        <x>196</x>
+        <y>5</y>
+        <width>86</width>
+        <height>24</height>
+        <myTag>0</myTag>
+        <up>dummy</up>
+        <down>dummy</down>
+        <left>m_important</left>
+        <right>m_seiton</right>
+        <behavior value="Text">
+          <parameter>50201</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+          <parameter>1</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_use</id>
+          <x>6</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="tab2">
+        <focus/>
+        <id>m_seiton</id>
+        <x>284</x>
+        <y>5</y>
+        <width>86</width>
+        <height>24</height>
+        <myTag>1</myTag>
+        <up>dummy</up>
+        <down>dummy</down>
+        <left>m_use</left>
+        <right>m_important</right>
+        <behavior value="Text">
+          <parameter>50202</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+          <parameter>1</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_seiton</id>
+          <x>6</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="tab2">
+        <focus/>
+        <id>m_important</id>
+        <x>372</x>
+        <y>5</y>
+        <width>100</width>
+        <height>24</height>
+        <myTag>2</myTag>
+        <up>dummy</up>
+        <down>dummy</down>
+        <left>m_seiton</left>
+        <right>m_use</right>
+        <behavior value="Text">
+          <parameter>50203</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+          <parameter>1</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_important</id>
+          <x>6</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+    </frame>
+    <frame>
+      <id>item_list</id>
+      <x>8</x>
+      <y>43</y>
+      <width>464</width>
+      <height>203</height>
+      <behavior value="ItemList">
+        <parameter>1</parameter>
+        <parameter>7</parameter>
+        <parameter>2</parameter>
+      </behavior>
+      <frame class="listrow">
+        <id>1-1</id>
+        <x>22</x>
+        <y>0</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>3</myTag>
+        <up>dummy</up>
+        <down>2-1</down>
+        <left>1-2</left>
+        <right>1-2</right>
+      </frame>
+      <frame class="listrow">
+        <id>1-2</id>
+        <x>248</x>
+        <y>0</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>4</myTag>
+        <up>dummy</up>
+        <down>2-2</down>
+        <left>1-1</left>
+        <right>1-1</right>
+      </frame>
+      <frame class="listrow">
+        <id>2-1</id>
+        <x>22</x>
+        <y>29</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>5</myTag>
+        <up>1-1</up>
+        <down>3-1</down>
+        <left>2-2</left>
+        <right>2-2</right>
+      </frame>
+      <frame class="listrow">
+        <id>2-2</id>
+        <x>248</x>
+        <y>29</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>6</myTag>
+        <up>1-2</up>
+        <down>3-2</down>
+        <left>2-1</left>
+        <right>2-1</right>
+      </frame>
+      <frame class="listrow">
+        <id>3-1</id>
+        <x>22</x>
+        <y>58</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>7</myTag>
+        <up>2-1</up>
+        <down>4-1</down>
+        <left>3-2</left>
+        <right>3-2</right>
+      </frame>
+      <frame class="listrow">
+        <id>3-2</id>
+        <x>248</x>
+        <y>58</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>8</myTag>
+        <up>2-2</up>
+        <down>4-2</down>
+        <left>3-1</left>
+        <right>3-1</right>
+      </frame>
+      <frame class="listrow">
+        <id>4-1</id>
+        <x>22</x>
+        <y>87</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>9</myTag>
+        <up>3-1</up>
+        <down>5-1</down>
+        <left>4-2</left>
+        <right>4-2</right>
+      </frame>
+      <frame class="listrow">
+        <id>4-2</id>
+        <x>248</x>
+        <y>87</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>10</myTag>
+        <up>3-2</up>
+        <down>5-2</down>
+        <left>4-1</left>
+        <right>4-1</right>
+      </frame>
+      <frame class="listrow">
+        <id>5-1</id>
+        <x>22</x>
+        <y>116</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>11</myTag>
+        <up>4-1</up>
+        <down>6-1</down>
+        <left>5-2</left>
+        <right>5-2</right>
+      </frame>
+      <frame class="listrow">
+        <id>5-2</id>
+        <x>248</x>
+        <y>116</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>12</myTag>
+        <up>4-2</up>
+        <down>6-2</down>
+        <left>5-1</left>
+        <right>5-1</right>
+      </frame>
+      <frame class="listrow">
+        <id>6-1</id>
+        <x>22</x>
+        <y>145</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>13</myTag>
+        <up>5-1</up>
+        <down>7-1</down>
+        <left>6-2</left>
+        <right>6-2</right>
+      </frame>
+      <frame class="listrow">
+        <id>6-2</id>
+        <x>248</x>
+        <y>145</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>14</myTag>
+        <up>5-2</up>
+        <down>7-2</down>
+        <left>6-1</left>
+        <right>6-1</right>
+      </frame>
+      <frame class="listrow">
+        <id>7-1</id>
+        <x>22</x>
+        <y>174</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>15</myTag>
+        <up>6-1</up>
+        <down>8-1</down>
+        <left>7-2</left>
+        <right>7-2</right>
+      </frame>
+      <frame class="listrow">
+        <id>7-2</id>
+        <x>248</x>
+        <y>174</y>
+        <width>208</width>
+        <height>29</height>
+        <myTag>16</myTag>
+        <up>6-2</up>
+        <down>8-2</down>
+        <left>7-1</left>
+        <right>7-1</right>
+      </frame>
+    </frame>
+    <frame class="captiontext">
+      <id>caption</id>
+      <x>22</x>
+      <y>260</y>
+      <width>440</width>
+      <height>18</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+      </behavior>
+      <data value="　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　"/>
+    </frame>
+    <frame class="crystal">
+      <id>crystal</id>
+      <x>9</x>
+      <y>4</y>
+      <width>26</width>
+      <height>26</height>
+    </frame>
+    <frame class="hline">
+      <id>hline</id>
+      <x>8</x>
+      <y>31</y>
+      <width>464</width>
+      <height>1</height>
+    </frame>
+    <frame class="sicon s_sparkle">
+      <id>m_use_icon</id>
+      <x>200</x>
+      <y>10</y>
+      <width>14</width>
+      <height>14</height>
+    </frame>
+    <frame class="sicon s_exchange">
+      <id>m_seiton_icon</id>
+      <x>288</x>
+      <y>10</y>
+      <width>14</width>
+      <height>14</height>
+    </frame>
+    <frame class="sicon s_crystal">
+      <id>m_important_icon</id>
+      <x>376</x>
+      <y>10</y>
+      <width>14</width>
+      <height>14</height>
+    </frame>
+    <frame class="rowline">
+      <id>row1</id>
+      <x>16</x>
+      <y>72</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row2</id>
+      <x>16</x>
+      <y>101</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row3</id>
+      <x>16</x>
+      <y>130</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row4</id>
+      <x>16</x>
+      <y>159</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row5</id>
+      <x>16</x>
+      <y>188</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row6</id>
+      <x>16</x>
+      <y>217</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="vsep">
+      <id>colsep</id>
+      <x>240</x>
+      <y>47</y>
+      <width>1</width>
+      <height>196</height>
+    </frame>
+  </menu>
+</menulist>

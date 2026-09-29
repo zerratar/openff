@@ -1,0 +1,872 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Magic screen (magic), patched: the game's frames as its file has them (its tabs, and PramMagic's list of the levels' charges and spells), moved and styled, with the hero's panel, the list's lines and the icons of the mod's. Generated. -->
+<menulist>
+  <menu>
+    <name>magic</name>
+    <frame class="panel">
+      <id>heropanel</id>
+      <x>8</x>
+      <y>67</y>
+      <width>464</width>
+      <height>56</height>
+      <frame class="goldframe">
+        <id>heropanel_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>66</height>
+      </frame>
+    </frame>
+    <frame class="panel">
+      <id>listpanel</id>
+      <x>8</x>
+      <y>130</y>
+      <width>464</width>
+      <height>152</height>
+      <frame class="goldframe">
+        <id>listpanel_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>162</height>
+      </frame>
+    </frame>
+    <frame class="panel bottom">
+      <id>bottom</id>
+      <x>8</x>
+      <y>290</y>
+      <width>464</width>
+      <height>24</height>
+      <frame class="goldframe">
+        <id>bottom_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>34</height>
+      </frame>
+    </frame>
+    <frame class="title">
+      <id>menu_tag_name</id>
+      <x>40</x>
+      <y>7</y>
+      <width>70</width>
+      <height>20</height>
+      <behavior value="Text">
+        <parameter>50004</parameter>
+        <parameter>8</parameter>
+        <parameter>2</parameter>
+      </behavior>
+    </frame>
+    <frame>
+      <id>mm_command</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="tab2">
+        <focus/>
+        <id>m_use</id>
+        <x>8</x>
+        <y>38</y>
+        <width>113</width>
+        <height>24</height>
+        <myTag>0</myTag>
+        <up>m_change</up>
+        <down>m_runing</down>
+        <left>m_change</left>
+        <right>m_runing</right>
+        <behavior value="Text">
+          <parameter>50201</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_use</id>
+          <x>8</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="tab2">
+        <focus/>
+        <id>m_runing</id>
+        <x>125</x>
+        <y>38</y>
+        <width>113</width>
+        <height>24</height>
+        <myTag>1</myTag>
+        <up>m_use</up>
+        <down>m_nouse</down>
+        <left>m_use</left>
+        <right>m_nouse</right>
+        <behavior value="Text">
+          <parameter>50301</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_runing</id>
+          <x>8</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="tab2">
+        <focus/>
+        <id>m_nouse</id>
+        <x>242</x>
+        <y>38</y>
+        <width>113</width>
+        <height>24</height>
+        <myTag>2</myTag>
+        <up>m_runing</up>
+        <down>m_change</down>
+        <left>m_runing</left>
+        <right>m_change</right>
+        <behavior value="Text">
+          <parameter>50204</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_nouse</id>
+          <x>8</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="tab2">
+        <focus/>
+        <id>m_change</id>
+        <x>359</x>
+        <y>38</y>
+        <width>113</width>
+        <height>24</height>
+        <myTag>3</myTag>
+        <up>m_nouse</up>
+        <down>m_use</down>
+        <left>m_nouse</left>
+        <right>m_use</right>
+        <behavior value="Text">
+          <parameter>50302</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_change</id>
+          <x>8</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+    </frame>
+    <frame>
+      <x>8</x>
+      <y>151</y>
+      <width>480</width>
+      <height>192</height>
+      <frame>
+        <scroll>on</scroll>
+        <id>magic_list</id>
+        <x>0</x>
+        <y>0</y>
+        <width>464</width>
+        <height>128</height>
+        <behavior value="PramMagic">
+          <parameter>1</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="spell">
+          <id>1-1</id>
+          <x>130</x>
+          <y>0</y>
+          <width>106</width>
+          <height>16</height>
+          <work>0</work>
+          <work1>0</work1>
+          <myTag>4</myTag>
+          <up>8-1</up>
+          <down>2-1</down>
+          <left>1-3</left>
+          <right>1-2</right>
+        </frame>
+        <frame class="spell">
+          <id>1-2</id>
+          <x>240</x>
+          <y>0</y>
+          <width>106</width>
+          <height>16</height>
+          <work>0</work>
+          <work1>1</work1>
+          <myTag>5</myTag>
+          <up>8-2</up>
+          <down>2-2</down>
+          <left>1-1</left>
+          <right>1-3</right>
+        </frame>
+        <frame class="spell">
+          <id>1-3</id>
+          <x>350</x>
+          <y>0</y>
+          <width>106</width>
+          <height>16</height>
+          <work>0</work>
+          <work1>2</work1>
+          <myTag>6</myTag>
+          <up>8-3</up>
+          <down>2-3</down>
+          <left>1-2</left>
+          <right>1-1</right>
+        </frame>
+        <frame class="spell">
+          <id>2-1</id>
+          <x>130</x>
+          <y>16</y>
+          <width>106</width>
+          <height>16</height>
+          <work>1</work>
+          <work1>0</work1>
+          <myTag>7</myTag>
+          <up>1-1</up>
+          <down>3-1</down>
+          <left>2-3</left>
+          <right>2-2</right>
+        </frame>
+        <frame class="spell">
+          <id>2-2</id>
+          <x>240</x>
+          <y>16</y>
+          <width>106</width>
+          <height>16</height>
+          <work>1</work>
+          <work1>1</work1>
+          <myTag>8</myTag>
+          <up>1-2</up>
+          <down>3-2</down>
+          <left>2-1</left>
+          <right>2-3</right>
+        </frame>
+        <frame class="spell">
+          <id>2-3</id>
+          <x>350</x>
+          <y>16</y>
+          <width>106</width>
+          <height>16</height>
+          <work>1</work>
+          <work1>2</work1>
+          <myTag>9</myTag>
+          <up>1-3</up>
+          <down>3-3</down>
+          <left>2-2</left>
+          <right>2-1</right>
+        </frame>
+        <frame class="spell">
+          <id>3-1</id>
+          <x>130</x>
+          <y>32</y>
+          <width>106</width>
+          <height>16</height>
+          <work>2</work>
+          <work1>0</work1>
+          <myTag>10</myTag>
+          <up>2-1</up>
+          <down>4-1</down>
+          <left>3-3</left>
+          <right>3-2</right>
+        </frame>
+        <frame class="spell">
+          <id>3-2</id>
+          <x>240</x>
+          <y>32</y>
+          <width>106</width>
+          <height>16</height>
+          <work>2</work>
+          <work1>1</work1>
+          <myTag>11</myTag>
+          <up>2-2</up>
+          <down>4-2</down>
+          <left>3-1</left>
+          <right>3-3</right>
+        </frame>
+        <frame class="spell">
+          <id>3-3</id>
+          <x>350</x>
+          <y>32</y>
+          <width>106</width>
+          <height>16</height>
+          <work>2</work>
+          <work1>2</work1>
+          <myTag>12</myTag>
+          <up>2-3</up>
+          <down>4-3</down>
+          <left>3-2</left>
+          <right>3-1</right>
+        </frame>
+        <frame class="spell">
+          <id>4-1</id>
+          <x>130</x>
+          <y>48</y>
+          <width>106</width>
+          <height>16</height>
+          <work>3</work>
+          <work1>0</work1>
+          <myTag>13</myTag>
+          <up>3-1</up>
+          <down>5-1</down>
+          <left>4-3</left>
+          <right>4-2</right>
+        </frame>
+        <frame class="spell">
+          <id>4-2</id>
+          <x>240</x>
+          <y>48</y>
+          <width>106</width>
+          <height>16</height>
+          <work>3</work>
+          <work1>1</work1>
+          <myTag>14</myTag>
+          <up>3-2</up>
+          <down>5-2</down>
+          <left>4-1</left>
+          <right>4-3</right>
+        </frame>
+        <frame class="spell">
+          <id>4-3</id>
+          <x>350</x>
+          <y>48</y>
+          <width>106</width>
+          <height>16</height>
+          <work>3</work>
+          <work1>2</work1>
+          <myTag>15</myTag>
+          <up>3-3</up>
+          <down>5-3</down>
+          <left>4-2</left>
+          <right>4-1</right>
+        </frame>
+        <frame class="spell">
+          <id>5-1</id>
+          <x>130</x>
+          <y>64</y>
+          <width>106</width>
+          <height>16</height>
+          <work>4</work>
+          <work1>0</work1>
+          <myTag>16</myTag>
+          <up>4-1</up>
+          <down>6-1</down>
+          <left>5-3</left>
+          <right>5-2</right>
+        </frame>
+        <frame class="spell">
+          <id>5-2</id>
+          <x>240</x>
+          <y>64</y>
+          <width>106</width>
+          <height>16</height>
+          <work>4</work>
+          <work1>1</work1>
+          <myTag>17</myTag>
+          <up>4-2</up>
+          <down>6-2</down>
+          <left>5-1</left>
+          <right>5-3</right>
+        </frame>
+        <frame class="spell">
+          <id>5-3</id>
+          <x>350</x>
+          <y>64</y>
+          <width>106</width>
+          <height>16</height>
+          <work>4</work>
+          <work1>2</work1>
+          <myTag>18</myTag>
+          <up>4-3</up>
+          <down>6-3</down>
+          <left>5-2</left>
+          <right>5-1</right>
+        </frame>
+        <frame class="spell">
+          <id>6-1</id>
+          <x>130</x>
+          <y>80</y>
+          <width>106</width>
+          <height>16</height>
+          <work>5</work>
+          <work1>0</work1>
+          <myTag>19</myTag>
+          <up>5-1</up>
+          <down>7-1</down>
+          <left>6-3</left>
+          <right>6-2</right>
+        </frame>
+        <frame class="spell">
+          <id>6-2</id>
+          <x>240</x>
+          <y>80</y>
+          <width>106</width>
+          <height>16</height>
+          <work>5</work>
+          <work1>1</work1>
+          <myTag>20</myTag>
+          <up>5-2</up>
+          <down>7-2</down>
+          <left>6-1</left>
+          <right>6-3</right>
+        </frame>
+        <frame class="spell">
+          <id>6-3</id>
+          <x>350</x>
+          <y>80</y>
+          <width>106</width>
+          <height>16</height>
+          <work>5</work>
+          <work1>2</work1>
+          <myTag>21</myTag>
+          <up>5-3</up>
+          <down>7-3</down>
+          <left>6-2</left>
+          <right>6-1</right>
+        </frame>
+        <frame class="spell">
+          <id>7-1</id>
+          <x>130</x>
+          <y>96</y>
+          <width>106</width>
+          <height>16</height>
+          <work>6</work>
+          <work1>0</work1>
+          <myTag>22</myTag>
+          <up>6-1</up>
+          <down>8-1</down>
+          <left>7-3</left>
+          <right>7-2</right>
+        </frame>
+        <frame class="spell">
+          <id>7-2</id>
+          <x>240</x>
+          <y>96</y>
+          <width>106</width>
+          <height>16</height>
+          <work>6</work>
+          <work1>1</work1>
+          <myTag>23</myTag>
+          <up>6-2</up>
+          <down>8-2</down>
+          <left>7-1</left>
+          <right>7-3</right>
+        </frame>
+        <frame class="spell">
+          <id>7-3</id>
+          <x>350</x>
+          <y>96</y>
+          <width>106</width>
+          <height>16</height>
+          <work>6</work>
+          <work1>2</work1>
+          <myTag>24</myTag>
+          <up>6-3</up>
+          <down>8-3</down>
+          <left>7-2</left>
+          <right>7-1</right>
+        </frame>
+        <frame class="spell">
+          <id>8-1</id>
+          <x>130</x>
+          <y>112</y>
+          <width>106</width>
+          <height>16</height>
+          <work>7</work>
+          <work1>0</work1>
+          <myTag>25</myTag>
+          <up>7-1</up>
+          <down>1-1</down>
+          <left>8-3</left>
+          <right>8-2</right>
+        </frame>
+        <frame class="spell">
+          <id>8-2</id>
+          <x>240</x>
+          <y>112</y>
+          <width>106</width>
+          <height>16</height>
+          <work>7</work>
+          <work1>1</work1>
+          <myTag>26</myTag>
+          <up>7-2</up>
+          <down>1-2</down>
+          <left>8-1</left>
+          <right>8-3</right>
+        </frame>
+        <frame class="spell">
+          <id>8-3</id>
+          <x>350</x>
+          <y>112</y>
+          <width>106</width>
+          <height>16</height>
+          <work>7</work>
+          <work1>2</work1>
+          <myTag>27</myTag>
+          <up>7-3</up>
+          <down>1-3</down>
+          <left>8-2</left>
+          <right>8-1</right>
+        </frame>
+      </frame>
+    </frame>
+    <frame class="name smallname">
+      <id>char_name</id>
+      <x>66</x>
+      <y>70</y>
+      <width>120</width>
+      <height>16</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+      </behavior>
+      <data value="　　　　　　　　"/>
+    </frame>
+    <frame class="job">
+      <id>char_job</id>
+      <x>66</x>
+      <y>86</y>
+      <width>120</width>
+      <height>14</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+      </behavior>
+      <data value="　　　　　　　　"/>
+    </frame>
+    <frame class="captiontext">
+      <id>caption</id>
+      <x>108</x>
+      <y>293</y>
+      <width>358</width>
+      <height>18</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+      </behavior>
+      <data value="　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　"/>
+    </frame>
+    <frame class="crystal">
+      <id>crystal</id>
+      <x>9</x>
+      <y>4</y>
+      <width>26</width>
+      <height>26</height>
+    </frame>
+    <frame class="hsep">
+      <id>hsep</id>
+      <x>116</x>
+      <y>11</y>
+      <width>1</width>
+      <height>12</height>
+    </frame>
+    <frame class="help">
+      <id>help</id>
+      <x>123</x>
+      <y>10</y>
+      <width>346</width>
+      <height>16</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Use, learn, remove, or exchange magic.</data>
+    </frame>
+    <frame class="hline">
+      <id>hline</id>
+      <x>8</x>
+      <y>31</y>
+      <width>464</width>
+      <height>1</height>
+    </frame>
+    <frame class="sicon s_sparkle">
+      <id>m_use_icon</id>
+      <x>16</x>
+      <y>42</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="sicon s_book">
+      <id>m_runing_icon</id>
+      <x>133</x>
+      <y>42</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="sicon s_trash">
+      <id>m_nouse_icon</id>
+      <x>250</x>
+      <y>42</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="sicon s_exchange">
+      <id>m_change_icon</id>
+      <x>367</x>
+      <y>42</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame data-source="hero">
+      <id>own</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="face">
+        <id>face</id>
+        <x>14</x>
+        <y>72</y>
+        <width>46</width>
+        <height>46</height>
+        <portrait/>
+      </frame>
+      <frame class="lv" bind-text="Lv. {level}">
+        <id>lvword</id>
+        <x>66</x>
+        <y>101</y>
+        <width>40</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="bar exp">
+        <id>expbar</id>
+        <x>104</x>
+        <y>108</y>
+        <width>80</width>
+        <height>3</height>
+        <frame class="fill" bind-style="width: {expPercent}%">
+          <id>expbar_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>80</width>
+          <height>3</height>
+        </frame>
+      </frame>
+      <frame class="vsep">
+        <id>vsep1</id>
+        <x>196</x>
+        <y>74</y>
+        <width>1</width>
+        <height>40</height>
+      </frame>
+      <frame class="label">
+        <id>hpword</id>
+        <x>206</x>
+        <y>72</y>
+        <width>22</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>HP</data>
+      </frame>
+      <frame class="hp" bind-text="{hp} / {maxHp}">
+        <id>hpvalue</id>
+        <x>230</x>
+        <y>71</y>
+        <width>90</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="bar hpbar">
+        <id>hpbar</id>
+        <x>230</x>
+        <y>88</y>
+        <width>90</width>
+        <height>4</height>
+        <frame class="fill" bind-style="width: {hpPercent}%">
+          <id>hpbar_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>90</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="vsep">
+        <id>vsep2</id>
+        <x>332</x>
+        <y>74</y>
+        <width>1</width>
+        <height>40</height>
+      </frame>
+      <frame class="label">
+        <id>mpword</id>
+        <x>342</x>
+        <y>72</y>
+        <width>22</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>MP</data>
+      </frame>
+      <frame class="orb white">
+        <id>orba</id>
+        <x>366</x>
+        <y>75</y>
+        <width>9</width>
+        <height>9</height>
+      </frame>
+      <frame class="mp" bind-text="{charges[0]} / {charges[1]} / {charges[2]} / {charges[3]}">
+        <id>mpa</id>
+        <x>380</x>
+        <y>72</y>
+        <width>90</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="orb black">
+        <id>orbb</id>
+        <x>366</x>
+        <y>91</y>
+        <width>9</width>
+        <height>9</height>
+      </frame>
+      <frame class="mp" bind-text="{charges[4]} / {charges[5]} / {charges[6]} / {charges[7]}">
+        <id>mpb</id>
+        <x>380</x>
+        <y>88</y>
+        <width>90</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+    </frame>
+    <frame class="label">
+      <id>lvhead</id>
+      <x>22</x>
+      <y>133</y>
+      <width>60</width>
+      <height>14</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Lv.</data>
+    </frame>
+    <frame class="label">
+      <id>magichead</id>
+      <x>142</x>
+      <y>133</y>
+      <width>80</width>
+      <height>14</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Magic</data>
+    </frame>
+    <frame class="line">
+      <id>headline</id>
+      <x>16</x>
+      <y>148</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row1</id>
+      <x>16</x>
+      <y>167</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row2</id>
+      <x>16</x>
+      <y>183</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row3</id>
+      <x>16</x>
+      <y>199</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row4</id>
+      <x>16</x>
+      <y>215</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row5</id>
+      <x>16</x>
+      <y>231</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row6</id>
+      <x>16</x>
+      <y>247</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowline">
+      <id>row7</id>
+      <x>16</x>
+      <y>263</y>
+      <width>448</width>
+      <height>1</height>
+    </frame>
+    <frame class="vsep">
+      <id>col0</id>
+      <x>134</x>
+      <y>153</y>
+      <width>1</width>
+      <height>126</height>
+    </frame>
+    <frame class="vsep">
+      <id>col1</id>
+      <x>244</x>
+      <y>153</y>
+      <width>1</width>
+      <height>126</height>
+    </frame>
+    <frame class="vsep">
+      <id>col2</id>
+      <x>354</x>
+      <y>153</y>
+      <width>1</width>
+      <height>126</height>
+    </frame>
+  </menu>
+</menulist>

@@ -281,12 +281,27 @@ namespace OpenFF.Client
 		{
 			int hero = GambitEditor.Hero;
 			_slots = Gambits.Slotted(hero);
-			Menu.SetText("hero", "Gambits  -  " + GambitEditor.HeroName(hero) + "      ( " + GambitEditor.Button(MenuKey.L) + " / " + GambitEditor.Button(MenuKey.R) + ": another hero )");
+			// A layout with a hero_hint frame has the L / R hint there, and one with num0.. the rules' numbers apart from ON / OFF
+			// (a pill of its own); the cells carry their rule's state as a class, rule-on, rule-off or rule-empty.
+			string hint = "( " + GambitEditor.Button(MenuKey.L) + " / " + GambitEditor.Button(MenuKey.R) + ": another hero )";
+			bool hintApart = Menu.Widget("hero_hint") != null;
+			Menu.SetText("hero", "Gambits  -  " + GambitEditor.HeroName(hero) + (hintApart ? "" : "      " + hint));
+			if (hintApart) Menu.SetText("hero_hint", hint);
 			for (int r = 0; r < Rows; r++)
 			{
 				int i = GambitEditor.Top + r;
 				Gambit rule = _slots[i];
-				Menu.SetText("on" + r, (i + 1).ToString().PadLeft(2) + "   " + (rule.IsEmpty ? "-" : rule.On ? "ON" : "OFF"));
+				string state = rule.IsEmpty ? "-" : rule.On ? "ON" : "OFF";
+				if (Menu.Widget("num" + r) != null)
+				{
+					Menu.SetText("num" + r, (i + 1).ToString());
+					Menu.SetText("on" + r, state);
+				}
+				else Menu.SetText("on" + r, (i + 1).ToString().PadLeft(2) + "   " + state);
+				IMenuWidget cell = Menu.Widget("on" + r);
+				cell?.ToggleClass("rule-on", !rule.IsEmpty && rule.On);
+				cell?.ToggleClass("rule-off", !rule.IsEmpty && !rule.On);
+				cell?.ToggleClass("rule-empty", rule.IsEmpty);
 				Menu.SetText("cond" + r, GambitEditor.ConditionText(rule));
 				Menu.SetText("act" + r, GambitEditor.ActionText(rule));
 				Colour("on" + r, rule.IsEmpty || !rule.On ? MenuColour.Disabled : MenuColour.Yellow);

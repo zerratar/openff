@@ -321,8 +321,12 @@ internal static partial class GlobalScope
 				}
 			}
 
+			/// <summary>PORT: the colour the screen's code last gave the text (a command it greys out), whatever a layout's style draws it in.</summary>
+			public dgs.TXT_COLOR GameColour = dgs.TXT_COLOR.TXT_COLOR_WHITE;
+
 			public void changeTextColor(dgs.TXT_COLOR color)
 			{
+				GameColour = color;
 				message.setMessageColor(color);
 			}
 
@@ -520,6 +524,7 @@ internal static partial class GlobalScope
 
 			public void mbSetTextColor(dgs.TXT_COLOR color)
 			{
+				GameColour = color;
 				if (message != null)
 				{
 					message.setMessageColor(color);

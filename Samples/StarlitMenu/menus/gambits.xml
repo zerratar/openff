@@ -1,0 +1,977 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Gambits screen, the client's own taken into the mod (a mod's screen of its id takes the client's place): the ids GambitsScreen writes kept, laid out after the Starlit Menu's other screens. Generated. -->
+<menulist>
+  <menu>
+    <name>gambits</name>
+    <frame>
+      <id>chrome</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="panel">
+        <id>w_top</id>
+        <x>8</x>
+        <y>38</y>
+        <width>464</width>
+        <height>38</height>
+        <frame class="goldframe">
+          <id>w_top_frame</id>
+          <x>-5</x>
+          <y>-5</y>
+          <width>474</width>
+          <height>48</height>
+        </frame>
+      </frame>
+      <frame class="crystal">
+        <id>crystal</id>
+        <x>9</x>
+        <y>4</y>
+        <width>26</width>
+        <height>26</height>
+      </frame>
+      <frame class="title">
+        <id>title</id>
+        <x>40</x>
+        <y>7</y>
+        <width>80</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Gambits</data>
+      </frame>
+      <frame class="hsep">
+        <id>hsep</id>
+        <x>122</x>
+        <y>11</y>
+        <width>1</width>
+        <height>12</height>
+      </frame>
+      <frame class="help">
+        <id>help</id>
+        <x>129</x>
+        <y>10</y>
+        <width>340</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="hline">
+        <id>hline</id>
+        <x>8</x>
+        <y>31</y>
+        <width>464</width>
+        <height>1</height>
+      </frame>
+      <frame class="face">
+        <id>portrait</id>
+        <x>14</x>
+        <y>40</y>
+        <width>34</width>
+        <height>34</height>
+        <portrait/>
+      </frame>
+      <frame class="name">
+        <id>hero</id>
+        <x>56</x>
+        <y>45</y>
+        <width>240</width>
+        <height>22</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="hint">
+        <id>hero_hint</id>
+        <x>296</x>
+        <y>48</y>
+        <width>168</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+    <frame>
+      <id>rows</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="rowpanel" bind-class="lit: menu.focused == 'on0' || menu.focused == 'cond0' || menu.focused == 'act0'">
+        <id>w_row0</id>
+        <x>8</x>
+        <y>84</y>
+        <width>464</width>
+        <height>25</height>
+      </frame>
+      <frame class="rowpanel" bind-class="lit: menu.focused == 'on1' || menu.focused == 'cond1' || menu.focused == 'act1'">
+        <id>w_row1</id>
+        <x>8</x>
+        <y>112</y>
+        <width>464</width>
+        <height>25</height>
+      </frame>
+      <frame class="rowpanel" bind-class="lit: menu.focused == 'on2' || menu.focused == 'cond2' || menu.focused == 'act2'">
+        <id>w_row2</id>
+        <x>8</x>
+        <y>140</y>
+        <width>464</width>
+        <height>25</height>
+      </frame>
+      <frame class="rowpanel" bind-class="lit: menu.focused == 'on3' || menu.focused == 'cond3' || menu.focused == 'act3'">
+        <id>w_row3</id>
+        <x>8</x>
+        <y>168</y>
+        <width>464</width>
+        <height>25</height>
+      </frame>
+      <frame class="rowpanel" bind-class="lit: menu.focused == 'on4' || menu.focused == 'cond4' || menu.focused == 'act4'">
+        <id>w_row4</id>
+        <x>8</x>
+        <y>196</y>
+        <width>464</width>
+        <height>25</height>
+      </frame>
+      <frame class="rowpanel" bind-class="lit: menu.focused == 'on5' || menu.focused == 'cond5' || menu.focused == 'act5'">
+        <id>w_row5</id>
+        <x>8</x>
+        <y>224</y>
+        <width>464</width>
+        <height>25</height>
+      </frame>
+      <frame class="rowpanel" bind-class="lit: menu.focused == 'on6' || menu.focused == 'cond6' || menu.focused == 'act6'">
+        <id>w_row6</id>
+        <x>8</x>
+        <y>252</y>
+        <width>464</width>
+        <height>25</height>
+      </frame>
+    </frame>
+    <frame class="panel bottom">
+      <id>bottom</id>
+      <x>8</x>
+      <y>290</y>
+      <width>464</width>
+      <height>24</height>
+      <frame class="goldframe">
+        <id>bottom_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>34</height>
+      </frame>
+    </frame>
+    <frame>
+      <id>marks</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="marker">
+        <id>marker0</id>
+        <x>14</x>
+        <y>91</y>
+        <width>11</width>
+        <height>11</height>
+      </frame>
+      <frame class="num">
+        <id>num0</id>
+        <x>28</x>
+        <y>87</y>
+        <width>18</width>
+        <height>19</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="marker">
+        <id>marker1</id>
+        <x>14</x>
+        <y>119</y>
+        <width>11</width>
+        <height>11</height>
+      </frame>
+      <frame class="num">
+        <id>num1</id>
+        <x>28</x>
+        <y>115</y>
+        <width>18</width>
+        <height>19</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="marker">
+        <id>marker2</id>
+        <x>14</x>
+        <y>147</y>
+        <width>11</width>
+        <height>11</height>
+      </frame>
+      <frame class="num">
+        <id>num2</id>
+        <x>28</x>
+        <y>143</y>
+        <width>18</width>
+        <height>19</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="marker">
+        <id>marker3</id>
+        <x>14</x>
+        <y>175</y>
+        <width>11</width>
+        <height>11</height>
+      </frame>
+      <frame class="num">
+        <id>num3</id>
+        <x>28</x>
+        <y>171</y>
+        <width>18</width>
+        <height>19</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="marker">
+        <id>marker4</id>
+        <x>14</x>
+        <y>203</y>
+        <width>11</width>
+        <height>11</height>
+      </frame>
+      <frame class="num">
+        <id>num4</id>
+        <x>28</x>
+        <y>199</y>
+        <width>18</width>
+        <height>19</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="marker">
+        <id>marker5</id>
+        <x>14</x>
+        <y>231</y>
+        <width>11</width>
+        <height>11</height>
+      </frame>
+      <frame class="num">
+        <id>num5</id>
+        <x>28</x>
+        <y>227</y>
+        <width>18</width>
+        <height>19</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="marker">
+        <id>marker6</id>
+        <x>14</x>
+        <y>259</y>
+        <width>11</width>
+        <height>11</height>
+      </frame>
+      <frame class="num">
+        <id>num6</id>
+        <x>28</x>
+        <y>255</y>
+        <width>18</width>
+        <height>19</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+    <frame>
+      <id>seps</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="vsep">
+        <id>sep0a</id>
+        <x>104</x>
+        <y>89</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep0b</id>
+        <x>318</x>
+        <y>89</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep1a</id>
+        <x>104</x>
+        <y>117</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep1b</id>
+        <x>318</x>
+        <y>117</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep2a</id>
+        <x>104</x>
+        <y>145</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep2b</id>
+        <x>318</x>
+        <y>145</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep3a</id>
+        <x>104</x>
+        <y>173</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep3b</id>
+        <x>318</x>
+        <y>173</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep4a</id>
+        <x>104</x>
+        <y>201</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep4b</id>
+        <x>318</x>
+        <y>201</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep5a</id>
+        <x>104</x>
+        <y>229</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep5b</id>
+        <x>318</x>
+        <y>229</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep6a</id>
+        <x>104</x>
+        <y>257</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+      <frame class="vsep">
+        <id>sep6b</id>
+        <x>318</x>
+        <y>257</y>
+        <width>1</width>
+        <height>15</height>
+      </frame>
+    </frame>
+    <frame class="onpill">
+      <focus/>
+      <id>on0</id>
+      <x>50</x>
+      <y>87</y>
+      <width>42</width>
+      <height>19</height>
+      <up>dummy</up>
+      <down>on1</down>
+      <left>act0</left>
+      <right>cond0</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_on0</id>
+        <x>-38</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="cond">
+      <focus/>
+      <id>cond0</id>
+      <x>114</x>
+      <y>87</y>
+      <width>196</width>
+      <height>19</height>
+      <up>dummy</up>
+      <down>cond1</down>
+      <left>on0</left>
+      <right>act0</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_cond0</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="act">
+      <focus/>
+      <id>act0</id>
+      <x>330</x>
+      <y>87</y>
+      <width>132</width>
+      <height>19</height>
+      <up>dummy</up>
+      <down>act1</down>
+      <left>cond0</left>
+      <right>on0</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_act0</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="onpill">
+      <focus/>
+      <id>on1</id>
+      <x>50</x>
+      <y>115</y>
+      <width>42</width>
+      <height>19</height>
+      <up>on0</up>
+      <down>on2</down>
+      <left>act1</left>
+      <right>cond1</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_on1</id>
+        <x>-38</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="cond">
+      <focus/>
+      <id>cond1</id>
+      <x>114</x>
+      <y>115</y>
+      <width>196</width>
+      <height>19</height>
+      <up>cond0</up>
+      <down>cond2</down>
+      <left>on1</left>
+      <right>act1</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_cond1</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="act">
+      <focus/>
+      <id>act1</id>
+      <x>330</x>
+      <y>115</y>
+      <width>132</width>
+      <height>19</height>
+      <up>act0</up>
+      <down>act2</down>
+      <left>cond1</left>
+      <right>on1</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_act1</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="onpill">
+      <focus/>
+      <id>on2</id>
+      <x>50</x>
+      <y>143</y>
+      <width>42</width>
+      <height>19</height>
+      <up>on1</up>
+      <down>on3</down>
+      <left>act2</left>
+      <right>cond2</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_on2</id>
+        <x>-38</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="cond">
+      <focus/>
+      <id>cond2</id>
+      <x>114</x>
+      <y>143</y>
+      <width>196</width>
+      <height>19</height>
+      <up>cond1</up>
+      <down>cond3</down>
+      <left>on2</left>
+      <right>act2</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_cond2</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="act">
+      <focus/>
+      <id>act2</id>
+      <x>330</x>
+      <y>143</y>
+      <width>132</width>
+      <height>19</height>
+      <up>act1</up>
+      <down>act3</down>
+      <left>cond2</left>
+      <right>on2</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_act2</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="onpill">
+      <focus/>
+      <id>on3</id>
+      <x>50</x>
+      <y>171</y>
+      <width>42</width>
+      <height>19</height>
+      <up>on2</up>
+      <down>on4</down>
+      <left>act3</left>
+      <right>cond3</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_on3</id>
+        <x>-38</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="cond">
+      <focus/>
+      <id>cond3</id>
+      <x>114</x>
+      <y>171</y>
+      <width>196</width>
+      <height>19</height>
+      <up>cond2</up>
+      <down>cond4</down>
+      <left>on3</left>
+      <right>act3</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_cond3</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="act">
+      <focus/>
+      <id>act3</id>
+      <x>330</x>
+      <y>171</y>
+      <width>132</width>
+      <height>19</height>
+      <up>act2</up>
+      <down>act4</down>
+      <left>cond3</left>
+      <right>on3</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_act3</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="onpill">
+      <focus/>
+      <id>on4</id>
+      <x>50</x>
+      <y>199</y>
+      <width>42</width>
+      <height>19</height>
+      <up>on3</up>
+      <down>on5</down>
+      <left>act4</left>
+      <right>cond4</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_on4</id>
+        <x>-38</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="cond">
+      <focus/>
+      <id>cond4</id>
+      <x>114</x>
+      <y>199</y>
+      <width>196</width>
+      <height>19</height>
+      <up>cond3</up>
+      <down>cond5</down>
+      <left>on4</left>
+      <right>act4</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_cond4</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="act">
+      <focus/>
+      <id>act4</id>
+      <x>330</x>
+      <y>199</y>
+      <width>132</width>
+      <height>19</height>
+      <up>act3</up>
+      <down>act5</down>
+      <left>cond4</left>
+      <right>on4</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_act4</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="onpill">
+      <focus/>
+      <id>on5</id>
+      <x>50</x>
+      <y>227</y>
+      <width>42</width>
+      <height>19</height>
+      <up>on4</up>
+      <down>on6</down>
+      <left>act5</left>
+      <right>cond5</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_on5</id>
+        <x>-38</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="cond">
+      <focus/>
+      <id>cond5</id>
+      <x>114</x>
+      <y>227</y>
+      <width>196</width>
+      <height>19</height>
+      <up>cond4</up>
+      <down>cond6</down>
+      <left>on5</left>
+      <right>act5</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_cond5</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="act">
+      <focus/>
+      <id>act5</id>
+      <x>330</x>
+      <y>227</y>
+      <width>132</width>
+      <height>19</height>
+      <up>act4</up>
+      <down>act6</down>
+      <left>cond5</left>
+      <right>on5</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_act5</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="onpill">
+      <focus/>
+      <id>on6</id>
+      <x>50</x>
+      <y>255</y>
+      <width>42</width>
+      <height>19</height>
+      <up>on5</up>
+      <down>dummy</down>
+      <left>act6</left>
+      <right>cond6</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_on6</id>
+        <x>-38</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="cond">
+      <focus/>
+      <id>cond6</id>
+      <x>114</x>
+      <y>255</y>
+      <width>196</width>
+      <height>19</height>
+      <up>cond5</up>
+      <down>dummy</down>
+      <left>on6</left>
+      <right>act6</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_cond6</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+    <frame class="act">
+      <focus/>
+      <id>act6</id>
+      <x>330</x>
+      <y>255</y>
+      <width>132</width>
+      <height>19</height>
+      <up>act5</up>
+      <down>dummy</down>
+      <left>cond6</left>
+      <right>on6</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame>
+        <id>cursor_act6</id>
+        <x>-6</x>
+        <y>9</y>
+        <width>1</width>
+        <height>1</height>
+        <cursor/>
+      </frame>
+    </frame>
+  </menu>
+</menulist>
