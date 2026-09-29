@@ -1,0 +1,8 @@
+{
+  "id": "config",
+  "layout": "config.xml",
+  "screen": "config",
+  "patch": true,
+  "background": -1,
+  "backdropLines": "none"
+}

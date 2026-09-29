@@ -1,0 +1,1805 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The main menu, laid out again: the game's own screen - CWMenuMain still drives it, so the command ids, the hero pick p1..p4 and their tags stay - its hero panels drawn from bindings in place of the game's CStatus. The canvas is the game's 480 x 320. The look is styles/starlit.css. Generated. -->
+<menulist>
+  <menu>
+    <name>main_menu</name>
+    <frame class="header">
+      <id>header</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>34</height>
+      <frame class="crystal">
+        <id>crystal</id>
+        <x>9</x>
+        <y>4</y>
+        <width>26</width>
+        <height>26</height>
+      </frame>
+      <frame class="title">
+        <id>title</id>
+        <x>40</x>
+        <y>7</y>
+        <width>50</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Menu</data>
+      </frame>
+      <frame class="hsep">
+        <id>hsep</id>
+        <x>97</x>
+        <y>11</y>
+        <width>1</width>
+        <height>12</height>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_item'" class="help">
+        <id>help_com_item</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>View and use items.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_magic'" class="help">
+        <id>help_com_magic</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Cast and manage spells.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_equip'" class="help">
+        <id>help_com_equip</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Change weapons and armour.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_status'" class="help">
+        <id>help_com_status</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>See a hero's full status.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_tairetu'" class="help">
+        <id>help_com_tairetu</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Change the party's order and rows.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_job'" class="help">
+        <id>help_com_job</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Change a hero's job.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_mod_gambits'" class="help">
+        <id>help_com_mod_gambits</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Set the heroes' auto-battle rules.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_config'" class="help">
+        <id>help_com_config</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Change the game's settings.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_half'" class="help">
+        <id>help_com_half</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Save for now and quit.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'com_save'" class="help">
+        <id>help_com_save</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Record your journey.</data>
+      </frame>
+      <frame bind-class="gone: menu.focused != 'p1' &amp;&amp; menu.focused != 'p2' &amp;&amp; menu.focused != 'p3' &amp;&amp; menu.focused != 'p4'" class="help">
+        <id>help_pick</id>
+        <x>104</x>
+        <y>10</y>
+        <width>236</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Choose a hero.</data>
+      </frame>
+      <frame class="hline">
+        <id>hline</id>
+        <x>8</x>
+        <y>31</y>
+        <width>334</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="panel party">
+      <id>party</id>
+      <x>8</x>
+      <y>36</y>
+      <width>334</width>
+      <height>248</height>
+      <frame data-source="party[0]" class="member">
+        <id>m0</id>
+        <x>4</x>
+        <y>3</y>
+        <width>326</width>
+        <height>60</height>
+        <frame bind-class="gone: !this" class="face">
+          <id>face0</id>
+          <x>8</x>
+          <y>5</y>
+          <width>50</width>
+          <height>50</height>
+          <portrait>0</portrait>
+        </frame>
+        <frame bind-class="gone: this" class="ghost">
+          <id>ghost0</id>
+          <x>8</x>
+          <y>5</y>
+          <width>50</width>
+          <height>50</height>
+          <frame class="shade shade0">
+            <id>shade0</id>
+            <x>3</x>
+            <y>3</y>
+            <width>44</width>
+            <height>44</height>
+          </frame>
+        </frame>
+        <frame class="badge">
+          <id>num0</id>
+          <x>-2</x>
+          <y>-3</y>
+          <width>23</width>
+          <height>23</height>
+          <frame class="diamond">
+            <id>diamond0</id>
+            <x>0</x>
+            <y>0</y>
+            <width>23</width>
+            <height>23</height>
+          </frame>
+          <frame class="badgetext">
+            <id>numtext0</id>
+            <x>0</x>
+            <y>5</y>
+            <width>23</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data type="string">1</data>
+          </frame>
+        </frame>
+        <frame bind-class="gone: !this" class="hero">
+          <id>hero0</id>
+          <x>68</x>
+          <y>4</y>
+          <width>254</width>
+          <height>52</height>
+          <frame class="name" bind-text="{name}">
+            <id>name0</id>
+            <x>0</x>
+            <y>1</y>
+            <width>110</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="job" bind-text="{jobTitle}">
+            <id>job0</id>
+            <x>0</x>
+            <y>19</y>
+            <width>110</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="lv" bind-text="Lv. {level}">
+            <id>lv0</id>
+            <x>0</x>
+            <y>34</y>
+            <width>36</width>
+            <height>14</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="bar exp">
+            <id>exp0</id>
+            <x>36</x>
+            <y>41</y>
+            <width>66</width>
+            <height>3</height>
+            <frame bind-style="width: {expPercent}%" class="fill">
+              <id>expfill0</id>
+              <x>0</x>
+              <y>0</y>
+              <width>66</width>
+              <height>3</height>
+            </frame>
+          </frame>
+          <frame class="vsep">
+            <id>vsep0</id>
+            <x>112</x>
+            <y>2</y>
+            <width>1</width>
+            <height>48</height>
+          </frame>
+          <frame class="label">
+            <id>hpl0</id>
+            <x>120</x>
+            <y>3</y>
+            <width>20</width>
+            <height>12</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>HP</data>
+          </frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}">
+            <id>hp0</id>
+            <x>142</x>
+            <y>2</y>
+            <width>108</width>
+            <height>14</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="bar hpbar">
+            <id>hpbar0</id>
+            <x>142</x>
+            <y>18</y>
+            <width>108</width>
+            <height>4</height>
+            <frame bind-style="width: {hpPercent}%" bind-class="low: hpPercent &lt; 30" class="fill">
+              <id>hpfill0</id>
+              <x>0</x>
+              <y>0</y>
+              <width>108</width>
+              <height>4</height>
+            </frame>
+          </frame>
+          <frame class="label">
+            <id>mpl0</id>
+            <x>120</x>
+            <y>28</y>
+            <width>20</width>
+            <height>12</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>MP</data>
+          </frame>
+          <frame class="orb white">
+            <id>orb0a</id>
+            <x>142</x>
+            <y>29</y>
+            <width>9</width>
+            <height>9</height>
+          </frame>
+          <frame class="mp" bind-text="{charges[0]} / {charges[1]} / {charges[2]} / {charges[3]}">
+            <id>mpa0</id>
+            <x>156</x>
+            <y>26</y>
+            <width>96</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="orb black">
+            <id>orb0b</id>
+            <x>142</x>
+            <y>41</y>
+            <width>9</width>
+            <height>9</height>
+          </frame>
+          <frame class="mp" bind-text="{charges[4]} / {charges[5]} / {charges[6]} / {charges[7]}">
+            <id>mpb0</id>
+            <x>156</x>
+            <y>38</y>
+            <width>96</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame bind-class="gone: this" class="none">
+          <id>none0</id>
+          <x>68</x>
+          <y>4</y>
+          <width>254</width>
+          <height>52</height>
+          <frame class="dash">
+            <id>dashl0</id>
+            <x>44</x>
+            <y>26</y>
+            <width>26</width>
+            <height>1</height>
+          </frame>
+          <frame class="empty">
+            <id>empty0</id>
+            <x>70</x>
+            <y>18</y>
+            <width>60</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>Empty</data>
+          </frame>
+          <frame class="dash">
+            <id>dashr0</id>
+            <x>130</x>
+            <y>26</y>
+            <width>26</width>
+            <height>1</height>
+          </frame>
+          <frame class="crest">
+            <id>crest0</id>
+            <x>200</x>
+            <y>3</y>
+            <width>46</width>
+            <height>46</height>
+          </frame>
+        </frame>
+      </frame>
+      <frame data-source="party[1]" class="member">
+        <id>m1</id>
+        <x>4</x>
+        <y>63</y>
+        <width>326</width>
+        <height>60</height>
+        <frame bind-class="gone: !this" class="face">
+          <id>face1</id>
+          <x>8</x>
+          <y>5</y>
+          <width>50</width>
+          <height>50</height>
+          <portrait>1</portrait>
+        </frame>
+        <frame bind-class="gone: this" class="ghost">
+          <id>ghost1</id>
+          <x>8</x>
+          <y>5</y>
+          <width>50</width>
+          <height>50</height>
+          <frame class="shade shade1">
+            <id>shade1</id>
+            <x>3</x>
+            <y>3</y>
+            <width>44</width>
+            <height>44</height>
+          </frame>
+        </frame>
+        <frame class="badge">
+          <id>num1</id>
+          <x>-2</x>
+          <y>-3</y>
+          <width>23</width>
+          <height>23</height>
+          <frame class="diamond">
+            <id>diamond1</id>
+            <x>0</x>
+            <y>0</y>
+            <width>23</width>
+            <height>23</height>
+          </frame>
+          <frame class="badgetext">
+            <id>numtext1</id>
+            <x>0</x>
+            <y>5</y>
+            <width>23</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data type="string">2</data>
+          </frame>
+        </frame>
+        <frame bind-class="gone: !this" class="hero">
+          <id>hero1</id>
+          <x>68</x>
+          <y>4</y>
+          <width>254</width>
+          <height>52</height>
+          <frame class="name" bind-text="{name}">
+            <id>name1</id>
+            <x>0</x>
+            <y>1</y>
+            <width>110</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="job" bind-text="{jobTitle}">
+            <id>job1</id>
+            <x>0</x>
+            <y>19</y>
+            <width>110</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="lv" bind-text="Lv. {level}">
+            <id>lv1</id>
+            <x>0</x>
+            <y>34</y>
+            <width>36</width>
+            <height>14</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="bar exp">
+            <id>exp1</id>
+            <x>36</x>
+            <y>41</y>
+            <width>66</width>
+            <height>3</height>
+            <frame bind-style="width: {expPercent}%" class="fill">
+              <id>expfill1</id>
+              <x>0</x>
+              <y>0</y>
+              <width>66</width>
+              <height>3</height>
+            </frame>
+          </frame>
+          <frame class="vsep">
+            <id>vsep1</id>
+            <x>112</x>
+            <y>2</y>
+            <width>1</width>
+            <height>48</height>
+          </frame>
+          <frame class="label">
+            <id>hpl1</id>
+            <x>120</x>
+            <y>3</y>
+            <width>20</width>
+            <height>12</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>HP</data>
+          </frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}">
+            <id>hp1</id>
+            <x>142</x>
+            <y>2</y>
+            <width>108</width>
+            <height>14</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="bar hpbar">
+            <id>hpbar1</id>
+            <x>142</x>
+            <y>18</y>
+            <width>108</width>
+            <height>4</height>
+            <frame bind-style="width: {hpPercent}%" bind-class="low: hpPercent &lt; 30" class="fill">
+              <id>hpfill1</id>
+              <x>0</x>
+              <y>0</y>
+              <width>108</width>
+              <height>4</height>
+            </frame>
+          </frame>
+          <frame class="label">
+            <id>mpl1</id>
+            <x>120</x>
+            <y>28</y>
+            <width>20</width>
+            <height>12</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>MP</data>
+          </frame>
+          <frame class="orb white">
+            <id>orb1a</id>
+            <x>142</x>
+            <y>29</y>
+            <width>9</width>
+            <height>9</height>
+          </frame>
+          <frame class="mp" bind-text="{charges[0]} / {charges[1]} / {charges[2]} / {charges[3]}">
+            <id>mpa1</id>
+            <x>156</x>
+            <y>26</y>
+            <width>96</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="orb black">
+            <id>orb1b</id>
+            <x>142</x>
+            <y>41</y>
+            <width>9</width>
+            <height>9</height>
+          </frame>
+          <frame class="mp" bind-text="{charges[4]} / {charges[5]} / {charges[6]} / {charges[7]}">
+            <id>mpb1</id>
+            <x>156</x>
+            <y>38</y>
+            <width>96</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame bind-class="gone: this" class="none">
+          <id>none1</id>
+          <x>68</x>
+          <y>4</y>
+          <width>254</width>
+          <height>52</height>
+          <frame class="dash">
+            <id>dashl1</id>
+            <x>44</x>
+            <y>26</y>
+            <width>26</width>
+            <height>1</height>
+          </frame>
+          <frame class="empty">
+            <id>empty1</id>
+            <x>70</x>
+            <y>18</y>
+            <width>60</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>Empty</data>
+          </frame>
+          <frame class="dash">
+            <id>dashr1</id>
+            <x>130</x>
+            <y>26</y>
+            <width>26</width>
+            <height>1</height>
+          </frame>
+          <frame class="crest">
+            <id>crest1</id>
+            <x>200</x>
+            <y>3</y>
+            <width>46</width>
+            <height>46</height>
+          </frame>
+        </frame>
+      </frame>
+      <frame data-source="party[2]" class="member">
+        <id>m2</id>
+        <x>4</x>
+        <y>123</y>
+        <width>326</width>
+        <height>60</height>
+        <frame bind-class="gone: !this" class="face">
+          <id>face2</id>
+          <x>8</x>
+          <y>5</y>
+          <width>50</width>
+          <height>50</height>
+          <portrait>2</portrait>
+        </frame>
+        <frame bind-class="gone: this" class="ghost">
+          <id>ghost2</id>
+          <x>8</x>
+          <y>5</y>
+          <width>50</width>
+          <height>50</height>
+          <frame class="shade shade2">
+            <id>shade2</id>
+            <x>3</x>
+            <y>3</y>
+            <width>44</width>
+            <height>44</height>
+          </frame>
+        </frame>
+        <frame class="badge">
+          <id>num2</id>
+          <x>-2</x>
+          <y>-3</y>
+          <width>23</width>
+          <height>23</height>
+          <frame class="diamond">
+            <id>diamond2</id>
+            <x>0</x>
+            <y>0</y>
+            <width>23</width>
+            <height>23</height>
+          </frame>
+          <frame class="badgetext">
+            <id>numtext2</id>
+            <x>0</x>
+            <y>5</y>
+            <width>23</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data type="string">3</data>
+          </frame>
+        </frame>
+        <frame bind-class="gone: !this" class="hero">
+          <id>hero2</id>
+          <x>68</x>
+          <y>4</y>
+          <width>254</width>
+          <height>52</height>
+          <frame class="name" bind-text="{name}">
+            <id>name2</id>
+            <x>0</x>
+            <y>1</y>
+            <width>110</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="job" bind-text="{jobTitle}">
+            <id>job2</id>
+            <x>0</x>
+            <y>19</y>
+            <width>110</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="lv" bind-text="Lv. {level}">
+            <id>lv2</id>
+            <x>0</x>
+            <y>34</y>
+            <width>36</width>
+            <height>14</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="bar exp">
+            <id>exp2</id>
+            <x>36</x>
+            <y>41</y>
+            <width>66</width>
+            <height>3</height>
+            <frame bind-style="width: {expPercent}%" class="fill">
+              <id>expfill2</id>
+              <x>0</x>
+              <y>0</y>
+              <width>66</width>
+              <height>3</height>
+            </frame>
+          </frame>
+          <frame class="vsep">
+            <id>vsep2</id>
+            <x>112</x>
+            <y>2</y>
+            <width>1</width>
+            <height>48</height>
+          </frame>
+          <frame class="label">
+            <id>hpl2</id>
+            <x>120</x>
+            <y>3</y>
+            <width>20</width>
+            <height>12</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>HP</data>
+          </frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}">
+            <id>hp2</id>
+            <x>142</x>
+            <y>2</y>
+            <width>108</width>
+            <height>14</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="bar hpbar">
+            <id>hpbar2</id>
+            <x>142</x>
+            <y>18</y>
+            <width>108</width>
+            <height>4</height>
+            <frame bind-style="width: {hpPercent}%" bind-class="low: hpPercent &lt; 30" class="fill">
+              <id>hpfill2</id>
+              <x>0</x>
+              <y>0</y>
+              <width>108</width>
+              <height>4</height>
+            </frame>
+          </frame>
+          <frame class="label">
+            <id>mpl2</id>
+            <x>120</x>
+            <y>28</y>
+            <width>20</width>
+            <height>12</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>MP</data>
+          </frame>
+          <frame class="orb white">
+            <id>orb2a</id>
+            <x>142</x>
+            <y>29</y>
+            <width>9</width>
+            <height>9</height>
+          </frame>
+          <frame class="mp" bind-text="{charges[0]} / {charges[1]} / {charges[2]} / {charges[3]}">
+            <id>mpa2</id>
+            <x>156</x>
+            <y>26</y>
+            <width>96</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="orb black">
+            <id>orb2b</id>
+            <x>142</x>
+            <y>41</y>
+            <width>9</width>
+            <height>9</height>
+          </frame>
+          <frame class="mp" bind-text="{charges[4]} / {charges[5]} / {charges[6]} / {charges[7]}">
+            <id>mpb2</id>
+            <x>156</x>
+            <y>38</y>
+            <width>96</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame bind-class="gone: this" class="none">
+          <id>none2</id>
+          <x>68</x>
+          <y>4</y>
+          <width>254</width>
+          <height>52</height>
+          <frame class="dash">
+            <id>dashl2</id>
+            <x>44</x>
+            <y>26</y>
+            <width>26</width>
+            <height>1</height>
+          </frame>
+          <frame class="empty">
+            <id>empty2</id>
+            <x>70</x>
+            <y>18</y>
+            <width>60</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>Empty</data>
+          </frame>
+          <frame class="dash">
+            <id>dashr2</id>
+            <x>130</x>
+            <y>26</y>
+            <width>26</width>
+            <height>1</height>
+          </frame>
+          <frame class="crest">
+            <id>crest2</id>
+            <x>200</x>
+            <y>3</y>
+            <width>46</width>
+            <height>46</height>
+          </frame>
+        </frame>
+      </frame>
+      <frame data-source="party[3]" class="member">
+        <id>m3</id>
+        <x>4</x>
+        <y>183</y>
+        <width>326</width>
+        <height>60</height>
+        <frame bind-class="gone: !this" class="face">
+          <id>face3</id>
+          <x>8</x>
+          <y>5</y>
+          <width>50</width>
+          <height>50</height>
+          <portrait>3</portrait>
+        </frame>
+        <frame bind-class="gone: this" class="ghost">
+          <id>ghost3</id>
+          <x>8</x>
+          <y>5</y>
+          <width>50</width>
+          <height>50</height>
+          <frame class="shade shade3">
+            <id>shade3</id>
+            <x>3</x>
+            <y>3</y>
+            <width>44</width>
+            <height>44</height>
+          </frame>
+        </frame>
+        <frame class="badge">
+          <id>num3</id>
+          <x>-2</x>
+          <y>-3</y>
+          <width>23</width>
+          <height>23</height>
+          <frame class="diamond">
+            <id>diamond3</id>
+            <x>0</x>
+            <y>0</y>
+            <width>23</width>
+            <height>23</height>
+          </frame>
+          <frame class="badgetext">
+            <id>numtext3</id>
+            <x>0</x>
+            <y>5</y>
+            <width>23</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data type="string">4</data>
+          </frame>
+        </frame>
+        <frame bind-class="gone: !this" class="hero">
+          <id>hero3</id>
+          <x>68</x>
+          <y>4</y>
+          <width>254</width>
+          <height>52</height>
+          <frame class="name" bind-text="{name}">
+            <id>name3</id>
+            <x>0</x>
+            <y>1</y>
+            <width>110</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="job" bind-text="{jobTitle}">
+            <id>job3</id>
+            <x>0</x>
+            <y>19</y>
+            <width>110</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="lv" bind-text="Lv. {level}">
+            <id>lv3</id>
+            <x>0</x>
+            <y>34</y>
+            <width>36</width>
+            <height>14</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="bar exp">
+            <id>exp3</id>
+            <x>36</x>
+            <y>41</y>
+            <width>66</width>
+            <height>3</height>
+            <frame bind-style="width: {expPercent}%" class="fill">
+              <id>expfill3</id>
+              <x>0</x>
+              <y>0</y>
+              <width>66</width>
+              <height>3</height>
+            </frame>
+          </frame>
+          <frame class="vsep">
+            <id>vsep3</id>
+            <x>112</x>
+            <y>2</y>
+            <width>1</width>
+            <height>48</height>
+          </frame>
+          <frame class="label">
+            <id>hpl3</id>
+            <x>120</x>
+            <y>3</y>
+            <width>20</width>
+            <height>12</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>HP</data>
+          </frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}">
+            <id>hp3</id>
+            <x>142</x>
+            <y>2</y>
+            <width>108</width>
+            <height>14</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="bar hpbar">
+            <id>hpbar3</id>
+            <x>142</x>
+            <y>18</y>
+            <width>108</width>
+            <height>4</height>
+            <frame bind-style="width: {hpPercent}%" bind-class="low: hpPercent &lt; 30" class="fill">
+              <id>hpfill3</id>
+              <x>0</x>
+              <y>0</y>
+              <width>108</width>
+              <height>4</height>
+            </frame>
+          </frame>
+          <frame class="label">
+            <id>mpl3</id>
+            <x>120</x>
+            <y>28</y>
+            <width>20</width>
+            <height>12</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>MP</data>
+          </frame>
+          <frame class="orb white">
+            <id>orb3a</id>
+            <x>142</x>
+            <y>29</y>
+            <width>9</width>
+            <height>9</height>
+          </frame>
+          <frame class="mp" bind-text="{charges[0]} / {charges[1]} / {charges[2]} / {charges[3]}">
+            <id>mpa3</id>
+            <x>156</x>
+            <y>26</y>
+            <width>96</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+          <frame class="orb black">
+            <id>orb3b</id>
+            <x>142</x>
+            <y>41</y>
+            <width>9</width>
+            <height>9</height>
+          </frame>
+          <frame class="mp" bind-text="{charges[4]} / {charges[5]} / {charges[6]} / {charges[7]}">
+            <id>mpb3</id>
+            <x>156</x>
+            <y>38</y>
+            <width>96</width>
+            <height>13</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame bind-class="gone: this" class="none">
+          <id>none3</id>
+          <x>68</x>
+          <y>4</y>
+          <width>254</width>
+          <height>52</height>
+          <frame class="dash">
+            <id>dashl3</id>
+            <x>44</x>
+            <y>26</y>
+            <width>26</width>
+            <height>1</height>
+          </frame>
+          <frame class="empty">
+            <id>empty3</id>
+            <x>70</x>
+            <y>18</y>
+            <width>60</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>0</parameter>
+            </behavior>
+            <data>Empty</data>
+          </frame>
+          <frame class="dash">
+            <id>dashr3</id>
+            <x>130</x>
+            <y>26</y>
+            <width>26</width>
+            <height>1</height>
+          </frame>
+          <frame class="crest">
+            <id>crest3</id>
+            <x>200</x>
+            <y>3</y>
+            <width>46</width>
+            <height>46</height>
+          </frame>
+        </frame>
+      </frame>
+      <frame class="goldframe">
+        <id>party_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>344</width>
+        <height>258</height>
+      </frame>
+    </frame>
+    <frame class="panel commands">
+      <id>cmdpanel</id>
+      <x>350</x>
+      <y>36</y>
+      <width>122</width>
+      <height>248</height>
+      <frame class="goldframe">
+        <id>cmdpanel_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>132</width>
+        <height>258</height>
+      </frame>
+    </frame>
+    <frame>
+      <id>main_command</id>
+      <x>352</x>
+      <y>44</y>
+      <width>120</width>
+      <height>0</height>
+      <frame class="cmd">
+        <id>com_item</id>
+        <x>34</x>
+        <y>0</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>0</work>
+        <myTag>0</myTag>
+        <up>com_save</up>
+        <down>com_magic</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50003</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_item</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_item</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_item</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_item</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="cmd">
+        <id>com_magic</id>
+        <x>34</x>
+        <y>26</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>1</work>
+        <myTag>1</myTag>
+        <up>com_item</up>
+        <down>com_equip</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50004</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_magic</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_magic</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_magic</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_magic</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="cmd">
+        <id>com_equip</id>
+        <x>34</x>
+        <y>52</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>2</work>
+        <myTag>2</myTag>
+        <up>com_magic</up>
+        <down>com_status</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50005</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_equip</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_equip</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_equip</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_equip</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="cmd">
+        <id>com_status</id>
+        <x>34</x>
+        <y>78</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>3</work>
+        <myTag>3</myTag>
+        <up>com_equip</up>
+        <down>com_tairetu</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50006</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_status</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_status</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_status</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_status</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="cmd">
+        <id>com_tairetu</id>
+        <x>34</x>
+        <y>104</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>4</work>
+        <myTag>4</myTag>
+        <up>com_status</up>
+        <down>com_job</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50011</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_tairetu</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_tairetu</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_tairetu</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_tairetu</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="cmd">
+        <id>com_job</id>
+        <x>34</x>
+        <y>130</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>5</work>
+        <myTag>5</myTag>
+        <up>com_tairetu</up>
+        <down>com_config</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50002</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_job</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_job</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_job</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_job</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="cmd">
+        <id>com_config</id>
+        <x>34</x>
+        <y>156</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>6</work>
+        <myTag>6</myTag>
+        <up>com_job</up>
+        <down>com_half</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50007</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_config</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_config</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_config</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_config</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="cmd">
+        <id>com_half</id>
+        <x>34</x>
+        <y>182</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>7</work>
+        <myTag>7</myTag>
+        <up>com_config</up>
+        <down>com_save</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50010</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_half</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_half</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_half</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_half</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="cmd">
+        <id>com_save</id>
+        <x>34</x>
+        <y>208</y>
+        <width>86</width>
+        <height>22</height>
+        <focus/>
+        <work>8</work>
+        <myTag>8</myTag>
+        <up>com_half</up>
+        <down>com_item</down>
+        <left>dummy</left>
+        <right>dummy</right>
+        <behavior value="Text">
+          <parameter>50008</parameter>
+          <parameter>8</parameter>
+          <parameter>6</parameter>
+        </behavior>
+        <frame class="hl">
+          <id>hl_com_save</id>
+          <x>-30</x>
+          <y>0</y>
+          <width>114</width>
+          <height>22</height>
+        </frame>
+        <frame class="line">
+          <id>line_com_save</id>
+          <x>-28</x>
+          <y>23</y>
+          <width>110</width>
+          <height>1</height>
+        </frame>
+        <frame class="icon">
+          <id>icon_com_save</id>
+          <x>-25</x>
+          <y>2</y>
+          <width>18</width>
+          <height>18</height>
+        </frame>
+        <frame>
+          <id>cursor_com_save</id>
+          <x>-34</x>
+          <y>11</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+    </frame>
+    <frame>
+      <id>char_select</id>
+      <x>12</x>
+      <y>36</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="pick">
+        <id>p1</id>
+        <x>0</x>
+        <y>3</y>
+        <width>326</width>
+        <height>60</height>
+        <work>0</work>
+        <myTag>9</myTag>
+        <up>p4</up>
+        <down>p2</down>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>5</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_p1</id>
+          <x>4</x>
+          <y>32</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="pick">
+        <id>p2</id>
+        <x>0</x>
+        <y>63</y>
+        <width>326</width>
+        <height>60</height>
+        <work>1</work>
+        <myTag>10</myTag>
+        <up>p1</up>
+        <down>p3</down>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>5</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_p2</id>
+          <x>4</x>
+          <y>32</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="pick">
+        <id>p3</id>
+        <x>0</x>
+        <y>123</y>
+        <width>326</width>
+        <height>60</height>
+        <work>2</work>
+        <myTag>11</myTag>
+        <up>p2</up>
+        <down>p4</down>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>5</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_p3</id>
+          <x>4</x>
+          <y>32</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="pick">
+        <id>p4</id>
+        <x>0</x>
+        <y>183</y>
+        <width>326</width>
+        <height>60</height>
+        <work>3</work>
+        <myTag>12</myTag>
+        <up>p3</up>
+        <down>p1</down>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>5</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_p4</id>
+          <x>4</x>
+          <y>32</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+    </frame>
+    <frame class="panel bottom">
+      <id>bottom</id>
+      <x>8</x>
+      <y>290</y>
+      <width>464</width>
+      <height>24</height>
+      <frame class="coins">
+        <id>coins</id>
+        <x>374</x>
+        <y>4</y>
+        <width>18</width>
+        <height>18</height>
+      </frame>
+      <frame class="gsep">
+        <id>gsep</id>
+        <x>396</x>
+        <y>8</y>
+        <width>1</width>
+        <height>12</height>
+      </frame>
+      <frame class="gil" bind-text="{gil:N0} Gil">
+        <id>gil</id>
+        <x>398</x>
+        <y>6</y>
+        <width>58</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="goldframe">
+        <id>bottom_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>34</height>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

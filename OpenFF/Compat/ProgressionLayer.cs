@@ -246,16 +246,8 @@ namespace OpenFF.Client
 				{
 					try { OpenFF.Game.Party.Gil = gil; Log.Write(LogChannel.General, "progression: --gil: " + gil); } catch (Exception) { }
 				}
-				// --jobs=all: every job's crystal flag set at the start, for test drives of the job screens.
-				if (player.playerId() == 0 && Options.Get("jobs") == "all")
-				{
-					try
-					{
-						for (int b = 1; b < JobCount; b++) GlobalScope.evt.CEventManager.getInstance().FlagMng().set(0u, (uint)GlobalScope.evt.EVENT_JOB_FLAG[b]);
-						Log.Write(LogChannel.General, "progression: --jobs=all: every job open");
-					}
-					catch (Exception ex) { Log.Write(LogChannel.General, "progression: --jobs=all: " + ex.Message); }
-				}
+				// --jobs=all: again once the mod's heroes are set up (a new game's flags come after the jump).
+				if (player.playerId() == 0) JumpPart.OpenJobs();
 				// --items=<itemId>:<count>[,...]: items put in the bag at the start (5001 is a Potion), for test drives.
 				string items = Options.Get("items");
 				if (player.playerId() == 0 && !string.IsNullOrEmpty(items))

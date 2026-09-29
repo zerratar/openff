@@ -22,6 +22,9 @@ const BINDING_SAMPLE = {
   // The field's HUD (field_hud): who speaks in the dialogue window, and the map-name banner's text.
   dialogue: { number: 1000142, text: 'The wind crystal\'s light has faded... We should see the elder.', speaker: 'Luneth', avatar: 'resource("files/pc1_01.NCGR")', map: 't01_01' },
   banner: { number: -1, text: 'Ur' },
+  // The input in hand (the client's InputHints): the keyboard here; with a pad, 'playstation' or 'xbox' and its marks or letters.
+  input: { device: 'keyboard', pad: false, ok: 'Enter', back: 'Esc', x: 'C', y: 'V', l: 'Q', r: 'E', menu: 'Esc',
+    okButton: 'enter', backButton: 'esc', xButton: 'c', yButton: 'v', lButton: 'q', rButton: 'e', menuButton: 'esc' },
   // A mod's own data for the HUD (Game.Hud.Set("quest", ...)) - a made-up one, so a quest log's frames show something in Preview.
   quest: { title: 'The Wind Crystal', step: 'Talk to the elder of Ur', active: true }
 };
@@ -36,7 +39,8 @@ const BINDING_PATHS = (() => {
     'gil', 'items', 'items.count', 'items[0].name', 'items[0].count',
     'menu.hero', 'menu.focused', 'menu.id', 'this',
     'dialogue.speaker', 'dialogue.avatar', 'dialogue.text', 'dialogue.number', 'dialogue.map', 'banner.text', 'banner.number',
-    'quest.title', 'quest.step', 'quest.active'
+    'quest.title', 'quest.step', 'quest.active',
+    'input.device', 'input.pad', 'input.ok', 'input.back', 'input.okButton', 'input.backButton', 'input.x', 'input.y', 'input.l', 'input.r', 'input.menu'
   ];
 })();
 

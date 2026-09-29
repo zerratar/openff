@@ -310,10 +310,12 @@ internal static partial class GlobalScope
 					sys2d.DS2DManager.d2dGetInstance().d2dDrawScreen(depthtest: false);
 				}
 				eff.CEffectMng.instance().draw();
+				int drawn = ds.sys3d.CRenderObject.Drawn;
 				m_Scene.draw(bVBlank: true);
 				// PORT: the mod's own models (glTF), with the scene's camera, before the curtains and the 2D.
-				// Not on a catch-up frame (render() draws only the last of the frames it runs), as the game's models.
-				if (skipFrame == 0)
+				// Not on a catch-up frame (render() draws only the last of the frames it runs), as the game's models;
+				// nor while the scene drew none of its own (a menu over the field - its question, a screen coming up).
+				if (skipFrame == 0 && ds.sys3d.CRenderObject.Drawn != drawn)
 				{
 					OpenFF.Client.ModMeshes.DrawWorld();
 				}

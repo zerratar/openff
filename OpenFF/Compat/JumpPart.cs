@@ -135,8 +135,26 @@ namespace OpenFF.Client
 			string stage = WithChip(Stage, StartPosition);
 			Log.Write(LogChannel.General, "jump: " + GameProfile.Game + " -> " + stage + " at " + (Ff4Saves.Pending != null ? "the saved spot" : Options.Get("pos") ?? "0,0,0"));
 			GlobalScope.sceneMng.setStage(stage);
+			OpenJobs();
 			GlobalScope.sys.GGlobal.setNextPart(GlobalScope.GAMEPART.GAMEPART_WORLD);
 			abort();
+		}
+
+		/// <summary>
+		/// --jobs=all (FF3): every job's crystal flag set and the menu's Job opened (flag 0:36, set when the first crystal gives
+		/// its jobs) - for a test start that wants the job screens without playing to the Wind Crystal.
+		/// </summary>
+		public static void OpenJobs()
+		{
+			if (GameProfile.IsFf4 || !string.Equals(Options.Get("jobs"), "all", StringComparison.OrdinalIgnoreCase)) return;
+			try
+			{
+				GlobalScope.FlagManager flags = GlobalScope.evt.CEventManager.getInstance().FlagMng();
+				flags.set(0u, 36u);
+				for (int job = 1; job < GlobalScope.evt.EVENT_JOB_FLAG.Length; job++) flags.set(0u, (uint)GlobalScope.evt.EVENT_JOB_FLAG[job]);
+				Log.Write(LogChannel.General, "jump: --jobs=all: every job open");
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "jump: --jobs=all: " + ex.Message); }
 		}
 	}
 }

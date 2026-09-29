@@ -1,0 +1,7 @@
+{
+  "id": "field_hud",
+  "layout": "field_hud.xml",
+  "screen": "field_hud",
+  "file": "WorldDefine.xbn",
+  "patch": true
+}

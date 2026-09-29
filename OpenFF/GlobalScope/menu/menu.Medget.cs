@@ -207,7 +207,31 @@ internal static partial class GlobalScope
 
 			public int cursorX()
 			{
+				if (cursorFrame() is Medget at) return at.x_;
 				return x_ + ((behavior_ != null) ? behavior_.bmGetCursorX(this) : 0);
+			}
+
+			/// <summary>PORT: whether a press at (px, py) is on the frame: inside it, or inside a frame of it (not the hand's own &lt;cursor/&gt; mark).</summary>
+			public bool hitTest(int px, int py)
+			{
+				if (x_ < px && px <= x_ + width_ && y_ < py && py <= y_ + height_) return true;
+				for (Medget m = childNode(); m != null; m = m.nextSibling())
+				{
+					if (m.node()?.getFirstNodeByTagNameFromChildren("cursor") != null) continue;
+					if (m.hitTest(px, py)) return true;
+				}
+				return false;
+			}
+
+			// PORT: a frame of a layout's marked <cursor/> inside this one says where the hand stands on it (OpenFF's: the
+			// game's layouts have none, and their hands stay where the behaviours put them).
+			private Medget cursorFrame()
+			{
+				for (Medget m = childNode(); m != null; m = m.nextSibling())
+				{
+					if (m.node()?.getFirstNodeByTagNameFromChildren("cursor") != null) return m;
+				}
+				return null;
 			}
 
 			public Medget prevSibling()
@@ -441,6 +465,7 @@ internal static partial class GlobalScope
 
 			public int cursorY()
 			{
+				if (cursorFrame() is Medget at) return at.y_;
 				// PORT: on Steam's layouts the hand is lifted to the text's middle (SteamLayout).
 				return y_ + height_ / 2 + OpenFF.Client.SteamLayout.CursorLift;
 			}

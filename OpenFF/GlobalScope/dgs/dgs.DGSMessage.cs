@@ -633,6 +633,9 @@ internal static partial class GlobalScope
 				return (m_Flag & 0x20) == 0;
 			}
 
+			/// <summary>PORT: its draw priority (0 the front).</summary>
+			public int getPriority() => m_Priority;
+
 			public void setPriority(int p)
 			{
 				m_Priority = p;

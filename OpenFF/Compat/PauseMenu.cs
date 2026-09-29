@@ -89,13 +89,19 @@ namespace OpenFF.Client
 			game.Components.Add(Instance);
 		}
 
-		/// <summary>Whether Esc or a pad's Start is down: what opens the menu, read each frame while it is closed.</summary>
+		/// <summary>Whether Esc or a pad's Start is down: what opens the menu, read each frame while it is closed. In one of the
+		/// game's menus Esc is their Back (DesktopInput) - and a press begun there is not this menu's, even after that menu closed on it.</summary>
 		private static bool OpenKeyDown()
 		{
 			KeyboardState keys = Keyboard.GetState();
-			if (Down(keys, Keys.Escape)) return true;
+			bool esc = Down(keys, Keys.Escape);
+			if (!esc) _escForGameMenu = false;
+			else if (ModMenus.GameMenuUp && !IsOpen) _escForGameMenu = true;
+			if (esc && !_escForGameMenu) return true;
 			return (DesktopInput.PadOnlyBits() & 8) != 0;
 		}
+
+		private static bool _escForGameMenu;
 
 		public static void Open()
 		{

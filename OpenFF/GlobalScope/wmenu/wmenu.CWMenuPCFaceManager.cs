@@ -101,12 +101,15 @@ internal static partial class GlobalScope
 
 								public void pcfmSetShow(bool show)
 								{
+									// PORT: a layout's portrait frames draw the faces in their place: the game's stay away while its screen has them.
+									if (show && OpenFF.Client.ModMenus.FacesTaken) show = false;
 									_Bg.bgSetShow(show);
 									ds.switchFlag(PCFM_FLAG_NOT_SHOW, !show, ref _Flag);
 								}
 
 								public void pcfmSetShow(uint pc, bool show)
 								{
+									if (show && OpenFF.Client.ModMenus.FacesTaken) show = false;
 									_PCFace[pc].pcfSetShow(show, _BgSelect);
 								}
 

@@ -23,6 +23,19 @@ internal static partial class GlobalScope
 			{
 			}
 
+			// PORT: the text's alignment (the third parameter: 2 centred), kept for Place.
+			private int m_Align;
+
+			/// <summary>PORT: the message placed again as bmccInitialize places it, measured in the font it has now (a layout's size and face).</summary>
+			public void Place(Medget M, dgs.DGSMessage msg)
+			{
+				if (msg == null || M == null) return;
+				msg.progress();
+				msg.getDisplayTextSize(out var rect);
+				short y = (short)(M.y() + (M.height() - rect.height) / 2);
+				msg.setPosition(m_Align == 2 ? (short)(M.x() + (M.width() - rect.width) / 2) : M.x(), y, erase: true);
+			}
+
 			public void bmccInitialize(Medget M, ref dgs.DGSMessage _msg)
 			{
 				XbnNode firstNodeByTagNameFromChildren = M.node().getFirstNodeByTagNameFromChildren(TRANSCODE("behavior"));
@@ -47,6 +60,7 @@ internal static partial class GlobalScope
 				{
 					num2 = xbnNodeList[2].nodeValueInt();
 				}
+				m_Align = num2;
 				dgs.DGSMessageManager dGSMessageManager = null;
 				dGSMessageManager = ((M.display() != 1) ? dgs.msg.CMessageSys.getInstance().Sub() : dgs.msg.CMessageSys.getInstance().Main());
 				_msg = dGSMessageManager.createMessage((uint)msg_number, dgs.INVALID_MSDHANDLE, font);

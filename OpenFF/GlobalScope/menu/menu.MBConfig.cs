@@ -17,8 +17,15 @@ internal static partial class GlobalScope
 {
 	public static partial class menu
 	{
-		public class MBConfig : MenuBehavior
+		public class MBConfig : MenuBehavior, IStyledText
 		{
+			// PORT: a layout's styles reach its text (IStyledText), and :checked follows the choice that is on.
+			public dgs.DGSMessage StyledMessage => m_pMsg;
+			public void StyledPlace(Medget M) => m_MBCCommon.Place(M, m_pMsg);
+
+			/// <summary>PORT: whether this is a row's choice and the one set (drawn lit by the game).</summary>
+			public bool IsOn(Medget M) => M.work1<sbyte>() != 0 && (sbyte)M.work() == m_MBCCommon.GetNowMenu((OPTION_LINE)(sbyte)M.parentNode().work());
+
 			public static dgs.UniqueNumber MBConfig_UN = new dgs.UniqueNumber();
 
 			private MBConfigCommon m_MBCCommon = new MBConfigCommon();
@@ -157,6 +164,8 @@ internal static partial class GlobalScope
 						m_ButtonWindow.bwSetState(ButtonWindow.BW_STATE.BWS_OFF);
 					}
 				}
+				// PORT: a layout that gives the frame a look of its own (a background, or no panel) draws in place of the game's button.
+				if (OpenFF.Client.ModMenus.ArtTaken(M)) m_ButtonWindow.SetShow(show: false, user: true);
 			}
 
 			public new static int classIdentifier()

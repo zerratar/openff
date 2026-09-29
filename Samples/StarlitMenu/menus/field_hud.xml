@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The menus' OK and Back buttons (CWMenuButton), merged into the game's field_hud ("patch": true): a gold framed pill at the bottom left in place of the game's bar across the bottom, the button to press shown the player's way - input.ok / input.back and the button each is on. Everything else of the field's HUD is the game's. -->
+<menulist>
+  <menu>
+    <name>field_hud</name>
+    <frame style="flex-direction: row; align-items: center; gap: 6px; padding-left: 6px; padding-right: 10px; width: auto" class="pill">
+      <id>a_button</id>
+      <x>8</x>
+      <y>290</y>
+      <width>80</width>
+      <height>24</height>
+      <frame bind-display="input.pad" bind-class="ps: input.device == 'playstation'; xbox: input.device == 'xbox'; cross: input.okButton == 'cross'; circle: input.okButton == 'circle'; square: input.okButton == 'square'; triangle: input.okButton == 'triangle'" class="disc">
+        <id>a_button_disc</id>
+        <x>0</x>
+        <y>0</y>
+        <width>14</width>
+        <height>14</height>
+        <frame class="mark" bind-text="{input.ok}">
+          <id>a_button_mark</id>
+          <x>0</x>
+          <y>1</y>
+          <width>14</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame bind-display="!input.pad" class="cap">
+        <id>a_button_cap</id>
+        <x>0</x>
+        <y>0</y>
+        <width>26</width>
+        <height>14</height>
+        <frame class="capkey" bind-text="{input.ok}">
+          <id>a_button_capkey</id>
+          <x>0</x>
+          <y>1</y>
+          <width>26</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame class="pilltext">
+        <id>text</id>
+        <x>0</x>
+        <y>0</y>
+        <width>44</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data/>
+      </frame>
+    </frame>
+    <frame style="flex-direction: row; align-items: center; gap: 6px; padding-left: 6px; padding-right: 10px; width: auto" class="pill">
+      <id>b_button</id>
+      <x>8</x>
+      <y>290</y>
+      <width>80</width>
+      <height>24</height>
+      <frame bind-display="input.pad" bind-class="ps: input.device == 'playstation'; xbox: input.device == 'xbox'; cross: input.backButton == 'cross'; circle: input.backButton == 'circle'; square: input.backButton == 'square'; triangle: input.backButton == 'triangle'" class="disc">
+        <id>b_button_disc</id>
+        <x>0</x>
+        <y>0</y>
+        <width>14</width>
+        <height>14</height>
+        <frame class="mark" bind-text="{input.back}">
+          <id>b_button_mark</id>
+          <x>0</x>
+          <y>1</y>
+          <width>14</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame bind-display="!input.pad" class="cap">
+        <id>b_button_cap</id>
+        <x>0</x>
+        <y>0</y>
+        <width>26</width>
+        <height>14</height>
+        <frame class="capkey" bind-text="{input.back}">
+          <id>b_button_capkey</id>
+          <x>0</x>
+          <y>1</y>
+          <width>26</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame class="pilltext">
+        <id>text</id>
+        <x>0</x>
+        <y>0</y>
+        <width>44</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data/>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

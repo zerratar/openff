@@ -1,0 +1,185 @@
+/* Starlit Menu: the look. The layouts (main_menu.xml, field_hud.xml) place the frames; this says how they look. */
+
+/* The screen: a castle under the moon behind everything (the game's backdrop is off: "background": -1). */
+#main_menu, #status, #config, #config2 {
+  background-image: url("images/backdrop.jpg");
+  -ff-background-scale-mode: scale-and-crop;
+}
+
+/* The icons: named sprites of one sheet (sprites.json beside the layouts). */
+.crystal, .icon, .diamond, .coins { background-image: url("images/commands.png"); -ff-background-scale-mode: scale-to-fit; }
+
+/* ---- the panels: navy glass in the gold frame ---- */
+
+.panel      { -ff-panel: none; background-color: #0a1633e0; }
+.party, .commands { box-shadow: 0 3px 10px #000000b0; }
+
+/* The gold frame, a frame of its own a little larger than its panel: its line on the panel's edge, the ornaments standing out. */
+.goldframe  { background-image: url("images/frame.png"); -ff-slice: 150; -ff-slice-scale: 0.1; }
+
+/* ---- the header ---- */
+
+.header  { background-image: linear-gradient(#040a1ce0, #040a1c00); }
+.crystal { -ff-sprite: job; }
+.title   { font-family: "Palatino Linotype", "Book Antiqua", serif; font-size: 17px; color: #f6f0e0;
+           text-shadow: 0 0 5px #6ab0ff80, 0.6px 0.6px 1px #000000; }
+.hsep    { background-color: #c8a24a90; }
+.hline   { background-image: linear-gradient(to right, #c8a24a00, #d8b460 12%, #c8a24a80 60%, #c8a24a00); }
+.help    { font-family: "Palatino Linotype", "Book Antiqua", serif; font-size: 10px; color: #d8deec; }
+
+/* ---- the party ---- */
+
+/* A place with no hero (bind-class="gone: this"), or a hero's parts where there is none (gone: !this). */
+.gone             { visibility: hidden; }
+
+.member             { border-bottom: 1px solid #c8a24a50; }
+
+/* The hero pick (Status, Equipment, Job...): the panel under the hand lit. */
+.pick        { opacity: 0; transition: opacity 0.15s;
+               background-image: linear-gradient(to right, #4b9cff50, #4b9cff10 60%, #4b9cff00); border: 1px solid #a0ccff90; border-radius: 3px; }
+.pick:focus  { opacity: 1; }
+#m3                { border-bottom: none; }   /* the last place (the panel's last frame is its gold frame) */
+
+.face    { background-image: linear-gradient(#3068c0, #0e2352); border: 1px solid #d8b460; -ff-background-scale-mode: scale-to-fit; }
+.ghost   { background-image: linear-gradient(#18336a, #0a1838); border: 1px solid #c8a24a70; }
+.shade   { background-image: url("images/silhouette.png"); -ff-background-scale-mode: scale-to-fit; }
+
+.badge     { background-image: radial-gradient(circle closest-side, #13254af8 62%, #13254a00 70%); }   /* dark inside the diamond */
+.diamond   { -ff-sprite: badge; }
+.badgetext { font-family: "Palatino Linotype", "Book Antiqua", serif; font-size: 9px; color: #f4ead0; text-align: center; text-shadow: 0 0 2px #000000, 0 0 2px #000000; }
+
+.name, .job, .lv, .label, .hp, .mp, .empty, .cmd, .back, .gil {
+  font-family: "Palatino Linotype", "Book Antiqua", serif;
+  text-shadow: 0.6px 0.6px 1px #000000c0;
+}
+.name    { font-size: 14px; color: #f6f1e4; }
+.job     { font-size: 11px; color: #c9d3ea; }
+.lv      { font-size: 12px; color: #f6f1e4; }
+.label   { font-size: 10px; color: #c9d3ea; }
+.hp      { font-size: 12px; color: #f6f1e4; text-align: right; }
+.mp      { font-size: 11px; color: #f6f1e4; letter-spacing: 1px; }
+.empty   { font-size: 12px; color: #7f8fb4; text-align: center; }
+.vsep    { background-image: linear-gradient(#c8a24a00, #c8a24ab0, #c8a24a00); }
+.crest   { background-image: url("images/crest.png"); -ff-background-scale-mode: scale-to-fit; opacity: 0.16; }
+
+.bar          { background-color: #000000a0; border: 1px solid #c8a24a60; border-radius: 2px; }
+.bar > .fill  { border-radius: 2px; }
+.hpbar > .fill      { background-image: linear-gradient(#9cff86, #2fae3a); }
+.hpbar > .fill.low  { background-image: linear-gradient(#ff9a86, #c0302a); }
+.exp > .fill        { background-image: linear-gradient(#9cd6ff, #2f7fd0); }
+
+.orb       { border-radius: 50%; }
+.orb.white { background-image: radial-gradient(circle at 35% 30%, #eef8ff, #3a8cff 45%, #0a2a80); box-shadow: 0 0 3px #3a8cffc0; }
+.orb.black { background-image: radial-gradient(circle at 35% 30%, #f4e0ff, #9a4cff 45%, #3a0a80); box-shadow: 0 0 3px #9a4cffc0; }
+
+/* ---- the commands ---- */
+
+.cmd        { font-size: 12px; color: #f6f1e4; }
+.cmd > .line { background-image: linear-gradient(to right, #c8a24a00, #c8a24a70, #c8a24a00); }
+#com_save > .line { display: none; }
+.cmd > .hl  { opacity: 0; transition: opacity 0.15s;
+              background-image: linear-gradient(to right, #1c4cb0, #4b9cff 40%, #3378ea 75%, #1c4cb000);
+              border: 1px solid #a0ccff; border-radius: 3px; box-shadow: 0 0 3px #4aa0ffa0; }
+.cmd:focus > .hl { opacity: 1; }
+#com_item > .icon        { -ff-sprite: item; }
+#com_magic > .icon       { -ff-sprite: magic; }
+#com_equip > .icon       { -ff-sprite: equipment; }
+#com_status > .icon      { -ff-sprite: status; }
+#com_tairetu > .icon     { -ff-sprite: formation; }
+#com_job > .icon         { -ff-sprite: job; }
+#com_mod_gambits > .icon { -ff-sprite: gambits; }   /* the client's Gambits row, made from Job's */
+#com_config > .icon      { -ff-sprite: config; }
+#com_half > .icon        { -ff-sprite: quicksave; }
+#com_save > .icon        { -ff-sprite: save; }
+
+/* ---- the bottom bar; the menus' OK and Back (field_hud's a_button, b_button) ---- */
+
+.pill     { -ff-panel: none; background-image: linear-gradient(#1c2e5c, #0b1634); border: 1px solid #d8b460; border-radius: 12px; }
+
+/* The button to press, the player's way (the input root): a pad's disc - PlayStation's marks, Xbox's letters - or a keycap. */
+.disc              { border-radius: 50%; background-image: radial-gradient(circle at 40% 35%, #34405e, #121a2e); border: 1px solid #8a96b8; }
+.mark              { font-family: "Segoe UI Symbol", "Segoe UI", sans-serif; font-size: 10px; color: #ffffff; text-align: center; text-shadow: none; }
+.disc.xbox.cross   { background-image: radial-gradient(circle at 40% 35%, #7ad06a, #2e8a2a); border-color: #b8f0a8; }
+.disc.xbox.circle  { background-image: radial-gradient(circle at 40% 35%, #f07a6a, #b02a22); border-color: #ffb8a8; }
+.disc.xbox.square  { background-image: radial-gradient(circle at 40% 35%, #6aa8f0, #2a5ab0); border-color: #b8d8ff; }
+.disc.xbox.triangle { background-image: radial-gradient(circle at 40% 35%, #f0d86a, #b0901a); border-color: #fff0a8; }
+.disc.ps.cross > .mark    { color: #8cb6f0; }
+.disc.ps.square > .mark   { color: #f09cd8; }
+.disc.ps.triangle > .mark { color: #7ee09a; }
+.disc.ps.circle           { border: 2px solid #e8585a; }      /* PlayStation's circle: the ring itself */
+.disc.ps.circle > .mark   { visibility: hidden; }
+.cap               { background-image: linear-gradient(#f2f4f8, #b8c0d2); border: 1px solid #6a7490; border-radius: 3px; box-shadow: 0 1px 0 #3a4260; }
+.capkey            { font-family: "Segoe UI", sans-serif; font-size: 9px; color: #1a2440; text-align: center; text-shadow: none; }
+.pilltext { font-family: "Palatino Linotype", "Book Antiqua", serif; font-size: 12px; text-align: left; color: #f6f1e4; text-shadow: 0.6px 0.6px 1px #000000c0; }
+.coins    { -ff-sprite: gil; }
+.gsep     { background-color: #c8a24a90; }
+.gil      { font-size: 11px; color: #f6f1e4; text-align: right; }
+.dash     { background-color: #7f8fb480; }
+
+/* ---- the other screens ---- */
+
+.hidden     { visibility: hidden; }
+.right      { text-align: right; }
+.subtitle   { font-family: "Palatino Linotype", "Book Antiqua", serif; font-size: 13px; color: #f6f1e4; text-shadow: 0.6px 0.6px 1px #000000c0; }
+.line       { background-image: linear-gradient(to right, #c8a24a00, #c8a24ac0 15%, #c8a24a80 85%, #c8a24a00); }
+.rowline    { background-image: linear-gradient(to right, #c8a24a00, #c8a24a50 20%, #c8a24a30 80%, #c8a24a00); }
+.bigname    { font-size: 18px; }
+.label2, .value2, .statname, .statvalue, .mpv {
+  font-family: "Palatino Linotype", "Book Antiqua", serif; text-shadow: 0.6px 0.6px 1px #000000c0;
+}
+.label2     { font-size: 11px; color: #d8deec; }
+.value2     { font-size: 12px; }
+.statname   { font-size: 11px; color: #e8ecf6; }
+.statvalue  { font-size: 12px; }
+.mpv        { font-size: 10px; }
+.mplv       { font-family: "Palatino Linotype", "Book Antiqua", serif; font-size: 8px; color: #8fa0c8; }
+.statbar > .fill { background-image: linear-gradient(#9cd6ff, #2f7fd0); }
+
+/* Icons of the screens: named sprites of the two sheets (sprites.json). */
+.sicon      { background-image: url("images/icons2.png"); -ff-background-scale-mode: scale-to-fit; }
+.s_sword    { background-image: url("images/commands.png"); -ff-sprite: equipment; }
+.s_book     { background-image: url("images/commands.png"); -ff-sprite: save; }
+.s_sparkle  { background-image: url("images/commands.png"); -ff-sprite: magic; }
+.s_shield   { -ff-sprite: shield; }
+.s_helmet   { -ff-sprite: helmet; }
+.s_armour   { -ff-sprite: armour; }
+.s_gauntlet { -ff-sprite: gauntlet; }
+.s_boot     { -ff-sprite: boot; }
+.s_staff    { -ff-sprite: staff; }
+.s_emblem   { -ff-sprite: emblem; }
+.s_bars     { -ff-sprite: bars; }
+.s_swords   { -ff-sprite: swords; }
+.s_trash    { -ff-sprite: trash; }
+.s_briefcase { -ff-sprite: briefcase; }
+.s_exchange { -ff-sprite: exchange; }
+.s_speech   { -ff-sprite: speech; }
+.s_door     { -ff-sprite: door; }
+.s_left     { -ff-sprite: left; }
+.s_right    { -ff-sprite: right; }
+
+/* ---- Config: tabs, choices (the one set is :checked), sliders, buttons ---- */
+
+.tab, .choice, .button, .rowlabel, .volume, .explanation {
+  font-family: "Palatino Linotype", "Book Antiqua", serif; text-shadow: 0.6px 0.6px 1px #000000c0;
+}
+.tab        { -ff-panel: none; background-image: linear-gradient(#1a2c58, #0b1634); border: 1px solid #c8a24ab0; border-radius: 4px 4px 0 0;
+              font-size: 12px; color: #d8deec; }
+#config #m_setting1, #config2 #m_setting2 {
+  background-image: linear-gradient(#3a86f0, #1c4cb0); border-color: #a0ccff; box-shadow: 0 0 5px #4aa0ffa0; color: #ffffff;
+}
+.rowlabel   { -ff-panel: none; font-size: 13px; color: #f6f1e4; }
+.rowcrest   { background-image: url("images/crest.png"); -ff-background-scale-mode: scale-to-fit; opacity: 0.35; }
+.choice, .button {
+  -ff-panel: none; background-image: linear-gradient(#16264e, #0a1330); border: 1px solid #c8a24a90; border-radius: 2px;
+  font-size: 12px; color: #c0c8dc;
+}
+.choice:checked, .button:focus {
+  background-image: linear-gradient(#3a86f0, #1c4cb0); border-color: #a0ccff; box-shadow: 0 0 4px #4aa0ffa0; color: #ffffff;
+}
+.explainpanel { }
+.explanation { font-size: 12px; color: #f0f2f8; }
+.volume     { font-size: 13px; color: #f6f1e4; text-align: right; }
+.slider     { -ff-panel: none; }
+.track      { background-color: #000000a0; border: 1px solid #c8a24a70; border-radius: 3px; }
+.trackfill  { background-image: linear-gradient(#7ad0ff, #1c7ce0); border-radius: 3px; }
+.knob       { background-image: url("images/commands.png"); -ff-sprite: job; -ff-background-scale-mode: scale-to-fit; }

@@ -18,6 +18,9 @@ namespace OpenFF.Client
 		private readonly Dictionary<string, (uint Id, int W, int H)> _pictures = new Dictionary<string, (uint, int, int)>(StringComparer.OrdinalIgnoreCase);
 		private readonly List<uint> _painted = new List<uint>();
 
+		/// <summary>How many sprites the set shows.</summary>
+		public int Count => _sprites.Count;
+
 		/// <summary>Pixels a menu unit for a painted box: the window's, so its edges are as sharp as the text's.</summary>
 		public static float PaintScale()
 		{
@@ -68,9 +71,9 @@ namespace OpenFF.Client
 				float scale = PaintScale();
 				try
 				{
-					if (Painted(MenuPaint.Paint(bg, width, height, scale, MenuPaint.Layer.Fill), textures) is (uint, int, int, MenuBackground.Quad) fill) sprite.Before.Add(fill);
-					if (Painted(MenuPaint.Paint(bg, width, height, scale, MenuPaint.Layer.Over), textures) is (uint, int, int, MenuBackground.Quad) over) sprite.After.Add(over);
-					if (Painted(MenuPaint.Paint(bg, width, height, scale, MenuPaint.Layer.Shadow), textures) is (uint, int, int, MenuBackground.Quad) shade)
+					if (Painted(Paint(declarations, bg, width, height, scale, MenuPaint.Layer.Fill), textures) is (uint, int, int, MenuBackground.Quad) fill) sprite.Before.Add(fill);
+					if (Painted(Paint(declarations, bg, width, height, scale, MenuPaint.Layer.Over), textures) is (uint, int, int, MenuBackground.Quad) over) sprite.After.Add(over);
+					if (Painted(Paint(declarations, bg, width, height, scale, MenuPaint.Layer.Shadow), textures) is (uint, int, int, MenuBackground.Quad) shade)
 					{
 						GlobalScope.MenuPanelSprite shadow = new GlobalScope.MenuPanelSprite { Width = width, Height = height, Opacity = opacity };
 						shadow.Before.Add(shade);
@@ -82,28 +85,91 @@ namespace OpenFF.Client
 			Show(sprite, x, y, depth, sprites);
 		}
 
+		// Painted boxes kept by what they are - the declarations, the size, the scale and the layer -, the least recently used let go
+		// first: the rows of a list paint one box between them, and a screen opened again (a menu come back to) paints nothing. The
+		// pixels are kept, not the textures (a GL slot each while shown); a box with nothing on a layer is kept too (null).
+		private static readonly Dictionary<string, LinkedListNode<(string Key, MenuPaint.Raster Raster)>> _rasters = new Dictionary<string, LinkedListNode<(string, MenuPaint.Raster)>>(StringComparer.Ordinal);
+		private static readonly LinkedList<(string Key, MenuPaint.Raster Raster)> _rasterOrder = new LinkedList<(string, MenuPaint.Raster)>();
+		private static long _rasterBytes;
+		private const long RasterBudget = 96L * 1024 * 1024;
+
+		private static MenuPaint.Raster Paint(string declarations, MenuBackground bg, int width, int height, float scale, MenuPaint.Layer layer)
+		{
+			string key = declarations + "|" + width + "x" + height + "@" + scale.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + layer;
+			if (_rasters.TryGetValue(key, out LinkedListNode<(string Key, MenuPaint.Raster Raster)> known))
+			{
+				_rasterOrder.Remove(known);
+				_rasterOrder.AddFirst(known);
+				return known.Value.Raster;
+			}
+			MenuPaint.Raster raster = MenuPaint.Paint(bg, width, height, scale, layer);
+			_rasters[key] = _rasterOrder.AddFirst((key, raster));
+			_rasterBytes += raster?.Pixels.Length ?? 0;
+			while (_rasterBytes > RasterBudget && _rasterOrder.Last != null && _rasterOrder.Last != _rasterOrder.First)
+			{
+				(string oldKey, MenuPaint.Raster old) = _rasterOrder.Last.Value;
+				_rasterOrder.RemoveLast();
+				_rasters.Remove(oldKey);
+				_rasterBytes -= old?.Pixels.Length ?? 0;
+			}
+			return raster;
+		}
+
 		/// <summary>A picture's texture, loaded once for the set: one of the game's (resource) or a file beside the layout (url).</summary>
 		private (uint, int, int) Picture(string directory, string what, MenuBackground bg)
 		{
-			string key = bg.ImageKind + ":" + bg.ImagePath + (bg.Linear ? "" : "#point");
+			string path = null;
+			if (bg.ImageKind != "resource" && directory != null) path = Path.GetFullPath(Path.Combine(directory, bg.ImagePath));
+			// A file's time in the key: a picture edited while the client runs is read afresh.
+			string stamp = path != null && File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+			string key = bg.ImageKind + ":" + (path ?? bg.ImagePath) + (bg.Linear ? "" : "#point") + "@" + stamp;
 			if (_pictures.TryGetValue(key, out (uint Id, int W, int H) texture)) return texture;
-			byte[] data = null;
-			try
+			if (_shared.TryGetValue(key, out Shared shared))
 			{
-				if (bg.ImageKind == "resource") data = GameArchive.Read(bg.ImagePath);
-				else if (directory != null)
-				{
-					string path = Path.GetFullPath(Path.Combine(directory, bg.ImagePath));
-					if (File.Exists(path)) data = File.ReadAllBytes(path);
-				}
-				int tw = 0, th = 0;
-				uint id = data == null ? 0 : GlobalScope.MenuPanelTexture(data, bg.Linear, out tw, out th);
-				texture = id == 0 ? (0u, 0, 0) : (id, tw, th);
-				if (id == 0 && data == null) Log.Write(LogChannel.General, "menus: " + what + ": no picture " + bg.ImageKind + "(\"" + bg.ImagePath + "\")");
+				shared.Users++;
+				shared.Used = ++_useClock;
+				texture = (shared.Id, shared.W, shared.H);
 			}
-			catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + what + ": picture " + bg.ImagePath + ": " + ex.Message); }
+			else
+			{
+				byte[] data = null;
+				texture = (0u, 0, 0);
+				try
+				{
+					if (bg.ImageKind == "resource") data = GameArchive.Read(bg.ImagePath);
+					else if (path != null && File.Exists(path)) data = File.ReadAllBytes(path);
+					int tw = 0, th = 0;
+					uint id = data == null ? 0 : GlobalScope.MenuPanelTexture(data, bg.Linear, out tw, out th);
+					texture = id == 0 ? (0u, 0, 0) : (id, tw, th);
+					if (id == 0 && data == null) Log.Write(LogChannel.General, "menus: " + what + ": no picture " + bg.ImageKind + "(\"" + bg.ImagePath + "\")");
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + what + ": picture " + bg.ImagePath + ": " + ex.Message); }
+				if (texture.Id != 0) _shared[key] = new Shared { Id = texture.Id, W = texture.W, H = texture.H, Users = 1, Used = ++_useClock };
+			}
 			_pictures[key] = texture;
 			return texture;
+		}
+
+		// Pictures shared by every set that shows them, and kept a while after the last lets go: a menu come back to (the main
+		// menu after Item) finds its backdrop and its sheets decoded. The least recently used past Kept are let go.
+		private sealed class Shared { public uint Id; public int W, H, Users; public long Used; }
+		private static readonly Dictionary<string, Shared> _shared = new Dictionary<string, Shared>(StringComparer.OrdinalIgnoreCase);
+		private static long _useClock;
+		private const int Kept = 16;
+
+		private static void LetGo(string key)
+		{
+			if (!_shared.TryGetValue(key, out Shared shared)) return;
+			shared.Users = Math.Max(0, shared.Users - 1);
+			List<KeyValuePair<string, Shared>> idle = new List<KeyValuePair<string, Shared>>();
+			foreach (KeyValuePair<string, Shared> kv in _shared) if (kv.Value.Users == 0) idle.Add(kv);
+			if (idle.Count <= Kept) return;
+			idle.Sort((a, b) => a.Value.Used.CompareTo(b.Value.Used));
+			for (int i = 0; i < idle.Count - Kept; i++)
+			{
+				_shared.Remove(idle[i].Key);
+				try { GlobalScope.MenuPanelRelease(idle[i].Value.Id); } catch (Exception) { }
+			}
 		}
 
 		/// <summary>A painted layer as a texture and its place over the frame; null for nothing.</summary>
@@ -174,7 +240,7 @@ namespace OpenFF.Client
 			Flush();
 			foreach (GlobalScope.MenuPanelSprite p in _sprites) { try { GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(p); } catch (Exception) { } }
 			_sprites.Clear();
-			foreach ((uint Id, int W, int H) t in _pictures.Values) { try { GlobalScope.MenuPanelRelease(t.Id); } catch (Exception) { } }
+			foreach (string key in _pictures.Keys) LetGo(key);
 			_pictures.Clear();
 			foreach (uint t in _painted) { try { GlobalScope.MenuPanelRelease(t); } catch (Exception) { } }
 			_painted.Clear();

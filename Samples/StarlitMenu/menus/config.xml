@@ -1,0 +1,984 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Config screens (config, config2), patched: the game's frames as the game's file has them (CWMenuConfig reads their works, tags and neighbours), moved and styled, and the mod's frames added - the tabs' look, the panels, the rows' lines, the volume sliders drawn from the config binding root. Generated. -->
+<menulist>
+  <menu>
+    <name>config</name>
+    <frame class="panel">
+      <id>main</id>
+      <x>8</x>
+      <y>68</y>
+      <width>464</width>
+      <height>166</height>
+      <frame class="goldframe">
+        <id>main_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>176</height>
+      </frame>
+    </frame>
+    <frame class="panel explainpanel">
+      <id>explain</id>
+      <x>8</x>
+      <y>242</y>
+      <width>464</width>
+      <height>40</height>
+      <frame class="goldframe">
+        <id>explain_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>50</height>
+      </frame>
+    </frame>
+    <frame class="panel bottom">
+      <id>bottom</id>
+      <x>8</x>
+      <y>290</y>
+      <width>464</width>
+      <height>24</height>
+      <frame class="goldframe">
+        <id>bottom_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>34</height>
+      </frame>
+    </frame>
+    <frame class="title">
+      <id>config_title</id>
+      <x>40</x>
+      <y>7</y>
+      <width>80</width>
+      <height>20</height>
+      <behavior value="Text">
+        <parameter>50007</parameter>
+        <parameter>8</parameter>
+        <parameter>2</parameter>
+      </behavior>
+    </frame>
+    <frame>
+      <id>config_list</id>
+      <x>0</x>
+      <y>0</y>
+      <width>256</width>
+      <height>192</height>
+      <frame class="rowlabel">
+        <id>m_mes</id>
+        <x>24</x>
+        <y>74</y>
+        <width>120</width>
+        <height>32</height>
+        <work>0</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>50601</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="choice">
+          <id>m_slow_mes</id>
+          <x>182</x>
+          <y>4</y>
+          <width>80</width>
+          <height>24</height>
+          <work>0</work>
+          <work1>1</work1>
+          <work2>50650</work2>
+          <myTag>0</myTag>
+          <up>m_battle</up>
+          <down>m_cursor</down>
+          <left>m_quick_mes</left>
+          <right>m_normal_mes</right>
+          <behavior value="CConfig">
+            <parameter>50602</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_slow_mes</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="choice">
+          <id>m_normal_mes</id>
+          <x>264</x>
+          <y>4</y>
+          <width>80</width>
+          <height>24</height>
+          <work>1</work>
+          <work1>1</work1>
+          <work2>50650</work2>
+          <myTag>1</myTag>
+          <up>m_battle</up>
+          <down>m_cursor</down>
+          <left>m_slow_mes</left>
+          <right>m_quick_mes</right>
+          <behavior value="CConfig">
+            <parameter>50603</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_normal_mes</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="choice">
+          <id>m_quick_mes</id>
+          <x>346</x>
+          <y>4</y>
+          <width>80</width>
+          <height>24</height>
+          <work>2</work>
+          <work1>1</work1>
+          <work2>50650</work2>
+          <myTag>2</myTag>
+          <up>m_battle</up>
+          <down>m_cursor</down>
+          <left>m_normal_mes</left>
+          <right>m_slow_mes</right>
+          <behavior value="CConfig">
+            <parameter>50604</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_quick_mes</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+      <frame class="rowlabel">
+        <id>m_cursor</id>
+        <x>24</x>
+        <y>114</y>
+        <width>120</width>
+        <height>32</height>
+        <work>1</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>50605</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <frame class="choice">
+          <id>m_init</id>
+          <x>182</x>
+          <y>4</y>
+          <width>100</width>
+          <height>24</height>
+          <work>0</work>
+          <work1>1</work1>
+          <work2>50651</work2>
+          <myTag>3</myTag>
+          <up>m_mes</up>
+          <down>m_move</down>
+          <left>m_memory</left>
+          <right>m_memory</right>
+          <behavior value="CConfig">
+            <parameter>50606</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_init</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="choice">
+          <id>m_memory</id>
+          <x>284</x>
+          <y>4</y>
+          <width>100</width>
+          <height>24</height>
+          <work>1</work>
+          <work1>1</work1>
+          <work2>50651</work2>
+          <myTag>4</myTag>
+          <up>m_mes</up>
+          <down>m_move</down>
+          <left>m_init</left>
+          <right>m_init</right>
+          <behavior value="CConfig">
+            <parameter>50607</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_memory</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+      <frame class="rowlabel">
+        <id>m_move</id>
+        <x>24</x>
+        <y>154</y>
+        <width>120</width>
+        <height>32</height>
+        <work>5</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>50613</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <frame class="choice">
+          <id>m_walk</id>
+          <x>182</x>
+          <y>4</y>
+          <width>100</width>
+          <height>24</height>
+          <work>0</work>
+          <work1>1</work1>
+          <work2>50655</work2>
+          <myTag>9</myTag>
+          <up>m_cursor</up>
+          <down>m_battle</down>
+          <left>m_run</left>
+          <right>m_run</right>
+          <behavior value="CConfig">
+            <parameter>50614</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_walk</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="choice">
+          <id>m_run</id>
+          <x>284</x>
+          <y>4</y>
+          <width>100</width>
+          <height>24</height>
+          <work>1</work>
+          <work1>1</work1>
+          <work2>50655</work2>
+          <myTag>10</myTag>
+          <up>m_cursor</up>
+          <down>m_battle</down>
+          <left>m_walk</left>
+          <right>m_walk</right>
+          <behavior value="CConfig">
+            <parameter>50615</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_run</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+      <frame class="rowlabel">
+        <id>m_battle</id>
+        <x>24</x>
+        <y>194</y>
+        <width>120</width>
+        <height>32</height>
+        <work>11</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>50659</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <frame class="choice">
+          <id>m_alpha</id>
+          <x>182</x>
+          <y>4</y>
+          <width>100</width>
+          <height>24</height>
+          <work>1</work>
+          <work1>1</work1>
+          <work2>52080</work2>
+          <myTag>11</myTag>
+          <up>m_move</up>
+          <down>m_mes</down>
+          <left>m_not_alpha</left>
+          <right>m_not_alpha</right>
+          <behavior value="CConfig">
+            <parameter>50660</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_alpha</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="choice">
+          <id>m_not_alpha</id>
+          <x>284</x>
+          <y>4</y>
+          <width>100</width>
+          <height>24</height>
+          <work>0</work>
+          <work1>1</work1>
+          <work2>52080</work2>
+          <myTag>12</myTag>
+          <up>m_move</up>
+          <down>m_mes</down>
+          <left>m_alpha</left>
+          <right>m_alpha</right>
+          <behavior value="CConfig">
+            <parameter>50661</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_not_alpha</id>
+            <x>4</x>
+            <y>12</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+    </frame>
+    <frame class="explanation">
+      <id>m_explanation</id>
+      <x>22</x>
+      <y>250</y>
+      <width>436</width>
+      <height>24</height>
+      <work>8</work>
+      <work1>0</work1>
+      <behavior>CConfigExplanation</behavior>
+    </frame>
+    <frame>
+      <id>mm_command</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>32</height>
+      <frame class="tab">
+        <focus/>
+        <id>m_setting1</id>
+        <x>12</x>
+        <y>38</y>
+        <width>114</width>
+        <height>24</height>
+        <myTag>20</myTag>
+        <up>dummy</up>
+        <down>dummy</down>
+        <left>m_setting2</left>
+        <right>m_setting2</right>
+        <behavior value="Text">
+          <parameter>50620</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+          <parameter>1</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_setting1</id>
+          <x>8</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="tab">
+        <focus/>
+        <id>m_setting2</id>
+        <x>130</x>
+        <y>38</y>
+        <width>114</width>
+        <height>24</height>
+        <myTag>21</myTag>
+        <up>dummy</up>
+        <down>dummy</down>
+        <left>m_setting1</left>
+        <right>m_setting1</right>
+        <behavior value="Text">
+          <parameter>50621</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+          <parameter>1</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_setting2</id>
+          <x>8</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+    </frame>
+    <frame class="crystal">
+      <id>crystal</id>
+      <x>9</x>
+      <y>4</y>
+      <width>26</width>
+      <height>26</height>
+    </frame>
+    <frame class="hline">
+      <id>hline</id>
+      <x>8</x>
+      <y>31</y>
+      <width>464</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowcrest">
+      <id>rowcrest0</id>
+      <x>156</x>
+      <y>80</y>
+      <width>20</width>
+      <height>20</height>
+    </frame>
+    <frame class="rowline">
+      <id>rowline0</id>
+      <x>20</x>
+      <y>110</y>
+      <width>440</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowcrest">
+      <id>rowcrest1</id>
+      <x>156</x>
+      <y>120</y>
+      <width>20</width>
+      <height>20</height>
+    </frame>
+    <frame class="rowline">
+      <id>rowline1</id>
+      <x>20</x>
+      <y>150</y>
+      <width>440</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowcrest">
+      <id>rowcrest2</id>
+      <x>156</x>
+      <y>160</y>
+      <width>20</width>
+      <height>20</height>
+    </frame>
+    <frame class="rowline">
+      <id>rowline2</id>
+      <x>20</x>
+      <y>190</y>
+      <width>440</width>
+      <height>1</height>
+    </frame>
+    <frame class="rowcrest">
+      <id>rowcrest3</id>
+      <x>156</x>
+      <y>200</y>
+      <width>20</width>
+      <height>20</height>
+    </frame>
+  </menu>
+  <menu>
+    <name>config2</name>
+    <frame class="panel">
+      <id>main</id>
+      <x>8</x>
+      <y>68</y>
+      <width>464</width>
+      <height>166</height>
+      <frame class="goldframe">
+        <id>main_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>176</height>
+      </frame>
+    </frame>
+    <frame class="panel explainpanel">
+      <id>explain</id>
+      <x>8</x>
+      <y>242</y>
+      <width>464</width>
+      <height>40</height>
+      <frame class="goldframe">
+        <id>explain_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>50</height>
+      </frame>
+    </frame>
+    <frame class="panel bottom">
+      <id>bottom</id>
+      <x>8</x>
+      <y>290</y>
+      <width>464</width>
+      <height>24</height>
+      <frame class="goldframe">
+        <id>bottom_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>34</height>
+      </frame>
+    </frame>
+    <frame class="title">
+      <id>config_title</id>
+      <x>40</x>
+      <y>7</y>
+      <width>80</width>
+      <height>20</height>
+      <behavior value="Text">
+        <parameter>50007</parameter>
+        <parameter>8</parameter>
+        <parameter>2</parameter>
+      </behavior>
+    </frame>
+    <frame>
+      <id>config_list</id>
+      <x>0</x>
+      <y>0</y>
+      <width>256</width>
+      <height>192</height>
+      <frame class="rowlabel">
+        <id>m_bgm</id>
+        <x>24</x>
+        <y>76</y>
+        <width>120</width>
+        <height>28</height>
+        <work>2</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>50608</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <frame class="slider">
+          <id>m_bgm_vol</id>
+          <x>180</x>
+          <y>4</y>
+          <width>150</width>
+          <height>20</height>
+          <work>0</work>
+          <work1>1</work1>
+          <work2>50652</work2>
+          <myTag>0</myTag>
+          <up>m_quit</up>
+          <down>m_se</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior>CConfigSound</behavior>
+          <frame>
+            <id>cursor_m_bgm_vol</id>
+            <x>-22</x>
+            <y>10</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="volume">
+          <id>m_bgm_vol_value</id>
+          <x>352</x>
+          <y>4</y>
+          <width>30</width>
+          <height>20</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+          <data type="string">99</data>
+        </frame>
+      </frame>
+      <frame class="rowlabel">
+        <id>m_se</id>
+        <x>24</x>
+        <y>110</y>
+        <width>120</width>
+        <height>28</height>
+        <work>3</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>50609</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <frame class="slider">
+          <id>m_se_vol</id>
+          <x>180</x>
+          <y>4</y>
+          <width>150</width>
+          <height>20</height>
+          <work>0</work>
+          <work1>1</work1>
+          <work2>50653</work2>
+          <myTag>1</myTag>
+          <up>m_bgm</up>
+          <down>m_tip</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior>CConfigSound</behavior>
+          <frame>
+            <id>cursor_m_se_vol</id>
+            <x>-22</x>
+            <y>10</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+        <frame class="volume">
+          <id>m_se_vol_value</id>
+          <x>352</x>
+          <y>4</y>
+          <width>30</width>
+          <height>20</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+          <data type="string">99</data>
+        </frame>
+      </frame>
+      <frame class="rowlabel">
+        <id>m_tip</id>
+        <x>24</x>
+        <y>152</y>
+        <width>120</width>
+        <height>22</height>
+        <work>8</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>50617</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <frame class="button">
+          <id>m_tips</id>
+          <x>156</x>
+          <y>0</y>
+          <width>180</width>
+          <height>22</height>
+          <work>0</work>
+          <work1>1</work1>
+          <work2>50655</work2>
+          <myTag>3</myTag>
+          <up>m_se</up>
+          <down>m_title</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior value="CConfig">
+            <parameter>52100</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_tips</id>
+            <x>4</x>
+            <y>11</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+      <frame class="rowlabel">
+        <id>m_title</id>
+        <x>24</x>
+        <y>178</y>
+        <width>120</width>
+        <height>22</height>
+        <work>7</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <frame class="button">
+          <id>m_title_back</id>
+          <x>156</x>
+          <y>0</y>
+          <width>180</width>
+          <height>22</height>
+          <work>0</work>
+          <work1>1</work1>
+          <work2>50655</work2>
+          <myTag>4</myTag>
+          <up>m_tip</up>
+          <down>m_quit</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior value="CConfig">
+            <parameter>50618</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_title_back</id>
+            <x>4</x>
+            <y>11</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+      <frame class="rowlabel">
+        <id>m_quit</id>
+        <x>24</x>
+        <y>204</y>
+        <width>120</width>
+        <height>22</height>
+        <work>10</work>
+        <work1>0</work1>
+        <behavior value="CConfig">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <frame class="button">
+          <id>m_quit_game</id>
+          <x>156</x>
+          <y>0</y>
+          <width>180</width>
+          <height>22</height>
+          <work>0</work>
+          <work1>0</work1>
+          <work2>52080</work2>
+          <myTag>5</myTag>
+          <up>m_title</up>
+          <down>m_bgm</down>
+          <left>dummy</left>
+          <right>dummy</right>
+          <behavior value="CConfig">
+            <parameter>50663</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+          <frame>
+            <id>cursor_m_quit_game</id>
+            <x>4</x>
+            <y>11</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
+        </frame>
+      </frame>
+    </frame>
+    <frame class="explanation">
+      <id>m_explanation</id>
+      <x>22</x>
+      <y>250</y>
+      <width>436</width>
+      <height>24</height>
+      <work>8</work>
+      <work1>0</work1>
+      <behavior>CConfigExplanation</behavior>
+    </frame>
+    <frame>
+      <id>mm_command</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>32</height>
+      <frame class="tab">
+        <focus/>
+        <id>m_setting1</id>
+        <x>12</x>
+        <y>38</y>
+        <width>114</width>
+        <height>24</height>
+        <myTag>20</myTag>
+        <up>dummy</up>
+        <down>dummy</down>
+        <left>m_setting2</left>
+        <right>m_setting2</right>
+        <behavior value="Text">
+          <parameter>50620</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+          <parameter>1</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_setting1</id>
+          <x>8</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+      <frame class="tab">
+        <focus/>
+        <id>m_setting2</id>
+        <x>130</x>
+        <y>38</y>
+        <width>114</width>
+        <height>24</height>
+        <myTag>21</myTag>
+        <up>dummy</up>
+        <down>dummy</down>
+        <left>m_setting1</left>
+        <right>m_setting1</right>
+        <behavior value="Text">
+          <parameter>50621</parameter>
+          <parameter>8</parameter>
+          <parameter>2</parameter>
+          <parameter>1</parameter>
+        </behavior>
+        <frame>
+          <id>cursor_m_setting2</id>
+          <x>8</x>
+          <y>12</y>
+          <width>1</width>
+          <height>1</height>
+          <cursor/>
+        </frame>
+      </frame>
+    </frame>
+    <frame class="crystal">
+      <id>crystal</id>
+      <x>9</x>
+      <y>4</y>
+      <width>26</width>
+      <height>26</height>
+    </frame>
+    <frame class="hline">
+      <id>hline</id>
+      <x>8</x>
+      <y>31</y>
+      <width>464</width>
+      <height>1</height>
+    </frame>
+    <frame class="sicon s_left">
+      <id>music_left</id>
+      <x>188</x>
+      <y>84</y>
+      <width>10</width>
+      <height>12</height>
+    </frame>
+    <frame class="track">
+      <id>music_track</id>
+      <x>204</x>
+      <y>87</y>
+      <width>150</width>
+      <height>6</height>
+      <frame class="trackfill" bind-style="width: {config.musicPercent}%">
+        <id>music_fill</id>
+        <x>0</x>
+        <y>0</y>
+        <width>150</width>
+        <height>6</height>
+      </frame>
+    </frame>
+    <frame class="knob" bind-style="translate: {config.musicPercent * 150 / 100}px 0">
+      <id>music_knob</id>
+      <x>196</x>
+      <y>82</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="sicon s_right">
+      <id>music_right</id>
+      <x>360</x>
+      <y>84</y>
+      <width>10</width>
+      <height>12</height>
+    </frame>
+    <frame class="sicon s_left">
+      <id>sound_left</id>
+      <x>188</x>
+      <y>118</y>
+      <width>10</width>
+      <height>12</height>
+    </frame>
+    <frame class="track">
+      <id>sound_track</id>
+      <x>204</x>
+      <y>121</y>
+      <width>150</width>
+      <height>6</height>
+      <frame class="trackfill" bind-style="width: {config.soundPercent}%">
+        <id>sound_fill</id>
+        <x>0</x>
+        <y>0</y>
+        <width>150</width>
+        <height>6</height>
+      </frame>
+    </frame>
+    <frame class="knob" bind-style="translate: {config.soundPercent * 150 / 100}px 0">
+      <id>sound_knob</id>
+      <x>196</x>
+      <y>116</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="sicon s_right">
+      <id>sound_right</id>
+      <x>360</x>
+      <y>118</y>
+      <width>10</width>
+      <height>12</height>
+    </frame>
+    <frame class="line">
+      <id>miscline</id>
+      <x>20</x>
+      <y>144</y>
+      <width>440</width>
+      <height>1</height>
+    </frame>
+    <frame class="sicon s_speech">
+      <id>m_tips_icon</id>
+      <x>190</x>
+      <y>155</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="sicon s_book">
+      <id>m_title_back_icon</id>
+      <x>190</x>
+      <y>181</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+    <frame class="sicon s_door">
+      <id>m_quit_game_icon</id>
+      <x>190</x>
+      <y>207</y>
+      <width>16</width>
+      <height>16</height>
+    </frame>
+  </menu>
+</menulist>

@@ -10299,6 +10299,7 @@ internal static partial class GlobalScope
 							if (texBank[tex].tex[0] == 0)
 							{
 								glGenTextures(1, texBank[tex].tex);
+								if (texBank[tex].tex[0] == 0) { glBindTexture(target, 0u); return; } // PORT: no slot left: drawn untextured, not a crash
 								glBindTexture(3553u, texBank[tex].tex[0]);
 								glTexParameteri(3553u, 10241u, (int)texBank[tex].filter);
 								glTexParameteri(3553u, 10240u, (int)texBank[tex].filter);
@@ -21834,6 +21835,7 @@ internal static partial class GlobalScope
 										break;
 									}
 								}
+								if (textures[i] == 0) OpenFF.Client.Log.First(OpenFF.Client.LogChannel.General, "glGenTextures", 1, () => "gl: every one of the " + m_aGlTexture.Length + " texture slots is taken"); /*FF3LOG*/
 							}
 						}
 
@@ -22349,7 +22351,7 @@ internal static partial class GlobalScope
 							m_bApplyEffect = true;
 							m_asIndex = new short[16];
 							m_abyCurrentColor = new byte[4];
-							m_aGlTexture = new GlTexture[256];
+							m_aGlTexture = new GlTexture[1024]; // PORT: the phone's 256 - a styled menu's painted boxes take a slot each, beside the game's own
 							m_TextureMatrix = Matrix.Identity;
 							m_afOrthoMatrix = new float[16];
 							__DATE__ = "N/A";

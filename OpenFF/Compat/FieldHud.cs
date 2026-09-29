@@ -313,6 +313,8 @@ namespace OpenFF.Client
 			public string Path;
 			public int Message = -1;
 			public string Text;
+			// Made by the menus' message manager (a menu button's text, drawn over the menu's panels), not the field's.
+			public bool Menu;
 		}
 
 		private static Shown _dialogue, _banner, _confirm;
@@ -729,13 +731,20 @@ namespace OpenFF.Client
 		/// <summary>Each frame of a menu: its buttons' panels, and what moves on them.</summary>
 		public static void MenuButtonsTick()
 		{
+			// A pad plugged in or taken out (the input root's hints): the buttons that bind them made again.
+			_ = InputHints.Current;
+			bool input = InputHints.Version != _inputVersion;
+			_inputVersion = InputHints.Version;
 			foreach (int cell in _buttons.Keys.Where(k => k >= MenuButtonKey).ToList())
 			{
 				Shown s = _buttons[cell];
 				s.Panels.Flush();
+				if (input && s.Built) Refresh(s);
 				if (!s.Built || _animator.Active) { ButtonBefore(cell); ButtonAfter(cell); }
 			}
 		}
+
+		private static int _inputVersion = -1;
 
 		// ---- the title's commands (ttl.CTitle2D: the column where title puts it, its labels drawn in ModListScreen) ----
 
@@ -857,6 +866,19 @@ namespace OpenFF.Client
 			return ((int)Math.Round(x) + s.Shift.X, (int)Math.Round(y) + s.Shift.Y);
 		}
 
+		/// <summary>Where a menu button's label (a_button/text, b_button/text) stands when the sheets give it a text-align: in its frame as laid out, left, centred or right, and centred down it; null otherwise.</summary>
+		private static (int X, int Y)? AlignedLabel(string path, GlobalScope.dgs.DGSMessage message, MenuStyles.Look look)
+		{
+			if (path != "a_button/text" && path != "b_button/text") return null;
+			string align = look?.Align?.Trim().ToLowerInvariant();
+			if (align != "left" && align != "center" && align != "centre" && align != "right") return null;
+			if (!Laid(path, out BattleHud.Rect r)) return null;
+			GlobalScope.ds.Vector2<short> size = new GlobalScope.ds.Vector2<short>();
+			try { message.getTextSize(size); } catch (Exception) { return null; }
+			int x = align == "left" ? r.X : align == "right" ? r.X + r.Width - size.vx : r.X + (r.Width - size.vx) / 2;
+			return (x, r.Y + (r.Height - size.vy) / 2);
+		}
+
 		/// <summary>A thing's frames' looks and data put on: its game texts' looks and places, its frames' texts, and - once it is open - its panels (a fade or a move in place, made again where the box changed).</summary>
 		private static void Refresh(Shown s)
 		{
@@ -875,6 +897,13 @@ namespace OpenFF.Client
 				if (frame == null || !looks.TryGetValue(frame, out MenuStyles.Look look)) continue;
 				PutText(t.Value, look, s.Fade, s.Visible);
 				(int dx, int dy) = Offset(s, frame, looks);
+				// A menu button's label with a text-align of the sheets' stands in its frame as laid out (a pill's row of a
+				// key and its label); without one, where the game centres it in the button, moved with its frame.
+				if (AlignedLabel(t.Key, t.Value, look) is (int X, int Y) aligned)
+				{
+					try { t.Value.setPosition((short)(aligned.X + dx - s.Shift.X), (short)(aligned.Y + dy - s.Shift.Y), erase: true); } catch (Exception) { }
+					continue;
+				}
 				(int lx, int ly) = LaidShift(t.Key);
 				dx += lx;
 				dy += ly;
@@ -1033,7 +1062,7 @@ namespace OpenFF.Client
 			return true;
 		}
 
-		/// <summary>The roots the HUD's bindings reach: dialogue, banner, and the game's hero, party and gil.</summary>
+		/// <summary>The roots the HUD's bindings reach: dialogue, banner, the game's hero, party and gil, and the input in hand.</summary>
 		private static (bool, object) Root(string name)
 		{
 			switch (name.ToLowerInvariant())
@@ -1044,6 +1073,7 @@ namespace OpenFF.Client
 				case "party": return (true, OpenFF.Game.Party?.Members);
 				case "gil": return (true, OpenFF.Game.Party?.Gil ?? 0);
 				case "items": return (true, OpenFF.Game.Party?.Items);
+				case "input": return (true, InputHints.Current);
 				default: return OpenFF.Game.Hud.TryGet(name, out object hud) ? (true, hud) : (false, null);   // a mod's (Game.Hud.Set: a quest log's)
 			}
 		}
@@ -1097,7 +1127,8 @@ namespace OpenFF.Client
 		{
 			if (!looks.TryGetValue(e.Frame, out MenuStyles.Look look) || !Laid(e.Path, out BattleHud.Rect r)) return;
 			r = Lifted(s, e.Path, r);
-			GlobalScope.dgs.msg.CMessageMng mm = GlobalScope.dgs.msg.CMessageSys.getInstance().Main();
+			if (e.Message < 0) e.Menu = MenuButtonRoots.Contains(s.Root);
+			GlobalScope.dgs.msg.CMessageMng mm = Messages(e);
 			if (e.Message < 0)
 			{
 				if (string.IsNullOrEmpty(e.Text)) return;
@@ -1110,8 +1141,9 @@ namespace OpenFF.Client
 			GlobalScope.dgs.DGSMessage message = mm.Message(e.Message);
 			if (message == null) return;
 			PutText(message, look, s.Fade, s.Visible);
+			// Measured in the font it has now (its size and face from the sheets), not the area it last drew in.
 			GlobalScope.ds.Vector2<short> size = new GlobalScope.ds.Vector2<short>();
-			message.getCompleteTextSize(size);
+			message.getTextSize(size);
 			string align = (look.Align ?? "").Trim();
 			(int dx, int dy) = Offset(s, e.Frame, looks);
 			int x = (align == "right" ? r.X + r.Width - size.vx : align == "center" ? r.X + (r.Width - size.vx) / 2 : r.X) + dx;
@@ -1122,9 +1154,15 @@ namespace OpenFF.Client
 		private static void ReleaseExtra(Extra e)
 		{
 			if (e.Message < 0) return;
-			try { GlobalScope.dgs.msg.CMessageSys.getInstance().Main().releaseMessage(e.Message); } catch (Exception) { }
+			try { Messages(e).releaseMessage(e.Message); } catch (Exception) { }
 			e.Message = -1;
 		}
+
+		private static readonly HashSet<string> MenuButtonRoots = new HashSet<string>(StringComparer.Ordinal) { "a_button", "b_button", "l_button", "r_button" };
+
+		/// <summary>The message manager a text of the layout's is made by: the menus' for a menu button's (the field's are not drawn over a menu), the field's otherwise.</summary>
+		private static GlobalScope.dgs.msg.CMessageMng Messages(Extra e) =>
+			e.Menu ? GlobalScope.dgs.msg.CMessageSys.getInstance().Sub() : GlobalScope.dgs.msg.CMessageSys.getInstance().Main();
 
 		/// <summary>A text's lettering, its faces' files beside the layout.</summary>
 		private static MenuText Lettering(string declarations)

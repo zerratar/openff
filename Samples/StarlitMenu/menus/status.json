@@ -1,0 +1,7 @@
+{
+  "id": "status",
+  "layout": "status.xml",
+  "screen": "status",
+  "background": -1,
+  "backdropLines": "none"
+}

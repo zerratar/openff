@@ -88,7 +88,7 @@ function cssWords(text) {
   return words;
 }
 
-const STYLE_PSEUDOS = new Set(['focus', 'focus-within', 'disabled', 'enabled', 'first-child', 'last-child', 'only-child', 'nth-child', 'nth-last-child', 'not']);
+const STYLE_PSEUDOS = new Set(['focus', 'focus-within', 'disabled', 'enabled', 'checked', 'first-child', 'last-child', 'only-child', 'nth-child', 'nth-last-child', 'not']);
 
 /// As CSS counts it: an id, then classes and pseudo-classes (a :not() by what it holds), then a type.
 function compoundSpecificity(c) {
@@ -223,6 +223,7 @@ function stylePseudo(e, p) {
     case 'focus-within': return styleHasState(e, 'focus') || [...e.getElementsByTagName('frame')].some(d => styleHasState(d, 'focus'));
     case 'disabled': return styleHasState(e, 'disabled');
     case 'enabled': return !styleHasState(e, 'disabled');
+    case 'checked': return styleHasState(e, 'checked');
     case 'not': return !!p.not && !compoundMatches(p.not, e);
   }
   const siblings = e.parentElement ? [...e.parentElement.children].filter(x => x.tagName === e.tagName) : [e];

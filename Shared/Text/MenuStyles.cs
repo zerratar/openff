@@ -13,7 +13,7 @@
 // decide as in CSS; a frame's own style attribute is over every sheet; a layout's old style
 // words (<colour>, <font>, <align>, <window/>) are under them all, as HTML's attributes are.
 // Pseudo-classes: :focus (the cursor is on the frame), :focus-within (on it or a frame inside it),
-// :disabled / :enabled (IMenuWidget.Enabled), :first-child, :last-child, :only-child, :nth-child(),
+// :disabled / :enabled (IMenuWidget.Enabled), :checked (a choice the game shows as set: a config row's), :first-child, :last-child, :only-child, :nth-child(),
 // :nth-last-child() (An+B, odd, even) and :not() of one of these or a type, #id, .class. The states
 // are the running screen's (the client restyles as they change); what the game is given is baked
 // with none of them. @keyframes are read for the animations (MenuAnimation); any other @rule, an
@@ -476,7 +476,7 @@ namespace OpenFF.Content
 			/// <summary>As CSS counts it: an id, then classes and pseudo-classes (a :not() by what it holds), then a type.</summary>
 			public int Specificity => (Id != null ? 10000 : 0) + Classes.Count * 100 + Pseudos.Sum(p => p.Name == "not" ? p.Not?.Specificity ?? 0 : 100) + (Type != null && Type != "*" ? 1 : 0);
 
-			public bool UsesStates => Pseudos.Any(p => p.Name == "focus" || p.Name == "focus-within" || p.Name == "disabled" || p.Name == "enabled" || (p.Not?.UsesStates ?? false));
+			public bool UsesStates => Pseudos.Any(p => p.Name == "focus" || p.Name == "focus-within" || p.Name == "disabled" || p.Name == "enabled" || p.Name == "checked" || (p.Not?.UsesStates ?? false));
 
 			public bool Matches(XElement e)
 			{
@@ -522,6 +522,7 @@ namespace OpenFF.Content
 					case "focus-within": return HasState(e, "focus") || e.Descendants("frame").Any(d => HasState(d, "focus"));
 					case "disabled": return HasState(e, "disabled");
 					case "enabled": return !HasState(e, "disabled");
+					case "checked": return HasState(e, "checked");
 					case "not": return not != null && !not.Matches(e);
 				}
 				List<XElement> siblings = e.Parent?.Elements(e.Name).ToList() ?? new List<XElement> { e };
@@ -640,7 +641,7 @@ namespace OpenFF.Content
 
 		private static readonly HashSet<string> KnownPseudos = new HashSet<string>(StringComparer.Ordinal)
 		{
-			"focus", "focus-within", "disabled", "enabled", "first-child", "last-child", "only-child", "nth-child", "nth-last-child", "not"
+			"focus", "focus-within", "disabled", "enabled", "checked", "first-child", "last-child", "only-child", "nth-child", "nth-last-child", "not"
 		};
 
 		private static Compound ParseCompound(string token)

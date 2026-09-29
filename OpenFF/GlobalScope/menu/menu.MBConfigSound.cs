@@ -95,6 +95,12 @@ internal static partial class GlobalScope
 
 			public override void bmBehave(Medget M)
 			{
+				// PORT: a layout that gives the slider a look of its own (a background, or no panel) draws it: the game's track and knob away.
+				if (M.width() != 0 && OpenFF.Client.ModMenus.ArtTaken(M))
+				{
+					m_Cell[0].SetShow(show: false);
+					m_Cell[1].SetShow(show: false);
+				}
 				if (dv.CDeviceManager.getInstance().Tp().isTouch() && MenuManager.getSingleton().getFocuseMedget() == M)
 				{
 					int x = 0;

@@ -56,6 +56,10 @@ namespace OpenFF
 		public int Strength, Vitality, Agility, Intellect, Mind;
 		/// <summary>Magic defence: taken off a spell's power before intellect multiplies it.</summary>
 		public int MagicDefense;
+		/// <summary>A party member's attack as the Status screen shows it: both hands' weapons (1 as a frog or tiny, 0 with none).</summary>
+		public int Attack;
+		/// <summary>A party member's defence as the Status screen shows it: its armour's (1 as a frog or tiny).</summary>
+		public int Defense;
 		/// <summary>The job skill level (party) or half the level (monsters): added to a spell's power.</summary>
 		public int JobSkill;
 		/// <summary>Elements that hit twice as hard.</summary>

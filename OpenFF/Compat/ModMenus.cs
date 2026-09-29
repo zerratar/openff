@@ -182,6 +182,9 @@ namespace OpenFF.Client
 		private static void MergeInto(XElement existing, XElement patch, MenuDefinition def)
 		{
 			int replaced = 0, appended = 0;
+			// A new frame goes where the patch has it among the game's: after the frame before it (a panel ahead of the game's
+			// frames stays behind them - the windows stack in the screen's order), first when it is the patch's first.
+			XElement previous = null;
 			foreach (XElement frame in patch.Elements("frame").ToList())
 			{
 				string id = (string)frame.Element("id");
@@ -189,14 +192,20 @@ namespace OpenFF.Client
 				if (old != null)
 				{
 					if (frame.Element("myTag") == null && old.Element("myTag") != null) frame.Add(new XElement("myTag", old.Element("myTag").Value));
-					old.ReplaceWith(new XElement(frame));
+					XElement replacement = new XElement(frame);
+					old.ReplaceWith(replacement);
 					replaced++;
+					previous = replacement.AncestorsAndSelf("frame").LastOrDefault(f => f.Parent == existing) ?? previous;
 				}
 				else
 				{
 					XElement added = new XElement(frame);
 					if (added.Element("focus") != null) added.SetElementValue("myTag", existing.Descendants("frame").Count(f => f.Element("focus") != null));
-					existing.Add(added);
+					XElement first = existing.Elements("frame").FirstOrDefault();
+					if (previous != null) previous.AddAfterSelf(added);
+					else if (first != null) first.AddBeforeSelf(added);
+					else existing.Add(added);
+					previous = added;
 					appended++;
 				}
 			}
@@ -297,11 +306,13 @@ namespace OpenFF.Client
 			int oldCount = rows.Count, oldTop = rows.Min(r => Int(r.Element("y"), 2)), oldBottom = rows.Max(r => Int(r.Element("y"), 2) + Int(r.Element("height"), 28));
 			int left = commandsX + rows.Min(r => Int(r.Element("x"), 0)), right = commandsX + rows.Max(r => Int(r.Element("x"), 0) + Int(r.Element("width"), 96));
 			XElement template = rows.FirstOrDefault(r => (string)r.Element("id") == "com_job") ?? rows[0];
+			// A mod's layout of the main menu, as its sheets cascade over it: the entries go in there too, for its rules to reach them.
+			XElement styled = StyledMainCommands();
 			int index = 0, added = 0;
 			foreach (MenuDefinition def in entries)
 			{
-				XElement row = new XElement(template);
-				row.SetElementValue("id", "com_mod_" + def.Id);
+				string id = "com_mod_" + def.Id;
+				XElement row = EntryRow(template, id);
 				row.SetElementValue("work", GlobalScope.wmenu.CWMenuMod.KIND + index);
 				XElement behaviour = row.Element("behavior");
 				if (behaviour != null)
@@ -319,6 +330,19 @@ namespace OpenFF.Client
 				else if (after != null) { after.AddAfterSelf(row); added++; }
 				else { rows[rows.Count - 1].AddAfterSelf(row); added++; }
 				rows = commands.Elements("frame").ToList();
+				if (styled != null)
+				{
+					List<XElement> own = styled.Elements("frame").ToList();
+					XElement ownTemplate = own.FirstOrDefault(r => (string)r.Element("id") == (string)template.Element("id"));
+					XElement ownReplaced = replaced == null ? null : own.FirstOrDefault(r => (string)r.Element("id") == (string)replaced.Element("id"));
+					XElement ownAfter = after == null ? null : own.FirstOrDefault(r => (string)r.Element("id") == (string)after.Element("id"));
+					if (ownTemplate != null && own.Count > 0)
+					{
+						XElement copy = EntryRow(ownTemplate, id);
+						if (ownReplaced != null) { ownReplaced.AddAfterSelf(copy); ownReplaced.Remove(); }
+						else (ownAfter ?? own[own.Count - 1]).AddAfterSelf(copy);
+					}
+				}
 				index++;
 			}
 			// The character panels (p1..p4) and anything else numbered after the commands move down the
@@ -347,6 +371,33 @@ namespace OpenFF.Client
 				Top = commandsY + oldTop, OldPitch = (oldBottom - oldTop) / (float)oldCount, OldCount = oldCount,
 				NewPitch = pitch, NewCount = rows.Count, Left = left, Right = right
 			};
+		}
+
+		/// <summary>
+		/// A main menu entry made from one of the list's rows: the row and its frames copied, the frames' ids made the entry's
+		/// own (com_job's icon_com_job is com_mod_gambits's icon_com_mod_gambits) - the widgets and a sheet's #id rules find a
+		/// frame by its id, and a copy that kept its template's would take the template's look.
+		/// </summary>
+		private static XElement EntryRow(XElement template, string id)
+		{
+			XElement row = new XElement(template);
+			string was = ((string)template.Element("id"))?.Trim();
+			row.SetElementValue("id", id);
+			foreach (XElement frame in row.Descendants("frame"))
+			{
+				XElement own = frame.Element("id");
+				if (own == null || string.IsNullOrWhiteSpace(own.Value)) continue;
+				own.Value = !string.IsNullOrEmpty(was) && own.Value.Contains(was) ? own.Value.Replace(was, id) : own.Value.Trim() + "_" + id;
+			}
+			return row;
+		}
+
+		/// <summary>The command list of a mod's layout of the main menu, as written (what its sheets cascade over); null when no mod lays the main menu out.</summary>
+		private static XElement StyledMainCommands()
+		{
+			MenuDefinition def = _all.LastOrDefault(d => string.Equals(d.Screen, "main_menu", StringComparison.OrdinalIgnoreCase) && string.Equals(d.File, "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase) && d.Layout != null);
+			if (def?.Id == null || !_styleSources.TryGetValue(def.Id, out (XElement Menu, List<string> Sheets) style)) return null;
+			return style.Menu.Descendants("frame").FirstOrDefault(f => (string)f.Element("id") == "main_command");
 		}
 
 		private static int Int(XElement e, int fallback) => e != null && int.TryParse(e.Value, out int v) ? v : fallback;
@@ -582,6 +633,9 @@ namespace OpenFF.Client
 		/// <summary>buildMenu(name) has built one of the game's screens: the definitions reaching it get their behaviours over it.</summary>
 		private static string _lastBuilt;
 
+		/// <summary>Whether one of the game's menu screens is up (the main menu and what it opens, a shop, a battle's item list...): Esc is their Back. The title's own list is not one.</summary>
+		public static bool GameMenuUp => _lastBuilt != null && !string.Equals(_lastBuilt, "link", StringComparison.OrdinalIgnoreCase);
+
 		public static void GameScreenBuilt(string name)
 		{
 			try
@@ -598,7 +652,10 @@ namespace OpenFF.Client
 					try
 					{
 						GlobalScope.wmenu.CWMenuManager menus = GlobalScope.wmenu.CWMenuManager.Instance();
-						menus.SetPrimaryBGVisibility(backdrop == null || backdrop >= 0);
+						// None: put away a step from now (Step), once the screen's own background - a sprite, drawn from the next
+						// frame on - is up in its place; till then the game's covers the field.
+						if (backdrop == null || backdrop >= 0) menus.SetPrimaryBGVisibility(true);
+						else _hideBackdropIn = 1;
 						menus.ReapplyPrimaryBG();
 					}
 					catch (Exception) { }
@@ -614,7 +671,9 @@ namespace OpenFF.Client
 				if (name != null) OpenFF.Game.Guard("MenuOpened", () => OpenFF.Game.Events.Publish(new OpenFF.Events.MenuOpened { Screen = name, Mod = _current != null && string.Equals(_current.Screen, name, StringComparison.OrdinalIgnoreCase) }));
 				if (name == null || !_gameScreenDefs.TryGetValue(name, out List<MenuDefinition> defs) || defs.Count == 0) return;
 				if (_current != null && string.Equals(_current.Screen, name, StringComparison.OrdinalIgnoreCase) && _host != null) return;   // a mod screen of that name: CWMenuMod plays it
+				System.Diagnostics.Stopwatch built = System.Diagnostics.Stopwatch.StartNew();
 				_gameScreen = new ModMenuScreen(defs[0], null, false);
+				long made = built.ElapsedMilliseconds;
 				OpenWindows(_gameScreen);
 				foreach (IMenuWidget w in _gameScreen.Widgets) (w as ModMenuWidget)?.ApplyStyle();
 				_gameBehaviours = new List<MenuBehaviour>();
@@ -627,7 +686,7 @@ namespace OpenFF.Client
 				_gameFocused = null;
 				_gameStyleFocus = null;
 				_gameScreen.StartStyles();
-				Log.Write(LogChannel.General, "menus: the game's " + name + " built - " + _gameScreen.Widgets.Count + " frame(s), " + _gameBehaviours.Count + " behaviour(s) of the mods'");
+				Log.Write(LogChannel.General, "menus: the game's " + name + " built - " + _gameScreen.Widgets.Count + " frame(s), " + _gameBehaviours.Count + " behaviour(s) of the mods' in " + built.ElapsedMilliseconds + " ms (its windows and panels " + (built.ElapsedMilliseconds - made) + ")");
 				foreach (MenuBehaviour b in _gameBehaviours) OpenFF.Game.Guard(b.Name + ".OnOpen", b.OnOpen);
 				_gameScreen.UpdateBindings();
 			}
@@ -645,6 +704,7 @@ namespace OpenFF.Client
 			{
 				string focused = GlobalScope.menu.MenuManager.getSingleton().getFocuseMedget()?._id();
 				if (focused != _gameStyleFocus) { _gameStyleFocus = focused; _gameScreen.FocusMoved(focused); }
+				foreach (IMenuWidget w in _gameScreen.Widgets) (w as ModMenuWidget)?.Tick();
 				if (_gameScreen.Animating) _gameScreen.Restyle();
 			}
 			catch (Exception) { }
@@ -694,6 +754,14 @@ namespace OpenFF.Client
 				string was = _lastBuilt;
 				_lastBuilt = null;
 				OpenFF.Game.Guard("MenuClosed", () => OpenFF.Game.Events.Publish(new OpenFF.Events.MenuClosed { Screen = was }));
+			}
+			// A screen that put the game's backdrop away (a definition's "background": -1) gives it back as it goes: till the next
+			// screen is up, what covers the field is the game's backdrop, as it always is between two of its screens - not the
+			// field's models on black.
+			if (_gameBackdrop < 0)
+			{
+				_gameBackdrop = null;
+				try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(true); } catch (Exception) { }
 			}
 			if (_gameScreen == null) return;
 			foreach (MenuBehaviour b in _gameBehaviours) OpenFF.Game.Guard(b.Name + ".OnClose", b.OnClose);
@@ -753,11 +821,23 @@ namespace OpenFF.Client
 				_screenPanels.Remove(fp.Sprites, fp.Textures);
 				fp.Sprites.Clear();
 				fp.Textures.Clear();
-				if (look.Background != null && !look.Hidden) AddPanel(screen, m.Id, m.X, m.Y, m.Width, m.Height, look.Background, look.Opacity, fp.Back + GlobalScope.ds.S32toFX32(8), fp);
+				if (look.Background != null && !look.Hidden) AddPanel(screen, m.Id, m.X, m.Y, m.PanelWidth, m.PanelHeight, look.Background, look.Opacity, fp.Back + GlobalScope.ds.S32toFX32(8), fp);
 				if (fp.Offset != (0, 0)) MenuPanels.Move(fp.Sprites, fp.Offset.X, fp.Offset.Y);
 			}
 			fp.Look = look;
 			return true;
+		}
+
+		/// <summary>A frame's panel made again at the size its binding gives it (ModMenuWidget.PanelWidth / PanelHeight): a bar's fill as its value moves.</summary>
+		private static void ResizePanel(ModMenuScreen screen, ModMenuWidget m)
+		{
+			if (!ReferenceEquals(screen, _screen) && !ReferenceEquals(screen, _gameScreen)) return;
+			if (!_framePanels.TryGetValue(m, out FramePanels fp) || fp.Look?.Background == null || fp.Look.Hidden) return;
+			_screenPanels.Remove(fp.Sprites, fp.Textures);
+			fp.Sprites.Clear();
+			fp.Textures.Clear();
+			AddPanel(screen, m.Id, m.X, m.Y, m.PanelWidth, m.PanelHeight, fp.Look.Background, fp.Look.Opacity, fp.Back + GlobalScope.ds.S32toFX32(8), fp);
+			if (fp.Offset != (0, 0)) MenuPanels.Move(fp.Sprites, fp.Offset.X, fp.Offset.Y);
 		}
 
 		/// <summary>A frame's panel moved from its place (its translate as it moves: ModMenuScreen.Restyle) - its sprites and its window.</summary>
@@ -777,7 +857,7 @@ namespace OpenFF.Client
 			int place = 0;
 			// The screen's own background (its <menu>'s style, or a sheet's menu rule): over the backdrop, behind every window.
 			string whole = screen.ScreenBackground();
-			if (whole != null) AddPanel(screen, screen.Id, 0, 0, GlobalScope.LCD_WIDTH, GlobalScope.LCD_HEIGHT, whole, 1, panels.Count * GlobalScope.ds.S32toFX32(32) + GlobalScope.ds.S32toFX32(8));
+			if (whole != null) _backdropPanels.Add(screen.Definition?.Directory, screen.Id, 0, 0, GlobalScope.LCD_WIDTH, GlobalScope.LCD_HEIGHT, whole, 1, panels.Count * GlobalScope.ds.S32toFX32(32) + GlobalScope.ds.S32toFX32(8));
 			foreach (IMenuWidget w in panels)
 			{
 				ModMenuWidget m = (ModMenuWidget)w;
@@ -847,6 +927,17 @@ namespace OpenFF.Client
 			_movedFaces.Clear();
 		}
 
+		/// <summary>Whether a frame of the screen up has a look of its layout's in place of the game's art (a background, or no panel): its behaviour's own button window stays away (MBConfig).</summary>
+		public static bool ArtTaken(GlobalScope.menu.Medget m)
+		{
+			ModMenuScreen screen = _gameScreen ?? _screen;
+			MenuStyles.Look look = screen?.WidgetFor(m)?.Look;
+			return look != null && (look.Background != null || look.NoPanel);
+		}
+
+		/// <summary>Whether the screen up has portrait frames of its layout's: the game's own faces are not shown (CWMenuPCFaceManager asks).</summary>
+		public static bool FacesTaken => (_gameScreen?.HasPortraitFrame ?? false) || (_screen?.HasPortraitFrame ?? false);
+
 		/// <summary>The game's own faces put away while a layout has a portrait frame of its own (the frame draws the face instead).</summary>
 		private static void HideGameFaces(ModMenuScreen screen)
 		{
@@ -861,6 +952,37 @@ namespace OpenFF.Client
 			_screenPanels.Clear();
 			_framePanels.Clear();
 			ReleaseArrows();
+			// The screen's own background stays up till the next screen is (HoldBackdrop): between two of the game's screens
+			// nothing else covers the field.
+			if (_backdropPanels.Count > 0)
+			{
+				_heldBackdrop?.Clear();
+				_heldBackdrop = _backdropPanels;
+				_backdropPanels = new MenuPanels();
+				_heldSteps = 0;
+				_heldBuiltAt = -1;
+			}
+		}
+
+		// A screen's own background (its <menu>'s style): a set of its own, held a while as the screen goes.
+		private static MenuPanels _backdropPanels = new MenuPanels();
+		private static MenuPanels _heldBackdrop;
+		private static int _heldSteps, _heldBuiltAt, _hideBackdropIn;
+		private const int HeldSteps = 10;   // a third of a second: the menus left for the field, no next screen coming
+
+		/// <summary>Once a step (GameHost.Step): a background held from a screen gone let go - a step after the next screen is built (its own backdrop up under what it draws), or when none has come.</summary>
+		public static void Step()
+		{
+			if (_hideBackdropIn > 0 && --_hideBackdropIn == 0 && _gameBackdrop < 0)
+			{
+				try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(false); } catch (Exception) { }
+			}
+			if (_heldBackdrop == null) return;
+			_heldSteps++;
+			if (_lastBuilt != null && _heldBuiltAt < 0) _heldBuiltAt = _heldSteps;
+			if (_heldBuiltAt >= 0 ? _heldSteps - _heldBuiltAt < 1 : _heldSteps < HeldSteps) return;
+			_heldBackdrop.Clear();
+			_heldBackdrop = null;
 		}
 
 		// ---- backgrounds: a frame's colour and picture (MenuBackground), its painted box (MenuPaint): sprites with the windows ----
@@ -869,7 +991,8 @@ namespace OpenFF.Client
 
 		private static void AddPanel(ModMenuScreen screen, IMenuWidget w, MenuStyles.Look look, int back, FramePanels into)
 		{
-			AddPanel(screen, w.Id, w.X, w.Y, w.Width, w.Height, look.Background, look.Opacity, back + GlobalScope.ds.S32toFX32(8), into);
+			int width = w is ModMenuWidget m ? m.PanelWidth : w.Width, height = w is ModMenuWidget mh ? mh.PanelHeight : w.Height;
+			AddPanel(screen, w.Id, w.X, w.Y, width, height, look.Background, look.Opacity, back + GlobalScope.ds.S32toFX32(8), into);
 		}
 
 		/// <summary>A background over a rectangle of the screen (a frame's, or the whole screen's), at a depth in the windows' stack; its sprites (and painted textures) noted in 'into' when given.</summary>
@@ -1194,6 +1317,8 @@ namespace OpenFF.Client
 
 			public bool HasPortraitFrame => _widgets.Any(w => w.Look.Portrait != null);
 
+			public ModMenuWidget WidgetFor(GlobalScope.menu.Medget m) => _widgets.FirstOrDefault(w => ReferenceEquals(w.Medget, m));
+
 			/// <summary>The hero whose face is shown: the one set (Portrait), else the one picked, else the party's first.</summary>
 			public int FaceHero()
 			{
@@ -1280,6 +1405,8 @@ namespace OpenFF.Client
 					case "gil": return (true, OpenFF.Game.Party?.Gil ?? 0);
 					case "items": return (true, OpenFF.Game.Party?.Items);
 					case "menu": return (true, this);
+					case "input": return (true, InputHints.Current);   // the pad in hand or the keyboard, for button hints
+					case "config": return (true, GameOptions.Current);  // the game's settings (the Config screen's): volumes, speeds
 					default: return OpenFF.Game.Hud.TryGet(name, out object hud) ? (true, hud) : (false, null);   // a mod's (Game.Hud.Set)
 				}
 			}
@@ -1379,7 +1506,7 @@ namespace OpenFF.Client
 
 			public void PutOffset(int dx, int dy)
 			{
-				GlobalScope.dgs.DGSMessage message = Text_?.getMessage();
+				GlobalScope.dgs.DGSMessage message = Message;
 				if (message == null) { _offset = (dx, dy); return; }
 				if (!ReferenceEquals(message, _placed)) { _placed = message; _place = (message.positionX(), message.positionY()); }
 				else if (_offset == (dx, dy)) return;
@@ -1424,7 +1551,7 @@ namespace OpenFF.Client
 					if (StyleRgb(look.Colour) is uint rgb) { _rgba = rgb << 8 | 0xFF; _colour = null; }
 					else if (!string.IsNullOrWhiteSpace(look.Colour)) { _colour = ColourWord(look.Colour); _rgba = null; }
 					else { _rgba = _ownRgba; _colour = _ownRgba.HasValue ? null : _ownColour ?? MenuColour.White; }
-					try { GlobalScope.NNSG2dTextCanvas canvas = Text_?.getMessage()?.m_TextCanvas; if (canvas != null) canvas.rgba = _rgba; if (_colour.HasValue) Text_?.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)_colour.Value); } catch (Exception) { }
+					try { GlobalScope.NNSG2dTextCanvas canvas = Message?.m_TextCanvas; if (canvas != null) canvas.rgba = _rgba; if (_colour.HasValue) PutColour(_colour.Value); } catch (Exception) { }
 				}
 				if (look.Font != was?.Font && int.TryParse(look.Font, out int size) && size >= 6 && size <= 31) FontSize = size;
 				if (look.TextStyle != was?.TextStyle)
@@ -1434,17 +1561,17 @@ namespace OpenFF.Client
 				}
 				_alpha = (byte)Math.Round(Math.Clamp(look.Opacity, 0, 1) * 255);
 				_hidden = look.Hidden;
-				GlobalScope.NNSG2dTextCanvas c2 = Text_?.getMessage()?.m_TextCanvas;
+				GlobalScope.NNSG2dTextCanvas c2 = Message?.m_TextCanvas;
 				if (c2 != null) c2.alpha = _alpha;
 				PutVisible();
-				try { Text_?.getMessage()?.Redraw(); } catch (Exception) { }   // the message draws only when told: its new look now
+				try { Message?.Redraw(); } catch (Exception) { }   // the message draws only when told: its new look now
 			}
 
 			/// <summary>The style's own colour and opacity onto the text's canvas - again whenever the message is made afresh (Text).</summary>
 			private void PutLook()
 			{
 				if (!_rgba.HasValue && _alpha == 255) return;
-				GlobalScope.NNSG2dTextCanvas canvas = Text_?.getMessage()?.m_TextCanvas;
+				GlobalScope.NNSG2dTextCanvas canvas = Message?.m_TextCanvas;
 				if (canvas == null) return;
 				canvas.rgba = _rgba;
 				canvas.alpha = _alpha;
@@ -1453,13 +1580,14 @@ namespace OpenFF.Client
 			/// <summary>Shown when the code (Visible), the style (hidden) and a binding (bind-visible) all let it be.</summary>
 			private void PutVisible()
 			{
-				try { Text_?.bmTextVisibility(_visible && !_hidden && _boundVisible != false); } catch (Exception) { }
+				bool shown = _visible && !_hidden && _boundVisible != false;
+				try { if (Text_ != null) Text_.bmTextVisibility(shown); else Styled_?.StyledMessage?.setVisibility(shown); } catch (Exception) { }
 			}
 
 			/// <summary>The text's size in the game's units (12 and 16 are the game's two); the message is drawn afresh at it.</summary>
 			public int FontSize
 			{
-				get => _fontSize > 0 ? _fontSize : (Text_?.getMessage()?.m_TextCanvas?.pFont?.size ?? 12);
+				get => _fontSize > 0 ? _fontSize : (Message?.m_TextCanvas?.pFont?.size ?? 12);
 				set
 				{
 					_fontSize = Math.Clamp(value, 6, 31);
@@ -1474,7 +1602,7 @@ namespace OpenFF.Client
 			/// </summary>
 			private void PutFont()
 			{
-				GlobalScope.dgs.DGSMessage message = Text_?.getMessage();
+				GlobalScope.dgs.DGSMessage message = Message;
 				if (message?.m_TextCanvas == null) return;
 				if (_fontSize <= 0 && _lettering == null && message.m_TextCanvas.style == null) return;
 				try
@@ -1485,13 +1613,59 @@ namespace OpenFF.Client
 					if (font != null && font.size == size && ReferenceEquals(font.style, _lettering)) return;
 					// A font of its own (the game's is shared by every text): its size, and its lettering for the measuring.
 					message.m_TextCanvas.pFont = new GlobalScope.NNSG2dFont { size = size, style = _lettering };
-					Text_.mbtSetAlignment();   // measured again at the new size: right and centre alignments, and the middle of a taller frame
+					// Measured again at the new size: right and centre alignments, and the middle of a taller frame.
+					if (Text_ != null) Text_.mbtSetAlignment(); else Styled_?.StyledPlace(Medget);
 					PutOffsetAgain();
 				}
 				catch (Exception) { }
 			}
 
 			private GlobalScope.menu.MBText Text_ => Medget.behavior()?.queryInterface(GlobalScope.menu.MBText.classIdentifier()) as GlobalScope.menu.MBText;
+
+			/// <summary>A text a behaviour draws that is not an MBText (a config screen's choice): its message for the styles.</summary>
+			private GlobalScope.menu.IStyledText Styled_ => Medget.behavior() as GlobalScope.menu.IStyledText;
+
+			/// <summary>The frame's message, whichever draws it.</summary>
+			private GlobalScope.dgs.DGSMessage Message => Text_?.getMessage() ?? Styled_?.StyledMessage;
+
+			private void PutColour(MenuColour c)
+			{
+				if (Text_ != null) Text_.changeTextColor((GlobalScope.dgs.TXT_COLOR)(int)c);
+				else Styled_?.StyledMessage?.setMessageColor((GlobalScope.dgs.TXT_COLOR)(int)c);
+			}
+
+			private GlobalScope.dgs.DGSMessage _styledMessage;
+			private bool? _checked;
+
+			/// <summary>Once a frame: the text in front of the layout's panels; a styled text made afresh by its behaviour gets the look again; a choice the game shows as on is :checked.</summary>
+			public void Tick()
+			{
+				// A text the game put at the windows' priority (a config slider's number, at 3) in front of the layout's panels, as every text is.
+				GlobalScope.dgs.DGSMessage text = Message;
+				if (text != null && text.getPriority() != 0)
+				{
+					try { text.setPriority(0); text.Redraw(); } catch (Exception) { }
+				}
+				GlobalScope.menu.IStyledText styled = Styled_;
+				if (styled == null) return;
+				GlobalScope.dgs.DGSMessage message = styled.StyledMessage;
+				if (!ReferenceEquals(message, _styledMessage))
+				{
+					_styledMessage = message;
+					// In front, as an MBText's is (priority 0): the behaviour made it at 3, with the windows, where the layout's panels are.
+					try { message?.setPriority(0); } catch (Exception) { }
+					PutFont();
+					PutLook();
+					PutVisible();
+					// Drawn again in its new look: a text whose behaviour never touches it again (a row's label) is drawn only when told.
+					try { message?.Redraw(); } catch (Exception) { }
+				}
+				if (styled is GlobalScope.menu.MBConfig config)
+				{
+					bool on = config.IsOn(Medget);
+					if (on != _checked) { _checked = on; Screen.SetState(Id, "checked", on); }
+				}
+			}
 
 			public string Id => Medget._id();
 			public int X => Medget.x();
@@ -1619,6 +1793,37 @@ namespace OpenFF.Client
 			public string Binding(string property) => property != null && _binds.TryGetValue(property.Trim(), out string e) ? e : null;
 
 			/// <summary>A bound style's declarations onto the frame's own style (the last bound's taken off first); true when the screen restyles for it.</summary>
+			// A bound width or height (bind-style="width: {hpPercent}%"): the frame's panel drawn at that size - a bar's fill - while
+			// the layout (its texts, its frames) stays as the screen was built.
+			private int? _boundWidth, _boundHeight;
+			public int PanelWidth => _boundWidth ?? Width;
+			public int PanelHeight => _boundHeight ?? Height;
+
+			/// <summary>The bound style's width and height, in units or a percent of the parent's; true when either changed.</summary>
+			private bool BoundSize(string style)
+			{
+				int? width = null, height = null;
+				foreach (KeyValuePair<string, string> d in MenuStyles.Declarations(style))
+				{
+					if (d.Key.Equals("width", StringComparison.OrdinalIgnoreCase)) width = Length(d.Value, ParentWidget?.Width ?? GlobalScope.LCD_WIDTH);
+					else if (d.Key.Equals("height", StringComparison.OrdinalIgnoreCase)) height = Length(d.Value, ParentWidget?.Height ?? GlobalScope.LCD_HEIGHT);
+				}
+				if (width == _boundWidth && height == _boundHeight) return false;
+				_boundWidth = width;
+				_boundHeight = height;
+				return true;
+			}
+
+			private static int? Length(string value, int whole)
+			{
+				string v = value?.Trim().ToLowerInvariant();
+				if (string.IsNullOrEmpty(v)) return null;
+				bool percent = v.EndsWith("%");
+				v = percent ? v.Substring(0, v.Length - 1) : v.EndsWith("px") ? v.Substring(0, v.Length - 2) : v;
+				if (!double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double n)) return null;
+				return Math.Max(0, (int)Math.Round(percent ? whole * Math.Clamp(n, 0, 100) / 100.0 : n));
+			}
+
 			private bool PutBoundStyle(string style)
 			{
 				if (Source == null) return false;
@@ -1649,7 +1854,12 @@ namespace OpenFF.Client
 					else if (b.Key.Equals("style", StringComparison.OrdinalIgnoreCase))
 					{
 						string style = MenuBindings.Format(b.Value, scope);
-						if (style != _boundStyle) { _boundStyle = style; classes |= PutBoundStyle(style); }
+						if (style != _boundStyle)
+						{
+							_boundStyle = style;
+							classes |= PutBoundStyle(style);
+							if (BoundSize(style)) ResizePanel(Screen, this);
+						}
 					}
 					else if (b.Key.StartsWith("class.", StringComparison.OrdinalIgnoreCase))
 					{

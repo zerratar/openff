@@ -117,6 +117,7 @@ namespace OpenFF.Client
 			AutoBattle.Update();   // F / the pad's auto button: auto battle on or off
 			bool record = FrameCapture.Supported;
 			GlobalScope.MenuPanelStep();   // the painted panels' textures no kept frame draws any more
+			ModMenus.Step();               // a screen's background held over the step between two screens
 			if (record) FrameCapture.Begin();
 			try
 			{

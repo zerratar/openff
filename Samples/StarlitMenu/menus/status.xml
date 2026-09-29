@@ -1,0 +1,1330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Status screen, laid out again: the game's frames (CWMenuStatus writes them by id and walks MP's values and each stat's label, ':' and value in order - that order kept) placed and styled, with the portrait, the bars and the panels of the mod's. Generated. -->
+<menulist>
+  <menu>
+    <name>status</name>
+    <frame class="header">
+      <id>header</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>34</height>
+      <frame class="crystal">
+        <id>crystal</id>
+        <x>9</x>
+        <y>4</y>
+        <width>26</width>
+        <height>26</height>
+      </frame>
+      <frame class="hsep">
+        <id>hsep</id>
+        <x>100</x>
+        <y>11</y>
+        <width>1</width>
+        <height>12</height>
+      </frame>
+      <frame class="help">
+        <id>help</id>
+        <x>107</x>
+        <y>10</y>
+        <width>330</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>View character status and attributes.</data>
+      </frame>
+      <frame class="hline">
+        <id>hline</id>
+        <x>8</x>
+        <y>31</y>
+        <width>464</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="panel">
+      <id>top</id>
+      <x>8</x>
+      <y>38</y>
+      <width>464</width>
+      <height>98</height>
+      <frame class="goldframe">
+        <id>top_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>108</height>
+      </frame>
+    </frame>
+    <frame class="panel">
+      <id>stats</id>
+      <x>8</x>
+      <y>144</y>
+      <width>464</width>
+      <height>138</height>
+      <frame class="goldframe">
+        <id>stats_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>148</height>
+      </frame>
+    </frame>
+    <frame class="panel bottom">
+      <id>bottom</id>
+      <x>8</x>
+      <y>290</y>
+      <width>464</width>
+      <height>24</height>
+      <frame class="goldframe">
+        <id>bottom_frame</id>
+        <x>-5</x>
+        <y>-5</y>
+        <width>474</width>
+        <height>34</height>
+      </frame>
+    </frame>
+    <frame data-source="hero">
+      <id>own</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <frame class="face bigface">
+        <id>face</id>
+        <x>16</x>
+        <y>46</y>
+        <width>76</width>
+        <height>76</height>
+        <portrait/>
+      </frame>
+      <frame class="job" bind-text="{jobTitle}">
+        <id>jobword</id>
+        <x>100</x>
+        <y>70</y>
+        <width>96</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="lv" bind-text="Lv. {level}">
+        <id>lvword</id>
+        <x>100</x>
+        <y>96</y>
+        <width>60</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="label2">
+        <id>expword</id>
+        <x>358</x>
+        <y>84</y>
+        <width>60</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>EXP</data>
+      </frame>
+      <frame class="value2 right" bind-text="{experience}">
+        <id>expvalue</id>
+        <x>404</x>
+        <y>84</y>
+        <width>56</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="label2">
+        <id>nextword</id>
+        <x>358</x>
+        <y>102</y>
+        <width>70</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>For Next Level</data>
+      </frame>
+      <frame class="value2 right" bind-text="{expToNext}">
+        <id>nextvalue</id>
+        <x>424</x>
+        <y>102</y>
+        <width>36</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="bar exp">
+        <id>expbar</id>
+        <x>100</x>
+        <y>116</y>
+        <width>88</width>
+        <height>3</height>
+        <frame bind-style="width: {expPercent}%" class="fill">
+          <id>expfill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>88</width>
+          <height>3</height>
+        </frame>
+      </frame>
+      <frame class="vsep">
+        <id>vsep1</id>
+        <x>198</x>
+        <y>46</y>
+        <width>1</width>
+        <height>82</height>
+      </frame>
+      <frame class="vsep">
+        <id>vsep2</id>
+        <x>348</x>
+        <y>46</y>
+        <width>1</width>
+        <height>82</height>
+      </frame>
+      <frame class="bar hpbar">
+        <id>hpbar</id>
+        <x>234</x>
+        <y>68</y>
+        <width>94</width>
+        <height>4</height>
+        <frame bind-style="width: {hpPercent}%" bind-class="low: hpPercent &lt; 30" class="fill">
+          <id>hpfill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>94</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="line">
+        <id>jline</id>
+        <x>358</x>
+        <y>74</y>
+        <width>104</width>
+        <height>1</height>
+      </frame>
+      <frame class="sicon s_bars">
+        <id>attr_icon</id>
+        <x>18</x>
+        <y>150</y>
+        <width>16</width>
+        <height>16</height>
+      </frame>
+      <frame class="subtitle">
+        <id>attr_title</id>
+        <x>38</x>
+        <y>150</y>
+        <width>100</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Attributes</data>
+      </frame>
+      <frame class="line">
+        <id>attr_line</id>
+        <x>16</x>
+        <y>168</y>
+        <width>214</width>
+        <height>1</height>
+      </frame>
+      <frame class="vsep">
+        <id>vsep3</id>
+        <x>240</x>
+        <y>152</y>
+        <width>1</width>
+        <height>122</height>
+      </frame>
+      <frame class="sicon s_swords">
+        <id>battle_icon</id>
+        <x>254</x>
+        <y>150</y>
+        <width>16</width>
+        <height>16</height>
+      </frame>
+      <frame class="subtitle">
+        <id>battle_title</id>
+        <x>274</x>
+        <y>150</y>
+        <width>100</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>Battle Stats</data>
+      </frame>
+      <frame class="line">
+        <id>battle_line</id>
+        <x>252</x>
+        <y>168</y>
+        <width>212</width>
+        <height>1</height>
+      </frame>
+      <frame class="mplv">
+        <id>mplv0</id>
+        <x>238</x>
+        <y>79</y>
+        <width>8</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data type="string">1</data>
+      </frame>
+      <frame class="mplv">
+        <id>mplv1</id>
+        <x>286</x>
+        <y>79</y>
+        <width>8</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data type="string">2</data>
+      </frame>
+      <frame class="mplv">
+        <id>mplv2</id>
+        <x>238</x>
+        <y>91</y>
+        <width>8</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data type="string">3</data>
+      </frame>
+      <frame class="mplv">
+        <id>mplv3</id>
+        <x>286</x>
+        <y>91</y>
+        <width>8</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data type="string">4</data>
+      </frame>
+      <frame class="mplv">
+        <id>mplv4</id>
+        <x>238</x>
+        <y>103</y>
+        <width>8</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data type="string">5</data>
+      </frame>
+      <frame class="mplv">
+        <id>mplv5</id>
+        <x>286</x>
+        <y>103</y>
+        <width>8</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data type="string">6</data>
+      </frame>
+      <frame class="mplv">
+        <id>mplv6</id>
+        <x>238</x>
+        <y>115</y>
+        <width>8</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data type="string">7</data>
+      </frame>
+      <frame class="mplv">
+        <id>mplv7</id>
+        <x>286</x>
+        <y>115</y>
+        <width>8</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data type="string">8</data>
+      </frame>
+      <frame class="sicon s_sword">
+        <id>STR_icon</id>
+        <x>20</x>
+        <y>176</y>
+        <width>16</width>
+        <height>16</height>
+      </frame>
+      <frame class="bar statbar">
+        <id>STR_bar</id>
+        <x>106</x>
+        <y>182</y>
+        <width>88</width>
+        <height>4</height>
+        <frame bind-style="width: {stats.strength * 100 / 99}%" class="fill">
+          <id>STR_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>88</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="rowline">
+        <id>STR_line</id>
+        <x>16</x>
+        <y>194</y>
+        <width>214</width>
+        <height>1</height>
+      </frame>
+      <frame class="sicon s_boot">
+        <id>AGI_icon</id>
+        <x>20</x>
+        <y>196</y>
+        <width>16</width>
+        <height>16</height>
+      </frame>
+      <frame class="bar statbar">
+        <id>AGI_bar</id>
+        <x>106</x>
+        <y>202</y>
+        <width>88</width>
+        <height>4</height>
+        <frame bind-style="width: {stats.agility * 100 / 99}%" class="fill">
+          <id>AGI_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>88</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="rowline">
+        <id>AGI_line</id>
+        <x>16</x>
+        <y>214</y>
+        <width>214</width>
+        <height>1</height>
+      </frame>
+      <frame class="sicon s_shield">
+        <id>VIT_icon</id>
+        <x>20</x>
+        <y>216</y>
+        <width>16</width>
+        <height>16</height>
+      </frame>
+      <frame class="bar statbar">
+        <id>VIT_bar</id>
+        <x>106</x>
+        <y>222</y>
+        <width>88</width>
+        <height>4</height>
+        <frame bind-style="width: {stats.vitality * 100 / 99}%" class="fill">
+          <id>VIT_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>88</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="rowline">
+        <id>VIT_line</id>
+        <x>16</x>
+        <y>234</y>
+        <width>214</width>
+        <height>1</height>
+      </frame>
+      <frame class="sicon s_book">
+        <id>INT_icon</id>
+        <x>20</x>
+        <y>236</y>
+        <width>16</width>
+        <height>16</height>
+      </frame>
+      <frame class="bar statbar">
+        <id>INT_bar</id>
+        <x>106</x>
+        <y>242</y>
+        <width>88</width>
+        <height>4</height>
+        <frame bind-style="width: {stats.intellect * 100 / 99}%" class="fill">
+          <id>INT_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>88</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="rowline">
+        <id>INT_line</id>
+        <x>16</x>
+        <y>254</y>
+        <width>214</width>
+        <height>1</height>
+      </frame>
+      <frame class="sicon s_staff">
+        <id>MND_icon</id>
+        <x>20</x>
+        <y>256</y>
+        <width>16</width>
+        <height>16</height>
+      </frame>
+      <frame class="bar statbar">
+        <id>MND_bar</id>
+        <x>106</x>
+        <y>262</y>
+        <width>88</width>
+        <height>4</height>
+        <frame bind-style="width: {stats.mind * 100 / 99}%" class="fill">
+          <id>MND_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>88</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="sicon s_sword">
+        <id>ATK_icon</id>
+        <x>256</x>
+        <y>180</y>
+        <width>18</width>
+        <height>18</height>
+      </frame>
+      <frame class="bar statbar">
+        <id>ATK_bar</id>
+        <x>374</x>
+        <y>187</y>
+        <width>58</width>
+        <height>4</height>
+        <frame bind-style="width: {stats.attack * 100 / 255}%" class="fill">
+          <id>ATK_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>58</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="rowline">
+        <id>ATK_line</id>
+        <x>252</x>
+        <y>202</y>
+        <width>212</width>
+        <height>1</height>
+      </frame>
+      <frame class="sicon s_shield">
+        <id>DEF_icon</id>
+        <x>256</x>
+        <y>206</y>
+        <width>18</width>
+        <height>18</height>
+      </frame>
+      <frame class="bar statbar">
+        <id>DEF_bar</id>
+        <x>374</x>
+        <y>213</y>
+        <width>58</width>
+        <height>4</height>
+        <frame bind-style="width: {stats.defense * 100 / 255}%" class="fill">
+          <id>DEF_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>58</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="rowline">
+        <id>DEF_line</id>
+        <x>252</x>
+        <y>228</y>
+        <width>212</width>
+        <height>1</height>
+      </frame>
+      <frame class="sicon s_emblem">
+        <id>MDF_icon</id>
+        <x>256</x>
+        <y>232</y>
+        <width>18</width>
+        <height>18</height>
+      </frame>
+      <frame class="bar statbar">
+        <id>MDF_bar</id>
+        <x>374</x>
+        <y>239</y>
+        <width>58</width>
+        <height>4</height>
+        <frame bind-style="width: {stats.magicDefense * 100 / 255}%" class="fill">
+          <id>MDF_fill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>58</width>
+          <height>4</height>
+        </frame>
+      </frame>
+    </frame>
+    <frame>
+      <id>status_root</id>
+      <x>0</x>
+      <y>0</y>
+      <width>0</width>
+      <height>0</height>
+      <behavior value="MBStatus"/>
+      <frame class="title">
+        <id>mbs_title</id>
+        <x>40</x>
+        <y>7</y>
+        <width>80</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>50006</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+      </frame>
+      <frame class="name bigname">
+        <id>mbs_name</id>
+        <x>100</x>
+        <y>46</y>
+        <width>96</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>12</parameter>
+        </behavior>
+      </frame>
+      <frame>
+        <id>mbs_job</id>
+        <x>600</x>
+        <y>70</y>
+        <width>96</width>
+        <height>16</height>
+        <behavior value="JName">
+          <parameter>0</parameter>
+          <parameter>8</parameter>
+        </behavior>
+      </frame>
+      <frame class="hidden">
+        <id>lvlabel</id>
+        <x>100</x>
+        <y>96</y>
+        <width>0</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>50414</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="lv">
+          <id>LV</id>
+          <x>22</x>
+          <y>0</y>
+          <width>16</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame class="label2">
+        <id>skilllabel</id>
+        <x>358</x>
+        <y>50</y>
+        <width>0</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>50503</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="value2">
+          <id>SKILL</id>
+          <x>86</x>
+          <y>0</y>
+          <width>16</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50424</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame class="label">
+        <id>hplabel</id>
+        <x>210</x>
+        <y>50</y>
+        <width>8</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>50415</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="hp">
+          <id>HP</id>
+          <x>58</x>
+          <y>-1</y>
+          <width>24</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50420</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="hp">
+          <id>HPSLASH</id>
+          <x>82</x>
+          <y>-1</y>
+          <width>10</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+        <frame class="hp">
+          <id>HPMax</id>
+          <x>92</x>
+          <y>-1</y>
+          <width>26</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50421</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame class="label">
+        <id>MP</id>
+        <x>210</x>
+        <y>78</y>
+        <width>8</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>50416</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="mpv">
+          <x>34</x>
+          <y>-2</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>52</x>
+          <y>-2</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>82</x>
+          <y>-2</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>100</x>
+          <y>-2</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>34</x>
+          <y>10</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>52</x>
+          <y>10</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>82</x>
+          <y>10</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>100</x>
+          <y>10</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>34</x>
+          <y>22</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>52</x>
+          <y>22</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>82</x>
+          <y>22</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>100</x>
+          <y>22</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>34</x>
+          <y>34</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>52</x>
+          <y>34</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>82</x>
+          <y>34</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>100</x>
+          <y>34</y>
+          <width>12</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <id>MPSLASH</id>
+          <x>46</x>
+          <y>-2</y>
+          <width>6</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>94</x>
+          <y>-2</y>
+          <width>6</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>46</x>
+          <y>10</y>
+          <width>6</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>94</x>
+          <y>10</y>
+          <width>6</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>46</x>
+          <y>22</y>
+          <width>6</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>94</x>
+          <y>22</y>
+          <width>6</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>46</x>
+          <y>34</y>
+          <width>6</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+        <frame class="mpv">
+          <x>94</x>
+          <y>34</y>
+          <width>6</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>50418</parameter>
+            <parameter>8</parameter>
+            <parameter>2</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame class="hidden">
+        <id>explabel</id>
+        <x>358</x>
+        <y>84</y>
+        <width>0</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>50407</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="hidden">
+          <id>EXP</id>
+          <x>86</x>
+          <y>0</y>
+          <width>16</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50422</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame class="hidden">
+        <id>nextlabel</id>
+        <x>358</x>
+        <y>102</y>
+        <width>0</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>50408</parameter>
+          <parameter>8</parameter>
+        </behavior>
+        <frame class="hidden">
+          <id>EXPMax</id>
+          <x>86</x>
+          <y>0</y>
+          <width>16</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50423</parameter>
+            <parameter>8</parameter>
+            <parameter>1</parameter>
+          </behavior>
+        </frame>
+      </frame>
+      <frame>
+        <id>attrs</id>
+        <x>42</x>
+        <y>176</y>
+        <width>0</width>
+        <height>0</height>
+        <frame class="statname">
+          <id>STR</id>
+          <x>0</x>
+          <y>0</y>
+          <width>60</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50409</parameter>
+            <parameter>8</parameter>
+          </behavior>
+          <frame class="hidden">
+            <x>96</x>
+            <y>0</y>
+            <width>8</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>50435</parameter>
+              <parameter>8</parameter>
+            </behavior>
+          </frame>
+          <frame class="statvalue">
+            <x>150</x>
+            <y>0</y>
+            <width>22</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>1</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame class="statname">
+          <id>AGI</id>
+          <x>0</x>
+          <y>20</y>
+          <width>60</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50410</parameter>
+            <parameter>8</parameter>
+          </behavior>
+          <frame class="hidden">
+            <x>96</x>
+            <y>0</y>
+            <width>8</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>50435</parameter>
+              <parameter>8</parameter>
+            </behavior>
+          </frame>
+          <frame class="statvalue">
+            <x>150</x>
+            <y>0</y>
+            <width>22</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>1</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame class="statname">
+          <id>VIT</id>
+          <x>0</x>
+          <y>40</y>
+          <width>60</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50411</parameter>
+            <parameter>8</parameter>
+          </behavior>
+          <frame class="hidden">
+            <x>96</x>
+            <y>0</y>
+            <width>8</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>50435</parameter>
+              <parameter>8</parameter>
+            </behavior>
+          </frame>
+          <frame class="statvalue">
+            <x>150</x>
+            <y>0</y>
+            <width>22</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>1</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame class="statname">
+          <id>INT</id>
+          <x>0</x>
+          <y>60</y>
+          <width>60</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50412</parameter>
+            <parameter>8</parameter>
+          </behavior>
+          <frame class="hidden">
+            <x>96</x>
+            <y>0</y>
+            <width>8</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>50435</parameter>
+              <parameter>8</parameter>
+            </behavior>
+          </frame>
+          <frame class="statvalue">
+            <x>150</x>
+            <y>0</y>
+            <width>22</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>1</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame class="statname">
+          <id>MND</id>
+          <x>0</x>
+          <y>80</y>
+          <width>60</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50413</parameter>
+            <parameter>8</parameter>
+          </behavior>
+          <frame class="hidden">
+            <x>96</x>
+            <y>0</y>
+            <width>8</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>50435</parameter>
+              <parameter>8</parameter>
+            </behavior>
+          </frame>
+          <frame class="statvalue">
+            <x>150</x>
+            <y>0</y>
+            <width>22</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>1</parameter>
+            </behavior>
+          </frame>
+        </frame>
+      </frame>
+      <frame>
+        <id>battle</id>
+        <x>283</x>
+        <y>181</y>
+        <width>0</width>
+        <height>0</height>
+        <frame class="statname">
+          <id>ATK</id>
+          <x>0</x>
+          <y>0</y>
+          <width>70</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50504</parameter>
+            <parameter>8</parameter>
+          </behavior>
+          <frame class="hidden">
+            <x>96</x>
+            <y>0</y>
+            <width>8</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>50435</parameter>
+              <parameter>8</parameter>
+            </behavior>
+          </frame>
+          <frame class="statvalue">
+            <x>145</x>
+            <y>0</y>
+            <width>24</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>1</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame class="statname">
+          <id>DEF</id>
+          <x>0</x>
+          <y>26</y>
+          <width>70</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50506</parameter>
+            <parameter>8</parameter>
+          </behavior>
+          <frame class="hidden">
+            <x>96</x>
+            <y>0</y>
+            <width>8</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>50435</parameter>
+              <parameter>8</parameter>
+            </behavior>
+          </frame>
+          <frame class="statvalue">
+            <x>145</x>
+            <y>0</y>
+            <width>24</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>1</parameter>
+            </behavior>
+          </frame>
+        </frame>
+        <frame class="statname">
+          <id>MDF</id>
+          <x>0</x>
+          <y>52</y>
+          <width>70</width>
+          <height>16</height>
+          <behavior value="Text">
+            <parameter>50508</parameter>
+            <parameter>8</parameter>
+          </behavior>
+          <frame class="hidden">
+            <x>96</x>
+            <y>0</y>
+            <width>8</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>50435</parameter>
+              <parameter>8</parameter>
+            </behavior>
+          </frame>
+          <frame class="statvalue">
+            <x>145</x>
+            <y>0</y>
+            <width>24</width>
+            <height>16</height>
+            <behavior value="Text">
+              <parameter>-1</parameter>
+              <parameter>8</parameter>
+              <parameter>1</parameter>
+            </behavior>
+          </frame>
+        </frame>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

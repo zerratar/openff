@@ -1665,7 +1665,8 @@ internal static partial class GlobalScope
 						ds.g_TouchPanel.getPoint(out var x, out var y);
 						for (int i = 0; i < focusMedgets.size(); i++)
 						{
-							if (focusMedgets[i].x() >= x || x > focusMedgets[i].x() + focusMedgets[i].width() || focusMedgets[i].y() >= y || y > focusMedgets[i].y() + focusMedgets[i].height())
+							// PORT: a press on a frame inside it reaches it too (a layout's row with its icon and its lit box beside the text).
+							if (!focusMedgets[i].hitTest(x, y))
 							{
 								continue;
 							}

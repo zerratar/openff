@@ -1720,6 +1720,12 @@ namespace OpenFF.Client
 				m.Stats.Mind = body.mind().get();
 				m.Stats.JobSkill = m.JobSkill;
 				m.Stats.MagicDefense = player.magicDefense().magicPhylacticPower();
+				// As the Status screen works them out (CWMenuStatus): the hands' attack, the armour's defence.
+				bool small = player.condition().isFrog() || player.condition().isLilliput();
+				int attack = player.handAttack(GlobalScope.pl.HAND_TYPE.RIGHT_HAND).aggressivity().get() + player.handAttack(GlobalScope.pl.HAND_TYPE.LEFT_HAND).aggressivity().get();
+				int defense = player.physicsDefense().phylacticPower().get();
+				m.Stats.Attack = small ? (attack > 0 ? 1 : 0) : attack;
+				m.Stats.Defense = small ? (defense > 0 ? 1 : 0) : defense;
 				m.Stats.Weakness = (Element)player.magicDefense().weakType();
 				m.Stats.Resist = (Element)player.physicsDefense().antiType();
 			}

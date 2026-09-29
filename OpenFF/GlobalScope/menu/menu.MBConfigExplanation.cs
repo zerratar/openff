@@ -17,8 +17,12 @@ internal static partial class GlobalScope
 {
 	public static partial class menu
 	{
-		public class MBConfigExplanation : MenuBehavior
+		public class MBConfigExplanation : MenuBehavior, IStyledText
 		{
+			// PORT: a layout's styles reach its text (IStyledText).
+			public dgs.DGSMessage StyledMessage => m_pMsg;
+			public void StyledPlace(Medget M) { }
+
 			public static dgs.UniqueNumber MBConfigExplanation_UN = new dgs.UniqueNumber();
 
 			private int m_temp;

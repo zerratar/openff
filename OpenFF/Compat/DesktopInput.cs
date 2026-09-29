@@ -53,7 +53,7 @@ namespace OpenFF.Client
 			(Keys.Right, PadRight),    (Keys.D, PadRight),
 
 			(Keys.Z, PadA),            (Keys.Space, PadA),      (Keys.Enter, PadA),
-			(Keys.X, PadB),            (Keys.Back, PadB),       // Esc is the client's own menu (PauseMenu)
+			(Keys.X, PadB),            (Keys.Back, PadB),       // Esc: Back in the game's menus, else the client's own menu (PauseMenu)
 
 			(Keys.C, PadX),
 			(Keys.V, PadY),
@@ -121,6 +121,8 @@ namespace OpenFF.Client
 						bits |= bit;
 					}
 				}
+				// In one of the game's menus Esc goes back, as the menus' Back button says (PauseMenu opens on it elsewhere).
+				if (((real && keys.IsKeyDown(Keys.Escape)) || Injected.Contains(Keys.Escape)) && ModMenus.GameMenuUp && !PauseMenu.IsOpen) bits |= PadB;
 				if (real || InjectedStick.HasValue) bits |= GamePadBits();
 				// Run. The game has no dedicated run button: isRun() tests the B bit, and
 				// whether B means run or walk depends on Config > movement type. Shift is

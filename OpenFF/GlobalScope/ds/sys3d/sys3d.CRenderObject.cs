@@ -205,12 +205,16 @@ internal static partial class GlobalScope
 					}
 				}
 
+				/// <summary>PORT: how many models have been drawn (a shown one's draw reached): what the scene drew this frame, for the mod's own models (WorldPart).</summary>
+				public static int Drawn;
+
 				public override void draw()
 				{
 					if (m_MdlRes == null || isHidden())
 					{
 						return;
 					}
+					Drawn++;
 					if (StandIn != null && skipFrame != 0)
 					{
 						// As NNS_G3dDraw: nothing is drawn on a catch-up frame (render() runs up to three game
