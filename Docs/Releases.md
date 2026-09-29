@@ -7,7 +7,9 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## Unreleased
+## 0.2.1 - party panels and quest logs (2026-09-29)
+
+A fix for the volume crash, and an overlay for the field: a mod's own party panel, quest log or anything else, styled like the rest of the HUD.
 
 **Added**
 - Field HUD: frames of a mod's own at the top of `field_hud` show in the field as an overlay (a party panel, a quest log), up while the field's buttons are.
