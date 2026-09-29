@@ -436,7 +436,7 @@ function menuStyled(screen) {
   // Matched on the copy as it is baked, parent before child, as MenuStyles matches: a frame a sheet
   // gives a panel is a window to the selectors of the frames inside it.
   const screenValues = cascadeOf(copy, rules, null);
-  const walk = (source, target, inherited, opacity) => {
+  const walk = (source, target, inherited, opacity, gone = false) => {
     const sources = [...source.children].filter(e => e.tagName === 'frame');
     const targets = [...target.children].filter(e => e.tagName === 'frame');
     sources.forEach((frame, i) => {
@@ -462,7 +462,10 @@ function menuStyled(screen) {
       look.set(frame, t);
       computed.set(frame, values);
       bakeLook(t, values, own);
-      walk(frame, t, values, own);
+      // display: none takes the frame and everything in it away, as in CSS (and the client's MenuStyles.Looks).
+      const isGone = gone || String(values.get('display') || '').trim().toLowerCase() === 'none';
+      if (isGone && ![...t.children].some(e => e.tagName === 'hidden')) t.append(t.ownerDocument.createElement('hidden'));
+      walk(frame, t, values, own, isGone);
     });
   };
   walk(screen, copy, screenValues, styleOpacity(screenValues, 1));

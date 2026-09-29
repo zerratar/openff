@@ -7,6 +7,22 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## Unreleased
+
+**Added**
+- Field HUD: frames of a mod's own at the top of `field_hud` show in the field as an overlay (a party panel, a quest log), up while the field's buttons are.
+- Field HUD: `data-source` on a frame, so one block per hero reads `{name}`, `{hpPercent}` and so on.
+- Bindings: `hpPercent`, `mpPercent`, `expPercent`, `expToNext` and `face` on party members, for bars and portraits.
+- Modding API: `Game.Hud` - a mod's own data for the HUD's bindings (`Set("quest", ...)`), and `Overlay` to take the overlay down.
+
+**Improvements**
+- Field HUD: bindings are read again a few times a second, so bars and names follow the game.
+- Menus: bindings reach `Game.Hud`'s data too.
+
+**Fixes**
+- Config: Fixed a crash when changing the volume on Config 2 ([#1](https://github.com/zerratar/openff/issues/1)).
+- Styles: `display: none` hides everything inside the frame too, as in CSS.
+
 ## 0.2.0 - the UI yours to style (2026-09-28)
 
 Most of the CSS a web page has, for the menus and for what the game draws from code: the field's

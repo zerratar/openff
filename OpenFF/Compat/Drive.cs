@@ -19,6 +19,7 @@
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
 //   shots <count>                  a screenshot of each of the next displayed frames (--screenshot-dir), for what lasts a frame
+//   hud <name> [json]              the field HUD's data a mod would set (Game.Hud.Set): hud quest {"title": "...", "active": true}; no json clears it
 //   dialogue <text> [| speaker]    the field's message window with the text (Game.Dialogue.Say: "@1000142" a line of the game's)
 //   ask <question>                 the question with the Yes / No box (Game.Dialogue.Ask); the answer in the log ("drive: answered yes")
 //   quit                           close the game
@@ -33,6 +34,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.IO;
 using System.Text.RegularExpressions;
 using Microsoft.Xna.Framework.Input;
@@ -363,6 +365,17 @@ namespace OpenFF.Client
 					OpenFF.Game.Dialogue.Ask(step.Arg, yes => Log.Write(LogChannel.General, "drive: answered " + (yes ? "yes" : "no")));
 					Log.Write(LogChannel.File, "drive: ask " + step.Arg);
 					break;
+				case "hud":
+				{
+					string arg = (step.Arg ?? "").Trim();
+					int space = arg.IndexOf(' ');
+					string name = space < 0 ? arg : arg.Substring(0, space);
+					string json = space < 0 ? null : arg.Substring(space + 1).Trim();
+					try { OpenFF.Game.Hud.Set(name, string.IsNullOrEmpty(json) ? null : HudValue(System.Text.Json.JsonDocument.Parse(json).RootElement)); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: hud " + name + ": " + ex.Message); }
+					Log.Write(LogChannel.File, "drive: hud " + arg);
+					break;
+				}
 				case "shots":
 					ScreenCapture.Burst = Math.Max(1, int.TryParse(step.Arg, out int shots) ? shots : 1);
 					Log.Write(LogChannel.General, "drive: shots " + ScreenCapture.Burst);
@@ -390,6 +403,24 @@ namespace OpenFF.Client
 		private static double Seconds(string text, double fallback)
 		{
 			return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : fallback;
+		}
+
+		/// <summary>A JSON value as the bindings read one: objects as dictionaries, arrays as lists, numbers, text, true and false.</summary>
+		private static object HudValue(System.Text.Json.JsonElement e)
+		{
+			switch (e.ValueKind)
+			{
+				case System.Text.Json.JsonValueKind.Object:
+					Dictionary<string, object> map = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+					foreach (System.Text.Json.JsonProperty p in e.EnumerateObject()) map[p.Name] = HudValue(p.Value);
+					return map;
+				case System.Text.Json.JsonValueKind.Array: return e.EnumerateArray().Select(HudValue).ToList();
+				case System.Text.Json.JsonValueKind.Number: return e.TryGetInt32(out int n) ? n : e.GetDouble();
+				case System.Text.Json.JsonValueKind.True: return true;
+				case System.Text.Json.JsonValueKind.False: return false;
+				case System.Text.Json.JsonValueKind.String: return e.GetString();
+				default: return null;
+			}
 		}
 	}
 }

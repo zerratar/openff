@@ -91,6 +91,7 @@ namespace OpenFF.Client
 				Close(ref _banner);
 				Close(ref _confirm);
 				foreach (int cell in _buttons.Keys.ToList()) { Shown b = _buttons[cell]; Close(ref b); }
+				CloseOverlay();
 				_buttons.Clear();
 				foreach (int cell in _buttonSprites.Keys.ToList()) MakeButton(cell);
 				_laid.Clear();
@@ -586,6 +587,7 @@ namespace OpenFF.Client
 		/// <summary>After it: the layout's frames shown and faded with it, its sprite in the layout's tint, opacity and place - or taken away for a picture of the layout's.</summary>
 		public static void ButtonAfter(int cell)
 		{
+			if (cell < MenuButtonKey) OverlayTick();
 			if (!_buttons.TryGetValue(cell, out Shown s)) return;
 			try
 			{
@@ -613,6 +615,75 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.Write(LogChannel.General, "field hud: " + s.Root + ": " + ex.Message); }
 		}
 
+		// ---- the overlay: the layout's own frames at its top (a party panel, a quest log), up in the field while its buttons are ----
+
+		// The pieces of the HUD's the game draws itself; any other frame at field_hud's top is the layout's own, an overlay.
+		private static readonly HashSet<string> Pieces = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		{
+			"dialogue", "map_name", "confirm", "menu_button", "map_button", "talk_button", "title", "a_button", "b_button", "l_button", "r_button",
+		};
+		private static readonly List<Shown> _overlay = new List<Shown>();
+		private static long _overlayFrame = -1, _overlayBoundAt = -1000;
+		private static int _hudVersion = -1;
+		private const int OverlayRebind = 10;   // steps between readings of its bindings (a third of a second)
+
+		/// <summary>
+		/// Once a step in the field (a field button's): the overlay up while the field's buttons are (and Game.Hud.Overlay), its
+		/// bindings read again every few steps and at once when a mod's data changed - its panels and texts made again where
+		/// they changed (a bar's width, a name, a quest's step).
+		/// </summary>
+		private static void OverlayTick()
+		{
+			long frame = -1;
+			try { frame = OpenFF.Game.Time.Frame; } catch (Exception) { }
+			if (frame == _overlayFrame) return;
+			_overlayFrame = frame;
+			if (!Styled) { CloseOverlay(); return; }
+			if (_overlay.Count == 0)
+			{
+				foreach (XElement top in _source.Elements("frame"))
+				{
+					string root = PathOf(top);
+					if (root != null && !Pieces.Contains(root)) _overlay.Add(New(root, null, null));
+				}
+				if (_overlay.Count == 0) return;
+			}
+			bool visible = OpenFF.Game.Hud.Overlay && FieldButtonsShown();
+			int hud = OpenFF.Game.Hud.Version;
+			bool rebind = frame - _overlayBoundAt >= OverlayRebind || hud != _hudVersion;
+			if (rebind) { _overlayBoundAt = frame; _hudVersion = hud; }
+			foreach (Shown s in _overlay)
+			{
+				s.Panels.Flush();
+				try
+				{
+					if (!s.Built || s.Visible != visible || (visible && (rebind || _animator.Active)))
+					{
+						s.Visible = visible;
+						Refresh(s);
+					}
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "field hud: " + s.Root + ": " + ex.Message); }
+			}
+		}
+
+		/// <summary>Whether the field's buttons are up (any of them): the game takes them down for its events, menus and battles.</summary>
+		private static bool FieldButtonsShown()
+		{
+			foreach (KeyValuePair<int, (GlobalScope.sys2d.Sprite Sprite, int X, int Y)> b in _buttonSprites)
+			{
+				if (b.Key >= MenuButtonKey) continue;
+				try { if (_buttons.TryGetValue(b.Key, out Shown s) ? s.Visible : b.Value.Sprite.IsShow()) return true; } catch (Exception) { }
+			}
+			return false;
+		}
+
+		private static void CloseOverlay()
+		{
+			for (int i = 0; i < _overlay.Count; i++) { Shown s = _overlay[i]; Close(ref s); }
+			_overlay.Clear();
+		}
+
 		/// <summary>The button is gone (CMenuButton.cleanup).</summary>
 		public static void ButtonGone(int cell)
 		{
@@ -621,6 +692,7 @@ namespace OpenFF.Client
 			_buttonAlpha.Remove(cell);
 			_buttonShown.Remove(cell);
 			_buttonTexts.Remove(cell);
+			if (!_buttonSprites.Keys.Any(k => k < MenuButtonKey)) CloseOverlay();   // out of the field: its overlay with its buttons
 		}
 
 		// ---- the menus' buttons (CWMenuButton: A, B, L, R) ----
@@ -910,11 +982,13 @@ namespace OpenFF.Client
 		/// <summary>The frames' bindings under the HUD's data: their texts (for the extras), shown or not, classes and bound styles.</summary>
 		private static void Bind(Shown s)
 		{
-			MenuBindingScope scope = new MenuBindingScope { Root = Root };
+			MenuBindingScope root = new MenuBindingScope { Root = Root };
+			Dictionary<XElement, MenuBindingScope> scopes = new Dictionary<XElement, MenuBindingScope>();
 			foreach (XElement frame in Subtree(s.Root))
 			{
 				string path = PathOf(frame);
 				if (!s.Game.Contains(path) && IsText(frame) && !s.Extras.Any(e => e.Frame == frame)) s.Extras.Add(new Extra { Frame = frame, Path = path });
+				MenuBindingScope scope = ScopeOf(frame, root, scopes);
 				try
 				{
 					foreach (KeyValuePair<string, string> c in MenuStyles.Declarations((string)frame.Attribute("bind-class")))
@@ -931,10 +1005,22 @@ namespace OpenFF.Client
 			}
 			foreach (Extra e in s.Extras)
 			{
-				string text = e.Frame.Attribute("bind-text") is XAttribute bt ? MenuBindings.Format(bt.Value, scope) : ((string)e.Frame.Element("data"))?.Trim();
+				string text = e.Frame.Attribute("bind-text") is XAttribute bt ? MenuBindings.Format(bt.Value, ScopeOf(e.Frame, root, scopes)) : ((string)e.Frame.Element("data"))?.Trim();
 				if (text != e.Text) { e.Text = text; ReleaseExtra(e); }
 			}
 			Reflow();
+		}
+
+		/// <summary>A frame's binding scope: its data-source's (party[1] - its frames' {name} that member's), else its parent's, else the HUD's roots.</summary>
+		private static MenuBindingScope ScopeOf(XElement frame, MenuBindingScope root, Dictionary<XElement, MenuBindingScope> scopes)
+		{
+			if (frame == null || frame.Name.LocalName != "frame") return root;
+			if (scopes.TryGetValue(frame, out MenuBindingScope known)) return known;
+			MenuBindingScope parent = ScopeOf(frame.Parent, root, scopes);
+			string source = (string)frame.Attribute("data-source");
+			MenuBindingScope scope = string.IsNullOrWhiteSpace(source) ? parent : parent.With(MenuBindings.Resolve(source, parent));
+			scopes[frame] = scope;
+			return scope;
 		}
 
 		private static bool IsText(XElement frame) => frame.Attribute("bind-text") != null || (string)frame.Element("behavior")?.Attribute("value") == "Text" || !string.IsNullOrWhiteSpace((string)frame.Element("data"));
@@ -957,7 +1043,8 @@ namespace OpenFF.Client
 				case "hero": { IReadOnlyList<PartyMember> m = OpenFF.Game.Party?.Members; return (true, m != null && m.Count > 0 ? m[0] : null); }
 				case "party": return (true, OpenFF.Game.Party?.Members);
 				case "gil": return (true, OpenFF.Game.Party?.Gil ?? 0);
-				default: return (false, null);
+				case "items": return (true, OpenFF.Game.Party?.Items);
+				default: return OpenFF.Game.Hud.TryGet(name, out object hud) ? (true, hud) : (false, null);   // a mod's (Game.Hud.Set: a quest log's)
 			}
 		}
 

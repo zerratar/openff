@@ -362,7 +362,10 @@ attributes, so the game's own file never carries them:
   - `hero` (the party member the screen asked for);
   - `party` (the members), `gil`, `items` (the bag);
   - `menu` (the screen: `hero`, `focused`, `id`);
+  - what a mod's code put in `Game.Hud` (`Game.Hud.Set("quest", ...)`: see The field's HUD);
   - `this` (the data source itself).
+- **A party member's** (`hero`, `party[1]`): `name`, `level`, `experience`, `hp`, `maxHp`, `mp`, `jobTitle`, `alive`, `stats.strength`... and for bars and pictures `hpPercent`, `mpPercent`, `expPercent` (0..100), `expToNext`, and `face` (the hero's picture in their job, as a background image says it: `bind-style="background-image: {face}"`).
+- **Sums** work inside a template's braces too: `{hp * 100 / maxHp}`, `{level + 1}`.
 
 **A bound style** (`bind-style`): declarations with `{paths}` in them, put over the frame's own style as the data says - `bind-style="background-image: {dialogue.avatar}"`, `bind-style="-ff-tint: {tint}"`. What it binds cascades like the frame's own style, over every sheet.
 
@@ -469,6 +472,43 @@ Their bindings (`bind-text`, `bind-visible`, `bind-display`, `bind-class`, `bind
   A picture is a file beside the table, or `resource:` one of the game's (a hero's face: `files/pc1_01.NCGR`). `{dialogue.avatar}` gives it as a background image says it (`url("…")`, `resource("…")`).
 - **`Game.Dialogue.Say(text, speaker)`:** the speaker by a table's id or name (with its picture), or just the name.
 - **Code:** `Game.Events` publishes `DialogueShown` (`Number`, `Text`, `Map`) before the window shows it; a handler can set `Speaker` and `Avatar` (`AvatarFile(path)` for a file), over the tables.
+
+**An overlay of the mod's own.** Any other frame at `field_hud`'s top - not one of the pieces above - is the mod's: a party panel, a quest log, a clock. It is up in the field while the field's buttons are (the game takes them down in its events, menus and battles), and its bindings are read again a few times a second, so a bar follows the HP. A frame's `data-source` gives its frames their data, so one block per hero reads `{name}` and `{hpPercent}`; `bind-display="this"` takes a block away when there is no one in that place and the column closes up.
+
+```xml
+<frame style="left: 6px; top: 6px; width: 150px; height: auto; flex-direction: column; gap: 4px"><id>party</id>
+  <frame data-source="party[0]" bind-display="this" class="member"><id>m0</id><width>150</width><height>36</height>
+    <frame class="face" bind-style="background-image: {face}"><id>face</id><x>3</x><y>3</y><width>30</width><height>30</height></frame>
+    <frame class="who" bind-text="{name}  Lv {level}"><id>who</id><x>38</x><y>2</y><width>108</width><height>14</height></frame>
+    <frame class="bar"><id>hp</id><x>38</x><y>19</y><width>106</width><height>6</height>
+      <frame class="fill" bind-style="width: {hpPercent}%" bind-class="low: hpPercent &lt; 30"><id>fill</id><width>106</width><height>6</height></frame>
+    </frame>
+  </frame>
+  <!-- m1, m2, m3 the same with party[1], party[2], party[3] -->
+</frame>
+<frame bind-visible="quest.active" class="quest"><id>quest</id><x>300</x><y>60</y><width>174</width><height>44</height>
+  <frame bind-text="{quest.title}"><id>title</id><x>8</x><y>4</y><width>160</width><height>16</height></frame>
+  <frame bind-text="{quest.step}"><id>step</id><x>8</x><y>24</y><width>160</width><height>14</height></frame>
+</frame>
+```
+
+```css
+.member { background-image: linear-gradient(to right, #1a2c5ce0, #0a122880); border: 1px solid #8090c0; border-radius: 6px; }
+.face   { -ff-background-scale-mode: scale-to-fit; border-radius: 4px; }
+.bar    { background-color: #00000080; border-radius: 3px; }
+.fill   { background-image: linear-gradient(#80ff80, #20a040); border-radius: 3px; }
+.fill.low { background-image: linear-gradient(#ff8080, #c02020); }
+```
+
+**A mod's own data** goes to the HUD from its code, by name, and the layout binds to it like the game's:
+
+```csharp
+Game.Hud.Set("quest", new { title = "The Wind Crystal", step = "Talk to the elder of Ur", active = true });
+Game.Hud.Set("quest", null);   // gone: what binds it reads nothing
+Game.Hud.Overlay = false;      // the overlay down (a cutscene, a key that hides the HUD)
+```
+
+A value is any object (its public properties and fields), a dictionary or a list. Setting one is shown at once; a change inside one already set (a field of the object) on the next reading, or at once after `Game.Hud.Refresh()`. Menu screens reach the same names. In Crystal's preview a sample party and a sample `quest` fill them.
 
 The client keeps `field_hud` as it last built it (`OpenFF/Compat/FieldHud.cs`), so its frames hold while another file is loaded too (a battle's, the menus'); at the title, before the field has loaded it, the client reads it ahead (`ModMenus.PrepareFieldHud`). Crystal's preview draws the game's pieces in it: the window, the page arrow, the buttons, the hand, sample lines.
 

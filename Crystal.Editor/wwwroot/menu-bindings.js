@@ -6,7 +6,10 @@
 const SAMPLE_MEMBER = (id, name, job, level, hp, maxHp) => ({
   id, slot: id, name, level, experience: level * 312, hp, maxHp, mp: 4, charges: [4, 3, 2, 0, 0, 0, 0, 0], maxCharges: [4, 3, 2, 0, 0, 0, 0, 0],
   job: 0, jobName: job, jobTitle: job, jobWord: job.toLowerCase(), jobSkill: 5, alive: hp > 0, conditions: 0, progression: 'jobs',
-  stats: { strength: 18, vitality: 15, agility: 12, intellect: 9, mind: 8 }
+  stats: { strength: 18, vitality: 15, agility: 12, intellect: 9, mind: 8 },
+  // The bars' and the face's, as the client works them out (PartyMember): percents 0..100, the level's span of the game's table.
+  levelExperience: (level - 1) * 300, nextLevelExperience: level * 330, expToNext: level * 18, expPercent: 45,
+  hpPercent: maxHp > 0 ? Math.round(hp * 100 / maxHp) : 0, mpPercent: 75, face: `resource("files/pc${id + 1}_01.NCGR")`
 });
 
 /// What a bound frame reads in Preview: the game's data, made up.
@@ -18,19 +21,22 @@ const BINDING_SAMPLE = {
   menu: { id: 'menu', hero: 0, focused: null },
   // The field's HUD (field_hud): who speaks in the dialogue window, and the map-name banner's text.
   dialogue: { number: 1000142, text: 'The wind crystal\'s light has faded... We should see the elder.', speaker: 'Luneth', avatar: 'resource("files/pc1_01.NCGR")', map: 't01_01' },
-  banner: { number: -1, text: 'Ur' }
+  banner: { number: -1, text: 'Ur' },
+  // A mod's own data for the HUD (Game.Hud.Set("quest", ...)) - a made-up one, so a quest log's frames show something in Preview.
+  quest: { title: 'The Wind Crystal', step: 'Talk to the elder of Ur', active: true }
 };
 
 /// The paths the pickers offer: the roots and what the game's data has under them.
 const BINDING_PATHS = (() => {
-  const member = ['name', 'level', 'experience', 'hp', 'maxHp', 'mp', 'jobTitle', 'jobWord', 'jobSkill', 'alive', 'slot', 'conditions', 'progression',
+  const member = ['name', 'level', 'experience', 'hp', 'maxHp', 'mp', 'hpPercent', 'mpPercent', 'expPercent', 'expToNext', 'face', 'jobTitle', 'jobWord', 'jobSkill', 'alive', 'slot', 'conditions', 'progression',
     'stats.strength', 'stats.vitality', 'stats.agility', 'stats.intellect', 'stats.mind', 'charges[0]', 'maxCharges[0]'];
   return [
     ...member.map(m => 'hero.' + m),
-    'party', 'party.count', ...['name', 'level', 'hp', 'maxHp', 'jobTitle', 'alive'].map(m => 'party[0].' + m),
+    'party', 'party.count', ...['name', 'level', 'hp', 'maxHp', 'hpPercent', 'expPercent', 'face', 'jobTitle', 'alive'].map(m => 'party[0].' + m),
     'gil', 'items', 'items.count', 'items[0].name', 'items[0].count',
     'menu.hero', 'menu.focused', 'menu.id', 'this',
-    'dialogue.speaker', 'dialogue.avatar', 'dialogue.text', 'dialogue.number', 'dialogue.map', 'banner.text', 'banner.number'
+    'dialogue.speaker', 'dialogue.avatar', 'dialogue.text', 'dialogue.number', 'dialogue.map', 'banner.text', 'banner.number',
+    'quest.title', 'quest.step', 'quest.active'
   ];
 })();
 

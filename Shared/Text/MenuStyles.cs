@@ -189,6 +189,7 @@ namespace OpenFF.Content
 			Dictionary<XElement, Look> looks = new Dictionary<XElement, Look>();
 			if (screen == null) return looks;
 			Dictionary<XElement, double> opacity = new Dictionary<XElement, double>();
+			HashSet<XElement> gone = new HashSet<XElement>();
 			foreach ((XElement frame, Dictionary<string, string> own) in computed)
 			{
 				Dictionary<string, string> values = shown != null && shown.TryGetValue(frame, out Dictionary<string, string> s) ? s : own;
@@ -196,7 +197,14 @@ namespace OpenFF.Content
 				double parent = frame.Parent != null && opacity.TryGetValue(frame.Parent, out double po) ? po : 1;
 				double mine = Opacity(values, parent);
 				opacity[frame] = mine;
-				looks[frame] = LookOf(frame, values, mine);
+				Look look = LookOf(frame, values, mine);
+				// display: none takes the frame and everything in it away, as CSS does (it is not inherited, but what is inside goes with it).
+				if ((values.TryGetValue("display", out string display) && display.Trim().Equals("none", StringComparison.OrdinalIgnoreCase)) || (frame.Parent != null && gone.Contains(frame.Parent)))
+				{
+					gone.Add(frame);
+					look.Hidden = true;
+				}
+				looks[frame] = look;
 			}
 			return looks;
 		}

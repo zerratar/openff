@@ -390,6 +390,21 @@ namespace OpenFF
 		public string JobWord { get; set; }
 		/// <summary>The held job's name as the menus print it.</summary>
 		public string JobTitle { get; set; }
+		/// <summary>The experience the character's level began at (the game's table; 0 at level 1).</summary>
+		public int LevelExperience { get; set; }
+		/// <summary>The experience the next level begins at, 0 when the game has no table for it; at the last level, the experience itself.</summary>
+		public int NextLevelExperience { get; set; }
+		/// <summary>The experience still wanted for the next level (0 at the last).</summary>
+		public int ExpToNext => NextLevelExperience > Experience ? NextLevelExperience - Experience : 0;
+		/// <summary>How far through the level the character is, 0..100 - an EXP bar's width (100 at the last level, 0 with no table).</summary>
+		public int ExpPercent => NextLevelExperience <= 0 ? 0 : NextLevelExperience <= LevelExperience ? 100 : Percent(Experience - LevelExperience, NextLevelExperience - LevelExperience);
+		/// <summary>HP left of the most, 0..100 - a health bar's width.</summary>
+		public int HpPercent => Percent(Hp, MaxHp);
+		/// <summary>Magic level 1's charges left of the most, 0..100 (FF3's MP are charges per level; Charges has them all).</summary>
+		public int MpPercent => MaxCharges != null && MaxCharges.Length > 0 && Charges != null && Charges.Length > 0 ? Percent(Charges[0], MaxCharges[0]) : 0;
+		/// <summary>The character's face as a background image says it - resource("files/pc1_01.NCGR"), the hero in their job - or null where the game has none to give.</summary>
+		public string Face { get; set; }
+		private static int Percent(long part, long whole) => whole <= 0 ? 0 : (int)Math.Clamp(part * 100 / whole, 0, 100);
 		public override string ToString() => Name + " L" + Level + " (" + Hp + "/" + MaxHp + " hp, " + JobName + ")";
 	}
 

@@ -1697,6 +1697,19 @@ namespace OpenFF.Client
 			catch (Exception) { }
 			try { m.Job = player.jobManager().nowJob(); } catch (Exception) { }
 			try { m.JobSkill = player.jobManager().nowJobParameter().skill().skillLevel().get(); } catch (Exception) { }
+			// The level's span in the game's table (exp(level) is what leaving it takes), and the hero's face in the job, as the menus' portraits have it.
+			try
+			{
+				GlobalScope.pl.PlayerExp table = GlobalScope.pl.PlayerParty.instance().playerExp()[0];
+				if (m.Level >= GlobalScope.pl.PLAYER_LEVEL_MAX) m.LevelExperience = m.NextLevelExperience = m.Experience;
+				else
+				{
+					m.NextLevelExperience = table.exp((byte)m.Level);
+					m.LevelExperience = m.Level >= 2 ? table.exp((byte)(m.Level - 1)) : 0;
+				}
+			}
+			catch (Exception) { }
+			if (m.Id >= 0 && m.Id < 4) m.Face = "resource(\"files/pc" + (m.Id + 1) + "_" + (m.Job + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture) + ".NCGR\")";
 			try
 			{
 				GlobalScope.ys.BodyParameter body = player.bodyAndBonus();

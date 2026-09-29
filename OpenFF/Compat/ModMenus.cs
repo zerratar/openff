@@ -1280,7 +1280,7 @@ namespace OpenFF.Client
 					case "gil": return (true, OpenFF.Game.Party?.Gil ?? 0);
 					case "items": return (true, OpenFF.Game.Party?.Items);
 					case "menu": return (true, this);
-					default: return (false, null);
+					default: return OpenFF.Game.Hud.TryGet(name, out object hud) ? (true, hud) : (false, null);   // a mod's (Game.Hud.Set)
 				}
 			}
 		}
@@ -1498,7 +1498,7 @@ namespace OpenFF.Client
 			public int Y => Medget.y();
 			public int Width => Medget.width();
 			public int Height => Medget.height();
-			public int Work => Medget.work() is IConvertible w ? Convert.ToInt32(w) : 0;
+			public int Work => Medget.work();
 			/// <summary>The frame in Game.Draw's 800 x 480 units: the layout's units scaled as the game scales its text (Font.drawString).</summary>
 			public (float X, float Y, float Width, float Height) ScreenRect
 			{
