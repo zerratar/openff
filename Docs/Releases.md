@@ -7,7 +7,9 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## Unreleased
+## 0.2.3 - automatic updates (2026-09-29)
+
+The game now updates itself: install this version by hand once, and later releases are offered on the title and put in place for you.
 
 **Added**
 - Updates: the game checks GitHub for a newer release at startup and offers it on the title, with its notes.
