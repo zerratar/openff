@@ -7,7 +7,9 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
-## Unreleased
+## 0.2.2 - quality of life and a new menu (2026-09-29)
+
+Pixel Remaster style boosters in the Esc menu, and a new look for the Esc menu and the mod list.
 
 **Added**
 - Quality of life: a new Esc menu page with speed x1-x4, random encounters on/off, battle EXP and job EXP multipliers (x0-x4), save anywhere and no job change adjustment.
