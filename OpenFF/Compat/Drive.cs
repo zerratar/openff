@@ -19,6 +19,8 @@
 //                                  a line written since the previous until was satisfied counts too
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
 //   shots <count>                  a screenshot of each of the next displayed frames (--screenshot-dir), for what lasts a frame
+//   qol <option> <value>           a quality-of-life option for this run (a drive plays with the defaults otherwise):
+//                                  speed 1-8, encounters on|off, exp / jobExp a multiplier, saveAnywhere on|off, jobAdjustment on|off
 //   hud <name> [json]              the field HUD's data a mod would set (Game.Hud.Set): hud quest {"title": "...", "active": true}; no json clears it
 //   dialogue <text> [| speaker]    the field's message window with the text (Game.Dialogue.Say: "@1000142" a line of the game's)
 //   ask <question>                 the question with the Yes / No box (Game.Dialogue.Ask); the answer in the log ("drive: answered yes")
@@ -365,6 +367,27 @@ namespace OpenFF.Client
 					OpenFF.Game.Dialogue.Ask(step.Arg, yes => Log.Write(LogChannel.General, "drive: answered " + (yes ? "yes" : "no")));
 					Log.Write(LogChannel.File, "drive: ask " + step.Arg);
 					break;
+				case "qol":
+				{
+					string[] bits = (step.Arg ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 2) { Log.Write(LogChannel.General, "drive: qol wants <option> <value>"); break; }
+					DisplaySettings.QolSettings q = Qol.S;
+					bool on = bits[1] == "on" || bits[1] == "true" || bits[1] == "1";
+					double.TryParse(bits[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double n);
+					switch (bits[0].ToLowerInvariant())
+					{
+						case "speed": q.Speed = Math.Clamp((int)n, 1, Qol.MostSpeed); break;
+						case "encounters": q.Encounters = on; break;
+						case "exp": q.Exp = n; break;
+						case "jobexp": q.JobExp = n; break;
+						case "saveanywhere": q.SaveAnywhere = on; break;
+						case "jobadjustment": q.JobAdjustment = on; break;
+						case "indicator": q.Indicator = on; break;
+						default: Log.Write(LogChannel.General, "drive: no qol option " + bits[0]); break;
+					}
+					Log.Write(LogChannel.General, "drive: qol " + bits[0] + " " + bits[1]);
+					break;
+				}
 				case "hud":
 				{
 					string arg = (step.Arg ?? "").Trim();

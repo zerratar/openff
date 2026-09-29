@@ -191,7 +191,7 @@ internal static partial class GlobalScope
 				{
 					num = 1;
 				}
-				return num;
+				return OpenFF.Client.Qol.Exp(num);   // PORT: the player's EXP multiplier (quality of life)
 			}
 
 			public int breakMonsterCharatcerId(int monster_id)

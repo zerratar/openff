@@ -75,6 +75,11 @@ internal static partial class GlobalScope
 									{
 										return true;
 									}
+									// PORT: no random battles when the player turned them off (quality of life; the forced ones above still come).
+									if (!OpenFF.Client.Qol.Encounters)
+									{
+										return false;
+									}
 									VecFx32 prePosition = pPlayer.getPrePosition();
 									VecFx32 position = pPlayer.getPosition();
 									if (VEC_Distance(prePosition, position) <= 2500)

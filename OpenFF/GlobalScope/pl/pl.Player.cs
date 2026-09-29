@@ -469,6 +469,11 @@ internal static partial class GlobalScope
 					.get();
 				int t = jobPenaltyTime_ + difference(now, next) + difference(now2, next2) - num / 10;
 				t = ds.clamp(t, 0, JOB_PENALTY_TIME_MAX);
+				// PORT: none when the player turned the adjustment period off (quality of life): the job menu shows 0, and none is taken on.
+				if (!OpenFF.Client.Qol.JobAdjustment)
+				{
+					return 0;
+				}
 				return ds.max(jobPenaltyTime_, t);
 			}
 
@@ -1094,7 +1099,8 @@ internal static partial class GlobalScope
 
 			public int jobPenaltyTime()
 			{
-				return jobPenaltyTime_;
+				// PORT: no adjustment period when the player turned it off (quality of life); the time kept stays in the save.
+				return OpenFF.Client.Qol.JobAdjustment ? jobPenaltyTime_ : 0;
 			}
 
 			public void setDefault()

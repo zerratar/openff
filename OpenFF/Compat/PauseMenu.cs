@@ -3,7 +3,9 @@
 // not one of the game's menus (those are the phone's layouts and pictures); it is drawn the
 // way the mod list and the text entry are, with the game's font over a panel, and it edits
 // what %LocalAppData%\OpenFF\settings.json holds: the window and its size, anti-aliasing,
-// vsync, how the stick runs, and which pad button is which DS button (press one to bind).
+// vsync, how the stick runs, and which pad button is which DS button (press one to bind); and
+// the quality-of-life options (Qol): the game's speed, random encounters, EXP and job EXP,
+// saving anywhere, the job change's adjustment period, the corner's indicator.
 // Display changes apply as they are made; the file is written on the way out.
 
 using System;
@@ -23,13 +25,31 @@ namespace OpenFF.Client
 	{
 		private const float W = 800f, H = 480f;
 		private const int TitleSize = 14, RowSize = 10;
-		private const float ListTop = 110f, ListLeft = 120f, ListWidth = 560f;
-		private float RowHeight => Rows() > 10 ? 21f : 24f;   // the buttons page has twelve rows to fit
+		// A page's geometry in the 800x480 text space: its panel, and its rows - the first's top, the step from one to the next, each's height.
+		private readonly struct Layout
+		{
+			public readonly Rectangle Panel;
+			public readonly float Top, Step, Height;
+			public readonly bool Note;
+			public Layout(Rectangle panel, float top, float step, float height, bool note) { Panel = panel; Top = top; Step = step; Height = height; Note = note; }
+			public Rectangle RowAt(int row) => new Rectangle(Panel.X + 26, (int)Math.Round(Top + row * Step), Panel.Width - 52, (int)Math.Round(Height));
+		}
+
+		private Layout LayoutFor(Page page)
+		{
+			switch (page)
+			{
+				case Page.Main: return new Layout(new Rectangle(152, 70, 496, 340), 150, 43, 36, false);
+				case Page.Quit: return new Layout(new Rectangle(190, 146, 420, 200), 222, 41, 34, false);
+				case Page.Buttons: return new Layout(new Rectangle(142, 24, 516, 440), 92, 22, 19.5f, true);
+				default: return new Layout(new Rectangle(142, 50, 516, 414), 122, 31, 27, true);
+			}
+		}
 
 		public static PauseMenu Instance { get; private set; }
 		public static bool IsOpen => Instance != null && Instance._page != Page.Closed;
 
-		private enum Page { Closed, Main, Settings, Buttons, Quit }
+		private enum Page { Closed, Main, Settings, Buttons, Qol, Quit }
 		private Page _page = Page.Closed;
 		private int _selected;
 		private string _binding;            // the DS button being rebound, while a press is awaited
@@ -47,8 +67,14 @@ namespace OpenFF.Client
 		private static readonly (string Key, string Label)[] DsButtons =
 		{
 			("a", "A  (confirm)"), ("b", "B  (cancel, run)"), ("x", "X  (menu)"), ("y", "Y"), ("l", "L"), ("r", "R"),
-			("start", "Start"), ("select", "Select"), ("run", "Run (held)"), ("fast", "Fast-forward (held)")
+			("start", "Start"), ("select", "Select"), ("run", "Run (held)"), ("fast", "Fast-forward (held)"),
+			("speed", "Speed up (F8)"), ("encounters", "Encounters on / off (F11)")
 		};
+
+		// The main page's rows: Abilities only with a mastery hero in the party.
+		private string[] MainRows() => AbilitiesRow ? new[] { "resume", "abilities", "settings", "qol", "exit" } : new[] { "resume", "settings", "qol", "exit" };
+
+		private int MainRow(string id) => Math.Max(0, Array.IndexOf(MainRows(), id));
 
 		private PauseMenu(Game game) : base(game)
 		{
@@ -100,7 +126,7 @@ namespace OpenFF.Client
 
 		public override void Update(GameTime gameTime)
 		{
-			if (!Game.IsActive) return;
+			if (!Game.IsActive && !Drive.Active) return;   // a drive's keys come whether the window has focus or not
 			// Nothing else may own the keyboard: the text entry, the mod list, a mod's capture.
 			bool othersOwn = (TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || AbilitiesMenu.IsOpen || EngineInput.Captured;
 			if (_page == Page.Closed)
@@ -144,8 +170,10 @@ namespace OpenFF.Client
 			bool mouseDown = DesktopInput.MouseInView(out int mx, out int my);
 			if (mouseDown && !_mouseWasDown)
 			{
-				int row = (int)((my - ListTop) / RowHeight);
-				if (mx >= ListLeft && mx <= ListLeft + ListWidth && row >= 0 && row < count) { _selected = row; confirm = true; }
+				Layout layout = LayoutFor(_page);
+				int row = (int)Math.Floor((my - layout.Top) / layout.Step);
+				Rectangle hit = row >= 0 && row < count ? layout.RowAt(row) : Rectangle.Empty;
+				if (hit.Contains(mx, my)) { _selected = row; confirm = true; }
 			}
 			_mouseWasDown = mouseDown;
 
@@ -155,17 +183,23 @@ namespace OpenFF.Client
 					if (cancel) { Close(); return; }
 					if (confirm)
 					{
-						// Resume, [Abilities,] Settings, Exit game - the Abilities row only with a mastery hero in the party.
-						int row = _selected;
-						if (AbilitiesRow && row == 1) { Close(); AbilitiesMenu.Open(); return; }
-						if (AbilitiesRow && row > 1) row--;
-						if (row == 0) Close();
-						else if (row == 1) { _page = Page.Settings; _selected = 0; _note = ""; }
+						// Resume, [Abilities,] Settings, Quality of life, Exit game.
+						string[] rows = MainRows();
+						string id = rows[Math.Clamp(_selected, 0, rows.Length - 1)];
+						if (id == "abilities") { Close(); AbilitiesMenu.Open(); return; }
+						if (id == "resume") Close();
+						else if (id == "settings") { _page = Page.Settings; _selected = 0; _note = ""; }
+						else if (id == "qol") { _page = Page.Qol; _selected = 0; _note = QolNote(0); }
 						else { _page = Page.Quit; _selected = 1; }
 					}
 					break;
+				case Page.Qol:
+					if (cancel) { _page = Page.Main; _selected = MainRow("qol"); DisplaySettings.Current.Save(); return; }
+					if (up || downKey) _note = QolNote(_selected);
+					if (left || right || confirm) ChangeQol(_selected, left ? -1 : 1, confirm);
+					break;
 				case Page.Settings:
-					if (cancel) { _page = Page.Main; _selected = 1; DisplaySettings.Current.Save(); return; }
+					if (cancel) { _page = Page.Main; _selected = MainRow("settings"); DisplaySettings.Current.Save(); return; }
 					if (left || right || confirm) ChangeSetting(_selected, left ? -1 : 1, confirm);
 					break;
 				case Page.Buttons:
@@ -178,11 +212,11 @@ namespace OpenFF.Client
 					}
 					break;
 				case Page.Quit:
-					if (cancel) { _page = Page.Main; _selected = 2; return; }
+					if (cancel) { _page = Page.Main; _selected = MainRow("exit"); return; }
 					if (confirm)
 					{
 						if (_selected == 0) { DisplaySettings.Current.Save(); Log.Write(LogChannel.General, "menu: exit game"); Game.Exit(); }
-						else { _page = Page.Main; _selected = 2; }
+						else { _page = Page.Main; _selected = MainRow("exit"); }
 					}
 					break;
 			}
@@ -199,8 +233,9 @@ namespace OpenFF.Client
 		{
 			switch (_page)
 			{
-				case Page.Main: return AbilitiesRow ? 4 : 3;
+				case Page.Main: return MainRows().Length;
 				case Page.Settings: return 8;
+				case Page.Qol: return QolRows;
 				case Page.Buttons: return DsButtons.Length + 2;
 				case Page.Quit: return 2;
 				default: return 1;
@@ -258,7 +293,7 @@ namespace OpenFF.Client
 					if (confirm) { _page = Page.Buttons; _selected = 0; _note = ""; }
 					break;
 				case 7:
-					if (confirm) { _page = Page.Main; _selected = 1; s.Save(); }
+					if (confirm) { _page = Page.Main; _selected = MainRow("settings"); s.Save(); }
 					break;
 			}
 		}
@@ -295,7 +330,87 @@ namespace OpenFF.Client
 				case "select": m.Select = padButton; break;
 				case "run": m.RunButton = padButton; break;
 				case "fast": m.Fast = padButton; break;
+				case "speed": m.SpeedUp = padButton; break;
+				case "encounters": m.Encounters = padButton; break;
 			}
+		}
+
+		// ---- quality of life ----
+
+		// Speed, Random encounters, Battle EXP, Job EXP, Save anywhere, Job change adjustment, Indicator, Back.
+		private const int QolRows = 8;
+
+		/// <summary>One quality-of-life row turned: left/right go through its values, confirm forward (or back, on Back).</summary>
+		private void ChangeQol(int row, int by, bool confirm)
+		{
+			DisplaySettings.QolSettings q = Qol.S;
+			switch (row)
+			{
+				case 0:
+					q.Speed = (int)Qol.Next(Array.ConvertAll(Qol.Speeds, x => (double)x), Qol.Speed, by);
+					Qol.Changed("speed x" + q.Speed);
+					break;
+				case 1:
+					q.Encounters = !q.Encounters;
+					Qol.Changed("random encounters " + (q.Encounters ? "on" : "off"));
+					break;
+				case 2:
+					q.Exp = Qol.Next(Qol.Multipliers, q.Exp, by);
+					Qol.Changed("EXP " + Qol.Times(q.Exp));
+					break;
+				case 3:
+					q.JobExp = Qol.Next(Qol.Multipliers, q.JobExp, by);
+					Qol.Changed("job EXP " + Qol.Times(q.JobExp));
+					break;
+				case 4:
+					q.SaveAnywhere = !q.SaveAnywhere;
+					Qol.Changed("save anywhere " + (q.SaveAnywhere ? "on" : "off"));
+					break;
+				case 5:
+					q.JobAdjustment = !q.JobAdjustment;
+					Qol.Changed("job change adjustment " + (q.JobAdjustment ? "on" : "off"));
+					break;
+				case 6:
+					q.Indicator = !q.Indicator;
+					Qol.Changed("indicator " + (q.Indicator ? "on" : "off"));
+					break;
+				case 7:
+					if (confirm) { _page = Page.Main; _selected = MainRow("qol"); DisplaySettings.Current.Save(); }
+					return;
+			}
+			_note = QolNote(row);
+		}
+
+		/// <summary>What a quality-of-life row does, under the list.</summary>
+		private static string QolNote(int row)
+		{
+			switch (row)
+			{
+				case 0: return "the whole game runs faster; F8 while playing (Shift+F8 back)";
+				case 1: return "off: no random battles, story fights still happen; F11";
+				case 2: return "EXP from each battle, multiplied (x0 gives none)";
+				case 3: return "job EXP from each action in battle, multiplied";
+				case 4: return "Save in the menu on any map, towns and dungeons too";
+				case 5: return "off: no lowered stats for a few battles after a job change";
+				case 6: return "a note in the corner of what is on";
+				default: return "";
+			}
+		}
+
+		/// <summary>The main page's row: what is on, or that nothing is.</summary>
+		private static string QolSummary()
+		{
+			DisplaySettings.QolSettings q = Qol.S;
+			List<string> on = new List<string>();
+			if (Qol.Speed != 1) on.Add("speed " + Qol.Times(Qol.Speed));
+			if (!q.Encounters) on.Add("no encounters");
+			if (Math.Abs(q.Exp - 1) > 1e-9) on.Add("EXP " + Qol.Times(q.Exp));
+			if (Math.Abs(q.JobExp - 1) > 1e-9) on.Add("job EXP " + Qol.Times(q.JobExp));
+			if (q.SaveAnywhere) on.Add("save anywhere");
+			if (!q.JobAdjustment) on.Add("no adjustment");
+			if (on.Count == 0) return "as the game plays";
+			string all = string.Join(", ", on);
+			return all.Length > 40 ? on.Count + " on" : all;
 		}
 
 		private static string Bound(string dsButton)
@@ -306,6 +421,7 @@ namespace OpenFF.Client
 				case "a": return m.A; case "b": return m.B; case "x": return m.X; case "y": return m.Y;
 				case "l": return m.L; case "r": return m.R; case "start": return m.Start; case "select": return m.Select;
 				case "run": return m.RunButton; case "fast": return m.Fast;
+				case "speed": return m.SpeedUp; case "encounters": return m.Encounters;
 				default: return "";
 			}
 		}
@@ -330,73 +446,187 @@ namespace OpenFF.Client
 			return null;
 		}
 
+		// What a row shows on its right: nothing, a stepper (left / right go through values), a switch, a text, or a chevron (a page).
+		private enum Kind { None, Stepper, Switch, Text, Page }
+
+		/// <summary>A row's icon, what it shows on its right, whether a switch is on, and a muted word beside it ("as the game plays").</summary>
+		private Kind RowKind(int row, out UiTheme.Icon? icon, out bool on, out string hint)
+		{
+			DisplaySettings s = DisplaySettings.Current;
+			icon = null; on = false; hint = null;
+			switch (_page)
+			{
+				case Page.Main:
+				{
+					string[] rows = MainRows();
+					string id = rows[Math.Clamp(row, 0, rows.Length - 1)];
+					icon = id == "resume" ? UiTheme.Icon.Resume : id == "abilities" ? UiTheme.Icon.Abilities : id == "settings" ? UiTheme.Icon.Settings : id == "qol" ? UiTheme.Icon.Quality : UiTheme.Icon.Exit;
+					return Kind.None;
+				}
+				case Page.Qol:
+				{
+					DisplaySettings.QolSettings q = Qol.S;
+					switch (row)
+					{
+						case 0: icon = UiTheme.Icon.Speed; if (Qol.Speed == 1) hint = "as the game plays"; return Kind.Stepper;
+						case 1: icon = UiTheme.Icon.Encounters; on = q.Encounters; return Kind.Switch;
+						case 2: icon = UiTheme.Icon.Exp; return Kind.Stepper;
+						case 3: icon = UiTheme.Icon.JobExp; return Kind.Stepper;
+						case 4: icon = UiTheme.Icon.Save; on = q.SaveAnywhere; return Kind.Switch;
+						case 5: icon = UiTheme.Icon.Adjustment; on = q.JobAdjustment; if (on) hint = "as the game plays"; return Kind.Switch;
+						case 6: icon = UiTheme.Icon.Indicator; on = q.Indicator; return Kind.Switch;
+						default: icon = UiTheme.Icon.Back; return Kind.None;
+					}
+				}
+				case Page.Settings:
+					switch (row)
+					{
+						case 0: icon = UiTheme.Icon.Window; return Kind.Stepper;
+						case 1: icon = UiTheme.Icon.WindowSize; return Kind.Stepper;
+						case 2: icon = UiTheme.Icon.AntiAliasing; return Kind.Stepper;
+						case 3: icon = UiTheme.Icon.VSync; on = s.VSync; return Kind.Switch;
+						case 4: icon = UiTheme.Icon.FrameRate; return Kind.Stepper;
+						case 5: icon = UiTheme.Icon.Run; return Kind.Stepper;
+						case 6: icon = UiTheme.Icon.Pad; return Kind.Page;
+						default: icon = UiTheme.Icon.Back; return Kind.None;
+					}
+				case Page.Buttons:
+					return row < DsButtons.Length ? Kind.Text : Kind.None;
+				default:
+					icon = row == 0 ? UiTheme.Icon.Exit : UiTheme.Icon.Resume;
+					return Kind.None;
+			}
+		}
+
+		private UiTheme.Icon? TitleIcon() => _page == Page.Settings || _page == Page.Qol ? UiTheme.Icon.Settings : _page == Page.Buttons ? UiTheme.Icon.Pad : _page == Page.Quit ? UiTheme.Icon.Exit : (UiTheme.Icon?)null;
+
 		public override void Draw(GameTime gameTime)
 		{
 			if (_page == Page.Closed || RenderTest.Active) return;
 			GlobalScope.Graphics graphics = GlobalScope.m_Graphics;
 			if (graphics == null) return;
 			EnsureResources();
-			Ui.Ensure(GraphicsDevice);
+			UiTheme.Ensure(GraphicsDevice);
 			Viewport view = GraphicsDevice.Viewport;
 			int count = Rows();
-			float rowH = RowHeight;
-			Rectangle panel = new Rectangle(150, 48, 500, 384);
-			int left = panel.X + 24, right = panel.Right - 24;
-			const int titleSize = 14, rowSize = 11, hintSize = 9;
-			float hintY = panel.Bottom - 22;
+			Layout layout = LayoutFor(_page);
+			Rectangle panel = layout.Panel;
+			bool compact = _page == Page.Buttons;
+			int rowSize = compact ? 9 : _page == Page.Main || _page == Page.Quit ? 12 : 11, titleSize = _page == Page.Main ? 19 : 16, subSize = 9, hintSize = 9, noteSize = 9;
+			float titleY = panel.Y + 16, dividerY = panel.Y + 62, hintY = panel.Bottom - 22;
+			UiTheme.Icon? titleIcon = TitleIcon();
+			float titleX = panel.X + 30 + (titleIcon.HasValue ? 40 : 0);
+			Rectangle note = new Rectangle(panel.X + 20, (int)(layout.Top + count * layout.Step + 4), panel.Width - 40, compact ? 22 : 28);
+
+			// The values' places: a stepper's box and a switch, sized to what they show.
+			Rectangle[] valueBox = new Rectangle[count];
+			TrueTypeText.TitleFace = true;
+			try
+			{
+				for (int row = 0; row < count; row++)
+				{
+					Rectangle r = layout.RowAt(row);
+					Kind kind = RowKind(row, out _, out _, out _);
+					RowText(row, out _, out string value);
+					int h = (int)Math.Round(r.Height - 6f);
+					if (kind == Kind.Stepper)
+					{
+						int w = Math.Max(140, (int)Math.Ceiling(Ui.Width(graphics, value ?? "", rowSize)) + (int)(h * 2.5f) + 24);
+						w = Math.Min(w, r.Width - 190);
+						valueBox[row] = new Rectangle(r.Right - 8 - w, r.Y + 3, w, h);
+					}
+					else if (kind == Kind.Switch) valueBox[row] = new Rectangle(r.Right - 8 - 62, r.Y + 4, 62, h - 2);
+				}
+			}
+			finally { TrueTypeText.TitleFace = false; }
+
+			// The hints, right-aligned at the foot (at the left on the short pages), measured in the menu's face.
+			(Ui.PadButton, string)[] hints = Hints();
+			float[] hintX = new float[hints.Length];
+			TrueTypeText.TitleFace = true;
+			try
+			{
+				float hx = panel.Right - 30;
+				for (int i = hints.Length - 1; i >= 0; i--) { hx -= Ui.HintWidth(graphics, hints[i].Item2, hintSize, 22, hints[i].Item1); hintX[i] = hx; hx -= 30; }
+				if (_page == Page.Main || _page == Page.Quit) { float shift = hintX[0] - (panel.X + 30); for (int i = 0; i < hintX.Length; i++) hintX[i] -= shift; }
+			}
+			finally { TrueTypeText.TitleFace = false; }
 
 			_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
-			Ui.PanelPlate(_batch, panel, view);
+			UiTheme.Panel(_batch, panel, view);
+			UiTheme.Divider(_batch, panel.Center.X, dividerY, panel.Width - 60, view);
+			if (titleIcon.HasValue) UiTheme.IconAt(_batch, titleIcon.Value, panel.X + 48, titleY + 15, 40, view);
 			for (int row = 0; row < count; row++)
 			{
-				Rectangle r = new Rectangle(left, (int)(ListTop + row * rowH), right - left, (int)rowH - 3);
-				if (row == _selected) Ui.Key(_batch, r, true, view);
+				Rectangle r = layout.RowAt(row);
+				bool lit = row == _selected;
+				UiTheme.Row(_batch, r, lit, view, diamonds: lit && (_page == Page.Main || _page == Page.Quit));
+				Kind kind = RowKind(row, out UiTheme.Icon? icon, out bool on, out _);
+				if (icon.HasValue) UiTheme.IconAt(_batch, icon.Value, r.X + 24, r.Y + r.Height / 2f, compact ? r.Height * 1.0f : r.Height * 1.08f, view);
+				if (kind == Kind.Stepper) UiTheme.Stepper(_batch, valueBox[row], lit, view);
+				else if (kind == Kind.Switch) UiTheme.Switch(_batch, valueBox[row], on, lit, view);
+				else if (kind == Kind.Page) Ui.IconAt(_batch, Ui.Icon.Right, r.Right - 20, r.Y + r.Height / 2f, r.Height * 0.5f, lit ? UiTheme.GoldBright : UiTheme.Ink, view);
 			}
-			// A rule under the title.
-			Rectangle rule = Ui.Scale(new Rectangle(left, panel.Y + 44, right - left, 1), view);
-			Ui.Fill(_batch, rule, new Color(70, 96, 170, 255));
-			float hx = left;
-			foreach ((Ui.PadButton button, string word) in Hints())
-			{
-				Ui.HintShape(_batch, button, hx, hintY, 18, view);
-				hx += Ui.HintWidth(graphics, word, hintSize, 18) + 22;
-			}
+			if (layout.Note && !string.IsNullOrEmpty(_note)) UiTheme.NoteBox(_batch, note, view);
+			for (int i = 0; i < hints.Length; i++) Ui.HintShape(_batch, hints[i].Item1, hintX[i], hintY, 22, view);
 			_batch.End();
 
 			graphics.SetImageOrigin(0f, 0f);
 			graphics.SetImageRotation(0f);
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
-			string title = _page == Page.Main ? "OpenFF" : _page == Page.Settings ? "Settings" : _page == Page.Buttons ? "Pad buttons" : "Exit game?";
-			Ui.Left(graphics, title, left, panel.Y + 10, Ui.LineHeight(titleSize), titleSize, Ui.Text);
-			string sub = _page == Page.Main ? "The game goes on behind this."
-				: _page == Page.Settings ? "Kept in settings.json under %LocalAppData%\\OpenFF"
-				: _page == Page.Buttons ? "Pick a DS button, then press the pad button for it."
-				: "Anything not saved is lost.";
-			Ui.Left(graphics, sub, left + Ui.Width(graphics, title, titleSize) + 14, panel.Y + 10, Ui.LineHeight(titleSize), 9, Ui.Muted);
-			for (int row = 0; row < count; row++)
+			TrueTypeText.TitleFace = true;
+			try
 			{
-				Rectangle r = new Rectangle(left, (int)(ListTop + row * rowH), right - left, (int)rowH - 3);
-				bool on = row == _selected;
-				RowText(row, out string label, out string value);
-				Ui.Left(graphics, label, r.X + 12, r.Y, r.Height, rowSize, on ? Ui.TextOnLit : Ui.Text);
-				if (value != null)
+				string title = _page == Page.Main ? "OpenFF" : _page == Page.Settings ? "Settings" : _page == Page.Buttons ? "Pad buttons" : _page == Page.Qol ? "Quality of life" : "Exit game?";
+				Ui.Left(graphics, title, titleX, titleY, 30, titleSize, UiTheme.Ink);
+				string sub = _page == Page.Main ? "The game goes on behind this."
+					: _page == Page.Settings ? "Kept in settings.json."
+					: _page == Page.Buttons ? "Pick one, then press its pad button."
+					: _page == Page.Qol ? "Boosters, like the Pixel Remaster's."
+					: "Anything not saved is lost.";
+				// Beside the title when it fits there (smaller if it must), else under it.
+				float subX = titleX + Ui.Width(graphics, title, titleSize) + 18, room = panel.Right - 30 - subX;
+				int fit = subSize;
+				while (fit > 7 && Ui.Width(graphics, sub, fit) > room) fit--;
+				if (Ui.Width(graphics, sub, fit) <= room) Ui.Left(graphics, sub, subX, titleY + 3, 30, fit, UiTheme.Sub);
+				else Ui.Left(graphics, sub, titleX, titleY + 26, 16, 7, UiTheme.Sub);
+				for (int row = 0; row < count; row++)
 				{
-					bool arrows = on && _page == Page.Settings && row < 5;
-					string shown = arrows ? "<  " + value + "  >" : value;
-					float w = Ui.Width(graphics, shown, rowSize);
-					Ui.Left(graphics, shown, r.Right - 12 - w, r.Y, r.Height, rowSize, on ? Ui.TextOnLit : Ui.Muted);
+					Rectangle r = layout.RowAt(row);
+					bool lit = row == _selected;
+					Kind kind = RowKind(row, out UiTheme.Icon? icon, out bool on, out string hint);
+					RowText(row, out string label, out string value);
+					float labelX = r.X + (icon.HasValue || _page != Page.Buttons ? 52 : 14);
+					Ui.Left(graphics, label, labelX, r.Y, r.Height, rowSize, lit ? Color.White : UiTheme.Ink);
+					switch (kind)
+					{
+						case Kind.Stepper:
+							Ui.Centred(graphics, value ?? "", UiTheme.StepperValue(valueBox[row]), rowSize, lit ? UiTheme.GoldBright : UiTheme.Ink);
+							break;
+						case Kind.Switch:
+							Ui.Centred(graphics, on ? "On" : "Off", UiTheme.SwitchWord(valueBox[row]), rowSize - 1, on ? UiTheme.Ink : UiTheme.Hint);
+							break;
+						case Kind.Text:
+							if (value != null) { float w = Ui.Width(graphics, value, rowSize); Ui.Left(graphics, value, r.Right - 14 - w, r.Y, r.Height, rowSize, lit ? UiTheme.GoldBright : UiTheme.Hint); }
+							break;
+					}
+					if (hint != null && valueBox[row].Width > 0)
+					{
+						float w = Ui.Width(graphics, hint, rowSize - 1);
+						Ui.Left(graphics, hint, valueBox[row].X - 12 - w, r.Y, r.Height, rowSize - 1, UiTheme.Hint);
+					}
 				}
+				if (layout.Note && !string.IsNullOrEmpty(_note)) Ui.Left(graphics, _note, note.X + 14, note.Y, note.Height, noteSize, UiTheme.Ink);
+				for (int i = 0; i < hints.Length; i++) Ui.HintText(graphics, hints[i].Item1, hints[i].Item2, hintX[i], hintY, 22, hintSize);
 			}
-			if (!string.IsNullOrEmpty(_note)) Ui.Left(graphics, _note, left, panel.Bottom - 52, Ui.LineHeight(9), 9, Ui.Accent);
-			hx = left;
-			foreach ((Ui.PadButton button, string word) in Hints()) hx = Ui.HintText(graphics, button, word, hx, hintY, 18, hintSize) - 4;
+			finally { TrueTypeText.TitleFace = false; }
 			graphics.DrawStringEnd();
 		}
 
 		private (Ui.PadButton, string)[] Hints()
 		{
-			if (_page == Page.Settings) return new[] { (Ui.PadButton.A, "Next value"), (Ui.PadButton.B, "Back") };
+			if (_page == Page.Settings || _page == Page.Qol) return new[] { (Ui.PadButton.A, "Confirm"), (Ui.PadButton.B, "Back") };
 			if (_page == Page.Buttons) return new[] { (Ui.PadButton.A, _binding == null ? "Bind" : "Press a button"), (Ui.PadButton.B, "Back") };
 			return new[] { (Ui.PadButton.A, "Select"), (Ui.PadButton.B, "Back") };
 		}
@@ -474,10 +704,29 @@ namespace OpenFF.Client
 			switch (_page)
 			{
 				case Page.Main:
-					if (AbilitiesRow && row == 1) { label = "Abilities"; value = "job ladders, free slots"; return; }
-					if (AbilitiesRow && row > 1) row--;
-					label = row == 0 ? "Resume" : row == 1 ? "Settings" : "Exit game";
+				{
+					string[] rows = MainRows();
+					string id = rows[Math.Clamp(row, 0, rows.Length - 1)];
+					if (id == "abilities") { label = "Abilities"; value = "job ladders, free slots"; return; }
+					label = id == "resume" ? "Resume" : id == "settings" ? "Settings" : id == "qol" ? "Quality of life" : "Exit game";
+					if (id == "qol") value = QolSummary();
 					return;
+				}
+				case Page.Qol:
+				{
+					DisplaySettings.QolSettings q = Qol.S;
+					switch (row)
+					{
+						case 0: label = "Speed"; value = Qol.Times(Qol.Speed); return;
+						case 1: label = "Random encounters"; value = q.Encounters ? "On" : "Off"; return;
+						case 2: label = "Battle EXP"; value = Qol.Times(q.Exp); return;
+						case 3: label = "Job EXP"; value = Qol.Times(q.JobExp); return;
+						case 4: label = "Save anywhere"; value = q.SaveAnywhere ? "On" : "Off"; return;
+						case 5: label = "Job change adjustment"; value = q.JobAdjustment ? "On" : "Off"; return;
+						case 6: label = "Indicator"; value = q.Indicator ? "On" : "Off"; return;
+						default: label = "Back"; return;
+					}
+				}
 				case Page.Settings:
 					switch (row)
 					{

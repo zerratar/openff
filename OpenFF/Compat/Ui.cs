@@ -346,12 +346,61 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>The width a hint takes in text space: the disc, a gap, the word.</summary>
-		public static float HintWidth(GlobalScope.Graphics g, string word, int size, float disc) => disc + 8 + Width(g, word, size);
-
-		/// <summary>Shape pass of a hint: the button's disc at (x, cy), and its icon when it has one (the PlayStation marks, the menu lines).</summary>
-		public static void HintShape(SpriteBatch b, PadButton button, float x, float cy, float disc, Viewport v)
+		/// <summary>Whether a pad is connected: the hints show its buttons; with none, the keyboard's keys.</summary>
+		public static bool PadConnected
 		{
+			get
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					try { if (GamePad.GetState((PlayerIndex)i).IsConnected) return true; } catch (Exception) { }
+				}
+				return false;
+			}
+		}
+
+		/// <summary>The keyboard's key for a pad button, as the client's screens take them: Enter confirms, Esc goes back.</summary>
+		public static string KeyName(PadButton button)
+		{
+			switch (button)
+			{
+				case PadButton.A: return "Enter";
+				case PadButton.B: return "Esc";
+				case PadButton.X: return "C";
+				case PadButton.Y: return "V";
+				case PadButton.Start: return "Esc";
+				case PadButton.L: return "Q";
+				default: return "E";
+			}
+		}
+
+		private static int CapSize(int size) => Math.Max(6, size - 2);
+
+		/// <summary>A keycap's width for a button's key: its name with room either side, never narrower than a pad's disc. Measured in the game's own face whatever face is on.</summary>
+		private static float CapWidth(PadButton button, float disc, int size)
+		{
+			string key = KeyName(button);
+			bool was = TrueTypeText.TitleFace;
+			TrueTypeText.TitleFace = false;
+			try { return Math.Max(disc, (TrueTypeText.Enabled ? TrueTypeText.Width(key, CapSize(size)) : key.Length * size) + disc * 0.7f); }
+			finally { TrueTypeText.TitleFace = was; }
+		}
+
+		/// <summary>The width a hint takes in text space: the disc (a keycap, with no pad connected), a gap, the word.</summary>
+		public static float HintWidth(GlobalScope.Graphics g, string word, int size, float disc, PadButton? button = null)
+			=> (button.HasValue && !PadConnected ? CapWidth(button.Value, disc, size) : disc) + 8 + Width(g, word, size);
+
+		/// <summary>Shape pass of a hint: the button's disc at (x, cy), and its icon when it has one (the PlayStation marks, the menu lines); with no pad connected, a keycap for the keyboard's key.</summary>
+		public static void HintShape(SpriteBatch b, PadButton button, float x, float cy, float disc, Viewport v, bool keys = true)
+		{
+			if (keys && !PadConnected)
+			{
+				float w = CapWidth(button, disc, 9), h = disc * 0.92f;
+				Rectangle cap = Scale(new Rectangle((int)Math.Round(x), (int)Math.Round(cy - h / 2), (int)Math.Round(w), (int)Math.Round(h)), v);
+				RoundPlate(b, cap, new Color(196, 206, 230, 255), v);
+				RoundPlate(b, new Rectangle(cap.X + 1, cap.Y + 1, cap.Width - 2, cap.Height - 3), new Color(38, 52, 92, 255), v);
+				return;
+			}
 			(string _, Color face, Color ink) = Glyph(button);
 			GlyphDisc(b, x + disc / 2, cy, disc, face, v);
 			Icon? icon = IconFor(button, PlayStationPad);
@@ -359,8 +408,18 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>Text pass of a hint: the letter in the disc when the button has one rather than an icon, the word beside it. Returns where the next hint may start.</summary>
-		public static float HintText(GlobalScope.Graphics g, PadButton button, string word, float x, float cy, float disc, int size)
+		public static float HintText(GlobalScope.Graphics g, PadButton button, string word, float x, float cy, float disc, int size, bool keys = true)
 		{
+			if (keys && !PadConnected)
+			{
+				float w = CapWidth(button, disc, 9);
+				bool was = TrueTypeText.TitleFace;
+				TrueTypeText.TitleFace = false;
+				try { Centred(g, KeyName(button), new Rectangle((int)x, (int)(cy - disc / 2), (int)Math.Round(w), (int)disc), CapSize(9), Color.White); }
+				finally { TrueTypeText.TitleFace = was; }
+				Left(g, word, x + w + 8, cy - disc / 2, disc, size, Muted);
+				return x + w + 8 + Width(g, word, size) + 26;
+			}
 			(string mark, Color _, Color ink) = Glyph(button);
 			if (!IconFor(button, PlayStationPad).HasValue)
 			{

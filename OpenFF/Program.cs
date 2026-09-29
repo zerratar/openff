@@ -114,6 +114,9 @@ namespace OpenFF.Client
 				// Esc / Start: the client's own menu - settings (the display, the pad), exit.
 				PauseMenu.Attach(game);
 
+				// Quality of life (the Esc menu's page): F8 the speed, F11 random encounters, and the corner's indicator.
+				QolIndicator.Attach(game);
+
 				// Notices over the game (ABP won, an ability learned, what a mod posts) and the
 				// Abilities menu for heroes on the mastery progression.
 				Notices.Attach(game);

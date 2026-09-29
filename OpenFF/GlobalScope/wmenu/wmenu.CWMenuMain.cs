@@ -47,7 +47,8 @@ internal static partial class GlobalScope
 										.hideMapMarker();
 									ds.CVram.setSubPlaneVisiblity(bg0: true, bg1: false, bg2: true, bg3: true, obj: true);
 									menu.MenuManager.getSingleton().buildMenu("main_menu");
-									if (wld.WorldPart.getInstance().getWorldSystem().PreviousMode() != wld.CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD)
+									// PORT: Save on any map when the player chose to (quality of life), not only on the world map.
+									if (wld.WorldPart.getInstance().getWorldSystem().PreviousMode() != wld.CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD && !OpenFF.Client.Qol.SaveAnywhere)
 									{
 										menu.Medget nodeByID = menu.MenuManager.getSingleton().GetBaseMedget().getNodeByID(TRANSCODE("com_save"));
 										if (nodeByID != null && nodeByID.behavior() != null)
@@ -101,7 +102,7 @@ internal static partial class GlobalScope
 												return;
 											}
 											int num2 = (sbyte)menu.MenuManager.getSingleton().getFocuseMedget().work();
-											if (num2 == 8 && wld.WorldPart.getInstance().getWorldSystem().PreviousMode() != wld.CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD)
+											if (num2 == 8 && wld.WorldPart.getInstance().getWorldSystem().PreviousMode() != wld.CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD && !OpenFF.Client.Qol.SaveAnywhere)
 											{
 												menu.MenuManager.getSingleton().playSEBeep();
 												return;

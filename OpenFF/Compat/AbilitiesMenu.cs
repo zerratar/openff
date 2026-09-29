@@ -338,7 +338,7 @@ namespace OpenFF.Client
 			foreach ((Ui.PadButton button, string word) in Hints())
 			{
 				Ui.HintShape(_batch, button, hx, hintY, 18, view);
-				hx += Ui.HintWidth(graphics, word, hintSize, 18) + 22;
+				hx += Ui.HintWidth(graphics, word, hintSize, 18, button) + 22;
 			}
 			_batch.End();
 

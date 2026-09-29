@@ -43,8 +43,10 @@ namespace OpenFF.Client
 		[JsonPropertyName("pad")] public PadMap Pad { get; set; } = new PadMap();
 		/// <summary>Which glyphs the client's screens show for the pad's buttons: "auto" (by the pad's name), "ps" or "xbox".</summary>
 		[JsonPropertyName("padStyle")] public string PadStyle { get; set; } = "auto";
+		/// <summary>Quality of life, as the Pixel Remaster's boosters (Qol): the game's speed, random encounters, EXP and job EXP, saving anywhere, the job change's adjustment period, the indicator.</summary>
+		[JsonPropertyName("qol")] public QolSettings Qol { get; set; } = new QolSettings();
 		[JsonPropertyName("_help")] public string Help { get; } =
-			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. fps: 30 (the game's frames as they are) | 60 (smoothed - a frame interpolated between each two of the game's; where the display's refresh is no multiple of sixty, the nearest even rate above it, 72 at 144 Hz) | max (smoothed, at the display's rate); the game's logic runs 30 steps a second whatever is chosen. run: stick (the left stick's push is the pace - a walk part way, the full run all the way) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons. Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n, --fps=30|60|max) wins for one run.";
+			"width/height: the window (windowed mode). mode: windowed | borderless | fullscreen. msaa: 0, 2, 4 or 8. vsync: true/false. fps: 30 (the game's frames as they are) | 60 (smoothed - a frame interpolated between each two of the game's; where the display's refresh is no multiple of sixty, the nearest even rate above it, 72 at 144 Hz) | max (smoothed, at the display's rate); the game's logic runs 30 steps a second whatever is chosen. run: stick (the left stick's push is the pace - a walk part way, the full run all the way) | hold (the run button held runs). pad: which pad button is each DS button - cross/circle/square/triangle or a/b/x/y, l1/r1/l2/r2 or lb/rb/lt/rt, l3/r3, options/start, share/create/back, touchpad/guide, none; run and fast are the run and fast-forward buttons, speed and encounters the quality-of-life keys (F8, F11). qol: speed 1-8 (the game's steps a frame; F8 cycles 1-4), encounters true/false (random battles; F11), exp and jobExp multipliers 0-100 (the menu offers 0, 0.5, 1, 2, 4), saveAnywhere, jobAdjustment (false: no lowered stats after a job change), indicator (the corner's note of what is on). Alt+Enter in the game switches windowed and full screen and saves it here. The command line (--size=WxH, --fullscreen, --windowed, --msaa=n, --fps=30|60|max) wins for one run.";
 
 		/// <summary>DS buttons as pad button names; the defaults are a PlayStation pad's natural layout, which SDL lays out the same as an Xbox pad's.</summary>
 		public sealed class PadMap
@@ -63,6 +65,29 @@ namespace OpenFF.Client
 			[JsonPropertyName("fast")] public string Fast { get; set; } = "l2";
 			/// <summary>Turns auto battle on and off, like F.</summary>
 			[JsonPropertyName("auto")] public string Auto { get; set; } = "r3";
+			/// <summary>Cycles the game's speed, like F8 (quality of life).</summary>
+			[JsonPropertyName("speed")] public string SpeedUp { get; set; } = "none";
+			/// <summary>Turns random encounters on and off, like F11 (quality of life).</summary>
+			[JsonPropertyName("encounters")] public string Encounters { get; set; } = "none";
+		}
+
+		/// <summary>Quality of life (Qol): everything off as the game plays unless the player turns it on.</summary>
+		public sealed class QolSettings
+		{
+			/// <summary>How many of the game's steps a frame runs, 1-8 (F8 and the menu go 1-4).</summary>
+			[JsonPropertyName("speed")] public int Speed { get; set; } = 1;
+			/// <summary>Random battles; scripted ones always come.</summary>
+			[JsonPropertyName("encounters")] public bool Encounters { get; set; } = true;
+			/// <summary>Battle EXP multiplier, 0-100.</summary>
+			[JsonPropertyName("exp")] public double Exp { get; set; } = 1;
+			/// <summary>Job EXP multiplier, 0-100.</summary>
+			[JsonPropertyName("jobExp")] public double JobExp { get; set; } = 1;
+			/// <summary>Save from the menu on any map, dungeons and towns too, not only the world map.</summary>
+			[JsonPropertyName("saveAnywhere")] public bool SaveAnywhere { get; set; }
+			/// <summary>The job change's adjustment period (lowered stats for a few battles); false for none.</summary>
+			[JsonPropertyName("jobAdjustment")] public bool JobAdjustment { get; set; } = true;
+			/// <summary>The corner's note of what is on.</summary>
+			[JsonPropertyName("indicator")] public bool Indicator { get; set; } = true;
 		}
 
 		/// <summary>Whether a pad button, by its name in the map, is held in a pad state. Unknown names and "none" are never held.</summary>
@@ -118,6 +143,10 @@ namespace OpenFF.Client
 			settings.Run = string.Equals(settings.Run, "hold", StringComparison.OrdinalIgnoreCase) ? "hold" : "stick";
 			settings.Fps = NormaliseFps(settings.Fps);
 			settings.Pad ??= new PadMap();
+			settings.Qol ??= new QolSettings();
+			settings.Qol.Speed = Math.Clamp(settings.Qol.Speed, 1, OpenFF.Client.Qol.MostSpeed);
+			settings.Qol.Exp = double.IsFinite(settings.Qol.Exp) ? Math.Clamp(settings.Qol.Exp, 0, OpenFF.Client.Qol.MostMultiplier) : 1;
+			settings.Qol.JobExp = double.IsFinite(settings.Qol.JobExp) ? Math.Clamp(settings.Qol.JobExp, 0, OpenFF.Client.Qol.MostMultiplier) : 1;
 			// Written back as read, so a file from an older build gains the keys it lacks, with their defaults, to edit.
 			settings.Save();
 

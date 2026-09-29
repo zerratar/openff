@@ -60,6 +60,7 @@ internal static partial class GlobalScope
 				{
 					num = JobSkillExp[0];
 				}
+				num = OpenFF.Client.Qol.JobExp(num);   // PORT: the player's job EXP multiplier (quality of life)
 				job_[nowJob()].skill().addPoolSkillExp((byte)num);
 			}
 

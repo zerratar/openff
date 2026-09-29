@@ -7,6 +7,17 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## Unreleased
+
+**Added**
+- Quality of life: a new Esc menu page with speed x1-x4, random encounters on/off, battle EXP and job EXP multipliers (x0-x4), save anywhere and no job change adjustment.
+- Quality of life: F8 cycles the speed and F11 toggles random encounters while playing; both can be bound to pad buttons.
+- Quality of life: a small indicator in the corner shows which options are on.
+
+**Improvements**
+- Esc menu: a new look - gold framed panel, icons, steppers and switches.
+- Menus: button hints show keyboard keys (Enter, Esc) when no controller is connected.
+
 ## 0.2.1 - party panels and quest logs (2026-09-29)
 
 A fix for the volume crash, and an overlay for the field: a mod's own party panel, quest log or anything else, styled like the rest of the HUD.

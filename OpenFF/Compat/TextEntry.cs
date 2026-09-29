@@ -301,7 +301,7 @@ namespace OpenFF.Client
 				float hx = left, hy = panel.Bottom - 22;
 				foreach ((Ui.PadButton button, string word) in Hints())
 				{
-					Ui.HintShape(_batch, button, hx, hy, 18, view);
+					Ui.HintShape(_batch, button, hx, hy, 18, view, keys: false);   // typed keys are its own: the pad's glyphs
 					hx += HintAdvance(word, hintSize);
 				}
 			}
@@ -337,7 +337,7 @@ namespace OpenFF.Client
 				float hx = left, hy = panel.Bottom - 22;
 				foreach ((Ui.PadButton button, string word) in Hints())
 				{
-					Ui.HintText(graphics, button, word, hx, hy, 18, hintSize);
+					Ui.HintText(graphics, button, word, hx, hy, 18, hintSize, keys: false);
 					hx += HintAdvance(word, hintSize);
 				}
 			}
