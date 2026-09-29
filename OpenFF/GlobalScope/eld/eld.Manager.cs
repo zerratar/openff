@@ -163,6 +163,17 @@ internal static partial class GlobalScope
 
 			public IObject createObject(uint category, uint member)
 			{
+				// PORT: a mod's effect (defs/effects, a category from 1000 up): the client's object, run with the game's (OpenFF.Client.ModEffects).
+				if (OpenFF.Client.ModEffects.Is((int)category))
+				{
+					IObject mod = OpenFF.Client.ModEffects.Create((int)category, (int)member);
+					if (mod == null || !addObject(mod))
+					{
+						return null;
+					}
+					mod.Start(0u);
+					return mod;
+				}
 				Template template = getTemplate(category, member);
 				if (template == null)
 				{

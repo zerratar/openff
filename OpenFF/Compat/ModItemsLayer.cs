@@ -181,14 +181,17 @@ namespace OpenFF.Client
 			List<string> notes = new List<string>();
 			List<ModSpell> spells = ModSpells.Load(roots, notes);
 			foreach (string note in notes) Log.Write(LogChannel.General, "spells: " + note);
-			List<ModSpell> casts = spells.Where(s => ModSpell.CastPack(s.Cast) != null).ToList();
+			List<ModSpell> casts = spells.Where(s => s.Cast != null).ToList();
 			if (casts.Count > 0) _castsFrom = () =>
 			{
 				// Resolved as a battle first asks: by then the spells' names can be read.
 				Dictionary<int, int> map = new Dictionary<int, int>();
 				foreach (ModSpell s in casts)
 				{
-					if (SpellId(chain, s.Spell, items) is int id) map[id] = ModSpell.CastPack(s.Cast).Value;
+					// A school's, none, a pack of the game's, or a mod's own effect (defs/effects).
+					int? pack = ModSpell.CastPack(s.Cast) ?? ModEffects.Category(s.Cast);
+					if (pack == null) Log.Write(LogChannel.General, "spells: " + s.Id + ": no cast '" + s.Cast + "' (black, white, summon, none, game:pack or a mod's effect)");
+					else if (SpellId(chain, s.Spell, items) is int id) map[id] = pack.Value;
 					else Log.Write(LogChannel.General, "spells: " + s.Id + ": no spell '" + s.Spell + "' for its cast");
 				}
 				return map;
@@ -200,7 +203,7 @@ namespace OpenFF.Client
 			{
 				if (_readingNames || !ModSpells.IsChaindata(name)) return data;
 				List<string> problems = new List<string>();
-				byte[] composed = ModSpells.Compose(data, spells, copies, text => SpellId(chain, text, items), problems);
+				byte[] composed = ModSpells.Compose(data, spells, copies, text => SpellId(chain, text, items), problems, ModEffects.Category);
 				foreach (string p in problems) Log.Write(LogChannel.General, "spells: " + p);
 				if (!ReferenceEquals(composed, data)) Log.Write(LogChannel.File, "spells: player.chaindata composed, " + data.Length + " -> " + composed.Length + " bytes");
 				return composed;
@@ -244,6 +247,7 @@ namespace OpenFF.Client
 		{
 			_casts = null;
 			_castsFrom = null;
+			ModEffects.Register(null);
 			// --nomods: the game as shipped, definitions included - what Tools/parity.ps1 compares against.
 			if (chain == null || chain.Game != "ff3" || Options.Get("nomods") != null) return;
 			List<string> roots = new List<string>();
@@ -252,6 +256,7 @@ namespace OpenFF.Client
 			RegisterText(chain, roots);
 			RegisterMonsters(chain, roots);
 			RegisterModels(roots);
+			ModEffects.Register(roots);
 			List<string> notes = new List<string>();
 			List<ModItem> items = ModItems.Load(roots, notes);
 			foreach (string note in notes) Log.Write(LogChannel.General, "items: " + note);

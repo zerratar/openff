@@ -1102,7 +1102,8 @@ particle is drawn between its two steps, as the client does), and the count of p
 
 What plays is the member imported into the new effect format (`Docs/Effects-Plan.md`) -
 *definition* under the Stage shows it, with what the import left out (a model's material
-animation, for now). The
+animation, for now). The project's own effects (`defs/effects`, first in the list) open on the
+same Stage, played as written - as the game plays them. The
 same import from the command line: `crystal effect <install> <category> [member]`.
 
 ## Audio

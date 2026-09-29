@@ -71,6 +71,8 @@ const TIMELINE_CLIPS = {
     args: [{ name: 'formation', kind: 'int', label: 'Formation (monster party)', def: 0 }, { name: 'map', kind: 'int', label: 'Battle map', def: 0 }] },
   item: { label: 'Give item', tracks: ['game'], colour: '#c2a33a', length: 0, hint: 'An item into the party\'s inventory',
     args: [{ name: 'item', kind: 'item', label: 'Item' }, { name: 'count', kind: 'int', label: 'Count', def: 1 }] },
+  effect: { label: 'Effect', tracks: ['object', 'hero', 'game'], colour: '#d86fb0', length: 1, hint: 'One of the mod\'s effects (defs/effects) at the actor - or at a point on the game track - for the clip\'s length',
+    args: [{ name: 'name', kind: 'text', label: 'Effect (its file name in defs/effects)' }, { name: 'position', kind: 'point', label: 'Offset from the actor (the point, on the game track)', optional: true }, { name: 'follow', kind: 'bool', label: 'Follow the actor' }, { name: 'keep', kind: 'bool', label: 'Play on past the clip\'s end' }] },
   signal: { label: 'Signal', tracks: ['game'], colour: '#6b8f3a', length: 0, hint: 'A CutsceneSignal by name, for a mod\'s code to hear (Game.Events.Subscribe<CutsceneSignal>)',
     args: [{ name: 'name', kind: 'text', label: 'Name' }] },
 };

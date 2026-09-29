@@ -275,6 +275,21 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: learn failed: " + ex.Message); }
 					break;
 				}
+				case "effect":
+				{
+					// One of the mods' effects at the hero, through the API: "effect green-fire" (6 up), "effect green-fire 0 6 8".
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 1) { Log.Write(LogChannel.General, "drive: effect wants <id> [dx dy dz]"); break; }
+					float Offset(int i, float otherwise) => bits.Length > i && float.TryParse(bits[i], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) ? v : otherwise;
+					try
+					{
+						OpenFF.Vector3 at = OpenFF.Game.Hero.Position + new OpenFF.Vector3(Offset(1, 0), Offset(2, 6), Offset(3, 0));
+						int id = OpenFF.Game.Effects.Spawn(bits[0], at);
+						Log.Write(LogChannel.File, "drive: effect " + bits[0] + " at " + at + (id >= 0 ? " - " + id : " - refused"));
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: effect failed: " + ex.Message); }
+					break;
+				}
 				case "motion":
 				{
 					// The hero plays a motion by its id, through the API as a mod would: "motion 706" (the

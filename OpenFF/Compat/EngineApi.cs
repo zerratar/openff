@@ -2610,6 +2610,13 @@ namespace OpenFF.Client
 			catch (Exception ex) { EngineApi.Warn("effect", "Effects.Spawn: " + ex.Message); return -1; }
 		}
 
+		public int Spawn(string effect, Vector3 position)
+		{
+			int? category = ModEffects.Category(effect);
+			if (category == null) { EngineApi.Warn("effect-" + effect, "Effects.Spawn: no effect '" + effect + "' in the mods (defs/effects)"); return -1; }
+			return Spawn(category.Value, 1, position);
+		}
+
 		public void Remove(int id)
 		{
 			try
@@ -2632,6 +2639,7 @@ namespace OpenFF.Client
 		public bool Load(int category)
 		{
 			if (!EngineApi.InWorld) return false;
+			if (ModEffects.Is(category)) return true;   // a mod's own effect: no pack to load
 			ForgetOldMap();
 			if (_loaded.Contains(category)) return true;
 			try
@@ -2650,8 +2658,8 @@ namespace OpenFF.Client
 		public bool Loaded(int category)
 		{
 			ForgetOldMap();
-			// 102 is w_common, which every map carries.
-			return category == 102 || _loaded.Contains(category);
+			// 102 is w_common, which every map carries; a mod's own effect has no pack.
+			return category == 102 || ModEffects.Is(category) || _loaded.Contains(category);
 		}
 
 		private void ForgetOldMap()

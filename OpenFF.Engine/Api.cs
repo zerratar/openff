@@ -724,6 +724,8 @@ namespace OpenFF
 	{
 		/// <summary>Starts an effect (category and member as the scripts number them) at a point; the id to remove it, or -1.</summary>
 		int Spawn(int category, int member, Vector3 position);
+		/// <summary>Starts one of the mods' own effects (defs/effects/&lt;id&gt;.json, by its file name) at a point; the id to remove it, or -1.</summary>
+		int Spawn(string effect, Vector3 position);
 		void Remove(int id);
 		bool Alive(int id);
 		/// <summary>Loads an effect pack (e + category as three digits + .efp: the battle spells' packs) so its members can be spawned on this map. The field has room for a few at a time; false when none is left.</summary>

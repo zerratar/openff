@@ -3,6 +3,9 @@
 // the schools' casts - with its members as effect.efi numbers them; one member imported into the
 // new format for the Stage to play (Shared/Effects/EffectImport.cs), and the pack's textures as PNG.
 //
+// The project's own effects (defs/effects/<id>.json) are listed first and open on the same Stage,
+// their PNGs read from beside them (/api/effect/own-texture?effect=&name=).
+//
 // Server: /api/effects (list), /api/effect?name= (a pack), /api/effect/import?category=&member=,
 // /api/effect/texture?pack=&name=, and an effect's model: /api/effect/model?pack=&id= (its buffers,
 // as the model viewer has them, and its motion posed frame by frame), /api/effect/model/texture.
@@ -71,11 +74,31 @@ namespace Crystal.Editor
 			}
 		}
 
-		public static object List(Workspace workspace)
+		public const string OwnFolder = "defs/effects";
+
+		/// <summary>The project's effect definitions, by name (defs/effects/x.json).</summary>
+		private static IEnumerable<string> Own(Project project)
+		{
+			string dir = project == null ? null : System.IO.Path.Combine(project.Directory, "defs", "effects");
+			if (dir == null || !System.IO.Directory.Exists(dir)) return Enumerable.Empty<string>();
+			return System.IO.Directory.EnumerateFiles(dir, "*.json").OrderBy(f => f, StringComparer.OrdinalIgnoreCase).Select(f => OwnFolder + "/" + System.IO.Path.GetFileName(f));
+		}
+
+		public static bool IsOwn(string name) => name != null && name.StartsWith(OwnFolder + "/", StringComparison.OrdinalIgnoreCase);
+
+		private static string OwnPath(Project project, string name)
+		{
+			if (project == null || !IsOwn(name)) throw new InvalidOperationException("no project effect " + name);
+			string file = System.IO.Path.GetFileName(name.Substring(OwnFolder.Length + 1));
+			return System.IO.Path.Combine(project.Directory, "defs", "effects", file);
+		}
+
+		public static object List(Workspace workspace, Project project = null)
 		{
 			Cache c = For(workspace);
 			Dictionary<(int, int), List<string>> uses = Uses(workspace, c);
 			List<object> list = new List<object>();
+			foreach (string own in Own(project)) list.Add(new { name = own, category = -1, templates = 0, note = "the mod's own", own = true });
 			foreach (WorkspaceEntry entry in workspace.List(".efp").OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
 			{
 				int category = Category(entry.Name);
@@ -91,8 +114,14 @@ namespace Crystal.Editor
 			return list;
 		}
 
-		public static object Read(Workspace workspace, string name)
+		public static object Read(Workspace workspace, string name, Project project = null)
 		{
+			if (IsOwn(name))
+			{
+				// One of the project's: its definition as it is, played as written.
+				JsonNode effect = JsonNode.Parse(System.IO.File.ReadAllText(OwnPath(project, name)));
+				return new { name, category = -1, own = true, note = "the mod's own", effect, templates = new object[0], textures = new object[0] };
+			}
 			Cache c = For(workspace);
 			EfpPack pack = Pack(workspace, c, name) ?? throw new InvalidOperationException("not an effect pack: " + name);
 			int category = Category(name);
@@ -130,6 +159,15 @@ namespace Crystal.Editor
 			List<string> notes = new List<string>();
 			JsonObject effect = EffectImport.Import(category, member, (cat, mem) => Resolve(workspace, c, cat, mem), notes);
 			return new { effect, notes };
+		}
+
+		/// <summary>A PNG beside one of the project's effect definitions.</summary>
+		public static byte[] OwnTexture(Project project, string effect, string name)
+		{
+			string dir = System.IO.Path.GetDirectoryName(OwnPath(project, effect));
+			string path = System.IO.Path.GetFullPath(System.IO.Path.Combine(dir, name ?? ""));
+			if (!path.StartsWith(System.IO.Path.GetFullPath(project.Directory), StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("outside the project: " + name);
+			return System.IO.File.ReadAllBytes(path);
 		}
 
 		public static byte[] TexturePng(Workspace workspace, string pack, string name)

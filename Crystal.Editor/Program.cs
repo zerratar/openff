@@ -258,6 +258,8 @@ namespace Crystal
 							return 1;
 						}
 						return PakDecode(args.Skip(1).ToArray());
+					case "effect-cases":
+						return EffectCases(args.Length > 1 ? args[1] : Path.Combine("Tools", "EffectCases"));
 					case "effect":
 						if (args.Length < 3)
 						{
@@ -289,6 +291,46 @@ namespace Crystal
 				Console.Error.WriteLine("error: " + (Environment.GetEnvironmentVariable("CRYSTAL_TRACE") != null ? ex.ToString() : ex.Message));
 				return 2;
 			}
+		}
+
+		/// <summary>effect-cases [dir]: the client's effect player (Shared/Effects/EffectPlayer.cs) against the shared cases effects.js wrote (Tools/effect_cases.mjs).</summary>
+		private static int EffectCases(string directory)
+		{
+			int checkedCases = 0, failed = 0;
+			foreach (string file in Directory.GetFiles(directory, "*.case.json").OrderBy(f => f, StringComparer.Ordinal))
+			{
+				System.Text.Json.Nodes.JsonObject c = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(file)).AsObject();
+				OpenFF.Effects.EffectDefinition def = OpenFF.Effects.EffectDefinition.Read(c["effect"].AsObject());
+				uint seed = c["seed"] != null ? (uint)c["seed"].GetValue<int>() : 1u;
+				OpenFF.Effects.EffectPlayer player = new OpenFF.Effects.EffectPlayer(def, seed);
+				List<int> frames = c["frames"].AsArray().Select(f => f.GetValue<int>()).ToList();
+				List<string> problems = new List<string>();
+				for (int f = 0; f <= frames.Max(); f++)
+				{
+					player.Step();
+					if (!frames.Contains(f)) continue;
+					List<OpenFF.Effects.EffectQuad> quads = player.Quads();
+					System.Text.Json.Nodes.JsonArray want = c["expect"]?[f.ToString(CultureInfo.InvariantCulture)] as System.Text.Json.Nodes.JsonArray;
+					if (want == null) { problems.Add("frame " + f + ": no expect (node Tools/effect_cases.mjs --write)"); continue; }
+					if (want.Count != quads.Count) { problems.Add("frame " + f + ": " + quads.Count + " quad(s), expected " + want.Count); continue; }
+					for (int i = 0; i < quads.Count; i++)
+					{
+						OpenFF.Effects.EffectQuad q = quads[i];
+						double[] got = { q.X, q.Y, q.Z, q.HalfWidth, q.HalfHeight, q.R, q.G, q.B, q.A, q.Cell };
+						System.Text.Json.Nodes.JsonArray row = want[i].AsArray();
+						for (int j = 0; j < got.Length; j++)
+						{
+							double expected = row[j].GetValue<double>();
+							if (Math.Abs(expected - got[j]) > 1e-4) { problems.Add("frame " + f + " quad " + i + " value " + j + ": " + got[j].ToString("0.######", CultureInfo.InvariantCulture) + ", expected " + expected.ToString(CultureInfo.InvariantCulture)); break; }
+						}
+					}
+				}
+				checkedCases++;
+				if (problems.Count > 0) { failed++; Console.WriteLine(Path.GetFileName(file) + ": FAILED" + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", problems.Take(8))); }
+				else Console.WriteLine(Path.GetFileName(file) + ": ok");
+			}
+			Console.WriteLine((checkedCases - failed) + "/" + checkedCases + " case(s) pass");
+			return failed == 0 ? 0 : 1;
 		}
 
 		/// <summary>effect &lt;install root&gt; &lt;category&gt; [member]: one of the game's effects imported into the new format (Shared/Effects), as JSON.</summary>
@@ -391,6 +433,7 @@ namespace Crystal
 			Console.Error.WriteLine("  info    <file.xnb | directory>");
 			Console.Error.WriteLine("  tables  <install root> [--items=N] [--spells] [--game=ff3|ff4]    the game's tables in the unified shape (FF3 or FF4)");
 			Console.Error.WriteLine("  effect  <install root> <category> [member]    one of the game's effects in the new format, as JSON (FF3)");
+			Console.Error.WriteLine("  effect-cases [dir]    the effect runtime against the shared cases (Tools/EffectCases)");
 			Console.Error.WriteLine("  api-docs [out.md] [--engine=<dll>]  the modding API reference from OpenFF.Engine (default Docs/API.md)");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");

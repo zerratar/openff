@@ -92,6 +92,11 @@ internal static partial class GlobalScope
 
 			public eld.SFileHeader addEfp(int categoryId)
 			{
+				// PORT: a mod's effect has no pack of the game's to load (OpenFF.Client.ModEffects).
+				if (OpenFF.Client.ModEffects.Is(categoryId))
+				{
+					return null;
+				}
 				string arg = "";
 				sprintf(out arg, "/EFFECT/e%03d.efp", categoryId);
 				efpId_[checkEfpId()] = eld.g_elsvr.loadEfp(arg);

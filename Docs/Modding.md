@@ -994,6 +994,39 @@ own magic item (and any item of the mod's whose base has a record - a potion's) 
 base's record, which a definition here may then change. The cast is not in the record: the
 battle asks the client for it where it picks the school's (`btl.TurnSystem.magicStartEffect`).
 
+### An effect of the mod's own: `defs/effects/<id>.json`
+
+An effect the mod makes - a spell's, a cutscene's, anything a script starts - in the effect
+format (`Docs/Effects-Plan.md`, *Format 1*): tracks on a timeline of the game's steps (30 a
+second), each an emitter of particles or one of the game's models, on the target. The file
+name is its id.
+
+```json
+{ "format": 1, "length": 28, "tracks": [
+  { "type": "emitter", "name": "glow", "start": 0, "anchor": "target",
+    "emission": { "duration": 1, "interval": 0, "count": 1, "bursts": 1 }, "life": 22, "size": 18,
+    "colour": [[1, 20, 180, 60, 0], [5, 20, 180, 60, 110], [21, 0, 110, 30, 0]],
+    "texture": { "image": "glow.png", "width": 64, "height": 64 },
+    "render": { "blend": "additive" } } ] }
+```
+
+- **Where it plays.** A spell: `defs/spells` with `"effect": "<id>"` (or `"cast": "<id>"` for
+  the caster's glow) - the battle plays it where it would play the spell's own, on every target.
+  Code: `Game.Effects.Spawn("<id>", position)`. A cutscene: an *Effect* clip on an object's, the
+  hero's or the game track (`name`, `position`, `follow`, `keep`).
+- **Pictures.** `"image"` is a PNG beside the definition, or one of the game's by
+  `game:<pack>:<name>` (read from the player's install, never copied into the mod - Crystal's
+  Effects library shows each pack's).
+- **Where to start.** Crystal's Effects library plays every effect of the game on its Stage and
+  shows its definition - copy one into `defs/effects/` and change it; `crystal effect <install>
+  <category> [member]` writes one out. The project's own effects are in the library too, played
+  on the same Stage as the game will.
+- **How it runs.** Each definition gets a category of its own from 1000 up (numbers the game
+  never uses), so the battle asks for one as it asks for its own; the client runs it
+  (`OpenFF/Compat/ModEffects.cs`, the player shared with Crystal in `Shared/Effects/EffectPlayer.cs`)
+  and draws it after the game's effects, a particle at a time between the steps at 60 frames a
+  second. A file changed while the game runs plays as saved the next time the effect starts.
+
 ### Monsters of the mod's own: `defs/monsters/<id>.json`
 
 A monster is a definition too. Under *OpenFF mod ▸ Monsters*, *New monster…* asks for a name
@@ -1679,6 +1712,9 @@ release zip carries them in `Samples\`.
   menu** - `menus/abilities.xml` + `.json`, `menus/jobs`, `menus/job-confirm`, and
   `AbilitiesScreen.cs` with the three MenuBehaviours that fill and drive them - the shape of a
   menu of your own; `install.cmd` builds it into the mods folder.
+- `Samples/EmeraldFire` - Fire burns green: an effect of the mod's own (`defs/effects`) over
+  the game's flame pictures and a glow of its own picture, played by the spell (`defs/spells`).
+  No code. Copy the folder into `mods/`.
 - `Samples/SummonMagic` - three definitions and no code: Fire, Blizzard and Thunder cast with
   the summoner's glow and the summons' finales (`defs/spells`). Copy the folder into `mods/`.
 - `Samples/StarlitMenu` - the game's whole menu redrawn with no code: layouts, one stylesheet

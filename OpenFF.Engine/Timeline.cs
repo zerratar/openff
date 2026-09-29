@@ -21,6 +21,9 @@
 //   screen   fadeOut, fadeIn, flash
 //   audio    se, bgm, stopBgm
 //   game     flags, wait, warp, battle, item, signal (a CutsceneSignal for code to hear)
+//   effect   on an object, the hero or the game track: one of the mods' effects (defs/effects) at
+//            the actor (plus position) or at position, following it or not, for the clip's length
+//            (or on past it, keep)
 //
 // Every clip carries `args` by name - what it needs of: to, yaw, at, ease, index, loop, set,
 // visible, alpha, scale, name, position, target, strength, speed, degrees, text, speaker,
@@ -648,14 +651,39 @@ namespace OpenFF
 				case "signal":
 					Game.Events.Publish(new CutsceneSignal(clip.Str("name"), this));
 					break;
+				case "effect":
+				{
+					// On an object or the hero: at it (position an offset from it); on the game track: at position.
+					Actor actor = kind == "game" ? null : ActorOf(track);
+					Vector3 offset = clip.Vec("position") ?? Vector3.Zero;
+					if (kind != "game" && (actor == null || !actor.Valid)) return;
+					Vector3 at = actor != null ? actor.Position + offset : offset;
+					int id = Game.Effects.Spawn(clip.Str("name"), at);
+					if (id >= 0) _state[clip] = new EffectPlay { Id = id, Actor = actor, Offset = offset, Follow = clip.Bool("follow", false), Keep = clip.Bool("keep", false) };
+					break;
+				}
 				default:
 					Game.Warn("cutscene " + Name + ": no clip type '" + clip.Type + "' on a " + kind + " track");
 					break;
 			}
 		}
 
+		/// <summary>An effect clip's effect: its id, and the actor it follows.</summary>
+		private sealed class EffectPlay
+		{
+			public int Id;
+			public Actor Actor;
+			public Vector3 Offset;
+			public bool Follow, Keep;
+		}
+
 		private void Step(Clip clip, float progress)
 		{
+			if (_state.TryGetValue(clip, out object playing) && playing is EffectPlay fx)
+			{
+				if (fx.Follow && fx.Actor != null && fx.Actor.Valid) Game.Effects.Move(fx.Id, fx.Actor.Position + fx.Offset);
+				return;
+			}
 			if (!_state.TryGetValue(clip, out object state) || !(state is Tween t)) return;
 			float p = Eased(clip.Str("ease", "smooth"), progress);
 			switch (clip.Type)
@@ -684,6 +712,13 @@ namespace OpenFF
 
 		private void End(Clip clip)
 		{
+			if (_state.TryGetValue(clip, out object playing) && playing is EffectPlay fx)
+			{
+				// At the clip's end the effect goes, unless it is to play on (keep) - then it ends as it ends.
+				if (!fx.Keep && Game.Effects.Alive(fx.Id)) Game.Effects.Remove(fx.Id);
+				_state.Remove(clip);
+				return;
+			}
 			if (!_state.TryGetValue(clip, out object state) || !(state is Tween t)) return;
 			switch (clip.Type)
 			{

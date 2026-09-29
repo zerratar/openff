@@ -106,6 +106,8 @@ internal static partial class GlobalScope
 						}
 					}
 					_graph.drawObjects();
+					// PORT: the mods' own effects, right after the game's (OpenFF.Client.ModEffects).
+					OpenFF.Client.ModEffects.DrawScene();
 					if (bVBlank && CDevice.singleton().getFPS() == CDevice.enFPS.enFPS_30)
 					{
 						ulong num = (ulong)OS_GetTick() - CDevice.singleton().getPreVBlankTick();

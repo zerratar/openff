@@ -17,6 +17,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: an Effects library plays the game's effects on a Stage, imported into the new effect format, with their models, on a monster or the party.
 - Crystal: effect <install> <category> [member] prints one of the game's effects in the new format.
 - Items: a mod's own magic item gets a copy of its base's effect record.
+- Effects: defs/effects/<id>.json, a mod's own effect, played by spells, Game.Effects.Spawn(id) and cutscenes.
+- Cutscenes: an Effect clip plays a mod's effect on an object, the hero or at a point.
+- Emerald Fire sample: Fire burns green with an effect of the mod's own.
+- Drives: effect <id> [dx dy dz] plays a mod's effect at the hero.
+- Crystal: the project's own effects play on the Effects Stage; additive blending drawn as the game draws it.
+- Crystal: effect-cases checks the effect runtime against the shared cases.
 
 **Fixes**
 - Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.

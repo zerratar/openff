@@ -2,7 +2,7 @@
 
 Visual effects of the mods' own - spells, summons, hits, the field's sparkles - made in Crystal
 the way a menu or a cutscene is: an editor with a live preview, and the game's own effects to
-start from. This is the plan; stages 1 and 2 are built (below).
+start from. This is the plan; stages 1 to 3 are built (below).
 
 ## What the game has
 
@@ -193,11 +193,16 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    casts, play as the game plays them, models and their motions too (not yet their material
    animations), on the target the battle would play them on. The game's side - every
    layout, the step-by-step runtime, its quirks - is `Docs/Effects-Eld.md`.
-3. **The runtime in the client** (large). The format, every track and module, the scene
-   passes, `FrameCapture`, anchors and paths, spells pointing at a mod effect, `IEffects` by id,
-   the cutscene track, hot reload. The shared test cases start here. *Done when* an imported
-   effect edited by hand in JSON plays in battle on the right target, at 60 fps, the same as in
-   Crystal.
+3. **The runtime in the client** (large) - *done*. `Shared/Effects/EffectPlayer.cs` plays
+   format 1 in the client and is effects.js's twin - `Tools/EffectCases` holds the cases both
+   are checked against (`node Tools/effect_cases.mjs`, `crystal effect-cases`). A mod's effects
+   (`defs/effects`) get categories from 1000 up, run as eld objects the battle places and deletes
+   (`OpenFF/Compat/ModEffects.cs`; `eld.Manager.createObject`), drawn after the game's effects in
+   `Scene.draw` through `NativeRenderer.Draw` (alpha or additive), each particle recorded by
+   `FrameCapture` so 60 fps draws it between steps; mesh tracks are the game's own model objects.
+   Spells name them (`defs/spells` `effect`, `cast`), `IEffects.Spawn(id, position)`, the
+   cutscene's *Effect* clip; sound and shake tracks; hot reload as the effect starts.
+   `Samples/EmeraldFire`. Not yet: anchors besides the target, a glTF mesh track, flash.
 4. **The editor** (large). The inspector, curves, gradients, timeline, the item card's picker,
    *Duplicate into the mod*, *Play in the game*. *Done when* a modder can make a new spell's
    effect in Crystal from one of the game's without touching JSON.

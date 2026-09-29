@@ -157,7 +157,8 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
           }
         }
         p.vel = v;
-        p.grav = t.gravity ? (t.gravity.direction || [0, -1, 0]).map(d => d * range(t.gravity.value)) : [0, 0, 0];
+        if (t.gravity) { const gv = range(t.gravity.value); p.grav = (t.gravity.direction || [0, -1, 0]).map(d => d * gv); }
+        else p.grav = [0, 0, 0];
         if (t.orbit) { p.radius = t.orbit.radius || 0; p.angle = 360 * rand(); }
       }
       if (!local && !t.gather) p.base = [p.base[0] + e.at[0], p.base[1] + e.at[1], p.base[2] + e.at[2]];
@@ -265,7 +266,7 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
         const scale = effectKeys(t.scale, g.age, 2) || [1, 1];
         const cell = effectFrame(tex.frames, g.age);
         for (const p of g.parts) {
-          if (p.shown && colour[3] > 0) out.push({ p, pos: p.pos, prev: p.prev, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour, cell, tex });
+          if (p.shown && colour[3] > 0) out.push({ p, pos: p.pos, prev: p.prev, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour, cell, tex, blend: (t.render || {}).blend });
           if (t.trail && p.trail.length) {
             // After-images: the particle where it was, each darker by the trail's colour toward its end (the last one never shows, as in the game).
             const n = t.trail.count, d = colour.map((c, k) => (c - Math.max(0, Math.min(255, c + (t.trail.colour[k] || 0)))) / (n + 1));
@@ -273,7 +274,7 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
               const was = p.trail[k - 1];
               if (!was || !was.shown) continue;
               const c = colour.map((v, j) => v - k * d[j]);
-              if (c[3] > 0) out.push({ p: null, pos: was.pos, prev: was.pos, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour: c, cell, tex });
+              if (c[3] > 0) out.push({ p: null, pos: was.pos, prev: was.pos, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour: c, cell, tex, blend: (t.render || {}).blend });
             }
           }
         }
@@ -689,14 +690,18 @@ function makeEffectStage(canvas, textureUrl) {
     const bind = (loc, size, offset) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride * 4, offset * 4); };
     bind(attr.centre, 3, 0); bind(attr.before, 3, 3); bind(attr.corner, 2, 6); bind(attr.extent, 2, 8); bind(attr.uv, 2, 10); bind(attr.colour, 4, 12);
     gl.activeTexture(gl.TEXTURE0);
-    // Runs of one texture, in order - blending needs the game's order, not one batch per texture.
+    // Runs of one texture and one blend, in order - blending needs the game's order, not one batch per texture.
+    // Additive (render.blend) adds the quad's light to what is behind it, as the client draws it (SourceAlpha, One).
+    const same = (a, b) => (a.tex || {}).image === (b.tex || {}).image && (a.blend === 'additive') === (b.blend === 'additive');
     let from = 0;
     for (let i = 1; i <= quads.length; i++) {
-      if (i < quads.length && (quads[i].tex || {}).image === (quads[from].tex || {}).image) continue;
+      if (i < quads.length && same(quads[i], quads[from])) continue;
+      gl.blendFunc(gl.SRC_ALPHA, quads[from].blend === 'additive' ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
       gl.bindTexture(gl.TEXTURE_2D, texture((quads[from].tex || {}).image));
       gl.drawArrays(gl.TRIANGLES, from * 6, (i - from) * 6);
       from = i;
     }
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     for (const loc of Object.values(attr)) gl.disableVertexAttribArray(loc);
     gl.depthMask(true);
   }
@@ -706,10 +711,10 @@ function makeEffectStage(canvas, textureUrl) {
 
 // ------------------------------------------------------------------ the view
 
-/// "game:e331.efp:fire_tubu_32bit.tga" as the server's texture address.
-function effectTextureUrl(key) {
+/// "game:e331.efp:fire_tubu_32bit.tga" as the server's texture address; a PNG of the mod's, beside its definition (own).
+function effectTextureUrl(key, own) {
   const m = /^game:([^:]+):(.+)$/.exec(key || '');
-  if (!m) return '';
+  if (!m) return own && key ? wsUrl(`/api/effect/own-texture?effect=${encodeURIComponent(own)}&name=${encodeURIComponent(key)}`) : '';
   return wsUrl(`/api/effect/texture?pack=${encodeURIComponent(m[1])}&name=${encodeURIComponent(m[2])}`);
 }
 
@@ -774,7 +779,7 @@ async function openEffect(name) {
   notes.append(summary, json);
   body.append(stageBox, controls, notes);
 
-  const stage = makeEffectStage(canvas, effectTextureUrl);
+  const stage = makeEffectStage(canvas, key => effectTextureUrl(key, pack.own ? name : null));
   if (!stage) { facts.textContent = 'this browser has no WebGL, so effects cannot be drawn'; return; }
 
   // The monsters to stand at the hit point; the Goblin to start with.
@@ -801,8 +806,12 @@ async function openEffect(name) {
   let player = null, def = null, playing = true, last = performance.now(), owed = 0, length = 60;
 
   async function load(value) {
-    const [category, member] = value.split('/').map(n => parseInt(n, 10));
-    const r = await api(`/api/effect/import?category=${category}&member=${member}`);
+    let r;
+    if (pack.own) r = { effect: pack.effect, notes: [] };   // the mod's own: its definition as written
+    else {
+      const [category, member] = value.split('/').map(n => parseInt(n, 10));
+      r = await api(`/api/effect/import?category=${category}&member=${member}`);
+    }
     if (r.error) { say(r.error, 'bad'); return; }
     def = r.effect;
     json.textContent = JSON.stringify(def, null, 1).replace(/\[\s+([-\d.,\s]+?)\s+\]/g, (m, inner) => '[' + inner.replace(/\s+/g, ' ').trim() + ']')
@@ -857,7 +866,11 @@ async function openEffect(name) {
     requestAnimationFrame(frameLoop);
   }
 
-  if (members.length) {
+  if (pack.own) {
+    pick.hidden = true;
+    facts.textContent = pack.note;
+    await load('');
+  } else if (members.length) {
     const first = members.find(t => t.category === pack.category && t.member === 1) || members[0];
     pick.value = `${first.category}/${first.member}`;
     await load(pick.value);

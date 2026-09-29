@@ -8,6 +8,7 @@
 //   { "spell": 4101, "effect": "game:389/1", "frame": 60 }          a pack and member by number
 //   { "spell": "Fire", "effect": "Firaga", "sound": "Thundaga" }    a sound of another spell's
 //   { "spell": "Cure", "cast": "black" }                            the caster's glow of another school
+//   { "spell": "Fire", "effect": "my-fire" }                        a mod's own effect (defs/effects/my-fire.json)
 //
 // A record is 32 bytes: magicId s16 @0, offset s16 @2, the effect @4 (frameCounter s32, type s16
 // @8, category s16 @10, member s16 @12, loop u8 @14, pad), the sound @16 in the same shape (its
@@ -120,7 +121,6 @@ namespace OpenFF.Data
 						if (string.IsNullOrWhiteSpace(spell.Id)) spell.Id = Path.GetFileNameWithoutExtension(file);
 						if (spell.Spell == null) { notes?.Add(file + ": a spell look needs \"spell\""); continue; }
 						if (spell.Effect == null && spell.Sound == null && spell.Frame == null && spell.Cast == null) { notes?.Add(file + ": nothing to change (effect, sound, frame or cast)"); continue; }
-						if (spell.Cast != null && ModSpell.CastPack(spell.Cast) == null) notes?.Add(file + ": no cast '" + spell.Cast + "' (black, white, summon, none or game:pack)");
 						spells.Add(spell);
 					}
 					catch (Exception ex) { notes?.Add(file + ": " + ex.Message); }
@@ -136,7 +136,7 @@ namespace OpenFF.Data
 		/// when nothing changes.
 		/// </summary>
 		public static byte[] Compose(byte[] data, IReadOnlyList<ModSpell> spells, IReadOnlyList<(int Number, int Base)> modMagic,
-			Func<string, int?> spellId, List<string> notes = null)
+			Func<string, int?> spellId, List<string> notes = null, Func<string, int?> effectCategory = null)
 		{
 			if (data == null || ((spells == null || spells.Count == 0) && (modMagic == null || modMagic.Count == 0))) return data;
 			ChainPack pack;
@@ -177,6 +177,12 @@ namespace OpenFF.Data
 						// A pack and member by number: the effect alone; its start frame and loop as the spell had them.
 						Put16(record, 10, category);
 						Put16(record, 12, member);
+					}
+					else if (effectCategory?.Invoke(s.Effect) is int mine)
+					{
+						// A mod's own effect (defs/effects): its category, member 1; the spell's own timing and place.
+						Put16(record, 10, mine);
+						Put16(record, 12, 1);
 					}
 					else if (spellId(s.Effect) is int like && byId.TryGetValue(like, out byte[] other))
 					{

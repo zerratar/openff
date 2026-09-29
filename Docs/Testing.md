@@ -261,6 +261,19 @@ passed; these are the rest.
 | C-51 | FF4 menu tour | `OpenFF.exe --game=ff4 --map=t01_00 --party=4:10 --gil=500 --drive=Docs/Drives/ff4-menu.drive --log=general,file --screenshot-dir=shots --screenshot-every=2` | The log has "menu: open", "menu: Status of Cecil", "menu: Abilities of Rydia" (Right switched member), "menu: Inventory", "menu: Equipment of Rydia", "menu: Party", "menu: close", "drive: menu tour done", no Exception; the screenshots show the root with the party rows and the command column, the Status screen with the attribute rows, the empty inventory ("Nothing in the bag."), the Equipment screen with "Nothing in the bag fits there." |
 | C-37 | FF4: the follow camera on a town map | `OpenFF.exe --game=ff4 --map=t01_00` | Cecil stands at Baron town's gate with the camera behind and above him, the FF4 way (leader + (0, 90, 85), looking at leader + (0, 17, 5) - FF4's WorldCamera defaults; FF3's own offsets framed the gate's roof with Cecil out of view). Walking keeps him framed |
 
+### Effects
+
+- `node Tools/effect_cases.mjs` and `crystal effect-cases` - the JS player (Crystal's Stage) and
+  the client's (`Shared/Effects/EffectPlayer.cs`) against `Tools/EffectCases`: an effect, a seed,
+  frames and the quads each draws. Both say "4/4 case(s) pass"; a change to either player that
+  changes what it draws fails both until the other follows and the cases are written again
+  (`--write`, from the JS).
+- `Samples/EmeraldFire` in `mods/`, a drive `until jump: ff3 90`, `wait 4`, `learn 0 4101`,
+  `battle 1`, Fire on the Goblin: the log has "effects: 1 of the mods': emerald-fire (1000)" and
+  "spells: 1 look(s) of the mods': Fire -> emerald-fire"; the screenshots show green flames on
+  the Goblin where the game's Fire burns, then the damage. The drive step `effect emerald-fire 0 4 6`
+  plays it by the hero on the field.
+
 ## What "works" looks like in the log
 
 The console pane shows every install as `wrote <file>` or `rebuilt <container> (<n>

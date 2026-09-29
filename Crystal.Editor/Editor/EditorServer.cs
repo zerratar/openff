@@ -2062,11 +2062,11 @@ namespace Crystal.Editor
 					return;
 
 				case "/api/effects":
-					SendJson(context, Effects.List(_workspace));
+					SendJson(context, Effects.List(_workspace, _project));
 					return;
 
 				case "/api/effect":
-					try { SendJson(context, Effects.Read(_workspace, Query(context, "name"))); }
+					try { SendJson(context, Effects.Read(_workspace, Query(context, "name"), _project)); }
 					catch (Exception ex) { SendJson(context, new { error = ex.Message }); }
 					return;
 
@@ -2087,6 +2087,11 @@ namespace Crystal.Editor
 
 				case "/api/effect/model/texture":
 					try { Send(context, 200, "image/png", Effects.ModelTexturePng(_workspace, Query(context, "pack"), Query(context, "id"), Query(context, "name"))); }
+					catch (Exception) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such texture")); }
+					return;
+
+				case "/api/effect/own-texture":
+					try { Send(context, 200, "image/png", Effects.OwnTexture(_project, Query(context, "effect"), Query(context, "name"))); }
 					catch (Exception) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such texture")); }
 					return;
 
