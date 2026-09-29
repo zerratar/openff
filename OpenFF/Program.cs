@@ -117,6 +117,10 @@ namespace OpenFF.Client
 				// Quality of life (the Esc menu's page): F8 the speed, F11 random encounters, and the corner's indicator.
 				QolIndicator.Attach(game);
 
+				// Updates from GitHub's releases: asked in the background now, offered on the title.
+				UpdateScreen.Attach(game);
+				Updates.CheckAtStart();
+
 				// Notices over the game (ABP won, an ability learned, what a mod posts) and the
 				// Abilities menu for heroes on the mastery progression.
 				Notices.Attach(game);

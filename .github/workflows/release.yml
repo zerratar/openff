@@ -56,5 +56,8 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           draft: true
-          files: dist/OpenFF-*-win-x64.zip
+          # The zip, and its .sha256 - what the client checks a downloaded update against.
+          files: |
+            dist/OpenFF-*-win-x64.zip
+            dist/OpenFF-*-win-x64.zip.sha256
           body_path: dist/notes.md

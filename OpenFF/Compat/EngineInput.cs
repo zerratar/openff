@@ -29,7 +29,7 @@ namespace OpenFF.Client
 		public static void Update()
 		{
 			OpenFF.InputState input = OpenFF.Game.Input;
-			bool active = _game != null && _game.IsActive && !(TextEntry.Instance != null && TextEntry.Instance.IsActive) && !ModListScreen.IsOpen;
+			bool active = _game != null && _game.IsActive && !(TextEntry.Instance != null && TextEntry.Instance.IsActive) && !ModListScreen.IsOpen && !UpdateScreen.IsOpen;
 			if (!active && DesktopInput.Injected.Count == 0)
 			{
 				input.SetPad(0);

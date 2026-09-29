@@ -42,6 +42,7 @@ namespace OpenFF.Client
 				case Page.Main: return new Layout(new Rectangle(152, 70, 496, 340), 150, 43, 36, false);
 				case Page.Quit: return new Layout(new Rectangle(190, 146, 420, 200), 222, 41, 34, false);
 				case Page.Buttons: return new Layout(new Rectangle(142, 24, 516, 440), 92, 22, 19.5f, true);
+				case Page.Settings: return new Layout(new Rectangle(142, 36, 516, 440), 108, 28, 24.5f, true);
 				default: return new Layout(new Rectangle(142, 50, 516, 414), 122, 31, 27, true);
 			}
 		}
@@ -128,7 +129,7 @@ namespace OpenFF.Client
 		{
 			if (!Game.IsActive && !Drive.Active) return;   // a drive's keys come whether the window has focus or not
 			// Nothing else may own the keyboard: the text entry, the mod list, a mod's capture.
-			bool othersOwn = (TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || AbilitiesMenu.IsOpen || EngineInput.Captured;
+			bool othersOwn = (TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || AbilitiesMenu.IsOpen || UpdateScreen.IsOpen || EngineInput.Captured;
 			if (_page == Page.Closed)
 			{
 				if (othersOwn || RenderTest.Active) { _openEdge = OpenKeyDown(); return; }
@@ -201,14 +202,15 @@ namespace OpenFF.Client
 				case Page.Settings:
 					if (cancel) { _page = Page.Main; _selected = MainRow("settings"); DisplaySettings.Current.Save(); return; }
 					if (left || right || confirm) ChangeSetting(_selected, left ? -1 : 1, confirm);
+					CheckNote();
 					break;
 				case Page.Buttons:
-					if (cancel) { _page = Page.Settings; _selected = 6; return; }
+					if (cancel) { _page = Page.Settings; _selected = 8; return; }
 					if (confirm)
 					{
 						if (_selected < DsButtons.Length) { _binding = DsButtons[_selected].Key; _note = "press the pad button for " + DsButtons[_selected].Label + "  (Esc gives up)"; }
 						else if (_selected == DsButtons.Length) { DisplaySettings.Current.Pad = new DisplaySettings.PadMap(); _note = "the defaults are back"; }
-						else { _page = Page.Settings; _selected = 6; }
+						else { _page = Page.Settings; _selected = 8; }
 					}
 					break;
 				case Page.Quit:
@@ -234,7 +236,7 @@ namespace OpenFF.Client
 			switch (_page)
 			{
 				case Page.Main: return MainRows().Length;
-				case Page.Settings: return 8;
+				case Page.Settings: return 10;
 				case Page.Qol: return QolRows;
 				case Page.Buttons: return DsButtons.Length + 2;
 				case Page.Quit: return 2;
@@ -290,11 +292,37 @@ namespace OpenFF.Client
 					s.Run = s.Run == "stick" ? "hold" : "stick";
 					break;
 				case 6:
+				{
+					string[] modes = { "ask", "auto", "off" };
+					int i = Array.IndexOf(modes, Updates.Mode); if (i < 0) i = 0;
+					s.Updates = modes[(i + by + modes.Length) % modes.Length];
+					_note = s.Updates == "ask" ? "a new version is offered on the title" : s.Updates == "auto" ? "a new version is downloaded and installed on the title" : "never looks for updates";
+					break;
+				}
+				case 7:
+					if (confirm) { Updates.Check(asked: true); _checking = true; }
+					break;
+				case 8:
 					if (confirm) { _page = Page.Buttons; _selected = 0; _note = ""; }
 					break;
-				case 7:
+				case 9:
 					if (confirm) { _page = Page.Main; _selected = MainRow("settings"); s.Save(); }
 					break;
+			}
+		}
+
+		// Settings' Check now asked: its answer in the note as it comes.
+		private bool _checking;
+
+		private void CheckNote()
+		{
+			if (!_checking) return;
+			switch (Updates.Now)
+			{
+				case Updates.Stage.Checking: _note = "checking for updates..."; break;
+				case Updates.Stage.UpToDate: _note = "you have the newest - OpenFF " + Updates.Current.ToString(3); _checking = false; break;
+				case Updates.Stage.Available: _note = "OpenFF " + Updates.Found.Version.ToString(3) + " is out - it is offered on the title"; _checking = false; break;
+				case Updates.Stage.Failed: _note = Updates.Error ?? "the check did not go through"; _checking = false; break;
 			}
 		}
 
@@ -487,7 +515,9 @@ namespace OpenFF.Client
 						case 3: icon = UiTheme.Icon.VSync; on = s.VSync; return Kind.Switch;
 						case 4: icon = UiTheme.Icon.FrameRate; return Kind.Stepper;
 						case 5: icon = UiTheme.Icon.Run; return Kind.Stepper;
-						case 6: icon = UiTheme.Icon.Pad; return Kind.Page;
+						case 6: icon = UiTheme.Icon.Indicator; return Kind.Stepper;
+						case 7: icon = UiTheme.Icon.Resume; return Kind.Page;
+						case 8: icon = UiTheme.Icon.Pad; return Kind.Page;
 						default: icon = UiTheme.Icon.Back; return Kind.None;
 					}
 				case Page.Buttons:
@@ -736,7 +766,9 @@ namespace OpenFF.Client
 						case 3: label = "VSync"; value = s.VSync ? "On" : "Off"; return;
 						case 4: label = "Frame rate"; value = FpsValue(s.Fps); return;
 						case 5: label = "Run"; value = s.Run == "stick" ? "By the stick's push" : "Hold the run button"; return;
-						case 6: label = "Pad buttons..."; return;
+						case 6: label = "Updates"; value = Updates.Mode == "auto" ? "Automatic" : Updates.Mode == "off" ? "Off" : "Ask"; return;
+						case 7: label = "Check for updates"; return;
+						case 8: label = "Pad buttons..."; return;
 						default: label = "Back"; return;
 					}
 				case Page.Buttons:

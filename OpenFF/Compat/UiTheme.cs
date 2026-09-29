@@ -343,6 +343,21 @@ namespace OpenFF.Client
 			Ui.RoundPlate(b, Inset(p, Math.Max(1, (int)Math.Round(Sx(v) * 0.8f))), fill, v, radius);
 		}
 
+		/// <summary>A progress bar: a dark inset with a gold edge, filled with the lit row's gold to the fraction.</summary>
+		public static void Progress(SpriteBatch b, Rectangle r, float fraction, Viewport v)
+		{
+			Rectangle p = Px(r.X, r.Y, r.Width, r.Height, v);
+			Ui.RoundPlate(b, p, new Color(196, 156, 74, 240), v, 4f);
+			Rectangle inner = Inset(p, Math.Max(2, (int)Math.Round(2 * Sx(v))));
+			Ui.RoundPlate(b, inner, InsetFill, v, 3f);
+			int w = (int)Math.Round(inner.Width * Math.Clamp(fraction, 0f, 1f));
+			if (w <= 0) return;
+			Rectangle fill = new Rectangle(inner.X, inner.Y, w, inner.Height);
+			Glow(b, new Rectangle(r.X, r.Y, (int)Math.Round(r.Width * Math.Clamp(fraction, 0f, 1f)), r.Height), new Color(255, 196, 84, 70), 4f, v);
+			b.Draw(_grad, fill, null, Color.White, 0f, Microsoft.Xna.Framework.Vector2.Zero, SpriteEffects.FlipHorizontally, 0f);   // bright at the leading edge
+			Ui.Fill(b, new Rectangle(fill.X, fill.Y, fill.Width, Math.Max(1, fill.Height / 3)), new Color(255, 240, 200, 50));
+		}
+
 		/// <summary>A gold diamond centred on a text-space point.</summary>
 		public static void Diamond(SpriteBatch b, float cx, float cy, float size, Color colour, Viewport v) => b.Draw(_diamond, Px(cx - size / 2, cy - size / 2, size, size, v), colour);
 

@@ -77,6 +77,14 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>This run's command line less the one-shot options, and --start=title: a new process's, on the title (the updater's restart).</summary>
+		public static List<string> TitleArguments()
+		{
+			List<string> list = Kept(Environment.GetCommandLineArgs().Skip(1).ToArray()).ToList();
+			list.Add("--start=title");
+			return list;
+		}
+
 		/// <summary>The arguments less the one-shot options, in either form (--name=value, or --name value).</summary>
 		private static IEnumerable<string> Kept(string[] args)
 		{

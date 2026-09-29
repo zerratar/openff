@@ -13,6 +13,12 @@ cd /d "%~dp0"
 if exist dist\OpenFF rmdir /s /q dist\OpenFF
 dotnet publish OpenFF\OpenFF.csproj -c Release -r win-x64 --self-contained true -o dist\OpenFF -nologo -v q || goto fail
 dotnet publish Crystal.Editor\Crystal.Editor.csproj -c Release -r win-x64 --self-contained true -o dist\OpenFF -nologo -v q || goto fail
+rem The updater: a small native program (Native AOT - no .NET needed), which the client runs from a copy in the
+rem temp folder to put a new release in place; the linker's tools are found through vswhere, from the VS Installer.
+set "PATH=%PATH%;%ProgramFiles(x86)%\Microsoft Visual Studio\Installer"
+if exist dist\updater rmdir /s /q dist\updater
+dotnet publish OpenFF.Updater\OpenFF.Updater.csproj -c Release -r win-x64 -o dist\updater -nologo -v q || goto fail
+copy /y dist\updater\OpenFF.Updater.exe dist\OpenFF\OpenFF.Updater.exe >nul || goto fail
 if not exist dist\OpenFF\mods mkdir dist\OpenFF\mods
 copy /y README.md dist\OpenFF\README.md >nul
 copy /y Docs\Modding.md dist\OpenFF\Modding.md >nul
@@ -27,9 +33,11 @@ if exist Docs\Guide robocopy Docs\Guide dist\OpenFF\Guide /e /njh /njs /ndl /nfl
 if exist dist\OpenFF-%VERSION%-win-x64.zip del dist\OpenFF-%VERSION%-win-x64.zip
 powershell -NoProfile -Command "Compress-Archive -Path dist\OpenFF -DestinationPath dist\OpenFF-%VERSION%-win-x64.zip -CompressionLevel Optimal" || goto fail
 if not exist dist\OpenFF-%VERSION%-win-x64.zip goto fail
+rem The zip's SHA-256, which the client checks a downloaded update against before it installs it.
+powershell -NoProfile -Command "$h = (Get-FileHash -Algorithm SHA256 'dist\OpenFF-%VERSION%-win-x64.zip').Hash.ToLower(); Set-Content -NoNewline -Encoding ascii 'dist\OpenFF-%VERSION%-win-x64.zip.sha256' ($h + '  OpenFF-%VERSION%-win-x64.zip')" || goto fail
 echo.
 echo dist\OpenFF: OpenFF.exe plays, crystal.exe edits, mods\ is where mods go.
-echo dist\OpenFF-%VERSION%-win-x64.zip: the release.
+echo dist\OpenFF-%VERSION%-win-x64.zip: the release, and its .sha256 beside it.
 exit /b 0
 
 :fail
