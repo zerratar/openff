@@ -223,6 +223,11 @@ internal static partial class GlobalScope
 
 			public void setPosition(int _id, VecFx32 pos)
 			{
+				// PORT: an effect that was not made (a mod's cast of none, or a pack without the member) has nowhere to go.
+				if (_id < 0 || effectObject(_id).object_ == null)
+				{
+					return;
+				}
 				int x = pos.x;
 				int y = pos.y;
 				int z = pos.z;

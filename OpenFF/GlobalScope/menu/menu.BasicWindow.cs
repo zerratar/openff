@@ -173,6 +173,7 @@ internal static partial class GlobalScope
 			protected override void SetPositionCC(ds.Vector2<short> cc)
 			{
 				base.SetPositionCC(cc);
+				PlaceBar();
 				ds.Vector2<short> vector = new ds.Vector2<short>(base.GetPositionUL());
 				ds.Vector2<short> vector2 = new ds.Vector2<short>(vector);
 				for (int i = 0; i < m_nChip.vy; i++)
@@ -292,6 +293,7 @@ internal static partial class GlobalScope
 				if (size.w < 12 || size.h < 12)
 				{
 					base.SetShow(show: false, user: true);
+					PlaceBar();
 					return;
 				}
 				base.SetShow(show: true, user: true);
@@ -433,6 +435,7 @@ internal static partial class GlobalScope
 						m_pFrame[k].SetShow(show);
 					}
 				}
+				PlaceBar();
 			}
 
 			public override void SetPriority(byte pri)
@@ -547,6 +550,32 @@ internal static partial class GlobalScope
 					sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(m_pBar);
 				}
 				m_pBar.SetCell((ushort)type);
+				PlaceBar();
+			}
+
+			// PORT: the bars (the battle lists' lines between rows and columns) are one picture drawn about the
+			// sprite's position, which the game never sets: the phone's, four rows of 48 under a window at the
+			// screen's centre. Steam's battle windows are three rows of 32 at the foot of the screen, so on a
+			// Steam install the picture is laid on the window - its lines on the rows' boundaries, as wide as
+			// the window - and it shows with the window.
+			private void PlaceBar()
+			{
+				if (m_pBar == null)
+				{
+					return;
+				}
+				m_pBar.SetShow(IsShow());
+				ds.Vector2<short> ul = base.GetPositionUL();
+				ds.Vector2<short> size = base.GetSize();
+				if (!OpenFF.Client.SteamCells.SteamFf3 || size.w <= 0 || size.h <= 0)
+				{
+					return;
+				}
+				m_pBar.SetScaleF(FX32_CONST((float)size.w / 480f), FX32_CONST((float)size.h / 144f));
+				NNSG2dFVec2 position = new NNSG2dFVec2();
+				position.x = FX32_CONST((float)ul.vx + (float)size.w * 0.5f);
+				position.y = FX32_CONST((float)ul.vy + (float)size.h * 2f / 9f);
+				m_pBar.SetPosition(position);
 			}
 
 			public override void Release()

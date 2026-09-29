@@ -1,5 +1,6 @@
 {
   "spell": "Blizzard",
   "effect": "game:367/1",
-  "frame": 60
+  "frame": 60,
+  "cast": "summon"
 }

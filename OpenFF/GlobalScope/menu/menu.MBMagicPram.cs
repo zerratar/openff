@@ -752,6 +752,9 @@ internal static partial class GlobalScope
 				mIType[indexNo].bEnable = true;
 				mIType[indexNo].pos.vx = (short)x;
 				mIType[indexNo].pos.vy = (short)y;
+				// PORT: Steam's school icons are drawn 19 wide (the phone's cell over Steam's sheet) and the name starts
+				// 16 in: at three quarters the icon sits in its place beside the name instead of over its first letter.
+				int iconScale = OpenFF.Client.SteamCells.SteamFf3 ? FX32_CONST(0.75f) : ds.S32toFX32(1);
 				if (MenuManager.getSingleton().GetUsingMenuType() == 1)
 				{
 					mIType[indexNo].mgIcon.copy(MenuManager.getSingleton().GetSmallIcon2d());
@@ -767,6 +770,7 @@ internal static partial class GlobalScope
 						mIType[indexNo].mgIcon.SetCell(32);
 						break;
 					}
+					mIType[indexNo].mgIcon.SetScaleF(iconScale, iconScale);
 					mIType[indexNo].mgIcon.SetPositionI(mIType[indexNo].pos.vx, mIType[indexNo].pos.vy);
 					mIType[indexNo].mgIcon.SetShow(show: true);
 					mIType[indexNo].mgIcon.SetPriority(2);
@@ -787,6 +791,7 @@ internal static partial class GlobalScope
 						mIType[indexNo].mgIcon3d.SetCell(32);
 						break;
 					}
+					mIType[indexNo].mgIcon3d.SetScaleF(iconScale, iconScale);
 					mIType[indexNo].mgIcon3d.SetPositionI(mIType[indexNo].pos.vx, mIType[indexNo].pos.vy);
 					mIType[indexNo].mgIcon3d.SetShow(show: true);
 					mIType[indexNo].mgIcon3d.SetDepth(1);

@@ -7,12 +7,17 @@
 //   { "spell": "Fire", "effect": "Flare" }                          Flare's effect, its timing too
 //   { "spell": 4101, "effect": "game:389/1", "frame": 60 }          a pack and member by number
 //   { "spell": "Fire", "effect": "Firaga", "sound": "Thundaga" }    a sound of another spell's
+//   { "spell": "Cure", "cast": "black" }                            the caster's glow of another school
 //
 // A record is 32 bytes: magicId s16 @0, offset s16 @2, the effect @4 (frameCounter s32, type s16
 // @8, category s16 @10, member s16 @12, loop u8 @14, pad), the sound @16 in the same shape (its
 // category @22, member @24), motionStartFrame s16 @28, effectPlayFrame s16 @30 (how long the effect runs before the damage shows). A mod's own magic
 // item (defs/items with a magic base) has none of its own: it gets a copy of its base's, so
 // the battle finds one - and a definition here may change it like any other.
+//
+// The cast - the glow on the caster as a spell begins - is not in the record: the battle picks it by
+// the spell's school (btl.TurnSystem.magicStartEffect: 407 black, 408 white, 243 summon). "cast"
+// names another school's, "none", or a pack as game:<pack>; the client answers for it there.
 
 using System;
 using System.Collections.Generic;
@@ -34,6 +39,8 @@ namespace OpenFF.Data
 		public string Sound;
 		/// <summary>effectPlayFrame: how many frames the effect runs before the damage shows.</summary>
 		public int? Frame;
+		/// <summary>The caster's glow as the spell begins: "black", "white", "summon", "none" or "game:pack".</summary>
+		public string Cast;
 		public string Source;
 
 		public static ModSpell Parse(string json, string source = null)
@@ -47,6 +54,7 @@ namespace OpenFF.Data
 				Effect = Text(node["effect"]),
 				Sound = Text(node["sound"]),
 				Frame = node["frame"] is JsonValue f && f.TryGetValue(out int frame) ? frame : (int?)null,
+				Cast = Text(node["cast"]),
 				Source = source,
 			};
 		}
@@ -58,6 +66,22 @@ namespace OpenFF.Data
 			if (v.TryGetValue(out string s)) return string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 			if (v.TryGetValue(out int n)) return n.ToString(CultureInfo.InvariantCulture);
 			return null;
+		}
+
+		/// <summary>The pack a cast names: a school's (407 black, 408 white, 243 summon), -1 for "none", or game:pack; null when it names none.</summary>
+		public static int? CastPack(string text)
+		{
+			switch (text?.Trim().ToLowerInvariant())
+			{
+				case null: return null;
+				case "black": return 407;
+				case "white": return 408;
+				case "summon": return 243;
+				case "none": return -1;
+			}
+			string t = text.Trim();
+			return t.StartsWith("game:", StringComparison.OrdinalIgnoreCase)
+				&& int.TryParse(t.Substring(5), NumberStyles.Integer, CultureInfo.InvariantCulture, out int pack) && pack >= 0 ? pack : (int?)null;
 		}
 
 		/// <summary>"game:389/1" as a category and a member; false for anything else.</summary>
@@ -95,7 +119,8 @@ namespace OpenFF.Data
 						if (spell == null) continue;
 						if (string.IsNullOrWhiteSpace(spell.Id)) spell.Id = Path.GetFileNameWithoutExtension(file);
 						if (spell.Spell == null) { notes?.Add(file + ": a spell look needs \"spell\""); continue; }
-						if (spell.Effect == null && spell.Sound == null && spell.Frame == null) { notes?.Add(file + ": nothing to change (effect, sound or frame)"); continue; }
+						if (spell.Effect == null && spell.Sound == null && spell.Frame == null && spell.Cast == null) { notes?.Add(file + ": nothing to change (effect, sound, frame or cast)"); continue; }
+						if (spell.Cast != null && ModSpell.CastPack(spell.Cast) == null) notes?.Add(file + ": no cast '" + spell.Cast + "' (black, white, summon, none or game:pack)");
 						spells.Add(spell);
 					}
 					catch (Exception ex) { notes?.Add(file + ": " + ex.Message); }
@@ -142,6 +167,7 @@ namespace OpenFF.Data
 			bool changed = added.Count > 0;
 			foreach (ModSpell s in spells ?? Array.Empty<ModSpell>())
 			{
+				if (s.Effect == null && s.Sound == null && s.Frame == null) continue;   // a cast alone: not in the record
 				int? id = spellId(s.Spell);
 				if (id == null || !byId.TryGetValue(id.Value, out byte[] record)) { notes?.Add(s.Id + ": no spell '" + s.Spell + "'"); continue; }
 				if (s.Effect != null)

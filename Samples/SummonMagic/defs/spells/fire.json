@@ -1,5 +1,6 @@
 {
   "spell": "Fire",
   "effect": "game:375/1",
-  "frame": 60
+  "frame": 60,
+  "cast": "summon"
 }

@@ -181,9 +181,21 @@ namespace OpenFF.Client
 			List<string> notes = new List<string>();
 			List<ModSpell> spells = ModSpells.Load(roots, notes);
 			foreach (string note in notes) Log.Write(LogChannel.General, "spells: " + note);
+			List<ModSpell> casts = spells.Where(s => ModSpell.CastPack(s.Cast) != null).ToList();
+			if (casts.Count > 0) _castsFrom = () =>
+			{
+				// Resolved as a battle first asks: by then the spells' names can be read.
+				Dictionary<int, int> map = new Dictionary<int, int>();
+				foreach (ModSpell s in casts)
+				{
+					if (SpellId(chain, s.Spell, items) is int id) map[id] = ModSpell.CastPack(s.Cast).Value;
+					else Log.Write(LogChannel.General, "spells: " + s.Id + ": no spell '" + s.Spell + "' for its cast");
+				}
+				return map;
+			};
 			List<(int, int)> copies = items.Select(i => (i.Number, i.Base)).ToList();
 			if (spells.Count == 0 && copies.Count == 0) return;
-			if (spells.Count > 0) Log.Write(LogChannel.General, "spells: " + spells.Count + " look(s) of the mods': " + string.Join(", ", spells.Select(s => s.Spell + " -> " + (s.Effect ?? "its own") + (s.Sound != null ? ", sound " + s.Sound : ""))));
+			if (spells.Count > 0) Log.Write(LogChannel.General, "spells: " + spells.Count + " look(s) of the mods': " + string.Join(", ", spells.Select(s => s.Spell + " -> " + (s.Effect ?? "its own") + (s.Sound != null ? ", sound " + s.Sound : "") + (s.Cast != null ? ", cast " + s.Cast : ""))));
 			chain.AddTransform((name, data) =>
 			{
 				if (_readingNames || !ModSpells.IsChaindata(name)) return data;
@@ -193,6 +205,17 @@ namespace OpenFF.Client
 				if (!ReferenceEquals(composed, data)) Log.Write(LogChannel.File, "spells: player.chaindata composed, " + data.Length + " -> " + composed.Length + " bytes");
 				return composed;
 			});
+		}
+
+		// The looks' casts (their "cast"): a spell's id to the pack its caster plays as it begins, -1 for none.
+		private static Func<Dictionary<int, int>> _castsFrom;
+		private static Dictionary<int, int> _casts;
+
+		/// <summary>The pack a spell's caster plays as the spell begins when a mod's look sets one (btl.TurnSystem.magicStartEffect); null for the game's own.</summary>
+		public static int? CastEffect(int magicId)
+		{
+			if (_casts == null && _castsFrom != null) { _casts = _castsFrom(); _castsFrom = null; }
+			return _casts != null && _casts.TryGetValue(magicId, out int pack) ? pack : (int?)null;
 		}
 
 		/// <summary>A spell's id from its number or its name (the game's, in any case, or a mod item's).</summary>
@@ -219,6 +242,8 @@ namespace OpenFF.Client
 
 		public static void Register(ContentChain chain)
 		{
+			_casts = null;
+			_castsFrom = null;
 			// --nomods: the game as shipped, definitions included - what Tools/parity.ps1 compares against.
 			if (chain == null || chain.Game != "ff3" || Options.Get("nomods") != null) return;
 			List<string> roots = new List<string>();

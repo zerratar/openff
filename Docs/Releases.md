@@ -10,11 +10,15 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 ## Unreleased
 
 **Added**
-- Spells: defs/spells/<id>.json sets which of the game's effects a spell plays, and its sound.
-- Summon Magic sample: Fire, Blizzard and Thunder with the summons' finales.
+- Spells: defs/spells/<id>.json sets which of the game's effects a spell plays, its sound, and the caster's glow.
+- Summon Magic sample: Fire, Blizzard and Thunder with the summoner's glow and the summons' finales.
 - Drives: learn <member> <spell> teaches a spell.
 - Crystal: tables --spells lists the spells.
 - Items: a mod's own magic item gets a copy of its base's effect record.
+
+**Fixes**
+- Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.
+- Menus: the magic school icons no longer cover the first letters of the spells' names.
 
 ## 0.2.4 - the Starlit Menu (2026-09-29)
 

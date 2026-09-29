@@ -815,6 +815,15 @@ internal static partial class GlobalScope
 
 			public void setMagicStartEffect(int magicId)
 			{
+				// PORT: a mod's look may give the spell another cast (defs/spells "cast"): its pack loaded instead.
+				if (OpenFF.Client.ModItemsLayer.CastEffect(magicId) is int cast)
+				{
+					if (cast >= 0)
+					{
+						BattleEffect.instance().addEfp(cast);
+					}
+					return;
+				}
 				itm.MagicParameter magicParameter = itm.ItemManager.instance().magicParameter((short)magicId);
 				switch ((itm.MAGIC_SYSTEM)magicParameter.system())
 				{
@@ -832,6 +841,10 @@ internal static partial class GlobalScope
 
 			public int magicStartEffect(int magicId)
 			{
+				if (OpenFF.Client.ModItemsLayer.CastEffect(magicId) is int cast)
+				{
+					return cast;
+				}
 				itm.MagicParameter magicParameter = itm.ItemManager.instance().magicParameter((short)magicId);
 				return (itm.MAGIC_SYSTEM)magicParameter.system() switch
 				{

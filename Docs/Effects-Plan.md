@@ -180,9 +180,10 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    than a field on magic items, since the game's own spells have no item definition to carry it:
    `"effect"` another spell or `game:<pack>/<member>`, `"sound"`, `"frame"`, patching
    `normalMagic`; a mod item gets its base's record. The summons turned out to be script plus
-   effects: their finales (367, 371, 375 ... 392) play on any spell, some of their smaller
-   effects lean on the summon's arrival pack. `Samples/SummonMagic`. Still open from this stage:
-   a school's cast effect (it is fixed by the school in code, `TurnSystem.magicStartEffect`).
+   effects: their finales (367, 371, 375 ... 392) play on any spell, and their other outcomes are
+   spell records of their own (4205 ... 4221). A school's cast is `"cast"` (black, white, summon,
+   none or a pack), answered where the battle picks it (`TurnSystem.magicStartEffect`).
+   `Samples/SummonMagic`.
 2. **The reader and a viewer** (medium). `Shared/Effects/Efp.cs` reads packs and the index;
    Crystal's Effects tab lists them and plays them on the Stage - through the importer into a
    first cut of the new runtime's JS port, the emitter and texture modules only. *Done when*
