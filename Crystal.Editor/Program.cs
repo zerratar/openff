@@ -322,6 +322,11 @@ namespace Crystal
 			{
 				Console.WriteLine("  abilities: " + string.Join(", ", tables.AbilityKinds.OrderBy(k => k.Key).Select(k => k.Key + " " + (tables.AbilityName(k.Key) ?? "?") + (k.Value == 1 ? " (passive)" : ""))));
 			}
+			if (args.Contains("--spells"))
+			{
+				foreach (OpenFF.Data.SpellDefinition spell in tables.Spells)
+					Console.WriteLine("  spell " + spell.Id + " " + spell.Name + " (" + spell.School + " " + spell.Level + ")");
+			}
 			if (items > 12)
 			{
 				int shown = 0;
@@ -339,7 +344,7 @@ namespace Crystal
 			Console.Error.WriteLine("usage:");
 			Console.Error.WriteLine("  (no command)                      open the editor");
 			Console.Error.WriteLine("  info    <file.xnb | directory>");
-			Console.Error.WriteLine("  tables  <install root> [--items=N] [--game=ff3|ff4]    the game's tables in the unified shape (FF3 or FF4)");
+			Console.Error.WriteLine("  tables  <install root> [--items=N] [--spells] [--game=ff3|ff4]    the game's tables in the unified shape (FF3 or FF4)");
 			Console.Error.WriteLine("  api-docs [out.md] [--engine=<dll>]  the modding API reference from OpenFF.Engine (default Docs/API.md)");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");

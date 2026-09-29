@@ -167,6 +167,56 @@ namespace OpenFF.Client
 		/// <summary>The definitions in play, in load order (a --project's first, then the mods').</summary>
 		public static IReadOnlyList<ModItem> Items { get; private set; } = new List<ModItem>();
 
+		// The spells' names, read once from the game's tables when a look names a spell by name; while
+		// they are read the transform below passes player.chaindata through (the tables read it too).
+		private static Dictionary<string, int> _spellNames;
+		private static bool _readingNames;
+
+		/// <summary>
+		/// The mods' spell looks (defs/spells) and a record for each mod item whose base has one,
+		/// composed into player.chaindata's effect table as the game reads it (Shared/Data/ModSpells.cs).
+		/// </summary>
+		private static void RegisterSpells(ContentChain chain, List<string> roots, List<ModItem> items)
+		{
+			List<string> notes = new List<string>();
+			List<ModSpell> spells = ModSpells.Load(roots, notes);
+			foreach (string note in notes) Log.Write(LogChannel.General, "spells: " + note);
+			List<(int, int)> copies = items.Select(i => (i.Number, i.Base)).ToList();
+			if (spells.Count == 0 && copies.Count == 0) return;
+			if (spells.Count > 0) Log.Write(LogChannel.General, "spells: " + spells.Count + " look(s) of the mods': " + string.Join(", ", spells.Select(s => s.Spell + " -> " + (s.Effect ?? "its own") + (s.Sound != null ? ", sound " + s.Sound : ""))));
+			chain.AddTransform((name, data) =>
+			{
+				if (_readingNames || !ModSpells.IsChaindata(name)) return data;
+				List<string> problems = new List<string>();
+				byte[] composed = ModSpells.Compose(data, spells, copies, text => SpellId(chain, text, items), problems);
+				foreach (string p in problems) Log.Write(LogChannel.General, "spells: " + p);
+				if (!ReferenceEquals(composed, data)) Log.Write(LogChannel.File, "spells: player.chaindata composed, " + data.Length + " -> " + composed.Length + " bytes");
+				return composed;
+			});
+		}
+
+		/// <summary>A spell's id from its number or its name (the game's, in any case, or a mod item's).</summary>
+		private static int? SpellId(ContentChain chain, string text, List<ModItem> items)
+		{
+			if (string.IsNullOrWhiteSpace(text)) return null;
+			if (int.TryParse(text, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int number)) return number;
+			ModItem mine = items.FirstOrDefault(i => string.Equals(i.Name, text, StringComparison.OrdinalIgnoreCase) || string.Equals(i.Id, text, StringComparison.OrdinalIgnoreCase));
+			if (mine != null) return mine.Number;
+			if (_spellNames == null)
+			{
+				_spellNames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+				_readingNames = true;
+				try
+				{
+					GameTables tables = TableFiles.Read(chain, "ff3");
+					foreach (SpellDefinition spell in tables.Spells) if (!string.IsNullOrEmpty(spell.Name) && !_spellNames.ContainsKey(spell.Name)) _spellNames[spell.Name] = spell.Id;
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "spells: the spells' names were not read - " + ex.Message); }
+				finally { _readingNames = false; }
+			}
+			return _spellNames.TryGetValue(text.Trim(), out int id) ? id : (int?)null;
+		}
+
 		public static void Register(ContentChain chain)
 		{
 			// --nomods: the game as shipped, definitions included - what Tools/parity.ps1 compares against.
@@ -190,6 +240,7 @@ namespace OpenFF.Client
 			}
 			Items = kept;
 			WeaponMeshes.Register(kept);
+			RegisterSpells(chain, roots, kept);
 			if (kept.Count == 0) return;
 			Log.Write(LogChannel.General, "items: " + kept.Count + " of the mods' own: " + string.Join(", ", kept.Select(i => i.Number + " " + (i.Name ?? i.Id) + (i.Model != null ? " (" + i.Model + ")" : ""))));
 			chain.AddTransform((name, data) =>

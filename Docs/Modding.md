@@ -956,6 +956,39 @@ note that a Steam target would refuse the file; `Undo remake` removes the defini
 the two overrides together. `crystal mdl-reskin ... --target=ours` is the same at the
 command line (the definition is the editor's to write).
 
+### A spell's look: `defs/spells/<id>.json`
+
+Which of the game's effects a spell plays, and its sound - Fire cast with Flare's explosion, or
+with a summon's firestorm. No code, and the spell does what it did; only its look changes.
+
+```json
+{ "spell": "Fire", "effect": "Flare" }
+{ "spell": "Fire", "effect": "game:375/1", "frame": 60 }
+{ "spell": "Fire", "effect": "Firaga", "sound": "Thundaga" }
+```
+
+- `spell` - the spell by name (the game's, any case, or a mod item's) or number (4101 is Fire;
+  `crystal tables <install> --spells` lists them all).
+- `effect` - another spell: its effect whole, where it plays and how long it runs. Or
+  `game:<pack>/<member>`: one of the game's effects by number, the spell keeping its own timing.
+- `sound` - another spell's sound, or `game:<group>/<number>`.
+- `frame` - how many frames (30 a second) the effect runs before the damage shows: a longer
+  effect wants a larger number, or the numbers come up before it is over.
+
+**The game's effects.** Every spell's is a pack of its own, member 1: black magic is Fire 331 to
+Meteor 354 in the order the tables list it. The summons' are
+different: a summon's script plays its arrival (364, 368, 372, 376, 380, 384, 388), then for two
+of its three outcomes an ordinary spell's effect, and for the third its own finale over the
+whole enemy side - `game:367/1` ice crystals, `371/1` lightning, `375/1` a firestorm, `379/1`,
+`383/1`, `387/1` and `392/1` the rest. The finales play on a spell of one target too; an
+outcome's smaller effect may lean on its summon's arrival pack and show nothing on its own.
+
+**How it runs.** The client composes the definitions into `player.chaindata`'s effect table
+(chain 12, `pl.PlayerParty.normalMagic`) as the game reads it (`Shared/Data/ModSpells.cs`); the
+battle loads a spell's pack by the number its record names, so nothing else is needed. A mod's
+own magic item (and any item of the mod's whose base has a record - a potion's) gets a copy of its
+base's record, which a definition here may then change.
+
 ### Monsters of the mod's own: `defs/monsters/<id>.json`
 
 A monster is a definition too. Under *OpenFF mod ▸ Monsters*, *New monster…* asks for a name
@@ -1641,6 +1674,8 @@ release zip carries them in `Samples\`.
   menu** - `menus/abilities.xml` + `.json`, `menus/jobs`, `menus/job-confirm`, and
   `AbilitiesScreen.cs` with the three MenuBehaviours that fill and drive them - the shape of a
   menu of your own; `install.cmd` builds it into the mods folder.
+- `Samples/SummonMagic` - three definitions and no code: Fire, Blizzard and Thunder cast with
+  the summons' finales (`defs/spells`). Copy the folder into `mods/`.
 - `Samples/StarlitMenu` - the game's whole menu redrawn with no code: layouts, one stylesheet
   (`menus/styles/starlit.css`) and a few pictures. The main menu (a panel a place from `places[]` -
   face, name, job, level, HP and MP bars - and a gold framed column of commands with icons and a

@@ -176,10 +176,13 @@ come to). The format is small enough that two copies stay honest that way.
 
 Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sample.
 
-1. **A spell's effect in its definition** (small). `"effect": "game:<category>/<member>"` on
-   magic items, patching `normalMagic`; the same for a school's cast. Check the summons'
-   effects one by one - some may need their script's steps in order. *Done when* Fire can play
-   an Ifrit effect in battle, and a sample shows it.
+1. **A spell's effect in its definition** (small) - *done*. `defs/spells/<id>.json` rather
+   than a field on magic items, since the game's own spells have no item definition to carry it:
+   `"effect"` another spell or `game:<pack>/<member>`, `"sound"`, `"frame"`, patching
+   `normalMagic`; a mod item gets its base's record. The summons turned out to be script plus
+   effects: their finales (367, 371, 375 ... 392) play on any spell, some of their smaller
+   effects lean on the summon's arrival pack. `Samples/SummonMagic`. Still open from this stage:
+   a school's cast effect (it is fixed by the school in code, `TurnSystem.magicStartEffect`).
 2. **The reader and a viewer** (medium). `Shared/Effects/Efp.cs` reads packs and the index;
    Crystal's Effects tab lists them and plays them on the Stage - through the importer into a
    first cut of the new runtime's JS port, the emitter and texture modules only. *Done when*

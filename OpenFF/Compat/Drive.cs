@@ -262,6 +262,19 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: " + step.Verb + " failed: " + ex.Message); }
 					break;
 				}
+				case "learn":
+				{
+					// A spell taught to a party member through the API: "learn 0 4101" (Fire to the first).
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 2 || !int.TryParse(bits[0], out int member) || !int.TryParse(bits[1], out int spell))
+					{
+						Log.Write(LogChannel.General, "drive: learn wants <member> <spellId>");
+						break;
+					}
+					try { Log.Write(LogChannel.File, "drive: learn " + spell + " on member " + member + (OpenFF.Game.Party.LearnSpell(member, spell) ? "" : " - refused")); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: learn failed: " + ex.Message); }
+					break;
+				}
 				case "motion":
 				{
 					// The hero plays a motion by its id, through the API as a mod would: "motion 706" (the

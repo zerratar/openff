@@ -7,6 +7,15 @@ and/or Final Fantasy IV, the 3D remakes); none of their data is in the zip or in
 repository. Windows 10/11, x64; the .NET runtime is inside, nothing to install. How a release
 is made is in `Docs/Releasing.md`; each version's section below is its release's description.
 
+## Unreleased
+
+**Added**
+- Spells: defs/spells/<id>.json sets which of the game's effects a spell plays, and its sound.
+- Summon Magic sample: Fire, Blizzard and Thunder with the summons' finales.
+- Drives: learn <member> <spell> teaches a spell.
+- Crystal: tables --spells lists the spells.
+- Items: a mod's own magic item gets a copy of its base's effect record.
+
 ## 0.2.4 - the Starlit Menu (2026-09-29)
 
 A sample mod that redraws the game's whole menu with no code, and what the menus needed for it.
