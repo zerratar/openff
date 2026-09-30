@@ -401,6 +401,9 @@ function effectInspect(ed, ref) {
     effectModule(ed, box, i, 'texture', 'Texture', () => ({ image: '', width: 1, height: 1 }), card => effectTextureCard(ed, card, i));
     const render = effectCard(box, 'Render', 'image', null);
     effectSelect(ed, render, 'Blend', d => (T(d).render || {}).blend || 'alpha', (d, v) => { T(d).render = T(d).render || {}; T(d).render.blend = v; }, [['alpha', 'alpha: over what is behind'], ['additive', 'additive: light added to it']]);
+    effectSelect(ed, render, 'Tint', d => (T(d).render || {}).tint || 'multiply', (d, v) => { T(d).render = T(d).render || {}; if (v === 'recolour') T(d).render.tint = v; else delete T(d).render.tint; },
+      [['multiply', 'multiply: the picture times the colour (the game\'s)'], ['recolour', 'recolour: the picture\'s brightness in the colour']],
+      { hint: 'multiply keeps the picture\'s own colours where the colour is white, and can only darken them; recolour paints the picture in the colour - an orange flame blue' });
   } else if (type === 'mesh') {
     const mesh = effectCard(box, 'Model', 'model', null);
     effectText(ed, mesh, 'Model', d => T(d).model || '', (d, v) => { T(d).model = v; }, { hint: 'game:<pack>:0x<id> (one of the game\'s effects\' models), or a glTF of the mod\'s: assets/x.glb' });
@@ -480,13 +483,25 @@ function effectCard(box, title, iconName, toggle) {
   return card;
 }
 
-/// A module a track has or has not: a card with its switch; its fields when it is on.
+/// A module a track has or has not: a card with its switch; its fields when it is on. Switched off, its settings wait
+/// in the track's `off` (the players read none of it) and come back when it is switched on again.
 function effectModule(ed, box, i, key, title, make, fill) {
   const t = ed.def.tracks[i];
   const on = t[key] !== undefined;
   const card = effectCard(box, title, 'effect', {
     checked: on,
-    onToggle: v => ed.change((v ? 'add ' : 'remove ') + title.toLowerCase(), d => { if (v) d.tracks[i][key] = make(); else delete d.tracks[i][key]; }, { structural: true })
+    onToggle: v => ed.change((v ? 'add ' : 'remove ') + title.toLowerCase(), d => {
+      const tr = d.tracks[i];
+      if (v) {
+        const kept = tr.off && tr.off[key];
+        tr[key] = kept !== undefined ? kept : make();
+        if (tr.off) { delete tr.off[key]; if (!Object.keys(tr.off).length) delete tr.off; }
+      } else {
+        tr.off = tr.off || {};
+        tr.off[key] = tr[key];
+        delete tr[key];
+      }
+    }, { structural: true })
   });
   if (on) fill(card);
   return card;
@@ -656,6 +671,19 @@ function effectPathCard(ed, box, i) {
   }
 }
 
+/// A canvas drawn at the screen's own pixels, so a scaled display (125%, 150%) draws it sharp: `width` x `height`
+/// CSS pixels on the page, the backing store that times the pixel ratio, the context scaled to draw in CSS pixels.
+function effectSharp(canvas, width, height) {
+  const ratio = window.devicePixelRatio || 1;
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+  if (canvas.width !== Math.round(width * ratio)) canvas.width = Math.round(width * ratio);
+  if (canvas.height !== Math.round(height * ratio)) canvas.height = Math.round(height * ratio);
+  const g = canvas.getContext('2d');
+  g.setTransform(ratio, 0, 0, ratio, 0, 0);
+  return g;
+}
+
 /// A row of presets under a curve: a select whose choice hands its shape over, then goes back to its label.
 function effectPresets(wrap, shapes, apply) {
   const select = document.createElement('select');
@@ -675,13 +703,20 @@ function effectGradient(ed, card, i) {
   const wrap = document.createElement('div');
   wrap.className = 'effect-gradient';
   const canvas = document.createElement('canvas');
-  canvas.height = 46;
   wrap.append(canvas);
   const detail = document.createElement('div');
   detail.className = 'effect-key-detail';
   wrap.append(detail);
   card.append(wrap);
-  let selected = 0, dragging = null, before = null;
+  // What the colour does to the picture, said where it is set.
+  const how = document.createElement('p');
+  how.className = 'sub effect-tint-note';
+  const tint = () => ((ed.def.tracks[i].render || {}).tint) === 'recolour';
+  how.textContent = tint()
+    ? 'Recolour: the picture\'s brightness painted in these colours.'
+    : 'Multiplies the picture: white keeps its own colours, a colour tints and darkens them. To paint it another colour, set Tint to recolour (Render).';
+  wrap.append(how);
+  let selected = 0, dragging = null, before = null, cw = 220;
   const K = d => effectCurveKeys(d.tracks[i].colour);
   const keys = () => K(ed.def);
   effectSmoothSwitch(ed, wrap, i, 'colour', 4, () => draw());
@@ -702,17 +737,17 @@ function effectGradient(ed, card, i) {
     draw();
   });
   const life = () => Math.max(2, ed.def.tracks[i].life || 16);
-  const xOf = age => 8 + (canvas.width - 16) * Math.max(0, Math.min(1, (age - 1) / Math.max(1, life() - 1)));
-  const ageOf = x => Math.round(1 + (x - 8) / Math.max(1, canvas.width - 16) * (life() - 1));
+  const xOf = age => 8 + (cw - 16) * Math.max(0, Math.min(1, (age - 1) / Math.max(1, life() - 1)));
+  const ageOf = x => Math.round(1 + (x - 8) / Math.max(1, cw - 16) * (life() - 1));
 
   function draw(fields = true) {
-    canvas.width = Math.max(120, wrap.clientWidth || 220);
-    const g = canvas.getContext('2d');
-    g.clearRect(0, 0, canvas.width, canvas.height);
+    cw = Math.max(120, wrap.clientWidth || 220);
+    const g = effectSharp(canvas, cw, 46);
+    g.clearRect(0, 0, cw, 46);
     // A checkerboard under the strip, so alpha shows.
-    for (let x = 8; x < canvas.width - 8; x += 6) for (let y = 4; y < 28; y += 6) { g.fillStyle = ((x + y) / 6) % 2 ? '#3a3f47' : '#23272e'; g.fillRect(x, y, 6, 6); }
-    for (let x = 8; x < canvas.width - 8; x++) {
-      const age = 1 + (x - 8) / Math.max(1, canvas.width - 16) * (life() - 1);
+    for (let x = 8; x < cw - 8; x += 6) for (let y = 4; y < 28; y += 6) { g.fillStyle = ((x + y) / 6) % 2 ? '#3a3f47' : '#23272e'; g.fillRect(x, y, 6, 6); }
+    for (let x = 8; x < cw - 8; x++) {
+      const age = 1 + (x - 8) / Math.max(1, cw - 16) * (life() - 1);
       const c = (effectKeys(ed.def.tracks[i].colour, age, 4) || [255, 255, 255, 255]).map(v => Math.max(0, Math.min(255, v)));
       g.fillStyle = `rgba(${c[0] | 0}, ${c[1] | 0}, ${c[2] | 0}, ${c[3] / 255})`;
       g.fillRect(x, 4, 1, 24);
@@ -727,7 +762,7 @@ function effectGradient(ed, card, i) {
     g.fillStyle = '#8b93a1';
     g.font = '10px sans-serif';
     g.fillText('1', 2, 44);
-    g.fillText(String(life()), canvas.width - 14, 44);
+    g.fillText(String(life()), cw - 14, 44);
     if (fields) showDetail();
   }
   function hit(x) {
@@ -871,7 +906,6 @@ function effectCurve(ed, card, i, opts = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'effect-curve';
   const canvas = document.createElement('canvas');
-  canvas.height = 96;
   wrap.append(canvas);
   const K = d => effectCurveKeys(effectGet(d.tracks[i], field));
   const keys = () => K(ed.def) || [];
@@ -902,12 +936,12 @@ function effectCurve(ed, card, i, opts = {}) {
   };
   bar.append(auto);
   card.append(wrap);
-  let dragging = null, before = null, selected = -1;
+  let dragging = null, before = null, selected = -1, cw = 220;
   // Along the particle's life, or (span) another stretch - the emission's frames for a count over time.
   const life = () => Math.max(2, opts.span ? opts.span() : (ed.def.tracks[i].life || 16));
   const signed = !!opts.signed;
   const top = () => Math.max(opts.floor || 1.5, ...keys().map(k => Math.max(...k.slice(1, 1 + width).map(v => signed ? Math.abs(v) : v)))) * 1.15;
-  const plot = () => Math.max(1, canvas.width - 16);
+  const plot = () => Math.max(1, cw - 16);
   const xOf = age => 8 + plot() * Math.max(0, Math.min(1, (age - 1) / Math.max(1, life() - 1)));
   const ageOf = x => Math.round(1 + (x - 8) / plot() * (life() - 1));
   const ageAt = x => 1 + (x - 8) / plot() * (life() - 1);
@@ -924,12 +958,12 @@ function effectCurve(ed, card, i, opts = {}) {
   };
 
   function draw() {
-    canvas.width = Math.max(120, wrap.clientWidth || 220);
-    const g = canvas.getContext('2d');
-    g.clearRect(0, 0, canvas.width, canvas.height);
+    cw = Math.max(120, wrap.clientWidth || 220);
+    const g = effectSharp(canvas, cw, 96);
+    g.clearRect(0, 0, cw, 96);
     g.strokeStyle = '#2b3038';
     const guide = signed ? 0 : 1;
-    g.beginPath(); g.moveTo(8, yOf(guide)); g.lineTo(canvas.width - 8, yOf(guide)); g.stroke();
+    g.beginPath(); g.moveTo(8, yOf(guide)); g.lineTo(cw - 8, yOf(guide)); g.stroke();
     g.fillStyle = '#8b93a1'; g.font = '10px sans-serif'; g.fillText(String(guide), 1, yOf(guide) - 2);
     const curve = effectGet(ed.def.tracks[i], field);
     for (let j = 0; j < width; j++) {
@@ -937,7 +971,7 @@ function effectCurve(ed, card, i, opts = {}) {
       g.lineWidth = 1.5;
       g.beginPath();
       // The curve itself, through every point of the age ...
-      for (let x = 8; x <= canvas.width - 8; x++) {
+      for (let x = 8; x <= cw - 8; x++) {
         const v = effectKeys(curve, ageAt(x), width) || new Array(width).fill(1);
         const y = yOf(v[j]);
         if (x === 8) g.moveTo(x, y); else g.lineTo(x, y);
@@ -1299,28 +1333,34 @@ async function effectItemLook(panel, spellName) {
 
 // ------------------------------------------------------------------ the timeline
 
-/// A row a track: its bar from its start over what it plays (an emitter's emission and its
-/// particles' life; a mesh's life), a diamond for a moment (a sound, a flash, a shake); the
-/// playhead over them. Drag a bar to move its start, its white mark (the last burst) to spread its bursts; a
-/// click elsewhere puts the playhead there; a click on a bar selects the track.
+/// A row a track: its bar from its start over what it plays (an emitter's emission and its particles' life; a
+/// mesh's life; a flash's, a shake's frames), a diamond for a sound, the playhead over them. Drag a bar to move its
+/// start; its left edge to move the start and keep the end; its right edge to set where it ends - an emitter's
+/// emission (its bursts spread to end there; a single burst, or Shift, its particles' life), a mesh's life, a flash's
+/// or a shake's frames; the white mark (an emitter's last burst) to spread the bursts. A click elsewhere puts the
+/// playhead there; a click on a row selects its track. Drawn at the screen's pixels (effectSharp).
 function effectTimeline(ed) {
   const box = ed.view.timelineBox;
   box.textContent = '';
   const canvas = document.createElement('canvas');
   canvas.className = 'effect-timeline';
   box.append(canvas);
-  const LABEL = 130, ROW = 18, RULER = 16;
-  let frame = 0, drag = null, before = null;
-  const span = () => Math.max(ed.view.length || 1, ed.def.length || 1, ...(ed.def.tracks || []).map(t => extent(t)[1])) + 2;
+  const LABEL = 150, ROW = 20, RULER = 18, EDGE = 5;
+  let frame = 0, drag = null, before = null, W = 600, H = 60, hover = null;
+  const spanNow = () => Math.max(ed.view.length || 1, ed.def.length || 1, ...(ed.def.tracks || []).map(t => extent(t)[1])) + 2;
+  // The scale holds still while a bar is dragged (the bar growing would move the frames under the pointer), and follows after.
+  const span = () => drag && drag.span ? drag.span : spanNow();
+  const type = t => t.type || 'emitter';
   /// When an emitter's last burst is born (its whole duration for a loop): the bar ends a particle's life after it.
   function lastBurst(t) {
     const em = t.emission || {};
     if (em.loop) return em.duration || 0;
     return Math.max(0, Math.min(Math.max(0, (em.duration || 1) - 1), Math.max(0, (em.bursts || 1) - 1) * Math.max(1, em.interval || 0)));
   }
+  const spreads = t => type(t) === 'emitter' && ((t.emission || {}).loop || ((t.emission || {}).bursts || 1) > 1);
   function extent(t) {
     const s = t.start || 0;
-    switch (t.type || 'emitter') {
+    switch (type(t)) {
       case 'emitter': return [s, s + lastBurst(t) + (t.life || 1)];
       case 'mesh': return [s, s + (t.life !== undefined ? t.life : Math.max(1, (ed.def.length || 30) - s))];
       case 'flash': return [s, s + (t.frames || 8) * Math.max(1, t.count || 1)];
@@ -1328,110 +1368,198 @@ function effectTimeline(ed) {
       default: return [s, s + 1];
     }
   }
-  const xOf = f => LABEL + (canvas.width - LABEL - 8) * f / span();
-  const frameOf = x => Math.max(0, Math.round((x - LABEL) / Math.max(1, canvas.width - LABEL - 8) * span()));
+  /// A track made to end on a frame (its start kept): what its right edge sets.
+  function endAt(t, end, life) {
+    const s = t.start || 0, len = Math.max(1, end - s);
+    switch (type(t)) {
+      case 'emitter': {
+        const em = t.emission = t.emission || {};
+        if (life || !spreads(t)) { t.life = Math.max(1, len - lastBurst(t)); return; }
+        // The last burst where the particles' life ends it there: a loop's duration, else the bursts spread to it.
+        const last = Math.max(0, len - (t.life || 1));
+        if (em.loop) { em.duration = last; return; }
+        const gaps = Math.max(1, (em.bursts || 1) - 1);
+        if (last < gaps) {
+          // The bursts a frame apart already: shorter than that, the particles' life gives way.
+          em.interval = 1; em.duration = gaps + 1;
+          t.life = Math.max(1, len - gaps);
+          return;
+        }
+        em.interval = Math.max(1, Math.round(last / gaps)); em.duration = em.interval * gaps + 1;
+        return;
+      }
+      case 'mesh': t.life = len; return;
+      case 'flash': t.frames = Math.max(1, Math.round(len / Math.max(1, t.count || 1))); return;
+      case 'shake': t.frames = len; return;
+    }
+  }
+  const xOf = f => LABEL + (W - LABEL - 8) * f / span();
+  const frameOf = x => Math.max(0, Math.round((x - LABEL) / Math.max(1, W - LABEL - 8) * span()));
 
   function draw() {
     const tracks = ed.def.tracks || [];
-    canvas.width = Math.max(300, box.clientWidth || 600);
-    canvas.height = RULER + ROW * Math.max(1, tracks.length) + 4;
-    const g = canvas.getContext('2d');
-    g.fillStyle = '#14161a'; g.fillRect(0, 0, canvas.width, canvas.height);
-    g.font = '10px sans-serif';
+    W = Math.max(300, box.clientWidth || 600);
+    H = RULER + ROW * Math.max(1, tracks.length) + 4;
+    const g = effectSharp(canvas, W, H);
+    g.fillStyle = '#14161a'; g.fillRect(0, 0, W, H);
+    g.font = '11px system-ui, "Segoe UI", sans-serif';
+    g.textBaseline = 'middle';
     // The ruler: every 5 frames a tick, every 30 a second.
     for (let f = 0; f <= span(); f += 5) {
-      const x = xOf(f);
+      const x = Math.round(xOf(f));
       g.fillStyle = f % 30 === 0 ? '#8b93a1' : '#3a3f47';
       g.fillRect(x, 0, 1, f % 30 === 0 ? RULER : 6);
-      if (f % 30 === 0 || span() < 40) { g.fillStyle = '#8b93a1'; g.fillText(String(f), x + 2, 10); }
+      if (f % 30 === 0 || span() < 40) { g.fillStyle = '#8b93a1'; g.fillText(String(f), x + 3, 9); }
     }
     // The effect's own end.
     g.fillStyle = 'rgba(217, 164, 65, 0.6)';
-    g.fillRect(xOf(ed.def.length || 0), 0, 1, canvas.height);
+    g.fillRect(Math.round(xOf(ed.def.length || 0)), 0, 1, H);
     const selected = String(ed.doc.selection || '');
     tracks.forEach((t, i) => {
       const y = RULER + i * ROW;
       const [a, b] = extent(t);
       const on = selected === 'track:' + i, muted = ed.muted.has(i);
       g.fillStyle = on ? '#232a35' : (i % 2 ? '#181b20' : '#15181c');
-      g.fillRect(0, y, canvas.width, ROW);
+      g.fillRect(0, y, W, ROW);
       g.fillStyle = muted ? '#5b616b' : '#d7dbe2';
-      g.fillText((t.name || t.type || 'emitter').slice(0, 20), 6, y + 12);
-      const colour = EFFECT_TRACK_COLOURS[t.type || 'emitter'] || '#6ea8fe';
+      // The name, cut to the label's room.
+      let name = t.name || type(t);
+      while (name.length > 1 && g.measureText(name).width > LABEL - 12) name = name.slice(0, -1);
+      g.fillText(name !== (t.name || type(t)) ? name.slice(0, -1) + '…' : name, 6, y + ROW / 2);
+      const colour = EFFECT_TRACK_COLOURS[type(t)] || '#6ea8fe';
       g.globalAlpha = muted ? 0.35 : 1;
-      if ((t.type || 'emitter') === 'sound') {
-        const x = xOf(a);
+      const x0 = Math.round(xOf(a)), x1 = Math.round(xOf(b));
+      if (type(t) === 'sound') {
         g.fillStyle = colour;
-        g.beginPath(); g.moveTo(x, y + 3); g.lineTo(x + 6, y + 9); g.lineTo(x, y + 15); g.lineTo(x - 6, y + 9); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(x0, y + 3); g.lineTo(x0 + 7, y + ROW / 2); g.lineTo(x0, y + ROW - 3); g.lineTo(x0 - 7, y + ROW / 2); g.closePath(); g.fill();
       } else {
         g.fillStyle = colour;
-        g.fillRect(xOf(a), y + 4, Math.max(3, xOf(b) - xOf(a)), ROW - 8);
-        if ((t.type || 'emitter') === 'emitter' && ((t.emission || {}).loop || ((t.emission || {}).bursts || 1) > 1)) {
+        g.fillRect(x0, y + 4, Math.max(3, x1 - x0), ROW - 8);
+        // The edges a bar is resized by: a lighter grip at each end while the pointer is over the bar.
+        if (hover && hover.n === i && hover.part !== 'body' || drag && drag.n === i) {
+          g.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          g.fillRect(x0, y + 4, 3, ROW - 8);
+          g.fillRect(x0 + Math.max(3, x1 - x0) - 3, y + 4, 3, ROW - 8);
+        }
+        if (spreads(t)) {
           // Within the bar, where the last burst is born (the particles' life follows it): dragged to spread the bursts.
-          const e = a + lastBurst(t);
-          g.fillStyle = 'rgba(255, 255, 255, 0.55)';
-          g.fillRect(xOf(e) - 1, y + 3, 2, ROW - 6);
+          const e = Math.round(xOf(a + lastBurst(t)));
+          g.fillStyle = 'rgba(255, 255, 255, 0.6)';
+          g.fillRect(e - 1, y + 3, 2, ROW - 6);
         }
       }
       g.globalAlpha = 1;
-      if (on) { g.strokeStyle = '#6ea8fe'; g.strokeRect(xOf(a) + 0.5, y + 3.5, Math.max(3, xOf(b) - xOf(a)) - 1, ROW - 7); }
+      if (on) { g.strokeStyle = '#6ea8fe'; g.lineWidth = 1; g.strokeRect(x0 + 0.5, y + 3.5, Math.max(3, x1 - x0) - 1, ROW - 7); }
+      // While dragged: what it has come to, beside it.
+      if (drag && drag.n === i) {
+        const em = t.emission || {};
+        const say = drag.part === 'mark' ? `last burst ${a + lastBurst(t)} · every ${Math.max(1, em.interval || 0)}`
+          : drag.part === 'body' ? `start ${a}`
+          : type(t) === 'emitter' ? `${a}–${b} · ${spreads(t) && !drag.life ? `emits ${em.duration || 0} f, every ${Math.max(1, em.interval || 0)}` : `life ${t.life || 1}`}`
+          : `${a}–${b}`;
+        g.font = '11px system-ui, "Segoe UI", sans-serif';
+        const tw = g.measureText(say).width + 10, tx = Math.min(W - tw - 4, x1 + 6);
+        g.fillStyle = 'rgba(10, 12, 16, 0.9)'; g.fillRect(tx, y + 2, tw, ROW - 4);
+        g.fillStyle = '#d7dbe2'; g.fillText(say, tx + 5, y + ROW / 2);
+      }
     });
-    playhead(frame, true);
+    g.fillStyle = '#e07a7a';
+    g.fillRect(Math.round(xOf(frame)), 0, 2, H);
   }
   function playhead(f, redrawn) {
     if (!redrawn && f === frame) return;
-    if (!redrawn) { frame = f; draw(); return; }
-    const g = canvas.getContext('2d');
-    g.fillStyle = '#e07a7a';
-    g.fillRect(xOf(frame), 0, 2, canvas.height);
+    frame = f;
+    draw();
   }
   function rowAt(y) { const n = Math.floor((y - RULER) / ROW); return n >= 0 && n < (ed.def.tracks || []).length ? n : -1; }
-  canvas.addEventListener('pointerdown', e => {
-    const n = rowAt(e.offsetY);
-    if (n >= 0 && e.offsetX >= LABEL) {
-      const t = ed.def.tracks[n];
-      const [a, b] = extent(t);
-      const emissionEnd = a + lastBurst(t);
-      if (e.offsetX >= xOf(a) - 4 && e.offsetX <= xOf(b) + 4) {
-        before = effectClone(ed.def);
-        const em = t.emission || {};
-        const stretching = (t.type || 'emitter') === 'emitter' && (em.loop || (em.bursts || 1) > 1) && Math.abs(e.offsetX - xOf(emissionEnd)) < 5;
-        drag = { n, stretching, grab: frameOf(e.offsetX) - (stretching ? emissionEnd : a), moved: false };
-        canvas.setPointerCapture(e.pointerId);
-        ed.doc.selection = 'track:' + n;
-        drawHierarchy(); drawInspector();
-        draw();
-        return;
-      }
+  /// What of a bar is under the pointer: its left or right edge, its last-burst mark, or its body.
+  function partAt(x, y) {
+    const n = rowAt(y);
+    if (n < 0 || x < LABEL) return null;
+    const t = ed.def.tracks[n];
+    const [a, b] = extent(t);
+    const x0 = xOf(a), x1 = Math.max(xOf(b), x0 + 3);
+    if (x < x0 - EDGE || x > x1 + EDGE) return null;
+    if (spreads(t) && Math.abs(x - xOf(a + lastBurst(t))) <= 4) return { n, part: 'mark' };
+    if (type(t) !== 'sound') {
+      if (Math.abs(x - x0) <= EDGE) return { n, part: 'left' };
+      if (Math.abs(x - x1) <= EDGE) return { n, part: 'right' };
     }
+    return { n, part: 'body' };
+  }
+  const CURSORS = { left: 'ew-resize', right: 'ew-resize', mark: 'col-resize', body: 'grab' };
+  const TIPS = {
+    left: 'drag: the start, keeping the end',
+    right: 'drag: where it ends (an emitter: its emission; a single burst or Shift: the particles\' life)',
+    mark: 'drag: the last burst - the bursts spread to it',
+    body: 'drag: move the track (its start)'
+  };
+  canvas.addEventListener('pointerdown', e => {
+    const hit = partAt(e.offsetX, e.offsetY);
+    if (hit) {
+      const t = ed.def.tracks[hit.n];
+      const [a, b] = extent(t);
+      before = effectClone(ed.def);
+      const at = frameOf(e.offsetX);
+      drag = { ...hit, span: spanNow(), grab: at - (hit.part === 'mark' ? a + lastBurst(t) : hit.part === 'right' ? b : a), end: b, moved: false, life: e.shiftKey };
+      canvas.setPointerCapture(e.pointerId);
+      canvas.style.cursor = hit.part === 'body' ? 'grabbing' : CURSORS[hit.part];
+      ed.doc.selection = 'track:' + hit.n;
+      drawHierarchy(); drawInspector();
+      draw();
+      return;
+    }
+    const n = rowAt(e.offsetY);
     if (n >= 0 && e.offsetX < LABEL) { ed.doc.selection = 'track:' + n; drawHierarchy(); drawInspector(); draw(); return; }
     ed.view.goTo(frameOf(e.offsetX));
   });
   canvas.addEventListener('pointermove', e => {
-    if (!drag) { canvas.style.cursor = rowAt(e.offsetY) >= 0 && e.offsetX >= LABEL ? 'grab' : 'default'; return; }
+    if (!drag) {
+      const hit = partAt(e.offsetX, e.offsetY);
+      canvas.style.cursor = hit ? CURSORS[hit.part] : 'default';
+      canvas.title = hit ? TIPS[hit.part] : '';
+      const was = hover;
+      hover = hit;
+      if ((was && was.n) !== (hit && hit.n) || (was && was.part) !== (hit && hit.part)) draw();
+      return;
+    }
     const f = Math.max(0, frameOf(e.offsetX) - drag.grab);
     drag.moved = true;
+    drag.life = drag.life || e.shiftKey;
     ed.live(d => {
       const t = d.tracks[drag.n];
-      if (drag.stretching) {
+      if (drag.part === 'body') t.start = f;
+      else if (drag.part === 'right') endAt(t, Math.max((t.start || 0) + 1, f), drag.life);
+      else if (drag.part === 'left') {
+        t.start = Math.min(f, drag.end - 1);
+        endAt(t, drag.end, drag.life);
+        // The end where it was: the bursts' whole-frame spacing leaves a frame or two, and the particles' life takes it up.
+        if (type(t) === 'emitter') t.life = Math.max(1, drag.end - t.start - lastBurst(t));
+      }
+      else {
         // The last burst moved: a loop's duration, else the bursts spread over it (the duration holds them all).
         const em = t.emission = t.emission || {};
         const to = Math.max(0, f - (t.start || 0));
         if (em.loop) em.duration = to;
         else {
           em.interval = Math.max(1, Math.round(to / Math.max(1, (em.bursts || 1) - 1)));
-          em.duration = Math.max(em.duration || 0, em.interval * ((em.bursts || 1) - 1) + 1);
+          em.duration = em.interval * ((em.bursts || 1) - 1) + 1;
         }
       }
-      else t.start = f;
     });
     draw();
   });
-  canvas.addEventListener('pointerup', () => {
+  const finish = () => {
     if (!drag) return;
-    if (drag.moved) ed.change(drag.stretching ? 'stretch an emission' : 'move a track', () => {}, { before, structural: true });
+    const was = drag;
     drag = null;
-  });
+    canvas.style.cursor = 'default';
+    if (was.moved) ed.change({ body: 'move a track', left: 'move a track\'s start', right: 'resize a track', mark: 'spread the bursts' }[was.part], () => {}, { before, structural: true });
+    else draw();
+  };
+  canvas.addEventListener('pointerup', finish);
+  canvas.addEventListener('pointercancel', finish);
+  canvas.addEventListener('pointerleave', () => { if (!drag && hover) { hover = null; draw(); } });
   // Redrawn when the box's width changes, a frame later (the canvas's own height would feed the observer back).
   let width = 0;
   const resize = new ResizeObserver(() => requestAnimationFrame(() => { if (box.clientWidth !== width) { width = box.clientWidth; draw(); } }));

@@ -277,7 +277,12 @@ the port's addition). The tracks that are neither: `sound` (`archive`, `number`,
   `[frame, count]`, by the emitter's frame): how many a burst makes, rounded, in place of `count`;
 - `texture`: `image` (`game:<pack>:<name>`, the game's own read from the install), `width`,
   `height`, `cell` (the first cell's rectangle), `columns`, `frames` (keys `[age, cell]`);
-- `render`: `blend` (`alpha`), `facing` (`camera`).
+- `render`: `blend` (`alpha`), `facing` (`camera`), `tint` - `multiply` (the game's, and the
+  default: the picture times the colour, so white keeps the picture's own colours and a colour can
+  only darken them) or `recolour` (the picture's brightness - its brightest channel - in the
+  colour: an orange flame painted blue);
+- `off`: a switched-off module's settings, kept for when it is switched on again (Crystal's
+  module switches); the players read none of it.
 
 ## Open questions
 

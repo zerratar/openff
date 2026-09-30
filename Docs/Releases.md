@@ -35,12 +35,16 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: battle maps on the effect Stage move as in the game - their texture scrolls and alpha.
 - Crystal: the effect Stage's Show row switches the map, the monsters, the heroes, the floor and the marks, or shows the effect alone.
 - Effects: an orbit's grow and turn, a mesh's scale and yaw, and the size and speed a particle is born with can be curves.
+- Effects: render tint recolour paints a picture's brightness in the particle's colour - a blue flame from the game's orange one.
+- Crystal: effect timeline bars resize from their edges - an emitter's emission or life, a mesh's life, a flash's or a shake's frames.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
 - Crystal: resting the pointer on an effect in the library plays it.
 - Crystal: a Mod badge marks the project's own things in the lists, and an OpenFF only badge the client's behaviours.
 
 **Fixes**
 - Effects: a game model on a mesh track takes the track's scale in the client.
+- Crystal: switching an effect module off and on again keeps its settings - a texture its picture.
+- Crystal: the effect timeline, curves and gradients draw sharp on a scaled display.
 - Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.
 - Menus: the magic school icons no longer cover the first letters of the spells' names.
 

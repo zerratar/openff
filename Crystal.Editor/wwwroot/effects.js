@@ -354,7 +354,7 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
         const colourBefore = colourWas.every((c, k) => Math.abs(c - colour[k]) <= 64) ? colourWas : colour;
         for (const p of g.parts) {
           const roll = p.rollNow || 0, rollBefore = p.rollBefore || 0;
-          if (p.shown && colour[3] > 0) out.push({ p, pos: p.pos, prev: p.prev, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, wBefore: p.size * scaleBefore[0] / 2, hBefore: p.size * scaleBefore[1] / 2, colour, colourBefore, cell, tex, blend: (t.render || {}).blend, roll, rollBefore });
+          if (p.shown && colour[3] > 0) out.push({ p, pos: p.pos, prev: p.prev, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, wBefore: p.size * scaleBefore[0] / 2, hBefore: p.size * scaleBefore[1] / 2, colour, colourBefore, cell, tex, blend: (t.render || {}).blend, tint: (t.render || {}).tint, roll, rollBefore });
           if (t.trail && p.trail.length) {
             // After-images: the particle where it was, each darker by the trail's colour toward its end (the last one never shows, as in the game).
             const n = t.trail.count, d = colour.map((c, k) => (c - Math.max(0, Math.min(255, c + (t.trail.colour[k] || 0)))) / (n + 1));
@@ -362,7 +362,7 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
               const was = p.trail[k - 1];
               if (!was || !was.shown) continue;
               const c = colour.map((v, j) => v - k * d[j]);
-              if (c[3] > 0) out.push({ p: null, pos: was.pos, prev: was.pos, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour: c, cell, tex, blend: (t.render || {}).blend, roll, rollBefore: roll });
+              if (c[3] > 0) out.push({ p: null, pos: was.pos, prev: was.pos, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour: c, cell, tex, blend: (t.render || {}).blend, tint: (t.render || {}).tint, roll, rollBefore: roll });
             }
           }
         }
@@ -444,10 +444,14 @@ void main() {
 const EFFECT_FRAGMENT = `
 precision mediump float;
 uniform sampler2D picture;
+uniform bool recolour;
 varying vec2 vUv;
 varying vec4 vColour;
 void main() {
-  vec4 c = texture2D(picture, vUv) * vColour;
+  vec4 t = texture2D(picture, vUv);
+  // Recolour (render.tint): the picture's brightness - its brightest channel - in the particle's colour; else the game's multiply.
+  if (recolour) t.rgb = vec3(max(t.r, max(t.g, t.b)));
+  vec4 c = t * vColour;
   if (c.a < 0.01) discard;
   gl_FragColor = c;
 }`;
@@ -541,7 +545,7 @@ function makeEffectStage(canvas, textureUrl) {
   const lines = effectCompile(gl, EFFECT_LINE_VERTEX, EFFECT_LINE_FRAGMENT);
   const a = n => gl.getAttribLocation(program, n), u = n => gl.getUniformLocation(program, n);
   const attr = { centre: a('centre'), before: a('before'), corner: a('corner'), extent: a('extent'), uv: a('uv'), colour: a('colour'), roll: a('roll'), extentBefore: a('extentBefore'), colourBefore: a('colourBefore') };
-  const unif = { view: u('view'), projection: u('projection'), between: u('between'), picture: u('picture') };
+  const unif = { view: u('view'), projection: u('projection'), between: u('between'), picture: u('picture'), recolour: u('recolour') };
   const lineAttr = { position: gl.getAttribLocation(lines, 'position'), colour: gl.getAttribLocation(lines, 'colour') };
   const lineUnif = { view: gl.getUniformLocation(lines, 'view'), projection: gl.getUniformLocation(lines, 'projection') };
   const quadBuffer = gl.createBuffer(), lineBuffer = gl.createBuffer();
@@ -913,11 +917,12 @@ function makeEffectStage(canvas, textureUrl) {
     gl.activeTexture(gl.TEXTURE0);
     // Runs of one texture and one blend, in order - blending needs the game's order, not one batch per texture.
     // Additive (render.blend) adds the quad's light to what is behind it, as the client draws it (SourceAlpha, One).
-    const same = (a, b) => (a.tex || {}).image === (b.tex || {}).image && (a.blend === 'additive') === (b.blend === 'additive');
+    const same = (a, b) => (a.tex || {}).image === (b.tex || {}).image && (a.blend === 'additive') === (b.blend === 'additive') && (a.tint === 'recolour') === (b.tint === 'recolour');
     let from = 0;
     for (let i = 1; i <= quads.length; i++) {
       if (i < quads.length && same(quads[i], quads[from])) continue;
       gl.blendFunc(gl.SRC_ALPHA, quads[from].blend === 'additive' ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
+      gl.uniform1i(unif.recolour, quads[from].tint === 'recolour' ? 1 : 0);
       gl.bindTexture(gl.TEXTURE_2D, texture((quads[from].tex || {}).image));
       gl.drawArrays(gl.TRIANGLES, from * 6, (i - from) * 6);
       from = i;

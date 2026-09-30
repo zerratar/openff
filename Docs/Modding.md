@@ -1029,6 +1029,10 @@ name is its id.
   swells and dies away); `sizeOverTime` and `speedOverTime` the same for the size and speed a
   particle is born with. An orbit's `grow` and `turn`, and a mesh's `scale` and `yaw`, may be
   curves too (by the particle's age; the mesh's step).
+- **Colour and picture.** A particle's colour multiplies its picture, as the game's effects do:
+  white keeps the picture's own colours, and a colour tints and darkens them - blue on an orange
+  flame comes out a murky green. `"render": { "tint": "recolour" }` paints the picture's
+  brightness in the colour instead, for a blue flame from the game's orange one.
 - **Pictures.** `"image"` is a PNG beside the definition, or one of the game's by
   `game:<pack>:<name>` (read from the player's install, never copied into the mod - Crystal's
   Effects library shows each pack's).

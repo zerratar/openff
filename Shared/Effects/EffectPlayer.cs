@@ -56,6 +56,8 @@ namespace OpenFF.Effects
 	public sealed class EffectTrack
 	{
 		public string Type, Name, Anchor = "target", Space, Blend = "alpha", Model;
+		/// <summary>render.tint: "multiply" (the game's - the picture times the colour) or "recolour" (the picture's brightness in the colour).</summary>
+		public string Tint = "multiply";
 		public int Start, Stop = -1, Life = 1;
 		public int? Id;
 		public double[] Offset;
@@ -165,7 +167,7 @@ namespace OpenFF.Effects
 							Frames = Keys(tex["frames"]),
 						};
 					}
-					if (t["render"] is JsonObject r) k.Blend = Text(r["blend"]) ?? "alpha";
+					if (t["render"] is JsonObject r) { k.Blend = Text(r["blend"]) ?? "alpha"; k.Tint = Text(r["tint"]) ?? "multiply"; }
 					k.Model = Text(t["model"]);
 					if (k.Type == "mesh")
 					{

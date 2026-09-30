@@ -278,10 +278,28 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A track's texture: the game's, decoded from its pack, or a PNG beside the definition; null draws white.</summary>
-		internal static Texture2D Texture(GraphicsDevice device, string image, string folder)
+		internal static Texture2D Texture(GraphicsDevice device, string image, string folder, bool recolour = false)
 		{
 			if (string.IsNullOrEmpty(image)) return null;
 			string key = image.StartsWith("game:", StringComparison.OrdinalIgnoreCase) ? image : System.IO.Path.Combine(folder ?? "", image);
+			if (recolour)
+			{
+				// Recolour (render.tint): the picture as its brightness - its brightest channel - for the colour to paint; made once.
+				string grey = key + "#recolour";
+				lock (_textures) { if (_textures.TryGetValue(grey, out Texture2D had)) return had; }
+				Texture2D source = Texture(device, image, folder);
+				Texture2D made = null;
+				if (source != null)
+				{
+					Color[] pixels = new Color[source.Width * source.Height];
+					source.GetData(pixels);
+					for (int i = 0; i < pixels.Length; i++) { byte v = Math.Max(pixels[i].R, Math.Max(pixels[i].G, pixels[i].B)); pixels[i] = new Color(v, v, v, pixels[i].A); }
+					made = new Texture2D(device, source.Width, source.Height, false, SurfaceFormat.Color);
+					made.SetData(pixels);
+				}
+				lock (_textures) _textures[grey] = made;
+				return made;
+			}
 			lock (_textures)
 			{
 				if (_textures.TryGetValue(key, out Texture2D known)) return known;
@@ -498,7 +516,7 @@ namespace OpenFF.Client
 			foreach (EffectQuad q in _quads)
 			{
 				EffectTexture tex = q.Track.Texture;
-				Texture2D picture = ModEffects.Texture(device, tex?.Image, _folder);
+				Texture2D picture = ModEffects.Texture(device, tex?.Image, _folder, string.Equals(q.Track.Tint, "recolour", StringComparison.OrdinalIgnoreCase));
 				float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
 				if (tex != null)
 				{

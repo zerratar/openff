@@ -1125,10 +1125,15 @@ it was on; **Ctrl+Z** takes it back.
   spread, gravity, orbit, gather, trail, colour and scale over life, the texture and the render.
   A card with a switch turns its module off without losing its values. A range is two numbers
   (the particle rolls between them).
+- **Module switches** keep a module's settings: switched off, a texture, an orbit or a curve waits
+  in the track's `off` and comes back as it was when switched on again.
 - **Colour over life.** A gradient over the particle's life with the alpha on a checkerboard: a
   click adds a key, a drag moves it, a right click takes it out; the selected key's frame,
   colour and alpha below. Presets reshape the alpha and keep the colours: fade in and out, fade
-  out, fade in, flash, pulse. *smooth* makes it a curve through the keys.
+  out, fade in, flash, pulse. *smooth* makes it a curve through the keys. The colour multiplies
+  the picture, as the game's does - white keeps the picture's own colours, so an orange flame
+  keyed white stays orange; **Render ▸ Tint ▸ recolour** paints the picture's brightness in the
+  colour instead (the flame blue).
 - **Scale over life**, **Speed over life.** A curve of the width and height (linked, or each its
   own), and of how much of its speed a particle keeps; keys edited the same way. *smooth* makes
   it a curve through the keys, and the selected key shows its tangents - pull a handle to bend
@@ -1156,8 +1161,12 @@ it was on; **Ctrl+Z** takes it back.
   effect plays), which heroes (*All heroes*, *Caster + targets*, *Caster*, *No heroes*), and
   *Effect only* / *Everything* to switch them all at once; kept from one effect to the next.
 - **Timeline.** Under the Stage, a row a track: a bar from its start to its last particle's end,
-  a diamond for a sound, a flash, a shake. Drag a bar to move its start, the white mark (an
-  emitter's last burst) to spread its bursts; click to put the playhead there.
+  a diamond for a sound. Drag a bar to move its start; its left edge to move the start and keep the
+  end; its right edge to set where it ends - an emitter's emission (its bursts spread to end
+  there; below a frame apart, its particles' life gives way), a single burst's or (Shift) any
+  emitter's particles' life, a mesh's life, a flash's or a shake's frames; the white mark (an
+  emitter's last burst) to spread its bursts. The cursor says which, and the numbers show beside
+  the bar while it moves. Click to put the playhead there.
 - **Use for a spell…** writes `defs/spells/<spell>.json` so a spell plays the effect (or casts
   with it). A magic item of the mod's has the same in its inspector: a *Look* card with its
   *Effect* and *Cast*.
