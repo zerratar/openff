@@ -732,6 +732,8 @@ function outlineFor(doc) {
   if (doc.kind === 'menu') return typeof menuOutline === 'function' ? menuOutline(doc) : [];
   // An effect of the project's: the effect and its tracks (effects-editor.js).
   if (doc.kind === 'effect') return typeof effectOutline === 'function' ? effectOutline(doc) : [];
+  // A summon: its look and its steps (summons.js).
+  if (doc.kind === 'summon') return typeof summonOutline === 'function' ? summonOutline(doc) : [];
   const data = doc.data;
   if (!data) return [];
 

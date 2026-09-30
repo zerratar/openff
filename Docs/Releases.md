@@ -50,6 +50,8 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: Summons plays FF3's eight summons and their three outcomes as the battle does - the summon, its camera, its effects - with the script beside, step by step.
 - Summons: defs/summons/<id>.json plays a summon's outcome by the mod's own steps, its effects the mod's too.
 - Crystal: Copy into the mod makes a summon's outcome editable step by step, with Set from camera and Test in battle.
+- Crystal: a summon's steps on a timeline under the Stage, picked in the Hierarchy and edited in the Inspector; waits drag longer or shorter.
+- Crystal: a summon's Look in the Inspector swaps its model, motions and effects, opens an effect or makes it the mod's.
 - Client: --summon-outcome white|black|combine makes every summon that outcome, for a test.
 - Crystal: Run in OpenFF plays the open project's mod alone; Run with the other mods plays it among the rest.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.

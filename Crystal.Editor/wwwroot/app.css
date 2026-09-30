@@ -2803,3 +2803,14 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .summon-edit-words { margin: 4px 0 0; word-break: normal; }
 .summon-view .bar .chip, .effect-controls .chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--dim); cursor: pointer; }
 .bar .chip.on, .effect-controls .chip.on { background: rgba(110, 168, 254, .18); border-color: var(--accent); color: var(--ink); }
+.summon-timeline-box { flex: 0 0 auto; }
+.summon-steps[hidden] { display: none; }
+#inspector .summon-note { word-break: normal; overflow-wrap: break-word; }
+#inspector .summon-effect-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 0; border-top: 1px solid var(--line); }
+#inspector .summon-effect-row .summon-effect-where { flex: 1 0 100%; }
+#inspector .summon-effect-row input { flex: 1 1 90px; min-width: 0; }
+#inspector .summon-effect-row:first-of-type { border-top: 0; }
+#inspector .summon-effect-where { font-size: 11px; color: var(--dim); cursor: pointer; }
+#inspector .summon-effect-where:hover { color: var(--ink); }
+#inspector .summon-effect-row .chip, #inspector .effect-card > .chip, #inspector .button-row .chip { justify-self: start; margin: 0 4px 0 0; }
+#inspector .summon-step-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }

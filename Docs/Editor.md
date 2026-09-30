@@ -1110,9 +1110,22 @@ One opens as the battle plays it, on the effect Stage: the map darkened to its c
 the screen faded, the summon's model (f201…f208) placed, faded in and moving in its motion
 (b_sm001…008), the camera's cuts, glides and shakes, its effects at the summon, over a side, at a
 point or on each target half the spell's play frame apart, flashes, the monsters hidden and
-shown, the party coming back. Beside it the script, a step a row in words ("fade out to black
-over 10 frames", "effect 367/1 over the enemies"), the one running marked; a click goes to the
-frame it first runs at. Play, Step, Restart, the scrubber, loop, the battle map.
+shown, the party coming back. Play, Step, Restart, the scrubber, loop, the battle map.
+
+Under the Stage the **timeline**: a lane a kind of step (screen, the summon, effects, camera, the
+party and monsters, timing, sound), a bar a step from the frame it starts to the frame it is
+done, a diamond one that is done at once, and under them each effect's life; the red line is the
+frame playing. A click on a bar picks the step (and goes to its frame), a click elsewhere goes to
+that frame; the end of a wait (a frame count, a fade, the dark screen, a flash) drags to make it
+longer or shorter. The steps are in the Hierarchy too, under **Look**; **Script list** beside the
+Stage shows them as rows in words ("fade out to black over 10 frames"), the one running marked.
+
+The Inspector edits what is picked. **Look** is the summon at a glance: its model (f201…f208 or
+any of the game's), its motions (b_sm001…008), its monster (its size and hit point), the spell's
+cast glow, and every effect it plays - a pack and member, or one of the mod's by id - with
+**Open** (the mod's in the effect editor, the game's in the Effects library) and **Make it mine**
+(a copy in `defs/effects`, the step pointed at it, opened to change); *On each target* is the
+spell whose look plays on every target. A step shows its command and numbers.
 
 The script is the game's own - `files/summon_script_command.pack`, 24 lists of 36-byte records
 (`Crystal.Editor/Editor/Summons.cs`, `/api/summons`, `/api/summon`) - and `wwwroot/summons.js`
