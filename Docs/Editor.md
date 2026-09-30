@@ -610,7 +610,8 @@ terrain model with every character standing on it, wearing the model its `.hich`
 names and facing the way that row says. **2D** is the plan it always was: pins you can
 drag, which is still the right thing for moving somebody two steps left.
 
-Left-drag orbits, middle-drag or shift-drag pans, the wheel zooms, and a click picks.
+Left-drag orbits, middle-drag or shift-drag pans (in the screen's plane, along the camera's own
+right and up, so the scene follows the pointer from any angle), the wheel zooms, and a click picks.
 Clicking tests against the model's own size rather than the spot it stands on - a `.hich`
 position is where something's feet are, and aiming at the ground under somebody instead
 of at them was a miss that got worse the flatter the camera angle. Where two overlap, the
@@ -1096,8 +1097,11 @@ the battle plays it, at the target's hit point: a monster (the Goblin to start w
 game's from the list) or Luneth for a spell on the party, standing in its battle wait where the
 battle stands it, the hit point so far toward the battle camera and so far up as the monster's
 own offsets say. An effect's own models (Blizzard's ice block) play their motion too. The
-battle's camera to start with; drag to turn a free one, the middle button (or Shift and a drag) to
-pan it, the wheel to come closer, a double click to look at the target again; **Play**, **Step** (one game
+battle's camera to start with, and the scene view's controls for a free one: a left drag orbits,
+the middle button (or Shift and a drag) pans, the right button held flies (the mouse looks, WASD
+walks, Q and E go down and up, Shift hurries), the wheel comes closer, F or a double click looks at
+the target again. The free camera takes over where the battle's looks from, through its lens, so the
+picture does not jump; **Play**, **Step** (one game
 step, a thirtieth of a second), **Restart**, the scrubber, **loop**, 30 or 60 fps (at 60 a
 particle is drawn between its two steps, as the client does), and the count of particles.
 
@@ -1149,8 +1153,15 @@ it was on; **Ctrl+Z** takes it back.
   *curve* chip: on, the number becomes a curve (by the particle's age; the mesh's step), drawn
   either side of 0 where a value can be negative; off, the number again.
 - **Texture.** The picture - one of the project's (a PNG chosen in the picker goes beside the effects)
-  or any of the game's effect pictures, all in one picker - drawn with its cell grid; the cell
-  size, columns and frames make a flipbook.
+  or any of the game's effect pictures, all in one picker. **Grid**: *Split into* 2 × 2, 4 × 4 or
+  8 × 8, or a cell size of your own, and the count it makes ("4 across × 4 down = 16 cells,
+  numbered from the top left"; where the first cell starts is under *Advanced*). **Animation**:
+  *One cell* (click it on the sheet), *Play* (a first and a last cell - a click and a Shift-click on
+  the sheet - played over and over, once and held, or once over the particle's whole life, so many
+  frames a cell), or *The game's own* sequence an imported effect came with. The sheet dims the
+  cells not played and marks the one showing; beside it a preview plays the flipbook over the life
+  ("age 14 · cell 8"). Every change applies at once; the settings are the texture's `flipbook`, and
+  its frames follow the particle's life when that changes.
 - **The Stage, as the battle lays it.** The monsters in their places (a boss in its own), the
   party's four heroes in the front row as Onion Knights, the caster the first; *1 target*, *each of a group* (three
   monsters or the four, each played half the effect's length after the one before, as the

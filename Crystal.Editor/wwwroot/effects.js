@@ -764,47 +764,141 @@ function makeEffectStage(canvas, textureUrl) {
     if (layout.view === 'battle') {
       // The battle's camera as a spell plays (CameraBattlePosition/Target), its field of view as the port draws it.
       const look = [BATTLE_AT[0], BATTLE_AT[1] + jolt[1], BATTLE_AT[2] + jolt[0]];
-      return { view: effectLookAt(BATTLE_EYE, look), projection: effectPerspective(21.4 * EFFECT_DEG, w / h, 5, 2000) };
+      return { view: effectLookAt(BATTLE_EYE, look), projection: effectPerspective(BATTLE_FOV * EFFECT_DEG, w / h, 5, 2000) };
     }
     const yaw = camera.yaw * EFFECT_DEG, pitch = camera.pitch * EFFECT_DEG;
     const look = [camera.target[0] + jolt[0], camera.target[1] + jolt[1], camera.target[2]];
     const eye = [look[0] + camera.distance * Math.cos(pitch) * Math.sin(yaw), look[1] + camera.distance * Math.sin(pitch), look[2] + camera.distance * Math.cos(pitch) * Math.cos(yaw)];
-    return { view: effectLookAt(eye, look), projection: effectPerspective(40 * EFFECT_DEG, w / h, 0.5, 2000) };
+    return { view: effectLookAt(eye, look), projection: effectPerspective((camera.fov || FREE_FOV) * EFFECT_DEG, w / h, 0.5, 2000) };
   }
 
-  let dragging = null;
-  // Dragging or the wheel frees the camera from the battle's.
-  const freed = () => { if (layout.view === 'battle') { layout.view = 'free'; if (stageApi.onView) stageApi.onView('free'); } };
-  // The free camera: a drag turns it about where it looks; the middle button (or Shift and a drag) pans it, moving
-  // where it looks in the screen's plane; a double click puts it back on the effect's first target.
+  // The free camera, as the scene view's (map-editor.js wireSceneInput): a left drag orbits where it looks, the middle
+  // button (or Shift and a drag) pans it in the screen's plane, the right button held flies - the mouse turns it on
+  // the spot, W A S D walk, Q and E go down and up, Shift hurries - the wheel comes closer, and F or a double click
+  // looks at the effect's first target. Leaving the battle's camera starts it where the battle's looks from, so the
+  // picture does not jump.
+  const FREE_FOV = 40, BATTLE_FOV = 21.4;
+  const backOf = () => {
+    const yaw = camera.yaw * EFFECT_DEG, pitch = camera.pitch * EFFECT_DEG;
+    return [Math.cos(pitch) * Math.sin(yaw), Math.sin(pitch), Math.cos(pitch) * Math.cos(yaw)];
+  };
+  const eyeOf = () => { const k = backOf(); return camera.target.map((v, i) => v + k[i] * camera.distance); };
+  function freed() {
+    if (layout.view !== 'battle') return;
+    // Looking as the battle's camera looks, through its lens, from where it stands: the picture stays as it was, and an
+    // orbit swings round a point at the depth of the first target.
+    const f = [BATTLE_AT[0] - BATTLE_EYE[0], BATTLE_AT[1] - BATTLE_EYE[1], BATTLE_AT[2] - BATTLE_EYE[2]];
+    const l = Math.hypot(f[0], f[1], f[2]) || 1;
+    const fw = f.map(v => v / l);
+    const at = anchors[0] || BATTLE_AT;
+    const depth = Math.max(10, (at[0] - BATTLE_EYE[0]) * fw[0] + (at[1] - BATTLE_EYE[1]) * fw[1] + (at[2] - BATTLE_EYE[2]) * fw[2]);
+    camera.target = BATTLE_EYE.map((v, i) => v + fw[i] * depth);
+    camera.distance = depth;
+    camera.fov = BATTLE_FOV;
+    camera.pitch = Math.asin(-fw[1]) / EFFECT_DEG;
+    camera.yaw = Math.atan2(-fw[0], -fw[2]) / EFFECT_DEG;
+    layout.view = 'free';
+    if (stageApi.onView) stageApi.onView('free');
+  }
+  function frameTarget() {
+    freed();
+    camera.target = (anchors[0] || [0, 0, 0]).slice();
+    // Far enough that a monster fills a good part of the view, through whatever lens the camera has.
+    camera.distance = 44 * Math.tan(FREE_FOV / 2 * EFFECT_DEG) / Math.tan((camera.fov || FREE_FOV) / 2 * EFFECT_DEG);
+  }
+  let dragging = null, flying = false, flight = 0;
+  const held = new Set();
+  function flyStep() {
+    if (!flying) return;
+    const ahead = (held.has('w') ? 1 : 0) - (held.has('s') ? 1 : 0);
+    const sideways = (held.has('d') ? 1 : 0) - (held.has('a') ? 1 : 0);
+    const upward = (held.has('e') ? 1 : 0) - (held.has('q') ? 1 : 0);
+    if (ahead || sideways || upward) {
+      const k = backOf(), forward = k.map(v => -v);
+      const right = [Math.cos(camera.yaw * EFFECT_DEG), 0, -Math.sin(camera.yaw * EFFECT_DEG)];
+      const step = Math.max(0.3, camera.distance * 0.02) * (held.has('shift') ? 4 : 1);
+      for (let i = 0; i < 3; i++) camera.target[i] += (forward[i] * ahead + right[i] * sideways + (i === 1 ? upward : 0)) * step;
+    }
+    flight = requestAnimationFrame(flyStep);
+  }
+  const onKey = e => {
+    if (!flying) return;
+    const key = e.key.toLowerCase();
+    if ('wasdqe'.includes(key) || key === 'shift') {
+      e.preventDefault();
+      if (e.type === 'keydown') held.add(key); else held.delete(key);
+    }
+  };
+  function stopFlying() {
+    if (!flying) return;
+    flying = false;
+    held.clear();
+    cancelAnimationFrame(flight);
+    window.removeEventListener('keydown', onKey);
+    window.removeEventListener('keyup', onKey);
+    canvas.style.cursor = '';
+  }
+  canvas.tabIndex = 0;   // for F
+  canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });   // no browser autoscroll
   canvas.addEventListener('pointerdown', e => {
-    if (e.button === 1) e.preventDefault();   // no browser autoscroll
-    dragging = { x: e.clientX, y: e.clientY, pan: e.button === 1 || e.shiftKey };
+    canvas.focus({ preventScroll: true });
     canvas.setPointerCapture(e.pointerId);
+    if (e.button === 1) e.preventDefault();
+    freed();
+    if (e.button === 2) {
+      flying = true;
+      canvas.style.cursor = 'none';
+      window.addEventListener('keydown', onKey);
+      window.addEventListener('keyup', onKey);
+      flight = requestAnimationFrame(flyStep);
+      dragging = { x: e.clientX, y: e.clientY, button: 2 };
+      return;
+    }
+    dragging = { x: e.clientX, y: e.clientY, button: e.button, pan: e.button === 1 || e.shiftKey };
   });
-  canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
   canvas.addEventListener('pointermove', e => {
     if (!dragging) return;
     const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y;
-    if (Math.abs(dx) + Math.abs(dy) > 0) freed();
+    dragging.x = e.clientX; dragging.y = e.clientY;
+    if (flying) {
+      // Turning on the spot: the eye stays put and the view swings round it.
+      const eye = eyeOf();
+      camera.yaw -= dx * 0.3;
+      camera.pitch = Math.max(-85, Math.min(85, camera.pitch + dy * 0.25));
+      const k = backOf();
+      camera.target = eye.map((v, i) => v - k[i] * camera.distance);
+      return;
+    }
     if (dragging.pan) {
       // The camera's right and up in the world, and a pixel's worth of world at the distance it looks from.
-      const yaw = camera.yaw * EFFECT_DEG, pitch = camera.pitch * EFFECT_DEG;
-      const back = [Math.cos(pitch) * Math.sin(yaw), Math.sin(pitch), Math.cos(pitch) * Math.cos(yaw)];
-      const right = [Math.cos(yaw), 0, -Math.sin(yaw)];
-      const up = [back[1] * right[2] - back[2] * right[1], back[2] * right[0] - back[0] * right[2], back[0] * right[1] - back[1] * right[0]];
-      const perPixel = 2 * camera.distance * Math.tan(20 * EFFECT_DEG) / Math.max(1, canvas.clientHeight);
-      for (let k = 0; k < 3; k++) camera.target[k] += (-right[k] * dx + up[k] * dy) * perPixel;
+      const k = backOf();
+      const right = [Math.cos(camera.yaw * EFFECT_DEG), 0, -Math.sin(camera.yaw * EFFECT_DEG)];
+      const up = [k[1] * right[2] - k[2] * right[1], k[2] * right[0] - k[0] * right[2], k[0] * right[1] - k[1] * right[0]];
+      const perPixel = 2 * camera.distance * Math.tan((camera.fov || FREE_FOV) / 2 * EFFECT_DEG) / Math.max(1, canvas.clientHeight);
+      for (let i = 0; i < 3; i++) camera.target[i] += (-right[i] * dx + up[i] * dy) * perPixel;
     } else {
       camera.yaw -= dx * 0.4;
-      camera.pitch = Math.max(-10, Math.min(85, camera.pitch + dy * 0.3));
+      camera.pitch = Math.max(-85, Math.min(85, camera.pitch + dy * 0.3));
     }
-    dragging = { ...dragging, x: e.clientX, y: e.clientY };
   });
-  canvas.addEventListener('pointerup', () => { dragging = null; });
-  canvas.addEventListener('pointercancel', () => { dragging = null; });
+  const letGo = e => {
+    if (e && e.button === 2) stopFlying();
+    if (!e || e.type === 'pointercancel') stopFlying();
+    dragging = null;
+  };
+  canvas.addEventListener('pointerup', letGo);
+  canvas.addEventListener('pointercancel', letGo);
+  window.addEventListener('blur', () => { stopFlying(); dragging = null; });
   canvas.addEventListener('contextmenu', e => e.preventDefault());
-  canvas.addEventListener('dblclick', () => { freed(); camera.target = anchors[0].slice(); });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    // A middle button held (a pan) nudges the wheel on many mice: not a zoom.
+    if (dragging && dragging.pan && dragging.button === 1) return;
+    freed();
+    camera.distance = Math.max(3, Math.min(400, camera.distance * (e.deltaY > 0 ? 1.1 : 0.9)));
+  }, { passive: false });
+  canvas.addEventListener('keydown', e => { if (!flying && e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); frameTarget(); } });
+  canvas.addEventListener('dblclick', () => frameTarget());
   canvas.addEventListener('wheel', e => { e.preventDefault(); freed(); camera.distance = Math.max(8, Math.min(200, camera.distance * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
 
   /// Who the effect plays on: { model (a game model's name, or none), scale, toward, up, turn, party, at (a place of its own) }.
@@ -814,6 +908,8 @@ function makeEffectStage(canvas, textureUrl) {
   }
   /// How many, the battle map, the camera: { count: 'one' | 'group' | 'all', background: 'files/bNN.nmdp.lz' or '', view: 'battle' | 'free' }.
   function setLayout(next) {
+    // From the battle's camera to the free one: it starts where the battle's looks from.
+    if (layout.view === 'battle' && next.view === 'free' && typeof freed === 'function') freed();
     layout = { ...layout, ...next, show: { ...SHOW_ALL, ...layout.show, ...(next.show || {}) } };
     relayout();
   }

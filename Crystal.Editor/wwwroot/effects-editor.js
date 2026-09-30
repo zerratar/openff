@@ -337,7 +337,12 @@ function effectInspect(ed, ref) {
     });
 
     const part = effectCard(box, 'Particle', 'effect', null);
-    effectNumber(ed, part, 'Life', d => T(d).life || 1, (d, v) => { T(d).life = Math.max(1, Math.round(v)); }, { step: 1, hint: 'frames a particle shows' });
+    effectNumber(ed, part, 'Life', d => T(d).life || 1, (d, v) => {
+      T(d).life = Math.max(1, Math.round(v));
+      // A flipbook made from its settings follows the life (over it, or looping to its end).
+      const tx = T(d).texture;
+      if (tx && tx.flipbook) tx.frames = effectFlipbookFrames(tx.flipbook, T(d).life);
+    }, { step: 1, hint: 'frames a particle shows' });
     effectRange(ed, part, 'Size', d => T(d).size, (d, v) => { T(d).size = v; }, { hint: 'its full width, world units' });
     effectSelect(ed, part, 'Space', d => T(d).space || 'world', (d, v) => { if (v === 'local') T(d).space = 'local'; else delete T(d).space; }, [['world', 'world: left where it is born'], ['local', 'local: follows the emitter']]);
 
@@ -1089,82 +1094,227 @@ function effectCurve(ed, card, i, opts = {}) {
 
 // ------------------------------------------------------------------ the texture and its flipbook
 
+/// The frames a flipbook's settings make (texture.flipbook, the editor's; the players read texture.frames):
+/// one cell; cells from..to a cell every `each` frames, looping or held on the last; or from..to spread over the life.
+function effectFlipbookFrames(fb, life) {
+  if (!fb) return null;
+  if (fb.mode === 'still') return [[1, Math.max(0, fb.from | 0)]];
+  const from = Math.max(0, fb.from | 0), to = Math.max(0, fb.to | 0);
+  const cells = [];
+  for (let c = from; ; c += to >= from ? 1 : -1) { cells.push(c); if (c === to) break; }
+  const L = Math.max(1, life || 16), each = Math.max(1, fb.each | 0);
+  const out = [];
+  if (fb.end === 'fit') {
+    cells.forEach((c, k) => { const age = 1 + Math.floor(k * L / cells.length); if (!out.length || out[out.length - 1][0] !== age) out.push([age, c]); else out[out.length - 1][1] = c; });
+  } else if (fb.end === 'hold') {
+    cells.forEach((c, k) => { if (1 + k * each <= L) out.push([1 + k * each, c]); });
+  } else {
+    for (let age = 1, k = 0; age <= L; age += each, k++) out.push([age, cells[k % cells.length]]);
+  }
+  return out;
+}
+
+/// The texture: its picture, the sheet cut into a grid of cells, and what the particle shows of it over its life - one
+/// cell, a play through a run of them (looping, once, or over its life), or the game's own sequence - with the sheet to
+/// click cells on and a preview that plays it. Every change applies at once.
 function effectTextureCard(ed, card, i) {
   const T = d => d.tracks[i];
   const tex = T(ed.def).texture;
   const pick = document.createElement('button');
   pick.className = 'wide-button';
-  pick.textContent = tex.image ? effectImageLabel(tex.image) + '  (' + tex.width + 'x' + tex.height + ')' : 'Pick a picture…';
+  pick.textContent = tex.image ? effectImageLabel(tex.image) + '  (' + tex.width + ' × ' + tex.height + ')' : 'Pick a picture…';
   pick.title = 'one of the game\'s effect pictures, or a PNG of the mod\'s';
   pick.onclick = () => effectTexturePicker(ed, (chosen) => ed.change('pick a picture', d => {
     const t = T(d).texture;
     t.image = chosen.image; t.width = chosen.width; t.height = chosen.height;
     t.cell = [0, 0, chosen.width, chosen.height];
-    delete t.columns; delete t.frames;
+    delete t.columns; delete t.frames; delete t.flipbook;
   }, { structural: true }));
   card.append(pick);
   if (!tex.image) return;
-  // The sheet with its cell grid over it: the frames a flipbook steps through.
+
+  const W = tex.width || 1, H = tex.height || 1;
+  const cellOf = t => t.cell || [0, 0, t.width || 1, t.height || 1];
+  const gridOf = t => {
+    const c = cellOf(t);
+    const cols = t.columns || 1;
+    const rows = t.columns ? Math.max(1, Math.floor((H - c[1]) / Math.max(1, c[3]))) : 1;
+    return { c, cols, rows, count: t.columns ? cols * rows : 1 };
+  };
+  const section = text => { const h = document.createElement('div'); h.className = 'effect-subhead'; h.textContent = text; card.append(h); return h; };
+  const note = text => { const p = document.createElement('p'); p.className = 'sub'; p.textContent = text; card.append(p); return p; };
+  // A change to the grid or the flipbook, the frames made again from the flipbook's settings.
+  const apply = (label, mutate) => ed.change(label, d => {
+    mutate(T(d).texture, d);
+    const t = T(d).texture;
+    if (t.flipbook) t.frames = effectFlipbookFrames(t.flipbook, T(d).life);
+  }, { structural: true });
+
+  // ---- the grid
+  section('Grid');
+  const g0 = gridOf(tex);
+  const sizes = document.createElement('div');
+  sizes.className = 'effect-chips';
+  const splitLabel = document.createElement('span');
+  splitLabel.textContent = 'Split into';
+  sizes.append(splitLabel);
+  for (const n of [1, 2, 4, 8]) {
+    const b = document.createElement('button');
+    b.className = 'chip' + (tex.columns === n && Math.round(W / n) === g0.c[2] && Math.round(H / n) === g0.c[3] || (n === 1 && !tex.columns) ? ' on' : '');
+    b.textContent = n === 1 ? 'whole picture' : `${n} × ${n}`;
+    b.title = n === 1 ? 'one picture, no cells' : `${n * n} cells of ${W / n} × ${H / n}`;
+    b.onclick = () => apply('split the sheet', t => {
+      if (n === 1) { t.cell = [0, 0, W, H]; delete t.columns; delete t.flipbook; delete t.frames; }
+      else { t.cell = [0, 0, Math.floor(W / n), Math.floor(H / n)]; t.columns = n; }
+    });
+    sizes.append(b);
+  }
+  card.append(sizes);
+  const sizeRow = effectRow(card, 'Cell size', 'a cell\'s width and height in pixels; the sheet is cut into as many as fit');
+  const pair = document.createElement('div');
+  pair.className = 'field-triple';
+  const cw = document.createElement('input'), ch = document.createElement('input');
+  for (const [x, v, t] of [[cw, g0.c[2], 'width'], [ch, g0.c[3], 'height']]) { x.type = 'number'; x.min = '1'; x.step = '1'; x.value = String(v); x.title = t; pair.append(x); }
+  sizeRow.append(pair);
+  const resize = () => apply('cell size', t => {
+    const c = cellOf(t);
+    const w = Math.max(1, parseInt(cw.value, 10) || c[2]), h = Math.max(1, parseInt(ch.value, 10) || c[3]);
+    t.cell = [c[0], c[1], w, h];
+    const cols = Math.max(1, Math.floor((W - c[0]) / w));
+    if (w >= W && h >= H) { delete t.columns; } else t.columns = cols;
+  });
+  cw.onchange = resize; ch.onchange = resize;
+  note(tex.columns ? `${g0.cols} across × ${g0.rows} down = ${g0.count} cells, numbered from the top left` : 'The whole picture is one cell.');
+  const adv = document.createElement('details');
+  adv.className = 'effect-advanced';
+  const advSum = document.createElement('summary');
+  advSum.textContent = 'Advanced: where the first cell starts, cells a row';
+  adv.append(advSum);
+  card.append(adv);
+  effectVector(ed, adv, 'First cell', d => cellOf(T(d).texture), (d, v) => { T(d).texture.cell = v.map(x => Math.max(0, Math.round(x))); }, { width: 4, hint: 'x, y, width and height of the first cell, in pixels' });
+  effectNumber(ed, adv, 'Cells a row', d => T(d).texture.columns || 0, (d, v) => { if (v > 0) T(d).texture.columns = Math.round(v); else delete T(d).texture.columns; }, { step: 1, hint: 'how many cells a row of the sheet has (0: one picture)' });
+
+  // ---- the animation
+  section('Animation');
+  const fb = tex.flipbook;
+  const frames = tex.frames || [];
+  const mode = fb ? fb.mode : frames.length > 1 ? 'game' : 'still';
+  const modes = document.createElement('div');
+  modes.className = 'effect-chips';
+  const last = Math.max(0, g0.count - 1);
+  const choices = [['still', 'One cell', 'the same cell all its life'], ['play', 'Play', 'step through a run of cells']];
+  if (frames.length > 1 && !fb) choices.push(['game', 'The game\'s own', 'the sequence it came with, as it is']);
+  for (const [m, text, title] of choices) {
+    const b = document.createElement('button');
+    b.className = 'chip' + (mode === m ? ' on' : '');
+    b.textContent = text;
+    b.title = title;
+    b.disabled = m === 'play' && g0.count < 2;
+    b.onclick = () => {
+      if (m === mode) return;
+      if (m === 'game') return;
+      const first = frames.length ? frames[0][1] : 0;
+      apply(m === 'still' ? 'one cell' : 'play the cells', t => {
+        t.flipbook = m === 'still' ? { mode: 'still', from: first } : { mode: 'play', from: 0, to: last, each: 2, end: 'loop' };
+      });
+    };
+    modes.append(b);
+  }
+  card.append(modes);
+  if (g0.count < 2) note('Split the picture into cells (above) to animate it.');
+
+  let clickHint = null;
+  if (mode === 'still') {
+    effectNumber(ed, card, 'Cell', d => ((T(d).texture.flipbook || {}).from) || (T(d).texture.frames && T(d).texture.frames[0] ? T(d).texture.frames[0][1] : 0),
+      (d, v) => { const t = T(d).texture; t.flipbook = { mode: 'still', from: Math.max(0, Math.min(last, Math.round(v))) }; t.frames = effectFlipbookFrames(t.flipbook, T(d).life); }, { step: 1, hint: 'which cell it shows (or click one on the sheet)' });
+    clickHint = 'Click a cell on the sheet to show it.';
+  } else if (mode === 'play') {
+    const F = d => T(d).texture.flipbook;
+    const set = (d, k, v) => { const t = T(d).texture; t.flipbook[k] = v; t.frames = effectFlipbookFrames(t.flipbook, T(d).life); };
+    effectNumber(ed, card, 'First cell', d => F(d).from, (d, v) => set(d, 'from', Math.max(0, Math.min(last, Math.round(v)))), { step: 1, hint: 'the cell it starts on (or click one on the sheet)' });
+    effectNumber(ed, card, 'Last cell', d => F(d).to, (d, v) => set(d, 'to', Math.max(0, Math.min(last, Math.round(v)))), { step: 1, hint: 'the cell it ends on (or Shift and click one on the sheet); lower than the first plays backwards' });
+    effectSelect(ed, card, 'Plays', d => F(d).end || 'loop', (d, v) => set(d, 'end', v),
+      [['loop', 'over and over'], ['hold', 'once, then holds the last'], ['fit', 'once, over its whole life']], { structural: true });
+    if (fb.end !== 'fit') effectNumber(ed, card, 'Frames a cell', d => F(d).each || 1, (d, v) => set(d, 'each', Math.max(1, Math.round(v))), { step: 1, hint: 'how long each cell shows, in frames (30 a second)' });
+    const n = Math.abs((fb.to | 0) - (fb.from | 0)) + 1, L = T(ed.def).life || 16;
+    note(fb.end === 'fit' ? `${n} cells over its life of ${L} frames.` : `${n} cells, ${fb.each || 1} frame${(fb.each || 1) === 1 ? '' : 's'} each: ${n * (fb.each || 1)} frames a pass${fb.end === 'hold' ? ', then the last cell' : ''}; its life is ${L}.`);
+    clickHint = 'Click a cell on the sheet to start there, Shift and click to end there.';
+  } else {
+    const cellsUsed = [...new Set(frames.map(f => f[1]))];
+    note(`The game's sequence: ${frames.length} steps over ages ${frames[0][0]}–${frames[frames.length - 1][0]}, cells ${Math.min(...cellsUsed)}–${Math.max(...cellsUsed)}. Choose Play to make your own.`);
+  }
+
+  // ---- the sheet, and the preview playing it
+  const view = document.createElement('div');
+  view.className = 'effect-sheet-view';
   const sheet = document.createElement('canvas');
   sheet.className = 'effect-sheet';
-  card.append(sheet);
+  const previewBox = document.createElement('div');
+  previewBox.className = 'effect-flip-preview';
+  const preview = document.createElement('canvas');
+  const caption = document.createElement('span');
+  previewBox.append(preview, caption);
+  view.append(sheet, previewBox);
+  card.append(view);
+  if (clickHint) note(clickHint);
   const image = new Image();
-  image.onload = () => {
-    const cell = tex.cell || [0, 0, tex.width, tex.height], cols = tex.columns || 0;
-    const scale = Math.min(4, 240 / Math.max(tex.width, tex.height));
-    sheet.width = tex.width * scale; sheet.height = tex.height * scale;
-    const g = sheet.getContext('2d');
+  const scale = Math.min(4, 220 / Math.max(W, H));
+  const used = () => new Set((T(ed.def).texture.frames || [[1, 0]]).map(f => f[1]));
+  let showing = 0;
+  function drawSheet() {
+    if (!image.complete || !image.naturalWidth) return;
+    const t = T(ed.def).texture, grid = gridOf(t), c = grid.c;
+    const g = effectSharp(sheet, W * scale, H * scale);
     g.imageSmoothingEnabled = false;
-    g.fillStyle = '#23272e'; g.fillRect(0, 0, sheet.width, sheet.height);
-    g.drawImage(image, 0, 0, sheet.width, sheet.height);
-    g.strokeStyle = 'rgba(110, 168, 254, 0.8)';
-    g.fillStyle = '#6ea8fe';
-    g.font = '10px sans-serif';
-    const rows = cols ? Math.max(1, Math.floor((tex.height - cell[1]) / Math.max(1, cell[3]))) : 1;
-    for (let n = 0; n < (cols ? cols * rows : 1); n++) {
-      const gx = cols ? n % cols : 0, gy = cols ? Math.floor(n / cols) : 0;
-      const x = (cell[0] + cell[2] * gx) * scale, y = (cell[1] + cell[3] * gy) * scale;
-      g.strokeRect(x + 0.5, y + 0.5, cell[2] * scale - 1, cell[3] * scale - 1);
-      if (cols) g.fillText(String(n), x + 2, y + 10);
+    g.fillStyle = '#23272e'; g.fillRect(0, 0, W * scale, H * scale);
+    g.drawImage(image, 0, 0, W * scale, H * scale);
+    const inUse = used();
+    g.font = '10px system-ui, sans-serif';
+    for (let n = 0; n < grid.count; n++) {
+      const gx = t.columns ? n % grid.cols : 0, gy = t.columns ? Math.floor(n / grid.cols) : 0;
+      const x = (c[0] + c[2] * gx) * scale, y = (c[1] + c[3] * gy) * scale, w = c[2] * scale, h = c[3] * scale;
+      if (!inUse.has(n) && grid.count > 1) { g.fillStyle = 'rgba(20, 22, 26, 0.55)'; g.fillRect(x, y, w, h); }
+      g.strokeStyle = n === showing ? '#ffffff' : 'rgba(110, 168, 254, 0.7)';
+      g.lineWidth = n === showing ? 2 : 1;
+      g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      if (grid.count > 1) { g.fillStyle = n === showing ? '#ffffff' : '#6ea8fe'; g.fillText(String(n), x + 3, y + 11); }
     }
-  };
-  image.src = effectTextureUrl(tex.image, ed.name);
-  effectVector(ed, card, 'Cell', d => T(d).texture.cell || [0, 0, T(d).texture.width, T(d).texture.height], (d, v) => { T(d).texture.cell = v.map(x => Math.max(0, Math.round(x))); }, { width: 4, hint: 'the first cell: its x, y, width and height in texels' });
-  effectNumber(ed, card, 'Columns', d => T(d).texture.columns || 0, (d, v) => { if (v > 0) T(d).texture.columns = Math.round(v); else delete T(d).texture.columns; }, { step: 1, hint: 'cells a row of the sheet (0: one picture, no flipbook)' });
-  const fb = document.createElement('div');
-  fb.className = 'behaviour-header';
-  fb.textContent = 'Flipbook';
-  card.append(fb);
-  const frames = T(ed.def).texture.frames || [];
-  const list = document.createElement('p');
-  list.className = 'sub';
-  list.textContent = frames.length ? frames.map(f => `${f[0]}→${f[1]}`).join('  ') : 'one cell all its life';
-  card.append(list);
-  const row = effectRow(card, 'Cells', 'the flipbook: from cell, to cell, a frame each for so many frames');
-  const triple = document.createElement('div');
-  triple.className = 'field-triple';
-  const from = document.createElement('input'), to = document.createElement('input'), each = document.createElement('input');
-  for (const [x, v, t] of [[from, 0, 'from cell'], [to, Math.max(0, (T(ed.def).texture.columns || 1) - 1), 'to cell'], [each, 1, 'frames a cell']]) { x.type = 'number'; x.step = '1'; x.value = String(v); x.title = t; triple.append(x); }
-  row.append(triple);
-  const make = document.createElement('button');
-  make.className = 'mini';
-  make.textContent = '↻';
-  make.title = 'lay the flipbook out: from the first cell to the last over and over, for the particle\'s life';
-  row.append(make);
-  make.onclick = () => ed.change('lay out the flipbook', d => {
-    const a = parseInt(from.value, 10) || 0, b = parseInt(to.value, 10) || 0, n = Math.max(1, parseInt(each.value, 10) || 1);
-    const out = [];
-    const cells = b >= a ? b - a + 1 : a - b + 1, life = d.tracks[i].life || 16;
-    for (let age = 1, k = 0; age <= life; age += n, k++) out.push([age, b >= a ? a + (k % cells) : a - (k % cells)]);
-    d.tracks[i].texture.frames = out;
-  }, { structural: true });
-  if (frames.length) {
-    const clear = document.createElement('button');
-    clear.className = 'wide-button';
-    clear.textContent = 'No flipbook';
-    clear.onclick = () => ed.change('no flipbook', d => { delete d.tracks[i].texture.frames; }, { structural: true });
-    card.append(clear);
   }
+  image.onload = drawSheet;
+  image.src = effectTextureUrl(tex.image, ed.name);
+  sheet.addEventListener('click', e => {
+    const t = T(ed.def).texture, grid = gridOf(t), c = grid.c;
+    if (grid.count < 2 || (mode !== 'still' && mode !== 'play')) return;
+    const r = sheet.getBoundingClientRect();
+    const px = (e.clientX - r.left) / scale, py = (e.clientY - r.top) / scale;
+    const gx = Math.floor((px - c[0]) / c[2]), gy = Math.floor((py - c[1]) / c[3]);
+    if (gx < 0 || gy < 0 || gx >= grid.cols || gy >= grid.rows) return;
+    const n = gy * grid.cols + gx;
+    if (mode === 'still') apply('show a cell', tt => { tt.flipbook = { mode: 'still', from: n }; });
+    else apply(e.shiftKey ? 'the last cell' : 'the first cell', tt => { tt.flipbook = { ...tt.flipbook, [e.shiftKey ? 'to' : 'from']: n }; });
+  });
+  sheet.style.cursor = mode === 'still' || mode === 'play' ? 'pointer' : 'default';
+  // The preview: the cell the particle shows at each age of its life, over and over at 30 a second.
+  let age = 1, lastTime = performance.now();
+  const tick = now => {
+    if (!preview.isConnected) return;
+    const t = T(ed.def).texture, grid = gridOf(t), c = grid.c, L = Math.max(1, T(ed.def).life || 16);
+    if (now - lastTime >= 1000 / 30) { age = age >= L ? 1 : age + 1; lastTime = now; }
+    const cell = effectFrame(t.frames, age);
+    if (cell !== showing) { showing = cell; drawSheet(); }
+    const size = 72;
+    const g = effectSharp(preview, size, size);
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = '#101216'; g.fillRect(0, 0, size, size);
+    if (image.complete && image.naturalWidth) {
+      const gx = t.columns ? cell % grid.cols : 0, gy = t.columns ? Math.floor(cell / grid.cols) : 0;
+      const fit = Math.min(size / c[2], size / c[3]);
+      g.drawImage(image, c[0] + c[2] * gx, c[1] + c[3] * gy, c[2], c[3], (size - c[2] * fit) / 2, (size - c[3] * fit) / 2, c[2] * fit, c[3] * fit);
+    }
+    caption.textContent = `age ${age} · cell ${cell}`;
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 function effectImageLabel(image) {

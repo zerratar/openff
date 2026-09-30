@@ -38,6 +38,8 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Effects: render tint recolour paints a picture's brightness in the particle's colour - a blue flame from the game's orange one.
 - Crystal: effect timeline bars resize from their edges - an emitter's emission or life, a mesh's life, a flash's or a shake's frames.
 - Crystal: the effect Stage's free camera pans with the middle button (or Shift and a drag); a double click looks at the target again.
+- Crystal: the effect Stage's free camera flies as the scene view's does - the right button held, WASD, Q and E - and F frames the target.
+- Crystal: the texture card's grid and flipbook - split a sheet, show one cell or play a run of them (looping, once, or over the life), with the sheet to click and a preview.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
 - Crystal: resting the pointer on an effect in the library plays it.
 - Crystal: a Mod badge marks the project's own things in the lists, and an OpenFF only badge the client's behaviours.
@@ -46,6 +48,8 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Effects: a game model on a mesh track takes the track's scale in the client.
 - Crystal: switching an effect module off and on again keeps its settings - a texture its picture.
 - Crystal: the effect timeline, curves and gradients draw sharp on a scaled display.
+- Crystal: the scene view pans the way the camera faces - it no longer turns backwards at some angles.
+- Crystal: the effect Stage's free camera starts where the battle camera looks from, and the middle button no longer zooms while it pans.
 - Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.
 - Menus: the magic school icons no longer cover the first letters of the spells' names.
 

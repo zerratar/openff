@@ -2735,3 +2735,17 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .effect-show select { font-size: 11px; }
 #inspector .chip { font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--dim); cursor: pointer; flex: 0 0 auto; margin-left: 6px; }
 #inspector .chip.on { background: rgba(110, 168, 254, .18); border-color: var(--accent); color: var(--ink); }
+
+/* The texture card: its sections, chips, the sheet beside the flipbook's preview. */
+#inspector .effect-subhead { font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin: 10px 0 4px; }
+#inspector .effect-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 2px 0 6px; }
+#inspector .effect-chips > span { font-size: 11px; color: var(--dim); margin-right: 2px; }
+#inspector .effect-chips .chip { margin-left: 0; }
+#inspector .effect-chips .chip:disabled { opacity: .4; cursor: default; }
+#inspector .effect-advanced { margin: 2px 0 6px; font-size: 11px; color: var(--dim); }
+#inspector .effect-advanced summary { cursor: pointer; }
+#inspector .effect-sheet-view { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; margin-top: 6px; }
+#inspector .effect-sheet-view .effect-sheet { margin: 0; }
+#inspector .effect-flip-preview { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+#inspector .effect-flip-preview canvas { border: 1px solid var(--line); border-radius: 4px; image-rendering: pixelated; }
+#inspector .effect-flip-preview span { font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }

@@ -1482,11 +1482,13 @@ function makeMapScene(canvas, status) {
       draw();
     },
 
+    /// Panning in the screen's plane, along the camera's own right and up: the scene follows the pointer from any
+    /// angle, a pixel's worth of world at the distance it looks from (the view is 0.7 radians tall).
     pan(dx, dy) {
-      const cy = Math.cos(yaw), sy = Math.sin(yaw);
-      const step = distance * 0.0016;
-      centre[0] -= (cy * dx - sy * dy) * step;
-      centre[2] -= (sy * dx + cy * dy) * step;
+      const { right, up } = basis();
+      const rect = canvas.getBoundingClientRect();
+      const perPixel = 2 * distance * Math.tan(0.7 / 2) / Math.max(1, rect.height);
+      for (let k = 0; k < 3; k++) centre[k] += (-right[k] * dx + up[k] * dy) * perPixel;
       draw();
     },
 

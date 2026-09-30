@@ -276,7 +276,9 @@ the port's addition). The tracks that are neither: `sound` (`archive`, `number`,
   `gravityOverLife` (keys `[age, k]`): the pull a step times k; `countOverTime` (keys
   `[frame, count]`, by the emitter's frame): how many a burst makes, rounded, in place of `count`;
 - `texture`: `image` (`game:<pack>:<name>`, the game's own read from the install), `width`,
-  `height`, `cell` (the first cell's rectangle), `columns`, `frames` (keys `[age, cell]`);
+  `height`, `cell` (the first cell's rectangle), `columns`, `frames` (keys `[age, cell]`), and
+  `flipbook` - Crystal's settings the frames were made from (`mode` still or play, `from`, `to`,
+  `each`, `end` loop, hold or fit); the players read the frames alone;
 - `render`: `blend` (`alpha`), `facing` (`camera`), `tint` - `multiply` (the game's, and the
   default: the picture times the colour, so white keeps the picture's own colours and a colour can
   only darken them) or `recolour` (the picture's brightness - its brightest channel - in the
