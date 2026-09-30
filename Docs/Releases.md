@@ -53,6 +53,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: the scene view pans the way the camera faces - it no longer turns backwards at some angles.
 - Crystal: the texture card holds still - its sheet no longer animates under the pointer, the inspector keeps its scroll, and a flipbook played over the life reaches its last cell.
 - Crystal: a new project no longer takes over a leftover folder of the same name.
+- Crystal: a colour key's alpha is a slider and a number that go both ways, beside its frame, its colour and Remove key.
 - Crystal: the effect Stage's free camera starts where the battle camera looks from, and the middle button no longer zooms while it pans.
 - Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.
 - Menus: the magic school icons no longer cover the first letters of the spells' names.

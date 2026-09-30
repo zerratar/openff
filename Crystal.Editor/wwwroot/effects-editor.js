@@ -813,26 +813,47 @@ function effectGradient(ed, card, i) {
     detail.textContent = '';
     const k = keys()[selected];
     if (!k) return;
-    const row = document.createElement('div');
-    row.className = 'behaviour-field';
+    // The selected key, a row a thing: where it is, its colour, its alpha (slider and number), and a way to take it out.
+    const row = (label, hint) => { const r = document.createElement('div'); r.className = 'behaviour-field'; if (hint) r.title = hint; const s = document.createElement('span'); s.textContent = label; r.append(s); detail.append(r); return r; };
+    const hex = q => '#' + [q[1], q[2], q[3]].map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0')).join('');
+    const at = row('Key at frame', 'the age (frame of its life) the key is at');
     const age = document.createElement('input');
-    age.type = 'number'; age.step = '1'; age.value = String(k[0]); age.title = 'the age (frame of its life) the key is at';
+    age.type = 'number'; age.step = '1'; age.min = '1'; age.value = String(k[0]);
+    at.append(age);
+    const tint = row('Colour', 'the colour at this key (multiplies the picture, or paints it - Render > Tint)');
     const colour = document.createElement('input');
     colour.type = 'color';
-    colour.value = '#' + [k[1], k[2], k[3]].map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0')).join('');
+    colour.value = hex(k);
+    const code = document.createElement('code');
+    code.className = 'effect-hex';
+    code.textContent = hex(k);
+    tint.append(colour, code);
+    const see = row('Alpha', 'how much it shows at this key: 0 not at all, 255 fully');
+    see.classList.add('effect-alpha');
     const alpha = document.createElement('input');
-    alpha.type = 'range'; alpha.min = '0'; alpha.max = '255'; alpha.value = String(k[4]); alpha.title = 'alpha';
-    const label = document.createElement('span');
-    label.textContent = 'key';
-    row.append(label, age, colour, alpha);
-    detail.append(row);
+    alpha.type = 'range'; alpha.min = '0'; alpha.max = '255'; alpha.step = '1'; alpha.value = String(k[4]);
+    const alphaNumber = document.createElement('input');
+    alphaNumber.type = 'number'; alphaNumber.min = '0'; alphaNumber.max = '255'; alphaNumber.step = '1'; alphaNumber.value = String(k[4]);
+    see.append(alpha, alphaNumber);
+    const actions = document.createElement('div');
+    actions.className = 'effect-key-actions';
+    const remove = document.createElement('button');
+    remove.className = 'chip';
+    remove.textContent = 'Remove key';
+    remove.title = 'take this key out (a right click on its marker does the same)';
+    remove.disabled = keys().length < 2;
+    remove.onclick = () => { if (keys().length < 2) return; ed.change('remove a colour key', d => K(d).splice(selected, 1)); selected = Math.max(0, selected - 1); draw(); };
+    actions.append(remove);
+    detail.append(actions);
     let was = null;
-    const start = () => { was = effectClone(ed.def); };
-    const commit = () => ed.change('edit a colour key', () => {}, { before: was });
-    for (const x of [age, colour, alpha]) { x.addEventListener('focus', start); x.addEventListener('pointerdown', start); x.addEventListener('change', () => { commit(); draw(); }); }
-    colour.addEventListener('input', () => { const v = [1, 3, 5].map(n => parseInt(colour.value.substr(n, 2), 16)); ed.live(d => { const q = K(d)[selected]; q[1] = v[0]; q[2] = v[1]; q[3] = v[2]; }); drawStrip(); });
-    alpha.addEventListener('input', () => { ed.live(d => { K(d)[selected][4] = parseInt(alpha.value, 10); }); drawStrip(); });
-    age.addEventListener('input', () => { const v = parseInt(age.value, 10); if (!isNaN(v)) { ed.live(d => { K(d)[selected][0] = Math.max(1, v); }); drawStrip(); } });
+    const start = () => { if (!was) was = effectClone(ed.def); };
+    const commit = () => { if (was) ed.change('edit a colour key', () => {}, { before: was }); was = null; };
+    for (const x of [age, colour, alpha, alphaNumber]) { x.addEventListener('focus', start); x.addEventListener('pointerdown', start); x.addEventListener('change', () => { commit(); draw(); }); }
+    colour.addEventListener('input', () => { start(); const v = [1, 3, 5].map(n => parseInt(colour.value.substr(n, 2), 16)); ed.live(d => { const q = K(d)[selected]; q[1] = v[0]; q[2] = v[1]; q[3] = v[2]; }); code.textContent = colour.value; drawStrip(); });
+    const setAlpha = v => { start(); v = Math.max(0, Math.min(255, v | 0)); alpha.value = String(v); alphaNumber.value = String(v); ed.live(d => { K(d)[selected][4] = v; }); drawStrip(); };
+    alpha.addEventListener('input', () => setAlpha(parseInt(alpha.value, 10)));
+    alphaNumber.addEventListener('input', () => { const v = parseInt(alphaNumber.value, 10); if (!isNaN(v)) setAlpha(v); });
+    age.addEventListener('input', () => { const v = parseInt(age.value, 10); if (!isNaN(v)) { start(); ed.live(d => { K(d)[selected][0] = Math.max(1, v); }); drawStrip(); } });
   }
   // The strip alone, while a key's fields are being moved (the fields keep their focus).
   const drawStrip = () => draw(false);
