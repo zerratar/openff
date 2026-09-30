@@ -9,88 +9,56 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 ## Unreleased
 
+## 0.3.0 - effects, spells and summons (2026-09-30)
+
+Effects of a mod's own, made in Crystal's effect editor; spells that play them; FF3's summons
+played and edited step by step, new summons of a mod's own, and glTF models as summons. What
+these add is drawn by the OpenFF client: a Steam mod does not carry them.
+
 **Added**
-- Spells: defs/spells/<id>.json sets which of the game's effects a spell plays, its sound, and the caster's glow.
-- Summon Magic sample: Fire, Blizzard and Thunder with the summoner's glow and the summons' finales.
-- Drives: learn <member> <spell> teaches a spell.
-- Crystal: tables --spells lists the spells.
-- Crystal: an Effects library plays the game's effects on a Stage, imported into the new effect format, with their models, on a monster or the party.
-- Crystal: effect <install> <category> [member] prints one of the game's effects in the new format.
-- Items: a mod's own magic item gets a copy of its base's effect record.
-- Effects: defs/effects/<id>.json, a mod's own effect, played by spells, Game.Effects.Spawn(id) and cutscenes.
-- Effects: tracks play on the caster, between caster and target, or the world; a path from one to the other with an arc.
-- Effects: flash, shake and sound tracks, in battle and on the field; a mesh track can be a glTF of the mod's, posed by its clip.
-- Cutscenes: an Effect clip plays a mod's effect on an object, the hero or at a point.
-- Emerald Fire sample: Fire burns green with an effect of the mod's own.
-- Drives: effect <id> [dx dy dz] plays a mod's effect at the hero.
-- Crystal: the project's own effects play on the Effects Stage; additive blending drawn as the game draws it.
-- Crystal: effect-cases checks the effect runtime against the shared cases.
-- Crystal: the Effects Stage stands the caster at the party's side, draws glTF mesh tracks, and plays flash and shake tracks.
-- Crystal: an effect editor - tracks in the Hierarchy, modules in the Inspector, colour and scale curves with presets, a texture picker and a timeline, saved as you go.
-- Crystal: New effect… and Copy into the mod make an effect of the mod's own from a spark or one of the game's.
-- Crystal: Use for a spell…, and a magic item's Look card, set the effect and cast a spell plays.
-- Effects: smooth colour and scale curves with tangents, speed over life, and spin.
-- Effects: gravity over life, spin over life, and count over time curves.
-- Crystal: the effect Stage stands the party's four heroes, and draws a particle's size and colour between steps at 60 fps as the client does.
-- Crystal: battle maps on the effect Stage move as in the game - their texture scrolls and alpha.
-- Crystal: the effect Stage's Show row switches the map, the monsters, the heroes, the floor and the marks, or shows the effect alone.
-- Effects: an orbit's grow and turn, a mesh's scale and yaw, and the size and speed a particle is born with can be curves.
-- Effects: render tint recolour paints a picture's brightness in the particle's colour - a blue flame from the game's orange one.
-- Crystal: effect timeline bars resize from their edges - an emitter's emission or life, a mesh's life, a flash's or a shake's frames.
-- Crystal: the effect Stage's free camera pans with the middle button (or Shift and a drag); a double click looks at the target again.
-- Crystal: the effect Stage's free camera flies as the scene view's does - the right button held, WASD, Q and E - and F frames the target.
-- Crystal: the texture card's grid and flipbook - split a sheet, show one cell or play a run of them (looping, once, or over the life), with the sheet to click and a preview.
-- Client: --only-mod <name> plays one mod of the mods folder (and what it depends on), the others left installed.
-- Crystal: effect gradients and curves save as presets of the mod's, and copy and paste from one track or effect to another, fitted to its life.
-- Crystal: the menu editor copies a frame's look and pastes it on one frame or several, and makes a stylesheet class of it for frames to share.
-- Crystal: a right click on a frame on the menu canvas opens its menu.
-- Crystal: Mod ▸ Spells lists the game's spells and the mod's; New spell… makes one from a game spell with a copy of its effect; Test in battle tries it in OpenFF.
-- Characters: every hero's learn list applies - a spell at level 1 is known from a new game on.
-- Drives: job, level, heal and charges steps.
-- Crystal: Summons plays FF3's eight summons and their three outcomes as the battle does - the summon, its camera, its effects - with the script beside, step by step.
-- Summons: defs/summons/<id>.json plays a summon's outcome by the mod's own steps, its effects the mod's too.
-- Crystal: Copy into the mod makes a summon's outcome editable step by step, with Set from camera and Test in battle.
-- Crystal: a summon's steps on a timeline under the Stage, picked in the Hierarchy and edited in the Inspector; waits drag longer or shorter.
-- Crystal: a summon's Look in the Inspector swaps its model, motions and effects, opens an effect or makes it the mod's.
-- Summons: a new summon - a mod spell based on one of the eight - plays as its base with scripts of its own (defs/summons "spell").
-- Summons: SET_MOTION 1000 and on loads a monster's motions, for a summon with a monster's model.
-- Summons: a summon's outcome may name itself in battle (defs/summons "name"); a new summon's shows its own name.
-- Crystal: a summon's Look sets its name in battle and makes it one of the monsters (model, motions and size at once).
-- Crystal: a start motion step picks from its pack's motions; a summon's spell look shows only its cast.
-- Models: a model of the mod's own (defs/models with a "base") is a glTF on a game model's skeleton under a new name, as a summon's SET_MODEL 300.
-- Crystal: a glTF of the project's picked as a summon's model becomes a model of its own, fitted and given its clips in the Look, and played on the Stage.
-- Models: a model of the mod's own plays any clip of its file as a motion of its own (9001 and on), beyond what its skeleton's pack has.
-- Crystal: a summon's start motion picks any clip of its glTF, previewed, as a motion of its own.
-- Crystal: a gizmo on a summon's Stage moves an effect's place, the summon's, a move's end or a camera point.
-- Crystal: a summon's preview plays its sounds; the player's buttons are icons; the timeline scrubs by dragging.
-- Crystal: the effect picker's New effect… makes one of the mod's for the step and opens it; Make it mine on SET_EFFECT.
-- Crystal: a spell of the mod's that is a summon opens its summon from its inspector.
-- Fixes: a summon's copy deleted leaves the Mod folder's Summons, and its count counts summons, not files.
-- Fixes: a summon opened from Mod ▸ Summons keeps that list.
-- Fixes: a spell of the mod's showed its record twice in the inspector.
-- Fixes: Crystal plays the Steam release's sounds (sound/*.ogg).
-- Crystal: Screen effects under a summon's Stage hides its fades, flashes and dark screen while you place things; a camera step's Look through it frames its shot in the free camera.
-- Fixes: browsing effects (hover previews, the effect picker) and many open tabs no longer run out of WebGL contexts and turn a Stage white.
-- Crystal: a summon step's numbers drag across their labels, and what names something has a picker with a preview (effects, models, motions, monsters, spells).
-- Crystal: Mod ▸ Summons lists the mod's summons; the Summons page marks the eight the mod plays by steps of its own.
-- Fixes: a summon's preview plays a mod effect as it is after it is changed in the effect editor.
-- Crystal: New summon… makes a summon of the mod's from one of the eight, its three scripts copied to change.
-- Client: --summon-outcome white|black|combine makes every summon that outcome, for a test.
+- Effects: defs/effects/<id>.json, a mod's own effect, played by spells, cutscenes and Game.Effects.Spawn(id).
+- Effects: emitter, mesh, flash, shake and sound tracks on the caster, the target, between them or the world, with paths, curves, gradients, flipbooks and recolouring.
+- Spells: defs/spells/<id>.json sets the effect a spell plays, its sound and the caster's glow.
+- Summons: defs/summons/<id>.json plays a summon's outcome by the mod's own steps, and may name it in battle.
+- Summons: a new summon - a mod spell based on one of the eight - with scripts of its own.
+- Summons: a summon may be a monster (SET_MOTION 1000 and on loads a monster's motions).
+- Models: a model of the mod's own (defs/models with a "base"), a glTF on a game skeleton under a new name, playing its file's own clips.
+- Crystal: an Effects library that plays the game's effects on a battle Stage, and imports them to the new format.
+- Crystal: an effect editor - tracks, modules, curves and gradients with presets, a texture picker and a timeline, saved as you go.
+- Crystal: Mod ▸ Spells, New spell… and Test in battle.
+- Crystal: Summons plays FF3's eight summons as the battle does, on a timeline edited in the Inspector.
+- Crystal: a summon's Look swaps its model, motions, monster and effects; a glTF of the project's can be its model.
+- Crystal: New summon… and Mod ▸ Summons.
+- Crystal: pickers with a preview for a summon step's effects, models, motions, monsters and spells, and New effect… from the picker.
+- Crystal: a gizmo on the summon Stage for an effect's place, the summon's, a move's end and camera points.
+- Crystal: a summon's preview plays its sounds; Screen effects hides its fades while placing things; Look through it frames a camera step's shot.
+- Crystal: the menu editor copies and pastes a frame's look and makes a stylesheet class of it.
+- Crystal: effect-cases checks Crystal's and the client's effect players against shared cases.
+- Summon Magic and Emerald Fire samples.
+- Client: --only-mod plays one mod alone; --summon-outcome forces a summon's outcome for a test.
+- Drives: learn, job, level, heal, charges and effect steps.
+
+**Improvements**
 - Crystal: Run in OpenFF plays the open project's mod alone; Run with the other mods plays it among the rest.
-- Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
+- Crystal: the effect Stage lays out the battle - a map, the monsters, the party, the battle camera - with a Show row to switch them.
+- Crystal: the effect Stage's free camera orbits, pans with the middle button and flies with the right button and WASD, as the scene view's does.
 - Crystal: resting the pointer on an effect in the library plays it.
+- Crystal: a step's numbers drag across their labels; the summon player's buttons are icons; the timeline scrubs by dragging.
 - Crystal: a Mod badge marks the project's own things in the lists, and an OpenFF only badge the client's behaviours.
+- Characters: every hero's learn list applies - a spell at level 1 is known from a new game on.
+- Items: a mod's own magic item gets a copy of its base's effect record.
 
 **Fixes**
-- Effects: a game model on a mesh track takes the track's scale in the client.
-- Crystal: switching an effect module off and on again keeps its settings - a texture its picture.
-- Crystal: the effect timeline, curves and gradients draw sharp on a scaled display.
-- Crystal: the scene view pans the way the camera faces - it no longer turns backwards at some angles.
-- Crystal: the texture card holds still - its sheet no longer animates under the pointer, the inspector keeps its scroll, and a flipbook played over the life reaches its last cell.
+- Crystal: browsing effects and many open tabs no longer run out of WebGL contexts and turn a Stage white.
+- Crystal: plays the Steam release's sounds (sound/*.ogg).
+- Crystal: a summon's preview plays a mod effect as it is after it is changed in the effect editor.
+- Crystal: a deleted copy of a summon leaves Mod ▸ Summons; its count counts summons, not files.
+- Crystal: a spell of the mod's no longer shows its record twice in the inspector.
+- Crystal: the scene view pans the way the camera faces.
+- Crystal: effect timelines, curves and gradients draw sharp on a scaled display; switching a module off and on keeps its settings.
 - Crystal: a new project no longer takes over a leftover folder of the same name.
-- Crystal: a colour key's alpha is a slider and a number that go both ways, beside its frame, its colour and Remove key.
-- Crystal: the effect Stage's free camera starts where the battle camera looks from, and the middle button no longer zooms while it pans.
-- Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.
+- Effects: a game model on a mesh track takes the track's scale in the client.
+- Battle: the Magic and Item lists' lines sit on the window's rows.
 - Menus: the magic school icons no longer cover the first letters of the spells' names.
 
 ## 0.2.4 - the Starlit Menu (2026-09-29)
