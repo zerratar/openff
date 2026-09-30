@@ -779,6 +779,7 @@ function effectTextureUrl(key, own) {
 let effectTarget = '1';
 
 async function openEffect(name) {
+  const doc = activeDoc;
   const node = view('effect', name, false);
   const facts = $('.facts', node);
   const pick = $('.effect-member', node);
@@ -859,7 +860,10 @@ async function openEffect(name) {
   summary.textContent = 'definition';
   const json = document.createElement('pre');
   notes.append(summary, json);
-  body.append(stageBox, controls, notes);
+  // The editor's timeline (effects-editor.js) sits between the controls and the definition.
+  const timelineBox = document.createElement('div');
+  timelineBox.className = 'effect-timeline-box';
+  body.append(stageBox, controls, timelineBox, notes);
 
   const stage = makeEffectStage(canvas, key => effectTextureUrl(key, pack.own ? name : null));
   if (!stage) { facts.textContent = 'this browser has no WebGL, so effects cannot be drawn'; return; }
@@ -895,9 +899,15 @@ async function openEffect(name) {
       r = await api(`/api/effect/import?category=${category}&member=${member}`);
     }
     if (r.error) { say(r.error, 'bad'); return; }
-    def = r.effect;
+    applyDef(r.effect, r.notes, { restart: true });
+  }
+
+  /// A definition on the Stage: a new one from the start, or an edit of the one playing, on the frame it was at.
+  function applyDef(next, notesOf = [], { restart = false } = {}) {
+    const at = player ? Math.max(0, player.frame) : 0;
+    def = next;
     json.textContent = JSON.stringify(def, null, 1).replace(/\[\s+([-\d.,\s]+?)\s+\]/g, (m, inner) => '[' + inner.replace(/\s+/g, ' ').trim() + ']')
-      + (r.notes && r.notes.length ? '\n\n' + r.notes.map(n => '// ' + n).join('\n') : '');
+      + (notesOf && notesOf.length ? '\n\n' + notesOf.map(n => '// ' + n).join('\n') : '');
     const anchors = { caster: stage.caster().anchor };
     player = makeEffectPlayer(def, { seed: 7, anchors });
     // How long a pass takes: played through once, to its end.
@@ -907,9 +917,13 @@ async function openEffect(name) {
     else while (n < 900 && !probe.finished) { probe.step(); n++; }
     length = Math.max(1, n);
     scrub.max = String(length);
-    owed = 0;
-    playing = true;
-    play.textContent = 'Pause';
+    if (restart) {
+      owed = 0;
+      playing = true;
+      play.textContent = 'Pause';
+    } else if (!playing) goTo(Math.min(at, length));
+    else { for (let i = 0; i <= Math.min(at, length); i++) player.step(); }
+    if (doc && doc.effectView && doc.effectView.onApply) doc.effectView.onApply();
   }
 
   function goTo(frame) {
@@ -947,14 +961,28 @@ async function openEffect(name) {
       label.textContent = `frame ${Math.max(0, player.frame)} / ${length}`;
       if (playing) scrub.value = String(Math.max(0, player.frame));
       count.textContent = `${quads.length} particle(s)`;
+      if (doc && doc.effectView && doc.effectView.onFrame) doc.effectView.onFrame(Math.max(0, player.frame), length);
     }
     requestAnimationFrame(frameLoop);
   }
+
+  // What the editor drives (effects-editor.js): the definition playing, one to put in its place, the frame.
+  if (doc) doc.effectView = {
+    name, pack, stage, timelineBox, bar: $('.bar', node),
+    get def() { return def; },
+    get frame() { return player ? Math.max(0, player.frame) : 0; },
+    get length() { return length; },
+    get playing() { return playing; },
+    apply: next => applyDef(next),
+    goTo: frame => { playing = false; play.textContent = 'Play'; goTo(Math.max(0, Math.min(length, frame))); scrub.value = String(Math.max(0, frame)); },
+    onFrame: null, onApply: null
+  };
 
   if (pack.own) {
     pick.hidden = true;
     facts.textContent = pack.note;
     await load('');
+    if (typeof effectEditor === 'function' && doc) effectEditor(doc);
   } else if (members.length) {
     const first = members.find(t => t.category === pack.category && t.member === 1) || members[0];
     pick.value = `${first.category}/${first.member}`;
@@ -962,5 +990,7 @@ async function openEffect(name) {
   } else {
     facts.textContent += '  ·  no member of effect.efi names these templates';
   }
+  // One of the game's: a copy into the mod is where making one's own starts.
+  if (!pack.own && members.length && typeof effectCopyButton === 'function') effectCopyButton(doc, () => pick.value);
   requestAnimationFrame(frameLoop);
 }

@@ -154,11 +154,37 @@ namespace Crystal.Editor
 
 		public static object Import(Workspace workspace, int category, int member)
 		{
+			List<string> notes = new List<string>();
+			JsonObject effect = ImportJson(workspace, category, member, notes);
+			return new { effect, notes };
+		}
+
+		/// <summary>One of the game's effects as a definition of the new format.</summary>
+		public static JsonObject ImportJson(Workspace workspace, int category, int member, List<string> notes = null)
+		{
 			Cache c = For(workspace);
 			if (c.Index == null) throw new InvalidOperationException("no effect.efi in this game");
-			List<string> notes = new List<string>();
-			JsonObject effect = EffectImport.Import(category, member, (cat, mem) => Resolve(workspace, c, cat, mem), notes);
-			return new { effect, notes };
+			return EffectImport.Import(category, member, (cat, mem) => Resolve(workspace, c, cat, mem), notes);
+		}
+
+		/// <summary>Every picture of the game's effect packs, as a track's texture names it (game:pack:name), for the picker.</summary>
+		public static object Textures(Workspace workspace)
+		{
+			Cache c = For(workspace);
+			List<object> list = new List<object>();
+			HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (WorkspaceEntry entry in workspace.List(".efp").OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+			{
+				EfpPack pack = Pack(workspace, c, entry.Name);
+				if (pack == null) continue;
+				string file = System.IO.Path.GetFileName(entry.Name);
+				foreach (NtpkTexture t in pack.Textures.Values)
+				{
+					if (t == null || !seen.Add(file + ":" + t.Name)) continue;
+					list.Add(new { image = "game:" + file + ":" + t.Name, pack = file, name = t.Name, width = t.Width, height = t.Height });
+				}
+			}
+			return list;
 		}
 
 		/// <summary>A PNG beside one of the project's effect definitions.</summary>

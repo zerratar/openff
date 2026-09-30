@@ -206,9 +206,16 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    anchor to another with an arc (a bolt). Sound, flash and shake tracks, the battle's own in
    battle and the field's API on the field. A mesh track is the game's model or a glTF of the
    mod's, posed by its clip. `Samples/EmeraldFire`.
-4. **The editor** (large). The inspector, curves, gradients, timeline, the item card's picker,
-   *Duplicate into the mod*, *Play in the game*. *Done when* a modder can make a new spell's
-   effect in Crystal from one of the game's without touching JSON.
+4. **The editor** (large) - *done*. `wwwroot/effects-editor.js` over the Stage, saving through
+   `Crystal.Editor/Editor/EffectsProject.cs`: *Copy into the mod* and *New effect…*, the tracks in
+   the Hierarchy (reorder, mute, duplicate, add), the modules as the Inspector's cards with
+   switches, a gradient for colour and a curve for scale (keys, presets), the texture picker (the
+   project's PNGs, uploads, every picture of the game's packs) with its flipbook grid, the
+   timeline (starts, bursts, the playhead), undo, and *Use for a spell…* - also the magic item's
+   *Look* card - writing `defs/spells`. A new spell's effect is made from one of the game's
+   without the JSON. Not done from the list above: the browser's hover previews, the Stage's
+   battle backgrounds and several targets, curve tangents, a value's curve anywhere but colour
+   and scale.
 5. **Later.** GPU particles if a real effect needs more than the CPU gives; lights from
    effects; decals on the ground; a node graph only if the module stack is found wanting.
 

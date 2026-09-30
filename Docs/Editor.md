@@ -1106,6 +1106,44 @@ animation, for now). The project's own effects (`defs/effects`, first in the lis
 same Stage, played as written - as the game plays them. The
 same import from the command line: `crystal effect <install> <category> [member]`.
 
+### The effect editor
+
+An effect of the project's opens in the editor; one of the game's has **Copy into the mod**,
+which imports the member picked into `defs/effects/<id>.json` and opens that. **New effect…**
+(the library's button) starts from the game's (a category and member), from a copy of one of the
+project's, or from a spark - a rising, fading glow, its picture (`glow.png`) made beside it.
+Every change is saved half a second after it is made, and plays on the Stage from the frame
+it was on; **Ctrl+Z** takes it back.
+
+- **Hierarchy.** The effect, then its tracks in the order they draw. Drag one to reorder; the eye
+  mutes it on the Stage only (the file keeps it); the menu duplicates, moves, deletes and adds
+  tracks - an emitter, a mesh, a sound, a flash, a shake.
+- **Inspector.** The effect's length and loop, or the selected track's modules as cards: timing
+  and place (start, stop, anchor, offset), the path (a point, Hermite or straight segments, or
+  from one anchor to another with an arc), the emission, the particle, the shape, speed and
+  spread, gravity, orbit, gather, trail, colour and scale over life, the texture and the render.
+  A card with a switch turns its module off without losing its values. A range is two numbers
+  (the particle rolls between them).
+- **Colour over life.** A gradient over the particle's life with the alpha on a checkerboard: a
+  click adds a key, a drag moves it, a right click takes it out; the selected key's frame,
+  colour and alpha below. Presets reshape the alpha and keep the colours: fade in and out, fade
+  out, fade in, flash, pulse.
+- **Scale over life.** A curve of the width and height (linked, or each its own), keys edited the
+  same way; presets grow, shrink, pop, ease out, pulse, constant.
+- **Texture.** The picture - one of the project's (a PNG chosen in the picker goes beside the effects)
+  or any of the game's effect pictures, all in one picker - drawn with its cell grid; the cell
+  size, columns and frames make a flipbook.
+- **Timeline.** Under the Stage, a row a track: a bar from its start to its last particle's end,
+  a diamond for a sound, a flash, a shake. Drag a bar to move its start, the white mark (an
+  emitter's last burst) to spread its bursts; click to put the playhead there.
+- **Use for a spell…** writes `defs/spells/<spell>.json` so a spell plays the effect (or casts
+  with it). A magic item of the mod's has the same in its inspector: a *Look* card with its
+  *Effect* and *Cast*.
+- **Duplicate**, **Delete**, **JSON** (the file in the code editor).
+
+What the game will play is what the Stage plays - the client reads the file again as the effect
+starts, so a battle with the running client shows an edit on the next cast.
+
 ## Audio
 
 445 sounds - 30 music tracks and the rest effects - with their length, format, parts
@@ -1170,6 +1208,8 @@ switch files.
 - **Audio** - deliberately untouched.
 - **Effects' material animations** - an effect's model plays its motion on the Stage, not its
   material's animation (a texture's scroll or fade).
+- **Effect curves' tangents** - scale and colour keys are joined by straight lines, a frame at a
+  time as the runtime samples them; there are presets but no tangents to pull.
 - **New menus** - adding a widget means duplicating one.
 - **New maps** - cloning one is plausible; authoring geometry is not, because models
   and collision are still opaque.

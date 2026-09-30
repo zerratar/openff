@@ -1022,10 +1022,11 @@ name is its id.
 - **Pictures.** `"image"` is a PNG beside the definition, or one of the game's by
   `game:<pack>:<name>` (read from the player's install, never copied into the mod - Crystal's
   Effects library shows each pack's).
-- **Where to start.** Crystal's Effects library plays every effect of the game on its Stage and
-  shows its definition - copy one into `defs/effects/` and change it; `crystal effect <install>
-  <category> [member]` writes one out. The project's own effects are in the library too, played
-  on the same Stage as the game will.
+- **Where to start.** Crystal's Effects library plays every effect of the game on its Stage;
+  *Copy into the mod* puts one in `defs/effects/` and opens it in the effect editor, where its
+  tracks, curves, pictures and timing are changed without the JSON (`Docs/Editor.md`), and
+  *Use for a spell…* makes a spell play it. `crystal effect <install> <category> [member]`
+  writes one out from the command line.
 - **How it runs.** Each definition gets a category of its own from 1000 up (numbers the game
   never uses), so the battle asks for one as it asks for its own; the client runs it
   (`OpenFF/Compat/ModEffects.cs`, the player shared with Crystal in `Shared/Effects/EffectPlayer.cs`)

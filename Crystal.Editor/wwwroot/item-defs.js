@@ -309,6 +309,8 @@ function itemDefinitionPanel(def, onSaved) {
     say(`"${model.name || model.id}" deleted`, 'good');
   };
   actions.append(remove);
+  // A spell's look: which effect of the mod's it plays, and its caster's glow - the spell's defs/spells file (effects-editor.js makes the effects).
+  if (def.chain === 'magic' && typeof effectItemLook === 'function') effectItemLook(panel, () => model.name || model.id);
   panel.append(actions);
   return panel;
 }

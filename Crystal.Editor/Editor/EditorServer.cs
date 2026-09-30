@@ -2090,6 +2090,62 @@ namespace Crystal.Editor
 					catch (Exception) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such texture")); }
 					return;
 
+				case "/api/effect/textures":
+					{
+						try { SendJson(context, Effects.Textures(_workspace)); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
+				case "/api/project/effect/save":
+					{
+						try { JsonNode body = ReadBody(context); SendJson(context, EffectsProject.Save(_project, body?["name"]?.ToString(), body?["effect"])); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
+				case "/api/project/effect/new":
+					{
+						try { JsonNode body = ReadBody(context); SendJson(context, EffectsProject.New(_project, _workspace, body?["id"]?.ToString(), body?["category"] != null ? body["category"].GetValue<int>() : (int?)null, body?["member"] != null ? body["member"].GetValue<int>() : (int?)null, body?["from"]?.ToString())); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
+				case "/api/project/effect/delete":
+					{
+						try { JsonNode body = ReadBody(context); SendJson(context, EffectsProject.Delete(_project, body?["name"]?.ToString())); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
+				case "/api/project/effect/images":
+					{
+						try { SendJson(context, EffectsProject.Images(_project)); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
+				case "/api/project/effect/image":
+					{
+						try { using MemoryStream png = new MemoryStream(); context.Request.InputStream.CopyTo(png); SendJson(context, EffectsProject.Upload(_project, Query(context, "name"), png.ToArray())); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
+				case "/api/project/effect/spells":
+					{
+						try { SendJson(context, EffectsProject.Spells(_project, _workspace)); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
+				case "/api/project/effect/spell":
+					{
+						try { JsonNode body = ReadBody(context); SendJson(context, EffectsProject.Spell(_project, body?["spell"]?.ToString(), body?["effect"]?.ToString(), body?["cast"] != null && body["cast"].GetValue<bool>())); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
 				case "/api/effect/own-texture":
 					try { Send(context, 200, "image/png", Effects.OwnTexture(_project, Query(context, "effect"), Query(context, "name"))); }
 					catch (Exception) { Send(context, 404, "text/plain", Encoding.UTF8.GetBytes("no such texture")); }

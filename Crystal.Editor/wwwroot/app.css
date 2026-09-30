@@ -2685,3 +2685,23 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .effect-notes pre { max-height: 260px; overflow: auto; font-size: 11px; color: var(--ink); margin: 6px 0; }
 .effect-member { max-width: 420px; }
 .effect-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+
+/* the effect editor */
+.effect-timeline-box { border-top: 1px solid var(--line); background: #14161a; }
+.effect-timeline { display: block; width: 100%; }
+#inspector .effect-card.off { opacity: .65; }
+#inspector .effect-card.off .component-head b { color: var(--dim); }
+#inspector .effect-card .component-head input[type=checkbox] { margin-left: auto; }
+#inspector .effect-gradient canvas, #inspector .effect-curve canvas { display: block; width: 100%; cursor: crosshair; }
+#inspector .effect-curve .toggle { font-size: 11px; color: var(--dim); }
+#inspector .effect-key-detail .behaviour-field input[type=range] { flex: 1; }
+#inspector .effect-key-detail .behaviour-field input[type=number] { width: 52px; flex: none; }
+#inspector select.effect-presets { margin-top: 3px; font-size: 11px; }
+#inspector .effect-sheet { display: block; max-width: 100%; margin: 4px 0; image-rendering: pixelated; border: 1px solid var(--line); }
+#inspector .effect-card textarea { font-family: ui-monospace, monospace; font-size: 11px; }
+.effect-picture-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; max-height: 60vh; overflow: auto; margin-top: 8px; }
+.effect-picture { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px; background: #1b1e24; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); font-size: 10px; cursor: pointer; }
+.effect-picture:hover { border-color: var(--accent); }
+.effect-picture.own { border-color: var(--mark); }
+.effect-picture img { width: 64px; height: 64px; object-fit: contain; image-rendering: pixelated; background: repeating-conic-gradient(#2a2e35 0 25%, #1f2228 0 50%) 0 0 / 12px 12px; }
+.effect-picture span { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

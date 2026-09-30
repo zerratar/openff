@@ -26,6 +26,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: the project's own effects play on the Effects Stage; additive blending drawn as the game draws it.
 - Crystal: effect-cases checks the effect runtime against the shared cases.
 - Crystal: the Effects Stage stands the caster at the party's side, draws glTF mesh tracks, and plays flash and shake tracks.
+- Crystal: an effect editor - tracks in the Hierarchy, modules in the Inspector, colour and scale curves with presets, a texture picker and a timeline, saved as you go.
+- Crystal: New effect… and Copy into the mod make an effect of the mod's own from a spark or one of the game's.
+- Crystal: Use for a spell…, and a magic item's Look card, set the effect and cast a spell plays.
 
 **Fixes**
 - Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.
