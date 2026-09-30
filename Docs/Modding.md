@@ -1066,8 +1066,12 @@ Asked for by that name - a summon's `SET_MODEL 300` - the game loads the base's 
 place and the character is drawn as the glTF, fitted and retargeted as any definition's
 (`scale`, `rotation`, `offset`, `bones`); the base itself keeps its own look wherever else it
 plays. `clips` puts the file's own animations in the base's motions' place, by motion id: a
-summon's `START_MOTION 101` plays "Idle". A motion with no clip moves the file by the base's
-motion, retargeted. The name is `f` and three digits, from 300 (the game's go to f208).
+summon's `START_MOTION 101` plays "Idle", in step with the base's motion. A number the base's
+pack does not have (9001 and on, as Crystal numbers them) is a motion of the file's own: a
+summon's `START_MOTION 9001` plays that clip by itself - looping or once, as the step says - and
+`IS_MOTION_FRAME` counts its frames (30 a second, held at the end). A motion with no clip moves
+the file by the base's motion, retargeted. The name is `f` and three digits, from 300 (the
+game's go to f208).
 
 ### An effect of the mod's own: `defs/effects/<id>.json`
 

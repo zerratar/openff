@@ -186,6 +186,13 @@ internal static partial class GlobalScope
 				{
 					int ctrl = turnSystem().characterManager().playerParty().summon()
 						.characterMngId();
+					// PORT: a summon of a mod's own model starts its own clip by the number its definition gives it - a motion
+					// its skeleton's pack does not have; a motion the pack has plays as the game's (a clip mapped to it in step).
+					OpenFF.Client.CharacterMeshes.StopClip(ctrl);
+					if (!characterMng.isMotion(ctrl, param.param1_) && OpenFF.Client.CharacterMeshes.PlayOwnMotion(ctrl, param.param1_, param.param2_ != 0))
+					{
+						return true;
+					}
 					characterMng.startMotion(ctrl, param.param1_, param.param2_ != 0, (uint)param.param3_);
 					return true;
 				}
@@ -198,6 +205,11 @@ internal static partial class GlobalScope
 				{
 					int ctrl = turnSystem().characterManager().playerParty().summon()
 						.characterMngId();
+					// PORT: a mod's own clip started as the motion: its frame (held at its end) in the game motion's place.
+					if (OpenFF.Client.CharacterMeshes.OwnMotionFrame(ctrl) is int own)
+					{
+						return own >= param.param1_;
+					}
 					if (characterMng.getCurrentFrame(ctrl) == param.param1_)
 					{
 						return true;

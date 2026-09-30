@@ -372,7 +372,7 @@ internal static partial class GlobalScope
 			pScene[(int)Character[ctrl].priScn].removeRenderObject(Character[ctrl].RdrObject);
 			pScene[(int)Character[ctrl].priScn].removeRenderObject(Character[ctrl].ShadowObject);
 			// PORT: a mod's own model's look goes with it: the slot's next character is drawn as its own.
-			if (Character[ctrl].ownModel != null) { OpenFF.Client.CharacterMeshes.AttachOwn(Character[ctrl].RdrObject, null, false); Character[ctrl].ownModel = null; }
+			if (Character[ctrl].ownModel != null) { OpenFF.Client.CharacterMeshes.AttachOwn(Character[ctrl].RdrObject, null, false); OpenFF.Client.CharacterMeshes.StopClip(ctrl); Character[ctrl].ownModel = null; }
 			Character[ctrl].modelSet.cleanup();
 			Character[ctrl].RdrObject.cleanup();
 			Character[ctrl].ShadowObject.cleanup();

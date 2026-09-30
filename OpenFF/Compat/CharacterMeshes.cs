@@ -696,7 +696,32 @@ namespace OpenFF.Client
 			return true;
 		}
 
-		public static void StopClip(int ctrl) => _requests.Remove(ctrl);
+		public static void StopClip(int ctrl) { _requests.Remove(ctrl); _started.Remove(ctrl); }
+
+		// A mod's own model's clip started as a motion (PlayOwnMotion): when, how fast and how long, kept after it ends
+		// so a script waiting on its frame (IS_MOTION_FRAME) sees it reach the end.
+		private static readonly Dictionary<int, (double At, float Speed, int Frames)> _started = new Dictionary<int, (double, float, int)>();
+
+		/// <summary>
+		/// A mod's own model (a glTF on a base's skeleton) starting one of its own clips as a motion: the clip its
+		/// definition gives that motion number (a summon's START_MOTION), played over whatever the skeleton does. False
+		/// when the character is none of the mod's own or the number names no clip of it.
+		/// </summary>
+		public static bool PlayOwnMotion(int ctrl, int motionId, bool loop)
+		{
+			Look look = LookOf(ctrl);
+			if (look?.Definition?.Base == null || !look.Definition.Clips.TryGetValue(motionId.ToString(CultureInfo.InvariantCulture), out ModClip choice)) return false;
+			float speed = choice.Speed <= 0 ? 1f : choice.Speed;
+			if (!PlayClip(ctrl, choice.Clip, loop, speed)) return false;
+			GltfAnimation clip = _requests[ctrl].Clip;
+			_started[ctrl] = (GameClock.Seconds, speed, loop ? int.MaxValue : Math.Max(1, (int)Math.Ceiling(clip.Duration / speed * 30)));
+			Log.First(LogChannel.File, "models-motion-" + look.Model + "-" + motionId, 2, () => "models: " + look.Model + " starts its own clip " + clip.Name + " as motion " + motionId + (loop ? ", looping" : ""));
+			return true;
+		}
+
+		/// <summary>The frame (30 a second) a clip started as a motion has reached, held at its last once done; null when none was.</summary>
+		public static int? OwnMotionFrame(int ctrl) =>
+			_started.TryGetValue(ctrl, out var s) ? (int)Math.Min(s.Frames - 1, (GameClock.Seconds - s.At) * s.Speed * 30) : (int?)null;
 
 		/// <summary>Whether a script's clip is still playing on a character.</summary>
 		public static bool ClipPlaying(int ctrl) => _requests.TryGetValue(ctrl, out ClipRequest r) && (r.Loop || (GameClock.Seconds - r.StartedAt) * r.Speed < r.Clip.Duration);
@@ -713,6 +738,9 @@ namespace OpenFF.Client
 		{
 			try
 			{
+				// A character dressed on its own (a mod's own model, a Look given by code) first, then the model's definition.
+				GlobalScope.ds.sys3d.CRenderObject ro = GlobalScope.characterMng.getRenderObject(ctrl);
+				if (ro != null && _dressed.TryGetValue(ro, out Look dressed)) return dressed;
 				string model = GlobalScope.characterMng.getModelName(ctrl);
 				return model != null && _looks.TryGetValue(model, out Look look) ? look : null;
 			}

@@ -276,6 +276,10 @@ passed; these are the rest.
   "spells: 1 look(s) of the mods': Fire -> emerald-fire"; the screenshots show green flames on
   the Goblin where the game's Fire burns, then the damage. The drive step `effect emerald-fire 0 4 6`
   plays it by the hero on the field.
+- A glTF's own motion (test report): f300's clips given "9001": "Run", Frost Wyrm's combine START_MOTION 9001 (a
+  number Shiva's pack b_sm002 lacks); the same drive: the log has "f300 starts its own clip Run as motion 9001,
+  looping", the fox is drawn mid-stride where Shiva appears, the battle ends as before. In Crystal the start motion
+  picker lists the skeleton's 101, its own 9001 and the file's clips (Survey, Walk, Run), each playing.
 - A glTF as a summon (test report): `Samples/Showcase/assets/fox.glb` in the project, `defs/models/f300.json`
   `{ "model": "f300", "base": "f202", "gltf": "assets/fox.glb", "scale": 0.2, "clips": { "101": "Survey" } }`,
   Frost Wyrm's combine `SET_MODEL 300`, `SET_MOTION 2`, `SET_SUMMON_PARAMETER 233`; the same drive: the log has

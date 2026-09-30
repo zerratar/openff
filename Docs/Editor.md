@@ -1151,8 +1151,10 @@ made a model of the mod's own (`defs/models/f300.json`, the next free number, on
 summon had) and the summon's `SET_MODEL` points at it. The Look then has **Its glTF**: the file,
 the skeleton it borrows (the game's model whose motions move it), its scale (0 fits it to the
 skeleton's height, as the game does) and turn, and for each motion of its pack which of the
-file's own clips plays in its place. The Stage draws the file posed by that clip (its rest pose
-for a motion without one). **Mod ▸ Summons** lists the mod's new summons and the eight it plays
+file's own clips plays in its place. A *start motion* step's picker lists the file's clips too,
+each playing on the picker's Stage: one picked becomes a motion of its own (9001 and on, listed in
+Its glTF with a × to take it out), whatever the skeleton's pack has. The Stage draws the file
+posed by the clip playing (its rest pose for a motion without one). **Mod ▸ Summons** lists the mod's new summons and the eight it plays
 outcomes of by steps of its own; on the Summons page those carry the Mod mark, an outcome of its
 own a dot. An effect saved in the effect editor plays anew in an open summon.
 

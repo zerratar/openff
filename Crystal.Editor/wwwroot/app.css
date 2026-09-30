@@ -2844,3 +2844,5 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .summon-picker-row i { font-style: normal; color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .summon-picker-foot { display: flex; align-items: center; justify-content: space-between; }
 .summon-picker-members .chip.on { border-color: var(--accent); background: #232c3a; color: var(--ink); }
+#inspector .summon-own-clip { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 0 2px 6px; font-size: 11px; color: var(--ink); }
+#inspector .summon-own-clip .chip { margin: 0; padding: 0 7px; }

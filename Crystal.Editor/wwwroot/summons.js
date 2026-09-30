@@ -514,6 +514,7 @@ async function openSummon(name) {
   const readOwnModels = async () => { const r = await api('/api/project/own-models').catch(() => null); ownModels = (r && r.models) || []; };
   await readOwnModels();
   const ownFiles = new Map();   // gltf -> { rest (its box and clip names), clips: Map(name -> frames) }
+  look.ownFiles = ownFiles;
   async function ownFile(gltf) {
     if (!ownFiles.has(gltf)) {
       const rest = await api(`/api/model/gltf-clip?name=${encodeURIComponent(gltf)}`).catch(() => null);
@@ -547,7 +548,8 @@ async function openSummon(name) {
     if (!posed) return null;
     return {
       model: own.gltf, pos: sm.pos.map(v => v / 4096), yaw: sm.yaw + ((own.rotation && own.rotation[1]) || 0), scale: sm.scale, alpha: sm.alpha / 100,
-      skinned: { ...posed, id: own.gltf + '|' + (clip || '') }, fit: ownFit(own, file), frame: sm.motion ? sm.motion.frame : 0
+      skinned: { ...posed, id: own.gltf + '|' + (clip || '') }, fit: ownFit(own, file),
+      frame: sm.motion ? (sm.motion.loop ? sm.motion.frame : Math.min(sm.motion.frame, posed.frames - 1)) : 0
     };
   }
   // A definition changed: written, read again, played again.
@@ -562,6 +564,33 @@ async function openSummon(name) {
       await readOwnModels();
       rebuild(false).then(quiet ? () => { timeline.draw(); } : refreshPanels);
     }, quiet ? 250 : 0);
+  }
+  /// One of a model of the mod's own's clips as a motion: the number its definition gives it (a pack motion it stands
+  /// in for in step, or one of its own from 9001 on, which the skeleton's pack lacks), START_MOTION pointed at it.
+  function useOwnClip(clip, i, k) {
+    const own = look.own;
+    if (!own) return;
+    const pack = new Set((look.motionList || []).map(m => String(m.id)));
+    const clips = { ...(own.clips || {}) };
+    let id = Object.keys(clips).find(key => clips[key] === clip && !pack.has(key));
+    if (!id) {
+      let n = 9001;
+      while (clips[String(n)] !== undefined || pack.has(String(n))) n++;
+      id = String(n);
+      clips[id] = clip;
+      saveOwn(own, { clips });
+    }
+    setParam(i, k, parseInt(id, 10));
+  }
+  // A clip of the model of the mod's own on the picker's Stage, fitted as the summon's Stage fits it.
+  async function ownPreview(view, clip, words) {
+    const own = look.own, file = await ownFile(own.gltf);
+    view.label(words + ' · loading');
+    const posed = await api(`/api/model/gltf-clip?name=${encodeURIComponent(own.gltf)}&clip=${encodeURIComponent(clip)}`).catch(() => null);
+    if (!posed || !posed.ok) { view.label(words + ' · no such clip'); return; }
+    const fit = ownFit(own, file), up = look.target && look.target.up > 0 ? look.target.up : 10;
+    view.model({ model: own.gltf, skinned: { ...posed, id: own.gltf + '|' + clip }, fit, frames: posed.frames, scale: look.target ? look.target.scale : 1, yaw: 90 + ((own.rotation && own.rotation[1]) || 0), height: up, distance: Math.max(30, up * 5) });
+    view.label(`${words} · ${posed.frames} frames`);
   }
   /// A glTF of the project's as the summon's model: a definition of its own (the next free f3NN, on the skeleton the
   /// summon has now), and SET_MODEL pointed at it.
@@ -821,7 +850,7 @@ async function openSummon(name) {
     e: (i, k) => { const st = current()[i]; pickSummonEffect(st.p[0], Number(st.p[1]) || 1, (v, m) => { const p = mine.steps[i].p; p[0] = v; if (st.op !== 16) p[1] = m; changed(); }, { packOnly: st.op === 16 }); },
     model: (i, k) => pickSummonModel(Number(current()[i].p[k]) || 0, v => typeof v === 'string' ? useOwnFile(v, i) : setParam(i, k, v), ownModels),
     motions: (i, k) => pickSummonMotionPack(Number(current()[i].p[k]) || 0, v => setParam(i, k, v)),
-    motion: (i, k) => pickSummonMotion(Number(current()[i].p[k]) || 0, look, v => setParam(i, k, v)),
+    motion: (i, k) => pickSummonMotion(Number(current()[i].p[k]) || 0, look, v => typeof v === 'string' ? useOwnClip(v.slice(5), i, k) : setParam(i, k, v), look.own ? ownPreview : null),
     monster: (i, k) => pickSummonMonster(Number(current()[i].p[k]) || 0, v => setParam(i, k, v)),
     spell: (i, k) => pickSummonSpell(Number(current()[i].p[k]) || 0, v => setParam(i, k, v))
   };
@@ -860,16 +889,17 @@ async function openSummon(name) {
       }
       if (kind === 'motion') {
         const m = (look.motionList || []).find(x => x.id === Number(st.p[k]));
+        const clip = look.own && (look.own.clips || {})[String(st.p[k])];
         const said = document.createElement('i');
         said.className = 'summon-num-said';
-        said.textContent = m ? m.name : look.motionList.length ? 'not in ' + look.motions : '';
+        said.textContent = clip ? 'its clip ' + clip : m ? m.name : look.motionList.length ? 'not in ' + look.motions : '';
         control.append(said);
       }
       row.append(control);
     }
     if (PICK[kind]) {
       const b = Object.assign(document.createElement('button'), { type: 'button', className: 'summon-pick', textContent: '\u25CE', title: 'pick ' + PICK_WHAT[kind] + ' by looking at it' });
-      b.disabled = !editable() || (kind === 'motion' && !look.motionList.length);
+      b.disabled = !editable() || (kind === 'motion' && !look.motionList.length && !look.own);
       b.onclick = () => PICK[kind](i, k);
       row.append(b);
     }
@@ -1053,6 +1083,26 @@ async function openSummon(name) {
     clipsHead.className = 'sub summon-note';
     clipsHead.textContent = names.length ? 'Its own clips in place of the motions (none: the skeleton\'s motion moves it):' : 'The file has no clips of its own: the skeleton\'s motions move it.';
     c.append(clipsHead);
+    // Its clips as motions of their own (from 9001: numbers the skeleton's pack lacks), which a start motion step names.
+    const pack = new Set((look.motionList || []).map(m => String(m.id)));
+    const extra = Object.keys(own.clips || {}).filter(key => !pack.has(key)).sort((a, b) => a - b);
+    for (const key of extra) {
+      const line = document.createElement('div');
+      line.className = 'summon-own-clip';
+      const text = document.createElement('span');
+      text.textContent = `${key}  ${own.clips[key]}`;
+      text.title = 'a motion of its own: a start motion step with ' + key + ' plays the clip ' + own.clips[key];
+      const drop = Object.assign(document.createElement('button'), { type: 'button', className: 'chip', textContent: '\u00D7', title: 'no longer a motion of its own', disabled: !editable() });
+      drop.onclick = () => { const clips = { ...own.clips }; delete clips[key]; saveOwn(own, { clips }); };
+      line.append(text, drop);
+      c.append(line);
+    }
+    if (names.length) {
+      const hint = document.createElement('p');
+      hint.className = 'sub summon-note';
+      hint.textContent = 'A start motion step\'s picker lists its clips too: one picked becomes a motion of its own.';
+      c.append(hint);
+    }
     if (names.length) for (const m of look.motionList || []) {
       const pick = document.createElement('select');
       pick.disabled = !editable();
@@ -1623,12 +1673,26 @@ async function pickSummonMotionPack(current, onChosen) {
   });
 }
 
-/// A motion of the loaded pack, played on the summon's model.
-function pickSummonMotion(current, look, onChosen) {
-  const items = (look.motionList || []).map(m => ({ value: m.id, label: String(m.id), note: `${m.name}${m.frames ? ' · ' + m.frames + ' frames' : ''}` }));
+/// A motion of the loaded pack, played on the summon's model; for a model of the mod's own, its file's clips too
+/// ("clip:<name>" back, made a motion of its own), played by `ownPreview`.
+function pickSummonMotion(current, look, onChosen, ownPreview = null) {
+  const own = look.own, clips = own ? own.clips || {} : {};
+  const items = (look.motionList || []).map(m => ({ value: m.id, label: String(m.id), note: `${m.name}${m.frames ? ' · ' + m.frames + ' frames' : ''}${clips[String(m.id)] ? ' · its clip ' + clips[String(m.id)] : ''}`, group: own ? 'the skeleton\'s' : '' }));
+  if (own) {
+    const pack = new Set(items.map(it => String(it.value)));
+    for (const key of Object.keys(clips).filter(k => !pack.has(k))) items.push({ value: parseInt(key, 10), label: key, note: 'its clip ' + clips[key], group: 'its own motions', clip: clips[key] });
+    const file = look.ownFiles && look.ownFiles.get(own.gltf);
+    for (const name of (file && file.rest && file.rest.clips) || []) items.push({ value: 'clip:' + name, label: name, note: 'a clip of ' + own.gltf.replace(/^assets\//, ''), group: 'its file\'s clips', clip: name });
+  }
   summonPickList({
-    title: 'A motion of ' + (look.motions || 'its pack'), items, current, onChosen, what: 'motions',
-    preview: (it, pane) => { const view = summonPreviewStage(pane); summonPreviewModel(view, look.model, 'files/' + look.motions + '.ncap.lz', it.value, it.label, look.target); return () => view.stop(); }
+    title: 'A motion of ' + (own ? own.gltf.replace(/^assets\//, '') : look.motions || 'its pack'), items, current, onChosen, what: 'motions',
+    preview: (it, pane) => {
+      const view = summonPreviewStage(pane);
+      const clip = it.clip || (own && clips[String(it.value)]);
+      if (clip && ownPreview) ownPreview(view, clip, it.label);
+      else summonPreviewModel(view, look.skeleton || look.model, 'files/' + look.motions + '.ncap.lz', it.value, it.label, look.target);
+      return () => view.stop();
+    }
   });
 }
 
