@@ -1685,12 +1685,12 @@ async function effectSpellDialog(ed) {
 }
 
 /// A magic item's card (item-defs.js): the effect it plays and the glow it casts with, from the mod's effects.
-async function effectItemLook(panel, spellName) {
+async function effectItemLook(panel, spellName, { castOnly = false } = {}) {
   const card = document.createElement('div');
   card.className = 'component';
   const head = document.createElement('div');
   head.className = 'behaviour-header';
-  head.textContent = 'Look (the effect it plays)';
+  head.textContent = castOnly ? 'Cast (the glow as it begins)' : 'Look (the effect it plays)';
   card.append(head);
   panel.append(card);
   let own = [], looks = [];
@@ -1725,7 +1725,7 @@ async function effectItemLook(panel, spellName) {
     row.append(span, select, open);
     card.append(row);
   };
-  pickRow('Effect', 'effect', [], 'what plays on the target: an effect of the mod\'s (defs/effects), or its base spell\'s');
+  if (!castOnly) pickRow('Effect', 'effect', [], 'what plays on the target: an effect of the mod\'s (defs/effects), or its base spell\'s');
   pickRow('Cast', 'cast', [['black', 'black magic\'s'], ['white', 'white magic\'s'], ['summon', 'a summon\'s'], ['none', 'none']], 'the glow on the caster as it begins');
 }
 

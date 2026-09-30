@@ -54,6 +54,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: a summon's Look in the Inspector swaps its model, motions and effects, opens an effect or makes it the mod's.
 - Summons: a new summon - a mod spell based on one of the eight - plays as its base with scripts of its own (defs/summons "spell").
 - Summons: SET_MOTION 1000 and on loads a monster's motions, for a summon with a monster's model.
+- Summons: a summon's outcome may name itself in battle (defs/summons "name"); a new summon's shows its own name.
+- Crystal: a summon's Look sets its name in battle and makes it one of the monsters (model, motions and size at once).
+- Crystal: a start motion step picks from its pack's motions; a summon's spell look shows only its cast.
 - Crystal: New summon… makes a summon of the mod's from one of the eight, its three scripts copied to change.
 - Client: --summon-outcome white|black|combine makes every summon that outcome, for a test.
 - Crystal: Run in OpenFF plays the open project's mod alone; Run with the other mods plays it among the rest.

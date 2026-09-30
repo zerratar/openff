@@ -21,6 +21,9 @@
 // steps are that spell's for the outcome - the game's summon keeps its own. Such scripts go in after the game's 24
 // chains (24, 25 ... in load order: NewSummons); the battle plays the one for the spell and outcome it rolls, the
 // base's damage and the rest of its outcome as they are.
+//
+// "name": what the battle shows as the outcome is cast, in place of the game's ("Diamond Dust"); a new summon
+// without one shows its spell's name.
 
 using System;
 using System.Collections.Generic;
@@ -43,6 +46,8 @@ namespace OpenFF.Data
 		public string Summon;
 		/// <summary>A new summon's spell (a mod item based on a summon), by its name or id; null for one of the game's eight.</summary>
 		public string Spell;
+		/// <summary>The outcome's name in battle, or null for the game's (a new summon's: its spell's name).</summary>
+		public string Name;
 		public int Outcome;
 		public List<ModSummonStep> Steps = new List<ModSummonStep>();
 		public string Source;
@@ -122,6 +127,7 @@ namespace OpenFF.Data
 				Summon = node["summon"]?.ToString(),
 				Spell = string.IsNullOrWhiteSpace(node["spell"]?.ToString()) ? null : node["spell"].ToString().Trim(),
 				Outcome = OutcomeNumber(node["outcome"]),
+				Name = string.IsNullOrWhiteSpace(node["name"]?.ToString()) ? null : node["name"].ToString().Trim(),
 				Source = source,
 			};
 			if (node["steps"] is JsonArray steps)

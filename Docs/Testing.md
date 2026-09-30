@@ -276,6 +276,10 @@ passed; these are the rest.
   "spells: 1 look(s) of the mods': Fire -> emerald-fire"; the screenshots show green flames on
   the Goblin where the game's Fire burns, then the damage. The drive step `effect emerald-fire 0 4 6`
   plays it by the hero on the field.
+- A monster as a summon (test report): Frost Wyrm's combine given "name": "Frost Breath" and, in the Look,
+  As a monster ▸ Dragon (SET_MODEL 75, SET_MOTION 1075, SET_SUMMON_PARAMETER 133); the same drive: the
+  banner reads "Frost Breath", the Dragon appears and moves where Shiva did, then the damage and the
+  victory. Crystal's Stage plays the Dragon too.
 - A new summon (test report): Summons ▸ New summon… "Frost Wyrm" as Shiva (spell 20002, three scripts
   copied), its combine's DRAW_SUMMON_EFFECT_TARGET_ALL given `green-fire`; the client with the mod alone, a
   drive `job 0 Summoner`, `level 0 99`, `heal`, `learn 0 20002`, `battle 1`, then Down, Z, Z, Z: the log has

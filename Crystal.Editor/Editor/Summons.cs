@@ -132,7 +132,7 @@ namespace Crystal.Editor
 						{
 							type,
 							kind = Outcomes[type],
-							name = messages.TryGetValue((uint)(1300 + level * 10 + type + 1), out string n) && !string.IsNullOrWhiteSpace(n) ? n.Trim() : Outcomes[type],
+							name = !string.IsNullOrWhiteSpace(def?["name"]?.ToString()) ? def["name"].ToString().Trim() : string.IsNullOrWhiteSpace(item.Name) ? item.Id : item.Name,
 							steps = def?["steps"] is JsonArray own ? own.Count : type + 3 * level < chains.Length ? chains[type + 3 * level].Count : 0,
 						};
 					}).ToList(),

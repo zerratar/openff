@@ -1045,7 +1045,11 @@ at a time. A definition is such a list; the client rebuilds the pack with it as 
   the new summon has no script for plays its base's. In Crystal, Summons ▸ **New summon…** makes
   the spell and copies its base's three scripts to change.
 - `SET_MOTION` 1000 and on loads a monster's motions (`b_f###`, the family 1000 less), for a
-  summon of a monster's model (`SET_MODEL` takes any `f###`); its motion numbers are the family's.
+  summon of a monster's model (`SET_MODEL` takes any `f###`, and `SET_SUMMON_PARAMETER` the
+  monster, for its size). A monster's packs number their motions as the summons' do - 101
+  standing, 201 and on its attacks - so the script's `START_MOTION` steps play on it.
+- `"name"`: what the battle shows as the outcome is cast, in place of the game's ("Diamond Dust");
+  a new summon's outcome without one shows the summon's name.
 
 ### An effect of the mod's own: `defs/effects/<id>.json`
 

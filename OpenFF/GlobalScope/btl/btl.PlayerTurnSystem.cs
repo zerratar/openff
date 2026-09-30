@@ -199,6 +199,9 @@ internal static partial class GlobalScope
 
 			private SUMMON_STATE summonState_;
 
+			// PORT: the mod's new summon being cast (its own spell), -1 for one of the game's eight.
+			private int summonOwn_ = -1;
+
 			public void initializeAll()
 			{
 				workCounter_ = 0;
@@ -1231,6 +1234,7 @@ internal static partial class GlobalScope
 					summonManager_.setScript(baseSummon == own ? null : OpenFF.Client.ModItemsLayer.SummonScript(own, summonManager_.summonType()));
 					int num = baseSummon + summonManager_.summonType() * 10;
 					OpenFF.Client.ModItemsLayer.CastingSummon(num, baseSummon == own ? -1 : own);
+					summonOwn_ = baseSummon == own ? -1 : own;
 					nowPlayer().setUseMagicId((short)num);
 					setTargetGeography(T);
 					int se_group = 270 + magicParameter.magicClass();
@@ -1320,6 +1324,14 @@ internal static partial class GlobalScope
 					int num = 0;
 					if (nowPlayer().actionId() == 6)
 					{
+						// PORT: a mod's name for the outcome (defs/summons "name"; a new summon's own name) in place of the game's.
+						string named = OpenFF.Client.ModItemsLayer.SummonName(summonOwn_, summonManager_.summonLevel(), summonManager_.summonType());
+						if (named != null)
+						{
+							Battle2DManager.instance().helpWindow().createHelpWindow(named, 0, 0);
+							T.setState((int)PLAYER_ACTION_STATE.PAS_END_HELP_WINDOW);
+							break;
+						}
 						num = 1300;
 						num += summonManager_.summonType() + 1;
 						num += summonManager_.summonLevel() * 10;

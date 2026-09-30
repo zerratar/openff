@@ -505,6 +505,10 @@ async function openSummon(name) {
   const defs = new Map();
   let motionIndex = new Map();
   let mine = null, showGame = false, freeCam = false, saving = 0, gameSteps = null, type = 0;
+  // What the steps playing make the summon: model, motions (and their list), monster and its offsets.
+  const look = { model: null, motions: null, monster: -1, target: null, packKey: null, motionList: [] };
+  // The outcome's name in battle: the mod's steps may give one ("name"), else a new summon's own name, else the game's.
+  const outcomeName = () => (editable() && mine.def.name) || (spell && entry ? entry.name : script.name);
   const barButton = (text, title, cls) => { const b = document.createElement('button'); b.textContent = text; b.title = title; if (cls) b.className = cls; bar.append(b); return b; };
   const copyButton = barButton('Copy into the mod', 'this outcome\'s script as steps of the mod\'s own (defs/summons): edited here, played by the battle in place of the game\'s');
   const whose = document.createElement('button');
@@ -589,7 +593,17 @@ async function openSummon(name) {
   async function rebuild(restart) {
     const was = runner ? Math.max(0, runner.state.step + 1) : 0;
     const steps = current();
-    const playing_ = { ...script, steps };
+    // The summon as these steps make it: their model, motions and monster (its size and hit point).
+    const first = op => { const st = steps.find(s => s.op === op); return st ? Number(st.p[0]) || 0 : 0; };
+    const pad = n => String(n).padStart(3, '0');
+    const modelNo = first(8), motionNo = first(10), monsterNo = first(28);
+    look.model = modelNo > 0 ? 'files/f' + pad(modelNo) + '.nmdp.lz' : null;
+    look.motions = motionNo >= 1000 ? 'b_f' + pad(motionNo - 1000) : motionNo > 0 ? 'b_sm' + pad(motionNo) : null;
+    if (monsterNo !== look.monster) {
+      look.monster = monsterNo;
+      look.target = monsterNo === script.monster ? script.target : await api('/api/effect/target?monster=' + monsterNo).then(t => t && !t.error ? t : script.target).catch(() => script.target);
+    }
+    const playing_ = { ...script, steps, model: look.model, motions: look.motions, target: look.target };
     const wanted = new Set();
     for (const st of steps) if (st.op === 19 || st.op === 20 || st.op === 55) wanted.add(typeof st.p[0] === 'string' ? 'mod:' + st.p[0] : st.p[0] + '/' + st.p[1]);
     for (const sp of script.spells || []) if (sp.category > 0) wanted.add(sp.category + '/' + (sp.member > 0 ? sp.member : 1));
@@ -603,12 +617,16 @@ async function openSummon(name) {
       const r = await api(`/api/effect/import?category=${c}&member=${m}`).catch(() => null);
       if (r && !r.error) defs.set(k, r.effect);
     }));
-    if (restart) {
+    // The motions' pack, read again when the model or its motions change.
+    const packKey = look.model + '|' + look.motions;
+    if (restart || packKey !== look.packKey) {
+      look.packKey = packKey;
       motionIndex = new Map();
-      if (script.model && script.motions) {
-        const packs = await api(`/api/model/motions?name=${encodeURIComponent(script.model)}`).catch(() => []);
-        const pack = (packs || []).find(p => new RegExp('(^|/)' + script.motions + '\\.ncap', 'i').test(p.name));
-        if (pack) { motionIndex.set('pack', pack.name); for (const mo of pack.motions) motionIndex.set(mo.id, mo.index); }
+      look.motionList = [];
+      if (look.model && look.motions) {
+        const packs = await api(`/api/model/motions?name=${encodeURIComponent(look.model)}`).catch(() => []);
+        const pack = (packs || []).find(p => new RegExp('(^|/)' + look.motions + '\\.ncap', 'i').test(p.name));
+        if (pack) { motionIndex.set('pack', pack.name); for (const mo of pack.motions) motionIndex.set(mo.id, mo.index); look.motionList = pack.motions; }
       }
     }
     runner = makeSummonRun(playing_, defs);
@@ -628,7 +646,7 @@ async function openSummon(name) {
     spans = probe.state.effects.map(e => ({ by: e.by, from: e.born, to: e.born + effectLengthOf(defs.get(e.key)), key: e.key }));
     for (let i = 0; i < steps.length; i++) if (endAt[i] < 0 && firstAt[i] >= 0) endAt[i] = length;
     scrub.max = String(length);
-    facts.textContent = `${script.summon} · ${script.name} · ${steps.length} steps, ${length} frames (${(length / 30).toFixed(1)} s)`;
+    facts.textContent = `${script.summon} · ${outcomeName()} · ${steps.length} steps, ${length} frames (${(length / 30).toFixed(1)} s)`;
     runner.reset();
     if (restart) { owed = 0; playing = true; play.textContent = 'Pause'; }
     else { for (let i = 0; i < Math.min(was, length); i++) runner.step(); }
@@ -709,14 +727,60 @@ async function openSummon(name) {
     const title = document.createElement('input');
     title.className = 'object-name';
     title.readOnly = true;
-    title.value = (entry ? (entry.creature || entry.name) : 'Summon') + ' · ' + (script ? script.name : '');
+    title.value = (entry ? (entry.creature || entry.name) : 'Summon') + ' · ' + (script ? outcomeName() : '');
     head.append(title);
     if (editable()) head.append(ownBadge('mod'));
     box.append(head);
     readOnlyNote(box);
     const steps = current();
-    // The summon itself: its model, motions and monster (its size and hit point).
+    // The summon itself: its name in battle, its model, motions and monster (its size and hit point).
     const who = card(box, 'The summon', 'model');
+    const named = document.createElement('input');
+    named.type = 'text';
+    named.value = editable() ? mine.def.name || '' : '';
+    named.placeholder = spell && entry ? entry.name : script.name;
+    named.disabled = !editable();
+    named.onchange = () => {
+      const v = named.value.trim();
+      if (v) mine.def.name = v; else delete mine.def.name;
+      changed();
+      title.value = (entry ? (entry.creature || entry.name) : 'Summon') + ' · ' + outcomeName();
+    };
+    field(who, 'Name', named, 'what the battle shows as it is cast; empty for ' + (spell ? 'the summon\'s own name' : 'the game\'s'));
+    const modelAt0 = findStep(8), motionAt0 = findStep(10), monsterAt0 = findStep(28);
+    if (modelAt0 >= 0 && motionAt0 >= 0 && monsterAt0 >= 0) {
+      // A monster to summon: its family's model and motions, and the monster itself for its size and hit point.
+      const as = document.createElement('select');
+      as.disabled = !editable();
+      const none = document.createElement('option'); none.value = ''; none.textContent = 'none (its own)'; as.append(none);
+      as.append(Object.assign(document.createElement('option'), { value: '?', textContent: 'loading the monsters…', disabled: true }));
+      field(who, 'As a monster', as, 'a monster of the game\'s (or the mod\'s) as the summon: its model, its motions and its size - the script\'s motions 101 (standing) and 201 (its attack) are the monster\'s too');
+      api('/api/monsters').then(r => {
+        const list = (r && (r.monsters || r)) || [];
+        as.querySelector('option[value="?"]').remove();
+        const steps2 = current();
+        const model = Number(steps2[modelAt0].p[0]), motions = Number(steps2[motionAt0].p[0]), monster = Number(steps2[monsterAt0].p[0]);
+        for (const m of list.filter(m => m.family > 0 && m.family < 201).sort((a, b) => a.name.localeCompare(b.name))) {
+          const o = document.createElement('option'); o.value = String(m.id); o.textContent = `${m.name}  (f${String(m.family).padStart(3, '0')})`; o.dataset.family = String(m.family); as.append(o);
+        }
+        const now = list.find(m => m.id === monster && m.family === model && motions === 1000 + model);
+        as.value = now ? String(now.id) : '';
+      }).catch(() => {});
+      as.onchange = () => {
+        const o = as.selectedOptions[0];
+        const st = mine.steps;
+        if (!as.value) {
+          // Back to the base's own: its model, motions and monster as the game's script has them.
+          for (const [at, op] of [[modelAt0, 8], [motionAt0, 10], [monsterAt0, 28]]) { const g = (gameSteps || []).find(s => s.op === op); if (g) st[at].p[0] = g.p[0]; }
+        } else {
+          const family = parseInt(o.dataset.family, 10);
+          st[modelAt0].p[0] = family;
+          st[motionAt0].p[0] = 1000 + family;
+          st[monsterAt0].p[0] = parseInt(as.value, 10);
+        }
+        changed();
+      };
+    }
     const modelAt = findStep(8), motionAt = findStep(10), monsterAt = findStep(28);
     if (modelAt >= 0) {
       const pick = document.createElement('select');
@@ -734,7 +798,7 @@ async function openSummon(name) {
       // A monster's model moves by its family's motions (b_f###, as 1000 + the family).
       const model = modelAt >= 0 ? Number(steps[modelAt].p[0]) : 0;
       const theirs = new Set([model > 0 && model < 201 ? 1000 + model : 0, Number(steps[motionAt].p[0])].filter(v => v >= 1000));
-      for (const v of theirs) { const o = document.createElement('option'); o.value = String(v); o.textContent = 'b_f' + String(v - 1000).padStart(3, '0') + '  (a monster\'s: its motion numbers are its own)'; pick.append(o); }
+      for (const v of theirs) { const o = document.createElement('option'); o.value = String(v); o.textContent = 'b_f' + String(v - 1000).padStart(3, '0') + '  (a monster\'s)'; pick.append(o); }
       pick.value = String(steps[motionAt].p[0]);
       pick.disabled = !editable();
       pick.onchange = () => setParam(motionAt, 0, parseInt(pick.value, 10));
@@ -747,7 +811,8 @@ async function openSummon(name) {
       field(who, 'Monster', input, 'the monster record it takes its size and hit point from (SET_SUMMON_PARAMETER)');
     }
     // The caster's glow as it begins: the summon spell's cast (its look, defs/spells).
-    if (typeof effectItemLook === 'function' && entry) effectItemLook(box, () => entry.name);
+    // A summon's glow as it is cast (what plays after is the script's).
+    if (typeof effectItemLook === 'function' && entry) effectItemLook(box, () => entry.name, { castOnly: true });
     // Every effect it plays: a picker, Open, and Make it mine.
     const fx = card(box, 'Its effects', 'effect');
     const known = document.createElement('datalist');
@@ -857,6 +922,20 @@ async function openSummon(name) {
         if (kind === 'b') {
           input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!st.p[k];
           input.onchange = () => setParam(i, k, input.checked ? 1 : 0);
+        } else if (st.op === 12 && k === 0 && look.motionList.length) {
+          // A motion of the loaded pack, by its id and name.
+          input = document.createElement('select');
+          const have = look.motionList.map(m => m.id);
+          if (!have.includes(Number(st.p[0]))) have.unshift(Number(st.p[0]));
+          for (const id of have) {
+            const m = look.motionList.find(x => x.id === id);
+            const o = document.createElement('option'); o.value = String(id);
+            o.textContent = m ? `${id}  ${m.name}${m.frames ? ' · ' + m.frames + ' frames' : ''}` : `${id}  (not in ${look.motions})`;
+            input.append(o);
+          }
+          input.value = String(st.p[0]);
+          input.title = 'a motion of ' + look.motions + ': 101 is standing, 201 and on its actions';
+          input.onchange = () => setParam(i, k, parseInt(input.value, 10));
         } else if (kind === 'e') {
           input = document.createElement('input'); input.type = 'text'; input.value = String(st.p[k]);
           input.title = 'a pack of the game\'s by its number (367), or one of the mod\'s effects by its id';
@@ -1070,8 +1149,8 @@ async function openSummon(name) {
       stage.mapTint = S.dark.on ? S.dark.colour : null;
       stage.hide = { monsters: S.monstersHidden, party: S.party.registered ? S.party.alpha : 0 };
       const sm = S.summon;
-      stage.extras = sm.loaded && !sm.gone && sm.shown && script.model ? [{
-        model: script.model, pos: sm.pos.map(v => v / 4096), yaw: sm.yaw, scale: sm.scale, alpha: sm.alpha / 100,
+      stage.extras = sm.loaded && !sm.gone && sm.shown && look.model ? [{
+        model: look.model, pos: sm.pos.map(v => v / 4096), yaw: sm.yaw, scale: sm.scale, alpha: sm.alpha / 100,
         pack: sm.motion ? motionIndex.get('pack') : null, index: sm.motion ? (motionIndex.get(sm.motion.id) || 0) : 0,
         frame: sm.motion ? sm.motion.frame : 0, loop: sm.motion ? sm.motion.loop : false
       }] : [];

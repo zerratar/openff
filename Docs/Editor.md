@@ -1134,6 +1134,11 @@ base's outcomes and damage; its three scripts are copied from the base's
 (`defs/summons/<spell>-<outcome>.json`, `"spell"`) and edited here like any other. **Use the base's
 steps** takes an outcome's script out: it plays its base's. **Test in battle** casts it.
 
+The Look's **Name** is what the battle shows as the outcome is cast (empty for the game's, or a new
+summon's own name). **As a monster** makes the summon one of the monsters - its model, its motions
+and its size at once; the Stage plays it so. A *start motion* step picks from the motions the
+summon's pack has, by name and length.
+
 The script is the game's own - `files/summon_script_command.pack`, 24 lists of 36-byte records
 (`Crystal.Editor/Editor/Summons.cs`, `/api/summons`, `/api/summon`) - and `wwwroot/summons.js`
 is a port of the battle's interpreter (`btl.BaseSummon.run`, `btl.SummonCommand`): a record a
