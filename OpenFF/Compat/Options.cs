@@ -47,6 +47,7 @@ namespace OpenFF.Client
 			("log-stalls", "FF3_LOG_STALLS", "", "Write every frame over 50 ms to the log, to find where a hitch comes from, and every five seconds the pacing - how evenly the frames went out and moved"),
 			("mod", "FF3_MOD", "<dir>[;dir]", "Mod folder(s) mirroring the game's file names; first wins"),
 			("project", "FF3_PROJECT", "<name|dir>", "An editor project whose edits are the mods"),
+			("summon-outcome", "FF3_SUMMON_OUTCOME", "white|black|combine", "Every summon this run plays that outcome (a test's; the game picks white or black at random for an Evoker, combine for a Summoner)"),
 			("only-mod", "FF3_ONLY_MOD", "<name>", "Of the mods folder, play only this mod (and the mods it depends on) this run; the others stay installed as they were"),
 			("steam-cells-off", "FF3_STEAM_CELLS_OFF", "", "Draw a Steam install's cell banks as they are, without the phone layout table"),
 			("text", "FF3_TEXT", "atlas", "Text from the phone build's glyph atlases instead of TrueType"),

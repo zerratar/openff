@@ -2158,7 +2158,22 @@ namespace Crystal.Editor
 					return;
 
 				case "/api/summon":
-					try { SendJson(context, Summons.Script(_workspace, int.Parse(Query(context, "level") ?? "0", CultureInfo.InvariantCulture), int.Parse(Query(context, "type") ?? "0", CultureInfo.InvariantCulture))); }
+					try { SendJson(context, Summons.Script(_workspace, int.Parse(Query(context, "level") ?? "0", CultureInfo.InvariantCulture), int.Parse(Query(context, "type") ?? "0", CultureInfo.InvariantCulture), _project)); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+
+				case "/api/project/summon/copy":
+					try { JsonNode body = ReadBody(context); SendJson(context, Summons.Copy(_project, _workspace, body?["level"]?.GetValue<int>() ?? 0, body?["type"]?.GetValue<int>() ?? 0)); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+
+				case "/api/project/summon/save":
+					try { JsonNode body = ReadBody(context); SendJson(context, Summons.Save(_project, body?["file"]?.ToString(), body?["def"])); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+
+				case "/api/project/summon/delete":
+					try { JsonNode body = ReadBody(context); SendJson(context, Summons.Delete(_project, body?["file"]?.ToString())); }
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
 
@@ -3430,7 +3445,9 @@ namespace Crystal.Editor
 				int formation = Math.Max(0, body?["formation"]?.GetValue<int>() ?? 1);
 				string school = (body?["school"]?.GetValue<string>() ?? "").ToLowerInvariant();
 				if (spell <= 0) throw new ArgumentException("which spell?");
-				string job = school.Contains("summon") ? "Evoker" : school.Contains("white") ? "White Mage" : "Black Mage";
+				// A summon's outcome, if asked: the combine a Summoner's, the others an Evoker's with the outcome forced.
+				string outcome = body?["outcome"]?.GetValue<string>();
+				string job = school.Contains("summon") ? (outcome == "combine" ? "Summoner" : "Evoker") : school.Contains("white") ? "White Mage" : "Black Mage";
 				string directory = ProjectExport.WriteToOpenFF(_project, mods);
 				string drive = Path.Combine(Path.GetTempPath(), "crystal-test-spell.drive");
 				File.WriteAllLines(drive, new[]
@@ -3440,8 +3457,9 @@ namespace Crystal.Editor
 					"job 0 " + job, "level 0 99", "heal", "learn 0 " + spell,
 					"battle " + formation.ToString(CultureInfo.InvariantCulture),
 				});
-				string[] arguments = { "--game=ff3", "--map=t01_01", "--pos=-88,0,140", "--only-mod=" + Path.GetFileName(directory), "--drive=" + drive };
-				OpenFFClient.Launch(arguments);
+				List<string> arguments = new List<string> { "--game=ff3", "--map=t01_01", "--pos=-88,0,140", "--only-mod=" + Path.GetFileName(directory), "--drive=" + drive };
+				if (!string.IsNullOrEmpty(outcome)) arguments.Add("--summon-outcome=" + outcome);
+				OpenFFClient.Launch(arguments.ToArray());
 				SendJson(context, new { ok = true, path = directory, job, arguments });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or System.ComponentModel.Win32Exception)

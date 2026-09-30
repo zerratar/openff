@@ -276,6 +276,12 @@ passed; these are the rest.
   "spells: 1 look(s) of the mods': Fire -> emerald-fire"; the screenshots show green flames on
   the Goblin where the game's Fire burns, then the damage. The drive step `effect emerald-fire 0 4 6`
   plays it by the hero on the field.
+- A summon of the mod's (test report): Summons ▸ Shiva ▸ Diamond Dust ▸ Copy into the mod, the finale's
+  step (DRAW_SUMMON_EFFECT_TARGET_ALL 367/1) given `green-fire`; the client with the mod alone, a drive
+  `job 0 Summoner`, `level 0 99`, `heal`, `learn 0 4202`, `battle 1`, then Down, Z, Z, Z: the log has
+  "summons: 1 of the mods': Shiva combine (92 steps)" and "summon_script_command.pack composed, 62512 ->
+  62512 bytes"; the screenshots show the cast, the dark, Shiva's close-up, then green flames on the
+  Goblin where the ice crystals fall, the white flash and the victory.
 - Spin in the client (test report): an effect of thin white blades on a PNG of the mod's with
   `spin` (`angle` 0-360, `speed` -14..14), `speedOverLife` and smooth curves; the drive
   `until jump: ff3 90`, `wait 3`, `effect spin-test 0 0 6`, screenshots every 0.2 s. The blades lie

@@ -210,6 +210,29 @@ namespace OpenFF.Client
 			});
 		}
 
+		/// <summary>
+		/// The mods' summons (defs/summons): their steps in place of the game's scripts, composed into
+		/// summon_script_command.pack as the battle reads it (Shared/Data/ModSummons.cs); an effect a step names by
+		/// its id is one of the mods' (defs/effects), put in by its category.
+		/// </summary>
+		private static void RegisterSummons(ContentChain chain, List<string> roots)
+		{
+			List<string> notes = new List<string>();
+			List<ModSummon> summons = ModSummons.Load(roots, notes);
+			foreach (string note in notes) Log.Write(LogChannel.General, "summons: " + note);
+			if (summons.Count == 0) return;
+			Log.Write(LogChannel.General, "summons: " + summons.Count + " of the mods': " + string.Join(", ", summons.Select(s => s.Summon + " " + ModSummons.Outcomes[s.Outcome] + " (" + s.Steps.Count + " steps)")));
+			chain.AddTransform((name, data) =>
+			{
+				if (!ModSummons.IsPack(name)) return data;
+				List<string> problems = new List<string>();
+				byte[] composed = ModSummons.Compose(data, summons, ModEffects.Category, problems);
+				foreach (string p in problems) Log.Write(LogChannel.General, "summons: " + p);
+				if (!ReferenceEquals(composed, data)) Log.Write(LogChannel.File, "summons: " + ModSummons.Pack + " composed, " + data.Length + " -> " + composed.Length + " bytes");
+				return composed;
+			});
+		}
+
 		// The looks' casts (their "cast"): a spell's id to the pack its caster plays as it begins, -1 for none.
 		private static Func<Dictionary<int, int>> _castsFrom;
 		private static Dictionary<int, int> _casts;
@@ -271,6 +294,7 @@ namespace OpenFF.Client
 			Items = kept;
 			WeaponMeshes.Register(kept);
 			RegisterSpells(chain, roots, kept);
+			RegisterSummons(chain, roots);
 			if (kept.Count == 0) return;
 			Log.Write(LogChannel.General, "items: " + kept.Count + " of the mods' own: " + string.Join(", ", kept.Select(i => i.Number + " " + (i.Name ?? i.Id) + (i.Model != null ? " (" + i.Model + ")" : ""))));
 			chain.AddTransform((name, data) =>

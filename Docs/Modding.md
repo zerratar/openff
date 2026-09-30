@@ -1009,6 +1009,36 @@ own magic item (and any item of the mod's whose base has a record - a potion's) 
 base's record, which a definition here may then change. The cast is not in the record: the
 battle asks the client for it where it picks the school's (`btl.TurnSystem.magicStartEffect`).
 
+### A summon's steps: `defs/summons/<id>.json`
+
+A summon's outcome played by steps of the mod's own in place of the game's script. FF3's
+summons are scripts (`files/summon_script_command.pack`): for each of the eight summons' three
+outcomes a list of steps - a command and up to seven numbers - that the battle runs a game step
+at a time. A definition is such a list; the client rebuilds the pack with it as it is read
+(`Shared/Data/ModSummons.cs`), and the battle plays it with its own interpreter.
+
+```json
+{ "summon": "Shiva", "outcome": "combine",
+  "steps": [ { "do": "SET_DARK_SCREEN", "p": [5, 15, 15, 15] },
+             { "do": "IS_DARK_SCREEN" },
+             { "do": "DRAW_SUMMON_EFFECT_TARGET_ALL", "p": ["frost-nova", 1, 0], "again": true },
+             { "do": "SUMMON_BEHAVIOR_END" } ] }
+```
+
+- `summon`: the creature (Chocobo, Shiva, Ramuh, Ifrit, Titan, Odin, Leviathan, Bahamut), its
+  spell's name (Escape, Icen …) or its level 0..7. `outcome`: `white` or `black` (an Evoker's, one
+  or the other at random) or `combine` (a Summoner's).
+- A step: `do`, the command by name (the 64 of `btl.SUMMON_BEHAVIOR`: fades, the dark screen, the
+  summon's model, motion and place, effects, the camera's cuts, glides and shakes, waits,
+  flashes, the party's return); `p`, its numbers - positions in the battle's fixed point (4096 a
+  unit), angles in degrees; `again`, run in the same game step as the step before. Without an
+  END step one is put last.
+- A draw command's effect (`SET_EFFECT`, `DRAW_SUMMON_EFFECT`, `DRAW_SUMMON_EFFECT_TARGET_ALL`,
+  `CREATE_EFFECT_AND_SET_POSITION`) may be one of the mod's own by its id (`defs/effects`).
+- In Crystal: **Summons** ▸ a summon ▸ its outcome ▸ **Copy into the mod** writes the game's script
+  as steps (`defs/summons/<creature>-<outcome>.json`), edited in the same view; **Test in battle**
+  casts it (an Evoker, a Summoner for the combine; `--summon-outcome` forces the outcome).
+
 ### An effect of the mod's own: `defs/effects/<id>.json`
 
 An effect the mod makes - a spell's, a cutscene's, anything a script starts - in the effect

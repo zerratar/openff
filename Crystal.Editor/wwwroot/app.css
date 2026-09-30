@@ -2790,3 +2790,16 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .summon-step span { color: var(--dim); }
 .summon-step.again b::before { content: '↳ '; color: var(--dim); }
 .summon-fade { background: #000; }
+.summon-steps-head { display: flex; align-items: center; gap: 6px; }
+.summon-step.picked { box-shadow: inset 0 0 0 1px var(--accent); }
+.summon-edit { position: sticky; top: 28px; z-index: 1; background: #1b1e24; border-bottom: 1px solid var(--line); padding: 6px 8px 8px; }
+.summon-edit-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.summon-edit-tools .chip { font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--dim); cursor: pointer; }
+.summon-edit-tools .chip:disabled { opacity: .4; cursor: default; }
+.summon-field { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 6px; margin: 2px 0; font-size: 11px; color: var(--dim); }
+.summon-field input[type=number], .summon-field input[type=text], .summon-field select { width: 100%; min-width: 0; font-size: 11px; }
+.summon-field input[type=checkbox] { justify-self: start; }
+.summon-edit .wide-button { margin-top: 4px; font-size: 11px; }
+.summon-edit-words { margin: 4px 0 0; word-break: normal; }
+.summon-view .bar .chip, .effect-controls .chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--dim); cursor: pointer; }
+.bar .chip.on, .effect-controls .chip.on { background: rgba(110, 168, 254, .18); border-color: var(--accent); color: var(--ink); }

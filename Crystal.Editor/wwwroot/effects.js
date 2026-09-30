@@ -1089,7 +1089,17 @@ function makeEffectStage(canvas, textureUrl) {
         party: PARTY_PLACES.map(feet => ({ feet, hit: hitPoint(feet, 9, 5) }))
       };
     },
-    BATTLE_EYE, BATTLE_AT, ALL_MONSTERS, ALL_PARTY
+    BATTLE_EYE, BATTLE_AT, ALL_MONSTERS, ALL_PARTY,
+    /// The free camera as it stands: where it looks from and at (world units), for a script's camera step.
+    freeView() { return { eye: eyeOf(), at: camera.target.slice() }; },
+    /// The free camera put where a view is (world units): it looks from `eye` at `at`.
+    lookFrom(eye, at) {
+      const d = [eye[0] - at[0], eye[1] - at[1], eye[2] - at[2]], l = Math.hypot(d[0], d[1], d[2]) || 1;
+      camera.target = at.slice(); camera.distance = l;
+      camera.pitch = Math.asin(d[1] / l) / EFFECT_DEG; camera.yaw = Math.atan2(d[0], d[2]) / EFFECT_DEG;
+      camera.fov = BATTLE_FOV;
+      layout.view = 'free';
+    }
   };
   relayout();
   return stageApi;

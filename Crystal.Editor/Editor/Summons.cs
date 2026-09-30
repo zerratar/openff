@@ -12,6 +12,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.IO;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using OpenFF.Content;
 using OpenFF.Data;
 
@@ -108,8 +112,80 @@ namespace Crystal.Editor
 			return new { ok = true, summons };
 		}
 
+		/// <summary>The project's own script for a summon's outcome (defs/summons), if it has one: its file and definition.</summary>
+		public static (string File, JsonObject Def) Mine(Project project, int level, int type)
+		{
+			if (project == null) return (null, null);
+			string folder = Path.Combine(project.Directory, ModSummons.Folder);
+			if (!Directory.Exists(folder)) return (null, null);
+			(string, JsonObject) found = (null, null);
+			foreach (string f in Directory.EnumerateFiles(folder, "*.json").OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+			{
+				try
+				{
+					JsonObject o = JsonNode.Parse(File.ReadAllText(f)) as JsonObject;
+					if (o == null) continue;
+					if (ModSummons.Level(o["summon"]?.ToString()) == level && ModSummons.OutcomeNumber(o["outcome"]) == type) found = (ModSummons.Folder + "/" + Path.GetFileName(f), o);
+				}
+				catch (Exception) { }
+			}
+			return found;
+		}
+
+		/// <summary>A summon's outcome copied into the mod: the game's script as steps (defs/summons/&lt;creature&gt;-&lt;outcome&gt;.json).</summary>
+		public static object Copy(Project project, Workspace workspace, int level, int type)
+		{
+			if (project == null) throw new InvalidOperationException("no project is open");
+			List<int[]>[] chains = Read(workspace);
+			List<int[]> records = chains[type + 3 * level];
+			JsonArray steps = new JsonArray();
+			foreach (int[] r in records)
+			{
+				int used = 7;
+				while (used > 0 && r[used - 1] == 0) used--;
+				JsonObject step = new JsonObject { ["do"] = r[8] >= 0 && r[8] < ModSummons.Commands.Length ? ModSummons.Commands[r[8]] : r[8].ToString(CultureInfo.InvariantCulture) };
+				if (used > 0) step["p"] = new JsonArray(r.Take(used).Select(v => (JsonNode)v).ToArray());
+				if (r[7] != 0) step["again"] = true;
+				steps.Add(step);
+			}
+			JsonObject def = new JsonObject { ["summon"] = ModSummons.Names[level].Creature, ["outcome"] = ModSummons.Outcomes[type], ["steps"] = steps };
+			string folder = Path.Combine(project.Directory, ModSummons.Folder);
+			Directory.CreateDirectory(folder);
+			string name = (ModSummons.Names[level].Creature + "-" + ModSummons.Outcomes[type]).ToLowerInvariant();
+			File.WriteAllText(Path.Combine(folder, name + ".json"), Text(def), new UTF8Encoding(false));
+			return new { ok = true, file = ModSummons.Folder + "/" + name + ".json", def };
+		}
+
+		public static object Save(Project project, string file, JsonNode def)
+		{
+			string path = PathOf(project, file);
+			if (def is not JsonObject) throw new ArgumentException("a summon is an object");
+			File.WriteAllText(path, Text(def), new UTF8Encoding(false));
+			return new { ok = true, file };
+		}
+
+		public static object Delete(Project project, string file)
+		{
+			string path = PathOf(project, file);
+			if (File.Exists(path)) File.Delete(path);
+			return new { ok = true };
+		}
+
+		private static string PathOf(Project project, string file)
+		{
+			if (project == null) throw new InvalidOperationException("no project is open");
+			string name = Path.GetFileName(file ?? "");
+			if (!name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("a summon is a .json of defs/summons");
+			string folder = Path.Combine(project.Directory, ModSummons.Folder);
+			Directory.CreateDirectory(folder);
+			return Path.Combine(folder, name);
+		}
+
+		/// <summary>A definition as its file has it: indented, a step's numbers on one line.</summary>
+		private static string Text(JsonNode def) => EffectsProject.Text(def);
+
 		/// <summary>One summon's script and what playing it needs.</summary>
-		public static object Script(Workspace workspace, int level, int type)
+		public static object Script(Workspace workspace, int level, int type, Project project = null)
 		{
 			List<int[]>[] chains = Read(workspace);
 			int index = type + 3 * level;
@@ -136,10 +212,12 @@ namespace Crystal.Editor
 				return new { id, name = s?.Name, category = rec.Category, member = rec.Member, frame = rec.Frame, offset = rec.Offset, party };
 			}).ToList();
 
+			(string mineFile, JsonObject mineDef) = Mine(project, level, type);
 			return new
 			{
 				ok = true,
 				level, type,
+				mine = mineFile == null ? null : new { file = mineFile, def = mineDef },
 				summon = tables.Spell(4201 + level)?.Name,
 				name = messages.TryGetValue((uint)(1300 + level * 10 + type + 1), out string n) ? n?.Trim() : Outcomes[type],
 				model = model > 0 ? "files/f" + model.ToString("000", CultureInfo.InvariantCulture) + ".nmdp.lz" : null,

@@ -1346,6 +1346,13 @@ internal static partial class GlobalScope
 					return 2;
 				}
 				int num = (int)ds.RandomNumber.logic32(101u);
+				// PORT: --summon-outcome makes every summon one outcome (a test's), the roll still taken so the rest runs as it would.
+				string forced = OpenFF.Client.Options.Get("summon-outcome");
+				if (!string.IsNullOrEmpty(forced))
+				{
+					int outcome = Array.FindIndex(OpenFF.Data.ModSummons.Outcomes, o => string.Equals(o, forced.Trim(), StringComparison.OrdinalIgnoreCase));
+					if (outcome >= 0) return outcome;
+				}
 				if (num <= 50)
 				{
 					return 1;

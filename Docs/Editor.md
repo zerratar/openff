@@ -1121,6 +1121,17 @@ step, the next in the same step when marked, a wait run again until it is done, 
 counter the waits and the camera's glides share, the glide's whole-unit steps. What is not drawn:
 the damage numbers, the sounds, a random-target spell's jitter.
 
+**Copy into the mod** makes the outcome's script the mod's own (`defs/summons`, a Mod badge on the
+steps): the steps become editable - pick one for its command (grouped: screen, the summon,
+effects, camera, the party and monsters, timing, sound), its numbers by what they are (positions
+in world units, an effect a pack's number or one of the mod's effects by id), *Same step*; + step,
+Duplicate, ↑ ↓, Delete. **Free camera** looks around the Stage (the scene view's controls), and
+a camera step's **Set from camera** puts that view in. Every change is saved half a second after
+and plays again from the frame it was on; *The mod's* / *The game's* switches between the two,
+**Delete the copy** gives the game's back. **Test in battle** starts OpenFF with the mod alone: an
+Evoker (a Summoner for the combine) at level 99 knowing the summon, the outcome forced
+(`--summon-outcome`), in a battle.
+
 ## Effects
 
 The game's effect packs (FF3's `e###.efp` and the field's), each named after what plays it -
