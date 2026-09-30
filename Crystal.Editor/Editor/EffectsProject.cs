@@ -119,9 +119,16 @@ namespace Crystal.Editor
 					catch (Exception) { }
 				}
 			}
+			// The effect each plays (its record's pack and member), for a copy of it to start a spell's own from.
+			Dictionary<int, (int, int)> effects = Effects.SpellEffects(workspace);
 			return new
 			{
-				spells = tables.Spells.Where(s => !string.IsNullOrEmpty(s.Name)).Select(s => new { id = s.Id, name = s.Name, school = s.School.ToString(), level = s.Level }).ToList(),
+				spells = tables.Spells.Where(s => !string.IsNullOrEmpty(s.Name)).Select(s => new
+				{
+					id = s.Id, name = s.Name, school = s.School.ToString(), level = s.Level,
+					category = effects.TryGetValue(s.Id, out (int, int) e) ? e.Item1 : -1,
+					member = effects.TryGetValue(s.Id, out (int, int) e2) ? e2.Item2 : -1,
+				}).ToList(),
 				looks,
 			};
 		}

@@ -291,7 +291,7 @@ namespace OpenFF.Client
 			{
 				if (!EngineApi.InWorld) return;
 				_learnPending = false;
-				Log.Write(LogChannel.File, "progression: the world is up; class heroes learn by level");
+				Log.Write(LogChannel.File, "progression: the world is up; heroes learn by level");
 				for (byte i = 0; i < 4; i++)
 				{
 					GlobalScope.pl.Player player = GlobalScope.pl.PlayerParty.instance().player(i);
@@ -781,11 +781,12 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.Write(LogChannel.General, "progression: learning: " + ex.Message); }
 		}
 
-		/// <summary>A class hero's learn list against their level: every spell due is equipped (once).</summary>
+		/// <summary>A hero's learn list against their level: every spell due is equipped (once) - a class hero's (FF4), and
+		/// any other's too, so a spell at level 1 is known from a new game on.</summary>
 		private static void LearnByLevel(GlobalScope.pl.Player player, bool announce)
 		{
 			ModCharacter def = ModCharactersLayer.Definition(player.playerId());
-			if (def == null || def.Progression != Progression.Class || def.Learn.Count == 0) return;
+			if (def == null || def.Learn.Count == 0) return;
 			int level = player.level().get();
 			foreach (ModLearned l in def.Learn)
 			{

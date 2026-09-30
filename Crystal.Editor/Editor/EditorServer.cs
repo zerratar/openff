@@ -2151,6 +2151,10 @@ namespace Crystal.Editor
 						return;
 					}
 
+				case "/api/project/test-spell":
+					TestSpell(context);
+					return;
+
 				case "/api/project/effect/spells":
 					{
 						try { SendJson(context, EffectsProject.Spells(_project, _workspace)); }
@@ -3392,6 +3396,44 @@ namespace Crystal.Editor
 				SendJson(context, new { ok = true, path = directory, started = !running, running, arguments });
 			}
 			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>
+		/// A spell tried in battle: the project exported and the client started with it alone, in Ur, with a drive that
+		/// gives the first hero a job that casts the spell's school, level 99 and a rest (full charges at every spell level), the spell, and then the
+		/// battle - so the next thing is the Magic menu. { spell: number, school, formation }.
+		/// </summary>
+		private void TestSpell(HttpListenerContext context)
+		{
+			if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+			string mods = OpenFFClient.ModsFolder();
+			if (mods == null) { SendJson(context, new { ok = false, error = "the OpenFF client has not been found - start OpenFF.exe once (it records where it is), or build OpenFF beside this repository" }); return; }
+			if (OpenFFClient.IsRunning()) { SendJson(context, new { ok = false, error = "OpenFF is running - close it, then Test in battle again (a test starts the game afresh with its own steps)" }); return; }
+			try
+			{
+				JsonNode body = ReadBody(context);
+				int spell = body?["spell"]?.GetValue<int>() ?? 0;
+				int formation = Math.Max(0, body?["formation"]?.GetValue<int>() ?? 1);
+				string school = (body?["school"]?.GetValue<string>() ?? "").ToLowerInvariant();
+				if (spell <= 0) throw new ArgumentException("which spell?");
+				string job = school.Contains("summon") ? "Evoker" : school.Contains("white") ? "White Mage" : "Black Mage";
+				string directory = ProjectExport.WriteToOpenFF(_project, mods);
+				string drive = Path.Combine(Path.GetTempPath(), "crystal-test-spell.drive");
+				File.WriteAllLines(drive, new[]
+				{
+					"until jump: ff3 90", "wait 2",
+					// A level to have charges at every spell level (the game gives them by level and job), then an inn's rest.
+					"job 0 " + job, "level 0 99", "heal", "learn 0 " + spell,
+					"battle " + formation.ToString(CultureInfo.InvariantCulture),
+				});
+				string[] arguments = { "--game=ff3", "--map=t01_01", "--pos=-88,0,140", "--only-mod=" + Path.GetFileName(directory), "--drive=" + drive };
+				OpenFFClient.Launch(arguments);
+				SendJson(context, new { ok = true, path = directory, job, arguments });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or System.ComponentModel.Win32Exception)
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}

@@ -334,6 +334,26 @@ namespace Crystal.Editor
 			}
 		}
 
+		/// <summary>Each spell's effect as its record names it (player.chaindata's effect table): spell id -> category, member.</summary>
+		internal static Dictionary<int, (int, int)> SpellEffects(Workspace workspace)
+		{
+			Dictionary<int, (int, int)> found = new Dictionary<int, (int, int)>();
+			try
+			{
+				Cache c = For(workspace);
+				ChainPack chain = ChainPack.Read(workspace.Read(Named(c, "player.chaindata")));
+				int records = chain.Records(ModSpells.Chain, ModSpells.Stride);
+				for (int i = 0; i < records; i++)
+				{
+					byte[] r = chain.Record(ModSpells.Chain, ModSpells.Stride, i);
+					int spell = ChainPack.S16(r, 0), category = ChainPack.S16(r, 10), member = ChainPack.S16(r, 12);
+					if (category > 0 && !found.ContainsKey(spell)) found[spell] = (category, member);
+				}
+			}
+			catch (Exception) { }
+			return found;
+		}
+
 		private static string Describe(int category, Dictionary<(int, int), List<string>> uses)
 		{
 			if (category < 0) return null;

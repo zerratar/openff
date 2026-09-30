@@ -377,7 +377,7 @@ function characterDefinitionPanel(data, onSaved) {
         if (model.progression !== 'jobs') body.progression = model.progression;
         if (model.fixedJob && model.progression !== 'class') body.fixedJob = true;
         if (model.look >= 0) body.look = model.look;
-        if (model.progression === 'class' && model.learn.length) body.learn = model.learn.filter(l => l.spell.trim()).map(l => ({ level: l.level, spell: /^\d+$/.test(l.spell.trim()) ? parseInt(l.spell, 10) : l.spell.trim() }));
+        if (model.learn.length) body.learn = model.learn.filter(l => l.spell.trim()).map(l => ({ level: l.level, spell: /^\d+$/.test(l.spell.trim()) ? parseInt(l.spell, 10) : l.spell.trim() }));
         const r = await api('/api/project/characters/save', body);
         if (!r.ok) throw new Error(r.error);
         if (onSaved) onSaved(r.character);
@@ -513,9 +513,10 @@ function characterDefinitionPanel(data, onSaved) {
   const refresh = () => {
     about.textContent = systems.find(s => s[0] === model.progression)[2];
     fixedRow.hidden = model.progression !== 'jobs';
-    learnBox.hidden = model.progression !== 'class';
+    // Every hero may have a learn list: a spell at level 1 known from a new game on, the rest as the levels come.
+    learnBox.hidden = false;
     ladderNote.hidden = model.progression !== 'mastery';
-    if (model.progression === 'class') drawLearn();
+    drawLearn();
     if (model.progression === 'mastery') {
       ladderNote.textContent = 'Ladders: ' + (typeof projectState !== 'undefined' && projectState.project && projectState.project.jobs ? projectState.project.jobs + ' under Mod \u25b8 Jobs' : 'none yet - Mod \u25b8 Jobs \u25b8 New ladder\u2026 gives a job one; a job without a ladder earns nothing') + '. ABP per battle: the formation\'s abp, or one per monster.';
     }
@@ -527,11 +528,11 @@ function characterDefinitionPanel(data, onSaved) {
     learnBox.textContent = '';
     const lh = document.createElement('div');
     lh.className = 'behaviour-header';
-    lh.textContent = 'Learns by level';
+    lh.textContent = 'Spells by level';
     learnBox.append(lh);
     const hint = document.createElement('p');
     hint.className = 'sub';
-    hint.textContent = 'A spell by the game\'s name (Cure, Fire, Blizzard\u2026) or its item id, equipped when the level is reached; a spell the class\'s job cannot hold is skipped.';
+    hint.textContent = 'A spell by name (the game\'s - Cure, Fire\u2026 - or one of the mod\'s) or its number, equipped when the level is reached; level 1: known from a new game on. A spell the hero\'s job cannot hold is skipped.';
     learnBox.append(hint);
     model.learn.forEach((l, i) => {
       const r = document.createElement('div');

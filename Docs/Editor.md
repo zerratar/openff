@@ -1088,6 +1088,19 @@ game's own draw call does; turning it off shows the parts at their stored size.
 A part that asks for more than its sheet has is marked in red. Fifteen do, all because
 the art was replaced at a smaller size and the table left alone. `Docs/Graphics.md`.
 
+## Spells
+
+**Mod ▸ Spells**: the mod's own spells (a Mod badge) and the game's, by school and level. One of
+the game's shows its school, level, number and the effect it plays, its **Look** (the effect and
+the caster's glow this mod gives it - `defs/spells`) and **Make a spell from this…**; one of the
+mod's is its item definition (school, power, level, element, targets and the rest) with its
+Look. **New spell…** makes a spell from one of the game's - its numbers, and with *its own
+effect* a copy of that spell's effect, opened in the effect editor and given to the new spell.
+**Test in battle** (Try it, against a formation picked) exports the mod and starts OpenFF with it
+alone, in Ur: the first hero in a job that casts the spell's school (Black or White Mage,
+Evoker), level 99 and rested, knowing the spell, in the battle - choose Magic and cast it. A test
+needs the game closed to begin (it runs its own steps).
+
 ## Effects
 
 The game's effect packs (FF3's `e###.efp` and the field's), each named after what plays it -

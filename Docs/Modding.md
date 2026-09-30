@@ -958,6 +958,19 @@ note that a Steam target would refuse the file; `Undo remake` removes the defini
 the two overrides together. `crystal mdl-reskin ... --target=ours` is the same at the
 command line (the definition is the editor's to write).
 
+### A spell of the mod's own
+
+A spell is a magic item: `defs/items/<id>.json` of the magic chain, numbered from 20001 like
+any item of the mod's, starting from one of the game's spells (its school, level, power,
+element and targets) and changing what it names. In Crystal, **Mod ▸ Spells** lists the game's
+spells and the mod's; **New spell…** makes one from a game spell and, if asked, gives it a copy
+of that spell's effect (`defs/effects/<id>.json`, opened in the effect editor) through its look
+(below). **Test in battle** starts OpenFF with the mod alone: the first hero in a job that casts
+the spell's school, at level 99 and rested, knowing the spell, in a battle against the
+formation picked - choose Magic and cast it. A hero knows a spell from a new game on through a
+character's `learn` list at level 1 (**Characters**, *Spells by level*), or code's
+`Game.Party.LearnSpell`.
+
 ### A spell's look: `defs/spells/<id>.json`
 
 Which of the game's effects a spell plays, and its sound - Fire cast with Flare's explosion, or
@@ -982,10 +995,10 @@ with a summon's firestorm. No code, and the spell does what it did; only its loo
 
 **The game's effects.** Every spell's is a pack of its own, member 1: black magic is Fire 331 to
 Meteor 354 in the order the tables list it. The summons' are different: a summon's script plays
-its arrival (364, 368, 372, 376, 380, 384, 388), then for one of its three outcomes its own
+its arrival (360, 364, 368, 372, 376, 380, 384, 388), then for one of its three outcomes its own
 finale over the whole enemy side - `game:367/1` ice crystals, `371/1` lightning, `375/1` a
 firestorm, `379/1`, `383/1`, `387/1` and `392/1` the rest - and for the others an ordinary
-spell's effect or one of its own, which it draws through a spell record: 4205, 4208, 4211, 4212, 4215,
+spell's effect or one of its own, which it draws through a spell record: 4205, 4208, 4211, 4215,
 4216, 4218 and 4221 (`"effect": 4208` is one of Bahamut's, with its timing and place).
 The finales play on a spell of one target too.
 
@@ -1310,10 +1323,11 @@ The games' names work too (`"ff3"`, `"ff4"`, `"ff5"`). Stats, equipment, models 
 charges stay FF3's, by the job held - the systems layer over the game's party rather than
 replace it.
 
-**Class (FF4).** `"learn"` lists spells by the game's name or item id with the level each
-arrives at; the client equips them into the hero's spell slots when the level is reached
-(after a battle's experience, and for a new party once the world is up), and says so in a
-notice. A spell the class's job cannot hold is skipped.
+**Class (FF4).** `"learn"` lists spells by name (the game's or the mod's own) or item id with the
+level each arrives at; the client equips them into the hero's spell slots when the level is
+reached (after a battle's experience, and for a new party once the world is up), and says so in
+a notice. A spell the class's job cannot hold is skipped. Any hero may have the list, not only
+a class's: a spell at level 1 is known from a new game on.
 
 ```json
 { "id": "arc", "slot": 1, "name": "Arc", "job": "white-mage", "level": 5, "progression": "class",

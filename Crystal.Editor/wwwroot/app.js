@@ -152,6 +152,9 @@ async function loadList() {
         s.attachments && `${s.attachments} behaviour${s.attachments === 1 ? '' : 's'}`,
         s.points && `${s.points} object${s.points === 1 ? '' : 's'}`].filter(Boolean).join(', ')
     }));
+  } else if (state.browse === 'spells') {
+    // The mod's spells (magic items of defs/items) and the game's (spell-defs.js).
+    state.files = typeof spellsForList === 'function' ? await spellsForList() : [];
   } else if (state.browse === 'items') {
     // The mod's own items: defs/items/<id>.json each, listed by name with the number the
     // game knows them by and the item they start from.
@@ -439,6 +442,7 @@ function drawList() {
 function fileIcon(file) {
   if (state.browse === 'scene') return 'scene';
   if (state.browse === 'items') return 'item';
+  if (state.browse === 'spells') return 'effect';
   if (state.browse === 'characters') return 'character';
   if (state.browse === 'strings') return 'text';
   if (state.browse === 'monsters') return 'monster';

@@ -34,6 +34,7 @@ const KINDS = [
   { id: 'code', label: 'Code', mod: true },
   { id: 'scene', label: 'Scenes', mod: true },
   { id: 'items', label: 'Items', mod: true },
+  { id: 'spells', label: 'Spells', mod: true },
   { id: 'characters', label: 'Characters', mod: true },
   { id: 'jobs', label: 'Jobs', mod: true },
   { id: 'monsters', label: 'Monsters', mod: true },
@@ -179,6 +180,8 @@ async function openDoc(kind, name, options = {}) {
   if (kind === 'scene') return openScene(name, options);
   // An item definition is edited in the inspector; opening it opens its file as text.
   if (kind === 'items') return openDoc('code', 'defs/items/' + name + '.json', options);
+  // A spell of the mod's is an item definition; the game's are looked at in the inspector.
+  if (kind === 'spells') return name.startsWith('mod:') ? openDoc('code', 'defs/items/' + name.slice(4) + '.json', options) : null;
   if (kind === 'characters') return openDoc('code', 'defs/characters/' + name + '.json', options);
   if (kind === 'jobs') return openDoc('code', 'defs/jobs/' + name + '.json', options);
   if (kind === 'monsters') return openDoc('code', 'defs/monsters/' + name + '.json', options);
@@ -1012,6 +1015,8 @@ async function inspectAsset(kind, name, options = {}) {
       const scene = await api(`/api/project/scene?map=${encodeURIComponent(name)}`);
       if (scene.ok === false) throw new Error(scene.error);
       me.data = scene;
+    } else if (kind === 'spells') {
+      me.data = { spell: name };   // spell-defs.js reads what it needs as it draws
     } else if (kind === 'items') {
       const item = await api(`/api/project/items?id=${encodeURIComponent(name)}`);
       if (item.ok === false) throw new Error(item.error);
@@ -1232,6 +1237,10 @@ function drawInspectedAsset(box) {
     row.className = 'button-row';
     row.append(open, asJson);
     box.append(row);
+    return;
+  }
+  if (kind === 'spells' && typeof spellInspector === 'function') {
+    spellInspector(box, name);
     return;
   }
   if (kind === 'items' && data && typeof itemDefinitionPanel === 'function') {
@@ -2037,7 +2046,7 @@ function drawProjectTree() {
     if (kind.mod && !project) continue;
     const row = document.createElement('div');
     row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod && !openff ? ' dim' : '');
-    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'characters' ? 'character' : kind.id === 'strings' ? 'text' : kind.id === 'monsters' ? 'monster' : kind.id === 'formations' ? 'formation' : kind.id === 'jobs' ? 'ladder' : 'code') : kind.id));
+    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'spells' ? 'effect' : kind.id === 'characters' ? 'character' : kind.id === 'strings' ? 'text' : kind.id === 'monsters' ? 'monster' : kind.id === 'formations' ? 'formation' : kind.id === 'jobs' ? 'ladder' : 'code') : kind.id));
     const label = document.createElement('span');
     label.textContent = kind.label;
     row.append(label);
@@ -2047,6 +2056,8 @@ function drawProjectTree() {
       if (count.textContent) row.append(count);
       row.title = kind.id === 'scene'
         ? 'Maps this mod has put behaviours or objects on (scenes/<map>.json). Each opens in the map editor.'
+        : kind.id === 'spells'
+          ? 'Spells: the game\'s and the mod\'s own. New spell\u2026 makes one from one of the game\'s (its numbers, and a copy of its effect to change); Test in battle tries it in OpenFF.'
         : kind.id === 'items'
           ? 'The mod\'s own items (defs/items/<id>.json): each starts from one of the game\'s and changes what it names; the client adds them to the game\'s item table.'
           : kind.id === 'characters'
@@ -2141,6 +2152,9 @@ function drawCodeActions() {
     }
     if (browseKind === 'strings') {
       button('New text file…', 'A defs/text/<name>.json of the mod\'s own lines, message id -> text, starting at the next free id', () => newTextFileDialog(), true);
+    }
+    if (browseKind === 'spells' && typeof newSpellDialog === 'function') {
+      button('New spell…', 'A spell of the mod\'s own: starts as one of the game\'s - school, level, power, element, targets - with, if you like, a copy of its effect to make its own', () => newSpellDialog(), true);
     }
     if (browseKind === 'items' && typeof newItemDialog === 'function') {
       button('New item…', 'An item of the mod\'s own: starts from one of the game\'s, with a name, a caption, prices and any field of the record changed', () => newItemDialog(), true);

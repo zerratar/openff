@@ -275,6 +275,45 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: learn failed: " + ex.Message); }
 					break;
 				}
+				case "job":
+				{
+					// A party member's job through the API: "job 0 Evoker" (a name as definitions write it, or its number).
+					string[] bits = step.Arg.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+					int job = bits.Length > 1 ? OpenFF.Data.ModCharacters.JobNumber(bits[1]) : -1;
+					if (bits.Length < 2 || !int.TryParse(bits[0], out int member) || job < 0) { Log.Write(LogChannel.General, "drive: job wants <member> <job>"); break; }
+					try { OpenFF.Game.Party.SetJob(member, (OpenFF.Job)job); Log.Write(LogChannel.File, "drive: job " + OpenFF.Data.ModCharacters.Jobs[job].Name + " on member " + member); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: job failed: " + ex.Message); }
+					break;
+				}
+				case "level":
+				{
+					// A party member's level through the API: "level 0 99" (its charges and stats grow with it).
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 2 || !int.TryParse(bits[0], out int member) || !int.TryParse(bits[1], out int level)) { Log.Write(LogChannel.General, "drive: level wants <member> <level>"); break; }
+					try { OpenFF.Game.Party.SetLevel(member, level); Log.Write(LogChannel.File, "drive: level " + level + " on member " + member); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: level failed: " + ex.Message); }
+					break;
+				}
+				case "heal":
+				{
+					// The whole party's HP and charges to their maximum, as an inn has them.
+					try { OpenFF.Game.Party.HealAll(); Log.Write(LogChannel.File, "drive: heal"); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: heal failed: " + ex.Message); }
+					break;
+				}
+				case "charges":
+				{
+					// A spell level's charges through the API: "charges 0 5 9" - member 0, level 5, nine of nine.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 3 || !int.TryParse(bits[0], out int member) || !int.TryParse(bits[1], out int level) || !int.TryParse(bits[2], out int count))
+					{
+						Log.Write(LogChannel.General, "drive: charges wants <member> <level> <count>");
+						break;
+					}
+					try { OpenFF.Game.Party.SetCharges(member, level, count, count); Log.Write(LogChannel.File, "drive: charges " + count + " at level " + level + " on member " + member); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: charges failed: " + ex.Message); }
+					break;
+				}
 				case "effect":
 				{
 					// One of the mods' effects at the hero, through the API: "effect green-fire" (6 up), "effect green-fire 0 6 8".

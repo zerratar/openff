@@ -2774,3 +2774,4 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .menu-frame-check { display: flex; align-items: center; gap: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
 .menu-frame-check:hover { background: rgba(110, 168, 254, .08); }
 .menu-frame-check i { margin-left: auto; font-style: normal; font-size: 10px; color: var(--dim); }
+#inspector .sub.spell-note { word-break: normal; overflow-wrap: break-word; }
