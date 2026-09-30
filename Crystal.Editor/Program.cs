@@ -318,9 +318,9 @@ namespace Crystal
 					for (int i = 0; i < quads.Count; i++)
 					{
 						OpenFF.Effects.EffectQuad q = quads[i];
-						double[] got = { q.X, q.Y, q.Z, q.HalfWidth, q.HalfHeight, q.R, q.G, q.B, q.A, q.Cell };
+						double[] got = { q.X, q.Y, q.Z, q.HalfWidth, q.HalfHeight, q.R, q.G, q.B, q.A, q.Cell, q.Roll };
 						System.Text.Json.Nodes.JsonArray row = want[i].AsArray();
-						for (int j = 0; j < got.Length; j++)
+						for (int j = 0; j < Math.Min(got.Length, row.Count); j++)
 						{
 							double expected = row[j].GetValue<double>();
 							if (Math.Abs(expected - got[j]) > 1e-4) { problems.Add("frame " + f + " quad " + i + " value " + j + ": " + got[j].ToString("0.######", CultureInfo.InvariantCulture) + ", expected " + expected.ToString(CultureInfo.InvariantCulture)); break; }

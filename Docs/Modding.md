@@ -1019,6 +1019,11 @@ name is its id.
   one `to` another with an `arc` - a bolt. Tracks besides the particles: a `mesh` (the game's
   model, or a glTF of the mod's posed by its clip), a `sound`, a `flash` of the screen, a `shake`
   of the camera.
+- **Over a particle's life.** `colour` and `scale` are keys by age - straight lines between
+  them, as the game's are, or `{ "keys": [...], "smooth": true }` for a smooth curve (a key may
+  carry its own tangents after its values). `speedOverLife` is such a curve of how much of its
+  speed a particle keeps (`[[1, 1], [10, 0.2]]` slows it to a drift); `spin` turns its picture
+  (`"angle"` as it is born and `"speed"` a frame, degrees, each a range).
 - **Pictures.** `"image"` is a PNG beside the definition, or one of the game's by
   `game:<pack>:<name>` (read from the player's install, never copied into the mod - Crystal's
   Effects library shows each pack's).

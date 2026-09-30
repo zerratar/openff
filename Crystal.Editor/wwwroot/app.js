@@ -79,7 +79,7 @@ async function loadList() {
   } else if (state.browse === 'effect') {
     // The effect packs, each with what plays it (the spells that point at it, a school's cast).
     state.effects = await api('/api/effects');
-    state.files = (state.effects || []).map(e => ({ name: e.name, overridden: false, caption: e.note || '', note: e.note || '' }));
+    state.files = (state.effects || []).map(e => ({ name: e.name, overridden: false, own: Boolean(e.own), caption: e.own ? '' : e.note || '', note: e.note || '' }));
   } else if (state.browse === 'cell') {
     state.cells = await api('/api/cells');
     state.files = state.cells.map(c => ({ name: c.name, overridden: false }));
@@ -245,6 +245,17 @@ function emptyNote() {
   return note;
 }
 
+/// Whose a thing is, at a glance: 'mod' (the project's own), 'client' (the OpenFF client's own), or
+/// 'openff' (a thing only OpenFF plays - the Steam game has none of it). A short word on a coloured badge;
+/// `dot` for a grid tile, a coloured dot alone. The tooltip says it in full.
+function ownBadge(kind, { dot = false, title = '' } = {}) {
+  const b = document.createElement('b');
+  b.className = 'own-badge ' + kind + (dot ? ' dot' : '');
+  b.textContent = dot ? '' : { mod: 'Mod', client: 'OpenFF', openff: 'OpenFF only' }[kind] || kind;
+  b.title = title || { mod: 'the mod\'s: in the project, nothing of the game\'s behind it', client: 'the OpenFF client\'s own, in your install', openff: 'played only by the OpenFF client, not the Steam game' }[kind] || '';
+  return b;
+}
+
 function drawList() {
   const filter = $('#filter').value.trim().toLowerCase();
   const list = $('#files');
@@ -279,11 +290,7 @@ function drawList() {
         : file.name;
     item.append(label);
     if (file.own) {
-      const mark = document.createElement('i');
-      mark.className = 'scene-mark';
-      mark.textContent = fileView === 'grid' ? '' : file.client ? 'the OpenFF client\'s own' : 'the mod\'s own';
-      mark.title = file.note || 'a map of the mod\'s own: a scene file, nothing of the game\'s behind it';
-      item.append(mark);
+      item.append(ownBadge(file.client ? 'client' : 'mod', { dot: fileView === 'grid', title: file.note }));
     } else if (file.def && fileView !== 'grid') {
       // A definition's number and base beside its name: what the game calls it, what it starts from.
       const mark = document.createElement('i');
@@ -321,6 +328,8 @@ function drawList() {
     // A single click shows it in the inspector without disturbing what is open;
     // a double click is what opens it.
     item.onclick = () => inspectAsset(state.browse, file.name);
+    // An effect plays in a small Stage while the pointer rests on it (effects.js).
+    if (state.browse === 'effect' && typeof effectHover === 'function') effectHover(item, file.name);
     item.ondblclick = () => openDoc(state.browse, file.name);
 
     // A model can be dragged onto an open map, which is the shortest way from "that
@@ -1693,7 +1702,8 @@ function buildMenuScreen(node) {
   behaviours.className = 'component';
   const bh = document.createElement('div');
   bh.className = 'behaviour-header';
-  bh.textContent = 'Behaviours on the screen (OpenFF)';
+  bh.textContent = 'Behaviours on the screen ';
+  bh.append(ownBadge('openff'));
   behaviours.append(bh);
   const note = document.createElement('p');
   note.className = 'sub';

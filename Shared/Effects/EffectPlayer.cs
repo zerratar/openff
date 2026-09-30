@@ -25,6 +25,8 @@ namespace OpenFF.Effects
 		public double HalfWidth, HalfHeight;
 		public double R, G, B, A;
 		public int Cell;
+		/// <summary>The quad's turn in the screen's plane, degrees (its spin).</summary>
+		public double Roll;
 		public EffectTrack Track;
 		public object Particle;
 		public int Trail;
@@ -66,6 +68,11 @@ namespace OpenFF.Effects
 		public bool Gather; public double GatherSpeed, GatherAccel; public double[] GatherSwirl;
 		public int TrailCount; public double[] TrailColour;
 		public double[][] Colour, Scale;
+		public bool ColourSmooth, ScaleSmooth;
+		/// <summary>Speed over life: keys [age, k] - how much of its speed a step carries a particle.</summary>
+		public double[][] SpeedOverLife; public bool SpeedSmooth;
+		/// <summary>Spin: the quad's angle and its turn a frame, degrees (ranges).</summary>
+		public bool Spin; public double[] SpinAngle, SpinSpeed;
 		public EffectTexture Texture;
 		public double[] MeshScale;
 		public bool MeshLoop;
@@ -119,8 +126,10 @@ namespace OpenFF.Effects
 					if (t["orbit"] is JsonObject o) { k.Orbit = true; k.OrbitRadius = Num(o["radius"]); k.OrbitGrow = Num(o["grow"]); k.OrbitTurn = Num(o["turn"]); }
 					if (t["gather"] is JsonObject ga) { k.Gather = true; k.GatherSpeed = Num(ga["speed"]); k.GatherAccel = Num(ga["accel"]); k.GatherSwirl = Vector(ga["swirl"]) ?? new double[3]; }
 					if (t["trail"] is JsonObject tr) { k.TrailCount = Int(tr["count"]); k.TrailColour = Numbers(tr["colour"]) ?? new double[4]; }
-					k.Colour = Keys(t["colour"]);
-					k.Scale = Keys(t["scale"]);
+					k.Colour = Keys(t["colour"]); k.ColourSmooth = Smooth(t["colour"]);
+					k.Scale = Keys(t["scale"]); k.ScaleSmooth = Smooth(t["scale"]);
+					k.SpeedOverLife = Keys(t["speedOverLife"]); k.SpeedSmooth = Smooth(t["speedOverLife"]);
+					if (t["spin"] is JsonObject spin) { k.Spin = true; k.SpinAngle = RangeOf(spin["angle"]); k.SpinSpeed = RangeOf(spin["speed"]); }
 					if (t["texture"] is JsonObject tex)
 					{
 						k.Texture = new EffectTexture
@@ -167,7 +176,9 @@ namespace OpenFF.Effects
 			if (v.Length < 3) Array.Resize(ref v, 3);
 			return v;
 		}
-		internal static double[][] Keys(JsonNode n) => n is JsonArray a && a.Count > 0 ? a.Select(k => Numbers(k) ?? new double[1]).ToArray() : null;
+		/// <summary>A curve's keys: a list of [age, ...values], or { keys, smooth }.</summary>
+		internal static double[][] Keys(JsonNode n) => n is JsonObject o ? Keys(o["keys"]) : n is JsonArray a && a.Count > 0 ? a.Select(k => Numbers(k) ?? new double[1]).ToArray() : null;
+		internal static bool Smooth(JsonNode n) => n is JsonObject o && Bool(o["smooth"]);
 	}
 
 	/// <summary>mulberry32: the same numbers for the same seed as effects.js's effectRandom.</summary>
@@ -276,7 +287,7 @@ namespace OpenFF.Effects
 		private sealed class Particle
 		{
 			public double[] Base, Pos, Local, Vel, Grav;
-			public double Radius, Angle, Size;
+			public double Radius, Angle, Size, Roll, Spin;
 			public bool Shown;
 			public GatherState Gather;
 			public readonly List<(double[] Pos, bool Shown)?> Trail = new List<(double[], bool)?>();
@@ -378,6 +389,7 @@ namespace OpenFF.Effects
 				if (!local && !t.Gather) p.Base = new[] { p.Base[0] + e.At[0], p.Base[1] + e.At[1], p.Base[2] + e.At[2] };
 				double size = Range(t.Size);
 				p.Size = size != 0 ? size : 1;
+				if (t.Spin) { p.Roll = Range(t.SpinAngle); p.Spin = Range(t.SpinSpeed); }
 				g.Parts.Add(p);
 			}
 			return g;
@@ -416,7 +428,8 @@ namespace OpenFF.Effects
 				}
 				else
 				{
-					for (int k = 0; k < 3; k++) { p.Vel[k] += p.Grav[k]; p.Base[k] += p.Vel[k]; }
+					double pace = t.SpeedOverLife != null ? KeysAt(t.SpeedOverLife, g.Age, 1, t.SpeedSmooth)[0] : 1;
+					for (int k = 0; k < 3; k++) { p.Vel[k] += p.Grav[k]; p.Base[k] += p.Vel[k] * pace; }
 					p.Local = (double[])p.Base.Clone();
 					if (t.Orbit)
 					{
@@ -502,13 +515,15 @@ namespace OpenFF.Effects
 				foreach (Group g in e.Groups)
 				{
 					if (g == null || !g.Alive || g.Age < 1) continue;
-					double[] colour = KeysAt(t.Colour, g.Age, 4) ?? new double[] { 255, 255, 255, 255 };
-					double[] scale = KeysAt(t.Scale, g.Age, 2) ?? new double[] { 1, 1 };
+					double[] colour = KeysAt(t.Colour, g.Age, 4, t.ColourSmooth) ?? new double[] { 255, 255, 255, 255 };
+					for (int k = 0; k < 4; k++) colour[k] = Math.Max(0, Math.Min(255, colour[k]));
+					double[] scale = KeysAt(t.Scale, g.Age, 2, t.ScaleSmooth) ?? new double[] { 1, 1 };
 					int cell = FrameAt(t.Texture?.Frames, g.Age);
 					foreach (Particle p in g.Parts)
 					{
 						double w = p.Size * scale[0] / 2, h = p.Size * scale[1] / 2;
-						if (p.Shown && colour[3] > 0) o.Add(new EffectQuad { X = p.Pos[0], Y = p.Pos[1], Z = p.Pos[2], HalfWidth = w, HalfHeight = h, R = colour[0], G = colour[1], B = colour[2], A = colour[3], Cell = cell, Track = t, Particle = p });
+						double roll = p.Roll + p.Spin * (g.Age - 1);
+						if (p.Shown && colour[3] > 0) o.Add(new EffectQuad { X = p.Pos[0], Y = p.Pos[1], Z = p.Pos[2], HalfWidth = w, HalfHeight = h, R = colour[0], G = colour[1], B = colour[2], A = colour[3], Cell = cell, Roll = roll, Track = t, Particle = p });
 						if (t.TrailCount > 0 && p.Trail.Count > 0)
 						{
 							int n = t.TrailCount;
@@ -519,7 +534,7 @@ namespace OpenFF.Effects
 								(double[] Pos, bool Shown)? was = p.Trail[k - 1];
 								if (was == null || !was.Value.Shown) continue;
 								double a = colour[3] - k * d[3];
-								if (a > 0) o.Add(new EffectQuad { X = was.Value.Pos[0], Y = was.Value.Pos[1], Z = was.Value.Pos[2], HalfWidth = w, HalfHeight = h, R = colour[0] - k * d[0], G = colour[1] - k * d[1], B = colour[2] - k * d[2], A = a, Cell = cell, Track = t, Particle = p, Trail = k });
+								if (a > 0) o.Add(new EffectQuad { X = was.Value.Pos[0], Y = was.Value.Pos[1], Z = was.Value.Pos[2], HalfWidth = w, HalfHeight = h, R = colour[0] - k * d[0], G = colour[1] - k * d[1], B = colour[2] - k * d[2], A = a, Cell = cell, Roll = roll, Track = t, Particle = p, Trail = k });
 							}
 						}
 					}
@@ -544,7 +559,8 @@ namespace OpenFF.Effects
 
 		// ------------------------------------------------------------------ helpers, as effects.js has them
 
-		public static double[] KeysAt(double[][] keys, double age, int width)
+		/// <summary>A value of a curve by age: straight lines between keys, or (smooth) a Hermite curve with the keys' tangents.</summary>
+		public static double[] KeysAt(double[][] keys, double age, int width, bool smooth = false)
 		{
 			if (keys == null || keys.Length == 0) return null;
 			double[] Slice(double[] k) { double[] r = new double[width]; for (int j = 0; j < width; j++) r[j] = 1 + j < k.Length ? k[1 + j] : 0; return r; }
@@ -556,16 +572,35 @@ namespace OpenFF.Effects
 				double[] b = keys[i];
 				if (age > b[0]) continue;
 				double[] a = keys[i - 1];
-				double t = b[0] == a[0] ? 1 : (age - a[0]) / (b[0] - a[0]);
+				double span = b[0] - a[0];
+				double t = span == 0 ? 1 : (age - a[0]) / span;
 				double[] o = new double[width];
+				double t2 = t * t, t3 = t2 * t;
+				double h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
 				for (int j = 0; j < width; j++)
 				{
 					double av = 1 + j < a.Length ? a[1 + j] : 0, bv = 1 + j < b.Length ? b[1 + j] : 0;
-					o[j] = av + (bv - av) * t;
+					if (!smooth || span == 0) o[j] = av + (bv - av) * t;
+					else o[j] = h00 * av + h10 * span * Slope(keys, i - 1, j, width) + h01 * bv + h11 * span * Slope(keys, i, j, width);
 				}
 				return o;
 			}
 			return Slice(last);
+		}
+
+		/// <summary>A key's tangent on one of its values: its own (after its values), or the curve's - flat at the ends and at a turn, else as its neighbours lie, never overshooting.</summary>
+		public static double Slope(double[][] keys, int i, int j, int width)
+		{
+			double[] k = keys[i];
+			if (k.Length >= 1 + 2 * width) return k[1 + width + j];
+			if (i == 0 || i == keys.Length - 1) return 0;
+			double[] p = keys[i - 1], n = keys[i + 1];
+			if (k[0] <= p[0] || n[0] <= k[0]) return 0;
+			double V(double[] key) => 1 + j < key.Length ? key[1 + j] : 0;
+			double left = (V(k) - V(p)) / (k[0] - p[0]), right = (V(n) - V(k)) / (n[0] - k[0]);
+			if (left * right <= 0) return 0;
+			double m = (V(n) - V(p)) / (n[0] - p[0]);
+			return Math.Sign(m) * Math.Min(Math.Abs(m), Math.Min(3 * Math.Abs(left), 3 * Math.Abs(right)));
 		}
 
 		public static int FrameAt(double[][] frames, double age)

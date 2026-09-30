@@ -268,7 +268,8 @@ function effectInspect(ed, ref) {
   const box = document.createElement('div');
   box.className = 'effect-inspector';
   if (ref === 'effect') {
-    effectHead(box, 'effect', shortName(ed.name).replace(/\.json$/i, ''), ed.def.from ? 'from ' + ed.def.from : 'the mod\'s own').readOnly = true;
+    effectHead(box, 'effect', shortName(ed.name).replace(/\.json$/i, ''), ed.def.from ? 'from ' + ed.def.from : '').readOnly = true;
+    box.querySelector('.object-head').append(ownBadge('mod'));
     const card = effectCard(box, 'Timeline', 'effect', null);
     effectNumber(ed, card, 'Length', d => d.length || 0, (d, v) => { d.length = Math.max(0, Math.round(v)); }, { step: 1, hint: 'the frame the timeline ends on: loops stop there, and a looping effect starts again' });
     effectBool(ed, card, 'Loop', d => !!d.loop, (d, v) => { if (v) d.loop = true; else delete d.loop; });
@@ -345,7 +346,20 @@ function effectInspect(ed, ref) {
       effectGradient(ed, card, i);
     });
     effectModule(ed, box, i, 'scale', 'Scale over life', () => [[1, 0.5, 0.5], [Math.max(2, (ed.def.tracks[i].life || 16) - 1), 1, 1]], card => {
-      effectCurve(ed, card, i);
+      effectCurve(ed, card, i, {
+        field: 'scale', names: ['width', 'height'],
+        presets: { 'grow': [[0, 0.3], [1, 1]], 'shrink': [[0, 1], [1, 0.2]], 'pop': [[0, 0.3], [0.25, 1.2], [1, 1]], 'ease out': [[0, 0], [0.2, 0.6], [0.5, 0.9], [1, 1]], 'pulse': [[0, 1], [0.25, 1.4], [0.5, 1], [0.75, 1.4], [1, 1]], 'constant': [[0, 1], [1, 1]] }
+      });
+    });
+    effectModule(ed, box, i, 'speedOverLife', 'Speed over life', () => ({ keys: [[1, 1], [Math.max(2, (ed.def.tracks[i].life || 16) - 1), 0.1]], smooth: true }), card => {
+      effectCurve(ed, card, i, {
+        field: 'speedOverLife', names: ['speed'], colours: ['#e0b86a'], floor: 1,
+        presets: { 'slow down': [[0, 1], [1, 0]], 'brake': [[0, 1], [0.3, 0.15], [1, 0]], 'speed up': [[0, 0.2], [1, 1]], 'stop and go': [[0, 1], [0.4, 0], [0.6, 0], [1, 1]], 'constant': [[0, 1], [1, 1]] }
+      });
+    });
+    effectModule(ed, box, i, 'spin', 'Spin', () => ({ angle: [0, 360], speed: [-6, 6] }), card => {
+      effectRange(ed, card, 'Angle', d => T(d).spin.angle, (d, v) => { T(d).spin.angle = v; }, { hint: 'the quad\'s turn as it is born, degrees (a range: each its own)' });
+      effectRange(ed, card, 'Speed', d => T(d).spin.speed, (d, v) => { T(d).spin.speed = v; }, { hint: 'degrees a frame it turns by, either way' });
     });
     effectModule(ed, box, i, 'texture', 'Texture', () => ({ image: '', width: 1, height: 1 }), card => effectTextureCard(ed, card, i));
     const render = effectCard(box, 'Render', 'image', null);
@@ -628,7 +642,9 @@ function effectGradient(ed, card, i) {
   wrap.append(detail);
   card.append(wrap);
   let selected = 0, dragging = null, before = null;
-  const keys = () => ed.def.tracks[i].colour;
+  const K = d => effectCurveKeys(d.tracks[i].colour);
+  const keys = () => K(ed.def);
+  effectSmoothSwitch(ed, wrap, i, 'colour', 4, () => draw());
   // Presets: the alpha over the life, [share of the life, alpha]; the colours stay what the keys make them there.
   effectPresets(wrap, {
     'fade in and out': [[0, 0], [0.2, 255], [0.7, 255], [1, 0]],
@@ -639,7 +655,8 @@ function effectGradient(ed, card, i) {
   }, shape => {
     ed.change('a colour preset', d => {
       const t = d.tracks[i], L = Math.max(2, t.life || 16);
-      t.colour = shape.map(([at, a]) => { const age = Math.round(1 + at * (L - 1)); const c = effectKeys(t.colour, age, 4) || [255, 255, 255, 255]; return [age, c[0] | 0, c[1] | 0, c[2] | 0, a]; });
+      const made = shape.map(([at, a]) => { const age = Math.round(1 + at * (L - 1)); const c = effectKeys(t.colour, age, 4) || [255, 255, 255, 255]; return [age, c[0] | 0, c[1] | 0, c[2] | 0, a]; });
+      if (Array.isArray(t.colour)) t.colour = made; else t.colour.keys = made;
     });
     selected = 0;
     draw();
@@ -655,7 +672,8 @@ function effectGradient(ed, card, i) {
     // A checkerboard under the strip, so alpha shows.
     for (let x = 8; x < canvas.width - 8; x += 6) for (let y = 4; y < 28; y += 6) { g.fillStyle = ((x + y) / 6) % 2 ? '#3a3f47' : '#23272e'; g.fillRect(x, y, 6, 6); }
     for (let x = 8; x < canvas.width - 8; x++) {
-      const c = effectKeys(keys(), ageOf(x), 4) || [255, 255, 255, 255];
+      const age = 1 + (x - 8) / Math.max(1, canvas.width - 16) * (life() - 1);
+      const c = (effectKeys(ed.def.tracks[i].colour, age, 4) || [255, 255, 255, 255]).map(v => Math.max(0, Math.min(255, v)));
       g.fillStyle = `rgba(${c[0] | 0}, ${c[1] | 0}, ${c[2] | 0}, ${c[3] / 255})`;
       g.fillRect(x, 4, 1, 24);
     }
@@ -681,23 +699,23 @@ function effectGradient(ed, card, i) {
     const x = e.offsetX;
     const n = hit(x);
     before = effectClone(ed.def);
-    if (e.button === 2) { if (n >= 0 && keys().length > 1) { ed.change('remove a colour key', d => d.tracks[i].colour.splice(n, 1), { before }); selected = 0; draw(); } return; }
+    if (e.button === 2) { if (n >= 0 && keys().length > 1) { ed.change('remove a colour key', d => K(d).splice(n, 1), { before }); selected = 0; draw(); } return; }
     if (n >= 0) { selected = n; dragging = n; canvas.setPointerCapture(e.pointerId); draw(); return; }
-    const age = ageOf(x), c = effectKeys(keys(), age, 4) || [255, 255, 255, 255];
-    ed.change('add a colour key', d => { d.tracks[i].colour.push([age, ...c.map(v => Math.round(v))]); d.tracks[i].colour.sort((a, b) => a[0] - b[0]); }, { before });
+    const age = ageOf(x), c = effectKeys(ed.def.tracks[i].colour, age, 4) || [255, 255, 255, 255];
+    ed.change('add a colour key', d => { K(d).push([age, ...c.map(v => Math.max(0, Math.min(255, Math.round(v))))]); K(d).sort((a, b) => a[0] - b[0]); }, { before });
     selected = keys().findIndex(k => k[0] === age);
     draw();
   });
   canvas.addEventListener('pointermove', e => {
     if (dragging === null) return;
     const age = Math.max(1, Math.min(life(), ageOf(e.offsetX)));
-    ed.live(d => { d.tracks[i].colour[dragging][0] = age; });
+    ed.live(d => { K(d)[dragging][0] = age; });
     draw();
   });
   canvas.addEventListener('pointerup', () => {
     if (dragging === null) return;
     const k = keys()[dragging];
-    ed.change('move a colour key', d => d.tracks[i].colour.sort((a, b) => a[0] - b[0]), { before });
+    ed.change('move a colour key', d => K(d).sort((a, b) => a[0] - b[0]), { before });
     selected = keys().indexOf(k);
     dragging = null;
     draw();
@@ -725,57 +743,99 @@ function effectGradient(ed, card, i) {
     const start = () => { was = effectClone(ed.def); };
     const commit = () => ed.change('edit a colour key', () => {}, { before: was });
     for (const x of [age, colour, alpha]) { x.addEventListener('focus', start); x.addEventListener('pointerdown', start); x.addEventListener('change', () => { commit(); draw(); }); }
-    colour.addEventListener('input', () => { const v = [1, 3, 5].map(n => parseInt(colour.value.substr(n, 2), 16)); ed.live(d => { const q = d.tracks[i].colour[selected]; q[1] = v[0]; q[2] = v[1]; q[3] = v[2]; }); drawStrip(); });
-    alpha.addEventListener('input', () => { ed.live(d => { d.tracks[i].colour[selected][4] = parseInt(alpha.value, 10); }); drawStrip(); });
-    age.addEventListener('input', () => { const v = parseInt(age.value, 10); if (!isNaN(v)) { ed.live(d => { d.tracks[i].colour[selected][0] = Math.max(1, v); }); drawStrip(); } });
+    colour.addEventListener('input', () => { const v = [1, 3, 5].map(n => parseInt(colour.value.substr(n, 2), 16)); ed.live(d => { const q = K(d)[selected]; q[1] = v[0]; q[2] = v[1]; q[3] = v[2]; }); drawStrip(); });
+    alpha.addEventListener('input', () => { ed.live(d => { K(d)[selected][4] = parseInt(alpha.value, 10); }); drawStrip(); });
+    age.addEventListener('input', () => { const v = parseInt(age.value, 10); if (!isNaN(v)) { ed.live(d => { K(d)[selected][0] = Math.max(1, v); }); drawStrip(); } });
   }
   // The strip alone, while a key's fields are being moved (the fields keep their focus).
   const drawStrip = () => draw(false);
   requestAnimationFrame(() => draw());
 }
 
-// ------------------------------------------------------------------ scale over life: a curve
+// ------------------------------------------------------------------ a value over life: a curve
 
-/// The scale keys ([age, x, y]) as two lines over the particle's life - width and height - a key a
-/// point: a click adds one, a drag moves it (up and down its value, across its age), a right click
-/// takes it out. "Linked" moves the height with the width.
-function effectCurve(ed, card, i) {
+/// A switch over a curve: straight lines between its keys (a list, as the game's are), or smooth
+/// ({ keys, smooth }, a Hermite curve). Straight again drops the keys' own tangents.
+function effectSmoothSwitch(ed, wrap, i, field, width, redraw) {
+  const label = document.createElement('label');
+  label.className = 'toggle';
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  const c = ed.def.tracks[i][field];
+  box.checked = !!c && !Array.isArray(c) && !!c.smooth;
+  label.append(box, ' smooth');
+  label.title = 'a smooth curve through the keys (each key\'s tangent its own, or the curve\'s); off, straight lines as the game\'s effects have';
+  box.onchange = () => {
+    ed.change(box.checked ? 'smooth a curve' : 'straighten a curve', d => {
+      const t = d.tracks[i], keys = effectCurveKeys(t[field]) || [];
+      t[field] = box.checked ? { keys, smooth: true } : keys.map(k => k.slice(0, 1 + width));
+    });
+    redraw();
+  };
+  wrap.append(label);
+  return box;
+}
+
+/// A curve of a track's over the particle's life: a line a value (width and height; the speed), a
+/// key a square - a click adds one, a drag moves it, a right click takes it out. A smooth curve's
+/// selected key shows its tangents, a handle a value to pull; *Auto* gives the key the curve's own.
+/// opts: field, names and colours of the values, linkable (one value moving the others), floor (the
+/// least the graph shows), presets ({ name: [[share of the life, value]] }).
+function effectCurve(ed, card, i, opts = {}) {
+  const field = opts.field || 'scale';
+  const names = opts.names || ['width', 'height'];
+  const colours = opts.colours || ['#e07a7a', '#6ac48a', '#6ea8fe'];
+  const width = names.length;
   const wrap = document.createElement('div');
   wrap.className = 'effect-curve';
   const canvas = document.createElement('canvas');
   canvas.height = 96;
-  const link = document.createElement('label');
-  link.className = 'toggle';
-  const linked = document.createElement('input');
-  linked.type = 'checkbox';
-  linked.checked = (ed.def.tracks[i].scale || []).every(k => k[1] === k[2]);
-  link.append(linked, ' linked: the height moves with the width');
-  wrap.append(canvas, link);
-  card.append(wrap);
-  let dragging = null, before = null;
-  // Presets: the size over the life, [share of the life, scale], both ways.
-  effectPresets(wrap, {
-    'grow': [[0, 0.3], [1, 1]],
-    'shrink': [[0, 1], [1, 0.2]],
-    'pop': [[0, 0.3], [0.25, 1.2], [1, 1]],
-    'ease out': [[0, 0], [0.2, 0.6], [0.5, 0.9], [1, 1]],
-    'pulse': [[0, 1], [0.25, 1.4], [0.5, 1], [0.75, 1.4], [1, 1]],
-    'constant': [[0, 1], [1, 1]]
-  }, shape => {
-    ed.change('a scale preset', d => {
-      const t = d.tracks[i], L = Math.max(2, t.life || 16);
-      t.scale = shape.map(([at, v]) => [Math.round(1 + at * (L - 1)), v, v]);
-    });
-    linked.checked = true;
+  wrap.append(canvas);
+  const K = d => effectCurveKeys(d.tracks[i][field]);
+  const keys = () => K(ed.def) || [];
+  const smooth = () => { const c = ed.def.tracks[i][field]; return !!c && !Array.isArray(c) && !!c.smooth; };
+  const bar = document.createElement('div');
+  bar.className = 'effect-curve-bar';
+  wrap.append(bar);
+  let linked = null;
+  if (width > 1 && opts.linkable !== false) {
+    const link = document.createElement('label');
+    link.className = 'toggle';
+    linked = document.createElement('input');
+    linked.type = 'checkbox';
+    linked.checked = keys().every(k => k.slice(2, 1 + width).every(v => v === k[1]));
+    link.append(linked, ' linked');
+    link.title = 'the ' + names.slice(1).join(' and ') + ' move' + (width > 2 ? '' : 's') + ' with the ' + names[0];
+    bar.append(link);
+  }
+  effectSmoothSwitch(ed, bar, i, field, width, () => { selected = -1; draw(); });
+  const auto = document.createElement('button');
+  auto.className = 'mini';
+  auto.textContent = 'Auto';
+  auto.title = 'the selected key\'s tangents the curve\'s own again';
+  auto.onclick = () => {
+    if (selected < 0) return;
+    ed.change('a key\'s tangents auto', d => { const k = K(d)[selected]; if (k) k.length = 1 + width; });
     draw();
-  });
-  const keys = () => ed.def.tracks[i].scale;
+  };
+  bar.append(auto);
+  card.append(wrap);
+  let dragging = null, before = null, selected = -1;
   const life = () => Math.max(2, ed.def.tracks[i].life || 16);
-  const top = () => Math.max(1.5, ...keys().map(k => Math.max(k[1], k[2]))) * 1.15;
-  const xOf = age => 8 + (canvas.width - 16) * Math.max(0, Math.min(1, (age - 1) / Math.max(1, life() - 1)));
-  const ageOf = x => Math.round(1 + (x - 8) / Math.max(1, canvas.width - 16) * (life() - 1));
+  const top = () => Math.max(opts.floor || 1.5, ...keys().map(k => Math.max(...k.slice(1, 1 + width)))) * 1.15;
+  const plot = () => Math.max(1, canvas.width - 16);
+  const xOf = age => 8 + plot() * Math.max(0, Math.min(1, (age - 1) / Math.max(1, life() - 1)));
+  const ageOf = x => Math.round(1 + (x - 8) / plot() * (life() - 1));
+  const ageAt = x => 1 + (x - 8) / plot() * (life() - 1);
   const yOf = v => 88 - 80 * v / top();
   const valueOf = y => Math.max(0, Math.round((88 - y) / 80 * top() * 100) / 100);
+  // A tangent's handle: so far along the age from its key, the slope's rise over it.
+  const REACH = 26;
+  const handle = (k, j, side) => {
+    const m = effectSlope(keys(), keys().indexOf(k), j, width);
+    const frames = REACH / plot() * (life() - 1);
+    return [xOf(k[0]) + side * REACH, yOf(k[1 + j] + side * m * frames)];
+  };
 
   function draw() {
     canvas.width = Math.max(120, wrap.clientWidth || 220);
@@ -783,51 +843,125 @@ function effectCurve(ed, card, i) {
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.strokeStyle = '#2b3038';
     g.beginPath(); g.moveTo(8, yOf(1)); g.lineTo(canvas.width - 8, yOf(1)); g.stroke();
-    g.fillStyle = '#8b93a1'; g.font = '10px sans-serif'; g.fillText('1', 0, yOf(1) + 3);
-    for (const [col, j] of [['#e07a7a', 1], ['#6ac48a', 2]]) {
-      g.strokeStyle = col;
+    g.fillStyle = '#8b93a1'; g.font = '10px sans-serif'; g.fillText('1', 1, yOf(1) - 2);
+    const curve = ed.def.tracks[i][field];
+    for (let j = 0; j < width; j++) {
+      g.strokeStyle = colours[j];
       g.lineWidth = 1.5;
       g.beginPath();
+      // The curve itself, through every point of the age ...
       for (let x = 8; x <= canvas.width - 8; x++) {
-        const v = effectKeys(keys(), ageOf(x), 2) || [1, 1];
-        const y = yOf(v[j - 1]);
+        const v = effectKeys(curve, ageAt(x), width) || new Array(width).fill(1);
+        const y = yOf(v[j]);
         if (x === 8) g.moveTo(x, y); else g.lineTo(x, y);
       }
       g.stroke();
-      for (const k of keys()) { g.fillStyle = col; g.fillRect(xOf(k[0]) - 3, yOf(k[j]) - 3, 6, 6); }
+      // ... and a dot where the runtime reads it: a whole frame of age at a time.
+      g.fillStyle = colours[j];
+      g.globalAlpha = 0.55;
+      for (let age = 1; age <= life(); age++) {
+        const v = effectKeys(curve, age, width) || new Array(width).fill(1);
+        g.fillRect(xOf(age) - 1, yOf(v[j]) - 1, 2, 2);
+      }
+      g.globalAlpha = 1;
+      keys().forEach((k, n) => {
+        g.fillStyle = colours[j];
+        g.fillRect(xOf(k[0]) - 3, yOf(k[1 + j]) - 3, 6, 6);
+        if (n === selected) { g.strokeStyle = '#ffffff'; g.lineWidth = 1; g.strokeRect(xOf(k[0]) - 4.5, yOf(k[1 + j]) - 4.5, 9, 9); }
+      });
     }
+    const k = keys()[selected];
+    if (k && smooth()) {
+      const own = k.length >= 1 + 2 * width;
+      for (let j = 0; j < width; j++) {
+        if (linked && linked.checked && j > 0) break;
+        const [x1, y1] = handle(k, j, -1), [x2, y2] = handle(k, j, 1);
+        g.strokeStyle = own ? '#ffffff' : '#8b93a1';
+        g.lineWidth = 1;
+        g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+        for (const [x, y] of [[x1, y1], [x2, y2]]) { g.beginPath(); g.arc(x, y, 3.5, 0, Math.PI * 2); g.fillStyle = colours[j]; g.fill(); g.stroke(); }
+      }
+    }
+    auto.hidden = !(k && smooth());
+    auto.disabled = !(k && k.length >= 1 + 2 * width);
   }
   function hit(x, y) {
+    const k = keys()[selected];
+    if (k && smooth()) {
+      for (let j = 0; j < width; j++) for (const side of [-1, 1]) {
+        const [hx, hy] = handle(k, j, side);
+        if (Math.hypot(hx - x, hy - y) < 6) return { tangent: true, n: selected, j, side };
+      }
+    }
     let best = null, near = 8;
-    keys().forEach((k, n) => { for (const j of [1, 2]) { const d = Math.hypot(xOf(k[0]) - x, yOf(k[j]) - y); if (d < near) { near = d; best = { n, j }; } } });
+    keys().forEach((key, n) => { for (let j = 0; j < width; j++) { const d = Math.hypot(xOf(key[0]) - x, yOf(key[1 + j]) - y); if (d < near) { near = d; best = { n, j }; } } });
     return best;
   }
   canvas.addEventListener('pointerdown', e => {
     const h = hit(e.offsetX, e.offsetY);
     before = effectClone(ed.def);
-    if (e.button === 2) { if (h && keys().length > 1) { ed.change('remove a scale key', d => d.tracks[i].scale.splice(h.n, 1), { before }); draw(); } return; }
-    if (h) { dragging = h; canvas.setPointerCapture(e.pointerId); return; }
+    if (e.button === 2) {
+      if (h && !h.tangent && keys().length > 1) { ed.change('remove a key', d => K(d).splice(h.n, 1), { before }); selected = -1; draw(); }
+      return;
+    }
+    if (h) { dragging = h; if (!h.tangent) selected = h.n; canvas.setPointerCapture(e.pointerId); draw(); return; }
     const age = ageOf(e.offsetX), v = valueOf(e.offsetY);
-    ed.change('add a scale key', d => { d.tracks[i].scale.push([age, v, v]); d.tracks[i].scale.sort((a, b) => a[0] - b[0]); }, { before });
+    const at = effectKeys(ed.def.tracks[i][field], age, width) || new Array(width).fill(v);
+    ed.change('add a key', d => { K(d).push([age, ...at.map(() => v)]); K(d).sort((a, b) => a[0] - b[0]); }, { before });
+    selected = keys().findIndex(k => k[0] === age);
     draw();
   });
   canvas.addEventListener('pointermove', e => {
     if (!dragging) return;
+    if (dragging.tangent) {
+      // The slope from the key to the pointer, in value a frame; the other side mirrors it (one tangent a value).
+      const k = keys()[dragging.n];
+      const dx = Math.max(4, Math.abs(e.offsetX - xOf(k[0]))) * dragging.side;
+      const frames = dx / plot() * (life() - 1);
+      const rise = (yOf(0) - e.offsetY) / 80 * top() - k[1 + dragging.j];
+      const m = Math.round(rise / frames * 1000) / 1000;
+      ed.live(d => {
+        const key = K(d)[dragging.n];
+        const all = K(d);
+        const slopes = [];
+        for (let j = 0; j < width; j++) slopes.push(effectSlope(all, dragging.n, j, width));
+        for (let j = 0; j < width; j++) if (j === dragging.j || (linked && linked.checked)) slopes[j] = m;
+        key.length = 1 + width;
+        key.push(...slopes);
+      });
+      draw();
+      return;
+    }
     const age = Math.max(1, Math.min(life(), ageOf(e.offsetX))), v = valueOf(e.offsetY);
     ed.live(d => {
-      const k = d.tracks[i].scale[dragging.n];
+      const k = K(d)[dragging.n];
       k[0] = age;
-      if (linked.checked) { k[1] = v; k[2] = v; } else k[dragging.j] = v;
+      if (linked && linked.checked) for (let j = 0; j < width; j++) k[1 + j] = v;
+      else k[1 + dragging.j] = v;
     });
     draw();
   });
   canvas.addEventListener('pointerup', () => {
     if (!dragging) return;
+    const was = dragging;
     dragging = null;
-    ed.change('move a scale key', d => d.tracks[i].scale.sort((a, b) => a[0] - b[0]), { before });
+    if (was.tangent) { ed.change('pull a tangent', () => {}, { before }); draw(); return; }
+    const k = keys()[was.n];
+    ed.change('move a key', d => K(d).sort((a, b) => a[0] - b[0]), { before });
+    selected = keys().indexOf(k);
     draw();
   });
   canvas.addEventListener('contextmenu', e => e.preventDefault());
+  if (opts.presets) effectPresets(wrap, opts.presets, shape => {
+    ed.change('a preset', d => {
+      const t = d.tracks[i], L = Math.max(2, t.life || 16);
+      const made = shape.map(([at, v]) => [Math.round(1 + at * (L - 1)), ...new Array(width).fill(v)]);
+      if (Array.isArray(t[field]) || !t[field]) t[field] = made; else t[field].keys = made;
+    });
+    if (linked) linked.checked = true;
+    selected = -1;
+    draw();
+  });
   requestAnimationFrame(draw);
 }
 

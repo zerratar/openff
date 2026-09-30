@@ -33,9 +33,33 @@ function effectRandom(seed) {
 
 const EFFECT_DEG = Math.PI / 180;
 
-/// A value between a key's neighbours by age: keys are [age, ...values], straight lines between.
-function effectKeys(keys, age, width) {
+/// A curve's keys, as it is written: a list of [age, ...values] (straight lines between), or
+/// { keys, smooth } - smooth, a Hermite curve through them. A smooth key may carry its tangents
+/// after its values ([age, ...values, ...slopes], a slope in value per frame); without them it has
+/// the curve's own: flat at the ends and at a turn, else as its neighbours lie, never overshooting.
+function effectCurveKeys(curve) {
+  if (!curve) return null;
+  return Array.isArray(curve) ? curve : (Array.isArray(curve.keys) ? curve.keys : null);
+}
+
+/// A key's tangent on one of its values (j): its own, or the curve's.
+function effectSlope(keys, i, j, width) {
+  const k = keys[i];
+  if (k.length >= 1 + 2 * width) return k[1 + width + j];
+  if (i === 0 || i === keys.length - 1) return 0;
+  const p = keys[i - 1], n = keys[i + 1];
+  if (k[0] <= p[0] || n[0] <= k[0]) return 0;
+  const left = (k[1 + j] - p[1 + j]) / (k[0] - p[0]), right = (n[1 + j] - k[1 + j]) / (n[0] - k[0]);
+  if (left * right <= 0) return 0;
+  const m = (n[1 + j] - p[1 + j]) / (n[0] - p[0]);
+  return Math.sign(m) * Math.min(Math.abs(m), 3 * Math.abs(left), 3 * Math.abs(right));
+}
+
+/// A value of a curve by age: between a key's neighbours, straight or smooth.
+function effectKeys(curve, age, width) {
+  const keys = effectCurveKeys(curve);
   if (!keys || !keys.length) return null;
+  const smooth = !Array.isArray(curve) && !!curve.smooth;
   if (age <= keys[0][0]) return keys[0].slice(1, 1 + width);
   const last = keys[keys.length - 1];
   if (age >= last[0]) return last.slice(1, 1 + width);
@@ -43,9 +67,17 @@ function effectKeys(keys, age, width) {
     const b = keys[i];
     if (age > b[0]) continue;
     const a = keys[i - 1];
-    const t = b[0] === a[0] ? 1 : (age - a[0]) / (b[0] - a[0]);
+    const h = b[0] - a[0];
+    const t = h === 0 ? 1 : (age - a[0]) / h;
     const out = new Array(width);
-    for (let j = 0; j < width; j++) out[j] = a[1 + j] + (b[1 + j] - a[1 + j]) * t;
+    if (!smooth || h === 0) {
+      for (let j = 0; j < width; j++) out[j] = a[1 + j] + (b[1 + j] - a[1 + j]) * t;
+      return out;
+    }
+    const t2 = t * t, t3 = t2 * t;
+    const h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
+    for (let j = 0; j < width; j++)
+      out[j] = h00 * a[1 + j] + h10 * h * effectSlope(keys, i - 1, j, width) + h01 * b[1 + j] + h11 * h * effectSlope(keys, i, j, width);
     return out;
   }
   return last.slice(1, 1 + width);
@@ -191,6 +223,8 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
       }
       if (!local && !t.gather) p.base = [p.base[0] + e.at[0], p.base[1] + e.at[1], p.base[2] + e.at[2]];
       p.size = range(t.size) || 1;
+      // Spin: the quad turned in the screen's plane, from its angle by its speed a frame (degrees).
+      if (t.spin) { p.roll = range(t.spin.angle); p.spin = range(t.spin.speed); } else { p.roll = 0; p.spin = 0; }
       g.parts.push(p);
     }
     return g;
@@ -218,7 +252,9 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
         }
         p.local = p.base.slice();
       } else {
-        for (let k = 0; k < 3; k++) { p.vel[k] += p.grav[k]; p.base[k] += p.vel[k]; }
+        // Speed over life: how much of its speed a step carries it at its age (1, all of it).
+        const pace = t.speedOverLife ? (effectKeys(t.speedOverLife, g.age, 1) || [1])[0] : 1;
+        for (let k = 0; k < 3; k++) { p.vel[k] += p.grav[k]; p.base[k] += p.vel[k] * pace; }
         p.local = p.base.slice();
         if (t.orbit) {
           p.radius += t.orbit.grow || 0;
@@ -292,11 +328,12 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
       const L = t.life || 1;
       for (const g of e.groups) {
         if (!g || !g.alive || g.age < 1) continue;
-        const colour = effectKeys(t.colour, g.age, 4) || [255, 255, 255, 255];
+        const colour = (effectKeys(t.colour, g.age, 4) || [255, 255, 255, 255]).map(c => Math.max(0, Math.min(255, c)));
         const scale = effectKeys(t.scale, g.age, 2) || [1, 1];
         const cell = effectFrame(tex.frames, g.age);
         for (const p of g.parts) {
-          if (p.shown && colour[3] > 0) out.push({ p, pos: p.pos, prev: p.prev, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour, cell, tex, blend: (t.render || {}).blend });
+          const roll = p.roll + p.spin * (g.age - 1), rollBefore = g.age > 1 ? roll - p.spin : roll;
+          if (p.shown && colour[3] > 0) out.push({ p, pos: p.pos, prev: p.prev, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour, cell, tex, blend: (t.render || {}).blend, roll, rollBefore });
           if (t.trail && p.trail.length) {
             // After-images: the particle where it was, each darker by the trail's colour toward its end (the last one never shows, as in the game).
             const n = t.trail.count, d = colour.map((c, k) => (c - Math.max(0, Math.min(255, c + (t.trail.colour[k] || 0)))) / (n + 1));
@@ -304,7 +341,7 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
               const was = p.trail[k - 1];
               if (!was || !was.shown) continue;
               const c = colour.map((v, j) => v - k * d[j]);
-              if (c[3] > 0) out.push({ p: null, pos: was.pos, prev: was.pos, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour: c, cell, tex, blend: (t.render || {}).blend });
+              if (c[3] > 0) out.push({ p: null, pos: was.pos, prev: was.pos, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour: c, cell, tex, blend: (t.render || {}).blend, roll, rollBefore: roll });
             }
           }
         }
@@ -332,6 +369,24 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
   };
 }
 
+/// Several of one definition, as the battle plays a spell on each of a group: a player a target, at
+/// its own anchor, each started `stagger` steps after the one before (TurnSystem.drawOnceMagicEffect:
+/// half the spell's play frame). The same face as one player's.
+function makeEffectGroup(def, targets, { seed = 1, anchors = {}, stagger = 0 } = {}) {
+  const players = targets.map((anchor, k) => ({ delay: k * stagger, p: makeEffectPlayer(def, { seed: seed + k, anchor, anchors }) }));
+  let frame = -1, started = [];
+  const on = x => frame >= x.delay;
+  return {
+    reset() { frame = -1; started = []; for (const x of players) x.p.reset(); },
+    step() { frame++; started = []; for (const x of players) if (on(x)) { x.p.step(); started.push(...x.p.started); } },
+    particles: () => players.flatMap(x => on(x) ? x.p.particles() : []),
+    models: () => players.flatMap(x => on(x) ? x.p.models() : []),
+    get frame() { return frame; },
+    get started() { return started; },
+    get finished() { return players.every(x => on(x) && x.p.finished); }
+  };
+}
+
 // ------------------------------------------------------------------ the Stage
 
 const EFFECT_VERTEX = `
@@ -341,6 +396,7 @@ attribute vec2 corner;
 attribute vec2 extent;
 attribute vec2 uv;
 attribute vec4 colour;
+attribute vec2 roll;
 uniform mat4 view;
 uniform mat4 projection;
 uniform float between;
@@ -348,7 +404,10 @@ varying vec2 vUv;
 varying vec4 vColour;
 void main() {
   vec4 p = view * vec4(mix(before, centre, between), 1.0);
-  p.xy += corner * extent;
+  // The spin: the corner turned about the quad's middle, in the screen's plane (roll: now, and the step before).
+  float r = radians(mix(roll.y, roll.x, between));
+  vec2 c = corner * extent;
+  p.xy += vec2(c.x * cos(r) - c.y * sin(r), c.x * sin(r) + c.y * cos(r));
   gl_Position = projection * p;
   vUv = uv;
   vColour = colour;
@@ -451,7 +510,7 @@ function makeEffectStage(canvas, textureUrl) {
   const program = effectCompile(gl, EFFECT_VERTEX, EFFECT_FRAGMENT);
   const lines = effectCompile(gl, EFFECT_LINE_VERTEX, EFFECT_LINE_FRAGMENT);
   const a = n => gl.getAttribLocation(program, n), u = n => gl.getUniformLocation(program, n);
-  const attr = { centre: a('centre'), before: a('before'), corner: a('corner'), extent: a('extent'), uv: a('uv'), colour: a('colour') };
+  const attr = { centre: a('centre'), before: a('before'), corner: a('corner'), extent: a('extent'), uv: a('uv'), colour: a('colour'), roll: a('roll') };
   const unif = { view: u('view'), projection: u('projection'), between: u('between'), picture: u('picture') };
   const lineAttr = { position: gl.getAttribLocation(lines, 'position'), colour: gl.getAttribLocation(lines, 'colour') };
   const lineUnif = { view: gl.getUniformLocation(lines, 'view'), projection: gl.getUniformLocation(lines, 'projection') };
@@ -461,33 +520,66 @@ function makeEffectStage(canvas, textureUrl) {
   const modelAttr = { position: ma('position'), coord: ma('coord'), colour: ma('colour'), mindex: ma('mindex') };
   const modelUnif = { view: mu('view'), projection: mu('projection'), world: mu('world'), palette: mu('palette'), picture: mu('picture'), textured: mu('textured'), tint: mu('tint'), alpha: mu('alpha') };
 
-  // The ground the target stands on, and the target where the battle has it: the hit point (the origin, where
-  // the effect plays) is so far up from its feet and so far toward the camera (TurnSystem.setHitEffectPosition) -
-  // 5 and 9 for the party, the monster's own offsets for a monster.
-  let target = { toward: 9, up: 5, scale: 1, turn: 0, model: null }, lineCount = 0;
+  // The battle as the game lays it out (btl.Members.cs), in its units: the monsters' six places (the back row
+  // first, as a party fills them), the party's four in the front row facing them, the battle map at the origin.
+  // A hit point - where the battle plays an effect on one (TurnSystem.setHitEffectPosition) - is so far toward
+  // the battle camera from its feet and so far up: 9 and 5 for the party, the monster's own offsets for a monster.
+  const BATTLE_EYE = [131.12, 34.73, 46.83], BATTLE_AT = [116.71, 32.0, 40.44];
+  const MONSTER_PLACES = [[-42, 0, -8], [-42, 0, -29], [-42, 0, 13], [-19, 0, -8], [-19, 0, -29], [-19, 0, 13]];
+  const PARTY_PLACES = [[29, 0, -26], [29, 0, -8], [29, 0, 8], [29, 0, 26]];
+  // A spell that can only hit a whole side plays once, at the side's point (AllEnemyMagicPosition, AllPlayerMagicPosition).
+  const ALL_MONSTERS = [-36, 0, -5], ALL_PARTY = [24, 0, 0];
+  let target = { toward: 9, up: 5, scale: 1, turn: 90, model: null, party: false, at: null }, lineCount = 0;
+  let layout = { count: 'one', background: '', view: 'battle' };
+  let figures = [], anchors = [[0, 0, 0]];
+  function hitPoint(feet, toward, up) {
+    const d = [BATTLE_EYE[0] - feet[0], BATTLE_EYE[1] - feet[1], BATTLE_EYE[2] - feet[2]];
+    const l = Math.hypot(d[0], d[1], d[2]) || 1;
+    return [feet[0] + d[0] / l * toward, feet[1] + d[1] / l * toward + up, feet[2] + d[2] / l * toward];
+  }
+  /// Who stands where (figures: feet and turn), and where the effect plays (anchors: a hit point each, or the side's point).
+  function relayout() {
+    const several = layout.count !== 'one';
+    if (target.party) {
+      const places = several ? PARTY_PLACES : [PARTY_PLACES[1]];
+      figures = places.map(feet => ({ feet, turn: -90 }));
+      anchors = layout.count === 'all' ? [ALL_PARTY] : places.map(feet => hitPoint(feet, 9, 5));
+    } else {
+      // A monster with a place of its own (a boss) stands there alone; else the party's places, three of them for a group.
+      const places = target.at ? [target.at] : several ? MONSTER_PLACES.slice(0, 3) : [MONSTER_PLACES[0]];
+      figures = places.map(feet => ({ feet, turn: target.turn }));
+      anchors = layout.count === 'all' ? [ALL_MONSTERS] : places.map(feet => hitPoint(feet, target.toward, target.up));
+    }
+    camera.target = anchors[0].slice();
+    layGround();
+  }
   function layGround() {
-    const ground = [], GROUND = -target.up, Z = -target.toward;
+    const ground = [];
     const put = (x1, y1, z1, x2, y2, z2, c) => ground.push(x1, y1, z1, ...c, x2, y2, z2, ...c);
-    for (let i = -30; i <= 30; i += 5) {
-      const c = i === 0 ? [0.35, 0.4, 0.48, 1] : [0.2, 0.23, 0.28, 1];
-      put(i, GROUND, Z - 30, i, GROUND, Z + 30, c);
-      put(-30, GROUND, Z + i, 30, GROUND, Z + i, c);
+    // The battle's floor, under a battle map or without one.
+    if (!layout.background) {
+      for (let i = -60; i <= 60; i += 5) {
+        const c = i === 0 ? [0.35, 0.4, 0.48, 1] : [0.2, 0.23, 0.28, 1];
+        put(i, 0, -45, i, 0, 45, c);
+        if (i >= -45 && i <= 45) put(-60, 0, i, 60, 0, i, c);
+      }
     }
     if (!target.model) {
       // No model: a post of its height.
-      const post = [0.55, 0.45, 0.3, 1], H = GROUND + 10;
-      for (const [dx, dz] of [[-2, -1], [2, -1], [2, 1], [-2, 1]]) put(dx, GROUND, Z + dz, dx, H, Z + dz, post);
-      put(-2, H, Z - 1, 2, H, Z - 1, post); put(-2, H, Z + 1, 2, H, Z + 1, post);
-      put(-2, H, Z - 1, -2, H, Z + 1, post); put(2, H, Z - 1, 2, H, Z + 1, post);
+      const post = [0.55, 0.45, 0.3, 1], H = 10;
+      for (const { feet: [X, , Z] } of figures) {
+        for (const [dx, dz] of [[-2, -1], [2, -1], [2, 1], [-2, 1]]) put(X + dx, 0, Z + dz, X + dx, H, Z + dz, post);
+        put(X - 2, H, Z - 1, X + 2, H, Z - 1, post); put(X - 2, H, Z + 1, X + 2, H, Z + 1, post);
+        put(X - 2, H, Z - 1, X - 2, H, Z + 1, post); put(X + 2, H, Z - 1, X + 2, H, Z + 1, post);
+      }
     }
+    // A cross at each place the effect plays.
     const mark = [0.43, 0.66, 1, 1];
-    put(-0.8, 0, 0, 0.8, 0, 0, mark); put(0, -0.8, 0, 0, 0.8, 0, mark); put(0, 0, -0.8, 0, 0, 0.8, mark);
+    for (const [x, y, z] of anchors) { put(x - 0.8, y, z, x + 0.8, y, z, mark); put(x, y - 0.8, z, x, y + 0.8, z, mark); put(x, y, z - 0.8, x, y, z + 0.8, mark); }
     gl.bindBuffer(gl.ARRAY_BUFFER, lineBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ground), gl.STATIC_DRAW);
     lineCount = ground.length / 7;
   }
-  layGround();
-
   // Models: the target's and the effects' own, their buffers and textures loaded once.
   const models = new Map();
   function loadModel(key, url, textureOf) {
@@ -576,6 +668,18 @@ function makeEffectStage(canvas, textureUrl) {
     for (const loc of Object.values(modelAttr)) gl.disableVertexAttribArray(loc);
   }
 
+  /// A character standing as it stands in battle: the first motion (101, the wait) of the pack that fits the model best, looping.
+  function standing(m, name) {
+    if (m.idle) return;
+    m.idle = true;
+    api(`/api/model/motions?name=${encodeURIComponent(name)}`).then(packs => {
+      const pack = (packs || []).find(p => p.motions && p.motions.length);
+      if (!pack) return null;
+      const motion = pack.motions.find(x => x.id === 101) || pack.motions[0];
+      return api(`/api/model/pose?name=${encodeURIComponent(name)}&pack=${encodeURIComponent(pack.name)}&index=${motion.index}`);
+    }).then(pose => { if (pose && pose.matrices) { m.pose = pose; m.loop = true; } }).catch(() => {});
+  }
+
   /// The world matrix of a model at a place, scaled, turned about Y by degrees.
   function placed(pos, scale, turn = 0) {
     const s = Array.isArray(scale) ? scale : [scale, scale, scale];
@@ -613,36 +717,47 @@ function makeEffectStage(canvas, textureUrl) {
     const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
     const ratio = window.devicePixelRatio || 1;
     if (canvas.width !== Math.round(w * ratio) || canvas.height !== Math.round(h * ratio)) { canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio); }
-    const yaw = camera.yaw * EFFECT_DEG, pitch = camera.pitch * EFFECT_DEG;
     const jolt = camera.jolt || [0, 0];
+    if (layout.view === 'battle') {
+      // The battle's camera as a spell plays (CameraBattlePosition/Target), its field of view as the port draws it.
+      const look = [BATTLE_AT[0], BATTLE_AT[1] + jolt[1], BATTLE_AT[2] + jolt[0]];
+      return { view: effectLookAt(BATTLE_EYE, look), projection: effectPerspective(21.4 * EFFECT_DEG, w / h, 5, 2000) };
+    }
+    const yaw = camera.yaw * EFFECT_DEG, pitch = camera.pitch * EFFECT_DEG;
     const look = [camera.target[0] + jolt[0], camera.target[1] + jolt[1], camera.target[2]];
     const eye = [look[0] + camera.distance * Math.cos(pitch) * Math.sin(yaw), look[1] + camera.distance * Math.sin(pitch), look[2] + camera.distance * Math.cos(pitch) * Math.cos(yaw)];
-    return { view: effectLookAt(eye, look), projection: effectPerspective(40 * EFFECT_DEG, w / h, 0.5, 500) };
+    return { view: effectLookAt(eye, look), projection: effectPerspective(40 * EFFECT_DEG, w / h, 0.5, 2000) };
   }
 
   let dragging = null;
+  // Dragging or the wheel frees the camera from the battle's.
+  const freed = () => { if (layout.view === 'battle') { layout.view = 'free'; if (stageApi.onView) stageApi.onView('free'); } };
   canvas.addEventListener('pointerdown', e => { dragging = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => {
     if (!dragging) return;
+    if (Math.abs(e.clientX - dragging.x) + Math.abs(e.clientY - dragging.y) > 0) freed();
     camera.yaw -= (e.clientX - dragging.x) * 0.4;
     camera.pitch = Math.max(-10, Math.min(85, camera.pitch + (e.clientY - dragging.y) * 0.3));
     dragging = { x: e.clientX, y: e.clientY };
   });
   canvas.addEventListener('pointerup', () => { dragging = null; });
-  canvas.addEventListener('wheel', e => { e.preventDefault(); camera.distance = Math.max(8, Math.min(200, camera.distance * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); freed(); camera.distance = Math.max(8, Math.min(200, camera.distance * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
 
-  /// What stands at the hit point: { model (a game model's name, or none), scale, toward, up, turn }.
+  /// Who the effect plays on: { model (a game model's name, or none), scale, toward, up, turn, party, at (a place of its own) }.
   function setTarget(t) {
-    target = { toward: t.toward || 0, up: t.up || 0, scale: t.scale || 1, turn: t.turn || 0, model: t.model || null };
-    camera.target = [0, 1, -target.toward / 3];
-    layGround();
+    target = { toward: t.toward || 0, up: t.up || 0, scale: t.scale || 1, turn: t.turn === undefined ? 90 : t.turn, model: t.model || null, party: !!t.party, at: t.at || null };
+    relayout();
+  }
+  /// How many, the battle map, the camera: { count: 'one' | 'group' | 'all', background: 'files/bNN.nmdp.lz' or '', view: 'battle' | 'free' }.
+  function setLayout(next) {
+    layout = { ...layout, ...next };
+    relayout();
   }
 
-  // The caster stands at the party's side, on the target's ground, as the battle stands them apart; its hit point
-  // (9 toward the camera, 5 up, as the party's) is the caster anchor.
-  const CASTER_X = 30;
+  // The caster: the party's first, in the front row; its hit point (9 toward the camera, 5 up) is the caster anchor.
   function caster() {
-    return { feet: [CASTER_X, -target.up, -target.toward], anchor: [CASTER_X, -target.up + 5, -target.toward + 9] };
+    const feet = PARTY_PLACES[0];
+    return { feet, anchor: hitPoint(feet, 9, 5) };
   }
 
   function draw(quads, between, meshes = []) {
@@ -667,29 +782,27 @@ function makeEffectStage(canvas, textureUrl) {
     gl.disableVertexAttribArray(lineAttr.position);
     gl.disableVertexAttribArray(lineAttr.colour);
 
-    // The scene's models - the target, the effect's own - opaque first, then the translucent over them.
+    // The scene's models - the battle map, the targets, the caster, the effect's own - opaque first, then the translucent over them.
     const scene = [];
+    if (layout.background) {
+      const bg = layout.background;
+      const m = loadModel('bg:' + bg, `/api/model?name=${encodeURIComponent(bg)}`,
+        tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(bg)}&texture=${encodeURIComponent(tex)}`));
+      scene.push({ m, world: placed([0, 0, 0], 1, 0), frame: 0 });
+    }
     if (target.model) {
       const m = loadModel('target:' + target.model, `/api/model?name=${encodeURIComponent(target.model)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(target.model)}&texture=${encodeURIComponent(tex)}`));
-      if (!m.idle) {
-        // Standing as it stands in battle: the first motion (101, the wait) of the pack that fits the model best, looping.
-        m.idle = true;
-        api(`/api/model/motions?name=${encodeURIComponent(target.model)}`).then(packs => {
-          const pack = (packs || []).find(p => p.motions && p.motions.length);
-          if (!pack) return null;
-          const motion = pack.motions.find(x => x.id === 101) || pack.motions[0];
-          return api(`/api/model/pose?name=${encodeURIComponent(target.model)}&pack=${encodeURIComponent(pack.name)}&index=${motion.index}`);
-        }).then(pose => { if (pose && pose.matrices) { m.pose = pose; m.loop = true; } }).catch(() => {});
-      }
-      scene.push({ m, world: placed([0, -target.up, -target.toward], target.scale, target.turn), frame: Math.floor(performance.now() / 1000 * 30) });
+      standing(m, target.model);
+      for (const f of figures) scene.push({ m, world: placed(f.feet, target.scale, f.turn), frame: Math.floor(performance.now() / 1000 * 30) });
     }
-    // The caster: Luneth at the party's side.
-    {
+    // The caster: Luneth in the party's first place (unless the effect's targets stand there already).
+    if (!(target.party && target.model && figures.some(f => f.feet === PARTY_PLACES[0]))) {
       const c = caster(), luneth = 'files/j101.nmdp.lz';
       const m = loadModel('caster:' + luneth, `/api/model?name=${encodeURIComponent(luneth)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(luneth)}&texture=${encodeURIComponent(tex)}`));
-      scene.push({ m, world: placed(c.feet, 1, -90), frame: 0 });
+      standing(m, luneth);
+      scene.push({ m, world: placed(c.feet, 1, -90), frame: Math.floor(performance.now() / 1000 * 30) });
     }
     for (const e of meshes) {
       const k = /^game:([^:]+):(.+)$/.exec(e.track.model || '');
@@ -726,7 +839,7 @@ function makeEffectStage(canvas, textureUrl) {
     gl.uniformMatrix4fv(unif.projection, false, projection);
     gl.uniform1f(unif.between, between);
     gl.uniform1i(unif.picture, 0);
-    const stride = 17;
+    const stride = 18;
     const data = new Float32Array(quads.length * 6 * stride);
     const corners = [[-1, 1, 0, 0], [-1, -1, 0, 1], [1, -1, 1, 1], [-1, 1, 0, 0], [1, -1, 1, 1], [1, 1, 1, 0]];
     let n = 0;
@@ -738,14 +851,14 @@ function makeEffectStage(canvas, textureUrl) {
       const u1 = u0 + cell[2] / width, v1 = v0 + cell[3] / height;
       for (const [cx, cy, su, sv] of corners) {
         data.set([q.pos[0], q.pos[1], q.pos[2], q.prev[0], q.prev[1], q.prev[2], cx, cy, q.w, q.h, su ? u1 : u0, sv ? v1 : v0,
-          q.colour[0] / 255, q.colour[1] / 255, q.colour[2] / 255, q.colour[3] / 255, 0], n);
+          q.colour[0] / 255, q.colour[1] / 255, q.colour[2] / 255, q.colour[3] / 255, q.roll || 0, q.rollBefore || 0], n);
         n += stride;
       }
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
     const bind = (loc, size, offset) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride * 4, offset * 4); };
-    bind(attr.centre, 3, 0); bind(attr.before, 3, 3); bind(attr.corner, 2, 6); bind(attr.extent, 2, 8); bind(attr.uv, 2, 10); bind(attr.colour, 4, 12);
+    bind(attr.centre, 3, 0); bind(attr.before, 3, 3); bind(attr.corner, 2, 6); bind(attr.extent, 2, 8); bind(attr.uv, 2, 10); bind(attr.colour, 4, 12); bind(attr.roll, 2, 16);
     gl.activeTexture(gl.TEXTURE0);
     // Runs of one texture and one blend, in order - blending needs the game's order, not one batch per texture.
     // Additive (render.blend) adds the quad's light to what is behind it, as the client draws it (SourceAlpha, One).
@@ -763,7 +876,95 @@ function makeEffectStage(canvas, textureUrl) {
     gl.depthMask(true);
   }
 
-  return { draw, camera, setTarget, caster };
+  const stageApi = { draw, camera, setTarget, setLayout, caster, onView: null, get targets() { return anchors.map(a => a.slice()); }, get layout() { return { ...layout }; } };
+  relayout();
+  return stageApi;
+}
+
+// ------------------------------------------------------------------ the list's preview
+
+/// An effect played in a small Stage beside its row in the list while the pointer rests there: its
+/// member 1 (what a spell names), or the mod's own as written - on a post, from a free camera, looping.
+const effectHoverState = { box: null, stage: null, own: null, player: null, name: null, timer: 0, defs: new Map(), running: false };
+function effectHover(item, name) {
+  item.addEventListener('mouseenter', () => {
+    clearTimeout(effectHoverState.timer);
+    effectHoverState.timer = setTimeout(() => effectHoverShow(item, name), 350);
+  });
+  item.addEventListener('mouseleave', () => { clearTimeout(effectHoverState.timer); effectHoverHide(); });
+  item.addEventListener('mousedown', () => { clearTimeout(effectHoverState.timer); effectHoverHide(); });
+}
+
+async function effectHoverDef(name) {
+  const h = effectHoverState;
+  if (h.defs.has(name)) return h.defs.get(name);
+  const pack = await api(`/api/effect?name=${encodeURIComponent(name)}`);
+  let def = null;
+  if (pack && pack.own) def = pack.effect;
+  else if (pack && !pack.error) {
+    const members = (pack.templates || []).filter(t => t.category >= 0 && t.member > 0);
+    const m = members.find(t => t.category === pack.category && t.member === 1) || members[0];
+    if (m) { const r = await api(`/api/effect/import?category=${m.category}&member=${m.member}`); if (r && !r.error) def = r.effect; }
+  }
+  h.defs.set(name, def ? { def, own: Boolean(pack.own) } : null);
+  return h.defs.get(name);
+}
+
+async function effectHoverShow(item, name) {
+  const h = effectHoverState;
+  if (!item.isConnected) return;
+  if (!h.box) {
+    h.box = document.createElement('div');
+    h.box.className = 'effect-hover';
+    const canvas = document.createElement('canvas');
+    h.label = document.createElement('span');
+    h.box.append(canvas, h.label);
+    document.body.append(h.box);
+    h.stage = makeEffectStage(canvas, key => effectTextureUrl(key, h.own));
+    if (!h.stage) return;
+    h.stage.setLayout({ count: 'one', background: '', view: 'free' });
+    Object.assign(h.stage.camera, { yaw: 60, pitch: 14, distance: 44 });
+  }
+  h.name = name;
+  h.item = item;
+  h.label.textContent = shortName(name) + ' · loading';
+  const r = item.getBoundingClientRect();
+  h.box.style.left = Math.max(8, Math.min(window.innerWidth - 300, r.left + 40)) + 'px';
+  h.box.style.top = Math.max(8, r.top - 200) + 'px';
+  h.box.hidden = false;
+  const got = await effectHoverDef(name).catch(() => null);
+  if (h.name !== name || h.box.hidden) return;
+  if (!got) { h.label.textContent = shortName(name) + ' · nothing to play'; h.player = null; return; }
+  h.own = got.own ? name : null;
+  h.label.textContent = shortName(name);
+  const caster = h.stage.caster().anchor, at = h.stage.targets[0];
+  h.player = makeEffectGroup(got.def, h.stage.targets, { seed: 7, anchors: { caster } });
+  // An effect that plays on the caster too (a bolt from it) is looked at from between the two.
+  const both = (got.def.tracks || []).some(t => t.anchor === 'caster' || t.anchor === 'between' || (t.path && (t.path.from || t.path.to)));
+  Object.assign(h.stage.camera, both ? { target: at.map((v, k) => (v + caster[k]) / 2), distance: 95, yaw: 20, pitch: 18 } : { target: at, distance: 44, yaw: 60, pitch: 14 });
+  if (!h.running) {
+    h.running = true;
+    let last = performance.now(), owed = 0;
+    const loop = now => {
+      // Gone with its row (the list redrawn, another view) - the pointer never left it.
+      if (h.item && !h.item.isConnected) effectHoverHide();
+      if (h.box.hidden) { h.running = false; return; }
+      owed += Math.min(0.25, (now - last) / 1000) * 30;
+      last = now;
+      if (h.player) {
+        while (owed >= 1) { owed -= 1; if (h.player.finished) h.player.reset(); h.player.step(); }
+        h.stage.draw(h.player.particles(), Math.max(0, Math.min(1, owed)), h.player.models());
+      } else h.stage.draw([], 1, []);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+}
+
+function effectHoverHide() {
+  const h = effectHoverState;
+  h.name = null;
+  if (h.box) h.box.hidden = true;
 }
 
 // ------------------------------------------------------------------ the view
@@ -777,6 +978,8 @@ function effectTextureUrl(key, own) {
 
 /// What the Stage stood at the hit point last, for the next effect opened: the Goblin to start with.
 let effectTarget = '1';
+// The Stage's layout, kept from one effect to the next: how many targets, the battle map, the camera.
+let effectLayout = { count: 'one', background: '', view: 'battle' };
 
 async function openEffect(name) {
   const doc = activeDoc;
@@ -799,6 +1002,8 @@ async function openEffect(name) {
     pick.append(o);
   }
   facts.textContent = `${pack.templates.length} template(s), ${pack.textures.length} texture(s)` + (pack.note ? `  ·  ${pack.note}` : '');
+  // The mod's own: a badge, not a sentence.
+  if (pack.own && typeof ownBadge === 'function') { facts.textContent = ''; facts.append(ownBadge('mod')); }
 
   const stageBox = document.createElement('div');
   stageBox.className = 'effect-stage';
@@ -853,7 +1058,17 @@ async function openEffect(name) {
   const targetPick = document.createElement('select');
   targetPick.title = 'what stands at the hit point: the effect plays where the battle plays it on this one';
   for (const [value, text] of [['post', 'a post'], ['-1', 'Luneth (the party)']]) { const o = document.createElement('option'); o.value = value; o.textContent = text; targetPick.append(o); }
-  controls.append(loopBox, fpsPick, targetPick, count);
+  const pickOf = (title, options) => {
+    const s = document.createElement('select');
+    s.title = title;
+    for (const [value, text] of options) { const o = document.createElement('option'); o.value = value; o.textContent = text; s.append(o); }
+    return s;
+  };
+  const countPick = pickOf('how many it plays on: one; each of a group, one after another as the battle plays a spell cast on all; or once for the whole side, as a spell that can only hit all',
+    [['one', '1 target'], ['group', 'each of a group'], ['all', 'the whole side']]);
+  const bgPick = pickOf('the battle map behind them (bNN, as the battle loads it)', [['', 'no map']]);
+  const viewPick = pickOf('the battle\'s camera as a spell plays, or free (drag to turn, the wheel to come closer)', [['battle', 'battle camera'], ['free', 'free camera']]);
+  controls.append(loopBox, fpsPick, targetPick, countPick, bgPick, viewPick, count);
   const notes = document.createElement('details');
   notes.className = 'effect-notes';
   const summary = document.createElement('summary');
@@ -867,14 +1082,39 @@ async function openEffect(name) {
 
   const stage = makeEffectStage(canvas, key => effectTextureUrl(key, pack.own ? name : null));
   if (!stage) { facts.textContent = 'this browser has no WebGL, so effects cannot be drawn'; return; }
+  stage.setLayout(effectLayout);
+  countPick.value = effectLayout.count;
+  viewPick.value = effectLayout.view;
+  const relaid = () => {
+    effectLayout = { count: countPick.value, background: bgPick.value, view: viewPick.value };
+    stage.setLayout(effectLayout);
+    if (def) applyDef(def, null, { restart: true, keepNotes: true });
+  };
+  countPick.onchange = relaid; bgPick.onchange = relaid; viewPick.onchange = relaid;
+  stage.onView = v => { viewPick.value = v; effectLayout.view = v; };
+  // The battle maps: b01 ... b43 (the land forms' and the events' battles).
+  api('/api/models').then(list => {
+    for (const m of list || []) {
+      const n = typeof m === 'string' ? m : (m.name || m.Name || '');
+      const k = /(^|\/)b(\d\d)\.nmdp\.lz$/i.exec(n);
+      if (!k) continue;
+      const o = document.createElement('option'); o.value = n; o.textContent = 'battle map ' + k[2]; bgPick.append(o);
+    }
+    bgPick.value = effectLayout.background;
+    if (bgPick.value !== effectLayout.background) bgPick.value = '';
+  }).catch(() => {});
 
   // The monsters to stand at the hit point; the Goblin to start with.
   async function setTarget(value) {
     effectTarget = value;
-    if (value === 'post') { stage.setTarget({ toward: 9, up: 5 }); return; }
-    const t = await api(`/api/effect/target?monster=${encodeURIComponent(value)}`);
-    if (t.error) { say(t.error, 'bad'); return; }
-    stage.setTarget(t);
+    if (value === 'post') { stage.setTarget({ toward: 9, up: 5 }); }
+    else {
+      const t = await api(`/api/effect/target?monster=${encodeURIComponent(value)}`);
+      if (t.error) { say(t.error, 'bad'); return; }
+      stage.setTarget(t);
+    }
+    // The places moved: the effect plays at the new ones.
+    if (def) applyDef(def, null, { restart: true, keepNotes: true });
   }
   targetPick.onchange = () => setTarget(targetPick.value);
   if (typeof monstersForPicker === 'function') {
@@ -903,15 +1143,18 @@ async function openEffect(name) {
   }
 
   /// A definition on the Stage: a new one from the start, or an edit of the one playing, on the frame it was at.
-  function applyDef(next, notesOf = [], { restart = false } = {}) {
+  function applyDef(next, notesOf = [], { restart = false, keepNotes = false } = {}) {
     const at = player ? Math.max(0, player.frame) : 0;
     def = next;
-    json.textContent = JSON.stringify(def, null, 1).replace(/\[\s+([-\d.,\s]+?)\s+\]/g, (m, inner) => '[' + inner.replace(/\s+/g, ' ').trim() + ']')
+    if (!keepNotes) json.textContent = JSON.stringify(def, null, 1).replace(/\[\s+([-\d.,\s]+?)\s+\]/g, (m, inner) => '[' + inner.replace(/\s+/g, ' ').trim() + ']')
       + (notesOf && notesOf.length ? '\n\n' + notesOf.map(n => '// ' + n).join('\n') : '');
     const anchors = { caster: stage.caster().anchor };
-    player = makeEffectPlayer(def, { seed: 7, anchors });
+    // One player a target; a group's each half the effect's length after the one before, as the battle staggers them.
+    const stagger = stage.layout.count === 'group' ? Math.max(1, Math.floor((def.length || 30) / 2)) : 0;
+    const make = () => makeEffectGroup(def, stage.targets, { seed: 7, anchors, stagger });
+    player = make();
     // How long a pass takes: played through once, to its end.
-    const probe = makeEffectPlayer(def, { seed: 7, anchors });
+    const probe = make();
     let n = 0;
     if (def.loop) n = (def.length || 0) + 1;
     else while (n < 900 && !probe.finished) { probe.step(); n++; }
@@ -980,7 +1223,8 @@ async function openEffect(name) {
 
   if (pack.own) {
     pick.hidden = true;
-    facts.textContent = pack.note;
+    facts.textContent = '';
+    facts.append(ownBadge('mod'));
     await load('');
     if (typeof effectEditor === 'function' && doc) effectEditor(doc);
   } else if (members.length) {

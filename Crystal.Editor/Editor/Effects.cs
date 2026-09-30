@@ -98,7 +98,7 @@ namespace Crystal.Editor
 			Cache c = For(workspace);
 			Dictionary<(int, int), List<string>> uses = Uses(workspace, c);
 			List<object> list = new List<object>();
-			foreach (string own in Own(project)) list.Add(new { name = own, category = -1, templates = 0, note = "the mod's own", own = true });
+			foreach (string own in Own(project)) list.Add(new { name = own, category = -1, templates = 0, note = "the mod's effect (defs/effects)", own = true });
 			foreach (WorkspaceEntry entry in workspace.List(".efp").OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
 			{
 				int category = Category(entry.Name);
@@ -120,7 +120,7 @@ namespace Crystal.Editor
 			{
 				// One of the project's: its definition as it is, played as written.
 				JsonNode effect = JsonNode.Parse(System.IO.File.ReadAllText(OwnPath(project, name)));
-				return new { name, category = -1, own = true, note = "the mod's own", effect, templates = new object[0], textures = new object[0] };
+				return new { name, category = -1, own = true, note = "the mod's effect (defs/effects)", effect, templates = new object[0], textures = new object[0] };
 			}
 			Cache c = For(workspace);
 			EfpPack pack = Pack(workspace, c, name) ?? throw new InvalidOperationException("not an effect pack: " + name);
@@ -214,11 +214,12 @@ namespace Crystal.Editor
 		public static object Target(Workspace workspace, int monster)
 		{
 			Cache c = For(workspace);
-			if (monster < 0) return new { name = "Luneth", model = Named(c, "j101.nmdp.lz"), scale = 1.0, toward = 9.0, up = 5.0, turn = 0 };
+			if (monster < 0) return new { name = "Luneth", model = Named(c, "j101.nmdp.lz"), scale = 1.0, toward = 9.0, up = 5.0, turn = -90, party = true, at = (double[])null };
 			GameTables tables = GameData.Tables(workspace);
 			MonsterDefinition m = tables.Monsters.FirstOrDefault(x => x.Id == monster) ?? throw new InvalidOperationException("no monster " + monster);
 			double scale = 1, toward = 9, up = 5;
-			int turn = 0;
+			int turn = 90;
+			double[] at = null;
 			try
 			{
 				ChainPack chain = ChainPack.Read(workspace.Read(Named(c, "monster.chaindata")));
@@ -231,12 +232,15 @@ namespace Crystal.Editor
 					up = BitConverter.ToInt32(r, 8);
 					turn = BitConverter.ToInt32(r, 96);
 					scale = BitConverter.ToInt32(r, 100) / 4096.0;
+					// A place of its own (a boss's: initializePosition @64, raised by its height @92), else a party's place.
+					int x = BitConverter.ToInt32(r, 64), y = BitConverter.ToInt32(r, 68), z = BitConverter.ToInt32(r, 72);
+					if (x != 0 || y != 0 || z != 0) at = new[] { x / 4096.0, y / 4096.0 + BitConverter.ToInt32(r, 92), z / 4096.0 };
 					break;
 				}
 			}
 			catch (Exception) { }
 			string model = new[] { m.ModelId, m.Family }.Select(n => Named(c, "f" + n.ToString("000", CultureInfo.InvariantCulture) + ".nmdp.lz")).FirstOrDefault(workspace.Exists);
-			return new { name = m.Name, model, scale = scale > 0 ? scale : 1, toward, up, turn };
+			return new { name = m.Name, model, scale = scale > 0 ? scale : 1, toward, up, turn, party = false, at };
 		}
 
 		/// <summary>A model an effect shows (ModelDS): its geometry as the viewers draw it, and its motion as a pose a frame.</summary>

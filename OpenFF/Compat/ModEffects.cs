@@ -505,6 +505,14 @@ namespace OpenFF.Client
 				}
 				XnaVector3 c = new XnaVector3((float)q.X, (float)q.Y, (float)q.Z);
 				XnaVector3 w = right * (float)q.HalfWidth, h = up * (float)q.HalfHeight;
+				if (q.Roll != 0)
+				{
+					// The spin: the quad turned in the screen's plane (w and h its half-width and half-height, turned).
+					float cos = (float)Math.Cos(q.Roll * Math.PI / 180), sin = (float)Math.Sin(q.Roll * Math.PI / 180);
+					XnaVector3 wr = right * (float)(q.HalfWidth * cos) + up * (float)(q.HalfWidth * sin);
+					XnaVector3 hr = up * (float)(q.HalfHeight * cos) - right * (float)(q.HalfHeight * sin);
+					w = wr; h = hr;
+				}
 				Color colour = new Color((int)Math.Clamp(q.R, 0, 255), (int)Math.Clamp(q.G, 0, 255), (int)Math.Clamp(q.B, 0, 255), (int)Math.Clamp(q.A, 0, 255));
 				_vertices[0] = new VertexPositionColorTexture(c - w + h, colour, new Vector2(u0, v0));
 				_vertices[1] = new VertexPositionColorTexture(c - w - h, colour, new Vector2(u0, v1));

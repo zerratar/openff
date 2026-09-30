@@ -4,7 +4,7 @@
 //   node Tools/effect_cases.mjs --write    write each case's expect from what the JS player draws
 //
 // A case is an effect, a seed and frames; its expect, per frame, the quads drawn then:
-// [x, y, z, half width, half height, r, g, b, a, cell], rounded to 1e-6. The client's player
+// [x, y, z, half width, half height, r, g, b, a, cell, roll], rounded to 1e-6 (an older case without the roll is checked without it). The client's player
 // (Shared/Effects/EffectPlayer.cs) is checked against the same expects by `crystal effect-cases`.
 
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
@@ -31,7 +31,7 @@ for (const file of readdirSync(dir).filter(f => f.endsWith('.case.json')).sort()
   const last = Math.max(...c.frames);
   for (let f = 0; f <= last; f++) {
     player.step();
-    if (want.has(f)) got[f] = player.particles().map(q => [q.pos[0], q.pos[1], q.pos[2], q.w, q.h, ...q.colour, q.cell].map(round));
+    if (want.has(f)) got[f] = player.particles().map(q => [q.pos[0], q.pos[1], q.pos[2], q.w, q.h, ...q.colour, q.cell, q.roll || 0].map(round));
   }
   if (write) {
     c.expect = got;

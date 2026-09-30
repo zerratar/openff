@@ -265,7 +265,8 @@ passed; these are the rest.
 
 - `node Tools/effect_cases.mjs` and `crystal effect-cases` - the JS player (Crystal's Stage) and
   the client's (`Shared/Effects/EffectPlayer.cs`) against `Tools/EffectCases`: an effect, a seed,
-  frames and the quads each draws. Both say "5/5 case(s) pass"; a change to either player that
+  frames and the quads each draws (`curves-spin` the smooth curves, speed over life and spin).
+  Both say "6/6 case(s) pass"; a change to either player that
   changes what it draws fails both until the other follows and the cases are written again
   (`--write`, from the JS).
 - `Samples/EmeraldFire` in `mods/`, a drive `until jump: ff3 90`, `wait 4`, `learn 0 4101`,
@@ -273,6 +274,10 @@ passed; these are the rest.
   "spells: 1 look(s) of the mods': Fire -> emerald-fire"; the screenshots show green flames on
   the Goblin where the game's Fire burns, then the damage. The drive step `effect emerald-fire 0 4 6`
   plays it by the hero on the field.
+- Spin in the client (test report): an effect of thin white blades on a PNG of the mod's with
+  `spin` (`angle` 0-360, `speed` -14..14), `speedOverLife` and smooth curves; the drive
+  `until jump: ff3 90`, `wait 3`, `effect spin-test 0 0 6`, screenshots every 0.2 s. The blades lie
+  at every angle and turn from one picture to the next, and slow to a drift as they rise.
 
 ## What "works" looks like in the log
 

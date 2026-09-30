@@ -1094,9 +1094,9 @@ the spells whose effect record points at it, a school's cast. A pack opens on th
 one of its members (as `effect.efi` numbers them; 1 is the one a spell names) played the way
 the battle plays it, at the target's hit point: a monster (the Goblin to start with, any of the
 game's from the list) or Luneth for a spell on the party, standing in its battle wait where the
-battle stands it - so far back from the hit point and so far below it as the monster's own
-offsets say. An effect's own models (Blizzard's ice block) play their motion too. Drag to turn
-the camera, the wheel to come closer; **Play**, **Step** (one game
+battle stands it, the hit point so far toward the battle camera and so far up as the monster's
+own offsets say. An effect's own models (Blizzard's ice block) play their motion too. The
+battle's camera to start with; drag to turn a free one, the wheel to come closer; **Play**, **Step** (one game
 step, a thirtieth of a second), **Restart**, the scrubber, **loop**, 30 or 60 fps (at 60 a
 particle is drawn between its two steps, as the client does), and the count of particles.
 
@@ -1108,7 +1108,8 @@ same import from the command line: `crystal effect <install> <category> [member]
 
 ### The effect editor
 
-An effect of the project's opens in the editor; one of the game's has **Copy into the mod**,
+Resting the pointer on an effect in the library plays it in a small Stage beside the row.
+An effect of the project's (a green **Mod** badge) opens in the editor; one of the game's has **Copy into the mod**,
 which imports the member picked into `defs/effects/<id>.json` and opens that. **New effect…**
 (the library's button) starts from the game's (a category and member), from a copy of one of the
 project's, or from a spark - a rising, fading glow, its picture (`glow.png`) made beside it.
@@ -1127,12 +1128,22 @@ it was on; **Ctrl+Z** takes it back.
 - **Colour over life.** A gradient over the particle's life with the alpha on a checkerboard: a
   click adds a key, a drag moves it, a right click takes it out; the selected key's frame,
   colour and alpha below. Presets reshape the alpha and keep the colours: fade in and out, fade
-  out, fade in, flash, pulse.
-- **Scale over life.** A curve of the width and height (linked, or each its own), keys edited the
-  same way; presets grow, shrink, pop, ease out, pulse, constant.
+  out, fade in, flash, pulse. *smooth* makes it a curve through the keys.
+- **Scale over life**, **Speed over life.** A curve of the width and height (linked, or each its
+  own), and of how much of its speed a particle keeps; keys edited the same way. *smooth* makes
+  it a curve through the keys, and the selected key shows its tangents - pull a handle to bend
+  it, *Auto* to give it back to the curve. Presets: grow, shrink, pop, ease out, pulse, constant;
+  slow down, brake, speed up, stop and go.
+- **Spin.** The picture turned as the particle is born and a frame after, each a range.
 - **Texture.** The picture - one of the project's (a PNG chosen in the picker goes beside the effects)
   or any of the game's effect pictures, all in one picker - drawn with its cell grid; the cell
   size, columns and frames make a flipbook.
+- **The Stage, as the battle lays it.** The monsters in their places (a boss in its own), the
+  party in the front row, the caster the party's first; *1 target*, *each of a group* (three
+  monsters or the four, each played half the effect's length after the one before, as the
+  battle staggers a spell cast on all) or *the whole side* (once, at the side's point, as a spell
+  that can only hit all); *no map* or one of the battle maps behind them; the *battle camera* (as
+  a spell plays) or a *free* one - a drag or the wheel frees it.
 - **Timeline.** Under the Stage, a row a track: a bar from its start to its last particle's end,
   a diamond for a sound, a flash, a shake. Drag a bar to move its start, the white mark (an
   emitter's last burst) to spread its bursts; click to put the playhead there.
@@ -1208,8 +1219,8 @@ switch files.
 - **Audio** - deliberately untouched.
 - **Effects' material animations** - an effect's model plays its motion on the Stage, not its
   material's animation (a texture's scroll or fade).
-- **Effect curves' tangents** - scale and colour keys are joined by straight lines, a frame at a
-  time as the runtime samples them; there are presets but no tangents to pull.
+- **Battle maps' animations** - the effect Stage draws a battle map (`bNN.nmdp`) as it stands,
+  not its `.namp` (the water's scroll, a torch's flicker); the party on it is four Luneths.
 - **New menus** - adding a widget means duplicating one.
 - **New maps** - cloning one is plausible; authoring geometry is not, because models
   and collision are still opaque.

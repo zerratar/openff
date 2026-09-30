@@ -289,7 +289,7 @@ function buildAdd(node, start) {
   if (openff) {
     const option = document.createElement('option');
     option.value = 'openff';
-    option.textContent = 'OpenFF object - the mod\'s own, no script';
+    option.textContent = 'OpenFF object (no script)';
     kind.append(option);
   }
   for (const entry of BEHAVIOURS) {
@@ -2705,7 +2705,8 @@ function behavioursSection(panel, target, what) {
   const project = openFFProject();
   if (!project || !mapState.name) return;
   const heading = document.createElement('h3');
-  heading.textContent = 'Behaviours (OpenFF)';
+  heading.textContent = 'Behaviours ';
+  heading.append(ownBadge('openff'));
   panel.append(heading);
   const box = document.createElement('div');
   box.className = 'behaviours';

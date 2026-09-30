@@ -213,9 +213,14 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    project's PNGs, uploads, every picture of the game's packs) with its flipbook grid, the
    timeline (starts, bursts, the playhead), undo, and *Use for a spell…* - also the magic item's
    *Look* card - writing `defs/spells`. A new spell's effect is made from one of the game's
-   without the JSON. Not done from the list above: the browser's hover previews, the Stage's
-   battle backgrounds and several targets, curve tangents, a value's curve anywhere but colour
-   and scale.
+   without the JSON. Then the rest of the list: the library's hover previews; the Stage laid out
+   as the battle lays it (the monsters' and the party's places, a battle map `bNN` at the origin,
+   the battle's camera or a free one) with a spell on one, on each of a group one after another
+   (half the effect's length apart, as `drawOnceMagicEffect` staggers them) or once at a side's
+   point; smooth curves with tangents; and two new modules, speed over life and spin, in both
+   players (`Tools/EffectCases/curves-spin.case.json`). Still short of the list: the battle maps'
+   own animations (`bNN.namp`: texture scrolls and patterns) and the party's other heroes (all
+   four are Luneth), and a curve on values other than colour, scale and speed.
 5. **Later.** GPU particles if a real effect needs more than the CPU gives; lights from
    effects; decals on the ground; a node graph only if the module stack is found wanting.
 
@@ -245,7 +250,15 @@ effect plays). The tracks that are neither: `sound` (`archive`, `number`, `volum
   `gravity`: `direction`, `value` (per frame, a range); `orbit`: `radius`, `grow`, `turn`
   (degrees a frame); `gather`: `speed`, `accel`, `swirl`; `trail`: `count`, `colour`;
 - `colour` (keys `[age, r, g, b, a]`, 0-255), `scale` (keys `[age, x, y]`) - straight lines
-  between keys, whole frames of age;
+  between keys, whole frames of age; or a curve object `{ keys, smooth }`: smooth, a Hermite
+  curve through the keys, each key's tangent its own (the slopes after its values,
+  `[age, ...values, ...slopes]`, value a frame) or the curve's - flat at the ends and at a turn,
+  else as the neighbours lie, clamped so it never overshoots (Fritsch-Carlson); a colour is
+  clamped to 0-255 after;
+- `speedOverLife` (keys `[age, k]`, a list or a curve object): each step moves a particle by its
+  speed times k at its age (gravity still adds to the speed); `spin`: `angle`, `speed` (ranges,
+  degrees; drawn in that order after the size) - the quad turned in the screen's plane by
+  angle + speed x (age - 1);
 - `texture`: `image` (`game:<pack>:<name>`, the game's own read from the install), `width`,
   `height`, `cell` (the first cell's rectangle), `columns`, `frames` (keys `[age, cell]`);
 - `render`: `blend` (`alpha`), `facing` (`camera`).
