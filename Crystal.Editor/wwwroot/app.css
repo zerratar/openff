@@ -2749,3 +2749,5 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 #inspector .effect-flip-preview { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 #inspector .effect-flip-preview canvas { border: 1px solid var(--line); border-radius: 4px; image-rendering: pixelated; }
 #inspector .effect-flip-preview span { font-size: 10px; color: var(--dim); font-variant-numeric: tabular-nums; }
+#inspector .effect-warn { color: #e0b86a; }
+#inspector .effect-card p.sub { word-break: normal; overflow-wrap: break-word; }

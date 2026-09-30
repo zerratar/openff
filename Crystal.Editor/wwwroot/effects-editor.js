@@ -85,7 +85,13 @@ function effectEditor(doc) {
     view.apply(ed.preview());
     ed.timeline && ed.timeline.draw();
     if (!quiet) drawHierarchy();
-    if (structural) drawInspector();
+    if (structural) {
+      // Drawn again from the top: put it back where it was scrolled to (and once more when its canvases have their sizes).
+      const panel = document.getElementById('inspector');
+      const at = panel ? panel.scrollTop : 0;
+      drawInspector();
+      if (panel) { panel.scrollTop = at; requestAnimationFrame(() => { panel.scrollTop = at; }); }
+    }
     ed.dirty = true;
     clearTimeout(ed.saving);
     ed.saving = setTimeout(() => ed.save(), 500);
@@ -708,6 +714,7 @@ function effectGradient(ed, card, i) {
   const wrap = document.createElement('div');
   wrap.className = 'effect-gradient';
   const canvas = document.createElement('canvas');
+  canvas.style.height = '46px';
   wrap.append(canvas);
   const detail = document.createElement('div');
   detail.className = 'effect-key-detail';
@@ -911,6 +918,7 @@ function effectCurve(ed, card, i, opts = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'effect-curve';
   const canvas = document.createElement('canvas');
+  canvas.style.height = '96px';
   wrap.append(canvas);
   const K = d => effectCurveKeys(effectGet(d.tracks[i], field));
   const keys = () => K(ed.def) || [];
@@ -1102,10 +1110,12 @@ function effectFlipbookFrames(fb, life) {
   const from = Math.max(0, fb.from | 0), to = Math.max(0, fb.to | 0);
   const cells = [];
   for (let c = from; ; c += to >= from ? 1 : -1) { cells.push(c); if (c === to) break; }
-  const L = Math.max(1, life || 16), each = Math.max(1, fb.each | 0);
+  // A particle is drawn from age 1 to its life - 1 (it is gone on the frame its life ends).
+  const L = Math.max(1, life || 16), shown = Math.max(1, L - 1), each = Math.max(1, fb.each | 0);
   const out = [];
   if (fb.end === 'fit') {
-    cells.forEach((c, k) => { const age = 1 + Math.floor(k * L / cells.length); if (!out.length || out[out.length - 1][0] !== age) out.push([age, c]); else out[out.length - 1][1] = c; });
+    // Each cell an equal share of the ages it shows, the last on the last of them.
+    cells.forEach((c, k) => { const age = cells.length > 1 ? 1 + Math.round(k * (shown - 1) / (cells.length - 1)) : 1; if (!out.length || out[out.length - 1][0] !== age) out.push([age, c]); else out[out.length - 1][1] = c; });
   } else if (fb.end === 'hold') {
     cells.forEach((c, k) => { if (1 + k * each <= L) out.push([1 + k * each, c]); });
   } else {
@@ -1215,7 +1225,7 @@ function effectTextureCard(ed, card, i) {
       if (m === 'game') return;
       const first = frames.length ? frames[0][1] : 0;
       apply(m === 'still' ? 'one cell' : 'play the cells', t => {
-        t.flipbook = m === 'still' ? { mode: 'still', from: first } : { mode: 'play', from: 0, to: last, each: 2, end: 'loop' };
+        t.flipbook = m === 'still' ? { mode: 'still', from: first } : { mode: 'play', from: 0, to: last, each: 2, end: 'fit' };
       });
     };
     modes.append(b);
@@ -1236,15 +1246,21 @@ function effectTextureCard(ed, card, i) {
     effectSelect(ed, card, 'Plays', d => F(d).end || 'loop', (d, v) => set(d, 'end', v),
       [['loop', 'over and over'], ['hold', 'once, then holds the last'], ['fit', 'once, over its whole life']], { structural: true });
     if (fb.end !== 'fit') effectNumber(ed, card, 'Frames a cell', d => F(d).each || 1, (d, v) => set(d, 'each', Math.max(1, Math.round(v))), { step: 1, hint: 'how long each cell shows, in frames (30 a second)' });
-    const n = Math.abs((fb.to | 0) - (fb.from | 0)) + 1, L = T(ed.def).life || 16;
-    note(fb.end === 'fit' ? `${n} cells over its life of ${L} frames.` : `${n} cells, ${fb.each || 1} frame${(fb.each || 1) === 1 ? '' : 's'} each: ${n * (fb.each || 1)} frames a pass${fb.end === 'hold' ? ', then the last cell' : ''}; its life is ${L}.`);
+    const n = Math.abs((fb.to | 0) - (fb.from | 0)) + 1, L = T(ed.def).life || 16, shownAges = Math.max(1, L - 1);
+    note(fb.end === 'fit' ? `All ${n} cells, ${fb.from} to ${fb.to}, over the ${shownAges} frames it shows.` : `${n} cells, ${fb.each || 1} frame${(fb.each || 1) === 1 ? '' : 's'} each: ${n * (fb.each || 1)} frames a pass${fb.end === 'hold' ? ', then the last cell' : ''}; it shows for ${shownAges}.`);
+    // The life too short for the run: which cell it ends on, and the ways to reach the last.
+    const reached = effectFrame(T(ed.def).texture.frames, shownAges);
+    if (fb.end !== 'fit' && n * (fb.each || 1) > shownAges) {
+      const warn = note(`It dies on cell ${reached}, before cell ${fb.to} shows: fewer frames a cell, a longer life (Particle), or Plays: once, over its whole life.`);
+      warn.classList.add('effect-warn');
+    }
     clickHint = 'Click a cell on the sheet to start there, Shift and click to end there.';
   } else {
     const cellsUsed = [...new Set(frames.map(f => f[1]))];
     note(`The game's sequence: ${frames.length} steps over ages ${frames[0][0]}–${frames[frames.length - 1][0]}, cells ${Math.min(...cellsUsed)}–${Math.max(...cellsUsed)}. Choose Play to make your own.`);
   }
 
-  // ---- the sheet, and the preview playing it
+  // ---- the sheet, still: the cells played tinted, the first and the last marked; the preview beside it plays on ▶
   const view = document.createElement('div');
   view.className = 'effect-sheet-view';
   const sheet = document.createElement('canvas');
@@ -1253,14 +1269,26 @@ function effectTextureCard(ed, card, i) {
   previewBox.className = 'effect-flip-preview';
   const preview = document.createElement('canvas');
   const caption = document.createElement('span');
-  previewBox.append(preview, caption);
+  const playButton = document.createElement('button');
+  playButton.className = 'chip';
+  playButton.textContent = '▶ preview';
+  playButton.title = 'play the flipbook here, over the particle\'s life';
+  previewBox.append(preview, caption, playButton);
   view.append(sheet, previewBox);
   card.append(view);
   if (clickHint) note(clickHint);
   const image = new Image();
   const scale = Math.min(4, 220 / Math.max(W, H));
-  const used = () => new Set((T(ed.def).texture.frames || [[1, 0]]).map(f => f[1]));
-  let showing = 0;
+  const PREVIEW = 72;
+  sheet.style.width = W * scale + 'px'; sheet.style.height = H * scale + 'px';
+  preview.style.width = PREVIEW + 'px'; preview.style.height = PREVIEW + 'px';
+  // What the settings pick: the first and the last cell of a run, or the one cell.
+  const picked = () => {
+    const t = T(ed.def).texture, f = t.frames || [[1, 0]];
+    if (t.flipbook && t.flipbook.mode === 'play') return { first: t.flipbook.from, last: t.flipbook.to };
+    if (t.flipbook && t.flipbook.mode === 'still') return { first: t.flipbook.from, last: null };
+    return { first: f[0][1], last: f.length > 1 ? f[f.length - 1][1] : null };
+  };
   function drawSheet() {
     if (!image.complete || !image.naturalWidth) return;
     const t = T(ed.def).texture, grid = gridOf(t), c = grid.c;
@@ -1268,19 +1296,48 @@ function effectTextureCard(ed, card, i) {
     g.imageSmoothingEnabled = false;
     g.fillStyle = '#23272e'; g.fillRect(0, 0, W * scale, H * scale);
     g.drawImage(image, 0, 0, W * scale, H * scale);
-    const inUse = used();
+    const inUse = new Set((t.frames || [[1, 0]]).map(f => f[1]));
+    const { first, last } = picked();
     g.font = '10px system-ui, sans-serif';
-    for (let n = 0; n < grid.count; n++) {
+    const at = n => {
       const gx = t.columns ? n % grid.cols : 0, gy = t.columns ? Math.floor(n / grid.cols) : 0;
-      const x = (c[0] + c[2] * gx) * scale, y = (c[1] + c[3] * gy) * scale, w = c[2] * scale, h = c[3] * scale;
-      if (!inUse.has(n) && grid.count > 1) { g.fillStyle = 'rgba(20, 22, 26, 0.55)'; g.fillRect(x, y, w, h); }
-      g.strokeStyle = n === showing ? '#ffffff' : 'rgba(110, 168, 254, 0.7)';
-      g.lineWidth = n === showing ? 2 : 1;
+      return [(c[0] + c[2] * gx) * scale, (c[1] + c[3] * gy) * scale, c[2] * scale, c[3] * scale];
+    };
+    for (let n = 0; n < grid.count; n++) {
+      const [x, y, w, h] = at(n);
+      if (!inUse.has(n) && grid.count > 1) { g.fillStyle = 'rgba(20, 22, 26, 0.6)'; g.fillRect(x, y, w, h); }
+      g.strokeStyle = 'rgba(110, 168, 254, 0.55)';
+      g.lineWidth = 1;
       g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-      if (grid.count > 1) { g.fillStyle = n === showing ? '#ffffff' : '#6ea8fe'; g.fillText(String(n), x + 3, y + 11); }
+      if (grid.count > 1) { g.fillStyle = '#6ea8fe'; g.fillText(String(n), x + 3, y + 11); }
     }
+    // The picked cells, marked: the first (or the one) in green, the last in amber, each with its word.
+    const mark = (n, colour, word) => {
+      if (n === null || n === undefined || n < 0 || n >= grid.count) return;
+      const [x, y, w, h] = at(n);
+      g.strokeStyle = colour; g.lineWidth = 2;
+      g.strokeRect(x + 1, y + 1, w - 2, h - 2);
+      if (grid.count > 1 && word) {
+        const tw = g.measureText(word).width + 6;
+        g.fillStyle = colour; g.fillRect(x + w - tw - 1, y + h - 13, tw, 12);
+        g.fillStyle = '#10151c'; g.fillText(word, x + w - tw + 2, y + h - 3);
+      }
+    };
+    if (last !== null && last !== first) { mark(first, '#6ac48a', 'first'); mark(last, '#d9a441', 'last'); }
+    else mark(first, '#6ac48a', last === null ? '' : 'first');
   }
-  image.onload = drawSheet;
+  function drawPreview(cell) {
+    const t = T(ed.def).texture, grid = gridOf(t), c = grid.c;
+    const g = effectSharp(preview, PREVIEW, PREVIEW);
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = '#101216'; g.fillRect(0, 0, PREVIEW, PREVIEW);
+    if (!image.complete || !image.naturalWidth) return;
+    const gx = t.columns ? cell % grid.cols : 0, gy = t.columns ? Math.floor(cell / grid.cols) : 0;
+    const fit = Math.min(PREVIEW / c[2], PREVIEW / c[3]);
+    g.drawImage(image, c[0] + c[2] * gx, c[1] + c[3] * gy, c[2], c[3], (PREVIEW - c[2] * fit) / 2, (PREVIEW - c[3] * fit) / 2, c[2] * fit, c[3] * fit);
+  }
+  const still = () => { const cell = effectFrame(T(ed.def).texture.frames, 1); drawPreview(cell); caption.textContent = `cell ${cell}`; };
+  image.onload = () => { drawSheet(); still(); };
   image.src = effectTextureUrl(tex.image, ed.name);
   sheet.addEventListener('click', e => {
     const t = T(ed.def).texture, grid = gridOf(t), c = grid.c;
@@ -1294,27 +1351,25 @@ function effectTextureCard(ed, card, i) {
     else apply(e.shiftKey ? 'the last cell' : 'the first cell', tt => { tt.flipbook = { ...tt.flipbook, [e.shiftKey ? 'to' : 'from']: n }; });
   });
   sheet.style.cursor = mode === 'still' || mode === 'play' ? 'pointer' : 'default';
-  // The preview: the cell the particle shows at each age of its life, over and over at 30 a second.
-  let age = 1, lastTime = performance.now();
-  const tick = now => {
-    if (!preview.isConnected) return;
-    const t = T(ed.def).texture, grid = gridOf(t), c = grid.c, L = Math.max(1, T(ed.def).life || 16);
-    if (now - lastTime >= 1000 / 30) { age = age >= L ? 1 : age + 1; lastTime = now; }
-    const cell = effectFrame(t.frames, age);
-    if (cell !== showing) { showing = cell; drawSheet(); }
-    const size = 72;
-    const g = effectSharp(preview, size, size);
-    g.imageSmoothingEnabled = false;
-    g.fillStyle = '#101216'; g.fillRect(0, 0, size, size);
-    if (image.complete && image.naturalWidth) {
-      const gx = t.columns ? cell % grid.cols : 0, gy = t.columns ? Math.floor(cell / grid.cols) : 0;
-      const fit = Math.min(size / c[2], size / c[3]);
-      g.drawImage(image, c[0] + c[2] * gx, c[1] + c[3] * gy, c[2], c[3], (size - c[2] * fit) / 2, (size - c[3] * fit) / 2, c[2] * fit, c[3] * fit);
-    }
-    caption.textContent = `age ${age} · cell ${cell}`;
+  // The preview plays only when asked: the cell the particle shows at each age of its life, 30 a second, until stopped.
+  let playing = false;
+  playButton.onclick = () => {
+    playing = !playing;
+    playButton.textContent = playing ? '■ stop' : '▶ preview';
+    playButton.classList.toggle('on', playing);
+    if (!playing) { still(); return; }
+    let age = 1, lastTime = performance.now();
+    const tick = now => {
+      if (!playing || !preview.isConnected) return;
+      const L = Math.max(1, (T(ed.def).life || 16) - 1);   // the ages it is drawn: 1 to life - 1
+      if (now - lastTime >= 1000 / 30) { age = age >= L ? 1 : age + 1; lastTime = now; }
+      const cell = effectFrame(T(ed.def).texture.frames, age);
+      drawPreview(cell);
+      caption.textContent = `age ${age} · cell ${cell}`;
+      requestAnimationFrame(tick);
+    };
     requestAnimationFrame(tick);
   };
-  requestAnimationFrame(tick);
 }
 
 function effectImageLabel(image) {

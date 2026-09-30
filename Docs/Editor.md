@@ -1157,10 +1157,12 @@ it was on; **Ctrl+Z** takes it back.
   8 × 8, or a cell size of your own, and the count it makes ("4 across × 4 down = 16 cells,
   numbered from the top left"; where the first cell starts is under *Advanced*). **Animation**:
   *One cell* (click it on the sheet), *Play* (a first and a last cell - a click and a Shift-click on
-  the sheet - played over and over, once and held, or once over the particle's whole life, so many
-  frames a cell), or *The game's own* sequence an imported effect came with. The sheet dims the
-  cells not played and marks the one showing; beside it a preview plays the flipbook over the life
-  ("age 14 · cell 8"). Every change applies at once; the settings are the texture's `flipbook`, and
+  the sheet - played once over the particle's whole life, so every cell of the run shows, or over
+  and over, or once and held, so many frames a cell; when the life ends before the last cell, the
+  card says on which), or *The game's own* sequence an imported effect came with. The sheet stays
+  still: the cells not played dimmed, the first marked green and the last amber; beside it a
+  preview shows the first cell, and ▶ plays the flipbook over the ages a particle is drawn (1 to
+  its life - 1). Every change applies at once; the settings are the texture's `flipbook`, and
   its frames follow the particle's life when that changes.
 - **The Stage, as the battle lays it.** The monsters in their places (a boss in its own), the
   party's four heroes in the front row as Onion Knights, the caster the first; *1 target*, *each of a group* (three

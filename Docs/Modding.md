@@ -97,7 +97,9 @@ mods/
   project, or Project settings) has **Project ▸ Export to OpenFF**, which writes `mod.json`,
   `ff3/files/` and `ff4/files/` (one per game ticked - tick both and the mod may take from
   either game), the built code and the scenes into the client's mods folder; **Run in OpenFF**
-  exports and starts the client. In the editor the mod's own things - its code and its scenes -
+  exports and starts the client with this mod alone (`--only-mod`: the other installed mods stay
+  as they are, but sit this run out), and **Run with the other mods** plays it among every enabled
+  one - for a mod made to go on top of another. In the editor the mod's own things - its code and its scenes -
   are the **OpenFF mod** folder at the bottom of the project tree, beside the games' libraries.
 
 ## Part 3 - an OpenFF mod: code

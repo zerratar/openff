@@ -40,6 +40,8 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: the effect Stage's free camera pans with the middle button (or Shift and a drag); a double click looks at the target again.
 - Crystal: the effect Stage's free camera flies as the scene view's does - the right button held, WASD, Q and E - and F frames the target.
 - Crystal: the texture card's grid and flipbook - split a sheet, show one cell or play a run of them (looping, once, or over the life), with the sheet to click and a preview.
+- Client: --only-mod <name> plays one mod of the mods folder (and what it depends on), the others left installed.
+- Crystal: Run in OpenFF plays the open project's mod alone; Run with the other mods plays it among the rest.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
 - Crystal: resting the pointer on an effect in the library plays it.
 - Crystal: a Mod badge marks the project's own things in the lists, and an OpenFF only badge the client's behaviours.
@@ -49,6 +51,8 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: switching an effect module off and on again keeps its settings - a texture its picture.
 - Crystal: the effect timeline, curves and gradients draw sharp on a scaled display.
 - Crystal: the scene view pans the way the camera faces - it no longer turns backwards at some angles.
+- Crystal: the texture card holds still - its sheet no longer animates under the pointer, the inspector keeps its scroll, and a flipbook played over the life reaches its last cell.
+- Crystal: a new project no longer takes over a leftover folder of the same name.
 - Crystal: the effect Stage's free camera starts where the battle camera looks from, and the middle button no longer zooms while it pans.
 - Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.
 - Menus: the magic school icons no longer cover the first letters of the spells' names.

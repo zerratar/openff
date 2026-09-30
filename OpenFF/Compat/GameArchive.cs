@@ -201,6 +201,15 @@ namespace OpenFF.Client
 				return Enumerable.Empty<string>();
 			}
 			List<InstalledMod> active = ModsFolder.Active(installed);
+			// --only-mod: this run plays one mod (and what it depends on) - a project tried on its own, the rest left out.
+			string only = Options.Get("only-mod");
+			if (!string.IsNullOrWhiteSpace(only))
+			{
+				List<InstalledMod> alone = ModsFolder.Only(active, only.Trim());
+				Log.Write(LogChannel.General, "mods: --only-mod " + only.Trim() + ": " + (alone.Count > 0 ? string.Join(", ", alone.Select(m => m.DisplayName)) + " this run, the others left out" : "not among the mods that apply - none this run"));
+				foreach (InstalledMod left in active.Where(m => !alone.Contains(m))) left.Skipped = "left out this run (--only-mod " + only.Trim() + ")";
+				active = alone;
+			}
 			Log.Write(LogChannel.General, "mods: " + active.Count + " of " + installed.Count + " in " + folder + " apply"
 				+ (active.Count > 0 ? ": " + string.Join(", ", active.Select(m => m.DisplayName + " (" + ModsFolder.FileCount(m, game) + " files)")) : ""));
 			foreach (InstalledMod mod in installed.Where(m => !active.Contains(m)))

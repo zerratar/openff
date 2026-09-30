@@ -297,6 +297,12 @@ namespace Crystal.Editor
 			{
 				throw new IOException("there is already a project called " + safe);
 			}
+			// A folder of that name left behind (a project removed, its files kept) is not the new one's to take over -
+			// its scenes and definitions would come with it - so the new project takes the next free name.
+			for (int n = 2; System.IO.Directory.Exists(directory) && System.IO.Directory.EnumerateFileSystemEntries(directory).Any(); n++)
+			{
+				directory = Path.Combine(root ?? Root, safe + " " + n);
+			}
 
 			ProjectFile file = new ProjectFile
 			{

@@ -177,6 +177,28 @@ namespace OpenFF.Content
 			return ordered;
 		}
 
+		/// <summary>
+		/// One mod of the active ones (by its folder name or its id) and the mods it depends on, in
+		/// load order - a run of just that mod (the client's --only-mod, Crystal's Run in OpenFF),
+		/// the others left installed and as they were. Empty when it is not among the active.
+		/// </summary>
+		public static List<InstalledMod> Only(IReadOnlyList<InstalledMod> active, string name)
+		{
+			InstalledMod wanted = active.FirstOrDefault(m => string.Equals(m.Key, name, StringComparison.OrdinalIgnoreCase) || string.Equals(m.Id, name, StringComparison.OrdinalIgnoreCase));
+			HashSet<InstalledMod> keep = new HashSet<InstalledMod>();
+			void Take(InstalledMod mod)
+			{
+				if (mod == null || !keep.Add(mod)) return;
+				foreach (ModDependency dependency in mod.Manifest?.Dependencies ?? new List<ModDependency>())
+				{
+					if (string.IsNullOrWhiteSpace(dependency?.Id)) continue;
+					Take(active.FirstOrDefault(a => string.Equals(a.Id, dependency.Id, StringComparison.OrdinalIgnoreCase)));
+				}
+			}
+			Take(wanted);
+			return active.Where(keep.Contains).ToList();
+		}
+
 		/// <summary>Writes loadorder.json for the list as it stands (order and enabled flags).</summary>
 		public static void SaveOrder(string modsDirectory, IEnumerable<InstalledMod> mods)
 		{

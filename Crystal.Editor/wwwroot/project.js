@@ -125,8 +125,10 @@ function drawMenuBar() {
     { label: 'OpenFF API reference…', run: apiReferenceDialog,
       note: 'Game.Hero, Game.Dialogue, Game.Magic... what a mod\'s C# can call, from the engine\'s own docs' },
     '-',
-    { label: 'Run in OpenFF', run: runInOpenFF, disabled: !(open && open.client),
-      note: open && open.client ? 'Export to the mods folder and start the client (a running client hot-reloads)' : 'No OpenFF client found: build OpenFF or start OpenFF.exe once' },
+    { label: 'Run in OpenFF', run: () => runInOpenFF(), disabled: !(open && open.client),
+      note: open && open.client ? 'Export to the mods folder and start the client with this mod alone (a running client hot-reloads)' : 'No OpenFF client found: build OpenFF or start OpenFF.exe once' },
+    { label: 'Run with the other mods', run: () => runInOpenFF({ withOthers: true }), disabled: !(open && open.client),
+      note: 'The same, with every other enabled mod of the client\'s mods folder playing too - for an add-on to another mod' },
     { label: 'Show project folder', run: () => revealProject(), disabled: !open },
   ]));
 
@@ -143,8 +145,10 @@ function drawMenuBar() {
     items.push({ heading: `OpenFF mod · ${games}` });
     items.push({ label: 'Export to OpenFF…', run: exportToOpenFF,
       note: `Writes the mod into the client's mods folder: ${oursOpen.map(w => w.game + '/files').join(', ')}, the code and the scenes` });
-    items.push({ label: 'Run in OpenFF', run: runInOpenFF, disabled: !open.client,
-      note: open.client ? 'Export and start the client (a running client hot-reloads)' : 'No OpenFF client found: build OpenFF or start OpenFF.exe once' });
+    items.push({ label: 'Run in OpenFF', run: () => runInOpenFF(), disabled: !open.client,
+      note: open.client ? 'Export and start the client with this mod alone (a running client hot-reloads)' : 'No OpenFF client found: build OpenFF or start OpenFF.exe once' });
+    items.push({ label: 'Run with the other mods', run: () => runInOpenFF({ withOthers: true }), disabled: !open.client,
+      note: 'The same, with every other enabled mod playing too - for an add-on to another mod' });
   }
   for (const w of steamOpen) {
     const mod = projectState.mods[w.target];
@@ -616,8 +620,9 @@ async function runInOpenFF(where = {}) {
     const result = await api('/api/project/run', where);
     if (!result.ok) throw new Error(result.error);
     const at = where.map ? ` on ${where.map}${where.pos ? ' at ' + where.pos.map(Math.round).join(', ') : ''}` : '';
+    const alone = where.withOthers ? ' with the other mods' : ' with this mod alone';
     say(result.started
-      ? `exported to ${result.path} - OpenFF is starting${at}`
+      ? `exported to ${result.path} - OpenFF is starting${alone}${at}`
       : `exported to ${result.path} - OpenFF is already running: it picks the code up and re-reads the scene when the map is entered again, but models, textures and definitions are read as it starts - close the game and Play again to see those${where.map ? ' (and for a start on ' + where.map + ')' : ''}`, 'warn');
   } catch (error) {
     say(error.message, 'bad');

@@ -3351,6 +3351,9 @@ namespace Crystal.Editor
 				string ws = Query(context, "ws");
 				string game = Targets.Known(ws) ? Targets.GameOf(ws) : "ff3";
 				List<string> arguments = new List<string>();
+				// The project on its own, unless asked to play it among the other installed mods (an add-on to one).
+				bool withOthers = body?["withOthers"]?.GetValue<bool>() ?? false;
+				if (!withOthers) arguments.Add("--only-mod=" + Path.GetFileName(directory));
 				if (!string.IsNullOrWhiteSpace(map))
 				{
 					arguments.Add("--game=" + game);
