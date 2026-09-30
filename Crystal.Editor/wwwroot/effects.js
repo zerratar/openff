@@ -667,7 +667,7 @@ function makeEffectStage(canvas, textureUrl) {
 
   const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
   /// One model's groups of a pass: the opaque ones (translucent false) or the translucent.
-  function drawModel(m, world, frame, translucent, view, projection) {
+  function drawModel(m, world, frame, translucent, view, projection, opts = {}) {
     if (!m || !m.ready) return;
     gl.useProgram(modelProgram);
     gl.uniformMatrix4fv(modelUnif.view, false, view);
@@ -682,8 +682,11 @@ function makeEffectStage(canvas, textureUrl) {
     gl.enableVertexAttribArray(modelAttr.mindex); gl.vertexAttribPointer(modelAttr.mindex, 1, gl.FLOAT, false, 4, 0);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.index);
     // Where a frame's matrices start: the groups' counts laid end to end, frame after frame.
-    const pose = m.pose, per = pose ? pose.counts.reduce((a, b) => a + b, 0) : 0;
-    const f = pose ? Math.max(0, Math.min(pose.frames - 1, m.loop ? frame % pose.frames : frame)) : 0;
+    const pose = opts.pose || m.pose, per = pose ? pose.counts.reduce((a, b) => a + b, 0) : 0;
+    const looping = opts.loop === undefined ? m.loop : opts.loop;
+    const f = pose ? Math.max(0, Math.min(pose.frames - 1, looping ? frame % pose.frames : frame)) : 0;
+    const alphaMul = opts.alpha === undefined ? 1 : opts.alpha;
+    if (alphaMul <= 0) return;
     let slot = 0;
     for (let gi = 0; gi < m.groups.length; gi++) {
       const g = m.groups[gi], count = pose ? (pose.counts[gi] || 1) : 1;
@@ -692,7 +695,7 @@ function makeEffectStage(canvas, textureUrl) {
       // A battle map's animation at this frame (Namp.cs): the material's texture transform and alpha.
       const anim = m.anim, srt = anim && anim.srt && anim.srt.materials[g.material], fade = anim && anim.alpha && anim.alpha.materials[g.material];
       const shownAlpha = fade ? fade[frame % anim.alpha.length] : (g.alpha === undefined ? 1 : g.alpha);
-      if (g.hidden || shownAlpha <= 0 || Boolean(g.translucent || (fade && shownAlpha < 1)) !== translucent) continue;
+      if (g.hidden || shownAlpha <= 0 || Boolean(g.translucent || (fade && shownAlpha < 1) || alphaMul < 1) !== translucent) continue;
       const t = srt ? srt[frame % anim.srt.length] : null;
       gl.uniformMatrix3fv(modelUnif.uvMatrix, false, t ? [t[0], t[1], 0, t[2], t[3], 0, t[4], t[5], 1] : [1, 0, 0, 0, 1, 0, 0, 0, 1]);
       const palette = new Float32Array(32 * 16);
@@ -704,8 +707,9 @@ function makeEffectStage(canvas, textureUrl) {
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, textured ? g.picture.gl : blank);
       const c = g.colour === undefined ? 0xFFFFFF : g.colour;
-      gl.uniform3f(modelUnif.tint, ((c >> 16) & 255) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255);
-      gl.uniform1f(modelUnif.alpha, shownAlpha);
+      const tint = opts.tint || [1, 1, 1];
+      gl.uniform3f(modelUnif.tint, ((c >> 16) & 255) / 255 * tint[0], ((c >> 8) & 255) / 255 * tint[1], (c & 255) / 255 * tint[2]);
+      gl.uniform1f(modelUnif.alpha, shownAlpha * alphaMul);
       gl.drawElements(gl.TRIANGLES, g.count, m.indexType, g.start * m.indexSize);
     }
     for (const loc of Object.values(modelAttr)) gl.disableVertexAttribArray(loc);
@@ -761,6 +765,11 @@ function makeEffectStage(canvas, textureUrl) {
     const ratio = window.devicePixelRatio || 1;
     if (canvas.width !== Math.round(w * ratio) || canvas.height !== Math.round(h * ratio)) { canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio); }
     const jolt = camera.jolt || [0, 0];
+    if (stageApi.override) {
+      // A script's camera (a summon's): its eye and target as the battle's camera has them, through the battle's lens.
+      const o = stageApi.override;
+      return { view: effectLookAt(o.eye, o.at), projection: effectPerspective(BATTLE_FOV * EFFECT_DEG, w / h, 5, 2000) };
+    }
     if (layout.view === 'battle') {
       // The battle's camera as a spell plays (CameraBattlePosition/Target), its field of view as the port draws it.
       const look = [BATTLE_AT[0], BATTLE_AT[1] + jolt[1], BATTLE_AT[2] + jolt[0]];
@@ -953,14 +962,14 @@ function makeEffectStage(canvas, textureUrl) {
         m.anim = null;
         api(`/api/model/animation?name=${encodeURIComponent(bg)}`).then(r => { if (r && !r.none && (r.srt || r.alpha)) m.anim = r; }).catch(() => {});
       }
-      scene.push({ m, world: placed([0, 0, 0], 1, 0), frame: Math.floor(performance.now() / 1000 * 30) });
+      scene.push({ m, world: placed([0, 0, 0], 1, 0), frame: Math.floor(performance.now() / 1000 * 30), opts: { tint: stageApi.mapTint || undefined } });
     }
     // The monsters the effect plays on (a post stands in for none).
     if (target.model && !target.party && show.monsters) {
       const m = loadModel('target:' + target.model, `/api/model?name=${encodeURIComponent(target.model)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(target.model)}&texture=${encodeURIComponent(tex)}`));
       standing(m, target.model);
-      for (const f of figures) scene.push({ m, world: placed(f.feet, target.scale, f.turn), frame: Math.floor(performance.now() / 1000 * 30) });
+      if (!(stageApi.hide && stageApi.hide.monsters)) for (const f of figures) scene.push({ m, world: placed(f.feet, target.scale, f.turn), frame: Math.floor(performance.now() / 1000 * 30) });
     }
     // The party: the four heroes in the front row as Onion Knights (j101, j201, j301, j401 - the battle's j<hero><job>),
     // the first the caster; the effect plays on them when the target is the party.
@@ -972,8 +981,27 @@ function makeEffectStage(canvas, textureUrl) {
       const m = loadModel('hero:' + hero, `/api/model?name=${encodeURIComponent(hero)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(hero)}&texture=${encodeURIComponent(tex)}`));
       standing(m, hero);
-      scene.push({ m, world: placed(feet, 1, -90), frame: Math.floor(performance.now() / 1000 * 30) + k * 7 });
+      const partyAlpha = stageApi.hide && stageApi.hide.party !== undefined ? stageApi.hide.party : 1;
+      if (partyAlpha > 0) scene.push({ m, world: placed(feet, 1, -90), frame: Math.floor(performance.now() / 1000 * 30) + k * 7, opts: { alpha: partyAlpha } });
     });
+    // The caller's own models (a summon): a game model at a place, turned and scaled, posed by a motion of a pack, faded.
+    for (const x of stageApi.extras || []) {
+      if (!x || !x.model) continue;
+      const m = loadModel('extra:' + x.model, `/api/model?name=${encodeURIComponent(x.model)}`,
+        tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(x.model)}&texture=${encodeURIComponent(tex)}`));
+      let pose = null;
+      if (x.pack) {
+        m.poses = m.poses || new Map();
+        const key = x.pack + '#' + x.index;
+        if (!m.poses.has(key)) {
+          m.poses.set(key, null);
+          api(`/api/model/pose?name=${encodeURIComponent(x.model)}&pack=${encodeURIComponent(x.pack)}&index=${x.index || 0}`)
+            .then(p => { if (p && p.matrices) m.poses.set(key, p); }).catch(() => {});
+        }
+        pose = m.poses.get(key);
+      }
+      scene.push({ m, world: placed(x.pos, x.scale || 1, x.yaw || 0), frame: x.frame || 0, opts: { pose, loop: !!x.loop, alpha: x.alpha === undefined ? 1 : x.alpha } });
+    }
     for (const e of meshes) {
       const k = /^game:([^:]+):(.+)$/.exec(e.track.model || '');
       let m;
@@ -991,11 +1019,11 @@ function makeEffectStage(canvas, textureUrl) {
       const pos = [0, 1, 2].map(i => e.prev[i] + (e.pos[i] - e.prev[i]) * between);
       scene.push({ m, world: placed(pos, e.scale === undefined ? (e.track.scale || 1) : e.scale, e.yaw || 0), frame: e.frame });
     }
-    for (const it of scene) drawModel(it.m, it.world, it.frame, false, view, projection);
+    for (const it of scene) drawModel(it.m, it.world, it.frame, false, view, projection, it.opts);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.depthMask(false);
-    for (const it of scene) drawModel(it.m, it.world, it.frame, true, view, projection);
+    for (const it of scene) drawModel(it.m, it.world, it.frame, true, view, projection, it.opts);
     gl.depthMask(true);
     gl.disable(gl.BLEND);
 
@@ -1049,7 +1077,20 @@ function makeEffectStage(canvas, textureUrl) {
     gl.depthMask(true);
   }
 
-  const stageApi = { draw, camera, setTarget, setLayout, caster, onView: null, get targets() { return anchors.map(a => a.slice()); }, get layout() { return { ...layout }; } };
+  const stageApi = {
+    draw, camera, setTarget, setLayout, caster, onView: null,
+    get targets() { return anchors.map(a => a.slice()); }, get layout() { return { ...layout }; },
+    // For a caller that plays the battle itself (summons.js): its camera, its models, the map's tint, who is hidden.
+    override: null, extras: [], mapTint: null, hide: null,
+    /// Where the battle plays an effect on each: the monsters standing (their hit points) and the party's four.
+    places() {
+      return {
+        monsters: target.party ? [] : figures.map(f => ({ feet: f.feet, hit: hitPoint(f.feet, target.toward, target.up) })),
+        party: PARTY_PLACES.map(feet => ({ feet, hit: hitPoint(feet, 9, 5) }))
+      };
+    },
+    BATTLE_EYE, BATTLE_AT, ALL_MONSTERS, ALL_PARTY
+  };
   relayout();
   return stageApi;
 }

@@ -152,6 +152,9 @@ async function loadList() {
         s.attachments && `${s.attachments} behaviour${s.attachments === 1 ? '' : 's'}`,
         s.points && `${s.points} object${s.points === 1 ? '' : 's'}`].filter(Boolean).join(', ')
     }));
+  } else if (state.browse === 'summon') {
+    // FF3's eight summons, each with its three outcomes (summons.js).
+    state.files = typeof summonsForList === 'function' ? await summonsForList() : [];
   } else if (state.browse === 'spells') {
     // The mod's spells (magic items of defs/items) and the game's (spell-defs.js).
     state.files = typeof spellsForList === 'function' ? await spellsForList() : [];
@@ -443,6 +446,7 @@ function fileIcon(file) {
   if (state.browse === 'scene') return 'scene';
   if (state.browse === 'items') return 'item';
   if (state.browse === 'spells') return 'effect';
+  if (state.browse === 'summon') return 'effect';
   if (state.browse === 'characters') return 'character';
   if (state.browse === 'strings') return 'text';
   if (state.browse === 'monsters') return 'monster';
@@ -495,6 +499,7 @@ async function dispatchOpen(kind, name) {
   else if (kind === 'model') await openModel(name);
   else if (kind === 'cell') await openCell(name);
   else if (kind === 'effect') await openEffect(name);
+  else if (kind === 'summon') await openSummon(name);
   else if (kind === 'code') await openCodeFile(name);
   else if (kind === 'strings') await openStrings(name);
   else if (kind === 'castcode') await openCastCodeView(name);

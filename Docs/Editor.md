@@ -1101,6 +1101,26 @@ alone, in Ur: the first hero in a job that casts the spell's school (Black or Wh
 Evoker), level 99 and rested, knowing the spell, in the battle - choose Magic and cast it. A test
 needs the game closed to begin (it runs its own steps).
 
+## Summons
+
+**Summons** (FF3): the eight - Chocobo, Shiva, Ramuh, Ifrit, Titan, Odin, Leviathan, Bahamut, each
+by its creature and its spell - and for each its three outcomes as the battle names them
+(white and black, an Evoker's, half and half; combine, a Summoner's: Diamond Dust, Mega Flare…).
+One opens as the battle plays it, on the effect Stage: the map darkened to its colour and back,
+the screen faded, the summon's model (f201…f208) placed, faded in and moving in its motion
+(b_sm001…008), the camera's cuts, glides and shakes, its effects at the summon, over a side, at a
+point or on each target half the spell's play frame apart, flashes, the monsters hidden and
+shown, the party coming back. Beside it the script, a step a row in words ("fade out to black
+over 10 frames", "effect 367/1 over the enemies"), the one running marked; a click goes to the
+frame it first runs at. Play, Step, Restart, the scrubber, loop, the battle map.
+
+The script is the game's own - `files/summon_script_command.pack`, 24 lists of 36-byte records
+(`Crystal.Editor/Editor/Summons.cs`, `/api/summons`, `/api/summon`) - and `wwwroot/summons.js`
+is a port of the battle's interpreter (`btl.BaseSummon.run`, `btl.SummonCommand`): a record a
+step, the next in the same step when marked, a wait run again until it is done, the one frame
+counter the waits and the camera's glides share, the glide's whole-unit steps. What is not drawn:
+the damage numbers, the sounds, a random-target spell's jitter.
+
 ## Effects
 
 The game's effect packs (FF3's `e###.efp` and the field's), each named after what plays it -

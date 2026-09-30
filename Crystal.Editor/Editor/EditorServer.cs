@@ -2151,6 +2151,17 @@ namespace Crystal.Editor
 						return;
 					}
 
+				case "/api/summons":
+					// FF3's summons: the eight and their three outcomes (Summons.cs).
+					try { SendJson(context, Summons.List(_workspace)); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+
+				case "/api/summon":
+					try { SendJson(context, Summons.Script(_workspace, int.Parse(Query(context, "level") ?? "0", CultureInfo.InvariantCulture), int.Parse(Query(context, "type") ?? "0", CultureInfo.InvariantCulture))); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+
 				case "/api/project/test-spell":
 					TestSpell(context);
 					return;

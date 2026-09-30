@@ -288,7 +288,8 @@ the port's addition). The tracks that are neither: `sound` (`archive`, `number`,
 
 ## Open questions
 
-- **Summons.** Partly answered by stage 1: a summon is its script (`summon_script_command.pack`)
+- **Summons.** Crystal plays them now (Summons, `wwwroot/summons.js`: the game's scripts through a
+  port of the battle's interpreter). Partly answered by stage 1: a summon is its script (`summon_script_command.pack`)
   loading packs and drawing members, its outcomes spell records of their own. Whether a
   definition replaces a summon step by step or its script whole is still open.
 - **The DS textures** - answered: A3I5 (774) and 256-colour (24), 32-colour palettes, none

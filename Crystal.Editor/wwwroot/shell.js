@@ -26,6 +26,7 @@ const KINDS = [
   { id: 'model', label: 'Models' },
   { id: 'cell', label: 'Cells' },
   { id: 'effect', label: 'Effects' },
+  { id: 'summon', label: 'Summons' },
   { id: 'audio', label: 'Audio' },
   // The mod's own files sit under a folder of their own at the bottom, below a rule:
   // they belong to the project, not to either game, so they are the same whichever

@@ -47,6 +47,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: Mod ▸ Spells lists the game's spells and the mod's; New spell… makes one from a game spell with a copy of its effect; Test in battle tries it in OpenFF.
 - Characters: every hero's learn list applies - a spell at level 1 is known from a new game on.
 - Drives: job, level, heal and charges steps.
+- Crystal: Summons plays FF3's eight summons and their three outcomes as the battle does - the summon, its camera, its effects - with the script beside, step by step.
 - Crystal: Run in OpenFF plays the open project's mod alone; Run with the other mods plays it among the rest.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
 - Crystal: resting the pointer on an effect in the library plays it.

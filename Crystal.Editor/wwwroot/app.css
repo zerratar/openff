@@ -2775,3 +2775,18 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 .menu-frame-check:hover { background: rgba(110, 168, 254, .08); }
 .menu-frame-check i { margin-left: auto; font-style: normal; font-size: 10px; color: var(--dim); }
 #inspector .sub.spell-note { word-break: normal; overflow-wrap: break-word; }
+
+/* A summon's view: the Stage and its controls, the script beside, the step playing marked. */
+.summon-split { flex: 1; display: flex; min-height: 0; }
+.summon-left { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.summon-steps { width: 340px; flex: 0 0 340px; overflow: auto; border-left: 1px solid var(--line); background: #15171c; font-size: 11px; }
+.summon-steps-head { position: sticky; top: 0; background: #15171c; padding: 6px 8px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--line); }
+.summon-step { display: grid; grid-template-columns: 26px 1fr; column-gap: 6px; padding: 3px 8px; cursor: pointer; border-left: 2px solid transparent; }
+.summon-step:hover { background: rgba(110, 168, 254, .06); }
+.summon-step.on { background: rgba(110, 168, 254, .16); border-left-color: var(--accent); }
+.summon-step.again { padding-top: 0; }
+.summon-step i { font-style: normal; color: var(--dim); font-variant-numeric: tabular-nums; grid-row: span 2; }
+.summon-step b { font-weight: 600; color: var(--ink); }
+.summon-step span { color: var(--dim); }
+.summon-step.again b::before { content: '↳ '; color: var(--dim); }
+.summon-fade { background: #000; }
