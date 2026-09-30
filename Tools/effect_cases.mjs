@@ -25,7 +25,7 @@ let failed = 0, checked = 0;
 for (const file of readdirSync(dir).filter(f => f.endsWith('.case.json')).sort()) {
   const path = join(dir, file);
   const c = JSON.parse(readFileSync(path, 'utf8'));
-  const player = makeEffectPlayer(c.effect, { seed: c.seed || 1 });
+  const player = makeEffectPlayer(c.effect, { seed: c.seed || 1, anchor: c.anchor || [0, 0, 0], anchors: c.anchors || {} });
   const want = new Set(c.frames);
   const got = {};
   const last = Math.max(...c.frames);

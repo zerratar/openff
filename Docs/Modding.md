@@ -1014,6 +1014,11 @@ name is its id.
   the caster's glow) - the battle plays it where it would play the spell's own, on every target.
   Code: `Game.Effects.Spawn("<id>", position)`. A cutscene: an *Effect* clip on an object's, the
   hero's or the game track (`name`, `position`, `follow`, `keep`).
+- **Where on the stage.** A track plays on the target (the default), the `caster` (its hit
+  point in battle, the hero on the field), `between` them or the `world`; a path can run `from`
+  one `to` another with an `arc` - a bolt. Tracks besides the particles: a `mesh` (the game's
+  model, or a glTF of the mod's posed by its clip), a `sound`, a `flash` of the screen, a `shake`
+  of the camera.
 - **Pictures.** `"image"` is a PNG beside the definition, or one of the game's by
   `game:<pack>:<name>` (read from the player's install, never copied into the mod - Crystal's
   Effects library shows each pack's).

@@ -94,9 +94,9 @@ function effectPathAt(path, steps) {
 }
 
 /// A player of one definition. step() is one game step; particles() what to draw after it.
-function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = true } = {}) {
-  const tracks = (def.tracks || []).filter(t => t.type === 'emitter' || t.type === 'mesh');
-  let rand, frame, cycle, live, meshes, stopping;
+function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, faithfulSpread = true } = {}) {
+  const tracks = (def.tracks || []).map(t => t.type ? t : { ...t, type: 'emitter' });
+  let rand, frame, cycle, live, meshes, stopping, started = [];
 
   function reset() {
     rand = effectRandom(seed);
@@ -120,11 +120,39 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
     });
   }
 
+  /// An anchor by name: target (the default), caster (the target when there is none), between (their middle), world (the origin).
+  function anchorOf(name) {
+    const caster = anchors.caster || anchor;
+    switch ((name || 'target').toLowerCase()) {
+      case 'world': return [0, 0, 0];
+      case 'caster': return caster;
+      case 'between': return [0, 1, 2].map(k => (caster[k] + anchor[k]) / 2);
+      default: return anchors[name] || anchor;
+    }
+  }
+
+  /// A path from one anchor to another over its length in steps, rising by its arc at the middle.
+  function spanAt(path, steps) {
+    const from = anchorOf(path.from), to = anchorOf(path.to || 'target');
+    const length = Math.max(1, path.length || 0);
+    let s = steps / length;
+    if (path.end === 'repeat') s -= Math.floor(s);
+    else if (path.end === 'pingpong') { const k = Math.floor(s); s -= k; if (k % 2 !== 0) s = 1 - s; }
+    else s = Math.min(1, s);
+    const arc = path.arc || 0;
+    return [from[0] + (to[0] - from[0]) * s, from[1] + (to[1] - from[1]) * s + arc * 4 * s * (1 - s), from[2] + (to[2] - from[2]) * s];
+  }
+
   function where(e) {
     const t = e.track;
-    const p = effectPathAt(t.path, Math.max(0, e.steps - 1));
     const o = t.offset || [0, 0, 0];
-    return [anchor[0] + o[0] + p[0], anchor[1] + o[1] + p[1], anchor[2] + o[2] + p[2]];
+    if (t.path && t.path.from !== undefined) {
+      const q = spanAt(t.path, Math.max(0, e.steps - 1));
+      return [q[0] + o[0], q[1] + o[1], q[2] + o[2]];
+    }
+    const p = effectPathAt(t.path, Math.max(0, e.steps - 1));
+    const a = anchorOf(t.anchor);
+    return [a[0] + o[0] + p[0], a[1] + o[1] + p[1], a[2] + o[2] + p[2]];
   }
 
   function makeGroup(e) {
@@ -231,6 +259,7 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
 
   function step() {
     frame++;
+    started = [];
     const length = def.length || 0;
     // The timeline: tracks start on their frame of the pass; a looping effect runs it again after its end.
     if (def.loop && frame - cycle > length) cycle = frame;
@@ -240,6 +269,7 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
       // A pass after the first leaves a looping emitter that is still going alone (the sequence's `first`).
       if (cycle > 0 && t.id !== undefined && live.some(e => e.track === t && !e.done && (t.emission || {}).loop)) continue;
       if (t.type === 'mesh') { if (cycle === 0 || def.loop) meshes.push({ track: t, steps: 0, at: [0, 0, 0], prev: null }); continue; }
+      if (t.type !== 'emitter') { if (cycle === 0 || def.loop) started.push(t); continue; }   // a sound, a flash, a shake: the host plays it
       if (cycle === 0 || def.loop) start(t);
     }
     // A model plays its motion a frame a step, riding its path as an emitter does; the Stage ends it with its motion.
@@ -286,13 +316,17 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], faithfulSpread = 
   /// The models to draw now: each with its track, where it is (and was), and the frame of its motion (0 its first).
   function models() {
     if (frame >= (def.length || 0) && !def.loop && live.every(e => e.done)) return [];
-    return meshes.map(m => ({ track: m.track, pos: m.at, prev: m.prev || m.at, frame: m.steps - 1 }));
+    // A mesh with a life of its own shows for it; else while the effect plays.
+    return meshes.filter(m => m.track.life === undefined || m.steps <= m.track.life)
+      .map(m => ({ track: m.track, pos: m.at, prev: m.prev || m.at, frame: m.steps - 1 }));
   }
 
   reset();
   return {
     reset, step, particles, models,
     get frame() { return frame; },
+    /// The tracks of other kinds that started on the last step (a sound, a flash, a shake).
+    get started() { return started; },
     /// Whether everything it started has finished (and it does not loop).
     get finished() { return !def.loop && frame >= (def.length || 0) && live.every(e => e.done); }
   };
@@ -580,8 +614,10 @@ function makeEffectStage(canvas, textureUrl) {
     const ratio = window.devicePixelRatio || 1;
     if (canvas.width !== Math.round(w * ratio) || canvas.height !== Math.round(h * ratio)) { canvas.width = Math.round(w * ratio); canvas.height = Math.round(h * ratio); }
     const yaw = camera.yaw * EFFECT_DEG, pitch = camera.pitch * EFFECT_DEG;
-    const eye = [camera.target[0] + camera.distance * Math.cos(pitch) * Math.sin(yaw), camera.target[1] + camera.distance * Math.sin(pitch), camera.target[2] + camera.distance * Math.cos(pitch) * Math.cos(yaw)];
-    return { view: effectLookAt(eye, camera.target), projection: effectPerspective(40 * EFFECT_DEG, w / h, 0.5, 500) };
+    const jolt = camera.jolt || [0, 0];
+    const look = [camera.target[0] + jolt[0], camera.target[1] + jolt[1], camera.target[2]];
+    const eye = [look[0] + camera.distance * Math.cos(pitch) * Math.sin(yaw), look[1] + camera.distance * Math.sin(pitch), look[2] + camera.distance * Math.cos(pitch) * Math.cos(yaw)];
+    return { view: effectLookAt(eye, look), projection: effectPerspective(40 * EFFECT_DEG, w / h, 0.5, 500) };
   }
 
   let dragging = null;
@@ -600,6 +636,13 @@ function makeEffectStage(canvas, textureUrl) {
     target = { toward: t.toward || 0, up: t.up || 0, scale: t.scale || 1, turn: t.turn || 0, model: t.model || null };
     camera.target = [0, 1, -target.toward / 3];
     layGround();
+  }
+
+  // The caster stands at the party's side, on the target's ground, as the battle stands them apart; its hit point
+  // (9 toward the camera, 5 up, as the party's) is the caster anchor.
+  const CASTER_X = 30;
+  function caster() {
+    return { feet: [CASTER_X, -target.up, -target.toward], anchor: [CASTER_X, -target.up + 5, -target.toward + 9] };
   }
 
   function draw(quads, between, meshes = []) {
@@ -641,15 +684,29 @@ function makeEffectStage(canvas, textureUrl) {
       }
       scene.push({ m, world: placed([0, -target.up, -target.toward], target.scale, target.turn), frame: Math.floor(performance.now() / 1000 * 30) });
     }
+    // The caster: Luneth at the party's side.
+    {
+      const c = caster(), luneth = 'files/j101.nmdp.lz';
+      const m = loadModel('caster:' + luneth, `/api/model?name=${encodeURIComponent(luneth)}`,
+        tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(luneth)}&texture=${encodeURIComponent(tex)}`));
+      scene.push({ m, world: placed(c.feet, 1, -90), frame: 0 });
+    }
     for (const e of meshes) {
       const k = /^game:([^:]+):(.+)$/.exec(e.track.model || '');
-      if (!k) continue;
-      const m = loadModel(e.track.model, `/api/effect/model?pack=${encodeURIComponent(k[1])}&id=${encodeURIComponent(k[2])}`,
-        tex => wsUrl(`/api/effect/model/texture?pack=${encodeURIComponent(k[1])}&id=${encodeURIComponent(k[2])}&name=${encodeURIComponent(tex)}`));
+      let m;
+      if (k) {
+        m = loadModel(e.track.model, `/api/effect/model?pack=${encodeURIComponent(k[1])}&id=${encodeURIComponent(k[2])}`,
+          tex => wsUrl(`/api/effect/model/texture?pack=${encodeURIComponent(k[1])}&id=${encodeURIComponent(k[2])}&name=${encodeURIComponent(tex)}`));
+      } else if (e.track.model) {
+        // A glTF of the mod's (a path from the project's folder), in its bind pose on the Stage.
+        const path = e.track.model;
+        m = loadModel('gltf:' + path, `/api/model?name=${encodeURIComponent(path)}`,
+          tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(path)}&texture=${encodeURIComponent(tex)}`));
+      } else continue;
       // A model without a loop ends with its motion (eld.ImpModelDS: StopToDead at the motion's end).
       if (m.ready && m.pose && !m.loop && e.frame >= m.pose.frames) continue;
       const pos = [0, 1, 2].map(i => e.prev[i] + (e.pos[i] - e.prev[i]) * between);
-      scene.push({ m, world: placed(pos, e.track.scale || 1), frame: e.frame });
+      scene.push({ m, world: placed(pos, e.track.scale || 1, e.track.yaw || 0), frame: e.frame });
     }
     for (const it of scene) drawModel(it.m, it.world, it.frame, false, view, projection);
     gl.enable(gl.BLEND);
@@ -706,7 +763,7 @@ function makeEffectStage(canvas, textureUrl) {
     gl.depthMask(true);
   }
 
-  return { draw, camera, setTarget };
+  return { draw, camera, setTarget, caster };
 }
 
 // ------------------------------------------------------------------ the view
@@ -746,7 +803,32 @@ async function openEffect(name) {
   stageBox.className = 'effect-stage';
   const canvas = document.createElement('canvas');
   canvas.className = 'scene';
-  stageBox.append(canvas);
+  // A flash track's colour over the Stage (the game's screen flash), and a shake's jolt of the camera.
+  const flash = document.createElement('div');
+  flash.className = 'effect-flash';
+  stageBox.append(canvas, flash);
+  let flashLeft = 0, flashOn = 0, flashOff = 0, flashColour = '#fff', shakeLeft = 0, shakePower = 0;
+  function playStarted() {
+    for (const t of player.started || []) {
+      const frames = t.frames || 8;
+      if (t.type === 'flash') {
+        const c = t.colour || [255, 255, 255];
+        flashColour = `rgb(${c[0] | 0}, ${c[1] | 0}, ${c[2] | 0})`;
+        flashOn = frames; flashOff = t.interval === undefined ? 2 : t.interval;
+        flashLeft = (flashOn + flashOff) * Math.max(1, t.count || 1);
+      } else if (t.type === 'shake') { shakeLeft = frames; shakePower = t.power === undefined ? 0.25 : t.power; }
+    }
+  }
+  function stepScreen() {
+    if (flashLeft > 0) {
+      const at = (flashOn + flashOff) - (flashLeft % (flashOn + flashOff || 1));
+      flash.style.background = flashColour;
+      flash.style.opacity = at <= flashOn ? '0.8' : '0';
+      flashLeft--;
+    } else flash.style.opacity = '0';
+    if (shakeLeft > 0) { shakeLeft--; stage.camera.jolt = [(Math.random() - 0.5) * 2 * shakePower, (Math.random() - 0.5) * 2 * shakePower]; }
+    else stage.camera.jolt = null;
+  }
   const controls = document.createElement('div');
   controls.className = 'effect-controls bar';
   const button = (text, title) => { const b = document.createElement('button'); b.textContent = text; b.title = title; controls.append(b); return b; };
@@ -816,9 +898,10 @@ async function openEffect(name) {
     def = r.effect;
     json.textContent = JSON.stringify(def, null, 1).replace(/\[\s+([-\d.,\s]+?)\s+\]/g, (m, inner) => '[' + inner.replace(/\s+/g, ' ').trim() + ']')
       + (r.notes && r.notes.length ? '\n\n' + r.notes.map(n => '// ' + n).join('\n') : '');
-    player = makeEffectPlayer(def, { seed: 7 });
+    const anchors = { caster: stage.caster().anchor };
+    player = makeEffectPlayer(def, { seed: 7, anchors });
     // How long a pass takes: played through once, to its end.
-    const probe = makeEffectPlayer(def, { seed: 7 });
+    const probe = makeEffectPlayer(def, { seed: 7, anchors });
     let n = 0;
     if (def.loop) n = (def.length || 0) + 1;
     else while (n < 900 && !probe.finished) { probe.step(); n++; }
@@ -836,7 +919,7 @@ async function openEffect(name) {
   }
 
   play.onclick = () => { playing = !playing; play.textContent = playing ? 'Pause' : 'Play'; };
-  stepOne.onclick = () => { playing = false; play.textContent = 'Play'; if (player) { if (player.finished) player.reset(); player.step(); } };
+  stepOne.onclick = () => { playing = false; play.textContent = 'Play'; if (player) { if (player.finished) player.reset(); player.step(); playStarted(); stepScreen(); } };
   again.onclick = () => { if (player) player.reset(); owed = 0; };
   scrub.oninput = () => { playing = false; play.textContent = 'Play'; goTo(parseInt(scrub.value, 10)); };
   pick.onchange = () => load(pick.value);
@@ -852,6 +935,8 @@ async function openEffect(name) {
         owed -= 1;
         if (player.finished) { if (loop.checked) player.reset(); else { playing = false; play.textContent = 'Play'; break; } }
         player.step();
+        playStarted();
+        stepScreen();
       }
       between = fpsPick.value === '60' ? Math.max(0, Math.min(1, owed)) : 1;
     }

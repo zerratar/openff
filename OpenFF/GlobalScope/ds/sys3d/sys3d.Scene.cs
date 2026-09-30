@@ -106,8 +106,12 @@ internal static partial class GlobalScope
 						}
 					}
 					_graph.drawObjects();
-					// PORT: the mods' own effects, right after the game's (OpenFF.Client.ModEffects).
-					OpenFF.Client.ModEffects.DrawScene();
+					// PORT: the mods' own effects, right after the game's - in the scene the game's effects are drawn in (the effect
+					// server's), not in the other one of the frame's two, which would draw them twice (OpenFF.Client.ModEffects).
+					if (eld.g_elsvr.scene() == this)
+					{
+						OpenFF.Client.ModEffects.DrawScene();
+					}
 					if (bVBlank && CDevice.singleton().getFPS() == CDevice.enFPS.enFPS_30)
 					{
 						ulong num = (ulong)OS_GetTick() - CDevice.singleton().getPreVBlankTick();

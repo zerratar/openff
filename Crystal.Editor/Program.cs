@@ -303,6 +303,8 @@ namespace Crystal
 				OpenFF.Effects.EffectDefinition def = OpenFF.Effects.EffectDefinition.Read(c["effect"].AsObject());
 				uint seed = c["seed"] != null ? (uint)c["seed"].GetValue<int>() : 1u;
 				OpenFF.Effects.EffectPlayer player = new OpenFF.Effects.EffectPlayer(def, seed);
+				if (c["anchor"] is System.Text.Json.Nodes.JsonArray anchor) player.Anchor = anchor.Select(v => v.GetValue<double>()).ToArray();
+				if (c["anchors"] is System.Text.Json.Nodes.JsonObject anchors) foreach (var kv in anchors) player.Anchors[kv.Key] = kv.Value.AsArray().Select(v => v.GetValue<double>()).ToArray();
 				List<int> frames = c["frames"].AsArray().Select(f => f.GetValue<int>()).ToList();
 				List<string> problems = new List<string>();
 				for (int f = 0; f <= frames.Max(); f++)

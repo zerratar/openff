@@ -265,7 +265,7 @@ passed; these are the rest.
 
 - `node Tools/effect_cases.mjs` and `crystal effect-cases` - the JS player (Crystal's Stage) and
   the client's (`Shared/Effects/EffectPlayer.cs`) against `Tools/EffectCases`: an effect, a seed,
-  frames and the quads each draws. Both say "4/4 case(s) pass"; a change to either player that
+  frames and the quads each draws. Both say "5/5 case(s) pass"; a change to either player that
   changes what it draws fails both until the other follows and the cases are written again
   (`--write`, from the JS).
 - `Samples/EmeraldFire` in `mods/`, a drive `until jump: ff3 90`, `wait 4`, `learn 0 4101`,

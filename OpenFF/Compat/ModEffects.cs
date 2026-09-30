@@ -12,8 +12,11 @@
 // in world units, through NativeRenderer.Draw with the depth test and without writing depth, alpha or
 // additive; each particle's draws its own (FrameCapture.Own), so at 60 frames a second a particle is
 // drawn between its two steps. A texture is the game's (game:<pack>:<name>, decoded from the pack in
-// the install) or a PNG beside the definition. A model (a mesh track: game:<pack>:0x<id>) is the
-// game's own object for it - eld draws it and plays its motion - placed where the track is.
+// the install) or a PNG beside the definition. A model (a mesh track) is the game's own object for
+// one of its (game:<pack>:0x<id> - eld draws it and plays its motion) or a glTF of the mod's (a path
+// from the mod's folder, posed by its clip), placed where the track is. The caster anchor is the
+// acting character's hit point in battle, the hero on the field; the sound, flash and shake tracks
+// are the battle's own there, the field's API's on the field.
 //
 // A definition changed while the game runs plays as saved the next time it starts.
 
@@ -113,12 +116,40 @@ namespace OpenFF.Client
 			if (!_byCategory.TryGetValue(category, out Entry e)) return null;
 			EffectDefinition def = Definition(e);
 			if (def == null) return null;
-			ModEffectObject o = new ModEffectObject(e.Id, System.IO.Path.GetDirectoryName(e.Path), new EffectPlayer(def, _seed++));
+			EffectPlayer player = new EffectPlayer(def, _seed++);
+			double[] caster = Caster();
+			if (caster != null) player.Anchors["caster"] = caster;
+			ModEffectObject o = new ModEffectObject(e.Id, System.IO.Path.GetDirectoryName(e.Path), player);
 			o.setNumberInformation(category, member);
 			PreparePacks(def);
 			lock (_live) _live.Add(o);
 			return o;
 		}
+
+		/// <summary>Where the caster is: the acting character's hit point in battle (the turn system's), the hero on the field; null when neither.</summary>
+		private static double[] Caster()
+		{
+			try
+			{
+				if (InBattle)
+				{
+					GlobalScope.btl.TurnSystem turn = GlobalScope.btl.TurnSystem.Current;
+					GlobalScope.btl.BaseBattleCharacter who = turn?.nowCharacter();
+					if (who == null) return null;
+					GlobalScope.VecFx32 at = turn.HitPoint(who);
+					return new[] { at.x / 4096.0, at.y / 4096.0, at.z / 4096.0 };
+				}
+				if (OpenFF.Game.Hero.Present)
+				{
+					OpenFF.Vector3 hero = OpenFF.Game.Hero.Position;
+					return new double[] { hero.X, hero.Y + 6, hero.Z };
+				}
+			}
+			catch (Exception) { }
+			return null;
+		}
+
+		internal static bool Battle => InBattle;
 
 		internal static void Forget(ModEffectObject o)
 		{
@@ -190,6 +221,26 @@ namespace OpenFF.Client
 			if (parts.Length != 2) return false;
 			pack = parts[0]; what = parts[1];
 			return true;
+		}
+
+		private static readonly Dictionary<string, GltfModel> _gltf = new Dictionary<string, GltfModel>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>A mesh track's glTF: a path from the mod's folder (the one defs/ is in), loaded once.</summary>
+		internal static GltfModel Gltf(GraphicsDevice device, string model, string folder)
+		{
+			if (string.IsNullOrEmpty(model) || model.StartsWith("game:", StringComparison.OrdinalIgnoreCase)) return null;
+			string root = System.IO.Path.GetFullPath(System.IO.Path.Combine(folder ?? "", "..", ".."));
+			string full = System.IO.Path.IsPathRooted(model) ? model : System.IO.Path.GetFullPath(System.IO.Path.Combine(root, model));
+			lock (_gltf)
+			{
+				if (_gltf.TryGetValue(full, out GltfModel known)) return known;
+				GltfModel m = null;
+				try { m = File.Exists(full) ? GltfModel.Load(full, device) : null; } catch (Exception ex) { Log.First(LogChannel.General, "effect-gltf-" + full, 1, () => "effects: " + model + ": " + ex.Message); }
+				if (m == null) Log.First(LogChannel.General, "effect-gltf-" + full, 1, () => "effects: no model " + model + " (" + full + ")");
+				else if (m.Problem != null) Log.First(LogChannel.General, "effect-gltf-" + full, 1, () => "effects: " + model + ": " + m.Problem);
+				_gltf[full] = m;
+				return m;
+			}
 		}
 
 		private static byte[] Read(string name)
@@ -337,19 +388,35 @@ namespace OpenFF.Client
 			try
 			{
 				JsonObject r = t.Raw;
+				int frames = r["frames"] != null ? EffectDefinition.Int(r["frames"]) : 8;
 				if (t.Type == "sound")
 				{
-					int group = EffectDefinition.Int(r["group"]), number = EffectDefinition.Int(r["number"]);
-					GlobalScope.btl.BattleSE.instance().load(group);
-					GlobalScope.btl.BattleSE.instance().play(group, number);
+					// A sound of the game's, by its archive and number (as a cutscene's se clip has them); the archive loaded first when asked.
+					int archive = EffectDefinition.Int(r["archive"] ?? r["group"]), number = EffectDefinition.Int(r["number"]);
+					int volume = r["volume"] != null ? EffectDefinition.Int(r["volume"]) : 127;
+					if (EffectDefinition.Bool(r["load"])) GlobalScope.MatrixSound.MtxSENDS_Load(archive);
+					GlobalScope.MatrixSound.MtxSENDS_Play(archive, number, volume, 64);
 				}
-				else if (t.Type == "shake" && GlobalScope.btl.BattleEffect.instance() != null)
+				else if (t.Type == "shake")
 				{
-					double power = EffectDefinition.Num(r["power"]);
-					int frames = r["frames"] != null ? EffectDefinition.Int(r["frames"]) : 10;
-					GlobalScope.VecFx32 strength = new GlobalScope.VecFx32();
-					strength.x = strength.y = strength.z = (int)Math.Round((power != 0 ? power : 0.25) * 4096);
-					GlobalScope.btl.battleDisplay.readyShakeCamera(frames, strength);
+					double power = r["power"] != null ? EffectDefinition.Num(r["power"]) : 0.25;
+					if (ModEffects.Battle)
+					{
+						GlobalScope.VecFx32 strength = new GlobalScope.VecFx32();
+						strength.x = strength.y = strength.z = (int)Math.Round(power * 4096);
+						GlobalScope.btl.battleDisplay.readyShakeCamera(frames, strength);
+					}
+					else OpenFF.Game.Camera.Shake(frames, (float)power, r["speed"] != null ? EffectDefinition.Int(r["speed"]) : 2);
+				}
+				else if (t.Type == "flash")
+				{
+					// The screen flashed a colour (white when none): count times, frames on and interval off.
+					double[] c = EffectDefinition.Numbers(r["colour"]) ?? new double[] { 255, 255, 255 };
+					int red = (int)Math.Clamp(c.Length > 0 ? c[0] : 255, 0, 255), green = (int)Math.Clamp(c.Length > 1 ? c[1] : 255, 0, 255), blue = (int)Math.Clamp(c.Length > 2 ? c[2] : 255, 0, 255);
+					int interval = r["interval"] != null ? EffectDefinition.Int(r["interval"]) : 2, count = r["count"] != null ? EffectDefinition.Int(r["count"]) : 1;
+					if (ModEffects.Battle && GlobalScope.btl.TurnSystem.Current != null)
+						GlobalScope.btl.TurnSystem.Current.flash_.setFlashEx((byte)Math.Clamp(count, 1, 255), (short)Math.Max(1, frames), (short)Math.Max(0, interval), GlobalScope.GX_RGB(red >> 3, green >> 3, blue >> 3));
+					else OpenFF.Game.Screen.Flash(new OpenFF.Color((byte)red, (byte)green, (byte)blue, 255), Math.Max(1, frames * Math.Max(1, count)), Math.Max(1, interval));
 				}
 			}
 			catch (Exception ex) { Log.First(LogChannel.General, "effect-track-" + _id + t.Type, 2, () => "effects: " + _id + ": " + t.Type + ": " + ex.Message); }
@@ -360,6 +427,7 @@ namespace OpenFF.Client
 		{
 			foreach (EffectModel m in _player.Models())
 			{
+				if (m.Track.Model == null || !m.Track.Model.StartsWith("game:", StringComparison.OrdinalIgnoreCase)) continue;   // a glTF: drawn here
 				if (!_models.TryGetValue(m.Instance, out GlobalScope.eld.IObject o))
 				{
 					o = ModEffects.CreateModel(m.Track);
@@ -369,9 +437,59 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>The mesh tracks that are the mod's glTFs: posed by their clip at the track's time, drawn as the mod's meshes are.</summary>
+		private void DrawGltf(GraphicsDevice device, Matrix camera, Matrix projection)
+		{
+			foreach (EffectModel m in _player.Models())
+			{
+				GltfModel model = ModEffects.Gltf(device, m.Track.Model, _folder);
+				if (model == null || model.Primitives.Count == 0) continue;
+				JsonObject r = m.Track.Raw;
+				VertexPositionColorTexture[][] posed = null;
+				string clip = EffectDefinition.Text(r["clip"]);
+				if (clip != null && model.File != null)
+				{
+					OpenFF.Graphics.GltfAnimation anim = model.File.Animations.Find(a => string.Equals(a.Name, clip, StringComparison.OrdinalIgnoreCase));
+					if (anim != null)
+					{
+						double speed = r["speed"] != null ? EffectDefinition.Num(r["speed"]) : 1;
+						float time = (float)(m.Frame / 30.0 * speed);
+						if (anim.Duration > 0) time = EffectDefinition.Bool(r["loop"]) ? time % anim.Duration : Math.Min(time, anim.Duration);
+						OpenFF.Graphics.GltfFile file = model.File;
+						file.Pose(file.WorldMatrices(anim, time));
+						posed = new VertexPositionColorTexture[file.Meshes.Count][];
+						for (int i = 0; i < file.Meshes.Count; i++)
+						{
+							OpenFF.Graphics.GltfMesh mesh = file.Meshes[i];
+							OpenFF.Graphics.GltfMaterial material = mesh.Material >= 0 && mesh.Material < file.Materials.Count ? file.Materials[mesh.Material] : new OpenFF.Graphics.GltfMaterial();
+							posed[i] = GltfModel.Vertices(mesh, material);
+						}
+					}
+				}
+				double[] s = m.Track.MeshScale ?? new double[] { 1 };
+				XnaVector3 scale = s.Length >= 3 ? new XnaVector3((float)s[0], (float)s[1], (float)s[2]) : new XnaVector3((float)s[0]);
+				float yaw = (float)EffectDefinition.Num(r["yaw"]);
+				Matrix world = Matrix.CreateScale(scale) * Matrix.CreateRotationY(MathHelper.ToRadians(yaw)) * Matrix.CreateTranslation((float)m.X, (float)m.Y, (float)m.Z) * camera;
+				for (int i = 0; i < model.Primitives.Count; i++)
+				{
+					GltfPrimitive p = model.Primitives[i];
+					VertexPositionColorTexture[] vertices = posed != null && i < posed.Length && posed[i] != null ? posed[i] : p.Vertices;
+					using (FrameCapture.Own(m.Instance, i + 1))
+					{
+						NativeRenderer.Draw(device, 4u, vertices, 0, vertices.Length, world, projection, p.Texture,
+							TextureFilter.Linear, TextureAddressMode.Wrap, TextureAddressMode.Wrap,
+							alphaTest: !p.Translucent, alphaReference: 0.5f, alphaFunction: CompareFunction.Greater,
+							depthTest: true, depthWrite: !p.Translucent, depthFunction: CompareFunction.LessEqual,
+							cull: false, cullMode: CullMode.None, destinationBlend: Blend.InverseSourceAlpha);
+					}
+				}
+			}
+		}
+
 		public void Draw(GraphicsDevice device, Matrix camera, Matrix projection, XnaVector3 right, XnaVector3 up)
 		{
 			if (_dead) return;
+			DrawGltf(device, camera, projection);
 			_player.Quads(_quads);
 			foreach (EffectQuad q in _quads)
 			{

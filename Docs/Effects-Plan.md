@@ -201,8 +201,11 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    `Scene.draw` through `NativeRenderer.Draw` (alpha or additive), each particle recorded by
    `FrameCapture` so 60 fps draws it between steps; mesh tracks are the game's own model objects.
    Spells name them (`defs/spells` `effect`, `cast`), `IEffects.Spawn(id, position)`, the
-   cutscene's *Effect* clip; sound and shake tracks; hot reload as the effect starts.
-   `Samples/EmeraldFire`. Not yet: anchors besides the target, a glTF mesh track, flash.
+   cutscene's *Effect* clip; hot reload as the effect starts. Anchors: the target, the caster
+   (its hit point in battle, the hero on the field), between them, the world; a path from one
+   anchor to another with an arc (a bolt). Sound, flash and shake tracks, the battle's own in
+   battle and the field's API on the field. A mesh track is the game's model or a glTF of the
+   mod's, posed by its clip. `Samples/EmeraldFire`.
 4. **The editor** (large). The inspector, curves, gradients, timeline, the item card's picker,
    *Duplicate into the mod*, *Play in the game*. *Done when* a modder can make a new spell's
    effect in Crystal from one of the game's without touching JSON.
@@ -216,9 +219,15 @@ The first cut of the format above, what the Stage plays today: an effect is `for
 `loop`, and `tracks`. A track is `type` (`emitter`, or `mesh`: `model` - `game:<pack>:0x<id>`, the
 game's own -, `scale`, `loop`; it plays its motion and ends with it), `name`,
 `start` (its frame), `id` (the sequence's, for a loop not to be booted twice), `anchor`
-(`target`), `offset`, `path` (`point`, or `segments` of four points - P0, P1 and the two
-tangents - with `curve`, `times`, `length` and `end`: hold, pingpong, repeat) and `stop`. An
-emitter adds:
+(`target` - the default -, `caster`, `between`, `world`), `offset`, `path` (`point`; `segments`
+of four points - P0, P1 and the two tangents - with `curve`, `times`, `length` and `end`: hold,
+pingpong, repeat; or `from` an anchor `to` another over `length` steps, rising by `arc` at the
+middle, the track's anchor aside) and `stop`. A `mesh`'s `model` is the game's
+(`game:<pack>:0x<id>`) or a glTF of the mod's (a path from its folder: `assets/x.glb`), with
+`scale`, `yaw`, `clip` (the glTF's animation, `speed`, `loop`) and `life` (steps; else while the
+effect plays). The tracks that are neither: `sound` (`archive`, `number`, `volume`, `load`),
+`flash` (`colour`, `frames`, `interval`, `count`), `shake` (`frames`, `power`, `speed`), at their
+`start`. An emitter adds:
 
 - `emission`: `duration`, `interval`, `count`, `bursts`, `loop` - groups of `count` particles,
   one every `interval` frames (0 and 1 alike), `bursts` of them in the `duration`, as eld has it;

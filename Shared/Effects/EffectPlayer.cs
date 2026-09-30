@@ -203,7 +203,26 @@ namespace OpenFF.Effects
 		/// <summary>The anchor: where the effect plays (the battle's hit point for a spell), world units.</summary>
 		public double[] Anchor = new double[3];
 
-		/// <summary>The tracks of other kinds that started on the last step: a sound, a flash, a shake - the host plays them.</summary>
+		/// <summary>The other anchors a track may play on, by name - "caster" (its hit point); "between" is the middle of the caster and the target, "world" the world's origin.</summary>
+		public readonly Dictionary<string, double[]> Anchors = new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>An anchor by name: target (the default), caster (the target when there is none), between, world.</summary>
+		public double[] AnchorOf(string name)
+		{
+			switch ((name ?? "target").ToLowerInvariant())
+			{
+				case "world": return new double[3];
+				case "caster": return Anchors.TryGetValue("caster", out double[] c) ? c : Anchor;
+				case "between":
+				{
+					double[] a = Anchors.TryGetValue("caster", out double[] k) ? k : Anchor;
+					return new[] { (a[0] + Anchor[0]) / 2, (a[1] + Anchor[1]) / 2, (a[2] + Anchor[2]) / 2 };
+				}
+				default: return Anchors.TryGetValue(name, out double[] other) ? other : Anchor;
+			}
+		}
+
+		/// <summary>The tracks of other kinds that started on the last step: a sound, a flash, a shake - the host plays them (effects.js's `started`).</summary>
 		public readonly List<EffectTrack> Started = new List<EffectTrack>();
 
 		public EffectPlayer(EffectDefinition def, uint seed = 1, bool faithfulSpread = true)
@@ -279,9 +298,30 @@ namespace OpenFF.Effects
 
 		private double[] Where(EffectTrack t, int steps)
 		{
-			double[] p = PathAt(t.Path, Math.Max(0, steps - 1));
 			double[] o = t.Offset ?? new double[3];
-			return new[] { Anchor[0] + o[0] + p[0], Anchor[1] + o[1] + p[1], Anchor[2] + o[2] + p[2] };
+			if (t.Path != null && t.Path["from"] != null)
+			{
+				// From one anchor to another (a bolt from the caster to the target): its own place, the offset on top.
+				double[] q = Between(t.Path, Math.Max(0, steps - 1));
+				return new[] { q[0] + o[0], q[1] + o[1], q[2] + o[2] };
+			}
+			double[] p = PathAt(t.Path, Math.Max(0, steps - 1));
+			double[] a = AnchorOf(t.Anchor);
+			return new[] { a[0] + o[0] + p[0], a[1] + o[1] + p[1], a[2] + o[2] + p[2] };
+		}
+
+		/// <summary>A path from one anchor to another over its length in steps, rising by its arc at the middle; held, repeated or back and forth after.</summary>
+		private double[] Between(JsonObject path, int steps)
+		{
+			double[] from = AnchorOf(EffectDefinition.Text(path["from"])), to = AnchorOf(EffectDefinition.Text(path["to"]) ?? "target");
+			double length = Math.Max(1, EffectDefinition.Num(path["length"]));
+			string end = EffectDefinition.Text(path["end"]);
+			double s = steps / length;
+			if (end == "repeat") s -= Math.Floor(s);
+			else if (end == "pingpong") { double k = Math.Floor(s); s -= k; if (k % 2 != 0) s = 1 - s; }
+			else s = Math.Min(1, s);
+			double arc = EffectDefinition.Num(path["arc"]);
+			return new[] { from[0] + (to[0] - from[0]) * s, from[1] + (to[1] - from[1]) * s + arc * 4 * s * (1 - s), from[2] + (to[2] - from[2]) * s };
 		}
 
 		private void Start(EffectTrack t)
@@ -493,7 +533,12 @@ namespace OpenFF.Effects
 		{
 			List<EffectModel> o = new List<EffectModel>();
 			if (_frame >= _def.Length && !_def.Loop && _live.All(e => e.Done)) return o;
-			foreach (Mesh m in _meshes) o.Add(new EffectModel { Track = m.Track, X = m.At[0], Y = m.At[1], Z = m.At[2], Frame = m.Steps - 1, Instance = m.Instance });
+			foreach (Mesh m in _meshes)
+			{
+				// A mesh with a life of its own shows for it; else while the effect plays.
+				if (m.Track.Raw?["life"] != null && m.Steps > m.Track.Life) continue;
+				o.Add(new EffectModel { Track = m.Track, X = m.At[0], Y = m.At[1], Z = m.At[2], Frame = m.Steps - 1, Instance = m.Instance });
+			}
 			return o;
 		}
 

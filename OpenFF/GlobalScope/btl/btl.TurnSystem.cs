@@ -391,8 +391,35 @@ internal static partial class GlobalScope
 				}
 			}
 
+			// PORT: the turn system the battle is running, for the mods' effects (OpenFF.Client.ModEffects: the caster's hit point, the battle's flash).
+			public static TurnSystem Current;
+
+			/// <summary>PORT: where the battle plays an effect on a character (setHitEffectPosition's point, without an effect to place): its hit point, toward the camera and up.</summary>
+			public VecFx32 HitPoint(BaseBattleCharacter target)
+			{
+				VecFx32 at = new VecFx32();
+				characterMng.getPosition(target.characterMngId(), at);
+				VecFx32 toward = new VecFx32(battleDisplay.getBattleCamera().getPosition());
+				int distance = 9, up = 20480;
+				if (target.breed() == 1 && !(target.condition().isFrog()))
+				{
+					mon.EffectOffset offset = mon.MonsterManager.instance().offset(static_cast<BattleMonster>(target).monsterId()).hitEffect();
+					distance = offset.cameraDistance_;
+					up = 4096 * offset.offsetY_;
+				}
+				toward.x -= at.x;
+				toward.y -= at.y;
+				toward.z -= at.z;
+				VEC_Normalize(toward, toward);
+				at.x += toward.x * distance;
+				at.y += toward.y * distance + up;
+				at.z += toward.z * distance;
+				return at;
+			}
+
 			public void executeTurn()
 			{
+				Current = this;
 				if (nowCharacter() == null)
 				{
 					setPhase(Phase.Terminate);
