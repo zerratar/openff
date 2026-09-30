@@ -9,6 +9,14 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 ## Unreleased
 
+## 0.3.1 - the game found again (2026-09-30)
+
+A fix for a client that could not find the game while Crystal could.
+
+**Fixes**
+- Client: finds the Steam install again after a start that did not. That start remembered the Content directory as the choice in `launch.json`, and every start after it said "no game content found" without looking for the game.
+- Client: `--content=<dir>` takes a Steam or GOG install of the game, as the message about it says; it only took the extracted Content directory before.
+
 ## 0.3.0 - effects, spells and summons (2026-09-30)
 
 Effects of a mod's own, made in Crystal's effect editor; spells that play them; FF3's summons
