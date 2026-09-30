@@ -49,15 +49,39 @@ namespace OpenFF.Client
 			if (!string.IsNullOrEmpty(configured))
 			{
 				string first = configured.Split(';')[0].Trim().Trim('"');
-				if (IsContentRoot(first))
+				// Our Content, or a game install named outright (Steam's or GOG's FF3, FF4's
+				// EXTRACTED_DATA) - the same the chosen install below would be, only named.
+				if (IsContentRoot(first) || OpenFF.Content.ContentChain.Looks(first))
 				{
 					return Path.GetFullPath(first);
 				}
 			}
 
-			// Walk up from the executable. Covers both "Content sits next to the exe"
-			// (a published build) and "…/Project/OpenFF/bin/Debug/net8.0" running from
-			// the repo, where the content lives in a sibling of Project/.
+			string content = FindContentDirectory();
+			if (content != null)
+			{
+				return content;
+			}
+
+			// No Content directory anywhere: a machine with the game from Steam and this
+			// executable on its own. The chosen game's install is the working directory
+			// then; what the phone build kept as XNB assets comes from the install
+			// (TrueType faces, .ogg sound) or is not needed.
+			string chosen = Launch.ResolveRoot();
+			if (chosen != null)
+			{
+				return Path.GetFullPath(chosen);
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Our extracted Content directory, walking up from the executable, or null. Covers both
+		/// "Content sits next to the exe" (a published build) and "…/Project/OpenFF/bin/Debug/net8.0"
+		/// running from the repo, where the content lives in a sibling of Project/.
+		/// </summary>
+		public static string FindContentDirectory()
+		{
 			DirectoryInfo dir = new DirectoryInfo(AppContext.BaseDirectory);
 			while (dir != null)
 			{
@@ -74,16 +98,6 @@ namespace OpenFF.Client
 				}
 
 				dir = dir.Parent;
-			}
-
-			// No Content directory anywhere: a machine with the game from Steam and this
-			// executable on its own. The chosen game's install is the working directory
-			// then; what the phone build kept as XNB assets comes from the install
-			// (TrueType faces, .ogg sound) or is not needed.
-			string chosen = Launch.ResolveRoot();
-			if (chosen != null)
-			{
-				return Path.GetFullPath(chosen);
 			}
 			return null;
 		}

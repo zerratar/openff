@@ -82,6 +82,15 @@ namespace OpenFF.Client
 				source = "steam";
 			}
 
+			string requested = source;
+			// A remembered "content" with no Content directory to open is no choice at all: an
+			// earlier start that found no install saved it as a fallback (before this was fixed),
+			// and every start after skipped Steam. Look for the install again.
+			if (source == "content" && !explicitSource && ContentLocator.FindContentDirectory() == null)
+			{
+				source = "steam";
+			}
+
 			string root = null;
 			if (source == "steam")
 			{
@@ -99,7 +108,9 @@ namespace OpenFF.Client
 			if (explicitGame) settings.Game = game;
 			if (explicitSource) settings.Source = Options.Get("source").Trim().ToLowerInvariant();
 			settings.Game ??= game;
-			settings.Source ??= source;
+			// What was asked for, not what it fell back to: a start that found no install must not
+			// make every later start stop looking.
+			settings.Source ??= requested;
 			Write(settings);
 
 			Log.Write(LogChannel.General, "launch: " + game.ToUpperInvariant() + " from " + source
