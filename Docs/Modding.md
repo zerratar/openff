@@ -1023,7 +1023,10 @@ name is its id.
   them, as the game's are, or `{ "keys": [...], "smooth": true }` for a smooth curve (a key may
   carry its own tangents after its values). `speedOverLife` is such a curve of how much of its
   speed a particle keeps (`[[1, 1], [10, 0.2]]` slows it to a drift); `spin` turns its picture
-  (`"angle"` as it is born and `"speed"` a frame, degrees, each a range).
+  (`"angle"` as it is born and `"speed"` a frame, degrees, each a range). `gravityOverLife` and
+  `spinOverLife` are curves of how much of its pull and of its spin reach it, and `countOverTime`
+  one of how many particles a burst makes by the emitter's frame (`[[1, 1], [6, 8], [12, 0]]`
+  swells and dies away).
 - **Pictures.** `"image"` is a PNG beside the definition, or one of the game's by
   `game:<pack>:<name>` (read from the player's install, never copied into the mod - Crystal's
   Effects library shows each pack's).

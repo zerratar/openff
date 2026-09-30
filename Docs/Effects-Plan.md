@@ -218,9 +218,15 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    the battle's camera or a free one) with a spell on one, on each of a group one after another
    (half the effect's length apart, as `drawOnceMagicEffect` staggers them) or once at a side's
    point; smooth curves with tangents; and two new modules, speed over life and spin, in both
-   players (`Tools/EffectCases/curves-spin.case.json`). Still short of the list: the battle maps'
-   own animations (`bNN.namp`: texture scrolls and patterns) and the party's other heroes (all
-   four are Luneth), and a curve on values other than colour, scale and speed.
+   players (`Tools/EffectCases/curves-spin.case.json`); curves for gravity, spin and a burst's count
+   (`more-curves.case.json`); the whole party on the Stage, its four heroes as Onion Knights; and
+   at 60 fps the Stage draws a particle's size and colour between its steps too, as the client's
+   frame capture does (a colour only when no channel moves by more than a quarter); and the battle
+   maps move as the port moves them - `Crystal.Editor/Editor/Namp.cs` reads a map's `bNN.namp`
+   and plays its texture SRT (the sea, the sky, a river) and material alpha a frame a game step,
+   each looping on its own length without its last frame (28 of the 43 maps scroll or fade). The
+   texture pattern the port never plays (b03's), and FF3's maps carry no visibility, so neither
+   is drawn. The party wears the Onion Knight's job only.
 5. **Later.** GPU particles if a real effect needs more than the CPU gives; lights from
    effects; decals on the ground; a node graph only if the module stack is found wanting.
 
@@ -257,8 +263,10 @@ effect plays). The tracks that are neither: `sound` (`archive`, `number`, `volum
   clamped to 0-255 after;
 - `speedOverLife` (keys `[age, k]`, a list or a curve object): each step moves a particle by its
   speed times k at its age (gravity still adds to the speed); `spin`: `angle`, `speed` (ranges,
-  degrees; drawn in that order after the size) - the quad turned in the screen's plane by
-  angle + speed x (age - 1);
+  degrees; drawn in that order after the size) - the quad turned in the screen's plane, by angle
+  as it is born and by speed each step after (times `spinOverLife` at its age, when there is one);
+  `gravityOverLife` (keys `[age, k]`): the pull a step times k; `countOverTime` (keys
+  `[frame, count]`, by the emitter's frame): how many a burst makes, rounded, in place of `count`;
 - `texture`: `image` (`game:<pack>:<name>`, the game's own read from the install), `width`,
   `height`, `cell` (the first cell's rectangle), `columns`, `frames` (keys `[age, cell]`);
 - `render`: `blend` (`alpha`), `facing` (`camera`).

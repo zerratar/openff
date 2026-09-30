@@ -1135,14 +1135,18 @@ it was on; **Ctrl+Z** takes it back.
   it, *Auto* to give it back to the curve. Presets: grow, shrink, pop, ease out, pulse, constant;
   slow down, brake, speed up, stop and go.
 - **Spin.** The picture turned as the particle is born and a frame after, each a range.
+- **Spin over life**, **Gravity over life**, **Count over time.** Curves of how much of its spin
+  and its pull reach a particle, and of how many a burst makes across the emission (its presets
+  swell, burst then trickle, build up, steady - by the emission's count).
 - **Texture.** The picture - one of the project's (a PNG chosen in the picker goes beside the effects)
   or any of the game's effect pictures, all in one picker - drawn with its cell grid; the cell
   size, columns and frames make a flipbook.
 - **The Stage, as the battle lays it.** The monsters in their places (a boss in its own), the
-  party in the front row, the caster the party's first; *1 target*, *each of a group* (three
+  party's four heroes in the front row as Onion Knights, the caster the first; *1 target*, *each of a group* (three
   monsters or the four, each played half the effect's length after the one before, as the
   battle staggers a spell cast on all) or *the whole side* (once, at the side's point, as a spell
-  that can only hit all); *no map* or one of the battle maps behind them; the *battle camera* (as
+  that can only hit all); *no map* or one of the battle maps behind them, moving as in the game
+  (the sea and the sky scroll: `/api/model/animation`, `Namp.cs`); the *battle camera* (as
   a spell plays) or a *free* one - a drag or the wheel frees it.
 - **Timeline.** Under the Stage, a row a track: a bar from its start to its last particle's end,
   a diamond for a sound, a flash, a shake. Drag a bar to move its start, the white mark (an
@@ -1219,8 +1223,9 @@ switch files.
 - **Audio** - deliberately untouched.
 - **Effects' material animations** - an effect's model plays its motion on the Stage, not its
   material's animation (a texture's scroll or fade).
-- **Battle maps' animations** - the effect Stage draws a battle map (`bNN.nmdp`) as it stands,
-  not its `.namp` (the water's scroll, a torch's flicker); the party on it is four Luneths.
+- **The effect Stage's party** wears the Onion Knight's job only. A battle map moves as the port
+  moves it (its `.namp`'s texture scrolls and alpha); the texture pattern the port never plays
+  is not drawn either.
 - **New menus** - adding a widget means duplicating one.
 - **New maps** - cloning one is plausible; authoring geometry is not, because models
   and collision are still opaque.

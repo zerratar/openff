@@ -191,7 +191,9 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
     const t = e.track, em = t.emission || {};
     const local = t.space === 'local';
     const g = { age: 0, alive: true, parts: [] };
-    for (let i = 0; i < (em.count || 0); i++) {
+    // Count over time: how many a burst makes by the emitter's frame (keys [frame, count]), else the emission's count.
+    const n = t.countOverTime ? Math.max(0, Math.floor((effectKeys(t.countOverTime, e.life, 1) || [em.count || 0])[0] + 0.5)) : (em.count || 0);
+    for (let i = 0; i < n; i++) {
       const box = (t.shape && t.shape.box) || [0, 0, 0];
       let c = box.map(r => r ? -r + 2 * r * rand() : 0);
       const p = { base: c, prev: null, trail: [] };
@@ -254,7 +256,9 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
       } else {
         // Speed over life: how much of its speed a step carries it at its age (1, all of it).
         const pace = t.speedOverLife ? (effectKeys(t.speedOverLife, g.age, 1) || [1])[0] : 1;
-        for (let k = 0; k < 3; k++) { p.vel[k] += p.grav[k]; p.base[k] += p.vel[k] * pace; }
+        // Gravity over life: how much of its pull reaches the particle at its age.
+        const pull = t.gravityOverLife ? (effectKeys(t.gravityOverLife, g.age, 1) || [1])[0] : 1;
+        for (let k = 0; k < 3; k++) { p.vel[k] += p.grav[k] * pull; p.base[k] += p.vel[k] * pace; }
         p.local = p.base.slice();
         if (t.orbit) {
           p.radius += t.orbit.grow || 0;
@@ -267,6 +271,9 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
       p.pos = [p.local[0] + origin[0], p.local[1] + origin[1], p.local[2] + origin[2]];
       if (!p.prev) p.prev = p.pos.slice();
       p.shown = g.age < L;
+      // The spin: its angle as it is born, then its speed a step (times spin over life at its age).
+      if (g.age === 1) { p.rollNow = p.roll; p.rollBefore = p.roll; }
+      else { p.rollBefore = p.rollNow; p.rollNow += p.spin * (t.spinOverLife ? (effectKeys(t.spinOverLife, g.age, 1) || [1])[0] : 1); }
     }
   }
 
@@ -331,9 +338,14 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
         const colour = (effectKeys(t.colour, g.age, 4) || [255, 255, 255, 255]).map(c => Math.max(0, Math.min(255, c)));
         const scale = effectKeys(t.scale, g.age, 2) || [1, 1];
         const cell = effectFrame(tex.frames, g.age);
+        // The step before's size and colour: a colour only when no channel moved by more than a quarter (a fade, not a flash).
+        const was = g.age > 1 ? g.age - 1 : g.age;
+        const scaleBefore = effectKeys(t.scale, was, 2) || [1, 1];
+        const colourWas = (effectKeys(t.colour, was, 4) || [255, 255, 255, 255]).map(c => Math.max(0, Math.min(255, c)));
+        const colourBefore = colourWas.every((c, k) => Math.abs(c - colour[k]) <= 64) ? colourWas : colour;
         for (const p of g.parts) {
-          const roll = p.roll + p.spin * (g.age - 1), rollBefore = g.age > 1 ? roll - p.spin : roll;
-          if (p.shown && colour[3] > 0) out.push({ p, pos: p.pos, prev: p.prev, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, colour, cell, tex, blend: (t.render || {}).blend, roll, rollBefore });
+          const roll = p.rollNow || 0, rollBefore = p.rollBefore || 0;
+          if (p.shown && colour[3] > 0) out.push({ p, pos: p.pos, prev: p.prev, w: p.size * scale[0] / 2, h: p.size * scale[1] / 2, wBefore: p.size * scaleBefore[0] / 2, hBefore: p.size * scaleBefore[1] / 2, colour, colourBefore, cell, tex, blend: (t.render || {}).blend, roll, rollBefore });
           if (t.trail && p.trail.length) {
             // After-images: the particle where it was, each darker by the trail's colour toward its end (the last one never shows, as in the game).
             const n = t.trail.count, d = colour.map((c, k) => (c - Math.max(0, Math.min(255, c + (t.trail.colour[k] || 0)))) / (n + 1));
@@ -397,6 +409,8 @@ attribute vec2 extent;
 attribute vec2 uv;
 attribute vec4 colour;
 attribute vec2 roll;
+attribute vec2 extentBefore;
+attribute vec4 colourBefore;
 uniform mat4 view;
 uniform mat4 projection;
 uniform float between;
@@ -406,11 +420,11 @@ void main() {
   vec4 p = view * vec4(mix(before, centre, between), 1.0);
   // The spin: the corner turned about the quad's middle, in the screen's plane (roll: now, and the step before).
   float r = radians(mix(roll.y, roll.x, between));
-  vec2 c = corner * extent;
+  vec2 c = corner * mix(extentBefore, extent, between);
   p.xy += vec2(c.x * cos(r) - c.y * sin(r), c.x * sin(r) + c.y * cos(r));
   gl_Position = projection * p;
   vUv = uv;
-  vColour = colour;
+  vColour = mix(colourBefore, colour, between);
 }`;
 
 const EFFECT_FRAGMENT = `
@@ -446,11 +460,13 @@ uniform mat4 view;
 uniform mat4 projection;
 uniform mat4 world;
 uniform mat4 palette[32];
+uniform mat3 uvMatrix;
 varying vec2 vCoord;
 varying vec3 vColour;
 void main() {
   gl_Position = projection * view * world * palette[int(mindex + 0.5)] * vec4(position, 1.0);
-  vCoord = coord;
+  // A battle map's texture scroll (its .namp's SRT, as a transform of the coordinates the model was baked with).
+  vCoord = (uvMatrix * vec3(coord, 1.0)).xy;
   vColour = colour;
 }`;
 
@@ -510,7 +526,7 @@ function makeEffectStage(canvas, textureUrl) {
   const program = effectCompile(gl, EFFECT_VERTEX, EFFECT_FRAGMENT);
   const lines = effectCompile(gl, EFFECT_LINE_VERTEX, EFFECT_LINE_FRAGMENT);
   const a = n => gl.getAttribLocation(program, n), u = n => gl.getUniformLocation(program, n);
-  const attr = { centre: a('centre'), before: a('before'), corner: a('corner'), extent: a('extent'), uv: a('uv'), colour: a('colour'), roll: a('roll') };
+  const attr = { centre: a('centre'), before: a('before'), corner: a('corner'), extent: a('extent'), uv: a('uv'), colour: a('colour'), roll: a('roll'), extentBefore: a('extentBefore'), colourBefore: a('colourBefore') };
   const unif = { view: u('view'), projection: u('projection'), between: u('between'), picture: u('picture') };
   const lineAttr = { position: gl.getAttribLocation(lines, 'position'), colour: gl.getAttribLocation(lines, 'colour') };
   const lineUnif = { view: gl.getUniformLocation(lines, 'view'), projection: gl.getUniformLocation(lines, 'projection') };
@@ -518,7 +534,7 @@ function makeEffectStage(canvas, textureUrl) {
   const modelProgram = effectCompile(gl, EFFECT_MODEL_VERTEX, EFFECT_MODEL_FRAGMENT);
   const ma = n => gl.getAttribLocation(modelProgram, n), mu = n => gl.getUniformLocation(modelProgram, n);
   const modelAttr = { position: ma('position'), coord: ma('coord'), colour: ma('colour'), mindex: ma('mindex') };
-  const modelUnif = { view: mu('view'), projection: mu('projection'), world: mu('world'), palette: mu('palette'), picture: mu('picture'), textured: mu('textured'), tint: mu('tint'), alpha: mu('alpha') };
+  const modelUnif = { view: mu('view'), projection: mu('projection'), world: mu('world'), palette: mu('palette'), picture: mu('picture'), textured: mu('textured'), tint: mu('tint'), alpha: mu('alpha'), uvMatrix: mu('uvMatrix') };
 
   // The battle as the game lays it out (btl.Members.cs), in its units: the monsters' six places (the back row
   // first, as a party fills them), the party's four in the front row facing them, the battle map at the origin.
@@ -564,7 +580,7 @@ function makeEffectStage(canvas, textureUrl) {
         if (i >= -45 && i <= 45) put(-60, 0, i, 60, 0, i, c);
       }
     }
-    if (!target.model) {
+    if (!target.model && !target.party) {
       // No model: a post of its height.
       const post = [0.55, 0.45, 0.3, 1], H = 10;
       for (const { feet: [X, , Z] } of figures) {
@@ -651,7 +667,12 @@ function makeEffectStage(canvas, textureUrl) {
       const g = m.groups[gi], count = pose ? (pose.counts[gi] || 1) : 1;
       const first = slot;
       slot += count;
-      if (g.hidden || Boolean(g.translucent) !== translucent) continue;
+      // A battle map's animation at this frame (Namp.cs): the material's texture transform and alpha.
+      const anim = m.anim, srt = anim && anim.srt && anim.srt.materials[g.material], fade = anim && anim.alpha && anim.alpha.materials[g.material];
+      const shownAlpha = fade ? fade[frame % anim.alpha.length] : (g.alpha === undefined ? 1 : g.alpha);
+      if (g.hidden || shownAlpha <= 0 || Boolean(g.translucent || (fade && shownAlpha < 1)) !== translucent) continue;
+      const t = srt ? srt[frame % anim.srt.length] : null;
+      gl.uniformMatrix3fv(modelUnif.uvMatrix, false, t ? [t[0], t[1], 0, t[2], t[3], 0, t[4], t[5], 1] : [1, 0, 0, 0, 1, 0, 0, 0, 1]);
       const palette = new Float32Array(32 * 16);
       for (let k = 0; k < 32; k++) palette.set(IDENTITY, k * 16);
       if (pose) for (let k = 0; k < count && k < 32; k++) palette.set(effectMat43(pose.matrices, (f * per + first + k) * 12), k * 16);
@@ -662,7 +683,7 @@ function makeEffectStage(canvas, textureUrl) {
       gl.bindTexture(gl.TEXTURE_2D, textured ? g.picture.gl : blank);
       const c = g.colour === undefined ? 0xFFFFFF : g.colour;
       gl.uniform3f(modelUnif.tint, ((c >> 16) & 255) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255);
-      gl.uniform1f(modelUnif.alpha, g.alpha === undefined ? 1 : g.alpha);
+      gl.uniform1f(modelUnif.alpha, shownAlpha);
       gl.drawElements(gl.TRIANGLES, g.count, m.indexType, g.start * m.indexSize);
     }
     for (const loc of Object.values(modelAttr)) gl.disableVertexAttribArray(loc);
@@ -788,22 +809,28 @@ function makeEffectStage(canvas, textureUrl) {
       const bg = layout.background;
       const m = loadModel('bg:' + bg, `/api/model?name=${encodeURIComponent(bg)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(bg)}&texture=${encodeURIComponent(tex)}`));
-      scene.push({ m, world: placed([0, 0, 0], 1, 0), frame: 0 });
+      if (m.anim === undefined) {
+        m.anim = null;
+        api(`/api/model/animation?name=${encodeURIComponent(bg)}`).then(r => { if (r && !r.none && (r.srt || r.alpha)) m.anim = r; }).catch(() => {});
+      }
+      scene.push({ m, world: placed([0, 0, 0], 1, 0), frame: Math.floor(performance.now() / 1000 * 30) });
     }
-    if (target.model) {
+    // The monsters the effect plays on (a post stands in for none).
+    if (target.model && !target.party) {
       const m = loadModel('target:' + target.model, `/api/model?name=${encodeURIComponent(target.model)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(target.model)}&texture=${encodeURIComponent(tex)}`));
       standing(m, target.model);
       for (const f of figures) scene.push({ m, world: placed(f.feet, target.scale, f.turn), frame: Math.floor(performance.now() / 1000 * 30) });
     }
-    // The caster: Luneth in the party's first place (unless the effect's targets stand there already).
-    if (!(target.party && target.model && figures.some(f => f.feet === PARTY_PLACES[0]))) {
-      const c = caster(), luneth = 'files/j101.nmdp.lz';
-      const m = loadModel('caster:' + luneth, `/api/model?name=${encodeURIComponent(luneth)}`,
-        tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(luneth)}&texture=${encodeURIComponent(tex)}`));
-      standing(m, luneth);
-      scene.push({ m, world: placed(c.feet, 1, -90), frame: Math.floor(performance.now() / 1000 * 30) });
-    }
+    // The party: the four heroes in the front row as Onion Knights (j101, j201, j301, j401 - the battle's j<hero><job>),
+    // the first the caster; the effect plays on them when the target is the party.
+    PARTY_PLACES.forEach((feet, k) => {
+      const hero = `files/j${k + 1}01.nmdp.lz`;
+      const m = loadModel('hero:' + hero, `/api/model?name=${encodeURIComponent(hero)}`,
+        tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(hero)}&texture=${encodeURIComponent(tex)}`));
+      standing(m, hero);
+      scene.push({ m, world: placed(feet, 1, -90), frame: Math.floor(performance.now() / 1000 * 30) + k * 7 });
+    });
     for (const e of meshes) {
       const k = /^game:([^:]+):(.+)$/.exec(e.track.model || '');
       let m;
@@ -839,7 +866,7 @@ function makeEffectStage(canvas, textureUrl) {
     gl.uniformMatrix4fv(unif.projection, false, projection);
     gl.uniform1f(unif.between, between);
     gl.uniform1i(unif.picture, 0);
-    const stride = 18;
+    const stride = 24;
     const data = new Float32Array(quads.length * 6 * stride);
     const corners = [[-1, 1, 0, 0], [-1, -1, 0, 1], [1, -1, 1, 1], [-1, 1, 0, 0], [1, -1, 1, 1], [1, 1, 1, 0]];
     let n = 0;
@@ -851,14 +878,16 @@ function makeEffectStage(canvas, textureUrl) {
       const u1 = u0 + cell[2] / width, v1 = v0 + cell[3] / height;
       for (const [cx, cy, su, sv] of corners) {
         data.set([q.pos[0], q.pos[1], q.pos[2], q.prev[0], q.prev[1], q.prev[2], cx, cy, q.w, q.h, su ? u1 : u0, sv ? v1 : v0,
-          q.colour[0] / 255, q.colour[1] / 255, q.colour[2] / 255, q.colour[3] / 255, q.roll || 0, q.rollBefore || 0], n);
+          q.colour[0] / 255, q.colour[1] / 255, q.colour[2] / 255, q.colour[3] / 255, q.roll || 0, q.rollBefore || 0,
+          q.wBefore === undefined ? q.w : q.wBefore, q.hBefore === undefined ? q.h : q.hBefore,
+          ...(q.colourBefore || q.colour).map(c => c / 255)], n);
         n += stride;
       }
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
     const bind = (loc, size, offset) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride * 4, offset * 4); };
-    bind(attr.centre, 3, 0); bind(attr.before, 3, 3); bind(attr.corner, 2, 6); bind(attr.extent, 2, 8); bind(attr.uv, 2, 10); bind(attr.colour, 4, 12); bind(attr.roll, 2, 16);
+    bind(attr.centre, 3, 0); bind(attr.before, 3, 3); bind(attr.corner, 2, 6); bind(attr.extent, 2, 8); bind(attr.uv, 2, 10); bind(attr.colour, 4, 12); bind(attr.roll, 2, 16); bind(attr.extentBefore, 2, 18); bind(attr.colourBefore, 4, 20);
     gl.activeTexture(gl.TEXTURE0);
     // Runs of one texture and one blend, in order - blending needs the game's order, not one batch per texture.
     // Additive (render.blend) adds the quad's light to what is behind it, as the client draws it (SourceAlpha, One).
@@ -1057,7 +1086,7 @@ async function openEffect(name) {
   count.className = 'effect-count';
   const targetPick = document.createElement('select');
   targetPick.title = 'what stands at the hit point: the effect plays where the battle plays it on this one';
-  for (const [value, text] of [['post', 'a post'], ['-1', 'Luneth (the party)']]) { const o = document.createElement('option'); o.value = value; o.textContent = text; targetPick.append(o); }
+  for (const [value, text] of [['post', 'a post'], ['-1', 'the party']]) { const o = document.createElement('option'); o.value = value; o.textContent = text; targetPick.append(o); }
   const pickOf = (title, options) => {
     const s = document.createElement('select');
     s.title = title;

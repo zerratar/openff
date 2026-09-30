@@ -310,6 +310,18 @@ function effectInspect(ed, ref) {
     effectNumber(ed, em, 'Count', d => E(d).count || 0, (d, v) => { E(d).count = Math.max(0, Math.round(v)); }, { step: 1, hint: 'particles a burst' });
     effectNumber(ed, em, 'Bursts', d => E(d).bursts || 0, (d, v) => { E(d).bursts = Math.max(0, Math.round(v)); }, { step: 1, hint: 'bursts in the duration' });
     effectBool(ed, em, 'Loop', d => !!E(d).loop, (d, v) => { if (v) E(d).loop = true; else delete E(d).loop; }, { hint: 'emit again after the duration, until the track stops' });
+    effectModule(ed, box, i, 'countOverTime', 'Count over time', () => {
+      const t = ed.def.tracks[i], c = (t.emission || {}).count || 4, D = Math.max(2, (t.emission || {}).duration || 10);
+      return { keys: [[1, c], [Math.round(D / 2), c * 2], [D, 0]], smooth: true };
+    }, card => {
+      effectCurve(ed, card, i, {
+        field: 'countOverTime', names: ['count'], colours: ['#d9a441'],
+        span: () => Math.max(2, (ed.def.tracks[i].emission || {}).duration || 10),
+        floor: Math.max(4, (ed.def.tracks[i].emission || {}).count || 4),
+        presetScale: Math.max(1, (ed.def.tracks[i].emission || {}).count || 4),
+        presets: { 'swell': [[0, 0.25], [0.5, 2], [1, 0]], 'burst, then trickle': [[0, 3], [0.2, 0.5], [1, 0.25]], 'build up': [[0, 0], [1, 2]], 'steady': [[0, 1], [1, 1]] }
+      });
+    });
 
     const part = effectCard(box, 'Particle', 'effect', null);
     effectNumber(ed, part, 'Life', d => T(d).life || 1, (d, v) => { T(d).life = Math.max(1, Math.round(v)); }, { step: 1, hint: 'frames a particle shows' });
@@ -360,6 +372,18 @@ function effectInspect(ed, ref) {
     effectModule(ed, box, i, 'spin', 'Spin', () => ({ angle: [0, 360], speed: [-6, 6] }), card => {
       effectRange(ed, card, 'Angle', d => T(d).spin.angle, (d, v) => { T(d).spin.angle = v; }, { hint: 'the quad\'s turn as it is born, degrees (a range: each its own)' });
       effectRange(ed, card, 'Speed', d => T(d).spin.speed, (d, v) => { T(d).spin.speed = v; }, { hint: 'degrees a frame it turns by, either way' });
+    });
+    effectModule(ed, box, i, 'spinOverLife', 'Spin over life', () => ({ keys: [[1, 1], [Math.max(2, (ed.def.tracks[i].life || 16) - 1), 0]], smooth: true }), card => {
+      effectCurve(ed, card, i, {
+        field: 'spinOverLife', names: ['spin'], colours: ['#b99af0'], floor: 1,
+        presets: { 'wind down': [[0, 1], [1, 0]], 'wind up': [[0, 0], [1, 1]], 'whirl': [[0, 0], [0.3, 1.5], [1, 0]], 'constant': [[0, 1], [1, 1]] }
+      });
+    });
+    effectModule(ed, box, i, 'gravityOverLife', 'Gravity over life', () => ({ keys: [[1, 0], [Math.max(2, (ed.def.tracks[i].life || 16) - 1), 1]], smooth: true }), card => {
+      effectCurve(ed, card, i, {
+        field: 'gravityOverLife', names: ['pull'], colours: ['#6fc7e6'], floor: 1,
+        presets: { 'float, then fall': [[0, 0], [0.4, 0], [1, 1.5]], 'fall at once': [[0, 1], [1, 1]], 'let go': [[0, 1], [1, 0]] }
+      });
     });
     effectModule(ed, box, i, 'texture', 'Texture', () => ({ image: '', width: 1, height: 1 }), card => effectTextureCard(ed, card, i));
     const render = effectCard(box, 'Render', 'image', null);
@@ -821,7 +845,8 @@ function effectCurve(ed, card, i, opts = {}) {
   bar.append(auto);
   card.append(wrap);
   let dragging = null, before = null, selected = -1;
-  const life = () => Math.max(2, ed.def.tracks[i].life || 16);
+  // Along the particle's life, or (span) another stretch - the emission's frames for a count over time.
+  const life = () => Math.max(2, opts.span ? opts.span() : (ed.def.tracks[i].life || 16));
   const top = () => Math.max(opts.floor || 1.5, ...keys().map(k => Math.max(...k.slice(1, 1 + width)))) * 1.15;
   const plot = () => Math.max(1, canvas.width - 16);
   const xOf = age => 8 + plot() * Math.max(0, Math.min(1, (age - 1) / Math.max(1, life() - 1)));
@@ -954,8 +979,8 @@ function effectCurve(ed, card, i, opts = {}) {
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   if (opts.presets) effectPresets(wrap, opts.presets, shape => {
     ed.change('a preset', d => {
-      const t = d.tracks[i], L = Math.max(2, t.life || 16);
-      const made = shape.map(([at, v]) => [Math.round(1 + at * (L - 1)), ...new Array(width).fill(v)]);
+      const t = d.tracks[i], L = life(), k = opts.presetScale || 1;
+      const made = shape.map(([at, v]) => [Math.round(1 + at * (L - 1)), ...new Array(width).fill(Math.round(v * k * 100) / 100)]);
       if (Array.isArray(t[field]) || !t[field]) t[field] = made; else t[field].keys = made;
     });
     if (linked) linked.checked = true;

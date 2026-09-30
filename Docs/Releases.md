@@ -30,6 +30,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: New effect… and Copy into the mod make an effect of the mod's own from a spark or one of the game's.
 - Crystal: Use for a spell…, and a magic item's Look card, set the effect and cast a spell plays.
 - Effects: smooth colour and scale curves with tangents, speed over life, and spin.
+- Effects: gravity over life, spin over life, and count over time curves.
+- Crystal: the effect Stage stands the party's four heroes, and draws a particle's size and colour between steps at 60 fps as the client does.
+- Crystal: battle maps on the effect Stage move as in the game - their texture scrolls and alpha.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
 - Crystal: resting the pointer on an effect in the library plays it.
 - Crystal: a Mod badge marks the project's own things in the lists, and an OpenFF only badge the client's behaviours.

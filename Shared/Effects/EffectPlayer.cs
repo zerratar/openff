@@ -73,6 +73,10 @@ namespace OpenFF.Effects
 		public double[][] SpeedOverLife; public bool SpeedSmooth;
 		/// <summary>Spin: the quad's angle and its turn a frame, degrees (ranges).</summary>
 		public bool Spin; public double[] SpinAngle, SpinSpeed;
+		/// <summary>Gravity over life, spin over life: keys [age, k], how much of its pull, of its spin, reaches a particle.</summary>
+		public double[][] GravityOverLife, SpinOverLife; public bool GravitySmooth, SpinSmooth;
+		/// <summary>Count over time: keys [frame of the emitter, count] - how many a burst then makes.</summary>
+		public double[][] CountOverTime; public bool CountSmooth;
 		public EffectTexture Texture;
 		public double[] MeshScale;
 		public bool MeshLoop;
@@ -129,6 +133,9 @@ namespace OpenFF.Effects
 					k.Colour = Keys(t["colour"]); k.ColourSmooth = Smooth(t["colour"]);
 					k.Scale = Keys(t["scale"]); k.ScaleSmooth = Smooth(t["scale"]);
 					k.SpeedOverLife = Keys(t["speedOverLife"]); k.SpeedSmooth = Smooth(t["speedOverLife"]);
+					k.GravityOverLife = Keys(t["gravityOverLife"]); k.GravitySmooth = Smooth(t["gravityOverLife"]);
+					k.SpinOverLife = Keys(t["spinOverLife"]); k.SpinSmooth = Smooth(t["spinOverLife"]);
+					k.CountOverTime = Keys(t["countOverTime"]); k.CountSmooth = Smooth(t["countOverTime"]);
 					if (t["spin"] is JsonObject spin) { k.Spin = true; k.SpinAngle = RangeOf(spin["angle"]); k.SpinSpeed = RangeOf(spin["speed"]); }
 					if (t["texture"] is JsonObject tex)
 					{
@@ -287,7 +294,7 @@ namespace OpenFF.Effects
 		private sealed class Particle
 		{
 			public double[] Base, Pos, Local, Vel, Grav;
-			public double Radius, Angle, Size, Roll, Spin;
+			public double Radius, Angle, Size, Roll, Spin, RollNow, RollBefore;
 			public bool Shown;
 			public GatherState Gather;
 			public readonly List<(double[] Pos, bool Shown)?> Trail = new List<(double[], bool)?>();
@@ -345,7 +352,8 @@ namespace OpenFF.Effects
 			EffectTrack t = e.Track;
 			bool local = t.Space == "local";
 			Group g = new Group();
-			for (int i = 0; i < t.Count; i++)
+			int count = t.CountOverTime != null ? Math.Max(0, (int)Math.Floor(KeysAt(t.CountOverTime, e.Life, 1, t.CountSmooth)[0] + 0.5)) : t.Count;
+			for (int i = 0; i < count; i++)
 			{
 				double[] box = t.Box ?? new double[3];
 				double[] c = new double[3];
@@ -429,7 +437,8 @@ namespace OpenFF.Effects
 				else
 				{
 					double pace = t.SpeedOverLife != null ? KeysAt(t.SpeedOverLife, g.Age, 1, t.SpeedSmooth)[0] : 1;
-					for (int k = 0; k < 3; k++) { p.Vel[k] += p.Grav[k]; p.Base[k] += p.Vel[k] * pace; }
+					double pull = t.GravityOverLife != null ? KeysAt(t.GravityOverLife, g.Age, 1, t.GravitySmooth)[0] : 1;
+					for (int k = 0; k < 3; k++) { p.Vel[k] += p.Grav[k] * pull; p.Base[k] += p.Vel[k] * pace; }
 					p.Local = (double[])p.Base.Clone();
 					if (t.Orbit)
 					{
@@ -442,6 +451,8 @@ namespace OpenFF.Effects
 				double[] origin = t.Space == "local" ? e.At : new double[3];
 				p.Pos = new[] { p.Local[0] + origin[0], p.Local[1] + origin[1], p.Local[2] + origin[2] };
 				p.Shown = g.Age < life;
+				if (g.Age == 1) { p.RollNow = p.Roll; p.RollBefore = p.Roll; }
+				else { p.RollBefore = p.RollNow; p.RollNow += p.Spin * (t.SpinOverLife != null ? KeysAt(t.SpinOverLife, g.Age, 1, t.SpinSmooth)[0] : 1); }
 			}
 		}
 
@@ -522,7 +533,7 @@ namespace OpenFF.Effects
 					foreach (Particle p in g.Parts)
 					{
 						double w = p.Size * scale[0] / 2, h = p.Size * scale[1] / 2;
-						double roll = p.Roll + p.Spin * (g.Age - 1);
+						double roll = p.RollNow;
 						if (p.Shown && colour[3] > 0) o.Add(new EffectQuad { X = p.Pos[0], Y = p.Pos[1], Z = p.Pos[2], HalfWidth = w, HalfHeight = h, R = colour[0], G = colour[1], B = colour[2], A = colour[3], Cell = cell, Roll = roll, Track = t, Particle = p });
 						if (t.TrailCount > 0 && p.Trail.Count > 0)
 						{

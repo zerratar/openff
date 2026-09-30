@@ -2168,6 +2168,11 @@ namespace Crystal.Editor
 					GetModelTexture(context);
 					return;
 
+				case "/api/model/animation":
+					// A battle map's own animation (bNN.namp beside bNN.nmdp): its texture scrolls and alphas a frame (Namp.cs).
+					SendJson(context, Namp.Read(_workspace, Query(context, "name")));
+					return;
+
 				case "/api/model/motions":
 					SendJson(context, Models.Motions(_workspace, Query(context, "name")));
 					return;
