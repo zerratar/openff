@@ -45,9 +45,26 @@ async function spellsForList() {
 async function spellInspector(box, name) {
   if (name.startsWith('mod:')) {
     const id = name.slice(4);
+    // Drawn again while the definition was on its way (the panel redrawn): only the last draw fills it.
+    const token = {};
+    box.spellDraw = token;
     const r = await api(`/api/project/items?id=${encodeURIComponent(id)}`).catch(() => null);
+    if (box.spellDraw !== token) return;
     if (!r || r.ok === false) { const p = document.createElement('p'); p.className = 'none'; p.textContent = (r && r.error) || 'not found'; box.append(p); return; }
     const d = r.item;
+    // A spell based on one of the eight summons is a summon of the mod's: its scripts are in Summons.
+    const base = Number(d.base !== undefined ? d.base : d.definition && d.definition.base);
+    if (base >= 4201 && base <= 4208) {
+      const row = document.createElement('div');
+      row.className = 'button-row';
+      const open = document.createElement('button');
+      open.className = 'primary';
+      open.textContent = 'Open the summon';
+      open.title = 'a summon of the mod\'s (based on ' + (d.baseName || base) + '): its scripts, model and effects in Summons';
+      open.onclick = () => openDoc('summon', 'summon/' + (base - 4201) + '/' + id);
+      row.append(open);
+      box.append(row);
+    }
     box.append(spellTestRow(d.number, (spellState.mine.find(m => m.id === id) || {}).baseName, d));
     if (typeof itemDefinitionPanel === 'function') box.append(itemDefinitionPanel(d, () => loadList()));
     return;

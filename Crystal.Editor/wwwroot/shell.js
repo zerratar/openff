@@ -310,10 +310,12 @@ async function runView(doc) {
   // The views read their listing from state.files, so make sure it is the right one -
   // the right kind, and the right game.
   // A cast's code belongs to a map's object, not to a library: the list stays where it is.
-  if (doc.kind !== 'castcode' && (state.browse !== doc.kind || !state.files.length || state.filesWs !== doc.ws)) {
-    state.browse = doc.kind;
+  // A summon opened from the Mod folder's Summons keeps that list (it is the same document either way).
+  const listKind = doc.kind === 'summon' && state.browse === 'summons' ? 'summons' : doc.kind;
+  if (doc.kind !== 'castcode' && (state.browse !== listKind || !state.files.length || state.filesWs !== doc.ws)) {
+    state.browse = listKind;
     // The tree's highlight says which library the list shows; it moves with the list.
-    browseKind = doc.kind;
+    browseKind = listKind;
     await loadList();
     drawProjectTree();
   }

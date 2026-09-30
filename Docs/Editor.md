@@ -1144,7 +1144,18 @@ typed value; a number that names something has a picker (◎) beside it, a list 
 small Stage playing the one picked: an effect (the mod's and the game's packs, a pack's members
 to play and pick), the summon's model (pictures of the summons', the monsters', the mod's), its
 motions (each pack on its model), a motion of the pack, the monster (its model standing at its
-size), the spell played on each target (its effect).
+size), the spell played on each target (its effect). The effect picker's **New effect…** makes one
+of the mod's - a copy of the one picked, or a blank one - uses it for the step and opens it in the
+effect editor. *Make it mine* on a SET_EFFECT step copies the member the pack's draws play and
+points the load and those draws at the copy.
+
+A step that places something - an effect's place (create effect and set position), the summon's,
+a move's end, and with Free camera a camera step's eye and target - shows a **gizmo** on the
+Stage: three arrows at the point, dragged along one to move it (Shift for fine moves). The player
+is icons (play, one step, restart, sound); the summon's sounds (PLAY_SE, the game's SE files) play
+as the steps do, and the sound button turns them off. A drag on the timeline's ruler or its empty
+rows scrubs through the frames. A spell of the mod's that is a summon has **Open the summon** in
+its inspector.
 
 **A glTF as the summon.** The model picker lists the project's model files too: one picked is
 made a model of the mod's own (`defs/models/f300.json`, the next free number, on the skeleton the

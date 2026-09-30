@@ -61,6 +61,14 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: a glTF of the project's picked as a summon's model becomes a model of its own, fitted and given its clips in the Look, and played on the Stage.
 - Models: a model of the mod's own plays any clip of its file as a motion of its own (9001 and on), beyond what its skeleton's pack has.
 - Crystal: a summon's start motion picks any clip of its glTF, previewed, as a motion of its own.
+- Crystal: a gizmo on a summon's Stage moves an effect's place, the summon's, a move's end or a camera point.
+- Crystal: a summon's preview plays its sounds; the player's buttons are icons; the timeline scrubs by dragging.
+- Crystal: the effect picker's New effect… makes one of the mod's for the step and opens it; Make it mine on SET_EFFECT.
+- Crystal: a spell of the mod's that is a summon opens its summon from its inspector.
+- Fixes: a summon's copy deleted leaves the Mod folder's Summons, and its count counts summons, not files.
+- Fixes: a summon opened from Mod ▸ Summons keeps that list.
+- Fixes: a spell of the mod's showed its record twice in the inspector.
+- Fixes: Crystal plays the Steam release's sounds (sound/*.ogg).
 - Crystal: a summon step's numbers drag across their labels, and what names something has a picker with a preview (effects, models, motions, monsters, spells).
 - Crystal: Mod ▸ Summons lists the mod's summons; the Summons page marks the eight the mod plays by steps of its own.
 - Fixes: a summon's preview plays a mod effect as it is after it is changed in the effect editor.

@@ -1140,6 +1140,14 @@ function makeEffectStage(canvas, textureUrl) {
       };
     },
     BATTLE_EYE, BATTLE_AT, ALL_MONSTERS, ALL_PARTY,
+    /// A point of the world (world units) on the canvas, in CSS pixels from its top left; null behind the camera.
+    toScreen(p) {
+      const { view, projection } = matrices();
+      const m = (a, v) => [0, 1, 2, 3].map(r => a[r] * v[0] + a[4 + r] * v[1] + a[8 + r] * v[2] + a[12 + r] * v[3]);
+      const c = m(projection, m(view, [p[0], p[1], p[2], 1]));
+      if (c[3] <= 1e-6) return null;
+      return [(c[0] / c[3] * 0.5 + 0.5) * (canvas.clientWidth || 1), (0.5 - c[1] / c[3] * 0.5) * (canvas.clientHeight || 1)];
+    },
     /// The free camera as it stands: where it looks from and at (world units), for a script's camera step.
     freeView() { return { eye: eyeOf(), at: camera.target.slice() }; },
     /// The free camera put where a view is (world units): it looks from `eye` at `at`.

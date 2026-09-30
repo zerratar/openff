@@ -90,6 +90,17 @@ async function summonsForList({ modOnly = false } = {}) {
   }));
 }
 
+/// The mod's summons changed (a copy, a delete, a new one): the Summons lists read again, the Mod folder's count with them.
+async function summonsChanged() {
+  const r = await api('/api/summons').catch(() => null);
+  const all = r && r.ok ? r.summons : [];
+  if (typeof projectState !== 'undefined' && projectState.project) {
+    projectState.project.summons = all.filter(s => s.spell || s.mine > 0).length;
+    if (typeof drawProjectTree === 'function') drawProjectTree();
+  }
+  if (typeof loadList === 'function' && (state.browse === 'summon' || state.browse === 'summons')) await loadList();
+}
+
 /// New summon…: a name and the summon it starts as - a spell of the mod's based on that summon's, with its three
 /// outcomes' scripts copied from the base's to make its own.
 async function newSummonDialog(level = 1) {
@@ -122,7 +133,7 @@ async function newSummonDialog(level = 1) {
       if (!r.ok) throw new Error(r.error);
       body.close();
       say(`made the summon ${n} (spell ${r.number}), its three outcomes its own`, 'good');
-      if (state.browse === 'summon') await loadList();
+      await summonsChanged();
       openDoc('summon', 'summon/' + r.level + '/' + r.spell);
     } catch (e) { problem.textContent = e.message; go.disabled = false; }
   };
@@ -179,7 +190,7 @@ function makeSummonRun(script, defs, { seed = 7 } = {}) {
   function reset() {
     rand = effectRandom(seed);
     S = {
-      i: 0, step: -1, done: false, frame: 0, moveFrame: 0,
+      i: 0, step: -1, done: false, frame: 0, moveFrame: 0, sounds: [],
       beforePos: [0, 0, 0], afterPos: [0, 0, 0], beforeAt: [0, 0, 0], afterAt: [0, 0, 0],
       auto: false, autoFrame: 0, autoMove: 0,
       eye: SUMMON_BATTLE_EYE.slice(), at: SUMMON_BATTLE_AT.slice(),
@@ -297,7 +308,10 @@ function makeSummonRun(script, defs, { seed = 7 } = {}) {
     55: p => !!spawn(p[0], p[1], [p[2] / 4096, p[3] / 4096, p[4] / 4096], 'summon'),
     56: () => ownersDone('monsters'),
     57: () => ownersDone('party'),
-    58: () => true, 59: () => true, 60: () => true, 61: () => true, 62: () => true, 63: () => true
+    58: () => true, 59: () => true, 60: () => true, 61: () => true,
+    // PLAY_SE: the battle plays SE<arc>_<index> (BattleSE.play); the view hears it through `sounds`.
+    62: p => { S.sounds.push({ arc: p[0], index: p[1], step: S.step }); return true; },
+    63: () => true
   };
 
   // TurnSystem.drawOnceMagicEffect: the spell record's effect on each target, half its play frame apart; done when the
@@ -432,6 +446,8 @@ async function openSummon(name) {
   const facts = $('.facts', node);
   const bar = $('.bar', node);
   const list = await api('/api/summons').catch(() => null);
+  // Replaced while it loaded (another summon opened in this pane): this one stops.
+  if (!node.isConnected) return;
   const entry = list && list.ok ? list.summons.find(s => s.level === level && (s.spell || null) === spell) : null;
   $('.name', node).textContent = entry ? (entry.spell ? entry.name : entry.creature ? `${entry.creature} (${entry.name})` : entry.name) : name;
   if (spell) { $('.name', node).append(' ', ownBadge('mod', { title: 'a summon of the mod\'s: its base\'s level, outcomes and damage, its own scripts' })); $('.name', node).title = 'as ' + (entry ? entry.baseName : 'its base'); }
@@ -451,13 +467,62 @@ async function openSummon(name) {
   fade.className = 'effect-flash summon-fade';
   const flash = document.createElement('div');
   flash.className = 'effect-flash';
-  stageBox.append(canvas, fade, flash);
+  const gizmo = document.createElement('canvas');
+  gizmo.className = 'summon-gizmo';
+  stageBox.append(canvas, fade, flash, gizmo);
   const controls = document.createElement('div');
   controls.className = 'effect-controls bar';
-  const button = (text, title) => { const b = document.createElement('button'); b.textContent = text; b.title = title; controls.append(b); return b; };
-  const play = button('Pause', 'play or pause');
-  const stepOne = button('Step', 'one game step');
-  const again = button('Restart', 'from the first step');
+  const button = (iconName, title) => { const b = document.createElement('button'); b.className = 'icon-button'; b.append(icon(iconName)); b.title = title; controls.append(b); return b; };
+  const play = button('pause', 'play or pause');
+  const stepOne = button('step', 'one game step');
+  const again = button('restart', 'from the first step');
+  // Sound: on unless turned off (remembered), the game's SE<arc>_<index> as WAVs, decoded once.
+  let soundOn = true;
+  try { soundOn = localStorage.getItem('crystal-summon-sound') !== 'off'; } catch (e) { }
+  const soundButton = button(soundOn ? 'sound' : 'muted', 'the summon\'s sounds (PLAY_SE) as it plays');
+  soundButton.onclick = () => {
+    soundOn = !soundOn;
+    try { localStorage.setItem('crystal-summon-sound', soundOn ? 'on' : 'off'); } catch (e) { }
+    soundButton.textContent = ''; soundButton.append(icon(soundOn ? 'sound' : 'muted'));
+    wakeAudio();
+  };
+  let audio = null;
+  const soundBuffers = new Map();
+  // The browser lets sound start only from a press: the player's buttons make the audio context and wake it.
+  function wakeAudio() {
+    if (!soundOn) return;
+    try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    if (audio.state === 'suspended') audio.resume().catch(() => {});
+  }
+  function soundOf(name) {
+    if (!soundBuffers.has(name)) {
+      soundBuffers.set(name, fetch(wsUrl('/api/audio/wav?name=' + encodeURIComponent(name)))
+        .then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status)))
+        .then(bytes => audio.decodeAudioData(bytes)).catch(() => null));
+    }
+    return soundBuffers.get(name);
+  }
+  function playSounds() {
+    const S = runner && runner.state;
+    if (!S || !S.sounds.length) return;
+    const now = S.sounds.splice(0);
+    if (!soundOn) return;
+    wakeAudio();
+    if (!audio) return;
+    for (const s of now) {
+      const name = 'SE' + String(s.arc).padStart(3, '0') + '_' + String(s.index).padStart(2, '0');
+      soundOf(name).then(buffer => {
+        if (!buffer || !canvas.isConnected) return;
+        const src = audio.createBufferSource();
+        src.buffer = buffer;
+        const gain = audio.createGain();
+        gain.gain.value = 0.75;
+        src.connect(gain).connect(audio.destination);
+        src.start();
+      });
+    }
+  }
+  const showPlaying = () => { play.textContent = ''; play.append(icon(playing ? 'pause' : 'play')); play.title = playing ? 'pause' : 'play'; };
   const scrub = Object.assign(document.createElement('input'), { type: 'range', min: 0, max: 60, value: 0, className: 'effect-scrub', title: 'the frame' });
   const label = document.createElement('span');
   label.className = 'effect-frame';
@@ -650,14 +715,14 @@ async function openSummon(name) {
     showGame = false;
     say('copied into the mod: ' + r.file + ' - its steps are yours to change', 'good');
     // The lists show it now: the Summons marked, the Mod folder's Summons with it.
-    if (typeof loadList === 'function' && (state.browse === 'summon' || state.browse === 'summons')) loadList();
-    if (typeof projectState !== 'undefined' && projectState.project) { projectState.project.summons = (projectState.project.summons || 0) + 1; if (typeof drawProjectTree === 'function') drawProjectTree(); }
+    summonsChanged();
     syncBar(); await rebuild(true); refreshPanels();
   };
   removeButton.onclick = async () => {
     if (!mine || !confirm('Take the mod\'s steps for this outcome out (' + mine.file + ')? ' + (spell ? 'Its base\'s script plays for it.' : 'The game\'s play again.'))) return;
     await api('/api/project/summon/delete', { file: mine.file });
     mine = null; syncBar(); await rebuild(true); refreshPanels();
+    summonsChanged();
   };
   testButton.onclick = async () => {
     say('starting OpenFF to try ' + (entry ? entry.creature || entry.name : 'the summon') + '…');
@@ -771,7 +836,7 @@ async function openSummon(name) {
     scrub.max = String(length);
     facts.textContent = `${script.summon} · ${outcomeName()} · ${steps.length} steps, ${length} frames (${(length / 30).toFixed(1)} s)`;
     runner.reset();
-    if (restart) { owed = 0; playing = true; play.textContent = 'Pause'; }
+    if (restart) { owed = 0; playing = true; showPlaying(); }
     else { for (let i = 0; i < Math.min(was, length); i++) runner.step(); }
   }
   // An effect's length in steps, played through once.
@@ -819,6 +884,24 @@ async function openSummon(name) {
     say('the effect is the mod\'s now: ' + r.name, 'good');
     openDoc('effect', r.name);
   }
+  /// SET_EFFECT's pack made the mod's: a copy of the member the draws after it play, the load and those draws pointed
+  /// at it (a draw of another member of the pack keeps the game's).
+  async function makeMinePack(i) {
+    const steps = mine.steps, pack = steps[i].p[0];
+    const draws = steps.map((st, j) => ({ st, j })).filter(({ st, j }) => j > i && [19, 20, 55].includes(st.op) && st.p[0] === pack);
+    const member = draws.length ? Number(draws[0].st.p[1]) || 1 : 1;
+    const creature = (entry && (entry.creature || entry.name) || 'summon').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const r = await api('/api/project/effect/new', { id: `${creature}-${pack}-${member}`, category: pack, member });
+    if (!r.ok) { say(r.error, 'bad'); return; }
+    const id = shortName(r.name).replace(/\.json$/i, '');
+    steps[i].p[0] = id;
+    let swapped = 0;
+    for (const { st } of draws) if ((Number(st.p[1]) || 1) === member) { st.p[0] = id; st.p[1] = 1; swapped++; }
+    changed();
+    const others = draws.length - swapped;
+    say(`the effect is the mod's now: ${r.name} (the load and ${swapped} draw${swapped === 1 ? '' : 's'})` + (others ? `; ${others} of another member keep the game's` : ''), 'good');
+    openDoc('effect', r.name);
+  }
   const openEffectOf = st => typeof st.p[0] === 'string' ? openDoc('effect', 'defs/effects/' + st.p[0] + '.json') : openDoc('effect', 'files/e' + String(st.p[0]).padStart(3, '0') + '.efp');
 
   // ---- the Inspector: the Look (the summon at a glance, swapped in place) and a step's editor
@@ -847,7 +930,7 @@ async function openSummon(name) {
   const setParam = (i, k, v) => { if (!editable()) return; mine.steps[i].p[k] = v; changed(); };
   // The pickers by what a number names: each calls back with the value (an effect with its member too).
   const PICK = {
-    e: (i, k) => { const st = current()[i]; pickSummonEffect(st.p[0], Number(st.p[1]) || 1, (v, m) => { const p = mine.steps[i].p; p[0] = v; if (st.op !== 16) p[1] = m; changed(); }, { packOnly: st.op === 16 }); },
+    e: (i, k) => { const st = current()[i]; pickSummonEffect(st.p[0], Number(st.p[1]) || 1, (v, m, made) => { const p = mine.steps[i].p; p[0] = v; if (st.op !== 16) p[1] = m; changed(); if (made) openDoc('effect', made); }, { packOnly: st.op === 16, prefix: (entry && (entry.creature || entry.name) || 'summon').toLowerCase().replace(/[^a-z0-9]+/g, '-') }); },
     model: (i, k) => pickSummonModel(Number(current()[i].p[k]) || 0, v => typeof v === 'string' ? useOwnFile(v, i) : setParam(i, k, v), ownModels),
     motions: (i, k) => pickSummonMotionPack(Number(current()[i].p[k]) || 0, v => setParam(i, k, v)),
     motion: (i, k) => pickSummonMotion(Number(current()[i].p[k]) || 0, look, v => typeof v === 'string' ? useOwnClip(v.slice(5), i, k) : setParam(i, k, v), look.own ? ownPreview : null),
@@ -1163,7 +1246,7 @@ async function openSummon(name) {
         row.className = 'button-row';
         const open = document.createElement('button'); open.className = 'chip'; open.textContent = 'Open the effect'; open.onclick = () => openEffectOf(st);
         row.append(open);
-        if (editable() && st.op !== 16 && typeof st.p[0] === 'number') { const m = document.createElement('button'); m.className = 'chip'; m.textContent = 'Make it mine'; m.onclick = () => makeMine(i); row.append(m); }
+        if (editable() && typeof st.p[0] === 'number') { const m = document.createElement('button'); m.className = 'chip'; m.textContent = 'Make it mine'; m.title = st.op === 16 ? 'a copy of the effect the pack\'s draws play (defs/effects): this load and those draws pointed at it, opened to change' : 'a copy of this effect in the mod (defs/effects), this step pointed at it, opened to change'; m.onclick = () => st.op === 16 ? makeMinePack(i) : makeMine(i); row.append(m); }
         pc.append(row);
       }
       if ([22, 23, 24].includes(st.op) && editable()) {
@@ -1302,14 +1385,20 @@ async function openSummon(name) {
       for (let j = i - 1; j >= 0; j--) if (current()[j].op === w[0]) return { at: j, k: w[1] };
       return null;
     }
+    let scrubbing = false;
     canvas2.addEventListener('pointerdown', e => {
-      const h = hit(e.offsetX, e.offsetY);
-      if (!h) { if (e.offsetX >= LABEL) goTo(frameOf(e.offsetX)); return; }
+      const h = e.offsetY < RULER ? null : hit(e.offsetX, e.offsetY);
+      if (!h) {
+        // The ruler, or a row's empty part: the frame under the pointer, and on as it is dragged.
+        if (e.offsetX >= LABEL) { goTo(frameOf(e.offsetX)); scrubbing = true; try { canvas2.setPointerCapture(e.pointerId); } catch (err) { } draw(); }
+        return;
+      }
       const t = h.edge && editable() ? timedParam(h.i) : null;
-      if (t) { drag = { ...t, i: h.i, x: e.offsetX, base: Number(mine.steps[t.at].p[t.k]) || 0, perFrame: (W - LABEL - 8) / Math.max(1, length) }; canvas2.setPointerCapture(e.pointerId); return; }
+      if (t) { drag = { ...t, i: h.i, x: e.offsetX, base: Number(mine.steps[t.at].p[t.k]) || 0, perFrame: (W - LABEL - 8) / Math.max(1, length) }; try { canvas2.setPointerCapture(e.pointerId); } catch (err) { } return; }
       select(h.i);
     });
     canvas2.addEventListener('pointermove', e => {
+      if (scrubbing) { const f = Math.min(length, frameOf(e.offsetX)); if (String(f) !== scrub.value) { goTo(f); draw(); } return; }
       if (drag) {
         const frames = Math.round((e.offsetX - drag.x) / drag.perFrame);
         const v = Math.max(0, drag.base + frames);
@@ -1321,23 +1410,108 @@ async function openSummon(name) {
       canvas2.title = h ? `${h.i} ${summonWords(current()[h.i].name)}: ${summonStepText(current()[h.i])}` + (h.edge && editable() && timedParam(h.i) ? ' - drag to change how long' : '') : '';
       const was = hoverI; hoverI = h ? h.i : -1; if (was !== hoverI) draw();
     });
-    canvas2.addEventListener('pointerup', () => { if (drag) { drag = null; changed(); } });
+    canvas2.addEventListener('pointerup', () => { scrubbing = false; if (drag) { drag = null; changed(); } });
     let width = 0;
     new ResizeObserver(() => requestAnimationFrame(() => { if (timelineBox.clientWidth !== width) { width = timelineBox.clientWidth; draw(); } })).observe(timelineBox);
     return { draw };
   })();
 
   function goTo(frame) {
-    playing = false; play.textContent = 'Play';
+    playing = false; showPlaying();
     runner.reset();
     for (let i = 0; i < frame; i++) runner.step();
+    // A jump plays no sounds: only the steps played through do.
+    runner.state.sounds.length = 0;
     scrub.value = String(frame);
   }
-  play.onclick = () => { playing = !playing; play.textContent = playing ? 'Pause' : 'Play'; };
-  stepOne.onclick = () => { playing = false; play.textContent = 'Play'; if (runner) { if (runner.done) runner.reset(); runner.step(); } };
+  play.onclick = () => { playing = !playing; showPlaying(); wakeAudio(); };
+  stepOne.onclick = () => { playing = false; showPlaying(); wakeAudio(); if (runner) { if (runner.done) runner.reset(); runner.step(); playSounds(); } };
   again.onclick = () => { if (runner) runner.reset(); owed = 0; };
   scrub.oninput = () => goTo(parseInt(scrub.value, 10) || 0);
   outcomePick.onchange = () => load(parseInt(outcomePick.value, 10) || 0);
+
+  // ---- the gizmo: a point of the picked step (an effect's place, the summon's, a move's end; with Free camera the
+  // camera's eye and target) with three arrows, dragged along one to move it in the world.
+  const GIZMO_POINTS = { 55: [[2, 'at']], 29: [[0, 'at']], 47: [[0, 'to']], 22: [[0, 'eye'], [3, 'target']], 23: [[0, 'eye from'], [3, 'eye to']], 24: [[0, 'target from'], [3, 'target to']] };
+  const GIZMO_AXES = [[[1, 0, 0], '#e8645a'], [[0, 1, 0], '#6ac48a'], [[0, 0, 1], '#6ea8fe']];
+  const GIZMO_LENGTH = 56;
+  let gizmoDrag = null;
+  function gizmoPoints() {
+    const i = selectedIndex();
+    const st = i >= 0 ? current()[i] : null;
+    const at = st && GIZMO_POINTS[st.op];
+    if (!at || !editable()) return [];
+    if ([22, 23, 24].includes(st.op) && !freeCam) return [];
+    return at.map(([k, name]) => ({ i, k, name, p: [0, 1, 2].map(c => (Number(st.p[k + c]) || 0) / 4096) }));
+  }
+  // Each point's handles on screen: the point, and per axis the arrow's tip and its screen direction per world unit.
+  function gizmoHandles() {
+    const out = [];
+    for (const pt of gizmoPoints()) {
+      const o = stage.toScreen(pt.p);
+      if (!o) continue;
+      const axes = [];
+      for (const [axis, colour] of GIZMO_AXES) {
+        const q = stage.toScreen(pt.p.map((v, c) => v + axis[c]));
+        if (!q) continue;
+        const dx = q[0] - o[0], dy = q[1] - o[1], per = Math.hypot(dx, dy);
+        if (per < 1e-3) continue;
+        axes.push({ axis, colour, per, dir: [dx / per, dy / per], tip: [o[0] + dx / per * GIZMO_LENGTH, o[1] + dy / per * GIZMO_LENGTH] });
+      }
+      out.push({ ...pt, o, axes });
+    }
+    return out;
+  }
+  function drawGizmo() {
+    const w = stageBox.clientWidth, h = stageBox.clientHeight, ratio = window.devicePixelRatio || 1;
+    if (gizmo.width !== Math.round(w * ratio) || gizmo.height !== Math.round(h * ratio)) { gizmo.width = Math.round(w * ratio); gizmo.height = Math.round(h * ratio); }
+    const g = gizmo.getContext('2d');
+    g.setTransform(ratio, 0, 0, ratio, 0, 0);
+    g.clearRect(0, 0, w, h);
+    for (const hd of gizmoHandles()) {
+      for (const a of hd.axes) {
+        const on = gizmoDrag && gizmoDrag.i === hd.i && gizmoDrag.k === hd.k && gizmoDrag.axis === a.axis;
+        g.strokeStyle = a.colour; g.fillStyle = a.colour; g.lineWidth = on ? 3.5 : 2;
+        g.beginPath(); g.moveTo(hd.o[0], hd.o[1]); g.lineTo(a.tip[0], a.tip[1]); g.stroke();
+        const [ux, uy] = a.dir, bx = a.tip[0] - ux * 10, by = a.tip[1] - uy * 10;
+        g.beginPath(); g.moveTo(a.tip[0], a.tip[1]); g.lineTo(bx - uy * 5, by + ux * 5); g.lineTo(bx + uy * 5, by - ux * 5); g.closePath(); g.fill();
+      }
+      g.fillStyle = '#ffffff'; g.beginPath(); g.arc(hd.o[0], hd.o[1], 3.5, 0, Math.PI * 2); g.fill();
+      g.font = '11px system-ui, "Segoe UI", sans-serif'; g.fillStyle = 'rgba(255,255,255,0.8)';
+      g.fillText(hd.name, hd.o[0] + 7, hd.o[1] - 7);
+    }
+  }
+  // A press on an arrow (near its shaft) takes the drag from the camera.
+  stageBox.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const r = stageBox.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    let best = null, near = 7;
+    for (const hd of gizmoHandles()) for (const a of hd.axes) {
+      const vx = a.tip[0] - hd.o[0], vy = a.tip[1] - hd.o[1], len2 = vx * vx + vy * vy;
+      const t = Math.max(0.25, Math.min(1, ((x - hd.o[0]) * vx + (y - hd.o[1]) * vy) / len2));
+      const d = Math.hypot(x - (hd.o[0] + vx * t), y - (hd.o[1] + vy * t));
+      if (d < near) { near = d; best = { hd, a }; }
+    }
+    if (!best) return;
+    e.preventDefault(); e.stopPropagation();
+    gizmoDrag = { i: best.hd.i, k: best.hd.k, axis: best.a.axis, dir: best.a.dir, per: best.a.per, x, y, from: best.hd.p.slice() };
+    try { stageBox.setPointerCapture(e.pointerId); } catch (err) { }
+    playing = false; showPlaying();
+  }, true);
+  stageBox.addEventListener('pointermove', e => {
+    if (!gizmoDrag) return;
+    e.stopPropagation();
+    const r = stageBox.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    // The pointer's move along the arrow on screen, in world units; Shift for a tenth as much.
+    let t = ((x - gizmoDrag.x) * gizmoDrag.dir[0] + (y - gizmoDrag.y) * gizmoDrag.dir[1]) / gizmoDrag.per;
+    if (e.shiftKey) t *= 0.1;
+    const p = mine.steps[gizmoDrag.i].p;
+    for (let c = 0; c < 3; c++) p[gizmoDrag.k + c] = Math.round((gizmoDrag.from[c] + gizmoDrag.axis[c] * t) * 4096);
+    changedQuietly();
+  }, true);
+  const gizmoUp = e => { if (!gizmoDrag) return; e.stopPropagation(); gizmoDrag = null; changed(); };
+  stageBox.addEventListener('pointerup', gizmoUp, true);
+  stageBox.addEventListener('pointercancel', gizmoUp, true);
 
   let shownIndex = -1, lastDrawnStep = -1;
   function frameLoop(now) {
@@ -1348,8 +1522,9 @@ async function openSummon(name) {
       owed += dt * 30;
       while (owed >= 1) {
         owed -= 1;
-        if (runner.done) { if (loop.checked) runner.reset(); else { playing = false; play.textContent = 'Play'; break; } }
+        if (runner.done) { if (loop.checked) runner.reset(); else { playing = false; showPlaying(); break; } }
         runner.step();
+        playSounds();
       }
     }
     if (runner) {
@@ -1366,6 +1541,7 @@ async function openSummon(name) {
       const quads = [], meshes = [];
       for (const e of S.effects) { if (!e.player.finished) { quads.push(...e.player.particles()); meshes.push(...e.player.models()); } }
       stage.draw(quads, 1, meshes);
+      drawGizmo();
       fade.style.background = S.fade.colour ? '#fff' : '#000';
       fade.style.opacity = String(Math.max(0, Math.min(1, S.fade.level)));
       const fl = S.flash;
@@ -1401,6 +1577,7 @@ async function openSummon(name) {
 /// A list to pick from, with a preview: items [{ value, label, note, group, search }], `preview(item, pane)` shows one
 /// (and may return a function that stops it). Enter or a double click picks, Escape closes.
 function summonPickList({ title, items, current, onChosen, preview = null, what = 'to pick from', extra = null }) {
+  let picked = null;
   const veil = document.createElement('div');
   veil.className = 'picker-veil';
   const box = document.createElement('div');
@@ -1429,7 +1606,7 @@ function summonPickList({ title, items, current, onChosen, preview = null, what 
   veil.append(box);
   document.body.append(veil);
 
-  let picked = items.find(it => String(it.value) === String(current)) || null;
+  picked = items.find(it => String(it.value) === String(current)) || null;
   let stopPreview = null;
   const show = it => {
     if (!preview) return;
@@ -1481,7 +1658,7 @@ function summonPickList({ title, items, current, onChosen, preview = null, what 
   use.disabled = !picked;
   filter.oninput = draw;
   window.addEventListener('keydown', onKey);
-  if (extra) extra(head, { close, redraw: draw, items });
+  if (extra) extra(head, { close, redraw: draw, items, picked: () => picked, shut });
   draw();
   show(picked);
   const on = list.querySelector('.on');
@@ -1596,7 +1773,7 @@ async function summonPreviewModel(view, model, pack, motionId, words, monster = 
 
 /// An effect: one of the mod's (its id) or a pack of the game's and its member. `packOnly` for SET_EFFECT (a pack to
 /// load). Calls back (value, member).
-async function pickSummonEffect(current, member, onChosen, { packOnly = false } = {}) {
+async function pickSummonEffect(current, member, onChosen, { packOnly = false, prefix = 'summon' } = {}) {
   const all = await api('/api/effects').catch(() => []);
   const items = [];
   for (const e of all || []) {
@@ -1612,6 +1789,44 @@ async function pickSummonEffect(current, member, onChosen, { packOnly = false } 
   summonPickList({
     title: packOnly ? 'An effect pack to load' : 'An effect', items, current, what: 'effects',
     onChosen: (value, it) => onChosen(value, it.own ? 1 : chosenMember),
+    // New effect…: one of the mod's, a copy of the one picked or a blank spark, used here and opened to change.
+    extra: packOnly ? null : (head, list) => {
+      const make = Object.assign(document.createElement('button'), { type: 'button', textContent: 'New effect\u2026', title: 'an effect of the mod\'s own (defs/effects): a copy of the one picked, or a blank one - used for this step and opened in the effect editor' });
+      head.insertBefore(make, list.shut);
+      make.onclick = () => {
+        const it = list.picked();
+        const body = dialog('New effect');
+        const note = document.createElement('p');
+        note.className = 'dialog-note';
+        note.textContent = 'An effect of the mod\'s own, for this step: it opens in the effect editor to change, and the summon plays it as you do.';
+        body.append(note);
+        const from = it ? (it.own ? it.label : `${it.value}/${chosenMember}`) : null;
+        const name = field(body, 'Name', `${prefix}-${from ? String(from).replace(/[^a-z0-9]+/gi, '-') : 'effect'}`.toLowerCase());
+        const choice = document.createElement('label');
+        choice.className = 'dialog-field toggle';
+        const copy = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!it, disabled: !it });
+        choice.append(copy, it ? ` a copy of ${from}` : ' blank (pick an effect first to copy it)');
+        body.append(choice);
+        const problem = errorLine(body);
+        const actions = document.createElement('div');
+        actions.className = 'dialog-actions';
+        const go = Object.assign(document.createElement('button'), { className: 'primary', textContent: 'Create' });
+        go.onclick = async () => {
+          go.disabled = true;
+          const ask = { id: name.value.trim() || prefix + '-effect' };
+          if (copy.checked && it) { if (it.own) ask.from = it.own; else { ask.category = it.value; ask.member = chosenMember; } }
+          const r = await api('/api/project/effect/new', ask).catch(e => ({ ok: false, error: e.message }));
+          if (!r.ok) { problem.textContent = r.error; go.disabled = false; return; }
+          body.close();
+          list.close();
+          say('made ' + r.name + ' for this step', 'good');
+          onChosen(shortName(r.name).replace(/\.json$/i, ''), 1, r.name);
+        };
+        actions.append(go);
+        body.append(actions);
+        name.focus();
+      };
+    },
     preview: (it, pane) => {
       const view = summonPreviewStage(pane);
       const members = document.createElement('div');

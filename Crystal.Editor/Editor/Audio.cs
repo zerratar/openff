@@ -344,6 +344,13 @@ namespace Crystal.Editor
 				contentType = "audio/ogg";
 				return Ogg(workspace, name);
 			}
+			// The Steam release keeps its sounds as Ogg Vorbis beside the archives (sound/SE271_00_0.ogg): played as they are.
+			string ogg = Path.Combine(workspace.ContentDirectory ?? "", "sound", string.Format(CultureInfo.InvariantCulture, "{0}_{1}.ogg", name, part));
+			if (File.Exists(ogg))
+			{
+				contentType = "audio/ogg";
+				return File.ReadAllBytes(ogg);
+			}
 			contentType = "audio/wav";
 			return Wav(workspace.ContentDirectory, name, part);
 		}

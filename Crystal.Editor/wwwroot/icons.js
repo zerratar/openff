@@ -12,6 +12,15 @@
 'use strict';
 
 const ICONS = {
+  // The player's buttons: play, pause, one step, back to the start; a sound on and off; a picker's target.
+  play: '<path d="M5 3.2v9.6l7.6-4.8z" fill="currentColor"/>',
+  pause: '<path d="M5.2 3.4v9.2M10.8 3.4v9.2" stroke-width="2.2"/>',
+  step: '<path d="M3.8 3.6v8.8l6.2-4.4z" fill="currentColor"/><path d="M12.2 3.4v9.2" stroke-width="1.8"/>',
+  restart: '<path d="M3.4 8a4.6 4.6 0 1 0 1.5-3.4"/><path d="M3.2 2.4v2.9h2.9"/>',
+  sound: '<path d="M2.6 6.2h2.6l3.4-2.8v9.2l-3.4-2.8H2.6z"/><path d="M11 5.6a3.4 3.4 0 0 1 0 4.8M12.8 3.9a5.8 5.8 0 0 1 0 8.2"/>',
+  muted: '<path d="M2.6 6.2h2.6l3.4-2.8v9.2l-3.4-2.8H2.6z"/><path d="m11 6 3.4 4M14.4 6 11 10"/>',
+  target: '<circle cx="8" cy="8" r="5.6"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/>',
+
   // A folded map, panels and creases.
   map: '<path d="M1.6 3.7 5.6 2.2l4.8 1.7 4-1.5v9.9l-4 1.5-4.8-1.7-4 1.5z"/>'
      + '<path d="M5.6 2.2v9.9M10.4 3.9v9.9"/>',

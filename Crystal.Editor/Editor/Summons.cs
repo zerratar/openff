@@ -164,11 +164,26 @@ namespace Crystal.Editor
 			return new { ok = true, spell = item.Id, number = item.Number, level };
 		}
 
-		/// <summary>How many summon definitions the project has (defs/summons/*.json), for the Mod folder's count.</summary>
+		/// <summary>How many summons the project has steps of its own for - a new summon, or one of the eight - as the Mod folder's Summons lists them.</summary>
 		public static int Count(Project project)
 		{
 			string folder = project == null ? null : Path.Combine(project.Directory, ModSummons.Folder);
-			return folder != null && Directory.Exists(folder) ? Directory.EnumerateFiles(folder, "*.json").Count() : 0;
+			if (folder == null || !Directory.Exists(folder)) return 0;
+			HashSet<string> summons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (string f in Directory.EnumerateFiles(folder, "*.json"))
+			{
+				try
+				{
+					JsonObject o = JsonNode.Parse(File.ReadAllText(f)) as JsonObject;
+					string spell = o?["spell"]?.ToString();
+					if (!string.IsNullOrWhiteSpace(spell)) summons.Add("spell:" + spell.Trim());
+					else if (ModSummons.Level(o?["summon"]?.ToString()) is int level && level >= 0) summons.Add("level:" + level);
+				}
+				catch (Exception) { }
+			}
+			// A new summon is its spell: counted by its spell definition even before a script of its own.
+			foreach (ModItem item in ProjectItems.All(project).Where(i => i.Base >= 4201 && i.Base <= 4208)) summons.Add("spell:" + item.Id);
+			return summons.Count;
 		}
 
 		/// <summary>The project's own script for a summon's outcome (defs/summons), if it has one: its file and definition.</summary>
