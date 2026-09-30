@@ -775,15 +775,36 @@ function makeEffectStage(canvas, textureUrl) {
   let dragging = null;
   // Dragging or the wheel frees the camera from the battle's.
   const freed = () => { if (layout.view === 'battle') { layout.view = 'free'; if (stageApi.onView) stageApi.onView('free'); } };
-  canvas.addEventListener('pointerdown', e => { dragging = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+  // The free camera: a drag turns it about where it looks; the middle button (or Shift and a drag) pans it, moving
+  // where it looks in the screen's plane; a double click puts it back on the effect's first target.
+  canvas.addEventListener('pointerdown', e => {
+    if (e.button === 1) e.preventDefault();   // no browser autoscroll
+    dragging = { x: e.clientX, y: e.clientY, pan: e.button === 1 || e.shiftKey };
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
   canvas.addEventListener('pointermove', e => {
     if (!dragging) return;
-    if (Math.abs(e.clientX - dragging.x) + Math.abs(e.clientY - dragging.y) > 0) freed();
-    camera.yaw -= (e.clientX - dragging.x) * 0.4;
-    camera.pitch = Math.max(-10, Math.min(85, camera.pitch + (e.clientY - dragging.y) * 0.3));
-    dragging = { x: e.clientX, y: e.clientY };
+    const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y;
+    if (Math.abs(dx) + Math.abs(dy) > 0) freed();
+    if (dragging.pan) {
+      // The camera's right and up in the world, and a pixel's worth of world at the distance it looks from.
+      const yaw = camera.yaw * EFFECT_DEG, pitch = camera.pitch * EFFECT_DEG;
+      const back = [Math.cos(pitch) * Math.sin(yaw), Math.sin(pitch), Math.cos(pitch) * Math.cos(yaw)];
+      const right = [Math.cos(yaw), 0, -Math.sin(yaw)];
+      const up = [back[1] * right[2] - back[2] * right[1], back[2] * right[0] - back[0] * right[2], back[0] * right[1] - back[1] * right[0]];
+      const perPixel = 2 * camera.distance * Math.tan(20 * EFFECT_DEG) / Math.max(1, canvas.clientHeight);
+      for (let k = 0; k < 3; k++) camera.target[k] += (-right[k] * dx + up[k] * dy) * perPixel;
+    } else {
+      camera.yaw -= dx * 0.4;
+      camera.pitch = Math.max(-10, Math.min(85, camera.pitch + dy * 0.3));
+    }
+    dragging = { ...dragging, x: e.clientX, y: e.clientY };
   });
   canvas.addEventListener('pointerup', () => { dragging = null; });
+  canvas.addEventListener('pointercancel', () => { dragging = null; });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('dblclick', () => { freed(); camera.target = anchors[0].slice(); });
   canvas.addEventListener('wheel', e => { e.preventDefault(); freed(); camera.distance = Math.max(8, Math.min(200, camera.distance * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
 
   /// Who the effect plays on: { model (a game model's name, or none), scale, toward, up, turn, party, at (a place of its own) }.

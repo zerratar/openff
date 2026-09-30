@@ -1096,7 +1096,8 @@ the battle plays it, at the target's hit point: a monster (the Goblin to start w
 game's from the list) or Luneth for a spell on the party, standing in its battle wait where the
 battle stands it, the hit point so far toward the battle camera and so far up as the monster's
 own offsets say. An effect's own models (Blizzard's ice block) play their motion too. The
-battle's camera to start with; drag to turn a free one, the wheel to come closer; **Play**, **Step** (one game
+battle's camera to start with; drag to turn a free one, the middle button (or Shift and a drag) to
+pan it, the wheel to come closer, a double click to look at the target again; **Play**, **Step** (one game
 step, a thirtieth of a second), **Restart**, the scrubber, **loop**, 30 or 60 fps (at 60 a
 particle is drawn between its two steps, as the client does), and the count of particles.
 

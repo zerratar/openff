@@ -37,6 +37,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Effects: an orbit's grow and turn, a mesh's scale and yaw, and the size and speed a particle is born with can be curves.
 - Effects: render tint recolour paints a picture's brightness in the particle's colour - a blue flame from the game's orange one.
 - Crystal: effect timeline bars resize from their edges - an emitter's emission or life, a mesh's life, a flash's or a shake's frames.
+- Crystal: the effect Stage's free camera pans with the middle button (or Shift and a drag); a double click looks at the target again.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
 - Crystal: resting the pointer on an effect in the library plays it.
 - Crystal: a Mod badge marks the project's own things in the lists, and an OpenFF only badge the client's behaviours.
