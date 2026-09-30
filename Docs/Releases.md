@@ -52,6 +52,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: Copy into the mod makes a summon's outcome editable step by step, with Set from camera and Test in battle.
 - Crystal: a summon's steps on a timeline under the Stage, picked in the Hierarchy and edited in the Inspector; waits drag longer or shorter.
 - Crystal: a summon's Look in the Inspector swaps its model, motions and effects, opens an effect or makes it the mod's.
+- Summons: a new summon - a mod spell based on one of the eight - plays as its base with scripts of its own (defs/summons "spell").
+- Summons: SET_MOTION 1000 and on loads a monster's motions, for a summon with a monster's model.
+- Crystal: New summon… makes a summon of the mod's from one of the eight, its three scripts copied to change.
 - Client: --summon-outcome white|black|combine makes every summon that outcome, for a test.
 - Crystal: Run in OpenFF plays the open project's mod alone; Run with the other mods plays it among the rest.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.

@@ -1223,8 +1223,14 @@ internal static partial class GlobalScope
 				{
 					OutsideToBattle.getInstance().onMagicDefenseInvalidation();
 					summonManager_.setSummonType(static_cast<SummonManager.SUMMON_TYPE>(nowPlayer().selectSummonType()));
-					summonManager_.setSummonLevel(nowPlayer().magicLevel());
-					int num = nowPlayer().useMagicId() + summonManager_.summonType() * 10;
+					// PORT: a mod's new summon (a spell of the mod's based on one of the eight) plays as its base - the base's
+					// level and outcome records - with the scripts of its own it has (defs/summons "spell") and its own cast.
+					int own = nowPlayer().useMagicId();
+					int baseSummon = OpenFF.Client.ModItemsLayer.SummonBase(own) ?? own;
+					summonManager_.setSummonLevel(baseSummon == own ? nowPlayer().magicLevel() : (((int?)itm.ItemManager.instance().magicParameter((short)baseSummon)?.magicClass()) ?? 0));
+					summonManager_.setScript(baseSummon == own ? null : OpenFF.Client.ModItemsLayer.SummonScript(own, summonManager_.summonType()));
+					int num = baseSummon + summonManager_.summonType() * 10;
+					OpenFF.Client.ModItemsLayer.CastingSummon(num, baseSummon == own ? -1 : own);
 					nowPlayer().setUseMagicId((short)num);
 					setTargetGeography(T);
 					int se_group = 270 + magicParameter.magicClass();

@@ -7,6 +7,10 @@
 //
 // Server: /api/summons (the eight and their outcomes), /api/summon?level=&type= (one script, and what playing it
 // needs: the summon's model and motions, its monster's offsets, the spells its steps draw).
+//
+// A new summon is a spell of the mod's (defs/items) based on one of the eight summon spells (4201..4208): the battle
+// plays it as its base, with the scripts of its own the mod gives it (defs/summons with "spell": its id) in place of
+// the base's. /api/project/summon/new makes one: the spell, and its three outcomes' scripts copied from the base's.
 
 using System;
 using System.Collections.Generic;
@@ -82,7 +86,7 @@ namespace Crystal.Editor
 		}
 
 		/// <summary>The eight summons and their three outcomes, by the spells' and the battle messages' names.</summary>
-		public static object List(Workspace workspace)
+		public static object List(Workspace workspace, Project project = null)
 		{
 			List<int[]>[] chains = Read(workspace);
 			GameTables tables = GameData.Tables(workspace);
@@ -109,11 +113,50 @@ namespace Crystal.Editor
 					}).ToList(),
 				});
 			}
+			// The mod's new summons: its spells based on a summon's, each with its base's outcomes.
+			foreach (ModItem item in ProjectItems.All(project).Where(i => i.Base >= 4201 && i.Base <= 4208))
+			{
+				int level = item.Base - 4201;
+				summons.Add(new
+				{
+					level,
+					name = string.IsNullOrWhiteSpace(item.Name) ? item.Id : item.Name,
+					creature = (string)null,
+					spell = item.Id,
+					number = item.Number,
+					baseName = ModSummons.Names[level].Creature,
+					outcomes = Enumerable.Range(0, 3).Select(type =>
+					{
+						(string file, JsonObject def) = Mine(project, level, type, item.Id);
+						return new
+						{
+							type,
+							kind = Outcomes[type],
+							name = messages.TryGetValue((uint)(1300 + level * 10 + type + 1), out string n) && !string.IsNullOrWhiteSpace(n) ? n.Trim() : Outcomes[type],
+							steps = def?["steps"] is JsonArray own ? own.Count : type + 3 * level < chains.Length ? chains[type + 3 * level].Count : 0,
+						};
+					}).ToList(),
+				});
+			}
 			return new { ok = true, summons };
 		}
 
+		/// <summary>
+		/// A new summon: a spell of the mod's based on a summon's (its level's, 4201 + level), and its three outcomes'
+		/// scripts copied from the base's to make its own.
+		/// </summary>
+		public static object New(Project project, Workspace workspace, string name, int level)
+		{
+			if (project == null) throw new InvalidOperationException("no project is open");
+			if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a summon needs a name");
+			if (level < 0 || level > 7) throw new ArgumentException("no summon " + level + " to start from (0 Chocobo ... 7 Bahamut)");
+			ModItem item = ProjectItems.New(project, name, 4201 + level);
+			for (int type = 0; type < 3; type++) Copy(project, workspace, level, type, item.Id);
+			return new { ok = true, spell = item.Id, number = item.Number, level };
+		}
+
 		/// <summary>The project's own script for a summon's outcome (defs/summons), if it has one: its file and definition.</summary>
-		public static (string File, JsonObject Def) Mine(Project project, int level, int type)
+		public static (string File, JsonObject Def) Mine(Project project, int level, int type, string spell = null)
 		{
 			if (project == null) return (null, null);
 			string folder = Path.Combine(project.Directory, ModSummons.Folder);
@@ -125,7 +168,11 @@ namespace Crystal.Editor
 				{
 					JsonObject o = JsonNode.Parse(File.ReadAllText(f)) as JsonObject;
 					if (o == null) continue;
-					if (ModSummons.Level(o["summon"]?.ToString()) == level && ModSummons.OutcomeNumber(o["outcome"]) == type) found = (ModSummons.Folder + "/" + Path.GetFileName(f), o);
+					if (ModSummons.OutcomeNumber(o["outcome"]) != type) continue;
+					string its = string.IsNullOrWhiteSpace(o["spell"]?.ToString()) ? null : o["spell"].ToString().Trim();
+					// A new summon's by its spell; one of the game's eight by its summon (and no spell).
+					bool mine = spell != null ? string.Equals(its, spell, StringComparison.OrdinalIgnoreCase) : its == null && ModSummons.Level(o["summon"]?.ToString()) == level;
+					if (mine) found = (ModSummons.Folder + "/" + Path.GetFileName(f), o);
 				}
 				catch (Exception) { }
 			}
@@ -133,7 +180,7 @@ namespace Crystal.Editor
 		}
 
 		/// <summary>A summon's outcome copied into the mod: the game's script as steps (defs/summons/&lt;creature&gt;-&lt;outcome&gt;.json).</summary>
-		public static object Copy(Project project, Workspace workspace, int level, int type)
+		public static object Copy(Project project, Workspace workspace, int level, int type, string spell = null)
 		{
 			if (project == null) throw new InvalidOperationException("no project is open");
 			List<int[]>[] chains = Read(workspace);
@@ -148,10 +195,13 @@ namespace Crystal.Editor
 				if (r[7] != 0) step["again"] = true;
 				steps.Add(step);
 			}
-			JsonObject def = new JsonObject { ["summon"] = ModSummons.Names[level].Creature, ["outcome"] = ModSummons.Outcomes[type], ["steps"] = steps };
+			// A new summon's are its spell's; one of the eight's replace the game's.
+			JsonObject def = spell != null
+				? new JsonObject { ["spell"] = spell, ["outcome"] = ModSummons.Outcomes[type], ["steps"] = steps }
+				: new JsonObject { ["summon"] = ModSummons.Names[level].Creature, ["outcome"] = ModSummons.Outcomes[type], ["steps"] = steps };
 			string folder = Path.Combine(project.Directory, ModSummons.Folder);
 			Directory.CreateDirectory(folder);
-			string name = (ModSummons.Names[level].Creature + "-" + ModSummons.Outcomes[type]).ToLowerInvariant();
+			string name = ((spell ?? ModSummons.Names[level].Creature) + "-" + ModSummons.Outcomes[type]).ToLowerInvariant();
 			File.WriteAllText(Path.Combine(folder, name + ".json"), Text(def), new UTF8Encoding(false));
 			return new { ok = true, file = ModSummons.Folder + "/" + name + ".json", def };
 		}
@@ -185,7 +235,7 @@ namespace Crystal.Editor
 		private static string Text(JsonNode def) => EffectsProject.Text(def);
 
 		/// <summary>One summon's script and what playing it needs.</summary>
-		public static object Script(Workspace workspace, int level, int type, Project project = null)
+		public static object Script(Workspace workspace, int level, int type, Project project = null, string spell = null)
 		{
 			List<int[]>[] chains = Read(workspace);
 			int index = type + 3 * level;
@@ -212,16 +262,18 @@ namespace Crystal.Editor
 				return new { id, name = s?.Name, category = rec.Category, member = rec.Member, frame = rec.Frame, offset = rec.Offset, party };
 			}).ToList();
 
-			(string mineFile, JsonObject mineDef) = Mine(project, level, type);
+			(string mineFile, JsonObject mineDef) = Mine(project, level, type, spell);
+			ModItem item = spell == null ? null : ProjectItems.All(project).FirstOrDefault(i => string.Equals(i.Id, spell, StringComparison.OrdinalIgnoreCase));
 			return new
 			{
 				ok = true,
 				level, type,
 				mine = mineFile == null ? null : new { file = mineFile, def = mineDef },
-				summon = tables.Spell(4201 + level)?.Name,
+				spell, number = item?.Number,
+				summon = item != null ? (string.IsNullOrWhiteSpace(item.Name) ? item.Id : item.Name) : tables.Spell(4201 + level)?.Name,
 				name = messages.TryGetValue((uint)(1300 + level * 10 + type + 1), out string n) ? n?.Trim() : Outcomes[type],
 				model = model > 0 ? "files/f" + model.ToString("000", CultureInfo.InvariantCulture) + ".nmdp.lz" : null,
-				motions = motion > 0 ? "b_sm" + motion.ToString("000", CultureInfo.InvariantCulture) : null,
+				motions = motion >= 1000 ? "b_f" + (motion - 1000).ToString("000", CultureInfo.InvariantCulture) : motion > 0 ? "b_sm" + motion.ToString("000", CultureInfo.InvariantCulture) : null,
 				monster, target, spells,
 				steps = records.Select(r => new { op = r[8], name = r[8] >= 0 && r[8] < Commands.Length ? Commands[r[8]] : "?" + r[8], p = r.Take(7).ToArray(), again = r[7] != 0 }).ToList(),
 			};

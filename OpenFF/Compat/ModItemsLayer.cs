@@ -213,15 +213,26 @@ namespace OpenFF.Client
 		/// <summary>
 		/// The mods' summons (defs/summons): their steps in place of the game's scripts, composed into
 		/// summon_script_command.pack as the battle reads it (Shared/Data/ModSummons.cs); an effect a step names by
-		/// its id is one of the mods' (defs/effects), put in by its category.
+		/// its id is one of the mods' (defs/effects), put in by its category. A new summon - a mod item based on one of
+		/// the eight summons' spells - plays its base's outcome, with the scripts the definitions give it ("spell").
 		/// </summary>
-		private static void RegisterSummons(ContentChain chain, List<string> roots)
+		private static void RegisterSummons(ContentChain chain, List<string> roots, List<ModItem> items)
 		{
+			foreach (ModItem item in items) if (item.Base >= FirstSummon && item.Base < FirstSummon + 8) _summonBases[item.Number] = item.Base;
 			List<string> notes = new List<string>();
 			List<ModSummon> summons = ModSummons.Load(roots, notes);
 			foreach (string note in notes) Log.Write(LogChannel.General, "summons: " + note);
+			List<ModSummon> added = ModSummons.NewSummons(summons);
+			for (int k = 0; k < added.Count; k++)
+			{
+				ModSummon s = added[k];
+				ModItem mine = items.FirstOrDefault(i => string.Equals(i.Name, s.Spell, StringComparison.OrdinalIgnoreCase) || string.Equals(i.Id, s.Spell, StringComparison.OrdinalIgnoreCase) || i.Number.ToString(System.Globalization.CultureInfo.InvariantCulture) == s.Spell);
+				if (mine == null || !_summonBases.ContainsKey(mine.Number)) { Log.Write(LogChannel.General, "summons: " + s.Id + ": no spell '" + s.Spell + "' of the mods' based on a summon (4201..4208)"); continue; }
+				_summonChains[(mine.Number, s.Outcome)] = ModSummons.GameChains + k;
+			}
+			if (_summonBases.Count > 0) Log.Write(LogChannel.General, "summons: " + _summonBases.Count + " new of the mods': " + string.Join(", ", _summonBases.Select(b => b.Key + " (as " + b.Value + ", " + _summonChains.Keys.Count(c => c.Item1 == b.Key) + " script(s) of its own)")));
 			if (summons.Count == 0) return;
-			Log.Write(LogChannel.General, "summons: " + summons.Count + " of the mods': " + string.Join(", ", summons.Select(s => s.Summon + " " + ModSummons.Outcomes[s.Outcome] + " (" + s.Steps.Count + " steps)")));
+			Log.Write(LogChannel.General, "summons: " + summons.Count + " of the mods': " + string.Join(", ", summons.Select(s => (s.Spell ?? s.Summon) + " " + ModSummons.Outcomes[s.Outcome] + " (" + s.Steps.Count + " steps)")));
 			chain.AddTransform((name, data) =>
 			{
 				if (!ModSummons.IsPack(name)) return data;
@@ -233,6 +244,23 @@ namespace OpenFF.Client
 			});
 		}
 
+		// The new summons: a mod spell's number to the summon spell it is based on (4201..4208), and a spell and
+		// outcome to its own script's chain in the pack.
+		private const int FirstSummon = 4201;
+		private static readonly Dictionary<int, int> _summonBases = new Dictionary<int, int>();
+		private static readonly Dictionary<(int, int), int> _summonChains = new Dictionary<(int, int), int>();
+		// The new summon being cast: the outcome's record it plays as (its base's) and its own spell, whose look it casts with.
+		private static (int Played, int Own)? _casting;
+
+		/// <summary>The summon spell a mod's new summon is based on (btl.PlayerTurnSystem: its outcomes' records are its base's); null for any other spell.</summary>
+		public static int? SummonBase(int magicId) => _summonBases.TryGetValue(magicId, out int b) ? b : (int?)null;
+
+		/// <summary>The chain of summon_script_command.pack a new summon plays for an outcome; null for its base's.</summary>
+		public static int? SummonScript(int magicId, int outcome) => _summonChains.TryGetValue((magicId, outcome), out int c) ? c : (int?)null;
+
+		/// <summary>A new summon cast as its base's outcome record: its own spell's look gives the cast (CastEffect); -1, -1 when done.</summary>
+		public static void CastingSummon(int played, int own) => _casting = own >= 0 ? (played, own) : null;
+
 		// The looks' casts (their "cast"): a spell's id to the pack its caster plays as it begins, -1 for none.
 		private static Func<Dictionary<int, int>> _castsFrom;
 		private static Dictionary<int, int> _casts;
@@ -241,6 +269,7 @@ namespace OpenFF.Client
 		public static int? CastEffect(int magicId)
 		{
 			if (_casts == null && _castsFrom != null) { _casts = _castsFrom(); _castsFrom = null; }
+			if (_casting is (int played, int own) && played == magicId && _casts != null && _casts.TryGetValue(own, out int mine)) return mine;
 			return _casts != null && _casts.TryGetValue(magicId, out int pack) ? pack : (int?)null;
 		}
 
@@ -270,6 +299,9 @@ namespace OpenFF.Client
 		{
 			_casts = null;
 			_castsFrom = null;
+			_summonBases.Clear();
+			_summonChains.Clear();
+			_casting = null;
 			ModEffects.Register(null);
 			// --nomods: the game as shipped, definitions included - what Tools/parity.ps1 compares against.
 			if (chain == null || chain.Game != "ff3" || Options.Get("nomods") != null) return;
@@ -294,7 +326,7 @@ namespace OpenFF.Client
 			Items = kept;
 			WeaponMeshes.Register(kept);
 			RegisterSpells(chain, roots, kept);
-			RegisterSummons(chain, roots);
+			RegisterSummons(chain, roots, kept);
 			if (kept.Count == 0) return;
 			Log.Write(LogChannel.General, "items: " + kept.Count + " of the mods' own: " + string.Join(", ", kept.Select(i => i.Number + " " + (i.Name ?? i.Id) + (i.Model != null ? " (" + i.Model + ")" : ""))));
 			chain.AddTransform((name, data) =>

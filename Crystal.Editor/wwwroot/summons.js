@@ -81,10 +81,53 @@ function summonDefSteps(steps) {
 async function summonsForList() {
   const r = await api('/api/summons').catch(() => null);
   state.summons = r && r.ok ? r.summons : [];
+  // A new summon of the mod's: summon/<level>/<its spell's id>, marked the mod's.
   return state.summons.map(s => ({
-    name: 'summon/' + s.level, overridden: false, def: { name: s.creature ? `${s.creature} (${s.name})` : s.name },
-    note: s.outcomes.map(o => o.name).join(' · ')
+    name: 'summon/' + s.level + (s.spell ? '/' + s.spell : ''), overridden: !!s.spell,
+    def: { name: s.spell ? s.name : s.creature ? `${s.creature} (${s.name})` : s.name },
+    note: (s.spell ? 'as ' + s.baseName + ' · ' : '') + s.outcomes.map(o => o.name).join(' · ')
   }));
+}
+
+/// New summon…: a name and the summon it starts as - a spell of the mod's based on that summon's, with its three
+/// outcomes' scripts copied from the base's to make its own.
+async function newSummonDialog(level = 1) {
+  const body = dialog('New summon');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'A summon of the mod\'s own: a spell that an Evoker or a Summoner learns and casts like the game\'s eight. It starts as one of them - its level, its outcomes, their damage - with its three scripts copied to change: the model, the camera, the effects.';
+  body.append(note);
+  const name = field(body, 'Name', '', { placeholder: 'Frost Wyrm' });
+  const label = document.createElement('label');
+  label.className = 'dialog-field';
+  label.textContent = 'Starts as';
+  const pick = document.createElement('select');
+  ModSummonNames.forEach(([creature, spell], i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = `${creature} (${spell}, level ${i + 1})`; pick.append(o); });
+  pick.value = String(level);
+  label.append(pick);
+  body.append(label);
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Create';
+  go.onclick = async () => {
+    const n = name.value.trim();
+    if (!n) { problem.textContent = 'A summon needs a name.'; return; }
+    go.disabled = true;
+    try {
+      const r = await api('/api/project/summon/new', { name: n, level: parseInt(pick.value, 10) || 0 });
+      if (!r.ok) throw new Error(r.error);
+      body.close();
+      say(`made the summon ${n} (spell ${r.number}), its three outcomes its own`, 'good');
+      if (state.browse === 'summon') await loadList();
+      openDoc('summon', 'summon/' + r.level + '/' + r.spell);
+    } catch (e) { problem.textContent = e.message; go.disabled = false; }
+  };
+  actions.append(go);
+  body.append(actions);
+  name.focus();
 }
 
 /// One step as words: what the command does with its numbers.
@@ -97,7 +140,7 @@ function summonStepText(st) {
     case 4: return `fade out to ${p1 ? 'white' : 'black'} over ${p2} frames`;
     case 6: return `fade in over ${p1} frames`;
     case 8: return `load the summon's model f${String(p1).padStart(3, '0')}`;
-    case 10: return `load its motions b_sm${String(p1).padStart(3, '0')}`;
+    case 10: return p1 >= 1000 ? `load a monster's motions b_f${String(p1 - 1000).padStart(3, '0')}` : `load its motions b_sm${String(p1).padStart(3, '0')}`;
     case 12: return `play motion ${p1}${p2 ? ', looping' : ''}`;
     case 13: return `wait for its motion's frame ${p1}`;
     case 16: return `load effect pack e${p1}`;
@@ -380,14 +423,17 @@ function summonOutline(doc) {
 async function openSummon(name) {
   const doc = activeDoc;
   const level = parseInt(String(name).split('/')[1], 10) || 0;
+  // A new summon of the mod's: its spell's id (summon/<level>/<id>), played as its base's level.
+  const spell = String(name).split('/')[2] || null;
   const node = view('summon', name, false);
   const body = $('.summon-body', node);
   const outcomePick = $('.summon-outcome', node);
   const facts = $('.facts', node);
   const bar = $('.bar', node);
   const list = await api('/api/summons').catch(() => null);
-  const entry = list && list.ok ? list.summons.find(s => s.level === level) : null;
-  $('.name', node).textContent = entry ? (entry.creature ? `${entry.creature} (${entry.name})` : entry.name) : name;
+  const entry = list && list.ok ? list.summons.find(s => s.level === level && (s.spell || null) === spell) : null;
+  $('.name', node).textContent = entry ? (entry.spell ? entry.name : entry.creature ? `${entry.creature} (${entry.name})` : entry.name) : name;
+  if (spell) { $('.name', node).append(' ', ownBadge('mod', { title: 'a summon of the mod\'s: its base\'s level, outcomes and damage, its own scripts' })); $('.name', node).title = 'as ' + (entry ? entry.baseName : 'its base'); }
   for (const o of (entry ? entry.outcomes : [])) {
     const opt = document.createElement('option');
     opt.value = String(o.type);
@@ -466,7 +512,9 @@ async function openSummon(name) {
   whose.title = 'play the mod\'s steps, or the game\'s to compare';
   bar.append(whose);
   const testButton = barButton('Test in battle', 'OpenFF with this mod alone: an Evoker (a Summoner for the combine) casts it, this outcome forced, in a battle', 'primary');
-  const removeButton = barButton('Delete the copy', 'the mod\'s steps taken out: the game\'s play again');
+  const removeButton = spell
+    ? barButton('Use the base\'s steps', 'this outcome\'s steps taken out: the summon plays its base\'s script for it')
+    : barButton('Delete the copy', 'the mod\'s steps taken out: the game\'s play again');
   camChip.onclick = () => {
     freeCam = !freeCam;
     camChip.classList.toggle('on', freeCam);
@@ -493,7 +541,7 @@ async function openSummon(name) {
   }
   whose.onclick = () => { showGame = !showGame; syncBar(); rebuild(true).then(refreshPanels); };
   copyButton.onclick = async () => {
-    const r = await api('/api/project/summon/copy', { level, type });
+    const r = await api('/api/project/summon/copy', { level, type, spell });
     if (!r.ok) { say(r.error, 'bad'); return; }
     mine = { file: r.file, def: r.def, steps: summonStepsOf(r.def) };
     showGame = false;
@@ -501,13 +549,13 @@ async function openSummon(name) {
     syncBar(); await rebuild(true); refreshPanels();
   };
   removeButton.onclick = async () => {
-    if (!mine || !confirm('Take the mod\'s steps for this outcome out (' + mine.file + ')? The game\'s play again.')) return;
+    if (!mine || !confirm('Take the mod\'s steps for this outcome out (' + mine.file + ')? ' + (spell ? 'Its base\'s script plays for it.' : 'The game\'s play again.'))) return;
     await api('/api/project/summon/delete', { file: mine.file });
     mine = null; syncBar(); await rebuild(true); refreshPanels();
   };
   testButton.onclick = async () => {
     say('starting OpenFF to try ' + (entry ? entry.creature || entry.name : 'the summon') + '…');
-    const r = await api('/api/project/test-spell', { spell: 4201 + level, school: 'Summon', outcome: SUMMON_OUTCOMES[type], formation: 1 }).catch(e => ({ ok: false, error: e.message }));
+    const r = await api('/api/project/test-spell', { spell: script.number || 4201 + level, school: 'Summon', outcome: SUMMON_OUTCOMES[type], formation: 1 }).catch(e => ({ ok: false, error: e.message }));
     if (!r.ok) { say(r.error, 'bad'); return; }
     say(`OpenFF is starting: a ${r.job} with the summon, then the battle - choose Summon and cast it`, 'good');
   };
@@ -526,7 +574,7 @@ async function openSummon(name) {
   async function load(t) {
     type = t;
     facts.textContent = 'loading…';
-    script = await api(`/api/summon?level=${level}&type=${type}`);
+    script = await api(`/api/summon?level=${level}&type=${type}` + (spell ? '&spell=' + encodeURIComponent(spell) : ''));
     if (!script.ok) { facts.textContent = script.error; return; }
     gameSteps = script.steps;
     mine = script.mine ? { file: script.mine.file, def: script.mine.def, steps: summonStepsOf(script.mine.def) } : null;
@@ -683,6 +731,10 @@ async function openSummon(name) {
     if (motionAt >= 0) {
       const pick = document.createElement('select');
       for (let n = 1; n <= 8; n++) { const o = document.createElement('option'); o.value = String(n); o.textContent = 'b_sm' + String(n).padStart(3, '0') + '  (' + ((ModSummonNames[n - 1] || [])[0] || '') + '\'s)'; pick.append(o); }
+      // A monster's model moves by its family's motions (b_f###, as 1000 + the family).
+      const model = modelAt >= 0 ? Number(steps[modelAt].p[0]) : 0;
+      const theirs = new Set([model > 0 && model < 201 ? 1000 + model : 0, Number(steps[motionAt].p[0])].filter(v => v >= 1000));
+      for (const v of theirs) { const o = document.createElement('option'); o.value = String(v); o.textContent = 'b_f' + String(v - 1000).padStart(3, '0') + '  (a monster\'s: its motion numbers are its own)'; pick.append(o); }
       pick.value = String(steps[motionAt].p[0]);
       pick.disabled = !editable();
       pick.onchange = () => setParam(motionAt, 0, parseInt(pick.value, 10));

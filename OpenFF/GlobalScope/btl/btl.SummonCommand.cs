@@ -162,7 +162,9 @@ internal static partial class GlobalScope
 					int ctrl = turnSystem().characterManager().playerParty().summon()
 						.characterMngId();
 					string arg = "";
-					sprintf(out arg, "b_sm%03d", param.param1_);
+					// PORT: 1000 and on are a monster's motions (b_f###, the family's), for a summon of a monster's model.
+					if (param.param1_ >= 1000) sprintf(out arg, "b_f%03d", param.param1_ - 1000);
+					else sprintf(out arg, "b_sm%03d", param.param1_);
 					characterMng.addMotionAsync(ctrl, arg);
 					return true;
 				}

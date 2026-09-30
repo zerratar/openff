@@ -1127,6 +1127,13 @@ cast glow, and every effect it plays - a pack and member, or one of the mod's by
 (a copy in `defs/effects`, the step pointed at it, opened to change); *On each target* is the
 spell whose look plays on every target. A step shows its command and numbers.
 
+**New summon…** (the Summons list, an OpenFF mod) makes a summon of the mod's: a name and one of
+the eight to start as. It is a spell of the mod's based on that summon's (`defs/items`, with the
+Mod badge in the list, "as Shiva"), cast by an Evoker or a Summoner at the base's level, with the
+base's outcomes and damage; its three scripts are copied from the base's
+(`defs/summons/<spell>-<outcome>.json`, `"spell"`) and edited here like any other. **Use the base's
+steps** takes an outcome's script out: it plays its base's. **Test in battle** casts it.
+
 The script is the game's own - `files/summon_script_command.pack`, 24 lists of 36-byte records
 (`Crystal.Editor/Editor/Summons.cs`, `/api/summons`, `/api/summon`) - and `wwwroot/summons.js`
 is a port of the battle's interpreter (`btl.BaseSummon.run`, `btl.SummonCommand`): a record a

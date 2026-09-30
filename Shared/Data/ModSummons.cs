@@ -16,6 +16,11 @@
 // the same step as the one before. The effect of a draw command (SET_EFFECT, DRAW_SUMMON_EFFECT,
 // DRAW_SUMMON_EFFECT_TARGET_ALL, CREATE_EFFECT_AND_SET_POSITION) may be one of the mods' own by its id
 // (defs/effects), as a string: its category is put in.
+//
+// A new summon: "spell" names a spell of the mod's (defs/items) based on one of the eight summons' spells, and the
+// steps are that spell's for the outcome - the game's summon keeps its own. Such scripts go in after the game's 24
+// chains (24, 25 ... in load order: NewSummons); the battle plays the one for the spell and outcome it rolls, the
+// base's damage and the rest of its outcome as they are.
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +41,8 @@ namespace OpenFF.Data
 	{
 		public string Id;
 		public string Summon;
+		/// <summary>A new summon's spell (a mod item based on a summon), by its name or id; null for one of the game's eight.</summary>
+		public string Spell;
 		public int Outcome;
 		public List<ModSummonStep> Steps = new List<ModSummonStep>();
 		public string Source;
@@ -46,6 +53,8 @@ namespace OpenFF.Data
 		public const string Folder = "defs/summons";
 		public const string Pack = "summon_script_command.pack";
 		public const int Record = 36;
+		/// <summary>The game's chains: eight summons times three outcomes. A new summon's scripts come after.</summary>
+		public const int GameChains = 24;
 
 		/// <summary>The commands in btl.SUMMON_BEHAVIOR's order: a record's command is its index here.</summary>
 		public static readonly string[] Commands =
@@ -111,6 +120,7 @@ namespace OpenFF.Data
 			{
 				Id = node["id"]?.ToString(),
 				Summon = node["summon"]?.ToString(),
+				Spell = string.IsNullOrWhiteSpace(node["spell"]?.ToString()) ? null : node["spell"].ToString().Trim(),
 				Outcome = OutcomeNumber(node["outcome"]),
 				Source = source,
 			};
@@ -141,13 +151,29 @@ namespace OpenFF.Data
 						ModSummon s = Parse(File.ReadAllText(file), file);
 						if (s == null) continue;
 						if (string.IsNullOrWhiteSpace(s.Id)) s.Id = Path.GetFileNameWithoutExtension(file);
-						if (Level(s.Summon) < 0) { notes?.Add(file + ": no summon '" + s.Summon + "' (Chocobo, Shiva, Ramuh, Ifrit, Titan, Odin, Leviathan, Bahamut, or 0..7)"); continue; }
+						if (s.Spell == null && Level(s.Summon) < 0) { notes?.Add(file + ": no summon '" + s.Summon + "' (Chocobo, Shiva, Ramuh, Ifrit, Titan, Odin, Leviathan, Bahamut, or 0..7)"); continue; }
 						if (s.Outcome < 0) { notes?.Add(file + ": no outcome (white, black or combine)"); continue; }
 						if (s.Steps.Count == 0) { notes?.Add(file + ": no steps"); continue; }
 						found.Add(s);
 					}
 					catch (Exception ex) { notes?.Add(file + ": " + ex.Message); }
 				}
+			}
+			return found;
+		}
+
+		/// <summary>
+		/// The new summons' scripts in the order their chains follow the game's (GameChains + index): one for each spell
+		/// and outcome, a later definition of the same in place of the earlier (load order).
+		/// </summary>
+		public static List<ModSummon> NewSummons(IEnumerable<ModSummon> summons)
+		{
+			List<ModSummon> found = new List<ModSummon>();
+			foreach (ModSummon s in summons ?? Enumerable.Empty<ModSummon>())
+			{
+				if (s.Spell == null) continue;
+				int at = found.FindIndex(f => f.Outcome == s.Outcome && string.Equals(f.Spell, s.Spell, StringComparison.OrdinalIgnoreCase));
+				if (at >= 0) found[at] = s; else found.Add(s);
 			}
 			return found;
 		}
@@ -176,50 +202,19 @@ namespace OpenFF.Data
 			bool changed = false;
 			foreach (ModSummon s in summons ?? Enumerable.Empty<ModSummon>())
 			{
+				if (s.Spell != null) continue;
 				int index = s.Outcome + 3 * Level(s.Summon);
 				if (index < 0 || index >= count) { problems?.Add(s.Id + ": no chain for " + s.Summon + "/" + s.Outcome); continue; }
-				List<byte> records = new List<byte>();
-				bool ended = false;
-				foreach (ModSummonStep step in s.Steps)
-				{
-					int op = CommandNumber(step.Do);
-					if (op < 0) { problems?.Add(s.Id + ": no command '" + step.Do + "' - skipped"); continue; }
-					byte[] r = new byte[Record];
-					for (int i = 0; i < 7; i++)
-					{
-						int v = 0;
-						JsonNode p = step.P[i];
-						if (p is JsonValue pv)
-						{
-							if (pv.TryGetValue(out int n)) v = n;
-							else if (pv.TryGetValue(out double d)) v = (int)Math.Round(d);
-							else if (pv.TryGetValue(out string text))
-							{
-								// One of the mods' effects by its id, in a draw command's first place: its category.
-								int? category = i == 0 && EffectCommands.Contains(op) ? effectCategory?.Invoke(text) : null;
-								if (category == null && int.TryParse(text, out int parsed)) category = parsed;
-								if (category == null) problems?.Add(s.Id + ": " + Commands[op] + " - no effect '" + text + "'");
-								v = category ?? 0;
-							}
-						}
-						BitConverter.GetBytes(v).CopyTo(r, 4 * i);
-					}
-					r[28] = (byte)(step.Again ? 1 : 0);
-					r[29] = r[30] = r[31] = 1;
-					BitConverter.GetBytes(op).CopyTo(r, 32);
-					records.AddRange(r);
-					if (op == 44) ended = true;
-				}
-				if (!ended)
-				{
-					// Without an END the battle would run off the list: one is put last.
-					byte[] r = new byte[Record];
-					r[29] = r[30] = r[31] = 1;
-					BitConverter.GetBytes(44).CopyTo(r, 32);
-					records.AddRange(r);
-					problems?.Add(s.Id + ": no SUMMON_BEHAVIOR_END - one put last");
-				}
-				chains[index] = records.ToArray();
+				chains[index] = Records(s, effectCategory, problems);
+				changed = true;
+			}
+			// The new summons' scripts, after the game's.
+			List<ModSummon> added = count == GameChains ? NewSummons(summons) : new List<ModSummon>();
+			if (count != GameChains && (summons ?? Enumerable.Empty<ModSummon>()).Any(s => s.Spell != null)) problems?.Add("the pack has " + count + " chains, not " + GameChains + " - the new summons' scripts are left out");
+			if (added.Count > 0)
+			{
+				chains = chains.Concat(added.Select(s => Records(s, effectCategory, problems))).ToArray();
+				count = chains.Length;
 				changed = true;
 			}
 			if (!changed) return pack;
@@ -236,6 +231,53 @@ namespace OpenFF.Data
 				Buffer.BlockCopy(chains[c], 0, outPack, offsets[c], chains[c].Length);
 			}
 			return outPack;
+		}
+
+		/// <summary>A definition's steps as the pack's records: a record a step, the last END if the steps have none.</summary>
+		private static byte[] Records(ModSummon s, Func<string, int?> effectCategory, List<string> problems)
+		{
+			List<byte> records = new List<byte>();
+			bool ended = false;
+			foreach (ModSummonStep step in s.Steps)
+			{
+				int op = CommandNumber(step.Do);
+				if (op < 0) { problems?.Add(s.Id + ": no command '" + step.Do + "' - skipped"); continue; }
+				byte[] r = new byte[Record];
+				for (int i = 0; i < 7; i++)
+				{
+					int v = 0;
+					JsonNode p = step.P[i];
+					if (p is JsonValue pv)
+					{
+						if (pv.TryGetValue(out int n)) v = n;
+						else if (pv.TryGetValue(out double d)) v = (int)Math.Round(d);
+						else if (pv.TryGetValue(out string text))
+						{
+							// One of the mods' effects by its id, in a draw command's first place: its category.
+							int? category = i == 0 && EffectCommands.Contains(op) ? effectCategory?.Invoke(text) : null;
+							if (category == null && int.TryParse(text, out int parsed)) category = parsed;
+							if (category == null) problems?.Add(s.Id + ": " + Commands[op] + " - no effect '" + text + "'");
+							v = category ?? 0;
+						}
+					}
+					BitConverter.GetBytes(v).CopyTo(r, 4 * i);
+				}
+				r[28] = (byte)(step.Again ? 1 : 0);
+				r[29] = r[30] = r[31] = 1;
+				BitConverter.GetBytes(op).CopyTo(r, 32);
+				records.AddRange(r);
+				if (op == 44) ended = true;
+			}
+			if (!ended)
+			{
+				// Without an END the battle would run off the list: one is put last.
+				byte[] r = new byte[Record];
+				r[29] = r[30] = r[31] = 1;
+				BitConverter.GetBytes(44).CopyTo(r, 32);
+				records.AddRange(r);
+				problems?.Add(s.Id + ": no SUMMON_BEHAVIOR_END - one put last");
+			}
+			return records.ToArray();
 		}
 	}
 }

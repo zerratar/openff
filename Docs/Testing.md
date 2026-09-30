@@ -276,6 +276,12 @@ passed; these are the rest.
   "spells: 1 look(s) of the mods': Fire -> emerald-fire"; the screenshots show green flames on
   the Goblin where the game's Fire burns, then the damage. The drive step `effect emerald-fire 0 4 6`
   plays it by the hero on the field.
+- A new summon (test report): Summons ▸ New summon… "Frost Wyrm" as Shiva (spell 20002, three scripts
+  copied), its combine's DRAW_SUMMON_EFFECT_TARGET_ALL given `green-fire`; the client with the mod alone, a
+  drive `job 0 Summoner`, `level 0 99`, `heal`, `learn 0 20002`, `battle 1`, then Down, Z, Z, Z: the log has
+  "summons: 1 new of the mods': 20002 (as 4202, 3 script(s) of its own)" and "summon_script_command.pack
+  composed, 62512 -> 71040 bytes"; the screenshots show Frost Wyrm in the level 2 list, the Diamond Dust
+  help, Shiva, green flames on the Goblins in place of the ice, the damage and the victory.
 - A summon of the mod's (test report): Summons ▸ Shiva ▸ Diamond Dust ▸ Copy into the mod, the finale's
   step (DRAW_SUMMON_EFFECT_TARGET_ALL 367/1) given `green-fire`; the client with the mod alone, a drive
   `job 0 Summoner`, `level 0 99`, `heal`, `learn 0 4202`, `battle 1`, then Down, Z, Z, Z: the log has

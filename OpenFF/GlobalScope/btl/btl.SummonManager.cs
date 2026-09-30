@@ -93,9 +93,17 @@ internal static partial class GlobalScope
 
 			private BaseSummon currentSummon_ = new BaseSummon();
 
+			// PORT: a new summon's own script (a chain after the game's 24), or null for the level's and outcome's.
+			private int? script_;
+
+			public void setScript(int? chain)
+			{
+				script_ = chain;
+			}
+
 			public void initialize(TurnSystem T)
 			{
-				CommandParameter[] pCmdParam = T.summonDataManager().commandParameter(summonLevel(), summonType());
+				CommandParameter[] pCmdParam = (script_ is int chain ? T.summonDataManager().chain(chain) : null) ?? T.summonDataManager().commandParameter(summonLevel(), summonType());
 				SummonCommand.getSingleton().setTurnSystem(T);
 				SummonCommand.getSingleton().initializeCommand();
 				currentSummon_.setup(pCmdParam);

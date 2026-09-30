@@ -53,6 +53,14 @@ internal static partial class GlobalScope
 				}
 			}
 
+			/// <summary>PORT: one of the pack's chains by its number - a mod's new summon's, after the game's 24; null when the pack has no such chain.</summary>
+			public CommandParameter[] chain(int id)
+			{
+				byte[] data = pData_ as byte[];
+				if (data == null || data.Length < 4 || id < 0 || id >= BitConverter.ToInt32(data, 0)) return null;
+				return CommandParameter.ChainPointer(data, id);
+			}
+
 			public CommandParameter[] commandParameter(int summonLevel, int summonType)
 			{
 				return CommandParameterTable_[summonLevel, summonType];

@@ -2153,17 +2153,23 @@ namespace Crystal.Editor
 
 				case "/api/summons":
 					// FF3's summons: the eight and their three outcomes (Summons.cs).
-					try { SendJson(context, Summons.List(_workspace)); }
+					try { SendJson(context, Summons.List(_workspace, _project)); }
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
 
 				case "/api/summon":
-					try { SendJson(context, Summons.Script(_workspace, int.Parse(Query(context, "level") ?? "0", CultureInfo.InvariantCulture), int.Parse(Query(context, "type") ?? "0", CultureInfo.InvariantCulture), _project)); }
+					try { SendJson(context, Summons.Script(_workspace, int.Parse(Query(context, "level") ?? "0", CultureInfo.InvariantCulture), int.Parse(Query(context, "type") ?? "0", CultureInfo.InvariantCulture), _project, string.IsNullOrEmpty(Query(context, "spell")) ? null : Query(context, "spell"))); }
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
 
 				case "/api/project/summon/copy":
-					try { JsonNode body = ReadBody(context); SendJson(context, Summons.Copy(_project, _workspace, body?["level"]?.GetValue<int>() ?? 0, body?["type"]?.GetValue<int>() ?? 0)); }
+					try { JsonNode body = ReadBody(context); SendJson(context, Summons.Copy(_project, _workspace, body?["level"]?.GetValue<int>() ?? 0, body?["type"]?.GetValue<int>() ?? 0, string.IsNullOrWhiteSpace(body?["spell"]?.ToString()) ? null : body["spell"].ToString())); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+
+				case "/api/project/summon/new":
+					// A new summon: a spell of the mod's based on a summon's, its three outcomes' scripts copied to make its own.
+					try { JsonNode body = ReadBody(context); SendJson(context, Summons.New(_project, _workspace, body?["name"]?.ToString(), body?["level"]?.GetValue<int>() ?? 0)); }
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
 

@@ -1038,6 +1038,14 @@ at a time. A definition is such a list; the client rebuilds the pack with it as 
 - In Crystal: **Summons** ▸ a summon ▸ its outcome ▸ **Copy into the mod** writes the game's script
   as steps (`defs/summons/<creature>-<outcome>.json`), edited in the same view; **Test in battle**
   casts it (an Evoker, a Summoner for the combine; `--summon-outcome` forces the outcome).
+- A new summon: a spell of the mod's (`defs/items`) based on one of the eight summon spells
+  (4201 Escape ... 4208 Bahamur) is learnt and cast like them, and plays as its base - the base's
+  level, outcomes and their damage. `"spell": "<its id or name>"` in place of `summon` makes a
+  definition that spell's script for the outcome; the game's summon keeps its own. An outcome
+  the new summon has no script for plays its base's. In Crystal, Summons ▸ **New summon…** makes
+  the spell and copies its base's three scripts to change.
+- `SET_MOTION` 1000 and on loads a monster's motions (`b_f###`, the family 1000 less), for a
+  summon of a monster's model (`SET_MODEL` takes any `f###`); its motion numbers are the family's.
 
 ### An effect of the mod's own: `defs/effects/<id>.json`
 
