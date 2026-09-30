@@ -266,7 +266,8 @@ passed; these are the rest.
 - `node Tools/effect_cases.mjs` and `crystal effect-cases` - the JS player (Crystal's Stage) and
   the client's (`Shared/Effects/EffectPlayer.cs`) against `Tools/EffectCases`: an effect, a seed,
   frames and the quads each draws (`curves-spin` the smooth curves, speed over life and spin;
-  `more-curves` count over time, gravity and spin over life). Both say "7/7 case(s) pass"; a
+  `more-curves` count over time, gravity and spin over life; `orbit-birth` an orbit's curves, size
+  and speed over time). Both say "8/8 case(s) pass"; a
   change to either player that
   changes what it draws fails both until the other follows and the cases are written again
   (`--write`, from the JS).
@@ -279,6 +280,11 @@ passed; these are the rest.
   `spin` (`angle` 0-360, `speed` -14..14), `speedOverLife` and smooth curves; the drive
   `until jump: ff3 90`, `wait 3`, `effect spin-test 0 0 6`, screenshots every 0.2 s. The blades lie
   at every angle and turn from one picture to the next, and slow to a drift as they rise.
+- A game model's scale curve (test report): Blizzard imported with its ice block's `scale` a
+  curve 0.03 -> 0.25 -> 0.11 and `yaw` 0 -> 180, as Fire's look (EmeraldFire off, the drive
+  `learn 0 4101` then the battle): the block comes in small, swells past the game's own size and
+  settles as it fades. On the field it shows nothing - a game pack's models and pictures load in
+  battle only.
 
 ## What "works" looks like in the log
 

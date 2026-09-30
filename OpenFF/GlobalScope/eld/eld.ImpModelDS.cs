@@ -173,6 +173,14 @@ internal static partial class GlobalScope
 				_dsRender.setRotation((ushort)x, (ushort)y, (ushort)z);
 			}
 
+			// PORT: a mod's effect sizes the game's model (a mesh track's scale, OpenFF/Compat/ModEffects.cs) - the whole
+			// scale, fx32, in place of the template's own (which is what the importer writes as the track's). The game never calls it.
+			public override void SetScale(int _xScale, int _yScale, int _zScale)
+			{
+				if (_setup == null) return;
+				_dsRender.setScale(new VecFx32(_xScale, _yScale, _zScale));
+			}
+
 			public bool allocateWork()
 			{
 				return true;

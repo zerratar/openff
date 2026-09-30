@@ -226,7 +226,11 @@ Each stage is usable on its own; each ends with the docs (`Modding.md`) and a sa
    and plays its texture SRT (the sea, the sky, a river) and material alpha a frame a game step,
    each looping on its own length without its last frame (28 of the 43 maps scroll or fade). The
    texture pattern the port never plays (b03's), and FF3's maps carry no visibility, so neither
-   is drawn. The party wears the Onion Knight's job only.
+   is drawn. The party wears the Onion Knight's job only. What stands on the Stage is the
+   modder's to pick: the map, the monsters, which heroes (all, the caster and the targets, the
+   caster, none), the floor and the marks, or the effect alone. And the rest of the numbers took
+   curves: an orbit's grow and turn over life, the size and speed a particle is born with over the
+   emission, a mesh's scale and yaw over its steps (`orbit-birth.case.json`).
 5. **Later.** GPU particles if a real effect needs more than the CPU gives; lights from
    effects; decals on the ground; a node graph only if the module stack is found wanting.
 
@@ -243,7 +247,9 @@ pingpong, repeat; or `from` an anchor `to` another over `length` steps, rising b
 middle, the track's anchor aside) and `stop`. A `mesh`'s `model` is the game's
 (`game:<pack>:0x<id>`) or a glTF of the mod's (a path from its folder: `assets/x.glb`), with
 `scale`, `yaw`, `clip` (the glTF's animation, `speed`, `loop`) and `life` (steps; else while the
-effect plays). The tracks that are neither: `sound` (`archive`, `number`, `volume`, `load`),
+effect plays); `scale` and `yaw` may be curves by its step (`{ keys, smooth }` or a list of
+`[step, value]`) - a scale a game model takes in place of its template's (`eld.ImpModelDS.SetScale`,
+the port's addition). The tracks that are neither: `sound` (`archive`, `number`, `volume`, `load`),
 `flash` (`colour`, `frames`, `interval`, `count`), `shake` (`frames`, `power`, `speed`), at their
 `start`. An emitter adds:
 
@@ -253,7 +259,9 @@ effect plays). The tracks that are neither: `sound` (`archive`, `number`, `volum
   `size` (the full width, a range);
 - `speed`: `direction`, `value` (a range), `spread` (degrees either way about X, Y, Z - an import
   writes 180, a whole turn, where the game has any: that is how the port turns them in play);
-  `gravity`: `direction`, `value` (per frame, a range); `orbit`: `radius`, `grow`, `turn`
+  `gravity`: `direction`, `value` (per frame, a range); `orbit`: `radius`, `grow`, `turn` (`grow`
+  and `turn` a number, or a curve by the particle's age); `sizeOverTime`, `speedOverTime` (keys
+  `[frame, k]` by the emitter's frame): the size and speed a particle is born with, times k;
   (degrees a frame); `gather`: `speed`, `accel`, `swirl`; `trail`: `count`, `colour`;
 - `colour` (keys `[age, r, g, b, a]`, 0-255), `scale` (keys `[age, x, y]`) - straight lines
   between keys, whole frames of age; or a curve object `{ keys, smooth }`: smooth, a Hermite

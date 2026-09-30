@@ -1137,7 +1137,11 @@ it was on; **Ctrl+Z** takes it back.
 - **Spin.** The picture turned as the particle is born and a frame after, each a range.
 - **Spin over life**, **Gravity over life**, **Count over time.** Curves of how much of its spin
   and its pull reach a particle, and of how many a burst makes across the emission (its presets
-  swell, burst then trickle, build up, steady - by the emission's count).
+  swell, burst then trickle, build up, steady - by the emission's count). **Size over time** and
+  **Speed over time**: the size and speed a particle is born with, across the emission.
+- **A number or a curve.** An orbit's *Grow* and *Turn*, a mesh's *Scale* and *Yaw* have a
+  *curve* chip: on, the number becomes a curve (by the particle's age; the mesh's step), drawn
+  either side of 0 where a value can be negative; off, the number again.
 - **Texture.** The picture - one of the project's (a PNG chosen in the picker goes beside the effects)
   or any of the game's effect pictures, all in one picker - drawn with its cell grid; the cell
   size, columns and frames make a flipbook.
@@ -1147,7 +1151,10 @@ it was on; **Ctrl+Z** takes it back.
   battle staggers a spell cast on all) or *the whole side* (once, at the side's point, as a spell
   that can only hit all); *no map* or one of the battle maps behind them, moving as in the game
   (the sea and the sky scroll: `/api/model/animation`, `Namp.cs`); the *battle camera* (as
-  a spell plays) or a *free* one - a drag or the wheel frees it.
+  a spell plays) or a *free* one - a drag or the wheel frees it. **Show**: chips for the *Map*, the
+  *Monsters*, the *Floor* (its grid, where no map is drawn) and the *Marks* (a cross where the
+  effect plays), which heroes (*All heroes*, *Caster + targets*, *Caster*, *No heroes*), and
+  *Effect only* / *Everything* to switch them all at once; kept from one effect to the next.
 - **Timeline.** Under the Stage, a row a track: a bar from its start to its last particle's end,
   a diamond for a sound, a flash, a shake. Drag a bar to move its start, the white mark (an
   emitter's last burst) to spread its bursts; click to put the playhead there.

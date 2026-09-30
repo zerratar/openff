@@ -1026,7 +1026,9 @@ name is its id.
   (`"angle"` as it is born and `"speed"` a frame, degrees, each a range). `gravityOverLife` and
   `spinOverLife` are curves of how much of its pull and of its spin reach it, and `countOverTime`
   one of how many particles a burst makes by the emitter's frame (`[[1, 1], [6, 8], [12, 0]]`
-  swells and dies away).
+  swells and dies away); `sizeOverTime` and `speedOverTime` the same for the size and speed a
+  particle is born with. An orbit's `grow` and `turn`, and a mesh's `scale` and `yaw`, may be
+  curves too (by the particle's age; the mesh's step).
 - **Pictures.** `"image"` is a PNG beside the definition, or one of the game's by
   `game:<pack>:<name>` (read from the player's install, never copied into the mod - Crystal's
   Effects library shows each pack's).

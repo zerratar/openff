@@ -38,6 +38,9 @@ namespace OpenFF.Effects
 		public EffectTrack Track;
 		public double X, Y, Z;
 		public int Frame;
+		/// <summary>Its scale (x, y, z) and yaw (degrees) now - the track's own, or its curves' at its step.</summary>
+		public double[] Scale;
+		public double Yaw;
 		public object Instance;
 	}
 
@@ -77,6 +80,12 @@ namespace OpenFF.Effects
 		public double[][] GravityOverLife, SpinOverLife; public bool GravitySmooth, SpinSmooth;
 		/// <summary>Count over time: keys [frame of the emitter, count] - how many a burst then makes.</summary>
 		public double[][] CountOverTime; public bool CountSmooth;
+		/// <summary>Size over time, speed over time: keys [frame of the emitter, k] - what a particle is born with, times k.</summary>
+		public double[][] SizeOverTime, SpeedOverTime; public bool SizeTimeSmooth, SpeedTimeSmooth;
+		/// <summary>An orbit's grow and turn as curves over life (else the numbers).</summary>
+		public double[][] OrbitGrowKeys, OrbitTurnKeys; public bool OrbitGrowSmooth, OrbitTurnSmooth;
+		/// <summary>A mesh's scale and yaw as curves over its steps (else the numbers).</summary>
+		public double[][] MeshScaleKeys, MeshYawKeys; public bool MeshScaleSmooth, MeshYawSmooth; public double MeshYaw;
 		public EffectTexture Texture;
 		public double[] MeshScale;
 		public bool MeshLoop;
@@ -127,7 +136,14 @@ namespace OpenFF.Effects
 					k.Size = RangeOf(t["size"]);
 					if (t["speed"] is JsonObject sp) { k.SpeedDirection = Vector(sp["direction"]) ?? new double[] { 0, 1, 0 }; k.SpeedValue = RangeOf(sp["value"]); k.Spread = Vector(sp["spread"]); }
 					if (t["gravity"] is JsonObject g) { k.GravityDirection = Vector(g["direction"]) ?? new double[] { 0, -1, 0 }; k.GravityValue = RangeOf(g["value"]); }
-					if (t["orbit"] is JsonObject o) { k.Orbit = true; k.OrbitRadius = Num(o["radius"]); k.OrbitGrow = Num(o["grow"]); k.OrbitTurn = Num(o["turn"]); }
+					if (t["orbit"] is JsonObject o)
+					{
+						k.Orbit = true; k.OrbitRadius = Num(o["radius"]); k.OrbitGrow = Num(o["grow"]); k.OrbitTurn = Num(o["turn"]);
+						if (o["grow"] is JsonObject || o["grow"] is JsonArray) { k.OrbitGrowKeys = Keys(o["grow"]); k.OrbitGrowSmooth = Smooth(o["grow"]); }
+						if (o["turn"] is JsonObject || o["turn"] is JsonArray) { k.OrbitTurnKeys = Keys(o["turn"]); k.OrbitTurnSmooth = Smooth(o["turn"]); }
+					}
+					k.SizeOverTime = Keys(t["sizeOverTime"]); k.SizeTimeSmooth = Smooth(t["sizeOverTime"]);
+					k.SpeedOverTime = Keys(t["speedOverTime"]); k.SpeedTimeSmooth = Smooth(t["speedOverTime"]);
 					if (t["gather"] is JsonObject ga) { k.Gather = true; k.GatherSpeed = Num(ga["speed"]); k.GatherAccel = Num(ga["accel"]); k.GatherSwirl = Vector(ga["swirl"]) ?? new double[3]; }
 					if (t["trail"] is JsonObject tr) { k.TrailCount = Int(tr["count"]); k.TrailColour = Numbers(tr["colour"]) ?? new double[4]; }
 					k.Colour = Keys(t["colour"]); k.ColourSmooth = Smooth(t["colour"]);
@@ -151,7 +167,12 @@ namespace OpenFF.Effects
 					}
 					if (t["render"] is JsonObject r) k.Blend = Text(r["blend"]) ?? "alpha";
 					k.Model = Text(t["model"]);
-					if (k.Type == "mesh") { k.MeshScale = Numbers(t["scale"]); k.MeshLoop = Bool(t["loop"]); k.Scale = null; }
+					if (k.Type == "mesh")
+					{
+						k.MeshScale = t["scale"] is JsonObject ? null : Numbers(t["scale"]); k.MeshLoop = Bool(t["loop"]); k.Scale = null; k.ScaleSmooth = false;
+						if (t["scale"] is JsonObject) { k.MeshScaleKeys = Keys(t["scale"]); k.MeshScaleSmooth = Smooth(t["scale"]); }
+						if (t["yaw"] is JsonObject || t["yaw"] is JsonArray) { k.MeshYawKeys = Keys(t["yaw"]); k.MeshYawSmooth = Smooth(t["yaw"]); } else k.MeshYaw = Num(t["yaw"]);
+					}
 					d.Tracks.Add(k);
 				}
 			}
@@ -380,7 +401,7 @@ namespace OpenFF.Effects
 					double[] v = new double[3];
 					if (t.SpeedDirection != null)
 					{
-						double s = Range(t.SpeedValue);
+						double s = Range(t.SpeedValue) * (t.SpeedOverTime != null ? KeysAt(t.SpeedOverTime, e.Life, 1, t.SpeedTimeSmooth)[0] : 1);
 						v = t.SpeedDirection.Select(d => d * s).ToArray();
 						if (t.Spread != null)
 						{
@@ -396,7 +417,7 @@ namespace OpenFF.Effects
 				}
 				if (!local && !t.Gather) p.Base = new[] { p.Base[0] + e.At[0], p.Base[1] + e.At[1], p.Base[2] + e.At[2] };
 				double size = Range(t.Size);
-				p.Size = size != 0 ? size : 1;
+				p.Size = (size != 0 ? size : 1) * (t.SizeOverTime != null ? KeysAt(t.SizeOverTime, e.Life, 1, t.SizeTimeSmooth)[0] : 1);
 				if (t.Spin) { p.Roll = Range(t.SpinAngle); p.Spin = Range(t.SpinSpeed); }
 				g.Parts.Add(p);
 			}
@@ -442,8 +463,8 @@ namespace OpenFF.Effects
 					p.Local = (double[])p.Base.Clone();
 					if (t.Orbit)
 					{
-						p.Radius += t.OrbitGrow;
-						p.Angle += t.OrbitTurn;
+						p.Radius += t.OrbitGrowKeys != null ? KeysAt(t.OrbitGrowKeys, g.Age, 1, t.OrbitGrowSmooth)[0] : t.OrbitGrow;
+						p.Angle += t.OrbitTurnKeys != null ? KeysAt(t.OrbitTurnKeys, g.Age, 1, t.OrbitTurnSmooth)[0] : t.OrbitTurn;
 						p.Local[0] += p.Radius * Math.Sin(p.Angle * Deg);
 						p.Local[2] += p.Radius * Math.Cos(p.Angle * Deg);
 					}
@@ -563,7 +584,11 @@ namespace OpenFF.Effects
 			{
 				// A mesh with a life of its own shows for it; else while the effect plays.
 				if (m.Track.Raw?["life"] != null && m.Steps > m.Track.Life) continue;
-				o.Add(new EffectModel { Track = m.Track, X = m.At[0], Y = m.At[1], Z = m.At[2], Frame = m.Steps - 1, Instance = m.Instance });
+				EffectTrack t = m.Track;
+				double[] scale = t.MeshScaleKeys != null ? new[] { KeysAt(t.MeshScaleKeys, m.Steps, 1, t.MeshScaleSmooth)[0] } : t.MeshScale ?? new double[] { 1 };
+				if (scale.Length < 3) scale = new[] { scale[0], scale[0], scale[0] };
+				double yaw = t.MeshYawKeys != null ? KeysAt(t.MeshYawKeys, m.Steps, 1, t.MeshYawSmooth)[0] : t.MeshYaw;
+				o.Add(new EffectModel { Track = t, X = m.At[0], Y = m.At[1], Z = m.At[2], Frame = m.Steps - 1, Instance = m.Instance, Scale = scale, Yaw = yaw });
 			}
 			return o;
 		}

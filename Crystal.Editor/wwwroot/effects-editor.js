@@ -322,6 +322,19 @@ function effectInspect(ed, ref) {
         presets: { 'swell': [[0, 0.25], [0.5, 2], [1, 0]], 'burst, then trickle': [[0, 3], [0.2, 0.5], [1, 0.25]], 'build up': [[0, 0], [1, 2]], 'steady': [[0, 1], [1, 1]] }
       });
     });
+    const emissionSpan = () => Math.max(2, (ed.def.tracks[i].emission || {}).duration || 10);
+    effectModule(ed, box, i, 'sizeOverTime', 'Size over time', () => ({ keys: [[1, 1], [emissionSpan(), 1]], smooth: true }), card => {
+      effectCurve(ed, card, i, {
+        field: 'sizeOverTime', names: ['size'], colours: ['#e07a7a'], span: emissionSpan, floor: 1.5,
+        presets: { 'grow': [[0, 0.3], [1, 1.5]], 'shrink': [[0, 1.5], [1, 0.3]], 'swell': [[0, 0.5], [0.5, 1.5], [1, 0.5]], 'constant': [[0, 1], [1, 1]] }
+      });
+    });
+    effectModule(ed, box, i, 'speedOverTime', 'Speed over time', () => ({ keys: [[1, 1], [emissionSpan(), 1]], smooth: true }), card => {
+      effectCurve(ed, card, i, {
+        field: 'speedOverTime', names: ['speed'], colours: ['#e0b86a'], span: emissionSpan, floor: 1.5,
+        presets: { 'faster': [[0, 0.5], [1, 2]], 'slower': [[0, 2], [1, 0.5]], 'burst': [[0, 3], [0.3, 1], [1, 1]], 'constant': [[0, 1], [1, 1]] }
+      });
+    });
 
     const part = effectCard(box, 'Particle', 'effect', null);
     effectNumber(ed, part, 'Life', d => T(d).life || 1, (d, v) => { T(d).life = Math.max(1, Math.round(v)); }, { step: 1, hint: 'frames a particle shows' });
@@ -342,8 +355,8 @@ function effectInspect(ed, ref) {
     });
     effectModule(ed, box, i, 'orbit', 'Orbit', () => ({ radius: 1, grow: 0.1, turn: 6 }), card => {
       effectNumber(ed, card, 'Radius', d => T(d).orbit.radius || 0, (d, v) => { T(d).orbit.radius = v; });
-      effectNumber(ed, card, 'Grow', d => T(d).orbit.grow || 0, (d, v) => { T(d).orbit.grow = v; }, { hint: 'the radius a frame' });
-      effectNumber(ed, card, 'Turn', d => T(d).orbit.turn || 0, (d, v) => { T(d).orbit.turn = v; }, { hint: 'degrees a frame about the upright' });
+      effectNumberOrCurve(ed, card, i, 'Grow', 'orbit.grow', { hint: 'the radius a frame (a curve: by its age)', signed: true, floor: 0.2, colour: '#6ac48a' });
+      effectNumberOrCurve(ed, card, i, 'Turn', 'orbit.turn', { hint: 'degrees a frame about the upright (a curve: by its age)', signed: true, floor: 10, colour: '#b99af0' });
     });
     effectModule(ed, box, i, 'gather', 'Gather', () => ({ speed: 0.3, accel: 0.05, swirl: [0, 20, 0] }), card => {
       effectNumber(ed, card, 'Speed', d => T(d).gather.speed || 0, (d, v) => { T(d).gather.speed = v; }, { hint: 'toward the emitter, a frame' });
@@ -391,8 +404,11 @@ function effectInspect(ed, ref) {
   } else if (type === 'mesh') {
     const mesh = effectCard(box, 'Model', 'model', null);
     effectText(ed, mesh, 'Model', d => T(d).model || '', (d, v) => { T(d).model = v; }, { hint: 'game:<pack>:0x<id> (one of the game\'s effects\' models), or a glTF of the mod\'s: assets/x.glb' });
-    effectNumber(ed, mesh, 'Scale', d => Array.isArray(T(d).scale) ? T(d).scale[0] : (T(d).scale || 1), (d, v) => { T(d).scale = v; });
-    effectNumber(ed, mesh, 'Yaw', d => T(d).yaw || 0, (d, v) => { if (v) T(d).yaw = v; else delete T(d).yaw; }, { hint: 'degrees about the upright' });
+    // Scale and yaw: numbers, or curves over the model's steps (its life, else the effect's length).
+    const meshSpan = () => Math.max(2, ed.def.tracks[i].life || ed.def.length || 30);
+    if (Array.isArray(T(ed.def).scale)) effectNumber(ed, mesh, 'Scale', d => T(d).scale[0], (d, v) => { T(d).scale = v; });
+    else effectNumberOrCurve(ed, mesh, i, 'Scale', 'scale', { hint: 'the model\'s size (a curve: by its step)', span: meshSpan, floor: 1.5, fallback: 1, colour: '#e07a7a' });
+    effectNumberOrCurve(ed, mesh, i, 'Yaw', 'yaw', { hint: 'degrees about the upright (a curve: by its step - a turn)', span: meshSpan, signed: true, floor: 90, colour: '#b99af0' });
     effectNumber(ed, mesh, 'Life', d => T(d).life === undefined ? '' : T(d).life, (d, v) => { if (v === '' || isNaN(v)) delete T(d).life; else T(d).life = Math.round(v); }, { step: 1, blank: true, hint: 'frames it shows (blank: while the effect plays)' });
     effectText(ed, mesh, 'Clip', d => T(d).clip || '', (d, v) => { if (v) T(d).clip = v; else delete T(d).clip; }, { hint: 'a glTF\'s animation by name (the game plays it; the Stage shows the bind pose)' });
     effectBool(ed, mesh, 'Loop', d => !!T(d).loop, (d, v) => { if (v) T(d).loop = true; else delete T(d).loop; });
@@ -778,6 +794,48 @@ function effectGradient(ed, card, i) {
 
 // ------------------------------------------------------------------ a value over life: a curve
 
+/// A field of a track by its path ('orbit.turn'), and put there (the objects on the way made).
+function effectGet(o, path) { return String(path).split('.').reduce((a, k) => a == null ? a : a[k], o); }
+function effectSet(o, path, v) {
+  const ks = String(path).split('.');
+  let a = o;
+  for (const k of ks.slice(0, -1)) a = a[k] = a[k] && typeof a[k] === 'object' ? a[k] : {};
+  a[ks[ks.length - 1]] = v;
+}
+/// Whether a value is a curve: { keys } or a list of keys ([[age, v], ...]).
+function effectIsCurve(v) { return !!v && typeof v === 'object' && (!Array.isArray(v) ? Array.isArray(v.keys) : Array.isArray(v[0])); }
+
+/// A number that may be a curve over life: its field and a *curve* chip beside it; with the chip on, the curve in its place
+/// (keys from the number, flat), and off the number again (the curve's first value).
+function effectNumberOrCurve(ed, card, i, label, path, { hint = '', step = 0.01, span = null, colour = '#6ea8fe', signed = false, floor = 1, fallback = 0 } = {}) {
+  const T = d => d.tracks[i];
+  const curve = effectIsCurve(effectGet(T(ed.def), path));
+  const chip = document.createElement('button');
+  chip.className = 'chip' + (curve ? ' on' : '');
+  chip.textContent = 'curve';
+  chip.title = curve ? 'a number again (the curve\'s first value)' : 'a curve over ' + (span ? 'the track\'s time' : 'the particle\'s life') + ' in place of the number';
+  chip.onclick = e => {
+    e.preventDefault();
+    ed.change(curve ? 'a number again' : 'a curve', d => {
+      const now = effectGet(T(d), path);
+      if (curve) effectSet(T(d), path, (effectKeys(now, 1, 1) || [fallback])[0]);
+      else {
+        const v = now === undefined || now === '' ? fallback : Number(now) || 0;
+        const L = Math.max(2, span ? span() : (T(d).life || 16));
+        effectSet(T(d), path, { keys: [[1, v], [L, v]], smooth: true });
+      }
+    }, { structural: true });
+  };
+  if (!curve) {
+    const input = effectNumber(ed, card, label, d => { const v = effectGet(T(d), path); return v === undefined ? fallback : v; }, (d, v) => effectSet(T(d), path, v), { hint, step });
+    (input.closest('.behaviour-field') || input.parentNode).append(chip);
+    return;
+  }
+  const row = effectRow(card, label, hint);
+  row.append(chip);
+  effectCurve(ed, card, i, { field: path, names: [label.toLowerCase()], colours: [colour], span, signed, floor });
+}
+
 /// A switch over a curve: straight lines between its keys (a list, as the game's are), or smooth
 /// ({ keys, smooth }, a Hermite curve). Straight again drops the keys' own tangents.
 function effectSmoothSwitch(ed, wrap, i, field, width, redraw) {
@@ -785,14 +843,14 @@ function effectSmoothSwitch(ed, wrap, i, field, width, redraw) {
   label.className = 'toggle';
   const box = document.createElement('input');
   box.type = 'checkbox';
-  const c = ed.def.tracks[i][field];
+  const c = effectGet(ed.def.tracks[i], field);
   box.checked = !!c && !Array.isArray(c) && !!c.smooth;
   label.append(box, ' smooth');
   label.title = 'a smooth curve through the keys (each key\'s tangent its own, or the curve\'s); off, straight lines as the game\'s effects have';
   box.onchange = () => {
     ed.change(box.checked ? 'smooth a curve' : 'straighten a curve', d => {
-      const t = d.tracks[i], keys = effectCurveKeys(t[field]) || [];
-      t[field] = box.checked ? { keys, smooth: true } : keys.map(k => k.slice(0, 1 + width));
+      const t = d.tracks[i], keys = effectCurveKeys(effectGet(t, field)) || [];
+      effectSet(t, field, box.checked ? { keys, smooth: true } : keys.map(k => k.slice(0, 1 + width)));
     });
     redraw();
   };
@@ -815,9 +873,9 @@ function effectCurve(ed, card, i, opts = {}) {
   const canvas = document.createElement('canvas');
   canvas.height = 96;
   wrap.append(canvas);
-  const K = d => effectCurveKeys(d.tracks[i][field]);
+  const K = d => effectCurveKeys(effectGet(d.tracks[i], field));
   const keys = () => K(ed.def) || [];
-  const smooth = () => { const c = ed.def.tracks[i][field]; return !!c && !Array.isArray(c) && !!c.smooth; };
+  const smooth = () => { const c = effectGet(ed.def.tracks[i], field); return !!c && !Array.isArray(c) && !!c.smooth; };
   const bar = document.createElement('div');
   bar.className = 'effect-curve-bar';
   wrap.append(bar);
@@ -847,13 +905,16 @@ function effectCurve(ed, card, i, opts = {}) {
   let dragging = null, before = null, selected = -1;
   // Along the particle's life, or (span) another stretch - the emission's frames for a count over time.
   const life = () => Math.max(2, opts.span ? opts.span() : (ed.def.tracks[i].life || 16));
-  const top = () => Math.max(opts.floor || 1.5, ...keys().map(k => Math.max(...k.slice(1, 1 + width)))) * 1.15;
+  const signed = !!opts.signed;
+  const top = () => Math.max(opts.floor || 1.5, ...keys().map(k => Math.max(...k.slice(1, 1 + width).map(v => signed ? Math.abs(v) : v)))) * 1.15;
   const plot = () => Math.max(1, canvas.width - 16);
   const xOf = age => 8 + plot() * Math.max(0, Math.min(1, (age - 1) / Math.max(1, life() - 1)));
   const ageOf = x => Math.round(1 + (x - 8) / plot() * (life() - 1));
   const ageAt = x => 1 + (x - 8) / plot() * (life() - 1);
-  const yOf = v => 88 - 80 * v / top();
-  const valueOf = y => Math.max(0, Math.round((88 - y) / 80 * top() * 100) / 100);
+  // Unsigned: 0 at the foot, the top above; signed: 0 across the middle, as far below as above.
+  const yOf = v => signed ? 48 - 40 * v / top() : 88 - 80 * v / top();
+  const valueRaw = y => signed ? (48 - y) / 40 * top() : (88 - y) / 80 * top();
+  const valueOf = y => { const v = Math.round(valueRaw(y) * 100) / 100; return signed ? v : Math.max(0, v); };
   // A tangent's handle: so far along the age from its key, the slope's rise over it.
   const REACH = 26;
   const handle = (k, j, side) => {
@@ -867,9 +928,10 @@ function effectCurve(ed, card, i, opts = {}) {
     const g = canvas.getContext('2d');
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.strokeStyle = '#2b3038';
-    g.beginPath(); g.moveTo(8, yOf(1)); g.lineTo(canvas.width - 8, yOf(1)); g.stroke();
-    g.fillStyle = '#8b93a1'; g.font = '10px sans-serif'; g.fillText('1', 1, yOf(1) - 2);
-    const curve = ed.def.tracks[i][field];
+    const guide = signed ? 0 : 1;
+    g.beginPath(); g.moveTo(8, yOf(guide)); g.lineTo(canvas.width - 8, yOf(guide)); g.stroke();
+    g.fillStyle = '#8b93a1'; g.font = '10px sans-serif'; g.fillText(String(guide), 1, yOf(guide) - 2);
+    const curve = effectGet(ed.def.tracks[i], field);
     for (let j = 0; j < width; j++) {
       g.strokeStyle = colours[j];
       g.lineWidth = 1.5;
@@ -931,7 +993,7 @@ function effectCurve(ed, card, i, opts = {}) {
     }
     if (h) { dragging = h; if (!h.tangent) selected = h.n; canvas.setPointerCapture(e.pointerId); draw(); return; }
     const age = ageOf(e.offsetX), v = valueOf(e.offsetY);
-    const at = effectKeys(ed.def.tracks[i][field], age, width) || new Array(width).fill(v);
+    const at = effectKeys(effectGet(ed.def.tracks[i], field), age, width) || new Array(width).fill(v);
     ed.change('add a key', d => { K(d).push([age, ...at.map(() => v)]); K(d).sort((a, b) => a[0] - b[0]); }, { before });
     selected = keys().findIndex(k => k[0] === age);
     draw();
@@ -943,7 +1005,7 @@ function effectCurve(ed, card, i, opts = {}) {
       const k = keys()[dragging.n];
       const dx = Math.max(4, Math.abs(e.offsetX - xOf(k[0]))) * dragging.side;
       const frames = dx / plot() * (life() - 1);
-      const rise = (yOf(0) - e.offsetY) / 80 * top() - k[1 + dragging.j];
+      const rise = valueRaw(e.offsetY) - k[1 + dragging.j];
       const m = Math.round(rise / frames * 1000) / 1000;
       ed.live(d => {
         const key = K(d)[dragging.n];
@@ -981,7 +1043,8 @@ function effectCurve(ed, card, i, opts = {}) {
     ed.change('a preset', d => {
       const t = d.tracks[i], L = life(), k = opts.presetScale || 1;
       const made = shape.map(([at, v]) => [Math.round(1 + at * (L - 1)), ...new Array(width).fill(Math.round(v * k * 100) / 100)]);
-      if (Array.isArray(t[field]) || !t[field]) t[field] = made; else t[field].keys = made;
+      const was = effectGet(t, field);
+      if (Array.isArray(was) || !was) effectSet(t, field, made); else was.keys = made;
     });
     if (linked) linked.checked = true;
     selected = -1;

@@ -83,6 +83,12 @@ function effectKeys(curve, age, width) {
   return last.slice(1, 1 + width);
 }
 
+/// A number that may be a curve: itself, or the curve's value at the age ({ keys, smooth } or a list of [age, value]).
+function effectNumberAt(v, age) {
+  if (v && typeof v === 'object') return (effectKeys(v, age, 1) || [0])[0];
+  return Number(v) || 0;
+}
+
 /// The frame of a flipbook at an age: the last [age, cell] at or before it.
 function effectFrame(frames, age) {
   if (!frames || !frames.length) return 0;
@@ -209,7 +215,8 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
       } else {
         let v = [0, 0, 0];
         if (t.speed) {
-          const s = range(t.speed.value);
+          // Speed over time: the speed a particle is born with, times the curve at the emitter's frame.
+          const s = range(t.speed.value) * (t.speedOverTime ? effectNumberAt(t.speedOverTime, e.life) : 1);
           v = (t.speed.direction || [0, 1, 0]).map(d => d * s);
           const sp = t.speed.spread;
           if (sp) {
@@ -224,7 +231,8 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
         if (t.orbit) { p.radius = t.orbit.radius || 0; p.angle = 360 * rand(); }
       }
       if (!local && !t.gather) p.base = [p.base[0] + e.at[0], p.base[1] + e.at[1], p.base[2] + e.at[2]];
-      p.size = range(t.size) || 1;
+      // Size over time: the size it is born with, times the curve at the emitter's frame.
+      p.size = (range(t.size) || 1) * (t.sizeOverTime ? effectNumberAt(t.sizeOverTime, e.life) : 1);
       // Spin: the quad turned in the screen's plane, from its angle by its speed a frame (degrees).
       if (t.spin) { p.roll = range(t.spin.angle); p.spin = range(t.spin.speed); } else { p.roll = 0; p.spin = 0; }
       g.parts.push(p);
@@ -261,8 +269,9 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
         for (let k = 0; k < 3; k++) { p.vel[k] += p.grav[k] * pull; p.base[k] += p.vel[k] * pace; }
         p.local = p.base.slice();
         if (t.orbit) {
-          p.radius += t.orbit.grow || 0;
-          p.angle += t.orbit.turn || 0;
+          // Its grow and turn a number, or a curve over its life.
+          p.radius += effectNumberAt(t.orbit.grow, g.age);
+          p.angle += effectNumberAt(t.orbit.turn, g.age);
           p.local[0] += p.radius * Math.sin(p.angle * EFFECT_DEG);
           p.local[2] += p.radius * Math.cos(p.angle * EFFECT_DEG);
         }
@@ -367,7 +376,12 @@ function makeEffectPlayer(def, { seed = 1, anchor = [0, 0, 0], anchors = {}, fai
     if (frame >= (def.length || 0) && !def.loop && live.every(e => e.done)) return [];
     // A mesh with a life of its own shows for it; else while the effect plays.
     return meshes.filter(m => m.track.life === undefined || m.steps <= m.track.life)
-      .map(m => ({ track: m.track, pos: m.at, prev: m.prev || m.at, frame: m.steps - 1 }));
+      .map(m => {
+        // Its scale (a number, x/y/z, or a curve over its steps) and its yaw (degrees, or a curve).
+        const sc = m.track.scale;
+        const scale = sc && typeof sc === 'object' && !Array.isArray(sc) ? effectNumberAt(sc, m.steps) : (sc === undefined ? 1 : sc);
+        return { track: m.track, pos: m.at, prev: m.prev || m.at, frame: m.steps - 1, scale, yaw: effectNumberAt(m.track.yaw, m.steps) };
+      });
   }
 
   reset();
@@ -546,7 +560,10 @@ function makeEffectStage(canvas, textureUrl) {
   // A spell that can only hit a whole side plays once, at the side's point (AllEnemyMagicPosition, AllPlayerMagicPosition).
   const ALL_MONSTERS = [-36, 0, -5], ALL_PARTY = [24, 0, 0];
   let target = { toward: 9, up: 5, scale: 1, turn: 90, model: null, party: false, at: null }, lineCount = 0;
-  let layout = { count: 'one', background: '', view: 'battle' };
+  // What is shown (show): the battle map, the monsters, the heroes (all four, the caster and the targets, the
+  // caster, none), the floor's grid, the marks where the effect plays - any of them off, down to the effect alone.
+  const SHOW_ALL = { map: true, monsters: true, heroes: 'all', floor: true, marks: true };
+  let layout = { count: 'one', background: '', view: 'battle', show: { ...SHOW_ALL } };
   let figures = [], anchors = [[0, 0, 0]];
   function hitPoint(feet, toward, up) {
     const d = [BATTLE_EYE[0] - feet[0], BATTLE_EYE[1] - feet[1], BATTLE_EYE[2] - feet[2]];
@@ -572,15 +589,16 @@ function makeEffectStage(canvas, textureUrl) {
   function layGround() {
     const ground = [];
     const put = (x1, y1, z1, x2, y2, z2, c) => ground.push(x1, y1, z1, ...c, x2, y2, z2, ...c);
-    // The battle's floor, under a battle map or without one.
-    if (!layout.background) {
+    const show = layout.show || SHOW_ALL;
+    // The battle's floor where no battle map is drawn.
+    if (show.floor && !(layout.background && show.map)) {
       for (let i = -60; i <= 60; i += 5) {
         const c = i === 0 ? [0.35, 0.4, 0.48, 1] : [0.2, 0.23, 0.28, 1];
         put(i, 0, -45, i, 0, 45, c);
         if (i >= -45 && i <= 45) put(-60, 0, i, 60, 0, i, c);
       }
     }
-    if (!target.model && !target.party) {
+    if (!target.model && !target.party && show.monsters) {
       // No model: a post of its height.
       const post = [0.55, 0.45, 0.3, 1], H = 10;
       for (const { feet: [X, , Z] } of figures) {
@@ -591,7 +609,7 @@ function makeEffectStage(canvas, textureUrl) {
     }
     // A cross at each place the effect plays.
     const mark = [0.43, 0.66, 1, 1];
-    for (const [x, y, z] of anchors) { put(x - 0.8, y, z, x + 0.8, y, z, mark); put(x, y - 0.8, z, x, y + 0.8, z, mark); put(x, y, z - 0.8, x, y, z + 0.8, mark); }
+    if (show.marks) for (const [x, y, z] of anchors) { put(x - 0.8, y, z, x + 0.8, y, z, mark); put(x, y - 0.8, z, x, y + 0.8, z, mark); put(x, y, z - 0.8, x, y, z + 0.8, mark); }
     gl.bindBuffer(gl.ARRAY_BUFFER, lineBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ground), gl.STATIC_DRAW);
     lineCount = ground.length / 7;
@@ -771,7 +789,7 @@ function makeEffectStage(canvas, textureUrl) {
   }
   /// How many, the battle map, the camera: { count: 'one' | 'group' | 'all', background: 'files/bNN.nmdp.lz' or '', view: 'battle' | 'free' }.
   function setLayout(next) {
-    layout = { ...layout, ...next };
+    layout = { ...layout, ...next, show: { ...SHOW_ALL, ...layout.show, ...(next.show || {}) } };
     relayout();
   }
 
@@ -805,7 +823,8 @@ function makeEffectStage(canvas, textureUrl) {
 
     // The scene's models - the battle map, the targets, the caster, the effect's own - opaque first, then the translucent over them.
     const scene = [];
-    if (layout.background) {
+    const show = layout.show || SHOW_ALL;
+    if (layout.background && show.map) {
       const bg = layout.background;
       const m = loadModel('bg:' + bg, `/api/model?name=${encodeURIComponent(bg)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(bg)}&texture=${encodeURIComponent(tex)}`));
@@ -816,7 +835,7 @@ function makeEffectStage(canvas, textureUrl) {
       scene.push({ m, world: placed([0, 0, 0], 1, 0), frame: Math.floor(performance.now() / 1000 * 30) });
     }
     // The monsters the effect plays on (a post stands in for none).
-    if (target.model && !target.party) {
+    if (target.model && !target.party && show.monsters) {
       const m = loadModel('target:' + target.model, `/api/model?name=${encodeURIComponent(target.model)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(target.model)}&texture=${encodeURIComponent(tex)}`));
       standing(m, target.model);
@@ -825,6 +844,9 @@ function makeEffectStage(canvas, textureUrl) {
     // The party: the four heroes in the front row as Onion Knights (j101, j201, j301, j401 - the battle's j<hero><job>),
     // the first the caster; the effect plays on them when the target is the party.
     PARTY_PLACES.forEach((feet, k) => {
+      // Which of them: all four, the caster and those the effect plays on, the caster, or none.
+      const targeted = target.party && figures.some(f => f.feet === feet);
+      if (show.heroes === 'none' || (show.heroes === 'caster' && k > 0) || (show.heroes === 'targets' && k > 0 && !targeted)) return;
       const hero = `files/j${k + 1}01.nmdp.lz`;
       const m = loadModel('hero:' + hero, `/api/model?name=${encodeURIComponent(hero)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(hero)}&texture=${encodeURIComponent(tex)}`));
@@ -846,7 +868,7 @@ function makeEffectStage(canvas, textureUrl) {
       // A model without a loop ends with its motion (eld.ImpModelDS: StopToDead at the motion's end).
       if (m.ready && m.pose && !m.loop && e.frame >= m.pose.frames) continue;
       const pos = [0, 1, 2].map(i => e.prev[i] + (e.pos[i] - e.prev[i]) * between);
-      scene.push({ m, world: placed(pos, e.track.scale || 1, e.track.yaw || 0), frame: e.frame });
+      scene.push({ m, world: placed(pos, e.scale === undefined ? (e.track.scale || 1) : e.scale, e.yaw || 0), frame: e.frame });
     }
     for (const it of scene) drawModel(it.m, it.world, it.frame, false, view, projection);
     gl.enable(gl.BLEND);
@@ -1008,7 +1030,7 @@ function effectTextureUrl(key, own) {
 /// What the Stage stood at the hit point last, for the next effect opened: the Goblin to start with.
 let effectTarget = '1';
 // The Stage's layout, kept from one effect to the next: how many targets, the battle map, the camera.
-let effectLayout = { count: 'one', background: '', view: 'battle' };
+let effectLayout = { count: 'one', background: '', view: 'battle', show: { map: true, monsters: true, heroes: 'all', floor: true, marks: true } };
 
 async function openEffect(name) {
   const doc = activeDoc;
@@ -1097,7 +1119,46 @@ async function openEffect(name) {
     [['one', '1 target'], ['group', 'each of a group'], ['all', 'the whole side']]);
   const bgPick = pickOf('the battle map behind them (bNN, as the battle loads it)', [['', 'no map']]);
   const viewPick = pickOf('the battle\'s camera as a spell plays, or free (drag to turn, the wheel to come closer)', [['battle', 'battle camera'], ['free', 'free camera']]);
-  controls.append(loopBox, fpsPick, targetPick, countPick, bgPick, viewPick, count);
+  // What the Stage shows: chips to switch the map, the monsters, the floor and the marks, which heroes, and the two ends at once.
+  const showRow = document.createElement('div');
+  showRow.className = 'effect-show';
+  const showLabel = document.createElement('span');
+  showLabel.textContent = 'Show';
+  showRow.append(showLabel);
+  const chips = {};
+  const chip = (key, text, title) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = text;
+    b.title = title;
+    b.onclick = () => { effectLayout.show[key] = !effectLayout.show[key]; showChanged(); };
+    chips[key] = b;
+    showRow.append(b);
+  };
+  chip('map', 'Map', 'the battle map picked beside it');
+  chip('monsters', 'Monsters', 'the monsters (or posts) the effect plays on');
+  const heroPick = pickOf('which of the party stand in the front row', [['all', 'All heroes'], ['targets', 'Caster + targets'], ['caster', 'Caster'], ['none', 'No heroes']]);
+  heroPick.onchange = () => { effectLayout.show.heroes = heroPick.value; showChanged(); };
+  showRow.append(heroPick);
+  chip('floor', 'Floor', 'the grid of the battle\'s floor, where no map is drawn');
+  chip('marks', 'Marks', 'a cross where the effect plays');
+  const only = document.createElement('button');
+  only.className = 'chip';
+  only.textContent = 'Effect only';
+  only.title = 'nothing but the effect, over the dark';
+  only.onclick = () => { effectLayout.show = { map: false, monsters: false, heroes: 'none', floor: false, marks: false }; showChanged(); };
+  const all = document.createElement('button');
+  all.className = 'chip';
+  all.textContent = 'Everything';
+  all.title = 'the map, the monsters, the four heroes, the floor and the marks';
+  all.onclick = () => { effectLayout.show = { map: true, monsters: true, heroes: 'all', floor: true, marks: true }; showChanged(); };
+  showRow.append(only, all);
+  function showSync() {
+    for (const [key, b] of Object.entries(chips)) b.classList.toggle('on', !!effectLayout.show[key]);
+    heroPick.value = effectLayout.show.heroes || 'all';
+  }
+  function showChanged() { showSync(); stage.setLayout({ show: effectLayout.show }); }
+  controls.append(loopBox, fpsPick, targetPick, countPick, bgPick, viewPick, count, showRow);
   const notes = document.createElement('details');
   notes.className = 'effect-notes';
   const summary = document.createElement('summary');
@@ -1112,10 +1173,11 @@ async function openEffect(name) {
   const stage = makeEffectStage(canvas, key => effectTextureUrl(key, pack.own ? name : null));
   if (!stage) { facts.textContent = 'this browser has no WebGL, so effects cannot be drawn'; return; }
   stage.setLayout(effectLayout);
+  showSync();
   countPick.value = effectLayout.count;
   viewPick.value = effectLayout.view;
   const relaid = () => {
-    effectLayout = { count: countPick.value, background: bgPick.value, view: viewPick.value };
+    effectLayout = { ...effectLayout, count: countPick.value, background: bgPick.value, view: viewPick.value };
     stage.setLayout(effectLayout);
     if (def) applyDef(def, null, { restart: true, keepNotes: true });
   };

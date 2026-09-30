@@ -33,11 +33,14 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Effects: gravity over life, spin over life, and count over time curves.
 - Crystal: the effect Stage stands the party's four heroes, and draws a particle's size and colour between steps at 60 fps as the client does.
 - Crystal: battle maps on the effect Stage move as in the game - their texture scrolls and alpha.
+- Crystal: the effect Stage's Show row switches the map, the monsters, the heroes, the floor and the marks, or shows the effect alone.
+- Effects: an orbit's grow and turn, a mesh's scale and yaw, and the size and speed a particle is born with can be curves.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
 - Crystal: resting the pointer on an effect in the library plays it.
 - Crystal: a Mod badge marks the project's own things in the lists, and an OpenFF only badge the client's behaviours.
 
 **Fixes**
+- Effects: a game model on a mesh track takes the track's scale in the client.
 - Battle: the Magic and Item lists' lines sit on the window's rows, not across the screen above it.
 - Menus: the magic school icons no longer cover the first letters of the spells' names.
 

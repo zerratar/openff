@@ -434,6 +434,10 @@ namespace OpenFF.Client
 					_models[m.Instance] = o;
 				}
 				o?.SetPosition((int)Math.Round(m.X * 4096), (int)Math.Round(m.Y * 4096), (int)Math.Round(m.Z * 4096));
+				// The track's scale (the model's own times it) and yaw, when it gives them - a curve's at this step.
+				JsonObject r = m.Track.Raw;
+				if (o != null && r?["scale"] != null) o.SetScale((int)Math.Round(m.Scale[0] * 4096), (int)Math.Round(m.Scale[1] * 4096), (int)Math.Round(m.Scale[2] * 4096));
+				if (o != null && r?["yaw"] != null) o.SetRotationXYZ(0, (int)Math.Round(m.Yaw / 360.0 * 65536) & 0xFFFF, 0);
 			}
 		}
 
@@ -466,9 +470,9 @@ namespace OpenFF.Client
 						}
 					}
 				}
-				double[] s = m.Track.MeshScale ?? new double[] { 1 };
-				XnaVector3 scale = s.Length >= 3 ? new XnaVector3((float)s[0], (float)s[1], (float)s[2]) : new XnaVector3((float)s[0]);
-				float yaw = (float)EffectDefinition.Num(r["yaw"]);
+				double[] s = m.Scale ?? new double[] { 1, 1, 1 };
+				XnaVector3 scale = new XnaVector3((float)s[0], (float)s[1], (float)s[2]);
+				float yaw = (float)m.Yaw;
 				Matrix world = Matrix.CreateScale(scale) * Matrix.CreateRotationY(MathHelper.ToRadians(yaw)) * Matrix.CreateTranslation((float)m.X, (float)m.Y, (float)m.Z) * camera;
 				for (int i = 0; i < model.Primitives.Count; i++)
 				{
