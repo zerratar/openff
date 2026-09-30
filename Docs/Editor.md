@@ -1144,6 +1144,13 @@ it was on; **Ctrl+Z** takes it back.
   it a curve through the keys, and the selected key shows its tangents - pull a handle to bend
   it, *Auto* to give it back to the curve. Presets: grow, shrink, pop, ease out, pulse, constant;
   slow down, brake, speed up, stop and go.
+- **Presets, saved and copied.** Under every gradient and curve, one row: the preset menu - the
+  built-in shapes, then the ones *saved in this mod* - and **Copy** and **Paste**. *Save as preset…*
+  names the keys as they stand and keeps them in `defs/effects/presets.json`, for every effect of
+  the mod; *Remove a saved preset…* takes one out. A preset and a copy keep each key at its share of
+  the life, so they fit the life they are put on (a gradient copied from a life of 18 lands on a
+  life of 30 stretched to it); a curve of one value pasted on one of two (scale's width and height)
+  gives both. Copy also puts the keys on the clipboard as JSON.
 - **Spin.** The picture turned as the particle is born and a frame after, each a range.
 - **Spin over life**, **Gravity over life**, **Count over time.** Curves of how much of its spin
   and its pull reach a particle, and of how many a burst makes across the emission (its presets

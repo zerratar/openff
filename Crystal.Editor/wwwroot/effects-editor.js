@@ -695,15 +695,177 @@ function effectSharp(canvas, width, height) {
   return g;
 }
 
-/// A row of presets under a curve: a select whose choice hands its shape over, then goes back to its label.
-function effectPresets(wrap, shapes, apply) {
+// ------------------------------------------------------------------ presets, saved and copied
+
+/// A curve or a gradient apart from the life it was made on: each key at its share of the life (0 the first frame,
+/// 1 the last), its own tangents (if it has them) per share too - so it fits any life it is put on. { width, smooth, keys }.
+function effectCurveToPreset(curve, life, width) {
+  const keys = effectCurveKeys(curve) || [];
+  const span = Math.max(1, (life || 16) - 1);
+  const r = v => Math.round(v * 10000) / 10000;
+  return {
+    width, smooth: !Array.isArray(curve) && !!(curve && curve.smooth),
+    keys: keys.map(k => {
+      const share = r((k[0] - 1) / span), values = k.slice(1, 1 + width);
+      return k.length >= 1 + 2 * width ? [share, ...values, ...k.slice(1 + width, 1 + 2 * width).map(v => r(v * span))] : [share, ...values];
+    })
+  };
+}
+
+/// A preset on a life: its keys at their frames, its values fitted to the curve's (one value onto two: both; two onto one: the first).
+function effectPresetToCurve(preset, life, width) {
+  const span = Math.max(1, (life || 16) - 1), from = preset.width || width;
+  const fit = values => from === width ? values : from > width ? values.slice(0, width) : [...values, ...new Array(width - from).fill(values[values.length - 1])];
+  const keys = [];
+  for (const k of preset.keys || []) {
+    const age = Math.max(1, Math.round(1 + k[0] * span));
+    const values = fit(k.slice(1, 1 + from));
+    const key = k.length >= 1 + 2 * from ? [age, ...values, ...fit(k.slice(1 + from, 1 + 2 * from)).map(v => Math.round(v / span * 1000) / 1000)] : [age, ...values];
+    if (keys.length && keys[keys.length - 1][0] === age) keys[keys.length - 1] = key; else keys.push(key);
+  }
+  return preset.smooth ? { keys, smooth: true } : keys;
+}
+
+// The project's saved presets (defs/effects/presets.json), read once; the copied curve or gradient, for Paste.
+let effectSavedPresets = null;
+let effectClipboard = null;
+async function effectLoadPresets(fresh) {
+  if (effectSavedPresets && !fresh) return effectSavedPresets;
+  try { const r = await api('/api/project/effect/presets'); effectSavedPresets = r && r.ok ? r.presets : { gradients: {}, curves: {} }; }
+  catch (e) { effectSavedPresets = { gradients: {}, curves: {} }; }
+  return effectSavedPresets;
+}
+
+/// The row under a curve or a gradient: its presets - the built-in shapes, then the project's saved ones - and Copy,
+/// Paste and Save as preset. opts: kind ('gradients' or 'curves'), width, life(), get() (the curve as it is),
+/// set(d, curve) (put one in its place), after() (drawn again).
+function effectPresets(wrap, shapes, apply, opts = {}) {
+  const row = document.createElement('div');
+  row.className = 'effect-preset-row';
   const select = document.createElement('select');
   select.className = 'effect-presets';
   select.title = 'put a shape in place of the keys (the life stays; undo brings them back)';
-  for (const name of ['preset…', ...Object.keys(shapes)]) { const o = document.createElement('option'); o.value = name === 'preset…' ? '' : name; o.textContent = name; select.append(o); }
-  select.onchange = () => { if (select.value) apply(shapes[select.value]); select.value = ''; };
-  wrap.append(select);
+  row.append(select);
+  wrap.append(row);
+  const ed = opts.ed;
+  const kind = opts.kind;
+  const fill = async () => {
+    select.textContent = '';
+    const head = document.createElement('option'); head.value = ''; head.textContent = 'preset…'; select.append(head);
+    const names = Object.keys(shapes || {});
+    if (names.length) {
+      const group = document.createElement('optgroup'); group.label = 'built in';
+      for (const n of names) { const o = document.createElement('option'); o.value = 'b:' + n; o.textContent = n; group.append(o); }
+      select.append(group);
+    }
+    if (kind && ed) {
+      const saved = (await effectLoadPresets())[kind] || {};
+      const mine = Object.keys(saved).filter(n => kind !== 'curves' || true);
+      if (mine.length) {
+        const group = document.createElement('optgroup'); group.label = 'saved in this mod';
+        for (const n of mine.sort()) { const o = document.createElement('option'); o.value = 's:' + n; o.textContent = n; group.append(o); }
+        select.append(group);
+      }
+      const more = document.createElement('optgroup'); more.label = '—';
+      for (const [v, t] of [['save', 'Save as preset…'], ...(mine.length ? [['manage', 'Remove a saved preset…']] : [])]) { const o = document.createElement('option'); o.value = v; o.textContent = t; more.append(o); }
+      select.append(more);
+    }
+  };
+  fill();
+  // Drawn again whole (its smooth switch, its keys' fields) - the curve put in may be another kind.
+  const put = (label, curve) => { ed.change(label, d => opts.set(d, curve), { structural: true }); if (opts.after) opts.after(); };
+  select.onchange = async () => {
+    const v = select.value;
+    select.value = '';
+    if (!v) return;
+    if (v.startsWith('b:')) { apply(shapes[v.slice(2)]); return; }
+    if (v.startsWith('s:')) {
+      const p = ((await effectLoadPresets())[kind] || {})[v.slice(2)];
+      if (p) put('a saved preset', effectPresetToCurve(p, opts.life(), opts.width));
+      return;
+    }
+    if (v === 'save') effectSavePresetDialog(kind, effectCurveToPreset(opts.get(), opts.life(), opts.width), fill);
+    if (v === 'manage') effectManagePresetsDialog(kind, fill);
+  };
+  if (!kind || !ed) return select;
+  // Copy and Paste: this curve (or gradient) to another - another track's, another effect's - fitted to its life.
+  const copy = document.createElement('button');
+  copy.className = 'chip';
+  copy.textContent = 'Copy';
+  copy.title = 'copy these keys, to paste on another ' + (kind === 'gradients' ? 'gradient' : 'curve');
+  copy.onclick = () => {
+    effectClipboard = { kind, preset: effectCurveToPreset(opts.get(), opts.life(), opts.width) };
+    try { if (navigator.clipboard) navigator.clipboard.writeText(JSON.stringify({ crystal: 'effect-' + kind, ...effectClipboard.preset })).catch(() => {}); } catch (e) { }
+    say(kind === 'gradients' ? 'gradient copied' : 'curve copied', 'good');
+    for (const b of document.querySelectorAll('#inspector .effect-preset-row .paste')) b.disabled = !(effectClipboard && effectClipboard.kind === b.dataset.kind);
+  };
+  const paste = document.createElement('button');
+  paste.className = 'chip paste';
+  paste.dataset.kind = kind;
+  paste.textContent = 'Paste';
+  paste.title = 'put the copied ' + (kind === 'gradients' ? 'gradient' : 'curve') + ' here, fitted to this life';
+  paste.disabled = !(effectClipboard && effectClipboard.kind === kind);
+  paste.onclick = () => { if (effectClipboard && effectClipboard.kind === kind) put('paste', effectPresetToCurve(effectClipboard.preset, opts.life(), opts.width)); };
+  row.append(copy, paste);
   return select;
+}
+
+function effectSavePresetDialog(kind, preset, done) {
+  const body = dialog(kind === 'gradients' ? 'Save the gradient as a preset' : 'Save the curve as a preset');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = 'Kept in this mod (defs/effects/presets.json), in the preset menu of every ' + (kind === 'gradients' ? 'colour gradient' : 'curve') + ': it fits whatever life it is put on. A name already saved is replaced.';
+  body.append(note);
+  const name = field(body, 'Name', '', { placeholder: kind === 'gradients' ? 'blue flame fade' : 'quick brake' });
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Save';
+  const run = async () => {
+    if (!name.value.trim()) { problem.textContent = 'A preset needs a name.'; return; }
+    const r = await api('/api/project/effect/preset', { kind, name: name.value.trim(), value: preset });
+    if (!r.ok) { problem.textContent = r.error; return; }
+    effectSavedPresets = r.presets;
+    body.close();
+    say('saved the preset ' + name.value.trim(), 'good');
+    if (done) done();
+  };
+  go.onclick = run;
+  name.addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+  actions.append(go);
+  body.append(actions);
+  name.focus();
+}
+
+async function effectManagePresetsDialog(kind, done) {
+  const body = dialog('Saved presets');
+  const list = document.createElement('div');
+  list.className = 'effect-preset-list';
+  body.append(list);
+  const draw = async () => {
+    list.textContent = '';
+    const saved = (await effectLoadPresets())[kind] || {};
+    const names = Object.keys(saved).sort();
+    if (!names.length) { const p = document.createElement('p'); p.className = 'dialog-note'; p.textContent = 'None saved.'; list.append(p); return; }
+    for (const n of names) {
+      const r = document.createElement('div');
+      r.className = 'effect-preset-item';
+      const label = document.createElement('span');
+      label.textContent = n;
+      const x = document.createElement('button');
+      x.className = 'mini';
+      x.textContent = 'Remove';
+      x.onclick = async () => {
+        const res = await api('/api/project/effect/preset', { kind, name: n, remove: true });
+        if (res.ok) { effectSavedPresets = res.presets; draw(); if (done) done(); }
+      };
+      r.append(label, x);
+      list.append(r);
+    }
+  };
+  draw();
 }
 
 // ------------------------------------------------------------------ colour over life: a gradient
@@ -747,6 +909,11 @@ function effectGradient(ed, card, i) {
     });
     selected = 0;
     draw();
+  }, {
+    ed, kind: 'gradients', width: 4, life: () => life(),
+    get: () => ed.def.tracks[i].colour,
+    set: (d, curve) => { d.tracks[i].colour = curve; },
+    after: () => { selected = 0; draw(); }
   });
   const life = () => Math.max(2, ed.def.tracks[i].life || 16);
   const xOf = age => 8 + (cw - 16) * Math.max(0, Math.min(1, (age - 1) / Math.max(1, life() - 1)));
@@ -1107,7 +1274,7 @@ function effectCurve(ed, card, i, opts = {}) {
     draw();
   });
   canvas.addEventListener('contextmenu', e => e.preventDefault());
-  if (opts.presets) effectPresets(wrap, opts.presets, shape => {
+  effectPresets(wrap, opts.presets || {}, shape => {
     ed.change('a preset', d => {
       const t = d.tracks[i], L = life(), k = opts.presetScale || 1;
       const made = shape.map(([at, v]) => [Math.round(1 + at * (L - 1)), ...new Array(width).fill(Math.round(v * k * 100) / 100)]);
@@ -1117,6 +1284,11 @@ function effectCurve(ed, card, i, opts = {}) {
     if (linked) linked.checked = true;
     selected = -1;
     draw();
+  }, {
+    ed, kind: 'curves', width, life: () => life(),
+    get: () => effectGet(ed.def.tracks[i], field),
+    set: (d, curve) => effectSet(d.tracks[i], field, curve),
+    after: () => { selected = -1; draw(); }
   });
   requestAnimationFrame(draw);
 }

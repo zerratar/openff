@@ -41,6 +41,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: the effect Stage's free camera flies as the scene view's does - the right button held, WASD, Q and E - and F frames the target.
 - Crystal: the texture card's grid and flipbook - split a sheet, show one cell or play a run of them (looping, once, or over the life), with the sheet to click and a preview.
 - Client: --only-mod <name> plays one mod of the mods folder (and what it depends on), the others left installed.
+- Crystal: effect gradients and curves save as presets of the mod's, and copy and paste from one track or effect to another, fitted to its life.
 - Crystal: Run in OpenFF plays the open project's mod alone; Run with the other mods plays it among the rest.
 - Crystal: the effect Stage lays out the battle - a battle map, the monsters' and party's places, the battle camera - and plays an effect on one, on each of a group, or once for a side.
 - Crystal: resting the pointer on an effect in the library plays it.

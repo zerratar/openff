@@ -151,6 +151,40 @@ namespace Crystal.Editor
 			return new { ok = true, file = "defs/spells/" + Path.GetFileName(path) };
 		}
 
+		/// <summary>
+		/// The project's saved curves and gradients (defs/effects/presets.json): { gradients: { name: preset }, curves: { name: preset } },
+		/// a preset's keys at their share of the life (0 its first frame, 1 its last), so it fits any life it is put on.
+		/// </summary>
+		public static JsonObject Presets(Project project)
+		{
+			string path = project == null ? null : Path.Combine(Folder(project), "presets.json");
+			JsonObject o = null;
+			if (path != null && File.Exists(path)) { try { o = JsonNode.Parse(File.ReadAllText(path)) as JsonObject; } catch (Exception) { } }
+			o ??= new JsonObject();
+			if (o["gradients"] is not JsonObject) o["gradients"] = new JsonObject();
+			if (o["curves"] is not JsonObject) o["curves"] = new JsonObject();
+			return o;
+		}
+
+		/// <summary>A preset saved under its name (or, remove, taken out): kind is gradients or curves.</summary>
+		public static object SavePreset(Project project, string kind, string name, JsonNode value, bool remove)
+		{
+			if (kind != "gradients" && kind != "curves") throw new ArgumentException("a preset is a gradient or a curve");
+			if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("a preset needs a name");
+			JsonObject all = Presets(project);
+			JsonObject list = all[kind].AsObject();
+			if (remove) list.Remove(name.Trim());
+			else
+			{
+				if (value is not JsonObject) throw new ArgumentException("no preset to save");
+				list[name.Trim()] = value.DeepClone();
+			}
+			string folder = Folder(project);
+			Directory.CreateDirectory(folder);
+			File.WriteAllText(Path.Combine(folder, "presets.json"), Text(all), new UTF8Encoding(false));
+			return new { ok = true, presets = all };
+		}
+
 		/// <summary>An effect to start from: a spark of the project's own picture (glow.png, made once) rising and fading.</summary>
 		private static JsonNode Spark(string folder)
 		{

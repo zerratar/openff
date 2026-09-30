@@ -2132,6 +2132,25 @@ namespace Crystal.Editor
 						return;
 					}
 
+				case "/api/project/effect/presets":
+					{
+						// The project's saved curves and gradients (EffectsProject.Presets).
+						try { SendJson(context, new { ok = true, presets = EffectsProject.Presets(_project) }); }
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
+				case "/api/project/effect/preset":
+					{
+						try
+						{
+							JsonNode body = ReadBody(context);
+							SendJson(context, EffectsProject.SavePreset(_project, body?["kind"]?.ToString(), body?["name"]?.ToString(), body?["value"], body?["remove"] != null && body["remove"].GetValue<bool>()));
+						}
+						catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+						return;
+					}
+
 				case "/api/project/effect/spells":
 					{
 						try { SendJson(context, EffectsProject.Spells(_project, _workspace)); }

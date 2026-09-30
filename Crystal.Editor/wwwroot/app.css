@@ -2757,3 +2757,11 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 #inspector .effect-key-detail .effect-alpha input[type=range] { flex: 1; min-width: 0; width: auto; margin: 0; padding: 0; border: 0; background: transparent; }
 #inspector .effect-key-detail .effect-alpha input[type=number] { flex: 0 0 56px; width: 56px; margin-left: 6px; }
 #inspector .effect-key-actions { display: flex; justify-content: flex-end; margin: 2px 0 6px; }
+
+/* A curve's or a gradient's presets: the menu, Copy and Paste in one row; the saved ones' list. */
+#inspector .effect-preset-row { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+#inspector .effect-preset-row select.effect-presets { flex: 1; min-width: 0; margin-top: 0; }
+#inspector .effect-preset-row .chip { margin-left: 0; }
+#inspector .effect-preset-row .chip:disabled { opacity: .4; cursor: default; }
+.effect-preset-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.effect-preset-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
