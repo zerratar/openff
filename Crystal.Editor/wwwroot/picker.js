@@ -13,7 +13,9 @@
 /// closed without choosing.
 ///
 /// `options.only` narrows what is offered - a chest can only be an object model, and
-/// showing 145 people it cannot be is worse than showing nothing.
+/// showing 145 people it cannot be is worse than showing nothing. `options.entries` gives
+/// the list outright ({ model, label, note, from, pkg, asset }), as a summon's models.
+/// `options.importable` offers Import a model… with `options.entries` too.
 function pickModel(current, onChosen, options = {}) {
   const veil = document.createElement('div');
   veil.className = 'picker-veil';
@@ -49,15 +51,15 @@ function pickModel(current, onChosen, options = {}) {
   // them directly), then the game's models.
   // `options.assetsOnly` offers the mod's own files alone - a weapon's look on the OpenFF
   // target is a glTF, never one of the game's models.
-  const own = (!options.only || options.assetsOnly) && Array.isArray(state.assets)
+  const own = !options.entries && (!options.only || options.assetsOnly) && Array.isArray(state.assets)
     ? state.assets.map(a => ({ model: a.name, characterId: 0, from: 'the mod\'s own model file', uses: 0, asset: true }))
     : [];
-  let models = own.concat(options.assetsOnly ? [] : (state.placeable || []).filter(
+  let models = options.entries ? options.entries.slice() : own.concat(options.assetsOnly ? [] : (state.placeable || []).filter(
     entry => !options.only || options.only(entry.model)));
   let watcher = null;
 
   // A model file in: .glb (or a .gltf with its .bin and pictures, picked together) into assets/.
-  if ((!options.only || options.assetsOnly) && Array.isArray(state.assets)) {
+  if ((options.entries ? options.importable : (!options.only || options.assetsOnly)) && Array.isArray(state.assets)) {
     const imp = document.createElement('button');
     imp.type = 'button';
     imp.textContent = 'Import a model…';
@@ -82,7 +84,8 @@ function pickModel(current, onChosen, options = {}) {
         const r = await api('/api/project/assets/import', { files: payload });
         if (!r.ok) throw new Error(r.error);
         state.assets = r.models || [];
-        models = state.assets.map(a => ({ model: a.name, characterId: 0, from: 'the mod\'s own model file', uses: 0, asset: true })).concat(options.assetsOnly ? [] : (state.placeable || []));
+        const mine = state.assets.map(a => ({ model: a.name, characterId: 0, from: 'the mod\'s own model file', uses: 0, asset: true }));
+        models = options.entries ? mine.concat(options.entries.filter(e => !e.asset)) : mine.concat(options.assetsOnly ? [] : (state.placeable || []));
         say(`${r.files.join(', ')} imported`, 'good');
         draw();
       } catch (e) { say('import: ' + e.message, 'bad'); }
@@ -100,24 +103,24 @@ function pickModel(current, onChosen, options = {}) {
 
     let shown = 0;
     for (const entry of models) {
-      if (wanted && !entry.model.toLowerCase().includes(wanted)) continue;
+      if (wanted && !(entry.model + ' ' + (entry.label || '') + ' ' + (entry.note || '')).toLowerCase().includes(wanted)) continue;
       shown++;
 
       const cell = document.createElement('button');
       cell.type = 'button';
       cell.className = 'picker-cell' + (entry.model === current ? ' on' : '');
-      cell.title = entry.asset ? `${entry.model} · ${entry.from}` : `${entry.model} · id ${entry.characterId} · ${entry.from}`;
+      cell.title = entry.asset || options.entries ? `${entry.model} · ${entry.from || entry.note || ''}` : `${entry.model} · id ${entry.characterId} · ${entry.from}`;
 
       // The package is what the thumbnail maker needs; the model name is what a row holds.
       // A model file of the mod's own is its own package.
-      const pkg = entry.asset ? entry.model : `files/${entry.model}.nmdp.lz`;
+      const pkg = entry.pkg || (entry.asset ? entry.model : `files/${entry.model}.nmdp.lz`);
       cell.dataset.thumbFor = pkg;
       cell.append(icon('model'));
 
       const label = document.createElement('span');
-      label.textContent = entry.asset ? entry.model.replace(/^assets\//, '') : entry.model;
+      label.textContent = entry.label || (entry.asset ? entry.model.replace(/^assets\//, '') : entry.model);
       const note = document.createElement('i');
-      note.textContent = entry.asset ? 'the mod\'s' : entry.uses ? `${entry.uses}×` : 'unused';
+      note.textContent = entry.note !== undefined ? entry.note : entry.asset ? 'the mod\'s' : entry.uses ? `${entry.uses}×` : 'unused';
       cell.append(label, note);
 
       cell.onclick = () => {

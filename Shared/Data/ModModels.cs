@@ -23,6 +23,12 @@
 //   { "model": "j101", "gltf": "assets/luneth-hd.glb",
 //     "scale": 14.4, "rotation": [0, 180, 0], "offset": [0, 0, 0],
 //     "bones": { "Hip": "hara", "Pelvis": "kosi" } }
+//
+// A model of the mod's own: "base" names the game's model whose skeleton and motions it borrows, and "model" a
+// name the game does not have (f300). Asked for by that name (a summon's SET_MODEL 300), the game loads the base's
+// files and the character is drawn as the glTF - the base itself, wherever else it is used, keeps its own look.
+//
+//   { "model": "f300", "base": "f202", "gltf": "assets/wyrm.glb", "clips": { "101": "Idle", "201": "Breath" } }
 
 using System;
 using System.Collections.Generic;
@@ -37,6 +43,8 @@ namespace OpenFF.Data
 	{
 		/// <summary>The game's model this replaces, by its model name (j101, f028) - the .nmdp's stem.</summary>
 		public string Model;
+		/// <summary>A model of the mod's own: the game's model whose skeleton and motions it borrows (f202); null when it replaces Model's look.</summary>
+		public string Base;
 		/// <summary>The glTF, relative to the mod's root (assets/luneth-hd.glb).</summary>
 		public string Gltf;
 		/// <summary>The definition file this came from.</summary>
@@ -91,6 +99,7 @@ namespace OpenFF.Data
 			ModModel model = new ModModel
 			{
 				Model = node["model"]?.GetValue<string>(),
+				Base = string.IsNullOrWhiteSpace(node["base"]?.GetValue<string>()) ? null : node["base"].GetValue<string>().Trim(),
 				Gltf = node["gltf"]?.GetValue<string>(),
 				Scale = (float)(node["scale"]?.GetValue<double>() ?? 0),
 				Rotation = Triple(node["rotation"]),
@@ -131,6 +140,7 @@ namespace OpenFF.Data
 		public string ToJson()
 		{
 			JsonObject node = new JsonObject { ["model"] = Model, ["gltf"] = Gltf };
+			if (Base != null) node["base"] = Base;
 			if (Scale > 0) node["scale"] = Scale;
 			if (Rotation != null) node["rotation"] = new JsonArray(Rotation[0], Rotation[1], Rotation[2]);
 			if (Offset != null) node["offset"] = new JsonArray(Offset[0], Offset[1], Offset[2]);

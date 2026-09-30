@@ -104,6 +104,8 @@ function effectEditor(doc) {
       const r = await api('/api/project/effect/save', { name: ed.name, effect: ed.def });
       if (r && r.ok === false) throw new Error(r.error);
       say('saved ' + shortName(ed.name), 'good');
+      // Whoever plays it (a summon's view) plays it again as it is now.
+      window.dispatchEvent(new CustomEvent('crystal-effect-saved', { detail: ed.name }));
     } catch (e) { ed.dirty = true; say('not saved: ' + e.message, 'bad'); }
   };
 

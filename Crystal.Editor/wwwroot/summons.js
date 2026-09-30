@@ -41,17 +41,17 @@ const XYZ = w => [[w + ' x', 'u'], [w + ' y', 'u'], [w + ' z', 'u']];
 const SUMMON_PARAMS = {
   0: [['frames', 'n'], ['red (0-31)', 'n'], ['green (0-31)', 'n'], ['blue (0-31)', 'n']], 2: [['frames', 'n']],
   4: [['to white', 'b'], ['frames', 'n']], 6: [['frames', 'n']],
-  8: [['model (f###)', 'n']], 10: [['motions (b_sm###)', 'n']], 12: [['motion id', 'n'], ['loop', 'b'], ['blend frames', 'n']], 13: [['its frame', 'n']],
+  8: [['model (f###)', 'model']], 10: [['motions', 'motions']], 12: [['motion', 'motion'], ['loop', 'b'], ['blend frames', 'n']], 13: [['its frame', 'n']],
   16: [['effect pack', 'e']], 19: [['effect', 'e'], ['member', 'n'], ['on the ground', 'b'], ['scattered', 'b']],
   20: [['effect', 'e'], ['member', 'n'], ['over the party', 'b']],
   22: [...XYZ('eye'), ...XYZ('target')], 23: [...XYZ('eye from'), ...XYZ('eye to')], 24: [...XYZ('target from'), ...XYZ('target to')],
-  25: [['frames', 'n']], 26: [['steps (a glide in so many)', 'n']], 28: [['monster (size, hit point)', 'n']],
+  25: [['frames', 'n']], 26: [['steps (a glide in so many)', 'n']], 28: [['monster (size, hit point)', 'monster']],
   29: [...XYZ('at'), ['turned (°)', 'n']], 34: [['alpha a step', 'n'], ['divided by', 'n']], 35: [['alpha', 'n'], ['shadow', 'n']], 36: [['frames', 'n']],
   37: [['effects end', 'b'], ['numbers end', 'b'], ['party ends', 'b'], ['enemies end', 'b']],
   39: [['alpha a step', 'n'], ['divided by', 'n'], ['camera steps', 'n']], 40: [['steps', 'n']],
   45: [['frames', 'n'], ['width x', 'u'], ['width y', 'u'], ['width z', 'u']], 46: [['x (°)', 'n'], ['y (°)', 'n'], ['z (°)', 'n']],
   47: [...XYZ('to'), ['frames', 'n']], 48: [['steps', 'n']], 49: [['times', 'n'], ['frames lit', 'n'], ['frames apart', 'n']],
-  52: [['spell (its effect on each target)', 'n']], 54: [['show', 'b']], 55: [['effect', 'e'], ['member', 'n'], ...XYZ('at')],
+  52: [['spell (its effect on each target)', 'spell']], 54: [['show', 'b']], 55: [['effect', 'e'], ['member', 'n'], ...XYZ('at')],
   58: [['alpha', 'n'], ['shadow', 'n']], 59: [['frames', 'n']], 60: [['frames', 'n']], 61: [['group', 'n']], 62: [['group', 'n'], ['number', 'n']]
 };
 const summonWords = name => String(name || '').toLowerCase().replace(/_/g, ' ');
@@ -77,15 +77,16 @@ function summonDefSteps(steps) {
   });
 }
 
-/// The Summons page: the eight, each with its three outcomes.
-async function summonsForList() {
+/// The Summons page: the eight, each with its three outcomes, then the mod's new ones. `modOnly` for the Mod
+/// folder's Summons: the mod's new summons and the eight whose outcomes it plays by steps of its own.
+async function summonsForList({ modOnly = false } = {}) {
   const r = await api('/api/summons').catch(() => null);
   state.summons = r && r.ok ? r.summons : [];
-  // A new summon of the mod's: summon/<level>/<its spell's id>, marked the mod's.
-  return state.summons.map(s => ({
-    name: 'summon/' + s.level + (s.spell ? '/' + s.spell : ''), overridden: !!s.spell,
+  // A new summon of the mod's: summon/<level>/<its spell's id>; either kind marked the mod's.
+  return state.summons.filter(s => !modOnly || s.spell || s.mine > 0).map(s => ({
+    name: 'summon/' + s.level + (s.spell ? '/' + s.spell : ''), overridden: !!s.spell || s.mine > 0,
     def: { name: s.spell ? s.name : s.creature ? `${s.creature} (${s.name})` : s.name },
-    note: (s.spell ? 'as ' + s.baseName + ' · ' : '') + s.outcomes.map(o => o.name).join(' · ')
+    note: (s.spell ? 'as ' + s.baseName + ' · ' : '') + s.outcomes.map(o => o.name + (o.mine && !s.spell ? ' \u25CF' : '')).join(' · ')
   }));
 }
 
@@ -506,7 +507,74 @@ async function openSummon(name) {
   let motionIndex = new Map();
   let mine = null, showGame = false, freeCam = false, saving = 0, gameSteps = null, type = 0;
   // What the steps playing make the summon: model, motions (and their list), monster and its offsets.
-  const look = { model: null, motions: null, monster: -1, target: null, packKey: null, motionList: [] };
+  const look = { model: null, motions: null, monster: -1, target: null, packKey: null, motionList: [], own: null, skeleton: null };
+
+  // The project's models of its own (a glTF on a game model's skeleton, SummonModels.cs), and their files' clips.
+  let ownModels = [];
+  const readOwnModels = async () => { const r = await api('/api/project/own-models').catch(() => null); ownModels = (r && r.models) || []; };
+  await readOwnModels();
+  const ownFiles = new Map();   // gltf -> { rest (its box and clip names), clips: Map(name -> frames) }
+  async function ownFile(gltf) {
+    if (!ownFiles.has(gltf)) {
+      const rest = await api(`/api/model/gltf-clip?name=${encodeURIComponent(gltf)}`).catch(() => null);
+      ownFiles.set(gltf, { rest: rest && rest.ok ? rest : null, clips: new Map() });
+    }
+    return ownFiles.get(gltf);
+  }
+  // A clip's frames, fetched once (the Stage shows the rest pose until they come).
+  function ownClip(file, gltf, clip) {
+    if (!clip) return file.rest;
+    if (!file.clips.has(clip)) {
+      file.clips.set(clip, null);
+      api(`/api/model/gltf-clip?name=${encodeURIComponent(gltf)}&clip=${encodeURIComponent(clip)}`)
+        .then(r => file.clips.set(clip, r && r.ok ? r : file.rest)).catch(() => file.clips.set(clip, file.rest));
+    }
+    return file.clips.get(clip) || file.rest;
+  }
+  // Its size: the definition's scale, else about the base's height (twice its monster's hit point, as the client fits
+  // it to the base model's box), stood on its feet.
+  function ownFit(own, file) {
+    const box = file && file.rest, h = box ? box.max[1] - box.min[1] : 0;
+    const auto = h > 0 ? (2 * (look.target && look.target.up > 0 ? look.target.up : 20)) / h : 1;
+    const scale = own.scale > 0 ? own.scale : auto;
+    return { scale, lift: box ? -box.min[1] * scale : 0, auto };
+  }
+  // The summon as a glTF of the mod's: the clip the definition maps to the motion playing, else its rest pose.
+  function ownExtra(sm) {
+    const own = look.own, file = ownFiles.get(own.gltf);
+    const clip = sm.motion ? (own.clips || {})[String(sm.motion.id)] : null;
+    const posed = file ? ownClip(file, own.gltf, clip) : null;
+    if (!posed) return null;
+    return {
+      model: own.gltf, pos: sm.pos.map(v => v / 4096), yaw: sm.yaw + ((own.rotation && own.rotation[1]) || 0), scale: sm.scale, alpha: sm.alpha / 100,
+      skinned: { ...posed, id: own.gltf + '|' + (clip || '') }, fit: ownFit(own, file), frame: sm.motion ? sm.motion.frame : 0
+    };
+  }
+  // A definition changed: written, read again, played again.
+  let ownSaving = 0;
+  function saveOwn(own, patch, quiet = false) {
+    Object.assign(own, patch);
+    clearTimeout(ownSaving);
+    ownSaving = setTimeout(async () => {
+      const r = await api('/api/project/own-models/save', { model: own.model, ...patch }).catch(e => ({ ok: false, error: e.message }));
+      if (!r.ok) { say(r.error, 'bad'); return; }
+      say('saved defs/models/' + own.model + '.json', 'good');
+      await readOwnModels();
+      rebuild(false).then(quiet ? () => { timeline.draw(); } : refreshPanels);
+    }, quiet ? 250 : 0);
+  }
+  /// A glTF of the project's as the summon's model: a definition of its own (the next free f3NN, on the skeleton the
+  /// summon has now), and SET_MODEL pointed at it.
+  async function useOwnFile(gltf, modelAt) {
+    const now = Number(current()[modelAt].p[0]) || 202;
+    const was = ownModels.find(m => m.number === now);
+    const base = was ? was.base : 'f' + String(now).padStart(3, '0');
+    const r = await api('/api/project/own-models/save', { gltf, base }).catch(e => ({ ok: false, error: e.message }));
+    if (!r.ok) { say(r.error, 'bad'); return; }
+    await readOwnModels();
+    say(`${gltf.replace(/^assets\//, '')} is the model ${r.model.model} now, on ${base}'s skeleton (defs/models/${r.model.model}.json)`, 'good');
+    setParam(modelAt, 0, r.model.number);
+  }
   // The outcome's name in battle: the mod's steps may give one ("name"), else a new summon's own name, else the game's.
   const outcomeName = () => (editable() && mine.def.name) || (spell && entry ? entry.name : script.name);
   const barButton = (text, title, cls) => { const b = document.createElement('button'); b.textContent = text; b.title = title; if (cls) b.className = cls; bar.append(b); return b; };
@@ -530,6 +598,8 @@ async function openSummon(name) {
   const current = () => (editable() ? mine.steps : gameSteps) || [];
   const selectedIndex = () => { const m = /^step:(\d+)$/.exec(String(doc && doc.selection || '')); return m ? parseInt(m[1], 10) : -1; };
   function select(i, jump = true) {
+    // The panel is about this summon again (not a row clicked in the project list).
+    if (typeof clearInspected === 'function') clearInspected();
     if (doc) doc.selection = i >= 0 ? 'step:' + i : 'look';
     if (jump && i >= 0 && firstAt[i] >= 0) goTo(firstAt[i]);
     drawHierarchy(); drawInspector(); drawSteps(); timeline.draw();
@@ -550,6 +620,9 @@ async function openSummon(name) {
     mine = { file: r.file, def: r.def, steps: summonStepsOf(r.def) };
     showGame = false;
     say('copied into the mod: ' + r.file + ' - its steps are yours to change', 'good');
+    // The lists show it now: the Summons marked, the Mod folder's Summons with it.
+    if (typeof loadList === 'function' && (state.browse === 'summon' || state.browse === 'summons')) loadList();
+    if (typeof projectState !== 'undefined' && projectState.project) { projectState.project.summons = (projectState.project.summons || 0) + 1; if (typeof drawProjectTree === 'function') drawProjectTree(); }
     syncBar(); await rebuild(true); refreshPanels();
   };
   removeButton.onclick = async () => {
@@ -565,14 +638,31 @@ async function openSummon(name) {
   };
   function refreshPanels() { drawHierarchy(); drawInspector(); drawSteps(); timeline.draw(); }
   // A change to the steps: saved half a second on, played again from the frame it was on.
-  function changed() {
+  function changed(quiet = false) {
     mine.def.steps = summonDefSteps(mine.steps);
     clearTimeout(saving);
     saving = setTimeout(async () => {
       const r = await api('/api/project/summon/save', { file: mine.file, def: mine.def }).catch(e => ({ ok: false, error: e.message }));
       say(r.ok ? 'saved ' + mine.file : r.error, r.ok ? 'good' : 'bad');
     }, 500);
-    rebuild(false).then(refreshPanels);
+    // A number being dragged keeps its Inspector (redrawing it would drop the drag).
+    rebuild(false).then(quiet ? () => { drawHierarchy(); drawSteps(); timeline.draw(); } : refreshPanels);
+  }
+  let quietly = 0;
+  const changedQuietly = () => { clearTimeout(quietly); quietly = setTimeout(() => changed(true), 120); };
+
+  // An effect of the mod's saved in the effect editor: played again as it is now.
+  const effectSaved = e => {
+    if (!canvas.isConnected) { window.removeEventListener('crystal-effect-saved', effectSaved); return; }
+    const m = /defs\/effects\/([^/]+)\.json$/i.exec(String(e.detail || ''));
+    if (m && forgetEffect('mod:' + m[1])) rebuild(false).then(refreshPanels);
+  };
+  window.addEventListener('crystal-effect-saved', effectSaved);
+  function forgetEffect(key) {
+    if (!defs.has(key)) return false;
+    lengths.delete(defs.get(key));
+    defs.delete(key);
+    return true;
   }
 
   async function load(t) {
@@ -597,7 +687,11 @@ async function openSummon(name) {
     const first = op => { const st = steps.find(s => s.op === op); return st ? Number(st.p[0]) || 0 : 0; };
     const pad = n => String(n).padStart(3, '0');
     const modelNo = first(8), motionNo = first(10), monsterNo = first(28);
-    look.model = modelNo > 0 ? 'files/f' + pad(modelNo) + '.nmdp.lz' : null;
+    // A model of the mod's own (defs/models, f300 and on): its glTF, on its base's skeleton and motions.
+    look.own = ownModels.find(m => m.number === modelNo) || null;
+    look.model = look.own ? look.own.gltf : modelNo > 0 ? 'files/f' + pad(modelNo) + '.nmdp.lz' : null;
+    look.skeleton = look.own ? 'files/' + look.own.base + '.nmdp.lz' : look.model;
+    if (look.own) await ownFile(look.own.gltf);
     look.motions = motionNo >= 1000 ? 'b_f' + pad(motionNo - 1000) : motionNo > 0 ? 'b_sm' + pad(motionNo) : null;
     if (monsterNo !== look.monster) {
       look.monster = monsterNo;
@@ -618,13 +712,13 @@ async function openSummon(name) {
       if (r && !r.error) defs.set(k, r.effect);
     }));
     // The motions' pack, read again when the model or its motions change.
-    const packKey = look.model + '|' + look.motions;
+    const packKey = look.skeleton + '|' + look.motions;
     if (restart || packKey !== look.packKey) {
       look.packKey = packKey;
       motionIndex = new Map();
       look.motionList = [];
-      if (look.model && look.motions) {
-        const packs = await api(`/api/model/motions?name=${encodeURIComponent(look.model)}`).catch(() => []);
+      if (look.skeleton && look.motions) {
+        const packs = await api(`/api/model/motions?name=${encodeURIComponent(look.skeleton)}`).catch(() => []);
         const pack = (packs || []).find(p => new RegExp('(^|/)' + look.motions + '\\.ncap', 'i').test(p.name));
         if (pack) { motionIndex.set('pack', pack.name); for (const mo of pack.motions) motionIndex.set(mo.id, mo.index); look.motionList = pack.motions; }
       }
@@ -668,6 +762,7 @@ async function openSummon(name) {
     steps: () => current(),
     editable,
     firstAt: i => firstAt[i],
+    select: (i, jump) => select(i, jump),
     insert(at) { mine.steps.splice(at, 0, { op: 40, name: 'FRAME_COUNT', p: [10, 0, 0, 0, 0, 0, 0], again: false }); if (doc) doc.selection = 'step:' + at; changed(); },
     duplicate(i) { mine.steps.splice(i + 1, 0, JSON.parse(JSON.stringify(mine.steps[i]))); if (doc) doc.selection = 'step:' + (i + 1); changed(); },
     move(a, b) { const [x] = mine.steps.splice(a, 1); mine.steps.splice(b, 0, x); if (doc) doc.selection = 'step:' + b; changed(); },
@@ -676,7 +771,11 @@ async function openSummon(name) {
   if (doc) {
     doc.summonEditor = ed;
     doc.inspect = ref => ref === 'look' ? lookCard() : /^step:\d+$/.test(ref) ? stepCard(parseInt(ref.slice(5), 10)) : null;
-    doc.onShow = () => refreshPanels();
+    doc.onShow = () => {
+      let stale = false;
+      for (const key of [...defs.keys()]) if (key.startsWith('mod:')) stale = forgetEffect(key) || stale;
+      if (stale && script) rebuild(false).then(refreshPanels); else refreshPanels();
+    };
   }
 
   /// A game effect made the mod's: its copy in defs/effects, the step pointed at it, opened in the effect editor.
@@ -717,6 +816,66 @@ async function openSummon(name) {
   };
   // A step's number put in, the view played again (the mod's steps only).
   const setParam = (i, k, v) => { if (!editable()) return; mine.steps[i].p[k] = v; changed(); };
+  // The pickers by what a number names: each calls back with the value (an effect with its member too).
+  const PICK = {
+    e: (i, k) => { const st = current()[i]; pickSummonEffect(st.p[0], Number(st.p[1]) || 1, (v, m) => { const p = mine.steps[i].p; p[0] = v; if (st.op !== 16) p[1] = m; changed(); }, { packOnly: st.op === 16 }); },
+    model: (i, k) => pickSummonModel(Number(current()[i].p[k]) || 0, v => typeof v === 'string' ? useOwnFile(v, i) : setParam(i, k, v), ownModels),
+    motions: (i, k) => pickSummonMotionPack(Number(current()[i].p[k]) || 0, v => setParam(i, k, v)),
+    motion: (i, k) => pickSummonMotion(Number(current()[i].p[k]) || 0, look, v => setParam(i, k, v)),
+    monster: (i, k) => pickSummonMonster(Number(current()[i].p[k]) || 0, v => setParam(i, k, v)),
+    spell: (i, k) => pickSummonSpell(Number(current()[i].p[k]) || 0, v => setParam(i, k, v))
+  };
+  const PICK_WHAT = { e: 'an effect', model: 'a model', motions: 'the motions', motion: 'a motion', monster: 'a monster', spell: 'a spell' };
+  /// A step's number as a row: its label dragged across to change it (Shift big, Alt fine), typed, and - for what
+  /// names something - a picker beside it.
+  function numberRow(c, labelText, kind, i, k, title) {
+    const st = current()[i];
+    const row = document.createElement('div');
+    row.className = 'summon-num';
+    if (title) row.title = title;
+    let control;
+    if (kind === 'e') {
+      // A pack's number or one of the mod's effects by its id.
+      const lab = document.createElement('span');
+      lab.className = 'summon-num-label';
+      lab.textContent = labelText;
+      control = Object.assign(document.createElement('input'), { type: 'text', value: String(st.p[k]) });
+      control.title = 'a pack of the game\'s by its number (367), or one of the mod\'s effects by its id';
+      control.onchange = () => { const v = control.value.trim(); setParam(i, k, /^-?\d+$/.test(v) ? parseInt(v, 10) : v); };
+      row.append(lab, control);
+    } else {
+      const units = kind === 'u';
+      const shown = units ? Math.round((Number(st.p[k]) || 0) / 4096 * 100) / 100 : Number(st.p[k]) || 0;
+      control = scrubNumber(labelText, shown, v => {
+        if (!editable()) return;
+        mine.steps[i].p[k] = units ? Math.round(v * 4096) : Math.round(v);
+        changedQuietly();
+      }, { step: units ? 0.01 : 1 });
+      const input = control.querySelector('input');
+      input.disabled = !editable();
+      if (!editable()) control.classList.add('off');
+      if (kind === 'model') {
+        const own = ownModels.find(m => m.number === Number(st.p[k]));
+        if (own) { const said = document.createElement('i'); said.className = 'summon-num-said'; said.textContent = own.gltf.replace(/^assets\//, ''); control.append(said); }
+      }
+      if (kind === 'motion') {
+        const m = (look.motionList || []).find(x => x.id === Number(st.p[k]));
+        const said = document.createElement('i');
+        said.className = 'summon-num-said';
+        said.textContent = m ? m.name : look.motionList.length ? 'not in ' + look.motions : '';
+        control.append(said);
+      }
+      row.append(control);
+    }
+    if (PICK[kind]) {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'summon-pick', textContent: '\u25CE', title: 'pick ' + PICK_WHAT[kind] + ' by looking at it' });
+      b.disabled = !editable() || (kind === 'motion' && !look.motionList.length);
+      b.onclick = () => PICK[kind](i, k);
+      row.append(b);
+    }
+    c.append(row);
+    return row;
+  }
   const findStep = op => current().findIndex(st => st.op === op);
 
   function lookCard() {
@@ -782,34 +941,11 @@ async function openSummon(name) {
       };
     }
     const modelAt = findStep(8), motionAt = findStep(10), monsterAt = findStep(28);
-    if (modelAt >= 0) {
-      const pick = document.createElement('select');
-      const have = new Set(summonState.models || []);
-      have.add(Number(steps[modelAt].p[0]));
-      for (const n of [...have].sort((a, b) => a - b)) { const o = document.createElement('option'); o.value = String(n); o.textContent = 'f' + String(n).padStart(3, '0') + (n >= 201 && n <= 208 ? '  (a summon\'s)' : ''); pick.append(o); }
-      pick.value = String(steps[modelAt].p[0]);
-      pick.disabled = !editable();
-      pick.onchange = () => setParam(modelAt, 0, parseInt(pick.value, 10));
-      field(who, 'Model', pick, 'the character model it loads (SET_MODEL f###): a summon\'s own f201-f208, or any of the game\'s');
-    }
-    if (motionAt >= 0) {
-      const pick = document.createElement('select');
-      for (let n = 1; n <= 8; n++) { const o = document.createElement('option'); o.value = String(n); o.textContent = 'b_sm' + String(n).padStart(3, '0') + '  (' + ((ModSummonNames[n - 1] || [])[0] || '') + '\'s)'; pick.append(o); }
-      // A monster's model moves by its family's motions (b_f###, as 1000 + the family).
-      const model = modelAt >= 0 ? Number(steps[modelAt].p[0]) : 0;
-      const theirs = new Set([model > 0 && model < 201 ? 1000 + model : 0, Number(steps[motionAt].p[0])].filter(v => v >= 1000));
-      for (const v of theirs) { const o = document.createElement('option'); o.value = String(v); o.textContent = 'b_f' + String(v - 1000).padStart(3, '0') + '  (a monster\'s)'; pick.append(o); }
-      pick.value = String(steps[motionAt].p[0]);
-      pick.disabled = !editable();
-      pick.onchange = () => setParam(motionAt, 0, parseInt(pick.value, 10));
-      field(who, 'Motions', pick, 'the summon motions it plays (SET_MOTION b_sm###)');
-    }
-    if (monsterAt >= 0) {
-      const input = document.createElement('input');
-      input.type = 'number'; input.step = '1'; input.value = String(steps[monsterAt].p[0]); input.disabled = !editable();
-      input.onchange = () => setParam(monsterAt, 0, parseInt(input.value, 10) || 0);
-      field(who, 'Monster', input, 'the monster record it takes its size and hit point from (SET_SUMMON_PARAMETER)');
-    }
+    if (modelAt >= 0) numberRow(who, 'Model', 'model', modelAt, 0, 'the model it loads (SET_MODEL f###): a summon\'s own f201-f208, or any of the game\'s');
+    if (motionAt >= 0) numberRow(who, 'Motions', 'motions', motionAt, 0, 'the motions it plays (SET_MOTION): a summon\'s b_sm###, or a monster family\'s b_f### as 1000 + the family');
+    if (monsterAt >= 0) numberRow(who, 'Monster', 'monster', monsterAt, 0, 'the monster record it takes its size and hit point from (SET_SUMMON_PARAMETER)');
+    const own = modelAt >= 0 ? ownModels.find(m => m.number === Number(steps[modelAt].p[0])) : null;
+    if (own) ownCard(box, own);
     // The caster's glow as it begins: the summon spell's cast (its look, defs/spells).
     // A summon's glow as it is cast (what plays after is the script's).
     if (typeof effectItemLook === 'function' && entry) effectItemLook(box, () => entry.name, { castOnly: true });
@@ -845,7 +981,9 @@ async function openSummon(name) {
       open.textContent = 'Open';
       open.title = 'open the effect: the mod\'s in the effect editor, the game\'s in the Effects library';
       open.onclick = () => openEffectOf(st);
-      row.append(name, input, open);
+      const pick = Object.assign(document.createElement('button'), { type: 'button', className: 'summon-pick', textContent: '\u25CE', title: 'pick an effect by looking at it', disabled: !editable() });
+      pick.onclick = () => PICK.e(i, 0);
+      row.append(name, input, pick, open);
       if (editable() && typeof st.p[0] === 'number') {
         const mineB = document.createElement('button');
         mineB.className = 'chip';
@@ -864,7 +1002,10 @@ async function openSummon(name) {
       const input = document.createElement('input');
       input.type = 'number'; input.step = '1'; input.value = String(st.p[0]); input.disabled = !editable();
       input.onchange = () => setParam(i, 0, parseInt(input.value, 10) || 0);
-      field(c, 'Spell', input, 'the spell whose effect plays on each target, half its play frame apart (DRAW_TARGET_EFFECT) - a spell of the mod\'s works too');
+      const spellRow = field(c, 'Spell', input, 'the spell whose effect plays on each target, half its play frame apart (DRAW_TARGET_EFFECT) - a spell of the mod\'s works too');
+      const pick = Object.assign(document.createElement('button'), { type: 'button', className: 'summon-pick', textContent: '\u25CE', title: 'pick a spell by looking at its effect', disabled: !editable() });
+      pick.onclick = e => { e.preventDefault(); PICK.spell(i, 0); };
+      spellRow.append(pick);
       const note = document.createElement('p');
       note.className = 'sub summon-note';
       note.textContent = (sp ? `${sp.name || 'spell ' + sp.id}: effect ${sp.category}/${sp.member}, on ${sp.party ? 'the party' : 'the enemies'}. ` : '') + 'Its look is what plays: give it one in Spells (or a spell of the mod\'s made for this summon), and this outcome shows it.';
@@ -878,6 +1019,48 @@ async function openSummon(name) {
       }
     });
     return box;
+  }
+
+  /// A model of the mod's own in the Look: its file, the skeleton it borrows, its size and turn, and which of its
+  /// clips plays for each of the motions its pack has (none: the base's motion drives it, retargeted).
+  function ownCard(box, own) {
+    const c = card(box, 'Its glTF', 'model');
+    const head = c.querySelector('.component-head');
+    if (head) head.append(ownBadge('mod', { dot: true, title: 'defs/models/' + own.model + '.json' }));
+    const row = (labelText, control, title) => { const r = document.createElement('div'); r.className = 'summon-num'; if (title) r.title = title; const l = document.createElement('span'); l.className = 'summon-num-label'; l.textContent = labelText; r.append(l, control); c.append(r); return r; };
+    const pickButton = (title, run) => { const b = Object.assign(document.createElement('button'), { type: 'button', className: 'summon-pick', textContent: '\u25CE', title, disabled: !editable() }); b.onclick = run; return b; };
+    const fileInput = Object.assign(document.createElement('input'), { type: 'text', value: own.gltf, disabled: !editable() });
+    fileInput.onchange = () => saveOwn(own, { gltf: fileInput.value.trim() });
+    row('File', fileInput, 'the glTF it is drawn as (the project\'s assets/)').append(pickButton('pick one of the project\'s model files', () => {
+      const go = () => pickModel(own.gltf, v => saveOwn(own, { gltf: v }), { assetsOnly: true, title: 'Its glTF', what: 'model files of the project\'s' });
+      if (Array.isArray(state.assets)) go(); else api('/api/project/assets').then(l => { state.assets = l || []; go(); }).catch(() => { state.assets = []; go(); });
+    }));
+    const baseInput = Object.assign(document.createElement('input'), { type: 'text', value: own.base, disabled: !editable() });
+    baseInput.onchange = () => saveOwn(own, { base: baseInput.value.trim() });
+    row('Skeleton', baseInput, 'the game\'s model whose skeleton and motions it borrows (the game loads its files in this one\'s place)').append(pickButton('pick the model it borrows from', () =>
+      pickSummonModel(parseInt(own.base.replace(/\D/g, ''), 10) || 0, v => { if (typeof v === 'number') saveOwn(own, { base: 'f' + String(v).padStart(3, '0') }); })));
+    const file = ownFiles.get(own.gltf);
+    const fit = ownFit(own, file);
+    const scale = scrubNumber('Scale', own.scale > 0 ? Math.round(own.scale * 1000) / 1000 : 0, v => { if (editable()) saveOwn(own, { scale: Math.max(0, v) }, true); }, { step: 0.01, min: 0, title: '0 fits it to the skeleton\'s height, as the game does' });
+    const scaleRow = document.createElement('div'); scaleRow.className = 'summon-num'; scaleRow.append(scale);
+    if (!(own.scale > 0)) { const said = document.createElement('i'); said.className = 'summon-num-said'; said.textContent = 'auto, about ' + fit.auto.toFixed(2); scale.append(said); }
+    c.append(scaleRow);
+    const turn = scrubNumber('Turn (°)', (own.rotation && own.rotation[1]) || 0, v => { if (editable()) saveOwn(own, { rotation: [(own.rotation && own.rotation[0]) || 0, v, (own.rotation && own.rotation[2]) || 0] }, true); }, { step: 1, title: 'turned about its up axis, when it faces the wrong way' });
+    const turnRow = document.createElement('div'); turnRow.className = 'summon-num'; turnRow.append(turn); c.append(turnRow);
+    // Its clips for the motions its skeleton's pack has.
+    const names = file && file.rest ? file.rest.clips || [] : [];
+    const clipsHead = document.createElement('p');
+    clipsHead.className = 'sub summon-note';
+    clipsHead.textContent = names.length ? 'Its own clips in place of the motions (none: the skeleton\'s motion moves it):' : 'The file has no clips of its own: the skeleton\'s motions move it.';
+    c.append(clipsHead);
+    if (names.length) for (const m of look.motionList || []) {
+      const pick = document.createElement('select');
+      pick.disabled = !editable();
+      for (const [v, t] of [['', '(the skeleton\'s)'], ...names.map(n => [n, n])]) { const o = document.createElement('option'); o.value = v; o.textContent = t; pick.append(o); }
+      pick.value = (own.clips || {})[String(m.id)] || '';
+      pick.onchange = () => { const clips = { ...(own.clips || {}) }; if (pick.value) clips[String(m.id)] = pick.value; else delete clips[String(m.id)]; saveOwn(own, { clips }); };
+      row(`${m.id}  ${m.name}`, pick, `what plays when the script starts motion ${m.id} (${m.frames || '?'} frames)`);
+    }
   }
 
   function stepCard(i) {
@@ -918,36 +1101,12 @@ async function openSummon(name) {
     if (params.length) {
       const pc = card(box, 'Its numbers', 'table');
       params.forEach(([labelText, kind], k) => {
-        let input;
         if (kind === 'b') {
-          input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!st.p[k];
+          const input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!st.p[k];
           input.onchange = () => setParam(i, k, input.checked ? 1 : 0);
-        } else if (st.op === 12 && k === 0 && look.motionList.length) {
-          // A motion of the loaded pack, by its id and name.
-          input = document.createElement('select');
-          const have = look.motionList.map(m => m.id);
-          if (!have.includes(Number(st.p[0]))) have.unshift(Number(st.p[0]));
-          for (const id of have) {
-            const m = look.motionList.find(x => x.id === id);
-            const o = document.createElement('option'); o.value = String(id);
-            o.textContent = m ? `${id}  ${m.name}${m.frames ? ' · ' + m.frames + ' frames' : ''}` : `${id}  (not in ${look.motions})`;
-            input.append(o);
-          }
-          input.value = String(st.p[0]);
-          input.title = 'a motion of ' + look.motions + ': 101 is standing, 201 and on its actions';
-          input.onchange = () => setParam(i, k, parseInt(input.value, 10));
-        } else if (kind === 'e') {
-          input = document.createElement('input'); input.type = 'text'; input.value = String(st.p[k]);
-          input.title = 'a pack of the game\'s by its number (367), or one of the mod\'s effects by its id';
-          input.onchange = () => { const v = input.value.trim(); setParam(i, k, /^-?\d+$/.test(v) ? parseInt(v, 10) : v); };
-        } else {
-          input = document.createElement('input'); input.type = 'number';
-          input.step = kind === 'u' ? '0.25' : '1';
-          input.value = kind === 'u' ? String(Math.round((Number(st.p[k]) || 0) / 4096 * 1000) / 1000) : String(st.p[k] || 0);
-          input.onchange = () => { const v = parseFloat(input.value) || 0; setParam(i, k, kind === 'u' ? Math.round(v * 4096) : Math.round(v)); };
-        }
-        input.disabled = !editable();
-        field(pc, labelText, input);
+          input.disabled = !editable();
+          field(pc, labelText, input);
+        } else numberRow(pc, labelText, kind, i, k);
       });
       if ([19, 20, 55, 16].includes(st.op)) {
         const row = document.createElement('div');
@@ -1149,7 +1308,7 @@ async function openSummon(name) {
       stage.mapTint = S.dark.on ? S.dark.colour : null;
       stage.hide = { monsters: S.monstersHidden, party: S.party.registered ? S.party.alpha : 0 };
       const sm = S.summon;
-      stage.extras = sm.loaded && !sm.gone && sm.shown && look.model ? [{
+      stage.extras = sm.loaded && !sm.gone && sm.shown && look.model ? [look.own ? ownExtra(sm) : {
         model: look.model, pos: sm.pos.map(v => v / 4096), yaw: sm.yaw, scale: sm.scale, alpha: sm.alpha / 100,
         pack: sm.motion ? motionIndex.get('pack') : null, index: sm.motion ? (motionIndex.get(sm.motion.id) || 0) : 0,
         frame: sm.motion ? sm.motion.frame : 0, loop: sm.motion ? sm.motion.loop : false
@@ -1180,6 +1339,330 @@ async function openSummon(name) {
   syncBar();
   await load(0);
   requestAnimationFrame(frameLoop);
+}
+
+
+// ---------------------------------------------------------------- pickers
+//
+// A step's numbers that name something - an effect, a model, its motions, a motion, a monster, a spell - are picked
+// by looking at it: a list with a filter, and beside it a small Stage playing the one under the pointer (the effect
+// looping, the model in its motion). The number stays editable in its field; the picker is the button beside it.
+
+/// A list to pick from, with a preview: items [{ value, label, note, group, search }], `preview(item, pane)` shows one
+/// (and may return a function that stops it). Enter or a double click picks, Escape closes.
+function summonPickList({ title, items, current, onChosen, preview = null, what = 'to pick from', extra = null }) {
+  const veil = document.createElement('div');
+  veil.className = 'picker-veil';
+  const box = document.createElement('div');
+  box.className = 'picker summon-picker';
+  const head = document.createElement('div');
+  head.className = 'picker-head';
+  const strong = document.createElement('strong');
+  strong.textContent = title;
+  const filter = Object.assign(document.createElement('input'), { type: 'search', placeholder: 'filter', autocomplete: 'off' });
+  const shut = Object.assign(document.createElement('button'), { className: 'shut', textContent: '×', title: 'close' });
+  head.append(strong, filter, shut);
+  const body = document.createElement('div');
+  body.className = 'summon-picker-body';
+  const list = document.createElement('div');
+  list.className = 'summon-picker-list';
+  const pane = document.createElement('div');
+  pane.className = 'summon-picker-pane';
+  body.append(list);
+  if (preview) body.append(pane);
+  const foot = document.createElement('div');
+  foot.className = 'picker-foot summon-picker-foot';
+  const count = document.createElement('span');
+  const use = Object.assign(document.createElement('button'), { className: 'primary', textContent: 'Use' });
+  foot.append(count, use);
+  box.append(head, body, foot);
+  veil.append(box);
+  document.body.append(veil);
+
+  let picked = items.find(it => String(it.value) === String(current)) || null;
+  let stopPreview = null;
+  const show = it => {
+    if (!preview) return;
+    if (stopPreview) { try { stopPreview(); } catch (e) { } stopPreview = null; }
+    pane.textContent = '';
+    if (it) stopPreview = preview(it, pane) || null;
+  };
+  const choose = it => { if (!it) return; close(); onChosen(it.value, it); };
+  const draw = () => {
+    const wanted = filter.value.trim().toLowerCase();
+    list.textContent = '';
+    let shown = 0, group = null;
+    for (const it of items) {
+      const text = (it.search || (it.label + ' ' + (it.note || '') + ' ' + it.value)).toLowerCase();
+      if (wanted && !text.includes(wanted)) continue;
+      if (it.group && it.group !== group) {
+        group = it.group;
+        const g = document.createElement('div');
+        g.className = 'summon-picker-group';
+        g.textContent = group;
+        list.append(g);
+      }
+      shown++;
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'summon-picker-row' + (it === picked ? ' on' : '') + (String(it.value) === String(current) ? ' current' : '');
+      const b = document.createElement('b'); b.textContent = it.label;
+      row.append(b);
+      if (it.badge) row.append(it.badge());
+      if (it.note) { const n = document.createElement('i'); n.textContent = it.note; row.append(n); }
+      row.onclick = () => { picked = it; for (const r of list.querySelectorAll('.on')) r.classList.remove('on'); row.classList.add('on'); show(it); use.disabled = false; };
+      row.ondblclick = () => choose(it);
+      list.append(row);
+    }
+    count.textContent = shown === items.length ? `${items.length} ${what}` : `${shown} of ${items.length}`;
+  };
+  const onKey = e => {
+    if (e.key === 'Escape') close();
+    else if (e.key === 'Enter' && picked) choose(picked);
+  };
+  function close() {
+    if (stopPreview) { try { stopPreview(); } catch (e) { } }
+    window.removeEventListener('keydown', onKey);
+    veil.remove();
+  }
+  shut.onclick = close;
+  veil.onclick = e => { if (e.target === veil) close(); };
+  use.onclick = () => choose(picked);
+  use.disabled = !picked;
+  filter.oninput = draw;
+  window.addEventListener('keydown', onKey);
+  if (extra) extra(head, { close, redraw: draw, items });
+  draw();
+  show(picked);
+  const on = list.querySelector('.on');
+  if (on) on.scrollIntoView({ block: 'center' });
+  filter.focus();
+  return { close };
+}
+
+/// A small Stage in a picker's pane: an effect looping, or a model in a motion. Returns { stage, effect(def, own),
+/// model(spec), label(text), stop }.
+function summonPreviewStage(pane) {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'summon-picker-stage';
+  const caption = document.createElement('p');
+  caption.className = 'summon-picker-caption';
+  pane.append(canvas, caption);
+  let own = null;
+  const stage = makeEffectStage(canvas, key => effectTextureUrl(key, own));
+  if (!stage) { caption.textContent = 'this browser has no WebGL'; return { effect() { }, model() { }, label() { }, stop() { }, pane }; }
+  stage.setLayout({ count: 'one', background: '', view: 'free', show: { map: false, monsters: false, heroes: 'none', floor: true, marks: false } });
+  let player = null, model = null, running = true, last = performance.now(), owed = 0, frame = 0;
+  const loop = now => {
+    if (!running || !canvas.isConnected) return;
+    owed += Math.min(0.25, (now - last) / 1000) * 30;
+    last = now;
+    while (owed >= 1) { owed -= 1; frame++; if (player) { if (player.finished) player.reset(); player.step(); } }
+    if (model) stage.extras = [{ ...model, frame: model.frames ? frame % model.frames : frame }];
+    else stage.extras = [];
+    stage.draw(player ? player.particles() : [], Math.max(0, Math.min(1, owed)), player ? player.models() : []);
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+  return {
+    stage, pane,
+    label(text) { caption.textContent = text; },
+    effect(def, ownName) {
+      own = ownName || null;
+      model = null;
+      player = def ? makeEffectGroup(def, stage.targets, { seed: 7, anchors: { caster: stage.caster().anchor } }) : null;
+      const at = stage.targets[0], caster = stage.caster().anchor;
+      const both = def && (def.tracks || []).some(t => t.anchor === 'caster' || t.anchor === 'between' || (t.path && (t.path.from || t.path.to)));
+      Object.assign(stage.camera, both ? { target: at.map((v, k) => (v + caster[k]) / 2), distance: 95, yaw: 20, pitch: 18 } : { target: at, distance: 64, yaw: 60, pitch: 14 });
+    },
+    model(spec) {
+      player = null;
+      frame = 0;
+      const feet = (stage.places().monsters[0] || { feet: [0, 0, 0] }).feet;
+      model = { pos: feet, yaw: spec.yaw === undefined ? 90 : spec.yaw, scale: spec.scale || 1, alpha: 1, loop: true, ...spec };
+      Object.assign(stage.camera, { target: [feet[0], feet[1] + (spec.height || 6), feet[2]], distance: spec.distance || 55, yaw: 50, pitch: 10 });
+    },
+    stop() { running = false; }
+  };
+}
+
+// The lists the pickers draw from, read once.
+const summonPickData = {};
+async function summonPickMonsters() {
+  if (!summonPickData.monsters) { const r = await api('/api/monsters').catch(() => null); summonPickData.monsters = (r && (r.monsters || r)) || []; }
+  return summonPickData.monsters;
+}
+// A family's name: the first of its monsters by id ("Dragon" for f075).
+async function summonFamilyNames() {
+  const names = new Map();
+  for (const m of (await summonPickMonsters()).slice().sort((a, b) => a.id - b.id)) if (m.family > 0 && !names.has(m.family)) names.set(m.family, m.name);
+  return names;
+}
+const summonPad = n => String(n).padStart(3, '0');
+// The model a motion pack moves: a summon's (b_sm002 -> f202) or a family's (b_f075 -> f075).
+const summonPackModel = motions => motions >= 1000 ? 'files/f' + summonPad(motions - 1000) + '.nmdp.lz' : 'files/f' + summonPad(200 + motions) + '.nmdp.lz';
+const summonPackName = motions => motions >= 1000 ? 'files/b_f' + summonPad(motions - 1000) + '.ncap.lz' : 'files/b_sm' + summonPad(motions) + '.ncap.lz';
+// A pack's motions, read once a pack.
+async function summonPackMotions(model, pack) {
+  const key = model + '|' + pack;
+  summonPickData.packs = summonPickData.packs || new Map();
+  if (!summonPickData.packs.has(key)) {
+    const packs = await api(`/api/model/motions?name=${encodeURIComponent(model)}`).catch(() => []);
+    const found = (packs || []).find(p => p.name.toLowerCase() === pack.toLowerCase());
+    summonPickData.packs.set(key, found ? found.motions : []);
+  }
+  return summonPickData.packs.get(key);
+}
+// A monster's size and hit point (its battle scale, the height the camera looks at), read once a monster.
+async function summonPickTarget(monster) {
+  summonPickData.targets = summonPickData.targets || new Map();
+  if (!(monster > 0)) return null;
+  if (!summonPickData.targets.has(monster)) summonPickData.targets.set(monster, api('/api/effect/target?monster=' + monster).then(t => t && !t.error ? t : null).catch(() => null));
+  return summonPickData.targets.get(monster);
+}
+// The monster that gives a model its size: a summon's own (f201...) or the first of a family's.
+async function summonMonsterOfModel(modelNo) {
+  if (modelNo >= 201 && modelNo <= 208) {
+    if (!summonPickData.summons) { const r = await api('/api/summons').catch(() => null); summonPickData.summons = (r && r.summons) || []; }
+    const s = summonPickData.summons.find(x => x.level === modelNo - 201 && !x.spell);
+    return s ? s.monster : 0;
+  }
+  const m = (await summonPickMonsters()).filter(x => x.family === modelNo).sort((a, b) => a.id - b.id)[0];
+  return m ? m.id : 0;
+}
+// A model on the preview Stage in a pack's motion (its first when none is named), at its battle size and framed by
+// its monster's hit point.
+async function summonPreviewModel(view, model, pack, motionId, words, monster = null) {
+  view.label(words + ' · loading');
+  const modelNo = parseInt(String(model).replace(/^.*\/f|\D+$/g, ''), 10) || 0;
+  const target = typeof monster === 'object' && monster ? monster : await summonPickTarget(monster || await summonMonsterOfModel(modelNo));
+  const motions = pack ? await summonPackMotions(model, pack) : [];
+  const m = motions.find(x => x.id === motionId) || motions[0];
+  // Framed by its hit point: how high it stands (up) and how deep it is (toward), at its battle scale.
+  const up = target && target.up > 0 ? target.up : 6, toward = target && target.toward > 0 ? target.toward : 9;
+  view.model({ model, pack: m ? pack : null, index: m ? m.index : 0, frames: m ? m.frames : 0, scale: target ? target.scale : 1, height: up, distance: Math.max(30, (up * 2 + toward) * 2.2) });
+  view.label(words + (m ? ` · ${m.id} ${m.name}${m.frames ? ', ' + m.frames + ' frames' : ''}` : ''));
+}
+
+/// An effect: one of the mod's (its id) or a pack of the game's and its member. `packOnly` for SET_EFFECT (a pack to
+/// load). Calls back (value, member).
+async function pickSummonEffect(current, member, onChosen, { packOnly = false } = {}) {
+  const all = await api('/api/effects').catch(() => []);
+  const items = [];
+  for (const e of all || []) {
+    if (e.own) {
+      if (packOnly) continue;
+      const id = shortName(e.name).replace(/\.json$/i, '');
+      items.push({ value: id, label: id, note: 'defs/effects', group: 'the mod\'s', own: e.name, badge: () => ownBadge('mod', { dot: true }) });
+    } else if (e.category > 0) {
+      items.push({ value: e.category, label: 'e' + summonPad(e.category), note: e.note || '', group: 'the game\'s', pack: e.name, templates: e.templates });
+    }
+  }
+  let chosenMember = member || 1;
+  summonPickList({
+    title: packOnly ? 'An effect pack to load' : 'An effect', items, current, what: 'effects',
+    onChosen: (value, it) => onChosen(value, it.own ? 1 : chosenMember),
+    preview: (it, pane) => {
+      const view = summonPreviewStage(pane);
+      const members = document.createElement('div');
+      members.className = 'summon-picker-members';
+      pane.append(members);
+      const play = async m => {
+        view.label((it.own ? it.label : `${it.value}/${m}`) + ' · loading');
+        const r = it.own
+          ? await api(`/api/effect?name=${encodeURIComponent(it.own)}`).catch(() => null)
+          : await api(`/api/effect/import?category=${it.value}&member=${m}`).catch(() => null);
+        const def = r && !r.error ? r.effect : null;
+        view.effect(def, it.own || null);
+        view.label(def ? (it.own ? it.label : `${it.value}/${m}` + (it.note ? ' · ' + it.note : '')) : 'nothing to play');
+      };
+      if (!it.own && !packOnly) {
+        // Its members, to play and to pick.
+        api(`/api/effect?name=${encodeURIComponent(it.pack)}`).then(pack => {
+          const ms = [...new Set(((pack && pack.templates) || []).filter(t => t.category === it.value && t.member > 0).map(t => t.member))].sort((a, b) => a - b);
+          if (!ms.length) ms.push(1);
+          if (!ms.includes(chosenMember)) chosenMember = String(it.value) === String(current) && ms.includes(member) ? member : ms[0];
+          for (const m of ms) {
+            const b = Object.assign(document.createElement('button'), { className: 'chip' + (m === chosenMember ? ' on' : ''), textContent: String(m), title: 'member ' + m });
+            b.onclick = () => { chosenMember = m; for (const x of members.children) x.classList.toggle('on', x === b); play(m); };
+            members.append(b);
+          }
+          play(chosenMember);
+        }).catch(() => play(1));
+      } else play(1);
+      return () => view.stop();
+    }
+  });
+}
+
+/// A model: the mod's own (a glTF on a game skeleton, f300 and on) and its model files, the eight summons', the
+/// monsters' (by family, named by their first monster), with pictures. A number back, or a file's path (assets/…) to
+/// make a model of.
+async function pickSummonModel(current, onChosen, own = null) {
+  const names = await summonFamilyNames();
+  const entries = [];
+  if (own) {
+    if (!Array.isArray(state.assets)) state.assets = await api('/api/project/assets').catch(() => []) || [];
+    for (const m of own) entries.push({ model: 'f' + summonPad(m.number), label: 'f' + summonPad(m.number), note: m.gltf.replace(/^assets\//, ''), from: 'the mod\'s, on ' + m.base + '\'s skeleton', pkg: m.gltf });
+    const used = new Set(own.map(m => m.gltf.toLowerCase()));
+    for (const a of state.assets) if (/\.(glb|gltf)$/i.test(a.name) && !used.has(a.name.toLowerCase())) entries.push({ model: a.name, label: a.name.replace(/^assets\//, ''), note: 'make it a model', from: 'the project\'s file: made a model of its own', asset: true, pkg: a.name });
+  }
+  entries.push(...ModSummonNames.map(([creature], i) => ({ model: 'f' + summonPad(201 + i), label: 'f' + summonPad(201 + i), note: creature, from: 'a summon\'s model' })));
+  for (const [family, name] of [...names].sort((a, b) => a[0] - b[0])) if (family < 201) entries.push({ model: 'f' + summonPad(family), label: 'f' + summonPad(family), note: name, from: name + '\'s family' });
+  pickModel('f' + summonPad(current), m => onChosen(/^assets\//i.test(m) ? m : parseInt(String(m).replace(/\D/g, ''), 10)), { entries, title: 'The summon\'s model', what: 'models', importable: !!own });
+}
+
+/// Motions: the eight summons' packs (b_sm###) and the monsters' (b_f###, as 1000 + the family), each on its model.
+async function pickSummonMotionPack(current, onChosen) {
+  const names = await summonFamilyNames();
+  const items = ModSummonNames.map(([creature], i) => ({ value: i + 1, label: 'b_sm' + summonPad(i + 1), note: creature, group: 'the summons\'' }));
+  for (const [family, name] of [...names].sort((a, b) => a[0] - b[0])) if (family < 201) items.push({ value: 1000 + family, label: 'b_f' + summonPad(family), note: name, group: 'the monsters\'' });
+  summonPickList({
+    title: 'The summon\'s motions', items, current, onChosen, what: 'motion packs',
+    preview: (it, pane) => { const view = summonPreviewStage(pane); summonPreviewModel(view, summonPackModel(it.value), summonPackName(it.value), 101, it.label); return () => view.stop(); }
+  });
+}
+
+/// A motion of the loaded pack, played on the summon's model.
+function pickSummonMotion(current, look, onChosen) {
+  const items = (look.motionList || []).map(m => ({ value: m.id, label: String(m.id), note: `${m.name}${m.frames ? ' · ' + m.frames + ' frames' : ''}` }));
+  summonPickList({
+    title: 'A motion of ' + (look.motions || 'its pack'), items, current, onChosen, what: 'motions',
+    preview: (it, pane) => { const view = summonPreviewStage(pane); summonPreviewModel(view, look.model, 'files/' + look.motions + '.ncap.lz', it.value, it.label, look.target); return () => view.stop(); }
+  });
+}
+
+/// A monster (its size and hit point for the summon), shown as its family's model standing.
+async function pickSummonMonster(current, onChosen) {
+  const list = await summonPickMonsters();
+  const items = list.slice().sort((a, b) => a.id - b.id).map(m => ({ value: m.id, label: m.name, note: `${m.id} · f${summonPad(m.family)}${m.level ? ' · L' + m.level : ''}`, group: m.mod ? 'the mod\'s' : 'the game\'s' }));
+  summonPickList({
+    title: 'The summon\'s monster', items, current, onChosen, what: 'monsters',
+    preview: (it, pane) => {
+      const view = summonPreviewStage(pane);
+      const m = list.find(x => x.id === it.value);
+      if (m && m.family > 0) summonPreviewModel(view, 'files/f' + summonPad(m.family) + '.nmdp.lz', m.family < 201 ? 'files/b_f' + summonPad(m.family) + '.ncap.lz' : null, 101, it.label, m.id);
+      return () => view.stop();
+    }
+  });
+}
+
+/// A spell whose effect plays on each target (DRAW_TARGET_EFFECT), its effect playing.
+async function pickSummonSpell(current, onChosen) {
+  const r = await api('/api/project/effect/spells').catch(() => null);
+  const spells = (r && r.spells) || [];
+  const items = spells.filter(s => s.category > 0).sort((a, b) => a.id - b.id).map(s => ({ value: s.id, label: s.name || String(s.id), note: `${s.id} · effect ${s.category}/${s.member > 0 ? s.member : 1}`, group: spellSchoolWord ? spellSchoolWord(s.school) : '', spell: s }));
+  // Grouped by school, in order.
+  items.sort((a, b) => String(a.group).localeCompare(String(b.group)) || a.value - b.value);
+  summonPickList({
+    title: 'A spell to play on each target', items, current, onChosen, what: 'spells',
+    preview: (it, pane) => {
+      const view = summonPreviewStage(pane);
+      const s = it.spell;
+      api(`/api/effect/import?category=${s.category}&member=${s.member > 0 ? s.member : 1}`).then(x => { view.effect(x && !x.error ? x.effect : null); view.label(it.label + ' · ' + it.note); }).catch(() => {});
+      return () => view.stop();
+    }
+  });
 }
 
 // The eight by level, as the client's ModSummons names them: the creature, its spell.

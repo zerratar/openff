@@ -44,6 +44,9 @@ internal static partial class GlobalScope
 
 			public ds.sys3d.CRenderObject RdrObject = new ds.sys3d.CRenderObject();
 
+			// PORT: the mod's own model this character was asked for by (its base's files loaded), or null.
+			public string ownModel;
+
 			public ds.sys3d.CShadowObject ShadowObject = new ds.sys3d.CShadowObject();
 
 			public ds.sys3d.CLightObject LightObject = new ds.sys3d.CLightObject();
@@ -321,6 +324,10 @@ internal static partial class GlobalScope
 
 		public int setCharacterAsync(string name, PRI_SCENE pri)
 		{
+			// PORT: a mod's own model (defs/models with a "base") loads its base's files and is dressed as its glTF.
+			string asked = name;
+			string borrowed = OpenFF.Client.CharacterMeshes.BaseOf(name);
+			if (borrowed != null) name = borrowed;
 			string arg = "";
 			sprintf(out arg, "%s", getModelLocate(name));
 			string arg2 = "";
@@ -333,6 +340,8 @@ internal static partial class GlobalScope
 				return -1;
 			}
 			initValue(num2);
+			Character[num2].ownModel = borrowed != null ? asked : null;
+			if (borrowed != null) OpenFF.Client.CharacterMeshes.DressNew(Character[num2].RdrObject, asked);
 			num = objectDataMng.setData(arg2, async: true);
 			if (num == -1)
 			{
@@ -362,6 +371,8 @@ internal static partial class GlobalScope
 			}
 			pScene[(int)Character[ctrl].priScn].removeRenderObject(Character[ctrl].RdrObject);
 			pScene[(int)Character[ctrl].priScn].removeRenderObject(Character[ctrl].ShadowObject);
+			// PORT: a mod's own model's look goes with it: the slot's next character is drawn as its own.
+			if (Character[ctrl].ownModel != null) { OpenFF.Client.CharacterMeshes.AttachOwn(Character[ctrl].RdrObject, null, false); Character[ctrl].ownModel = null; }
 			Character[ctrl].modelSet.cleanup();
 			Character[ctrl].RdrObject.cleanup();
 			Character[ctrl].ShadowObject.cleanup();

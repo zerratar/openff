@@ -104,12 +104,21 @@ namespace Crystal.Editor
 					level,
 					name = spell?.Name ?? ("summon " + (level + 1)),
 					creature,
-					outcomes = Enumerable.Range(0, 3).Select(type => new
+					// Its monster record (SET_SUMMON_PARAMETER): its size and hit point, for a picture of it.
+					monster,
+					// How many of its outcomes the mod plays by steps of its own (defs/summons).
+					mine = Enumerable.Range(0, 3).Count(type => Mine(project, level, type).File != null),
+					outcomes = Enumerable.Range(0, 3).Select(type =>
 					{
-						type,
-						kind = Outcomes[type],
-						name = messages.TryGetValue((uint)(1300 + level * 10 + type + 1), out string n) && !string.IsNullOrWhiteSpace(n) ? n.Trim() : Outcomes[type],
-						steps = type + 3 * level < chains.Length ? chains[type + 3 * level].Count : 0,
+						(string file, JsonObject def) = Mine(project, level, type);
+						return new
+						{
+							type,
+							kind = Outcomes[type],
+							name = !string.IsNullOrWhiteSpace(def?["name"]?.ToString()) ? def["name"].ToString().Trim() : messages.TryGetValue((uint)(1300 + level * 10 + type + 1), out string n) && !string.IsNullOrWhiteSpace(n) ? n.Trim() : Outcomes[type],
+							steps = def?["steps"] is JsonArray own ? own.Count : type + 3 * level < chains.Length ? chains[type + 3 * level].Count : 0,
+							mine = file != null,
+						};
 					}).ToList(),
 				});
 			}
@@ -153,6 +162,13 @@ namespace Crystal.Editor
 			ModItem item = ProjectItems.New(project, name, 4201 + level);
 			for (int type = 0; type < 3; type++) Copy(project, workspace, level, type, item.Id);
 			return new { ok = true, spell = item.Id, number = item.Number, level };
+		}
+
+		/// <summary>How many summon definitions the project has (defs/summons/*.json), for the Mod folder's count.</summary>
+		public static int Count(Project project)
+		{
+			string folder = project == null ? null : Path.Combine(project.Directory, ModSummons.Folder);
+			return folder != null && Directory.Exists(folder) ? Directory.EnumerateFiles(folder, "*.json").Count() : 0;
 		}
 
 		/// <summary>The project's own script for a summon's outcome (defs/summons), if it has one: its file and definition.</summary>

@@ -1139,6 +1139,23 @@ summon's own name). **As a monster** makes the summon one of the monsters - its 
 and its size at once; the Stage plays it so. A *start motion* step picks from the motions the
 summon's pack has, by name and length.
 
+A step's numbers drag across their label (Shift for big steps, Alt for fine ones) or take a
+typed value; a number that names something has a picker (◎) beside it, a list with a filter and a
+small Stage playing the one picked: an effect (the mod's and the game's packs, a pack's members
+to play and pick), the summon's model (pictures of the summons', the monsters', the mod's), its
+motions (each pack on its model), a motion of the pack, the monster (its model standing at its
+size), the spell played on each target (its effect).
+
+**A glTF as the summon.** The model picker lists the project's model files too: one picked is
+made a model of the mod's own (`defs/models/f300.json`, the next free number, on the skeleton the
+summon had) and the summon's `SET_MODEL` points at it. The Look then has **Its glTF**: the file,
+the skeleton it borrows (the game's model whose motions move it), its scale (0 fits it to the
+skeleton's height, as the game does) and turn, and for each motion of its pack which of the
+file's own clips plays in its place. The Stage draws the file posed by that clip (its rest pose
+for a motion without one). **Mod ▸ Summons** lists the mod's new summons and the eight it plays
+outcomes of by steps of its own; on the Summons page those carry the Mod mark, an outcome of its
+own a dot. An effect saved in the effect editor plays anew in an open summon.
+
 The script is the game's own - `files/summon_script_command.pack`, 24 lists of 36-byte records
 (`Crystal.Editor/Editor/Summons.cs`, `/api/summons`, `/api/summon`) - and `wwwroot/summons.js`
 is a port of the battle's interpreter (`btl.BaseSummon.run`, `btl.SummonCommand`): a record a

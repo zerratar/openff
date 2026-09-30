@@ -276,6 +276,12 @@ passed; these are the rest.
   "spells: 1 look(s) of the mods': Fire -> emerald-fire"; the screenshots show green flames on
   the Goblin where the game's Fire burns, then the damage. The drive step `effect emerald-fire 0 4 6`
   plays it by the hero on the field.
+- A glTF as a summon (test report): `Samples/Showcase/assets/fox.glb` in the project, `defs/models/f300.json`
+  `{ "model": "f300", "base": "f202", "gltf": "assets/fox.glb", "scale": 0.2, "clips": { "101": "Survey" } }`,
+  Frost Wyrm's combine `SET_MODEL 300`, `SET_MOTION 2`, `SET_SUMMON_PARAMETER 233`; the same drive: the log has
+  "models: f300 is the mod's own, on f202's skeleton, drawn as assets/fox.glb", "f300 plays its own clip Survey for
+  motion 101" and "35 of 35 joints reached"; the screenshots show the fox where Shiva appears. In Crystal the Look
+  has Its glTF (file, skeleton, scale 0.2, 101 -> Survey) and the Stage draws the fox moving in Survey.
 - A monster as a summon (test report): Frost Wyrm's combine given "name": "Frost Breath" and, in the Look,
   As a monster ▸ Dragon (SET_MODEL 75, SET_MOTION 1075, SET_SUMMON_PARAMETER 133); the same drive: the
   banner reads "Frost Breath", the Dragon appears and moves where Shiva did, then the damage and the

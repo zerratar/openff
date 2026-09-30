@@ -40,6 +40,7 @@ const KINDS = [
   { id: 'jobs', label: 'Jobs', mod: true },
   { id: 'monsters', label: 'Monsters', mod: true },
   { id: 'formations', label: 'Formations', mod: true },
+  { id: 'summons', label: 'Summons', mod: true, slug: 'mod-summons' },
   { id: 'strings', label: 'Strings', mod: true }
 ];
 
@@ -187,6 +188,8 @@ async function openDoc(kind, name, options = {}) {
   if (kind === 'jobs') return openDoc('code', 'defs/jobs/' + name + '.json', options);
   if (kind === 'monsters') return openDoc('code', 'defs/monsters/' + name + '.json', options);
   if (kind === 'formations') return openDoc('code', 'defs/formations/' + name + '.json', options);
+  // The Mod folder's Summons open as the Summons page's do.
+  if (kind === 'summons') return openDoc('summon', name, options);
   const settings = options === true ? { reload: true } : options;
   const id = docId(kind, name);
   const existing = docs.get(id);
@@ -2026,7 +2029,7 @@ function drawProjectTree() {
       const label = document.createElement('b');
       label.textContent = 'Mod';
       tab.append(label);
-      const count = (project.scenes || 0) + (project.items || 0) + (project.characters || 0) + (project.jobs || 0) + (project.monsters || 0) + (project.formations || 0) + (project.text || 0);
+      const count = (project.scenes || 0) + (project.items || 0) + (project.characters || 0) + (project.jobs || 0) + (project.monsters || 0) + (project.formations || 0) + (project.text || 0) + (project.summons || 0);
       if (openff && count) { const n = document.createElement('span'); n.textContent = String(count); tab.append(n); }
       tab.title = !openff
         ? `${project.name} is a Steam mod: files replaced in the game, no code. Tick FF3 or FF4 under OpenFF in Project settings to make it an OpenFF mod as well.`
@@ -2049,13 +2052,13 @@ function drawProjectTree() {
     if (kind.mod && !project) continue;
     const row = document.createElement('div');
     row.className = 'row' + (kind.id === browseKind ? ' on' : '') + (kind.mod && !openff ? ' dim' : '');
-    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'spells' ? 'effect' : kind.id === 'characters' ? 'character' : kind.id === 'strings' ? 'text' : kind.id === 'monsters' ? 'monster' : kind.id === 'formations' ? 'formation' : kind.id === 'jobs' ? 'ladder' : 'code') : kind.id));
+    row.append(icon(kind.mod ? (kind.id === 'scene' ? 'scene' : kind.id === 'items' ? 'item' : kind.id === 'spells' ? 'effect' : kind.id === 'characters' ? 'character' : kind.id === 'strings' ? 'text' : kind.id === 'monsters' ? 'monster' : kind.id === 'formations' ? 'formation' : kind.id === 'jobs' ? 'ladder' : kind.id === 'summons' ? 'effect' : 'code') : kind.id));
     const label = document.createElement('span');
     label.textContent = kind.label;
     row.append(label);
     if (kind.mod && project && openff) {
       const count = document.createElement('i');
-      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : kind.id === 'characters' ? (project.characters || '') : kind.id === 'strings' ? (project.text || '') : kind.id === 'monsters' ? (project.monsters || '') : kind.id === 'formations' ? (project.formations || '') : kind.id === 'jobs' ? (project.jobs || '') : '';
+      count.textContent = kind.id === 'scene' ? (project.scenes || '') : kind.id === 'items' ? (project.items || '') : kind.id === 'characters' ? (project.characters || '') : kind.id === 'strings' ? (project.text || '') : kind.id === 'monsters' ? (project.monsters || '') : kind.id === 'formations' ? (project.formations || '') : kind.id === 'jobs' ? (project.jobs || '') : kind.id === 'summons' ? (project.summons || '') : '';
       if (count.textContent) row.append(count);
       row.title = kind.id === 'scene'
         ? 'Maps this mod has put behaviours or objects on (scenes/<map>.json). Each opens in the map editor.'
@@ -2156,6 +2159,9 @@ function drawCodeActions() {
     }
     if (browseKind === 'strings') {
       button('New text file…', 'A defs/text/<name>.json of the mod\'s own lines, message id -> text, starting at the next free id', () => newTextFileDialog(), true);
+    }
+    if (browseKind === 'summons' && typeof newSummonDialog === 'function') {
+      button('New summon\u2026', 'A summon of the mod\'s own: a spell based on one of the eight, its three outcomes\' scripts copied to change', () => newSummonDialog(), true);
     }
     if (browseKind === 'spells' && typeof newSpellDialog === 'function') {
       button('New spell…', 'A spell of the mod\'s own: starts as one of the game\'s - school, level, power, element, targets - with, if you like, a copy of its effect to make its own', () => newSpellDialog(), true);
@@ -2755,11 +2761,12 @@ function wireSplitters() {
 
 function slugFor(kind) {
   const found = KINDS.find(k => k.id === kind);
-  return found ? found.label.toLowerCase() : kind;
+  // A kind whose label another shares (the Mod folder's Summons) has a slug of its own.
+  return found ? found.slug || found.label.toLowerCase() : kind;
 }
 
 function kindFor(slug) {
-  const found = KINDS.find(k => k.label.toLowerCase() === slug);
+  const found = KINDS.find(k => k.slug === slug) || KINDS.find(k => !k.slug && k.label.toLowerCase() === slug);
   return found ? found.id : null;
 }
 

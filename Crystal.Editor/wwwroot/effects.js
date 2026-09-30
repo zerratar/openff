@@ -644,6 +644,9 @@ function makeEffectStage(canvas, textureUrl) {
       m.groups = (bundle.groups || []).map(g => ({ ...g, picture: g.texture ? modelTexture(textureOf(g.texture), g.wrapS, g.wrapT) : null }));
       m.pose = r.pose || null;
       m.loop = Boolean(r.loop);
+      // A skinned glTF keeps its skin and a copy of its vertices, for a caller that poses it frame by frame (skinOnStage).
+      const skin = bundle.skin;
+      if (skin && skin.local && skin.local.length / 3 === bundle.buffer.length / 8) m.cpu = { data: new Float32Array(bundle.buffer), skin, key: null };
       m.ready = true;
     }).catch(e => { m.problem = e.message; });
     return m;
@@ -666,6 +669,47 @@ function makeEffectStage(canvas, textureUrl) {
   }
 
   const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  /// A skinned glTF posed on the CPU: each vertex through its four joints (a frame's joint worlds times the file's
+  /// inverse binds), then fitted (scaled, stood on its feet), written into its vertex buffer. `posed` is
+  /// { matrices (frames x joints x 16), frames, joints }, `fit` { scale, lift }. Done again only when the frame changes.
+  function skinOnStage(m, posed, frame, fit) {
+    const cpu = m.cpu, skin = cpu.skin, joints = posed.joints;
+    if (!joints || joints * 16 !== skin.inverseBind.length) return;
+    const f = ((frame % posed.frames) + posed.frames) % posed.frames;
+    const key = posed.id + '#' + f + '#' + fit.scale + '#' + fit.lift;
+    if (cpu.key === key) return;
+    cpu.key = key;
+    const M = new Float32Array(joints * 16), W = posed.matrices, I = skin.inverseBind;
+    for (let j = 0; j < joints; j++) {
+      const w = (f * joints + j) * 16, b = j * 16, o = j * 16;
+      for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+        let sum = 0;
+        for (let k = 0; k < 4; k++) sum += W[w + k * 4 + r] * I[b + c * 4 + k];
+        M[o + c * 4 + r] = sum;
+      }
+    }
+    const local = skin.local, ji = skin.jointIndex, wt = skin.weights, data = cpu.data, s = fit.scale, lift = fit.lift;
+    const count = local.length / 3;
+    for (let v = 0; v < count; v++) {
+      const x = local[v * 3], y = local[v * 3 + 1], z = local[v * 3 + 2];
+      let ox = 0, oy = 0, oz = 0, total = 0;
+      for (let k = 0; k < 4; k++) {
+        const j = ji[v * 4 + k], w = wt[v * 4 + k];
+        if (j < 0 || w <= 0) continue;
+        const o = j * 16;
+        ox += w * (M[o] * x + M[o + 4] * y + M[o + 8] * z + M[o + 12]);
+        oy += w * (M[o + 1] * x + M[o + 5] * y + M[o + 9] * z + M[o + 13]);
+        oz += w * (M[o + 2] * x + M[o + 6] * y + M[o + 10] * z + M[o + 14]);
+        total += w;
+      }
+      if (total <= 0) { ox = x; oy = y; oz = z; total = 1; }
+      data[v * 8] = ox / total * s;
+      data[v * 8 + 1] = oy / total * s + lift;
+      data[v * 8 + 2] = oz / total * s;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, m.vertex);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+  }
   /// One model's groups of a pass: the opaque ones (translucent false) or the translucent.
   function drawModel(m, world, frame, translucent, view, projection, opts = {}) {
     if (!m || !m.ready) return;
@@ -984,11 +1028,17 @@ function makeEffectStage(canvas, textureUrl) {
       const partyAlpha = stageApi.hide && stageApi.hide.party !== undefined ? stageApi.hide.party : 1;
       if (partyAlpha > 0) scene.push({ m, world: placed(feet, 1, -90), frame: Math.floor(performance.now() / 1000 * 30) + k * 7, opts: { alpha: partyAlpha } });
     });
-    // The caller's own models (a summon): a game model at a place, turned and scaled, posed by a motion of a pack, faded.
+    // The caller's own models (a summon): a game model at a place, turned and scaled, posed by a motion of a pack, faded;
+    // or a glTF of the mod's posed by one of its own clips (x.skinned, fitted by x.fit).
     for (const x of stageApi.extras || []) {
       if (!x || !x.model) continue;
       const m = loadModel('extra:' + x.model, `/api/model?name=${encodeURIComponent(x.model)}`,
         tex => wsUrl(`/api/model/texture?name=${encodeURIComponent(x.model)}&texture=${encodeURIComponent(tex)}`));
+      if (x.skinned) {
+        if (m.ready && m.cpu) skinOnStage(m, x.skinned, x.frame || 0, x.fit || { scale: 1, lift: 0 });
+        scene.push({ m, world: placed(x.pos, x.scale || 1, x.yaw || 0), frame: 0, opts: { alpha: x.alpha === undefined ? 1 : x.alpha } });
+        continue;
+      }
       let pose = null;
       if (x.pack) {
         m.poses = m.poses || new Map();

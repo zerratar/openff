@@ -105,13 +105,43 @@ namespace OpenFF.Client
 
 		private static readonly Dictionary<string, Look> _looks = new Dictionary<string, Look>(StringComparer.OrdinalIgnoreCase);
 
+		/// <summary>The mods' own models (a definition with a "base"): by the name the game asks for (f300).</summary>
+		private static readonly Dictionary<string, Look> _new = new Dictionary<string, Look>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>The game's model a mod's own model borrows its skeleton and motions from (CCharacterMng loads it in its place); null for any other name.</summary>
+		public static string BaseOf(string modelName) => modelName != null && _new.TryGetValue(modelName, out Look look) ? look.Definition.Base : null;
+
+		/// <summary>
+		/// A character asked for by a mod's own model's name, its base's files loading: its render object drawn as the
+		/// definition's glTF (fit, bones and clips as the definition has them) from its setup on.
+		/// </summary>
+		public static bool DressNew(GlobalScope.ds.sys3d.CRenderObject ro, string modelName)
+		{
+			if (ro == null || modelName == null || !_new.TryGetValue(modelName, out Look look)) return false;
+			if (look.Mesh == null && !look.Failed) Load(look);
+			if (look.Mesh == null) return false;
+			_dressed.AddOrUpdate(ro, look);
+			Dress(ro, look);
+			Log.First(LogChannel.File, "models-new-" + look.Model, 3, () => "models: " + look.Model + " (on " + look.Definition.Base + "'s skeleton) drawn as " + Path.GetFileName(look.Path));
+			return true;
+		}
+
 		/// <summary>The definitions in play (ModItemsLayer.Register): one look per game model named.</summary>
 		public static void Register(IEnumerable<ModModel> models)
 		{
 			_looks.Clear();
+			_new.Clear();
 			foreach (ModModel model in models ?? Array.Empty<ModModel>())
 			{
 				if (string.IsNullOrWhiteSpace(model.Model) || model.GltfPath == null) continue;
+				if (model.Base != null)
+				{
+					// A model of the mod's own: claimed by its own name when the game asks for it, never by the base's.
+					if (_new.ContainsKey(model.Model)) { Log.Write(LogChannel.General, "models: " + model.Model + " is defined twice - the first (" + _new[model.Model].Path + ") stands"); continue; }
+					_new[model.Model] = new Look { Definition = model, Model = model.Model, Path = model.GltfPath };
+					Log.Write(LogChannel.General, "models: " + model.Model + " is the mod's own, on " + model.Base + "'s skeleton, drawn as " + model.Gltf + (File.Exists(model.GltfPath) ? "" : " - no such file"));
+					continue;
+				}
 				if (_looks.ContainsKey(model.Model)) { Log.Write(LogChannel.General, "models: " + model.Model + " is given a glTF twice - the first (" + _looks[model.Model].Path + ") stands"); continue; }
 				_looks[model.Model] = new Look { Definition = model, Model = model.Model, Path = model.GltfPath };
 				Log.Write(LogChannel.General, "models: " + model.Model + " looks like " + model.Gltf + (File.Exists(model.GltfPath) ? "" : " - no such file"));

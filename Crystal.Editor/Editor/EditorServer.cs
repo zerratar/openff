@@ -408,7 +408,8 @@ namespace Crystal.Editor
 							text = ProjectText.Lines(_project).Count,
 							monsters = ProjectMonsters.All(_project).Count,
 							formations = ProjectMonsters.AllFormations(_project).Count,
-							jobs = ProjectJobs.All(_project).Count
+							jobs = ProjectJobs.All(_project).Count,
+							summons = Summons.Count(_project)
 						}
 					});
 					return;
@@ -2280,6 +2281,23 @@ namespace Crystal.Editor
 					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
 					return;
 				}
+
+				case "/api/project/own-models":
+					// The project's models of its own: a glTF on a game model's skeleton under a new name (SummonModels.cs).
+					try { SendJson(context, SummonModels.List(_project)); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+
+				case "/api/project/own-models/save":
+					try { SendJson(context, SummonModels.Save(_project, ReadBody(context))); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+
+				case "/api/model/gltf-clip":
+					// A glTF's clip frame by frame (its joints' world matrices), or its rest pose, for the Stage to skin it with.
+					try { SendJson(context, SummonModels.Clip(_project, Query(context, "name"), Query(context, "clip"))); }
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
 
 				case "/api/model/clips":
 				{

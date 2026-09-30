@@ -155,6 +155,9 @@ async function loadList() {
   } else if (state.browse === 'summon') {
     // FF3's eight summons, each with its three outcomes (summons.js).
     state.files = typeof summonsForList === 'function' ? await summonsForList() : [];
+  } else if (state.browse === 'summons') {
+    // The mod's summons: its new ones and the eight it plays outcomes of by steps of its own (summons.js).
+    state.files = typeof summonsForList === 'function' ? await summonsForList({ modOnly: true }) : [];
   } else if (state.browse === 'spells') {
     // The mod's spells (magic items of defs/items) and the game's (spell-defs.js).
     state.files = typeof spellsForList === 'function' ? await spellsForList() : [];
@@ -446,7 +449,7 @@ function fileIcon(file) {
   if (state.browse === 'scene') return 'scene';
   if (state.browse === 'items') return 'item';
   if (state.browse === 'spells') return 'effect';
-  if (state.browse === 'summon') return 'effect';
+  if (state.browse === 'summon' || state.browse === 'summons') return 'effect';
   if (state.browse === 'characters') return 'character';
   if (state.browse === 'strings') return 'text';
   if (state.browse === 'monsters') return 'monster';

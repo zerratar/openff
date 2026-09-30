@@ -1050,6 +1050,24 @@ at a time. A definition is such a list; the client rebuilds the pack with it as 
   standing, 201 and on its attacks - so the script's `START_MOTION` steps play on it.
 - `"name"`: what the battle shows as the outcome is cast, in place of the game's ("Diamond Dust");
   a new summon's outcome without one shows the summon's name.
+- A summon of a glTF of the mod's: `SET_MODEL` names a model of the mod's own (300 and on, below).
+
+### A model of the mod's own: `defs/models/f300.json` with a `base`
+
+A definition that names a model the game does not have, and the game model whose skeleton and
+motions it borrows:
+
+```json
+{ "model": "f300", "base": "f202", "gltf": "assets/wyrm.glb", "scale": 0.2,
+  "clips": { "101": "Idle", "201": "Breath" } }
+```
+
+Asked for by that name - a summon's `SET_MODEL 300` - the game loads the base's files in its
+place and the character is drawn as the glTF, fitted and retargeted as any definition's
+(`scale`, `rotation`, `offset`, `bones`); the base itself keeps its own look wherever else it
+plays. `clips` puts the file's own animations in the base's motions' place, by motion id: a
+summon's `START_MOTION 101` plays "Idle". A motion with no clip moves the file by the base's
+motion, retargeted. The name is `f` and three digits, from 300 (the game's go to f208).
 
 ### An effect of the mod's own: `defs/effects/<id>.json`
 

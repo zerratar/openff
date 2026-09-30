@@ -2814,3 +2814,33 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 #inspector .summon-effect-where:hover { color: var(--ink); }
 #inspector .summon-effect-row .chip, #inspector .effect-card > .chip, #inspector .button-row .chip { justify-self: start; margin: 0 4px 0 0; }
 #inspector .summon-step-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+/* A summon step's numbers: the label dragged across (scrubNumber), a picker beside what names something. */
+#inspector .summon-num { display: flex; align-items: stretch; gap: 4px; margin: 3px 0; }
+#inspector .summon-num > .scrub { flex: 1; min-width: 0; position: relative; }
+#inspector .summon-num .scrub-grip { flex: 0 0 40%; justify-content: flex-start; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#inspector .summon-num-label { flex: 0 0 40%; display: flex; align-items: center; padding: 0 6px; color: var(--dim); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#inspector .summon-num > input[type=text] { flex: 1; min-width: 0; margin: 0; width: auto; }
+#inspector .summon-num-said { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 10px; color: var(--dim); pointer-events: none; }
+#inspector .summon-pick, .summon-effect-row .summon-pick { flex: 0 0 26px; width: 26px; padding: 0; font-size: 14px; line-height: 1; border: 1px solid var(--line); border-radius: 4px; background: #1b2027; color: var(--dim); cursor: pointer; }
+#inspector .summon-pick:hover:not(:disabled) { color: var(--ink); background: #243042; }
+#inspector .summon-pick:disabled { opacity: .45; cursor: default; }
+#inspector .behaviour-field > .summon-pick { margin-left: 4px; }
+
+/* The pickers: a list with a filter, a small Stage beside playing the one picked. */
+.summon-picker { width: min(900px, 92vw); height: min(560px, 84vh); }
+.summon-picker-body { flex: 1; display: flex; min-height: 0; }
+.summon-picker-list { flex: 1 1 50%; overflow: auto; padding: 6px; border-right: 1px solid var(--line); }
+.summon-picker-pane { flex: 1 1 50%; display: flex; flex-direction: column; padding: 8px; gap: 6px; min-width: 0; }
+.summon-picker-stage { width: 100%; flex: 1; min-height: 200px; border-radius: 6px; background: #0e1014; }
+.summon-picker-caption { margin: 0; font-size: 11px; color: var(--dim); }
+.summon-picker-members { display: flex; flex-wrap: wrap; gap: 4px; }
+.summon-picker-group { margin: 8px 6px 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+.summon-picker-row { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 4px 8px; background: none; border: 1px solid transparent; border-radius: 4px; color: var(--ink); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.summon-picker-row:hover { background: #1f242b; }
+.summon-picker-row.on { border-color: var(--accent); background: #232c3a; }
+.summon-picker-row.current b::after { content: ' \25CF'; color: var(--accent); font-size: 9px; }
+.summon-picker-row b { font-weight: 500; white-space: nowrap; }
+.summon-picker-row i { font-style: normal; color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.summon-picker-foot { display: flex; align-items: center; justify-content: space-between; }
+.summon-picker-members .chip.on { border-color: var(--accent); background: #232c3a; color: var(--ink); }
