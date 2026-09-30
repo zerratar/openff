@@ -69,6 +69,8 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Fixes: a summon opened from Mod ▸ Summons keeps that list.
 - Fixes: a spell of the mod's showed its record twice in the inspector.
 - Fixes: Crystal plays the Steam release's sounds (sound/*.ogg).
+- Crystal: Screen effects under a summon's Stage hides its fades, flashes and dark screen while you place things; a camera step's Look through it frames its shot in the free camera.
+- Fixes: browsing effects (hover previews, the effect picker) and many open tabs no longer run out of WebGL contexts and turn a Stage white.
 - Crystal: a summon step's numbers drag across their labels, and what names something has a picker with a preview (effects, models, motions, monsters, spells).
 - Crystal: Mod ▸ Summons lists the mod's summons; the Summons page marks the eight the mod plays by steps of its own.
 - Fixes: a summon's preview plays a mod effect as it is after it is changed in the effect editor.

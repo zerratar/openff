@@ -1157,6 +1157,16 @@ as the steps do, and the sound button turns them off. A drag on the timeline's r
 rows scrubs through the frames. A spell of the mod's that is a summon has **Open the summon** in
 its inspector.
 
+**Screen effects** under the Stage shows the fades, flashes and dark screen as the battle does, or
+not - off, the scene shows through them while you place things (only the view; the steps stay as
+they are). A camera step's **Look through it** goes to the step and puts the free camera where its
+shot is, the screen effects off: move it, then **Set from camera**.
+
+Crystal keeps its WebGL contexts in hand (`app.js` glContext): a canvas gone from the page gives
+its context up, a picker's preview is one Stage let go when it closes, and past twelve at once the
+hidden tab looked at longest ago - an effect, a summon, a model view - gives its context up and is
+built again from what is saved when it shows.
+
 **A glTF as the summon.** The model picker lists the project's model files too: one picked is
 made a model of the mod's own (`defs/models/f300.json`, the next free number, on the skeleton the
 summon had) and the summon's `SET_MODEL` points at it. The Look then has **Its glTF**: the file,

@@ -539,7 +539,16 @@ async function openSummon(name) {
   listChip.className = 'chip';
   listChip.textContent = 'Script list';
   listChip.title = 'the steps as a list beside the Stage (they are in the Hierarchy too)';
-  controls.append(scrub, label, loopBox, mapPick, camChip, listChip);
+  const screenChip = document.createElement('button');
+  screenChip.className = 'chip';
+  screenChip.textContent = 'Screen effects';
+  screenChip.title = 'the fades, flashes and dark screen as the battle shows them - off to see the scene through them while you place things (only here: the steps stay as they are)';
+  let screenFx = true;
+  try { screenFx = localStorage.getItem('crystal-summon-screen') !== 'off'; } catch (e) { }
+  const showScreenFx = () => screenChip.classList.toggle('on', screenFx);
+  showScreenFx();
+  screenChip.onclick = () => { screenFx = !screenFx; showScreenFx(); try { localStorage.setItem('crystal-summon-screen', screenFx ? 'on' : 'off'); } catch (e) { } };
+  controls.append(scrub, label, loopBox, mapPick, camChip, screenChip, listChip);
   const timelineBox = document.createElement('div');
   timelineBox.className = 'effect-timeline-box summon-timeline-box';
   const split = document.createElement('div');
@@ -1253,7 +1262,24 @@ async function openSummon(name) {
         const take = document.createElement('button');
         take.className = 'wide-button';
         take.textContent = st.op === 22 ? 'Set from camera' : st.op === 23 ? 'Set "eye to" from camera' : 'Set "target to" from camera';
-        take.title = 'turn on Free camera under the Stage, frame the shot, then this';
+        take.title = 'turn on Free camera under the Stage (or Look through it), frame the shot, then this';
+        const through = document.createElement('button');
+        through.className = 'wide-button';
+        through.textContent = 'Look through it';
+        through.title = 'the Stage at this step, the free camera where this shot is (the screen effects off, to see through a fade): move it, then Set from camera';
+        through.onclick = () => {
+          // At the step, the camera as it is there; this step's own point put in (a glide's end for a from/to step).
+          goTo(Math.max(0, firstAt[i]) + 1);
+          const S = runner.state, p = current()[i].p, u = k => [p[k], p[k + 1], p[k + 2]].map(v => (Number(v) || 0) / 4096);
+          let eye = S.eye.map(v => v / 4096), at = S.at.map(v => v / 4096);
+          if (st.op === 22) { eye = u(0); at = u(3); }
+          else if (st.op === 23) eye = u(3);
+          else at = u(3);
+          freeCam = true; camChip.classList.add('on');
+          stage.lookFrom(eye, at);
+          if (screenFx) { screenFx = false; showScreenFx(); say('screen effects off, to see the shot - the Screen effects chip under the Stage turns them on again'); }
+        };
+        pc.append(through);
         take.onclick = () => {
           const v = stage.freeView(), fx = a => a.map(x => Math.round(x * 4096));
           const p = mine.steps[i].p;
@@ -1515,7 +1541,7 @@ async function openSummon(name) {
 
   let shownIndex = -1, lastDrawnStep = -1;
   function frameLoop(now) {
-    if (!canvas.isConnected) return;
+    if (!canvas.isConnected) { glRelease(canvas); return; }
     const dt = Math.min(0.25, (now - last) / 1000);
     last = now;
     if (runner && playing) {
@@ -1530,7 +1556,7 @@ async function openSummon(name) {
     if (runner) {
       const S = runner.state;
       stage.override = freeCam ? null : { eye: S.eye.map(v => v / 4096), at: S.at.map(v => v / 4096) };
-      stage.mapTint = S.dark.on ? S.dark.colour : null;
+      stage.mapTint = S.dark.on && screenFx ? S.dark.colour : null;
       stage.hide = { monsters: S.monstersHidden, party: S.party.registered ? S.party.alpha : 0 };
       const sm = S.summon;
       stage.extras = sm.loaded && !sm.gone && sm.shown && look.model ? [look.own ? ownExtra(sm) : {
@@ -1543,12 +1569,12 @@ async function openSummon(name) {
       stage.draw(quads, 1, meshes);
       drawGizmo();
       fade.style.background = S.fade.colour ? '#fff' : '#000';
-      fade.style.opacity = String(Math.max(0, Math.min(1, S.fade.level)));
+      fade.style.opacity = screenFx ? String(Math.max(0, Math.min(1, S.fade.level))) : '0';
       const fl = S.flash;
       let lit = false;
       if (fl && fl.count > 0) { const period = Math.max(1, fl.on + fl.off), k = Math.floor(fl.t / period); lit = k < fl.count && (fl.t % period) < fl.on; }
       flash.style.background = '#fff';
-      flash.style.opacity = lit ? '0.8' : '0';
+      flash.style.opacity = lit && screenFx ? '0.8' : '0';
       scrub.value = String(Math.min(length, S.step + 1));
       label.textContent = `frame ${Math.max(0, S.step)} / ${length}`;
       if (S.step !== lastDrawnStep) { lastDrawnStep = S.step; timeline.draw(); }
@@ -1611,7 +1637,8 @@ function summonPickList({ title, items, current, onChosen, preview = null, what 
   const show = it => {
     if (!preview) return;
     if (stopPreview) { try { stopPreview(); } catch (e) { } stopPreview = null; }
-    pane.textContent = '';
+    // The Stage stays (one WebGL context for the picker); what an item added beside it goes.
+    for (const child of [...pane.children]) if (!child.dataset.keep) child.remove();
     if (it) stopPreview = preview(it, pane) || null;
   };
   const choose = it => { if (!it) return; close(); onChosen(it.value, it); };
@@ -1649,6 +1676,7 @@ function summonPickList({ title, items, current, onChosen, preview = null, what 
   };
   function close() {
     if (stopPreview) { try { stopPreview(); } catch (e) { } }
+    if (pane.previewView) pane.previewView.dispose();
     window.removeEventListener('keydown', onKey);
     veil.remove();
   }
@@ -1670,14 +1698,18 @@ function summonPickList({ title, items, current, onChosen, preview = null, what 
 /// A small Stage in a picker's pane: an effect looping, or a model in a motion. Returns { stage, effect(def, own),
 /// model(spec), label(text), stop }.
 function summonPreviewStage(pane) {
+  // One for the picker: an item after another shows on the same Stage.
+  if (pane.previewView) { pane.previewView.stop(); return pane.previewView; }
   const canvas = document.createElement('canvas');
   canvas.className = 'summon-picker-stage';
+  canvas.dataset.keep = '1';
   const caption = document.createElement('p');
   caption.className = 'summon-picker-caption';
+  caption.dataset.keep = '1';
   pane.append(canvas, caption);
   let own = null;
   const stage = makeEffectStage(canvas, key => effectTextureUrl(key, own));
-  if (!stage) { caption.textContent = 'this browser has no WebGL'; return { effect() { }, model() { }, label() { }, stop() { }, pane }; }
+  if (!stage) { caption.textContent = 'this browser has no WebGL'; return { effect() { }, model() { }, label() { }, stop() { }, dispose() { }, pane }; }
   stage.setLayout({ count: 'one', background: '', view: 'free', show: { map: false, monsters: false, heroes: 'none', floor: true, marks: false } });
   let player = null, model = null, running = true, last = performance.now(), owed = 0, frame = 0;
   const loop = now => {
@@ -1691,7 +1723,7 @@ function summonPreviewStage(pane) {
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
-  return {
+  const view = {
     stage, pane,
     label(text) { caption.textContent = text; },
     effect(def, ownName) {
@@ -1709,8 +1741,13 @@ function summonPreviewStage(pane) {
       model = { pos: feet, yaw: spec.yaw === undefined ? 90 : spec.yaw, scale: spec.scale || 1, alpha: 1, loop: true, ...spec };
       Object.assign(stage.camera, { target: [feet[0], feet[1] + (spec.height || 6), feet[2]], distance: spec.distance || 55, yaw: 50, pitch: 10 });
     },
-    stop() { running = false; }
+    // What it shows taken away (the next item shows on the same Stage).
+    stop() { player = null; model = null; caption.textContent = ''; },
+    // The picker closed: the loop ended, the WebGL context let go.
+    dispose() { running = false; pane.previewView = null; glRelease(canvas); }
   };
+  pane.previewView = view;
+  return view;
 }
 
 // The lists the pickers draw from, read once.

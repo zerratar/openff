@@ -57,7 +57,7 @@ function makeModelViewer(canvas, status, options = {}) {
   // preserveDrawingBuffer is off by default because it costs something on every frame;
   // the thumbnail maker turns it on, since reading the canvas back without it gives an
   // empty picture - the browser is free to discard the buffer after each frame.
-  const gl = canvas.getContext('webgl', {
+  const gl = glContext(canvas, {
     antialias: true,
     alpha: true,
     preserveDrawingBuffer: Boolean(options.preserveDrawingBuffer)

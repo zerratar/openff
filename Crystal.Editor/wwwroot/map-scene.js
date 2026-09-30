@@ -132,7 +132,7 @@ function axisMatrix(axis, at, size) {
 }
 
 function makeMapScene(canvas, status) {
-  const gl = canvas.getContext('webgl', { antialias: true, alpha: true });
+  const gl = glContext(canvas, { antialias: true, alpha: true });
   if (!gl) {
     status('this browser has no WebGL, so the 3D view cannot be drawn', 'bad');
     return null;

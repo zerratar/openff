@@ -11,6 +11,48 @@
 const state = { kind: 'map', browse: 'map', files: [], name: null, pane: null, ws: null, filesWs: null };
 
 const $ = (selector, root = document) => root.querySelector(selector);
+
+// WebGL contexts. A page gets about sixteen; past that the browser drops the oldest one, and
+// whatever drew with it goes white (a Stage, a model view). A context outlives its canvas
+// until it is collected, so a view replaced, a picker's preview, a closed tab each kept one.
+// Every WebGL canvas takes its context here: a new one first lets go of those whose canvas
+// left the page more than a moment ago (a moment, so a canvas made before it is put in place
+// keeps its own), and glRelease lets one go at once. Past GL_BUDGET live ones, the tab
+// looked at longest ago that is hidden gives its context up too, if its document is one
+// rebuilt from what is saved (shell.js glEvictable): it is rebuilt when it shows again.
+const glContexts = [];
+const GL_BUDGET = 12;
+function glContext(canvas, attributes) {
+  const now = performance.now();
+  for (let i = glContexts.length - 1; i >= 0; i--) {
+    const c = glContexts[i];
+    if (c.canvas !== canvas && !c.canvas.isConnected && now - c.at > 1000) { glLose(c.gl); glContexts.splice(i, 1); }
+  }
+  if (glContexts.length >= GL_BUDGET && typeof glEvictable === 'function') {
+    const hidden = glContexts.filter(c => c.canvas !== canvas && !c.canvas.offsetParent && glEvictable(c.canvas)).sort((a, b) => a.at - b.at);
+    while (glContexts.length >= GL_BUDGET && hidden.length) {
+      const c = hidden.shift();
+      glLose(c.gl);
+      glContexts.splice(glContexts.indexOf(c), 1);
+      glEvictable(c.canvas, true);
+    }
+  }
+  const gl = canvas.getContext('webgl', attributes);
+  if (gl && !glContexts.some(c => c.canvas === canvas)) glContexts.push({ canvas, gl, at: now });
+  return gl;
+}
+/// A document shown: its contexts count as just seen (the last to give theirs up).
+function glSeen(root) {
+  const now = performance.now();
+  for (const c of glContexts) if (root.contains(c.canvas)) c.at = now;
+}
+function glRelease(canvas) {
+  const i = glContexts.findIndex(c => c.canvas === canvas);
+  if (i >= 0) { glLose(glContexts[i].gl); glContexts.splice(i, 1); }
+}
+function glLose(gl) {
+  try { const lose = gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext(); } catch (e) { /* already gone */ }
+}
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
 /// A URL with the current game on it, for the places that set an img.src or fetch()

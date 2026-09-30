@@ -326,6 +326,8 @@ async function runView(doc) {
 function activate(id) {
   const doc = docs.get(id);
   if (!doc) return;
+  // Its WebGL context given up while it was hidden (app.js glContext): built again from what is saved.
+  if (doc.glLost) { doc.glLost = false; openDoc(doc.kind, doc.name, { reload: true }); return; }
 
   // Going to a document means the panel is about that document again.
   inspected = null;
@@ -370,7 +372,21 @@ function activate(id) {
   drawInspector();
   syncHash();
   if (doc.onShow) doc.onShow();
+  if (typeof glSeen === 'function') glSeen(doc.pane);
   noteSession();   // the focused tab is part of the session (debounced; held while restoring)
+}
+
+/// Whether a hidden document's WebGL canvas may give its context up (app.js glContext): one whose view is rebuilt
+/// from what is saved - an effect (saved as it is edited), a summon (the same), a model view. With `lost`, the
+/// document is marked to be rebuilt when it shows again.
+function glEvictable(canvas, lost = false) {
+  for (const doc of docs.values()) {
+    if (!doc.pane.contains(canvas)) continue;
+    if (!['effect', 'summon', 'model'].includes(doc.kind)) return false;
+    if (lost) doc.glLost = true;
+    return true;
+  }
+  return false;
 }
 
 function closeDoc(id) {

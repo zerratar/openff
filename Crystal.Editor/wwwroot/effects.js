@@ -539,7 +539,7 @@ function effectLookAt(eye, at) {
 
 /// The Stage: a canvas that draws a player's particles over a ground and a stand-in target.
 function makeEffectStage(canvas, textureUrl) {
-  const gl = canvas.getContext('webgl', { antialias: true, alpha: false, premultipliedAlpha: false });
+  const gl = glContext(canvas, { antialias: true, alpha: false, premultipliedAlpha: false });
   if (!gl) return null;
   const program = effectCompile(gl, EFFECT_VERTEX, EFFECT_FRAGMENT);
   const lines = effectCompile(gl, EFFECT_LINE_VERTEX, EFFECT_LINE_FRAGMENT);
@@ -1504,7 +1504,7 @@ async function openEffect(name) {
   pick.onchange = () => load(pick.value);
 
   function frameLoop(now) {
-    if (!canvas.isConnected) return;   // the document was closed or rebuilt
+    if (!canvas.isConnected) { glRelease(canvas); return; }   // the document was closed or rebuilt: its WebGL context let go
     const dt = Math.min(0.25, (now - last) / 1000);
     last = now;
     let between = 1;
