@@ -189,6 +189,10 @@ In Crystal:
   - the frame's classes;
   - its own panel, opacity, tint, text colour and hidden;
   - every sheet rule that reaches it, in cascade order. Anything overridden is struck through, the way a browser's devtools show it.
+- **A frame's look, reused** (the Style section's buttons, the frame's right-click menu on the canvas or in the Hierarchy):
+  - **Copy style** (Ctrl+Alt+C): its own look - border, background and gradient, shadows, lettering, panel, opacity, tint, motion, and a text's size, alignment and colour - but not where it sits or its size.
+  - **Paste style** (Ctrl+Alt+V): the copied look in place of the frame's own; its place and size stay. **Paste style to…** puts it on every frame ticked in a list of the screen's.
+  - **Make a class of its look…**: the look becomes a rule `.name { … }` in the screen's stylesheet (a game layout: its own `<style>`), the class goes on the frame and on the frames ticked, and their own style gives those properties up so the class is what they show - one rule to change them all. One undo takes back the frames and the sheet together.
 - **Hierarchy eye:** hides a frame and what's inside it from the canvas, for the editor only; the file doesn't change. Alt+click shows only that frame (with its parents and its frames); Alt+click again brings the rest back.
 
 ### Lettering

@@ -2765,3 +2765,12 @@ body.scrubbing, body.scrubbing * { cursor: ew-resize !important; user-select: no
 #inspector .effect-preset-row .chip:disabled { opacity: .4; cursor: default; }
 .effect-preset-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .effect-preset-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
+
+/* The menu editor: a frame's look copied, pasted, made a class; the frames' checklist. */
+#inspector .menu-style-tools { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 8px; }
+#inspector .menu-style-tools .chip { margin-left: 0; }
+#inspector .menu-style-tools .chip:disabled { opacity: .4; cursor: default; }
+.menu-frame-checklist { max-height: 46vh; overflow: auto; border: 1px solid var(--line); border-radius: 4px; padding: 4px 0; margin-bottom: 8px; }
+.menu-frame-check { display: flex; align-items: center; gap: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+.menu-frame-check:hover { background: rgba(110, 168, 254, .08); }
+.menu-frame-check i { margin-left: auto; font-style: normal; font-size: 10px; color: var(--dim); }

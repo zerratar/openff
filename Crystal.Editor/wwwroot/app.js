@@ -1202,6 +1202,11 @@ function drawScreen(node, screen, select, quiet) {
     dressFrameBox(box, frame, look);
 
     box.onpointerdown = event => startDrag(event, node, screen, frame, box);
+    // A right click: the frame's menu, as its Hierarchy row has it (menu-editor.js frameMenuItems).
+    box.oncontextmenu = event => {
+      event.preventDefault();
+      if (typeof frameMenuItems === 'function' && typeof showContextMenu === 'function') showContextMenu(event, frameMenuItems(frame.element));
+    };
     canvas.append(box);
 
     if (select && frame.element === select) selectFrame(node, screen, frame, box, quiet);
@@ -1483,6 +1488,8 @@ function restyleFrameBox(box, look, signature) {
 
 function startDrag(event, node, screen, frame, box) {
   event.preventDefault();
+  // Only the left button drags; the right one selects the frame for its menu.
+  if (event.button !== 0) { if (menu.selected !== frame.element) selectFrame(node, screen, frame, box); return; }
   box.setPointerCapture(event.pointerId);
   selectFrame(node, screen, frame, box);
 

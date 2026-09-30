@@ -328,14 +328,16 @@ function menuBudgetCard(screen) {
 // ------------------------------------------------------------------ undo
 
 /// The file as it is, and which screen and frame are on - what an undo step puts back.
-function menuSnapshot() {
+function menuSnapshot(withSheets) {
   const picker = menu.node && $('.screens', menu.node);
   let path = null;
   if (menu.selected) {
     path = [];
     for (let e = menu.selected; isFrame(e); e = e.parentElement) path.unshift(frameChildren(e.parentElement).indexOf(e));
   }
-  return { xml: new XMLSerializer().serializeToString(menu.doc), screen: picker ? picker.value : 0, path };
+  // A step that writes a stylesheet (Make a class) keeps the sheets as they were too; the others leave them be.
+  const sheets = withSheets ? (menu.sheets || []).map(s => ({ name: s.name, css: s.css, dirty: s.dirty })) : null;
+  return { xml: new XMLSerializer().serializeToString(menu.doc), screen: picker ? picker.value : 0, path, sheets };
 }
 
 function menuRestore(snapshot) {
@@ -357,12 +359,13 @@ function menuRestore(snapshot) {
   let at = menu.screens[snapshot.screen || 0] || null;
   for (const index of snapshot.path || []) at = at ? frameChildren(at)[index] || null : null;
   menu.selected = snapshot.path && isFrame(at) ? at : null;
+  if (snapshot.sheets) { menu.sheets = snapshot.sheets.map(s => ({ ...s })); menu.sheetsVersion = (menu.sheetsVersion || 0) + 1; menuSheetsShown(); }
   redraw(menu.node);
 }
 
 /// Records the file as it is before a change. Changes of one kind that follow each other
 /// closely (one drag, one field being typed in) share a step, given the same `run`.
-function menuRemember(label, run) {
+function menuRemember(label, run, { sheets = false } = {}) {
   const doc = activeDoc;
   if (!doc || !menu.doc) return;
   const now = Date.now();
@@ -371,9 +374,9 @@ function menuRemember(label, run) {
     menu.lastAt = now;
     return;
   }
-  const before = menuSnapshot();
+  const before = menuSnapshot(sheets);
   let after = null;
-  pushUndo(doc, label, () => { after = menuSnapshot(); menuRestore(before); }, () => { if (after) menuRestore(after); });
+  pushUndo(doc, label, () => { after = menuSnapshot(sheets); menuRestore(before); }, () => { if (after) menuRestore(after); });
   menu.lastStep = doc.undo[doc.undo.length - 1];
   menu.lastRun = run;
   menu.lastAt = now;
@@ -509,6 +512,8 @@ function frameMenuItems(element) {
     { label: 'Move up', disabled: !before, run: () => moveMenuFrame(element, before, 'before') },
     { label: 'Move down', disabled: !after, run: () => moveMenuFrame(element, after, 'after') },
     { label: 'Out of ' + (nested ? (childText(element.parentElement, 'id') || 'its parent') : 'its parent'), disabled: !nested, run: () => moveMenuFrame(element, element.parentElement, 'after') },
+    { sep: true },
+    ...menuStyleItems(element),
     { sep: true },
     { label: 'Delete (Del)', icon: 'exit', run: () => deleteMenuFrame(element) },
   ];
@@ -1264,6 +1269,20 @@ function buildStyleSection(panel, element, screen, edit, rebuild, sync) {
   const computed = () => (menuStyled(frameScreen(element)).computed.get(element)) || new Map();
   const inline = () => frameStyle(element);
 
+  // Its look, copied to other frames or made a class of: the buttons, as the frame's menu has them.
+  const tools = document.createElement('div');
+  tools.className = 'menu-style-tools';
+  for (const item of menuStyleItems(element)) {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = item.label.replace(/\s*\(.*\)$/, '');
+    b.title = item.title || item.label;
+    b.disabled = !!item.disabled;
+    b.onclick = item.run;
+    tools.append(b);
+  }
+  body.append(tools);
+
   propRow(body, 'Classes', propText(element.getAttribute('class') || '', v => edit('change classes', () => {
     const words = v.trim().split(/\s+/).filter(Boolean).join(' ');
     if (words) element.setAttribute('class', words); else element.removeAttribute('class');
@@ -1785,7 +1804,13 @@ document.addEventListener('keydown', event => {
   if (event.target.matches && event.target.matches('input, textarea, select, [contenteditable]')) return;
   if (event.target.closest && event.target.closest('#project')) return;
   const mod = event.ctrlKey || event.metaKey;
-  if (mod && event.key.toLowerCase() === 'd') {
+  if (mod && event.altKey && event.key.toLowerCase() === 'c') {
+    event.preventDefault();
+    copyMenuStyle(menu.selected);
+  } else if (mod && event.altKey && event.key.toLowerCase() === 'v') {
+    event.preventDefault();
+    pasteMenuStyle([menu.selected]);
+  } else if (mod && event.key.toLowerCase() === 'd') {
     event.preventDefault();
     duplicateMenuFrame(menu.selected);
   } else if (!mod && event.key === 'Delete') {
@@ -1793,3 +1818,209 @@ document.addEventListener('keydown', event => {
     deleteMenuFrame(menu.selected);
   }
 });
+
+// ------------------------------------------------------------------ a frame's look: copied, pasted, made a class
+
+// What of a frame's own style is its place and its size, not its look: kept where the look goes on another frame.
+const MENU_PLACEMENT = new Set(['position', 'left', 'right', 'top', 'bottom', 'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+  'translate', 'margin', 'margin-left', 'margin-top', 'margin-right', 'margin-bottom', 'flex-grow', 'align-self']);
+// A text frame's size, alignment and colour, as the mod's and the client's layouts write them (tags beside the style).
+const MENU_TEXT_TAGS = ['font', 'align', 'colour'];
+let menuStyleClipboard = null;
+
+const menuFrameName = element => childText(element, 'id') || (textMessageId(element) !== null ? 'a text' : 'a frame');
+const menuIsText = element => textMessageId(element) !== null;
+
+/// A frame's look: its own style but its place and size, and (a text of a mod's or the client's layout) its size, alignment and colour.
+function menuLookOf(element) {
+  const style = [...frameStyle(element)].filter(([k]) => !MENU_PLACEMENT.has(k));
+  const tags = {};
+  if (menu.project && menuIsText(element)) for (const t of MENU_TEXT_TAGS) { const v = childText(element, t); if (v !== null && v !== undefined && String(v).trim() !== '') tags[t] = String(v).trim(); }
+  return { style, tags };
+}
+
+function menuStyleItems(element) {
+  const has = !!menuStyleClipboard;
+  return [
+    { label: 'Copy style (Ctrl+Alt+C)', title: 'its look - border, background, gradient, shadow, lettering, panel, opacity, motion - to paste on others; not its place or size', run: () => copyMenuStyle(element) },
+    { label: 'Paste style (Ctrl+Alt+V)', title: has ? 'the look copied from ' + menuStyleClipboard.from + ' in place of this one\'s (its place and size stay)' : 'copy a frame\'s style first', disabled: !has, run: () => pasteMenuStyle([element]) },
+    { label: 'Paste style to…', title: 'the copied look on several frames at once', disabled: !has, run: () => pasteMenuStyleDialog() },
+    { label: 'Make a class of its look…', title: 'its look into a stylesheet class: a rule shared by every frame that has the class, changed in one place', run: () => makeMenuClassDialog(element) },
+  ];
+}
+
+function copyMenuStyle(element) {
+  if (!element) return;
+  const look = menuLookOf(element);
+  menuStyleClipboard = { ...look, from: menuFrameName(element) };
+  const n = look.style.length + Object.keys(look.tags).length;
+  say(n ? `copied the look of ${menuStyleClipboard.from} (${n} propert${n === 1 ? 'y' : 'ies'})` : `${menuStyleClipboard.from} has no look of its own to copy (its sheets give it its look)`, n ? 'good' : 'warn');
+  if (menu.node) redraw(menu.node);   // the Paste buttons come on
+}
+
+/// The copied look on frames: their own look replaced by it, their place and size kept.
+function pasteMenuStyle(targets) {
+  const clip = menuStyleClipboard;
+  targets = (targets || []).filter(isFrame);
+  if (!clip || !targets.length) return;
+  menuRemember(targets.length > 1 ? 'paste the style on ' + targets.length + ' frames' : 'paste the style');
+  for (const el of targets) {
+    const clear = {};
+    for (const [k] of frameStyle(el)) if (!MENU_PLACEMENT.has(k)) clear[k] = null;
+    setFrameStyle(el, clear);
+    if (clip.style.length) setFrameStyle(el, Object.fromEntries(clip.style));
+    if (menu.project && menuIsText(el)) for (const t of MENU_TEXT_TAGS) { if (clip.tags[t] !== undefined) setChildText(el, t, clip.tags[t]); }
+  }
+  say(`pasted the look of ${clip.from} on ${targets.length === 1 ? menuFrameName(targets[0]) : targets.length + ' frames'}`, 'good');
+  redraw(menu.node);
+}
+
+/// A checklist of the screen's frames, indented as they nest; `done(chosen)` with the ticked ones.
+function menuFrameChecklist(body, { except = null, text = 'Frames' } = {}) {
+  const box = document.createElement('div');
+  box.className = 'menu-frame-checklist';
+  const head = document.createElement('div');
+  head.className = 'dialog-section';
+  head.textContent = text;
+  body.append(head, box);
+  const boxes = [];
+  const screen = menuScreen();
+  const walk = (parent, depth) => {
+    for (const el of frameChildren(parent)) {
+      if (el !== except) {
+        const row = document.createElement('label');
+        row.className = 'menu-frame-check';
+        row.style.paddingLeft = (6 + depth * 14) + 'px';
+        const check = document.createElement('input');
+        check.type = 'checkbox';
+        const name = document.createElement('span');
+        name.textContent = menuFrameName(el);
+        const kind = document.createElement('i');
+        kind.textContent = menuIsText(el) ? 'text' : (frameStyle(el).get('-ff-panel') || [...el.children].some(c => c.tagName === 'window') ? 'window' : 'frame');
+        row.append(check, name, kind);
+        box.append(row);
+        boxes.push([check, el]);
+      }
+      walk(el, depth + 1);
+    }
+  };
+  if (screen) walk(screen, 0);
+  const all = document.createElement('button');
+  all.className = 'mini';
+  all.textContent = 'All';
+  all.onclick = () => boxes.forEach(([c]) => { c.checked = true; });
+  const none = document.createElement('button');
+  none.className = 'mini';
+  none.textContent = 'None';
+  none.onclick = () => boxes.forEach(([c]) => { c.checked = false; });
+  head.append(' ', all, none);
+  return () => boxes.filter(([c]) => c.checked).map(([, el]) => el);
+}
+
+function pasteMenuStyleDialog() {
+  if (!menuStyleClipboard) return;
+  const body = dialog('Paste the style to…');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = `The look copied from ${menuStyleClipboard.from} goes on every frame ticked, in place of its own look; where each sits and its size stay.`;
+  body.append(note);
+  const chosen = menuFrameChecklist(body, { text: 'On' });
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Paste';
+  go.onclick = () => { const list = chosen(); body.close(); pasteMenuStyle(list); };
+  actions.append(go);
+  body.append(actions);
+}
+
+/// A frame's look made a class: a rule `.name { ... }` in the screen's stylesheet (a layout of the game's: its own
+/// <style>), the class given to it and to the frames ticked, and the rule's properties taken off their own style so
+/// the class is what they show - one step to undo, the sheet with it.
+function makeMenuClassDialog(element) {
+  const look = menuLookOf(element);
+  const body = dialog('Make a class of its look');
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  const where = menu.sheetsFolder ? 'the screens\' stylesheet (styles/)' : 'the layout\'s own <style>';
+  note.textContent = look.style.length
+    ? `The ${look.style.length} propert${look.style.length === 1 ? 'y' : 'ies'} of ${menuFrameName(element)}'s own look become a class in ${where}. Every frame with the class looks the same, and a change to the class changes all of them.` + (Object.keys(look.tags).length ? ' A text\'s size, alignment and colour stay on the text.' : '')
+    : `${menuFrameName(element)} has no look of its own (its sheets give it its look) - give it one first, then make a class of it.`;
+  body.append(note);
+  if (!look.style.length) return;
+  const base = String(childText(element, 'id') || 'look').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'look';
+  const name = field(body, 'Class name', /^[a-z_]/.test(base) ? base : 'look-' + base);
+  const others = menuFrameChecklist(body, { except: element, text: 'Give it to these too' });
+  const problem = errorLine(body);
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const go = document.createElement('button');
+  go.className = 'primary';
+  go.textContent = 'Make the class';
+  go.onclick = () => {
+    const cls = name.value.trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(cls)) { problem.textContent = 'A class name is letters, digits, - and _, starting with a letter.'; return; }
+    const list = [element, ...others()];
+    body.close();
+    makeMenuClass(cls, look.style, list);
+  };
+  actions.append(go);
+  body.append(actions);
+  name.focus();
+  name.select();
+}
+
+function makeMenuClass(cls, style, frames) {
+  menuRemember('make the class .' + cls, null, { sheets: true });
+  const rule = `\n.${cls} {\n${style.map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}\n`;
+  if (menu.sheetsFolder || (menu.sheets && menu.sheets.length)) {
+    // The mod's or the client's screens: the screen's sheet, or one made for it as + New stylesheet makes it.
+    menu.sheets = menu.sheets || [];
+    const stem = (menu.project && menu.project.id) || 'menu';
+    let sheet = menu.sheets.find(x => x.name === stem + '.css') || menu.sheets[menu.sheets.length - 1];
+    if (!sheet) {
+      sheet = { name: stem + '.css', css: `/* Crystal Style Sheets: #id, .class, text, window, frame - see Docs/Menus.md */\n`, dirty: true };
+      menu.sheets.push(sheet);
+    }
+    // A class of that name already: the new rule after it, so it wins.
+    sheet.css = sheet.css.replace(/\s*$/, '\n') + rule;
+    sheet.dirty = true;
+    menu.sheetsVersion = (menu.sheetsVersion || 0) + 1;
+    menuSheetsShown();
+  } else {
+    // One of the game's layouts: its own <style>, which the client reads too.
+    const doc = menu.doc;
+    let style = [...doc.getElementsByTagName('style')][0];
+    if (!style) { style = doc.createElement('style'); doc.documentElement.append(style); }
+    style.textContent = (style.textContent || '').replace(/\s*$/, '\n') + rule;
+  }
+  const props = new Set(style.map(([k]) => k));
+  for (const el of frames) {
+    const words = (el.getAttribute('class') || '').split(/\s+/).filter(Boolean);
+    if (!words.includes(cls)) words.push(cls);
+    el.setAttribute('class', words.join(' '));
+    const clear = {};
+    for (const [k] of frameStyle(el)) if (props.has(k)) clear[k] = null;
+    setFrameStyle(el, clear);
+  }
+  // An #id rule outranks a class: say so where one reaches a frame and sets the same.
+  const keysOf = d => d instanceof Map ? [...d.keys()] : Array.isArray(d) ? d.map(x => Array.isArray(x) ? x[0] : (x && (x.prop || x.name))) : Object.keys(d || {});
+  let beaten = [];
+  try { beaten = frames.filter(el => (frameRules(el) || []).some(r => /#/.test(r.selector || '') && keysOf(r.declarations).some(k => props.has(k)))); } catch (e) { beaten = []; }
+  say(`made .${cls} and gave it to ${frames.length === 1 ? menuFrameName(frames[0]) : frames.length + ' frames'}` + (menu.sheetsFolder ? ' - Save writes the stylesheet' : '') + (beaten.length ? ` (an #id rule still sets some of it on ${beaten.length})` : ''), 'good');
+  redraw(menu.node);
+}
+
+/// The stylesheets as the panel under the canvas shows them: the one open there, and the • of one changed.
+function menuSheetsShown() {
+  if (!menu.node) return;
+  const mode = $('.xml-mode', menu.node);
+  if (mode) for (const o of mode.options) {
+    const sheet = (menu.sheets || []).find(x => 'css:' + x.name === o.value);
+    if (sheet) o.textContent = `styles/${sheet.name}${sheet.dirty ? ' •' : ''}`;
+  }
+  const sheet = (menu.sheets || []).find(x => 'css:' + x.name === menu.xmlMode);
+  const text = $('.xml', menu.node);
+  if (sheet && text) text.value = sheet.css;
+}
