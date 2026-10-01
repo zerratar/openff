@@ -9,6 +9,25 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 ## Unreleased
 
+## 0.3.2 - menus that work together (2026-10-01)
+
+Mods' menus side by side - the Starlit Menu over Mastery's screens - the pad's Start for the game again, and the samples ready to play.
+
+**Added**
+- Mods: `loadAfter` in `mod.json` - mods this one goes after when they are installed, whatever `loadorder.json` says.
+- Menus: `"restyles": "<mod id>"` on a screen definition - another mod's screen of that id in this mod's layout and look, its entry, hero pick and code kept; passed over when that mod is not active.
+- Starlit Menu: Mastery's Jobs, Abilities and job confirmation in the Starlit look when Mastery is installed (`tools/mastery.py`); it loads after Mastery.
+- Release: the sample mods with code (Fellowship, HelloMod, Mastery, Survivors) ship with their built assemblies, so a sample copied into `mods\` plays without the .NET SDK.
+
+**Improvements**
+- Pad: holding Start opens the OpenFF menu; a tap is the game's own Start again (it skips its waits). Esc still opens it at once.
+- Pad: the OpenFF menu reads the pad's own buttons (Cross confirms, Circle goes back), whatever they are bound to for the game.
+
+**Fixes**
+- Main menu: entries of two mods together (Mastery's Jobs and Abilities with the Gambits) are no longer lit all at once, out of order or drawn with a whole sheet of icons in a mod's main menu layout.
+- Job menu: a job list whose rows have no text (a menu file rewritten by a mod or an install) no longer crashes the screen as it opens.
+- Menus: a patch of a screen that is not there is passed over rather than added as a screen of its own.
+
 ## 0.3.1 - the game found again (2026-09-30)
 
 A fix for a client that could not find the game while Crystal could.
