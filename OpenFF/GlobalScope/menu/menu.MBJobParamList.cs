@@ -138,6 +138,17 @@ internal static partial class GlobalScope
 				}
 			}
 
+			/// <summary>
+			/// PORT: a row's text behaviour, or null. The game's own layout gives every row of the list
+			/// one; a layout that does not - a menu file a mod or an install rewrote, a frame of its own
+			/// among the rows - crashed the Job screen as it opened (a NullReferenceException here). Such
+			/// a row still gets its job's name and level; it is only not lit or raised.
+			/// </summary>
+			private static MBText RowText(Medget medget)
+			{
+				return medget.behavior()?.queryInterface(MBText.classIdentifier()) as MBText;
+			}
+
 			public void createItemMessage()
 			{
 				string after = "";
@@ -173,9 +184,9 @@ internal static partial class GlobalScope
 								dGSMessage.setDisplayWait(0);
 								dGSMessage.setStyle(dGSMessage.getStyle() | 0x20);
 								SET_MSG_SKILL(medget, dGSMessage);
-								MBText mBText = (MBText)medget.behavior().queryInterface(MBText.classIdentifier());
-								mBText.bmTextVisibility(v: true);
-								mBText.bmSetPriority(3);
+								MBText mBText = RowText(medget);
+								mBText?.bmTextVisibility(v: true);
+								mBText?.bmSetPriority(3);
 								MenuManager.getSingleton().joinFocusList(medget);
 							}
 						}
@@ -192,11 +203,7 @@ internal static partial class GlobalScope
 					SET_MSG_JOB(medget, null);
 					((dgs.DGSMessage)GET_MSG_SKILL(medget))?.release();
 					SET_MSG_SKILL(medget, null);
-					if (medget.behavior() != null)
-					{
-						MBText mBText = (MBText)medget.behavior().queryInterface(MBText.classIdentifier());
-						mBText.bmTextVisibility(v: false);
-					}
+					RowText(medget)?.bmTextVisibility(v: false);
 				}
 			}
 
@@ -234,8 +241,8 @@ internal static partial class GlobalScope
 			{
 				for (Medget medget = ownerMedget.childNode(); medget != null; medget = medget.nextSibling())
 				{
-					MBText mBText = (MBText)medget.behavior().queryInterface(MBText.classIdentifier());
-					int num = (mBText.bmIsPushed() ? 1 : 0);
+					MBText mBText = RowText(medget);
+					int num = ((mBText != null && mBText.bmIsPushed()) ? 1 : 0);
 					int num2 = medget.y() + (medget.height() - 12) / 2 + num;
 					dgs.DGSMessage dGSMessage = null;
 					dGSMessage = (dgs.DGSMessage)GET_MSG_JOB(medget);
