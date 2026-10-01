@@ -90,6 +90,9 @@ mods/
   both.
 - Files: the first mod in the load order wins a file two mods both carry; the log's `mods:`
   lines say what applied and which conflicts fell which way.
+- `loadAfter` (`[ "Mastery" ]`): mods this one goes after when they are installed - an order, not
+  a need. A mod named that is not installed is passed over. A menu mod that styles another's
+  screens names it, so it always has the last word whatever `loadorder.json` says.
 - `loadorder.json` is written for you the first time a folder appears; the title screen's
   **MODS** entry lets you enable, disable and reorder in play; closing it with changes restarts
   the client on the title with them.
@@ -1488,7 +1491,7 @@ job, what is set - is not in the game's save format, so it rides beside the save
 (`%AppData%\FF3\save.progression.json`, by slot, the quick save as slot -1), written when the
 game saves and read when it loads.
 
-**The Abilities menu.** Esc (or Start) opens the client's menu; with a mastery hero in the
+**The Abilities menu.** Esc (or Start held) opens the client's menu; with a mastery hero in the
 party it has an *Abilities* row: pick the hero, then a free slot, then anything learned from
 any ladder - commands (marked `!`, as FF5 writes them) and passives apart, each saying which
 ladders teach it; a passive works while set, a command shows in the battle's window in the
@@ -1621,7 +1624,12 @@ reads - frames may move, grow, gain windows, styles and behaviours), or with `"p
 **merges** into it: a frame whose id the game's screen has takes that frame's place, a new one
 is added where the patch has it among the game's (after the frame before it - so a panel put first stays behind the
 game's frames, as windows stack in the screen's order). A replacing layout keeps the focus tags its frames have (the
-game's code moves by them - an appended list's first row); only a frame with none is numbered. A frame of the game's
+game's code moves by them - an appended list's first row); only a frame with none is numbered.
+Another mod's screen is restyled the same way: a definition with `"restyles": "<that mod's id>"` and the other's
+screen id takes that screen's place when the mod is active - its main menu entry, hero pick, title and behaviours
+kept (its code runs the screen as before), the layout, look and backdrop the restyling mod's - and is passed over
+when it is not. The layout must keep every frame id the other's behaviours write to. The Starlit Menu restyles
+Mastery's jobs, abilities and job-confirm screens this way (`tools/mastery.py` makes them from Mastery's layouts). A frame of the game's
 that draws its own art (a config row's button, the volume slider's track and knob) leaves it away when the layout gives
 the frame a look of its own (a background, or `-ff-panel: none`), and its text takes the sheets' face and colour. In Crystal, open any of the game's files, pick a screen and press **Take into the mod**:
 the screen's XML is copied to `menus/<screen>.xml` with a definition naming it, and edits from

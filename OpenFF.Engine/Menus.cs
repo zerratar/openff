@@ -52,6 +52,13 @@ namespace OpenFF
 		public string File { get; set; } = "MenuDefine.xbn";
 		/// <summary>For one of the game's screens with a layout of the mod's: merge - a frame with an id the game's screen has takes that frame's place, a new id is added - rather than replacing the whole screen.</summary>
 		public bool Patch { get; set; }
+		/// <summary>
+		/// Another mod's id: this definition is that mod's screen of the same id restyled - its layout, look and backdrop in
+		/// place of the other's, the other's main menu entry, behaviours, hero pick and title kept (its code runs the screen as
+		/// before). Used when that mod is active, passed over when it is not: a menu mod styles another's screens without needing
+		/// it (Starlit Menu's of Mastery's). Its layout must have every frame the other's behaviours write to, by id.
+		/// </summary>
+		public string Restyles { get; set; }
 		/// <summary>The &lt;name&gt; of the menu in the layout; the id when unsaid. Mods' names should not collide with the game's (main_menu, status, job...).</summary>
 		public string Screen { get; set; }
 		public string Title { get; set; }

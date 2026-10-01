@@ -52,16 +52,33 @@ namespace OpenFF.Client
 		{
 			_all.Clear();
 			_mods.Clear();
+			List<MenuDefinition> restyles = new List<MenuDefinition>();
 			foreach (LoadedMod mod in mods)
 			{
 				string folder = mod.Definition?.Menus;
 				if (string.IsNullOrEmpty(folder)) continue;
 				foreach (MenuDefinition def in MenuLoader.Read(mod.Id, folder))
 				{
+					if (!string.IsNullOrWhiteSpace(def.Restyles)) { restyles.Add(def); continue; }
 					if (_all.Any(d => string.Equals(d.Id, def.Id, StringComparison.OrdinalIgnoreCase))) { Log.Write(LogChannel.General, "menus: " + mod.Id + "/" + def.Id + " - another mod defines a screen of that id; skipped"); continue; }
 					_all.Add(def);
 					_mods[def.Id] = mod;
 				}
+			}
+			// Another mod's screens restyled (a definition's "restyles"), once every mod's are in, whatever the order: the other's
+			// entry, behaviours, hero pick and title kept, and its code (_mods) still the screen's; passed over when that mod is not here.
+			foreach (MenuDefinition def in restyles)
+			{
+				int at = _all.FindIndex(d => string.Equals(d.Id, def.Id, StringComparison.OrdinalIgnoreCase)
+					&& _mods.TryGetValue(d.Id, out LoadedMod owner) && string.Equals(owner.Id, def.Restyles.Trim(), StringComparison.OrdinalIgnoreCase));
+				if (at < 0) { Log.Write(LogChannel.File, "menus: " + def.ModId + "/" + def.Id + " restyles " + def.Restyles + "'s screen, which is not here: passed over"); continue; }
+				MenuDefinition was = _all[at];
+				def.MainMenu = was.MainMenu;
+				def.Attachments = was.Attachments;
+				def.CharacterSelect = was.CharacterSelect;
+				def.Title ??= was.Title;
+				_all[at] = def;
+				Log.Write(LogChannel.File, "menus: " + def.ModId + " restyles " + was.ModId + "'s " + def.Id);
 			}
 			// The client's own screens (Data/menus beside the executable: the Gambits), after the mods' - a mod's screen of the
 			// same id takes the place of the client's.
@@ -128,6 +145,8 @@ namespace OpenFF.Client
 						reached++;
 					}
 					if (def.Layout == null) continue;
+					// A patch of a screen that is not there - another mod's, not installed (Starlit Menu's of Mastery's) - is nothing to merge into.
+					if (def.Patch && existing == null) { Log.Write(LogChannel.File, "menus: " + def.Id + " patches " + def.Screen + ", which is not there: passed over"); continue; }
 					// A mod's own screen is numbered afresh; a layout of one of the game's keeps the tags its frames have (the game's
 					// code moves by them: an appended list's first row, a config's tabs), numbering only those without one.
 					XElement menu = LoadLayoutMenu(def, renumber: existing == null);
@@ -313,6 +332,13 @@ namespace OpenFF.Client
 			XElement template = rows.FirstOrDefault(r => (string)r.Element("id") == "com_job") ?? rows[0];
 			// A mod's layout of the main menu, as its sheets cascade over it: the entries go in there too, for its rules to reach them.
 			XElement styled = StyledMainCommands();
+			// The styled layout's row to copy, taken once: an entry that replaces it (Mastery's Jobs in place of com_job) takes it
+			// out of the list, and every entry after that went in with no styled row of its own - the game's plain row, lit for
+			// good, in a sheet's main menu.
+			XElement ownTemplate = styled?.Elements("frame").FirstOrDefault(r => (string)r.Element("id") == (string)template.Element("id"));
+			ownTemplate = ownTemplate == null ? null : new XElement(ownTemplate);
+			// Rows put in place of others, by the id they replaced: an entry after a replaced row goes after what stands there now.
+			Dictionary<string, string> replacedBy = new Dictionary<string, string>(StringComparer.Ordinal);
 			int index = 0, added = 0;
 			foreach (MenuDefinition def in entries)
 			{
@@ -328,17 +354,17 @@ namespace OpenFF.Client
 				}
 				// In place of one of the game's rows, or after one (the game's, or another mod screen's by its id), or last.
 				XElement replaced = string.IsNullOrWhiteSpace(def.MainMenu.Replaces) ? null : rows.FirstOrDefault(r => (string)r.Element("id") == def.MainMenu.Replaces.Trim());
-				string afterId = def.MainMenu.After;
+				string afterId = def.MainMenu.After?.Trim();
 				if (afterId != null && !afterId.StartsWith("com_") && entries.Any(e => string.Equals(e.Id, afterId, StringComparison.OrdinalIgnoreCase))) afterId = "com_mod_" + entries.First(e => string.Equals(e.Id, afterId, StringComparison.OrdinalIgnoreCase)).Id;
+				while (afterId != null && replacedBy.TryGetValue(afterId, out string standing)) afterId = standing;
 				XElement after = rows.FirstOrDefault(r => (string)r.Element("id") == afterId);
-				if (replaced != null) { replaced.AddAfterSelf(row); replaced.Remove(); }
+				if (replaced != null) { replacedBy[(string)replaced.Element("id")] = id; replaced.AddAfterSelf(row); replaced.Remove(); }
 				else if (after != null) { after.AddAfterSelf(row); added++; }
 				else { rows[rows.Count - 1].AddAfterSelf(row); added++; }
 				rows = commands.Elements("frame").ToList();
 				if (styled != null)
 				{
 					List<XElement> own = styled.Elements("frame").ToList();
-					XElement ownTemplate = own.FirstOrDefault(r => (string)r.Element("id") == (string)template.Element("id"));
 					XElement ownReplaced = replaced == null ? null : own.FirstOrDefault(r => (string)r.Element("id") == (string)replaced.Element("id"));
 					XElement ownAfter = after == null ? null : own.FirstOrDefault(r => (string)r.Element("id") == (string)after.Element("id"));
 					if (ownTemplate != null && own.Count > 0)
@@ -422,7 +448,7 @@ namespace OpenFF.Client
 		public static string BackdropLinesMode(int backdrop, out GlobalScope.BackdropRows rows)
 		{
 			rows = null;
-			if (SettingModBackdrop) return Mode(_current?.BackdropLines) ?? "game";
+			if (SettingModBackdrop) return (_current?.Screen == null ? null : Reaching(_current.Screen)) ?? Mode(_current?.BackdropLines) ?? "game";
 			if (_gameScreenLines != null) return _gameScreenLines;
 			if (backdrop == 9)
 			{
@@ -530,7 +556,13 @@ namespace OpenFF.Client
 
 		public static string CurrentScreenName() => _current?.Screen;
 		/// <summary>The backdrop for the screen: one of the game's (0..14; 4 is nobody's, the plain one instead), or -1 for none (black, or the screen's own background).</summary>
-		public static int CurrentBackground() { int b = _current?.Background ?? 10; if (b < 0) return -1; b = Math.Clamp(b, 0, 14); return b == 4 ? 10 : b; }
+		/// <summary>A patch reaching the screen (another mod's, after it in the order - Starlit Menu's over Mastery's) has the last word on it.</summary>
+		public static int CurrentBackground()
+		{
+			int? reached = _current?.Screen == null ? null : ReachingBackdrop(_current.Screen);
+			if (reached.HasValue) return reached.Value;
+			int b = _current?.Background ?? 10; if (b < 0) return -1; b = Math.Clamp(b, 0, 14); return b == 4 ? 10 : b;
+		}
 		private static bool _skipSelect;
 		public static bool CurrentWantsCharacterSelect()
 		{

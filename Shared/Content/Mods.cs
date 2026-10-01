@@ -58,6 +58,12 @@ namespace OpenFF.Content
 		/// <summary>Mods this one needs enabled and loaded before it. Most mods have none.</summary>
 		[JsonPropertyName("dependencies")] public List<ModDependency> Dependencies { get; set; } = new List<ModDependency>();
 
+		/// <summary>
+		/// Mods this one goes after when they are installed, by id - not needed, only ordered: a mod that styles another's
+		/// screens (Starlit Menu over Mastery's) must come after it to have the last word. One that is not installed is passed over.
+		/// </summary>
+		[JsonPropertyName("loadAfter")] public List<string> LoadAfter { get; set; } = new List<string>();
+
 		[JsonIgnore]
 		public bool ForOpenFF => string.IsNullOrEmpty(Target) || string.Equals(Target, TargetOpenFF, StringComparison.OrdinalIgnoreCase);
 	}
@@ -174,7 +180,39 @@ namespace OpenFF.Content
 				}
 			}
 			ordered.AddRange(found.Where(m => !ordered.Contains(m)));
+			ApplyLoadAfter(ordered);
 			return ordered;
+		}
+
+		/// <summary>
+		/// Moves each mod that names others in its loadAfter to just after the last of them in the list, whatever loadorder.json
+		/// says; mods named that are not installed are passed over. Repeated until nothing moves, a bounded number of times so
+		/// two mods that each want to follow the other cannot go round for ever.
+		/// </summary>
+		private static void ApplyLoadAfter(List<InstalledMod> ordered)
+		{
+			for (int pass = 0; pass < ordered.Count + 1; pass++)
+			{
+				bool moved = false;
+				for (int i = 0; i < ordered.Count; i++)
+				{
+					InstalledMod mod = ordered[i];
+					List<string> after = mod.Manifest?.LoadAfter;
+					if (after == null || after.Count == 0) continue;
+					int last = -1;
+					for (int j = i + 1; j < ordered.Count; j++)
+					{
+						InstalledMod other = ordered[j];
+						if (after.Any(a => !string.IsNullOrWhiteSpace(a) && (string.Equals(a.Trim(), other.Id, StringComparison.OrdinalIgnoreCase) || string.Equals(a.Trim(), other.Key, StringComparison.OrdinalIgnoreCase)))) last = j;
+					}
+					if (last < 0) continue;
+					ordered.RemoveAt(i);
+					ordered.Insert(last, mod);
+					moved = true;
+					i--;
+				}
+				if (!moved) return;
+			}
 		}
 
 		/// <summary>
