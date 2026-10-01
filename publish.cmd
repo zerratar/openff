@@ -27,6 +27,16 @@ copy /y LICENSE dist\OpenFF\LICENSE.txt >nul
 rem The sample mods, for Crystal's Sample projects… (Samples\ beside crystal.exe); their build
 rem output is left out. The Showcase is also a ready mod: mods\Showcase plays as it stands.
 robocopy Samples dist\OpenFF\Samples /e /xd bin obj /njh /njs /ndl /nfl /nc /ns >nul
+rem The samples with code, built against this release's engine: each one's assembly beside its mod.json, so a sample
+rem copied into mods\ plays as it stands with no .NET SDK (without it, Mastery's screens came up empty).
+if exist dist\samples rmdir /s /q dist\samples
+for %%S in (Fellowship HelloMod Mastery Survivors) do (
+  dotnet build Samples\%%S\%%S.csproj -c Release -nologo -v q -o dist\samples\%%S || goto fail
+)
+copy /y dist\samples\Fellowship\Fellowship.dll dist\OpenFF\Samples\Fellowship\ >nul || goto fail
+copy /y dist\samples\HelloMod\Hello.dll dist\OpenFF\Samples\HelloMod\ >nul || goto fail
+copy /y dist\samples\Mastery\Mastery.dll dist\OpenFF\Samples\Mastery\ >nul || goto fail
+copy /y dist\samples\Survivors\Survivors.dll dist\OpenFF\Samples\Survivors\ >nul || goto fail
 robocopy Samples\Showcase dist\OpenFF\mods\Showcase /e /xd bin obj /njh /njs /ndl /nfl /nc /ns >nul
 rem The guide: the HTML tutorials Crystal opens with Help, readable on their own too.
 if exist Docs\Guide robocopy Docs\Guide dist\OpenFF\Guide /e /njh /njs /ndl /nfl /nc /ns >nul
