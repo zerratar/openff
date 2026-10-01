@@ -447,7 +447,7 @@ namespace OpenFF.Client
 			}
 			// The client's own menu, said once where a new player looks first.
 			graphics.SetColor(90, 90, 90, 255);
-			graphics.DrawString("Esc / Start: settings", 12f, TextSpaceHeight - 22f, RowSize);
+			graphics.DrawString("Esc / hold Start: settings", 12f, TextSpaceHeight - 22f, RowSize);
 			graphics.DrawStringEnd();
 		}
 

@@ -101,8 +101,13 @@ namespace OpenFF.Client
 		/// <summary>Keys a scripted drive (--drive, Compat/Drive.cs) holds this frame; read beside the keyboard, with or without focus.</summary>
 		public static readonly HashSet<Keys> Injected = new HashSet<Keys>();
 
-		/// <summary>The pad bits from the keyboard alone, ungated: what the engine's Game.Input gets even while a mod has captured input.</summary>
-		public static int RawPadBits()
+		/// <summary>
+		/// The pad bits from the keyboard and the pad, ungated: what the engine's Game.Input gets even while a mod has
+		/// captured input. With defaultPad the pad's buttons are read as the defaults have them, whatever settings.json
+		/// binds them to: the OpenFF menu reads it so, so that a binding made in it can never take away the buttons that
+		/// work it (Cross bound as Start used to close the menu where it should confirm).
+		/// </summary>
+		public static int RawPadBits(bool defaultPad = false)
 		{
 			{
 				if (_game == null || (!_game.IsActive && Injected.Count == 0 && !InjectedStick.HasValue))
@@ -123,7 +128,7 @@ namespace OpenFF.Client
 				}
 				// In one of the game's menus Esc goes back, as the menus' Back button says (PauseMenu opens on it elsewhere).
 				if (((real && keys.IsKeyDown(Keys.Escape)) || Injected.Contains(Keys.Escape)) && ModMenus.GameMenuUp && !PauseMenu.IsOpen) bits |= PadB;
-				if (real || InjectedStick.HasValue) bits |= GamePadBits();
+				if (real || InjectedStick.HasValue) bits |= GamePadBits(defaultPad ? DefaultPadMap : null);
 				// Run. The game has no dedicated run button: isRun() tests the B bit, and
 				// whether B means run or walk depends on Config > movement type. Shift is
 				// what a PC player expects, so alias it onto B - but only while a direction
@@ -153,9 +158,9 @@ namespace OpenFF.Client
 		/// Cross/Circle/Square/Triangle as the DS's A/B/X/Y, L1/R1, Options/Share, R2 to run, L2
 		/// to fast-forward). With "run": "stick" the stick pushed all the way runs by itself.
 		/// </summary>
-		private static int GamePadBits()
+		private static int GamePadBits(DisplaySettings.PadMap fixedMap = null)
 		{
-			_padRun = false;
+			if (fixedMap == null) _padRun = false;
 			if (InjectedStick.HasValue)
 			{
 				return StickBits(InjectedStick.Value);
@@ -173,7 +178,7 @@ namespace OpenFF.Client
 				}
 				int bits = 0;
 				DisplaySettings settings = DisplaySettings.Current;
-				DisplaySettings.PadMap map = settings.Pad ?? new DisplaySettings.PadMap();
+				DisplaySettings.PadMap map = fixedMap ?? settings.Pad ?? DefaultPadMap;
 				// The left stick is eight directions to the DS; how far it is pushed is the pace
 				// when "run" is "stick" (the touch stick's way): part way walks, all the way runs.
 				GamePadDPad d = pad.DPad;
@@ -192,7 +197,7 @@ namespace OpenFF.Client
 				if (DisplaySettings.Held(pad, map.Select)) bits |= PadSelect;
 				// The run button is B held while moving (the keyboard's Shift alias); the stick's push
 				// runs through the field's own stick path (LeftStick), not through B.
-				_padRun = DisplaySettings.Held(pad, map.RunButton);
+				if (fixedMap == null) _padRun = DisplaySettings.Held(pad, map.RunButton);
 				return bits;
 			}
 			return 0;
@@ -269,7 +274,10 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>The pad's bits alone, no keyboard: for a screen that types with the keyboard and steers with the pad (the name entry's on-screen keys).</summary>
-		internal static int PadOnlyBits() => _game != null && _game.IsActive ? GamePadBits() : 0;
+		internal static int PadOnlyBits(bool defaultPad = false) => _game != null && _game.IsActive ? GamePadBits(defaultPad ? DefaultPadMap : null) : 0;
+
+		/// <summary>The pad's buttons as they are out of the box (Cross is A, Options is Start...), for what must not follow a rebinding.</summary>
+		private static readonly DisplaySettings.PadMap DefaultPadMap = new DisplaySettings.PadMap();
 
 		/// <summary>Whether any pad is connected: the on-screen keys show for one.</summary>
 		internal static bool PadConnected

@@ -178,7 +178,7 @@ are otherwise as they were made.
 | Arrow keys / WASD | D-pad |
 | Z / Space / Enter | A (confirm) |
 | X / Backspace | B (cancel) |
-| Esc, or Start (Options) on a pad | The client's own menu: Resume, Settings (window, size, anti-aliasing, vsync, how the stick runs, the pad's buttons - press one to bind), Exit game. Anywhere, the title included |
+| Esc, or Start (Options) held on a pad | The client's own menu (a tap of Start is the game's - it skips its waits; the menu reads the pad's own buttons, whatever they are bound to for the game): Resume, Settings (window, size, anti-aliasing, vsync, how the stick runs, the pad's buttons - press one to bind), Exit game. Anywhere, the title included |
 | C / V | X / Y (C opens the menu on FF4) |
 | Q / E | L / R |
 | Left Shift / Right Shift | Start / Select |

@@ -90,18 +90,29 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>Whether Esc or a pad's Start is down: what opens the menu, read each frame while it is closed. In one of the
-		/// game's menus Esc is their Back (DesktopInput) - and a press begun there is not this menu's, even after that menu closed on it.</summary>
-		private static bool OpenKeyDown()
+		/// game's menus Esc is their Back (DesktopInput) - and a press begun there is not this menu's, even after that menu closed on it.
+		/// With hold (the menu closed), the pad's Start counts only once held StartHold: a tap is the game's own Start, which
+		/// skips its waits; Esc opens at once. Open, a tap of Start closes the menu.</summary>
+		private static bool OpenKeyDown(bool hold)
 		{
 			KeyboardState keys = Keyboard.GetState();
 			bool esc = Down(keys, Keys.Escape);
 			if (!esc) _escForGameMenu = false;
 			else if (ModMenus.GameMenuUp && !IsOpen) _escForGameMenu = true;
 			if (esc && !_escForGameMenu) return true;
-			return (DesktopInput.PadOnlyBits() & 8) != 0;
+			// The pad's own Start, as the defaults have it: a rebinding is for the game, not for this menu.
+			bool start = (DesktopInput.PadOnlyBits(defaultPad: true) & 8) != 0;
+			long now = Environment.TickCount64;
+			if (!start) { _startSince = -1; return false; }
+			if (_startSince < 0) _startSince = now;
+			return !hold || now - _startSince >= StartHold;
 		}
 
 		private static bool _escForGameMenu;
+
+		/// <summary>How long the pad's Start is held to open the menu, in milliseconds.</summary>
+		private const long StartHold = 600;
+		private static long _startSince = -1;
 
 		public static void Open()
 		{
@@ -111,10 +122,10 @@ namespace OpenFF.Client
 			Instance._note = "";
 			Instance._openEdge = true;
 			Instance._previousKeys = Keyboard.GetState();
-			Instance._previousPad = DesktopInput.RawPadBits();
+			Instance._previousPad = DesktopInput.RawPadBits(defaultPad: true);
 			Instance._wasDown.Clear();
 			foreach (Keys k in new[] { Keys.Up, Keys.Down, Keys.Left, Keys.Right, Keys.W, Keys.A, Keys.S, Keys.D, Keys.Enter, Keys.Space, Keys.Z, Keys.X, Keys.Back, Keys.Escape }) if (Down(Instance._previousKeys, k)) Instance._wasDown.Add(k);
-			Log.Write(LogChannel.General, "menu: opened (Esc / Start)");
+			Log.Write(LogChannel.General, "menu: opened (Esc / Start held)");
 		}
 
 		private void Close()
@@ -138,17 +149,19 @@ namespace OpenFF.Client
 			bool othersOwn = (TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || AbilitiesMenu.IsOpen || UpdateScreen.IsOpen || EngineInput.Captured;
 			if (_page == Page.Closed)
 			{
-				if (othersOwn || RenderTest.Active) { _openEdge = OpenKeyDown(); return; }
-				bool down = OpenKeyDown();
+				if (othersOwn || RenderTest.Active) { _openEdge = OpenKeyDown(hold: true); return; }
+				bool down = OpenKeyDown(hold: true);
 				if (down && !_openEdge) Open();
 				_openEdge = down;
 				return;
 			}
 
 			KeyboardState keys = Keyboard.GetState();
-			int pad = DesktopInput.RawPadBits(), edge = pad & ~_previousPad;
+			// The pad as the defaults have it (Cross confirms, Circle goes back), whatever it is bound to for the game:
+			// otherwise a button bound wrongly here could take away the very buttons that put it right.
+			int pad = DesktopInput.RawPadBits(defaultPad: true), edge = pad & ~_previousPad;
 			_previousPad = pad;
-			bool openDown = OpenKeyDown();
+			bool openDown = OpenKeyDown(hold: false);
 			bool up = Pressed(keys, Keys.Up) || Pressed(keys, Keys.W) || (edge & 64) != 0;
 			bool downKey = Pressed(keys, Keys.Down) || Pressed(keys, Keys.S) || (edge & 128) != 0;
 			bool left = Pressed(keys, Keys.Left) || Pressed(keys, Keys.A) || (edge & 32) != 0;
