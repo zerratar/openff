@@ -1,7 +1,7 @@
 /* Starlit Menu: the look. The layouts (main_menu.xml, field_hud.xml) place the frames; this says how they look. */
 
 /* The screen: a castle under the moon behind everything (the game's backdrop is off: "background": -1). */
-#main_menu, #status, #config, #config2, #equip, #magic, #menu_item, #job, #gambits {
+#main_menu, #status, #config, #config2, #equip, #magic, #menu_item, #job, #gambits, #jobs, #abilities, #job-confirm {
   background-image: url("images/backdrop.jpg");
   -ff-background-scale-mode: scale-and-crop;
 }
@@ -88,6 +88,10 @@
 #com_tairetu > .icon     { -ff-sprite: formation; }
 #com_job > .icon         { -ff-sprite: job; }
 #com_mod_gambits > .icon { -ff-sprite: gambits; }   /* the client's Gambits row, made from Job's */
+#com_mod_jobs > .icon    { -ff-sprite: job; }       /* Mastery's Jobs, in Job's place, when it is installed */
+#com_mod_abilities > .icon { background-image: url("images/icons2.png"); -ff-sprite: emblem; }   /* Mastery's Abilities */
+/* Mastery's screens name a text frame "job" (the hero's job): the screen rule above is #job's, the game's Job screen. */
+#job.job { background-image: none; }
 #com_config > .icon      { -ff-sprite: config; }
 #com_half > .icon        { -ff-sprite: quicksave; }
 #com_save > .icon        { -ff-sprite: save; }

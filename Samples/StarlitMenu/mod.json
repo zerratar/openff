@@ -7,5 +7,6 @@
   "target": "openff",
   "menus": "menus",
   "assemblies": [],
-  "dependencies": []
+  "dependencies": [],
+  "loadAfter": [ "Mastery" ]
 }

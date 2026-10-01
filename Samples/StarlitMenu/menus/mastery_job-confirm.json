@@ -1,0 +1,8 @@
+{
+  "id": "job-confirm",
+  "layout": "mastery_job-confirm.xml",
+  "screen": "job-confirm",
+  "restyles": "Mastery",
+  "background": -1,
+  "backdropLines": "none"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "jobs",
+  "layout": "mastery_jobs.xml",
+  "screen": "jobs",
+  "restyles": "Mastery",
+  "background": -1,
+  "backdropLines": "none"
+}

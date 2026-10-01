@@ -1,0 +1,8 @@
+{
+  "id": "abilities",
+  "layout": "mastery_abilities.xml",
+  "screen": "abilities",
+  "restyles": "Mastery",
+  "background": -1,
+  "backdropLines": "none"
+}
