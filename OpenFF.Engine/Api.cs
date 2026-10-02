@@ -496,10 +496,10 @@ namespace OpenFF
 		/// <summary>Whether an ability is in play for the character now: innate in the held job or set into a free slot.</summary>
 		bool HasAbility(int id, int abilityId);
 		/// <summary>
-		/// A mastery hero takes a job by word - one of FF3's ("knight") or a job of the mod's own from
-		/// defs/jobs ("samurai") - with no penalty, the field figure following; false when the hero is not
-		/// on the progression, the job is unknown, not yet opened by the crystals (a mod's job needs its
-		/// base open), or fixed. A mod's job stands on an FF3 base the game's party holds (PartyMember.Job
+		/// A hero takes a job by word - one of FF3's ("knight"), or for a mastery hero a job of the mod's own
+		/// from defs/jobs ("samurai") - with no penalty (no adjustment period, the gear kept as it is), the
+		/// field figure following; false when the job is unknown, not yet opened by the crystals (a mod's job
+		/// needs its base open), a mod's own for a hero of FF3's job system, or fixed. A mod's job stands on an FF3 base the game's party holds (PartyMember.Job
 		/// is the base; JobWord and JobTitle say the job really held).
 		/// </summary>
 		bool ChangeJob(int id, string job);

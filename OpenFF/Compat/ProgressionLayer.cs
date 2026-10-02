@@ -213,9 +213,11 @@ namespace OpenFF.Client
 		/// <summary>Whether ChangeJob would take the job: the hero on the progression and not fixed, the job known and open - asked before the job change is shown, so a refusal plays nothing.</summary>
 		public static bool CanChangeJob(int playerId, int job)
 		{
-			if (!IsMastery(playerId) || ModCharactersLayer.JobFixed(playerId)) return false;
+			if (ModCharactersLayer.JobFixed(playerId)) return false;
 			ModJob ladder = LadderOf(job);
 			bool own = ladder != null && ladder.IsOwn;
+			// A hero of FF3's own job system takes FF3's jobs (a mod's own jobs stand on the mastery ladders).
+			if (own && !IsMastery(playerId)) return false;
 			if (!own && (job < 0 || job >= JobCount)) return false;
 			return JobOpen(job);
 		}

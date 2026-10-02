@@ -1055,6 +1055,33 @@ internal static partial class GlobalScope
 				return false;
 			}
 
+			/// <summary>
+			/// PORT: the target window's Enemy / Ally button pressed - the touch's, or the pad's L or R (Q / E on the keyboard),
+			/// which the phone has no use for: the cursor to the other side, on one target. False when no side is being chosen.
+			/// </summary>
+			private bool switchTargetSide(BattlePlayer battlePlayer)
+			{
+				if (commandState_ != COMMAND_STATE.SELECT_ENEMY && commandState_ != COMMAND_STATE.SELECT_PLAYER) return false;
+				if (selectTargetState_ != 1)
+				{
+					selectTargetState_ = 1;
+					Battle2DManager.instance().cursor().nondisplayAll();
+					Battle2DManager.instance().cursor().active(1);
+					Battle2DManager.instance().cursor().active(15);
+					battlePlayer.clearTargetId();
+				}
+				menu.MenuManager.getSingleton().playSEMoveCursor();
+				battlePlayer.clearTargetId();
+				setCommandState(commandState_ == COMMAND_STATE.SELECT_ENEMY ? COMMAND_STATE.SELECT_PLAYER : COMMAND_STATE.SELECT_ENEMY);
+				return true;
+			}
+
+			/// <summary>PORT: L or R pressed while the Enemy / Ally button is up: that button, from the pad or the keyboard.</summary>
+			private bool padSwitchTargetSide(BattlePlayer battlePlayer)
+			{
+				return changeWindow_.isShowTarget() && (ds.g_Pad.edge() & 0x300) != 0 && switchTargetSide(battlePlayer);
+			}
+
 			public bool selectEnemy(BattleSystem B)
 			{
 				bool result = false;
@@ -1063,6 +1090,7 @@ internal static partial class GlobalScope
 				{
 					changeWindow_.setShowTarget(show: true);
 					changeWindow_.createTargetMessage(82);
+					if (padSwitchTargetSide(battlePlayer)) return false;
 				}
 				switch (selectTargetState_)
 				{
@@ -1260,6 +1288,7 @@ internal static partial class GlobalScope
 				bool result = false;
 				changeWindow_.setShowTarget(show: true);
 				changeWindow_.createTargetMessage(83);
+				if (padSwitchTargetSide(B.characterManager().playerParty().battlePlayer(nowPlayer_))) return false;
 				switch (selectTargetState_)
 				{
 				case 1:
@@ -3178,38 +3207,9 @@ internal static partial class GlobalScope
 						return 3;
 					}
 				}
-				if (changeWindow_.isShowTarget() && changeWindow_.isTouch(x, y))
+				if (changeWindow_.isShowTarget() && changeWindow_.isTouch(x, y) && switchTargetSide(battlePlayer))
 				{
-					if (commandState_ == COMMAND_STATE.SELECT_ENEMY)
-					{
-						if (selectTargetState_ != 1)
-						{
-							selectTargetState_ = 1;
-							Battle2DManager.instance().cursor().nondisplayAll();
-							Battle2DManager.instance().cursor().active(1);
-							Battle2DManager.instance().cursor().active(15);
-							battlePlayer.clearTargetId();
-						}
-						menu.MenuManager.getSingleton().playSEMoveCursor();
-						battlePlayer.clearTargetId();
-						setCommandState(COMMAND_STATE.SELECT_PLAYER);
-						return 3;
-					}
-					if (commandState_ == COMMAND_STATE.SELECT_PLAYER)
-					{
-						if (selectTargetState_ != 1)
-						{
-							selectTargetState_ = 1;
-							Battle2DManager.instance().cursor().nondisplayAll();
-							Battle2DManager.instance().cursor().active(1);
-							Battle2DManager.instance().cursor().active(15);
-							battlePlayer.clearTargetId();
-						}
-						menu.MenuManager.getSingleton().playSEMoveCursor();
-						battlePlayer.clearTargetId();
-						setCommandState(COMMAND_STATE.SELECT_ENEMY);
-						return 3;
-					}
+					return 3;
 				}
 				if (cancelWindow_.isShowTarget() && cancelWindow_.isTouch(x, y))
 				{

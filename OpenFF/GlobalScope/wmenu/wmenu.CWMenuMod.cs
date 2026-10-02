@@ -123,6 +123,17 @@ internal static partial class GlobalScope
 			{
 				if (toMainMenu)
 				{
+					// The faces were loaded as the menus opened, for the party as it stood then: a mod's screen may have
+					// added heroes or changed jobs since (a run's party), so each hero's face in their job is loaded again.
+					try
+					{
+						for (int i = 0; i < 4; i++)
+						{
+							pl.Player p = pl.PlayerParty.instance().player((byte)i);
+							if (p != null && p.isEnable()) CWMenuManager.Instance().GetPcFace().pcfmSetJob(p.playerId(), (uint)p.jobManager().nowJob());
+						}
+					}
+					catch (Exception) { }
 					CWMenuManager.Instance().SetNextKind(WMENU_KIND.WMENU_KIND_MAIN_MENU);
 					CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_TERMINATE);
 				}
