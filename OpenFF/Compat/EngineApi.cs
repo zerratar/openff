@@ -2866,6 +2866,17 @@ namespace OpenFF.Client
 		}
 
 		public bool HasSave(string saveProfile) => SaveFiles.HasSave(saveProfile);
+
+		public void Return()
+		{
+			if (IsShowing) return;
+			if (!EngineApi.InWorld) { EngineApi.Warn("title", "Return: only from the field or the menus"); return; }
+			// The game's own way back (the Config screen's, Quicksave's): the title flag the world's states end on, the music faded.
+			GlobalScope.wld.CBaseSystem.setTitle(b: true);
+			GlobalScope.wld.MapSound.stopBGM(15);
+			// A mod's screen up: out of the menus (the menu's end then sees the flag); on the field, the move state ends on it.
+			ModMenus.LeaveMenus();
+		}
 		public string SaveProfile => SaveFiles.Profile;
 		public bool IsShowing => TitleEntries.Showing;
 	}

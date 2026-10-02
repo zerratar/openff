@@ -574,6 +574,11 @@ namespace OpenFF
 		string SaveProfile { get; }
 		/// <summary>Whether the title screen is up.</summary>
 		bool IsShowing { get; }
+		/// <summary>
+		/// Back to the title, as the game's Config does after its "return to the title?": the music stopped, the field or
+		/// the menus left (a mod's screen too). Nothing is saved - a mode that keeps its own saves writes them first.
+		/// </summary>
+		void Return();
 	}
 
 	/// <summary>A job as it stands for one character, for menus (IParty.JobInfo).</summary>

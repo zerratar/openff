@@ -43,6 +43,19 @@ namespace OpenFF.Client
 		public IReadOnlyList<MenuDefinition> All => _all;
 		public MenuDefinition Find(string id) => _all.FirstOrDefault(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase));
 		public IMenuScreen Current => _screen;
+		public string GameScreen => _screen == null ? _lastBuilt : null;
+		public bool Showing
+		{
+			get
+			{
+				try
+				{
+					GlobalScope.wld.CBaseSystem world = GlobalScope.wld.CBaseSystem.Current;
+					return world != null && (world.Mode() == GlobalScope.wld.CBaseSystem.WORLD_MODE.WORLD_MODE_MENU || world.IsMenu());
+				}
+				catch (Exception) { return false; }
+			}
+		}
 
 		/// <summary>Whether a loaded mod defines a screen of that id.</summary>
 		public static bool HasScreen(string id) => _all.Any(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase));
@@ -533,12 +546,13 @@ namespace OpenFF.Client
 			return true;
 		}
 
-		/// <summary>The world's move state asks each frame whether a mod wants the menu open; true once per request, with the main menu told to shift to the screen.</summary>
+		/// <summary>The world's move state asks each frame whether a mod wants the menu open; true once per request, the menus told to start on the screen.</summary>
 		public static bool MenuRequested()
 		{
 			if (_requested == null) return false;
 			_requested = null;
-			try { GlobalScope.wmenu.CWMenuManager.Instance().GetWMenuMain().autoShift((GlobalScope.wmenu.CWMenuMemberBase.WMENU_KIND)GlobalScope.wmenu.CWMenuMod.KIND); }
+			// The menus start on the mod's screen, as a save point's start on Save (SetStartupKind): no main menu shown on the way.
+			try { GlobalScope.wmenu.CWMenuManager.Instance().SetStartupKind((GlobalScope.wmenu.CWMenuMemberBase.WMENU_KIND)GlobalScope.wmenu.CWMenuMod.KIND); }
 			catch (Exception ex) { Log.Write(LogChannel.General, "menus: " + ex.Message); }
 			return true;
 		}
@@ -564,6 +578,14 @@ namespace OpenFF.Client
 
 		/// <summary>Whether a mod's screen is up in the game's menus (what the job change scene plays over).</summary>
 		public static bool ScreenUp => _host != null && _screen != null;
+
+		/// <summary>The mod's screen up left for good: out of the menus, not back to the main menu (Game.Title.Return). False when none is up.</summary>
+		public static bool LeaveMenus()
+		{
+			if (!ScreenUp) return false;
+			_host.Leave(toMainMenu: false);
+			return true;
+		}
 
 		/// <summary>A scene playing over the mod's screen (the job change): its panels and backdrop out of sight while it does, back as they were after.</summary>
 		public static bool SceneCovering
@@ -1336,6 +1358,12 @@ namespace OpenFF.Client
 
 			public void SetText(string id, string text) { if (Widget(id) is ModMenuWidget w) w.Text = text; }
 			/// <summary>Leaves: a mod screen to the main menu (or the field); one of the game's by the game's own cancel.</summary>
+			public void OpenMainMenu()
+			{
+				if (_host != null) { _host.Leave(toMainMenu: true); return; }
+				GlobalScope.menu.MenuManager.getSingleton().SetCancelButtonState(0);
+			}
+
 			public void Close()
 			{
 				if (_host != null) { _host.Leave(toMainMenu: !_fromField); return; }

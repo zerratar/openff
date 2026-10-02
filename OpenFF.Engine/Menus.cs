@@ -214,6 +214,11 @@ namespace OpenFF
 		int Portrait { get; set; }
 		/// <summary>Leaves the screen: back to the main menu when it was opened from there, else out of the menus.</summary>
 		void Close();
+		/// <summary>
+		/// Leaves this screen for the game's own main menu - Item, Magic, Equipment, Status, Job - within the same visit to
+		/// the menus (no trip through the field); closing that menu leaves the menus as the game's does.
+		/// </summary>
+		void OpenMainMenu();
 		/// <summary>Leaves for another screen of a mod's own.</summary>
 		void Open(string menuId);
 		/// <summary>The game's confirm sound.</summary>
@@ -456,6 +461,10 @@ namespace OpenFF
 		bool Open(string id);
 		/// <summary>The screen up now, or null.</summary>
 		IMenuScreen Current { get; }
+		/// <summary>The game's own screen up now, by name (main_menu, status, equip...), or null: what Current does not cover.</summary>
+		string GameScreen { get; }
+		/// <summary>Whether the field's menus are up - any screen, the game's or a mod's, and the moments between two of them.</summary>
+		bool Showing { get; }
 	}
 
 	public static partial class Game
