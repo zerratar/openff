@@ -1,0 +1,10 @@
+{
+  "id": "Rogue",
+  "name": "Rogue Mode",
+  "version": "0.1",
+  "author": "OpenFF",
+  "description": "FF3 as a run-based roguelite: from the title, four heroes take jobs within a budget and fight through three acts of FF3's own monsters - elites every few battles, an FF3 boss at each act's end - choosing a reward after every victory: equipment, spells, passive modifiers that bend FF3's battle, gil, rest. A wipe ends the run. FF3's battle stays FF3's battle; the run is made of the engine's API and its battle events.",
+  "target": "openff",
+  "assemblies": [ "Rogue.dll" ],
+  "dependencies": []
+}

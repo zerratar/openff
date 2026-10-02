@@ -1,0 +1,13 @@
+{
+  "id": "rogue",
+  "layout": "rogue.xml",
+  "screen": "rogue",
+  "title": "Rogue Mode",
+  "background": -1,
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "RogueHub"
+    }
+  ]
+}

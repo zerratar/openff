@@ -1,0 +1,40 @@
+// The run's modifiers: each a set of effect primitives (Core/Content.cs, Effect) - "damage" (a hero's hits,
+// spells, abilities: filters kind, element, school, critical, jump, belowHp), "taken" (damage a hero takes),
+// "healing", "kill", "fall" (a revival, count an act), "rewards" (gil/exp percent), "rarity" (extra rarity
+// rolls) and "start" (heal as a battle begins). Stacks multiply percents; {p} and {n} in "text" show them.
+{
+  "passives": [
+    { "id": "fire-mastery", "name": "Fire Mastery", "rarity": "uncommon", "maxStacks": 3, "text": "Fire damage +{p}%.",
+      "effects": [ { "on": "damage", "element": "fire", "percent": 20 } ] },
+    { "id": "ice-mastery", "name": "Ice Mastery", "rarity": "uncommon", "maxStacks": 3, "text": "Ice damage +{p}%.",
+      "effects": [ { "on": "damage", "element": "ice", "percent": 20 } ] },
+    { "id": "thunder-mastery", "name": "Thunder Mastery", "rarity": "uncommon", "maxStacks": 3, "text": "Lightning damage +{p}%.",
+      "effects": [ { "on": "damage", "element": "thunder", "percent": 20 } ] },
+    { "id": "arcane-knowledge", "name": "Arcane Knowledge", "rarity": "common", "maxStacks": 3, "text": "Black magic damage +{p}%.",
+      "effects": [ { "on": "damage", "kind": "magic", "school": "black", "percent": 10 } ] },
+    { "id": "holy-favor", "name": "Holy Favor", "rarity": "common", "maxStacks": 2, "text": "Healing magic +{p}%.",
+      "effects": [ { "on": "healing", "percent": 25 } ] },
+    { "id": "brawler", "name": "Brawler", "rarity": "common", "maxStacks": 3, "text": "Physical damage +{p}%.",
+      "effects": [ { "on": "damage", "kind": "physical", "percent": 10 } ] },
+    { "id": "last-stand", "name": "Last Stand", "rarity": "uncommon", "maxStacks": 1, "text": "Below 25% HP, physical damage +{p}%.",
+      "effects": [ { "on": "damage", "kind": "physical", "belowHp": 25, "percent": 40 } ] },
+    { "id": "keen-edge", "name": "Keen Edge", "rarity": "rare", "maxStacks": 2, "text": "Critical hits deal +{p}% damage.",
+      "effects": [ { "on": "damage", "critical": true, "percent": 30 } ] },
+    { "id": "dragoons-fury", "name": "Dragoon's Fury", "rarity": "rare", "maxStacks": 2, "text": "Jump deals +{p}% damage.",
+      "effects": [ { "on": "damage", "jump": true, "percent": 30 } ] },
+    { "id": "iron-skin", "name": "Iron Skin", "rarity": "common", "maxStacks": 3, "text": "Damage taken {p}%.",
+      "effects": [ { "on": "taken", "percent": -8 } ] },
+    { "id": "bloodlust", "name": "Bloodlust", "rarity": "uncommon", "maxStacks": 2, "text": "Felling a monster restores {p}% HP.",
+      "effects": [ { "on": "kill", "healPercent": 5 } ] },
+    { "id": "second-wind", "name": "Second Wind", "rarity": "common", "maxStacks": 2, "text": "Each battle begins with {p}% HP restored.",
+      "effects": [ { "on": "start", "healPercent": 10 } ] },
+    { "id": "phoenix-blessing", "name": "Phoenix Blessing", "rarity": "rare", "maxStacks": 1, "text": "Once an act, a fallen hero rises at once with {p}% HP.",
+      "effects": [ { "on": "fall", "hpPercent": 25, "count": 1 } ] },
+    { "id": "treasure-hunter", "name": "Treasure Hunter", "rarity": "uncommon", "maxStacks": 2, "text": "Item rewards roll their rarity {n} more time{s}, keeping the best.",
+      "effects": [ { "on": "rarity", "count": 1 } ] },
+    { "id": "thiefs-fortune", "name": "Thief's Fortune", "rarity": "common", "maxStacks": 2, "text": "Battles give +{p}% gil.",
+      "effects": [ { "on": "rewards", "gilPercent": 30 } ] },
+    { "id": "battle-lore", "name": "Battle Lore", "rarity": "common", "maxStacks": 2, "text": "Battles give +{p}% experience.",
+      "effects": [ { "on": "rewards", "expPercent": 25 } ] }
+  ]
+}

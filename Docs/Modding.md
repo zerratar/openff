@@ -216,14 +216,14 @@ replaces one for everybody. The whole list is `Docs/API.md`; the shape of it:
 | `Game.Party` | `Members` with their sheets, `Gil`, `Items`/`AddItem`/`RemoveItem`, `Equip`, `Hurt`/`Heal`, `GiveExperience`, `SetJob`, `LearnSpell`, `Inflict`/`Cure`; `Restrict` (only these heroes may join), `Reset` (a new game's party of one hero), `Protagonist` (the hero the story's scripts treat as their lead), `Export`/`Import` (a character's whole record as text, for a wire or a chunk) |
 | `Game.Title` | `AddEntry` (a row of the title's own under New Game / Continue), `NewGame(hero, map, position, saveProfile)`, `Continue(saveProfile)`, `HasSave`; `TitleShown` when the title is up |
 | `Game.Items`, `Game.Magic`, `Game.Monsters`, `Game.Shops` | the tables as data; `Magic.Cast`/`CastOn` play the game's own effects, `Damage`/`Healing` are the game's formulas, `Magic.Add` a spell of your own; `Shops.Open(row)` the game's shop screen |
-| `Game.Battle` | `Start(monsterParty, battleMap)` the game's own battle; `BattleStarting` says the formation and ground, `BattleEnded` Won, Lost or Escaped; `Shared` - a battle two clients compute together |
+| `Game.Battle` | `Start(monsterParty, battleMap)` the game's own battle, `Start(MonsterGroup, battleMap, options)` one with a party made in code (`LossReturns`: a wipe ends on the field); `Units` everyone in it; `BattleStarting` says the formation and ground, `BattleMonstersReady` / `BattleDamage` / `BattleTurnStarting` / `BattleUnitFell` / `BattleRewards` reach into it, `BattleEnded` Won, Lost or Escaped; `Shared` - a battle two clients compute together |
 | `Game.Field` | `Map`, `Place` (the name the game showed on arrival - Ur, Altar Cave), `Warp`, `Busy` (a menu, shop, dialogue, event or map change owns the field - wait before a `Warp`), `Autosave` (the suspend save at the next quiet moment), `GroundHeight`/`OnGround`/`Walkable`, `Encounters` on and off |
 | `Game.Camera` | `MoveTo`, `LookAt`, `Follow`, `Shake`, `Zoom`, `Reset`, `WorldToScreen` |
 | `Game.Effects`, `Game.Audio`, `Game.Screen` | the game's effects by id; BGM and SE by name; fades, flashes, floating numbers |
 | `Game.Draw` | immediate-mode text, rectangles, lines and sprites (PNGs the mod ships, `LoadTexture`) over the frame, in 800x480 units, interpolated between the game's steps like the scene under them - `Group(thing)` marks the commands of one moving thing, so two that draw alike (digits of two numbers, same-width tags) never trade places; `Banner(text)` - the game's own place-name window, the frame a map's name arrives in, with your words in it for as long as you keep asking |
 | `Game.Input` | the pad (`Held`/`Pressed`/`Released`), the pointer, the keyboard by key name; `Capture = true` takes all input away from the game while the mod uses it |
 | `Game.Flags` | the scripts' flag space |
-| `Game.Events` | `Subscribe<T>`: `MapEntered`, `MapLeaving`, `FlagChanged`, `MessageShown`, `CutsceneStarted`/`Ended`, `BattleStarting`/`Ended`, `ItemGained`, `WarpRequested`, `SaveWritten`/`SaveRead`, `ModReloaded` |
+| `Game.Events` | `Subscribe<T>`: `MapEntered`, `MapLeaving`, `FlagChanged`, `MessageShown`, `CutsceneStarted`/`Ended`, `BattleStarting`/`Ended`, the battle's hooks (`Game.Battle`), `ItemGained`, `WarpRequested`, `SaveWritten`/`SaveRead`, `ModReloaded` |
 | `Game.Run(IEnumerator)` | a coroutine, one step per frame; yield `Wait.Frames`, `Wait.Seconds`, `Wait.Until`, `Wait.Dialogue`, `Wait.Walk(npc)`, `Wait.HeroWalk`, or another routine. `Game.Time` and `Wait.Seconds` are the game's time - its steps, three times faster under Tab, stopped when the game stops - not the wall clock |
 
 A scene as one coroutine, from the sample:
@@ -1191,6 +1191,23 @@ flag, a line) - they run on the object as the map comes back from the battle. Fr
 `Game.Battle.Start(number)` fights a formation anywhere; in a CastScript the game's own
 battle commands do.
 
+A battle of code's own: `Game.Battle.Start(new MonsterGroup { ... }, battleMap, new BattleOptions
+{ LossReturns = true })` fights up to four kinds of monster (an id and Min..Max of each, six at
+most) that no table holds - the party goes by `Game.Battle.CustomFormation` while it lasts - and
+with `LossReturns` a wipe comes back to the field (`BattleEnded` says Lost) instead of the game
+over. Inside the battle, `BattleUnit`s (heroes and monsters, `Game.Battle.Units`) carry HP and
+the stats, a monster's settable for this battle alone:
+
+- `BattleMonstersReady` - the monsters are placed, before the first turn: scale them, make one
+  an elite.
+- `BattleDamage` - a blow, a spell or a heal about to land: `Amount` may be changed (0..9999);
+  `Kind`, `SpellId`, `Element`, `Critical`, `Jump` and `Missed` say what it is.
+- `BattleTurnStarting` - someone's turn begins (regeneration, a poison of the mod's own).
+- `BattleUnitFell` - someone is brought to 0 HP: `Unit.Revive(hp)` keeps them standing.
+- `BattleRewards` - a win's `Exp` and `Gil`, before they are given.
+
+`Samples/Rogue` is built on these.
+
 Random fights too: the map's terrain card (click the terrain in the hierarchy) has
 **Random encounters** - the five groups of four parties the map's `.pak` holds, each slot a
 picker over the game's parties and the mod's formations, saved into the map's `.pak` as you
@@ -1875,3 +1892,16 @@ release zip carries them in `Samples\`.
   the other's turn shows "Waiting for Arc..."; afterwards each party is its own again.
   `FELLOWSHIP_HERO=<0..3>` with a `--map` start journeys as that hero without the shrine, for a
   test drive of two clients together.
+- `Samples/Rogue` - **Rogue Mode** on the title: a run of FF3's battles in three acts (the Altar
+  Cave, the Living Woods, the Tower of Owen), each a string of fights with an elite now and then
+  and one of the game's bosses at the end. Four heroes start with a job each, within a budget;
+  a win offers three rewards - a piece of gear, a spell, a passive (Fire Mastery, Last Stand,
+  Phoenix Blessing, ...), gil - rerolled for gil, and the run is over when the party falls.
+  Everything is the game's: the monsters, items, spells and jobs are named by their ids and
+  words in `rogue/*.json` (the acts, biomes and their monster pools, job costs, rarities by an
+  item's price, the passives as effect primitives, the elites' modifiers); the battles are the
+  game's, made in code (`Start(MonsterGroup)`) and reached into with the battle's hooks. A seed
+  makes a run (named random streams, so a reward roll never shifts the battles); the run saves
+  between battles beside the `rogue` save profile. The screens are the mod's menus over a
+  battle background (`menus/`, written by `tools/menus.py`; `RogueScreens.cs`); `Core/` is the run without the game, and
+  `Tests/` checks it (`dotnet run` there). `install.cmd` builds it into the mods folder.

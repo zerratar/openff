@@ -1,0 +1,13 @@
+{
+  "id": "rogue-summary",
+  "layout": "rogue-summary.xml",
+  "screen": "rogue-summary",
+  "title": "Run Summary",
+  "background": -1,
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "RogueSummary"
+    }
+  ]
+}

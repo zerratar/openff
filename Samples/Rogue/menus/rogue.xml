@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rogue Mode's own menu: New Run, Continue Run. 480 x 288, over the camp. RogueHub (RogueScreens.cs) drives it. -->
+<menulist>
+  <menu>
+    <name>rogue</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>52</height>
+      <frame>
+        <id>title</id><x>12</x><y>4</y><width>448</width><height>24</height>
+      <colour>pale-yellow</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Rogue Mode</data>
+      </frame>
+      <frame>
+        <id>sub</id><x>12</x><y>28</y><width>448</width><height>18</height>
+      <font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_body</id><x>120</x><y>92</y><width>240</width><height>96</height>
+    
+    </frame>
+    <frame>
+      <focus />
+      <id>new</id><x>150</x><y>112</y><width>200</width><height>24</height>
+      <up>continue</up><down>continue</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>New Run</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>continue</id><x>150</x><y>146</y><width>200</width><height>24</height>
+      <up>new</up><down>new</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Continue Run</data>
+    </frame>
+    <frame>
+      <window />
+      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

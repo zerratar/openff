@@ -90,7 +90,7 @@ OpenFF/          the client
 OpenFF.Engine/     the mod API and object model: what a mod references (no MonoGame, no game code)
 Crystal.Editor/   Crystal, the editor, and the command-line converters
 Shared/            every file format once - Content, Data (the unified tables), Script, Text - compiled into both programs
-Samples/           HelloMod (a service, a behaviour, a save chunk), Survivors (a survivors-style run on the field), Showcase (a map, weapons and models of a mod's own - no code) Mastery (FF3 with FF5's job system and an Abilities screen in the game's own menu) and Fellowship (a network mod: travellers on the LAN walk one world, speak, send aid, give items and gil)
+Samples/           HelloMod (a service, a behaviour, a save chunk), Survivors (a survivors-style run on the field), Showcase (a map, weapons and models of a mod's own - no code) Mastery (FF3 with FF5's job system and an Abilities screen in the game's own menu), Fellowship (a network mod: travellers on the LAN walk one world, speak, send aid, give items and gil) and Rogue (a roguelike run of FF3's battles from the title: acts, rewards, elites, bosses)
 Tools/             Python: the FF4 binary dumps, table generators, format tests; FramePacerSim, the frame pacer against simulated displays
 Docs/              reference, plans and the journal (below)
 Reference/libff4/  what we wrote about the FF4 binary; the dumps themselves are regenerated, not committed

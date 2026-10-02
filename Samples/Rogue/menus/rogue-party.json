@@ -1,0 +1,13 @@
+{
+  "id": "rogue-party",
+  "layout": "rogue-party.xml",
+  "screen": "rogue-party",
+  "title": "New Run",
+  "background": -1,
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "RogueParty"
+    }
+  ]
+}

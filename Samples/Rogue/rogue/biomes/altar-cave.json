@@ -1,0 +1,22 @@
+// The Altar Cave and the fields about Ur: FF3's first monsters, its crystal cave to fight in, the Land Turtle at its end.
+{
+  "name": "The Altar Cave",
+  "battleMap": 28,
+  "backdrop": "b28",
+  "monsters": [
+    { "id": 1, "weight": 10 },
+    { "id": 2, "weight": 8 },
+    { "id": 3, "weight": 8 },
+    { "id": 4, "weight": 6 },
+    { "id": 5, "weight": 6 },
+    { "id": 6, "weight": 5 },
+    { "id": 7, "weight": 4 },
+    { "id": 8, "weight": 3 },
+    { "id": 9, "weight": 3 },
+    { "id": 10, "weight": 2, "max": 2 },
+    { "id": 12, "weight": 2, "max": 2 }
+  ],
+  "bosses": [
+    { "name": "Land Turtle", "monsters": [ { "id": 196 } ] }
+  ]
+}

@@ -1,0 +1,111 @@
+# Rogue Mode, act 1 end to end: a new run, seven battles (auto-battle), a reward after each, the boss, act 2's camp.
+# Run with --only-mod=Rogue and ROGUE_SEED=1234, the run's save (%LOCALAPPDATA%\OpenFF\rogue\run.json) removed first.
+wait 13
+press Z
+wait 3
+press Up
+wait 0.5
+press Z
+until rogue: screen rogue$ 60
+wait 1
+press Z
+until rogue: screen rogue-party 20
+wait 1
+shots 1
+press Z
+until rogue: screen rogue-camp 20
+wait 1.5
+shots 1
+press Z
+until rogue: battle 30
+wait 6
+press F
+until rogue: (spoils|the \w+ is lost) 300
+wait 1
+shots 1
+repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
+wait 1.5
+shots 1
+press Z
+until rogue: screen rogue-(camp|summary) 30
+wait 1.5
+shots 1
+press Z
+until rogue: battle 30
+wait 6
+until rogue: (spoils|the \w+ is lost) 300
+wait 1
+shots 1
+repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
+wait 1.5
+shots 1
+press Z
+until rogue: screen rogue-(camp|summary) 30
+wait 1.5
+shots 1
+press Z
+until rogue: battle 30
+wait 6
+until rogue: (spoils|the \w+ is lost) 300
+wait 1
+shots 1
+repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
+wait 1.5
+shots 1
+press Z
+until rogue: screen rogue-(camp|summary) 30
+wait 1.5
+shots 1
+press Z
+until rogue: battle 30
+wait 6
+until rogue: (spoils|the \w+ is lost) 300
+wait 1
+shots 1
+repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
+wait 1.5
+shots 1
+press Z
+until rogue: screen rogue-(camp|summary) 30
+wait 1.5
+shots 1
+press Z
+until rogue: battle 30
+wait 6
+until rogue: (spoils|the \w+ is lost) 300
+wait 1
+shots 1
+repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
+wait 1.5
+shots 1
+press Z
+until rogue: screen rogue-(camp|summary) 30
+wait 1.5
+shots 1
+press Z
+until rogue: battle 30
+wait 6
+until rogue: (spoils|the \w+ is lost) 300
+wait 1
+shots 1
+repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
+wait 1.5
+shots 1
+press Z
+until rogue: screen rogue-(camp|summary) 30
+wait 1.5
+shots 1
+press Z
+until rogue: battle 30
+wait 6
+until rogue: (spoils|the \w+ is lost) 300
+wait 1
+shots 1
+repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
+wait 1.5
+shots 1
+press Z
+until rogue: screen rogue-(camp|summary) 30
+wait 1.5
+shots 1
+quit

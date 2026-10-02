@@ -1,0 +1,17 @@
+// What makes a battle elite: one or two of these on every monster in it, its HP times "hp" first.
+// "stats" are percent more (hp, attack, defense, magicDefense, intellect, agility, strength); "regen" is
+// percent of its HP back each turn it takes; "drain" percent of the damage it deals that it heals.
+{
+  "min": 1,
+  "max": 2,
+  "hp": 1.5,
+  "modifiers": [
+    { "id": "enraged", "name": "Enraged", "stats": { "attack": 40, "strength": 30 }, "text": "Strikes harder." },
+    { "id": "armored", "name": "Armored", "stats": { "defense": 60, "magicDefense": 40 }, "text": "Shrugs off blows and spells." },
+    { "id": "arcane", "name": "Arcane", "stats": { "intellect": 60 }, "text": "Its magic burns hotter." },
+    { "id": "swift", "name": "Swift", "stats": { "agility": 60 }, "text": "Acts sooner." },
+    { "id": "towering", "name": "Towering", "stats": { "hp": 60 }, "text": "Far more to wear down." },
+    { "id": "regenerating", "name": "Regenerating", "regen": 8, "text": "Heals each turn." },
+    { "id": "vampiric", "name": "Vampiric", "drain": 40, "text": "Heals from the damage it deals." }
+  ]
+}

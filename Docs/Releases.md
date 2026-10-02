@@ -12,6 +12,14 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 **Added**
 - Jobs: `Game.Party.ChangeJob(id, job, done)` - from a mod's menu screen, the game's own job change scene (the hero on a stage, the crystal's light, the new job's figure at the flash), then `done` with whether the job changed.
 - Mastery: changing jobs from its Jobs screen plays that scene, as the game's Job menu does.
+- Battles: `Game.Battle.Start(MonsterGroup, battleMap, options)` - a monster party made in code; `BattleOptions.LossReturns` ends a wipe on the field.
+- Battles: `BattleMonstersReady`, `BattleDamage`, `BattleTurnStarting`, `BattleUnitFell`, `BattleRewards` and `Game.Battle.Units` - a monster's stats for one battle, a hit's damage, a turn, a fall (and a revive), the spoils.
+- Rogue Mode sample: a run of FF3's battles from the title - acts, a job budget, rewards and rerolls, passives, elites, bosses, seeds.
+- Test drives: `repeat <key> <seconds> until <regex>` - a key pressed every so often until a log line comes (a battle's spoils, and no press past them).
+
+**Fixes**
+- Menus: `Game.Menus.Open` from the field opens the mod's screen, not the main menu.
+- Config: the game's Config screen no longer crashes when the menu text (`eureka_menu.msd`) lacks one of its rows' words (a replaced game file); the row is left blank and the log names it.
 
 ## 0.3.3 - the job change (2026-10-02)
 

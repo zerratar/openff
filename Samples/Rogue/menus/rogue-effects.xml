@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The run's modifiers in full, six a page. RogueEffects drives it. -->
+<menulist>
+  <menu>
+    <name>rogue-effects</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>36</height>
+      <frame>
+        <id>title</id><x>12</x><y>4</y><width>448</width><height>28</height>
+      <colour>pale-yellow</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data>Active Effects</data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_list</id><x>4</x><y>44</y><width>472</width><height>192</height>
+      <frame>
+        <id>none</id><x>12</x><y>8</y><width>448</width><height>20</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>page</id><x>12</x><y>172</y><width>448</width><height>14</height>
+        <align>right</align><font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <focus />
+      <id>row0</id><x>30</x><y>50</y><width>420</width><height>18</height>
+      <up>row5</up><down>row1</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <id>sub0</id><x>52</x><y>66</y><width>400</width><height>14</height>
+    <font>10</font><colour>pale-blue</colour>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>row1</id><x>30</x><y>80</y><width>420</width><height>18</height>
+      <up>row0</up><down>row2</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <id>sub1</id><x>52</x><y>96</y><width>400</width><height>14</height>
+    <font>10</font><colour>pale-blue</colour>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>row2</id><x>30</x><y>110</y><width>420</width><height>18</height>
+      <up>row1</up><down>row3</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <id>sub2</id><x>52</x><y>126</y><width>400</width><height>14</height>
+    <font>10</font><colour>pale-blue</colour>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>row3</id><x>30</x><y>140</y><width>420</width><height>18</height>
+      <up>row2</up><down>row4</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <id>sub3</id><x>52</x><y>156</y><width>400</width><height>14</height>
+    <font>10</font><colour>pale-blue</colour>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>row4</id><x>30</x><y>170</y><width>420</width><height>18</height>
+      <up>row3</up><down>row5</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <id>sub4</id><x>52</x><y>186</y><width>400</width><height>14</height>
+    <font>10</font><colour>pale-blue</colour>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <focus />
+      <id>row5</id><x>30</x><y>200</y><width>420</width><height>18</height>
+      <up>row4</up><down>row0</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <id>sub5</id><x>52</x><y>216</y><width>400</width><height>14</height>
+    <font>10</font><colour>pale-blue</colour>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data></data>
+    </frame>
+    <frame>
+      <window />
+      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

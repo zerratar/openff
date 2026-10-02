@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Between battles: the act and the battle ahead, the party, gil; Fight, Active Effects, Abandon. RogueCamp drives it. -->
+<menulist>
+  <menu>
+    <name>rogue-camp</name>
+    <frame>
+      <window />
+      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>52</height>
+      <frame>
+        <id>title</id><x>12</x><y>4</y><width>448</width><height>24</height>
+      <colour>pale-yellow</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>step</id><x>12</x><y>28</y><width>448</width><height>18</height>
+      <font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_party</id><x>4</x><y>60</y><width>304</width><height>116</height>
+      <frame>
+        <id>p0</id><x>12</x><y>6</y><width>70</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>job0</id><x>84</x><y>6</y><width>100</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv0</id><x>180</x><y>6</y><width>44</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>hp0</id><x>210</x><y>9</y><width>86</width><height>18</height>
+        <align>right</align><font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>p1</id><x>12</x><y>32</y><width>70</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>job1</id><x>84</x><y>32</y><width>100</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv1</id><x>180</x><y>32</y><width>44</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>hp1</id><x>210</x><y>35</y><width>86</width><height>18</height>
+        <align>right</align><font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>p2</id><x>12</x><y>58</y><width>70</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>job2</id><x>84</x><y>58</y><width>100</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv2</id><x>180</x><y>58</y><width>44</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>hp2</id><x>210</x><y>61</y><width>86</width><height>18</height>
+        <align>right</align><font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>p3</id><x>12</x><y>84</y><width>70</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>job3</id><x>84</x><y>84</y><width>100</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>lv3</id><x>180</x><y>84</y><width>44</width><height>22</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>hp3</id><x>210</x><y>87</y><width>86</width><height>18</height>
+        <align>right</align><font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_cmd</id><x>312</x><y>60</y><width>164</width><height>116</height>
+    
+    </frame>
+    <frame>
+      <focus />
+      <id>fight</id><x>330</x><y>70</y><width>140</width><height>24</height>
+      <up>abandon</up><down>effects</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Fight</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>effects</id><x>330</x><y>104</y><width>140</width><height>24</height>
+      <up>fight</up><down>abandon</down><left>dummy</left><right>dummy</right>
+      <align>menu</align>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Active Effects</data>
+    </frame>
+    <frame>
+      <focus />
+      <id>abandon</id><x>330</x><y>138</y><width>140</width><height>24</height>
+      <up>effects</up><down>fight</down><left>dummy</left><right>dummy</right>
+      <align>menu</align><font>12</font>
+      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+      <data>Abandon the run</data>
+    </frame>
+    <frame>
+      <window />
+      <id>w_info</id><x>4</x><y>180</y><width>472</width><height>56</height>
+      <frame>
+        <id>next</id><x>12</x><y>4</y><width>448</width><height>18</height>
+      <font>10</font>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>elite</id><x>12</x><y>24</y><width>280</width><height>18</height>
+      <font>10</font><colour>pale-red</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>gil</id><x>280</x><y>24</y><width>180</width><height>18</height>
+        <align>right</align><font>10</font><colour>pale-blue</colour>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+    <frame>
+      <window />
+      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
+      <frame>
+        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+      <frame>
+        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
+        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+        <data></data>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

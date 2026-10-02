@@ -1,0 +1,15 @@
+# Rogue Mode: the title's entry, the hub's Continue Run (the run rogue-paths.drive left).
+wait 13
+press Z
+wait 3
+press Up
+wait 0.5
+press Z
+until rogue: screen rogue$ 60
+wait 1
+shots 1
+press Z
+until rogue: screen rogue-(camp|party) 20
+wait 1.5
+shots 1
+quit

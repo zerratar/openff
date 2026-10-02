@@ -1,0 +1,37 @@
+// The run's shape: three acts, each a biome, a run of battles (every third an elite) and its boss.
+// A battle's danger is the sum of its monsters'; a monster's danger is Level x levelWeight + MaxHp / hpPer
+// (at least 1) unless its biome says. The budget grows by budgetStep each battle into the act.
+{
+  "startLevel": 4,
+  "levelWeight": 0.5,
+  "hpPer": 25,
+  "acts": [
+    {
+      "id": "act1", "name": "The Altar Cave", "biome": "altar-cave",
+      "encounters": 6, "eliteEvery": 3,
+      "budgetMin": 3, "budgetMax": 5, "budgetStep": 1,
+      "scale": 1.0, "scaleStep": 0.03,
+      "spellLevels": [1],
+      "rarity": { "common": 70, "uncommon": 28, "rare": 2 },
+      "gil": 150, "exp": 80
+    },
+    {
+      "id": "act2", "name": "The Living Woods", "biome": "living-woods",
+      "encounters": 7, "eliteEvery": 3,
+      "budgetMin": 12, "budgetMax": 18, "budgetStep": 2,
+      "scale": 1.0, "scaleStep": 0.03,
+      "spellLevels": [1, 2],
+      "rarity": { "common": 40, "uncommon": 45, "rare": 13, "epic": 2 },
+      "gil": 400, "exp": 300
+    },
+    {
+      "id": "act3", "name": "The Tower of Owen", "biome": "tower-of-owen",
+      "encounters": 8, "eliteEvery": 3,
+      "budgetMin": 30, "budgetMax": 40, "budgetStep": 3,
+      "scale": 1.0, "scaleStep": 0.03,
+      "spellLevels": [2, 3],
+      "rarity": { "common": 20, "uncommon": 40, "rare": 30, "epic": 9, "legendary": 1 },
+      "gil": 900, "exp": 900
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+// The Tower of Owen and the lands beyond Canaan: FF3's middle monsters on the tower's stone, Medusa at its top.
+{
+  "name": "The Tower of Owen",
+  "battleMap": 16,
+  "backdrop": "b16",
+  "monsters": [
+    { "id": 30, "weight": 3 },
+    { "id": 32, "weight": 3 },
+    { "id": 36, "weight": 4 },
+    { "id": 38, "weight": 3 },
+    { "id": 39, "weight": 4 },
+    { "id": 40, "weight": 4 },
+    { "id": 41, "weight": 4 },
+    { "id": 42, "weight": 4 },
+    { "id": 43, "weight": 4 },
+    { "id": 44, "weight": 3 },
+    { "id": 46, "weight": 3 },
+    { "id": 47, "weight": 3 },
+    { "id": 49, "weight": 3 },
+    { "id": 51, "weight": 3 },
+    { "id": 52, "weight": 3 },
+    { "id": 53, "weight": 3 },
+    { "id": 55, "weight": 2, "max": 2 },
+    { "id": 56, "weight": 2, "max": 2 }
+  ],
+  "bosses": [
+    { "name": "Medusa", "monsters": [ { "id": 200 } ] }
+  ]
+}

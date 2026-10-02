@@ -1,0 +1,13 @@
+{
+  "id": "rogue-camp",
+  "layout": "rogue-camp.xml",
+  "screen": "rogue-camp",
+  "title": "Camp",
+  "background": -1,
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "RogueCamp"
+    }
+  ]
+}

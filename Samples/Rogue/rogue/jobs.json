@@ -1,0 +1,20 @@
+// The starting job budget: each hero takes a job, and the four costs may not pass the budget.
+// "job" is the game's job index (the API's Job: 0 Freelancer, 2 Warrior, 3 Monk, 4 White Mage, 5 Black Mage,
+// 6 Red Mage, 7 Ranger, 8 Knight, 9 Thief, 10 Scholar ...). A job's starting gear is its "kit" by item id, or,
+// left out, the cheapest weapon and body armour it may wear; a caster starts with "spellCount" level-1 spells
+// of the magic it may hold. "starting": false jobs are for the crystals to open (a later phase).
+{
+  "budget": 10,
+  "jobs": [
+    { "word": "freelancer", "job": 0, "name": "Freelancer", "cost": 1 },
+    { "word": "warrior", "job": 2, "name": "Warrior", "cost": 3 },
+    { "word": "monk", "job": 3, "name": "Monk", "cost": 3 },
+    { "word": "white-mage", "job": 4, "name": "White Mage", "cost": 3, "spellCount": 2 },
+    { "word": "black-mage", "job": 5, "name": "Black Mage", "cost": 3, "spellCount": 2 },
+    { "word": "red-mage", "job": 6, "name": "Red Mage", "cost": 3, "spellCount": 2 },
+    { "word": "thief", "job": 9, "name": "Thief", "cost": 2 },
+    { "word": "ranger", "job": 7, "name": "Ranger", "cost": 4, "starting": false },
+    { "word": "knight", "job": 8, "name": "Knight", "cost": 4, "starting": false },
+    { "word": "scholar", "job": 10, "name": "Scholar", "cost": 3, "starting": false }
+  ]
+}

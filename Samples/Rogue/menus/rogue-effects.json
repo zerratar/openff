@@ -1,0 +1,13 @@
+{
+  "id": "rogue-effects",
+  "layout": "rogue-effects.xml",
+  "screen": "rogue-effects",
+  "title": "Active Effects",
+  "background": -1,
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "RogueEffects"
+    }
+  ]
+}

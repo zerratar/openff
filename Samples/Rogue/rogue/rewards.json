@@ -1,0 +1,22 @@
+// A victory's choices: how many, how likely each kind is after a battle, an elite and a boss, and how rare an
+// item counts - from its own price (the last rarity whose minPrice it reaches) unless "rarityOf" says.
+{
+  "choices": 3,
+  "rerollCost": 150,
+  "rerollGrowth": 2,
+  "speculative": 0.15,
+  "kinds": {
+    "battle": { "equipment": 30, "spell": 25, "passive": 25, "gil": 10, "heal": 5, "experience": 5 },
+    "elite": { "equipment": 35, "passive": 40, "spell": 15, "experience": 10 },
+    "boss": { "passive": 55, "equipment": 45 }
+  },
+  "rarities": [
+    { "name": "common", "minPrice": 0 },
+    { "name": "uncommon", "minPrice": 100 },
+    { "name": "rare", "minPrice": 600 },
+    { "name": "epic", "minPrice": 3000 },
+    { "name": "legendary", "minPrice": 12000 }
+  ],
+  "exclude": [],
+  "rarityOf": {}
+}

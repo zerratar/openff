@@ -1,0 +1,29 @@
+// The woods and caves of Kazus and Sasune: bats, birds and the cave's undead; Djinn or the Giant Rat at its end.
+{
+  "name": "The Living Woods",
+  "battleMap": 24,
+  "backdrop": "b24",
+  "monsters": [
+    { "id": 10, "weight": 4 },
+    { "id": 11, "weight": 4 },
+    { "id": 13, "weight": 4 },
+    { "id": 14, "weight": 5 },
+    { "id": 15, "weight": 4 },
+    { "id": 16, "weight": 4 },
+    { "id": 17, "weight": 5 },
+    { "id": 18, "weight": 4 },
+    { "id": 19, "weight": 4 },
+    { "id": 21, "weight": 3 },
+    { "id": 22, "weight": 4 },
+    { "id": 23, "weight": 3 },
+    { "id": 24, "weight": 3 },
+    { "id": 26, "weight": 3 },
+    { "id": 27, "weight": 4 },
+    { "id": 28, "weight": 3 },
+    { "id": 29, "weight": 3 }
+  ],
+  "bosses": [
+    { "name": "Djinn", "monsters": [ { "id": 197 } ] },
+    { "name": "Giant Rat", "monsters": [ { "id": 199 } ] }
+  ]
+}

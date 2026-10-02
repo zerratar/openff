@@ -1,0 +1,13 @@
+{
+  "id": "rogue-reward",
+  "layout": "rogue-reward.xml",
+  "screen": "rogue-reward",
+  "title": "Rewards",
+  "background": -1,
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "RogueReward"
+    }
+  ]
+}
