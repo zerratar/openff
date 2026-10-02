@@ -92,6 +92,8 @@ internal static partial class GlobalScope
 				registerBattle();
 				initializePhase();
 				characterManager().initialize();
+				// PORT: the characters are in place: a mod's say on the monsters' stats for this battle (BattleMonstersReady).
+				OpenFF.Client.BattleHooks.MonstersReady(characterManager());
 				BattleMonsterParty battleMonsterParty = characterManager().monsterParty();
 				battleDisplay.setMonsterOffsetId(-1);
 				int minBattleMonsterId = battleMonsterParty.getMinBattleMonsterId();

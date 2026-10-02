@@ -235,6 +235,59 @@ namespace OpenFF
 			public BattleResult Result { get; set; }
 		}
 
+		/// <summary>The battle's monsters are in place, before the first turn: their stats can be changed (an elite, a run's scaling) for this battle alone.</summary>
+		public sealed class BattleMonstersReady
+		{
+			public System.Collections.Generic.IReadOnlyList<BattleUnit> Monsters { get; set; }
+			/// <summary>The monster party (the game's table, or IBattle.CustomFormation for one a mod made), or -1.</summary>
+			public int Formation { get; set; } = -1;
+		}
+
+		/// <summary>
+		/// A hit, a spell or a heal is about to land on someone: Amount is what it will do, and a handler may change it
+		/// (0..9999). A miss has Missed set and keeps its 0 whatever Amount is made.
+		/// </summary>
+		public sealed class BattleDamage
+		{
+			/// <summary>Who did it (null when the battle does not say: a poison tick).</summary>
+			public BattleUnit Attacker { get; set; }
+			public BattleUnit Target { get; set; }
+			public DamageKind Kind { get; set; }
+			/// <summary>The spell (its id, as Game.Magic.Find takes it) for Magic and Healing; 0 otherwise.</summary>
+			public int SpellId { get; set; }
+			/// <summary>The elements it carries (a spell's; none for a blow).</summary>
+			public Element Element { get; set; }
+			/// <summary>A blow that struck critically.</summary>
+			public bool Critical { get; set; }
+			/// <summary>A Jump landing.</summary>
+			public bool Jump { get; set; }
+			public bool Missed { get; set; }
+			public int Amount { get; set; }
+		}
+
+		/// <summary>Someone's turn begins (a hero's command is about to play, or a monster's action).</summary>
+		public sealed class BattleTurnStarting
+		{
+			public BattleUnit Unit { get; set; }
+		}
+
+		/// <summary>
+		/// Someone has just been brought to 0 HP, before they fall: a handler's Unit.Revive(hp) keeps them standing
+		/// (Phoenix Down's way, at once). By is who struck them, when the battle says.
+		/// </summary>
+		public sealed class BattleUnitFell
+		{
+			public BattleUnit Unit { get; set; }
+			public BattleUnit By { get; set; }
+		}
+
+		/// <summary>A battle is won and the spoils are about to be given: Exp (each standing hero's) and Gil may be changed.</summary>
+		public sealed class BattleRewards
+		{
+			public int Exp { get; set; }
+			public int Gil { get; set; }
+		}
+
 		/// <summary>The party received an item from a script or a chest.</summary>
 		public sealed class ItemGained
 		{

@@ -2754,7 +2754,54 @@ namespace OpenFF.Client
 			}
 		}
 
+		public int CustomFormation => BattleHooks.CustomFormation;
+
+		public IReadOnlyList<BattleUnit> Units => BattleHooks.Units();
+
+		public void Start(int monsterParty, int battleMap, BattleOptions options)
+		{
+			LossReturns(options != null && options.LossReturns);
+			StartCore(monsterParty, battleMap);
+		}
+
+		public void Start(MonsterGroup group, int battleMap = 0, BattleOptions options = null)
+		{
+			if (group == null || group.Members.Count == 0) { EngineApi.Warn("battle", "Battle.Start: a party with no monsters"); return; }
+			if (GameProfile.IsFf4) { EngineApi.Warn("battle", "Battle.Start: a party made at run time is FF3's only"); return; }
+			BattleHooks.SetCustomParty(group);
+			Start(BattleHooks.CustomFormation, battleMap, options);
+		}
+
+		// Whether this service asked for "a battle you may lose" (the game's restart-after-battle): undone when the
+		// battle is over, so a script's own setting is left as the script made it otherwise.
+		private bool _lossReturns;
+		private IDisposable _endWatch;
+
+		private void LossReturns(bool on)
+		{
+			Game.Guard("Battle.Start", () =>
+			{
+				if (on)
+				{
+					GlobalScope.btl.OutsideToBattle.getInstance().onRestart();
+					_lossReturns = true;
+					_endWatch ??= OpenFF.Game.Events.Subscribe<OpenFF.Events.BattleEnded>(_ => LossReturns(false));
+				}
+				else if (_lossReturns)
+				{
+					GlobalScope.btl.OutsideToBattle.getInstance().offRestart();
+					_lossReturns = false;
+				}
+			});
+		}
+
 		public void Start(int monsterParty, int battleMap = 0)
+		{
+			LossReturns(false);
+			StartCore(monsterParty, battleMap);
+		}
+
+		private void StartCore(int monsterParty, int battleMap)
 		{
 			if (GameProfile.IsFf4)
 			{

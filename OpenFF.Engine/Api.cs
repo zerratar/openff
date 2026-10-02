@@ -659,6 +659,18 @@ namespace OpenFF
 	{
 		/// <summary>Starts the game's battle with a monster party (the game's table) on a battlefield (FF3's 1..43; 0, the default, is the one the current map's own encounters use); BattleEnded follows.</summary>
 		void Start(int monsterParty, int battleMap = 0);
+		/// <summary>As Start, with options: LossReturns ends a wipe on the field rather than at the title.</summary>
+		void Start(int monsterParty, int battleMap, BattleOptions options);
+		/// <summary>
+		/// Starts a battle with a monster party made now - up to four kinds of monster (MonsterCount: an id, and Min..Max
+		/// of them; Min = Max for an exact number), six monsters at most - on a battlefield, with options. The party
+		/// stands in the table as CustomFormation for this battle (BattleStarting and BattleMonstersReady say so).
+		/// </summary>
+		void Start(MonsterGroup group, int battleMap = 0, BattleOptions options = null);
+		/// <summary>The formation number a party made with Start(MonsterGroup) goes by.</summary>
+		int CustomFormation { get; }
+		/// <summary>Everyone in the running battle, live (heroes then monsters); empty outside one.</summary>
+		System.Collections.Generic.IReadOnlyList<BattleUnit> Units { get; }
 		/// <summary>Whether the party may run from battles.</summary>
 		bool EscapeAllowed { get; set; }
 		bool InBattle { get; }

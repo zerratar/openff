@@ -315,6 +315,8 @@ internal static partial class GlobalScope
 						}
 					}
 				}
+				// PORT: a mod hears the turn begin (BattleTurnStarting).
+				OpenFF.Client.BattleHooks.TurnStarting(nowCharacter());
 				switch (nowCharacter().breed())
 				{
 				case 0:
@@ -2182,6 +2184,8 @@ internal static partial class GlobalScope
 					{
 						continue;
 					}
+					// PORT: a mod's say on the blow as it lands (BattleDamage) - every blow comes through here.
+					calc_.setDamage(baseBattleCharacterFromBreed.battleCharacterId(), OpenFF.Client.BattleHooks.Blow(attacker, baseBattleCharacterFromBreed, calc_.damage(baseBattleCharacterFromBreed.battleCharacterId())));
 					if (baseBattleCharacterFromBreed.flag(PLAYER_FLAG.PF_RECOVER))
 					{
 						baseBattleCharacterFromBreed.hp().addNow(calc_.damage(baseBattleCharacterFromBreed.battleCharacterId()));

@@ -204,6 +204,8 @@ internal static partial class GlobalScope
 				dgs.CCtrlCodeInterface.instance().setFontSize(_FontType: true);
 				int num = B.characterManager().monsterParty().giftGold()
 					.get();
+				// PORT: a mod's say on the spoils (BattleRewards): the gil now, each hero's experience for getTrueExp.
+				num = OpenFF.Client.BattleHooks.Rewards(B, num);
 				dgs.CCtrlCodeInterface.instance().setGold(num);
 				Battle2DManager.instance().helpWindow().createHelpWindow(106, 1, 0);
 				pl.PlayerParty.instance().gold().add(num);

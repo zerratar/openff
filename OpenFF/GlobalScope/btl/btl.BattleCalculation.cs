@@ -142,6 +142,8 @@ internal static partial class GlobalScope
 					int num4 = damage_[target.battleCharacterId()] - damage_[target.battleCharacterId()] * (20 + num3 * 10 / 110) / 100;
 					damage_[target.battleCharacterId()] = num4;
 				}
+				// PORT: a mod's say on the spell's damage as it lands (BattleDamage).
+				damage_[target.battleCharacterId()] = OpenFF.Client.BattleHooks.Spell(user, target, magic.itemId(), magic.magicType(), false, damage_[target.battleCharacterId()]);
 				if ((magic.magicType() & 4) != 0)
 				{
 					damage_[user.battleCharacterId()] = damage_[target.battleCharacterId()];
@@ -191,6 +193,8 @@ internal static partial class GlobalScope
 				if (damage_[target.battleCharacterId()] == 0)
 				{
 					damage_[target.battleCharacterId()] += newMagicFormula.healingMagicValue(magic.itemId(), user, target, user.targetNumber());
+					// PORT: a mod's say on the healing (or the hurt to the undead) as it lands (BattleDamage).
+					damage_[target.battleCharacterId()] = OpenFF.Client.BattleHooks.Spell(user, target, magic.itemId(), magic.magicType(), true, damage_[target.battleCharacterId()]);
 					if (target.flag(PLAYER_FLAG.PF_RECOVER))
 					{
 						target.hp().addNow(damage_[target.battleCharacterId()]);
@@ -689,6 +693,11 @@ internal static partial class GlobalScope
 			{
 				if (target.hp().getNow() == 0)
 				{
+					// PORT: a mod hears them fall and may keep them standing (BattleUnitFell; BattleUnit.Revive).
+					if (OpenFF.Client.BattleHooks.Falling(target))
+					{
+						return;
+					}
 					target.condition().onDeath();
 					target.condition().clearConditionTime();
 					target.onIsActionEnd();

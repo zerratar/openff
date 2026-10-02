@@ -1211,6 +1211,9 @@ internal static partial class GlobalScope
 
 			public MonsterParty monsterParty(int _id)
 			{
+				// PORT: a party a mod made for this battle (IBattle.Start(MonsterGroup)).
+				MonsterParty custom = OpenFF.Client.BattleHooks.CustomParty(_id);
+				if (custom != null) return custom;
 				// PORT: the table's own length, not MONSTER_PARTY_MAX: the shipped table has exactly 259
 				// records, so the game's own lookups run as before, and a mod's formations appended
 				// past them are found.
@@ -1269,11 +1272,12 @@ internal static partial class GlobalScope
 
 		public class Monsters
 		{
-			private short monsterId_;
+			// PORT: internal (was private), so MonsterParty.Of can fill a party a mod made.
+			internal short monsterId_;
 
-			private byte min_;
+			internal byte min_;
 
-			private byte max_;
+			internal byte max_;
 
 			public short monsterId()
 			{
@@ -1314,6 +1318,19 @@ internal static partial class GlobalScope
 			public Monsters monsters(int i)
 			{
 				return monsters_[i];
+			}
+
+			/// <summary>PORT: a party a mod made at run time (IBattle.Start(MonsterGroup); OpenFF.Client.BattleHooks): up to MONSTERS_MAX kinds, each an id and min..max of it.</summary>
+			public static MonsterParty Of(short id, System.Collections.Generic.IList<(short Monster, byte Min, byte Max)> members)
+			{
+				MonsterParty party = new MonsterParty { monsterPartyId_ = id };
+				for (int i = 0; i < MONSTERS_MAX; i++)
+				{
+					Monsters m = new Monsters { monsterId_ = -1 };
+					if (i < members.Count) { m.monsterId_ = members[i].Monster; m.min_ = members[i].Min; m.max_ = members[i].Max; }
+					party.monsters_[i] = m;
+				}
+				return party;
 			}
 
 			public static MonsterParty[] castArray(Array src)
