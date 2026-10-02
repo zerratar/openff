@@ -456,6 +456,14 @@ namespace Crystal.Editor
 					OpenProjectRequest(context);
 					return;
 
+				case "/api/project/close":
+					CloseProjectRequest(context);
+					return;
+
+				case "/api/project/delete":
+					DeleteProjectRequest(context);
+					return;
+
 				case "/api/project/target":
 					SetTarget(context);
 					return;
@@ -3024,6 +3032,96 @@ namespace Crystal.Editor
 					directory = project.Directory, active = project.File.Active });
 			}
 			catch (Exception ex) when (ex is ArgumentException or IOException)
+			{
+				SendJson(context, new { ok = false, error = ex.Message });
+			}
+		}
+
+		/// <summary>
+		/// No project any more: the editor as it starts without one - every game on the machine open, edits going
+		/// to each game's default mod directory. The project's files stay as they are on disk.
+		/// </summary>
+		public bool CloseProject()
+		{
+			if (_project == null) return true;
+			Dictionary<string, Session> was = new Dictionary<string, Session>(_sessions, StringComparer.OrdinalIgnoreCase);
+			List<string> order = new List<string>(_order);
+			Dictionary<string, string> missing = new Dictionary<string, string>(_missing, StringComparer.OrdinalIgnoreCase);
+			_sessions.Clear();
+			_order.Clear();
+			_missing.Clear();
+			OpenOtherInstalls();
+			if (_order.Count == 0)
+			{
+				// No game to fall back on: the project stays open rather than leave the editor with nothing.
+				foreach (KeyValuePair<string, Session> entry in was) _sessions[entry.Key] = entry.Value;
+				_order.AddRange(order);
+				foreach (KeyValuePair<string, string> entry in missing) _missing[entry.Key] = entry.Value;
+				return false;
+			}
+			_project = null;
+			_active = _order[0];
+			_current = null;
+			return true;
+		}
+
+		private void CloseProjectRequest(HttpListenerContext context)
+		{
+			string name = _project?.File.Name;
+			if (!CloseProject())
+			{
+				SendJson(context, new { ok = false, error = "no game install was found to open in the project's place - the project stays open" });
+				return;
+			}
+			SendJson(context, new { ok = true, closed = name });
+		}
+
+		/// <summary>
+		/// A project gone: its folder to the Recycle Bin (so a mistake can be taken back), closed first if it is the
+		/// one open; with removeMod, the mod Export to OpenFF made of it out of the client's mods folder too.
+		/// Only a project of the projects folder's own list can be deleted.
+		/// </summary>
+		private void DeleteProjectRequest(HttpListenerContext context)
+		{
+			JsonNode body = ReadBody(context);
+			string directory = (string)body?["directory"];
+			bool removeMod = body?["removeMod"]?.GetValue<bool>() ?? false;
+			Project project = directory == null ? null : Project.All().FirstOrDefault(p => SameDirectory(p.Directory, directory));
+			if (project == null)
+			{
+				SendJson(context, new { ok = false, error = "no project of Crystal's in " + directory });
+				return;
+			}
+			if (!OperatingSystem.IsWindows())
+			{
+				SendJson(context, new { ok = false, error = "deleting a project goes through the Recycle Bin, which is Windows-only for now - delete " + project.Directory + " by hand" });
+				return;
+			}
+			if (_project != null && SameDirectory(_project.Directory, project.Directory) && !CloseProject())
+			{
+				SendJson(context, new { ok = false, error = "the project is open and no game install was found to open in its place" });
+				return;
+			}
+			string mod = null;
+			try
+			{
+				if (removeMod)
+				{
+					string mods = OpenFFClient.ModsFolder();
+					string candidate = mods == null ? null : Path.Combine(mods, ProjectExport.ModFolderName(project));
+					// Only a folder an export wrote (its mod.json): never something else that happens to share the name.
+					if (candidate != null && File.Exists(Path.Combine(candidate, OpenFF.Content.ModsFolder.ManifestName)))
+					{
+						Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(candidate,
+							Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+						mod = candidate;
+					}
+				}
+				Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(project.Directory,
+					Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+				SendJson(context, new { ok = true, name = project.File.Name, directory = project.Directory, mod });
+			}
+			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
 			{
 				SendJson(context, new { ok = false, error = ex.Message });
 			}

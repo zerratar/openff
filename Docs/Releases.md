@@ -21,6 +21,7 @@ Rogue Mode on the title - a run of FF3's battles in three acts, with rewards, el
 - Rogue Mode sample: a run of FF3's battles from the title - acts, a job budget, rewards and rerolls, passives, elites, bosses, seeds.
 - Test drives: `repeat <key> <seconds> until <regex>` - a key pressed every so often until a log line comes (a battle's spoils, and no press past them).
 - HUD: `Game.Hud.FieldButtons` - the field's Menu, Map and Talk buttons taken down while a mod's screens stand in for the field.
+- Crystal: File ▸ Close project (back to the games as they are), and a bin on each project in Open project… that deletes it to the Recycle Bin - and, if ticked, the mod Export to OpenFF made of it.
 
 **Fixes**
 - Menus: `Game.Menus.Open` from the field opens the mod's screen, not the main menu.

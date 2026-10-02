@@ -118,7 +118,8 @@ const ICONS = {
 
   // ----------------------------------------------------------------- fallback
 
-  file: '<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/>'
+  file: '<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/>',
+  trash: '<path d="M2.6 4.2h10.8"/><path d="M6.2 4.2V2.6h3.6v1.6"/><path d="M3.9 4.2l.8 9.4h6.6l.8-9.4"/><path d="M6.6 6.6v4.8M9.4 6.6v4.8"/>'
 };
 // The mod's text is text: the same bubble as the game's.
 ICONS.strings = ICONS.text;

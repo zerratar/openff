@@ -77,7 +77,7 @@ namespace Crystal.Editor
 			{
 				throw new InvalidOperationException("the project is not an OpenFF mod - tick FF3 or FF4 under OpenFF in Project settings first");
 			}
-			string key = Safe(project.File.Name);
+			string key = ModFolderName(project);
 			string directory = Path.Combine(modsFolder, key);
 			string manifestPath = Path.Combine(directory, OpenFF.Content.ModsFolder.ManifestName);
 			if (Directory.Exists(directory))
@@ -324,6 +324,9 @@ namespace Crystal.Editor
 			start.UseShellExecute = false;
 			Process.Start(start);
 		}
+
+		/// <summary>The folder Export to OpenFF writes a project into, under the client's mods folder.</summary>
+		public static string ModFolderName(Project project) => Safe(project.File.Name);
 
 		private static string Safe(string name)
 		{

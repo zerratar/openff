@@ -99,7 +99,10 @@ function drawMenuBar() {
 
   bar.append(buildMenu('File', [
     { label: 'New project…', run: newProjectDialog },
-    { label: 'Open project…', run: openProjectDialog },
+    { label: 'Open project…', run: openProjectDialog,
+      note: 'Pick one of your projects; the bin on a row deletes it (to the Recycle Bin)' },
+    { label: 'Close project', run: closeProject, disabled: !open,
+      note: 'Back to the games as they are; the project stays on disk to open again' },
     { label: 'Sample projects…', run: sampleProjectsDialog,
       note: 'The sample mods (Showcase, Hello, Survivors) as a project of your own to read and change' },
     { label: 'Start page', run: showStartPage },
@@ -406,19 +409,90 @@ async function openProjectDialog() {
   const list = document.createElement('div');
   list.className = 'dialog-list';
   for (const project of projects) {
+    const line = document.createElement('div');
+    line.className = 'project-line';
     const row = document.createElement('button');
     row.className = 'dialog-row project-row';
     if (project.current) row.classList.add('checked');
     const title = document.createElement('strong');
     title.append(projectKindIcon(project), document.createTextNode(project.name));
+    if (project.current) {
+      const badge = document.createElement('em');
+      badge.className = 'project-open';
+      badge.textContent = 'open';
+      title.append(badge);
+    }
     const where = document.createElement('span');
     where.textContent = project.targets.map(describeTarget).join(', ')
       + '  ·  ' + project.directory;
     row.append(title, where);
     row.onclick = () => openProjectAt(project.directory, body);
-    list.append(row);
+    const bin = document.createElement('button');
+    bin.className = 'project-delete';
+    bin.title = `Delete ${project.name}…`;
+    bin.append(icon('trash'));
+    bin.onclick = () => deleteProjectDialog(project, body);
+    line.append(row, bin);
+    list.append(line);
   }
   body.append(list);
+}
+
+/// The open project closed: the editor goes back to every game as it is, as when it starts without one.
+async function closeProject() {
+  const open = projectState.project;
+  if (!open) return;
+  try {
+    const result = await api('/api/project/close', {});
+    if (!result.ok) throw new Error(result.error);
+    await reloadEverything(`${result.closed || open.name} is closed - it stays on disk; File ▸ Open project… opens it again`);
+  } catch (error) {
+    say(error.message, 'bad');
+  }
+}
+
+/// A project deleted, after asking: its folder to the Recycle Bin (so it can be taken back from there), closed
+/// first if it is the one open; and, if ticked, the mod Export to OpenFF made of it out of the client's mods folder.
+function deleteProjectDialog(project, listBody) {
+  const body = dialog(`Delete ${project.name}?`);
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  note.textContent = `The project's folder goes to the Recycle Bin - its edits, code and assets with it - and you can restore it from there.`
+    + (project.current ? ' It is the project open now: it is closed first.' : '');
+  const where = document.createElement('p');
+  where.className = 'dialog-note project-path';
+  where.textContent = project.directory;
+  const modLabel = document.createElement('label');
+  modLabel.className = 'dialog-row check';
+  const removeMod = document.createElement('input');
+  removeMod.type = 'checkbox';
+  modLabel.append(removeMod, document.createTextNode("Also remove the mod Export to OpenFF made of it from the client's mods folder"));
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const cancel = document.createElement('button');
+  cancel.textContent = 'Keep it';
+  cancel.onclick = () => body.close();
+  const go = document.createElement('button');
+  go.className = 'danger';
+  go.textContent = 'Delete project';
+  go.onclick = async () => {
+    go.disabled = true;
+    try {
+      const result = await api('/api/project/delete', { directory: project.directory, removeMod: removeMod.checked });
+      if (!result.ok) throw new Error(result.error);
+      body.close();
+      if (listBody) listBody.close();
+      const said = `${result.name} is in the Recycle Bin` + (result.mod ? ', and its mod is out of the mods folder' : '');
+      if (project.current) await reloadEverything(said);
+      else say(said, 'good');
+    } catch (error) {
+      say(error.message, 'bad');
+      go.disabled = false;
+    }
+  };
+  actions.append(cancel, go);
+  body.append(note, where, modLabel, actions);
+  cancel.focus();
 }
 
 /// The sample mods shipped beside Crystal, each openable as a fresh project of your own -
