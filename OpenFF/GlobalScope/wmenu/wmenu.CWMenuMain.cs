@@ -22,6 +22,8 @@ internal static partial class GlobalScope
 								private int prev_focus;
 
 								private WMENU_KIND auto_shift_menu;
+								// PORT: whether a shift is asked for - a mod's screen (CWMenuMod.KIND) is WMENU_KIND_MAX, the value that otherwise means none.
+								private bool auto_shift;
 
 								private NNSG2dSVec2[] charPos = new NNSG2dSVec2[4];
 
@@ -69,7 +71,7 @@ internal static partial class GlobalScope
 									CWMenuManager.Instance().swapCharFirstPosition();
 									CWMenuManager.Instance().SetActiveCharShow();
 									menu.MenuManager.getSingleton().initFocus(CWMenuManager.Instance().GetMainMenuMemoryCursor());
-									if (auto_shift_menu >= WMENU_KIND.WMENU_KIND_MAX)
+									if (!auto_shift)
 									{
 										menu.MenuManager.getSingleton().GetCursor2d().SetShow(show: true);
 									}
@@ -85,11 +87,12 @@ internal static partial class GlobalScope
 									menu.MenuManager.getSingleton().execute();
 									ushort num = 0;
 									num = (ushort)((opt.COptionManager.getSingleton().gameOption().menuZoomSetting() != opt.MENU_ZOOM_SETTING.MENU_R_ZOOM_L) ? 512 : 256);
-									if (auto_shift_menu < WMENU_KIND.WMENU_KIND_MAX)
+									if (auto_shift)
 									{
 										CWMenuManager.Instance().SetNextKind(auto_shift_menu);
 										CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_TERMINATE);
 										auto_shift_menu = WMENU_KIND.WMENU_KIND_MAX;
+										auto_shift = false;
 										return;
 									}
 									if (menu.MenuManager.getSingleton().GetActivateButtonState() != 0)
@@ -151,6 +154,7 @@ internal static partial class GlobalScope
 										setFinalize(val: true);
 									}
 									auto_shift_menu = WMENU_KIND.WMENU_KIND_MAX;
+									auto_shift = false;
 								}
 
 								public void setUpCharScrPos()
@@ -175,6 +179,7 @@ internal static partial class GlobalScope
 								public void autoShift(WMENU_KIND wmk)
 								{
 									auto_shift_menu = wmk;
+									auto_shift = true;
 								}
 							}
 	}
