@@ -17,6 +17,8 @@
 //   camera <x> <y> <z> [yaw] [pitch]  the free camera (F7) placed there, in world units and degrees, for a screenshot from a chosen eye; "camera off" gives the game its eye back
 //   until <regex> [timeoutSeconds] wait for a log line matching the pattern (30 s unless said; "drive: timed out" if not);
 //                                  a line written since the previous until was satisfied counts too
+//   repeat <key> <seconds> until <regex> [timeoutSeconds]  the key pressed every so often while waiting as until does
+//                                  (a battle's spoils messages pressed through, and no press past them)
 //   say <text>                     a line in the log ("drive: <text>") to mark progress
 //   shots <count>                  a screenshot of each of the next displayed frames (--screenshot-dir), for what lasts a frame
 //   qol <option> <value>           a quality-of-life option for this run (a drive plays with the defaults otherwise):
@@ -96,6 +98,9 @@ namespace OpenFF.Client
 		// Lines written since the last until was satisfied: a step's effect often lands in the
 		// log before the drive reaches the until that waits for it.
 		private static readonly List<string> _recent = new List<string>();
+		// A repeat's key, pressed every _repeatEvery steps while its until waits.
+		private static Keys? _repeatKey;
+		private static int _repeatEvery, _repeatIn;
 		private static readonly object _lock = new object();
 
 		private static void OnLogLine(string line)
@@ -130,13 +135,23 @@ namespace OpenFF.Client
 			}
 			if (_waitFor != null)
 			{
-				if (_matched) { _waitFor = null; _matched = false; lock (_lock) _recent.Clear(); }
+				if (_matched) { _waitFor = null; _matched = false; _repeatKey = null; lock (_lock) _recent.Clear(); }
 				else if (_framesLeft == 0 && --_timeoutFrames <= 0)
 				{
 					Log.Write(LogChannel.General, "drive: timed out waiting for /" + _waitFor + "/");
 					_waitFor = null;
+					_repeatKey = null;
 				}
-				else return;
+				else
+				{
+					if (_repeatKey != null && --_repeatIn <= 0)
+					{
+						DesktopInput.Injected.Add(_repeatKey.Value);
+						_framesLeft = 4;
+						_repeatIn = _repeatEvery;
+					}
+					return;
+				}
 			}
 			_at++;
 			if (_at >= _steps.Count)
@@ -400,9 +415,24 @@ namespace OpenFF.Client
 					}
 					else Log.Write(LogChannel.General, "drive: " + step.Verb + " - no text field is open");
 					break;
+				case "repeat":
 				case "until":
 				{
 					string pattern = step.Arg;
+					if (step.Verb == "repeat")
+					{
+						// repeat <key> <seconds> until <regex> [timeout]
+						string[] head = pattern.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
+						if (head.Length < 4 || head[2] != "until" || !Enum.TryParse(head[0], true, out Keys rk))
+						{
+							Log.Write(LogChannel.General, "drive: repeat <key> <seconds> until <regex> [timeout] - not " + step.Arg);
+							break;
+						}
+						_repeatKey = rk;
+						_repeatEvery = Math.Max(5, (int)Math.Round(Seconds(head[1], 1) * StepsPerSecond));
+						_repeatIn = _repeatEvery;
+						pattern = head[3];
+					}
 					double timeout = 30;
 					int space = pattern.LastIndexOf(' ');
 					if (space > 0 && double.TryParse(pattern.Substring(space + 1), NumberStyles.Float, CultureInfo.InvariantCulture, out double t))
