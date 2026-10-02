@@ -399,6 +399,8 @@ namespace Crystal.Editor
 							version = _project.File.Version,
 							description = _project.File.Description,
 							code = ModCode.Has(_project),
+							// The sample it was made from, for File > Update from the sample.
+							sample = Samples.SampleOf(_project)?.Name,
 							// The mod's entry point, for the header's button: the first GameService in the source.
 							service = ModCode.Has(_project) ? ModCode.Sources(_project).FirstOrDefault(s => s.Kind == "service")?.File : null,
 							client = OpenFFClient.Executable() != null,
@@ -463,6 +465,24 @@ namespace Crystal.Editor
 				case "/api/project/delete":
 					DeleteProjectRequest(context);
 					return;
+
+				case "/api/project/sample/compare":
+				case "/api/project/sample/update":
+				{
+					// Update from the sample: what it would do (compare), then doing it (update) - the open project brought up to its sample.
+					if (_project == null) { SendJson(context, new { ok = false, error = "no project is open" }); return; }
+					try
+					{
+						bool update = path.EndsWith("/update", StringComparison.Ordinal);
+						Samples.UpdatePlan plan = update ? Samples.Update(_project) : Samples.Compare(_project);
+						SendJson(context, new { ok = true, sample = plan.Sample, added = plan.Added, changed = plan.Changed, same = plan.Same });
+					}
+					catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
 
 				case "/api/project/target":
 					SetTarget(context);

@@ -115,6 +115,8 @@ function drawMenuBar() {
       disabled: !edited,
     },
     { label: 'Project settings…', run: projectSettingsDialog, disabled: !open },
+    { label: open && open.sample ? `Update from the ${open.sample} sample…` : 'Update from the sample…', run: updateFromSampleDialog, disabled: !(open && open.sample),
+      note: open && open.sample ? 'The sample\'s files as this version of Crystal has them, over the project\'s - your own files are kept' : 'For a project made from one of the sample projects' },
     '-',
     { label: 'Export as .zip…', run: exportProject, disabled: !open,
       note: 'The project as an upload: files, manifest and a README' },
@@ -438,6 +440,79 @@ async function openProjectDialog() {
   body.append(list);
 }
 
+/// A project made from a sample brought up to the sample as it is now (after an update of OpenFF): the sample's files
+/// copied over the project's - its own files kept - after a look at what that changes.
+async function updateFromSampleDialog() {
+  const open = projectState.project;
+  if (!open || !open.sample) return;
+  let plan;
+  try {
+    plan = await api('/api/project/sample/compare', {});
+    if (!plan.ok) throw new Error(plan.error);
+  } catch (error) { say(error.message, 'bad'); return; }
+  const body = dialog(`Update from the ${plan.sample} sample`, { wide: true });
+  const note = document.createElement('p');
+  note.className = 'dialog-note';
+  const total = plan.added.length + plan.changed.length;
+  note.textContent = total === 0
+    ? `${open.name} has every file of the ${plan.sample} sample as it is now - nothing to update.`
+    : `The ${plan.sample} sample's files go over ${open.name}'s: ${plan.added.length} new, ${plan.changed.length} different from the sample (${plan.same} already the same). Files of the project's own are kept, and so are its settings.`;
+  body.append(note);
+  if (plan.changed.length) {
+    const warn = document.createElement('p');
+    warn.className = 'dialog-note sample-warn';
+    warn.textContent = 'These are replaced by the sample\'s - any change you made to them is lost:';
+    body.append(warn, fileList(plan.changed));
+  }
+  if (plan.added.length) {
+    const added = document.createElement('p');
+    added.className = 'dialog-note';
+    added.textContent = 'These are added:';
+    body.append(added, fileList(plan.added));
+  }
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const cancel = document.createElement('button');
+  cancel.textContent = total === 0 ? 'Close' : 'Not now';
+  cancel.onclick = () => body.close();
+  actions.append(cancel);
+  if (total > 0) {
+    const go = document.createElement('button');
+    go.className = plan.changed.length ? 'danger' : 'primary';
+    go.textContent = 'Update the project';
+    go.onclick = async () => {
+      go.disabled = true;
+      try {
+        const result = await api('/api/project/sample/update', {});
+        if (!result.ok) throw new Error(result.error);
+        body.close();
+        await reloadEverything(`${open.name} is up to date with the ${result.sample} sample: ${result.added.length + result.changed.length} file(s)` + (open.code ? ' - Build C# code to play it' : ''));
+      } catch (error) {
+        say(error.message, 'bad');
+        go.disabled = false;
+      }
+    };
+    actions.append(go);
+  }
+  body.append(actions);
+}
+
+function fileList(files) {
+  const list = document.createElement('ul');
+  list.className = 'sample-files';
+  for (const f of files.slice(0, 200)) {
+    const li = document.createElement('li');
+    li.textContent = f;
+    list.append(li);
+  }
+  if (files.length > 200) {
+    const li = document.createElement('li');
+    li.textContent = `... and ${files.length - 200} more`;
+    list.append(li);
+  }
+  return list;
+}
+
 /// The open project closed: the editor goes back to every game as it is, as when it starts without one.
 async function closeProject() {
   const open = projectState.project;
@@ -484,7 +559,11 @@ function deleteProjectDialog(project, listBody) {
       if (listBody) listBody.close();
       const said = `${result.name} is in the Recycle Bin` + (result.mod ? ', and its mod is out of the mods folder' : '');
       if (project.current) await reloadEverything(said);
-      else say(said, 'good');
+      else {
+        say(said, 'good');
+        // The start page lists the projects: drawn again without the one gone.
+        if (typeof drawStartPage === 'function') drawStartPage();
+      }
     } catch (error) {
       say(error.message, 'bad');
       go.disabled = false;

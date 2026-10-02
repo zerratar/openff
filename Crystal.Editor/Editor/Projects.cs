@@ -159,6 +159,9 @@ namespace Crystal.Editor
 		/// only still lives in that map's file; this list is the mod-wide vocabulary.
 		/// </summary>
 		public List<string> Tags { get; set; } = new List<string>();
+
+		/// <summary>The sample the project was made from (its folder's name: "Rogue"), for Update from the sample; null for one of the user's own.</summary>
+		public string Sample { get; set; }
 	}
 
 	internal sealed class Project

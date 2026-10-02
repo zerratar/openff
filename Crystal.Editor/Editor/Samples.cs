@@ -108,35 +108,17 @@ namespace Crystal.Editor
 			try
 			{
 				project.File.Description = string.IsNullOrEmpty(sample.Description) ? "From the " + sample.Name + " sample." : sample.Description;
+				project.File.Sample = sample.Id;
 				project.Save();
-				// The content folders the two layouts share by name; data/ is the mod's own files its code reads (Rogue Mode's acts and jobs).
-				foreach (string folder in new[] { "scenes", "defs", "assets", "menus", "data" })
+				foreach ((string from, string to) in Plan(sample, project))
 				{
-					CopyTree(Path.Combine(sample.Directory, folder), Path.Combine(project.Directory, folder));
+					System.IO.Directory.CreateDirectory(Path.GetDirectoryName(to));
+					File.Copy(from, to, overwrite: true);
 				}
-				// The game files: <game>/files/ per game, or a plain files/ (FF3) from before that layout.
-				foreach (string target in targets)
-				{
-					string game = Targets.GameOf(target);
-					string source = Path.Combine(sample.Directory, game, "files");
-					if (!System.IO.Directory.Exists(source) && game == "ff3") source = Path.Combine(sample.Directory, "files");
-					CopyTree(source, project.FilesFor(target));
-				}
-				// The code: the sample's .cs files - at its root and in its folders (Core/), or under code/ - into the
-				// project's code/ at the same relative places, with Crystal's own csproj so it builds against the
-				// engine beside the client (the sample's csproj is written for the repository). A folder with a
-				// project of its own (Tests/) is not the mod's code, and neither is a build's output.
 				List<(string File, string Relative)> sources = SampleSources(sample.Directory);
 				if (sources.Count > 0)
 				{
 					string codeOut = ModCode.CodeDirectory(project);
-					System.IO.Directory.CreateDirectory(codeOut);
-					foreach ((string file, string relative) in sources)
-					{
-						string to = Path.Combine(codeOut, relative);
-						System.IO.Directory.CreateDirectory(Path.GetDirectoryName(to));
-						File.Copy(file, to, overwrite: true);
-					}
 					try { ModCode.Create(project); }
 					catch (InvalidOperationException)
 					{
@@ -161,6 +143,104 @@ namespace Crystal.Editor
 				throw;
 			}
 			return project;
+		}
+
+		/// <summary>
+		/// Every file of a sample and where it goes in a project: the content folders the two layouts share by name (data/
+		/// is the mod's own files its code reads - Rogue Mode's acts and jobs), each game's files (&lt;game&gt;/files/, or a plain
+		/// files/ for FF3 from before that layout), and the code - the .cs files at the sample's root and in its folders
+		/// (Core/), or under code/, into the project's code/ at the same relative places; the sample's csproj is written for
+		/// the repository, so the project keeps Crystal's own. A folder with a project of its own (Tests/) is not the mod's
+		/// code, and neither is a build's output.
+		/// </summary>
+		private static List<(string From, string To)> Plan(Sample sample, Project project)
+		{
+			var plan = new List<(string, string)>();
+			void Tree(string from, string to)
+			{
+				if (!System.IO.Directory.Exists(from)) return;
+				foreach (string file in System.IO.Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
+					plan.Add((file, Path.Combine(to, Path.GetRelativePath(from, file))));
+			}
+			foreach (string folder in new[] { "scenes", "defs", "assets", "menus", "data" })
+				Tree(Path.Combine(sample.Directory, folder), Path.Combine(project.Directory, folder));
+			foreach (string target in project.File.Targets)
+			{
+				string game = Targets.GameOf(target);
+				string source = Path.Combine(sample.Directory, game, "files");
+				if (!System.IO.Directory.Exists(source) && game == "ff3") source = Path.Combine(sample.Directory, "files");
+				Tree(source, project.FilesFor(target));
+			}
+			foreach ((string file, string relative) in SampleSources(sample.Directory))
+				plan.Add((file, Path.Combine(ModCode.CodeDirectory(project), relative)));
+			return plan;
+		}
+
+		/// <summary>The sample a project was made from: its manifest's, else (a project from before that was kept) what its SAMPLE.txt says.</summary>
+		public static Sample SampleOf(Project project)
+		{
+			string id = project.File.Sample;
+			if (string.IsNullOrEmpty(id))
+			{
+				string note = Path.Combine(project.Directory, "SAMPLE.txt");
+				if (File.Exists(note))
+				{
+					string text = File.ReadAllText(note);
+					foreach (Sample s in All())
+						if (text.Contains("(" + s.Directory + ")", StringComparison.OrdinalIgnoreCase) || text.Contains("the " + s.Name + " sample", StringComparison.OrdinalIgnoreCase)) return s;
+				}
+				return null;
+			}
+			return All().FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase));
+		}
+
+		/// <summary>What Update from the sample would do: the files it adds, the ones it replaces that the project has changed, and how many are already as the sample has them.</summary>
+		public sealed class UpdatePlan
+		{
+			public string Sample { get; set; }
+			public List<string> Added { get; set; } = new List<string>();
+			public List<string> Changed { get; set; } = new List<string>();
+			public int Same { get; set; }
+		}
+
+		public static UpdatePlan Compare(Project project)
+		{
+			Sample sample = SampleOf(project) ?? throw new InvalidOperationException("the project was not made from a sample");
+			UpdatePlan result = new UpdatePlan { Sample = sample.Name };
+			foreach ((string from, string to) in Plan(sample, project))
+			{
+				string shown = Path.GetRelativePath(project.Directory, to).Replace('\\', '/');
+				if (!File.Exists(to)) result.Added.Add(shown);
+				else if (!SameBytes(from, to)) result.Changed.Add(shown);
+				else result.Same++;
+			}
+			return result;
+		}
+
+		/// <summary>
+		/// The project brought up to its sample: every file of the sample's copied over the project's as a new project
+		/// from it would have it - the files the project added of its own are kept, and so are its settings and Crystal's
+		/// csproj. Returns the plan carried out.
+		/// </summary>
+		public static UpdatePlan Update(Project project)
+		{
+			Sample sample = SampleOf(project) ?? throw new InvalidOperationException("the project was not made from a sample");
+			UpdatePlan done = Compare(project);
+			foreach ((string from, string to) in Plan(sample, project))
+			{
+				if (File.Exists(to) && SameBytes(from, to)) continue;
+				System.IO.Directory.CreateDirectory(Path.GetDirectoryName(to));
+				File.Copy(from, to, overwrite: true);
+			}
+			if (string.IsNullOrEmpty(project.File.Sample)) { project.File.Sample = sample.Id; project.Save(); }
+			return done;
+		}
+
+		private static bool SameBytes(string a, string b)
+		{
+			FileInfo fa = new FileInfo(a), fb = new FileInfo(b);
+			if (fa.Length != fb.Length) return false;
+			return File.ReadAllBytes(a).AsSpan().SequenceEqual(File.ReadAllBytes(b));
 		}
 
 		/// <summary>A sample's C# sources with their paths as the project's code/ keeps them: code/** as it is, else the sample's own tree.</summary>
