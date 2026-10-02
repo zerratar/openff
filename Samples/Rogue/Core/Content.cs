@@ -114,6 +114,8 @@ namespace Rogue.Core
 		public int BattleMap { get; set; } = 1;
 		/// <summary>The battle background the camp stands on between battles (a map: "b01").</summary>
 		public string Backdrop { get; set; } = "b01";
+		/// <summary>The screens' backdrop for the act (menus/styles: "cave", "woods", "tower").</summary>
+		public string Look { get; set; } = "cave";
 		public List<PoolEntry> Monsters { get; set; } = new List<PoolEntry>();
 		public List<BossDef> Bosses { get; set; } = new List<BossDef>();
 	}
@@ -147,7 +149,13 @@ namespace Rogue.Core
 	public sealed class JobsConfig
 	{
 		public int Budget { get; set; } = 10;
+		/// <summary>A job without a kit starts with the strongest weapon and body armour it may wear that a shop sells for at most this.</summary>
+		public int KitPrice { get; set; } = 100;
+		/// <summary>Item ids no kit takes, as [first, last] ranges (the game's arrows, 1500-1599: no bow comes with them).</summary>
+		public List<int[]> KitSkip { get; set; } = new List<int[]>();
 		public List<JobDef> Jobs { get; set; } = new List<JobDef>();
+
+		public bool Skipped(int item) => KitSkip.Any(r => r != null && r.Length >= 2 && item >= r[0] && item <= r[1]);
 	}
 
 	public sealed class JobDef

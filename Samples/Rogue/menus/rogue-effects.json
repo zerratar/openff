@@ -4,6 +4,7 @@
   "screen": "rogue-effects",
   "title": "Active Effects",
   "background": -1,
+  "backdropLines": "none",
   "attachments": [
     {
       "target": "",

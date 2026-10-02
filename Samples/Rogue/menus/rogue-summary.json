@@ -4,6 +4,7 @@
   "screen": "rogue-summary",
   "title": "Run Summary",
   "background": -1,
+  "backdropLines": "none",
   "attachments": [
     {
       "target": "",

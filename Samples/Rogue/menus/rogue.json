@@ -4,6 +4,7 @@
   "screen": "rogue",
   "title": "Rogue Mode",
   "background": -1,
+  "backdropLines": "none",
   "attachments": [
     {
       "target": "",

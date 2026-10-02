@@ -1,5 +1,6 @@
 # Rogue Mode: the title's entry, the hub's Continue Run (the run rogue-paths.drive left).
-wait 13
+until title: start prompt 60
+wait 3
 press Z
 wait 3
 press Up

@@ -4,6 +4,7 @@
   "screen": "rogue-reward",
   "title": "Rewards",
   "background": -1,
+  "backdropLines": "none",
   "attachments": [
     {
       "target": "",

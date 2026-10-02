@@ -3,128 +3,422 @@
 <menulist>
   <menu>
     <name>rogue-summary</name>
-    <frame>
-      <window />
-      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>36</height>
-      <frame>
-        <id>title</id><x>12</x><y>4</y><width>448</width><height>28</height>
-      <colour>pale-yellow</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+    <frame class="bg hub">
+      <id>bg</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="veil">
+      <id>veil</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="verdict">
+      <id>title</id>
+      <x>0</x>
+      <y>8</y>
+      <width>480</width>
+      <height>30</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+    </frame>
+    <frame class="acts">
+      <id>reached</id>
+      <x>0</x>
+      <y>38</y>
+      <width>480</width>
+      <height>14</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+    </frame>
+    <frame class="panel">
+      <id>w_stats</id>
+      <x>8</x>
+      <y>58</y>
+      <width>464</width>
+      <height>158</height>
+      <frame class="tile">
+        <id>tile0</id>
+        <x>8</x>
+        <y>8</y>
+        <width>144</width>
+        <height>38</height>
+        <frame class="tilelbl">
+          <id>tl0</id>
+          <x>8</x>
+          <y>3</y>
+          <width>128</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+        <frame class="tileval">
+          <id>tv0</id>
+          <x>8</x>
+          <y>15</y>
+          <width>128</width>
+          <height>20</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+      </frame>
+      <frame class="tile">
+        <id>tile1</id>
+        <x>160</x>
+        <y>8</y>
+        <width>144</width>
+        <height>38</height>
+        <frame class="tilelbl">
+          <id>tl1</id>
+          <x>8</x>
+          <y>3</y>
+          <width>128</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+        <frame class="tileval">
+          <id>tv1</id>
+          <x>8</x>
+          <y>15</y>
+          <width>128</width>
+          <height>20</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+      </frame>
+      <frame class="tile">
+        <id>tile2</id>
+        <x>312</x>
+        <y>8</y>
+        <width>144</width>
+        <height>38</height>
+        <frame class="tilelbl">
+          <id>tl2</id>
+          <x>8</x>
+          <y>3</y>
+          <width>128</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+        <frame class="tileval">
+          <id>tv2</id>
+          <x>8</x>
+          <y>15</y>
+          <width>128</width>
+          <height>20</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+      </frame>
+      <frame class="tile">
+        <id>tile3</id>
+        <x>8</x>
+        <y>52</y>
+        <width>144</width>
+        <height>38</height>
+        <frame class="tilelbl">
+          <id>tl3</id>
+          <x>8</x>
+          <y>3</y>
+          <width>128</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+        <frame class="tileval">
+          <id>tv3</id>
+          <x>8</x>
+          <y>15</y>
+          <width>128</width>
+          <height>20</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+      </frame>
+      <frame class="tile">
+        <id>tile4</id>
+        <x>160</x>
+        <y>52</y>
+        <width>144</width>
+        <height>38</height>
+        <frame class="tilelbl">
+          <id>tl4</id>
+          <x>8</x>
+          <y>3</y>
+          <width>128</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+        <frame class="tileval">
+          <id>tv4</id>
+          <x>8</x>
+          <y>15</y>
+          <width>128</width>
+          <height>20</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+      </frame>
+      <frame class="tile">
+        <id>tile5</id>
+        <x>312</x>
+        <y>52</y>
+        <width>144</width>
+        <height>38</height>
+        <frame class="tilelbl">
+          <id>tl5</id>
+          <x>8</x>
+          <y>3</y>
+          <width>128</width>
+          <height>12</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+        <frame class="tileval">
+          <id>tv5</id>
+          <x>8</x>
+          <y>15</y>
+          <width>128</width>
+          <height>20</height>
+          <behavior value="Text">
+            <parameter>-1</parameter>
+            <parameter>8</parameter>
+            <parameter>0</parameter>
+          </behavior>
+          <data> </data>
+        </frame>
+      </frame>
+      <frame class="face">
+        <id>sface0</id>
+        <x>8</x>
+        <y>98</y>
+        <width>26</width>
+        <height>26</height>
+      </frame>
+      <frame class="small">
+        <id>sjob0</id>
+        <x>38</x>
+        <y>98</y>
+        <width>82</width>
+        <height>26</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="face">
+        <id>sface1</id>
+        <x>122</x>
+        <y>98</y>
+        <width>26</width>
+        <height>26</height>
+      </frame>
+      <frame class="small">
+        <id>sjob1</id>
+        <x>152</x>
+        <y>98</y>
+        <width>82</width>
+        <height>26</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="face">
+        <id>sface2</id>
+        <x>236</x>
+        <y>98</y>
+        <width>26</width>
+        <height>26</height>
+      </frame>
+      <frame class="small">
+        <id>sjob2</id>
+        <x>266</x>
+        <y>98</y>
+        <width>82</width>
+        <height>26</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="face">
+        <id>sface3</id>
+        <x>350</x>
+        <y>98</y>
+        <width>26</width>
+        <height>26</height>
+      </frame>
+      <frame class="small">
+        <id>sjob3</id>
+        <x>380</x>
+        <y>98</y>
+        <width>82</width>
+        <height>26</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>fx1</id>
+        <x>10</x>
+        <y>128</y>
+        <width>444</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>fx2</id>
+        <x>10</x>
+        <y>141</y>
+        <width>444</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
-    <frame>
-      <window />
-      <id>w_body</id><x>4</x><y>44</y><width>472</width><height>192</height>
-      <frame>
-        <id>s0</id><x>16</x><y>10</y><width>130</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>v0</id><x>150</x><y>10</y><width>306</width><height>18</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>s1</id><x>16</x><y>32</y><width>130</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>v1</id><x>150</x><y>32</y><width>306</width><height>18</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>s2</id><x>16</x><y>54</y><width>130</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>v2</id><x>150</x><y>54</y><width>306</width><height>18</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>s3</id><x>16</x><y>76</y><width>130</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>v3</id><x>150</x><y>76</y><width>306</width><height>18</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>s4</id><x>16</x><y>98</y><width>130</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>v4</id><x>150</x><y>98</y><width>306</width><height>18</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>s5</id><x>16</x><y>120</y><width>130</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>v5</id><x>150</x><y>120</y><width>306</width><height>18</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>s6</id><x>16</x><y>142</y><width>130</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>v6</id><x>150</x><y>142</y><width>306</width><height>18</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>s7</id><x>16</x><y>164</y><width>130</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>v7</id><x>150</x><y>164</y><width>306</width><height>18</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-    </frame>
-    <frame>
-      <window />
-      <id>w_end</id><x>4</x><y>240</y><width>472</width><height>44</height>
-    
-    </frame>
-    <frame>
-      <focus />
-      <id>ok</id><x>150</x><y>250</y><width>200</width><height>24</height>
-      <up>ok</up><down>ok</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+    <frame class="btn">
+      <focus/>
+      <id>ok</id>
+      <x>160</x>
+      <y>222</y>
+      <width>160</width>
+      <height>22</height>
+      <up>ok</up>
+      <down>ok</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
       <data>Back to Rogue Mode</data>
+      <frame class="hl">
+        <id>hl_ok</id>
+        <x>0</x>
+        <y>0</y>
+        <width>160</width>
+        <height>22</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_ok</id>
+        <x>-4</x>
+        <y>11</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="panel help">
+      <id>w_help</id>
+      <x>8</x>
+      <y>250</y>
+      <width>464</width>
+      <height>34</height>
+      <frame class="desc">
+        <id>desc1</id>
+        <x>12</x>
+        <y>3</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="desc dim">
+        <id>desc2</id>
+        <x>12</x>
+        <y>17</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
     </frame>
   </menu>
 </menulist>

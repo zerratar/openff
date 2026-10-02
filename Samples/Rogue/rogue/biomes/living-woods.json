@@ -3,6 +3,7 @@
   "name": "The Living Woods",
   "battleMap": 24,
   "backdrop": "b24",
+  "look": "woods",
   "monsters": [
     { "id": 10, "weight": 4 },
     { "id": 11, "weight": 4 },

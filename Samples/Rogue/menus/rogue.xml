@@ -1,57 +1,185 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Rogue Mode's own menu: New Run, Continue Run. 480 x 288, over the camp. RogueHub (RogueScreens.cs) drives it. -->
+<!-- Rogue Mode's own menu: New Run, Continue Run. RogueHub (RogueScreens.cs) drives it. -->
 <menulist>
   <menu>
     <name>rogue</name>
-    <frame>
-      <window />
-      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>52</height>
-      <frame>
-        <id>title</id><x>12</x><y>4</y><width>448</width><height>24</height>
-      <colour>pale-yellow</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data>Rogue Mode</data>
-      </frame>
-      <frame>
-        <id>sub</id><x>12</x><y>28</y><width>448</width><height>18</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
+    <frame class="bg hub">
+      <id>bg</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
     </frame>
-    <frame>
-      <window />
-      <id>w_body</id><x>120</x><y>92</y><width>240</width><height>96</height>
-    
+    <frame class="veil">
+      <id>veil</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
     </frame>
-    <frame>
-      <focus />
-      <id>new</id><x>150</x><y>112</y><width>200</width><height>24</height>
-      <up>continue</up><down>continue</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+    <frame class="halo">
+      <id>halo</id>
+      <x>90</x>
+      <y>26</y>
+      <width>300</width>
+      <height>110</height>
+    </frame>
+    <frame class="logo">
+      <id>title</id>
+      <x>0</x>
+      <y>50</y>
+      <width>480</width>
+      <height>40</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>ROGUE MODE</data>
+    </frame>
+    <frame class="tagline">
+      <id>tagline</id>
+      <x>0</x>
+      <y>90</y>
+      <width>480</width>
+      <height>16</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>A run of Final Fantasy III's battles</data>
+    </frame>
+    <frame class="rule">
+      <id>orn</id>
+      <x>150</x>
+      <y>114</y>
+      <width>180</width>
+      <height>1</height>
+    </frame>
+    <frame class="btn">
+      <focus/>
+      <id>new</id>
+      <x>170</x>
+      <y>128</y>
+      <width>140</width>
+      <height>26</height>
+      <up>continue</up>
+      <down>continue</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
       <data>New Run</data>
-    </frame>
-    <frame>
-      <focus />
-      <id>continue</id><x>150</x><y>146</y><width>200</width><height>24</height>
-      <up>new</up><down>new</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Continue Run</data>
-    </frame>
-    <frame>
-      <window />
-      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
-      <frame>
-        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="hl">
+        <id>hl_new</id>
+        <x>0</x>
+        <y>0</y>
+        <width>140</width>
+        <height>26</height>
       </frame>
       <frame>
-        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+        <cursor/>
+        <id>cur_new</id>
+        <x>-4</x>
+        <y>13</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="btn">
+      <focus/>
+      <id>continue</id>
+      <x>170</x>
+      <y>160</y>
+      <width>140</width>
+      <height>26</height>
+      <up>new</up>
+      <down>new</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Continue Run</data>
+      <frame class="hl">
+        <id>hl_continue</id>
+        <x>0</x>
+        <y>0</y>
+        <width>140</width>
+        <height>26</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_continue</id>
+        <x>-4</x>
+        <y>13</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="acts">
+      <id>sub</id>
+      <x>0</x>
+      <y>200</y>
+      <width>480</width>
+      <height>14</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+    </frame>
+    <frame class="acts dim">
+      <id>runinfo</id>
+      <x>0</x>
+      <y>216</y>
+      <width>480</width>
+      <height>14</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+    </frame>
+    <frame class="panel help">
+      <id>w_help</id>
+      <x>8</x>
+      <y>250</y>
+      <width>464</width>
+      <height>34</height>
+      <frame class="desc">
+        <id>desc1</id>
+        <x>12</x>
+        <y>3</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="desc dim">
+        <id>desc2</id>
+        <x>12</x>
+        <y>17</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
   </menu>

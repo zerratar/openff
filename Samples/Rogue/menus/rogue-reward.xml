@@ -3,178 +3,696 @@
 <menulist>
   <menu>
     <name>rogue-reward</name>
-    <frame>
-      <window />
-      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>36</height>
-      <frame>
-        <id>title</id><x>12</x><y>4</y><width>240</width><height>28</height>
-      <colour>pale-yellow</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data>Victory!</data>
+    <frame class="bg hub">
+      <id>bg</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="veil">
+      <id>veil</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="title">
+      <id>title</id>
+      <x>14</x>
+      <y>6</y>
+      <width>300</width>
+      <height>26</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Victory!</data>
+    </frame>
+    <frame class="hright">
+      <id>hright</id>
+      <x>200</x>
+      <y>9</y>
+      <width>266</width>
+      <height>22</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Choose one</data>
+    </frame>
+    <frame class="rule">
+      <id>rule</id>
+      <x>10</x>
+      <y>36</y>
+      <width>460</width>
+      <height>1</height>
+    </frame>
+    <frame class="card reward">
+      <focus/>
+      <id>card0</id>
+      <x>38</x>
+      <y>44</y>
+      <width>136</width>
+      <height>176</height>
+      <up>reroll</up>
+      <down>reroll</down>
+      <left>card2</left>
+      <right>card1</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_card0</id>
+        <x>0</x>
+        <y>0</y>
+        <width>136</width>
+        <height>176</height>
       </frame>
       <frame>
-        <id>sub</id><x>240</x><y>6</y><width>220</width><height>24</height>
-        <align>right</align><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data>Choose one</data>
+        <cursor/>
+        <id>cur_card0</id>
+        <x>-900</x>
+        <y>30</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="band">
+        <id>band0</id>
+        <x>1</x>
+        <y>1</y>
+        <width>134</width>
+        <height>40</height>
+      </frame>
+      <frame class="icon none">
+        <id>icon0</id>
+        <x>8</x>
+        <y>8</y>
+        <width>28</width>
+        <height>28</height>
+      </frame>
+      <frame class="rarity">
+        <id>rarity0</id>
+        <x>42</x>
+        <y>9</y>
+        <width>90</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardlbl">
+        <id>label0</id>
+        <x>42</x>
+        <y>22</y>
+        <width>90</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardname">
+        <id>name0</id>
+        <x>8</x>
+        <y>44</y>
+        <width>120</width>
+        <height>18</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="rule">
+        <id>sep0</id>
+        <x>8</x>
+        <y>65</y>
+        <width>120</width>
+        <height>1</height>
+      </frame>
+      <frame class="cardtext">
+        <id>text0_0</id>
+        <x>8</x>
+        <y>72</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text0_1</id>
+        <x>8</x>
+        <y>85</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text0_2</id>
+        <x>8</x>
+        <y>98</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text0_3</id>
+        <x>8</x>
+        <y>111</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text0_4</id>
+        <x>8</x>
+        <y>124</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text0_5</id>
+        <x>8</x>
+        <y>137</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text0_6</id>
+        <x>8</x>
+        <y>150</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
-    <frame>
-      <window />
-      <id>w_c0</id><x>4</x><y>44</y><width>154</width><height>156</height>
-      <frame>
-        <id>label0</id><x>10</x><y>30</y><width>136</width><height>16</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+    <frame class="card reward">
+      <focus/>
+      <id>card1</id>
+      <x>184</x>
+      <y>44</y>
+      <width>136</width>
+      <height>176</height>
+      <up>reroll</up>
+      <down>reroll</down>
+      <left>card0</left>
+      <right>card2</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_card1</id>
+        <x>0</x>
+        <y>0</y>
+        <width>136</width>
+        <height>176</height>
       </frame>
       <frame>
-        <id>text0_0</id><x>10</x><y>52</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+        <cursor/>
+        <id>cur_card1</id>
+        <x>-900</x>
+        <y>30</y>
+        <width>1</width>
+        <height>1</height>
       </frame>
-      <frame>
-        <id>text0_1</id><x>10</x><y>70</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="band">
+        <id>band1</id>
+        <x>1</x>
+        <y>1</y>
+        <width>134</width>
+        <height>40</height>
       </frame>
-      <frame>
-        <id>text0_2</id><x>10</x><y>88</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="icon none">
+        <id>icon1</id>
+        <x>8</x>
+        <y>8</y>
+        <width>28</width>
+        <height>28</height>
       </frame>
-      <frame>
-        <id>text0_3</id><x>10</x><y>106</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="rarity">
+        <id>rarity1</id>
+        <x>42</x>
+        <y>9</y>
+        <width>90</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardlbl">
+        <id>label1</id>
+        <x>42</x>
+        <y>22</y>
+        <width>90</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardname">
+        <id>name1</id>
+        <x>8</x>
+        <y>44</y>
+        <width>120</width>
+        <height>18</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="rule">
+        <id>sep1</id>
+        <x>8</x>
+        <y>65</y>
+        <width>120</width>
+        <height>1</height>
+      </frame>
+      <frame class="cardtext">
+        <id>text1_0</id>
+        <x>8</x>
+        <y>72</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text1_1</id>
+        <x>8</x>
+        <y>85</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text1_2</id>
+        <x>8</x>
+        <y>98</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text1_3</id>
+        <x>8</x>
+        <y>111</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text1_4</id>
+        <x>8</x>
+        <y>124</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text1_5</id>
+        <x>8</x>
+        <y>137</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text1_6</id>
+        <x>8</x>
+        <y>150</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
-    <frame>
-      <window />
-      <id>w_c1</id><x>163</x><y>44</y><width>154</width><height>156</height>
-      <frame>
-        <id>label1</id><x>10</x><y>30</y><width>136</width><height>16</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+    <frame class="card reward">
+      <focus/>
+      <id>card2</id>
+      <x>330</x>
+      <y>44</y>
+      <width>136</width>
+      <height>176</height>
+      <up>reroll</up>
+      <down>reroll</down>
+      <left>card1</left>
+      <right>card0</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_card2</id>
+        <x>0</x>
+        <y>0</y>
+        <width>136</width>
+        <height>176</height>
       </frame>
       <frame>
-        <id>text1_0</id><x>10</x><y>52</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+        <cursor/>
+        <id>cur_card2</id>
+        <x>-900</x>
+        <y>30</y>
+        <width>1</width>
+        <height>1</height>
       </frame>
-      <frame>
-        <id>text1_1</id><x>10</x><y>70</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="band">
+        <id>band2</id>
+        <x>1</x>
+        <y>1</y>
+        <width>134</width>
+        <height>40</height>
       </frame>
-      <frame>
-        <id>text1_2</id><x>10</x><y>88</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="icon none">
+        <id>icon2</id>
+        <x>8</x>
+        <y>8</y>
+        <width>28</width>
+        <height>28</height>
       </frame>
-      <frame>
-        <id>text1_3</id><x>10</x><y>106</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="rarity">
+        <id>rarity2</id>
+        <x>42</x>
+        <y>9</y>
+        <width>90</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardlbl">
+        <id>label2</id>
+        <x>42</x>
+        <y>22</y>
+        <width>90</width>
+        <height>12</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardname">
+        <id>name2</id>
+        <x>8</x>
+        <y>44</y>
+        <width>120</width>
+        <height>18</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="rule">
+        <id>sep2</id>
+        <x>8</x>
+        <y>65</y>
+        <width>120</width>
+        <height>1</height>
+      </frame>
+      <frame class="cardtext">
+        <id>text2_0</id>
+        <x>8</x>
+        <y>72</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text2_1</id>
+        <x>8</x>
+        <y>85</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text2_2</id>
+        <x>8</x>
+        <y>98</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text2_3</id>
+        <x>8</x>
+        <y>111</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text2_4</id>
+        <x>8</x>
+        <y>124</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text2_5</id>
+        <x>8</x>
+        <y>137</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="cardtext">
+        <id>text2_6</id>
+        <x>8</x>
+        <y>150</y>
+        <width>120</width>
+        <height>13</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
-    <frame>
-      <window />
-      <id>w_c2</id><x>322</x><y>44</y><width>154</width><height>156</height>
-      <frame>
-        <id>label2</id><x>10</x><y>30</y><width>136</width><height>16</height>
-      <font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+    <frame class="opt">
+      <focus/>
+      <id>reroll</id>
+      <x>92</x>
+      <y>226</y>
+      <width>170</width>
+      <height>20</height>
+      <up>card0</up>
+      <down>card0</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_reroll</id>
+        <x>-26</x>
+        <y>0</y>
+        <width>196</width>
+        <height>20</height>
       </frame>
       <frame>
-        <id>text2_0</id><x>10</x><y>52</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+        <cursor/>
+        <id>cur_reroll</id>
+        <x>-28</x>
+        <y>10</y>
+        <width>1</width>
+        <height>1</height>
       </frame>
-      <frame>
-        <id>text2_1</id><x>10</x><y>70</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>text2_2</id><x>10</x><y>88</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-      <frame>
-        <id>text2_3</id><x>10</x><y>106</y><width>136</width><height>16</height>
-      <font>10</font>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
-      </frame>
-    </frame>
-    <frame>
-      <focus />
-      <id>card0</id><x>34</x><y>50</y><width>120</width><height>22</height>
-      <up>reroll</up><down>reroll</down><left>card2</left><right>card1</right>
-      <align>menu</align><font>12</font>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
-    </frame>
-    <frame>
-      <focus />
-      <id>card1</id><x>193</x><y>50</y><width>120</width><height>22</height>
-      <up>reroll</up><down>reroll</down><left>card0</left><right>card2</right>
-      <align>menu</align><font>12</font>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
-    </frame>
-    <frame>
-      <focus />
-      <id>card2</id><x>352</x><y>50</y><width>120</width><height>22</height>
-      <up>reroll</up><down>reroll</down><left>card1</left><right>card0</right>
-      <align>menu</align><font>12</font>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
-    </frame>
-    <frame>
-      <window />
-      <id>w_re</id><x>4</x><y>204</y><width>472</width><height>32</height>
-      <frame>
-        <id>gil</id><x>280</x><y>7</y><width>180</width><height>18</height>
-        <align>right</align><font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="icon reroll">
+        <id>i_reroll</id>
+        <x>-22</x>
+        <y>2</y>
+        <width>16</width>
+        <height>16</height>
       </frame>
     </frame>
-    <frame>
-      <focus />
-      <id>reroll</id><x>30</x><y>208</y><width>250</width><height>24</height>
-      <up>card0</up><down>card0</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Reroll</data>
+    <frame class="icon gil">
+      <id>i_gil</id>
+      <x>330</x>
+      <y>228</y>
+      <width>16</width>
+      <height>16</height>
     </frame>
-    <frame>
-      <window />
-      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
-      <frame>
-        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+    <frame class="small">
+      <id>gil</id>
+      <x>350</x>
+      <y>226</y>
+      <width>116</width>
+      <height>20</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+    </frame>
+    <frame class="panel help">
+      <id>w_help</id>
+      <x>8</x>
+      <y>250</y>
+      <width>464</width>
+      <height>34</height>
+      <frame class="desc">
+        <id>desc1</id>
+        <x>12</x>
+        <y>3</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
-      <frame>
-        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="desc dim">
+        <id>desc2</id>
+        <x>12</x>
+        <y>17</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
   </menu>

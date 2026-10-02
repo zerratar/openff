@@ -16,9 +16,11 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Battles: `BattleMonstersReady`, `BattleDamage`, `BattleTurnStarting`, `BattleUnitFell`, `BattleRewards` and `Game.Battle.Units` - a monster's stats for one battle, a hit's damage, a turn, a fall (and a revive), the spoils.
 - Rogue Mode sample: a run of FF3's battles from the title - acts, a job budget, rewards and rerolls, passives, elites, bosses, seeds.
 - Test drives: `repeat <key> <seconds> until <regex>` - a key pressed every so often until a log line comes (a battle's spoils, and no press past them).
+- HUD: `Game.Hud.FieldButtons` - the field's Menu, Map and Talk buttons taken down while a mod's screens stand in for the field.
 
 **Fixes**
 - Menus: `Game.Menus.Open` from the field opens the mod's screen, not the main menu.
+- Menus: a mod's screen leaving for the field, or for another of the mod's screens, no longer flashes the game's plain backdrop; the screen's own background stays up through the fade.
 - Config: the game's Config screen no longer crashes when the menu text (`eureka_menu.msd`) lacks one of its rows' words (a replaced game file); the row is left blank and the log names it.
 
 ## 0.3.3 - the job change (2026-10-02)

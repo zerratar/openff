@@ -1,0 +1,174 @@
+/* Rogue Mode: the look of its six screens. The layouts (tools/menus.py) place the frames; this says how they look.
+   Dark glass panels edged in the crystal's teal, over a backdrop of the act (images/, tools/art.py). */
+
+/* ---- every screen ---- */
+
+#rogue, #rogue-party, #rogue-camp, #rogue-reward, #rogue-effects, #rogue-summary {
+  color: #dbe6ee;
+  text-shadow: 0.6px 0.8px 1px #000000d0;
+  /* The screen's own background, under the act's (the bg frame): the one held as a screen goes, through the menus' fade. */
+  background-image: linear-gradient(#070c12, #020406);
+}
+
+.bg       { background-image: url("images/hub.jpg"); -ff-background-scale-mode: scale-and-crop; }
+.bg.cave  { background-image: url("images/cave.jpg"); }
+.bg.woods { background-image: url("images/woods.jpg"); }
+.bg.tower { background-image: url("images/tower.jpg"); }
+.veil     { background-image: linear-gradient(#000000b0, #00000000 18%, #00000000 72%, #000000c8); }
+
+.title  { font-family: Georgia, "Palatino Linotype", serif; font-size: 17px; font-weight: bold; color: #f1e2b4;
+          letter-spacing: 0.5px; text-shadow: 0 0 6px #7fe3f040, 0.8px 1px 1px #000000; }
+.hright { font-size: 12px; color: #9fc4d2; text-align: right; }
+.rule   { background-image: linear-gradient(to right, #7fe3f000, #7fe3f0a0 18%, #7fe3f040 82%, #7fe3f000); }
+
+.panel  { -ff-panel: none; background-image: linear-gradient(#131c27ee, #0a1017f2);
+          border: 1px solid #4a6d80a8; border-radius: 6px; box-shadow: 0 3px 9px #000000b0; }
+.help   { background-image: linear-gradient(#0e1620f0, #070b10f4); border-color: #3a5666a0; }
+.desc   { font-size: 11px; color: #dde8ef; }
+.dim    { color: #8ea6b6; }
+.news   { color: #f1e2b4; }
+.small  { font-size: 11px; }
+.right  { text-align: right; }
+.name   { font-size: 13px; color: #f2f6f9; }
+
+/* A row the cursor lands on: its highlight is lit while the hand is on it. */
+.opt            { font-size: 13px; color: #b9c9d4; transition: color 0.12s; }
+.opt:focus      { color: #ffffff; }
+.opt.big        { font-size: 15px; color: #f1e2b4; }
+.opt.warn       { color: #c79a92; }
+.opt.warn:focus { color: #ffd2c8; }
+.opt:disabled   { color: #5c6c78; }
+.hl             { opacity: 0; transition: opacity 0.12s;
+                  background-image: linear-gradient(to right, #7fe3f050, #7fe3f018 70%, #7fe3f000);
+                  border-left: 2px solid #a8f2ff; border-radius: 3px; }
+.opt:focus > .hl { opacity: 1; }
+
+/* Buttons: a box of their own, lit while the hand is on them. */
+.btn          { -ff-panel: none; background-image: linear-gradient(#1a2836, #0e1720);
+                border: 1px solid #4a6d80; border-radius: 5px; box-shadow: 0 2px 6px #000000a0;
+                font-size: 13px; color: #c9d7e0; text-align: center; transition: color 0.12s, border-color 0.12s, box-shadow 0.12s; }
+.btn:focus    { border-color: #a8f2ff; box-shadow: 0 2px 6px #000000a0, 0 0 7px #7fe3f090; color: #ffffff; }
+.btn:disabled { color: #5c6c78; border-color: #34495a; }
+.btn > .hl    { background-image: linear-gradient(#7fe3f030, #7fe3f008); border: none; border-radius: 5px; }
+.btn:focus > .hl { opacity: 1; }
+.btn.primary  { background-image: linear-gradient(#3a3018, #1c170b); border-color: #b89a54; color: #f1e2b4; }
+.btn.primary:focus { border-color: #ffe7a0; box-shadow: 0 2px 6px #000000a0, 0 0 8px #ffd56ab0; color: #fff6dc; }
+.btn.primary > .hl { background-image: linear-gradient(#ffd56a30, #ffd56a08); }
+
+/* The game's own small icons (icon_8dot: 32 x 32 cells), read from the player's install. */
+.icon         { background-image: resource("files/icon_8dot.NCGR"); -ff-background-scale-mode: stretch-to-fill; -ff-background-filter: point; }
+.icon.none    { visibility: hidden; }
+.icon.weapon  { -ff-background-rect: 192 32 32 32; }
+.icon.shield  { -ff-background-rect: 64 96 32 32; }
+.icon.helmet  { -ff-background-rect: 96 96 32 32; }
+.icon.armour  { -ff-background-rect: 128 96 32 32; }
+.icon.gloves  { -ff-background-rect: 160 96 32 32; }
+.icon.white   { -ff-background-rect: 192 96 32 32; }
+.icon.black   { -ff-background-rect: 224 96 32 32; }
+.icon.magic   { -ff-background-rect: 0 128 32 32; }
+.icon.gil     { -ff-background-rect: 160 160 32 32; }
+.icon.passive { -ff-background-rect: 224 160 32 32; }
+.icon.heal    { -ff-background-rect: 0 0 32 32; }
+.icon.experience { -ff-background-rect: 96 32 32 32; }
+.icon.boss    { -ff-background-rect: 224 0 32 32; }
+.icon.elite   { -ff-background-rect: 0 32 32 32; }
+.icon.reroll  { -ff-background-rect: 64 32 32 32; }
+
+/* Hero faces (the hero in their job, files/pc<hero>_<job>.NCGR). */
+.face { background-color: #0a1018; border: 1px solid #4a6d80; border-radius: 4px; -ff-background-scale-mode: scale-to-fit; }
+
+/* ---- rogue: the mode's menu ---- */
+
+.halo    { background-image: radial-gradient(ellipse closest-side, #7fb8ff38, #7fb8ff00); }
+.logo    { font-family: Georgia, "Palatino Linotype", serif; font-size: 30px; font-weight: bold; letter-spacing: 5px;
+           color: #f4e6bc; text-align: center; text-shadow: 0 0 10px #8fc8ffa0, 0 0 3px #8fc8ff80, 1px 1.5px 1px #000000; }
+.tagline { font-family: Georgia, "Palatino Linotype", serif; font-style: italic; font-size: 12px; color: #a8c4d8; text-align: center; }
+.acts    { font-size: 11px; color: #b6cad8; text-align: center; }
+
+/* ---- rogue-party: a new run ---- */
+
+.card        { -ff-panel: none; background-image: linear-gradient(#152230ec, #0b121af0);
+               border: 1px solid #3a5566; border-radius: 6px; box-shadow: 0 3px 8px #000000b0;
+               transition: border-color 0.15s, box-shadow 0.15s, translate 0.15s ease-out; }
+.card > .hl  { background-image: linear-gradient(to right, #7fe3f030, #7fe3f000 70%); border: none; border-radius: 6px; }
+.card:focus  { border-color: #a8f2ff; box-shadow: 0 3px 8px #000000b0, 0 0 7px #7fe3f070; }
+.card:focus > .hl { opacity: 1; }
+.jobname     { font-size: 13px; color: #f1e2b4; text-align: center; }
+.arrow       { font-size: 13px; color: #7fe3f0; text-align: center; opacity: 0; transition: opacity 0.12s; }
+.hero:focus > .arrow { opacity: 1; }
+.costlbl     { font-size: 10px; color: #8ea6b6; text-align: right; }
+.badge       { border-radius: 50%; background-image: radial-gradient(circle at 40% 35%, #f6dd8a, #9a7424); border: 1px solid #ffeab0; }
+.badgetext   { font-size: 11px; font-weight: bold; color: #2a1c04; text-align: center; text-shadow: none; }
+.over        { color: #ff9a8a; }
+
+/* ---- rogue-camp: between battles ---- */
+
+/* The act's road: a pip a battle, the elites marked, the boss at the end. */
+.pip        { border-radius: 50%; background-color: #0b141c; border: 1px solid #4a6d80; }
+.pip.off    { visibility: hidden; }
+.pip.done   { background-image: radial-gradient(circle at 40% 35%, #b8f6ff, #2c8a9c); border-color: #a8f2ff; }
+.pip.now    { background-image: radial-gradient(circle at 40% 35%, #fff4c8, #d6a334); border-color: #ffe9a8;
+              animation: beat 1.4s ease-in-out infinite; }
+.pip.elite  { border-color: #ff8a70; }
+.pip.boss   { border-radius: 3px; border-color: #c890ff; background-color: #1a0f26; }
+.seg        { background-color: #4a6d8090; }
+.pip.first > .seg { visibility: hidden; }
+@keyframes beat { from { box-shadow: 0 0 2px #ffd56a60; } 50% { box-shadow: 0 0 9px #ffd56a; } to { box-shadow: 0 0 2px #ffd56a60; } }
+
+.member      { border-bottom: 1px solid #4a6d8038; }
+#m3          { border-bottom: none; }
+.bar         { background-color: #00000090; border: 1px solid #2c4250; border-radius: 2px; }
+.fill        { background-image: linear-gradient(#a8f590, #2e9e48); border-radius: 2px; }
+.fill.low    { background-image: linear-gradient(#ffa08a, #c0302a); }
+.member.ko .face  { opacity: 0.4; }
+.member.ko .name  { color: #9aa6ae; }
+.member.ko .right { color: #ff8a78; }
+
+.kind        { font-size: 10px; font-weight: bold; letter-spacing: 1.5px; color: #7fe3f0; }
+.kind.elite  { color: #ff9a80; }
+.kind.boss   { color: #d0a0ff; }
+
+/* ---- rogue-reward: a victory's choices ---- */
+
+.reward          { box-shadow: 0 4px 10px #000000c0; }
+.reward:focus    { translate: 0 -4px; }
+.band            { border-radius: 5px 5px 0 0; background-image: linear-gradient(#ffffff14, #ffffff00); }
+.rarity          { font-size: 10px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; }
+.cardname        { font-size: 13px; color: #ffffff; }
+.cardtext        { font-size: 10px; color: #c6d4de; }
+.cardlbl         { font-size: 10px; color: #8ea6b6; }
+.reward.common                { border-color: #67778390; }
+.reward.common .rarity        { color: #c8d0d8; }
+.reward.common:focus          { border-color: #dfe6ec; box-shadow: 0 6px 14px #000000c0, 0 0 7px #dfe6ec70; }
+.reward.uncommon              { border-color: #4fae6a; }
+.reward.uncommon .band        { background-image: linear-gradient(#6fdc8c40, #6fdc8c00); }
+.reward.uncommon .rarity      { color: #7fe89a; }
+.reward.uncommon:focus        { border-color: #a6f7bb; box-shadow: 0 6px 14px #000000c0, 0 0 9px #6fdc8ca0; }
+.reward.rare                  { border-color: #4a8fd8; }
+.reward.rare .band            { background-image: linear-gradient(#5ab0ff48, #5ab0ff00); }
+.reward.rare .rarity          { color: #78c0ff; }
+.reward.rare:focus            { border-color: #a8d6ff; box-shadow: 0 6px 14px #000000c0, 0 0 10px #5ab0ffb0; }
+.reward.epic                  { border-color: #9a64e0; }
+.reward.epic .band            { background-image: linear-gradient(#c08cff50, #c08cff00); }
+.reward.epic .rarity          { color: #cf9cff; }
+.reward.epic:focus            { border-color: #e2c4ff; box-shadow: 0 6px 14px #000000c0, 0 0 11px #c08cffc0; }
+.reward.legendary             { border-color: #e09a3a; }
+.reward.legendary .band       { background-image: linear-gradient(#ffb44a58, #ffb44a00); }
+.reward.legendary .rarity     { color: #ffc46a; }
+.reward.legendary:focus       { border-color: #ffe0a8; box-shadow: 0 6px 14px #000000c0, 0 0 12px #ffb44ad0; }
+.reward.empty                 { opacity: 0.35; }
+
+/* ---- rogue-effects ---- */
+
+.empty  { font-size: 13px; color: #8ea6b6; text-align: center; font-style: italic; }
+.vacant { color: #8ea6b6; font-style: italic; }
+
+/* ---- rogue-summary ---- */
+
+.verdict       { font-family: Georgia, "Palatino Linotype", serif; font-size: 22px; font-weight: bold; letter-spacing: 1px;
+                 color: #f4e6bc; text-align: center; text-shadow: 0 0 9px #ffd56a90, 1px 1.5px 1px #000000; }
+.verdict.lost  { color: #ffb4a8; text-shadow: 0 0 9px #ff604890, 1px 1.5px 1px #000000; }
+.verdict.given { color: #c8d4dc; text-shadow: 0 0 6px #8fb3c460, 1px 1.5px 1px #000000; }
+.tile          { background-image: linear-gradient(#ffffff0c, #ffffff04); border: 1px solid #4a6d8060; border-radius: 4px; }
+.tilelbl       { font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; color: #8ea6b6; }
+.tileval       { font-size: 15px; color: #f2f6f9; }

@@ -4,6 +4,7 @@
   "screen": "rogue-camp",
   "title": "Camp",
   "background": -1,
+  "backdropLines": "none",
   "attachments": [
     {
       "target": "",

@@ -1902,6 +1902,9 @@ release zip carries them in `Samples\`.
   item's price, the passives as effect primitives, the elites' modifiers); the battles are the
   game's, made in code (`Start(MonsterGroup)`) and reached into with the battle's hooks. A seed
   makes a run (named random streams, so a reward roll never shifts the battles); the run saves
-  between battles beside the `rogue` save profile. The screens are the mod's menus over a
-  battle background (`menus/`, written by `tools/menus.py`; `RogueScreens.cs`); `Core/` is the run without the game, and
+  between battles beside the `rogue` save profile. The screens are the mod's own menus (`menus/`, placed by
+  `tools/menus.py`; `RogueScreens.cs`), styled by one sheet (`menus/styles/rogue.css`): dark glass panels over a
+  backdrop of the act painted by `tools/art.py`, the game's own icons (`icon_8dot`) and faces, a lit highlight under
+  the cursor, the reward cards edged in their rarity's colour; between them the field is the camp's scene, the heroes
+  standing on the act's battleground with the field's buttons down (`Game.Hud.FieldButtons`). `Core/` is the run without the game, and
   `Tests/` checks it (`dotnet run` there). `install.cmd` builds it into the mods folder.

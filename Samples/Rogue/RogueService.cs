@@ -44,8 +44,9 @@ namespace Rogue
 
 		// The camp: the heroes as figures on the battlefield, the camera low and back as a battle's.
 		private static readonly Vector3[] Places = { new Vector3(-27, 0, 16), new Vector3(-9, 0, 20), new Vector3(9, 0, 20), new Vector3(27, 0, 16) };
-		private static readonly Vector3 CameraAt = new Vector3(0, 30, 108);
-		private static readonly Vector3 CameraLook = new Vector3(0, 10, 10);
+		// High and back, looking down on them: the battleground's floor and crystals fill the view, not the dark past its edge.
+		private static readonly Vector3 CameraAt = new Vector3(0, 50, 100);
+		private static readonly Vector3 CameraLook = new Vector3(0, 10, 18);
 		private static readonly Vector3 Aside = new Vector3(0, 0, 130);
 		private readonly Npc[] _figures = new Npc[4];
 		private readonly string[] _figureModels = new string[4];
@@ -66,6 +67,13 @@ namespace Rogue
 		public static string RunFile => Path.Combine(Folder, "run.json");
 		public static bool HasSavedRun => File.Exists(RunFile);
 
+		/// <summary>The run waiting to be continued, read from its file (null when there is none or it does not read).</summary>
+		public static RunState SavedRun()
+		{
+			try { return HasSavedRun ? RunState.FromJson(File.ReadAllText(RunFile)) : null; }
+			catch (Exception) { return null; }
+		}
+
 		public override void OnGameStart()
 		{
 			Instance = this;
@@ -75,7 +83,8 @@ namespace Rogue
 			Game.Log("rogue: " + Content.Run.Acts.Count + " acts, " + Content.Biomes.Count + " biomes, " + Content.Passives.Count + " passives, " + Content.Jobs.Jobs.Count + " jobs");
 			Game.Title.AddEntry("Rogue Mode", Begin);
 
-			Game.Events.Subscribe<MapEntered>(e => { if (Active) { _wait = 12; if (_openNext == null) _openNext = Run != null ? (Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp") : "rogue"; } });
+			// The scene staged as the map comes up, before the first frame shows the game's own camera on it.
+			Game.Events.Subscribe<MapEntered>(e => { if (Active) { Stage(); _wait = 12; if (_openNext == null) _openNext = Run != null ? (Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp") : "rogue"; } });
 			Game.Events.Subscribe<MapLeaving>(e => ClearFigures());
 			Game.Events.Subscribe<TitleShown>(e => { ClearFigures(); Run = null; _inBattle = false; _battleNext = false; _openNext = null; });
 			Game.Events.Subscribe<BattleMonstersReady>(OnMonstersReady);
@@ -94,7 +103,19 @@ namespace Rogue
 
 		public override void OnUpdate()
 		{
-			if (!Active || _wait < 0) return;
+			// The field's buttons down while Rogue Mode has the field (it is only the camp's scene between its screens), up again after.
+			if (Game.Hud.FieldButtons == Active) Game.Hud.FieldButtons = !Active;
+			if (!Active) return;
+			// The camp's eye, every frame the field shows: the game sets its own as a map comes up (after a battle, a warp),
+			// before the map counts as entered, and that one looks past the battleground's edge.
+			// The figures too, as soon as the party they stand for has changed - so the scene fades in with all of them.
+			if (!Game.Battle.InBattle && Game.Menus.Current == null && OnBattleground)
+			{
+				Game.Camera.MoveTo(CameraAt);
+				Game.Camera.LookAt(CameraLook);
+				if (FiguresStale() && Game.Hero.Present) Stage();   // once the map's characters are up: spawning before that fails
+			}
+			if (_wait < 0) return;
 			if (Game.Field.Busy || Game.Battle.InBattle || Game.Menus.Current != null) return;
 			if (_wait-- > 0) return;
 			_wait = -1;
@@ -116,18 +137,30 @@ namespace Rogue
 				Game.Hero.Teleport(Aside);
 				for (int h = 0; h < 4; h++)
 				{
-					PartyMember m = Game.Party.Member(h);
-					string model = "j" + (h + 1) + ((m?.Job ?? 0) + 1).ToString("00", CultureInfo.InvariantCulture);
-					bool wanted = Run != null || h == 0;
+					string model = FigureFor(h);
+					bool wanted = model != null;
 					if (_figures[h] != null && _figureModels[h] == model && wanted) continue;
 					_figures[h]?.Remove();
 					_figures[h] = wanted ? Game.Npcs.Spawn(model, Places[h], 0f) : null;
-					_figureModels[h] = wanted ? model : null;
+					_figureModels[h] = _figures[h] != null ? model : null;   // one that could not be placed yet is tried again next frame
 				}
 				Game.Camera.MoveTo(CameraAt);
 				Game.Camera.LookAt(CameraLook);
 			}
 			catch (Exception ex) { Game.Log("rogue: camp: " + ex.Message); }
+		}
+
+		/// <summary>The figure each hero should stand as now ("j" hero job), or null for none.</summary>
+		private string FigureFor(int h)
+		{
+			PartyMember m = Game.Party.Member(h);
+			return Run != null || h == 0 ? "j" + (h + 1) + ((m?.Job ?? 0) + 1).ToString("00", CultureInfo.InvariantCulture) : null;
+		}
+
+		private bool FiguresStale()
+		{
+			for (int h = 0; h < 4; h++) if (FigureFor(h) != _figureModels[h]) return true;
+			return false;
 		}
 
 		private void ClearFigures()
@@ -200,22 +233,26 @@ namespace Rogue
 			Game.Log("rogue: a run begins, seed " + seed + ": " + string.Join(", ", jobs));
 		}
 
-		/// <summary>A job's starting gear: its kit, else the cheapest weapon and body armour it may wear.</summary>
-		private static IEnumerable<int> Kit(JobDef job, GameData data)
+		/// <summary>
+		/// A job's starting gear: its kit, else the strongest weapon and body armour it may wear that a shop sells for
+		/// the kit's price at most (jobs.json's kitPrice; the game prices what no shop sells at 1), kitSkip left out.
+		/// </summary>
+		public static IEnumerable<int> Kit(JobDef job, GameData data)
 		{
 			if (job.Kit.Count > 0) return job.Kit;
+			JobsConfig jobs = Instance.Content.Jobs;
 			int bit = 1 << job.Job;
-			var mine = data.Items.Where(i => (i.Jobs & bit) != 0 && i.Price > 0).ToList();
+			var mine = data.Items.Where(i => (i.Jobs & bit) != 0 && i.Price > 1 && i.Price <= jobs.KitPrice && !jobs.Skipped(i.Id)).ToList();
 			var picks = new List<int>();
-			ItemInfo weapon = mine.Where(i => i.Kind == "weapon").OrderBy(i => i.Price).FirstOrDefault();
-			ItemInfo armour = mine.Where(i => i.Kind == "armour").OrderBy(i => i.Price).FirstOrDefault();
+			ItemInfo weapon = mine.Where(i => i.Kind == "weapon").OrderByDescending(i => i.Attack).ThenBy(i => i.Price).FirstOrDefault();
+			ItemInfo armour = mine.Where(i => i.Kind == "armour").OrderByDescending(i => i.Defense).ThenBy(i => i.Price).FirstOrDefault();
 			if (weapon != null) picks.Add(weapon.Id);
 			if (armour != null) picks.Add(armour.Id);
 			return picks;
 		}
 
 		/// <summary>A caster's starting spells: its list, else SpellCount level-1 battle spells it may hold, the cheapest first by id.</summary>
-		private static IEnumerable<int> StartingSpells(JobDef job, GameData data)
+		public static IEnumerable<int> StartingSpells(JobDef job, GameData data)
 		{
 			if (job.Spells != null && job.Spells.Count > 0) return job.Spells;
 			if (job.SpellCount <= 0) return Array.Empty<int>();
@@ -224,6 +261,8 @@ namespace Rogue
 		}
 
 		public ActDef Act => Content.Act(Run?.Act ?? 0);
+		/// <summary>Whether the field is the act's battleground, where the camp stands.</summary>
+		private bool OnBattleground => string.Equals(Game.Field.Map, Biome?.Backdrop, StringComparison.OrdinalIgnoreCase);
 		public BiomeDef Biome => Content.BiomeOf(Act);
 
 		/// <summary>Fight (the camp's): the menus close, then the battle starts.</summary>
@@ -430,9 +469,13 @@ namespace Rogue
 			return true;
 		}
 
+		/// <summary>Whether the next act's battlefield is being warped to: the camp opens there (a screen closes to let the warp happen).</summary>
+		public bool Warping { get; private set; }
+
 		/// <summary>On to the next step: the next battle, or after a boss the next act (healed, on its battlefield).</summary>
 		private void Advance()
 		{
+			Warping = false;
 			bool actDone = Run.Next?.Kind == "boss";
 			if (actDone)
 			{
@@ -447,12 +490,14 @@ namespace Rogue
 			if (actDone && Biome != null && !string.Equals(Game.Field.Map, Biome.Backdrop, StringComparison.OrdinalIgnoreCase))
 			{
 				_openNext = "rogue-camp";
+				Warping = true;
 				Game.Field.Warp(Biome.Backdrop, Aside);
 			}
-			else After("rogue-camp");
+			// Otherwise the reward screen goes on to the camp itself, without leaving the menus.
 		}
 
-		public void EndRun(string outcome)
+		/// <summary>The run over; the summary opens once the field is quiet (after a battle), or the caller opens it (from a screen).</summary>
+		public void EndRun(string outcome, bool openSummary = true)
 		{
 			if (Run == null) return;
 			Run.Outcome = outcome;
@@ -462,7 +507,7 @@ namespace Rogue
 			Game.Log("rogue: the run is over (" + outcome + "): act " + (Ended.Act + 1) + ", " + Ended.Tally.Battles + " battles, " + Ended.Tally.Kills + " monsters");
 			// A wipe leaves the heroes down: up again for the summary and the next run.
 			Game.Party.HealAll();
-			After("rogue-summary");
+			if (openSummary) After("rogue-summary");
 		}
 
 		// ---------------------------------------------------------------- saving
@@ -484,6 +529,7 @@ namespace Rogue
 		/// <summary>Continue Run: the saved run back, its heroes, bag and gil put on the new game's party.</summary>
 		public bool Continue()
 		{
+			Warping = false;
 			try
 			{
 				Run = RunState.FromJson(File.ReadAllText(RunFile));
@@ -492,9 +538,10 @@ namespace Rogue
 				if (Biome != null && !string.Equals(Game.Field.Map, Biome.Backdrop, StringComparison.OrdinalIgnoreCase))
 				{
 					_openNext = Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp";
+					Warping = true;
 					Game.Field.Warp(Biome.Backdrop, Aside);
 				}
-				else After(Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp");
+				// Otherwise the hub goes on to the camp (or the reward waiting) in the menus.
 				return true;
 			}
 			catch (Exception ex) { Game.Log("rogue: no run to continue: " + ex.Message); Run = null; return false; }
@@ -513,7 +560,7 @@ namespace Rogue
 			Game.Party.Gil = Run.Gil;
 		}
 
-		public void Abandon() => EndRun("abandoned");
+		public void Abandon() => EndRun("abandoned", openSummary: false);
 
 		public override IEnumerable<string> DebugLines()
 		{

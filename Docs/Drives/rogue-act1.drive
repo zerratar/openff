@@ -1,6 +1,7 @@
 # Rogue Mode, act 1 end to end: a new run, seven battles (auto-battle), a reward after each, the boss, act 2's camp.
 # Run with --only-mod=Rogue and ROGUE_SEED=1234, the run's save (%LOCALAPPDATA%\OpenFF\rogue\run.json) removed first.
-wait 13
+until title: start prompt 60
+wait 3
 press Z
 wait 3
 press Up
@@ -20,7 +21,7 @@ press Z
 until rogue: battle 30
 wait 6
 press F
-until rogue: (spoils|the \w+ is lost) 300
+repeat Z 2 until rogue: (spoils|the \w+ is lost) 300
 wait 1
 shots 1
 repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
@@ -33,7 +34,7 @@ shots 1
 press Z
 until rogue: battle 30
 wait 6
-until rogue: (spoils|the \w+ is lost) 300
+repeat Z 2 until rogue: (spoils|the \w+ is lost) 300
 wait 1
 shots 1
 repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
@@ -46,7 +47,7 @@ shots 1
 press Z
 until rogue: battle 30
 wait 6
-until rogue: (spoils|the \w+ is lost) 300
+repeat Z 2 until rogue: (spoils|the \w+ is lost) 300
 wait 1
 shots 1
 repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
@@ -59,7 +60,7 @@ shots 1
 press Z
 until rogue: battle 30
 wait 6
-until rogue: (spoils|the \w+ is lost) 300
+repeat Z 2 until rogue: (spoils|the \w+ is lost) 300
 wait 1
 shots 1
 repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
@@ -72,7 +73,7 @@ shots 1
 press Z
 until rogue: battle 30
 wait 6
-until rogue: (spoils|the \w+ is lost) 300
+repeat Z 2 until rogue: (spoils|the \w+ is lost) 300
 wait 1
 shots 1
 repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
@@ -85,7 +86,7 @@ shots 1
 press Z
 until rogue: battle 30
 wait 6
-until rogue: (spoils|the \w+ is lost) 300
+repeat Z 2 until rogue: (spoils|the \w+ is lost) 300
 wait 1
 shots 1
 repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90
@@ -98,7 +99,7 @@ shots 1
 press Z
 until rogue: battle 30
 wait 6
-until rogue: (spoils|the \w+ is lost) 300
+repeat Z 2 until rogue: (spoils|the \w+ is lost) 300
 wait 1
 shots 1
 repeat Z 1.5 until rogue: screen rogue-(reward|summary) 90

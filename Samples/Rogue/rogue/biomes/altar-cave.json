@@ -3,6 +3,7 @@
   "name": "The Altar Cave",
   "battleMap": 28,
   "backdrop": "b28",
+  "look": "cave",
   "monsters": [
     { "id": 1, "weight": 10 },
     { "id": 2, "weight": 8 },

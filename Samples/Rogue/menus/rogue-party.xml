@@ -3,116 +3,650 @@
 <menulist>
   <menu>
     <name>rogue-party</name>
-    <frame>
-      <window />
-      <id>w_top</id><x>4</x><y>4</y><width>472</width><height>36</height>
-      <frame>
-        <id>title</id><x>12</x><y>4</y><width>240</width><height>28</height>
-      <colour>pale-yellow</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data>New Run</data>
+    <frame class="bg hub">
+      <id>bg</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="veil">
+      <id>veil</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="title">
+      <id>title</id>
+      <x>14</x>
+      <y>6</y>
+      <width>300</width>
+      <height>26</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>New Run</data>
+    </frame>
+    <frame class="hright">
+      <id>hright</id>
+      <x>200</x>
+      <y>9</y>
+      <width>266</width>
+      <height>22</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+    </frame>
+    <frame class="rule">
+      <id>rule</id>
+      <x>10</x>
+      <y>36</y>
+      <width>460</width>
+      <height>1</height>
+    </frame>
+    <frame class="card hero">
+      <focus/>
+      <id>hero0</id>
+      <x>40</x>
+      <y>46</y>
+      <width>400</width>
+      <height>30</height>
+      <up>begin</up>
+      <down>hero1</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_hero0</id>
+        <x>0</x>
+        <y>0</y>
+        <width>400</width>
+        <height>30</height>
       </frame>
       <frame>
-        <id>total</id><x>240</x><y>6</y><width>220</width><height>24</height>
-        <align>right</align>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+        <cursor/>
+        <id>cur_hero0</id>
+        <x>-4</x>
+        <y>15</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="face">
+        <id>face0</id>
+        <x>4</x>
+        <y>3</y>
+        <width>24</width>
+        <height>24</height>
+      </frame>
+      <frame class="name">
+        <id>name0</id>
+        <x>36</x>
+        <y>0</y>
+        <width>84</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="arrow">
+        <id>larrow0</id>
+        <x>128</x>
+        <y>0</y>
+        <width>16</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>&lt;</data>
+      </frame>
+      <frame class="jobname">
+        <id>job0</id>
+        <x>144</x>
+        <y>0</y>
+        <width>140</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="arrow">
+        <id>rarrow0</id>
+        <x>284</x>
+        <y>0</y>
+        <width>16</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>&gt;</data>
+      </frame>
+      <frame class="costlbl">
+        <id>costlbl0</id>
+        <x>306</x>
+        <y>0</y>
+        <width>50</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>cost</data>
+      </frame>
+      <frame class="badge">
+        <id>badge0</id>
+        <x>360</x>
+        <y>5</y>
+        <width>20</width>
+        <height>20</height>
+      </frame>
+      <frame class="badgetext">
+        <id>cost0</id>
+        <x>360</x>
+        <y>5</y>
+        <width>20</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
-    <frame>
-      <window />
-      <id>w_body</id><x>4</x><y>44</y><width>472</width><height>192</height>
+    <frame class="card hero">
+      <focus/>
+      <id>hero1</id>
+      <x>40</x>
+      <y>80</y>
+      <width>400</width>
+      <height>30</height>
+      <up>hero0</up>
+      <down>hero2</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_hero1</id>
+        <x>0</x>
+        <y>0</y>
+        <width>400</width>
+        <height>30</height>
+      </frame>
       <frame>
-        <id>costs</id><x>360</x><y>2</y><width>100</width><height>14</height>
-        <align>right</align><font>10</font><colour>pale-blue</colour>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data>Cost</data>
+        <cursor/>
+        <id>cur_hero1</id>
+        <x>-4</x>
+        <y>15</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="face">
+        <id>face1</id>
+        <x>4</x>
+        <y>3</y>
+        <width>24</width>
+        <height>24</height>
+      </frame>
+      <frame class="name">
+        <id>name1</id>
+        <x>36</x>
+        <y>0</y>
+        <width>84</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="arrow">
+        <id>larrow1</id>
+        <x>128</x>
+        <y>0</y>
+        <width>16</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>&lt;</data>
+      </frame>
+      <frame class="jobname">
+        <id>job1</id>
+        <x>144</x>
+        <y>0</y>
+        <width>140</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="arrow">
+        <id>rarrow1</id>
+        <x>284</x>
+        <y>0</y>
+        <width>16</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>&gt;</data>
+      </frame>
+      <frame class="costlbl">
+        <id>costlbl1</id>
+        <x>306</x>
+        <y>0</y>
+        <width>50</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>cost</data>
+      </frame>
+      <frame class="badge">
+        <id>badge1</id>
+        <x>360</x>
+        <y>5</y>
+        <width>20</width>
+        <height>20</height>
+      </frame>
+      <frame class="badgetext">
+        <id>cost1</id>
+        <x>360</x>
+        <y>5</y>
+        <width>20</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
-    <frame>
-      <focus />
-      <id>hero0</id><x>30</x><y>56</y><width>330</width><height>24</height>
-      <up>begin</up><down>hero1</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
+    <frame class="card hero">
+      <focus/>
+      <id>hero2</id>
+      <x>40</x>
+      <y>114</y>
+      <width>400</width>
+      <height>30</height>
+      <up>hero1</up>
+      <down>hero3</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_hero2</id>
+        <x>0</x>
+        <y>0</y>
+        <width>400</width>
+        <height>30</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_hero2</id>
+        <x>-4</x>
+        <y>15</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="face">
+        <id>face2</id>
+        <x>4</x>
+        <y>3</y>
+        <width>24</width>
+        <height>24</height>
+      </frame>
+      <frame class="name">
+        <id>name2</id>
+        <x>36</x>
+        <y>0</y>
+        <width>84</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="arrow">
+        <id>larrow2</id>
+        <x>128</x>
+        <y>0</y>
+        <width>16</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>&lt;</data>
+      </frame>
+      <frame class="jobname">
+        <id>job2</id>
+        <x>144</x>
+        <y>0</y>
+        <width>140</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="arrow">
+        <id>rarrow2</id>
+        <x>284</x>
+        <y>0</y>
+        <width>16</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>&gt;</data>
+      </frame>
+      <frame class="costlbl">
+        <id>costlbl2</id>
+        <x>306</x>
+        <y>0</y>
+        <width>50</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>cost</data>
+      </frame>
+      <frame class="badge">
+        <id>badge2</id>
+        <x>360</x>
+        <y>5</y>
+        <width>20</width>
+        <height>20</height>
+      </frame>
+      <frame class="badgetext">
+        <id>cost2</id>
+        <x>360</x>
+        <y>5</y>
+        <width>20</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
     </frame>
-    <frame>
-      <id>cost0</id><x>380</x><y>58</y><width>80</width><height>20</height>
-      <align>right</align><font>10</font><colour>pale-blue</colour>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
+    <frame class="card hero">
+      <focus/>
+      <id>hero3</id>
+      <x>40</x>
+      <y>148</y>
+      <width>400</width>
+      <height>30</height>
+      <up>hero2</up>
+      <down>begin</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_hero3</id>
+        <x>0</x>
+        <y>0</y>
+        <width>400</width>
+        <height>30</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_hero3</id>
+        <x>-4</x>
+        <y>15</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="face">
+        <id>face3</id>
+        <x>4</x>
+        <y>3</y>
+        <width>24</width>
+        <height>24</height>
+      </frame>
+      <frame class="name">
+        <id>name3</id>
+        <x>36</x>
+        <y>0</y>
+        <width>84</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="arrow">
+        <id>larrow3</id>
+        <x>128</x>
+        <y>0</y>
+        <width>16</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>&lt;</data>
+      </frame>
+      <frame class="jobname">
+        <id>job3</id>
+        <x>144</x>
+        <y>0</y>
+        <width>140</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="arrow">
+        <id>rarrow3</id>
+        <x>284</x>
+        <y>0</y>
+        <width>16</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>&gt;</data>
+      </frame>
+      <frame class="costlbl">
+        <id>costlbl3</id>
+        <x>306</x>
+        <y>0</y>
+        <width>50</width>
+        <height>30</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>cost</data>
+      </frame>
+      <frame class="badge">
+        <id>badge3</id>
+        <x>360</x>
+        <y>5</y>
+        <width>20</width>
+        <height>20</height>
+      </frame>
+      <frame class="badgetext">
+        <id>cost3</id>
+        <x>360</x>
+        <y>5</y>
+        <width>20</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
     </frame>
-    <frame>
-      <focus />
-      <id>hero1</id><x>30</x><y>84</y><width>330</width><height>24</height>
-      <up>hero0</up><down>hero2</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
+    <frame class="btn">
+      <focus/>
+      <id>seed</id>
+      <x>40</x>
+      <y>186</y>
+      <width>176</width>
+      <height>26</height>
+      <up>hero3</up>
+      <down>hero0</down>
+      <left>begin</left>
+      <right>begin</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_seed</id>
+        <x>0</x>
+        <y>0</y>
+        <width>176</width>
+        <height>26</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_seed</id>
+        <x>-4</x>
+        <y>13</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
     </frame>
-    <frame>
-      <id>cost1</id><x>380</x><y>86</y><width>80</width><height>20</height>
-      <align>right</align><font>10</font><colour>pale-blue</colour>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
-    </frame>
-    <frame>
-      <focus />
-      <id>hero2</id><x>30</x><y>112</y><width>330</width><height>24</height>
-      <up>hero1</up><down>hero3</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
-    </frame>
-    <frame>
-      <id>cost2</id><x>380</x><y>114</y><width>80</width><height>20</height>
-      <align>right</align><font>10</font><colour>pale-blue</colour>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
-    </frame>
-    <frame>
-      <focus />
-      <id>hero3</id><x>30</x><y>140</y><width>330</width><height>24</height>
-      <up>hero2</up><down>seed</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
-    </frame>
-    <frame>
-      <id>cost3</id><x>380</x><y>142</y><width>80</width><height>20</height>
-      <align>right</align><font>10</font><colour>pale-blue</colour>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data></data>
-    </frame>
-    <frame>
-      <focus />
-      <id>seed</id><x>30</x><y>176</y><width>330</width><height>24</height>
-      <up>hero3</up><down>begin</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-      <data>Seed</data>
-    </frame>
-    <frame>
-      <focus />
-      <id>begin</id><x>30</x><y>204</y><width>330</width><height>24</height>
-      <up>seed</up><down>hero0</down><left>dummy</left><right>dummy</right>
-      <align>menu</align>
-      <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
+    <frame class="btn primary">
+      <focus/>
+      <id>begin</id>
+      <x>264</x>
+      <y>186</y>
+      <width>176</width>
+      <height>26</height>
+      <up>hero3</up>
+      <down>hero0</down>
+      <left>seed</left>
+      <right>seed</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
       <data>Begin the run</data>
-    </frame>
-    <frame>
-      <window />
-      <id>w_desc</id><x>4</x><y>240</y><width>472</width><height>44</height>
-      <frame>
-        <id>desc1</id><x>12</x><y>3</y><width>448</width><height>18</height>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+      <frame class="hl">
+        <id>hl_begin</id>
+        <x>0</x>
+        <y>0</y>
+        <width>176</width>
+        <height>26</height>
       </frame>
       <frame>
-        <id>desc2</id><x>12</x><y>23</y><width>448</width><height>18</height>
-        <behavior value="Text"><parameter>-1</parameter><parameter>8</parameter><parameter>0</parameter></behavior>
-        <data></data>
+        <cursor/>
+        <id>cur_begin</id>
+        <x>-4</x>
+        <y>13</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="panel help">
+      <id>w_help</id>
+      <x>8</x>
+      <y>250</y>
+      <width>464</width>
+      <height>34</height>
+      <frame class="desc">
+        <id>desc1</id>
+        <x>12</x>
+        <y>3</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="desc dim">
+        <id>desc2</id>
+        <x>12</x>
+        <y>17</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
       </frame>
     </frame>
   </menu>

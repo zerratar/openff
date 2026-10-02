@@ -1,6 +1,7 @@
 # Rogue Mode's other ways out: a run abandoned from the camp, a run lost to a wipe, a run left at the camp.
 # Then rogue-continue.drive in a second launch picks that run up. --only-mod=Rogue, the run's save removed first.
-wait 13
+until title: start prompt 60
+wait 3
 press Z
 wait 3
 press Up
@@ -44,7 +45,7 @@ hp 0 0
 hp 1 0
 hp 2 0
 hp 3 0
-until rogue: the \w+ is lost 60
+repeat Z 1.5 until rogue: the \w+ is lost 90
 repeat Z 1.5 until rogue: screen rogue-summary 60
 wait 1.5
 shots 1

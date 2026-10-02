@@ -3,6 +3,7 @@
   "name": "The Tower of Owen",
   "battleMap": 16,
   "backdrop": "b16",
+  "look": "tower",
   "monsters": [
     { "id": 30, "weight": 3 },
     { "id": 32, "weight": 3 },

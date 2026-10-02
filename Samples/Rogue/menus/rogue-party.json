@@ -4,6 +4,7 @@
   "screen": "rogue-party",
   "title": "New Run",
   "background": -1,
+  "backdropLines": "none",
   "attachments": [
     {
       "target": "",

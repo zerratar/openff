@@ -181,7 +181,7 @@ namespace Rogue.Core
 				return new RewardOption
 				{
 					Kind = "equipment", Ref = item.Id.ToString(), Name = item.Name, Rarity = rarity,
-					Label = Title(rarity) + " " + item.Kind,
+					Label = Title(item.Kind),
 					Text = Stat(item) + (who.Length > 0 ? "  For " + who + "." : "  Nobody's job wears it now."),
 				};
 			}
