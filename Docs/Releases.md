@@ -18,13 +18,15 @@ Rogue Mode on the title - a run of FF3's battles in three acts, with rewards, el
 - Mastery: changing jobs from its Jobs screen plays that scene, as the game's Job menu does.
 - Battles: `Game.Battle.Start(MonsterGroup, battleMap, options)` - a monster party made in code; `BattleOptions.LossReturns` ends a wipe on the field.
 - Battles: `BattleMonstersReady`, `BattleDamage`, `BattleTurnStarting`, `BattleUnitFell`, `BattleRewards` and `Game.Battle.Units` - a monster's stats for one battle, a hit's damage, a turn, a fall (and a revive), the spoils.
-- Rogue Mode sample: a run of FF3's battles from the title - acts, a job budget, rewards and rerolls, passives, elites, bosses, seeds.
+- Rogue Mode sample: a run of FF3's battles from the title - acts, a job budget, rewards and rerolls, passives, elites, bosses, seeds; the camp's Party opens the game's own menu, and each act's boss gives a crystal whose jobs the game's Job screen then offers.
 - Test drives: `repeat <key> <seconds> until <regex>` - a key pressed every so often until a log line comes (a battle's spoils, and no press past them).
 - HUD: `Game.Hud.FieldButtons` - the field's Menu, Map and Talk buttons taken down while a mod's screens stand in for the field.
+- Title: `Game.Title.Return()` - back to the title from the field or the menus, as the game's Config does.
+- Menus: `Menu.OpenMainMenu()` - from a mod's screen into the game's own main menu (Item, Magic, Equipment, Status) without a trip through the field; `Game.Menus.GameScreen` and `Game.Menus.Showing` say what of the game's menus is up.
 - Crystal: File ▸ Close project (back to the games as they are), and a bin on each project in Open project… that deletes it to the Recycle Bin - and, if ticked, the mod Export to OpenFF made of it.
 
 **Fixes**
-- Menus: `Game.Menus.Open` from the field opens the mod's screen, not the main menu.
+- Menus: `Game.Menus.Open` from the field opens the mod's screen, not the main menu - and starts on it, the main menu never shown on the way.
 - Menus: a mod's screen leaving for the field, or for another of the mod's screens, no longer flashes the game's plain backdrop; the screen's own background stays up through the fade.
 - Config: the game's Config screen no longer crashes when the menu text (`eureka_menu.msd`) lacks one of its rows' words (a replaced game file); the row is left blank and the log names it.
 - Crystal: a sample opened as a project brings all its code - its folders too (Rogue Mode's `Core/`), not a folder with a project of its own (`Tests/`) - and its `data/`; Export to OpenFF carries `data/`. Rogue Mode builds in Crystal.

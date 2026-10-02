@@ -632,17 +632,17 @@
       <x>306</x>
       <y>64</y>
       <width>166</width>
-      <height>96</height>
+      <height>106</height>
     </frame>
     <frame class="opt big">
       <focus/>
       <id>fight</id>
       <x>348</x>
-      <y>70</y>
+      <y>69</y>
       <width>118</width>
       <height>26</height>
       <up>abandon</up>
-      <down>effects</down>
+      <down>party</down>
       <left>dummy</left>
       <right>dummy</right>
       <behavior value="Text">
@@ -669,12 +669,45 @@
     </frame>
     <frame class="opt">
       <focus/>
+      <id>party</id>
+      <x>348</x>
+      <y>96</y>
+      <width>118</width>
+      <height>23</height>
+      <up>fight</up>
+      <down>effects</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Party</data>
+      <frame class="hl">
+        <id>hl_party</id>
+        <x>-6</x>
+        <y>0</y>
+        <width>124</width>
+        <height>23</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_party</id>
+        <x>-14</x>
+        <y>12</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt">
+      <focus/>
       <id>effects</id>
       <x>348</x>
-      <y>100</y>
+      <y>120</y>
       <width>118</width>
-      <height>26</height>
-      <up>fight</up>
+      <height>23</height>
+      <up>party</up>
       <down>abandon</down>
       <left>dummy</left>
       <right>dummy</right>
@@ -689,13 +722,13 @@
         <x>-6</x>
         <y>0</y>
         <width>124</width>
-        <height>26</height>
+        <height>23</height>
       </frame>
       <frame>
         <cursor/>
         <id>cur_effects</id>
         <x>-14</x>
-        <y>13</y>
+        <y>12</y>
         <width>1</width>
         <height>1</height>
       </frame>
@@ -704,9 +737,9 @@
       <focus/>
       <id>abandon</id>
       <x>348</x>
-      <y>130</y>
+      <y>144</y>
       <width>118</width>
-      <height>26</height>
+      <height>23</height>
       <up>effects</up>
       <down>fight</down>
       <left>dummy</left>
@@ -722,13 +755,13 @@
         <x>-6</x>
         <y>0</y>
         <width>124</width>
-        <height>26</height>
+        <height>23</height>
       </frame>
       <frame>
         <cursor/>
         <id>cur_abandon</id>
         <x>-14</x>
-        <y>13</y>
+        <y>12</y>
         <width>1</width>
         <height>1</height>
       </frame>
@@ -736,13 +769,13 @@
     <frame class="panel">
       <id>w_next</id>
       <x>306</x>
-      <y>166</y>
+      <y>174</y>
       <width>166</width>
-      <height>54</height>
+      <height>46</height>
       <frame class="kind">
         <id>nkind</id>
         <x>8</x>
-        <y>4</y>
+        <y>3</y>
         <width>150</width>
         <height>12</height>
         <behavior value="Text">
@@ -755,7 +788,7 @@
       <frame class="small">
         <id>next</id>
         <x>8</x>
-        <y>19</y>
+        <y>16</y>
         <width>150</width>
         <height>14</height>
         <behavior value="Text">
@@ -768,7 +801,7 @@
       <frame class="small">
         <id>next2</id>
         <x>8</x>
-        <y>34</y>
+        <y>30</y>
         <width>150</width>
         <height>14</height>
         <behavior value="Text">

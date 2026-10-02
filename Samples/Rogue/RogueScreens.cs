@@ -158,8 +158,8 @@ namespace Rogue
 			return false;
 		}
 
-		// There is nowhere else to go in Rogue Mode: the screen stays.
-		public override bool OnCancel() { Menu.SoundBeep(); return true; }
+		// Back: out of Rogue Mode to the title (a run in progress is saved after every step; Continue Run picks it up).
+		public override bool OnCancel() { Menu.SoundCancel(); Game.Title.Return(); return true; }
 	}
 
 	/// <summary>A new run: a starting job for each hero within the budget, and the seed.</summary>
@@ -330,10 +330,20 @@ namespace Rogue
 		{
 			RunState run = RogueService.Instance.Run;
 			Menu.Widget("desc1")?.ToggleClass("news", _news != null);
-			if (_news != null) { Look.Help(Menu, _news, run?.Next?.Kind == "boss" ? "Next: the act's boss." : "Fight on when you are ready."); return; }
+			if (_news != null)
+			{
+				// A line of its own when it fits, else the news over both (a crystal's says more than a reward's).
+				List<string> lines = Text.Wrap(_news, 440, 11, 2);
+				Look.Help(Menu, lines[0], lines[1].Length > 0 ? lines[1] : run?.Next?.Kind == "boss" ? "Next: the act's boss." : "Fight on when you are ready.");
+				return;
+			}
 			switch (Menu.Focused)
 			{
 				case "fight": Look.Help(Menu, run?.Next?.Kind == "boss" ? "Face the act's boss. Win, and the next act opens." : "Into battle - there is no running away.", "Win to choose a reward; a wipe ends the run."); break;
+				case "party":
+					Look.Help(Menu, "The game's own menu: each hero's status, equipment, magic and items.",
+						(run?.Act ?? 0) > 0 ? "Job changes jobs among those the crystals have opened." : "Job opens with the crystal the act's boss guards.");
+					break;
 				case "effects": Look.Help(Menu, "The modifiers this run has gathered, in full."); break;
 				case "abandon": Look.Help(Menu, _abandoning ? "Press again to give the run up." : "Give this run up and see how far it went."); break;
 			}
@@ -344,6 +354,9 @@ namespace Rogue
 			switch (Menu.Focused)
 			{
 				case "fight": Menu.SoundDecide(); Menu.Close(); RogueService.Instance.Fight(); return true;
+				case "party":
+					// The game's own screens for what the camp does not show; the camp comes back as that menu closes.
+					Menu.SoundDecide(); RogueService.Instance.After("rogue-camp"); Menu.OpenMainMenu(); return true;
 				case "effects": Menu.SoundDecide(); Menu.Open("rogue-effects"); return true;
 				case "abandon":
 					if (!_abandoning) { _abandoning = true; Menu.SetText("abandon", "Really abandon?"); Menu.SoundBeep(); Describe(); return true; }

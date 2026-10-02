@@ -47,6 +47,8 @@ namespace Rogue
 		// High and back, looking down on them: the battleground's floor and crystals fill the view, not the dark past its edge.
 		private static readonly Vector3 CameraAt = new Vector3(0, 50, 100);
 		private static readonly Vector3 CameraLook = new Vector3(0, 10, 18);
+		// Up and away from the battleground, where nothing is drawn: what the field shows while it is not to be seen.
+		private static readonly Vector3 IntoTheDark = new Vector3(0, 600, 1200);
 		private static readonly Vector3 Aside = new Vector3(0, 0, 130);
 		private readonly Npc[] _figures = new Npc[4];
 		private readonly string[] _figureModels = new string[4];
@@ -54,6 +56,10 @@ namespace Rogue
 		/// <summary>What to do once the field is quiet: open a screen, start the battle, restore a saved run.</summary>
 		private string _openNext;
 		private int _wait = -1;
+		private bool _fieldUp;
+		// The field kept out of sight till a screen of the mode's is up: set when one is on its way (After) or a battle starts
+		// (the field comes back before the battle says how it ended), let go once the menus show.
+		private bool _veil;
 		private bool _battleNext, _inBattle;
 		private readonly Dictionary<BattleUnit, double> _regen = new Dictionary<BattleUnit, double>();
 		private readonly Dictionary<BattleUnit, double> _drain = new Dictionary<BattleUnit, double>();
@@ -84,8 +90,8 @@ namespace Rogue
 			Game.Title.AddEntry("Rogue Mode", Begin);
 
 			// The scene staged as the map comes up, before the first frame shows the game's own camera on it.
-			Game.Events.Subscribe<MapEntered>(e => { if (Active) { Stage(); _wait = 12; if (_openNext == null) _openNext = Run != null ? (Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp") : "rogue"; } });
-			Game.Events.Subscribe<MapLeaving>(e => ClearFigures());
+			Game.Events.Subscribe<MapEntered>(e => { _fieldUp = true; if (Active) { Stage(); _wait = 12; if (_openNext == null) _openNext = Run != null ? (Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp") : "rogue"; } });
+			Game.Events.Subscribe<MapLeaving>(e => { _fieldUp = false; ClearFigures(); });
 			Game.Events.Subscribe<TitleShown>(e => { ClearFigures(); Run = null; _inBattle = false; _battleNext = false; _openNext = null; });
 			Game.Events.Subscribe<BattleMonstersReady>(OnMonstersReady);
 			Game.Events.Subscribe<BattleDamage>(OnDamage);
@@ -106,13 +112,22 @@ namespace Rogue
 			// The field's buttons down while Rogue Mode has the field (it is only the camp's scene between its screens), up again after.
 			if (Game.Hud.FieldButtons == Active) Game.Hud.FieldButtons = !Active;
 			if (!Active) return;
+			// A screen of the mode's about to open over the field (the start, after a battle, a warp): the field held black till it
+			// is up, so what shows is the screen, not the battleground on the way to it. Only on the way into a battle is the camp seen.
+			// With no run (the mode's start, a run just ended) the field has nothing to show at all. Only once the map is up:
+			// the field's own start waits for its fade-in, which a fade held from the first frame would never let finish.
+			if (Game.Menus.Showing) _veil = false;
+			bool hidden = _veil || _openNext != null || Run == null;
+
+			if (hidden && _fieldUp && !Game.Menus.Showing && !Game.Battle.InBattle) Game.Screen.FadeOut(0);
 			// The camp's eye, every frame the field shows: the game sets its own as a map comes up (after a battle, a warp),
 			// before the map counts as entered, and that one looks past the battleground's edge.
 			// The figures too, as soon as the party they stand for has changed - so the scene fades in with all of them.
+			// Till then (the field fading in on its own), a field that is not to be seen is looked away from: up, into the dark.
 			if (!Game.Battle.InBattle && Game.Menus.Current == null && OnBattleground)
 			{
 				Game.Camera.MoveTo(CameraAt);
-				Game.Camera.LookAt(CameraLook);
+				Game.Camera.LookAt(hidden ? IntoTheDark : CameraLook);
 				if (FiguresStale() && Game.Hero.Present) Stage();   // once the map's characters are up: spawning before that fails
 			}
 			if (_wait < 0) return;
@@ -121,11 +136,11 @@ namespace Rogue
 			_wait = -1;
 			Stage();
 			if (_battleNext) { _battleNext = false; StartBattle(); return; }
-			if (_openNext != null) { string id = _openNext; _openNext = null; if (!Game.Menus.Open(id)) Game.Log("rogue: no screen " + id); }
+			if (_openNext != null) { string id = _openNext; _openNext = null; _veil = true; if (!Game.Menus.Open(id)) Game.Log("rogue: no screen " + id); }
 		}
 
 		/// <summary>Once the field is quiet: open a screen (or start the battle, after Fight).</summary>
-		public void After(string screen, int frames = 4) { _openNext = screen; _wait = frames; }
+		public void After(string screen, int frames = 4) { _openNext = screen; _wait = frames; _veil = true; }
 
 		// ---------------------------------------------------------------- the camp
 
@@ -145,7 +160,7 @@ namespace Rogue
 					_figureModels[h] = _figures[h] != null ? model : null;   // one that could not be placed yet is tried again next frame
 				}
 				Game.Camera.MoveTo(CameraAt);
-				Game.Camera.LookAt(CameraLook);
+				Game.Camera.LookAt(_veil || _openNext != null || Run == null ? IntoTheDark : CameraLook);
 			}
 			catch (Exception ex) { Game.Log("rogue: camp: " + ex.Message); }
 		}
@@ -154,7 +169,8 @@ namespace Rogue
 		private string FigureFor(int h)
 		{
 			PartyMember m = Game.Party.Member(h);
-			return Run != null || h == 0 ? "j" + (h + 1) + ((m?.Job ?? 0) + 1).ToString("00", CultureInfo.InvariantCulture) : null;
+			// No run, no party to stand: the mode's own menu is over an empty battleground.
+			return Run != null ? "j" + (h + 1) + ((m?.Job ?? 0) + 1).ToString("00", CultureInfo.InvariantCulture) : null;
 		}
 
 		private bool FiguresStale()
@@ -188,6 +204,7 @@ namespace Rogue
 				d.Spells.Add(new SpellInfo { Id = s.Id, Name = s.Name, Level = s.Level, School = s.School.ToString().ToLowerInvariant(), Jobs = s.Jobs, Caption = s.Caption, InBattle = s.InBattle });
 			}
 			Data = d;
+			if (Environment.GetEnvironmentVariable("ROGUE_DUMP") != null) foreach (MonsterInfo m in d.Monsters) Game.Log("rogue-dump: monster " + m.Id + " " + m.Name + " lv " + m.Level + " hp " + m.MaxHp);
 			if (Environment.GetEnvironmentVariable("ROGUE_DUMP") != null) foreach (ItemInfo i in d.Items) if (i.Kind != "item" && i.Kind != "other") Game.Log("rogue-dump: " + i.Id + " " + i.Name + " " + i.Kind + " price " + i.Price + " atk " + i.Attack + " def " + i.Defense + " jobs " + i.Jobs);
 			return d;
 		}
@@ -279,6 +296,7 @@ namespace Rogue
 			foreach (CountDef m in Run.Next.Monsters.Take(4)) group.Members.Add(new MonsterCount { MonsterId = m.Id, Min = m.Count, Max = m.Count });
 			_inBattle = true;
 			Game.Battle.EscapeAllowed = false;
+			_veil = true;
 			Game.Battle.Start(group, Run.Next.BattleMap, new BattleOptions { LossReturns = true });
 			Game.Log("rogue: battle " + (Run.Step + 1) + " of act " + (Run.Act + 1) + " (" + Run.Next.Kind + "): " + Run.Next.Name + (Run.Next.Elite.Count > 0 ? " [" + string.Join(", ", Run.Next.Elite) + "]" : ""));
 		}
@@ -377,7 +395,7 @@ namespace Rogue
 			if (!_inBattle || Run == null) return;
 			double gil = Modifiers.Sum(Content, Run, "rewards", x => x.GilPercent), exp = Modifiers.Sum(Content, Run, "rewards", x => x.ExpPercent);
 			e.Gil = (int)Math.Round(e.Gil * (1 + gil / 100));
-			e.Exp = (int)Math.Round(e.Exp * (1 + exp / 100));
+			e.Exp = (int)Math.Round(e.Exp * Content.Run.ExpScale * (1 + exp / 100));
 			Run.Tally.GilEarned += e.Gil;
 			Game.Log("rogue: spoils " + e.Gil + " gil, " + e.Exp + " exp");
 		}
@@ -469,6 +487,38 @@ namespace Rogue
 			return true;
 		}
 
+		/// <summary>
+		/// The crystals of the acts cleared (the first this many acts' bosses): their jobs opened - the game's own flags, so
+		/// the game's Job screen offers them - and the menu's Job with them. A new game starts with none; Continue opens them again.
+		/// </summary>
+		private void OpenCrystals(int actsCleared)
+		{
+			bool any = false;
+			for (int a = 0; a < actsCleared && a < Content.Run.Acts.Count; a++)
+			{
+				CrystalDef crystal = Content.Run.Acts[a].Crystal;
+				if (crystal == null) continue;
+				any = true;
+				foreach (int job in crystal.Jobs) if (job >= 0 && job < 23) Game.Flags.Set(0u, (uint)(901 + job), true);   // EVENT_JOB_FLAG: 901 + the job
+			}
+			if (!any) return;
+			Game.Flags.Set(0u, 901u, true);   // the Freelancer
+			Game.Flags.Set(0u, 36u, true);    // the menu's Job, as the Wind Crystal's gift opens it
+			Game.Log("rogue: crystals of " + actsCleared + " act(s) open");
+		}
+
+		/// <summary>The heroes below a level raised to it (an act's floor: acts.json's "level").</summary>
+		private void RaiseTo(int level)
+		{
+			if (level <= 0) return;
+			for (int h = 0; h < 4; h++)
+			{
+				PartyMember m = Game.Party.Member(h);
+				if (m != null && m.Level < level) Game.Party.SetLevel(h, level);
+			}
+			Game.Log("rogue: the party is raised to level " + level + " for act " + (Run.Act + 1));
+		}
+
 		/// <summary>Whether the next act's battlefield is being warped to: the camp opens there (a screen closes to let the warp happen).</summary>
 		public bool Warping { get; private set; }
 
@@ -479,9 +529,16 @@ namespace Rogue
 			bool actDone = Run.Next?.Kind == "boss";
 			if (actDone)
 			{
+				CrystalDef crystal = Act?.Crystal;
 				Run.Act++;
 				Run.Step = 0;
 				Run.Used.Clear();
+				RaiseTo(Act?.Level ?? 0);
+				if (crystal != null)
+				{
+					OpenCrystals(Run.Act);
+					RogueCamp.News = "The " + crystal.Name + " shines: " + (crystal.Text ?? "new jobs") + " open - change jobs under Party > Job.";
+				}
 				Game.Party.HealAll();
 			}
 			else Run.Step++;
@@ -534,6 +591,7 @@ namespace Rogue
 			{
 				Run = RunState.FromJson(File.ReadAllText(RunFile));
 				RestoreParty();
+				OpenCrystals(Run.Act);
 				Game.Log("rogue: a run continues: act " + (Run.Act + 1) + ", battle " + (Run.Step + 1));
 				if (Biome != null && !string.Equals(Game.Field.Map, Biome.Backdrop, StringComparison.OrdinalIgnoreCase))
 				{

@@ -76,6 +76,8 @@ namespace Rogue.Core
 		/// <summary>A monster's danger when its biome does not say: Level x LevelWeight + MaxHp / HpPer, at least 1.</summary>
 		public double LevelWeight { get; set; } = 0.5;
 		public double HpPer { get; set; } = 25;
+		/// <summary>A battle's experience, times this: FF3's early monsters give little, and a run is a few dozen battles, not the game's hundreds.</summary>
+		public double ExpScale { get; set; } = 1;
 		public List<ActDef> Acts { get; set; } = new List<ActDef>();
 	}
 
@@ -86,6 +88,8 @@ namespace Rogue.Core
 		public string Biome { get; set; }
 		/// <summary>Battles in the act before its boss.</summary>
 		public int Encounters { get; set; } = 6;
+		/// <summary>The level the party is raised to (those below it) as the act begins; 0 for none. Keeps an act's monsters in reach.</summary>
+		public int Level { get; set; }
 		/// <summary>Every this many battles an elite (0: none).</summary>
 		public int EliteEvery { get; set; } = 3;
 		/// <summary>The danger a battle may hold: Min..Max at the act's first, each later one Step more.</summary>
@@ -103,6 +107,17 @@ namespace Rogue.Core
 		public int Gil { get; set; } = 150;
 		/// <summary>Experience an "experience" reward gives each hero.</summary>
 		public int Exp { get; set; } = 60;
+		/// <summary>The crystal the act's boss gives, or null: its jobs open, and with them the menu's Job.</summary>
+		public CrystalDef Crystal { get; set; }
+	}
+
+	/// <summary>A crystal: FF3's jobs it opens, by the game's job number (2 Warrior ... 22 Ninja), and how the camp says so.</summary>
+	public sealed class CrystalDef
+	{
+		public string Name { get; set; }
+		public List<int> Jobs { get; set; } = new List<int>();
+		/// <summary>The jobs in words, for the camp ("Knight, Thief, Scholar and Geomancer").</summary>
+		public string Text { get; set; }
 	}
 
 	/// <summary>data/biomes/*.json: where a stretch of the run takes place.</summary>

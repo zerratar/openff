@@ -21,6 +21,8 @@ press Down
 wait 0.4
 press Down
 wait 0.4
+press Down
+wait 0.4
 press Z
 wait 0.6
 shots 1

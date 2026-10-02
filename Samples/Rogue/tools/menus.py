@@ -158,14 +158,15 @@ write("rogue-camp", "Between battles: the act's road, the party, the battle ahea
     icon("i_fx", 404, 43, 16, "passive"),
     label("fx", 422, 41, 50, 20, "small", ""),
     panel("w_party", 8, 64, 292, 156, "panel", members),
-    panel("w_cmd", 306, 64, 166, 96),
-    option("fight", 348, 70, 118, 26, dict(up="abandon", down="effects"), "Fight", "opt big", hl=(-6, 0, 124, 26), cur=(-14, None)),
-    option("effects", 348, 100, 118, 26, dict(up="fight", down="abandon"), "Active Effects", hl=(-6, 0, 124, 26), cur=(-14, None)),
-    option("abandon", 348, 130, 118, 26, dict(up="effects", down="fight"), "Abandon the run", "opt warn", hl=(-6, 0, 124, 26), cur=(-14, None)),
-    panel("w_next", 306, 166, 166, 54, "panel", [
-        label("nkind", 8, 4, 150, 12, "kind", ""),
-        label("next", 8, 19, 150, 14, "small", ""),
-        label("next2", 8, 34, 150, 14, "small", ""),
+    panel("w_cmd", 306, 64, 166, 106),
+    option("fight", 348, 69, 118, 26, dict(up="abandon", down="party"), "Fight", "opt big", hl=(-6, 0, 124, 26), cur=(-14, None)),
+    option("party", 348, 96, 118, 23, dict(up="fight", down="effects"), "Party", hl=(-6, 0, 124, 23), cur=(-14, None)),
+    option("effects", 348, 120, 118, 23, dict(up="party", down="abandon"), "Active Effects", hl=(-6, 0, 124, 23), cur=(-14, None)),
+    option("abandon", 348, 144, 118, 23, dict(up="effects", down="fight"), "Abandon the run", "opt warn", hl=(-6, 0, 124, 23), cur=(-14, None)),
+    panel("w_next", 306, 174, 166, 46, "panel", [
+        label("nkind", 8, 3, 150, 12, "kind", ""),
+        label("next", 8, 16, 150, 14, "small", ""),
+        label("next2", 8, 30, 150, 14, "small", ""),
     ]),
     help_bar(),
 ], "RogueCamp", "Camp")
