@@ -93,7 +93,7 @@ namespace Rogue
 			Game.Title.AddEntry("Rogue Mode", Begin);
 
 			// The scene staged as the map comes up, before the first frame shows the game's own camera on it.
-			Game.Events.Subscribe<MapEntered>(e => { _fieldUp = true; if (Active) { Stage(); _wait = 12; if (_openNext == null) _openNext = Run != null ? (Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp") : "rogue"; } });
+			Game.Events.Subscribe<MapEntered>(e => { _fieldUp = true; _warpTimeout = -1; if (Active) { Warping = false; Stage(); _wait = 12; if (_openNext == null) _openNext = Run != null ? (Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp") : "rogue"; } });
 			Game.Events.Subscribe<MapLeaving>(e => { _fieldUp = false; ClearFigures(); });
 			Game.Events.Subscribe<TitleShown>(e => { ClearFigures(); Run = null; _inBattle = false; _battleNext = false; _openNext = null; });
 			Game.Events.Subscribe<BattleMonstersReady>(OnMonstersReady);
@@ -115,6 +115,7 @@ namespace Rogue
 			// The field's buttons down while Rogue Mode has the field (it is only the camp's scene between its screens), up again after.
 			if (Game.Hud.FieldButtons == Active) Game.Hud.FieldButtons = !Active;
 			if (!Active) return;
+			StepWarp();
 			Surprise();
 			// A screen of the mode's about to open over the field (the start, after a battle, a warp): the field held black till it
 			// is up, so what shows is the screen, not the battleground on the way to it. Only on the way into a battle is the camp seen.
@@ -563,6 +564,38 @@ namespace Rogue
 			Game.Log("rogue: the party is raised to level " + level + " for act " + (Run.Act + 1));
 		}
 
+		/// <summary>
+		/// To another battleground (the next act's, a continued run's): asked for once the field is free - a map jump asked
+		/// for while the menus are still closing is dropped by the game. Should the map not change after all, the screen
+		/// on its way opens where the party is rather than leave the field held black.
+		/// </summary>
+		private void WarpTo(string map)
+		{
+			_warpTo = map;
+			_warpTimeout = -1;
+		}
+
+		private string _warpTo;
+		private int _warpTimeout = -1;
+		private const int WarpGiveUp = 150;   // five seconds of steps
+
+		private void StepWarp()
+		{
+			if (_warpTo != null && !Game.Field.Busy && !Game.Menus.Showing && !Game.Battle.InBattle)
+			{
+				Game.Log("rogue: to " + _warpTo);
+				Game.Field.Warp(_warpTo, Aside);
+				_warpTo = null;
+				_warpTimeout = WarpGiveUp;
+			}
+			else if (_warpTimeout > 0 && --_warpTimeout == 0)
+			{
+				Game.Log("rogue: the warp did not happen; the screen opens here");
+				Warping = false;
+				if (_openNext != null) _wait = 2;
+			}
+		}
+
 		/// <summary>Whether the next act's battlefield is being warped to: the camp opens there (a screen closes to let the warp happen).</summary>
 		public bool Warping { get; private set; }
 
@@ -581,7 +614,7 @@ namespace Rogue
 				if (crystal != null)
 				{
 					OpenCrystals(Run.Act);
-					RogueCamp.News = "The " + crystal.Name + " shines: " + (crystal.Text ?? "new jobs") + " open - change jobs under Party > Job.";
+					RogueCamp.News = "The " + crystal.Name + " shines: " + (crystal.Text ?? "new jobs") + " open - change jobs under Party.";
 				}
 				Game.Party.HealAll();
 			}
@@ -592,7 +625,7 @@ namespace Rogue
 			{
 				_openNext = "rogue-camp";
 				Warping = true;
-				Game.Field.Warp(Biome.Backdrop, Aside);
+				WarpTo(Biome.Backdrop);
 			}
 			// Otherwise the reward screen goes on to the camp itself, without leaving the menus.
 		}
@@ -641,7 +674,7 @@ namespace Rogue
 				{
 					_openNext = Run.Pending.Count > 0 ? "rogue-reward" : "rogue-camp";
 					Warping = true;
-					Game.Field.Warp(Biome.Backdrop, Aside);
+					WarpTo(Biome.Backdrop);
 				}
 				// Otherwise the hub goes on to the camp (or the reward waiting) in the menus.
 				return true;
