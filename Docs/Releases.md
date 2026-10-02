@@ -9,6 +9,14 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 ## Unreleased
 
+## 0.3.3 - the job change (2026-10-02)
+
+A fix for a client whose game's menu file was damaged: its mods' menus left out, and changing jobs crashing.
+
+**Fixes**
+- Menus: a damaged `MenuDefine.xbn` in the game's folder (a frame's count of what it holds wrong) is mended for the run instead of leaving every mod's menus out; the log says so and points at Steam's *Verify integrity of game files*.
+- Job menu: choosing a job no longer crashes on a list row with no text (the job change, and the screen's other passes over the list).
+
 ## 0.3.2 - menus that work together (2026-10-01)
 
 Mods' menus side by side - the Starlit Menu over Mastery's screens - the pad's Start for the game again, and the samples ready to play.
