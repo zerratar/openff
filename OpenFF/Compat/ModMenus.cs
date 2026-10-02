@@ -621,12 +621,18 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.Write(LogChannel.General, "menus: open: " + ex.Message); }
 		}
 
-		public static void ScreenClosed()
+		/// <summary>The mod's screen is gone; restoreBackdrop false when no screen of the game's comes next (out to the field, or on to another mod screen).</summary>
+		/// <summary>A mod screen has set the backdrop as it wants it: nothing owed to the next screen.</summary>
+		public static void BackdropSettled() => _backdropAway = false;
+
+		public static void ScreenClosed(bool restoreBackdrop = true)
 		{
 			string closing = _screen?.Id ?? _current?.Id ?? "?";
 			CloseWindows();
 			// A screen with no backdrop put it out of sight; the game's own screens expect it back - and its faces where they stood.
-			try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(true); } catch (Exception) { }
+			// Leaving the menus or going on to another mod screen, nothing of the game's follows: the plain backdrop would only flash through the fade.
+			if (restoreBackdrop) { try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(true); } catch (Exception) { } }
+			else _backdropAway = true;
 			RestoreFaces();
 			_arrowsWanted = null;
 			foreach (MenuBehaviour b in _behaviours) OpenFF.Game.Guard(b.Name + ".OnClose", b.OnClose);
@@ -728,12 +734,20 @@ namespace OpenFF.Client
 		/// <summary>Whether the game's screen being built or up is one a mod's layout styles (the game's lists give its wider face more room).</summary>
 		public static bool ScreenStyled { get; private set; }
 
+		// The backdrop was left out of sight as a mod screen went (to the field, or another mod screen): the next of the game's screens gets it back.
+		private static bool _backdropAway;
+
 		public static void GameScreenBuilt(string name)
 		{
 			try
 			{
 				ReleaseScreen();
 				_lastBuilt = name;
+				if (_backdropAway && string.Equals(_loadedFile, "MenuDefine.xbn", StringComparison.OrdinalIgnoreCase))
+				{
+					_backdropAway = false;
+					try { GlobalScope.wmenu.CWMenuManager.Instance().SetPrimaryBGVisibility(true); } catch (Exception) { }
+				}
 				// A definition reaching the screen that says its backdrop: that one in place of the screen's (set up again now -
 				// the screen asked for its own before it was built); one that says none gives the screen's own back.
 				// Only the menus' screens (MenuDefine.xbn's) have backdrops: a screen of another file (an inn's question in the field) leaves them be.
@@ -1090,6 +1104,12 @@ namespace OpenFF.Client
 		private static MenuPanels _heldBackdrop;
 		private static int _heldSteps, _heldBuiltAt, _hideBackdropIn;
 		private const int HeldSteps = 10;   // a third of a second: the menus left for the field, no next screen coming
+		private const int HeldStepsMost = 30;   // ... or while the menus' fade out is still going, a second at most: the game's backdrop is not seen through it
+
+		private static bool FadedOut()
+		{
+			try { return GlobalScope.dgs.CFade.Main().isFaded(); } catch (Exception) { return true; }
+		}
 
 		/// <summary>Once a step (GameHost.Step): a background held from a screen gone let go - a step after the next screen is built (its own backdrop up under what it draws), or when none has come.</summary>
 		public static void Step()
@@ -1101,7 +1121,7 @@ namespace OpenFF.Client
 			if (_heldBackdrop == null) return;
 			_heldSteps++;
 			if (_lastBuilt != null && _heldBuiltAt < 0) _heldBuiltAt = _heldSteps;
-			if (_heldBuiltAt >= 0 ? _heldSteps - _heldBuiltAt < 1 : _heldSteps < HeldSteps) return;
+			if (_heldBuiltAt >= 0 ? _heldSteps - _heldBuiltAt < 1 : _heldSteps < HeldSteps || (_heldSteps < HeldStepsMost && !FadedOut())) return;
 			_heldBackdrop.Clear();
 			_heldBackdrop = null;
 		}

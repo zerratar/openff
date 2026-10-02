@@ -18,6 +18,8 @@ internal static partial class GlobalScope
 
 			private string _focused;
 			private int _traceFrames;
+			// Set by Leave (out of the menus) and LeaveFor (another mod screen): no screen of the game's comes next to want its backdrop.
+			private bool _noGameScreenNext;
 
 			public override bool cSelectInitialize()
 			{
@@ -41,6 +43,7 @@ internal static partial class GlobalScope
 				try { CWMenuManager.Instance().SetPrimaryBG(backdrop < 0 ? 10 : backdrop); }
 				finally { OpenFF.Client.ModMenus.SettingModBackdrop = false; }
 				CWMenuManager.Instance().SetPrimaryBGVisibility(backdrop >= 0);
+				OpenFF.Client.ModMenus.BackdropSettled();
 				// The party's faces off (the main menu's panel), unless a hero was picked - then that one's, as Status shows it.
 				for (int i = 0; i < 4; i++) CWMenuManager.Instance().SetShowPcFace(i, show: false);
 				if (OpenFF.Client.ModMenus.CurrentWantsCharacterSelect())
@@ -107,7 +110,8 @@ internal static partial class GlobalScope
 				JobChangeScene.Abort();
 				if (!isFinalize())
 				{
-					OpenFF.Client.ModMenus.ScreenClosed();
+					OpenFF.Client.ModMenus.ScreenClosed(restoreBackdrop: !_noGameScreenNext);
+					_noGameScreenNext = false;
 					menu.MenuManager.getSingleton().releaseWindowAll();
 					menu.MenuManager.getSingleton().release();
 					setFinalize(val: true);
@@ -124,6 +128,7 @@ internal static partial class GlobalScope
 				}
 				else
 				{
+					_noGameScreenNext = true;
 					CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_END);
 				}
 			}
@@ -131,6 +136,7 @@ internal static partial class GlobalScope
 			/// <summary>Leaves for another screen of the mods' (ModMenus has set which).</summary>
 			public void LeaveFor()
 			{
+				_noGameScreenNext = true;
 				CWMenuManager.Instance().SetNextKind((WMENU_KIND)KIND);
 				CWMenuManager.Instance().SetProcState(WMENU_PROCESS.WMENU_PROCESS_TERMINATE);
 			}
