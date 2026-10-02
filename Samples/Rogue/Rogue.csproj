@@ -5,7 +5,7 @@
 
          dotnet build Samples/Rogue -o "<client>/mods/Rogue"
 
-       (mod.json, rogue/ and menus/ are copied along.) Core/ is the run without the engine; Tests/ checks it. -->
+       (mod.json, data/ and menus/ are copied along.) Core/ is the run without the engine; Tests/ checks it. -->
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -30,7 +30,7 @@
 
   <ItemGroup>
     <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="rogue/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="data/**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="menus/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

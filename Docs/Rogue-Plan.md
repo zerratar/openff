@@ -68,7 +68,7 @@ OnBattleStart, OnTurnStart, OnLowHealth, OnCast, OnPhysicalAttack, OnDamageTaken
   hooks applying the run's modifiers, the save chunk.
 - `menus/` - every screen, drawn in Crystal's Menus tab: Rogue Mode, New Run, Party Setup,
   Route, Victory (rewards), Shop, Rest, Event, Crystal, Active Effects, Run Summary.
-- `rogue/` - the content, by FF3's ids - nothing of FF3's copied:
+- `data/` - the content, by FF3's ids - nothing of FF3's copied:
   `acts.json`, `biomes/*.json` (battlefield, music, encounter pools, elites, bosses, events,
   next biomes), `jobs.json` (costs, which crystal opens them), `rewards.json` (rarity bands
   from the items' own prices, overrides by id), `passives.json` and `elites.json` (made of

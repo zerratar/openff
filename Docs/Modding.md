@@ -99,7 +99,8 @@ mods/
 - Crystal makes this folder for you: a project with a game ticked under **OpenFF mod** (New
   project, or Project settings) has **Project ▸ Export to OpenFF**, which writes `mod.json`,
   `ff3/files/` and `ff4/files/` (one per game ticked - tick both and the mod may take from
-  either game), the built code and the scenes into the client's mods folder; **Run in OpenFF**
+  either game), the built code, the scenes, the menus and `data/` - the mod's own files its code
+  reads by `Mod.Directory` (Rogue Mode's acts and jobs), carried as they are - into the client's mods folder; **Run in OpenFF**
   exports and starts the client with this mod alone (`--only-mod`: the other installed mods stay
   as they are, but sit this run out), and **Run with the other mods** plays it among every enabled
   one - for a mod made to go on top of another. In the editor the mod's own things - its code and its scenes -
@@ -1898,7 +1899,7 @@ release zip carries them in `Samples\`.
   a win offers three rewards - a piece of gear, a spell, a passive (Fire Mastery, Last Stand,
   Phoenix Blessing, ...), gil - rerolled for gil, and the run is over when the party falls.
   Everything is the game's: the monsters, items, spells and jobs are named by their ids and
-  words in `rogue/*.json` (the acts, biomes and their monster pools, job costs, rarities by an
+  words in `data/*.json` (the acts, biomes and their monster pools, job costs, rarities by an
   item's price, the passives as effect primitives, the elites' modifiers); the battles are the
   game's, made in code (`Start(MonsterGroup)`) and reached into with the battle's hooks. A seed
   makes a run (named random streams, so a reward roll never shifts the battles); the run saves

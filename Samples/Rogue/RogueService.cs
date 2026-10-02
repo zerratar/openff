@@ -6,7 +6,7 @@
 // of FF3's bosses; a victory offers a choice of three rewards - equipment, a spell, a passive modifier, gil,
 // rest, experience - and a party wipe ends the run with its summary.
 //
-// What is Rogue Mode's own lives in Core/ (no engine in it - Tests/ checks it) and in rogue/*.json; FF3's data
+// What is Rogue Mode's own lives in Core/ (no engine in it - Tests/ checks it) and in data/*.json; FF3's data
 // is never copied: monsters, items, spells and jobs are named by the game's ids, and the rest is the game's
 // (Game.Monsters, Game.Items, Game.Magic, Game.Party). FF3's battle is FF3's battle: Rogue Mode starts it
 // (Game.Battle.Start with a party it made, a loss returning to the field) and has its say through the
@@ -78,7 +78,7 @@ namespace Rogue
 		{
 			Instance = this;
 			string dir = Mod?.Directory ?? AppContext.BaseDirectory;
-			Content = RogueContent.Load(Path.Combine(dir, "rogue"));
+			Content = RogueContent.Load(Path.Combine(dir, "data"));
 			foreach (string p in Content.Problems) Game.Log("rogue: " + p);
 			Game.Log("rogue: " + Content.Run.Acts.Count + " acts, " + Content.Biomes.Count + " biomes, " + Content.Passives.Count + " passives, " + Content.Jobs.Jobs.Count + " jobs");
 			Game.Title.AddEntry("Rogue Mode", Begin);

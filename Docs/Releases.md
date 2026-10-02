@@ -26,6 +26,7 @@ Rogue Mode on the title - a run of FF3's battles in three acts, with rewards, el
 - Menus: `Game.Menus.Open` from the field opens the mod's screen, not the main menu.
 - Menus: a mod's screen leaving for the field, or for another of the mod's screens, no longer flashes the game's plain backdrop; the screen's own background stays up through the fade.
 - Config: the game's Config screen no longer crashes when the menu text (`eureka_menu.msd`) lacks one of its rows' words (a replaced game file); the row is left blank and the log names it.
+- Crystal: a sample opened as a project brings all its code - its folders too (Rogue Mode's `Core/`), not a folder with a project of its own (`Tests/`) - and its `data/`; Export to OpenFF carries `data/`. Rogue Mode builds in Crystal.
 
 ## 0.3.3 - the job change (2026-10-02)
 

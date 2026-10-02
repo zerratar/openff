@@ -1,4 +1,4 @@
-// Rogue Mode's content: what the JSON beside the mod (rogue/*.json) says, and the slice of FF3's own data
+// Rogue Mode's content: what the JSON beside the mod (data/*.json) says, and the slice of FF3's own data
 // the generators read.
 //
 // The content never copies FF3: a monster, an item, a spell or a job is named by the game's id or word,
@@ -68,7 +68,7 @@ namespace Rogue.Core
 
 	// ---------------------------------------------------------------- the content files
 
-	/// <summary>rogue/acts.json: the run's shape.</summary>
+	/// <summary>data/acts.json: the run's shape.</summary>
 	public sealed class RunConfig
 	{
 		/// <summary>The heroes' level when a run begins.</summary>
@@ -105,7 +105,7 @@ namespace Rogue.Core
 		public int Exp { get; set; } = 60;
 	}
 
-	/// <summary>rogue/biomes/*.json: where a stretch of the run takes place.</summary>
+	/// <summary>data/biomes/*.json: where a stretch of the run takes place.</summary>
 	public sealed class BiomeDef
 	{
 		public string Id { get; set; }
@@ -145,7 +145,7 @@ namespace Rogue.Core
 		public int Count { get; set; } = 1;
 	}
 
-	/// <summary>rogue/jobs.json: the starting budget and the jobs' costs.</summary>
+	/// <summary>data/jobs.json: the starting budget and the jobs' costs.</summary>
 	public sealed class JobsConfig
 	{
 		public int Budget { get; set; } = 10;
@@ -175,7 +175,7 @@ namespace Rogue.Core
 		public int SpellCount { get; set; } = 0;
 	}
 
-	/// <summary>rogue/rewards.json: how a victory's choices are made.</summary>
+	/// <summary>data/rewards.json: how a victory's choices are made.</summary>
 	public sealed class RewardsConfig
 	{
 		public int Choices { get; set; } = 3;
@@ -200,7 +200,7 @@ namespace Rogue.Core
 		public int MinPrice { get; set; }
 	}
 
-	/// <summary>rogue/passives.json: the run's modifiers, each made of effect primitives (Effect).</summary>
+	/// <summary>data/passives.json: the run's modifiers, each made of effect primitives (Effect).</summary>
 	public sealed class PassiveDef
 	{
 		public string Id { get; set; }
@@ -243,7 +243,7 @@ namespace Rogue.Core
 		public int Count { get; set; }
 	}
 
-	/// <summary>rogue/elites.json: what makes a monster an elite.</summary>
+	/// <summary>data/elites.json: what makes a monster an elite.</summary>
 	public sealed class EliteDef
 	{
 		public string Id { get; set; }
@@ -268,7 +268,7 @@ namespace Rogue.Core
 		public List<EliteDef> Modifiers { get; set; } = new List<EliteDef>();
 	}
 
-	/// <summary>Everything in rogue/, loaded and checked.</summary>
+	/// <summary>Everything in data/, loaded and checked.</summary>
 	public sealed class RogueContent
 	{
 		public RunConfig Run = new RunConfig();

@@ -1,4 +1,4 @@
-// Rogue Mode's checks, without the game: the core (Core/) against the mod's own content (rogue/) and a
+// Rogue Mode's checks, without the game: the core (Core/) against the mod's own content (data/) and a
 // made-up slice of FF3's data. Run from the repository:
 //
 //   dotnet run --project Samples/Rogue/Tests
@@ -197,12 +197,12 @@ internal static class Program
 	{
 		for (string dir = AppContext.BaseDirectory; dir != null; dir = Path.GetDirectoryName(dir))
 		{
-			string here = Path.Combine(dir, "rogue");
+			string here = Path.Combine(dir, "data");
 			if (File.Exists(Path.Combine(here, "acts.json"))) return here;
-			string sample = Path.Combine(dir, "Samples", "Rogue", "rogue");
+			string sample = Path.Combine(dir, "Samples", "Rogue", "data");
 			if (File.Exists(Path.Combine(sample, "acts.json"))) return sample;
 		}
-		return "rogue";
+		return "data";
 	}
 
 	/// <summary>FF3's monsters as the biomes name them (the real table's ids, levels and HP), items and spells enough to roll with.</summary>

@@ -109,8 +109,8 @@ namespace Crystal.Editor
 			{
 				project.File.Description = string.IsNullOrEmpty(sample.Description) ? "From the " + sample.Name + " sample." : sample.Description;
 				project.Save();
-				// The content folders the two layouts share by name.
-				foreach (string folder in new[] { "scenes", "defs", "assets", "menus" })
+				// The content folders the two layouts share by name; data/ is the mod's own files its code reads (Rogue Mode's acts and jobs).
+				foreach (string folder in new[] { "scenes", "defs", "assets", "menus", "data" })
 				{
 					CopyTree(Path.Combine(sample.Directory, folder), Path.Combine(project.Directory, folder));
 				}
@@ -122,18 +122,20 @@ namespace Crystal.Editor
 					if (!System.IO.Directory.Exists(source) && game == "ff3") source = Path.Combine(sample.Directory, "files");
 					CopyTree(source, project.FilesFor(target));
 				}
-				// The code: the .cs files under code/, with Crystal's own csproj so it builds against
-				// the engine beside the client - the sample's csproj is written for the repository.
-				List<string> sources = System.IO.Directory.EnumerateFiles(sample.Directory, "*.cs", SearchOption.TopDirectoryOnly).ToList();
-				string codeIn = Path.Combine(sample.Directory, "code");
-				if (System.IO.Directory.Exists(codeIn)) sources.AddRange(System.IO.Directory.EnumerateFiles(codeIn, "*.cs", SearchOption.AllDirectories));
+				// The code: the sample's .cs files - at its root and in its folders (Core/), or under code/ - into the
+				// project's code/ at the same relative places, with Crystal's own csproj so it builds against the
+				// engine beside the client (the sample's csproj is written for the repository). A folder with a
+				// project of its own (Tests/) is not the mod's code, and neither is a build's output.
+				List<(string File, string Relative)> sources = SampleSources(sample.Directory);
 				if (sources.Count > 0)
 				{
 					string codeOut = ModCode.CodeDirectory(project);
 					System.IO.Directory.CreateDirectory(codeOut);
-					foreach (string file in sources)
+					foreach ((string file, string relative) in sources)
 					{
-						File.Copy(file, Path.Combine(codeOut, Path.GetFileName(file)), overwrite: true);
+						string to = Path.Combine(codeOut, relative);
+						System.IO.Directory.CreateDirectory(Path.GetDirectoryName(to));
+						File.Copy(file, to, overwrite: true);
 					}
 					try { ModCode.Create(project); }
 					catch (InvalidOperationException)
@@ -143,7 +145,7 @@ namespace Crystal.Editor
 					}
 					// Create writes a starter Mod.cs; a sample with code of its own does not want a second entry point.
 					string starter = Path.Combine(codeOut, "Mod.cs");
-					if (File.Exists(starter) && !sources.Any(s => string.Equals(Path.GetFileName(s), "Mod.cs", StringComparison.OrdinalIgnoreCase)))
+					if (File.Exists(starter) && !sources.Any(s => string.Equals(Path.GetFileName(s.File), "Mod.cs", StringComparison.OrdinalIgnoreCase)))
 					{
 						File.Delete(starter);
 					}
@@ -159,6 +161,36 @@ namespace Crystal.Editor
 				throw;
 			}
 			return project;
+		}
+
+		/// <summary>A sample's C# sources with their paths as the project's code/ keeps them: code/** as it is, else the sample's own tree.</summary>
+		private static List<(string File, string Relative)> SampleSources(string root)
+		{
+			var found = new List<(string, string)>();
+			string codeIn = Path.Combine(root, "code");
+			if (System.IO.Directory.Exists(codeIn))
+			{
+				foreach (string file in System.IO.Directory.EnumerateFiles(codeIn, "*.cs", SearchOption.AllDirectories))
+					if (!Skipped(codeIn, file)) found.Add((file, Path.GetRelativePath(codeIn, file)));
+			}
+			foreach (string file in System.IO.Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
+			{
+				if (file.StartsWith(codeIn + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || Skipped(root, file)) continue;
+				found.Add((file, Path.GetRelativePath(root, file)));
+			}
+			return found;
+		}
+
+		/// <summary>Whether a source is out of the mod's code: under bin/ or obj/, or in a folder below the root with a project of its own.</summary>
+		private static bool Skipped(string root, string file)
+		{
+			for (string dir = Path.GetDirectoryName(file); dir != null && dir.Length > root.Length; dir = Path.GetDirectoryName(dir))
+			{
+				string name = Path.GetFileName(dir);
+				if (string.Equals(name, "bin", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "obj", StringComparison.OrdinalIgnoreCase)) return true;
+				if (System.IO.Directory.EnumerateFiles(dir, "*.csproj", SearchOption.TopDirectoryOnly).Any()) return true;
+			}
+			return false;
 		}
 
 		private static void CopyTree(string from, string to)

@@ -226,6 +226,22 @@ namespace Crystal.Editor
 				}
 			}
 			if (screens > 0) contents.Add(string.Format(CultureInfo.InvariantCulture, "- menus: {0} screen(s) of the mod's own in the game's menu, under menus/", screens));
+			// The mod's own files its code reads (data/: Rogue Mode's acts, jobs and rewards), as they are.
+			string dataOut = Path.Combine(directory, "data");
+			if (Directory.Exists(dataOut)) Directory.Delete(dataOut, recursive: true);
+			string dataIn = Path.Combine(project.Directory, "data");
+			int data = 0;
+			if (Directory.Exists(dataIn))
+			{
+				foreach (string file in Directory.EnumerateFiles(dataIn, "*", SearchOption.AllDirectories))
+				{
+					string to = Path.Combine(dataOut, Path.GetRelativePath(dataIn, file));
+					Directory.CreateDirectory(Path.GetDirectoryName(to));
+					File.Copy(file, to, overwrite: true);
+					data++;
+				}
+			}
+			if (data > 0) contents.Add(string.Format(CultureInfo.InvariantCulture, "- data: {0} file(s) the mod's code reads, under data/", data));
 			OpenFF.Content.ModsFolder.WriteManifest(manifestPath, new OpenFF.Content.ModManifest
 			{
 				Id = key,
