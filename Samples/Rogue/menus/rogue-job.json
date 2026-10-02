@@ -1,0 +1,14 @@
+{
+  "id": "rogue-job",
+  "layout": "rogue-job.xml",
+  "screen": "rogue-job",
+  "title": "Job",
+  "background": -1,
+  "backdropLines": "none",
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "RogueJob"
+    }
+  ]
+}

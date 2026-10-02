@@ -1,0 +1,662 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A hero's job, among those the crystals have opened; the game's own job change scene plays. RogueJob drives it. -->
+<menulist>
+  <menu>
+    <name>rogue-job</name>
+    <frame class="bg hub">
+      <id>bg</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="veil">
+      <id>veil</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="title">
+      <id>title</id>
+      <x>14</x>
+      <y>6</y>
+      <width>300</width>
+      <height>26</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Job</data>
+    </frame>
+    <frame class="hright">
+      <id>hright</id>
+      <x>200</x>
+      <y>9</y>
+      <width>266</width>
+      <height>22</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+    </frame>
+    <frame class="rule">
+      <id>rule</id>
+      <x>10</x>
+      <y>36</y>
+      <width>460</width>
+      <height>1</height>
+    </frame>
+    <frame class="panel">
+      <id>w_jobs</id>
+      <x>8</x>
+      <y>44</y>
+      <width>464</width>
+      <height>200</height>
+      <frame class="face">
+        <id>jface</id>
+        <x>10</x>
+        <y>6</y>
+        <width>30</width>
+        <height>30</height>
+      </frame>
+      <frame class="name">
+        <id>jwho</id>
+        <x>48</x>
+        <y>4</y>
+        <width>300</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>jnow</id>
+        <x>48</x>
+        <y>20</y>
+        <width>300</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="rule">
+        <id>jsep</id>
+        <x>10</x>
+        <y>40</y>
+        <width>444</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j0</id>
+      <x>74</x>
+      <y>92</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j14</up>
+      <down>j2</down>
+      <left>j1</left>
+      <right>j1</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j0</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j0</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j1</id>
+      <x>274</x>
+      <y>92</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j15</up>
+      <down>j3</down>
+      <left>j0</left>
+      <right>j0</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j1</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j1</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j2</id>
+      <x>74</x>
+      <y>110</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j0</up>
+      <down>j4</down>
+      <left>j3</left>
+      <right>j3</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j2</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j2</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j3</id>
+      <x>274</x>
+      <y>110</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j1</up>
+      <down>j5</down>
+      <left>j2</left>
+      <right>j2</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j3</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j3</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j4</id>
+      <x>74</x>
+      <y>128</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j2</up>
+      <down>j6</down>
+      <left>j5</left>
+      <right>j5</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j4</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j4</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j5</id>
+      <x>274</x>
+      <y>128</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j3</up>
+      <down>j7</down>
+      <left>j4</left>
+      <right>j4</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j5</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j5</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j6</id>
+      <x>74</x>
+      <y>146</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j4</up>
+      <down>j8</down>
+      <left>j7</left>
+      <right>j7</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j6</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j6</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j7</id>
+      <x>274</x>
+      <y>146</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j5</up>
+      <down>j9</down>
+      <left>j6</left>
+      <right>j6</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j7</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j7</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j8</id>
+      <x>74</x>
+      <y>164</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j6</up>
+      <down>j10</down>
+      <left>j9</left>
+      <right>j9</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j8</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j8</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j9</id>
+      <x>274</x>
+      <y>164</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j7</up>
+      <down>j11</down>
+      <left>j8</left>
+      <right>j8</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j9</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j9</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j10</id>
+      <x>74</x>
+      <y>182</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j8</up>
+      <down>j12</down>
+      <left>j11</left>
+      <right>j11</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j10</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j10</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j11</id>
+      <x>274</x>
+      <y>182</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j9</up>
+      <down>j13</down>
+      <left>j10</left>
+      <right>j10</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j11</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j11</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j12</id>
+      <x>74</x>
+      <y>200</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j10</up>
+      <down>j14</down>
+      <left>j13</left>
+      <right>j13</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j12</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j12</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j13</id>
+      <x>274</x>
+      <y>200</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j11</up>
+      <down>j15</down>
+      <left>j12</left>
+      <right>j12</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j13</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j13</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j14</id>
+      <x>74</x>
+      <y>218</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j12</up>
+      <down>j0</down>
+      <left>j15</left>
+      <right>j15</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j14</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j14</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="opt job">
+      <focus/>
+      <id>j15</id>
+      <x>274</x>
+      <y>218</y>
+      <width>170</width>
+      <height>17</height>
+      <up>j13</up>
+      <down>j1</down>
+      <left>j14</left>
+      <right>j14</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_j15</id>
+        <x>-10</x>
+        <y>0</y>
+        <width>186</width>
+        <height>17</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_j15</id>
+        <x>-14</x>
+        <y>8</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+    </frame>
+    <frame class="panel help">
+      <id>w_help</id>
+      <x>8</x>
+      <y>250</y>
+      <width>464</width>
+      <height>34</height>
+      <frame class="desc">
+        <id>desc1</id>
+        <x>12</x>
+        <y>3</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="desc dim">
+        <id>desc2</id>
+        <x>12</x>
+        <y>17</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

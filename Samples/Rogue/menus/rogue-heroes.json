@@ -1,0 +1,14 @@
+{
+  "id": "rogue-heroes",
+  "layout": "rogue-heroes.xml",
+  "screen": "rogue-heroes",
+  "title": "Party",
+  "background": -1,
+  "backdropLines": "none",
+  "attachments": [
+    {
+      "target": "",
+      "behaviour": "RogueHeroes"
+    }
+  ]
+}

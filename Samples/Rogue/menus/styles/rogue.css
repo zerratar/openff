@@ -172,3 +172,16 @@
 .tile          { background-image: linear-gradient(#ffffff0c, #ffffff04); border: 1px solid #4a6d8060; border-radius: 4px; }
 .tilelbl       { font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; color: #8ea6b6; }
 .tileval       { font-size: 15px; color: #f2f6f9; }
+
+/* ---- rogue-heroes: the party in full; rogue-job ---- */
+
+.pick           { box-shadow: 0 2px 6px #000000a0; }
+.pick:focus     { translate: 4px 0; }
+.bigname        { font-family: Georgia, "Palatino Linotype", serif; font-size: 16px; font-weight: bold; color: #f1e2b4; }
+.biglv          { font-size: 15px; color: #f2f6f9; text-align: right; }
+.fill.exp       { background-image: linear-gradient(#a8dcff, #2f7fd0); }
+.vrule          { background-image: linear-gradient(#4a6d8000, #4a6d80a0 20%, #4a6d80a0 80%, #4a6d8000); }
+.opt.job        { font-size: 12px; }
+.opt.job.held   { color: #f1e2b4; }
+.opt.job.held:focus { color: #fff3c8; }
+.opt.job.blank  { visibility: hidden; }

@@ -166,7 +166,7 @@ namespace Rogue.Core
 		public int Budget { get; set; } = 10;
 		/// <summary>A job without a kit starts with the strongest weapon and body armour it may wear that a shop sells for at most this.</summary>
 		public int KitPrice { get; set; } = 100;
-		/// <summary>Item ids no kit takes, as [first, last] ranges (the game's arrows, 1500-1599: no bow comes with them).</summary>
+		/// <summary>Item ids no kit takes, as [first, last] ranges (the game's bows and arrows, 1400-1599: neither works alone).</summary>
 		public List<int[]> KitSkip { get; set; } = new List<int[]>();
 		public List<JobDef> Jobs { get; set; } = new List<JobDef>();
 

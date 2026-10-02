@@ -270,6 +270,8 @@ namespace Rogue
 		/// <summary>What the reward just taken did ("Arc learns Sleep."), said in the help as the camp opens, till the cursor moves.</summary>
 		public static string News;
 		private string _news;
+		/// <summary>The row to come back to (the one a screen was opened from); Fight when none.</summary>
+		public static string Return;
 
 		public override void OnOpen()
 		{
@@ -298,7 +300,9 @@ namespace Rogue
 			Menu.SetText("abandon", "Abandon the run");
 			_news = News;
 			News = null;
-			Menu.Focus("fight");
+			// Back from Party or Active Effects, on the row that went there; after a battle or a reward, on Fight.
+			Menu.Focus(Return ?? "fight");
+			Return = null;
 			Describe();
 		}
 
@@ -341,8 +345,8 @@ namespace Rogue
 			{
 				case "fight": Look.Help(Menu, run?.Next?.Kind == "boss" ? "Face the act's boss. Win, and the next act opens." : "Into battle - there is no running away.", "Win to choose a reward; a wipe ends the run."); break;
 				case "party":
-					Look.Help(Menu, "The game's own menu: each hero's status, equipment, magic and items.",
-						(run?.Act ?? 0) > 0 ? "Job changes jobs among those the crystals have opened." : "Job opens with the crystal the act's boss guards.");
+					Look.Help(Menu, "Each hero in full: job, stats, magic and equipment.",
+						(run?.Act ?? 0) > 0 ? "Change jobs there, among those the crystals have opened." : "Job changes open with the crystal the act's boss guards.");
 					break;
 				case "effects": Look.Help(Menu, "The modifiers this run has gathered, in full."); break;
 				case "abandon": Look.Help(Menu, _abandoning ? "Press again to give the run up." : "Give this run up and see how far it went."); break;
@@ -354,10 +358,8 @@ namespace Rogue
 			switch (Menu.Focused)
 			{
 				case "fight": Menu.SoundDecide(); Menu.Close(); RogueService.Instance.Fight(); return true;
-				case "party":
-					// The game's own screens for what the camp does not show; the camp comes back as that menu closes.
-					Menu.SoundDecide(); RogueService.Instance.After("rogue-camp"); Menu.OpenMainMenu(); return true;
-				case "effects": Menu.SoundDecide(); Menu.Open("rogue-effects"); return true;
+				case "party": Menu.SoundDecide(); RogueHeroes.Focus = 0; Return = "party"; Menu.Open("rogue-heroes"); return true;
+				case "effects": Menu.SoundDecide(); Return = "effects"; Menu.Open("rogue-effects"); return true;
 				case "abandon":
 					if (!_abandoning) { _abandoning = true; Menu.SetText("abandon", "Really abandon?"); Menu.SoundBeep(); Describe(); return true; }
 					Menu.SoundDecide(); RogueService.Instance.Abandon(); Menu.Open("rogue-summary"); return true;
@@ -495,6 +497,159 @@ namespace Rogue
 		public override bool OnKey(MenuKey key) { bool done = _list != null && _list.OnKey(key); Stars(); Describe(); return done; }
 		public override bool OnCancel() { Menu.SoundCancel(); Menu.Open("rogue-camp"); return true; }
 		public override bool OnPress() => true;
+	}
+
+	/// <summary>The party in full: a hero picked on the left, everything about them on the right; A for a job change.</summary>
+	public sealed class RogueHeroes : MenuBehaviour
+	{
+		/// <summary>The hero to start on (after a job change, the one who changed); what to say first, if anything.</summary>
+		public static int Focus;
+		public static string News;
+		private static readonly string[] Labels = { "Strength", "Agility", "Vitality", "Intellect", "Mind", "Attack", "Defense", "M. Def." };
+		private string _news;
+
+		public override void OnOpen()
+		{
+			Game.Log("rogue: screen " + Menu.Id);
+			Look.Backdrop(Menu, RogueService.Instance.Run);
+			Menu.SetText("hright", "A: change job");
+			Menu.Focus("hero" + Math.Clamp(Focus, 0, 3));
+			// After the focus is set (OnFocus clears the news): what the job change did, till the cursor moves.
+			_news = News;
+			News = null;
+			Show();
+		}
+
+		private int Hero => (Menu.Focused ?? "").StartsWith("hero") ? Menu.Focused[4] - '0' : 0;
+
+		private void Show()
+		{
+			int h = Hero;
+			PartyMember m = Game.Party.Member(h);
+			if (m == null) return;
+			Menu.Widget("dface")?.SetStyle("background-image", m.Face ?? Look.Face(h, m.Job));
+			Menu.SetText("dname", m.Name);
+			Menu.SetText("djob", m.JobTitle + "   ·   job level " + m.JobSkill);
+			Menu.SetText("dlv", "Lv " + m.Level);
+			Menu.SetText("dnext", m.ExpToNext > 0 ? "next level " + Text.Gil(m.ExpToNext) : "");
+			Menu.Widget("dexpfill")?.SetStyle("width", m.ExpPercent + "%");
+			Menu.SetText("dhpv", m.Hp + " / " + m.MaxHp);
+			Menu.Widget("dhpfill")?.SetStyle("width", m.HpPercent + "%");
+			Menu.Widget("dhpfill")?.ToggleClass("low", m.HpPercent < 30);
+			List<string> charges = new List<string>();
+			for (int l = 0; m.MaxCharges != null && l < 8 && l < m.MaxCharges.Length; l++)
+				if (m.MaxCharges[l] > 0) charges.Add("L" + (l + 1) + " " + m.Charges[l] + "/" + m.MaxCharges[l]);
+			Menu.SetText("dmp", charges.Count == 0 ? "No magic" : "Magic   " + string.Join("    ", charges));
+			Stats st = m.Stats ?? new Stats();
+			int[] values = { st.Strength, st.Agility, st.Vitality, st.Intellect, st.Mind, st.Attack, st.Defense, st.MagicDefense };
+			for (int i = 0; i < 8; i++) { Menu.SetText("sl" + i, Labels[i]); Menu.SetText("sv" + i, values[i].ToString(CultureInfo.InvariantCulture)); }
+			GameData d = RogueService.Instance.GameData();
+			for (int s = 0; s < 5; s++)
+			{
+				int id = Game.Party.Equipped(h, (EquipSlot)s);
+				ItemInfo item = id > 0 ? d.Items.FirstOrDefault(i => i.Id == id) : null;
+				Menu.SetText("ev" + s, item?.Name ?? "-");
+				Menu.Widget("ev" + s)?.ToggleClass("dim", item == null);
+				string kind = item?.Kind;
+				Look.One(Menu.Widget("ei" + s), Look.Icons, kind == "weapon" || kind == "shield" || kind == "helmet" || kind == "armour" || kind == "gloves" ? kind : "none");
+			}
+			Describe(m);
+		}
+
+		private void Describe(PartyMember m)
+		{
+			if (_news != null) { List<string> l = Text.Wrap(_news, 440, 11, 2); Look.Help(Menu, l[0], l[1]); return; }
+			bool jobs = Game.Party.OpenJobs(m.Id).Count > 1;
+			Look.Help(Menu, m.Name + ", " + m.JobTitle + ".   Up / Down: another hero.",
+				jobs ? "A: change " + m.Name + "'s job." : "Job changes open with the crystal the act's boss guards.");
+		}
+
+		public override void OnFocus() { _news = null; Show(); }
+
+		public override bool OnPress()
+		{
+			int h = Hero;
+			if (Game.Party.OpenJobs(h).Count <= 1) { Menu.SoundBeep(); return true; }
+			Menu.SoundDecide();
+			RogueJob.Hero = h;
+			Menu.Open("rogue-job");
+			return true;
+		}
+
+		public override bool OnCancel() { Menu.SoundCancel(); Menu.Open("rogue-camp"); return true; }
+	}
+
+	/// <summary>A hero's job, among those the crystals have opened; the game's own job change scene plays over it.</summary>
+	public sealed class RogueJob : MenuBehaviour
+	{
+		public static int Hero;
+		private List<string> _words = new List<string>();
+		private bool _changing;
+
+		public override void OnOpen()
+		{
+			Game.Log("rogue: screen " + Menu.Id);
+			Look.Backdrop(Menu, RogueService.Instance.Run);
+			PartyMember m = Game.Party.Member(Hero);
+			Menu.SetText("hright", m?.Name ?? "");
+			Menu.Widget("jface")?.SetStyle("background-image", m?.Face ?? Look.Face(Hero, m?.Job ?? 0));
+			Menu.SetText("jwho", m == null ? "" : m.Name + "   ·   Lv " + m.Level);
+			Menu.SetText("jnow", m == null ? "" : "Now a " + m.JobTitle + ", job level " + m.JobSkill);
+			_words = Game.Party.OpenJobs(Hero).Take(16).ToList();
+			int held = 0;
+			for (int i = 0; i < 16; i++)
+			{
+				string word = i < _words.Count ? _words[i] : null;
+				JobInfo info = word == null ? null : Game.Party.JobInfo(Hero, word);
+				Menu.SetText("j" + i, info?.Title ?? "");
+				Menu.Widget("j" + i)?.ToggleClass("blank", info == null);
+				Menu.Widget("j" + i)?.ToggleClass("held", info != null && info.Held);
+				if (info != null && info.Held) held = i;
+			}
+			Menu.Focus("j" + held);
+			Describe();
+		}
+
+		private int At => (Menu.Focused ?? "").StartsWith("j") && int.TryParse(Menu.Focused.Substring(1), out int i) ? i : -1;
+
+		public override void OnFocus()
+		{
+			// A blank cell is passed over: back to the last job there is.
+			if (At >= _words.Count && _words.Count > 0) { Menu.Focus("j" + (_words.Count - 1)); return; }
+			Describe();
+		}
+
+		private void Describe()
+		{
+			int i = At;
+			PartyMember m = Game.Party.Member(Hero);
+			JobInfo info = i >= 0 && i < _words.Count ? Game.Party.JobInfo(Hero, _words[i]) : null;
+			if (info == null || m == null) { Look.Help(Menu, ""); return; }
+			if (info.Held) Look.Help(Menu, m.Name + " is a " + info.Title + " now.", "Back: to the party.");
+			else Look.Help(Menu, "A: " + m.Name + " becomes a " + info.Title + ".", "Gear a " + info.Title + " cannot wear goes to the bag.");
+		}
+
+		public override bool OnPress()
+		{
+			int i = At;
+			if (_changing || i < 0 || i >= _words.Count) { Menu.SoundBeep(); return true; }
+			JobInfo info = Game.Party.JobInfo(Hero, _words[i]);
+			if (info == null || info.Held) { Menu.SoundBeep(); return true; }
+			int hero = Hero;
+			_changing = true;
+			// The game's own job change scene, the job taken at its flash; then the gear the job cannot wear off, the run saved.
+			bool started = Game.Party.ChangeJob(hero, _words[i], ok =>
+			{
+				_changing = false;
+				RogueHeroes.Focus = hero;
+				RogueHeroes.News = ok ? RogueService.Instance.AfterJobChange(hero) : null;
+				Menu.Open("rogue-heroes");
+			});
+			if (!started) { _changing = false; Menu.SoundBeep(); }
+			return true;
+		}
+
+		public override bool OnCancel() { if (_changing) return true; Menu.SoundCancel(); RogueHeroes.Focus = Hero; Menu.Open("rogue-heroes"); return true; }
 	}
 
 	/// <summary>A run's end.</summary>

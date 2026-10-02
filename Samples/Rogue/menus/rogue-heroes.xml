@@ -1,0 +1,806 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The party in full: each hero's job and level, HP and magic, stats and equipment; a job change. RogueHeroes drives it. -->
+<menulist>
+  <menu>
+    <name>rogue-heroes</name>
+    <frame class="bg hub">
+      <id>bg</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="veil">
+      <id>veil</id>
+      <x>0</x>
+      <y>0</y>
+      <width>480</width>
+      <height>320</height>
+    </frame>
+    <frame class="title">
+      <id>title</id>
+      <x>14</x>
+      <y>6</y>
+      <width>300</width>
+      <height>26</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data>Party</data>
+    </frame>
+    <frame class="hright">
+      <id>hright</id>
+      <x>200</x>
+      <y>9</y>
+      <width>266</width>
+      <height>22</height>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+    </frame>
+    <frame class="rule">
+      <id>rule</id>
+      <x>10</x>
+      <y>36</y>
+      <width>460</width>
+      <height>1</height>
+    </frame>
+    <frame class="card pick">
+      <focus/>
+      <id>hero0</id>
+      <x>40</x>
+      <y>44</y>
+      <width>104</width>
+      <height>46</height>
+      <up>hero3</up>
+      <down>hero1</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_hero0</id>
+        <x>0</x>
+        <y>0</y>
+        <width>104</width>
+        <height>46</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_hero0</id>
+        <x>-4</x>
+        <y>23</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="face" data-source="party[0]" bind-style="background-image: {face}">
+        <id>hface0</id>
+        <x>4</x>
+        <y>6</y>
+        <width>34</width>
+        <height>34</height>
+      </frame>
+      <frame class="name" data-source="party[0]" bind-text="{name}">
+        <id>hname0</id>
+        <x>44</x>
+        <y>6</y>
+        <width>58</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim" data-source="party[0]" bind-text="Lv {level}">
+        <id>hlv0</id>
+        <x>44</x>
+        <y>24</y>
+        <width>58</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+    <frame class="card pick">
+      <focus/>
+      <id>hero1</id>
+      <x>40</x>
+      <y>94</y>
+      <width>104</width>
+      <height>46</height>
+      <up>hero0</up>
+      <down>hero2</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_hero1</id>
+        <x>0</x>
+        <y>0</y>
+        <width>104</width>
+        <height>46</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_hero1</id>
+        <x>-4</x>
+        <y>23</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="face" data-source="party[1]" bind-style="background-image: {face}">
+        <id>hface1</id>
+        <x>4</x>
+        <y>6</y>
+        <width>34</width>
+        <height>34</height>
+      </frame>
+      <frame class="name" data-source="party[1]" bind-text="{name}">
+        <id>hname1</id>
+        <x>44</x>
+        <y>6</y>
+        <width>58</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim" data-source="party[1]" bind-text="Lv {level}">
+        <id>hlv1</id>
+        <x>44</x>
+        <y>24</y>
+        <width>58</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+    <frame class="card pick">
+      <focus/>
+      <id>hero2</id>
+      <x>40</x>
+      <y>144</y>
+      <width>104</width>
+      <height>46</height>
+      <up>hero1</up>
+      <down>hero3</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_hero2</id>
+        <x>0</x>
+        <y>0</y>
+        <width>104</width>
+        <height>46</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_hero2</id>
+        <x>-4</x>
+        <y>23</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="face" data-source="party[2]" bind-style="background-image: {face}">
+        <id>hface2</id>
+        <x>4</x>
+        <y>6</y>
+        <width>34</width>
+        <height>34</height>
+      </frame>
+      <frame class="name" data-source="party[2]" bind-text="{name}">
+        <id>hname2</id>
+        <x>44</x>
+        <y>6</y>
+        <width>58</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim" data-source="party[2]" bind-text="Lv {level}">
+        <id>hlv2</id>
+        <x>44</x>
+        <y>24</y>
+        <width>58</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+    <frame class="card pick">
+      <focus/>
+      <id>hero3</id>
+      <x>40</x>
+      <y>194</y>
+      <width>104</width>
+      <height>46</height>
+      <up>hero2</up>
+      <down>hero0</down>
+      <left>dummy</left>
+      <right>dummy</right>
+      <behavior value="Text">
+        <parameter>-1</parameter>
+        <parameter>8</parameter>
+        <parameter>0</parameter>
+      </behavior>
+      <data> </data>
+      <frame class="hl">
+        <id>hl_hero3</id>
+        <x>0</x>
+        <y>0</y>
+        <width>104</width>
+        <height>46</height>
+      </frame>
+      <frame>
+        <cursor/>
+        <id>cur_hero3</id>
+        <x>-4</x>
+        <y>23</y>
+        <width>1</width>
+        <height>1</height>
+      </frame>
+      <frame class="face" data-source="party[3]" bind-style="background-image: {face}">
+        <id>hface3</id>
+        <x>4</x>
+        <y>6</y>
+        <width>34</width>
+        <height>34</height>
+      </frame>
+      <frame class="name" data-source="party[3]" bind-text="{name}">
+        <id>hname3</id>
+        <x>44</x>
+        <y>6</y>
+        <width>58</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim" data-source="party[3]" bind-text="Lv {level}">
+        <id>hlv3</id>
+        <x>44</x>
+        <y>24</y>
+        <width>58</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+    <frame class="panel">
+      <id>w_hero</id>
+      <x>150</x>
+      <y>44</y>
+      <width>322</width>
+      <height>200</height>
+      <frame class="face">
+        <id>dface</id>
+        <x>8</x>
+        <y>8</y>
+        <width>48</width>
+        <height>48</height>
+      </frame>
+      <frame class="bigname">
+        <id>dname</id>
+        <x>64</x>
+        <y>6</y>
+        <width>160</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>djob</id>
+        <x>64</x>
+        <y>26</y>
+        <width>170</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="biglv">
+        <id>dlv</id>
+        <x>236</x>
+        <y>6</y>
+        <width>76</width>
+        <height>20</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim right">
+        <id>dnext</id>
+        <x>200</x>
+        <y>26</y>
+        <width>112</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="bar">
+        <id>dexp</id>
+        <x>64</x>
+        <y>44</y>
+        <width>248</width>
+        <height>4</height>
+        <frame class="fill exp">
+          <id>dexpfill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>248</width>
+          <height>4</height>
+        </frame>
+      </frame>
+      <frame class="small dim">
+        <id>dhpl</id>
+        <x>10</x>
+        <y>58</y>
+        <width>30</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data>HP</data>
+      </frame>
+      <frame class="bar">
+        <id>dhp</id>
+        <x>40</x>
+        <y>63</y>
+        <width>170</width>
+        <height>6</height>
+        <frame class="fill">
+          <id>dhpfill</id>
+          <x>0</x>
+          <y>0</y>
+          <width>170</width>
+          <height>6</height>
+        </frame>
+      </frame>
+      <frame class="small right">
+        <id>dhpv</id>
+        <x>214</x>
+        <y>58</y>
+        <width>98</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small">
+        <id>dmp</id>
+        <x>10</x>
+        <y>74</y>
+        <width>302</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="rule">
+        <id>dsep</id>
+        <x>8</x>
+        <y>89</y>
+        <width>306</width>
+        <height>1</height>
+      </frame>
+      <frame class="small dim">
+        <id>sl0</id>
+        <x>10</x>
+        <y>92</y>
+        <width>52</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small right">
+        <id>sv0</id>
+        <x>54</x>
+        <y>92</y>
+        <width>16</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>sl1</id>
+        <x>10</x>
+        <y>110</y>
+        <width>52</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small right">
+        <id>sv1</id>
+        <x>54</x>
+        <y>110</y>
+        <width>16</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>sl2</id>
+        <x>10</x>
+        <y>128</y>
+        <width>52</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small right">
+        <id>sv2</id>
+        <x>54</x>
+        <y>128</y>
+        <width>16</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>sl3</id>
+        <x>10</x>
+        <y>146</y>
+        <width>52</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small right">
+        <id>sv3</id>
+        <x>54</x>
+        <y>146</y>
+        <width>16</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>sl4</id>
+        <x>82</x>
+        <y>92</y>
+        <width>52</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small right">
+        <id>sv4</id>
+        <x>126</x>
+        <y>92</y>
+        <width>16</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>sl5</id>
+        <x>82</x>
+        <y>110</y>
+        <width>52</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small right">
+        <id>sv5</id>
+        <x>126</x>
+        <y>110</y>
+        <width>16</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>sl6</id>
+        <x>82</x>
+        <y>128</y>
+        <width>52</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small right">
+        <id>sv6</id>
+        <x>126</x>
+        <y>128</y>
+        <width>16</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small dim">
+        <id>sl7</id>
+        <x>82</x>
+        <y>146</y>
+        <width>52</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="small right">
+        <id>sv7</id>
+        <x>126</x>
+        <y>146</y>
+        <width>16</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="vrule">
+        <id>dvsep</id>
+        <x>152</x>
+        <y>94</y>
+        <width>1</width>
+        <height>86</height>
+      </frame>
+      <frame class="icon none">
+        <id>ei0</id>
+        <x>160</x>
+        <y>93</y>
+        <width>14</width>
+        <height>14</height>
+      </frame>
+      <frame class="small">
+        <id>ev0</id>
+        <x>178</x>
+        <y>92</y>
+        <width>132</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="icon none">
+        <id>ei1</id>
+        <x>160</x>
+        <y>111</y>
+        <width>14</width>
+        <height>14</height>
+      </frame>
+      <frame class="small">
+        <id>ev1</id>
+        <x>178</x>
+        <y>110</y>
+        <width>132</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="icon none">
+        <id>ei2</id>
+        <x>160</x>
+        <y>129</y>
+        <width>14</width>
+        <height>14</height>
+      </frame>
+      <frame class="small">
+        <id>ev2</id>
+        <x>178</x>
+        <y>128</y>
+        <width>132</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="icon none">
+        <id>ei3</id>
+        <x>160</x>
+        <y>147</y>
+        <width>14</width>
+        <height>14</height>
+      </frame>
+      <frame class="small">
+        <id>ev3</id>
+        <x>178</x>
+        <y>146</y>
+        <width>132</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="icon none">
+        <id>ei4</id>
+        <x>160</x>
+        <y>165</y>
+        <width>14</width>
+        <height>14</height>
+      </frame>
+      <frame class="small">
+        <id>ev4</id>
+        <x>178</x>
+        <y>164</y>
+        <width>132</width>
+        <height>16</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+    <frame class="panel help">
+      <id>w_help</id>
+      <x>8</x>
+      <y>250</y>
+      <width>464</width>
+      <height>34</height>
+      <frame class="desc">
+        <id>desc1</id>
+        <x>12</x>
+        <y>3</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+      <frame class="desc dim">
+        <id>desc2</id>
+        <x>12</x>
+        <y>17</y>
+        <width>440</width>
+        <height>14</height>
+        <behavior value="Text">
+          <parameter>-1</parameter>
+          <parameter>8</parameter>
+          <parameter>0</parameter>
+        </behavior>
+        <data> </data>
+      </frame>
+    </frame>
+  </menu>
+</menulist>

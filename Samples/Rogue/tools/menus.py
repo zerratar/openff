@@ -241,4 +241,68 @@ write("rogue-summary", "A run's end: how far it went and what it did. RogueSumma
     help_bar(),
 ], "RogueSummary", "Run Summary")
 
+# ---------------------------------------------------------------------------------------------- rogue-heroes: the party in full
+heroes = []
+for h in range(4):
+    y = 44 + 50 * h
+    order = ["hero0", "hero1", "hero2", "hero3"]
+    heroes.append(option("hero%d" % h, 40, y, 104, 46, dict(up=order[(h + 3) % 4], down=order[(h + 1) % 4]), "", "card pick", hl=(0, 0, 104, 46), cur=(-4, None),
+                         children=[
+        frame("hface%d" % h, 4, 6, 34, 34, "face", attrs={"data-source": "party[%d]" % h, "bind-style": "background-image: {face}"}),
+        label("hname%d" % h, 44, 6, 58, 16, "name", "", attrs={"data-source": "party[%d]" % h, "bind-text": "{name}"}),
+        label("hlv%d" % h, 44, 24, 58, 14, "small dim", "", attrs={"data-source": "party[%d]" % h, "bind-text": "Lv {level}"}),
+    ]))
+stats = []
+for i in range(8):
+    col, row = i // 4, i % 4
+    stats.append(label("sl%d" % i, 10 + 72 * col, 92 + 18 * row, 52, 16, "small dim", ""))
+    stats.append(label("sv%d" % i, 54 + 72 * col, 92 + 18 * row, 16, 16, "small right", ""))
+equip = []
+for i in range(5):
+    equip.append(icon("ei%d" % i, 160, 93 + 18 * i, 14, "none"))
+    equip.append(label("ev%d" % i, 178, 92 + 18 * i, 132, 16, "small", ""))
+write("rogue-heroes", "The party in full: each hero's job and level, HP and magic, stats and equipment; a job change. RogueHeroes drives it.", [
+    *common("Party"),
+    *heroes,
+    panel("w_hero", 150, 44, 322, 200, "panel", [
+        frame("dface", 8, 8, 48, 48, "face"),
+        label("dname", 64, 6, 160, 20, "bigname", ""),
+        label("djob", 64, 26, 170, 14, "small dim", ""),
+        label("dlv", 236, 6, 76, 20, "biglv", ""),
+        label("dnext", 200, 26, 112, 14, "small dim right", ""),
+        frame("dexp", 64, 44, 248, 4, "bar", [frame("dexpfill", 0, 0, 248, 4, "fill exp")]),
+        label("dhpl", 10, 58, 30, 16, "small dim", "HP"),
+        frame("dhp", 40, 63, 170, 6, "bar", [frame("dhpfill", 0, 0, 170, 6, "fill")]),
+        label("dhpv", 214, 58, 98, 16, "small right", ""),
+        label("dmp", 10, 74, 302, 16, "small", ""),
+        frame("dsep", 8, 89, 306, 1, "rule"),
+        *stats,
+        frame("dvsep", 152, 94, 1, 86, "vrule"),
+        *equip,
+    ]),
+    help_bar(),
+], "RogueHeroes", "Party")
+
+# ---------------------------------------------------------------------------------------------- rogue-job: a hero's job change
+cells = []
+for i in range(16):
+    col, row = i % 2, i // 2
+    x, y = 74 + 200 * col, 92 + 18 * row
+    up = "j%d" % ((i - 2) % 16)
+    down = "j%d" % ((i + 2) % 16)
+    side = "j%d" % (i + 1 if col == 0 else i - 1)
+    cells.append(option("j%d" % i, x, y, 170, 17, dict(up=up, down=down, left=side, right=side), "", "opt job",
+                        hl=(-10, 0, 186, 17), cur=(-14, None)))
+write("rogue-job", "A hero's job, among those the crystals have opened; the game's own job change scene plays. RogueJob drives it.", [
+    *common("Job"),
+    panel("w_jobs", 8, 44, 464, 200, "panel", [
+        frame("jface", 10, 6, 30, 30, "face"),
+        label("jwho", 48, 4, 300, 16, "name", ""),
+        label("jnow", 48, 20, 300, 14, "small dim", ""),
+        frame("jsep", 10, 40, 444, 1, "rule"),
+    ]),
+    *cells,
+    help_bar(),
+], "RogueJob", "Job")
+
 print("wrote", len([f for f in os.listdir(OUT) if f.endswith((".xml", ".json"))]), "files to", os.path.normpath(OUT))

@@ -57,8 +57,11 @@ namespace Rogue
 		private string _openNext;
 		private int _wait = -1;
 		private bool _fieldUp;
-		// The field kept out of sight till a screen of the mode's is up: set when one is on its way (After) or a battle starts
-		// (the field comes back before the battle says how it ended), let go once the menus show.
+		// The heroes' surprise as a battle starts (the walker's encounter motions, 2012 then its held loop 2014): -1 none, else frames in.
+		private int _surprise = -1;
+		private const int SurpriseMotion = 2012, SurpriseLoop = 2014, SurpriseDelay = 10;
+		// The field kept out of sight till a screen of the mode's is up: set when one is on its way (After) or a battle is up,
+		// let go once the menus show.
 		private bool _veil;
 		private bool _battleNext, _inBattle;
 		private readonly Dictionary<BattleUnit, double> _regen = new Dictionary<BattleUnit, double>();
@@ -112,11 +115,15 @@ namespace Rogue
 			// The field's buttons down while Rogue Mode has the field (it is only the camp's scene between its screens), up again after.
 			if (Game.Hud.FieldButtons == Active) Game.Hud.FieldButtons = !Active;
 			if (!Active) return;
+			Surprise();
 			// A screen of the mode's about to open over the field (the start, after a battle, a warp): the field held black till it
 			// is up, so what shows is the screen, not the battleground on the way to it. Only on the way into a battle is the camp seen.
 			// With no run (the mode's start, a run just ended) the field has nothing to show at all. Only once the map is up:
 			// the field's own start waits for its fade-in, which a fade held from the first frame would never let finish.
 			if (Game.Menus.Showing) _veil = false;
+			// Once the battle is up (its opening - the heroes' surprise, the flash - played on the field first), the field it
+			// returns to stays hidden till the screen after it: it comes back before the battle says how it ended.
+			if (Game.Battle.InBattle) _veil = true;
 			bool hidden = _veil || _openNext != null || Run == null;
 
 			if (hidden && _fieldUp && !Game.Menus.Showing && !Game.Battle.InBattle) Game.Screen.FadeOut(0);
@@ -163,6 +170,25 @@ namespace Rogue
 				Game.Camera.LookAt(_veil || _openNext != null || Run == null ? IntoTheDark : CameraLook);
 			}
 			catch (Exception ex) { Game.Log("rogue: camp: " + ex.Message); }
+		}
+
+		/// <summary>The encounter as the game plays it on the walker - a beat, the start, then the held loop - on the camp's figures.</summary>
+		private void Surprise()
+		{
+			if (_surprise < 0) return;
+			if (Game.Battle.InBattle) { _surprise = -1; return; }
+			_surprise++;
+			for (int h = 0; h < 4; h++)
+			{
+				Npc f = _figures[h];
+				if (f == null) continue;
+				try
+				{
+					if (_surprise == SurpriseDelay) f.PlayMotion(SurpriseMotion, loop: false);
+					else if (_surprise > SurpriseDelay + 2 && f.MotionDone) f.PlayMotion(SurpriseLoop, loop: true);
+				}
+				catch (Exception) { }
+			}
 		}
 
 		/// <summary>The figure each hero should stand as now ("j" hero job), or null for none.</summary>
@@ -296,8 +322,9 @@ namespace Rogue
 			foreach (CountDef m in Run.Next.Monsters.Take(4)) group.Members.Add(new MonsterCount { MonsterId = m.Id, Min = m.Count, Max = m.Count });
 			_inBattle = true;
 			Game.Battle.EscapeAllowed = false;
-			_veil = true;
 			Game.Battle.Start(group, Run.Next.BattleMap, new BattleOptions { LossReturns = true });
+			// The game's encounter plays its surprise on the walker, who stands out of sight: the camp's heroes take it up.
+			_surprise = 0;
 			Game.Log("rogue: battle " + (Run.Step + 1) + " of act " + (Run.Act + 1) + " (" + Run.Next.Kind + "): " + Run.Next.Name + (Run.Next.Elite.Count > 0 ? " [" + string.Join(", ", Run.Next.Elite) + "]" : ""));
 		}
 
@@ -505,6 +532,23 @@ namespace Rogue
 			Game.Flags.Set(0u, 901u, true);   // the Freelancer
 			Game.Flags.Set(0u, 36u, true);    // the menu's Job, as the Wind Crystal's gift opens it
 			Game.Log("rogue: crystals of " + actsCleared + " act(s) open");
+		}
+
+		/// <summary>After a job change: the gear the new job cannot wear taken off (to the bag), the run saved; what to say.</summary>
+		public string AfterJobChange(int hero)
+		{
+			PartyMember m = Game.Party.Member(hero);
+			List<string> off = new List<string>();
+			for (int s = 0; s < 5; s++)
+			{
+				int id = Game.Party.Equipped(hero, (EquipSlot)s);
+				if (id <= 0 || Game.Party.CanEquip(hero, id)) continue;
+				Game.Party.Unequip(hero, (EquipSlot)s);
+				off.Add(Game.Items.Find(id)?.Name ?? ("item " + id));
+			}
+			Save();
+			Game.Log("rogue: " + m?.Name + " is now a " + m?.JobTitle + (off.Count > 0 ? "; to the bag: " + string.Join(", ", off) : ""));
+			return (m?.Name ?? "The hero") + " is a " + (m?.JobTitle ?? "new job") + " now." + (off.Count > 0 ? " To the bag: " + string.Join(", ", off) + "." : "");
 		}
 
 		/// <summary>The heroes below a level raised to it (an act's floor: acts.json's "level").</summary>

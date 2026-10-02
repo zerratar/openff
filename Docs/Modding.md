@@ -1908,9 +1908,10 @@ release zip carries them in `Samples\`.
   backdrop of the act painted by `tools/art.py`, the game's own icons (`icon_8dot`) and faces, a lit highlight under
   the cursor, the reward cards edged in their rarity's colour; between them the field is the camp's scene, the heroes
   standing on the act's battleground with the field's buttons down (`Game.Hud.FieldButtons`), seen only on the way into a
-  battle - looked away from and held black while a screen is on its way. The camp's *Party* opens the game's own menu
-  (`Menu.OpenMainMenu`) for status, equipment, magic and items - and, once an act's boss has given its crystal (acts.json's
-  `crystal`: the Fire Crystal after the first, the Water after the second), the game's Job screen over the jobs it opened (the
-  game's own job flags); the mode's menu's Back is `Game.Title.Return()`. Each act
+  battle - looked away from and held black while a screen is on its way. The camp's *Party* shows each hero in full - job and
+  job level, HP, magic, stats and equipment (`rogue-heroes`) - and, once an act's boss has given its crystal (acts.json's
+  `crystal`: the Fire Crystal after the first, the Water after the second, opening the game's own job flags), changes a
+  hero's job (`rogue-job`) with the game's job change scene (`Game.Party.ChangeJob` with done), the gear the new job cannot
+  wear going to the bag; the mode's menu's Back is `Game.Title.Return()`. Each act
   has a level the party is raised to as it begins, and battles give `expScale` times their experience. `Core/` is the run without the game, and
   `Tests/` checks it (`dotnet run` there). `install.cmd` builds it into the mods folder.
