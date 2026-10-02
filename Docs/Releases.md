@@ -9,6 +9,10 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 ## Unreleased
 
+**Added**
+- Jobs: `Game.Party.ChangeJob(id, job, done)` - from a mod's menu screen, the game's own job change scene (the hero on a stage, the crystal's light, the new job's figure at the flash), then `done` with whether the job changed.
+- Mastery: changing jobs from its Jobs screen plays that scene, as the game's Job menu does.
+
 ## 0.3.3 - the job change (2026-10-02)
 
 A fix for a client whose game's menu file was damaged: its mods' menus left out, and changing jobs crashing.

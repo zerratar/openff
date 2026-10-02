@@ -362,6 +362,7 @@ namespace OpenFF.Client
 		public AbilityInfo Ability(string word) => null;
 		public bool HasAbility(int id, int abilityId) => false;
 		public bool ChangeJob(int id, string job) => false;
+		public bool ChangeJob(int id, string job, Action<bool> done) => false;
 		public IReadOnlyList<string> OpenJobs(int id) => new List<string>();
 		public IReadOnlyList<string> AllJobs => new List<string>();
 		public JobInfo JobInfo(int id, string job) => null;

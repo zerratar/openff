@@ -62,6 +62,13 @@ internal static partial class GlobalScope
 			{
 				menu.MenuManager mgr = menu.MenuManager.getSingleton();
 				mgr.execute();
+				// PORT: the job change scene over the screen (Game.Party.ChangeJob with done): the screen hears nothing until it ends.
+				if (JobChangeScene.Active)
+				{
+					JobChangeScene.Run();
+					mgr.ClearBehaviorButton();
+					return;
+				}
 				// Focus moved: blur the old frame, focus the new.
 				string now = mgr.getFocuseMedget()?._id();
 				if (now != _focused)
@@ -97,6 +104,7 @@ internal static partial class GlobalScope
 
 			public override void terminate()
 			{
+				JobChangeScene.Abort();
 				if (!isFinalize())
 				{
 					OpenFF.Client.ModMenus.ScreenClosed();

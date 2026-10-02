@@ -1836,6 +1836,19 @@ namespace OpenFF.Client
 			return done;
 		}
 
+		public bool ChangeJob(int id, string job, Action<bool> done)
+		{
+			int number = JobNumberOf(job);
+			if (number < 0) { EngineApi.Warn("party-changejob", "ChangeJob: no job called '" + job + "'"); return false; }
+			if (!ProgressionLayer.CanChangeJob(id, number)) return false;
+			// From a mod's menu screen, the game's own job change scene: the job taken at its flash, done once it has ended.
+			if (GlobalScope.wmenu.JobChangeScene.Start(id, () => { bool ok = ProgressionLayer.ChangeJob(id, number); if (ok) RefreshDisplay(); return ok; }, done)) return true;
+			bool changed = ProgressionLayer.ChangeJob(id, number);
+			if (changed) RefreshDisplay();
+			done?.Invoke(changed);
+			return changed;
+		}
+
 		internal static string JobWordOf(int j) => j < OpenFF.Data.ModCharacters.Jobs.Length ? OpenFF.Data.ModCharacters.Jobs[j].Enum : OpenFF.Data.ModCharacters.Slug(ProgressionLayer.LadderOf(j)?.Id ?? j.ToString());
 
 		public IReadOnlyList<string> OpenJobs(int id)

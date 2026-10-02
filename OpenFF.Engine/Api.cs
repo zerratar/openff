@@ -503,6 +503,14 @@ namespace OpenFF
 		/// is the base; JobWord and JobTitle say the job really held).
 		/// </summary>
 		bool ChangeJob(int id, string job);
+		/// <summary>
+		/// ChangeJob shown as the game's own Job screen shows it: from a mod's menu screen, the hero on a stage of
+		/// their own, the crystal's light, the new job's figure - the job taken at the flash - and done called once
+		/// the scene has ended, with whether the job changed (open the next screen from it). Elsewhere, or with no
+		/// scene to play, the job is taken at once and done called straight away. False, and nothing shown, when
+		/// the job cannot be taken.
+		/// </summary>
+		bool ChangeJob(int id, string job, Action<bool> done);
 		/// <summary>The jobs a character may take now, by word: FF3's the crystals have opened and the mod's own whose base is open.</summary>
 		IReadOnlyList<string> OpenJobs(int id);
 		/// <summary>Every job in play, by word: FF3's 23 then the mods' own, open or not.</summary>

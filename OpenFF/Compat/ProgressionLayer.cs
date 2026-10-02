@@ -184,11 +184,9 @@ namespace OpenFF.Client
 		/// </summary>
 		public static bool ChangeJob(int playerId, int job)
 		{
-			if (!IsMastery(playerId) || ModCharactersLayer.JobFixed(playerId)) return false;
+			if (!CanChangeJob(playerId, job)) return false;
 			ModJob ladder = LadderOf(job);
 			bool own = ladder != null && ladder.IsOwn;
-			if (!own && (job < 0 || job >= JobCount)) return false;
-			if (!JobOpen(job)) return false;
 			GlobalScope.pl.Player player;
 			try { player = GlobalScope.pl.PlayerParty.instance().playerForId((byte)playerId); } catch (Exception) { return false; }
 			if (player == null) return false;
@@ -210,6 +208,16 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.Write(LogChannel.General, "progression: job change: " + ex.Message); return false; }
 			finally { _changing = false; }
 			return true;
+		}
+
+		/// <summary>Whether ChangeJob would take the job: the hero on the progression and not fixed, the job known and open - asked before the job change is shown, so a refusal plays nothing.</summary>
+		public static bool CanChangeJob(int playerId, int job)
+		{
+			if (!IsMastery(playerId) || ModCharactersLayer.JobFixed(playerId)) return false;
+			ModJob ladder = LadderOf(job);
+			bool own = ladder != null && ladder.IsOwn;
+			if (!own && (job < 0 || job >= JobCount)) return false;
+			return JobOpen(job);
 		}
 
 		/// <summary>A new game: every ladder at the bottom, nothing set.</summary>

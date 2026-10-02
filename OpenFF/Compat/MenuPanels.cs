@@ -234,9 +234,29 @@ namespace OpenFF.Client
 			foreach (GlobalScope.MenuPanelSprite sp in sprites) sp.Opacity = (float)Math.Clamp(opacity, 0, 1);
 		}
 
+		// The sprites a cover hid (those shown when it came), shown again when it goes.
+		private List<GlobalScope.MenuPanelSprite> _covered;
+
+		/// <summary>The set out of sight while something plays over the screen (the job change scene), and back as it was - a frame hidden before stays hidden.</summary>
+		public void Cover(bool cover)
+		{
+			if (cover)
+			{
+				if (_covered != null) return;
+				_covered = new List<GlobalScope.MenuPanelSprite>();
+				foreach (GlobalScope.MenuPanelSprite sp in _sprites) if (sp.IsShow()) { _covered.Add(sp); sp.SetShow(false); }
+			}
+			else if (_covered != null)
+			{
+				foreach (GlobalScope.MenuPanelSprite sp in _covered) if (_sprites.Contains(sp)) sp.SetShow(true);
+				_covered = null;
+			}
+		}
+
 		/// <summary>Every sprite and texture of the set released.</summary>
 		public void Clear()
 		{
+			_covered = null;
 			Flush();
 			foreach (GlobalScope.MenuPanelSprite p in _sprites) { try { GlobalScope.sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(p); } catch (Exception) { } }
 			_sprites.Clear();

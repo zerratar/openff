@@ -275,6 +275,12 @@ internal static partial class GlobalScope
 									pBString.release();
 								}
 
+								/// <summary>PORT: whether button i (0 A, 1 B, 2 L, 3 R) is on, as last set - for a scene over the screen (the job change) to put back as it was. Its activity, not its sprite: a layout's look of the button hides the game's sprite.</summary>
+								public bool IsButtonShown(int i)
+								{
+									return i >= 0 && i < shown_.Length && shown_[i];
+								}
+
 								public void SetButtonAActivity(bool b)
 								{
 									button[0].cell.SetShow(b);

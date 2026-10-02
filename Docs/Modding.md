@@ -1479,7 +1479,9 @@ In Crystal, *New ladder…* offers *A job of the mod's own* (name, the base, the
 the inspector edits the rest as for any ladder. A hero takes it from the Abilities menu's
 **Change job** page (every job open to them - FF3's the crystals have opened, the mod's whose
 base is open - with no penalty; the Freelancer is open from the start) or from C#:
-`Game.Party.ChangeJob(id, "samurai")`, `Game.Party.OpenJobs(id)`; `PartyMember.JobWord` and
+`Game.Party.ChangeJob(id, "samurai")` - or `ChangeJob(id, "samurai", changed => Menu.Open("jobs"))` from a menu screen of
+the mod's, which plays the game's own job change scene (the hero, the crystal's light, the new job's figure) and calls back
+once it has ended - `Game.Party.OpenJobs(id)`; `PartyMember.JobWord` and
 `.JobTitle` say the job really held, `.Job` the FF3 base. The game's own Job menu still
 lists FF3's 23 - picking one there leaves the mod's job.
 

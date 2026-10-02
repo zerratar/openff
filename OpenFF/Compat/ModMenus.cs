@@ -561,6 +561,29 @@ namespace OpenFF.Client
 		}
 
 		public static string CurrentScreenName() => _current?.Screen;
+
+		/// <summary>Whether a mod's screen is up in the game's menus (what the job change scene plays over).</summary>
+		public static bool ScreenUp => _host != null && _screen != null;
+
+		/// <summary>A scene playing over the mod's screen (the job change): its panels and backdrop out of sight while it does, back as they were after.</summary>
+		public static bool SceneCovering
+		{
+			get => _sceneCovering;
+			set
+			{
+				if (_sceneCovering == value) return;
+				_sceneCovering = value;
+				try
+				{
+					_screenPanels.Cover(value);
+					_backdropPanels.Cover(value);
+					// The frames' windows (the game's art, on the 3D plane the scene draws on): every one is made shown.
+					foreach (GlobalScope.menu.BasicWindow window in _windows) window.SetShow(show: !value, user: true);
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "menus: covering the screen: " + ex.Message); }
+			}
+		}
+		private static bool _sceneCovering;
 		/// <summary>The backdrop for the screen: one of the game's (0..14; 4 is nobody's, the plain one instead), or -1 for none (black, or the screen's own background).</summary>
 		/// <summary>A patch reaching the screen (another mod's, after it in the order - Starlit Menu's over Mastery's) has the last word on it.</summary>
 		public static int CurrentBackground()
