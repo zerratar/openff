@@ -846,6 +846,7 @@ The field's HUD's data for its layout's bindings, by name, and whether its overl
 
 | Member | What it does |
 | --- | --- |
+| `bool FieldButtons { get; set; }` | Whether the field's own buttons (Menu, Map, Talk) are up: true unless a mod takes them down - a mode whose screens stand in for the field's (between them the field is only a scene), a cutscene of its own. Down, they are neither drawn nor pressed; the keys and the pad still open the menu. |
 | `IReadOnlyCollection<string> Names { get; }` | The names set now. |
 | `bool Overlay { get; set; }` | Whether the overlay - the frames of the layout's own at field_hud's top (a party panel, a quest log) - is up while the field's buttons are. True unless a mod takes it down (a key that hides the HUD, a cutscene). |
 | `int Version { get; }` | Counts every change (Set, Remove, Refresh), for the host to read the bindings again. |
@@ -2814,4 +2815,4 @@ The random walk's pattern and pace, as the map scripts name them (moveCharacter_
 
 ---
 
-175 types, 1273 members; 519 without a summary yet.
+175 types, 1274 members; 519 without a summary yet.

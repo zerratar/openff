@@ -522,6 +522,7 @@ Their bindings (`bind-text`, `bind-visible`, `bind-display`, `bind-class`, `bind
 Game.Hud.Set("quest", new { title = "The Wind Crystal", step = "Talk to the elder of Ur", active = true });
 Game.Hud.Set("quest", null);   // gone: what binds it reads nothing
 Game.Hud.Overlay = false;      // the overlay down (a cutscene, a key that hides the HUD)
+Game.Hud.FieldButtons = false; // the field's Menu, Map and Talk buttons down: not drawn, not pressed (a mode whose screens stand in for the field)
 ```
 
 A value is any object (its public properties and fields), a dictionary or a list. Setting one is shown at once; a change inside one already set (a field of the object) on the next reading, or at once after `Game.Hud.Refresh()`. Menu screens reach the same names. In Crystal's preview a sample party and a sample `quest` fill them.

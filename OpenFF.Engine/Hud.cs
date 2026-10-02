@@ -33,6 +33,18 @@ namespace OpenFF
 		}
 		private bool _overlay = true;
 
+		/// <summary>
+		/// Whether the field's own buttons (Menu, Map, Talk) are up: true unless a mod takes them down - a mode whose screens
+		/// stand in for the field's (between them the field is only a scene), a cutscene of its own. Down, they are neither
+		/// drawn nor pressed; the keys and the pad still open the menu.
+		/// </summary>
+		public bool FieldButtons
+		{
+			get => _fieldButtons;
+			set { if (_fieldButtons == value) return; _fieldButtons = value; Version++; }
+		}
+		private bool _fieldButtons = true;
+
 		/// <summary>A value under a name for the bindings ("quest" for {quest.step}); null takes it away.</summary>
 		public void Set(string name, object value)
 		{
