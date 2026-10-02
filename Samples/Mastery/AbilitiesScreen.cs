@@ -292,12 +292,13 @@ namespace Mastery
 
 		public override bool OnPress()
 		{
-			if (Menu.Focused == "yes" && Pending != null && Game.Party.ChangeJob(Screens.Hero, Pending))
+			// The change shown as the game's own Job screen shows it - the hero, the crystal's light, the new job's figure -
+			// and the Jobs screen again once the scene has ended.
+			if (Menu.Focused == "yes" && Pending != null)
 			{
-				Menu.SoundDecide();
+				string job = Pending;
 				Pending = null;
-				Menu.Open("jobs");
-				return true;
+				if (Game.Party.ChangeJob(Screens.Hero, job, changed => Menu.Open("jobs"))) return true;
 			}
 			Menu.SoundCancel();
 			Pending = null;
