@@ -123,10 +123,16 @@ namespace OpenFF.Client
 			if (_screen == null && _gameScreen == null) Gather(OpenFF.Game.Mods);
 			List<MenuDefinition> defs = _all.Where(d => string.Equals(d.File, file, StringComparison.OrdinalIgnoreCase)).ToList();
 			bool hud = BattleHudLayout.HasVirtual(file);   // BattleDefine's battle_hud, WorldDefine's field_hud
-			if (defs.Count == 0 && !hud) return bytes;
 			try
 			{
 				XDocument doc = MenuXbn.ToXml((byte[])bytes);
+				// A damaged file - a frame's count of what it holds that is not what it holds (a menu file rewritten in the game's
+				// folder) - is read by what it holds and handed to the game mended, mods or none: read as it is, the game's own reader
+				// put frames' behaviours on the wrong frames, and the Job screen crashed on a row with none.
+				bool damaged = MenuXbn.LastDamage.Count > 0;
+				if (damaged) Log.First(LogChannel.General, "menus-damaged-" + file, 1, () => "menus: " + file + " in the game's folder is damaged (" + MenuXbn.LastDamage[0]
+					+ (MenuXbn.LastDamage.Count > 1 ? ", and " + (MenuXbn.LastDamage.Count - 1) + " more" : "") + ") - mended for this run; Steam's Verify integrity of game files puts the game's own back");
+				if (defs.Count == 0 && !hud) return damaged ? MenuXbn.FromXml(doc) : bytes;
 				XElement list = doc.Root;
 				if (list == null) return bytes;
 				// The code-drawn windows as screens (BattleHudLayout): the game's numbers unless a mod's copy takes their place below.

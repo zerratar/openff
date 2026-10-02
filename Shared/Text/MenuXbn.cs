@@ -58,8 +58,17 @@ namespace OpenFF.Content
 
 		// ---------------------------------------------------------------- decode
 
+		/// <summary>
+		/// What the last ToXml found wrong with the file: nodes whose count of descendants is not what their children hold.
+		/// The tree is read by the children; the counts are only a check (the encoder writes them afresh), so such a file
+		/// still decodes - and its encoding is the file mended. Empty for a sound file.
+		/// </summary>
+		[ThreadStatic] private static List<string> _damage;
+		public static IReadOnlyList<string> LastDamage => _damage ?? (IReadOnlyList<string>)Array.Empty<string>();
+
 		public static XDocument ToXml(byte[] data)
 		{
+			_damage = new List<string>();
 			if (data == null || data.Length < HeaderSize
 				|| data[0] != (byte)'X' || data[1] != (byte)'B'
 				|| data[2] != (byte)'N' || data[3] != (byte)' ')
@@ -156,7 +165,7 @@ namespace OpenFF.Content
 			consumed = at - index;
 			if (consumed != node.Descendants + 1)
 			{
-				throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture,
+				(_damage ??= new List<string>()).Add(string.Format(CultureInfo.InvariantCulture,
 					"node {0} ({1}) claims {2} descendants but the tree holds {3}",
 					index, node.Name, node.Descendants, consumed - 1));
 			}
