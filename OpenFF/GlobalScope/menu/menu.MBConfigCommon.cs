@@ -64,6 +64,8 @@ internal static partial class GlobalScope
 				dgs.DGSMessageManager dGSMessageManager = null;
 				dGSMessageManager = ((M.display() != 1) ? dgs.msg.CMessageSys.getInstance().Sub() : dgs.msg.CMessageSys.getInstance().Main());
 				_msg = dGSMessageManager.createMessage((uint)msg_number, dgs.INVALID_MSDHANDLE, font);
+				// PORT: a message the game's menu text (eureka_menu.msd) does not hold - a replaced game file - leaves the row blank rather than crashing the Config screen.
+				if (_msg == null) OpenFF.Client.Log.First(OpenFF.Client.LogChannel.General, "config-text-" + msg_number, 1, () => "config: no text " + msg_number + " for '" + M._id() + "' in the game's menu text (eureka_menu.msd) - the row is left blank; a game file may have been replaced: Steam's Verify integrity of game files puts the game's own back");
 				if (_msg != null)
 				{
 					_msg.setPosition(M.x(), M.y(), erase: true);

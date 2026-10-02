@@ -155,12 +155,12 @@ internal static partial class GlobalScope
 				{
 					if ((sbyte)M.work() == m_MBCCommon.GetNowMenu((OPTION_LINE)(sbyte)M.parentNode().work()))
 					{
-						m_pMsg.setMessageColor(dgs.TXT_COLOR.TXT_COLOR_WHITE);
+						m_pMsg?.setMessageColor(dgs.TXT_COLOR.TXT_COLOR_WHITE);
 						m_ButtonWindow.bwSetState(ButtonWindow.BW_STATE.BWS_ON);
 					}
 					else
 					{
-						m_pMsg.setMessageColor(dgs.TXT_COLOR.TXT_UCOLOR_3);
+						m_pMsg?.setMessageColor(dgs.TXT_COLOR.TXT_UCOLOR_3);
 						m_ButtonWindow.bwSetState(ButtonWindow.BW_STATE.BWS_OFF);
 					}
 				}
