@@ -557,7 +557,9 @@ function deleteProjectDialog(project, listBody) {
       if (!result.ok) throw new Error(result.error);
       body.close();
       if (listBody) listBody.close();
-      const said = `${result.name} is in the Recycle Bin` + (result.mod ? ', and its mod is out of the mods folder' : '');
+      const said = (result.where === 'recycle bin' ? `${result.name} is in the Recycle Bin` : `${result.name} is deleted - kept in ${result.where} in case you want it back`)
+        + (result.mod ? ', and its mod is out of the mods folder' : '')
+        + (result.modError ? ` (its mod could not be removed: ${result.modError})` : '');
       if (project.current) await reloadEverything(said);
       else {
         say(said, 'good');

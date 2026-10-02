@@ -20,6 +20,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Rogue Mode: starting gear no longer hands out a bow (no arrows come with it).
 - Menus: the game's main menu opened from a mod's screen (`Menu.OpenMainMenu`) shows every hero's face, not only those loaded as the menus opened.
 - Crystal: the start page drops a project as soon as it is deleted.
+- Crystal: deleting a project no longer fails with the shell's path error: when the Recycle Bin will not take the folder, it is moved into Crystal's own `deleted` folder instead, and a mod folder that will not go no longer keeps the project.
 
 ## 0.3.4 - rogue mode (2026-10-02)
 

@@ -3112,38 +3112,88 @@ namespace Crystal.Editor
 				SendJson(context, new { ok = false, error = "no project of Crystal's in " + directory });
 				return;
 			}
-			if (!OperatingSystem.IsWindows())
-			{
-				SendJson(context, new { ok = false, error = "deleting a project goes through the Recycle Bin, which is Windows-only for now - delete " + project.Directory + " by hand" });
-				return;
-			}
 			if (_project != null && SameDirectory(_project.Directory, project.Directory) && !CloseProject())
 			{
 				SendJson(context, new { ok = false, error = "the project is open and no game install was found to open in its place" });
 				return;
 			}
-			string mod = null;
-			try
+			// The project first: what was asked for. The mod after it, so a mod folder that will not go does not keep the project.
+			string where;
+			try { where = Discard(project.Directory); }
+			catch (Exception ex)
 			{
-				if (removeMod)
+				Console.Error.WriteLine("  delete    {0}: {1}", project.Directory, ex.Message);
+				SendJson(context, new { ok = false, error = "could not delete " + project.Directory + ": " + ex.Message });
+				return;
+			}
+			string mod = null, modWhere = null, modError = null;
+			if (removeMod)
+			{
+				try
 				{
 					string mods = OpenFFClient.ModsFolder();
 					string candidate = mods == null ? null : Path.Combine(mods, ProjectExport.ModFolderName(project));
 					// Only a folder an export wrote (its mod.json): never something else that happens to share the name.
 					if (candidate != null && File.Exists(Path.Combine(candidate, OpenFF.Content.ModsFolder.ManifestName)))
 					{
-						Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(candidate,
-							Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+						modWhere = Discard(candidate);
 						mod = candidate;
 					}
 				}
-				Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(project.Directory,
-					Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
-				SendJson(context, new { ok = true, name = project.File.Name, directory = project.Directory, mod });
+				catch (Exception ex)
+				{
+					Console.Error.WriteLine("  delete    the exported mod: {0}", ex.Message);
+					modError = ex.Message;
+				}
 			}
-			catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException)
+			SendJson(context, new { ok = true, name = project.File.Name, directory = project.Directory, where, mod, modWhere, modError });
+		}
+
+		/// <summary>
+		/// A folder out of the way, recoverably: to the Recycle Bin, or - when the shell will not take it (a path it cannot
+		/// handle, no Recycle Bin on that drive) - moved into Crystal's own deleted/ folder. Returns where it went:
+		/// "recycle bin" or the folder it was moved to. Throws when neither worked.
+		/// </summary>
+		private static string Discard(string folder)
+		{
+			// The shell wants a full path with backslashes and no trailing separator.
+			string full = Path.GetFullPath(folder).Replace('/', '\\').TrimEnd('\\');
+			if (!Directory.Exists(full)) throw new DirectoryNotFoundException(full + " is not there");
+			string shellError = null;
+			if (OperatingSystem.IsWindows())
 			{
-				SendJson(context, new { ok = false, error = ex.Message });
+				try
+				{
+					Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(full,
+						Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+					if (!Directory.Exists(full)) return "recycle bin";
+					shellError = "the Recycle Bin left it in place";
+				}
+				catch (Exception ex) { shellError = ex.Message; }
+				Console.Error.WriteLine("  delete    {0}: the Recycle Bin would not take it ({1}); moving it to Crystal's deleted folder", full, shellError);
+			}
+			string bin = Path.Combine(CrystalHome.Root, "deleted");
+			Directory.CreateDirectory(bin);
+			string to = Path.Combine(bin, Path.GetFileName(full) + " " + DateTime.Now.ToString("yyyy-MM-dd HHmmss", System.Globalization.CultureInfo.InvariantCulture));
+			try
+			{
+				if (string.Equals(Path.GetPathRoot(full), Path.GetPathRoot(to), StringComparison.OrdinalIgnoreCase)) Directory.Move(full, to);
+				else { CopyFolder(full, to); Directory.Delete(full, recursive: true); }
+			}
+			catch (Exception ex)
+			{
+				throw new IOException((shellError != null ? "the Recycle Bin would not take it (" + shellError + "), and " : "") + "moving it to " + bin + " failed: " + ex.Message, ex);
+			}
+			return to;
+		}
+
+		private static void CopyFolder(string from, string to)
+		{
+			foreach (string file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
+			{
+				string target = Path.Combine(to, Path.GetRelativePath(from, file));
+				Directory.CreateDirectory(Path.GetDirectoryName(target));
+				File.Copy(file, target, overwrite: true);
 			}
 		}
 
