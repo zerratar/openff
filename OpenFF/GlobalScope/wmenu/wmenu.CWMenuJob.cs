@@ -320,7 +320,7 @@ internal static partial class GlobalScope
 								{
 									menu.Medget medget = null;
 									menu.MBJobParamList mBJobParamList = null;
-									if ((medget = menu.MenuManager.getSingleton().root().getNodeByID(TRANSCODE("job_item_list"))) != null && (mBJobParamList = (menu.MBJobParamList)medget.behavior().queryInterface(menu.MBJobParamList.classIdentifier())) != null)
+									if ((medget = menu.MenuManager.getSingleton().root().getNodeByID(TRANSCODE("job_item_list"))) != null && (mBJobParamList = (menu.MBJobParamList)medget.behavior()?.queryInterface(menu.MBJobParamList.classIdentifier())) != null)
 									{
 										mBJobParamList.updataJobList();
 										mBJobParamList.releaseItemMessage();
@@ -493,7 +493,7 @@ internal static partial class GlobalScope
 									for (menu.Medget medget = menu.MenuManager.getSingleton().root().getNodeByID(TRANSCODE("job_item_list"))
 										.childNode(); medget != null; medget = medget.nextSibling())
 									{
-										((menu.MBText)medget.behavior().queryInterface(menu.MBText.classIdentifier()))?.bmTextVisibility(v: false);
+										((menu.MBText)medget.behavior()?.queryInterface(menu.MBText.classIdentifier()))?.bmTextVisibility(v: false);
 									}
 									dgs.msg.CMessageSys.getInstance().Sub().dgsMMAreaErase(0, 32, 480, 288);
 									pl.JOB_TYPE nextJob = static_cast<pl.JOB_TYPE>(menu.MenuManager.getSingleton().GetTargetItemNo());
@@ -561,7 +561,7 @@ internal static partial class GlobalScope
 											for (menu.Medget medget = menu.MenuManager.getSingleton().root().getNodeByID(TRANSCODE("job_question_main"))
 												.childNode(); medget != null; medget = medget.nextSibling())
 											{
-												((menu.MBText)medget.behavior().queryInterface(menu.MBText.classIdentifier()))?.bmTextVisibility(v: false);
+												((menu.MBText)medget.behavior()?.queryInterface(menu.MBText.classIdentifier()))?.bmTextVisibility(v: false);
 											}
 											GX_Power3D(1);
 											stageMng.setHidden(flag: true);
