@@ -1801,7 +1801,7 @@ out alike. `Shared` clears itself when the battle ends; the mod puts the parties
 
 ### The samples
 
-Each is a finished mod folder; *File ▸ Sample projects…* in Crystal copies one into a project of
+Each is a finished mod folder; *Create a mod* in Crystal (a sample as the starting point) copies one into a project of
 your own (the code under `code/` with Crystal's csproj), to read, change and Run in OpenFF. The
 release zip carries them in `Samples\`.
 

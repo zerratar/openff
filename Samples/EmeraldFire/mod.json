@@ -2,6 +2,7 @@
   "id": "EmeraldFire",
   "name": "Emerald Fire",
   "version": "1.0",
+  "tags": ["effects", "spells"],
   "author": "OpenFF",
   "description": "Fire burns green: an effect of the mod's own (defs/effects/emerald-fire.json) - four emitters over the game's flame pictures, read from the install, and a glow of the mod's own picture - that the spell plays in place of the game's (defs/spells). No code.",
   "target": "openff",

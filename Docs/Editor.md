@@ -49,13 +49,25 @@ somebody.
 `crystal projects` lists them. In the editor they are under **File**: new, open,
 **Changes…** (everything edited, per game, with revert), **Project settings…** (name,
 author, version, description, and which games), **Export as .zip…** and **Show project
-folder**. The start page - what the document area shows with nothing open - has the same
-things one click away. With no project it is about the projects: the list, New, Open. With
-one open it is about that project - *Open project* over its name, its games, its actions -
-and the other projects fold away under *Switch to another project…*, so the page never
-reads as a question of which one is open. Every project listed carries the mark of what
-it is: the OpenFF folder for an OpenFF mod, a game pad for a Steam mod, both for one that
-is both. The page has an × and stays away for the session once closed (a line saying
+folder**. The start page - what the document area shows with nothing open - is Crystal's
+hub, after Unity Hub's, over three tabs. **Home** asks *What do you want to do today?* with
+three big actions - *Install a sample mod*, *Create a mod*, *Open a project* - over the
+projects worked on last; with a project open, the project comes first (*Open project* over
+its name, its games, its actions). **Projects** is every project, with a filter, a bin on
+each row and *Create a mod…*. **Samples** is the sample browser: a card a sample, with its
+picture (`preview.jpg` or `.png` beside its `mod.json`), version, description and tags (`tags` in
+`mod.json`), filterable by text, by tag, by *Installed*, *Updates*, *C# code* and *No
+code*; each card says how the sample stands in OpenFF's mods folder - *Installed*, *Update*,
+*Old copy* (copied in by hand), *Your own* (a project's export under its name), *Needs a
+build* - and offers **Install**, **Update**, **Uninstall** and **Create a mod from it…**. An
+installed sample is the sample as it ships (`OpenFF.Content.SampleMods`: a `sample.json` of
+its files' SHA-1), kept up to date - an update names the files of it you changed before it
+replaces them; a mod *created* from a sample is a project of your own, never updated over.
+**Create a mod** (File ▸ Create a mod…) picks a starting point - *Empty mod*, or any
+sample - then the name, author, version and description; an empty one picks its games and
+kinds of mod, a sample's are the sample's. Every project listed carries the mark of what it
+is: the OpenFF folder for an OpenFF mod, a game pad for a Steam mod, both for one that is
+both. The page has an × and stays away for the session once closed (a line saying
 *Nothing open* with a link back; **File ▸ Start page** too).
 
 Opening a project puts back what was open in it: the tabs (not previews), which one was

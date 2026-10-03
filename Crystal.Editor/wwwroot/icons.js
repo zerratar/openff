@@ -149,6 +149,8 @@ ICONS.ladder = '<path d="M5 2v12M11 2v12"/><path d="M5 5h6M5 8h6M5 11h6"/>';
 // Seen and not seen: an eye, and the same eye struck through.
 ICONS.eye = '<path d="M1.4 8s2.4-4.4 6.6-4.4S14.6 8 14.6 8s-2.4 4.4-6.6 4.4S1.4 8 1.4 8z"/><circle cx="8" cy="8" r="1.9"/>';
 ICONS['eye-off'] = '<path d="M1.4 8s2.4-4.4 6.6-4.4c1.3 0 2.4.4 3.3 1M14.6 8s-2.4 4.4-6.6 4.4c-1.3 0-2.4-.4-3.3-1"/><path d="M2.6 13.4 13.4 2.6"/>';
+ICONS.download = '<path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7"/><path d="M2.8 11v2.2h10.4V11"/>';
+ICONS.folder = '<path d="M2 4.2h4l1.4 1.5H14v7.1H2z"/>';
 
 /// One icon, as an element ready to put in a row.
 function icon(name, extra) {

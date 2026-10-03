@@ -1,4 +1,4 @@
-// The sample mods, and opening one as a project of your own.
+﻿// The sample mods, and opening one as a project of your own.
 //
 // The repository's Samples/ (Showcase, HelloMod, Survivors) ships in the release zip beside
 // crystal.exe. Each is a finished mod folder - mod.json, scenes/, defs/, assets/, and for the
@@ -7,6 +7,11 @@
 // defs/, assets/, code/ with a csproj Crystal writes against the client's engine), so it opens
 // in the editor exactly like something you made: read it, change it, Run in OpenFF. The
 // sample itself is never touched.
+//
+// A sample can also be installed into the client's mods folder as it stands (OpenFF.Content.SampleMods: the managed kind
+// of mod, with a sample.json, that a later release updates); the start page's sample browser lists each with its picture
+// (preview.jpg or .png beside its mod.json), version, tags and how it stands in the mods folder, and installs, updates and
+// uninstalls it.
 
 using System;
 using System.Collections.Generic;
@@ -24,6 +29,12 @@ namespace Crystal.Editor
 			public string Id { get; set; }
 			public string Name { get; set; }
 			public string Description { get; set; }
+			public string Version { get; set; }
+			public string Author { get; set; }
+			/// <summary>What the sample is about, for the browser's filter (mod.json's "tags").</summary>
+			public List<string> Tags { get; set; } = new List<string>();
+			/// <summary>Whether it has a picture (preview.png or .jpg beside its mod.json).</summary>
+			public bool Preview { get; set; }
 			public string Directory { get; set; }
 			public bool Code { get; set; }
 			public int Scenes { get; set; }
@@ -72,6 +83,10 @@ namespace Crystal.Editor
 					using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(manifest));
 					if (doc.RootElement.TryGetProperty("name", out JsonElement name) && name.ValueKind == JsonValueKind.String) sample.Name = name.GetString();
 					if (doc.RootElement.TryGetProperty("description", out JsonElement description) && description.ValueKind == JsonValueKind.String) sample.Description = description.GetString();
+					if (doc.RootElement.TryGetProperty("version", out JsonElement version) && version.ValueKind == JsonValueKind.String) sample.Version = version.GetString();
+					if (doc.RootElement.TryGetProperty("author", out JsonElement author) && author.ValueKind == JsonValueKind.String) sample.Author = author.GetString();
+					if (doc.RootElement.TryGetProperty("tags", out JsonElement tags) && tags.ValueKind == JsonValueKind.Array)
+						sample.Tags = tags.EnumerateArray().Where(t => t.ValueKind == JsonValueKind.String).Select(t => t.GetString()).ToList();
 					if (doc.RootElement.TryGetProperty("games", out JsonElement games) && games.ValueKind == JsonValueKind.Array)
 						sample.Games = games.EnumerateArray().Where(g => g.ValueKind == JsonValueKind.String).Select(g => g.GetString().ToLowerInvariant()).ToList();
 				}
@@ -80,9 +95,65 @@ namespace Crystal.Editor
 				sample.Scenes = CountFiles(Path.Combine(dir, "scenes"), "*.json");
 				sample.Definitions = CountFiles(Path.Combine(dir, "defs"), "*.json") + CountFiles(Path.Combine(dir, "menus"), "*.json");
 				sample.Assets = CountFiles(Path.Combine(dir, "assets"), "*.*");
+				sample.Preview = PreviewOf(dir) != null;
 				list.Add(sample);
 			}
 			return list;
+		}
+
+		/// <summary>A sample's picture for the browser, or null.</summary>
+		public static string PreviewOf(string sampleDir)
+		{
+			foreach (string name in new[] { "preview.png", "preview.jpg" })
+				if (File.Exists(Path.Combine(sampleDir, name))) return Path.Combine(sampleDir, name);
+			return null;
+		}
+
+		/// <summary>How a sample stands in the client's mods folder, for the browser.</summary>
+		public sealed class Install
+		{
+			/// <summary>none (not there), installed (as shipped), update, copy (one copied by hand, older), build (no built assembly to install), own (a mod of the player's in its folder).</summary>
+			public string State { get; set; }
+			public string Version { get; set; }
+			public bool Managed { get; set; }
+			public List<string> Changed { get; set; } = new List<string>();
+			public List<string> Extra { get; set; } = new List<string>();
+		}
+
+		public static Install InstallOf(Sample sample, string modsFolder)
+		{
+			if (modsFolder == null) return new Install { State = OpenFF.Content.SampleMods.Built(sample.Directory) ? "none" : "build" };
+			string modDir = Path.Combine(modsFolder, sample.Id);
+			if (!System.IO.Directory.Exists(modDir)) return new Install { State = OpenFF.Content.SampleMods.Built(sample.Directory) ? "none" : "build" };
+			OpenFF.Content.SampleMods.Status s = OpenFF.Content.SampleMods.StatusOf(modDir, Path.GetDirectoryName(sample.Directory));
+			Install install = new Install { Version = s.Installed, Managed = s.Managed, Changed = s.Changed, Extra = s.Extra };
+			install.State = s.State switch
+			{
+				OpenFF.Content.SampleMods.State.UpToDate => "installed",
+				OpenFF.Content.SampleMods.State.UpdateAvailable => "update",
+				OpenFF.Content.SampleMods.State.OldCopy => "copy",
+				OpenFF.Content.SampleMods.State.NeedsBuild => "build",
+				_ => "own",
+			};
+			return install;
+		}
+
+		/// <summary>The sample installed into (or brought up to the shipped one in) the client's mods folder; a mod of the player's own in its folder is never overwritten.</summary>
+		public static int InstallInto(string id, string modsFolder)
+		{
+			Sample sample = All().FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase)) ?? throw new ArgumentException("no sample called " + id);
+			if (modsFolder == null) throw new InvalidOperationException("no OpenFF client is known yet - start OpenFF once, then install");
+			Install now = InstallOf(sample, modsFolder);
+			if (now.State == "own") throw new InvalidOperationException(Path.Combine(modsFolder, sample.Id) + " is a mod of your own, not the sample - move it away to install the sample");
+			System.IO.Directory.CreateDirectory(modsFolder);
+			return OpenFF.Content.SampleMods.Install(sample.Directory, modsFolder, removeExtra: now.State == "copy");
+		}
+
+		public static void UninstallFrom(string id, string modsFolder)
+		{
+			Sample sample = All().FirstOrDefault(s => string.Equals(s.Id, id, StringComparison.OrdinalIgnoreCase)) ?? throw new ArgumentException("no sample called " + id);
+			if (modsFolder == null) throw new InvalidOperationException("no OpenFF client is known yet");
+			OpenFF.Content.SampleMods.Uninstall(Path.Combine(modsFolder, sample.Id));
 		}
 
 		private static int CountFiles(string dir, string pattern)

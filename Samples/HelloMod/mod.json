@@ -2,6 +2,7 @@
   "id": "hello",
   "name": "Hello mod",
   "version": "1.0",
+  "tags": ["starter", "scenes"],
   "author": "OpenFF",
   "description": "The smallest mod with code: a service, a behaviour, a save chunk.",
   "target": "openff",

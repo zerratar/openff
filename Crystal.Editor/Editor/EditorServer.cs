@@ -1,4 +1,4 @@
-// The editor's back end: a small local HTTP server over the codecs.
+﻿// The editor's back end: a small local HTTP server over the codecs.
 //
 //   crystal editor [--content=<dir>] [--override=<dir>] [--language=en] [--port=5050]
 //
@@ -434,8 +434,49 @@ namespace Crystal.Editor
 
 				case "/api/samples":
 					// The sample mods shipped beside Crystal (or the repository's), for Sample projectsâ€¦.
-					SendJson(context, new { ok = true, folder = Samples.Folder(), samples = Samples.All() });
+				{
+					// The installs too: how each stands in the client's mods folder, for the start page's sample browser.
+					string mods = OpenFFClient.ModsFolder();
+					SendJson(context, new
+					{
+						ok = true,
+						folder = Samples.Folder(),
+						mods,
+						samples = Samples.All().Select(s => new
+						{
+							s.Id, s.Name, s.Description, s.Version, s.Author, s.Tags, s.Preview, s.Code, s.Scenes, s.Definitions, s.Assets, s.Games,
+							install = Samples.InstallOf(s, mods)
+						}).ToList()
+					});
 					return;
+				}
+
+				case "/api/samples/preview":
+				{
+					Samples.Sample sample = Samples.All().FirstOrDefault(s => string.Equals(s.Id, Query(context, "id"), StringComparison.OrdinalIgnoreCase));
+					string picture = sample == null ? null : Samples.PreviewOf(sample.Directory);
+					if (picture == null) { Send(context, 404, "text/plain", System.Text.Encoding.UTF8.GetBytes("no picture")); return; }
+					Send(context, 200, picture.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? "image/png" : "image/jpeg", File.ReadAllBytes(picture));
+					return;
+				}
+
+				case "/api/samples/install":
+				case "/api/samples/uninstall":
+				{
+					// A sample put into the client's mods folder as it stands (or brought up to the shipped one), or taken out.
+					JsonNode body = ReadBody(context);
+					string id = body?["id"]?.GetValue<string>();
+					try
+					{
+						if (path.EndsWith("/uninstall")) { Samples.UninstallFrom(id, OpenFFClient.ModsFolder()); SendJson(context, new { ok = true }); }
+						else SendJson(context, new { ok = true, written = Samples.InstallInto(id, OpenFFClient.ModsFolder()) });
+					}
+					catch (Exception ex) when (ex is ArgumentException or IOException or InvalidOperationException or UnauthorizedAccessException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
 
 				case "/api/samples/open":
 				{

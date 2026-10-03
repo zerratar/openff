@@ -2020,6 +2020,76 @@ header h1 .gem {
 .start-tips { font-size: 12px; color: var(--dim); line-height: 1.6; margin: 0; padding-left: 18px; }
 .start-tips b { color: var(--ink); font-weight: 500; }
 
+/* The hub (hub.js): the start page's pages - Home's three big actions, Projects, the sample browser - and Create a mod. */
+.start-card.hub { width: min(980px, 100%); gap: 16px; }
+.hub-nav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: -6px; }
+.hub-tab { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 6px 12px; color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
+.hub-tab:hover { color: var(--ink); }
+.hub-tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+.hub-count { font-size: 10px; min-width: 16px; padding: 0 5px; border-radius: 8px; background: var(--line); color: var(--ink); line-height: 16px; text-align: center; }
+.hub-count.update { background: var(--mark); color: #1b1408; font-weight: 600; }
+.hub-page { display: flex; flex-direction: column; gap: 18px; }
+.hub-question { margin: 4px 0 -6px; font-size: 18px; font-weight: 500; }
+.hub-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.hub-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 18px 18px 16px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-height: 132px;
+}
+.hub-tile:hover { border-color: var(--accent); background: #1f2530; }
+.hub-tile .icon { width: 26px; height: 26px; color: var(--accent); margin-bottom: 4px; }
+.hub-tile b { font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.hub-tile span { font-size: 12px; color: var(--dim); line-height: 1.5; }
+.hub-tile .hub-count { color: #1b1408; }
+.hub-more { font-size: 12px; color: var(--accent); text-decoration: none; padding: 4px 8px; }
+.hub-bar { display: flex; gap: 8px; align-items: center; }
+.hub-search { flex: 1; font-size: 13px; padding: 6px 10px; }
+.hub-projects { max-height: none; }
+.hub-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px; }
+.hub-chip { font-size: 11px; padding: 2px 10px; border-radius: 12px; background: var(--bg); color: var(--dim); }
+.hub-chip:hover { color: var(--ink); }
+.hub-chip.on { background: rgba(110, 168, 254, .16); border-color: var(--accent); color: var(--ink); }
+.hub-where { margin-top: -8px; }
+.hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.hub-sample { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.hub-sample:hover { border-color: #3c4552; }
+.hub-shot { aspect-ratio: 16 / 9; background: var(--bg); display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--line); }
+.hub-shot img, .hub-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hub-shot.blank, .hub-thumb.blank { background: linear-gradient(135deg, #1d2633, #161a21); }
+.hub-shot.blank .icon { width: 42px; height: 42px; color: #3d4a5c; }
+.hub-sample-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 0; flex-wrap: wrap; }
+.hub-sample-head b { font-size: 14px; }
+.hub-version { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; margin-left: 6px; font-weight: 400; }
+.hub-sample-head .hub-version { margin-left: 0; }
+.hub-state { font-size: 10px; padding: 1px 7px; border-radius: 9px; border: 1px solid; margin-left: auto; text-transform: uppercase; letter-spacing: .04em; }
+.hub-state.good { color: var(--good); border-color: rgba(106, 196, 138, .5); }
+.hub-state.mark { color: var(--mark); border-color: rgba(217, 164, 65, .6); background: rgba(217, 164, 65, .1); }
+.hub-state.dim { color: var(--dim); border-color: var(--line); }
+.hub-sample-text { margin: 6px 12px 0; font-size: 12px; color: var(--dim); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hub-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px 0; }
+.hub-tag { font-size: 10px; padding: 0 6px; border-radius: 3px; background: var(--bg); border: 1px solid var(--line); color: var(--dim); cursor: pointer; line-height: 16px; }
+.hub-tag:hover { color: var(--ink); }
+.hub-tag.csharp { color: #8ab4f8; border-color: rgba(138, 180, 248, .4); cursor: default; }
+.hub-sample-actions { display: flex; gap: 6px; padding: 10px 12px 12px; margin-top: auto; flex-wrap: wrap; }
+.hub-sample-actions button { font-size: 12px; }
+.hub-create { display: grid; grid-template-columns: 290px 1fr; gap: 16px; min-height: 0; }
+.hub-starts { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.hub-start-list { display: flex; flex-direction: column; gap: 4px; max-height: 52vh; overflow: auto; padding-right: 2px; }
+.hub-start { display: flex; gap: 10px; align-items: center; text-align: left; padding: 6px; border-radius: 7px; background: var(--bg); }
+.hub-start:hover { border-color: var(--accent); }
+.hub-start.checked { border-color: var(--accent); background: rgba(110, 168, 254, .1); }
+.hub-start > div:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hub-start b { font-size: 13px; display: flex; align-items: center; gap: 4px; }
+.hub-start span:not(.hub-version):not(.hub-tag) { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-thumb { flex: 0 0 72px; height: 40px; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.hub-thumb.blank .icon { width: 18px; height: 18px; color: #4a5a70; }
+.hub-form { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.picker.dialog.wide:has(.hub-create) { width: min(940px, 94vw); }
+@media (max-width: 760px) {
+  .hub-tiles { grid-template-columns: 1fr; }
+  .hub-create { grid-template-columns: 1fr; }
+  .start-columns { grid-template-columns: 1fr; }
+}
+
 /* ------------------------------------------------------------ dialogs, more of them */
 
 .dialog-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }

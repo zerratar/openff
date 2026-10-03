@@ -2,6 +2,7 @@
   "id": "SummonMagic",
   "name": "Summon Magic",
   "version": "1.0",
+  "tags": ["effects", "spells"],
   "author": "OpenFF",
   "description": "The first black magic cast with the summons' own effects, and no code: Fire with the fire summon's firestorm, Blizzard with the ice summon's crystals, Thunder with the lightning summon's bolts - three defs/spells definitions naming the game's effect packs, each cast with the summoner's glow.",
   "target": "openff",

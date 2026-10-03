@@ -18,6 +18,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Party: `Game.Party.ChangeJob` works for heroes of FF3's own job system too, not only mastery heroes.
 - Mods list: a sample's mod (Showcase, Mastery, Rogue Mode...) says when the release's sample is newer, and U (Y on a pad) updates it - files of it you changed are named first and a second U replaces them; an old copy made by hand loses the files the sample no longer has. Installed samples carry a `sample.json` (which sample, its version, each file's SHA-1); a mod exported from a Crystal project is yours and is never offered one.
 - Crystal: `crystal sample-install <sample> <mods folder>` installs a sample as such a mod (the release's preinstalled Showcase is one).
+- Crystal: a new start page, after Unity Hub - Home asks what you want to do today (Install a sample mod, Create a mod, Open a project), Projects lists them all with a filter, and Samples browses the samples with pictures, versions, tags and filters: Install, Update and Uninstall each into OpenFF's mods folder, or Create a mod from it.
+- Crystal: Create a mod - a starting point (Empty, or any sample) with the name, author, version and description; File ▸ New project is now Create a mod.
+- Samples: each has `tags` in its `mod.json` and a `preview.jpg` for the browser.
 - Mods: `mod.json`'s `project` - the Crystal project a mod was exported from.
 
 **Fixes**

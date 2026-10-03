@@ -2,6 +2,7 @@
   "id": "StarlitMenu",
   "name": "Starlit Menu",
   "version": "1.0",
+  "tags": ["menus", "art"],
   "author": "OpenFF",
   "description": "The main menu redrawn as a mod, with no code: the game's own screen (its commands, the hero pick, the game's code behind them) laid out again in a layout, a stylesheet and a few pictures - gold framed panels over a night sky, the heroes' faces, bars and MP from data bindings, a lit row that follows the hand.",
   "target": "openff",

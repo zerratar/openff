@@ -88,7 +88,39 @@ namespace OpenFF.Content
 
 		/// <summary>Whether a sample has code (a csproj) and, if so, its built assembly beside its mod.json.</summary>
 		public static bool HasCode(string sampleDir) => Directory.EnumerateFiles(sampleDir, "*.csproj", SearchOption.TopDirectoryOnly).Any();
-		public static bool Built(string sampleDir) => !HasCode(sampleDir) || Directory.EnumerateFiles(sampleDir, "*.dll", SearchOption.TopDirectoryOnly).Any();
+		public static bool Built(string sampleDir)
+		{
+			if (!HasCode(sampleDir)) return true;
+			Dictionary<string, string> sources = Sources(sampleDir);
+			List<string> assemblies = Assemblies(sampleDir);
+			return assemblies.Count > 0 ? assemblies.All(sources.ContainsKey) : sources.Keys.Any(f => f.EndsWith(".dll", StringComparison.OrdinalIgnoreCase));
+		}
+
+		/// <summary>The assemblies the sample's mod.json names.</summary>
+		private static List<string> Assemblies(string sampleDir)
+		{
+			try { return ModsFolder.ReadManifest(Path.Combine(sampleDir, "mod.json"))?.Assemblies ?? new List<string>(); }
+			catch (Exception) { return new List<string>(); }
+		}
+
+		/// <summary>
+		/// The files an installed mod is made of, each with where it is read from: the sample's own (Files), and its
+		/// assemblies - beside mod.json in a release, else a checkout's newest build of it (bin/&lt;configuration&gt;/&lt;framework&gt;/).
+		/// </summary>
+		public static Dictionary<string, string> Sources(string sampleDir)
+		{
+			var map = Files(sampleDir).ToDictionary(f => f, f => Path.Combine(sampleDir, f), StringComparer.OrdinalIgnoreCase);
+			string bin = Path.Combine(sampleDir, "bin");
+			if (!Directory.Exists(bin)) return map;
+			foreach (string assembly in Assemblies(sampleDir))
+			{
+				if (map.ContainsKey(assembly)) continue;
+				string built = Directory.EnumerateFiles(bin, Path.GetFileName(assembly), SearchOption.AllDirectories)
+					.OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
+				if (built != null) map[assembly] = built;
+			}
+			return map;
+		}
 
 		/// <summary>The sample's files an installed mod is made of, by path relative to the sample (forward slashes).</summary>
 		public static List<string> Files(string sampleDir)
@@ -101,6 +133,8 @@ namespace OpenFF.Content
 				if (parts.Take(parts.Length - 1).Any(p => SkipFolders.Contains(p, StringComparer.OrdinalIgnoreCase))) continue;
 				if (SkipExtensions.Contains(Path.GetExtension(relative), StringComparer.OrdinalIgnoreCase)) continue;
 				if (string.Equals(parts[^1], RecordName, StringComparison.OrdinalIgnoreCase)) continue;
+				// The sample's picture for Crystal's sample browser is not the mod's.
+				if (parts.Length == 1 && Path.GetFileNameWithoutExtension(relative).Equals("preview", StringComparison.OrdinalIgnoreCase)) continue;
 				files.Add(relative);
 			}
 			files.Sort(StringComparer.OrdinalIgnoreCase);
@@ -140,7 +174,8 @@ namespace OpenFF.Content
 			status.Installed = record?.Version ?? VersionOf(modDir);
 			if (!Built(sampleDir)) { status.State = State.NeedsBuild; return status; }
 			bool differs = false;
-			List<string> shippedFiles = Files(sampleDir);
+			Dictionary<string, string> sources = Sources(sampleDir);
+			List<string> shippedFiles = sources.Keys.ToList();
 			if (record == null)
 			{
 				// What a copy made by hand has that the sample does not: an older sample's files (its own record tells a managed one's).
@@ -151,7 +186,7 @@ namespace OpenFF.Content
 			foreach (string relative in shippedFiles)
 			{
 				string installed = Path.Combine(modDir, relative);
-				string shipped = Sha1(Path.Combine(sampleDir, relative));
+				string shipped = Sha1(sources[relative]);
 				if (!File.Exists(installed)) { differs = true; continue; }
 				string now = Sha1(installed);
 				if (now != shipped) differs = true;
@@ -175,9 +210,9 @@ namespace OpenFF.Content
 			Record old = ReadRecord(modDir);
 			Record record = new Record { Sample = id, Version = VersionOf(sampleDir), Installed = DateTime.Now.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture) };
 			int written = 0;
-			foreach (string relative in Files(sampleDir))
+			foreach ((string relative, string from) in Sources(sampleDir))
 			{
-				string from = Path.Combine(sampleDir, relative), to = Path.Combine(modDir, relative);
+				string to = Path.Combine(modDir, relative);
 				string sha = Sha1(from);
 				record.Files[relative] = sha;
 				if (File.Exists(to) && Sha1(to) == sha) continue;
