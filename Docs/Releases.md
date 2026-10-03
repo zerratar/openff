@@ -9,6 +9,10 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 ## Unreleased
 
+## 0.3.5 - sample hub (2026-10-03)
+
+The game's files checked against the Steam release at every start; sample mods kept up to date from OpenFF's MODS list; Crystal's new start page - install a sample mod, create a mod, open a project - with a sample browser; Rogue Mode's Party with job changes, and its black screens fixed.
+
 **Added**
 - Game files: at every start the game's own files are checked against the Steam release's (a list of every file OpenFF reads, its size and SHA-1, in `Data/game-files/`; about a second, in the background). Files that differ - a mod installed into the game folder, the phone version's files, a damaged download - are said over the title with Steam's way to put them back, Continue anyway and Don't warn about these files again; the log names them. Settings > Check game files checks at any time.
 - Crystal: `crystal game-files <install> <list.json.gz>` makes such a list from a clean install (`--check` checks one against it).
