@@ -16,6 +16,9 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Battle: L and R (Q and E on the keyboard) switch a target between the enemies and the party, as the Enemy / Ally button does.
 - Crystal: File ▸ Update from the sample - a project made from a sample brought up to the sample as this version has it, after a list of the files it would replace; the project's own files are kept.
 - Party: `Game.Party.ChangeJob` works for heroes of FF3's own job system too, not only mastery heroes.
+- Mods list: a sample's mod (Showcase, Mastery, Rogue Mode...) says when the release's sample is newer, and U (Y on a pad) updates it - files of it you changed are named first and a second U replaces them; an old copy made by hand loses the files the sample no longer has. Installed samples carry a `sample.json` (which sample, its version, each file's SHA-1); a mod exported from a Crystal project is yours and is never offered one.
+- Crystal: `crystal sample-install <sample> <mods folder>` installs a sample as such a mod (the release's preinstalled Showcase is one).
+- Mods: `mod.json`'s `project` - the Crystal project a mod was exported from.
 
 **Fixes**
 - Rogue Mode: the battle's opening plays again on the way into a fight - the heroes' surprise and the flash - instead of a black screen.

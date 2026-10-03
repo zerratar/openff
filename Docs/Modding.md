@@ -1805,6 +1805,15 @@ Each is a finished mod folder; *File ▸ Sample projects…* in Crystal copies o
 your own (the code under `code/` with Crystal's csproj), to read, change and Run in OpenFF. The
 release zip carries them in `Samples\`.
 
+A sample can also be *installed*: copied into `mods/` as it stands, with a `sample.json` beside
+it (which sample, its version, each file's SHA-1) - `crystal sample-install Samples\Showcase
+mods`, as the release does for the Showcase. Such a mod is the sample's, and a newer release
+updates it: the title's MODS list says *update (U)* beside it, and U brings it up to the
+release's sample (files you changed are named first; a second U replaces them). A sample folder
+copied into `mods/` by hand is offered the same, and loses the files the sample no longer has.
+A mod exported from a Crystal project (its `mod.json` names the `project`) is your own and is
+never touched.
+
 - `Samples/HelloMod` - a service, a behaviour, a save chunk, a villager who talks through a
   coroutine, and a scene file; `install.cmd` builds it into the mods folder.
 - `Samples/Survivors` - a survivors-style run on the field: waves of goblins from the map's

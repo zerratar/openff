@@ -251,6 +251,7 @@ namespace Crystal.Editor
 				Description = project.File.Description,
 				Target = OpenFF.Content.ModManifest.TargetOpenFF,
 				Assemblies = assemblies,
+				Project = string.IsNullOrWhiteSpace(project.File.Name) ? key : project.File.Name.Trim(),
 			});
 			if (assemblies.Count > 0)
 			{

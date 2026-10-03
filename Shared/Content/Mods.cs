@@ -42,6 +42,8 @@ namespace OpenFF.Content
 		[JsonPropertyName("version")] public string Version { get; set; }
 		[JsonPropertyName("author")] public string Author { get; set; }
 		[JsonPropertyName("description")] public string Description { get; set; }
+		/// <summary>The Crystal project the mod was exported from (Export to OpenFF), or null: a project's mod is the player's own, never a sample to update.</summary>
+		[JsonPropertyName("project")] public string Project { get; set; }
 
 		/// <summary>"openff" (default), "steam" (FF3 on Steam) or "ff4steam".</summary>
 		[JsonPropertyName("target")] public string Target { get; set; } = TargetOpenFF;

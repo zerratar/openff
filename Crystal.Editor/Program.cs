@@ -59,6 +59,16 @@ namespace Crystal
 				{
 					case "info":
 						return Info(args.Length > 1 ? args[1] : ".");
+					case "sample-install":
+					{
+						// crystal sample-install <sample folder> <mods folder>: a sample installed as OpenFF's MODS list and Crystal's
+						// sample browser install it - its mod files and sample.json (publish.cmd puts the Showcase in the zip's mods this way).
+						string[] plain = args.Skip(1).Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+						if (plain.Length < 2) { Console.Error.WriteLine("usage: sample-install <sample folder> <mods folder>"); return 2; }
+						int written = OpenFF.Content.SampleMods.Install(plain[0], plain[1]);
+						Console.WriteLine("{0} installed into {1}: {2} file(s)", Path.GetFileName(plain[0].TrimEnd('/', '\\')), plain[1], written);
+						return 0;
+					}
 					case "game-files":
 					{
 						// crystal game-files <install> <list.json.gz> [--game=ff3] [--source=steam]: a clean install's list, for the client's check;
@@ -461,6 +471,7 @@ namespace Crystal
 			Console.Error.WriteLine("  effect  <install root> <category> [member]    one of the game's effects in the new format, as JSON (FF3)");
 			Console.Error.WriteLine("  effect-cases [dir]    the effect runtime against the shared cases (Tools/EffectCases)");
 			Console.Error.WriteLine("  api-docs [out.md] [--engine=<dll>]  the modding API reference from OpenFF.Engine (default Docs/API.md)");
+			Console.Error.WriteLine("  sample-install <sample folder> <mods folder>  a sample installed as a managed mod (its files and sample.json)");
 			Console.Error.WriteLine("  game-files <install> <list.json.gz> [--game=ff3] [--source=steam] [--skip=a,b] [--check]  a clean install's file list for the client's check; --check checks one");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");

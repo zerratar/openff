@@ -8,6 +8,10 @@
 // beside it move it. What a mod brings is taken in as the client starts, so closing the
 // list with a different set of mods restarts the client on the title (Restart).
 //
+// A sample's mod (SampleMods: one installed from the Samples shipped beside the client, or a copy of one made by hand)
+// says when the shipped sample is newer than the one installed, and U (the pad's Y) brings it up to it - after a second
+// press when files of it were changed since; the restart then takes the new one in.
+//
 // Drawn with the game's own font and a SpriteBatch panel, like the text entry, because
 // there is no picture for any of this in either game's banks. The title's text labels
 // are drawn here too, at the positions the title gives (ttl.TitleLabels), in the title's
@@ -47,6 +51,13 @@ namespace OpenFF.Client
 		private int _selected;
 		private int _scroll;
 		private bool _dirty;
+		// The samples shipped beside the client, and each mod's standing against them (by the mod's folder).
+		private string _samples;
+		private readonly Dictionary<string, SampleMods.Status> _status = new Dictionary<string, SampleMods.Status>(StringComparer.OrdinalIgnoreCase);
+		// A mod updated while the list was up: the game restarts as it closes, whatever else changed.
+		private bool _updated;
+		// The mod whose update waits for a second press (its changed files would be replaced), and the line saying so.
+		private string _confirmUpdate, _message;
 		private string _folder;
 		private int _conflicts;
 		private KeyboardState _previousKeys;
@@ -75,6 +86,11 @@ namespace OpenFF.Client
 			if (Instance == null || Instance._open) return;
 			Instance._folder = ModsFolder.Beside(AppContext.BaseDirectory);
 			Instance._mods = ModsFolder.Load(Instance._folder);
+			Instance._samples = SampleMods.Folder(AppContext.BaseDirectory);
+			Instance._updated = false;
+			Instance._confirmUpdate = null;
+			Instance._message = null;
+			Instance.ReadSamples();
 			Instance.Refresh();
 			Instance._selected = 0;
 			Instance._scroll = 0;
@@ -83,6 +99,62 @@ namespace OpenFF.Client
 			Instance._previousKeys = Keyboard.GetState();
 			Instance._previousMouse = Mouse.GetState();
 			Log.Write(LogChannel.General, "mod list: opened, " + Instance._mods.Count + " mod(s) in " + Instance._folder);
+		}
+
+		/// <summary>Each mod against the shipped samples; the ones with an update said in the log.</summary>
+		private void ReadSamples()
+		{
+			_status.Clear();
+			foreach (InstalledMod mod in _mods)
+			{
+				try
+				{
+					SampleMods.Status s = SampleMods.StatusOf(mod.Directory, _samples);
+					if (s.State == SampleMods.State.None) continue;
+					_status[mod.Directory] = s;
+					if (s.State == SampleMods.State.UpdateAvailable || s.State == SampleMods.State.OldCopy)
+						Log.Write(LogChannel.General, "mod list: " + mod.Key + " is the " + s.Sample + " sample, " + (s.Installed ?? "?") + " - the shipped one is " + (s.Version ?? "?") + "; U updates it" + (s.Changed.Count > 0 ? " (" + s.Changed.Count + " file(s) of it changed)" : ""));
+				}
+				catch (Exception ex) { Log.Write(LogChannel.General, "mod list: " + mod.Key + ": " + ex.Message); }
+			}
+		}
+
+		private SampleMods.Status StatusOf(InstalledMod mod) => mod != null && _status.TryGetValue(mod.Directory, out SampleMods.Status s) ? s : null;
+
+		private static bool Updatable(SampleMods.Status s) => s != null && (s.State == SampleMods.State.UpdateAvailable || s.State == SampleMods.State.OldCopy);
+
+		/// <summary>U on a sample's mod: brought up to the shipped sample - at once, or on a second press when files of it were changed.</summary>
+		private void UpdateSelected()
+		{
+			if (_selected < 0 || _selected >= _mods.Count) return;
+			InstalledMod mod = _mods[_selected];
+			SampleMods.Status s = StatusOf(mod);
+			if (!Updatable(s)) { _message = s == null ? mod.DisplayName + " is not one of the samples" : s.State == SampleMods.State.UpToDate ? mod.DisplayName + " is the shipped sample already" : mod.DisplayName + ": the shipped sample has no built code to update from"; return; }
+			if ((s.Changed.Count > 0 || s.Extra.Count > 0) && _confirmUpdate != mod.Directory)
+			{
+				_confirmUpdate = mod.Directory;
+				List<string> parts = new List<string>();
+				if (s.Changed.Count > 0) parts.Add(s.Changed.Count == 1 ? "1 changed file (" + s.Changed[0] + ") is replaced" : s.Changed.Count + " changed files are replaced");
+				if (s.Extra.Count > 0) parts.Add(s.Extra.Count + " file(s) the sample no longer has go");
+				_message = string.Join(", ", parts) + " - U again to update";
+				return;
+			}
+			_confirmUpdate = null;
+			try
+			{
+				string samples = SampleMods.All(_samples)[s.Sample];
+				int written = SampleMods.Install(samples, _folder, removeExtra: !s.Managed);
+				Log.Write(LogChannel.General, "mod list: " + mod.Key + " updated to the " + s.Sample + " sample " + (s.Version ?? "") + " - " + written + " file(s)");
+				_message = mod.DisplayName + " is updated to " + (s.Version ?? "the shipped sample") + " - closing the list restarts the game with it";
+				_updated = true;
+				_dirty = true;
+				ReadSamples();
+			}
+			catch (Exception ex)
+			{
+				_message = mod.DisplayName + " was not updated: " + ex.Message;
+				Log.Write(LogChannel.General, "mod list: " + mod.Key + " not updated: " + ex.Message);
+			}
 		}
 
 		private void Refresh()
@@ -111,7 +183,7 @@ namespace OpenFF.Client
 				// than this run's is applied by starting again, on the title (Restart).
 				IEnumerable<string> running = GameArchive.ActiveMods.Select(m => m.Key);
 				IEnumerable<string> wanted = ModsFolder.Active(_mods).Select(m => m.Key);
-				if (!running.SequenceEqual(wanted, StringComparer.OrdinalIgnoreCase) && Restart.ToTitle("the mod list changed"))
+				if ((_updated || !running.SequenceEqual(wanted, StringComparer.OrdinalIgnoreCase)) && Restart.ToTitle(_updated ? "a mod was updated" : "the mod list changed"))
 				{
 					DisplaySettings.Current.Save();
 					Game.Exit();
@@ -135,7 +207,8 @@ namespace OpenFF.Client
 			// A game pad drives the list as the keys do: the d-pad or stick, A toggles, B closes, the shoulders move a mod.
 			int pad = DesktopInput.RawPadBits(), padEdge = pad & ~_previousPad;
 			_previousPad = pad;
-			bool padUp = (padEdge & 64) != 0, padDown = (padEdge & 128) != 0, padA = (padEdge & 1) != 0, padB = (padEdge & 2) != 0, padL = (padEdge & 512) != 0, padR = (padEdge & 256) != 0;
+			bool padUp = (padEdge & 64) != 0, padDown = (padEdge & 128) != 0, padA = (padEdge & 1) != 0, padB = (padEdge & 2) != 0, padL = (padEdge & 512) != 0, padR = (padEdge & 256) != 0, padY = (padEdge & 0x800) != 0;
+			int was = _selected;
 
 			if (Pressed(keys, Keys.Escape) || Pressed(keys, Keys.Back) || Pressed(keys, Keys.X) || padB)
 			{
@@ -163,7 +236,12 @@ namespace OpenFF.Client
 				{
 					Move(1);
 				}
+				else if (Pressed(keys, Keys.U) || padY)
+				{
+					UpdateSelected();
+				}
 			}
+			if (_selected != was) { _confirmUpdate = null; _message = null; }
 
 			if (mouse.LeftButton == ButtonState.Pressed && _previousMouse.LeftButton == ButtonState.Released)
 			{
@@ -178,9 +256,13 @@ namespace OpenFF.Client
 
 			_previousKeys = keys;
 			_previousMouse = mouse;
+			_injectedBefore.Clear();
+			foreach (Keys k in DesktopInput.Injected) _injectedBefore.Add(k);
 		}
 
-		private bool Pressed(KeyboardState now, Keys key) => now.IsKeyDown(key) && !_previousKeys.IsKeyDown(key);
+		// A drive's keys too (DesktopInput.Injected), as the client's other screens hear them.
+		private bool Pressed(KeyboardState now, Keys key) => (now.IsKeyDown(key) || DesktopInput.Injected.Contains(key)) && !(_previousKeys.IsKeyDown(key) || _injectedBefore.Contains(key));
+		private readonly HashSet<Keys> _injectedBefore = new HashSet<Keys>();
 
 		private void Toggle(int index)
 		{
@@ -335,7 +417,10 @@ namespace OpenFF.Client
 					bool lit = index == _selected, on = mod.Enabled;
 					string name = (index + 1) + ".  " + Fit(mod.DisplayName, 26) + (string.IsNullOrWhiteSpace(mod.Manifest.Version) ? "" : "   " + mod.Manifest.Version);
 					Ui.Left(graphics, name, r.X + 40, r.Y, r.Height, rowSize, lit ? Color.White : on ? UiTheme.Ink : UiTheme.Hint);
-					Ui.Left(graphics, Fit(Describe(mod), 34), r.X + (int)(r.Width * 0.54f), r.Y, r.Height, descSize, lit ? new Color(255, 236, 190, 255) : UiTheme.Hint);
+					SampleMods.Status sample = StatusOf(mod);
+					string standing = sample == null ? null : Updatable(sample) ? "update (U)" : sample.State == SampleMods.State.UpToDate ? "sample" : null;
+					string what = standing == null ? Describe(mod) : standing + ",  " + Describe(mod);
+					Ui.Left(graphics, Fit(what, 26), r.X + (int)(r.Width * 0.54f), r.Y, r.Height, descSize, Updatable(sample) ? UiTheme.GoldBright : lit ? new Color(255, 236, 190, 255) : UiTheme.Hint);
 				}
 				// The hints: the keyboard's keys in gold with what they do, or the pad's buttons.
 				if (pad)
@@ -356,7 +441,9 @@ namespace OpenFF.Client
 						x += Ui.Width(graphics, w, footSize) + 22;
 					}
 				}
-				string note = Restart.Possible ? "Closing the list restarts the game with your changes." : "Changes apply at the next start.";
+				string note = _message ?? (Updatable(StatusOf(_selected < _mods.Count ? _mods[_selected] : null))
+					? "The shipped " + StatusOf(_mods[_selected]).Sample + " sample is newer - U (Y on a pad) updates it."
+					: Restart.Possible ? "Closing the list restarts the game with your changes." : "Changes apply at the next start.");
 				Ui.Centred(graphics, note, new Rectangle(footer.X, footer.Y + 23, footer.Width, 18), footSize - 1, UiTheme.Sub);
 				Ui.Centred(graphics, "Back", back, 11, UiTheme.Ink);
 			}
