@@ -42,7 +42,7 @@ namespace OpenFF.Client
 				case Page.Main: return new Layout(new Rectangle(152, 70, 496, 340), 150, 43, 36, false);
 				case Page.Quit: return new Layout(new Rectangle(190, 146, 420, 200), 222, 41, 34, false);
 				case Page.Buttons: return new Layout(new Rectangle(142, 24, 516, 440), 92, 22, 19.5f, true);
-				case Page.Settings: return new Layout(new Rectangle(142, 36, 516, 440), 108, 28, 24.5f, true);
+				case Page.Settings: return new Layout(new Rectangle(142, 36, 516, 440), 104, 26, 23f, true);
 				default: return new Layout(new Rectangle(142, 50, 516, 414), 122, 31, 27, true);
 			}
 		}
@@ -146,7 +146,7 @@ namespace OpenFF.Client
 		{
 			if (!Game.IsActive && !Drive.Active) return;   // a drive's keys come whether the window has focus or not
 			// Nothing else may own the keyboard: the text entry, the mod list, a mod's capture.
-			bool othersOwn = (TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || AbilitiesMenu.IsOpen || UpdateScreen.IsOpen || EngineInput.Captured;
+			bool othersOwn = (TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || AbilitiesMenu.IsOpen || UpdateScreen.IsOpen || GameFilesScreen.IsOpen || EngineInput.Captured;
 			if (_page == Page.Closed)
 			{
 				if (othersOwn || RenderTest.Active) { _openEdge = OpenKeyDown(hold: true); return; }
@@ -224,12 +224,12 @@ namespace OpenFF.Client
 					CheckNote();
 					break;
 				case Page.Buttons:
-					if (cancel) { _page = Page.Settings; _selected = 8; return; }
+					if (cancel) { _page = Page.Settings; _selected = 9; return; }
 					if (confirm)
 					{
 						if (_selected < DsButtons.Length) { _binding = DsButtons[_selected].Key; _note = "press the pad button for " + DsButtons[_selected].Label + "  (Esc gives up)"; }
 						else if (_selected == DsButtons.Length) { DisplaySettings.Current.Pad = new DisplaySettings.PadMap(); _note = "the defaults are back"; }
-						else { _page = Page.Settings; _selected = 8; }
+						else { _page = Page.Settings; _selected = 9; }
 					}
 					break;
 				case Page.Quit:
@@ -255,7 +255,7 @@ namespace OpenFF.Client
 			switch (_page)
 			{
 				case Page.Main: return MainRows().Length;
-				case Page.Settings: return 10;
+				case Page.Settings: return 11;
 				case Page.Qol: return QolRows;
 				case Page.Buttons: return DsButtons.Length + 2;
 				case Page.Quit: return 2;
@@ -322,9 +322,13 @@ namespace OpenFF.Client
 					if (confirm) { Updates.Check(asked: true); _checking = true; }
 					break;
 				case 8:
-					if (confirm) { _page = Page.Buttons; _selected = 0; _note = ""; }
+					// The game's files against the release's: the check's panel comes up over the game with its progress and answer.
+					if (confirm) { s.Save(); Close(); GameFileCheck.Start(asked: true); }
 					break;
 				case 9:
+					if (confirm) { _page = Page.Buttons; _selected = 0; _note = ""; }
+					break;
+				case 10:
 					if (confirm) { _page = Page.Main; _selected = MainRow("settings"); s.Save(); }
 					break;
 			}
@@ -536,7 +540,8 @@ namespace OpenFF.Client
 						case 5: icon = UiTheme.Icon.Run; return Kind.Stepper;
 						case 6: icon = UiTheme.Icon.Indicator; return Kind.Stepper;
 						case 7: icon = UiTheme.Icon.Resume; return Kind.Page;
-						case 8: icon = UiTheme.Icon.Pad; return Kind.Page;
+						case 8: icon = UiTheme.Icon.Save; return Kind.Page;
+						case 9: icon = UiTheme.Icon.Pad; return Kind.Page;
 						default: icon = UiTheme.Icon.Back; return Kind.None;
 					}
 				case Page.Buttons:
@@ -787,7 +792,8 @@ namespace OpenFF.Client
 						case 5: label = "Run"; value = s.Run == "stick" ? "By the stick's push" : "Hold the run button"; return;
 						case 6: label = "Updates"; value = Updates.Mode == "auto" ? "Automatic" : Updates.Mode == "off" ? "Off" : "Ask"; return;
 						case 7: label = "Check for updates"; return;
-						case 8: label = "Pad buttons..."; return;
+						case 8: label = "Check game files"; return;
+						case 9: label = "Pad buttons..."; return;
 						default: label = "Back"; return;
 					}
 				case Page.Buttons:

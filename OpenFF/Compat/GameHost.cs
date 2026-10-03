@@ -99,7 +99,7 @@ namespace OpenFF.Client
 				return;
 			}
 			// An update offered before any game (UpdateScreen): the game held still under it, its last frame shown; a drive goes on.
-			if (UpdateScreen.HoldsGame && FrameCapture.HasFrame)
+			if ((UpdateScreen.HoldsGame || GameFilesScreen.HoldsGame) && FrameCapture.HasFrame)
 			{
 				if (steps > 0) Drive.Update();
 			}

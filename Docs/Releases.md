@@ -10,6 +10,8 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 ## Unreleased
 
 **Added**
+- Game files: at every start the game's own files are checked against the Steam release's (a list of every file OpenFF reads, its size and SHA-1, in `Data/game-files/`; about a second, in the background). Files that differ - a mod installed into the game folder, the phone version's files, a damaged download - are said over the title with Steam's way to put them back, Continue anyway and Don't warn about these files again; the log names them. Settings > Check game files checks at any time.
+- Crystal: `crystal game-files <install> <list.json.gz>` makes such a list from a clean install (`--check` checks one against it).
 - Rogue Mode: the camp's Party shows each hero in full - job and job level, HP, magic, stats, equipment - and, once an act's boss has given its crystal, changes their job with the game's own job change scene, the gear the new job cannot wear going to the bag.
 - Battle: L and R (Q and E on the keyboard) switch a target between the enemies and the party, as the Enemy / Ally button does.
 - Crystal: File ▸ Update from the sample - a project made from a sample brought up to the sample as this version has it, after a list of the files it would replace; the project's own files are kept.

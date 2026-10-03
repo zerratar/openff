@@ -59,6 +59,30 @@ namespace Crystal
 				{
 					case "info":
 						return Info(args.Length > 1 ? args[1] : ".");
+					case "game-files":
+					{
+						// crystal game-files <install> <list.json.gz> [--game=ff3] [--source=steam]: a clean install's list, for the client's check;
+						// crystal game-files <install> <list.json.gz> --check: the install checked against a list, timed.
+						string[] plain = args.Skip(1).Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToArray();
+						if (plain.Length < 2) { Console.Error.WriteLine("usage: game-files <install> <list.json.gz> [--game=ff3|ff4] [--source=steam|gog] [--check]"); return 2; }
+						string Opt(string name, string fallback) => args.FirstOrDefault(a => a.StartsWith("--" + name + "=", StringComparison.OrdinalIgnoreCase))?.Substring(name.Length + 3) ?? fallback;
+						System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+						if (args.Contains("--check"))
+						{
+							OpenFF.Content.GameFiles.Result r = OpenFF.Content.GameFiles.Check(plain[0], OpenFF.Content.GameFiles.Read(plain[1]), null);
+							Console.WriteLine("{0} listed: {1} changed, {2} missing, {3} not listed, in {4:0.00} s", r.Listed, r.Changed.Count, r.Missing.Count, r.Extra.Count, clock.Elapsed.TotalSeconds);
+							foreach (string f in r.Changed.Take(20)) Console.WriteLine("  changed  " + f);
+							foreach (string f in r.Missing.Take(20)) Console.WriteLine("  missing  " + f);
+							foreach (string f in r.Extra.Take(20)) Console.WriteLine("  extra    " + f);
+							return r.Clean ? 0 : 1;
+						}
+						OpenFF.Content.GameFiles.Manifest m = OpenFF.Content.GameFiles.Make(plain[0], Opt("game", "ff3"), Opt("source", "steam"));
+						// --skip=a,b: files left out of the list - ones whose original this install cannot vouch for.
+						foreach (string skip in Opt("skip", "").Split(',', StringSplitOptions.RemoveEmptyEntries)) if (m.Files.Remove(skip.Trim().Replace('\\', '/'))) Console.WriteLine("  left out " + skip.Trim());
+						OpenFF.Content.GameFiles.Write(m, plain[1]);
+						Console.WriteLine("{0} file(s) of {1} -> {2} ({3:0.00} s, {4} KB)", m.Files.Count, plain[0], plain[1], clock.Elapsed.TotalSeconds, new FileInfo(plain[1]).Length / 1024);
+						return 0;
+					}
 					case "api-docs":
 					{
 						string engine = args.FirstOrDefault(a => a.StartsWith("--engine=", StringComparison.OrdinalIgnoreCase))?.Substring("--engine=".Length).Trim('"');
@@ -437,6 +461,7 @@ namespace Crystal
 			Console.Error.WriteLine("  effect  <install root> <category> [member]    one of the game's effects in the new format, as JSON (FF3)");
 			Console.Error.WriteLine("  effect-cases [dir]    the effect runtime against the shared cases (Tools/EffectCases)");
 			Console.Error.WriteLine("  api-docs [out.md] [--engine=<dll>]  the modding API reference from OpenFF.Engine (default Docs/API.md)");
+			Console.Error.WriteLine("  game-files <install> <list.json.gz> [--game=ff3] [--source=steam] [--skip=a,b] [--check]  a clean install's file list for the client's check; --check checks one");
 			Console.Error.WriteLine("  extract <xnb-directory> <output-directory>");
 			Console.Error.WriteLine("  archives         <content-directory>");
 			Console.Error.WriteLine("  extract-archives <content-directory> <output-directory> [pattern ...]");

@@ -119,6 +119,7 @@ namespace OpenFF.Client
 
 				// Updates from GitHub's releases: asked in the background now, offered before any game (UpdateScreen).
 				UpdateScreen.Attach(game);
+				GameFilesScreen.Attach(game);
 				Updates.CheckAtStart();
 
 				// Notices over the game (ABP won, an ability learned, what a mod posts) and the
@@ -148,6 +149,8 @@ namespace OpenFF.Client
 					+ (NativeRenderer.Enabled ? "native" : "emulated (legacy GL path)"));
 				RenderOverrides.LogState();
 				Log.Write(LogChannel.General, "content root: " + contentRoot);
+				// The game's files against the release's list, in the background (GameFileCheck): said over the title if they differ.
+				if (Launch.Source == "steam") GameFileCheck.Start(asked: false);
 				Log.Write(LogChannel.General, "backbuffer: "
 					+ gdm.PreferredBackBufferWidth + "x" + gdm.PreferredBackBufferHeight
 					+ " fullscreen=" + gdm.IsFullScreen);
