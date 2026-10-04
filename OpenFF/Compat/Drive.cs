@@ -11,6 +11,8 @@
 //   item <itemId> [count]          the item into the bag (Game.Party.AddItem); equip <member> <itemId> puts it on
 //   member <id>                    a character into the party by the game's id (Game.Party.AddMember: FF3 1 Arc, 2 Refia, 3 Ingus)
 //   battle <formation> [map]       a fight with that formation (Game.Battle.Start)
+//   gil <amount>                   the party's gil (Game.Party.Gil)
+//   shop <index> [table]           the game's shop screen for that shop (Game.Shops.Open: FF3's t01.shp unless a table is named)
 //   motion <index> [loop] [all] [end]  the hero plays a motion by id, b_b01 bound first (706 the fall, 4101 the win pose): a pose on a map, in daylight;
 //                                  "all" every character that has it (a battle's hero), "end" held at its last frame
 //   hp <member> <hp>               a party member's HP (Game.Party.SetHp); 0 fells them - in a battle the fall is played and held
@@ -275,6 +277,22 @@ namespace OpenFF.Client
 						else { OpenFF.Game.Battle.Start(a, b); Log.Write(LogChannel.File, "drive: battle " + a + " on map " + b); }
 					}
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: " + step.Verb + " failed: " + ex.Message); }
+					break;
+				}
+				case "gil":
+				{
+					if (!int.TryParse(step.Arg.Trim(), out int gil)) { Log.Write(LogChannel.General, "drive: gil wants <amount>"); break; }
+					try { OpenFF.Game.Party.Gil = gil; Log.Write(LogChannel.File, "drive: gil " + gil); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: gil failed: " + ex.Message); }
+					break;
+				}
+				case "shop":
+				{
+					// The game's shop screen, as a mod opens it: "shop 0" Ur's weaponsmith (t01.shp), "shop 2 t02" another town's.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 1 || !int.TryParse(bits[0], out int index)) { Log.Write(LogChannel.General, "drive: shop wants <index> [table]"); break; }
+					try { Log.Write(LogChannel.File, "drive: shop " + index + (bits.Length > 1 ? " of " + bits[1] : "") + (OpenFF.Game.Shops.Open(index, bits.Length > 1 ? bits[1] : null) ? "" : " - refused")); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: shop failed: " + ex.Message); }
 					break;
 				}
 				case "learn":

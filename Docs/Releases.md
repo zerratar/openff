@@ -14,6 +14,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 The game's files checked against the Steam release at every start; sample mods kept up to date from OpenFF's MODS list; Crystal's new start page - install a sample mod, create a mod, open a project - with a sample browser; Rogue Mode's Party with job changes, and its black screens fixed.
 
 **Added**
+- Test drives: `gil <amount>` and `shop <index> [table]` - the party's gil, and the game's shop screen as `Game.Shops.Open` opens it.
 - Game files: at every start the game's own files are checked against the Steam release's (a list of every file OpenFF reads, its size and SHA-1, in `Data/game-files/`; about a second, in the background). Files that differ - a mod installed into the game folder, the phone version's files, a damaged download - are said over the title with Steam's way to put them back, Continue anyway and Don't warn about these files again; the log names them. Settings > Check game files checks at any time.
 - Crystal: `crystal game-files <install> <list.json.gz>` makes such a list from a clean install (`--check` checks one against it).
 - Rogue Mode: the camp's Party shows each hero in full - job and job level, HP, magic, stats, equipment - and, once an act's boss has given its crystal, changes their job with the game's own job change scene, the gear the new job cannot wear going to the bag.
@@ -28,6 +29,7 @@ The game's files checked against the Steam release at every start; sample mods k
 - Mods: `mod.json`'s `project` - the Crystal project a mod was exported from.
 
 **Fixes**
+- Shops (FF3): buying no longer crashes on the quantity screen - the Steam release's layout of it has no item icon or name, which the game's code took for granted.
 - Rogue Mode: the battle's opening plays again on the way into a fight - the heroes' surprise and the flash - instead of a black screen.
 - Rogue Mode: starting gear no longer hands out a bow (no arrows come with it).
 - Rogue Mode: Continue Run on a run past the first act no longer leaves the screen black: the warp to its battleground waits till the menus have closed.

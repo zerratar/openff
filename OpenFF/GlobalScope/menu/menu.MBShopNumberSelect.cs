@@ -89,8 +89,12 @@ internal static partial class GlobalScope
 				SET_MSG_NUM(m_NumberMedget, null);
 				m_TotalMedget = m_NumberMedget.nextSibling();
 				SET_MSG_TOTAL(m_TotalMedget, null);
-				m_IconMedget = m_TotalMedget.nextSibling();
-				m_NameMedget = m_IconMedget.nextSibling();
+				// The phone's layout has the item's icon and name after the total; the Steam release's shop_number has the
+				// arrows (up, down) there and no icon or name - those are taken only when they are frames the code fills.
+				m_IconMedget = m_TotalMedget?.nextSibling();
+				m_NameMedget = m_IconMedget?.nextSibling();
+				if (m_IconMedget?.behavior() == null || m_IconMedget.behavior().queryInterface(MBIcon.classIdentifier()) == null) m_IconMedget = null;
+				if (m_NameMedget?.behavior() == null || m_NameMedget.behavior().queryInterface(MBText.classIdentifier()) == null) m_NameMedget = null;
 				setupTotalMoney(M);
 				setupItemNum(M);
 				setupCursor(M);
@@ -207,8 +211,8 @@ internal static partial class GlobalScope
 			public void setupName(Medget M)
 			{
 				int targetItemNo = MenuManager.getSingleton().GetTargetItemNo();
-				((MBText)m_NameMedget.behavior().queryInterface(MBText.classIdentifier()))?.mbSetTextMsgNo(itm.ItemManager.instance().itemParameter((short)targetItemNo).nameId());
-				MBIcon mBIcon = (MBIcon)m_IconMedget.behavior().queryInterface(MBIcon.classIdentifier());
+				if (m_NameMedget != null) ((MBText)m_NameMedget.behavior().queryInterface(MBText.classIdentifier()))?.mbSetTextMsgNo(itm.ItemManager.instance().itemParameter((short)targetItemNo).nameId());
+				MBIcon mBIcon = (MBIcon)m_IconMedget?.behavior().queryInterface(MBIcon.classIdentifier());
 				if (mBIcon != null)
 				{
 					int idx = itm.ItemManager.instance().itemParameter((short)targetItemNo).system();
