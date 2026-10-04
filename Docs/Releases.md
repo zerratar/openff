@@ -30,6 +30,7 @@ The game's files checked against the Steam release at every start; sample mods k
 
 **Fixes**
 - Shops (FF3): buying no longer crashes on the quantity screen - the Steam release's layout of it has no item icon or name, which the game's code took for granted.
+- Shops (FF3): the quantity screen is laid out in its own dialog - the item's name, the count beside the arrows, the total under them - instead of over the shop's question with the dialog left empty; the sell list's icons no longer sit under the hand.
 - Rogue Mode: the battle's opening plays again on the way into a fight - the heroes' surprise and the flash - instead of a black screen.
 - Rogue Mode: starting gear no longer hands out a bow (no arrows come with it).
 - Rogue Mode: Continue Run on a run past the first act no longer leaves the screen black: the warp to its battleground waits till the menus have closed.

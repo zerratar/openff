@@ -533,12 +533,15 @@ internal static partial class GlobalScope
 							if (num < 16)
 							{
 								Medget medget2 = medget.childNode();
+								// The icon at the row's text and the name a step right of it, as the buy list has them on
+								// Steam's layout - the phone's place left of the text is under the hand cursor.
+								GET_TXT_NAME(medget).mbSetPosition((short)(medget2.x() + 24), (short)(medget2.y() + (medget2.height() - 16) / 2));
 								if (MenuManager.getSingleton().Get2d3dMode() == 2)
 								{
 									_icons[num].d2.copy(MenuManager.getSingleton().GetSmallIcon2d());
 									_icons[num].d2.SetCell((ushort)GET_CELL_IDX(medget));
 									sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(_icons[num].d2);
-									_icons[num].d2.SetPositionI(medget2.x() - 16, medget2.y() + (medget2.height() - 16) / 2);
+									_icons[num].d2.SetPositionI(medget2.x(), medget2.y() + (medget2.height() - 16) / 2);
 									_icons[num].d2.SetShow(show: true);
 									_icons[num].d2.SetPriority(3);
 								}
@@ -547,7 +550,7 @@ internal static partial class GlobalScope
 									_icons[num].d3.copy(MenuManager.getSingleton().GetSmallIcon3d());
 									_icons[num].d3.SetCell((ushort)GET_CELL_IDX(medget));
 									sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(_icons[num].d3);
-									_icons[num].d3.SetPositionI(medget2.x() - 16, medget2.y() + (medget2.height() - 16) / 2);
+									_icons[num].d3.SetPositionI(medget2.x(), medget2.y() + (medget2.height() - 16) / 2);
 									_icons[num].d3.SetShow(show: true);
 									_icons[num].d3.SetPriority(3);
 								}

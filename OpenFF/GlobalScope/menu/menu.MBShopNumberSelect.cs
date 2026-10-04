@@ -95,6 +95,7 @@ internal static partial class GlobalScope
 				m_NameMedget = m_IconMedget?.nextSibling();
 				if (m_IconMedget?.behavior() == null || m_IconMedget.behavior().queryInterface(MBIcon.classIdentifier()) == null) m_IconMedget = null;
 				if (m_NameMedget?.behavior() == null || m_NameMedget.behavior().queryInterface(MBText.classIdentifier()) == null) m_NameMedget = null;
+				if (m_IconMedget == null && m_NameMedget == null) SteamPlacement();
 				setupTotalMoney(M);
 				setupItemNum(M);
 				setupCursor(M);
@@ -127,6 +128,7 @@ internal static partial class GlobalScope
 					m_Cursor[i].m_Cell.Release();
 					sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(m_Cursor[i].m_Cell);
 				}
+				if (m_Shifted) { G2S_SetBG3Offset(0, 0); m_Shifted = false; }
 			}
 
 			public override void bmSuspend(Medget M)
@@ -206,6 +208,40 @@ internal static partial class GlobalScope
 					medget2 = medget2.nextSibling();
 					num++;
 				}
+			}
+
+			/// <summary>
+			/// Steam's shop_number lays the count out on the title line, over the shop's question, and leaves the dialog
+			/// shop_bg01 draws for this step empty (a panel, a column at its right, a strip under both, on the 480x320
+			/// canvas). The frames go into it instead: the item's name - in the frame that held the "x" - and the count in
+			/// the panel, the arrows in the column, the total in the strip.
+			/// </summary>
+			private void SteamPlacement()
+			{
+				Medget first = ownerMedget.childNode();
+				Medget up = m_TotalMedget?.nextSibling();
+				Medget down = up?.nextSibling();
+				if (first == null || first.behavior()?.queryInterface(MBText.classIdentifier()) == null || m_NumberMedget == null || m_TotalMedget == null || up == null || down == null) return;
+				// The dialog moved left over the item list, clear of the party panel's portrait it would cover.
+				G2S_SetBG3Offset(DialogShift, 0);
+				m_Shifted = true;
+				int x = -DialogShift;
+				Place(first, x + 140, 104, 156, 18);
+				Place(m_NumberMedget, x + 236, 148, 56, 18);
+				Place(m_TotalMedget, x + 140, 197, 200, 18);
+				Place(up, x + 304, 100, 48, 36);
+				Place(down, x + 304, 146, 48, 36);
+				m_NameMedget = first;
+			}
+
+			private const int DialogShift = 80;
+			private bool m_Shifted;
+
+			private static void Place(Medget m, int x, int y, int width, int height)
+			{
+				m.setWidth((short)width);
+				m.setHeight((short)height);
+				m.setPosition((short)x, (short)y);
 			}
 
 			public void setupName(Medget M)

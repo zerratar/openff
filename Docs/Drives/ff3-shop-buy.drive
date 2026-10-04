@@ -1,19 +1,28 @@
-# FF3: buying in a shop - the quantity screen (shop_number) on the Steam release's ShopDefine.xbn. Run with:
+# FF3: buying and selling in a shop - the quantity screen (shop_number) on the Steam release's ShopDefine.xbn. Run with:
 #   OpenFF.exe --game=ff3 --map=t01_01 --pos=-88,0,140 --drive=Docs/Drives/ff3-shop-buy.drive --screenshot-dir=shots
 wait 10
 gil 5000
 shop 0
 wait 5
-press Z
-wait 1.5
+# The shop opens on its buy list: Z picks the first item, the quantity screen opens.
 press Z
 wait 1.5
 shots 1
 press Up
 wait 0.5
+shots 1
 press Z
 wait 1.5
 shots 1
+# Sell: the Sell tab tapped (800x480 view), Z on the first thing in the bag, the quantity screen, Z sells one.
+tap 233 62
+wait 1.5
+shots 1
+press Z
+wait 1.5
+shots 1
+press Z
+wait 1.5
 say shop bought
 press X
 wait 1
