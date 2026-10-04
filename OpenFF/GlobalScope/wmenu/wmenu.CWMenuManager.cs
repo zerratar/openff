@@ -220,6 +220,7 @@ internal static partial class GlobalScope
 									formationCursor.SetAnimation(anm: false);
 									sys2d.DS2DManager.d2dGetInstance().d2dAddSprite(formationCursor);
 									dummyCursor.copy(menu.MenuManager.getSingleton().GetCursor2d());
+									if (!RememberedHands.Contains(dummyCursor)) RememberedHands.Add(dummyCursor);
 									dummyCursor.SetPositionI(LCD_WIDTH, LCD_HEIGHT);
 									dummyCursor.SetCell(3);
 									dummyCursor.SetShow(show: false);
@@ -809,6 +810,10 @@ internal static partial class GlobalScope
 									}
 									return mORE_STRENGTH;
 								}
+
+								/// <summary>PORT: the hands that stay where the cursor came from (this dummy cursor, a screen's own), for a mod
+								/// layout's bindings (menu.marked: the frame one stands on).</summary>
+								public static readonly System.Collections.Generic.List<sys2d.Cell> RememberedHands = new System.Collections.Generic.List<sys2d.Cell>();
 
 								public void SetUpDummyCursor(int x, int y, bool act)
 								{

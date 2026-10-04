@@ -142,6 +142,8 @@
 
 /* Icons of the screens: named sprites of the two sheets (sprites.json). */
 .sicon      { background-image: url("images/icons2.png"); -ff-background-scale-mode: scale-to-fit; }
+/* An icon under the hand (equip: the tab or slot the cursor is on, or came from) - the hand stands in its place. */
+.sicon.under { visibility: hidden; }
 .s_sword    { background-image: url("images/commands.png"); -ff-sprite: equipment; }
 .s_book     { background-image: url("images/commands.png"); -ff-sprite: save; }
 .s_sparkle  { background-image: url("images/commands.png"); -ff-sprite: magic; }

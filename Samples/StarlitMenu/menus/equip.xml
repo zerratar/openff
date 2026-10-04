@@ -103,7 +103,7 @@
           </behavior>
           <frame>
             <id>cursor_m_equip</id>
-            <x>-14</x>
+            <x>-4</x>
             <y>12</y>
             <width>1</width>
             <height>1</height>
@@ -129,7 +129,7 @@
           </behavior>
           <frame>
             <id>cursor_m_nouse</id>
-            <x>-14</x>
+            <x>-4</x>
             <y>12</y>
             <width>1</width>
             <height>1</height>
@@ -155,7 +155,7 @@
           </behavior>
           <frame>
             <id>cursor_m_removeall</id>
-            <x>-14</x>
+            <x>-4</x>
             <y>12</y>
             <width>1</width>
             <height>1</height>
@@ -502,7 +502,7 @@
       <width>96</width>
       <height>24</height>
     </frame>
-    <frame class="sicon s_sword">
+    <frame class="sicon s_sword" bind-class="under: menu.focused == 'm_equip' || menu.marked == 'm_equip'">
       <id>m_equip_icon</id>
       <x>193</x>
       <y>9</y>
@@ -516,7 +516,7 @@
       <width>86</width>
       <height>24</height>
     </frame>
-    <frame class="sicon s_briefcase">
+    <frame class="sicon s_briefcase" bind-class="under: menu.focused == 'm_nouse' || menu.marked == 'm_nouse'">
       <id>m_nouse_icon</id>
       <x>292</x>
       <y>9</y>
@@ -530,7 +530,7 @@
       <width>96</width>
       <height>24</height>
     </frame>
-    <frame class="sicon s_trash">
+    <frame class="sicon s_trash" bind-class="under: menu.focused == 'm_removeall' || menu.marked == 'm_removeall'">
       <id>m_removeall_icon</id>
       <x>381</x>
       <y>9</y>
@@ -682,7 +682,7 @@
         <height>1</height>
       </frame>
     </frame>
-    <frame class="sicon s_sword">
+    <frame class="sicon s_sword" bind-class="under: menu.focused == 'right' || menu.marked == 'right'">
       <id>right_icon</id>
       <x>206</x>
       <y>49</y>
@@ -703,7 +703,7 @@
       <width>262</width>
       <height>1</height>
     </frame>
-    <frame class="sicon s_shield">
+    <frame class="sicon s_shield" bind-class="under: menu.focused == 'left' || menu.marked == 'left'">
       <id>left_icon</id>
       <x>206</x>
       <y>74</y>
@@ -724,7 +724,7 @@
       <width>262</width>
       <height>1</height>
     </frame>
-    <frame class="sicon s_helmet">
+    <frame class="sicon s_helmet" bind-class="under: menu.focused == 'head' || menu.marked == 'head'">
       <id>head_icon</id>
       <x>206</x>
       <y>99</y>
@@ -745,7 +745,7 @@
       <width>262</width>
       <height>1</height>
     </frame>
-    <frame class="sicon s_armour">
+    <frame class="sicon s_armour" bind-class="under: menu.focused == 'body' || menu.marked == 'body'">
       <id>body_icon</id>
       <x>206</x>
       <y>124</y>
@@ -766,7 +766,7 @@
       <width>262</width>
       <height>1</height>
     </frame>
-    <frame class="sicon s_gauntlet">
+    <frame class="sicon s_gauntlet" bind-class="under: menu.focused == 'arm' || menu.marked == 'arm'">
       <id>arm_icon</id>
       <x>206</x>
       <y>149</y>
@@ -809,80 +809,128 @@
         <frame class="listrow">
           <focus/>
           <id>0-0</id>
-          <x>24</x>
+          <x>30</x>
           <y>0</y>
-          <width>208</width>
+          <width>196</width>
           <height>30</height>
           <myTag>9</myTag>
           <up>dummy</up>
           <down>1-0</down>
           <left>0-1</left>
           <right>0-1</right>
+          <frame>
+            <id>cursor_0-0</id>
+            <x>-12</x>
+            <y>15</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
         </frame>
         <frame class="listrow">
           <focus/>
           <id>0-1</id>
-          <x>250</x>
+          <x>262</x>
           <y>0</y>
-          <width>208</width>
+          <width>196</width>
           <height>30</height>
           <myTag>10</myTag>
           <up>dummy</up>
           <down>1-1</down>
           <left>0-0</left>
           <right>0-0</right>
+          <frame>
+            <id>cursor_0-1</id>
+            <x>-12</x>
+            <y>15</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
         </frame>
         <frame class="listrow">
           <focus/>
           <id>1-0</id>
-          <x>24</x>
+          <x>30</x>
           <y>31</y>
-          <width>208</width>
+          <width>196</width>
           <height>30</height>
           <myTag>11</myTag>
           <up>0-0</up>
           <down>2-0</down>
           <left>1-1</left>
           <right>1-1</right>
+          <frame>
+            <id>cursor_1-0</id>
+            <x>-12</x>
+            <y>15</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
         </frame>
         <frame class="listrow">
           <focus/>
           <id>1-1</id>
-          <x>250</x>
+          <x>262</x>
           <y>31</y>
-          <width>208</width>
+          <width>196</width>
           <height>30</height>
           <myTag>12</myTag>
           <up>0-1</up>
           <down>2-1</down>
           <left>1-0</left>
           <right>1-0</right>
+          <frame>
+            <id>cursor_1-1</id>
+            <x>-12</x>
+            <y>15</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
         </frame>
         <frame class="listrow">
           <focus/>
           <id>2-0</id>
-          <x>24</x>
+          <x>30</x>
           <y>62</y>
-          <width>208</width>
+          <width>196</width>
           <height>30</height>
           <myTag>13</myTag>
           <up>1-0</up>
           <down>3-0</down>
           <left>2-1</left>
           <right>2-1</right>
+          <frame>
+            <id>cursor_2-0</id>
+            <x>-12</x>
+            <y>15</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
         </frame>
         <frame class="listrow">
           <focus/>
           <id>2-1</id>
-          <x>250</x>
+          <x>262</x>
           <y>62</y>
-          <width>208</width>
+          <width>196</width>
           <height>30</height>
           <myTag>14</myTag>
           <up>1-1</up>
           <down>3-1</down>
           <left>2-0</left>
           <right>2-0</right>
+          <frame>
+            <id>cursor_2-1</id>
+            <x>-12</x>
+            <y>15</y>
+            <width>1</width>
+            <height>1</height>
+            <cursor/>
+          </frame>
         </frame>
       </frame>
     </frame>

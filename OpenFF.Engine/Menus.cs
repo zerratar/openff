@@ -200,6 +200,11 @@ namespace OpenFF
 		IReadOnlyList<IMenuWidget> Widgets { get; }
 		/// <summary>The id of the frame the cursor is on, or null.</summary>
 		string Focused { get; }
+		/// <summary>
+		/// The id of the frame a remembered hand stands on - the one the game leaves where the cursor came from (the
+		/// Equipment screen's tab while a slot is picked, the slot while its list is) - or null.
+		/// </summary>
+		string Marked { get; }
 		/// <summary>Puts the cursor on a frame (one that has &lt;focus/&gt;).</summary>
 		void Focus(string id);
 		/// <summary>Sets a frame's text (a Text behaviour's).</summary>

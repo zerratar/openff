@@ -13,7 +13,7 @@
 // A path is names joined by dots, with [index] for a list or a dictionary ([0], [menu.hero]):
 // public properties and fields, any case. Its first name is looked for on the data source, then
 // among the roots: what the screen's code put in Menu.Data, then hero (the party member the screen
-// asked for), party (the members), gil, items (the bag), menu (the screen: focused, hero) and this
+// asked for), party (the members), gil, items (the bag), menu (the screen: focused, marked, hero) and this
 // (the data source itself). An expression (bind-visible, a class's condition) is a path or a
 // literal - a number, 'text', true, false, null - optionally compared (== != < <= > >=) with
 // another, with ! in front to turn it round, and joined by && and ||; a plain value counts as true

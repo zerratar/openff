@@ -97,6 +97,7 @@ internal static partial class GlobalScope
 									shiftToSlotSelect();
 									menu.MenuManager.getSingleton().GetCursor2d().SetShow(show: true);
 									weaponDummyCursor.copy(menu.MenuManager.getSingleton().GetCursor2d());
+									if (!CWMenuManager.RememberedHands.Contains(weaponDummyCursor)) CWMenuManager.RememberedHands.Add(weaponDummyCursor);
 									weaponDummyCursor.SetCell(3);
 									weaponDummyCursor.SetAnimation(anm: false);
 									weaponDummyCursor.SetPriority(0);
@@ -351,7 +352,7 @@ internal static partial class GlobalScope
 									{
 										menu.MenuManager.getSingleton().GetCursor2d().SetShow(show: false);
 										sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(weaponDummyCursor);
-										weaponDummyCursor.Release();
+										weaponDummyCursor.Release(); CWMenuManager.RememberedHands.Remove(weaponDummyCursor);
 										CWMenuManager.Instance().GetDummyCursor().SetShow(show: false);
 										CWMenuManager.Instance().GetDummyCursor().SetAnimation(anm: false);
 										CWMenuManager.Instance().GetDummyCursor().SetCell(3);
@@ -1218,7 +1219,7 @@ internal static partial class GlobalScope
 								public override void bmFinalize(menu.Medget M)
 								{
 									sys2d.DS2DManager.d2dGetInstance().d2dDeleteSprite(weaponDummyCursor);
-									weaponDummyCursor.Release();
+									weaponDummyCursor.Release(); CWMenuManager.RememberedHands.Remove(weaponDummyCursor);
 									if (pAppendAddr != null)
 									{
 										menu.MenuManager.getSingleton().Remove(pAppendAddr);
@@ -1315,7 +1316,9 @@ internal static partial class GlobalScope
 											menu.MBText mBText = (menu.MBText)nodeByIDFromChildren.behavior().queryInterface(menu.MBText.classIdentifier());
 											if (mBText != null)
 											{
-												if (array[num] < 0)
+												// The game's labels stand where the slot's item is drawn, a placeholder for an empty slot; a
+												// layout that gives them a place of their own (Starlit Menu's column) keeps them showing.
+												if (array[num] < 0 || !Overlaps(nodeByIDFromChildren, SlotItem(num)))
 												{
 													mBText.bmTextVisibility(v: true);
 												}
@@ -1342,14 +1345,31 @@ internal static partial class GlobalScope
 									CWMenuManager.Instance().SetUpDummyCursor(nodeByID.cursorX(), nodeByID.cursorY(), act: true);
 								}
 
+								/// <summary>The item frame of a slot (right hand, left hand, head, body, arms), in the order of "slots".</summary>
+								private menu.Medget SlotItem(int index)
+								{
+									menu.Medget slot = ownerMedget.getNodeByIDFromChildren(TRANSCODE("slots"))?.childNode();
+									for (int i = 0; i < index && slot != null; i++) slot = slot.nextSibling();
+									return slot;
+								}
+
+								private static bool Overlaps(menu.Medget a, menu.Medget b)
+								{
+									return a != null && b != null && a.x() < b.x() + b.width() && b.x() < a.x() + a.width() && a.y() < b.y() + b.height() && b.y() < a.y() + a.height();
+								}
+
 								public void setWeaponNumber(int type, int num, bool isDisp)
 								{
 									if (type < 2)
 									{
 										dgs.DGSMessageManager dGSMessageManager = dgs.msg.CMessageSys.getInstance().Sub();
 										menu.Medget nodeByID = ownerMedget.getNodeByID((type == 0) ? TRANSCODE("migite") : TRANSCODE("hidarite"));
-										int num2 = nodeByID.x() + 120;
-										int num3 = nodeByID.y() + nodeByID.height() / 2 - 6;
+										// The count at the end of the hand's item: where the game's layout has it (past the label, which
+										// stands on the item), or at the item frame's right edge when the label has a place of its own.
+										menu.Medget item = SlotItem(type);
+										bool own = item != null && !Overlaps(nodeByID, item);
+										int num2 = own ? item.x() + item.width() - 16 : nodeByID.x() + 120;
+										int num3 = (own ? item.y() + item.height() / 2 : nodeByID.y() + nodeByID.height() / 2) - 6;
 										sprintf(out var arg, "%2d", num);
 										dGSMessageManager.dgsMMAreaErase((short)num2, (short)num3, 16, 8);
 										if (isDisp)

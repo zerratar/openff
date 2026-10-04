@@ -14,6 +14,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 The game's files checked against the Steam release at every start; sample mods kept up to date from OpenFF's MODS list; Crystal's new start page - install a sample mod, create a mod, open a project - with a sample browser; Rogue Mode's Party with job changes, and its black screens fixed.
 
 **Added**
+- Menus: `menu.marked` in a layout's bindings (`Menu.Marked` in C#) - the frame the hand the game leaves where the cursor came from stands on (the Equipment screen's tab while a slot is picked, the slot while its list is), so a layout can hide what it covers, as with `menu.focused`.
 - Test drives: `gil <amount>` and `shop <index> [table]` - the party's gil, and the game's shop screen as `Game.Shops.Open` opens it.
 - Game files: at every start the game's own files are checked against the Steam release's (a list of every file OpenFF reads, its size and SHA-1, in `Data/game-files/`; about a second, in the background). Files that differ - a mod installed into the game folder, the phone version's files, a damaged download - are said over the title with Steam's way to put them back, Continue anyway and Don't warn about these files again; the log names them. Settings > Check game files checks at any time.
 - Crystal: `crystal game-files <install> <list.json.gz>` makes such a list from a clean install (`--check` checks one against it).
@@ -29,6 +30,8 @@ The game's files checked against the Steam release at every start; sample mods k
 - Mods: `mod.json`'s `project` - the Crystal project a mod was exported from.
 
 **Fixes**
+- Equipment (FF3): on a layout that gives the slots' labels a place of their own (Starlit Menu), a label stays when its slot has an item, and the hands' count sits at the end of the item instead of over its name (which it rubbed out).
+- Starlit Menu 1.1: the Equipment screen's list keeps each icon clear of the hand, and the tab or slot the hand stands on shows the hand in place of its icon.
 - Shops (FF3): buying no longer crashes on the quantity screen - the Steam release's layout of it has no item icon or name, which the game's code took for granted.
 - Shops (FF3): the quantity screen is laid out in its own dialog - the item's name, the count beside the arrows, the total under them - instead of over the shop's question with the dialog left empty; the sell list's icons no longer sit under the hand.
 - Rogue Mode: the battle's opening plays again on the way into a fight - the heroes' surprise and the flash - instead of a black screen.

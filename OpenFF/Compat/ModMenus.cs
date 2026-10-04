@@ -1348,6 +1348,26 @@ namespace OpenFF.Client
 			public IMenuWidget Widget(string id) => id != null && _byId.TryGetValue(id, out ModMenuWidget w) ? w : null;
 			public IReadOnlyList<IMenuWidget> Widgets => _widgets;
 			public string Focused => GlobalScope.menu.MenuManager.getSingleton().getFocuseMedget()?._id();
+
+			/// <summary>
+			/// The frame a remembered hand stands on - the game's dummy cursor, left on the tab or slot the cursor came from
+			/// (the Equipment screen's tab while a slot is picked, its slot while the list is) - or null: a layout hides what
+			/// that hand would cover, as it does for the cursor with menu.focused.
+			/// </summary>
+			public string Marked
+			{
+				get
+				{
+					foreach (GlobalScope.sys2d.Cell hand in GlobalScope.wmenu.CWMenuManager.RememberedHands)
+					{
+						if (hand == null || !hand.IsShow()) continue;
+						GlobalScope.NNSG2dSVec2 at = hand.GetPositionI();
+						foreach (ModMenuWidget w in _widgets)
+							if (!string.IsNullOrEmpty(w.Id) && w.Medget.cursorX() == at.x && Math.Abs(w.Medget.cursorY() - at.y) <= 2) return w.Id;
+					}
+					return null;
+				}
+			}
 			public int Hero { get; }
 			public IDictionary<string, object> Data { get; } = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 

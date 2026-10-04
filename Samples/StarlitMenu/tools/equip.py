@@ -6,6 +6,10 @@ from common import screen, find, place, link, frame, cursor, panel, bar, bottom,
 
 # ---------------- equip ----------------
 
+def under(fid):
+    """An icon the hand stands on - the cursor's, or the hand the game leaves where the cursor came from - hidden under it."""
+    return "under: menu.focused == '%s' || menu.marked == '%s'" % (fid, fid)
+
 e = screen("equip")
 place(find(e, "command"), 40, 7, 110, 20, "title")
 e.append(frame("crystal", 9, 4, 26, 26, "crystal"))
@@ -17,9 +21,10 @@ place(find(e, "command_select"), 0, 0)
 place(find(e, "select_equip_command"), 0, 0)
 # Each label a little right of the middle, clear of its icon: the text is centred in the frame, so the frame starts past the icon.
 for i, (tid, icon, x, w) in enumerate((("m_equip", "sword", 188, 96), ("m_nouse", "briefcase", 287, 86), ("m_removeall", "trash", 376, 96))):
-    place(find(e, tid), x + 18, 5, w - 18, 24, "tab2label").append(cursor("cursor_" + tid, -14, 12))
+    # The hand over the tab's icon, all of it: on the focused tab the hand stands where its icon was.
+    place(find(e, tid), x + 18, 5, w - 18, 24, "tab2label").append(cursor("cursor_" + tid, -4, 12))
     e.append(frame(tid + "_tab", x, 5, w, 24, "tab2", attrs={"bind-class": "lit: menu.focused == '%s'" % tid}))
-    e.append(frame(tid + "_icon", x + 5, 9, 16, 16, "sicon s_" + icon))
+    e.append(frame(tid + "_icon", x + 5, 9, 16, 16, "sicon s_" + icon, attrs={"bind-class": under(tid)}))
 
 # The hero: the game's name and its attack and defence (now, and with what the list's cursor is on), the rest bound.
 place(find(e, "char_name"), 78, 46, 110, 18, "name")
@@ -54,7 +59,7 @@ for i, (sid, label, icon) in enumerate(slots):
     link(item, up=slots[i - 1][0], down=slots[(i + 1) % len(slots)][0], left="dummy", right="dummy")
     item.append(frame("hl_" + sid, -118, 0, 264, 23, "hl"))
     item.append(cursor("cursor_" + sid, -106, 11))
-    e.append(frame(sid + "_icon", 206, y + 3, 18, 18, "sicon s_" + icon))
+    e.append(frame(sid + "_icon", 206, y + 3, 18, 18, "sicon s_" + icon, attrs={"bind-class": under(sid)}))
     e.append(frame(sid + "_sep", 312, y + 3, 1, 17, "vsep"))
     if i < len(slots) - 1: e.append(frame(sid + "_line", 204, y + 24, 262, 1, "rowline"))
 
@@ -67,9 +72,10 @@ u = screen("equip_under_list")
 root = u.find("frame")
 lst = [f for f in root.iter("frame") if f.findtext("id") == "item_list"][0]
 place(lst, 8, 186, 464, 96)
+# Each row with a hand of its own left of it, the item's icon clear of the fingertip (the game's hand stands on the icon).
 for f in lst.findall("frame"):
     r, c = (int(n) for n in f.findtext("id").split("-"))
-    place(f, 24 + c * 226, r * 31, 208, 30, "listrow")
+    place(f, 30 + c * 232, r * 31, 196, 30, "listrow").append(cursor("cursor_" + f.findtext("id"), -12, 15))
 e.append(frame("listsep", 240, 190, 1, 86, "vsep"))
 
 write("equip.xml",
