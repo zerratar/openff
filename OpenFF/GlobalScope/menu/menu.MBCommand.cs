@@ -23,6 +23,9 @@ internal static partial class GlobalScope
 
 			private dgs.DGSMessage message;
 
+			/// <summary>PORT: where the centred text starts in the frame, for the hand.</summary>
+			private int textLeft = int.MaxValue;
+
 			public MBCommand()
 			{
 				message = null;
@@ -69,7 +72,8 @@ internal static partial class GlobalScope
 					message.setDisplayWait(0);
 					message.progress();
 					message.getDisplayTextSize(out var rect);
-					message.setPosition((short)(M.x() + (M.width() - rect.width) / 2), (short)(M.y() + (M.height() - 12) / 2), erase: true);
+					textLeft = (M.width() - rect.width) / 2;
+					message.setPosition((short)(M.x() + textLeft), (short)(M.y() + (M.height() - 12) / 2), erase: true);
 				}
 			}
 
@@ -128,7 +132,9 @@ internal static partial class GlobalScope
 
 			public override int bmGetCursorX(Medget unuse0)
 			{
-				return 12;
+				// PORT: 12 into the frame, as the game has it - or, where the hand's fingertip (about 9 right of its point)
+				// would reach the centred text (the shop's short Buy / Sell / Exit at Steam's hand size), left of the text.
+				return Math.Min(12, textLeft - 11);
 			}
 		}
 	}
