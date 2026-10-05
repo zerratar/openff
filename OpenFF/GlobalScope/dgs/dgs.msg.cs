@@ -34,6 +34,7 @@ internal static partial class GlobalScope
 				{
 					MSF_HANDLE_KIND_12x12,
 					MSF_HANDLE_KIND_8x8,
+					MSF_HANDLE_KIND_BAR,   // PORT: FF4's scene bar, in the Steam game's size (MessageWindow.mwSetBarWindow)
 					MSF_HANDLE_KIND_MAX
 				}
 
@@ -63,7 +64,7 @@ internal static partial class GlobalScope
 
 				public int[] m_MsdHandle = new int[4];
 
-				public int[] m_MsfHandle = new int[2];
+				public int[] m_MsfHandle = new int[3];
 
 				public DGSMessage[] m_Message = new DGSMessage[MESSAGE_CONTROLL_MAX];
 
@@ -296,7 +297,7 @@ internal static partial class GlobalScope
 						m_MsdHandle[i] = INVALID_MSDHANDLE;
 						m_MsdAddr[i] = null;
 					}
-					for (int j = 0; j < 2; j++)
+					for (int j = 0; j < m_MsfHandle.Length; j++)
 					{
 						m_MsfHandle[j] = INVALID_FONTHANDLE;
 					}

@@ -302,13 +302,19 @@ internal static partial class GlobalScope
 			// PORT: FF4's scene message bar - the whole width of the bottom, no frame, the text centred.
 			private bool m_Bar;
 
+			// PORT: and its line in the Steam game's lettering - smaller than a window's (MSF_HANDLE_KIND_BAR) and light grey,
+			// (199, 197, 202) measured off the Steam game's frames.
+			private bool BarLettering => m_Bar && OpenFF.Client.GameProfile.IsFf4;
+			private const uint BarTextRgba = 0xC7C5CAFFu;
+			private dgs.msg.CMessageMng.MSF_HANDLE_KIND MessageFont => BarLettering ? dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_BAR : m_MessageFontSize;
+
 			public bool mwSetBarWindow()
 			{
 				if (m_Made_1 || m_Window.GetEnable() != -1)
 				{
 					return false;
 				}
-				// The Steam game's bar, measured (Tools/ff4hook): y 264 to 312 of the 480 x 320 screen, its line centred at 288.
+				// The Steam game's bar, measured (Tools/ff4hook): y 264 to 312 of the 480 x 320 screen.
 				ds.Vector2<short> vector = new ds.Vector2<short>(0, 264);
 				ds.Vector2<short> vector2 = new ds.Vector2<short>(480, 48);
 				m_Window.SetMaxWindowPos(vector);
@@ -345,12 +351,13 @@ internal static partial class GlobalScope
 				{
 					mm[display].releaseMessage(m_MessageId);
 				}
-				m_MessageId = mm[display].createMessage((uint)msg_no, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize);
+				m_MessageId = mm[display].createMessage((uint)msg_no, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, MessageFont);
 				if (m_MessageId < 0)
 				{
-					m_MessageId = mm[display].createMessage((uint)msg_no, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_PERMANENT, m_MessageFontSize);
+					m_MessageId = mm[display].createMessage((uint)msg_no, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_PERMANENT, MessageFont);
 				}
 				mm[display].Message(m_MessageId).setMessageColor(m_MessageColor);
+				if (BarLettering) mm[display].Message(m_MessageId).getCanvas().rgba = BarTextRgba;
 				dGSMessage = mm[display].Message(m_MessageId);
 				ds.Vector2<short> vector = new ds.Vector2<short>(message_pos);
 				ds.Vector2<short> vector2 = new ds.Vector2<short>();
@@ -359,7 +366,7 @@ internal static partial class GlobalScope
 				{
 					dGSMessage.getCompleteTextSize(vector2);
 					vector.vx = (short)((m_Bar ? 240 : ds.DS_SCREEN_WIDTH_HALF) - (vector2.vx >> 1));   // PORT: the scene bar centres on its own width
-					if (m_Bar) vector.vy = (short)(288 - (vector2.vy >> 1));   // PORT: and on the bar's middle, as Steam's
+					if (m_Bar) vector.vy = (short)(285 - (vector2.vy >> 1));   // PORT: and its capitals' middle at Steam's, 285.8 of 320
 				}
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
 				dGSMessage.setDisplaySpeed(m_Bar ? byte.MaxValue : mwDEFAULT_DISPLAY_SPEED);   // PORT: FF4's scene bar shows its line whole (EventConteManager::createMessage draws the text at once)
@@ -391,7 +398,7 @@ internal static partial class GlobalScope
 				{
 					mm[display].releaseMessage(m_MessageId);
 				}
-				m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize, typed: true);
+				m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, MessageFont, typed: true);
 				if (m_MessageId < 0)
 				{
 					return false;
@@ -402,13 +409,14 @@ internal static partial class GlobalScope
 				{
 					mm[display].releaseMessage(m_MessageId);
 					text = wrapped;
-					m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, m_MessageFontSize, typed: true);
+					m_MessageId = mm[display].createMessage(text, (ushort)message_pos.vx, (ushort)message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, MessageFont, typed: true);
 					if (m_MessageId < 0)
 					{
 						return false;
 					}
 				}
 				mm[display].Message(m_MessageId).setMessageColor(m_MessageColor);
+				if (BarLettering) mm[display].Message(m_MessageId).getCanvas().rgba = BarTextRgba;
 				dgs.DGSMessage dGSMessage = mm[display].Message(m_MessageId);
 				ds.Vector2<short> vector = new ds.Vector2<short>(message_pos);
 				ds.Vector2<short> vector2 = new ds.Vector2<short>();
@@ -417,7 +425,7 @@ internal static partial class GlobalScope
 				{
 					dGSMessage.getCompleteTextSize(vector2);
 					vector.vx = (short)((m_Bar ? 240 : ds.DS_SCREEN_WIDTH_HALF) - (vector2.vx >> 1));   // PORT: the scene bar centres on its own width
-					if (m_Bar) vector.vy = (short)(288 - (vector2.vy >> 1));   // PORT: and on the bar's middle, as Steam's
+					if (m_Bar) vector.vy = (short)(285 - (vector2.vy >> 1));   // PORT: and its capitals' middle at Steam's, 285.8 of 320
 				}
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
 				dGSMessage.setDisplaySpeed(m_Bar ? byte.MaxValue : mwDEFAULT_DISPLAY_SPEED);

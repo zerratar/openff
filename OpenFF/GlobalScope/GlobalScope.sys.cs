@@ -371,6 +371,10 @@ internal static partial class GlobalScope
 				dgs.msg.CMessageSys.getInstance().Main().setUpMSF(font2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
 				dgs.msg.CMessageSys.getInstance().Sub().setUpMSF(font, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12);
 				dgs.msg.CMessageSys.getInstance().Sub().setUpMSF(font2, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+				// PORT: FF4's scene bar lettering, 13: the Steam game's capitals stand 11.3 of the 320 rows, 0.83 of the 16's.
+				int fontBar = OpenFF.Client.GameProfile.IsFf4 ? dgs.DGSMessageAssignFont(new int[1] { 13 }) : font;
+				dgs.msg.CMessageSys.getInstance().Main().setUpMSF(fontBar, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_BAR);
+				dgs.msg.CMessageSys.getInstance().Sub().setUpMSF(fontBar, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_BAR);
 				ds.CHeap.setID_app(0);
 				CARDBackupType type = CARDBackupType.CARD_BACKUP_TYPE_EEPROM_512KBITS;
 				card.Manager.GetInstance().Initialize(type, 13842u, 3, 1, null);

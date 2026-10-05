@@ -181,7 +181,7 @@ internal static partial class GlobalScope
 					vector2.vx = vector.vx;
 					for (int j = 0; j < m_nChip.vx; j++)
 					{
-						m_pWindow1dArray[i * 2 + j].SetPositionI(vector2.vx + 2, vector2.vy + 2);
+						m_pWindow1dArray[i * 2 + j].SetPositionI(vector2.vx + FillInset, vector2.vy + FillInset);
 						vector2.vx += 256;
 					}
 					vector2.vy += 256;
@@ -304,7 +304,7 @@ internal static partial class GlobalScope
 				m_nChip.w = 1;
 				m_nChip.h = 1;
 				bwAlloc(m_nChip.w, m_nChip.h);
-				m_pWindow1dArray[0].SetScaleF(FX32_CONST((float)(vector.w - 4) / 128f), FX32_CONST((float)(vector.h - 4) / 128f));
+				m_pWindow1dArray[0].SetScaleF(FX32_CONST((float)(vector.w - 2 * FillInset) / 128f), FX32_CONST((float)(vector.h - 2 * FillInset) / 128f));
 				for (int i = 0; i < 18; i++)
 				{
 					if (m_pFrame[i] != null)
@@ -480,6 +480,15 @@ internal static partial class GlobalScope
 			// window with its frame invisible and a dark, translucent fill across the bottom.
 			private bool m_BarStyle;
 
+			// PORT: the Steam bar's navy (7, 8, 32) over 83% of what is under it, fitted from the Steam game's frames
+			// before and after the opening's first line (a sprite's alpha is the DS's five bits: 26 of 31); stored
+			// blue-green-red.
+			private const uint BarColor = 0x200807u;
+			private const byte BarAlpha = 26;
+
+			/// <summary>Where the fill starts inside the window: under the frame's edge, or, for a bar, at the very edge.</summary>
+			private int FillInset => m_BarStyle ? 0 : 2;
+
 			public void SetBarStyle()
 			{
 				m_BarStyle = true;
@@ -489,9 +498,15 @@ internal static partial class GlobalScope
 				}
 				for (int i = 0; i < 2; i++)
 				{
-					if (m_pWindow1dArray[i] != null) m_pWindow1dArray[i].SetColor(0x260000u);   // PORT: the Steam bar's navy (0, 0, 38), measured
+					if (m_pWindow1dArray[i] != null) m_pWindow1dArray[i].SetColor(BarColor);
 				}
-				SetAlpha(24);    // PORT: 24 of 31 - about 77% over what is under it, as the Steam game's bar (a sprite's alpha is the DS's five bits)
+				SetAlpha(BarAlpha);
+				// the fill edge to edge, the invisible frame's two pixels not left out
+				if (m_pWindow1dArray[0] != null)
+				{
+					SetSize(GetSize(), update: true);
+					SetPositionCC(GetPositionCC());
+				}
 			}
 
 			public void SetAlpha(byte alpha)
@@ -605,8 +620,8 @@ internal static partial class GlobalScope
 							{
 								// PORT: FF4 fills its windows in code - dark blue under white lines.
 								// The wallpaper cell Ff4Assets gives it is a white texel; tint it.
-								pSprite.SetColor(m_BarStyle ? 0u : 0x4A2214u); // stored blue-green-red
-								if (m_BarStyle) pSprite.SetAlpha(150);
+								pSprite.SetColor(m_BarStyle ? BarColor : 0x4A2214u); // stored blue-green-red
+								if (m_BarStyle) pSprite.SetAlpha(BarAlpha);
 							}
 						}
 					}
