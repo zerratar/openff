@@ -15,6 +15,7 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 - Crystal: deleting a project that is installed in a Steam or GOG game offers to uninstall it first (ticked), so the game is not left with files nobody can take back.
 
 **Fixes**
+- Crystal: updating a sample with changed files from the Mods tab updates it once, after the list of its files is confirmed, and the row says so at once (the page was read again before the confirm, so the button stayed).
 - Crystal: the Mods tab no longer waits on the check of the games' files - it runs in the background with its progress shown (a first check reads every file of a game).
 - Crystal: uninstalling from a Steam copy whose files were verified since forgets the files that are the original again, instead of keeping them on record for good.
 

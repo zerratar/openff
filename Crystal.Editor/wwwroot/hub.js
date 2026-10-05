@@ -401,13 +401,17 @@ function hubSampleCard(sample, canInstall) {
   return card;
 }
 
+/// A sample installed or updated - after a look at the files of the player's it replaces, when there are any. Resolves
+/// once it is done (true) or the look was cancelled (false).
 async function hubInstall(sample, button) {
   const install = sample.install || {};
   const replaced = (install.changed || []);
   const removed = install.state === 'copy' ? (install.extra || []) : [];
   if (replaced.length || removed.length) {
     // Files of the player's that the update replaces or takes away: said first.
-    const body = dialog(`Update ${sample.name}?`, { wide: true });
+    let answer = null;
+    const decided = new Promise(resolve => { answer = resolve; });
+    const body = dialog(`Update ${sample.name}?`, { wide: true, onClose: () => answer(false) });
     if (replaced.length) {
       body.append(hubEl('p', 'dialog-note sample-warn', `These ${replaced.length} file(s) of the installed ${sample.name} differ from the sample and are replaced:`));
       body.append(fileList(replaced));
@@ -421,12 +425,15 @@ async function hubInstall(sample, button) {
     const cancel = hubEl('button', null, 'Cancel');
     cancel.onclick = () => body.close();
     const go = hubEl('button', 'primary', 'Update');
-    go.onclick = () => { body.close(); hubDoInstall(sample, button); };
+    let going = false;
+    go.onclick = () => { going = true; body.close(); };
     actions.append(cancel, go);
     body.append(actions);
-    return;
+    await decided;
+    if (!going) return false;
   }
   await hubDoInstall(sample, button);
+  return true;
 }
 
 async function hubDoInstall(sample, button) {
@@ -441,7 +448,9 @@ async function hubDoInstall(sample, button) {
   } catch (error) {
     say(`${sample.name} was not installed: ${error.message}`, 'bad');
   }
+  // Both pages that show it read again: the sample browser and, once it has been looked at, the Mods tab.
   await hubLoadSamples(true);
+  if (hubMods) await hubLoadMods(true);
   drawStartPage();
 }
 
@@ -455,6 +464,7 @@ async function hubUninstall(sample, button) {
     say(`${sample.name} was not uninstalled: ${error.message}`, 'bad');
   }
   await hubLoadSamples(true);
+  if (hubMods) await hubLoadMods(true);
   drawStartPage();
 }
 
@@ -688,8 +698,6 @@ function hubOpenFFRow(mod) {
       const sample = ((hubSamples && hubSamples.samples) || []).find(s => s.id === mod.sample);
       if (!sample) { say(`The ${mod.sample} sample is not here to update from`, 'bad'); return; }
       await hubInstall(sample, up);
-      await hubLoadMods(true);
-      drawStartPage();
     };
     actions.append(up);
   }
@@ -766,7 +774,12 @@ function hubGameSection(game) {
       'Uninstall', async () => {
         const r = await api('/api/mods/uninstall', { content: game.path, edits: mod.edits });
         if (!r.ok) throw new Error(r.error || 'not uninstalled');
-        say(`${label}: ${r.restored} original(s) put back, ${r.removed} added file(s) taken out` + (r.skipped && r.skipped.length ? `, ${r.skipped.length} left as they are (changed since)` : ''), 'good');
+        const parts = [];
+        if (r.restored) parts.push(`${r.restored} original(s) put back`);
+        if (r.removed) parts.push(`${r.removed} added file(s) taken out`);
+        if (r.already) parts.push(`${r.already} already the original (a Verify put ${r.already === 1 ? 'it' : 'them'} back), so only forgotten`);
+        if (r.skipped && r.skipped.length) parts.push(`${r.skipped.length} left as they are (changed since)`);
+        say(`${label} is uninstalled from ${game.name}: ` + (parts.join(', ') || 'nothing was left to take back'), 'good');
         await hubLoadMods(true);
         if (typeof refreshProject === 'function') refreshProject();
         drawStartPage();

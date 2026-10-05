@@ -516,7 +516,8 @@ namespace Crystal.Editor
 						else
 						{
 							ModResult result = InstalledMods.Uninstall(body?["content"]?.GetValue<string>(), body?["edits"]?.GetValue<string>());
-							SendJson(context, new { ok = result.Ok, error = result.Error, restored = result.Restored.Count, removed = result.Removed.Count, skipped = result.Skipped });
+							SendJson(context, new { ok = result.Ok, error = result.Error, restored = result.Restored.Count, removed = result.Removed.Count, skipped = result.Skipped,
+								already = result.Notes.Count(n => n.EndsWith("is the original again already", StringComparison.Ordinal)) });
 						}
 					}
 					catch (Exception ex) when (ex is ArgumentException or IOException or InvalidOperationException or UnauthorizedAccessException)
