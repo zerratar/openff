@@ -280,6 +280,22 @@ static void WriteCharacters(void)
 	}
 }
 
+// ---- the camera: NitroSystem's global one (NNS_G3dGlbGetCameraPos / Up / Target return 0x608cb8 / 0x608cc4 /
+// 0x608cd0, three fx32 each; NNS_G3dGlbPerspective writes the projection, 4x4 fx32, at 0x608a80) ----
+
+static FILE *g_camera;
+static int g_cameraEvery;
+
+static void WriteCamera(void)
+{
+	size_t shift = (size_t)GetModuleHandleA(NULL) - 0x400000;
+	int *pos = (int *)(0x608cb8 + shift), *up = (int *)(0x608cc4 + shift), *target = (int *)(0x608cd0 + shift), *proj = (int *)(0x608a80 + shift);
+	if (!g_camera || IsBadReadPtr(pos, 0x30) || IsBadReadPtr(proj, 64)) return;
+	fprintf(g_camera, "%llu\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.4f\t%.4f\t%.4f\t%.4f\t%.4f\n", g_frame,
+		pos[0] / 4096.0, pos[1] / 4096.0, pos[2] / 4096.0, target[0] / 4096.0, target[1] / 4096.0, target[2] / 4096.0,
+		up[0] / 4096.0, up[1] / 4096.0, up[2] / 4096.0, proj[0] / 4096.0, proj[5] / 4096.0);
+}
+
 static void DumpCharacters(const char *path)
 {
 	unsigned char *mng = CharacterManager();
@@ -349,6 +365,17 @@ static void Command(char *line)
 		}
 		Log("frame %llu: characters %s", g_frame, g_chars ? arg : "off");
 	}
+	else if (strcmp(word, "camera") == 0)
+	{
+		// camera <every N frames> <file>: frame, position x y z, target x y z, up x y z, projection [0][0] and [1][1]
+		if (g_camera) { fclose(g_camera); g_camera = NULL; }
+		if (sscanf_s(rest, "%d %259[^\r\n]", &n, arg, (unsigned)sizeof arg) == 2 && n > 0)
+		{
+			g_cameraEvery = n;
+			fopen_s(&g_camera, arg, "a");
+		}
+		Log("frame %llu: camera %s", g_frame, g_camera ? arg : "off");
+	}
 	else if (strcmp(word, "dumpchars") == 0)
 	{
 		DumpCharacters(rest);
@@ -357,6 +384,7 @@ static void Command(char *line)
 	{
 		if (g_trace) fclose(g_trace);
 		if (g_chars) fclose(g_chars);
+		if (g_camera) fclose(g_camera);
 		Log("frame %llu: quit", g_frame);
 		TerminateProcess(GetCurrentProcess(), 0);
 	}
@@ -510,6 +538,7 @@ static void Frame(void *target, int renderer)
 		g_everyCount++;
 	}
 	if (g_trace) fflush(g_trace);
+	if (g_camera && g_cameraEvery > 0 && g_frame % (unsigned long long)g_cameraEvery == 0) { WriteCamera(); fflush(g_camera); }
 	if (g_chars && g_charsEvery > 0 && g_frame % (unsigned long long)g_charsEvery == 0) { WriteCharacters(); fflush(g_chars); }
 	if (g_frame % 30 == 0)
 	{
