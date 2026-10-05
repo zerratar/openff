@@ -36,3 +36,6 @@ Reference/libff4/menu-layouts.txt
 
 # publish.cmd's output
 dist/
+Reference/libff4/*.so
+Reference/libff4/decomp/
+Reference/ff4exe/
