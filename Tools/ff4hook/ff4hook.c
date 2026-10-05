@@ -296,6 +296,61 @@ static void WriteCamera(void)
 		up[0] / 4096.0, up[1] / 4096.0, up[2] / 4096.0, proj[0] / 4096.0, proj[5] / 4096.0);
 }
 
+// ---- joints: where each named joint of a model stands in the world. The game reads a joint back only once it is
+// reserved (CRenderObject::getJntMtx, 0x45bf30): the render object (+0xe1c of a character slot) keeps 12 such
+// joints at +0x194, 0x48 bytes each - the 4x3 matrix (fx32, the translation at +0x24), the node's name at +0x30,
+// the flags at +0x44 (1 reserved, 2 filled in as the model is drawn). A joint asked for is reserved in a free one
+// and read from the next frame on. ----
+
+static FILE *g_joints;
+static int g_jointsEvery;
+static char g_jointsModel[32];
+static char g_jointNames[12][20];
+static int g_jointCount;
+
+static void WriteJoints(void)
+{
+	unsigned char *mng = CharacterManager();
+	if (!g_joints || IsBadReadPtr(mng, 8)) return;
+	int count = mng[0];
+	unsigned char *slots = *(unsigned char **)(mng + 4);
+	if (!slots || IsBadReadPtr(slots, count * SLOT_SIZE)) return;
+	for (int i = 0; i < count; i++)
+	{
+		unsigned char *c = slots + i * SLOT_SIZE;
+		// '*' takes every character: one set up asynchronously keeps no name where +0x13a9 reads it, and a joint its
+		// model has not is never filled in
+		if (!(c[0x1391] & 1) || (strcmp(g_jointsModel, "*") != 0 && strncmp((const char *)(c + 0x13a9), g_jointsModel, sizeof g_jointsModel) != 0)) continue;
+		unsigned char *jnt = c + 0xe1c + 0x194;
+		for (int j = 0; j < g_jointCount; j++)
+		{
+			int found = -1, empty = -1;
+			for (int k = 0; k < 12; k++)
+			{
+				unsigned char *e = jnt + k * 0x48;
+				unsigned flags = *(unsigned *)(e + 0x44);
+				if ((flags & 1) && strncmp((const char *)(e + 0x30), g_jointNames[j], 20) == 0) { found = k; break; }
+				if (!(flags & 1) && empty < 0) empty = k;
+			}
+			if (found < 0)
+			{
+				if (empty >= 0)
+				{
+					unsigned char *e = jnt + empty * 0x48;
+					memset(e + 0x30, 0, 20);
+					strncpy_s((char *)(e + 0x30), 20, g_jointNames[j], _TRUNCATE);
+					*(unsigned *)(e + 0x44) = 1;
+				}
+				continue;
+			}
+			unsigned char *e = jnt + found * 0x48;
+			if (!(*(unsigned *)(e + 0x44) & 2)) continue;
+			int *m = (int *)e;
+			fprintf(g_joints, "%llu\t%d\t%s\t%s\t%.3f\t%.3f\t%.3f\n", g_frame, i, g_jointsModel, g_jointNames[j], m[9] / 4096.0, m[10] / 4096.0, m[11] / 4096.0);
+		}
+	}
+}
+
 static void DumpCharacters(const char *path)
 {
 	unsigned char *mng = CharacterManager();
@@ -376,6 +431,22 @@ static void Command(char *line)
 		}
 		Log("frame %llu: camera %s", g_frame, g_camera ? arg : "off");
 	}
+	else if (strcmp(word, "joints") == 0)
+	{
+		// joints <every N frames> <file> <model> <node,node,...>: each joint's world position for every character of that model
+		char file[MAX_PATH] = { 0 }, model[32] = { 0 }, names[1024] = { 0 };
+		if (g_joints) { fclose(g_joints); g_joints = NULL; }
+		if (sscanf_s(rest, "%d %259s %31s %1023s", &n, file, (unsigned)sizeof file, model, (unsigned)sizeof model, names, (unsigned)sizeof names) == 4 && n > 0)
+		{
+			g_jointsEvery = n;
+			strcpy_s(g_jointsModel, sizeof g_jointsModel, model);
+			g_jointCount = 0;
+			char *ctx = NULL;
+			for (char *t = strtok_s(names, ",", &ctx); t && g_jointCount < 12; t = strtok_s(NULL, ",", &ctx)) strncpy_s(g_jointNames[g_jointCount++], 20, t, _TRUNCATE);
+			fopen_s(&g_joints, file, "a");
+		}
+		Log("frame %llu: joints of %s %s", g_frame, g_jointsModel, g_joints ? file : "off");
+	}
 	else if (strcmp(word, "dumpchars") == 0)
 	{
 		DumpCharacters(rest);
@@ -385,6 +456,7 @@ static void Command(char *line)
 		if (g_trace) fclose(g_trace);
 		if (g_chars) fclose(g_chars);
 		if (g_camera) fclose(g_camera);
+		if (g_joints) fclose(g_joints);
 		Log("frame %llu: quit", g_frame);
 		TerminateProcess(GetCurrentProcess(), 0);
 	}
@@ -538,6 +610,7 @@ static void Frame(void *target, int renderer)
 		g_everyCount++;
 	}
 	if (g_trace) fflush(g_trace);
+	if (g_joints && g_jointsEvery > 0 && g_frame % (unsigned long long)g_jointsEvery == 0) { WriteJoints(); fflush(g_joints); }
 	if (g_camera && g_cameraEvery > 0 && g_frame % (unsigned long long)g_cameraEvery == 0) { WriteCamera(); fflush(g_camera); }
 	if (g_chars && g_charsEvery > 0 && g_frame % (unsigned long long)g_charsEvery == 0) { WriteCharacters(); fflush(g_chars); }
 	if (g_frame % 30 == 0)

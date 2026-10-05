@@ -14,6 +14,25 @@ namespace OpenFF.Client
 		private static readonly int _charsEvery, _cameraEvery;
 		private static readonly StreamWriter _chars = Open("chars-trace", out _charsEvery);
 		private static readonly StreamWriter _camera = Open("camera-trace", out _cameraEvery);
+		// --joints-trace=<file>,<model>,<joint+joint+...>[,<steps>]
+		private static readonly int _jointsEvery;
+		private static readonly string _jointsModel;
+		private static readonly string[] _jointNames;
+		private static readonly StreamWriter _joints = OpenJoints(out _jointsEvery, out _jointsModel, out _jointNames);
+
+		private static StreamWriter OpenJoints(out int every, out string model, out string[] names)
+		{
+			every = 15; model = null; names = null;
+			string arg = Options.Get("joints-trace");
+			if (string.IsNullOrEmpty(arg)) return null;
+			string[] parts = arg.Split(',');
+			if (parts.Length < 3) { Log.Write(LogChannel.General, "joints-trace wants <file>,<model>,<joint+joint+...>[,<steps>]"); return null; }
+			model = parts[1];
+			names = parts[2].Split('+');
+			if (parts.Length > 3 && int.TryParse(parts[3], out int n) && n > 0) every = n;
+			try { return new StreamWriter(parts[0], false); }
+			catch (Exception ex) { Log.Write(LogChannel.General, "joints-trace: " + parts[0] + ": " + ex.Message); return null; }
+		}
 
 		private static StreamWriter Open(string option, out int every)
 		{
@@ -38,6 +57,11 @@ namespace OpenFF.Client
 					_chars.Flush();
 				}
 				catch (Exception ex) { Log.First(LogChannel.General, "chars-trace", 1, () => "chars trace: " + ex.Message); }
+			}
+			if (_joints != null && frame % _jointsEvery == 0)
+			{
+				try { GlobalScope.characterMng.WriteJoints(_joints, frame, _jointsModel, _jointNames); _joints.Flush(); }
+				catch (Exception ex) { Log.First(LogChannel.General, "joints-trace", 1, () => "joints trace: " + ex.Message); }
 			}
 			if (_camera != null && frame % _cameraEvery == 0)
 			{

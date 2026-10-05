@@ -64,7 +64,44 @@ namespace OpenFF.Client
 			{ "setRecovery2", SetRecovery2 },                                 // (member order or 0 = all, ?, ?, amount): hit and magic points back
 			{ "setConditionRecovery", SetConditionRecovery },                 // (six condition words): statuses cured
 			{ "bootEventBattle", BootEventBattle },                           // (party, map, ?, ?, ?): the OpenFF battle on that encounter group
+			{ "setBGMDownParam", SetBgmDownParam },                           // (volume, frames, ?): how far and how fast the music ducks
+			{ "startBGMDown", StartBgmDown },                                 // (?): the music down under a voice
+			{ "reverseBGMDown", ReverseBgmDown },                             // (?): and back up
 		};
+
+		// ---- BGM ducking, as babilCommand_SetBGMDownParam / StartBGMDown / ReverseBGMDown: both BGM slots moved to the
+		// volume over the frames, then back to 127 - the music drops under the lines a scene speaks ----
+
+		private static int _bgmDownVolume = 127, _bgmDownFrames;
+
+		private static void SetBgmDownParam(GlobalScope.ScriptEngine engine)
+		{
+			_bgmDownVolume = engine.getWord();
+			_bgmDownFrames = engine.getWord();
+			engine.getWord();
+		}
+
+		private static void StartBgmDown(GlobalScope.ScriptEngine engine)
+		{
+			engine.getWord();
+			MoveBgmVolume(_bgmDownVolume, _bgmDownFrames);
+		}
+
+		private static void ReverseBgmDown(GlobalScope.ScriptEngine engine)
+		{
+			engine.getWord();
+			MoveBgmVolume(127, _bgmDownFrames);
+		}
+
+		private static void MoveBgmVolume(int volume, int frames)
+		{
+			try
+			{
+				GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().setVolume(volume, frames, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0);
+				GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().setVolume(volume, frames, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT1);
+			}
+			catch (Exception ex) { Log.First(LogChannel.General, "bgm-down", 1, () => "script: BGM ducking: " + ex.Message); }
+		}
 
 		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
 		public static readonly HashSet<string> Cosmetic = new HashSet<string>(StringComparer.Ordinal)
@@ -73,7 +110,6 @@ namespace OpenFF.Client
 			"setMapjumpBGMOperation",
 			"setRelationMapjumpToDoorAttr", "setDoor", "setRelationOfMapjumpobjAndFlag",   // door swings on exits
 			"createEffectTaskWalk", "createEffectTaskRun", "createEffectTaskWait",        // footstep dust
-			"setBGMDownParam", "startBGMDown", "reverseBGMDown",         // BGM ducking
 			"setShadowScale",
 			"setMessageAlignment",                                     // message alignment
 			// Sound bookkeeping FF3's player has no slot for: the battle theme choice, the

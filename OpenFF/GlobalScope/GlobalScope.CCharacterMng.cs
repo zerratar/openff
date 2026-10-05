@@ -564,6 +564,32 @@ internal static partial class GlobalScope
 			}
 		}
 
+		// PORT: --joints-trace: the named joints' world positions for every character of a model, as Tools/ff4hook's
+		// 'joints' writes the Steam game's (frame, character, model, joint, x y z).
+		public void WriteJoints(System.IO.TextWriter w, long frame, string model, string[] joints)
+		{
+			MtxFx43 m = new MtxFx43();
+			for (int i = 0; i < Character.Length; i++)
+			{
+				if (!isValidCharacter(i) || !string.Equals(Character[i].name ?? Character[i].ownModel, model, StringComparison.OrdinalIgnoreCase)) continue;
+				foreach (string joint in joints)
+				{
+					bool found;
+					try { found = getJntMtx(i, joint, m); } catch (Exception) { found = false; }
+					if (!found)
+					{
+						// a joint is read back only once reserved (four a model, filled as it draws): from the next frame on
+						try { reserveToGetJntMtx(i, joint); } catch (Exception) { }
+						continue;
+					}
+					w.WriteLine(string.Join("	", frame, i, model, joint,
+						(m.a[9] / 4096.0).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture),
+						(m.a[10] / 4096.0).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture),
+						(m.a[11] / 4096.0).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)));
+				}
+			}
+		}
+
 		private static uint SafeAlpha(CharacterData c)
 		{
 			try { return c.RdrObject.getAlpha(); } catch (Exception) { return 0; }

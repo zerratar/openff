@@ -790,27 +790,32 @@ namespace OpenFF.Client
 		private static void StartVoice(GlobalScope.ScriptEngine engine)
 		{
 			string file = engine.getString();
-			PlayVoice(file);
+			PlayVoice(file, null);
 		}
 
+		// (file, ?, use the volume, volume in 1/4096ths, ?) - babilCommand_CE_StartVoice2
 		private static void StartVoice2(GlobalScope.ScriptEngine engine)
 		{
 			string file = engine.getString();
 			engine.getByte();
-			engine.getByte();
-			engine.getDword();
+			bool ownVolume = engine.getByte() != 0;
+			uint volume = engine.getDword();
 			engine.getWord();
-			PlayVoice(file);
+			PlayVoice(file, ownVolume ? volume / 4096f : (float?)null);
 		}
 
-		private static void PlayVoice(string file)
+		/// <summary>
+		/// FF4's voice player (FUN_00459eec in libff4): voice/&lt;name&gt;.akb, else the language's own - en_ for English,
+		/// ja_ for Japanese; a line the language has no recording of stays silent (861 ja_ files to 698 en_: the English
+		/// game skips the rest, it does not play the Japanese). At 0.9, unless the script gives a volume of its own.
+		/// </summary>
+		private static void PlayVoice(string file, float? volume)
 		{
 			if (string.IsNullOrEmpty(file) || OpenFF.Client.Options.Get("novoice") != null) return;
 			string name = Path.GetFileNameWithoutExtension(file);
 			Guard("voice " + name, () =>
 			{
-				// Some lines exist only in Japanese (861 ja_ files to 698 en_): fall back rather than go silent.
-				SoundEffect sound = OpenFF.Client.OggSound.Load(_voiceLanguage + "_" + name) ?? OpenFF.Client.OggSound.Load("ja_" + name) ?? OpenFF.Client.OggSound.Load(name);
+				SoundEffect sound = OpenFF.Client.OggSound.Load(name) ?? OpenFF.Client.OggSound.Load(_voiceLanguage + "_" + name);
 				if (sound == null)
 				{
 					Log.Write(LogChannel.File, "script: FF4 voice " + name + " not found");
@@ -822,6 +827,7 @@ namespace OpenFF.Client
 					_voice.Dispose();
 				}
 				_voice = sound.CreateInstance();
+				_voice.Volume = Math.Max(0f, Math.Min(1f, volume ?? 0.9f));
 				_voice.Play();
 				Log.Write(LogChannel.File, "script: FF4 voice " + name + " (" + sound.Duration.TotalSeconds.ToString("0.0") + "s)");
 			});

@@ -5715,6 +5715,18 @@ internal static partial class GlobalScope
 
 						private static int[] fnd_reuse__scale = new int[3];
 
+						// PORT: each node's scale as its NODEDESC left it, for its Maya segment-scale-compensated children.
+						private static readonly int[][] fnd_nodeScale = CreateNodeScales();
+
+						private static int[][] CreateNodeScales()
+						{
+							int[][] a = new int[256][];
+							for (int i = 0; i < a.Length; i++) a[i] = new int[] { 4096, 4096, 4096 };
+							return a;
+						}
+
+						private static readonly MtxFx43 fnd_reuse_sscMtx = new MtxFx43();
+
 						private static MtxFx43 fnd_reuse_mtx = new MtxFx43();
 
 						private static MtxFx43 fnd_reuse_anmMtx = new MtxFx43();
@@ -12902,6 +12914,7 @@ internal static partial class GlobalScope
 									int num60 = sbc[num] & 0xE0;
 									int num61 = sbc[num + 1];
 									int num62 = sbc[num + 3];
+									int nodeParent = sbc[num + 2];   // PORT: for Maya scale compensation (the position moves on below)
 									nNSG3dRS.currentNode = (byte)num61;
 									MtxFx43 mtxFx6 = fnd_reuse_baseMtx;
 									MTX_Identity43(mtxFx6);
@@ -13283,13 +13296,34 @@ internal static partial class GlobalScope
 									MTX_Concat43(mtxFx7, mtxFx2, mtxFx2);
 									if ((num62 & 1) != 0)
 									{
-										currentMtx.copy(mtxFx2);
+										// PORT: Maya's segment scale compensate, as NitroSystem's Maya scaling rule does it: the child
+										// stands on its parent's scaled matrix - its offset scaled by the parent - with the parent's
+										// inverse scale between that and its own rotation, so the parent's scale moves the joint but
+										// reaches neither its rotation nor its children. The decompiled port took the parent's
+										// unscaled matrix instead, which left the offset unscaled: joints under a scaled one stood
+										// short of where they belong, and skinned parts stretched between the two (FF4's Floating
+										// Eye, scaled 3.3 in the opening, and the airships, scaled at their 'trans' joint).
+										int[] ps = fnd_nodeScale[nodeParent & 0xFF];
+										MtxFx43 ssc = fnd_reuse_sscMtx;
+										ssc.copy(mtxFx7);
+										for (int r = 0; r < 3; r++)
+										{
+											for (int c = 0; c < 3; c++)
+											{
+												int pc = ps[c];
+												ssc.a[r * 3 + c] = pc != 0 ? FX_Div(ssc.a[r * 3 + c], pc) : ssc.a[r * 3 + c];
+											}
+										}
+										MTX_Concat43(ssc, currentMtx, currentMtx);
 									}
 									else
 									{
 										MTX_Concat43(mtxFx7, currentMtx, currentMtx);
 									}
 									MTX_ScaleApply43(currentMtx, currentMtx, array7[0], array7[1], array7[2]);
+									fnd_nodeScale[num61 & 0xFF][0] = array7[0];
+									fnd_nodeScale[num61 & 0xFF][1] = array7[1];
+									fnd_nodeScale[num61 & 0xFF][2] = array7[2];
 									if ((num60 & 0x20) != 0)
 									{
 										stackMtx[num100].copy(currentMtx);
