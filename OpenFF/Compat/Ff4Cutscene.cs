@@ -146,6 +146,7 @@ namespace OpenFF.Client
 				MapLeft();
 			}
 			_active = true;
+			Ff4Title.SceneStarted();
 			SceneStage = stage;
 			SceneFrame = 0;
 			_asyncLoadedBy = 0;

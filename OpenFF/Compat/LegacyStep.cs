@@ -11,9 +11,24 @@ namespace OpenFF.Client
 		public static long Count;
 
 		/// <summary>After each step of the game (GlobalScope.render, once a NitroMain).</summary>
+		// --drawburst-at=<step>[,<draws>]: the draw calls of that step's frame dumped in full (GlDiag), as F9 does.
+		private static readonly long _burstAt = BurstAt(out _burstDraws);
+		private static readonly int _burstDraws;
+
+		private static long BurstAt(out int draws)
+		{
+			draws = 400;
+			string arg = Options.Get("drawburst-at");
+			if (string.IsNullOrEmpty(arg)) return -1;
+			string[] parts = arg.Split(',');
+			if (parts.Length > 1 && int.TryParse(parts[1], out int n) && n > 0) draws = n;
+			return long.TryParse(parts[0], out long step) ? step : -1;
+		}
+
 		public static void After()
 		{
 			Count++;
+			if (Count == _burstAt) GlDiag.ArmBurst(_burstDraws);
 			if (!GameProfile.IsFf4) return;
 			Ff4CameraMotion.Tick();
 			Ff4EventCamera.Tick();

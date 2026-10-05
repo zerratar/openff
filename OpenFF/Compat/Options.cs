@@ -40,7 +40,7 @@ namespace OpenFF.Client
 			("nomods", "FF3_NOMODS", "", "Load no mod code or definitions (file overrides from the mods folder still apply)"),
 			("screenshot-dir", "FF3_SCREENSHOT_DIR", "<dir>", "Where F12 screenshots are written"),
 			("screenshot-every", "FF3_SCREENSHOT_EVERY", "<seconds>", "Capture a screenshot automatically every N seconds"),
-			("screenshot-steps", null, "<n>[,<from>,<to>]", "Capture a screenshot at every n-th game step (named stepNNNNNN.png)"),
+			("screenshot-steps", "FF3_SCREENSHOT_STEPS", "<n>[,<from>,<to>]", "Capture a screenshot at every n-th game step (named stepNNNNNN.png)"),
 			("speed", "FF3_SPEED", "<n>", "While fast-forwarding (Tab), each of the game's thirty steps a second run n times over, on top of Tab's own threefold - the same speed at any refresh rate"),
 			("no-update", "FF3_NO_UPDATE", "", "Do not look for a newer release on GitHub this run"),
 			("update-feed", "FF3_UPDATE_FEED", "<url|file>", "Read the latest release's description from here instead of GitHub (a test's; its assets may be files)"),
@@ -156,7 +156,7 @@ namespace OpenFF.Client
 			{
 				if (string.Equals(known, name, StringComparison.OrdinalIgnoreCase))
 				{
-					string fromEnv = Environment.GetEnvironmentVariable(env);
+					string fromEnv = env == null ? null : Environment.GetEnvironmentVariable(env);   // an option with no environment name
 					return string.IsNullOrEmpty(fromEnv) ? null : Resolve(name, fromEnv);
 				}
 			}

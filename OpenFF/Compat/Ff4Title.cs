@@ -64,6 +64,16 @@ namespace OpenFF.Client
 		private static bool _loadOpen;
 		private static int _loadCursor;
 
+		// A new game opens on Baron's throne room (t00_00), whose script jumps straight to the opening's first scene: the
+		// Steam game never shows the room - the scene comes up from the title's black. Here the world fades the room in
+		// before its script runs, so the screen is held black from New Game until a scene starts (or, should none, for
+		// five seconds of game steps).
+		private const int HoldLimit = 150;
+		private static int _holdUntilScene;
+
+		/// <summary>A scene started (Ff4Cutscene): a new game's black hold is over.</summary>
+		public static void SceneStarted() => _holdUntilScene = 0;
+
 		public static void registerParts()
 		{
 			if (!GameProfile.IsFf4) return;
@@ -232,6 +242,7 @@ namespace OpenFF.Client
 				{
 					case NewGame:
 						Se(1);
+						_holdUntilScene = HoldLimit;
 						Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU);
 						break;
 					case Load:
@@ -283,6 +294,13 @@ namespace OpenFF.Client
 
 			public override void OnUpdate()
 			{
+				if (_holdUntilScene > 0)
+				{
+					// A new game: black until its first scene starts (see SceneStarted).
+					_holdUntilScene--;
+					Game.Draw.Rect(0, 0, DrawList.ScreenWidth, DrawList.ScreenHeight, Color.Black);
+					return;
+				}
 				if (_showing == Showing.Nothing) return;
 				DrawList d = Game.Draw;
 				d.Rect(0, 0, DrawList.ScreenWidth, DrawList.ScreenHeight, Color.Black);
