@@ -39,3 +39,4 @@ dist/
 Reference/libff4/*.so
 Reference/libff4/decomp/
 Reference/ff4exe/
+Reference/libff4/facts.tsv
