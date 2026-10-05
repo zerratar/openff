@@ -279,7 +279,10 @@ namespace OpenFF.Client
 				Log.Write(LogChannel.General, "script: FF4 camera motion " + id + " asks a " + blend + "-frame slide from the last shot (not built; the shipped scripts never do)");
 			}
 			_playing = motion;
-			_frame = 1;
+			// EventCamera::update advances the motion (CameraHandle::nextMotion) before it applies it, on the shot's first
+			// frame too: Steam's camera stands at the second frame's pose the frame the shot starts (Tools/ff4hook's
+			// camera, frame by frame against --camera-trace).
+			_frame = Math.Min(2, motion.Frames);
 			_elapsed = 0;
 			_loop = loop;
 			// A new shot, from its first frame: a cut from wherever the camera stood (the slide between two shots
