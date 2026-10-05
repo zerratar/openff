@@ -2084,6 +2084,27 @@ header h1 .gem {
 .hub-thumb.blank .icon { width: 18px; height: 18px; color: #4a5a70; }
 .hub-form { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .picker.dialog.wide:has(.hub-create) { width: min(940px, 94vw); }
+.hub-grow { flex: 1; margin: 0; }
+.hub-small { font-size: 12px; padding: 3px 9px; }
+.hub-place { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.hub-place-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.hub-place-head .icon { width: 18px; height: 18px; color: var(--accent); }
+.hub-place-head b { font-size: 14px; }
+.hub-place-head .hub-state { margin-left: 0; }
+.hub-place-path { flex: 1; min-width: 0; font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-place-foot { margin-top: 2px; }
+.hub-mod { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 7px; background: var(--bg); border: 1px solid transparent; }
+.hub-mod:hover { border-color: var(--line); }
+.hub-mod.off .hub-mod-words { opacity: .5; }
+.hub-mod input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); flex: 0 0 auto; }
+.hub-mod-mark { width: 6px; height: 6px; border-radius: 3px; background: var(--good); flex: 0 0 auto; margin: 0 5px; }
+.hub-mod-words { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hub-mod-words b { font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hub-mod-words b .hub-state { margin-left: 0; }
+.hub-mod-words > span { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hub-mod-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.hub-other { margin-top: 4px; border: 1px solid rgba(217, 164, 65, .45); border-radius: 7px; padding: 8px 10px; background: rgba(217, 164, 65, .07); display: flex; flex-direction: column; gap: 6px; }
+.hub-other summary { cursor: pointer; font-size: 12px; color: var(--mark); }
 @media (max-width: 760px) {
   .hub-tiles { grid-template-columns: 1fr; }
   .hub-create { grid-template-columns: 1fr; }

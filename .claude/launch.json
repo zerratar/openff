@@ -1,0 +1,42 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "crystal",
+      "runtimeExecutable": "Crystal.Editor/bin/Debug/net8.0/crystal.exe",
+      "runtimeArgs": [
+        "editor",
+        "--port=5099",
+        "--no-browser"
+      ],
+      "port": 5099
+    },
+    {
+      "name": "crystal-fx",
+      "runtimeExecutable": "Crystal.Editor/bin/Debug/net8.0/crystal.exe",
+      "runtimeArgs": [
+        "editor",
+        "--project=FxTest",
+        "--port=5098",
+        "--no-browser"
+      ],
+      "port": 5098,
+      "env": {
+        "FF3_PROJECTS": "C:\\Users\\KarlJ\\AppData\\Local\\Temp\\claude\\C--Users-KarlJ-Downloads-FF3-OpenFF-public\\89e7179f-88e6-43e5-8778-99b23cafe325\\scratchpad\\projects"
+      }
+    },
+    {
+      "name": "crystal-scratch",
+      "runtimeExecutable": "Crystal.Editor/bin/Debug/net8.0/crystal.exe",
+      "runtimeArgs": [
+        "editor",
+        "--port=5097",
+        "--no-browser"
+      ],
+      "port": 5097,
+      "env": {
+        "FF3_PROJECTS": "C:\\Users\\KarlJ\\AppData\\Local\\Temp\\claude\\C--Users-KarlJ-Downloads-FF3-OpenFF-public\\89e7179f-88e6-43e5-8778-99b23cafe325\\scratchpad\\hubprojects"
+      }
+    }
+  ]
+}

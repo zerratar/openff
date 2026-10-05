@@ -9,6 +9,12 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 ## Unreleased
 
+**Added**
+- Crystal: a Mods tab on the start page - a mod manager. OpenFF's mods folder: each mod on or off, updated or removed (to the Recycle Bin). Each Steam or GOG copy of FF3 and FF4: what Crystal's projects installed into it, each uninstalled with a click (the originals put back), and how many other files differ from the Steam release (another mod tool's, a damaged download), with Steam's Verify as the way back.
+
+**Fixes**
+- Crystal: uninstalling from a Steam copy whose files were verified since forgets the files that are the original again, instead of keeping them on record for good.
+
 ## 0.3.5 - sample hub (2026-10-03)
 
 The game's files checked against the Steam release at every start; sample mods kept up to date from OpenFF's MODS list; Crystal's new start page - install a sample mod, create a mod, open a project - with a sample browser; Rogue Mode's Party with job changes, and its black screens fixed.

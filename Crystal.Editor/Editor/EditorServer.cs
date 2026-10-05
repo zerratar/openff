@@ -451,6 +451,69 @@ namespace Crystal.Editor
 					return;
 				}
 
+				case "/api/mods":
+				{
+					// Every mod in place - OpenFF's mods folder, and what Crystal installed into each Steam or GOG copy - for the start page's Mods tab.
+					string mods = OpenFFClient.ModsFolder();
+					SendJson(context, new { ok = true, mods, openff = InstalledMods.InOpenFF(mods), games = InstalledMods.Games(Query(context, "check") == "1") });
+					return;
+				}
+
+				case "/api/mods/reveal":
+				{
+					// The folder in Explorer: OpenFF's mods folder or a mod in it, or a Steam or GOG copy - nowhere else.
+					string at = (string)ReadBody(context)?["path"];
+					string mods = OpenFFClient.ModsFolder();
+					bool Under(string root) => root != null && at != null && (Path.GetFullPath(at) + Path.DirectorySeparatorChar).StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+					bool known = Under(mods) || OpenFF.Content.SteamInstalls.Find().Concat(OpenFF.Content.SteamInstalls.Find(OpenFF.Content.SteamInstalls.Ff4AppId)).Any(i => Under(i.Path));
+					try
+					{
+						if (!known) throw new ArgumentException(at + " is not a mods folder or a game's");
+						ProjectExport.Reveal(at);
+						SendJson(context, new { ok = true });
+					}
+					catch (Exception ex) { SendJson(context, new { ok = false, error = ex.Message }); }
+					return;
+				}
+
+				case "/api/mods/enable":
+				case "/api/mods/remove":
+				case "/api/mods/uninstall":
+				{
+					JsonNode body = ReadBody(context);
+					try
+					{
+						if (path.EndsWith("/enable"))
+						{
+							InstalledMods.SetEnabled(OpenFFClient.ModsFolder() ?? throw new InvalidOperationException("no OpenFF client is known yet"), body?["key"]?.GetValue<string>(), body?["enabled"]?.GetValue<bool>() ?? true);
+							SendJson(context, new { ok = true });
+						}
+						else if (path.EndsWith("/remove"))
+						{
+							// Out of OpenFF's mods folder: a sample installed is uninstalled (it can be installed again), anything else
+							// goes to the Recycle Bin, so a mod not of Crystal's making is never lost.
+							string folder = OpenFFClient.ModsFolder() ?? throw new InvalidOperationException("no OpenFF client is known yet");
+							string key = body?["key"]?.GetValue<string>();
+							OpenFF.Content.InstalledMod mod = OpenFF.Content.ModsFolder.Load(folder).FirstOrDefault(m => string.Equals(m.Key, key, StringComparison.OrdinalIgnoreCase))
+								?? throw new ArgumentException("no mod called " + key + " in " + folder);
+							string where;
+							if (OpenFF.Content.SampleMods.ReadRecord(mod.Directory) != null) { OpenFF.Content.SampleMods.Uninstall(mod.Directory); where = "uninstalled"; }
+							else where = Discard(mod.Directory);
+							SendJson(context, new { ok = true, where });
+						}
+						else
+						{
+							ModResult result = InstalledMods.Uninstall(body?["content"]?.GetValue<string>(), body?["edits"]?.GetValue<string>());
+							SendJson(context, new { ok = result.Ok, error = result.Error, restored = result.Restored.Count, removed = result.Removed.Count, skipped = result.Skipped });
+						}
+					}
+					catch (Exception ex) when (ex is ArgumentException or IOException or InvalidOperationException or UnauthorizedAccessException)
+					{
+						SendJson(context, new { ok = false, error = ex.Message });
+					}
+					return;
+				}
+
 				case "/api/samples/preview":
 				{
 					Samples.Sample sample = Samples.All().FirstOrDefault(s => string.Equals(s.Id, Query(context, "id"), StringComparison.OrdinalIgnoreCase));

@@ -435,6 +435,14 @@ namespace Crystal.Editor
 			// a newer original there, and restoring over that would undo it.
 			if (here != record.Wrote)
 			{
+				// The original back already (a verify put it there): nothing to take back, and nothing left to record.
+				string kept = record.Replaced ? BackupPath(workspace, record.Name) : null;
+				if (kept != null && File.Exists(kept) && HashOf(kept) == here)
+				{
+					result.Notes.Add(record.Name + " is the original again already");
+					manifest.Remove(record.Name);
+					return;
+				}
 				result.Skipped.Add(record.Name);
 				return;
 			}

@@ -8,6 +8,10 @@
 // a sample is a project of your own - a copy to change - and nothing ever overwrites it.
 //
 // The Create a mod dialog is here too: a starting point, then the project's name, author, version and description.
+//
+// Mods is Crystal as a mod manager: every mod in OpenFF's mods folder (on / off, update, remove) and, for each Steam or GOG
+// copy of the games - which have no mod list of their own - what Crystal's projects installed into it (uninstall puts the
+// originals back) and how many of the game's files differ from the release with no install of Crystal's behind them.
 
 const START_KEY = 'crystal-start-page';
 const START_TAB = 'crystal-start-tab';
@@ -91,7 +95,7 @@ async function drawStartPage() {
   // The pages, as tabs under the name.
   const nav = hubEl('div', 'hub-nav');
   const updates = hubUpdates().length;
-  for (const [id, label, count] of [['home', 'Home'], ['projects', 'Projects', projects.length], ['samples', 'Samples', updates]]) {
+  for (const [id, label, count] of [['home', 'Home'], ['projects', 'Projects', projects.length], ['samples', 'Samples', updates], ['mods', 'Mods']]) {
     const b = hubEl('button', 'hub-tab' + (tab === id ? ' on' : ''), label);
     if (count) {
       const badge = hubEl('span', 'hub-count' + (id === 'samples' ? ' update' : ''), String(count));
@@ -108,6 +112,7 @@ async function drawStartPage() {
   start.append(card);
 
   if (tab === 'projects') hubProjectsPage(page, projects);
+  else if (tab === 'mods') hubModsPage(page);
   else if (tab === 'samples') hubSamplesPage(page);
   else hubHomePage(page, projects);
 }
@@ -565,4 +570,213 @@ async function newProjectDialog({ from } = {}) {
 async function sampleProjectsDialog() {
   const samples = ((await hubLoadSamples(false)).samples) || [];
   newProjectDialog({ from: samples.length ? samples[0].id : undefined });
+}
+
+// ------------------------------------------------------------------------- Mods
+
+let hubMods = null;
+
+// The list first, then the game files checked against the releases (a first check reads every file, which can take a while).
+async function hubLoadMods(force) {
+  if (hubMods && !force) return hubMods;
+  try { hubMods = await api('/api/mods'); hubMods.checking = true; } catch (error) { hubMods = { openff: [], games: [], error: error.message }; return hubMods; }
+  const listed = hubMods;
+  api('/api/mods?check=1').then(checked => {
+    if (hubMods !== listed) return;
+    hubMods = checked;
+    if (hubTab() === 'mods' && !startPageHidden()) drawStartPage();
+  }).catch(() => { listed.checking = false; });
+  return hubMods;
+}
+
+function hubModsPage(page) {
+  if (!hubMods) {
+    page.append(hubEl('p', 'dialog-note', 'Looking at the mods folder and the games…'));
+    hubLoadMods(false).then(() => { if (hubTab() === 'mods') drawStartPage(); });
+    return;
+  }
+  const result = hubMods;
+  const bar = hubEl('div', 'hub-bar');
+  bar.append(hubEl('p', 'dialog-note hub-grow', 'Every mod in place: OpenFF\'s mods folder, and what Crystal installed into each Steam or GOG copy of the games.'));
+  const refresh = hubEl('button', null, 'Refresh');
+  refresh.onclick = async () => { refresh.disabled = true; await hubLoadMods(true); drawStartPage(); };
+  bar.append(refresh);
+  page.append(bar);
+  if (result.error) page.append(hubEl('p', 'dialog-error', result.error));
+
+  // OpenFF
+  const openff = hubEl('section', 'hub-place');
+  const head = hubEl('div', 'hub-place-head');
+  head.append(icon('mod'), hubEl('b', null, 'OpenFF'));
+  if (result.mods) {
+    const where = hubEl('span', 'hub-place-path', result.mods);
+    where.title = result.mods;
+    head.append(where, hubRevealButton(result.mods));
+  }
+  openff.append(head);
+  if (!result.mods) openff.append(hubEl('p', 'dialog-note', 'No OpenFF client is known yet - start OpenFF once and its mods folder is found.'));
+  else if (!result.openff.length) openff.append(hubEl('p', 'dialog-note', 'No mods in the folder. Install one from the Samples tab, or Export to OpenFF from a project.'));
+  for (const mod of result.openff) openff.append(hubOpenFFRow(mod));
+  if (result.openff.length) openff.append(hubEl('p', 'dialog-note hub-place-foot', 'OpenFF takes changes in at its next start; its MODS list on the title does the same.'));
+  page.append(openff);
+
+  // Steam and GOG
+  if (!result.games.length) {
+    const none = hubEl('section', 'hub-place');
+    none.append(hubEl('p', 'dialog-note', 'No Steam or GOG copy of Final Fantasy III or IV was found on this machine.'));
+    page.append(none);
+  }
+  for (const game of result.games) page.append(hubGameSection(game));
+}
+
+function hubRevealButton(path) {
+  const b = hubEl('button', 'hub-small', 'Open folder');
+  b.onclick = async () => {
+    try { const r = await api('/api/mods/reveal', { path }); if (!r.ok) throw new Error(r.error); } catch (error) { say(error.message, 'bad'); }
+  };
+  return b;
+}
+
+function hubBadge(text, tone, title) {
+  const b = hubEl('span', 'hub-state ' + (tone || 'dim'), text);
+  if (title) b.title = title;
+  return b;
+}
+
+function hubOpenFFRow(mod) {
+  const row = hubEl('div', 'hub-mod' + (mod.enabled ? '' : ' off'));
+  const toggle = hubEl('input');
+  toggle.type = 'checkbox';
+  toggle.checked = mod.enabled;
+  toggle.title = mod.enabled ? 'On - untick to leave it out of OpenFF' : 'Off - tick to have OpenFF load it';
+  toggle.onchange = async () => {
+    try {
+      const r = await api('/api/mods/enable', { key: mod.key, enabled: toggle.checked });
+      if (!r.ok) throw new Error(r.error);
+      mod.enabled = toggle.checked;
+      row.classList.toggle('off', !mod.enabled);
+      say(`${mod.name} is ${mod.enabled ? 'on' : 'off'} - OpenFF takes it in at its next start`, 'good');
+    } catch (error) { toggle.checked = mod.enabled; say(error.message, 'bad'); }
+  };
+  const words = hubEl('div', 'hub-mod-words');
+  const name = hubEl('b', null, mod.name);
+  if (mod.version) name.append(hubEl('span', 'hub-version', 'v' + mod.version));
+  if (mod.kind === 'sample') {
+    name.append(hubBadge('Sample', 'good', `The ${mod.sample} sample, installed${mod.managed ? '' : ' by hand'} - kept up to date`));
+    if (mod.state === 'update') name.append(hubBadge('Update', 'mark', 'The shipped sample is newer'));
+    if (mod.state === 'copy') name.append(hubBadge('Old copy', 'mark', 'A copy made by hand of an older sample'));
+  } else if (mod.kind === 'project') {
+    name.append(hubBadge('Project', 'dim', `Exported from the project ${mod.project || ''} - yours, never updated over`));
+  }
+  if (mod.code) name.append(hubEl('span', 'hub-tag csharp', 'C#'));
+  const sub = hubEl('span', null, mod.description || mod.directory);
+  sub.title = mod.directory;
+  words.append(name, sub);
+  const actions = hubEl('div', 'hub-mod-actions');
+  if (mod.kind === 'sample' && (mod.state === 'update' || mod.state === 'copy')) {
+    const up = hubEl('button', 'primary hub-small', 'Update');
+    up.onclick = async () => {
+      await hubLoadSamples(true);
+      const sample = ((hubSamples && hubSamples.samples) || []).find(s => s.id === mod.sample);
+      if (!sample) { say(`The ${mod.sample} sample is not here to update from`, 'bad'); return; }
+      await hubInstall(sample, up);
+      await hubLoadMods(true);
+      drawStartPage();
+    };
+    actions.append(up);
+  }
+  if (mod.projectDirectory) {
+    const open = hubEl('button', 'hub-small', 'Open project');
+    open.onclick = () => openProjectAt(mod.projectDirectory);
+    actions.append(open);
+  }
+  const remove = hubEl('button', 'hub-small', 'Remove');
+  remove.title = mod.managed ? 'Uninstall the sample (it can be installed again from Samples)' : 'Take the mod out of the mods folder, to the Recycle Bin';
+  remove.onclick = () => hubConfirm(`Remove ${mod.name}?`,
+    mod.managed ? `${mod.name} is uninstalled from OpenFF's mods folder. The sample stays in Crystal's Samples to install again.`
+      : `The folder ${mod.directory} goes to the Recycle Bin - restore it from there if you want it back.` + (mod.kind === 'project' ? ' The project itself is not touched; Export to OpenFF puts the mod back.' : ''),
+    'Remove', async () => {
+      const r = await api('/api/mods/remove', { key: mod.key });
+      if (!r.ok) throw new Error(r.error);
+      say(r.where === 'uninstalled' ? `${mod.name} is uninstalled` : r.where === 'recycle bin' ? `${mod.name} is in the Recycle Bin` : `${mod.name} is moved to ${r.where}`, 'good');
+      await hubLoadMods(true);
+      hubSamples = null;
+      drawStartPage();
+    });
+  actions.append(remove);
+  row.append(toggle, words, actions);
+  return row;
+}
+
+function hubGameSection(game) {
+  const section = hubEl('section', 'hub-place');
+  const head = hubEl('div', 'hub-place-head');
+  head.append(icon('steam'), hubEl('b', null, game.name), hubBadge(game.store, 'dim'));
+  const where = hubEl('span', 'hub-place-path', game.path);
+  where.title = game.path;
+  head.append(where, hubRevealButton(game.path));
+  section.append(head);
+  if (!game.mods.length) section.append(hubEl('p', 'dialog-note', 'No project of Crystal\'s is installed in it.'));
+  for (const mod of game.mods) {
+    const row = hubEl('div', 'hub-mod');
+    row.append(hubEl('span', 'hub-mod-mark'));
+    const words = hubEl('div', 'hub-mod-words');
+    const label = mod.name || 'Edits without a project';
+    const name = hubEl('b', null, label);
+    if (mod.changed) name.append(hubBadge(`${mod.changed} changed since`, 'mark', 'Files the game has now that are not what Crystal wrote - a game update, Verify integrity, another tool. Uninstall forgets those that are the original again and leaves the rest as they are'));
+    const sub = hubEl('span', null, `${mod.files} file${mod.files === 1 ? '' : 's'} installed · the originals kept beside the edits`);
+    sub.title = mod.edits;
+    words.append(name, sub);
+    const actions = hubEl('div', 'hub-mod-actions');
+    if (mod.projectDirectory) {
+      const open = hubEl('button', 'hub-small', 'Open project');
+      open.onclick = () => openProjectAt(mod.projectDirectory);
+      actions.append(open);
+    }
+    const out = hubEl('button', 'hub-small', 'Uninstall');
+    out.title = 'Put the game\'s own files back (Project ▸ Remove); the edits stay where they are';
+    out.onclick = () => hubConfirm(`Uninstall ${label} from ${game.name}?`,
+      `The game's own files go back where ${label} replaced them, and the files it added are taken out. The edits stay in ${mod.name ? 'the project' : 'Crystal'} to install again.`,
+      'Uninstall', async () => {
+        const r = await api('/api/mods/uninstall', { content: game.path, edits: mod.edits });
+        if (!r.ok) throw new Error(r.error || 'not uninstalled');
+        say(`${label}: ${r.restored} original(s) put back, ${r.removed} added file(s) taken out` + (r.skipped && r.skipped.length ? `, ${r.skipped.length} left as they are (changed since)` : ''), 'good');
+        await hubLoadMods(true);
+        if (typeof refreshProject === 'function') refreshProject();
+        drawStartPage();
+      });
+    actions.append(out);
+    row.append(words, actions);
+    section.append(row);
+  }
+  if (game.other && game.other.length) {
+    const warn = hubEl('details', 'hub-other');
+    warn.append(hubEl('summary', null, `${game.other.length} other file${game.other.length === 1 ? '' : 's'} differ from the ${game.store} release`
+      + (game.otherVersion ? ' - likely another version of the game' : ' - not installed by Crystal (another mod tool, or a damaged download)')));
+    warn.append(hubEl('p', 'dialog-note', 'Steam ▸ Library ▸ the game ▸ Properties ▸ Installed Files ▸ Verify integrity of game files puts them back. Uninstall Crystal\'s own installs above first.'));
+    warn.append(fileList(game.other.slice(0, 200)));
+    section.append(warn);
+  } else if (game.other) {
+    section.append(hubEl('p', 'dialog-note hub-place-foot', game.mods.length ? 'Every other file is as the release ships it.' : `Every file is as the ${game.store} release ships it.`));
+  }
+  if (game.missing) section.append(hubEl('p', 'dialog-note hub-place-foot', `${game.missing} file(s) of the release are missing.`));
+  if (hubMods && hubMods.checking && game.store === 'Steam') section.append(hubEl('p', 'dialog-note hub-place-foot', 'Checking the game\'s files against the release…'));
+  return section;
+}
+
+function hubConfirm(title, text, verb, run) {
+  const body = dialog(title);
+  body.append(hubEl('p', 'dialog-note', text));
+  const problem = errorLine(body);
+  const actions = hubEl('div', 'dialog-actions');
+  const cancel = hubEl('button', null, 'Keep it');
+  cancel.onclick = () => body.close();
+  const go = hubEl('button', 'danger', verb);
+  go.onclick = async () => {
+    go.disabled = true;
+    try { await run(); body.close(); } catch (error) { problem.textContent = error.message; go.disabled = false; }
+  };
+  actions.append(cancel, go);
+  body.append(actions);
+  cancel.focus();
 }

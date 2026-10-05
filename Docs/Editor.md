@@ -63,6 +63,14 @@ build* - and offers **Install**, **Update**, **Uninstall** and **Create a mod fr
 installed sample is the sample as it ships (`OpenFF.Content.SampleMods`: a `sample.json` of
 its files' SHA-1), kept up to date - an update names the files of it you changed before it
 replaces them; a mod *created* from a sample is a project of your own, never updated over.
+**Mods** is Crystal as a mod manager: every mod in OpenFF's mods folder - on or off (loadorder.json, as
+the title's MODS list writes it), its kind (*Sample*, with *Update* or *Old copy*; *Project*, with the project to
+open; any other), **Update**, **Remove** (a sample is uninstalled, anything else goes to the Recycle Bin) - and, for
+each Steam or GOG copy of FF3 and FF4, which have no mod list of their own, the projects (and the edits made with no
+project open) that Project ▸ Install put into it, from the record each keeps beside its edits, with **Uninstall**
+(the originals back, as Project ▸ Remove). A Steam copy's files are also checked against the release's list
+(OpenFF's cache of the check is shared): files that differ with no install of Crystal's behind them - another mod
+tool's, a damaged download - are counted and listed, with Steam's Verify integrity of game files as the way back.
 **Create a mod** (File ▸ Create a mod…) picks a starting point - *Empty mod*, or any
 sample - then the name, author, version and description; an empty one picks its games and
 kinds of mod, a sample's are the sample's. Every project listed carries the mark of what it
