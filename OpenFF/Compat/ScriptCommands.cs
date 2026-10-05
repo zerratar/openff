@@ -104,8 +104,19 @@ namespace OpenFF.Client
 		}
 
 		// --script-trace: every command a script runs, by name, with where it stands - a wait that redoes itself each
-		// frame once, so the last line of an engine is what it is stuck on.
+		// frame once, so the last line of an engine is what it is stuck on. --script-trace=<file> writes them as the
+		// Steam game's are written by Tools/ff4hook (frame, engine, command, position, 48 operand bytes in hex), for
+		// Tools/ff4hook/trace_compare.py to set the two side by side.
 		private static readonly bool _trace = Options.Get("script-trace") != null;
+		private static readonly System.IO.StreamWriter _traceFile = OpenTraceFile();
+
+		private static System.IO.StreamWriter OpenTraceFile()
+		{
+			string path = Options.Get("script-trace");
+			if (string.IsNullOrEmpty(path) || path == "1" || string.Equals(path, "true", StringComparison.OrdinalIgnoreCase)) return null;
+			try { return new System.IO.StreamWriter(path, false) { AutoFlush = true }; }
+			catch (Exception ex) { Log.Write(LogChannel.General, "script trace: " + path + ": " + ex.Message); return null; }
+		}
 		private static readonly Dictionary<GlobalScope.ScriptEngine, (uint Pc, uint Op)> _lastTraced = new Dictionary<GlobalScope.ScriptEngine, (uint, uint)>();
 
 		private static void Trace(GlobalScope.ScriptEngine engine, uint opcode)
@@ -115,6 +126,14 @@ namespace OpenFF.Client
 			{
 				if (_lastTraced.TryGetValue(engine, out (uint Pc, uint Op) last) && last.Pc == pc && last.Op == opcode) return;
 				_lastTraced[engine] = (pc, opcode);
+			}
+			if (_traceFile != null)
+			{
+				byte[] code = engine.Code;
+				System.Text.StringBuilder hex = new System.Text.StringBuilder(96);
+				for (int i = 0; i < 48; i++) hex.Append(code != null && pc + i < code.Length ? code[pc + i].ToString("x2") : "00");
+				lock (_traceFile) _traceFile.WriteLine(string.Join("\t", OpenFF.Game.Time.Frame, engine.GetHashCode().ToString("x8"), opcode, pc, hex));
+				return;
 			}
 			ScriptOp op = GameProfile.IsFf4 ? ScriptOpTable.Ff4.Get((int)opcode) : ScriptOpTable.Ff3.Get((int)opcode);
 			Log.Write(LogChannel.File, "trace: engine " + engine.GetHashCode().ToString("x") + " @" + pc + " " + (op != null ? ScriptOpTable.Simplify(op.Name) : "op " + opcode));

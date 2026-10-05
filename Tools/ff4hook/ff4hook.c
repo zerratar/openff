@@ -1,0 +1,535 @@
+// ff4hook: a version.dll for the Steam FF4.exe's folder that lets a script drive the game and see it - for
+// comparing OpenFF's FF4 against the real one, frame by frame, without touching the desktop's keyboard,
+// mouse or focus.
+//
+// FF4.exe (32-bit, SDL2 + OpenGL) loads SDL2.dll, which loads VERSION.dll; Windows looks in the game's
+// folder first, so this file is loaded there and passes all 17 of version.dll's functions to the system's.
+// Inside FF4.exe only, it patches two of the game's imports from SDL2.dll:
+//
+//   SDL_PollEvent       keys from the command file are handed to the game as SDL key events (the game
+//                       reads its keys only from events: Select is Return, Cancel Backspace, Menu Tab -
+//                       FF4.ini); the window's focus-lost event is dropped, so a game set to pause in the
+//                       background (PauseInBG = 1) keeps running behind other windows.
+//   SDL_GL_SwapWindow   counts frames and, when asked, reads the finished frame back (glReadPixels) into
+//                       a .bmp before it is shown.
+//   SDL_RenderPresent   the same for the frames drawn with SDL's 2D renderer (the opening movie).
+//
+// Commands: lines appended to %TEMP%\ff4hook\cmd.txt, read every frame (Tools/ff4hook/ff4steam.py writes them):
+//   key <enter|back|tab|esc|up|down|left|right|space> [frames]   pressed, released after [frames] (4)
+//   shot <path.bmp>                                             the next frame
+//   every <frames> <dir>                                        a frame every <frames> into <dir>\NNNNN.bmp (0 stops)
+//   quit                                                        ends the process
+// %TEMP%\ff4hook\status.txt is rewritten every 30 frames ("frame N"); hook.log says what was hooked.
+//
+// The game's own files are not touched. Remove version.dll (ff4steam.py uninstall) and the game is as shipped.
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <GL/gl.h>
+
+#pragma comment(lib, "opengl32.lib")
+#pragma comment(lib, "user32.lib")
+
+// ---- version.dll, passed on ----
+
+static HMODULE g_version;
+static FARPROC g_real[17];
+static const char *g_names[17] = {
+	"GetFileVersionInfoA", "GetFileVersionInfoByHandle", "GetFileVersionInfoExA", "GetFileVersionInfoExW",
+	"GetFileVersionInfoSizeA", "GetFileVersionInfoSizeExA", "GetFileVersionInfoSizeExW", "GetFileVersionInfoSizeW",
+	"GetFileVersionInfoW", "VerFindFileA", "VerFindFileW", "VerInstallFileA", "VerInstallFileW",
+	"VerLanguageNameA", "VerLanguageNameW", "VerQueryValueA", "VerQueryValueW",
+};
+
+static void LoadVersion(void)
+{
+	char path[MAX_PATH];
+	GetSystemDirectoryA(path, MAX_PATH);   // SysWOW64 for a 32-bit process
+	strcat_s(path, MAX_PATH, "\\version.dll");
+	g_version = LoadLibraryA(path);
+	for (int i = 0; i < 17; i++) g_real[i] = g_version ? GetProcAddress(g_version, g_names[i]) : NULL;
+}
+
+#define PASS(i, name) __declspec(naked) void Pass_##name(void) { __asm { jmp dword ptr [g_real + i * 4] } }
+PASS(0, GetFileVersionInfoA) PASS(1, GetFileVersionInfoByHandle) PASS(2, GetFileVersionInfoExA)
+PASS(3, GetFileVersionInfoExW) PASS(4, GetFileVersionInfoSizeA) PASS(5, GetFileVersionInfoSizeExA)
+PASS(6, GetFileVersionInfoSizeExW) PASS(7, GetFileVersionInfoSizeW) PASS(8, GetFileVersionInfoW)
+PASS(9, VerFindFileA) PASS(10, VerFindFileW) PASS(11, VerInstallFileA) PASS(12, VerInstallFileW)
+PASS(13, VerLanguageNameA) PASS(14, VerLanguageNameW) PASS(15, VerQueryValueA) PASS(16, VerQueryValueW)
+
+// ---- files ----
+
+static char g_dir[MAX_PATH], g_cmdPath[MAX_PATH], g_statusPath[MAX_PATH], g_logPath[MAX_PATH];
+
+static void Log(const char *fmt, ...)
+{
+	FILE *f;
+	if (fopen_s(&f, g_logPath, "a") != 0 || !f) return;
+	va_list a; va_start(a, fmt); vfprintf(f, fmt, a); va_end(a);
+	fputc('\n', f); fclose(f);
+}
+
+// ---- SDL, as much of it as this needs ----
+
+#define SDL_WINDOWEVENT 0x200
+#define SDL_KEYDOWN 0x300
+#define SDL_KEYUP 0x301
+#define SDL_WINDOWEVENT_FOCUS_LOST 13
+
+typedef struct { unsigned type, timestamp, windowID; unsigned char state, repeat, pad2, pad3; int scancode, sym; unsigned short mod; unsigned unused; } KeyEvent;
+typedef struct { unsigned type, timestamp, windowID; unsigned char event, pad1, pad2, pad3; int data1, data2; } WindowEvent;
+
+typedef int (__cdecl *PollEventFn)(void *event);
+typedef void (__cdecl *SwapWindowFn)(void *window);
+typedef void (__cdecl *GetWindowSizeFn)(void *window, int *w, int *h);
+typedef void (__cdecl *RenderPresentFn)(void *renderer);
+typedef int (__cdecl *RendererOutputSizeFn)(void *renderer, int *w, int *h);
+typedef int (__cdecl *RenderReadPixelsFn)(void *renderer, const void *rect, unsigned format, void *pixels, int pitch);
+static PollEventFn g_pollEvent;
+static SwapWindowFn g_swapWindow;
+static GetWindowSizeFn g_getDrawableSize;
+static RenderPresentFn g_renderPresent;
+static RendererOutputSizeFn g_rendererOutputSize;
+static RenderReadPixelsFn g_renderReadPixels;
+
+static struct { const char *name; int scancode, sym; } g_keys[] = {
+	{ "enter", 40, 13 }, { "back", 42, 8 }, { "tab", 43, 9 }, { "esc", 41, 27 }, { "space", 44, 32 },
+	{ "right", 79, 0x4000004F }, { "left", 80, 0x40000050 }, { "down", 81, 0x40000051 }, { "up", 82, 0x40000052 },
+};
+
+// Key events waiting to be handed over, each from a frame on.
+typedef struct { unsigned type; int scancode, sym; unsigned long long atFrame; } Pending;
+static Pending g_queue[256];
+static int g_queued;
+static unsigned long long g_frame;
+static int g_traceCalls;
+static unsigned g_windowID = 1;
+static CRITICAL_SECTION g_lock;
+
+static void Queue(unsigned type, int scancode, int sym, unsigned long long atFrame)
+{
+	if (g_queued >= 256) return;
+	g_queue[g_queued].type = type; g_queue[g_queued].scancode = scancode; g_queue[g_queued].sym = sym; g_queue[g_queued].atFrame = atFrame;
+	g_queued++;
+}
+
+// ---- commands ----
+
+static long g_cmdRead;
+static char g_shotPath[MAX_PATH];
+static int g_everyFrames;
+static char g_everyDir[MAX_PATH];
+static int g_everyCount;
+
+// ---- the script trace: every event-script command FF4.exe runs ----
+//
+// The script engine calls its commands through a table of 500 function pointers in .rdata (0x5a8658 in the Steam
+// build; the order is OpenFF's Shared/Script/ScriptOpsFf4.cs, every entry a babilCommand_*). Each entry is pointed at
+// a stub of its own - push the index, jump to TraceEntry - which logs the command and goes on to the original with
+// every register as it came. The engine (ScriptEngine: code at +8, position at +0xC, redo flag at +0x10 - its
+// getWord / getDword, __fastcall) comes in ECX. A command that redoes itself frame after frame is logged once.
+
+#define TABLE_ADDRESS 0x5a8658
+#define TABLE_COUNT 500
+#define TABLE_CHECK_INDEX 306          // babilCommand_CE_SetupCameraMotion
+#define TABLE_CHECK_VALUE 0x4f7260
+
+static void *g_origCommand[TABLE_COUNT];
+static FILE *g_trace;
+static void *g_lastEngine[16];
+static unsigned g_lastPc[16], g_lastOp[16];
+
+
+// The engine: ECX (__fastcall, as the operand readers take it) or else the first stack argument.
+static unsigned char *Engine(unsigned char *a, unsigned char *b)
+{
+	unsigned char *c[2] = { a, b };
+	for (int i = 0; i < 2; i++)
+	{
+		if (!c[i] || IsBadReadPtr(c[i], 0x14)) continue;
+		unsigned char *code = *(unsigned char **)(c[i] + 8);
+		unsigned pc = *(unsigned *)(c[i] + 0xc);
+		if (code && pc < 0x1000000 && !IsBadReadPtr(code + pc, 48)) return c[i];
+	}
+	return NULL;
+}
+
+static void __cdecl TraceCall(unsigned index, unsigned char *ecx, unsigned char *stackArg)
+{
+	if (g_traceCalls < 5) { g_traceCalls++; Log("frame %llu: command %u called, ecx %p, first argument %p", g_frame, index, (void *)ecx, (void *)stackArg); }
+	unsigned char *engine = Engine(ecx, stackArg);
+	if (!g_trace || !engine) return;
+	unsigned char *code = *(unsigned char **)(engine + 8);
+	unsigned pc = *(unsigned *)(engine + 0xc);
+	if (!code || IsBadReadPtr(code + pc, 48)) return;
+	// once per engine, position and command: a wait redone every frame is one line
+	int slot = -1, empty = -1;
+	for (int i = 0; i < 16; i++)
+	{
+		if (g_lastEngine[i] == engine) { slot = i; break; }
+		if (!g_lastEngine[i] && empty < 0) empty = i;
+	}
+	if (slot < 0) slot = empty >= 0 ? empty : (int)(((size_t)engine >> 4) & 15);
+	if (g_lastEngine[slot] == engine && g_lastPc[slot] == pc && g_lastOp[slot] == index) return;
+	g_lastEngine[slot] = engine; g_lastPc[slot] = pc; g_lastOp[slot] = index;
+	fprintf(g_trace, "%llu\t%p\t%u\t%u\t", g_frame, (void *)engine, index, pc);
+	for (int i = 0; i < 48; i++) fprintf(g_trace, "%02x", code[pc + i]);
+	fputc('\n', g_trace);
+}
+
+__declspec(naked) static void TraceEntry(void)
+{
+	__asm {
+		pushad                       // esp -> 8 registers; the index above them, then the return address
+		mov eax, [esp + 32]          // the index the stub pushed
+		mov edx, [esp + 40]          // the first stack argument (above the return address)
+		push edx
+		push ecx                     // the engine, as the operand readers take it
+		push eax
+		call TraceCall
+		add esp, 12
+		popad
+		push eax
+		mov eax, [esp + 4]           // the index
+		mov eax, [g_origCommand + eax * 4]
+		mov [esp + 4], eax           // in its place, the original command
+		pop eax
+		ret                          // to it, with the caller's return address on top as if called directly
+	}
+}
+
+static void WrapCommandTable(void)
+{
+	// The addresses are the file's (image base 0x400000); the exe may be loaded elsewhere (ASLR).
+	size_t shift = (size_t)GetModuleHandleA(NULL) - 0x400000;
+	void **table = (void **)(TABLE_ADDRESS + shift);
+	if (IsBadReadPtr(table, TABLE_COUNT * 4) || (size_t)table[TABLE_CHECK_INDEX] != TABLE_CHECK_VALUE + shift)
+	{
+		Log("script table not where the Steam build keeps it (entry %d: %p) - no script trace", TABLE_CHECK_INDEX, IsBadReadPtr(table, TABLE_COUNT * 4) ? NULL : table[TABLE_CHECK_INDEX]);
+		return;
+	}
+	unsigned char *stubs = (unsigned char *)VirtualAlloc(NULL, TABLE_COUNT * 10, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	if (!stubs) return;
+	DWORD old;
+	VirtualProtect(table, TABLE_COUNT * 4, PAGE_READWRITE, &old);
+	for (int i = 0; i < TABLE_COUNT; i++)
+	{
+		unsigned char *s = stubs + i * 10;
+		g_origCommand[i] = table[i];
+		s[0] = 0x68; *(unsigned *)(s + 1) = (unsigned)i;                                  // push i
+		s[5] = 0xE9; *(int *)(s + 6) = (int)((unsigned char *)TraceEntry - (s + 10));     // jmp TraceEntry
+		if (table[i]) table[i] = s;
+	}
+	VirtualProtect(table, TABLE_COUNT * 4, old, &old);
+	FlushInstructionCache(GetCurrentProcess(), stubs, TABLE_COUNT * 10);
+	Log("script table wrapped: %d commands at %p (the exe at %p)", TABLE_COUNT, (void *)table, (void *)GetModuleHandleA(NULL));
+}
+
+static void Command(char *line)
+{
+	char word[32] = { 0 }, arg[MAX_PATH] = { 0 };
+	int n = 0;
+	if (sscanf_s(line, "%31s", word, (unsigned)sizeof word) != 1) return;
+	char *rest = line + strlen(word);
+	while (*rest == ' ') rest++;
+	if (strcmp(word, "key") == 0)
+	{
+		int frames = 4;
+		char name[32] = { 0 };
+		sscanf_s(rest, "%31s %d", name, (unsigned)sizeof name, &frames);
+		for (int i = 0; i < (int)(sizeof g_keys / sizeof g_keys[0]); i++)
+		{
+			if (_stricmp(name, g_keys[i].name) != 0) continue;
+			Queue(SDL_KEYDOWN, g_keys[i].scancode, g_keys[i].sym, g_frame);
+			Queue(SDL_KEYUP, g_keys[i].scancode, g_keys[i].sym, g_frame + (frames > 0 ? frames : 1));
+			Log("frame %llu: key %s for %d frame(s)", g_frame, name, frames);
+			return;
+		}
+		Log("frame %llu: unknown key '%s'", g_frame, name);
+	}
+	else if (strcmp(word, "shot") == 0)
+	{
+		strcpy_s(g_shotPath, MAX_PATH, rest);
+	}
+	else if (strcmp(word, "every") == 0)
+	{
+		if (sscanf_s(rest, "%d %259[^\r\n]", &n, arg, (unsigned)sizeof arg) >= 1)
+		{
+			g_everyFrames = n;
+			if (arg[0]) { strcpy_s(g_everyDir, MAX_PATH, arg); CreateDirectoryA(g_everyDir, NULL); }
+			g_everyCount = 0;
+			Log("frame %llu: a frame every %d into %s", g_frame, n, g_everyDir);
+		}
+	}
+	else if (strcmp(word, "trace") == 0)
+	{
+		if (g_trace) { fclose(g_trace); g_trace = NULL; }
+		if (_stricmp(rest, "off") != 0 && rest[0])
+		{
+			fopen_s(&g_trace, rest, "a");
+			memset(g_lastEngine, 0, sizeof g_lastEngine);
+		}
+		Log("frame %llu: script trace %s", g_frame, g_trace ? rest : "off");
+	}
+	else if (strcmp(word, "quit") == 0)
+	{
+		if (g_trace) fclose(g_trace);
+		Log("frame %llu: quit", g_frame);
+		TerminateProcess(GetCurrentProcess(), 0);
+	}
+}
+
+static void ReadCommands(void)
+{
+	HANDLE h = CreateFileA(g_cmdPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
+	if (h == INVALID_HANDLE_VALUE) return;
+	DWORD size = GetFileSize(h, NULL);
+	if (size < (DWORD)g_cmdRead) g_cmdRead = 0;   // the file was started over
+	if (size > (DWORD)g_cmdRead && size - g_cmdRead < 65536)
+	{
+		char buf[65537];
+		DWORD got = 0;
+		SetFilePointer(h, g_cmdRead, NULL, FILE_BEGIN);
+		ReadFile(h, buf, size - g_cmdRead, &got, NULL);
+		buf[got] = 0;
+		// Whole lines only; a line still being written waits for the next frame.
+		char *end = strrchr(buf, '\n');
+		if (end)
+		{
+			*end = 0;
+			g_cmdRead += (long)(end - buf + 1);
+			char *ctx = NULL;
+			for (char *line = strtok_s(buf, "\r\n", &ctx); line; line = strtok_s(NULL, "\r\n", &ctx)) Command(line);
+		}
+	}
+	CloseHandle(h);
+}
+
+// ---- the hooks ----
+
+static DWORD g_lastRead;
+
+static int __cdecl Hook_PollEvent(void *event)
+{
+	EnterCriticalSection(&g_lock);
+	// Commands every 10 ms here too: the movie part draws with SDL's renderer, not by swapping.
+	if (GetTickCount() - g_lastRead >= 10) { g_lastRead = GetTickCount(); ReadCommands(); }
+	for (int i = 0; i < g_queued; i++)
+	{
+		if (g_queue[i].atFrame > g_frame) continue;
+		if (event)
+		{
+			KeyEvent *k = (KeyEvent *)event;
+			memset(event, 0, 56);
+			k->type = g_queue[i].type;
+			k->timestamp = GetTickCount();
+			k->windowID = g_windowID;
+			k->state = g_queue[i].type == SDL_KEYDOWN ? 1 : 0;
+			k->scancode = g_queue[i].scancode;
+			k->sym = g_queue[i].sym;
+			memmove(&g_queue[i], &g_queue[i + 1], (g_queued - i - 1) * sizeof(Pending));
+			g_queued--;
+		}
+		LeaveCriticalSection(&g_lock);
+		return 1;
+	}
+	LeaveCriticalSection(&g_lock);
+	for (;;)
+	{
+		int got = g_pollEvent(event);
+		if (!got || !event) return got;
+		WindowEvent *w = (WindowEvent *)event;
+		if (w->type == SDL_WINDOWEVENT)
+		{
+			g_windowID = w->windowID;
+			if (w->event == SDL_WINDOWEVENT_FOCUS_LOST) continue;   // keeps a game set to pause in the background running
+		}
+		return got;
+	}
+}
+
+static void SaveFrame(void *window, const char *path)
+{
+	int w = 0, h = 0;
+	if (g_getDrawableSize) g_getDrawableSize(window, &w, &h);
+	if (w <= 0 || h <= 0)
+	{
+		GLint vp[4];
+		glGetIntegerv(GL_VIEWPORT, vp);
+		w = vp[2]; h = vp[3];
+	}
+	if (w <= 0 || h <= 0) return;
+	int stride = (w * 3 + 3) & ~3;
+	unsigned char *pixels = (unsigned char *)malloc((size_t)stride * h);
+	if (!pixels) return;
+	glPixelStorei(GL_PACK_ALIGNMENT, 4);
+	glReadBuffer(GL_BACK);
+	glReadPixels(0, 0, w, h, 0x80E0 /* GL_BGR */, GL_UNSIGNED_BYTE, pixels);   // bottom row first, as a .bmp keeps it
+	FILE *f;
+	if (fopen_s(&f, path, "wb") == 0 && f)
+	{
+		BITMAPFILEHEADER fh = { 0 };
+		BITMAPINFOHEADER ih = { 0 };
+		fh.bfType = 0x4D42;
+		fh.bfOffBits = sizeof fh + sizeof ih;
+		fh.bfSize = fh.bfOffBits + (DWORD)stride * h;
+		ih.biSize = sizeof ih; ih.biWidth = w; ih.biHeight = h; ih.biPlanes = 1; ih.biBitCount = 24; ih.biSizeImage = (DWORD)stride * h;
+		fwrite(&fh, sizeof fh, 1, f); fwrite(&ih, sizeof ih, 1, f); fwrite(pixels, 1, (size_t)stride * h, f);
+		fclose(f);
+	}
+	free(pixels);
+}
+
+static void WriteBmp(const char *path, const unsigned char *pixels, int w, int h, int stride, int topDown)
+{
+	FILE *f;
+	if (fopen_s(&f, path, "wb") != 0 || !f) return;
+	BITMAPFILEHEADER fh = { 0 };
+	BITMAPINFOHEADER ih = { 0 };
+	fh.bfType = 0x4D42;
+	fh.bfOffBits = sizeof fh + sizeof ih;
+	fh.bfSize = fh.bfOffBits + (DWORD)stride * h;
+	ih.biSize = sizeof ih; ih.biWidth = w; ih.biHeight = topDown ? -h : h; ih.biPlanes = 1; ih.biBitCount = 24; ih.biSizeImage = (DWORD)stride * h;
+	fwrite(&fh, sizeof fh, 1, f); fwrite(&ih, sizeof ih, 1, f); fwrite(pixels, 1, (size_t)stride * h, f);
+	fclose(f);
+}
+
+// The frame read back from SDL's 2D renderer (the movie part), top row first.
+static void SaveRendererFrame(void *renderer, const char *path)
+{
+	int w = 0, h = 0;
+	if (!g_rendererOutputSize || !g_renderReadPixels || g_rendererOutputSize(renderer, &w, &h) != 0 || w <= 0 || h <= 0) return;
+	int stride = (w * 3 + 3) & ~3;
+	unsigned char *pixels = (unsigned char *)malloc((size_t)stride * h);
+	if (!pixels) return;
+	if (g_renderReadPixels(renderer, NULL, 0x17101803 /* SDL_PIXELFORMAT_BGR24 */, pixels, stride) == 0) WriteBmp(path, pixels, w, h, stride, 1);
+	free(pixels);
+}
+
+// Once a frame, whichever way it is shown: commands, the screenshots asked for, the status file.
+static void Frame(void *target, int renderer)
+{
+	EnterCriticalSection(&g_lock);
+	ReadCommands();
+	g_lastRead = GetTickCount();
+	LeaveCriticalSection(&g_lock);
+	if (g_shotPath[0])
+	{
+		if (renderer) SaveRendererFrame(target, g_shotPath); else SaveFrame(target, g_shotPath);
+		Log("frame %llu: shot %s%s", g_frame, g_shotPath, renderer ? " (renderer)" : "");
+		g_shotPath[0] = 0;
+	}
+	if (g_everyFrames > 0 && g_everyDir[0] && g_frame % (unsigned long long)g_everyFrames == 0)
+	{
+		char path[MAX_PATH];
+		sprintf_s(path, MAX_PATH, "%s\\%06llu.bmp", g_everyDir, g_frame);
+		if (renderer) SaveRendererFrame(target, path); else SaveFrame(target, path);
+		g_everyCount++;
+	}
+	if (g_trace) fflush(g_trace);
+	if (g_frame == 300 || g_frame == 1500)
+	{
+		void **t = (void **)(TABLE_ADDRESS + (size_t)GetModuleHandleA(NULL) - 0x400000);
+		Log("frame %llu: table entry 306 is %p, entry 0 %p; %d stub call(s) so far", g_frame, t[306], t[0], g_traceCalls);
+	}
+	if (g_frame % 30 == 0)
+	{
+		FILE *f;
+		if (fopen_s(&f, g_statusPath, "w") == 0 && f) { fprintf(f, "frame %llu\n", g_frame); fclose(f); }
+	}
+}
+
+static void __cdecl Hook_SwapWindow(void *window)
+{
+	Frame(window, 0);
+	g_swapWindow(window);
+	g_frame++;
+}
+
+static void __cdecl Hook_RenderPresent(void *renderer)
+{
+	Frame(renderer, 1);
+	g_renderPresent(renderer);
+	g_frame++;
+}
+
+// FF4.exe's import of an SDL2 function pointed at the hook; the real one kept.
+static void *PatchImport(HMODULE exe, const char *dll, const char *name, void *hook)
+{
+	BYTE *base = (BYTE *)exe;
+	IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS *)(base + ((IMAGE_DOS_HEADER *)base)->e_lfanew);
+	IMAGE_DATA_DIRECTORY dir = nt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+	for (IMAGE_IMPORT_DESCRIPTOR *d = (IMAGE_IMPORT_DESCRIPTOR *)(base + dir.VirtualAddress); d->Name; d++)
+	{
+		if (_stricmp((char *)(base + d->Name), dll) != 0) continue;
+		IMAGE_THUNK_DATA *names = (IMAGE_THUNK_DATA *)(base + (d->OriginalFirstThunk ? d->OriginalFirstThunk : d->FirstThunk));
+		IMAGE_THUNK_DATA *slots = (IMAGE_THUNK_DATA *)(base + d->FirstThunk);
+		for (; names->u1.AddressOfData; names++, slots++)
+		{
+			if (IMAGE_SNAP_BY_ORDINAL(names->u1.Ordinal)) continue;
+			IMAGE_IMPORT_BY_NAME *by = (IMAGE_IMPORT_BY_NAME *)(base + names->u1.AddressOfData);
+			if (strcmp((char *)by->Name, name) != 0) continue;
+			DWORD old;
+			void *real = (void *)slots->u1.Function;
+			VirtualProtect(&slots->u1.Function, sizeof(void *), PAGE_READWRITE, &old);
+			slots->u1.Function = (ULONG_PTR)hook;
+			VirtualProtect(&slots->u1.Function, sizeof(void *), old, &old);
+			return real;
+		}
+	}
+	return NULL;
+}
+
+static void Install(void)
+{
+	char exe[MAX_PATH];
+	GetModuleFileNameA(NULL, exe, MAX_PATH);
+	const char *file = strrchr(exe, '\\');
+	file = file ? file + 1 : exe;
+	if (_stricmp(file, "FF4.exe") != 0) return;   // the launcher and anything else: version.dll only
+
+	GetTempPathA(MAX_PATH, g_dir);
+	strcat_s(g_dir, MAX_PATH, "ff4hook");
+	CreateDirectoryA(g_dir, NULL);
+	sprintf_s(g_cmdPath, MAX_PATH, "%s\\cmd.txt", g_dir);
+	sprintf_s(g_statusPath, MAX_PATH, "%s\\status.txt", g_dir);
+	sprintf_s(g_logPath, MAX_PATH, "%s\\hook.log", g_dir);
+	InitializeCriticalSection(&g_lock);
+
+	// Commands written before the game started are not replayed.
+	WIN32_FILE_ATTRIBUTE_DATA a;
+	if (GetFileAttributesExA(g_cmdPath, GetFileExInfoStandard, &a)) g_cmdRead = (long)a.nFileSizeLow;
+
+	HMODULE sdl = GetModuleHandleA("SDL2.dll");
+	if (sdl)
+	{
+		g_getDrawableSize = (GetWindowSizeFn)GetProcAddress(sdl, "SDL_GL_GetDrawableSize");
+		g_rendererOutputSize = (RendererOutputSizeFn)GetProcAddress(sdl, "SDL_GetRendererOutputSize");
+		g_renderReadPixels = (RenderReadPixelsFn)GetProcAddress(sdl, "SDL_RenderReadPixels");
+	}
+	HMODULE self = GetModuleHandleA(NULL);
+	g_pollEvent = (PollEventFn)PatchImport(self, "SDL2.dll", "SDL_PollEvent", (void *)Hook_PollEvent);
+	g_swapWindow = (SwapWindowFn)PatchImport(self, "SDL2.dll", "SDL_GL_SwapWindow", (void *)Hook_SwapWindow);
+	g_renderPresent = (RenderPresentFn)PatchImport(self, "SDL2.dll", "SDL_RenderPresent", (void *)Hook_RenderPresent);
+	WrapCommandTable();
+	Log("ff4hook in %s (pid %lu): SDL_PollEvent %s, SDL_GL_SwapWindow %s; commands from %s",
+		exe, GetCurrentProcessId(), g_pollEvent ? "hooked" : "NOT FOUND", g_swapWindow ? "hooked" : "NOT FOUND", g_cmdPath);
+	// An import not yet bound would leave a hook calling nothing; keep the real one from SDL2 itself then.
+	if (sdl && !g_pollEvent) g_pollEvent = (PollEventFn)GetProcAddress(sdl, "SDL_PollEvent");
+	if (sdl && !g_swapWindow) g_swapWindow = (SwapWindowFn)GetProcAddress(sdl, "SDL_GL_SwapWindow");
+	if (sdl && !g_renderPresent) g_renderPresent = (RenderPresentFn)GetProcAddress(sdl, "SDL_RenderPresent");
+}
+
+BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
+{
+	if (reason == DLL_PROCESS_ATTACH)
+	{
+		DisableThreadLibraryCalls(instance);
+		LoadVersion();
+		Install();
+	}
+	return TRUE;
+}

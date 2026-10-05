@@ -187,5 +187,8 @@ internal static partial class GlobalScope
 		{
 			return pc_;
 		}
+
+		/// <summary>PORT: the script's bytes, for the script trace (ScriptCommands, --script-trace).</summary>
+		public byte[] Code => scriptData_?.m_abyData;
 	}
 }

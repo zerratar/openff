@@ -1,0 +1,19 @@
+LIBRARY version
+EXPORTS
+	GetFileVersionInfoA = Pass_GetFileVersionInfoA
+	GetFileVersionInfoByHandle = Pass_GetFileVersionInfoByHandle
+	GetFileVersionInfoExA = Pass_GetFileVersionInfoExA
+	GetFileVersionInfoExW = Pass_GetFileVersionInfoExW
+	GetFileVersionInfoSizeA = Pass_GetFileVersionInfoSizeA
+	GetFileVersionInfoSizeExA = Pass_GetFileVersionInfoSizeExA
+	GetFileVersionInfoSizeExW = Pass_GetFileVersionInfoSizeExW
+	GetFileVersionInfoSizeW = Pass_GetFileVersionInfoSizeW
+	GetFileVersionInfoW = Pass_GetFileVersionInfoW
+	VerFindFileA = Pass_VerFindFileA
+	VerFindFileW = Pass_VerFindFileW
+	VerInstallFileA = Pass_VerInstallFileA
+	VerInstallFileW = Pass_VerInstallFileW
+	VerLanguageNameA = Pass_VerLanguageNameA
+	VerLanguageNameW = Pass_VerLanguageNameW
+	VerQueryValueA = Pass_VerQueryValueA
+	VerQueryValueW = Pass_VerQueryValueW
