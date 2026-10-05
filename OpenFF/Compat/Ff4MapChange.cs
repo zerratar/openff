@@ -13,9 +13,17 @@ namespace OpenFF.Client
 	{
 		private static bool _conte;
 		private static bool _entering;
+		private static int _partFade, _enterFade = 15;
 
 		/// <summary>The map jump about to be made calls a story scene (Ff4Cutscene's conteEventJumpAndReturnMapJamp).</summary>
 		public static void ConteJump() => _conte = true;
+
+		/// <summary>The map jump about to be made is a part change in FF4 (the battle stage, Ff4BattleStage): no fade out and no fade in - the screens stay as they are until the part fades itself in (Ff4Battle: btl::BattleNormalAttack::initialize's 5 frames).</summary>
+		public static void PartJump()
+		{
+			_conte = true;
+			_partFade = 1;
+		}
 
 		/// <summary>A field or town is left by a map jump (CStateFieldEnd / CStateTownEnd), in place of closing the shutter.</summary>
 		public static void Leave()
@@ -33,6 +41,8 @@ namespace OpenFF.Client
 		{
 			_conte = false;
 			_entering = true;
+			_enterFade = _partFade != 0 ? -1 : 15;
+			_partFade = 0;
 			GlobalScope.wld.AreaChange.getInstance().setOpenStrong();
 		}
 
@@ -43,8 +53,10 @@ namespace OpenFF.Client
 			{
 				_entering = false;
 				if (GlobalScope.evt.CEventManager.getInstance().isEvent() || Ff4Cutscene.Active) return true;
-				GlobalScope.dgs.CFade.Main().fadeIn(15);
-				GlobalScope.dgs.CFade.Sub().fadeIn(15);
+				// A part change (the battle stage) fades in with the part, once it has set itself up (Ff4Battle).
+				if (_enterFade < 0) return true;
+				GlobalScope.dgs.CFade.Main().fadeIn(_enterFade);
+				GlobalScope.dgs.CFade.Sub().fadeIn(_enterFade);
 			}
 			return GlobalScope.dgs.CFade.Main().isCleared() && GlobalScope.dgs.CFade.Sub().isCleared();
 		}

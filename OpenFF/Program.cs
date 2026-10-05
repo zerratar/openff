@@ -137,6 +137,9 @@ namespace OpenFF.Client
 				// F1 debug overlay (boxes, sprites, world, stats); --debug=all starts with it on.
 				DebugOverlay.Attach(game);
 
+				// FF4's encounter whirl over the finished frame, before the screenshots take it.
+				BlurRotate.Attach(game);
+
 				// F12 screenshots, or FF3_SCREENSHOT_EVERY=<seconds> for a filmstrip.
 				ScreenCapture.Attach(game);
 

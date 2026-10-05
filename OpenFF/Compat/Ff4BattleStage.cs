@@ -122,6 +122,7 @@ namespace OpenFF.Client
 				BattleMap = battleMap;
 				Pending = true;
 				_pendingFrames = 0;
+				Ff4MapChange.PartJump();   // FF4's battle is a part change: the screen stays as the encounter left it (white)
 				Game.Field.Warp(stage, PartySpot(0, 1), 6);
 				Log.Write(LogChannel.General, "battle: to stage " + stage + ", back to " + _fieldMap + " at " + _fieldPosition + " after");
 				return true;

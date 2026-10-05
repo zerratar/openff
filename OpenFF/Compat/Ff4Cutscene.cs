@@ -932,6 +932,7 @@ namespace OpenFF.Client
 			string returnMap = engine.getString();
 			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
 			_nextBattle = new NextBattle { Group = battle, Stage = stage, ReturnMap = returnMap, Position = new GlobalScope.VecFx32(x, y, z) };
+			BlurRotate.Start();   // executeBattleEncount: the whirl to white while the scene plays out
 			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " next, on b" + stage.ToString("00") + " - then on to " + returnMap);
 		}
 

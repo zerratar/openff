@@ -252,6 +252,10 @@ namespace OpenFF.Client
 			Game.Hero.Face(forward.Yaw);
 			if (onStage)
 			{
+				// The battle part fades in once it stands (btl::BattleNormalAttack::initialize: fadeIn 5), from the white
+				// the encounter left or the black of a field's jump.
+				GlobalScope.dgs.CFade.Main().fadeIn(5);
+				GlobalScope.dgs.CFade.Sub().fadeIn(5);
 				// FF4's own battle camera (btl::CBattleDisplay, Ff4BattleStage): the opening pose, a
 				// short slide back to the standing shot the encounter group's camera type names, its
 				// 18-degree field of view and 10..2000 clip; driven through the event camera.
