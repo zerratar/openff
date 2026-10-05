@@ -158,6 +158,14 @@ internal static partial class GlobalScope
 					{
 						if ((1 & m_Flag[i]) != 0 && motData == m_MotSet[i].m_pMotData)
 						{
+							// PORT: FF4's CMotSet::removeMotion (libff4) lets go of the entry it removes if it was playing or
+							// blending out - the set then plays nothing until a motion is started - where this kept the
+							// index of a cleaned-up entry, and the character went on posed by a motion its scene had dropped.
+							if (OpenFF.Client.GameProfile.IsFf4)
+							{
+								if (i == m_PreIndex) { m_MotSet[i].removeRenderObject(m_pRenderObj); m_PreIndex = -1; }
+								if (i == m_PlayIndex) { m_MotSet[i].removeRenderObject(m_pRenderObj); m_PlayIndex = -1; }
+							}
 							m_MotSet[i].m_pMotData = null;
 							m_MotSet[i].cleanup();
 							m_Flag[i] = 0;

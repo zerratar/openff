@@ -33,7 +33,7 @@ namespace OpenFF.Client
 			{ "ce_EndEvent", EndEvent },                     // ()
 			{ "ce_SetupCharacter", SetupCharacter },         // (slot, model, texture)
 			{ "ce_SetCharecterAsync", SetCharacterAsync },   // (slot, model, texture, ?)
-			{ "ce_WaitSetCharacter", ReadByte },             // (slot) - loads are synchronous here
+			{ "ce_WaitSetCharacter", WaitSetCharacter },     // (slot): holds while an asynchronous load is in hand
 			{ "ce_CleanupCharacter", CleanupCharacter },     // (slot)
 			{ "ce_DisplayCharacter", DisplayCharacter },     // (slot, hidden)
 			{ "ce_SetupMotion", SetupMotion },               // (slot, motion file)
@@ -147,6 +147,8 @@ namespace OpenFF.Client
 			}
 			_active = true;
 			SceneStage = stage;
+			SceneFrame = 0;
+			_asyncLoadedBy = 0;
 			// evt::ContEventPart::initialize sets the camera's clip to 2..4096 (the field's is 10..500,
 			// which cut the deck scene's sky dome away), and the scene's casts stand in for the party:
 			// the field's hero waits unseen until the scene ends.
@@ -238,8 +240,24 @@ namespace OpenFF.Client
 			Setup(slot, model, texture);
 		}
 
+		/// <summary>
+		/// The scene frame the asynchronous character loads in hand are done by. The Steam game takes seven frames over
+		/// one (CCharacterMng::setCharacterAsync, ce_WaitSetCharacter holding while isLoadingCharaAsync - measured with
+		/// Tools/ff4hook against the opening's flashback casts, whatever their size), one after another; loaded at once
+		/// here, the script went on that much sooner and every shot after it came early.
+		/// </summary>
+		private static int _asyncLoadedBy;
+		private const int AsyncLoadFrames = 7;
+
+		private static void WaitSetCharacter(GlobalScope.ScriptEngine engine)
+		{
+			engine.getByte();
+			if (SceneFrame < _asyncLoadedBy) engine.suspendRedo();
+		}
+
 		private static void SetCharacterAsync(GlobalScope.ScriptEngine engine)
 		{
+			_asyncLoadedBy = Math.Max(_asyncLoadedBy, SceneFrame) + AsyncLoadFrames;
 			int slot = engine.getByte();
 			string model = engine.getString();
 			string texture = engine.getString();
@@ -658,6 +676,7 @@ namespace OpenFF.Client
 		{
 			if (_active)
 			{
+				SceneFrame++;   // after this frame's scripts, as eventExecute counts it
 				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
 			}
 			if (_binds.Count > 0) TickBinds();
@@ -1075,23 +1094,22 @@ namespace OpenFF.Client
 
 		// ---- waits, FOV, the stage ----
 
-		private static readonly Dictionary<GlobalScope.ScriptEngine, int> _frameWaits = new Dictionary<GlobalScope.ScriptEngine, int>();
+		/// <summary>
+		/// The scene's frame: EventConteManager's count (+8), zero when the scene part sets its manager up and one more
+		/// after each frame's scripts have run (evt::ContEventPart::eventExecute).
+		/// </summary>
+		public static int SceneFrame { get; private set; }
 
+		/// <summary>
+		/// ce_setFrameWait(frame): holds the script until the scene reaches that frame - a mark counted from the scene's
+		/// start, not a number of frames from here (babilCommand_CE_setFrameWait: redo while the manager's count is
+		/// under it). Read as frames from here, every step after such a wait came late, by however long the scene had
+		/// already run: casts shown and moved, motions started out of step with the shot they belong to.
+		/// </summary>
 		private static void FrameWait(GlobalScope.ScriptEngine engine)
 		{
-			int frames = (int)engine.getDword();
-			if (!_frameWaits.TryGetValue(engine, out int left))
-			{
-				left = frames;
-				_frameWaits[engine] = left;
-			}
-			if (left > 0)
-			{
-				_frameWaits[engine] = left - 1;
-				engine.suspendRedo();
-				return;
-			}
-			_frameWaits.Remove(engine);
+			int frame = (int)engine.getDword();
+			if (SceneFrame < frame) engine.suspendRedo();
 		}
 
 		private static void SetFovyMove(GlobalScope.ScriptEngine engine)
@@ -1186,7 +1204,6 @@ namespace OpenFF.Client
 		{
 			_inBattle.Clear();
 			_slots.Clear();
-			_frameWaits.Clear();
 			try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
 			ScriptCommands.ReportDropped("map " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
 			_binds.Clear();   // the characters go with the map; nothing to delete

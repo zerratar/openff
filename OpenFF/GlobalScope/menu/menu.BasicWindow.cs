@@ -489,9 +489,9 @@ internal static partial class GlobalScope
 				}
 				for (int i = 0; i < 2; i++)
 				{
-					if (m_pWindow1dArray[i] != null) m_pWindow1dArray[i].SetColor(0u);
+					if (m_pWindow1dArray[i] != null) m_pWindow1dArray[i].SetColor(0x260000u);   // PORT: the Steam bar's navy (0, 0, 38), measured
 				}
-				SetAlpha(150);
+				SetAlpha(24);    // PORT: 24 of 31 - about 77% over what is under it, as the Steam game's bar (a sprite's alpha is the DS's five bits)
 			}
 
 			public void SetAlpha(byte alpha)

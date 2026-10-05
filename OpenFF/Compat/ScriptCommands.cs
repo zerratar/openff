@@ -56,6 +56,11 @@ namespace OpenFF.Client
 			}
 			GlobalScope.SCRIPT_COMMAND[] table = GameProfile.IsFf4 ? Ff4Table() : GlobalScope.commandTable;
 			if (_trace) Trace(engine, opcode);
+			if (AutoKey.Active)
+			{
+				ScriptOp seen = GameProfile.IsFf4 ? ScriptOpTable.Ff4.Get((int)opcode) : ScriptOpTable.Ff3.Get((int)opcode);
+				if (seen != null) AutoKey.Seen(ScriptOpTable.Simplify(seen.Name), engine.getPC());
+			}
 			if (opcode < table.Length && table[opcode] != null)
 			{
 				_recent[_recentAt] = (int)opcode;
@@ -132,7 +137,7 @@ namespace OpenFF.Client
 				byte[] code = engine.Code;
 				System.Text.StringBuilder hex = new System.Text.StringBuilder(96);
 				for (int i = 0; i < 48; i++) hex.Append(code != null && pc + i < code.Length ? code[pc + i].ToString("x2") : "00");
-				lock (_traceFile) _traceFile.WriteLine(string.Join("\t", OpenFF.Game.Time.Frame, engine.GetHashCode().ToString("x8"), opcode, pc, hex));
+				lock (_traceFile) _traceFile.WriteLine(string.Join("\t", LegacyStep.Count, engine.GetHashCode().ToString("x8"), opcode, pc, hex));
 				return;
 			}
 			ScriptOp op = GameProfile.IsFf4 ? ScriptOpTable.Ff4.Get((int)opcode) : ScriptOpTable.Ff3.Get((int)opcode);

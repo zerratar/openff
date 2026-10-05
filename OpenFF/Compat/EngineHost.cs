@@ -163,6 +163,7 @@ namespace OpenFF.Client
 			{
 				WatchLegacy();
 				CharsTrace.Tick();
+				AutoKey.Tick();
 				EngineInput.Update();
 				EngineApi.Tick();
 				ModWatcher.Drain();

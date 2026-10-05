@@ -16,6 +16,7 @@ A script is one step a line ('#' comments):
   shot <name>                    the next frame to <out dir>/<name>.png
   every <frames>                 a frame every <frames> into <out dir>/frames (0 stops)
   trace [off]                    every event-script command the game runs, into <out dir>/trace.tsv
+  autokey <command> [frames]    Return [frames] (60) after the scripts first reach <command> (StartMessage) at a place
   chars [frames]                 every character slot in use every [frames] (30), into <out dir>/chars.tsv
   camera [frames]                the camera every [frames] (15), into <out dir>/camera.tsv
   joints <frames> <model> <a,b>  the named joints' world positions for each character of <model>, into <out dir>/joints.tsv
@@ -112,6 +113,13 @@ def play(steps, out):
         elif word == "trace":
             # every event-script command FF4.exe runs, into <out dir>/trace.tsv (frame, engine, index, position, operand bytes)
             send("trace off" if rest.strip() == "off" else "trace " + os.path.join(out, "trace.tsv"))
+        elif word == "autokey":
+            # autokey <command name> [frames]: Return that many frames (60) after the scripts first reach the command
+            sys.path.insert(0, HERE)
+            from trace_compare import load_table
+            names = [n for n, _ in load_table()]
+            parts = rest.split()
+            send("autokey %d %s" % (names.index(parts[0]), parts[1] if len(parts) > 1 else "60"))
         elif word == "chars":
             # each character slot in use every <frames>, into <out dir>/chars.tsv (0 stops)
             n = rest.split()[0] if rest.strip() else "30"

@@ -93,9 +93,7 @@ namespace OpenFF.Client
 			Screen.Tick();
 			Magic.Tick();
 			Ff4FieldCommands.Tick();
-			Ff4CameraMotion.Tick();
-			Ff4EventCamera.Tick();
-			Ff4Cutscene.Tick();
+			// Ff4CameraMotion, Ff4EventCamera and Ff4Cutscene tick with the game's steps (LegacyStep).
 			Ff4Saves.Tick();
 		}
 

@@ -45,11 +45,22 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.Write(LogChannel.General, option + ": " + parts[0] + ": " + ex.Message); return null; }
 		}
 
-		/// <summary>Once a game step.</summary>
+		private static long _charsLast = -1, _jointsLast = -1, _cameraLast = -1;
+
+		/// <summary>Whether a sample is due: the steps (LegacyStep) have passed a multiple of the period since the last one - a catch-up runs several between two calls.</summary>
+		private static bool Due(ref long last, long frame, int every)
+		{
+			if (last >= 0 && frame / every == last / every) return false;
+			last = frame;
+			return true;
+		}
+
+		/// <summary>Once a call of the game's steps (EngineHost.Tick).</summary>
 		public static void Tick()
 		{
-			long frame = OpenFF.Game.Time.Frame;
-			if (_chars != null && frame % _charsEvery == 0)
+			// the step whose scripts left the state here (After has counted it already) - as the Steam hook labels a frame
+			long frame = LegacyStep.Count - 1;
+			if (_chars != null && Due(ref _charsLast, frame, _charsEvery))
 			{
 				try
 				{
@@ -58,12 +69,12 @@ namespace OpenFF.Client
 				}
 				catch (Exception ex) { Log.First(LogChannel.General, "chars-trace", 1, () => "chars trace: " + ex.Message); }
 			}
-			if (_joints != null && frame % _jointsEvery == 0)
+			if (_joints != null && Due(ref _jointsLast, frame, _jointsEvery))
 			{
 				try { GlobalScope.characterMng.WriteJoints(_joints, frame, _jointsModel, _jointNames); _joints.Flush(); }
 				catch (Exception ex) { Log.First(LogChannel.General, "joints-trace", 1, () => "joints trace: " + ex.Message); }
 			}
-			if (_camera != null && frame % _cameraEvery == 0)
+			if (_camera != null && Due(ref _cameraLast, frame, _cameraEvery))
 			{
 				// NitroSystem's global camera, as FF4.exe's NNS_G3dGlbGetCameraPos / Target / Up and its projection
 				GlobalScope.NNSG3dGlb g = GlobalScope.NNS_G3dGlb;

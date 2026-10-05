@@ -7305,6 +7305,7 @@ internal static partial class GlobalScope
 								glDepthFunc(515u);
 								glDepthMask(1);
 								NitroMain();
+								OpenFF.Client.LegacyStep.After();   // PORT: what keeps pace with the game's steps (a catch-up runs several here)
 								NNS_G2dResetMatrix(depthtest: false);
 								for (int j = 0; j < 12; j++)
 								{

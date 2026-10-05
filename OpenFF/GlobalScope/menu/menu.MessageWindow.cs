@@ -308,8 +308,9 @@ internal static partial class GlobalScope
 				{
 					return false;
 				}
-				ds.Vector2<short> vector = new ds.Vector2<short>(0, 236);
-				ds.Vector2<short> vector2 = new ds.Vector2<short>(480, 84);
+				// The Steam game's bar, measured (Tools/ff4hook): y 264 to 312 of the 480 x 320 screen, its line centred at 288.
+				ds.Vector2<short> vector = new ds.Vector2<short>(0, 264);
+				ds.Vector2<short> vector2 = new ds.Vector2<short>(480, 48);
 				m_Window.SetMaxWindowPos(vector);
 				m_Window.SetMaxWindowSize(vector2);
 				m_Window.ClearNowWindowSize();
@@ -358,10 +359,11 @@ internal static partial class GlobalScope
 				{
 					dGSMessage.getCompleteTextSize(vector2);
 					vector.vx = (short)((m_Bar ? 240 : ds.DS_SCREEN_WIDTH_HALF) - (vector2.vx >> 1));   // PORT: the scene bar centres on its own width
+					if (m_Bar) vector.vy = (short)(288 - (vector2.vy >> 1));   // PORT: and on the bar's middle, as Steam's
 				}
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
-				dGSMessage.setDisplaySpeed(mwDEFAULT_DISPLAY_SPEED);
-				dGSMessage.setShadow(m_MessageShadow);
+				dGSMessage.setDisplaySpeed(m_Bar ? byte.MaxValue : mwDEFAULT_DISPLAY_SPEED);   // PORT: FF4's scene bar shows its line whole (EventConteManager::createMessage draws the text at once)
+				dGSMessage.setShadow(m_MessageShadow && !m_Bar);   // PORT: the Steam bar's line has no shadow
 				if (m_MessageAlign != 0)
 				{
 					dGSMessage.setStyle(m_MessageAlign);
@@ -415,10 +417,11 @@ internal static partial class GlobalScope
 				{
 					dGSMessage.getCompleteTextSize(vector2);
 					vector.vx = (short)((m_Bar ? 240 : ds.DS_SCREEN_WIDTH_HALF) - (vector2.vx >> 1));   // PORT: the scene bar centres on its own width
+					if (m_Bar) vector.vy = (short)(288 - (vector2.vy >> 1));   // PORT: and on the bar's middle, as Steam's
 				}
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
-				dGSMessage.setDisplaySpeed(mwDEFAULT_DISPLAY_SPEED);
-				dGSMessage.setShadow(m_MessageShadow);
+				dGSMessage.setDisplaySpeed(m_Bar ? byte.MaxValue : mwDEFAULT_DISPLAY_SPEED);
+				dGSMessage.setShadow(m_MessageShadow && !m_Bar);   // PORT: the Steam bar's line has no shadow
 				if (m_MessageAlign != 0)
 				{
 					dGSMessage.setStyle(m_MessageAlign);

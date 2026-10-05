@@ -34,6 +34,11 @@ namespace OpenFF.Client
 		private bool _keyWasDown;
 		private bool _burstWasDown;
 		private int _index;
+		// --screenshot-steps=<n>[,<from>,<to>]: a shot at every n-th game step (LegacyStep.Count), named by it - to set
+		// beside the Steam game's frames (Tools/ff4hook's 'every'), which count the same thirty a second.
+		private readonly int _stepEvery, _stepFrom, _stepTo;
+		private long _lastStep = -1;
+		private string _nextName;
 		private Color[] _buffer;
 
 		private ScreenCapture(Game game, string directory, double intervalSeconds)
@@ -42,6 +47,14 @@ namespace OpenFF.Client
 			_directory = directory;
 			_intervalSeconds = intervalSeconds;
 			_nextAutoCapture = intervalSeconds;
+			string steps = Options.Get("screenshot-steps");
+			if (!string.IsNullOrEmpty(steps))
+			{
+				string[] parts = steps.Split(',');
+				int.TryParse(parts[0], out _stepEvery);
+				_stepFrom = parts.Length > 1 && int.TryParse(parts[1], out int from) ? from : 0;
+				_stepTo = parts.Length > 2 && int.TryParse(parts[2], out int to) ? to : int.MaxValue;
+			}
 			// After everything the game draws.
 			DrawOrder = int.MaxValue;
 		}
@@ -97,6 +110,16 @@ namespace OpenFF.Client
 			{
 				Capture();
 			}
+			else if (_stepEvery > 0)
+			{
+				long step = LegacyStep.Count - 1;   // the step shown: its scripts ran as LegacyStep.Count - 1
+				if ((_lastStep < 0 || step / _stepEvery != _lastStep / _stepEvery) && step >= _stepFrom && step <= _stepTo)   // a catch-up can step past the multiple
+				{
+					_lastStep = step;
+					_nextName = string.Format(CultureInfo.InvariantCulture, "step{0:D6}.png", step);
+					Capture();
+				}
+			}
 
 			// F9 dumps the next few hundred draw calls in full, unsampled, so a whole
 			// frame's draw order can be read back.
@@ -150,8 +173,8 @@ namespace OpenFF.Client
 			try
 			{
 				Directory.CreateDirectory(_directory);
-				string path = Path.Combine(_directory,
-					string.Format(CultureInfo.InvariantCulture, "shot{0:D4}.png", ++_index));
+				string path = Path.Combine(_directory, _nextName ?? string.Format(CultureInfo.InvariantCulture, "shot{0:D4}.png", ++_index));
+				_nextName = null;
 
 				// Round-trip through a texture so MonoGame's PNG writer does the encoding.
 				using (Texture2D texture = new Texture2D(GraphicsDevice, width, height))

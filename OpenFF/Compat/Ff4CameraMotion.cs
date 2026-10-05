@@ -52,6 +52,9 @@ namespace OpenFF.Client
 		private static readonly Dictionary<int, MotionSet> _slots = new Dictionary<int, MotionSet>();
 		private static Motion _playing;
 		private static int _frame;
+		// Frames the shot has run since it started: FF4 holds ce_WaitTillEndOfCameraMotion until a motion of N frames has
+		// had all N (a 210-frame shot, 210 frames on screen); counted apart from the pose's frame, which matches Steam's.
+		private static int _elapsed;
 		private static bool _loop;
 
 		// The scene camera's field of view as a 16-bit half-angle index: the part's default at a
@@ -66,7 +69,7 @@ namespace OpenFF.Client
 		/// <summary>The event camera's default: setFOV(0x424, 0xf74), a 15-degree half angle - index 2731 gives exactly those words.</summary>
 		public const int DefaultFovIndex = 2731;
 
-		public static bool Playing => _playing != null && (_loop || _frame < _playing.Frames);
+		public static bool Playing => _playing != null && (_loop || _elapsed < _playing.Frames);
 		public static bool Looping => _playing != null && _loop;
 
 		// ---- loading ----
@@ -277,6 +280,7 @@ namespace OpenFF.Client
 			}
 			_playing = motion;
 			_frame = 1;
+			_elapsed = 0;
 			_loop = loop;
 			// A new shot, from its first frame: a cut from wherever the camera stood (the slide between two shots
 			// is not built), which the frame capture is told - the camera's own update sees the same drive as the
@@ -315,6 +319,7 @@ namespace OpenFF.Client
 				if (_playing == null) ApplyFov(_fovCurrent);
 			}
 			if (_playing == null) return;
+			_elapsed++;
 			if (_frame < _playing.Frames)
 			{
 				_frame++;

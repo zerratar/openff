@@ -157,13 +157,43 @@ static unsigned char *Engine(unsigned char *a, unsigned char *b)
 	return NULL;
 }
 
+// autokey <command index> <frames>: Return pressed <frames> after the scripts reach that command (StartMessage, the
+// line that waits for a key) at a place they were not at a moment before - OpenFF's --autokey does the same, so two
+// runs move through a scene's lines on the same frames.
+static int g_autoIndex = -1, g_autoFrames = 60;
+static unsigned g_autoPc[64];
+static unsigned long long g_autoSeen[64];
+static void Queue(unsigned type, int scancode, int sym, unsigned long long atFrame);
+
+static void AutoKey(unsigned index, unsigned pc)
+{
+	if ((int)index != g_autoIndex) return;
+	int k, free = -1;
+	for (k = 0; k < 64; k++)
+	{
+		if (g_autoSeen[k] && g_autoPc[k] == pc) break;
+		if (free < 0 && (!g_autoSeen[k] || g_frame - g_autoSeen[k] > 600)) free = k;
+	}
+	int fresh = k == 64 || g_frame - g_autoSeen[k] > 2;
+	if (k == 64) k = free >= 0 ? free : 0;
+	g_autoPc[k] = pc;
+	g_autoSeen[k] = g_frame;
+	if (!fresh) return;
+	Queue(0x300 /* SDL_KEYDOWN */, 40, 13, g_frame + g_autoFrames);
+	Queue(0x301 /* SDL_KEYUP */, 40, 13, g_frame + g_autoFrames + 4);
+	Log("frame %llu: autokey at %u, Return at %llu", g_frame, pc, g_frame + g_autoFrames);
+}
+
 static void __cdecl TraceCall(unsigned index, unsigned char *ecx, unsigned char *stackArg)
 {
+	if (!g_trace && g_autoIndex < 0) return;
 	unsigned char *engine = Engine(ecx, stackArg);
-	if (!g_trace || !engine) return;
+	if (!engine) return;
 	unsigned char *code = *(unsigned char **)(engine + 8);
 	unsigned pc = *(unsigned *)(engine + 0xc);
 	if (!code || IsBadReadPtr(code + pc, 48)) return;
+	AutoKey(index, pc);
+	if (!g_trace) return;
 	// once per engine, position and command: a wait redone every frame is one line
 	int slot = -1, empty = -1;
 	for (int i = 0; i < 16; i++)
@@ -408,6 +438,12 @@ static void Command(char *line)
 			memset(g_lastEngine, 0, sizeof g_lastEngine);
 		}
 		Log("frame %llu: script trace %s", g_frame, g_trace ? rest : "off");
+	}
+	else if (strcmp(word, "autokey") == 0)
+	{
+		int frames = 60;
+		if (sscanf_s(rest, "%d %d", &n, &frames) >= 1) { g_autoIndex = n; g_autoFrames = frames; }
+		Log("frame %llu: autokey on command %d, %d frame(s) after", g_frame, g_autoIndex, g_autoFrames);
 	}
 	else if (strcmp(word, "chars") == 0)
 	{
