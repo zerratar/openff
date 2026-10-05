@@ -15785,6 +15785,9 @@ internal static partial class GlobalScope
 							uint dword2 = engine.getDword();
 							uint word2 = engine.getWord();
 							uint word3 = engine.getWord();
+							// PORT: an FF4 script names the motion by FF4's numbers (1000 idle, 1001 walk - babilCommand_StartMotionCharacter
+							// passes it straight on); the field packs are registered under FF3's here (GameProfile.FieldMotionId).
+							dword = OpenFF.Client.GameProfile.FieldMotionId(dword);
 							int num = CCastCommandTransit.getInstance().changeHichNumber(word);
 							if (num != -1)
 							{
@@ -18402,7 +18405,7 @@ internal static partial class GlobalScope
 									.resetStockMotionParameter((int)word4);
 							}
 							CCastCommandTransit.getInstance().cast_PlayerMng().Player(num)
-								.setStockMotionParameter((int)word4, (int)dword, (int)word3, loop, (int)word2);
+								.setStockMotionParameter((int)word4, (int)OpenFF.Client.GameProfile.FieldMotionId(dword), (int)word3, loop, (int)word2);   // PORT: FF4's numbers, as StartMotionCharacter
 						}
 
 						internal static void ff3Command_WorldMapWarp(ScriptEngine engine)

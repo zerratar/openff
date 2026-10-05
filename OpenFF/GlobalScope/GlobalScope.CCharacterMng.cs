@@ -527,6 +527,21 @@ internal static partial class GlobalScope
 			return Character[ctrl].RdrObject.getJntMtx(pNodename, @out);
 		}
 
+		// PORT: every character up, its model, motion files and motion set, for the drive's characters dump.
+		public string DescribeCharacters()
+		{
+			System.Text.StringBuilder b = new System.Text.StringBuilder();
+			for (int i = 0; i < Character.Length; i++)
+			{
+				if (!isValidCharacter(i)) continue;
+				CharacterData c = Character[i];
+				System.Text.StringBuilder files = new System.Text.StringBuilder();
+				foreach (sbyte m in c.motDataIdx) if (m >= 0) files.Append(files.Length > 0 ? "," : "").Append(motionDataMng.MotionData[m]?.name ?? "?").Append("#").Append(motionDataMng.MotionData[m]?.useCount ?? 0);
+				b.Append("\n  ").Append(i).Append(": ").Append(c.name ?? c.ownModel ?? "?").Append(" files [").Append(files).Append("] ").Append(c.motSet.Describe());
+			}
+			return b.ToString();
+		}
+
 		public void addMotion(int ctrl, string motname)
 		{
 			if (!isValidCharacter(ctrl))

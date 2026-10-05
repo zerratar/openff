@@ -204,6 +204,9 @@ namespace OpenFF.Client
 					case State.Leaving:
 						if (Faded)
 						{
+							// The fades cleared again, as a boot leaves them: the world fades itself in, and its jumps
+							// (the opening's story scene) wait on clear screens - left black, the opening never started.
+							FadeIn(0);
 							GlobalScope.sys.GGlobal.setNextPart(_next);
 							abort();
 						}

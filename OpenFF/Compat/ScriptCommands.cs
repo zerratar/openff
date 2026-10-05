@@ -55,6 +55,7 @@ namespace OpenFF.Client
 				return;
 			}
 			GlobalScope.SCRIPT_COMMAND[] table = GameProfile.IsFf4 ? Ff4Table() : GlobalScope.commandTable;
+			if (_trace) Trace(engine, opcode);
 			if (opcode < table.Length && table[opcode] != null)
 			{
 				_recent[_recentAt] = (int)opcode;
@@ -100,6 +101,23 @@ namespace OpenFF.Client
 				}
 			}
 			engine.end();
+		}
+
+		// --script-trace: every command a script runs, by name, with where it stands - a wait that redoes itself each
+		// frame once, so the last line of an engine is what it is stuck on.
+		private static readonly bool _trace = Options.Get("script-trace") != null;
+		private static readonly Dictionary<GlobalScope.ScriptEngine, (uint Pc, uint Op)> _lastTraced = new Dictionary<GlobalScope.ScriptEngine, (uint, uint)>();
+
+		private static void Trace(GlobalScope.ScriptEngine engine, uint opcode)
+		{
+			uint pc = engine.getPC();
+			lock (_lastTraced)
+			{
+				if (_lastTraced.TryGetValue(engine, out (uint Pc, uint Op) last) && last.Pc == pc && last.Op == opcode) return;
+				_lastTraced[engine] = (pc, opcode);
+			}
+			ScriptOp op = GameProfile.IsFf4 ? ScriptOpTable.Ff4.Get((int)opcode) : ScriptOpTable.Ff3.Get((int)opcode);
+			Log.Write(LogChannel.File, "trace: engine " + engine.GetHashCode().ToString("x") + " @" + pc + " " + (op != null ? ScriptOpTable.Simplify(op.Name) : "op " + opcode));
 		}
 
 		private static GlobalScope.SCRIPT_COMMAND[] Ff4Table()

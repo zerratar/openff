@@ -185,6 +185,10 @@ internal static partial class GlobalScope
 
 			public void startMotion(int _Index, bool _Loop, uint _BlendFrame)
 			{
+				// PORT: FF3's turn commands play its turn-in-place motion 1011; FF4's turn the character as it stands
+				// (babilCommand_TurnCharacter_* register a rotation and start no motion) and have no 1011 - asked
+				// for, the character dropped its motion and T-posed.
+				if (_Index == 1011 && OpenFF.Client.GameProfile.IsFf4) return;
 				characterMng.startMotion(m_CharaID, _Index, _Loop, _BlendFrame);
 			}
 

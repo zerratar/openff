@@ -509,7 +509,8 @@ namespace OpenFF.Client
 			if (!Slot(slot, out int ctrl)) return;
 			Guard("start motion " + motion, () =>
 			{
-				Characters.startMotion(ctrl, (int)motion, loop != 0, 0u);
+				// Every pack's motions are registered under FieldMotionId's numbers; the scene names them by FF4's.
+				Characters.startMotion(ctrl, (int)GameProfile.FieldMotionId(motion), loop != 0, 0u);
 				if (frame != 0) Characters.setCurrentFrame(ctrl, frame);
 			});
 		}

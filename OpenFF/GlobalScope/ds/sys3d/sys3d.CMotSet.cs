@@ -110,6 +110,14 @@ internal static partial class GlobalScope
 					initValue();
 				}
 
+				// PORT: what the set holds and plays, for the drive's characters dump.
+				public string Describe()
+				{
+					System.Text.StringBuilder ids = new System.Text.StringBuilder();
+					for (int i = 0; i < MOTION_MAX; i++) if ((1 & m_Flag[i]) != 0) ids.Append(ids.Length > 0 ? "," : "").Append(m_MotSet[i].m_Index);
+					return m_MotNum + " motion(s) [" + ids + "], playing " + m_PlayNo + (m_PlayIndex < 0 ? " (none)" : "");
+				}
+
 				public void addMotion(ncap.SMotionFileHeader motData)
 				{
 					if (m_MotNum >= MOTION_MAX)
@@ -187,13 +195,23 @@ internal static partial class GlobalScope
 						m_PreIndex = -1;
 					}
 					m_PlayIndex = -1;
-					for (int i = 0; i < m_MotNum; i++)
+					// PORT: every set held, not the first m_MotNum. addMotion takes the first free entry and
+					// removeMotion leaves a hole; FF4's own CMotSet (libff4 ds_sys3d_mot_set.cpp) keeps its count as
+					// one past the last entry in use for that reason and searches up to it. Searched as a plain count,
+					// a character whose scene or battle motions came and went out of order had its idle and walk
+					// past the end - never found, and it T-posed (Baron after the opening).
+					for (int i = 0; i < MOTION_MAX; i++)
 					{
-						if (motIdx == m_MotSet[i].getIndex())
+						if ((1 & m_Flag[i]) != 0 && motIdx == m_MotSet[i].getIndex())
 						{
 							m_PlayIndex = i;
 							break;
 						}
+					}
+					if (-1 == m_PlayIndex && m_MotNum > 0)
+					{
+						// PORT: FF4.exe panics here ("MotionIndex[ %d ] is not found"); every motion its scripts start exists.
+						OpenFF.Client.Log.First(OpenFF.Client.LogChannel.File, "motion-missing:" + motIdx, 3, () => "motion: " + motIdx + " is not in the set (" + Describe() + ")");
 					}
 					if (-1 != m_PlayIndex)
 					{
