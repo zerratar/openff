@@ -38,28 +38,45 @@ namespace OpenFF.Client
 		// the tables lack them: x 17..19, z from -25 at the top of the screen to 50 at the bottom.
 		private static readonly Vector3[] FrontRow = { new Vector3(18f, 0f, -25f), new Vector3(17f, 0f, -5f), new Vector3(19f, 0f, 12f), new Vector3(17f, 0f, 35f), new Vector3(19f, 0f, 50f) };
 
-		/// <summary>Where party member <paramref name="index"/> stands: FF4's party root for the normal fight (OpenFF.Data.PartyRoot 0), the front row unless <paramref name="backRow"/>; slot 0 at the top of the screen.</summary>
-		public static Vector3 PartySpot(int index, int count, bool backRow = false)
+		/// <summary>
+		/// Where the member at FF4 party position <paramref name="position"/> stands, in row <paramref name="row"/> (0 front, 1
+		/// back), on party root <paramref name="rootId"/> - battle_parameter.chain's partyRoot[root][row][position], as
+		/// btl::BattlePlayer::rootPosition reads it (the opening's fight: root 1, Cecil front at 1, (20, 0, 27)).
+		/// </summary>
+		public static Vector3 PartySpot(int rootId, int position, int row = 0)
 		{
-			int slot = Math.Clamp(index, 0, 4);
-			OpenFF.Data.PartyRoot root = Ff4Party.Tables?.PartyRoot(0);
-			OpenFF.Data.PartyRootSlot s = root != null && root.Rows[backRow ? 1 : 0] != null ? root.Rows[backRow ? 1 : 0][slot] : null;
-			return s != null ? new Vector3(s.X, s.Y, s.Z) : FrontRow[slot];
+			OpenFF.Data.PartyRootSlot s = RootSlot(rootId, position, row);
+			return s != null ? new Vector3(s.X, s.Y, s.Z) : FrontRow[Math.Clamp(position, 0, 4)];
 		}
 
-		/// <summary>The way a member faces at their spot: FF4's root says -90 degrees, towards -x and the monsters.</summary>
-		public static Vector3 PartyFacing(int index)
+		/// <summary>The way that member faces, as a direction (BattlePlayer::rootRotation: the root's degrees about y; -90 faces -x, the monsters' side).</summary>
+		public static Vector3 PartyFacing(int rootId, int position, int row = 0)
 		{
-			OpenFF.Data.PartyRoot root = Ff4Party.Tables?.PartyRoot(0);
-			float degrees = root != null && root.Rows[0] != null ? root.Rows[0][Math.Clamp(index, 0, 4)].Facing : -90f;
+			OpenFF.Data.PartyRootSlot s = RootSlot(rootId, position, row);
+			return Facing(s != null ? s.Facing : -90f);
+		}
+
+		/// <summary>The same facing in degrees about y.</summary>
+		public static float PartyFacingDegrees(int rootId, int position, int row = 0) => RootSlot(rootId, position, row)?.Facing ?? -90f;
+
+		private static OpenFF.Data.PartyRootSlot RootSlot(int rootId, int position, int row)
+		{
+			OpenFF.Data.PartyRoot root = Ff4Party.Tables?.PartyRoot(rootId) ?? Ff4Party.Tables?.PartyRoot(0);
+			OpenFF.Data.PartyRootSlot[] rowSlots = root?.Rows[Math.Clamp(row, 0, 1)];
+			return rowSlots?[Math.Clamp(position, 0, 4)];
+		}
+
+		/// <summary>A direction from degrees about y, the battle tables' facings.</summary>
+		public static Vector3 Facing(float degrees)
+		{
 			double r = degrees * Math.PI / 180.0;
 			return new Vector3((float)Math.Sin(r), 0f, (float)Math.Cos(r));
 		}
 
-		/// <summary>A monster's spot: the encounter table's own placement (stage units: x -8..-37 towards the monsters' side, z -35..32 along the line), else a row there.</summary>
+		/// <summary>A monster's spot: the encounter group's own placement as it is (x, y, z on the stage - party 900's Floating Eyes at (5, 5, -15) and (-15, 0, 5), as Steam stands them), else a row there.</summary>
 		public static Vector3 MonsterSpot(Vector3 placement, int index, int count)
 		{
-			if (Math.Abs(placement.X) > 0.01f || Math.Abs(placement.Z) > 0.01f) return new Vector3(placement.X, 0f, placement.Z);
+			if (Math.Abs(placement.X) > 0.01f || Math.Abs(placement.Y) > 0.01f || Math.Abs(placement.Z) > 0.01f) return placement;
 			return new Vector3(-22f - 8f * index, 0f, (index - (count - 1) / 2f) * 30f);
 		}
 
@@ -141,13 +158,14 @@ namespace OpenFF.Client
 			if (!Active) BattleMap = -1;
 		}
 
-		/// <summary>Back to the field map, at the spot the party left.</summary>
-		public static void Leave()
+		/// <summary>Back to the field map, at the spot the party left - unless <paramref name="jumpBack"/> is false, when what follows the fight jumps on itself (a scene's battle goes on to its return map).</summary>
+		public static void Leave(bool jumpBack = true)
 		{
 			if (!Active && !Pending) return;
 			Active = false;
 			Pending = false;
 			BattleMap = -1;
+			if (!jumpBack) return;
 			try
 			{
 				GlobalScope.VecFx32 fx = new GlobalScope.VecFx32((int)Math.Round(_fieldPosition.X * 4096), (int)Math.Round(_fieldPosition.Y * 4096), (int)Math.Round(_fieldPosition.Z * 4096));

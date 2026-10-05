@@ -76,7 +76,7 @@ namespace OpenFF.Client
 		private readonly List<string> _resultLines = new List<string>();   // level-ups and drops for the result window
 		private int _cameraType;            // the encounter group's battle camera (Ff4BattleStage.CameraPosition)
 		private Vector3 _centre;
-		private int _heroMotionIdle = 2007, _heroMotionAttack = 2008, _heroMotionHurt = 2009;
+		private int _heroMotionIdle = 2004, _heroMotionAttack = 2008, _heroMotionHurt = 2009;   // 2004: the stance Steam's Cecil holds through a fight (2007 / 2009 are its victory)
 
 		public Ff4Battle()
 		{
@@ -108,15 +108,19 @@ namespace OpenFF.Client
 			}
 			List<int> ids = new List<int>();
 			List<Vector3> places = new List<Vector3>();
+			List<float> facings = new List<float>();
 			foreach (MonsterPartySlot slot in party.Slots)
 			{
 				for (int k = 0; k < Math.Max(1, slot.Count); k++)
 				{
 					ids.Add(slot.MonsterId);
-					places.Add(new Vector3(slot.X, 0, slot.Z));
+					places.Add(new Vector3(slot.X, slot.Y, slot.Z));
+					facings.Add(slot.W);
 				}
 			}
 			_placements = places;
+			_facings = facings;
+			_rootId = party.PartyRootId;
 			_cameraType = party.CameraType;
 			bool started = Start(ids, inScene, battleMap);
 			if (started) Log.Write(LogChannel.General, "battle: encounter group " + partyId);
@@ -124,6 +128,8 @@ namespace OpenFF.Client
 		}
 
 		private List<Vector3> _placements;
+		private List<float> _facings;       // the monsters' facings, degrees about y (the group's fourth word)
+		private int _rootId;                // the party root the members stand on (the group's byte 2)
 		private List<int> _pendingIds;
 
 		/// <summary>A fight against these monsters (ids in the unified tables), on the spot.</summary>
@@ -164,19 +170,23 @@ namespace OpenFF.Client
 				// the other crashes the joint animation). So every member, the leader included,
 				// stands as a spawned battle model, and the field's hero waits unseen at the
 				// leader's spot until the jump back.
-				Game.Hero.Teleport(Ff4BattleStage.PartySpot(0, _party.Count));
+				Game.Hero.Teleport(Ff4BattleStage.PartySpot(_rootId, Ff4Party.PositionOf(_party[0].Member.Id)));
 				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
 				for (int i = 0; i < _party.Count; i++)
 				{
 					Fighter ally = _party[i];
 					CharacterDefinition who = ally.Member.Definition;
-					Vector3 spot = Ff4BattleStage.PartySpot(i, _party.Count);
+					// FF4's party position and, under the formation, its row (Ff4Party): the spot and the facing the root gives it.
+					int position = Ff4Party.PositionOf(ally.Member.Id), row = Ff4Party.RowOf(position);
+					Vector3 spot = Ff4BattleStage.PartySpot(_rootId, position, row);
 					Npc npc = null;
 					try { npc = Game.Npcs.SpawnModel("p" + who.Id.ToString("00") + "_00", spot, 0f); } catch (Exception) { }
 					if (npc == null) { Log.Write(LogChannel.File, "battle: no battle model for " + ally.Name); continue; }
-					try { npc.BindMotions("b_p_player_" + who.Id.ToString("00")); npc.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
+					try { BindBattleMotions(npc, who.Id, ally.Member, tables); npc.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
+					HoldEquipment(npc, ally.Member, tables);
 					npc.Solid = false;
-					npc.LookAt(spot + Ff4BattleStage.PartyFacing(i) * 10f);
+					if (npc is LegacyNpc exactNpc) exactNpc.FaceExactly(Ff4BattleStage.PartyFacingDegrees(_rootId, position, row));
+					else npc.LookAt(spot + Ff4BattleStage.PartyFacing(_rootId, position, row) * 10f);
 					ally.Npc = npc;
 					ally.Home = spot;
 				}
@@ -197,9 +207,11 @@ namespace OpenFF.Client
 				if (m == null) { Say("no monster " + id); continue; }
 				// The game's placement (x across, z depth, in its battle units - roughly halved for the field) or a row.
 				Vector3 at;
+				float? facing = null;
 				if (onStage)
 				{
 					at = Ff4BattleStage.MonsterSpot(_placements != null && n < _placements.Count ? _placements[n] : Vector3.Zero, n, ids.Count);
+					if (_facings != null && n < _facings.Count) facing = _facings[n];
 				}
 				else if (_placements != null && n < _placements.Count)
 				{
@@ -215,7 +227,9 @@ namespace OpenFF.Client
 				Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.Family.ToString("000") + "_00"), at, 0f);
 				if (npc == null) { Say("no model for " + m.Name); continue; }
 				try { npc.BindMotions(info?.MotionSet ?? ("b_m" + m.Family.ToString("000"))); npc.PlayMotion(101, true); } catch (Exception) { }
-				npc.LookAt(hero);
+				if (facing.HasValue && npc is LegacyNpc exactNpc) exactNpc.FaceExactly(facing.Value);
+				else if (facing.HasValue) npc.LookAt(at + Ff4BattleStage.Facing(facing.Value) * 10f);
+				else npc.LookAt(hero);
 				npc.Solid = false;
 				_foes.Add(new Fighter
 				{
@@ -229,6 +243,7 @@ namespace OpenFF.Client
 				n++;
 			}
 			_placements = null;
+			_facings = null;
 			_pendingIds = null;
 			if (_foes.Count == 0) { if (Ff4BattleStage.Active) Ff4BattleStage.Leave(); return false; }
 
@@ -262,6 +277,68 @@ namespace OpenFF.Client
 			_pick = Pick.None;
 			Log.Write(LogChannel.General, "battle: " + _foes.Count + " foe(s): " + string.Join(", ", _foes.ConvertAll(f => f.Name + " (" + f.MaxHp + " hp)")) + " against " + string.Join(", ", _party.ConvertAll(f => f.Name + " L" + f.Member.Level)));
 			return true;
+		}
+
+		/// <summary>
+		/// What a member holds, as pl::PlayerEquipmentSymbol shows it: each hand's weapon or shield as w<ModelId:000> at the
+		/// joint boneName names - a weapon at R_wepon / L_wepon (a bow's at the forearm, R_ude / L_ude), a shield at the
+		/// forearm (Steam's Cecil: w000, the Dark Sword, in the right hand; w094, the Dark Shield, on the left arm).
+		/// </summary>
+		private static void HoldEquipment(Npc npc, Character c, GameTables tables)
+		{
+			if (!(npc is LegacyNpc legacy) || legacy.CharacterId < 0) return;
+			foreach ((int slot, bool left) in new[] { ((int)EquipSlot.RightHand, false), ((int)EquipSlot.LeftHand, true) })
+			{
+				ItemDefinition item = c.Equipment[slot] != 0 ? tables.Item(c.Equipment[slot]) : null;
+				if (item == null || item.ModelId < 0) continue;
+				bool weapon = item.Kind == ItemKind.Weapon;
+				bool forearm = !weapon || WeaponSystem(c, tables) == 10;
+				string joint = (left ? "L_" : "R_") + (forearm ? "ude" : "wepon");
+				string model = "w" + item.ModelId.ToString("000");
+				int bound = Ff4Cutscene.BindModel(legacy.CharacterId, model, joint);
+				Log.Write(LogChannel.File, "battle: " + c.Name + " holds " + model + " (" + item.Name + ") at " + joint + (bound < 0 ? " - did not load" : ""));
+			}
+		}
+
+		// pl::PLAYER_FORM: the b_pc_form_<nn> set of each player type.
+		private static readonly int[] PlayerForm = { 0, 0, 0, 1, 2, 1, 3, 2, 2, 0, 0, 0, 0, 3, 0 };
+
+		/// <summary>
+		/// The weapon system a member fights with (itm::EquipParameter::weaponSystem): the weapon's system byte through
+		/// FF4's table - 2..22 are 0..20, 29 and 30 are 21 and 22, the rest (and no weapon) 24. The Dark Sword (19) is 17.
+		/// </summary>
+		internal static int WeaponSystem(Character c, GameTables tables)
+		{
+			foreach (int slot in new[] { (int)EquipSlot.RightHand, (int)EquipSlot.LeftHand })
+			{
+				ItemDefinition item = c.Equipment[slot] != 0 ? tables.Item(c.Equipment[slot]) : null;
+				if (item == null || item.Kind != ItemKind.Weapon) continue;
+				int sys = item.System;
+				if (sys >= 2 && sys <= 22) return sys - 2;
+				if (sys == 29) return 21;
+				if (sys == 30) return 22;
+				return 24;
+			}
+			return 24;
+		}
+
+		/// <summary>
+		/// A member's battle motions as btl::BattlePlayer::addBasicMotion and addPoiseMotion bind them: b_p_common,
+		/// b_pc_form_<PLAYER_FORM>, b_<the player's basic set>, b_poise<the weapon's poise>, b_p<the player's set> (Cecil's
+		/// b_p1009 holds 2004, the stance Steam's Cecil stands in) and the weapon's b_w<nn> (its attacks).
+		/// </summary>
+		private static void BindBattleMotions(Npc npc, int type, Character c, GameTables tables)
+		{
+			BattlePlayerMotions player = type >= 0 && type < tables.BattlePlayers.Count ? tables.BattlePlayers[type] : null;
+			int system = WeaponSystem(c, tables);
+			WeaponMotionRecord weapon = tables.WeaponMotion(type, system == 24 ? 0 : system);
+			List<string> sets = new List<string> { "b_p_common", "b_pc_form_" + PlayerForm[Math.Clamp(type, 0, PlayerForm.Length - 1)].ToString("00") };
+			if (player != null && player.BasicSet > 0) sets.Add("b_" + player.BasicSet.ToString("0000"));
+			if (weapon != null && weapon.Poise > 0) sets.Add("b_poise" + weapon.Poise);
+			if (player != null && player.PlayerSet > 0) sets.Add("b_p" + player.PlayerSet.ToString("0000"));
+			if (weapon != null && weapon.WeaponSet >= 0) sets.Add("b_w" + weapon.WeaponSet.ToString("00"));
+			foreach (string set in sets) npc.BindMotions(set);
+			Log.Write(LogChannel.File, "battle: " + c.Name + " (weapon system " + system + ") binds " + string.Join(", ", sets));
 		}
 
 		internal static int Weapon(Character c, GameTables tables)
@@ -913,6 +990,7 @@ namespace OpenFF.Client
 			}
 			foreach (Fighter f in _party)
 			{
+				try { if (f.Npc is LegacyNpc held && held.CharacterId >= 0) Ff4Cutscene.UnbindAll(held.CharacterId); } catch (Exception) { }
 				try { f.Npc?.Remove(); } catch (Exception) { }
 			}
 			_foes.Clear();
@@ -922,7 +1000,7 @@ namespace OpenFF.Client
 			{
 				try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
 				try { Ff4EventCamera.Release(); } catch (Exception) { }
-				Ff4BattleStage.Leave();
+				Ff4BattleStage.Leave(jumpBack: after == null);
 			}
 			try { Game.Hero.Unfreeze(); } catch (Exception) { }
 			Game.Input.Capture = false;

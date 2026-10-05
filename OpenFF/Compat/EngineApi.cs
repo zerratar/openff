@@ -901,6 +901,9 @@ namespace OpenFF.Client
 		private int _chr = -1;
 		internal void Pin() { try { _chr = EngineApi.Players.Player(Index)?.getCharacterId() ?? -1; } catch (Exception) { _chr = -1; } }
 
+		/// <summary>The character manager's id of the model, -1 when it is gone.</summary>
+		internal int CharacterId { get { try { return Player?.getCharacterId() ?? -1; } catch (Exception) { return -1; } } }
+
 		private GlobalScope.pl.CBasePlayer Player
 		{
 			get
@@ -1067,6 +1070,25 @@ namespace OpenFF.Client
 			GlobalScope.pl.CBasePlayer p = Player;
 			if (p == null) return;
 			EngineApi.TurnToward(p, EngineApi.Direction(yaw));
+		}
+
+		/// <summary>
+		/// Stands the model at exactly <paramref name="degrees"/> about y, at once (FF4's battle stands its fighters on the
+		/// tables' facings to the 16-bit angle). Face turns through the turn system with a direction cut down to a few
+		/// units, a few degrees out; here the rotation is set and the turn system's target left at full length on it, so
+		/// its FX_Atan2Idx gives back the same angle.
+		/// </summary>
+		public void FaceExactly(float degrees)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null) return;
+			int angle = (int)Math.Round(degrees * 65536.0 / 360.0) & 0xFFFF;
+			GlobalScope.VecFx32 rot = new GlobalScope.VecFx32(p.getRotation());
+			rot.y = angle;
+			p.setRotation(rot);
+			GlobalScope.VecFx32 d = EngineApi.Direction(degrees);
+			p.setTargetDirection(d);
+			p.setDirection(new GlobalScope.VecFx32(d));
 		}
 
 		public override void LookAt(Vector3 point)

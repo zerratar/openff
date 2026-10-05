@@ -172,6 +172,11 @@ namespace OpenFF.Client
 			Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up");
 			ScriptCommands.ReportDropped("scene " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
+			if (StartNextBattle())
+			{
+				ReturnMap = null;
+				return;
+			}
 			// FF4's event part hands back to the world at the return map; here the scene ran on the
 			// world part all along, so the hand-back is a map jump.
 			if (!string.IsNullOrEmpty(ReturnMap) && !string.Equals(ReturnMap, GlobalScope.stg.CStageMng.CurrentName, StringComparison.OrdinalIgnoreCase))
@@ -443,6 +448,31 @@ namespace OpenFF.Client
 				bind.Reserved = true;   // do not try every frame
 			}
 		}
+
+		/// <summary>
+		/// A model held at a joint of character <paramref name="host"/> from now on, outside a scene too (the battle's
+		/// weapons and shields, pl::PlayerEquipmentSymbol); it goes with the host or the map. The bound character, or -1.
+		/// </summary>
+		public static int BindModel(int host, string model, string joint)
+		{
+			int bound = -1;
+			Guard("bind " + model, () =>
+			{
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				bound = Characters.setCharacterWithTexture(model, model, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
+				if (bound < 0) bound = Characters.setCharacter(model, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				if (bound < 0) return;
+				Characters.setShadowVisible(bound, false);
+				Characters.setViewVolumeClip(bound, false);
+				Characters.setHidden(bound, true);           // until the joint has been captured once
+				AddBind(host, bound, joint, 0, 0, 0, 0, 0, 0, own: true);
+			});
+			return bound;
+		}
+
+		/// <summary>What <paramref name="host"/> holds is let go and deleted.</summary>
+		public static void UnbindAll(int host) => ReleaseBinds(host);
 
 		/// <summary>Each frame: the bound things take their host's joint.</summary>
 		private static void TickBinds()
@@ -887,39 +917,42 @@ namespace OpenFF.Client
 			Guard("effect pack " + pack, () => GlobalScope.eff.CEffectMng.instance().unLoadEfpNamed(pack));
 		}
 
-		// Scenes whose battle is running: the script holds at ce_CallBattle (the battle part took
-		// over in FF4; the story goes on from the return map, never from the line after).
-		private static readonly HashSet<GlobalScope.ScriptEngine> _inBattle = new HashSet<GlobalScope.ScriptEngine>();
+		// ce_CallBattle(group, stage, ?, return map, x, y, z): FF4 only takes note (EventConteManager::setNextBattle, the
+		// battle parameters' group and stage, the return map and spot) and the scene goes on - in the opening a sound,
+		// a second's wait, ce_EndEvent - and the battle part follows the scene on that stage (CBattleDisplay::
+		// initialize: battle_map.dat's b<stage>), then the return map. So here: noted, started at ce_EndEvent.
+		private sealed class NextBattle { public int Group, Stage; public string ReturnMap; public GlobalScope.VecFx32 Position; }
+		private static NextBattle _nextBattle;
 
 		private static void CallBattle(GlobalScope.ScriptEngine engine)
 		{
 			int battle = (int)engine.getWord();
-			engine.getByte();
+			int stage = engine.getByte();
 			engine.getByte();
 			string returnMap = engine.getString();
 			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
-			GlobalScope.VecFx32 position = new GlobalScope.VecFx32(x, y, z);
-			if (_inBattle.Contains(engine))
+			_nextBattle = new NextBattle { Group = battle, Stage = stage, ReturnMap = returnMap, Position = new GlobalScope.VecFx32(x, y, z) };
+			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " next, on b" + stage.ToString("00") + " - then on to " + returnMap);
+		}
+
+		/// <summary>The scene ends with a battle noted (ce_CallBattle): the fight, on its stage, then the return map. False when there is none, or it could not start.</summary>
+		private static bool StartNextBattle()
+		{
+			NextBattle next = _nextBattle;
+			_nextBattle = null;
+			if (next == null) return false;
+			Ff4Battle battle = Ff4Battle.Instance;
+			if (battle == null) return false;
+			battle.AfterBattle = () => { if (!string.IsNullOrEmpty(next.ReturnMap)) JumpTo(next.ReturnMap, next.Position); };
+			if (battle.StartParty(next.Group, false, next.Stage))
 			{
-				// Still fighting, or fought and waiting for the jump to take the scene away.
-				engine.suspendRedo();
-				return;
+				Log.Write(LogChannel.General, "script: FF4 scene battle " + next.Group + " starts");
+				return true;
 			}
-			// The OpenFF battle fights the encounter group where the scene stands and then jumps on;
-			// when it cannot (no field hero in this scene), the jump happens at once.
-			if (Ff4Battle.Instance != null && Ff4Battle.Instance.StartParty(battle, true))
-			{
-				Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " - then on to " + returnMap);
-				string map = returnMap;
-				_inBattle.Add(engine);
-				Ff4Battle.Instance.AfterBattle = () => { if (!string.IsNullOrEmpty(map)) JumpTo(map, position); };
-				engine.suspendRedo();
-				return;
-			}
-			Log.Write(LogChannel.General, "script: FF4 scene battle " + battle + " skipped - on to " + returnMap);
-			if (string.IsNullOrEmpty(returnMap)) return;
-			// The battle would return to this map; the chain's own return map stays for the scene after it.
-			JumpTo(returnMap, position);
+			battle.AfterBattle = null;
+			Log.Write(LogChannel.General, "script: FF4 scene battle " + next.Group + " could not start - on to " + next.ReturnMap);
+			if (!string.IsNullOrEmpty(next.ReturnMap)) JumpTo(next.ReturnMap, next.Position);
+			return true;
 		}
 
 		// ---- lights and shading, read from the FF4 handlers ----
@@ -1203,7 +1236,7 @@ namespace OpenFF.Client
 		/// <summary>Leaving the map: the scene's characters go with it.</summary>
 		public static void MapLeft()
 		{
-			_inBattle.Clear();
+			_nextBattle = null;
 			_slots.Clear();
 			try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
 			ScriptCommands.ReportDropped("map " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));

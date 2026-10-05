@@ -133,9 +133,11 @@ namespace OpenFF.Data
 		/// <summary>
 		/// monster_party_table.bbd: 520 records of 140 bytes (mon::MonsterPartyManager::load divides
 		/// by 0x8C; monsterParty(id) walks them comparing the s16 at 0). Then up to six slots of 20
-		/// bytes from offset 4 - monster id s16, flag s16, x, y, z fx32 and a fourth fx32 word - the
-		/// list ending at a -1 id; the tail holds words not yet named. Party 1 is two Goblins at x
-		/// -37 and -15, z -50; the scripted battles 900..934 are here too.
+		/// bytes from offset 4 - monster id s16, flag s16, x, y, z fx32 and the facing in degrees as fx32 -
+		/// a -1 id an empty slot, not the list's end (party 900, the opening's two Floating Eyes, fills
+		/// slots 0 and 3); the tail holds words not yet named. Party 1 is three Goblins; the scripted
+		/// battles 900..934 are here too. The positions and facings are the battle stage's own, as the
+		/// Steam game stands its monsters.
 		/// </summary>
 		private static void ReadMonsterParties(ContentChain chain, GameTables tables)
 		{
@@ -152,7 +154,7 @@ namespace OpenFF.Data
 				{
 					int at = i + 4 + 20 * s;
 					int id = ChainPack.S16(data, at);
-					if (id < 0) break;
+					if (id < 0) continue;
 					party.Slots.Add(new MonsterPartySlot
 					{
 						MonsterId = id,
@@ -173,7 +175,11 @@ namespace OpenFF.Data
 		/// facing in degrees as fx32) - partyRoot(id) walks them by the id, position(row, slot) reads
 		/// record + 4 + row x 80 + slot x 16. Record 0 is the normal fight: the front row at x 17..19,
 		/// the back row at x 29..33, z -25, -5, 12, 35, 50 down the screen, facing -90 (towards -x, the
-		/// monsters); record 1 the back attack, record 2 a pincer. The other chains are not read yet.
+		/// monsters); record 1 the opening's airship deck (party 900 names it: the monster party's byte 2), record 2
+		/// all on one spot. Chain 2 is each player type's battle parameter (24 bytes; +0x10 the b_p&lt;n&gt; motions,
+		/// +0x12 the b_&lt;n&gt; ones - btl::BattlePlayer::addBasicMotion), chains 8.. one per player type of
+		/// 16-byte weapon records by weapon system (+2 the poise motion, b_poise&lt;n&gt;; +0xe the b_w&lt;nn&gt;
+		/// motions - playerPoiseMotionId, weaponMotionFileName). The other chains are not read yet.
 		/// </summary>
 		private static void ReadBattleParameter(ContentChain chain, GameTables tables)
 		{
@@ -207,6 +213,24 @@ namespace OpenFF.Data
 					}
 				}
 				tables.PartyRoots.Add(root);
+			}
+			if (pack.Count > 2)
+			{
+				int at2 = pack.Offset(2);
+				for (int i = 0; i + 24 <= pack.Size(2); i += 24)
+				{
+					tables.BattlePlayers.Add(new BattlePlayerMotions { Type = i / 24, PlayerSet = ChainPack.S16(data, at2 + i + 0x10), BasicSet = ChainPack.S16(data, at2 + i + 0x12) });
+				}
+			}
+			for (int type = 0; type < 15 && 8 + type < pack.Count; type++)
+			{
+				int at = pack.Offset(8 + type);
+				for (int i = 0; i + 16 <= pack.Size(8 + type); i += 16)
+				{
+					short[] raw = new short[8];
+					for (int k = 0; k < 8; k++) raw[k] = (short)ChainPack.S16(data, at + i + 2 * k);
+					tables.WeaponMotions.Add(new WeaponMotionRecord { PlayerType = type, WeaponSystem = raw[0], Poise = raw[1], WeaponSet = raw[7], Raw = raw });
+				}
 			}
 		}
 
@@ -387,6 +411,7 @@ namespace OpenFF.Data
 						NameId = ChainPack.S16(r, 4),
 						CaptionId = ChainPack.S16(r, 6),
 						GraphId = ChainPack.S16(r, 8),
+						ModelId = ChainPack.S16(r, 10),
 						EfficacyId = ChainPack.S16(r, 0x16),
 						Raw = r,
 					};

@@ -57,7 +57,9 @@ namespace OpenFF.Client
 		public static void NewGame()
 		{
 			_party = new Party(Tables);
+			_positions.Clear();
 			_party.Join(0, 10);
+			_positions[0] = 1;   // initForNewgame: addMember(0, 1)
 			// --party=4:10,3:12 - extra members for a test start (the child Rydia at 10, Rosa at 12).
 			string extra = Options.Get("party");
 			if (!string.IsNullOrEmpty(extra))
@@ -75,6 +77,35 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.File, "party: new game - " + _party.Describe().Replace("\n", " | "));
 		}
 
+		// ---- where each member stands: FF4's party positions ----
+
+		// pl::PlayerParty keeps five positions (0..4); a member's decides their spot on the battle stage
+		// (battle_parameter.chain's partyRoot[root][row][position]) and, with the formation, their row
+		// (PlayerParty::formation). initForNewgame puts Cecil at 1; addPartyPC gives one, or the first free.
+		private static readonly Dictionary<int, int> _positions = new Dictionary<int, int>();
+
+		/// <summary>The FF4 party position (0..4) of a member, by character type: the one the game gave, else the first one free.</summary>
+		public static int PositionOf(int type)
+		{
+			if (_positions.TryGetValue(type, out int at)) return at;
+			at = FreePosition();
+			if (at >= 0) _positions[type] = at;
+			return Math.Max(0, at);
+		}
+
+		private static int FreePosition()
+		{
+			for (int at = 0; at < 5; at++) if (!_positions.ContainsValue(at)) return at;
+			return -1;
+		}
+
+		/// <summary>The row a position stands in under the party's formation (PlayerParty::formation's table): 0 front, 1 back. A new game's formation (initForNewgame turns it from 0) has 1 and 3 in front.</summary>
+		public static int RowOf(int position, int formation = 1)
+		{
+			int[] table = { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1 };
+			return table[Math.Clamp(formation, 0, 1) * 5 + Math.Clamp(position, 0, 4)];
+		}
+
 		// ---- the save chunk (Ff4Saves) ----
 
 		public sealed class SavedCharacter
@@ -82,6 +113,7 @@ namespace OpenFF.Client
 			public int Id;
 			public string Name;
 			public int Level, Experience, Hp, MaxHp, Mp, MaxMp, Slot;
+			public int Position = -1;
 			public int[] Equipment;
 			public List<int> Abilities;
 			public List<int> Spells;
@@ -105,6 +137,7 @@ namespace OpenFF.Client
 				{
 					Id = c.Id, Name = c.Name, Level = c.Level, Experience = c.Experience,
 					Hp = c.Hp, MaxHp = c.MaxHp, Mp = c.Mp, MaxMp = c.MaxMp, Slot = c.Slot,
+					Position = c.InParty && _positions.TryGetValue(c.Id, out int position) ? position : -1,
 					Equipment = (int[])c.Equipment.Clone(),
 					Abilities = new List<int>(c.Abilities), Spells = new List<int>(c.Spells),
 				});
@@ -134,7 +167,12 @@ namespace OpenFF.Client
 			}
 			List<SavedCharacter> lineUp = s.Roster.FindAll(r => r.Slot >= 0);
 			lineUp.Sort((a, b) => a.Slot.CompareTo(b.Slot));
-			foreach (SavedCharacter sc in lineUp) p.Join(sc.Id, sc.Level);
+			_positions.Clear();
+			foreach (SavedCharacter sc in lineUp)
+			{
+				p.Join(sc.Id, sc.Level);
+				if (sc.Position >= 0) _positions[sc.Id] = sc.Position;
+			}
 			foreach (int[] stack in s.Items) if (stack != null && stack.Length >= 2) p.AddItem(stack[0], stack[1]);
 			_party = p;
 			Log.Write(LogChannel.General, "party: restored - " + p.Describe().Replace("\n", " | "));
@@ -172,8 +210,13 @@ namespace OpenFF.Client
 		public static void AddPartyPC(GlobalScope.ScriptEngine engine)
 		{
 			int type = (int)engine.getDword();
-			engine.getByte();
+			int position = engine.getByte() - 1;   // 0: the first one free
 			bool joined = Party.Join(type, JoinLevel(type));
+			if (joined)
+			{
+				_positions.Remove(type);
+				_positions[type] = position >= 0 && position < 5 && !_positions.ContainsValue(position) ? position : Math.Max(0, FreePosition());
+			}
 			Character c = Party.Get(type);
 			Log.Write(LogChannel.General, "party: " + (c?.Name ?? ("type " + type)) + (joined ? " joins - " : " could not join - ") + Party.Members.Count + " in the party");
 		}
@@ -185,6 +228,7 @@ namespace OpenFF.Client
 			engine.getByte();
 			Character c = Party.Get(type);
 			bool left = Party.Leave(type);
+			if (left) _positions.Remove(type);
 			Log.Write(LogChannel.General, "party: " + (c?.Name ?? ("type " + type)) + (left ? " leaves - " : " was not in the party - ") + Party.Members.Count + " in the party");
 		}
 

@@ -192,6 +192,8 @@ namespace OpenFF.Data
 		public int CaptionId;
 		public string Caption;
 		public int GraphId;
+		/// <summary>FF4: the model a worn weapon or shield shows as in battle, w&lt;ModelId:000&gt; (the item parameter's short at 10; pl::PlayerEquipmentSymbol::createModel) - the Dark Sword w000, the Dark Shield w094.</summary>
+		public int ModelId = -1;
 		public int EfficacyId;
 		public int BuyPrice;
 		public int SellPrice;
@@ -326,7 +328,7 @@ namespace OpenFF.Data
 		public int Flag;
 		/// <summary>The game's placement, in world units (FF4: fx32 x, y, z; x across, z depth).</summary>
 		public float X, Y, Z;
-		/// <summary>FF4's fourth word, not yet named (66 for most groups, 20 for a boss).</summary>
+		/// <summary>FF4: the monster's facing on the battle stage, in degrees about y (party 900's Floating Eyes 60 and 80, as Steam stands them).</summary>
 		public float W;
 		public int Count = 1;
 	}
@@ -338,6 +340,8 @@ namespace OpenFF.Data
 		public int Flags;
 		/// <summary>FF4: the record's byte 3, which btl::CBattleDisplay::setBattleCamera uses to pick the battle camera (0 for all but five groups; 1 and 2 are closer shots).</summary>
 		public int CameraType => (sbyte)((Flags >> 8) & 0xFF);
+		/// <summary>FF4: the record's byte 2, the party root the members stand on (btl::BattleSystem::initialize: battle_parameter.chain's partyRoot id) - 0 the classic side view, 1 the opening's airship deck.</summary>
+		public int PartyRootId => (sbyte)(Flags & 0xFF);
 		public List<MonsterPartySlot> Slots = new List<MonsterPartySlot>();
 
 		public override string ToString() => "party " + Id + ": " + string.Join(", ", Slots.ConvertAll(s => s.MonsterId + (s.Count > 1 ? " x" + s.Count : "")));
@@ -364,6 +368,21 @@ namespace OpenFF.Data
 		public PartyRootSlot[][] Rows = new PartyRootSlot[2][];
 	}
 
+	/// <summary>FF4: a player type's battle motion sets (battle_parameter.chain chain 2): b_p&lt;PlayerSet&gt; holds the stance it stands in (Cecil's b_p1009: 2004), b_&lt;BasicSet&gt; more of its own.</summary>
+	public sealed class BattlePlayerMotions
+	{
+		public int Type;
+		public int PlayerSet;
+		public int BasicSet;
+	}
+
+	/// <summary>FF4: a player type's motions with one weapon system (chains 8..: 16 bytes) - the poise motion (b_poise&lt;Poise&gt;) and the weapon's own set (b_w&lt;WeaponSet:00&gt;); Raw the record's eight words (the attack motions 2 and 3).</summary>
+	public sealed class WeaponMotionRecord
+	{
+		public int PlayerType, WeaponSystem, Poise, WeaponSet;
+		public short[] Raw;
+	}
+
 	/// <summary>Everything a game defines, read once from its files.</summary>
 	public sealed class GameTables
 	{
@@ -371,6 +390,9 @@ namespace OpenFF.Data
 		/// <summary>Where the party stands in battle, by situation (FF4; empty for FF3 so far).</summary>
 		public List<PartyRoot> PartyRoots = new List<PartyRoot>();
 		public PartyRoot PartyRoot(int id) => PartyRoots.Find(r => r.Id == id);
+		public List<BattlePlayerMotions> BattlePlayers = new List<BattlePlayerMotions>();
+		public List<WeaponMotionRecord> WeaponMotions = new List<WeaponMotionRecord>();
+		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
 		private Dictionary<int, MonsterParty> _parties;
 
 		public MonsterParty MonsterParty(int id)
