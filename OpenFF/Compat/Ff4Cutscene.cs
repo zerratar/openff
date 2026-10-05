@@ -146,7 +146,6 @@ namespace OpenFF.Client
 				MapLeft();
 			}
 			_active = true;
-			Ff4Title.SceneStarted();
 			SceneStage = stage;
 			SceneFrame = 0;
 			_asyncLoadedBy = 0;
@@ -199,6 +198,7 @@ namespace OpenFF.Client
 			ReturnPosition = new GlobalScope.VecFx32(x, y, z);
 			string scene = "e" + ev.ToString("00") + "_" + part.ToString("00");
 			Log.Write(LogChannel.General, "script: FF4 story scene " + scene + ", back to " + returnMap + " at (" + x / 4096 + "," + y / 4096 + "," + z / 4096 + ")");
+			Ff4MapChange.ConteJump();
 			JumpTo(scene, new GlobalScope.VecFx32(0, 0, 0));
 		}
 

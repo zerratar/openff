@@ -31,7 +31,11 @@ internal static partial class GlobalScope
 				}
 				else if (_sys.IsMapJump())
 				{
-					if (sceneMng.getStage()[0] == 'f')
+					if (OpenFF.Client.GameProfile.IsFf4)
+					{
+						OpenFF.Client.Ff4MapChange.Leave();
+					}
+					else if (sceneMng.getStage()[0] == 'f')
 					{
 						AreaChange.getInstance().setClose(15, AreaChange.SWITCH_TYPE.SWITCH_TYPE_OUTER);
 					}
@@ -39,7 +43,10 @@ internal static partial class GlobalScope
 					{
 						AreaChange.getInstance().setClose(15, AreaChange.SWITCH_TYPE.SWITCH_TYPE_OUTER);
 					}
-					dgs.CFade.Sub().fadeOut(15, dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+					if (!OpenFF.Client.GameProfile.IsFf4)
+					{
+						dgs.CFade.Sub().fadeOut(15, dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+					}
 				}
 				else if (_sys.IsBattle())
 				{
@@ -114,7 +121,7 @@ internal static partial class GlobalScope
 			{
 				if (_sys.IsMapJump())
 				{
-					if (AreaChange.getInstance().isClosed())
+					if ((OpenFF.Client.GameProfile.IsFf4 ? OpenFF.Client.Ff4MapChange.Left : AreaChange.getInstance().isClosed()))
 					{
 						setPhase(PHASE.END);
 					}

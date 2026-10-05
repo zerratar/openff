@@ -58,7 +58,11 @@ internal static partial class GlobalScope
 				{
 					strcpy(out var _, sceneMng.getStage());
 					_sys.MapJumpPosition();
-					if (_sys.Mode() == CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD)
+					if (OpenFF.Client.GameProfile.IsFf4)
+					{
+						OpenFF.Client.Ff4MapChange.Leave();
+					}
+					else if (_sys.Mode() == CBaseSystem.WORLD_MODE.WORLD_MODE_FIELD)
 					{
 						AreaChange.getInstance().setClose(15, AreaChange.SWITCH_TYPE.SWITCH_TYPE_CENTER);
 					}
@@ -66,7 +70,10 @@ internal static partial class GlobalScope
 					{
 						AreaChange.getInstance().setClose(15, AreaChange.SWITCH_TYPE.SWITCH_TYPE_CENTER);
 					}
-					dgs.CFade.Sub().fadeOut(15, dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+					if (!OpenFF.Client.GameProfile.IsFf4)
+					{
+						dgs.CFade.Sub().fadeOut(15, dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+					}
 					if (sceneMng.getStage()[0] == 'f' && FlagManager.singleton().get(0u, 26u) == 1 && FlagManager.singleton().get(0u, 45u) == 0 && strcmp(sceneMng.getPreStage(), "t03_01") == 0)
 					{
 						m_bCheckTrial = true;
@@ -193,7 +200,7 @@ internal static partial class GlobalScope
 				switch (_localState)
 				{
 				case 0:
-					if (AreaChange.getInstance().isClosed())
+					if ((OpenFF.Client.GameProfile.IsFf4 ? OpenFF.Client.Ff4MapChange.Left : AreaChange.getInstance().isClosed()))
 					{
 						_localState = 1;
 					}

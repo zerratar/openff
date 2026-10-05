@@ -52,7 +52,7 @@ scene engine, which is ours from the binary's disassembly.
 | | State |
 | --- | --- |
 | Characters, growth, magic, equipment, items | FF4's tables read from the binary and its files onto the unified data layer (`Shared/Data`), the same layer FF3's jobs and spells sit on. |
-| Logos and title | Steam's, read from FF4.exe (Ff4Title): the Square Enix and Matrix logos, then the title - background, logo, CONTINUE / NEW GAME / LOAD GAME / QUIT GAME by the same rules and in the same places, the glove, the Prelude. New Game starts in t00_00, Load Game opens a file list (the port's; Steam's load screen is not read yet). The opening movie (opening.mkv) is not played; CONTINUE never shows (no suspend save); the title's mouse widgets are not there. |
+| Logos and title | Steam's, read from FF4.exe (Ff4Title): the Square Enix and Matrix logos, then the title - background, logo, CONTINUE / NEW GAME / LOAD GAME / QUIT GAME by the same rules and in the same places, the glove, the Prelude. New Game fades to white and starts in t00_00, whose event calls the opening scene with no fade, so the scene fades in from white as on Steam; maps are left and entered with FF4's 15-frame fades, not FF3's shutter (Ff4MapChange). Load Game opens a file list (the port's; Steam's load screen is not read yet). The opening movie (opening.mkv) is not played; CONTINUE never shows (no suspend save); the title's mouse widgets are not there. |
 | Saves | On the unified layer (a save slot loads into the field from the title's Load Game or `--load`); FF4's own save format is not written. |
 | Open | Growth curves and monster records in part; the details of each are in FF4-Internals. |
 

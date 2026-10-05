@@ -14,6 +14,7 @@
 //   gil <amount>                   the party's gil (Game.Party.Gil)
 //   characters                     every character up: model, motion files (with their use counts), motions held and playing
 //   save <slot>                    FF4: the game written to a slot (Ff4Saves.Save), as the menu's Save does
+//   jump <stage> [x y z]           a map jump there (world units), as a map's exit makes it - the leaving and entering states and their fades
 //   shop <index> [table]           the game's shop screen for that shop (Game.Shops.Open: FF3's t01.shp unless a table is named)
 //   motion <index> [loop] [all] [end]  the hero plays a motion by id, b_b01 bound first (706 the fall, 4101 the win pose): a pose on a map, in daylight;
 //                                  "all" every character that has it (a battle's hero), "end" held at its last frame
@@ -286,6 +287,27 @@ namespace OpenFF.Client
 					if (!int.TryParse(step.Arg.Trim(), out int gil)) { Log.Write(LogChannel.General, "drive: gil wants <amount>"); break; }
 					try { OpenFF.Game.Party.Gil = gil; Log.Write(LogChannel.File, "drive: gil " + gil); }
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: gil failed: " + ex.Message); }
+					break;
+				}
+				case "jump":
+				{
+					string[] p = step.Arg.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (p.Length == 0) { Log.Write(LogChannel.General, "drive: jump wants <stage> [x y z]"); break; }
+					GlobalScope.VecFx32 at = new GlobalScope.VecFx32(0, 0, 4096);
+					if (p.Length >= 4 && float.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float x)
+						&& float.TryParse(p[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float y)
+						&& float.TryParse(p[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float z))
+					{
+						at = new GlobalScope.VecFx32((int)(x * 4096), (int)(y * 4096), (int)(z * 4096));
+					}
+					try
+					{
+						GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump().initialize();
+						GlobalScope.CCastCommandTransit.getInstance().castParam_MapJump().setUp(p[0], 0, at, new GlobalScope.VecFx32(0, 0, 0), true);
+						GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().setMapJump(true);
+						Log.Write(LogChannel.General, "drive: jump to " + p[0]);
+					}
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: jump failed: " + ex.Message); }
 					break;
 				}
 				case "characters":

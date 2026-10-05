@@ -66,7 +66,11 @@ internal static partial class GlobalScope
 									_sys.setupCamera();
 									evt.CEventManager.getInstance().initializeValue();
 									TexDivideLoader.getSingleton().tdlForceLoad();
-									if (!_sys.getAreaChangeShutterFlag())
+									if (OpenFF.Client.GameProfile.IsFf4)
+									{
+										OpenFF.Client.Ff4MapChange.Enter();
+									}
+									else if (!_sys.getAreaChangeShutterFlag())
 									{
 										AreaChange.getInstance().setOpenStrong();
 										dgs.CFade.Main().fadeIn(15);
@@ -96,7 +100,10 @@ internal static partial class GlobalScope
 										AreaChange.getInstance().setOpenStrong();
 										dgs.CFade.Main().fadeIn(15);
 									}
-									dgs.CFade.Sub().fadeIn(15);
+									if (!OpenFF.Client.GameProfile.IsFf4)
+									{
+										dgs.CFade.Sub().fadeIn(15);
+									}
 									CWorldOutSideData.getInstance().initialize2();
 									_sys.PlayerMng().into();
 									_sys.changePlayerCharDisplay();
@@ -121,6 +128,14 @@ internal static partial class GlobalScope
 
 								public override void update(CBaseSystem _sys)
 								{
+									if (OpenFF.Client.GameProfile.IsFf4)
+									{
+										if (OpenFF.Client.Ff4MapChange.Entered())
+										{
+											setPhase(PHASE.END);
+										}
+										return;
+									}
 									if (sys.GGlobal.getPreviousPart() == GAMEPART.GAMEPART_BATTLE)
 									{
 										if (dgs.CFade.Main().isCleared() && dgs.CFade.Sub().isCleared())

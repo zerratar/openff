@@ -85,7 +85,11 @@ internal static partial class GlobalScope
 									}
 									_sys.RidePlayerOnVehicle();
 									CWorldOutSideData.getInstance().initialize2();
-									if (!_sys.getAreaChangeShutterFlag())
+									if (OpenFF.Client.GameProfile.IsFf4)
+									{
+										OpenFF.Client.Ff4MapChange.Enter();
+									}
+									else if (!_sys.getAreaChangeShutterFlag())
 									{
 										AreaChange.getInstance().setOpenStrong();
 										dgs.CFade.Main().fadeIn(15);
@@ -115,7 +119,10 @@ internal static partial class GlobalScope
 										AreaChange.getInstance().setOpenStrong();
 										dgs.CFade.Main().fadeIn(15);
 									}
-									dgs.CFade.Sub().fadeIn(15);
+									if (!OpenFF.Client.GameProfile.IsFf4)
+									{
+										dgs.CFade.Sub().fadeIn(15);
+									}
 									_sys.changePlayerCharDisplay();
 									stageMng.initFootPos(_sys.PlayerMng().Player(chr.CBaseCharacter.getLookIndex()).getPosition());
 									map.CMapParameterManager.Instance().fieldBlockParameter(null);
@@ -135,6 +142,14 @@ internal static partial class GlobalScope
 
 								public override void update(CBaseSystem _sys)
 								{
+									if (OpenFF.Client.GameProfile.IsFf4)
+									{
+										if (OpenFF.Client.Ff4MapChange.Entered())
+										{
+											setPhase(PHASE.END);
+										}
+										return;
+									}
 									if (sys.GGlobal.getPreviousPart() == GAMEPART.GAMEPART_BATTLE)
 									{
 										if (dgs.CFade.Main().isCleared() && dgs.CFade.Sub().isCleared())

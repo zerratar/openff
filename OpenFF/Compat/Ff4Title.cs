@@ -64,16 +64,6 @@ namespace OpenFF.Client
 		private static bool _loadOpen;
 		private static int _loadCursor;
 
-		// A new game opens on Baron's throne room (t00_00), whose script jumps straight to the opening's first scene: the
-		// Steam game never shows the room - the scene comes up from the title's black. Here the world fades the room in
-		// before its script runs, so the screen is held black from New Game until a scene starts (or, should none, for
-		// five seconds of game steps).
-		private const int HoldLimit = 150;
-		private static int _holdUntilScene;
-
-		/// <summary>A scene started (Ff4Cutscene): a new game's black hold is over.</summary>
-		public static void SceneStarted() => _holdUntilScene = 0;
-
 		public static void registerParts()
 		{
 			if (!GameProfile.IsFf4) return;
@@ -87,10 +77,10 @@ namespace OpenFF.Client
 			GlobalScope.dgs.CFade.Sub().fadeIn(frames);
 		}
 
-		private static void FadeOut(int frames)
+		private static void FadeOut(int frames, GlobalScope.dgs.CFade.FADE_TYPE type = GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK)
 		{
-			GlobalScope.dgs.CFade.Main().fadeOut(frames, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
-			GlobalScope.dgs.CFade.Sub().fadeOut(frames, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+			GlobalScope.dgs.CFade.Main().fadeOut(frames, type);
+			GlobalScope.dgs.CFade.Sub().fadeOut(frames, type);
 		}
 
 		private static bool Faded => GlobalScope.dgs.CFade.Main().isFaded() && GlobalScope.dgs.CFade.Sub().isFaded();
@@ -214,9 +204,6 @@ namespace OpenFF.Client
 					case State.Leaving:
 						if (Faded)
 						{
-							// The fades cleared again, as a boot leaves them: the world fades itself in, and its jumps
-							// (the opening's story scene) wait on clear screens - left black, the opening never started.
-							FadeIn(0);
 							GlobalScope.sys.GGlobal.setNextPart(_next);
 							abort();
 						}
@@ -242,8 +229,7 @@ namespace OpenFF.Client
 				{
 					case NewGame:
 						Se(1);
-						_holdUntilScene = HoldLimit;
-						Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU);
+						Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_WHITE);
 						break;
 					case Load:
 						Se(1);
@@ -273,15 +259,19 @@ namespace OpenFF.Client
 				int slot = _loadCursor + 1;
 				if (!Ff4Saves.Exists(slot) || !Ff4Saves.Load(slot, true)) { Se(4); return; }
 				Se(1);
-				Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU);
+				Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 			}
 
-			/// <summary>Into the game: the BGM stopped over 20 frames, the screens faded over 30, then the jump part (a new game, or the slot just read).</summary>
-			private void Leave(GlobalScope.GAMEPART next)
+			/// <summary>
+			/// Into the game: the BGM stopped over 20 frames, the screens faded over 30 - to white for a new game, as the Steam
+			/// title has it (fadeOut(30, 1)) - then the jump part (a new game, or the slot just read). The fades are left as
+			/// they are: the world fades a map in, or its event does (Ff4MapChange) - a new game's opening scene from white.
+			/// </summary>
+			private void Leave(GlobalScope.GAMEPART next, GlobalScope.dgs.CFade.FADE_TYPE fade)
 			{
 				_next = next;
 				try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(20, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
-				FadeOut(30);
+				FadeOut(30, fade);
 				_state = State.Leaving;
 				Log.Write(LogChannel.General, "ff4 title: " + (Ff4Saves.Pending != null ? "load, to " + Ff4Saves.Pending.Map : "new game"));
 			}
@@ -294,13 +284,6 @@ namespace OpenFF.Client
 
 			public override void OnUpdate()
 			{
-				if (_holdUntilScene > 0)
-				{
-					// A new game: black until its first scene starts (see SceneStarted).
-					_holdUntilScene--;
-					Game.Draw.Rect(0, 0, DrawList.ScreenWidth, DrawList.ScreenHeight, Color.Black);
-					return;
-				}
 				if (_showing == Showing.Nothing) return;
 				DrawList d = Game.Draw;
 				d.Rect(0, 0, DrawList.ScreenWidth, DrawList.ScreenHeight, Color.Black);
