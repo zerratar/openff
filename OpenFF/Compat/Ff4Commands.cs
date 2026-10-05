@@ -26,6 +26,7 @@ namespace OpenFF.Client
 			{ "openCharacterNameWindow", OpenCharacterNameWindow },   // (nameTextId, x, y)
 			{ "closeCharacterNameWindow", CloseCharacterNameWindow }, // (x, y)
 			{ "changeCamera_Mode", ChangeCameraMode },                 // () - FF3's takes the mode; FF4's means "back to following"
+			{ "setEffect_Scale", SetEffectScale },                     // (index, x, y, z) - FF3's has a second word
 			{ "setInsideMapJump", SetInsideMapJump },                 // (trigger, map, ax, ay, az, facing, x1, y1, z1, x2, y2, z2)
 			{ "setOutsideMapJump", SetOutsideMapJump },               // the same, for leaving by the map's edge
 			{ "confirm", Ff4FieldCommands.Confirm },                          // (a, b): the Yes/No box
@@ -103,6 +104,18 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.First(LogChannel.General, "bgm-down", 1, () => "script: BGM ducking: " + ex.Message); }
 		}
 
+		/// <summary>setEffect_Scale(index, x, y, z): the effect the script's index names (Ff4EffectIndex) scaled, z negated as FF4's has it.</summary>
+		private static void SetEffectScale(GlobalScope.ScriptEngine engine)
+		{
+			int index = engine.getWord();
+			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
+			int effect = Ff4EffectIndex.Object(index);
+			if (effect >= 0 && GlobalScope.eff.CEffectMng.instance().isEffectObject(effect))
+			{
+				GlobalScope.eff.CEffectMng.instance().setScale(effect, new GlobalScope.VecFx32(x, y, -z));
+			}
+		}
+
 		/// <summary>Commands that only dress the game - door swings, footstep dust, BGM ducking, the jump history - skipped without a word in the log.</summary>
 		public static readonly HashSet<string> Cosmetic = new HashSet<string>(StringComparer.Ordinal)
 		{
@@ -119,9 +132,9 @@ namespace OpenFF.Client
 			// jumps when the character's augment level equals `level` (2 in every script; it is 0
 			// here), checkCharacterStatusJump when a member carries a status condition.
 			"decantLevelChekcJump", "checkCharacterStatusJump",
-			// Objects bound to a character's joint (a carried item, a torch), effect scaling, the
-			// sub-plane visibility of the DS's second screen.
-			"createBindObject", "setVisibleBindObject", "setEffect_Scale", "ce_CallProgParam",
+			// Objects bound to a character's joint (a carried item, a torch), the sub-plane visibility
+			// of the DS's second screen.
+			"createBindObject", "setVisibleBindObject", "ce_CallProgParam",
 		};
 
 		/// <summary>

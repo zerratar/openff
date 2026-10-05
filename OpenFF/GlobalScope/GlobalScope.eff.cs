@@ -284,6 +284,14 @@ internal static partial class GlobalScope
 				}
 			}
 
+			public void enableBoxCulling(int _id, bool enable)
+			{
+				if (isEffectObject(_id))
+				{
+					effect_[_id].object_.enableBoxCulling(enable);
+				}
+			}
+
 			public void setScale(int _id, VecFx32 scl)
 			{
 				if (isEffectObject(_id))

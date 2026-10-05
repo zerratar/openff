@@ -41,6 +41,18 @@ internal static partial class GlobalScope
 
 			private bool m_bPlay;
 
+			// PORT (FF4): the box culling of the effects the sequence boots (eld::ImpSequenceDS::enableBoxCulling).
+			private bool m_bBoxCulling = true;
+
+			public override void enableBoxCulling(bool enable)
+			{
+				m_bBoxCulling = enable;
+				for (uint i = 0; i < m_PathList.size(); i++)
+				{
+					((ImpSequencePath)m_PathList.value(i))?.GetObject()?.enableBoxCulling(enable);
+				}
+			}
+
 			private sbyte m_byFirst;
 
 			public ImpSequenceDS()
@@ -321,6 +333,7 @@ internal static partial class GlobalScope
 				vector.vy += FX_F32_TO_FX32(sEQ_BOOT_EFFECT.pos[1]);
 				vector.vz += FX_F32_TO_FX32(sEQ_BOOT_EFFECT.pos[2]);
 				obj.Start(0u);
+				obj.enableBoxCulling(m_bBoxCulling);
 				obj.SetPosition(vector);
 				EffAllocator<ImpSequencePath> effAllocator = new EffAllocator<ImpSequencePath>();
 				ImpSequencePath impSequencePath = effAllocator.allocate(1u);

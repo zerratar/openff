@@ -128,6 +128,11 @@ internal static partial class GlobalScope
 				return true;
 			}
 
+			public override void enableBoxCulling(bool enable)
+			{
+				_dsRender.setEnableViewVolumeClip(enable);
+			}
+
 			public override void setDrawFlag(bool flag)
 			{
 			}

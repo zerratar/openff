@@ -16650,6 +16650,8 @@ internal static partial class GlobalScope
 							{
 								OpenFF.Client.Ff4EffectIndex.Set(index, num);
 								eff.CEffectMng.instance().setPosition(num, vecFx);
+								// PORT (FF4): a story scene's effects are never culled by their boxes (babilCommand_BootEffect_*).
+								if (OpenFF.Client.Ff4Cutscene.Active) eff.CEffectMng.instance().enableBoxCulling(num, false);
 							}
 						}
 
@@ -16670,6 +16672,7 @@ internal static partial class GlobalScope
 								if (num2 != -1)
 								{
 									OpenFF.Client.Ff4EffectIndex.Set(index, num2);
+									if (OpenFF.Client.Ff4Cutscene.Active) eff.CEffectMng.instance().enableBoxCulling(num2, false);
 									VecFx32 vecFx2 = vecFx;
 									VEC_Add(vecFx2, CCastCommandTransit.getInstance().cast_PlayerMng().Player(num)
 										.getPosition(), vecFx2);

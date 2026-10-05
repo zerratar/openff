@@ -229,6 +229,11 @@ internal static partial class GlobalScope
 			{
 			}
 
+			/// <summary>PORT (FF4): whether the effect is left out when its bounding box is out of view (eld::IObject::enableBoxCulling).</summary>
+			public virtual void enableBoxCulling(bool enable)
+			{
+			}
+
 			public virtual bool getDrawFlag()
 			{
 				return true;
