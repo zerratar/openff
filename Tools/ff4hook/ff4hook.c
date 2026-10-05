@@ -159,7 +159,6 @@ static unsigned char *Engine(unsigned char *a, unsigned char *b)
 
 static void __cdecl TraceCall(unsigned index, unsigned char *ecx, unsigned char *stackArg)
 {
-	if (g_traceCalls < 5) { g_traceCalls++; Log("frame %llu: command %u called, ecx %p, first argument %p", g_frame, index, (void *)ecx, (void *)stackArg); }
 	unsigned char *engine = Engine(ecx, stackArg);
 	if (!g_trace || !engine) return;
 	unsigned char *code = *(unsigned char **)(engine + 8);
@@ -228,6 +227,71 @@ static void WrapCommandTable(void)
 	Log("script table wrapped: %d commands at %p (the exe at %p)", TABLE_COUNT, (void *)table, (void *)GetModuleHandleA(NULL));
 }
 
+// ---- the characters: what each of CCharacterMng's slots holds, read straight from the game's memory ----
+//
+// FF4.exe's characterMng (a global at 0x61e808; every call site loads it into ECX - CCharacterMng::getPosition,
+// setPosition, getMotionIndex, isHidden): a count byte at +0, the slots at *(+4), 0x13cc bytes each. In a slot
+// (CCharacterMng's own getters, disassembled): +0x1391 flags (1 in use, 8 hidden); +0xf0 the CMotSet (+0x108 the
+// entry playing, -1 none; entries of 0x30 from +0x128, the motion number at +0x150 of the set plus 0x30 an entry,
+// the animation's frame at *(+8) of it in 1/4096ths, its rate at +0x14); +0xe1c the CRenderObject (+0x8c the position, three fx32;
+// +0xa4 the rotation, three u16; +0x20 the material alpha, 0..31); +0xf4c the transparency; +0x13a9 the model's name.
+
+#define CHARMNG_ADDRESS 0x61e808
+#define SLOT_SIZE 0x13cc
+
+static FILE *g_chars;
+static int g_charsEvery;
+
+static unsigned char *CharacterManager(void)
+{
+	return (unsigned char *)(CHARMNG_ADDRESS + (size_t)GetModuleHandleA(NULL) - 0x400000);
+}
+
+static void WriteCharacters(void)
+{
+	unsigned char *mng = CharacterManager();
+	if (!g_chars || IsBadReadPtr(mng, 8)) return;
+	int count = mng[0];
+	unsigned char *slots = *(unsigned char **)(mng + 4);
+	if (!slots || IsBadReadPtr(slots, count * SLOT_SIZE)) return;
+	for (int i = 0; i < count; i++)
+	{
+		unsigned char *c = slots + i * SLOT_SIZE;
+		unsigned char flags = c[0x1391];
+		if (!(flags & 1)) continue;
+		unsigned char *mot = c + 0xf0, *ro = c + 0xe1c;
+		int playing = *(int *)(mot + 0x108);
+		int motion = playing >= 0 ? *(int *)(mot + 0x150 + playing * 0x30) : -1;
+		// the animation's frame: behind the pointer at +8 of the entry's CAnimation (+0x14 is its rate)
+		int frame = 0;
+		if (playing >= 0)
+		{
+			int **current = (int **)(mot + 0x128 + playing * 0x30 + 8);
+			if (!IsBadReadPtr(*current, 4)) frame = **current;
+		}
+		int *pos = (int *)(ro + 0x8c);
+		unsigned short *rot = (unsigned short *)(ro + 0xa4);
+		char name[24] = { 0 };
+		memcpy(name, c + 0x13a9, 23);   // the model's name (found in a dump of the slots)
+		for (int k = 0; k < 23 && name[k]; k++) if (name[k] < 32 || name[k] > 126) { name[k] = 0; break; }
+		fprintf(g_chars, "%llu\t%d\t%d\t%.3f\t%.3f\t%.3f\t%u\t%u\t%u\t%d\t%.2f\t%d\t%d\t%s\n", g_frame, i, (flags & 8) ? 1 : 0,
+			pos[0] / 4096.0, pos[1] / 4096.0, pos[2] / 4096.0, rot[0], rot[1], rot[2],
+			motion, frame / 4096.0, ro[0x20], *(int *)(c + 0xf4c), name);
+	}
+}
+
+static void DumpCharacters(const char *path)
+{
+	unsigned char *mng = CharacterManager();
+	FILE *f;
+	if (IsBadReadPtr(mng, 8) || fopen_s(&f, path, "wb") != 0 || !f) return;
+	int count = mng[0];
+	unsigned char *slots = *(unsigned char **)(mng + 4);
+	if (slots && !IsBadReadPtr(slots, count * SLOT_SIZE)) fwrite(slots, SLOT_SIZE, count, f);
+	fclose(f);
+	Log("frame %llu: %d character slot(s) dumped to %s", g_frame, count, path);
+}
+
 static void Command(char *line)
 {
 	char word[32] = { 0 }, arg[MAX_PATH] = { 0 };
@@ -274,9 +338,25 @@ static void Command(char *line)
 		}
 		Log("frame %llu: script trace %s", g_frame, g_trace ? rest : "off");
 	}
+	else if (strcmp(word, "chars") == 0)
+	{
+		// chars <every N frames> <file>: each slot in use - frame, slot, hidden, x y z, rotation x y z, motion, frame, alpha, transparency
+		if (g_chars) { fclose(g_chars); g_chars = NULL; }
+		if (sscanf_s(rest, "%d %259[^\r\n]", &n, arg, (unsigned)sizeof arg) == 2 && n > 0)
+		{
+			g_charsEvery = n;
+			fopen_s(&g_chars, arg, "a");
+		}
+		Log("frame %llu: characters %s", g_frame, g_chars ? arg : "off");
+	}
+	else if (strcmp(word, "dumpchars") == 0)
+	{
+		DumpCharacters(rest);
+	}
 	else if (strcmp(word, "quit") == 0)
 	{
 		if (g_trace) fclose(g_trace);
+		if (g_chars) fclose(g_chars);
 		Log("frame %llu: quit", g_frame);
 		TerminateProcess(GetCurrentProcess(), 0);
 	}
@@ -430,11 +510,7 @@ static void Frame(void *target, int renderer)
 		g_everyCount++;
 	}
 	if (g_trace) fflush(g_trace);
-	if (g_frame == 300 || g_frame == 1500)
-	{
-		void **t = (void **)(TABLE_ADDRESS + (size_t)GetModuleHandleA(NULL) - 0x400000);
-		Log("frame %llu: table entry 306 is %p, entry 0 %p; %d stub call(s) so far", g_frame, t[306], t[0], g_traceCalls);
-	}
+	if (g_chars && g_charsEvery > 0 && g_frame % (unsigned long long)g_charsEvery == 0) { WriteCharacters(); fflush(g_chars); }
 	if (g_frame % 30 == 0)
 	{
 		FILE *f;

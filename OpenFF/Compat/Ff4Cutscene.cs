@@ -35,7 +35,7 @@ namespace OpenFF.Client
 			{ "ce_SetCharecterAsync", SetCharacterAsync },   // (slot, model, texture, ?)
 			{ "ce_WaitSetCharacter", ReadByte },             // (slot) - loads are synchronous here
 			{ "ce_CleanupCharacter", CleanupCharacter },     // (slot)
-			{ "ce_DisplayCharacter", DisplayCharacter },     // (slot, shown)
+			{ "ce_DisplayCharacter", DisplayCharacter },     // (slot, hidden)
 			{ "ce_SetupMotion", SetupMotion },               // (slot, motion file)
 			{ "ce_SetMotionAsync", SetMotionAsync },         // (slot, motion file, ?)
 			{ "ce_WaitSetMotion", ReadByte },                // (slot)
@@ -473,8 +473,11 @@ namespace OpenFF.Client
 		private static void DisplayCharacter(GlobalScope.ScriptEngine engine)
 		{
 			int slot = engine.getByte();
-			int shown = engine.getByte();
-			if (Slot(slot, out int ctrl)) Characters.setHidden(ctrl, shown == 0);
+			// The second operand is "hidden": babilCommand_CE_DisplayCharacter calls CCharacterMng::setHidden(idx, b != 0),
+			// and the Steam game shows a cast after (slot, 0) - read the other way round, every cast on screen was hidden
+			// and every one off it shown.
+			int hidden = engine.getByte();
+			if (Slot(slot, out int ctrl)) Characters.setHidden(ctrl, hidden != 0);
 		}
 
 		private static void SetupMotion(GlobalScope.ScriptEngine engine)

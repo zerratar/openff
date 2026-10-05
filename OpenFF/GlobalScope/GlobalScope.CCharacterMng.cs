@@ -527,6 +527,48 @@ internal static partial class GlobalScope
 			return Character[ctrl].RdrObject.getJntMtx(pNodename, @out);
 		}
 
+		// PORT: --chars-trace: each character up, a line, in the columns Tools/ff4hook writes the Steam game's
+		// (frame, slot, hidden, x y z, rotation x y z, motion, motion frame, alpha, transparency) - and the model.
+		public void WriteState(System.IO.TextWriter w, long frame)
+		{
+			VecFx32 pos = new VecFx32(0, 0, 0);
+			for (int i = 0; i < Character.Length; i++)
+			{
+				if (!isValidCharacter(i)) continue;
+				CharacterData c = Character[i];
+				// a character still loading (async) has no render object or motion set yet: its line says so
+				if (c.RdrObject == null || c.motSet == null)
+				{
+					w.WriteLine(string.Join("	", frame, i, (8 & c.flag) != 0 ? 1 : 0, "0.000", "0.000", "0.000", 0, 0, 0, -1, 0, 0, 0, (c.name ?? c.ownModel ?? "?") + " (loading)"));
+					continue;
+				}
+				try
+				{
+					c.RdrObject.getPosition(pos);
+				}
+				catch (Exception)
+				{
+					pos.x = pos.y = pos.z = 0;
+				}
+				ushort rx = 0, ry = 0, rz = 0;
+				try { c.RdrObject.getRotation(out rx, out ry, out rz); } catch (Exception) { }
+				int motion = -1;
+				uint mframe = 0;
+				try { motion = getMotionIndex(i); mframe = c.motSet.getFrame(); } catch (Exception) { }
+				w.WriteLine(string.Join("	", frame, i, (8 & c.flag) != 0 ? 1 : 0,
+					(pos.x / 4096.0).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture),
+					(pos.y / 4096.0).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture),
+					(pos.z / 4096.0).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture),
+					rx, ry, rz, motion, mframe.ToString(System.Globalization.CultureInfo.InvariantCulture),
+					0, SafeAlpha(c), c.name ?? c.ownModel ?? "?"));
+			}
+		}
+
+		private static uint SafeAlpha(CharacterData c)
+		{
+			try { return c.RdrObject.getAlpha(); } catch (Exception) { return 0; }
+		}
+
 		// PORT: every character up, its model, motion files and motion set, for the drive's characters dump.
 		public string DescribeCharacters()
 		{

@@ -162,6 +162,7 @@ namespace OpenFF.Client
 			try
 			{
 				WatchLegacy();
+				CharsTrace.Tick();
 				EngineInput.Update();
 				EngineApi.Tick();
 				ModWatcher.Drain();

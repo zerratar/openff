@@ -16,6 +16,8 @@ A script is one step a line ('#' comments):
   shot <name>                    the next frame to <out dir>/<name>.png
   every <frames>                 a frame every <frames> into <out dir>/frames (0 stops)
   trace [off]                    every event-script command the game runs, into <out dir>/trace.tsv
+  chars [frames]                 every character slot in use every [frames] (30), into <out dir>/chars.tsv
+  dumpchars [name]               the character slots' raw bytes now, into <out dir>/<name>.bin
   repeat <n> ... end             the steps between, n times
 The .bmp files the hook writes are turned into .png at the end.
 """
@@ -108,6 +110,13 @@ def play(steps, out):
         elif word == "trace":
             # every event-script command FF4.exe runs, into <out dir>/trace.tsv (frame, engine, index, position, operand bytes)
             send("trace off" if rest.strip() == "off" else "trace " + os.path.join(out, "trace.tsv"))
+        elif word == "chars":
+            # each character slot in use every <frames>, into <out dir>/chars.tsv (0 stops)
+            n = rest.split()[0] if rest.strip() else "30"
+            send("chars " + n + " " + os.path.join(out, "chars.tsv"))
+        elif word == "dumpchars":
+            send("dumpchars " + os.path.join(out, (rest.strip() or "slots") + ".bin"))
+            time.sleep(0.2)
         elif word == "every":
             send("every " + rest.split()[0] + " " + os.path.join(out, "frames"))
         else:
