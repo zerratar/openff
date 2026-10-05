@@ -488,6 +488,14 @@ function deleteProjectDialog(project, listBody) {
   const removeMod = document.createElement('input');
   removeMod.type = 'checkbox';
   modLabel.append(removeMod, document.createTextNode("Also remove the mod Export to OpenFF made of it from the client's mods folder"));
+  // Installed in a Steam / GOG game: its backups of the game's files go with the project, so it is taken out first.
+  const installedIn = project.installedIn || [];
+  const uninstallLabel = document.createElement('label');
+  uninstallLabel.className = 'dialog-row check';
+  const uninstall = document.createElement('input');
+  uninstall.type = 'checkbox';
+  uninstall.checked = true;
+  uninstallLabel.append(uninstall, document.createTextNode(`First uninstall it from ${installedIn.join(' and ')} - the game's own files put back (the backups of them go with the project)`));
   const actions = document.createElement('div');
   actions.className = 'dialog-actions';
   const cancel = document.createElement('button');
@@ -499,11 +507,12 @@ function deleteProjectDialog(project, listBody) {
   go.onclick = async () => {
     go.disabled = true;
     try {
-      const result = await api('/api/project/delete', { directory: project.directory, removeMod: removeMod.checked });
+      const result = await api('/api/project/delete', { directory: project.directory, removeMod: removeMod.checked, uninstall: installedIn.length > 0 && uninstall.checked });
       if (!result.ok) throw new Error(result.error);
       body.close();
       if (listBody) listBody.close();
       const said = (result.where === 'recycle bin' ? `${result.name} is in the Recycle Bin` : `${result.name} is deleted - kept in ${result.where} in case you want it back`)
+        + (result.uninstalled && result.uninstalled.length ? `, uninstalled from ${result.uninstalled.join(', ')}` : '')
         + (result.mod ? ', and its mod is out of the mods folder' : '')
         + (result.modError ? ` (its mod could not be removed: ${result.modError})` : '');
       if (project.current) await reloadEverything(said);
@@ -518,7 +527,9 @@ function deleteProjectDialog(project, listBody) {
     }
   };
   actions.append(cancel, go);
-  body.append(note, where, modLabel, actions);
+  body.append(note, where, modLabel);
+  if (installedIn.length) body.append(uninstallLabel);
+  body.append(actions);
   cancel.focus();
 }
 

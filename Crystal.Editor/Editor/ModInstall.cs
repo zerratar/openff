@@ -141,6 +141,8 @@ namespace Crystal.Editor
 			Directory.CreateDirectory(BackupDirectory(workspace));
 			File.WriteAllText(ManifestPath(workspace),
 				JsonSerializer.Serialize(files.Values.OrderBy(f => f.Name).ToList(), Json));
+			// And its gist beside the game, so the install can be told apart from the game's own files without the project.
+			GameSidecar.Record(workspace, files.Values);
 		}
 
 		private static string Hash(byte[] data)

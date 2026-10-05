@@ -11,8 +11,11 @@ is made is in `Docs/Releasing.md`; each version's section below is its release's
 
 **Added**
 - Crystal: a Mods tab on the start page - a mod manager. OpenFF's mods folder: each mod on or off, updated or removed (to the Recycle Bin). Each Steam or GOG copy of FF3 and FF4: what Crystal's projects installed into it, each uninstalled with a click (the originals put back), and how many other files differ from the Steam release (another mod tool's, a damaged download), with Steam's Verify as the way back.
+- Crystal: installs into a Steam or GOG game leave `crystal-installs.json` in its folder - the project, its backups, each file written - so the Mods tab still names an install whose project was deleted, and uninstalls it while its backups are there.
+- Crystal: deleting a project that is installed in a Steam or GOG game offers to uninstall it first (ticked), so the game is not left with files nobody can take back.
 
 **Fixes**
+- Crystal: the Mods tab no longer waits on the check of the games' files - it runs in the background with its progress shown (a first check reads every file of a game).
 - Crystal: uninstalling from a Steam copy whose files were verified since forgets the files that are the original again, instead of keeping them on record for good.
 
 ## 0.3.5 - sample hub (2026-10-03)

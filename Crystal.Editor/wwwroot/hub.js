@@ -576,17 +576,25 @@ async function sampleProjectsDialog() {
 
 let hubMods = null;
 
-// The list first, then the game files checked against the releases (a first check reads every file, which can take a while).
-async function hubLoadMods(force) {
+let hubModsPoll = null;
+
+// The list, and the game files checked against the releases: the editor checks in the background (a first check reads
+// every file of a game, a minute or more), so the page asks again every so often while one is running.
+async function hubLoadMods(force, fresh) {
   if (hubMods && !force) return hubMods;
-  try { hubMods = await api('/api/mods'); hubMods.checking = true; } catch (error) { hubMods = { openff: [], games: [], error: error.message }; return hubMods; }
-  const listed = hubMods;
-  api('/api/mods?check=1').then(checked => {
-    if (hubMods !== listed) return;
-    hubMods = checked;
-    if (hubTab() === 'mods' && !startPageHidden()) drawStartPage();
-  }).catch(() => { listed.checking = false; });
+  try { hubMods = await api('/api/mods?check=1' + (fresh ? '&fresh=1' : '')); } catch (error) { hubMods = { openff: [], games: [], error: error.message }; }
+  hubPollMods();
   return hubMods;
+}
+
+function hubPollMods() {
+  if (hubModsPoll || !hubMods || !(hubMods.games || []).some(g => g.checking)) return;
+  hubModsPoll = setTimeout(async () => {
+    hubModsPoll = null;
+    try { hubMods = await api('/api/mods?check=1'); } catch (error) { return; }
+    if (hubTab() === 'mods' && !startPageHidden()) drawStartPage();
+    hubPollMods();
+  }, 1500);
 }
 
 function hubModsPage(page) {
@@ -599,7 +607,7 @@ function hubModsPage(page) {
   const bar = hubEl('div', 'hub-bar');
   bar.append(hubEl('p', 'dialog-note hub-grow', 'Every mod in place: OpenFF\'s mods folder, and what Crystal installed into each Steam or GOG copy of the games.'));
   const refresh = hubEl('button', null, 'Refresh');
-  refresh.onclick = async () => { refresh.disabled = true; await hubLoadMods(true); drawStartPage(); };
+  refresh.onclick = async () => { refresh.disabled = true; await hubLoadMods(true, true); drawStartPage(); };
   bar.append(refresh);
   page.append(bar);
   if (result.error) page.append(hubEl('p', 'dialog-error', result.error));
@@ -723,6 +731,8 @@ function hubGameSection(game) {
     const words = hubEl('div', 'hub-mod-words');
     const label = mod.name || 'Edits without a project';
     const name = hubEl('b', null, label);
+    if (mod.orphan) name.append(hubBadge(mod.name ? 'Project gone' : 'Edits gone', 'mark', "Known from the game folder's crystal-installs.json: the project was deleted while installed"
+      + (mod.restorable ? ' - its backups are still there, so Uninstall puts the originals back' : " - its backups went with it; Steam's Verify integrity of game files puts the originals back")));
     if (mod.changed) name.append(hubBadge(`${mod.changed} changed since`, 'mark', 'Files the game has now that are not what Crystal wrote - a game update, Verify integrity, another tool. Uninstall forgets those that are the original again and leaves the rest as they are'));
     const sub = hubEl('span', null, `${mod.files} file${mod.files === 1 ? '' : 's'} installed · the originals kept beside the edits`);
     sub.title = mod.edits;
@@ -732,6 +742,22 @@ function hubGameSection(game) {
       const open = hubEl('button', 'hub-small', 'Open project');
       open.onclick = () => openProjectAt(mod.projectDirectory);
       actions.append(open);
+    }
+    if (mod.orphan && !mod.restorable) {
+      const forget = hubEl('button', 'hub-small', 'Forget');
+      forget.title = "Take it off the game folder's list - verify the game in Steam to put its files back";
+      forget.onclick = () => hubConfirm(`Forget ${label}?`,
+        `Its backups of the game's files are gone, so Crystal cannot put them back. Steam ▸ Library ▸ ${game.name} ▸ Properties ▸ Installed Files ▸ Verify integrity of game files does. Forget takes it off the list in the game folder.`,
+        'Forget', async () => {
+          const r = await api('/api/mods/forget', { content: game.path, edits: mod.edits });
+          if (!r.ok) throw new Error(r.error);
+          await hubLoadMods(true);
+          drawStartPage();
+        });
+      actions.append(forget);
+      row.append(words, actions);
+      section.append(row);
+      continue;
     }
     const out = hubEl('button', 'hub-small', 'Uninstall');
     out.title = 'Put the game\'s own files back (Project ▸ Remove); the edits stay where they are';
@@ -760,7 +786,7 @@ function hubGameSection(game) {
     section.append(hubEl('p', 'dialog-note hub-place-foot', game.mods.length ? 'Every other file is as the release ships it.' : `Every file is as the ${game.store} release ships it.`));
   }
   if (game.missing) section.append(hubEl('p', 'dialog-note hub-place-foot', `${game.missing} file(s) of the release are missing.`));
-  if (hubMods && hubMods.checking && game.store === 'Steam') section.append(hubEl('p', 'dialog-note hub-place-foot', 'Checking the game\'s files against the release…'));
+  if (game.checking) section.append(hubEl('p', 'dialog-note hub-place-foot', `Checking the game's files against the release… ${Math.round((game.progress || 0) * 100)}%`));
   return section;
 }
 

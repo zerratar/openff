@@ -56,6 +56,9 @@ namespace Crystal.Editor
 			public List<string> Other { get; set; }
 			public int Missing { get; set; }
 			public bool OtherVersion { get; set; }
+			/// <summary>Whether the check of the game's files is still running (in the background), and how far it is, 0 to 1.</summary>
+			public bool Checking { get; set; }
+			public double Progress { get; set; }
 		}
 
 		public sealed class GameMod
@@ -65,6 +68,10 @@ namespace Crystal.Editor
 			public string ProjectDirectory { get; set; }
 			public string Edits { get; set; }
 			public int Files { get; set; }
+			/// <summary>Known only from the game's crystal-installs.json: the project (or its edits) has gone.</summary>
+			public bool Orphan { get; set; }
+			/// <summary>For an orphan: whether its backups are still where it said, so Uninstall can put the originals back.</summary>
+			public bool Restorable { get; set; } = true;
 			/// <summary>Of those, files the game has since that are not what was written (an update, a verify, another tool).</summary>
 			public int Changed { get; set; }
 		}
@@ -130,7 +137,42 @@ namespace Crystal.Editor
 
 		// ------------------------------------------------------------- Steam, GOG
 
-		public static List<GameInstall> Games(bool checkFiles)
+		/// <summary>A check of one copy's files against the release's list, run once a session (again when asked fresh).</summary>
+		private sealed class Check
+		{
+			public volatile bool Done;
+			public long Got, Total;
+			public OpenFF.Content.GameFiles.Result Result;
+		}
+
+		private static readonly Dictionary<string, Check> Checks = new Dictionary<string, Check>(StringComparer.OrdinalIgnoreCase);
+
+		private static Check StartCheck(string game, string root, bool fresh)
+		{
+			lock (Checks)
+			{
+				if (Checks.TryGetValue(root, out Check running) && (!fresh || !running.Done)) return running;
+				Check check = new Check();
+				Checks[root] = check;
+				string list = GameFileList(game);
+				if (list == null) { check.Done = true; return check; }
+				System.Threading.Tasks.Task.Run(() =>
+				{
+					try
+					{
+						check.Result = OpenFF.Content.GameFiles.Check(root, OpenFF.Content.GameFiles.Read(list),
+							// The client's own cache of the check (sizes, times, hashes): what OpenFF has read already is not read again.
+							System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenFF", "game-files-" + game + ".json"),
+							(got, total) => { check.Got = got; check.Total = total; });
+					}
+					catch (Exception ex) { Console.Error.WriteLine("  mods      the game files of {0}: {1}", root, ex.Message); }
+					finally { check.Done = true; }
+				});
+				return check;
+			}
+		}
+
+		public static List<GameInstall> Games(bool checkFiles, bool fresh = false)
 		{
 			var installs = new List<GameInstall>();
 			var found = new List<(OpenFF.Content.SteamInstall Install, string Game)>();
@@ -150,21 +192,35 @@ namespace Crystal.Editor
 					try { mod.Changed = ModInstall.Status(new Workspace(install.Path, r.Edits)).Changed.Count; } catch (Exception) { }
 					g.Mods.Add(mod);
 				}
+				// What the game's own sheet has that no record here does: an install whose project has gone.
+				foreach (GameSidecar.Entry e in GameSidecar.Read(install.Path))
+				{
+					if (g.Mods.Any(m => GameSidecar.Same(m.Edits, e.Edits))) continue;
+					foreach (InstalledFile f in e.Files) { ours.Add(f.Name); if (f.Container != null) ours.Add(f.Container); }
+					g.Mods.Add(new GameMod
+					{
+						Name = e.Name, Edits = e.Edits, Files = e.Files.Count, Orphan = true,
+						Restorable = e.Backup != null && File.Exists(System.IO.Path.Combine(e.Backup, "installed.json")),
+					});
+				}
 				if (checkFiles && string.Equals(install.Store, "Steam", StringComparison.OrdinalIgnoreCase))
 				{
-					string list = GameFileList(game);
-					if (list != null)
+					// In the background: a first check reads every file of the game (a minute, or more on a slow disk), and the
+					// editor answers one request at a time - the page asks again until it is done.
+					Check check = StartCheck(game, install.Path, fresh);
+					if (check.Done)
 					{
-						try
+						if (check.Result != null)
 						{
-							OpenFF.Content.GameFiles.Result result = OpenFF.Content.GameFiles.Check(install.Path, OpenFF.Content.GameFiles.Read(list),
-								// The client's own cache of the check (sizes, times, hashes): what OpenFF has read already is not read again.
-								System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenFF", "game-files-" + game + ".json"));
-							g.Other = result.Changed.Where(f => !ours.Contains(f) && !ours.Contains(f.Replace('\\', '/'))).ToList();
-							g.Missing = result.Missing.Count;
-							g.OtherVersion = result.OtherVersion;
+							g.Other = check.Result.Changed.Where(f => !ours.Contains(f) && !ours.Contains(f.Replace('\\', '/'))).ToList();
+							g.Missing = check.Result.Missing.Count;
+							g.OtherVersion = check.Result.OtherVersion;
 						}
-						catch (Exception ex) { Console.Error.WriteLine("  mods      the game files of {0}: {1}", install.Path, ex.Message); }
+					}
+					else
+					{
+						g.Checking = true;
+						g.Progress = check.Total > 0 ? Math.Min(1.0, (double)check.Got / check.Total) : 0;
 					}
 				}
 				installs.Add(g);
@@ -175,7 +231,8 @@ namespace Crystal.Editor
 		/// <summary>An install taken back out: the originals put back, as Project > Remove does.</summary>
 		public static ModResult Uninstall(string content, string edits)
 		{
-			if (!Records().Any(r => SamePath(r.Edits, edits))) throw new ArgumentException(edits + " is not the edits of a project or of Crystal's");
+			if (!Records().Any(r => SamePath(r.Edits, edits)) && !GameSidecar.Read(content).Any(e => GameSidecar.Same(e.Edits, edits)))
+				throw new ArgumentException(edits + " is not the edits of a project or of Crystal's");
 			return ModInstall.Uninstall(new Workspace(content, edits));
 		}
 

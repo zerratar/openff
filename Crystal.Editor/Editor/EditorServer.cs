@@ -424,7 +424,9 @@ namespace Crystal.Editor
 						targets = p.File.Targets,
 						active = p.File.Active,
 						current = _project != null && string.Equals(
-							p.Directory, _project.Directory, StringComparison.OrdinalIgnoreCase)
+							p.Directory, _project.Directory, StringComparison.OrdinalIgnoreCase),
+						// The Steam / GOG games it is installed in, for the delete dialog's "uninstall first".
+						installedIn = SteamInstallsOf(p).Select(i => Targets.Describe(i.Target)).ToList()
 					}).ToList());
 					return;
 
@@ -455,7 +457,7 @@ namespace Crystal.Editor
 				{
 					// Every mod in place - OpenFF's mods folder, and what Crystal installed into each Steam or GOG copy - for the start page's Mods tab.
 					string mods = OpenFFClient.ModsFolder();
-					SendJson(context, new { ok = true, mods, openff = InstalledMods.InOpenFF(mods), games = InstalledMods.Games(Query(context, "check") == "1") });
+					SendJson(context, new { ok = true, mods, openff = InstalledMods.InOpenFF(mods), games = InstalledMods.Games(Query(context, "check") == "1", Query(context, "fresh") == "1") });
 					return;
 				}
 
@@ -479,6 +481,7 @@ namespace Crystal.Editor
 				case "/api/mods/enable":
 				case "/api/mods/remove":
 				case "/api/mods/uninstall":
+				case "/api/mods/forget":
 				{
 					JsonNode body = ReadBody(context);
 					try
@@ -500,6 +503,15 @@ namespace Crystal.Editor
 							if (OpenFF.Content.SampleMods.ReadRecord(mod.Directory) != null) { OpenFF.Content.SampleMods.Uninstall(mod.Directory); where = "uninstalled"; }
 							else where = Discard(mod.Directory);
 							SendJson(context, new { ok = true, where });
+						}
+						else if (path.EndsWith("/forget"))
+						{
+							// Off the game's sheet without undoing it: an install whose backups have gone (Steam's Verify mends the files).
+							string content = body?["content"]?.GetValue<string>();
+							if (content == null || !OpenFF.Content.SteamInstalls.Find().Concat(OpenFF.Content.SteamInstalls.Find(OpenFF.Content.SteamInstalls.Ff4AppId)).Any(i => GameSidecar.Same(i.Path, content)))
+								throw new ArgumentException(content + " is not a copy of the games");
+							GameSidecar.Forget(content, body?["edits"]?.GetValue<string>());
+							SendJson(context, new { ok = true });
 						}
 						else
 						{
@@ -3210,6 +3222,7 @@ namespace Crystal.Editor
 			JsonNode body = ReadBody(context);
 			string directory = (string)body?["directory"];
 			bool removeMod = body?["removeMod"]?.GetValue<bool>() ?? false;
+			bool uninstall = body?["uninstall"]?.GetValue<bool>() ?? false;
 			Project project = directory == null ? null : Project.All().FirstOrDefault(p => SameDirectory(p.Directory, directory));
 			if (project == null)
 			{
@@ -3220,6 +3233,25 @@ namespace Crystal.Editor
 			{
 				SendJson(context, new { ok = false, error = "the project is open and no game install was found to open in its place" });
 				return;
+			}
+			// Out of the Steam / GOG games first, when asked: the project's backups are the way back, and they go with it.
+			var uninstalled = new List<string>();
+			if (uninstall)
+			{
+				foreach ((string target, string content) in SteamInstallsOf(project))
+				{
+					try
+					{
+						ModResult r = ModInstall.Uninstall(new Workspace(content, project.FilesFor(target)));
+						if (!r.Ok) throw new IOException(r.Error);
+						uninstalled.Add(Targets.Describe(target) + (r.Skipped.Count > 0 ? " (" + r.Skipped.Count + " file(s) changed since, left as they are)" : ""));
+					}
+					catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+					{
+						SendJson(context, new { ok = false, error = "could not uninstall it from " + Targets.Describe(target) + ": " + ex.Message + " - the project is kept" });
+						return;
+					}
+				}
 			}
 			// The project first: what was asked for. The mod after it, so a mod folder that will not go does not keep the project.
 			string where;
@@ -3250,7 +3282,7 @@ namespace Crystal.Editor
 					modError = ex.Message;
 				}
 			}
-			SendJson(context, new { ok = true, name = project.File.Name, directory = project.Directory, where, mod, modWhere, modError });
+			SendJson(context, new { ok = true, name = project.File.Name, directory = project.Directory, where, mod, modWhere, modError, uninstalled });
 		}
 
 		/// <summary>
@@ -3258,6 +3290,23 @@ namespace Crystal.Editor
 		/// handle, no Recycle Bin on that drive) - moved into Crystal's own deleted/ folder. Returns where it went:
 		/// "recycle bin" or the folder it was moved to. Throws when neither worked.
 		/// </summary>
+		/// <summary>The Steam and GOG copies a project has something installed in (a record of files it wrote there), by target.</summary>
+		private static List<(string Target, string Content)> SteamInstallsOf(Project project)
+		{
+			var found = new List<(string, string)>();
+			foreach (string target in project.File.Targets.Where(t => !Targets.IsOurs(t)))
+			{
+				string record = Path.Combine(project.FilesFor(target).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + ".backup", "installed.json");
+				try
+				{
+					if (!File.Exists(record) || JsonSerializer.Deserialize<List<InstalledFile>>(File.ReadAllText(record))?.Count is not > 0) continue;
+					found.Add((target, project.ContentDirectoryFor(target)));
+				}
+				catch (Exception) { }
+			}
+			return found;
+		}
+
 		private static string Discard(string folder)
 		{
 			// The shell wants a full path with backslashes and no trailing separator.

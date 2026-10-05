@@ -71,6 +71,10 @@ project open) that Project ▸ Install put into it, from the record each keeps b
 (the originals back, as Project ▸ Remove). A Steam copy's files are also checked against the release's list
 (OpenFF's cache of the check is shared): files that differ with no install of Crystal's behind them - another mod
 tool's, a damaged download - are counted and listed, with Steam's Verify integrity of game files as the way back.
+Every install also leaves `crystal-installs.json` in the game's folder (the project, where its edits and backups
+are, each file written with its hash; gone again when nothing is installed): an install whose project was deleted is
+still listed by name, uninstalled while its backups are where it said, or *Forgotten* with Verify as the way back.
+Deleting a project that is installed in a game offers to uninstall it first, ticked.
 **Create a mod** (File ▸ Create a mod…) picks a starting point - *Empty mod*, or any
 sample - then the name, author, version and description; an empty one picks its games and
 kinds of mod, a sample's are the sample's. Every project listed carries the mark of what it
