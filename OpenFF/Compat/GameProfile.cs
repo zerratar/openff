@@ -110,8 +110,8 @@ namespace OpenFF.Client
 				{
 					return map;
 				}
-				// FF4 has no title of its own in this client yet, so it starts in a map.
-				return IsFf4 ? DefaultStage : null;
+				// FF4's --load=<slot> starts in the saved map (JumpPart.Stage reads the slot's), past the logos and title.
+				return IsFf4 && !string.IsNullOrEmpty(Options.Get("load")) ? DefaultStage : null;
 			}
 		}
 	}

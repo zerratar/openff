@@ -5,8 +5,8 @@
 // then take a stage name and a position as given instead of a save or an event jump.
 // This part fills that slot: it names the stage (--map=<stage>, or the game's default)
 // and the position (--pos=x,y,z in world units, --rot=<degrees>), then hands over to
-// the world part. For FF4, which has no title in this client yet, it is how the game
-// starts; for FF3 it is a way to land in any map for testing.
+// the world part. For FF4 it is how a game starts - the title's New Game and Load
+// (Ff4Title) and --load come through it; for FF3 it is a way to land in any map for testing.
 
 using System;
 using System.Globalization;

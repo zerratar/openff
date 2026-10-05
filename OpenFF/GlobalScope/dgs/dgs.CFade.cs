@@ -64,6 +64,9 @@ internal static partial class GlobalScope
 
 			private short Brightness__;
 
+			// PORT: the screen's brightness, -16 (black) .. 16 (white), for what the client draws over the DS screens and fades with them (Ff4Title).
+			public int Level => Brightness;
+
 			public CFade()
 			{
 				flag = false;

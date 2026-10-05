@@ -12,6 +12,7 @@
 //   member <id>                    a character into the party by the game's id (Game.Party.AddMember: FF3 1 Arc, 2 Refia, 3 Ingus)
 //   battle <formation> [map]       a fight with that formation (Game.Battle.Start)
 //   gil <amount>                   the party's gil (Game.Party.Gil)
+//   save <slot>                    FF4: the game written to a slot (Ff4Saves.Save), as the menu's Save does
 //   shop <index> [table]           the game's shop screen for that shop (Game.Shops.Open: FF3's t01.shp unless a table is named)
 //   motion <index> [loop] [all] [end]  the hero plays a motion by id, b_b01 bound first (706 the fall, 4101 the win pose): a pose on a map, in daylight;
 //                                  "all" every character that has it (a battle's hero), "end" held at its last frame
@@ -284,6 +285,12 @@ namespace OpenFF.Client
 					if (!int.TryParse(step.Arg.Trim(), out int gil)) { Log.Write(LogChannel.General, "drive: gil wants <amount>"); break; }
 					try { OpenFF.Game.Party.Gil = gil; Log.Write(LogChannel.File, "drive: gil " + gil); }
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: gil failed: " + ex.Message); }
+					break;
+				}
+				case "save":
+				{
+					if (!int.TryParse(step.Arg.Trim(), out int slot)) { Log.Write(LogChannel.General, "drive: save wants <slot>"); break; }
+					Log.Write(LogChannel.General, "drive: save " + slot + (GameProfile.IsFf4 && Ff4Saves.Save(slot) ? " written" : " not written (FF4, in a map)"));
 					break;
 				}
 				case "shop":

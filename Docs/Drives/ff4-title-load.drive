@@ -1,0 +1,15 @@
+# FF4: the title's LOAD GAME. Write a slot first, then load it from the title:
+#   OpenFF.exe --game=ff4 --map=t01_00 --save-dir=<dir> --drive=Docs/Drives/ff4-save.drive
+#   OpenFF.exe --game=ff4 --save-dir=<dir> --drive=Docs/Drives/ff4-title-load.drive --log=general,file --screenshot-dir=shots --screenshot-every=1
+# The title shows LOAD GAME between NEW GAME and QUIT GAME; Down, Z opens the three files (File 1 written),
+# Z loads it: "ff4 title: load, to t01_00", the jump, "load: landed on t01_00", no "Exception".
+wait 14
+press Down
+wait 1
+press Z
+wait 2
+press Z
+until jump: ff4 60
+wait 6
+say ff4 title load done
+quit

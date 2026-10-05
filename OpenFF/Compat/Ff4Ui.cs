@@ -83,9 +83,14 @@ namespace OpenFF.Client
 		private static readonly Dictionary<string, CellBank> _banks = new Dictionary<string, CellBank>(StringComparer.OrdinalIgnoreCase);
 		private static readonly HashSet<string> _missing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-		/// <summary>A file by name through the game's own file system (the archives' members included); null when absent.</summary>
+		/// <summary>
+		/// A file by name through the game's own file system (the archives' members included); null when absent. A name
+		/// &lt;pack&gt;.dat/&lt;entry&gt; is that mass file's own entry, as FF4.exe opens a pack and reads by entry (the game's file
+		/// calls keep only a name's last part, and a loose file of the same name would answer).
+		/// </summary>
 		public static byte[] ReadFile(string name)
 		{
+			if (name.IndexOf(".dat/", StringComparison.OrdinalIgnoreCase) > 0) return GameArchive.Read("files/" + name);
 			try
 			{
 				uint size = GlobalScope.ds.g_File.getSize(name);
@@ -113,6 +118,7 @@ namespace OpenFF.Client
 				return null;
 			}
 			_sheets[name] = texture;
+			Log.Write(LogChannel.File, "ff4 ui: sheet " + name + " " + texture.Width + "x" + texture.Height + " (" + data.Length + " bytes)");
 			return texture;
 		}
 

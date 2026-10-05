@@ -1,6 +1,9 @@
 # FF4 story regression: the new game from Baron castle, A tapped every 2.5 s for about three minutes.
 #   OpenFF.exe --game=ff4 --drive=Docs/Drives/ff4-story.drive --log=general,file
 # The log must show the opening scene, the return to the castle and no "Exception" lines (Testing.md C-36).
+# Through the logos and the title (Ff4Title): New Game is where the glove starts.
+wait 14
+press Z
 until jump: ff4 60
 wait 5
 press Z

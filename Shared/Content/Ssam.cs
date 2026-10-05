@@ -327,6 +327,14 @@ namespace OpenFF.Content
 
 		public bool TryRead(string name, out byte[] data)
 		{
+			// <pack>.dat/<entry>: that container's own entry, whatever a loose file or another container
+			// holds under the name - as FF4.exe opens a mass file and reads its entries (the title's
+			// title_obj_00.NCER is in TITLE_Localize.dat, and a different one lies loose beside it).
+			int split = name.IndexOf(".dat/", StringComparison.OrdinalIgnoreCase);
+			if (split > 0 && TryReadEntry(name.Substring(0, split + 4), name.Substring(split + 5), out data))
+			{
+				return true;
+			}
 			if (_loose.TryRead(name, out data))
 			{
 				return true;
@@ -357,6 +365,24 @@ namespace OpenFF.Content
 			Buffer.BlockCopy(container, where.Entry.Offset, raw, 0, raw.Length);
 			data = !wantsCompressed && where.Compressed && Lz.IsCompressed(raw) ? Lz.Decompress(raw) : raw;
 			return true;
+		}
+
+		private bool TryReadEntry(string container, string entryName, out byte[] data)
+		{
+			data = null;
+			if (!container.StartsWith("files/", StringComparison.OrdinalIgnoreCase)) container = "files/" + container.TrimStart('/');
+			if (!_containers.TryGetValue(container, out byte[] bytes)) return false;
+			foreach (SsamEntry entry in Ssam.Read(bytes))
+			{
+				bool compressed = entry.Name.EndsWith(".lz", StringComparison.OrdinalIgnoreCase);
+				string plain = compressed ? entry.Name.Substring(0, entry.Name.Length - 3) : entry.Name;
+				if (!string.Equals(plain, entryName, StringComparison.OrdinalIgnoreCase) && !string.Equals(entry.Name, entryName, StringComparison.OrdinalIgnoreCase)) continue;
+				byte[] raw = new byte[entry.Size];
+				Buffer.BlockCopy(bytes, entry.Offset, raw, 0, raw.Length);
+				data = compressed && !entryName.EndsWith(".lz", StringComparison.OrdinalIgnoreCase) && Lz.IsCompressed(raw) ? Lz.Decompress(raw) : raw;
+				return true;
+			}
+			return false;
 		}
 
 		/// <summary>Whether a root has any mass file under files/.</summary>

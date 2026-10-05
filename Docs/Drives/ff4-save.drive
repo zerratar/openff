@@ -1,0 +1,7 @@
+# FF4: land, write slot 1, quit - the save the title's LOAD GAME test reads (ff4-title-load.drive).
+#   OpenFF.exe --game=ff4 --map=t01_00 --save-dir=<dir> --drive=Docs/Drives/ff4-save.drive
+until jump: ff4 60
+wait 6
+save 1
+wait 1
+quit

@@ -1,0 +1,15 @@
+# FF4: the logos and the title, then New Game. Run with:
+#   OpenFF.exe --game=ff4 --nomods --drive=Docs/Drives/ff4-title.drive --log=general,file --screenshot-dir=shots --screenshot-every=1
+# The screenshots show the Square Enix logo, the Matrix logo, then the title as Steam's: the Amano art,
+# the FINAL FANTASY IV logo, NEW GAME / QUIT GAME (LOAD GAME too with a save) with the glove, the
+# copyright line. The log shows "ff4 title: up", "ff4 title: new game", the jump to t00_00 and no "Exception".
+wait 14
+press Down
+wait 1
+press Up
+wait 1
+press Z
+until jump: ff4 60
+wait 6
+say ff4 title done
+quit

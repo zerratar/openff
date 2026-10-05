@@ -32,7 +32,7 @@ internal static partial class GlobalScope
                 gAMEPART = OpenFF.Client.RenderOverrides.StartPart(gAMEPART); /*FF3LOG*/
                 if (OpenFF.Client.GameProfile.StartStage != null)
                 {
-                    // PORT: --map=<stage>, or FF4 (no title yet): straight into a map.
+                    // PORT: --map=<stage>, or FF4's --load=<slot>: straight into a map.
                     gAMEPART = GAMEPART.GAMEPART_DEBUG_MENU;
                 }
                 sys.GGlobal.setPartAfterSoftReset(gAMEPART);
@@ -43,6 +43,8 @@ internal static partial class GlobalScope
                 OpenFF.Client.JumpPart.registerPart();
                 ttl.TitlePart.registerPart();
                 ttl.LinkPart.registerPart();
+                // PORT: FF4's own logos and title in the same slots (FF4.exe's, not FF3's).
+                OpenFF.Client.Ff4Title.registerParts();
                 btl.BattlePart.registerPart();
                 wld.WorldPart.registerPart();
                 MogNetPart.registerPart();

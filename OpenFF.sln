@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Survivors", "Samples\Surviv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenFF.Updater", "OpenFF.Updater\OpenFF.Updater.csproj", "{D9C33305-7110-47DB-8029-BC179ECCD497}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rogue", "Samples\Rogue\Rogue.csproj", "{FED35E95-89C4-00FC-6AAB-408FAD868C75}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -99,6 +101,18 @@ Global
 		{D9C33305-7110-47DB-8029-BC179ECCD497}.Release|x64.Build.0 = Release|Any CPU
 		{D9C33305-7110-47DB-8029-BC179ECCD497}.Release|x86.ActiveCfg = Release|Any CPU
 		{D9C33305-7110-47DB-8029-BC179ECCD497}.Release|x86.Build.0 = Release|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Debug|x64.Build.0 = Debug|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Debug|x86.Build.0 = Debug|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Release|x64.ActiveCfg = Release|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Release|x64.Build.0 = Release|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Release|x86.ActiveCfg = Release|Any CPU
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -106,5 +120,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{D29C2813-FA69-4735-BCCF-952A56D048CC} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{4882E1CF-CE29-E3CE-50DA-6EDBC021958A} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{FED35E95-89C4-00FC-6AAB-408FAD868C75} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 EndGlobal
