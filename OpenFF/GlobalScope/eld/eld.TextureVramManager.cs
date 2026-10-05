@@ -31,6 +31,13 @@ internal static partial class GlobalScope
 
 			private int _nTotalSizePalette;
 
+			// PORT: a texture another pack already holds by the same name takes that one's VRAM (applyShare) and is not
+			// held itself. On the DS freeing the holder's VRAM leaves the texels where they are until something else is
+			// loaded over them, so a pack sharing them still draws - FF4's opening loads each flashback effect (e593,
+			// e595) while the one before it, with the same sparkle, is still in, and cleans that one up as the new one
+			// starts. Here freeing deletes the texture, so the holder's VRAM goes to a texture still sharing it instead.
+			private readonly System.Collections.Generic.Dictionary<ds.Texture, System.Collections.Generic.List<ds.Texture>> _sharers = new System.Collections.Generic.Dictionary<ds.Texture, System.Collections.Generic.List<ds.Texture>>();
+
 			public TextureVramManager()
 			{
 				_unMaxSizeTexel = 0u;
@@ -60,6 +67,7 @@ internal static partial class GlobalScope
 					texture.setAddress(null, 0u);
 					_listTx.erase(0);
 				}
+				_sharers.Clear();
 				resetTotal();
 			}
 
@@ -106,14 +114,29 @@ internal static partial class GlobalScope
 					if (_listTx[i] == pTexture)
 					{
 						_listTx.erase(i);
+						if (_sharers.TryGetValue(pTexture, out System.Collections.Generic.List<ds.Texture> sharing) && sharing.Count != 0)
+						{
+							ds.Texture heir = sharing[0];
+							sharing.RemoveAt(0);
+							_sharers.Remove(pTexture);
+							if (sharing.Count != 0) _sharers[heir] = sharing;
+							_listTx.push_back(heir);
+							pTexture.setAddress(null, 0u);
+							return;
+						}
+						_sharers.Remove(pTexture);
 						NNS_GfdFreeLnkTexVram(pTexture.getKeyTexel());
 						NNS_GfdFreeLnkPlttVram(pTexture.getKeyPalette());
 						pTexture.setAddress(null, 0u);
 						pTexture.getSize(out var sizeTexel, out var sizePltt);
 						_nTotalSizeTexel += (int)sizeTexel;
 						_nTotalSizePalette += (int)sizePltt;
-						break;
+						return;
 					}
+				}
+				foreach (System.Collections.Generic.List<ds.Texture> sharing in _sharers.Values)
+				{
+					sharing.Remove(pTexture);
 				}
 			}
 
@@ -124,6 +147,8 @@ internal static partial class GlobalScope
 				{
 					if (pTexture.applyShare(_listTx[i]))
 					{
+						if (!_sharers.TryGetValue(_listTx[i], out System.Collections.Generic.List<ds.Texture> sharing)) _sharers[_listTx[i]] = sharing = new System.Collections.Generic.List<ds.Texture>();
+						if (!sharing.Contains(pTexture)) sharing.Add(pTexture);
 						return true;
 					}
 				}

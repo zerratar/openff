@@ -16639,14 +16639,16 @@ internal static partial class GlobalScope
 						{
 							int word = engine.getWord();
 							int word2 = engine.getWord();
-							engine.getWord();
+							int index = engine.getWord();
 							engine.getDword();
 							VecFx32 vecFx = ff3Command_reuse_v0;
 							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
 							int num = -1;
 							num = eff.CEffectMng.instance().create(word, word2);
+							OpenFF.Client.Log.Write(OpenFF.Client.LogChannel.File, "script: effect " + word + "/" + word2 + " index " + index + " at (" + vecFx.x / 4096f + ", " + vecFx.y / 4096f + ", " + vecFx.z / 4096f + ") -> " + (num == -1 ? "not created" : "object " + num));
 							if (num != -1)
 							{
+								OpenFF.Client.Ff4EffectIndex.Set(index, num);
 								eff.CEffectMng.instance().setPosition(num, vecFx);
 							}
 						}
@@ -16655,7 +16657,7 @@ internal static partial class GlobalScope
 						{
 							int word = engine.getWord();
 							int word2 = engine.getWord();
-							engine.getWord();
+							int index = engine.getWord();
 							engine.getWord();
 							uint word3 = engine.getWord();
 							VecFx32 vecFx = ff3Command_reuse_v0;
@@ -16667,6 +16669,7 @@ internal static partial class GlobalScope
 								num2 = eff.CEffectMng.instance().create(word, word2);
 								if (num2 != -1)
 								{
+									OpenFF.Client.Ff4EffectIndex.Set(index, num2);
 									VecFx32 vecFx2 = vecFx;
 									VEC_Add(vecFx2, CCastCommandTransit.getInstance().cast_PlayerMng().Player(num)
 										.getPosition(), vecFx2);
@@ -16677,19 +16680,21 @@ internal static partial class GlobalScope
 
 						internal static void ff3Command_DeleteEffect(ScriptEngine engine)
 						{
-							int word = engine.getWord();
+							int index = engine.getWord();
 							engine.getWord();
-							if (eff.CEffectMng.instance().isEffectObject(word))
+							int word = OpenFF.Client.Ff4EffectIndex.Object(index);
+							if (word >= 0 && eff.CEffectMng.instance().isEffectObject(word))
 							{
 								eff.CEffectMng.instance().deleteEffect(word);
+								OpenFF.Client.Ff4EffectIndex.Clear(index);
 							}
 						}
 
 						internal static void ff3Command_PauseEffect(ScriptEngine engine)
 						{
-							int id = (int)engine.getWord();
+							int id = OpenFF.Client.Ff4EffectIndex.Object((int)engine.getWord());
 							bool flag = ((engine.getWord() != 0) ? true : false);
-							if (eff.CEffectMng.instance().isEffectObject(id))
+							if (id >= 0 && eff.CEffectMng.instance().isEffectObject(id))
 							{
 								eff.CEffectMng.instance().setPause(id, flag);
 							}
@@ -16697,12 +16702,12 @@ internal static partial class GlobalScope
 
 						internal static void ff3Command_SetEffect_Scale(ScriptEngine engine)
 						{
-							int id = (int)engine.getWord();
+							int id = OpenFF.Client.Ff4EffectIndex.Object((int)engine.getWord());
 							engine.getWord();
 							VecFx32 vecFx = ff3Command_reuse_v0;
 							vecFx.set((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
 							vecFx.z *= -1;
-							if (eff.CEffectMng.instance().isEffectObject(id))
+							if (id >= 0 && eff.CEffectMng.instance().isEffectObject(id))
 							{
 								eff.CEffectMng.instance().setScale(id, vecFx);
 							}

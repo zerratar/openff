@@ -126,6 +126,7 @@ internal static partial class GlobalScope
 
 			public void into(Array _AddrA, Array _AddrB)
 			{
+				OpenFF.Client.Ff4EffectIndex.ClearAll();   // PORT: FF4's CEventManager::into clears the scripts' effect indexes
 				m_EventStop = false;
 				m_MessageStop = false;
 				m_Event = false;
