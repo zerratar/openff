@@ -212,6 +212,7 @@ namespace OpenFF.Client
 					}
 					else
 					{
+						if (spell.School == OpenFF.Data.MagicSchool.Ninjutsu) AbilityMotions(caster, "b_pa_077");   // addAbilityMotion(0x4d): its chant (83)
 						int form = caster.Member != null ? PlayerForm[Math.Clamp(caster.Member.Id, 0, PlayerForm.Length - 1)] : 0;
 						int motion = own != null && own[1 + Math.Clamp(form, 0, 14)] > 0 ? own[1 + Math.Clamp(form, 0, 14)] : spell.School == OpenFF.Data.MagicSchool.White ? 4004 : 4005;
 						Play(caster, motion, false, 5);

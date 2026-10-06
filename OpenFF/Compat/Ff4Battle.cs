@@ -1704,11 +1704,18 @@ namespace OpenFF.Client
 		/// ATW filling a frame at a time while the gauges run (addActiveTimeGage, ATG state 2) - and only then joins the
 		/// turns (state 3).
 		/// </summary>
+		/// <summary>The command a decision is by: a spell's school's (Ninjutsu 0x53, Bardsong 18, the magic commands), else the ability itself.</summary>
+		private static int DecisionCommand(int ability)
+		{
+			SpellDefinition spell = ability >= 1000 ? Ff4Party.Tables?.Spell(ability) : null;
+			return spell != null ? SchoolCommand[Math.Clamp((int)spell.School, 0, 7)] : ability;
+		}
+
 		private void Decide(Fighter member, Action act, int wait = 0, int ability = 1)
 		{
 			// Steam's frames: a member whose command has ability.bbd +0x24 bit 6 (Kick, Aim, Steal, Throw - not Pray) stands in its
 			// weapon's poise (Yang's 1058, Rosa's 1060) from the decision until the action starts.
-			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && ability != CmdTwincast && (Ff4Party.Tables?.AbilityFlags(ability) & 0x40) != 0) Play(member, member.Poise, true, 3);   // Twincast: its pair wait (99) instead
+			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && ability != CmdTwincast && (Ff4Party.Tables?.AbilityFlags(DecisionCommand(ability)) & 0x40) != 0) Play(member, member.Poise, true, 3);   // Twincast: its pair wait (99) instead
 			member.Defending = member.Braced = false;   // decideAbility: any decision ends Defend (flag 3) and Brace (flag 4)
 			_abilityCmd = 0;
 			member.Queued = true;
