@@ -793,8 +793,8 @@ namespace OpenFF.Client
 				{
 					_command = runNow ? Command.Run : CommandOf(commands[_cursor]);
 					Fighter who = _acting;
-					if (_command == Command.Defend) { Decide(who, () => Defend(who), 0, 3); return; }
-					if (_command == Command.SwapRows) { Decide(who, () => SwapRows(who), 0, 46); return; }
+					if (_command == Command.Defend) { Decide(who, () => Invoke(who, 3, () => Defend(who)), 0, 3); return; }
+					if (_command == Command.SwapRows) { Decide(who, () => Invoke(who, 46, () => SwapRows(who)), 0, 46); return; }
 					if (_command == Command.Darkness) { Decide(who, () => Darkness(who), 0, 32); return; }
 					if (_command == Command.Other) { Say(CommandName(commands[_cursor]) + " is not in yet."); return; }
 					if (_command == Command.Fight) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
