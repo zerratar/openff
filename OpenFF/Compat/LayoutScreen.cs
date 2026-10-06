@@ -153,7 +153,7 @@ namespace OpenFF.Client
 			}
 			catch (Exception ex)
 			{
-				Log.First(LogChannel.General, "hud-draw-" + Id, 3, () => "hud: " + Id + ": " + ex.Message);
+				Log.First(LogChannel.General, "hud-draw-" + Id, 3, () => "hud: " + Id + ": " + ex);
 			}
 		}
 

@@ -1118,7 +1118,9 @@ namespace OpenFF.Client
 			int denominator = Math.Max(1, target.Defence + target.Level + target.Vitality);
 			long core = numerator / denominator;
 			long value = (long)((4096 + (_random.Next(301) << 12) / 1000) * core) >> 12;
-			value = (long)(value * BackRowFactor(attacker, target));
+			float elements = ElementFactor(attacker, target), races = RaceFactor(attacker, target);
+			if (elements != 1f || races != 1f) Note(attacker.Name + " on " + target.Name + ": elements x" + elements + ", races x" + races);
+			value = (long)(value * BackRowFactor(attacker, target) * elements * races);
 			value = value * (target.IsMonster ? 12 : 7) / 10;
 			int chance = Math.Clamp(attacker.Agility - target.Agility + 5, 0, 25);
 			if (_random.Next(100) < chance)
@@ -1127,6 +1129,93 @@ namespace OpenFF.Client
 				Note(attacker.Name + "'s blow is critical.");
 			}
 			return (int)Math.Max(1, value);
+		}
+
+		/// <summary>The bits a blow and its target bring to calcDamageValueForBabil's multipliers.</summary>
+		private readonly struct Affinity
+		{
+			public readonly int Elements, Killer, Absorbs, Resists, RaceResists, Weak, Family;
+			public Affinity(int elements, int killer, int absorbs, int resists, int raceResists, int weak, int family)
+			{ Elements = elements; Killer = killer; Absorbs = absorbs; Resists = resists; RaceResists = raceResists; Weak = weak; Family = family; }
+		}
+
+		/// <summary>
+		/// A fighter's affinities. A monster's from its record: the blow's elements at 0x26 and the races it is deadly to at
+		/// 0x48 (its physical attack at 0x20), what it absorbs at 0x54, resists at 0x56 and the races it resists at 0x60
+		/// (its physical defence at 0x4C), its weaknesses at 0x64 (its magic defence), its own race at 0x48 (family). A
+		/// member's from the equipment (pl::Player::physicsAttack / physicsDefense): the weapons' elements (0x52) and
+		/// killers (0x4E), the armour's elements as resisted - or absorbed, when a piece says so (0x52 bit 2) - and its
+		/// races (0x4E) as resisted.
+		/// </summary>
+		private static Affinity AffinityOf(Fighter f)
+		{
+			if (f.IsMonster && f.Monster?.Raw != null && f.Monster.Raw.Length >= 0x66)
+			{
+				byte[] r = f.Monster.Raw;
+				int U(int at) => BitConverter.ToUInt16(r, at);
+				return new Affinity(U(0x26), U(0x48), U(0x54), U(0x56), U(0x60), U(0x64), U(0x48));
+			}
+			if (f.Member == null) return default;
+			GameTables tables = Ff4Party.Tables;
+			int elements = 0, killer = 0, armour = 0, races = 0;
+			bool absorbing = false;
+			foreach (int id in f.Member.Equipment)
+			{
+				ItemDefinition item = id != 0 ? tables.Item(id) : null;
+				if (item?.Raw == null || item.Raw.Length < 0x54) continue;
+				int bits = BitConverter.ToUInt16(item.Raw, 0x52), kill = BitConverter.ToUInt16(item.Raw, 0x4E);
+				if (item.Kind == ItemKind.Weapon) { elements |= bits; killer |= kill; }
+				else if (item.Kind == ItemKind.Armour) { armour |= bits; races |= kill; absorbing |= (bits & 4) != 0; }
+			}
+			return new Affinity(elements, killer, absorbing ? armour : 0, absorbing ? 0 : armour, races, 0, 0);
+		}
+
+		/// <summary>
+		/// calcDamageValueForBabil's elements: of the blow's elements (but 0x800 and 0x1000 and the low three), each the
+		/// target is weak to multiplies it by 1.5 and each it resists halves it - or, with the resists' 0x1000 set, doubles
+		/// and quarters. What it absorbs (the blow's elements and its absorbing ones in common) turns the resisted ones to
+		/// its weaknesses' word, as the game does.
+		/// </summary>
+		private static float ElementFactor(Fighter attacker, Fighter target)
+		{
+			Affinity a = AffinityOf(attacker), t = AffinityOf(target);
+			int common = t.Absorbs & a.Elements & 0xf7f8;
+			if ((t.Family & 0x100) != 0) common |= a.Elements & 4;
+			int counted = a.Elements & 0xe7f8;
+			int halving = common == 0 ? t.Resists : t.Weak;
+			float factor = 1f;
+			bool strong = (t.Resists >> 12 & 1) != 0;
+			for (int bit = 0; bit < 16; bit++)
+			{
+				if ((counted >> bit & 1) == 0) continue;
+				if (!strong)
+				{
+					if ((t.Weak >> bit & 1) != 0) factor *= 1.5f;
+					if ((halving >> bit & 1) != 0) factor /= 2f;
+				}
+				else
+				{
+					if ((t.Weak >> bit & 1) != 0) factor *= 2f;
+					if ((halving >> bit & 1) != 0) factor /= 4f;
+				}
+			}
+			return factor;
+		}
+
+		/// <summary>calcDamageValueForBabil's races: each race the blow is deadly to that the target is multiplies it by 1.5, each it resists halves it.</summary>
+		private static float RaceFactor(Fighter attacker, Fighter target)
+		{
+			Affinity a = AffinityOf(attacker), t = AffinityOf(target);
+			int common = t.Absorbs & a.Elements & 0xf7f8;
+			int resisted = common == 0 ? t.RaceResists : t.Family;
+			float factor = 1f;
+			for (int bit = 0; bit < 16; bit++)
+			{
+				if ((a.Killer >> bit & 1) == 0) continue;
+				if ((t.Family >> bit & 1) != 0) factor *= 1.5f;
+				if ((resisted >> bit & 1) != 0) factor /= 2f;
+			}
+			return factor;
 		}
 
 		/// <summary>
