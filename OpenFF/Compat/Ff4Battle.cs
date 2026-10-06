@@ -739,7 +739,7 @@ namespace OpenFF.Client
 					int before = t.Hp;
 					t.Hp = Math.Min(t.MaxHp, t.Hp + value);
 					if (t.Member != null) t.Member.Hp = t.Hp;
-					Pop(Where(t) + new Vector3(0, 12f, 0), t.Hp - before, true);
+					Pop(DamageSpot(t), t.Hp - before, true);
 					Say(caster.Name + " casts " + name + ": " + t.Name + " +" + (t.Hp - before) + ".");
 				}
 			}
@@ -761,7 +761,7 @@ namespace OpenFF.Client
 					int damage = AttackMagicDamage(caster, t, spell, targets.Count);
 					t.Hp = Math.Max(0, t.Hp - damage);
 					if (t.Member != null) t.Member.Hp = t.Hp;
-					Pop(Where(t) + new Vector3(0, 12f, 0), damage);
+					Pop(DamageSpot(t), damage);
 					Say(caster.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
 					if (!t.Alive) Fell(t);
 				}
@@ -791,7 +791,17 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.File, "battle: " + line);
 		}
 
+		/// <summary>A line for the log file only: FF4 shows no window for a plain blow, a miss, a defeat or a guard - the numbers and the motions say it (Steam's frames).</summary>
+		private static void Note(string line) => Log.Write(LogChannel.File, "battle: " + line);
+
 		private Vector3 Where(Fighter f) => f.Npc != null ? f.Npc.Position : Game.Hero.Position;
+
+		/// <summary>Where a fighter's numbers rise from (btl::BattleBehavior::createDamage): a monster's position and its model's offset (monster.chaindata chain 4 - the Floating Eye's 15 up), a member's 6 up.</summary>
+		private Vector3 DamageSpot(Fighter f)
+		{
+			MonsterDefinition m = f.IsMonster ? f.Monster : null;
+			return Where(f) + (m != null ? new Vector3(m.DamageX, m.DamageY, m.DamageZ) : new Vector3(0, 6f, 0));
+		}
 
 		// ---- the numbers and words that pop over a fighter, in FF4's battle digits ----
 
@@ -801,16 +811,27 @@ namespace OpenFF.Client
 			public int Value;
 			public int Word = -1;
 			public bool Heal;
-			public int Frame;
+			public long Start = LegacyStep.Count;
 			public const int Frames = 70;
 		}
 
+		// u2d::PopUpDamageNumber: one sprite a digit (up to five, 99999 at most), 10 DS pixels apart - the sheet's 20 -
+		// each playing battle_number.NANR's first sequence when its turn comes: the most significant first, the next
+		// two frames on (update starts digit 5 - (digits - counter / 2) on the even counts). The sequence moves the digit
+		// up and back, a frame each (DS pixels, the sheet's half): -12, -24, -28, -18, -12, -14, -12; a digit stays at
+		// its last place until every digit's sequence has ended, and the number goes with the last. Its colour by type:
+		// 0x7070f8 for damage, 0xa0f868 for a heal (BGR). Steam's frames (steam-b2, a 37 on a Floating Eye): the 3 at
+		// rest at 3712, the 7 at the top of its jump at 3716, both at rest at 3720, gone at 3724.
+		private static readonly int[] DigitRise = { -12, -24, -28, -18, -12, -14, -12 };
+		private const int DigitDelay = 2;
+		private static readonly Color DamageTint = new Color(248, 112, 112, 255), HealTint = new Color(104, 248, 160, 255);
+
 		private readonly List<PopUp> _pops = new List<PopUp>();
 
-		/// <summary>A number over a spot in the world: white for damage, green for a heal; it rises, bounces once and fades.</summary>
+		/// <summary>A number over a spot in the world, FF4's damage digits: salmon for damage, green for a heal.</summary>
 		private void Pop(Vector3 at, int value, bool heal = false)
 		{
-			_pops.Add(new PopUp { At = at, Value = Math.Abs(value), Heal = heal });
+			_pops.Add(new PopUp { At = at, Value = Math.Min(99999, Math.Abs(value)), Heal = heal });
 		}
 
 		private void PopWord(Vector3 at, int word)
@@ -823,24 +844,39 @@ namespace OpenFF.Client
 			for (int i = _pops.Count - 1; i >= 0; i--)
 			{
 				PopUp p = _pops[i];
-				if (++p.Frame > PopUp.Frames) { _pops.RemoveAt(i); continue; }
+				int frame = (int)(LegacyStep.Count - p.Start);
+				string digits = p.Word < 0 ? p.Value.ToString() : null;
+				int frames = digits != null ? (digits.Length - 1) * DigitDelay + DigitRise.Length : PopUp.Frames;
+				if (frame >= frames) { _pops.RemoveAt(i); continue; }
 				Vector2? screen = Game.Camera.WorldToScreen(p.At);
 				if (!screen.HasValue) continue;
-				// Up fast, a small bounce, then a hold while it fades.
-				float t = p.Frame;
-				float rise = t < 12 ? -3.2f * t : t < 20 ? -38f + 2.2f * (t - 12) : t < 26 ? -20f - 1.2f * (t - 20) : -27f;
-				byte alpha = (byte)(t > 55 ? Math.Max(0, 255 - (t - 55) * 17) : 255);
-				Color tint = p.Heal ? new Color(Ff4Ui.HealTint.R, Ff4Ui.HealTint.G, Ff4Ui.HealTint.B, alpha) : new Color(255, 255, 255, alpha);
-				float x = screen.Value.X, y = screen.Value.Y + rise;
+				float x = screen.Value.X, y = screen.Value.Y;
 				// Each number its own thing on the screen: two numbers share their digits' pictures, and a new one is
 				// drawn ahead of the rest, so between two steps each rises from its own last place, not another's.
 				d.Group(p);
-				bool drawn = p.Word >= 0 ? Ff4Ui.Word(d, x, y, p.Word, tint) : Ff4Ui.Number(d, x, y, p.Value, tint);
-				if (!drawn)
+				if (digits != null)
 				{
-					string text = p.Word >= 0 ? (p.Word == Ff4Ui.WordMiss ? "Miss" : "!") : p.Value.ToString();
-					d.Text(text, x - d.MeasureText(text, 22) / 2 + 1, y - 10, new Color(0, 0, 0, alpha), 22);
-					d.Text(text, x - d.MeasureText(text, 22) / 2, y - 11, tint, 22);
+					float step = 20f * Ff4Ui.Scale;
+					// btl::Damage::create: the first digit 4 DS pixels left of the spot for each digit after it.
+					float cx = x - 8f * Ff4Ui.Scale * (digits.Length - 1);
+					for (int k = 0; k < digits.Length; k++, cx += step)
+					{
+						int f = frame - k * DigitDelay;
+						if (f < 0) break;
+						float rise = DigitRise[Math.Min(f, DigitRise.Length - 1)] * 2f * Ff4Ui.Scale;
+						if (!Ff4Ui.Number(d, cx, y + rise, digits[k] - '0', p.Heal ? HealTint : DamageTint))
+							d.Text(digits[k].ToString(), cx - 6, y + rise - 11, p.Heal ? HealTint : DamageTint, 22);
+					}
+				}
+				else
+				{
+					// The words (Miss and the like) are not u2d's digits: up fast, a small bounce, then a hold while they fade.
+					float t = frame;
+					float rise = t < 12 ? -3.2f * t : t < 20 ? -38f + 2.2f * (t - 12) : t < 26 ? -20f - 1.2f * (t - 20) : -27f;
+					byte alpha = (byte)(t > 55 ? Math.Max(0, 255 - (t - 55) * 17) : 255);
+					Color tint = new Color(255, 255, 255, alpha);
+					if (!Ff4Ui.Word(d, x, y + rise, p.Word, tint))
+						d.Text(p.Word == Ff4Ui.WordMiss ? "Miss" : "!", x - 20, y + rise - 11, tint, 22);
 				}
 			}
 			d.Group(null);
@@ -916,8 +952,8 @@ namespace OpenFF.Client
 
 		private void Fell(Fighter foe)
 		{
-			if (!foe.IsMonster) { Say(foe.Name + " falls."); return; }
-			Say(foe.Name + " is defeated.");
+			if (!foe.IsMonster) { Note(foe.Name + " falls."); return; }
+			Note(foe.Name + " is defeated.");
 			if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
 			_expWon += foe.Monster.Experience;
 			_gilWon += foe.Monster.Gil;
@@ -989,12 +1025,12 @@ namespace OpenFF.Client
 					member.Acted = false;
 					if (!hit)
 					{
-						PopWord(Where(foe) + new Vector3(0, 12f, 0), Ff4Ui.WordMiss);
-						Say(member.Name + " misses " + foe.Name + ".");
+						PopWord(DamageSpot(foe), Ff4Ui.WordMiss);
+						Note(member.Name + " misses " + foe.Name + ".");
 						return;
 					}
-					Pop(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
-					Say(member.Name + " hits " + foe.Name + " for " + damage + ".");
+					Pop(DamageSpot(foe), damage);
+					Note(member.Name + " hits " + foe.Name + " for " + damage + ".");
 					if (!foe.Alive) Fell(foe);
 					if (_foes.FindAll(f => f.Alive).Count == 0) After(30, VictoryPose);
 				});
@@ -1003,16 +1039,16 @@ namespace OpenFF.Client
 			Play(member, _heroMotionAttack);
 			if (!Hits(member, foe))
 			{
-				PopWord(Where(foe) + new Vector3(0, 12f, 0), Ff4Ui.WordMiss);
-				Say(member.Name + " misses " + foe.Name + ".");
+				PopWord(DamageSpot(foe), Ff4Ui.WordMiss);
+				Note(member.Name + " misses " + foe.Name + ".");
 			}
 			else
 			{
 				int damage = Damage(member, foe);
 				foe.Hp = Math.Max(0, foe.Hp - damage);
-				Pop(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
+				Pop(DamageSpot(foe), damage);
 				Game.Audio.PlaySe(0, 3);
-				Say(member.Name + " hits " + foe.Name + " for " + damage + ".");
+				Note(member.Name + " hits " + foe.Name + " for " + damage + ".");
 				if (!foe.Alive) Fell(foe);
 			}
 			member.Gauge = 0f;
@@ -1038,8 +1074,8 @@ namespace OpenFF.Client
 			if (!target.Alive) return;
 			if (!Hits(foe, target))
 			{
-				PopWord(Where(target) + new Vector3(0, 12f, 0), Ff4Ui.WordMiss);
-				Say(foe.Name + " misses " + target.Name + ".");
+				PopWord(DamageSpot(target), Ff4Ui.WordMiss);
+				Note(foe.Name + " misses " + target.Name + ".");
 				foe.Gauge = 0f;
 				return;
 			}
@@ -1047,15 +1083,15 @@ namespace OpenFF.Client
 			if (target.Defending) damage = Math.Max(1, damage / 2);   // Defend halves a blow
 			target.Hp = Math.Max(0, target.Hp - damage);
 			target.Member.Hp = target.Hp;
-			Pop(Where(target) + new Vector3(0, 12f, 0), damage);
+			Pop(DamageSpot(target), damage);
 			Game.Screen.Flash(new Color(255, 60, 40), 6, 2);
 			// Steam's flinch: 1117 for a frame, then the stance again.
 			Play(target, 1117, false, 0);
 			Fighter hurt = target;
 			After(1, () => { if (hurt.Alive) { Play(hurt, _heroMotionIdle, true, 3); hurt.Acted = false; } });
-			Say(foe.Name + " hits " + target.Name + " for " + damage + ".");
+			Note(foe.Name + " hits " + target.Name + " for " + damage + ".");
 			foe.Gauge = 0f;
-			if (!target.Alive) Say(target.Name + " falls.");
+			if (!target.Alive) Note(target.Name + " falls.");
 			if (_party.FindAll(f => f.Alive).Count == 0) Lose();
 		}
 
@@ -1085,7 +1121,7 @@ namespace OpenFF.Client
 				else if (effect.Hp > 0) target.Hp = Math.Min(target.MaxHp, target.Hp + effect.Hp);
 				target.Member.Hp = target.Hp;
 				if (effect.Mp > 0) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
-				if (target.Hp != before) Pop(Where(target) + new Vector3(0, 12f, 0), target.Hp - before, true);
+				if (target.Hp != before) Pop(DamageSpot(target), target.Hp - before, true);
 				Say(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
 			}
 			member.Gauge = 0f;
@@ -1099,7 +1135,7 @@ namespace OpenFF.Client
 		private void Defend(Fighter member)
 		{
 			member.Defending = true;
-			Say(member.Name + " defends.");
+			Note(member.Name + " defends.");
 			EndTurn(member);
 		}
 
@@ -1128,7 +1164,7 @@ namespace OpenFF.Client
 			{
 				int damage = Damage(member, foe);
 				foe.Hp = Math.Max(0, foe.Hp - damage);
-				Pop(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
+				Pop(DamageSpot(foe), damage);
 				if (!foe.Alive) Fell(foe);
 			}
 			Say(member.Name + " unleashes Darkness.");

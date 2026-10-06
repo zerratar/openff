@@ -286,6 +286,23 @@ namespace OpenFF.Data
 				if (names != null && m.NameId > 0 && names.TryGetValue((uint)m.NameId, out string name)) m.Name = name;
 				tables.Monsters.Add(m);
 			}
+			// Chain 4: 84 bytes a monster (s16 monster id at 0), MonsterManager::offset's: the damage number's spot over
+			// the monster (s32 x, y, z at 0x28, whole units; btl::BattleBehavior::createDamage adds it to its position).
+			// Keyed by the id, not the model: Steam's frames put a Floating Eye's (id 3, model 2) number 15 over it, the
+			// projection of the id's 15 - where its model's record says 6 - as Cecil's own 6 lands where ours does.
+			Dictionary<int, byte[]> offsets = new Dictionary<int, byte[]>();
+			for (int i = 0, n = pack.Records(4, 84); i < n; i++)
+			{
+				byte[] r = pack.Record(4, 84, i);
+				offsets[ChainPack.S16(r, 0)] = r;
+			}
+			foreach (MonsterDefinition m in tables.Monsters)
+			{
+				if (!offsets.TryGetValue(m.Id, out byte[] r)) continue;
+				m.DamageX = ChainPack.S32(r, 0x28);
+				m.DamageY = ChainPack.S32(r, 0x2C);
+				m.DamageZ = ChainPack.S32(r, 0x30);
+			}
 		}
 
 		private static void ReadPlayers(ContentChain chain, GameTables tables)

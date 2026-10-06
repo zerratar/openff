@@ -313,6 +313,8 @@ namespace OpenFF.Data
 	{
 		/// <summary>FF4: the range a monster's ATB rate is rolled from as it enters a fight (mon::MonsterParameter 0x18 and 0x1c, fx32; btl::BattleMonster::setMonster) - the Floating Eye's 0.1 to 0.5, a Goblin's 0.3 to 1.1.</summary>
 		public float AtbRateMin = 1f, AtbRateMax = 1f;
+		/// <summary>FF4: where its damage number rises from, over its position (monster.chaindata chain 4 by monster id, MonsterManager::offset's +0x28).</summary>
+		public float DamageX, DamageY = 12f, DamageZ;
 		/// <summary>The game's monster id (monsterId at 8), what encounters and scripts name.</summary>
 		public int Id;
 		public int NameId;
