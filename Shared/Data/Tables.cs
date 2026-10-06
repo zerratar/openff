@@ -542,6 +542,10 @@ namespace OpenFF.Data
 		/// <summary>An ability's name by ability.bbd's message, else by its own id.</summary>
 		public string AbilityTitle(int id) => AbilityNameIds.TryGetValue(id, out int name) && name >= 0 ? AbilityName(name) ?? AbilityName(id) : AbilityName(id);
 		public int AbilityWait(int id) => AbilityWaits.TryGetValue(id, out int wait) ? wait : 0;
+
+		/// <summary>FF4: an ability's flags (ability.bbd +0x24): bit 0 the usable-under check applies, bit 5 the weapons shown during it.</summary>
+		public Dictionary<int, int> AbilityFlagBits = new Dictionary<int, int>();
+		public int AbilityFlags(int id) => AbilityFlagBits.TryGetValue(id, out int flags) ? flags : 0;
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
 		private Dictionary<int, MonsterParty> _parties;
 

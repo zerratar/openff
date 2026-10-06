@@ -314,6 +314,13 @@ namespace OpenFF.Client
 			GlobalScope.characterMng.addMotion(id, set);
 		}
 
+		/// <summary>A set bound with BindMotions let go again (CCharacterMng::removeMotion) - a character has eight slots, so the battle's ability sets come and go.</summary>
+		internal static void UnbindMotions(int id, string set)
+		{
+			if (!_boundMotions.TryGetValue(id, out HashSet<string> sets) || !sets.Remove(set)) return;
+			GlobalScope.characterMng.removeMotion(id, set);
+		}
+
 		internal static void Warn(string key, string message)
 		{
 			Log.First(LogChannel.General, "api-" + key, 3, () => "engine api: " + message);

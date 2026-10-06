@@ -1422,14 +1422,16 @@ namespace OpenFF.Client
 			{
 				// Steam's attack, frame by frame: the weapon's poise (1047) for 15 frames, the swing (96, then 95, by
 				// turns) - the blow lands 8 frames in, its number pops when the swing ends - and back to the stance.
+				// Aim (Steam's frames): the poise held since the decision, the swing 2 frames after the invoke stage.
 				int swing = member.Swings++ % 2 == 0 ? member.SwingA : (member.SwingB > 0 ? member.SwingB : member.SwingA);
+				int lead = aim ? 2 : 15;
 				EndTurn(member);
-				Play(member, member.Poise, false, 3);
+				if (!aim) Play(member, member.Poise, false, 3);
 				member.Acted = false;
 				int damage = 0;
 				bool hit = false;
-				After(15, () => { Play(member, swing, false, 3); member.Acted = false; });
-				After(23, () =>
+				After(lead, () => Play(member, swing, false, 3));
+				After(lead + 8, () =>
 				{
 					hit = aim ? !foe.Mist : Hits(member, foe);   // Aim: calcDamage skips the hit roll
 					if (!hit) return;
@@ -1442,8 +1444,11 @@ namespace OpenFF.Client
 					if (member.HitBank >= 0) Game.Audio.PlaySe(member.HitBank, member.HitSound);
 					else Game.Audio.PlaySe(0, 3);
 				});
-				After(31, () =>
+				// The swing's end (Cecil's sword 16 frames, Rosa's bow 19 in Steam's frames): the stance and the number.
+				int swingWait = 0;
+				void SwingEnd()
 				{
+					if (member.Npc != null && member.Acted && !member.Npc.MotionDone && ++swingWait < 30) { After(1, SwingEnd); return; }
 					Play(member, _heroMotionIdle, true, 3);
 					member.Acted = false;
 					if (!hit)
@@ -1455,7 +1460,8 @@ namespace OpenFF.Client
 					Pop(DamageSpot(foe), damage);
 					Note(member.Name + " hits " + foe.Name + " for " + damage + ".");
 					if (!foe.Alive) Fell(foe, damage);
-				});
+				}
+				After(lead + 16, SwingEnd);
 				return;
 			}
 			Play(member, _heroMotionAttack);
@@ -1696,8 +1702,9 @@ namespace OpenFF.Client
 		/// </summary>
 		private void Decide(Fighter member, Action act, int wait = 0, int ability = 1)
 		{
-			// Steam's frames: a member whose command is decided stands in its weapon's poise (Yang's 1058) until the action starts.
-			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && ability != CmdJump) Play(member, member.Poise, true, 3);
+			// Steam's frames: a member whose command shows the weapons (ability.bbd +0x24 bit 5 - Kick, Aim; not Pray) stands in its
+			// weapon's poise (Yang's 1058, Rosa's 1060) from the decision until the action starts.
+			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && (Ff4Party.Tables?.AbilityFlags(ability) & 0x20) != 0) Play(member, member.Poise, true, 3);
 			member.Defending = member.Braced = false;   // decideAbility: any decision ends Defend (flag 3) and Brace (flag 4)
 			_abilityCmd = 0;
 			member.Queued = true;

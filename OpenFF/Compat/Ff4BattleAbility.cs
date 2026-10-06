@@ -74,10 +74,10 @@ namespace OpenFF.Client
 					Instant(who);
 					Note(who.Name + " stops covering.");
 					return true;
-				case CmdPray: AbilityMotions(who, "b_pa_035"); Decide(who, () => Pray(who), AbilityWait(id), id); return true;
 				case CmdFocus:
 				case CmdBrace:
 				case CmdBluff:
+				case CmdPray:
 					// The target window on the member alone (Steam: its name, HP, weaknesses), confirmed with A.
 					_abilityCmd = id; _pick = Pick.Ally; _cursor = _party.IndexOf(who);
 					return true;
@@ -106,7 +106,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>The commands whose target is the member alone (ability.bbd target 0x0010): the window on it, nothing to move to.</summary>
-		private static bool SelfOnly(int id) => id == CmdFocus || id == CmdBrace || id == CmdBluff;
+		private static bool SelfOnly(int id) => id == CmdFocus || id == CmdBrace || id == CmdBluff || id == CmdPray;
 
 		/// <summary>The member confirmed as the target of its own command.</summary>
 		private void AbilityOnSelf(Fighter who)
@@ -117,6 +117,7 @@ namespace OpenFF.Client
 			{
 				case CmdFocus: AbilityMotions(who, "b_pa_021"); Decide(who, () => Invoke(who, CmdFocus, () => Focus(who)), AbilityWait(id), id); break;
 				case CmdBrace: Decide(who, () => Invoke(who, CmdBrace, () => Brace(who)), AbilityWait(id), id); break;
+				case CmdPray: AbilityMotions(who, "b_pa_035"); Decide(who, () => Pray(who), AbilityWait(id), id); break;
 				case CmdBluff: AbilityMotions(who, "b_pa_039"); Decide(who, () => Invoke(who, CmdBluff, () => Bluff(who)), AbilityWait(id), id); break;
 			}
 		}
@@ -813,6 +814,13 @@ namespace OpenFF.Client
 		/// <summary>The turn is over: Bluff's charge spent by the action after it, Focus's by the blow that used it.</summary>
 		private static void AfterAction(Fighter f)
 		{
+			// removeAbilityMotion: the action's own sets go with it (eight slots a character - Aim's b_aim left in place filled
+			// Rosa's, and Pray's chant had nowhere to go).
+			if (f.BoundSets.Count > 0 && f.Npc is LegacyNpc owner && owner.CharacterId >= 0 && !f.Airborne && f.SongId == 0)
+			{
+				foreach (string set in f.BoundSets) { try { EngineApi.UnbindMotions(owner.CharacterId, set); } catch (Exception) { } }
+				f.BoundSets.Clear();
+			}
 			// Back to its stance (setConditionMotion) when the action left it in another one - the poise of a decision, an invoke's 9999.
 			if (f.Member != null && f.Alive && !f.Acted && !f.Airborne && !f.Hiding && f.SongId == 0 && f.Npc is LegacyNpc held && held.CharacterId >= 0)
 			{
