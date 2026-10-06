@@ -1225,9 +1225,10 @@ namespace OpenFF.Client
 			target.Hp = Math.Max(0, target.Hp - damage);
 			target.Member.Hp = target.Hp;
 			Pop(DamageSpot(target), damage);
-			// Steam's trace has 1117 for a frame here, then the stance again - but its frames show the stance throughout
-			// (3784, the 1117 frame, and 3788), where ours draws 1117 as a turn of the whole body over several frames: the
-			// clip bound as 1117 is not the one Steam plays. Until that is found the stance holds, as Steam's frames show.
+			// FF4 starts 1117 here (btl::BattleActionDamage, the b_ set's clip C117) and Steam's trace has it for a frame
+			// before the stance - but its frames show the stance throughout (3784, the 1117 frame, and 3788), where ours draws
+			// C117 as a turn of the whole body over several frames. Until that difference is found the stance holds, as
+			// Steam's frames show.
 			Fighter hurt = target;
 			After(1, () => { if (hurt.Alive && hurt.Acted) { Play(hurt, _heroMotionIdle, true, 0); hurt.Acted = false; } });
 			Note(foe.Name + " hits " + target.Name + " for " + damage + ".");
@@ -1294,7 +1295,8 @@ namespace OpenFF.Client
 		/// <summary>Darkness: a blow at every foe at once that costs the knight an eighth of their hit points (as the DS remake's Darkness reads; its own formula is not ported yet).</summary>
 		private void Darkness(Fighter member)
 		{
-			member.Hp = Math.Max(1, member.Hp - member.MaxHp / 8);
+			// DarkFormula::calcDarkSubHp: a tenth of the maximum, never the last point.
+			member.Hp -= Math.Min(member.MaxHp / 10, member.Hp - 1);
 			member.Member.Hp = member.Hp;
 			Play(member, _heroMotionAttack);
 			foreach (Fighter foe in _foes.FindAll(f => f.Alive))
@@ -1579,6 +1581,7 @@ namespace OpenFF.Client
 
 		private void End()
 		{
+			Log.Write(LogChannel.File, "battle: over (step " + LegacyStep.Count + ")");
 			_sinceBattle = 0;
 			_lastStep = Game.Hero.Present ? Game.Hero.Position : Vector3.Zero;
 			Action after = AfterBattle;

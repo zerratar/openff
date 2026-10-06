@@ -160,7 +160,7 @@ namespace OpenFF.Client
 			// The casts' shadows follow their "kosi" joint (ce_ShadowSetting) and drop onto the stage's
 			// collision under it, as FF4's shadow does through its ground interface.
 			GlobalScope.ds.sys3d.CShadowObject.GroundQuery = LegacyField.GroundHitFx;
-			Log.Write(LogChannel.General, "script: FF4 cutscene starts on " + GlobalScope.stg.CStageMng.CurrentName);
+			Log.Write(LogChannel.General, "script: FF4 cutscene starts on " + GlobalScope.stg.CStageMng.CurrentName + " (step " + LegacyStep.Count + ")");
 		}
 
 		private static void EndEvent(GlobalScope.ScriptEngine engine)
