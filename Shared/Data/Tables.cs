@@ -364,6 +364,16 @@ namespace OpenFF.Data
 	}
 
 	/// <summary>An encounter group: what appears together, and where.</summary>
+	/// <summary>
+	/// FF4: how a spell or a monster's ability plays - its effect pack and the effect's create parameter, where it is put
+	/// on a target (0 the hit spot, 1 the feet, 2 the body), the sound, and the period N: the effects on several targets
+	/// start N/2 frames apart. A monster ability's may wait on its own motion (Motion, played as it acts).
+	/// </summary>
+	public sealed class SpellShow
+	{
+		public int Pack = -1, Param = 1, Mode, SeBank = -1, SeNumber = -1, Period, Motion = -1;
+	}
+
 	public sealed class MonsterParty
 	{
 		public int Id;
@@ -455,6 +465,19 @@ namespace OpenFF.Data
 		public Dictionary<int, (int Ability, int Target, int Chance)[]> MonsterCounters = new Dictionary<int, (int, int, int)[]>();
 		/// <summary>FF4: ability.bbd's wait (s32 at 0x18 of its 44-byte records) by ability id - the frames a decided action waits before its turn (BaseBattleCharacter::atwMax): a spell by its id, an item by the ability it invokes.</summary>
 		public Dictionary<int, int> AbilityWaits = new Dictionary<int, int>();
+
+		/// <summary>FF4: an ability's name message (ability.bbd +8, in babil_ability.msd) - a spell's own id, Needles' 3134.</summary>
+		public Dictionary<int, int> AbilityNameIds = new Dictionary<int, int>();
+
+		/// <summary>FF4: how a spell is shown (player.chaindata chain 32, pl::PlayerParty::normalMagic) - for members and monsters alike.</summary>
+		public Dictionary<int, SpellShow> SpellShows = new Dictionary<int, SpellShow>();
+
+		/// <summary>FF4: how a monster's ability is shown (monster.chaindata chain 5 by ability; chain 11 by ability and monster first - MonsterManager::effectsInfo).</summary>
+		public Dictionary<int, SpellShow> MonsterAbilityShows = new Dictionary<int, SpellShow>();
+		public Dictionary<(int Ability, int Monster), SpellShow> MonsterAbilityShowsFor = new Dictionary<(int, int), SpellShow>();
+
+		/// <summary>An ability's name by ability.bbd's message, else by its own id.</summary>
+		public string AbilityTitle(int id) => AbilityNameIds.TryGetValue(id, out int name) && name >= 0 ? AbilityName(name) ?? AbilityName(id) : AbilityName(id);
 		public int AbilityWait(int id) => AbilityWaits.TryGetValue(id, out int wait) ? wait : 0;
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
 		private Dictionary<int, MonsterParty> _parties;

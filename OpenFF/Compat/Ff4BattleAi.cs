@@ -156,6 +156,7 @@ namespace OpenFF.Client
 		private void Perform(Fighter foe, int ability, int targetType, List<Fighter> targets)
 		{
 			if (ability == 0) { Note(foe.Name + " does nothing."); return; }
+			if (QuietTurn(foe, ability)) return;
 			targets ??= MonsterTargets(foe, targetType);
 			SpellDefinition spell = ability != 1 ? Ff4Party.Tables.Spell(ability) : null;
 			if (spell != null)
@@ -164,11 +165,12 @@ namespace OpenFF.Client
 				MonsterCasts(foe, spell, targets);
 				return;
 			}
-			if (ability != 1) Log.First(LogChannel.File, "monster-ability-" + ability, 1, () => "battle: monster ability " + ability + " not in yet - a plain attack in its place");
+			if (ability != 1 && ability != 134 && ability != 62) Log.First(LogChannel.File, "monster-ability-" + ability, 1, () => "battle: monster ability " + ability + " not in yet - a plain attack in its place");
 			// A plain attack falls on a member: its target's when it is one, else one at random (a type 0 attack's own pick).
 			Fighter target = targets.Find(f => !f.IsMonster && f.Alive);
 			if (target == null && targetType == 0) target = MonsterTargets(foe, 1).Find(f => true);
 			if (target == null) { Note(foe.Name + " has no one to strike."); return; }
+			if (PiercingAttack(foe, ability, target)) return;
 			MonsterAttack(foe, target);
 		}
 

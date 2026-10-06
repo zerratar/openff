@@ -836,65 +836,6 @@ namespace OpenFF.Client
 			foreach (Fighter f in _foes) f.HpBefore = f.Hp;
 		}
 
-		private void Cast(Fighter caster, SpellDefinition spell, List<Fighter> targets)
-		{
-			Acted(caster, spell.Id, targets.ToArray());
-			_lastSpell = spell;
-			_casting = null;
-			caster.Member.Mp = Math.Max(0, caster.Member.Mp - spell.MpCost);
-			Play(caster, _heroMotionAttack);
-			Game.Audio.PlaySe(0, 5);
-			string name = spell.Name ?? ("spell " + spell.Id);
-			if (spell.Heals)
-			{
-				foreach (Fighter t in targets)
-				{
-					if (!t.Alive) continue;
-					int value = HealingValue(caster, t, spell, targets.Count);
-					int before = t.Hp;
-					t.Hp = Math.Min(t.MaxHp, t.Hp + value);
-					if (t.Member != null) t.Member.Hp = t.Hp;
-					Pop(DamageSpot(t), t.Hp - before, true);
-					Say(caster.Name + " casts " + name + ": " + t.Name + " +" + (t.Hp - before) + ".");
-				}
-			}
-			else if (spell.Revives)
-			{
-				foreach (Fighter t in targets)
-				{
-					if (t.Alive) { Say(name + " does nothing for " + t.Name + "."); continue; }
-					t.Hp = spell.Id == 4007 ? t.MaxHp : Math.Max(1, t.MaxHp / 4);
-					if (t.Member != null) t.Member.Hp = t.Hp;
-					Say(caster.Name + " casts " + name + ": " + t.Name + " rises.");
-				}
-			}
-			else if (spell.Power > 0)
-			{
-				foreach (Fighter t in targets)
-				{
-					if (!t.Alive) continue;
-					int damage = AttackMagicDamage(caster, t, spell, targets.Count);
-					t.Hp = Math.Max(0, t.Hp - damage);
-					if (t.Member != null) t.Member.Hp = t.Hp;
-					Pop(DamageSpot(t), damage);
-					Say(caster.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
-					if (!t.Alive) Fell(t, damage);
-				}
-			}
-			else
-			{
-				// A status spell: the hit rate decides; only death is carried out, the rest is told.
-				foreach (Fighter t in targets)
-				{
-					if (!t.Alive) continue;
-					bool hit = _random.Next(100) < spell.HitRate;
-					if (hit && (spell.Inflicts & 0x200) != 0 && t.IsMonster) { t.Hp = 0; Say(caster.Name + " casts " + name + ": " + t.Name + " is slain."); Fell(t); }
-					else Say(caster.Name + " casts " + name + " on " + t.Name + (hit ? "." : ": it misses."));
-				}
-			}
-			caster.Gauge = 0f;
-		}
-
 		/// <summary>A line for the fight's log on screen, and for the log file.</summary>
 		private void Say(string line)
 		{
@@ -1053,7 +994,7 @@ namespace OpenFF.Client
 			try
 			{
 				if (f.Npc != null) f.Npc.PlayMotion(motion, loop, blend);
-				else Game.Hero.PlayMotion(motion, loop, blend);
+				else if (_party.Count > 0 && f == _party[0]) Game.Hero.PlayMotion(motion, loop, blend);   // the leader is the hero's model; the others have none yet
 			}
 			catch (Exception) { }
 		}
@@ -1412,52 +1353,24 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A monster's plain attack on one target (normalAttack's record: the effect, sound and number on their frames).</summary>
-		private void MonsterAttack(Fighter foe, Fighter target)
+		private void MonsterAttack(Fighter foe, Fighter target, MonsterAttackStyle style = null)
 		{
 			Acted(foe, foe.DecidedAbility > 1 ? foe.DecidedAbility : 1, target);   // an ability not in yet is struck as a blow, but known by its id
-			try { foe.Npc.PlayMotion(201, false, 3); foe.Acted = true; } catch (Exception) { }
+			try { foe.Npc.PlayMotion(style != null && style.Motion > 0 ? style.Motion : 201, false, 3); foe.Acted = true; } catch (Exception) { }
 			foe.Gauge = 0f;
 			bool hit = Hits(foe, target);
-			int damage = hit ? Damage(foe, target) : 0;
+			int damage = hit ? Damage(foe, target) * (style?.Factor ?? 1) : 0;
 			if (!Ff4BattleStage.Active) { MonsterBlow(foe, target, hit, damage); return; }
 			MonsterDefinition m = foe.Monster;
-			After(m.AttackEffectFrame + MonsterFrameLead, () => PlayEffect(hit ? m.AttackEffect : MissEffect, HitEffectSpot(target)));
-			if (hit && m.AttackSoundBank >= 0 && m.AttackSound >= 0) After(m.AttackSoundFrame + MonsterFrameLead, () => Game.Audio.PlaySe(m.AttackSoundBank, m.AttackSound));
-			After(m.AttackNumberFrame + MonsterFrameLead, () => MonsterBlow(foe, target, hit, damage));
-		}
-
-		/// <summary>A monster's spell on the party: its name in FF4's help line, the damage or healing by the magic formula.</summary>
-		private void MonsterCasts(Fighter foe, SpellDefinition spell, List<Fighter> targets)
-		{
-			if (targets.Count == 0) return;
-			string name = spell.Name ?? ("spell " + spell.Id);
-			Say(name);
-			try { foe.Npc.PlayMotion(201, false, 3); foe.Acted = true; } catch (Exception) { }
-			Acted(foe, spell.Id, targets.ToArray());
-			_lastSpell = spell;
-			After(8, () =>
-			{
-				foreach (Fighter t in targets)
-				{
-					if (!t.Alive) continue;
-					if (spell.Heals)
-					{
-						int value = HealingValue(foe, t, spell, targets.Count), before = t.Hp;
-						t.Hp = Math.Min(t.MaxHp, t.Hp + value);
-						if (t.Member != null) t.Member.Hp = t.Hp;
-						Pop(DamageSpot(t), t.Hp - before, true);
-						Note(foe.Name + " casts " + name + ": " + t.Name + " +" + (t.Hp - before) + ".");
-						continue;
-					}
-					int damage = spell.Power > 0 ? AttackMagicDamage(foe, t, spell, targets.Count) : 0;
-					if (damage <= 0) { Note(foe.Name + " casts " + name + " on " + t.Name + "."); continue; }
-					t.Hp = Math.Max(0, t.Hp - damage);
-					if (t.Member != null) t.Member.Hp = t.Hp;
-					Pop(DamageSpot(t), damage);
-					Note(foe.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
-				}
-			});
-			After(30, () => { if (_log.Count > 0 && _log[_log.Count - 1] == name) _log.RemoveAt(_log.Count - 1); });
+			int effect = style != null && style.Pack >= 0 ? style.Pack : m.AttackEffect;
+			int effectFrame = style != null && style.EffectFrame >= 0 ? style.EffectFrame : m.AttackEffectFrame;
+			int seBank = style != null && style.SeBank >= 0 ? style.SeBank : m.AttackSoundBank, se = style != null && style.SeNumber >= 0 ? style.SeNumber : m.AttackSound;
+			int seFrame = style != null && style.SeFrame >= 0 ? style.SeFrame : m.AttackSoundFrame;
+			int numberFrame = style != null && style.NumberFrame >= 0 ? style.NumberFrame : m.AttackNumberFrame;
+			bool feet = style != null && style.Feet;
+			After(effectFrame + MonsterFrameLead, () => PlayEffect(hit ? effect : MissEffect, feet ? Where(target) : HitEffectSpot(target)));
+			if (hit && seBank >= 0 && se >= 0) After(seFrame + MonsterFrameLead, () => Game.Audio.PlaySe(seBank, se));
+			After(numberFrame + MonsterFrameLead, () => MonsterBlow(foe, target, hit, damage));
 		}
 
 		private void MonsterBlow(Fighter foe, Fighter target, bool hit, int damage)

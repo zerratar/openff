@@ -21,13 +21,13 @@ internal static partial class GlobalScope
 		{
 			public const int EFFECT_MAX = 32;
 
-			public const int EFP_ID_MAX = 5;
+			public const int EFP_ID_MAX = 24;   // FF3 loads 5 at most; an FF4 battle its hit, attack, chant and spell packs (24)
 
 			public const int ERR_ID = -1;
 
 			public static CEffectMng instance_ = new CEffectMng();
 
-			private eld.SFileHeader[] m_EfpId = new eld.SFileHeader[5];
+			private eld.SFileHeader[] m_EfpId = new eld.SFileHeader[EFP_ID_MAX];
 
 			private EffectObject[] effect_ = new EffectObject[32];
 
@@ -37,7 +37,7 @@ internal static partial class GlobalScope
 				eld.g_elsvr.eraseObjects();
 				eld.g_elsvr.destroyEfp();
 				clear();
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < EFP_ID_MAX; i++)
 				{
 					m_EfpId[i] = null;
 				}
@@ -50,7 +50,7 @@ internal static partial class GlobalScope
 
 			public void loadEfp(string efp)
 			{
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < EFP_ID_MAX; i++)
 				{
 					if (m_EfpId[i] == null)
 					{
@@ -65,18 +65,18 @@ internal static partial class GlobalScope
 			}
 
 			// PORT (FF4): effectLoadAsync(name) / cleanUpEffectData2(name) address packs by name.
-			private readonly string[] m_EfpName = new string[5];
+			private readonly string[] m_EfpName = new string[EFP_ID_MAX];
 
 			public bool loadEfpNamed(string name, string path)
 			{
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < EFP_ID_MAX; i++)
 				{
 					if (m_EfpId[i] != null && m_EfpName[i] == name)
 					{
 						return true;
 					}
 				}
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < EFP_ID_MAX; i++)
 				{
 					if (m_EfpId[i] == null)
 					{
@@ -95,7 +95,7 @@ internal static partial class GlobalScope
 
 			public void unLoadEfpNamed(string name)
 			{
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < EFP_ID_MAX; i++)
 				{
 					if (m_EfpId[i] != null && m_EfpName[i] == name)
 					{
@@ -112,7 +112,7 @@ internal static partial class GlobalScope
 				{
 					return;
 				}
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < EFP_ID_MAX; i++)
 				{
 					if (m_EfpId[i] == _id)
 					{
@@ -125,7 +125,7 @@ internal static partial class GlobalScope
 
 			public void unLoadEfp2()
 			{
-				for (int num = 4; num >= 0; num--)
+				for (int num = EFP_ID_MAX - 1; num >= 0; num--)
 				{
 					if (m_EfpId[num] != null)
 					{
@@ -138,7 +138,7 @@ internal static partial class GlobalScope
 
 			public void allUnLoadEfp()
 			{
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < EFP_ID_MAX; i++)
 				{
 					if (m_EfpId[i] != null)
 					{
@@ -155,7 +155,7 @@ internal static partial class GlobalScope
 				eld.g_elsvr.cleanup();
 				NNS_GfdResetLnkTexVramState();
 				NNS_GfdResetLnkPlttVramState();
-				for (int i = 0; i < 5; i++)
+				for (int i = 0; i < EFP_ID_MAX; i++)
 				{
 					m_EfpId[i] = null;
 				}
@@ -312,7 +312,7 @@ internal static partial class GlobalScope
 			public byte getLoadedEfpNum()
 			{
 				byte b = 0;
-				for (byte b2 = 0; b2 < 5; b2++)
+				for (byte b2 = 0; b2 < EFP_ID_MAX; b2++)
 				{
 					if (m_EfpId[b2] != null)
 					{

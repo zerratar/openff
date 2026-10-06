@@ -343,6 +343,27 @@ namespace OpenFF.Data
 				byte[] r = pack.Record(9, 12, i);
 				tables.MonsterActionConditions[ChainPack.S16(r, 0)] = (ChainPack.S16(r, 2), BitConverter.ToUInt64(r, 4));
 			}
+			// Chains 5 (68 bytes, by ability) and 11 (72 bytes, by ability and the monster at 0x44): how a monster's
+			// ability is shown (effectsInfo) - its motion at 2, the effect pack at 8 and parameter at 0xA, the position mode
+			// at 0xF, the period N at 0x10, the sound's bank at 0x34 and number at 0x36.
+			SpellShow Show(byte[] r) => new SpellShow
+			{
+				Motion = ChainPack.S16(r, 2), Pack = ChainPack.S16(r, 8), Param = ChainPack.S16(r, 0xA), Mode = r[0xF],
+				Period = ChainPack.S32(r, 0x10), SeBank = ChainPack.S16(r, 0x34), SeNumber = ChainPack.S16(r, 0x36),
+			};
+			for (int i = 0, n = pack.Records(5, 68); i < n; i++)
+			{
+				byte[] r = pack.Record(5, 68, i);
+				tables.MonsterAbilityShows[ChainPack.S16(r, 0)] = Show(r);
+			}
+			if (pack.Count > 11)
+			{
+				for (int i = 0, n = pack.Records(11, 72); i < n; i++)
+				{
+					byte[] r = pack.Record(11, 72, i);
+					tables.MonsterAbilityShowsFor[(ChainPack.S16(r, 0), ChainPack.S16(r, 0x44))] = Show(r);
+				}
+			}
 			// Chain 10: the counters (14 bytes) - an id, then two of an ability, a target type and a chance in percent; a
 			// counter condition of the AI record (its +0xC..+0x14) names one in its set field.
 			for (int i = 0, n = pack.Records(10, 14); i < n; i++)
@@ -473,6 +494,21 @@ namespace OpenFF.Data
 					tables.VictoryLayouts.Add(v);
 				}
 			}
+			// Chain 32 is also how each spell is shown (normalMagic, 32 bytes): the position mode at 2, the ys::Effects from 4
+			// - the effect pack at 0xA and its parameter at 0xC, the sound's bank at 0x16 and number at 0x18 - and the
+			// period N at 0x1E (Fire 18: its effects on several targets 9 frames apart).
+			if (pack.Count > 32)
+			{
+				for (int i = 0, n = pack.Size(32) / 32; i < n; i++)
+				{
+					byte[] r = pack.Record(32, 32, i);
+					tables.SpellShows[ChainPack.S16(r, 0)] = new SpellShow
+					{
+						Mode = ChainPack.S16(r, 2), Pack = ChainPack.S16(r, 0xA), Param = ChainPack.S16(r, 0xC),
+						SeBank = ChainPack.S16(r, 0x16), SeNumber = ChainPack.S16(r, 0x18), Period = ChainPack.S16(r, 0x1E),
+					};
+				}
+			}
 			if (pack.Count > 32 && tables.Spells.Count == 0)
 			{
 				int spells = pack.Size(32) / 32;
@@ -493,6 +529,7 @@ namespace OpenFF.Data
 			{
 				int wait = ChainPack.S32(data, at + 0x18);
 				if (wait > 0) tables.AbilityWaits[ChainPack.S32(data, at)] = wait;
+				tables.AbilityNameIds[ChainPack.S32(data, at)] = ChainPack.S32(data, at + 8);
 			}
 		}
 
