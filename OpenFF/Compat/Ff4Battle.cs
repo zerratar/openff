@@ -1708,7 +1708,10 @@ namespace OpenFF.Client
 		/// <summary>What the battle HUD's layout binds to, as the root "battle" (ff4_battle_hud.xml lists the paths).</summary>
 		public sealed class HudData
 		{
-			public bool Panel, Commands, Party;
+			public bool Panel, Commands, Party, Keys, Targets;
+			public List<TargetRow> Target = new List<TargetRow> { new TargetRow(), new TargetRow(), new TargetRow(), new TargetRow() };
+			public CardData Card = new CardData();
+			public GridData Grid = new GridData();
 			public string Message = "";
 			public List<CommandRow> Command = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
 			public ScrollData Scroll = new ScrollData();
@@ -1717,6 +1720,17 @@ namespace OpenFF.Client
 		}
 
 		public sealed class CommandRow { public bool Present, Lit, Disabled; public string Name = ""; }
+		public sealed class TargetRow { public bool Present, Lit; public string Name = "", Sub = ""; }
+		public sealed class CardData { public bool Shown; public string Name = "", Hp = ""; }
+		public sealed class GridCell { public bool Present, Can, Lit; public string Name = "", Value = ""; }
+
+		public sealed class GridData
+		{
+			public bool Shown, ShowMp;
+			public int Mp, MaxMp;
+			public List<GridCell> Cell = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 12), _ => new GridCell()));
+			public ScrollData Scroll = new ScrollData();
+		}
 		public sealed class ScrollData { public bool Shown; public float Top, Size = 100; }
 		public sealed class MemberRow { public bool Present, Alive, Low, Acting, Picked, ShowMp; public string Name = ""; public int Hp, MaxHp, Mp, Gauge, Fill = 1; }
 
@@ -1749,6 +1763,53 @@ namespace OpenFF.Client
 			h.Panel = (_phase == Phase.Fight || _phase == Phase.Intro) && !_closing;
 			h.Commands = choosing && _pick == Pick.Command;
 			h.Party = _pick != Pick.Target && _pick != Pick.Spell && _pick != Pick.Item;
+			h.Keys = _pick != Pick.Spell && _pick != Pick.Item;
+			h.Targets = choosing && _pick == Pick.Target;
+			int shownFoe = 0;
+			foreach (TargetRow t in h.Target) t.Present = false;
+			for (int i = 0; i < _foes.Count && shownFoe < h.Target.Count && h.Targets; i++)
+			{
+				Fighter f = _foes[i];
+				if (!f.Alive) continue;
+				TargetRow t = h.Target[shownFoe++];
+				t.Present = true;
+				t.Name = f.Name;
+				t.Sub = _casting != null ? _casting.Name : "Accuracy: " + Accuracy(_acting, f) + "%";
+				t.Lit = i == _cursor;
+			}
+			// Steam's card: the picked foe's name and HP, which it keeps hidden until the foe is studied.
+			h.Card.Shown = h.Targets && _cursor >= 0 && _cursor < _foes.Count;
+			if (h.Card.Shown) { h.Card.Name = _foes[_cursor].Name; h.Card.Hp = "?????"; }
+			GridData g = h.Grid;
+			g.Shown = choosing && (_pick == Pick.Spell || _pick == Pick.Item);
+			List<int> list = _pick == Pick.Spell ? _spellChoices : _itemChoices;
+			for (int k = 0; k < g.Cell.Count; k++)
+			{
+				GridCell c = g.Cell[k];
+				int i = _listScroll + k;
+				c.Present = g.Shown && i < list.Count;
+				if (!c.Present) { c.Lit = false; continue; }
+				c.Lit = i == _cursor;
+				if (_pick == Pick.Spell)
+				{
+					SpellDefinition spell = Ff4Party.Tables.Spell(list[i]);
+					c.Name = spell?.Name ?? "?";
+					c.Value = (spell?.MpCost ?? 0).ToString();
+					c.Can = spell != null && _acting.Mp >= spell.MpCost;
+				}
+				else
+				{
+					c.Name = Ff4Party.Tables.Item(list[i])?.Name ?? "?";
+					c.Value = Ff4Party.Party.CountItem(list[i]).ToString();
+					c.Can = true;
+				}
+			}
+			g.ShowMp = g.Shown && _pick == Pick.Spell;
+			if (g.ShowMp) { g.Mp = _acting.Mp; g.MaxMp = _acting.Member.MaxMp; }
+			int gridRows = (list.Count + ListColumns - 1) / ListColumns;
+			g.Scroll.Shown = g.Shown && list.Count > ListColumns * ListRows;
+			g.Scroll.Size = gridRows <= ListRows ? 100 : 100f * ListRows / gridRows;
+			g.Scroll.Top = gridRows <= ListRows ? 0 : (100 - g.Scroll.Size) * (_listScroll / ListColumns) / Math.Max(1, gridRows - ListRows);
 			h.Message = _log.Count > 0 ? _log[_log.Count - 1] : "";
 			List<int> commands = choosing ? Commands : null;
 			int count = commands?.Count ?? 0;
@@ -1761,7 +1822,7 @@ namespace OpenFF.Client
 				c.Lit = c.Present && _pick == Pick.Command && i == _cursor;
 				c.Disabled = false;
 			}
-			h.Scroll.Shown = h.Commands;
+			h.Scroll.Shown = h.Commands || h.Targets;
 			h.Scroll.Size = count <= CommandRows ? 100 : 100f * CommandRows / count;
 			h.Scroll.Top = count <= CommandRows ? 0 : (100 - h.Scroll.Size) * _commandScroll / Math.Max(1, count - CommandRows);
 			for (int i = 0; i < h.Member.Count; i++)
@@ -1832,8 +1893,8 @@ namespace OpenFF.Client
 
 			// Bottom left: the commands while a member chooses (Steam opens them with the turn), the foes when a target is
 			// picked, or the spell or item list.
-			if (_pick == Pick.Target) Window(d, CmdX, CmdY, CmdW, CmdH);
-			if (_pick == Pick.Target)
+			if (_pick == Pick.Target && _hud == null) Window(d, CmdX, CmdY, CmdW, CmdH);
+			if (_pick == Pick.Target && _hud == null)
 			{
 				int row = 0;
 				for (int i = 0; i < _foes.Count && row < 4; i++)
@@ -1849,6 +1910,7 @@ namespace OpenFF.Client
 					row++;
 				}
 			}
+			else if ((_pick == Pick.Spell || _pick == Pick.Item) && _hud != null) return;
 			else if (_pick == Pick.Spell || _pick == Pick.Item)
 			{
 				// FF4's magic and item grid: one wide window over both, three columns of four rows.
@@ -1903,14 +1965,17 @@ namespace OpenFF.Client
 			}
 
 			// Bottom right: the party's rows - name, hit points, magic points, gauge - or the picked foe's card.
-			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count) Window(d, PartyX, PartyY, PartyW, PartyH);
+			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count && _hud == null) Window(d, PartyX, PartyY, PartyW, PartyH);
 			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count)
 			{
+				if (_hud == null)
+				{
 				Fighter f = _foes[_cursor];
 				Shadowed(d, f.Name, PartyX + 14, PartyY + 10, Gold, 18);
 				Shadowed(d, "HP: " + f.Hp + " / " + f.MaxHp, PartyX + 14, PartyY + 38, Color.White, 16);
 				Shadowed(d, "Weaknesses:", PartyX + 14, PartyY + 84, Color.White, 16);
 				Shadowed(d, "Absorbs:", PartyX + 14, PartyY + 112, Color.White, 16);
+				}
 			}
 			else if (_hud == null)
 			{

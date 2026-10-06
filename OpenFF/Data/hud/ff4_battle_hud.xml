@@ -13,6 +13,12 @@
     battle.party            the party's rows are shown (not while a foe is picked)
     battle.member[0..4]     present, name, hp, maxHp, mp, showMp, gauge (0..100), fill (1 grey while it fills, 2 yellow once full), alive,
                             low, acting (their turn to choose), picked (the hand on them)
+    battle.keys             the keys' hints are shown
+    battle.targets          the foes are listed for a pick: battle.target[0..3] present, name, sub (the chance to hit,
+                            or the spell's name), lit
+    battle.card             shown, name, hp: the picked foe's card
+    battle.grid             shown, mp, maxMp, showMp, cell[0..11] (present, name, value: a spell's cost or how many of
+                            an item, can, lit), scroll (shown, top, size)
     battle.message          FF4's help line at the top, or ""
     battle.result           shown, panel (0..100: it fades in with the screens), gilFound, newTotal (counting up),
                             showGil, exp, showExp, arrow, lines[0..4], lineCount
@@ -48,7 +54,7 @@
         <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
       </frame>
     </frame>
-    <frame bind-display="battle.commands" class="row">
+    <frame bind-display="battle.scroll.shown" class="row">
       <id>scroll</id>
       <x>602</x><y>677</y><width>60</width><height>400</height>
       <frame><id>track</id><x>0</x><y>36</y><width>60</width><height>328</height>
@@ -119,8 +125,132 @@
       </frame>
     </frame>
 
+    <!-- A foe being picked: the foes in the command window's place, the picked one's card in the party's. -->
+    <frame bind-display="battle.targets">
+      <id>targets</id>
+      <x>150</x><y>677</y><width>450</width><height>400</height>
+      <frame data-source="battle.target[0]" bind-display="present" bind-class="lit: lit" class="row target">
+        <id>target0</id><x>0</x><y>0</y><width>450</width><height>95</height>
+        <frame class="target-name" bind-text="{name}"><id>name</id><x>0</x><y>2</y><width>450</width><height>46</height></frame>
+        <frame class="target-sub" bind-text="{sub}"><id>sub</id><x>0</x><y>50</y><width>450</width><height>42</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+      </frame>
+      <frame data-source="battle.target[1]" bind-display="present" bind-class="lit: lit" class="row target">
+        <id>target1</id><x>0</x><y>101</y><width>450</width><height>95</height>
+        <frame class="target-name" bind-text="{name}"><id>name</id><x>0</x><y>2</y><width>450</width><height>46</height></frame>
+        <frame class="target-sub" bind-text="{sub}"><id>sub</id><x>0</x><y>50</y><width>450</width><height>42</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+      </frame>
+      <frame data-source="battle.target[2]" bind-display="present" bind-class="lit: lit" class="row target">
+        <id>target2</id><x>0</x><y>203</y><width>450</width><height>95</height>
+        <frame class="target-name" bind-text="{name}"><id>name</id><x>0</x><y>2</y><width>450</width><height>46</height></frame>
+        <frame class="target-sub" bind-text="{sub}"><id>sub</id><x>0</x><y>50</y><width>450</width><height>42</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+      </frame>
+      <frame data-source="battle.target[3]" bind-display="present" bind-class="lit: lit" class="row target">
+        <id>target3</id><x>0</x><y>304</y><width>450</width><height>95</height>
+        <frame class="target-name" bind-text="{name}"><id>name</id><x>0</x><y>2</y><width>450</width><height>46</height></frame>
+        <frame class="target-sub" bind-text="{sub}"><id>sub</id><x>0</x><y>50</y><width>450</width><height>42</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+      </frame>
+    </frame>
+    <frame bind-display="battle.card.shown" class="card">
+      <id>card</id>
+      <x>667</x><y>763</y><width>1092</width><height>309</height>
+      <frame class="card-name" bind-text="{battle.card.name}"><id>name</id><x>31</x><y>22</y><width>1000</width><height>54</height></frame>
+      <frame class="card-line" bind-text="HP: {battle.card.hp}"><id>hp</id><x>31</x><y>85</y><width>1000</width><height>50</height></frame>
+      <frame class="card-line"><id>weaknesses</id><x>31</x><y>189</y><width>1000</width><height>50</height><data>Weaknesses:</data></frame>
+      <frame class="card-line"><id>absorbs</id><x>31</x><y>252</y><width>1000</width><height>50</height><data>Absorbs:</data></frame>
+    </frame>
+
+    <!-- A spell or an item being picked: FF4's grid, three columns of four rows, in one window over both. -->
+    <frame bind-display="battle.grid.shown" class="grid">
+      <id>grid</id>
+      <x>150</x><y>677</y><width>1609</width><height>400</height>
+      <frame class="grid-mp" bind-display="battle.grid.showMp" bind-text="MP {battle.grid.mp} / {battle.grid.maxMp}"><id>mp</id><x>0</x><y>-54</y><width>1580</width><height>45</height></frame>
+      <frame class="grid-line"><id>line1</id><x>14</x><y>101</y><width>1581</width><height>2</height></frame>
+      <frame class="grid-line"><id>line2</id><x>14</x><y>203</y><width>1581</width><height>2</height></frame>
+      <frame class="grid-line"><id>line3</id><x>14</x><y>304</y><width>1581</width><height>2</height></frame>
+      <frame data-source="battle.grid.cell[0]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell0</id><x>19</x><y>0</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[1]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell1</id><x>543</x><y>0</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[2]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell2</id><x>1067</x><y>0</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[3]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell3</id><x>19</x><y>101</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[4]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell4</id><x>543</x><y>101</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[5]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell5</id><x>1067</x><y>101</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[6]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell6</id><x>19</x><y>202</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[7]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell7</id><x>543</x><y>202</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[8]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell8</id><x>1067</x><y>202</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[9]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell9</id><x>19</x><y>303</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[10]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell10</id><x>543</x><y>303</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.grid.cell[11]" bind-display="present" bind-class="cant: !can; lit: lit" class="cell">
+        <id>cell11</id><x>1067</x><y>303</y><width>524</width><height>95</height>
+        <frame class="cell-name" bind-text="{name}"><id>name</id><x>96</x><y>29</y><width>380</width><height>45</height></frame>
+        <frame class="cell-value" bind-text="{value}"><id>value</id><x>0</x><y>36</y><width>500</width><height>40</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>77</x><y>31</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame bind-display="battle.grid.scroll.shown" class="grid-track">
+        <id>track</id><x>1594</x><y>13</y><width>7</width><height>373</height>
+        <frame class="grid-knob" bind-style="top: {battle.grid.scroll.top}%; height: {battle.grid.scroll.size}%"><id>knob</id><x>0</x><y>0</y><width>7</width><height>373</height></frame>
+      </frame>
+    </frame>
+
     <!-- The keys, over the party's rows: "C Auto battle  M Run away". -->
-    <frame bind-display="battle.party">
+    <frame bind-display="battle.keys">
       <id>keys</id>
       <x>1210</x><y>695</y><width>600</width><height>52</height>
       <frame class="key-cap"><id>auto_key</id><x>0</x><y>0</y><width>55</width><height>52</height><data>C</data></frame>

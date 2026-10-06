@@ -26,6 +26,8 @@
 //   -ff-cell-origin: x y               where the cell's own origin goes in the frame (px or %; default 0 50%)
 //   -ff-cell-crop: <percent>           the cell drawn that much of its width (a gauge's fill), bindable
 //   -ff-cell-scale: <number>           the cell's size against the game's (1)
+//   -ff-panel: <name>                  a panel of the game's art under the frame, by a name the client registers: FF4's
+//                                      window, "ff4-window"
 // Bindings as the menus have them: bind-text, bind-visible, bind-display, bind-class, bind-style, data-source -
 // worked out every frame against the roots the code gives (MenuBindings).
 
@@ -47,6 +49,12 @@ namespace OpenFF.Client
 
 		/// <summary>The cells a layout's -ff-cell can name, as the client registers them (FF4's: Ff4Ui).</summary>
 		public static readonly Dictionary<string, CellDrawer> Cells = new Dictionary<string, CellDrawer>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>Draws a named panel of the game's art over a frame's box (x, y, width, height) at an opacity.</summary>
+		public delegate bool PanelDrawer(DrawList d, float x, float y, float w, float h, float opacity);
+
+		/// <summary>The panels a layout's -ff-panel can name beyond the menus' own words, as the client registers them (FF4's window: "ff4-window").</summary>
+		public static readonly Dictionary<string, PanelDrawer> Panels = new Dictionary<string, PanelDrawer>(StringComparer.OrdinalIgnoreCase);
 
 		public string Id { get; }
 		public string Source { get; }
@@ -195,6 +203,7 @@ namespace OpenFF.Client
 			double opacity = look?.Opacity ?? 1;
 			if (opacity <= 0.001) return;
 			Color Fade(uint rgba) => new Color((byte)(rgba >> 24), (byte)(rgba >> 16), (byte)(rgba >> 8), (byte)Math.Round((rgba & 0xFF) * opacity));
+			if (v.TryGetValue("-ff-panel", out string panel) && Panels.TryGetValue(panel.Trim(), out PanelDrawer drawPanel)) drawPanel(d, x, y, w, h, (float)opacity);
 			MenuBackground bg = look?.Background != null ? MenuBackground.Parse(look.Background) : null;
 			if (bg != null)
 			{

@@ -252,6 +252,7 @@ namespace OpenFF.Client
 			LayoutScreen.Cells["cursor"] = (d, i, x, y, s, crop, t) => Cell(d, CursorBank, CursorSheet, i, x, y, Scale * s, t);
 			LayoutScreen.Cells["glove"] = (d, i, x, y, s, crop, t) => Glove(d, x, y, i == 1);
 			LayoutScreen.Cells["gauge"] = GaugeCell;
+			LayoutScreen.Panels["ff4-window"] = (d, x, y, w, h, opacity) => Window(d, x, y, w, h, 1, 0.82f * opacity);
 			LayoutScreen.Cells["number"] = (d, i, x, y, s, crop, t) => Cell(d, NumberBank, NumberSheet, i, x, y, Scale * s, t);
 			// HelpWindow::setResultPageIcon's arrow, as Steam draws it: a white triangle pointing down, 44 wide and 16 high
 			// at the game's scale, its origin the top middle.

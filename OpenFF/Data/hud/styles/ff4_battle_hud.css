@@ -57,3 +57,21 @@
   box-shadow: 0 3px 0 3px #14181e46;
 }
 .page-arrow { -ff-cell: page-arrow; -ff-cell-origin: 0 0; }
+
+/* A foe being picked (Steam's frames): its name in yellow, the chance to hit under it, the card with a light frame. */
+.target-name { color: #f0ec40; font-size: 22px; text-align: center; vertical-align: middle; }
+.target-sub { font-size: 22px; text-align: center; vertical-align: middle; }
+.card { background-color: #373a7180; border: 3px solid #ffffff90; }
+.card-name { color: #f0ec40; font-size: 34px; }
+.card-line { font-size: 31px; }
+
+/* The spell and item grid, in FF4's window. */
+.grid { -ff-panel: ff4-window; color: #ffffff; font-size: 36px; text-shadow: 2px 2px #000000a0; }
+.grid-line { background-color: #aab0e66e; }
+.grid-mp { font-size: 31px; text-align: right; }
+.cell-value { font-size: 27px; color: #babeda; text-align: right; }
+.cell.cant .cell-name { color: #babeda; }
+.cell.cant .cell-value { color: #ff786e; }
+.cell-hand { -ff-cell: glove; -ff-cell-origin: 0 0; }
+.grid-track { background-color: #14163ca0; }
+.grid-knob { background-color: #d6daf2; }
