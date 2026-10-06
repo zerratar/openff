@@ -888,7 +888,7 @@ namespace OpenFF.Client
 		{
 			if (spell.Id != 4804 && spell.Id != 4805 && spell.Id != 4808) return;
 			who.SongId = spell.Id;
-			who.SongTimer = SongFrames;
+			who.SongTimer = SongFrames * Tick;
 			who.SongTick = 0;
 			After(1, () => { Play(who, 107, true, 3); who.Acted = true; });
 			Note(who.Name + " sings " + spell.Name + " (450 frames)");
@@ -898,8 +898,8 @@ namespace OpenFF.Client
 		private void TickSong(Fighter f)
 		{
 			if (f.SongId == 0 || f.Hiding || f.Airborne) return;
-			f.SongTimer -= (int)BattleSpeedRate;
-			if (f.SongId == 4804 && (f.SongTick += (int)BattleSpeedRate) >= 15)
+			f.SongTimer -= SpeedRate;
+			if (f.SongId == 4804 && (f.SongTick += SpeedRate) >= 15 * Tick)
 			{
 				f.SongTick = 0;
 				Fighter singer = f;
@@ -963,7 +963,7 @@ namespace OpenFF.Client
 		private void TickBless()
 		{
 			Fighter blesser = _party.Find(f => f.Blessing && f.Alive);
-			if (blesser == null || (blesser.BlessCount += (int)BattleSpeedRate) < BlessPeriod) return;
+			if (blesser == null || (blesser.BlessCount += SpeedRate) < BlessPeriod * Tick) return;
 			blesser.BlessCount = 0;
 			if (_queue.Exists(e => e.Actor == blesser && _poisonTicks.Contains(e.Act))) return;
 			Action tick = null;

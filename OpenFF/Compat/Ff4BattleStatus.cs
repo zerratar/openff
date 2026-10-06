@@ -184,7 +184,7 @@ namespace OpenFF.Client
 			}
 			if (c != null) t.Conditions &= ~(c.Replaces & ~(1UL << id));
 			t.Conditions |= 1UL << id;
-			t.ConditionTimer[id] = c != null && c.Duration > 0 ? c.Duration : 0;
+			t.ConditionTimer[id] = c != null && c.Duration > 0 ? c.Duration * Tick : 0;   // frames, counted in 1/4096ths
 			if (id == CBlink) t.BlinkCount = 2;
 			if (id == CDoom) t.DoomCount = 10 * 4096;
 			if (id == CPetrify) t.ConditionTimer[id] = -1;
@@ -263,19 +263,19 @@ namespace OpenFF.Client
 			if (Has(f, CSleep) && f.Hp < f.HpSeen) ConditionOff(f, CSleep);   // checkRecoverSleep: any hurt wakes
 			f.HpSeen = f.Hp;
 			if (f.Conditions == 0) return;
-			int rate = (int)BattleSpeedRate;
+			int rate = SpeedRate;
 			for (int id = 0; id < ConditionCount; id++)
 			{
 				if (!Has(f, id) || f.ConditionTimer[id] <= 0 || id == CPetrify) continue;
 				f.ConditionTimer[id] = Math.Max(0, f.ConditionTimer[id] - rate);
 				if (f.ConditionTimer[id] == 0) ConditionOff(f, id);
 			}
-			if (Has(f, CPoison) && !Untargetable(f) && ++f.PoisonCount >= 60)   // calcPoison skips the one in the air
+			if (Has(f, CPoison) && !Untargetable(f) && (f.PoisonCount += rate) >= 60 * Tick)   // calcPoison skips the one in the air
 			{
 				f.PoisonCount = 0;
 				if (!_queue.Exists(e => e.Actor == f && _poisonTicks.Contains(e.Act))) { Fighter who = f; Action tick = null; tick = () => { _poisonTicks.Remove(tick); PoisonTick(who); }; _poisonTicks.Add(tick); _queue.Add((f, tick)); }
 			}
-			if (Has(f, CSap) && (f.SapCount += rate * 2048) >= 4096)
+			if (Has(f, CSap) && (f.SapCount += rate / 2) >= Tick)
 			{
 				f.SapCount = 0;
 				f.Hp = Math.Max(0, f.Hp - 1);
@@ -284,10 +284,10 @@ namespace OpenFF.Client
 				if (Has(f, CSleep)) ConditionOff(f, CSleep);
 				if (!f.Alive) Fell(f);
 			}
-			if (Has(f, CPetrify) && ++f.PetrifyCount > 300) { f.PetrifyCount = 0; ConditionOff(f, CPetrify); ConditionOn(f, CStone); }
+			if (Has(f, CPetrify) && (f.PetrifyCount += rate) > 300 * Tick) { f.PetrifyCount = 0; ConditionOff(f, CPetrify); ConditionOn(f, CStone); }
 			if (Has(f, CDoom))
 			{
-				f.DoomCount -= rate * 4096 / 15;
+				f.DoomCount -= rate / 15;
 				if (f.DoomCount <= 0) { f.Conditions &= ~(1UL << CDoom); ConditionOn(f, CKO); }
 			}
 		}

@@ -114,7 +114,7 @@ namespace OpenFF.Client
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
 			public int DecidedAbility, DecidedTarget = 1;   // its turnAction as decided: the ability (1 Attack, a spell's or item's id...) and a monster's target type
 			public bool NotDeath;             // an event's NotDeathFlagOn: it cannot fall
-			public int AtwLeft, AtwMax;       // a decided action's wait before it joins the turns (ATG state 2), frames
+			public int AtwLeft, AtwMax;       // a decided action's wait before it joins the turns (ATG state 2), 1/4096ths of a frame
 			public Action Pending;            // the action waiting it out
 			public bool Alive => Hp > 0;
 			public Vector3 Home;
@@ -780,7 +780,7 @@ namespace OpenFF.Client
 				foreach (Fighter f in _party)
 				{
 					if (!f.Alive) continue;
-					if (f.DarkFrames > 0) f.DarkFrames = Math.Max(0, f.DarkFrames - (int)BattleSpeedRate);   // calcConditionTime
+					if (f.DarkFrames > 0) f.DarkFrames = Math.Max(0, f.DarkFrames - SpeedRate);   // calcConditionTime
 					TickConditions(f);
 					if (!f.Alive || GaugeStands(f)) continue;
 					if (f.SongId != 0) { TickSong(f); continue; }   // singing: no gauge, no turn
@@ -792,7 +792,7 @@ namespace OpenFF.Client
 					}
 					if (!f.Queued) { f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f)); continue; }
 					if (f.Pending == null) continue;
-					f.AtwLeft -= (int)BattleSpeedRate;
+					f.AtwLeft -= SpeedRate;
 					if (f.AtwLeft <= 0) { _queue.Add((f, f.Pending)); f.Pending = null; }
 				}
 				TickBless();
@@ -1162,8 +1162,12 @@ namespace OpenFF.Client
 
 		// ---- FF4's active time gauge (btl::BaseBattleCharacter::atpAddValue, BattleMonster::addActiveTimeGage) ----
 
-		/// <summary>btl::BATTLE_SPEED_RATE[the battle speed setting]: 1.5, 1.25, 1, 0.75, 0.5, 0.25 - the middle one here.</summary>
-		private const float BattleSpeedRate = 1f;
+		/// <summary>btl::BATTLE_SPEED_RATE by the battle speed setting (1..6, 3 the game's default): the time a tick counts, in
+		/// 1/4096ths of a frame - every timer below counts in those (a frame is 4096 of them).</summary>
+		private static readonly int[] SpeedRates = { 6144, 5120, 4096, 3072, 2048, 1024 };
+		private const int Tick = 4096;   // a frame, in the timers' 1/4096ths
+		private static int SpeedRate => SpeedRates[Math.Clamp((int.TryParse(Options.Get("ff4-battle-speed"), out int s) ? s : 3) - 1, 0, 5)];
+		private static float BattleSpeedRate => SpeedRate / (float)Tick;
 
 		/// <summary>A normal encounter's start (BattlePlayer / BattleMonster::initializeATG): 45 to 65 of the gauge's 100, at random.</summary>
 		private float StartGauge() => (45 + _random.Next(21)) / 100f;
@@ -1721,7 +1725,7 @@ namespace OpenFF.Client
 
 		private void DarknessOn(Fighter member)
 		{
-			member.DarkFrames = DarknessFrames;
+			member.DarkFrames = DarknessFrames * Tick;
 			Note(member.Name + " is wreathed in darkness (" + DarknessFrames + " frames).");
 			EndTurn(member);
 		}
@@ -1781,7 +1785,7 @@ namespace OpenFF.Client
 			member.DecidedAbility = ability;
 			if (wait > 0)
 			{
-				member.AtwLeft = member.AtwMax = wait;
+				member.AtwLeft = member.AtwMax = wait * Tick;
 				member.Pending = act;
 			}
 			else

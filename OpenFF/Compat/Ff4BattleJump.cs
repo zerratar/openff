@@ -57,7 +57,7 @@ namespace OpenFF.Client
 		/// <summary>The air time, each tick the gauge could charge: true once the landing is due.</summary>
 		private static bool JumpCounts(Fighter f)
 		{
-			if (f.JumpCounter < JumpAirTime) f.JumpCounter += (int)(4096 * BattleSpeedRate);
+			if (f.JumpCounter < JumpAirTime) f.JumpCounter += SpeedRate;
 			return f.JumpCounter >= JumpAirTime;
 		}
 
