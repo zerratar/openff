@@ -2827,8 +2827,9 @@ namespace OpenFF.Client
 		{
 			if (GameProfile.IsFf4)
 			{
-				// FF4's battles are the OpenFF battle over the unified tables.
-				if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(monsterParty)) EngineApi.Warn("battle", "Battle.Start: no FF4 encounter group " + monsterParty);
+				// FF4's battles are the OpenFF battle over the unified tables, on the battle stage b<NN> when a map is given
+				// (0, the default, fights on the spot).
+				if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(monsterParty, false, battleMap > 0 ? battleMap : -1)) EngineApi.Warn("battle", "Battle.Start: no FF4 encounter group " + monsterParty);
 				return;
 			}
 			if (!EngineApi.InWorld)
