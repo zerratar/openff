@@ -240,6 +240,19 @@ namespace OpenFF.Data
 					tables.BattlePlayers.Add(new BattlePlayerMotions { Type = i / 24, PlayerSet = ChainPack.S16(data, at2 + i + 0x10), BasicSet = ChainPack.S16(data, at2 + i + 0x12) });
 				}
 			}
+			// Chain 1 (44 bytes, BattleParameter::abilityInvokeParameter): a command's invoke - the chant motion by player
+			// form at 2 (15 s16), the motion after at 0x20, the invoke effect at 0x22 (its parameter at 0x24, its place at
+			// 0x26: 0 the hit spot, 1 the feet, 2 the body), the sound's bank and number at 0x28 and 0x2A.
+			if (pack.Count > 1)
+			{
+				for (int i = 0, n = pack.Records(1, 44); i < n; i++)
+				{
+					byte[] r = pack.Record(1, 44, i);
+					short[] row = new short[22];
+					for (int k = 0; k < 22; k++) row[k] = (short)ChainPack.S16(r, 2 * k);
+					if (row[0] > 0) tables.AbilityInvokes[row[0]] = row;
+				}
+			}
 			if (pack.Count > 5)
 			{
 				int at5 = pack.Offset(5);

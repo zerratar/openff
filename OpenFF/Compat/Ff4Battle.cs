@@ -1569,7 +1569,9 @@ namespace OpenFF.Client
 		/// calcConditionTime); while it is on and HP is over 1, a blow carries the dark element (0x400) and is doubled
 		/// (reviseDarkness), each costing its striker HP after (DarkCost).
 		/// </summary>
-		private void Darkness(Fighter member)
+		private void Darkness(Fighter member) => Invoke(member, 32, () => DarknessOn(member));
+
+		private void DarknessOn(Fighter member)
 		{
 			member.DarkFrames = DarknessFrames;
 			Note(member.Name + " is wreathed in darkness (" + DarknessFrames + " frames).");

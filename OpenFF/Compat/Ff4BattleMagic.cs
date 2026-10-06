@@ -247,6 +247,37 @@ namespace OpenFF.Client
 			Game.Audio.PlaySe(100, 6);
 		}
 
+		/// <summary>
+		/// A member's command invoked (AbilityInvokeBehavior: goExecute and its update): the command's name in the help
+		/// line, its sound, its chant motion for the member's form with its effect, for 24 frames (15 a counter); then the
+		/// motion after (2004, the stance) and the command itself. A command with no invoke record goes at once.
+		/// </summary>
+		private void Invoke(Fighter member, int command, Action then)
+		{
+			if (member.IsMonster || Ff4Party.Tables == null || !Ff4Party.Tables.AbilityInvokes.TryGetValue(command, out short[] row))
+			{
+				then();
+				return;
+			}
+			int lead = _isCounter ? CounterLead : CastLead;
+			ShowName(Ff4Party.Tables.AbilityTitle(command), lead);
+			if (row[20] >= 0 && row[21] >= 0) Game.Audio.PlaySe(row[20], row[21]);
+			int form = member.Member != null ? PlayerForm[Math.Clamp(member.Member.Id, 0, PlayerForm.Length - 1)] : 0;
+			int chant = row[1 + Math.Clamp(form, 0, 14)];
+			if (chant > 0) Play(member, chant, false, 3);
+			if (row[17] > 0)
+			{
+				LoadEffect(row[17]);
+				PlayEffect(row[17], row[19] == 0 ? HitEffectSpot(member) : Where(member), Math.Max(1, (int)row[18]));
+			}
+			After(lead, () =>
+			{
+				if (!member.Alive) return;
+				if (row[16] > 0 && row[16] != 9999) Play(member, row[16], true, 3);
+				then();
+			});
+		}
+
 		/// <summary>The turn held until the numbers have gone (checkEnd2D).</summary>
 		private void WaitNumbers()
 		{
