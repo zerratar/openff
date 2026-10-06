@@ -33,6 +33,9 @@ namespace OpenFF.Client
 			GlobalScope.dgs.CFade.Sub().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
 		}
 
+		/// <summary>The map is left for a part change (the battle stage): the end state goes straight on, no map sound to settle.</summary>
+		public static bool LeavingForPart => _conte && _partFade != 0;
+
 		/// <summary>Whether the map is left: at once for a story scene, else when both screens have faded.</summary>
 		public static bool Left => _conte || (GlobalScope.dgs.CFade.Main().isFaded() && GlobalScope.dgs.CFade.Sub().isFaded());
 

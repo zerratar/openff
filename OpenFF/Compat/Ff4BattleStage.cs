@@ -124,7 +124,7 @@ namespace OpenFF.Client
 				_pendingFrames = 0;
 				Ff4MapChange.PartJump();   // FF4's battle is a part change: the screen stays as the encounter left it (white)
 				Game.Field.Warp(stage, PartySpot(0, 1), 6);
-				Log.Write(LogChannel.General, "battle: to stage " + stage + ", back to " + _fieldMap + " at " + _fieldPosition + " after");
+				Log.Write(LogChannel.General, "battle: to stage " + stage + ", back to " + _fieldMap + " at " + _fieldPosition + " after (step " + LegacyStep.Count + ")");
 				return true;
 			}
 			catch (Exception ex)
@@ -148,7 +148,7 @@ namespace OpenFF.Client
 					Pending = false;
 					return true;
 				}
-				return EngineApi.InWorld && Game.Hero.Present && string.Equals(Game.Field.Map, StageName, StringComparison.OrdinalIgnoreCase) && _pendingFrames > 2;
+				return EngineApi.InWorld && Game.Hero.Present && string.Equals(Game.Field.Map, StageName, StringComparison.OrdinalIgnoreCase) && _pendingFrames > 0;
 			}
 		}
 

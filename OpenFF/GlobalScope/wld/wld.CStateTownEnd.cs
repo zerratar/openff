@@ -200,6 +200,11 @@ internal static partial class GlobalScope
 				switch (_localState)
 				{
 				case 0:
+					if (OpenFF.Client.GameProfile.IsFf4 && OpenFF.Client.Ff4MapChange.LeavingForPart)
+					{
+						setPhase(PHASE.END);   // PORT: FF4's battle is a part change - no map sound to settle on the way
+						break;
+					}
 					if ((OpenFF.Client.GameProfile.IsFf4 ? OpenFF.Client.Ff4MapChange.Left : AreaChange.getInstance().isClosed()))
 					{
 						_localState = 1;

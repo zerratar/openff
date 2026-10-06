@@ -115,6 +115,26 @@ namespace OpenFF.Data
 		public LevelRow[] Levels = Array.Empty<LevelRow>();
 		/// <summary>True where the name and class were filled from knowledge of the game rather than its files.</summary>
 		public bool NameIsTentative;
+		/// <summary>
+		/// FF4: maximum hit points are rolled level by level, as sys::PlayerHp::setMaxHp does - the minimum gains of the
+		/// levels climbed plus a random part of their spread (RandomNumber::rand32(sum max - sum min + 1)); two new games
+		/// give Cecil a different level-10 maximum (Steam: 214 in one, 225 in another). Otherwise the middle of each range.
+		/// </summary>
+		public bool RollsHp;
+
+		private static readonly Random _hpRoll = new Random();
+
+		/// <summary>The hit points gained climbing from <paramref name="from"/> to <paramref name="to"/>, rolled as the game rolls them.</summary>
+		public int RollHp(int from, int to)
+		{
+			int min = 0, max = 0;
+			for (int level = Math.Max(1, from + 1); level <= Math.Min(to, Levels.Length); level++)
+			{
+				min += Levels[level - 1].HpGainMin;
+				max += Levels[level - 1].HpGainMax;
+			}
+			return max - min < 1 ? min : min + _hpRoll.Next(max - min + 1);
+		}
 		/// <summary>Commands and spells with the level each arrives at, in the game's order; empty when the game has no such list.</summary>
 		public List<Learned> Learning = new List<Learned>();
 

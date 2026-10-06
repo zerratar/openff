@@ -170,7 +170,7 @@ namespace OpenFF.Client
 			Guard("scene clip", () => GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera().setClip(40960, 2048000));
 			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(false));
 			Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
-			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up");
+			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up (step " + LegacyStep.Count + ")");
 			ScriptCommands.ReportDropped("scene " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
 			if (StartNextBattle())
 			{

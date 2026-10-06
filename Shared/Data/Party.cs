@@ -43,10 +43,17 @@ namespace OpenFF.Data
 		/// <summary>Sets the level; maximums follow the growth table, and with <paramref name="fill"/> the current values too.</summary>
 		public void SetLevel(int level, bool fill)
 		{
+			int from = Level;
 			Level = Math.Max(1, level);
 			if (Definition.Levels.Length > 0)
 			{
-				MaxHp = Math.Max(1, Definition.MaxHpAt(Level));
+				// FF4 rolls the levels climbed (a level down starts over from nothing); otherwise the expected maximum.
+				if (Definition.RollsHp)
+				{
+					if (Level == from && MaxHp > 0) { }
+					else MaxHp = Math.Max(1, Level > from && MaxHp > 0 ? MaxHp + Definition.RollHp(from, Level) : Definition.RollHp(0, Level));
+				}
+				else MaxHp = Math.Max(1, Definition.MaxHpAt(Level));
 				MaxMp = Math.Max(0, Definition.MaxMpAt(Level));
 				Base = Definition.StatsAt(Level);
 			}

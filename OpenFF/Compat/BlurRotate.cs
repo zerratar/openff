@@ -16,7 +16,7 @@ namespace OpenFF.Client
 	internal sealed class BlurRotate : DrawableGameComponent
 	{
 		// Steam's frames (ce_CallBattle at 3490): the spin from 3500, the white from 3516, all white at 3528.
-		private const int LeadFrames = 8, SpinFrames = 32, WhiteFrom = 16, WhiteFrames = 12;
+		private const int LeadFrames = 8, SpinFrames = 32, WhiteFrom = 16, WhiteFrames = 13;
 		private const int AngleStep = 0x13e9;
 
 		private static BlurRotate _instance;

@@ -315,6 +315,7 @@ namespace OpenFF.Data
 					Name = KnownCharacters[type].Name,
 					ClassName = KnownCharacters[type].Class,
 					NameIsTentative = true,
+					RollsHp = true,
 					FieldModel = "p" + type.ToString("00") + "_01",
 					BattleModel = "b_p_player_" + type.ToString("00"),
 				};
