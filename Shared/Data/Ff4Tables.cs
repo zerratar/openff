@@ -317,6 +317,32 @@ namespace OpenFF.Data
 				m.EffectToCamera = ChainPack.S32(r, 4);
 				m.EffectHeight = ChainPack.S32(r, 8);
 			}
+			// The AI (btl::MonsterActionThinker::calculationAction): chain 7, a monster's record; chain 8, the action sets;
+			// chain 9, the conditions that switch a monster to another set.
+			for (int i = 0, n = pack.Records(7, 22); i < n; i++)
+			{
+				byte[] r = pack.Record(7, 22, i);
+				short[] ai = new short[11];
+				for (int k = 0; k < 11; k++) ai[k] = (short)ChainPack.S16(r, 2 * k);
+				tables.MonsterAi[ai[0]] = ai;
+			}
+			for (int i = 0, n = pack.Records(8, 44); i < n; i++)
+			{
+				byte[] r = pack.Record(8, 44, i);
+				MonsterTurnAction set = new MonsterTurnAction { Id = ChainPack.S16(r, 0), Random = r[2] == 1 };
+				for (int k = 0; k < 10; k++)
+				{
+					int ability = ChainPack.S16(r, 4 + 4 * k);
+					if (ability == -1) break;
+					set.Entries.Add((ability, ChainPack.S16(r, 6 + 4 * k)));
+				}
+				tables.MonsterTurnActions[set.Id] = set;
+			}
+			for (int i = 0, n = pack.Records(9, 12); i < n; i++)
+			{
+				byte[] r = pack.Record(9, 12, i);
+				tables.MonsterActionConditions[ChainPack.S16(r, 0)] = (ChainPack.S16(r, 2), BitConverter.ToUInt64(r, 4));
+			}
 			// Chain 2: 28 bytes a monster, by its id (MonsterManager::normalAttack) - its plain attack as ys::Effects: the
 			// effect's frame (s32 at 0), its pack (s16 at 6) and member (s32 at 8), the sound's frame (s32 at 0xC), bank
 			// (s16 at 0x12) and number (s16 at 0x14), the number's frame (s16 at 0x1A). The Floating Eye's: e160 at 7,

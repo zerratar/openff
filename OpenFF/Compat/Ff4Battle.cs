@@ -90,6 +90,7 @@ namespace OpenFF.Client
 			public float Gauge;               // 0..1 (FF4's ATP over its 100)
 			public float AtbRate = 1f;        // a monster's, rolled at the start (BattleMonster::atbRate); 1 for the party
 			public bool Queued;               // its action is decided and waits its turn (ATG state 2 or 3, the gauge held full)
+			public int AiCondition = -2, AiIndex; // a monster's AI: the condition that chose its set last, and where it is in it
 			public int AtwLeft, AtwMax;       // a decided action's wait before it joins the turns (ATG state 2), frames
 			public Action Pending;            // the action waiting it out
 			public bool Alive => Hp > 0;
@@ -1229,10 +1230,78 @@ namespace OpenFF.Client
 		private const int MonsterFrameLead = 1;
 		private const int MissEffect = 240;
 
+		// ---- a monster's turn as btl::MonsterActionThinker::calculationAction decides it ----
+
+		/// <summary>
+		/// The monster's action this turn: its AI record's conditions tried in order (agreeConditionAction, every check of a
+		/// condition's mask holding - isEnableCondition), the first that holds bringing its action set, else the record's
+		/// default set; a new set starts from its first entry. The entry drawn at random, or taken in turn (the index moving
+		/// on each turn, back to the first past the last). An entry is an ability (1 the plain attack, 0 nothing) and a
+		/// target type.
+		/// </summary>
+		private (int Ability, int Target) DecideMonsterAction(Fighter foe)
+		{
+			GameTables t = Ff4Party.Tables;
+			if (foe.Monster == null || !t.MonsterAi.TryGetValue(foe.Monster.Id, out short[] ai)) return (1, 1);
+			int condition = -1, set = ai[1];
+			for (int k = 2; k <= 5; k++)
+			{
+				if (ai[k] < 0 || !t.MonsterActionConditions.TryGetValue(ai[k], out (int TurnAction, ulong Checks) c)) continue;
+				if (!ConditionHolds(foe, c.Checks)) continue;
+				condition = ai[k];
+				set = c.TurnAction;
+				break;
+			}
+			if (foe.AiCondition != condition) { foe.AiCondition = condition; foe.AiIndex = 0; }
+			if (!t.MonsterTurnActions.TryGetValue(set, out MonsterTurnAction actions) || actions.Entries.Count == 0) return (1, 1);
+			int i = actions.Random ? _random.Next(actions.Entries.Count) : foe.AiIndex;
+			if (i >= actions.Entries.Count) i = 0;
+			foe.AiIndex = i + 1 < 10 ? i + 1 : 0;
+			Note(foe.Name + " thinks: set " + set + (condition >= 0 ? " (condition " + condition + ")" : "") + ", entry " + i + " - ability " + actions.Entries[i].Ability + " on target type " + actions.Entries[i].Target);
+			return actions.Entries[i];
+		}
+
+		/// <summary>
+		/// isEnableCondition: every check the mask names must hold. The ones read so far: 4, 16, 17 and 27 always hold; 13,
+		/// 60 and 62 hold at or under 30, 80 and 20 % of its HP, 59 over 20 %. The status checks (0, 2, 3, 5..11 and the
+		/// rest) do not hold while the battle has no statuses; a check not yet read does not hold, and is logged.
+		/// </summary>
+		private bool ConditionHolds(Fighter foe, ulong checks)
+		{
+			for (int bit = 0; bit < 64; bit++)
+			{
+				if ((checks >> bit & 1) == 0) continue;
+				switch (bit)
+				{
+					case 4: case 16: case 17: case 27: break;
+					case 13: if (foe.Hp > foe.MaxHp * 0.3f) return false; break;
+					case 59: if (foe.Hp <= foe.MaxHp * 0.2f) return false; break;
+					case 60: if (foe.Hp > foe.MaxHp * 0.8f) return false; break;
+					case 62: if (foe.Hp > foe.MaxHp * 0.2f) return false; break;
+					case 0: case 2: case 3: case 5: case 6: case 7: case 8: case 9: case 10: case 11:
+						return false;   // a status of its own (ys::Condition 9, 4, 5, 7, 8, 10, 0, 1, 2, 11): none yet
+					default:
+						Log.First(LogChannel.File, "monster-condition-" + bit, 1, () => "battle: monster AI check " + bit + " not read yet - taken as not holding");
+						return false;
+				}
+			}
+			return true;
+		}
+
 		private void MonsterActs(Fighter foe)
 		{
 			List<Fighter> alive = _party.FindAll(f => f.Alive);
 			if (alive.Count == 0) return;
+			(int ability, int targetType) = DecideMonsterAction(foe);
+			foe.Gauge = 0f;
+			if (ability == 0) { Note(foe.Name + " does nothing."); return; }
+			if (ability != 1)
+			{
+				SpellDefinition spell = Ff4Party.Tables.Spell(ability);
+				if (spell != null) { MonsterCasts(foe, spell, targetType); return; }
+				Log.First(LogChannel.File, "monster-ability-" + ability, 1, () => "battle: monster ability " + ability + " not in yet - a plain attack in its place");
+			}
+			if (targetType != 0 && targetType != 1) Log.First(LogChannel.File, "monster-target-" + targetType, 1, () => "battle: monster target type " + targetType + " not read yet - a member at random");
 			Fighter target = alive[_random.Next(alive.Count)];
 			try { foe.Npc.PlayMotion(201, false, 3); foe.Acted = true; } catch (Exception) { }
 			foe.Gauge = 0f;
@@ -1243,6 +1312,31 @@ namespace OpenFF.Client
 			After(m.AttackEffectFrame + MonsterFrameLead, () => PlayEffect(hit ? m.AttackEffect : MissEffect, HitEffectSpot(target)));
 			if (hit && m.AttackSoundBank >= 0 && m.AttackSound >= 0) After(m.AttackSoundFrame + MonsterFrameLead, () => Game.Audio.PlaySe(m.AttackSoundBank, m.AttackSound));
 			After(m.AttackNumberFrame + MonsterFrameLead, () => MonsterBlow(foe, target, hit, damage));
+		}
+
+		/// <summary>A monster's spell on the party: its name in FF4's help line, the damage or healing by the magic formula.</summary>
+		private void MonsterCasts(Fighter foe, SpellDefinition spell, int targetType)
+		{
+			List<Fighter> alive = _party.FindAll(f => f.Alive);
+			string name = spell.Name ?? ("spell " + spell.Id);
+			Say(name);
+			try { foe.Npc.PlayMotion(201, false, 3); foe.Acted = true; } catch (Exception) { }
+			List<Fighter> targets = spell.HitsAll ? alive : new List<Fighter> { alive[_random.Next(alive.Count)] };
+			After(8, () =>
+			{
+				foreach (Fighter t in targets)
+				{
+					if (!t.Alive) continue;
+					if (spell.Heals) continue;   // a monster's healing is its own side's: not yet
+					int damage = spell.Power > 0 ? AttackMagicDamage(foe, t, spell, targets.Count) : 0;
+					if (damage <= 0) { Note(foe.Name + " casts " + name + " on " + t.Name + "."); continue; }
+					t.Hp = Math.Max(0, t.Hp - damage);
+					if (t.Member != null) t.Member.Hp = t.Hp;
+					Pop(DamageSpot(t), damage);
+					Note(foe.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
+				}
+			});
+			After(30, () => { if (_log.Count > 0 && _log[_log.Count - 1] == name) _log.RemoveAt(_log.Count - 1); });
 		}
 
 		private void MonsterBlow(Fighter foe, Fighter target, bool hit, int damage)

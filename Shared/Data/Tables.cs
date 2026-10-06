@@ -421,6 +421,14 @@ namespace OpenFF.Data
 		public short[] Raw;
 	}
 
+	/// <summary>FF4: a monster action set - drawn at random or taken in turn, its (ability, target type) entries.</summary>
+	public sealed class MonsterTurnAction
+	{
+		public int Id;
+		public bool Random;
+		public List<(int Ability, int Target)> Entries = new List<(int, int)>();
+	}
+
 	/// <summary>Everything a game defines, read once from its files.</summary>
 	public sealed class GameTables
 	{
@@ -434,6 +442,12 @@ namespace OpenFF.Data
 		public List<WeaponMotionRecord> WeaponMotions = new List<WeaponMotionRecord>();
 		/// <summary>FF4: battle_parameter chain 5, by weapon system - eleven (bank, number) sound pairs, a plain hit's first (btl::BattleParameter::playerWeaponSe; -1 none).</summary>
 		public List<short[]> WeaponSounds = new List<short[]>();
+		/// <summary>FF4: a monster's AI (monster.chaindata chain 7, 22 bytes by monster id): s16s - the id, its default action set, then up to four action conditions tried in order (-1 none), then the counters' (mon::MonsterManager::ai).</summary>
+		public Dictionary<int, short[]> MonsterAi = new Dictionary<int, short[]>();
+		/// <summary>FF4: an action set (chain 8, 44 bytes): whether its entry is drawn at random (byte 2), then up to ten (ability, target type) pairs, -1 ending them (mon::MonsterTurnAction).</summary>
+		public Dictionary<int, MonsterTurnAction> MonsterTurnActions = new Dictionary<int, MonsterTurnAction>();
+		/// <summary>FF4: an action condition (chain 9, 12 bytes): the action set it brings and the 64 checks (a mask) that must all hold (MonsterActionThinker::isEnableCondition).</summary>
+		public Dictionary<int, (int TurnAction, ulong Checks)> MonsterActionConditions = new Dictionary<int, (int, ulong)>();
 		/// <summary>FF4: ability.bbd's wait (s32 at 0x18 of its 44-byte records) by ability id - the frames a decided action waits before its turn (BaseBattleCharacter::atwMax): a spell by its id, an item by the ability it invokes.</summary>
 		public Dictionary<int, int> AbilityWaits = new Dictionary<int, int>();
 		public int AbilityWait(int id) => AbilityWaits.TryGetValue(id, out int wait) ? wait : 0;
