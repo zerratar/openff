@@ -63,6 +63,7 @@ namespace OpenFF.Client
 		{
 			if (who == null) return true;
 			if (who.Hiding && id != CmdReturn && id != CmdAim && id != CmdThrow) return false;
+			if (id == CmdUpgrade && who.Member != null && !HasWeapon(who.Member)) return false;   // isUsefulAbility 0x36: a weapon in a hand
 			if (id == CmdUpgrade || id == CmdSalve || id == CmdThrow)
 			{
 				foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory) if (ItemFits(id, Ff4Party.Tables.Item(s.ItemId))) return true;
