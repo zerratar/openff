@@ -333,7 +333,7 @@ namespace OpenFF.Content
 			public double Margin(string side, double whole)
 			{
 				(double l, double t, double r, double b) = Box("margin", whole);
-				return side.EndsWith("left") ? l : side.EndsWith("top") ? t : side.EndsWith("right") ? r : b;
+				return side.EndsWith("left", StringComparison.Ordinal) ? l : side.EndsWith("top", StringComparison.Ordinal) ? t : side.EndsWith("right", StringComparison.Ordinal) ? r : b;
 			}
 
 			/// <summary>A box property (margin, padding): the shorthand's one to four values, each side's own property over it.</summary>
@@ -369,11 +369,11 @@ namespace OpenFF.Content
 			{
 				string v = text.Trim().ToLowerInvariant();
 				if (v.Length == 0 || v == "auto") return null;
-				if (v.EndsWith("%"))
+				if (v.EndsWith("%", StringComparison.Ordinal))
 				{
 					return double.TryParse(v.Substring(0, v.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out double p) ? whole * p / 100 : (double?)null;
 				}
-				if (v.EndsWith("px")) v = v.Substring(0, v.Length - 2);
+				if (v.EndsWith("px", StringComparison.Ordinal)) v = v.Substring(0, v.Length - 2);
 				return double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double n) ? n : (double?)null;
 			}
 		}

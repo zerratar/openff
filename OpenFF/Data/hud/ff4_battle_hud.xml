@@ -20,8 +20,10 @@
     battle.grid             shown, mp, maxMp, showMp, cell[0..11] (present, name, value: a spell's cost or how many of
                             an item, can, lit), scroll (shown, top, size)
     battle.message          FF4's help line at the top, or ""
-    battle.result           shown, panel (0..100: it fades in with the screens), gilFound, newTotal (counting up),
-                            showGil, exp, showExp, arrow, lines[0..4], lineCount
+    battle.result           shown, panel (0..100: it fades in with the screens), height (the window's, by page), page
+                            ('gil', 'levelup', 'item'), gilFound, newTotal (counting up), showGil, exp, showExp, arrow;
+                            a level-up's title and row[0..7] (label, old, new, up), the abilities learnt or the items
+                            found as lines[0..4] and lineCount
 -->
 <menu style="width: 1920px; height: 1080px">
   <name>ff4_battle_hud</name>
@@ -267,26 +269,97 @@
     <frame class="message-text" bind-text="{battle.message}"><id>text</id><x>0</x><y>0</y><width>800</width><height>76</height></frame>
   </frame>
 
-  <!-- The result (btl::BattleWin): one panel across the top - the gil found and the new total on the left, the
-       experience on the right, the page arrow - and below it what else the fight brought. -->
-  <frame bind-display="battle.result.shown" bind-style="opacity: {battle.result.panel}%">
+  <!-- The result (btl::BattleWin), a page at a time: the gil found and the new total on the left, the experience on
+       the right (Steam's frames); then a level-up for each member who rose (BattleLevelupBehavior: "<name>'s level
+       increased!", the level, HP and MP, the five stats, old and new, a risen value in its colour, and what was
+       learnt); then the items. The page arrow waits on a key at the window's foot. -->
+  <frame bind-display="battle.result.shown" bind-style="opacity: {battle.result.panel}%; height: {battle.result.height}px">
     <id>result</id>
     <x>150</x><y>3</y><width>1620</width><height>157</height>
-    <frame class="result-label"><id>gil_label</id><x>192</x><y>33</y><width>260</width><height>50</height><data>Gil Found</data></frame>
-    <frame class="result-label"><id>total_label</id><x>192</x><y>87</y><width>260</width><height>50</height><data>New Total</data></frame>
-    <frame class="result-label"><id>exp_label</id><x>838</x><y>33</y><width>160</width><height>50</height><data>EXP</data></frame>
-    <frame class="result-value" bind-visible="battle.result.showGil" bind-text="{battle.result.gilFound}"><id>gil</id><x>469</x><y>33</y><width>300</width><height>50</height></frame>
-    <frame class="result-value" bind-visible="battle.result.showGil" bind-text="{battle.result.newTotal}"><id>total</id><x>469</x><y>87</y><width>300</width><height>50</height></frame>
-    <frame class="result-value" bind-visible="battle.result.showExp" bind-text="{battle.result.exp}"><id>exp</id><x>1000</x><y>33</y><width>300</width><height>50</height></frame>
-    <frame class="page-arrow" bind-visible="battle.result.arrow"><id>arrow</id><x>1552</x><y>112</y><width>1</width><height>40</height></frame>
-  </frame>
-  <frame bind-display="battle.result.lineCount &gt; 0">
-    <id>result_lines</id>
-    <x>150</x><y>187</y><width>1620</width><height>290</height>
-    <frame class="result-line" bind-display="battle.result.lineCount &gt; 0" bind-text="{battle.result.lines[0]}"><id>line0</id><x>192</x><y>16</y><width>1400</width><height>54</height></frame>
-    <frame class="result-line" bind-display="battle.result.lineCount &gt; 1" bind-text="{battle.result.lines[1]}"><id>line1</id><x>192</x><y>70</y><width>1400</width><height>54</height></frame>
-    <frame class="result-line" bind-display="battle.result.lineCount &gt; 2" bind-text="{battle.result.lines[2]}"><id>line2</id><x>192</x><y>124</y><width>1400</width><height>54</height></frame>
-    <frame class="result-line" bind-display="battle.result.lineCount &gt; 3" bind-text="{battle.result.lines[3]}"><id>line3</id><x>192</x><y>178</y><width>1400</width><height>54</height></frame>
-    <frame class="result-line" bind-display="battle.result.lineCount &gt; 4" bind-text="{battle.result.lines[4]}"><id>line4</id><x>192</x><y>232</y><width>1400</width><height>54</height></frame>
+    <frame bind-display="battle.result.page == 'gil'"><id>gil_page</id><x>0</x><y>0</y><width>1620</width><height>157</height>
+      <frame class="result-label"><id>gil_label</id><x>192</x><y>33</y><width>260</width><height>50</height><data>Gil Found</data></frame>
+      <frame class="result-label"><id>total_label</id><x>192</x><y>87</y><width>260</width><height>50</height><data>New Total</data></frame>
+      <frame class="result-label"><id>exp_label</id><x>838</x><y>33</y><width>160</width><height>50</height><data>EXP</data></frame>
+      <frame class="result-value" bind-visible="battle.result.showGil" bind-text="{battle.result.gilFound}"><id>gil</id><x>469</x><y>33</y><width>300</width><height>50</height></frame>
+      <frame class="result-value" bind-visible="battle.result.showGil" bind-text="{battle.result.newTotal}"><id>total</id><x>469</x><y>87</y><width>300</width><height>50</height></frame>
+      <frame class="result-value" bind-visible="battle.result.showExp" bind-text="{battle.result.exp}"><id>exp</id><x>1000</x><y>33</y><width>300</width><height>50</height></frame>
+    </frame>
+    <frame bind-display="battle.result.page == 'levelup'"><id>levelup_page</id><x>0</x><y>0</y><width>1620</width><height>400</height>
+      <frame class="levelup-title" bind-text="{battle.result.title}"><id>title</id><x>0</x><y>29</y><width>1620</width><height>50</height></frame>
+      <frame data-source="battle.result.row[0]" bind-class="up: up">
+        <id>row0</id><x>0</x><y>107</y><width>1620</width><height>50</height>
+        <frame class="levelup-label" bind-text="{label}"><id>label</id><x>324</x><y>0</y><width>300</width><height>50</height></frame>
+        <frame class="levelup-old" bind-text="{old}"><id>old</id><x>367</x><y>0</y><width>200</width><height>50</height></frame>
+        <frame class="levelup-arrow"><id>arrow</id><x>564</x><y>0</y><width>60</width><height>50</height><data>&#8594;</data></frame>
+        <frame class="levelup-new" bind-text="{new}"><id>new</id><x>621</x><y>0</y><width>200</width><height>50</height></frame>
+      </frame>
+      <frame data-source="battle.result.row[1]" bind-class="up: up">
+        <id>row1</id><x>0</x><y>161</y><width>1620</width><height>50</height>
+        <frame class="levelup-label" bind-text="{label}"><id>label</id><x>324</x><y>0</y><width>300</width><height>50</height></frame>
+        <frame class="levelup-old" bind-text="{old}"><id>old</id><x>367</x><y>0</y><width>200</width><height>50</height></frame>
+        <frame class="levelup-arrow"><id>arrow</id><x>564</x><y>0</y><width>60</width><height>50</height><data>&#8594;</data></frame>
+        <frame class="levelup-new" bind-text="{new}"><id>new</id><x>621</x><y>0</y><width>200</width><height>50</height></frame>
+      </frame>
+      <frame data-source="battle.result.row[2]" bind-class="up: up">
+        <id>row2</id><x>0</x><y>215</y><width>1620</width><height>50</height>
+        <frame class="levelup-label" bind-text="{label}"><id>label</id><x>324</x><y>0</y><width>300</width><height>50</height></frame>
+        <frame class="levelup-old" bind-text="{old}"><id>old</id><x>367</x><y>0</y><width>200</width><height>50</height></frame>
+        <frame class="levelup-arrow"><id>arrow</id><x>564</x><y>0</y><width>60</width><height>50</height><data>&#8594;</data></frame>
+        <frame class="levelup-new" bind-text="{new}"><id>new</id><x>621</x><y>0</y><width>200</width><height>50</height></frame>
+      </frame>
+      <frame data-source="battle.result.row[3]" bind-class="up: up">
+        <id>row3</id><x>0</x><y>107</y><width>1620</width><height>50</height>
+        <frame class="levelup-label" bind-text="{label}"><id>label</id><x>837</x><y>0</y><width>300</width><height>50</height></frame>
+        <frame class="levelup-old" bind-text="{old}"><id>old</id><x>934</x><y>0</y><width>200</width><height>50</height></frame>
+        <frame class="levelup-arrow"><id>arrow</id><x>1131</x><y>0</y><width>60</width><height>50</height><data>&#8594;</data></frame>
+        <frame class="levelup-new" bind-text="{new}"><id>new</id><x>1188</x><y>0</y><width>200</width><height>50</height></frame>
+      </frame>
+      <frame data-source="battle.result.row[4]" bind-class="up: up">
+        <id>row4</id><x>0</x><y>161</y><width>1620</width><height>50</height>
+        <frame class="levelup-label" bind-text="{label}"><id>label</id><x>837</x><y>0</y><width>300</width><height>50</height></frame>
+        <frame class="levelup-old" bind-text="{old}"><id>old</id><x>934</x><y>0</y><width>200</width><height>50</height></frame>
+        <frame class="levelup-arrow"><id>arrow</id><x>1131</x><y>0</y><width>60</width><height>50</height><data>&#8594;</data></frame>
+        <frame class="levelup-new" bind-text="{new}"><id>new</id><x>1188</x><y>0</y><width>200</width><height>50</height></frame>
+      </frame>
+      <frame data-source="battle.result.row[5]" bind-class="up: up">
+        <id>row5</id><x>0</x><y>215</y><width>1620</width><height>50</height>
+        <frame class="levelup-label" bind-text="{label}"><id>label</id><x>837</x><y>0</y><width>300</width><height>50</height></frame>
+        <frame class="levelup-old" bind-text="{old}"><id>old</id><x>934</x><y>0</y><width>200</width><height>50</height></frame>
+        <frame class="levelup-arrow"><id>arrow</id><x>1131</x><y>0</y><width>60</width><height>50</height><data>&#8594;</data></frame>
+        <frame class="levelup-new" bind-text="{new}"><id>new</id><x>1188</x><y>0</y><width>200</width><height>50</height></frame>
+      </frame>
+      <frame data-source="battle.result.row[6]" bind-class="up: up">
+        <id>row6</id><x>0</x><y>269</y><width>1620</width><height>50</height>
+        <frame class="levelup-label" bind-text="{label}"><id>label</id><x>837</x><y>0</y><width>300</width><height>50</height></frame>
+        <frame class="levelup-old" bind-text="{old}"><id>old</id><x>934</x><y>0</y><width>200</width><height>50</height></frame>
+        <frame class="levelup-arrow"><id>arrow</id><x>1131</x><y>0</y><width>60</width><height>50</height><data>&#8594;</data></frame>
+        <frame class="levelup-new" bind-text="{new}"><id>new</id><x>1188</x><y>0</y><width>200</width><height>50</height></frame>
+      </frame>
+      <frame data-source="battle.result.row[7]" bind-class="up: up">
+        <id>row7</id><x>0</x><y>323</y><width>1620</width><height>50</height>
+        <frame class="levelup-label" bind-text="{label}"><id>label</id><x>837</x><y>0</y><width>300</width><height>50</height></frame>
+        <frame class="levelup-old" bind-text="{old}"><id>old</id><x>934</x><y>0</y><width>200</width><height>50</height></frame>
+        <frame class="levelup-arrow"><id>arrow</id><x>1131</x><y>0</y><width>60</width><height>50</height><data>&#8594;</data></frame>
+        <frame class="levelup-new" bind-text="{new}"><id>new</id><x>1188</x><y>0</y><width>200</width><height>50</height></frame>
+      </frame>
+      <frame><id>learnt</id><x>324</x><y>400</y><width>1300</width><height>270</height>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 0" bind-text="{battle.result.lines[0]}"><id>line0</id><x>0</x><y>0</y><width>1300</width><height>54</height></frame>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 1" bind-text="{battle.result.lines[1]}"><id>line1</id><x>0</x><y>54</y><width>1300</width><height>54</height></frame>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 2" bind-text="{battle.result.lines[2]}"><id>line2</id><x>0</x><y>108</y><width>1300</width><height>54</height></frame>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 3" bind-text="{battle.result.lines[3]}"><id>line3</id><x>0</x><y>162</y><width>1300</width><height>54</height></frame>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 4" bind-text="{battle.result.lines[4]}"><id>line4</id><x>0</x><y>216</y><width>1300</width><height>54</height></frame>
+      </frame>
+    </frame>
+    <frame bind-display="battle.result.page == 'item'"><id>item_page</id><x>0</x><y>0</y><width>1620</width><height>400</height>
+      <frame class="result-label" bind-text="{battle.result.title}"><id>item_label</id><x>192</x><y>33</y><width>260</width><height>50</height></frame>
+      <frame><id>items</id><x>469</x><y>33</y><width>1100</width><height>270</height>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 0" bind-text="{battle.result.lines[0]}"><id>line0</id><x>0</x><y>0</y><width>1300</width><height>54</height></frame>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 1" bind-text="{battle.result.lines[1]}"><id>line1</id><x>0</x><y>54</y><width>1300</width><height>54</height></frame>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 2" bind-text="{battle.result.lines[2]}"><id>line2</id><x>0</x><y>108</y><width>1300</width><height>54</height></frame>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 3" bind-text="{battle.result.lines[3]}"><id>line3</id><x>0</x><y>162</y><width>1300</width><height>54</height></frame>
+      <frame class="result-line" bind-display="battle.result.lineCount &gt; 4" bind-text="{battle.result.lines[4]}"><id>line4</id><x>0</x><y>216</y><width>1300</width><height>54</height></frame>
+      </frame>
+    </frame>
+    <frame class="page-arrow" bind-visible="battle.result.arrow" bind-style="top: {battle.result.height - 45}px"><id>arrow</id><x>1552</x><y>112</y><width>1</width><height>40</height></frame>
   </frame>
 </menu>

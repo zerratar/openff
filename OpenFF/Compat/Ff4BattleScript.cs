@@ -478,12 +478,7 @@ namespace OpenFF.Client
 		/// <summary>ShowMessage: FF4's help window at the top, with a message of babil_battle.msd, until HideMessage.</summary>
 		private void ShowEventMessage(int id)
 		{
-			if (_battleTexts == null)
-			{
-				try { _battleTexts = TableFiles.ReadNames(GameArchive.Chain, "babil_battle.msd", new GameTables()) ?? new Dictionary<uint, string>(); }
-				catch (Exception) { _battleTexts = new Dictionary<uint, string>(); }
-			}
-			_help = _battleTexts.TryGetValue((uint)id, out string text) ? text : "(message " + id + ")";
+			_help = BattleText(id, "(message " + id + ")");
 			_helpUntil = -1;
 			Note("event message " + id + ": " + _help);
 		}

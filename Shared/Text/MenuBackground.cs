@@ -264,7 +264,7 @@ namespace OpenFF.Content
 		private void Corner(int i, string word)
 		{
 			string w = word.Trim();
-			RadiusPercent[i] = w.EndsWith("%");
+			RadiusPercent[i] = w.EndsWith("%", StringComparison.Ordinal);
 			Radius[i] = Math.Max(0, RadiusPercent[i] ? (float.TryParse(w.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float p) ? p : 0) : MenuText.Length(w) ?? 0);
 		}
 
@@ -419,21 +419,21 @@ namespace OpenFF.Content
 			if (word == start) return 0;
 			if (word == end) return room;
 			if (word == "center" || word == "centre") return room / 2;
-			if (word.EndsWith("%") && float.TryParse(word.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float p)) return room * p / 100;
+			if (word.EndsWith("%", StringComparison.Ordinal) && float.TryParse(word.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float p)) return room * p / 100;
 			return Number(word);
 		}
 
 		private static float? Length(string text, float whole)
 		{
 			if (text == "auto") return null;
-			if (text.EndsWith("%") && float.TryParse(text.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float p)) return whole * p / 100;
+			if (text.EndsWith("%", StringComparison.Ordinal) && float.TryParse(text.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float p)) return whole * p / 100;
 			return Number(text);
 		}
 
 		private static float Number(string text)
 		{
 			string t = text.Trim().ToLowerInvariant();
-			if (t.EndsWith("px")) t = t.Substring(0, t.Length - 2);
+			if (t.EndsWith("px", StringComparison.Ordinal)) t = t.Substring(0, t.Length - 2);
 			return float.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : 0;
 		}
 
@@ -443,7 +443,7 @@ namespace OpenFF.Content
 			string v = value.Trim();
 			foreach (string kind in new[] { "url", "resource" })
 			{
-				if (!v.StartsWith(kind + "(", StringComparison.OrdinalIgnoreCase) || !v.EndsWith(")")) continue;
+				if (!v.StartsWith(kind + "(", StringComparison.OrdinalIgnoreCase) || !v.EndsWith(")", StringComparison.Ordinal)) continue;
 				string inner = v.Substring(kind.Length + 1, v.Length - kind.Length - 2).Trim().Trim('"', '\'');
 				return inner.Length > 0 ? (kind, inner.Replace('\\', '/')) : (null, null);
 			}
@@ -456,24 +456,24 @@ namespace OpenFF.Content
 			string v = value?.Trim().ToLowerInvariant();
 			if (string.IsNullOrEmpty(v)) return null;
 			if (v == "transparent") return 0;
-			if (v.StartsWith("#"))
+			if (v.StartsWith("#", StringComparison.Ordinal))
 			{
 				string hex = v.Substring(1);
 				if (hex.Length == 3 || hex.Length == 4) hex = string.Concat(hex.Select(c => new string(c, 2)));
 				if (hex.Length == 6) hex += "ff";
 				return hex.Length == 8 && uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgba) ? rgba : (uint?)null;
 			}
-			if (v.StartsWith("rgb"))
+			if (v.StartsWith("rgb", StringComparison.Ordinal))
 			{
 				int open = v.IndexOf('('), close = v.LastIndexOf(')');
 				if (open < 0 || close < open) return null;
 				string[] parts = v.Substring(open + 1, close - open - 1).Split(',');
 				if (parts.Length < 3) return null;
 				uint C(string p) => (uint)Math.Clamp((int)Math.Round(Number(p)), 0, 255);
-				uint a = parts.Length > 3 ? (uint)Math.Clamp((int)Math.Round((parts[3].Trim().EndsWith("%") ? Number(parts[3].Trim().TrimEnd('%')) / 100 : Number(parts[3])) * 255), 0, 255) : 255;
+				uint a = parts.Length > 3 ? (uint)Math.Clamp((int)Math.Round((parts[3].Trim().EndsWith("%", StringComparison.Ordinal) ? Number(parts[3].Trim().TrimEnd('%')) / 100 : Number(parts[3])) * 255), 0, 255) : 255;
 				return C(parts[0]) << 24 | C(parts[1]) << 16 | C(parts[2]) << 8 | a;
 			}
-			if (v.StartsWith("hsl"))
+			if (v.StartsWith("hsl", StringComparison.Ordinal))
 			{
 				int open = v.IndexOf('('), close = v.LastIndexOf(')');
 				if (open < 0 || close < open) return null;
@@ -484,7 +484,7 @@ namespace OpenFF.Content
 				double q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat, pp = 2 * light - q;
 				double Hue(double t) { t = (t + 1) % 1; return t < 1.0 / 6 ? pp + (q - pp) * 6 * t : t < 0.5 ? q : t < 2.0 / 3 ? pp + (q - pp) * (2.0 / 3 - t) * 6 : pp; }
 				uint Ch(double x) => (uint)Math.Clamp((int)Math.Round(x * 255), 0, 255);
-				uint a = parts.Length > 3 ? (uint)Math.Clamp((int)Math.Round((parts[3].EndsWith("%") ? Number(parts[3].TrimEnd('%')) / 100 : Number(parts[3])) * 255), 0, 255) : 255;
+				uint a = parts.Length > 3 ? (uint)Math.Clamp((int)Math.Round((parts[3].EndsWith("%", StringComparison.Ordinal) ? Number(parts[3].TrimEnd('%')) / 100 : Number(parts[3])) * 255), 0, 255) : 255;
 				return Ch(Hue(hue + 1.0 / 3)) << 24 | Ch(Hue(hue)) << 16 | Ch(Hue(hue - 1.0 / 3)) << 8 | a;
 			}
 			return Named.TryGetValue(v, out uint named) ? named : (uint?)null;

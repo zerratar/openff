@@ -171,8 +171,8 @@ namespace OpenFF.Content
 		{
 			string t = text?.Trim().ToLowerInvariant();
 			if (string.IsNullOrEmpty(t)) return null;
-			if (t.EndsWith("ms") && double.TryParse(t.Substring(0, t.Length - 2), NumberStyles.Float, CultureInfo.InvariantCulture, out double ms)) return ms / 1000;
-			if (t.EndsWith("s") && double.TryParse(t.Substring(0, t.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out double s)) return s;
+			if (t.EndsWith("ms", StringComparison.Ordinal) && double.TryParse(t.Substring(0, t.Length - 2), NumberStyles.Float, CultureInfo.InvariantCulture, out double ms)) return ms / 1000;
+			if (t.EndsWith("s", StringComparison.Ordinal) && double.TryParse(t.Substring(0, t.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out double s)) return s;
 			return null;
 		}
 
@@ -197,14 +197,14 @@ namespace OpenFF.Content
 				return Bezier(Math.Clamp(N(1), 0, 1), N(2), Math.Clamp(N(3), 0, 1), N(4));
 			}
 			m = Regex.Match(t, @"^steps\(\s*(\d+)\s*(?:,\s*(start|end|jump-start|jump-end)\s*)?\)$");
-			if (m.Success) return Steps(Math.Max(1, int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)), m.Groups[2].Value.EndsWith("start"));
+			if (m.Success) return Steps(Math.Max(1, int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)), m.Groups[2].Value.EndsWith("start", StringComparison.Ordinal));
 			return Bezier(0.25, 0.1, 0.25, 1);
 		}
 
 		private static bool IsTiming(string word)
 		{
 			string w = word.Trim().ToLowerInvariant();
-			return w == "linear" || w == "ease" || w == "ease-in" || w == "ease-out" || w == "ease-in-out" || w == "step-start" || w == "step-end" || w.StartsWith("cubic-bezier(") || w.StartsWith("steps(");
+			return w == "linear" || w == "ease" || w == "ease-in" || w == "ease-out" || w == "ease-in-out" || w == "step-start" || w == "step-end" || w.StartsWith("cubic-bezier(", StringComparison.Ordinal) || w.StartsWith("steps(", StringComparison.Ordinal);
 		}
 
 		private static Func<double, double> Steps(int n, bool start) => x => Math.Clamp((start ? Math.Ceiling(x * n) : Math.Floor(x * n)) / n, 0, 1);

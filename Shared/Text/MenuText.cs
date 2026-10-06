@@ -107,7 +107,7 @@ namespace OpenFF.Content
 						t.Bold = low == "bold" || low == "bolder" || (int.TryParse(low, NumberStyles.Integer, CultureInfo.InvariantCulture, out int w) && w >= 600);
 						break;
 					case "font-style":
-						t.Italic = low.StartsWith("italic") || low.StartsWith("oblique");
+						t.Italic = low.StartsWith("italic", StringComparison.Ordinal) || low.StartsWith("oblique", StringComparison.Ordinal);
 						break;
 					case "letter-spacing":
 						t.LetterSpacing = low == "normal" ? 0 : Length(low) ?? 0;
@@ -115,7 +115,7 @@ namespace OpenFF.Content
 					case "line-height":
 						if (low == "normal") { t.LineHeight = null; break; }
 						if (float.TryParse(low, NumberStyles.Float, CultureInfo.InvariantCulture, out float factor)) { t.LineHeight = factor; t.LineFactor = true; }
-						else if (low.EndsWith("%") && float.TryParse(low.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) { t.LineHeight = pc / 100; t.LineFactor = true; }
+						else if (low.EndsWith("%", StringComparison.Ordinal) && float.TryParse(low.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) { t.LineHeight = pc / 100; t.LineFactor = true; }
 						else if (Length(low) is float px) { t.LineHeight = px; t.LineFactor = false; }
 						break;
 					case "text-decoration":
@@ -166,8 +166,8 @@ namespace OpenFF.Content
 			string t = text?.Trim().ToLowerInvariant();
 			if (string.IsNullOrEmpty(t)) return null;
 			float scale = 1;
-			if (t.EndsWith("px")) t = t.Substring(0, t.Length - 2);
-			else if (t.EndsWith("em")) { t = t.Substring(0, t.Length - 2); scale = 12; }
+			if (t.EndsWith("px", StringComparison.Ordinal)) t = t.Substring(0, t.Length - 2);
+			else if (t.EndsWith("em", StringComparison.Ordinal)) { t = t.Substring(0, t.Length - 2); scale = 12; }
 			return float.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v * scale : (float?)null;
 		}
 

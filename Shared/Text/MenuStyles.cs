@@ -251,8 +251,8 @@ namespace OpenFF.Content
 			float One(string p, float whole)
 			{
 				string t = p.Trim().ToLowerInvariant();
-				if (t.EndsWith("%") && float.TryParse(t.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) return whole * pc / 100;
-				if (t.EndsWith("px")) t = t.Substring(0, t.Length - 2);
+				if (t.EndsWith("%", StringComparison.Ordinal) && float.TryParse(t.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) return whole * pc / 100;
+				if (t.EndsWith("px", StringComparison.Ordinal)) t = t.Substring(0, t.Length - 2);
 				return float.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : 0;
 			}
 			return (parts.Length > 0 ? One(parts[0], width) : 0, parts.Length > 1 ? One(parts[1], height) : 0);
@@ -353,7 +353,7 @@ namespace OpenFF.Content
 			if (computed.TryGetValue("font-size", out string size))
 			{
 				string word = size.Trim().ToLowerInvariant();
-				if (word.EndsWith("px")) word = word.Substring(0, word.Length - 2).Trim();
+				if (word.EndsWith("px", StringComparison.Ordinal)) word = word.Substring(0, word.Length - 2).Trim();
 				if (word == "large" || word == "normal" || (int.TryParse(word, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) && n >= 6 && n <= 31)) frame.SetElementValue("font", word == "normal" ? "12" : word);
 			}
 			if (computed.TryGetValue("text-align", out string align))
@@ -408,7 +408,7 @@ namespace OpenFF.Content
 			if (!computed.TryGetValue("opacity", out string v)) return parent;
 			string t = v.Trim();
 			double o;
-			if (t.EndsWith("%") && double.TryParse(t.Substring(0, t.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out double p)) o = p / 100;
+			if (t.EndsWith("%", StringComparison.Ordinal) && double.TryParse(t.Substring(0, t.Length - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out double p)) o = p / 100;
 			else if (!double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out o)) return parent;
 			return parent * Math.Clamp(o, 0, 1);
 		}
@@ -580,7 +580,7 @@ namespace OpenFF.Content
 						foreach (string one in at.Split(','))
 						{
 							string o = one.Trim().ToLowerInvariant();
-							double? offset = o == "from" ? 0 : o == "to" ? 1 : o.EndsWith("%") && double.TryParse(o.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out double p) ? Math.Clamp(p / 100, 0, 1) : (double?)null;
+							double? offset = o == "from" ? 0 : o == "to" ? 1 : o.EndsWith("%", StringComparison.Ordinal) && double.TryParse(o.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out double p) ? Math.Clamp(p / 100, 0, 1) : (double?)null;
 							if (offset == null) continue;
 							MenuAnimation.Keyframe stop = new MenuAnimation.Keyframe { Offset = offset.Value };
 							foreach (KeyValuePair<string, string> d in Declarations(declarations)) stop.Values[d.Key] = d.Value;
@@ -590,7 +590,7 @@ namespace OpenFF.Content
 					into.Keyframes[name] = stops.OrderBy(k => k.Offset).ToList();
 					continue;
 				}
-				if (head.StartsWith("@")) continue;   // @media and the rest: not for a menu
+				if (head.StartsWith("@", StringComparison.Ordinal)) continue;   // @media and the rest: not for a menu
 				List<Selector> selectors = SplitSelectors(head).Select(s => ParseSelector(s.Trim())).Where(s => s != null).ToList();
 				if (selectors.Count == 0) continue;
 				into.Rules.Add(new Rule { Selectors = selectors, Declarations = Declarations(body).ToList(), Order = order++ });

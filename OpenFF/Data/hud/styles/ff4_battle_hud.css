@@ -11,7 +11,7 @@
 .row.lit { background-color: #566ab2b8; }
 
 /* Every text: white with Steam's soft drop shadow, at Steam's size (inherited by everything inside). */
-#panel, #message, #result, #result_lines { color: #ffffff; font-size: 25px; text-shadow: 2px 2px #000000a0; }
+#panel, #message, #result { color: #ffffff; font-size: 25px; text-shadow: 2px 2px #000000a0; }
 
 .command .label { text-align: center; vertical-align: middle; }
 .command.disabled .label { color: #babeda; }
@@ -51,7 +51,7 @@
 #message .message-text { font-size: 34px; text-align: center; vertical-align: middle; }
 
 /* The result: Steam's panel, a near-white frame 3 pixels thick with a soft shadow outside it. */
-#result, #result_lines {
+#result {
   background-color: #373a7180;
   border: 3px solid #eef4f7;
   box-shadow: 0 3px 0 3px #14181e46;
@@ -75,3 +75,10 @@
 .cell-hand { -ff-cell: glove; -ff-cell-origin: 0 0; }
 .grid-track { background-color: #14163ca0; }
 .grid-knob { background-color: #d6daf2; }
+
+/* A member's level-up page: the title centred, the values in two columns, a risen value in FF4's colour 3. */
+.levelup-title { text-align: center; vertical-align: middle; }
+.levelup-label, .levelup-new { vertical-align: middle; }
+.levelup-old { text-align: right; vertical-align: middle; }
+.levelup-arrow { text-align: center; vertical-align: middle; }
+.up .levelup-new { color: #ffe86e; }

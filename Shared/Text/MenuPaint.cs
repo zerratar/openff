@@ -134,10 +134,10 @@ namespace OpenFF.Content
 			string w = word.Trim().ToLowerInvariant();
 			float Num(string t) => float.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out float f) ? f : float.NaN;
 			float v = float.NaN;
-			if (w.EndsWith("deg")) v = Num(w.Substring(0, w.Length - 3));
-			else if (w.EndsWith("grad")) v = Num(w.Substring(0, w.Length - 4)) * 0.9f;
-			else if (w.EndsWith("rad")) v = Num(w.Substring(0, w.Length - 3)) * 180 / (float)Math.PI;
-			else if (w.EndsWith("turn")) v = Num(w.Substring(0, w.Length - 4)) * 360;
+			if (w.EndsWith("deg", StringComparison.Ordinal)) v = Num(w.Substring(0, w.Length - 3));
+			else if (w.EndsWith("grad", StringComparison.Ordinal)) v = Num(w.Substring(0, w.Length - 4)) * 0.9f;
+			else if (w.EndsWith("rad", StringComparison.Ordinal)) v = Num(w.Substring(0, w.Length - 3)) * 180 / (float)Math.PI;
+			else if (w.EndsWith("turn", StringComparison.Ordinal)) v = Num(w.Substring(0, w.Length - 4)) * 360;
 			return float.IsNaN(v) ? (float?)null : v;
 		}
 	}
@@ -427,7 +427,7 @@ namespace OpenFF.Content
 		{
 			if (position == null) return null;
 			string p = position.Trim().ToLowerInvariant();
-			if (p.EndsWith("%") && float.TryParse(p.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) return pc / 100;
+			if (p.EndsWith("%", StringComparison.Ordinal) && float.TryParse(p.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) return pc / 100;
 			if (conic && MenuGradient.Degrees(p) is float deg) return deg / 360;
 			if (MenuText.Length(p) is float px) return length > 0 ? px / length : 0;
 			return null;
@@ -489,7 +489,7 @@ namespace OpenFF.Content
 		private static float Length(string text, float whole)
 		{
 			string t = text?.Trim().ToLowerInvariant() ?? "50%";
-			if (t.EndsWith("%") && float.TryParse(t.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float p)) return whole * p / 100;
+			if (t.EndsWith("%", StringComparison.Ordinal) && float.TryParse(t.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float p)) return whole * p / 100;
 			return MenuText.Length(t) ?? whole / 2;
 		}
 

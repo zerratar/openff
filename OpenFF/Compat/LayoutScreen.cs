@@ -67,6 +67,8 @@ namespace OpenFF.Client
 		private readonly Dictionary<XElement, string> _texts = new Dictionary<XElement, string>();
 		private readonly MenuAnimation.Animator _animator = new MenuAnimation.Animator();
 		private readonly Stopwatch _clock = Stopwatch.StartNew();
+		private XElement _laid;     // the layout as last laid out, and what it was laid out from
+		private string _laidKey;
 		private readonly Dictionary<string, Texture> _pictures = new Dictionary<string, Texture>(StringComparer.OrdinalIgnoreCase);
 
 		private LayoutScreen(string id, string source, XElement menu, MenuStyles.Sheet sheet)
@@ -133,9 +135,16 @@ namespace OpenFF.Client
 				Dictionary<XElement, MenuStyles.Look> looks = MenuStyles.Looks(_menu, computed, shown);
 				Dictionary<XElement, Dictionary<string, string>> values = new Dictionary<XElement, Dictionary<string, string>>();
 				foreach ((XElement frame, Dictionary<string, string> c) in computed) values[frame] = shown != null && shown.TryGetValue(frame, out Dictionary<string, string> s) ? s : c;
-				XElement laid = new XElement(_menu);
-				MenuStyles.Apply(laid, _sheet);
-				MenuLayout.Bake(laid);
+				// Laid out again only when a frame's classes, styles, state or text changed (the layout is the same otherwise).
+				string key = string.Join("|", _menu.Descendants("frame").Select(f => string.Join("~", f.Attributes().Select(a => a.Value)) + "~" + (string)f.Element("data")));
+				if (key != _laidKey || _laid == null)
+				{
+					XElement laid = new XElement(_menu);
+					MenuStyles.Apply(laid, _sheet);
+					MenuLayout.Bake(laid);
+					_laid = laid;
+					_laidKey = key;
+				}
 				float sx = DrawList.ScreenWidth / _width, sy = DrawList.ScreenHeight / _height;
 				void Walk(XElement frame, XElement copy, float px, float py)
 				{
@@ -148,7 +157,7 @@ namespace OpenFF.Client
 					List<XElement> frames = frame.Elements("frame").ToList(), copies = copy.Elements("frame").ToList();
 					for (int i = 0; i < frames.Count && i < copies.Count; i++) Walk(frames[i], copies[i], x, y);
 				}
-				List<XElement> top = _menu.Elements("frame").ToList(), topCopies = laid.Elements("frame").ToList();
+				List<XElement> top = _menu.Elements("frame").ToList(), topCopies = _laid.Elements("frame").ToList();
 				for (int i = 0; i < top.Count && i < topCopies.Count; i++) Walk(top[i], topCopies[i], 0, 0);
 			}
 			catch (Exception ex)
@@ -256,7 +265,7 @@ namespace OpenFF.Client
 			for (int i = 0; i < n; i++)
 			{
 				string p = g.Stops[i].Position?.Trim();
-				if (p != null && p.EndsWith("%") && float.TryParse(p.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) at[i] = pc / 100f;
+				if (p != null && p.EndsWith("%", StringComparison.Ordinal) && float.TryParse(p.TrimEnd('%'), NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) at[i] = pc / 100f;
 				else if (p != null && float.TryParse(p.Replace("px", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out float px) && length > 0) at[i] = px / length;
 				else at[i] = n == 1 ? 0 : i / (float)(n - 1);
 			}
@@ -309,7 +318,7 @@ namespace OpenFF.Client
 			if (v.TryGetValue("-ff-cell-crop", out string cr))
 			{
 				string c = cr.Trim().TrimEnd('%');
-				if (float.TryParse(c, NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) crop = Math.Clamp(cr.Trim().EndsWith("%") ? pc / 100f : pc, 0f, 1f);
+				if (float.TryParse(c, NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) crop = Math.Clamp(cr.Trim().EndsWith("%", StringComparison.Ordinal) ? pc / 100f : pc, 0f, 1f);
 			}
 			drawer(d, index, x + ox, y + oy, scale, crop, new Color(255, 255, 255, (byte)Math.Round(255 * opacity)));
 		}

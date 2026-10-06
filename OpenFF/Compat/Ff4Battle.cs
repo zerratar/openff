@@ -566,8 +566,16 @@ namespace OpenFF.Client
 					break;
 				case Phase.Victory:
 					// The result window (DrawResult) stands until A, B or a tap.
-					if (_timer > (_closing ? WinFade + WinHold + WinArrowAfter : 20) && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased))
+					if (_timer > (_page > 0 ? _pageFrom + WinArrowAfter : WinFade + WinHold + WinArrowAfter) && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased))
 					{
+						if (_page + 1 < _pages.Count)
+						{
+							// The next page: a member's level-up (with getExpPhase's sound, 0x65 0), then the items.
+							_page++;
+							_pageFrom = _timer;
+							if (_pages[_page].Kind == "levelup") Game.Audio.PlaySe(0x65, 0);
+							break;
+						}
 						_phase = Phase.Outro;
 						_timer = 0;
 						if (_closing)
@@ -1794,22 +1802,50 @@ namespace OpenFF.Client
 			RollGift();
 			List<string> lines = _resultLines;
 			party.Gil += _gilWon;
+			_pages.Clear();
+			_page = 0;
+			_pages.Add(new ResultPage { Kind = "gil" });
 			foreach (Fighter f in alive)
 			{
-				int before = f.Member.Level;
-				f.Member.Experience += _expWon / Math.Max(1, alive.Count);
-				int level = Ff4Party.Tables.LevelForExperience(f.Member.Experience);
-				if (level > before)
+				Character c = f.Member;
+				int before = c.Level, hp = c.MaxHp, mp = c.MaxMp;
+				OpenFF.Data.Stats stats = c.Base.Clone();
+				c.Experience += _expWon / Math.Max(1, alive.Count);
+				int level = Ff4Party.Tables.LevelForExperience(c.Experience);
+				if (level <= before) continue;
+				c.SetLevel(level, false);
+				lines.Add(f.Name + " reaches level " + level + "!");
+				// btl::BattleLevelupBehavior: a page for the member - "<name>'s level increased!" (babil_battle 109), the
+				// level, HP and MP on the left and the five stats on the right, each the old value, the arrow, the new.
+				ResultPage page = new ResultPage { Kind = "levelup", Title = BattleText(109, "%SCC00%'s level increased!").Replace("%SCC00%", f.Name) };
+				page.Rows.Add((BattleText(200, "Lv"), before, c.Level));
+				page.Rows.Add((BattleText(201, "HP"), hp, c.MaxHp));
+				page.Rows.Add((BattleText(202, "MP"), mp, c.MaxMp));
+				page.Rows.Add((BattleText(203, "Strength"), stats.Strength, c.Base.Strength));
+				page.Rows.Add((BattleText(204, "Speed"), stats.Agility, c.Base.Agility));
+				page.Rows.Add((BattleText(205, "Stamina"), stats.Vitality, c.Base.Vitality));
+				page.Rows.Add((BattleText(206, "Intellect"), stats.Intellect, c.Base.Intellect));
+				page.Rows.Add((BattleText(207, "Spirit"), stats.Spirit, c.Base.Spirit));
+				foreach (int id in c.Learn())
 				{
-					f.Member.SetLevel(level, false);
-					lines.Add(f.Name + " reaches level " + level + "!");
-					foreach (int id in f.Member.Learn()) lines.Add(f.Name + " learns " + (Ff4Party.Tables.Spell(id)?.Name ?? ("spell " + id)) + "!");
+					string name = Ff4Party.Tables.Spell(id)?.Name ?? ("spell " + id);
+					page.Lines.Add(name);
+					lines.Add(f.Name + " learns " + name + "!");
 				}
+				_pages.Add(page);
 			}
-			foreach (int id in _dropsWon)
+			if (_dropsWon.Count > 0)
 			{
-				party.AddItem(id, 1);
-				lines.Add("Found " + (Ff4Party.Tables.Item(id)?.Name ?? ("item " + id)) + ".");
+				// drawAcquiredItem: "Item" (babil_battle 111) and what the fight brought.
+				ResultPage items = new ResultPage { Kind = "item", Title = BattleText(111, "Item") };
+				foreach (int id in _dropsWon)
+				{
+					party.AddItem(id, 1);
+					string name = Ff4Party.Tables.Item(id)?.Name ?? ("item " + id);
+					items.Lines.Add(name);
+					lines.Add("Found " + name + ".");
+				}
+				_pages.Add(items);
 			}
 			if (!Ff4BattleStage.Active) foreach (Fighter f in _party) { if (f.Alive) Play(f, 2007); }   // on the stage VictoryPose has posed them
 			Log.Write(LogChannel.General, "battle: won - " + _expWon + " exp, " + _gilWon + " gil. " + string.Join(" ", lines));
@@ -2018,8 +2054,34 @@ namespace OpenFF.Client
 		public sealed class ResultData
 		{
 			public bool Shown, ShowGil, ShowExp, Arrow;
-			public int Panel, GilFound, NewTotal, Exp, LineCount;
+			public int Panel, GilFound, NewTotal, Exp, LineCount, Height = 157;
 			public List<string> Lines = new List<string>();
+			public string Page = "gil", Title = "";
+			public List<ResultRow> Row = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 8), _ => new ResultRow()));
+		}
+
+		public sealed class ResultRow { public string Label = "", Old = "", New = ""; public bool Up; }
+
+		/// <summary>A page of the result (btl::BattleWin): the gil and experience, a member's level-up, the items.</summary>
+		private sealed class ResultPage
+		{
+			public string Kind, Title = "";
+			public List<(string Label, int Old, int New)> Rows = new List<(string, int, int)>();
+			public List<string> Lines = new List<string>();
+		}
+
+		private readonly List<ResultPage> _pages = new List<ResultPage>();
+		private int _page, _pageFrom;
+
+		/// <summary>A message of babil_battle.msd, or the fallback.</summary>
+		private string BattleText(int id, string fallback)
+		{
+			if (_battleTexts == null)
+			{
+				try { _battleTexts = TableFiles.ReadNames(GameArchive.Chain, "babil_battle.msd", new GameTables()) ?? new Dictionary<uint, string>(); }
+				catch (Exception) { _battleTexts = new Dictionary<uint, string>(); }
+			}
+			return _battleTexts.TryGetValue((uint)id, out string text) && !string.IsNullOrEmpty(text) ? text : fallback;
 		}
 
 		private readonly HudData _hudData = new HudData();
@@ -2129,7 +2191,7 @@ namespace OpenFF.Client
 				m.Fill = f.Queued ? 3 : f.Gauge >= 1f ? 2 : 1;
 			}
 			ResultData r = h.Result;
-			r.Shown = _phase == Phase.Victory && _closing;
+			r.Shown = _phase == Phase.Victory;   // off the stage too (a battle with no battle map)
 			r.Panel = (int)Math.Round(Math.Clamp(_timer / 18f, 0f, 1f) * 100);
 			r.GilFound = _gilWon;
 			r.NewTotal = _gilShown;
@@ -2138,8 +2200,26 @@ namespace OpenFF.Client
 			r.ShowExp = _timer >= WinFade + WinHold + WinExpAfter;
 			r.Arrow = _timer >= WinFade + WinHold + WinArrowAfter;
 			r.Lines.Clear();
-			if (r.Arrow) r.Lines.AddRange(_resultLines);
+			ResultPage page = _page < _pages.Count ? _pages[_page] : null;
+			r.Page = page?.Kind ?? "gil";
+			r.Title = page?.Title ?? "";
+			if (page != null && page.Kind != "gil")
+			{
+				r.Arrow = _timer >= _pageFrom + WinArrowAfter;
+				for (int i = 0; i < r.Row.Count; i++)
+				{
+					ResultRow row = r.Row[i];
+					bool has = i < page.Rows.Count;
+					row.Label = has ? page.Rows[i].Label : "";
+					row.Old = has ? page.Rows[i].Old.ToString() : "";
+					row.New = has ? page.Rows[i].New.ToString() : "";
+					row.Up = has && page.Rows[i].New > page.Rows[i].Old;
+				}
+				r.Lines.AddRange(page.Lines);
+			}
 			r.LineCount = r.Lines.Count;
+			// The window: the gil page's 157, a level-up's 400 (its eight rows) and a line more for each ability learnt.
+			r.Height = r.Page == "levelup" ? 400 + 54 * r.LineCount : r.Page == "item" ? 70 + 54 * Math.Max(1, r.LineCount) : 157;
 		}
 
 		// btl::AcquiredGoldDrawer: the new total counts up from what the party had, each frame by the lowest place the
@@ -2148,7 +2228,7 @@ namespace OpenFF.Client
 
 		private void CountGil()
 		{
-			if (_phase != Phase.Victory || !_closing || _timer < WinFade + WinHold) return;
+			if (_phase != Phase.Victory || _timer < WinFade + WinHold) return;
 			int target = _gilBefore + _gilWon;
 			if (_gilShown >= target) return;
 			if (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased) { _gilShown = target; return; }
@@ -2169,7 +2249,7 @@ namespace OpenFF.Client
 				FillHud();
 				_hud.Draw(d, HudRoot);
 			}
-			if (_phase == Phase.Victory) { if (_hud == null || !_closing) DrawResult(d); return; }
+			if (_phase == Phase.Victory) { if (_hud == null) DrawResult(d); return; }
 			if (_closing) return;   // the fade before the result, and the one after it
 			bool choosing = _acting != null && _pick != Pick.None;
 
