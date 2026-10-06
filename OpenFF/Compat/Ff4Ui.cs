@@ -232,6 +232,42 @@ namespace OpenFF.Client
 			return Cell(d, CursorBank, CursorSheet, pressed ? 1 : 0, x, y);
 		}
 
+		/// <summary>One cell of the ATB gauge's bank (0 the trough, 1 grey, 2 yellow, 3 red fill) with its origin at (x, y), cut to <paramref name="crop"/> of its width.</summary>
+		public static bool GaugeCell(DrawList d, int index, float x, float y, float scale, float crop, Color tint)
+		{
+			CellBank bank = Bank(GaugeBank);
+			Texture sheet = Sheet(GaugeSheet);
+			Cell cell = bank?[index];
+			if (cell == null || sheet == null) return false;
+			crop = Math.Clamp(crop, 0f, 1f);
+			if (crop <= 0f) return true;
+			float k = Scale * scale;
+			foreach (CellPart p in cell.Parts) Part(d, sheet, p, x, y, k, tint, p.Width * k * crop, null, p.Width * crop);
+			return true;
+		}
+
+		/// <summary>The cells FF4's art gives a layout's -ff-cell (LayoutScreen): cursor, glove, gauge, number, and the result window's page arrow.</summary>
+		public static void RegisterLayoutCells()
+		{
+			LayoutScreen.Cells["cursor"] = (d, i, x, y, s, crop, t) => Cell(d, CursorBank, CursorSheet, i, x, y, Scale * s, t);
+			LayoutScreen.Cells["glove"] = (d, i, x, y, s, crop, t) => Glove(d, x, y, i == 1);
+			LayoutScreen.Cells["gauge"] = GaugeCell;
+			LayoutScreen.Cells["number"] = (d, i, x, y, s, crop, t) => Cell(d, NumberBank, NumberSheet, i, x, y, Scale * s, t);
+			// HelpWindow::setResultPageIcon's arrow, as Steam draws it: a white triangle pointing down, 44 wide and 16 high
+			// at the game's scale, its origin the top middle.
+			LayoutScreen.Cells["page-arrow"] = (d, i, x, y, s, crop, t) =>
+			{
+				float half = 22f * s, high = 16f * s;
+				for (int r = 0; r < (int)Math.Ceiling(high); r++)
+				{
+					float hw = half * (1f - r / high);
+					Color c = r < 2 * s ? new Color(150, 150, 160, t.A) : new Color(235, 235, 240, t.A);
+					d.Line(x - hw, y + r, x + hw, y + r, c);
+				}
+				return true;
+			};
+		}
+
 		/// <summary>The ATB gauge with its origin at (x, y): the trough (cell 0) and a fill (1 grey, 2 yellow, 3 red) cut to <paramref name="fraction"/>.</summary>
 		public static bool Gauge(DrawList d, float x, float y, float fraction, int fill = 2)
 		{

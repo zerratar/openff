@@ -1,0 +1,59 @@
+/* FF4's battle HUD as the Steam game draws it (ff4_battle_hud.xml), in Steam's 1080p pixels. A mod restyles it with
+   menus/hud/styles/*.css: those sheets come after this one, so their rules win. */
+
+/* Steam's row panels: a translucent lavender, a light edge along the top and left, a dark one along the bottom and
+   right; the lit one (the hand's row, the member whose turn it is) lighter. */
+.row {
+  background-color: #373a7180;
+  border-width: 2px;
+  border-color: #969cdedc #1a1c42c8 #1a1c42c8 #969cdedc;
+}
+.row.lit { background-color: #566ab2b8; }
+
+/* Every text: white with Steam's soft drop shadow, at Steam's size (inherited by everything inside). */
+#panel, #message, #result, #result_lines { color: #ffffff; font-size: 25px; text-shadow: 2px 2px #000000a0; }
+
+.command .label { text-align: center; vertical-align: middle; }
+.command.disabled .label { color: #babeda; }
+
+/* The pointing glove, its fingertip at the frame's left middle. */
+.hand { -ff-cell: glove; -ff-cell-origin: 0 50%; }
+
+#scroll #knob { background-color: #aaacc496; }
+#scroll .arrow { color: #c8cce6c8; font-size: 22px; text-align: center; vertical-align: middle; text-shadow: none; }
+
+.member .name, .member .hp, .member .mp { vertical-align: middle; }
+.member .hp, .member .mp { text-align: right; }
+.member.dead .name, .member.dead .hp { color: #babeda; }
+.member.low .hp { color: #ff786e; }
+
+/* The ATB gauge: the trough, and the fill cut to the gauge (grey while it fills, yellow once full). */
+.gauge { -ff-cell: gauge 0; -ff-cell-origin: 0 50%; }
+.gauge-fill { -ff-cell-origin: 0 50%; }
+
+/* The keys: the letter on a dark blue key cap, the words after it. */
+.key-cap {
+  background-color: #0e3660eb;
+  border: 2px solid #466ea0;
+  color: #c8d8ec;
+  font-size: 29px;
+  text-align: center;
+  vertical-align: middle;
+  text-shadow: none;
+}
+.key-label { font-size: 20px; vertical-align: middle; }
+
+#message {
+  background-color: #373a71d0;
+  border-width: 2px;
+  border-color: #969cdedc #1a1c42c8 #1a1c42c8 #969cdedc;
+}
+#message .message-text { font-size: 34px; text-align: center; vertical-align: middle; }
+
+/* The result: Steam's panel, a near-white frame 3 pixels thick with a soft shadow outside it. */
+#result, #result_lines {
+  background-color: #373a7180;
+  border: 3px solid #eef4f7;
+  box-shadow: 0 3px 0 3px #14181e46;
+}
+.page-arrow { -ff-cell: page-arrow; -ff-cell-origin: 0 0; }

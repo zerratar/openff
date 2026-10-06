@@ -1473,6 +1473,8 @@ namespace OpenFF.Client
 			_timer = 0;
 			Party party = Ff4Party.Party;
 			List<Fighter> alive = _party.FindAll(f => f.Alive);
+			_gilBefore = party.Gil;
+			_gilShown = party.Gil;
 			_resultLines.Clear();
 			_dropsWon.Clear();
 			RollGift();
@@ -1667,12 +1669,127 @@ namespace OpenFF.Client
 
 		private int Accuracy(Fighter attacker, Fighter target) => Math.Clamp(attacker.HitChance + attacker.Agility - (target.Evade + target.Agility) + 20, 0, 100);
 
+		// ---- the HUD: Data/hud/ff4_battle_hud.xml and its sheets, through LayoutScreen - what it binds to ----
+
+		/// <summary>What the battle HUD's layout binds to, as the root "battle" (ff4_battle_hud.xml lists the paths).</summary>
+		public sealed class HudData
+		{
+			public bool Panel, Commands, Party;
+			public string Message = "";
+			public List<CommandRow> Command = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
+			public ScrollData Scroll = new ScrollData();
+			public List<MemberRow> Member = new List<MemberRow> { new MemberRow(), new MemberRow(), new MemberRow(), new MemberRow(), new MemberRow() };
+			public ResultData Result = new ResultData();
+		}
+
+		public sealed class CommandRow { public bool Present, Lit, Disabled; public string Name = ""; }
+		public sealed class ScrollData { public bool Shown; public float Top, Size = 100; }
+		public sealed class MemberRow { public bool Present, Alive, Low, Acting, Picked, ShowMp; public string Name = ""; public int Hp, MaxHp, Mp, Gauge, Fill = 1; }
+
+		public sealed class ResultData
+		{
+			public bool Shown, ShowGil, ShowExp, Arrow;
+			public int Panel, GilFound, NewTotal, Exp, LineCount;
+			public List<string> Lines = new List<string>();
+		}
+
+		private readonly HudData _hudData = new HudData();
+		private LayoutScreen _hud;
+		private bool _hudLoaded;
+
+		private void EnsureHud()
+		{
+			if (_hudLoaded) return;
+			_hudLoaded = true;
+			Ff4Ui.RegisterLayoutCells();
+			_hud = LayoutScreen.Load("ff4_battle_hud");
+		}
+
+		private (bool, object) HudRoot(string name) => string.Equals(name, "battle", StringComparison.OrdinalIgnoreCase) ? (true, _hudData) : (Game.Hud.TryGet(name, out object hud) ? (true, hud) : (false, null));
+
+		/// <summary>The HUD's data as the fight stands this frame.</summary>
+		private void FillHud()
+		{
+			HudData h = _hudData;
+			bool choosing = _acting != null && _pick != Pick.None;
+			h.Panel = (_phase == Phase.Fight || _phase == Phase.Intro) && !_closing;
+			h.Commands = choosing && _pick == Pick.Command;
+			h.Party = _pick != Pick.Target && _pick != Pick.Spell && _pick != Pick.Item;
+			h.Message = _log.Count > 0 ? _log[_log.Count - 1] : "";
+			List<int> commands = choosing ? Commands : null;
+			int count = commands?.Count ?? 0;
+			for (int row = 0; row < h.Command.Count; row++)
+			{
+				int i = _commandScroll + row;
+				CommandRow c = h.Command[row];
+				c.Present = i < count;
+				c.Name = c.Present ? CommandName(commands[i]) : "";
+				c.Lit = c.Present && _pick == Pick.Command && i == _cursor;
+				c.Disabled = false;
+			}
+			h.Scroll.Shown = h.Commands;
+			h.Scroll.Size = count <= CommandRows ? 100 : 100f * CommandRows / count;
+			h.Scroll.Top = count <= CommandRows ? 0 : (100 - h.Scroll.Size) * _commandScroll / Math.Max(1, count - CommandRows);
+			for (int i = 0; i < h.Member.Count; i++)
+			{
+				MemberRow m = h.Member[i];
+				Fighter f = i < _party.Count ? _party[i] : null;
+				m.Present = f != null;
+				if (f == null) { m.Acting = m.Picked = false; continue; }
+				m.Name = f.Name;
+				m.Hp = f.Hp;
+				m.MaxHp = f.MaxHp;
+				m.Mp = f.Mp;
+				m.ShowMp = f.Member != null && f.Member.MaxMp > 0;
+				m.Alive = f.Alive;
+				m.Low = f.Alive && f.Hp * 4 <= f.MaxHp;
+				m.Acting = f == _acting && choosing;
+				m.Picked = _pick == Pick.Ally && i == _cursor;
+				m.Gauge = f.Alive ? (int)Math.Round(Math.Clamp(f.Gauge, 0f, 1f) * 100) : 0;
+				m.Fill = f.Gauge >= 1f ? 2 : 1;
+			}
+			ResultData r = h.Result;
+			r.Shown = _phase == Phase.Victory && _closing;
+			r.Panel = (int)Math.Round(Math.Clamp(_timer / 18f, 0f, 1f) * 100);
+			r.GilFound = _gilWon;
+			r.NewTotal = _gilShown;
+			r.ShowGil = _timer >= WinFade + WinHold;
+			r.Exp = _expWon;
+			r.ShowExp = _timer >= WinFade + WinHold + WinExpAfter;
+			r.Arrow = _timer >= WinFade + WinHold + WinArrowAfter;
+			r.Lines.Clear();
+			if (r.Arrow) r.Lines.AddRange(_resultLines);
+			r.LineCount = r.Lines.Count;
+		}
+
+		// btl::AcquiredGoldDrawer: the new total counts up from what the party had, each frame by the lowest place the
+		// rest still has (14 gil: 1, 2, 3, 4, then 14), a key there ending it at once.
+		private int _gilShown, _gilBefore;
+
+		private void CountGil()
+		{
+			if (_phase != Phase.Victory || !_closing || _timer < WinFade + WinHold) return;
+			int target = _gilBefore + _gilWon;
+			if (_gilShown >= target) return;
+			if (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased) { _gilShown = target; return; }
+			int rest = target - _gilShown, step = 1;
+			while (rest % (step * 10) == 0 && step < 1000000000) step *= 10;
+			_gilShown += step;
+		}
+
 		private void Draw()
 		{
 			DrawList d = Game.Draw;
 			DrawPops(d);
 			if (_phase == Phase.Defeat) return;
-			if (_phase == Phase.Victory) { DrawResult(d); return; }
+			EnsureHud();
+			if (_hud != null)
+			{
+				CountGil();
+				FillHud();
+				_hud.Draw(d, HudRoot);
+			}
+			if (_phase == Phase.Victory) { if (_hud == null || !_closing) DrawResult(d); return; }
 			if (_closing) return;   // the fade before the result, and the one after it
 			bool choosing = _acting != null && _pick != Pick.None;
 
@@ -1733,7 +1850,7 @@ namespace OpenFF.Client
 				}
 				return;
 			}
-			else if (choosing)
+			else if (choosing && _hud == null)
 			{
 				List<int> commands = Commands;
 				for (int row = 0; row < CommandRows && _commandScroll + row < commands.Count; row++)
@@ -1758,7 +1875,7 @@ namespace OpenFF.Client
 				Shadowed(d, "Weaknesses:", PartyX + 14, PartyY + 84, Color.White, 16);
 				Shadowed(d, "Absorbs:", PartyX + 14, PartyY + 112, Color.White, 16);
 			}
-			else
+			else if (_hud == null)
 			{
 				// Five rows always, as Steam's: the members' in their order, the rest empty.
 				for (int i = 0; i < 5; i++)
@@ -1780,8 +1897,11 @@ namespace OpenFF.Client
 				}
 			}
 			// The keys, over the party's rows (FF4 writes "C Auto battle  M Run away" there).
-			KeyHint(d, "C", "Auto battle", 504f, 309f);
-			KeyHint(d, "M", "Run away", 618f, 309f);
+			if (_hud == null)
+			{
+				KeyHint(d, "C", "Auto battle", 504f, 309f);
+				KeyHint(d, "M", "Run away", 618f, 309f);
+			}
 
 			// The picked foe wears the glove, as FF4's does.
 			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count && _foes[_cursor].Npc != null)
@@ -1791,7 +1911,7 @@ namespace OpenFF.Client
 			}
 
 			// What happened last: FF4's help window at the top, one line.
-			if (_log.Count > 0)
+			if (_log.Count > 0 && _hud == null)
 			{
 				string line = _log[_log.Count - 1];
 				float w = d.MeasureText(line, 15) + 40;

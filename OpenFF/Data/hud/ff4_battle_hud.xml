@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FF4's battle HUD (OpenFF.Client.Ff4Battle draws it through LayoutScreen). Written in Steam's 1080p pixels - the
+  places and sizes measured off the Steam game's frames - and drawn stretched onto the client's 800 x 480. Its look is
+  in styles/ff4_battle_hud.css.
+
+  A mod reshapes it with menus/hud/ff4_battle_hud.xml (a copy of this, changed), or restyles it with
+  menus/hud/styles/*.css alone. Everything binds to the root "battle" (Ff4Battle.HudData):
+    battle.panel            the panel is up (false while the result fades in and out)
+    battle.commands         the command window is open: a member chooses
+    battle.command[0..3]    present, name, lit (the hand on it), disabled
+    battle.scroll           shown, top and size (percent of the track: the rows in view)
+    battle.party            the party's rows are shown (not while a foe is picked)
+    battle.member[0..4]     present, name, hp, maxHp, mp, showMp, gauge (0..100), fill (1 grey while it fills, 2 yellow once full), alive,
+                            low, acting (their turn to choose), picked (the hand on them)
+    battle.message          FF4's help line at the top, or ""
+    battle.result           shown, panel (0..100: it fades in with the screens), gilFound, newTotal (counting up),
+                            showGil, exp, showExp, arrow, lines[0..4], lineCount
+-->
+<menu style="width: 1920px; height: 1080px">
+  <name>ff4_battle_hud</name>
+
+  <frame bind-display="battle.panel">
+    <id>panel</id>
+
+    <!-- The command window: four rows, the scroll bar beside them. -->
+    <frame bind-display="battle.commands">
+      <id>commands</id>
+      <x>150</x><y>677</y><width>450</width><height>400</height>
+      <frame data-source="battle.command[0]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
+        <id>command0</id><x>0</x><y>0</y><width>450</width><height>95</height>
+        <frame class="label" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+      </frame>
+      <frame data-source="battle.command[1]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
+        <id>command1</id><x>0</x><y>101</y><width>450</width><height>95</height>
+        <frame class="label" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+      </frame>
+      <frame data-source="battle.command[2]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
+        <id>command2</id><x>0</x><y>203</y><width>450</width><height>95</height>
+        <frame class="label" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+      </frame>
+      <frame data-source="battle.command[3]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
+        <id>command3</id><x>0</x><y>304</y><width>450</width><height>95</height>
+        <frame class="label" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
+      </frame>
+    </frame>
+    <frame bind-display="battle.commands" class="row">
+      <id>scroll</id>
+      <x>602</x><y>677</y><width>60</width><height>400</height>
+      <frame><id>track</id><x>0</x><y>36</y><width>60</width><height>328</height>
+        <frame bind-style="top: {battle.scroll.top}%; height: {battle.scroll.size}%"><id>knob</id><x>7</x><y>0</y><width>46</width><height>328</height></frame>
+      </frame>
+      <frame class="arrow"><id>up</id><x>0</x><y>2</y><width>60</width><height>32</height><data>▲</data></frame>
+      <frame class="arrow"><id>down</id><x>0</x><y>366</y><width>60</width><height>32</height><data>▼</data></frame>
+    </frame>
+
+    <!-- The party: five rows always, the members' in their order and the rest empty. -->
+    <frame bind-display="battle.party">
+      <id>party</id>
+      <x>667</x><y>763</y><width>1092</width><height>310</height>
+      <frame data-source="battle.member[0]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
+        <id>member0</id><x>0</x><y>0</y><width>1092</width><height>58</height>
+        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        </frame>
+      </frame>
+      <frame data-source="battle.member[1]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
+        <id>member1</id><x>0</x><y>63</y><width>1092</width><height>58</height>
+        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        </frame>
+      </frame>
+      <frame data-source="battle.member[2]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
+        <id>member2</id><x>0</x><y>126</y><width>1092</width><height>58</height>
+        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        </frame>
+      </frame>
+      <frame data-source="battle.member[3]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
+        <id>member3</id><x>0</x><y>188</y><width>1092</width><height>58</height>
+        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        </frame>
+      </frame>
+      <frame data-source="battle.member[4]" bind-class="lit: acting; dead: !alive; low: low" class="row member">
+        <id>member4</id><x>0</x><y>251</y><width>1092</width><height>58</height>
+        <frame bind-display="present"><id>content</id><x>0</x><y>0</y><width>1092</width><height>58</height>
+          <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
+          <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
+          <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
+          <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
+        </frame>
+      </frame>
+    </frame>
+
+    <!-- The keys, over the party's rows: "C Auto battle  M Run away". -->
+    <frame bind-display="battle.party">
+      <id>keys</id>
+      <x>1210</x><y>695</y><width>600</width><height>52</height>
+      <frame class="key-cap"><id>auto_key</id><x>0</x><y>0</y><width>55</width><height>52</height><data>C</data></frame>
+      <frame class="key-label"><id>auto</id><x>70</x><y>0</y><width>220</width><height>52</height><data>Auto battle</data></frame>
+      <frame class="key-cap"><id>run_key</id><x>273</x><y>0</y><width>55</width><height>52</height><data>M</data></frame>
+      <frame class="key-label"><id>run</id><x>343</x><y>0</y><width>220</width><height>52</height><data>Run away</data></frame>
+    </frame>
+  </frame>
+
+  <!-- FF4's help line: an ability's name, at the top. -->
+  <frame bind-display="battle.message">
+    <id>message</id>
+    <x>560</x><y>27</y><width>800</width><height>76</height>
+    <frame class="message-text" bind-text="{battle.message}"><id>text</id><x>0</x><y>0</y><width>800</width><height>76</height></frame>
+  </frame>
+
+  <!-- The result (btl::BattleWin): one panel across the top - the gil found and the new total on the left, the
+       experience on the right, the page arrow - and below it what else the fight brought. -->
+  <frame bind-display="battle.result.shown" bind-style="opacity: {battle.result.panel}%">
+    <id>result</id>
+    <x>150</x><y>3</y><width>1620</width><height>157</height>
+    <frame class="result-label"><id>gil_label</id><x>192</x><y>33</y><width>260</width><height>50</height><data>Gil Found</data></frame>
+    <frame class="result-label"><id>total_label</id><x>192</x><y>87</y><width>260</width><height>50</height><data>New Total</data></frame>
+    <frame class="result-label"><id>exp_label</id><x>838</x><y>33</y><width>160</width><height>50</height><data>EXP</data></frame>
+    <frame class="result-value" bind-visible="battle.result.showGil" bind-text="{battle.result.gilFound}"><id>gil</id><x>469</x><y>33</y><width>300</width><height>50</height></frame>
+    <frame class="result-value" bind-visible="battle.result.showGil" bind-text="{battle.result.newTotal}"><id>total</id><x>469</x><y>87</y><width>300</width><height>50</height></frame>
+    <frame class="result-value" bind-visible="battle.result.showExp" bind-text="{battle.result.exp}"><id>exp</id><x>1000</x><y>33</y><width>300</width><height>50</height></frame>
+    <frame class="page-arrow" bind-visible="battle.result.arrow"><id>arrow</id><x>1552</x><y>112</y><width>1</width><height>40</height></frame>
+  </frame>
+  <frame bind-display="battle.result.lineCount &gt; 0">
+    <id>result_lines</id>
+    <x>150</x><y>187</y><width>1620</width><height>290</height>
+    <frame class="result-line" bind-display="battle.result.lineCount &gt; 0" bind-text="{battle.result.lines[0]}"><id>line0</id><x>192</x><y>16</y><width>1400</width><height>54</height></frame>
+    <frame class="result-line" bind-display="battle.result.lineCount &gt; 1" bind-text="{battle.result.lines[1]}"><id>line1</id><x>192</x><y>70</y><width>1400</width><height>54</height></frame>
+    <frame class="result-line" bind-display="battle.result.lineCount &gt; 2" bind-text="{battle.result.lines[2]}"><id>line2</id><x>192</x><y>124</y><width>1400</width><height>54</height></frame>
+    <frame class="result-line" bind-display="battle.result.lineCount &gt; 3" bind-text="{battle.result.lines[3]}"><id>line3</id><x>192</x><y>178</y><width>1400</width><height>54</height></frame>
+    <frame class="result-line" bind-display="battle.result.lineCount &gt; 4" bind-text="{battle.result.lines[4]}"><id>line4</id><x>192</x><y>232</y><width>1400</width><height>54</height></frame>
+  </frame>
+</menu>

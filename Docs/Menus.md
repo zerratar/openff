@@ -529,6 +529,44 @@ A value is any object (its public properties and fields), a dictionary or a list
 
 The client keeps `field_hud` as it last built it (`OpenFF/Compat/FieldHud.cs`), so its frames hold while another file is loaded too (a battle's, the menus'); at the title, before the field has loaded it, the client reads it ahead (`ModMenus.PrepareFieldHud`). Crystal's preview draws the game's pieces in it: the window, the page arrow, the buttons, the hand, sample lines.
 
+## Screens the client draws itself
+
+Some screens are the client's from the start, not the game's: FF4's battle HUD is the first. They are
+the same kind of data - a `<menu>` of frames, Crystal Style Sheets, bindings - but nothing is patched
+into an `.xbn`: the client reads the layout and draws it itself (`OpenFF/Compat/LayoutScreen.cs`).
+
+| Where | What |
+| --- | --- |
+| `Data/hud/<id>.xml` | The client's layout (beside the executable; `OpenFF/Data/hud` in the sources). |
+| `Data/hud/styles/*.css` | Its sheets. |
+| a mod's `menus/hud/<id>.xml` | Takes the place of the client's layout (the first loaded mod with one). |
+| a mod's `menus/hud/styles/*.css` | Read after the layout's own sheets: a restyle needs no copy of the layout. |
+
+The `<menu>`'s style sets the canvas (`width`, `height`), and the screen is stretched from it onto
+the client's 800 x 480. `ff4_battle_hud` is written in Steam's 1080p pixels (1920 x 1080), the
+places and sizes measured off the Steam game's frames. Its layout is re-baked every frame, so a
+bound `top`, `width` or `height` lays it out again (a scroll bar's knob: `bind-style="top:
+{battle.scroll.top}%"`).
+
+What a frame draws: `background-color`; `background-image` (a `linear-gradient`, drawn as strips,
+or a `url("x.png")` picture beside the layout with `-ff-background-rect`); `border` per side;
+`box-shadow` (the outer ones, unblurred); its text (`bind-text` or `<data>`) with `color`,
+`font-size` (in the canvas's units), `text-align`, `vertical-align: middle` and `text-shadow`;
+`opacity`, `visibility` and `display` as CSS. And the game's art:
+
+| Property | What |
+| --- | --- |
+| `-ff-cell: <name> <index>` | A cell of the game's art, by a name the client registers. FF4's: `cursor`, `glove` (the pointing hand; 1 the pressed one), `gauge` (0 the ATB trough, 1 grey, 2 yellow, 3 red), `number` (the battle digits and words), `page-arrow`. |
+| `-ff-cell-origin: x y` | Where the cell's origin goes in the frame (px or %; `0 50%` by default). |
+| `-ff-cell-crop: <n>%` | The cell drawn that much of its width - a gauge's fill: `bind-style="-ff-cell-crop: {gauge}%"`. |
+| `-ff-cell-scale: <n>` | Its size against the game's. |
+
+The battle binds to the root `battle` (`Ff4Battle.HudData`): the panel, the command rows, the
+scroll bar, the party's rows (name, HP, MP, gauge, whose turn, who is picked), FF4's help line,
+and the result window (the gil found, the new total as it counts up, the experience, the page
+arrow, what else the fight brought). The layout's header lists every path. `Game.Hud`'s names
+reach it too, so a mod's own data can show in the battle.
+
 ## Screens of a mod's own
 
 The client ships screens of its own, such as the Gambits, in `Data/menus`. A mod's screen with the same id takes the place of the client's. That's how a player keeps their own version: in Crystal, **Copy into my mod** on a client screen copies it into the open project. The copy includes its layout and the client's stylesheets, pictures and `sprites.json`; anything the project already has is kept. The mod's copy survives an update of the client, which replaces the install's own `Data/menus`. It can still name the client's behaviours (`GambitsScreen`): a mod's screen finds the host's behaviours after its own code and the engine's.

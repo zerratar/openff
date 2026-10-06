@@ -57,6 +57,11 @@ namespace OpenFF.Client
 			}
 		}
 
+		private static readonly List<string> _modFolders = new List<string>();
+
+		/// <summary>The loaded mods' menus folders, in their load order: where screens the client draws itself (LayoutScreen) look for a mod's layout and sheets.</summary>
+		public static IReadOnlyList<string> ModFolders => _modFolders;
+
 		/// <summary>Whether a loaded mod defines a screen of that id.</summary>
 		public static bool HasScreen(string id) => _all.Any(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase));
 
@@ -65,6 +70,12 @@ namespace OpenFF.Client
 		{
 			_all.Clear();
 			_mods.Clear();
+			_modFolders.Clear();
+			foreach (LoadedMod mod in mods)
+			{
+				string menus = mod.Definition?.Menus;
+				if (!string.IsNullOrEmpty(menus) && Directory.Exists(menus)) _modFolders.Add(menus);
+			}
 			List<MenuDefinition> restyles = new List<MenuDefinition>();
 			foreach (LoadedMod mod in mods)
 			{
