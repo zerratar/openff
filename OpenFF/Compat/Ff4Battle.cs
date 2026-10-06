@@ -32,7 +32,7 @@ namespace OpenFF.Client
 	{
 		private enum Phase { Idle, Intro, Fight, Victory, Defeat, Outro }
 		private enum Command { Fight, Magic, Item, Run, Defend, SwapRows, Darkness, Jump, Other }
-		private enum Pick { None, Command, Target, Item, Spell, Ally }
+		private enum Pick { None, Command, Target, Item, Spell, Ally, Hand, EquipItem }
 		// FF4's commands by ability id (common::ABILITY_ID; their names are babil_ability.msd's 3000 + id).
 		private const int CmdFight = 1, CmdFlee = 2, CmdDefend = 3, CmdItems = 4, CmdBlackMagic = 5, CmdWhiteMagic = 6, CmdSummon = 13, CmdDarkness = 32, CmdSwapRows = 46;
 
@@ -871,7 +871,7 @@ namespace OpenFF.Client
 							ItemDefinition item = Ff4Party.Tables.Item(s.ItemId);
 							if (item != null && item.Kind == ItemKind.Consumable && ItemEffect(item) != null) _itemChoices.Add(s.ItemId);
 						}
-						if (_itemChoices.Count == 0) { Say("Nothing to use."); return; }
+						AddReequipRow();   // Steam: Re-equip heads the list, the hand on it
 						_pick = Pick.Item; _cursor = 0; _listScroll = 0;
 					}
 					else Decide(who, () => Run(who), 0, 2);
@@ -928,9 +928,18 @@ namespace OpenFF.Client
 				}
 				return;
 			}
+			if (_pick == Pick.Hand) { UpdateHand(input); return; }
+			if (_pick == Pick.EquipItem) { UpdateEquipItem(input); return; }
 			if (_pick == Pick.Item)
 			{
 				GridMove(input, _itemChoices.Count);
+				if (_cursor == 1 && _itemChoices.Count > 1 && _itemChoices[1] == ReequipEntry) _cursor = 0;   // the head row is one
+				if (input.Pressed(Pad.A) && _cursor < _itemChoices.Count && _itemChoices[_cursor] == ReequipEntry)
+				{
+					_pick = Pick.Hand; _hand = 0; _cursor = 0; _listScroll = 0;
+					FillEquipChoices();
+					return;
+				}
 				if (input.Pressed(Pad.B)) { int back = _abilityCmd != 0 ? _abilityCmd : CmdItems; _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => id == back)); _abilityCmd = 0; return; }
 				if (input.Pressed(Pad.A) && _abilityCmd != 0) { AbilityItem(_acting, _itemChoices[_cursor]); return; }
 				if (input.Pressed(Pad.A)) { _usingItem = _itemChoices[_cursor]; _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
@@ -941,7 +950,7 @@ namespace OpenFF.Client
 		// 98, 172 by rows of 10 DS pixels): Left and Right step along it, Up and Down move a row,
 		// and the view scrolls by rows.
 		// Steam's battle lists: three rows; three columns for the magic and ninjutsu, two for items and songs.
-		private int ListColumns => _pick == Pick.Item || _pick == Pick.Spell && _listSchool == OpenFF.Data.MagicSchool.Song ? 2 : 3;
+		private int ListColumns => _pick == Pick.Item || _pick == Pick.Hand || _pick == Pick.EquipItem || _pick == Pick.Spell && _listSchool == OpenFF.Data.MagicSchool.Song ? 2 : 3;
 		private const int ListRows = 3;
 		private OpenFF.Data.MagicSchool _listSchool;
 
@@ -2197,6 +2206,7 @@ namespace OpenFF.Client
 			public List<TargetRow> Target = new List<TargetRow> { new TargetRow(), new TargetRow(), new TargetRow(), new TargetRow() };
 			public CardData Card = new CardData();
 			public GridData Grid = new GridData();
+			public EquipData Equip = new EquipData();
 			public string Message = "";
 			public int MessageWidth = 800, MessageLeft = 560;   // the help window: FF4's 800, wider for a line our font draws wider, centred
 			public List<CommandRow> Command = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
@@ -2218,7 +2228,7 @@ namespace OpenFF.Client
 
 		public sealed class GridData
 		{
-			public bool Shown, ShowMp, Three, Two;
+			public bool Shown, ShowMp, Three, Two, Reequip, ReequipLit;
 			public string Title = "", Line1 = "", Line2 = "";
 			public int TitleIcon = -1;
 			public int Mp, MaxMp;
@@ -2283,8 +2293,8 @@ namespace OpenFF.Client
 			bool choosing = _acting != null && _pick != Pick.None;
 			h.Panel = (_phase == Phase.Fight || _phase == Phase.Intro) && !_closing && !_summonScene;
 			h.Commands = choosing && _pick == Pick.Command;
-			h.Party = _pick != Pick.Target && _pick != Pick.Spell && _pick != Pick.Item;
-			h.Keys = _pick != Pick.Spell && _pick != Pick.Item;
+			h.Party = _pick != Pick.Target && _pick != Pick.Spell && _pick != Pick.Item && _pick != Pick.Hand && _pick != Pick.EquipItem;
+			h.Keys = _pick != Pick.Spell && _pick != Pick.Item && _pick != Pick.Hand && _pick != Pick.EquipItem;
 			h.Auto = AutoBattle.On;
 			h.Running = _runOn;
 			h.Targets = choosing && _pick == Pick.Target;
@@ -2314,15 +2324,28 @@ namespace OpenFF.Client
 			h.Card.Shown = h.Targets && _cursor >= 0 && _cursor < _foes.Count;
 			if (h.Card.Shown) { h.Card.Name = _foes[_cursor].Name; h.Card.Hp = "?????"; }
 			GridData g = h.Grid;
-			g.Shown = choosing && (_pick == Pick.Spell || _pick == Pick.Item);
-			List<int> list = _pick == Pick.Spell ? _spellChoices : _itemChoices;
+			bool equipping = _pick == Pick.Hand || _pick == Pick.EquipItem;
+			g.Shown = choosing && (_pick == Pick.Spell || _pick == Pick.Item || equipping);
+			List<int> list = _pick == Pick.Spell ? _spellChoices : equipping ? _equipChoices : _itemChoices;
+			g.Reequip = g.Shown && _pick == Pick.Item && list.Count > 0 && list[0] == ReequipEntry && _listScroll == 0;
+			g.ReequipLit = g.Reequip && _cursor <= 1;
+			FillEquipHud(h);
 			for (int k = 0; k < g.Cell.Count; k++)
 			{
 				GridCell c = g.Cell[k];
 				int i = _listScroll + k;
-				c.Present = g.Shown && i < list.Count;
+				c.Present = g.Shown && i < list.Count && list[i] != ReequipEntry;
 				if (!c.Present) { c.Lit = false; continue; }
-				c.Lit = i == _cursor;
+				c.Lit = i == _cursor && _pick != Pick.Hand;
+				if (equipping)
+				{
+					ItemDefinition gear = list[i] != 0 ? Ff4Party.Tables.Item(list[i]) : null;
+					c.Name = gear?.Name ?? "";
+					c.Icon = gear?.Icon ?? -1;
+					c.Value = gear != null ? Ff4Party.Party.CountItem(list[i]).ToString() : "";
+					c.Can = true;
+					continue;
+				}
 				if (_pick == Pick.Spell)
 				{
 					SpellDefinition spell = Ff4Party.Tables.Spell(list[i]);
@@ -2344,8 +2367,9 @@ namespace OpenFF.Client
 			for (int k = ListColumns * ListRows; k < g.Cell.Count; k++) g.Cell[k].Present = false;
 			g.ShowMp = g.Shown && _pick == Pick.Spell;
 			if (g.ShowMp) { g.Mp = _acting.Mp; g.MaxMp = _acting.Member.MaxMp; }
-			(g.Title, g.Line1, g.Line2) = g.Shown && _cursor >= 0 && _cursor < list.Count ? ListDescription(list[_cursor]) : ("", "", "");
-			g.TitleIcon = !g.Shown || _cursor < 0 || _cursor >= list.Count ? -1 : _pick == Pick.Spell ? Ff4Party.Tables.AbilityIcon(list[_cursor]) : Ff4Party.Tables.Item(list[_cursor])?.Icon ?? -1;
+			(g.Title, g.Line1, g.Line2) = equipping ? ("", EquipChange(_pick == Pick.EquipItem && _cursor < list.Count ? list[_cursor] : _acting.Member.Equipment[_hand]), "")
+				: g.Shown && _cursor >= 0 && _cursor < list.Count ? ListDescription(list[_cursor]) : ("", "", "");
+			g.TitleIcon = !g.Shown || equipping || _cursor < 0 || _cursor >= list.Count ? -1 : _pick == Pick.Spell ? Ff4Party.Tables.AbilityIcon(list[_cursor]) : Ff4Party.Tables.Item(list[_cursor])?.Icon ?? -1;
 			int gridRows = (list.Count + ListColumns - 1) / ListColumns;
 			g.Scroll.Shown = g.Shown && list.Count > ListColumns * ListRows;
 			g.Scroll.Size = gridRows <= ListRows ? 100 : 100f * ListRows / gridRows;

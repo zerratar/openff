@@ -78,6 +78,10 @@
 .desc-title { color: #f0ec40; vertical-align: middle; }
 .desc-mp { text-align: right; vertical-align: middle; }
 .desc-line { vertical-align: middle; }
+.reequip-label { text-align: center; vertical-align: middle; }
+#hands { color: #ffffff; font-size: 31px; text-shadow: 2px 2px #000000a0; }
+.hand-label { font-size: 24px; vertical-align: middle; }
+.hand-name { vertical-align: middle; }
 .grid-line { background-color: #aab0e66e; }
 .grid-mp { font-size: 31px; text-align: right; }
 

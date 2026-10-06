@@ -253,7 +253,12 @@
         </frame>
       </frame>
       <frame bind-display="battle.grid.two">
-        <id>two</id><x>0</x><y>0</y><width>1609</width><height>306</height>
+        <id>two</id>
+        <frame bind-display="battle.grid.reequip" bind-class="lit: battle.grid.reequipLit" class="row cell">
+          <id>reequip</id><x>8</x><y>3</y><width>1534</width><height>97</height>
+          <frame class="reequip-label"><id>label</id><x>0</x><y>0</y><width>1534</width><height>97</height><data>Re-equip</data></frame>
+          <frame class="cell-hand" bind-visible="battle.grid.reequipLit"><id>hand</id><x>40</x><y>48</y><width>1</width><height>1</height></frame>
+        </frame><x>0</x><y>0</y><width>1609</width><height>306</height>
         <frame data-source="battle.grid.cell[0]" bind-display="present" bind-class="cant: !can; lit: lit" class="row cell">
           <id>two0</id><x>8</x><y>3</y><width>764</width><height>97</height>
           <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>70</x><y>0</y><width>40</width><height>97</height></frame>
@@ -300,6 +305,24 @@
       <frame bind-display="battle.grid.scroll.shown" class="grid-track">
         <id>track</id><x>1556</x><y>10</y><width>40</width><height>286</height>
         <frame class="grid-knob" bind-style="top: {battle.grid.scroll.top}%; height: {battle.grid.scroll.size}%"><id>knob</id><x>14</x><y>0</y><width>12</width><height>286</height></frame>
+      </frame>
+    </frame>
+    <!-- Re-equip's hands: Right Arm and Left Arm, what each holds, over the list of what may go there. -->
+    <frame bind-display="battle.equip.shown">
+      <id>hands</id><x>150</x><y>413</y><width>1609</width><height>104</height>
+      <frame data-source="battle.equip.hand[0]" bind-class="lit: lit" class="row hand-row">
+        <id>hand0</id><x>4</x><y>0</y><width>800</width><height>100</height>
+        <frame class="hand-label" bind-text="{label}"><id>label</id><x>80</x><y>4</y><width>700</width><height>40</height></frame>
+        <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80</x><y>44</y><width>40</width><height>50</height></frame>
+        <frame class="hand-name" bind-text="{name}"><id>name</id><x>126</x><y>44</y><width>650</width><height>50</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>30</x><y>50</y><width>1</width><height>1</height></frame>
+      </frame>
+      <frame data-source="battle.equip.hand[1]" bind-class="lit: lit" class="row hand-row">
+        <id>hand1</id><x>809</x><y>0</y><width>800</width><height>100</height>
+        <frame class="hand-label" bind-text="{label}"><id>label</id><x>80</x><y>4</y><width>700</width><height>40</height></frame>
+        <frame class="cell-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>80</x><y>44</y><width>40</width><height>50</height></frame>
+        <frame class="hand-name" bind-text="{name}"><id>name</id><x>126</x><y>44</y><width>650</width><height>50</height></frame>
+        <frame class="cell-hand" bind-visible="lit"><id>hand</id><x>30</x><y>50</y><width>1</width><height>1</height></frame>
       </frame>
     </frame>
     <frame bind-display="battle.grid.shown" class="grid-desc">

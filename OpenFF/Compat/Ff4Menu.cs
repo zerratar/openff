@@ -297,7 +297,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>Whether an item may go into a member's slot: worn, its position bits name the slot, and its mask names the character type.</summary>
-		private static bool Fits(ItemDefinition item, Character member, int slot)
+		internal static bool Fits(ItemDefinition item, Character member, int slot)
 		{
 			if (item?.Equip == null) return false;
 			if (item.Kind == ItemKind.Weapon && slot > 1) return false;
@@ -307,7 +307,7 @@ namespace OpenFF.Client
 			return item.Equip.CanEquip == 0 || (item.Equip.CanEquip & (1u << member.Id)) != 0;
 		}
 
-		private static string SlotName(int slot) => Ff4Layouts.Text(SlotTexts[slot], SlotFallback[slot]);
+		internal static string SlotName(int slot) => Ff4Layouts.Text(SlotTexts[slot], SlotFallback[slot]);
 
 		// ---- party order ----
 
