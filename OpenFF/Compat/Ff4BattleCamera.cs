@@ -67,6 +67,26 @@ namespace OpenFF.Client
 			Ff4EventCamera.LookAt((int)(target.X * 4096), (int)(target.Y * 4096), (int)(target.Z * 4096), 0);
 		}
 
+		/// <summary>
+		/// doShakeCamera: the standing shot jittered - position and target moved together by a random offset within half
+		/// the amplitude each way, every frame - and put back on the last.
+		/// </summary>
+		private void ShakeCamera(int frames, float amplitude)
+		{
+			if (!Ff4BattleStage.Active) return;
+			Vector3 pos = Ff4BattleStage.CameraPosition(_cameraType), tgt = Ff4BattleStage.CameraTarget(_cameraType);
+			for (int k = 1; k < frames; k++)
+			{
+				After(k, () =>
+				{
+					if (_invokeShot >= 0) return;
+					Vector3 d = new Vector3((float)(_random.NextDouble() - 0.5) * amplitude, (float)(_random.NextDouble() - 0.5) * amplitude, (float)(_random.NextDouble() - 0.5) * amplitude);
+					SetCamera(pos + d, tgt + d);
+				});
+			}
+			After(frames, () => { if (_invokeShot < 0) SetCamera(pos, tgt); });
+		}
+
 		// ---- the invoke close-up (setInvokeCameraForNormal, AbilityInvokeCameraController::update) ----
 
 		private int _invokeShot = -1, _invokeFrame;

@@ -206,6 +206,8 @@ namespace OpenFF.Client
 			if (show == null) Log.First(LogChannel.File, "battle-spell-show-" + spell.Id, 1, () => "battle: no effect record for " + spell.Id + " - shown without its effect");
 			else LoadEffect(show.Pack);
 			int last = lead;
+			// setShakeScreen: Quake (0x11A8) for its period, a monster's Earthquake (0x73) for its effect's (amplitude 0.2).
+			if (spell.Id == 0x11A8 || spell.Id == 0x73) After(lead, () => ShakeCamera(Math.Max(1, show?.Period ?? 45), 0.2f));
 			if (show != null && spell.HitsAll && targets.Count > 0)
 			{
 				// One wide effect for the side (drawAllMagicEffect): at (-25, 0, 0) for the monsters', (24, 0, 0) for the party's.

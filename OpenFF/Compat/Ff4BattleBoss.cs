@@ -64,6 +64,7 @@ namespace OpenFF.Client
 				case 3019:   // MABApproach: the Demon Wall moves in - 120/1, the effect at its root, 0.1 a frame for 26 frames
 				{
 					Game.Audio.PlaySe(123, 1);
+					ShakeCamera(25, 1f);
 					LoadEffect(725);
 					PlayEffect(725, foe.Home + new Vector3(13f, 1f, 0f));
 					for (int k = 1; k <= 26; k++) After(k, () => { foe.Home += new Vector3(0.1f, 0f, 0f); foe.Npc?.Teleport(foe.Home); });
