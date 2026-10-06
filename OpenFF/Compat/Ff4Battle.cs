@@ -131,6 +131,7 @@ namespace OpenFF.Client
 			public int SongId, SongTimer, SongTick;        // the song being sung (+0x4c), its time (+0x2e0) and Life's Anthem's count
 			public int ElementOverride = -1;               // Upgrade's attack element (+0x40)
 			public bool Robbed;                            // a monster stolen from (flag 0x11)
+			public bool Examined;                          // analyzed (flag 0xd): its card shows its HP and elements
 			public bool TwinWaiting;                       // Twincast chosen, its partner awaited (PAIR_MAGIC_WAIT)
 			public Fighter TwinPartner;
 			public HashSet<string> BoundSets = new HashSet<string>();
@@ -2252,7 +2253,15 @@ namespace OpenFF.Client
 			public bool Plain => string.IsNullOrEmpty(Sub);
 		}
 		public sealed class TargetRow { public bool Present, Lit; public string Name = "", Sub = ""; }
-		public sealed class CardData { public bool Shown; public string Name = "", Hp = ""; }
+		public sealed class IconSlot { public int Cell = -1; }
+
+		public sealed class CardData
+		{
+			public bool Shown;
+			public string Name = "", Hp = "", WeakText = "", AbsorbText = "";
+			public List<IconSlot> Weak = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 8), _ => new IconSlot()));
+			public List<IconSlot> Absorb = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 8), _ => new IconSlot()));
+		}
 		public sealed class GridCell { public bool Present, Can, Lit; public string Name = "", Value = ""; public int Icon = -1; }
 
 		public sealed class GridData
@@ -2260,6 +2269,7 @@ namespace OpenFF.Client
 			public bool Shown, ShowMp, Three, Two, Reequip, ReequipLit;
 			public bool EquipStats, AttackDown, DefenseDown;   // Re-equip's numbers, a fall shown red
 			public string AttackFrom = "", AttackArrow = "", AttackTo = "", DefenseFrom = "", DefenseArrow = "", DefenseTo = "";
+			public int LineIcon = -1, LineIconX;   // an icon after line1 (a ninjutsu's element), at that x
 			public string Title = "", Line1 = "", Line2 = "";
 			public int TitleIcon = -1;
 			public int Mp, MaxMp;
@@ -2352,8 +2362,11 @@ namespace OpenFF.Client
 				t.Lit = i == _cursor;
 			}
 			// Steam's card: the picked foe's name and HP, which it keeps hidden until the foe is studied.
-			h.Card.Shown = h.Targets && _cursor >= 0 && _cursor < _foes.Count;
-			if (h.Card.Shown) { h.Card.Name = _foes[_cursor].Name; h.Card.Hp = "?????"; }
+			// Steam's card: the picked one's name, HP and elements - a monster's kept hidden until it is analyzed, a member's
+			// HP with "None" (the target window on allies too).
+			Fighter carded = h.Targets && _cursor >= 0 && _cursor < _foes.Count ? _foes[_cursor]
+				: choosing && _pick == Pick.Ally && _cursor >= 0 && _cursor < _party.Count ? _party[_cursor] : null;
+			FillCard(h.Card, carded);
 			GridData g = h.Grid;
 			bool equipping = _pick == Pick.Hand || _pick == Pick.EquipItem;
 			g.Shown = choosing && (_pick == Pick.Spell || _pick == Pick.Item || equipping);
@@ -2402,6 +2415,15 @@ namespace OpenFF.Client
 				: g.Shown && _cursor >= 0 && _cursor < list.Count ? ListDescription(list[_cursor]) : ("", "", "");
 			g.EquipStats = false;
 			if (equipping) EquipChange(g, _pick == Pick.EquipItem && _cursor < list.Count ? list[_cursor] : _acting.Member.Equipment[_hand]);
+			// A ninjutsu's element as Steam shows it: the icon after "Element:", the line measured at the layout's size.
+			g.LineIcon = -1;
+			if (g.Shown && _pick == Pick.Spell && _cursor >= 0 && _cursor < list.Count && Ff4Party.Tables.Spell(list[_cursor]) is SpellDefinition ninjutsu
+				&& ninjutsu.School == OpenFF.Data.MagicSchool.Ninjutsu && ElementCell(ninjutsu.Element) >= 0)
+			{
+				g.LineIcon = ElementCell(ninjutsu.Element);
+				float sy = DrawList.ScreenHeight / 1080f, sx = DrawList.ScreenWidth / 1920f;
+				g.LineIconX = 76 + (int)Math.Ceiling(TrueTypeText.Width(g.Line1, Math.Max(4, (int)Math.Round(31 * sy))) / sx) + 10;
+			}
 			g.TitleIcon = !g.Shown || equipping || _cursor < 0 || _cursor >= list.Count ? -1 : _pick == Pick.Spell ? Ff4Party.Tables.AbilityIcon(list[_cursor]) : Ff4Party.Tables.Item(list[_cursor])?.Icon ?? -1;
 			int gridRows = (list.Count + ListColumns - 1) / ListColumns;
 			g.Scroll.Shown = g.Shown && list.Count > ListColumns * ListRows;

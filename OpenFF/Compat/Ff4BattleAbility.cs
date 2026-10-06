@@ -105,7 +105,7 @@ namespace OpenFF.Client
 				string line = spell.School switch
 				{
 					OpenFF.Data.MagicSchool.White => spell.MpCost + " MP    Spirit: " + _acting.Spirit,
-					OpenFF.Data.MagicSchool.Ninjutsu => spell.MpCost + " MP    Attack: " + spell.Power + (ElementName(spell.Element) is string e ? "    Element: " + e : ""),
+					OpenFF.Data.MagicSchool.Ninjutsu => spell.MpCost + " MP    Attack: " + spell.Power + (ElementCell(spell.Element) >= 0 ? "    Element:" : ""),
 					OpenFF.Data.MagicSchool.Song => t.AbilityHelp(id) ?? "",
 					_ => spell.MpCost + " MP    Intellect: " + _acting.Intellect,
 				};
@@ -115,6 +115,13 @@ namespace OpenFF.Client
 			if (item == null) return ("", "", "");
 			string help = item.Caption ?? "";
 			return (item.Name ?? "", help, "Targets: " + ((t.AbilityTargets(id) & 0x4) != 0 ? "Multiple" : "Single"));   // ability.bbd +0x26: 0x4 all foes
+		}
+
+		/// <summary>The icon of an element (the first of its bits WeakElement knows), -1 none.</summary>
+		private static int ElementCell(int bits)
+		{
+			for (int k = 0; k < Ff4Ui.ElementBits.Length; k++) if ((bits & Ff4Ui.ElementBits[k]) != 0) return Ff4Ui.ElementCells[k];
+			return -1;
 		}
 
 		/// <summary>An element's name for the description (the bits of magic_parameter +0x16; Steam draws its icon).</summary>
@@ -128,6 +135,29 @@ namespace OpenFF.Client
 			if ((bits & 0x200) != 0) return "Air";
 			if ((bits & 0x04) != 0) return "Holy";
 			return null;
+		}
+
+		/// <summary>The target card for a fighter: name, HP and the elements it is weak to and absorbs (WeakElement's icons).</summary>
+		private static void FillCard(CardData card, Fighter f)
+		{
+			card.Shown = f != null;
+			foreach (IconSlot s in card.Weak) s.Cell = -1;
+			foreach (IconSlot s in card.Absorb) s.Cell = -1;
+			card.WeakText = card.AbsorbText = "";
+			if (f == null) return;
+			card.Name = f.Name;
+			bool known = !f.IsMonster || f.Examined;
+			card.Hp = known ? f.Hp.ToString() : "?????";
+			if (!known) return;
+			Affinity a = AffinityOf(f);
+			int w = 0, b = 0;
+			for (int k = 0; k < Ff4Ui.ElementBits.Length; k++)
+			{
+				if ((a.Weak & Ff4Ui.ElementBits[k]) != 0 && w < card.Weak.Count) card.Weak[w++].Cell = Ff4Ui.ElementCells[k];
+				if ((a.Absorbs & Ff4Ui.ElementBits[k]) != 0 && b < card.Absorb.Count) card.Absorb[b++].Cell = Ff4Ui.ElementCells[k];
+			}
+			if (w == 0) card.WeakText = "None";
+			if (b == 0) card.AbsorbText = "None";
 		}
 
 		/// <summary>Out of everyone's reach: in the air from a Jump, or hidden (isSelectable).</summary>
@@ -710,6 +740,7 @@ namespace OpenFF.Client
 			List<Fighter> targets = _foes.FindAll(f => f.Alive && !OutOfFight(f));
 			Acted(who, CmdAnalyze, targets.ToArray());
 			EndTurn(who);
+			foreach (Fighter t in targets) t.Examined = true;   // calcBattleParameter case 0xe: flag 0xd on each
 			LoadEffect(278);
 			for (int i = 0; i < targets.Count; i++)
 			{

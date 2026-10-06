@@ -17,7 +17,8 @@
     battle.keys             the keys' hints are shown; battle.auto (auto battle on), battle.running (the run control on)
     battle.targets          the foes are listed for a pick: battle.target[0..3] present, name, sub (the chance to hit,
                             or the spell's name), lit
-    battle.card             shown, name, hp: the picked foe's card
+    battle.card             shown, name, hp, weakText / absorbText ("None"), weak[0..7] / absorb[0..7] (cell: battle_icon's
+                            element cells): the picked one's card
     battle.grid             shown, three / two (the columns), title, line1, line2 (the description), mp, maxMp, showMp,
                             cell[0..8] (present, icon (the symbol's cell, -1 none), name, value: how many of
                             an item, can, lit), scroll (shown, top, size)
@@ -178,6 +179,24 @@
       <frame class="card-line" bind-text="HP: {battle.card.hp}"><id>hp</id><x>31</x><y>85</y><width>1000</width><height>50</height></frame>
       <frame class="card-line"><id>weaknesses</id><x>31</x><y>189</y><width>1000</width><height>50</height><data>Weaknesses:</data></frame>
       <frame class="card-line"><id>absorbs</id><x>31</x><y>252</y><width>1000</width><height>50</height><data>Absorbs:</data></frame>
+      <frame class="card-line" bind-text="{battle.card.weakText}"><id>weaktext</id><x>380</x><y>189</y><width>400</width><height>50</height></frame>
+      <frame data-source="battle.card.weak[0]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak0</id><x>380</x><y>181</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.weak[1]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak1</id><x>432</x><y>181</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.weak[2]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak2</id><x>484</x><y>181</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.weak[3]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak3</id><x>536</x><y>181</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.weak[4]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak4</id><x>588</x><y>181</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.weak[5]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak5</id><x>640</x><y>181</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.weak[6]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak6</id><x>692</x><y>181</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.weak[7]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak7</id><x>744</x><y>181</y><width>48</width><height>50</height></frame>
+      <frame class="card-line" bind-text="{battle.card.absorbText}"><id>absorbtext</id><x>380</x><y>252</y><width>400</width><height>50</height></frame>
+      <frame data-source="battle.card.absorb[0]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb0</id><x>380</x><y>244</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.absorb[1]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb1</id><x>432</x><y>244</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.absorb[2]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb2</id><x>484</x><y>244</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.absorb[3]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb3</id><x>536</x><y>244</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.absorb[4]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb4</id><x>588</x><y>244</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.absorb[5]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb5</id><x>640</x><y>244</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.absorb[6]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb6</id><x>692</x><y>244</y><width>48</width><height>50</height></frame>
+      <frame data-source="battle.card.absorb[7]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb7</id><x>744</x><y>244</y><width>48</width><height>50</height></frame>
     </frame>
 
     <!-- A spell, a song, a ninjutsu or an item being picked, as Steam's battle lists it: a window of three rows - three
@@ -333,6 +352,7 @@
       <frame class="desc-mp" bind-display="battle.grid.showMp" bind-text="MP {battle.grid.mp} / {battle.grid.maxMp}"><id>mp</id><x>900</x><y>8</y><width>520</width><height>60</height></frame>
       <frame class="grid-line"><id>rule</id><x>8</x><y>72</y><width>1593</width><height>2</height></frame>
       <frame class="desc-line" bind-text="{battle.grid.line1}"><id>line1</id><x>76</x><y>98</y><width>1450</width><height>50</height></frame>
+      <frame class="desc-icon" bind-style="-ff-cell: battle-icon {battle.grid.lineIcon}; left: {battle.grid.lineIconX}px"><id>lineicon</id><x>0</x><y>90</y><width>48</width><height>50</height></frame>
       <frame class="desc-line" bind-text="{battle.grid.line2}"><id>line2</id><x>76</x><y>156</y><width>1450</width><height>50</height></frame>
       <frame bind-display="battle.grid.equipStats">
         <id>equipstats</id><x>0</x><y>0</y><width>1609</width><height>236</height>

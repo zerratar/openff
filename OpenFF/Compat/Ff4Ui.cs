@@ -251,6 +251,21 @@ namespace OpenFF.Client
 		// magic, 24 black, 25 a summon.
 		public const string SymbolSheet = "BABIL_SYMBOL.NFTR";
 
+		// battle2d_Common.dat's battle_icon: the statuses' and the elements' icons (btl::WeakElement::CELL_NUMBER: lightning
+		// 27, ice 26, fire 24, water 25, earth 28, 0x100 30, air 29, holy 31 - by BIT_PATTERN 0x08 0x10 0x20 0x40 0x80 0x100
+		// 0x200 0x400).
+		public const string IconSheet = "battle_icon.NCGR", IconBank = "battle_icon.NCER";
+		public static readonly int[] ElementBits = { 0x08, 0x10, 0x20, 0x40, 0x80, 0x100, 0x200, 0x400 };
+		public static readonly int[] ElementCells = { 27, 26, 24, 25, 28, 30, 29, 31 };
+
+		/// <summary>One of battle_icon's cells, <paramref name="index"/> (-1 none), its left middle at (x, y), the symbols' size.</summary>
+		public static bool BattleIconCell(DrawList d, int index, float x, float y, float scale, float crop, Color tint)
+		{
+			if (index < 0) return true;
+			float k = 54f / 24f * DrawList.ScreenHeight / 1080f * scale;
+			return Cell(d, IconBank, IconSheet, index, x + 12f * k, y, k, tint);
+		}
+
 		/// <summary>One of the name icons, <paramref name="index"/> its cell (-1 none), its left middle at (x, y), 1080p's 30 pixels high.</summary>
 		public static bool SymbolCell(DrawList d, int index, float x, float y, float scale, float crop, Color tint)
 		{
@@ -269,6 +284,7 @@ namespace OpenFF.Client
 			LayoutScreen.Cells["glove"] = (d, i, x, y, s, crop, t) => Glove(d, x, y, i == 1);
 			LayoutScreen.Cells["gauge"] = GaugeCell;
 			LayoutScreen.Cells["symbol"] = SymbolCell;
+			LayoutScreen.Cells["battle-icon"] = BattleIconCell;
 			LayoutScreen.Panels["ff4-window"] = (d, x, y, w, h, opacity) => Window(d, x, y, w, h, 1, 0.82f * opacity);
 			LayoutScreen.Cells["number"] = (d, i, x, y, s, crop, t) => Cell(d, NumberBank, NumberSheet, i, x, y, Scale * s, t);
 			// HelpWindow::setResultPageIcon's arrow, as Steam draws it: a white triangle pointing down, 44 wide and 16 high
