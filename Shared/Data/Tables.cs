@@ -545,6 +545,10 @@ namespace OpenFF.Data
 
 		/// <summary>FF4: an ability's flags (ability.bbd +0x24): bit 0 the usable-under check applies, bit 6 the poise from the decision (Steam: Kick, Aim, Steal, Throw).</summary>
 		public Dictionary<int, int> AbilityFlagBits = new Dictionary<int, int>();
+
+		/// <summary>FF4: an ability's help line (ability.bbd +0xC, babil_ability.msd: 13025 "Ensure attack hits the target.", 14801 "Put enemies to sleep.").</summary>
+		public Dictionary<int, int> AbilityHelpIds = new Dictionary<int, int>();
+		public string AbilityHelp(int id) => AbilityHelpIds.TryGetValue(id, out int help) && help > 0 ? AbilityName(help)?.Trim() : null;
 		public int AbilityFlags(int id) => AbilityFlagBits.TryGetValue(id, out int flags) ? flags : 0;
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
 		private Dictionary<int, MonsterParty> _parties;

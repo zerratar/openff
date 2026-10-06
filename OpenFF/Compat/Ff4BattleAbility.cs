@@ -91,6 +91,44 @@ namespace OpenFF.Client
 			return "Accuracy: " + Accuracy(who, foe) + "%";
 		}
 
+		/// <summary>
+		/// The list's description panel as Steam fills it: the name; a white spell's cost and the caster's Spirit, a black or
+		/// summon's cost and Intellect, a ninjutsu's cost, power and element; a song's or an item's help (ability.bbd +0xC, the
+		/// item's caption); then its targets - Single, Multiple, or Single/Multiple when it can be spread.
+		/// </summary>
+		private (string, string, string) ListDescription(int id)
+		{
+			GameTables t = Ff4Party.Tables;
+			if (_pick == Pick.Spell && t.Spell(id) is SpellDefinition spell)
+			{
+				string line = spell.School switch
+				{
+					OpenFF.Data.MagicSchool.White => spell.MpCost + " MP    Spirit: " + _acting.Spirit,
+					OpenFF.Data.MagicSchool.Ninjutsu => spell.MpCost + " MP    Attack: " + spell.Power + (ElementName(spell.Element) is string e ? "    Element: " + e : ""),
+					OpenFF.Data.MagicSchool.Song => t.AbilityHelp(id) ?? "",
+					_ => spell.MpCost + " MP    Intellect: " + _acting.Intellect,
+				};
+				return (spell.Name ?? "", line, "Targets: " + (spell.CanSpread ? "Single/Multiple" : spell.HitsAll ? "Multiple" : "Single"));
+			}
+			ItemDefinition item = t.Item(id);
+			if (item == null) return ("", "", "");
+			string help = item.Caption ?? "";
+			return (item.Name ?? "", help, "Targets: Single");   // Steam: "Restores 50 MP." / "Targets: Single"
+		}
+
+		/// <summary>An element's name for the description (the bits of magic_parameter +0x16; Steam draws its icon).</summary>
+		private static string ElementName(int bits)
+		{
+			if ((bits & 0x20) != 0) return "Fire";
+			if ((bits & 0x10) != 0) return "Ice";
+			if ((bits & 0x08) != 0) return "Lightning";
+			if ((bits & 0x40) != 0) return "Water";
+			if ((bits & 0x80) != 0) return "Earth";
+			if ((bits & 0x200) != 0) return "Air";
+			if ((bits & 0x04) != 0) return "Holy";
+			return null;
+		}
+
 		/// <summary>Out of everyone's reach: in the air from a Jump, or hidden (isSelectable).</summary>
 		private static bool Untargetable(Fighter f) => f.Airborne || f.Hiding;
 

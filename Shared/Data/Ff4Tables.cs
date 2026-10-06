@@ -622,6 +622,7 @@ namespace OpenFF.Data
 				if (wait > 0) tables.AbilityWaits[ChainPack.S32(data, at)] = wait;
 				tables.AbilityNameIds[ChainPack.S32(data, at)] = ChainPack.S32(data, at + 8);
 				tables.AbilityFlagBits[ChainPack.S32(data, at)] = ChainPack.U16(data, at + 0x24);
+				tables.AbilityHelpIds[ChainPack.S32(data, at)] = ChainPack.S32(data, at + 0xC);
 				// The statuses it may be used under (+0x1C), when +0x24 bit 0 says the check applies (isConditionUseful).
 				if ((ChainPack.U16(data, at + 0x24) & 1) != 0) tables.AbilityUsableUnder[ChainPack.S32(data, at)] = BitConverter.ToUInt64(data, at + 0x1C);
 			}

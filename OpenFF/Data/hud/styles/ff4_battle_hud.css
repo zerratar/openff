@@ -71,13 +71,19 @@
 .card-line { font-size: 31px; }
 
 /* The spell and item grid, in FF4's window. */
-.grid { -ff-panel: ff4-window; color: #ffffff; font-size: 36px; text-shadow: 2px 2px #000000a0; }
+.grid, .grid-desc { color: #ffffff; font-size: 31px; text-shadow: 2px 2px #000000a0; }
+.grid, .grid-desc { -ff-panel: ff4-window; }
+.cell-name { vertical-align: middle; }
+.cell-value { text-align: right; vertical-align: middle; }
+.desc-title { color: #f0ec40; vertical-align: middle; }
+.desc-mp { text-align: right; vertical-align: middle; }
+.desc-line { vertical-align: middle; }
 .grid-line { background-color: #aab0e66e; }
 .grid-mp { font-size: 31px; text-align: right; }
-.cell-value { font-size: 27px; color: #babeda; text-align: right; }
+
 .cell.cant .cell-name { color: #babeda; }
-.cell.cant .cell-value { color: #ff786e; }
-.cell-hand { -ff-cell: glove; -ff-cell-origin: 0 0; }
+
+.cell-hand { -ff-cell: glove; -ff-cell-origin: 0 50%; }
 .grid-track { background-color: #14163ca0; }
 .grid-knob { background-color: #d6daf2; }
 

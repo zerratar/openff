@@ -845,15 +845,17 @@ namespace OpenFF.Client
 						int chosen = commands[_cursor];
 						OpenFF.Data.MagicSchool school = chosen == CmdWhiteMagic ? OpenFF.Data.MagicSchool.White : chosen == CmdBlackMagic ? OpenFF.Data.MagicSchool.Black
 							: chosen == CmdBardsong ? OpenFF.Data.MagicSchool.Song : chosen == CmdNinjutsu ? OpenFF.Data.MagicSchool.Ninjutsu : OpenFF.Data.MagicSchool.Summon;
+						_listSchool = school;
+						// Every one the member knows of the school; those not for a battle (Sight) greyed, as Steam lists them.
 						foreach (int id in _acting.Member.Spells)
 						{
 							SpellDefinition spell = tables.Spell(id);
-							if (spell != null && spell.UsableInBattle && spell.School == school) _spellChoices.Add(id);
+							if (spell != null && spell.School == school) _spellChoices.Add(id);
 						}
 						foreach (int id in _acting.Member.Abilities)
 						{
 							SpellDefinition spell = id >= 1500 ? tables.Spell(id) : null;
-							if (spell != null && spell.UsableInBattle && spell.School == school && !_spellChoices.Contains(id)) _spellChoices.Add(id);
+							if (spell != null && spell.School == school && !_spellChoices.Contains(id)) _spellChoices.Add(id);
 						}
 						if (_spellChoices.Count == 0) { Say(_acting.Name + " knows no magic."); return; }
 						_pick = Pick.Spell; _cursor = 0; _listScroll = 0;
@@ -896,7 +898,7 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.A))
 				{
 					SpellDefinition spell = Ff4Party.Tables.Spell(_spellChoices[_cursor]);
-					if (spell == null) return;
+					if (spell == null || !spell.UsableInBattle) return;
 					if (_acting.Mp < spell.MpCost) { Say("Not enough MP for " + spell.Name + "."); return; }
 					_casting = spell;
 					if (Helps(spell)) { _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
@@ -935,7 +937,10 @@ namespace OpenFF.Client
 		// FF4 lists spells and items in a grid of three columns (btl::BtlMagicMenu::BMTEXT_POS: x 24,
 		// 98, 172 by rows of 10 DS pixels): Left and Right step along it, Up and Down move a row,
 		// and the view scrolls by rows.
-		private const int ListColumns = 3, ListRows = 4;
+		// Steam's battle lists: three rows; three columns for the magic and ninjutsu, two for items and songs.
+		private int ListColumns => _pick == Pick.Item || _pick == Pick.Spell && _listSchool == OpenFF.Data.MagicSchool.Song ? 2 : 3;
+		private const int ListRows = 3;
+		private OpenFF.Data.MagicSchool _listSchool;
 
 		private void GridMove(InputState input, int count)
 		{
@@ -2210,7 +2215,8 @@ namespace OpenFF.Client
 
 		public sealed class GridData
 		{
-			public bool Shown, ShowMp;
+			public bool Shown, ShowMp, Three, Two;
+			public string Title = "", Line1 = "", Line2 = "";
 			public int Mp, MaxMp;
 			public List<GridCell> Cell = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 12), _ => new GridCell()));
 			public ScrollData Scroll = new ScrollData();
@@ -2317,8 +2323,8 @@ namespace OpenFF.Client
 				{
 					SpellDefinition spell = Ff4Party.Tables.Spell(list[i]);
 					c.Name = spell?.Name ?? "?";
-					c.Value = (spell?.MpCost ?? 0).ToString();
-					c.Can = spell != null && _acting.Mp >= spell.MpCost;
+					c.Value = "";
+					c.Can = spell != null && spell.UsableInBattle && _acting.Mp >= spell.MpCost;
 				}
 				else
 				{
@@ -2327,8 +2333,12 @@ namespace OpenFF.Client
 					c.Can = true;
 				}
 			}
+			g.Three = g.Shown && ListColumns == 3;
+			g.Two = g.Shown && ListColumns == 2;
+			for (int k = ListColumns * ListRows; k < g.Cell.Count; k++) g.Cell[k].Present = false;
 			g.ShowMp = g.Shown && _pick == Pick.Spell;
 			if (g.ShowMp) { g.Mp = _acting.Mp; g.MaxMp = _acting.Member.MaxMp; }
+			(g.Title, g.Line1, g.Line2) = g.Shown && _cursor >= 0 && _cursor < list.Count ? ListDescription(list[_cursor]) : ("", "", "");
 			int gridRows = (list.Count + ListColumns - 1) / ListColumns;
 			g.Scroll.Shown = g.Shown && list.Count > ListColumns * ListRows;
 			g.Scroll.Size = gridRows <= ListRows ? 100 : 100f * ListRows / gridRows;
