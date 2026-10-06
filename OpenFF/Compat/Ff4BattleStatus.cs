@@ -265,6 +265,63 @@ namespace OpenFF.Client
 			return true;
 		}
 
+		/// <summary>The order the party window shows a member's statuses in (DISPLAY_CONDITION_ID), one at a time.</summary>
+		private static readonly int[] DisplayOrder = { 0x21, 3, 0x10, 1, 0, 0x20, 8, 0xB, 5, 7, 0xD, 0x11, 0x1D, 2, 0xE, 0x25, 0x26, 4, 6, 0xC, 0xF, 0x14, 0x15, 0x16, 0x12, 0x17, 0x18, 0x1E, 0x22, 0x23, 0x24, 0x1F };
+
+		/// <summary>The status the party window shows for a member now: the ones it has in FF4's order, the next each second (BattleStatus2DManager::updateCondition).</summary>
+		private string StatusShown(Fighter f)
+		{
+			if (!f.Alive) return "";
+			List<int> shown = new List<int>();
+			foreach (int id in DisplayOrder) if (Has(f, id) || (id == 0x17 && f.DarkFrames > 0)) shown.Add(id);
+			return shown.Count == 0 ? "" : ConditionName(shown[(_clock / 30) % shown.Count]);
+		}
+
+		/// <summary>
+		/// A member's look under its statuses: the ailing kneel (2001: Paralyze, Sleep, Silence, Blind, Poison, Curse, Sap,
+		/// Magnetize, Doom - the flag's bit 5 - or HP at a quarter or less; setConditionMotion) when it stands idle, and the
+		/// one effect over it by FF4's priority (changeConditionEffect: e670 - Blink 11, Paralyze or Magnetize 7, Sleep 6,
+		/// Petrify 4, Confuse 5, Silence 3, Poison 1, Blind 2; Darkness e260), made again as it ends, gone with the status.
+		/// </summary>
+		private void ShowConditions()
+		{
+			foreach (Fighter f in _party)
+			{
+				if (!f.Alive) { DropStatusEffect(f); continue; }
+				int idle = AnyFlag(f, 5) || f.Hp <= f.MaxHp / 4 ? 2001 : _heroMotionIdle;
+				if (!f.Acted && f.IdleMotion != idle) { Play(f, idle, true, 4); f.Acted = false; f.IdleMotion = idle; }
+				int pack = 670, variant = Has(f, CBlink) ? 11 : Has(f, CParalyze) || Has(f, CMagnetize) ? 7 : Has(f, CSleep) ? 6 : Has(f, CPetrify) ? 4
+					: Has(f, CConfuse) ? 5 : Has(f, CSilence) ? 3 : Has(f, CPoison) ? 1 : Has(f, CBlind) ? 2 : 0;
+				if (variant == 0 && f.DarkFrames > 0) { pack = 260; variant = 1; }
+				if (variant == 0) { DropStatusEffect(f); continue; }
+				GlobalScope.eff.CEffectMng effects = GlobalScope.eff.CEffectMng.instance();
+				bool playing = f.StatusEffect >= 0 && effects.isPlay(f.StatusEffect);
+				if (playing && f.StatusEffectKind == pack * 100 + variant) { effects.setPosition(f.StatusEffect, Fx(Where(f) + new Vector3(0f, 12f, 0f))); continue; }
+				DropStatusEffect(f);
+				LoadEffect(pack);
+				try
+				{
+					int made = effects.create(pack, variant);
+					if (made < 0) continue;
+					effects.enableBoxCulling(made, false);
+					effects.setPosition(made, Fx(Where(f) + new Vector3(0f, 12f, 0f)));
+					f.StatusEffect = made;
+					f.StatusEffectKind = pack * 100 + variant;
+				}
+				catch (Exception) { }
+			}
+		}
+
+		private static GlobalScope.VecFx32 Fx(Vector3 at) => new GlobalScope.VecFx32((int)Math.Round(at.X * 4096), (int)Math.Round(at.Y * 4096), (int)Math.Round(at.Z * 4096));
+
+		private static void DropStatusEffect(Fighter f)
+		{
+			if (f.StatusEffect < 0) return;
+			try { GlobalScope.eff.CEffectMng.instance().release(f.StatusEffect); } catch (Exception) { }
+			f.StatusEffect = -1;
+			f.StatusEffectKind = 0;
+		}
+
 		private readonly HashSet<Action> _poisonTicks = new HashSet<Action>();
 
 		/// <summary>A poison tick (BABPoisonDamage): a hundredth of the maximum, at least 1, its number shown, between actions.</summary>

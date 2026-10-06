@@ -82,9 +82,13 @@ variables, what struck it - its action sets in turn or at random, the target typ
 every monster weighs as a turn ends); the battle events (BattleScriptEngine, battle_ai.bbd); the win
 (fade through black, the poses and camera, the result with the gil counting up, a page for each
 level-up and one for the items, the fade out). The HUD is a layout (Data/hud/ff4_battle_hud.xml,
-Docs/Menus.md) a mod can reshape or restyle. Not FF4's yet: statuses (and the AI's checks and forced
-actions that read them), monster abilities outside the spell table, spells' effects and motions, the battle
-modes' other cases.
+Docs/Menus.md) a mod can reshape or restyle. Since then: magic shown as executeCommonMagic shows it (the name, the
+chant, each target's effect in turn, the numbers once the effects end) on both sides, the monsters' own abilities
+(effectsInfo), Needles and Pincers, Alarm and Summon, the Mist Dragon's mist, the statuses (condition_parameter.bbd:
+inflicted by blows and spells, their timers, Poison's ticks, Sleep, Paralyze, Confuse, Berserk, Blind, Silence, Toad,
+Mini, Protect, Shell, Slow, Haste, Doom; the name in the party window, the kneel and the effect over the member), the
+KO motion and FF4's defeat line. Not FF4's yet: the other bosses' own actions (transformations, Octomammoth's legs),
+Reflect, Toad/Pig/Mini's model swaps, the monsters' status tints, the game over screen, the battle modes' other cases.
 
 ## Menus - 15%
 

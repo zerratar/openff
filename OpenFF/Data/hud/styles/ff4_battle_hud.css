@@ -26,6 +26,8 @@
 .member .hp, .member .mp { text-align: right; }
 .member.dead .name, .member.dead .hp { color: #babeda; }
 .member.low .hp { color: #ff786e; }
+/* A member's status, one at a time (BattleStatusFontManager::drawCondition), smaller, between MP and the gauge. */
+.member .status { font-size: 21px; color: #ffe86e; text-align: center; vertical-align: middle; }
 
 /* The ATB gauge: the trough, and the fill cut to the gauge (grey while it fills, yellow once full). */
 .gauge { -ff-cell: gauge 0; -ff-cell-origin: 0 50%; }

@@ -11,7 +11,7 @@
     battle.command[0..3]    present, name, lit (the hand on it), disabled
     battle.scroll           shown, top and size (percent of the track: the rows in view)
     battle.party            the party's rows are shown (not while a foe is picked)
-    battle.member[0..4]     present, name, hp, maxHp, mp, showMp, gauge (0..100), fill (1 grey while it fills, 2 yellow once full), alive,
+    battle.member[0..4]     present, name, hp, maxHp, mp, showMp, status (the one shown now), gauge (0..100), fill (1 grey while it fills, 2 yellow once full), alive,
                             low, acting (their turn to choose), picked (the hand on them)
     battle.keys             the keys' hints are shown
     battle.targets          the foes are listed for a pick: battle.target[0..3] present, name, sub (the chance to hit,
@@ -76,6 +76,7 @@
           <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
           <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
           <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
           <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
@@ -87,6 +88,7 @@
           <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
           <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
           <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
           <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
@@ -98,6 +100,7 @@
           <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
           <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
           <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
           <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
@@ -109,6 +112,7 @@
           <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
           <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
           <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
           <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>
@@ -120,6 +124,7 @@
           <frame class="name" bind-text="{name}"><id>name</id><x>24</x><y>0</y><width>400</width><height>58</height></frame>
           <frame class="hp" bind-text="{hp} / {maxHp}"><id>hp</id><x>0</x><y>0</y><width>449</width><height>58</height></frame>
           <frame class="mp" bind-visible="showMp" bind-text="{mp}"><id>mp</id><x>0</x><y>0</y><width>578</width><height>58</height></frame>
+          <frame class="status" bind-text="{status}"><id>status</id><x>598</x><y>0</y><width>196</width><height>58</height></frame>
           <frame class="gauge"><id>gauge</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="gauge-fill" bind-display="alive" bind-style="-ff-cell: gauge {fill}; -ff-cell-crop: {gauge}%"><id>fill</id><x>802</x><y>0</y><width>200</width><height>58</height></frame>
           <frame class="hand" bind-visible="picked"><id>hand</id><x>14</x><y>0</y><width>1</width><height>58</height></frame>

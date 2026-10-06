@@ -97,6 +97,7 @@ namespace OpenFF.Client
 			public ulong Conditions;          // its ys::Condition bits, and their timers and counters (Ff4BattleStatus)
 			public int[] ConditionTimer = new int[39];
 			public int BlinkCount, DoomCount, PoisonCount, SapCount, PetrifyCount, HpSeen, MagicEvasion;
+			public int IdleMotion = 2004, StatusEffect = -1, StatusEffectKind;   // the idle it stands in, the effect over it and which
 			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
 			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
@@ -657,7 +658,7 @@ namespace OpenFF.Client
 			{
 				if (!f.Alive || !f.Acted) continue;
 				bool done = f.Npc != null ? f.Npc.MotionDone : Game.Hero.MotionDone;
-				if (done) { Play(f, _heroMotionIdle, true, 4); f.Acted = false; }
+				if (done) { f.IdleMotion = AnyFlag(f, 5) || f.Hp <= f.MaxHp / 4 ? 2001 : _heroMotionIdle; Play(f, f.IdleMotion, true, 4); f.Acted = false; }
 			}
 			foreach (Fighter f in _foes)
 			{
@@ -669,6 +670,7 @@ namespace OpenFF.Client
 		private void Fight()
 		{
 			Idle();
+			ShowConditions();
 			if (_closing) return;
 			if (Ff4BattleStage.Active) Log.Sample(LogChannel.File, "battle-camera", 120, () => "battle: camera at " + Game.Camera.Position + " hero at " + Game.Hero.Position);
 			// btl::BattleActiveTimeMain::execute, a frame of it. The behaviour manager first: a turn is over once its steps
@@ -1891,6 +1893,7 @@ namespace OpenFF.Client
 			foreach (Fighter f in _party)
 			{
 				if (f.Member != null) f.Member.Conditions = KeptAfterBattle(f.Conditions);   // clearBattleCondition
+				DropStatusEffect(f);
 				try { if (f.Npc is LegacyNpc held && held.CharacterId >= 0) Ff4Cutscene.UnbindAll(held.CharacterId); } catch (Exception) { }
 				try { f.Npc?.Remove(); } catch (Exception) { }
 			}
@@ -2035,7 +2038,7 @@ namespace OpenFF.Client
 			public ScrollData Scroll = new ScrollData();
 		}
 		public sealed class ScrollData { public bool Shown; public float Top, Size = 100; }
-		public sealed class MemberRow { public bool Present, Alive, Low, Acting, Picked, ShowMp; public string Name = ""; public int Hp, MaxHp, Mp, Gauge, Fill = 1; }
+		public sealed class MemberRow { public bool Present, Alive, Low, Acting, Picked, ShowMp; public string Name = "", Status = ""; public int Hp, MaxHp, Mp, Gauge, Fill = 1; }
 
 		public sealed class ResultData
 		{
@@ -2172,6 +2175,7 @@ namespace OpenFF.Client
 				m.Present = f != null;
 				if (f == null) { m.Acting = m.Picked = false; continue; }
 				m.Name = f.Name;
+				m.Status = StatusShown(f);
 				m.Hp = f.Hp;
 				m.MaxHp = f.MaxHp;
 				m.Mp = f.Mp;
