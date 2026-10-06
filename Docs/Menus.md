@@ -560,6 +560,7 @@ or a `url("x.png")` picture beside the layout with `-ff-background-rect`); `bord
 | `-ff-cell-origin: x y` | Where the cell's origin goes in the frame (px or %; `0 50%` by default). |
 | `-ff-cell-crop: <n>%` | The cell drawn that much of its width - a gauge's fill: `bind-style="-ff-cell-crop: {gauge}%"`. |
 | `-ff-cell-scale: <n>` | Its size against the game's. |
+| `-ff-panel: <name>` | A panel of the game's art under the frame, stretched to it, by a name the client registers: FF4's window, `ff4-window`. |
 
 The battle binds to the root `battle` (`Ff4Battle.HudData`): the panel, the command rows, the
 scroll bar, the party's rows (name, HP, MP, gauge, whose turn, who is picked), FF4's help line,

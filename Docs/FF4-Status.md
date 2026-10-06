@@ -62,21 +62,23 @@ Encounters start from the map's tables and the field's step counter; shops and i
 the scripts call them, with FF4's prices and stock. The windows they show are FF3's dressed
 with FF4's art, not FF4's own screens.
 
-## Battle - 40%
+## Battle - 55%
 
-Still OpenFF's own battle loop (Ff4Battle), but what it shows is FF4's, measured against the
-Steam game's frames (Tools/ff4hook): a scene's battle comes after the encounter whirl
-(SPBlurRotate) on its stage as a part change; the encounter group's every monster at its x, y, z
-and facing; the party on the group's root at their FF4 positions and rows; the motions
-addBasicMotion binds and the weapon and shield held at their joints; the entrance, the attack
-(poise, swing, the blow 8 frames in), the flinch and the victory (layout, win pose, camera) to
-the frame; the commands initializeCommand lays out (Attack, Darkness, Items, Defend, Swap Rows);
-Steam's panel; max HP rolled level by level; the active time gauges; the weapon's hit effect; the
-damage numbers (a digit at a time, from each monster's spot) and a fallen monster's 10-frame fade;
-the weapon's hit sound; the win (BattleWin: the fade through black, the result window with gil and
-EXP to Steam's frame, the one item prepareGift rolls, the fade out). Not FF4's yet: the battle
-modes, the damage and Darkness formulas beyond what was read, level-up and item pages, monster AI
-and abilities.
+Ff4Battle, written from FF4's own battle code (libff4's btl::) and measured against the Steam game's
+frames (Tools/ff4hook). A scene's battle comes after the encounter whirl (SPBlurRotate) on its stage as
+a part change; the group's monsters at their places and facings, the party on the group's root at its
+FF4 positions and rows, the motions addBasicMotion binds, the weapon and shield held. The turns as
+BattleBehaviorManager runs them: decided actions queue and go one at a time, a turn over when its
+steps are done and its effects have stopped (the fallen fade then, 10 frames), the gauges filling
+while nothing or a monster's action is under way and the commands open throughout (the active mode;
+--ff4-battle-wait for the wait mode), an action's wait (ATW) from ability.bbd. The member's attack
+(poise, swing, the weapon's hit effect and sound, the number) and the monster's (its chain 2 record:
+effect, sound, number), effects at hitEffectPosition, the damage numbers a digit at a time from each
+monster's spot, the damage and hit formulas with criticals; the win (fade through black, the poses
+and camera, the result window with the gil counting up, the one item, the fade out). The HUD is a
+layout (Data/hud/ff4_battle_hud.xml, Docs/Menus.md) a mod can reshape or restyle. Not FF4's yet:
+monster AI and abilities, the elements' and races' multipliers and the back rows' in the damage,
+Darkness's formula, level-up and item pages after the result, the battle modes' other cases.
 
 ## Menus - 15%
 
