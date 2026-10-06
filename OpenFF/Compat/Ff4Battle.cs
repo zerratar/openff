@@ -31,9 +31,49 @@ namespace OpenFF.Client
 	internal sealed class Ff4Battle : GameService
 	{
 		private enum Phase { Idle, Intro, Fight, Victory, Defeat, Outro }
-		private enum Command { Fight, Magic, Item, Run }
+		private enum Command { Fight, Magic, Item, Run, Defend, SwapRows, Darkness, Other }
 		private enum Pick { None, Command, Target, Item, Spell, Ally }
-		private static readonly string[] CommandNames = { "Attack", "Magic", "Items", "Run" };
+		// FF4's commands by ability id (common::ABILITY_ID; their names are babil_ability.msd's 3000 + id).
+		private const int CmdFight = 1, CmdFlee = 2, CmdDefend = 3, CmdItems = 4, CmdBlackMagic = 5, CmdWhiteMagic = 6, CmdSummon = 13, CmdDarkness = 32, CmdSwapRows = 46;
+
+		/// <summary>
+		/// A member's battle commands as pl::Player::initializeCommand lays them out: Fight (and 0, 2) first, then the
+		/// learned commands from 4 up but for a few kept for the end, then those (6, 5, 13, 18, 0x53, 4) while there is
+		/// room, five at most - and Defend (3) and Swap Rows (46) always in slots 5 and 6. Cecil: Attack, Darkness,
+		/// Items, Defend, Swap Rows, as Steam's menu shows them.
+		/// </summary>
+		internal static List<int> CommandList(Character c)
+		{
+			HashSet<int> learned = new HashSet<int>(c.Definition.CommandsAt(c.Level));
+			List<int> list = new List<int>();
+			foreach (int id in new[] { 1, 2 }) if (learned.Contains(id)) list.Add(id);
+			for (int id = 4; id < 256 && list.Count < 5; id++)
+			{
+				if (id == 4 || id == 5 || id == 6 || id == 13 || id == 18 || id == 0x53 || id == CmdDefend || id == CmdSwapRows) continue;
+				if (learned.Contains(id)) list.Add(id);
+			}
+			foreach (int id in new[] { 6, 5, 13, 18, 0x53, 4 }) if (list.Count < 5 && learned.Contains(id)) list.Add(id);
+			list.Add(CmdDefend);
+			list.Add(CmdSwapRows);
+			return list;
+		}
+
+		private static string CommandName(int id) => Ff4Party.Tables?.AbilityName(3000 + id)?.Trim() ?? ("command " + id);
+
+		private static Command CommandOf(int id) => id switch
+		{
+			CmdFight => Command.Fight,
+			CmdFlee => Command.Run,
+			CmdDefend => Command.Defend,
+			CmdItems => Command.Item,
+			CmdBlackMagic or CmdWhiteMagic or CmdSummon => Command.Magic,
+			CmdDarkness => Command.Darkness,
+			CmdSwapRows => Command.SwapRows,
+			_ => Command.Other,
+		};
+
+		private List<int> Commands => _acting?.Commands ?? new List<int> { CmdFight };
+		private int _commandScroll;
 
 		private sealed class Fighter
 		{
@@ -51,6 +91,8 @@ namespace OpenFF.Client
 			public bool Alive => Hp > 0;
 			public Vector3 Home;
 			public bool Acted;   // a one-shot motion is playing; Idle() restarts the loop when it ends
+			public List<int> Commands = new List<int>();   // the member's FF4 command list (CommandList)
+			public bool Defending;                         // Defend: physical damage halved until their next turn
 		}
 
 		private static Ff4Battle _instance;
@@ -156,7 +198,7 @@ namespace OpenFF.Client
 				int weapon = Weapon(c, tables);
 				_party.Add(new Fighter
 				{
-					Name = c.Name, Member = c, Hp = c.Hp, MaxHp = c.MaxHp,
+					Name = c.Name, Member = c, Hp = c.Hp, MaxHp = c.MaxHp, Commands = CommandList(c),
 					Attack = Math.Max(1, weapon > 0 ? weapon : stats.Strength / 2), Defence = Armour(c, tables), Agility = Math.Max(1, stats.Agility),
 					Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
 					Strength = stats.Strength, HitChance = weapon > 0 ? WeaponHit(c, tables) : 90, Evade = Evasion(c, tables),
@@ -489,21 +531,27 @@ namespace OpenFF.Client
 				}
 				foreach (Fighter f in _party)
 				{
-					if (f.Alive && f.Gauge >= 1f) { _acting = f; _pick = Pick.Command; _cursor = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act"); return; }
+					if (f.Alive && f.Gauge >= 1f) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act"); return; }
 				}
 				return;
 			}
 			InputState input = Game.Input;
 			if (_pick == Pick.Command)
 			{
-				int count = CommandNames.Length;
+				List<int> commands = Commands;
+				int count = commands.Count;
 				if (input.Pressed(Pad.Up)) _cursor = (_cursor + count - 1) % count;
 				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % count;
-				bool runNow = input.KeyPressed("M");   // FF4's "M Run away"
-				if (runNow) _cursor = (int)Command.Run;
+				if (_cursor < _commandScroll) _commandScroll = _cursor;
+				if (_cursor >= _commandScroll + CommandRows) _commandScroll = _cursor - CommandRows + 1;
+				bool runNow = input.KeyPressed("M");   // Steam's "M Run away"
 				if (input.Pressed(Pad.A) || runNow)
 				{
-					_command = (Command)_cursor;
+					_command = runNow ? Command.Run : CommandOf(commands[_cursor]);
+					if (_command == Command.Defend) { Defend(_acting); return; }
+					if (_command == Command.SwapRows) { SwapRows(_acting); return; }
+					if (_command == Command.Darkness) { Darkness(_acting); return; }
+					if (_command == Command.Other) { Say(CommandName(commands[_cursor]) + " is not in yet."); return; }
 					if (_command == Command.Fight) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
 					else if (_command == Command.Magic)
 					{
@@ -552,7 +600,7 @@ namespace OpenFF.Client
 			if (_pick == Pick.Spell)
 			{
 				GridMove(input, _spellChoices.Count);
-				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = (int)Command.Magic; return; }
+				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => CommandOf(id) == Command.Magic)); return; }
 				if (input.Pressed(Pad.A))
 				{
 					SpellDefinition spell = Ff4Party.Tables.Spell(_spellChoices[_cursor]);
@@ -579,7 +627,7 @@ namespace OpenFF.Client
 			if (_pick == Pick.Item)
 			{
 				GridMove(input, _itemChoices.Count);
-				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = (int)Command.Item; return; }
+				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => id == CmdItems)); return; }
 				if (input.Pressed(Pad.A)) { _usingItem = _itemChoices[_cursor]; _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
 			}
 		}
@@ -849,6 +897,7 @@ namespace OpenFF.Client
 				return;
 			}
 			int damage = Damage(foe, target);
+			if (target.Defending) damage = Math.Max(1, damage / 2);   // Defend halves a blow
 			target.Hp = Math.Max(0, target.Hp - damage);
 			target.Member.Hp = target.Hp;
 			Pop(Where(target) + new Vector3(0, 12f, 0), damage);
@@ -889,6 +938,56 @@ namespace OpenFF.Client
 				if (target.Hp != before) Pop(Where(target) + new Vector3(0, 12f, 0), target.Hp - before, true);
 				Say(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
 			}
+			member.Gauge = 0f;
+			_acting = null;
+			_pick = Pick.None;
+		}
+
+		private const int CommandRows = 4;
+
+		/// <summary>Defend: the member braces until their next turn, physical blows halved (FF4's Defend).</summary>
+		private void Defend(Fighter member)
+		{
+			member.Defending = true;
+			Say(member.Name + " defends.");
+			EndTurn(member);
+		}
+
+		/// <summary>Swap Rows: the party's formation turns over (PlayerParty::formation's other half) - front row to back and back to front - and everyone walks to their new spot.</summary>
+		private void SwapRows(Fighter member)
+		{
+			Ff4Party.Formation = 1 - Ff4Party.Formation;
+			foreach (Fighter f in _party)
+			{
+				int position = Ff4Party.PositionOf(f.Member.Id), row = Ff4Party.RowOf(position, Ff4Party.Formation);
+				Vector3 spot = Ff4BattleStage.PartySpot(_rootId, position, row);
+				f.Home = spot;
+				try { f.Npc?.MoveTo(spot, 10); } catch (Exception) { }
+			}
+			Say("The party swaps rows.");
+			EndTurn(member);
+		}
+
+		/// <summary>Darkness: a blow at every foe at once that costs the knight an eighth of their hit points (as the DS remake's Darkness reads; its own formula is not ported yet).</summary>
+		private void Darkness(Fighter member)
+		{
+			member.Hp = Math.Max(1, member.Hp - member.MaxHp / 8);
+			member.Member.Hp = member.Hp;
+			Play(member, _heroMotionAttack);
+			foreach (Fighter foe in _foes.FindAll(f => f.Alive))
+			{
+				int damage = Damage(member, foe);
+				foe.Hp = Math.Max(0, foe.Hp - damage);
+				Pop(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
+				if (!foe.Alive) Fell(foe);
+			}
+			Say(member.Name + " unleashes Darkness.");
+			EndTurn(member);
+			if (_foes.FindAll(f => f.Alive).Count == 0) Win();
+		}
+
+		private void EndTurn(Fighter member)
+		{
 			member.Gauge = 0f;
 			_acting = null;
 			_pick = Pick.None;
@@ -1141,11 +1240,13 @@ namespace OpenFF.Client
 			}
 			else
 			{
-				for (int i = 0; i < CommandNames.Length; i++)
+				List<int> commands = Commands;
+				for (int row = 0; row < CommandRows && _commandScroll + row < commands.Count; row++)
 				{
-					float y = CmdY + CmdRow * i;
-					if (i > 0) d.Line(CmdX + 4, y, CmdX + CmdW - 4, y, RowLine);
-					Centred(d, CommandNames[i], CmdX + CmdW / 2 + 8, y + 13, choosing ? Color.White : Dim, 16);
+					int i = _commandScroll + row;
+					float y = CmdY + CmdRow * row;
+					if (row > 0) d.Line(CmdX + 4, y, CmdX + CmdW - 4, y, RowLine);
+					Centred(d, CommandName(commands[i]), CmdX + CmdW / 2 + 8, y + 13, choosing ? Color.White : Dim, 16);
 					if (choosing && _pick == Pick.Command && i == _cursor) Glove(d, CmdX + 36, y + 14);
 				}
 			}

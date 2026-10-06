@@ -58,6 +58,7 @@ namespace OpenFF.Client
 		{
 			_party = new Party(Tables);
 			_positions.Clear();
+			Formation = 1;
 			_party.Join(0, 10);
 			_positions[0] = 1;   // initForNewgame: addMember(0, 1)
 			// --party=4:10,3:12 - extra members for a test start (the child Rydia at 10, Rosa at 12).
@@ -99,10 +100,14 @@ namespace OpenFF.Client
 			return -1;
 		}
 
+		/// <summary>The party's formation (sys::GameParameter::formation): 0 or 1 - initForNewgame turns a new game's 0 to 1, Swap Rows turns it over.</summary>
+		public static int Formation = 1;
+
 		/// <summary>The row a position stands in under the party's formation (PlayerParty::formation's table): 0 front, 1 back. A new game's formation (initForNewgame turns it from 0) has 1 and 3 in front.</summary>
-		public static int RowOf(int position, int formation = 1)
+		public static int RowOf(int position, int formation = -1)
 		{
 			int[] table = { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1 };
+			if (formation < 0) formation = Formation;
 			return table[Math.Clamp(formation, 0, 1) * 5 + Math.Clamp(position, 0, 4)];
 		}
 
@@ -122,6 +127,7 @@ namespace OpenFF.Client
 		public sealed class Saved
 		{
 			public int Gil;
+			public int Formation = 1;
 			public List<SavedCharacter> Roster = new List<SavedCharacter>();
 			/// <summary>(item id, count) pairs, in bag order.</summary>
 			public List<int[]> Items = new List<int[]>();
@@ -130,7 +136,7 @@ namespace OpenFF.Client
 		public static Saved Snapshot()
 		{
 			Party p = Party;
-			Saved s = new Saved { Gil = p.Gil };
+			Saved s = new Saved { Gil = p.Gil, Formation = Formation };
 			foreach (Character c in p.Roster)
 			{
 				s.Roster.Add(new SavedCharacter
@@ -168,6 +174,7 @@ namespace OpenFF.Client
 			List<SavedCharacter> lineUp = s.Roster.FindAll(r => r.Slot >= 0);
 			lineUp.Sort((a, b) => a.Slot.CompareTo(b.Slot));
 			_positions.Clear();
+			Formation = s.Formation == 0 ? 0 : 1;
 			foreach (SavedCharacter sc in lineUp)
 			{
 				p.Join(sc.Id, sc.Level);

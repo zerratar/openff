@@ -349,9 +349,9 @@ namespace OpenFF.Data
 						uint w = ChainPack.U32(pack.Data, pack.Offset(lc) + 4 * i);
 						int ability = (int)(w >> 16), level = (int)(w & 0xFFFF);
 						if (ability < 1500) command = ability;
-						// Every list carries Sing and the eight songs for the Bardsong augment; only the
-						// bard (type 11) has them from the start. Augments are not modelled yet.
-						if (command == 4 && type != 11) continue;
+						// Every list carries Items (4) and after it the eight songs (4801..) for the Bardsong augment;
+						// only the bard (type 11) has the songs from the start. Augments are not modelled yet.
+						if (command == 4 && ability != 4 && type != 11) continue;
 						def.Learning.Add(new Learned { Command = ability < 1500 ? ability : command, Ability = ability, Level = Math.Max(1, level) });
 					}
 				}
