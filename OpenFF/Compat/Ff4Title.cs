@@ -151,6 +151,9 @@ namespace OpenFF.Client
 			{
 				GlobalScope.ds.CDevice.singleton().setFPS(GlobalScope.ds.CDevice.enFPS.enFPS_30);
 				FadeOut(0);
+				// Come from a game's end (the field ended into it), the pad and the touch panel may still be held.
+				try { GlobalScope.ds.g_Pad.enable(); GlobalScope.ds.g_TouchPanel.enable(); } catch (Exception) { }
+				OpenFF.Game.Input.Capture = false;
 				_shown[Continue] = false;          // no FF4 suspend save in this client
 				_shown[NewGame] = true;
 				_shown[Load] = AnySave();

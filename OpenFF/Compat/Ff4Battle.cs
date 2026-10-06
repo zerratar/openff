@@ -653,15 +653,29 @@ namespace OpenFF.Client
 					// so (BattleParameter flag 0xB, a fight meant to be lost).
 					if (_timer > 30 && (BattleParameterFlag(0xB) || Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased))
 					{
-						// No game over screen yet: the party stands up again with 1 HP.
-						foreach (Fighter f in _party) { f.Hp = Math.Max(1, f.Hp); if (f.Member != null) f.Member.Hp = f.Hp; }
+						// BattlePart::setNextPart after a loss: the party made whole (PlayerParty::fineAll - full HP and MP,
+						// no statuses); a fight a scene may lose goes back to it, any other is the game's end - the screen
+						// fades out over 15 frames and the title comes (part 3).
+						foreach (Fighter f in _party)
+						{
+							f.Hp = f.MaxHp;
+							f.Conditions = 0;
+							if (f.Member != null) { f.Member.Hp = f.MaxHp; f.Member.Mp = f.Member.MaxMp; f.Member.Conditions = 0; }
+						}
 						_help = null;
+						_gameOver = AfterBattle == null && !BattleParameterFlag(0xB);
+						if (_gameOver)
+						{
+							GlobalScope.dgs.CFade.Main().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+							GlobalScope.dgs.CFade.Sub().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+						}
 						_phase = Phase.Outro;
 						_timer = 0;
 					}
 					break;
 				case Phase.Outro:
 					if (_closing && _timer <= WinEndFade) break;
+					if (_gameOver && _timer <= 15) break;
 					End();
 					return;
 			}
@@ -1731,6 +1745,7 @@ namespace OpenFF.Client
 		// +76, the arrow at +79.
 		private const int WinAfterDeath = 7, WinFade = 6, WinHold = 30, WinExpAfter = 9, WinArrowAfter = 12, WinEndFade = 16;
 		private bool _closing;
+		private bool _gameOver;   // the loss ends the game: the title comes once the fight is closed
 
 		/// <summary>The last foe is down: the panel goes and the screens fade to black, the result coming in as they return.</summary>
 		private void BeginWin()
@@ -1858,7 +1873,8 @@ namespace OpenFF.Client
 			// BattleLose::initialize: the help line's babil_battle 0x70 (not when the event hides it - flag 0xB), the music
 			// stopping over 15 frames.
 			if (!BattleParameterFlag(0xB)) { _help = BattleText(0x70, "Your party has been defeated."); _helpUntil = -1; }
-			try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(15, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
+			// Every slot: a scene's battle plays its music in whichever slot its script chose.
+			try { for (int slot = 0; slot < 4; slot++) GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(15, (GlobalScope.MatrixSound.enMtxBGMSlot)slot); } catch (Exception) { }
 			Log.Write(LogChannel.General, "battle: lost - " + (_help ?? "(no line)"));
 		}
 
@@ -1926,7 +1942,14 @@ namespace OpenFF.Client
 			{
 				try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
 				try { Ff4EventCamera.Release(); } catch (Exception) { }
-				Ff4BattleStage.Leave(jumpBack: after == null);
+				Ff4BattleStage.Leave(jumpBack: after == null && !_gameOver);
+			}
+			if (_gameOver)
+			{
+				// The game's end: on to the title, as from the logos.
+				_gameOver = false;
+				Log.Write(LogChannel.General, "battle: the party has fallen - to the title");
+				try { GlobalScope.ds.g_Pad.enable(); GlobalScope.ds.g_TouchPanel.enable(); GlobalScope.wld.CBaseSystem.setTitle(true); } catch (Exception ex) { Log.Write(LogChannel.General, "battle: to the title: " + ex.Message); }   // the field ends into the title part (ff3Command_GoToTitle's way)
 			}
 			try { Game.Hero.Unfreeze(); } catch (Exception) { }
 			Game.Input.Capture = false;
