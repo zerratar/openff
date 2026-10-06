@@ -31,7 +31,7 @@ namespace OpenFF.Client
 	internal sealed partial class Ff4Battle : GameService
 	{
 		private enum Phase { Idle, Intro, Fight, Victory, Defeat, Outro }
-		private enum Command { Fight, Magic, Item, Run, Defend, SwapRows, Darkness, Other }
+		private enum Command { Fight, Magic, Item, Run, Defend, SwapRows, Darkness, Jump, Other }
 		private enum Pick { None, Command, Target, Item, Spell, Ally }
 		// FF4's commands by ability id (common::ABILITY_ID; their names are babil_ability.msd's 3000 + id).
 		private const int CmdFight = 1, CmdFlee = 2, CmdDefend = 3, CmdItems = 4, CmdBlackMagic = 5, CmdWhiteMagic = 6, CmdSummon = 13, CmdDarkness = 32, CmdSwapRows = 46;
@@ -69,6 +69,7 @@ namespace OpenFF.Client
 			CmdBlackMagic or CmdWhiteMagic or CmdSummon => Command.Magic,
 			CmdDarkness => Command.Darkness,
 			CmdSwapRows => Command.SwapRows,
+			CmdJump => Command.Jump,
 			_ => Command.Other,
 		};
 
@@ -105,6 +106,8 @@ namespace OpenFF.Client
 			public int TintType;              // the status colour it wears (BATTLE_CHARACTER_COLOR's type, 0 none) and its own colours under it
 			public uint[] OwnColours;               // the frog or pig standing in for it (Toad, Pig), and which
 			public int Form;                // the Octomammoth's eight (null once gone)
+			public bool Airborne;             // in the air from a Jump (flag 0x15): no one's target; its gauge full, the landing
+			public Fighter JumpTarget;
 			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
 			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
@@ -787,6 +790,12 @@ namespace OpenFF.Client
 			{
 				foreach (Fighter f in _party)
 				{
+					if (f.Alive && !f.Queued && f.Gauge >= 1f && f.Airborne)
+					{
+						Fighter jumper = f;
+						Decide(jumper, () => JumpLand(jumper, jumper.JumpTarget ?? FirstAlive(_foes)), 0, CmdJump);
+						continue;
+					}
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && ActsAlone(f)) continue;
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f)) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
 				}
@@ -809,7 +818,7 @@ namespace OpenFF.Client
 					if (_command == Command.SwapRows) { Decide(who, () => Invoke(who, 46, () => SwapRows(who)), 0, 46); return; }
 					if (_command == Command.Darkness) { Decide(who, () => Darkness(who), 0, 32); return; }
 					if (_command == Command.Other) { Say(CommandName(commands[_cursor]) + " is not in yet."); return; }
-					if (_command == Command.Fight) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
+					if (_command == Command.Fight || _command == Command.Jump) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
 					else if (_command == Command.Magic)
 					{
 						_spellChoices.Clear();
@@ -855,6 +864,7 @@ namespace OpenFF.Client
 					Fighter who = _acting, foe = _foes[_cursor];
 					SpellDefinition spell = _casting;
 					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }), SpellWait(spell), spell.Id);
+					else if (_command == Command.Jump) Decide(who, () => Invoke(who, CmdJump, () => JumpStart(who, foe)), 0, CmdJump);
 					else Decide(who, () => MemberAttacks(who, foe), 0, 1);
 				}
 				return;
@@ -1199,6 +1209,7 @@ namespace OpenFF.Client
 		private bool Hits(Fighter attacker, Fighter target)
 		{
 			if (target.Mist) return false;   // reviseMist: a blow on the mist misses
+			if (target.Airborne) return false;   // in the air: out of reach
 			if (Has(target, CBlink) && target.BlinkCount > 0)
 			{
 				// reviseBlink: the image takes the blow; the last one gone, Blink goes.
@@ -1963,6 +1974,7 @@ namespace OpenFF.Client
 			}
 			foreach (Fighter f in _party)
 			{
+				f.Airborne = false;
 				if (f.Member != null) f.Member.Conditions = KeptAfterBattle(f.Conditions);   // clearBattleCondition
 				try { f.FormNpc?.Remove(); } catch (Exception) { }
 				DropStatusEffect(f);

@@ -142,7 +142,7 @@ namespace OpenFF.Client
 		/// </summary>
 		private List<Fighter> MonsterTargets(Fighter foe, int type)
 		{
-			List<Fighter> members = _party.FindAll(f => f.Alive), side = _foes.FindAll(f => f.Alive);
+			List<Fighter> members = _party.FindAll(f => f.Alive && !f.Airborne), side = _foes.FindAll(f => f.Alive);
 			Fighter remembered = foe.Remembered;   // read and let go on every pick, whatever the type
 			foe.Remembered = null;
 			if (type == 1 && remembered != null && remembered.Alive && !OutOfFight(remembered)) return new List<Fighter> { remembered };
