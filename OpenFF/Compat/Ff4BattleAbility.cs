@@ -78,14 +78,14 @@ namespace OpenFF.Client
 				case CmdBrace:
 				case CmdBluff:
 				case CmdPray:
+				case CmdHide:
+				case CmdReturn:
 					// The target window on the member alone (Steam: its name, HP, weaknesses), confirmed with A.
 					_abilityCmd = id; _pick = Pick.Ally; _cursor = _party.IndexOf(who);
 					return true;
 				case CmdKick: AbilityMotions(who, "b_pa_057"); Decide(who, () => Invoke(who, CmdKick, () => Kick(who)), AbilityWait(id), id); return true;
 				case CmdCry: AbilityMotions(who, "b_pa_038"); Decide(who, () => Invoke(who, CmdCry, () => Cry(who)), AbilityWait(id), id); return true;
 				case CmdAnalyze: Decide(who, () => Invoke(who, CmdAnalyze, () => Analyze(who)), AbilityWait(id), id); return true;
-				case CmdHide: Decide(who, () => Hide(who), AbilityWait(id), id); return true;
-				case CmdReturn: Decide(who, () => Return(who), AbilityWait(id), id); return true;
 				case CmdRecall: AbilityMotions(who, "b_pa_040"); Decide(who, () => Recall(who), AbilityWait(id), id); return true;
 				case CmdTwincast: AbilityMotions(who, "b_pa_005"); TwincastChosen(who); return true;
 			}
@@ -106,7 +106,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>The commands whose target is the member alone (ability.bbd target 0x0010): the window on it, nothing to move to.</summary>
-		private static bool SelfOnly(int id) => id == CmdFocus || id == CmdBrace || id == CmdBluff || id == CmdPray;
+		private static bool SelfOnly(int id) => id == CmdFocus || id == CmdBrace || id == CmdBluff || id == CmdPray || id == CmdHide || id == CmdReturn || id == CmdSalve;
 
 		/// <summary>The member confirmed as the target of its own command.</summary>
 		private void AbilityOnSelf(Fighter who)
@@ -119,6 +119,9 @@ namespace OpenFF.Client
 				case CmdBrace: Decide(who, () => Invoke(who, CmdBrace, () => Brace(who)), AbilityWait(id), id); break;
 				case CmdPray: AbilityMotions(who, "b_pa_035"); Decide(who, () => Pray(who), AbilityWait(id), id); break;
 				case CmdBluff: AbilityMotions(who, "b_pa_039"); Decide(who, () => Invoke(who, CmdBluff, () => Bluff(who)), AbilityWait(id), id); break;
+				case CmdHide: Decide(who, () => Hide(who), AbilityWait(id), id); break;
+				case CmdReturn: Decide(who, () => Return(who), AbilityWait(id), id); break;
+				case CmdSalve: { int item = _usingItem; Decide(who, () => Invoke(who, CmdSalve, () => Salve(who, item)), AbilityWait(id), id); break; }
 			}
 		}
 
@@ -139,7 +142,7 @@ namespace OpenFF.Client
 			int id = _abilityCmd;
 			if (id == CmdThrow) { _usingItem = item; _pick = Pick.Target; _cursor = FirstAliveFoe(); return; }
 			_abilityCmd = 0;
-			if (id == CmdSalve) Decide(who, () => Invoke(who, CmdSalve, () => Salve(who, item)), AbilityWait(id), id);
+			if (id == CmdSalve) { _abilityCmd = CmdSalve; _usingItem = item; _pick = Pick.Ally; _cursor = _party.IndexOf(who); }   // Steam: "Target All", confirmed
 			else if (id == CmdUpgrade) Decide(who, () => Invoke(who, CmdUpgrade, () => Upgrade(who, item)), AbilityWait(id), id);
 		}
 
@@ -503,20 +506,21 @@ namespace OpenFF.Client
 			ShowName(CommandName(CmdHide), 40);
 			After(40, () =>
 			{
-				// BattleActionEscape: 1115, turned about, 3 a frame for 40 frames; then hidden (condition 0x19).
+				// BattleActionEscape (Steam's frames): 1115, its facing as it was - the run is the motion's own - 3 a frame away
+				// for 40 frames; then the stance where it ends, out of the shot (condition 0x19: no one's target).
 				Game.Audio.PlaySe(156, 3);
-				Face(who, who.Facing + 180f);
 				Play(who, 1115, true, 3);
 				float yaw = (who.Facing + 180f) * (float)Math.PI / 180f;
 				Vector3 step = new Vector3((float)Math.Sin(yaw), 0f, (float)Math.Cos(yaw)) * 3f;
 				for (int k = 1; k <= 40; k++)
 				{
-					After(k, () => { if (who.Npc != null) { who.Npc.Teleport(who.Npc.Position + step); Face(who, who.Facing + 180f); } });
+					After(k, () => { if (who.Npc != null) who.Npc.Teleport(who.Npc.Position + step); });
 				}
 				After(41, () =>
 				{
 					who.Hiding = true;
-					if (who.Npc != null) who.Npc.Hidden = true;
+					Play(who, who.IdleMotion, true, 3);
+					who.Acted = false;
 					Note(who.Name + " hides.");
 				});
 			});
@@ -534,7 +538,7 @@ namespace OpenFF.Client
 				float yaw = who.Facing * (float)Math.PI / 180f;
 				Vector3 dir = new Vector3((float)Math.Sin(yaw), 0f, (float)Math.Cos(yaw)) * 5f;
 				if (who.Npc != null) { who.Npc.Teleport(who.Home - dir * 5f); who.Npc.Hidden = false; }
-				Face(who, who.Facing);
+				Face(who, who.Facing + 180f);   // Steam's frames: turned about (rootRotation + 0x8000) while it runs in
 				Play(who, 1115, true, 3);
 				for (int k = 1; k <= 5; k++)
 				{
@@ -562,17 +566,24 @@ namespace OpenFF.Client
 			Efficacy effect = item != null ? ItemEffect(item) : null;
 			EndTurn(who);
 			if (effect == null) return;
-			int used = 0;
-			foreach (Fighter t in targets)
+			// Steam's frames: the item motion (62, 30 frames), then the stance; the item on each member as it ends.
+			Play(who, 62, false, 3);
+			who.Acted = false;   // held on its last frame (ItemLoop) - not the stance when the clip ends
+			After(30, () =>
 			{
-				if (!Ff4Party.Party.RemoveItem(itemId, 1)) break;
-				used++;
-				int before = t.Hp;
-				if (effect.Hp > 0) t.Hp = Math.Min(t.MaxHp, t.Hp + effect.Hp);
-				if (t.Member != null) { t.Member.Hp = t.Hp; if (effect.Mp > 0) t.Member.Mp = Math.Min(t.Member.MaxMp, t.Member.Mp + effect.Mp); }
-				if (t.Hp != before) Pop(DamageSpot(t), t.Hp - before, true);
-			}
-			Note(who.Name + " salves the party with " + used + " " + item.Name + ".");
+				Play(who, who.IdleMotion, true, 3);
+				int used = 0;
+				foreach (Fighter t in targets)
+				{
+					if (!t.Alive || !Ff4Party.Party.RemoveItem(itemId, 1)) continue;
+					used++;
+					int before = t.Hp;
+					if (effect.Hp > 0) t.Hp = Math.Min(t.MaxHp, t.Hp + effect.Hp);
+					if (t.Member != null) { t.Member.Hp = t.Hp; if (effect.Mp > 0) t.Member.Mp = Math.Min(t.Member.MaxMp, t.Member.Mp + effect.Mp); }
+					if (t.Hp != before) Pop(DamageSpot(t), t.Hp - before, true);
+				}
+				Note(who.Name + " salves the party with " + used + " " + item.Name + ".");
+			});
 		}
 
 		// ---- Upgrade (PABRemodeing: the attack's element from the item) ----
