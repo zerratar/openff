@@ -219,6 +219,7 @@ namespace OpenFF.Client
 			string model = octomammoth ? "m" + m.Family.ToString("000") + "a" : info?.Model ?? ("m" + m.Family.ToString("000") + "_00");
 			Npc npc = Game.Npcs.SpawnModel(model, at, 0f);
 			if (npc == null) { Say("no model for " + m.Name); return null; }
+			if (m.Scale > 0.01f && Math.Abs(m.Scale - 1f) > 0.001f) { try { npc.Scale = m.Scale; } catch (Exception) { } }
 			try
 			{
 				string set = octomammoth ? "b_m" + m.Family.ToString("000") + "a" : MonsterMotionSet(m.Family, 0);

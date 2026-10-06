@@ -334,6 +334,8 @@ namespace OpenFF.Data
 				m.DamageZ = ChainPack.S32(r, 0x30);
 				m.EffectToCamera = ChainPack.S32(r, 4);
 				m.EffectHeight = ChainPack.S32(r, 8);
+				m.Scale = ChainPack.S32(r, 0x44) / 4096f;   // the model's size in battle (fx32; changeLilliput halves it)
+				m.ChantScale = ChainPack.S32(r, 0x50) / 4096f;
 			}
 			// The AI (btl::MonsterActionThinker::calculationAction): chain 7, a monster's record; chain 8, the action sets;
 			// chain 9, the conditions that switch a monster to another set.

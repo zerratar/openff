@@ -25,7 +25,7 @@
 .member .name, .member .hp, .member .mp { vertical-align: middle; }
 .member .hp, .member .mp { text-align: right; }
 .member.dead .name, .member.dead .hp { color: #babeda; }
-.member.low .hp { color: #ff786e; }
+.member.low .hp { color: #ffe86e; }   /* a quarter of the HP or less: yellow, as Steam shows it */
 /* A member's status, one at a time (BattleStatusFontManager::drawCondition), smaller, between MP and the gauge. */
 .member .status { font-size: 21px; color: #ffe86e; text-align: center; vertical-align: middle; }
 

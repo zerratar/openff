@@ -346,6 +346,8 @@ namespace OpenFF.Data
 		public int MagicDefence;
 		/// <summary>FF4: the magic evasion (record +0x68).</summary>
 		public int MagicEvasion;
+		/// <summary>FF4: the model's size in battle (monster.chaindata chain 4 +0x44, 1 most often) and the chant effect's (+0x50).</summary>
+		public float Scale = 1f, ChantScale = 1f;
 		public int Experience;
 		public int Gil;
 		public List<DropChance> Drops = new List<DropChance>();
