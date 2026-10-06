@@ -15,6 +15,8 @@
 
 .command .label { text-align: center; vertical-align: middle; }
 .command.disabled .label { color: #babeda; }
+/* The small line under a command (Focus's "Rounds of focus: 1", Twincast's "Sync: 100%"). */
+.command .sub { font-size: 17px; text-align: center; vertical-align: top; }
 
 /* The pointing glove, its fingertip at the frame's left middle. */
 .hand { -ff-cell: glove; -ff-cell-origin: 0 50%; }

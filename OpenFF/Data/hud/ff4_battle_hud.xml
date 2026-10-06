@@ -8,7 +8,8 @@
   menus/hud/styles/*.css alone. Everything binds to the root "battle" (Ff4Battle.HudData):
     battle.panel            the panel is up (false while the result fades in and out)
     battle.commands         the command window is open: a member chooses
-    battle.command[0..3]    present, name, lit (the hand on it), disabled
+    battle.command[0..3]    present, name, lit (the hand on it), disabled; sub, the small line under it (Focus's rounds,
+                            Twincast's sync), with hasSub / plain
     battle.scroll           shown, top and size (percent of the track: the rows in view)
     battle.party            the party's rows are shown (not while a foe is picked)
     battle.member[0..4]     present, name, hp, maxHp, mp, showMp, status (the one shown now), gauge (0..100), fill (1 grey while it fills, 2 yellow once full), alive,
@@ -37,22 +38,30 @@
       <x>150</x><y>677</y><width>450</width><height>400</height>
       <frame data-source="battle.command[0]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
         <id>command0</id><x>0</x><y>0</y><width>450</width><height>95</height>
-        <frame class="label" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6</y><width>450</width><height>52</height></frame>
+        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>52</y><width>450</width><height>36</height></frame>
         <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
       </frame>
       <frame data-source="battle.command[1]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
         <id>command1</id><x>0</x><y>101</y><width>450</width><height>95</height>
-        <frame class="label" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6</y><width>450</width><height>52</height></frame>
+        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>52</y><width>450</width><height>36</height></frame>
         <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
       </frame>
       <frame data-source="battle.command[2]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
         <id>command2</id><x>0</x><y>203</y><width>450</width><height>95</height>
-        <frame class="label" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6</y><width>450</width><height>52</height></frame>
+        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>52</y><width>450</width><height>36</height></frame>
         <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
       </frame>
       <frame data-source="battle.command[3]" bind-display="present" bind-class="lit: lit; disabled: disabled" class="row command">
         <id>command3</id><x>0</x><y>304</y><width>450</width><height>95</height>
-        <frame class="label" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="label" bind-visible="plain" bind-text="{name}"><id>name</id><x>0</x><y>0</y><width>450</width><height>95</height></frame>
+        <frame class="label" bind-visible="hasSub" bind-text="{name}"><id>top</id><x>0</x><y>6</y><width>450</width><height>52</height></frame>
+        <frame class="sub" bind-visible="hasSub" bind-text="{sub}"><id>sub</id><x>0</x><y>52</y><width>450</width><height>36</height></frame>
         <frame class="hand" bind-visible="lit"><id>hand</id><x>72</x><y>0</y><width>1</width><height>95</height></frame>
       </frame>
     </frame>

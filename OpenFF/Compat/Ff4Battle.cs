@@ -2190,7 +2190,13 @@ namespace OpenFF.Client
 			public ResultData Result = new ResultData();
 		}
 
-		public sealed class CommandRow { public bool Present, Lit, Disabled; public string Name = ""; }
+		public sealed class CommandRow
+		{
+			public bool Present, Lit, Disabled;
+			public string Name = "", Sub = "";
+			public bool HasSub => !string.IsNullOrEmpty(Sub);
+			public bool Plain => string.IsNullOrEmpty(Sub);
+		}
 		public sealed class TargetRow { public bool Present, Lit; public string Name = "", Sub = ""; }
 		public sealed class CardData { public bool Shown; public string Name = "", Hp = ""; }
 		public sealed class GridCell { public bool Present, Can, Lit; public string Name = "", Value = ""; }
@@ -2330,7 +2336,8 @@ namespace OpenFF.Client
 				c.Present = i < count;
 				c.Name = c.Present ? CommandName(commands[i]) : "";
 				c.Lit = c.Present && _pick == Pick.Command && i == _cursor;
-				c.Disabled = false;
+				c.Disabled = c.Present && !CommandUsable(_acting, commands[i]);
+				c.Sub = c.Present ? CommandSub(_acting, commands[i]) : "";
 			}
 			h.Scroll.Shown = h.Commands || h.Targets;
 			h.Scroll.Size = count <= CommandRows ? 100 : 100f * CommandRows / count;

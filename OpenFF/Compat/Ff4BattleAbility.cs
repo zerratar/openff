@@ -34,6 +34,43 @@ namespace OpenFF.Client
 			return id;
 		}
 
+		/// <summary>
+		/// The small line Steam's command window puts under a command (BattleStatus2DManager::helpVariable): Focus's rounds
+		/// ("Rounds of focus: N"), Twincast's sync with the best partner (synchroLevel: 0, 50 or 100 %).
+		/// </summary>
+		private string CommandSub(Fighter who, int id)
+		{
+			if (who == null) return "";
+			if (id == CmdFocus) return "Rounds of focus: " + who.FocusCharge;
+			if (id == CmdTwincast)
+			{
+				int best = 0;
+				foreach (Fighter p in _party)
+				{
+					if (p == who || !p.Alive || p.Member == null || who.Member == null || !p.Commands.Contains(CmdTwincast)) continue;
+					float Ratio(int a, int b) => b > 0 ? a / (float)b : 0f;
+					int level = (Math.Abs(Ratio(who.Hp, who.MaxHp) - Ratio(p.Hp, p.MaxHp)) < 0.2f ? 1 : 0)
+						+ (Math.Abs(Ratio(who.Member.Mp, who.Member.MaxMp) - Ratio(p.Member.Mp, p.Member.MaxMp)) < 0.2f ? 1 : 0);
+					best = Math.Max(best, level);
+				}
+				return "Sync: " + best * 50 + "%";
+			}
+			return "";
+		}
+
+		/// <summary>Whether a command can be chosen now (greyed in the window otherwise): hidden, only Return, Aim and Throw; Upgrade, Salve and Throw with something in the bag for them.</summary>
+		private static bool CommandUsable(Fighter who, int id)
+		{
+			if (who == null) return true;
+			if (who.Hiding && id != CmdReturn && id != CmdAim && id != CmdThrow) return false;
+			if (id == CmdUpgrade || id == CmdSalve || id == CmdThrow)
+			{
+				foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory) if (ItemFits(id, Ff4Party.Tables.Item(s.ItemId))) return true;
+				return false;
+			}
+			return true;
+		}
+
 		/// <summary>Out of everyone's reach: in the air from a Jump, or hidden (isSelectable).</summary>
 		private static bool Untargetable(Fighter f) => f.Airborne || f.Hiding;
 
