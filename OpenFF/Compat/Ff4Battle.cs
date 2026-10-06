@@ -272,6 +272,7 @@ namespace OpenFF.Client
 
 			BeginBattleEvents(_startingParty);
 			_startingParty = null;
+			_runOn = _runReady = _cantEscapeShown = _escaping = _fledFade = false; _runFrames = 0;
 			_closing = false; _queue.Clear(); _counterAbilities.Clear(); _dying.Clear(); _turnEffects.Clear(); _executing = null; _party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
 			_expWon = _gilWon = 0;
 			foreach (Character c in party.Members)
@@ -686,6 +687,7 @@ namespace OpenFF.Client
 					break;
 				case Phase.Outro:
 					if (_closing && _timer <= WinEndFade) break;
+					if (_fledFade && _timer <= 15) break;
 					if (_gameOver && _timer <= 15) break;
 					End();
 					return;
@@ -752,6 +754,7 @@ namespace OpenFF.Client
 			}
 			bool listOpen = _acting != null && _pick != Pick.Command && _pick != Pick.None;
 			bool advance = (!busy || (_executing != null && _executing.IsMonster)) && !(WaitMode && listOpen) && !_eventMode;
+			CheckEscape(advance);
 			if (advance)
 			{
 				foreach (Fighter f in _party)
@@ -798,10 +801,9 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % count;
 				if (_cursor < _commandScroll) _commandScroll = _cursor;
 				if (_cursor >= _commandScroll + CommandRows) _commandScroll = _cursor - CommandRows + 1;
-				bool runNow = input.KeyPressed("M");   // Steam's "M Run away"
-				if (input.Pressed(Pad.A) || runNow)
+				if (input.Pressed(Pad.A))
 				{
-					_command = runNow ? Command.Run : CommandOf(commands[_cursor]);
+					_command = CommandOf(commands[_cursor]);
 					Fighter who = _acting;
 					if (_command == Command.Defend) { Decide(who, () => Invoke(who, 3, () => Defend(who)), 0, 3); return; }
 					if (_command == Command.SwapRows) { Decide(who, () => Invoke(who, 46, () => SwapRows(who)), 0, 46); return; }

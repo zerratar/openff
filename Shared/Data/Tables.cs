@@ -422,6 +422,8 @@ namespace OpenFF.Data
 		public MonsterPartySlot[] Places = new MonsterPartySlot[6];
 		/// <summary>FF4: its battle events (battle_ai.bbd script ids at 0x7C, 0x80, 0x84; -1 none): the normal one, run every idle frame, the one before an action and the one after.</summary>
 		public int NormalEvent = -1, BeforeEvent = -1, AfterEvent = -1;
+		/// <summary>FF4: the record's word at 0x88 - bit 0 the party may escape, bit 2 the run control does nothing (checkEscape).</summary>
+		public int EscapeFlags = 1;
 
 		public override string ToString() => "party " + Id + ": " + string.Join(", ", Slots.ConvertAll(s => s.MonsterId + (s.Count > 1 ? " x" + s.Count : "")));
 	}

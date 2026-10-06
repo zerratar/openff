@@ -153,7 +153,7 @@ namespace OpenFF.Data
 			const int stride = 140;
 			for (int i = 0; i + stride <= data.Length; i += stride)
 			{
-				MonsterParty party = new MonsterParty { Id = ChainPack.S16(data, i), Flags = ChainPack.S16(data, i + 2), NormalEvent = ChainPack.S32(data, i + 0x7C), BeforeEvent = ChainPack.S32(data, i + 0x80), AfterEvent = ChainPack.S32(data, i + 0x84) };
+				MonsterParty party = new MonsterParty { Id = ChainPack.S16(data, i), Flags = ChainPack.S16(data, i + 2), EscapeFlags = ChainPack.U16(data, i + 0x88), NormalEvent = ChainPack.S32(data, i + 0x7C), BeforeEvent = ChainPack.S32(data, i + 0x80), AfterEvent = ChainPack.S32(data, i + 0x84) };
 				for (int s = 0; s < 6; s++)
 				{
 					int at = i + 4 + 20 * s;
