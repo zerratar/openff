@@ -87,8 +87,10 @@ chant, each target's effect in turn, the numbers once the effects end) on both s
 (effectsInfo), Needles and Pincers, Alarm and Summon, the Mist Dragon's mist, the statuses (condition_parameter.bbd:
 inflicted by blows and spells, their timers, Poison's ticks, Sleep, Paralyze, Confuse, Berserk, Blind, Silence, Toad,
 Mini, Protect, Shell, Slow, Haste, Doom; the name in the party window, the kneel and the effect over the member), the
-KO motion and FF4's defeat line. Not FF4's yet: the other bosses' own actions (transformations, Octomammoth's legs),
-Reflect, Toad/Pig/Mini's model swaps, the monsters' status tints, the game over screen, the battle modes' other cases.
+KO motion and FF4's defeat line; then Reflect, the bosses' own actions (transformations, the Octomammoth's legs, the
+Four's rematch...), Toad/Pig/Mini's models, the status tints, the game's end to the title, the boss entrances' camera
+(battle_parameter chain 4), the invoke close-ups, the camera shake and the random encounter's zoom (Encount). Not
+FF4's yet: summons' cast scenes (BTL_CAMERA.dat), enemy-player commands, the battle modes' other cases.
 
 ## Menus - 15%
 
