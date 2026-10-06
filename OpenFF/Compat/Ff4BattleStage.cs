@@ -94,7 +94,7 @@ namespace OpenFF.Client
 		private static readonly Vector3[] BattleTargets = { new Vector3(0f, -5f, -20f), new Vector3(0f, -10f, -44f), new Vector3(0f, -3f, -40f) };
 		public static Vector3 CameraPosition(int type) => BattlePositions[type >= 0 && type < BattlePositions.Length ? type : 0];
 		public static Vector3 CameraTarget(int type) => BattleTargets[type >= 0 && type < BattleTargets.Length ? type : 0];
-		public static Vector3 OpeningPosition => new Vector3(0f, 32.7f, 166f);
+		public static Vector3 OpeningPosition => new Vector3(0f, 43f, 166f);   // readyOpeningCamera's (0, 0x2B000, 0xA6000)
 		public static Vector3 OpeningTarget => new Vector3(0f, 0f, -34f);
 		public const int OpeningFrames = 6;
 		public const float CameraFov = 18f;

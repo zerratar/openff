@@ -395,6 +395,13 @@ namespace OpenFF.Data
 		public bool Is(int bit) => (Flags >> bit & 1) != 0;
 	}
 
+	/// <summary>FF4: a boss's entrance (battle_parameter.chain chain 4): the camera's close-up and the frames it takes to the standing shot.</summary>
+	public sealed class BossCamera
+	{
+		public float[] Position, Target;
+		public int Frames;
+	}
+
 	/// <summary>FF4: who a monster's Alarm or Summon brings (battle_parameter.chain chain 24): the candidates, the effect and sound, the encounter slot.</summary>
 	public sealed class MonsterSummon
 	{
@@ -498,6 +505,9 @@ namespace OpenFF.Data
 
 		/// <summary>FF4: an ability's name message (ability.bbd +8, in babil_ability.msd) - a spell's own id, Needles' 3134.</summary>
 		public Dictionary<int, int> AbilityNameIds = new Dictionary<int, int>();
+
+		/// <summary>FF4: the bosses' entrance cameras (battle_parameter.chain chain 4) by monster.</summary>
+		public Dictionary<int, BossCamera> BossCameras = new Dictionary<int, BossCamera>();
 
 		/// <summary>FF4: a command's invoke (battle_parameter.chain chain 1) by command: [0] the command, [1..15] the chant motion by player form, [16] the motion after, [17] the effect, [18] its parameter, [19] its place, [20] and [21] the sound.</summary>
 		public Dictionary<int, short[]> AbilityInvokes = new Dictionary<int, short[]>();

@@ -184,6 +184,13 @@ namespace OpenFF.Client
 			{
 				if (!caster.IsMonster)
 				{
+					int command = SchoolCommand[Math.Clamp((int)spell.School, 0, 7)];
+					if (InvokeCloseUp(caster, command))
+					{
+						BeginInvokeCamera(caster);
+						for (int k = 1; k < lead; k++) After(k, StepInvokeCamera);
+						After(lead, EndInvokeCamera);
+					}
 					Play(caster, spell.School == OpenFF.Data.MagicSchool.White ? 4004 : 4005, false, 5);
 					After(lead, () => { if (caster.Alive) Play(caster, _heroMotionIdle, true); });
 				}
@@ -260,6 +267,8 @@ namespace OpenFF.Client
 				return;
 			}
 			int lead = _isCounter ? CounterLead : CastLead;
+			bool closeUp = InvokeCloseUp(member, command);
+			if (closeUp) BeginInvokeCamera(member);
 			ShowName(Ff4Party.Tables.AbilityTitle(command), lead);
 			if (row[20] >= 0 && row[21] >= 0) Game.Audio.PlaySe(row[20], row[21]);
 			int form = member.Member != null ? PlayerForm[Math.Clamp(member.Member.Id, 0, PlayerForm.Length - 1)] : 0;
@@ -270,8 +279,10 @@ namespace OpenFF.Client
 				LoadEffect(row[17]);
 				PlayEffect(row[17], row[19] == 0 ? HitEffectSpot(member) : Where(member), Math.Max(1, (int)row[18]));
 			}
+			if (closeUp) for (int k = 1; k < lead; k++) After(k, StepInvokeCamera);
 			After(lead, () =>
 			{
+				if (closeUp) EndInvokeCamera();
 				if (!member.Alive) return;
 				if (row[16] > 0 && row[16] != 9999) Play(member, row[16], true, 3);
 				then();

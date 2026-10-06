@@ -240,6 +240,22 @@ namespace OpenFF.Data
 					tables.BattlePlayers.Add(new BattlePlayerMotions { Type = i / 24, PlayerSet = ChainPack.S16(data, at2 + i + 0x10), BasicSet = ChainPack.S16(data, at2 + i + 0x12) });
 				}
 			}
+			// Chain 4 (32 bytes, BattleParameter::bossParameter): a boss's entrance - the monster at 0, the camera's start
+			// position at 4 and target at 0x10 (fx32), the frames of its move to the standing shot at 0x1C (the last record
+			// is two bytes short).
+			if (pack.Count > 4)
+			{
+				int at4 = pack.Offset(4), size4 = pack.Size(4);
+				for (int i = 0; i + 30 <= size4; i += 32)
+				{
+					float F(int o) => ChainPack.S32(data, at4 + i + o) / 4096f;
+					tables.BossCameras[ChainPack.S16(data, at4 + i)] = new BossCamera
+					{
+						Position = new[] { F(4), F(8), F(0xC) }, Target = new[] { F(0x10), F(0x14), F(0x18) },
+						Frames = ChainPack.S16(data, at4 + i + 0x1C),
+					};
+				}
+			}
 			// Chain 1 (44 bytes, BattleParameter::abilityInvokeParameter): a command's invoke - the chant motion by player
 			// form at 2 (15 s16), the motion after at 0x20, the invoke effect at 0x22 (its parameter at 0x24, its place at
 			// 0x26: 0 the hit spot, 1 the feet, 2 the body), the sound's bank and number at 0x28 and 0x2A.

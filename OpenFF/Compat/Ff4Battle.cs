@@ -296,6 +296,9 @@ namespace OpenFF.Client
 				// leader's spot until the jump back.
 				Game.Hero.Teleport(Ff4BattleStage.PartySpot(_rootId, Ff4Party.PositionOf(_party[0].Member.Id)));
 				try { EngineApi.HeroPlayer?.setHidden(true); } catch (Exception) { }
+				// A boss's entrance (BossNormalAttack): the party comes in as the camera leaves the boss's close-up.
+				(int bossMonster, BossCamera bossCamera) = BossOf(monsterIds);
+				int entryDelay = bossCamera != null ? BossMoveFrom : 0;
 				for (int i = 0; i < _party.Count; i++)
 				{
 					Fighter ally = _party[i];
@@ -332,12 +335,13 @@ namespace OpenFF.Client
 					npc.Teleport(from);
 					Face(ally, ally.Facing + 180f);
 					try { npc.PlayMotion(1115, true, 0); } catch (Exception) { }
+					if (entryDelay > 0) { npc.Hidden = true; After(entryDelay, () => { if (entering.Npc != null) entering.Npc.Hidden = false; }); }
 					for (int k = 1; k <= 5; k++)
 					{
 						float part = k / 5f;
-						After(k, () => { entering.Npc?.Teleport(from + (to - from) * part); Face(entering, entering.Facing + 180f); });
+						After(entryDelay + k, () => { entering.Npc?.Teleport(from + (to - from) * part); Face(entering, entering.Facing + 180f); });
 					}
-					After(6, () => { Face(entering, entering.Facing); Play(entering, _heroMotionIdle, true, 0); entering.Acted = false; });
+					After(entryDelay + 6, () => { Face(entering, entering.Facing); Play(entering, _heroMotionIdle, true, 0); entering.Acted = false; });
 					ally.Npc = npc;
 					ally.Home = spot;
 				}
@@ -401,8 +405,13 @@ namespace OpenFF.Client
 				Ff4EventCamera.LookAt((int)(ot.X * 4096), (int)(ot.Y * 4096), (int)(ot.Z * 4096), 0);
 				Ff4EventCamera.SetFov(Ff4BattleStage.CameraFov);
 				Ff4EventCamera.SetClip(Ff4BattleStage.ClipNear, Ff4BattleStage.ClipFar);
-				Ff4EventCamera.MoveTo((int)(cp.X * 4096), (int)(cp.Y * 4096), (int)(cp.Z * 4096), Ff4BattleStage.OpeningFrames, false);
-				Ff4EventCamera.LookAt((int)(ct.X * 4096), (int)(ct.Y * 4096), (int)(ct.Z * 4096), Ff4BattleStage.OpeningFrames);
+				(int bossId, BossCamera boss) = BossOf(ids);
+				if (boss != null) BeginBossEntrance(bossId, boss);
+				else
+				{
+					Ff4EventCamera.MoveTo((int)(cp.X * 4096), (int)(cp.Y * 4096), (int)(cp.Z * 4096), Ff4BattleStage.OpeningFrames, false);
+					Ff4EventCamera.LookAt((int)(ct.X * 4096), (int)(ct.Y * 4096), (int)(ct.Z * 4096), Ff4BattleStage.OpeningFrames);
+				}
 			}
 			if (!onStage)
 			{
@@ -621,7 +630,8 @@ namespace OpenFF.Client
 			switch (_phase)
 			{
 				case Phase.Intro:
-					if (_timer > 30) { _phase = Phase.Fight; _timer = 0; }
+					StepBossCamera();
+					if (_timer > IntroFrames) { _phase = Phase.Fight; _timer = 0; _bossCamera = null; }
 					break;
 				case Phase.Fight:
 					Fight();
