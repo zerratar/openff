@@ -178,9 +178,16 @@ namespace OpenFF.Client
 			ShowName(tables.AbilityTitle(spell.Id) ?? spell.Name, lead);
 
 			int chant = ability ? 286 : spell.School == OpenFF.Data.MagicSchool.White ? 265 : spell.School == OpenFF.Data.MagicSchool.Black ? 266 : spell.School == OpenFF.Data.MagicSchool.Summon ? 267 : -1;
+			// A song's or a ninjutsu's invoke is its command's row (battle_parameter chain 1: Bardsong 280 at the hit spot with
+			// 154/0, Ninjutsu 268 with 100/4), the white and black ones the chant above.
+			short[] own = null;
+			bool songOrNinjutsu = spell.School == OpenFF.Data.MagicSchool.Song || spell.School == OpenFF.Data.MagicSchool.Ninjutsu;
+			if (!caster.IsMonster && songOrNinjutsu) tables.AbilityInvokes.TryGetValue(SchoolCommand[(int)spell.School], out own);
+			if (own != null) chant = own[17];
 			LoadEffect(chant);
-			PlayEffect(chant, chant == 266 ? Where(caster) : HitEffectSpot(caster));
-			Game.Audio.PlaySe(100, ability ? 0 : spell.School == OpenFF.Data.MagicSchool.White ? 1 : 2);
+			PlayEffect(chant, own != null ? (own[19] == 0 ? HitEffectSpot(caster) : Where(caster)) : chant == 266 ? Where(caster) : HitEffectSpot(caster), own != null ? Math.Max(1, (int)own[18]) : 1);
+			if (own != null && own[20] >= 0 && own[21] >= 0) Game.Audio.PlaySe(own[20], own[21]);
+			else Game.Audio.PlaySe(100, ability ? 0 : spell.School == OpenFF.Data.MagicSchool.White ? 1 : 2);
 			SpellShow show = ShowOf(spell, caster);
 			try
 			{
@@ -193,8 +200,20 @@ namespace OpenFF.Client
 						for (int k = 1; k < lead; k++) After(k, StepInvokeCamera);
 						After(lead, EndInvokeCamera);
 					}
-					Play(caster, spell.School == OpenFF.Data.MagicSchool.White ? 4004 : 4005, false, 5);
-					After(lead, () => { if (caster.Alive) Play(caster, _heroMotionIdle, true); });
+					if (spell.School == OpenFF.Data.MagicSchool.Song)
+					{
+						// BattleActionSong (Steam's frames): 73 through the stage, then 107 looped while the song is shown.
+						AbilityMotions(caster, "b_pa_020");   // addAbilityMotion(0x14): the song action type
+						Play(caster, 73, false, 3);
+						After(lead, () => { if (caster.Alive) { Play(caster, 107, true, 3); caster.Acted = false; } });
+					}
+					else
+					{
+						int form = caster.Member != null ? PlayerForm[Math.Clamp(caster.Member.Id, 0, PlayerForm.Length - 1)] : 0;
+						int motion = own != null && own[1 + Math.Clamp(form, 0, 14)] > 0 ? own[1 + Math.Clamp(form, 0, 14)] : spell.School == OpenFF.Data.MagicSchool.White ? 4004 : 4005;
+						Play(caster, motion, false, 5);
+						After(lead, () => { if (caster.Alive) Play(caster, _heroMotionIdle, true); });
+					}
 				}
 				else
 				{

@@ -1124,8 +1124,12 @@ namespace OpenFF.Client
 			else f.Npc?.LookAt(f.Npc.Position + Ff4BattleStage.Facing(degrees) * 10f);
 		}
 
+		private static readonly bool LogMotions = Options.Get("ff4-battle-motions") != null;
+
 		private void Play(Fighter f, int motion, bool loop = false, int blend = 3)
 		{
+			// --ff4-battle-motions: each motion a fighter is given, by step and place - beside the Steam hook's chars.tsv.
+			if (LogMotions) Log.Write(LogChannel.General, "motion: step " + LegacyStep.Count + " " + f.Name + " " + motion + (loop ? " loop" : "") + " at " + (f.Npc != null ? string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0:0.0} {1:0.0} {2:0.0}", f.Npc.Position.X, f.Npc.Position.Y, f.Npc.Position.Z) : "?"));
 			if (!loop) f.Acted = true;
 			try
 			{
