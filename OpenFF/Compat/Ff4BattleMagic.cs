@@ -78,6 +78,7 @@ namespace OpenFF.Client
 				caster.Remembered = t;
 				return () => Note(caster.Name + " takes aim at " + t.Name + ".");
 			}
+			if (spell.Id == 4020) return () => { t.Examined = true; Note(caster.Name + " studies " + t.Name + "."); };   // Libra: ExamineBehavior, the card shows it
 			ulong pending = SpellConditions(caster, t, spell, count);
 			int damage;
 			if (spell.Id == 0x59 || spell.Id == 0x67) damage = caster.Hp;   // Self-Destruct: the caster's HP, and it goes
