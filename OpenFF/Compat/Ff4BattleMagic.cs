@@ -81,6 +81,7 @@ namespace OpenFF.Client
 			ulong pending = SpellConditions(caster, t, spell, count);
 			int damage;
 			if (spell.Id == 0x59 || spell.Id == 0x67) damage = caster.Hp;   // Self-Destruct: the caster's HP, and it goes
+			else if (IsFang(spell.Id)) damage = FangDamage(caster, t, spell.Element);   // calcItemDamage: a fang's own formula
 			else if (spell.Power > 0 && spell.Kind != 1) damage = AttackMagicDamage(caster, t, spell, count);
 			else
 			{

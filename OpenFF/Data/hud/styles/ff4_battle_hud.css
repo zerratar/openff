@@ -79,6 +79,11 @@
 .desc-mp { text-align: right; vertical-align: middle; }
 .desc-line { vertical-align: middle; }
 .reequip-label { text-align: center; vertical-align: middle; }
+/* Re-equip's numbers: "Attack:  10→0", the new value red when it falls (Steam). */
+.stat-from { text-align: right; vertical-align: middle; }
+.stat-arrow { text-align: center; vertical-align: middle; }
+.stat-to { vertical-align: middle; }
+.stat-to.down { color: #ff5a5a; }
 #hands { color: #ffffff; font-size: 31px; text-shadow: 2px 2px #000000a0; }
 .hand-label { font-size: 24px; vertical-align: middle; }
 .hand-name { vertical-align: middle; }
@@ -86,6 +91,7 @@
 .grid-mp { font-size: 31px; text-align: right; }
 
 .cell.cant .cell-name { color: #babeda; }
+.cell.cant .cell-icon { color: #9a9ab4; }   /* the icon greyed with the name (Steam's Sight) */
 
 .cell-hand { -ff-cell: glove; -ff-cell-origin: 0 50%; }
 .grid-track { background-color: #14163ca0; }

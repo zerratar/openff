@@ -320,7 +320,9 @@ namespace OpenFF.Client
 				string c = cr.Trim().TrimEnd('%');
 				if (float.TryParse(c, NumberStyles.Float, CultureInfo.InvariantCulture, out float pc)) crop = Math.Clamp(cr.Trim().EndsWith("%", StringComparison.Ordinal) ? pc / 100f : pc, 0f, 1f);
 			}
-			drawer(d, index, x + ox, y + oy, scale, crop, new Color(255, 255, 255, (byte)Math.Round(255 * opacity)));
+			// color: the cell tinted (a greyed list entry's icon), white otherwise.
+			uint tint = (v.TryGetValue("color", out string cs) ? MenuBackground.ParseColour(MenuStyles.Hex(cs) ?? cs) : null) ?? 0xFFFFFFFF;
+			drawer(d, index, x + ox, y + oy, scale, crop, new Color((byte)(tint >> 24), (byte)(tint >> 16), (byte)(tint >> 8), (byte)Math.Round((tint & 0xFF) * opacity)));
 		}
 
 		private static void DrawText(DrawList d, string text, MenuStyles.Look look, Dictionary<string, string> v, float x, float y, float w, float h, float sx, float sy, double opacity)

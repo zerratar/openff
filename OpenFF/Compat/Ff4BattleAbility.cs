@@ -114,7 +114,7 @@ namespace OpenFF.Client
 			ItemDefinition item = t.Item(id);
 			if (item == null) return ("", "", "");
 			string help = item.Caption ?? "";
-			return (item.Name ?? "", help, "Targets: Single");   // Steam: "Restores 50 MP." / "Targets: Single"
+			return (item.Name ?? "", help, "Targets: " + ((t.AbilityTargets(id) & 0x4) != 0 ? "Multiple" : "Single"));   // ability.bbd +0x26: 0x4 all foes
 		}
 
 		/// <summary>An element's name for the description (the bits of magic_parameter +0x16; Steam draws its icon).</summary>

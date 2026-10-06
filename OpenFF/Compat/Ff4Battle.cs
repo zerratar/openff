@@ -866,10 +866,11 @@ namespace OpenFF.Client
 					else if (_command == Command.Item)
 					{
 						_itemChoices.Clear();
+						// Steam: every item the bag holds that is not worn - those a fight has no use for greyed.
 						foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory)
 						{
 							ItemDefinition item = Ff4Party.Tables.Item(s.ItemId);
-							if (item != null && item.Kind == ItemKind.Consumable && ItemEffect(item) != null) _itemChoices.Add(s.ItemId);
+							if (item != null && item.Kind == ItemKind.Consumable) _itemChoices.Add(s.ItemId);
 						}
 						AddReequipRow();   // Steam: Re-equip heads the list, the hand on it
 						_pick = Pick.Item; _cursor = 0; _listScroll = 0;
@@ -882,12 +883,25 @@ namespace OpenFF.Client
 			{
 				if (input.Pressed(Pad.Left) || input.Pressed(Pad.Up)) _cursor = NextAliveFoe(_cursor, -1);
 				if (input.Pressed(Pad.Right) || input.Pressed(Pad.Down)) _cursor = NextAliveFoe(_cursor, 1);
-				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : Pick.Command; _cursor = 0; _casting = null; return; }
+				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : _castItem > 0 ? Pick.Item : Pick.Command; _cursor = 0; _casting = null; _castItem = 0; return; }
 				if (input.Pressed(Pad.A) && _cursor >= 0)
 				{
 					Fighter who = _acting, foe = _foes[_cursor];
 					SpellDefinition spell = _casting;
-					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }), SpellWait(spell), spell.Id);
+					if (_castItem > 0 && IsFang(_castItem))
+					{
+						int fang = _castItem;
+						_castItem = 0;
+						Decide(who, () => UseFang(who, fang, _foes.FindAll(f => f.Alive && !OutOfFight(f))), ItemWait(fang), fang);
+					}
+					else if (_castItem > 0 && CastOf(_castItem) is SpellDefinition casts)
+					{
+						int item = _castItem;
+						_castItem = 0;
+						bool all = (Ff4Party.Tables.AbilityTargets(item) & 0x4) != 0;   // ability.bbd: the item's own targets (a Bomb Fragment: all foes)
+						Decide(who, () => UseCastItem(who, item, casts, all ? _foes.FindAll(f => f.Alive && !OutOfFight(f)) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }), ItemWait(item), item);
+					}
+					else if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }), SpellWait(spell), spell.Id);
 					else if (_command == Command.Jump) Decide(who, () => Invoke(who, CmdJump, () => JumpStart(who, foe)), 0, CmdJump);
 					else if (_abilityCmd != 0) AbilityOnFoe(who, foe);
 					else Decide(who, () => MemberAttacks(who, foe), 0, 1);
@@ -924,6 +938,7 @@ namespace OpenFF.Client
 					SpellDefinition spell = _casting;
 					int item = _usingItem;
 					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { ally }), SpellWait(spell), spell.Id);
+					else if (_castItem > 0 && CastOf(_castItem) is SpellDefinition casts) { _castItem = 0; Decide(who, () => UseCastItem(who, item, casts, casts.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { ally }), ItemWait(item), item); }
 					else Decide(who, () => UseItem(who, item, ally), ItemWait(item), item);
 				}
 				return;
@@ -942,7 +957,15 @@ namespace OpenFF.Client
 				}
 				if (input.Pressed(Pad.B)) { int back = _abilityCmd != 0 ? _abilityCmd : CmdItems; _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => id == back)); _abilityCmd = 0; return; }
 				if (input.Pressed(Pad.A) && _abilityCmd != 0) { AbilityItem(_acting, _itemChoices[_cursor]); return; }
-				if (input.Pressed(Pad.A)) { _usingItem = _itemChoices[_cursor]; _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
+				if (input.Pressed(Pad.A) && _cursor < _itemChoices.Count && !ItemUsable(_itemChoices[_cursor])) return;
+				if (input.Pressed(Pad.A) && (IsFang(_itemChoices[_cursor]) || CastOf(_itemChoices[_cursor]) is SpellDefinition casts && !Helps(casts)))
+				{
+					// An item that casts at the foes (Red Fang, a Bomb Fragment): the foes picked as for a spell.
+					_usingItem = _castItem = _itemChoices[_cursor];
+					_pick = Pick.Target; _cursor = FirstAliveFoe();
+					return;
+				}
+				if (input.Pressed(Pad.A)) { _usingItem = _itemChoices[_cursor]; _castItem = CastOf(_usingItem) != null ? _usingItem : 0; _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
 			}
 		}
 
@@ -1630,8 +1653,15 @@ namespace OpenFF.Client
 				Say(item.Name + " does nothing for " + target.Name + ".");
 				return;
 			}
-			if (Ff4Party.Party.RemoveItem(itemId, 1))
+			if (!Ff4Party.Party.RemoveItem(itemId, 1)) { member.Gauge = 0f; return; }
+			member.Gauge = 0f;
+			// The item motion (62) held 30 frames, as Steam's Salve shows it, then the item's work and its number.
+			Play(member, 62, false, 3);
+			member.Acted = false;
+			After(30, () =>
 			{
+				Play(member, member.IdleMotion, true, 3);
+				if (revive == target.Alive) return;
 				int before = target.Hp;
 				if (revive) target.Hp = Math.Max(1, target.MaxHp / 4);
 				else if (effect.Hp > 0) target.Hp = Math.Min(target.MaxHp, target.Hp + effect.Hp);
@@ -1639,8 +1669,7 @@ namespace OpenFF.Client
 				if (effect.Mp > 0) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
 				if (target.Hp != before) Pop(DamageSpot(target), target.Hp - before, true);
 				Say(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
-			}
-			member.Gauge = 0f;
+			});
 		}
 
 		private const int CommandRows = 4;
@@ -2229,6 +2258,8 @@ namespace OpenFF.Client
 		public sealed class GridData
 		{
 			public bool Shown, ShowMp, Three, Two, Reequip, ReequipLit;
+			public bool EquipStats, AttackDown, DefenseDown;   // Re-equip's numbers, a fall shown red
+			public string AttackFrom = "", AttackArrow = "", AttackTo = "", DefenseFrom = "", DefenseArrow = "", DefenseTo = "";
 			public string Title = "", Line1 = "", Line2 = "";
 			public int TitleIcon = -1;
 			public int Mp, MaxMp;
@@ -2300,7 +2331,7 @@ namespace OpenFF.Client
 			h.Targets = choosing && _pick == Pick.Target;
 			int shownFoe = 0;
 			foreach (TargetRow t in h.Target) t.Present = false;
-			bool all = h.Targets && (_abilityCmd == CmdKick || _abilityCmd == CmdCry || _abilityCmd == CmdAnalyze);
+			bool all = h.Targets && (_abilityCmd == CmdKick || _abilityCmd == CmdCry || _abilityCmd == CmdAnalyze || _castItem > 0 && (Ff4Party.Tables.AbilityTargets(_castItem) & 0x4) != 0);
 			if (all)
 			{
 				// Steam: one row, "Target All", over the card of the foe the hand is on.
@@ -2359,7 +2390,7 @@ namespace OpenFF.Client
 					c.Name = Ff4Party.Tables.Item(list[i])?.Name ?? "?";
 					c.Icon = Ff4Party.Tables.Item(list[i])?.Icon ?? -1;
 					c.Value = Ff4Party.Party.CountItem(list[i]).ToString();
-					c.Can = true;
+					c.Can = ItemUsable(list[i]);
 				}
 			}
 			g.Three = g.Shown && ListColumns == 3;
@@ -2367,8 +2398,10 @@ namespace OpenFF.Client
 			for (int k = ListColumns * ListRows; k < g.Cell.Count; k++) g.Cell[k].Present = false;
 			g.ShowMp = g.Shown && _pick == Pick.Spell;
 			if (g.ShowMp) { g.Mp = _acting.Mp; g.MaxMp = _acting.Member.MaxMp; }
-			(g.Title, g.Line1, g.Line2) = equipping ? ("", EquipChange(_pick == Pick.EquipItem && _cursor < list.Count ? list[_cursor] : _acting.Member.Equipment[_hand]), "")
+			(g.Title, g.Line1, g.Line2) = equipping ? ("", "", "")
 				: g.Shown && _cursor >= 0 && _cursor < list.Count ? ListDescription(list[_cursor]) : ("", "", "");
+			g.EquipStats = false;
+			if (equipping) EquipChange(g, _pick == Pick.EquipItem && _cursor < list.Count ? list[_cursor] : _acting.Member.Equipment[_hand]);
 			g.TitleIcon = !g.Shown || equipping || _cursor < 0 || _cursor >= list.Count ? -1 : _pick == Pick.Spell ? Ff4Party.Tables.AbilityIcon(list[_cursor]) : Ff4Party.Tables.Item(list[_cursor])?.Icon ?? -1;
 			int gridRows = (list.Count + ListColumns - 1) / ListColumns;
 			g.Scroll.Shown = g.Shown && list.Count > ListColumns * ListRows;

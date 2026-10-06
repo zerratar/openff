@@ -550,6 +550,10 @@ namespace OpenFF.Data
 
 		/// <summary>FF4: an ability's help line (ability.bbd +0xC, babil_ability.msd: 13025 "Ensure attack hits the target.", 14801 "Put enemies to sleep.").</summary>
 		public Dictionary<int, int> AbilityHelpIds = new Dictionary<int, int>();
+
+		/// <summary>FF4: an ability's (or an item's) targets (ability.bbd +0x26): 0x2 one foe, 0x4 all foes, 0x10 self, 0x50 all allies.</summary>
+		public Dictionary<int, int> AbilityTargetBits = new Dictionary<int, int>();
+		public int AbilityTargets(int id) => AbilityTargetBits.TryGetValue(id, out int t) ? t : 0;
 		public string AbilityHelp(int id) => AbilityHelpIds.TryGetValue(id, out int help) && help > 0 ? AbilityName(help)?.Trim() : null;
 		public int AbilityFlags(int id) => AbilityFlagBits.TryGetValue(id, out int flags) ? flags : 0;
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);

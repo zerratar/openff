@@ -11,7 +11,8 @@ namespace OpenFF.Client
 {
 	internal sealed partial class Ff4Battle
 	{
-		private const int ReequipEntry = -2;              // the Items list's head row (two cells of the two-column grid)
+		private const int ReequipEntry = -2;
+		private int _castItem;                            // an item that casts an ability (efficacy's CastsAbility), being aimed              // the Items list's head row (two cells of the two-column grid)
 		private readonly List<int> _equipChoices = new List<int>();
 		private int _hand;                                // 0 the right arm, 1 the left
 
@@ -118,19 +119,96 @@ namespace OpenFF.Client
 			}
 		}
 
-		/// <summary>The description window's line for a candidate: "Attack: 10 → 0    Defense: 12" (→ the value with it worn).</summary>
-		private string EquipChange(int itemId)
+		/// <summary>The description window's numbers for a candidate (Steam: "Attack: 10→0", the new value red when it is less): Attack and Defense now and with it worn.</summary>
+		private void EquipChange(GridData g, int itemId)
 		{
 			Character c = _acting?.Member;
 			GameTables tables = Ff4Party.Tables;
-			if (c == null) return "";
+			g.EquipStats = c != null;
+			if (c == null) return;
 			int attack = Weapon(c, tables), defence = Armour(c, tables);
 			int was = c.Equipment[_hand];
 			c.Equipment[_hand] = itemId;
 			int attack2 = Weapon(c, tables), defence2 = Armour(c, tables);
 			c.Equipment[_hand] = was;
-			string Part(string label, int a, int b) => label + ": " + a + (a != b ? " → " + b : "");
-			return Part("Attack", attack, attack2) + "        " + Part("Defense", defence, defence2);
+			g.AttackFrom = attack.ToString();
+			g.AttackTo = attack2 != attack ? attack2.ToString() : "";
+			g.AttackArrow = attack2 != attack ? "→" : "";
+			g.AttackDown = attack2 < attack;
+			g.DefenseFrom = defence.ToString();
+			g.DefenseTo = defence2 != defence ? defence2.ToString() : "";
+			g.DefenseArrow = defence2 != defence ? "→" : "";
+			g.DefenseDown = defence2 < defence;
+		}
+
+		/// <summary>The ability an item casts (Red Fang's fire, a Bomb Fragment's), or null for one that mends.</summary>
+		private static SpellDefinition CastOf(int itemId)
+		{
+			ItemDefinition item = itemId > 0 ? Ff4Party.Tables.Item(itemId) : null;
+			if (item?.Raw == null) return null;
+			// The ability it invokes: its record's s16 at 0x14 (Red Fang's, a Bomb Fragment's), else its efficacy's CastsAbility.
+			int ability = item.Raw.Length >= 0x16 ? BitConverter.ToInt16(item.Raw, 0x14) : 0;
+			Efficacy e = ability <= 0 && item.EfficacyId > 0 ? Ff4Party.Tables.Efficacy(item.EfficacyId) : null;
+			if (ability <= 0 && e != null) ability = e.CastsAbility;
+			SpellDefinition spell = ability > 0 ? Ff4Party.Tables.Spell(ability) : null;
+			return spell != null && ItemEffect(item) == null ? spell : null;
+		}
+
+		/// <summary>Whether a fight has a use for an item: it mends, revives, casts, or is a fang.</summary>
+		private static bool ItemUsable(int itemId)
+		{
+			ItemDefinition item = itemId > 0 ? Ff4Party.Tables.Item(itemId) : null;
+			return item != null && (ItemEffect(item) != null || CastOf(itemId) != null || IsFang(itemId));
+		}
+
+		/// <summary>calcItemDamage's fangs (ids 5035..5037 - Red, White, Blue): FangFormula, not a spell.</summary>
+		private static bool IsFang(int itemId) => itemId >= 5035 && itemId <= 5037;
+
+		/// <summary>FangFormula::damage: half the user's HP, each of the fang's elements the foe is weak to x1.5 and each it resists halved, x1.2 from a member onto a monster.</summary>
+		private static int FangDamage(Fighter who, Fighter foe, int elements)
+		{
+			elements &= ~0x1807;
+			Affinity a = AffinityOf(foe);
+			long factor = 0x1000;
+			for (int bit = 0; bit < 16; bit++)
+			{
+				if ((elements >> bit & 1) == 0) continue;
+				if ((a.Weak >> bit & 1) != 0) factor = factor * 0x1800 >> 12;
+				if ((a.Resists >> bit & 1) != 0) factor >>= 1;
+			}
+			long damage = factor * (Math.Max(0, who.Hp) / 2) >> 12;
+			if (who.Member != null && foe.IsMonster) damage = damage * 12 / 10;
+			return (int)Math.Clamp(damage, 0, 9999);
+		}
+
+		/// <summary>
+		/// A fang as Steam shows it: out of the bag, the item motion (62), then its chain-32 record (Red Fang's effect 399
+		/// over the foes, 144/4) on every foe as a spell would be shown - no chant, no cost - each foe's number FangFormula's.
+		/// </summary>
+		private void UseFang(Fighter who, int itemId, List<Fighter> targets)
+		{
+			ItemDefinition item = Ff4Party.Tables.Item(itemId);
+			int elements = item?.Raw != null && item.Raw.Length >= 0x2E ? BitConverter.ToUInt16(item.Raw, 0x2C) : 0;
+			SpellDefinition fang = new SpellDefinition { Id = itemId, Name = item?.Name ?? "", School = OpenFF.Data.MagicSchool.Item, TargetFlags = 0x11, Element = elements };
+			UseCastItem(who, itemId, fang, targets);
+		}
+
+		/// <summary>An item that casts: out of the bag, the item motion (62), and its ability shown as a spell without a chant or a cost.</summary>
+		private void UseCastItem(Fighter who, int itemId, SpellDefinition spell, List<Fighter> targets)
+		{
+			EndTurn(who);
+			if (targets.Count == 0 || !Ff4Party.Party.RemoveItem(itemId, 1)) return;
+			Acted(who, itemId, targets.ToArray());
+			_lastSpell = spell;
+			Play(who, 62, false, 3);
+			who.Acted = false;
+			ShowName(Ff4Party.Tables.Item(itemId)?.Name ?? spell.Name, CastLead);
+			After(CastLead, () =>
+			{
+				Play(who, who.IdleMotion, true, 3);
+				ShowSpell(who, spell, targets, invoked: true);
+			});
+			Note(who.Name + " uses " + (Ff4Party.Tables.Item(itemId)?.Name ?? "an item") + ": " + spell.Name);
 		}
 
 		public sealed class HandRow { public bool Lit; public string Label = "", Name = ""; public int Icon = -1; }
