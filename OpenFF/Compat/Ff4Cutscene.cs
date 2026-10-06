@@ -486,7 +486,8 @@ namespace OpenFF.Client
 					if (!Characters.getJntMtx(bind.Host, bind.Joint, _bindJoint)) continue;
 					GlobalScope.MTX_Concat43(bind.Offset, _bindJoint, _bindPose);
 					Characters.setPoseMtx(bind.Bound, _bindPose);
-					if (Characters.isHidden(bind.Bound)) Characters.setHidden(bind.Bound, false);
+					bool hostHidden = Characters.isHidden(bind.Host);   // shown with its host: a member turned to a frog hides its sword too
+					if (Characters.isHidden(bind.Bound) != hostHidden) Characters.setHidden(bind.Bound, hostHidden);
 				}
 				catch (Exception) { }
 			}

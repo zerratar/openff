@@ -189,6 +189,7 @@ namespace OpenFF.Client
 			if (id == CDoom) t.DoomCount = 10 * 4096;
 			if (id == CPetrify) t.ConditionTimer[id] = -1;
 			Note(t.Name + ": " + ConditionName(id) + " on");
+			if (id == CToad || id == CPig || id == CMini) ShowForm(t);
 			if ((c?.Is(0) ?? false) || id == CToad) CutTurn(t);
 		}
 
@@ -197,12 +198,47 @@ namespace OpenFF.Client
 			t.Conditions &= ~(1UL << id);
 			t.ConditionTimer[id] = 0;
 			Note(t.Name + ": " + ConditionName(id) + " off");
+			if (id == CToad || id == CPig || id == CMini) ShowForm(t);
 			if (t.IsMonster)
 			{
 				// A monster cured (selectChangeConditionEffect): e680 at its hit spot, by the status.
 				int variant = id switch { CPoison => 1, CBlind => 2, CSilence => 3, CPetrify => 4, CConfuse => 5, CSleep => 6, CParalyze => 7, CCurse => 8, _ => 0 };
 				if (variant > 0) PlayEffect(680, HitEffectSpot(t), variant);
 			}
+		}
+
+		/// <summary>
+		/// Toad, Pig and Mini as they look (changeFrog, changePig, changeLilliput): a frog (p25_00) or a pig (p41_00) stands
+		/// in its place - a member's in its form's colours, p&lt;25 + form&gt;_00 / p&lt;41 + form&gt;_00, a monster's in the first -
+		/// its own model hidden; Mini halves it. Back as it was when they go.
+		/// </summary>
+		private void ShowForm(Fighter t)
+		{
+			int want = Has(t, CToad) ? 25 : Has(t, CPig) ? 41 : 0;
+			if (t.Form != want)
+			{
+				try { t.FormNpc?.Remove(); } catch (Exception) { }
+				t.FormNpc = null;
+				t.Form = want;
+				if (t.Npc != null) t.Npc.Hidden = want != 0 || t.Mist;
+				if (want != 0)
+				{
+					Vector3 at = t.Npc != null ? t.Npc.Position : Where(t);
+					Npc form = Game.Npcs.SpawnModel("p" + want.ToString("00") + "_00", at, 0f);
+					if (form != null)
+					{
+						form.Solid = false;
+						int colours = t.Member != null ? PlayerForm[Math.Clamp(t.Member.Id, 0, PlayerForm.Length - 1)] : 0;
+						if (colours > 0 && form is LegacyNpc frog) frog.Retexture("p" + (want + colours).ToString("00") + "_00");
+						if (want == 41 && t.IsMonster) { try { form.BindMotions("b_monster_pig"); form.PlayMotion(101, true); } catch (Exception) { } }
+						if (form is LegacyNpc facing) facing.FaceExactly(t.IsMonster ? t.Facing : t.Facing);
+						t.FormNpc = form;
+					}
+				}
+			}
+			float scale = Has(t, CMini) ? 0.5f : 1f;
+			try { if (t.Npc != null && Math.Abs(t.Npc.Scale - scale) > 0.01f) t.Npc.Scale = scale; } catch (Exception) { }
+			try { if (t.FormNpc != null && Math.Abs(t.FormNpc.Scale - scale) > 0.01f) t.FormNpc.Scale = scale; } catch (Exception) { }
 		}
 
 		/// <summary>The victim's turn cut (doCondition's interrupt): the gauge emptied, a chosen command and a queued action dropped.</summary>

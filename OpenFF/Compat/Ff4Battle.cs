@@ -100,7 +100,9 @@ namespace OpenFF.Client
 			public int IdleMotion = 2004, StatusEffect = -1, StatusEffectKind;   // the idle it stands in, the effect over it and which
 			public int WeakOverride = -1, ResistOverride = -1;   // a weakness and resistances a boss's action set (Barrier Shift), -1 its record's
 			public Fighter Remembered;        // "Target"'s lock (BBC +0x304): its next type-1 action falls on this one
-			public Npc[] Legs;                // the Octomammoth's eight (null once gone)
+			public Npc[] Legs;
+			public Npc FormNpc;               // the frog or pig standing in for it (Toad, Pig), and which
+			public int Form;                // the Octomammoth's eight (null once gone)
 			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
 			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
@@ -1902,11 +1904,13 @@ namespace OpenFF.Client
 			{
 				try { f.Npc?.Remove(); } catch (Exception) { }
 				try { f.MistNpc?.Remove(); } catch (Exception) { }
+				try { f.FormNpc?.Remove(); } catch (Exception) { }
 				RemoveLegs(f);
 			}
 			foreach (Fighter f in _party)
 			{
 				if (f.Member != null) f.Member.Conditions = KeptAfterBattle(f.Conditions);   // clearBattleCondition
+				try { f.FormNpc?.Remove(); } catch (Exception) { }
 				DropStatusEffect(f);
 				try { if (f.Npc is LegacyNpc held && held.CharacterId >= 0) Ff4Cutscene.UnbindAll(held.CharacterId); } catch (Exception) { }
 				try { f.Npc?.Remove(); } catch (Exception) { }

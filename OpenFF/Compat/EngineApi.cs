@@ -1318,6 +1318,25 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>Another texture set, by its whole name, in place of the model's own (CCharacterMng::bindReplaceTex) - FF4's frog in a member's colours.</summary>
+		public void Retexture(string name)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null || string.IsNullOrWhiteSpace(name)) return;
+			try
+			{
+				int characterId = p.getCharacterId();
+				GlobalScope.characterMng.releaseTex(characterId);
+				GlobalScope.characterMng.bindReplaceTex(characterId, name);
+				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
+				GlobalScope.characterMng.setupReplaceTex(characterId);
+			}
+			catch (Exception ex)
+			{
+				EngineApi.Warn("retexture", "Retexture " + name + " on " + Model + " failed: " + ex.Message);
+			}
+		}
+
 		/// <summary>ff3Command_ChangeColorCharacter: the texture set &lt;model&gt;_&lt;variant&gt; in place of the model's own.</summary>
 		public override void Recolour(string variant)
 		{
