@@ -321,10 +321,20 @@ group @10, rank @12, element @22, inflicts @24, grants @26/@28, u8 target @32` (
 ### Monsters (`monster.chaindata`)
 
 Chain 0: 252 records of 152 bytes - FF3's head (nameId, textId, familyId, modelId, monsterId
-@8, level, size, maxHp s32 @0xC), five attribute bytes @0x12, attack @0x20, hit @0x22,
-defence @0x4C, evade @0x50, magic defence @0x68 (tentative), four drop pairs (item, chance
-of 4096) from 0x6C, gil s32 @0x88, experience @0x8C (Steam's result window: two Floating Eyes, 14 gil and 300 EXP). Names only in `babil_battle.msd`.
-Client: `Ff4Tables.ReadMonsters`.
+@8, level, size, maxHp s32 @0xC), five attribute bytes @0x12 (strength, vitality, agility -
+bodyAndBonus's 0..2 - intellect, spirit), the ATB rate's range (fx32 @0x18, @0x1C), its
+ys::PhysicsAttackParameter @0x20 (attack s32, hit s16 @+4, the back rows' multipliers fx32 @+8
+and +0xC: the Floating Eye's 8, 105, 1.0, 0.75), defence @0x4C, evade @0x50, magic defence
+@0x68 (tentative), four drop pairs (item, chance of 4096) from 0x6C, gil s32 @0x88, experience
+@0x8C (Steam's result window: two Floating Eyes, 14 gil and 300 EXP). Names only in
+`babil_battle.msd`. Client: `Ff4Tables.ReadMonsters`.
+
+Chain 2: 28 bytes a monster by id, its plain attack as ys::Effects (`MonsterManager::normalAttack`):
+the effect's frame s32 @0, pack s16 @6, the sound's frame s32 @0xC, bank s16 @0x12, number s16
+@0x14, the number's frame s16 @0x1A. Chain 4: 84 bytes a monster by id (`MonsterManager::offset`):
+the hit effect's distance toward the camera s32 @4 and height @8 (`hitEffectPosition`), the
+cursor's offset @0x1C, the damage number's @0x28 (`createDamage`). Chain 5: 68-byte ys::Effects
+by ability id, chain 11: 72-byte per-monster overrides (`effectsInfo`).
 
 ### Shops (`babil_shop.bbd`)
 

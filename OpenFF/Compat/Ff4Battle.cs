@@ -316,8 +316,10 @@ namespace OpenFF.Client
 					Gauge = StartGauge(),
 					AtbRate = m.AtbRateMin + (float)_random.NextDouble() * Math.Max(0f, m.AtbRateMax - m.AtbRateMin),
 				});
+				LoadEffect(m.AttackEffect);
 				n++;
 			}
+			LoadEffect(MissEffect);
 			_placements = null;
 			_facings = null;
 			_pendingIds = null;
@@ -841,6 +843,22 @@ namespace OpenFF.Client
 
 		private Vector3 Where(Fighter f) => f.Npc != null ? f.Npc.Position : Game.Hero.Position;
 
+		/// <summary>
+		/// Where an effect on a fighter plays (btl::BaseBattleCharacter::hitEffectPosition): its position, raised, and moved
+		/// toward the camera in x and y along the line to it - a monster by its chain 4 record (the Floating Eye 15 up, 20
+		/// toward the camera), a member 5 up and 9 toward it.
+		/// </summary>
+		private Vector3 HitEffectSpot(Fighter f)
+		{
+			Vector3 at = Where(f);
+			float up = 5f, toward = 9f;
+			if (f.IsMonster && f.Monster != null) { up = f.Monster.EffectHeight; toward = f.Monster.EffectToCamera; }
+			Vector3 look = Game.Camera.Position - at;
+			float length = (float)Math.Sqrt(look.X * look.X + look.Y * look.Y + look.Z * look.Z);
+			if (length > 0.001f) look = new Vector3(look.X / length, look.Y / length, look.Z / length);
+			return new Vector3(at.X + look.X * toward, at.Y + up + look.Y * toward, at.Z);
+		}
+
 		/// <summary>Where a fighter's numbers rise from (btl::BattleBehavior::createDamage): a monster's position and its model's offset (monster.chaindata chain 4 - the Floating Eye's 15 up), a member's 6 up.</summary>
 		private Vector3 DamageSpot(Fighter f)
 		{
@@ -1078,14 +1096,26 @@ namespace OpenFF.Client
 			return _random.Next(100) < rate;
 		}
 
-		/// <summary>NewAttackFormula::calcDamageValueForBabil, its core: attack x level x strength over defence + level + vitality, times 1.0..1.3, times 1.2 onto a monster and 0.7 onto a member.</summary>
+		/// <summary>
+		/// NewAttackFormula::calcDamage: calcDamageValueForBabil's core - level x strength x attack over defence + level +
+		/// vitality, times (1 + rand(301) / 1000), times 1.2 onto a monster and 0.7 onto a member - then calcCritical: a
+		/// critical one time in (agility - the target's agility + 5) of 100, at most 25, for 120 % (setFlag 0xf). At
+		/// least 1. Not yet: the elements' and races' multipliers, the back rows' (backPenalty) and the low-HP double.
+		/// </summary>
 		private int Damage(Fighter attacker, Fighter target)
 		{
-			long numerator = (long)Math.Max(1, attacker.Attack) * Math.Max(1, attacker.Level) * Math.Max(1, attacker.Strength);
+			long numerator = (long)Math.Max(1, attacker.Level) * Math.Max(1, attacker.Strength) * Math.Max(1, attacker.Attack);
 			int denominator = Math.Max(1, target.Defence + target.Level + target.Vitality);
-			double value = numerator / (double)denominator * (1.0 + _random.Next(301) / 1000.0);
-			value *= target.IsMonster ? 1.2 : 0.7;
-			return Math.Max(1, (int)value);
+			long core = numerator / denominator;
+			long value = (long)((4096 + (_random.Next(301) << 12) / 1000) * core) >> 12;
+			value = value * (target.IsMonster ? 12 : 7) / 10;
+			int chance = Math.Clamp(attacker.Agility - target.Agility + 5, 0, 25);
+			if (_random.Next(100) < chance)
+			{
+				value = value * 120 / 100;
+				Note(attacker.Name + "'s blow is critical.");
+			}
+			return (int)Math.Max(1, value);
 		}
 
 		private void MemberAttacks(Fighter member, Fighter foe)
@@ -1108,7 +1138,7 @@ namespace OpenFF.Client
 				{
 					hit = Hits(member, foe);
 					if (!hit) return;
-					PlayEffect(member.HitEffect, foe.Npc.Position + new Vector3(0, 8f, 0));
+					PlayEffect(member.HitEffect, HitEffectSpot(foe));
 					damage = Damage(member, foe);
 					foe.Hp = Math.Max(0, foe.Hp - damage);
 					// With the effect, its sound: the weapon system's own (playerWeaponSe - a sword's 106, 1).
@@ -1149,6 +1179,14 @@ namespace OpenFF.Client
 			member.Gauge = 0f;
 		}
 
+		// A monster's plain attack (btl::BattleMonsterBehavior::normalAttack): its record in monster.chaindata chain 2 says
+		// when, counted from the action's start, its effect plays on the target (createEffect, at hitEffectPosition), its
+		// sound (playSE) and its number (createHit2D) - the Floating Eye's all at 7. A miss plays effect 240 instead. The
+		// blow is settled as the action starts (calcBattleParameter) and shown on those frames. Ours count one more than
+		// the record's (Steam's frames: the Eye's 7 lands 8 frames into its 201).
+		private const int MonsterFrameLead = 1;
+		private const int MissEffect = 240;
+
 		private void MonsterActs(Fighter foe)
 		{
 			List<Fighter> alive = _party.FindAll(f => f.Alive);
@@ -1156,33 +1194,34 @@ namespace OpenFF.Client
 			Fighter target = alive[_random.Next(alive.Count)];
 			try { foe.Npc.PlayMotion(201, false, 3); foe.Acted = true; } catch (Exception) { }
 			foe.Gauge = 0f;
-			// On the stage the blow lands as Steam's does, eight frames into the monster's attack (201).
-			if (Ff4BattleStage.Active) After(8, () => MonsterBlow(foe, target));
-			else MonsterBlow(foe, target);
+			bool hit = Hits(foe, target);
+			int damage = hit ? Damage(foe, target) : 0;
+			if (!Ff4BattleStage.Active) { MonsterBlow(foe, target, hit, damage); return; }
+			MonsterDefinition m = foe.Monster;
+			After(m.AttackEffectFrame + MonsterFrameLead, () => PlayEffect(hit ? m.AttackEffect : MissEffect, HitEffectSpot(target)));
+			if (hit && m.AttackSoundBank >= 0 && m.AttackSound >= 0) After(m.AttackSoundFrame + MonsterFrameLead, () => Game.Audio.PlaySe(m.AttackSoundBank, m.AttackSound));
+			After(m.AttackNumberFrame + MonsterFrameLead, () => MonsterBlow(foe, target, hit, damage));
 		}
 
-		private void MonsterBlow(Fighter foe, Fighter target)
+		private void MonsterBlow(Fighter foe, Fighter target, bool hit, int damage)
 		{
 			if (!target.Alive) return;
-			if (!Hits(foe, target))
+			if (!hit)
 			{
 				PopWord(DamageSpot(target), Ff4Ui.WordMiss);
 				Note(foe.Name + " misses " + target.Name + ".");
-				foe.Gauge = 0f;
 				return;
 			}
-			int damage = Damage(foe, target);
 			if (target.Defending) damage = Math.Max(1, damage / 2);   // Defend halves a blow
 			target.Hp = Math.Max(0, target.Hp - damage);
 			target.Member.Hp = target.Hp;
 			Pop(DamageSpot(target), damage);
-			Game.Screen.Flash(new Color(255, 60, 40), 6, 2);
-			// Steam's flinch: 1117 for a frame, then the stance again.
-			Play(target, 1117, false, 0);
+			// Steam's trace has 1117 for a frame here, then the stance again - but its frames show the stance throughout
+			// (3784, the 1117 frame, and 3788), where ours draws 1117 as a turn of the whole body over several frames: the
+			// clip bound as 1117 is not the one Steam plays. Until that is found the stance holds, as Steam's frames show.
 			Fighter hurt = target;
-			After(1, () => { if (hurt.Alive) { Play(hurt, _heroMotionIdle, true, 3); hurt.Acted = false; } });
+			After(1, () => { if (hurt.Alive && hurt.Acted) { Play(hurt, _heroMotionIdle, true, 0); hurt.Acted = false; } });
 			Note(foe.Name + " hits " + target.Name + " for " + damage + ".");
-			foe.Gauge = 0f;
 			if (!target.Alive) Note(target.Name + " falls.");
 		}
 

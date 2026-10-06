@@ -279,7 +279,7 @@ namespace OpenFF.Data
 					AtbRateMax = ChainPack.S32(r, 0x1C) / 4096f,
 					Stats = new Stats { Strength = r[0x12], Vitality = r[0x13], Agility = r[0x14], Intellect = r[0x15], Spirit = r[0x16] },
 					Attack = ChainPack.S16(r, 0x20),
-					Hit = ChainPack.S16(r, 0x22),
+					Hit = ChainPack.S16(r, 0x24),   // its ys::PhysicsAttackParameter at 0x20: attack s32, hit s16 at +4 (the Floating Eye's 8 and 105)
 					Defence = ChainPack.S16(r, 0x4C),
 					Evade = ChainPack.S16(r, 0x50),
 					MagicDefence = ChainPack.S16(r, 0x68),
@@ -311,6 +311,24 @@ namespace OpenFF.Data
 				m.DamageX = ChainPack.S32(r, 0x28);
 				m.DamageY = ChainPack.S32(r, 0x2C);
 				m.DamageZ = ChainPack.S32(r, 0x30);
+				m.EffectToCamera = ChainPack.S32(r, 4);
+				m.EffectHeight = ChainPack.S32(r, 8);
+			}
+			// Chain 2: 28 bytes a monster, by its id (MonsterManager::normalAttack) - its plain attack as ys::Effects: the
+			// effect's frame (s32 at 0), its pack (s16 at 6) and member (s32 at 8), the sound's frame (s32 at 0xC), bank
+			// (s16 at 0x12) and number (s16 at 0x14), the number's frame (s16 at 0x1A). The Floating Eye's: e160 at 7,
+			// (103, 0) at 7, the number at 7.
+			int attacks = pack.Records(2, 28);
+			foreach (MonsterDefinition m in tables.Monsters)
+			{
+				if (m.Id < 0 || m.Id >= attacks) continue;
+				byte[] r = pack.Record(2, 28, m.Id);
+				m.AttackEffectFrame = ChainPack.S32(r, 0);
+				m.AttackEffect = ChainPack.S16(r, 6);
+				m.AttackSoundFrame = ChainPack.S32(r, 0xC);
+				m.AttackSoundBank = ChainPack.S16(r, 0x12);
+				m.AttackSound = ChainPack.S16(r, 0x14);
+				m.AttackNumberFrame = ChainPack.S16(r, 0x1A);
 			}
 		}
 

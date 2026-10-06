@@ -315,6 +315,10 @@ namespace OpenFF.Data
 		public float AtbRateMin = 1f, AtbRateMax = 1f;
 		/// <summary>FF4: where its damage number rises from, over its position (monster.chaindata chain 4 by monster id, MonsterManager::offset's +0x28).</summary>
 		public float DamageX, DamageY = 12f, DamageZ;
+		/// <summary>FF4: where an effect on it plays (BaseBattleCharacter::hitEffectPosition, chain 4's +4 and +8): this much up, and this much toward the camera.</summary>
+		public float EffectHeight = 8f, EffectToCamera;
+		/// <summary>FF4: its plain attack (monster.chaindata chain 2, ys::Effects, 28 bytes by monster id): the effect and the frame it starts, its sound (bank, number) and frame, the frame its number shows. -1 for none.</summary>
+		public int AttackEffect = -1, AttackEffectFrame = 8, AttackSoundBank = -1, AttackSound = -1, AttackSoundFrame = 8, AttackNumberFrame = 8;
 		/// <summary>The game's monster id (monsterId at 8), what encounters and scripts name.</summary>
 		public int Id;
 		public int NameId;
