@@ -156,12 +156,97 @@ namespace OpenFF.Client
 				case 3038:   // MABAppearMonsterFromDoor: "A monster emerged from the door!" - a Chimera Brain or a Yellow Dragon
 					Line(70140, 60, () => Swap(10, () => ReplaceMonster(foe, _random.Next(2) == 0 ? 0x78 : 0x76, full: true)));
 					return true;
-				case 3000: case 3017: case 3021:
+				case 3000:   // MABOctManmosLegErase: legs come off
+					LegErase(foe);
+					return true;
+				case 3017: case 3021:
 					Log.First(LogChannel.File, "battle-boss-" + ability, 1, () => "battle: boss action " + ability + " (" + foe.Name + ") not in yet - a pause in its place");
 					After(30, () => { });
 					return true;
 			}
 			return false;
+		}
+
+		private const int Octomammoth = 0x9E;
+
+		/// <summary>The Octomammoth's eight legs (BattleOctManmos::registerMonster): m&lt;family&gt;b each, in b_m&lt;family&gt;b's 101, placed by the table.</summary>
+		private void SpawnLegs(Fighter foe)
+		{
+			foe.Legs = new Npc[8];
+			string model = "m" + foe.Monster.Family.ToString("000") + "b", set = "b_m" + foe.Monster.Family.ToString("000") + "b";
+			for (int i = 0; i < 8; i++)
+			{
+				Npc leg = Game.Npcs.SpawnModel(model, foe.Home, 0f);
+				if (leg == null) continue;
+				leg.Solid = false;
+				try { leg.BindMotions(set); leg.PlayMotion(101, true); } catch (Exception) { }
+				foe.Legs[i] = leg;
+			}
+			PlaceLegs(foe, 0f);
+		}
+
+		private static int LegsLeft(Fighter foe) => foe.Legs == null ? 0 : Array.FindAll(foe.Legs, l => l != null).Length;
+
+		/// <summary>setLegPosture: each leg left at the body's place plus its offset for the count, turned as the table has it, sunk by the depth.</summary>
+		private static void PlaceLegs(Fighter foe, float sunk)
+		{
+			if (foe.Legs == null) return;
+			int count = LegsLeft(foe);
+			for (int i = 0; i < 8; i++)
+			{
+				Npc leg = foe.Legs[i];
+				if (leg == null || !Ff4Party.Tables.OctomammothLegs.TryGetValue((count, i), out float[] t)) continue;
+				leg.Teleport(foe.Home + new Vector3(t[0], t[1] - sunk, t[2]));
+				if (leg is LegacyNpc exact) exact.RotateExactly(t[3], t[4], t[5]);
+			}
+		}
+
+		private static void RemoveLegs(Fighter foe)
+		{
+			if (foe.Legs == null) return;
+			foreach (Npc leg in foe.Legs) { try { leg?.Remove(); } catch (Exception) { } }
+			foe.Legs = null;
+		}
+
+		/// <summary>
+		/// MABOctManmosLegErase: the legs from max(1, HP x 10 / max - 1) on fade out and go; the rest sink half a unit a
+		/// frame for 30 frames with 120/2 and effect 710 on each, take their places for the new count, and rise over 30.
+		/// </summary>
+		private void LegErase(Fighter foe)
+		{
+			if (foe.Legs == null) return;
+			int keep = Math.Max(1, foe.Hp * 10 / Math.Max(1, foe.MaxHp) - 1);
+			List<int> going = new List<int>();
+			for (int i = keep; i < 8; i++) if (foe.Legs[i] != null) going.Add(i);
+			if (going.Count == 0) return;
+			Note(foe.Name + " loses " + going.Count + " leg(s), " + keep + " left");
+			for (int k = 1; k <= 5; k++)
+			{
+				int alpha = 100 - 20 * k;
+				After(k, () => { foreach (int i in going) if (foe.Legs?[i] != null) foe.Legs[i].Alpha = alpha; });
+			}
+			After(6, () =>
+			{
+				foreach (int i in going) { try { foe.Legs?[i]?.Remove(); } catch (Exception) { } if (foe.Legs != null) foe.Legs[i] = null; }
+				Game.Audio.PlaySe(120, 2);
+				LoadEffect(710);
+				for (int i = 0; i < 8; i++) if (foe.Legs?[i] != null) PlayEffect(710, foe.Legs[i].Position);
+			});
+			for (int k = 1; k <= 30; k++) { float down = 0.5f * k; After(6 + k, () => PlaceLegsAt(foe, down, keepOld: true)); }
+			for (int k = 1; k <= 30; k++) { float down = 15f - 0.5f * k; After(36 + k, () => PlaceLegs(foe, down)); }
+		}
+
+		/// <summary>The legs as they stood, sunk (while they go down, before they take their new places).</summary>
+		private void PlaceLegsAt(Fighter foe, float sunk, bool keepOld)
+		{
+			if (foe.Legs == null) return;
+			int count = 8;   // where they stood: the places for all eight, the ones still there
+			for (int i = 0; i < 8; i++)
+			{
+				Npc leg = foe.Legs[i];
+				if (leg == null || !Ff4Party.Tables.OctomammothLegs.TryGetValue((count, i), out float[] t)) continue;
+				leg.Teleport(foe.Home + new Vector3(t[0], t[1] - sunk, t[2]));
+			}
 		}
 
 		/// <summary>A line of babil_battle in the help window for the frames, then what follows.</summary>
@@ -228,7 +313,7 @@ namespace OpenFF.Client
 		{
 			MonsterParty party = Ff4Party.Tables?.MonsterParty(partyId);
 			if (party == null) { Note("no encounter group " + partyId); return; }
-			foreach (Fighter f in _foes) { try { f.Npc?.Remove(); } catch (Exception) { } try { f.MistNpc?.Remove(); } catch (Exception) { } }
+			foreach (Fighter f in _foes) { try { f.Npc?.Remove(); } catch (Exception) { } try { f.MistNpc?.Remove(); } catch (Exception) { } RemoveLegs(f); }
 			_queue.RemoveAll(e => e.Actor.IsMonster);
 			_foes.Clear();
 			int n = 0, count = 0;

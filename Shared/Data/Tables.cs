@@ -497,6 +497,9 @@ namespace OpenFF.Data
 		/// <summary>FF4: an ability's name message (ability.bbd +8, in babil_ability.msd) - a spell's own id, Needles' 3134.</summary>
 		public Dictionary<int, int> AbilityNameIds = new Dictionary<int, int>();
 
+		/// <summary>FF4: the Octomammoth's legs (monster.chaindata chain 6, MonsterManager::octmanmosLegInfo) - by the legs left and a leg, its place from the body and its turn (x, y, z, then degrees about x, y, z).</summary>
+		public Dictionary<(int Count, int Index), float[]> OctomammothLegs = new Dictionary<(int, int), float[]>();
+
 		/// <summary>FF4: the statuses each ability may be used under (ability.bbd +0x1C), for the ones that check.</summary>
 		public Dictionary<int, ulong> AbilityUsableUnder = new Dictionary<int, ulong>();
 

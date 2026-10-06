@@ -100,6 +100,7 @@ namespace OpenFF.Client
 			public int IdleMotion = 2004, StatusEffect = -1, StatusEffectKind;   // the idle it stands in, the effect over it and which
 			public int WeakOverride = -1, ResistOverride = -1;   // a weakness and resistances a boss's action set (Barrier Shift), -1 its record's
 			public Fighter Remembered;        // "Target"'s lock (BBC +0x304): its next type-1 action falls on this one
+			public Npc[] Legs;                // the Octomammoth's eight (null once gone)
 			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
 			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
@@ -210,9 +211,17 @@ namespace OpenFF.Client
 		private Fighter SpawnFoe(MonsterDefinition m, Vector3 at, float? facing, Vector3 hero, bool join = true)
 		{
 			Monster info = Game.Monsters.Find(m.Id);
-			Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.Family.ToString("000") + "_00"), at, 0f);
+			bool octomammoth = m.Id == Octomammoth;
+			string model = octomammoth ? "m" + m.Family.ToString("000") + "a" : info?.Model ?? ("m" + m.Family.ToString("000") + "_00");
+			Npc npc = Game.Npcs.SpawnModel(model, at, 0f);
 			if (npc == null) { Say("no model for " + m.Name); return null; }
-			try { string set = MonsterMotionSet(m.Family, 0); npc.BindMotions(set.EndsWith("_00", StringComparison.Ordinal) ? set : info?.MotionSet ?? set); npc.PlayMotion(101, true); } catch (Exception) { }
+			try
+			{
+				string set = octomammoth ? "b_m" + m.Family.ToString("000") + "a" : MonsterMotionSet(m.Family, 0);
+				npc.BindMotions(octomammoth || set.EndsWith("_00", StringComparison.Ordinal) ? set : info?.MotionSet ?? set);
+				npc.PlayMotion(101, true);
+			}
+			catch (Exception) { }
 			if (facing.HasValue && npc is LegacyNpc exactNpc) exactNpc.FaceExactly(facing.Value);
 			else if (facing.HasValue) npc.LookAt(at + Ff4BattleStage.Facing(facing.Value) * 10f);
 			else npc.LookAt(hero);
@@ -228,6 +237,7 @@ namespace OpenFF.Client
 				AtbRate = m.AtbRateMin + (float)_random.NextDouble() * Math.Max(0f, m.AtbRateMax - m.AtbRateMin),
 				Facing = facing ?? 0f,
 			};
+			if (octomammoth) SpawnLegs(foe);
 			if (join) _foes.Add(foe);
 			LoadEffect(m.AttackEffect);
 			return foe;
@@ -1892,6 +1902,7 @@ namespace OpenFF.Client
 			{
 				try { f.Npc?.Remove(); } catch (Exception) { }
 				try { f.MistNpc?.Remove(); } catch (Exception) { }
+				RemoveLegs(f);
 			}
 			foreach (Fighter f in _party)
 			{

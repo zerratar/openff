@@ -1091,6 +1091,15 @@ namespace OpenFF.Client
 			p.setDirection(new GlobalScope.VecFx32(d));
 		}
 
+		/// <summary>The model turned about all three axes, in degrees (CCharacterMng::setRotation) - a part placed as its table has it.</summary>
+		public void RotateExactly(float x, float y, float z)
+		{
+			GlobalScope.pl.CBasePlayer p = Player;
+			if (p == null) return;
+			int A(float degrees) => (int)Math.Round(degrees * 65536.0 / 360.0) & 0xFFFF;
+			p.setRotation(new GlobalScope.VecFx32(A(x), A(y), A(z)));
+		}
+
 		public override void LookAt(Vector3 point)
 		{
 			GlobalScope.pl.CBasePlayer p = Player;

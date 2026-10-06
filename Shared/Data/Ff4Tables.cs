@@ -382,6 +382,14 @@ namespace OpenFF.Data
 					tables.MonsterAbilityShowsFor[(ChainPack.S16(r, 0), ChainPack.S16(r, 0x44))] = Show(r);
 				}
 			}
+			// Chain 6 (28 bytes): the Octomammoth's legs - the legs left at 0, the leg at 1, its place from the body at 4..0xC
+			// and its turn at 0x10..0x18 (fx32; degrees for the turn).
+			for (int i = 0, n = pack.Records(6, 28); i < n; i++)
+			{
+				byte[] r = pack.Record(6, 28, i);
+				float F(int at) => ChainPack.S32(r, at) / 4096f;
+				tables.OctomammothLegs[(r[0], r[1])] = new[] { F(4), F(8), F(0xC), F(0x10), F(0x14), F(0x18) };
+			}
 			// Chain 10: the counters (14 bytes) - an id, then two of an ability, a target type and a chance in percent; a
 			// counter condition of the AI record (its +0xC..+0x14) names one in its set field.
 			for (int i = 0, n = pack.Records(10, 14); i < n; i++)

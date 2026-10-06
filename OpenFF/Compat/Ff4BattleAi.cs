@@ -82,7 +82,14 @@ namespace OpenFF.Client
 					case 26: { SpellDefinition s = SpellOn(foe); holds = s != null && s.Element == 0; break; }   // a spell of no element
 					case 28: holds = LastCommand == 0x1F && HitBy(foe); break;   // struck at by Jump
 					case 29: holds = foe.Hp <= 20000; break;
-					case 30: holds = false; break;   // the Octomammoth's legs: not in yet
+					case 30:
+					{
+						// the Octomammoth with a leg to lose: more legs than its HP's tenths less one (at least 1)
+						int s = foe.MaxHp > 0 ? foe.Hp * 10 / foe.MaxHp - 1 : -1;
+						if (s < 2) s = 1;
+						holds = id == 0x9E && LegsLeft(foe) > s;
+						break;
+					}
 					case 31: holds = foe.Mist; break;   // in mist form (flag 0x1e)
 					case 32: holds = foe.Hp <= 10000; break;
 					case 33: holds = foe.Free[0] == 1; break;
