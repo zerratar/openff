@@ -137,12 +137,35 @@ namespace OpenFF.Client
 			GameTables tables = Ff4Party.Tables;
 			bool ability = spell.School == OpenFF.Data.MagicSchool.Enemy;
 			int lead = _isCounter ? CounterLead : CastLead;
+			// Reflect (BattleCalculation::calcMagic): a target that reflects it takes nothing and shows Reflect's effect;
+			// for each, someone of the other side from it, at random, takes the spell instead.
+			List<Fighter> reflectors = targets.FindAll(t => Reflects(t, spell));
+			Dictionary<Fighter, int> bounced = new Dictionary<Fighter, int>();
+			foreach (Fighter r in reflectors)
+			{
+				List<Fighter> other = (r.IsMonster ? _party : _foes).FindAll(f => f.Alive && !OutOfFight(f));
+				if (other.Count == 0) continue;
+				Fighter onto = other[_random.Next(other.Count)];
+				bounced[onto] = bounced.TryGetValue(onto, out int k) ? k + 1 : 1;
+				Note(r.Name + " reflects " + (spell.Name ?? spell.Id.ToString()) + " onto " + onto.Name);
+			}
 			List<Action> results = new List<Action>();
 			foreach (Fighter t in targets)
 			{
+				if (reflectors.Contains(t)) continue;
 				Action result = SpellResult(caster, t, spell, targets.Count);
 				if (result != null) results.Add(result);
 			}
+			foreach (KeyValuePair<Fighter, int> b in bounced)
+			{
+				for (int k = 0; k < b.Value; k++)
+				{
+					Action result = SpellResult(caster, b.Key, spell, 1);
+					if (result != null) results.Add(result);
+				}
+				if (!_lastTargets.Contains(b.Key)) _lastTargets.Add(b.Key);
+			}
+			foreach (Fighter r in reflectors) _lastTargets.Remove(r);
 			if (spell.Id == 0x59 || spell.Id == 0x67) results.Add(() => { caster.Hp = 0; Fell(caster); });   // Self-Destruct: the caster falls
 			ShowName(tables.AbilityTitle(spell.Id) ?? spell.Name, lead);
 
@@ -181,9 +204,21 @@ namespace OpenFF.Client
 				for (int i = 0; i < targets.Count; i++)
 				{
 					Fighter t = targets[i];
-					After(lead + i * step, () => { PlayEffect(show.Pack, SpellSpot(t, show.Mode)); PlaySe(show); });
+					if (reflectors.Contains(t)) After(lead + i * step, () => ShowReflect(t));
+					else After(lead + i * step, () => { PlayEffect(show.Pack, SpellSpot(t, show.Mode)); PlaySe(show); });
 				}
 				last = lead + Math.Max(0, targets.Count - 1) * step;
+			}
+			if (show != null && spell.HitsAll) foreach (Fighter r in reflectors) After(lead, () => ShowReflect(r));
+			if (show != null)
+			{
+				// Then the ones it bounced onto get the spell's own effect, in turn.
+				foreach (Fighter b in bounced.Keys)
+				{
+					last += step;
+					Fighter onto = b;
+					After(last, () => { PlayEffect(show.Pack, SpellSpot(onto, show.Mode)); PlaySe(show); });
+				}
 			}
 			void Results()
 			{
@@ -192,6 +227,18 @@ namespace OpenFF.Client
 				WaitNumbers();
 			}
 			After(last + 1, Results);
+		}
+
+		/// <summary>Whether a target turns the spell back: it has Reflect, the spell can be (magic_parameter +0x20 bit 1; not 0x5EB), and no event lets it through (OnReflecThrough).</summary>
+		private bool Reflects(Fighter t, SpellDefinition spell) => t.Alive && Has(t, CReflect) && (spell.TargetFlags & 0x02) != 0 && spell.Id != 0x5EB && !BattleParameterFlag(0xE);
+
+		/// <summary>A reflector's flash: Reflect's own effect (normalMagic 4017) at its spot, and 100/6.</summary>
+		private void ShowReflect(Fighter t)
+		{
+			int pack = Ff4Party.Tables.SpellShows.TryGetValue(4017, out SpellShow reflect) ? reflect.Pack : 11;
+			LoadEffect(pack);
+			PlayEffect(pack, HitEffectSpot(t));
+			Game.Audio.PlaySe(100, 6);
 		}
 
 		/// <summary>The turn held until the numbers have gone (checkEnd2D).</summary>
