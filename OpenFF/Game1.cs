@@ -63,6 +63,8 @@ public class Game1 : Game
 		// The window whose display's refresh paces the frames, and whose focus the VSync check heeds.
 		OpenFF.Client.FramePacer.Attach(this);
 		OpenFF.Client.GameHost.Create();
+		// The game is known once its archives are open (Program set the title before: FF3's, the default).
+		Window.Title = OpenFF.Client.GameProfile.Title;
 		base.LoadContent();
 	}
 
