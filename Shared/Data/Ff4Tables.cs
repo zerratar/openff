@@ -266,6 +266,8 @@ namespace OpenFF.Data
 					Level = r[0xA],
 					Size = r[0xB],
 					MaxHp = ChainPack.S32(r, 0xC),
+					AtbRateMin = ChainPack.S32(r, 0x18) / 4096f,
+					AtbRateMax = ChainPack.S32(r, 0x1C) / 4096f,
 					Stats = new Stats { Strength = r[0x12], Vitality = r[0x13], Agility = r[0x14], Intellect = r[0x15], Spirit = r[0x16] },
 					Attack = ChainPack.S16(r, 0x20),
 					Hit = ChainPack.S16(r, 0x22),

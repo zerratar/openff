@@ -87,7 +87,8 @@ namespace OpenFF.Client
 			public int Level, Intellect, Spirit, Vitality, MagicDefence;
 			public int Strength, HitChance, Evade;
 			public int Mp => Member?.Mp ?? 0;
-			public float Gauge;               // 0..1
+			public float Gauge;               // 0..1 (FF4's ATP over its 100)
+			public float AtbRate = 1f;        // a monster's, rolled at the start (BattleMonster::atbRate); 1 for the party
 			public bool Alive => Hp > 0;
 			public Vector3 Home;
 			public bool Acted;   // a one-shot motion is playing; Idle() restarts the loop when it ends
@@ -204,7 +205,7 @@ namespace OpenFF.Client
 					Attack = Math.Max(1, weapon > 0 ? weapon : stats.Strength / 2), Defence = Armour(c, tables), Agility = Math.Max(1, stats.Agility),
 					Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
 					Strength = stats.Strength, HitChance = weapon > 0 ? WeaponHit(c, tables) : 90, Evade = Evasion(c, tables),
-					Gauge = Math.Max(0f, 0.5f - 0.12f * _party.Count) + (float)_random.NextDouble() * 0.08f,
+					Gauge = StartGauge(),
 				});
 			}
 			if (onStage)
@@ -301,7 +302,8 @@ namespace OpenFF.Client
 					Attack = Math.Max(1, m.Attack), Defence = Math.Max(0, m.Defence), Agility = Math.Max(1, m.Stats.Agility),
 					Level = Math.Max(1, m.Level), Intellect = m.Stats.Intellect, Spirit = m.Stats.Spirit, Vitality = m.Stats.Vitality, MagicDefence = Math.Max(0, m.MagicDefence),
 					Strength = m.Stats.Strength, HitChance = m.Hit > 0 ? m.Hit : 90, Evade = Math.Max(0, m.Evade),
-					Gauge = (float)_random.NextDouble() * 0.3f,
+					Gauge = StartGauge(),
+					AtbRate = m.AtbRateMin + (float)_random.NextDouble() * Math.Max(0f, m.AtbRateMax - m.AtbRateMin),
 				});
 				n++;
 			}
@@ -547,18 +549,19 @@ namespace OpenFF.Client
 			Idle();
 			if (_cues.Count > 0) return;   // an action is playing out
 			if (Ff4BattleStage.Active) Log.Sample(LogChannel.File, "battle-camera", 120, () => "battle: camera at " + Game.Camera.Position + " hero at " + Game.Hero.Position);
+			// FF4's active battle, as Steam plays it: the gauges go on filling while a member chooses, and a monster whose
+			// gauge fills acts then and there.
+			foreach (Fighter f in _party) if (f.Alive) f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
+			foreach (Fighter f in _foes) if (f.Alive) f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
+			foreach (Fighter f in _foes)
+			{
+				if (f.Alive && f.Gauge >= 1f) { MonsterActs(f); return; }
+			}
 			if (_acting == null)
 			{
-				// Gauges fill; the first full one acts.
-				foreach (Fighter f in _party) if (f.Alive) f.Gauge = Math.Min(1f, f.Gauge + 0.0025f + f.Agility * 0.00045f);
-				foreach (Fighter f in _foes) if (f.Alive) f.Gauge = Math.Min(1f, f.Gauge + 0.0025f + f.Agility * 0.00045f);
-				foreach (Fighter f in _foes)
-				{
-					if (f.Alive && f.Gauge >= 1f) { MonsterActs(f); return; }
-				}
 				foreach (Fighter f in _party)
 				{
-					if (f.Alive && f.Gauge >= 1f) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act"); return; }
+					if (f.Alive && f.Gauge >= 1f) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
 				}
 				return;
 			}
@@ -827,6 +830,17 @@ namespace OpenFF.Client
 				try { action(); } catch (Exception ex) { Log.Write(LogChannel.General, "battle: step: " + ex.Message); }
 			}
 		}
+
+		// ---- FF4's active time gauge (btl::BaseBattleCharacter::atpAddValue, BattleMonster::addActiveTimeGage) ----
+
+		/// <summary>btl::BATTLE_SPEED_RATE[the battle speed setting]: 1.5, 1.25, 1, 0.75, 0.5, 0.25 - the middle one here.</summary>
+		private const float BattleSpeedRate = 1f;
+
+		/// <summary>A normal encounter's start (BattlePlayer / BattleMonster::initializeATG): 45 to 65 of the gauge's 100, at random.</summary>
+		private float StartGauge() => (45 + _random.Next(21)) / 100f;
+
+		/// <summary>A frame's fill: (1 + agility / 32) at the battle's speed, times a monster's ATB rate - of the gauge's 100.</summary>
+		private static float GaugeStep(Fighter f) => BattleSpeedRate * (1f + Math.Max(0, f.Agility) / 32f) * f.AtbRate / 100f;
 
 		private void Face(Fighter f, float degrees)
 		{
