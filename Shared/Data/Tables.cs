@@ -373,6 +373,8 @@ namespace OpenFF.Data
 		/// <summary>FF4: the record's byte 2, the party root the members stand on (btl::BattleSystem::initialize: battle_parameter.chain's partyRoot id) - 0 the classic side view, 1 the opening's airship deck.</summary>
 		public int PartyRootId => (sbyte)(Flags & 0xFF);
 		public List<MonsterPartySlot> Slots = new List<MonsterPartySlot>();
+		/// <summary>FF4: its battle events (battle_ai.bbd script ids at 0x7C, 0x80, 0x84; -1 none): the normal one, run every idle frame, the one before an action and the one after.</summary>
+		public int NormalEvent = -1, BeforeEvent = -1, AfterEvent = -1;
 
 		public override string ToString() => "party " + Id + ": " + string.Join(", ", Slots.ConvertAll(s => s.MonsterId + (s.Count > 1 ? " x" + s.Count : "")));
 	}
