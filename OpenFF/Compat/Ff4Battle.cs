@@ -101,7 +101,9 @@ namespace OpenFF.Client
 			public int WeakOverride = -1, ResistOverride = -1;   // a weakness and resistances a boss's action set (Barrier Shift), -1 its record's
 			public Fighter Remembered;        // "Target"'s lock (BBC +0x304): its next type-1 action falls on this one
 			public Npc[] Legs;
-			public Npc FormNpc;               // the frog or pig standing in for it (Toad, Pig), and which
+			public Npc FormNpc;
+			public int TintType;              // the status colour it wears (BATTLE_CHARACTER_COLOR's type, 0 none) and its own colours under it
+			public uint[] OwnColours;               // the frog or pig standing in for it (Toad, Pig), and which
 			public int Form;                // the Octomammoth's eight (null once gone)
 			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
 			public Npc MistNpc;

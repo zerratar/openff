@@ -321,8 +321,10 @@ namespace OpenFF.Client
 		/// </summary>
 		private void ShowConditions()
 		{
+			foreach (Fighter f in _foes) ShowTint(f);
 			foreach (Fighter f in _party)
 			{
+				ShowTint(f);
 				if (!f.Alive) { DropStatusEffect(f); continue; }
 				int idle = AnyFlag(f, 5) || f.Hp <= f.MaxHp / 4 ? 2001 : _heroMotionIdle;
 				if (!f.Acted && f.IdleMotion != idle) { Play(f, idle, true, 4); f.Acted = false; f.IdleMotion = idle; }
@@ -346,6 +348,48 @@ namespace OpenFF.Client
 				}
 				catch (Exception) { }
 			}
+		}
+
+		/// <summary>BATTLE_CHARACTER_COLOR: red, grey, orange, green, (white), blue - as 5-bit colours.</summary>
+		private static readonly (int R, int G, int B)[] TintColours = { (0, 0, 0), (248, 120, 120), (120, 120, 120), (248, 168, 120), (120, 248, 120), (248, 248, 248), (120, 120, 248) };
+
+		/// <summary>
+		/// The colour a fighter wears for its statuses (changeColorCondition, the first that holds): a monster grey for
+		/// Paralyze, Sleep, Confuse, Silence, Blind, Poison, Curse, Stop, Cry, Slow or Petrify, red Berserk, orange Haste,
+		/// green Reflect, white Protect, blue Shell; a member only the last six (its ailments have their effect over it).
+		/// </summary>
+		private static int TintOf(Fighter f)
+		{
+			if (!f.Alive) return 0;
+			if (f.IsMonster && (Has(f, CParalyze) || Has(f, CSleep) || Has(f, CConfuse) || Has(f, CSilence) || Has(f, CBlind) || Has(f, CPoison) || Has(f, CCurse) || Has(f, CStop) || Has(f, 0x1D))) return 2;
+			if (Has(f, CBerserk)) return 1;
+			if (Has(f, CSlow) || (f.IsMonster && Has(f, CPetrify))) return 2;
+			if (Has(f, CHaste)) return 3;
+			if (Has(f, CReflect)) return 4;
+			if (Has(f, CProtect)) return 5;
+			if (Has(f, CShell)) return 6;
+			return 0;
+		}
+
+		/// <summary>The tint put on or taken off as the statuses change (setConditionColor / updateConditionColor).</summary>
+		private static void ShowTint(Fighter f)
+		{
+			int want = TintOf(f);
+			if (want == f.TintType || !(f.Npc is LegacyNpc model) || model.CharacterId < 0) return;
+			try
+			{
+				GlobalScope.CCharacterMng characters = GlobalScope.characterMng;
+				if (f.OwnColours == null) f.OwnColours = characters.saveMaterialColours(model.CharacterId);
+				if (want == 0) characters.restoreMaterialColours(model.CharacterId, f.OwnColours);
+				else
+				{
+					(int r, int g, int b) = TintColours[want];
+					characters.restoreMaterialColours(model.CharacterId, f.OwnColours);
+					characters.tintMaterials(model.CharacterId, (ushort)((r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10)));
+				}
+				f.TintType = want;
+			}
+			catch (Exception) { }
 		}
 
 		private static GlobalScope.VecFx32 Fx(Vector3 at) => new GlobalScope.VecFx32((int)Math.Round(at.X * 4096), (int)Math.Round(at.Y * 4096), (int)Math.Round(at.Z * 4096));

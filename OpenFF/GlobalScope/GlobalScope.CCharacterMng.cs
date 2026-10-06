@@ -1044,6 +1044,49 @@ internal static partial class GlobalScope
 			}
 		}
 
+		/// <summary>PORT (FF4): every material's colours as they are (diffuse/ambient, specular/emission, polygon attributes), to put back after a tint.</summary>
+		public uint[] saveMaterialColours(int ctrl)
+		{
+			if (!isValidCharacter(ctrl)) return null;
+			NNSG3dResMat mats = NNS_G3dGetMat(Character[ctrl].modelSet.getMdl(0u).getMdlResource());
+			uint[] saved = new uint[mats.dict.numEntry * 3];
+			for (int i = 0; i < mats.dict.numEntry; i++)
+			{
+				NNSG3dResMatData m = NNS_G3dGetMatByIdx(mats, (uint)i);
+				saved[i * 3] = m.diffAmb;
+				saved[i * 3 + 1] = m.specEmi;
+				saved[i * 3 + 2] = m.polyAttr;
+			}
+			return saved;
+		}
+
+		public void restoreMaterialColours(int ctrl, uint[] saved)
+		{
+			if (!isValidCharacter(ctrl) || saved == null) return;
+			NNSG3dResMat mats = NNS_G3dGetMat(Character[ctrl].modelSet.getMdl(0u).getMdlResource());
+			for (int i = 0; i < mats.dict.numEntry && i * 3 + 2 < saved.Length; i++)
+			{
+				NNSG3dResMatData m = NNS_G3dGetMatByIdx(mats, (uint)i);
+				m.diffAmb = saved[i * 3];
+				m.specEmi = saved[i * 3 + 1];
+				m.polyAttr = saved[i * 3 + 2];
+			}
+		}
+
+		/// <summary>PORT (FF4): BaseBattleCharacter::setConditionColor - the model lit, its diffuse and ambient 0, its emission the colour.</summary>
+		public void tintMaterials(int ctrl, ushort emission)
+		{
+			if (!isValidCharacter(ctrl)) return;
+			NNSG3dResMat mats = NNS_G3dGetMat(Character[ctrl].modelSet.getMdl(0u).getMdlResource());
+			for (int i = 0; i < mats.dict.numEntry; i++)
+			{
+				NNSG3dResMatData m = NNS_G3dGetMatByIdx(mats, (uint)i);
+				m.diffAmb = 0;
+				m.specEmi = (m.specEmi & 0xFFFF) | ((uint)emission << 16);
+				m.polyAttr |= 1;
+			}
+		}
+
 		public void setEmission(int ctrl, ushort emission)
 		{
 			if (isValidCharacter(ctrl))
