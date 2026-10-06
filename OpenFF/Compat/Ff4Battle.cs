@@ -94,6 +94,8 @@ namespace OpenFF.Client
 			public int HpBefore;              // its HP as the last action began (an AI check: did that action hurt it)
 			public int DarkFrames;            // Darkness's time left (ys::Condition 0x17), and whether a dark blow's cost is due
 			public bool DarkCostDue;
+			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
+			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
 			public int DecidedAbility, DecidedTarget = 1;   // its turnAction as decided: the ability (1 Attack, a spell's or item's id...) and a monster's target type
 			public bool NotDeath;             // an event's NotDeathFlagOn: it cannot fall
@@ -179,8 +181,10 @@ namespace OpenFF.Client
 			_facings = facings;
 			_rootId = party.PartyRootId;
 			_cameraType = party.CameraType;
+			_startingParty = party;   // its events start with the fight (on a stage, once the stage has come)
 			bool started = Start(ids, inScene, battleMap);
-			if (started) { BeginBattleEvents(party); Log.Write(LogChannel.General, "battle: encounter group " + partyId); }
+			if (started) Log.Write(LogChannel.General, "battle: encounter group " + partyId);
+			else _startingParty = null;
 			return started;
 		}
 
@@ -210,6 +214,7 @@ namespace OpenFF.Client
 			return foe;
 		}
 
+		private MonsterParty _startingParty;
 		private List<Vector3> _placements;
 		private List<float> _facings;       // the monsters' facings, degrees about y (the group's fourth word)
 		private int _rootId;                // the party root the members stand on (the group's byte 2)
@@ -231,8 +236,9 @@ namespace OpenFF.Client
 			Party party = Ff4Party.Party;
 			if (tables == null || party.Members.Count == 0 || !Game.Hero.Present) return false;
 
-			BeginBattleEvents(null);
-			_closing = false; _queue.Clear(); _dying.Clear(); _turnEffects.Clear(); _executing = null; _party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
+			BeginBattleEvents(_startingParty);
+			_startingParty = null;
+			_closing = false; _queue.Clear(); _counterAbilities.Clear(); _dying.Clear(); _turnEffects.Clear(); _executing = null; _party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
 			_expWon = _gilWon = 0;
 			foreach (Character c in party.Members)
 			{
@@ -663,7 +669,7 @@ namespace OpenFF.Client
 				if (_eventParty != null && _eventParty.BeforeEvent >= 0)
 				{
 					_attacker = _queue[0].Actor;
-					_lastAbility = _queue[0].Actor.DecidedAbility;
+					_lastAbility = _counterAbilities.TryGetValue(_queue[0].Act, out int countering) ? countering : _queue[0].Actor.DecidedAbility;
 				}
 				if (_eventParty != null && _eventParty.BeforeEvent >= 0 && !StartEvent(EventKind.Before, _eventParty.BeforeEvent)) busy = true;
 				else { StartNextAction(); busy = true; }
@@ -1107,6 +1113,7 @@ namespace OpenFF.Client
 		/// <summary>NewAttackFormula::calcHitRate: attack hit + agility - (evade + agility) + 20, clamped to 0..100.</summary>
 		private bool Hits(Fighter attacker, Fighter target)
 		{
+			if (target.Mist) return false;   // reviseMist: a blow on the mist misses
 			int rate = Math.Clamp(attacker.HitChance + attacker.Agility - (target.Evade + target.Agility) + 20, 0, 100);
 			return _random.Next(100) < rate;
 		}
@@ -1816,6 +1823,7 @@ namespace OpenFF.Client
 			foreach (Fighter f in _foes)
 			{
 				try { f.Npc?.Remove(); } catch (Exception) { }
+				try { f.MistNpc?.Remove(); } catch (Exception) { }
 			}
 			foreach (Fighter f in _party)
 			{
@@ -1943,6 +1951,7 @@ namespace OpenFF.Client
 			public CardData Card = new CardData();
 			public GridData Grid = new GridData();
 			public string Message = "";
+			public int MessageWidth = 800, MessageLeft = 560;   // the help window: FF4's 800, wider for a line our font draws wider, centred
 			public List<CommandRow> Command = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
 			public ScrollData Scroll = new ScrollData();
 			public List<MemberRow> Member = new List<MemberRow> { new MemberRow(), new MemberRow(), new MemberRow(), new MemberRow(), new MemberRow() };
@@ -1999,6 +2008,7 @@ namespace OpenFF.Client
 
 		private readonly HudData _hudData = new HudData();
 		private LayoutScreen _hud;
+		private string _measured;
 		private bool _hudLoaded;
 
 		private void EnsureHud()
@@ -2068,6 +2078,15 @@ namespace OpenFF.Client
 			g.Scroll.Top = gridRows <= ListRows ? 0 : (100 - g.Scroll.Size) * (_listScroll / ListColumns) / Math.Max(1, gridRows - ListRows);
 			if (_help != null && _helpUntil >= 0 && _clock >= _helpUntil) _help = null;
 			h.Message = _help ?? "";
+			if (h.Message != _measured)
+			{
+				// The line at the layout's 34px as the screen draws it, back in the layout's 1920 units, with a margin.
+				_measured = h.Message;
+				float sy = DrawList.ScreenHeight / 1080f, sx = DrawList.ScreenWidth / 1920f;
+				float width = string.IsNullOrEmpty(h.Message) ? 0f : TrueTypeText.Width(h.Message, Math.Max(4, (int)Math.Round(34 * sy))) / sx + 70f;
+				h.MessageWidth = Math.Min(1840, Math.Max(800, (int)Math.Ceiling(width)));
+				h.MessageLeft = 960 - h.MessageWidth / 2;
+			}
 			List<int> commands = choosing ? Commands : null;
 			int count = commands?.Count ?? 0;
 			for (int row = 0; row < h.Command.Count; row++)

@@ -19,7 +19,7 @@
     battle.card             shown, name, hp: the picked foe's card
     battle.grid             shown, mp, maxMp, showMp, cell[0..11] (present, name, value: a spell's cost or how many of
                             an item, can, lit), scroll (shown, top, size)
-    battle.message          FF4's help line at the top, or ""
+    battle.message          FF4's help line at the top, or ""; messageWidth, messageLeft its window (800 wide, more for a long line)
     battle.result           shown, panel (0..100: it fades in with the screens), height (the window's, by page), page
                             ('gil', 'levelup', 'item'), gilFound, newTotal (counting up), showGil, exp, showExp, arrow;
                             a level-up's title and row[0..7] (label, old, new, up), the abilities learnt or the items
@@ -263,10 +263,10 @@
   </frame>
 
   <!-- FF4's help line: an ability's name, at the top. -->
-  <frame bind-display="battle.message">
+  <frame bind-display="battle.message" bind-style="left: {battle.messageLeft}px; width: {battle.messageWidth}px">
     <id>message</id>
     <x>560</x><y>27</y><width>800</width><height>76</height>
-    <frame class="message-text" bind-text="{battle.message}"><id>text</id><x>0</x><y>0</y><width>800</width><height>76</height></frame>
+    <frame class="message-text" bind-text="{battle.message}" bind-style="width: {battle.messageWidth}px"><id>text</id><x>0</x><y>0</y><width>800</width><height>76</height></frame>
   </frame>
 
   <!-- The result (btl::BattleWin), a page at a time: the gil found and the new total on the left, the experience on

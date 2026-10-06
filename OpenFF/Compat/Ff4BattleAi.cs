@@ -16,6 +16,7 @@ namespace OpenFF.Client
 	internal sealed partial class Ff4Battle
 	{
 		private SpellDefinition _lastSpell;   // the spell the last action cast, if it was one
+		private readonly Dictionary<Action, int> _counterAbilities = new Dictionary<Action, int>();   // a queued counter's ability, for the before event
 		private bool _isCounter;              // the action under way is a counter (BattleSystem +0x20EC; the events' IsCounter)
 
 		/// <summary>The command a spell's school is cast with (setMonsterAbility's table: white 6, black 5, summon 13, 18, item 6, enemy 9, ninjutsu 0x53).</summary>
@@ -71,7 +72,7 @@ namespace OpenFF.Client
 					case 28: holds = LastCommand == 0x1F && HitBy(foe); break;   // struck at by Jump
 					case 29: holds = foe.Hp <= 20000; break;
 					case 30: holds = false; break;   // the Octomammoth's legs: not in yet
-					case 31: holds = false; break;   // in mist form: not in yet
+					case 31: holds = foe.Mist; break;   // in mist form (flag 0x1e)
 					case 32: holds = foe.Hp <= 10000; break;
 					case 33: holds = foe.Free[0] == 1; break;
 					case 34: holds = _foes.TrueForAll(f => !f.Alive || f.Monster?.Id == id); break;   // no other kind standing
@@ -158,6 +159,7 @@ namespace OpenFF.Client
 			if (ability == 0) { Note(foe.Name + " does nothing."); return; }
 			if (QuietTurn(foe, ability)) return;
 			if (EnemySummon(foe, ability)) return;
+			if (MistTurn(foe, ability)) return;
 			targets ??= MonsterTargets(foe, targetType);
 			SpellDefinition spell = ability != 1 ? Ff4Party.Tables.Spell(ability) : null;
 			if (spell != null)
@@ -207,13 +209,17 @@ namespace OpenFF.Client
 					queued.Add(ability);
 					Fighter who = foe;
 					Note(foe.Name + " counters (condition " + condition + "): ability " + ability + " on target type " + targetType);
-					counters.Add((who, () =>
+					Action counter = null;
+					counter = () =>
 					{
+						_counterAbilities.Remove(counter);
 						float gauge = who.Gauge;   // a counter leaves its own turn where it was
 						_isCounter = true;
 						Perform(who, ability, targetType, targets.FindAll(f => f.Alive || targetType == 8));
 						who.Gauge = gauge;
-					}));
+					};
+					_counterAbilities[counter] = ability;
+					counters.Add((who, counter));
 				}
 			}
 			_queue.InsertRange(0, counters);

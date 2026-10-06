@@ -41,7 +41,7 @@ namespace OpenFF.Client
 		/// </summary>
 		private Action SpellResult(Fighter caster, Fighter t, SpellDefinition spell, int count)
 		{
-			string name = spell.Name ?? ("spell " + spell.Id);
+			string name = Ff4Party.Tables.AbilityTitle(spell.Id) ?? spell.Name ?? ("spell " + spell.Id);
 			if (spell.Heals)
 			{
 				if (!t.Alive) return null;
@@ -268,6 +268,58 @@ namespace OpenFF.Client
 				GlobalScope.dgs.CFade.Sub().fadeIn(fade);
 			});
 			After(CastLead + 2 * fade + 1, () => { });
+			return true;
+		}
+
+		/// <summary>
+		/// The Mist Dragon's turns into mist and back (MABMistChange 3001, MABMistReturn 3002; BattleMistDragon). Into mist:
+		/// effect 700 at its root 15 up with 120/0, 10 frames on a 10-frame fade to black, the dragon's model hidden and
+		/// its mist (m&lt;family&gt;_01) shown, flag 0x1e on - a blow on it misses (reviseMist) - and the screen back over 10.
+		/// Out: the fade with 120/1, the dragon back, the screen back. True when the ability was one.
+		/// </summary>
+		private bool MistTurn(Fighter foe, int ability)
+		{
+			if (ability != 3001 && ability != 3002) return false;
+			bool into = ability == 3001;
+			const int fade = 10;
+			int lead = 0;
+			if (into)
+			{
+				LoadEffect(700);
+				PlayEffect(700, Where(foe) + new Vector3(0f, 15f, 0f));
+				Game.Audio.PlaySe(120, 0);
+				lead = 10;
+			}
+			else Game.Audio.PlaySe(120, 1);
+			After(lead, () =>
+			{
+				GlobalScope.dgs.CFade.Main().fadeOut(fade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+				GlobalScope.dgs.CFade.Sub().fadeOut(fade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+			});
+			After(lead + fade, () =>
+			{
+				foe.Mist = into;
+				if (into && foe.MistNpc == null && foe.Monster != null)
+				{
+					try
+					{
+						foe.MistNpc = Game.Npcs.SpawnModel("m" + foe.Monster.Family.ToString("000") + "_01", foe.Home, 0f);
+						if (foe.MistNpc != null)
+						{
+							foe.MistNpc.Solid = false;
+							try { foe.MistNpc.BindMotions("b_m" + foe.Monster.Family.ToString("000")); foe.MistNpc.PlayMotion(101, true); } catch (Exception) { }
+							if (foe.Npc != null && foe.MistNpc is LegacyNpc mist) mist.FaceExactly(foe.Npc.Yaw);
+						}
+					}
+					catch (Exception) { }
+				}
+				if (foe.Npc != null) foe.Npc.Hidden = into;
+				if (foe.MistNpc != null) foe.MistNpc.Hidden = !into;
+				Note(foe.Name + (into ? " dissolves into mist." : " takes shape again."));
+				GlobalScope.dgs.CFade.Main().fadeIn(fade);
+				GlobalScope.dgs.CFade.Sub().fadeIn(fade);
+			});
+			After(lead + 2 * fade + 1, () => { });
 			return true;
 		}
 
