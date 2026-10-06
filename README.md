@@ -246,9 +246,10 @@ same game, crisper. The parts still in progress are the ones the original never 
 overworld, the dungeons, the opening's scenes - and Cecil walks it. The opening and its first
 battle are measured against the Steam game frame by frame (Tools/ff4hook) and written from its
 own code (the Android build's libff4, the Steam FF4.exe decompiled): the title, the scenes'
-cameras and effects, the encounter whirl, and the battle's turns, gauges, blows, numbers, deaths
-and win. Much of the rest is not yet the game's: the menus are stand-ins on FF3's, half the field
-commands are unread, monsters do not think yet. `Docs/FF4-Status.md` has each subsystem in
+cameras and effects, the encounter whirl, and the battle's turns, gauges, blows, numbers, deaths,
+the monsters' AI and counters, the battle events and the win with its result pages. Much of the
+rest is not yet the game's: the menus are stand-ins on FF3's, half the field commands are unread,
+statuses and most monster abilities are still to come. `Docs/FF4-Status.md` has each subsystem in
 detail; `Docs/FF4-Internals.md` what has been read out of the binary.
 
 | Piece | Done | Note |
@@ -259,7 +260,7 @@ detail; `Docs/FF4-Internals.md` what has been read out of the binary.
 | Title, logos, map changes | 80% | Steam's logos and title, New Game's white fade, FF4's map fades; the opening movie, CONTINUE and Steam's load screen not yet |
 | Party data: characters, growth, magic, equipment, items | 60% | Read from the binary and the files onto the unified data layer; HP grown level by level as FF4 rolls it |
 | Encounters, shops, inns, saves | 40% | Work as calls; the presentation is not FF4's |
-| Battle | 55% | FF4's own: its stages and placings, active time and the turn queue, attacks, effects, sounds, damage and hit formulas, numbers, deaths, the win and result; monster AI, abilities and the level-up pages to come |
+| Battle | 65% | FF4's own: its stages and placings, active time and the turn queue, attacks, effects, sounds, the damage and hit formulas with elements, races and rows, numbers, deaths, the monster AI (conditions, action sets, target types, counters), the battle events (battle_ai.bbd), the win and its result pages (gil, level-ups, items); statuses and monster abilities to come |
 | Menus | 15% | FF4's layouts over the unified data, largely made up; far from the original |
 | The Steam shell (achievements, launcher screens) | 0% | Not started |
 
