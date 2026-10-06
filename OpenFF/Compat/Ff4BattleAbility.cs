@@ -273,6 +273,7 @@ namespace OpenFF.Client
 			coverer.Npc.Teleport(under.Home + new Vector3((float)Math.Sin(yaw), 0f, (float)Math.Cos(yaw)) * 6f);
 			Face(coverer, under.Facing);
 			Play(coverer, 2002, false, 3);
+			coverer.Acted = false;   // held until it steps back (Steam's frames: 15 frames)
 			Note(coverer.Name + " covers " + under.Name + ".");
 		}
 

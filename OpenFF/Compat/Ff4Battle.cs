@@ -1563,7 +1563,7 @@ namespace OpenFF.Client
 			{
 				Fighter guard = target, under = covered;
 				After(effectFrame + MonsterFrameLead, () => CoverStep(guard, under));
-				After(numberFrame + MonsterFrameLead + 20, () => CoverBack(guard));
+				After(effectFrame + MonsterFrameLead + 16, () => CoverBack(guard));   // Steam's frames: 2002 for 15, the stance 1, home on the 16th
 			}
 			After(effectFrame + MonsterFrameLead, () => PlayEffect(hit ? effect : MissEffect, feet ? Where(target) : HitEffectSpot(target)));
 			if (hit && seBank >= 0 && se >= 0) After(seFrame + MonsterFrameLead, () => Game.Audio.PlaySe(seBank, se));
