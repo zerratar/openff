@@ -520,7 +520,7 @@ namespace OpenFF.Client
 			SpellDefinition spell = Ff4Party.Tables.Spell(ability);
 			if (spell != null)
 			{
-				if (actor.IsMonster) { MonsterCasts(actor, spell, spell.HitsAll ? 4 : 1); return true; }
+				if (actor.IsMonster) { MonsterCasts(actor, spell, targets.Count > 0 ? targets.FindAll(t => t.Alive) : MonsterTargets(actor, spell.HitsAll ? 4 : 1)); return true; }
 				Cast(actor, spell, targets.Count > 0 ? targets : _foes.FindAll(f => f.Alive));
 				return true;
 			}

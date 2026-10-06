@@ -450,6 +450,9 @@ namespace OpenFF.Data
 		public Dictionary<int, MonsterTurnAction> MonsterTurnActions = new Dictionary<int, MonsterTurnAction>();
 		/// <summary>FF4: an action condition (chain 9, 12 bytes): the action set it brings and the 64 checks (a mask) that must all hold (MonsterActionThinker::isEnableCondition).</summary>
 		public Dictionary<int, (int TurnAction, ulong Checks)> MonsterActionConditions = new Dictionary<int, (int, ulong)>();
+
+		/// <summary>FF4's monster counters (monster.chaindata chain 10, MonsterManager::counter): by id, two entries of an ability, a target type and a chance in percent.</summary>
+		public Dictionary<int, (int Ability, int Target, int Chance)[]> MonsterCounters = new Dictionary<int, (int, int, int)[]>();
 		/// <summary>FF4: ability.bbd's wait (s32 at 0x18 of its 44-byte records) by ability id - the frames a decided action waits before its turn (BaseBattleCharacter::atwMax): a spell by its id, an item by the ability it invokes.</summary>
 		public Dictionary<int, int> AbilityWaits = new Dictionary<int, int>();
 		public int AbilityWait(int id) => AbilityWaits.TryGetValue(id, out int wait) ? wait : 0;

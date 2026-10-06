@@ -343,6 +343,17 @@ namespace OpenFF.Data
 				byte[] r = pack.Record(9, 12, i);
 				tables.MonsterActionConditions[ChainPack.S16(r, 0)] = (ChainPack.S16(r, 2), BitConverter.ToUInt64(r, 4));
 			}
+			// Chain 10: the counters (14 bytes) - an id, then two of an ability, a target type and a chance in percent; a
+			// counter condition of the AI record (its +0xC..+0x14) names one in its set field.
+			for (int i = 0, n = pack.Records(10, 14); i < n; i++)
+			{
+				byte[] r = pack.Record(10, 14, i);
+				tables.MonsterCounters[ChainPack.S16(r, 0)] = new[]
+				{
+					(ChainPack.S16(r, 2), ChainPack.S16(r, 4), ChainPack.S16(r, 6)),
+					(ChainPack.S16(r, 8), ChainPack.S16(r, 0xA), ChainPack.S16(r, 0xC)),
+				};
+			}
 			// Chain 2: 28 bytes a monster, by its id (MonsterManager::normalAttack) - its plain attack as ys::Effects: the
 			// effect's frame (s32 at 0), its pack (s16 at 6) and member (s32 at 8), the sound's frame (s32 at 0xC), bank
 			// (s16 at 0x12) and number (s16 at 0x14), the number's frame (s16 at 0x1A). The Floating Eye's: e160 at 7,

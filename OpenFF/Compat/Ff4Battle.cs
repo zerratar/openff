@@ -91,6 +91,7 @@ namespace OpenFF.Client
 			public float AtbRate = 1f;        // a monster's, rolled at the start (BattleMonster::atbRate); 1 for the party
 			public bool Queued;               // its action is decided and waits its turn (ATG state 2 or 3, the gauge held full)
 			public int AiCondition = -2, AiIndex; // a monster's AI: the condition that chose its set last, and where it is in it
+			public int HpBefore;              // its HP as the last action began (an AI check: did that action hurt it)
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
 			public int DecidedAbility, DecidedTarget = 1;   // its turnAction as decided: the ability (1 Attack, a spell's or item's id...) and a monster's target type
 			public bool NotDeath;             // an event's NotDeathFlagOn: it cannot fall
@@ -825,13 +826,17 @@ namespace OpenFF.Client
 		{
 			_attacker = actor;
 			_lastAbility = ability;
+			_lastSpell = null;
 			_lastTargets.Clear();
 			_lastTargets.AddRange(targets);
+			foreach (Fighter f in _party) f.HpBefore = f.Hp;
+			foreach (Fighter f in _foes) f.HpBefore = f.Hp;
 		}
 
 		private void Cast(Fighter caster, SpellDefinition spell, List<Fighter> targets)
 		{
 			Acted(caster, spell.Id, targets.ToArray());
+			_lastSpell = spell;
 			_casting = null;
 			caster.Member.Mp = Math.Max(0, caster.Member.Mp - spell.MpCost);
 			Play(caster, _heroMotionAttack);
@@ -1400,50 +1405,6 @@ namespace OpenFF.Client
 			return actions.Entries[i];
 		}
 
-		/// <summary>
-		/// isEnableCondition: every check the mask names must hold. The ones read so far: 4, 16, 17 and 27 always hold; 13,
-		/// 60 and 62 hold at or under 30, 80 and 20 % of its HP, 59 over 20 %. The status checks (0, 2, 3, 5..11 and the
-		/// rest) do not hold while the battle has no statuses; a check not yet read does not hold, and is logged.
-		/// </summary>
-		private bool ConditionHolds(Fighter foe, ulong checks)
-		{
-			for (int bit = 0; bit < 64; bit++)
-			{
-				if ((checks >> bit & 1) == 0) continue;
-				switch (bit)
-				{
-					case 4: case 16: case 17: case 27: break;
-					case 13: if (foe.Hp > foe.MaxHp * 0.3f) return false; break;
-					case 59: if (foe.Hp <= foe.MaxHp * 0.2f) return false; break;
-					case 60: if (foe.Hp > foe.MaxHp * 0.8f) return false; break;
-					case 62: if (foe.Hp > foe.MaxHp * 0.2f) return false; break;
-					case 0: case 2: case 3: case 5: case 6: case 7: case 8: case 9: case 10: case 11:
-						return false;   // a status of its own (ys::Condition 9, 4, 5, 7, 8, 10, 0, 1, 2, 11): none yet
-					default:
-						Log.First(LogChannel.File, "monster-condition-" + bit, 1, () => "battle: monster AI check " + bit + " not read yet - taken as not holding");
-						return false;
-				}
-			}
-			return true;
-		}
-
-		private void MonsterActs(Fighter foe)
-		{
-			List<Fighter> alive = _party.FindAll(f => f.Alive);
-			if (alive.Count == 0) return;
-			int ability = foe.DecidedAbility, targetType = foe.DecidedTarget;
-			foe.Gauge = 0f;
-			if (ability == 0) { Note(foe.Name + " does nothing."); return; }
-			if (ability != 1)
-			{
-				SpellDefinition spell = Ff4Party.Tables.Spell(ability);
-				if (spell != null) { MonsterCasts(foe, spell, targetType); return; }
-				Log.First(LogChannel.File, "monster-ability-" + ability, 1, () => "battle: monster ability " + ability + " not in yet - a plain attack in its place");
-			}
-			if (targetType != 0 && targetType != 1) Log.First(LogChannel.File, "monster-target-" + targetType, 1, () => "battle: monster target type " + targetType + " not read yet - a member at random");
-			MonsterAttack(foe, alive[_random.Next(alive.Count)]);
-		}
-
 		/// <summary>A monster's plain attack on one target (normalAttack's record: the effect, sound and number on their frames).</summary>
 		private void MonsterAttack(Fighter foe, Fighter target)
 		{
@@ -1460,21 +1421,28 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A monster's spell on the party: its name in FF4's help line, the damage or healing by the magic formula.</summary>
-		private void MonsterCasts(Fighter foe, SpellDefinition spell, int targetType)
+		private void MonsterCasts(Fighter foe, SpellDefinition spell, List<Fighter> targets)
 		{
-			List<Fighter> alive = _party.FindAll(f => f.Alive);
-			if (alive.Count == 0) return;
+			if (targets.Count == 0) return;
 			string name = spell.Name ?? ("spell " + spell.Id);
 			Say(name);
 			try { foe.Npc.PlayMotion(201, false, 3); foe.Acted = true; } catch (Exception) { }
-			List<Fighter> targets = spell.HitsAll ? alive : new List<Fighter> { alive[_random.Next(alive.Count)] };
 			Acted(foe, spell.Id, targets.ToArray());
+			_lastSpell = spell;
 			After(8, () =>
 			{
 				foreach (Fighter t in targets)
 				{
 					if (!t.Alive) continue;
-					if (spell.Heals) continue;   // a monster's healing is its own side's: not yet
+					if (spell.Heals)
+					{
+						int value = HealingValue(foe, t, spell, targets.Count), before = t.Hp;
+						t.Hp = Math.Min(t.MaxHp, t.Hp + value);
+						if (t.Member != null) t.Member.Hp = t.Hp;
+						Pop(DamageSpot(t), t.Hp - before, true);
+						Note(foe.Name + " casts " + name + ": " + t.Name + " +" + (t.Hp - before) + ".");
+						continue;
+					}
 					int damage = spell.Power > 0 ? AttackMagicDamage(foe, t, spell, targets.Count) : 0;
 					if (damage <= 0) { Note(foe.Name + " casts " + name + " on " + t.Name + "."); continue; }
 					t.Hp = Math.Max(0, t.Hp - damage);
@@ -1635,7 +1603,7 @@ namespace OpenFF.Client
 		{
 			(Fighter actor, Action act) = _queue[0];
 			_queue.RemoveAt(0);
-			actor.Queued = false;
+			actor.Queued = _queue.Exists(e => e.Actor == actor);   // a counter run first leaves its own turn queued
 			if (!actor.Alive) return;
 			_executing = actor;
 			_attacker = actor;
@@ -1694,6 +1662,7 @@ namespace OpenFF.Client
 				_queue.Clear();
 				Lose();
 			}
+			else CheckCounters();
 		}
 
 		private static Fighter FirstAlive(List<Fighter> side) => side.Find(f => f.Alive);

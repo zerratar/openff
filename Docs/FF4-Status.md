@@ -76,11 +76,15 @@ while nothing or a monster's action is under way and the commands open throughou
 --ff4-battle-wait for the wait mode), an action's wait (ATW) from ability.bbd. The member's attack
 (poise, swing, the weapon's hit effect and sound, the number) and the monster's (its chain 2 record:
 effect, sound, number), effects at hitEffectPosition, the damage numbers a digit at a time from each
-monster's spot, the damage and hit formulas with criticals; the win (fade through black, the poses
-and camera, the result window with the gil counting up, the one item, the fade out). The HUD is a
-layout (Data/hud/ff4_battle_hud.xml, Docs/Menus.md) a mod can reshape or restyle. Not FF4's yet:
-monster AI and abilities, the elements' and races' multipliers and the back rows' in the damage,
-Darkness's formula, level-up and item pages after the result, the battle modes' other cases.
+monster's spot, the damage and hit formulas with criticals, the elements' and races' multipliers
+and the back rows'; the monster AI (MonsterActionThinker: the AI record's conditions - HP, the events'
+variables, what struck it - its action sets in turn or at random, the target types, the counters
+every monster weighs as a turn ends); the battle events (BattleScriptEngine, battle_ai.bbd); the win
+(fade through black, the poses and camera, the result with the gil counting up, a page for each
+level-up and one for the items, the fade out). The HUD is a layout (Data/hud/ff4_battle_hud.xml,
+Docs/Menus.md) a mod can reshape or restyle. Not FF4's yet: statuses (and the AI's checks and forced
+actions that read them), monster abilities outside the spell table, Darkness's formula, the battle
+modes' other cases.
 
 ## Menus - 15%
 
@@ -99,4 +103,4 @@ started here.
 
 FF4 in OpenFF is a world you can walk, with its scenes playing and its battles fought by FF4's own
 rules, on top of field commands and menus that are still largely FF3's. Bringing the field commands,
-the rest of the battle (monster AI, abilities) and the menus to FF4's own is the work ahead.
+the rest of the battle (statuses, abilities) and the menus to FF4's own is the work ahead.
