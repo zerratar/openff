@@ -21,6 +21,11 @@ A script is one step a line ('#' comments):
   camera [frames]                the camera every [frames] (15), into <out dir>/camera.tsv
   joints <frames> <model> <a,b>  the named joints' world positions for each character of <model>, into <out dir>/joints.tsv
   dumpchars [name]               the character slots' raw bytes now, into <out dir>/<name>.bin
+  endstate                       the field's running state over, so what a command queued goes next (a battle:
+                                 exec BootEventBattle <group> <map> 0 0 0, then endstate)
+  exec <command> [values...]     an event-script command run now, by its name in ScriptOpsFf4.cs, its operands the
+                                 values given (decimal or 0x), packed as the command reads them: the test's party
+                                 (AddPartyPC 10 0), levels, items, a battle (BootEventBattle)
   repeat <n> ... end             the steps between, n times
 The .bmp files the hook writes are turned into .png at the end.
 """
@@ -135,6 +140,25 @@ def play(steps, out):
         elif word == "dumpchars":
             send("dumpchars " + os.path.join(out, (rest.strip() or "slots") + ".bin"))
             time.sleep(0.2)
+        elif word == "endstate":
+            send("endstate")
+            time.sleep(0.1)
+        elif word == "exec":
+            sys.path.insert(0, HERE)
+            from trace_compare import load_table
+            table = load_table()
+            parts = rest.split()
+            names = [n for n, _ in table]
+            index = int(parts[0]) if parts[0].isdigit() else names.index(parts[0])
+            operands = table[index][1]
+            values = [int(v, 0) for v in parts[1:]]
+            if len(values) != len(operands):
+                print("exec %s wants %d operand(s): %s" % (names[index], len(operands), ", ".join(operands)))
+                continue
+            size = {"Byte": 1, "Word": 2, "Dword": 4}
+            data = b"".join((v & ((1 << (8 * size[o])) - 1)).to_bytes(size[o], "little") for v, o in zip(values, operands))
+            send("exec %d %s" % (index, data.hex() or "00"))
+            time.sleep(0.1)
         elif word == "every":
             send("every " + rest.split()[0] + " " + os.path.join(out, "frames"))
         else:

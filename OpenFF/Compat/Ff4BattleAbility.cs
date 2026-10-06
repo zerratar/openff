@@ -75,10 +75,13 @@ namespace OpenFF.Client
 					Note(who.Name + " stops covering.");
 					return true;
 				case CmdPray: AbilityMotions(who, "b_pa_035"); Decide(who, () => Pray(who), AbilityWait(id), id); return true;
-				case CmdFocus: AbilityMotions(who, "b_pa_021"); Decide(who, () => Invoke(who, CmdFocus, () => Focus(who)), AbilityWait(id), id); return true;
-				case CmdBrace: Decide(who, () => Invoke(who, CmdBrace, () => Brace(who)), AbilityWait(id), id); return true;
+				case CmdFocus:
+				case CmdBrace:
+				case CmdBluff:
+					// The target window on the member alone (Steam: its name, HP, weaknesses), confirmed with A.
+					_abilityCmd = id; _pick = Pick.Ally; _cursor = _party.IndexOf(who);
+					return true;
 				case CmdKick: AbilityMotions(who, "b_pa_057"); Decide(who, () => Invoke(who, CmdKick, () => Kick(who)), AbilityWait(id), id); return true;
-				case CmdBluff: AbilityMotions(who, "b_pa_039"); Decide(who, () => Invoke(who, CmdBluff, () => Bluff(who)), AbilityWait(id), id); return true;
 				case CmdCry: AbilityMotions(who, "b_pa_038"); Decide(who, () => Invoke(who, CmdCry, () => Cry(who)), AbilityWait(id), id); return true;
 				case CmdAnalyze: Decide(who, () => Invoke(who, CmdAnalyze, () => Analyze(who)), AbilityWait(id), id); return true;
 				case CmdHide: Decide(who, () => Hide(who), AbilityWait(id), id); return true;
@@ -99,6 +102,22 @@ namespace OpenFF.Client
 				case CmdAim: AbilityMotions(who, "b_aim"); Decide(who, () => Invoke(who, CmdAim, () => MemberAttacks(who, foe, aim: true)), AbilityWait(id), id); break;
 				case CmdSteal: AbilityMotions(who, "b_pa_008"); Decide(who, () => Invoke(who, CmdSteal, () => Steal(who, foe)), AbilityWait(id), id); break;
 				case CmdThrow: AbilityMotions(who, "b_pa_022"); Decide(who, () => Invoke(who, CmdThrow, () => Throw(who, foe, item)), AbilityWait(id), id); break;
+			}
+		}
+
+		/// <summary>The commands whose target is the member alone (ability.bbd target 0x0010): the window on it, nothing to move to.</summary>
+		private static bool SelfOnly(int id) => id == CmdFocus || id == CmdBrace || id == CmdBluff;
+
+		/// <summary>The member confirmed as the target of its own command.</summary>
+		private void AbilityOnSelf(Fighter who)
+		{
+			int id = _abilityCmd;
+			_abilityCmd = 0;
+			switch (id)
+			{
+				case CmdFocus: AbilityMotions(who, "b_pa_021"); Decide(who, () => Invoke(who, CmdFocus, () => Focus(who)), AbilityWait(id), id); break;
+				case CmdBrace: Decide(who, () => Invoke(who, CmdBrace, () => Brace(who)), AbilityWait(id), id); break;
+				case CmdBluff: AbilityMotions(who, "b_pa_039"); Decide(who, () => Invoke(who, CmdBluff, () => Bluff(who)), AbilityWait(id), id); break;
 			}
 		}
 
@@ -316,6 +335,12 @@ namespace OpenFF.Client
 			LoadEffect(294);
 			Vector3 home = who.Home;
 			Vector3 p = KickPoint();
+			// Steam's frames: the kick starts 2 frames after the invoke stage (the stage's end, PABKick's state 0xd).
+			After(2, () => KickMoves(who, blows, critical, home, p));
+		}
+
+		private void KickMoves(Fighter who, List<(Fighter T, bool Hit, int Damage)> blows, bool critical, Vector3 home, Vector3 p)
+		{
 			Play(who, 6108, true, 2);
 			Face(who, (float)(Math.Atan2(p.X - home.X, p.Z - home.Z) * 180.0 / Math.PI));
 			for (int n = 1; n <= 4; n++)
@@ -359,8 +384,8 @@ namespace OpenFF.Client
 			After(14, Settle);
 		}
 
-		/// <summary>battle_parameter chain 23's posture for 0x44 (Kick), the players' side: (-25, 0, 0) in the normal formation, (-15, 0, -5) in the others.</summary>
-		private static Vector3 KickPoint() => Ff4Party.Formation == 0 ? new Vector3(-25f, 0f, 0f) : new Vector3(-15f, 0f, -5f);
+		/// <summary>The spot Kick lands on (battle_parameter chain 23's posture for 0x44): (-15, 0, -5), as Steam's FF4 puts Yang in a normal fight.</summary>
+		private static Vector3 KickPoint() => new Vector3(-15f, 0f, -5f);
 
 		// ---- Steal (initializeSteal, StealFormula::calcSteal, executeSteal) ----
 
@@ -788,6 +813,11 @@ namespace OpenFF.Client
 		/// <summary>The turn is over: Bluff's charge spent by the action after it, Focus's by the blow that used it.</summary>
 		private static void AfterAction(Fighter f)
 		{
+			// Back to its stance (setConditionMotion) when the action left it in another one - the poise of a decision, an invoke's 9999.
+			if (f.Member != null && f.Alive && !f.Acted && !f.Airborne && !f.Hiding && f.SongId == 0 && f.Npc is LegacyNpc held && held.CharacterId >= 0)
+			{
+				try { if (GlobalScope.characterMng.getMotionIndex(held.CharacterId) != (uint)f.IdleMotion) f.Npc.PlayMotion(f.IdleMotion, true, 3); } catch (Exception) { }
+			}
 			if (f.BluffCharge > 0) f.BluffCharge--;
 			if (f.FocusSpent) { f.FocusSpent = false; f.FocusCharge = 0; }
 		}

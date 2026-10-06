@@ -906,9 +906,12 @@ namespace OpenFF.Client
 			}
 			if (_pick == Pick.Ally)
 			{
-				if (input.Pressed(Pad.Up) || input.Pressed(Pad.Left)) _cursor = (_cursor + _party.Count - 1) % _party.Count;
-				if (input.Pressed(Pad.Down) || input.Pressed(Pad.Right)) _cursor = (_cursor + 1) % _party.Count;
+				bool self = SelfOnly(_abilityCmd);
+				if (!self && (input.Pressed(Pad.Up) || input.Pressed(Pad.Left))) _cursor = (_cursor + _party.Count - 1) % _party.Count;
+				if (!self && (input.Pressed(Pad.Down) || input.Pressed(Pad.Right))) _cursor = (_cursor + 1) % _party.Count;
+				if (input.Pressed(Pad.B) && _abilityCmd != 0) { int back = _abilityCmd; _abilityCmd = 0; _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => id == back)); return; }
 				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : Pick.Item; _casting = null; _cursor = 0; return; }
+				if (input.Pressed(Pad.A) && self) { AbilityOnSelf(_acting); return; }
 				if (input.Pressed(Pad.A) && _abilityCmd == CmdCover) { AbilityOnAlly(_acting, _party[_cursor]); return; }
 				if (input.Pressed(Pad.A))
 				{
@@ -1693,6 +1696,8 @@ namespace OpenFF.Client
 		/// </summary>
 		private void Decide(Fighter member, Action act, int wait = 0, int ability = 1)
 		{
+			// Steam's frames: a member whose command is decided stands in its weapon's poise (Yang's 1058) until the action starts.
+			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && ability != CmdJump) Play(member, member.Poise, true, 3);
 			member.Defending = member.Braced = false;   // decideAbility: any decision ends Defend (flag 3) and Brace (flag 4)
 			_abilityCmd = 0;
 			member.Queued = true;

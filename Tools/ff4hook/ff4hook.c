@@ -18,6 +18,8 @@
 //   key <enter|back|tab|esc|up|down|left|right|space> [frames]   pressed, released after [frames] (4)
 //   shot <path.bmp>                                             the next frame
 //   every <frames> <dir>                                        a frame every <frames> into <dir>\NNNNN.bmp (0 stops)
+//   exec <index> <hex>                                          a script command run now, its operands the bytes given
+//   endstate                                                    the field's running state ended: what is queued goes next
 //   quit                                                        ends the process
 // %TEMP%\ff4hook\status.txt is rewritten every 30 frames ("frame N"); hook.log says what was hooked.
 //
@@ -257,6 +259,81 @@ static void WrapCommandTable(void)
 	Log("script table wrapped: %d commands at %p (the exe at %p)", TABLE_COUNT, (void *)table, (void *)GetModuleHandleA(NULL));
 }
 
+// ---- exec: one event-script command run as a script would run it (the test's own party, items, a battle) ----
+//
+// A ScriptEngine of our own - zeroed, its code (+8) our operand bytes, its position (+0xC) 0 - handed to the command's
+// original function from the table, between two frames on the game's thread. The engine goes in ECX and on the stack
+// both (the operand readers are __fastcall; the commands take a ScriptEngine&), the stack put back after whichever
+// way the command returned. Only for the commands that read nothing of the engine but their operands - AddPartyPC,
+// SubPartyPC, SetPlayerLevel, AddItem, SetPartyPCEquipItem, BootEventBattle, the flags.
+
+static unsigned char g_execEngine[0x400];
+static unsigned char g_execCode[256];
+
+static void Exec(int index, const char *hex)
+{
+	if (index < 0 || index >= TABLE_COUNT || !g_origCommand[index])
+	{
+		Log("frame %llu: exec %d - no such command (or the table was not wrapped)", g_frame, index);
+		return;
+	}
+	memset(g_execEngine, 0, sizeof g_execEngine);
+	memset(g_execCode, 0, sizeof g_execCode);
+	int n = 0;
+	for (const char *h = hex; h[0] && h[1] && n < (int)sizeof g_execCode; h += 2)
+	{
+		unsigned v;
+		if (sscanf_s(h, "%2x", &v) != 1) break;
+		g_execCode[n++] = (unsigned char)v;
+	}
+	*(unsigned char **)(g_execEngine + 8) = g_execCode;
+	*(unsigned *)(g_execEngine + 0xc) = 0;
+	void *fn = g_origCommand[index];
+	unsigned char *engine = g_execEngine;
+	__asm {
+		push esi
+		mov esi, esp
+		push engine
+		mov ecx, engine
+		call fn
+		mov esp, esi
+		pop esi
+	}
+	Log("frame %llu: exec %d with %d operand byte(s) %s - read %u", g_frame, index, n, hex, *(unsigned *)(g_execEngine + 0xc));
+}
+
+// ---- endstate: the field's running WorldState over, so the scheduler goes on to what is queued ----
+//
+// The world's root context is the global at 0x628d30 (the Steam build), its WorldStateScheduler at +0x2c:
+// the queue's states at +0x10c (their count at +0x210), the running one at +0x214 (wssUpdate, 0x575e40). A state ends
+// when its byte at +4 is set (WorldState::wsIsEnd, 0x4166d0); then wssUpdate finalizes it and starts the next queued.
+// BootEventBattle only queues "world encount2" and "event encount set" behind the field's "world move", which does not
+// end while the hero stands - in a script it is the event's own state that ends. So a battle from exec is this after it.
+
+#define WORLD_ROOT 0x628d30
+
+static void EndState(void)
+{
+	size_t shift = (size_t)GetModuleHandleA(NULL) - 0x400000;
+	unsigned char **rootAt = (unsigned char **)(WORLD_ROOT + shift);
+	unsigned char *root = IsBadReadPtr(rootAt, 4) ? NULL : *rootAt;
+	unsigned char *scheduler = root && !IsBadReadPtr(root + 0x2c, 4) ? *(unsigned char **)(root + 0x2c) : NULL;
+	if (!scheduler || IsBadReadPtr(scheduler, 0x220))
+	{
+		Log("frame %llu: endstate - no world scheduler (root %p)", g_frame, (void *)root);
+		return;
+	}
+	unsigned char *running = *(unsigned char **)(scheduler + 0x214);
+	int queued = *(int *)(scheduler + 0x210);
+	if (!running || IsBadWritePtr(running + 4, 1))
+	{
+		Log("frame %llu: endstate - nothing running (%d queued)", g_frame, queued);
+		return;
+	}
+	running[4] = 1;
+	Log("frame %llu: endstate - state %p ended, %d queued", g_frame, (void *)running, queued);
+}
+
 // ---- the characters: what each of CCharacterMng's slots holds, read straight from the game's memory ----
 //
 // FF4.exe's characterMng (a global at 0x61e808; every call site loads it into ECX - CCharacterMng::getPosition,
@@ -482,6 +559,14 @@ static void Command(char *line)
 			fopen_s(&g_joints, file, "a");
 		}
 		Log("frame %llu: joints of %s %s", g_frame, g_jointsModel, g_joints ? file : "off");
+	}
+	else if (strcmp(word, "endstate") == 0)
+	{
+		EndState();
+	}
+	else if (strcmp(word, "exec") == 0)
+	{
+		if (sscanf_s(rest, "%d %259s", &n, arg, (unsigned)sizeof arg) >= 1) Exec(n, arg);
 	}
 	else if (strcmp(word, "dumpchars") == 0)
 	{
