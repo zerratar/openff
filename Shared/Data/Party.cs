@@ -19,6 +19,8 @@ namespace OpenFF.Data
 		public int Level { get; private set; }
 		public int Experience { get; set; }
 		public int Hp { get; set; }
+		/// <summary>FF4: the battle conditions it carries out of a fight (ys::Condition bits - Poison, Silence, Toad...).</summary>
+		public ulong Conditions { get; set; }
 		public int MaxHp { get; set; }
 		public int Mp { get; set; }
 		public int MaxMp { get; set; }

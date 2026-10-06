@@ -46,9 +46,11 @@ namespace OpenFF.Client
 			{
 				if (!t.Alive) return null;
 				int value = HealingValue(caster, t, spell, count);
+				ulong cures = SpellConditions(caster, t, spell, count);
 				return () =>
 				{
 					if (!t.Alive) return;
+					if (cures != 0) Commit(t, cures);
 					int before = t.Hp;
 					t.Hp = Math.Min(t.MaxHp, t.Hp + value);
 					if (t.Member != null) t.Member.Hp = t.Hp;
@@ -61,20 +63,27 @@ namespace OpenFF.Client
 				if (t.Alive) return () => Note(name + " does nothing for " + t.Name + ".");
 				return () =>
 				{
+					t.Conditions &= ~((1UL << CParalyze) | (1UL << CSleep) | (1UL << CConfuse) | (1UL << CSilence) | (1UL << CBlind) | (1UL << CPoison) | (1UL << CCritical) | (1UL << CPetrify));   // clearDeadCondition
 					t.Hp = spell.Id == 4007 ? t.MaxHp : Math.Max(1, t.MaxHp / 4);
 					if (t.Member != null) t.Member.Hp = t.Hp;
 					Note(caster.Name + " casts " + name + ": " + t.Name + " rises.");
 				};
 			}
 			if (!t.Alive) return null;
+			ulong pending = SpellConditions(caster, t, spell, count);
 			int damage;
 			if (spell.Id == 0x59 || spell.Id == 0x67) damage = caster.Hp;   // Self-Destruct: the caster's HP, and it goes
-			else if (spell.Power > 0) damage = AttackMagicDamage(caster, t, spell, count);
+			else if (spell.Power > 0 && spell.Kind != 1) damage = AttackMagicDamage(caster, t, spell, count);
 			else
 			{
-				bool hit = _random.Next(100) < spell.HitRate;
-				if (hit && (spell.Inflicts & 0x200) != 0 && t.IsMonster) return () => { if (!t.Alive) return; t.Hp = 0; Note(caster.Name + " casts " + name + ": " + t.Name + " is slain."); Fell(t); };
-				return () => Note(caster.Name + " casts " + name + " on " + t.Name + (hit ? "." : ": it misses."));
+				// A status spell or a cure (calcAttackMagic / calcRecoveryMagic): nothing landed and an attack shows "Miss".
+				return () =>
+				{
+					if (!t.Alive) return;
+					if (pending == 0 && spell.Kind != 1) { PopWord(DamageSpot(t), Ff4Ui.WordMiss); Note(caster.Name + " casts " + name + " on " + t.Name + ": it misses."); return; }
+					Note(caster.Name + " casts " + name + " on " + t.Name + ".");
+					Commit(t, pending);
+				};
 			}
 			if (BattleParameterFlag(2)) damage = 99999;
 			return () =>
@@ -85,6 +94,7 @@ namespace OpenFF.Client
 				Pop(DamageSpot(t), damage);
 				Note(caster.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
 				if (!t.Alive) Fell(t, damage);
+				else if (pending != 0) Commit(t, pending);
 			};
 		}
 
@@ -117,6 +127,13 @@ namespace OpenFF.Client
 		/// </summary>
 		private void ShowSpell(Fighter caster, SpellDefinition spell, List<Fighter> targets)
 		{
+			if (!UsableUnder(caster, spell.Id))
+			{
+				// stateMagic's failures: under Silence "Cannot use voice!" (70198) for 59 frames, nothing cast; a monster just stops.
+				if (!caster.IsMonster) { _help = BattleText(70198, "Cannot use voice!"); _helpUntil = _clock + 59; After(59, () => { }); }
+				Note(caster.Name + " cannot cast " + (spell.Name ?? spell.Id.ToString()) + " like this.");
+				return;
+			}
 			GameTables tables = Ff4Party.Tables;
 			bool ability = spell.School == OpenFF.Data.MagicSchool.Enemy;
 			int lead = _isCounter ? CounterLead : CastLead;
@@ -307,7 +324,8 @@ namespace OpenFF.Client
 						if (foe.MistNpc != null)
 						{
 							foe.MistNpc.Solid = false;
-							try { foe.MistNpc.BindMotions("b_m" + foe.Monster.Family.ToString("000")); foe.MistNpc.PlayMotion(101, true); } catch (Exception) { }
+							string set = MonsterMotionSet(foe.Monster.Family, 1);
+							if (set != null) { try { foe.MistNpc.BindMotions(set); foe.MistNpc.PlayMotion(101, true); } catch (Exception) { } }
 							if (foe.Npc != null && foe.MistNpc is LegacyNpc mist) mist.FaceExactly(foe.Npc.Yaw);
 						}
 					}

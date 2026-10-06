@@ -53,9 +53,20 @@ namespace OpenFF.Client
 				switch (bit)
 				{
 					case 4: case 16: case 17: case 27: holds = true; break;
-					// its own statuses (ys::Condition 9 KO, 3, 4 Toad, 5, 7, 8, 10, 0, 1 poison, 2, 11; 0x14 Reflect): none yet
-					case 0: case 1: case 2: case 3: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 44: holds = false; break;
-					case 52: holds = true; break;   // no Reflect
+					// its own statuses (ys::Condition)
+					case 0: holds = Has(foe, CKO); break;
+					case 1: holds = Has(foe, CStone); break;
+					case 2: holds = Has(foe, CToad); break;
+					case 3: holds = Has(foe, CSilence); break;
+					case 5: holds = Has(foe, CBlind); break;
+					case 6: holds = Has(foe, CPoison); break;
+					case 7: holds = Has(foe, CCritical); break;
+					case 8: holds = Has(foe, CParalyze); break;
+					case 9: holds = Has(foe, CSleep); break;
+					case 10: holds = Has(foe, CConfuse); break;
+					case 11: holds = Has(foe, CPetrify); break;
+					case 44: holds = Has(foe, CReflect); break;
+					case 52: holds = !Has(foe, CReflect); break;
 					case 12: holds = foe.Alive && _foes.FindAll(f => f.Alive).Count == 1; break;   // the only monster left
 					case 13: holds = hp <= max * 0.3f; break;
 					case 14: holds = false; break;   // a spell with its +0x1A bit 0 cast on it: not read yet
@@ -90,7 +101,7 @@ namespace OpenFF.Client
 					case 47: holds = foe.Free[0] == 0; break;
 					case 48: holds = LastCommand == 7 && HitBy(foe); break;
 					case 49: holds = !_foes.Exists(f => f != foe && f.Alive && f.Monster?.Id == id); break;   // the last of its kind
-					case 50: holds = !_party.Exists(f => f.Alive); break;   // every member standing has Doom: none has it yet
+					case 50: holds = _party.TrueForAll(f => !f.Alive || Has(f, CDoom)); break;   // every member standing has Doom
 					case 51:
 					{
 						// struck by an element it is weak to (its record's 0x64): the spell's, else the attacker's blow's
@@ -107,7 +118,7 @@ namespace OpenFF.Client
 					case 58: holds = foe.Free[1] == 0; break;
 					case 59: holds = hp > max * 0.2f; break;
 					case 60: holds = hp <= max * 0.8f; break;
-					case 61: holds = false; break;   // an ally turned to stone: no statuses yet
+					case 61: holds = _foes.Exists(f => f.Npc != null && Has(f, CStone)); break;   // an ally turned to stone
 					case 62: holds = hp <= max * 0.2f; break;
 					default: holds = false; break;
 				}
@@ -169,8 +180,14 @@ namespace OpenFF.Client
 				return;
 			}
 			if (ability != 1 && ability != 134 && ability != 62) Log.First(LogChannel.File, "monster-ability-" + ability, 1, () => "battle: monster ability " + ability + " not in yet - a plain attack in its place");
-			// A plain attack falls on a member: its target's when it is one, else one at random (a type 0 attack's own pick).
-			Fighter target = targets.Find(f => !f.IsMonster && f.Alive);
+			// A plain attack falls on its target - a member, or one of its own side for types 2 and 3 - else a member at
+			// random (a type 0 attack's own pick); a confused monster's blow goes at its own side (calcNormalAttack).
+			Fighter target = targetType == 2 || targetType == 3 ? targets.Find(f => f.Alive) : targets.Find(f => !f.IsMonster && f.Alive);
+			if (ability == 1 && Has(foe, CConfuse))
+			{
+				List<Fighter> own = _foes.FindAll(f => f.Alive && !OutOfFight(f));
+				if (own.Count > 0) target = own[_random.Next(own.Count)];
+			}
 			if (target == null && targetType == 0) target = MonsterTargets(foe, 1).Find(f => true);
 			if (target == null) { Note(foe.Name + " has no one to strike."); return; }
 			if (PiercingAttack(foe, ability, target)) return;

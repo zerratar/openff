@@ -57,6 +57,7 @@ namespace OpenFF.Data
 			ReadEfficacies(chain, tables);
 			ReadItems(chain, tables);
 			ReadAbilityWaits(chain, tables);
+			ReadConditions(chain, tables);
 			ReadMonsters(chain, tables);
 			ReadMonsterParties(chain, tables);
 			ReadBattleParameter(chain, tables);
@@ -93,6 +94,8 @@ namespace OpenFF.Data
 					Grants = ChainPack.U16(r, 26),
 					Grants2 = ChainPack.U16(r, 28),
 					TargetFlags = r[32],
+					Conditions = BitConverter.ToUInt64(r, 0x18),   // one u64 condition mask (bit n = ys::Condition n)
+					Kind = r[0x14],
 					Raw = r,
 				});
 			}
@@ -299,7 +302,8 @@ namespace OpenFF.Data
 					Hit = ChainPack.S16(r, 0x24),   // its ys::PhysicsAttackParameter at 0x20: attack s32, hit s16 at +4 (the Floating Eye's 8 and 105)
 					Defence = ChainPack.S16(r, 0x4C),
 					Evade = ChainPack.S16(r, 0x50),
-					MagicDefence = ChainPack.S16(r, 0x68),
+					MagicDefence = ChainPack.S16(r, 0x66),   // its magic defence struct at 0x64: the defence at +2, the magic evasion at +4
+					MagicEvasion = ChainPack.S16(r, 0x68),
 					Gil = ChainPack.S32(r, 0x88),
 					Experience = ChainPack.S32(r, 0x8C),
 					Raw = r,
@@ -535,6 +539,27 @@ namespace OpenFF.Data
 			}
 		}
 
+		/// <summary>
+		/// condition_parameter.bbd (common::StatusConditionManager::load): 24 bytes a condition - the id, its duration at 2
+		/// (-1 none; the timer is it in frames at the middle speed), the flag word at 4, the conditions it clears as it comes
+		/// at 8 and the ones that keep it off at 0x10 (u64 masks). The names are babil_battle's 70300 + id.
+		/// </summary>
+		private static void ReadConditions(ContentChain chain, GameTables tables)
+		{
+			if (!TableFiles.ReadAny(chain, "condition_parameter.bbd", out byte[] data)) { tables.Notes.Add("condition_parameter.bbd not found"); return; }
+			Dictionary<uint, string> names = TableFiles.ReadNames(chain, "babil_battle.msd", tables);
+			for (int at = 0; at + 24 <= data.Length; at += 24)
+			{
+				ConditionParameter c = new ConditionParameter
+				{
+					Id = ChainPack.S16(data, at), Duration = ChainPack.S16(data, at + 2), Flags = ChainPack.U16(data, at + 4),
+					Replaces = BitConverter.ToUInt64(data, at + 8), BlockedBy = BitConverter.ToUInt64(data, at + 0x10),
+				};
+				if (names != null && names.TryGetValue((uint)(70300 + c.Id), out string name)) c.Name = name;
+				tables.Conditions[c.Id] = c;
+			}
+		}
+
 		/// <summary>ability.bbd (common::AbilityManager::load): 44-byte records, the id s32 at 0, the wait before the action s32 at 0x18 - Attack's 0, Fire's (4501) 15, Firaga's (4503) 90.</summary>
 		private static void ReadAbilityWaits(ContentChain chain, GameTables tables)
 		{
@@ -544,6 +569,8 @@ namespace OpenFF.Data
 				int wait = ChainPack.S32(data, at + 0x18);
 				if (wait > 0) tables.AbilityWaits[ChainPack.S32(data, at)] = wait;
 				tables.AbilityNameIds[ChainPack.S32(data, at)] = ChainPack.S32(data, at + 8);
+				// The statuses it may be used under (+0x1C), when +0x24 bit 0 says the check applies (isConditionUseful).
+				if ((ChainPack.U16(data, at + 0x24) & 1) != 0) tables.AbilityUsableUnder[ChainPack.S32(data, at)] = BitConverter.ToUInt64(data, at + 0x1C);
 			}
 		}
 

@@ -351,6 +351,16 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: job failed: " + ex.Message); }
 					break;
 				}
+				case "status":
+				{
+					// FF4: a battle condition put on (or, already on, taken off) a fighter - "status party 0 8" poisons the
+					// first member, "status foe 1 1" puts the second foe to sleep (ys::Condition ids).
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 3 || !int.TryParse(bits[1], out int who) || !int.TryParse(bits[2], out int condition)) { Log.Write(LogChannel.General, "drive: status wants party|foe <index> <condition>"); break; }
+					bool done = Ff4Battle.Instance != null && Ff4Battle.Instance.ToggleCondition(bits[0] == "foe", who, condition);
+					Log.Write(LogChannel.File, "drive: status " + step.Arg + (done ? "" : " - no such fighter"));
+					break;
+				}
 				case "level":
 				{
 					// A party member's level through the API: "level 0 99" (its charges and stats grow with it).

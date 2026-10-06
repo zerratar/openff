@@ -94,6 +94,9 @@ namespace OpenFF.Client
 			public int HpBefore;              // its HP as the last action began (an AI check: did that action hurt it)
 			public int DarkFrames;            // Darkness's time left (ys::Condition 0x17), and whether a dark blow's cost is due
 			public bool DarkCostDue;
+			public ulong Conditions;          // its ys::Condition bits, and their timers and counters (Ff4BattleStatus)
+			public int[] ConditionTimer = new int[39];
+			public int BlinkCount, DoomCount, PoisonCount, SapCount, PetrifyCount, HpSeen, MagicEvasion;
 			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
 			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
@@ -188,20 +191,32 @@ namespace OpenFF.Client
 			return started;
 		}
 
+		/// <summary>
+		/// A monster model's motion set: b_m&lt;family&gt; for most; a custom monster's models each have their own,
+		/// b_m&lt;family&gt;_&lt;model&gt; (BattleMistDragon::registerMonster: b_m069_00 for the dragon, _01 for its mist). Null when there is none.
+		/// </summary>
+		private static string MonsterMotionSet(int family, int model)
+		{
+			string plain = "b_m" + family.ToString("000"), own = plain + "_" + model.ToString("00");
+			bool Exists(string name) => GameArchive.Chain.Exists("files/" + name + ".ncap.lz") || GameArchive.Chain.Exists(name + ".ncap.lz");
+			if (Exists(own)) return own;
+			return model == 0 ? plain : null;
+		}
+
 		/// <summary>A monster stood at a spot, facing as the group has it (or the hero), its model bound to its motions, in the fight.</summary>
 		private Fighter SpawnFoe(MonsterDefinition m, Vector3 at, float? facing, Vector3 hero)
 		{
 			Monster info = Game.Monsters.Find(m.Id);
 			Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.Family.ToString("000") + "_00"), at, 0f);
 			if (npc == null) { Say("no model for " + m.Name); return null; }
-			try { npc.BindMotions(info?.MotionSet ?? ("b_m" + m.Family.ToString("000"))); npc.PlayMotion(101, true); } catch (Exception) { }
+			try { string set = MonsterMotionSet(m.Family, 0); npc.BindMotions(set.EndsWith("_00", StringComparison.Ordinal) ? set : info?.MotionSet ?? set); npc.PlayMotion(101, true); } catch (Exception) { }
 			if (facing.HasValue && npc is LegacyNpc exactNpc) exactNpc.FaceExactly(facing.Value);
 			else if (facing.HasValue) npc.LookAt(at + Ff4BattleStage.Facing(facing.Value) * 10f);
 			else npc.LookAt(hero);
 			npc.Solid = false;
 			Fighter foe = new Fighter
 			{
-				Name = m.Name ?? ("monster " + m.Id), IsMonster = true, Monster = m, Npc = npc, Home = at,
+				Name = m.Name ?? ("monster " + m.Id), IsMonster = true, Monster = m, Npc = npc, Home = at, MagicEvasion = m.MagicEvasion,
 				Hp = Math.Max(1, m.MaxHp), MaxHp = Math.Max(1, m.MaxHp),
 				Attack = Math.Max(1, m.Attack), Defence = Math.Max(0, m.Defence), Agility = Math.Max(1, m.Stats.Agility),
 				Level = Math.Max(1, m.Level), Intellect = m.Stats.Intellect, Spirit = m.Stats.Spirit, Vitality = m.Stats.Vitality, MagicDefence = Math.Max(0, m.MagicDefence),
@@ -250,7 +265,7 @@ namespace OpenFF.Client
 					Attack = Math.Max(1, weapon > 0 ? weapon : stats.Strength / 2), Defence = Armour(c, tables), Agility = Math.Max(1, stats.Agility),
 					Level = c.Level, Intellect = stats.Intellect, Spirit = stats.Spirit, Vitality = stats.Vitality, MagicDefence = MagicArmour(c, tables),
 					Strength = stats.Strength, HitChance = weapon > 0 ? WeaponHit(c, tables) : 90, Evade = Evasion(c, tables),
-					Gauge = StartGauge(),
+					Gauge = StartGauge(), Conditions = c.Conditions, HpSeen = c.Hp, MagicEvasion = MagicEvasionOf(c, tables),
 				});
 			}
 			if (onStage)
@@ -424,13 +439,13 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A battle effect at a spot (btl::BattleEffect::create: the effect manager's, box culling off).</summary>
-		private void PlayEffect(int id, Vector3 at)
+		private void PlayEffect(int id, Vector3 at, int variant = 1)
 		{
 			if (id < 0) return;
 			try
 			{
 				GlobalScope.eff.CEffectMng effects = GlobalScope.eff.CEffectMng.instance();
-				int made = effects.create(id, 1);
+				int made = effects.create(id, variant);
 				if (made < 0) { Log.First(LogChannel.File, "battle-effect-" + id, 2, () => "battle: effect " + id + " could not be made"); return; }
 				effects.enableBoxCulling(made, false);
 				effects.setPosition(made, new GlobalScope.VecFx32((int)Math.Round(at.X * 4096), (int)Math.Round(at.Y * 4096), (int)Math.Round(at.Z * 4096)));
@@ -526,6 +541,17 @@ namespace OpenFF.Client
 			return total;
 		}
 
+		internal static int MagicEvasionOf(Character c, GameTables tables)
+		{
+			int total = 0;
+			foreach (int id in c.Equipment)
+			{
+				ItemDefinition item = id != 0 ? tables.Item(id) : null;
+				if (item?.Equip != null && item.Kind == ItemKind.Armour) total += item.Equip.MagicEvade;
+			}
+			return total;
+		}
+
 		internal static int MagicArmour(Character c, GameTables tables)
 		{
 			int total = 0;
@@ -605,10 +631,16 @@ namespace OpenFF.Client
 					}
 					break;
 				case Phase.Defeat:
-					// The message window holds the word; the legacy window's own A press is gated
-					// off while the battle holds the input, so the press is read here.
-					if (Game.Dialogue.IsOpen && _timer > 20 && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased)) Game.Dialogue.Close();
-					if (!Game.Dialogue.IsOpen && _timer > 20) { _phase = Phase.Outro; _timer = 0; }
+					// BattleLose::execute: after 30 frames, the music stopped, a key ends it - at once when the event said
+					// so (BattleParameter flag 0xB, a fight meant to be lost).
+					if (_timer > 30 && (BattleParameterFlag(0xB) || Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased))
+					{
+						// No game over screen yet: the party stands up again with 1 HP.
+						foreach (Fighter f in _party) { f.Hp = Math.Max(1, f.Hp); if (f.Member != null) f.Member.Hp = f.Hp; }
+						_help = null;
+						_phase = Phase.Outro;
+						_timer = 0;
+					}
 					break;
 				case Phase.Outro:
 					if (_closing && _timer <= WinEndFade) break;
@@ -682,6 +714,8 @@ namespace OpenFF.Client
 				{
 					if (!f.Alive) continue;
 					if (f.DarkFrames > 0) f.DarkFrames = Math.Max(0, f.DarkFrames - (int)BattleSpeedRate);   // calcConditionTime
+					TickConditions(f);
+					if (!f.Alive || GaugeStands(f)) continue;
 					if (!f.Queued) { f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f)); continue; }
 					if (f.Pending == null) continue;
 					f.AtwLeft -= (int)BattleSpeedRate;
@@ -689,7 +723,8 @@ namespace OpenFF.Client
 				}
 				foreach (Fighter f in _foes)
 				{
-					if (!f.Alive || f.Queued) continue;
+					TickConditions(f);
+					if (!f.Alive || f.Queued || GaugeStands(f) || !CanAct(f)) continue;
 					f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
 					if (f.Gauge >= 1f)
 					{
@@ -700,12 +735,13 @@ namespace OpenFF.Client
 					}
 				}
 			}
-			if (_acting != null && (!_acting.Alive || _acting.Queued)) { _acting = null; _pick = Pick.None; }
+			if (_acting != null && (!_acting.Alive || _acting.Queued || !CanAct(_acting))) { _acting = null; _pick = Pick.None; }
 			if (_acting == null)
 			{
 				foreach (Fighter f in _party)
 				{
-					if (f.Alive && !f.Queued && f.Gauge >= 1f) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
+					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && ActsAlone(f)) continue;
+					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f)) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
 				}
 				return;
 			}
@@ -994,7 +1030,7 @@ namespace OpenFF.Client
 		private float StartGauge() => (45 + _random.Next(21)) / 100f;
 
 		/// <summary>A frame's fill: (1 + agility / 32) at the battle's speed, times a monster's ATB rate - of the gauge's 100.</summary>
-		private static float GaugeStep(Fighter f) => BattleSpeedRate * (1f + Math.Max(0, f.Agility) / 32f) * f.AtbRate / 100f;
+		private static float GaugeStep(Fighter f) => BattleSpeedRate * (1f + Math.Max(0, f.Agility) / 32f) * f.AtbRate / 100f * PaceOf(f);
 
 		private void Face(Fighter f, float degrees)
 		{
@@ -1018,7 +1054,7 @@ namespace OpenFF.Client
 		{
 			int stat = spell.School == OpenFF.Data.MagicSchool.White ? caster.Spirit : caster.Intellect;
 			long numerator = (long)spell.Power * Math.Max(1, caster.Level) * Math.Max(1, stat);
-			int denominator = Math.Max(1, target.Spirit + target.Level + target.MagicDefence);
+			int denominator = Math.Max(1, target.Spirit + target.Level + (Has(target, CShell) ? Math.Min(9999, target.MagicDefence * 3 / 2) : target.MagicDefence));
 			double value = numerator / (double)denominator * (1.0 + _random.Next(301) / 1000.0);
 			if (targetCount > 1) value *= Math.Max(0.3, (90 - 10 * targetCount) / 100.0);
 			return Math.Max(1, (int)value);
@@ -1042,7 +1078,7 @@ namespace OpenFF.Client
 		/// <summary>A fighter falls; <paramref name="number"/> is the blow's damage, whose number the monster's fade waits on.</summary>
 		private void Fell(Fighter foe, int number = -1)
 		{
-			if (!foe.IsMonster) { Note(foe.Name + " falls."); return; }
+			if (!foe.IsMonster) { Note(foe.Name + " falls."); Play(foe, 2003, false, 3); return; }   // setConditionDeath: the KO motion, held on its last frame
 			if (foe.NotDeath) { foe.Hp = 1; return; }   // an event's NotDeathFlagOn
 			Note(foe.Name + " is defeated.");
 			if (foe.Npc != null && Ff4BattleStage.Active) _dying.Add(foe);   // it goes once the turn is over (TurnEnd)
@@ -1114,7 +1150,15 @@ namespace OpenFF.Client
 		private bool Hits(Fighter attacker, Fighter target)
 		{
 			if (target.Mist) return false;   // reviseMist: a blow on the mist misses
-			int rate = Math.Clamp(attacker.HitChance + attacker.Agility - (target.Evade + target.Agility) + 20, 0, 100);
+			if (Has(target, CBlink) && target.BlinkCount > 0)
+			{
+				// reviseBlink: the image takes the blow; the last one gone, Blink goes.
+				if (--target.BlinkCount <= 0) ConditionOff(target, CBlink);
+				return false;
+			}
+			int rate = attacker.HitChance + attacker.Agility - (target.Evade + target.Agility) + 20;
+			if (Has(attacker, CBlind)) rate /= 10;   // calcHitRate: Blind a tenth
+			rate = Math.Clamp(rate, 0, 100);
 			return _random.Next(100) < rate;
 		}
 
@@ -1126,8 +1170,11 @@ namespace OpenFF.Client
 		/// </summary>
 		private int Damage(Fighter attacker, Fighter target)
 		{
-			long numerator = (long)Math.Max(1, attacker.Level) * Math.Max(1, attacker.Strength) * Math.Max(1, attacker.Attack);
-			int denominator = Math.Max(1, target.Defence + target.Level + target.Vitality);
+			// Toad and Mini: strength, vitality, attack and defence all 1; Protect: defence x1.5.
+			bool small = Has(attacker, CToad) || Has(attacker, CMini), smallTarget = Has(target, CToad) || Has(target, CMini);
+			long numerator = (long)Math.Max(1, attacker.Level) * (small ? 1 : Math.Max(1, attacker.Strength)) * (small ? 1 : Math.Max(1, attacker.Attack));
+			int defence = smallTarget ? 1 : Has(target, CProtect) ? Math.Min(9999, target.Defence * 3 / 2) : target.Defence;
+			int denominator = Math.Max(1, defence + target.Level + (smallTarget ? 1 : target.Vitality));
 			long core = numerator / denominator;
 			long value = (long)((4096 + (_random.Next(301) << 12) / 1000) * core) >> 12;
 			float elements = ElementFactor(attacker, target), races = RaceFactor(attacker, target);
@@ -1141,6 +1188,7 @@ namespace OpenFF.Client
 				value = value * 120 / 100;
 				Note(attacker.Name + "'s blow is critical.");
 			}
+			if (Has(attacker, CBerserk)) value = value * 3 / 2;   // reviseBerserk: x1.5
 			if (dark) { value *= 2; attacker.DarkCostDue = true; }   // reviseDarkness: x2 (0x2000), the cost after
 			if (BattleParameterFlag(2)) value = 99999;   // an event's OnForceMaxDamage
 			return (int)Math.Max(1, value);
@@ -1290,6 +1338,8 @@ namespace OpenFF.Client
 					PlayEffect(member.HitEffect, HitEffectSpot(foe));
 					damage = Damage(member, foe);
 					foe.Hp = Math.Max(0, foe.Hp - damage);
+					if (foe.Member != null) foe.Member.Hp = foe.Hp;
+					BlowLands(member, foe);
 					// With the effect, its sound: the weapon system's own (playerWeaponSe - a sword's 106, 1).
 					if (member.HitBank >= 0) Game.Audio.PlaySe(member.HitBank, member.HitSound);
 					else Game.Audio.PlaySe(0, 3);
@@ -1320,6 +1370,8 @@ namespace OpenFF.Client
 			{
 				int damage = Damage(member, foe);
 				foe.Hp = Math.Max(0, foe.Hp - damage);
+				if (foe.Member != null) foe.Member.Hp = foe.Hp;
+				BlowLands(member, foe);
 				Pop(DamageSpot(foe), damage);
 				Game.Audio.PlaySe(0, 3);
 				Note(member.Name + " hits " + foe.Name + " for " + damage + ".");
@@ -1348,6 +1400,13 @@ namespace OpenFF.Client
 		private (int Ability, int Target) DecideMonsterAction(Fighter foe)
 		{
 			GameTables t = Ff4Party.Tables;
+			if (ForcedMonsterAction(foe) is (int, int) forced)
+			{
+				// checkRestrictionConditionAction: a status drives it; its place in its set still moves on.
+				foe.AiIndex = foe.AiIndex + 1 < 10 ? foe.AiIndex + 1 : 0;
+				Note(foe.Name + " is driven: ability " + forced.Item1 + " on target type " + forced.Item2);
+				return forced;
+			}
 			if (foe.Monster == null || !t.MonsterAi.TryGetValue(foe.Monster.Id, out short[] ai)) return (1, 1);
 			int condition = -1, set = ai[1];
 			for (int k = 2; k <= 5; k++)
@@ -1399,7 +1458,8 @@ namespace OpenFF.Client
 			}
 			if (target.Defending) damage = Math.Max(1, damage / 2);   // Defend halves a blow
 			target.Hp = Math.Max(0, target.Hp - damage);
-			target.Member.Hp = target.Hp;
+			if (target.Member != null) target.Member.Hp = target.Hp;
+			BlowLands(foe, target);
 			Pop(DamageSpot(target), damage);
 			// FF4 starts 1117 here (btl::BattleActionDamage, the b_ set's clip C117) and Steam's trace has it for a frame
 			// before the stance - but its frames show the stance throughout (3784, the 1117 frame, and 3788), where ours draws
@@ -1408,7 +1468,7 @@ namespace OpenFF.Client
 			Fighter hurt = target;
 			After(1, () => { if (hurt.Alive && hurt.Acted) { Play(hurt, _heroMotionIdle, true, 0); hurt.Acted = false; } });
 			Note(foe.Name + " hits " + target.Name + " for " + damage + ".");
-			if (!target.Alive) Note(target.Name + " falls.");
+			if (!target.Alive) Fell(target, damage);
 		}
 
 		/// <summary>What a consumable does in a fight, from efficacy.beld: hit or magic points back (9999 for all), or a revival (Phoenix Down's efficacy 17 restores nothing by number). Null for anything else.</summary>
@@ -1554,6 +1614,7 @@ namespace OpenFF.Client
 			_queue.RemoveAt(0);
 			actor.Queued = _queue.Exists(e => e.Actor == actor);   // a counter run first leaves its own turn queued
 			if (!actor.Alive) return;
+			if (!CanAct(actor) && !_poisonTicks.Contains(act)) { Note(actor.Name + " cannot act."); return; }
 			_executing = actor;
 			_attacker = actor;
 			_isCounter = false;
@@ -1602,13 +1663,13 @@ namespace OpenFF.Client
 				_dying.Clear();
 				dying = DeathFrames;
 			}
-			if (_foes.FindAll(f => f.Alive).Count == 0)
+			if (_foes.TrueForAll(OutOfFight))
 			{
 				_queue.Clear();
 				if (Ff4BattleStage.Active) After(dying + WinAfterDeath, BeginWin);
 				else Win();
 			}
-			else if (_party.FindAll(f => f.Alive).Count == 0)
+			else if (_party.TrueForAll(OutOfFight))
 			{
 				_queue.Clear();
 				Lose();
@@ -1775,9 +1836,11 @@ namespace OpenFF.Client
 		{
 			_phase = Phase.Defeat;
 			_timer = 0;
-			foreach (Fighter f in _party) { f.Hp = Math.Max(1, f.Hp); f.Member.Hp = f.Hp; }
-			Game.Dialogue.Say("The party was defeated...\n(Everyone is left with 1 HP for now.)");
-			Log.Write(LogChannel.General, "battle: lost");
+			// BattleLose::initialize: the help line's babil_battle 0x70 (not when the event hides it - flag 0xB), the music
+			// stopping over 15 frames.
+			if (!BattleParameterFlag(0xB)) { _help = BattleText(0x70, "Your party has been defeated."); _helpUntil = -1; }
+			try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(15, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
+			Log.Write(LogChannel.General, "battle: lost - " + (_help ?? "(no line)"));
 		}
 
 		// ---- random encounters: the map's encounter chain, rolled per unit walked ----
@@ -1827,6 +1890,7 @@ namespace OpenFF.Client
 			}
 			foreach (Fighter f in _party)
 			{
+				if (f.Member != null) f.Member.Conditions = KeptAfterBattle(f.Conditions);   // clearBattleCondition
 				try { if (f.Npc is LegacyNpc held && held.CharacterId >= 0) Ff4Cutscene.UnbindAll(held.CharacterId); } catch (Exception) { }
 				try { f.Npc?.Remove(); } catch (Exception) { }
 			}
@@ -2173,7 +2237,6 @@ namespace OpenFF.Client
 		{
 			DrawList d = Game.Draw;
 			DrawPops(d);
-			if (_phase == Phase.Defeat) return;
 			EnsureHud();
 			if (_hud != null)
 			{

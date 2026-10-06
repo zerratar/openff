@@ -268,7 +268,11 @@ namespace OpenFF.Data
 		public bool CanSpread => (TargetFlags & 0x08) != 0;
 		/// <summary>Cures rather than hurts: FF4's healing groups (0xA0 the cure line and its kin) and the white school's recovery entries.</summary>
 		public bool Heals => Power > 0 && School == MagicSchool.White && EffectGroup == 0xA0;
-		public bool Revives => EffectGroup == 0xA0 && Power == 0 && (Grants & 0x200) != 0;
+		public bool Revives => (EffectGroup == 0xA0 && Power == 0 && (Grants & 0x200) != 0) || (Kind == 1 && (Conditions & 0x200) != 0);
+		/// <summary>FF4: the conditions it brings or (a recovery spell) takes away - magic_parameter +0x18, one u64 (bit n = ys::Condition n).</summary>
+		public ulong Conditions;
+		/// <summary>FF4: magic_parameter +0x14 - 0 an attack, 1 a recovery, 2 other (Libra and the like).</summary>
+		public int Kind;
 
 		public override string ToString() => Id + " " + (Name ?? "?") + " (" + School + ", " + MpCost + " mp" + (Power > 0 ? ", power " + Power : "") + ")";
 	}
@@ -340,6 +344,8 @@ namespace OpenFF.Data
 		public int Defence;
 		public int Evade;
 		public int MagicDefence;
+		/// <summary>FF4: the magic evasion (record +0x68).</summary>
+		public int MagicEvasion;
 		public int Experience;
 		public int Gil;
 		public List<DropChance> Drops = new List<DropChance>();
@@ -372,6 +378,19 @@ namespace OpenFF.Data
 	public sealed class SpellShow
 	{
 		public int Pack = -1, Param = 1, Mode, SeBank = -1, SeNumber = -1, Period, Motion = -1;
+	}
+
+	/// <summary>
+	/// FF4: a battle condition (ys::Condition id): its duration in frames (-1 none), its flags - 0x1 its landing cuts the
+	/// victim's turn, 0x8 the gauge stands, 0x20 the ailing idle, 0x80 cleared when the battle ends, 0x200 the magic hit
+	/// roll applies, 0x1000 a counter is still made - what it clears as it comes and what keeps it off.
+	/// </summary>
+	public sealed class ConditionParameter
+	{
+		public int Id, Duration = -1, Flags;
+		public ulong Replaces, BlockedBy;
+		public string Name;
+		public bool Is(int bit) => (Flags >> bit & 1) != 0;
 	}
 
 	/// <summary>FF4: who a monster's Alarm or Summon brings (battle_parameter.chain chain 24): the candidates, the effect and sound, the encounter slot.</summary>
@@ -477,6 +496,12 @@ namespace OpenFF.Data
 
 		/// <summary>FF4: an ability's name message (ability.bbd +8, in babil_ability.msd) - a spell's own id, Needles' 3134.</summary>
 		public Dictionary<int, int> AbilityNameIds = new Dictionary<int, int>();
+
+		/// <summary>FF4: the statuses each ability may be used under (ability.bbd +0x1C), for the ones that check.</summary>
+		public Dictionary<int, ulong> AbilityUsableUnder = new Dictionary<int, ulong>();
+
+		/// <summary>FF4: the battle conditions (condition_parameter.bbd), by id.</summary>
+		public Dictionary<int, ConditionParameter> Conditions = new Dictionary<int, ConditionParameter>();
 
 		/// <summary>FF4: the monsters that call others, by the caller's id.</summary>
 		public Dictionary<int, MonsterSummon> MonsterSummons = new Dictionary<int, MonsterSummon>();
