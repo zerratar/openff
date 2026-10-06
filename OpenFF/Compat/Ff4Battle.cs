@@ -1900,6 +1900,7 @@ namespace OpenFF.Client
 
 		private void Encounters()
 		{
+			if (EncounterZoom.Playing) return;
 			_sinceBattle++;
 			if (_sinceBattle < 90 || !Game.Hero.Present) return;
 			Vector3 at = Game.Hero.Position;
@@ -1920,7 +1921,24 @@ namespace OpenFF.Client
 			if (_random.Next(4096) < table.Rate * 3)
 			{
 				int party = table.Roll(_random);
-				if (party > 0 && StartParty(party, false, table.BattleMap)) _sinceBattle = 0;
+				if (party > 0 && Ff4Party.Tables?.MonsterParty(party) != null)
+				{
+					// WSEncountDirection1: the field stops and the encounter's zoom plays to white; the fight then.
+					_sinceBattle = 0;
+					Game.Hero.Freeze();
+					Game.Input.Capture = true;
+					try { Game.Hero.PlayMotion(1000, true); } catch (Exception) { }
+					int battleMap = table.BattleMap;
+					EncounterZoom.Start(() =>
+					{
+						if (StartParty(party, false, battleMap)) return;
+						// It could not start: the field again.
+						try { Game.Hero.Unfreeze(); } catch (Exception) { }
+						Game.Input.Capture = false;
+						GlobalScope.dgs.CFade.Main().fadeIn(15);
+						GlobalScope.dgs.CFade.Sub().fadeIn(15);
+					});
+				}
 			}
 		}
 
