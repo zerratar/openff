@@ -260,7 +260,7 @@ detail; `Docs/FF4-Internals.md` what has been read out of the binary.
 | Title, logos, map changes | 80% | Steam's logos and title, New Game's white fade, FF4's map fades; the opening movie, CONTINUE and Steam's load screen not yet |
 | Party data: characters, growth, magic, equipment, items | 60% | Read from the binary and the files onto the unified data layer; HP grown level by level as FF4 rolls it |
 | Encounters, shops, inns, saves | 40% | Work as calls; the presentation is not FF4's |
-| Battle | 65% | FF4's own: its stages and placings, active time and the turn queue, attacks, effects, sounds, the damage and hit formulas with elements, races and rows, numbers, deaths, the monster AI (conditions, action sets, target types, counters), the battle events (battle_ai.bbd), the win and its result pages (gil, level-ups, items); statuses and monster abilities to come |
+| Battle | 70% | FF4's own: its stages and placings, active time and the turn queue, attacks, effects, sounds, the damage and hit formulas with elements, races and rows, numbers, deaths, the monster AI (conditions, action sets, target types, counters), the battle events (battle_ai.bbd), statuses, magic and summons, the bosses, escape, the win and its result pages; every party command (Jump, Kick, Steal, Twincast, Bardsong...) checked frame by frame against the Steam game |
 | Menus | 15% | FF4's layouts over the unified data, largely made up; far from the original |
 | The Steam shell (achievements, launcher screens) | 0% | Not started |
 

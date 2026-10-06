@@ -64,7 +64,7 @@ Encounters start from the map's tables and the field's step counter; shops and i
 the scripts call them, with FF4's prices and stock. The windows they show are FF3's dressed
 with FF4's art, not FF4's own screens.
 
-## Battle - 55%
+## Battle - 70%
 
 Ff4Battle, written from FF4's own battle code (libff4's btl::) and measured against the Steam game's
 frames (Tools/ff4hook). A scene's battle comes after the encounter whirl (SPBlurRotate) on its stage as
@@ -91,7 +91,14 @@ KO motion and FF4's defeat line; then Reflect, the bosses' own actions (transfor
 Four's rematch...), Toad/Pig/Mini's models, the status tints, the game's end to the title, the boss entrances' camera
 (battle_parameter chain 4), the invoke close-ups, the camera shake, the random encounter's zoom (Encount), the
 escape (Run away held, the roll, the dropped gil) and the summons' cast scenes (CAST_SCRIPT.dat on the field's script
-engine: Rydia's prelude, the summon's stage and show). Not FF4's yet: a summon's own model-animation pack (the
+engine: Rydia's prelude, the summon's stage and show). The party's commands, each read from libff4 and then set
+frame by frame beside the Steam game (Tools/ff4hook's `exec` puts any member in the party and starts any fight): Jump,
+Darkness, Aim, Pray, Focus, Brace, Kick, Steal, Throw, Bluff, Cry, Hide and Return, Salve, Recall, Twincast, Analyze,
+Upgrade, Cover and its interception, Bardsong (the lasting songs too), Ninjutsu (Smoke's escape), Bless; Defend instant;
+the poise from a decision, the confirm windows, the command window's second line (Focus's rounds, Twincast's sync) and
+greyed commands, the target window's line (accuracy, a steal's chance), the lists as Steam's with their description
+window. Not FF4's yet: the lists' icons, the items' Re-equip row, Dualcast (no member has it), the target card's
+weaknesses, a summon's own model-animation pack (the
 Chocobo's parts), the summons whose stages animate, skipping a summon, enemy-player commands, the battle modes'
 other cases.
 
