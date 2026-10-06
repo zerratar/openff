@@ -155,8 +155,7 @@ namespace OpenFF.Data
 				{
 					int at = i + 4 + 20 * s;
 					int id = ChainPack.S16(data, at);
-					if (id < 0) continue;
-					party.Slots.Add(new MonsterPartySlot
+					MonsterPartySlot slot = new MonsterPartySlot
 					{
 						MonsterId = id,
 						Flag = ChainPack.S16(data, at + 2),
@@ -164,7 +163,9 @@ namespace OpenFF.Data
 						Y = ChainPack.S32(data, at + 8) / 4096f,
 						Z = ChainPack.S32(data, at + 12) / 4096f,
 						W = ChainPack.S32(data, at + 16) / 4096f,
-					});
+					};
+					party.Places[s] = slot;   // an empty slot keeps its place: a monster called in later stands there
+					if (id >= 0) party.Slots.Add(slot);
 				}
 				tables.MonsterParties.Add(party);
 			}
@@ -214,6 +215,19 @@ namespace OpenFF.Data
 					}
 				}
 				tables.PartyRoots.Add(root);
+			}
+			// Chain 24 (24 bytes, BattleParameter::monsterSummoningParameter): who a monster's Alarm or Summon calls - the
+			// caller at 0, up to five candidates from 2 (-1 none), the effect at 0xC, the sound's bank at 0x12 and number at
+			// 0x14, the encounter slot it comes in at at 0x16.
+			if (pack.Count > 24)
+			{
+				for (int i = 0, n = pack.Records(24, 24); i < n; i++)
+				{
+					byte[] r = pack.Record(24, 24, i);
+					MonsterSummon summon = new MonsterSummon { Caller = ChainPack.S16(r, 0), Effect = ChainPack.S16(r, 0xC), SeBank = ChainPack.S16(r, 0x12), SeNumber = ChainPack.S16(r, 0x14), Slot = r[0x16] };
+					for (int k = 0; k < 5; k++) if (ChainPack.S16(r, 2 + 2 * k) >= 0) summon.Candidates.Add(ChainPack.S16(r, 2 + 2 * k));
+					tables.MonsterSummons[summon.Caller] = summon;
+				}
 			}
 			if (pack.Count > 2)
 			{

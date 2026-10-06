@@ -374,6 +374,13 @@ namespace OpenFF.Data
 		public int Pack = -1, Param = 1, Mode, SeBank = -1, SeNumber = -1, Period, Motion = -1;
 	}
 
+	/// <summary>FF4: who a monster's Alarm or Summon brings (battle_parameter.chain chain 24): the candidates, the effect and sound, the encounter slot.</summary>
+	public sealed class MonsterSummon
+	{
+		public int Caller, Effect = -1, SeBank = -1, SeNumber = -1, Slot;
+		public List<int> Candidates = new List<int>();
+	}
+
 	public sealed class MonsterParty
 	{
 		public int Id;
@@ -383,6 +390,8 @@ namespace OpenFF.Data
 		/// <summary>FF4: the record's byte 2, the party root the members stand on (btl::BattleSystem::initialize: battle_parameter.chain's partyRoot id) - 0 the classic side view, 1 the opening's airship deck.</summary>
 		public int PartyRootId => (sbyte)(Flags & 0xFF);
 		public List<MonsterPartySlot> Slots = new List<MonsterPartySlot>();
+		/// <summary>FF4: the record's six slots as they are, the empty ones too (BattleMonsterParty::addMember stands a called monster at its slot's).</summary>
+		public MonsterPartySlot[] Places = new MonsterPartySlot[6];
 		/// <summary>FF4: its battle events (battle_ai.bbd script ids at 0x7C, 0x80, 0x84; -1 none): the normal one, run every idle frame, the one before an action and the one after.</summary>
 		public int NormalEvent = -1, BeforeEvent = -1, AfterEvent = -1;
 
@@ -468,6 +477,9 @@ namespace OpenFF.Data
 
 		/// <summary>FF4: an ability's name message (ability.bbd +8, in babil_ability.msd) - a spell's own id, Needles' 3134.</summary>
 		public Dictionary<int, int> AbilityNameIds = new Dictionary<int, int>();
+
+		/// <summary>FF4: the monsters that call others, by the caller's id.</summary>
+		public Dictionary<int, MonsterSummon> MonsterSummons = new Dictionary<int, MonsterSummon>();
 
 		/// <summary>FF4: how a spell is shown (player.chaindata chain 32, pl::PlayerParty::normalMagic) - for members and monsters alike.</summary>
 		public Dictionary<int, SpellShow> SpellShows = new Dictionary<int, SpellShow>();

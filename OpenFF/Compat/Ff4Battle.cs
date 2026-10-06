@@ -184,6 +184,32 @@ namespace OpenFF.Client
 			return started;
 		}
 
+		/// <summary>A monster stood at a spot, facing as the group has it (or the hero), its model bound to its motions, in the fight.</summary>
+		private Fighter SpawnFoe(MonsterDefinition m, Vector3 at, float? facing, Vector3 hero)
+		{
+			Monster info = Game.Monsters.Find(m.Id);
+			Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.Family.ToString("000") + "_00"), at, 0f);
+			if (npc == null) { Say("no model for " + m.Name); return null; }
+			try { npc.BindMotions(info?.MotionSet ?? ("b_m" + m.Family.ToString("000"))); npc.PlayMotion(101, true); } catch (Exception) { }
+			if (facing.HasValue && npc is LegacyNpc exactNpc) exactNpc.FaceExactly(facing.Value);
+			else if (facing.HasValue) npc.LookAt(at + Ff4BattleStage.Facing(facing.Value) * 10f);
+			else npc.LookAt(hero);
+			npc.Solid = false;
+			Fighter foe = new Fighter
+			{
+				Name = m.Name ?? ("monster " + m.Id), IsMonster = true, Monster = m, Npc = npc, Home = at,
+				Hp = Math.Max(1, m.MaxHp), MaxHp = Math.Max(1, m.MaxHp),
+				Attack = Math.Max(1, m.Attack), Defence = Math.Max(0, m.Defence), Agility = Math.Max(1, m.Stats.Agility),
+				Level = Math.Max(1, m.Level), Intellect = m.Stats.Intellect, Spirit = m.Stats.Spirit, Vitality = m.Stats.Vitality, MagicDefence = Math.Max(0, m.MagicDefence),
+				Strength = m.Stats.Strength, HitChance = m.Hit > 0 ? m.Hit : 90, Evade = Math.Max(0, m.Evade),
+				Gauge = StartGauge(),
+				AtbRate = m.AtbRateMin + (float)_random.NextDouble() * Math.Max(0f, m.AtbRateMax - m.AtbRateMin),
+			};
+			_foes.Add(foe);
+			LoadEffect(m.AttackEffect);
+			return foe;
+		}
+
 		private List<Vector3> _placements;
 		private List<float> _facings;       // the monsters' facings, degrees about y (the group's fourth word)
 		private int _rootId;                // the party root the members stand on (the group's byte 2)
@@ -308,25 +334,7 @@ namespace OpenFF.Client
 					float spread = (n - (ids.Count - 1) / 2f) * 12f;
 					at = Game.Field.OnGround(hero + forward * 26f + side * spread);
 				}
-				Monster info = Game.Monsters.Find(id);
-				Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.Family.ToString("000") + "_00"), at, 0f);
-				if (npc == null) { Say("no model for " + m.Name); continue; }
-				try { npc.BindMotions(info?.MotionSet ?? ("b_m" + m.Family.ToString("000"))); npc.PlayMotion(101, true); } catch (Exception) { }
-				if (facing.HasValue && npc is LegacyNpc exactNpc) exactNpc.FaceExactly(facing.Value);
-				else if (facing.HasValue) npc.LookAt(at + Ff4BattleStage.Facing(facing.Value) * 10f);
-				else npc.LookAt(hero);
-				npc.Solid = false;
-				_foes.Add(new Fighter
-				{
-					Name = m.Name ?? ("monster " + id), IsMonster = true, Monster = m, Npc = npc, Home = at,
-					Hp = Math.Max(1, m.MaxHp), MaxHp = Math.Max(1, m.MaxHp),
-					Attack = Math.Max(1, m.Attack), Defence = Math.Max(0, m.Defence), Agility = Math.Max(1, m.Stats.Agility),
-					Level = Math.Max(1, m.Level), Intellect = m.Stats.Intellect, Spirit = m.Stats.Spirit, Vitality = m.Stats.Vitality, MagicDefence = Math.Max(0, m.MagicDefence),
-					Strength = m.Stats.Strength, HitChance = m.Hit > 0 ? m.Hit : 90, Evade = Math.Max(0, m.Evade),
-					Gauge = StartGauge(),
-					AtbRate = m.AtbRateMin + (float)_random.NextDouble() * Math.Max(0f, m.AtbRateMax - m.AtbRateMin),
-				});
-				LoadEffect(m.AttackEffect);
+				if (SpawnFoe(m, at, facing, hero) == null) continue;
 				n++;
 			}
 			LoadEffect(MissEffect);

@@ -226,6 +226,51 @@ namespace OpenFF.Client
 			return true;
 		}
 
+		/// <summary>
+		/// Alarm (111) and Summon (120), MABEnemySummon: the name and the caller's effect and sound for 24 frames (its free
+		/// variable 0 set to 1, but for 0xB4's), then a 10-frame fade to black, one of its candidates at random comes in at the
+		/// encounter's slot (battle_parameter chain 24), and the screen comes back over 10. True when the ability was one.
+		/// </summary>
+		private bool EnemySummon(Fighter foe, int ability)
+		{
+			if (ability != 111 && ability != 120) return false;
+			GameTables tables = Ff4Party.Tables;
+			if (foe.Monster == null || !tables.MonsterSummons.TryGetValue(foe.Monster.Id, out MonsterSummon summon) || summon.Candidates.Count == 0)
+			{
+				Note(foe.Name + " has no one to call");
+				return true;
+			}
+			ShowName(tables.AbilityTitle(ability), CastLead);
+			if (foe.Monster.Id != 0xB4) foe.Free[0] = 1;
+			if (summon.SeBank >= 0 && summon.SeNumber >= 0) Game.Audio.PlaySe(summon.SeBank, summon.SeNumber);
+			LoadEffect(summon.Effect);
+			PlayEffect(summon.Effect, Where(foe));
+			const int fade = 10;
+			After(CastLead, () =>
+			{
+				GlobalScope.dgs.CFade.Main().fadeOut(fade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+				GlobalScope.dgs.CFade.Sub().fadeOut(fade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+			});
+			After(CastLead + fade, () =>
+			{
+				MonsterDefinition m = tables.Monster(summon.Candidates[_random.Next(summon.Candidates.Count)]);
+				if (m != null)
+				{
+					// The encounter's slot (BattleMonsterParty::addMember): its placement and facing, else beside the caller.
+					MonsterPartySlot slot = _eventParty != null && summon.Slot >= 0 && summon.Slot < 6 ? _eventParty.Places[summon.Slot] : null;
+					Vector3 at = Ff4BattleStage.Active ? Ff4BattleStage.MonsterSpot(slot != null ? new Vector3(slot.X, slot.Y, slot.Z) : Vector3.Zero, summon.Slot, 3) : foe.Home + new Vector3(0f, 0f, 14f);
+					// A spot already taken by a standing monster: the next free one beside it.
+					for (int k = 0; k < 6 && _foes.Exists(f => f.Alive && Vector3.Distance(f.Home, at) < 10f); k++) at += new Vector3(0f, 0f, 20f);
+					Fighter called = SpawnFoe(m, at, slot != null ? slot.W : (float?)null, Game.Hero.Position);
+					if (called != null) { called.Gauge = 0f; Note(foe.Name + " calls " + called.Name + "."); }
+				}
+				GlobalScope.dgs.CFade.Main().fadeIn(fade);
+				GlobalScope.dgs.CFade.Sub().fadeIn(fade);
+			});
+			After(CastLead + 2 * fade + 1, () => { });
+			return true;
+		}
+
 		/// <summary>A monster's blow as an ability changes it: the effect pack and sound, where and when, the motion, and a damage factor.</summary>
 		private sealed class MonsterAttackStyle
 		{

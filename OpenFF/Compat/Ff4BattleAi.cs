@@ -157,6 +157,7 @@ namespace OpenFF.Client
 		{
 			if (ability == 0) { Note(foe.Name + " does nothing."); return; }
 			if (QuietTurn(foe, ability)) return;
+			if (EnemySummon(foe, ability)) return;
 			targets ??= MonsterTargets(foe, targetType);
 			SpellDefinition spell = ability != 1 ? Ff4Party.Tables.Spell(ability) : null;
 			if (spell != null)
