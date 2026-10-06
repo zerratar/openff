@@ -95,7 +95,8 @@ namespace OpenFF.Client
 			public List<int> Commands = new List<int>();   // the member's FF4 command list (CommandList)
 			public bool Defending;                         // Defend: physical damage halved until their next turn
 			public int Poise = -1, SwingA = -1, SwingB = -1, Swings;
-			public int HitEffect = -1;                     // the weapon's hit effect (WEAPON_EFFECT), its pack e<nnn>   // the weapon's poise and two attack motions (b_poise, b_w), alternated
+			public int HitEffect = -1;                     // the weapon's hit effect (WEAPON_EFFECT), its pack e<nnn>
+			public int HitBank = -1, HitSound = -1;        // the weapon's hit sound (battle_parameter chain 5's first pair)
 			public float Facing;                           // degrees about y on the stage
 		}
 
@@ -232,7 +233,13 @@ namespace OpenFF.Client
 					{
 						WeaponMotionRecord weapon = BindBattleMotions(npc, who.Id, ally.Member, tables);
 						if (weapon != null) { ally.Poise = weapon.Poise; ally.SwingA = weapon.Raw[3]; ally.SwingB = weapon.Raw[2]; }
-						ally.HitEffect = HitEffectOf(WeaponSystem(ally.Member, tables));
+						int system = WeaponSystem(ally.Member, tables);
+						ally.HitEffect = HitEffectOf(system);
+						if (system >= 0 && system < tables.WeaponSounds.Count && tables.WeaponSounds[system][0] >= 0 && tables.WeaponSounds[system][1] >= 0)
+						{
+							ally.HitBank = tables.WeaponSounds[system][0];
+							ally.HitSound = tables.WeaponSounds[system][1];
+						}
 						LoadEffect(ally.HitEffect);
 					}
 					catch (Exception) { }
@@ -1037,7 +1044,9 @@ namespace OpenFF.Client
 					PlayEffect(member.HitEffect, foe.Npc.Position + new Vector3(0, 8f, 0));
 					damage = Damage(member, foe);
 					foe.Hp = Math.Max(0, foe.Hp - damage);
-					Game.Audio.PlaySe(0, 3);
+					// With the effect, its sound: the weapon system's own (playerWeaponSe - a sword's 106, 1).
+					if (member.HitBank >= 0) Game.Audio.PlaySe(member.HitBank, member.HitSound);
+					else Game.Audio.PlaySe(0, 3);
 				});
 				After(31, () =>
 				{

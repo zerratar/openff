@@ -222,6 +222,16 @@ namespace OpenFF.Data
 					tables.BattlePlayers.Add(new BattlePlayerMotions { Type = i / 24, PlayerSet = ChainPack.S16(data, at2 + i + 0x10), BasicSet = ChainPack.S16(data, at2 + i + 0x12) });
 				}
 			}
+			if (pack.Count > 5)
+			{
+				int at5 = pack.Offset(5);
+				for (int i = 0; i + 44 <= pack.Size(5); i += 44)
+				{
+					short[] sounds = new short[22];
+					for (int k = 0; k < 22; k++) sounds[k] = (short)ChainPack.S16(data, at5 + i + 2 * k);
+					tables.WeaponSounds.Add(sounds);
+				}
+			}
 			for (int type = 0; type < 15 && 8 + type < pack.Count; type++)
 			{
 				int at = pack.Offset(8 + type);

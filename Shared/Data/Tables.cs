@@ -426,6 +426,8 @@ namespace OpenFF.Data
 		public List<VictoryLayout> VictoryLayouts = new List<VictoryLayout>();
 		public VictoryLayout VictoryLayout(int id) => VictoryLayouts.Find(v => v.Id == id);
 		public List<WeaponMotionRecord> WeaponMotions = new List<WeaponMotionRecord>();
+		/// <summary>FF4: battle_parameter chain 5, by weapon system - eleven (bank, number) sound pairs, a plain hit's first (btl::BattleParameter::playerWeaponSe; -1 none).</summary>
+		public List<short[]> WeaponSounds = new List<short[]>();
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
 		private Dictionary<int, MonsterParty> _parties;
 
