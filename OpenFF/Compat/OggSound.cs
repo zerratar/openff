@@ -534,8 +534,12 @@ namespace OpenFF.Client
 				}
 			}
 			// FF4 keeps a track in one .akb, loop points in its header, where FF3 asked for
-			// an intro (_0) and a loop (_1): the loop half is the whole file; there is no intro.
-			if (name.EndsWith("_1", StringComparison.Ordinal))
+			// an intro (_0) and a loop (_1): a file that loops (its loop end, the header's u32 at
+			// 0x18, set - the music) is all loop half, with no intro; one that does not (an effect:
+			// a sword's ring, a spell's) is all intro, played once - as the loop half it would ring
+			// again and again.
+			bool loopHalf = name.EndsWith("_1", StringComparison.Ordinal), introHalf = name.EndsWith("_0", StringComparison.Ordinal);
+			if (loopHalf || introHalf)
 			{
 				string whole = name.Substring(0, name.Length - 2);
 				foreach (string candidate in new[]
@@ -545,13 +549,33 @@ namespace OpenFF.Client
 					"files/SOUND/VOICE/" + whole + ".akb"
 				})
 				{
-					if (GameArchive.Chain.Exists(candidate))
+					if (GameArchive.Chain.Exists(candidate) && AkbLoops(candidate) == loopHalf)
 					{
 						return candidate;
 					}
 				}
 			}
 			return null;
+		}
+
+		private static readonly Dictionary<string, bool> _akbLoops = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>Whether an AKB loops: its header's loop end (u32 at 0x18) is set - BGM01's 0x382FFA; an effect's 0.</summary>
+		private static bool AkbLoops(string path)
+		{
+			lock (_akbLoops)
+			{
+				if (_akbLoops.TryGetValue(path, out bool known)) return known;
+			}
+			bool loops = true;
+			try
+			{
+				byte[] data = GameArchive.Chain.Read(path);
+				if (data != null && data.Length >= 0x1C && data[0] == 'A' && data[1] == 'K' && data[2] == 'B') loops = BitConverter.ToUInt32(data, 0x18) > 0;
+			}
+			catch (Exception) { }
+			lock (_akbLoops) _akbLoops[path] = loops;
+			return loops;
 		}
 
 		private static bool IsWav(byte[] data)
