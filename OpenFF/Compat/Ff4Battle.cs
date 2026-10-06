@@ -108,6 +108,7 @@ namespace OpenFF.Client
 			public int Form;                // the Octomammoth's eight (null once gone)
 			public bool Airborne;             // in the air from a Jump (flag 0x15): no one's target; its gauge full, the landing
 			public Fighter JumpTarget;
+			public int JumpCounter;           // the air time (BattlePlayer +0x44), to 0x78000
 			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
 			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
@@ -766,6 +767,12 @@ namespace OpenFF.Client
 					if (f.DarkFrames > 0) f.DarkFrames = Math.Max(0, f.DarkFrames - (int)BattleSpeedRate);   // calcConditionTime
 					TickConditions(f);
 					if (!f.Alive || GaugeStands(f)) continue;
+					if (f.Airborne && !f.Queued)
+					{
+						// In the air the gauge stands (ATG state 4); the jump counter runs, and full, the landing goes to the back of the queue.
+						if (JumpCounts(f)) { Fighter jumper = f; Decide(jumper, () => JumpLand(jumper, jumper.JumpTarget), 0, CmdJump); }
+						continue;
+					}
 					if (!f.Queued) { f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f)); continue; }
 					if (f.Pending == null) continue;
 					f.AtwLeft -= (int)BattleSpeedRate;
@@ -790,12 +797,7 @@ namespace OpenFF.Client
 			{
 				foreach (Fighter f in _party)
 				{
-					if (f.Alive && !f.Queued && f.Gauge >= 1f && f.Airborne)
-					{
-						Fighter jumper = f;
-						Decide(jumper, () => JumpLand(jumper, jumper.JumpTarget ?? FirstAlive(_foes)), 0, CmdJump);
-						continue;
-					}
+					if (f.Airborne) continue;
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && ActsAlone(f)) continue;
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && AutoTakes(f)) { AutoDecide(f); continue; }
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f)) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
@@ -1229,7 +1231,9 @@ namespace OpenFF.Client
 		/// critical one time in (agility - the target's agility + 5) of 100, at most 25, for 120 % (setFlag 0xf). At
 		/// least 1. Not yet: the elements' and races' multipliers, the back rows' (backPenalty) and the low-HP double.
 		/// </summary>
-		private int Damage(Fighter attacker, Fighter target)
+		private bool _critical;   // the last blow's calcCritical (flag 0xf)
+
+		private int Damage(Fighter attacker, Fighter target, bool fromAir = false)
 		{
 			// Toad and Mini: strength, vitality, attack and defence all 1; Protect: defence x1.5.
 			bool small = Has(attacker, CToad) || Has(attacker, CMini), smallTarget = Has(target, CToad) || Has(target, CMini);
@@ -1241,12 +1245,13 @@ namespace OpenFF.Client
 			float elements = ElementFactor(attacker, target), races = RaceFactor(attacker, target);
 			bool dark = Dark(attacker) && attacker != target;
 			if (elements != 1f || races != 1f) Note(attacker.Name + " on " + target.Name + ": elements x" + elements + ", races x" + races);
-			value = (long)(value * BackRowFactor(attacker, target) * elements * races);
+			value = (long)(value * (fromAir ? 1f : BackRowFactor(attacker, target)) * elements * races);   // backPenalty: none from the air
 			value = value * (target.IsMonster ? 12 : 7) / 10;
 			int chance = Math.Clamp(attacker.Agility - target.Agility + 5, 0, 25);
 			if (_random.Next(100) < chance)
 			{
 				value = value * 120 / 100;
+				_critical = true;
 				Note(attacker.Name + "'s blow is critical.");
 			}
 			if (Has(attacker, CBerserk)) value = value * 3 / 2;   // reviseBerserk: x1.5

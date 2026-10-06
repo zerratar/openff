@@ -561,6 +561,17 @@ namespace OpenFF.Client
 			return bound;
 		}
 
+		/// <summary>What <paramref name="host"/> holds (its own binds) shown or hidden - a jumper's weapon and shield in the air.</summary>
+		public static void ShowBound(int host, bool shown)
+		{
+			foreach (Bind bind in _binds)
+			{
+				if (bind.Host != host || !bind.Own) continue;
+				bind.Shown = shown;
+				if (!shown) Guard("bind hide", () => Characters.setHidden(bind.Bound, true));
+			}
+		}
+
 		/// <summary>What <paramref name="host"/> holds is let go and deleted.</summary>
 		public static void UnbindAll(int host) => ReleaseBinds(host);
 

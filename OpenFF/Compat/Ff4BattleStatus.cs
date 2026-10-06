@@ -270,7 +270,7 @@ namespace OpenFF.Client
 				f.ConditionTimer[id] = Math.Max(0, f.ConditionTimer[id] - rate);
 				if (f.ConditionTimer[id] == 0) ConditionOff(f, id);
 			}
-			if (Has(f, CPoison) && ++f.PoisonCount >= 60)
+			if (Has(f, CPoison) && !f.Airborne && ++f.PoisonCount >= 60)   // calcPoison skips the one in the air
 			{
 				f.PoisonCount = 0;
 				if (!_queue.Exists(e => e.Actor == f && _poisonTicks.Contains(e.Act))) { Fighter who = f; Action tick = null; tick = () => { _poisonTicks.Remove(tick); PoisonTick(who); }; _poisonTicks.Add(tick); _queue.Add((f, tick)); }

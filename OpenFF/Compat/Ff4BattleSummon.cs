@@ -142,7 +142,7 @@ namespace OpenFF.Client
 			_summonHidden.Clear();
 			foreach (Fighter f in _party)
 			{
-				if (f.Npc == null || !f.Alive) continue;
+				if (f.Npc == null || !f.Alive || f.Airborne) continue;   // the one in the air stays where it is
 				f.Npc.Teleport(f.Home);
 				Face(f, f.Facing);
 				Play(f, f.IdleMotion, true, 0);
