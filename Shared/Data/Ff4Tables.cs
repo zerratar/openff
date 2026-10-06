@@ -56,6 +56,7 @@ namespace OpenFF.Data
 			ReadMagic(chain, tables);
 			ReadEfficacies(chain, tables);
 			ReadItems(chain, tables);
+			ReadAbilityWaits(chain, tables);
 			ReadMonsters(chain, tables);
 			ReadMonsterParties(chain, tables);
 			ReadBattleParameter(chain, tables);
@@ -442,6 +443,17 @@ namespace OpenFF.Data
 					int id = ChainPack.S16(r, 0);
 					tables.Spells.Add(new SpellDefinition { Id = id, Name = tables.AbilityName(id), Raw = r });
 				}
+			}
+		}
+
+		/// <summary>ability.bbd (common::AbilityManager::load): 44-byte records, the id s32 at 0, the wait before the action s32 at 0x18 - Attack's 0, Fire's (4501) 15, Firaga's (4503) 90.</summary>
+		private static void ReadAbilityWaits(ContentChain chain, GameTables tables)
+		{
+			if (!TableFiles.ReadAny(chain, "ability.bbd", out byte[] data)) { tables.Notes.Add("ability.bbd not found"); return; }
+			for (int at = 0; at + 44 <= data.Length; at += 44)
+			{
+				int wait = ChainPack.S32(data, at + 0x18);
+				if (wait > 0) tables.AbilityWaits[ChainPack.S32(data, at)] = wait;
 			}
 		}
 

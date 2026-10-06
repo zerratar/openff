@@ -432,6 +432,9 @@ namespace OpenFF.Data
 		public List<WeaponMotionRecord> WeaponMotions = new List<WeaponMotionRecord>();
 		/// <summary>FF4: battle_parameter chain 5, by weapon system - eleven (bank, number) sound pairs, a plain hit's first (btl::BattleParameter::playerWeaponSe; -1 none).</summary>
 		public List<short[]> WeaponSounds = new List<short[]>();
+		/// <summary>FF4: ability.bbd's wait (s32 at 0x18 of its 44-byte records) by ability id - the frames a decided action waits before its turn (BaseBattleCharacter::atwMax): a spell by its id, an item by the ability it invokes.</summary>
+		public Dictionary<int, int> AbilityWaits = new Dictionary<int, int>();
+		public int AbilityWait(int id) => AbilityWaits.TryGetValue(id, out int wait) ? wait : 0;
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
 		private Dictionary<int, MonsterParty> _parties;
 

@@ -89,7 +89,9 @@ namespace OpenFF.Client
 			public int Mp => Member?.Mp ?? 0;
 			public float Gauge;               // 0..1 (FF4's ATP over its 100)
 			public float AtbRate = 1f;        // a monster's, rolled at the start (BattleMonster::atbRate); 1 for the party
-			public bool Queued;               // its action is decided and waits its turn (ATG state 3, the gauge held full)
+			public bool Queued;               // its action is decided and waits its turn (ATG state 2 or 3, the gauge held full)
+			public int AtwLeft, AtwMax;       // a decided action's wait before it joins the turns (ATG state 2), frames
+			public Action Pending;            // the action waiting it out
 			public bool Alive => Hp > 0;
 			public Vector3 Home;
 			public bool Acted;   // a one-shot motion is playing; Idle() restarts the loop when it ends
@@ -623,7 +625,14 @@ namespace OpenFF.Client
 			bool advance = (!busy || (_executing != null && _executing.IsMonster)) && !(WaitMode && listOpen);
 			if (advance)
 			{
-				foreach (Fighter f in _party) if (f.Alive && !f.Queued) f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
+				foreach (Fighter f in _party)
+				{
+					if (!f.Alive) continue;
+					if (!f.Queued) { f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f)); continue; }
+					if (f.Pending == null) continue;
+					f.AtwLeft -= (int)BattleSpeedRate;
+					if (f.AtwLeft <= 0) { _queue.Add((f, f.Pending)); f.Pending = null; }
+				}
 				foreach (Fighter f in _foes)
 				{
 					if (!f.Alive || f.Queued) continue;
@@ -705,7 +714,7 @@ namespace OpenFF.Client
 				{
 					Fighter who = _acting, foe = _foes[_cursor];
 					SpellDefinition spell = _casting;
-					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }));
+					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }), SpellWait(spell));
 					else Decide(who, () => MemberAttacks(who, foe));
 				}
 				return;
@@ -735,8 +744,8 @@ namespace OpenFF.Client
 					Fighter who = _acting, ally = _party[_cursor];
 					SpellDefinition spell = _casting;
 					int item = _usingItem;
-					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { ally }));
-					else Decide(who, () => UseItem(who, item, ally));
+					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { ally }), SpellWait(spell));
+					else Decide(who, () => UseItem(who, item, ally), ItemWait(item));
 				}
 				return;
 			}
@@ -1309,14 +1318,39 @@ namespace OpenFF.Client
 		/// <summary>The wait mode (the config's battle mode, gpInstance 0x94 bit 0): the gauges stand while a member has a list open. Off, the active mode, unless --ff4-battle-wait.</summary>
 		private static bool WaitMode => Options.Get("ff4-battle-wait") != null;
 
-		/// <summary>A member's command is decided (commandSelected): the menu closes and the action waits its turn, the gauge held full.</summary>
-		private void Decide(Fighter member, Action act)
+		/// <summary>
+		/// A member's command is decided (commandSelected): the menu closes and the action waits its turn, the gauge held
+		/// full. An action with a wait (atwMax: ability.bbd's, a spell's own, an item's ability's) first waits it out - the
+		/// ATW filling a frame at a time while the gauges run (addActiveTimeGage, ATG state 2) - and only then joins the
+		/// turns (state 3).
+		/// </summary>
+		private void Decide(Fighter member, Action act, int wait = 0)
 		{
 			member.Queued = true;
-			_queue.Add((member, act));
+			if (wait > 0)
+			{
+				member.AtwLeft = member.AtwMax = wait;
+				member.Pending = act;
+			}
+			else
+			{
+				member.AtwMax = 0;
+				_queue.Add((member, act));
+			}
 			_acting = null;
 			_pick = Pick.None;
 			_casting = null;
+		}
+
+		/// <summary>The wait a spell has before it is cast (ability.bbd by its id).</summary>
+		private static int SpellWait(SpellDefinition spell) => spell != null ? Ff4Party.Tables.AbilityWait(spell.Id) : 0;
+
+		/// <summary>The wait an item has before it is used: the ability it invokes (its record's s16 at 0x14), else its own id, in ability.bbd.</summary>
+		private static int ItemWait(int itemId)
+		{
+			ItemDefinition item = Ff4Party.Tables.Item(itemId);
+			int ability = item?.Raw != null && item.Raw.Length >= 0x16 ? BitConverter.ToInt16(item.Raw, 0x14) : 0;
+			return Ff4Party.Tables.AbilityWait(ability > 0 ? ability : itemId);
 		}
 
 		/// <summary>The next decided action starts (startBehavior), its actor's gauge emptied by it.</summary>
@@ -1745,8 +1779,11 @@ namespace OpenFF.Client
 				m.Low = f.Alive && f.Hp * 4 <= f.MaxHp;
 				m.Acting = f == _acting && choosing;
 				m.Picked = _pick == Pick.Ally && i == _cursor;
-				m.Gauge = f.Alive ? (int)Math.Round(Math.Clamp(f.Gauge, 0f, 1f) * 100) : 0;
-				m.Fill = f.Gauge >= 1f ? 2 : 1;
+				// Steam's gauge: grey while it fills, yellow while the member chooses, red once the command is decided -
+				// filling again over the wait when it has one (drawATW's bar) - and empty after the action.
+				float shown = f.Queued ? (f.Pending != null && f.AtwMax > 0 ? 1f - f.AtwLeft / (float)f.AtwMax : 1f) : f.Gauge;
+				m.Gauge = f.Alive ? (int)Math.Round(Math.Clamp(shown, 0f, 1f) * 100) : 0;
+				m.Fill = f.Queued ? 3 : f.Gauge >= 1f ? 2 : 1;
 			}
 			ResultData r = h.Result;
 			r.Shown = _phase == Phase.Victory && _closing;
