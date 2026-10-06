@@ -247,9 +247,8 @@ namespace OpenFF.Data
 		/// <summary>
 		/// monster.chaindata chain 0: 252 records of 152 bytes. The head is FF3's (nameId, textId,
 		/// familyId, modelId, monsterId at 8, level, size, maxHp s32 at 0xC); five attribute bytes
-		/// at 0x12; four (item, chance of 4096) drop pairs from 0x6C; experience s32 at 0x88 and
-		/// gil at 0x8C, read off the records (they climb with the level; the last boss gives 12000
-		/// and 100000). babil_battle.msd names them by name id.
+		/// at 0x12; four (item, chance of 4096) drop pairs from 0x6C; gil s32 at 0x88 and
+		/// experience at 0x8C (Steam's result window: two Floating Eyes give 14 gil and 300 EXP). babil_battle.msd names them by name id.
 		/// </summary>
 		private static void ReadMonsters(ContentChain chain, GameTables tables)
 		{
@@ -284,8 +283,8 @@ namespace OpenFF.Data
 					Defence = ChainPack.S16(r, 0x4C),
 					Evade = ChainPack.S16(r, 0x50),
 					MagicDefence = ChainPack.S16(r, 0x68),
-					Experience = ChainPack.S32(r, 0x88),
-					Gil = ChainPack.S32(r, 0x8C),
+					Gil = ChainPack.S32(r, 0x88),
+					Experience = ChainPack.S32(r, 0x8C),
 					Raw = r,
 				};
 				for (int d = 0; d < 4; d++)

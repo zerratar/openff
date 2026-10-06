@@ -195,7 +195,7 @@ namespace OpenFF.Client
 			Party party = Ff4Party.Party;
 			if (tables == null || party.Members.Count == 0 || !Game.Hero.Present) return false;
 
-			_party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
+			_closing = false; _party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
 			_expWon = _gilWon = 0;
 			foreach (Character c in party.Members)
 			{
@@ -555,7 +555,18 @@ namespace OpenFF.Client
 					break;
 				case Phase.Victory:
 					// The result window (DrawResult) stands until A, B or a tap.
-					if (_timer > 20 && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased)) { _phase = Phase.Outro; _timer = 0; }
+					if (_timer > (_closing ? WinFade + WinHold + WinArrowAfter : 20) && (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased))
+					{
+						_phase = Phase.Outro;
+						_timer = 0;
+						if (_closing)
+						{
+							// The key closes the window and the battle fades to black over 16 frames (Steam's frames: the
+							// window gone at once, black 16 frames on), the battle's music stopping over 15 (getPhaseEnd).
+							GlobalScope.dgs.CFade.Main().fadeOut(WinEndFade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+							GlobalScope.dgs.CFade.Sub().fadeOut(WinEndFade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+						}
+					}
 					break;
 				case Phase.Defeat:
 					// The message window holds the word; the legacy window's own A press is gated
@@ -564,6 +575,7 @@ namespace OpenFF.Client
 					if (!Game.Dialogue.IsOpen && _timer > 20) { _phase = Phase.Outro; _timer = 0; }
 					break;
 				case Phase.Outro:
+					if (_closing && _timer <= WinEndFade) break;
 					End();
 					return;
 			}
@@ -984,9 +996,34 @@ namespace OpenFF.Client
 			else if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
 			_expWon += foe.Monster.Experience;
 			_gilWon += foe.Monster.Gil;
-			foreach (DropChance drop in foe.Monster.Drops)
+		}
+
+		/// <summary>
+		/// The fight's one item, as btl::BattleMonsterParty::prepareGift picks it: a kind of monster drawn by how many
+		/// of it there were, one roll of 4096, its drop slots taken from the last (the rarest) to the first, each as
+		/// wide as its chance - past them all, nothing. (A rare-item accessory doubles the chances; none is worn yet.)
+		/// </summary>
+		private void RollGift()
+		{
+			List<MonsterDefinition> kinds = new List<MonsterDefinition>();
+			List<int> counts = new List<int>();
+			foreach (Fighter f in _foes)
 			{
-				if (_random.Next(4096) < drop.Chance) { _dropsWon.Add(drop.ItemId); break; }
+				if (!f.IsMonster || f.Monster == null) continue;
+				int at = kinds.IndexOf(f.Monster);
+				if (at < 0) { kinds.Add(f.Monster); counts.Add(1); } else counts[at]++;
+			}
+			int total = 0;
+			foreach (int c in counts) total += c;
+			if (total == 0) return;
+			int pick = _random.Next(total), k = 0;
+			while (pick >= counts[k]) pick -= counts[k++];
+			List<DropChance> drops = kinds[k].Drops;
+			int roll = _random.Next(4096);
+			for (int i = drops.Count - 1; i >= 0; i--)
+			{
+				if (roll < drops[i].Chance) { _dropsWon.Add(drops[i].ItemId); return; }
+				roll -= drops[i].Chance;
 			}
 		}
 
@@ -1061,7 +1098,7 @@ namespace OpenFF.Client
 					Pop(DamageSpot(foe), damage);
 					Note(member.Name + " hits " + foe.Name + " for " + damage + ".");
 					if (!foe.Alive) Fell(foe, damage);
-					if (_foes.FindAll(f => f.Alive).Count == 0) After(30, VictoryPose);
+					if (_foes.FindAll(f => f.Alive).Count == 0) After(WinAfterNumber, BeginWin);
 				});
 				return;
 			}
@@ -1230,6 +1267,29 @@ namespace OpenFF.Client
 		private int _victoryCameraFrame = -1;
 		private float[] _victoryFrom, _victoryFromTarget, _victoryTo, _victoryToTarget;
 
+		// btl::BattleWin: initialize fades both screens out to black in 6 frames (the panel gone with it); at black
+		// waitFadePhase sets the result window up and changeBGMPhase poses the winners and readies the ending camera;
+		// startFadeInPhase fades in over 6; enjoyPhase holds 30 frames once in; then the gil (windowOpenPhase), the
+		// experience, and the page arrow waiting on a key. Steam's frames (two fights): the fade under way 24 frames
+		// after the last number's first digit, black at +31, the gil at +67, the experience at +76, the arrow at +79.
+		private const int WinAfterNumber = 24, WinFade = 6, WinHold = 30, WinExpAfter = 9, WinArrowAfter = 12, WinEndFade = 16;
+		private bool _closing;
+
+		/// <summary>The last foe is down: the panel goes and the screens fade to black, the result coming in as they return.</summary>
+		private void BeginWin()
+		{
+			_closing = true;
+			Note("the last foe is down - closing (step " + LegacyStep.Count + ")");
+			GlobalScope.dgs.CFade.Main().fadeOut(WinFade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+			GlobalScope.dgs.CFade.Sub().fadeOut(WinFade, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+			After(WinFade, () =>
+			{
+				VictoryPose();
+				GlobalScope.dgs.CFade.Main().fadeIn(WinFade);
+				GlobalScope.dgs.CFade.Sub().fadeIn(WinFade);
+			});
+		}
+
 		private void VictoryPose()
 		{
 			VictoryLayout layout = Ff4BattleStage.Active ? Ff4Party.Tables?.VictoryLayout(_party.FindAll(f => f.Alive).Count - 1) : null;
@@ -1279,6 +1339,8 @@ namespace OpenFF.Client
 			Party party = Ff4Party.Party;
 			List<Fighter> alive = _party.FindAll(f => f.Alive);
 			_resultLines.Clear();
+			_dropsWon.Clear();
+			RollGift();
 			List<string> lines = _resultLines;
 			party.Gil += _gilWon;
 			foreach (Fighter f in alive)
@@ -1476,6 +1538,7 @@ namespace OpenFF.Client
 			DrawPops(d);
 			if (_phase == Phase.Defeat) return;
 			if (_phase == Phase.Victory) { DrawResult(d); return; }
+			if (_closing) return;   // the fade before the result, and the one after it
 			bool choosing = _acting != null && _pick != Pick.None;
 
 			// Bottom left: the commands while a member chooses (Steam opens them with the turn), the foes when a target is
@@ -1603,8 +1666,57 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>FF4's result window: gil found and the new total on the left, the experience on the right; level-ups and drops below.</summary>
+		// Steam's result window (1080p, its frames): one panel across the top from 150 to 1770 and 3 to 160, "Gil Found"
+		// and "New Total" at 342 on lines whose letters top at 41 and 95, their sums at 619, "EXP" at 988 and its sum at
+		// 1150; the page arrow (HelpWindow::setResultPageIcon) at 1650..1755, 115..150. The panel comes in with the
+		// screens over about 18 frames.
+		private const float ResultX = 62.5f, ResultY = 1.3f, ResultW = 675f, ResultH = 69.8f;
+
+		private void DrawResultStage(DrawList d)
+		{
+			float a = Math.Clamp(_timer / 18f, 0f, 1f);
+			Color Fade(Color c) => new Color(c.R, c.G, c.B, (byte)(c.A * a));
+			// The panel's frame: a near-white line 3 pixels thick (240, 246, 248), a soft shadow 3 more outside it.
+			const float t = 1.3f;
+			Color edge = Fade(new Color(238, 244, 247, 255)), shade = Fade(new Color(20, 24, 30, 70));
+			d.Rect(ResultX, ResultY, ResultW, ResultH, Fade(RowFill));
+			d.Rect(ResultX - 2 * t, ResultY, t, ResultH + 2 * t, shade);
+			d.Rect(ResultX + ResultW + t, ResultY, t, ResultH + 2 * t, shade);
+			d.Rect(ResultX - t, ResultY + ResultH + t, ResultW + 2 * t, t, shade);
+			d.Rect(ResultX - t, ResultY - t, ResultW + 2 * t, t, edge);
+			d.Rect(ResultX - t, ResultY + ResultH, ResultW + 2 * t, t, edge);
+			d.Rect(ResultX - t, ResultY, t, ResultH, edge);
+			d.Rect(ResultX + ResultW, ResultY, t, ResultH, edge);
+			Color text = Fade(Color.White);
+			Shadowed(d, "Gil Found", 142.5f, 16.2f, text, TextSize);
+			Shadowed(d, "New Total", 142.5f, 40.2f, text, TextSize);
+			Shadowed(d, "EXP", 411.7f, 16.2f, text, TextSize);
+			if (_timer >= WinFade + WinHold)
+			{
+				Shadowed(d, _gilWon.ToString(), 258f, 16.2f, Color.White, TextSize);
+				Shadowed(d, Ff4Party.Party.Gil.ToString(), 258f, 40.2f, Color.White, TextSize);
+			}
+			if (_timer >= WinFade + WinHold + WinExpAfter) Shadowed(d, _expWon.ToString(), 479f, 16.2f, Color.White, TextSize);
+			if (_timer >= WinFade + WinHold + WinArrowAfter)
+			{
+				// The arrow: a white triangle pointing down, 44 wide and 16 high.
+				for (int r = 0; r < 16; r++)
+				{
+					float half = 22f * (1f - r / 16f);
+					d.Line(709.3f - half, 51f + r, 709.3f + half, 51f + r, r < 2 ? new Color(150, 150, 160) : new Color(235, 235, 240));
+				}
+			}
+			if (_resultLines.Count > 0 && _timer >= WinFade + WinHold + WinArrowAfter)
+			{
+				float ly = ResultY + ResultH + 12, lh = 14 + 24 * Math.Min(_resultLines.Count, 5);
+				RowPanel(d, ResultX, ly, ResultW, lh, false);
+				for (int i = 0; i < _resultLines.Count && i < 5; i++) Shadowed(d, _resultLines[i], 142.5f, ly + 8 + 24 * i, _resultLines[i].EndsWith("!") ? Gold : Color.White, TextSize);
+			}
+		}
+
 		private void DrawResult(DrawList d)
 		{
+			if (_closing) { DrawResultStage(d); return; }
 			float x = 100, y = 24, w = 600, h = 92;
 			Window(d, x, y, w, h);
 			d.Line(x + w / 2, y + 8, x + w / 2, y + h - 8, RowLine);

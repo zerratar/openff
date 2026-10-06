@@ -323,7 +323,7 @@ group @10, rank @12, element @22, inflicts @24, grants @26/@28, u8 target @32` (
 Chain 0: 252 records of 152 bytes - FF3's head (nameId, textId, familyId, modelId, monsterId
 @8, level, size, maxHp s32 @0xC), five attribute bytes @0x12, attack @0x20, hit @0x22,
 defence @0x4C, evade @0x50, magic defence @0x68 (tentative), four drop pairs (item, chance
-of 4096) from 0x6C, experience s32 @0x88, gil @0x8C. Names only in `babil_battle.msd`.
+of 4096) from 0x6C, gil s32 @0x88, experience @0x8C (Steam's result window: two Floating Eyes, 14 gil and 300 EXP). Names only in `babil_battle.msd`.
 Client: `Ff4Tables.ReadMonsters`.
 
 ### Shops (`babil_shop.bbd`)
