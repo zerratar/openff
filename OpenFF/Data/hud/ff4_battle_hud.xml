@@ -367,10 +367,12 @@
       </frame>
     </frame>
 
-    <!-- The keys, over the party's rows: "C Auto battle  M Run away". -->
+    <!-- The keys, over the party's rows: "Tab Skip" (another member ready), "C Auto battle  M Run away". -->
     <frame bind-display="battle.keys">
       <id>keys</id>
       <x>1210</x><y>695</y><width>600</width><height>52</height>
+      <frame class="key-cap" bind-display="battle.skip"><id>skip_key</id><x>-190</x><y>0</y><width>70</width><height>52</height><data>Tab</data></frame>
+      <frame class="key-label" bind-display="battle.skip"><id>skip</id><x>-105</x><y>0</y><width>100</width><height>52</height><data>Skip</data></frame>
       <frame class="key-cap"><id>auto_key</id><x>0</x><y>0</y><width>55</width><height>52</height><data>C</data></frame>
       <frame class="key-label" bind-class="on: battle.auto"><id>auto</id><x>70</x><y>0</y><width>220</width><height>52</height><data>Auto battle</data></frame>
       <frame class="key-cap"><id>run_key</id><x>273</x><y>0</y><width>55</width><height>52</height><data>M</data></frame>

@@ -811,9 +811,21 @@ namespace OpenFF.Client
 				}
 			}
 			if (_acting != null && (!_acting.Alive || _acting.Queued || !CanAct(_acting))) { _acting = null; _pick = Pick.None; }
+			UpdateReady();
+			if (_acting != null && _ready.Count > 1 && Game.Input.KeyPressed("Tab"))
+			{
+				// BattleCommandSelectorManager::skip: the window to the next member ready, this one to the back of the line.
+				_ready.Remove(_acting);
+				_ready.Add(_acting);
+				_acting = null;
+				_pick = Pick.None;
+				_abilityCmd = 0;
+				_casting = null;
+				_castItem = 0;
+			}
 			if (_acting == null)
 			{
-				foreach (Fighter f in _party)
+				foreach (Fighter f in new List<Fighter>(_ready))
 				{
 					if (f.Airborne || f == _executing) continue;   // its own action under way (the invoke stage before its gauge empties): no window
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && ActsAlone(f)) continue;
@@ -2232,7 +2244,7 @@ namespace OpenFF.Client
 		/// <summary>What the battle HUD's layout binds to, as the root "battle" (ff4_battle_hud.xml lists the paths).</summary>
 		public sealed class HudData
 		{
-			public bool Panel, Commands, Party, Keys, Targets, Auto, Running;
+			public bool Panel, Commands, Party, Keys, Targets, Auto, Running, Skip;
 			public List<TargetRow> Target = new List<TargetRow> { new TargetRow(), new TargetRow(), new TargetRow(), new TargetRow() };
 			public CardData Card = new CardData();
 			public GridData Grid = new GridData();
@@ -2338,6 +2350,7 @@ namespace OpenFF.Client
 			h.Keys = _pick != Pick.Spell && _pick != Pick.Item && _pick != Pick.Hand && _pick != Pick.EquipItem;
 			h.Auto = AutoBattle.On;
 			h.Running = _runOn;
+			h.Skip = _acting != null && _ready.Count > 1;
 			h.Targets = choosing && _pick == Pick.Target;
 			int shownFoe = 0;
 			foreach (TargetRow t in h.Target) t.Present = false;

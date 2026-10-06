@@ -12,7 +12,18 @@ namespace OpenFF.Client
 	internal sealed partial class Ff4Battle
 	{
 		private const int ReequipEntry = -2;
-		private int _castItem;                            // an item that casts an ability (efficacy's CastsAbility), being aimed              // the Items list's head row (two cells of the two-column grid)
+		private int _castItem;                            // an item that casts an ability (efficacy's CastsAbility), being aimed
+
+		// The members whose gauges are full, in the order they filled (BattleCommandSelectorManager's line): the first has
+		// the command window; Skip (Tab) sends it to the back.
+		private readonly List<Fighter> _ready = new List<Fighter>();
+
+		private void UpdateReady()
+		{
+			bool Ready(Fighter f) => f.Alive && !f.Queued && f != _executing && f.Gauge >= 1f && CanAct(f) && !f.Airborne;
+			_ready.RemoveAll(f => !Ready(f) || !_party.Contains(f));
+			foreach (Fighter f in _party) if (Ready(f) && !_ready.Contains(f)) _ready.Add(f);
+		}              // the Items list's head row (two cells of the two-column grid)
 		private readonly List<int> _equipChoices = new List<int>();
 		private int _hand;                                // 0 the right arm, 1 the left
 
