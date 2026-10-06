@@ -38,6 +38,7 @@ namespace OpenFF.Client
 			("dump-fonts", "FF3_DUMP_FONTS", "<dir>", "Dump SpriteFont atlases as they are loaded"),
 			("debug", "FF3_DEBUG", "all|<layers>", "Start with the debug overlay on (F1 toggles it): all, or boxes,labels,sprites,world,stats"),
 			("nomods", "FF3_NOMODS", "", "Load no mod code or definitions (file overrides from the mods folder still apply)"),
+			("ff4-battle-wait", null, "", "FF4's battles in the wait mode: the gauges stand while a member has a list open (the active mode otherwise)"),
 			("screenshot-dir", "FF3_SCREENSHOT_DIR", "<dir>", "Where F12 screenshots are written"),
 			("screenshot-every", "FF3_SCREENSHOT_EVERY", "<seconds>", "Capture a screenshot automatically every N seconds"),
 			("screenshot-steps", "FF3_SCREENSHOT_STEPS", "<n>[,<from>,<to>]", "Capture a screenshot at every n-th game step (named stepNNNNNN.png)"),

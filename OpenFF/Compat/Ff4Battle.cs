@@ -89,6 +89,7 @@ namespace OpenFF.Client
 			public int Mp => Member?.Mp ?? 0;
 			public float Gauge;               // 0..1 (FF4's ATP over its 100)
 			public float AtbRate = 1f;        // a monster's, rolled at the start (BattleMonster::atbRate); 1 for the party
+			public bool Queued;               // its action is decided and waits its turn (ATG state 3, the gauge held full)
 			public bool Alive => Hp > 0;
 			public Vector3 Home;
 			public bool Acted;   // a one-shot motion is playing; Idle() restarts the loop when it ends
@@ -195,7 +196,7 @@ namespace OpenFF.Client
 			Party party = Ff4Party.Party;
 			if (tables == null || party.Members.Count == 0 || !Game.Hero.Present) return false;
 
-			_closing = false; _party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
+			_closing = false; _queue.Clear(); _dying.Clear(); _turnEffects.Clear(); _executing = null; _party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
 			_expWon = _gilWon = 0;
 			foreach (Character c in party.Members)
 			{
@@ -397,7 +398,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A battle effect at a spot (btl::BattleEffect::create: the effect manager's, box culling off).</summary>
-		private static void PlayEffect(int id, Vector3 at)
+		private void PlayEffect(int id, Vector3 at)
 		{
 			if (id < 0) return;
 			try
@@ -407,6 +408,7 @@ namespace OpenFF.Client
 				if (made < 0) { Log.First(LogChannel.File, "battle-effect-" + id, 2, () => "battle: effect " + id + " could not be made"); return; }
 				effects.enableBoxCulling(made, false);
 				effects.setPosition(made, new GlobalScope.VecFx32((int)Math.Round(at.X * 4096), (int)Math.Round(at.Y * 4096), (int)Math.Round(at.Z * 4096)));
+				_turnEffects.Add(made);
 			}
 			catch (Exception ex) { Log.Write(LogChannel.General, "battle: effect " + id + ": " + ex.Message); }
 		}
@@ -601,21 +603,43 @@ namespace OpenFF.Client
 		private void Fight()
 		{
 			Idle();
-			if (_cues.Count > 0) return;   // an action is playing out
+			if (_closing) return;
 			if (Ff4BattleStage.Active) Log.Sample(LogChannel.File, "battle-camera", 120, () => "battle: camera at " + Game.Camera.Position + " hero at " + Game.Hero.Position);
-			// FF4's active battle, as Steam plays it: the gauges go on filling while a member chooses, and a monster whose
-			// gauge fills acts then and there.
-			foreach (Fighter f in _party) if (f.Alive) f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
-			foreach (Fighter f in _foes) if (f.Alive) f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
-			foreach (Fighter f in _foes)
+			// btl::BattleActiveTimeMain::execute, a frame of it. The behaviour manager first: a turn is over once its steps
+			// are done and no effect it set off still plays (turnExecute: BattleBehavior's end and !BattleEffect::isPlay),
+			// and the dead go then (dieState); with nothing under way the next decided action starts (idleState,
+			// startBehavior). Then the gauges - only while nothing is under way or a monster's action is
+			// (isValidAdvanceATB: a member's own action stops the clock, a monster's does not), and in the wait mode not
+			// while a member has a list open. A monster whose gauge fills decides there and then (requestBehavior); a
+			// member whose gauge fills gets the commands, which stay open whatever is happening, so a member who takes
+			// their time is hit meanwhile.
+			if (_executing != null && _cues.Count == 0 && !TurnEffectsPlaying()) TurnEnd();
+			if (_closing) return;
+			bool busy = _executing != null || _cues.Count > 0;
+			if (!busy && _queue.Count > 0) { StartNextAction(); busy = true; }
+			bool listOpen = _acting != null && _pick != Pick.Command && _pick != Pick.None;
+			bool advance = (!busy || (_executing != null && _executing.IsMonster)) && !(WaitMode && listOpen);
+			if (advance)
 			{
-				if (f.Alive && f.Gauge >= 1f) { MonsterActs(f); return; }
+				foreach (Fighter f in _party) if (f.Alive && !f.Queued) f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
+				foreach (Fighter f in _foes)
+				{
+					if (!f.Alive || f.Queued) continue;
+					f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
+					if (f.Gauge >= 1f)
+					{
+						Fighter monster = f;
+						monster.Queued = true;
+						_queue.Add((monster, () => MonsterActs(monster)));
+					}
+				}
 			}
+			if (_acting != null && (!_acting.Alive || _acting.Queued)) { _acting = null; _pick = Pick.None; }
 			if (_acting == null)
 			{
 				foreach (Fighter f in _party)
 				{
-					if (f.Alive && f.Gauge >= 1f) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
+					if (f.Alive && !f.Queued && f.Gauge >= 1f) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
 				}
 				return;
 			}
@@ -632,9 +656,10 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.A) || runNow)
 				{
 					_command = runNow ? Command.Run : CommandOf(commands[_cursor]);
-					if (_command == Command.Defend) { Defend(_acting); return; }
-					if (_command == Command.SwapRows) { SwapRows(_acting); return; }
-					if (_command == Command.Darkness) { Darkness(_acting); return; }
+					Fighter who = _acting;
+					if (_command == Command.Defend) { Decide(who, () => Defend(who)); return; }
+					if (_command == Command.SwapRows) { Decide(who, () => SwapRows(who)); return; }
+					if (_command == Command.Darkness) { Decide(who, () => Darkness(who)); return; }
 					if (_command == Command.Other) { Say(CommandName(commands[_cursor]) + " is not in yet."); return; }
 					if (_command == Command.Fight) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
 					else if (_command == Command.Magic)
@@ -665,7 +690,7 @@ namespace OpenFF.Client
 						if (_itemChoices.Count == 0) { Say("Nothing to use."); return; }
 						_pick = Pick.Item; _cursor = 0; _listScroll = 0;
 					}
-					else Run();
+					else Decide(who, () => Run(who));
 				}
 				return;
 			}
@@ -676,8 +701,10 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : Pick.Command; _cursor = 0; _casting = null; return; }
 				if (input.Pressed(Pad.A) && _cursor >= 0)
 				{
-					if (_casting != null) Cast(_acting, _casting, _casting.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { _foes[_cursor] });
-					else MemberAttacks(_acting, _foes[_cursor]);
+					Fighter who = _acting, foe = _foes[_cursor];
+					SpellDefinition spell = _casting;
+					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }));
+					else Decide(who, () => MemberAttacks(who, foe));
 				}
 				return;
 			}
@@ -703,8 +730,11 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : Pick.Item; _casting = null; _cursor = 0; return; }
 				if (input.Pressed(Pad.A))
 				{
-					if (_casting != null) Cast(_acting, _casting, _casting.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { _party[_cursor] });
-					else UseItem(_acting, _usingItem, _party[_cursor]);
+					Fighter who = _acting, ally = _party[_cursor];
+					SpellDefinition spell = _casting;
+					int item = _usingItem;
+					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { ally }));
+					else Decide(who, () => UseItem(who, item, ally));
 				}
 				return;
 			}
@@ -797,10 +827,6 @@ namespace OpenFF.Client
 				}
 			}
 			caster.Gauge = 0f;
-			_acting = null;
-			_pick = Pick.None;
-			if (_foes.FindAll(f => f.Alive).Count == 0) Win();
-			else if (_party.FindAll(f => f.Alive).Count == 0) Lose();
 		}
 
 		/// <summary>A line for the fight's log on screen, and for the log file.</summary>
@@ -969,10 +995,10 @@ namespace OpenFF.Client
 			return Math.Max(1, value);
 		}
 
-		// btl::BattleBehavior's dead process: as the blow's number lands, startDeadPerformance plays the death
-		// sound (0x65, 6) and BPTranslucence takes every fallen monster from whole to nothing in transFrameMax frames -
-		// 10 for a plain monster (readyDeadPerformance) - its transparency rate (10 - frame) * 10 a frame, then it
-		// is gone (Steam's frames: a 38 on a Floating Eye at 3896, the Eye half there at 3904, gone at 3912).
+		// btl::BattleBehavior's dead process (the manager's dieState, once the turn of the blow is over): startDeadPerformance
+		// plays the death sound (0x65, 6) and BPTranslucence takes every fallen monster from whole to nothing in
+		// transFrameMax frames - 10 for a plain monster (readyDeadPerformance) - its transparency rate (10 - frame) * 10 a
+		// frame, then it is gone (Steam's frames: a 38 on a Floating Eye at 3896, the Eye half there at 3904, gone at 3912).
 		private const int DeathFrames = 10;
 
 		/// <summary>A fighter falls; <paramref name="number"/> is the blow's damage, whose number the monster's fade waits on.</summary>
@@ -980,22 +1006,24 @@ namespace OpenFF.Client
 		{
 			if (!foe.IsMonster) { Note(foe.Name + " falls."); return; }
 			Note(foe.Name + " is defeated.");
-			if (foe.Npc != null && Ff4BattleStage.Active)
-			{
-				Npc npc = foe.Npc;
-				// Steam's frames, not yet the code: the fade under way 6 frames after the number's first digit (the 38's 3 at
-				// 3893, the Eye at 90 at 3900, half at 3904, a tenth at 3908) - as the first digit lands, not the last.
-				int wait = number >= 0 ? DigitRise.Length - 1 : 0;
-				After(wait, () => Game.Audio.PlaySe(0x65, 6));
-				for (int f = 1; f <= DeathFrames; f++)
-				{
-					int rate = (DeathFrames - f) * 100 / DeathFrames;
-					After(wait + f, () => { npc.Alpha = rate; if (rate == 0) npc.Hidden = true; });
-				}
-			}
+			if (foe.Npc != null && Ff4BattleStage.Active) _dying.Add(foe);   // it goes once the turn is over (TurnEnd)
 			else if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
 			_expWon += foe.Monster.Experience;
 			_gilWon += foe.Monster.Gil;
+		}
+
+		/// <summary>The dead process for one fallen monster: the sound, then the fade a frame at a time.</summary>
+		private void StartDeathFade(Fighter foe)
+		{
+			{
+				Npc npc = foe.Npc;
+				if (npc == null) return;
+				for (int f = 1; f <= DeathFrames; f++)
+				{
+					int rate = (DeathFrames - f) * 100 / DeathFrames;
+					After(f, () => { npc.Alpha = rate; if (rate == 0) npc.Hidden = true; });
+				}
+			}
 		}
 
 		/// <summary>
@@ -1062,7 +1090,9 @@ namespace OpenFF.Client
 
 		private void MemberAttacks(Fighter member, Fighter foe)
 		{
-			if (!foe.Alive) { _pick = Pick.Target; _cursor = FirstAliveFoe(); return; }
+			// The one picked fell meanwhile: FF4 turns the blow on another (none left, nothing).
+			if (!foe.Alive) foe = FirstAlive(_foes);
+			if (foe == null) { member.Gauge = 0f; return; }
 			if (Ff4BattleStage.Active && member.Poise > 0 && member.SwingA > 0)
 			{
 				// Steam's attack, frame by frame: the weapon's poise (1047) for 15 frames, the swing (96, then 95, by
@@ -1098,7 +1128,6 @@ namespace OpenFF.Client
 					Pop(DamageSpot(foe), damage);
 					Note(member.Name + " hits " + foe.Name + " for " + damage + ".");
 					if (!foe.Alive) Fell(foe, damage);
-					if (_foes.FindAll(f => f.Alive).Count == 0) After(WinAfterNumber, BeginWin);
 				});
 				return;
 			}
@@ -1118,9 +1147,6 @@ namespace OpenFF.Client
 				if (!foe.Alive) Fell(foe, damage);
 			}
 			member.Gauge = 0f;
-			_acting = null;
-			_pick = Pick.None;
-			if (_foes.FindAll(f => f.Alive).Count == 0) Win();
 		}
 
 		private void MonsterActs(Fighter foe)
@@ -1158,7 +1184,6 @@ namespace OpenFF.Client
 			Note(foe.Name + " hits " + target.Name + " for " + damage + ".");
 			foe.Gauge = 0f;
 			if (!target.Alive) Note(target.Name + " falls.");
-			if (_party.FindAll(f => f.Alive).Count == 0) Lose();
 		}
 
 		/// <summary>What a consumable does in a fight, from efficacy.beld: hit or magic points back (9999 for all), or a revival (Phoenix Down's efficacy 17 restores nothing by number). Null for anything else.</summary>
@@ -1173,7 +1198,7 @@ namespace OpenFF.Client
 		{
 			ItemDefinition item = Ff4Party.Tables.Item(itemId);
 			Efficacy effect = item != null ? ItemEffect(item) : null;
-			if (effect == null) { _acting = null; _pick = Pick.None; return; }
+			if (effect == null) return;
 			bool revive = effect.Id == 17;
 			if (revive == target.Alive)
 			{
@@ -1191,8 +1216,6 @@ namespace OpenFF.Client
 				Say(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
 			}
 			member.Gauge = 0f;
-			_acting = null;
-			_pick = Pick.None;
 		}
 
 		private const int CommandRows = 4;
@@ -1235,17 +1258,91 @@ namespace OpenFF.Client
 			}
 			Say(member.Name + " unleashes Darkness.");
 			EndTurn(member);
-			if (_foes.FindAll(f => f.Alive).Count == 0) Win();
 		}
+
+		// ---- btl::BattleBehaviorManager: decided actions wait their turn and go one at a time ----
+
+		private readonly List<(Fighter Actor, Action Act)> _queue = new List<(Fighter, Action)>();
+		private readonly List<Fighter> _dying = new List<Fighter>();
+		private readonly List<int> _turnEffects = new List<int>();
+		private Fighter _executing;
+
+		/// <summary>The wait mode (the config's battle mode, gpInstance 0x94 bit 0): the gauges stand while a member has a list open. Off, the active mode, unless --ff4-battle-wait.</summary>
+		private static bool WaitMode => Options.Get("ff4-battle-wait") != null;
+
+		/// <summary>A member's command is decided (commandSelected): the menu closes and the action waits its turn, the gauge held full.</summary>
+		private void Decide(Fighter member, Action act)
+		{
+			member.Queued = true;
+			_queue.Add((member, act));
+			_acting = null;
+			_pick = Pick.None;
+			_casting = null;
+		}
+
+		/// <summary>The next decided action starts (startBehavior), its actor's gauge emptied by it.</summary>
+		private void StartNextAction()
+		{
+			(Fighter actor, Action act) = _queue[0];
+			_queue.RemoveAt(0);
+			actor.Queued = false;
+			if (!actor.Alive) return;
+			_executing = actor;
+			_turnEffects.Clear();
+			try { act(); } catch (Exception ex) { Log.Write(LogChannel.General, "battle: action: " + ex.Message); }
+		}
+
+		/// <summary>Whether an effect the turn set off still plays (btl::BattleEffect::isPlay); the finished ones are let go.</summary>
+		private bool TurnEffectsPlaying()
+		{
+			bool playing = false;
+			GlobalScope.eff.CEffectMng effects = GlobalScope.eff.CEffectMng.instance();
+			for (int i = _turnEffects.Count - 1; i >= 0; i--)
+			{
+				if (effects.isPlay(_turnEffects[i])) { playing = true; continue; }
+				try { effects.release(_turnEffects[i]); } catch (Exception) { }
+				_turnEffects.RemoveAt(i);
+			}
+			return playing;
+		}
+
+		/// <summary>
+		/// The turn is over (turnExecute done). The fallen go (dieState: deadCharacters, the death sound, BPTranslucence),
+		/// and then the battle may be over (isEndOfBattle): every monster down is the win, every member the loss.
+		/// </summary>
+		private void TurnEnd()
+		{
+			Log.Write(LogChannel.File, "battle: " + _executing.Name + "'s turn is over (step " + LegacyStep.Count + ")");
+			_executing = null;
+			int dying = 0;
+			if (_dying.Count > 0)
+			{
+				Game.Audio.PlaySe(0x65, 6);
+				foreach (Fighter f in _dying) StartDeathFade(f);
+				_dying.Clear();
+				dying = DeathFrames;
+			}
+			if (_foes.FindAll(f => f.Alive).Count == 0)
+			{
+				_queue.Clear();
+				if (Ff4BattleStage.Active) After(dying + WinAfterDeath, BeginWin);
+				else Win();
+			}
+			else if (_party.FindAll(f => f.Alive).Count == 0)
+			{
+				_queue.Clear();
+				Lose();
+			}
+		}
+
+		private static Fighter FirstAlive(List<Fighter> side) => side.Find(f => f.Alive);
 
 		private void EndTurn(Fighter member)
 		{
 			member.Gauge = 0f;
-			_acting = null;
-			_pick = Pick.None;
 		}
 
-		private void Run()
+		private void Run(Fighter member)
 		{
 			if (_random.Next(100) < 60)
 			{
@@ -1255,9 +1352,7 @@ namespace OpenFF.Client
 			else
 			{
 				Say("Could not run!");
-				_acting.Gauge = 0f;
-				_acting = null;
-				_pick = Pick.None;
+				member.Gauge = 0f;
 			}
 		}
 
@@ -1271,8 +1366,9 @@ namespace OpenFF.Client
 		// waitFadePhase sets the result window up and changeBGMPhase poses the winners and readies the ending camera;
 		// startFadeInPhase fades in over 6; enjoyPhase holds 30 frames once in; then the gil (windowOpenPhase), the
 		// experience, and the page arrow waiting on a key. Steam's frames (two fights): the fade under way 24 frames
-		// after the last number's first digit, black at +31, the gil at +67, the experience at +76, the arrow at +79.
-		private const int WinAfterNumber = 24, WinFade = 6, WinHold = 30, WinExpAfter = 9, WinArrowAfter = 12, WinEndFade = 16;
+		// after the last number's first digit (7 after the dead fade), black at +31, the gil at +67, the experience at
+		// +76, the arrow at +79.
+		private const int WinAfterDeath = 7, WinFade = 6, WinHold = 30, WinExpAfter = 9, WinArrowAfter = 12, WinEndFade = 16;
 		private bool _closing;
 
 		/// <summary>The last foe is down: the panel goes and the screens fade to black, the result coming in as they return.</summary>

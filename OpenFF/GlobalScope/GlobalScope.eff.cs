@@ -250,6 +250,12 @@ internal static partial class GlobalScope
 				return effect_[_id].isEnable_;
 			}
 
+			// PORT: eff::CEffectMng::isPlay - the object's own isPlay (what btl::BattleEffect::isPlay asks before a turn ends).
+			public bool isPlay(int _id)
+			{
+				return _id >= 0 && _id < effect_.Length && effect_[_id].isEnable_ && effect_[_id].object_ != null && effect_[_id].object_.isPlay();
+			}
+
 			public void clear()
 			{
 				for (int i = 0; i < 32; i++)
