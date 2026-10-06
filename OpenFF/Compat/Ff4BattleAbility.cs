@@ -83,9 +83,12 @@ namespace OpenFF.Client
 					// The target window on the member alone (Steam: its name, HP, weaknesses), confirmed with A.
 					_abilityCmd = id; _pick = Pick.Ally; _cursor = _party.IndexOf(who);
 					return true;
-				case CmdKick: AbilityMotions(who, "b_pa_057"); Decide(who, () => Invoke(who, CmdKick, () => Kick(who)), AbilityWait(id), id); return true;
-				case CmdCry: AbilityMotions(who, "b_pa_038"); Decide(who, () => Invoke(who, CmdCry, () => Cry(who)), AbilityWait(id), id); return true;
-				case CmdAnalyze: Decide(who, () => Invoke(who, CmdAnalyze, () => Analyze(who)), AbilityWait(id), id); return true;
+				case CmdKick:
+				case CmdCry:
+				case CmdAnalyze:
+					// Steam: the window on the foes ("Target All"), confirmed.
+					_abilityCmd = id; _pick = Pick.Target; _cursor = FirstAliveFoe();
+					return true;
 				case CmdRecall: AbilityMotions(who, "b_pa_040"); Decide(who, () => Recall(who), AbilityWait(id), id); return true;
 				case CmdTwincast: AbilityMotions(who, "b_pa_005"); TwincastChosen(who); return true;
 			}
@@ -102,6 +105,9 @@ namespace OpenFF.Client
 				case CmdAim: AbilityMotions(who, "b_aim"); Decide(who, () => Invoke(who, CmdAim, () => MemberAttacks(who, foe, aim: true)), AbilityWait(id), id); break;
 				case CmdSteal: AbilityMotions(who, "b_pa_008"); Decide(who, () => Invoke(who, CmdSteal, () => Steal(who, foe)), AbilityWait(id), id); break;
 				case CmdThrow: AbilityMotions(who, "b_pa_022"); Decide(who, () => Invoke(who, CmdThrow, () => Throw(who, foe, item)), AbilityWait(id), id); break;
+				case CmdKick: AbilityMotions(who, "b_pa_057"); Decide(who, () => Invoke(who, CmdKick, () => Kick(who)), AbilityWait(id), id); break;
+				case CmdCry: AbilityMotions(who, "b_pa_038"); Decide(who, () => Invoke(who, CmdCry, () => Cry(who)), AbilityWait(id), id); break;
+				case CmdAnalyze: Decide(who, () => Invoke(who, CmdAnalyze, () => Analyze(who)), AbilityWait(id), id); break;
 			}
 		}
 
@@ -655,7 +661,7 @@ namespace OpenFF.Client
 			}
 			List<Fighter> targets = AutoTargets(spell);
 			Note(who.Name + " recalls " + spell.Name);
-			Invoke(who, CmdRecall, () => Cast(who, spell, targets));
+			Invoke(who, CmdRecall, () => Cast(who, spell, targets, invoked: true));
 		}
 
 		/// <summary>setRememberRetarget: an ally spell on the party, a foe spell on the foes - all of them when it hits all, else one at random.</summary>
@@ -673,6 +679,7 @@ namespace OpenFF.Client
 		{
 			// The first to choose it waits, frozen, for a partner; the second pairs them and both wait Twincast's 150.
 			Fighter partner = _party.Find(f => f != who && f.TwinWaiting && f.Alive);
+			Play(who, 99, true, 3);   // Steam's frames: the pair's wait, from the decision to the invoke
 			if (partner == null)
 			{
 				who.TwinWaiting = true;
@@ -719,15 +726,14 @@ namespace OpenFF.Client
 			partner.Member.Mp -= mp;
 			List<Fighter> targets = AutoTargets(spell);
 			Note(who.Name + " and " + partner.Name + " twincast " + spell.Name + " (level " + level + ", " + mp + " MP each)");
-			Play(partner, 4005, false, 3);
 			Invoke(who, CmdTwincast, () =>
 			{
 				Acted(who, spell.Id, targets.ToArray());
 				_lastSpell = spell;
-				ShowSpell(who, spell, targets);
+				ShowSpell(who, spell, targets, invoked: true);
 				Play(partner, partner.IdleMotion, true, 3);
 				partner.Acted = false;
-			});
+			}, partner);
 		}
 
 		/// <summary>battle_parameter chain 26 (14 bytes: two player types, then three of spell s16, MP u16) for the pair, by the synchro level.</summary>

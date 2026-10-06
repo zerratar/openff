@@ -104,9 +104,12 @@ namespace OpenFF.Client
 		private bool InvokeCloseUp(Fighter actor, int command) => Ff4BattleStage.Active && !actor.IsMonster && !_isCounter && command != 1 && command != 4 && command != 13 && command != 166 && actor.Npc != null;
 
 		/// <summary>The close-up begun: the actor at the stage's origin facing +z, the others hidden, a shot of three at random.</summary>
-		private void BeginInvokeCamera(Fighter actor)
+		private Fighter _invokePartner;
+
+		private void BeginInvokeCamera(Fighter actor, Fighter partner = null)
 		{
 			_invokeActor = actor;
+			_invokePartner = partner;
 			FrameCapture.CameraCut();   // the standing shot to the close-up: a cut
 			_invokeShot = _random.Next(3);
 			_invokeFrame = 0;
@@ -114,10 +117,18 @@ namespace OpenFF.Client
 			_invokeHeight = form == 4 || form == 7 || form == 8 ? 5f : 9f;   // the small characters' look-at 5
 			actor.Npc.Teleport(Vector3.Zero);
 			Face(actor, 0f);
+			if (partner?.Npc != null)
+			{
+				// setInvokeCameraForPairMagic (Steam's frames): the two side by side, the first of the party at (-5, 0, 0).
+				bool actorFirst = _party.IndexOf(actor) < _party.IndexOf(partner);
+				actor.Npc.Teleport(new Vector3(actorFirst ? -5f : 5f, 0f, 0f));
+				partner.Npc.Teleport(new Vector3(actorFirst ? 5f : -5f, 0f, 0f));
+				Face(partner, 0f);
+			}
 			_invokeHidden.Clear();
 			foreach (Fighter f in AllFighters())
 			{
-				if (f == actor) continue;
+				if (f == actor || f == partner) continue;
 				foreach (Npc model in ModelsOf(f)) if (model != null && !model.Hidden) { model.Hidden = true; _invokeHidden.Add(model); }
 			}
 			StepInvokeCamera();
@@ -148,7 +159,9 @@ namespace OpenFF.Client
 			foreach (Npc model in _invokeHidden) { try { model.Hidden = false; } catch (Exception) { } }
 			_invokeHidden.Clear();
 			if (_invokeActor?.Npc != null) { _invokeActor.Npc.Teleport(_invokeActor.Home); Face(_invokeActor, _invokeActor.Facing); }
+			if (_invokePartner?.Npc != null) { _invokePartner.Npc.Teleport(_invokePartner.Home); Face(_invokePartner, _invokePartner.Facing); }
 			_invokeActor = null;
+			_invokePartner = null;
 			SetCamera(Ff4BattleStage.CameraPosition(_cameraType), Ff4BattleStage.CameraTarget(_cameraType));
 		}
 

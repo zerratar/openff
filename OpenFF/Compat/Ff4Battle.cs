@@ -1708,7 +1708,7 @@ namespace OpenFF.Client
 		{
 			// Steam's frames: a member whose command has ability.bbd +0x24 bit 6 (Kick, Aim, Steal, Throw - not Pray) stands in its
 			// weapon's poise (Yang's 1058, Rosa's 1060) from the decision until the action starts.
-			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && (Ff4Party.Tables?.AbilityFlags(ability) & 0x40) != 0) Play(member, member.Poise, true, 3);
+			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && ability != CmdTwincast && (Ff4Party.Tables?.AbilityFlags(ability) & 0x40) != 0) Play(member, member.Poise, true, 3);   // Twincast: its pair wait (99) instead
 			member.Defending = member.Braced = false;   // decideAbility: any decision ends Defend (flag 3) and Brace (flag 4)
 			_abilityCmd = 0;
 			member.Queued = true;

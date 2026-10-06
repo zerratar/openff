@@ -16,14 +16,14 @@ namespace OpenFF.Client
 		private const int CastLead = 24, CounterLead = 15;
 
 		/// <summary>A member's spell: the MP paid, the numbers worked out, then shown.</summary>
-		private void Cast(Fighter caster, SpellDefinition spell, List<Fighter> targets)
+		private void Cast(Fighter caster, SpellDefinition spell, List<Fighter> targets, bool invoked = false)
 		{
 			if (TrySmoke(caster, spell)) return;
 			Acted(caster, spell.Id, targets.ToArray());
 			_lastSpell = spell;
 			_casting = null;
 			if (caster.Member != null) caster.Member.Mp = Math.Max(0, caster.Member.Mp - spell.MpCost);
-			if (!TrySummon(caster, spell, targets)) ShowSpell(caster, spell, targets);
+			if (!TrySummon(caster, spell, targets)) ShowSpell(caster, spell, targets, invoked);
 			if (spell.School == OpenFF.Data.MagicSchool.Song && UsableUnder(caster, spell.Id)) StartSong(caster, spell);
 			caster.Gauge = 0f;
 		}
@@ -133,7 +133,8 @@ namespace OpenFF.Client
 		/// spell's effect on each target N/2 frames apart with its sound (one wide effect for a side when the spell takes
 		/// it whole), and the results with the numbers once every effect has ended; the turn then waits on the numbers.
 		/// </summary>
-		private void ShowSpell(Fighter caster, SpellDefinition spell, List<Fighter> targets)
+		/// <param name="invoked">The command's own invoke stage has been (Recall, Twincast - Steam's frames): no chant, name or close-up of the spell's again, its effect at once.</param>
+		private void ShowSpell(Fighter caster, SpellDefinition spell, List<Fighter> targets, bool invoked = false)
 		{
 			if (!UsableUnder(caster, spell.Id))
 			{
@@ -144,7 +145,7 @@ namespace OpenFF.Client
 			}
 			GameTables tables = Ff4Party.Tables;
 			bool ability = spell.School == OpenFF.Data.MagicSchool.Enemy;
-			int lead = _isCounter ? CounterLead : CastLead;
+			int lead = invoked ? 0 : _isCounter ? CounterLead : CastLead;
 			// Reflect (BattleCalculation::calcMagic): a target that reflects it takes nothing and shows Reflect's effect;
 			// for each, someone of the other side from it, at random, takes the spell instead.
 			List<Fighter> reflectors = targets.FindAll(t => Reflects(t, spell));
@@ -175,23 +176,25 @@ namespace OpenFF.Client
 			}
 			foreach (Fighter r in reflectors) _lastTargets.Remove(r);
 			if (spell.Id == 0x59 || spell.Id == 0x67) results.Add(() => { caster.Hp = 0; Fell(caster); });   // Self-Destruct: the caster falls
-			ShowName(tables.AbilityTitle(spell.Id) ?? spell.Name, lead);
+			if (!invoked) ShowName(tables.AbilityTitle(spell.Id) ?? spell.Name, lead);
 
-			int chant = ability ? 286 : spell.School == OpenFF.Data.MagicSchool.White ? 265 : spell.School == OpenFF.Data.MagicSchool.Black ? 266 : spell.School == OpenFF.Data.MagicSchool.Summon ? 267 : -1;
+			int chant = invoked ? -1 : ability ? 286 : spell.School == OpenFF.Data.MagicSchool.White ? 265 : spell.School == OpenFF.Data.MagicSchool.Black ? 266 : spell.School == OpenFF.Data.MagicSchool.Summon ? 267 : -1;
 			// A song's or a ninjutsu's invoke is its command's row (battle_parameter chain 1: Bardsong 280 at the hit spot with
 			// 154/0, Ninjutsu 268 with 100/4), the white and black ones the chant above.
 			short[] own = null;
 			bool songOrNinjutsu = spell.School == OpenFF.Data.MagicSchool.Song || spell.School == OpenFF.Data.MagicSchool.Ninjutsu;
 			if (!caster.IsMonster && songOrNinjutsu) tables.AbilityInvokes.TryGetValue(SchoolCommand[(int)spell.School], out own);
 			if (own != null) chant = own[17];
+			if (invoked) own = null;
 			LoadEffect(chant);
 			PlayEffect(chant, own != null ? (own[19] == 0 ? HitEffectSpot(caster) : Where(caster)) : chant == 266 ? Where(caster) : HitEffectSpot(caster), own != null ? Math.Max(1, (int)own[18]) : 1);
 			if (own != null && own[20] >= 0 && own[21] >= 0) Game.Audio.PlaySe(own[20], own[21]);
-			else Game.Audio.PlaySe(100, ability ? 0 : spell.School == OpenFF.Data.MagicSchool.White ? 1 : 2);
+			else if (!invoked) Game.Audio.PlaySe(100, ability ? 0 : spell.School == OpenFF.Data.MagicSchool.White ? 1 : 2);
 			SpellShow show = ShowOf(spell, caster);
 			try
 			{
-				if (!caster.IsMonster)
+				if (invoked) { }
+				else if (!caster.IsMonster)
 				{
 					int command = SchoolCommand[Math.Clamp((int)spell.School, 0, 7)];
 					if (InvokeCloseUp(caster, command))
@@ -284,7 +287,7 @@ namespace OpenFF.Client
 		/// </summary>
 		private const int InvokeGap = 2;
 
-		private void Invoke(Fighter member, int command, Action then)
+		private void Invoke(Fighter member, int command, Action then, Fighter partner = null)
 		{
 			if (member.IsMonster || Ff4Party.Tables == null || !Ff4Party.Tables.AbilityInvokes.TryGetValue(command, out short[] row))
 			{
@@ -293,12 +296,13 @@ namespace OpenFF.Client
 			}
 			int lead = _isCounter ? CounterLead : CastLead;
 			bool closeUp = InvokeCloseUp(member, command);
-			if (closeUp) BeginInvokeCamera(member);
+			if (closeUp) BeginInvokeCamera(member, partner);
 			ShowName(Ff4Party.Tables.AbilityTitle(command), lead);
 			if (row[20] >= 0 && row[21] >= 0) Game.Audio.PlaySe(row[20], row[21]);
 			int form = member.Member != null ? PlayerForm[Math.Clamp(member.Member.Id, 0, PlayerForm.Length - 1)] : 0;
 			int chant = row[1 + Math.Clamp(form, 0, 14)];
 			if (chant > 0) Play(member, chant, false, 3);
+			if (chant > 0 && partner != null) Play(partner, chant, false, 3);   // Twincast: the partner chants with it
 			if (row[17] > 0)
 			{
 				LoadEffect(row[17]);
