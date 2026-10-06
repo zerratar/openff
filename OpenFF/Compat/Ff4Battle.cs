@@ -797,6 +797,7 @@ namespace OpenFF.Client
 						continue;
 					}
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && ActsAlone(f)) continue;
+					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && AutoTakes(f)) { AutoDecide(f); continue; }
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f)) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
 				}
 				return;
@@ -2104,7 +2105,7 @@ namespace OpenFF.Client
 		/// <summary>What the battle HUD's layout binds to, as the root "battle" (ff4_battle_hud.xml lists the paths).</summary>
 		public sealed class HudData
 		{
-			public bool Panel, Commands, Party, Keys, Targets;
+			public bool Panel, Commands, Party, Keys, Targets, Auto, Running;
 			public List<TargetRow> Target = new List<TargetRow> { new TargetRow(), new TargetRow(), new TargetRow(), new TargetRow() };
 			public CardData Card = new CardData();
 			public GridData Grid = new GridData();
@@ -2188,6 +2189,8 @@ namespace OpenFF.Client
 			h.Commands = choosing && _pick == Pick.Command;
 			h.Party = _pick != Pick.Target && _pick != Pick.Spell && _pick != Pick.Item;
 			h.Keys = _pick != Pick.Spell && _pick != Pick.Item;
+			h.Auto = AutoBattle.On;
+			h.Running = _runOn;
 			h.Targets = choosing && _pick == Pick.Target;
 			int shownFoe = 0;
 			foreach (TargetRow t in h.Target) t.Present = false;

@@ -13,7 +13,7 @@
     battle.party            the party's rows are shown (not while a foe is picked)
     battle.member[0..4]     present, name, hp, maxHp, mp, showMp, status (the one shown now), gauge (0..100), fill (1 grey while it fills, 2 yellow once full), alive,
                             low, acting (their turn to choose), picked (the hand on them)
-    battle.keys             the keys' hints are shown
+    battle.keys             the keys' hints are shown; battle.auto (auto battle on), battle.running (the run control on)
     battle.targets          the foes are listed for a pick: battle.target[0..3] present, name, sub (the chance to hit,
                             or the spell's name), lit
     battle.card             shown, name, hp: the picked foe's card
@@ -261,9 +261,9 @@
       <id>keys</id>
       <x>1210</x><y>695</y><width>600</width><height>52</height>
       <frame class="key-cap"><id>auto_key</id><x>0</x><y>0</y><width>55</width><height>52</height><data>C</data></frame>
-      <frame class="key-label"><id>auto</id><x>70</x><y>0</y><width>220</width><height>52</height><data>Auto battle</data></frame>
+      <frame class="key-label" bind-class="on: battle.auto"><id>auto</id><x>70</x><y>0</y><width>220</width><height>52</height><data>Auto battle</data></frame>
       <frame class="key-cap"><id>run_key</id><x>273</x><y>0</y><width>55</width><height>52</height><data>M</data></frame>
-      <frame class="key-label"><id>run</id><x>343</x><y>0</y><width>220</width><height>52</height><data>Run away</data></frame>
+      <frame class="key-label" bind-class="on: battle.running"><id>run</id><x>343</x><y>0</y><width>220</width><height>52</height><data>Run away</data></frame>
     </frame>
   </frame>
 

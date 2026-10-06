@@ -56,6 +56,8 @@ namespace OpenFF.Client
 	internal sealed class GambitTarget
 	{
 		public GlobalScope.btl.BaseBattleCharacter Character;
+		/// <summary>FF4: the battle's own fighter (Ff4Battle's), where FF3 has Character.</summary>
+		public object Fighter;
 		public GambitSide Side;
 		public int Hp, MaxHp;
 		public bool Alive;          // can be fought or helped as it is (not KO'd, not stone)

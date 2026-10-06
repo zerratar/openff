@@ -48,6 +48,8 @@ namespace OpenFF.Client
 			try
 			{
 				key = DesktopInput.Injected.Contains(Keys.F) || (DesktopInput.GameHasKeyboard && Keyboard.GetState().IsKeyDown(Keys.F));
+				// FF4: C as well, the key Steam's FF4 shows for it ("C Auto battle").
+				if (GameProfile.IsFf4) key |= DesktopInput.Injected.Contains(Keys.C) || (DesktopInput.GameHasKeyboard && Keyboard.GetState().IsKeyDown(Keys.C));
 				pad = DesktopInput.GameHasKeyboard && DesktopInput.PadAutoHeld();
 			}
 			catch (Exception) { }
@@ -64,6 +66,7 @@ namespace OpenFF.Client
 		{
 			get
 			{
+				if (GameProfile.IsFf4) return Ff4Battle.Active;   // FF4's battle runs on its stage, in the field's part
 				try { return (GlobalScope.GAMEPART)GlobalScope.sys.FF3PartSys.getCurrentPart() == GlobalScope.GAMEPART.GAMEPART_BATTLE; }
 				catch (Exception) { return false; }
 			}

@@ -44,6 +44,7 @@
   text-shadow: none;
 }
 .key-label { font-size: 20px; vertical-align: middle; }
+.key-label.on { color: #ffe86e; }   /* auto battle or the run control on */
 
 #message {
   background-color: #373a71d0;
