@@ -270,7 +270,7 @@ namespace OpenFF.Client
 				f.ConditionTimer[id] = Math.Max(0, f.ConditionTimer[id] - rate);
 				if (f.ConditionTimer[id] == 0) ConditionOff(f, id);
 			}
-			if (Has(f, CPoison) && !f.Airborne && ++f.PoisonCount >= 60)   // calcPoison skips the one in the air
+			if (Has(f, CPoison) && !Untargetable(f) && ++f.PoisonCount >= 60)   // calcPoison skips the one in the air
 			{
 				f.PoisonCount = 0;
 				if (!_queue.Exists(e => e.Actor == f && _poisonTicks.Contains(e.Act))) { Fighter who = f; Action tick = null; tick = () => { _poisonTicks.Remove(tick); PoisonTick(who); }; _poisonTicks.Add(tick); _queue.Add((f, tick)); }
@@ -326,9 +326,9 @@ namespace OpenFF.Client
 			{
 				ShowTint(f);
 				if (!f.Alive) { DropStatusEffect(f); continue; }
-				int idle = AnyFlag(f, 5) || f.Hp <= f.MaxHp / 4 ? 2001 : _heroMotionIdle;
+				int idle = AnyFlag(f, 5) || f.Hp <= f.MaxHp / 4 ? 2001 : f.Defending || f.Braced ? 2002 : _heroMotionIdle;   // setConditionMotion: flag 3 / 4 the guard
 				if (!f.Acted && f.IdleMotion != idle) { Play(f, idle, true, 4); f.Acted = false; f.IdleMotion = idle; }
-				int pack = 670, variant = Has(f, CBlink) ? 11 : Has(f, CParalyze) || Has(f, CMagnetize) ? 7 : Has(f, CSleep) ? 6 : Has(f, CPetrify) ? 4
+				int pack = 670, variant = Has(f, CBlink) ? 11 : f.FocusCharge > 0 ? 10 : f.BluffCharge > 0 ? 9 : Has(f, CParalyze) || Has(f, CMagnetize) ? 7 : Has(f, CSleep) ? 6 : Has(f, CPetrify) ? 4
 					: Has(f, CConfuse) ? 5 : Has(f, CSilence) ? 3 : Has(f, CPoison) ? 1 : Has(f, CBlind) ? 2 : 0;
 				if (variant == 0 && f.DarkFrames > 0) { pack = 260; variant = 1; }
 				if (variant == 0) { DropStatusEffect(f); continue; }

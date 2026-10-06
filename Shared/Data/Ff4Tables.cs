@@ -26,7 +26,7 @@
 // has Cover and Paladin Cecil's white magic, 2 Jump (Kain), 3 Pray and Aim with Rosa's
 // spells, 4 the child Rydia's white, black and Chocobo, 5 the adult Rydia's black and
 // summons, 6 Recall (Tellah), 7 Cry and Twincast (Porom), 8 Bluff and Twincast (Palom),
-// 9 Kick, Focus, Brace (Yang), 10 Cid's, 11 Hide, Salve, Sing (Edward), 12 ninjutsu and
+// 9 Bardsong, Salve, Hide (Edward), 10 Focus, Kick, Brace (Yang), 11 Analyze and Upgrade (Cid), 12 ninjutsu and
 // Throw (Edge), 13 every spell (FuSoYa), 14 every black spell (Golbez). The names stay
 // marked tentative until a file confirms them.
 
@@ -45,7 +45,7 @@ namespace OpenFF.Data
 			("cecil", "Cecil", "Dark Knight"), ("cecil-paladin", "Cecil", "Paladin"), ("kain", "Kain", "Dragoon"),
 			("rosa", "Rosa", "White Mage"), ("rydia", "Rydia", "Summoner"), ("rydia-adult", "Rydia", "Summoner"),
 			("tellah", "Tellah", "Sage"), ("porom", "Porom", "White Mage"), ("palom", "Palom", "Black Mage"),
-			("yang", "Yang", "Monk"), ("cid", "Cid", "Engineer"), ("edward", "Edward", "Bard"),
+			("edward", "Edward", "Bard"), ("yang", "Yang", "Monk"), ("cid", "Cid", "Engineer"),
 			("edge", "Edge", "Ninja"), ("fusoya", "FuSoYa", "Lunarian"), ("golbez", "Golbez", null),
 		};
 
@@ -197,6 +197,12 @@ namespace OpenFF.Data
 			try { pack = ChainPack.Read(data); }
 			catch (Exception ex) { tables.Notes.Add("battle_parameter.chain: " + ex.Message); return; }
 			if (pack.Count < 1) return;
+			for (int c = 0; c < pack.Count; c++)
+			{
+				byte[] chainData = new byte[pack.Size(c)];
+				Array.Copy(data, pack.Offset(c), chainData, 0, chainData.Length);
+				tables.BattleChains.Add(chainData);
+			}
 			const int stride = 164;
 			int off = pack.Offset(0);
 			for (int i = 0; i + stride <= pack.Size(0); i += stride)

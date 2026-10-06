@@ -18,11 +18,13 @@ namespace OpenFF.Client
 		/// <summary>A member's spell: the MP paid, the numbers worked out, then shown.</summary>
 		private void Cast(Fighter caster, SpellDefinition spell, List<Fighter> targets)
 		{
+			if (TrySmoke(caster, spell)) return;
 			Acted(caster, spell.Id, targets.ToArray());
 			_lastSpell = spell;
 			_casting = null;
 			if (caster.Member != null) caster.Member.Mp = Math.Max(0, caster.Member.Mp - spell.MpCost);
 			if (!TrySummon(caster, spell, targets)) ShowSpell(caster, spell, targets);
+			if (spell.School == OpenFF.Data.MagicSchool.Song && UsableUnder(caster, spell.Id)) StartSong(caster, spell);
 			caster.Gauge = 0f;
 		}
 
@@ -279,16 +281,22 @@ namespace OpenFF.Client
 			if (row[17] > 0)
 			{
 				LoadEffect(row[17]);
-				PlayEffect(row[17], row[19] == 0 ? HitEffectSpot(member) : Where(member), Math.Max(1, (int)row[18]));
+				PlayEffect(row[17], row[19] == 0 ? HitEffectSpot(member) : Where(member), Math.Max(1, (int)row[18]), holdsTurn: false);   // playInvokeEffect: the turn does not wait on it
 			}
 			if (closeUp) for (int k = 1; k < lead; k++) After(k, StepInvokeCamera);
-			After(lead, () =>
+			// AbilityInvokeBehavior::update: the stage is over once its 24 frames (15 a counter) are and the chant motion has
+			// ended (isEndOfMotion) - a longer chant holds it; then the motion after (looped, blend 3) and the command.
+			int waited = 0;
+			void Finish()
 			{
+				if (chant > 0 && member.Alive && member.Npc != null && member.Acted && !member.Npc.MotionDone && ++waited < 300) { After(1, Finish); return; }
 				if (closeUp) EndInvokeCamera();
 				if (!member.Alive) return;
 				if (row[16] > 0 && row[16] != 9999) Play(member, row[16], true, 3);
+				else if (row[16] == 9999 && chant > 0) Play(member, member.Poise > 0 ? member.Poise : member.IdleMotion, true, 3);   // startPoiseMotion(3)
 				then();
-			});
+			}
+			After(lead, Finish);
 		}
 
 		/// <summary>The turn held until the numbers have gone (checkEnd2D).</summary>

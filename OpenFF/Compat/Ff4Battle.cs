@@ -66,14 +66,14 @@ namespace OpenFF.Client
 			CmdFlee => Command.Run,
 			CmdDefend => Command.Defend,
 			CmdItems => Command.Item,
-			CmdBlackMagic or CmdWhiteMagic or CmdSummon => Command.Magic,
+			CmdBlackMagic or CmdWhiteMagic or CmdSummon or CmdBardsong or CmdNinjutsu => Command.Magic,
 			CmdDarkness => Command.Darkness,
 			CmdSwapRows => Command.SwapRows,
 			CmdJump => Command.Jump,
 			_ => Command.Other,
 		};
 
-		private List<int> Commands => _acting?.Commands ?? new List<int> { CmdFight };
+		private List<int> Commands => _acting != null ? _acting.Commands.ConvertAll(id => ShownCommand(_acting, id)) : new List<int> { CmdFight };
 		private int _commandScroll;
 
 		private sealed class Fighter
@@ -120,7 +120,20 @@ namespace OpenFF.Client
 			public Vector3 Home;
 			public bool Acted;   // a one-shot motion is playing; Idle() restarts the loop when it ends
 			public List<int> Commands = new List<int>();   // the member's FF4 command list (CommandList)
-			public bool Defending;                         // Defend: physical damage halved until their next turn
+			public bool Defending;                         // Defend (flag 3): physical damage halved until their next decision
+			public bool Braced;                            // Brace (flag 4): physical damage a quarter until their next decision
+			public bool Covering;                          // Cover (flag 5) and whom (+0x48)
+			public Fighter CoverTarget;
+			public int FocusCharge;                        // Focus's charge (+0x114, 0..3), and whether a blow has used it
+			public bool FocusSpent;
+			public int BluffCharge;                        // Bluff (+0x30c): intellect doubled until the action after it
+			public bool Hiding;                            // Hide (condition 0x19)
+			public int SongId, SongTimer, SongTick;        // the song being sung (+0x4c), its time (+0x2e0) and Life's Anthem's count
+			public int ElementOverride = -1;               // Upgrade's attack element (+0x40)
+			public bool Robbed;                            // a monster stolen from (flag 0x11)
+			public bool TwinWaiting;                       // Twincast chosen, its partner awaited (PAIR_MAGIC_WAIT)
+			public Fighter TwinPartner;
+			public HashSet<string> BoundSets = new HashSet<string>();
 			public int Poise = -1, SwingA = -1, SwingB = -1, Swings;
 			public int HitEffect = -1;                     // the weapon's hit effect (WEAPON_EFFECT), its pack e<nnn>
 			public int HitBank = -1, HitSound = -1;        // the weapon's hit sound (battle_parameter chain 5's first pair)
@@ -472,7 +485,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A battle effect at a spot (btl::BattleEffect::create: the effect manager's, box culling off).</summary>
-		private void PlayEffect(int id, Vector3 at, int variant = 1)
+		private void PlayEffect(int id, Vector3 at, int variant = 1, bool holdsTurn = true)
 		{
 			if (id < 0) return;
 			try
@@ -482,7 +495,7 @@ namespace OpenFF.Client
 				if (made < 0) { Log.First(LogChannel.File, "battle-effect-" + id, 2, () => "battle: effect " + id + " could not be made"); return; }
 				effects.enableBoxCulling(made, false);
 				effects.setPosition(made, new GlobalScope.VecFx32((int)Math.Round(at.X * 4096), (int)Math.Round(at.Y * 4096), (int)Math.Round(at.Z * 4096)));
-				_turnEffects.Add(made);
+				if (holdsTurn) { _turnEffects.Add(made); _turnEffectStart[made] = _clock; }
 			}
 			catch (Exception ex) { Log.Write(LogChannel.General, "battle: effect " + id + ": " + ex.Message); }
 		}
@@ -767,6 +780,7 @@ namespace OpenFF.Client
 					if (f.DarkFrames > 0) f.DarkFrames = Math.Max(0, f.DarkFrames - (int)BattleSpeedRate);   // calcConditionTime
 					TickConditions(f);
 					if (!f.Alive || GaugeStands(f)) continue;
+					if (f.SongId != 0) { TickSong(f); continue; }   // singing: no gauge, no turn
 					if (f.Airborne && !f.Queued)
 					{
 						// In the air the gauge stands (ATG state 4); the jump counter runs, and full, the landing goes to the back of the queue.
@@ -800,7 +814,7 @@ namespace OpenFF.Client
 					if (f.Airborne) continue;
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && ActsAlone(f)) continue;
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && AutoTakes(f)) { AutoDecide(f); continue; }
-					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f)) { _acting = f; f.Defending = false; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
+					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f)) { _acting = f; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
 				}
 				return;
 			}
@@ -817,9 +831,10 @@ namespace OpenFF.Client
 				{
 					_command = CommandOf(commands[_cursor]);
 					Fighter who = _acting;
-					if (_command == Command.Defend) { Decide(who, () => Invoke(who, 3, () => Defend(who)), 0, 3); return; }
+					if (_command == Command.Defend) { who.Braced = false; Defend(who); Instant(who); return; }   // decideAbility: flag 3, the gauge empty, no action
 					if (_command == Command.SwapRows) { Decide(who, () => Invoke(who, 46, () => SwapRows(who)), 0, 46); return; }
 					if (_command == Command.Darkness) { Decide(who, () => Darkness(who), 0, 32); return; }
+					if (_command == Command.Other && AbilityChosen(who, commands[_cursor])) return;
 					if (_command == Command.Other) { Say(CommandName(commands[_cursor]) + " is not in yet."); return; }
 					if (_command == Command.Fight || _command == Command.Jump) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
 					else if (_command == Command.Magic)
@@ -828,7 +843,8 @@ namespace OpenFF.Client
 						GameTables tables = Ff4Party.Tables;
 						// The command's own school: White Magic its white spells, Black Magic its black, Summon its summons.
 						int chosen = commands[_cursor];
-						OpenFF.Data.MagicSchool school = chosen == CmdWhiteMagic ? OpenFF.Data.MagicSchool.White : chosen == CmdBlackMagic ? OpenFF.Data.MagicSchool.Black : OpenFF.Data.MagicSchool.Summon;
+						OpenFF.Data.MagicSchool school = chosen == CmdWhiteMagic ? OpenFF.Data.MagicSchool.White : chosen == CmdBlackMagic ? OpenFF.Data.MagicSchool.Black
+							: chosen == CmdBardsong ? OpenFF.Data.MagicSchool.Song : chosen == CmdNinjutsu ? OpenFF.Data.MagicSchool.Ninjutsu : OpenFF.Data.MagicSchool.Summon;
 						foreach (int id in _acting.Member.Spells)
 						{
 							SpellDefinition spell = tables.Spell(id);
@@ -868,6 +884,7 @@ namespace OpenFF.Client
 					SpellDefinition spell = _casting;
 					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }), SpellWait(spell), spell.Id);
 					else if (_command == Command.Jump) Decide(who, () => Invoke(who, CmdJump, () => JumpStart(who, foe)), 0, CmdJump);
+					else if (_abilityCmd != 0) AbilityOnFoe(who, foe);
 					else Decide(who, () => MemberAttacks(who, foe), 0, 1);
 				}
 				return;
@@ -892,6 +909,7 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.Up) || input.Pressed(Pad.Left)) _cursor = (_cursor + _party.Count - 1) % _party.Count;
 				if (input.Pressed(Pad.Down) || input.Pressed(Pad.Right)) _cursor = (_cursor + 1) % _party.Count;
 				if (input.Pressed(Pad.B)) { _pick = _casting != null ? Pick.Spell : Pick.Item; _casting = null; _cursor = 0; return; }
+				if (input.Pressed(Pad.A) && _abilityCmd == CmdCover) { AbilityOnAlly(_acting, _party[_cursor]); return; }
 				if (input.Pressed(Pad.A))
 				{
 					Fighter who = _acting, ally = _party[_cursor];
@@ -905,7 +923,8 @@ namespace OpenFF.Client
 			if (_pick == Pick.Item)
 			{
 				GridMove(input, _itemChoices.Count);
-				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => id == CmdItems)); return; }
+				if (input.Pressed(Pad.B)) { int back = _abilityCmd != 0 ? _abilityCmd : CmdItems; _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => id == back)); _abilityCmd = 0; return; }
+				if (input.Pressed(Pad.A) && _abilityCmd != 0) { AbilityItem(_acting, _itemChoices[_cursor]); return; }
 				if (input.Pressed(Pad.A)) { _usingItem = _itemChoices[_cursor]; _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
 			}
 		}
@@ -931,6 +950,8 @@ namespace OpenFF.Client
 		/// <summary>A spell cast on one's own side: healing, reviving, or a white spell that grants something.</summary>
 		private static bool Helps(SpellDefinition spell)
 		{
+			if (spell.School == OpenFF.Data.MagicSchool.Song || spell.School == OpenFF.Data.MagicSchool.Ninjutsu)
+				return spell.Raw != null && spell.Raw.Length > 0x20 && ((spell.Raw[0x20] & 0x08) != 0 || spell.Raw[0x20] == 0x50 || spell.Raw[0x20] == 0x51);   // magic_parameter +0x20: 0x19 the party, 0x50 / 0x51 self and allies
 			return spell.Heals || spell.Revives || (spell.Power == 0 && spell.Inflicts == 0 && (spell.Grants != 0 || spell.Grants2 != 0) && spell.School == OpenFF.Data.MagicSchool.White);
 		}
 
@@ -1114,9 +1135,11 @@ namespace OpenFF.Client
 		/// <summary>NewMagicFormula::calcAttackMagicDamage: power x level x stat over the target's will, level and magic defence, times 1.0..1.3.</summary>
 		private int AttackMagicDamage(Fighter caster, Fighter target, SpellDefinition spell, int targetCount)
 		{
-			int stat = spell.School == OpenFF.Data.MagicSchool.White ? caster.Spirit : caster.Intellect;
+			int stat = spell.School == OpenFF.Data.MagicSchool.White ? caster.Spirit : caster.BluffCharge > 0 ? Math.Min(99, caster.Intellect * 2) : caster.Intellect;
 			long numerator = (long)spell.Power * Math.Max(1, caster.Level) * Math.Max(1, stat);
-			int denominator = Math.Max(1, target.Spirit + target.Level + (Has(target, CShell) ? Math.Min(9999, target.MagicDefence * 3 / 2) : target.MagicDefence));
+			int magicDefence = Has(target, CShell) ? Math.Min(9999, target.MagicDefence * 3 / 2) : target.MagicDefence;
+			if (Has(target, CCry)) magicDefence /= 2;   // magicDefense: Cry halves it
+			int denominator = Math.Max(1, target.Spirit + target.Level + magicDefence);
 			double value = numerator / (double)denominator * (1.0 + _random.Next(301) / 1000.0);
 			if (targetCount > 1) value *= Math.Max(0.3, (90 - 10 * targetCount) / 100.0);
 			return Math.Max(1, (int)value);
@@ -1233,12 +1256,14 @@ namespace OpenFF.Client
 		/// </summary>
 		private bool _critical;   // the last blow's calcCritical (flag 0xf)
 
-		private int Damage(Fighter attacker, Fighter target, bool fromAir = false)
+		private int Damage(Fighter attacker, Fighter target, bool fromAir = false, int kickTargets = 0)
 		{
 			// Toad and Mini: strength, vitality, attack and defence all 1; Protect: defence x1.5.
 			bool small = Has(attacker, CToad) || Has(attacker, CMini), smallTarget = Has(target, CToad) || Has(target, CMini);
 			long numerator = (long)Math.Max(1, attacker.Level) * (small ? 1 : Math.Max(1, attacker.Strength)) * (small ? 1 : Math.Max(1, attacker.Attack));
 			int defence = smallTarget ? 1 : Has(target, CProtect) ? Math.Min(9999, target.Defence * 3 / 2) : target.Defence;
+			if (Has(target, CCry)) defence /= 2;              // physicsDefense: Cry halves it
+			if (target.FocusCharge > 0) defence = 1;         // and Focus's charge leaves it wide open
 			int denominator = Math.Max(1, defence + target.Level + (smallTarget ? 1 : target.Vitality));
 			long core = numerator / denominator;
 			long value = (long)((4096 + (_random.Next(301) << 12) / 1000) * core) >> 12;
@@ -1254,8 +1279,11 @@ namespace OpenFF.Client
 				_critical = true;
 				Note(attacker.Name + "'s blow is critical.");
 			}
+			if (target.Braced) value = Math.Max(1, value / 4);   // reviseEndure: Brace a quarter
 			if (Has(attacker, CBerserk)) value = value * 3 / 2;   // reviseBerserk: x1.5
 			if (dark) { value *= 2; attacker.DarkCostDue = true; }   // reviseDarkness: x2 (0x2000), the cost after
+			if (attacker.FocusCharge > 0) { value = value * RollUpRate[attacker.FocusCharge] >> 12; attacker.FocusSpent = true; }   // reviseGather
+			if (kickTargets > 0) value = Math.Max(1, value * KickRate[Math.Min(kickTargets, KickRate.Length - 1)] >> 12);   // reviseKick
 			if (BattleParameterFlag(2)) value = 99999;   // an event's OnForceMaxDamage
 			return (int)Math.Max(1, value);
 		}
@@ -1296,6 +1324,7 @@ namespace OpenFF.Client
 				if (item.Kind == ItemKind.Weapon) { elements |= bits; killer |= kill; }
 				else if (item.Kind == ItemKind.Armour) { armour |= bits; races |= kill; absorbing |= (bits & 4) != 0; }
 			}
+			if (f.ElementOverride >= 0 && f.ElementOverride != 0xFFFF) elements = (elements & 4) | f.ElementOverride;   // physicsAttack: Upgrade's element
 			return new Affinity(elements, killer, absorbing ? armour : 0, absorbing ? 0 : armour, races, 0, 0);
 		}
 
@@ -1380,12 +1409,12 @@ namespace OpenFF.Client
 			return false;
 		}
 
-		private void MemberAttacks(Fighter member, Fighter foe)
+		private void MemberAttacks(Fighter member, Fighter foe, bool aim = false)
 		{
 			// The one picked fell meanwhile: FF4 turns the blow on another (none left, nothing).
 			if (!foe.Alive) foe = FirstAlive(_foes);
 			if (foe == null) { member.Gauge = 0f; return; }
-			Acted(member, 1, foe);
+			Acted(member, aim ? CmdAim : 1, foe);
 			if (Ff4BattleStage.Active && member.Poise > 0 && member.SwingA > 0)
 			{
 				// Steam's attack, frame by frame: the weapon's poise (1047) for 15 frames, the swing (96, then 95, by
@@ -1399,7 +1428,7 @@ namespace OpenFF.Client
 				After(15, () => { Play(member, swing, false, 3); member.Acted = false; });
 				After(23, () =>
 				{
-					hit = Hits(member, foe);
+					hit = aim ? !foe.Mist : Hits(member, foe);   // Aim: calcDamage skips the hit roll
 					if (!hit) return;
 					PlayEffect(member.HitEffect, HitEffectSpot(foe));
 					damage = Damage(member, foe);
@@ -1427,7 +1456,7 @@ namespace OpenFF.Client
 				return;
 			}
 			Play(member, _heroMotionAttack);
-			if (!Hits(member, foe))
+			if (!(aim ? !foe.Mist : Hits(member, foe)))
 			{
 				PopWord(DamageSpot(foe), Ff4Ui.WordMiss);
 				Note(member.Name + " misses " + foe.Name + ".");
@@ -1495,11 +1524,20 @@ namespace OpenFF.Client
 		/// <summary>A monster's plain attack on one target (normalAttack's record: the effect, sound and number on their frames).</summary>
 		private void MonsterAttack(Fighter foe, Fighter target, MonsterAttackStyle style = null)
 		{
+			// serchExecuteCoverMan: a plain blow on a member may be taken by one who covers them (or, the target in Critical, by
+			// anyone with the Cover command): placed just in front of them, it takes the blow at three quarters.
+			Fighter covered = null;
+			if (foe.DecidedAbility <= 1 && style == null && target.Member != null && CoverMan(target) is Fighter coverer)
+			{
+				covered = target;
+				target = coverer;
+			}
 			Acted(foe, foe.DecidedAbility > 1 ? foe.DecidedAbility : 1, target);   // an ability not in yet is struck as a blow, but known by its id
 			try { foe.Npc.PlayMotion(style != null && style.Motion > 0 ? style.Motion : 201, false, 3); foe.Acted = true; } catch (Exception) { }
 			foe.Gauge = 0f;
 			bool hit = Hits(foe, target);
 			int damage = hit ? Damage(foe, target) * (style?.Factor ?? 1) : 0;
+			if (covered != null && hit) damage = Math.Max(1, damage * 3 / 4);   // reviseCover
 			if (!Ff4BattleStage.Active) { MonsterBlow(foe, target, hit, damage); return; }
 			MonsterDefinition m = foe.Monster;
 			int effect = style != null && style.Pack >= 0 ? style.Pack : m.AttackEffect;
@@ -1508,6 +1546,12 @@ namespace OpenFF.Client
 			int seFrame = style != null && style.SeFrame >= 0 ? style.SeFrame : m.AttackSoundFrame;
 			int numberFrame = style != null && style.NumberFrame >= 0 ? style.NumberFrame : m.AttackNumberFrame;
 			bool feet = style != null && style.Feet;
+			if (covered != null)
+			{
+				Fighter guard = target, under = covered;
+				After(effectFrame + MonsterFrameLead, () => CoverStep(guard, under));
+				After(numberFrame + MonsterFrameLead + 20, () => CoverBack(guard));
+			}
 			After(effectFrame + MonsterFrameLead, () => PlayEffect(hit ? effect : MissEffect, feet ? Where(target) : HitEffectSpot(target)));
 			if (hit && seBank >= 0 && se >= 0) After(seFrame + MonsterFrameLead, () => Game.Audio.PlaySe(seBank, se));
 			After(numberFrame + MonsterFrameLead, () => MonsterBlow(foe, target, hit, damage));
@@ -1634,6 +1678,8 @@ namespace OpenFF.Client
 		private readonly List<(Fighter Actor, Action Act)> _queue = new List<(Fighter, Action)>();
 		private readonly List<Fighter> _dying = new List<Fighter>();
 		private readonly List<int> _turnEffects = new List<int>();
+		private readonly Dictionary<int, int> _turnEffectStart = new Dictionary<int, int>();
+		private const int TurnEffectMost = 600;   // ours: an effect that loops would hold the turn for ever - let go after 20 s
 		private Fighter _executing;
 
 		/// <summary>The wait mode (the config's battle mode, gpInstance 0x94 bit 0): the gauges stand while a member has a list open. Off, the active mode, unless --ff4-battle-wait.</summary>
@@ -1647,6 +1693,8 @@ namespace OpenFF.Client
 		/// </summary>
 		private void Decide(Fighter member, Action act, int wait = 0, int ability = 1)
 		{
+			member.Defending = member.Braced = false;   // decideAbility: any decision ends Defend (flag 3) and Brace (flag 4)
+			_abilityCmd = 0;
 			member.Queued = true;
 			member.DecidedAbility = ability;
 			if (wait > 0)
@@ -1698,7 +1746,10 @@ namespace OpenFF.Client
 			GlobalScope.eff.CEffectMng effects = GlobalScope.eff.CEffectMng.instance();
 			for (int i = _turnEffects.Count - 1; i >= 0; i--)
 			{
-				if (effects.isPlay(_turnEffects[i])) { playing = true; continue; }
+				bool stale = _turnEffectStart.TryGetValue(_turnEffects[i], out int since) && _clock - since > TurnEffectMost;
+				if (stale) Log.Write(LogChannel.General, "battle: turn effect " + _turnEffects[i] + " still playing after " + TurnEffectMost + " frames - let go");
+				if (!stale && effects.isPlay(_turnEffects[i])) { playing = true; continue; }
+				_turnEffectStart.Remove(_turnEffects[i]);
 				try { effects.release(_turnEffects[i]); } catch (Exception) { }
 				_turnEffects.RemoveAt(i);
 			}
@@ -1713,6 +1764,7 @@ namespace OpenFF.Client
 		{
 			Log.Write(LogChannel.File, "battle: " + _executing.Name + "'s turn is over (step " + LegacyStep.Count + ")");
 			DarkCost(_executing);
+			AfterAction(_executing);
 			_executing = null;
 			// The after event (executeState: a normal action's turn over), the turn finishing once it is.
 			if (_eventParty != null && _eventParty.AfterEvent >= 0 && !StartEvent(EventKind.After, _eventParty.AfterEvent)) return;

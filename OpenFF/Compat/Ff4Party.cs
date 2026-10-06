@@ -32,6 +32,7 @@ namespace OpenFF.Client
 						_tables = Ff4Tables.Read(GameArchive.Chain);
 						Log.Write(LogChannel.General, "party: " + _tables.Describe().Split('\n')[0]);
 						foreach (string note in _tables.Notes) Log.Write(LogChannel.General, "party: " + note);
+						foreach (CharacterDefinition d in _tables.Characters) Log.Write(LogChannel.File, "party: type " + d.Id + " " + d.Name + " - commands at 50: " + string.Join(", ", d.CommandsAt(50)));
 					}
 					catch (Exception ex)
 					{
@@ -51,6 +52,17 @@ namespace OpenFF.Client
 				if (_party == null) NewGame();
 				return _party;
 			}
+		}
+
+		/// <summary>A test party in place of the one there is: these character types at this level, in this order (the drive's "party").</summary>
+		public static void TestParty(IEnumerable<int> types, int level)
+		{
+			Party party = new Party(Tables);
+			_positions.Clear();
+			foreach (int type in types) party.Join(type, level);
+			if (_party != null) foreach (OpenFF.Data.ItemStack s in _party.Inventory) party.AddItem(s.ItemId, s.Count);
+			_party = party;
+			Log.Write(LogChannel.General, "party: test party - " + party.Describe().Replace("\n", " | "));
 		}
 
 		/// <summary>What FF4's initForNewgame leaves: Cecil (type 0) alone, at level 10, with nothing.</summary>

@@ -250,6 +250,18 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: flag " + bits[0] + " failed: " + ex.Message); }
 					break;
 				}
+				case "party":
+				{
+					// "party 3,9,10 30": a test party of these FF4 character types at level 30, in place of the one there is.
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					List<int> types = new List<int>();
+					foreach (string t in bits.Length > 0 ? bits[0].Split(',') : new string[0]) if (int.TryParse(t, out int ty)) types.Add(ty);
+					int level = bits.Length > 1 && int.TryParse(bits[1], out int lv) ? lv : 10;
+					if (types.Count == 0 || !GameProfile.IsFf4) { Log.Write(LogChannel.General, "drive: party wants <type,type,...> [level] (FF4)"); break; }
+					try { Ff4Party.TestParty(types, level); }
+					catch (Exception ex) { Log.Write(LogChannel.General, "drive: party failed: " + ex.Message); }
+					break;
+				}
 				case "member":
 				{
 					// A character into the party, as a mod would (Game.Party.AddMember) - a screen that moves between heroes, tested with more than one.

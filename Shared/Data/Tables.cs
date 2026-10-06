@@ -511,6 +511,9 @@ namespace OpenFF.Data
 		/// <summary>FF4: the bosses' entrance cameras (battle_parameter.chain chain 4) by monster.</summary>
 		public Dictionary<int, BossCamera> BossCameras = new Dictionary<int, BossCamera>();
 
+		/// <summary>FF4: battle_parameter.chain's chains as they are (3 Recall's draws, 23 the wide postures, 26 Twincast's pairs), for the few read straight.</summary>
+		public List<byte[]> BattleChains = new List<byte[]>();
+
 		/// <summary>FF4: a summon's cast scene by spell (battle_parameter.chain chain 6): the event number, s&lt;NN&gt;_00.</summary>
 		public Dictionary<int, int> SummonCasts = new Dictionary<int, int>();
 

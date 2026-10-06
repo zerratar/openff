@@ -54,15 +54,21 @@ namespace OpenFF.Client
 			if (_bossCamera == null || _phase != Phase.Intro || _timer < BossMoveFrom) return;
 			int k = _timer - BossMoveFrom, n = Math.Max(1, _bossCamera.Frames);
 			Vector3 standPos = Ff4BattleStage.CameraPosition(_cameraType), standTgt = Ff4BattleStage.CameraTarget(_cameraType);
-			if (k >= n) { SetCamera(standPos, standTgt); return; }
+			if (k >= n) { SetCamera(standPos, standTgt, cut: false); return; }
 			float s = (float)Math.Cos(k / (double)n * Math.PI / 2);
 			Vector3 startPos = new Vector3(_bossCamera.Position[0], _bossCamera.Position[1], _bossCamera.Position[2]);
 			Vector3 startTgt = new Vector3(_bossCamera.Target[0], _bossCamera.Target[1], _bossCamera.Target[2]);
-			SetCamera(standPos + (startPos - standPos) * s, standTgt + (startTgt - standTgt) * s);
+			SetCamera(standPos + (startPos - standPos) * s, standTgt + (startTgt - standTgt) * s, cut: false);
 		}
 
-		private static void SetCamera(Vector3 position, Vector3 target)
+		/// <summary>The battle camera put somewhere at once - a cut, unless it is a step of a move driven a frame at a time (<paramref name="cut"/> false), whose in-between frames are smoothed.</summary>
+		private static void SetCamera(Vector3 position, Vector3 target, bool cut = true)
 		{
+			if (!cut)
+			{
+				Ff4EventCamera.Place((int)(position.X * 4096), (int)(position.Y * 4096), (int)(position.Z * 4096), (int)(target.X * 4096), (int)(target.Y * 4096), (int)(target.Z * 4096));
+				return;
+			}
 			Ff4EventCamera.MoveTo((int)(position.X * 4096), (int)(position.Y * 4096), (int)(position.Z * 4096), 0, false);
 			Ff4EventCamera.LookAt((int)(target.X * 4096), (int)(target.Y * 4096), (int)(target.Z * 4096), 0);
 		}
@@ -101,6 +107,7 @@ namespace OpenFF.Client
 		private void BeginInvokeCamera(Fighter actor)
 		{
 			_invokeActor = actor;
+			FrameCapture.CameraCut();   // the standing shot to the close-up: a cut
 			_invokeShot = _random.Next(3);
 			_invokeFrame = 0;
 			int form = actor.Member != null ? PlayerForm[Math.Clamp(actor.Member.Id, 0, PlayerForm.Length - 1)] : 0;
@@ -129,7 +136,7 @@ namespace OpenFF.Client
 				1 => Vector3.Lerp(new Vector3(60 * sa, 30f, 60 * ca), new Vector3(60 * sa, 4f, 60 * ca), t),
 				_ => new Vector3(60f * (float)Math.Sin(t * 15.0 * Math.PI / 180), 9f, 60f * (float)Math.Cos(t * 15.0 * Math.PI / 180)),
 			};
-			SetCamera(position, new Vector3(0f, _invokeHeight, 0f));
+			SetCamera(position, new Vector3(0f, _invokeHeight, 0f), cut: false);
 			_invokeFrame++;
 		}
 

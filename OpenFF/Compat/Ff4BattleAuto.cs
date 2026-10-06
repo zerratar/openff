@@ -34,7 +34,7 @@ namespace OpenFF.Client
 				list.Add(new GambitTarget
 				{
 					Fighter = f, Side = foes ? OpenFF.Client.GambitSide.Foe : OpenFF.Client.GambitSide.Ally,
-					Hp = f.Hp, MaxHp = f.MaxHp, Alive = f.Alive && !OutOfFight(f) && !f.Airborne, Dead = !f.Alive, Stone = Has(f, CStone),
+					Hp = f.Hp, MaxHp = f.MaxHp, Alive = f.Alive && !OutOfFight(f) && !Untargetable(f), Dead = !f.Alive, Stone = Has(f, CStone),
 					Status = status, Order = i,
 				});
 			}

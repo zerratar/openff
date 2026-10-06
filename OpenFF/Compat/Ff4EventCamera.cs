@@ -140,6 +140,19 @@ namespace OpenFF.Client
 			StartTarget(new GlobalScope.VecFx32(x, y, z), frames);
 		}
 
+		/// <summary>
+		/// The camera put at a place looking at a point, as a step of a move the caller drives a frame at a time (the battle's
+		/// boss entrance and invoke close-up): no cut declared, so the frames between the steps are smoothed.
+		/// </summary>
+		public static void Place(int x, int y, int z, int tx, int ty, int tz)
+		{
+			if (!Take()) return;
+			_follow = false;
+			_pos = new GlobalScope.VecFx32(x, y, z);
+			_trg = new GlobalScope.VecFx32(tx, ty, tz);
+			_posFrames = _trgFrames = 0;
+		}
+
 		/// <summary>setCamera_RelativeGaze(dx, dy, dz, frames, ?).</summary>
 		public static void LookBy(int dx, int dy, int dz, int frames)
 		{
