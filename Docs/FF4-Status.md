@@ -71,9 +71,10 @@ and facing; the party on the group's root at their FF4 positions and rows; the m
 addBasicMotion binds and the weapon and shield held at their joints; the entrance, the attack
 (poise, swing, the blow 8 frames in), the flinch and the victory (layout, win pose, camera) to
 the frame; the commands initializeCommand lays out (Attack, Darkness, Items, Defend, Swap Rows);
-Steam's panel; max HP rolled level by level. Not FF4's yet: its ATB timing and battle modes, the
-damage and Darkness formulas beyond what was read, effects (the hit flash), the result window,
-monster AI and abilities.
+Steam's panel; max HP rolled level by level; the active time gauges; the weapon's hit effect; the
+damage numbers (a digit at a time, from each monster's spot) and a fallen monster's 10-frame fade.
+Not FF4's yet: the battle modes, the damage and Darkness formulas beyond what was read, the hit
+sounds, the result window, monster AI and abilities.
 
 ## Menus - 15%
 

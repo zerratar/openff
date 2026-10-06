@@ -763,7 +763,7 @@ namespace OpenFF.Client
 					if (t.Member != null) t.Member.Hp = t.Hp;
 					Pop(DamageSpot(t), damage);
 					Say(caster.Name + " casts " + name + ": " + t.Name + " takes " + damage + ".");
-					if (!t.Alive) Fell(t);
+					if (!t.Alive) Fell(t, damage);
 				}
 			}
 			else
@@ -950,11 +950,31 @@ namespace OpenFF.Client
 			return Math.Max(1, value);
 		}
 
-		private void Fell(Fighter foe)
+		// btl::BattleBehavior's dead process: as the blow's number lands, startDeadPerformance plays the death
+		// sound (0x65, 6) and BPTranslucence takes every fallen monster from whole to nothing in transFrameMax frames -
+		// 10 for a plain monster (readyDeadPerformance) - its transparency rate (10 - frame) * 10 a frame, then it
+		// is gone (Steam's frames: a 38 on a Floating Eye at 3896, the Eye half there at 3904, gone at 3912).
+		private const int DeathFrames = 10;
+
+		/// <summary>A fighter falls; <paramref name="number"/> is the blow's damage, whose number the monster's fade waits on.</summary>
+		private void Fell(Fighter foe, int number = -1)
 		{
 			if (!foe.IsMonster) { Note(foe.Name + " falls."); return; }
 			Note(foe.Name + " is defeated.");
-			if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
+			if (foe.Npc != null && Ff4BattleStage.Active)
+			{
+				Npc npc = foe.Npc;
+				// Steam's frames, not yet the code: the fade under way 6 frames after the number's first digit (the 38's 3 at
+				// 3893, the Eye at 90 at 3900, half at 3904, a tenth at 3908) - as the first digit lands, not the last.
+				int wait = number >= 0 ? DigitRise.Length - 1 : 0;
+				After(wait, () => Game.Audio.PlaySe(0x65, 6));
+				for (int f = 1; f <= DeathFrames; f++)
+				{
+					int rate = (DeathFrames - f) * 100 / DeathFrames;
+					After(wait + f, () => { npc.Alpha = rate; if (rate == 0) npc.Hidden = true; });
+				}
+			}
+			else if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
 			_expWon += foe.Monster.Experience;
 			_gilWon += foe.Monster.Gil;
 			foreach (DropChance drop in foe.Monster.Drops)
@@ -1031,7 +1051,7 @@ namespace OpenFF.Client
 					}
 					Pop(DamageSpot(foe), damage);
 					Note(member.Name + " hits " + foe.Name + " for " + damage + ".");
-					if (!foe.Alive) Fell(foe);
+					if (!foe.Alive) Fell(foe, damage);
 					if (_foes.FindAll(f => f.Alive).Count == 0) After(30, VictoryPose);
 				});
 				return;
@@ -1049,7 +1069,7 @@ namespace OpenFF.Client
 				Pop(DamageSpot(foe), damage);
 				Game.Audio.PlaySe(0, 3);
 				Note(member.Name + " hits " + foe.Name + " for " + damage + ".");
-				if (!foe.Alive) Fell(foe);
+				if (!foe.Alive) Fell(foe, damage);
 			}
 			member.Gauge = 0f;
 			_acting = null;
@@ -1165,7 +1185,7 @@ namespace OpenFF.Client
 				int damage = Damage(member, foe);
 				foe.Hp = Math.Max(0, foe.Hp - damage);
 				Pop(DamageSpot(foe), damage);
-				if (!foe.Alive) Fell(foe);
+				if (!foe.Alive) Fell(foe, damage);
 			}
 			Say(member.Name + " unleashes Darkness.");
 			EndTurn(member);
