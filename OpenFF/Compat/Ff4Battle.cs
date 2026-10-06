@@ -93,6 +93,8 @@ namespace OpenFF.Client
 			public bool Acted;   // a one-shot motion is playing; Idle() restarts the loop when it ends
 			public List<int> Commands = new List<int>();   // the member's FF4 command list (CommandList)
 			public bool Defending;                         // Defend: physical damage halved until their next turn
+			public int Poise = -1, SwingA = -1, SwingB = -1, Swings;   // the weapon's poise and two attack motions (b_poise, b_w), alternated
+			public float Facing;                           // degrees about y on the stage
 		}
 
 		private static Ff4Battle _instance;
@@ -118,7 +120,7 @@ namespace OpenFF.Client
 		private readonly List<string> _resultLines = new List<string>();   // level-ups and drops for the result window
 		private int _cameraType;            // the encounter group's battle camera (Ff4BattleStage.CameraPosition)
 		private Vector3 _centre;
-		private int _heroMotionIdle = 2004, _heroMotionAttack = 2008, _heroMotionHurt = 2009;   // 2004: the stance Steam's Cecil holds through a fight (2007 / 2009 are its victory)
+		private int _heroMotionIdle = 2004, _heroMotionAttack = 2008, _heroMotionHurt = 1117;   // 2004: the stance Steam's Cecil holds through a fight, 1117 its flinch (2007 / 2009 are its victory)
 
 		public Ff4Battle()
 		{
@@ -224,11 +226,30 @@ namespace OpenFF.Client
 					Npc npc = null;
 					try { npc = Game.Npcs.SpawnModel("p" + who.Id.ToString("00") + "_00", spot, 0f); } catch (Exception) { }
 					if (npc == null) { Log.Write(LogChannel.File, "battle: no battle model for " + ally.Name); continue; }
-					try { BindBattleMotions(npc, who.Id, ally.Member, tables); npc.PlayMotion(_heroMotionIdle, true); } catch (Exception) { }
+					try
+					{
+						WeaponMotionRecord weapon = BindBattleMotions(npc, who.Id, ally.Member, tables);
+						if (weapon != null) { ally.Poise = weapon.Poise; ally.SwingA = weapon.Raw[3]; ally.SwingB = weapon.Raw[2]; }
+					}
+					catch (Exception) { }
 					HoldEquipment(npc, ally.Member, tables);
 					npc.Solid = false;
-					if (npc is LegacyNpc exactNpc) exactNpc.FaceExactly(Ff4BattleStage.PartyFacingDegrees(_rootId, position, row));
-					else npc.LookAt(spot + Ff4BattleStage.PartyFacing(_rootId, position, row) * 10f);
+					ally.Facing = Ff4BattleStage.PartyFacingDegrees(_rootId, position, row);
+					// The entrance Steam's frames show: from 25 behind the spot, turned about, running in (1115) over six
+					// frames, then facing the foes in the stance (2004).
+					// Placed frame by frame as Steam's trace has it (25 back, then 5 equal steps in; turned 180 all the way -
+					// a walk would let the turn system swing the model round).
+					Fighter entering = ally;
+					Vector3 from = spot - Ff4BattleStage.Facing(ally.Facing) * 25f, to = spot;
+					npc.Teleport(from);
+					Face(ally, ally.Facing + 180f);
+					try { npc.PlayMotion(1115, true, 0); } catch (Exception) { }
+					for (int k = 1; k <= 5; k++)
+					{
+						float part = k / 5f;
+						After(k, () => { entering.Npc?.Teleport(from + (to - from) * part); Face(entering, entering.Facing + 180f); });
+					}
+					After(6, () => { Face(entering, entering.Facing); Play(entering, _heroMotionIdle, true, 0); entering.Acted = false; });
 					ally.Npc = npc;
 					ally.Home = spot;
 				}
@@ -373,7 +394,7 @@ namespace OpenFF.Client
 		/// b_pc_form_<PLAYER_FORM>, b_<the player's basic set>, b_poise<the weapon's poise>, b_p<the player's set> (Cecil's
 		/// b_p1009 holds 2004, the stance Steam's Cecil stands in) and the weapon's b_w<nn> (its attacks).
 		/// </summary>
-		private static void BindBattleMotions(Npc npc, int type, Character c, GameTables tables)
+		private static WeaponMotionRecord BindBattleMotions(Npc npc, int type, Character c, GameTables tables)
 		{
 			BattlePlayerMotions player = type >= 0 && type < tables.BattlePlayers.Count ? tables.BattlePlayers[type] : null;
 			int system = WeaponSystem(c, tables);
@@ -383,8 +404,10 @@ namespace OpenFF.Client
 			if (weapon != null && weapon.Poise > 0) sets.Add("b_poise" + weapon.Poise);
 			if (player != null && player.PlayerSet > 0) sets.Add("b_p" + player.PlayerSet.ToString("0000"));
 			if (weapon != null && weapon.WeaponSet >= 0) sets.Add("b_w" + weapon.WeaponSet.ToString("00"));
+			sets.Add("b_p_player_" + type.ToString("00"));   // the victory's 2007 and 2009 (BattleWin)
 			foreach (string set in sets) npc.BindMotions(set);
 			Log.Write(LogChannel.File, "battle: " + c.Name + " (weapon system " + system + ") binds " + string.Join(", ", sets));
+			return weapon;
 		}
 
 		internal static int Weapon(Character c, GameTables tables)
@@ -475,6 +498,9 @@ namespace OpenFF.Client
 				return;
 			}
 			_timer++;
+			_clock++;
+			RunCues();
+			StepVictoryCamera();
 			switch (_phase)
 			{
 				case Phase.Intro:
@@ -519,6 +545,7 @@ namespace OpenFF.Client
 		private void Fight()
 		{
 			Idle();
+			if (_cues.Count > 0) return;   // an action is playing out
 			if (Ff4BattleStage.Active) Log.Sample(LogChannel.File, "battle-camera", 120, () => "battle: camera at " + Game.Camera.Position + " hero at " + Game.Hero.Position);
 			if (_acting == null)
 			{
@@ -782,6 +809,31 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>Plays a battle motion on a member: the leader is the hero, the others their spawned models.</summary>
+		// ---- timed steps of the stage's choreography (Steam's frames: the entrance, an attack's poise and swing, the
+		// victory), counted in battle frames ----
+
+		private readonly List<(int At, Action Do)> _cues = new List<(int, Action)>();
+		private int _clock;
+
+		private void After(int frames, Action action) => _cues.Add((_clock + frames, action));
+
+		private void RunCues()
+		{
+			for (int i = 0; i < _cues.Count;)
+			{
+				if (_cues[i].At > _clock) { i++; continue; }
+				Action action = _cues[i].Do;
+				_cues.RemoveAt(i);
+				try { action(); } catch (Exception ex) { Log.Write(LogChannel.General, "battle: step: " + ex.Message); }
+			}
+		}
+
+		private void Face(Fighter f, float degrees)
+		{
+			if (f.Npc is LegacyNpc exact) exact.FaceExactly(degrees);
+			else f.Npc?.LookAt(f.Npc.Position + Ff4BattleStage.Facing(degrees) * 10f);
+		}
+
 		private void Play(Fighter f, int motion, bool loop = false, int blend = 3)
 		{
 			if (!loop) f.Acted = true;
@@ -862,6 +914,42 @@ namespace OpenFF.Client
 		private void MemberAttacks(Fighter member, Fighter foe)
 		{
 			if (!foe.Alive) { _pick = Pick.Target; _cursor = FirstAliveFoe(); return; }
+			if (Ff4BattleStage.Active && member.Poise > 0 && member.SwingA > 0)
+			{
+				// Steam's attack, frame by frame: the weapon's poise (1047) for 15 frames, the swing (96, then 95, by
+				// turns) - the blow lands 8 frames in, its number pops when the swing ends - and back to the stance.
+				int swing = member.Swings++ % 2 == 0 ? member.SwingA : (member.SwingB > 0 ? member.SwingB : member.SwingA);
+				EndTurn(member);
+				Play(member, member.Poise, false, 3);
+				member.Acted = false;
+				int damage = 0;
+				bool hit = false;
+				After(15, () => { Play(member, swing, false, 3); member.Acted = false; });
+				After(23, () =>
+				{
+					hit = Hits(member, foe);
+					if (!hit) return;
+					damage = Damage(member, foe);
+					foe.Hp = Math.Max(0, foe.Hp - damage);
+					Game.Audio.PlaySe(0, 3);
+				});
+				After(31, () =>
+				{
+					Play(member, _heroMotionIdle, true, 3);
+					member.Acted = false;
+					if (!hit)
+					{
+						PopWord(Where(foe) + new Vector3(0, 12f, 0), Ff4Ui.WordMiss);
+						Say(member.Name + " misses " + foe.Name + ".");
+						return;
+					}
+					Pop(foe.Npc.Position + new Vector3(0, 12f, 0), damage);
+					Say(member.Name + " hits " + foe.Name + " for " + damage + ".");
+					if (!foe.Alive) Fell(foe);
+					if (_foes.FindAll(f => f.Alive).Count == 0) After(30, VictoryPose);
+				});
+				return;
+			}
 			Play(member, _heroMotionAttack);
 			if (!Hits(member, foe))
 			{
@@ -889,6 +977,15 @@ namespace OpenFF.Client
 			if (alive.Count == 0) return;
 			Fighter target = alive[_random.Next(alive.Count)];
 			try { foe.Npc.PlayMotion(201, false, 3); foe.Acted = true; } catch (Exception) { }
+			foe.Gauge = 0f;
+			// On the stage the blow lands as Steam's does, eight frames into the monster's attack (201).
+			if (Ff4BattleStage.Active) After(8, () => MonsterBlow(foe, target));
+			else MonsterBlow(foe, target);
+		}
+
+		private void MonsterBlow(Fighter foe, Fighter target)
+		{
+			if (!target.Alive) return;
 			if (!Hits(foe, target))
 			{
 				PopWord(Where(target) + new Vector3(0, 12f, 0), Ff4Ui.WordMiss);
@@ -902,7 +999,10 @@ namespace OpenFF.Client
 			target.Member.Hp = target.Hp;
 			Pop(Where(target) + new Vector3(0, 12f, 0), damage);
 			Game.Screen.Flash(new Color(255, 60, 40), 6, 2);
-			Play(target, _heroMotionHurt);
+			// Steam's flinch: 1117 for a frame, then the stance again.
+			Play(target, 1117, false, 0);
+			Fighter hurt = target;
+			After(1, () => { if (hurt.Alive) { Play(hurt, _heroMotionIdle, true, 3); hurt.Acted = false; } });
 			Say(foe.Name + " hits " + target.Name + " for " + damage + ".");
 			foe.Gauge = 0f;
 			if (!target.Alive) Say(target.Name + " falls.");
@@ -1009,6 +1109,54 @@ namespace OpenFF.Client
 			}
 		}
 
+		// The victory as Steam stages it (btl::BattleWin::layout, pl::layoutCharacterScene): the members on the layout
+		// for the party's size, turned as it says, in the win pose (2007, then 2009 after 45 frames), the camera easing
+		// to the layout's over 56 frames from where Steam's starts (fitted off its frames for one member).
+		private int _victoryCameraFrame = -1;
+		private float[] _victoryFrom, _victoryFromTarget, _victoryTo, _victoryToTarget;
+
+		private void VictoryPose()
+		{
+			VictoryLayout layout = Ff4BattleStage.Active ? Ff4Party.Tables?.VictoryLayout(_party.FindAll(f => f.Alive).Count - 1) : null;
+			if (layout != null)
+			{
+				int k = 0;
+				foreach (Fighter f in _party)
+				{
+					if (!f.Alive || f.Npc == null || k >= 5) continue;
+					PartyRootSlot spot = layout.Spots[k++];
+					f.Npc.Teleport(new Vector3(spot.X, spot.Y, spot.Z));
+					Face(f, spot.Facing);
+					Play(f, 2007, false, 0);
+					f.Acted = false;
+					Fighter winner = f;
+					After(45, () => { Play(winner, 2009, true, 3); winner.Acted = false; });
+				}
+				_victoryFrom = new[] { 2.694f, 27.396f, 114.497f };
+				_victoryFromTarget = new[] { -3.997f, -2.996f, -18.2f };
+				_victoryTo = layout.CameraPosition;
+				_victoryToTarget = layout.CameraTarget;
+				_victoryCameraFrame = 0;
+			}
+			Win();
+		}
+
+		private void StepVictoryCamera()
+		{
+			if (_victoryCameraFrame < 0 || _victoryTo == null) return;
+			const int frames = 56;
+			float t = Math.Min(1f, _victoryCameraFrame / (float)frames);
+			float p = (float)Math.Sin(t * Math.PI / 2);
+			int Fx(float a, float b) => (int)Math.Round((a + (b - a) * p) * 4096);
+			try
+			{
+				Ff4EventCamera.MoveTo(Fx(_victoryFrom[0], _victoryTo[0]), Fx(_victoryFrom[1], _victoryTo[1]), Fx(_victoryFrom[2], _victoryTo[2]), 0, false);
+				Ff4EventCamera.LookAt(Fx(_victoryFromTarget[0], _victoryToTarget[0]), Fx(_victoryFromTarget[1], _victoryToTarget[1]), Fx(_victoryFromTarget[2], _victoryToTarget[2]), 0);
+			}
+			catch (Exception) { }
+			if (_victoryCameraFrame++ >= frames) _victoryCameraFrame = -1;
+		}
+
 		private void Win()
 		{
 			_phase = Phase.Victory;
@@ -1035,7 +1183,7 @@ namespace OpenFF.Client
 				party.AddItem(id, 1);
 				lines.Add("Found " + (Ff4Party.Tables.Item(id)?.Name ?? ("item " + id)) + ".");
 			}
-			foreach (Fighter f in _party) { if (f.Alive) Play(f, 2010); }
+			if (!Ff4BattleStage.Active) foreach (Fighter f in _party) { if (f.Alive) Play(f, 2007); }   // on the stage VictoryPose has posed them
 			Log.Write(LogChannel.General, "battle: won - " + _expWon + " exp, " + _gilWon + " gil. " + string.Join(" ", lines));
 		}
 
@@ -1099,6 +1247,8 @@ namespace OpenFF.Client
 			_foes.Clear();
 			_party.Clear();
 			_pops.Clear();
+			_cues.Clear();
+			_victoryCameraFrame = -1;
 			if (Ff4BattleStage.Active)
 			{
 				try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }

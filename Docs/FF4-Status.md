@@ -62,12 +62,18 @@ Encounters start from the map's tables and the field's step counter; shops and i
 the scripts call them, with FF4's prices and stock. The windows they show are FF3's dressed
 with FF4's art, not FF4's own screens.
 
-## Battle - 25%
+## Battle - 40%
 
-A stand-in, honestly: FF3's battle system drives FF4's battle stages, monsters, party
-positions, window art and glove, with damage, hit and magic formulas taken from the
-binary's tables. FF4's own battle - its ATB flow, its command set, its animations, its HUD
-behaviour - is not there. It fights, and it is not FF4's fight.
+Still OpenFF's own battle loop (Ff4Battle), but what it shows is FF4's, measured against the
+Steam game's frames (Tools/ff4hook): a scene's battle comes after the encounter whirl
+(SPBlurRotate) on its stage as a part change; the encounter group's every monster at its x, y, z
+and facing; the party on the group's root at their FF4 positions and rows; the motions
+addBasicMotion binds and the weapon and shield held at their joints; the entrance, the attack
+(poise, swing, the blow 8 frames in), the flinch and the victory (layout, win pose, camera) to
+the frame; the commands initializeCommand lays out (Attack, Darkness, Items, Defend, Swap Rows);
+Steam's panel; max HP rolled level by level. Not FF4's yet: its ATB timing and battle modes, the
+damage and Darkness formulas beyond what was read, effects (the hit flash), the result window,
+monster AI and abilities.
 
 ## Menus - 15%
 

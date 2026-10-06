@@ -388,6 +388,14 @@ namespace OpenFF.Data
 		public PartyRootSlot[][] Rows = new PartyRootSlot[2][];
 	}
 
+	/// <summary>FF4: where the party stands for its victory and where the camera looks (player.chaindata chain 34, by the party's size less one).</summary>
+	public sealed class VictoryLayout
+	{
+		public int Id;
+		public float[] CameraPosition, CameraTarget;
+		public PartyRootSlot[] Spots = new PartyRootSlot[5];
+	}
+
 	/// <summary>FF4: a player type's battle motion sets (battle_parameter.chain chain 2): b_p&lt;PlayerSet&gt; holds the stance it stands in (Cecil's b_p1009: 2004), b_&lt;BasicSet&gt; more of its own.</summary>
 	public sealed class BattlePlayerMotions
 	{
@@ -411,6 +419,8 @@ namespace OpenFF.Data
 		public List<PartyRoot> PartyRoots = new List<PartyRoot>();
 		public PartyRoot PartyRoot(int id) => PartyRoots.Find(r => r.Id == id);
 		public List<BattlePlayerMotions> BattlePlayers = new List<BattlePlayerMotions>();
+		public List<VictoryLayout> VictoryLayouts = new List<VictoryLayout>();
+		public VictoryLayout VictoryLayout(int id) => VictoryLayouts.Find(v => v.Id == id);
 		public List<WeaponMotionRecord> WeaponMotions = new List<WeaponMotionRecord>();
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
 		private Dictionary<int, MonsterParty> _parties;

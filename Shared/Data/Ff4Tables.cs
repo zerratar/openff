@@ -366,6 +366,27 @@ namespace OpenFF.Data
 			}
 			// Chain 32 (32-byte records, id first; pl::PlayerParty::normalMagic) lists the spells
 			// too, with an effect id at 10; magic_parameter.bbd carries the numbers (ReadMagic).
+			// Chain 34: the victory layouts (pl::PlayerParty::layoutSceneParameter, 108-byte records by id: the party's
+			// size less one, 5..9 again for another stage): the camera's position at 4 and target at 16 (fx32), then from
+			// 0x1c each member's spot and facing (x, y, z fx32, degrees fx32) - btl::BattleWin::layout stands them there
+			// and pl::layoutCharacterScene sets the camera. One member: (-1, 0, 10) facing -15, the camera at (-15, 13,
+			// 100.5) looking at (6, 12.2, -18.2), as Steam's victory ends.
+			if (pack.Count > 34)
+			{
+				int at = pack.Offset(34);
+				for (int i = 0; i + 108 <= pack.Size(34); i += 108)
+				{
+					VictoryLayout v = new VictoryLayout { Id = ChainPack.S16(pack.Data, at + i) };
+					v.CameraPosition = new float[] { ChainPack.S32(pack.Data, at + i + 4) / 4096f, ChainPack.S32(pack.Data, at + i + 8) / 4096f, ChainPack.S32(pack.Data, at + i + 12) / 4096f };
+					v.CameraTarget = new float[] { ChainPack.S32(pack.Data, at + i + 16) / 4096f, ChainPack.S32(pack.Data, at + i + 20) / 4096f, ChainPack.S32(pack.Data, at + i + 24) / 4096f };
+					for (int m = 0; m < 5; m++)
+					{
+						int o = at + i + 0x1c + 16 * m;
+						v.Spots[m] = new PartyRootSlot { X = ChainPack.S32(pack.Data, o) / 4096f, Y = ChainPack.S32(pack.Data, o + 4) / 4096f, Z = ChainPack.S32(pack.Data, o + 8) / 4096f, Facing = ChainPack.S32(pack.Data, o + 12) / 4096f };
+					}
+					tables.VictoryLayouts.Add(v);
+				}
+			}
 			if (pack.Count > 32 && tables.Spells.Count == 0)
 			{
 				int spells = pack.Size(32) / 32;
