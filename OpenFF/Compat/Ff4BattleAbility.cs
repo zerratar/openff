@@ -16,7 +16,7 @@ namespace OpenFF.Client
 	{
 		private const int CmdSteal = 7, CmdCover = 10, CmdDualcast = 17, CmdBardsong = 18, CmdHide = 19, CmdReturn = 20, CmdSalve = 21,
 			CmdAim = 25, CmdAnalyze = 28, CmdFocus = 37, CmdThrow = 42, CmdRecall = 52, CmdUpgrade = 54, CmdBrace = 56, CmdCeaseCover = 63,
-			CmdPray = 64, CmdTwincast = 65, CmdCry = 66, CmdBluff = 67, CmdKick = 68, CmdNinjutsu = 0x53;
+			CmdPray = 64, CmdTwincast = 65, CmdCry = 66, CmdBluff = 67, CmdKick = 68, CmdBless = 69, CmdNinjutsu = 0x53;
 		private const int CCry = 0x1D;
 
 		/// <summary>btl::ROLLUP_RATE: Focus's charge, x1, x2, x3.3, x4.5 (fx12).</summary>
@@ -176,6 +176,7 @@ namespace OpenFF.Client
 				case CmdPray:
 				case CmdHide:
 				case CmdReturn:
+				case CmdBless:
 					// The target window on the member alone (Steam: its name, HP, weaknesses), confirmed with A.
 					_abilityCmd = id; _pick = Pick.Ally; _cursor = _party.IndexOf(who);
 					return true;
@@ -208,7 +209,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>The commands whose target is the member alone (ability.bbd target 0x0010): the window on it, nothing to move to.</summary>
-		private static bool SelfOnly(int id) => id == CmdFocus || id == CmdBrace || id == CmdBluff || id == CmdPray || id == CmdHide || id == CmdReturn || id == CmdSalve;
+		private static bool SelfOnly(int id) => id == CmdFocus || id == CmdBrace || id == CmdBluff || id == CmdPray || id == CmdHide || id == CmdReturn || id == CmdSalve || id == CmdBless;
 
 		/// <summary>The member confirmed as the target of its own command.</summary>
 		private void AbilityOnSelf(Fighter who)
@@ -222,6 +223,7 @@ namespace OpenFF.Client
 				case CmdPray: AbilityMotions(who, "b_pa_035"); Decide(who, () => Pray(who), AbilityWait(id), id); break;
 				case CmdBluff: AbilityMotions(who, "b_pa_039"); Decide(who, () => Invoke(who, CmdBluff, () => Bluff(who)), AbilityWait(id), id); break;
 				case CmdHide: Decide(who, () => Hide(who), AbilityWait(id), id); break;
+				case CmdBless: Decide(who, () => Invoke(who, CmdBless, () => Bless(who)), AbilityWait(id), id); break;
 				case CmdReturn: Decide(who, () => Return(who), AbilityWait(id), id); break;
 				case CmdSalve: { int item = _usingItem; Decide(who, () => Invoke(who, CmdSalve, () => Salve(who, item)), AbilityWait(id), id); break; }
 			}
@@ -907,6 +909,52 @@ namespace OpenFF.Client
 				}
 			}
 			Mend();
+		}
+
+		// ---- Bless (PABMentalWave, PABMentalWaveRecover) ----
+
+		private const int BlessPeriod = 45;   // 0x2d000 of battleSpeedRate: a tick every 45 frames
+
+		/// <summary>PABMentalWave: 155/3 and effect 279 at the party's side (24, 0, 0); the caster's flag 0x12 from then on.</summary>
+		private void Bless(Fighter who)
+		{
+			Acted(who, CmdBless, _party.FindAll(f => f.Alive).ToArray());
+			EndTurn(who);
+			LoadEffect(279);
+			PlayEffect(279, new Vector3(24f, 0f, 0f));
+			Game.Audio.PlaySe(155, 3);
+			who.Blessing = true;
+			who.BlessCount = 0;
+			Note(who.Name + " blesses the party.");
+		}
+
+		/// <summary>checkCondition's Bless: every 45 frames while a member blesses, once no number is up, each ally standing (not hidden, not in the air) gains 5..10 MP.</summary>
+		private void TickBless()
+		{
+			Fighter blesser = _party.Find(f => f.Blessing && f.Alive);
+			if (blesser == null || (blesser.BlessCount += (int)BattleSpeedRate) < BlessPeriod) return;
+			blesser.BlessCount = 0;
+			if (_queue.Exists(e => e.Actor == blesser && _poisonTicks.Contains(e.Act))) return;
+			Action tick = null;
+			tick = () =>
+			{
+				_poisonTicks.Remove(tick);
+				void Mend()
+				{
+					if (_pops.Count > 0) { After(1, Mend); return; }
+					foreach (Fighter m in _party)
+					{
+						if (!m.Alive || Untargetable(m) || m.Member == null) continue;
+						int mp = _random.Next(6) + 5;
+						int before = m.Member.Mp;
+						m.Member.Mp = Math.Min(m.Member.MaxMp, m.Member.Mp + mp);
+						if (m.Member.Mp != before) Pop(DamageSpot(m), m.Member.Mp - before, true);
+					}
+				}
+				Mend();
+			};
+			_poisonTicks.Add(tick);
+			_queue.Add((blesser, tick));
 		}
 
 		// ---- Smoke (4904): the party gets away, or "Can't escape!" ----

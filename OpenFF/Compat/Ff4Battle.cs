@@ -134,6 +134,8 @@ namespace OpenFF.Client
 			public bool TwinWaiting;                       // Twincast chosen, its partner awaited (PAIR_MAGIC_WAIT)
 			public Fighter TwinPartner;
 			public HashSet<string> BoundSets = new HashSet<string>();
+			public bool Blessing;                          // Bless (flag 0x12): the party's MP every 45 frames
+			public int BlessCount;
 			public int Poise = -1, SwingA = -1, SwingB = -1, Swings;
 			public int HitEffect = -1;                     // the weapon's hit effect (WEAPON_EFFECT), its pack e<nnn>
 			public int HitBank = -1, HitSound = -1;        // the weapon's hit sound (battle_parameter chain 5's first pair)
@@ -792,6 +794,7 @@ namespace OpenFF.Client
 					f.AtwLeft -= (int)BattleSpeedRate;
 					if (f.AtwLeft <= 0) { _queue.Add((f, f.Pending)); f.Pending = null; }
 				}
+				TickBless();
 				foreach (Fighter f in _foes)
 				{
 					TickConditions(f);
