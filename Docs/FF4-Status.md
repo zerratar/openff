@@ -83,7 +83,7 @@ every monster weighs as a turn ends); the battle events (BattleScriptEngine, bat
 (fade through black, the poses and camera, the result with the gil counting up, a page for each
 level-up and one for the items, the fade out). The HUD is a layout (Data/hud/ff4_battle_hud.xml,
 Docs/Menus.md) a mod can reshape or restyle. Not FF4's yet: statuses (and the AI's checks and forced
-actions that read them), monster abilities outside the spell table, Darkness's formula, the battle
+actions that read them), monster abilities outside the spell table, spells' effects and motions, the battle
 modes' other cases.
 
 ## Menus - 15%

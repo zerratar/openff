@@ -92,6 +92,8 @@ namespace OpenFF.Client
 			public bool Queued;               // its action is decided and waits its turn (ATG state 2 or 3, the gauge held full)
 			public int AiCondition = -2, AiIndex; // a monster's AI: the condition that chose its set last, and where it is in it
 			public int HpBefore;              // its HP as the last action began (an AI check: did that action hurt it)
+			public int DarkFrames;            // Darkness's time left (ys::Condition 0x17), and whether a dark blow's cost is due
+			public bool DarkCostDue;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
 			public int DecidedAbility, DecidedTarget = 1;   // its turnAction as decided: the ability (1 Attack, a spell's or item's id...) and a monster's target type
 			public bool NotDeath;             // an event's NotDeathFlagOn: it cannot fall
@@ -665,6 +667,7 @@ namespace OpenFF.Client
 				foreach (Fighter f in _party)
 				{
 					if (!f.Alive) continue;
+					if (f.DarkFrames > 0) f.DarkFrames = Math.Max(0, f.DarkFrames - (int)BattleSpeedRate);   // calcConditionTime
 					if (!f.Queued) { f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f)); continue; }
 					if (f.Pending == null) continue;
 					f.AtwLeft -= (int)BattleSpeedRate;
@@ -1172,6 +1175,7 @@ namespace OpenFF.Client
 			long core = numerator / denominator;
 			long value = (long)((4096 + (_random.Next(301) << 12) / 1000) * core) >> 12;
 			float elements = ElementFactor(attacker, target), races = RaceFactor(attacker, target);
+			bool dark = Dark(attacker) && attacker != target;
 			if (elements != 1f || races != 1f) Note(attacker.Name + " on " + target.Name + ": elements x" + elements + ", races x" + races);
 			value = (long)(value * BackRowFactor(attacker, target) * elements * races);
 			value = value * (target.IsMonster ? 12 : 7) / 10;
@@ -1181,6 +1185,7 @@ namespace OpenFF.Client
 				value = value * 120 / 100;
 				Note(attacker.Name + "'s blow is critical.");
 			}
+			if (dark) { value *= 2; attacker.DarkCostDue = true; }   // reviseDarkness: x2 (0x2000), the cost after
 			if (BattleParameterFlag(2)) value = 99999;   // an event's OnForceMaxDamage
 			return (int)Math.Max(1, value);
 		}
@@ -1233,9 +1238,10 @@ namespace OpenFF.Client
 		private static float ElementFactor(Fighter attacker, Fighter target)
 		{
 			Affinity a = AffinityOf(attacker), t = AffinityOf(target);
-			int common = t.Absorbs & a.Elements & 0xf7f8;
-			if ((t.Family & 0x100) != 0) common |= a.Elements & 4;
-			int counted = a.Elements & 0xe7f8;
+			int elements = a.Elements | (Dark(attacker) && attacker != target ? 0x400 : 0);   // Darkness adds the dark element
+			int common = t.Absorbs & elements & 0xf7f8;
+			if ((t.Family & 0x100) != 0) common |= elements & 4;
+			int counted = elements & 0xe7f8;
 			int halving = common == 0 ? t.Resists : t.Weak;
 			float factor = 1f;
 			bool strong = (t.Resists >> 12 & 1) != 0;
@@ -1535,21 +1541,36 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>Darkness: a blow at every foe at once that costs the knight an eighth of their hit points (as the DS remake's Darkness reads; its own formula is not ported yet).</summary>
+		/// <summary>
+		/// Darkness (BattlePlayerBehavior::stateDark): the state comes on (ys::Condition 0x17) and the turn is over, with no
+		/// blow. It lasts condition_parameter.bbd's 450 (the timer that times 4096 less the battle's speed rate a frame -
+		/// calcConditionTime); while it is on and HP is over 1, a blow carries the dark element (0x400) and is doubled
+		/// (reviseDarkness), each costing its striker HP after (DarkCost).
+		/// </summary>
 		private void Darkness(Fighter member)
 		{
-			// DarkFormula::calcDarkSubHp: a tenth of the maximum, never the last point.
-			member.Hp -= Math.Min(member.MaxHp / 10, member.Hp - 1);
-			member.Member.Hp = member.Hp;
-			Play(member, _heroMotionAttack);
-			foreach (Fighter foe in _foes.FindAll(f => f.Alive))
-			{
-				int damage = Damage(member, foe);
-				foe.Hp = Math.Max(0, foe.Hp - damage);
-				Pop(DamageSpot(foe), damage);
-				if (!foe.Alive) Fell(foe, damage);
-			}
-			Say(member.Name + " unleashes Darkness.");
+			member.DarkFrames = DarknessFrames;
+			Note(member.Name + " is wreathed in darkness (" + DarknessFrames + " frames).");
 			EndTurn(member);
+		}
+
+		private const int DarknessFrames = 450;
+
+		/// <summary>Whether a fighter's blows are dark now: the state on and more than 1 HP left.</summary>
+		private static bool Dark(Fighter f) => f.DarkFrames > 0 && f.Hp > 1;
+
+		/// <summary>DarkFormula::calcDarkSubHp, after a dark blow (BaseBattleCharacter flag 0x39): a tenth of the maximum, never the last point, shown on the striker.</summary>
+		private void DarkCost(Fighter f)
+		{
+			if (!f.DarkCostDue) return;
+			f.DarkCostDue = false;
+			int cost = f.MaxHp / 10;
+			if (f.Hp <= cost) cost = f.Hp - 1;
+			if (cost <= 0) return;
+			f.Hp -= cost;
+			if (f.Member != null) f.Member.Hp = f.Hp;
+			Pop(DamageSpot(f), cost);
+			Note(f.Name + " pays " + cost + " HP to the darkness.");
 		}
 
 		// ---- btl::BattleBehaviorManager: decided actions wait their turn and go one at a time ----
@@ -1634,6 +1655,7 @@ namespace OpenFF.Client
 		private void TurnEnd()
 		{
 			Log.Write(LogChannel.File, "battle: " + _executing.Name + "'s turn is over (step " + LegacyStep.Count + ")");
+			DarkCost(_executing);
 			_executing = null;
 			// The after event (executeState: a normal action's turn over), the turn finishing once it is.
 			if (_eventParty != null && _eventParty.AfterEvent >= 0 && !StartEvent(EventKind.After, _eventParty.AfterEvent)) return;
