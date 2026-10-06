@@ -240,6 +240,13 @@ namespace OpenFF.Data
 					tables.BattlePlayers.Add(new BattlePlayerMotions { Type = i / 24, PlayerSet = ChainPack.S16(data, at2 + i + 0x10), BasicSet = ChainPack.S16(data, at2 + i + 0x12) });
 				}
 			}
+			// Chain 6 (s16 pairs, BattleParameter::summonCastParameter): a summon's cast scene - the spell, then its event
+			// number (CAST_SCRIPT.dat's s<NN>_00: 1501 Goblin 0, 1505 Chocobo 20).
+			if (pack.Count > 6)
+			{
+				int at6 = pack.Offset(6), size6 = pack.Size(6);
+				for (int i = 0; i + 4 <= size6; i += 4) tables.SummonCasts[ChainPack.S16(data, at6 + i)] = ChainPack.S16(data, at6 + i + 2);
+			}
 			// Chain 4 (32 bytes, BattleParameter::bossParameter): a boss's entrance - the monster at 0, the camera's start
 			// position at 4 and target at 0x10 (fx32), the frames of its move to the standing shot at 0x1C (the last record
 			// is two bytes short).

@@ -29,6 +29,43 @@ namespace OpenFF.Client
 		/// <summary>Commands by name, as ScriptOpsFf4 spells them; ScriptCommands puts them in the table.</summary>
 		public static readonly Dictionary<string, GlobalScope.SCRIPT_COMMAND> ByName = new Dictionary<string, GlobalScope.SCRIPT_COMMAND>(StringComparer.Ordinal)
 		{
+			// The battle's twins (a summon's cast scene, CAST_SCRIPT.dat s<NN>_00): the same operands, the same calls.
+			{ "btl_SetupCharacter", SetupCharacter },
+			{ "btl_CleanupCharacter", CleanupCharacter },
+			{ "btl_DisplayCharacter", DisplayCharacter },
+			{ "btl_SetupMotion", SetupMotion },
+			{ "btl_CleanupMotion", CleanupMotion },
+			{ "btl_StartMotion", StartMotion },
+			{ "btl_EndMotionCharacter", WaitTillEndOfMotion },
+			{ "btl_SetMotionAsync", SetMotionAsync },
+			{ "btl_WaitSetMotion", ReadByte },
+			{ "btl_SetCharecterAsync", SetCharacterAsync },
+			{ "btl_WaitSetCharacter", WaitSetCharacter },
+			{ "btl_SetEnbleViewClip", SetViewClip },
+			{ "btl_SetShadingMode", SetShadingMode },
+			{ "btl_StartAnimation", StartAnimation },
+			{ "btl_SetupExpression", SetupExpression },
+			{ "btl_CleanupExpression", CleanupExpression },
+			{ "btl_ChangeExpression", ChangeExpression },
+			{ "btl_SetupCameraMotion", SetupCameraMotion },
+			{ "btl_CleanupCameraMotion", CleanupCameraMotion },
+			{ "btl_PlayCameraMotion", PlayCameraMotion },
+			{ "btl_WaitTillEndOfCameraMotion", WaitTillEndOfCameraMotion },
+			{ "btl_StopSE", StopSe },
+			// and the battle's own
+			{ "btl_EventStart", CastEventStart },              // ()
+			{ "btl_EventEnd", CastEventEnd },                  // ()
+			{ "btl_ShowHelpMessage", CastShowHelp },           // (message)
+			{ "btl_EraseHelpMessage", CastEraseHelp },         // ()
+			{ "btl_SetupSE", ReadDword },                      // (bank): loaded on demand
+			{ "btl_CleanupSE", ReadDword },                    // (bank)
+			{ "btl_PlaySE", CastPlaySe },                      // (bank, number, volume, pan)
+			{ "btl_SetSkip", ReadByte },                       // (on): the skip is not built
+			{ "btl_StopSkip", Nothing },                       // ()
+			{ "btl_SetToonTable", CastToonTable },             // (index)
+			{ "btl_SetMap", CastSetMap },                      // (stage)
+			{ "btl_CleanupMap", CastCleanupMap },              // ()
+			{ "btl_SetupCharacterCustom", CastSetupCustom },   // (slot, model, texture, animation pack)
 			{ "ce_StartEvent", StartEvent },                 // ()
 			{ "ce_EndEvent", EndEvent },                     // ()
 			{ "ce_SetupCharacter", SetupCharacter },         // (slot, model, texture)
@@ -237,6 +274,59 @@ namespace OpenFF.Client
 
 		private static void Nothing(GlobalScope.ScriptEngine engine) { }
 		private static void ReadByte(GlobalScope.ScriptEngine engine) { engine.getByte(); }
+
+		// ---- a summon's cast scene (BTL_*), the battle's side in Ff4BattleSummon ----
+
+		/// <summary>A summon's cast scene is running (BattleCastManager +0x42): BootEffect turns box culling off, as in a story scene.</summary>
+		public static bool CastActive { get; set; }
+
+		/// <summary>Set by btl_EventEnd: the scene is over (CEventManager[2] = 0).</summary>
+		public static bool CastEnded { get; set; }
+
+		private static void CastEventStart(GlobalScope.ScriptEngine engine) { CastActive = true; CastEnded = false; }
+
+		private static void CastEventEnd(GlobalScope.ScriptEngine engine) { CastActive = false; CastEnded = true; }
+
+		private static void CastShowHelp(GlobalScope.ScriptEngine engine)
+		{
+			int message = (int)engine.getDword();
+			Ff4Battle.Instance?.CastHelp(message);
+		}
+
+		private static void CastEraseHelp(GlobalScope.ScriptEngine engine) => Ff4Battle.Instance?.CastHelp(-1);
+
+		private static void CastPlaySe(GlobalScope.ScriptEngine engine)
+		{
+			int bank = (int)engine.getDword(), number = (int)engine.getDword(), volume = (int)engine.getDword(), pan = (int)engine.getDword();
+			Guard("cast se", () => GlobalScope.MatrixSound.MtxSENDS_Play(bank, number, volume, pan));
+		}
+
+		/// <summary>BTL_SetToonTable: ToonTable's built-in tables - the summons use 8, all white (32 x 0x7fff).</summary>
+		private static void CastToonTable(GlobalScope.ScriptEngine engine)
+		{
+			int index = engine.getByte();
+			if (index != 8) { Log.First(LogChannel.File, "cast-toon-" + index, 1, () => "script: battle toon table " + index + " not read yet - white"); }
+			ushort[] white = new ushort[32];
+			for (int i = 0; i < 32; i++) white[i] = 0x7fff;
+			Guard("cast toon table", () => { GlobalScope.G3X_SetToonTable(white); GlobalScope.G3X_SetShading(0); });
+		}
+
+		private static void CastSetMap(GlobalScope.ScriptEngine engine)
+		{
+			string stage = engine.getString();
+			Ff4Battle.Instance?.CastStage(stage);
+		}
+
+		private static void CastCleanupMap(GlobalScope.ScriptEngine engine) => Ff4Battle.Instance?.CastStage(null);
+
+		/// <summary>BTL_SetupCharacterCustom: the model with another model-animation pack (its parts shown and hidden) - the pack is not bound yet; the model as a plain cast.</summary>
+		private static void CastSetupCustom(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			string model = engine.getString(), texture = engine.getString(), animation = engine.getString();
+			Log.First(LogChannel.File, "cast-custom-" + animation, 1, () => "script: " + model + "'s animation pack " + animation + " not bound yet - every part shown");
+			Setup(slot, model, texture);
+		}
 
 		private static void SetupCharacter(GlobalScope.ScriptEngine engine)
 		{

@@ -814,15 +814,18 @@ namespace OpenFF.Client
 					{
 						_spellChoices.Clear();
 						GameTables tables = Ff4Party.Tables;
+						// The command's own school: White Magic its white spells, Black Magic its black, Summon its summons.
+						int chosen = commands[_cursor];
+						OpenFF.Data.MagicSchool school = chosen == CmdWhiteMagic ? OpenFF.Data.MagicSchool.White : chosen == CmdBlackMagic ? OpenFF.Data.MagicSchool.Black : OpenFF.Data.MagicSchool.Summon;
 						foreach (int id in _acting.Member.Spells)
 						{
 							SpellDefinition spell = tables.Spell(id);
-							if (spell != null && spell.UsableInBattle) _spellChoices.Add(id);
+							if (spell != null && spell.UsableInBattle && spell.School == school) _spellChoices.Add(id);
 						}
 						foreach (int id in _acting.Member.Abilities)
 						{
 							SpellDefinition spell = id >= 1500 ? tables.Spell(id) : null;
-							if (spell != null && spell.UsableInBattle && !_spellChoices.Contains(id)) _spellChoices.Add(id);
+							if (spell != null && spell.UsableInBattle && spell.School == school && !_spellChoices.Contains(id)) _spellChoices.Add(id);
 						}
 						if (_spellChoices.Count == 0) { Say(_acting.Name + " knows no magic."); return; }
 						_pick = Pick.Spell; _cursor = 0; _listScroll = 0;
@@ -2169,7 +2172,7 @@ namespace OpenFF.Client
 		{
 			HudData h = _hudData;
 			bool choosing = _acting != null && _pick != Pick.None;
-			h.Panel = (_phase == Phase.Fight || _phase == Phase.Intro) && !_closing;
+			h.Panel = (_phase == Phase.Fight || _phase == Phase.Intro) && !_closing && !_summonScene;
 			h.Commands = choosing && _pick == Pick.Command;
 			h.Party = _pick != Pick.Target && _pick != Pick.Spell && _pick != Pick.Item;
 			h.Keys = _pick != Pick.Spell && _pick != Pick.Item;

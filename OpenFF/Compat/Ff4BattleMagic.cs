@@ -22,7 +22,7 @@ namespace OpenFF.Client
 			_lastSpell = spell;
 			_casting = null;
 			if (caster.Member != null) caster.Member.Mp = Math.Max(0, caster.Member.Mp - spell.MpCost);
-			ShowSpell(caster, spell, targets);
+			if (!TrySummon(caster, spell, targets)) ShowSpell(caster, spell, targets);
 			caster.Gauge = 0f;
 		}
 
