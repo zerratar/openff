@@ -64,8 +64,8 @@
 .page-arrow { -ff-cell: page-arrow; -ff-cell-origin: 0 0; }
 
 /* A foe being picked (Steam's frames): its name in yellow, the chance to hit under it, the card with a light frame. */
-.target-name { color: #f0ec40; font-size: 22px; text-align: center; vertical-align: middle; }
-.target-sub { font-size: 22px; text-align: center; vertical-align: middle; }
+.target-name { color: #f0ec40; font-size: 18px; text-align: center; vertical-align: middle; }
+.target-sub { font-size: 16px; text-align: center; vertical-align: middle; }
 .card { background-color: #373a7180; border: 3px solid #ffffff90; }
 .card-name { color: #f0ec40; font-size: 34px; }
 .card-line { font-size: 31px; }

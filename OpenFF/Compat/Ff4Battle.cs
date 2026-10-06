@@ -2273,14 +2273,24 @@ namespace OpenFF.Client
 			h.Targets = choosing && _pick == Pick.Target;
 			int shownFoe = 0;
 			foreach (TargetRow t in h.Target) t.Present = false;
-			for (int i = 0; i < _foes.Count && shownFoe < h.Target.Count && h.Targets; i++)
+			bool all = h.Targets && (_abilityCmd == CmdKick || _abilityCmd == CmdCry || _abilityCmd == CmdAnalyze);
+			if (all)
+			{
+				// Steam: one row, "Target All", over the card of the foe the hand is on.
+				TargetRow t = h.Target[0];
+				t.Present = true;
+				t.Name = "Target All";
+				t.Sub = "";
+				t.Lit = true;
+			}
+			for (int i = 0; i < _foes.Count && shownFoe < h.Target.Count && h.Targets && !all; i++)
 			{
 				Fighter f = _foes[i];
 				if (!f.Alive) continue;
 				TargetRow t = h.Target[shownFoe++];
 				t.Present = true;
 				t.Name = f.Name;
-				t.Sub = _casting != null ? _casting.Name : "Accuracy: " + Accuracy(_acting, f) + "%";
+				t.Sub = _casting != null ? _casting.Name : TargetLine(_acting, f);
 				t.Lit = i == _cursor;
 			}
 			// Steam's card: the picked foe's name and HP, which it keeps hidden until the foe is studied.

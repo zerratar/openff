@@ -71,6 +71,26 @@ namespace OpenFF.Client
 			return true;
 		}
 
+		/// <summary>The target window's line under the foe (BattleStatus2DManager's getHitPhysical / steal odds): Steal its chance
+		/// (the thief's agility, 0 with nothing left to take), Aim 100 %, Throw its own hit rate, else the blow's accuracy.</summary>
+		private string TargetLine(Fighter who, Fighter foe)
+		{
+			if (who == null) return "";
+			if (_abilityCmd == CmdSteal)
+			{
+				bool has = StealSlots(foe, out _, out _) && !foe.Robbed;
+				return "Chance of success: " + (has ? Math.Clamp(who.Agility, 0, 100) : 0) + "%";
+			}
+			if (_abilityCmd == CmdAim) return "Accuracy: 100%";
+			if (_abilityCmd == CmdThrow && Ff4Party.Tables.Item(_usingItem)?.Equip is EquipStats e)
+			{
+				int rate = e.Hit + who.Agility + 20 - (foe.Defence + 4 + foe.Agility);
+				if (Has(who, CBlind)) rate /= 10;
+				return "Accuracy: " + Math.Clamp(rate, 0, 100) + "%";
+			}
+			return "Accuracy: " + Accuracy(who, foe) + "%";
+		}
+
 		/// <summary>Out of everyone's reach: in the air from a Jump, or hidden (isSelectable).</summary>
 		private static bool Untargetable(Fighter f) => f.Airborne || f.Hiding;
 
