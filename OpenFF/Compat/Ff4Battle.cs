@@ -98,6 +98,8 @@ namespace OpenFF.Client
 			public int[] ConditionTimer = new int[39];
 			public int BlinkCount, DoomCount, PoisonCount, SapCount, PetrifyCount, HpSeen, MagicEvasion;
 			public int IdleMotion = 2004, StatusEffect = -1, StatusEffectKind;   // the idle it stands in, the effect over it and which
+			public int WeakOverride = -1, ResistOverride = -1;   // a weakness and resistances a boss's action set (Barrier Shift), -1 its record's
+			public Fighter Remembered;        // "Target"'s lock (BBC +0x304): its next type-1 action falls on this one
 			public bool Mist;                 // the Mist Dragon in mist (flag 0x1e), and its mist's model
 			public Npc MistNpc;
 			public int[] Free = new int[5];   // the battle events' variables on it (BaseBattleCharacter's free variables)
@@ -205,7 +207,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A monster stood at a spot, facing as the group has it (or the hero), its model bound to its motions, in the fight.</summary>
-		private Fighter SpawnFoe(MonsterDefinition m, Vector3 at, float? facing, Vector3 hero)
+		private Fighter SpawnFoe(MonsterDefinition m, Vector3 at, float? facing, Vector3 hero, bool join = true)
 		{
 			Monster info = Game.Monsters.Find(m.Id);
 			Npc npc = Game.Npcs.SpawnModel(info?.Model ?? ("m" + m.Family.ToString("000") + "_00"), at, 0f);
@@ -224,8 +226,9 @@ namespace OpenFF.Client
 				Strength = m.Stats.Strength, HitChance = m.Hit > 0 ? m.Hit : 90, Evade = Math.Max(0, m.Evade),
 				Gauge = StartGauge(),
 				AtbRate = m.AtbRateMin + (float)_random.NextDouble() * Math.Max(0f, m.AtbRateMax - m.AtbRateMin),
+				Facing = facing ?? 0f,
 			};
-			_foes.Add(foe);
+			if (join) _foes.Add(foe);
 			LoadEffect(m.AttackEffect);
 			return foe;
 		}
@@ -1218,7 +1221,7 @@ namespace OpenFF.Client
 			{
 				byte[] r = f.Monster.Raw;
 				int U(int at) => BitConverter.ToUInt16(r, at);
-				return new Affinity(U(0x26), U(0x48), U(0x54), U(0x56), U(0x60), U(0x64), U(0x48));
+				return new Affinity(U(0x26), U(0x48), U(0x54), f.ResistOverride >= 0 ? f.ResistOverride : U(0x56), U(0x60), f.WeakOverride >= 0 ? f.WeakOverride : U(0x64), U(0x48));
 			}
 			if (f.Member == null) return default;
 			GameTables tables = Ff4Party.Tables;

@@ -70,6 +70,12 @@ namespace OpenFF.Client
 				};
 			}
 			if (!t.Alive) return null;
+			if (spell.Id == 0x7C)
+			{
+				// "Target" (calcSpecialAttack 0x7C): the monster locks on - its next single-member action falls on this one; no number.
+				caster.Remembered = t;
+				return () => Note(caster.Name + " takes aim at " + t.Name + ".");
+			}
 			ulong pending = SpellConditions(caster, t, spell, count);
 			int damage;
 			if (spell.Id == 0x59 || spell.Id == 0x67) damage = caster.Hp;   // Self-Destruct: the caster's HP, and it goes

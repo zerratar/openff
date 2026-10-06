@@ -136,6 +136,9 @@ namespace OpenFF.Client
 		private List<Fighter> MonsterTargets(Fighter foe, int type)
 		{
 			List<Fighter> members = _party.FindAll(f => f.Alive), side = _foes.FindAll(f => f.Alive);
+			Fighter remembered = foe.Remembered;   // read and let go on every pick, whatever the type
+			foe.Remembered = null;
+			if (type == 1 && remembered != null && remembered.Alive && !OutOfFight(remembered)) return new List<Fighter> { remembered };
 			List<Fighter> one(List<Fighter> from) => from.Count == 0 ? new List<Fighter>() : new List<Fighter> { from[_random.Next(from.Count)] };
 			switch (type)
 			{
@@ -171,6 +174,7 @@ namespace OpenFF.Client
 			if (QuietTurn(foe, ability)) return;
 			if (EnemySummon(foe, ability)) return;
 			if (MistTurn(foe, ability)) return;
+			if (BossTurn(foe, ability)) return;
 			targets ??= MonsterTargets(foe, targetType);
 			SpellDefinition spell = ability != 1 ? Ff4Party.Tables.Spell(ability) : null;
 			if (spell != null)
