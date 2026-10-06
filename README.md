@@ -19,8 +19,10 @@ for play with the copies you own (see *Licence*).
 | --- | --- |
 | ![Final Fantasy III's title, from the Steam install](Docs/Images/ff3-title.png) | ![Ur, in Final Fantasy III](Docs/Images/ff3-ur.png) |
 | *FF3 from its Steam install: the title, TrueType text at the window's resolution* | *Ur; the game plays as shipped* |
-| ![The Red Wings deck, Final Fantasy IV's opening scene](Docs/Images/ff4-deck.png) | ![A battle on FF4's battle stage with its HUD](Docs/Images/ff4-battle.png) |
-| *FF4's opening on its own scene engine: camera motions, casts, the message bar* | *A battle on FF4's battle stage - its stage, party positions, window art and glove* |
+| ![The Red Wings deck, Final Fantasy IV's opening scene](Docs/Images/ff4-deck.png) | ![Cecil's title card in FF4's opening](Docs/Images/ff4-scene.png) |
+| *FF4's opening on its own scene engine: camera motions, casts, the message bar* | *The opening's shots framed and timed as the Steam game's, measured frame by frame* |
+| ![A battle on FF4's battle stage with its HUD](Docs/Images/ff4-battle.png) | ![Picking a foe in FF4's battle](Docs/Images/ff4-target.png) |
+| *FF4's battle: its stage, placings, motions and active time, the HUD as Steam lays it out* | *The HUD is a layout and a stylesheet a mod can reshape (Docs/Menus.md)* |
 | ![FF4's menu drawn from its own layouts and data](Docs/Images/ff4-menu.png) | ![Crystal, the editor, with an FF3 map open in 3D](Docs/Images/crystal-map.png) |
 | *FF4's menu from its own layouts, over the unified party data* | *Crystal: a map in 3D, its characters and exits in the hierarchy, the inspector* |
 
@@ -91,9 +93,10 @@ OpenFF.Engine/     the mod API and object model: what a mod references (no MonoG
 Crystal.Editor/   Crystal, the editor, and the command-line converters
 Shared/            every file format once - Content, Data (the unified tables), Script, Text - compiled into both programs
 Samples/           HelloMod (a service, a behaviour, a save chunk), Survivors (a survivors-style run on the field), Showcase (a map, weapons and models of a mod's own - no code) Mastery (FF3 with FF5's job system and an Abilities screen in the game's own menu), Fellowship (a network mod: travellers on the LAN walk one world, speak, send aid, give items and gil) and Rogue (a roguelike run of FF3's battles from the title: acts, rewards, elites, bosses)
-Tools/             Python: the FF4 binary dumps, table generators, format tests; FramePacerSim, the frame pacer against simulated displays
+OpenFF/Data/       the client's own screens as data: menus (the Gambits) and HUDs (FF4's battle), layouts and stylesheets a mod can replace
+Tools/             Python: the FF4 binary dumps, table generators, format tests; ff4hook, a DLL beside the Steam FF4.exe that drives it and records its frames, cameras and characters to compare against; FramePacerSim, the frame pacer against simulated displays
 Docs/              reference, plans and the journal (below)
-Reference/libff4/  what we wrote about the FF4 binary; the dumps themselves are regenerated, not committed
+Reference/         what we wrote about the FF4 binaries (libff4, FF4.exe); the dumps and decompilations are regenerated, not committed
 Content/           the pipeline file and the override notes; the data goes beside them, ignored
 ```
 
@@ -113,7 +116,8 @@ A `mods/` folder beside `OpenFF.exe`, one mod per subfolder:
 The API (`OpenFF.Engine`, reached as `Game.*`): `Dialogue`, `Hero`, `Npcs`, `Party`, `Items`,
 `Magic`, `Monsters`, `Shops`, `Battle`, `Field`, `Camera`, `Effects`, `Audio`, `Screen`,
 `Draw`, `Input`, `Flags`, `Saves`, `Events`, coroutines (`Game.Run`, `Wait.*`), and scene files
-(`scenes/<map>.json`) that put behaviours and spawn points on a map. `Samples/HelloMod/install.cmd`
+(`scenes/<map>.json`) that put behaviours and spawn points on a map. Menus and HUDs are layouts
+and stylesheets too (`menus/`, `menus/hud/`), so a mod can reshape a screen without code. `Samples/HelloMod/install.cmd`
 builds the sample into the mods folder; Crystal writes the `mod.json` and the C# project for you.
 
 **`Docs/Guide/` is the short guide with pictures** (Crystal's *Help ▸ Guide*; `Guide\` in the
@@ -134,6 +138,9 @@ the log of each slice as it landed.
 - For the OpenFF target it exports the project as a mod, makes and builds the mod's C# project,
   attaches behaviours to map objects and points in the 3D view, shows the API reference, and
   starts the client (*Run in OpenFF*).
+- Its start page installs the sample mods and opens or creates projects; the *Mods* tab manages
+  the mods installed in OpenFF and in a Steam copy; it checks the game's own files against the
+  Steam release's.
 
 `Docs/Editor.md` describes all of it; `Docs/Testing.md` has the cases that prove it against the
 real games.
@@ -233,22 +240,26 @@ same game, crisper. The parts still in progress are the ones the original never 
 | Presentation on the desktop: rendering, text, music and effects, the window | 100% | Native and crisp; the Steam release's look |
 | Keyboard and mouse | 100% | The DS pad and the touch screen, both |
 | Game pad | 80% | Plays everything; the touch-only corners are being given pad paths as they are found (the name entry and Config were two) |
-| The client's own UI: the menu, settings, on-screen keys | 60% | New, not the game's; taking shape |
+| The client's own UI: the menu, settings, on-screen keys | 60% | New, not the game's; taking shape - its screens are layouts and stylesheets a mod can restyle |
 
-**Final Fantasy IV (3D Remake) - in progress, about 40%.** The world renders - Baron, the
-overworld, the dungeons, the opening's scenes - and Cecil walks it, but much of what happens in
-it is not yet the game's: the battle and the menus are stand-ins on FF3's systems, a third of
-the field commands are unread, and many behaviours are approximations. `Docs/FF4-Status.md`
-has each subsystem in detail; `Docs/FF4-Internals.md` what has been read out of the binary.
+**Final Fantasy IV (3D Remake) - in progress, about 50%.** The world renders - Baron, the
+overworld, the dungeons, the opening's scenes - and Cecil walks it. The opening and its first
+battle are measured against the Steam game frame by frame (Tools/ff4hook) and written from its
+own code (the Android build's libff4, the Steam FF4.exe decompiled): the title, the scenes'
+cameras and effects, the encounter whirl, and the battle's turns, gauges, blows, numbers, deaths
+and win. Much of the rest is not yet the game's: the menus are stand-ins on FF3's, half the field
+commands are unread, monsters do not think yet. `Docs/FF4-Status.md` has each subsystem in
+detail; `Docs/FF4-Internals.md` what has been read out of the binary.
 
 | Piece | Done | Note |
 | --- | --- | --- |
 | Maps, models, textures, the world map | 85% | Render as the game's from its files; some scene lighting and materials missing |
 | Field: walking, exits, talking, the script commands | 55% | 247 of 500 commands run; the FF4-only ones are being written from the binary as they turn up |
-| Cutscenes (the opening, the flashbacks) | 60% | Casts, motions, camera motions, expressions, bind objects, the message bar; sky and shadow details open |
-| Party data: characters, growth, magic, equipment, items | 60% | Read from the binary and the files onto the unified data layer |
+| Cutscenes (the opening, the flashbacks) | 70% | Casts, motions, camera motions on Steam's frames, expressions, bind objects, effects, the message bar, the call into battle; lights, sky and shadow details open |
+| Title, logos, map changes | 80% | Steam's logos and title, New Game's white fade, FF4's map fades; the opening movie, CONTINUE and Steam's load screen not yet |
+| Party data: characters, growth, magic, equipment, items | 60% | Read from the binary and the files onto the unified data layer; HP grown level by level as FF4 rolls it |
 | Encounters, shops, inns, saves | 40% | Work as calls; the presentation is not FF4's |
-| Battle | 25% | A stand-in: FF3's battle system on FF4's stages with its monsters and HUD art - not FF4's rules, flow or look |
+| Battle | 55% | FF4's own: its stages and placings, active time and the turn queue, attacks, effects, sounds, damage and hit formulas, numbers, deaths, the win and result; monster AI, abilities and the level-up pages to come |
 | Menus | 15% | FF4's layouts over the unified data, largely made up; far from the original |
 | The Steam shell (achievements, launcher screens) | 0% | Not started |
 

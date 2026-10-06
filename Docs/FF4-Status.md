@@ -34,7 +34,7 @@ behaviour or to a stand-in. That is why "renders" comes first and "behaves" late
 | Script commands | 247 of FF4's 500 run - FF3's handler where the command is the same, renamed or has extra operands; FF4-only commands implemented so far: exits, the name window, confirm boxes, locale waits, reward messages, player levels; cosmetic ones (doors' dust, BGM ducking, the jump history) skip quietly. Every map and scene logs what it skipped, by name and count - that log is the work list. `--ff4table` lists them all. |
 | Map parameters | Encounter tables and landforms read from the binary; camera chains as above. |
 
-## Cutscenes (the `ce_*` scene engine) - 60%
+## Cutscenes (the `ce_*` scene engine) - 70%
 
 The opening on the Red Wings, the flashbacks, and every scripted scene run on FF4's own
 scene engine, which is ours from the binary's disassembly.
@@ -42,10 +42,12 @@ scene engine, which is ours from the binary's disassembly.
 | | State |
 | --- | --- |
 | Casts | Slots set up with model and texture, motions bound and started, placed, turned, shown, faded, cleaned up; stage swaps mid-scene; view-volume clipping per cast. |
-| Camera | Camera motions from `EVT_CAMERA.dat` (CMS2 sets) with the script's FOV; the blend length is read (no shipped script uses it). |
+| Camera | Camera motions from `EVT_CAMERA.dat` (CMS2 sets) with the script's FOV, on the Steam game's frames (Tools/ff4hook's camera trace, shot by shot); the blend length is read (no shipped script uses it). |
+| Effects | The scenes' effects (the flashback sparkles, the wind streaks) from their packs, scaled and placed as the script says. |
+| Into battle | `ce_CallBattle`: the encounter whirl (SPBlurRotate) to white, then the battle on its stage as a part change, and back to the scene after. |
 | Faces and props | Expressions through face textures; bind objects (a spear in a hand) posed from the host's joint. |
 | Text | The message bar; the name window. |
-| Open | Lights and toon shading; `ce_CallBattle` from a scene; the flight's sky geometry and per-shot visibility; the casts' shadow discs. |
+| Open | Lights and toon shading; the flight's sky geometry and per-shot visibility; the casts' shadow discs. |
 
 ## Party data - 60%
 
@@ -95,6 +97,6 @@ started here.
 
 ## In one line
 
-FF4 in OpenFF is a world you can walk, with its scenes playing, on top of systems that are
-mostly FF3's. Bringing the field commands, the battle and the menus to FF4's own is the
-work ahead, in that order.
+FF4 in OpenFF is a world you can walk, with its scenes playing and its battles fought by FF4's own
+rules, on top of field commands and menus that are still largely FF3's. Bringing the field commands,
+the rest of the battle (monster AI, abilities) and the menus to FF4's own is the work ahead.
