@@ -246,12 +246,29 @@ namespace OpenFF.Client
 			return true;
 		}
 
-		/// <summary>The cells FF4's art gives a layout's -ff-cell (LayoutScreen): cursor, glove, gauge, number, and the result window's page arrow.</summary>
+		// BABIL_SYMBOL.NFTR - on Steam a PNG, 16 x 2 cells of 24 pixels: the icons FF4's names open with (U+E040 + the cell):
+		// 0 the bag, 1..14 the weapons, 15 a song, 16 ninjutsu, 17..18 the throwing weapons, 19..22 the armour, 23 white
+		// magic, 24 black, 25 a summon.
+		public const string SymbolSheet = "BABIL_SYMBOL.NFTR";
+
+		/// <summary>One of the name icons, <paramref name="index"/> its cell (-1 none), its left middle at (x, y), 1080p's 30 pixels high.</summary>
+		public static bool SymbolCell(DrawList d, int index, float x, float y, float scale, float crop, Color tint)
+		{
+			if (index < 0) return true;
+			Texture sheet = Sheet(SymbolSheet);
+			if (sheet == null) return false;
+			float size = 54f * DrawList.ScreenHeight / 1080f * scale;   // Steam's: about 27 screen pixels at 1080p, the draw space half that
+			d.Sprite(sheet, x, y - size / 2, size, size, tint, 0f, (index % 16) * 24, (index / 16) * 24, 24, 24);
+			return true;
+		}
+
+		/// <summary>The cells FF4's art gives a layout's -ff-cell (LayoutScreen): cursor, glove, gauge, number, symbol, and the result window's page arrow.</summary>
 		public static void RegisterLayoutCells()
 		{
 			LayoutScreen.Cells["cursor"] = (d, i, x, y, s, crop, t) => Cell(d, CursorBank, CursorSheet, i, x, y, Scale * s, t);
 			LayoutScreen.Cells["glove"] = (d, i, x, y, s, crop, t) => Glove(d, x, y, i == 1);
 			LayoutScreen.Cells["gauge"] = GaugeCell;
+			LayoutScreen.Cells["symbol"] = SymbolCell;
 			LayoutScreen.Panels["ff4-window"] = (d, x, y, w, h, opacity) => Window(d, x, y, w, h, 1, 0.82f * opacity);
 			LayoutScreen.Cells["number"] = (d, i, x, y, s, crop, t) => Cell(d, NumberBank, NumberSheet, i, x, y, Scale * s, t);
 			// HelpWindow::setResultPageIcon's arrow, as Steam draws it: a white triangle pointing down, 44 wide and 16 high

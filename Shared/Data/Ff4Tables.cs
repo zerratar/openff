@@ -536,10 +536,12 @@ namespace OpenFF.Data
 			}
 
 			// babil_ability.msd names every ability, summon and spell under the ability's own id.
-			Dictionary<uint, string> abilities = TableFiles.ReadNames(chain, "babil_ability.msd", tables);
+			Dictionary<uint, int> abilityIcons = new Dictionary<uint, int>();
+			Dictionary<uint, string> abilities = TableFiles.ReadNames(chain, "babil_ability.msd", tables, abilityIcons);
 			if (abilities != null)
 			{
 				foreach (KeyValuePair<uint, string> pair in abilities) tables.AbilityNames[(int)pair.Key] = pair.Value;
+				foreach (KeyValuePair<uint, int> pair in abilityIcons) tables.AbilityIcons[(int)pair.Key] = pair.Value;
 			}
 			// Chain 32 (32-byte records, id first; pl::PlayerParty::normalMagic) lists the spells
 			// too, with an effect id at 10; magic_parameter.bbd carries the numbers (ReadMagic).
@@ -643,7 +645,8 @@ namespace OpenFF.Data
 				tables.Notes.Add("item_parameter.pak has " + pack.Count + " chains, not FF4's 4");
 				return;
 			}
-			Dictionary<uint, string> names = TableFiles.ReadNames(chain, "babil_item.msd", tables);
+			Dictionary<uint, int> itemIcons = new Dictionary<uint, int>();
+			Dictionary<uint, string> names = TableFiles.ReadNames(chain, "babil_item.msd", tables, itemIcons);
 			(ItemKind Kind, int Stride)[] chains = { (ItemKind.Consumable, 48), (ItemKind.Weapon, 88), (ItemKind.Armour, 84), (ItemKind.KeyItem, 32) };
 			for (int c = 0; c < 4; c++)
 			{
@@ -693,6 +696,7 @@ namespace OpenFF.Data
 					if (names != null)
 					{
 						if (item.NameId > 0 && names.TryGetValue((uint)item.NameId, out string name)) item.Name = name;
+						if (item.NameId > 0 && itemIcons.TryGetValue((uint)item.NameId, out int icon)) item.Icon = icon;
 						if (item.CaptionId > 0 && names.TryGetValue((uint)item.CaptionId, out string caption)) item.Caption = caption;
 					}
 					tables.Items.Add(item);

@@ -212,6 +212,8 @@ namespace OpenFF.Data
 		public int CaptionId;
 		public string Caption;
 		public int GraphId;
+		/// <summary>FF4: the symbol in front of its name (a cell of BABIL_SYMBOL's sheet: 0 the bag, 1..14 the weapons, 19..22 the armour), -1 none.</summary>
+		public int Icon = -1;
 		/// <summary>FF4: the model a worn weapon or shield shows as in battle, w&lt;ModelId:000&gt; (the item parameter's short at 10; pl::PlayerEquipmentSymbol::createModel) - the Dark Sword w000, the Dark Shield w094.</summary>
 		public int ModelId = -1;
 		public int EfficacyId;
@@ -620,6 +622,10 @@ namespace OpenFF.Data
 
 		/// <summary>Names of abilities, summons and spells by the game's id (FF4: babil_ability.msd, whose message ids are the ability ids).</summary>
 		public Dictionary<int, string> AbilityNames = new Dictionary<int, string>();
+
+		/// <summary>FF4: the symbol in front of an ability's name (its icon glyph, a cell of BABIL_SYMBOL's sheet), by the name's id.</summary>
+		public Dictionary<int, int> AbilityIcons = new Dictionary<int, int>();
+		public int AbilityIcon(int id) => AbilityIcons.TryGetValue(id, out int icon) ? icon : -1;
 		/// <summary>FF3: each ability's kind by id - 0 a battle command, 1 a passive (pl.ABILITY_TYPE), from player.chaindata chain 13.</summary>
 		public Dictionary<int, int> AbilityKinds = new Dictionary<int, int>();
 		/// <summary>What the reader could not do (a missing file, a name table it did not find), for the log.</summary>

@@ -43,7 +43,9 @@ namespace OpenFF.Data
 		}
 
 		/// <summary>An .msd's messages by id, first page only and without icon glyphs, or null when the file is missing.</summary>
-		public static Dictionary<uint, string> ReadNames(ContentChain chain, string file, GameTables tables)
+		/// <param name="icons">When given: each message's symbol, the index of its first icon glyph (FF4's U+E040.. - the
+		/// symbol sheet's cells: 0 an item's bag, 1..14 the weapons, 15 a song, 16 ninjutsu, 23 white, 24 black, 25 a summon).</param>
+		public static Dictionary<uint, string> ReadNames(ContentChain chain, string file, GameTables tables, Dictionary<uint, int> icons = null)
 		{
 			if (!ReadAny(chain, file, out byte[] data))
 			{
@@ -55,7 +57,11 @@ namespace OpenFF.Data
 				Dictionary<uint, string> names = new Dictionary<uint, string>();
 				foreach (MsdMessage message in Msd.Read(data).Messages)
 				{
-					if (message.Pages.Count > 0 && !names.ContainsKey(message.Id)) names[message.Id] = Plain(message.Pages[0]);
+					if (message.Pages.Count > 0 && !names.ContainsKey(message.Id))
+					{
+						names[message.Id] = Plain(message.Pages[0]);
+						if (icons != null && Icon(message.Pages[0]) is int icon) icons[message.Id] = icon;
+					}
 				}
 				return names;
 			}
@@ -64,6 +70,16 @@ namespace OpenFF.Data
 				tables.Notes.Add(file + ": " + ex.Message);
 				return null;
 			}
+		}
+
+		/// <summary>The first icon glyph of a message (U+E040 .. U+E05F) as its cell in FF4's symbol sheet, or null.</summary>
+		public static int? Icon(string text)
+		{
+			foreach (char c in text)
+			{
+				if (c >= '\uE040' && c <= '\uE05F') return c - 0xE040;
+			}
+			return null;
 		}
 
 		/// <summary>A message without its icon glyphs and control characters (item names start with one).</summary>

@@ -2214,12 +2214,13 @@ namespace OpenFF.Client
 		}
 		public sealed class TargetRow { public bool Present, Lit; public string Name = "", Sub = ""; }
 		public sealed class CardData { public bool Shown; public string Name = "", Hp = ""; }
-		public sealed class GridCell { public bool Present, Can, Lit; public string Name = "", Value = ""; }
+		public sealed class GridCell { public bool Present, Can, Lit; public string Name = "", Value = ""; public int Icon = -1; }
 
 		public sealed class GridData
 		{
 			public bool Shown, ShowMp, Three, Two;
 			public string Title = "", Line1 = "", Line2 = "";
+			public int TitleIcon = -1;
 			public int Mp, MaxMp;
 			public List<GridCell> Cell = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 12), _ => new GridCell()));
 			public ScrollData Scroll = new ScrollData();
@@ -2326,12 +2327,14 @@ namespace OpenFF.Client
 				{
 					SpellDefinition spell = Ff4Party.Tables.Spell(list[i]);
 					c.Name = spell?.Name ?? "?";
+					c.Icon = Ff4Party.Tables.AbilityIcon(list[i]);
 					c.Value = "";
 					c.Can = spell != null && spell.UsableInBattle && _acting.Mp >= spell.MpCost;
 				}
 				else
 				{
 					c.Name = Ff4Party.Tables.Item(list[i])?.Name ?? "?";
+					c.Icon = Ff4Party.Tables.Item(list[i])?.Icon ?? -1;
 					c.Value = Ff4Party.Party.CountItem(list[i]).ToString();
 					c.Can = true;
 				}
@@ -2342,6 +2345,7 @@ namespace OpenFF.Client
 			g.ShowMp = g.Shown && _pick == Pick.Spell;
 			if (g.ShowMp) { g.Mp = _acting.Mp; g.MaxMp = _acting.Member.MaxMp; }
 			(g.Title, g.Line1, g.Line2) = g.Shown && _cursor >= 0 && _cursor < list.Count ? ListDescription(list[_cursor]) : ("", "", "");
+			g.TitleIcon = !g.Shown || _cursor < 0 || _cursor >= list.Count ? -1 : _pick == Pick.Spell ? Ff4Party.Tables.AbilityIcon(list[_cursor]) : Ff4Party.Tables.Item(list[_cursor])?.Icon ?? -1;
 			int gridRows = (list.Count + ListColumns - 1) / ListColumns;
 			g.Scroll.Shown = g.Shown && list.Count > ListColumns * ListRows;
 			g.Scroll.Size = gridRows <= ListRows ? 100 : 100f * ListRows / gridRows;
