@@ -1125,14 +1125,44 @@ namespace OpenFF.Client
 		private static readonly Color Dim = new Color(186, 190, 218);
 		private static readonly Color Gold = new Color(255, 232, 110);
 		// The command window: four rows; the party window: a row per member.
-		private const float CmdX = 58f, CmdY = 300f, CmdW = 188f, CmdH = 180f, CmdRow = 45f;
-		private const float PartyX = 276f, PartyY = 338f, PartyW = 460f, PartyH = 142f, PartyRow = 28f;
+		// Steam's battle panel, measured off its 1920 x 1080 frames into the 800 x 480 view: the commands a column of
+		// separate rows (x 62.5..250, 42 high every 45 from y 301) with a scroll bar beside (to 276), the party five rows
+		// (x 278..733, 26 high every 27.9 from y 339), each row a translucent lavender panel - (55, 58, 113) over half
+		// of what is under it, the lit one (86, 106, 178) over 72% - the keys over them at y 309.
+		private const float CmdX = 62.5f, CmdY = 301f, CmdW = 187.5f, CmdH = 177.7f, CmdRow = 45f, CmdRowH = 42.2f;
+		private const float ScrollX = 251f, ScrollW = 25f;
+		private const float PartyX = 278f, PartyY = 339f, PartyW = 455f, PartyH = 137.5f, PartyRow = 27.9f, PartyRowH = 26f;
+		private const int TextSize = 11, HintSize = 10;
+		private static readonly Color RowFill = new Color(55, 58, 113, 128), RowLit = new Color(86, 106, 178, 184);
+		private static readonly Color RowEdgeLight = new Color(150, 156, 222, 220), RowEdgeDark = new Color(26, 28, 66, 200);
 
 		private void Window(DrawList d, float x, float y, float w, float h)
 		{
 			if (Ff4Ui.Window(d, x, y, w, h)) return;
 			d.Rect(x, y, w, h, PanelFill);
 			d.Rect(x, y, w, h, PanelEdge, false);
+		}
+
+		/// <summary>One of Steam's row panels: the translucent fill, a light edge along the top and left, a dark one along the bottom and right.</summary>
+		private void RowPanel(DrawList d, float x, float y, float w, float h, bool lit)
+		{
+			d.Rect(x, y, w, h, lit ? RowLit : RowFill);
+			d.Line(x, y, x + w, y, RowEdgeLight);
+			d.Line(x, y, x, y + h, RowEdgeLight);
+			d.Line(x, y + h, x + w, y + h, RowEdgeDark);
+			d.Line(x + w, y, x + w, y + h, RowEdgeDark);
+		}
+
+		/// <summary>The command list's scroll bar: a track the height of the rows, arrows at its ends, the knob showing the rows in view.</summary>
+		private void ScrollBar(DrawList d, int first, int shown, int count)
+		{
+			RowPanel(d, ScrollX, CmdY, ScrollW, CmdH, false);
+			float inner = CmdH - 2 * ScrollW * 0.6f, top = CmdY + ScrollW * 0.6f;
+			float knob = count <= shown ? inner : inner * shown / count;
+			float at = count <= shown ? top : top + (inner - knob) * first / Math.Max(1, count - shown);
+			d.Rect(ScrollX + 3, at, ScrollW - 6, knob, new Color(170, 172, 196, 150));
+			d.Text("▲", ScrollX + 6, CmdY + 1, new Color(200, 204, 230, 200), 10);
+			d.Text("▼", ScrollX + 6, CmdY + CmdH - 13, new Color(200, 204, 230, 200), 10);
 		}
 
 		private void Glove(DrawList d, float x, float y, bool pressed = false)
@@ -1164,12 +1194,13 @@ namespace OpenFF.Client
 			Shadowed(d, text, centre - d.MeasureText(text, size) / 2, y, color, size);
 		}
 
+		/// <summary>A key and what it does, as Steam's panel shows them: the letter on a dark blue key cap (23 square), the words after it.</summary>
 		private void KeyHint(DrawList d, string key, string what, float x, float y)
 		{
-			d.Rect(x, y, 18, 18, new Color(30, 90, 150, 230));
-			d.Rect(x, y, 18, 18, PanelEdge, false);
-			d.Text(key, x + 9 - d.MeasureText(key, 12) / 2, y + 2, Color.White, 12);
-			Shadowed(d, what, x + 24, y + 1, Color.White, 14);
+			d.Rect(x, y, 23, 23, new Color(14, 54, 96, 235));
+			d.Rect(x, y, 23, 23, new Color(70, 110, 160, 255), false);
+			d.Text(key, x + 11.5f - d.MeasureText(key, 13) / 2, y + 3, new Color(200, 216, 236), 13);
+			Shadowed(d, what, x + 29, y + 5, Color.White, HintSize);
 		}
 
 		private int Accuracy(Fighter attacker, Fighter target) => Math.Clamp(attacker.HitChance + attacker.Agility - (target.Evade + target.Agility) + 20, 0, 100);
@@ -1182,8 +1213,9 @@ namespace OpenFF.Client
 			if (_phase == Phase.Victory) { DrawResult(d); return; }
 			bool choosing = _acting != null && _pick != Pick.None;
 
-			// Bottom left: the commands, the foes when a target is picked, or the spell or item list.
-			Window(d, CmdX, CmdY, CmdW, CmdH);
+			// Bottom left: the commands while a member chooses (Steam opens them with the turn), the foes when a target is
+			// picked, or the spell or item list.
+			if (_pick == Pick.Target) Window(d, CmdX, CmdY, CmdW, CmdH);
 			if (_pick == Pick.Target)
 			{
 				int row = 0;
@@ -1238,21 +1270,23 @@ namespace OpenFF.Client
 				}
 				return;
 			}
-			else
+			else if (choosing)
 			{
 				List<int> commands = Commands;
 				for (int row = 0; row < CommandRows && _commandScroll + row < commands.Count; row++)
 				{
 					int i = _commandScroll + row;
 					float y = CmdY + CmdRow * row;
-					if (row > 0) d.Line(CmdX + 4, y, CmdX + CmdW - 4, y, RowLine);
-					Centred(d, CommandName(commands[i]), CmdX + CmdW / 2 + 8, y + 13, choosing ? Color.White : Dim, 16);
-					if (choosing && _pick == Pick.Command && i == _cursor) Glove(d, CmdX + 36, y + 14);
+					bool lit = _pick == Pick.Command && i == _cursor;
+					RowPanel(d, CmdX, y, CmdW, CmdRowH, lit);
+					Centred(d, CommandName(commands[i]), CmdX + CmdW / 2, y + CmdRowH / 2 - 8, Color.White, TextSize);
+					if (lit) Glove(d, CmdX + 30, y + CmdRowH / 2);
 				}
+				ScrollBar(d, _commandScroll, CommandRows, commands.Count);
 			}
 
 			// Bottom right: the party's rows - name, hit points, magic points, gauge - or the picked foe's card.
-			Window(d, PartyX, PartyY, PartyW, PartyH);
+			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count) Window(d, PartyX, PartyY, PartyW, PartyH);
 			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count)
 			{
 				Fighter f = _foes[_cursor];
@@ -1263,26 +1297,28 @@ namespace OpenFF.Client
 			}
 			else
 			{
-				for (int i = 0; i < _party.Count && i < 5; i++)
+				// Five rows always, as Steam's: the members' in their order, the rest empty.
+				for (int i = 0; i < 5; i++)
 				{
-					Fighter f = _party[i];
 					float y = PartyY + PartyRow * i;
-					if (i > 0) d.Line(PartyX + 4, y, PartyX + PartyW - 4, y, RowLine);
-					bool acting = f == _acting && choosing;
+					Fighter f = i < _party.Count ? _party[i] : null;
+					bool acting = f != null && f == _acting && choosing;
+					RowPanel(d, PartyX, y, PartyW, PartyRowH, acting);
+					if (f == null) continue;
 					bool picked = _pick == Pick.Ally && i == _cursor;
-					Color name = !f.Alive ? Dim : acting ? Gold : Color.White;
-					Shadowed(d, f.Name, PartyX + 10, y + 5, name, 16);
+					Color name = !f.Alive ? Dim : Color.White;
+					float ty = y + PartyRowH / 2 - 8;
+					Shadowed(d, f.Name, PartyX + 10, ty, name, TextSize);
 					Color hp = !f.Alive ? Dim : f.Hp * 4 <= f.MaxHp ? new Color(255, 120, 110) : Color.White;
-					RightAligned(d, f.Hp.ToString(), PartyX + 150, y + 5, hp, 16);
-					Shadowed(d, "/ " + f.MaxHp, PartyX + 156, y + 5, hp, 16);
-					if (f.Member != null && f.Member.MaxMp > 0) RightAligned(d, f.Mp.ToString(), PartyX + 292, y + 5, Color.White, 16);
-					Gauge(d, PartyX + 340, y + PartyRow / 2, f.Gauge, f.Alive);
-					if (picked) Glove(d, PartyX + 6, y + 6);
+					RightAligned(d, f.Hp + " / " + f.MaxHp, PartyX + 187, ty, hp, TextSize);
+					if (f.Member != null && f.Member.MaxMp > 0) RightAligned(d, f.Mp.ToString(), PartyX + 241, ty, Color.White, TextSize);
+					Gauge(d, PartyX + 334, y + PartyRowH / 2, f.Gauge, f.Alive);
+					if (picked) Glove(d, PartyX + 6, y + PartyRowH / 2);
 				}
 			}
 			// The keys, over the party's rows (FF4 writes "C Auto battle  M Run away" there).
-			KeyHint(d, "Z", "Confirm", PartyX + 230, PartyY - 24);
-			KeyHint(d, "M", "Run away", PartyX + 344, PartyY - 24);
+			KeyHint(d, "C", "Auto battle", 504f, 309f);
+			KeyHint(d, "M", "Run away", 618f, 309f);
 
 			// The picked foe wears the glove, as FF4's does.
 			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count && _foes[_cursor].Npc != null)
