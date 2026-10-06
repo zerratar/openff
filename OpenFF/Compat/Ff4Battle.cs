@@ -94,7 +94,8 @@ namespace OpenFF.Client
 			public bool Acted;   // a one-shot motion is playing; Idle() restarts the loop when it ends
 			public List<int> Commands = new List<int>();   // the member's FF4 command list (CommandList)
 			public bool Defending;                         // Defend: physical damage halved until their next turn
-			public int Poise = -1, SwingA = -1, SwingB = -1, Swings;   // the weapon's poise and two attack motions (b_poise, b_w), alternated
+			public int Poise = -1, SwingA = -1, SwingB = -1, Swings;
+			public int HitEffect = -1;                     // the weapon's hit effect (WEAPON_EFFECT), its pack e<nnn>   // the weapon's poise and two attack motions (b_poise, b_w), alternated
 			public float Facing;                           // degrees about y on the stage
 		}
 
@@ -231,6 +232,8 @@ namespace OpenFF.Client
 					{
 						WeaponMotionRecord weapon = BindBattleMotions(npc, who.Id, ally.Member, tables);
 						if (weapon != null) { ally.Poise = weapon.Poise; ally.SwingA = weapon.Raw[3]; ally.SwingB = weapon.Raw[2]; }
+						ally.HitEffect = HitEffectOf(WeaponSystem(ally.Member, tables));
+						LoadEffect(ally.HitEffect);
 					}
 					catch (Exception) { }
 					HoldEquipment(npc, ally.Member, tables);
@@ -367,6 +370,38 @@ namespace OpenFF.Client
 				int bound = Ff4Cutscene.BindModel(legacy.CharacterId, model, joint);
 				Log.Write(LogChannel.File, "battle: " + c.Name + " holds " + model + " (" + item.Name + ") at " + joint + (bound < 0 ? " - did not load" : ""));
 			}
+		}
+
+		// btl::BattleParameter::WEAPON_EFFECT, its first column: the effect a weapon system's ordinary blow plays on the
+		// target (the Dark Sword's 17: 161), loaded as EFFECT.dat's e<nnn> (btl::BattleEffect::load).
+		private static readonly int[] WeaponHitEffect = { 160, 175, 161, 160, 160, 182, 182, 189, 189, 160, 210, 198, 203, 168, 160, 160, 196, 161, 223, 215, 222, 161, 161 };
+
+		private static int HitEffectOf(int weaponSystem) => weaponSystem >= 0 && weaponSystem < WeaponHitEffect.Length ? WeaponHitEffect[weaponSystem] : 160;
+
+		private static void LoadEffect(int id)
+		{
+			if (id < 0) return;
+			string pack = "e" + id.ToString("000");
+			try
+			{
+				if (!GlobalScope.eff.CEffectMng.instance().loadEfpNamed(pack, "/EFFECT/" + pack + ".efp")) Log.Write(LogChannel.File, "battle: effect pack " + pack + " did not load");
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "battle: effect pack " + pack + ": " + ex.Message); }
+		}
+
+		/// <summary>A battle effect at a spot (btl::BattleEffect::create: the effect manager's, box culling off).</summary>
+		private static void PlayEffect(int id, Vector3 at)
+		{
+			if (id < 0) return;
+			try
+			{
+				GlobalScope.eff.CEffectMng effects = GlobalScope.eff.CEffectMng.instance();
+				int made = effects.create(id, 1);
+				if (made < 0) { Log.First(LogChannel.File, "battle-effect-" + id, 2, () => "battle: effect " + id + " could not be made"); return; }
+				effects.enableBoxCulling(made, false);
+				effects.setPosition(made, new GlobalScope.VecFx32((int)Math.Round(at.X * 4096), (int)Math.Round(at.Y * 4096), (int)Math.Round(at.Z * 4096)));
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "battle: effect " + id + ": " + ex.Message); }
 		}
 
 		// pl::PLAYER_FORM: the b_pc_form_<nn> set of each player type.
@@ -943,6 +978,7 @@ namespace OpenFF.Client
 				{
 					hit = Hits(member, foe);
 					if (!hit) return;
+					PlayEffect(member.HitEffect, foe.Npc.Position + new Vector3(0, 8f, 0));
 					damage = Damage(member, foe);
 					foe.Hp = Math.Max(0, foe.Hp - damage);
 					Game.Audio.PlaySe(0, 3);
