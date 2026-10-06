@@ -293,7 +293,7 @@ namespace OpenFF.Client
 						return true;
 					}
 					case 76: Set(R(2), -1); return true;                             // SufferDamage: not kept yet
-					case 98: { int l = R(1); return true; }                          // IsCounter: no counters yet - falls through
+					case 98: Branch(_b._isCounter, R(1), -1); return true;         // IsCounter: the action under way is a counter
 					case 99: Branch(false, R(2), R(3)); return true;                 // IsConfusionForMonster: no statuses yet
 					case 107: Branch(false, Op(3), Op(4)); return true;              // CheckCondition: no statuses yet
 					case 21: Branch(false, R(3), R(4)); return true;                 // GetPlayerFlag
@@ -339,9 +339,24 @@ namespace OpenFF.Client
 						return false;
 					case 96: Game.Audio.PlaySe(R(1), R(2)); return true;          // PlaySE bank, number
 					case 94: case 95: case 97: return true;                          // LoadAsyncSE, LoadingWaitSE, AllReleaseSE: the client loads on play
-					case 47:                                                         // ChangeBGM
-						Log.First(LogChannel.File, "battle-event-bgm", 3, () => "battle: event " + _id + " changes the music to " + R(1) + " - not yet");
-						return true;
+					case 47:                                                         // ChangeBGM bgm, fade
+					{
+						// At once with no fade; else the music fades out over the frames, the new one plays once it has
+						// stopped (and the battle notes the music changed - BattleParameter flag 1), the event waiting.
+						int bgm = R(1), fade = R(2);
+						GlobalScope.MatrixSound.MtxSoundBGM music = GlobalScope.MatrixSound.MtxSoundBGM.getSingleton();
+						GlobalScope.MatrixSound.enMtxBGMSlot slot = GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0;
+						if (fade == 0) { music.stop(0, slot); music.play(bgm, 127, 0, slot); return true; }
+						music.stop(fade, slot);
+						Block(() =>
+						{
+							if (music.getState(slot) != GlobalScope.MatrixSound.enMtxBGMState.enMTX_BGM_STOP) return false;
+							music.play(bgm, 127, 0, slot);
+							_b.SetBattleParameterFlag(1, true);
+							return true;
+						});
+						return false;
+					}
 					case 92: _b.SetBattleParameterFlag(2, true); return true;        // OnForceMaxDamage
 					case 93: _b.SetBattleParameterFlag(2, false); return true;       // OffForceMaxDamage
 					case 100: _b.SetBattleParameterFlag(4, true); return true;       // OffInvokeProdaction (sets flag 4)

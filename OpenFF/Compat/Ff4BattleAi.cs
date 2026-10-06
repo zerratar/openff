@@ -16,6 +16,7 @@ namespace OpenFF.Client
 	internal sealed partial class Ff4Battle
 	{
 		private SpellDefinition _lastSpell;   // the spell the last action cast, if it was one
+		private bool _isCounter;              // the action under way is a counter (BattleSystem +0x20EC; the events' IsCounter)
 
 		/// <summary>The command a spell's school is cast with (setMonsterAbility's table: white 6, black 5, summon 13, 18, item 6, enemy 9, ninjutsu 0x53).</summary>
 		private static readonly int[] SchoolCommand = { 6, 5, 13, 18, 6, 9, 0x53, 0 };
@@ -206,6 +207,7 @@ namespace OpenFF.Client
 					counters.Add((who, () =>
 					{
 						float gauge = who.Gauge;   // a counter leaves its own turn where it was
+						_isCounter = true;
 						Perform(who, ability, targetType, targets.FindAll(f => f.Alive || targetType == 8));
 						who.Gauge = gauge;
 					}));

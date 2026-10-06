@@ -1607,6 +1607,7 @@ namespace OpenFF.Client
 			if (!actor.Alive) return;
 			_executing = actor;
 			_attacker = actor;
+			_isCounter = false;
 			_lastTargets.Clear();
 			_turnEffects.Clear();
 			try { act(); } catch (Exception ex) { Log.Write(LogChannel.General, "battle: action: " + ex.Message); }
