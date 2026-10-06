@@ -1117,6 +1117,7 @@ namespace OpenFF.Client
 			int denominator = Math.Max(1, target.Defence + target.Level + target.Vitality);
 			long core = numerator / denominator;
 			long value = (long)((4096 + (_random.Next(301) << 12) / 1000) * core) >> 12;
+			value = (long)(value * BackRowFactor(attacker, target));
 			value = value * (target.IsMonster ? 12 : 7) / 10;
 			int chance = Math.Clamp(attacker.Agility - target.Agility + 5, 0, 25);
 			if (_random.Next(100) < chance)
@@ -1125,6 +1126,38 @@ namespace OpenFF.Client
 				Note(attacker.Name + "'s blow is critical.");
 			}
 			return (int)Math.Max(1, value);
+		}
+
+		/// <summary>
+		/// NewAttackFormula::backPenalty: the attacker's own multipliers for the back rows (BaseBattleCharacter::formation
+		/// 1, PlayerParty::formation's table), the one for standing there and the one for a target standing there. A
+		/// member's: half from the back unless the weapon reaches (its record's 0x54 bit 1; bare hands do not), a target
+		/// in the back untouched. A monster's: its record's (the Floating Eye's 1.0 and 0.75). Monsters stand in front.
+		/// </summary>
+		private static float BackRowFactor(Fighter attacker, Fighter target)
+		{
+			float own = 1f, theirs = 1f;
+			if (attacker.IsMonster && attacker.Monster != null) { own = attacker.Monster.BackRowAttack; theirs = attacker.Monster.BackRowTarget; }
+			else if (attacker.Member != null) own = WeaponReaches(attacker.Member) ? 1f : 0.5f;
+			float factor = 1f;
+			if (InBackRow(attacker)) factor *= own;
+			if (InBackRow(target)) factor *= theirs;
+			return factor;
+		}
+
+		private static bool InBackRow(Fighter f) => !f.IsMonster && f.Member != null && Ff4Party.RowOf(Ff4Party.PositionOf(f.Member.Id)) == 1;
+
+		/// <summary>Whether a member's weapon reaches from the back row (pl::Player::physicsAttack: the weapon's 0x54 bit 1 - a bow, a boomerang).</summary>
+		private static bool WeaponReaches(Character c)
+		{
+			GameTables tables = Ff4Party.Tables;
+			foreach (int slot in new[] { (int)EquipSlot.RightHand, (int)EquipSlot.LeftHand })
+			{
+				ItemDefinition item = c.Equipment[slot] != 0 ? tables.Item(c.Equipment[slot]) : null;
+				if (item?.Kind != ItemKind.Weapon || item.Raw == null || item.Raw.Length < 0x56) continue;
+				return (BitConverter.ToUInt16(item.Raw, 0x54) & 2) != 0;
+			}
+			return false;
 		}
 
 		private void MemberAttacks(Fighter member, Fighter foe)

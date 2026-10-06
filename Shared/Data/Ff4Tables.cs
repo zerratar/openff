@@ -278,6 +278,8 @@ namespace OpenFF.Data
 					MaxHp = ChainPack.S32(r, 0xC),
 					AtbRateMin = ChainPack.S32(r, 0x18) / 4096f,
 					AtbRateMax = ChainPack.S32(r, 0x1C) / 4096f,
+					BackRowAttack = ChainPack.S32(r, 0x28) / 4096f,
+					BackRowTarget = ChainPack.S32(r, 0x2C) / 4096f,
 					Stats = new Stats { Strength = r[0x12], Vitality = r[0x13], Agility = r[0x14], Intellect = r[0x15], Spirit = r[0x16] },
 					Attack = ChainPack.S16(r, 0x20),
 					Hit = ChainPack.S16(r, 0x24),   // its ys::PhysicsAttackParameter at 0x20: attack s32, hit s16 at +4 (the Floating Eye's 8 and 105)

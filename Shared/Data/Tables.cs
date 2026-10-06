@@ -315,6 +315,8 @@ namespace OpenFF.Data
 		public float AtbRateMin = 1f, AtbRateMax = 1f;
 		/// <summary>FF4: where its damage number rises from, over its position (monster.chaindata chain 4 by monster id, MonsterManager::offset's +0x28).</summary>
 		public float DamageX, DamageY = 12f, DamageZ;
+		/// <summary>FF4: its blows' multipliers for the back rows (its ys::PhysicsAttackParameter's +8 and +0xC, fx32): when it stands in the back, and when its target does (the Floating Eye's 1.0 and 0.75).</summary>
+		public float BackRowAttack = 1f, BackRowTarget = 1f;
 		/// <summary>FF4: where an effect on it plays (BaseBattleCharacter::hitEffectPosition, chain 4's +4 and +8): this much up, and this much toward the camera.</summary>
 		public float EffectHeight = 8f, EffectToCamera;
 		/// <summary>FF4: its plain attack (monster.chaindata chain 2, ys::Effects, 28 bytes by monster id): the effect and the frame it starts, its sound (bank, number) and frame, the frame its number shows. -1 for none.</summary>
