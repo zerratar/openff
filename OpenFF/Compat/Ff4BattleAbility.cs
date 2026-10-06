@@ -337,7 +337,7 @@ namespace OpenFF.Client
 			Vector3 home = who.Home;
 			Vector3 p = KickPoint();
 			// Steam's frames: the kick starts 2 frames after the invoke stage (the stage's end, PABKick's state 0xd).
-			After(2, () => KickMoves(who, blows, critical, home, p));
+			KickMoves(who, blows, critical, home, p);
 		}
 
 		private void KickMoves(Fighter who, List<(Fighter T, bool Hit, int Damage)> blows, bool critical, Vector3 home, Vector3 p)
@@ -486,8 +486,9 @@ namespace OpenFF.Client
 			After(14, Number);
 			void Settle()
 			{
+				// Steam's frames: 84 over, the poise until the turn is (the stance back after it - AfterAction).
 				if (who.Npc != null && !who.Npc.MotionDone) { After(1, Settle); return; }
-				Play(who, who.IdleMotion, true, 3);
+				Play(who, who.Poise > 0 ? who.Poise : who.IdleMotion, true, 3);
 				who.Acted = false;
 			}
 			After(14, Settle);

@@ -543,7 +543,7 @@ namespace OpenFF.Data
 		public string AbilityTitle(int id) => AbilityNameIds.TryGetValue(id, out int name) && name >= 0 ? AbilityName(name) ?? AbilityName(id) : AbilityName(id);
 		public int AbilityWait(int id) => AbilityWaits.TryGetValue(id, out int wait) ? wait : 0;
 
-		/// <summary>FF4: an ability's flags (ability.bbd +0x24): bit 0 the usable-under check applies, bit 5 the weapons shown during it.</summary>
+		/// <summary>FF4: an ability's flags (ability.bbd +0x24): bit 0 the usable-under check applies, bit 6 the poise from the decision (Steam: Kick, Aim, Steal, Throw).</summary>
 		public Dictionary<int, int> AbilityFlagBits = new Dictionary<int, int>();
 		public int AbilityFlags(int id) => AbilityFlagBits.TryGetValue(id, out int flags) ? flags : 0;
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);

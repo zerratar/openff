@@ -263,6 +263,8 @@ namespace OpenFF.Client
 		/// line, its sound, its chant motion for the member's form with its effect, for 24 frames (15 a counter); then the
 		/// motion after (2004, the stance) and the command itself. A command with no invoke record goes at once.
 		/// </summary>
+		private const int InvokeGap = 2;
+
 		private void Invoke(Fighter member, int command, Action then)
 		{
 			if (member.IsMonster || Ff4Party.Tables == null || !Ff4Party.Tables.AbilityInvokes.TryGetValue(command, out short[] row))
@@ -294,7 +296,8 @@ namespace OpenFF.Client
 				if (!member.Alive) return;
 				if (row[16] > 0 && row[16] != 9999) Play(member, row[16], true, 3);
 				else if (row[16] == 9999 && chant > 0) Play(member, member.Poise > 0 ? member.Poise : member.IdleMotion, true, 3);   // startPoiseMotion(3)
-				then();
+				// Steam's frames (Kick, Aim, Steal, Throw): the command's own action starts 2 frames after the stage is over.
+				After(InvokeGap, () => { if (member.Alive) then(); });
 			}
 			After(lead, Finish);
 		}

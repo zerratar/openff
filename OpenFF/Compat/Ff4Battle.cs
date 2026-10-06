@@ -811,10 +811,10 @@ namespace OpenFF.Client
 			{
 				foreach (Fighter f in _party)
 				{
-					if (f.Airborne) continue;
+					if (f.Airborne || f == _executing) continue;   // its own action under way (the invoke stage before its gauge empties): no window
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && ActsAlone(f)) continue;
 					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f) && AutoTakes(f)) { AutoDecide(f); continue; }
-					if (f.Alive && !f.Queued && f.Gauge >= 1f && CanAct(f)) { _acting = f; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
+					if (f.Alive && !f.Queued && f != _executing && f.Gauge >= 1f && CanAct(f)) { _acting = f; _pick = Pick.Command; _cursor = 0; _commandScroll = 0; Log.Write(LogChannel.File, "battle: " + f.Name + " may act (step " + LegacyStep.Count + ", agility " + f.Agility + ")"); return; }
 				}
 				return;
 			}
@@ -1424,7 +1424,7 @@ namespace OpenFF.Client
 				// turns) - the blow lands 8 frames in, its number pops when the swing ends - and back to the stance.
 				// Aim (Steam's frames): the poise held since the decision, the swing 2 frames after the invoke stage.
 				int swing = member.Swings++ % 2 == 0 ? member.SwingA : (member.SwingB > 0 ? member.SwingB : member.SwingA);
-				int lead = aim ? 2 : 15;
+				int lead = aim ? 0 : 15;   // Aim: the invoke's 2-frame gap is its lead
 				EndTurn(member);
 				if (!aim) Play(member, member.Poise, false, 3);
 				member.Acted = false;
@@ -1702,9 +1702,9 @@ namespace OpenFF.Client
 		/// </summary>
 		private void Decide(Fighter member, Action act, int wait = 0, int ability = 1)
 		{
-			// Steam's frames: a member whose command shows the weapons (ability.bbd +0x24 bit 5 - Kick, Aim; not Pray) stands in its
+			// Steam's frames: a member whose command has ability.bbd +0x24 bit 6 (Kick, Aim, Steal, Throw - not Pray) stands in its
 			// weapon's poise (Yang's 1058, Rosa's 1060) from the decision until the action starts.
-			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && (Ff4Party.Tables?.AbilityFlags(ability) & 0x20) != 0) Play(member, member.Poise, true, 3);
+			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && (Ff4Party.Tables?.AbilityFlags(ability) & 0x40) != 0) Play(member, member.Poise, true, 3);
 			member.Defending = member.Braced = false;   // decideAbility: any decision ends Defend (flag 3) and Brace (flag 4)
 			_abilityCmd = 0;
 			member.Queued = true;
