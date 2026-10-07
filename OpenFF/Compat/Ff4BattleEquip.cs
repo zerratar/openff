@@ -216,7 +216,7 @@ namespace OpenFF.Client
 			ShowName(Ff4Party.Tables.Item(itemId) is ItemDefinition shownItem ? ItemTitle(shownItem) : spell.Name, ItemNameFrames - 4);
 			After(ItemNameFrames, () => { Play(who, 62, false, 3); who.Acted = false; });
 			After(ItemNameFrames + 30, () => { if (who.Alive) Play(who, who.IdleMotion, true, 3); });
-			After(ItemNameFrames + 15, () => ShowSpell(who, spell, targets, invoked: true));
+			After(ItemNameFrames + 15, () => ShowSpell(who, spell, targets, invoked: true, dim: false));
 			Note(who.Name + " uses " + (Ff4Party.Tables.Item(itemId)?.Name ?? "an item") + ": " + spell.Name);
 		}
 

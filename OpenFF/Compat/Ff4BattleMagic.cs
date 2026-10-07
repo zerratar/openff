@@ -137,7 +137,7 @@ namespace OpenFF.Client
 		/// it whole), and the results with the numbers once every effect has ended; the turn then waits on the numbers.
 		/// </summary>
 		/// <param name="invoked">The command's own invoke stage has been (Recall, Twincast - Steam's frames): no chant, name or close-up of the spell's again, its effect at once.</param>
-		private void ShowSpell(Fighter caster, SpellDefinition spell, List<Fighter> targets, bool invoked = false)
+		private void ShowSpell(Fighter caster, SpellDefinition spell, List<Fighter> targets, bool invoked = false, bool dim = true)
 		{
 			if (!UsableUnder(caster, spell.Id))
 			{
@@ -149,6 +149,9 @@ namespace OpenFF.Client
 			GameTables tables = Ff4Party.Tables;
 			bool ability = spell.School == OpenFF.Data.MagicSchool.Enemy;
 			int lead = invoked ? 0 : _isCounter ? CounterLead : CastLead;
+			// stateMagic / isMagicData: the magic's own stage begins with the battle stage dimmed (startMagicMap) - a monster's
+			// ability and an item are not magic.
+			if (dim && !ability && spell.School != OpenFF.Data.MagicSchool.Item) After(lead, StartMagicMap);
 			// Reflect (BattleCalculation::calcMagic): a target that reflects it takes nothing and shows Reflect's effect;
 			// for each, someone of the other side from it, at random, takes the spell instead.
 			List<Fighter> reflectors = Augment(caster, Ff4Augments.PiercingMagic) ? new List<Fighter>() : targets.FindAll(t => Reflects(t, spell));   // isReflect: Piercing Magic
@@ -234,10 +237,15 @@ namespace OpenFF.Client
 			int step = Math.Max(0, (show?.Period ?? 0) / 2);
 			if (show == null) Log.First(LogChannel.File, "battle-spell-show-" + spell.Id, 1, () => "battle: no effect record for " + spell.Id + " - shown without its effect");
 			else LoadEffect(show.Pack);
+			// Steam's Fire: the close-up's last frame, then the standing shot, the stage dimming - and the spell's effect 3
+			// frames after that (the magic state's own start).
+			if (lead > 0 && !caster.IsMonster) lead += MagicEffectGap;
 			int last = lead;
 			// setShakeScreen: Quake (0x11A8) for its period, a monster's Earthquake (0x73) for its effect's (amplitude 0.2).
 			if (spell.Id == 0x11A8 || spell.Id == 0x73) After(lead, () => ShakeCamera(Math.Max(1, show?.Period ?? 45), 0.2f));
-			if (show != null && spell.HitsAll && targets.Count > 0)
+			// The whole side's one effect when it falls on all of them (the selector's all, a monster's all), else one a target.
+			bool wide = targets.Count > 1;
+			if (show != null && wide)
 			{
 				// One wide effect for the side (drawAllMagicEffect): at (-25, 0, 0) for the monsters', (24, 0, 0) for the party's.
 				Vector3 at = !Ff4BattleStage.Active ? HitEffectSpot(targets[0]) : targets[0].IsMonster ? new Vector3(-25f, 0f, 0f) : new Vector3(24f, 0f, 0f);
@@ -253,7 +261,7 @@ namespace OpenFF.Client
 				}
 				last = lead + Math.Max(0, targets.Count - 1) * step;
 			}
-			if (show != null && spell.HitsAll) foreach (Fighter r in reflectors) After(lead, () => ShowReflect(r));
+			if (show != null && wide) foreach (Fighter r in reflectors) After(lead, () => ShowReflect(r));
 			if (show != null)
 			{
 				// Then the ones it bounced onto get the spell's own effect, in turn.
@@ -483,6 +491,34 @@ namespace OpenFF.Client
 		{
 			public int Pack = -1, SeBank = -1, SeNumber = -1, EffectFrame = -1, SeFrame = -1, NumberFrame = -1, Motion = -1, Factor = 1;
 			public bool Feet;
+		}
+
+		// CBattleDisplay::startMagicMap / endMagicMap: the battle stage's materials drawn in toon with the toon table faded to
+		// 0x294a (a third) over 5 frames while a spell's stage plays, and back to white over 5 after; not on stage 24.
+		private const int MagicMapFrames = 5;
+		private const int MagicEffectGap = 3;
+		private const ushort MagicMapColour = 0x294a;
+		private bool _magicMap;
+
+		private void StartMagicMap()
+		{
+			if (_magicMap || !Ff4BattleStage.Active || Ff4BattleStage.BattleMap == 24) return;
+			try
+			{
+				GlobalScope.stageMng.enableFakeMaterialColor(true, GlobalScope.stg.CStageMng.FAKEMATERIAL_TYPE.TYPE_TOON);
+				GlobalScope.stageMng.setFakeMaterialColor(MagicMapFrames, MagicMapColour);
+				_magicMap = true;
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "battle: magic map: " + ex.Message); }
+		}
+
+		private void EndMagicMap()
+		{
+			if (!_magicMap) return;
+			_magicMap = false;
+			try { GlobalScope.stageMng.setFakeMaterialColor(MagicMapFrames, 0x7fff); } catch (Exception) { }
+			// draw1st: once white again, the stage's own materials back (enableFakeMaterialColor off).
+			After(MagicMapFrames + 1, () => { if (!_magicMap) { try { GlobalScope.stageMng.enableFakeMaterialColor(false, GlobalScope.stg.CStageMng.FAKEMATERIAL_TYPE.TYPE_TOON); } catch (Exception) { } } });
 		}
 	}
 }

@@ -771,7 +771,12 @@ namespace OpenFF.Client
 					else if (was == EventKind.Before && _queue.Count > 0 && !_eventMode) StartNextAction();
 				}
 			}
-			if (_executing != null && _cues.Count == 0 && !TurnEffectsPlaying()) TurnEnd();
+			if (_executing != null && _cues.Count == 0 && !TurnEffectsPlaying())
+			{
+				// executeMagic's end: the stage brightened again over its 5 frames before the turn is over (the fallen fade after).
+				if (_magicMap) { EndMagicMap(); After(MagicMapFrames, () => { }); }
+				else TurnEnd();
+			}
 			if (_closing || _phase != Phase.Fight) return;
 			bool busy = _executing != null || _cues.Count > 0 || _eventKind != EventKind.None;
 			if (!busy && _eventParty != null && _eventParty.NormalEvent >= 0 && !StartEvent(EventKind.Normal, _eventParty.NormalEvent)) busy = true;
@@ -1848,11 +1853,18 @@ namespace OpenFF.Client
 			return spell != null ? SchoolCommand[Math.Clamp((int)spell.School, 0, 7)] : ability;
 		}
 
+		/// <summary>checkMotionHealth's idle with a command pending: Black Magic 99, White Magic 98, Summon 100, Recall 79, Twincast
+		/// 99 (Steam's Tellah waits on Fire in 99), else the weapon's poise.</summary>
+		private static int WaitMotion(Fighter member, int command) => command switch
+		{
+			CmdBlackMagic => 99, CmdWhiteMagic => 98, CmdSummon => 100, CmdRecall => 79, CmdTwincast => 99, _ => member.Poise,
+		};
+
 		private void Decide(Fighter member, Action act, int wait = 0, int ability = 1)
 		{
 			// Steam's frames: a member whose command has ability.bbd +0x24 bit 6 (Kick, Aim, Steal, Throw - not Pray) stands in its
 			// weapon's poise (Yang's 1058, Rosa's 1060) from the decision until the action starts.
-			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && ability != CmdTwincast && (Ff4Party.Tables?.AbilityFlags(DecisionCommand(ability)) & 0x40) != 0) Play(member, member.Poise, true, 3);   // Twincast: its pair wait (99) instead
+			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && ability != CmdTwincast && (Ff4Party.Tables?.AbilityFlags(DecisionCommand(ability)) & 0x40) != 0) Play(member, WaitMotion(member, DecisionCommand(ability)), true, 3);   // Twincast: its pair wait (99) instead
 			member.Defending = member.Braced = false;   // decideAbility: any decision ends Defend (flag 3) and Brace (flag 4)
 			// atwMax: Fast Talker halves the wait of a magic command (a spell, Dualcast, Twincast).
 			if (wait > 0 && Augment(member, Ff4Augments.FastTalker) && (Ff4Party.Tables?.Spell(ability) is SpellDefinition chant && chant.School != OpenFF.Data.MagicSchool.Enemy || ability == CmdDualcast || ability == CmdTwincast)) wait = Math.Max(1, wait / 2);
