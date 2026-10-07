@@ -65,3 +65,31 @@
   -ff-slice: 0 48 0 48;
   -ff-slice-scale: 1.6875;
 }
+
+/* ---- the full screens (Inventory, Magic, ...) ---- */
+
+/* The wallpaper: MENU_Common's wallpaper3d_00 (the Settings' window pick chooses among six), tiled at 144.2 pixels. */
+.m-wallpaper {
+  background-image: resource("files/MENU_Common.dat/wallpaper3d_00.NCGR");
+  background-repeat: repeat;
+  background-size: 144.2px 144.2px;
+  background-position: 20.1px 2.1px;
+}
+/* The title bar: dark at its ends, light in the middle; a pane: the two bands. */
+.m-title { background-image: linear-gradient(to right, #21223a 0%, #7275c1 50%, #21223a 100%); }
+.m-pane { background-image: linear-gradient(to bottom, #505483 0px, #505483 20.25px, #2a2b66 20.25px, #2a2b66 100%); }
+
+/* A list's cell: its name after the item's or spell's symbol, its count right, the lit one's three bands. */
+.m-cell-name, .m-cell-count { color: #ffffff; font-size: 21px; text-shadow: 3.375px 3.375px #000000; vertical-align: central; }
+.m-cell-count { text-align: right; }
+.m-cell.dim .m-cell-name, .m-cell.dim .m-cell-count { color: #808080; }
+.m-cell.dim .m-icon { color: #808080; }
+.m-icon { -ff-cell-scale: 0.79; -ff-cell-shadow: 3.375px 3.375px #000000; }
+#inventory .m-cell .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 40.5px, #667dc4 40.5px, #667dc4 64.1px, #4a5daa 64.1px, #4a5daa 100%); }
+#magic .m-cell .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 43.9px, #667dc4 43.9px, #667dc4 67.5px, #4a5daa 67.5px, #4a5daa 100%); }
+#inventory .m-member .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 60.8px, #667dc4 60.8px, #667dc4 94.5px, #4a5daa 94.5px, #4a5daa 100%); }
+
+/* The arrows either side of the member (button_right_left: the left one, the right one, at 1.6875). */
+.m-arrow-left, .m-arrow-right { background-image: resource("files/MENU_Common.dat/button_right_left.NCGR"); }
+.m-arrow-left { -ff-background-rect: 0 0 16 64; }
+.m-arrow-right { -ff-background-rect: 16 0 16 64; }

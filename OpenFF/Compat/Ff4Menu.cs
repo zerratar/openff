@@ -142,7 +142,9 @@ namespace OpenFF.Client
 				return;
 			}
 			if (Ff4Saves.NoticeFrames > 0) Ff4Saves.NoticeFrames--;
-			if (input.Pressed(Pad.X) || input.KeyPressed("M") || input.KeyPressed("Escape")) { Close(); return; }
+			// The menu key closes it from the main menu; in a screen C and M are the screen's (Key Items, the next member).
+			bool atRoot = _screen == Screen.Root && _mode == Mode.Browse && !_question;
+			if (input.KeyPressed("Escape") || (atRoot && (input.Pressed(Pad.X) || input.KeyPressed("M")))) { Close(); return; }
 			if (Ff4Party.Party.Members.Count == 0) { Close(); return; }
 			_member = Math.Clamp(_member, 0, Ff4Party.Party.Members.Count - 1);
 			switch (_screen)
@@ -234,11 +236,24 @@ namespace OpenFF.Client
 		private void UpdateMemberScreen(InputState input, int? listCount)
 		{
 			if (input.Pressed(Pad.B)) { Back(); return; }
-			SwitchMember(input);
+			if (_screen == Screen.Magic)
+			{
+				// Z and M: the member before and after (Steam's "Change Characters"); C: the next school.
+				int n = Ff4Party.Party.Members.Count;
+				if (input.Pressed(Pad.Y)) { _member = (_member + n - 1) % n; _cursor = _scroll = 0; }
+				if (input.KeyPressed("M")) { _member = (_member + 1) % n; _cursor = _scroll = 0; }
+				if (input.Pressed(Pad.X))
+				{
+					List<OpenFF.Data.MagicSchool> schools = SchoolsOf(Member);
+					if (schools.Count > 1) { _school = schools[(schools.IndexOf(_school) + 1) % schools.Count]; _cursor = _scroll = 0; }
+				}
+				listCount = ListCount();
+			}
+			else SwitchMember(input);
 			if (_screen == Screen.Status && input.Pressed(Pad.A)) { OpenScreen(Screen.Abilities); return; }
 			if (listCount.HasValue && listCount.Value > 0)
 			{
-				int cols = 3, rows = 9;
+				int cols = 3, rows = _screen == Screen.Magic ? 5 : 9;
 				if (input.Pressed(Pad.Left)) _cursor = Math.Max(0, _cursor - 1);
 				if (input.Pressed(Pad.Right)) _cursor = Math.Min(listCount.Value - 1, _cursor + 1);
 				if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - cols);
@@ -249,13 +264,62 @@ namespace OpenFF.Client
 			}
 		}
 
-		private int ListCount() => _screen == Screen.Magic ? Member.Spells.Count : Member.Abilities.Count;
+		private int ListCount() => _screen == Screen.Magic ? SpellsShown().Count : Member.Abilities.Count;
+
+		// ---- Steam's screens: the bag or the key items, a school of magic at a time ----
+
+		private bool _keyItems;
+		private OpenFF.Data.MagicSchool _school;
+
+		/// <summary>What the Inventory lists: the bag without its key items, or the key items alone (C).</summary>
+		private List<OpenFF.Data.ItemStack> Bag()
+		{
+			List<OpenFF.Data.ItemStack> bag = new List<OpenFF.Data.ItemStack>();
+			foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory)
+			{
+				bool key = Ff4Party.Tables?.Item(s.ItemId)?.Kind == ItemKind.KeyItem;
+				if (key == _keyItems) bag.Add(s);
+			}
+			return bag;
+		}
+
+		/// <summary>The schools a member has spells of, in FF4's order (white, black, summons, ...).</summary>
+		private static List<OpenFF.Data.MagicSchool> SchoolsOf(Character c)
+		{
+			List<OpenFF.Data.MagicSchool> schools = new List<OpenFF.Data.MagicSchool>();
+			foreach (int id in c.Spells)
+			{
+				SpellDefinition s = Ff4Party.Tables?.Spell(id);
+				if (s != null && !schools.Contains(s.School)) schools.Add(s.School);
+			}
+			schools.Sort();
+			return schools;
+		}
+
+		/// <summary>The member's spells of the school shown.</summary>
+		private List<int> SpellsShown()
+		{
+			List<OpenFF.Data.MagicSchool> schools = SchoolsOf(Member);
+			if (schools.Count > 0 && !schools.Contains(_school)) _school = schools[0];
+			List<int> list = new List<int>();
+			foreach (int id in Member.Spells) if (Ff4Party.Tables?.Spell(id)?.School == _school) list.Add(id);
+			return list;
+		}
+
+		private static string SchoolName(OpenFF.Data.MagicSchool school) => school switch
+		{
+			OpenFF.Data.MagicSchool.White => "White Magic",
+			OpenFF.Data.MagicSchool.Black => "Black Magic",
+			OpenFF.Data.MagicSchool.Summon => "Summon",
+			_ => school.ToString(),
+		};
 
 		// ---- inventory ----
 
 		private void UpdateInventory(InputState input)
 		{
-			IReadOnlyList<OpenFF.Data.ItemStack> items = Ff4Party.Party.Inventory;
+			IReadOnlyList<OpenFF.Data.ItemStack> items = Bag();
+			if (_mode == Mode.Browse && input.Pressed(Pad.X)) { _keyItems = !_keyItems; _cursor = _scroll = 0; return; }   // C: Key Items
 			if (_mode == Mode.ItemTarget)
 			{
 				int n = Ff4Party.Party.Members.Count;
@@ -271,7 +335,7 @@ namespace OpenFF.Client
 			}
 			if (input.Pressed(Pad.B)) { Back(); return; }
 			if (items.Count == 0) return;
-			const int cols = 2, rows = 11;
+			const int cols = 2, rows = 7;
 			if (input.Pressed(Pad.Left)) _cursor = Math.Max(0, _cursor - 1);
 			if (input.Pressed(Pad.Right)) _cursor = Math.Min(items.Count - 1, _cursor + 1);
 			if (input.Pressed(Pad.Up)) _cursor = Math.Max(0, _cursor - cols);
@@ -283,7 +347,7 @@ namespace OpenFF.Client
 			if (input.Pressed(Pad.A))
 			{
 				int id = items[_cursor].ItemId;
-				if (UsableEffect(id) != null || Ff4Augments.AbilityOf(id) > 0) { _usingItem = id; _mode = Mode.ItemTarget; _pick = 0; }   // an augment: on whom (mssdLearnAbility)
+				if (FieldUsable(id) && (UsableEffect(id) != null || CuresOf(Ff4Party.Tables?.Item(id)) != 0 || Ff4Augments.AbilityOf(id) > 0)) { _usingItem = id; _mode = Mode.ItemTarget; _pick = 0; }   // an augment: on whom (mssdLearnAbility)
 				else Notice("That cannot be used here.");
 			}
 		}
@@ -400,22 +464,38 @@ namespace OpenFF.Client
 			return e.Hp > 0 || e.Mp > 0 || e.Id == 17 ? e : null;
 		}
 
+		/// <summary>Whether the menu offers the item (WSCMenu::checkItem): the record's flags at 0x12 - bit 2 usable in the field,
+		/// bit 3 a camp item (a Tent: where the game may be saved); greyed otherwise.</summary>
+		private static bool FieldUsable(int itemId)
+		{
+			ItemDefinition item = Ff4Party.Tables?.Item(itemId);
+			if (item?.Raw == null || item.Raw.Length < 0x14) return false;
+			int flags = BitConverter.ToUInt16(item.Raw, 0x12);
+			return ((flags & 8) != 0 && SaveAllowed) || (flags & 4) != 0;
+		}
+
+		/// <summary>The conditions a consumable takes away (its record's mask at 0x24; itm::ItemUse::useConditionItem), 0 for none.</summary>
+		private static ulong CuresOf(ItemDefinition item) =>
+			item?.Kind == ItemKind.Consumable && item.Raw != null && item.Raw.Length >= 0x2E ? BitConverter.ToUInt64(item.Raw, 0x24) : 0;
+
 		private static string Use(int itemId, Character target)
 		{
 			ItemDefinition item = Ff4Party.Tables?.Item(itemId);
 			Efficacy e = UsableEffect(itemId);
-			if (item == null || e == null) return "Nothing happens.";
-			bool revive = e.Id == 17;
-			if (revive != !target.Alive) return item.Name + " does nothing for " + target.Name + ".";
+			ulong cures = CuresOf(item) & target.Conditions;
+			if (item == null || (e == null && CuresOf(item) == 0)) return "Nothing happens.";
+			bool revive = e?.Id == 17;
+			if (e == null ? cures == 0 : revive != !target.Alive) return item.Name + " does nothing for " + target.Name + ".";
 			if (!Ff4Party.Party.RemoveItem(itemId, 1)) return "None left.";
 			int hp = target.Hp, mp = target.Mp;
+			target.Conditions &= ~cures;
 			if (revive) target.Hp = Math.Max(1, target.MaxHp / 4);
-			else
+			else if (e != null)
 			{
 				if (e.Hp > 0) target.Hp = Math.Min(target.MaxHp, target.Hp + e.Hp);
 				if (e.Mp > 0) target.Mp = Math.Min(target.MaxMp, target.Mp + e.Mp);
 			}
-			string said = item.Name + ": " + target.Name + (revive ? " rises." : (target.Hp != hp ? " +" + (target.Hp - hp) + " HP" : "") + (target.Mp != mp ? " +" + (target.Mp - mp) + " MP" : "") + ".");
+			string said = item.Name + ": " + target.Name + (revive ? " rises." : cures != 0 ? " is cured." : (target.Hp != hp ? " +" + (target.Hp - hp) + " HP" : "") + (target.Mp != mp ? " +" + (target.Mp - mp) + " MP" : "") + ".");
 			Log.Write(LogChannel.File, "menu: " + said);
 			return said;
 		}
@@ -478,9 +558,15 @@ namespace OpenFF.Client
 					DrawRoot(d);
 					break;
 				case Screen.Status: DrawStatus(d); break;
-				case Screen.Inventory: DrawInventory(d); break;
+				case Screen.Inventory:
+					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
+					DrawInventory(d);
+					break;
 				case Screen.Equipment: DrawEquipment(d); break;
 				case Screen.Magic:
+					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
+					DrawList(d);
+					break;
 				case Screen.Abilities: DrawList(d); break;
 				case Screen.Party: DrawParty(d); break;
 				case Screen.Save:
@@ -524,6 +610,7 @@ namespace OpenFF.Client
 			Ff4MenuHud.Data h = _hud;
 			bool picking = _mode == Mode.PickMember;
 			h.Root = true;
+			h.Full = h.Inventory = h.Magic = h.Using = false;
 			h.Picking = picking;
 			h.Bubble = !picking && !string.IsNullOrEmpty(_thought);
 			h.Thought = _thought ?? "";
@@ -572,6 +659,110 @@ namespace OpenFF.Client
 			h.No = _question && !_questionYes;
 			h.QuestionText = "Quicksave game and quit?";
 			Ff4MenuHud.Draw(h);
+		}
+
+		/// <summary>A full screen as Steam's menu has it (Inventory, Magic), through the layout.</summary>
+		private void DrawScreenLayout()
+		{
+			Ff4MenuHud.Data h = _hud;
+			GameTables tables = Ff4Party.Tables;
+			h.Root = h.Picking = h.Bubble = h.Question = false;
+			h.Full = true;
+			h.Inventory = _screen == Screen.Inventory;
+			h.Magic = _screen == Screen.Magic;
+			h.LvLabel = T(50401, "Lv");
+			h.HpLabel = T(50410, "HP");
+			h.MpLabel = T(50411, "MP");
+			h.UseLabel = T(50101, "Use");
+			if (h.Inventory)
+			{
+				h.Title = _keyItems ? h.KeyItemsLabel : T(50002, "Inventory");
+				List<OpenFF.Data.ItemStack> items = Bag();
+				h.Using = _mode == Mode.ItemTarget;
+				for (int k = 0; k < h.Item.Count; k++)
+				{
+					int i = _scroll + k;
+					Ff4MenuHud.CellRow row = h.Item[k];
+					row.Present = i < items.Count;
+					if (!row.Present) continue;
+					ItemDefinition item = tables?.Item(items[i].ItemId);
+					row.Name = item?.Name ?? ("item " + items[i].ItemId);
+					row.Count = items[i].Count.ToString();
+					row.Icon = item?.Icon ?? -1;
+					row.Lit = i == _cursor && _mode == Mode.Browse;
+					// What cannot be used from the menu is grey (Steam's Red Fang, its key items).
+					row.Dim = !FieldUsable(items[i].ItemId);
+				}
+				Ff4MenuHud.Scroll(h.ItemScroll, (items.Count + 1) / 2, 7, _scroll / 2, 675f, true);
+				ItemDefinition picked = _cursor < items.Count ? tables?.Item(items[_cursor].ItemId) : null;
+				if (h.Using) picked = tables?.Item(_usingItem);
+				h.Help = picked?.Caption ?? "";
+				h.UseName = picked?.Name ?? "";
+				h.UseIcon = picked?.Icon ?? -1;
+				if (h.Using) h.ItemScroll.Shown = false;   // the party's places take the list's window, with no bar
+				h.UseCount = h.Using ? Ff4Party.Party.CountItem(_usingItem).ToString() : "";
+				FillMembers(h.Target, _mode == Mode.ItemTarget ? _pick : -1, false);
+			}
+			if (h.Magic)
+			{
+				h.Title = T(50003, "Magic");
+				Character c = Member;
+				Ff4MenuHud.MemberRow head = h.Head;
+				head.Present = true;
+				head.Name = c.Name;
+				head.Level = c.Level.ToString();
+				head.Hp = c.Hp.ToString();
+				head.MaxHp = c.MaxHp.ToString();
+				head.Mp = c.Mp.ToString();
+				head.MaxMp = c.MaxMp.ToString();
+				head.Face = c.Id;
+				List<int> spells = SpellsShown();
+				for (int k = 0; k < h.Spell.Count; k++)
+				{
+					int i = _scroll + k;
+					Ff4MenuHud.CellRow row = h.Spell[k];
+					row.Present = i < spells.Count;
+					if (!row.Present) continue;
+					SpellDefinition spell = tables?.Spell(spells[i]);
+					row.Name = spell?.Name ?? tables?.AbilityName(spells[i]) ?? spells[i].ToString();
+					row.Count = "";
+					row.Icon = tables?.AbilityIcon(spells[i]) ?? -1;
+					row.Lit = i == _cursor;
+					row.Dim = spell != null && spell.MpCost > c.Mp;
+				}
+				Ff4MenuHud.Scroll(h.SpellScroll, (spells.Count + 2) / 3, 5, _scroll / 3, 526.5f, true);
+				SpellDefinition at = _cursor < spells.Count ? tables?.Spell(spells[_cursor]) : null;
+				// "  3 MP    Restore a small amount of HP.": babil_ability.msd's line carries the cost (U+E03E before each of its
+				// digits: a figure's width).
+				h.Help = at == null ? "" : (tables.AbilityHelpIds.TryGetValue(at.Id, out int helpId) && helpId > 0 ? tables.AbilityName(helpId)?.TrimEnd() ?? "" : "").Replace("\ue03e", "");
+				List<OpenFF.Data.MagicSchool> schools = SchoolsOf(c);
+				h.SchoolLabel = schools.Count > 1 ? SchoolName(schools[(schools.IndexOf(_school) + 1) % schools.Count]) : "";
+			}
+			Ff4MenuHud.Draw(h);
+		}
+
+		/// <summary>The party's five places into <paramref name="rows"/>; <paramref name="lit"/> the member the hand is on.</summary>
+		private static void FillMembers(List<Ff4MenuHud.MemberRow> rows, int lit, bool dimNoMagic)
+		{
+			IReadOnlyList<Character> members = Ff4Party.Party.Members;
+			for (int p = 0; p < rows.Count; p++)
+			{
+				Ff4MenuHud.MemberRow row = rows[p];
+				int index = MemberAt(p);
+				row.Present = index >= 0;
+				row.Lit = index >= 0 && index == lit;
+				if (!row.Present) { row.Name = row.Level = row.Hp = row.MaxHp = row.Mp = row.MaxMp = ""; row.Dim = row.Low = false; continue; }
+				Character c = members[index];
+				row.Name = c.Name;
+				row.Level = c.Level.ToString();
+				row.Hp = c.Hp.ToString();
+				row.MaxHp = c.MaxHp.ToString();
+				row.Mp = c.Mp.ToString();
+				row.MaxMp = c.MaxMp.ToString();
+				row.Face = c.Id;
+				row.Low = c.Alive && c.Hp * 4 <= c.MaxHp;
+				row.Dim = !c.Alive || (dimNoMagic && c.Spells.Count == 0);
+			}
 		}
 
 		/// <summary>The member standing in the party's place <paramref name="place"/> (0..4, top down), or -1.</summary>

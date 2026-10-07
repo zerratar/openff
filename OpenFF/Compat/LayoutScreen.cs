@@ -327,9 +327,10 @@ namespace OpenFF.Client
 			if (texture == null) return;
 			uint tint = bg.Tint;
 			Color c = new Color((byte)(tint >> 24), (byte)(tint >> 16), (byte)(tint >> 8), (byte)Math.Round((tint & 0xFF) * opacity));
-			if (bg.Sliced)
+			if (bg.Sliced || (bg.Repeat != null && bg.Repeat != "no-repeat") || bg.Size != null || bg.Position != null)
 			{
-				// 9-sliced: the corners kept at -ff-slice-scale layout units a picture pixel, the edges and the middle stretched.
+				// 9-sliced (the corners kept at -ff-slice-scale layout units a picture pixel, the edges and the middle stretched), or
+				// tiled and placed as CSS's background-repeat, -size and -position say (a menu's wallpaper).
 				foreach (MenuBackground.Quad q in bg.Layout(w / sx, h / sy, texture.Width, texture.Height))
 					d.Sprite(texture, x + q.X * sx, y + q.Y * sy, q.W * sx, q.H * sy, c, 0f, q.U, q.V, q.UW, q.VH);
 				return;

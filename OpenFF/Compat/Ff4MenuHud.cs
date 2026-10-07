@@ -24,21 +24,46 @@ namespace OpenFF.Client
 			public int Face;
 		}
 
+		/// <summary>A cell of a list (an item, a spell): its symbol's cell, its name, how many.</summary>
+		public sealed class CellRow
+		{
+			public bool Present, Lit, Dim;
+			public string Name = "", Count = "";
+			public int Icon = -1;
+		}
+
 		public sealed class ScrollData
 		{
-			public bool Shown;
+			public bool Shown, Knob;
 			public float KnobTop, KnobHeight;
 		}
 
 		public sealed class Data
 		{
 			public bool Root, Picking, Bubble, Question, Yes, No;
+			// The full screens: which is up, its title, its help line; Inventory's list and its use on a member; Magic's member
+			// and spells.
+			public bool Full, Inventory, Magic, Using;
+			public string Title = "", Help = "", UseName = "", UseCount = "";
+			public string KeyItemsLabel = "Key Items", SortLabel = "Sort", UseLabel = "Use", ChangeLabel = "Change Characters", SchoolLabel = "";
+			public int UseIcon = -1;
+			public List<CellRow> Item = Rows<CellRow>(14), Spell = Rows<CellRow>(15);
+			public ScrollData ItemScroll = new ScrollData(), SpellScroll = new ScrollData();
+			public List<MemberRow> Target = Rows<MemberRow>(5);
+			public MemberRow Head = new MemberRow();
 			public string Thought = "", Location = "", Gil = "", GilLabel = "Gil";
 			public string LvLabel = "Lv", HpLabel = "HP", MpLabel = "MP", Confirm = "Confirm", Back = "Back";
 			public string QuestionText = "", YesLabel = "Yes", NoLabel = "No";
 			public List<CommandRow> Command = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
 			public ScrollData Scroll = new ScrollData();
 			public List<MemberRow> Member = new List<MemberRow> { new MemberRow(), new MemberRow(), new MemberRow(), new MemberRow(), new MemberRow() };
+		}
+
+		private static List<T> Rows<T>(int n) where T : new()
+		{
+			List<T> rows = new List<T>();
+			for (int i = 0; i < n; i++) rows.Add(new T());
+			return rows;
 		}
 
 		private static LayoutScreen _screen;
@@ -59,16 +84,20 @@ namespace OpenFF.Client
 			}
 		}
 
-		// The command column's track: 742.5 long from 33.75 down (Steam's scrollbar between its two arrows).
-		private const float TrackTop = 33.75f, TrackLength = 742.5f;
+		// A scroll bar's track starts under its up arrow, 33.75 down, and ends over its down arrow: the command column's is 742.5
+		// long (a bar 810 high), the Inventory's 675 (742.5), Magic's 526.5 (594).
+		private const float TrackTop = 33.75f;
 
-		/// <summary>The scroll bar for <paramref name="count"/> rows, <paramref name="visible"/> of them in view from <paramref name="top"/>.</summary>
-		public static void Scroll(ScrollData s, int count, int visible, int top)
+		/// <summary>The scroll bar for <paramref name="count"/> rows, <paramref name="visible"/> of them in view from <paramref name="top"/>,
+		/// on a track <paramref name="track"/> long. A list's bar stands always (<paramref name="always"/>), its knob only when it
+		/// scrolls; the command column's comes and goes with its knob.</summary>
+		public static void Scroll(ScrollData s, int count, int visible, int top, float track = 742.5f, bool always = false)
 		{
-			s.Shown = count > visible;
-			if (!s.Shown) return;
-			s.KnobHeight = TrackLength * visible / count;
-			s.KnobTop = TrackTop + (TrackLength - s.KnobHeight) * top / Math.Max(1, count - visible);
+			s.Knob = count > visible;
+			s.Shown = s.Knob || always;
+			if (!s.Knob) return;
+			s.KnobHeight = track * visible / count;
+			s.KnobTop = TrackTop + (track - s.KnobHeight) * top / Math.Max(1, count - visible);
 		}
 
 		public static void Draw(Data data)
