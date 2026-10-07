@@ -233,6 +233,31 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>One cell of the ATB gauge's bank (0 the trough, 1 grey, 2 yellow, 3 red fill) with its origin at (x, y), cut to <paramref name="crop"/> of its width.</summary>
+		/// <summary>One of battle_number's cells stretched <paramref name="stretch"/> times across from its left edge and cut to
+		/// <paramref name="crop"/> of that (the HP gauge, BattleHpGauge: its sprites at x scale 3, the fill at 3 x HP / max).</summary>
+		/// <summary>A battle_number cell's width and height as drawn (0 when it is not there).</summary>
+		public static (float W, float H) NumberCellSize(int index)
+		{
+			Cell cell = Bank(NumberBank)?[index];
+			if (cell == null) return (0f, 0f);
+			float w = 0f, h = 0f;
+			foreach (CellPart p in cell.Parts) { w = Math.Max(w, (p.X + p.Width) * Scale); h = Math.Max(h, (p.Y + p.Height) * Scale); }
+			return (w, h);
+		}
+
+		public static bool NumberCellStretched(DrawList d, int index, float x, float y, float stretch, float crop)
+		{
+			CellBank bank = Bank(NumberBank);
+			Texture sheet = Sheet(NumberSheet);
+			Cell cell = bank?[index];
+			if (cell == null || sheet == null) return false;
+			crop = Math.Clamp(crop, 0f, 1f);
+			if (crop <= 0f) return true;
+			foreach (CellPart p in cell.Parts)
+				d.Sprite(sheet, x + p.X * Scale * stretch, y + p.Y * Scale, p.Width * Scale * stretch * crop, p.Height * Scale, Color.White, 0f, p.SourceX, p.SourceY, p.Width, p.Height);
+			return true;
+		}
+
 		public static bool GaugeCell(DrawList d, int index, float x, float y, float scale, float crop, Color tint)
 		{
 			CellBank bank = Bank(GaugeBank);

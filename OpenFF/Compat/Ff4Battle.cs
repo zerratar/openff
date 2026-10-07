@@ -2816,6 +2816,32 @@ namespace OpenFF.Client
 				if (over.HasValue) Ff4Ui.Word(d, over.Value.X, over.Value.Y, 14 + (int)(_clock % 6));
 			}
 
+			// BattleTargetSelector::updateHpGauge: an ability whose ability.bbd +0x24 has 0x08 (Cure, a Potion) puts each
+			// member's HP gauge over it while it is aimed - battle_number's trough (22) and its fill (23 green, 25 at a
+			// quarter or less), at the turn cursor's point 8 lower; 0x10 (an Ether) the MP's (26).
+			if (_acting != null && (_pick == Pick.Target || _pick == Pick.Ally) && _targetBits != 0 && Ff4BattleStage.Active)
+			{
+				int flags = Ff4Party.Tables.AbilityFlags(_targetAbility);
+				if ((flags & 0x18) != 0)
+				{
+					foreach (Fighter m in _party)
+					{
+						if (m.Npc == null || m.Member == null) continue;
+						Vector3 at = m.Npc.Position;
+						Vector2? over = Game.Camera.WorldToScreen(new Vector3(at.X, 20f, at.Z));
+						if (!over.HasValue) continue;
+						bool hp = (flags & 0x08) != 0;
+						float share = hp ? (m.MaxHp > 0 ? (float)m.Hp / m.MaxHp : 0f) : (m.Member.MaxMp > 0 ? (float)m.Member.Mp / m.Member.MaxMp : 0f);
+						// Steam's frames: the bar across the turn cursor, centred on it.
+						(float bw, float bh) = Ff4Ui.NumberCellSize(22);
+						const float stretch = 2.8f;
+						float gx = over.Value.X - bw * stretch * 0.467f, gy = over.Value.Y + 8f * Ff4Ui.Scale - bh * 0.59f;
+						Ff4Ui.NumberCellStretched(d, 22, gx, gy, stretch, 1f);
+						Ff4Ui.NumberCellStretched(d, hp ? (share > 0.25f ? 23 : 25) : 26, gx, gy, stretch, share);
+					}
+				}
+			}
+
 			// The picked foe wears the glove, its fingertip on the foe's cursor point (BattleMonster::cursorPosition: its
 			// position and chain 4's offset - Steam's hand on a Goblin at its waist).
 			// Every one the selector marks wears it (all of a side when it is spread); a member at its waist.
