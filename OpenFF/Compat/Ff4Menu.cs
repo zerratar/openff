@@ -359,8 +359,10 @@ namespace OpenFF.Client
 			Character member = Member;
 			if (_mode == Mode.EquipItem)
 			{
-				if (input.Pressed(Pad.Up)) _pick = (_pick + _equipChoices.Count - 1) % _equipChoices.Count;
-				if (input.Pressed(Pad.Down)) _pick = (_pick + 1) % _equipChoices.Count;
+				if (input.Pressed(Pad.Up)) _pick = Math.Max(0, _pick - 1);
+				if (input.Pressed(Pad.Down)) _pick = Math.Min(_equipChoices.Count - 1, _pick + 1);
+				if (_pick < _scroll) _scroll = _pick;
+				if (_pick >= _scroll + 5) _scroll = _pick - 4;
 				if (input.Pressed(Pad.B)) { _mode = Mode.EquipSlot; return; }
 				if (input.Pressed(Pad.A))
 				{
@@ -369,25 +371,43 @@ namespace OpenFF.Client
 					Ff4Party.Party.Equip(member.Id, (OpenFF.Data.EquipSlot)_slot, id);
 					Log.Write(LogChannel.File, "menu: " + member.Name + " " + (id == 0 ? "takes off the " + SlotName(_slot).ToLower() : "equips " + (Ff4Party.Tables?.Item(id)?.Name ?? id.ToString()) + " (" + SlotName(_slot).ToLower() + ")"));
 					_mode = Mode.EquipSlot;
+					_scroll = 0;
 				}
 				return;
 			}
 			if (input.Pressed(Pad.B)) { Back(); return; }
 			SwitchMember(input);
-			if (input.Pressed(Pad.Up)) _slot = (_slot + 4) % 5;
-			if (input.Pressed(Pad.Down)) _slot = (_slot + 1) % 5;
+			if (input.Pressed(Pad.Up)) { _slot = (_slot + 4) % 5; _scroll = 0; }
+			if (input.Pressed(Pad.Down)) { _slot = (_slot + 1) % 5; _scroll = 0; }
+			// C: the lit slot's piece back into the bag; Tab: the best the bag has for every slot.
+			if (input.Pressed(Pad.X) && member.Equipment[_slot] != 0) { Ff4Party.Party.Equip(member.Id, (OpenFF.Data.EquipSlot)_slot, 0); return; }
+			if (input.KeyPressed("Tab")) { Optimize(member); return; }
 			if (input.Pressed(Pad.A))
 			{
 				_equipChoices.Clear();
-				if (member.Equipment[_slot] != 0) _equipChoices.Add(0);
-				foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory)
-				{
-					if (Fits(Ff4Party.Tables?.Item(s.ItemId), member, _slot)) _equipChoices.Add(s.ItemId);
-				}
-				if (_equipChoices.Count == 0) { Notice("Nothing in the bag fits there."); return; }
+				_equipChoices.AddRange(Candidates(member, _slot));
+				if (_equipChoices.Count == 0) return;
 				_mode = Mode.EquipItem;
 				_pick = 0;
+				_scroll = 0;
 			}
+		}
+
+		/// <summary>Tab on Equipment: every slot takes the bag's best piece for it when that beats what is worn.</summary>
+		private static void Optimize(Character member)
+		{
+			for (int slot = 0; slot < 5; slot++)
+			{
+				int best = member.Equipment[slot], worth = Worth(best);
+				foreach (int id in Candidates(member, slot))
+				{
+					if (Worth(id) > worth) { best = id; worth = Worth(id); }
+				}
+				if (best == member.Equipment[slot]) continue;
+				Ff4Party.Party.RemoveItem(best, 1);
+				Ff4Party.Party.Equip(member.Id, (OpenFF.Data.EquipSlot)slot, best);
+			}
+			Log.Write(LogChannel.File, "menu: " + member.Name + " optimized");
 		}
 
 		/// <summary>Whether an item may go into a member's slot: worn, its position bits name the slot, and its mask names the character type.</summary>
@@ -564,7 +584,9 @@ namespace OpenFF.Client
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawInventory(d);
 					break;
-				case Screen.Equipment: DrawEquipment(d); break;
+				case Screen.Equipment:
+					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
+					DrawEquipment(d); break;
 				case Screen.Magic:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawList(d);
@@ -673,6 +695,7 @@ namespace OpenFF.Client
 			h.Inventory = _screen == Screen.Inventory;
 			h.Magic = _screen == Screen.Magic;
 			h.Status = _screen == Screen.Status;
+			h.Equipment = _screen == Screen.Equipment;
 			h.LvLabel = T(50401, "Lv");
 			h.HpLabel = T(50410, "HP");
 			h.MpLabel = T(50411, "MP");
@@ -739,21 +762,7 @@ namespace OpenFF.Client
 				h.Title = T(50005, "Status");
 				FillHead(h.Head, c);
 				h.Job = tables?.Character(c.Id)?.ClassName ?? "";
-				// The figures in MenuLayout_Status's order: the five attributes, then attack, accuracy, defence, evasion and
-				// the magic pair.
-				OpenFF.Data.Stats st = c.StatsWith(tables);
-				int weapon = Ff4Battle.Weapon(c, tables);
-				(uint text, int value)[] figures =
-				{
-					(50420, st.Strength), (50421, st.Agility), (50422, st.Vitality), (50423, st.Intellect), (50424, st.Spirit),
-					(50425, Math.Max(1, weapon > 0 ? weapon : st.Strength / 2)), (50426, weapon > 0 ? Ff4Battle.WeaponHit(c, tables) : 90),
-					(50427, Ff4Battle.Armour(c, tables)), (50428, Ff4Battle.Evasion(c, tables)), (50429, Ff4Battle.MagicArmour(c, tables)), (50430, 0),
-				};
-				for (int k = 0; k < h.Stat.Count; k++)
-				{
-					h.Stat[k].Label = T(figures[k].text);
-					h.Stat[k].Value = figures[k].value.ToString();
-				}
+				FillFigures(h, c);
 				h.ExpLabel = T(50451, "EXP");
 				h.Exp = c.Experience.ToString();
 				h.NextLabel = T(50402, "For next level");
@@ -761,7 +770,74 @@ namespace OpenFF.Client
 				h.AbilitiesLabel = T(50011, "Abilities");
 				FillSlots(h.Slot, c, -1);
 			}
+			if (h.Equipment)
+			{
+				Character c = Member;
+				h.Title = T(50004, "Equipment");
+				FillHead(h.Head, c);
+				FillFigures(h, c);
+				FillSlots(h.Slot, c, _mode == Mode.EquipSlot ? _slot : -1);
+				// The bag's pieces for the lit slot, five in view; the line is the lit piece's own (babil_item.msd: "Attack: 10
+				// Element: Dark").
+				List<int> fits = Candidates(c, _slot);
+				for (int k = 0; k < h.Choice.Count; k++)
+				{
+					int i = _scroll + k;
+					Ff4MenuHud.CellRow row = h.Choice[k];
+					row.Present = i < fits.Count;
+					if (!row.Present) continue;
+					ItemDefinition item = tables?.Item(fits[i]);
+					row.Name = item?.Name ?? ("item " + fits[i]);
+					row.Count = Ff4Party.Party.CountItem(fits[i]).ToString();
+					row.Icon = item?.Icon ?? -1;
+					row.Lit = _mode == Mode.EquipItem && i == _pick;
+					row.Dim = false;
+				}
+				Ff4MenuHud.Scroll(h.ChoiceScroll, fits.Count, 5, _scroll, 472.5f, true);
+				int shown = _mode == Mode.EquipItem && _pick < fits.Count ? fits[_pick] : c.Equipment[_slot];
+				h.Help = shown != 0 ? tables?.Item(shown)?.Caption ?? "" : "";
+				h.OptimizeLabel = T(50203, "Optimize");
+				h.RemoveLabel = T(50202, "Remove");
+			}
 			Ff4MenuHud.Draw(h);
+		}
+
+		/// <summary>The member's eleven figures in MenuLayout_Status's order: the five attributes, then attack, accuracy, defence,
+		/// evasion and the magic pair.</summary>
+		private static void FillFigures(Ff4MenuHud.Data h, Character c)
+		{
+			GameTables tables = Ff4Party.Tables;
+			OpenFF.Data.Stats st = c.StatsWith(tables);
+			int weapon = Ff4Battle.Weapon(c, tables);
+			(uint text, int value)[] figures =
+			{
+				(50420, st.Strength), (50421, st.Agility), (50422, st.Vitality), (50423, st.Intellect), (50424, st.Spirit),
+				(50425, Math.Max(1, weapon > 0 ? weapon : st.Strength / 2)), (50426, weapon > 0 ? Ff4Battle.WeaponHit(c, tables) : 90),
+				(50427, Ff4Battle.Armour(c, tables)), (50428, Ff4Battle.Evasion(c, tables)), (50429, Ff4Battle.MagicArmour(c, tables)), (50430, 0),
+			};
+			for (int k = 0; k < h.Stat.Count; k++)
+			{
+				h.Stat[k].Label = T(figures[k].text);
+				h.Stat[k].Value = figures[k].value.ToString();
+			}
+		}
+
+		/// <summary>What in the bag fits <paramref name="c"/>'s slot, in the bag's order.</summary>
+		private static List<int> Candidates(Character c, int slot)
+		{
+			List<int> fits = new List<int>();
+			foreach (OpenFF.Data.ItemStack s in Ff4Party.Party.Inventory)
+			{
+				if (Fits(Ff4Party.Tables?.Item(s.ItemId), c, slot)) fits.Add(s.ItemId);
+			}
+			return fits;
+		}
+
+		/// <summary>How good a piece is for its slot (Optimize): a weapon's attack, armour's defence and magic defence.</summary>
+		private static int Worth(int id)
+		{
+			EquipStats e = id != 0 ? Ff4Party.Tables?.Item(id)?.Equip : null;
+			return e == null ? -1 : Ff4Party.Tables.Item(id).Kind == ItemKind.Weapon ? e.Attack : e.Defence + e.MagicDefence;
 		}
 
 		private static void FillHead(Ff4MenuHud.MemberRow head, Character c)

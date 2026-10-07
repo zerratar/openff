@@ -93,3 +93,7 @@
 .m-arrow-left, .m-arrow-right { background-image: resource("files/MENU_Common.dat/button_right_left.NCGR"); }
 .m-arrow-left { -ff-background-rect: 0 0 16 64; }
 .m-arrow-right { -ff-background-rect: 16 0 16 64; }
+
+/* The Equipment screen's figures: the small print (two lines to a row of the big). */
+.m-small { color: #ffffff; font-size: 14px; text-shadow: 2.25px 2.25px #000000; vertical-align: central; }
+#equipment .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 43.9px, #667dc4 43.9px, #667dc4 67.5px, #4a5daa 67.5px, #4a5daa 100%); }

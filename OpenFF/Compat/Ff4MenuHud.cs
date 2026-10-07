@@ -70,6 +70,11 @@ namespace OpenFF.Client
 			public string Job = "", ExpLabel = "EXP", Exp = "", NextLabel = "For next level", Next = "", AbilitiesLabel = "Abilities";
 			public List<StatRow> Stat = Rows<StatRow>(11);
 			public List<SlotRow> Slot = Rows<SlotRow>(5);
+			// Equipment: what in the bag fits the lit slot, and the screen's key words.
+			public bool Equipment;
+			public List<CellRow> Choice = Rows<CellRow>(5);
+			public ScrollData ChoiceScroll = new ScrollData();
+			public string OptimizeLabel = "Optimize", RemoveLabel = "Remove";
 			public string Thought = "", Location = "", Gil = "", GilLabel = "Gil";
 			public string LvLabel = "Lv", HpLabel = "HP", MpLabel = "MP", Confirm = "Confirm", Back = "Back";
 			public string QuestionText = "", YesLabel = "Yes", NoLabel = "No";

@@ -812,4 +812,194 @@
       <frame class="m-key-label" bind-text="{menu.back}"><id>label1</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
     </frame>
   </frame>
+  <frame bind-display="menu.equipment">
+  <id>equipment</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+    <frame class="m-pane">
+    <id>head</id><x>155.5</x><y>87.75</y><width>1609</width><height>202.5</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>216</height></frame>
+      <frame class="m-face" bind-style="-ff-cell: face {menu.head.face}"><id>face</id><x>74.4</x><y>27</y><width>135</width><height>135</height></frame>
+      <frame class="m-text" bind-text="{menu.head.name}"><id>name</id><x>237.5</x><y>38.9</y><width>400</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="{menu.lvLabel}"><id>lv</id><x>237.5</x><y>92.9</y><width>120</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="{menu.head.level}"><id>level</id><x>372.7</x><y>92.9</y><width>120</width><height>60.75</height></frame>
+      <frame data-source="menu.stat[0]">
+      <id>fig0</id><x>588.5</x><y>23.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[1]">
+      <id>fig1</id><x>588.5</x><y>50.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[2]">
+      <id>fig2</id><x>588.5</x><y>77.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[3]">
+      <id>fig3</id><x>588.5</x><y>104.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[4]">
+      <id>fig4</id><x>588.5</x><y>131.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[5]">
+      <id>fig5</id><x>1074.5</x><y>23.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[6]">
+      <id>fig6</id><x>1074.5</x><y>50.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[7]">
+      <id>fig7</id><x>1074.5</x><y>77.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[8]">
+      <id>fig8</id><x>1074.5</x><y>104.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[9]">
+      <id>fig9</id><x>1074.5</x><y>131.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+      <frame data-source="menu.stat[10]">
+      <id>fig10</id><x>1074.5</x><y>158.75</y><width>326</width><height>27</height>
+        <frame class="m-small" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+        <frame class="m-small m-right" bind-text="{value}"><id>value</id><x>0</x><y>0</y><width>326</width><height>27</height></frame>
+      </frame>
+    </frame>
+    <frame class="m-pane">
+    <id>info</id><x>155.5</x><y>303.75</y><width>1609</width><height>94.5</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>108</height></frame>
+      <frame class="m-text" bind-text="{menu.help}"><id>helpLine</id><x>74.4</x><y>16.9</y><width>1500</width><height>60.75</height></frame>
+    </frame>
+    <frame class="m-pane">
+    <id>slots</id><x>155.5</x><y>411.75</y><width>850</width><height>540</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>863.5</width><height>553.5</height></frame>
+      <frame class="m-slot" data-source="menu.slot[0]" bind-class="lit: lit">
+      <id>slot0</id><x>0</x><y>0</y><width>850</width><height>108</height>
+        <frame class="m-text m-centre" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>193.5</width><height>108</height></frame>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-edge"><id>edge</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>274.6</x><y>0</y><width>36</width><height>108</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>312.5</x><y>0</y><width>500</width><height>108</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>274.5</x><y>0</y><width>1</width><height>108</height></frame>
+      </frame>
+      <frame class="m-slot" data-source="menu.slot[1]" bind-class="lit: lit">
+      <id>slot1</id><x>0</x><y>108</y><width>850</width><height>108</height>
+        <frame class="m-text m-centre" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>193.5</width><height>108</height></frame>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-edge"><id>edge</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>274.6</x><y>0</y><width>36</width><height>108</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>312.5</x><y>0</y><width>500</width><height>108</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>274.5</x><y>0</y><width>1</width><height>108</height></frame>
+      </frame>
+      <frame class="m-slot" data-source="menu.slot[2]" bind-class="lit: lit">
+      <id>slot2</id><x>0</x><y>216</y><width>850</width><height>108</height>
+        <frame class="m-text m-centre" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>193.5</width><height>108</height></frame>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-edge"><id>edge</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>274.6</x><y>0</y><width>36</width><height>108</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>312.5</x><y>0</y><width>500</width><height>108</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>274.5</x><y>0</y><width>1</width><height>108</height></frame>
+      </frame>
+      <frame class="m-slot" data-source="menu.slot[3]" bind-class="lit: lit">
+      <id>slot3</id><x>0</x><y>324</y><width>850</width><height>108</height>
+        <frame class="m-text m-centre" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>193.5</width><height>108</height></frame>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-edge"><id>edge</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>274.6</x><y>0</y><width>36</width><height>108</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>312.5</x><y>0</y><width>500</width><height>108</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>274.5</x><y>0</y><width>1</width><height>108</height></frame>
+      </frame>
+      <frame class="m-slot" data-source="menu.slot[4]" bind-class="lit: lit">
+      <id>slot4</id><x>0</x><y>432</y><width>850</width><height>108</height>
+        <frame class="m-text m-centre" bind-text="{label}"><id>label</id><x>0</x><y>0</y><width>193.5</width><height>108</height></frame>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-edge"><id>edge</id><x>193.5</x><y>0</y><width>656.5</width><height>108</height></frame>
+        <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>274.6</x><y>0</y><width>36</width><height>108</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>312.5</x><y>0</y><width>500</width><height>108</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>274.5</x><y>0</y><width>1</width><height>108</height></frame>
+      </frame>
+    </frame>
+    <frame class="m-pane">
+    <id>choices</id><x>1019</x><y>411.75</y><width>745</width><height>540</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>758.5</width><height>553.5</height></frame>
+      <frame>
+      <id>cells</id><x>0</x><y>0</y><width>676.7</width><height>540</height>
+        <frame class="m-cell" data-source="menu.choice[0]" bind-display="present" bind-class="lit: lit; dim: dim">
+        <id>choice0</id><x>0</x><y>0</y><width>676.7</width><height>108</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>81.1</x><y>0</y><width>36</width><height>108</height></frame>
+          <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>476.7</width><height>108</height></frame>
+          <frame class="m-cell-count" bind-text="{count}"><id>count</id><x>0</x><y>0</y><width>598.7</width><height>108</height></frame>
+          <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>81</x><y>0</y><width>1</width><height>108</height></frame>
+        </frame>
+        <frame class="m-cell" data-source="menu.choice[1]" bind-display="present" bind-class="lit: lit; dim: dim">
+        <id>choice1</id><x>0</x><y>108</y><width>676.7</width><height>108</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>81.1</x><y>0</y><width>36</width><height>108</height></frame>
+          <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>476.7</width><height>108</height></frame>
+          <frame class="m-cell-count" bind-text="{count}"><id>count</id><x>0</x><y>0</y><width>598.7</width><height>108</height></frame>
+          <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>81</x><y>0</y><width>1</width><height>108</height></frame>
+        </frame>
+        <frame class="m-cell" data-source="menu.choice[2]" bind-display="present" bind-class="lit: lit; dim: dim">
+        <id>choice2</id><x>0</x><y>216</y><width>676.7</width><height>108</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>81.1</x><y>0</y><width>36</width><height>108</height></frame>
+          <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>476.7</width><height>108</height></frame>
+          <frame class="m-cell-count" bind-text="{count}"><id>count</id><x>0</x><y>0</y><width>598.7</width><height>108</height></frame>
+          <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>81</x><y>0</y><width>1</width><height>108</height></frame>
+        </frame>
+        <frame class="m-cell" data-source="menu.choice[3]" bind-display="present" bind-class="lit: lit; dim: dim">
+        <id>choice3</id><x>0</x><y>324</y><width>676.7</width><height>108</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>81.1</x><y>0</y><width>36</width><height>108</height></frame>
+          <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>476.7</width><height>108</height></frame>
+          <frame class="m-cell-count" bind-text="{count}"><id>count</id><x>0</x><y>0</y><width>598.7</width><height>108</height></frame>
+          <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>81</x><y>0</y><width>1</width><height>108</height></frame>
+        </frame>
+        <frame class="m-cell" data-source="menu.choice[4]" bind-display="present" bind-class="lit: lit; dim: dim">
+        <id>choice4</id><x>0</x><y>432</y><width>676.7</width><height>108</height>
+          <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>676.7</width><height>108</height></frame>
+          <frame class="m-icon" bind-style="-ff-cell: symbol {icon}"><id>icon</id><x>81.1</x><y>0</y><width>36</width><height>108</height></frame>
+          <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>121.5</x><y>0</y><width>476.7</width><height>108</height></frame>
+          <frame class="m-cell-count" bind-text="{count}"><id>count</id><x>0</x><y>0</y><width>598.7</width><height>108</height></frame>
+          <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 40.5px"><id>hand</id><x>81</x><y>0</y><width>1</width><height>108</height></frame>
+        </frame>
+      </frame>
+      <frame bind-display="menu.choiceScroll.shown">
+      <id>scroll</id><x>680.8</x><y>0</y><width>60.75</width><height>540</height>
+        <frame class="m-scroll-up"><id>up</id><x>0</x><y>0</y><width>60.75</width><height>33.75</height></frame>
+        <frame class="m-scroll-track"><id>track</id><x>0</x><y>33.75</y><width>60.75</width><height>472.5</height></frame>
+        <frame class="m-scroll-down"><id>down</id><x>0</x><y>506.25</y><width>60.75</width><height>33.75</height></frame>
+        <frame class="m-scroll-knob" bind-visible="menu.choiceScroll.knob" bind-style="top: {menu.choiceScroll.knobTop}px; height: {menu.choiceScroll.knobHeight}px"><id>knob</id><x>3.4</x><y>33.75</y><width>54</width><height>472.5</height></frame>
+      </frame>
+    </frame>
+    <frame bind-display="menu.equipment">
+    <id>equipKeys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
+      <frame class="key-cap" style="-ff-cell: key 16"><id>key0</id><x>884.9</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.optimizeLabel}"><id>label0</id><x>945.7</x><y>0</y><width>360</width><height>60.75</height></frame>
+      <frame class="key-cap" style="-ff-cell: key 48"><id>key1</id><x>1121.1</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.removeLabel}"><id>label1</id><x>1181.9</x><y>0</y><width>360</width><height>60.75</height></frame>
+      <frame class="key-cap" style="-ff-cell: key 43"><id>key2</id><x>1348.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.confirm}"><id>label2</id><x>1409.5</x><y>0</y><width>360</width><height>60.75</height></frame>
+      <frame class="key-cap" style="-ff-cell: key 15"><id>key3</id><x>1568.5</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.back}"><id>label3</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
+    </frame>
+  </frame>
 </menu>
