@@ -3,7 +3,8 @@
 // or a sheet in menus/hud/styles/. The game's own window (menu.MessageWindow) still does all it does - opens, types its
 // texts on page by page, waits for the press, holds a line the script holds - and draws nothing; this reads what it shows
 // and binds it to the root "dialogue":
-//   dialogue.open        the window is up (opened, not the story scenes' bar)
+//   dialogue.open        the window is up (not the story scenes' bar); openX, openY how far it has opened (0..1: it
+//                        grows from its middle over five frames, MessageWindow::mwOpen)
 //   dialogue.text        the text typed so far, its lines as the game breaks them
 //   dialogue.speaker     the name window's name (openCharacterNameWindow), or null; nameWidth its window's width in the
 //                        layout's pixels: the drawn name and 27 pixels either side, as NameWindow::nwOpen pads it
@@ -28,7 +29,7 @@ namespace OpenFF.Client
 		{
 			public bool Open, Next, InPlace = true, Placed;
 			public string Text = "", Speaker;
-			public float NameWidth, LineLeft, LineTop;
+			public float NameWidth, LineLeft, LineTop, OpenX = 1, OpenY = 1;
 			public int LineAlign, LineDown, Colour = 1;
 		}
 
@@ -64,6 +65,11 @@ namespace OpenFF.Client
 			try { window = GlobalScope.CCastCommandTransit.getInstance().cast_Field2D()?.MessageWindow()?.Window; } catch (Exception) { }
 			if (window == null || !window.Ff4Open) return;
 			Read(window);
+			// The game's windows are under the screen's fade (the DS's master brightness): this one fades with them.
+			int level = 0;
+			try { level = Math.Abs(GlobalScope.dgs.CFade.Main().Level); } catch (Exception) { }
+			_screen.Opacity = 1f - Math.Min(16, level) / 16f;
+			if (_screen.Opacity <= 0f) return;
 			_screen.Draw(OpenFF.Game.Draw, name => string.Equals(name, "dialogue", StringComparison.OrdinalIgnoreCase)
 				? (true, _data)
 				: (OpenFF.Game.Hud.TryGet(name, out object hud) ? (true, hud) : (false, null)));
@@ -85,6 +91,7 @@ namespace OpenFF.Client
 		{
 			DialogueData d = _data;
 			d.Open = true;
+			(d.OpenX, d.OpenY) = window.Ff4Openness;
 			d.Text = window.Ff4Text ?? "";
 			d.Next = window.Ff4Next;
 			int who = window.Ff4NameWho;

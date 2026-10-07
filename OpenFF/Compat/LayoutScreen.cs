@@ -14,6 +14,8 @@
 //
 // What a frame draws, from the cascade:
 //   display / visibility / opacity     as CSS (opacity multiplies down the tree)
+//   scale                              as CSS (one number or two, or percents): the frame and its frames drawn that
+//                                      size about its centre - a window opening from its middle
 //   background-color                   a fill (#rrggbbaa, rgba(), transparent)
 //   background-image                   linear-gradient(to bottom | to right | <angle>, stops) as strips; url("x.png")
 //                                      (a picture beside the layout, -ff-background-rect x y w h for a part of it)
@@ -58,6 +60,9 @@ namespace OpenFF.Client
 		public static readonly Dictionary<string, PanelDrawer> Panels = new Dictionary<string, PanelDrawer>(StringComparer.OrdinalIgnoreCase);
 
 		public string Id { get; }
+
+		/// <summary>The whole screen's opacity, over its frames' own (a screen that fades with the game's, Ff4Dialogue).</summary>
+		public float Opacity = 1f;
 		public string Source { get; }
 
 		private readonly XElement _menu;
@@ -147,19 +152,28 @@ namespace OpenFF.Client
 					_laidKey = key;
 				}
 				float sx = DrawList.ScreenWidth / _width, sy = DrawList.ScreenHeight / _height;
-				void Walk(XElement frame, XElement copy, float px, float py)
+				// A point of the layout (x, y) is drawn at (ax + x kx, ay + y ky); a frame's scale (CSS scale: about its centre)
+				// changes that for it and its frames - their boxes, texts, borders and slices with them.
+				void Walk(XElement frame, XElement copy, float px, float py, float ax, float ay, float kx, float ky)
 				{
 					float x = px + Number(copy, "x"), y = py + Number(copy, "y");
 					float w = Number(copy, "width"), h = Number(copy, "height");
 					if (looks.TryGetValue(frame, out MenuStyles.Look look) && look.Hidden) return;
 					Dictionary<string, string> v = values.TryGetValue(frame, out Dictionary<string, string> found) ? found : new Dictionary<string, string>();
+					if (v.TryGetValue("scale", out string scale) && Scale(scale, out float scx, out float scy))
+					{
+						ax += (x + w / 2) * kx * (1 - scx);
+						ay += (y + h / 2) * ky * (1 - scy);
+						kx *= scx;
+						ky *= scy;
+					}
 					bool visible = !(v.TryGetValue("visibility", out string vis) && vis.Trim().Equals("hidden", StringComparison.OrdinalIgnoreCase));
-					if (visible) DrawFrame(d, frame, look, v, x * sx, y * sy, w * sx, h * sy, sx, sy);
+					if (visible && kx > 0 && ky > 0) DrawFrame(d, frame, look, v, ax + x * kx, ay + y * ky, w * kx, h * ky, kx, ky);
 					List<XElement> frames = frame.Elements("frame").ToList(), copies = copy.Elements("frame").ToList();
-					for (int i = 0; i < frames.Count && i < copies.Count; i++) Walk(frames[i], copies[i], x, y);
+					for (int i = 0; i < frames.Count && i < copies.Count; i++) Walk(frames[i], copies[i], x, y, ax, ay, kx, ky);
 				}
 				List<XElement> top = _menu.Elements("frame").ToList(), topCopies = _laid.Elements("frame").ToList();
-				for (int i = 0; i < top.Count && i < topCopies.Count; i++) Walk(top[i], topCopies[i], 0, 0);
+				for (int i = 0; i < top.Count && i < topCopies.Count; i++) Walk(top[i], topCopies[i], 0, 0, 0, 0, sx, sy);
 			}
 			catch (Exception ex)
 			{
@@ -210,7 +224,7 @@ namespace OpenFF.Client
 
 		private void DrawFrame(DrawList d, XElement frame, MenuStyles.Look look, Dictionary<string, string> v, float x, float y, float w, float h, float sx, float sy)
 		{
-			double opacity = look?.Opacity ?? 1;
+			double opacity = (look?.Opacity ?? 1) * Opacity;
 			if (opacity <= 0.001) return;
 			Color Fade(uint rgba) => new Color((byte)(rgba >> 24), (byte)(rgba >> 16), (byte)(rgba >> 8), (byte)Math.Round((rgba & 0xFF) * opacity));
 			if (v.TryGetValue("-ff-panel", out string panel) && Panels.TryGetValue(panel.Trim(), out PanelDrawer drawPanel)) drawPanel(d, x, y, w, h, (float)opacity);
@@ -401,6 +415,24 @@ namespace OpenFF.Client
 				}
 			}
 			d.Text(text, tx, ty, new Color((byte)(colour >> 24), (byte)(colour >> 16), (byte)(colour >> 8), (byte)Math.Round((colour & 0xFF) * opacity)), drawn, kx, ky);
+		}
+
+		/// <summary>CSS scale: one number (or percent) for both directions, or two; none is 1.</summary>
+		private static bool Scale(string value, out float x, out float y)
+		{
+			x = y = 1f;
+			string[] parts = value.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length == 0 || parts[0] == "none") return false;
+			static bool One(string t, out float f)
+			{
+				bool percent = t.EndsWith("%", StringComparison.Ordinal);
+				bool ok = float.TryParse(percent ? t.TrimEnd('%') : t, NumberStyles.Float, CultureInfo.InvariantCulture, out f);
+				if (percent) f /= 100f;
+				return ok;
+			}
+			if (!One(parts[0], out x)) return false;
+			y = parts.Length > 1 && One(parts[1], out float second) ? second : x;
+			return true;
 		}
 
 		private static float Number(XElement frame, string tag) => float.TryParse(((string)frame.Element(tag))?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float v) ? v : 0;

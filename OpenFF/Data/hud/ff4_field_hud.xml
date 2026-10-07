@@ -7,7 +7,8 @@
 
   A mod reshapes it with menus/hud/ff4_field_hud.xml (a copy of this, changed), or restyles it with
   menus/hud/styles/*.css alone. Everything binds to the root "dialogue":
-    dialogue.open           the window is up (the story scenes speak over a bar of their own instead)
+    dialogue.open           the window is up (the story scenes speak over a bar of their own instead); openX, openY
+                            how far it has opened, 0..1 - it grows from its middle over five frames
     dialogue.text           the text typed so far, its lines as the game breaks them
     dialogue.speaker        the name window's name, or nothing; nameWidth the width FF4 gives its window
     dialogue.next           the page-turn arrow is wanted
@@ -21,7 +22,7 @@
   <name>ff4_field_hud</name>
 
   <!-- The window: libff4's 472 x 72 at (4, 244) of the 480 x 320 screen, as Steam draws it. -->
-  <frame class="window">
+  <frame class="window" bind-style="scale: {dialogue.openX} {dialogue.openY}">
     <id>dialogue</id>
     <x>163</x><y>826</y><width>1592</width><height>236</height>
     <frame class="message" bind-display="dialogue.inPlace" bind-text="{dialogue.text}"

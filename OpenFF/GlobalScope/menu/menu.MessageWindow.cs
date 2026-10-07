@@ -552,7 +552,7 @@ internal static partial class GlobalScope
 				}
 				ds.Vector2<int> now = m_Window.GetNowWindowSize();
 				ds.Vector2<short> max = m_Window.GetMaxWindowSize();
-				return now.vx >= max.vx && now.vy >= max.vy;
+				return now.vx >> 12 >= max.vx && now.vy >> 12 >= max.vy;   // the size so far is fx32 (MenuWindow.SizeMoving), the full size whole units
 			}
 
 			public bool mwIsMessageId()
@@ -618,7 +618,19 @@ internal static partial class GlobalScope
 			private int m_NameWho = -1;
 			private int m_LineX = 12, m_LineY = 252, m_LineAlign, m_LineDown, m_LineColour = 1;
 
-			public bool Ff4Open => LaidOut && m_Made_1 && mwIsWindowOpen() && m_Window.GetWindowHandle().IsShow();
+			public bool Ff4Open => LaidOut && m_Made_1 && m_Window.GetWindowHandle().IsShow();
+
+			/// <summary>How far the window has opened across and down (0..1): it grows to its size over five frames.</summary>
+			public (float X, float Y) Ff4Openness
+			{
+				get
+				{
+					ds.Vector2<int> now = m_Window.GetNowWindowSize();
+					ds.Vector2<short> max = m_Window.GetMaxWindowSize();
+					// The size so far is fx32 (MenuWindow.SizeMoving), the full size whole units.
+					return (max.vx > 0 ? Math.Clamp(now.vx / 4096f / max.vx, 0f, 1f) : 1f, max.vy > 0 ? Math.Clamp(now.vy / 4096f / max.vy, 0f, 1f) : 1f);
+				}
+			}
 			public string Ff4Text => m_MessageId >= 0 ? mm[m_Display].Message(m_MessageId)?.getStringBuffer() : null;
 			public int Ff4NameWho => m_NameWho;
 			public bool Ff4Next => m_NextWanted;
