@@ -323,6 +323,8 @@ namespace OpenFF.Client
 			// as its NANR's sequence 1 has it: 0, 1, 2, 3, 4, 3, 2, 1 of the sheet's pixels down, each 3 of the DS's 60 a second.
 			LayoutScreen.Cells["message-next"] = (d, i, x, y, s, crop, t) =>
 				Cell(d, "button_up_down.NCER", "button_up_down.NCGR", i, x, y + NextBob[(int)(LegacyStep.Count * 2 / 3 % 8)] * Scale * s, Scale * s, t);
+			// A member's face (face.NCER: a cell a character type, 80 x 80 at the sheet's 2x).
+			LayoutScreen.Cells["face"] = (d, i, x, y, s, crop, t) => Cell(d, "face.NCER", "face.NCGR", i, x, y, Scale * s, t);
 			LayoutScreen.Panels["ff4-window"] = (d, x, y, w, h, opacity) => Window(d, x, y, w, h, 1, 0.82f * opacity);
 			// The Steam build's key caps (icon_keyboard_64: a blank cap and the key's letter, 64 x 64 about the middle).
 			LayoutScreen.Cells["key"] = (d, i, x, y, s, crop, t) => Cell(d, "icon_keyboard_64.NCER", "icon_keyboard_64.NCGR", i, x, y, Scale * s, t);

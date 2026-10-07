@@ -20,7 +20,8 @@
 // - TitleContents::setup (FUN_005282e0): the commands CONTINUE (cell 3, when there is a suspend save),
 //   NEW GAME (cell 0), LOAD GAME (cell 1, when there is a save) and QUIT GAME (cell 5), centred at x 240
 //   from y (LCD_HEIGHT + 960) / 4 - 165 down in rows of 40; a missing LOAD GAME takes no row, a missing
-//   CONTINUE keeps its own (empty) one - as the Steam title shows them (checked against the game at 1920 x 1080).
+//   CONTINUE keeps its own (empty) one - as the Steam title shows them (checked against the game at 1920 x 1080). CONTINUE
+//   resumes the quicksave (Ff4Saves.SuspendSlot) at once, as Steam's does.
 //   The title's BGM is 1.
 // - TitleContents::update (FUN_00528120): Up/Down move through the shown commands, wrapping, with SE 0:3;
 //   NEW GAME plays SE 0:1, stops the BGM over 20 frames and fades out over 30 to the new game; LOAD GAME
@@ -31,7 +32,7 @@
 // and a sheet pixel is 0.75 (Ff4Ui.Scale).
 //
 // The load screen is the port's for now - three slot windows over the title (Steam's LoadDisplayPart is
-// not read yet) - and CONTINUE never shows: this client has no FF4 suspend save.
+// not read yet).
 
 using System;
 using System.Collections.Generic;
@@ -229,7 +230,7 @@ namespace OpenFF.Client
 				// Come from a game's end (the field ended into it), the pad and the touch panel may still be held.
 				try { GlobalScope.ds.g_Pad.enable(); GlobalScope.ds.g_TouchPanel.enable(); } catch (Exception) { }
 				OpenFF.Game.Input.Capture = false;
-				_shown[Continue] = false;          // no FF4 suspend save in this client
+				_shown[Continue] = Ff4Saves.HasSuspend;   // the quicksave
 				_shown[NewGame] = true;
 				_shown[Load] = AnySave();
 				_shown[Quit] = true;
@@ -305,6 +306,12 @@ namespace OpenFF.Client
 				if ((edge & 1) == 0 || _cursor < 0) return;
 				switch (_cursor)
 				{
+					case Continue:
+						// TitleContents: CONTINUE resumes the suspend data at once - no list (Steam's title, ff4hook).
+						if (!Ff4Saves.Load(Ff4Saves.SuspendSlot, true)) { Se(4); return; }
+						Se(1);
+						Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+						break;
 					case NewGame:
 						Se(1);
 						// A new game starts from nothing: the save file the engine read at boot (its last slot, a test's party

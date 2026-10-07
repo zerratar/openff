@@ -28,7 +28,7 @@ namespace OpenFF.Client
 {
 	internal sealed class Ff4Menu : GameService
 	{
-		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Party, Save, Load }
+		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Party, Save, Load, Quicksave }
 		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember }
 
 		private sealed class Command
@@ -78,6 +78,9 @@ namespace OpenFF.Client
 			_swapFrom = -1;
 			Game.Input.Capture = true;
 			BuildCommands();
+			_question = false;
+			// Balloon::blnCreate picks the thought as the menu opens (and may set or clear its flags then).
+			try { _thought = Ff4Speculation.Thought(); } catch (Exception) { _thought = null; }
 			Log.Write(LogChannel.File, "menu: open - " + Ff4Party.Party.Describe().Replace("\n", " | "));
 		}
 
@@ -110,11 +113,21 @@ namespace OpenFF.Client
 					case 50005: _commands.Add(new Command { Text = id, Screen = Screen.Status, NeedsMember = true }); break;
 					case 50010: _commands.Add(new Command { Text = id, Screen = Screen.Party }); break;
 					case 50007: _commands.Add(new Command { Text = id, Screen = Screen.Save }); break;
-					default: _commands.Add(new Command { Text = id, Later = true }); break;   // Settings, Quicksave
+					case 50009: _commands.Add(new Command { Text = id, Screen = Screen.Quicksave }); break;
+					default: _commands.Add(new Command { Text = id, Later = true }); break;   // Settings
 				}
 			}
-			_commands.Add(new Command { Text = 50008, Screen = Screen.Load });
 		}
+
+		// ---- Steam's arrangement drawn as a layout (Ff4MenuHud) ----
+
+		private readonly Ff4MenuHud.Data _hud = new Ff4MenuHud.Data();
+		private string _thought;
+		private bool _question, _questionYes;
+
+		/// <summary>Whether Save may be chosen: FF4 saves on the world map and at save points (the points not read yet: the
+		/// world map only), Save greyed elsewhere and choosing it does nothing - as Steam's menu does away from a point.</summary>
+		private static bool SaveAllowed => (Game.Field.Map ?? "").StartsWith("f", StringComparison.OrdinalIgnoreCase);
 
 		public override void OnUpdate()
 		{
@@ -166,6 +179,7 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.A)) OpenScreen(_commands[_command].Screen);
 				return;
 			}
+			if (_question) { UpdateQuestion(input); return; }
 			if (input.Pressed(Pad.B)) { Close(); return; }
 			if (input.Pressed(Pad.Up)) _command = (_command + _commands.Count - 1) % _commands.Count;
 			if (input.Pressed(Pad.Down)) _command = (_command + 1) % _commands.Count;
@@ -175,9 +189,25 @@ namespace OpenFF.Client
 			{
 				Command c = _commands[_command];
 				if (c.Later) { Notice(Ff4Layouts.Text(c.Text) + " comes later."); return; }
+				if (c.Screen == Screen.Quicksave) { _question = true; _questionYes = false; return; }   // "Quicksave game and quit?", the hand on No
+				if (c.Screen == Screen.Save && !SaveAllowed) return;
 				if (c.NeedsMember) { _mode = Mode.PickMember; return; }
 				OpenScreen(c.Screen);
 			}
+		}
+
+		/// <summary>Quicksave's question (MSSSuspend): Yes saves the game as it stands and goes back to the title; No, or Back, closes it.</summary>
+		private void UpdateQuestion(InputState input)
+		{
+			if (input.Pressed(Pad.Left) || input.Pressed(Pad.Right)) _questionYes = !_questionYes;
+			if (input.Pressed(Pad.B)) { _question = false; return; }
+			if (!input.Pressed(Pad.A)) return;
+			_question = false;
+			if (!_questionYes) return;
+			if (!Ff4Saves.Suspend()) { Notice("Could not quicksave here."); return; }
+			Close();
+			// The field ends into the title part, as the game's own way back there does (ff3Command_GoToTitle's).
+			try { GlobalScope.wld.CBaseSystem.setTitle(true); } catch (Exception ex) { Log.Write(LogChannel.General, "menu: quicksave, to the title: " + ex.Message); }
 		}
 
 		private void OpenScreen(Screen screen)
@@ -439,10 +469,14 @@ namespace OpenFF.Client
 		private void Draw()
 		{
 			DrawList d = Game.Draw;
-			d.Rect(0, 0, 800, 480, new Color(0, 0, 0, 90));
+			// Steam's root leaves the field as it is under the menu; the screens not laid out yet keep the port's dimming.
+			if (!(_screen == Screen.Root && Ff4MenuHud.Available)) d.Rect(0, 0, 800, 480, new Color(0, 0, 0, 90));
 			switch (_screen)
 			{
-				case Screen.Root: DrawRoot(d); break;
+				case Screen.Root:
+					if (Ff4MenuHud.Available) { DrawRootLayout(); break; }
+					DrawRoot(d);
+					break;
 				case Screen.Status: DrawStatus(d); break;
 				case Screen.Inventory: DrawInventory(d); break;
 				case Screen.Equipment: DrawEquipment(d); break;
@@ -482,6 +516,74 @@ namespace OpenFF.Client
 				if (i == gloveAt) Glove(d, PlaneX + 44, y + 42);
 				if (i == secondGlove) Glove(d, PlaneX + 44, y + 70);
 			}
+		}
+
+		/// <summary>The root and the member pick as Steam's menu has them, through the layout (Ff4MenuHud).</summary>
+		private void DrawRootLayout()
+		{
+			Ff4MenuHud.Data h = _hud;
+			bool picking = _mode == Mode.PickMember;
+			h.Root = true;
+			h.Picking = picking;
+			h.Bubble = !picking && !string.IsNullOrEmpty(_thought);
+			h.Thought = _thought ?? "";
+			for (int k = 0; k < h.Command.Count; k++)
+			{
+				int i = _commandScroll + k;
+				Ff4MenuHud.CommandRow row = h.Command[k];
+				row.Present = i < _commands.Count;
+				if (!row.Present) continue;
+				Command c = _commands[i];
+				row.Name = T(c.Text);
+				row.Lit = i == _command && !picking && !_question;
+				row.Disabled = c.Screen == Screen.Save && !SaveAllowed;
+			}
+			Ff4MenuHud.Scroll(h.Scroll, _commands.Count, h.Command.Count, _commandScroll);
+			h.Location = PlaceName();
+			h.Gil = Ff4Party.Party.Gil.ToString();
+			h.GilLabel = T(50446, "Gil");
+			h.LvLabel = T(50401, "Lv");
+			h.HpLabel = T(50410, "HP");
+			h.MpLabel = T(50411, "MP");
+			// The party's five places, each member where the formation puts them.
+			IReadOnlyList<Character> members = Ff4Party.Party.Members;
+			Command chosen = _commands[Math.Clamp(_command, 0, _commands.Count - 1)];
+			for (int p = 0; p < h.Member.Count; p++)
+			{
+				Ff4MenuHud.MemberRow row = h.Member[p];
+				int index = MemberAt(p);
+				row.Present = index >= 0;
+				row.Lit = picking && index >= 0 && index == _member;
+				if (!row.Present) { row.Name = row.Level = row.Hp = row.MaxHp = row.Mp = row.MaxMp = ""; row.Dim = row.Low = false; continue; }
+				Character c = members[index];
+				row.Name = c.Name;
+				row.Level = c.Level.ToString();
+				row.Hp = c.Hp.ToString();
+				row.MaxHp = c.MaxHp.ToString();
+				row.Mp = c.Mp.ToString();
+				row.MaxMp = c.MaxMp.ToString();
+				row.Face = c.Id;
+				row.Low = c.Alive && c.Hp * 4 <= c.MaxHp;
+				// Magic for a member with no spells is nothing to them: greyed, as Steam shows Cecil's.
+				row.Dim = !c.Alive || (chosen.Screen == Screen.Magic && c.Spells.Count == 0);
+			}
+			h.Question = _question;
+			h.Yes = _question && _questionYes;
+			h.No = _question && !_questionYes;
+			h.QuestionText = "Quicksave game and quit?";
+			Ff4MenuHud.Draw(h);
+		}
+
+		/// <summary>The member standing in the party's place <paramref name="place"/> (0..4, top down), or -1.</summary>
+		private static int MemberAt(int place)
+		{
+			IReadOnlyList<Character> members = Ff4Party.Party.Members;
+			for (int i = 0; i < members.Count; i++)
+			{
+				int at = Ff4Party.PositionOf(members[i].Id);   // pl::PlayerParty's five positions (Cecil at 1 on a new game)
+				if (at == place) return i;
+			}
+			return -1;
 		}
 
 		private void DrawRoot(DrawList d)

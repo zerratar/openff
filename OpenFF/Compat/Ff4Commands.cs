@@ -37,6 +37,7 @@ namespace OpenFF.Client
 			{ "setRewardMessageInterval", Ff4FieldCommands.SetRewardMessageInterval }, // (frames)
 			{ "executeRewardMessageWindow", Ff4FieldCommands.ExecuteRewardMessageWindow }, // ()
 			{ "setPlayerLevel", Ff4FieldCommands.SetPlayerLevel },            // (playerType, level)
+			{ "setSymbolCharacter", SetSymbolCharacter },                     // (symbol, ?): whose thoughts the menu's balloon shows
 			{ "displayCharacter", DisplayCharacter },                         // (cast, shown, ?): FF3's, and the hero's now the map's to show
 			{ "startMessage", StartMessage },                                 // (who, text, style, delete frames): the line up, no wait
 			{ "setMessagePosition", SetMessagePosition },                     // (setX, x, setY, y): where the next line's text starts
@@ -456,6 +457,14 @@ namespace OpenFF.Client
 
 		private static GlobalScope.wld.CMessageWindow Window =>
 			GlobalScope.CCastCommandTransit.getInstance().cast_Field2D()?.MessageWindow();
+
+		/// <summary>setSymbolCharacter(symbol, ?): GameParameter::setFieldSymbolID - the field's leading character, whose thought the
+		/// menu's balloon shows (Ff4Speculation).</summary>
+		private static void SetSymbolCharacter(GlobalScope.ScriptEngine engine)
+		{
+			Ff4Speculation.FieldSymbol = (int)engine.getDword();
+			engine.getDword();
+		}
 
 		/// <summary>
 		/// displayCharacter(cast, shown, ?): FF3's handler; when the cast is the hero, a story scene that hid them no longer owns

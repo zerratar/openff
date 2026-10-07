@@ -142,77 +142,93 @@ namespace OpenFF.Client
 
 			// The place-name window is asked for by the step's own list, whichever step's list is drawn: Banner.Tick
 			// decides once a step whether it stays.
-			bool anyText = false;
 			IReadOnlyList<OpenFF.DrawCommand> asked = list.Commands;
 			for (int i = 0; i < asked.Count; i++)
 			{
 				if (asked[i].Kind != OpenFF.DrawKind.Banner) continue;
 				Banner.Keep(asked[i].Text);
-				anyText = true;
 			}
 			// Where the display stands between the step before and this one, as the game's frame under it is drawn; without
 			// the native renderer nothing is drawn in between (every display frame is a step's own), and neither is this.
 			IReadOnlyList<OpenFF.DrawCommand> commands = ModDrawBlend.At(asked, FrameCapture.Supported ? FramePacer.Blend() : 1f);
 
-			_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
-			for (int i = 0; i < commands.Count; i++)
-			{
-				OpenFF.DrawCommand c = commands[i];
-				Microsoft.Xna.Framework.Color colour = new Microsoft.Xna.Framework.Color(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
-				switch (c.Kind)
-				{
-					case OpenFF.DrawKind.Rect:
-					{
-						float x = c.X * sx, y = c.Y * sy, w = c.W * sx, h = c.H * sy;
-						if (c.Filled)
-						{
-							Fill(x, y, w, h, colour);
-						}
-						else
-						{
-							// Four strips a pixel wide, just inside the rectangle's edges.
-							Fill(x, y, w, 1f, colour);
-							Fill(x, y + h - 1f, w, 1f, colour);
-							Fill(x, y, 1f, h, colour);
-							Fill(x + w - 1f, y, 1f, h, colour);
-						}
-						break;
-					}
-					case OpenFF.DrawKind.Line:
-					{
-						Vector2 a = new Vector2(c.X * sx, c.Y * sy);
-						Vector2 b = new Vector2(c.X2 * sx, c.Y2 * sy);
-						Vector2 d = b - a;
-						float length = d.Length();
-						if (length < 0.5f) break;
-						float angle = (float)Math.Atan2(d.Y, d.X);
-						_batch.Draw(_pixel, a, null, colour, angle, Vector2.Zero, new Vector2(length, Math.Max(1f, c.W * sy)), SpriteEffects.None, 0f);
-						break;
-					}
-					case OpenFF.DrawKind.Sprite:
-					{
-						if (!(c.Texture is ModTexture texture) || texture.Texture2D == null || texture.Texture2D.IsDisposed) break;
-						// The part of the picture (a texel at least: a gauge's fill cut to a sliver), stretched over the
-						// rectangle and turned about its middle.
-						Rectangle src = new Rectangle((int)c.SrcX, (int)c.SrcY, Math.Max(1, (int)c.SrcW), Math.Max(1, (int)c.SrcH));
-						Vector2 middle = new Vector2((c.X + c.W / 2f) * sx, (c.Y + c.H / 2f) * sy);
-						Vector2 stretch = new Vector2(c.W * sx / src.Width, c.H * sy / src.Height);
-						_batch.Draw(texture.Texture2D, middle, src, colour, c.Rotation, new Vector2(src.Width / 2f, src.Height / 2f), stretch, SpriteEffects.None, 0f);
-						break;
-					}
-					case OpenFF.DrawKind.Text:
-						anyText = true;
-						break;
-				}
-			}
-			_batch.End();
-
-			if (!anyText)
-			{
-				return;
-			}
+			// In the order asked: a run of shapes in one sprite batch, then a run of texts, and so on - so what a screen draws
+			// after a text (a window over a menu) covers it, as its layout's order says.
 			GlobalScope.Graphics graphics = GlobalScope.m_Graphics;
-			if (graphics == null)
+			int at = 0;
+			while (at < commands.Count)
+			{
+				if (commands[at].Kind != OpenFF.DrawKind.Text)
+				{
+					_batch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
+					for (int i = at; i < commands.Count && commands[i].Kind != OpenFF.DrawKind.Text; i++, at++)
+					{
+						OpenFF.DrawCommand c = commands[i];
+						Microsoft.Xna.Framework.Color colour = new Microsoft.Xna.Framework.Color(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
+						switch (c.Kind)
+						{
+							case OpenFF.DrawKind.Rect:
+							{
+								float x = c.X * sx, y = c.Y * sy, w = c.W * sx, h = c.H * sy;
+								if (c.Filled)
+								{
+									Fill(x, y, w, h, colour);
+								}
+								else
+								{
+									// Four strips a pixel wide, just inside the rectangle's edges.
+									Fill(x, y, w, 1f, colour);
+									Fill(x, y + h - 1f, w, 1f, colour);
+									Fill(x, y, 1f, h, colour);
+									Fill(x + w - 1f, y, 1f, h, colour);
+								}
+								break;
+							}
+							case OpenFF.DrawKind.Line:
+							{
+								Vector2 a = new Vector2(c.X * sx, c.Y * sy);
+								Vector2 b = new Vector2(c.X2 * sx, c.Y2 * sy);
+								Vector2 d = b - a;
+								float length = d.Length();
+								if (length < 0.5f) break;
+								float angle = (float)Math.Atan2(d.Y, d.X);
+								_batch.Draw(_pixel, a, null, colour, angle, Vector2.Zero, new Vector2(length, Math.Max(1f, c.W * sy)), SpriteEffects.None, 0f);
+								break;
+							}
+							case OpenFF.DrawKind.Sprite:
+							{
+								if (!(c.Texture is ModTexture texture) || texture.Texture2D == null || texture.Texture2D.IsDisposed) break;
+								// The part of the picture (a texel at least: a gauge's fill cut to a sliver), stretched over the
+								// rectangle and turned about its middle.
+								Rectangle src = new Rectangle((int)c.SrcX, (int)c.SrcY, Math.Max(1, (int)c.SrcW), Math.Max(1, (int)c.SrcH));
+								Vector2 middle = new Vector2((c.X + c.W / 2f) * sx, (c.Y + c.H / 2f) * sy);
+								Vector2 stretch = new Vector2(c.W * sx / src.Width, c.H * sy / src.Height);
+								_batch.Draw(texture.Texture2D, middle, src, colour, c.Rotation, new Vector2(src.Width / 2f, src.Height / 2f), stretch, SpriteEffects.None, 0f);
+								break;
+							}
+						}
+					}
+					_batch.End();
+					continue;
+				}
+				if (graphics == null) { at++; continue; }
+				graphics.SetImageOrigin(0f, 0f);
+				graphics.SetImageRotation(0f);
+				graphics.SetImageScale(1f, 1f);
+				graphics.DrawStringStart();
+				for (; at < commands.Count && commands[at].Kind == OpenFF.DrawKind.Text; at++)
+				{
+					OpenFF.DrawCommand c = commands[at];
+					graphics.SetColor(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
+					bool scaled = c.W > 0f && c.H > 0f;
+					if (scaled) graphics.SetImageScale(c.W, c.H);
+					graphics.DrawString(c.Text, c.X, c.Y, c.Size);
+					if (scaled) graphics.SetImageScale(1f, 1f);
+				}
+				graphics.DrawStringEnd();
+			}
+
+			if (Banner.Shown == null || graphics == null)
 			{
 				return;
 			}
@@ -220,16 +236,6 @@ namespace OpenFF.Client
 			graphics.SetImageRotation(0f);
 			graphics.SetImageScale(1f, 1f);
 			graphics.DrawStringStart();
-			for (int i = 0; i < commands.Count; i++)
-			{
-				OpenFF.DrawCommand c = commands[i];
-				if (c.Kind != OpenFF.DrawKind.Text) continue;
-				graphics.SetColor(c.Color.R, c.Color.G, c.Color.B, c.Color.A);
-				bool scaled = c.W > 0f && c.H > 0f;
-				if (scaled) graphics.SetImageScale(c.W, c.H);
-				graphics.DrawString(c.Text, c.X, c.Y, c.Size);
-				if (scaled) graphics.SetImageScale(1f, 1f);
-			}
 			// The banner's words, centred in its window with the place name's shadow (the window itself is the game's 2D, drawn under).
 			if (Banner.Shown is (float bx, float by, float bw, float bh, string text))
 			{

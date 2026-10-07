@@ -1,0 +1,67 @@
+/* FF4's field menu as the Steam game draws it (ff4_menu.xml), in Steam's 1080p pixels - colours and art read off its draws.
+   A mod restyles it with menus/hud/styles/*.css: those sheets come after this one, so their rules win. The battle HUD's
+   sheet sits beside this one and is read for this screen too: .lit-band, .hand and .key-cap are its. */
+
+/* A window's two bands (a lighter 20.25-pixel band over the body), opaque, under its frame. */
+#commands, #place, #members { background-image: linear-gradient(to bottom, #505483 0px, #505483 20.25px, #2a2b66 20.25px, #2a2b66 100%); }
+
+/* A window's frame: MENU_Common's frame_00, the raised square (its left half), the 16-pixel corners kept at 1.6875. */
+.m-window {
+  background-image: resource("files/MENU_Common.dat/frame_00.NCGR");
+  -ff-background-rect: 0 0 192 192;
+  -ff-slice: 16;
+  -ff-slice-scale: 1.6875;
+}
+/* A row's frame: the sunken square (frame_00's right half). */
+.m-edge {
+  background-image: resource("files/MENU_Common.dat/frame_00.NCGR");
+  -ff-background-rect: 192 0 192 192;
+  -ff-slice: 16;
+  -ff-slice-scale: 1.6875;
+}
+/* The lit row's three bands, opaque here (the battle HUD's are at 48%). */
+.m-command .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 54px, #667dc4 54px, #667dc4 87.75px, #4a5daa 87.75px, #4a5daa 100%); }
+.m-member .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 77.6px, #667dc4 77.6px, #667dc4 121.5px, #4a5daa 121.5px, #4a5daa 100%); }
+
+/* Every text: white, Arial at Steam's size (font-size 21: a 37.7-pixel em at 1080), with Steam's opaque shadow a base
+   pixel down and right; centred on its capitals (FF4.exe sets its text so). */
+.m-label, .m-text, .m-key-label { color: #ffffff; font-size: 21px; text-shadow: 3.375px 3.375px #000000; vertical-align: central; }
+.m-label, .m-centre { text-align: center; }
+.m-right { text-align: right; }
+.m-command.disabled .m-label { color: #808080; }
+.m-member.dim .m-text { color: #808080; }
+.m-member.low .m-hp { color: #ffe86e; }
+.m-key-label { text-shadow: none; }
+
+/* The glove: its fingertip at the frame's left, at the row's middle (a command row, 135 high) or 94.5 down (a member's). */
+.m-command .hand { -ff-cell-origin: 0 50%; }
+.m-member-hand { -ff-cell-origin: 0 94.5px; }
+.m-pill-hand { -ff-cell-origin: 0 50%; }
+
+/* The scroll bar: scrollbar_00's pieces, opaque. */
+.m-scroll-up, .m-scroll-down, .m-scroll-track, .m-scroll-knob { background-image: resource("files/MENU_Common.dat/scrollbar_00.NCGR"); }
+.m-scroll-up { -ff-background-rect: 36 0 36 20; }
+.m-scroll-down { -ff-background-rect: 0 268 36 20; }
+.m-scroll-track { -ff-background-rect: 0 32 36 32; }
+.m-scroll-knob { -ff-background-rect: 72 0 32 216; -ff-slice: 4 0 4 0; -ff-slice-scale: 1.6875; }
+
+/* A member's face: face.NCER's cell for the character, its own size. */
+.m-face { -ff-cell-origin: 0 0; }
+
+/* The lead's thought: balloon.NCBR's cloud and its three puffs at their own size, the words in black with no shadow. */
+.m-cloud, .m-puff0, .m-puff1, .m-puff2 { background-image: resource("files/MENU_Common.dat/balloon.NCBR"); }
+.m-cloud { -ff-background-rect: 0 0 560 160; }
+.m-puff0 { -ff-background-rect: 0 160 40 20; }
+.m-puff1 { -ff-background-rect: 40 160 32 20; }
+.m-puff2 { -ff-background-rect: 72 160 20 20; }
+.m-thought { color: #000000; font-size: 21px; line-height: 60.75px; vertical-align: central; }
+
+/* A Yes / No question: the screen dimmed by half, Steam's panel, two pills of button_00 (48-pixel caps kept). */
+.m-dim { background-color: #00000080; }
+.m-question-window { background-image: resource("shell/window.png"); -ff-slice: 6; }
+.m-pill-art {
+  background-image: resource("files/MENU_Common.dat/button_00.NCGR");
+  -ff-background-rect: 0 72 240 72;
+  -ff-slice: 0 48 0 48;
+  -ff-slice-scale: 1.6875;
+}

@@ -108,6 +108,21 @@ namespace OpenFF.Client
 			return (summary ?? "a saved game") + "   " + when;
 		}
 
+		/// <summary>The quicksave (FF4's suspend data, sys::CardUtility::isExistSuspendData): the title's CONTINUE resumes from
+		/// it, and it stays - the game never breaks it on resuming (CardUtility::breakSuspendData has no callers).</summary>
+		public const int SuspendSlot = 100;
+
+		public static bool HasSuspend => Exists(SuspendSlot);
+
+		/// <summary>The menu's Quicksave: the game as it stands into the suspend slot.</summary>
+		public static bool Suspend()
+		{
+			if (!EngineApi.InWorld) return false;
+			Game.Saves.WriteSlot(SuspendSlot, 0);
+			Log.Write(LogChannel.General, "save: FF4 quicksave - " + Describe(SuspendSlot));
+			return true;
+		}
+
 		public static bool Save(int slot)
 		{
 			if (!EngineApi.InWorld || slot < 1 || slot > SlotCount) return false;
@@ -120,7 +135,7 @@ namespace OpenFF.Client
 		public static bool Load(int slot, bool atBoot)
 		{
 			Pending = null;
-			if (slot < 1 || slot > SlotCount || !Game.Saves.ReadSlot(slot, 0))
+			if ((slot < 1 || slot > SlotCount) && slot != SuspendSlot || !Game.Saves.ReadSlot(slot, 0))
 			{
 				Log.Write(LogChannel.General, "load: FF4 slot " + slot + " is empty");
 				return false;
