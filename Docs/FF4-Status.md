@@ -46,7 +46,8 @@ scene engine, which is ours from the binary's disassembly.
 | Effects | The scenes' effects (the flashback sparkles, the wind streaks) from their packs, scaled and placed as the script says. |
 | Into battle | `ce_CallBattle`: the encounter whirl (SPBlurRotate) to white, then the battle on its stage as a part change, and back to the scene after. |
 | Faces and props | Expressions through face textures; bind objects (a spear in a hand) posed from the host's joint. |
-| Text | The message bar; the name window. |
+| Text | The message bar; the name window; the field's message window opening from its middle over five frames and its caption bar, as Steam's, drawn from a layout (`ff4_field_hud`). |
+| Field events | Scripted walks and turns (MoveCharacter_*Coordination2, Turn*2) and the event camera following the cast (CUFollowCamera: moveCamera_LookPlayer2, setCameraOffset easing in over its frames) as libff4's; a map's first script steps survive the host noticing the map change. |
 | Open | Lights and toon shading; the flight's sky geometry and per-shot visibility; the casts' shadow discs. |
 
 ## Party data - 60%
@@ -54,7 +55,7 @@ scene engine, which is ours from the binary's disassembly.
 | | State |
 | --- | --- |
 | Characters, growth, magic, equipment, items | FF4's tables read from the binary and its files onto the unified data layer (`Shared/Data`), the same layer FF3's jobs and spells sit on. |
-| Logos and title | Steam's, read from FF4.exe (Ff4Title): the Square Enix and Matrix logos, then the title - background, logo, CONTINUE / NEW GAME / LOAD GAME / QUIT GAME by the same rules and in the same places, the glove, the Prelude. New Game fades to white and starts in t00_00, whose event calls the opening scene with no fade, so the scene fades in from white as on Steam; maps are left and entered with FF4's 15-frame fades, not FF3's shutter (Ff4MapChange). Load Game opens a file list (the port's; Steam's load screen is not read yet). The opening movie (opening.mkv) is not played; CONTINUE never shows (no suspend save); the title's mouse widgets are not there. |
+| Logos and title | Steam's, read from FF4.exe (Ff4Title): the Square Enix and Matrix logos, then the title - background, logo, CONTINUE / NEW GAME / LOAD GAME / QUIT GAME by the same rules and in the same places, the glove, the Prelude. New Game fades to white and starts in t00_00, whose event calls the opening scene with no fade, so the scene fades in from white as on Steam; maps are left and entered with FF4's 15-frame fades, not FF3's shutter (Ff4MapChange). Load Game opens a file list (the port's; Steam's load screen is not read yet). CONTINUE shows when there is a quicksave and resumes it at once, as Steam's (the quicksave is kept, as libff4 keeps its suspend data). The opening movie (opening.mkv) is not played; the title's mouse widgets are not there. |
 | Saves | On the unified layer (a save slot loads into the field from the title's Load Game or `--load`); FF4's own save format is not written. |
 | Open | Growth curves and monster records in part; the details of each are in FF4-Internals. |
 
@@ -115,12 +116,25 @@ command learned - ability ids under 256 in a member's abilities are commands): t
 the second pick within the MP both cost, the MP shown less the first's, the two back to back (counters after);
 the spells' chant motions 4004 / 4005 (b_pa_005, initializeMagic) bound for every caster. Not FF4's yet: the Config menu's battle speed (--ff4-battle-speed for now), augments learned in play (no augment system - the drive's `augment` grants one), hit reactions.
 
-## Menus - 15%
+## Menus - 50%
 
-The menu is drawn from FF4's own `.xbn` layouts over the unified party data, so it wears
-FF4's dress - but the screens' contents and flow are largely made up where the original's
-behaviour has not been read: equipment and item use work, much else is placeholder. Far
-from the original.
+The field menu is being rebuilt screen by screen to match the Steam game's: each screen is
+captured from Steam (Tools/ff4hook's `draws`: every quad of a frame in 1080p pixels), its places,
+sizes and colours written into a layout (`Data/hud/ff4_menu.xml` and `styles/ff4_menu.css`) that
+a mod reshapes or restyles like the battle HUD (Docs/Menus.md), its texts and art read from the
+game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rules from libff4.
+
+| | State |
+| --- | --- |
+| Root | The nine commands in MENU_LAYOUT's order with the scroll bar, the place and the gil, the key hints, the member panel's five places, the lead's thought in its balloon (babil_speculation.bbd's line for where the story stands). Open: the lead's 3D model, the place name without its floor. |
+| Inventory | Two columns with the items' symbols, greyed by the record's field-use flag as WSCMenu::checkItem (Red Fang); key items on C; using an item on the party's places; status cures cure. Open: Sort (Tab). |
+| Magic | The member between arrows, the spell's cost and line from babil_ability.msd, three columns, C for the next school, Z / M to change member. Casting from the menu follows the old path. |
+| Equipment | The member's figures, the lit piece's line, the five slots and what in the bag fits the lit one; C removes, Tab optimizes. Open: the figures' before / after comparison. |
+| Abilities | The auto-battle command and the five battle commands; Enter picks one up and swaps it with another. Open: the auto-battle command's own list (libff4's abilityIDList 5), choosing from a list. |
+| Status | As Steam lays it out: the figures, EXP and the next level, what is worn. |
+| Quicksave | "Quicksave game and quit?" then the title, whose CONTINUE resumes it. |
+| Gambits | OpenFF's auto-battle rules (as FF3's) in the FF4 menu's style: twelve rules with ON / OFF, condition and action, and the picker for both. |
+| Open | Party (the formation), Settings, Steam's Save screen and the save points (babil_savepoint.bbd). |
 
 ## The Steam shell - 0%
 
@@ -131,5 +145,6 @@ started here.
 ## In one line
 
 FF4 in OpenFF is a world you can walk, with its scenes playing and its battles fought by FF4's own
-rules, on top of field commands and menus that are still largely FF3's. Bringing the field commands,
-the rest of the battle (statuses, abilities) and the menus to FF4's own is the work ahead.
+rules, its field menu half rebuilt as Steam's, on top of field commands that are still largely FF3's.
+Bringing the field commands, the rest of the battle (statuses, abilities) and the last menu screens to
+FF4's own is the work ahead.

@@ -246,22 +246,24 @@ same game, crisper. The parts still in progress are the ones the original never 
 overworld, the dungeons, the opening's scenes - and Cecil walks it. The opening and its first
 battle are measured against the Steam game frame by frame (Tools/ff4hook) and written from its
 own code (the Android build's libff4, the Steam FF4.exe decompiled): the title, the scenes'
-cameras and effects, the encounter whirl, and the battle's turns, gauges, blows, numbers, deaths,
-the monsters' AI and counters, the battle events and the win with its result pages. Much of the
-rest is not yet the game's: the menus are stand-ins on FF3's, half the field commands are unread,
-statuses and most monster abilities are still to come. `Docs/FF4-Status.md` has each subsystem in
+cameras and effects, the message window, the encounter whirl, and the battle's turns, gauges,
+blows, numbers, deaths, the monsters' AI and counters, the battle events and the win with its
+result pages. The field menu is being rebuilt screen by screen on Steam's measurements - the root,
+Inventory, Magic, Equipment, Abilities, Status and Quicksave are done, with OpenFF's Gambits in
+the same style; Party, Settings and Steam's Save screen are next. Half the field commands are
+still unread, and statuses and most monster abilities are still to come. `Docs/FF4-Status.md` has each subsystem in
 detail; `Docs/FF4-Internals.md` what has been read out of the binary.
 
 | Piece | Done | Note |
 | --- | --- | --- |
 | Maps, models, textures, the world map | 85% | Render as the game's from its files; some scene lighting and materials missing |
-| Field: walking, exits, talking, the script commands | 55% | 247 of 500 commands run; the FF4-only ones are being written from the binary as they turn up |
+| Field: walking, exits, talking, the script commands | 55% | 247 of 500 commands run; the FF4-only ones are being written from the binary as they turn up; scripted walks, turns and the event camera follow as libff4's; the message window and its caption bar as Steam's |
 | Cutscenes (the opening, the flashbacks) | 70% | Casts, motions, camera motions on Steam's frames, expressions, bind objects, effects, the message bar, the call into battle; lights, sky and shadow details open |
-| Title, logos, map changes | 80% | Steam's logos and title, New Game's white fade, FF4's map fades; the opening movie, CONTINUE and Steam's load screen not yet |
+| Title, logos, map changes | 85% | Steam's logos and title, New Game's white fade, FF4's map fades, CONTINUE resuming a quicksave; the opening movie and Steam's load screen not yet |
 | Party data: characters, growth, magic, equipment, items | 60% | Read from the binary and the files onto the unified data layer; HP grown level by level as FF4 rolls it |
 | Encounters, shops, inns, saves | 40% | Work as calls; the presentation is not FF4's |
 | Battle | 70% | FF4's own: its stages and placings, active time and the turn queue, attacks, effects, sounds, the damage and hit formulas with elements, races and rows, numbers, deaths, the monster AI (conditions, action sets, target types, counters), the battle events (battle_ai.bbd), statuses, magic and summons, the bosses, the openings (preemptive strike, back attack, surprised), escape, the win and its result pages; every party command (Jump, Kick, Steal, Twincast, Bardsong...) checked frame by frame against the Steam game |
-| Menus | 15% | FF4's layouts over the unified data, largely made up; far from the original |
+| Menus | 50% | Steam's field menu, measured off its draws, as layouts a mod can restyle: the root with the lead's thought, Inventory, Magic, Equipment, Abilities, Status, Quicksave, and OpenFF's Gambits in the same style; Party, Settings, Save screen and save points, Sort to come |
 | The Steam shell (achievements, launcher screens) | 0% | Not started |
 
 **Crystal and mods** - what the editor and the API can do is in `Docs/Editor.md` and
