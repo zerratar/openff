@@ -1066,6 +1066,20 @@ internal static partial class GlobalScope
 			return saved;
 		}
 
+		/// <summary>PORT (FF4): BaseBattleCharacter::setFlash(true) - every material toon, lit, its emission white (0x7fff); the model draw
+		/// washes such materials as Steam shows them.</summary>
+		public void flashMaterials(int ctrl)
+		{
+			if (!isValidCharacter(ctrl)) return;
+			NNSG3dResMat mats = NNS_G3dGetMat(Character[ctrl].modelSet.getMdl(0u).getMdlResource());
+			for (int i = 0; i < mats.dict.numEntry; i++)
+			{
+				NNSG3dResMatData m = NNS_G3dGetMatByIdx(mats, (uint)i);
+				m.polyAttr = (m.polyAttr & ~0x30u) | ((uint)GXPolygonMode.GX_POLYGONMODE_TOON << 4) | 1u;
+				m.specEmi = (m.specEmi & 0xFFFF) | (0x7FFFu << 16);
+			}
+		}
+
 		public void restoreMaterialColours(int ctrl, uint[] saved)
 		{
 			if (!isValidCharacter(ctrl) || saved == null) return;

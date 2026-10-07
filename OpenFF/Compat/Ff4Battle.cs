@@ -663,6 +663,7 @@ namespace OpenFF.Client
 			_timer++;
 			_clock++;
 			RunCues();
+			StepFlashes();
 			StepVictoryCamera();
 			switch (_phase)
 			{
@@ -1529,10 +1530,12 @@ namespace OpenFF.Client
 					hit = aim ? !foe.Mist : Hits(member, foe);   // Aim: calcDamage skips the hit roll
 					if (!hit) return;
 					PlayEffect(member.HitEffect, HitEffectSpot(foe));
+					DamageFlash(foe);   // playFlash with the hand's hit effect
 					damage = Damage(member, foe);
 					foe.Hp = Math.Max(0, foe.Hp - damage);
 					if (foe.Member != null) foe.Member.Hp = foe.Hp;
 					BlowLands(member, foe);
+					StartDamageAction(foe, damage);
 					// With the effect, its sound: the weapon system's own (playerWeaponSe - a sword's 106, 1).
 					if (member.HitBank >= 0) Game.Audio.PlaySe(member.HitBank, member.HitSound);
 					else Game.Audio.PlaySe(0, 3);
@@ -1640,6 +1643,7 @@ namespace OpenFF.Client
 			bool hit = Hits(foe, target);
 			int damage = hit ? Damage(foe, target) * (style?.Factor ?? 1) : 0;
 			if (covered != null && hit) damage = Math.Max(1, damage * 3 / 4);   // reviseCover
+			if (hit && target.Defending) damage = Math.Max(1, damage / 2);   // Defend halves a blow
 			if (!Ff4BattleStage.Active) { MonsterBlow(foe, target, hit, damage); return; }
 			MonsterDefinition m = foe.Monster;
 			int effect = style != null && style.Pack >= 0 ? style.Pack : m.AttackEffect;
@@ -1655,31 +1659,40 @@ namespace OpenFF.Client
 				After(effectFrame + MonsterFrameLead + 16, () => CoverBack(guard));   // Steam's frames: 2002 for 15, the stance 1, home on the 16th
 			}
 			After(effectFrame + MonsterFrameLead, () => PlayEffect(hit ? effect : MissEffect, feet ? Where(target) : HitEffectSpot(target)));
-			if (hit && seBank >= 0 && se >= 0) After(seFrame + MonsterFrameLead, () => Game.Audio.PlaySe(seBank, se));
-			After(numberFrame + MonsterFrameLead, () => MonsterBlow(foe, target, hit, damage));
+			// playSE: a blow on one defending or braced clanks (101/3) in place of the monster's own sound.
+			if (hit && (target.Defending || target.Braced) && covered == null) After(seFrame + MonsterFrameLead, () => Game.Audio.PlaySe(101, 3));
+			else if (hit && seBank >= 0 && se >= 0) After(seFrame + MonsterFrameLead, () => Game.Audio.PlaySe(seBank, se));
+			// executeNormalAttack: the results land and the struck one reacts on the record's +0x18; the number on +0x1A.
+			int reactFrame = style == null && m.AttackReactFrame > 0 && m.AttackReactFrame <= numberFrame ? m.AttackReactFrame : numberFrame;
+			bool landed = false;
+			After(reactFrame + MonsterFrameLead, () =>
+			{
+				landed = target.Alive;
+				MonsterBlow(foe, target, hit, damage, show: false);
+				if (landed && hit && covered == null) StartDamageAction(target, damage);
+			});
+			After(numberFrame + MonsterFrameLead, () => { if (landed) MonsterBlow(foe, target, hit, damage, apply: false); });
 		}
 
-		private void MonsterBlow(Fighter foe, Fighter target, bool hit, int damage)
+		/// <summary>A monster's blow: its result applied (<paramref name="apply"/>) and shown - the number, the fall (<paramref name="show"/>).</summary>
+		private void MonsterBlow(Fighter foe, Fighter target, bool hit, int damage, bool apply = true, bool show = true)
 		{
-			if (!target.Alive) return;
-			if (!hit)
+			if (apply)
 			{
-				PopWord(DamageSpot(target), Ff4Ui.WordMiss);
-				Note(foe.Name + " misses " + target.Name + ".");
-				return;
+				if (!target.Alive) return;
+				if (hit)
+				{
+					target.Hp = Math.Max(0, target.Hp - damage);
+					if (target.Member != null) target.Member.Hp = target.Hp;
+					BlowLands(foe, target);
+					Note(foe.Name + " hits " + target.Name + " for " + damage + ".");
+				}
+				else Note(foe.Name + " misses " + target.Name + ".");
+				if (!show) return;
+				if (hit) StartDamageAction(target, damage);
 			}
-			if (target.Defending) damage = Math.Max(1, damage / 2);   // Defend halves a blow
-			target.Hp = Math.Max(0, target.Hp - damage);
-			if (target.Member != null) target.Member.Hp = target.Hp;
-			BlowLands(foe, target);
+			if (!hit) { PopWord(DamageSpot(target), Ff4Ui.WordMiss); return; }
 			Pop(DamageSpot(target), damage);
-			// FF4 starts 1117 here (btl::BattleActionDamage, the b_ set's clip C117) and Steam's trace has it for a frame
-			// before the stance - but its frames show the stance throughout (3784, the 1117 frame, and 3788), where ours draws
-			// C117 as a turn of the whole body over several frames. Until that difference is found the stance holds, as
-			// Steam's frames show.
-			Fighter hurt = target;
-			After(1, () => { if (hurt.Alive && hurt.Acted) { Play(hurt, _heroMotionIdle, true, 0); hurt.Acted = false; } });
-			Note(foe.Name + " hits " + target.Name + " for " + damage + ".");
 			if (!target.Alive) Fell(target, damage);
 		}
 
@@ -2171,6 +2184,7 @@ namespace OpenFF.Client
 			_party.Clear();
 			_pops.Clear();
 			_cues.Clear();
+			_washed.Clear(); _hitFlash.Clear(); _targetBlink.Clear();
 			_victoryCameraFrame = -1;
 			if (Ff4BattleStage.Active)
 			{

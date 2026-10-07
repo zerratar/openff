@@ -470,6 +470,7 @@ namespace OpenFF.Data
 				m.AttackSoundBank = ChainPack.S16(r, 0x12);
 				m.AttackSound = ChainPack.S16(r, 0x14);
 				m.AttackNumberFrame = ChainPack.S16(r, 0x1A);
+				m.AttackReactFrame = ChainPack.S16(r, 0x18);
 			}
 		}
 

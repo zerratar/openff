@@ -116,7 +116,8 @@ namespace OpenFF.Client
 					foe.Hp = Math.Max(0, foe.Hp - damage);
 					if (foe.Member != null) foe.Member.Hp = foe.Hp;
 					BlowLands(member, foe);
-					if (foe.Member != null && foe.Alive) Play(foe, _heroMotionHurt, false, 0);
+					DamageFlash(foe);
+					StartDamageAction(foe, damage);
 					Pop(DamageSpot(foe), damage);
 					Note(member.Name + " lands on " + foe.Name + " for " + damage + (critical ? " (critical)" : "") + ".");
 					if (!foe.Alive) Fell(foe, damage);

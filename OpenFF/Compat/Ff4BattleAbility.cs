@@ -608,7 +608,7 @@ namespace OpenFF.Client
 			Play(who, 84, false, 3);
 			After(13, () =>
 			{
-				if (hit) PlayEffect(effect, HitEffectSpot(foe));
+				if (hit) { PlayEffect(effect, HitEffectSpot(foe)); DamageFlash(foe); }   // targetPitchDamageAction: the flash with the hit
 				Game.Audio.PlaySe(hit ? 158 : 0x65, hit ? (shuriken ? 4 : 1) : 1);
 			});
 			void Number()
@@ -617,6 +617,7 @@ namespace OpenFF.Client
 				if (!hit) { PopWord(DamageSpot(foe), Ff4Ui.WordMiss); Note(who.Name + " throws " + weapon.Name + " and misses."); return; }
 				foe.Hp = Math.Max(0, foe.Hp - (int)damage);
 				if (foe.Member != null) foe.Member.Hp = foe.Hp;
+				StartDamageAction(foe, (int)damage);
 				Pop(DamageSpot(foe), (int)damage);
 				Note(who.Name + " throws " + weapon.Name + " at " + foe.Name + " for " + damage + ".");
 				if (!foe.Alive) Fell(foe, (int)damage);

@@ -13821,6 +13821,22 @@ internal static partial class GlobalScope
 														}
 													}
 													glDrawArrays(4u, d, shape.size, vtc);
+													// PORT (FF4): BaseBattleCharacter::setFlash's materials (toon, emission 0x7fff - the target cursor's
+													// blink, a blow's flash). Steam draws them washed half toward a light grey (its frames: each colour
+													// x0.48 + ~86); here a second, untextured pass of that grey at half alpha over the model.
+													if (((nNSG3dResMatData3.polyAttr >> 4) & 3) == 2 && (nNSG3dResMatData3.specEmi >> 16) == 0x7FFF)
+													{
+														Color[] own = new Color[shape.size];
+														for (int fv = 0; fv < shape.size; fv++) { own[fv] = vtc[d + fv].Color; vtc[d + fv].Color = new Color(174, 172, 150, 128); }
+														Blend blendWas = m_Blend; bool maskWas = m_bDepthMask; CompareFunction funcWas = m_DepthFunc;
+														bool texWas = m_Graphics.getBasicEffect().TextureEnabled;
+														m_Blend = Blend.InverseSourceAlpha; m_bDepthMask = false; m_DepthFunc = CompareFunction.LessEqual;
+														glDisable(3553u);
+														glDrawArrays(4u, d, shape.size, vtc);
+														if (texWas) glEnable(3553u);
+														m_Blend = blendWas; m_bDepthMask = maskWas; m_DepthFunc = funcWas;
+														for (int fv = 0; fv < shape.size; fv++) vtc[d + fv].Color = own[fv];
+													}
 													polyCount += shape.size;
 												}
 												d += shape.size;

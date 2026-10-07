@@ -328,6 +328,8 @@ namespace OpenFF.Data
 		/// <summary>FF4: its height (chain 4's +0x40, before the battle scale): a preemptive strike's "!" stands this high, scaled, and 3 more (drawExclamationEffect).</summary>
 		public float Height = 10f;
 		/// <summary>FF4: its plain attack (monster.chaindata chain 2, ys::Effects, 28 bytes by monster id): the effect and the frame it starts, its sound (bank, number) and frame, the frame its number shows. -1 for none.</summary>
+		/// <summary>FF4: the frame its plain attack's results land and the struck one reacts (chain 2 +0x18; executeNormalAttack's startDamageAction), 0 for the number's.</summary>
+		public int AttackReactFrame;
 		public int AttackEffect = -1, AttackEffectFrame = 8, AttackSoundBank = -1, AttackSound = -1, AttackSoundFrame = 8, AttackNumberFrame = 8;
 		/// <summary>The game's monster id (monsterId at 8), what encounters and scripts name.</summary>
 		public int Id;
