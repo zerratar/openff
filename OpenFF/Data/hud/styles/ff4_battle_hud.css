@@ -54,6 +54,8 @@
   border-color: #969cdedc #1a1c42c8 #1a1c42c8 #969cdedc;
 }
 #message .message-text { font-size: 34px; text-align: center; vertical-align: middle; }
+#abilityname { background-color: #25256064; color: #ffffff; text-shadow: 2px 2px #000000a0; }   /* Steam's: 39% of a dark blue */
+#abilityname .name-text { font-size: 21px; vertical-align: middle; }
 
 /* The result: Steam's panel, a near-white frame 3 pixels thick with a soft shadow outside it. */
 #result {

@@ -124,6 +124,7 @@ namespace OpenFF.Client
 			if (_isCounter) name = BattleText(70251, "Counter: %SCC00%").Replace("%SCC00%", name);
 			_help = name;
 			_helpUntil = _clock + frames;
+			_nameShown = name;   // drawn as Steam's ability-name bar, not the help window
 			Note("shows " + name);
 		}
 

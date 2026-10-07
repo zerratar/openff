@@ -38,9 +38,28 @@ namespace OpenFF.Client
 			game.Components.Add(_instance);
 		}
 
+		private static Action _then;
+		private static int _lead = LeadFrames;
+
+		/// <summary>
+		/// world::WSEncountDirection2 - every random encounter and every bootEventBattle (only a treasure box's monsters take
+		/// Direction1's zoom): the field hero in its idle, the menu's sound (0, 10), the music down over 15 frames, the whirl
+		/// at once, and <paramref name="then"/> (the battle) once the screen is white.
+		/// </summary>
+		public static void StartEncounter(Action then)
+		{
+			Start();
+			_lead = 0;
+			_then = then;
+			try { GlobalScope.MatrixSound.MtxSENDS_Play(0, 10, 127, 64); } catch (Exception) { }
+			try { GlobalScope.MatrixSound.MtxSoundBGM.getSingleton().stop(15, GlobalScope.MatrixSound.enMtxBGMSlot.enMTX_BGM_SLOT0); } catch (Exception) { }
+		}
+
 		/// <summary>The whirl starts (ce_CallBattle in a scene).</summary>
 		public static void Start()
 		{
+			_lead = LeadFrames;
+			_then = null;
 			_count = 0;
 			_whitened = false;
 			_lastStep = LegacyStep.Count;
@@ -49,7 +68,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>Whether it is playing.</summary>
-		public static bool Playing => _count >= 0 && _count < LeadFrames + SpinFrames;
+		public static bool Playing => _count >= 0 && _count < _lead + SpinFrames;
 
 		/// <summary>Stops it (a map change, the battle).</summary>
 		public static void Stop() => _count = -1;
@@ -63,7 +82,7 @@ namespace OpenFF.Client
 			{
 				_count += (int)Math.Max(1, step - _lastStep);
 				_lastStep = step;
-				int spin = _count - LeadFrames;
+				int spin = _count - _lead;
 				if (spin >= WhiteFrom && !_whitened)
 				{
 					_whitened = true;
@@ -72,11 +91,14 @@ namespace OpenFF.Client
 					GlobalScope.dgs.CFade.Sub().fadeOut(WhiteFrames, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_WHITE);
 				}
 			}
-			int frame = _count - LeadFrames;
+			int frame = _count - _lead;
 			if (frame < 0) return;
 			if (frame >= SpinFrames)
 			{
 				_count = -1;
+				Action then = _then;
+				_then = null;
+				then?.Invoke();
 				return;
 			}
 			GraphicsDevice device = GraphicsDevice;

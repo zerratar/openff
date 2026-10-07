@@ -380,7 +380,16 @@
     </frame>
   </frame>
 
-  <!-- FF4's help line: an ability's name, at the top. -->
+  <!-- Steam's ability-name bar: an action's or an item's name (its icon before it), across the top - Steam's frames: 150..1770
+       wide, 0..52 high, a translucent blue without a border. -->
+  <frame bind-display="battle.nameShown">
+    <id>abilityname</id>
+    <x>150</x><y>0</y><width>1620</width><height>52</height>
+    <frame class="name-icon" bind-style="-ff-cell: symbol {battle.nameIcon}; left: {battle.nameIconX}px"><id>nameicon</id><x>0</x><y>6</y><width>34</width><height>44</height></frame>
+    <frame class="name-text" bind-text="{battle.name}" bind-style="left: {battle.nameTextX}px"><id>nametext</id><x>0</x><y>0</y><width>1200</width><height>52</height></frame>
+  </frame>
+
+  <!-- FF4's help line: a message (an event's, "Can't escape!"...), at the top. -->
   <frame bind-display="battle.message" bind-style="left: {battle.messageLeft}px; width: {battle.messageWidth}px">
     <id>message</id>
     <x>560</x><y>27</y><width>800</width><height>76</height>

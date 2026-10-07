@@ -366,18 +366,31 @@ namespace OpenFF.Client
 			Log.Write(LogChannel.General, "script: bootShop " + row + " could not open");
 		}
 
+		private static int _eventBattle;   // bootEventBattle: 0 none, 1 the whirl playing, 2 the battle begun
+
 		private static void BootEventBattle(GlobalScope.ScriptEngine engine)
 		{
 			int party = (int)engine.getWord();
 			engine.getByte();
 			int type = engine.getByte();   // the opening: 0 Normal, 1 Back attack, 2 Surprise (table at 0x1bbf50; 3 and up Normal)
 			engine.getByte(); engine.getByte();
-			Ff4Battle.Instance?.SetNextOpening(type == 1 ? Ff4Battle.OpenBack : type == 2 ? Ff4Battle.OpenSurprise : Ff4Battle.OpenNormal);
-			if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(party))
+			// "world encount2" (WSEncountDirection2): the whirl to white, then the battle - the script held on this command
+			// until the battle has begun (and, the field's logic standing while it is fought, until it is over).
+			if (_eventBattle == 1 || (_eventBattle == 0 && BlurRotate.Playing)) { engine.suspendRedo(); return; }
+			if (_eventBattle == 2) { _eventBattle = 0; return; }
+			_eventBattle = 1;
+			engine.suspendRedo();
+			int opening = type == 1 ? Ff4Battle.OpenBack : type == 2 ? Ff4Battle.OpenSurprise : Ff4Battle.OpenNormal;
+			BlurRotate.StartEncounter(() =>
 			{
-				Log.Write(LogChannel.General, "script: bootEventBattle " + party + " could not start");
-				Ff4Battle.Instance?.SetNextOpening(Ff4Battle.OpenNormal);
-			}
+				_eventBattle = 2;
+				Ff4Battle.Instance?.SetNextOpening(opening);
+				if (Ff4Battle.Instance == null || !Ff4Battle.Instance.StartParty(party))
+				{
+					Log.Write(LogChannel.General, "script: bootEventBattle " + party + " could not start");
+					Ff4Battle.Instance?.SetNextOpening(Ff4Battle.OpenNormal);
+				}
+			});
 		}
 
 		private static void CancelCameraControl(GlobalScope.ScriptEngine engine)

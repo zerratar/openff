@@ -63,6 +63,7 @@ namespace OpenFF.Client
 		{
 			if (who == null) return true;
 			if (Ff4Augments.IsPassive(id)) return false;   // isUsefulAbility: a passive in a slot is shown, never chosen
+			if (IsAugmentCast(id) && who.Member != null && Ff4Party.Tables.Spell(id) is SpellDefinition paid && who.Member.Mp < MpCostOf(who, paid)) return false;   // its MP
 			if (who.Hiding && id != CmdReturn && id != CmdAim && id != CmdThrow) return false;
 			if (id == CmdUpgrade && who.Member != null && !HasWeapon(who.Member)) return false;   // isUsefulAbility 0x36: a weapon in a hand
 			if (id == CmdUpgrade || id == CmdSalve || id == CmdThrow)
@@ -219,6 +220,8 @@ namespace OpenFF.Client
 					return true;
 				case CmdRecall: AbilityMotions(who, "b_pa_040"); Decide(who, () => Recall(who), AbilityWait(id), id); return true;
 				case CmdTwincast: AbilityMotions(who, "b_pa_005"); TwincastChosen(who); return true;
+				case CmdEyeGouge: case CmdCurse: case CmdTsunami: case CmdInferno: case CmdWhirlwind: case CmdLove:
+					return AugmentCommand(who, id);
 			}
 			return false;
 		}
@@ -236,6 +239,8 @@ namespace OpenFF.Client
 				case CmdKick: AbilityMotions(who, "b_pa_057"); Decide(who, () => Invoke(who, CmdKick, () => Kick(who)), AbilityWait(id), id); break;
 				case CmdCry: AbilityMotions(who, "b_pa_038"); Decide(who, () => Invoke(who, CmdCry, () => Cry(who)), AbilityWait(id), id); break;
 				case CmdAnalyze: Decide(who, () => Invoke(who, CmdAnalyze, () => Analyze(who)), AbilityWait(id), id); break;
+				case CmdLove: Decide(who, () => MemberAttacks(who, foe), AbilityWait(id), id); break;   // CONVERT 1: a plain attack
+				case CmdEyeGouge: AugmentCast(who, id, new List<Fighter> { foe }); break;
 			}
 		}
 

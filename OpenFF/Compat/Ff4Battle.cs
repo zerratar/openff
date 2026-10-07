@@ -289,6 +289,7 @@ namespace OpenFF.Client
 			_runOn = _runReady = _cantEscapeShown = _escaping = _fledFade = false; _runFrames = 0;
 			_closing = false; _queue.Clear(); _counterAbilities.Clear(); _dying.Clear(); _turnEffects.Clear(); _executing = null; _party.Clear(); _foes.Clear(); _log.Clear(); _dropsWon.Clear();
 			_expWon = _gilWon = 0;
+			_whirlwind = false;
 			BeginOpening(monsterIds);
 			foreach (Character c in party.Members)
 			{
@@ -1230,6 +1231,7 @@ namespace OpenFF.Client
 			double value = numerator / (double)denominator * (1.0 + _random.Next(301) / 1000.0);
 			if (targetCount > 1) value *= Math.Max(0.3, (90 - 10 * targetCount) / 100.0);
 			if (Augment(caster, Ff4Augments.Adrenaline) && LowHp(caster)) value *= 2;   // attackMagicDamage: Adrenaline
+			if (_whirlwind && (spell.Element & 0x20) != 0) value *= 1.5;   // flag 0xf: after Whirlwind, fire x1.5
 			return Math.Max(1, (int)Math.Min(value, DamageLimit(caster)));
 		}
 
@@ -1715,12 +1717,20 @@ namespace OpenFF.Client
 			}
 			if (!Ff4Party.Party.RemoveItem(itemId, 1)) { member.Gauge = 0f; return; }
 			member.Gauge = 0f;
-			// The item motion (62) held 30 frames, as Steam's Salve shows it, then the item's work and its number.
-			Play(member, 62, false, 3);
-			member.Acted = false;
-			After(30, () =>
+			Acted(member, itemId, target);
+			// Steam's Potion, frame by frame: the item's name in the help window first (22 frames), then the item motion (62)
+			// held 30; 14 frames into it the item's own effect on the target (its chain-32 record - a Potion's sparkles), and
+			// 44 frames into it the HP and the number.
+			ShowName(ItemTitle(item), ItemNameFrames - 4);
+			After(ItemNameFrames, () => { Play(member, 62, false, 3); member.Acted = false; });
+			After(ItemNameFrames + 30, () => { if (member.Alive) Play(member, member.IdleMotion, true, 3); });
+			if (Ff4Party.Tables.SpellShows.TryGetValue(itemId, out SpellShow show) && show.Pack >= 0)
 			{
-				Play(member, member.IdleMotion, true, 3);
+				LoadEffect(show.Pack);
+				After(ItemNameFrames + 14, () => { PlayEffect(show.Pack, show.Mode == 0 ? HitEffectSpot(target) : Where(target), Math.Max(1, show.Param)); if (show.SeBank >= 0 && show.SeNumber >= 0) Game.Audio.PlaySe(show.SeBank, show.SeNumber); });
+			}
+			After(ItemNameFrames + 44, () =>
+			{
 				if (revive == target.Alive) return;
 				int before = target.Hp;
 				if (revive) target.Hp = Math.Max(1, target.MaxHp / 4);
@@ -1728,11 +1738,18 @@ namespace OpenFF.Client
 				target.Member.Hp = target.Hp;
 				if (effect.Mp > 0) target.Member.Mp = Math.Min(target.Member.MaxMp, target.Member.Mp + effect.Mp);
 				if (target.Hp != before) Pop(DamageSpot(target), target.Hp - before, true);
-				Say(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
+				Note(member.Name + " uses " + item.Name + ": " + target.Name + (revive ? " rises." : (effect.Hp > 0 ? " +" + (target.Hp - before) + " HP" : "") + (effect.Mp > 0 ? " +" + effect.Mp + " MP" : "") + "."));
 			});
 		}
 
 		private const int CommandRows = 4;
+		private string _nameShown, _nameMeasured;   // the help line that is an action's name (ShowName), and the one laid out
+
+		/// <summary>An item's name in the help window before the item motion (Steam's Potion and Red Fang: 21..22 frames).</summary>
+		private const int ItemNameFrames = 22;
+
+		/// <summary>The help window's line for an item: its icon (BABIL_SYMBOL's cell), then its name - as Steam's "(bag) Potion".</summary>
+		private static string ItemTitle(ItemDefinition item) => item == null ? "" : (item.Icon >= 0 && (item.Name == null || item.Name.Length == 0 || item.Name[0] < '') ? ((char)(0xE040 + item.Icon)).ToString() : "") + item.Name;
 
 		/// <summary>Defend: the member braces until their next turn, physical blows halved (FF4's Defend).</summary>
 		private void Defend(Fighter member)
@@ -2119,7 +2136,7 @@ namespace OpenFF.Client
 
 		private void Encounters()
 		{
-			if (EncounterZoom.Playing) return;
+			if (EncounterZoom.Playing || BlurRotate.Playing) return;
 			_sinceBattle++;
 			if (_sinceBattle < 90 || !Game.Hero.Present) return;
 			Vector3 at = Game.Hero.Position;
@@ -2152,7 +2169,7 @@ namespace OpenFF.Client
 					// world::attackType: the opening by the party's dash and its level against the area's. OpenFF's hero
 					// moves at the dash (WSMove's 1002), as Steam's does on the keys and a full tilt.
 					int opening = RollOpening(true, AverageLevel(), table.AreaLevel, _random);
-					EncounterZoom.Start(() =>
+					BlurRotate.StartEncounter(() =>
 					{
 						SetNextOpening(opening);
 						if (StartParty(party, false, battleMap)) return;
@@ -2321,6 +2338,10 @@ namespace OpenFF.Client
 			public GridData Grid = new GridData();
 			public EquipData Equip = new EquipData();
 			public string Message = "";
+			// Steam's ability-name bar (an action's or an item's name): across the top, its icon before it.
+			public bool NameShown;
+			public string Name = "";
+			public int NameIcon = -1, NameIconX, NameTextX;
 			public int MessageWidth = 800, MessageLeft = 560;   // the help window: FF4's 800, wider for a line our font draws wider, centred
 			public List<CommandRow> Command = new List<CommandRow> { new CommandRow(), new CommandRow(), new CommandRow(), new CommandRow() };
 			public ScrollData Scroll = new ScrollData();
@@ -2514,7 +2535,22 @@ namespace OpenFF.Client
 			g.Scroll.Size = gridRows <= ListRows ? 100 : 100f * ListRows / gridRows;
 			g.Scroll.Top = gridRows <= ListRows ? 0 : (100 - g.Scroll.Size) * (_listScroll / ListColumns) / Math.Max(1, gridRows - ListRows);
 			if (_help != null && _helpUntil >= 0 && _clock >= _helpUntil) _help = null;
-			h.Message = _help ?? "";
+			h.NameShown = _help != null && ReferenceEquals(_help, _nameShown);
+			h.Message = h.NameShown ? "" : _help ?? "";
+			if (h.NameShown && !ReferenceEquals(_nameMeasured, _help))
+			{
+				// The name at 21px (Steam's "Potion" 100 wide), its icon (a leading BABIL_SYMBOL character) 37 wide before it, centred on 960.
+				_nameMeasured = _help;
+				string text = _help;
+				int icon = -1;
+				if (text.Length > 0 && text[0] >= '' && text[0] <= '') { icon = text[0] - 0xE040; text = text.Substring(1); }
+				float sy = DrawList.ScreenHeight / 1080f, sx = DrawList.ScreenWidth / 1920f;
+				float width = TrueTypeText.Width(text, Math.Max(4, (int)Math.Round(21 * sy))) / sx + (icon >= 0 ? 37f : 0f);
+				h.Name = text;
+				h.NameIcon = icon;
+				h.NameIconX = (int)(960 - width / 2) - 150;   // in the bar, which starts at 150
+				h.NameTextX = h.NameIconX + (icon >= 0 ? 37 : 0);
+			}
 			if (h.Message != _measured)
 			{
 				// The line at the layout's 34px as the screen draws it, back in the layout's 1920 units, with a margin.

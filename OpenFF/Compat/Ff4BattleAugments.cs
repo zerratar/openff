@@ -119,5 +119,45 @@ namespace OpenFF.Client
 			}
 			return false;
 		}
+
+		// The command augments OpenFF had not (ability ids): Eye Gouge, Curse, Tsunami, Inferno, Whirlwind, Rosa's love for Cecil.
+		private const int CmdEyeGouge = 82, CmdCurse = 73, CmdTsunami = 74, CmdInferno = 76, CmdWhirlwind = 125, CmdLove = 178;
+
+		private bool _whirlwind;   // BattleParameter flag 0xf: Whirlwind has blown - fire attacks x1.5 for the rest of the fight
+
+		private static bool IsAugmentCast(int id) => id == CmdEyeGouge || id == CmdCurse || id == CmdTsunami || id == CmdInferno || id == CmdWhirlwind;
+
+		/// <summary>
+		/// A command augment chosen: Eye Gouge on one foe (or all, as ability.bbd's targets say), Curse and Tsunami on every
+		/// foe, Inferno on everyone, Whirlwind's blowing, the love's blow on one foe. Each spell-like one is its
+		/// magic_parameter record cast after its invoke stage, its MP paid.
+		/// </summary>
+		private bool AugmentCommand(Fighter who, int id)
+		{
+			int targets = Ff4Party.Tables.AbilityTargets(id);
+			if (id == CmdLove || (id == CmdEyeGouge && (targets & 0x4) == 0)) { _abilityCmd = id; _pick = Pick.Target; _cursor = FirstAliveFoe(); return true; }
+			List<Fighter> struck = _foes.FindAll(f => f.Alive && !OutOfFight(f));
+			if (id == CmdInferno) struck.AddRange(_party.FindAll(f => f.Alive && !OutOfFight(f)));   // fire on every foe and every ally
+			if (id == CmdWhirlwind)
+			{
+				Decide(who, () => Invoke(who, id, () =>
+				{
+					if (Ff4Party.Tables.Spell(id) is SpellDefinition cost && who.Member != null) who.Member.Mp = Math.Max(0, who.Member.Mp - MpCostOf(who, cost));
+					_whirlwind = true;
+					Note(who.Name + " calls up a whirlwind: fire is fiercer now");
+					EndTurn(who);
+				}), AbilityWait(id), id);
+				return true;
+			}
+			AugmentCast(who, id, struck);
+			return true;
+		}
+
+		private void AugmentCast(Fighter who, int id, List<Fighter> targets)
+		{
+			SpellDefinition spell = Ff4Party.Tables.Spell(id);
+			if (spell == null) { Say(CommandName(id) + " is not in yet."); return; }
+			Decide(who, () => Invoke(who, id, () => Cast(who, spell, targets.FindAll(t => t.Alive || spell.Revives), invoked: true)), AbilityWait(id), id);
+		}
 	}
 }
