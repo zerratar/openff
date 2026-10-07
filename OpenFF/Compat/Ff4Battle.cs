@@ -42,21 +42,11 @@ namespace OpenFF.Client
 		/// room, five at most - and Defend (3) and Swap Rows (46) always in slots 5 and 6. Cecil: Attack, Darkness,
 		/// Items, Defend, Swap Rows, as Steam's menu shows them.
 		/// </summary>
+		/// <summary>A member's battle commands: its command slots (Ff4Augments - the class's layout and the augments set in it), the empty ones left out.</summary>
 		internal static List<int> CommandList(Character c)
 		{
-			HashSet<int> learned = new HashSet<int>(c.Definition.CommandsAt(c.Level));
-			// An augment learned (an ability id that is a command - Dualcast's 17): a command as the level's are.
-			foreach (int id in c.Abilities) if (id > 0 && id < 256) learned.Add(id);
 			List<int> list = new List<int>();
-			foreach (int id in new[] { 1, 2 }) if (learned.Contains(id)) list.Add(id);
-			for (int id = 4; id < 256 && list.Count < 5; id++)
-			{
-				if (id == 4 || id == 5 || id == 6 || id == 13 || id == 18 || id == 0x53 || id == CmdDefend || id == CmdSwapRows) continue;
-				if (learned.Contains(id)) list.Add(id);
-			}
-			foreach (int id in new[] { 6, 5, 13, 18, 0x53, 4 }) if (list.Count < 5 && learned.Contains(id)) list.Add(id);
-			list.Add(CmdDefend);
-			list.Add(CmdSwapRows);
+			foreach (int id in Ff4Augments.Slots(c)) if (id > 0 && !list.Contains(id)) list.Add(id);
 			return list;
 		}
 
@@ -873,6 +863,7 @@ namespace OpenFF.Client
 				if (_cursor >= _commandScroll + CommandRows) _commandScroll = _cursor - CommandRows + 1;
 				if (input.Pressed(Pad.A))
 				{
+					if (!CommandUsable(_acting, commands[_cursor])) return;   // greyed: nothing
 					_command = CommandOf(commands[_cursor]);
 					Fighter who = _acting;
 					_dualcast = commands[_cursor] == CmdDualcast;
@@ -1233,11 +1224,13 @@ namespace OpenFF.Client
 			int stat = spell.School == OpenFF.Data.MagicSchool.White ? caster.Spirit : caster.BluffCharge > 0 ? Math.Min(99, caster.Intellect * 2) : caster.Intellect;
 			long numerator = (long)spell.Power * Math.Max(1, caster.Level) * Math.Max(1, stat);
 			int magicDefence = Has(target, CShell) ? Math.Min(9999, target.MagicDefence * 3 / 2) : target.MagicDefence;
+			if (Augment(target, Ff4Augments.LastStand) && LowHp(target)) magicDefence *= 2;   // magicDefense: Last Stand
 			if (Has(target, CCry)) magicDefence /= 2;   // magicDefense: Cry halves it
 			int denominator = Math.Max(1, target.Spirit + target.Level + magicDefence);
 			double value = numerator / (double)denominator * (1.0 + _random.Next(301) / 1000.0);
 			if (targetCount > 1) value *= Math.Max(0.3, (90 - 10 * targetCount) / 100.0);
-			return Math.Max(1, (int)value);
+			if (Augment(caster, Ff4Augments.Adrenaline) && LowHp(caster)) value *= 2;   // attackMagicDamage: Adrenaline
+			return Math.Max(1, (int)Math.Min(value, DamageLimit(caster)));
 		}
 
 		/// <summary>NewMagicFormula::healingMagicValue: (target vitality / 8 + caster will / 2) x power, times 0.90..1.00, less when spread.</summary>
@@ -1304,10 +1297,11 @@ namespace OpenFF.Client
 			while (pick >= counts[k]) pick -= counts[k++];
 			List<DropChance> drops = kinds[k].Drops;
 			int roll = _random.Next(4096);
+			int rare = Ff4Augments.PartyHas(Ff4Augments.TreasureHunter) ? 1 : 0;   // isRareItem: Treasure Hunter doubles each slot's odds
 			for (int i = drops.Count - 1; i >= 0; i--)
 			{
-				if (roll < drops[i].Chance) { _dropsWon.Add(drops[i].ItemId); return; }
-				roll -= drops[i].Chance;
+				if (roll < drops[i].Chance << rare) { _dropsWon.Add(drops[i].ItemId); return; }
+				roll -= drops[i].Chance << rare;
 			}
 		}
 
@@ -1358,6 +1352,7 @@ namespace OpenFF.Client
 			bool small = Has(attacker, CToad) || Has(attacker, CMini), smallTarget = Has(target, CToad) || Has(target, CMini);
 			long numerator = (long)Math.Max(1, attacker.Level) * (small ? 1 : Math.Max(1, attacker.Strength)) * (small ? 1 : Math.Max(1, attacker.Attack));
 			int defence = smallTarget ? 1 : Has(target, CProtect) ? Math.Min(9999, target.Defence * 3 / 2) : target.Defence;
+			if (Augment(target, Ff4Augments.LastStand) && LowHp(target)) defence = Math.Min(9999, defence * 2);   // physicsDefense: Last Stand
 			if (Has(target, CCry)) defence /= 2;              // physicsDefense: Cry halves it
 			if (target.FocusCharge > 0) defence = 1;         // and Focus's charge leaves it wide open
 			int denominator = Math.Max(1, defence + target.Level + (smallTarget ? 1 : target.Vitality));
@@ -1368,7 +1363,8 @@ namespace OpenFF.Client
 			if (elements != 1f || races != 1f) Note(attacker.Name + " on " + target.Name + ": elements x" + elements + ", races x" + races);
 			value = (long)(value * (fromAir ? 1f : BackRowFactor(attacker, target)) * elements * races);   // backPenalty: none from the air
 			value = value * (target.IsMonster ? 12 : 7) / 10;
-			int chance = Math.Clamp(attacker.Agility - target.Agility + 5, 0, 25);
+			bool adrenaline = Augment(attacker, Ff4Augments.Adrenaline) && LowHp(attacker);
+			int chance = Math.Clamp((attacker.Agility - target.Agility + 5) * (adrenaline ? 2 : 1), 0, 25);   // calcCritical: Adrenaline doubles it
 			if (_random.Next(100) < chance)
 			{
 				value = value * 120 / 100;
@@ -1380,6 +1376,8 @@ namespace OpenFF.Client
 			if (dark) { value *= 2; attacker.DarkCostDue = true; }   // reviseDarkness: x2 (0x2000), the cost after
 			if (attacker.FocusCharge > 0) { value = value * RollUpRate[attacker.FocusCharge] >> 12; attacker.FocusSpent = true; }   // reviseGather
 			if (kickTargets > 0) value = Math.Max(1, value * KickRate[Math.Min(kickTargets, KickRate.Length - 1)] >> 12);   // reviseKick
+			if (adrenaline) value *= 2;   // calcDamageValueForBabil: Adrenaline at a quarter of HP or less (0x2000)
+			value = Math.Min(value, DamageLimit(attacker));
 			if (BattleParameterFlag(2)) value = 99999;   // an event's OnForceMaxDamage
 			return (int)Math.Max(1, value);
 		}
@@ -1483,7 +1481,7 @@ namespace OpenFF.Client
 		{
 			float own = 1f, theirs = 1f;
 			if (attacker.IsMonster && attacker.Monster != null) { own = attacker.Monster.BackRowAttack; theirs = attacker.Monster.BackRowTarget; }
-			else if (attacker.Member != null) own = WeaponReaches(attacker.Member) ? 1f : 0.5f;
+			else if (attacker.Member != null) own = WeaponReaches(attacker.Member) || Augment(attacker, Ff4Augments.Reach) ? 1f : 0.5f;   // Reach: the back row as the front
 			float factor = 1f;
 			if (InBackRow(attacker)) factor *= own;
 			if (InBackRow(target)) factor *= theirs;
@@ -1829,6 +1827,8 @@ namespace OpenFF.Client
 			// weapon's poise (Yang's 1058, Rosa's 1060) from the decision until the action starts.
 			if (member.Member != null && member.Poise > 0 && member.Alive && !member.Airborne && ability != CmdTwincast && (Ff4Party.Tables?.AbilityFlags(DecisionCommand(ability)) & 0x40) != 0) Play(member, member.Poise, true, 3);   // Twincast: its pair wait (99) instead
 			member.Defending = member.Braced = false;   // decideAbility: any decision ends Defend (flag 3) and Brace (flag 4)
+			// atwMax: Fast Talker halves the wait of a magic command (a spell, Dualcast, Twincast).
+			if (wait > 0 && Augment(member, Ff4Augments.FastTalker) && (Ff4Party.Tables?.Spell(ability) is SpellDefinition chant && chant.School != OpenFF.Data.MagicSchool.Enemy || ability == CmdDualcast || ability == CmdTwincast)) wait = Math.Max(1, wait / 2);
 			_abilityCmd = 0;
 			member.Queued = true;
 			member.DecidedAbility = ability;
@@ -1869,6 +1869,7 @@ namespace OpenFF.Client
 			_executing = actor;
 			_attacker = actor;
 			_isCounter = false;
+			NoteHpBefore();
 			_lastTargets.Clear();
 			_turnEffects.Clear();
 			try { act(); } catch (Exception ex) { Log.Write(LogChannel.General, "battle: action: " + ex.Message); }
@@ -1918,18 +1919,23 @@ namespace OpenFF.Client
 				_dying.Clear();
 				dying = DeathFrames;
 			}
+			bool phoenix = FellPhoenix();   // the fallen raised before the loss is judged
 			if (_foes.TrueForAll(OutOfFight))
 			{
 				_queue.Clear();
 				if (Ff4BattleStage.Active) After(dying + WinAfterDeath, BeginWin);
 				else Win();
 			}
-			else if (_party.TrueForAll(OutOfFight))
+			else if (!phoenix && _party.TrueForAll(OutOfFight))
 			{
 				_queue.Clear();
 				Lose();
 			}
-			else CheckCounters();
+			else
+			{
+				CheckCounters();
+				CheckMemberReactions(_attacker, _lastAbility);
+			}
 		}
 
 		private static Fighter FirstAlive(List<Fighter> side) => side.Find(f => f.Alive);
@@ -2037,6 +2043,9 @@ namespace OpenFF.Client
 			_resultLines.Clear();
 			_dropsWon.Clear();
 			RollGift();
+			// isGetGillUp / isLevelUp: Gil Farmer and Level Lust in anyone's slots - x1.5.
+			if (Ff4Augments.PartyHas(Ff4Augments.GilFarmer)) _gilWon = (int)(_gilWon * 1.5f);
+			if (Ff4Augments.PartyHas(Ff4Augments.LevelLust)) _expWon = (int)(_expWon * 1.5f);
 			List<string> lines = _resultLines;
 			party.Gil += _gilWon;
 			_pages.Clear();
@@ -2051,6 +2060,7 @@ namespace OpenFF.Client
 				int level = Ff4Party.Tables.LevelForExperience(c.Experience);
 				if (level <= before) continue;
 				c.SetLevel(level, false);
+				Ff4Augments.AfterLevelUp(c);   // the table's new maximums, HP / MP +50% on them again
 				lines.Add(f.Name + " reaches level " + level + "!");
 				// btl::BattleLevelupBehavior: a page for the member - "<name>'s level increased!" (babil_battle 109), the
 				// level, HP and MP on the left and the five stats on the right, each the old value, the arrow, the new.
@@ -2117,6 +2127,7 @@ namespace OpenFF.Client
 			_lastStep = at;
 			if (step <= 0.01f || step > 20f) return;
 			Ff4Encounters.Table table = Ff4Encounters.For(Game.Field.Map);
+			if (Ff4Augments.PartyHas(Ff4Augments.SafeTravel)) return;   // wsmEncount: Safe Travel in anyone's slots - no random fights
 			if (table == null || table.Rate <= 0 || table.Parties.Count == 0)
 			{
 				if (_noTableLogged != Game.Field.Map) { _noTableLogged = Game.Field.Map; Log.Write(LogChannel.File, "encounters: map '" + Game.Field.Map + "' has no encounter table here"); }
@@ -2483,7 +2494,7 @@ namespace OpenFF.Client
 			g.Two = g.Shown && ListColumns == 2;
 			for (int k = ListColumns * ListRows; k < g.Cell.Count; k++) g.Cell[k].Present = false;
 			g.ShowMp = g.Shown && _pick == Pick.Spell;
-			if (g.ShowMp) { g.Mp = _acting.Mp - (_dualFirst?.MpCost ?? 0); g.MaxMp = _acting.Member.MaxMp; }   // getUseDoubleMagicMp: the first pick's cost off
+			if (g.ShowMp) { g.Mp = _acting.Mp - (_dualFirst != null ? MpCostOf(_acting, _dualFirst) : 0); g.MaxMp = _acting.Member.MaxMp; }   // getUseDoubleMagicMp: the first pick's cost off
 			(g.Title, g.Line1, g.Line2) = equipping ? ("", "", "")
 				: g.Shown && _cursor >= 0 && _cursor < list.Count ? ListDescription(list[_cursor]) : ("", "", "");
 			g.EquipStats = false;

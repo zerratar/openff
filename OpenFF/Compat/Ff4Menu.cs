@@ -234,7 +234,7 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.B)) { _mode = Mode.Browse; return; }
 				if (input.Pressed(Pad.A))
 				{
-					Notice(Use(_usingItem, Ff4Party.Party.Members[_pick]));
+					Notice(Ff4Augments.AbilityOf(_usingItem) > 0 ? Ff4Augments.Use(_usingItem, Ff4Party.Party.Members[_pick]) : Use(_usingItem, Ff4Party.Party.Members[_pick]));
 					if (Ff4Party.Party.CountItem(_usingItem) == 0) _mode = Mode.Browse;
 				}
 				return;
@@ -253,7 +253,7 @@ namespace OpenFF.Client
 			if (input.Pressed(Pad.A))
 			{
 				int id = items[_cursor].ItemId;
-				if (UsableEffect(id) != null) { _usingItem = id; _mode = Mode.ItemTarget; _pick = 0; }
+				if (UsableEffect(id) != null || Ff4Augments.AbilityOf(id) > 0) { _usingItem = id; _mode = Mode.ItemTarget; _pick = 0; }   // an augment: on whom (mssdLearnAbility)
 				else Notice("That cannot be used here.");
 			}
 		}

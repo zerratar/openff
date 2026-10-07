@@ -355,11 +355,13 @@ namespace OpenFF.Client
 				}
 				case "augment":
 				{
-					// A command learned as an augment: "augment 0 17" (Dualcast to the first member).
+					// An augment: "augment 0 17" (Dualcast learned by the first member), "augment 0 9139" (the Counter item used on it).
 					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 					if (bits.Length < 2 || !int.TryParse(bits[0], out int slot) || !int.TryParse(bits[1], out int ability)) { Log.Write(LogChannel.General, "drive: augment wants <member> <ability id>"); break; }
 					OpenFF.Data.Character who = slot >= 0 && slot < Ff4Party.Party.Members.Count ? Ff4Party.Party.Members[slot] : null;
-					if (who != null && !who.Abilities.Contains(ability)) who.Abilities.Add(ability);
+					// An augment item (9104..9166) used on the member as the Item menu does; an ability id learned outright.
+					if (who != null && ability >= 9100) { Ff4Party.Party.AddItem(ability, 1); Log.Write(LogChannel.File, "drive: " + Ff4Augments.Use(ability, who)); }
+					else if (who != null && !who.Abilities.Contains(ability)) { who.Abilities.Add(ability); Ff4Augments.Slots(who); }
 					Log.Write(LogChannel.File, "drive: augment " + ability + " on " + (who?.Name ?? "no one"));
 					break;
 				}

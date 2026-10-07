@@ -59,6 +59,9 @@ namespace OpenFF.Client
 			{ "subPartyPC", Ff4Party.SubPartyPC },                            // (type, ?)
 			{ "setPartyPCEquipItem", Ff4Party.SetPartyPCEquipItem },          // (type, right, left, head, body, arm)
 			{ "addAbility", Ff4Party.AddAbility },                            // (type, ability)
+			{ "removeAbility", Ff4Augments.RemoveAbility },                   // (type, ability)
+			{ "copyDecantAbility", Ff4Augments.CopyDecantAbility },           // (from, to, except x4): Cecil's and Rydia's other forms
+			{ "decantLevelChekcJump", Ff4Augments.DecantLevelCheckJump },     // (type, level, label): the augments given
 			{ "bootShop", BootShop },                                         // (row, ?): babil_shop.bbd's row; the script holds while the shop is open
 			{ "bootInn", BootInn },                                           // (price, ?, ?): asks to stay the night and takes the gil
 			{ "selectEndWait", SelectEndWait },                               // (label, ?, ?, ?, ?): jumps when the inn was declined
@@ -128,10 +131,8 @@ namespace OpenFF.Client
 			// Sound bookkeeping FF3's player has no slot for: the battle theme choice, the
 			// division of BGM data, a reset.
 			"setBattleBGM", "bgmContinueForConteEvent", "soundReset", "bgmDivideLoadDataTypeSpecific",
-			// Jumps whose condition a new game never meets: decantLevelChekcJump(type, level, label)
-			// jumps when the character's augment level equals `level` (2 in every script; it is 0
-			// here), checkCharacterStatusJump when a member carries a status condition.
-			"decantLevelChekcJump", "checkCharacterStatusJump",
+			// checkCharacterStatusJump jumps when a member carries a status condition (none does here).
+			"checkCharacterStatusJump",
 			// Objects bound to a character's joint (a carried item, a torch), the sub-plane visibility
 			// of the DS's second screen.
 			"createBindObject", "setVisibleBindObject", "ce_CallProgParam",

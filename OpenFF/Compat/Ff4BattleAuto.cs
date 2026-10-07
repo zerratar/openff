@@ -93,7 +93,7 @@ namespace OpenFF.Client
 				{
 					SpellDefinition spell = Ff4Party.Tables.Spell(rule.ActionParam);
 					if (spell == null || !member.Member.Spells.Contains(spell.Id) && !member.Member.Abilities.Contains(spell.Id)) return false;
-					if (member.Member.Mp < spell.MpCost || !UsableUnder(member, spell.Id)) return false;
+					if (member.Member.Mp < MpCostOf(member, spell) || !UsableUnder(member, spell.Id)) return false;
 					bool onFoes = target.IsMonster;
 					if (spell.Revives ? target.Alive : !target.Alive) return false;
 					List<Fighter> side = onFoes ? _foes.FindAll(f => f.Alive) : _party.FindAll(f => spell.Revives || f.Alive);

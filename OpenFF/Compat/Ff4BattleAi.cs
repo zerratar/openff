@@ -150,7 +150,7 @@ namespace OpenFF.Client
 			switch (type)
 			{
 				case 0: return new List<Fighter>();
-				case 1: return one(members);
+				case 1: return DrawnAttack(members) ?? one(members);   // provocationPlayer: Draw Attacks
 				case 2: case 3: return one(side);
 				case 4: return members;
 				case 5: return _attacker != null && _attacker.Alive ? new List<Fighter> { _attacker } : new List<Fighter>();

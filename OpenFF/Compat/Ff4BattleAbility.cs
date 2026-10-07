@@ -62,6 +62,7 @@ namespace OpenFF.Client
 		private static bool CommandUsable(Fighter who, int id)
 		{
 			if (who == null) return true;
+			if (Ff4Augments.IsPassive(id)) return false;   // isUsefulAbility: a passive in a slot is shown, never chosen
 			if (who.Hiding && id != CmdReturn && id != CmdAim && id != CmdThrow) return false;
 			if (id == CmdUpgrade && who.Member != null && !HasWeapon(who.Member)) return false;   // isUsefulAbility 0x36: a weapon in a hand
 			if (id == CmdUpgrade || id == CmdSalve || id == CmdThrow)
@@ -104,10 +105,10 @@ namespace OpenFF.Client
 			{
 				string line = spell.School switch
 				{
-					OpenFF.Data.MagicSchool.White => spell.MpCost + " MP    Spirit: " + _acting.Spirit,
-					OpenFF.Data.MagicSchool.Ninjutsu => spell.MpCost + " MP    Attack: " + spell.Power + (ElementCell(spell.Element) >= 0 ? "    Element:" : ""),
+					OpenFF.Data.MagicSchool.White => MpCostOf(_acting, spell) + " MP    Spirit: " + _acting.Spirit,
+					OpenFF.Data.MagicSchool.Ninjutsu => MpCostOf(_acting, spell) + " MP    Attack: " + spell.Power + (ElementCell(spell.Element) >= 0 ? "    Element:" : ""),
 					OpenFF.Data.MagicSchool.Song => t.AbilityHelp(id) ?? "",
-					_ => spell.MpCost + " MP    Intellect: " + _acting.Intellect,
+					_ => MpCostOf(_acting, spell) + " MP    Intellect: " + _acting.Intellect,
 				};
 				return (spell.Name ?? "", line, "Targets: " + (spell.CanSpread ? "Single/Multiple" : spell.HitsAll ? "Multiple" : "Single"));
 			}
@@ -772,7 +773,7 @@ namespace OpenFF.Client
 				}
 			}
 			SpellDefinition spell = spellId > 0 ? Ff4Party.Tables.Spell(spellId) : null;
-			if (spell == null || who.Member == null || who.Member.Mp < spell.MpCost)
+			if (spell == null || who.Member == null || who.Member.Mp < MpCostOf(who, spell))
 			{
 				// The failure (or too little MP), settled first: no invoke; 6107 once, effect 275 on its second frame, the line for 60 frames.
 				Acted(who, CmdRecall);
@@ -1001,7 +1002,7 @@ namespace OpenFF.Client
 				HoldLine(BattleText(70222, "Can't escape!"), 59);
 				return true;
 			}
-			if (who.Member != null) who.Member.Mp = Math.Max(0, who.Member.Mp - spell.MpCost);
+			if (who.Member != null) who.Member.Mp = Math.Max(0, who.Member.Mp - MpCostOf(who, spell));
 			Invoke(who, CmdNinjutsu, Escape);   // onPlayerEscape: the party runs
 			return true;
 		}

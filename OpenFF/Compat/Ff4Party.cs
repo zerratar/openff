@@ -134,6 +134,9 @@ namespace OpenFF.Client
 			public int[] Equipment;
 			public List<int> Abilities;
 			public List<int> Spells;
+			public int[] CommandSlots;
+			public int DecantLevel;
+			public bool HpPlus, MpPlus;
 		}
 
 		public sealed class Saved
@@ -158,6 +161,7 @@ namespace OpenFF.Client
 					Position = c.InParty && _positions.TryGetValue(c.Id, out int position) ? position : -1,
 					Equipment = (int[])c.Equipment.Clone(),
 					Abilities = new List<int>(c.Abilities), Spells = new List<int>(c.Spells),
+					CommandSlots = c.CommandSlots != null ? (int[])c.CommandSlots.Clone() : null, DecantLevel = c.DecantLevel, HpPlus = c.HpPlus, MpPlus = c.MpPlus,
 				});
 			}
 			foreach (OpenFF.Data.ItemStack stack in p.Inventory) s.Items.Add(new[] { stack.ItemId, stack.Count });
@@ -182,6 +186,10 @@ namespace OpenFF.Client
 				if (sc.Equipment != null) for (int i = 0; i < 5 && i < sc.Equipment.Length; i++) c.Equipment[i] = sc.Equipment[i];
 				c.Abilities.Clear(); if (sc.Abilities != null) c.Abilities.AddRange(sc.Abilities);
 				c.Spells.Clear(); if (sc.Spells != null) c.Spells.AddRange(sc.Spells);
+				c.CommandSlots = sc.CommandSlots != null && sc.CommandSlots.Length == 7 ? (int[])sc.CommandSlots.Clone() : null;
+				c.DecantLevel = sc.DecantLevel;
+				c.HpPlus = sc.HpPlus;
+				c.MpPlus = sc.MpPlus;
 			}
 			List<SavedCharacter> lineUp = s.Roster.FindAll(r => r.Slot >= 0);
 			lineUp.Sort((a, b) => a.Slot.CompareTo(b.Slot));
@@ -237,6 +245,7 @@ namespace OpenFF.Client
 				_positions[type] = position >= 0 && position < 5 && !_positions.ContainsValue(position) ? position : Math.Max(0, FreePosition());
 			}
 			Character c = Party.Get(type);
+			if (c != null) Ff4Augments.DefaultLayout(c);   // _global.c AddPartyPC: initializeDefaultCommand on every join
 			Log.Write(LogChannel.General, "party: " + (c?.Name ?? ("type " + type)) + (joined ? " joins - " : " could not join - ") + Party.Members.Count + " in the party");
 		}
 

@@ -30,6 +30,13 @@ namespace OpenFF.Data
 		public int[] Equipment { get; } = new int[5];
 		public List<int> Abilities { get; } = new List<int>();
 		public List<int> Spells { get; } = new List<int>();
+		/// <summary>FF4: the battle command slots (PlayerAbilityManager list 2: five chosen, then Defend and Swap Rows) - null until laid out.</summary>
+		public int[] CommandSlots { get; set; }
+		/// <summary>FF4: the augments it has been given (the player save's decant level, +0x01).</summary>
+		public int DecantLevel { get; set; }
+		/// <summary>FF4: HP +50% / MP +50% applied to the maximums now (so they come off again when the augment leaves its slot).</summary>
+		public bool HpPlus { get; set; }
+		public bool MpPlus { get; set; }
 		/// <summary>Position in the line-up, or -1 when not in the party.</summary>
 		public int Slot { get; set; } = -1;
 		public bool InParty => Slot >= 0;

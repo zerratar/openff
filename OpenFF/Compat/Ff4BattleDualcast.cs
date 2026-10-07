@@ -33,7 +33,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>isUseMagic and, picking Dualcast's second, isCanUseDoubleMagic: both costs within the MP.</summary>
-		private bool SpellAffordable(SpellDefinition spell) => _acting != null && _acting.Mp >= spell.MpCost + (_dualcast && _dualFirst != null ? _dualFirst.MpCost : 0);
+		private bool SpellAffordable(SpellDefinition spell) => _acting != null && _acting.Mp >= MpCostOf(_acting, spell) + (_dualcast && _dualFirst != null ? MpCostOf(_acting, _dualFirst) : 0);
 
 		/// <summary>A spell and its target picked: decided - or, Dualcast's first, kept and the list again for the second.</summary>
 		private void DecideSpell(Fighter who, SpellDefinition spell, Action cast)

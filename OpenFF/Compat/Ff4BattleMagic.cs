@@ -22,7 +22,7 @@ namespace OpenFF.Client
 			Acted(caster, spell.Id, targets.ToArray());
 			_lastSpell = spell;
 			_casting = null;
-			if (caster.Member != null) caster.Member.Mp = Math.Max(0, caster.Member.Mp - spell.MpCost);
+			if (caster.Member != null) caster.Member.Mp = Math.Max(0, caster.Member.Mp - MpCostOf(caster, spell));
 			if (!TrySummon(caster, spell, targets)) ShowSpell(caster, spell, targets, invoked);
 			if (spell.School == OpenFF.Data.MagicSchool.Song && UsableUnder(caster, spell.Id)) StartSong(caster, spell);
 			caster.Gauge = 0f;
@@ -150,7 +150,7 @@ namespace OpenFF.Client
 			int lead = invoked ? 0 : _isCounter ? CounterLead : CastLead;
 			// Reflect (BattleCalculation::calcMagic): a target that reflects it takes nothing and shows Reflect's effect;
 			// for each, someone of the other side from it, at random, takes the spell instead.
-			List<Fighter> reflectors = targets.FindAll(t => Reflects(t, spell));
+			List<Fighter> reflectors = Augment(caster, Ff4Augments.PiercingMagic) ? new List<Fighter>() : targets.FindAll(t => Reflects(t, spell));   // isReflect: Piercing Magic
 			Dictionary<Fighter, int> bounced = new Dictionary<Fighter, int>();
 			foreach (Fighter r in reflectors)
 			{
