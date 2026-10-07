@@ -32,6 +32,20 @@ namespace OpenFF.Client
 			public int Icon = -1;
 		}
 
+		/// <summary>A line of figures: its word and its value (Strength 13).</summary>
+		public sealed class StatRow
+		{
+			public string Label = "", Value = "";
+		}
+
+		/// <summary>An equipment slot: its word (Right, Head...), what is worn there and its symbol.</summary>
+		public sealed class SlotRow
+		{
+			public bool Lit;
+			public string Label = "", Name = "";
+			public int Icon = -1;
+		}
+
 		public sealed class ScrollData
 		{
 			public bool Shown, Knob;
@@ -51,6 +65,11 @@ namespace OpenFF.Client
 			public ScrollData ItemScroll = new ScrollData(), SpellScroll = new ScrollData();
 			public List<MemberRow> Target = Rows<MemberRow>(5);
 			public MemberRow Head = new MemberRow();
+			// Status: the member's job, figures, experience and what they wear.
+			public bool Status;
+			public string Job = "", ExpLabel = "EXP", Exp = "", NextLabel = "For next level", Next = "", AbilitiesLabel = "Abilities";
+			public List<StatRow> Stat = Rows<StatRow>(11);
+			public List<SlotRow> Slot = Rows<SlotRow>(5);
 			public string Thought = "", Location = "", Gil = "", GilLabel = "Gil";
 			public string LvLabel = "Lv", HpLabel = "HP", MpLabel = "MP", Confirm = "Confirm", Back = "Back";
 			public string QuestionText = "", YesLabel = "Yes", NoLabel = "No";

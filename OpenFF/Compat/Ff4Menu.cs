@@ -557,7 +557,9 @@ namespace OpenFF.Client
 					if (Ff4MenuHud.Available) { DrawRootLayout(); break; }
 					DrawRoot(d);
 					break;
-				case Screen.Status: DrawStatus(d); break;
+				case Screen.Status:
+					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
+					DrawStatus(d); break;
 				case Screen.Inventory:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawInventory(d);
@@ -670,6 +672,7 @@ namespace OpenFF.Client
 			h.Full = true;
 			h.Inventory = _screen == Screen.Inventory;
 			h.Magic = _screen == Screen.Magic;
+			h.Status = _screen == Screen.Status;
 			h.LvLabel = T(50401, "Lv");
 			h.HpLabel = T(50410, "HP");
 			h.MpLabel = T(50411, "MP");
@@ -707,15 +710,7 @@ namespace OpenFF.Client
 			{
 				h.Title = T(50003, "Magic");
 				Character c = Member;
-				Ff4MenuHud.MemberRow head = h.Head;
-				head.Present = true;
-				head.Name = c.Name;
-				head.Level = c.Level.ToString();
-				head.Hp = c.Hp.ToString();
-				head.MaxHp = c.MaxHp.ToString();
-				head.Mp = c.Mp.ToString();
-				head.MaxMp = c.MaxMp.ToString();
-				head.Face = c.Id;
+				FillHead(h.Head, c);
 				List<int> spells = SpellsShown();
 				for (int k = 0; k < h.Spell.Count; k++)
 				{
@@ -738,7 +733,62 @@ namespace OpenFF.Client
 				List<OpenFF.Data.MagicSchool> schools = SchoolsOf(c);
 				h.SchoolLabel = schools.Count > 1 ? SchoolName(schools[(schools.IndexOf(_school) + 1) % schools.Count]) : "";
 			}
+			if (h.Status)
+			{
+				Character c = Member;
+				h.Title = T(50005, "Status");
+				FillHead(h.Head, c);
+				h.Job = tables?.Character(c.Id)?.ClassName ?? "";
+				// The figures in MenuLayout_Status's order: the five attributes, then attack, accuracy, defence, evasion and
+				// the magic pair.
+				OpenFF.Data.Stats st = c.StatsWith(tables);
+				int weapon = Ff4Battle.Weapon(c, tables);
+				(uint text, int value)[] figures =
+				{
+					(50420, st.Strength), (50421, st.Agility), (50422, st.Vitality), (50423, st.Intellect), (50424, st.Spirit),
+					(50425, Math.Max(1, weapon > 0 ? weapon : st.Strength / 2)), (50426, weapon > 0 ? Ff4Battle.WeaponHit(c, tables) : 90),
+					(50427, Ff4Battle.Armour(c, tables)), (50428, Ff4Battle.Evasion(c, tables)), (50429, Ff4Battle.MagicArmour(c, tables)), (50430, 0),
+				};
+				for (int k = 0; k < h.Stat.Count; k++)
+				{
+					h.Stat[k].Label = T(figures[k].text);
+					h.Stat[k].Value = figures[k].value.ToString();
+				}
+				h.ExpLabel = T(50451, "EXP");
+				h.Exp = c.Experience.ToString();
+				h.NextLabel = T(50402, "For next level");
+				h.Next = NextLevel(c).ToString();
+				h.AbilitiesLabel = T(50011, "Abilities");
+				FillSlots(h.Slot, c, -1);
+			}
 			Ff4MenuHud.Draw(h);
+		}
+
+		private static void FillHead(Ff4MenuHud.MemberRow head, Character c)
+		{
+			head.Present = true;
+			head.Name = c.Name;
+			head.Level = c.Level.ToString();
+			head.Hp = c.Hp.ToString();
+			head.MaxHp = c.MaxHp.ToString();
+			head.Mp = c.Mp.ToString();
+			head.MaxMp = c.MaxMp.ToString();
+			head.Face = c.Id;
+			head.Low = c.Alive && c.Hp * 4 <= c.MaxHp;
+		}
+
+		/// <summary>What <paramref name="c"/> wears into the five slot rows; <paramref name="lit"/> the slot the hand is on.</summary>
+		private static void FillSlots(List<Ff4MenuHud.SlotRow> rows, Character c, int lit)
+		{
+			for (int i = 0; i < rows.Count; i++)
+			{
+				int id = c.Equipment[i];
+				ItemDefinition item = id != 0 ? Ff4Party.Tables?.Item(id) : null;
+				rows[i].Label = SlotName(i);
+				rows[i].Name = id != 0 ? item?.Name ?? ("item " + id) : "";
+				rows[i].Icon = item?.Icon ?? -1;
+				rows[i].Lit = i == lit;
+			}
 		}
 
 		/// <summary>The party's five places into <paramref name="rows"/>; <paramref name="lit"/> the member the hand is on.</summary>
