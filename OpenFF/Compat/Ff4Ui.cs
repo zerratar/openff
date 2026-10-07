@@ -218,9 +218,11 @@ namespace OpenFF.Client
 			return true;
 		}
 
-		/// <summary>The glove, its fingertip at (x, y); the pressed one while a choice is being confirmed.</summary>
+		/// <summary>The glove, its fingertip at (x, y); the pressed one while a choice is being confirmed. It bobs as cursor.NANR's
+		/// sequence 0 has it - 4 frames where it is, 4 frames 2 pixels to the right (Steam's frames: 7 at 1080p, 4 and 4).</summary>
 		public static bool Glove(DrawList d, float x, float y, bool pressed = false)
 		{
+			if (!pressed && (LegacyStep.Count / 4) % 2 == 1) x += 4f * Scale;   // 2 DS pixels: 4 of the glove art's (drawn at twice the DS size)
 			LookForSteamArt();
 			if (_steamPointer != null)
 			{
