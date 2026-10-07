@@ -383,6 +383,11 @@ internal static partial class GlobalScope
 					return true;
 				}
 
+				public int getMotNum()
+				{
+					return m_MotNum;
+				}
+
 				public bool isMotion(uint motIdx)
 				{
 					for (int i = 0; i < MOTION_MAX; i++)

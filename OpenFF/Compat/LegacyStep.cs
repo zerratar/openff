@@ -40,6 +40,7 @@ namespace OpenFF.Client
 				GlDiag.ArmBurst(_burstDraws);
 			}
 			if (!GameProfile.IsFf4) return;
+			Ff4CharacterMoves.Tick();
 			Ff4CameraMotion.Tick();
 			Ff4EventCamera.Tick();
 			Ff4Cutscene.Tick();

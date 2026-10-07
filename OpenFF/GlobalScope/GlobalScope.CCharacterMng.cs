@@ -717,6 +717,12 @@ internal static partial class GlobalScope
 			}
 		}
 
+		/// <summary>How many motions the character has (CCharacterMng::getMotionNum).</summary>
+		public int getMotionNum(int ctrl)
+		{
+			return isValidCharacter(ctrl) ? Character[ctrl].motSet.getMotNum() : 0;
+		}
+
 		public bool isMotion(int ctrl, int index)
 		{
 			if (!isValidCharacter(ctrl))

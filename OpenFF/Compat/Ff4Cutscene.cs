@@ -201,6 +201,7 @@ namespace OpenFF.Client
 			// the field's hero waits unseen until the scene ends.
 			Guard("scene clip", () => GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera().setClip(2 * 4096, 4096 * 4096));
 			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(true));
+			_heroHiddenByScene = true;
 			// EventCamera::initializeDefaultParameter: the scene part starts at a 30-degree FOV; the
 			// script's eventCameraSetFovyMove changes it from there, the camera motions never do.
 			Guard("scene fov", Ff4CameraMotion.SceneStarted);
@@ -221,6 +222,7 @@ namespace OpenFF.Client
 			Ff4CameraMotion.Stop();
 			Guard("scene clip", () => GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera().setClip(40960, 2048000));
 			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(false));
+			_heroHiddenByScene = false;
 			Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up (step " + LegacyStep.Count + ")");
 			ScriptCommands.ReportDropped("scene " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
@@ -1546,12 +1548,21 @@ namespace OpenFF.Client
 			catch (Exception ex) { Log.Write(LogChannel.General, "script: FF4 cutscene " + what + ": " + ex.Message); }
 		}
 
+		/// <summary>Whether a story scene hid the hero (StartEvent) and has not shown them again.</summary>
+		private static bool _heroHiddenByScene;
+
 		/// <summary>Leaving the map: the scene's characters go with it.</summary>
 		public static void MapLeft()
 		{
 			_nextBattle = null;
 			_slots.Clear();
-			try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
+			// The hero comes back only from a story scene left halfway (it hid them); a map's own event that hid them
+			// (DisplayCharacter 0 at its start, as the castle's arrival does) shows them again itself.
+			if (_heroHiddenByScene)
+			{
+				try { EngineApi.HeroPlayer?.setHidden(false); } catch (Exception) { }
+				_heroHiddenByScene = false;
+			}
 			ScriptCommands.ReportDropped("map " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
 			_binds.Clear();   // the characters go with the map; nothing to delete
 			_active = false;
@@ -1562,6 +1573,7 @@ namespace OpenFF.Client
 			_sePlayed.Clear();
 			foreach (int slot in new List<int>(_plates.Keys)) ReleasePlate(slot);
 			Ff4CameraMotion.MapLeft();
+			Ff4CharacterMoves.MapLeft();
 			// ReturnMap survives: it is where the chain of scene maps ends up.
 		}
 	}

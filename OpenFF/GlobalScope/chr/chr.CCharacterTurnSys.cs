@@ -196,6 +196,11 @@ internal static partial class GlobalScope
 				m_Fixed = _Fixed;
 			}
 
+			public bool isFixed()
+			{
+				return m_Fixed;
+			}
+
 			public void setFrame(int _Frame)
 			{
 				m_Frame = _Frame;

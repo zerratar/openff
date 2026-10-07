@@ -103,6 +103,8 @@ namespace OpenFF.Client
 				}
 				if (_game == null || (!_game.IsActive && Injected.Count == 0 && !InjectedStick.HasValue))
 				{
+					// Nothing is held: what an overlay left held is let go (unfocused, a drive's next key would read as held still).
+					_heldFromOverlay = 0;
 					return 0;
 				}
 				int bits = RawPadBits();
