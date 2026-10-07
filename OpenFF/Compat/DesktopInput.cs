@@ -397,6 +397,13 @@ namespace OpenFF.Client
 		public static int BeginFrame()
 		{
 			DisplaySettings.Poll(_game, GlobalScope.m_Graphics?.GetGraphicsDeviceManager());
+			// A story scene being skipped runs through behind its black screen as fast as the game goes: libff4 passes
+			// over the scene's own waits, but the plain ones (waitCommand) still count frames.
+			if (GameProfile.IsFf4 && Ff4Cutscene.EventSkipping)
+			{
+				GlobalScope.boost = 1;
+				return FramePacer.MostSpeed;
+			}
 			bool fast = _game != null && _game.IsActive && (Keyboard.GetState().IsKeyDown(Keys.Tab) || GamePadFast());
 			GlobalScope.boost = fast ? 1 : 0;
 			// The player's speed (quality of life, F8) under Tab's: that many of the game's steps each frame.
@@ -447,7 +454,7 @@ namespace OpenFF.Client
 
 		/// <summary>True while something other than the game owns input: a text field, the mod list, a mod that captured it (Game.Input.Capture), or the debug overlay's free camera flying.</summary>
 		private static bool IsTyping =>
-			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || PauseMenu.IsOpen || AbilitiesMenu.IsOpen || UpdateScreen.IsOpen || GameFilesScreen.IsOpen || EngineInput.Captured || FreeCamera.Active;
+			(TextEntry.Instance != null && TextEntry.Instance.IsActive) || ModListScreen.IsOpen || PauseMenu.IsOpen || AbilitiesMenu.IsOpen || UpdateScreen.IsOpen || GameFilesScreen.IsOpen || EngineInput.Captured || FreeCamera.Active || SceneSkip.PromptOpen;
 
 		private static void UpdateMouse()
 		{

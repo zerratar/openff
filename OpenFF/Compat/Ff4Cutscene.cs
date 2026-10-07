@@ -74,6 +74,9 @@ namespace OpenFF.Client
 			{ "btl_SetLightForCharacter", SetLight },           // as ce_SetLightForCharacter
 			{ "btl_SetLightEnableForCharacter", CastLightEnable },   // (slot, light 0..3 on/off)
 			{ "ce_StartEvent", StartEvent },                 // ()
+			{ "ce_SetSkip", SetSkip },                       // (state): the scene may be skipped from here (SceneSkip asks)
+			{ "ce_StopSkip", StopSkip },                     // (): a section's skip ends here
+			{ "ce_EventSkipJump", EventSkipJump },           // (label): a skip jumps on to the label
 			{ "ce_EndEvent", EndEvent },                     // ()
 			{ "ce_SetupCharacter", SetupCharacter },         // (slot, model, texture)
 			{ "ce_SetCharecterAsync", SetCharacterAsync },   // (slot, model, texture, ?)
@@ -163,7 +166,7 @@ namespace OpenFF.Client
 		/// </summary>
 		public static readonly HashSet<string> Quiet = new HashSet<string>(StringComparer.Ordinal)
 		{
-			"ce_SetSkip", "ce_StopSkip", "ce_EventSkipJump", "ce_VoiceSkipOn",   // skipping a scene on a press
+			"ce_VoiceSkipOn",                                                    // a voice's own skip (nothing to skip here)
 			"ce_setSound", "ce_CleanupBGM", "ce_StopBGM_Streaming",             // BGM resource bookkeeping
 			"ce_SetupSE", "ce_CleanupSE",                                        // SE bank bookkeeping
 			"ce_CleanupMap",                                                     // the scene's stage unloads with the map here
@@ -210,6 +213,11 @@ namespace OpenFF.Client
 		private static void EndEvent(GlobalScope.ScriptEngine engine)
 		{
 			_active = false;
+			// EventConteManager's cleanup: the skip state goes with the scene. A skipped scene's own fade-in was passed
+			// over; unless a battle or a map follows (each fades itself in), the field comes back from black.
+			bool skipped = EventSkipping || EventSkip == 3;
+			EventSkip = 0;
+			EventSkipping = false;
 			Ff4CameraMotion.Stop();
 			Guard("scene clip", () => GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera().setClip(40960, 2048000));
 			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(false));
@@ -228,6 +236,101 @@ namespace OpenFF.Client
 				string map = ReturnMap;
 				ReturnMap = null;
 				JumpTo(map, ReturnPosition);
+				return;
+			}
+			if (skipped)
+			{
+				GlobalScope.dgs.CFade.Main().fadeIn(15);
+				GlobalScope.dgs.CFade.Sub().fadeIn(15);
+			}
+		}
+
+		// ---- skipping a scene (EventConteManager +0x5fa / +0x5fb; SceneSkip asks) ----
+
+		/// <summary>EventConteManager +0x5fa: 0 the scene cannot be skipped, 1 or 2 it can (ce_SetSkip), 3 a skip asked and fading out.</summary>
+		public static int EventSkip;
+
+		/// <summary>EventConteManager +0x5fb: the scene runs through, the commands that look at the flag passing over their
+		/// work and their waits (PassedWhileSkipping).</summary>
+		public static bool EventSkipping;
+
+		private static void SetSkip(GlobalScope.ScriptEngine engine)
+		{
+			EventSkip = engine.getByte();
+			Log.Write(LogChannel.File, "script: FF4 scene skip state " + EventSkip);
+		}
+
+		/// <summary>babilCommand_CE_StopSkip: in state 1 a skip that was running stops here.</summary>
+		private static void StopSkip(GlobalScope.ScriptEngine engine)
+		{
+			if (EventSkip == 1 && EventSkipping)
+			{
+				EventSkipping = false;
+				Log.Write(LogChannel.General, "script: FF4 scene skip stops at " + engine.getPC());
+			}
+		}
+
+		/// <summary>babilCommand_CE_EventSkipJump: while skipping, on to the label.</summary>
+		private static void EventSkipJump(GlobalScope.ScriptEngine engine)
+		{
+			uint to = engine.getDword();
+			if (EventSkipping) engine.jump(to);
+		}
+
+		/// <summary>The commands libff4 makes do nothing while a scene is skipped (each reads its operands and looks at
+		/// EventConteManager +0x5fb before it shows, moves, plays or waits): passed over here the same way.</summary>
+		private static readonly HashSet<string> PassedNames = new HashSet<string>(StringComparer.Ordinal)
+		{
+			"fadeIn", "fadeOut", "endMessage", "startMessage", "messageWait", "vramRefresh",
+			"bootEffect_AbsoluteCoordination", "bootEffect_RelativeCoordination_Foolow", "pauseEffect", "setEffect_Scale",
+			"effectFollow", "effectFollowCamera", "playEffectEx",
+			"ce_StartMotion", "ce_PlayCameraMotion", "ce_WaitTillEndOfCameraMotion", "ce_WaitTillEndOfMotion",
+			"ce_SetLightEnableForCharacter", "ce_SetShadingMode", "ce_ShowMessageWindow", "ce_MapStartMotion",
+			"ce_StartVoice", "ce_StartVoice2", "ce_EndVoice", "ce_EndMotionCharacter", "ce_setTelopMassage",
+			"ce_setPosition", "ce_setRotation", "ce_SetCharecterAsync", "ce_SetMotionAsync", "ce_WaitSetCharacter",
+			"ce_WaitSetMotion", "ce_CallProgram", "ce_CallProgParam", "ce_SetPauseMotion", "ce_PlaySE", "ce_SetMapAsysnc",
+			"ce_AsysncMapSetUp", "ce_setFrameWait", "ce_PlaySE_slot", "ce_setScale", "ce_SetBindObject2",
+			"ce_BindObjectVisiblity", "ce_ShadowSetting", "ce_ShadowVisiblity", "ce_ShadowOffset", "ce_AutoRotation",
+			"ce_CharaAlpha",
+		};
+
+		private static bool[] _passed;
+
+		/// <summary>Whether FF4's command <paramref name="opcode"/> does nothing while a scene is skipped.</summary>
+		public static bool PassedWhileSkipping(uint opcode)
+		{
+			if (_passed == null)
+			{
+				OpenFF.Script.ScriptOpTable table = OpenFF.Script.ScriptOpTable.Ff4;
+				bool[] passed = new bool[table.Count];
+				HashSet<string> found = new HashSet<string>(StringComparer.Ordinal);
+				for (int i = 0; i < table.Count; i++)
+				{
+					OpenFF.Script.ScriptOp op = table.Get(i);
+					string name = op != null ? OpenFF.Script.ScriptOpTable.Simplify(op.Name) : null;
+					if (name != null && PassedNames.Contains(name)) { passed[i] = true; found.Add(name); }
+				}
+				foreach (string name in PassedNames)
+					if (!found.Contains(name)) Log.Write(LogChannel.General, "script: scene skip: no FF4 command " + name);
+				_passed = passed;
+			}
+			return opcode < _passed.Length && _passed[opcode];
+		}
+
+		/// <summary>A command's operands read and let go, as its handler would read them.</summary>
+		public static void ReadOperands(GlobalScope.ScriptEngine engine, uint opcode)
+		{
+			OpenFF.Script.ScriptOp op = OpenFF.Script.ScriptOpTable.Ff4.Get((int)opcode);
+			if (op == null) return;
+			foreach (OpenFF.Script.Operand o in op.Operands)
+			{
+				switch (o)
+				{
+					case OpenFF.Script.Operand.Byte: engine.getByte(); break;
+					case OpenFF.Script.Operand.Word: engine.getWord(); break;
+					case OpenFF.Script.Operand.Dword: engine.getDword(); break;
+					case OpenFF.Script.Operand.String: engine.getString(); break;
+				}
 			}
 		}
 
@@ -1090,6 +1193,9 @@ namespace OpenFF.Client
 		{
 			if (VoicePlaying) engine.suspendRedo();
 		}
+
+		/// <summary>The scene's voice cut (a skip).</summary>
+		public static void StopSceneVoice() => StopVoice();
 
 		private static void StopVoice()
 		{

@@ -61,6 +61,7 @@ namespace OpenFF.Client
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Menu());
 			// FF4's logos and title are parts of the game's loop; what they show is drawn here (Ff4Title).
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Title.Screen());
+			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new SceneSkip());
 			// ... and the OpenFF battle for FF4 (Ff4Battle), on the unified party and monsters.
 			if (GameProfile.IsFf4) OpenFF.Game.Services.Register(new Ff4Battle());
 			// FF4's shops are drawn by the engine from the unified tables (Ff4Shop); FF3 keeps its own screen.

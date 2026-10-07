@@ -305,6 +305,11 @@ namespace OpenFF.Client
 				{
 					case NewGame:
 						Se(1);
+						// A new game starts from nothing: the save file the engine read at boot (its last slot, a test's party
+						// in it) is not this game's. FF4's initForNewgame: Cecil alone, no flags.
+						Ff4Saves.Pending = null;
+						Ff4Party.NewGame();
+						if (GlobalScope.flags != null) Array.Clear(GlobalScope.flags);
 						Leave(GlobalScope.GAMEPART.GAMEPART_DEBUG_MENU, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_WHITE);
 						break;
 					case Load:

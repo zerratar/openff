@@ -98,7 +98,7 @@ namespace OpenFF.Client
 			KeyboardState keys = Keyboard.GetState();
 			bool esc = Down(keys, Keys.Escape);
 			if (!esc) _escForGameMenu = false;
-			else if ((ModMenus.GameMenuUp || MoviePlayer.Current != null) && !IsOpen) _escForGameMenu = true;   // a movie's Esc skips it
+			else if ((ModMenus.GameMenuUp || MoviePlayer.Current != null || SceneSkip.Skippable || SceneSkip.PromptOpen) && !IsOpen) _escForGameMenu = true;   // a movie's or a skippable scene's Esc is theirs
 			if (esc && !_escForGameMenu) return true;
 			// The pad's own Start, as the defaults have it: a rebinding is for the game, not for this menu.
 			bool start = (DesktopInput.PadOnlyBits(defaultPad: true) & 8) != 0;

@@ -70,6 +70,12 @@ namespace OpenFF.Client
 					table[opcode](engine);
 					return;
 				}
+				// A scene being skipped: the commands that look at libff4's skip flag pass over their work and their waits.
+				if (Ff4Cutscene.EventSkipping && Ff4Cutscene.PassedWhileSkipping(opcode))
+				{
+					Ff4Cutscene.ReadOperands(engine, opcode);
+					return;
+				}
 				// FF4 scripts feed FF3's handlers FF4 data (item ids, table indices the FF3 tables do
 				// not have): a handler that throws is logged once and the script goes on.
 				try
