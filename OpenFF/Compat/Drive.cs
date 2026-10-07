@@ -353,6 +353,16 @@ namespace OpenFF.Client
 					catch (Exception ex) { Log.Write(LogChannel.General, "drive: learn failed: " + ex.Message); }
 					break;
 				}
+				case "augment":
+				{
+					// A command learned as an augment: "augment 0 17" (Dualcast to the first member).
+					string[] bits = step.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+					if (bits.Length < 2 || !int.TryParse(bits[0], out int slot) || !int.TryParse(bits[1], out int ability)) { Log.Write(LogChannel.General, "drive: augment wants <member> <ability id>"); break; }
+					OpenFF.Data.Character who = slot >= 0 && slot < Ff4Party.Party.Members.Count ? Ff4Party.Party.Members[slot] : null;
+					if (who != null && !who.Abilities.Contains(ability)) who.Abilities.Add(ability);
+					Log.Write(LogChannel.File, "drive: augment " + ability + " on " + (who?.Name ?? "no one"));
+					break;
+				}
 				case "job":
 				{
 					// A party member's job through the API: "job 0 Evoker" (a name as definitions write it, or its number).

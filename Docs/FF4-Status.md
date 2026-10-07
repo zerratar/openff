@@ -110,8 +110,10 @@ and shows passed by - Steam's fade, black and fade in frame for frame). The mons
 (BattleEnemyPlayer, battle_parameter chain 7: the Dark Knight, Kain, the Bard, the Girl, Yang): the player model and
 motions, the table's weapons, a member's Fight (Steam's Dark Knight: 11 frames of poise, his first swing 95),
 Darkness with its close-up and chant (b_pa_018 - a member's Darkness lacked it too), Kain's Jump (b_pa_016 / 017,
-bound for members now as well), the kneel when weak but for the Dark Knight, the KO motion. Not FF4's yet: Dualcast
-(no member has it), the battle modes' other cases, the Config menu's battle speed.
+bound for members now as well), the kneel when weak but for the Dark Knight, the KO motion. Dualcast (an augment
+command learned - ability ids under 256 in a member's abilities are commands): the dual list (White then Black Magic),
+the second pick within the MP both cost, the MP shown less the first's, the two back to back (counters after);
+the spells' chant motions 4004 / 4005 (b_pa_005, initializeMagic) bound for every caster. Not FF4's yet: the Config menu's battle speed (--ff4-battle-speed for now), augments learned in play (no augment system - the drive's `augment` grants one), hit reactions.
 
 ## Menus - 15%
 

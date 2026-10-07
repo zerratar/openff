@@ -104,6 +104,7 @@ namespace OpenFF.Client
 					Darkness(foe);
 					return true;
 				case CmdFocus:
+					AbilityMotions(foe, "b_pa_021");
 					Focus(foe);
 					return true;
 				default:

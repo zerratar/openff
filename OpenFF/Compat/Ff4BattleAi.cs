@@ -251,7 +251,7 @@ namespace OpenFF.Client
 					counters.Add((who, counter));
 				}
 			}
-			_queue.InsertRange(0, counters);
+			_queue.InsertRange(_queue.Count > 0 && _dualSecond != null && _queue[0].Act == _dualSecond ? 1 : 0, counters);   // after Dualcast's second half
 		}
 	}
 }

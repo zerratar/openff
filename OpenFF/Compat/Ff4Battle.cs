@@ -45,6 +45,8 @@ namespace OpenFF.Client
 		internal static List<int> CommandList(Character c)
 		{
 			HashSet<int> learned = new HashSet<int>(c.Definition.CommandsAt(c.Level));
+			// An augment learned (an ability id that is a command - Dualcast's 17): a command as the level's are.
+			foreach (int id in c.Abilities) if (id > 0 && id < 256) learned.Add(id);
 			List<int> list = new List<int>();
 			foreach (int id in new[] { 1, 2 }) if (learned.Contains(id)) list.Add(id);
 			for (int id = 4; id < 256 && list.Count < 5; id++)
@@ -66,7 +68,7 @@ namespace OpenFF.Client
 			CmdFlee => Command.Run,
 			CmdDefend => Command.Defend,
 			CmdItems => Command.Item,
-			CmdBlackMagic or CmdWhiteMagic or CmdSummon or CmdBardsong or CmdNinjutsu => Command.Magic,
+			CmdBlackMagic or CmdWhiteMagic or CmdSummon or CmdBardsong or CmdNinjutsu or CmdDualcast => Command.Magic,
 			CmdDarkness => Command.Darkness,
 			CmdSwapRows => Command.SwapRows,
 			CmdJump => Command.Jump,
@@ -872,6 +874,8 @@ namespace OpenFF.Client
 				{
 					_command = CommandOf(commands[_cursor]);
 					Fighter who = _acting;
+					_dualcast = commands[_cursor] == CmdDualcast;
+					_dualFirst = null;
 					if (_command == Command.Defend) { who.Braced = false; Defend(who); Instant(who); return; }   // decideAbility: flag 3, the gauge empty, no action
 					if (_command == Command.SwapRows) { Decide(who, () => Invoke(who, 46, () => SwapRows(who)), 0, 46); return; }
 					if (_command == Command.Darkness) { Decide(who, () => Darkness(who), 0, 32); return; }
@@ -893,6 +897,7 @@ namespace OpenFF.Client
 							SpellDefinition spell = tables.Spell(id);
 							if (spell != null && spell.School == school) _spellChoices.Add(id);
 						}
+						if (_dualcast) DualcastChoices();
 						foreach (int id in _acting.Member.Abilities)
 						{
 							SpellDefinition spell = id >= 1500 ? tables.Spell(id) : null;
@@ -939,7 +944,7 @@ namespace OpenFF.Client
 						bool all = (Ff4Party.Tables.AbilityTargets(item) & 0x4) != 0;   // ability.bbd: the item's own targets (a Bomb Fragment: all foes)
 						Decide(who, () => UseCastItem(who, item, casts, all ? _foes.FindAll(f => f.Alive && !OutOfFight(f)) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }), ItemWait(item), item);
 					}
-					else if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }), SpellWait(spell), spell.Id);
+					else if (spell != null) DecideSpell(who, spell, () => Cast(who, spell, spell.HitsAll ? _foes.FindAll(f => f.Alive) : new List<Fighter> { foe.Alive ? foe : FirstAlive(_foes) }));
 					else if (_command == Command.Jump) Decide(who, () => Invoke(who, CmdJump, () => JumpStart(who, foe)), 0, CmdJump);
 					else if (_abilityCmd != 0) AbilityOnFoe(who, foe);
 					else Decide(who, () => MemberAttacks(who, foe), 0, 1);
@@ -949,12 +954,13 @@ namespace OpenFF.Client
 			if (_pick == Pick.Spell)
 			{
 				GridMove(input, _spellChoices.Count);
+				if (input.Pressed(Pad.B) && _dualFirst != null) { _dualFirst = null; return; }   // the second pick let go: the first again
 				if (input.Pressed(Pad.B)) { _pick = Pick.Command; _cursor = Math.Max(0, Commands.FindIndex(id => CommandOf(id) == Command.Magic)); return; }
 				if (input.Pressed(Pad.A))
 				{
 					SpellDefinition spell = Ff4Party.Tables.Spell(_spellChoices[_cursor]);
 					if (spell == null || !spell.UsableInBattle) return;
-					if (_acting.Mp < spell.MpCost) { Say("Not enough MP for " + spell.Name + "."); return; }
+					if (!SpellAffordable(spell)) { Say("Not enough MP for " + spell.Name + "."); return; }
 					_casting = spell;
 					if (Helps(spell)) { _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
 					else { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
@@ -975,7 +981,7 @@ namespace OpenFF.Client
 					Fighter who = _acting, ally = _party[_cursor];
 					SpellDefinition spell = _casting;
 					int item = _usingItem;
-					if (spell != null) Decide(who, () => Cast(who, spell, spell.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { ally }), SpellWait(spell), spell.Id);
+					if (spell != null) DecideSpell(who, spell, () => Cast(who, spell, spell.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { ally }));
 					else if (_castItem > 0 && CastOf(_castItem) is SpellDefinition casts) { _castItem = 0; Decide(who, () => UseCastItem(who, item, casts, casts.HitsAll ? new List<Fighter>(_party) : new List<Fighter> { ally }), ItemWait(item), item); }
 					else Decide(who, () => UseItem(who, item, ally), ItemWait(item), item);
 				}
@@ -2449,7 +2455,7 @@ namespace OpenFF.Client
 					c.Name = spell?.Name ?? "?";
 					c.Icon = Ff4Party.Tables.AbilityIcon(list[i]);
 					c.Value = "";
-					c.Can = spell != null && spell.UsableInBattle && _acting.Mp >= spell.MpCost;
+					c.Can = spell != null && spell.UsableInBattle && SpellAffordable(spell);
 				}
 				else
 				{
@@ -2463,7 +2469,7 @@ namespace OpenFF.Client
 			g.Two = g.Shown && ListColumns == 2;
 			for (int k = ListColumns * ListRows; k < g.Cell.Count; k++) g.Cell[k].Present = false;
 			g.ShowMp = g.Shown && _pick == Pick.Spell;
-			if (g.ShowMp) { g.Mp = _acting.Mp; g.MaxMp = _acting.Member.MaxMp; }
+			if (g.ShowMp) { g.Mp = _acting.Mp - (_dualFirst?.MpCost ?? 0); g.MaxMp = _acting.Member.MaxMp; }   // getUseDoubleMagicMp: the first pick's cost off
 			(g.Title, g.Line1, g.Line2) = equipping ? ("", "", "")
 				: g.Shown && _cursor >= 0 && _cursor < list.Count ? ListDescription(list[_cursor]) : ("", "", "");
 			g.EquipStats = false;
