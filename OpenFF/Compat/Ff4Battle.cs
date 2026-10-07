@@ -2311,7 +2311,7 @@ namespace OpenFF.Client
 
 		private void Glove(DrawList d, float x, float y, bool pressed = false)
 		{
-			if (Ff4Ui.Glove(d, x, y, pressed)) return;
+			if (Ff4Ui.Glove(d, x, y, pressed, 4)) return;
 			for (int i = 0; i < 6; i++) d.Rect(x - 14 + 2 * i, y - 6 + i, 2, 12 - 2 * i, Color.White);
 		}
 

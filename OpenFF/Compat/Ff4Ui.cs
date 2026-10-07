@@ -223,10 +223,11 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>The glove, its fingertip at (x, y); the pressed one while a choice is being confirmed. It bobs as cursor.NANR's
-		/// sequence 0 has it - 4 frames where it is, 4 frames 2 pixels to the right (Steam's frames: 7 at 1080p, 4 and 4).</summary>
-		public static bool Glove(DrawList d, float x, float y, bool pressed = false)
+		/// sequence 0 has it - where it is, then 2 pixels to the right (7 at 1080p), each pose <paramref name="poseFrames"/> of
+		/// the game's 30 a second: Steam's battle holds each 4 frames, its title and menus 8 (ff4hook's frames, both).</summary>
+		public static bool Glove(DrawList d, float x, float y, bool pressed = false, int poseFrames = 8)
 		{
-			if (!pressed && (LegacyStep.Count / 4) % 2 == 1) x += 4f * Scale;   // 2 DS pixels: 4 of the glove art's (drawn at twice the DS size)
+			if (!pressed && (LegacyStep.Count / poseFrames) % 2 == 1) x += 4f * Scale;   // 2 DS pixels: 4 of the glove art's (drawn at twice the DS size)
 			LookForSteamArt();
 			if (_steamPointer != null)
 			{
@@ -312,7 +313,7 @@ namespace OpenFF.Client
 		public static void RegisterLayoutCells()
 		{
 			LayoutScreen.Cells["cursor"] = (d, i, x, y, s, crop, t) => Cell(d, CursorBank, CursorSheet, i, x, y, Scale * s, t);
-			LayoutScreen.Cells["glove"] = (d, i, x, y, s, crop, t) => Glove(d, x, y, i == 1);
+			LayoutScreen.Cells["glove"] = (d, i, x, y, s, crop, t) => Glove(d, x, y, i == 1, 4);   // the battle HUD's
 			LayoutScreen.Cells["gauge"] = GaugeCell;
 			LayoutScreen.Cells["symbol"] = SymbolCell;
 			LayoutScreen.Cells["battle-icon"] = BattleIconCell;

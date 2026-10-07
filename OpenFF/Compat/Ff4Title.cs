@@ -106,7 +106,9 @@ namespace OpenFF.Client
 				FadeOut(0);
 				_state = 0;
 				_frames = 0;
-				_logo = "se_logo";
+				// The logo comes up only once the screens are black: fadeOut(0) takes hold on the fade's next step, and
+				// the first frames would show it at full brightness before its fade-in.
+				_logo = null;
 				_showing = Showing.Logo;
 			}
 
@@ -155,7 +157,7 @@ namespace OpenFF.Client
 				switch (_state)
 				{
 					case 0:
-						if (Faded) { FadeIn(DefaultFade); _state = 1; }
+						if (Faded) { _logo = "se_logo"; FadeIn(DefaultFade); _state = 1; }
 						break;
 					case 1:
 					case 3:
