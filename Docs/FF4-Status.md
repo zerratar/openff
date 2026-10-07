@@ -101,9 +101,11 @@ window, the lists' icons, Re-equip, the target card's elements, Skip, the battle
 (world::attackType's roll by the dash and the party's level against the area's, an event's own): a preemptive
 strike's "!" over the monsters and the party's full gauges, a back attack's swapped rows, the party turned away under
 the "!" and then turning (Steam's 18 + 16 frames), a surprise, a boss's back attack after its entrance; the
-formation put back as the battle ends. Not FF4's yet: Dualcast (no member has it), a summon's own model-animation pack
-(the Chocobo's parts), the summons whose stages animate, skipping a summon, enemy-player commands, the battle modes'
-other cases, the Config menu's battle speed.
+formation put back as the battle ends. The summons' custom casts (setCharacterWithTextureAndAnimation: the Chocobo on
+the monster model with its own visibility pack - its blinks) and the stage commands (BTL_SetMapMotion, MapStartMotion,
+StartMapAnimation on the summon's stage), the casts' lights, the animations' loop flag; the cast camera's 2..8192 clip
+no longer overridden by the battle camera's (the Chocobo's eye close-up as Steam's). Not FF4's yet: Dualcast (no member
+has it), skipping a summon, enemy-player commands, the battle modes' other cases, the Config menu's battle speed.
 
 ## Menus - 15%
 

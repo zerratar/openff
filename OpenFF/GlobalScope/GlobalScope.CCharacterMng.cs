@@ -285,7 +285,13 @@ internal static partial class GlobalScope
 			return setCharacterImp(charaName, texName, pri);
 		}
 
-		public int setCharacterImp(string pCharaName, string pTexName, PRI_SCENE pri)
+		/// <summary>The model with another model-animation pack (a summon scene's custom cast: sm1505_m093 on the Bomb's m093).</summary>
+		public int setCharacterWithTextureAndAnimation(string charaName, string texName, string anmName, PRI_SCENE pri)
+		{
+			return setCharacterImp(charaName, texName, pri, anmName);
+		}
+
+		public int setCharacterImp(string pCharaName, string pTexName, PRI_SCENE pri, string pAnmName = null)
 		{
 			string arg = "";
 			sprintf(out arg, "%s", getModelLocate(pCharaName));
@@ -303,7 +309,7 @@ internal static partial class GlobalScope
 			}
 			initValue(num2);
 			sprintf(out Character[num2].name, "%s", pCharaName);
-			num = objectDataMng.setData(pCharaName, async: false);
+			num = objectDataMng.setData(pCharaName, async: false, pAnmName);
 			if (num == -1)
 			{
 				FS_ChangeDir("/");
@@ -1123,6 +1129,12 @@ internal static partial class GlobalScope
 		public void enableLight(int ctrl)
 		{
 			NNS_G3dMdlSetMdlLightEnableFlagAll(Character[ctrl].modelSet.getMdlResource(), 15);
+		}
+
+		/// <summary>PORT: CCharacterMng::enableLight(idx, flags) - the model's materials lit by the lights whose bits are set (0..15).</summary>
+		public void enableLight(int ctrl, uint flags)
+		{
+			if (isValidCharacter(ctrl)) NNS_G3dMdlSetMdlLightEnableFlagAll(Character[ctrl].modelSet.getMdlResource(), (int)(flags & 15));
 		}
 
 		public void disableLight(int ctrl)

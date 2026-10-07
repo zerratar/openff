@@ -57,7 +57,9 @@ internal static partial class GlobalScope
 			}
 		}
 
-		public int setData(string mdlname, bool async)
+		/// <summary>PORT: <paramref name="anmname"/>, when given, is the model-animation pack loaded in place of the model's own
+		/// (CCharacterMng::setCharacterWithTextureAndAnimation: a summon scene's monster with its /ANIMATION/BATTLE/SUMMON pack).</summary>
+		public int setData(string mdlname, bool async, string anmname = null)
 		{
 			uint num = (uint)searchNullIndex();
 			if (-1 == (int)num)
@@ -72,7 +74,7 @@ internal static partial class GlobalScope
 			string arg2 = "";
 			string arg3 = "";
 			sprintf(out arg, "%s.nmdp.lz", mdlname);
-			sprintf(out arg2, "%s.namp.lz", mdlname);
+			sprintf(out arg2, "%s.namp.lz", anmname ?? mdlname);
 			sprintf(out arg3, "%s.nsbtx.lz", mdlname);
 			if (async)
 			{

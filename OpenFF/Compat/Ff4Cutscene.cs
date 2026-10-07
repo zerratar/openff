@@ -66,6 +66,12 @@ namespace OpenFF.Client
 			{ "btl_SetMap", CastSetMap },                      // (stage)
 			{ "btl_CleanupMap", CastCleanupMap },              // ()
 			{ "btl_SetupCharacterCustom", CastSetupCustom },   // (slot, model, texture, animation pack)
+			{ "btl_SetCharecterAsyncCustom", CastSetupCustomAsync },   // (slot, model, texture, animation pack, ?)
+			{ "btl_SetMapMotion", CastSetMapMotion },           // (?, pack): the summon stage's motions
+			{ "btl_MapStartMotion", CastMapStartMotion },       // (motion, loop, ?, blend)
+			{ "btl_StartMapAnimation", CastStartMapAnimation }, // (index, type): one of the stage's .namp animations
+			{ "btl_SetLightForCharacter", SetLight },           // as ce_SetLightForCharacter
+			{ "btl_SetLightEnableForCharacter", CastLightEnable },   // (slot, light 0..3 on/off)
 			{ "ce_StartEvent", StartEvent },                 // ()
 			{ "ce_EndEvent", EndEvent },                     // ()
 			{ "ce_SetupCharacter", SetupCharacter },         // (slot, model, texture)
@@ -319,13 +325,62 @@ namespace OpenFF.Client
 
 		private static void CastCleanupMap(GlobalScope.ScriptEngine engine) => Ff4Battle.Instance?.CastStage(null);
 
-		/// <summary>BTL_SetupCharacterCustom: the model with another model-animation pack (its parts shown and hidden) - the pack is not bound yet; the model as a plain cast.</summary>
+		/// <summary>BTL_SetupCharacterCustom: the model with another model-animation pack (setCharacterWithTextureAndAnimation:
+		/// /ANIMATION/BATTLE/SUMMON's sm1505_m093 on the Bomb's m093 - its texture, material and visibility animations).</summary>
 		private static void CastSetupCustom(GlobalScope.ScriptEngine engine)
 		{
 			int slot = engine.getByte();
 			string model = engine.getString(), texture = engine.getString(), animation = engine.getString();
-			Log.First(LogChannel.File, "cast-custom-" + animation, 1, () => "script: " + model + "'s animation pack " + animation + " not bound yet - every part shown");
-			Setup(slot, model, texture);
+			Setup(slot, model, texture, animation);
+		}
+
+		/// <summary>BTL_SetCharecterAsyncCustom: as BTL_SetupCharacterCustom, loaded over the async frames.</summary>
+		private static void CastSetupCustomAsync(GlobalScope.ScriptEngine engine)
+		{
+			_asyncLoadedBy = Math.Max(_asyncLoadedBy, SceneFrame) + AsyncLoadFrames;
+			int slot = engine.getByte();
+			string model = engine.getString(), texture = engine.getString(), animation = engine.getString();
+			engine.getDword();
+			Setup(slot, model, texture, animation);
+		}
+
+		// The summon's stage (BTL_SetMap): CStageMng's in FF4, here the model Ff4Battle.CastStage stands up - its motions
+		// and its .namp animations (sm1505_00's scrolling sky) driven through the character manager.
+		private static void CastSetMapMotion(GlobalScope.ScriptEngine engine)
+		{
+			engine.getDword();
+			string name = engine.getString();
+			int ctrl = Ff4Battle.Instance?.CastStageCharacter ?? -1;
+			if (ctrl >= 0) Guard("stage motion " + name, () => Characters.addMotion(ctrl, name));
+		}
+
+		private static void CastMapStartMotion(GlobalScope.ScriptEngine engine)
+		{
+			int id = (int)engine.getDword();
+			int loop = engine.getByte();
+			engine.getDword();
+			uint blend = engine.getDword();
+			int ctrl = Ff4Battle.Instance?.CastStageCharacter ?? -1;
+			if (ctrl >= 0) Guard("stage motion " + id, () => Characters.startMotion(ctrl, (int)GameProfile.FieldMotionId((uint)id), loop != 0, blend));
+		}
+
+		private static void CastStartMapAnimation(GlobalScope.ScriptEngine engine)
+		{
+			uint index = engine.getDword();
+			int type = engine.getByte();
+			int ctrl = Ff4Battle.Instance?.CastStageCharacter ?? -1;
+			if (ctrl < 0 || type < 0 || type > 3) return;
+			Log.Write(LogChannel.File, "script: FF4 stage animation " + index + " (type " + type + ")");
+			Guard("stage animation " + index, () => Characters.startAnimation(ctrl, index, (GlobalScope.ds.sys3d.CAnimSet.enTYPE)type, 0));
+		}
+
+		/// <summary>BTL_SetLightEnableForCharacter(slot, l0, l1, l2, l3): the cast lit by those lights (enableLight's bits).</summary>
+		private static void CastLightEnable(GlobalScope.ScriptEngine engine)
+		{
+			int slot = engine.getByte();
+			uint flags = 0;
+			for (int i = 0; i < 4; i++) if (engine.getByte() != 0) flags |= 1u << i;
+			if (Slot(slot, out int ctrl)) Guard("light enable", () => Characters.enableLight(ctrl, flags));
 		}
 
 		private static void SetupCharacter(GlobalScope.ScriptEngine engine)
@@ -361,7 +416,7 @@ namespace OpenFF.Client
 			Setup(slot, model, texture);
 		}
 
-		private static void Setup(int slot, string model, string texture)
+		private static void Setup(int slot, string model, string texture, string animation = null)
 		{
 			try
 			{
@@ -371,7 +426,10 @@ namespace OpenFF.Client
 					_slots.Remove(slot);
 				}
 				GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad();
-				int ctrl = Characters.setCharacterWithTexture(model, string.IsNullOrEmpty(texture) ? model : texture, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
+				string tex = string.IsNullOrEmpty(texture) ? model : texture;
+				int ctrl = string.IsNullOrEmpty(animation)
+					? Characters.setCharacterWithTexture(model, tex, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST)
+					: Characters.setCharacterWithTextureAndAnimation(model, tex, animation, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
 				if (ctrl < 0)
 				{
 					ctrl = Characters.setCharacter(model, GlobalScope.CCharacterMng.PRI_SCENE.PRI_SCENE_FIRST);
@@ -388,7 +446,7 @@ namespace OpenFF.Client
 				// Cecil and the four soldiers only); setupCharacter's default disc would otherwise stand
 				// under every cast, and at the origin under one not yet placed.
 				Characters.setShadowVisible(ctrl, false);
-				Log.Write(LogChannel.File, "script: FF4 cutscene slot " + slot + " = " + model + " (" + texture + ") as character " + ctrl);
+				Log.Write(LogChannel.File, "script: FF4 cutscene slot " + slot + " = " + model + " (" + texture + (string.IsNullOrEmpty(animation) ? "" : ", animations " + animation) + ") as character " + ctrl);
 			}
 			catch (Exception ex)
 			{
@@ -424,16 +482,20 @@ namespace OpenFF.Client
 			Guard("pause animation", () => Characters.setPause(ctrl, on != 0, (GlobalScope.ds.sys3d.CAnimSet.enTYPE)type));
 		}
 
-		/// <summary>ce_StartAnimation(slot, index, type, ?): starts animation `index` of the given kind from its first frame; the last byte is kept in the log until its meaning is read.</summary>
+		/// <summary>ce_StartAnimation / BTL_StartAnimation(slot, index, type, loop): starts animation `index` of the given kind from its first frame, looping or not (CCharacterMng::setLoop).</summary>
 		private static void StartAnimation(GlobalScope.ScriptEngine engine)
 		{
 			int slot = engine.getByte();
 			uint index = engine.getDword();
 			int type = engine.getByte();
-			int extra = engine.getByte();
+			int loop = engine.getByte();
 			if (!Slot(slot, out int ctrl) || type < 0 || type > 3) return;
-			if (extra != 0) Log.Write(LogChannel.File, "script: FF4 ce_StartAnimation(" + slot + ", " + index + ", " + type + ", " + extra + "): the last operand is not read");
-			Guard("start animation", () => Characters.startAnimation(ctrl, index, (GlobalScope.ds.sys3d.CAnimSet.enTYPE)type, 0));
+			Log.Write(LogChannel.File, "script: FF4 start animation " + index + " (type " + type + (loop != 0 ? ", looping" : "") + ") on slot " + slot);
+			Guard("start animation", () =>
+			{
+				Characters.startAnimation(ctrl, index, (GlobalScope.ds.sys3d.CAnimSet.enTYPE)type, 0);
+				Characters.setLoop(ctrl, loop != 0, (GlobalScope.ds.sys3d.CAnimSet.enTYPE)type);
+			});
 		}
 
 		// ---- bind objects (ce_SetBindObject*): a model, or another cast, held at a cast's joint ----

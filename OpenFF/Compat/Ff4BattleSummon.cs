@@ -60,6 +60,9 @@ namespace OpenFF.Client
 					if (model != null && !model.Hidden) { model.Hidden = true; _summonHidden.Add(model); }
 			_summonScene = true;
 			Ff4Cutscene.CastEnded = false;
+			// The battle camera let go (registerCameraToScene puts the cast's in its place): held, it would put its own
+			// 10..2000 clip over the cast camera's every frame - the Chocobo's eye close-up, 1 unit off, cut away.
+			Ff4EventCamera.Release();
 			// The cast camera's clip, 2 to 8192 (its field of view the scene's own prelude sets).
 			try { GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera()?.setClip(2 * 4096, 8192 * 4096); } catch (Exception) { }
 			_summonMap = StartCastScript(scene);
@@ -168,6 +171,9 @@ namespace OpenFF.Client
 			_help = text ?? "(message " + message + ")";
 			_helpUntil = -1;
 		}
+
+		/// <summary>The summon stage's character (the map commands' target), -1 when none stands.</summary>
+		public int CastStageCharacter => _castStage is LegacyNpc stage ? stage.CharacterId : -1;
 
 		/// <summary>BTL_SetMap / CleanupMap: the battle stage away and the summon's stage up (as a model at the origin), or that gone.</summary>
 		public void CastStage(string stage)
