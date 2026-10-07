@@ -101,3 +101,13 @@
 #abilities #autoCommand .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 43.9px, #667dc4 43.9px, #667dc4 67.5px, #4a5daa 67.5px, #4a5daa 100%); }
 /* A command picked up to be moved: its name yellow until it is set down. */
 #abilities .m-cell.picked .m-cell-name { color: #ffe86e; }
+
+/* Gambits: the rule's condition red for a foe, blue for an ally or the member; ON yellow; an empty or switched-off rule
+   grey; the rule being set yellow while its choice is picked. The picker's choices take the same colours. */
+#gambits .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 40.5px, #667dc4 40.5px, #667dc4 64.1px, #4a5daa 64.1px, #4a5daa 100%); }
+#gambits .m-rule.foe .m-condition, #gambits .m-cell.foe .m-cell-name { color: #ffaaaa; }
+#gambits .m-rule.ally .m-condition, #gambits .m-cell.ally .m-cell-name { color: #a8c4ff; }
+#gambits .m-cell.gold .m-cell-name { color: #ffe86e; }
+#gambits .m-rule.on .m-state { color: #ffe86e; }
+#gambits .m-rule.off .m-cell-name, #gambits .m-rule.off .m-cell-count { color: #808080; }
+#gambits .m-rule.picked .m-cell-name, #gambits .m-rule.picked .m-cell-count { color: #ffe86e; }

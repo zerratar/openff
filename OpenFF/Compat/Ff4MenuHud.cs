@@ -27,9 +27,16 @@ namespace OpenFF.Client
 		/// <summary>A cell of a list (an item, a spell): its symbol's cell, its name, how many.</summary>
 		public sealed class CellRow
 		{
-			public bool Present, Lit, Dim;
+			public bool Present, Lit, Dim, Foe, Ally, Gold;
 			public string Name = "", Count = "";
 			public int Icon = -1;
+		}
+
+		/// <summary>A gambit: its number, ON / OFF, its condition and its action; which of its three cells the hand is on.</summary>
+		public sealed class RuleRow
+		{
+			public bool Foe, Ally, On, Off, Picked, LitOn, LitCondition, LitAction;
+			public string Number = "", State = "", Condition = "", Action = "";
 		}
 
 		/// <summary>A line of figures: its word and its value (Strength 13).</summary>
@@ -79,6 +86,12 @@ namespace OpenFF.Client
 			public bool Abilities;
 			public SlotRow Auto = new SlotRow();
 			public string AutoLabel = "Auto-Battle Command", CommandsLabel = "Battle Commands";
+			// Gambits: six of the member's twelve rules, and the picker's choices (two columns, six rows).
+			public bool Gambits, GambitPicking;
+			public List<RuleRow> Rule = Rows<RuleRow>(6);
+			public ScrollData RuleScroll = new ScrollData(), PickScroll = new ScrollData();
+			public List<CellRow> Pick = Rows<CellRow>(12);
+			public string MoveUpLabel = "Move Up";
 			public string Thought = "", Location = "", Gil = "", GilLabel = "Gil";
 			public string LvLabel = "Lv", HpLabel = "HP", MpLabel = "MP", Confirm = "Confirm", Back = "Back";
 			public string QuestionText = "", YesLabel = "Yes", NoLabel = "No";

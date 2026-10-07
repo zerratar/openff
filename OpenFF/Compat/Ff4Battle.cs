@@ -1043,7 +1043,7 @@ namespace OpenFF.Client
 		}
 
 		/// <summary>A spell cast on one's own side: healing, reviving, or a white spell that grants something.</summary>
-		private static bool Helps(SpellDefinition spell)
+		internal static bool Helps(SpellDefinition spell)
 		{
 			if (spell.School == OpenFF.Data.MagicSchool.Song || spell.School == OpenFF.Data.MagicSchool.Ninjutsu)
 				return spell.Raw != null && spell.Raw.Length > 0x20 && ((spell.Raw[0x20] & 0x08) != 0 || spell.Raw[0x20] == 0x50 || spell.Raw[0x20] == 0x51);   // magic_parameter +0x20: 0x19 the party, 0x50 / 0x51 self and allies

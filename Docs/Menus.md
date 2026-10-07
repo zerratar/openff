@@ -532,7 +532,8 @@ The client keeps `field_hud` as it last built it (`OpenFF/Compat/FieldHud.cs`), 
 ## Screens the client draws itself
 
 Some screens are the client's from the start, not the game's: FF4's battle HUD is the first, FF4's
-field message window (`ff4_field_hud`) the second. They are
+field message window (`ff4_field_hud`) the second, FF4's field menu (`ff4_menu`: the root, Inventory, Magic,
+Equipment, Abilities, Status and OpenFF's Gambits, each screen a frame bound to `menu.<screen>`) the third. They are
 the same kind of data - a `<menu>` of frames, Crystal Style Sheets, bindings - but nothing is patched
 into an `.xbn`: the client reads the layout and draws it itself (`OpenFF/Compat/LayoutScreen.cs`).
 

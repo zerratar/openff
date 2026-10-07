@@ -26,14 +26,15 @@ using OpenFF.Data;
 
 namespace OpenFF.Client
 {
-	internal sealed class Ff4Menu : GameService
+	internal sealed partial class Ff4Menu : GameService
 	{
-		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Party, Save, Load, Quicksave }
+		private enum Screen { Root, Status, Inventory, Equipment, Magic, Abilities, Gambits, Party, Save, Load, Quicksave }
 		private enum Mode { Browse, PickMember, EquipSlot, EquipItem, ItemTarget, SwapMember }
 
 		private sealed class Command
 		{
 			public uint Text;
+			public string Name;   // OpenFF's own command (Gambits): its word, no message of the game's
 			public Screen Screen;
 			public bool NeedsMember;
 			public bool Later;   // named but not built: a notice instead
@@ -109,7 +110,10 @@ namespace OpenFF.Client
 					case 50002: _commands.Add(new Command { Text = id, Screen = Screen.Inventory }); break;
 					case 50003: _commands.Add(new Command { Text = id, Screen = Screen.Magic, NeedsMember = true }); break;
 					case 50004: _commands.Add(new Command { Text = id, Screen = Screen.Equipment, NeedsMember = true }); break;
-					case 50011: _commands.Add(new Command { Text = id, Screen = Screen.Abilities, NeedsMember = true }); break;
+					case 50011:
+						_commands.Add(new Command { Text = id, Screen = Screen.Abilities, NeedsMember = true });
+						_commands.Add(new Command { Name = "Gambits", Screen = Screen.Gambits, NeedsMember = true });   // OpenFF's auto-battle rules
+						break;
 					case 50005: _commands.Add(new Command { Text = id, Screen = Screen.Status, NeedsMember = true }); break;
 					case 50010: _commands.Add(new Command { Text = id, Screen = Screen.Party }); break;
 					case 50007: _commands.Add(new Command { Text = id, Screen = Screen.Save }); break;
@@ -154,6 +158,7 @@ namespace OpenFF.Client
 				case Screen.Inventory: UpdateInventory(input); break;
 				case Screen.Equipment: UpdateEquipment(input); break;
 				case Screen.Magic:
+				case Screen.Gambits: UpdateGambits(input); break;
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { UpdateAbilities(input); break; }
 					UpdateMemberScreen(input, ListCount()); break;
@@ -221,10 +226,11 @@ namespace OpenFF.Client
 			_cursor = _scroll = 0;
 			_slot = 0;
 			_pick = 0;
+			if (screen == Screen.Gambits) OpenGambits();
 			Log.Write(LogChannel.File, "menu: " + screen + (NeedsMember(screen) ? " of " + Ff4Party.Party.Members[_member].Name : ""));
 		}
 
-		private static bool NeedsMember(Screen s) => s == Screen.Status || s == Screen.Equipment || s == Screen.Magic || s == Screen.Abilities;
+		private static bool NeedsMember(Screen s) => s == Screen.Status || s == Screen.Equipment || s == Screen.Magic || s == Screen.Abilities || s == Screen.Gambits;
 
 		private Character Member => Ff4Party.Party.Members[_member];
 
@@ -616,6 +622,7 @@ namespace OpenFF.Client
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawList(d);
 					break;
+				case Screen.Gambits: DrawScreenLayout(); break;
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawList(d); break;
@@ -672,7 +679,7 @@ namespace OpenFF.Client
 				row.Present = i < _commands.Count;
 				if (!row.Present) continue;
 				Command c = _commands[i];
-				row.Name = T(c.Text);
+				row.Name = c.Name ?? T(c.Text);
 				row.Lit = i == _command && !picking && !_question;
 				row.Disabled = c.Screen == Screen.Save && !SaveAllowed;
 			}
@@ -724,6 +731,8 @@ namespace OpenFF.Client
 			h.Status = _screen == Screen.Status;
 			h.Equipment = _screen == Screen.Equipment;
 			h.Abilities = _screen == Screen.Abilities;
+			h.Gambits = _screen == Screen.Gambits;
+			if (h.Gambits) FillGambits(h);
 			h.LvLabel = T(50401, "Lv");
 			h.HpLabel = T(50410, "HP");
 			h.MpLabel = T(50411, "MP");
@@ -965,7 +974,7 @@ namespace OpenFF.Client
 				int i = _commandScroll + k;
 				float y = 4 + k * ColRow;
 				Window(d, ColX, y, ColW, ColRowH);
-				Centred(d, T(_commands[i].Text), ColX + ColW / 2, y + 20, _commands[i].Later ? Dim : Color.White, 18);
+				Centred(d, _commands[i].Name ?? T(_commands[i].Text), ColX + ColW / 2, y + 20, _commands[i].Later ? Dim : Color.White, 18);
 				if (i == _command && _mode == Mode.Browse) Glove(d, ColX + 40, y + 34);
 			}
 			if (_commands.Count > ColVisible)
