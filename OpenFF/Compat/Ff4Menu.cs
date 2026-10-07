@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenFF;
 using OpenFF.Data;
 
@@ -282,6 +283,26 @@ namespace OpenFF.Client
 		private OpenFF.Data.MagicSchool _school;
 
 		/// <summary>What the Inventory lists: the bag without its key items, or the key items alone (C).</summary>
+		private int _sortMode;
+		private string _sortNote;
+
+		/// <summary>MSSItem::mssiSortNormalItem: the consumables, the weapons and the armour each in their records' order (the
+		/// short at 8, ascending), the three one after another as the order says (seitonTopItem, seitonTopWeapon,
+		/// seitonTopArmer); the key items after them as they were.</summary>
+		private static void SortBag(int order)
+		{
+			List<OpenFF.Data.ItemStack> bag = Ff4Party.Party.Inventory;
+			GameTables tables = Ff4Party.Tables;
+			int Key(OpenFF.Data.ItemStack st) { byte[] r = tables?.Item(st.ItemId)?.Raw; return r != null && r.Length >= 10 ? BitConverter.ToInt16(r, 8) : st.ItemId; }
+			List<OpenFF.Data.ItemStack> Of(ItemKind kind) => bag.Where(st => tables?.Item(st.ItemId)?.Kind == kind).OrderBy(Key).ToList();
+			List<OpenFF.Data.ItemStack> items = Of(ItemKind.Consumable), weapons = Of(ItemKind.Weapon), armour = Of(ItemKind.Armour);
+			List<OpenFF.Data.ItemStack> rest = bag.Where(st => !items.Contains(st) && !weapons.Contains(st) && !armour.Contains(st)).ToList();
+			List<OpenFF.Data.ItemStack>[] groups = order == 1 ? new[] { weapons, armour, items } : order == 2 ? new[] { armour, items, weapons } : new[] { items, weapons, armour };
+			bag.Clear();
+			foreach (List<OpenFF.Data.ItemStack> g in groups) bag.AddRange(g);
+			bag.AddRange(rest);
+		}
+
 		private List<OpenFF.Data.ItemStack> Bag()
 		{
 			List<OpenFF.Data.ItemStack> bag = new List<OpenFF.Data.ItemStack>();
@@ -334,7 +355,18 @@ namespace OpenFF.Client
 		private void UpdateInventory(InputState input)
 		{
 			IReadOnlyList<OpenFF.Data.ItemStack> items = Bag();
+			if (input.Pressed(Pad.Up) || input.Pressed(Pad.Down) || input.Pressed(Pad.Left) || input.Pressed(Pad.Right) || input.Pressed(Pad.A) || input.Pressed(Pad.X)) _sortNote = null;
 			if (_mode == Mode.Browse && input.Pressed(Pad.X)) { _keyItems = !_keyItems; _cursor = _scroll = 0; return; }   // C: Key Items
+			if (_mode == Mode.Browse && !_keyItems && input.KeyPressed("Tab"))
+			{
+				// Tab: MSSItem's Sort - the line for the order (50110 consumables, 50111 weapons, 50112 armour at the top), the
+				// bag sorted so, and the next press the next order.
+				_sortNote = T((uint)(50110 + _sortMode));
+				SortBag(_sortMode);
+				_sortMode = (_sortMode + 1) % 3;
+				_cursor = _scroll = 0;
+				return;
+			}
 			if (_mode == Mode.ItemTarget)
 			{
 				int n = Ff4Party.Party.Members.Count;
@@ -804,7 +836,7 @@ namespace OpenFF.Client
 				Ff4MenuHud.Scroll(h.ItemScroll, (items.Count + 1) / 2, 7, _scroll / 2, 675f, true);
 				ItemDefinition picked = _cursor < items.Count ? tables?.Item(items[_cursor].ItemId) : null;
 				if (h.Using) picked = tables?.Item(_usingItem);
-				h.Help = picked?.Caption ?? "";
+				h.Help = !h.Using && _sortNote != null ? _sortNote : picked?.Caption ?? "";
 				h.UseName = picked?.Name ?? "";
 				h.UseIcon = picked?.Icon ?? -1;
 				if (h.Using) h.ItemScroll.Shown = false;   // the party's places take the list's window, with no bar

@@ -127,7 +127,7 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | | State |
 | --- | --- |
 | Root | The nine commands in MENU_LAYOUT's order with the scroll bar, the place and the gil, the key hints, the member panel's five places, the lead's thought in its balloon (babil_speculation.bbd's line for where the story stands). The place as WSMenu::wsmGetSavePointIndex names it (babil_savepoint.bbd: "Baron Castle", not the plate's "- 1F"). Open: the lead's 3D model, the world map's area names (tables compiled into the game). |
-| Inventory | Two columns with the items' symbols, greyed by the record's field-use flag as WSCMenu::checkItem (Red Fang); key items on C; using an item on the party's places; status cures cure. Open: Sort (Tab). |
+| Inventory | Two columns with the items' symbols, greyed by the record's field-use flag as WSCMenu::checkItem (Red Fang); key items on C; using an item on the party's places; status cures cure; Sort (Tab) as MSSItem's - consumables, weapons or armour at the top in turn, each in its records' order. |
 | Magic | The member between arrows, the spell's cost and line from babil_ability.msd, three columns, C for the next school, Z / M to change member. Casting from the menu follows the old path. |
 | Equipment | The member's figures, the lit piece's line, the five slots and what in the bag fits the lit one; C removes, Tab optimizes. Open: the figures' before / after comparison. |
 | Abilities | The auto-battle command and the five battle commands; Enter picks one up and swaps it with another. Open: the auto-battle command's own list (libff4's abilityIDList 5), choosing from a list. |
