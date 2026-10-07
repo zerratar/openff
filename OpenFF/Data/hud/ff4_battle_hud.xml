@@ -143,7 +143,10 @@
       </frame>
     </frame>
 
-    <!-- A foe being picked: the foes in the command window's place, the picked one's card in the party's. -->
+    <!-- A target being picked: that side's targets in the command window's place ("Target All" after them when the ability
+         may spread; "V Switch to All / Solo" over them), the picked one's card in the party's. -->
+    <frame class="key-cap" bind-display="battle.switchShown"><id>switch_key</id><x>150</x><y>615</y><width>52</width><height>52</height><data>V</data></frame>
+    <frame class="key-label" bind-display="battle.switchShown" bind-text="{battle.switchLabel}"><id>switch</id><x>214</x><y>615</y><width>400</width><height>52</height></frame>
     <frame bind-display="battle.targets">
       <id>targets</id>
       <x>150</x><y>677</y><width>450</width><height>400</height>
@@ -176,10 +179,10 @@
       <id>card</id>
       <x>667</x><y>763</y><width>1092</width><height>309</height>
       <frame class="card-name" bind-text="{battle.card.name}"><id>name</id><x>31</x><y>22</y><width>1000</width><height>54</height></frame>
-      <frame class="card-line" bind-text="HP: {battle.card.hp}"><id>hp</id><x>31</x><y>85</y><width>1000</width><height>50</height></frame>
-      <frame class="card-line"><id>weaknesses</id><x>31</x><y>189</y><width>1000</width><height>50</height><data>Weaknesses:</data></frame>
-      <frame class="card-line"><id>absorbs</id><x>31</x><y>252</y><width>1000</width><height>50</height><data>Absorbs:</data></frame>
-      <frame class="card-line" bind-text="{battle.card.weakText}"><id>weaktext</id><x>380</x><y>189</y><width>400</width><height>50</height></frame>
+      <frame class="card-line" bind-display="battle.card.full" bind-text="HP: {battle.card.hp}"><id>hp</id><x>31</x><y>85</y><width>1000</width><height>50</height></frame>
+      <frame class="card-line" bind-display="battle.card.full"><id>weaknesses</id><x>31</x><y>189</y><width>1000</width><height>50</height><data>Weaknesses:</data></frame>
+      <frame class="card-line" bind-display="battle.card.full"><id>absorbs</id><x>31</x><y>252</y><width>1000</width><height>50</height><data>Absorbs:</data></frame>
+      <frame class="card-line" bind-display="battle.card.full" bind-text="{battle.card.weakText}"><id>weaktext</id><x>293</x><y>189</y><width>400</width><height>50</height></frame>
       <frame data-source="battle.card.weak[0]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak0</id><x>380</x><y>181</y><width>48</width><height>50</height></frame>
       <frame data-source="battle.card.weak[1]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak1</id><x>432</x><y>181</y><width>48</width><height>50</height></frame>
       <frame data-source="battle.card.weak[2]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak2</id><x>484</x><y>181</y><width>48</width><height>50</height></frame>
@@ -188,7 +191,7 @@
       <frame data-source="battle.card.weak[5]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak5</id><x>640</x><y>181</y><width>48</width><height>50</height></frame>
       <frame data-source="battle.card.weak[6]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak6</id><x>692</x><y>181</y><width>48</width><height>50</height></frame>
       <frame data-source="battle.card.weak[7]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>weak7</id><x>744</x><y>181</y><width>48</width><height>50</height></frame>
-      <frame class="card-line" bind-text="{battle.card.absorbText}"><id>absorbtext</id><x>380</x><y>252</y><width>400</width><height>50</height></frame>
+      <frame class="card-line" bind-display="battle.card.full" bind-text="{battle.card.absorbText}"><id>absorbtext</id><x>293</x><y>252</y><width>400</width><height>50</height></frame>
       <frame data-source="battle.card.absorb[0]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb0</id><x>380</x><y>244</y><width>48</width><height>50</height></frame>
       <frame data-source="battle.card.absorb[1]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb1</id><x>432</x><y>244</y><width>48</width><height>50</height></frame>
       <frame data-source="battle.card.absorb[2]" class="card-icon" bind-style="-ff-cell: battle-icon {cell}"><id>absorb2</id><x>484</x><y>244</y><width>48</width><height>50</height></frame>

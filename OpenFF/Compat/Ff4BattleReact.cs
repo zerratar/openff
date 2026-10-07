@@ -80,15 +80,15 @@ namespace OpenFF.Client
 		{
 			HashSet<Fighter> marked = new HashSet<Fighter>();
 			if (_phase != Phase.Fight || _acting == null) return marked;
-			bool all = _casting != null && _casting.HitsAll;
+			bool all = _targetBits != 0 && _targetAll;
 			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count)
 			{
-				if (all) { foreach (Fighter f in _foes) if (f.Alive && !OutOfFight(f)) marked.Add(f); }
+				if (all) { foreach (Fighter f in SideList(true)) marked.Add(f); }
 				else marked.Add(_foes[_cursor]);
 			}
 			else if (_pick == Pick.Ally && _cursor >= 0 && _cursor < _party.Count)
 			{
-				if (all) { foreach (Fighter f in _party) marked.Add(f); }
+				if (all) { foreach (Fighter f in SideList(false)) marked.Add(f); }
 				else marked.Add(_party[_cursor]);
 			}
 			return marked;

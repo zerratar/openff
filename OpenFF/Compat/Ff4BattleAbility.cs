@@ -143,6 +143,7 @@ namespace OpenFF.Client
 		private static void FillCard(CardData card, Fighter f)
 		{
 			card.Shown = f != null;
+			card.Full = true;
 			foreach (IconSlot s in card.Weak) s.Cell = -1;
 			foreach (IconSlot s in card.Absorb) s.Cell = -1;
 			card.WeakText = card.AbsorbText = "";

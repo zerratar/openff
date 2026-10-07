@@ -865,6 +865,7 @@ namespace OpenFF.Client
 				if (input.Pressed(Pad.A))
 				{
 					if (!CommandUsable(_acting, commands[_cursor])) return;   // greyed: nothing
+					EndTargeting();
 					_command = CommandOf(commands[_cursor]);
 					Fighter who = _acting;
 					_dualcast = commands[_cursor] == CmdDualcast;
@@ -874,7 +875,8 @@ namespace OpenFF.Client
 					if (_command == Command.Darkness) { Decide(who, () => Darkness(who), 0, 32); return; }
 					if (_command == Command.Other && AbilityChosen(who, commands[_cursor])) return;
 					if (_command == Command.Other) { Say(CommandName(commands[_cursor]) + " is not in yet."); return; }
-					if (_command == Command.Fight || _command == Command.Jump) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
+					if (_command == Command.Fight) BeginTargeting(CmdFight);   // Attack: a foe, or a member (ability.bbd 0x32)
+					else if (_command == Command.Jump) { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
 					else if (_command == Command.Magic)
 					{
 						_spellChoices.Clear();
@@ -915,6 +917,7 @@ namespace OpenFF.Client
 				}
 				return;
 			}
+			if ((_pick == Pick.Target || _pick == Pick.Ally) && _targetBits != 0) { UpdateTargeting(input); return; }
 			if (_pick == Pick.Target)
 			{
 				if (input.Pressed(Pad.Left) || input.Pressed(Pad.Up)) _cursor = NextAliveFoe(_cursor, -1);
@@ -955,8 +958,7 @@ namespace OpenFF.Client
 					if (spell == null || !spell.UsableInBattle) return;
 					if (!SpellAffordable(spell)) { Say("Not enough MP for " + spell.Name + "."); return; }
 					_casting = spell;
-					if (Helps(spell)) { _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
-					else { _pick = Pick.Target; _cursor = FirstAliveFoe(); }
+					BeginTargeting(spell.Id, spell.Revives);
 				}
 				return;
 			}
@@ -999,10 +1001,16 @@ namespace OpenFF.Client
 				{
 					// An item that casts at the foes (Red Fang, a Bomb Fragment): the foes picked as for a spell.
 					_usingItem = _castItem = _itemChoices[_cursor];
-					_pick = Pick.Target; _cursor = FirstAliveFoe();
+					BeginTargeting(_usingItem);
 					return;
 				}
-				if (input.Pressed(Pad.A)) { _usingItem = _itemChoices[_cursor]; _castItem = CastOf(_usingItem) != null ? _usingItem : 0; _pick = Pick.Ally; _cursor = _party.IndexOf(_acting); }
+				if (input.Pressed(Pad.A))
+				{
+					_usingItem = _itemChoices[_cursor];
+					_castItem = CastOf(_usingItem) != null ? _usingItem : 0;
+					ItemDefinition used = Ff4Party.Tables.Item(_usingItem);
+					BeginTargeting(_usingItem, used != null && ItemEffect(used)?.Id == 17);   // a Phoenix Down on the fallen
+				}
 			}
 		}
 
@@ -2338,6 +2346,8 @@ namespace OpenFF.Client
 			public GridData Grid = new GridData();
 			public EquipData Equip = new EquipData();
 			public string Message = "";
+			public bool SwitchShown;
+			public string SwitchLabel = "Switch to All";
 			// Steam's ability-name bar (an action's or an item's name): across the top, its icon before it.
 			public bool NameShown;
 			public string Name = "";
@@ -2363,6 +2373,7 @@ namespace OpenFF.Client
 		{
 			public bool Shown;
 			public string Name = "", Hp = "", WeakText = "", AbsorbText = "";
+			public bool Full = true;   // the HP and elements lines (not for "Target All")
 			public List<IconSlot> Weak = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 8), _ => new IconSlot()));
 			public List<IconSlot> Absorb = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Select(System.Linq.Enumerable.Range(0, 8), _ => new IconSlot()));
 		}
@@ -2438,15 +2449,38 @@ namespace OpenFF.Client
 			bool choosing = _acting != null && _pick != Pick.None;
 			h.Panel = (_phase == Phase.Fight || _phase == Phase.Intro) && !_closing && !_summonScene;
 			h.Commands = choosing && _pick == Pick.Command;
-			h.Party = _pick != Pick.Target && _pick != Pick.Spell && _pick != Pick.Item && _pick != Pick.Hand && _pick != Pick.EquipItem;
+			h.Party = _pick != Pick.Target && _pick != Pick.Ally && _pick != Pick.Spell && _pick != Pick.Item && _pick != Pick.Hand && _pick != Pick.EquipItem;
 			h.Keys = _pick != Pick.Spell && _pick != Pick.Item && _pick != Pick.Hand && _pick != Pick.EquipItem;
 			h.Auto = AutoBattle.On;
 			h.Running = _runOn;
 			h.Skip = _acting != null && _ready.Count > 1;
-			h.Targets = choosing && _pick == Pick.Target;
+			h.Targets = choosing && (_pick == Pick.Target || _pick == Pick.Ally);
 			int shownFoe = 0;
 			foreach (TargetRow t in h.Target) t.Present = false;
-			bool all = h.Targets && (_abilityCmd == CmdKick || _abilityCmd == CmdCry || _abilityCmd == CmdAnalyze || _castItem > 0 && (Ff4Party.Tables.AbilityTargets(_castItem) & 0x4) != 0);
+			h.SwitchShown = false;
+			if (h.Targets && (_targetBits != 0 || _pick == Pick.Ally))
+			{
+				// Steam's window: the side's targets, "Target All" after them when the ability may spread; four rows, the
+				// view following the hand. A command's own pick of a member lists the party (or the member alone).
+				bool foesSide = _pick == Pick.Target;
+				List<Fighter> side = _targetBits != 0 ? SideList(foesSide) : SelfOnly(_abilityCmd) ? new List<Fighter> { _acting } : new List<Fighter>(_party);
+				bool spreadRow = _targetBits != 0 && (Forced(foesSide) || CanSpread(foesSide));
+				int rows = side.Count + (spreadRow ? 1 : 0);
+				int lit = _targetAll ? side.Count : Math.Max(0, side.IndexOf(TargetUnderCursor()));
+				int top = Math.Clamp(lit - (h.Target.Count - 1), 0, Math.Max(0, rows - h.Target.Count));
+				for (int k = 0; k < h.Target.Count && top + k < rows; k++)
+				{
+					int rr = top + k;
+					TargetRow t = h.Target[k];
+					t.Present = true;
+					t.Name = rr < side.Count ? side[rr].Name : "Target All";
+					t.Sub = rr < side.Count && foesSide && _casting == null && _castItem == 0 && _abilityCmd == 0 && _targetAbility == CmdFight ? TargetLine(_acting, side[rr]) : "";
+					t.Lit = rr == lit && (!_targetAll || rr == side.Count);
+				}
+				h.SwitchShown = _targetBits != 0 && !Forced(foesSide) && CanSpread(foesSide);
+				h.SwitchLabel = _targetAll ? "Switch to Solo" : "Switch to All";
+			}
+			bool all = h.Targets && _targetBits == 0 && _pick == Pick.Target && (_abilityCmd == CmdKick || _abilityCmd == CmdCry || _abilityCmd == CmdAnalyze || _castItem > 0 && (Ff4Party.Tables.AbilityTargets(_castItem) & 0x4) != 0);
 			if (all)
 			{
 				// Steam: one row, "Target All", over the card of the foe the hand is on.
@@ -2456,7 +2490,7 @@ namespace OpenFF.Client
 				t.Sub = "";
 				t.Lit = true;
 			}
-			for (int i = 0; i < _foes.Count && shownFoe < h.Target.Count && h.Targets && !all; i++)
+			for (int i = 0; i < _foes.Count && shownFoe < h.Target.Count && h.Targets && !all && _targetBits == 0 && _pick == Pick.Target; i++)
 			{
 				Fighter f = _foes[i];
 				if (!f.Alive) continue;
@@ -2469,9 +2503,9 @@ namespace OpenFF.Client
 			// Steam's card: the picked foe's name and HP, which it keeps hidden until the foe is studied.
 			// Steam's card: the picked one's name, HP and elements - a monster's kept hidden until it is analyzed, a member's
 			// HP with "None" (the target window on allies too).
-			Fighter carded = h.Targets && _cursor >= 0 && _cursor < _foes.Count ? _foes[_cursor]
-				: choosing && _pick == Pick.Ally && _cursor >= 0 && _cursor < _party.Count ? _party[_cursor] : null;
-			FillCard(h.Card, carded);
+			Fighter carded = h.Targets ? TargetUnderCursor() : null;
+			FillCard(h.Card, _targetAll && h.Targets ? null : carded);
+			if (_targetAll && h.Targets) { h.Card.Shown = true; h.Card.Name = "Target All"; h.Card.Full = false; }   // Steam's card for all: the words alone
 			GridData g = h.Grid;
 			bool equipping = _pick == Pick.Hand || _pick == Pick.EquipItem;
 			g.Shown = choosing && (_pick == Pick.Spell || _pick == Pick.Item || equipping);
@@ -2784,12 +2818,17 @@ namespace OpenFF.Client
 
 			// The picked foe wears the glove, its fingertip on the foe's cursor point (BattleMonster::cursorPosition: its
 			// position and chain 4's offset - Steam's hand on a Goblin at its waist).
-			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count && _foes[_cursor].Npc != null)
+			// Every one the selector marks wears it (all of a side when it is spread); a member at its waist.
+			if (_acting != null && (_pick == Pick.Target || _pick == Pick.Ally))
 			{
-				MonsterDefinition pointed = _foes[_cursor].Monster;
-				Vector3 point = Where(_foes[_cursor]) + (pointed != null ? new Vector3(pointed.CursorX, pointed.CursorY, pointed.CursorZ) : new Vector3(0, 8, 0));
-				Vector2? at = Game.Camera.WorldToScreen(point);
-				if (at.HasValue) Glove(d, at.Value.X, at.Value.Y);
+				foreach (Fighter pointedAt in MarkedTargets())
+				{
+					if (pointedAt.Npc == null) continue;
+					MonsterDefinition pointed = pointedAt.Monster;
+					Vector3 point = Where(pointedAt) + (pointed != null && pointedAt.PlayerType < 0 ? new Vector3(pointed.CursorX, pointed.CursorY, pointed.CursorZ) : new Vector3(0, 8, 0));
+					Vector2? at = Game.Camera.WorldToScreen(point);
+					if (at.HasValue) Glove(d, at.Value.X, at.Value.Y);
+				}
 			}
 
 			// What happened last: FF4's help window at the top, one line.

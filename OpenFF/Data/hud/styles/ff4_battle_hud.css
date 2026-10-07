@@ -69,8 +69,8 @@
 .target-name { color: #f0ec40; font-size: 18px; text-align: center; vertical-align: middle; }
 .target-sub { font-size: 16px; text-align: center; vertical-align: middle; }
 .card { background-color: #373a7180; border: 3px solid #ffffff90; }
-.card-name { color: #f0ec40; font-size: 34px; }
-.card-line { font-size: 31px; }
+.card-name { color: #f0ec40; font-size: 21px; }   /* Steam's: "Rosa" 88 wide, "Weaknesses:" 228 */
+.card-line { font-size: 21px; }
 
 /* The spell and item grid, in FF4's window. */
 .grid, .grid-desc { color: #ffffff; font-size: 31px; text-shadow: 2px 2px #000000a0; }

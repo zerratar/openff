@@ -562,6 +562,9 @@ namespace OpenFF.Data
 		/// <summary>FF4: an ability's (or an item's) targets (ability.bbd +0x26): 0x2 one foe, 0x4 all foes, 0x10 self, 0x50 all allies.</summary>
 		public Dictionary<int, int> AbilityTargetBits = new Dictionary<int, int>();
 		public int AbilityTargets(int id) => AbilityTargetBits.TryGetValue(id, out int t) ? t : 0;
+		/// <summary>FF4: ability.bbd +0x28, the target selector's default type (BattleTargetSelector::setTarget), -1 none.</summary>
+		public Dictionary<int, int> AbilityDefaultTargets = new Dictionary<int, int>();
+		public int AbilityDefaultTarget(int id) => AbilityDefaultTargets.TryGetValue(id, out int t) ? t : -1;
 		public string AbilityHelp(int id) => AbilityHelpIds.TryGetValue(id, out int help) && help > 0 ? AbilityName(help)?.Trim() : null;
 		public int AbilityFlags(int id) => AbilityFlagBits.TryGetValue(id, out int flags) ? flags : 0;
 		public WeaponMotionRecord WeaponMotion(int playerType, int weaponSystem) => WeaponMotions.Find(w => w.PlayerType == playerType && w.WeaponSystem == weaponSystem);
