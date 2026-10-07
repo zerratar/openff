@@ -60,6 +60,9 @@ namespace OpenFF.Client
 					if (model != null && !model.Hidden) { model.Hidden = true; _summonHidden.Add(model); }
 			_summonScene = true;
 			Ff4Cutscene.CastEnded = false;
+			Ff4Cutscene.CastSkip = 0;          // initializeStartEvent
+			Ff4Cutscene.CastSkipping = false;
+			Ff4Cutscene.StopCastSounds(0);
 			// The battle camera let go (registerCameraToScene puts the cast's in its place): held, it would put its own
 			// 10..2000 clip over the cast camera's every frame - the Chocobo's eye close-up, 1 unit off, cut away.
 			Ff4EventCamera.Release();
@@ -75,6 +78,7 @@ namespace OpenFF.Client
 			void Watch()
 			{
 				_summonFrames++;
+				SkipSummon();
 				bool running = false;
 				try { running = GlobalScope.LogicManager.singleton().isEnableLogic((uint)_summonMap, 1) != 0; } catch (Exception) { }
 				if (Ff4Cutscene.CastEnded || !running || _summonFrames > 1800)
@@ -86,6 +90,35 @@ namespace OpenFF.Client
 				After(1, Watch);
 			}
 			After(1, Watch);
+		}
+
+		/// <summary>
+		/// CastEvent::execute's skip: once the scene allows it (BTL_SetSkip 1 or 2), a press or a tap fades both screens to
+		/// black over 15 frames and the scene's sounds out over 30; once black, the scene runs through at once - its
+		/// commands passing their waits and shows (BattleCastManager +0x41) - to BTL_StopSkip, and goes on from there.
+		/// </summary>
+		private void SkipSummon()
+		{
+			if ((Ff4Cutscene.CastSkip == 1 || Ff4Cutscene.CastSkip == 2)
+				&& (Game.Input.Pressed(Pad.A) || Game.Input.Pressed(Pad.B) || Game.Input.PointerReleased))
+			{
+				GlobalScope.dgs.CFade.Main().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+				GlobalScope.dgs.CFade.Sub().fadeOut(15, GlobalScope.dgs.CFade.FADE_TYPE.FADE_TYPE_BLACK);
+				Ff4Cutscene.CastSkip = 3;
+				Ff4Cutscene.StopCastSounds(30);
+				Note("the summon is skipped");
+			}
+			if (Ff4Cutscene.CastSkip == 3 && !Ff4Cutscene.CastSkipping && GlobalScope.dgs.CFade.Main().isFaded()) Ff4Cutscene.CastSkipping = true;
+			if (!Ff4Cutscene.CastSkipping) return;
+			GlobalScope.evt.CEventManager events = GlobalScope.evt.CEventManager.getInstance();
+			int steps = 0;
+			while (Ff4Cutscene.CastSkipping && steps++ < 6000 && !Ff4Cutscene.CastEnded)
+			{
+				try { GlobalScope.TexDivideLoader.getSingleton().tdlForceLoad(); } catch (Exception) { }
+				events.execute();
+				Ff4Cutscene.SkipStep();
+			}
+			if (Ff4Cutscene.CastSkipping) { Log.Write(LogChannel.General, "battle: the summon's skip found no BTL_StopSkip in " + steps + " steps"); Ff4Cutscene.CastSkipping = false; }
 		}
 
 		/// <summary>CastEvent::initialize: s&lt;NN&gt;_00.script registered beside the map's and its cast 1 started (its map number 700 + NN).</summary>

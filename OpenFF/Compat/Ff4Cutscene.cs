@@ -60,8 +60,9 @@ namespace OpenFF.Client
 			{ "btl_SetupSE", ReadDword },                      // (bank): loaded on demand
 			{ "btl_CleanupSE", ReadDword },                    // (bank)
 			{ "btl_PlaySE", CastPlaySe },                      // (bank, number, volume, pan)
-			{ "btl_SetSkip", ReadByte },                       // (on): the skip is not built
-			{ "btl_StopSkip", Nothing },                       // ()
+			{ "btl_SetSkip", CastSetSkip },                    // (state): the scene may be skipped from here
+			{ "btl_StopSkip", CastStopSkip },                  // (): a skip runs through to here
+			{ "allEffectFinishWait", AllEffectFinishWait },   // FF3's, but passed while a summon is skipped
 			{ "btl_SetToonTable", CastToonTable },             // (index)
 			{ "btl_SetMap", CastSetMap },                      // (stage)
 			{ "btl_CleanupMap", CastCleanupMap },              // ()
@@ -291,20 +292,56 @@ namespace OpenFF.Client
 
 		private static void CastEventStart(GlobalScope.ScriptEngine engine) { CastActive = true; CastEnded = false; }
 
+		/// <summary>BattleCastManager +0x40: 0 the scene cannot be skipped, 1 or 2 it can (BTL_SetSkip), 3 a skip asked and fading.</summary>
+		public static int CastSkip { get; set; }
+
+		/// <summary>BattleCastManager +0x41: the scene runs through at once to BTL_StopSkip, its waits and shows passed by.</summary>
+		public static bool CastSkipping { get; set; }
+
+		private static void CastSetSkip(GlobalScope.ScriptEngine engine)
+		{
+			CastSkip = engine.getByte();
+			Log.Write(LogChannel.File, "script: FF4 summon skip state " + CastSkip + " (scene frame " + SceneFrame + ")");
+		}
+
+		private static void CastStopSkip(GlobalScope.ScriptEngine engine)
+		{
+			Log.Write(LogChannel.File, "script: FF4 summon skip stops (state " + CastSkip + ", scene frame " + SceneFrame + ")");
+			if (CastSkip > 1) { CastSkip = 1; CastSkipping = false; }
+		}
+
+		/// <summary>One step of a skipped scene (CastEvent::execute's loop): the scene's frame count moves on with it.</summary>
+		public static void SkipStep() => SceneFrame++;
+
+		private static void AllEffectFinishWait(GlobalScope.ScriptEngine engine)
+		{
+			if (!CastSkipping && 0 < GlobalScope.eff.CEffectMng.instance().getEffectObjectNum()) engine.suspendRedo();
+		}
+
 		private static void CastEventEnd(GlobalScope.ScriptEngine engine) { CastActive = false; CastEnded = true; }
 
 		private static void CastShowHelp(GlobalScope.ScriptEngine engine)
 		{
 			int message = (int)engine.getDword();
-			Ff4Battle.Instance?.CastHelp(message);
+			if (!CastSkipping) Ff4Battle.Instance?.CastHelp(message);
 		}
 
-		private static void CastEraseHelp(GlobalScope.ScriptEngine engine) => Ff4Battle.Instance?.CastHelp(-1);
+		private static void CastEraseHelp(GlobalScope.ScriptEngine engine) { if (!CastSkipping) Ff4Battle.Instance?.CastHelp(-1); }
 
 		private static void CastPlaySe(GlobalScope.ScriptEngine engine)
 		{
 			int bank = (int)engine.getDword(), number = (int)engine.getDword(), volume = (int)engine.getDword(), pan = (int)engine.getDword();
-			Guard("cast se", () => GlobalScope.MatrixSound.MtxSENDS_Play(bank, number, volume, pan));
+			if (CastSkipping) return;
+			Guard("cast se", () => _castSounds.Add(GlobalScope.MatrixSound.MtxSENDS_Play(bank, number, volume, pan)));
+		}
+
+		private static readonly List<GlobalScope.MatrixSound.MtxSEHandle> _castSounds = new List<GlobalScope.MatrixSound.MtxSEHandle>();
+
+		/// <summary>BattleSE::stop(frames): the summon scene's sounds faded out (a skip), the list let go.</summary>
+		public static void StopCastSounds(int frames)
+		{
+			foreach (GlobalScope.MatrixSound.MtxSEHandle h in _castSounds) { try { if (h != null) GlobalScope.MatrixSound.MtxSENDS_Stop(h, frames); } catch (Exception) { } }
+			_castSounds.Clear();
 		}
 
 		/// <summary>BTL_SetToonTable: ToonTable's built-in tables - the summons use 8, all white (32 x 0x7fff).</summary>
@@ -337,10 +374,11 @@ namespace OpenFF.Client
 		/// <summary>BTL_SetCharecterAsyncCustom: as BTL_SetupCharacterCustom, loaded over the async frames.</summary>
 		private static void CastSetupCustomAsync(GlobalScope.ScriptEngine engine)
 		{
-			_asyncLoadedBy = Math.Max(_asyncLoadedBy, SceneFrame) + AsyncLoadFrames;
 			int slot = engine.getByte();
 			string model = engine.getString(), texture = engine.getString(), animation = engine.getString();
 			engine.getDword();
+			if (CastSkipping) return;
+			_asyncLoadedBy = Math.Max(_asyncLoadedBy, SceneFrame) + AsyncLoadFrames;
 			Setup(slot, model, texture, animation);
 		}
 
@@ -361,7 +399,7 @@ namespace OpenFF.Client
 			engine.getDword();
 			uint blend = engine.getDword();
 			int ctrl = Ff4Battle.Instance?.CastStageCharacter ?? -1;
-			if (ctrl >= 0) Guard("stage motion " + id, () => Characters.startMotion(ctrl, (int)GameProfile.FieldMotionId((uint)id), loop != 0, blend));
+			if (ctrl >= 0 && !CastSkipping) Guard("stage motion " + id, () => Characters.startMotion(ctrl, (int)GameProfile.FieldMotionId((uint)id), loop != 0, blend));
 		}
 
 		private static void CastStartMapAnimation(GlobalScope.ScriptEngine engine)
@@ -380,7 +418,7 @@ namespace OpenFF.Client
 			int slot = engine.getByte();
 			uint flags = 0;
 			for (int i = 0; i < 4; i++) if (engine.getByte() != 0) flags |= 1u << i;
-			if (Slot(slot, out int ctrl)) Guard("light enable", () => Characters.enableLight(ctrl, flags));
+			if (!CastSkipping && Slot(slot, out int ctrl)) Guard("light enable", () => Characters.enableLight(ctrl, flags));
 		}
 
 		private static void SetupCharacter(GlobalScope.ScriptEngine engine)
@@ -403,16 +441,17 @@ namespace OpenFF.Client
 		private static void WaitSetCharacter(GlobalScope.ScriptEngine engine)
 		{
 			engine.getByte();
-			if (SceneFrame < _asyncLoadedBy) engine.suspendRedo();
+			if (!CastSkipping && SceneFrame < _asyncLoadedBy) engine.suspendRedo();
 		}
 
 		private static void SetCharacterAsync(GlobalScope.ScriptEngine engine)
 		{
-			_asyncLoadedBy = Math.Max(_asyncLoadedBy, SceneFrame) + AsyncLoadFrames;
 			int slot = engine.getByte();
 			string model = engine.getString();
 			string texture = engine.getString();
 			engine.getDword();
+			if (CastSkipping) return;
+			_asyncLoadedBy = Math.Max(_asyncLoadedBy, SceneFrame) + AsyncLoadFrames;
 			Setup(slot, model, texture);
 		}
 
@@ -705,7 +744,7 @@ namespace OpenFF.Client
 			int slot = engine.getByte();
 			string motion = engine.getString();
 			engine.getDword();
-			if (Slot(slot, out int ctrl)) Guard("motion " + motion, () => Characters.addMotion(ctrl, motion));
+			if (!CastSkipping && Slot(slot, out int ctrl)) Guard("motion " + motion, () => Characters.addMotion(ctrl, motion));
 		}
 
 		private static void CleanupMotion(GlobalScope.ScriptEngine engine)
@@ -722,7 +761,7 @@ namespace OpenFF.Client
 			int loop = engine.getByte();
 			uint frame = engine.getDword();
 			engine.getDword();
-			if (!Slot(slot, out int ctrl)) return;
+			if (CastSkipping || !Slot(slot, out int ctrl)) return;
 			Guard("start motion " + motion, () =>
 			{
 				// Every pack's motions are registered under FieldMotionId's numbers; the scene names them by FF4's.
@@ -734,7 +773,7 @@ namespace OpenFF.Client
 		private static void WaitTillEndOfMotion(GlobalScope.ScriptEngine engine)
 		{
 			int slot = engine.getByte();
-			if (!Slot(slot, out int ctrl)) return;
+			if (CastSkipping || !Slot(slot, out int ctrl)) return;
 			bool done = true;
 			try { done = Characters.isEndOfMotion(ctrl); } catch (Exception) { }
 			if (!done) engine.suspendRedo();
@@ -1237,7 +1276,7 @@ namespace OpenFF.Client
 			int light = engine.getByte();
 			int x = (int)engine.getDword(), y = (int)engine.getDword(), z = (int)engine.getDword();
 			int r = engine.getByte(), g = engine.getByte(), b = engine.getByte();
-			if (light < 0 || light > 3 || (x == 0 && y == 0 && z == 0)) return;
+			if (CastSkipping || light < 0 || light > 3 || (x == 0 && y == 0 && z == 0)) return;
 			Guard("light", () =>
 			{
 				GlobalScope.NNS_G3dGlbLightVector((GlobalScope.GXLightId)light, (short)Math.Clamp(x, -4096, 4096), (short)Math.Clamp(y, -4096, 4096), (short)Math.Clamp(z, -4096, 4096));
@@ -1279,7 +1318,7 @@ namespace OpenFF.Client
 			int slot = engine.getByte();
 			int which = engine.getByte();
 			uint index = engine.getDword();
-			if (!Slot(slot, out int ctrl)) return;
+			if (CastSkipping || !Slot(slot, out int ctrl)) return;
 			if (!GlobalScope.TexDivideLoader.getSingleton().tdlIsEmpty())
 			{
 				engine.suspendRedo();
@@ -1386,12 +1425,13 @@ namespace OpenFF.Client
 			uint id = engine.getDword();
 			int blend = (int)engine.getDword();
 			int loop = engine.getByte();
+			if (CastSkipping) return;
 			Ff4CameraMotion.Play(slot, id, blend, loop != 0);
 		}
 
 		private static void WaitTillEndOfCameraMotion(GlobalScope.ScriptEngine engine)
 		{
-			if (Ff4CameraMotion.Playing && !Ff4CameraMotion.Looping) engine.suspendRedo();
+			if (!CastSkipping && Ff4CameraMotion.Playing && !Ff4CameraMotion.Looping) engine.suspendRedo();
 		}
 
 		private static void Guard(string what, Action action)

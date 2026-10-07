@@ -104,8 +104,10 @@ the "!" and then turning (Steam's 18 + 16 frames), a surprise, a boss's back att
 formation put back as the battle ends. The summons' custom casts (setCharacterWithTextureAndAnimation: the Chocobo on
 the monster model with its own visibility pack - its blinks) and the stage commands (BTL_SetMapMotion, MapStartMotion,
 StartMapAnimation on the summon's stage), the casts' lights, the animations' loop flag; the cast camera's 2..8192 clip
-no longer overridden by the battle camera's (the Chocobo's eye close-up as Steam's). Not FF4's yet: Dualcast (no member
-has it), skipping a summon, enemy-player commands, the battle modes' other cases, the Config menu's battle speed.
+no longer overridden by the battle camera's (the Chocobo's eye close-up as Steam's); skipping a summon (a press once
+BTL_SetSkip allows it: 15 frames to black, the sounds out over 30, the scene run through to BTL_StopSkip with its waits
+and shows passed by - Steam's fade, black and fade in frame for frame). Not FF4's yet: Dualcast (no member has it),
+enemy-player commands, the battle modes' other cases, the Config menu's battle speed.
 
 ## Menus - 15%
 
