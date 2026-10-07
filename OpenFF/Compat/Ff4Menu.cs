@@ -1032,9 +1032,12 @@ namespace OpenFF.Client
 			Right(d, Ff4Party.Party.Gil + T(50446, "Gil"), ColX + ColW - 14, 448, Color.White, 16);
 		}
 
-		/// <summary>The place: the name the map's own plate last showed (a message of the common table), else the map's id.</summary>
+		/// <summary>The place, as the root shows it (WSMenu::wsmGetSavePointIndex): babil_savepoint.bbd's name for the map; on the
+		/// world map, the name its own plate last showed (its areas' tables are compiled into the game), else the map's id.</summary>
 		private static string PlaceName()
 		{
+			string map = Game.Field.Map ?? "";
+			if (!map.StartsWith("f", StringComparison.OrdinalIgnoreCase) && SavePointMessage(map) is uint message) return T(message);
 			try
 			{
 				int no = GlobalScope.menu.MapNameWindow.LastMessageNo;
@@ -1046,6 +1049,35 @@ namespace OpenFF.Client
 			}
 			catch (Exception) { }
 			return Game.Field.Map ?? "";
+		}
+
+		private static List<(string Map, uint Message)> _savePoints;
+
+		/// <summary>WorldSavePointManager::findSavePoint: babil_savepoint.bbd's 16-byte records (a map name of 12 bytes, a message
+		/// of babil_menu.msd at 12). A town's map by its first three letters ("t00"), a dungeon's by its whole name and then
+		/// those; anything unmatched the first record's ("not"). (After the game is cleared, flag 0x3db, the "clear" record's.)</summary>
+		private static uint? SavePointMessage(string map)
+		{
+			if (_savePoints == null)
+			{
+				_savePoints = new List<(string, uint)>();
+				byte[] data = Ff4Ui.ReadFile("babil_savepoint.bbd");
+				for (int at = 0; data != null && at + 16 <= data.Length; at += 16)
+				{
+					int end = Array.IndexOf(data, (byte)0, at, 12);
+					string name = System.Text.Encoding.ASCII.GetString(data, at, (end < 0 ? at + 12 : end) - at);
+					_savePoints.Add((name, BitConverter.ToUInt32(data, at + 12)));
+				}
+			}
+			if (_savePoints.Count == 0) return null;
+			uint? Find(string name)
+			{
+				foreach ((string m, uint id) in _savePoints) if (m == name) return id == 0xFFFFFFFF ? null : id;
+				return null;
+			}
+			string prefix = map.Length >= 3 ? map.Substring(0, 3) : map;
+			uint? found = map.StartsWith("d", StringComparison.Ordinal) ? Find(map) ?? Find(prefix) : map.StartsWith("t", StringComparison.Ordinal) ? Find(prefix) : null;
+			return found ?? _savePoints[0].Message;
 		}
 
 		private void Frame(DrawList d, string title)
