@@ -108,7 +108,8 @@ internal static partial class GlobalScope
 											m_MesDeleteFrame = -1;
 										}
 									}
-									else if (isNextPage())
+									// PORT: not while a press is not allowed (FF4's MessagePermission 0): the line stays up.
+									else if ((!OpenFF.Client.GameProfile.IsFf4 || isSendMessage()) && isNextPage())
 									{
 										releaseMessage();
 									}
@@ -116,13 +117,15 @@ internal static partial class GlobalScope
 
 								public void releaseWindow()
 								{
+									if (OpenFF.Client.GameProfile.IsFf4) m_MesWindow.NameMessageRelease();
 									m_MesWindow.WindowRelease();
 								}
 
 								public void releaseMessage()
 								{
 									m_MesWindow.MessageRelease();
-									m_MesWindow.NameMessageRelease();
+									// PORT: FF4's name window stays over the lines that follow until closeCharacterNameWindow (or the window goes).
+									if (!OpenFF.Client.GameProfile.IsFf4) m_MesWindow.NameMessageRelease();
 									m_MessagePosition.set((short)OpenFF.Client.BattleHud.DialogueText().X, (short)OpenFF.Client.BattleHud.DialogueText().Y);
 								}
 

@@ -37,6 +37,10 @@ namespace OpenFF.Client
 			{ "setRewardMessageInterval", Ff4FieldCommands.SetRewardMessageInterval }, // (frames)
 			{ "executeRewardMessageWindow", Ff4FieldCommands.ExecuteRewardMessageWindow }, // ()
 			{ "setPlayerLevel", Ff4FieldCommands.SetPlayerLevel },            // (playerType, level)
+			{ "startMessage", StartMessage },                                 // (who, text, style, delete frames): the line up, no wait
+			{ "setMessagePosition", SetMessagePosition },                     // (setX, x, setY, y): where the next line's text starts
+			{ "setMessageAlignment", SetMessageAlignment },                   // (align, ?, ?): 0 left, 1 centred, 2 right, until set again
+			{ "messagePermission", MessagePermission },                       // (allow): whether a press may turn the message on
 			{ "clearCountJump", ClearCountJump },                             // (count, label): jumps when the game has been cleared `count` times
 			{ "setChacterOffset", SetCharacterOffset },                       // (cast, x, y, z): a draw offset for a cast's model
 			// The field event camera (Ff4EventCamera): FF3's handlers put these through MODE_FREE, which
@@ -52,6 +56,15 @@ namespace OpenFF.Client
 			{ "setCamera_BeforeEvent", SetCameraBeforeEvent },                // (x, y, z): the field camera again, FF3's setupCamera
 			{ "moveCamera_LookPlayer2", MoveCameraLookPlayer2 },              // (cast, ?, ?, ?, ?): FF3's, after letting the event camera go
 			{ "setWorldCameraPosAndTargetOffset", SetWorldCameraOffsets },   // (offset xyz, target-from-offset xyz, ?, ?): the follow camera's offsets
+			// Scene characters moved and turned by frames, as libff4's object strategies (Ff4CharacterMoves)
+			{ "moveCharacter_AbsoluteCoordination2", Ff4CharacterMoves.MoveAbsolute2 },    // (cast, x, y, z, frames)
+			{ "moveCharacter_RelativeCoordination", Ff4CharacterMoves.MoveRelative },      // (cast, to, dx, dy, dz, frames)
+			{ "moveCharacter_EndAutoIdle", Ff4CharacterMoves.MoveEndAutoIdle },            // (cast): waits for its moves
+			{ "turnCharacter_AbsoluteAngle2", Ff4CharacterMoves.TurnAbsoluteAngle2 },      // (cast, degrees, frames, ?, keep motion)
+			{ "turnCharacter_RelativeAngle2", Ff4CharacterMoves.TurnRelativeAngle2 },      // (cast, degrees, frames, ?, keep motion)
+			{ "turnCharacter_AbsoluteCoordination2", Ff4CharacterMoves.TurnAbsoluteCoordination2 }, // (cast, x, y, z, frames, ?, keep motion)
+			{ "turnCharacter_LookCharacter2", Ff4CharacterMoves.TurnLookCharacter2 },      // (cast, at, frames, ?, keep motion)
+			{ "turnCharacter_EndAutoIdle", Ff4CharacterMoves.TurnEndAutoIdle },            // (cast): waits for its turns
 			// The roster and the bag: the unified party (Ff4Party on OpenFF.Data).
 			{ "addItem", Ff4Party.AddItem },                                  // (item, count)
 			{ "subItem", Ff4Party.SubItem },                                  // (item, count)
@@ -127,7 +140,6 @@ namespace OpenFF.Client
 			"setRelationMapjumpToDoorAttr", "setDoor", "setRelationOfMapjumpobjAndFlag",   // door swings on exits
 			"createEffectTaskWalk", "createEffectTaskRun", "createEffectTaskWait",        // footstep dust
 			"setShadowScale",
-			"setMessageAlignment",                                     // message alignment
 			// Sound bookkeeping FF3's player has no slot for: the battle theme choice, the
 			// division of BGM data, a reset.
 			"setBattleBGM", "bgmContinueForConteEvent", "soundReset", "bgmDivideLoadDataTypeSpecific",
@@ -415,6 +427,80 @@ namespace OpenFF.Client
 
 		private static GlobalScope.wld.CMessageWindow Window =>
 			GlobalScope.CCastCommandTransit.getInstance().cast_Field2D()?.MessageWindow();
+
+		/// <summary>
+		/// startMessage(who, text, style, delete frames), as libff4's: on the field the line goes up in the message
+		/// window (MessageWindow::mwSetMessage) and the script runs on - its own messageWait holds it until the line is
+		/// done - so a character can gesture as it speaks. FF3's waited for the line to be dismissed. A story scene's
+		/// (the event conte's) keeps FF3's handler and its bar.
+		/// </summary>
+		private static void StartMessage(GlobalScope.ScriptEngine engine)
+		{
+			if (Ff4Cutscene.Active)
+			{
+				GlobalScope.ff3Command_StartMessage2(engine);
+				return;
+			}
+			int who = engine.getWord();
+			int text = (int)engine.getDword();
+			engine.getByte();
+			int deleteFrames = engine.getByte();
+			GlobalScope.wld.CMessageWindow window = Window;
+			if (window == null) return;
+			GlobalScope.CCastCommandTransit.getInstance().cast_BaseSystem().lastMessage_set(text);
+			EngineHooks.MessageShown(text);
+			window.createMessage(text, 0, who);
+			if (deleteFrames != 0) window.setMesDeleteFrame(deleteFrames);
+			window.setProgressIconActivity(true);
+		}
+
+		/// <summary>
+		/// setMessagePosition(setX, x, setY, y), as libff4's: the text's place in the 480 x 320 screen as given (MessageWindow
+		/// +0x208; a centred line gives its middle, 240) - FF3's adds its own window's offsets (112, 64), which put FF4's
+		/// centred lines (a yellow "handed over" line at 240, 282) below the screen and left an empty window. The window
+		/// puts it back to 12, 252 when the line goes (CMessageWindow.releaseMessage).
+		/// </summary>
+		private static void SetMessagePosition(GlobalScope.ScriptEngine engine)
+		{
+			bool setX = engine.getDword() != 0;
+			int x = engine.getWord();
+			bool setY = engine.getDword() != 0;
+			int y = engine.getWord();
+			GlobalScope.wld.CMessageWindow window = Window;
+			if (window == null) return;
+			GlobalScope.ds.Vector2<short> at = window.getMessagePosition();
+			if (setX) at.vx = (short)x;
+			if (setY) at.vy = (short)y;
+			window.setMessagePosition(at);
+		}
+
+		/// <summary>
+		/// babilCommands_SetMessageAlignment(align, ?, ?): how the next lines stand on the text's place - libff4's three
+		/// tables at 0x2bbf2c (0 left, 1 centred, 2 right): the text's origin across (0x8 / 0x10 / 0x20) and down (0x1 /
+		/// 0x2 / 0x4) and its lines' alignment (0x40 / 0x80 / 0x100), with 0x200 - NitroSystem's text flags. So a centred
+		/// line's place (240, 282) is its middle. The script sets 0 again after.
+		/// </summary>
+		private static void SetMessageAlignment(GlobalScope.ScriptEngine engine)
+		{
+			uint align = engine.getDword();
+			engine.getDword();
+			engine.getDword();
+			if (align > 2) align = 0;
+			uint[] across = { 0x8, 0x10, 0x20 }, down = { 0x1, 0x2, 0x4 }, lines = { 0x40, 0x80, 0x100 };
+			Window?.setMessageAlignment((int)(across[align] | down[align] | lines[align] | 0x200));
+		}
+
+		/// <summary>
+		/// messagePermission(allow), as libff4's: outside a story scene the message window's press is allowed or not
+		/// (MessageWindow +0x200) - a scene holds its line up while a character gestures, and a press then does nothing
+		/// (FF3's handler allowed it whatever the operand, so a press cleared the text and left the window empty). In a
+		/// story scene it only marks the scene's message as allowed (EventConteManager +0x635), as FF3's did.
+		/// </summary>
+		private static void MessagePermission(GlobalScope.ScriptEngine engine)
+		{
+			bool allow = engine.getWord() != 0;
+			Window?.setSendMessage(Ff4Cutscene.Active || allow);
+		}
 
 		/// <summary>openCharacterNameWindow(id, x, y): the speaker's name, a text id in the map's .msd.</summary>
 		private static void OpenCharacterNameWindow(GlobalScope.ScriptEngine engine)

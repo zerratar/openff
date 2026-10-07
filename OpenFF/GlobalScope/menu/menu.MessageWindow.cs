@@ -278,8 +278,19 @@ internal static partial class GlobalScope
 				m_Window.SetMaxWindowSize(vector2);
 				m_Window.ClearNowWindowSize();
 				m_Window.CalcOneRatio(flameCount);
-				m_ProgressIcon.copy(MenuManager.getSingleton().GetMenuButtonIcon3d());
-				m_ProgressIcon.SetCell(24);
+				if (OpenFF.Client.GameProfile.IsFf4)
+				{
+					// PORT: FF4's arrow is its own sprite (MessageWindow::mwInitialize: MENU_Common's button_up_down, entries
+					// 13-15), the down arrow bobbing (sequence 1); its sheet is at 2x like all of FF4's, so drawn at half.
+					m_ProgressIcon.Load(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, "button_up_down.NCER", "button_up_down.NANR", "button_up_down.NCGR", null);
+					m_ProgressIcon.SetScaleF(2048, 2048);
+					m_ProgressIcon.PlayAnimation(1, NNSG2dAnimationPlayMode.NNS_G2D_ANIMATIONPLAYMODE_FORWARD_LOOP);
+				}
+				else
+				{
+					m_ProgressIcon.copy(MenuManager.getSingleton().GetMenuButtonIcon3d());
+					m_ProgressIcon.SetCell(24);
+				}
 				m_ProgressIcon.SetShow(show: false);
 				m_NextWanted = false;
 				(int nextX, int nextY) = OpenFF.Client.BattleHud.DialogueNext();
@@ -371,6 +382,7 @@ internal static partial class GlobalScope
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
 				dGSMessage.setDisplaySpeed(m_Bar ? byte.MaxValue : mwDEFAULT_DISPLAY_SPEED);   // PORT: FF4's scene bar shows its line whole (EventConteManager::createMessage draws the text at once)
 				dGSMessage.setShadow(m_MessageShadow && !m_Bar);   // PORT: the Steam bar's line has no shadow
+				mwPlaceAligned(dGSMessage, vector);
 				if (m_MessageAlign != 0)
 				{
 					dGSMessage.setStyle(m_MessageAlign);
@@ -430,6 +442,7 @@ internal static partial class GlobalScope
 				dGSMessage.setPosition(vector.vx, vector.vy, erase: true);
 				dGSMessage.setDisplaySpeed(m_Bar ? byte.MaxValue : mwDEFAULT_DISPLAY_SPEED);
 				dGSMessage.setShadow(m_MessageShadow && !m_Bar);   // PORT: the Steam bar's line has no shadow
+				mwPlaceAligned(dGSMessage, vector);
 				if (m_MessageAlign != 0)
 				{
 					dGSMessage.setStyle(m_MessageAlign);
@@ -459,7 +472,10 @@ internal static partial class GlobalScope
 				if (mm[m_Display].searchMessageIndexFromID((uint)who) >= 0)
 				{
 					// PORT: where it is asked for (the field_hud layout's dialogue/name), not the phone build's 24, 139.
-					m_NameId = mm[m_Display].createMessage((uint)who, (ushort)name_message_pos.vx, (ushort)name_message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+					// FF4 writes the name in the message's own font (NameWindow::nwDrawMessage_), in a window of its own.
+					bool ff4 = OpenFF.Client.GameProfile.IsFf4;
+					m_NameId = mm[m_Display].createMessage((uint)who, (ushort)name_message_pos.vx, (ushort)name_message_pos.vy, dgs.msg.CMessageMng.MSD_HANDLE_KIND.MSD_HANDLE_KIND_COMMON, ff4 ? dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_12x12 : dgs.msg.CMessageMng.MSF_HANDLE_KIND.MSF_HANDLE_KIND_8x8);
+					if (ff4) mwOpenNameWindow(name_message_pos, who);
 				}
 				dGSMessage = mm[m_Display].Message(m_NameId);
 				dGSMessage.setDisplaySpeed(byte.MaxValue);
@@ -578,6 +594,38 @@ internal static partial class GlobalScope
 					mm[m_Display].releaseMessage(m_NameId);
 					m_NameId = -1;
 				}
+				if (m_NameWindow != null)
+				{
+					m_NameWindow.SetShow(show: false, user: true);
+					m_NameWindow.Release();
+					m_NameWindow = null;
+				}
+			}
+
+			// PORT: FF4's name window (menu::NameWindow::nwOpen): from 8 left and 2 above the name, 24 high and the name's
+			// width (made even) and 18 wide - so it sits on the message window's top edge, its left edges in line.
+			private BasicWindow m_NameWindow;
+
+			private void mwOpenNameWindow(ds.Vector2<short> name_message_pos, int who)
+			{
+				int width = 0;
+				try
+				{
+					string name = dgs.msg.CMessageSys.getInstance().Main().getMessage((uint)who);
+					if (!string.IsNullOrEmpty(name)) width = getStringWidth(name.Trim(), 16);
+				}
+				catch (Exception) { }
+				width = width - (width & 1) + 18;
+				if (m_NameWindow != null)
+				{
+					m_NameWindow.SetShow(show: false, user: true);
+					m_NameWindow.Release();
+				}
+				m_NameWindow = new BasicWindow();
+				m_NameWindow.Initialize();
+				m_NameWindow.bwCreateUL(sys2d.DS2D_OBJ_PLANE.DS2D_OBJ_PLANE_MAIN3D, new ds.Vector2<short>((short)(name_message_pos.vx - 8), (short)(name_message_pos.vy - 2)), new ds.Vector2<short>((short)width, 24), 3);
+				m_NameWindow.SetPriority(3);
+				m_NameWindow.SetShow(show: true, user: true);
 			}
 
 			public override void Release()
@@ -642,6 +690,7 @@ internal static partial class GlobalScope
 			public override void SetShow(bool show, bool user)
 			{
 				m_Window.GetWindowHandle().SetShow(show, user);
+				m_NameWindow?.SetShow(show, user);
 			}
 
 			public override void SetPriority(byte pri)
@@ -662,6 +711,21 @@ internal static partial class GlobalScope
 			public void SetMessageStyle(int _MessageStyle)
 			{
 				m_MessageStyle = (MESSAGE_STYLE)_MessageStyle;
+			}
+
+			// PORT: FF4's centred (or right-set) line, its place its middle (Ff4Commands.SetMessageAlignment): placed once from
+			// the whole line's size and typed from the left there - the typewriter's growing text, set about its middle at each
+			// step, would be drawn over itself shifted.
+			private void mwPlaceAligned(dgs.DGSMessage dGSMessage, ds.Vector2<short> at)
+			{
+				if (!OpenFF.Client.GameProfile.IsFf4 || (m_MessageAlign & 0x36u) == 0) return;
+				ds.Vector2<short> whole = new ds.Vector2<short>();
+				dGSMessage.getCompleteTextSize(whole);
+				int x = at.vx, y = at.vy;
+				if ((m_MessageAlign & 0x10u) != 0) x -= whole.vx / 2; else if ((m_MessageAlign & 0x20u) != 0) x -= whole.vx;
+				if ((m_MessageAlign & 0x2u) != 0) y -= whole.vy / 2; else if ((m_MessageAlign & 0x4u) != 0) y -= whole.vy;
+				dGSMessage.setPosition((short)x, (short)y, erase: true);
+				m_MessageAlign = (m_MessageAlign & ~0x1F6u) | 0x8u | 0x1u | 0x40u;
 			}
 
 			public void SetMessageAlignment(uint align)

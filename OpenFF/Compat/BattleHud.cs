@@ -151,13 +151,18 @@ namespace OpenFF.Client
 		// ---- the field's windows (field_hud in WorldDefine.xbn) ----
 
 		/// <summary>The dialogue window's rectangle.</summary>
-		public static Rect Dialogue() => Frame(BattleHudLayout.FieldScreen, "dialogue", 5, 233, 470, 84);
+		// FF4's own (libff4 menu::MessageWindow::mwOpen: centred at 240, 280, 472 x 72; its text at 12, 252 - mwInitialize).
+		public static Rect Dialogue() => GameProfile.IsFf4
+			? Frame(BattleHudLayout.FieldScreen, "dialogue", 4, 244, 472, 72)
+			: Frame(BattleHudLayout.FieldScreen, "dialogue", 5, 233, 470, 84);
 		/// <summary>Where the dialogue's first line starts.</summary>
-		public static (int X, int Y) DialogueText() { Rect r = Frame(BattleHudLayout.FieldScreen, "dialogue/text", 16, 246, 448, 60); return (r.X, r.Y); }
+		public static (int X, int Y) DialogueText() { Rect r = GameProfile.IsFf4 ? Frame(BattleHudLayout.FieldScreen, "dialogue/text", 12, 252, 456, 60) : Frame(BattleHudLayout.FieldScreen, "dialogue/text", 16, 246, 448, 60); return (r.X, r.Y); }
 		/// <summary>Where the speaker's name sits.</summary>
-		public static (int X, int Y) DialogueName() { Rect r = Frame(BattleHudLayout.FieldScreen, "dialogue/name", 24, 139, 200, 20); return (r.X, r.Y); }
+		/// FF4's: NameWindow::nwDrawMessage_ writes the name at 12, 222, in its own window from 4, 220 (MessageWindow.mwSetNameMessage).
+		public static (int X, int Y) DialogueName() { Rect r = GameProfile.IsFf4 ? Frame(BattleHudLayout.FieldScreen, "dialogue/name", 12, 222, 200, 20) : Frame(BattleHudLayout.FieldScreen, "dialogue/name", 24, 139, 200, 20); return (r.X, r.Y); }
 		/// <summary>Where the page-turn icon sits.</summary>
-		public static (int X, int Y) DialogueNext() { Rect w = Dialogue(); Rect r = Frame(BattleHudLayout.FieldScreen, "dialogue/next", w.X + w.Width - 28, w.Y + w.Height - 28, 24, 24); return (r.X, r.Y); }
+		/// FF4's: the arrow sprite at 448, 304 (MessageWindow::mwInitialize).
+		public static (int X, int Y) DialogueNext() { Rect w = Dialogue(); Rect r = GameProfile.IsFf4 ? Frame(BattleHudLayout.FieldScreen, "dialogue/next", 448, 304, 24, 24) : Frame(BattleHudLayout.FieldScreen, "dialogue/next", w.X + w.Width - 28, w.Y + w.Height - 28, 24, 24); return (r.X, r.Y); }
 		/// <summary>The map-name window's rectangle (the game centres its text in it).</summary>
 		public static Rect MapName() => Frame(BattleHudLayout.FieldScreen, "map_name", 4, 4, 472, 28);
 		/// <summary>The Yes / No box's rectangle, and a part of it (question, yes, no) as its offset from the box's corner.</summary>
