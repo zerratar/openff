@@ -182,6 +182,7 @@ namespace OpenFF.Client
 			if (EnemySummon(foe, ability)) return;
 			if (MistTurn(foe, ability)) return;
 			if (BossTurn(foe, ability)) return;
+			if (foe.PlayerType >= 0 && EnemyPlayerTurn(foe, ability, targetType)) return;
 			targets ??= MonsterTargets(foe, targetType);
 			SpellDefinition spell = ability != 1 ? Ff4Party.Tables.Spell(ability) : null;
 			if (spell != null)

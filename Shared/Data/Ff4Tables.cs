@@ -253,6 +253,15 @@ namespace OpenFF.Data
 				int at6 = pack.Offset(6), size6 = pack.Size(6);
 				for (int i = 0; i + 4 <= size6; i += 4) tables.SummonCasts[ChainPack.S16(data, at6 + i)] = ChainPack.S16(data, at6 + i + 2);
 			}
+			// Chain 7 (8 bytes, BattleParameter::enemyPlayerParameter): a monster that fights as a member (btl::
+			// BattleEnemyPlayer, the monster record's class 3) - the monster, the player type it is drawn as, and what it
+			// holds in its right and left hands (-1 none): the Dark Knight 215 as Cecil (0) with the Dark Sword (6001).
+			if (pack.Count > 7)
+			{
+				int at7 = pack.Offset(7), size7 = pack.Size(7);
+				for (int i = 0; i + 8 <= size7; i += 8)
+					tables.EnemyPlayers[ChainPack.S16(data, at7 + i)] = (ChainPack.S16(data, at7 + i + 2), ChainPack.S16(data, at7 + i + 4), ChainPack.S16(data, at7 + i + 6));
+			}
 			// Chain 4 (32 bytes, BattleParameter::bossParameter): a boss's entrance - the monster at 0, the camera's start
 			// position at 4 and target at 0x10 (fx32), the frames of its move to the standing shot at 0x1C (the last record
 			// is two bytes short).

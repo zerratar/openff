@@ -106,8 +106,12 @@ the monster model with its own visibility pack - its blinks) and the stage comma
 StartMapAnimation on the summon's stage), the casts' lights, the animations' loop flag; the cast camera's 2..8192 clip
 no longer overridden by the battle camera's (the Chocobo's eye close-up as Steam's); skipping a summon (a press once
 BTL_SetSkip allows it: 15 frames to black, the sounds out over 30, the scene run through to BTL_StopSkip with its waits
-and shows passed by - Steam's fade, black and fade in frame for frame). Not FF4's yet: Dualcast (no member has it),
-enemy-player commands, the battle modes' other cases, the Config menu's battle speed.
+and shows passed by - Steam's fade, black and fade in frame for frame). The monsters that fight as members
+(BattleEnemyPlayer, battle_parameter chain 7: the Dark Knight, Kain, the Bard, the Girl, Yang): the player model and
+motions, the table's weapons, a member's Fight (Steam's Dark Knight: 11 frames of poise, his first swing 95),
+Darkness with its close-up and chant (b_pa_018 - a member's Darkness lacked it too), Kain's Jump (b_pa_016 / 017,
+bound for members now as well), the kneel when weak but for the Dark Knight, the KO motion. Not FF4's yet: Dualcast
+(no member has it), the battle modes' other cases, the Config menu's battle speed.
 
 ## Menus - 15%
 

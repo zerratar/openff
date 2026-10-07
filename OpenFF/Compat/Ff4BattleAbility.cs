@@ -1016,7 +1016,7 @@ namespace OpenFF.Client
 				f.BoundSets.Clear();
 			}
 			// Back to its stance (setConditionMotion) when the action left it in another one - the poise of a decision, an invoke's 9999.
-			if (f.Member != null && f.Alive && !f.Acted && !f.Airborne && !f.Hiding && f.SongId == 0 && f.Npc is LegacyNpc held && held.CharacterId >= 0)
+			if ((f.Member != null || f.PlayerType >= 0) && f.Alive && !f.Acted && !f.Airborne && !f.Hiding && f.SongId == 0 && f.Npc is LegacyNpc held && held.CharacterId >= 0)
 			{
 				try { if (GlobalScope.characterMng.getMotionIndex(held.CharacterId) != (uint)f.IdleMotion) f.Npc.PlayMotion(f.IdleMotion, true, 3); } catch (Exception) { }
 			}

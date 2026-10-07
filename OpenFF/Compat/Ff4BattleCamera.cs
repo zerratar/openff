@@ -101,7 +101,7 @@ namespace OpenFF.Client
 		private readonly List<Npc> _invokeHidden = new List<Npc>();
 
 		/// <summary>Whether a command's invoke gets the close-up: a member's, not a counter, not Attack, Items, Summon or Auto-Potion, on the stage.</summary>
-		private bool InvokeCloseUp(Fighter actor, int command) => Ff4BattleStage.Active && !actor.IsMonster && !_isCounter && command != 1 && command != 4 && command != 13 && command != 166 && actor.Npc != null;
+		private bool InvokeCloseUp(Fighter actor, int command) => Ff4BattleStage.Active && (!actor.IsMonster || actor.PlayerType >= 0) && !_isCounter && command != 1 && command != 4 && command != 13 && command != 166 && actor.Npc != null;
 
 		/// <summary>The close-up begun: the actor at the stage's origin facing +z, the others hidden, a shot of three at random.</summary>
 		private Fighter _invokePartner;
@@ -113,7 +113,8 @@ namespace OpenFF.Client
 			FrameCapture.CameraCut();   // the standing shot to the close-up: a cut
 			_invokeShot = _random.Next(3);
 			_invokeFrame = 0;
-			int form = actor.Member != null ? PlayerForm[Math.Clamp(actor.Member.Id, 0, PlayerForm.Length - 1)] : 0;
+			int type = actor.Member?.Id ?? actor.PlayerType;
+			int form = type >= 0 ? PlayerForm[Math.Clamp(type, 0, PlayerForm.Length - 1)] : 0;
 			_invokeHeight = form == 4 || form == 7 || form == 8 ? 5f : 9f;   // the small characters' look-at 5
 			actor.Npc.Teleport(Vector3.Zero);
 			Face(actor, 0f);

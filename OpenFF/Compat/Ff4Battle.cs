@@ -131,6 +131,7 @@ namespace OpenFF.Client
 			public int SongId, SongTimer, SongTick;        // the song being sung (+0x4c), its time (+0x2e0) and Life's Anthem's count
 			public int ElementOverride = -1;               // Upgrade's attack element (+0x40)
 			public bool Robbed;                            // a monster stolen from (flag 0x11)
+			public int PlayerType = -1;                    // a monster fighting as a member (btl::BattleEnemyPlayer): the player type it is drawn as
 			public bool Examined;                          // analyzed (flag 0xd): its card shows its HP and elements
 			public bool TwinWaiting;                       // Twincast chosen, its partner awaited (PAIR_MAGIC_WAIT)
 			public Fighter TwinPartner;
@@ -234,6 +235,7 @@ namespace OpenFF.Client
 		/// <summary>A monster stood at a spot, facing as the group has it (or the hero), its model bound to its motions, in the fight.</summary>
 		private Fighter SpawnFoe(MonsterDefinition m, Vector3 at, float? facing, Vector3 hero, bool join = true)
 		{
+			if (Ff4Party.Tables?.EnemyPlayers.TryGetValue(m.Id, out (int PlayerType, int Right, int Left) row) == true && SpawnEnemyPlayer(m, row, at, facing, join) is Fighter player) return player;
 			Monster info = Game.Monsters.Find(m.Id);
 			bool octomammoth = m.Id == Octomammoth;
 			string model = octomammoth ? "m" + m.Family.ToString("000") + "a" : info?.Model ?? ("m" + m.Family.ToString("000") + "_00");
@@ -740,7 +742,10 @@ namespace OpenFF.Client
 			foreach (Fighter f in _foes)
 			{
 				if (!f.Alive || !f.Acted || f.Npc == null) continue;
-				if (f.Npc.MotionDone) { try { f.Npc.PlayMotion(101, true, 4); } catch (Exception) { } f.Acted = false; }
+				if (!f.Npc.MotionDone) continue;
+				if (f.PlayerType >= 0) { f.IdleMotion = EnemyPlayerIdle(f); Play(f, f.IdleMotion, true, 4); }
+				else { try { f.Npc.PlayMotion(101, true, 4); } catch (Exception) { } }
+				f.Acted = false;
 			}
 		}
 
@@ -811,8 +816,15 @@ namespace OpenFF.Client
 				TickBless();
 				foreach (Fighter f in _foes)
 				{
+					if (f.PlayerType >= 0 && f.Alive && f.DarkFrames > 0) f.DarkFrames = Math.Max(0, f.DarkFrames - SpeedRate);
 					TickConditions(f);
 					if (!f.Alive || f.Queued || GaugeStands(f) || !CanAct(f)) continue;
+					if (f.Airborne)
+					{
+						// BattleEnemyPlayer::addActiveTimeGage: a member's jump counter on top of the monster's gauge.
+						if (JumpCounts(f)) { Fighter jumper = f; jumper.Queued = true; _queue.Add((jumper, () => JumpLand(jumper, jumper.JumpTarget))); }
+						continue;
+					}
 					f.Gauge = Math.Min(1f, f.Gauge + GaugeStep(f));
 					if (f.Gauge >= 1f)
 					{
@@ -1242,6 +1254,7 @@ namespace OpenFF.Client
 			if (!foe.IsMonster) { Note(foe.Name + " falls."); Play(foe, 2003, false, 3); return; }   // setConditionDeath: the KO motion, held on its last frame
 			if (foe.NotDeath) { foe.Hp = 1; return; }   // an event's NotDeathFlagOn
 			Note(foe.Name + " is defeated.");
+			if (foe.PlayerType >= 0) Play(foe, 2003, false, 3);   // BattlePlayer::setConditionMotion: a member's KO, then the fade
 			if (foe.Npc != null && Ff4BattleStage.Active) _dying.Add(foe);   // it goes once the turn is over (TurnEnd)
 			else if (foe.Npc != null) { foe.Npc.Alpha = 8; foe.Npc.Hidden = true; }
 			_expWon += foe.Monster.Experience;
@@ -1488,7 +1501,7 @@ namespace OpenFF.Client
 		private void MemberAttacks(Fighter member, Fighter foe, bool aim = false)
 		{
 			// The one picked fell meanwhile: FF4 turns the blow on another (none left, nothing).
-			if (!foe.Alive) foe = FirstAlive(_foes);
+			if (!foe.Alive) foe = FirstAlive(member.IsMonster ? _party : _foes);
 			if (foe == null) { member.Gauge = 0f; return; }
 			Acted(member, aim ? CmdAim : 1, foe);
 			if (Ff4BattleStage.Active && member.Poise > 0 && member.SwingA > 0)
@@ -1497,7 +1510,8 @@ namespace OpenFF.Client
 				// turns) - the blow lands 8 frames in, its number pops when the swing ends - and back to the stance.
 				// Aim (Steam's frames): the poise held since the decision, the swing 2 frames after the invoke stage.
 				int swing = member.Swings++ % 2 == 0 ? member.SwingA : (member.SwingB > 0 ? member.SwingB : member.SwingA);
-				int lead = aim ? 0 : 15;   // Aim: the invoke's 2-frame gap is its lead
+				// Aim: the invoke's 2-frame gap is its lead. One fighting as a member (the Dark Knight in Steam's frames): 11.
+				int lead = aim ? 0 : member.PlayerType >= 0 ? 11 : 15;
 				EndTurn(member);
 				if (!aim) Play(member, member.Poise, false, 3);
 				member.Acted = false;
@@ -1522,7 +1536,7 @@ namespace OpenFF.Client
 				void SwingEnd()
 				{
 					if (member.Npc != null && member.Acted && !member.Npc.MotionDone && ++swingWait < 30) { After(1, SwingEnd); return; }
-					Play(member, _heroMotionIdle, true, 3);
+					Play(member, member.PlayerType >= 0 ? EnemyPlayerIdle(member) : _heroMotionIdle, true, 3);
 					member.Acted = false;
 					if (!hit)
 					{
@@ -1733,7 +1747,11 @@ namespace OpenFF.Client
 		/// calcConditionTime); while it is on and HP is over 1, a blow carries the dark element (0x400) and is doubled
 		/// (reviseDarkness), each costing its striker HP after (DarkCost).
 		/// </summary>
-		private void Darkness(Fighter member) => Invoke(member, 32, () => DarknessOn(member));
+		private void Darkness(Fighter member)
+		{
+			AbilityMotions(member, "b_pa_018");   // the chants by form (66 Cecil's, 118..121)
+			Invoke(member, 32, () => DarknessOn(member));
+		}
 
 		private void DarknessOn(Fighter member)
 		{

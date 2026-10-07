@@ -525,6 +525,7 @@ namespace OpenFF.Client
 			Fighter target = targets.Find(t => t.Alive);
 			actor.DecidedAbility = ability;
 			Note("event action: " + actor.Name + " - ability " + ability + (target != null ? " on " + target.Name : ""));
+			if (actor.PlayerType >= 0 && EnemyPlayerTurn(actor, ability, 1, target)) return true;
 			if (ability == 1)
 			{
 				if (target == null) return false;

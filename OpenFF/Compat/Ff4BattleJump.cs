@@ -23,6 +23,7 @@ namespace OpenFF.Client
 		private void JumpStart(Fighter member, Fighter foe)
 		{
 			Acted(member, CmdJump);   // the take-off has no target and no result
+			AbilityMotions(member, "b_pa_016");   // 6401, the leap
 			Play(member, 0x1901, false, 0);
 			LoadEffect(262);
 			LoadEffect(263);
@@ -63,7 +64,10 @@ namespace OpenFF.Client
 
 		private void JumpLand(Fighter member, Fighter foe)
 		{
-			if (foe == null || !foe.Alive) foe = FirstAlive(_foes);   // retargeting: the first monster standing
+			if (foe == null || !foe.Alive) foe = FirstAlive(member.IsMonster ? _party : _foes);   // retargeting: the first standing on the other side
+			// The landing's 6403 (b_pa_017) in the leap's slot: eight sets a character, a member's basic ones take seven.
+			if (member.BoundSets.Remove("b_pa_016") && member.Npc is LegacyNpc jumper && jumper.CharacterId >= 0) { try { EngineApi.UnbindMotions(jumper.CharacterId, "b_pa_016"); } catch (Exception) { } }
+			AbilityMotions(member, "b_pa_017");
 			Acted(member, CmdJump, foe != null ? new[] { foe } : new Fighter[0]);
 			member.JumpCounter = 0;
 			bool hit = foe != null && Hits(member, foe);

@@ -292,7 +292,7 @@ namespace OpenFF.Client
 
 		private void Invoke(Fighter member, int command, Action then, Fighter partner = null)
 		{
-			if (member.IsMonster || Ff4Party.Tables == null || !Ff4Party.Tables.AbilityInvokes.TryGetValue(command, out short[] row))
+			if ((member.IsMonster && member.PlayerType < 0) || Ff4Party.Tables == null || !Ff4Party.Tables.AbilityInvokes.TryGetValue(command, out short[] row))
 			{
 				then();
 				return;
@@ -302,7 +302,8 @@ namespace OpenFF.Client
 			if (closeUp) BeginInvokeCamera(member, partner);
 			ShowName(Ff4Party.Tables.AbilityTitle(command), lead);
 			if (row[20] >= 0 && row[21] >= 0) Game.Audio.PlaySe(row[20], row[21]);
-			int form = member.Member != null ? PlayerForm[Math.Clamp(member.Member.Id, 0, PlayerForm.Length - 1)] : 0;
+			int type = member.Member?.Id ?? member.PlayerType;
+			int form = type >= 0 ? PlayerForm[Math.Clamp(type, 0, PlayerForm.Length - 1)] : 0;
 			int chant = row[1 + Math.Clamp(form, 0, 14)];
 			if (chant > 0) Play(member, chant, false, 3);
 			if (chant > 0 && partner != null) Play(partner, chant, false, 3);   // Twincast: the partner chants with it
