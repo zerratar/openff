@@ -3,7 +3,7 @@
    sheet sits beside this one and is read for this screen too: .lit-band, .hand and .key-cap are its. */
 
 /* A window's two bands (a lighter 20.25-pixel band over the body), opaque, under its frame. */
-#commands, #place, #members { background-image: linear-gradient(to bottom, #505483 0px, #505483 20.25px, #2a2b66 20.25px, #2a2b66 100%); }
+#commands, #place, #members, #partyMembers { background-image: linear-gradient(to bottom, #505483 0px, #505483 20.25px, #2a2b66 20.25px, #2a2b66 100%); }
 
 /* A window's frame: MENU_Common's frame_00, the raised square (its left half), the 16-pixel corners kept at 1.6875. */
 .m-window {
@@ -111,3 +111,8 @@
 #gambits .m-rule.on .m-state { color: #ffe86e; }
 #gambits .m-rule.off .m-cell-name, #gambits .m-rule.off .m-cell-count { color: #808080; }
 #gambits .m-rule.picked .m-cell-name, #gambits .m-rule.picked .m-cell-count { color: #ffe86e; }
+
+/* A member in the back row: the face further in (27 pixels), as Steam's panels have it. */
+.m-member.back .m-face { left: 40.5px; }
+/* Party Formation: the place picked up, its name yellow until it is set down. */
+.m-member.picked .m-text { color: #ffe86e; }

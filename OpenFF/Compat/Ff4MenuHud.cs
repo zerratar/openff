@@ -19,7 +19,7 @@ namespace OpenFF.Client
 
 		public sealed class MemberRow
 		{
-			public bool Present, Lit, Dim, Low;
+			public bool Present, Lit, Dim, Low, Back, Picked;
 			public string Name = "", Level = "", Hp = "", MaxHp = "", Mp = "", MaxMp = "";
 			public int Face;
 		}
@@ -92,6 +92,9 @@ namespace OpenFF.Client
 			public ScrollData RuleScroll = new ScrollData(), PickScroll = new ScrollData();
 			public List<CellRow> Pick = Rows<CellRow>(12);
 			public string MoveUpLabel = "Move Up";
+			// Party: the two pills (Swap Rows, Party Formation), the hand on one of them or on the member panel's places.
+			public bool Party, SwapRowsLit, FormationLit;
+			public string SwapRowsLabel = "Swap Rows", FormationLabel = "Party Formation";
 			public string Thought = "", Location = "", Gil = "", GilLabel = "Gil";
 			public string LvLabel = "Lv", HpLabel = "HP", MpLabel = "MP", Confirm = "Confirm", Back = "Back";
 			public string QuestionText = "", YesLabel = "Yes", NoLabel = "No";

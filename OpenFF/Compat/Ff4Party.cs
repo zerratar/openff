@@ -106,6 +106,24 @@ namespace OpenFF.Client
 			return Math.Max(0, at);
 		}
 
+		/// <summary>PlayerParty::changeMemberForOrder (the menu's Party Formation): whoever stands in place <paramref name="a"/>
+		/// and whoever in <paramref name="b"/> trade places (either may be empty); the line-up follows the places.</summary>
+		public static void SwapPlaces(int a, int b)
+		{
+			int ta = -1, tb = -1;
+			foreach (Character c in Party.Members)
+			{
+				int at = PositionOf(c.Id);
+				if (at == a) ta = c.Id;
+				if (at == b) tb = c.Id;
+			}
+			if (ta >= 0) _positions[ta] = b;
+			if (tb >= 0) _positions[tb] = a;
+			List<Character> members = Party.Members;
+			members.Sort((x, y) => PositionOf(x.Id).CompareTo(PositionOf(y.Id)));
+			for (int i = 0; i < members.Count; i++) members[i].Slot = i;
+		}
+
 		private static int FreePosition()
 		{
 			for (int at = 0; at < 5; at++) if (!_positions.ContainsValue(at)) return at;

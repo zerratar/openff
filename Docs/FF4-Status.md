@@ -134,7 +134,8 @@ game's files (MENU_Common.dat, babil_menu.msd and the other tables) and its rule
 | Status | As Steam lays it out: the figures, EXP and the next level, what is worn. |
 | Quicksave | "Quicksave game and quit?" then the title, whose CONTINUE resumes it. |
 | Gambits | OpenFF's auto-battle rules (as FF3's) in the FF4 menu's style: twelve rules with ON / OFF, condition and action, and the picker for both. |
-| Open | Party (the formation), Settings, Steam's Save screen and the save points (babil_savepoint.bbd). |
+| Party | MSSFormation's: Swap Rows turns the formation over, Party Formation trades two places (either may be empty); back-row faces stand further in, as on every member panel. |
+| Open | Settings, Steam's Save screen and the save points (babil_savepoint.bbd). |
 
 ## The Steam shell - 0%
 

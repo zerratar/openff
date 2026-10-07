@@ -104,7 +104,7 @@
   <frame bind-display="menu.picking">
   <id>members</id><x>155.5</x><y>6.75</y><width>960</width><height>945</height>
     <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>973.5</width><height>958.5</height></frame>
-    <frame class="m-member" data-source="menu.member[0]" bind-class="lit: lit; dim: dim; low: low">
+    <frame class="m-member" data-source="menu.member[0]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
     <id>member0</id><x>0</x><y>0</y><width>960</width><height>189</height>
       <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
       <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
@@ -122,7 +122,7 @@
       <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
       <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
     </frame>
-    <frame class="m-member" data-source="menu.member[1]" bind-class="lit: lit; dim: dim; low: low">
+    <frame class="m-member" data-source="menu.member[1]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
     <id>member1</id><x>0</x><y>189</y><width>960</width><height>189</height>
       <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
       <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
@@ -140,7 +140,7 @@
       <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
       <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
     </frame>
-    <frame class="m-member" data-source="menu.member[2]" bind-class="lit: lit; dim: dim; low: low">
+    <frame class="m-member" data-source="menu.member[2]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
     <id>member2</id><x>0</x><y>378</y><width>960</width><height>189</height>
       <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
       <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
@@ -158,7 +158,7 @@
       <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
       <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
     </frame>
-    <frame class="m-member" data-source="menu.member[3]" bind-class="lit: lit; dim: dim; low: low">
+    <frame class="m-member" data-source="menu.member[3]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
     <id>member3</id><x>0</x><y>567</y><width>960</width><height>189</height>
       <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
       <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
@@ -176,7 +176,7 @@
       <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
       <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
     </frame>
-    <frame class="m-member" data-source="menu.member[4]" bind-class="lit: lit; dim: dim; low: low">
+    <frame class="m-member" data-source="menu.member[4]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
     <id>member4</id><x>0</x><y>756</y><width>960</width><height>189</height>
       <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
       <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
@@ -226,7 +226,7 @@
   <frame bind-display="menu.full">
   <id>full</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
     <frame class="m-wallpaper"><id>wallpaper</id><x>0</x><y>0</y><width>1920</width><height>1080</height></frame>
-    <frame class="m-title">
+    <frame class="m-title" bind-display="!menu.party">
     <id>titlebar</id><x>155.5</x><y>6.75</y><width>1609</width><height>67.5</height>
       <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>81</height></frame>
       <frame class="m-text m-centre" bind-text="{menu.title}"><id>title</id><x>0</x><y>0</y><width>1609</width><height>67.5</height></frame>
@@ -388,7 +388,7 @@
       </frame>
       <frame bind-display="menu.using">
       <id>targets</id><x>398.9</x><y>0</y><width>1210.1</width><height>742.5</height>
-        <frame class="m-member" data-source="menu.target[0]" bind-class="lit: lit; dim: dim; low: low">
+        <frame class="m-member" data-source="menu.target[0]" bind-class="lit: lit; dim: dim; low: low; back: back">
         <id>target0</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height>
           <frame class="lit-band m-target-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
           <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
@@ -406,7 +406,7 @@
           <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>70.9</y><width>140</width><height>60.75</height></frame>
           <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 50%"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>148.5</height></frame>
         </frame>
-        <frame class="m-member" data-source="menu.target[1]" bind-class="lit: lit; dim: dim; low: low">
+        <frame class="m-member" data-source="menu.target[1]" bind-class="lit: lit; dim: dim; low: low; back: back">
         <id>target1</id><x>0</x><y>148.5</y><width>1210.1</width><height>148.5</height>
           <frame class="lit-band m-target-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
           <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
@@ -424,7 +424,7 @@
           <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>70.9</y><width>140</width><height>60.75</height></frame>
           <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 50%"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>148.5</height></frame>
         </frame>
-        <frame class="m-member" data-source="menu.target[2]" bind-class="lit: lit; dim: dim; low: low">
+        <frame class="m-member" data-source="menu.target[2]" bind-class="lit: lit; dim: dim; low: low; back: back">
         <id>target2</id><x>0</x><y>297</y><width>1210.1</width><height>148.5</height>
           <frame class="lit-band m-target-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
           <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
@@ -442,7 +442,7 @@
           <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>70.9</y><width>140</width><height>60.75</height></frame>
           <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 50%"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>148.5</height></frame>
         </frame>
-        <frame class="m-member" data-source="menu.target[3]" bind-class="lit: lit; dim: dim; low: low">
+        <frame class="m-member" data-source="menu.target[3]" bind-class="lit: lit; dim: dim; low: low; back: back">
         <id>target3</id><x>0</x><y>445.5</y><width>1210.1</width><height>148.5</height>
           <frame class="lit-band m-target-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
           <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
@@ -460,7 +460,7 @@
           <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>70.9</y><width>140</width><height>60.75</height></frame>
           <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 50%"><id>hand</id><x>87.8</x><y>0</y><width>1</width><height>148.5</height></frame>
         </frame>
-        <frame class="m-member" data-source="menu.target[4]" bind-class="lit: lit; dim: dim; low: low">
+        <frame class="m-member" data-source="menu.target[4]" bind-class="lit: lit; dim: dim; low: low; back: back">
         <id>target4</id><x>0</x><y>594</y><width>1210.1</width><height>148.5</height>
           <frame class="lit-band m-target-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
           <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>1210.1</width><height>148.5</height></frame>
@@ -1409,6 +1409,122 @@
     </frame>
     <frame bind-display="menu.gambitPicking">
     <id>pickKeys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
+      <frame class="key-cap" style="-ff-cell: key 43"><id>key0</id><x>1348.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.confirm}"><id>label0</id><x>1409.5</x><y>0</y><width>360</width><height>60.75</height></frame>
+      <frame class="key-cap" style="-ff-cell: key 15"><id>key1</id><x>1568.5</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.back}"><id>label1</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
+    </frame>
+  </frame>
+  <frame bind-display="menu.party">
+  <id>party</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+    <frame>
+    <id>partyMembers</id><x>155.5</x><y>6.75</y><width>960</width><height>945</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>973.5</width><height>958.5</height></frame>
+      <frame class="m-member" data-source="menu.member[0]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
+      <id>member0</id><x>0</x><y>0</y><width>960</width><height>189</height>
+        <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-face" bind-display="present" bind-style="-ff-cell: face {face}"><id>face</id><x>13.5</x><y>27</y><width>135</width><height>135</height></frame>
+        <frame class="m-text" bind-text="{name}"><id>name</id><x>189.3</x><y>20.25</y><width>400</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.lvLabel}"><id>lv</id><x>189.3</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{level}"><id>level</id><x>324.5</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.hpLabel}"><id>hpLabel</id><x>540.8</x><y>20.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right m-hp" bind-text="{hp}"><id>hp</id><x>600</x><y>20.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>hpSlash</id><x>774.1</x><y>20.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxHp}"><id>maxHp</id><x>797.7</x><y>20.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.mpLabel}"><id>mpLabel</id><x>540.8</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{mp}"><id>mp</id><x>600</x><y>74.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>mpSlash</id><x>774.1</x><y>74.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
+      </frame>
+      <frame class="m-member" data-source="menu.member[1]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
+      <id>member1</id><x>0</x><y>189</y><width>960</width><height>189</height>
+        <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-face" bind-display="present" bind-style="-ff-cell: face {face}"><id>face</id><x>13.5</x><y>27</y><width>135</width><height>135</height></frame>
+        <frame class="m-text" bind-text="{name}"><id>name</id><x>189.3</x><y>20.25</y><width>400</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.lvLabel}"><id>lv</id><x>189.3</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{level}"><id>level</id><x>324.5</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.hpLabel}"><id>hpLabel</id><x>540.8</x><y>20.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right m-hp" bind-text="{hp}"><id>hp</id><x>600</x><y>20.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>hpSlash</id><x>774.1</x><y>20.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxHp}"><id>maxHp</id><x>797.7</x><y>20.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.mpLabel}"><id>mpLabel</id><x>540.8</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{mp}"><id>mp</id><x>600</x><y>74.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>mpSlash</id><x>774.1</x><y>74.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
+      </frame>
+      <frame class="m-member" data-source="menu.member[2]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
+      <id>member2</id><x>0</x><y>378</y><width>960</width><height>189</height>
+        <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-face" bind-display="present" bind-style="-ff-cell: face {face}"><id>face</id><x>13.5</x><y>27</y><width>135</width><height>135</height></frame>
+        <frame class="m-text" bind-text="{name}"><id>name</id><x>189.3</x><y>20.25</y><width>400</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.lvLabel}"><id>lv</id><x>189.3</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{level}"><id>level</id><x>324.5</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.hpLabel}"><id>hpLabel</id><x>540.8</x><y>20.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right m-hp" bind-text="{hp}"><id>hp</id><x>600</x><y>20.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>hpSlash</id><x>774.1</x><y>20.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxHp}"><id>maxHp</id><x>797.7</x><y>20.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.mpLabel}"><id>mpLabel</id><x>540.8</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{mp}"><id>mp</id><x>600</x><y>74.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>mpSlash</id><x>774.1</x><y>74.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
+      </frame>
+      <frame class="m-member" data-source="menu.member[3]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
+      <id>member3</id><x>0</x><y>567</y><width>960</width><height>189</height>
+        <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-face" bind-display="present" bind-style="-ff-cell: face {face}"><id>face</id><x>13.5</x><y>27</y><width>135</width><height>135</height></frame>
+        <frame class="m-text" bind-text="{name}"><id>name</id><x>189.3</x><y>20.25</y><width>400</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.lvLabel}"><id>lv</id><x>189.3</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{level}"><id>level</id><x>324.5</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.hpLabel}"><id>hpLabel</id><x>540.8</x><y>20.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right m-hp" bind-text="{hp}"><id>hp</id><x>600</x><y>20.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>hpSlash</id><x>774.1</x><y>20.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxHp}"><id>maxHp</id><x>797.7</x><y>20.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.mpLabel}"><id>mpLabel</id><x>540.8</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{mp}"><id>mp</id><x>600</x><y>74.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>mpSlash</id><x>774.1</x><y>74.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
+      </frame>
+      <frame class="m-member" data-source="menu.member[4]" bind-class="lit: lit; dim: dim; low: low; back: back; picked: picked">
+      <id>member4</id><x>0</x><y>756</y><width>960</width><height>189</height>
+        <frame class="lit-band m-member-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>960</width><height>189</height></frame>
+        <frame class="m-face" bind-display="present" bind-style="-ff-cell: face {face}"><id>face</id><x>13.5</x><y>27</y><width>135</width><height>135</height></frame>
+        <frame class="m-text" bind-text="{name}"><id>name</id><x>189.3</x><y>20.25</y><width>400</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.lvLabel}"><id>lv</id><x>189.3</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{level}"><id>level</id><x>324.5</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.hpLabel}"><id>hpLabel</id><x>540.8</x><y>20.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right m-hp" bind-text="{hp}"><id>hp</id><x>600</x><y>20.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>hpSlash</id><x>774.1</x><y>20.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxHp}"><id>maxHp</id><x>797.7</x><y>20.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="{menu.mpLabel}"><id>mpLabel</id><x>540.8</x><y>74.25</y><width>120</width><height>60.75</height></frame>
+        <frame class="m-text m-right" bind-text="{mp}"><id>mp</id><x>600</x><y>74.25</y><width>166</width><height>60.75</height></frame>
+        <frame class="m-text" bind-display="present" bind-text="/"><id>mpSlash</id><x>774.1</x><y>74.25</y><width>30</width><height>60.75</height></frame>
+        <frame class="m-text" bind-text="{maxMp}"><id>maxMp</id><x>797.7</x><y>74.25</y><width>140</width><height>60.75</height></frame>
+        <frame class="hand m-member-hand" bind-visible="lit"><id>hand</id><x>81</x><y>0</y><width>1</width><height>189</height></frame>
+      </frame>
+    </frame>
+    <frame class="m-pill">
+    <id>swapRows</id><x>1122.3</x><y>0</y><width>648.9</width><height>121.5</height>
+      <frame class="m-pill-art"><id>art</id><x>0</x><y>0</y><width>648.9</width><height>121.5</height></frame>
+      <frame class="m-text m-centre" bind-text="{menu.swapRowsLabel}"><id>label</id><x>0</x><y>30.4</y><width>648.9</width><height>60.75</height></frame>
+      <frame class="hand m-pill-hand" bind-visible="menu.swapRowsLit"><id>hand</id><x>87.7</x><y>0</y><width>1</width><height>121.5</height></frame>
+    </frame>
+    <frame class="m-pill">
+    <id>formation</id><x>1122.3</x><y>128.2</y><width>648.9</width><height>121.5</height>
+      <frame class="m-pill-art"><id>art</id><x>0</x><y>0</y><width>648.9</width><height>121.5</height></frame>
+      <frame class="m-text m-centre" bind-text="{menu.formationLabel}"><id>label</id><x>0</x><y>30.4</y><width>648.9</width><height>60.75</height></frame>
+      <frame class="hand m-pill-hand" bind-visible="menu.formationLit"><id>hand</id><x>87.7</x><y>0</y><width>1</width><height>121.5</height></frame>
+    </frame>
+    <frame bind-display="menu.party">
+    <id>partyKeys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
       <frame class="key-cap" style="-ff-cell: key 43"><id>key0</id><x>1348.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
       <frame class="m-key-label" bind-text="{menu.confirm}"><id>label0</id><x>1409.5</x><y>0</y><width>360</width><height>60.75</height></frame>
       <frame class="key-cap" style="-ff-cell: key 15"><id>key1</id><x>1568.5</x><y>0</y><width>60.75</width><height>60.75</height></frame>

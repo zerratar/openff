@@ -162,7 +162,9 @@ namespace OpenFF.Client
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { UpdateAbilities(input); break; }
 					UpdateMemberScreen(input, ListCount()); break;
-				case Screen.Party: UpdateParty(input); break;
+				case Screen.Party:
+					if (Ff4MenuHud.Available) { UpdatePartyLayout(input); break; }
+					UpdateParty(input); break;
 				case Screen.Save:
 				case Screen.Load: UpdateSlots(input); break;
 			}
@@ -477,6 +479,29 @@ namespace OpenFF.Client
 			}
 		}
 
+		/// <summary>Party (MSSFormation): the hand on Swap Rows (PlayerParty::changeFormation) or Party Formation, which puts it on
+		/// the five places - Enter on one, then on another, and the two trade places (changeMemberForOrder).</summary>
+		private void UpdatePartyLayout(InputState input)
+		{
+			if (_mode == Mode.SwapMember)
+			{
+				if (input.Pressed(Pad.B)) { if (_swapFrom >= 0) _swapFrom = -1; else _mode = Mode.Browse; return; }
+				if (input.Pressed(Pad.Up)) _cursor = (_cursor + 4) % 5;
+				if (input.Pressed(Pad.Down)) _cursor = (_cursor + 1) % 5;
+				if (!input.Pressed(Pad.A)) return;
+				if (_swapFrom < 0) { _swapFrom = _cursor; return; }
+				if (_swapFrom != _cursor) Ff4Party.SwapPlaces(_swapFrom, _cursor);
+				Log.Write(LogChannel.File, "menu: places " + _swapFrom + " and " + _cursor + " swapped");
+				_swapFrom = -1;
+				return;
+			}
+			if (input.Pressed(Pad.B)) { Back(); return; }
+			if (input.Pressed(Pad.Up) || input.Pressed(Pad.Down)) _pick = 1 - _pick;
+			if (!input.Pressed(Pad.A)) return;
+			if (_pick == 0) { Ff4Party.Formation = 1 - Ff4Party.Formation; Log.Write(LogChannel.File, "menu: rows swapped (formation " + Ff4Party.Formation + ")"); }
+			else { _mode = Mode.SwapMember; _cursor = 0; _swapFrom = -1; }
+		}
+
 		// ---- save and load ----
 
 		private void UpdateSlots(InputState input)
@@ -626,7 +651,9 @@ namespace OpenFF.Client
 				case Screen.Abilities:
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawList(d); break;
-				case Screen.Party: DrawParty(d); break;
+				case Screen.Party:
+					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
+					DrawParty(d); break;
 				case Screen.Save:
 				case Screen.Load: DrawSlots(d); break;
 			}
@@ -732,6 +759,21 @@ namespace OpenFF.Client
 			h.Equipment = _screen == Screen.Equipment;
 			h.Abilities = _screen == Screen.Abilities;
 			h.Gambits = _screen == Screen.Gambits;
+			h.Party = _screen == Screen.Party;
+			if (h.Party)
+			{
+				bool places = _mode == Mode.SwapMember;
+				FillMembers(h.Member, -1, false);
+				for (int p = 0; p < h.Member.Count; p++)
+				{
+					h.Member[p].Lit = places && p == _cursor;
+					h.Member[p].Picked = places && p == _swapFrom;
+				}
+				h.SwapRowsLit = !places && _pick == 0;
+				h.FormationLit = !places && _pick == 1;
+				h.SwapRowsLabel = T(50504, "Swap Rows");
+				h.FormationLabel = T(50505, "Party Formation");
+			}
 			if (h.Gambits) FillGambits(h);
 			h.LvLabel = T(50401, "Lv");
 			h.HpLabel = T(50410, "HP");
@@ -950,6 +992,7 @@ namespace OpenFF.Client
 				row.Face = c.Id;
 				row.Low = c.Alive && c.Hp * 4 <= c.MaxHp;
 				row.Dim = !c.Alive || (dimNoMagic && c.Spells.Count == 0);
+				row.Back = Ff4Party.RowOf(p) == 1;   // the back row's face stands further in
 			}
 		}
 
