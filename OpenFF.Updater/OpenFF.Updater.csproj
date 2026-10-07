@@ -9,6 +9,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <AssemblyName>OpenFF.Updater</AssemblyName>
+    <ApplicationIcon>Icon.ico</ApplicationIcon>
     <RootNamespace>OpenFF.Updater</RootNamespace>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>

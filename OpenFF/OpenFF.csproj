@@ -13,7 +13,7 @@
     <Copyright>Final Fantasy III and IV are Square Enix's; this is a fan-made client and editor that read the copies you own</Copyright>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platforms>AnyCPU;x64</Platforms>
-    <ApplicationIcon></ApplicationIcon>
+    <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -36,6 +36,8 @@
 
   <ItemGroup>
     <!-- The two string tables, embedded under a fixed name; the accessors in Resources/ read them by it. -->
+    <!-- The window's icon: MonoGame's SDL window takes an embedded Icon.bmp (Art/Icons/make_icons.py makes it). -->
+    <EmbeddedResource Include="Icon.bmp"><LogicalName>Icon.bmp</LogicalName></EmbeddedResource>
     <EmbeddedResource Update="Resources\Strings.resx"><LogicalName>OpenFF.Resources.Strings.resources</LogicalName></EmbeddedResource>
     <EmbeddedResource Update="Resources\Language.resx"><LogicalName>OpenFF.Resources.Language.resources</LogicalName></EmbeddedResource>
   </ItemGroup>
