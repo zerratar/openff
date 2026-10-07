@@ -11,8 +11,9 @@
 // From FF4.exe (Ghidra, Reference/ff4exe; the Android libff4.so's names for the same code):
 // - CompanyLogoSubState (FUN_005269d0 setup, FUN_00526b00 update): TITLE_Localize_Common.dat's se_logo
 //   (entries 18/19) and mt_logo (12/13), each faded in over the default 15 frames, held 120 frames once
-//   clear, faded out to black; then the movie part (opening.mkv) with the title after it. No skipping.
-//   The movie is not played here yet: the title follows the logos.
+//   clear, faded out to black; then the movie (opening.mkv, beside FF4.exe), the game held under it (the main loop draws
+//   the movie in place of the game, FUN_00441d30), and the title after it. The movie ends early on the Pause key (Esc),
+//   a press of A, B, X or Y, any of the pad's buttons, or a click. Here MoviePlayer plays it.
 // - Title2Ds::setup (FUN_00527c10): title_bg_00 (entries 22/23) as the background; TITLE_Localize.dat's
 //   title_obj_00 cells - 2 the FINAL FANTASY IV logo, shown at (240, 94) of the 480 x 320 logical screen,
 //   4 the copyright line at (240, LCD_HEIGHT / 2 + 148).
@@ -55,7 +56,7 @@ namespace OpenFF.Client
 		private static float Y(float ly) => 1.5f * ly;
 
 		// What the parts put on the screen, read by Screen as it draws.
-		private enum Showing { Nothing, Logo, Title }
+		private enum Showing { Nothing, Logo, Movie, Title }
 		private static Showing _showing;
 		private static string _logo;
 		private static readonly bool[] _shown = new bool[4];
@@ -96,6 +97,8 @@ namespace OpenFF.Client
 		{
 			public static readonly LogoPart Instance = new LogoPart();
 			private int _state, _frames;
+			private MoviePlayer _movie;
+			private bool _mouseWas, _escWas;
 
 			protected override void doInitialize()
 			{
@@ -109,7 +112,42 @@ namespace OpenFF.Client
 
 			protected override void doUninitialize()
 			{
+				_movie?.Dispose();
+				_movie = null;
 				_showing = Showing.Nothing;
+			}
+
+			private void ToTitle()
+			{
+				_showing = Showing.Nothing;
+				GlobalScope.sys.GGlobal.setNextPart(GlobalScope.GAMEPART.GAMEPART_TITLE);
+				abort();
+				_state = 6;
+			}
+
+			/// <summary>What ends the movie in FF4.exe: the Pause key (Esc), A / B / X / Y as the game reads them (0xC03), any
+			/// of the pad's buttons, a click - each on its press.</summary>
+			private bool SkipPressed()
+			{
+				bool esc = Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.Escape);
+				bool mouse = Microsoft.Xna.Framework.Input.Mouse.GetState().LeftButton == Microsoft.Xna.Framework.Input.ButtonState.Pressed;
+				// A click counts only on the game's own window, it in front: one on a window over it is not the game's.
+				bool active = true;
+				try
+				{
+					Microsoft.Xna.Framework.Game game = GlobalScope.m_Graphics.getGame();
+					Microsoft.Xna.Framework.Input.MouseState m = Microsoft.Xna.Framework.Input.Mouse.GetState();
+					Microsoft.Xna.Framework.Rectangle client = game.Window.ClientBounds;
+					active = game.IsActive && m.X >= 0 && m.Y >= 0 && m.X < client.Width && m.Y < client.Height;
+				}
+				catch (Exception) { }
+				int pad = 0;
+				try { pad = GlobalScope.ds.g_Pad.edge() & 0xC03; } catch (Exception) { }
+				bool skip = (esc && !_escWas) || (active && mouse && !_mouseWas) || pad != 0;
+				if (skip) Log.Write(LogChannel.General, "movie: skip by " + (pad != 0 ? "pad 0x" + pad.ToString("x") : esc && !_escWas ? "Esc" : "a click"));
+				_escWas = esc;
+				_mouseWas = mouse;
+				return skip;
 			}
 
 			protected override void onExecutePart()
@@ -129,14 +167,49 @@ namespace OpenFF.Client
 					case 4:
 						if (Faded)
 						{
-							// FF4.exe plays opening.mkv here (the movie part, the title after it); not yet in this client.
-							GlobalScope.sys.GGlobal.setNextPart(GlobalScope.GAMEPART.GAMEPART_TITLE);
-							abort();
-							_state = 5;
+							string movie = SteamFile("opening.mkv");
+							if (movie != null)
+							{
+								_movie = new MoviePlayer(movie);
+								_movie.Start();
+								_showing = Showing.Movie;
+								try { GlobalScope.ds.g_Pad.enable(); } catch (Exception) { }
+								_mouseWas = Microsoft.Xna.Framework.Input.Mouse.GetState().LeftButton == Microsoft.Xna.Framework.Input.ButtonState.Pressed;
+								_escWas = Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.Escape);
+								_state = 5;
+							}
+							else ToTitle();
+						}
+						break;
+					case 5:
+						_movie.Update();
+						if (_movie.Done || SkipPressed())
+						{
+							if (!_movie.Done) Log.Write(LogChannel.General, "movie: skipped");
+							_movie.Dispose();
+							_movie = null;
+							ToTitle();
 						}
 						break;
 				}
 			}
+		}
+
+		/// <summary>A file of the Steam install beside FF4.exe (the content's files are two folders under it); null when it is not there.</summary>
+		private static string SteamFile(string name)
+		{
+			try
+			{
+				string dir = System.IO.Path.GetFullPath(ContentLocator.FindContentRoot() ?? "");
+				for (int up = 0; up < 4 && !string.IsNullOrEmpty(dir); up++)
+				{
+					string path = System.IO.Path.Combine(dir, name);
+					if (System.IO.File.Exists(path)) return path;
+					dir = System.IO.Path.GetDirectoryName(dir);
+				}
+			}
+			catch (Exception ex) { Log.Write(LogChannel.General, "ff4 title: looking for " + name + ": " + ex.Message); }
+			return null;
 		}
 
 		/// <summary>TitleSubState and TitleContents: the background, the logo, the commands, and what a command does.</summary>
@@ -289,6 +362,11 @@ namespace OpenFF.Client
 			{
 				if (_showing == Showing.Nothing) return;
 				DrawList d = Game.Draw;
+				if (_showing == Showing.Movie)
+				{
+					MoviePlayer.Current?.Draw(d);
+					return;
+				}
 				d.Rect(0, 0, DrawList.ScreenWidth, DrawList.ScreenHeight, Color.Black);
 				if (_showing == Showing.Logo) DrawLogo(d);
 				else DrawTitle(d);

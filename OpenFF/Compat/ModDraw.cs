@@ -49,9 +49,36 @@ namespace OpenFF.Client
 			DrawOrder = int.MaxValue - 5;
 		}
 
+		private static ModDraw _instance;
+
+		/// <summary>A picture the client rewrites as it goes (a movie's frames), width x height RGBA; null before the drawer is up.</summary>
+		public static OpenFF.Texture CreateDynamic(int width, int height)
+		{
+			if (_instance == null || width <= 0 || height <= 0) return null;
+			Texture2D texture = new Texture2D(_instance.GraphicsDevice, width, height, false, SurfaceFormat.Color);
+			return new ModTexture("dynamic:" + width + "x" + height, texture);
+		}
+
+		/// <summary>A dynamic picture's pixels replaced (RGBA, its whole size).</summary>
+		public static void SetPixels(OpenFF.Texture texture, byte[] rgba)
+		{
+			if (texture is ModTexture m && m.Texture2D != null && !m.Texture2D.IsDisposed) m.Texture2D.SetData(rgba);
+		}
+
+		/// <summary>A dynamic picture let go.</summary>
+		public static void Release(OpenFF.Texture texture)
+		{
+			if (texture is ModTexture m && m.Texture2D != null)
+			{
+				m.Texture2D.Dispose();
+				m.Texture2D = null;
+			}
+		}
+
 		public static void Attach(Game game)
 		{
 			ModDraw draw = new ModDraw(game);
+			_instance = draw;
 			game.Components.Add(draw);
 			OpenFF.Game.Draw.TextureLoader = draw.Load;
 			OpenFF.Game.Draw.TextureBytesLoader = draw.LoadBytes;
