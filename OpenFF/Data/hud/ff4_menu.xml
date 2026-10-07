@@ -1002,4 +1002,87 @@
       <frame class="m-key-label" bind-text="{menu.back}"><id>label3</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
     </frame>
   </frame>
+  <frame bind-display="menu.abilities">
+  <id>abilities</id><x>0</x><y>0</y><width>1920</width><height>1080</height>
+    <frame class="m-pane">
+    <id>head</id><x>155.5</x><y>87.75</y><width>1609</width><height>148.5</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>162</height></frame>
+      <frame class="m-face" bind-style="-ff-cell: face {menu.head.face}"><id>face</id><x>398.9</x><y>6.75</y><width>135</width><height>135</height></frame>
+      <frame class="m-text" bind-text="{menu.head.name}"><id>name</id><x>561.1</x><y>16.9</y><width>400</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="{menu.lvLabel}"><id>lv</id><x>561.1</x><y>70.9</y><width>120</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="{menu.head.level}"><id>level</id><x>696.3</x><y>70.9</y><width>120</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="{menu.hpLabel}"><id>hpLabel</id><x>858.6</x><y>16.9</y><width>120</width><height>60.75</height></frame>
+      <frame class="m-text m-right" bind-text="{menu.head.hp}"><id>hp</id><x>900</x><y>16.9</y><width>183.8</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="/"><id>hpSlash</id><x>1091.8</x><y>16.9</y><width>30</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="{menu.head.maxHp}"><id>maxHp</id><x>1115.5</x><y>16.9</y><width>140</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="{menu.mpLabel}"><id>mpLabel</id><x>858.6</x><y>70.9</y><width>120</width><height>60.75</height></frame>
+      <frame class="m-text m-right" bind-text="{menu.head.mp}"><id>mp</id><x>900</x><y>70.9</y><width>183.8</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="/"><id>mpSlash</id><x>1091.8</x><y>70.9</y><width>30</width><height>60.75</height></frame>
+      <frame class="m-text" bind-text="{menu.head.maxMp}"><id>maxMp</id><x>1115.5</x><y>70.9</y><width>140</width><height>60.75</height></frame>
+    </frame>
+    <frame class="m-pane">
+    <id>info</id><x>155.5</x><y>249.75</y><width>1609</width><height>94.5</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>108</height></frame>
+      <frame class="m-text" bind-text="{menu.help}"><id>helpLine</id><x>74.4</x><y>16.9</y><width>1500</width><height>60.75</height></frame>
+    </frame>
+    <frame class="m-pane">
+    <id>auto</id><x>155.5</x><y>357.75</y><width>1609</width><height>108</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>121.5</height></frame>
+      <frame class="m-text" bind-text="{menu.autoLabel}"><id>label</id><x>75.5</x><y>0</y><width>700</width><height>108</height></frame>
+      <frame class="m-cell" data-source="menu.auto" bind-class="lit: lit; picked: picked">
+      <id>autoCommand</id><x>805.5</x><y>0</y><width>799</width><height>108</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>799</width><height>108</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>799</width><height>108</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>82</x><y>0</y><width>700</width><height>108</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 50.6px"><id>hand</id><x>82</x><y>0</y><width>1</width><height>108</height></frame>
+      </frame>
+    </frame>
+    <frame class="m-pane">
+    <id>commands</id><x>155.5</x><y>479.25</y><width>1609</width><height>472.5</height>
+      <frame class="m-window"><id>frame</id><x>-6.75</x><y>-6.75</y><width>1622.5</width><height>486</height></frame>
+      <frame class="m-text" bind-text="{menu.commandsLabel}"><id>label</id><x>75.5</x><y>0</y><width>700</width><height>472.5</height></frame>
+      <frame class="m-cell" data-source="menu.slot[0]" bind-class="lit: lit; picked: picked">
+      <id>command0</id><x>805.5</x><y>0</y><width>799</width><height>94.5</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>82</x><y>0</y><width>700</width><height>94.5</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 44.3px"><id>hand</id><x>82</x><y>0</y><width>1</width><height>94.5</height></frame>
+      </frame>
+      <frame class="m-cell" data-source="menu.slot[1]" bind-class="lit: lit; picked: picked">
+      <id>command1</id><x>805.5</x><y>94.5</y><width>799</width><height>94.5</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>82</x><y>0</y><width>700</width><height>94.5</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 44.3px"><id>hand</id><x>82</x><y>0</y><width>1</width><height>94.5</height></frame>
+      </frame>
+      <frame class="m-cell" data-source="menu.slot[2]" bind-class="lit: lit; picked: picked">
+      <id>command2</id><x>805.5</x><y>189</y><width>799</width><height>94.5</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>82</x><y>0</y><width>700</width><height>94.5</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 44.3px"><id>hand</id><x>82</x><y>0</y><width>1</width><height>94.5</height></frame>
+      </frame>
+      <frame class="m-cell" data-source="menu.slot[3]" bind-class="lit: lit; picked: picked">
+      <id>command3</id><x>805.5</x><y>283.5</y><width>799</width><height>94.5</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>82</x><y>0</y><width>700</width><height>94.5</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 44.3px"><id>hand</id><x>82</x><y>0</y><width>1</width><height>94.5</height></frame>
+      </frame>
+      <frame class="m-cell" data-source="menu.slot[4]" bind-class="lit: lit; picked: picked">
+      <id>command4</id><x>805.5</x><y>378</y><width>799</width><height>94.5</height>
+        <frame class="lit-band" bind-visible="lit"><id>band</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-edge"><id>edge</id><x>0</x><y>0</y><width>799</width><height>94.5</height></frame>
+        <frame class="m-cell-name" bind-text="{name}"><id>name</id><x>82</x><y>0</y><width>700</width><height>94.5</height></frame>
+        <frame class="hand" bind-visible="lit" style="-ff-cell-origin: 0 44.3px"><id>hand</id><x>82</x><y>0</y><width>1</width><height>94.5</height></frame>
+      </frame>
+    </frame>
+    <frame bind-display="menu.abilities">
+    <id>abilityKeys</id><x>0</x><y>995.6</y><width>1920</width><height>60.75</height>
+      <frame class="key-cap" style="-ff-cell: key 43"><id>key0</id><x>1348.7</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.confirm}"><id>label0</id><x>1409.5</x><y>0</y><width>360</width><height>60.75</height></frame>
+      <frame class="key-cap" style="-ff-cell: key 15"><id>key1</id><x>1568.5</x><y>0</y><width>60.75</width><height>60.75</height></frame>
+      <frame class="m-key-label" bind-text="{menu.back}"><id>label1</id><x>1629.3</x><y>0</y><width>360</width><height>60.75</height></frame>
+    </frame>
+  </frame>
 </menu>

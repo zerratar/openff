@@ -154,7 +154,9 @@ namespace OpenFF.Client
 				case Screen.Inventory: UpdateInventory(input); break;
 				case Screen.Equipment: UpdateEquipment(input); break;
 				case Screen.Magic:
-				case Screen.Abilities: UpdateMemberScreen(input, ListCount()); break;
+				case Screen.Abilities:
+					if (Ff4MenuHud.Available) { UpdateAbilities(input); break; }
+					UpdateMemberScreen(input, ListCount()); break;
 				case Screen.Party: UpdateParty(input); break;
 				case Screen.Save:
 				case Screen.Load: UpdateSlots(input); break;
@@ -306,13 +308,18 @@ namespace OpenFF.Client
 			return list;
 		}
 
+		/// <summary>C's word on Magic: babil_menu.msd's key hints (60231 Black Magic, 60232 White Magic, 60233 Summon, 60235 Ninjutsu).</summary>
 		private static string SchoolName(OpenFF.Data.MagicSchool school) => school switch
 		{
-			OpenFF.Data.MagicSchool.White => "White Magic",
-			OpenFF.Data.MagicSchool.Black => "Black Magic",
-			OpenFF.Data.MagicSchool.Summon => "Summon",
+			OpenFF.Data.MagicSchool.White => KeyText(60232, "White Magic"),
+			OpenFF.Data.MagicSchool.Black => KeyText(60231, "Black Magic"),
+			OpenFF.Data.MagicSchool.Summon => KeyText(60233, "Summon"),
+			OpenFF.Data.MagicSchool.Ninjutsu => KeyText(60235, "Ninjutsu"),
 			_ => school.ToString(),
 		};
+
+		/// <summary>A key hint's word without the "%key_assign12%" naming the key (the layout draws the key's own cap).</summary>
+		private static string KeyText(uint id, string fallback) => System.Text.RegularExpressions.Regex.Replace(T(id, fallback), "%[A-Za-z_0-9]+%", "");
 
 		// ---- inventory ----
 
@@ -391,6 +398,24 @@ namespace OpenFF.Client
 				_pick = 0;
 				_scroll = 0;
 			}
+		}
+
+		private static string CommandName(int id) => id > 0 ? Ff4Party.Tables?.AbilityName(3000 + id)?.Trim() ?? "" : "";
+
+		/// <summary>Abilities: the hand on the auto-battle command (0) or one of the five (1..5); Enter on one of the five picks it
+		/// up and Enter on another sets it down there, the two swapping places; left and right the member before and after.</summary>
+		private void UpdateAbilities(InputState input)
+		{
+			if (input.Pressed(Pad.B)) { if (_swapFrom >= 0) _swapFrom = -1; else Back(); return; }
+			if (_swapFrom < 0) SwitchMember(input);
+			if (input.Pressed(Pad.Up)) _cursor = Math.Max(_swapFrom >= 0 ? 1 : 0, _cursor - 1);
+			if (input.Pressed(Pad.Down)) _cursor = Math.Min(5, _cursor + 1);
+			if (!input.Pressed(Pad.A) || _cursor == 0) return;
+			int at = _cursor - 1;
+			if (_swapFrom < 0) { _swapFrom = at; return; }
+			int[] slots = Ff4Augments.Slots(Member);
+			(slots[_swapFrom], slots[at]) = (slots[at], slots[_swapFrom]);
+			_swapFrom = -1;
 		}
 
 		/// <summary>Tab on Equipment: every slot takes the bag's best piece for it when that beats what is worn.</summary>
@@ -591,7 +616,9 @@ namespace OpenFF.Client
 					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
 					DrawList(d);
 					break;
-				case Screen.Abilities: DrawList(d); break;
+				case Screen.Abilities:
+					if (Ff4MenuHud.Available) { DrawScreenLayout(); break; }
+					DrawList(d); break;
 				case Screen.Party: DrawParty(d); break;
 				case Screen.Save:
 				case Screen.Load: DrawSlots(d); break;
@@ -681,7 +708,7 @@ namespace OpenFF.Client
 			h.Question = _question;
 			h.Yes = _question && _questionYes;
 			h.No = _question && !_questionYes;
-			h.QuestionText = "Quicksave game and quit?";
+			h.QuestionText = T(50818, "Quicksave game and quit?");
 			Ff4MenuHud.Draw(h);
 		}
 
@@ -696,12 +723,16 @@ namespace OpenFF.Client
 			h.Magic = _screen == Screen.Magic;
 			h.Status = _screen == Screen.Status;
 			h.Equipment = _screen == Screen.Equipment;
+			h.Abilities = _screen == Screen.Abilities;
 			h.LvLabel = T(50401, "Lv");
 			h.HpLabel = T(50410, "HP");
 			h.MpLabel = T(50411, "MP");
 			h.UseLabel = T(50101, "Use");
+			h.ChangeLabel = KeyText(60230, "Change Characters");
 			if (h.Inventory)
 			{
+				h.KeyItemsLabel = T(50103, "Key Items");
+				h.SortLabel = T(50102, "Sort");
 				h.Title = _keyItems ? h.KeyItemsLabel : T(50002, "Inventory");
 				List<OpenFF.Data.ItemStack> items = Bag();
 				h.Using = _mode == Mode.ItemTarget;
@@ -798,6 +829,28 @@ namespace OpenFF.Client
 				h.Help = shown != 0 ? tables?.Item(shown)?.Caption ?? "" : "";
 				h.OptimizeLabel = T(50203, "Optimize");
 				h.RemoveLabel = T(50202, "Remove");
+			}
+			if (h.Abilities)
+			{
+				Character c = Member;
+				h.Title = T(50011, "Abilities");
+				FillHead(h.Head, c);
+				h.AutoLabel = T(50453, "Auto-Battle Command");
+				h.CommandsLabel = T(50450, "Battle Commands");
+				int[] slots = Ff4Augments.Slots(c);
+				// The auto-battle command: libff4 keeps it in the member's own list (abilityIDList 5), Attack from the start; Attack
+				// here until that list is kept.
+				int auto = Array.IndexOf(slots, 1) >= 0 ? 1 : slots[0];
+				h.Auto.Name = CommandName(auto);
+				h.Auto.Lit = _cursor == 0;
+				for (int k = 0; k < 5; k++)
+				{
+					h.Slot[k].Name = CommandName(slots[k]);
+					h.Slot[k].Lit = _cursor == k + 1;
+					h.Slot[k].Picked = _swapFrom == k;
+				}
+				int lit = _cursor == 0 ? auto : slots[_cursor - 1];
+				h.Help = lit > 0 ? (tables?.AbilityHelp(lit) ?? "").Replace("\n", " ") : "";
 			}
 			Ff4MenuHud.Draw(h);
 		}

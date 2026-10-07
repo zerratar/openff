@@ -97,3 +97,7 @@
 /* The Equipment screen's figures: the small print (two lines to a row of the big). */
 .m-small { color: #ffffff; font-size: 14px; text-shadow: 2.25px 2.25px #000000; vertical-align: central; }
 #equipment .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 43.9px, #667dc4 43.9px, #667dc4 67.5px, #4a5daa 67.5px, #4a5daa 100%); }
+#abilities .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 40.5px, #667dc4 40.5px, #667dc4 64.1px, #4a5daa 64.1px, #4a5daa 100%); }
+#abilities #autoCommand .lit-band { background-image: linear-gradient(to bottom, #6987dd 0px, #6987dd 43.9px, #667dc4 43.9px, #667dc4 67.5px, #4a5daa 67.5px, #4a5daa 100%); }
+/* A command picked up to be moved: its name yellow until it is set down. */
+#abilities .m-cell.picked .m-cell-name { color: #ffe86e; }

@@ -41,7 +41,7 @@ namespace OpenFF.Client
 		/// <summary>An equipment slot: its word (Right, Head...), what is worn there and its symbol.</summary>
 		public sealed class SlotRow
 		{
-			public bool Lit;
+			public bool Lit, Picked;
 			public string Label = "", Name = "";
 			public int Icon = -1;
 		}
@@ -75,6 +75,10 @@ namespace OpenFF.Client
 			public List<CellRow> Choice = Rows<CellRow>(5);
 			public ScrollData ChoiceScroll = new ScrollData();
 			public string OptimizeLabel = "Optimize", RemoveLabel = "Remove";
+			// Abilities: the auto-battle command and the five battle commands (menu.slot), the hand on one, one picked up.
+			public bool Abilities;
+			public SlotRow Auto = new SlotRow();
+			public string AutoLabel = "Auto-Battle Command", CommandsLabel = "Battle Commands";
 			public string Thought = "", Location = "", Gil = "", GilLabel = "Gil";
 			public string LvLabel = "Lv", HpLabel = "HP", MpLabel = "MP", Confirm = "Confirm", Back = "Back";
 			public string QuestionText = "", YesLabel = "Yes", NoLabel = "No";
