@@ -2819,7 +2819,7 @@ namespace OpenFF.Client
 			}
 
 			// BattleTargetSelector::updateHpGauge: an ability whose ability.bbd +0x24 has 0x08 (Cure, a Potion) puts each
-			// member's HP gauge over it while it is aimed - battle_number's trough (22) and its fill (23 green, 25 at a
+			// member's HP gauge over it while it is aimed - battle_number's trough (22, dark grey) and its fill (23 green, 25 yellow at a
 			// quarter or less), at the turn cursor's point 8 lower; 0x10 (an Ether) the MP's (26).
 			if (_acting != null && (_pick == Pick.Target || _pick == Pick.Ally) && _targetBits != 0 && Ff4BattleStage.Active)
 			{
