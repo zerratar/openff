@@ -13058,6 +13058,8 @@ internal static partial class GlobalScope
 											array8[1] = array5[1];
 											array8[2] = array5[2];
 											int num74 = MATH_MIN(nNSG3dAnmObj2.frame >> 12, nNSG3dResJntAnm.numFrame - 1);
+											// PORT: the frame with its fraction, for the keys either side of it (JointKeys).
+											int fxFrame = Math.Max(0, Math.Min(nNSG3dAnmObj2.frame, (nNSG3dResJntAnm.numFrame - 1) << 12));
 											NNSG3dResJntAnm.NNSG3dResJntAnmP nNSG3dResJntAnmP = nNSG3dResJntAnm.p[num61];
 											int num75 = 0;
 											uint flag = nNSG3dResJntAnmP.flag;
@@ -13082,8 +13084,7 @@ internal static partial class GlobalScope
 														uint num78 = nNSG3dResJntAnmP.p[num75];
 														short[] array9 = nNSG3dResJntAnmP.tableT16[k];
 														int[] array10 = nNSG3dResJntAnmP.tableT32[k];
-														int num79 = num74 >> (int)(num78 >> 30);
-														mtxFx8.a[9 + k] = (((num78 & 0x20000000) != 0) ? array9[num79] : array10[num79]);
+														mtxFx8.a[9 + k] = JointKeys.Value(num78, fxFrame, nNSG3dResJntAnm.numFrame, array9, array10, 1);
 														num75 += 2;
 													}
 												}
@@ -13101,128 +13102,15 @@ internal static partial class GlobalScope
 												}
 												else if ((flag & 0x80) == 0)
 												{
-													ushort num87;
 													if ((flag & 0x100) != 0)
 													{
-														num87 = (ushort)nNSG3dResJntAnmP.p[num75];
+														JointKeys.Decode(nNSG3dResJntAnm, (ushort)nNSG3dResJntAnmP.p[num75], mtxFx8);
 														num75++;
 													}
 													else
 													{
-														uint num88 = nNSG3dResJntAnmP.p[num75];
-														ushort[] tableR = nNSG3dResJntAnmP.tableR;
-														num87 = tableR[num74 >> (int)(num88 >> 30)];
+														JointKeys.Rotation(nNSG3dResJntAnm, nNSG3dResJntAnmP.tableR, nNSG3dResJntAnmP.p[num75], fxFrame, nNSG3dResJntAnm.numFrame, mtxFx8);
 														num75 += 2;
-													}
-													if ((num87 & 0x8000) != 0)
-													{
-														short[] rot = nNSG3dResJntAnm.rot3;
-														int num89 = (num87 & 0x7FFF) * 6 / 2;
-														short num90 = rot[num89];
-														int num91 = rot[num89 + 1];
-														int num92 = rot[num89 + 2];
-														int num93 = (((num90 & 0x20) != 0) ? (-num92) : num92);
-														int num94 = (((num90 & 0x40) != 0) ? (-num91) : num91);
-														int num95 = (((num90 & 0x10) != 0) ? (-4096) : 4096);
-														mtxFx8._00 = 0;
-														mtxFx8._01 = 0;
-														mtxFx8._02 = 0;
-														mtxFx8._10 = 0;
-														mtxFx8._11 = 0;
-														mtxFx8._12 = 0;
-														mtxFx8._20 = 0;
-														mtxFx8._21 = 0;
-														mtxFx8._22 = 0;
-														switch (num90 & 0xF)
-														{
-														case 0:
-															mtxFx8._00 = num95;
-															mtxFx8._11 = num91;
-															mtxFx8._12 = num92;
-															mtxFx8._21 = num93;
-															mtxFx8._22 = num94;
-															break;
-														case 1:
-															mtxFx8._01 = num95;
-															mtxFx8._10 = num91;
-															mtxFx8._12 = num92;
-															mtxFx8._20 = num93;
-															mtxFx8._22 = num94;
-															break;
-														case 2:
-															mtxFx8._02 = num95;
-															mtxFx8._10 = num91;
-															mtxFx8._11 = num92;
-															mtxFx8._20 = num93;
-															mtxFx8._21 = num94;
-															break;
-														case 3:
-															mtxFx8._10 = num95;
-															mtxFx8._01 = num91;
-															mtxFx8._02 = num92;
-															mtxFx8._21 = num93;
-															mtxFx8._22 = num94;
-															break;
-														case 4:
-															mtxFx8._11 = num95;
-															mtxFx8._00 = num91;
-															mtxFx8._02 = num92;
-															mtxFx8._20 = num93;
-															mtxFx8._22 = num94;
-															break;
-														case 5:
-															mtxFx8._12 = num95;
-															mtxFx8._00 = num91;
-															mtxFx8._01 = num92;
-															mtxFx8._20 = num93;
-															mtxFx8._21 = num94;
-															break;
-														case 6:
-															mtxFx8._20 = num95;
-															mtxFx8._01 = num91;
-															mtxFx8._02 = num92;
-															mtxFx8._11 = num93;
-															mtxFx8._12 = num94;
-															break;
-														case 7:
-															mtxFx8._21 = num95;
-															mtxFx8._00 = num91;
-															mtxFx8._02 = num92;
-															mtxFx8._10 = num93;
-															mtxFx8._12 = num94;
-															break;
-														case 8:
-															mtxFx8._22 = num95;
-															mtxFx8._00 = num91;
-															mtxFx8._01 = num92;
-															mtxFx8._10 = num93;
-															mtxFx8._11 = num94;
-															break;
-														}
-													}
-													else
-													{
-														short[] rot2 = nNSG3dResJntAnm.rot5;
-														int num96 = (num87 & 0x7FFF) * 10 / 2;
-														mtxFx8._00 = rot2[num96] >> 3;
-														mtxFx8._01 = rot2[num96 + 1] >> 3;
-														mtxFx8._02 = rot2[num96 + 2] >> 3;
-														mtxFx8._10 = rot2[num96 + 3] >> 3;
-														mtxFx8._11 = rot2[num96 + 4] >> 3;
-														mtxFx8._12 = (short)(((rot2[num96] & 7) << 9) | ((rot2[num96 + 1] & 7) << 6) | ((rot2[num96 + 2] & 7) << 3) | (rot2[num96 + 3] & 7) | ((rot2[num96 + 4] & 1) * 61440));
-														_vec32_0.x = mtxFx8._00;
-														_vec32_0.y = mtxFx8._01;
-														_vec32_0.z = mtxFx8._02;
-														_vec32_1.x = mtxFx8._10;
-														_vec32_1.y = mtxFx8._11;
-														_vec32_1.z = mtxFx8._12;
-														_vec32_2.x = mtxFx8._20;
-														_vec32_2.y = mtxFx8._21;
-														_vec32_2.z = mtxFx8._22;
-														VEC_CrossProduct(_vec32_0, _vec32_1, _vec32_2);
-														mtxFx8._20 = _vec32_2.x;
-														mtxFx8._21 = _vec32_2.y;
-														mtxFx8._22 = _vec32_2.z;
 													}
 												}
 												if ((flag & 0x200) != 0)
@@ -13242,8 +13130,7 @@ internal static partial class GlobalScope
 														uint num97 = nNSG3dResJntAnmP.p[num75];
 														short[] array11 = nNSG3dResJntAnmP.tableS16[k];
 														int[] array12 = nNSG3dResJntAnmP.tableS32[k];
-														int num98 = num74 >> (int)(num97 >> 30);
-														array8[k] = (((num97 & 0x20000000) != 0) ? array11[num98 * 2] : array12[num98 * 2]);
+														array8[k] = JointKeys.Value(num97, fxFrame, nNSG3dResJntAnm.numFrame, array11, array12, 2);
 														num75 += 2;
 													}
 												}

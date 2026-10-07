@@ -708,6 +708,7 @@ namespace OpenFF.Client
 			if (Unseen(prev.Arena, p.First, p.Count) || !Finite(p.World) || !Finite(r.World) || !Finite(p.Projection) || !Finite(r.Projection))
 			{
 				pair.How = How.Snap;
+				SnapUnseen++;
 				return;
 			}
 			bool deep = r.Projection.M34 != 0f;
@@ -723,6 +724,7 @@ namespace OpenFF.Client
 					{
 						pair.How = How.Snap;
 						_cutScene = true;
+						SnapCut++;
 						return;
 					}
 					if (a.Shaken || b.Shaken)
@@ -756,10 +758,11 @@ namespace OpenFF.Client
 			if (jumped)
 			{
 				pair.How = How.Snap;
+				SnapJumped++;
 				return;
 			}
 			if (p.Count == r.Count) Compare(prev.Arena, p.First, cur.Arena, r.First, r.Count, deep, inVertices, toCur, ref pair);
-			if ((pair.How & How.Snap) != 0) return;
+			if ((pair.How & How.Snap) != 0) { SnapShrunk++; if (deep) SnapShrunkDeep += r.Count; return; }
 			if (fromWorld != r.World) Turn(fromWorld, r.World, ref pair);
 		}
 
@@ -861,6 +864,19 @@ namespace OpenFF.Client
 				}
 			}
 			pair.How = How.Snap;
+			SnapTurn++;
+		}
+
+		/// <summary>Why pairs were drawn as they are since the last call (the pacing log, --log-stalls): not seen the step
+		/// before, a camera cut, a jump across the screen, a shape that would shrink (a turn over ~36 degrees a step; the
+		/// 3D ones' vertices counted too), a World that would not come apart.</summary>
+		public static int SnapUnseen, SnapCut, SnapJumped, SnapShrunk, SnapShrunkDeep, SnapTurn;
+
+		public static string TakeSnapReasons()
+		{
+			string s = "snaps: unseen " + SnapUnseen + ", cut " + SnapCut + ", jumped " + SnapJumped + ", shrunk " + SnapShrunk + " (" + SnapShrunkDeep + " 3D vertices), turn " + SnapTurn;
+			SnapUnseen = SnapCut = SnapJumped = SnapShrunk = SnapShrunkDeep = SnapTurn = 0;
+			return s;
 		}
 
 		private static float Basis(in Matrix m)

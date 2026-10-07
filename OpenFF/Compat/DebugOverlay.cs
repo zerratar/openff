@@ -187,7 +187,7 @@ namespace OpenFF.Client
                 if (_logStalls && now - _pacingLoggedAt >= 5000)
                 {
                     _pacingLoggedAt = now;
-                    Log.Write(LogChannel.General, "pacing: " + PacingRates(_pacingLogged) + ", " + PacingFaults(_pacingLogged) + "; " + CaptureCounts(_captureLogged) + "; " + FramePacer.Plan.Describe());
+                    Log.Write(LogChannel.General, "pacing: " + PacingRates(_pacingLogged) + ", " + PacingFaults(_pacingLogged) + "; " + CaptureCounts(_captureLogged) + "; " + FrameCapture.TakeSnapReasons() + "; " + FramePacer.Plan.Describe());
                     _pacingLogged = default;
                     _captureLogged = default;
                 }
