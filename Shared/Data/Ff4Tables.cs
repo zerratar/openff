@@ -383,6 +383,9 @@ namespace OpenFF.Data
 				m.DamageX = ChainPack.S32(r, 0x28);
 				m.DamageY = ChainPack.S32(r, 0x2C);
 				m.DamageZ = ChainPack.S32(r, 0x30);
+				m.CursorX = ChainPack.S32(r, 0x1C);   // BattleMonster::cursorPosition: the target hand's point, over its position
+				m.CursorY = ChainPack.S32(r, 0x20);
+				m.CursorZ = ChainPack.S32(r, 0x24);
 				m.EffectToCamera = ChainPack.S32(r, 4);
 				m.EffectHeight = ChainPack.S32(r, 8);
 				m.Height = ChainPack.S32(r, 0x40) / 4096f;   // fx32

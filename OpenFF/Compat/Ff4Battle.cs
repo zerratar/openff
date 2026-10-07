@@ -2726,11 +2726,14 @@ namespace OpenFF.Client
 				KeyHint(d, "M", "Run away", 618f, 309f);
 			}
 
-			// The picked foe wears the glove, as FF4's does.
+			// The picked foe wears the glove, its fingertip on the foe's cursor point (BattleMonster::cursorPosition: its
+			// position and chain 4's offset - Steam's hand on a Goblin at its waist).
 			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count && _foes[_cursor].Npc != null)
 			{
-				Vector2? head = Game.Camera.WorldToScreen(_foes[_cursor].Npc.Position + new Vector3(0, 8, 0));
-				if (head.HasValue) Glove(d, head.Value.X + 8, head.Value.Y - 8);
+				MonsterDefinition pointed = _foes[_cursor].Monster;
+				Vector3 point = Where(_foes[_cursor]) + (pointed != null ? new Vector3(pointed.CursorX, pointed.CursorY, pointed.CursorZ) : new Vector3(0, 8, 0));
+				Vector2? at = Game.Camera.WorldToScreen(point);
+				if (at.HasValue) Glove(d, at.Value.X, at.Value.Y);
 			}
 
 			// What happened last: FF4's help window at the top, one line.

@@ -321,6 +321,8 @@ namespace OpenFF.Data
 		public float AtbRateMin = 1f, AtbRateMax = 1f;
 		/// <summary>FF4: where its damage number rises from, over its position (monster.chaindata chain 4 by monster id, MonsterManager::offset's +0x28).</summary>
 		public float DamageX, DamageY = 12f, DamageZ;
+		/// <summary>FF4: where the target hand points on it, over its position (chain 4 +0x1C, +0x20, +0x24; BattleMonster::cursorPosition).</summary>
+		public float CursorX, CursorY = 8f, CursorZ;
 		/// <summary>FF4: its blows' multipliers for the back rows (its ys::PhysicsAttackParameter's +8 and +0xC, fx32): when it stands in the back, and when its target does (the Floating Eye's 1.0 and 0.75).</summary>
 		public float BackRowAttack = 1f, BackRowTarget = 1f;
 		/// <summary>FF4: where an effect on it plays (BaseBattleCharacter::hitEffectPosition, chain 4's +4 and +8): this much up, and this much toward the camera.</summary>
