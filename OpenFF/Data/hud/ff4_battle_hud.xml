@@ -176,8 +176,8 @@
     </frame>
 
     <!-- A target being picked: that side's targets in the command window's place ("Target All" after them when the ability
-         may spread; "V Switch to All / Solo" over them), the picked one's card in the party's. -->
-    <frame class="key-cap" bind-display="battle.switchShown" style="-ff-cell: key 49"><id>switch_key</id><x>148.7</x><y>610.9</y><width>60.75</width><height>60.75</height></frame>
+         may spread; "Z Switch to All / Solo" over them), the picked one's card in the party's. -->
+    <frame class="key-cap" bind-display="battle.switchShown" style="-ff-cell: key 46"><id>switch_key</id><x>148.7</x><y>610.9</y><width>60.75</width><height>60.75</height></frame>
     <frame class="key-label" bind-display="battle.switchShown" bind-text="{battle.switchLabel}"><id>switch</id><x>219.6</x><y>610.9</y><width>400</width><height>60.75</height></frame>
     <frame bind-display="battle.targets">
       <id>targets</id>

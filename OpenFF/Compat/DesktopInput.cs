@@ -44,8 +44,8 @@ namespace OpenFF.Client
 		private const int PadX = 1024;
 		private const int PadY = 2048;
 
-		/// <summary>Keyboard bindings, provisional - worth making configurable later.</summary>
-		private static readonly (Keys Key, int Bit)[] PadBindings =
+		/// <summary>Keyboard bindings, provisional - worth making configurable later. FF4 has its own (Ff4Bindings).</summary>
+		private static readonly (Keys Key, int Bit)[] Ff3Bindings =
 		{
 			(Keys.Up, PadUp),          (Keys.W, PadUp),
 			(Keys.Down, PadDown),      (Keys.S, PadDown),
@@ -62,6 +62,30 @@ namespace OpenFF.Client
 			(Keys.RightControl, PadStart),
 			(Keys.RightShift, PadSelect)
 		};
+
+		/// <summary>FF4's keys as the Steam game has them (FF4.ini's defaults): Enter confirms, Backspace cancels, C is the X
+		/// button (auto battle), Z the Y button (a target's "switch to all"); one key each, and WASD beside the arrows. Tab
+		/// (fast-forward here, Skip in a battle), M (run away) and Esc (the pause menu, or Back in the game's menus) are read
+		/// where they are used.</summary>
+		private static readonly (Keys Key, int Bit)[] Ff4Bindings =
+		{
+			(Keys.Up, PadUp),          (Keys.W, PadUp),
+			(Keys.Down, PadDown),      (Keys.S, PadDown),
+			(Keys.Left, PadLeft),      (Keys.A, PadLeft),
+			(Keys.Right, PadRight),    (Keys.D, PadRight),
+
+			(Keys.Enter, PadA),
+			(Keys.Back, PadB),
+
+			(Keys.C, PadX),
+			(Keys.Z, PadY),
+			(Keys.Q, PadL),
+			(Keys.E, PadR),
+			(Keys.RightControl, PadStart),
+			(Keys.RightShift, PadSelect)
+		};
+
+		private static (Keys Key, int Bit)[] PadBindings => GameProfile.IsFf4 ? Ff4Bindings : Ff3Bindings;
 
 		/// <summary>
 		/// Pad bits held this frame. AppShell.getKeyEvent ORs this into the game's

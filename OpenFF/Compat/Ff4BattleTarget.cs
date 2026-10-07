@@ -2,8 +2,8 @@
 // window as Steam's frames show them): the window lists the targets of one side - the foes, or the party - with a
 // last row "Target All" when the ability may spread there (ability.bbd +0x26: 0x04 all foes, 0x40 all allies, 0x400 all
 // with Omnicasting) and two or more stand; Up and Down move along it, Left goes to the foes and Right to the party
-// when the ability may reach that side (0x106 / 0x170), and a key switches between one and all (Steam's Z, "Switch to
-// All" / "Switch to Solo"; V here, Z being confirm). It opens where ability.bbd +0x28 says: Cure on the most hurt
+// when the ability may reach that side (0x106 / 0x170), and a key switches between one and all (Z, as Steam has it: "Switch to
+// All" / "Switch to Solo"). It opens where ability.bbd +0x28 says: Cure on the most hurt
 // member, Fire on a foe, a Red Fang on every foe (no single allowed: all, not to be narrowed).
 
 using System;

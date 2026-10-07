@@ -14,7 +14,7 @@ namespace OpenFF.Client
 	{
 		private static readonly string _command;
 		private static readonly int _frames = 60;
-		private static readonly Keys _key = Keys.Z;
+		private static readonly Keys _key = Keys.Enter;   // the confirm key in both games' maps
 		private static readonly Dictionary<uint, long> _lastSeen = new Dictionary<uint, long>();
 		private static readonly List<long> _pressAt = new List<long>();
 		private static long _releaseAt = -1;
