@@ -486,6 +486,20 @@ static void Command(char *line)
 	if (sscanf_s(line, "%31s", word, (unsigned)sizeof word) != 1) return;
 	char *rest = line + strlen(word);
 	while (*rest == ' ') rest++;
+	if (strcmp(word, "click") == 0)
+	{
+		// click <x> <y> [frames]: the mouse moved to (x, y) of the window, the left button pressed there and let go
+		// [frames] (4) later - FF4.exe reads a click as a touch (the scene skip's question opens on one).
+		int x = 0, y = 0, frames = 4;
+		if (sscanf_s(rest, "%d %d %d", &x, &y, &frames) >= 2)
+		{
+			Queue(0x400 /* SDL_MOUSEMOTION */, x, y, g_frame);
+			Queue(0x401 /* SDL_MOUSEBUTTONDOWN */, x, y, g_frame + 1);
+			Queue(0x402 /* SDL_MOUSEBUTTONUP */, x, y, g_frame + 1 + (frames > 0 ? frames : 1));
+			Log("frame %llu: click at %d,%d for %d frame(s)", g_frame, x, y, frames);
+		}
+		return;
+	}
 	if (strcmp(word, "key") == 0)
 	{
 		int frames = 4;
@@ -643,7 +657,33 @@ static int __cdecl Hook_PollEvent(void *event)
 	for (int i = 0; i < g_queued; i++)
 	{
 		if (g_queue[i].atFrame > g_frame) continue;
-		if (event)
+		if (event && g_queue[i].type >= 0x400 && g_queue[i].type <= 0x402)
+		{
+			// SDL_MouseMotionEvent / SDL_MouseButtonEvent: type, timestamp, windowID, which, then (motion) state x y
+			// xrel yrel or (button) button state clicks padding x y; the position rides in scancode / sym.
+			unsigned *e = (unsigned *)event;
+			memset(event, 0, 56);
+			e[0] = g_queue[i].type;
+			e[1] = GetTickCount();
+			e[2] = g_windowID;
+			if (g_queue[i].type == 0x400)
+			{
+				e[5] = (unsigned)g_queue[i].scancode;
+				e[6] = (unsigned)g_queue[i].sym;
+			}
+			else
+			{
+				unsigned char *b = (unsigned char *)&e[4];
+				b[0] = 1;                                  // SDL_BUTTON_LEFT
+				b[1] = g_queue[i].type == 0x401 ? 1 : 0;   // pressed / released
+				b[2] = 1;                                  // clicks
+				e[5] = (unsigned)g_queue[i].scancode;
+				e[6] = (unsigned)g_queue[i].sym;
+			}
+			memmove(&g_queue[i], &g_queue[i + 1], (g_queued - i - 1) * sizeof(Pending));
+			g_queued--;
+		}
+		else if (event)
 		{
 			KeyEvent *k = (KeyEvent *)event;
 			memset(event, 0, 56);

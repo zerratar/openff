@@ -12,6 +12,7 @@ install puts two files beside FF4.exe, both removed by uninstall (and only those
 A script is one step a line ('#' comments):
   wait <seconds>                 real time
   frames <n>                     n of the game's frames (60 a second)
+  click <x> <y> [frames]         a left click at (x, y) of the window (FF4.exe takes it as a touch)
   key <name> [frames]            enter back tab esc space up down left right (FF4.ini: Select = Return, Cancel = Backspace, Menu = Tab)
   shot <name>                    the next frame to <out dir>/<name>.png
   every <frames>                 a frame every <frames> into <out dir>/frames (0 stops)
@@ -23,7 +24,7 @@ A script is one step a line ('#' comments):
   dumpchars [name]               the character slots' raw bytes now, into <out dir>/<name>.bin
   endstate                       the field's running state over, so what a command queued goes next (a battle:
                                  exec BootEventBattle <group> <map> 0 0 0, then endstate)
-  exec <command> [values...]     an event-script command run now, by its name in ScriptOpsFf4.cs, its operands the
+  exec <command> [values...]     an event-script command run now, by its name in ScriptOpsFf4.cs (a String operand a word), its operands the
                                  values given (decimal or 0x), packed as the command reads them: the test's party
                                  (AddPartyPC 10 0), levels, items, a battle (BootEventBattle)
   repeat <n> ... end             the steps between, n times
@@ -151,6 +152,9 @@ def play(steps, out):
         elif word == "dumpchars":
             send("dumpchars " + os.path.join(out, (rest.strip() or "slots") + ".bin"))
             time.sleep(0.2)
+        elif word == "click":
+            send("click " + rest.strip())
+            time.sleep(0.2)
         elif word == "endstate":
             send("endstate")
             time.sleep(0.1)
@@ -162,12 +166,15 @@ def play(steps, out):
             names = [n for n, _ in table]
             index = int(parts[0]) if parts[0].isdigit() else names.index(parts[0])
             operands = table[index][1]
-            values = [int(v, 0) for v in parts[1:]]
+            values = parts[1:]
             if len(values) != len(operands):
                 print("exec %s wants %d operand(s): %s" % (names[index], len(operands), ", ".join(operands)))
                 continue
             size = {"Byte": 1, "Word": 2, "Dword": 4}
-            data = b"".join((v & ((1 << (8 * size[o])) - 1)).to_bytes(size[o], "little") for v, o in zip(values, operands))
+            # A String operand is the word as it stands (quotes taken off), NUL-terminated as the engine's getString reads it.
+            data = b"".join(v.strip('"').encode("utf-8") + bytes([0]) if o == "String"
+                            else (int(v, 0) & ((1 << (8 * size[o])) - 1)).to_bytes(size[o], "little")
+                            for v, o in zip(values, operands))
             send("exec %d %s" % (index, data.hex() or "00"))
             time.sleep(0.1)
         elif word == "every":
