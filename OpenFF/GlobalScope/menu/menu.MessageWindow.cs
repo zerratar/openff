@@ -342,6 +342,8 @@ internal static partial class GlobalScope
 				m_Window.GetWindowHandle().SetPriority(3);
 				m_Window.GetWindowHandle().SetShow(show: true, user: true);
 				m_Window.SetEnable(1);
+				// PORT: the layout draws the bar (OpenFF.Client.Ff4Dialogue): the game's is kept for what it does, drawn at nothing.
+				if (OpenFF.Client.Ff4Dialogue.Drawn) m_Window.GetWindowHandle().SetLook(0f, null);
 				m_Loaded_1 = true;
 				m_Made_1 = true;
 				m_Bar = true;
@@ -614,7 +616,10 @@ internal static partial class GlobalScope
 			// the text typed so far, the speaker, the arrow, and where the script put a line of its own (setMessagePosition /
 			// setMessageAlignment) in the 480 x 320 screen, its alignment (0 left, 1 centred, 2 right; down: 0 top, 1 middle,
 			// 2 bottom) and its colour.
-			private bool LaidOut => OpenFF.Client.Ff4Dialogue.Drawn && !m_Bar;
+			private bool LaidOut => OpenFF.Client.Ff4Dialogue.Drawn;
+
+			/// <summary>PORT: the window is the story scenes' bar (mwSetBarWindow), not the message window.</summary>
+			public bool Ff4Bar => m_Bar;
 			private int m_NameWho = -1;
 			private int m_LineX = 12, m_LineY = 252, m_LineAlign, m_LineDown, m_LineColour = 1;
 

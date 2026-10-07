@@ -3,8 +3,9 @@
 // or a sheet in menus/hud/styles/. The game's own window (menu.MessageWindow) still does all it does - opens, types its
 // texts on page by page, waits for the press, holds a line the script holds - and draws nothing; this reads what it shows
 // and binds it to the root "dialogue":
-//   dialogue.open        the window is up (not the story scenes' bar); openX, openY how far it has opened (0..1: it
-//                        grows from its middle over five frames, MessageWindow::mwOpen)
+//   dialogue.open        a window is up: window the message window, bar the story scenes' bar (their line across the
+//                        bottom); openX, openY how far the message window has opened (0..1: it grows from its middle
+//                        over five frames, MessageWindow::mwOpen)
 //   dialogue.text        the text typed so far, its lines as the game breaks them
 //   dialogue.speaker     the name window's name (openCharacterNameWindow), or null; nameWidth its window's width in the
 //                        layout's pixels: the drawn name and 27 pixels either side, as NameWindow::nwOpen pads it
@@ -27,7 +28,7 @@ namespace OpenFF.Client
 
 		public sealed class DialogueData
 		{
-			public bool Open, Next, InPlace = true, Placed;
+			public bool Open, Window, Bar, Next, InPlace = true, Placed;
 			public string Text = "", Speaker;
 			public float NameWidth, LineLeft, LineTop, OpenX = 1, OpenY = 1;
 			public int LineAlign, LineDown, Colour = 1;
@@ -91,6 +92,8 @@ namespace OpenFF.Client
 		{
 			DialogueData d = _data;
 			d.Open = true;
+			d.Bar = window.Ff4Bar;
+			d.Window = !d.Bar;
 			(d.OpenX, d.OpenY) = window.Ff4Openness;
 			d.Text = window.Ff4Text ?? "";
 			d.Next = window.Ff4Next;
@@ -107,8 +110,8 @@ namespace OpenFF.Client
 			d.Colour = colour;
 			d.LineAlign = align;
 			d.LineDown = down;
-			d.Placed = x != 12 || y != 252 || align != 0 || down != 0;
-			d.InPlace = !d.Placed;
+			d.Placed = !d.Bar && (x != 12 || y != 252 || align != 0 || down != 0);
+			d.InPlace = !d.Bar && !d.Placed;
 			// The line's frame is the layout's width across and 100 high: its left so the place is its left, middle or right,
 			// its top so the place is its top, middle or bottom.
 			float px = (x + Left) * Unit, py = y * Unit;

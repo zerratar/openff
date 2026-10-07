@@ -19,6 +19,11 @@
 .message.magenta { color: #ff50ff; }
 .message.yellow { color: #ffff00; }
 
+/* The story scenes' bar: a dark blue band, mostly opaque (the game's 26 of 31), and its line in Steam's light grey with
+   no shadow, Arial at the game's 13 (the capitals 11.3 of the 320 rows), centred across and on its capitals' middle. */
+#bar { background-color: #070820d6; }
+.caption { color: #c7c5ca; font-size: 24.5px; text-align: center; vertical-align: central; }
+
 #line.center { text-align: center; }
 #line.right { text-align: right; }
 #line.middle { vertical-align: middle; }
