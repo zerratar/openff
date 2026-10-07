@@ -2773,6 +2773,15 @@ namespace OpenFF.Client
 				KeyHint(d, "M", "Run away", 618f, 309f);
 			}
 
+			// The member choosing wears the turn cursor (CurrentCursor: battle_number.NANR's sequence 1, cells 14..19 a frame
+			// each - the turning arrow), at BattlePlayer::turnCursorPosition: its x and z, 20 up.
+			if (_acting != null && _pick != Pick.None && _acting.Npc != null && Ff4BattleStage.Active)
+			{
+				Vector3 at = _acting.Npc.Position;
+				Vector2? over = Game.Camera.WorldToScreen(new Vector3(at.X, 20f, at.Z));
+				if (over.HasValue) Ff4Ui.Word(d, over.Value.X, over.Value.Y, 14 + (int)(_clock % 6));
+			}
+
 			// The picked foe wears the glove, its fingertip on the foe's cursor point (BattleMonster::cursorPosition: its
 			// position and chain 4's offset - Steam's hand on a Goblin at its waist).
 			if (_pick == Pick.Target && _cursor >= 0 && _cursor < _foes.Count && _foes[_cursor].Npc != null)

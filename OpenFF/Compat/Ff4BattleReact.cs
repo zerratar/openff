@@ -40,6 +40,8 @@ namespace OpenFF.Client
 		private readonly Dictionary<Fighter, int> _hitFlash = new Dictionary<Fighter, int>();
 		private readonly Dictionary<Fighter, int> _targetBlink = new Dictionary<Fighter, int>();
 		private readonly Dictionary<Fighter, uint[]> _washed = new Dictionary<Fighter, uint[]>();
+		private Fighter _turnBlinked;   // startTurnFlash: the member whose command window opened, blinked as it did
+		private int _turnBlink = 15;
 
 		/// <summary>setDamageFlash: three frames washed (a second blow starts them again).</summary>
 		private void DamageFlash(Fighter t)
@@ -60,6 +62,9 @@ namespace OpenFF.Client
 			foreach (Fighter f in marked) if (!_targetBlink.ContainsKey(f)) _targetBlink[f] = 0;
 			foreach (Fighter f in new List<Fighter>(_hitFlash.Keys)) if (--_hitFlash[f] <= 0) _hitFlash.Remove(f);
 			HashSet<Fighter> on = new HashSet<Fighter>(_hitFlash.Keys);
+			// startTurnFlash (PlayerTurnFlash 3, 2, 2): the member whose turn has come blinks as a marked target does.
+			if (_acting != _turnBlinked) { _turnBlinked = _acting; _turnBlink = _acting != null ? 0 : 15; }
+			if (_turnBlinked != null && _turnBlink < 15) { if ((_turnBlink / 3) % 2 == 0) on.Add(_turnBlinked); _turnBlink++; }
 			foreach (Fighter f in new List<Fighter>(_targetBlink.Keys))
 			{
 				int k = _targetBlink[f];
