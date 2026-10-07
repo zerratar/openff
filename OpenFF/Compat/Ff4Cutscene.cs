@@ -221,13 +221,12 @@ namespace OpenFF.Client
 			EventSkipping = false;
 			Ff4CameraMotion.Stop();
 			Guard("scene clip", () => GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera().setClip(40960, 2048000));
-			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(false));
-			_heroHiddenByScene = false;
 			Guard("message bar", () => GlobalScope.CCastCommandTransit.getInstance().cast_Field2D().MessageWindow().releaseWindow());
 			Log.Write(LogChannel.General, "script: FF4 cutscene ends, " + _slots.Count + " character(s) still up (step " + LegacyStep.Count + ")");
 			ScriptCommands.ReportDropped("scene " + (SceneStage ?? GlobalScope.stg.CStageMng.CurrentName));
 			if (StartNextBattle())
 			{
+				ShowHero();
 				ReturnMap = null;
 				return;
 			}
@@ -235,11 +234,14 @@ namespace OpenFF.Client
 			// world part all along, so the hand-back is a map jump.
 			if (!string.IsNullOrEmpty(ReturnMap) && !string.Equals(ReturnMap, GlobalScope.stg.CStageMng.CurrentName, StringComparison.OrdinalIgnoreCase))
 			{
+				// The hero stays unseen through the steps before the map goes (Steam's scene has no field hero on stage):
+				// leaving the map shows them (MapLeft), and the next map's own arrival hides them again if it wants.
 				string map = ReturnMap;
 				ReturnMap = null;
 				JumpTo(map, ReturnPosition);
 				return;
 			}
+			ShowHero();
 			if (skipped)
 			{
 				GlobalScope.dgs.CFade.Main().fadeIn(15);
@@ -1550,6 +1552,19 @@ namespace OpenFF.Client
 
 		/// <summary>Whether a story scene hid the hero (StartEvent) and has not shown them again.</summary>
 		private static bool _heroHiddenByScene;
+
+		/// <summary>A field script showed or hid the hero itself (displayCharacter): theirs to keep, not the scene's to undo.</summary>
+		public static void HeroSetByMap()
+		{
+			if (!_active) _heroHiddenByScene = false;
+		}
+
+		/// <summary>The field's hero seen again, the scene over on its own map (or a battle next).</summary>
+		private static void ShowHero()
+		{
+			Guard("scene hero", () => EngineApi.HeroPlayer?.setHidden(false));
+			_heroHiddenByScene = false;
+		}
 
 		/// <summary>Leaving the map: the scene's characters go with it.</summary>
 		public static void MapLeft()

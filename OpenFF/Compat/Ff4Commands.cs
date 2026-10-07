@@ -37,6 +37,7 @@ namespace OpenFF.Client
 			{ "setRewardMessageInterval", Ff4FieldCommands.SetRewardMessageInterval }, // (frames)
 			{ "executeRewardMessageWindow", Ff4FieldCommands.ExecuteRewardMessageWindow }, // ()
 			{ "setPlayerLevel", Ff4FieldCommands.SetPlayerLevel },            // (playerType, level)
+			{ "displayCharacter", DisplayCharacter },                         // (cast, shown, ?): FF3's, and the hero's now the map's to show
 			{ "startMessage", StartMessage },                                 // (who, text, style, delete frames): the line up, no wait
 			{ "setMessagePosition", SetMessagePosition },                     // (setX, x, setY, y): where the next line's text starts
 			{ "setMessageAlignment", SetMessageAlignment },                   // (align, ?, ?): 0 left, 1 centred, 2 right, until set again
@@ -427,6 +428,26 @@ namespace OpenFF.Client
 
 		private static GlobalScope.wld.CMessageWindow Window =>
 			GlobalScope.CCastCommandTransit.getInstance().cast_Field2D()?.MessageWindow();
+
+		/// <summary>
+		/// displayCharacter(cast, shown, ?): FF3's handler; when the cast is the hero, a story scene that hid them no longer owns
+		/// that (Ff4Cutscene.HeroSetByMap) - the castle's arrival hides Cecil while its own Cecil walks in, and leaving the scene's
+		/// map must not show him again over it.
+		/// </summary>
+		private static void DisplayCharacter(GlobalScope.ScriptEngine engine)
+		{
+			byte[] code = engine.Code;
+			uint pc = engine.getPC();
+			uint cast = code != null && pc + 1 < code.Length ? (uint)(code[pc] | code[pc + 1] << 8) : uint.MaxValue;
+			GlobalScope.ff3Command_DisplayCharacter(engine);
+			if (cast == uint.MaxValue) return;
+			try
+			{
+				int index = GlobalScope.CCastCommandTransit.getInstance().changeHichNumber(cast);
+				if (index != -1 && GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng().Player(index) == EngineApi.HeroPlayer) Ff4Cutscene.HeroSetByMap();
+			}
+			catch (Exception) { }
+		}
 
 		/// <summary>
 		/// startMessage(who, text, style, delete frames), as libff4's: on the field the line goes up in the message
