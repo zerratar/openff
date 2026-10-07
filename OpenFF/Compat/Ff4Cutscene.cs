@@ -1582,7 +1582,7 @@ namespace OpenFF.Client
 			_binds.Clear();   // the characters go with the map; nothing to delete
 			_active = false;
 			SceneStage = null;
-			Ff4EventCamera.Release();
+			Ff4EventCamera.MapLeft();
 			StopVoice();
 			_seSlots.Clear();
 			_sePlayed.Clear();

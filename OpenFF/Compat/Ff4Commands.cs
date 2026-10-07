@@ -282,10 +282,10 @@ namespace OpenFF.Client
 		{
 			GlobalScope.VecFx32 pos = new GlobalScope.VecFx32((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
 			GlobalScope.VecFx32 trg = new GlobalScope.VecFx32((int)engine.getDword(), (int)engine.getDword(), (int)engine.getDword());
+			int frames = (int)engine.getDword();
 			engine.getDword();
 			engine.getDword();
-			engine.getDword();
-			Ff4EventCamera.Follow(pos, trg);
+			Ff4EventCamera.Follow(pos, trg, frames);
 		}
 
 		/// <summary>WorldCamera::setOffset / setTrgFromOffset: the camera at leader + offset, looking at that point + target offset.</summary>
@@ -419,8 +419,36 @@ namespace OpenFF.Client
 			GlobalScope.ff3Command_SetCamera_BeforeEvent(engine);
 		}
 
+		/// <summary>
+		/// moveCamera_LookPlayer2(cast, frames, ?, ?, ?), as libff4's: the event camera follows the cast at the world camera's
+		/// offsets (EventCamera::setFollow), reached over the frames - and a setCameraOffset after it keeps following that cast
+		/// (the castle corridor's camera behind the scripted Cecil, not the hidden hero). When the world camera keeps no offsets
+		/// of FF4's (FF3's controller places itself by distance and angle), the field's camera takes over as FF3's handler has it.
+		/// </summary>
 		private static void MoveCameraLookPlayer2(GlobalScope.ScriptEngine engine)
 		{
+			byte[] code = engine.Code;
+			uint pc = engine.getPC();
+			bool readable = code != null && pc + 3 < code.Length;
+			int cast = readable ? code[pc] | code[pc + 1] << 8 : -1;
+			int frames = readable ? code[pc + 2] | code[pc + 3] << 8 : 0;
+			GlobalScope.pl.CBasePlayer player = null;
+			try
+			{
+				int index = cast < 0 ? -1 : GlobalScope.CCastCommandTransit.getInstance().changeHichNumber((uint)cast);
+				if (index != -1) player = GlobalScope.CCastCommandTransit.getInstance().cast_PlayerMng().Player(index);
+			}
+			catch (Exception) { }
+			Ff4EventCamera.FollowWhom(player);
+			GlobalScope.cmr.CWorldCamera camera = GlobalScope.CCastCommandTransit.getInstance().cast_FieldCamera();
+			GlobalScope.VecFx32 offset = camera?.m_PosOffset, trgOffset = camera?.m_TrgOffset;
+			if (player != null && offset != null && trgOffset != null && (offset.x != 0 || offset.y != 0 || offset.z != 0))
+			{
+				engine.skip(12);   // the cast, the frames, a dword and two words
+				GlobalScope.VecFx32 fromOffset = new GlobalScope.VecFx32(trgOffset.x - offset.x, trgOffset.y - offset.y, trgOffset.z - offset.z);
+				Ff4EventCamera.Follow(player, new GlobalScope.VecFx32(offset), fromOffset, frames);
+				return;
+			}
 			Ff4EventCamera.Release();
 			GlobalScope.ff3Command_MoveCamera_LookPlayer2(engine);
 			engine.skip(4);   // FF4's two trailing words

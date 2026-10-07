@@ -32,6 +32,12 @@ namespace OpenFF.Client
 		private static bool _follow;
 		private static bool _followStarts;   // the follow has not put the camera at the leader yet: a cut when it does
 		private static GlobalScope.VecFx32 _followPos = new GlobalScope.VecFx32(0, 0, 0), _followTrg = new GlobalScope.VecFx32(0, 0, 0);
+		// CUFollowCamera: whom it follows (moveCamera_LookPlayer2 names them; setCameraOffset keeps them; the hero when none),
+		// and its way there - over frames from where the camera stands to the point it was set to (the character's place then
+		// and the offset), a step a frame; at the end set there, and from then on the character's place and the offset.
+		private static GlobalScope.pl.CBasePlayer _followChar;
+		private static int _followFrames = -1;
+		private static GlobalScope.VecFx32 _followAt = new GlobalScope.VecFx32(0, 0, 0), _followStep = new GlobalScope.VecFx32(0, 0, 0);
 
 		// The field of view: the camera keeps sin and cos of half the vertical angle (fx32); the
 		// field's own is about 30 degrees. Set for the battle stage, put back on Release.
@@ -51,9 +57,24 @@ namespace OpenFF.Client
 			}
 		}
 
+		// The map whose script last drove the camera: leaving another (the host sees a map change after the next map's
+		// first steps have run - the castle corridor sets its camera there) keeps it (MapLeft).
+		private static string _stage;
+
+		/// <summary>A map left: the camera goes back to the field's controller - unless the next map's script has it already.</summary>
+		public static void MapLeft()
+		{
+			string now = null;
+			try { now = GlobalScope.stg.CStageMng.CurrentName; } catch (Exception) { }
+			if (_active && _stage != null && string.Equals(_stage, now, StringComparison.OrdinalIgnoreCase)) return;
+			Release();
+			_followChar = null;
+		}
+
 		/// <summary>Takes the camera over where it stands, unless a scene camera motion has it.</summary>
 		private static bool Take()
 		{
+			try { _stage = GlobalScope.stg.CStageMng.CurrentName; } catch (Exception) { }
 			if (_active) return true;
 			GlobalScope.cmr.CWorldCamera camera = Camera;
 			if (camera == null || Ff4CameraMotion.Playing) return false;
@@ -160,15 +181,44 @@ namespace OpenFF.Client
 			LookAt(_trg.x + dx, _trg.y + dy, _trg.z + dz, frames);
 		}
 
-		/// <summary>setCameraOffset: the camera at leader + posOffset, looking at that point + trgOffset, every frame.</summary>
-		public static void Follow(GlobalScope.VecFx32 posOffset, GlobalScope.VecFx32 trgOffset)
+		/// <summary>setCameraOffset (EventCamera::setFollow with no character): the camera at the followed character + posOffset,
+		/// looking at that point + trgOffset, every frame - reached over <paramref name="frames"/>, or at once.</summary>
+		public static void Follow(GlobalScope.VecFx32 posOffset, GlobalScope.VecFx32 trgOffset, int frames = 0) => Follow(null, posOffset, trgOffset, frames);
+
+		/// <summary>moveCamera_LookPlayer2: the character the follow follows from now on (the camera not taken).</summary>
+		public static void FollowWhom(GlobalScope.pl.CBasePlayer character)
+		{
+			if (character != null) _followChar = character;
+		}
+
+		/// <summary>CUFollowCamera::set: <paramref name="character"/> followed (null: the one followed already), the camera
+		/// put at its place + posOffset (looking at that + trgOffset) at once, or moved there over the frames.</summary>
+		public static void Follow(GlobalScope.pl.CBasePlayer character, GlobalScope.VecFx32 posOffset, GlobalScope.VecFx32 trgOffset, int frames)
 		{
 			if (!Take()) return;
+			if (character != null) _followChar = character;
 			_follow = true;
-			_followStarts = true;
 			_followPos = Copy(posOffset);
 			_followTrg = Copy(trgOffset);
 			_posFrames = _trgFrames = 0;
+			GlobalScope.VecFx32 at = Followed()?.getPosition();
+			if (at == null || frames < 1)
+			{
+				_followFrames = -1;
+				_followStarts = true;
+				return;
+			}
+			_followAt = new GlobalScope.VecFx32(at.x + posOffset.x, at.y + posOffset.y, at.z + posOffset.z);
+			_followStarts = false;
+			_followFrames = frames;
+			_followStep = new GlobalScope.VecFx32((_followAt.x - _pos.x) / frames, (_followAt.y - _pos.y) / frames, (_followAt.z - _pos.z) / frames);
+		}
+
+		private static GlobalScope.pl.CBasePlayer Followed()
+		{
+			GlobalScope.pl.CBasePlayer c = _followChar;
+			try { if (c != null && c.getCharacterId() >= 0) return c; } catch (Exception) { }
+			return EngineApi.HeroPlayer;
 		}
 
 		private static void StartPosition(GlobalScope.VecFx32 to, int frames)
@@ -225,9 +275,22 @@ namespace OpenFF.Client
 				_trg = _trgTick >= _trgFrames ? Copy(_trgTo) : Lerp(_trgFrom, _trgTo, _trgTick, _trgFrames);
 				if (_trgTick >= _trgFrames) _trgFrames = 0;
 			}
-			if (_follow)
+			if (_follow && _followFrames > 0)
 			{
-				GlobalScope.pl.CBasePlayer hero = EngineApi.HeroPlayer;
+				// On the way: a step a frame; the last frame sets it on the point (CUFollowCamera::update_).
+				_followFrames--;
+				_pos = new GlobalScope.VecFx32(_pos.x + _followStep.x, _pos.y + _followStep.y, _pos.z + _followStep.z);
+				_trg = new GlobalScope.VecFx32(_pos.x + _followTrg.x, _pos.y + _followTrg.y, _pos.z + _followTrg.z);
+			}
+			else if (_follow && _followFrames == 0)
+			{
+				_followFrames = -1;
+				_pos = Copy(_followAt);
+				_trg = new GlobalScope.VecFx32(_pos.x + _followTrg.x, _pos.y + _followTrg.y, _pos.z + _followTrg.z);
+			}
+			else if (_follow)
+			{
+				GlobalScope.pl.CBasePlayer hero = Followed();
 				if (hero != null)
 				{
 					GlobalScope.VecFx32 at = hero.getPosition();
