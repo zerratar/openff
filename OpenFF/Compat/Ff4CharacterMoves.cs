@@ -24,6 +24,7 @@ namespace OpenFF.Client
 		{
 			public GlobalScope.pl.CBasePlayer Player;
 			public bool Done;
+			public string Stage;   // the map it was made on
 			public abstract void Update();
 		}
 
@@ -222,7 +223,9 @@ namespace OpenFF.Client
 			int count = 0;
 			foreach (Strategy r in _running)
 				if (r.Player == s.Player) count++;
-			if (count < 4) _running.Add(s);
+			if (count >= 4) return;
+			s.Stage = StageNow();
+			_running.Add(s);
 		}
 
 		/// <summary>Once a step, after its scripts: each strategy runs, in the order they were made, and the finished go.</summary>
@@ -242,8 +245,18 @@ namespace OpenFF.Client
 			_running.RemoveAll(s => s.Done);
 		}
 
-		/// <summary>A map left: its characters go, and what moved them.</summary>
-		public static void MapLeft() => _running.Clear();
+		/// <summary>A map left: its characters go, and what moved them - not what the next map's script has already set going
+		/// (it can run before the host sees the stage change: the castle's corridor walks Cecil and Baigan from its first step).</summary>
+		public static void MapLeft()
+		{
+			string stage = StageNow();
+			_running.RemoveAll(s => !string.Equals(s.Stage, stage, StringComparison.OrdinalIgnoreCase));
+		}
+
+		private static string StageNow()
+		{
+			try { return GlobalScope.stg.CStageMng.CurrentName; } catch (Exception) { return null; }
+		}
 
 		// ---- helpers ----
 
