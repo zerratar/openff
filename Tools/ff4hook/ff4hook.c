@@ -20,6 +20,10 @@
 //   every <frames> <dir>                                        a frame every <frames> into <dir>\NNNNN.bmp (0 stops)
 //   exec <index> <hex>                                          a script command run now, its operands the bytes given
 //   endstate                                                    the field's running state ended: what is queued goes next
+//   draws <file>                                                every draw of the next frame made under an orthographic
+//                                                               projection (the 2D: windows, text, cursors, numbers) - its
+//                                                               window rectangle in pixels (top left origin), texture and its
+//                                                               size, texture rectangle in texels, colour - appended to <file>
 //   quit                                                        ends the process
 // %TEMP%\ff4hook\status.txt is rewritten every 30 frames ("frame N"); hook.log says what was hooked.
 //
@@ -390,6 +394,11 @@ static void WriteCharacters(void)
 // ---- the camera: NitroSystem's global one (NNS_G3dGlbGetCameraPos / Up / Target return 0x608cb8 / 0x608cc4 /
 // 0x608cd0, three fx32 each; NNS_G3dGlbPerspective writes the projection, 4x4 fx32, at 0x608a80) ----
 
+static FILE *g_draws;   // the draws command (below)
+static int g_texW[8192], g_texH[8192];   // each texture's size as uploaded
+static int g_texDump = -1;   // texdump: the texture to read back at the next swap, and where
+static char g_texDumpPath[MAX_PATH];
+static int g_drawsPending, g_drawsActive, g_drawIndex;
 static FILE *g_camera;
 static int g_cameraEvery;
 
@@ -521,6 +530,19 @@ static void Command(char *line)
 		int frames = 60;
 		if (sscanf_s(rest, "%d %d", &n, &frames) >= 1) { g_autoIndex = n; g_autoFrames = frames; }
 		Log("frame %llu: autokey on command %d, %d frame(s) after", g_frame, g_autoIndex, g_autoFrames);
+	}
+	else if (strcmp(word, "texdump") == 0)
+	{
+		// texdump <texture id> <file.bmp>: the texture's level 0 read back (glGetTexImage) at the next swap
+		if (sscanf_s(rest, "%d %259[^\r\n]", &n, arg, (unsigned)sizeof arg) == 2) { g_texDump = n; strcpy_s(g_texDumpPath, MAX_PATH, arg); }
+	}
+	else if (strcmp(word, "draws") == 0)
+	{
+		// draws <file>: frame, draw, quad, mode, texture, its width and height, window x y w h, texels x y w h, colour r g b a
+		if (g_draws) { fclose(g_draws); g_draws = NULL; }
+		fopen_s(&g_draws, rest, "a");
+		g_drawsPending = g_draws != NULL;
+		Log("frame %llu: draws into %s", g_frame, rest);
 	}
 	else if (strcmp(word, "chars") == 0)
 	{
@@ -734,6 +756,41 @@ static void Frame(void *target, int renderer)
 	if (g_joints && g_jointsEvery > 0 && g_frame % (unsigned long long)g_jointsEvery == 0) { WriteJoints(); fflush(g_joints); }
 	if (g_camera && g_cameraEvery > 0 && g_frame % (unsigned long long)g_cameraEvery == 0) { WriteCamera(); fflush(g_camera); }
 	if (g_chars && g_charsEvery > 0 && g_frame % (unsigned long long)g_charsEvery == 0) { WriteCharacters(); fflush(g_chars); }
+	if (g_texDump >= 0)
+	{
+		int id = g_texDump, w = id < 8192 ? g_texW[id] : 0, h = id < 8192 ? g_texH[id] : 0;
+		g_texDump = -1;
+		if (w > 0 && h > 0)
+		{
+			unsigned char *rgba = (unsigned char *)malloc((size_t)w * h * 4), *bgr = (unsigned char *)malloc((size_t)((w * 3 + 3) & ~3) * h);
+			if (rgba && bgr)
+			{
+				GLint was = 0;
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &was);
+				glBindTexture(GL_TEXTURE_2D, id);
+				glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+				glBindTexture(GL_TEXTURE_2D, was);
+				int stride = (w * 3 + 3) & ~3;
+				// Alpha over magenta, so a glyph sheet shows; rows bottom-up as the BMP writer takes them.
+				for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+				{
+					unsigned char *s4 = rgba + ((size_t)(h - 1 - y) * w + x) * 4, *d3 = bgr + (size_t)y * stride + x * 3;
+					int a = s4[3];
+					d3[0] = (unsigned char)((s4[2] * a + 255 * (255 - a)) / 255);
+					d3[1] = (unsigned char)((s4[1] * a) / 255);
+					d3[2] = (unsigned char)((s4[0] * a + 255 * (255 - a)) / 255);
+				}
+				WriteBmp(g_texDumpPath, bgr, w, h, stride, 0);
+				Log("frame %llu: texture %d (%dx%d) into %s", g_frame, id, w, h, g_texDumpPath);
+			}
+			free(rgba);
+			free(bgr);
+		}
+		else Log("frame %llu: texture %d has no known size", g_frame, id);
+	}
+	// draws: the frame armed is recorded between two swaps.
+	if (g_drawsActive) { g_drawsActive = 0; if (g_draws) { fclose(g_draws); g_draws = NULL; } Log("frame %llu: draws written", g_frame); }
+	if (g_drawsPending) { g_drawsPending = 0; g_drawsActive = 1; g_drawIndex = 0; }
 	if (g_frame % 30 == 0)
 	{
 		FILE *f;
@@ -753,6 +810,160 @@ static void __cdecl Hook_RenderPresent(void *renderer)
 	Frame(renderer, 1);
 	g_renderPresent(renderer);
 	g_frame++;
+}
+
+// ---- the 2D draws: FF4.exe's fixed-function OpenGL calls followed (matrices, arrays, textures) ----
+
+typedef struct { float m[16]; } Mat;
+static Mat g_stack[2][32];
+static int g_depth[2], g_matMode;          // 0 modelview, 1 projection
+static int g_ortho;                        // the projection is a glOrtho
+static int g_vp[4];
+static struct { GLint size; GLenum type; GLsizei stride; const void *ptr; } g_va, g_ta, g_ca;
+static int g_taOn, g_caOn;
+static float g_col[4] = { 1, 1, 1, 1 };
+static GLuint g_tex;
+
+static Mat *Top(void) { return &g_stack[g_matMode][g_depth[g_matMode]]; }
+static void Ident(Mat *a) { memset(a, 0, sizeof *a); a->m[0] = a->m[5] = a->m[10] = a->m[15] = 1; }
+static void Mul(Mat *a, const float *b)   // a = a * b (column-major)
+{
+	Mat r;
+	for (int c = 0; c < 4; c++) for (int rr = 0; rr < 4; rr++)
+	{
+		float v = 0;
+		for (int k = 0; k < 4; k++) v += a->m[k * 4 + rr] * b[c * 4 + k];
+		r.m[c * 4 + rr] = v;
+	}
+	*a = r;
+}
+
+typedef void (APIENTRY *Fn_MatrixMode)(GLenum);
+typedef void (APIENTRY *Fn_Void)(void);
+typedef void (APIENTRY *Fn_LoadMatrixf)(const GLfloat *);
+typedef void (APIENTRY *Fn_Translatef)(GLfloat, GLfloat, GLfloat);
+typedef void (APIENTRY *Fn_Ortho)(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble);
+typedef void (APIENTRY *Fn_Viewport)(GLint, GLint, GLsizei, GLsizei);
+typedef void (APIENTRY *Fn_Pointer)(GLint, GLenum, GLsizei, const void *);
+typedef void (APIENTRY *Fn_ClientState)(GLenum);
+typedef void (APIENTRY *Fn_Color4f)(GLfloat, GLfloat, GLfloat, GLfloat);
+typedef void (APIENTRY *Fn_Color4ub)(GLubyte, GLubyte, GLubyte, GLubyte);
+typedef void (APIENTRY *Fn_BindTexture)(GLenum, GLuint);
+typedef void (APIENTRY *Fn_TexImage2D)(GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void *);
+typedef void (APIENTRY *Fn_DrawArrays)(GLenum, GLint, GLsizei);
+
+static Fn_MatrixMode r_MatrixMode; static Fn_Void r_LoadIdentity, r_PushMatrix, r_PopMatrix; static Fn_LoadMatrixf r_LoadMatrixf, r_MultMatrixf;
+static Fn_Translatef r_Translatef; static Fn_Ortho r_Ortho; static Fn_Viewport r_Viewport;
+static Fn_Pointer r_VertexPointer, r_TexCoordPointer, r_ColorPointer; static Fn_ClientState r_EnableClientState, r_DisableClientState;
+static Fn_Color4f r_Color4f; static Fn_Color4ub r_Color4ub; static Fn_BindTexture r_BindTexture; static Fn_TexImage2D r_TexImage2D; static Fn_DrawArrays r_DrawArrays;
+
+static void APIENTRY H_MatrixMode(GLenum m) { g_matMode = m == GL_PROJECTION ? 1 : 0; r_MatrixMode(m); }
+static void APIENTRY H_LoadIdentity(void) { Ident(Top()); if (g_matMode) g_ortho = 0; r_LoadIdentity(); }
+static void APIENTRY H_LoadMatrixf(const GLfloat *a) { memcpy(Top()->m, a, 64); if (g_matMode) g_ortho = 0; r_LoadMatrixf(a); }
+static void APIENTRY H_MultMatrixf(const GLfloat *a) { Mul(Top(), a); r_MultMatrixf(a); }
+static void APIENTRY H_Translatef(GLfloat x, GLfloat y, GLfloat z) { float t[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1 }; Mul(Top(), t); r_Translatef(x, y, z); }
+static void APIENTRY H_Ortho(GLdouble l, GLdouble r, GLdouble b, GLdouble t, GLdouble n, GLdouble f)
+{
+	float o[16] = { 0 };
+	o[0] = (float)(2 / (r - l)); o[5] = (float)(2 / (t - b)); o[10] = (float)(-2 / (f - n));
+	o[12] = (float)(-(r + l) / (r - l)); o[13] = (float)(-(t + b) / (t - b)); o[14] = (float)(-(f + n) / (f - n)); o[15] = 1;
+	Mul(Top(), o);
+	if (g_matMode) g_ortho = 1;
+	r_Ortho(l, r, b, t, n, f);
+}
+static void APIENTRY H_PushMatrix(void) { int k = g_matMode; if (g_depth[k] < 31) { g_stack[k][g_depth[k] + 1] = g_stack[k][g_depth[k]]; g_depth[k]++; } r_PushMatrix(); }
+static void APIENTRY H_PopMatrix(void) { int k = g_matMode; if (g_depth[k] > 0) g_depth[k]--; r_PopMatrix(); }
+static void APIENTRY H_Viewport(GLint x, GLint y, GLsizei w, GLsizei h) { g_vp[0] = x; g_vp[1] = y; g_vp[2] = w; g_vp[3] = h; r_Viewport(x, y, w, h); }
+static void APIENTRY H_VertexPointer(GLint a, GLenum b, GLsizei c, const void *d) { g_va.size = a; g_va.type = b; g_va.stride = c; g_va.ptr = d; r_VertexPointer(a, b, c, d); }
+static void APIENTRY H_TexCoordPointer(GLint a, GLenum b, GLsizei c, const void *d) { g_ta.size = a; g_ta.type = b; g_ta.stride = c; g_ta.ptr = d; r_TexCoordPointer(a, b, c, d); }
+static void APIENTRY H_ColorPointer(GLint a, GLenum b, GLsizei c, const void *d) { g_ca.size = a; g_ca.type = b; g_ca.stride = c; g_ca.ptr = d; r_ColorPointer(a, b, c, d); }
+static void APIENTRY H_EnableClientState(GLenum a) { if (a == GL_TEXTURE_COORD_ARRAY) g_taOn = 1; if (a == GL_COLOR_ARRAY) g_caOn = 1; r_EnableClientState(a); }
+static void APIENTRY H_DisableClientState(GLenum a) { if (a == GL_TEXTURE_COORD_ARRAY) g_taOn = 0; if (a == GL_COLOR_ARRAY) g_caOn = 0; r_DisableClientState(a); }
+static void APIENTRY H_Color4f(GLfloat r, GLfloat g, GLfloat b, GLfloat a) { g_col[0] = r; g_col[1] = g; g_col[2] = b; g_col[3] = a; r_Color4f(r, g, b, a); }
+static void APIENTRY H_Color4ub(GLubyte r, GLubyte g, GLubyte b, GLubyte a) { g_col[0] = r / 255.f; g_col[1] = g / 255.f; g_col[2] = b / 255.f; g_col[3] = a / 255.f; r_Color4ub(r, g, b, a); }
+static void APIENTRY H_BindTexture(GLenum t, GLuint id) { g_tex = id; r_BindTexture(t, id); }
+static void APIENTRY H_TexImage2D(GLenum t, GLint lv, GLint ifm, GLsizei w, GLsizei h, GLint bd, GLenum fm, GLenum ty, const void *px)
+{
+	if (lv == 0 && g_tex < 8192) { g_texW[g_tex] = w; g_texH[g_tex] = h; }
+	r_TexImage2D(t, lv, ifm, w, h, bd, fm, ty, px);
+}
+
+static float Comp(const void *base, GLenum type, GLsizei stride, int size, int i, int c)
+{
+	int bytes = type == GL_FLOAT || type == GL_INT ? 4 : type == GL_SHORT ? 2 : 1;
+	const BYTE *p = (const BYTE *)base + (size_t)i * (stride ? stride : size * bytes) + c * bytes;
+	switch (type)
+	{
+	case GL_FLOAT: return *(const float *)p;
+	case GL_INT: return (float)*(const int *)p;
+	case GL_SHORT: return (float)*(const short *)p;
+	case GL_UNSIGNED_BYTE: return *(const BYTE *)p / 255.f;
+	default: return 0;
+	}
+}
+
+// One quad (or a whole draw when it is not made of quads): its window rectangle, texels and colour, as a row.
+static void WriteQuad(GLenum mode, int quad, int first, int count, const Mat *mvp)
+{
+	float x0 = 1e9f, y0 = 1e9f, x1 = -1e9f, y1 = -1e9f, u0 = 1e9f, v0 = 1e9f, u1 = -1e9f, v1 = -1e9f;
+	for (int i = first; i < first + count; i++)
+	{
+		float v[4] = { Comp(g_va.ptr, g_va.type, g_va.stride, g_va.size, i, 0), Comp(g_va.ptr, g_va.type, g_va.stride, g_va.size, i, 1),
+			g_va.size > 2 ? Comp(g_va.ptr, g_va.type, g_va.stride, g_va.size, i, 2) : 0, 1 };
+		float cx = 0, cy = 0, cw = 0;
+		for (int k = 0; k < 4; k++) { cx += mvp->m[k * 4 + 0] * v[k]; cy += mvp->m[k * 4 + 1] * v[k]; cw += mvp->m[k * 4 + 3] * v[k]; }
+		if (cw == 0) cw = 1;
+		float wx = g_vp[0] + (cx / cw + 1) * 0.5f * g_vp[2];
+		float wy = g_vp[3] - (g_vp[1] + (cy / cw + 1) * 0.5f * g_vp[3]);
+		if (wx < x0) x0 = wx;
+		if (wx > x1) x1 = wx;
+		if (wy < y0) y0 = wy;
+		if (wy > y1) y1 = wy;
+		if (g_taOn && g_ta.ptr)
+		{
+			float u = Comp(g_ta.ptr, g_ta.type, g_ta.stride, g_ta.size, i, 0), t = Comp(g_ta.ptr, g_ta.type, g_ta.stride, g_ta.size, i, 1);
+			if (u < u0) u0 = u;
+			if (u > u1) u1 = u;
+			if (t < v0) v0 = t;
+			if (t > v1) v1 = t;
+		}
+	}
+	float col[4] = { g_col[0], g_col[1], g_col[2], g_col[3] };
+	if (g_caOn && g_ca.ptr) for (int c = 0; c < 4 && c < g_ca.size; c++) col[c] = Comp(g_ca.ptr, g_ca.type, g_ca.stride, g_ca.size, first, c);
+	int tw = g_tex < 8192 ? g_texW[g_tex] : 0, th = g_tex < 8192 ? g_texH[g_tex] : 0;
+	if (!g_taOn) { u0 = v0 = u1 = v1 = 0; }
+	fprintf(g_draws, "%llu\t%d\t%d\t%u\t%u\t%d\t%d\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.1f\t%.3f\t%.3f\t%.3f\t%.3f\n",
+		g_frame, g_drawIndex, quad, mode, g_taOn ? g_tex : 0, tw, th, x0, y0, x1 - x0, y1 - y0,
+		u0 * (tw ? tw : 1), v0 * (th ? th : 1), (u1 - u0) * (tw ? tw : 1), (v1 - v0) * (th ? th : 1), col[0], col[1], col[2], col[3]);
+}
+
+static void APIENTRY H_DrawArrays(GLenum mode, GLint first, GLsizei count)
+{
+	if (g_drawsActive && g_draws && g_ortho && g_va.ptr && count > 0 && count < 100000)
+	{
+		Mat mvp = g_stack[1][g_depth[1]];
+		Mul(&mvp, g_stack[0][g_depth[0]].m);
+		// Triangles in sixes and quads in fours are a quad each (FF4.exe batches a window's pieces, a line's glyphs).
+		int per = mode == GL_TRIANGLES && count % 6 == 0 ? 6 : mode == GL_QUADS && count % 4 == 0 ? 4 : count;
+		for (int q = 0; q * per < count; q++) WriteQuad(mode, q, first + q * per, per, &mvp);
+		g_drawIndex++;
+	}
+	r_DrawArrays(mode, first, count);
+}
+
+static void *PatchImport(HMODULE exe, const char *dll, const char *name, void *hook);
+
+static void InstallDrawHooks(HMODULE self)
+{
+	HMODULE gl = GetModuleHandleA("opengl32.dll");
+	for (int k = 0; k < 2; k++) Ident(&g_stack[k][0]);
+#define GLHOOK(name) r_##name = (void *)PatchImport(self, "OPENGL32.dll", "gl" #name, (void *)H_##name); if (!r_##name && gl) r_##name = (void *)GetProcAddress(gl, "gl" #name)
+	GLHOOK(MatrixMode); GLHOOK(LoadIdentity); GLHOOK(LoadMatrixf); GLHOOK(MultMatrixf); GLHOOK(Translatef); GLHOOK(Ortho);
+	GLHOOK(PushMatrix); GLHOOK(PopMatrix); GLHOOK(Viewport); GLHOOK(VertexPointer); GLHOOK(TexCoordPointer); GLHOOK(ColorPointer);
+	GLHOOK(EnableClientState); GLHOOK(DisableClientState);
+	GLHOOK(Color4f); GLHOOK(Color4ub); GLHOOK(BindTexture); GLHOOK(TexImage2D); GLHOOK(DrawArrays);
+#undef GLHOOK
+	Log("draw hooks: glDrawArrays %s", r_DrawArrays ? "hooked" : "NOT FOUND");
 }
 
 // FF4.exe's import of an SDL2 function pointed at the hook; the real one kept.
@@ -814,6 +1025,7 @@ static void Install(void)
 	g_swapWindow = (SwapWindowFn)PatchImport(self, "SDL2.dll", "SDL_GL_SwapWindow", (void *)Hook_SwapWindow);
 	g_renderPresent = (RenderPresentFn)PatchImport(self, "SDL2.dll", "SDL_RenderPresent", (void *)Hook_RenderPresent);
 	WrapCommandTable();
+	InstallDrawHooks(self);
 	Log("ff4hook in %s (pid %lu): SDL_PollEvent %s, SDL_GL_SwapWindow %s; commands from %s",
 		exe, GetCurrentProcessId(), g_pollEvent ? "hooked" : "NOT FOUND", g_swapWindow ? "hooked" : "NOT FOUND", g_cmdPath);
 	// An import not yet bound would leave a hook calling nothing; keep the real one from SDL2 itself then.

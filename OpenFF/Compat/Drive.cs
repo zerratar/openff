@@ -581,6 +581,16 @@ namespace OpenFF.Client
 					Log.Write(LogChannel.File, "drive: hud " + arg);
 					break;
 				}
+				case "draws":
+				{
+					// draws <name>: the next step's 2D draws in 1920 x 1080 pixels into the screenshot folder's <name>.tsv (DrawsDump)
+					string dir = Options.Get("screenshot-dir");
+					if (string.IsNullOrEmpty(dir)) dir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "screenshots");
+					System.IO.Directory.CreateDirectory(dir);
+					DrawsDump.Pending = System.IO.Path.Combine(dir, (string.IsNullOrWhiteSpace(step.Arg) ? "draws" : step.Arg.Trim()) + ".tsv");
+					ScreenCapture.Burst = Math.Max(1, ScreenCapture.Burst);
+					break;
+				}
 				case "shots":
 					ScreenCapture.Burst = Math.Max(1, int.TryParse(step.Arg, out int shots) ? shots : 1);
 					Log.Write(LogChannel.General, "drive: shots " + ScreenCapture.Burst);

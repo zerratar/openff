@@ -170,6 +170,7 @@ namespace OpenFF.Client
 				// The mods' drawing of the step before goes, kept for the display frames until the next step to
 				// draw this one's part of the way from (ModDrawBlend); this step's comes in Game.Update, and
 				// ModDraw draws it every display frame until then.
+				DrawsDump.Write(OpenFF.Game.Draw.Commands);
 				ModDrawBlend.Keep(OpenFF.Game.Draw.Commands);
 				kept = true;
 				OpenFF.Game.Draw.Clear();

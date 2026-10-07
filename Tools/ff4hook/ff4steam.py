@@ -137,6 +137,17 @@ def play(steps, out):
             # joints <frames> <model> <node,node,...>: those joints' world positions, into <out dir>/joints.tsv
             n, model, names = rest.split()[:3]
             send("joints %s %s %s %s" % (n, os.path.join(out, "joints.tsv"), model, names))
+        elif word == "texdump":
+            # texdump <texture id> [name]: that GL texture read back into <out dir>/<name>.bmp
+            parts = rest.split()
+            send("texdump %s %s" % (parts[0], os.path.join(out, (parts[1] if len(parts) > 1 else "tex" + parts[0]) + ".bmp")))
+            time.sleep(0.3)
+        elif word == "draws":
+            # draws <name>: every 2D draw of the next frame (window rectangle, texture, texels, colour), into <out dir>/<name>.tsv, with a shot of that frame
+            name = rest.strip() or "draws"
+            send("draws " + os.path.join(out, name + ".tsv"))
+            send("shot " + os.path.join(out, name + ".bmp"))
+            time.sleep(0.3)
         elif word == "dumpchars":
             send("dumpchars " + os.path.join(out, (rest.strip() or "slots") + ".bin"))
             time.sleep(0.2)
